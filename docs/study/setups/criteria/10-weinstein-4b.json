@@ -1,0 +1,1517 @@
+{
+ "setup": "10-weinstein-4b",
+ "name": "4B- (Stan Weinstein)",
+ "unit": "none",
+ "direction": "long",
+ "timeframe": "daily",
+ "dossier": "docs/study/setups/research/10-weinstein-4b.md",
+ "as_of": "2026-11-09",
+ "card": {
+  "context": "A stock late in a long Stage 4 decline (at least 30% under its 52-week high, under a falling 30-week line at the low) that has stopped making new lows, with its group turning and the market Green or Yellow. Version H, the one we trade: price is already back above the 200-day.",
+  "pattern": "A cycle low with no close under it since, a higher low at least 3% above it set 10 or more sessions later on drying down-day volume, then a reclaim of a flattening 50-day and a pause of 2 or more closes above it, with at least 3R of room to the next ceiling.",
+  "trigger": "PREV DAY HIGH BREAK: price trades above the highest high of the pause above the 50-day (with a two-session pause, the prior day's high), bought at market, no more than 4% past it.",
+  "stop": "A few cents under the pause low when that is inside the owner's maximum, else under the trigger day's low or the prior day's low; the widest allowed (3%, 5% or 8%) is his call.",
+  "failure_mode": "Stage 4 resumes: the break of the pause high stalls under the falling 150 or 200-day and the stop is hit, or a V bottom fails twice before it goes (META 2020). Bulkowski's own Stage 4 buys made money 24% of the time."
+ },
+ "entry_trigger": "PREV DAY HIGH BREAK",
+ "criteria": [
+  {
+   "id": "w4b.cycle_low",
+   "field": "context",
+   "statement": "The cycle low is the lowest low of the 252 sessions before the trigger; the 52-week high is the highest high of the 252 sessions before the cycle low.",
+   "measure": {
+    "what": "cycle low",
+    "op": "==",
+    "value": "lowest low of the 252 sessions before the trigger",
+    "timeframe": "daily",
+    "and": "52-week high = highest high of the 252 sessions before the cycle low"
+   },
+   "basis": "my proposal",
+   "sources": [],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Cycle low",
+   "evidence": "The first draft used cycle low without defining it. The scan placed the cycle low 15 to 130 sessions back, an early turn rather than a late Stage 2."
+  },
+  {
+   "id": "w4b.stage4",
+   "field": "context",
+   "statement": "A Stage 4 decline came first: on the cycle low's date the 150-day SMA (the 30-week line) was lower than 20 sessions earlier and price was under it.",
+   "measure": {
+    "what": "150-day SMA on the cycle low's date - 150-day SMA 20 sessions earlier",
+    "op": "<",
+    "value": 0,
+    "unit": "$",
+    "timeframe": "daily",
+    "and": "the cycle low's close under the 150-day SMA"
+   },
+   "glossary": "rising_average",
+   "basis": "source consensus",
+   "sources": [
+    "S5",
+    "S7"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Prior trend",
+   "evidence": "Stage 4 is price under a declining 30-week line in TraderLion's guide (S5) and Deepvue's page (S7); the 20 sessions are the dossier's. NFLX (150-day 474.62 against 525.41) and DXCM (123.81 against 124.83) both pass. RDDT 2025-11, the owner's closest note in shape, was above a rising 30-week line and so a Stage 2 pullback, not a 4B-."
+  },
+  {
+   "id": "w4b.depth",
+   "field": "context",
+   "statement": "The cycle low is at least 30% under the 52-week high.",
+   "measure": {
+    "what": "1 - cycle low / 52-week high",
+    "op": ">=",
+    "value": 30,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "glossary": "base_depth",
+   "basis": "my proposal",
+   "sources": [
+    "S3"
+   ],
+   "options": [
+    {
+     "value": "depth only, 30%",
+     "basis": "the dossier's recommendation; D-070's default; both named examples pass (NFLX 77%, DXCM 56%)"
+    },
+    {
+     "value": "depth only, 40% or 50%",
+     "basis": "a stricter sharp decline"
+    },
+    {
+     "value": "time only, 39 weeks",
+     "basis": "stageanalysis.net's screener (S11); drops both named examples"
+    },
+    {
+     "value": "both",
+     "basis": "depth and time"
+    }
+   ],
+   "recommended": "depth only, 30%",
+   "status": "pending-owner",
+   "owner_question": "D-070",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Depth; 10 question 6",
+   "evidence": "Weinstein's sharp decline as TraderLion's clip description summarises it (S3); no source gives a number. The examples' cycle lows sat 34% (FDX) to 53% (PENN) under the 52-week high."
+  },
+  {
+   "id": "w4b.time_in_decline",
+   "field": "context",
+   "statement": "An option, not recommended: price under a falling 150-day SMA for at least 26 of the 39 weeks before the cycle low. It fails both named examples (NFLX about 17 weeks, DXCM about 8).",
+   "measure": {
+    "what": "weeks under a falling 150-day SMA among the 39 before the cycle low",
+    "op": ">=",
+    "value": 26,
+    "unit": "weeks",
+    "timeframe": "weekly"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S11"
+   ],
+   "status": "pending-owner",
+   "owner_question": "D-070",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Time in decline; 10 question 6",
+   "evidence": "stageanalysis.net's mechanical 4B- needs 39 or more weeks in Stage 4 (S11). Not tested in the scan. A long decline is the A+ cue in section 9; SAM 2020's Stage 4 lasted only weeks, like Weinstein's own examples."
+  },
+  {
+   "id": "w4b.version_h_200",
+   "field": "context",
+   "statement": "Version H, the one we trade: the close is above the 200-day SMA, so price is above every average (the owner's remounted all MAs read). Weinstein's version (W) lives under it and B26 forbids it.",
+   "measure": {
+    "what": "close against the 200-day SMA",
+    "op": ">",
+    "value": "200-day SMA",
+    "timeframe": "daily"
+   },
+   "glossary": "above_200",
+   "basis": "house rule",
+   "sources": [
+    "S23",
+    "S3",
+    "S6"
+   ],
+   "house_rule": "B26",
+   "options": [
+    {
+     "value": "a",
+     "basis": "Version H only: trade it once price is back above the 200-day; the dossier's recommendation with (c); D-009's default (B26 as written)"
+    },
+    {
+     "value": "b",
+     "basis": "a second named exception to B26 for the 4B-, at B- size with a tight stop"
+    },
+    {
+     "value": "c",
+     "basis": "teach the 4B- only as a reading skill that puts a stock on the watchlist for its later Stage 2A breakout"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-009",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Version H only; 10 question 2",
+   "evidence": "Both named examples fail it at the entry: NFLX 190.92 against a 200-day of 415.34 (2022-07-18), DXCM 72.53 against 103.12 (2024-11-13). Scan: Version H (1,110 hits) reached 3R 22.2% and 5R 13.9%; Version W (906 hits, under the 200-day) 30.1% and 16.7%, better on this fixed-stop test, which is worth knowing when the owner answers."
+  },
+  {
+   "id": "w4b.rs_line",
+   "field": "context",
+   "statement": "Relative strength: the RS line (the stock divided by SPY) has made a higher low with price, or is above its own 50-day average. RS 80 is waived only if the owner rules the 4B- a mean-reversion trade.",
+   "measure": {
+    "what": "RS line (stock / SPY) at the higher low against the RS line at the cycle low",
+    "op": ">",
+    "value": "RS line at the cycle low",
+    "timeframe": "daily",
+    "or": "RS line above its own 50-day average"
+   },
+   "glossary": "leader",
+   "basis": "my proposal",
+   "sources": [
+    "S1",
+    "S10",
+    "S20"
+   ],
+   "house_rule": "C31",
+   "options": [
+    {
+     "value": "a",
+     "basis": "exempt from RS 80 as mean reversion, with the RS-line test: D-011's default puts the 4B- in the mean-reversion class with an RS line that held up through the decline as the cue"
+    },
+    {
+     "value": "b",
+     "basis": "RS 80 must hold (very few will pass after a long decline)"
+    },
+    {
+     "value": "c",
+     "basis": "exempt only in Version W"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-011",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Relative strength; 10 question 3",
+   "evidence": "Weinstein's method reads RS: the GTA's buy notes (S1), stageanalysis.net's RS zero line (S10), Bulkowski's coded test (S20). NFLX passes; DXCM fails (a lower RS low on 2024-10-03, just under its 50-day average on 2024-11-13). The scan required it."
+  },
+  {
+   "id": "w4b.group",
+   "field": "context",
+   "statement": "The stock's industry-group ETF or index closes above its own 50-day SMA.",
+   "measure": {
+    "what": "group ETF or index close against its 50-day SMA",
+    "op": ">",
+    "value": "50-day SMA",
+    "timeframe": "daily"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S14",
+    "S1"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Group and market",
+   "evidence": "Weinstein's forest to the trees order (market, then group, then stock) as stageanalysis.net quotes page 75 of the book (S14, not checked against the book); the 2005 GTA stresses stock and group selection (S1). Not tested in the scan (no group data in the sandbox)."
+  },
+  {
+   "id": "w4b.market_reading",
+   "field": "context",
+   "statement": "Green or Yellow market reading; Orange: A+ only; Red: no new longs.",
+   "glossary": "market_reading",
+   "basis": "house rule",
+   "sources": [
+    "S6"
+   ],
+   "house_rule": "F65",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Group and market; 8.5",
+   "evidence": "B18 is the filter. Deepvue: the setup suits a market after most stocks have been downtrending (S6). TGT 2008-09-03 (in the bear) and 2009-04-30 (in the rally that began in March 2009), two 4B- triggers that each closed above a falling 200-day and were stopped the next session at 0.0R: the market reading, which the scan could not test, is the missing filter for the first; the second came in a rally, where it may not have kept it out. (corrected 2026-11-10 against the bars)."
+  },
+  {
+   "id": "w4b.market_turn",
+   "field": "context",
+   "statement": "Best after a broad market decline once the market itself is turning back up; after a correction, start with a few positions and add more only as the first ones work.",
+   "basis": "house rule",
+   "sources": [
+    "S6"
+   ],
+   "house_rule": "F68",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.7",
+   "evidence": "Five of the ten examples (SNPS 1998, FDX 2001, SAM 2020, URI 2022, DY 2025) are turns after a market-wide selloff."
+  },
+  {
+   "id": "w4b.first_in_group",
+   "field": "context",
+   "statement": "A cue: the group is basing too, and the stock is among the first in it to reclaim its 50-day.",
+   "measure": {
+    "what": "the stock's 50-day reclaim against its group's members",
+    "op": "in",
+    "value": "the first few in the group"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S14",
+    "S1"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.7",
+   "evidence": "Adapted from stageanalysis.net's Stage 2A checklist (first to move into Stage 2, S14) and the GTA's group pages (S1)."
+  },
+  {
+   "id": "w4b.fresh_reason",
+   "field": "context",
+   "statement": "A cue: a fresh reason for the turn (an earnings reaction, a guidance change) helps; on Deepvue's NFLX chart the report came after the entry, so that buy was a bet into earnings that B22 forbids.",
+   "measure": {
+    "what": "sessions between the entry and the next report (B22)",
+    "op": ">",
+    "value": 3,
+    "unit": "sessions"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S6",
+    "S25"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.7; 9",
+   "evidence": "NFLX closed back over its 50-day on 2022-07-15 and 07-18; Netflix reported after the close on 2022-07-19 (S25); the big gap came on 07-20."
+  },
+  {
+   "id": "w4b.liquidity",
+   "field": "context",
+   "statement": "Price $10 or more and $20 million or more traded a day.",
+   "measure": {
+    "what": "close",
+    "op": ">=",
+    "value": 10,
+    "unit": "$",
+    "and": "50-day average dollar volume >= 20,000,000"
+   },
+   "glossary": "liquidity",
+   "basis": "house rule",
+   "sources": [
+    "S6"
+   ],
+   "house_rule": "B23",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Liquidity",
+   "evidence": "Deepvue's screen ($15 and 500,000 shares, about $7.5 million a day, S6) is looser on dollar volume and stricter on price. The scan used the house floor."
+  },
+  {
+   "id": "w4b.position_adv",
+   "field": "management",
+   "statement": "The position is at most 1% of average daily volume.",
+   "measure": {
+    "what": "shares / average daily volume",
+    "op": "<=",
+    "value": 1,
+    "unit": "%"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "D42",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Liquidity"
+  },
+  {
+   "id": "w4b.no_new_low",
+   "field": "pattern",
+   "statement": "Low for the cycle: no close under the cycle low since it was set.",
+   "measure": {
+    "what": "closes under the cycle low since it was set",
+    "op": "==",
+    "value": 0,
+    "unit": "closes",
+    "timeframe": "daily"
+   },
+   "basis": "originator",
+   "sources": [
+    "S10",
+    "S23"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Low for the cycle",
+   "evidence": "The GTA's 4B- wording: stock has now seen its low for the cycle (S10, as stageanalysis.net prints it); the owner on RDDT: not made a new low (S23). The test is the dossier's."
+  },
+  {
+   "id": "w4b.higher_low",
+   "field": "pattern",
+   "statement": "A higher low: a pullback low at least 3% above the cycle low, set at least 10 sessions after it, with a rally of 5% or more before it.",
+   "measure": {
+    "what": "higher low / cycle low - 1",
+    "op": ">=",
+    "value": 3,
+    "unit": "%",
+    "timeframe": "daily",
+    "and": "set at least 10 sessions after the cycle low, after a rally of 5% or more"
+   },
+   "glossary": "swing_low",
+   "basis": "my proposal",
+   "sources": [
+    "S6"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Higher low",
+   "evidence": "Deepvue: form of a higher low (critical signal) (S6); the numbers are the dossier's. NFLX: 170.30 on 2022-06-30 (+4.7%); DXCM: 64.76 on 2024-10-02 (+3.9%). The examples ran +3.8% (URI) to +21.6% (NTAP). META 2020 reclaimed after a V bottom and failed twice before the real move: a 4B- after a V can fail twice before it goes."
+  },
+  {
+   "id": "w4b.base_length",
+   "field": "pattern",
+   "statement": "At least 15 sessions from the cycle low to the trigger.",
+   "measure": {
+    "what": "sessions from the cycle low to the trigger",
+    "op": ">=",
+    "value": 15,
+    "unit": "sessions",
+    "timeframe": "daily"
+   },
+   "glossary": "base_length",
+   "basis": "my proposal",
+   "sources": [
+    "S3",
+    "S12"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Base length",
+   "evidence": "Weinstein's base formation (S3); stageanalysis.net warns about a small base following a large Stage 4 decline (S12); 15 is the dossier's. NFLX 44, DXCM 77; the examples 22 (NTAP, DY) to 96 sessions (URI) off the low."
+  },
+  {
+   "id": "w4b.volume_into_higher_low",
+   "field": "pattern",
+   "statement": "Volume into the higher low: the average volume on the down days of the higher-low pullback is below the 50-day average volume.",
+   "measure": {
+    "what": "average volume of the down days of the higher-low pullback / 50-day average volume",
+    "op": "<",
+    "value": 1,
+    "unit": "x",
+    "timeframe": "daily"
+   },
+   "glossary": "dry_up",
+   "basis": "my proposal",
+   "sources": [
+    "S6",
+    "S5"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Volume into the higher low",
+   "evidence": "Deepvue: decreasing downside momentum/volume (S6); TraderLion's Stage 1 text names declining volume (S5); the test is the dossier's. NDSN's volume into the higher low was below average."
+  },
+  {
+   "id": "w4b.reclaim_50",
+   "field": "pattern",
+   "statement": "The close is above the 50-day SMA: the recapture of the 50-day that Weinstein names.",
+   "measure": {
+    "what": "close against the 50-day SMA",
+    "op": ">",
+    "value": "50-day SMA",
+    "timeframe": "daily"
+   },
+   "glossary": "remount",
+   "basis": "originator",
+   "sources": [
+    "S3",
+    "S6",
+    "S7"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 50-day",
+   "evidence": "TraderLion's clip description of his criteria: recapture of the 50-day moving average (S3); Deepvue's reclaim of the 50-day MA (S6); Deepvue's page: Stan has more recently noted the importance of the 50-day (S7). Classic Stage Analysis is weekly; every modern 4B- source triggers on the daily 50-day or its 10-week twin."
+  },
+  {
+   "id": "w4b.flattening_50",
+   "field": "pattern",
+   "statement": "The 50-day is flattening: no more than 1% lower than it was 10 sessions ago. NFLX fails this at its entry (-2.1% on 2022-07-18; it first passed on 07-20); DXCM passes (-0.4%).",
+   "measure": {
+    "what": "50-day SMA today / 50-day SMA 10 sessions ago - 1",
+    "op": ">=",
+    "value": -1,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "glossary": "rising_average",
+   "basis": "my proposal",
+   "sources": [
+    "S6"
+   ],
+   "options": [
+    {
+     "value": "a gate at 1%",
+     "basis": "the dossier's 8.1 line"
+    },
+    {
+     "value": "a cue, not a gate",
+     "basis": "D-070's default, because the number rejects the NFLX entry"
+    },
+    {
+     "value": "drop it",
+     "basis": "no source gives a number"
+    }
+   ],
+   "recommended": "a cue, not a gate",
+   "status": "pending-owner",
+   "owner_question": "D-070",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1 50-day; 10 question 6",
+   "evidence": "Deepvue: flattening 50-day MA slope (S6); the 1% and 10 sessions are the dossier's. The scan used the 1% gate, and NFLX 2022-07 did not fire (the 1% and B22). NUS's 50-day was up 2.2% in 10 sessions, PENN's up 3.7%: a 50-day that has turned up is the A+ cue."
+  },
+  {
+   "id": "w4b.pause",
+   "field": "pattern",
+   "statement": "A pause above the 50-day: at least 2 sessions closing above it before the trigger.",
+   "measure": {
+    "what": "consecutive closes above the 50-day SMA before the trigger",
+    "op": ">=",
+    "value": 2,
+    "unit": "sessions",
+    "timeframe": "daily"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S6",
+    "S23"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Pause above the 50-day",
+   "evidence": "Deepvue: consolidation above the 50-day (S6); the owner's two tight rest days above the 50SMA, said of RDDT, not a 4B- (S23); the 2 is the dossier's. The scan allowed a pause of 2 to 40 closes."
+  },
+  {
+   "id": "w4b.pause_length_cue",
+   "field": "pattern",
+   "statement": "A cue from the scan: a pause of 5 to 20 sessions did best; a bare 2 to 4 session pause did worst.",
+   "measure": {
+    "what": "sessions in the pause above the 50-day",
+    "op": "in",
+    "value": [
+     5,
+     20
+    ],
+    "unit": "sessions",
+    "timeframe": "daily"
+   },
+   "basis": "measured",
+   "sources": [
+    "S26"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "12",
+   "evidence": "Version H splits: a 5-to-10-day pause 25.9% to 3R and 15.4% to 5R, 11 to 20 days 23.1% and 16.2%, 21 to 40 days 21.3% and 12.4%, a bare 2-to-4-day pause 15.7% and 11.8%. The examples paused 8 (FDX) to 19 sessions (NUS). One scanner's reading on Yahoo-style daily bars (S26), not a trading record."
+  },
+  {
+   "id": "w4b.room_to_run",
+   "field": "pattern",
+   "statement": "Room to run: at least 3R from the entry to the nearest overhead level among the 150-day SMA, the 200-day SMA and the highest close of the 60 sessions before the cycle low, counting only levels above the entry.",
+   "measure": {
+    "what": "(nearest overhead level above the entry - entry) / (entry - stop)",
+    "op": ">=",
+    "value": 3,
+    "unit": "R",
+    "timeframe": "daily"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S3"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Room to run",
+   "evidence": "Weinstein's room to run (S3); the levels and the 3R (matching the first trim, B19) are the dossier's. AMD 2018 had 4.4R of room to the old closes, URI 3.8R. MSFT 2001 passed on paper (the 200-day sat 16.1% under the price, so nothing was overhead) and was stopped twice (corrected 2026-11-10 against the bars): the earlier text put the stock under a falling 200-day."
+  },
+  {
+   "id": "w4b.long_averages_flat",
+   "field": "pattern",
+   "statement": "A cue: the 150-day and 200-day lines flat or turning over the trade, not still falling steeply. A falling long average over the trade is a different picture from PENN's or NUS's flat ones.",
+   "measure": {
+    "what": "200-day SMA today - 200-day SMA 20 sessions ago",
+    "op": ">=",
+    "value": 0,
+    "unit": "$",
+    "timeframe": "daily",
+    "note": "a cue, not a gate"
+   },
+   "glossary": "rising_average",
+   "basis": "measured",
+   "sources": [
+    "S26",
+    "S5"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "12 Notable failures; 9",
+   "evidence": "MSFT 2001-05-07 and 2001-06-05: a 66% Stage 4 decline, a long base, 18- and 38-day pauses above the 50-day, both breaks stopped (0.3R, 0.6R) with the 200-day 16.1% and 18.2% under the price (not overhead supply) and flat through the first trade (30.74 to 30.75) after falls of 2.0% and 0.1% in the 20 sessions before the two triggers (corrected 2026-11-10 against the bars). TraderLion: if the moving average is still sharply sloping downward, the stock has likely not yet entered a true Stage 1 (S5)."
+  },
+  {
+   "id": "w4b.trigger",
+   "field": "trigger",
+   "statement": "Price trades above the highest high of the pause above the 50-day; with the 2-session minimum pause that is the higher of the last two highs, usually the prior day's high.",
+   "measure": {
+    "what": "intraday high during regular hours",
+    "op": ">",
+    "value": "highest high of the pause above the 50-day"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S6",
+    "S24"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "trades above the pause high (or the prior day's high), market order: the dossier's recommendation; E57; the owner's Kicker ruling (trigger OVER previous day high not at mkt close, S24) borrowed by analogy; D-003's default applies it to every daily setup"
+    },
+    {
+     "value": "b",
+     "basis": "a close above the 50-day"
+    },
+    {
+     "value": "c",
+     "basis": "GTA style, a close above a set level (S1, S2)"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-003",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 Trigger; 10 question 5",
+   "evidence": "Deepvue's chart labels the entry Break above 50DMA (S6). He has not ruled on the 4B- itself. The scan bought the pause high plus a cent, or the open when it gapped over it (SAM filled at 444.00 against a 439.42 buy point, 1% past it)."
+  },
+  {
+   "id": "w4b.order",
+   "field": "trigger",
+   "statement": "A market order once the trigger trades, during regular hours.",
+   "basis": "house rule",
+   "sources": [
+    "S1",
+    "S2"
+   ],
+   "house_rule": "E57",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 Order",
+   "evidence": "E58 for regular hours. The GTA buys on a close above a level or crossing it (S1, S2); ours is a market order once the trigger trades."
+  },
+  {
+   "id": "w4b.no_chase",
+   "field": "trigger",
+   "statement": "Skip if already more than 4% above the trigger level.",
+   "measure": {
+    "what": "fill / pause high - 1",
+    "op": "<=",
+    "value": 4,
+    "unit": "%"
+   },
+   "glossary": "chase_limit",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "C28",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 Not too late",
+   "evidence": "A 50-day reclaim on an earnings gap can be stretched. The scan skipped fills more than 4% past the pause high."
+  },
+  {
+   "id": "w4b.not_stretched",
+   "field": "trigger",
+   "statement": "Skip if more than 10% above the 10-day average.",
+   "measure": {
+    "what": "entry / 10-day SMA - 1",
+    "op": "<=",
+    "value": 10,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "glossary": "stretched",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "C29",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 Not too late"
+  },
+  {
+   "id": "w4b.earnings_window",
+   "field": "trigger",
+   "statement": "No new buy in the 3 sessions before a report; hold through a report only if up 5R. Check the report date on every 4B-: Deepvue's NFLX entry came one to two sessions before the report.",
+   "measure": {
+    "what": "sessions until the next report",
+    "op": ">",
+    "value": 3,
+    "unit": "sessions"
+   },
+   "glossary": "earnings_blackout",
+   "basis": "house rule",
+   "sources": [
+    "S25",
+    "S6"
+   ],
+   "house_rule": "B22",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 Earnings; 7 B22 row",
+   "evidence": "Netflix's Form 8-K is dated 2022-07-19 (S25); the $189 entry was 07-15 and 07-18 (S6). The scan applied B22 from the earnings table, thin before 2005, so SNPS and FDX could not be checked."
+  },
+  {
+   "id": "w4b.stop",
+   "field": "stop",
+   "statement": "Default: a few cents under the lowest low of the pause above the 50-day; if the owner prefers the house default, a few cents under the trigger day's low or the prior day's low.",
+   "measure": {
+    "what": "stop",
+    "op": "==",
+    "value": "a few cents under the pause low (or the trigger day's or prior day's low)"
+   },
+   "glossary": "stop_margin",
+   "basis": "house rule",
+   "sources": [
+    "S23",
+    "S1",
+    "S2"
+   ],
+   "house_rule": "A3",
+   "options": [
+    {
+     "value": "the pause low",
+     "basis": "the dossier's proposal"
+    },
+    {
+     "value": "the trigger day's low or the prior day's low",
+     "basis": "A3, F62, the house default; D-008's default (the entry day's low with the pattern low as the outer limit)"
+    },
+    {
+     "value": "under the 50-day",
+     "basis": "the owner's RDDT note: ideally we use the 50SMA as a stop (S23)"
+    },
+    {
+     "value": "under the higher low",
+     "basis": "the GTA's investing-stop style (S1, S2)"
+    }
+   ],
+   "recommended": "the pause low",
+   "status": "pending-owner",
+   "owner_question": "D-005",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.3 Default and Structural alternatives; 10 question 4",
+   "evidence": "F62 gives the few cents. Scan: the pause-low stop fitted only 104 of 2,016 hits within 5%; 1,912 used the day-low stop (median 3.3%, A13's about 3%). A structural alternative is used only if inside the owner's maximum."
+  },
+  {
+   "id": "w4b.stop_width",
+   "field": "stop",
+   "statement": "If the honest stop is more than X% under the entry, skip the trade; X is 3% (A13), 5% or 8%. Never tighten the stop to fit.",
+   "measure": {
+    "what": "(entry - stop) / entry",
+    "op": "<=",
+    "value": "X, one of 3, 5 or 8",
+    "unit": "%"
+   },
+   "glossary": "stop_width",
+   "basis": "house rule",
+   "sources": [
+    "S2"
+   ],
+   "house_rule": "A13",
+   "options": [
+    {
+     "value": 3,
+     "basis": "A13 as written"
+    },
+    {
+     "value": 5,
+     "basis": "the scan's ceiling; stops of 3% or less did better (24.4% and 15.0%) than wider ones (20.4% and 13.0%)"
+    },
+    {
+     "value": 8,
+     "basis": "a structural stop at smaller size"
+    },
+    {
+     "value": "no fixed maximum",
+     "basis": "the structural stop, whatever its width, at smaller size (A5); D-005's default is up to one ADR, sized down and graded a notch lower"
+    }
+   ],
+   "recommended": 5,
+   "status": "pending-owner",
+   "owner_question": "D-005",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.3 Maximum; 10 question 4",
+   "evidence": "GTA stops in the 2024 sample run well past 3% (AKRO: a 30 entry, a 25.99 trading stop, S2). The examples' stops ran 1.9% (NUS) to 4.9% (NTAP, the question 4 case). The dossier recommends nothing here; the 5 is the scan's working ceiling."
+  },
+  {
+   "id": "w4b.stop_round_number",
+   "field": "stop",
+   "statement": "Not on a round number: a few cents under it. The GTA's stops sit mostly at x.99 or x.49; Bulkowski places his 7 cents below the round number.",
+   "measure": {
+    "what": "stop against the nearest round number",
+    "op": "<",
+    "value": "the round number by a few cents"
+   },
+   "basis": "originator",
+   "sources": [
+    "S1",
+    "S2",
+    "S20"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.3 Placement",
+   "evidence": "Bank of America, a 44.99 trading sell stop and a 43.99 investing stop (S1); AKRO 25.99 and 22.69 (S2). Bulkowski's 7 cents is his own interpretation, not Weinstein's (S20)."
+  },
+  {
+   "id": "w4b.stop_gap",
+   "field": "stop",
+   "statement": "A gap through the stop: the first 30-minute low is the new stop; out if that is past 2R.",
+   "measure": {
+    "what": "loss at the first 30-minute low of the gap-down day",
+    "op": "<=",
+    "value": 2,
+    "unit": "R",
+    "timeframe": "30-minute"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B20",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.3 Gap through the stop"
+  },
+  {
+   "id": "w4b.stop_broker",
+   "field": "stop",
+   "statement": "A real stop order with the broker. It only moves up.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "D41",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "7 A3 / F62 row",
+   "evidence": "A4: the stop only moves up."
+  },
+  {
+   "id": "w4b.size_by_grade",
+   "field": "management",
+   "statement": "Size from the stop (A5); B- or lower grades sized down (D38, E49); one price, one stop, no adding along the way.",
+   "measure": {
+    "what": "entries per trade",
+    "op": "==",
+    "value": 1,
+    "unit": "buy at one price with one stop"
+   },
+   "basis": "house rule",
+   "sources": [
+    "S17"
+   ],
+   "house_rule": "A5",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 Size; 7 A5 row",
+   "evidence": "Ameet Rai's add along the way (S17) conflicts with A5; ours is no adding."
+  },
+  {
+   "id": "w4b.breakeven",
+   "field": "management",
+   "statement": "Stop to breakeven between 2R and 5R, at the first trim by default.",
+   "measure": {
+    "what": "R at which the stop moves to the entry",
+    "op": "in",
+    "value": [
+     2,
+     5
+    ],
+    "unit": "R"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B19",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4"
+  },
+  {
+   "id": "w4b.trim_1",
+   "field": "management",
+   "statement": "Sell a third at 3R (the hard rule).",
+   "measure": {
+    "what": "fraction sold at 3R",
+    "op": "==",
+    "value": 0.333,
+    "unit": "of the position"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B19",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4",
+   "evidence": "Version H's median time to 3R, for those that got there, was 11 sessions; SNPS took 2, URI 3, AMD 4."
+  },
+  {
+   "id": "w4b.trim_2",
+   "field": "management",
+   "statement": "Sell a third at 5R.",
+   "measure": {
+    "what": "fraction sold at 5R",
+    "op": "==",
+    "value": 0.333,
+    "unit": "of the position"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "E51",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4",
+   "evidence": "All ten examples reached 5R; DY ran to 5R in 9 sessions (corrected 2026-11-10 against the bars) (the 5R price, 205.36, first traded on the ninth session after the entry day, 2025-05-21)."
+  },
+  {
+   "id": "w4b.trim_gap_open",
+   "field": "management",
+   "statement": "If it gaps past a trim level, trim at the open.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "F63",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4"
+  },
+  {
+   "id": "w4b.trail",
+   "field": "management",
+   "statement": "Trail the rest under the 10-day (fast movers) or the 21-day (steadier) on a close below it.",
+   "measure": {
+    "what": "close against the 10-day (fast) or 21-day (steadier) average",
+    "op": "<",
+    "value": "the average",
+    "timeframe": "daily"
+   },
+   "glossary": "trail",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "E52",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4",
+   "evidence": "FDX's 10-day EMA stayed above the 21-day all the way to 5R."
+  },
+  {
+   "id": "w4b.time_stop",
+   "field": "management",
+   "statement": "Time stop: under 1R after 10 trading days, sell. It fits the sources' short-term plays and capture quick momentum; bases after declines can be slow, so it will cut some.",
+   "measure": {
+    "what": "open R after 10 trading days",
+    "op": "<",
+    "value": 1,
+    "unit": "R"
+   },
+   "glossary": "time_stop",
+   "basis": "house rule",
+   "sources": [
+    "S5",
+    "S6"
+   ],
+   "house_rule": "C33",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4; 7 C33 row",
+   "evidence": "TraderLion: short-term plays (S5); Deepvue: capture quick momentum, sell, and move money elsewhere (S6). Settled by D-146 (10:8). Not applied in the scan."
+  },
+  {
+   "id": "w4b.short_term",
+   "field": "management",
+   "statement": "A short-term trade on the house trims, not a position meant to ride into Stage 2 while adding along the way.",
+   "measure": {
+    "what": "intended hold",
+    "op": "in",
+    "value": "days to a few weeks, the house trims (C35, C33)"
+   },
+   "basis": "house rule",
+   "sources": [
+    "S17",
+    "S5",
+    "S6"
+   ],
+   "house_rule": "C35",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "10 question 8; 7 C35 row",
+   "evidence": "D-146: the 4B- is a short-term trade on the house trims, not a position meant to ride into Stage 2. Ameet Rai rides it and adds (S17); TraderLion and Deepvue call it a short-term play (S5, S6)."
+  },
+  {
+   "id": "w4b.climax",
+   "field": "management",
+   "statement": "A climax run (Bracco's parabolic burst): sell a big part into it.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "C34",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4"
+  },
+  {
+   "id": "w4b.version_w_trim",
+   "field": "management",
+   "statement": "Version W only, if ever allowed: a first trim at the falling 200-day line when it sits under 3R.",
+   "measure": {
+    "what": "distance from the entry to the falling 200-day SMA",
+    "op": "<",
+    "value": 3,
+    "unit": "R",
+    "timeframe": "daily"
+   },
+   "basis": "my proposal",
+   "sources": [],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4",
+   "evidence": "Depends on D-009 (10:2); the house trims stand for Version H."
+  },
+  {
+   "id": "w4b.inv_close_under_cycle_low",
+   "field": "invalidation",
+   "statement": "Before entry: a close under the cycle low. The low-for-the-cycle call was wrong; it is still 4B or 4.",
+   "measure": {
+    "what": "close against the cycle low",
+    "op": "<",
+    "value": "cycle low",
+    "timeframe": "daily"
+   },
+   "basis": "originator",
+   "sources": [
+    "S10",
+    "S1"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5",
+   "evidence": "The GTA definition read in reverse (S10, S1); the test is the dossier's."
+  },
+  {
+   "id": "w4b.inv_close_under_50_before",
+   "field": "invalidation",
+   "statement": "Before entry: a close back under the 50-day before the trigger. The setup re-arms only after a new 2-session pause above it.",
+   "measure": {
+    "what": "close against the 50-day SMA before the trigger",
+    "op": "<",
+    "value": "50-day SMA",
+    "timeframe": "daily",
+    "note": "re-arms after a new pause of 2 closes above it"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S26"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5",
+   "evidence": "NFLX did exactly this once: closes over the 50-day on 2022-07-07 and 07-08, back under on 07-11, over again on 07-15. META 2020-05-11 and 06-10 failed twice before the real move from a third base; the rule re-armed each time."
+  },
+  {
+   "id": "w4b.inv_close_under_higher_low",
+   "field": "invalidation",
+   "statement": "Before entry: a close under the higher low.",
+   "measure": {
+    "what": "close against the higher low",
+    "op": "<",
+    "value": "higher low",
+    "timeframe": "daily"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S6"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5"
+  },
+  {
+   "id": "w4b.never_plain_4b",
+   "field": "invalidation",
+   "statement": "Never a 4B without the minus. Weinstein's own legend for plain 4B: Late in downtrend. Much too soon to consider buying.",
+   "measure": {
+    "what": "stock still making new lows under a falling 30-week line",
+    "op": "==",
+    "value": false,
+    "timeframe": "weekly"
+   },
+   "basis": "originator",
+   "sources": [
+    "S1",
+    "S10"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5; 8.8 mistake 1",
+   "evidence": "The 2005 GTA rated 30 S&P 500 stocks 4B and 4 of 500 4B- (S1); the rating was rare."
+  },
+  {
+   "id": "w4b.inv_market_red",
+   "field": "invalidation",
+   "statement": "Before or after entry: the market reading turns Red (no new longs; existing trades keep their stops).",
+   "glossary": "market_reading",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "D46",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5"
+  },
+  {
+   "id": "w4b.after_entry_stop",
+   "field": "invalidation",
+   "statement": "After entry: the stop is the exit.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "A4",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5 After entry",
+   "evidence": "The owner: my stop is my stop most of the time (2026-11-09)."
+  },
+  {
+   "id": "w4b.close_under_50_after",
+   "field": "invalidation",
+   "statement": "After entry: a close under the 50-day is the owner's stop line in his RDDT note and, in a viewer's unverified notes, Weinstein's; under A4 the stop is the only exit unless the owner makes the 50-day the stop (D-005).",
+   "measure": {
+    "what": "close against the 50-day SMA after entry",
+    "op": "<",
+    "value": "50-day SMA",
+    "timeframe": "daily",
+    "note": "a warning unless the 50-day is the chosen stop line"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S23",
+    "S18"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.5 After entry; 10 question 4",
+   "evidence": "RDDT: ideally we use the 50SMA as a stop (S23). Wey How's notes of the 2024 interview report below 50sma you gotta be gone (S18, viewer transcription). D-136: no setup adds an exit before the stop."
+  }
+ ],
+ "grading": {
+  "a_plus": [
+   "w4b.depth: a deep, long decline (well past 30%, many months under a falling 30-week line) that has clearly stopped, no new low for weeks",
+   "w4b.higher_low: a clean higher low on light volume; the down days dry up",
+   "w4b.flattening_50: a tight pause right on top of a 50-day that has gone flat or turned up; the trigger day on clearly higher volume",
+   "w4b.version_h_200: already back above the 200-day, with plenty of room to the next ceiling",
+   "w4b.rs_line: the RS line making higher lows before price does",
+   "w4b.group: the group turning up too, and the market turning up from a broad decline",
+   "w4b.fresh_reason: a fresh reason (an earnings reaction, a guidance change) behind the turn",
+   "w4b.pause_length_cue: a 5 to 20 session pause",
+   "w4b.stop_width: a stop of 3% or less"
+  ],
+  "b_minus": [
+   "w4b.depth: a shallow or short decline, little fuel and little bottom to call",
+   "w4b.higher_low: no higher low; a V straight up into the 50-day",
+   "w4b.pause: a loose, wide pause, or a bare 2 to 4 day pause",
+   "w4b.flattening_50: the 50-day still falling steeply",
+   "w4b.room_to_run: the falling 200-day or an old breakdown level just overhead",
+   "w4b.long_averages_flat: a 200-day still falling steeply over the trade",
+   "w4b.rs_line: RS still making new lows",
+   "w4b.group: a weak group; w4b.market_reading: Yellow (smaller and fewer)",
+   "w4b.earnings_window: a trigger right before earnings",
+   "w4b.stop_width: a stop wider than 3%, up to the owner's maximum"
+  ],
+  "no_trade": [
+   "w4b.never_plain_4b: a plain 4B, still making new lows",
+   "w4b.inv_close_under_cycle_low: a close under the cycle low",
+   "w4b.version_h_200: under the 200-day (Version W; B26)",
+   "w4b.inv_close_under_50_before: back under the 50-day before the trigger, until a new pause",
+   "w4b.no_chase: more than 4% past the pause high",
+   "w4b.not_stretched: more than 10% over the 10-day",
+   "w4b.stop_width: the honest stop past the owner's maximum; never pull it in",
+   "w4b.earnings_window: a report within 3 sessions",
+   "w4b.liquidity: under $10 or under $20 million a day",
+   "w4b.inv_market_red: Red; w4b.market_reading: Orange below A+"
+  ]
+ },
+ "lookalikes": [
+  {
+   "setup": "13-ma-reclaim",
+   "tell": "Check the 30-week line at the low. A Remount takes back a flat or rising line that was lost for 5 or more closes on a stock still in an uptrend; a 4B- reclaims the 50-day after a 30% or more Stage 4 decline under a falling 30-week line. If the 150-day was rising when the low was set, it is a Remount or a pullback, not a 4B-.",
+   "criterion": "w4b.stage4"
+  },
+  {
+   "setup": "29-undercut-rally",
+   "tell": "Count the sessions since the low. A U&R buys the reclaim of a named low within 3 sessions of its undercut; a 4B- never closes under its cycle low and waits 15 or more sessions for a higher low, a 50-day reclaim and a pause before the buy.",
+   "criterion": "w4b.base_length"
+  },
+  {
+   "setup": "12-ma-pullbacks",
+   "tell": "Look at where the 30-week line sits. RDDT 2025-11 bounced off a rising 30-week line above its 200-day: a pullback in an uptrend, not a 4B-. A 4B- needs the 150-day falling at the cycle low and the low at least 30% under the 52-week high.",
+   "criterion": "w4b.depth"
+  },
+  {
+   "setup": "34-capitulation",
+   "tell": "Time the entry. A capitulation buys the snap back within 3 sessions of a 2x-volume flush under every fast average; a 4B- waits weeks after the low for a higher low on drying volume and a 50-day reclaim, and it is not B26's parabolic exception.",
+   "criterion": "w4b.higher_low"
+  }
+ ],
+ "invalidations": [
+  "Before entry: a close under the cycle low; the low-for-the-cycle call was wrong (w4b.inv_close_under_cycle_low).",
+  "Before entry: a close back under the 50-day before the trigger; the setup re-arms only after a new 2-session pause (w4b.inv_close_under_50_before).",
+  "Before entry: a close under the higher low (w4b.inv_close_under_higher_low).",
+  "Before entry: a plain 4B, still making new lows (w4b.never_plain_4b).",
+  "Before entry: a report within 3 sessions, wait (w4b.earnings_window).",
+  "Before or after entry: the market reading turns Red (w4b.inv_market_red).",
+  "After entry: the stop is the exit (w4b.after_entry_stop); the time stop (w4b.time_stop).",
+  "After entry: a close under the 50-day is a warning unless the 50-day is the chosen stop line (w4b.close_under_50_after)."
+ ],
+ "mistakes": [
+  "Buying plain 4B, a stock still falling, because it seems cheap. GTA: Much too soon to consider buying. TraderLion: do not catch the bottom.",
+  "Buying too early: a small base following a large Stage 4 decline, price still under declining moving averages (stageanalysis.net).",
+  "No higher low. Deepvue calls the higher low critical.",
+  "Treating a short-term trade as an investment, and holding it back down into Stage 4 (take the oath never to hold Stage 4).",
+  "Adding to it on the way up (A5 forbids it).",
+  "Ignoring overhead supply: buying right under the falling 30-week or 200-day line with less than 3R of room.",
+  "Chasing the reclaim day after an earnings gap (C28, C29), or buying the reclaim in the days before a report (B22), as Deepvue's NFLX example did.",
+  "Buying against the market or a weak group (forest to the trees).",
+  "Mixing up labels: a 4B- is not yet a Stage 1 base, although our app's stage code already calls it Stage 1."
+ ],
+ "short_mirror": {
+  "exists": false,
+  "setup": "10-weinstein-4b",
+  "note": "None for our course (dossier 8.6). The mirror is a late Stage 2 stock that has lost its 10-week line (stageanalysis.net's 2B-, Weinstein's 3A, where the GTA tells holders to protect holdings with a close stop, not to short). Such a stock is nearly always above a rising 200-day, which B26 forbids shorting, so D47's reversed rule gives no usable short here. The stage short that is ours lives in the Stage 4A breakdown and the Bear gap, and in the owner's own words (2026-11-08): I will gladly short stage 4 downtrends as they reject the 200SMA from below (the 200-day rejection, setup 13's mirror)."
+ },
+ "best_conditions": "After a broad market decline, once the market itself is turning back up (Deepvue: after most stocks have been downtrending); market reading Green, or Yellow at smaller size; after a correction, start with a few positions (F68). The group is basing too and the stock is among the first in it to reclaim its 50-day. A fresh reason for the turn helps, provided the buy is not in the 3 sessions before the report.",
+ "management": {
+  "trim_1": "a third at 3R (B19, the hard rule)",
+  "trim_2": "a third at 5R (E51)",
+  "trail": "a close under the 10-day for a fast mover, the 21-day for a steadier one (E52)",
+  "breakeven": "between 2R and 5R, at the first trim by default (B19)",
+  "time_stop": "under 1R after 10 trading days, sell (C33); fits the short-term play (D-146)",
+  "gap_open": "a trim level the day opens past is taken at the open (F63)",
+  "gap_against": "the first 30-minute low is the new stop; out if past 2R (B20)",
+  "climax": "sell a big part into a climax run (C34)",
+  "earnings": "hold through a report only if up 5R (B22)",
+  "overrides": "none for Version H; the dossier (8.4) proposes, for Version W only and only if the owner ever allows it, a first trim at the falling 200-day when it sits under 3R. Not ours: the GTA's two-stop practice (a trading stop and a wider investing stop) except as the structural alternative inside the owner's maximum, and Ameet Rai's add along the way (A5). TRADE_PLANS.md has no row for this setup and UNITS-method lists it with no unit."
+ },
+ "examples": {
+  "winners": 10,
+  "sheet_dir": "_study-resume/scratchpad/setups/10-weinstein-4b/final",
+  "base_rate": {
+   "hits": 2016,
+   "r3_pct": 25.7,
+   "r5_pct": 15.1,
+   "stopped_pct": 85.8,
+   "version_h": {
+    "hits": 1110,
+    "r3_pct": 22.2,
+    "r5_pct": 13.9,
+    "median_sessions_to_3r": 11
+   },
+   "version_w": {
+    "hits": 906,
+    "r3_pct": 30.1,
+    "r5_pct": 16.7,
+    "note": "under the 200-day; B26 forbids it"
+   },
+   "window": "60 sessions forward, fixed stop, no trims, no breakeven, no time stop; 1997-05-30 to 2026-11-05; one hit per name per 20 sessions; 2,630 liquid names; stop under the pause low within 5% else the day-low stop, no trade over 5%"
+  },
+  "cuts": {
+   "pause_5_to_10_days": {
+    "r3_pct": 25.9,
+    "r5_pct": 15.4
+   },
+   "pause_11_to_20_days": {
+    "r3_pct": 23.1,
+    "r5_pct": 16.2
+   },
+   "pause_21_to_40_days": {
+    "r3_pct": 21.3,
+    "r5_pct": 12.4
+   },
+   "pause_2_to_4_days": {
+    "r3_pct": 15.7,
+    "r5_pct": 11.8
+   },
+   "stop_3_pct_or_less": {
+    "r3_pct": 24.4,
+    "r5_pct": 15.0,
+    "wider": {
+     "r3_pct": 20.4,
+     "r5_pct": 13.0
+    }
+   },
+   "named_examples": {
+    "DXCM": "fired 2024-11-12 as Version W, best 5.2R",
+    "NFLX": "2022-07 did not fire (the 1% flattening and B22)",
+    "RDDT": "2025-11 did not fire (not a Stage 4 stock)"
+   }
+  },
+  "winners_list": [
+   "SNPS 1998-10-28",
+   "FDX 2001-11-06",
+   "NTAP 2004-09-13",
+   "NUS 2013-04-18",
+   "NDSN 2016-03-02",
+   "AMD 2018-05-15",
+   "PENN 2019-11-05",
+   "SAM 2020-04-27",
+   "URI 2022-11-08",
+   "DY 2025-05-08"
+  ],
+  "failures": [
+   {
+    "ticker": "META",
+    "date": "2020-05-11",
+    "criterion": "w4b.higher_low",
+    "why": "after the March 2020 low it reclaimed the 50-day and then the 200-day, paused 13 and later 34 sessions (a second trigger on 2020-06-10), broke the pause high, and was stopped without trading above the entry both times (best 0.0R each); the real move came later from a third base. A 4B- after a V bottom can fail twice before it goes; the rule re-arms on a new pause.",
+    "stopped": "stopped 1 session after the buy, 2020-05-12, low 210.00"
+   },
+   {
+    "ticker": "MSFT",
+    "date": "2001-05-07",
+    "criterion": "w4b.long_averages_flat",
+    "why": "a 66% Stage 4 decline from the 2000 top, a long base, 18- and 38-day pauses above the 50-day (a second trigger on 2001-06-05), both breaks stopped (0.3R, 0.6R). The 200-day sat 16.1% and 18.2% under the price (not overhead supply) and was flat through the first trade (30.74 to 30.75) after falls of 2.0% and 0.1% in the 20 sessions before the two triggers. Room to run passed because nothing was overhead; with the line this flat under the trade, MSFT is a weak example of the falling-line cue that separates it from PENN's or NUS's flat ones (corrected 2026-11-10 against the bars).",
+    "stopped": "stopped 7 sessions after the buy, 2001-05-16, low 33.66"
+   },
+   {
+    "ticker": "TGT",
+    "date": "2008-09-03",
+    "criterion": "w4b.market_reading",
+    "why": "two 4B- triggers, the first in the 2008 bear and the second (2009-04-30) in the rally that began in March 2009; both closed above a still-falling 200-day (6.4% and 6.5% over it) and were stopped the next session, 0.0R by the scan's convention (the first day's high, 55.83, was over the 55.50 entry on the bar that also took the stop; the second day's high, 41.30, stayed under the 41.37 entry). The market reading, which the scan could not test, is the missing filter for the first (B18, F65, forest to the trees); the second came in a rally, where it may not have kept it out (corrected 2026-11-10 against the bars).",
+    "stopped": "stopped 1 session after the buy, 2008-09-04, low 53.71"
+   },
+   {
+    "ticker": "F",
+    "date": "2024-02-12",
+    "criterion": "w4b.after_entry_stop",
+    "why": "A 37.5% decline to 9.63, a higher low 3.6% above it, 70 sessions off the low, a 12-day pause; the trigger day closed near its high and the next session fell through the 3.1% stop. Best 0.0R.",
+    "stopped": "stopped 1 session after the buy, 2024-02-13, low 12.48"
+   }
+  ],
+  "limits": "The hit count is high because the rule fires on most 50-day-pause breakouts after any 30% decline; the ten were picked from the 5R winners by eye, so they say what a textbook one looks like, not how often it comes. No group or market reading; prices split-adjusted by the vendor; SNPS and FDX predate the earnings table. The 26-of-39-weeks time option was not tested. Two named examples (NFLX, DXCM) are not a test of the edge. Nothing here is a published statistic, and none exists for the 4B- itself.",
+  "near_misses": [
+   {
+    "ticker": "BAC",
+    "date": "2020-06-04",
+    "criterion": "w4b.version_h_200",
+    "why": "close -10.2% under the 200-day on the day before the trigger; the house version (H) needs the close above it (B26). Weinstein's own version (W): a 50% decline, a 12% higher low and a 50-day reclaim with the close still 10% under the 200-day."
+   },
+   {
+    "ticker": "COST",
+    "date": "2022-07-22",
+    "criterion": "w4b.stage4",
+    "why": "at the cycle low the 150-day was rising (528.74 against 521.41 20 sessions earlier). A 34% drop under a 150-day that was still rising at the low: a pullback in an uptrend, so a Remount (13) or a pullback buy, not a Stage 4 turn."
+   },
+   {
+    "ticker": "CVX",
+    "date": "2024-11-21",
+    "criterion": "w4b.depth",
+    "why": "cycle low 21% under the 52-week high; the rule needs 30%. A 21% dip and a 50-day reclaim on a stock whose 52-week high was never far away: a pullback inside a range, not a 4B-."
+   },
+   {
+    "ticker": "AAPL",
+    "date": "2019-03-22",
+    "criterion": "w4b.higher_low",
+    "why": "the scan found the pullback into the higher low too shallow: the 39.47 high before it was only 4.1% over the 37.92 higher low, where the scan needed 5%. But the rally before the higher low was 11.2% (35.50 on 2019-01-03 to 39.47 on 01-18), so as the criterion is written (a rally of 5% or more before it) this AAPL passes the gate. A V off the January 2019 low: the higher low (2019-01-23, 13 sessions after the low) sits 6.8% above the cycle low and followed an 11.2% rally, then a pullback of only 4.1%; the scan read that shallow pullback as one leg, not a base (corrected 2026-11-10 against the bars)."
+   }
+  ],
+  "sheets": {
+   "failures": "final/fail_1-4.png",
+   "near_misses": "final/near_1-4.png",
+   "pair": "final/pair_13-ma-reclaim.png"
+  }
+ },
+ "question_seeds": [
+  {
+   "kind": "recall",
+   "criterion": "w4b.never_plain_4b",
+   "seed": "What does the minus in 4B- mean, and what does Weinstein's legend say about plain 4B?"
+  },
+  {
+   "kind": "recall",
+   "criterion": "w4b.reclaim_50",
+   "seed": "Which moving average must a 4B- stock reclaim before the buy, and which line defined its Stage 4?"
+  },
+  {
+   "kind": "recall",
+   "criterion": "w4b.higher_low",
+   "seed": "How far above the cycle low must the higher low sit, and how many sessions later?"
+  },
+  {
+   "kind": "spot",
+   "criterion": "w4b.higher_low",
+   "seed": "Hidden ticker: tap the cycle low, then the higher low."
+  },
+  {
+   "kind": "spot",
+   "criterion": "w4b.trigger",
+   "seed": "Hidden ticker: tap the pause high this stock must trade through."
+  },
+  {
+   "kind": "spot",
+   "criterion": "w4b.version_h_200",
+   "seed": "Hidden ticker: is this 50-day reclaim above or below the 200-day? Take it (Version H) or watch it (Version W)."
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "w4b.stage4",
+   "seed": "4B- or Remount: the stock reclaims its 50-day after 20 closes under it. Was the 30-week line falling at the low, or rising?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "w4b.depth",
+   "seed": "4B- or pullback: RDDT bounced off a rising 30-week line 39% under its high, above its 200-day. Which is it?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "w4b.base_length",
+   "seed": "4B- or U&R: the low was undercut and reclaimed within 2 sessions, 4 sessions ago. Which card applies?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "w4b.never_plain_4b",
+   "seed": "4B or 4B-: the stock is 60% off its high under a falling 30-week line and made a new low last week. Can it be bought?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "w4b.earnings_window",
+   "seed": "NFLX closes back over its 50-day on 2022-07-18 after a higher low; the report is after the close on 07-19. Buy the pause-high break on 07-19?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "w4b.inv_close_under_50_before",
+   "seed": "The stock closed over the 50-day for two days, then back under it, then over again. Is the setup live, and when does it re-arm?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "w4b.room_to_run",
+   "seed": "Entry 22.12, stop 21.49, the falling 200-day at 23.40 and the old closes at 26.00. Is there 3R of room?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "w4b.close_under_50_after",
+   "seed": "You bought the pause-high break at 49.99 with the stop at 49.05. Three days later it closes under the 50-day at 49.40. What now?"
+  },
+  {
+   "kind": "grade",
+   "criterion": "w4b.flattening_50",
+   "seed": "Two reclaims: one with the 50-day up 2% over 10 sessions and a 12-day pause, one with the 50-day down 3% and a 2-day pause. Grade each."
+  },
+  {
+   "kind": "grade",
+   "criterion": "w4b.long_averages_flat",
+   "seed": "Same structure, two charts: PENN's flat 150 and 200-day, MSFT 2001's 200-day (16% under the price, flat through the trade). Grade each."
+  },
+  {
+   "kind": "grade",
+   "criterion": "w4b.rs_line",
+   "seed": "The RS line made a lower low at the higher low and sits under its own 50-day average. A+, B, or pass?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "w4b.depth",
+   "seed": "The 52-week high was 142.00 and the cycle low 62.34. How far under the high is the low, and does it qualify?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "w4b.higher_low",
+   "seed": "Cycle low 162.71, pullback low 170.30 eighteen sessions later. How far above is it, and does it count?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "w4b.stop_width",
+   "seed": "Buy point 22.61, fill 22.62, pause low 21.55, a few cents under it for the stop. How wide is the stop, and is it inside 3%?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "w4b.trim_1",
+   "seed": "Bought at 186.41 with the stop at 182.62. Where is 3R?"
+  }
+ ],
+ "owner_decisions": [
+  "D-003",
+  "D-004",
+  "D-005",
+  "D-009",
+  "D-011",
+  "D-015",
+  "D-016",
+  "D-070",
+  "D-146"
+ ],
+ "conflicts": [
+  "A rating or a trade: in the 2005 GTA, 4B and 4B- are ratings and the buys come later in Stage 2 (often at the move into 2A); from 2024 Weinstein and TraderLion treat the 4B- as a trade for advanced, short-term traders, while TraderLion's own guide says always wait for a clear Stage 1 base and Deepvue's page says there is no reason to be long in Stage 4.",
+  "4B or 4B-: our journal tag says 4B, which Weinstein's legend calls much too soon to consider buying; the buy is 4B-. The rename to 4B- (Stan Weinstein) and the move from Bases and Breakouts to Reversals and Reclaims are D-016 (10:1, 10:7).",
+  "B26: a 4B- nearly always sits under a falling 200-day, and both named examples (NFLX 54% under, DXCM 30% under) fail it at the entry. The card teaches Version H (above the 200-day) as the trade and Weinstein's version as a reading skill (D-009); on the scan's fixed-stop test Version W did better (30.1% against 22.2% to 3R), which the owner should see before answering.",
+  "C31: after a long decline the RS rating is low; either the 4B- is a mean-reversion trade exempt from RS 80 (D-011's default) or it cannot pass. The card's RS-line test is the dossier's; DXCM fails it.",
+  "What counts as the decline: depth (sharp decline, no number) against time (stageanalysis.net's 39 weeks); a time rule drops both named examples. The card takes depth only, 30% (D-070). The 1% flattening test for the 50-day rejects the NFLX entry; D-070 makes it a cue.",
+  "The higher low: Deepvue calls it critical; stageanalysis.net's mechanical 4B- does not test one; Weinstein is not quoted on it. The card requires it.",
+  "Weekly or daily: classic Stage Analysis is weekly (the 30-week line); every modern 4B- source triggers on the daily 50-day. The card reads Stage 4 on the 150-day (the 30-week stand-in) and triggers on the daily.",
+  "Hold short or long: TraderLion and Deepvue a short-term play; Ameet Rai the first step of a ride into Stage 2, adding along the way. The house trims and A5 win (D-146, D-135).",
+  "The stop: no 4B- source gives one; GTA practice is usually two stops (a trading stop and a wider investing stop, mostly at x.99 or x.49) that run well past 3%; the owner's RDDT note uses the 50-day. The default line and the widest allowed (3%, 5%, 8%) are D-005; the scan's pause-low stop fitted only 104 of 2,016 hits within 5%.",
+  "The trigger: the owner's Kicker ruling (over the previous day's high, not the close) is borrowed by analogy; he has not ruled on the 4B-. D-003's default applies it to every daily setup; the GTA's close-above-a-level is the other option.",
+  "The entry trigger type: the card files the pause-high break under PREV DAY HIGH BREAK (a two-session pause makes it the prior day's high); a longer pause makes it a small BASE BREAKOUT. The owner may prefer that label.",
+  "Deepvue's NFLX example: the $189 entry on 2022-07-15 or 07-18 came one to two sessions before the report (after the close on 07-19), which B22 forbids, and the $250 came 18 to 19 sessions later, not a couple of weeks; most of the move was the earnings gap.",
+  "The app cannot see a 4B-: the stage code reads NFLX and DXCM as Stage 4 and then Stage 1 from price change alone (it never measures the 150-day's slope), and the screener's Weinstein Stage 4 flag drops them the day they reclaim the 50-day. No detector, no Model Book card, no TRADE_PLANS row, no unit in UNITS-method; whether to build a scanner is D-004 (10:9).",
+  "Five Stan Weinstein quotes in quotes.json and the Weinstein claims in golden_cross.py, death_cross.py and patterns.py could not be found in any source read; they stay out of the lesson until sourced.",
+  "Measured evidence: none for the 4B- itself. Bulkowski's own trades (his site carries an AI-training notice) made money in 24.4% of Stage 4 buys and 69.3% of Stage 1 buys; a 4B- sits on the line between them, so the burden of proof is on the setup. Only our own scan (2,016 hits) is quoted.",
+  "Sources: the 2005 GTA is a forum-posted copy of a paid newsletter (short quotes only); the two TraderLion videos could not be read beyond their descriptions; Weinstein's 1988 book was not read, and the A/B/+/- codes are not verified against it."
+ ]
+}

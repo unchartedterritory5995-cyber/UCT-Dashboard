@@ -1,0 +1,1467 @@
+{
+ "setup": "12-ma-pullbacks",
+ "name": "Pullback to the Moving Averages",
+ "unit": "none",
+ "direction": "long",
+ "timeframe": "daily",
+ "dossier": "docs/study/setups/research/12-ma-pullbacks.md",
+ "as_of": "2026-11-09",
+ "card": {
+  "context": "A leader (RS 80 or more) in a confirmed uptrend, within 25% of its 52-week high, 20 EMA above 50 SMA above a rising 200 SMA, after a breakout, earnings gap or new up-cycle in the last 3 months. Green or Yellow market.",
+  "pattern": "A 2 to 8 session orderly drift on quiet volume, at least 1 ATR off the swing high, onto a rising line: the 10-day in a fast leader, the 20 EMA (the core), or the 50-day for the deeper form. The low tags the line and a session closes at or above it.",
+  "trigger": "PREV DAY HIGH BREAK: after the hold day (a close at or above the line), buy at market as price trades above that day's high. The hourly Go Signal, red to green and a reversal candle at the line are named variants.",
+  "stop": "A few cents under the pullback low, the lower of the hold day's low and the trigger day's low, usually inside 3%; never the line minus a cushion.",
+  "failure_mode": "The line gives way: the hold day's low breaks the next session or the stock slices back and forth through the line. A sharp two-day drop, a heavy-volume break, or a broken leader's first visit to the 50-day are the shapes that fail."
+ },
+ "entry_trigger": "PREV DAY HIGH BREAK",
+ "criteria": [
+  {
+   "id": "map.one_setup",
+   "field": "context",
+   "statement": "One setup, Pullback to the moving averages, with three lines: the 10-day (fast leaders), the 20-day (the core, taught in full on the 20 EMA Pullback card) and the 50-day (deeper, leaders only). The 200-day is taught as context, not as a buy.",
+   "measure": {
+    "what": "the line the pullback tags",
+    "op": "in",
+    "value": [
+     "10-day",
+     "20-day EMA",
+     "50-day SMA"
+    ],
+    "timeframe": "daily"
+   },
+   "glossary": "fast_averages",
+   "basis": "UCT",
+   "sources": [],
+   "options": [
+    {
+     "value": "one setup",
+     "basis": "Pullback to the moving averages, one tag MA Pullback with the line named in the note: the dossier's recommendation and D-016's default"
+    },
+    {
+     "value": "20 EMA Pullback",
+     "basis": "the Model Book's name, which is setup 11's card"
+    },
+    {
+     "value": "one setup per line",
+     "basis": "the app's four scanners (10 EMA, 21 EMA, 50 SMA, 200 SMA)"
+    }
+   ],
+   "recommended": "one setup",
+   "status": "pending-owner",
+   "owner_question": "D-016",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Name; 10 question 9",
+   "evidence": "The owner: I am mostly a 20EMA kind of guy. No journal tag exists today for the 10-day or 50-day forms; the nearest are Classic Flag/Pullback, Remount and Classic U&R (5.3)."
+  },
+  {
+   "id": "map.which_numbers",
+   "field": "context",
+   "statement": "The lines are the Study stack's: 9 EMA, 20 EMA, 50 SMA, with the 10-day for fast leaders. The scanners' 10 EMA, 21 EMA, 50 SMA are the same lines by another number.",
+   "measure": {
+    "what": "the averages the card names",
+    "op": "==",
+    "value": "9 EMA, 20 EMA, 50 SMA (10-day for fast leaders)",
+    "timeframe": "daily"
+   },
+   "basis": "UCT",
+   "sources": [],
+   "options": [
+    {
+     "value": "A",
+     "basis": "the Study stack (SET.02): 9 EMA, 20 EMA, 50 SMA; UCT's writers say 20EMA and 50SMA almost every time"
+    },
+    {
+     "value": "B",
+     "basis": "the scanners' 10 EMA, 21 EMA, 50 SMA; E52's trail names a 10-day and a 21-day"
+    }
+   ],
+   "recommended": "A",
+   "status": "pending-owner",
+   "owner_question": "D-021",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Which numbers; 10 question 1",
+   "evidence": "D-021's default: one pair everywhere, the 9 and 20 EMA with the 50 and 200 SMA; E52's 10-day and 21-day read as the same lines. The scan tested the 10 EMA, 20 EMA and 50 SMA separately: 27.1% / 17.1%, 28.4% / 18.2% and 28.4% / 17.2% to 3R and 5R."
+  },
+  {
+   "id": "map.above_200",
+   "field": "context",
+   "statement": "The close is above the 200-day SMA, and the 20 EMA is above the 50 SMA, which is above the 200 SMA.",
+   "measure": {
+    "what": "close > 20 EMA > 50-day SMA > 200-day SMA on the hold day",
+    "op": "==",
+    "value": true,
+    "timeframe": "daily"
+   },
+   "glossary": "ma_stack",
+   "basis": "house rule",
+   "sources": [
+    "S9",
+    "S7"
+   ],
+   "house_rule": "B26",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Prior trend",
+   "evidence": "B26 is the hard half. The 20 over 50 over 200 order is Keller's proper order and Deepvue's Minervini template (50 above the 150 and 200); the app's v5 asks only price over the 200 (12 corrected in checking, item 8). The scan enforced the full order."
+  },
+  {
+   "id": "map.ma200_rising",
+   "field": "context",
+   "statement": "The 200-day SMA has been rising for at least 21 sessions: higher than its value 21 sessions ago.",
+   "measure": {
+    "what": "200-day SMA today - 200-day SMA 21 sessions ago",
+    "op": ">",
+    "value": 0,
+    "unit": "$",
+    "timeframe": "daily"
+   },
+   "glossary": "rising_average",
+   "basis": "my proposal",
+   "sources": [
+    "S7"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Prior trend",
+   "evidence": "Deepvue's summary of Minervini says at least one month; 21 sessions is the dossier's translation (one source). The glossary's canonical window for the 200-day is 20 sessions; the one-session difference is noted in conflicts. TGT 2020-07-22 and HPE 2026-04-16 passed the scan on a flat 200-day they had only just reclaimed and were rejected by eye (a recovery, not a leader's pullback)."
+  },
+  {
+   "id": "map.near_high",
+   "field": "context",
+   "statement": "Price is within 25% of its 52-week high on the hold day.",
+   "measure": {
+    "what": "(52-week high - close) / 52-week high",
+    "op": "<=",
+    "value": 25,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S7"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Prior trend; 13 failures",
+   "evidence": "One source: Deepvue's summary of Minervini's trend template, not his own words. The scan's TSLA 2024-01-08 failure was 20.6% off its high with a flat 50 SMA and fell from 240 to 170 in two months; the dossier says the 25% allowance is too loose on its own and he may want 10% or 15% for this setup. The ten examples ran 2.3% to 7.8% off the high."
+  },
+  {
+   "id": "map.recent_catalyst",
+   "field": "context",
+   "statement": "A breakout, an earnings gap or a new up-cycle within the last 3 months (63 sessions) came before the pullback.",
+   "measure": {
+    "what": "sessions since the breakout, earnings gap or new up-cycle",
+    "op": "<=",
+    "value": 63,
+    "unit": "sessions",
+    "timeframe": "daily"
+   },
+   "glossary": "prior_trend",
+   "basis": "source consensus",
+   "sources": [
+    "S5",
+    "S6",
+    "S13",
+    "S4"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Prior trend",
+   "evidence": "TSDR's earnings-gap examples; Bonde's Buy first pullback after a major breakout and Kell's after a Wedge Pop (via Deepvue) agree it follows a breakout; the 3-month window is Kullamagi's past 1-3 months for his breakout setup. The scan stood in with: the swing high the stock pulls back from is (within 3%) a 3-month high. D-029's default makes a 30% prior move a grade cue for pullbacks."
+  },
+  {
+   "id": "map.line_rising",
+   "field": "context",
+   "statement": "The line must be rising: the 20 EMA above its value 10 sessions ago, and the 50 SMA above its value 10 sessions ago.",
+   "measure": {
+    "what": "20 EMA today - 20 EMA 10 sessions ago, and 50-day SMA today - 50-day SMA 10 sessions ago",
+    "op": ">",
+    "value": 0,
+    "unit": "$",
+    "timeframe": "daily"
+   },
+   "glossary": "rising_average",
+   "basis": "UCT",
+   "sources": [
+    "S16",
+    "S4"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 The line must be rising",
+   "evidence": "The app's v5 lab uses the same 10-session test on the 21 EMA. The glossary's canonical windows are 10 for the 50-day and 5 for the 20 EMA (conflicts). Kullamagi: the stock surfs the rising 10- and 20-day."
+  },
+  {
+   "id": "map.leadership",
+   "field": "context",
+   "statement": "RS rating 80 or more, in a strong group.",
+   "measure": {
+    "what": "RS rating",
+    "op": ">=",
+    "value": 80,
+    "unit": "rating 1 to 99"
+   },
+   "glossary": "leader",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "C31",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Leadership",
+   "evidence": "Not in the scan (no RS ratings in the sandbox). When RS is read is map.rs_timing."
+  },
+  {
+   "id": "map.rs_timing",
+   "field": "context",
+   "statement": "RS 80 is read on the entry day. A 50-day pullback can push a real leader under 80; the dossier asks whether to read it before the pullback began instead.",
+   "measure": {
+    "what": "the day the RS rating is read",
+    "op": "==",
+    "value": "the entry day"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "C31",
+   "options": [
+    {
+     "value": "a",
+     "basis": "strict, on the entry day: D-011's default for every continuation setup"
+    },
+    {
+     "value": "b",
+     "basis": "read before the pullback began: the dossier's question 5"
+    },
+    {
+     "value": "c",
+     "basis": "exempt as mean reversion: Bracco framed his MAU&Rs and IONQ as mean-reversion longs, which C31 exempts"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-011",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "7 C31 row; 10 question 5",
+   "evidence": "D-011's default keeps C31 as written for pullbacks, read on the entry day; the mean-reversion class (the washout U&R, the 200-day Remount) is exempt by name. Bracco's MAU&R lines belong to setup 29's variant (D-002)."
+  },
+  {
+   "id": "map.liquidity",
+   "field": "context",
+   "statement": "Price $10 or more and $20 million or more traded a day on average.",
+   "measure": {
+    "what": "close",
+    "op": ">=",
+    "value": 10,
+    "unit": "$",
+    "and": "50-day average dollar volume >= 20,000,000"
+   },
+   "glossary": "liquidity",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B23",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Liquidity",
+   "evidence": "The scan used the 50-day average. The four scanners' floors are far lower; B23 removes Bonde's small-cap worry. The scan also returned ETFs (TLT, IEF, LQD, IVV, SPY) with sub-0.5% stops; they were excluded because the setup is taught on single stocks."
+  },
+  {
+   "id": "map.position_adv",
+   "field": "management",
+   "statement": "The position is at most 1% of average daily volume.",
+   "measure": {
+    "what": "shares / average daily volume",
+    "op": "<=",
+    "value": 1,
+    "unit": "%"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "D42",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Liquidity"
+  },
+  {
+   "id": "map.market_reading",
+   "field": "context",
+   "statement": "Green market: full risk. Yellow: smaller and fewer. Orange: A+ only. Red: mostly cash and shorts.",
+   "glossary": "market_reading",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "F65",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.8 Best conditions",
+   "evidence": "NVDA 2024-04-03 was by the rule as good as the NVDA 2023 example and was stopped for the full 1R the next day: the index was topping into a multi-week correction that started the same week. The rule cannot see the market; F65 sits above it."
+  },
+  {
+   "id": "map.index_20",
+   "field": "context",
+   "statement": "A cue, not a gate: the index itself is above a rising 20-day.",
+   "measure": {
+    "what": "index close against its 20-day EMA",
+    "op": ">",
+    "value": "index 20-day EMA",
+    "timeframe": "daily"
+   },
+   "basis": "UCT",
+   "sources": [],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.8 Best conditions; 8.5",
+   "evidence": "UCT's index notes on the QQQ 9 and 20 EMA: when we are below them we stay patient. D-023's default: no setup adds its own index filter; F65 is the guide. The owner's closing comments, 2025-07-20: Pullbacks to the MAs during a strong market are natural and provide opportunity."
+  },
+  {
+   "id": "map.not_200_long",
+   "field": "context",
+   "statement": "A pullback to the 200-day is not a stand-alone long for single stocks. It is the line where longs stop, and at most an exception for mega caps and index ETFs once price closes back above it.",
+   "measure": {
+    "what": "the line tagged",
+    "op": "!=",
+    "value": "200-day SMA, as a buy",
+    "timeframe": "daily"
+   },
+   "glossary": "above_200",
+   "basis": "my proposal",
+   "sources": [
+    "S5",
+    "S16"
+   ],
+   "options": [
+    {
+     "value": "A",
+     "basis": "not a long setup, context only: the dossier's recommendation; D-009's default (a 200-day pullback is context, not a long setup)"
+    },
+    {
+     "value": "B",
+     "basis": "allowed for mega caps and index ETFs once price closes back over it (Beebe's AMZN)"
+    },
+    {
+     "value": "C",
+     "basis": "a full setup like the others: the app's pullback_to_200sma scanner"
+    }
+   ],
+   "recommended": "A",
+   "status": "pending-owner",
+   "owner_question": "D-009",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.7; 10 question 2",
+   "evidence": "B26 forbids buying under it; leaders that fall to their 200-day usually lose RS 80 (C31); the app's blind review found 200-day tags 0 yes of 7 (dossier 11, 4.1); Bonde says such pullbacks suit large fund-held stocks. The scan did not test the 200-day."
+  },
+  {
+   "id": "map.which_touch",
+   "field": "pattern",
+   "statement": "The first touch of that line since the breakout or gap is the best; a second touch can still be an A or B; a third or later touch is lower grade.",
+   "measure": {
+    "what": "touches of the line since the breakout or gap, this one included",
+    "op": "<=",
+    "value": 2,
+    "unit": "touches",
+    "timeframe": "daily"
+   },
+   "basis": "source consensus",
+   "sources": [
+    "S5",
+    "S6",
+    "S13"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "first only: Bonde's first pullback, Kell via Deepvue"
+    },
+    {
+     "value": "b",
+     "basis": "first and second, the second as a B; third and later graded down: the dossier's proposal; D-026's default"
+    },
+    {
+     "value": "c",
+     "basis": "any touch while the line rises"
+    }
+   ],
+   "recommended": "b",
+   "status": "pending-owner",
+   "owner_question": "D-026",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Which touch; 10 question 6",
+   "evidence": "TSDR: First tap of 20EMA held. D-026's default: the first and second tests are trades (an A and a B); the third and later are not this setup until a new high resets the count. CAT 2025-09-03 was a mega cap's first test of the rising 50 SMA after a 4-month run."
+  },
+  {
+   "id": "map.depth",
+   "field": "pattern",
+   "statement": "Depth: the touch day's close is at least 1 ATR under the highest high of the last 11 sessions.",
+   "measure": {
+    "what": "(highest high of the last 11 sessions - the touch day's close) / ATR(14)",
+    "op": ">=",
+    "value": 1,
+    "unit": "ATR",
+    "timeframe": "daily"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S16"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Depth",
+   "evidence": "The app's v5 lab rule. MOH 2018-06-08 is the shallowest of the ten (1.01 ATR), right at the rule's edge, and shows why the depth rule is 1 ATR and not more; WING 2024-01-09 the deepest (2.76 ATR)."
+  },
+  {
+   "id": "map.touch",
+   "field": "pattern",
+   "statement": "The touch: the pullback low is within 1 ATR under to 0.25 ATR over the line.",
+   "measure": {
+    "what": "(the pullback low - the line) / ATR(14)",
+    "op": "in",
+    "value": [
+     -1,
+     0.25
+    ],
+    "unit": "ATR",
+    "timeframe": "daily"
+   },
+   "glossary": "touch",
+   "basis": "UCT",
+   "sources": [
+    "S16"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Touch",
+   "evidence": "The app's v5 lab thresholds, tuned on traders' calls; the glossary's canonical touch. The four public scanners' one-sided test (any distance under the line) is not used."
+  },
+  {
+   "id": "map.undercut",
+   "field": "pattern",
+   "statement": "An undercut below the line is allowed only if the same day or the next day closes back above it (the moving-average undercut and rally). Deeper or longer is not this setup.",
+   "measure": {
+    "what": "sessions from the undercut to a close back above the line, the undercut session counted as the first",
+    "op": "<=",
+    "value": 2,
+    "unit": "sessions",
+    "timeframe": "daily"
+   },
+   "glossary": "reclaim_window",
+   "basis": "UCT",
+   "sources": [
+    "S13"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "part of this setup: the undercut closes back above the line the same or next day (the dossier's 8.1); v5 allows a tag-bar close at most 0.5 ATR under the line"
+    },
+    {
+     "value": "b",
+     "basis": "its own setup: a named variant of U&R (29), as 29:1 (c) proposes; D-002's default; its depth is D-036's"
+    }
+   ],
+   "recommended": "b",
+   "status": "pending-owner",
+   "owner_question": "D-002",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Touch; 10 question 7",
+   "evidence": "Bracco: In a perfect world this undercuts the 20EMA and reclaims, and shakeout below 20ema and remount; TSDR's remount after an undercut. D-002 files the MAU&R as a named variant of U&R (29) and sends its depth to D-036 (within about 1 ATR under and back above the same day for an A; up to 6% and 3 sessions as a B). The scan: a clean hold beat an undercut-and-reclaim at 5R (18.1% against 15.7%); all ten examples were clean holds."
+  },
+  {
+   "id": "map.length",
+   "field": "pattern",
+   "statement": "The pullback lasts 2 to 8 sessions from the swing high to the touch day.",
+   "measure": {
+    "what": "sessions from the swing high to the touch day",
+    "op": "in",
+    "value": [
+     2,
+     8
+    ],
+    "unit": "sessions",
+    "timeframe": "daily"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S13"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Length",
+   "evidence": "From UCT's examples: TSDR's six day pullback, the index note's six orderly days, TSDR's down 8 days in a row; the owner's WSM note prefers a multi-day drift to a sharp 2-day drop. The scan: pullbacks of 4 to 8 days edged 2 to 3 day ones (17.8% against 17.0% at 5R). Dossier 11 proposes 2 to 15 sessions for the 20 EMA form (conflicts)."
+  },
+  {
+   "id": "map.orderly",
+   "field": "pattern",
+   "statement": "Orderly: no single down day larger than 2 ATR in the pullback.",
+   "measure": {
+    "what": "largest down day's range / ATR(14)",
+    "op": "<=",
+    "value": 2,
+    "unit": "ATR",
+    "timeframe": "daily"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S14"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Shape",
+   "evidence": "From the owner's Oops ruling against a random big red day (the ULTA verdict), to be confirmed for this setup. TSLA 2024-01-08's pullback was 3.6 ATR deep in a flat 50 SMA and failed the same week."
+  },
+  {
+   "id": "map.volume",
+   "field": "pattern",
+   "statement": "Volume: the average volume over the pullback days is below the 50-day average volume, and the touch day is not above 1.5 times the 50-day average.",
+   "measure": {
+    "what": "average volume of the pullback days / 50-day average volume",
+    "op": "<",
+    "value": 1,
+    "unit": "x",
+    "and": "touch-day volume <= 1.5x the 50-day average",
+    "timeframe": "daily"
+   },
+   "glossary": "dry_up",
+   "basis": "source consensus",
+   "sources": [
+    "S13",
+    "S7"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Volume",
+   "evidence": "TSDR: low volume of this six day pullback; Bracco's IONQ: volume declining last 4 days; Deepvue on Minervini: low volume during pullbacks. The 1.5x is the dossier's proposal, borrowed from the 10-day scanner. The scan: touch-day volume under 0.7x against over 1.0x made almost no difference (18.0% against 16.5% at 5R), so the card follows D-006's default (a grade cue, not a gate); the heavy-volume close under the line stays an invalidation (map.inv_heavy_close)."
+  },
+  {
+   "id": "map.hold_day",
+   "field": "trigger",
+   "statement": "The hold day: the touch day closes at or above the line, or (the undercut and reclaim) the next day does.",
+   "measure": {
+    "what": "close against the line on the touch day or the next",
+    "op": ">=",
+    "value": "the line",
+    "timeframe": "daily"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S1"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 Trigger",
+   "evidence": "Raschke's trigger needs only a touch; the hold-day close is the dossier's proposal. TSDR: it is important to wait for signs and signals of strength instead of hoping we bounce at this random moving average (2025-06-22)."
+  },
+  {
+   "id": "map.trigger",
+   "field": "trigger",
+   "statement": "After the hold day, buy when price trades above that day's high. Market order the moment it trades.",
+   "measure": {
+    "what": "intraday high against the hold day's high",
+    "op": ">",
+    "value": "hold day's high",
+    "timeframe": "daily"
+   },
+   "basis": "originator",
+   "sources": [
+    "S1",
+    "S14",
+    "S13"
+   ],
+   "options": [
+    {
+     "value": "A",
+     "basis": "a trade over the hold day's high: Raschke's buy stop above the high of the previous bar; the owner's Kicker ruling OVER previous day high; TSDR's Break inside day high on RDDT; the dossier's default; D-003's default"
+    },
+    {
+     "value": "B",
+     "basis": "a reversal close back over the line: the app's v5 (its lab found no edge for a close entry)"
+    },
+    {
+     "value": "C",
+     "basis": "the hourly Go Signal or red to green off the line: TSDR; the owner's Go Signal ruling; dossier 11's default for the 20 EMA form"
+    },
+    {
+     "value": "D",
+     "basis": "the 9 EMA remount: the Model Book card"
+    }
+   ],
+   "recommended": "A",
+   "status": "pending-owner",
+   "owner_question": "D-003",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 Trigger; 10 question 3",
+   "evidence": "The prior-high break is the one trigger fully visible on daily bars, which is why the scan and the charts use it: 60,464 hits, 27.7% to 3R. Dossier 11 recommends the intraday turn (C) as the default for the 20 EMA form and this one as the fallback; one ruling (D-003) should settle both."
+  },
+  {
+   "id": "map.trigger_variants",
+   "field": "trigger",
+   "statement": "Named variants, not the default: an hourly Go Signal or red to green off the line; a 9 EMA remount; a reversal candle at the line (a hammer, an oops, a bullish engulfing).",
+   "measure": {
+    "what": "the variant trigger",
+    "op": "in",
+    "value": [
+     "hourly Go Signal",
+     "red to green",
+     "9 EMA remount",
+     "reversal candle at the line"
+    ],
+    "timeframe": "intraday or daily"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S13",
+    "S14",
+    "S17"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.2 Alternatives",
+   "evidence": "TSDR: red to green off the 20EMA, hammer at the 20EMA, the oops reversal off the 20EMA; GLW's Big Bullish engulfing candle; the Model Book card's 9 EMA remount. D-012's default sends the hourly forms to the Go Signal and 30-Minute Pivot lessons as entry timing."
+  },
+  {
+   "id": "map.market_order",
+   "field": "trigger",
+   "statement": "A market order the moment the trigger trades, in regular hours.",
+   "basis": "house rule",
+   "sources": [
+    "S16"
+   ],
+   "house_rule": "E57",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 Order",
+   "evidence": "E58 keeps it to regular hours. The app's scanners enter on a close over the pullback bar's high plus 0.1%, neither a resting buy stop nor a market order."
+  },
+  {
+   "id": "map.no_chase",
+   "field": "trigger",
+   "statement": "Skip if the fill would be more than 4% above the trigger price.",
+   "measure": {
+    "what": "fill / hold day's high - 1",
+    "op": "<=",
+    "value": 4,
+    "unit": "%"
+   },
+   "glossary": "chase_limit",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "C28",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 No chasing",
+   "evidence": "The scan filled at the open when it gapped over the trigger and skipped fills more than 4% past it."
+  },
+  {
+   "id": "map.not_stretched",
+   "field": "trigger",
+   "statement": "At entry, no more than 10% above the 10-day average.",
+   "measure": {
+    "what": "entry / 10-day SMA - 1",
+    "op": "<=",
+    "value": 10,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "glossary": "stretched",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "C29",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "7 C29 row",
+   "evidence": "Near the line this is automatic."
+  },
+  {
+   "id": "map.earnings_window",
+   "field": "trigger",
+   "statement": "No new buy in the 3 sessions before an earnings report; hold through a report only if the trade is up 5R. Earnings gaps often start the trend, so check the date.",
+   "measure": {
+    "what": "sessions until the next report",
+    "op": ">",
+    "value": 3,
+    "unit": "sessions"
+   },
+   "glossary": "earnings_blackout",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B22",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 Earnings",
+   "evidence": "ISRG 2007-06-27 and BFAM 2019-04-23 reached 3R on their own but 5R only on the earnings reaction day, so B22 (hold through a report only past 5R) was met only barely; CINF 2019-04-10 was rejected because 3R arrived only on the reaction day. NVDA 2023-05-05 reached 3R and 5R before its 05-25 report."
+  },
+  {
+   "id": "map.one_price",
+   "field": "trigger",
+   "statement": "One entry at one price with one stop; no adds, no second buy lower.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "A5",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.9 mistake 7; 10 question 12",
+   "evidence": "D-135 settles it: TSDR's ALAB (bought the 50SMA at $190 then again at $200) and COIN adds are not taught."
+  },
+  {
+   "id": "map.stop",
+   "field": "stop",
+   "statement": "A few cents under the low of the pullback, taking the lower of the hold day's low and the trigger day's low.",
+   "measure": {
+    "what": "stop",
+    "op": "==",
+    "value": "a few cents under the lower of the hold day's low and the trigger day's low"
+   },
+   "glossary": "stop_margin",
+   "basis": "house rule",
+   "sources": [
+    "S1",
+    "S4",
+    "S13"
+   ],
+   "house_rule": "A3",
+   "options": [
+    {
+     "value": "A",
+     "basis": "a few cents under the pullback low: A3, F62; Raschke's newly formed swing low; Kullamagi's lows of the day; TSDR's My stops are always LOD; D-008's default"
+    },
+    {
+     "value": "B",
+     "basis": "under the line itself"
+    },
+    {
+     "value": "C",
+     "basis": "the line minus a cushion: the scanners' line or low minus 0.5 to 1 ATR"
+    }
+   ],
+   "recommended": "A",
+   "status": "pending-owner",
+   "owner_question": "D-008",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.3; 10 question 4",
+   "evidence": "GLW: Thursday's low is risk area. The scan used 5 cents under the lowest low of the touch, hold and trigger days; the examples' stops ran 0.8% to 3.6%. D-008's default: the entry day's low for every setup, with the pattern low as the outer limit."
+  },
+  {
+   "id": "map.stop_width",
+   "field": "stop",
+   "statement": "If that stop is more than about 3% under the entry, the size comes down so the account risk is unchanged; skip if even that does not fit. Never move the stop up to make it fit.",
+   "measure": {
+    "what": "(entry - stop) / entry",
+    "op": "<=",
+    "value": 3,
+    "unit": "%"
+   },
+   "glossary": "stop_width",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "A13",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.3",
+   "evidence": "The scan: a stop within 3% did better than a wider one (28.3% / 18.2% against 25.8% / 15.3%). YELP 2013-06-26 (3.6%) and QCOM 1999-10-04 (3.5%) are the examples above 3%, sized down by A5; MU 2026-10-07 (5.9%) failed on day two. 50-day pullbacks in fast names often need more than 3%. D-005 is the shared decision on what to do past 3%; dossier 12 sends the question through D-008."
+  },
+  {
+   "id": "map.stop_broker",
+   "field": "stop",
+   "statement": "A real stop order with the broker. It only moves up.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "D41",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5",
+   "evidence": "A4: the stop only moves up. A close under the pullback low is not the stop; the stop is the order (12 corrected in checking, item 9)."
+  },
+  {
+   "id": "map.stop_gap",
+   "field": "stop",
+   "statement": "A gap through the stop: the first 30-minute low is the new stop; out past 2R.",
+   "measure": {
+    "what": "loss at the first 30-minute low of the gap-down day",
+    "op": "<=",
+    "value": 2,
+    "unit": "R",
+    "timeframe": "30-minute"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B20",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.3"
+  },
+  {
+   "id": "map.breakeven",
+   "field": "management",
+   "statement": "Stop to breakeven between 2R and 5R, at the first trim by default.",
+   "measure": {
+    "what": "R at which the stop moves to the entry",
+    "op": "in",
+    "value": [
+     2,
+     5
+    ],
+    "unit": "R"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B19",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4"
+  },
+  {
+   "id": "map.trim_1",
+   "field": "management",
+   "statement": "Sell a third at 3R.",
+   "measure": {
+    "what": "fraction sold at 3R",
+    "op": "==",
+    "value": 0.333,
+    "unit": "of the position"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B19",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4",
+   "evidence": "Among the ten examples 3R came in 1 to 10 sessions (CAT the slowest). 84% of all hits eventually traded through a fixed stop within 60 days, most 3R winners among them: that is what the trims and the breakeven move are for."
+  },
+  {
+   "id": "map.trim_2",
+   "field": "management",
+   "statement": "Sell a third at 5R.",
+   "measure": {
+    "what": "fraction sold at 5R",
+    "op": "==",
+    "value": 0.333,
+    "unit": "of the position"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "E51",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4"
+  },
+  {
+   "id": "map.trim_gap_open",
+   "field": "management",
+   "statement": "If it opens above a trim level, take that trim at the open.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "F63",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4"
+  },
+  {
+   "id": "map.trail",
+   "field": "management",
+   "statement": "Trail the last third under the 10-day (fast movers) or the 21-day (steadier) average, sold on a close below it. Named variants, taught only as theirs: Kullamagi sells 1/3 to 1/2 after 3-5 days; TSDR trims a quarter to a third on a 3-6 day push and trails the 9 and 20, and has also trailed the 20 EMA, the 50 SMA and the weekly 9 EMA.",
+   "measure": {
+    "what": "close against the 10-day (fast) or 21-day (steadier) average",
+    "op": "<",
+    "value": "the average",
+    "timeframe": "daily"
+   },
+   "glossary": "trail",
+   "basis": "house rule",
+   "sources": [
+    "S4",
+    "S13"
+   ],
+   "house_rule": "E52",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4",
+   "evidence": "D-024's default: E52 as written, exponential. The 10-day for a fast leader that rode its 10 EMA (YELP), the 21-day for a steadier grinder (BFAM, CAT)."
+  },
+  {
+   "id": "map.time_stop",
+   "field": "management",
+   "statement": "Time stop: still under 1R after 10 trading days, sell.",
+   "measure": {
+    "what": "open R after 10 trading days",
+    "op": "<",
+    "value": 1,
+    "unit": "R"
+   },
+   "glossary": "time_stop",
+   "basis": "house rule",
+   "sources": [
+    "S1"
+   ],
+   "house_rule": "C33",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4",
+   "evidence": "Raschke's no reason to be in this trade. CAT 2025-09-03 took 10 sessions to 3R, the slowest of the ten, and was never under 1R at day 10."
+  },
+  {
+   "id": "map.climax",
+   "field": "management",
+   "statement": "A climax run (Bracco's parabolic burst) on your own long: sell a big part into it.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "C34",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "7"
+  },
+  {
+   "id": "map.tries",
+   "field": "management",
+   "statement": "A new try only on a new trigger, as a new trade with its own stop; at most 3 tries a week and 6 a month on one stock.",
+   "measure": {
+    "what": "tries on one stock",
+    "op": "<=",
+    "value": 3,
+    "unit": "a week",
+    "and": "6 a month"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "E56",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "7 B21 row",
+   "evidence": "B21: buy again only if the setup triggers again."
+  },
+  {
+   "id": "map.inv_heavy_close",
+   "field": "invalidation",
+   "statement": "Before entry: the touch day closes under the line on more than 1.5 times the 50-day volume. That is distribution, not a pullback.",
+   "measure": {
+    "what": "touch-day volume / 50-day average volume, with the close under the line",
+    "op": ">",
+    "value": 1.5,
+    "unit": "x",
+    "timeframe": "daily"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S16"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5",
+   "evidence": "The scanners reject a touch bar over 1.1x to 1.5x the prior 20 bars' volume; the quiet-pullback consensus of 8.1."
+  },
+  {
+   "id": "map.inv_line_flat",
+   "field": "invalidation",
+   "statement": "Before entry: the line stops rising (the 20 EMA under its value 10 sessions ago), or the 20 EMA crosses under the 50 SMA.",
+   "measure": {
+    "what": "20 EMA today - 20 EMA 10 sessions ago, and 20 EMA - 50-day SMA",
+    "op": "<=",
+    "value": 0,
+    "unit": "$",
+    "timeframe": "daily"
+   },
+   "glossary": "rising_average",
+   "basis": "source consensus",
+   "sources": [
+    "S9",
+    "S16"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5",
+   "evidence": "Keller's proper order and his 21-day turns lower (one outside source); the v5 rising-21 EMA rule. TSLA 2024-01-08: the 50 SMA was flat and the 200 rising into it; a broken leader's first touch of the 50 is a correction (mistake 5)."
+  },
+  {
+   "id": "map.inv_third_close",
+   "field": "invalidation",
+   "statement": "Before entry: a third close under the line in the same pullback. Skip the name that keeps slicing the line.",
+   "measure": {
+    "what": "closes under the line in the same pullback",
+    "op": ">=",
+    "value": 3,
+    "unit": "closes",
+    "timeframe": "daily"
+   },
+   "glossary": "reclaim_window",
+   "basis": "my proposal",
+   "sources": [],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5",
+   "evidence": "The idea is Study SET.14's skip the name that keeps slicing the line. Five or more consecutive closes under a 50-day or 200-day line is the Remount (setup 13)."
+  },
+  {
+   "id": "map.inv_index",
+   "field": "invalidation",
+   "statement": "Before entry: the index loses its 20-day; stay patient until it is back above.",
+   "measure": {
+    "what": "index close against its 20-day EMA",
+    "op": "<",
+    "value": "index 20-day EMA",
+    "timeframe": "daily"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S13"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.5",
+   "evidence": "UCT's index note on the QQQ 9 and 20 EMA: when we are below them we stay patient. A cue under D-023's default, kept here because the dossier lists it under invalidations."
+  },
+  {
+   "id": "map.after_entry_stop",
+   "field": "invalidation",
+   "statement": "After the entry: a trade through the stop is the exit, by the real stop order with the broker.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "A4",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5",
+   "evidence": "D-136: no setup adds an exit before the stop."
+  },
+  {
+   "id": "map.weekly",
+   "field": "context",
+   "statement": "The weekly 10-week or 9/20-week pullback is a context lesson and a grade cue, not a second definition.",
+   "measure": {
+    "what": "the chart the setup is defined on",
+    "op": "==",
+    "value": "daily"
+   },
+   "basis": "my proposal",
+   "sources": [],
+   "options": [
+    {
+     "value": "a",
+     "basis": "daily only, the weekly as context: D-012's default"
+    },
+    {
+     "value": "b",
+     "basis": "include the weekly version as a trade: TSDR trails the weekly 9ema"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-012",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "10 question 10",
+   "evidence": "D-012's default: every setup is defined on the daily chart with a daily trigger; the weekly version is a grade cue and a context lesson."
+  }
+ ],
+ "grading": {
+  "a_plus": [
+   "map.which_touch: the first touch of a rising 20 EMA (or 10 EMA in a fast leader) after a breakout or earnings gap, inside a confirmed uptrend (20 > 50 > 200, all rising)",
+   "map.leadership: RS 90 or more, a leading group, other names in the group setting up too (GLW's Whole group)",
+   "map.volume: pullback days at or under about 0.7x the 50-day average over 3 to 8 orderly sessions",
+   "map.touch: confluence, the line sits on another level (an HVE or HVC level, a gap top, a prior breakout pivot; NBIS off the 50SMA, HVE level at $95.72)",
+   "map.stop_width: a tight reversal at the line (hammer, inside day, undercut and reclaim) so the stop is 3% or less",
+   "map.market_reading: Green, the index above its rising 20-day (map.index_20); in Orange only if everything else grades A+ (F65)"
+  ],
+  "b_minus": [
+   "map.which_touch: a third or later touch of the line; or a 50-day touch in a name that has lost RS 80 (map.rs_timing)",
+   "map.line_rising: the line flattening; the 20 EMA close to crossing under the 50",
+   "map.orderly: a sharp 1 to 2 day drop into the line, or one outsized red day (the owner's WSM and ULTA notes)",
+   "map.volume: volume rising on the pullback",
+   "map.stop_width: a wide stop (over 3%) that forces a much smaller size",
+   "map.market_reading: Yellow (smaller and fewer); a laggard group; earnings within about 2 weeks"
+  ],
+  "no_trade": [
+   "map.above_200: under the 200-day, or the 20 EMA under the 50, or the 50 under the 200",
+   "map.not_200_long: a single stock's pullback to the 200-day",
+   "map.inv_heavy_close: a heavy-volume close under the line",
+   "map.inv_third_close: a third close under the line in the same pullback",
+   "map.inv_line_flat: a flat or falling line, or the 20 EMA crossed under the 50",
+   "map.liquidity: under $10 or under $20 million a day",
+   "map.earnings_window: a report within 3 sessions",
+   "map.no_chase: more than 4% past the trigger",
+   "map.market_reading: Red; Orange below A+"
+  ]
+ },
+ "lookalikes": [
+  {
+   "setup": "11-ema20-pullback",
+   "tell": "Name the line the low touched. A low that tags the 20 EMA and holds above the 50-day SMA is the 20 EMA Pullback card in full; this card's own trades are the 10-day in a fast leader that has ridden its 10 EMA, and the 50-day when the low reaches it with the 200-day far below.",
+   "criterion": "map.one_setup"
+  },
+  {
+   "setup": "13-ma-reclaim",
+   "tell": "Count the closes under the line before the buy. A pullback allows at most two closes under the line, the second reclaimed at once; five or more consecutive closes under the 50-day or 200-day, with at least one 0.5 ATR under it, is a Remount, a line lost and retaken.",
+   "criterion": "map.inv_third_close"
+  },
+  {
+   "setup": "29-undercut-rally",
+   "tell": "Look at where the low sits against the line and what the buy is. A pullback's low holds inside the touch band and the buy is the trade over the hold day's high; a low that broke under the line and a buy taken as price trades back above it is the MAU&R costume of the Undercut and Rally.",
+   "criterion": "map.undercut"
+  },
+  {
+   "setup": "14-ema-crossback",
+   "tell": "Count the sessions since the stock closed back above both the 9 and 20 EMA out of a decline. The first test of those averages 3 to 20 sessions after that Wedge Pop is the EMA Crossback; a later touch of a line that has been rising for months, after a breakout or gap, is a pullback to the moving averages.",
+   "criterion": "map.which_touch"
+  },
+  {
+   "setup": "02-bull-flag",
+   "tell": "Measure the pole. A bull flag needs a 20% or larger gain inside 20 sessions and a 3 to 15 session tight drift that gives back at most half of it; a pullback to the averages needs no pole, only a rising line in a stacked trend and a 1 ATR dip from the swing high to the line.",
+   "criterion": "map.depth"
+  }
+ ],
+ "invalidations": [
+  "Before entry: the touch day closes under the line on more than 1.5x the 50-day volume (map.inv_heavy_close).",
+  "Before entry: the line stops rising, or the 20 EMA crosses under the 50 SMA (map.inv_line_flat).",
+  "Before entry: a third close under the line in the same pullback (map.inv_third_close).",
+  "Before entry: the index loses its 20-day; stay patient (map.inv_index).",
+  "Before entry: an earnings report within 3 sessions (map.earnings_window).",
+  "Before entry: the market reading is Red; in Orange only an A+ (map.market_reading).",
+  "After entry: a trade through the stop, by the real stop order (map.after_entry_stop).",
+  "After entry: under 1R after 10 trading days, out (map.time_stop).",
+  "A new try only on a new trigger; at most 3 a week and 6 a month (map.tries)."
+ ],
+ "mistakes": [
+  "Buying the touch because it is the line, with no sign of buyers (hoping we bounce at this random moving average).",
+  "Buying a stock that is slicing back and forth through the line.",
+  "Buying a pullback in a flat or falling line, or after the 20 EMA crossed under the 50 SMA.",
+  "Buying a heavy-volume break of the line as if it were a pullback.",
+  "Treating a broken leader's first touch of the 50 or 200-day as a pullback (it is a correction; TSLA 2024-01-08).",
+  "Setting the stop under the line minus a cushion, so the stop is far wider than 3%, then keeping full size.",
+  "Adding a second buy lower (A5 forbids it).",
+  "Buying the day before earnings.",
+  "Chasing the bounce day more than 4% past the trigger.",
+  "Picking a line after the fact: decide before the trade which line this stock respects (McGonagle: each stock has its own personality)."
+ ],
+ "short_mirror": {
+  "exists": true,
+  "setup": "12-ma-pullbacks",
+  "note": "Shorts are our long setups reversed (D47): a stock below a falling 200-day SMA (B26), RS 20 or less in a weak group (C31 mirror), rallies 2 to 8 sessions on light volume into a falling 20 EMA or 50 SMA, fails there, and is shorted when it trades under the rally day's low; stop a few cents over the rally high; skip if hard to borrow (D48). The shape is Kell's downside EMA Crossback (via Deepvue). Bracco's OPEN short idea (if we flush through 20ema, 2025-10-05) was a failed-momentum short far above the 200-day, not this mirror. No dossier of its own; whether to teach it is D-001 (question 11), whose shared default is recognition only."
+ },
+ "best_conditions": "A Green market reading, or Yellow at smaller size, with the index itself above a rising 20-day. A strong trend in which the leader surfs the rising 10 and 20-day (Kullamagi). Note the tension: Bonde says pullback methods do well in range-bound markets and on big stocks and may not do well in bull markets or highly trending markets, while UCT's writers use them most in strong uptrends (Pullbacks to the MAs during a strong market are natural and provide opportunity, 2025-07-20).",
+ "management": {
+  "trim_1": "a third at 3R (B19)",
+  "trim_2": "a third at 5R (E51)",
+  "trail": "a close under the 10-day for a fast mover, the 21-day for a steadier one (E52)",
+  "breakeven": "between 2R and 5R, at the first trim by default (B19)",
+  "time_stop": "under 1R after 10 trading days, sell (C33)",
+  "gap_open": "a trim level the day opens past is taken at the open (F63)",
+  "gap_against": "the first 30-minute low is the new stop; out if past 2R (B20)",
+  "climax": "sell a big part into a climax run (C34)",
+  "overrides": "none. The dossier (8.4) keeps the house defaults and teaches the others as named variants only: Kullamagi's 1/3 to 1/2 after 3-5 days; TSDR's quarter to a third on a 3-6 day push with a 9 and 20 EMA trail, and his 20 EMA (FSLY), 50 SMA (PL) and weekly 9 EMA trails. The scanners' targets (a 30-bar high plus 1 ATR, 3R, 40% or 50% of the prior advance) are not ours."
+ },
+ "examples": {
+  "winners": 10,
+  "sheet_dir": "_study-resume/scratchpad/setups/12-ma-pullbacks/final",
+  "base_rate": {
+   "hits": 60464,
+   "r3_pct": 27.7,
+   "r5_pct": 17.5,
+   "stopped_pct": 84.1,
+   "window": "60 trading days forward, fixed stop, no trims, no breakeven, no trail; 1984 to 2026; 2,630 names that ever met the liquidity rule; the trigger a trade over the hold day's high, stop 5 cents under the lowest low of the touch, hold and trigger days, skipped if wider than 6%; one hit per 10 sessions per ticker; no RS, group or market filter"
+  },
+  "cuts": {
+   "by_line": {
+    "10_ema": {
+     "hits": 33323,
+     "r3_pct": 27.1,
+     "r5_pct": 17.1
+    },
+    "20_ema": {
+     "hits": 20048,
+     "r3_pct": 28.4,
+     "r5_pct": 18.2
+    },
+    "50_sma": {
+     "hits": 7093,
+     "r3_pct": 28.4,
+     "r5_pct": 17.2
+    }
+   },
+   "stop_within_3_pct": {
+    "r3_pct": 28.3,
+    "r5_pct": 18.2,
+    "wider": {
+     "r3_pct": 25.8,
+     "r5_pct": 15.3
+    }
+   },
+   "clean_hold_vs_undercut_at_5r": {
+    "clean_r5_pct": 18.1,
+    "undercut_r5_pct": 15.7
+   },
+   "pullback_4_to_8_days_vs_2_to_3_at_5r": {
+    "long_r5_pct": 17.8,
+    "short_r5_pct": 17.0
+   },
+   "touch_volume_under_0_7x_vs_over_1_0x_at_5r": {
+    "quiet_r5_pct": 18.0,
+    "heavy_r5_pct": 16.5
+   },
+   "since_2020": {
+    "r3_pct": 26.7,
+    "r5_pct": 16.9
+   }
+  },
+  "winners_list": [
+   "QCOM 1999-10-04",
+   "CME 2004-09-17",
+   "ISRG 2007-06-27",
+   "YELP 2013-06-26",
+   "TRGP 2014-03-28",
+   "MOH 2018-06-08",
+   "BFAM 2019-04-23",
+   "NVDA 2023-05-05",
+   "WING 2024-01-09",
+   "CAT 2025-09-03"
+  ],
+  "failures": [
+   {
+    "ticker": "NVDA",
+    "date": "2024-04-03",
+    "criterion": "map.market_reading",
+    "why": "20 EMA; a five-day pullback on 0.8x volume, 8% off the high, stacked and rising averages, a 2.8% stop: by the rule as good as the 2023 example. It triggered, rolled over the next day and was stopped for the full 1R; the index was topping into a multi-week correction that started the same week."
+   },
+   {
+    "ticker": "TSLA",
+    "date": "2024-01-08",
+    "criterion": "map.near_high",
+    "why": "50 SMA; the rule passed it (the 50 SMA barely above the 200, within 25% of the high) but it was 20.6% off that high, the 50 SMA was flat, the 200 rising into it, and the pullback 3.6 ATR deep (map.orderly). It failed the same week and went from 240 to 170 in two months. A broken leader's first touch of the 50 is a correction, not a pullback."
+   },
+   {
+    "ticker": "MU",
+    "date": "2026-10-07",
+    "criterion": "map.stop_width",
+    "why": "20 EMA; a seven-day drift onto a rising 20 EMA with the 50 and 200 far below, but 16.7% off its high and with a 5.9% stop. It failed on day two and lost its 50 SMA within the week. Under A13 the trade would have been skipped or sized down."
+   },
+   {
+    "ticker": "GILD",
+    "date": "2014-11-10",
+    "criterion": "map.after_entry_stop",
+    "why": "50 SMA; buy 109.07, stop 106.28, stopped on day 2 (11-12, low 105.70) and lost the 50-day the same day; never near 3R in the window. No criterion failed; the stop did its job."
+   },
+   {
+    "ticker": "AAPL",
+    "date": "2018-10-09",
+    "criterion": "map.after_entry_stop",
+    "why": "20 EMA; buy 56.21, stop 55.00, stopped the next day (low 54.01) and lost the 50-day the same day; 20 sessions later it closed 4.20 under the 50-day. No criterion failed."
+   },
+   {
+    "ticker": "PLTR",
+    "date": "2025-05-20",
+    "criterion": "map.tries",
+    "why": "10 EMA; buy 127.78, stop 124.27, stopped the next day (low 119.41) and closed back at 120.58; it reached 3R on 06-11 and 5R on 06-25 without us. A one-day shakeout; a new trigger, not a re-buy."
+   }
+  ],
+  "limits": "Daily bars only; the hourly Go Signal and red-to-green variants were not scanned. No RS rating, group rank or market reading in the sandbox, so C31 and F65 were not applied. Earnings dates were used only to read the ten examples (complete from about 2005). The scan is a mechanical stand-in for the owner's judgment, not a backtest of his trade. Rejected after looking at the chart: SRPT 2012-09-27 (a drug-data gap), MSTR 2024-02-26 (parabolic), TGT 2020-07-22 and HPE 2026-04-16 (a flat 200-day just reclaimed), TEAM 2021-07-02 (a flat shelf), CINF 2019-04-10 (3R only on the reaction day).",
+  "near_misses": [
+   {
+    "ticker": "IBM",
+    "date": "2010-08-17",
+    "criterion": "map.not_200_long",
+    "why": "the line the low tagged is the 200-day SMA 122.14 (hold 08-16); which average: the 200-day is context, not a buy. Stopped, best 0.71R."
+   },
+   {
+    "ticker": "ADI",
+    "date": "2023-04-18",
+    "criterion": "map.inv_third_close",
+    "why": "3 closes under the 20 EMA in the 8-session pullback (hold 04-17); how many closes under: a line sliced, not held, and too few closes for a Remount. Stopped at 0R."
+   },
+   {
+    "ticker": "META",
+    "date": "2026-10-09",
+    "criterion": "map.length",
+    "why": "10 sessions from the swing high to the touch day, over the 2 to 8 rule (hold 10-08); on the 20 EMA that drift belongs to the 20 EMA Pullback card's 2 to 15 window. Reached 3R, then stopped."
+   },
+   {
+    "ticker": "AMD",
+    "date": "2019-02-12",
+    "criterion": "map.near_high",
+    "why": "32.7% under the 52-week high 34.14, over the 25% rule (hold 02-11); a recovering stock's 10-day, not a leader's pullback. Stopped at 0R."
+   }
+  ],
+  "sheets": {
+   "failures": "final/fail_1-4.png",
+   "near_misses": "final/near_1-4.png",
+   "pair": "final/pair_11-ema20-pullback.png"
+  }
+ },
+ "question_seeds": [
+  {
+   "kind": "recall",
+   "criterion": "map.one_setup",
+   "seed": "Which three lines does the moving-average pullback use, and which one is taught as context only?"
+  },
+  {
+   "kind": "recall",
+   "criterion": "map.trigger",
+   "seed": "After the hold day, what is the buy, and what order type?"
+  },
+  {
+   "kind": "recall",
+   "criterion": "map.stop",
+   "seed": "Which low does the stop go under on a pullback to the 50-day?"
+  },
+  {
+   "kind": "spot",
+   "criterion": "map.touch",
+   "seed": "Hidden ticker: tap the touch day, the session whose low came within 1 ATR of the rising 50-day and closed back above it."
+  },
+  {
+   "kind": "spot",
+   "criterion": "map.above_200",
+   "seed": "Hidden ticker: are the averages stacked, 20 over 50 over 200, with price above all three? Take the pullback or pass."
+  },
+  {
+   "kind": "spot",
+   "criterion": "map.inv_third_close",
+   "seed": "Hidden ticker: which of these four charts keeps slicing back and forth through its 20 EMA?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "map.inv_third_close",
+   "seed": "Pullback or Remount: the stock closed under its 50-day for seven sessions and today closed back above it on big volume. Which is it?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "map.undercut",
+   "seed": "Pullback or Undercut and Rally: the low broke 1% under the 20 EMA at 10 am and price is back above the line by noon. Which card, and what is the buy?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "map.which_touch",
+   "seed": "Pullback or EMA Crossback: the stock closed back over the 9 and 20 EMA six sessions ago after a correction and is touching them now for the first time. Which is it?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "map.depth",
+   "seed": "Pullback or Bull Flag: a 28% pole in 9 sessions, then 4 tight days drifting onto the 10 EMA. Which name fits, and what decides it?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "map.not_200_long",
+   "seed": "A former leader, 22% off its high, drifts onto a flat 200-day and closes above it. Pullback buy, or pass?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "map.earnings_window",
+   "seed": "The hold day printed today; the report is in 2 sessions. Buy the break of today's high tomorrow?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "map.one_price",
+   "seed": "You bought the 50-day hold at 190; it dips to 186 and holds again. Add, or not?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "map.inv_heavy_close",
+   "seed": "The stock closes under its 20 EMA on 2.3x average volume on day five of the pullback. Wait for tomorrow's reclaim, or drop it?"
+  },
+  {
+   "kind": "grade",
+   "criterion": "map.which_touch",
+   "seed": "Same leader: the first touch of the 20 EMA after an earnings gap, and the third touch two months later. Grade each."
+  },
+  {
+   "kind": "grade",
+   "criterion": "map.orderly",
+   "seed": "Two pullbacks to the 50-day: six quiet days on 0.6x volume, or two days of 2.5 ATR red bars. Grade each."
+  },
+  {
+   "kind": "grade",
+   "criterion": "map.stop_width",
+   "seed": "The pullback low on a fast leader sits 3.6% under your fill. What grade, and what happens to the size?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "map.depth",
+   "seed": "The highest high of the last 11 sessions is 150.00, ATR is 4.00 and the touch day closed at 147.20. Is the pullback deep enough?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "map.near_high",
+   "seed": "The 52-week high is 300.00 and the stock closed at 238.00 on the hold day. Is it within 25% of its high?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "map.trim_1",
+   "seed": "Bought the break of the hold day's high at 97.99 with the stop at 96.51. Where are 3R and 5R?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "map.touch",
+   "seed": "The 50-day is 410.00, ATR is 9.00 and the day's low was 402.50. Is that a touch by the rule?"
+  }
+ ],
+ "owner_decisions": [
+  "D-001",
+  "D-002",
+  "D-003",
+  "D-004",
+  "D-008",
+  "D-009",
+  "D-011",
+  "D-012",
+  "D-015",
+  "D-016",
+  "D-021",
+  "D-026",
+  "D-135"
+ ],
+ "conflicts": [
+  "Source ids on this card: the dossier's section 11 numbers nothing, so S<n> is the n-th source in reading order as the validator counts them (S1 Raschke's AIQ interview, S4 Kullamagi, S5 Bonde, S6 Deepvue on Kell, S7 Deepvue on Minervini, S8 ChartSchool, S9 Keller, S10 EdgeRater, S11 the Morales and Kacher excerpts, S13 UCT's Substack, S14 the owner's verdict log, S15 the rulebook, S16 the scanners, S17 the Model Book and Study files).",
+  "The trigger across the pullback family: this dossier recommends the trade over the hold day's high (fully visible on daily bars) with the hourly Go Signal and red to green as named variants; dossier 11 recommends the intraday turn as the default and the prior-high break as the fallback for the 20 EMA form. The scan used the prior-high break. One ruling (D-003) should settle both.",
+  "Which numbers: the Study stack says 9 EMA, 20 EMA, 50 SMA; the scanners and E52 say 10, 21; the dossier recommends the 20 EMA and 50 SMA because UCT's writers say 20EMA and 50SMA almost every time (D-021).",
+  "The rising-line windows: this dossier and dossier 11 compare the 20 EMA with 10 sessions ago; dossier 14 and the glossary's canonical rising_average use 5 for the 20 EMA. The 200-day: this dossier asks 21 sessions (Deepvue's one month), the glossary's canonical is 20. The card keeps the dossier's numbers and flags them.",
+  "Pullback length: this dossier proposes 2 to 8 sessions; dossier 11 proposes 2 to 15 for the 20 EMA form (the owner's 1-3 weeks of build out); dossier 14 2 to 10. One number for the family is open.",
+  "The undercut: the dossier allows an undercut reclaimed the same or next day inside this setup, and asks whether the MAU&R is its own setup (question 7). D-002's default files it as a named variant of U&R (29) with its depth under D-036 (within 1 ATR, the same day for an A). The card recommends D-002's default and keeps the one-session grace for the hold day (map.hold_day). The scan found clean holds did better at 5R.",
+  "Volume: the dossier writes the quiet pullback as a rule; the scan found touch-day volume under 0.7x against over 1.0x made almost no difference (18.0% against 16.5% at 5R) and dossier 14's test found quiet pullbacks did worse. D-006's default makes it a grading cue; the card follows that and keeps the heavy-volume close under the line as an invalidation.",
+  "Within 25% of the 52-week high: one source (Deepvue's summary of Minervini). The TSLA 2024-01-08 failure (20.6% off its high) says the allowance is too loose on its own; the dossier suggests 10% or 15% for this setup and asks him.",
+  "RS on a pullback: a 50-day pullback can push a real leader under 80; Bracco framed his MAU&Rs and IONQ as mean-reversion longs, which C31 exempts. D-011's default: C31 as written for pullbacks, read on the entry day; the washout forms belong to the mean-reversion class.",
+  "The 200-day: the app has a pullback_to_200sma scanner and Beebe's AMZN example; B26 forbids buying under it, the lab's blind review found 200-day tags 0 yes of 7, and D-009's default makes a 200-day pullback context, not a long. The card does not teach it as a buy.",
+  "The stop: the house is the pullback low (A3, F62); the scanners use the line or the low minus 0.5 to 1 ATR, often wider than 3%; Morales and Kacher's MAU&R puts it 1-2% under the line. The house wins (D-008's default).",
+  "Adds: TSDR bought ALAB at the 50SMA at $190 then again at $200 and on COIN looked to add back partials; A5 says no adds (D-135 settled). TraderLion's scale in is not ours.",
+  "The scanners: the 21, 50 and 200-day scanners can rarely fire in the live scan (their stacked_bullish gate needs close over the 10-day SMA on the touch day; the 21-day one also needs rs_trend up, which a pullback usually fails); their prior-advance test cannot tell up from down; their narratives attribute to Raschke, Bonde, Minervini, O'Neil and Weinstein numbers and quotes with no source. All go to D-004 and D-010.",
+  "Bonde's caution (pullback methods may not do well in bull markets or highly trending markets; momentum and growth stocks are best traded with breakouts) against UCT's practice in strong uptrends. His view, not a measured result; the scan's era cut (since 2020: 26.7% / 16.9%) shows no decay.",
+  "The name and the journal: no tag exists for the 10-day or 50-day forms; D-016's default is one tag MA Pullback with the line in the note. TSDR's section is now headed Patrick (TSDR); whether TSDR is the owner, so his lines can be quoted as ours, is D-015 (question 13).",
+  "Three of the ten examples lean on an earnings reaction day for 5R (ISRG, BFAM) or were rejected for it (CINF); the examples should be read with B22 in mind, and the earnings table is complete only from about 2005."
+ ]
+}

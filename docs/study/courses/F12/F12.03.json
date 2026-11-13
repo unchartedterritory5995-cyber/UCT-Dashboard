@@ -1,0 +1,1174 @@
+{
+ "unit": "F12.03",
+ "track": "F12",
+ "title": "Journaling with fixed fields",
+ "teaches": "Log every trade in the same fixed fields: the plan before the click (date, reason, entry, initial stop, target, size), the result after the close (exit, R, how closely you followed the plan, one lesson), emotion and mistake tags from a short fixed list, and a chart saved at entry, so your trades can be sorted and reviewed instead of reread.",
+ "skills": [
+  {
+   "id": "process.journal",
+   "title": "Journaling with fixed fields"
+  }
+ ],
+ "as_of": "2026-11-09",
+ "sources": [
+  {
+   "id": "s1",
+   "tier": 2,
+   "publisher": "CME Group",
+   "title": "Building a Trade Plan, Step 5: Keep a Trade Log (CME Group education course)",
+   "url": "https://www.cmegroup.com/education/courses/building-a-trade-plan/keep-a-trade-log.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "An education course page from CME Group, the exchange operator; the contract lists CME Group education pages under Tier 2."
+  },
+  {
+   "id": "s2",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "5 Elements of a Smart Trade Plan",
+   "url": "https://www.schwab.com/learn/story/5-elements-smart-trade-plan",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s3",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "Stock Trade Plan Worksheet (PDF linked from '5 Elements of a Smart Trade Plan')",
+   "url": "https://bynder.schwab.com/m/1a90acc5521b786c/original/Stock-Trade-Plan-Worksheet.pdf",
+   "accessed": "2026-11-09",
+   "why_reliable": "Schwab's own worksheet, linked from its Learn article (s2) as the sheet to fill out for each trade; served from Schwab's asset host."
+  },
+  {
+   "id": "s4",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "10 Steps To Building a Winning Trading Plan (Cedric Thompson, updated 2026-07-01)",
+   "url": "https://www.investopedia.com/articles/trading/04/042104.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s5",
+   "tier": 2,
+   "publisher": "StockCharts ChartSchool",
+   "title": "Cognitive Biases (Grayson Roze)",
+   "url": "https://chartschool.stockcharts.com/table-of-contents/overview/cognitive-biases",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s6",
+   "tier": 2,
+   "publisher": "Brett Steenbarger, TraderFeed",
+   "title": "Trading Psychology Techniques - 1: Keeping a Trading Journal (2019-05-02)",
+   "url": "https://traderfeed.blogspot.com/2019/05/trading-psychology-techniques-1-keeping.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Brett N. Steenbarger, Ph.D.: clinical psychologist and performance coach to portfolio managers and traders, author of four Wiley trading-psychology books (the contract's Tier 2 list names Steenbarger, and the unit plan names him for this unit). TraderFeed is his own blog; every post is signed and dated, with his author bio on the page."
+  },
+  {
+   "id": "s7",
+   "tier": 2,
+   "publisher": "Brett Steenbarger, TraderFeed",
+   "title": "Formatting Your Trading Journal for Success (2008-03-15)",
+   "url": "https://traderfeed.blogspot.com/2008/03/formatting-your-trading-journal-for.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Brett N. Steenbarger, Ph.D.: clinical psychologist and performance coach to portfolio managers and traders, author of four Wiley trading-psychology books (the contract's Tier 2 list names Steenbarger, and the unit plan names him for this unit). TraderFeed is his own blog; every post is signed and dated, with his author bio on the page."
+  },
+  {
+   "id": "s8",
+   "tier": 2,
+   "publisher": "Brett Steenbarger, TraderFeed",
+   "title": "Taking Trading Journals to the Next Level (2014-02-27)",
+   "url": "https://traderfeed.blogspot.com/2014/02/taking-trading-journals-to-next-level.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Brett N. Steenbarger, Ph.D.: clinical psychologist and performance coach to portfolio managers and traders, author of four Wiley trading-psychology books (the contract's Tier 2 list names Steenbarger, and the unit plan names him for this unit). TraderFeed is his own blog; every post is signed and dated, with his author bio on the page."
+  },
+  {
+   "id": "s9",
+   "tier": 2,
+   "publisher": "Brett Steenbarger, TraderFeed",
+   "title": "Supercharging Your Trading Journal (2014-08-13)",
+   "url": "https://traderfeed.blogspot.com/2014/08/supercharging-your-trading-journal.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Brett N. Steenbarger, Ph.D.: clinical psychologist and performance coach to portfolio managers and traders, author of four Wiley trading-psychology books (the contract's Tier 2 list names Steenbarger, and the unit plan names him for this unit). TraderFeed is his own blog; every post is signed and dated, with his author bio on the page."
+  },
+  {
+   "id": "s10",
+   "tier": 2,
+   "publisher": "Brett Steenbarger, TraderFeed",
+   "title": "How to Keep a Trading Journal: Trader Perspectives (2007-05-16)",
+   "url": "https://traderfeed.blogspot.com/2007/05/how-to-keep-trading-journal-trader.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Brett N. Steenbarger, Ph.D.: clinical psychologist and performance coach to portfolio managers and traders, author of four Wiley trading-psychology books (the contract's Tier 2 list names Steenbarger, and the unit plan names him for this unit). TraderFeed is his own blog; every post is signed and dated, with his author bio on the page."
+  },
+  {
+   "id": "s11",
+   "tier": 2,
+   "publisher": "Brett Steenbarger, TraderFeed",
+   "title": "Trading Journals: What Format is Right for Me? (2010-02-28)",
+   "url": "https://traderfeed.blogspot.com/2010/02/trading-journals-what-format-is-right.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Brett N. Steenbarger, Ph.D.: clinical psychologist and performance coach to portfolio managers and traders, author of four Wiley trading-psychology books (the contract's Tier 2 list names Steenbarger, and the unit plan names him for this unit). TraderFeed is his own blog; every post is signed and dated, with his author bio on the page."
+  },
+  {
+   "id": "s12",
+   "tier": 2,
+   "publisher": "Brett Steenbarger, TraderFeed",
+   "title": "Using Trading Journals to Identify and Change Your Patterns (2008-03-14)",
+   "url": "https://traderfeed.blogspot.com/2008/03/using-trading-journals-to-identify-and.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Brett N. Steenbarger, Ph.D.: clinical psychologist and performance coach to portfolio managers and traders, author of four Wiley trading-psychology books (the contract's Tier 2 list names Steenbarger, and the unit plan names him for this unit). TraderFeed is his own blog; every post is signed and dated, with his author bio on the page."
+  },
+  {
+   "id": "s13",
+   "tier": 2,
+   "publisher": "Brett Steenbarger, TraderFeed",
+   "title": "The Power of Trading Journals (2014-04-24)",
+   "url": "https://traderfeed.blogspot.com/2014/04/the-power-of-trading-journals.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Brett N. Steenbarger, Ph.D.: clinical psychologist and performance coach to portfolio managers and traders, author of four Wiley trading-psychology books (the contract's Tier 2 list names Steenbarger, and the unit plan names him for this unit). TraderFeed is his own blog; every post is signed and dated, with his author bio on the page."
+  },
+  {
+   "id": "s14",
+   "tier": 2,
+   "publisher": "Van Tharp Institute",
+   "title": "Tharp Think Trading Concepts",
+   "url": "https://vantharp.com/tharp-think-trading-concepts/",
+   "accessed": "2026-11-09",
+   "why_reliable": "The Van Tharp Institute's own pages for Van K. Tharp's terms (Tharp, a trading coach with a Ph.D. in psychology, popularised R-multiples). The same pages are cited for R in F9.03 and F9.06."
+  },
+  {
+   "id": "s15",
+   "tier": 2,
+   "publisher": "Van Tharp Institute",
+   "title": "Glossary: R value",
+   "url": "https://vantharpinstitute.com/glossary/r-value",
+   "accessed": "2026-11-09",
+   "why_reliable": "The Van Tharp Institute's own pages for Van K. Tharp's terms (Tharp, a trading coach with a Ph.D. in psychology, popularised R-multiples). The same pages are cited for R in F9.03 and F9.06."
+  },
+  {
+   "id": "s16",
+   "tier": 2,
+   "publisher": "Van Tharp Institute",
+   "title": "Glossary: R Multiple",
+   "url": "https://vantharpinstitute.com/glossary/r-multiple",
+   "accessed": "2026-11-09",
+   "why_reliable": "The Van Tharp Institute's own pages for Van K. Tharp's terms (Tharp, a trading coach with a Ph.D. in psychology, popularised R-multiples). The same pages are cited for R in F9.03 and F9.06."
+  },
+  {
+   "id": "s17",
+   "tier": 2,
+   "publisher": "Jared Tendler (jaredtendler.com)",
+   "title": "Effective Journaling (2025-08-11)",
+   "url": "https://jaredtendler.com/effective-journaling/",
+   "accessed": "2026-11-09",
+   "why_reliable": "Jared Tendler, MS, LMHC: licensed mental health counselor and mental game coach to traders and poker players, author of The Mental Game of Trading (the unit plan names him). A signed, dated post on his own site."
+  },
+  {
+   "id": "s18",
+   "tier": 1,
+   "publisher": "SEC (Library of Congress report for the SEC)",
+   "title": "Behavioral Patterns and Pitfalls of U.S. Investors (Federal Research Division, Library of Congress, under an interagency agreement with the SEC, August 2010)",
+   "url": "https://www.sec.gov/investor/locinvestorbehaviorreport.pdf",
+   "accessed": "2026-11-09"
+  }
+ ],
+ "facts": [
+  {
+   "id": "f01",
+   "source": "s1",
+   "quote": "As you enter each trade, record your comments about why you made the trade",
+   "claim": "Write down why you took the trade as you enter it."
+  },
+  {
+   "id": "f02",
+   "source": "s1",
+   "quote": "include details such as: Price targets Entry and exit points Time of trade Support and resistance levels Technical indicators",
+   "claim": "The log holds the price target, the entry and exit points, the time, and the chart levels and indicators."
+  },
+  {
+   "id": "f03",
+   "source": "s1",
+   "quote": "If you win a trade, then you want to know exactly why and how. More importantly, you want to know the same when you lose, so you don't repeat unnecessary mistakes.",
+   "claim": "You want the why and how of your winners as well as your losers."
+  },
+  {
+   "id": "f04",
+   "source": "s1",
+   "quote": "After each trading day, adding up your profit or loss is secondary to knowing the why and how of your trading performance.",
+   "claim": "The day's P&L total matters less than knowing why and how you traded."
+  },
+  {
+   "id": "f05",
+   "source": "s1",
+   "quote": "Be sure to save your trading records so you can go back and analyze elements such as: Profit or loss for a particular system or trading strategy",
+   "claim": "Keep records so you can check the profit or loss of each strategy."
+  },
+  {
+   "id": "f06",
+   "source": "s2",
+   "quote": "Some traders keep track of their trade plans in an old notebook. Some use spreadsheets that let them track, sort, and analyze.",
+   "claim": "A spreadsheet log lets you track, sort and analyze your trades."
+  },
+  {
+   "id": "f07",
+   "source": "s2",
+   "quote": "It sets out the steps you should follow to analyze your trade before you make it and after you close it out. You can start by filling out the sheet for each trade you make.",
+   "claim": "Schwab's worksheet covers each trade before you make it and after you close it, filled out for every trade."
+  },
+  {
+   "id": "f08",
+   "source": "s2",
+   "quote": "Record your trades in a trading journal. Review your activities at the end of the month or quarter, and ask yourself the following questions: Were my entries, stops, and exits performed effectively?",
+   "claim": "Log your trades, then review whether your entries, stops and exits were carried out well."
+  },
+  {
+   "id": "f09",
+   "source": "s2",
+   "quote": "You can calculate a win/loss ratio by determining the percentage of your trades that have been profitable versus those that haven't.",
+   "claim": "A win rate is the share of your trades that made money versus those that didn't."
+  },
+  {
+   "id": "f10",
+   "source": "s3",
+   "quote": "Stock Trade Plan Worksheet Date:",
+   "claim": "Schwab's worksheet starts with the date."
+  },
+  {
+   "id": "f11",
+   "source": "s3",
+   "quote": "Entry price: Initial profit target price: Initial stop loss price: Position size calculation:",
+   "claim": "The plan fields: entry price, initial target, initial stop and the position size."
+  },
+  {
+   "id": "f12",
+   "source": "s3",
+   "quote": "Realized gain/loss: Grade how closely the trade plan was followed:",
+   "claim": "After the trade: the realized gain or loss, and a grade for how closely you followed the plan."
+  },
+  {
+   "id": "f13",
+   "source": "s3",
+   "quote": "What worked? What didn't work? Lessons learned?",
+   "claim": "Each trade closes with what worked, what didn't and the lessons learned."
+  },
+  {
+   "id": "f14",
+   "source": "s4",
+   "quote": "Keep a detailed record of your trading activity, including entry and exit points, your reasons for taking the trade, and the outcomes.",
+   "claim": "Record entry and exit points, your reasons for the trade, and the outcome."
+  },
+  {
+   "id": "f15",
+   "source": "s4",
+   "quote": "Evaluating and reviewing your past trades will allow you to identify patterns, strengths, and areas for improvement.",
+   "claim": "Reviewing past trades shows your patterns, strengths and weak spots."
+  },
+  {
+   "id": "f16",
+   "source": "s1",
+   "quote": "Write down your daily conclusions in your trading journal so that you can reference them again later.",
+   "claim": "Write your conclusions in the journal so you can go back to them later."
+  },
+  {
+   "id": "f17",
+   "source": "s5",
+   "quote": "Hindsight bias describes our inclination, after an event has occurred, to see the event as having been predictable, even if there had been little to no objective basis for predicting it.",
+   "claim": "After the fact, an event looks predictable even when there was little basis to predict it."
+  },
+  {
+   "id": "f19",
+   "source": "s6",
+   "quote": "Journal entries are sometimes detailed, sometimes sketchy. They are sometimes more frequent, sometimes less frequent. The trader lacks a consistent journaling process.",
+   "claim": "A common journaling mistake: entries that change in detail and timing, with no consistent process."
+  },
+  {
+   "id": "f20",
+   "source": "s6",
+   "quote": "The journal might focus on entries and exits, but not position and risk management. It is uncanny that the areas left out of journals are often those most important to work on!",
+   "claim": "Journals often skip position size and risk, and what gets left out is often what matters most."
+  },
+  {
+   "id": "f21",
+   "source": "s6",
+   "quote": "You don't want journaling to become unduly burdensome",
+   "claim": "Journaling shouldn't become a burden."
+  },
+  {
+   "id": "f22",
+   "source": "s7",
+   "quote": "Your journal will track how well you follow these rules, not just whether you make money or not.",
+   "claim": "The journal tracks how well you follow your rules, not only whether you made money."
+  },
+  {
+   "id": "f23",
+   "source": "s8",
+   "quote": "it allows you to tag content and acts as a searchable database. That allows you to pull out all entries on a particular stock or all posts that pertain to a given topic, such as overtrading.",
+   "claim": "Tags turn a journal into a database: you can pull up every entry on one stock or one topic, like overtrading."
+  },
+  {
+   "id": "f24",
+   "source": "s8",
+   "quote": "You can even use your phone as a scanner, take pictures of something from your trading screen, and save them to your Evernote journal.",
+   "claim": "You can save pictures of your trading screen in the journal."
+  },
+  {
+   "id": "f25",
+   "source": "s9",
+   "quote": "Such a journal would consist of multiple charts, as well as commentary. Actual trades logged during the market day would also be depicted, along with comments on the strengths and weaknesses of the trades.",
+   "claim": "A strong journal has charts with the trades marked on them, plus comments."
+  },
+  {
+   "id": "f26",
+   "source": "s9",
+   "quote": "Most written journals are mere summaries of a trading day or week.",
+   "claim": "Most written journals just summarize the day or week."
+  },
+  {
+   "id": "f27",
+   "source": "s10",
+   "quote": "He makes effective use of tags to categorize his trades, enabling him to quickly identify the types of trades and markets that are working best for him.",
+   "claim": "Tagging trades by type shows quickly which kinds of trades work best."
+  },
+  {
+   "id": "f28",
+   "source": "s10",
+   "quote": "The best journals, I find, don't make the collection of information burdensome and focus on concrete goals for improvement.",
+   "claim": "The best journals keep data collection light."
+  },
+  {
+   "id": "f29",
+   "source": "s10",
+   "quote": "In the end, trading journals are like exercise equipment: they only produce results if you work them regularly.",
+   "claim": "A journal only helps if you keep it up."
+  },
+  {
+   "id": "f30",
+   "source": "s11",
+   "quote": "Journal entries can be both qualitative (written summaries of the day's trading strengths and weaknesses) and quantitative (summaries of performance metrics, including P/L, number of winning/losing trades, etc.)",
+   "claim": "Entries hold both written notes and numbers like P&L and wins and losses."
+  },
+  {
+   "id": "f31",
+   "source": "s11",
+   "quote": "The idea is to use the journal to keep a real time record of what you're thinking and feeling, so that you can become a better self-observer.",
+   "claim": "Recording what you think and feel makes you better at watching yourself."
+  },
+  {
+   "id": "f32",
+   "source": "s12",
+   "quote": "Worry, physical tension, and feelings of nervousness are great clues to track in a journal. Once you recognize your fear patterns, you can take some deep breaths, calm yourself, and focus on assessing opportunity",
+   "claim": "Worry and nervousness are clues worth logging; once you see a fear pattern you can work on it."
+  },
+  {
+   "id": "f33",
+   "source": "s13",
+   "quote": "They are a way of focusing on process, rather than anchoring our moods and self-esteem to the ups and downs of P/L.",
+   "claim": "A journal keeps your focus on process instead of the swings in P&L."
+  },
+  {
+   "id": "f34",
+   "source": "s14",
+   "quote": "at the time you enter any trade, you should pre-determine some point at which you’ll get out of the trade to preserve your capital. That exit point is the risk you have in the trade or your expected loss.",
+   "claim": "Set your exit point when you enter. That point is your risk on the trade."
+  },
+  {
+   "id": "f35",
+   "source": "s14",
+   "quote": "If you get out when it drops to $30, your loss is much bigger than 1R. It’s twice what you were planning to lose, or 2R.",
+   "claim": "Getting out past your planned stop makes the loss bigger than 1R; twice the planned loss is 2R."
+  },
+  {
+   "id": "f36",
+   "source": "s15",
+   "quote": "A term used to express the initial risk taken in a given position, as defined by one’s initial stop loss.",
+   "claim": "R is the initial risk, set by your initial stop."
+  },
+  {
+   "id": "f37",
+   "source": "s16",
+   "quote": "All profits and losses can be expressed as a multiple of the initial risk (R) taken.",
+   "claim": "Every result can be stated in R, a multiple of the initial risk."
+  },
+  {
+   "id": "f38",
+   "source": "s17",
+   "quote": "At a minimum, do a brain dump, writing out everything in your mind, what happened, what the emotion was, what the trigger was, any other key details of the hand/trade/situation that can easily get lost.",
+   "claim": "After the session, write down what happened, the emotion, and what triggered it."
+  },
+  {
+   "id": "f39",
+   "source": "s17",
+   "quote": "Details can disappear from memory and they can be the key to solving the problem and minimizing the chance it’s going to happen again.",
+   "claim": "Details fade from memory, and they can be what solves the problem."
+  },
+  {
+   "id": "f40",
+   "source": "s17",
+   "quote": "To get started, I suggest committing to a two to four week period of time where you’ll journal 3 – 5 minutes each time.",
+   "claim": "Start with short sessions: 3 to 5 minutes each time."
+  },
+  {
+   "id": "f41",
+   "source": "s17",
+   "quote": "What mistakes did you make? How can you improve on them and/or be better next time?",
+   "claim": "Close the review with your mistakes and how to do better next time."
+  },
+  {
+   "id": "f42",
+   "source": "s18",
+   "quote": "Kahneman uses prospect theory to highlight biases of judgment—overconfidence, optimism, hindsight, and overreaction to past events",
+   "claim": "Hindsight is one of investors' known biases of judgment."
+  },
+  {
+   "id": "f43",
+   "source": "s18",
+   "quote": "These errors and biases lead to poor investment decisions.",
+   "claim": "Those biases lead to poor investment decisions."
+  },
+  {
+   "id": "f44",
+   "source": "s18",
+   "quote": "The disposition effect is the tendency of investors to sell winning positions",
+   "claim": "Investors tend to sell their winning positions; this is called the disposition effect."
+  },
+  {
+   "id": "f45",
+   "source": "s18",
+   "quote": "demonstrating that the disposition effect is widely operative and that this investment strategy is counterproductive",
+   "claim": "Odean found the habit is widespread and counterproductive."
+  },
+  {
+   "id": "f46",
+   "source": "s1",
+   "quote": "Drawdowns (maximum loss per trade using a trading system)",
+   "claim": "CME lists drawdowns, the maximum loss per trade, among what your records should let you analyze."
+  }
+ ],
+ "walkthroughs": [
+  {
+   "key": "w1",
+   "title": "Same fields, every trade",
+   "steps": [
+    "Most journals are summaries of the day. One entry is detailed, the next is sketchy, and none of it sorts.",
+    "So log every trade in the same fixed fields. Schwab's worksheet works that way: one sheet, filled out for each trade.",
+    "Fixed fields and tags can be sorted. Then every trade of one kind comes up at once."
+   ],
+   "facts": [
+    "f26",
+    "f19",
+    "f07",
+    "f06",
+    "f27",
+    "f23"
+   ]
+  },
+  {
+   "key": "w2",
+   "title": "Before the click, after the close",
+   "steps": [
+    "Before you buy, log the date and the plan: why you're taking it, entry, stop, target and size.",
+    "Write the reason now. After the fact, the trade looks easier to call than it was.",
+    "After you close, log the result: the exit, the R it made, and how closely you followed the plan.",
+    "Finish with what worked, what didn't, and one lesson."
+   ],
+   "facts": [
+    "f10",
+    "f11",
+    "f01",
+    "f17",
+    "f42",
+    "f12",
+    "f37",
+    "f13"
+   ]
+  },
+  {
+   "key": "w3",
+   "title": "Tags and a picture",
+   "steps": [
+    "Tag the setup, the emotion and any mistake from a short list. Use the same word every time.",
+    "Save the chart when you enter, with your levels marked.",
+    "Keep it short enough to do on every trade. A journal only works if you keep working it."
+   ],
+   "facts": [
+    "f27",
+    "f23",
+    "f32",
+    "f24",
+    "f02",
+    "f29",
+    "f28"
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "key": "q01",
+   "skill": "process.journal",
+   "rung": 1,
+   "format": "mcq",
+   "q": "Why log every trade in the same fixed fields instead of free notes?",
+   "choices": [
+    "So you can sort and compare trades",
+    "So each entry is longer and richer",
+    "So you can skip the written notes"
+   ],
+   "answer": "So you can sort and compare trades",
+   "why": "So trades can be sorted and compared. Free notes drift, detailed one day and sketchy the next. Fixed fields let you track, sort and analyze, and pull up every trade of one kind at once.",
+   "lesson_line": "Same fields on every trade. That's what makes a journal you can sort.",
+   "facts": [
+    "f06",
+    "f19",
+    "f27",
+    "f23",
+    "f05",
+    "f28",
+    "f30",
+    "f01"
+   ],
+   "wrong": {
+    "So each entry is longer and richer": "Longer isn't the goal. The best journals keep collecting the information light.",
+    "So you can skip the written notes": "The reason and the lesson are fields too. A good entry holds numbers and written notes."
+   }
+  },
+  {
+   "key": "q02",
+   "skill": "process.journal",
+   "rung": 1,
+   "format": "tf",
+   "q": "The best time to log why you took a trade is after it closes, when you know how it went.",
+   "answer": "False",
+   "why": "False. Write the reason as you enter. Once you know the outcome, the trade looks more predictable than it was. A note written at entry keeps what you really thought.",
+   "lesson_line": "Log the reason before the result. Afterwards, hindsight edits it.",
+   "facts": [
+    "f01",
+    "f17",
+    "f31",
+    "f42",
+    "f43"
+   ]
+  },
+  {
+   "key": "q03",
+   "skill": "process.journal",
+   "rung": 2,
+   "format": "mcq",
+   "q": "A useful log entry holds two kinds of information. Which two?",
+   "choices": [
+    "Numbers and your written reasons",
+    "Your P&L and your account balance",
+    "Price alerts and news headlines"
+   ],
+   "answer": "Numbers and your written reasons",
+   "why": "Numbers and your written reasons. Steenbarger describes entries as both quantitative, like P&L and wins and losses, and qualitative, written notes. Investopedia's list pairs entry and exit points with your reasons.",
+   "lesson_line": "Numbers say what happened. Your notes say why. Log both.",
+   "facts": [
+    "f30",
+    "f14",
+    "f01"
+   ],
+   "wrong": {
+    "Your P&L and your account balance": "Both are numbers. Neither says why you took the trade or how you ran it.",
+    "Price alerts and news headlines": "Those come from the market. Your log records what you decided and why."
+   }
+  },
+  {
+   "key": "q04",
+   "skill": "process.journal",
+   "rung": 2,
+   "format": "fill",
+   "q": "Which field does this note belong in?",
+   "sentence": "'Nervous all day, checked the quote every minute' goes in the ___ field.",
+   "bank": [
+    "emotion",
+    "reason",
+    "setup",
+    "exit",
+    "lesson"
+   ],
+   "answer": "emotion",
+   "why": "Emotion. Worry, tension and nervousness are clues worth tracking. In their own field, you can line them up against what you did.",
+   "lesson_line": "Feelings get their own field. That's how a fear pattern shows up.",
+   "facts": [
+    "f32",
+    "f31",
+    "f38"
+   ]
+  },
+  {
+   "key": "q05",
+   "skill": "process.journal",
+   "rung": 3,
+   "format": "mcq",
+   "q": "'Bought because it cleared a six-week base on heavy volume.' Which field holds this?",
+   "choices": [
+    "Reason for the trade",
+    "Lesson for next time",
+    "Exit plan for the trade",
+    "Emotion at the entry"
+   ],
+   "answer": "Reason for the trade",
+   "why": "Reason for the trade. It says why you bought, and it goes in as you enter. CME Group and Investopedia both list your reasons as part of the record.",
+   "lesson_line": "Why you bought is its own field, written before you know the outcome.",
+   "facts": [
+    "f01",
+    "f14"
+   ],
+   "wrong": {
+    "Lesson for next time": "A lesson is what you take from the result. This note gives the reason you bought.",
+    "Exit plan for the trade": "An exit plan says where you'd get out. This note says why you got in.",
+    "Emotion at the entry": "There's no feeling in it. It's a chart reason: the base and the volume."
+   }
+  },
+  {
+   "key": "q06",
+   "skill": "process.journal",
+   "rung": 3,
+   "format": "tf",
+   "q": "At the end of the day, adding up your P&L is the most important part of your log.",
+   "answer": "False",
+   "why": "False. CME Group puts it plainly: adding up profit or loss is secondary to knowing the why and how. A journal keeps you on process, not on the swings in P&L.",
+   "lesson_line": "The total is the easy part. The why and the how are what you review.",
+   "facts": [
+    "f04",
+    "f33"
+   ]
+  },
+  {
+   "key": "q07",
+   "skill": "process.journal",
+   "rung": 3,
+   "format": "fill",
+   "q": "Finish the last field of a log entry.",
+   "sentence": "What worked, what didn't, and the ___ for next time.",
+   "bank": [
+    "lesson",
+    "profit",
+    "target",
+    "score"
+   ],
+   "answer": "lesson",
+   "why": "Lesson. Schwab's worksheet ends every trade with what worked, what didn't, and lessons learned. Tendler asks the same thing: what mistakes did you make, and how can you be better next time.",
+   "lesson_line": "Every entry ends with one lesson you can use tomorrow.",
+   "facts": [
+    "f13",
+    "f41"
+   ]
+  },
+  {
+   "key": "q08",
+   "skill": "process.journal",
+   "rung": 4,
+   "format": "mcq",
+   "q": "Which field shows you broke your rules, even on a trade that made money?",
+   "choices": [
+    "Your grade for following the plan",
+    "Realized gain or loss in dollars",
+    "Exit price on the closing fill",
+    "Planned target price for the trade"
+   ],
+   "answer": "Your grade for following the plan",
+   "why": "The plan grade. Schwab's worksheet grades how closely the plan was followed, on its own line next to the gain or loss. Your journal tracks how well you follow your rules, not just whether you made money.",
+   "lesson_line": "Grade the plan apart from the P&L. A broken rule that paid is still broken.",
+   "facts": [
+    "f12",
+    "f22"
+   ],
+   "wrong": {
+    "Realized gain or loss in dollars": "P&L shows the result, not how you got it. A rule break can still make money.",
+    "Exit price on the closing fill": "The exit says where you got out. It can't say whether that was the plan.",
+    "Planned target price for the trade": "That's part of the plan itself. It can't say whether you stuck to it."
+   }
+  },
+  {
+   "key": "q09",
+   "skill": "process.journal",
+   "rung": 4,
+   "format": "mcq",
+   "q": "Which of these goes in the log before you click buy?",
+   "choices": [
+    "Entry, stop, target and size",
+    "Exit price and the R it made",
+    "What worked and what didn't",
+    "Realized gain or loss"
+   ],
+   "answer": "Entry, stop, target and size",
+   "why": "Entry, stop, target and size. That's the plan, and it goes in before the trade. Tharp says to set your exit point at the time you enter. The result fields come after you close.",
+   "lesson_line": "Plan fields before the click. Result fields after the close.",
+   "facts": [
+    "f11",
+    "f07",
+    "f34",
+    "f02"
+   ],
+   "wrong": {
+    "Exit price and the R it made": "You don't have those until the trade is over. They're result fields.",
+    "What worked and what didn't": "That's the review at the end. You can't answer it before the trade.",
+    "Realized gain or loss": "Realized means the trade is closed. That comes last."
+   }
+  },
+  {
+   "key": "q10",
+   "skill": "process.journal",
+   "rung": 5,
+   "format": "numeric",
+   "q": "Your log: entry $67, initial stop $57, exit $82. What R goes in the result field?",
+   "answer": 1.5,
+   "calc": {
+    "fn": "r_multiple",
+    "args": {
+     "entry": 67,
+     "stop": 57,
+     "exit": 82
+    }
+   },
+   "suffix": "R",
+   "why": "1.5R. The risk was $67 down to $57. The gain was $67 up to $82, one and a half times that.",
+   "lesson_line": "Log every result in R, measured against the initial stop.",
+   "facts": [
+    "f37",
+    "f36"
+   ]
+  },
+  {
+   "key": "q11",
+   "skill": "process.journal",
+   "rung": 5,
+   "format": "tf",
+   "q": "A log that covers your entries and exits covers what you most need to fix.",
+   "answer": "False",
+   "why": "False. Steenbarger warns that journals often skip position size and risk. The parts left out are often the ones that matter most. Schwab's worksheet gives the stop and the size their own lines.",
+   "lesson_line": "If size and stop aren't fields, your log can't show the mistakes in them.",
+   "facts": [
+    "f20",
+    "f11",
+    "f46"
+   ]
+  },
+  {
+   "key": "q12",
+   "skill": "process.journal",
+   "rung": 5,
+   "format": "scenario",
+   "story": "Three of your notes say 'chased it,' 'FOMO buy' and 'bought way up.' You want to know what chasing costs you.",
+   "q": "What makes that quick to check?",
+   "choices": [
+    "One fixed tag for every chase",
+    "Longer notes on every trade",
+    "Rereading all of your notes",
+    "Logging only the chases"
+   ],
+   "answer": "One fixed tag for every chase",
+   "why": "One fixed tag. Use the same word every time, and one search pulls up every chase. Tagging trades by type is how you see which kinds work and which don't.",
+   "lesson_line": "One mistake, one tag, the same word every time.",
+   "facts": [
+    "f27",
+    "f23",
+    "f06"
+   ],
+   "wrong": {
+    "Longer notes on every trade": "More words, same problem. Three names for one mistake still won't sort together.",
+    "Rereading all of your notes": "It works, slowly, and you redo it every time you want the number. A fixed tag answers it in one search.",
+    "Logging only the chases": "Then you can't compare chases with your other trades. Every trade goes in the log."
+   }
+  },
+  {
+   "key": "q13",
+   "skill": "process.journal",
+   "rung": 6,
+   "format": "tf",
+   "q": "A log of just the ticker and P&L for each trade can tell you which setup works.",
+   "answer": "False",
+   "why": "False. You need the setup on every trade too. CME Group wants records that show profit or loss by strategy. Tagging trades by type is how you see which ones work.",
+   "lesson_line": "No setup field, no setup stats. Tag it on every trade.",
+   "facts": [
+    "f05",
+    "f27"
+   ]
+  },
+  {
+   "key": "q14",
+   "skill": "process.journal",
+   "rung": 6,
+   "format": "numeric",
+   "q": "Your plan said buy at $50. You filled at $51. How far above plan was the fill, in percent?",
+   "answer": 2,
+   "calc": {
+    "fn": "pct_change",
+    "args": {
+     "start": 50,
+     "end": 51
+    }
+   },
+   "suffix": "%",
+   "why": "2%. Measure the fill against the planned $50. Schwab's review asks whether your entries were carried out well, and these two fields answer it.",
+   "lesson_line": "Log the planned entry and the real fill. The gap is your execution.",
+   "facts": [
+    "f11",
+    "f08"
+   ]
+  },
+  {
+   "key": "q15",
+   "skill": "process.journal",
+   "rung": 7,
+   "format": "scenario",
+   "story": "You bought at $20 with a stop at $19. It slid, so you moved the stop to $18. It hit there.",
+   "q": "What R goes in your log?",
+   "choices": [
+    "A loss of 2R",
+    "A loss of 1R",
+    "No R, the plan changed"
+   ],
+   "answer": "A loss of 2R",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(entry - exit) / (entry - stop)",
+     "entry": 20,
+     "stop": 19,
+     "exit": 18
+    }
+   },
+   "why": "A loss of 2R. R comes from the stop you set at entry, $20 to $19. You got out at $18, twice that distance. Moving the stop doesn't reset R.",
+   "lesson_line": "R is set at entry. Moving the stop changes the loss, not the yardstick.",
+   "facts": [
+    "f36",
+    "f35",
+    "f11"
+   ],
+   "wrong": {
+    "A loss of 1R": "That measures from the moved stop. Your planned risk was $20 to $19, and you lost twice that.",
+    "No R, the plan changed": "That's exactly the trade your log needs to show. Measure it against the stop you set at entry."
+   }
+  },
+  {
+   "key": "q16",
+   "skill": "process.journal",
+   "rung": 7,
+   "format": "scenario",
+   "story": "Your emotion field says 'anxious' on 7 of your last 8 early exits. Each time, the stock went on to hit your target.",
+   "q": "What is your log telling you?",
+   "choices": [
+    "Fear is cutting your winners short",
+    "Your targets are set too far away",
+    "Those exits were sound risk control",
+    "Feelings are noise, drop that field"
+   ],
+   "answer": "Fear is cutting your winners short",
+   "why": "Fear is cutting your winners short. Here the emotion field lines up with the early exits. Selling winners too soon is a common, costly habit. Once you see the fear pattern, you can work on it.",
+   "lesson_line": "Same feeling on the same mistake is a pattern. The emotion field is how you find it.",
+   "facts": [
+    "f32",
+    "f31",
+    "f38",
+    "f44",
+    "f45"
+   ],
+   "wrong": {
+    "Your targets are set too far away": "The stocks reached your targets. The targets were fine. The exits weren't.",
+    "Those exits were sound risk control": "Your stop is your risk control. These exits came early, out of anxiety, on trades that went on to work.",
+    "Feelings are noise, drop that field": "That field is what found the pattern. Without it you'd see early exits, not why."
+   }
+  },
+  {
+   "key": "q17",
+   "skill": "process.journal",
+   "rung": 7,
+   "format": "scenario",
+   "story": "A stock you bought a month ago has doubled. You remember buying it as a long-term leader. Your log, written at entry, says 'quick trade into earnings.'",
+   "q": "Which do you go by in your review?",
+   "choices": [
+    "The log, written at entry",
+    "Your memory, it knows the story",
+    "Neither, the profit is what counts",
+    "Whichever fits how it turned out"
+   ],
+   "answer": "The log, written at entry",
+   "why": "The log. You wrote it before you knew the ending. After the fact, events look more predictable than they were. That's hindsight bias.",
+   "lesson_line": "Trust what you wrote before you knew the ending.",
+   "facts": [
+    "f01",
+    "f16",
+    "f17",
+    "f31",
+    "f39",
+    "f42"
+   ],
+   "wrong": {
+    "Your memory, it knows the story": "Memory knows the ending, and that's the problem. After the fact, events look more predictable than they were.",
+    "Neither, the profit is what counts": "The profit is real, but the plan was a quick trade. Your review needs to see that.",
+    "Whichever fits how it turned out": "That's hindsight bias doing the review for you."
+   }
+  },
+  {
+   "key": "q18",
+   "skill": "process.journal",
+   "rung": 8,
+   "format": "scenario",
+   "story": "Your journal template asks 40 questions per trade. Two weeks in, you've stopped filling it out.",
+   "q": "What's the best fix?",
+   "choices": [
+    "Cut it to a few fixed fields",
+    "Force yourself through all 40",
+    "Log only your biggest losers",
+    "Stop until your trading improves"
+   ],
+   "answer": "Cut it to a few fixed fields",
+   "why": "Cut it down. The best journals don't make collecting the information a burden. Tendler suggests starting with 3 to 5 minutes at a time.",
+   "lesson_line": "A short log you fill every time beats a long one you quit.",
+   "facts": [
+    "f28",
+    "f21",
+    "f40",
+    "f29",
+    "f03"
+   ],
+   "wrong": {
+    "Force yourself through all 40": "Willpower won't fix a form that's too long. The same thing happens again.",
+    "Log only your biggest losers": "Then the log can't show your win rate, and your winners hold lessons too.",
+    "Stop until your trading improves": "That's when the journal helps most. A journal only works if you keep working it."
+   }
+  },
+  {
+   "key": "q19",
+   "skill": "process.journal",
+   "rung": 8,
+   "format": "scenario",
+   "story": "A month later you review a loss. Your note says 'bought the breakout over my line.' You never logged where the line was.",
+   "q": "What would have shown you where the line was?",
+   "choices": [
+    "A chart saved at entry, line marked",
+    "Today's chart, line drawn from memory",
+    "The final P&L on the trade",
+    "The day's news headlines"
+   ],
+   "answer": "A chart saved at entry, line marked",
+   "why": "A chart saved at entry. CME Group lists support and resistance levels among what to record as you enter. Steenbarger notes you can save pictures of your trading screen in the journal. Memory drops details like this.",
+   "lesson_line": "Save the chart when you enter, with your levels on it. A picture beats a memory.",
+   "facts": [
+    "f02",
+    "f24",
+    "f25",
+    "f39"
+   ],
+   "wrong": {
+    "Today's chart, line drawn from memory": "Now you know how it ended, so the line lands wherever fits the story.",
+    "The final P&L on the trade": "The P&L says it lost. It says nothing about where your line was.",
+    "The day's news headlines": "News might explain the move. It can't show where your line was."
+   }
+  },
+  {
+   "key": "q20",
+   "skill": "process.journal",
+   "rung": 8,
+   "format": "scenario",
+   "story": "Your log keeps a planned entry and an actual fill. On 8 of your last 10 trades, the fill was well above the plan.",
+   "q": "What is the log showing you?",
+   "choices": [
+    "You're chasing past your planned entry",
+    "Your planned entries are too low",
+    "Normal slippage, nothing to fix",
+    "Your stops are set too tight"
+   ],
+   "answer": "You're chasing past your planned entry",
+   "why": "You're chasing. On most trades you paid well over your planned level. Schwab's review asks whether your entries were carried out well, and this log says no. Reviewing past trades is how a pattern like this shows up.",
+   "lesson_line": "Plan and fill side by side. When the fill keeps running ahead of the plan, fix the click, not the plan.",
+   "facts": [
+    "f08",
+    "f11",
+    "f15"
+   ],
+   "wrong": {
+    "Your planned entries are too low": "That bends the plan to fit the habit. The plan was the level. The fills drifted.",
+    "Normal slippage, nothing to fix": "A small miss now and then is normal. Well above plan on most trades is a habit.",
+    "Your stops are set too tight": "Nothing here is about stops. The gap is between the planned entry and the fill."
+   }
+  },
+  {
+   "key": "q21",
+   "skill": "process.journal",
+   "rung": 9,
+   "format": "scenario",
+   "story": "To save time, you log only the trades that go wrong. Now you want your win rate and your best setup.",
+   "q": "What can this log tell you?",
+   "choices": [
+    "Neither one, the winners are missing",
+    "Your win rate, from the losers",
+    "Your best setup, by elimination"
+   ],
+   "answer": "Neither one, the winners are missing",
+   "why": "Neither. A win rate is the share of your trades that made money versus those that didn't, so it needs every trade. CME Group wants the why and how of your wins, not only your losses.",
+   "lesson_line": "Log every trade, winners too. A log of losers can't tell you what works.",
+   "facts": [
+    "f09",
+    "f03",
+    "f07"
+   ],
+   "wrong": {
+    "Your win rate, from the losers": "You'd need the total number of trades. Without the winners, you don't have it.",
+    "Your best setup, by elimination": "A setup missing from your losers may just be one you rarely trade. Without the winners you can't tell."
+   }
+  }
+ ],
+ "conflicts": [
+  "Tier 1 is thin for this topic: no SEC, FINRA or exchange rule page describes a trade journal. The CME Group page is an education course, which the contract lists as Tier 2. The file rests on Schwab (article + its own worksheet), CME Group education, Investopedia, StockCharts ChartSchool, the Van Tharp Institute, Jared Tendler and Steenbarger's TraderFeed, plus the SEC-hosted Library of Congress report (Tier 1) for investor biases. Every key cites at least two of those publishers, or a calc with a Tier 2 method fact.",
+  "Steenbarger appears through eight TraderFeed posts: one voice. No key rests only on Steenbarger; every key that cites him also cites Schwab, CME Group, Investopedia, StockCharts, Van Tharp, Tendler or the SEC-hosted report.",
+  "The unit row (UNITS-foundations.md) says 'the seven fields'. That count comes from the model-drafted curriculum dossier, which the contract bars as a source, and no reliable source fixes a number of fields. The file teaches the fields Schwab's worksheet, CME Group and Investopedia name (date, reason, entry, initial stop, target, size, exit, result, plan grade, lesson) plus emotion and mistake tags, and never states a count.",
+  "Screenshots: only Steenbarger (two posts) says to save pictures of your screen in the journal. q19 pairs that with CME Group's line that support and resistance levels are recorded as you enter, and its key ('a chart saved at entry, line marked') asks for nothing beyond what the two say together.",
+  "Steenbarger (2019) says traders who never look over old entries 'don't fully learn from experience'; Tendler says 'There is a benefit to journaling even if you never look at it again' (and more when you review). The file never keys whether an unread journal helps.",
+  "Steenbarger (2008) calls the journal 'not a tool for simply rehashing the day or voicing your feelings'; Tendler's cool-down is a brain dump that gets the emotion out. Different purposes. Both say emotions are worth recording (Steenbarger 2008/2010, Tendler), and that is all the file keys: emotion as a logged field and a clue to a pattern.",
+  "CME Group lists 'market news' among the things to analyze in your records. q03's wrong note therefore never calls news irrelevant, only says it is not one of the two kinds of information the entry itself must hold (numbers and your written reasons).",
+  "CME Group says the why and how of losses matter 'more importantly' than of wins. q21's why says CME wants the why and how of wins 'not only your losses', which stays inside that line.",
+  "q15 uses the same arithmetic as F9.03 q13 (an R loss past the stop). The point here is different: the log keeps the INITIAL stop, so a moved stop is measured against it (Van Tharp's R value is 'defined by one's initial stop loss'; Schwab's worksheet line is 'Initial stop loss price').",
+  "Not used: UCT's own Journal tag lists (17 mistakes, 15 emotions in api/services/journal_two/tag_suggest.py) are code, not one of the contract's three house pages; sizing_rule.md, TRADE_PLANS.md and OWNER_PRINCIPLES.md say nothing about journaling, so the unit has no house question. The unit row's 'real trade, fill all seven' Prove rung needs the private trade-log vault; the file uses authored scenarios, never presented as real trades.",
+  "Quote check, 2026-11-09: jaredtendler.com answers HTTP 502 to the quote checker's client but 200 to plain curl, so f38-f41 show 'unreachable'. The checker confirmed all four on the live page with plain curl -sL the same day, read in context (post dated 2025-08-11), with the quote checker's word matching. Every key that cites Tendler also cites Steenbarger.",
+  "Checker, 2026-11-09: the writer's s5 (Investopedia, 'Overcoming Hindsight Bias', James Chen) could not be confirmed live: plain curl got 402, the quote cache holds a 403, and WebFetch is blocked for investopedia.com. Its facts were dropped or re-sourced: s5 is now StockCharts ChartSchool 'Cognitive Biases' (Grayson Roze), whose hindsight definition is f17; f16 now quotes CME's 'reference them again later' line; f18 removed. The file no longer claims a journal 'avoids' hindsight bias, only that you write the reason as you enter (CME) and that events look predictable after the fact (StockCharts).",
+  "Checker, 2026-11-09: cmegroup.com timed out for plain curl (150 s) and for WebFetch. f01-f05, f16 and f46 were read, in context, on the quote checker's own same-day fetch of the page (HTTP 200, full lesson text), which also shows 'found' for each in the quote check.",
+  "q16: the disposition effect lines (f44, f45) come from the SEC-hosted 2010 report about investors in general, not swing traders; they back only the line that selling winners early is a common, counterproductive habit. The key itself is the reading of the member's own log, backed by Steenbarger (fear patterns are clues to track) and Tendler (log the emotion and the trigger)."
+ ],
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "notes": "f26, f19 (Steenbarger), f07, f06 (Schwab) and f27 confirmed live in context. Added f23 (tags make a searchable database), the fact behind 'every trade of one kind comes up at once'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "f10-f13 on Schwab's live worksheet PDF, f01 on CME (quote checker's same-day fetch), f37 Van Tharp, f42 SEC-hosted report. Step 2's hindsight line cited Investopedia's hindsight page, which refused every allowed client today; re-cited to StockCharts ChartSchool's definition (f17).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "f27, f32, f24, f29, f28 (Steenbarger) and f02 (CME: support and resistance levels recorded as you enter) confirmed in context. Added f23 for tags as a searchable list. 'Short list, same word every time' is the practical reading of tags as search, not a claimed fact.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q01": {
+   "status": "pass",
+   "notes": "Key: Schwab f06 (spreadsheets track, sort, analyze) + Steenbarger f23/f27 (tags pull up every entry of one kind), confirmed live. Replaced the distractor 'So the P&L adds up on its own': a fixed-field spreadsheet does total P&L, so it was partly true. New distractor 'skip the written notes' is wrong per f30 and f01. variety rewrite checked 2026-11-10.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q02": {
+   "status": "pass",
+   "notes": "CME f01 (record why as you enter each trade) confirmed. Hindsight line re-cited from the unconfirmable Investopedia page to StockCharts ChartSchool f17, Steenbarger f31 (a real-time record) and the SEC-hosted report f42/f43. Why reworded to match the new sources.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q03": {
+   "status": "pass",
+   "notes": "f30 (Steenbarger: entries are qualitative and quantitative), f14 (Investopedia: entry and exit points plus your reasons) and f01 (CME) confirmed in context. Wrong notes fair; the news note never calls news irrelevant (CME lists market news for later analysis).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q04": {
+   "status": "pass",
+   "notes": "f32 (Steenbarger: worry, tension, nervousness are clues to track), f31 and f38 (Tendler: what the emotion was) confirmed. Only 'emotion' fits the note; bank words are real field names.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q05": {
+   "status": "pass",
+   "notes": "f01 (CME) and f14 (Investopedia) confirmed. The 'Lesson' wrong note said the note 'was written before anything happened', a timing the question never states; reworded.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q06": {
+   "status": "pass",
+   "notes": "f04 (CME: adding up P&L is secondary to the why and how) and f33 (Steenbarger: process over the ups and downs of P/L) confirmed in context. Two publishers agree, and a profitable trader would.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q07": {
+   "status": "pass",
+   "notes": "f13 (Schwab worksheet ends with what worked, what didn't, lessons learned) and f41 (Tendler) confirmed. Bank words 'ticker', 'volume' and 'price' were silly next to 'for next time'; bank is now lesson, profit, target, score.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q08": {
+   "status": "pass",
+   "notes": "f12 (Schwab: realized gain/loss, then grade how closely the plan was followed) and f22 (Steenbarger: track rule-following, not just money) confirmed. Question said 'broke your plan' and the key 'following the plan', a giveaway; now 'broke your rules', and 'Planned target price' replaces the weak 'Time and date' distractor. variety rewrite checked 2026-11-10.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q09": {
+   "status": "pass",
+   "notes": "f11 (Schwab plan fields), f07 (worksheet covers the trade before you make it), f34 (Tharp: pre-determine the exit when you enter) and f02 (CME, recorded as you enter) confirmed. Every wrong choice needs the trade closed.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q10": {
+   "status": "pass",
+   "notes": "Recomputed: risk 67 - 57 = 10, gain 82 - 67 = 15, 15 / 10 = 1.5R; matches the calc. f36/f37 (Van Tharp R value, R multiple) confirmed live.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q11": {
+   "status": "pass",
+   "notes": "f20 (Steenbarger: journals cover entries and exits but not position and risk management, and what is left out is often most important) and f11 (Schwab) confirmed. Added CME f46 (records should show maximum loss per trade) as a second publisher. Lesson line 'never show up' softened; a 25-word sentence split.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q12": {
+   "status": "pass",
+   "notes": "f23, f27 (Steenbarger: tags make a searchable database by topic, e.g. overtrading) and f06 (Schwab: sort and analyze) confirmed. The 'rereading' note honestly says slow, not impossible.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q13": {
+   "status": "pass",
+   "notes": "f05 (CME: analyze profit or loss for a particular system or strategy) and f27 (Steenbarger) confirmed. Split a 27-word sentence in the why.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q14": {
+   "status": "pass",
+   "notes": "Recomputed (51 - 50) / 50 = 2%; matches the calc. f11 (Schwab entry price) and f08 (Schwab: were my entries performed effectively) confirmed.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q15": {
+   "status": "pass",
+   "notes": "Recomputed (20 - 18) / (20 - 19) = 2, a 2R loss; matches the calc. f36 (R set by the initial stop), f35 (Tharp: out at $30 against a planned $40 stop = 2R) and f11 confirmed in context.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q16": {
+   "status": "pass",
+   "notes": "f32, f31 (Steenbarger) and f38 (Tendler) confirmed. Nothing cited said cutting winners short is a real, costly habit; added the SEC-hosted report's disposition effect lines (f44, f45, Tier 1) and one why sentence. The key reads the member's own log; a trader would agree.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q17": {
+   "status": "pass",
+   "notes": "f01 and f16 (CME: record why as you enter; go back to it later) confirmed. The Investopedia hindsight facts could not be confirmed live; re-cited to StockCharts ChartSchool f17, Steenbarger f31, Tendler f39 and SEC report f42. The why no longer claims a journal 'avoids' hindsight bias; it gives the definition only.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q18": {
+   "status": "pass",
+   "notes": "f28, f21 (Steenbarger: don't make collection burdensome), f40 (Tendler: 3 to 5 minutes each time), f29 and f03 confirmed. '3 to 5' matches f40.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q19": {
+   "status": "pass",
+   "notes": "f02 (CME: support and resistance levels recorded as you enter), f24, f25 (Steenbarger) and f39 (Tendler) confirmed. 'What would have settled it?' was vague; now asks what would have shown where the line was. Why says Steenbarger 'notes you can' save screen pictures, matching his 'you can even'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q20": {
+   "status": "pass",
+   "notes": "f08 (Schwab), f11 and f15 (Investopedia: reviewing trades shows patterns) confirmed. The key 'entering late, above plan' repeated the story's words; now 'You're chasing past your planned entry', beside the equally plan-worded 'Your planned entries are too low'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q21": {
+   "status": "pass",
+   "notes": "f09 (Schwab: win rate = share of trades profitable versus not) and f03 (CME: the why and how of wins and losses) confirmed. Without the winners neither number exists; the 'by elimination' note is sound.",
+   "fixed": false,
+   "by": "checker"
+  }
+ }
+}

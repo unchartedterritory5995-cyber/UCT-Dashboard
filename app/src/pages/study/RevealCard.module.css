@@ -164,6 +164,13 @@
   gap: var(--space-sm);
   padding: 0 0 var(--space-sm);
 }
+.wrongWhy {
+  margin: 0;
+  color: var(--text);
+  font-size: var(--text-md);
+  line-height: var(--lh-snug);
+}
+
 .whyLine {
   margin: 0;
   color: var(--text);

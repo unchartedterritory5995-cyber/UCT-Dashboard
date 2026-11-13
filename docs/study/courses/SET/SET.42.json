@@ -1,0 +1,3123 @@
+{
+ "unit": "SET.42",
+ "track": "SET",
+ "title": "4B Setup",
+ "teaches": "The 4B- (Stan Weinstein) as we trade it: after a Stage 4 decline under a falling 30-week line, a stock that has seen its low for the cycle sets a higher low on drying volume, reclaims the 50-day and pauses above it with room to run, the buy is the trade through the pause high at market once price is back above the 200-day and never more than 4% past it, the trade is short term on our trims with no adding, and a plain 4B that is still falling is much too soon to buy.",
+ "skills": [
+  {
+   "id": "setup.weinstein_4b",
+   "title": "4B Setup (Stan Weinstein)"
+  }
+ ],
+ "as_of": "2026-11-10",
+ "card": "docs/study/setups/criteria/10-weinstein-4b.json",
+ "sources": [
+  {
+   "id": "s1",
+   "tier": 2,
+   "publisher": "stageanalysis.net",
+   "title": "Stan Weinstein's Stage Analysis - Definitions of the Stages and Sub-stages (2019-10-01)",
+   "url": "https://www.stageanalysis.net/blog/4222/stan-weinsteins-stage-analysis-definitions-of-the-stages-and-sub-stages",
+   "accessed": "2026-11-09",
+   "why_reliable": "An independent practitioner site that transcribes the stage legend from Weinstein's Global Trend Alert; secondary to the originator, so it supports and never carries a key alone."
+  },
+  {
+   "id": "s2",
+   "tier": 2,
+   "publisher": "stageanalysis.net",
+   "title": "Learn: How Stocks Transition From the Stage 4 Declining Phase to the Stage 1 Basing Phase (2022-07-12)",
+   "url": "https://www.stageanalysis.net/blog/366029/learn-how-stage-4-transitions-to-stage-1",
+   "accessed": "2026-11-09",
+   "why_reliable": "The same practitioner site; only the public part of the page was read."
+  },
+  {
+   "id": "s3",
+   "tier": 2,
+   "publisher": "TraderLion (Nick Schmidt)",
+   "title": "The Complete Guide to Stan Weinstein's Stage Analysis (2024-10-18)",
+   "url": "https://web.archive.org/web/20251113000000/https://traderlion.com/trading-strategies/stage-analysis/",
+   "accessed": "2026-11-09",
+   "why_reliable": "An established trading-education publisher and a commercial partner of Weinstein; the live page refused the dossier's reader (HTTP 403), so the dossier read the Internet Archive copy of 2025-11-13."
+  },
+  {
+   "id": "s4",
+   "tier": 2,
+   "publisher": "Deepvue",
+   "title": "Stan Weinstein Stage Analysis: Identify The Best Time To Buy And Sell Stocks",
+   "url": "https://deepvue.com/indicators/stan-weinstein-stage-analysis-when-to-buy/",
+   "accessed": "2026-11-09",
+   "why_reliable": "A trading-software vendor whose stage tools were built with Weinstein; vendor education, so it supports and never carries a key alone."
+  },
+  {
+   "id": "h1",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
+   "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
+   "accessed": "2026-11-10"
+  },
+  {
+   "id": "c1",
+   "tier": 3,
+   "publisher": "UCT setup criteria card",
+   "title": "4B- (Stan Weinstein) criteria card (docs/study/setups/criteria/10-weinstein-4b.json, as of 2026-11-09)",
+   "url": "repo:docs/study/setups/criteria/10-weinstein-4b.json",
+   "accessed": "2026-11-10"
+  },
+  {
+   "id": "d1",
+   "tier": 3,
+   "publisher": "UCT setup research (examples read from our own daily bars)",
+   "title": "4B- dossier, sections 12 and 13: examples, failures and near-misses from our data",
+   "url": "repo:docs/study/setups/research/10-weinstein-4b.md#12-examples-from-our-data",
+   "accessed": "2026-11-10"
+  }
+ ],
+ "facts": [
+  {
+   "id": "x01",
+   "source": "s1",
+   "quote": "Stage 4B Late in downtrend. Much too soon to consider buying.",
+   "claim": "stageanalysis.net, from the stage legend: a plain 4B is late in the downtrend and much too soon to buy."
+  },
+  {
+   "id": "x02",
+   "source": "s1",
+   "quote": "Although not yet 'officially' in Stage 1A, stock has now seen its low for the cycle.",
+   "claim": "stageanalysis.net, from the stage legend: a 4B- stock has now seen its low for the cycle."
+  },
+  {
+   "id": "x04",
+   "source": "s4",
+   "quote": "Stan Weinstein’s original strategy relied on weekly charts paired with the 30-week moving average which roughly correlates with the 150-day simple moving average.",
+   "claim": "Deepvue: the 30-week average roughly matches the 150-day."
+  },
+  {
+   "id": "x05",
+   "source": "s3",
+   "quote": "the 30-week (150-day) and 40-week (200-day) moving averages",
+   "claim": "TraderLion: the 30-week is the 150-day and the 40-week is the 200-day."
+  },
+  {
+   "id": "x06",
+   "source": "s3",
+   "quote": "For more advanced traders, Stage 4B offers a potential setup for short-term plays, which is covered in our Stage Analysis Masterclass with Stan.",
+   "claim": "TraderLion: for advanced traders, Stage 4B offers a potential setup for short-term plays."
+  },
+  {
+   "id": "x08",
+   "source": "s4",
+   "quote": "During a Stage 4 Decline there is no reason to be long the stock",
+   "claim": "Deepvue: during a Stage 4 decline there is no reason to be long the stock."
+  },
+  {
+   "id": "x10",
+   "source": "s2",
+   "quote": "get in too early while the characteristics of the chart are still unfavourable. i.e. a small base following a large Stage 4 decline, price still under declining moving averages",
+   "claim": "stageanalysis.net: buyers get in too early on a small base after a large decline, with price still under declining averages."
+  },
+  {
+   "id": "h01",
+   "source": "h1",
+   "quote": "Stop first (by default a few cents under the day's low or the prior day's low, F62); the size comes from the stop; if the honest stop does not fit the risk, skip the trade.",
+   "claim": "A3: stop first, a few cents under the day's low; the size comes from the stop; if the honest stop does not fit, skip."
+  },
+  {
+   "id": "h02",
+   "source": "h1",
+   "quote": "The stop is the exit. It only moves up, never down or wider. The one exception is the gap rule (B20).",
+   "claim": "A4: the stop is the exit; it only moves up, never wider; the gap rule is the one exception."
+  },
+  {
+   "id": "h03",
+   "source": "h1",
+   "quote": "Shares = account × risk % ÷ (entry − stop), rounded down, then capped: the size is the SMALLER of the risk-based size and the position cap",
+   "claim": "A5: shares are account times risk percent, divided by entry minus stop, rounded down, then capped."
+  },
+  {
+   "id": "h05",
+   "source": "h1",
+   "quote": "Move the stop to breakeven at 2R to 5R, ideally. The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
+   "claim": "B19: breakeven between 2R and 5R; the hard rule for the first trim is a third at 3R."
+  },
+  {
+   "id": "h06",
+   "source": "h1",
+   "quote": "A gap against the stop: the first 30 minutes of the gap-down day decide. The low of the first 30-minute bar is the new stop.",
+   "claim": "B20: on a gap through the stop, the first 30-minute low is the new stop."
+  },
+  {
+   "id": "h07",
+   "source": "h1",
+   "quote": "With a ceiling: if the first 30 minutes take the loss past 2R, get out.",
+   "claim": "B20's ceiling: if the first 30 minutes take the loss past 2R, get out."
+  },
+  {
+   "id": "h08",
+   "source": "h1",
+   "quote": "No new buys in the 3 days before an earnings report; hold through a report only if the trade is up 5R.",
+   "claim": "B22: no new buys in the 3 days before a report; hold through one only if up 5R."
+  },
+  {
+   "id": "h09",
+   "source": "h1",
+   "quote": "Trade only stocks at $10 or more that trade at least $20 million a day.",
+   "claim": "B23: only stocks at $10 or more trading at least $20 million a day."
+  },
+  {
+   "id": "h10",
+   "source": "h1",
+   "quote": "The 200-day line: no longs below the 200-day simple moving average, unless it is a parabolic long; shorts only below the 200-day, never above it unless it is a parabolic short.",
+   "claim": "B26: no longs below the 200-day simple moving average, except a parabolic long."
+  },
+  {
+   "id": "h11",
+   "source": "h1",
+   "quote": "No chasing: never buy more than 4% above the buy point.",
+   "claim": "C28: never buy more than 4% above the buy point."
+  },
+  {
+   "id": "h12",
+   "source": "h1",
+   "quote": "Chasing costs size, not risk: the stop stays under the buy point, so the distance grows and the shares shrink (A5).",
+   "claim": "C28: chasing costs size, because the stop stays put and the distance grows."
+  },
+  {
+   "id": "h13",
+   "source": "h1",
+   "quote": "Too stretched to buy: skip a long that is more than 10% above its 10-day average.",
+   "claim": "C29: skip a long more than 10% above its 10-day average."
+  },
+  {
+   "id": "h15",
+   "source": "h1",
+   "quote": "Time stop: a trade still under 1R after 10 trading days is sold, freeing the money.",
+   "claim": "C33: a trade still under 1R after 10 trading days is sold."
+  },
+  {
+   "id": "h19",
+   "source": "h1",
+   "quote": "Never own more than 1% of a stock's average daily volume; illiquid stocks are not even watched.",
+   "claim": "D42: never own more than 1% of a stock's average daily volume."
+  },
+  {
+   "id": "h20",
+   "source": "h1",
+   "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
+   "claim": "E51: another third at 5R, then trail the last third."
+  },
+  {
+   "id": "h21",
+   "source": "h1",
+   "quote": "Default trail: the 10-day average for fast movers, the 21-day for steadier ones; sell on a close below it.",
+   "claim": "E52: trail the 10-day for fast movers, the 21-day for steadier ones; sell on a close below it."
+  },
+  {
+   "id": "h22",
+   "source": "h1",
+   "quote": "Entries are market orders.",
+   "claim": "E57: entries are market orders."
+  },
+  {
+   "id": "h25",
+   "source": "h1",
+   "quote": "If a stock opens above a trim level (3R, 5R), take that trim at the open.",
+   "claim": "F63: a trim level the day opens past is taken at the open."
+  },
+  {
+   "id": "h27",
+   "source": "h1",
+   "quote": "After a market correction, when the reading turns Green again, start with a few positions and add more only as the first ones work",
+   "claim": "F68: after a correction, start with a few positions and add as they work."
+  },
+  {
+   "id": "h28",
+   "source": "h1",
+   "quote": "After a stop-out, buy again only if the setup triggers again, as a new trade with its own stop and every rule.",
+   "claim": "B21: after a stop-out, buy again only on a new trigger, as a new trade."
+  },
+  {
+   "id": "h30",
+   "source": "h1",
+   "quote": "A climax run on your own long (Bracco's parabolic burst): sell a big part into it, a judgment call.",
+   "claim": "C34: a climax run on your own long: sell a big part into it."
+  },
+  {
+   "id": "c01",
+   "source": "c1",
+   "quote": "The cycle low is the lowest low of the 252 sessions before the trigger; the 52-week high is the highest high of the 252 sessions before the cycle low.",
+   "claim": "Card: the cycle low is the lowest low of the 252 sessions before the trigger."
+  },
+  {
+   "id": "c02",
+   "source": "c1",
+   "quote": "A Stage 4 decline came first: on the cycle low's date the 150-day SMA (the 30-week line) was lower than 20 sessions earlier and price was under it.",
+   "claim": "Card: a Stage 4 decline came first, with the 150-day falling and price under it at the low."
+  },
+  {
+   "id": "c03",
+   "source": "c1",
+   "quote": "Low for the cycle: no close under the cycle low since it was set.",
+   "claim": "Card: no close under the cycle low since it was set."
+  },
+  {
+   "id": "c04",
+   "source": "c1",
+   "quote": "A higher low: a pullback low at least 3% above the cycle low, set at least 10 sessions after it, with a rally of 5% or more before it.",
+   "claim": "Card: a higher low is at least 3% above the cycle low, set at least 10 sessions later, after a rally of 5% or more."
+  },
+  {
+   "id": "c05",
+   "source": "c1",
+   "quote": "At least 15 sessions from the cycle low to the trigger.",
+   "claim": "Card: at least 15 sessions from the cycle low to the trigger."
+  },
+  {
+   "id": "c06",
+   "source": "c1",
+   "quote": "Volume into the higher low: the average volume on the down days of the higher-low pullback is below the 50-day average volume.",
+   "claim": "Card: down-day volume into the higher low is below the 50-day average."
+  },
+  {
+   "id": "c07",
+   "source": "c1",
+   "quote": "The close is above the 50-day SMA: the recapture of the 50-day that Weinstein names.",
+   "claim": "Card: the close is above the 50-day, the recapture Weinstein names."
+  },
+  {
+   "id": "c08",
+   "source": "c1",
+   "quote": "A pause above the 50-day: at least 2 sessions closing above it before the trigger.",
+   "claim": "Card: a pause is at least 2 closes above the 50-day before the trigger."
+  },
+  {
+   "id": "c09",
+   "source": "c1",
+   "quote": "A cue from the scan: a pause of 5 to 20 sessions did best; a bare 2 to 4 session pause did worst.",
+   "claim": "Card: a pause of 5 to 20 sessions did best; a bare 2 to 4 session pause did worst."
+  },
+  {
+   "id": "c10",
+   "source": "c1",
+   "quote": "Room to run: at least 3R from the entry to the nearest overhead level among the 150-day SMA, the 200-day SMA and the highest close of the 60 sessions before the cycle low",
+   "claim": "Card: at least 3R of room to the nearest overhead level."
+  },
+  {
+   "id": "c11",
+   "source": "c1",
+   "quote": "A cue: the 150-day and 200-day lines flat or turning over the trade, not still falling steeply.",
+   "claim": "Card cue: the 150-day and 200-day flat or turning, not still falling steeply."
+  },
+  {
+   "id": "c12",
+   "source": "c1",
+   "quote": "The stock's industry-group ETF or index closes above its own 50-day SMA.",
+   "claim": "Card: the stock's group ETF or index closes above its own 50-day."
+  },
+  {
+   "id": "c13",
+   "source": "c1",
+   "quote": "A cue: the group is basing too, and the stock is among the first in it to reclaim its 50-day.",
+   "claim": "Card cue: the group is basing too and the stock is among the first to reclaim its 50-day."
+  },
+  {
+   "id": "c14",
+   "source": "c1",
+   "quote": "A cue: a fresh reason for the turn (an earnings reaction, a guidance change) helps",
+   "claim": "Card cue: a fresh reason for the turn helps."
+  },
+  {
+   "id": "c15",
+   "source": "c1",
+   "quote": "Green or Yellow market reading; Orange: A+ only; Red: no new longs.",
+   "claim": "Card: Green or Yellow; Orange A+ only; Red no new longs."
+  },
+  {
+   "id": "c16",
+   "source": "c1",
+   "quote": "Best after a broad market decline once the market itself is turning back up; after a correction, start with a few positions and add more only as the first ones work.",
+   "claim": "Card: best once the market itself is turning back up after a broad decline."
+  },
+  {
+   "id": "c17",
+   "source": "c1",
+   "quote": "Price $10 or more and $20 million or more traded a day.",
+   "claim": "Card: price $10 or more and $20 million or more traded a day."
+  },
+  {
+   "id": "c18",
+   "source": "c1",
+   "quote": "The position is at most 1% of average daily volume.",
+   "claim": "Card: the position is at most 1% of average daily volume."
+  },
+  {
+   "id": "c19",
+   "source": "c1",
+   "quote": "Price trades above the highest high of the pause above the 50-day; with the 2-session minimum pause that is the higher of the last two highs, usually the prior day's high.",
+   "claim": "Card trigger: price trades above the highest high of the pause above the 50-day."
+  },
+  {
+   "id": "c20",
+   "source": "c1",
+   "quote": "A market order once the trigger trades, during regular hours.",
+   "claim": "Card: a market order once the trigger trades, during regular hours."
+  },
+  {
+   "id": "c21",
+   "source": "c1",
+   "quote": "Skip if already more than 4% above the trigger level.",
+   "claim": "Card: skip if already more than 4% above the trigger level."
+  },
+  {
+   "id": "c22",
+   "source": "c1",
+   "quote": "Skip if more than 10% above the 10-day average.",
+   "claim": "Card: skip if more than 10% above the 10-day average."
+  },
+  {
+   "id": "c23",
+   "source": "c1",
+   "quote": "No new buy in the 3 sessions before a report; hold through a report only if up 5R.",
+   "claim": "Card: no new buy in the 3 sessions before a report."
+  },
+  {
+   "id": "c24",
+   "source": "c1",
+   "quote": "A gap through the stop: the first 30-minute low is the new stop; out if that is past 2R.",
+   "claim": "Card: a gap through the stop: the first 30-minute low is the new stop; out if past 2R."
+  },
+  {
+   "id": "c25",
+   "source": "c1",
+   "quote": "A real stop order with the broker. It only moves up.",
+   "claim": "Card: a real stop order with the broker; it only moves up."
+  },
+  {
+   "id": "c26",
+   "source": "c1",
+   "quote": "Size from the stop (A5); B- or lower grades sized down (D38, E49); one price, one stop, no adding along the way.",
+   "claim": "Card: size from the stop; one price, one stop, no adding along the way."
+  },
+  {
+   "id": "c27",
+   "source": "c1",
+   "quote": "Stop to breakeven between 2R and 5R, at the first trim by default.",
+   "claim": "Card: stop to breakeven between 2R and 5R, at the first trim by default."
+  },
+  {
+   "id": "c28",
+   "source": "c1",
+   "quote": "Sell a third at 3R (the hard rule).",
+   "claim": "Card: sell a third at 3R."
+  },
+  {
+   "id": "c29",
+   "source": "c1",
+   "quote": "Sell a third at 5R.",
+   "claim": "Card: sell a third at 5R."
+  },
+  {
+   "id": "c30",
+   "source": "c1",
+   "quote": "If it gaps past a trim level, trim at the open.",
+   "claim": "Card: if it gaps past a trim level, trim at the open."
+  },
+  {
+   "id": "c31",
+   "source": "c1",
+   "quote": "Trail the rest under the 10-day (fast movers) or the 21-day (steadier) on a close below it.",
+   "claim": "Card: trail the rest under the 10-day (fast) or 21-day (steadier) on a close below it."
+  },
+  {
+   "id": "c32",
+   "source": "c1",
+   "quote": "Time stop: under 1R after 10 trading days, sell.",
+   "claim": "Card: under 1R after 10 trading days, sell."
+  },
+  {
+   "id": "c33",
+   "source": "c1",
+   "quote": "A short-term trade on the house trims, not a position meant to ride into Stage 2 while adding along the way.",
+   "claim": "Card: a short-term trade on the house trims, not a ride into Stage 2 with adds."
+  },
+  {
+   "id": "c34",
+   "source": "c1",
+   "quote": "A climax run (Bracco's parabolic burst): sell a big part into it.",
+   "claim": "Card: a climax run: sell a big part into it."
+  },
+  {
+   "id": "c35",
+   "source": "c1",
+   "quote": "Before entry: a close under the cycle low. The low-for-the-cycle call was wrong; it is still 4B or 4.",
+   "claim": "Card: a close under the cycle low means the call was wrong; it is still 4B or 4."
+  },
+  {
+   "id": "c36",
+   "source": "c1",
+   "quote": "Before entry: a close back under the 50-day before the trigger. The setup re-arms only after a new 2-session pause above it.",
+   "claim": "Card: a close back under the 50-day before the trigger; it re-arms only after a new 2-session pause."
+  },
+  {
+   "id": "c38",
+   "source": "c1",
+   "quote": "Never a 4B without the minus. Weinstein's own legend for plain 4B: Late in downtrend. Much too soon to consider buying.",
+   "claim": "Card: never a 4B without the minus; a plain 4B is much too soon to buy."
+  },
+  {
+   "id": "c39",
+   "source": "c1",
+   "quote": "Before or after entry: the market reading turns Red (no new longs; existing trades keep their stops).",
+   "claim": "Card: a Red market reading means no new longs; existing trades keep their stops."
+  },
+  {
+   "id": "c41",
+   "source": "c1",
+   "quote": "Before entry: a close under the higher low.",
+   "claim": "Card: a close under the higher low before entry cancels the setup."
+  },
+  {
+   "id": "m09",
+   "source": "c1",
+   "quote": "Treating a short-term trade as an investment, and holding it back down into Stage 4 (take the oath never to hold Stage 4).",
+   "claim": "Card mistake: treating a short-term trade as an investment and holding it back into Stage 4."
+  },
+  {
+   "id": "c40",
+   "source": "c1",
+   "quote": "After entry: the stop is the exit.",
+   "claim": "Card: after entry the stop is the exit."
+  },
+  {
+   "id": "m01",
+   "source": "c1",
+   "quote": "Buying plain 4B, a stock still falling, because it seems cheap.",
+   "claim": "Card mistake: buying a plain 4B, a stock still falling, because it seems cheap."
+  },
+  {
+   "id": "m03",
+   "source": "c1",
+   "quote": "No higher low. Deepvue calls the higher low critical.",
+   "claim": "Card mistake: no higher low."
+  },
+  {
+   "id": "m05",
+   "source": "c1",
+   "quote": "Adding to it on the way up (A5 forbids it).",
+   "claim": "Card mistake: adding to it on the way up."
+  },
+  {
+   "id": "m06",
+   "source": "c1",
+   "quote": "Ignoring overhead supply: buying right under the falling 30-week or 200-day line with less than 3R of room.",
+   "claim": "Card mistake: buying right under the falling 30-week or 200-day line with less than 3R of room."
+  },
+  {
+   "id": "m08",
+   "source": "c1",
+   "quote": "Buying against the market or a weak group (forest to the trees).",
+   "claim": "Card mistake: buying against the market or a weak group."
+  },
+  {
+   "id": "l1",
+   "source": "c1",
+   "quote": "If the 150-day was rising when the low was set, it is a Remount or a pullback, not a 4B-.",
+   "claim": "Card: if the 150-day was rising when the low was set, it is a Remount or a pullback, not a 4B-."
+  },
+  {
+   "id": "l2",
+   "source": "c1",
+   "quote": "a 4B- never closes under its cycle low and waits 15 or more sessions for a higher low, a 50-day reclaim and a pause before the buy.",
+   "claim": "Card: a 4B- never closes under its cycle low and waits 15 or more sessions for a higher low, a 50-day reclaim and a pause."
+  },
+  {
+   "id": "l3",
+   "source": "c1",
+   "quote": "A capitulation buys the snap back within 3 sessions of a 2x-volume flush under every fast average; a 4B- waits weeks after the low for a higher low on drying volume and a 50-day reclaim",
+   "claim": "Card: a capitulation buys the snap back within 3 sessions; a 4B- waits weeks for a higher low and a 50-day reclaim."
+  },
+  {
+   "id": "g1",
+   "source": "c1",
+   "quote": "w4b.higher_low: a clean higher low on light volume; the down days dry up",
+   "claim": "Grading A+: a clean higher low on light volume; the down days dry up."
+  },
+  {
+   "id": "g2",
+   "source": "c1",
+   "quote": "w4b.flattening_50: a tight pause right on top of a 50-day that has gone flat or turned up; the trigger day on clearly higher volume",
+   "claim": "Grading A+: a tight pause on a 50-day that has gone flat or turned up."
+  },
+  {
+   "id": "g3",
+   "source": "c1",
+   "quote": "w4b.flattening_50: the 50-day still falling steeply",
+   "claim": "Grading B-: the 50-day still falling steeply."
+  },
+  {
+   "id": "g4",
+   "source": "c1",
+   "quote": "w4b.room_to_run: the falling 200-day or an old breakdown level just overhead",
+   "claim": "Grading B-: the falling 200-day or an old breakdown level just overhead."
+  },
+  {
+   "id": "g5",
+   "source": "c1",
+   "quote": "w4b.group: the group turning up too, and the market turning up from a broad decline",
+   "claim": "Grading A+: the group turning up too, and the market turning up from a broad decline."
+  },
+  {
+   "id": "g7",
+   "source": "c1",
+   "quote": "w4b.higher_low: no higher low; a V straight up into the 50-day",
+   "claim": "Grading B-: no higher low; a V straight up into the 50-day."
+  },
+  {
+   "id": "d00",
+   "source": "d1",
+   "quote": "The 10 examples (all Version H: prior close above the 200-day)",
+   "claim": "The dossier's ten examples all have a prior close above the 200-day."
+  },
+  {
+   "id": "d01",
+   "source": "d1",
+   "quote": "PENN | 2019-11-05 | 16.72, 53% | +7.7% | 57 / 17 | 22.11 / 22.12 | 21.49 (2.8%) | 15.7",
+   "claim": "PENN, trigger 2019-11-05: cycle low 16.72, 53% under the 52-week high; higher low +7.7%; 17-day pause; buy 22.12, stop 21.49 (2.8%)."
+  },
+  {
+   "id": "d02",
+   "source": "d1",
+   "quote": "a long Stage 4 under a falling 30-week line, an August low, an October higher low, a 17-day pause above a 50-day that has turned up (+3.7%), and the trigger above the 200-day (the prior close 5.8% over it)",
+   "claim": "PENN: a long Stage 4, an October higher low, a 17-day pause above a turned-up 50-day, the trigger above the 200-day."
+  },
+  {
+   "id": "d03",
+   "source": "d1",
+   "quote": "NUS | 2013-04-18 | 32.36, 48% | +17.2% | 78 / 19 | 49.98 / 49.99 | 49.05 (1.9%) | 31.9",
+   "claim": "NUS, trigger 2013-04-18: cycle low 32.36, 48% under the 52-week high; 19-day pause; buy 49.99, stop 49.05 (1.9%)."
+  },
+  {
+   "id": "d04",
+   "source": "d1",
+   "quote": "a December capitulation low, a February higher low, three months of flat 150- and 200-day lines, then a 19-day pause above a turning 50-day (up 2.2% in 10 sessions) and a tight 1.9% stop",
+   "claim": "NUS: a December low, a February higher low, flat 150 and 200-day lines, a 19-day pause above a turning 50-day."
+  },
+  {
+   "id": "d05",
+   "source": "d1",
+   "quote": "AMD | 2018-05-15 | 9.04, 42% | +5.8% | 29 / 10 | 12.36 / 12.37 | 12.06 (2.5%)",
+   "claim": "AMD, trigger 2018-05-15: buy 12.37, stop 12.06 (2.5%)."
+  },
+  {
+   "id": "d06",
+   "source": "d1",
+   "quote": "F | 2024-02-12 | 12.99 / 12.59 (3.1%, day low) | 1 session later, 2024-02-13, low 12.48",
+   "claim": "F, trigger 2024-02-12: buy 12.99, stop 12.59 (3.1%); the next session's low was 12.48."
+  },
+  {
+   "id": "d07",
+   "source": "d1",
+   "quote": "A 37.5% decline to 9.63, a higher low 3.6% above it, 70 sessions off the low, a 12-day pause; the trigger day closed near its high and the next session fell through the 3.1% stop.",
+   "claim": "F: a 37.5% decline, a higher low, a 12-day pause; the next session fell through the stop."
+  },
+  {
+   "id": "d08",
+   "source": "d1",
+   "quote": "F 2024 is the plain case of a correct 4B- that lost",
+   "claim": "Dossier: F 2024 is the plain case of a correct 4B- that lost."
+  },
+  {
+   "id": "d09",
+   "source": "d1",
+   "quote": "META | 2020-05-11 | 213.22 / 210.32 (1.4%, day low) | 1 session later, 2020-05-12, low 210.00",
+   "claim": "META, trigger 2020-05-11: buy 213.22, stop 210.32 (1.4%); stopped the next session."
+  },
+  {
+   "id": "d10",
+   "source": "d1",
+   "quote": "A 39% drop to the March 2020 low, a higher low 10% above it, 37 sessions off the low, a 13-day pause above the 50-day;",
+   "claim": "META: a 39% drop to the March 2020 low, a higher low, a 13-day pause above the 50-day."
+  },
+  {
+   "id": "d11",
+   "source": "d1",
+   "quote": "the second trigger on 2020-06-10 also stopped. The real move came from a third base.",
+   "claim": "META: the second trigger also stopped; the real move came from a third base."
+  },
+  {
+   "id": "d12",
+   "source": "d1",
+   "quote": "MSFT | 2001-05-07 | 35.59 / 33.93 (4.7%, day low) | 7 sessions later, 2001-05-16, low 33.66",
+   "claim": "MSFT, trigger 2001-05-07: buy 35.59, stop 33.93 (4.7%); stopped 7 sessions later."
+  },
+  {
+   "id": "d13",
+   "source": "d1",
+   "quote": "A 66% Stage 4 decline from the 2000 top to a 20.16 low, a 92-session base, an 18-day pause over the 50-day;",
+   "claim": "MSFT: a 66% Stage 4 decline, a 92-session base, an 18-day pause over the 50-day."
+  },
+  {
+   "id": "d14",
+   "source": "d1",
+   "quote": "The 200-day over the trade was still falling.",
+   "claim": "MSFT: the 200-day over the trade was still falling."
+  },
+  {
+   "id": "d15",
+   "source": "d1",
+   "quote": "TGT | 2008-09-03 | 55.50 / 53.95 (2.8%, day low) | 1 session later, 2008-09-04, low 53.71",
+   "claim": "TGT, trigger 2008-09-03: buy 55.50, stop 53.95 (2.8%); stopped the next session."
+  },
+  {
+   "id": "d16",
+   "source": "d1",
+   "quote": "The market reading, which the scan could not test, is the missing filter",
+   "claim": "Dossier: the market reading, which the scan could not test, is the missing filter."
+  },
+  {
+   "id": "d17",
+   "source": "d1",
+   "quote": "BAC | 2020-06-04 | w4b.version_h_200 | close -10.2% under the 200-day on the day before the trigger",
+   "claim": "BAC 2020-06-04: the close was 10.2% under the 200-day the day before the trigger."
+  },
+  {
+   "id": "d18",
+   "source": "d1",
+   "quote": "a 50% decline, a 12% higher low and a 50-day reclaim with the close still 10% under the 200-day.",
+   "claim": "BAC: a 50% decline, a 12% higher low and a 50-day reclaim, with the close still 10% under the 200-day."
+  },
+  {
+   "id": "d19",
+   "source": "d1",
+   "quote": "at the cycle low the 150-day was rising (528.74 against 521.41 20 sessions earlier)",
+   "claim": "COST 2022-07-22: at the cycle low the 150-day was rising."
+  },
+  {
+   "id": "d20",
+   "source": "d1",
+   "quote": "A 34% drop under a 150-day that was still rising at the low: a pullback in an uptrend, so a Remount (13) or a pullback buy, not a Stage 4 turn.",
+   "claim": "COST: a 34% drop under a rising 150-day is a pullback in an uptrend, not a Stage 4 turn."
+  },
+  {
+   "id": "d21",
+   "source": "d1",
+   "quote": "no 5% rally before the higher low (the high off the low was 4.1% above it)",
+   "claim": "AAPL 2019-03-22: no 5% rally before the higher low."
+  },
+  {
+   "id": "d22",
+   "source": "d1",
+   "quote": "the higher low sits 6.8% above the cycle low but no 5% rally came before it, so it is one leg, not a base.",
+   "claim": "AAPL: the higher low sits 6.8% above the cycle low but no 5% rally came before it, so it is one leg."
+  },
+  {
+   "id": "d23",
+   "source": "d1",
+   "quote": "NFLX closed back over its 50-day on 2022-07-15 (189.11) and 2022-07-18 (190.92); Netflix reported after the close on 2022-07-19",
+   "claim": "NFLX closed back over its 50-day on 2022-07-15 and 2022-07-18; it reported after the close on 2022-07-19."
+  },
+  {
+   "id": "d24",
+   "source": "d1",
+   "quote": "So the $189 \"4B- entry\" was bought one to two sessions before the report.",
+   "claim": "Deepvue's $189 NFLX 4B- entry was bought one to two sessions before the report."
+  },
+  {
+   "id": "d25",
+   "source": "d1",
+   "quote": "Version H (above the 200-day, the one we teach as a trade): 1,110 hits, 22.2% to 3R, 13.9% to 5R, median 11 sessions to 3R for those that got there.",
+   "claim": "Scan, above the 200-day: 1,110 hits, 22.2% to 3R, 13.9% to 5R."
+  },
+  {
+   "id": "d26",
+   "source": "d1",
+   "quote": "2,016 hits; 25.7% reached 3R before the stop and 15.1% reached 5R; 85.8% were eventually stopped inside 60 sessions",
+   "claim": "Scan: 2,016 hits; 25.7% reached 3R; 85.8% were eventually stopped inside 60 sessions."
+  },
+  {
+   "id": "d27",
+   "source": "d1",
+   "quote": "a 5-to-10-day pause 25.9% / 15.4%, 11 to 20 days 23.1% / 16.2%, 21 to 40 days 21.3% / 12.4%, a bare 2-to-4-day pause 15.7% / 11.8%",
+   "claim": "Scan splits (reached 3R / 5R): 5 to 10 days 25.9% / 15.4%; 11 to 20 days 23.1% / 16.2%; 21 to 40 days 21.3% / 12.4%; a bare 2 to 4 days 15.7% / 11.8%."
+  },
+  {
+   "id": "d28",
+   "source": "d1",
+   "quote": "A spring 2025 washout to 131, a higher low at 150, an 11-day pause that walks up through the 50-, 150- and 200-day lines, a 2% stop and a run to 5R in 9 sessions",
+   "claim": "DY: a spring 2025 washout, a higher low, an 11-day pause, a 2% stop and a run to 5R in 9 sessions."
+  },
+  {
+   "id": "d29",
+   "source": "d1",
+   "quote": "DY | 2025-05-08 | 131.37, 37% | +14.4% | 22 / 11 | 186.40 / 186.41 | 182.62 (2.0%)",
+   "claim": "DY, trigger 2025-05-08: cycle low 131.37, 37% under the 52-week high; buy 186.41, stop 182.62 (2.0%)."
+  },
+  {
+   "id": "c37",
+   "source": "c1",
+   "quote": "Bulkowski's own Stage 4 buys made money 24% of the time.",
+   "claim": "Card: Bulkowski's own Stage 4 buys made money 24% of the time."
+  },
+  {
+   "id": "x11",
+   "source": "s3",
+   "quote": "If the moving average is still sharply sloping downward and the stock is trading far below it, the stock has likely not yet entered a true Stage 1.",
+   "claim": "TraderLion: a sharply falling average with the stock far below it has likely not yet entered a true Stage 1."
+  },
+  {
+   "id": "h31",
+   "source": "h1",
+   "quote": "Every position has a real stop order with the broker, not a stop kept in your head.",
+   "claim": "D41: every position has a real stop order with the broker, not a stop kept in your head."
+  },
+  {
+   "id": "h32",
+   "source": "h1",
+   "quote": "No new buys outside regular trading hours.",
+   "claim": "E58: no new buys outside regular trading hours."
+  },
+  {
+   "id": "c42",
+   "source": "c1",
+   "quote": "Not on a round number: a few cents under it.",
+   "claim": "Card: the stop is not on a round number but a few cents under it."
+  }
+ ],
+ "walkthroughs": [
+  {
+   "key": "w1",
+   "title": "NUS, April 2013: the longest base",
+   "steps": [
+    "NUS, 2013. A December capitulation low, then a February higher low. Three months of flat 150 and 200-day lines.",
+    "A 19-day pause sits above a turning 50-day. The low is 48% under the high; the close is above the 200-day.",
+    "2013-04-18: price trades over the pause high. Buy at market, 49.99. Stop 49.05, 1.9% away.",
+    "Failure mode: Stage 4 resumes and the stop is hit. Instead the best run was 31.9R. Trim a third at 3R."
+   ],
+   "facts": [
+    "d03",
+    "d04",
+    "d00",
+    "c19",
+    "h22",
+    "h05",
+    "c02",
+    "c04"
+   ]
+  },
+  {
+   "key": "w2",
+   "title": "PENN, November 2019: the picture-book shape",
+   "steps": [
+    "PENN, 2019. A long Stage 4 under a falling 30-week line. The August low is 53% under the high.",
+    "An October higher low, 7.7% above it, then a 17-day pause above a 50-day that has turned up.",
+    "2019-11-05: price trades over the pause high, above the 200-day. Buy at market, 22.12. Stop 21.49, 2.8% away.",
+    "Failure mode: the break stalls under a falling long average, stop taken. Instead the best run was 15.7R. Trim at 3R."
+   ],
+   "facts": [
+    "d01",
+    "d02",
+    "c19",
+    "h22",
+    "h05",
+    "c11"
+   ]
+  },
+  {
+   "key": "w3",
+   "title": "F, February 2024: the planned loss",
+   "steps": [
+    "F, 2024. A 37.5% decline to 9.63, a higher low 3.6% above it, 70 sessions off the low.",
+    "A 12-day pause above the 50-day. The trigger day closes near its high.",
+    "2024-02-12: price trades over the pause high. Buy at market, 12.99. Stop 12.59, 3.1% away.",
+    "Failure mode: the next session fell to 12.48 and took the stop. The stop did its job; the loss was planned."
+   ],
+   "facts": [
+    "d06",
+    "d07",
+    "d08",
+    "c19",
+    "h22",
+    "c40",
+    "c25"
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "key": "q01",
+   "skill": "setup.weinstein_4b",
+   "rung": 1,
+   "format": "mcq",
+   "criterion": "w4b.never_plain_4b",
+   "q": "In Weinstein's stage legend, what does a plain 4B mean?",
+   "choices": [
+    "Late in the decline: not a buy yet",
+    "A bottom is in: buy on strength",
+    "Early in the decline: sell rallies",
+    "A Stage 2 breakout on volume"
+   ],
+   "answer": "Late in the decline: not a buy yet",
+   "why": "Late in the downtrend, and much too soon to consider buying. The buy is the 4B-, the one with the minus.",
+   "lesson_line": "A plain 4B is not a buy. Wait for the minus.",
+   "facts": [
+    "c38",
+    "x01",
+    "x08"
+   ],
+   "wrong": {
+    "A bottom is in: buy on strength": "That is the minus. A plain 4B is late in the downtrend and much too soon to consider buying.",
+    "Early in the decline: sell rallies": "The B means late in the stage, not early.",
+    "A Stage 2 breakout on volume": "Stage 2 is the advance. A plain 4B is still the declining stage, and there is no reason to be long."
+   },
+   "house": true
+  },
+  {
+   "key": "q02",
+   "skill": "setup.weinstein_4b",
+   "rung": 1,
+   "format": "mcq",
+   "criterion": "w4b.no_new_low",
+   "q": "What does the minus in 4B- say?",
+   "choices": [
+    "The low for the cycle is now in",
+    "The stock is still falling hard",
+    "The stock is already in Stage 2",
+    "The stock is a short candidate"
+   ],
+   "answer": "The low for the cycle is now in",
+   "why": "The stock has now seen its low for the cycle. It is not yet officially in Stage 1A, but the low is in.",
+   "lesson_line": "The minus says the low is in. Not yet a base, but the low is in.",
+   "facts": [
+    "x02",
+    "c03"
+   ],
+   "wrong": {
+    "The stock is still falling hard": "That is a plain 4B. The minus says the low for the cycle is in.",
+    "The stock is already in Stage 2": "It is not yet even officially in Stage 1A. The minus only says the low is in.",
+    "The stock is a short candidate": "The minus says the low for the cycle is in, so it is a long idea, not a short."
+   },
+   "house": true
+  },
+  {
+   "key": "q03",
+   "skill": "setup.weinstein_4b",
+   "rung": 1,
+   "format": "tf",
+   "criterion": "w4b.stage4",
+   "q": "A 4B- comes after a Stage 4 decline, with price under a falling 30-week line.",
+   "answer": "True",
+   "why": "True. A Stage 4 decline comes first: at the low the 150-day, the 30-week line, was falling and price was under it.",
+   "lesson_line": "No decline first, no 4B-. The 30-week line was falling at the low.",
+   "facts": [
+    "c02",
+    "x04"
+   ],
+   "house": true
+  },
+  {
+   "key": "q04",
+   "skill": "setup.weinstein_4b",
+   "rung": 1,
+   "format": "fill",
+   "criterion": "w4b.stage4",
+   "q": "Tap the number that fits the blank.",
+   "sentence": "The 30-week line is about the ___-day average.",
+   "bank": [
+    "150",
+    "200",
+    "50",
+    "100",
+    "10"
+   ],
+   "answer": "150",
+   "why": "150. The 30-week line roughly matches the 150-day average, and the 40-week line is the 200-day.",
+   "lesson_line": "Thirty weeks is about 150 days. Forty weeks is 200.",
+   "facts": [
+    "x04",
+    "x05"
+   ]
+  },
+  {
+   "key": "q05",
+   "skill": "setup.weinstein_4b",
+   "rung": 1,
+   "format": "tf",
+   "criterion": "w4b.short_term",
+   "q": "A 4B- is a short-term trade on our trims, not a ride into Stage 2 with adds along the way.",
+   "answer": "True",
+   "why": "True. It is a short-term trade on the house trims: one price, one stop, no adding along the way.",
+   "lesson_line": "In and out on our trims. One price, one stop, no adds.",
+   "facts": [
+    "c33",
+    "c26",
+    "x06"
+   ],
+   "house": true
+  },
+  {
+   "key": "q06",
+   "skill": "setup.weinstein_4b",
+   "rung": 1,
+   "format": "tf",
+   "criterion": "w4b.reclaim_50",
+   "q": "A 4B- needs a close back above the 50-day average.",
+   "answer": "True",
+   "why": "True. The close is above the 50-day, the recapture of the 50-day that Weinstein names.",
+   "lesson_line": "The 50-day has to be won back before the buy.",
+   "facts": [
+    "c07"
+   ],
+   "house": true
+  },
+  {
+   "key": "q07",
+   "skill": "setup.weinstein_4b",
+   "rung": 1,
+   "format": "tf",
+   "criterion": "w4b.version_h_200",
+   "q": "We do not buy a 4B- while the close is still under the 200-day.",
+   "answer": "True",
+   "why": "True. No longs below the 200-day simple moving average, unless it is a parabolic long.",
+   "lesson_line": "Under the 200-day, no long. Get back above it first.",
+   "facts": [
+    "h10"
+   ],
+   "house": true
+  },
+  {
+   "key": "q08",
+   "skill": "setup.weinstein_4b",
+   "rung": 2,
+   "format": "mcq",
+   "criterion": "w4b.cycle_low",
+   "q": "How is the cycle low found?",
+   "choices": [
+    "Lowest low of the 252 sessions before",
+    "Lowest close of the last 20 sessions",
+    "The 50-day average at its lowest point",
+    "The day with the most volume traded"
+   ],
+   "answer": "Lowest low of the 252 sessions before",
+   "why": "The lowest low of the 252 sessions before the trigger, our working rule. The 52-week high is the highest high of the 252 sessions before the cycle low.",
+   "lesson_line": "Find the cycle low first. Everything else is measured from it.",
+   "facts": [
+    "c01"
+   ],
+   "wrong": {
+    "Lowest close of the last 20 sessions": "That is a recent dip, not the low for the cycle. The cycle low looks back 252 sessions.",
+    "The 50-day average at its lowest point": "An average is not the low. The cycle low is the lowest low of the 252 sessions.",
+    "The day with the most volume traded": "Volume does not pick the low. The lowest low of the 252 sessions does."
+   },
+   "house": true
+  },
+  {
+   "key": "q09",
+   "skill": "setup.weinstein_4b",
+   "rung": 2,
+   "format": "mcq",
+   "criterion": "w4b.higher_low",
+   "q": "How far above the cycle low should the higher low sit?",
+   "choices": [
+    "At least 3%",
+    "At least 15%",
+    "Any amount, even equal",
+    "At least 1%"
+   ],
+   "answer": "At least 3%",
+   "why": "At least 3%, set at least 10 sessions after the cycle low, after a rally of 5% or more. That is our working rule for a higher low.",
+   "lesson_line": "A higher low is a real step up, not a tie.",
+   "facts": [
+    "c04"
+   ],
+   "wrong": {
+    "At least 15%": "That asks for far too much. Our working rule is 3%.",
+    "Any amount, even equal": "An equal low is not higher. The higher low has to sit at least 3% above.",
+    "At least 1%": "1% is too little. Our working rule is 3%."
+   },
+   "house": true
+  },
+  {
+   "key": "q10",
+   "skill": "setup.weinstein_4b",
+   "rung": 2,
+   "format": "mcq",
+   "criterion": "w4b.pause",
+   "q": "How many closes above the 50-day make the minimum pause?",
+   "choices": [
+    "2",
+    "1",
+    "5",
+    "10"
+   ],
+   "answer": "2",
+   "why": "2 closes above the 50-day before the trigger is our working minimum. A pause of 5 to 20 sessions did best in our test.",
+   "lesson_line": "Two closes above the 50-day is the minimum pause.",
+   "facts": [
+    "c08",
+    "c09"
+   ],
+   "wrong": {
+    "1": "One close is a single day above the average, not a pause.",
+    "5": "5 sessions did well, but the minimum is 2.",
+    "10": "10 sessions is a longer pause. The minimum is 2."
+   },
+   "house": true
+  },
+  {
+   "key": "q11",
+   "skill": "setup.weinstein_4b",
+   "rung": 2,
+   "format": "tf",
+   "criterion": "w4b.liquidity",
+   "q": "We take a 4B- in a $5 stock that trades $20 million a day.",
+   "answer": "False",
+   "why": "False. The price must be $10 or more, and at least $20 million has to trade a day.",
+   "lesson_line": "Under $10 is out, however clean the base.",
+   "facts": [
+    "c17",
+    "h09"
+   ],
+   "house": true
+  },
+  {
+   "key": "q12",
+   "skill": "setup.weinstein_4b",
+   "rung": 2,
+   "format": "mcq",
+   "criterion": "w4b.trigger",
+   "q": "What is the buy on a 4B-?",
+   "choices": [
+    "Trades over the pause high, at market",
+    "The first daily close over the 50-day",
+    "A limit order at the new higher low",
+    "A close over the 200-day average"
+   ],
+   "answer": "Trades over the pause high, at market",
+   "why": "It trades over the highest high of the pause above the 50-day, during regular hours, bought at market. That is our default trigger.",
+   "lesson_line": "Over the pause high, in hours, at market.",
+   "facts": [
+    "c19",
+    "c20",
+    "h22"
+   ],
+   "wrong": {
+    "The first daily close over the 50-day": "The 50-day reclaim comes first. The buy waits for the pause and the trade over its high.",
+    "A limit order at the new higher low": "A limit at the higher low buys before the pause is built. Entries are market orders.",
+    "A close over the 200-day average": "Being over the 200-day is a gate, not the trigger. The trigger is the pause high."
+   },
+   "house": true
+  },
+  {
+   "key": "q13",
+   "skill": "setup.weinstein_4b",
+   "rung": 2,
+   "format": "tf",
+   "criterion": "w4b.base_length",
+   "q": "A buy 12 sessions after the cycle low is long enough for a 4B-.",
+   "answer": "False",
+   "why": "False. Our working rule needs at least 15 sessions from the cycle low to the trigger, so 12 is still too early.",
+   "lesson_line": "Give the base time. At least 15 sessions off the low.",
+   "facts": [
+    "c05",
+    "x10"
+   ],
+   "house": true
+  },
+  {
+   "key": "q14",
+   "skill": "setup.weinstein_4b",
+   "rung": 3,
+   "format": "numeric",
+   "criterion": "w4b.trim_1",
+   "q": "Bought at 22.12 with the stop at 21.49. Where is 3R?",
+   "answer": 24.01,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "a + 3 * (a - b)",
+     "a": 22.12,
+     "b": 21.49
+    },
+    "round": 2
+   },
+   "why": "24.01. One R is the fill minus the stop. Add three of those to the fill. This is PENN's buy.",
+   "lesson_line": "Know your 3R before the open. The first third comes off there.",
+   "facts": [
+    "c28",
+    "h05",
+    "d01"
+   ],
+   "prefix": "$",
+   "house": true
+  },
+  {
+   "key": "q15",
+   "skill": "setup.weinstein_4b",
+   "rung": 3,
+   "format": "numeric",
+   "criterion": "w4b.cycle_low",
+   "q": "The 52-week high is 60.00 and the cycle low is 31.50. How far under the high is the low, in percent?",
+   "answer": 47.5,
+   "calc": {
+    "fn": "drawdown_pct",
+    "args": {
+     "peak": 60.0,
+     "trough": 31.5
+    },
+    "round": 1
+   },
+   "why": "47.5%. The high minus the low, divided by the high.",
+   "lesson_line": "Depth is high minus low, over the high. Measure it.",
+   "facts": [
+    "c01"
+   ],
+   "suffix": "%",
+   "house": true
+  },
+  {
+   "key": "q16",
+   "skill": "setup.weinstein_4b",
+   "rung": 3,
+   "format": "numeric",
+   "criterion": "w4b.higher_low",
+   "q": "The cycle low is 20.00 and the higher low is 21.40. How far above the cycle low is it, in percent?",
+   "answer": 7.0,
+   "calc": {
+    "fn": "pct_change",
+    "args": {
+     "start": 20.0,
+     "end": 21.4
+    },
+    "round": 1
+   },
+   "why": "7%. The higher low over the cycle low, minus one. Our working rule wants at least 3%.",
+   "lesson_line": "Measure the step up from the cycle low.",
+   "facts": [
+    "c04"
+   ],
+   "suffix": "%",
+   "house": true
+  },
+  {
+   "key": "q17",
+   "skill": "setup.weinstein_4b",
+   "rung": 3,
+   "format": "tf",
+   "criterion": "w4b.volume_into_higher_low",
+   "q": "Volume on the down days into the higher low should dry up.",
+   "answer": "True",
+   "why": "True. Our working rule: the down days of the higher-low pullback trade below the 50-day average volume.",
+   "lesson_line": "Quiet selling into the higher low is the picture.",
+   "facts": [
+    "c06",
+    "g1"
+   ],
+   "house": true
+  },
+  {
+   "key": "q18",
+   "skill": "setup.weinstein_4b",
+   "rung": 3,
+   "format": "mcq",
+   "criterion": "w4b.room_to_run",
+   "q": "How much room do we want to the nearest overhead level?",
+   "choices": [
+    "At least 3R",
+    "At least 1R",
+    "Any room at all",
+    "At least 10R"
+   ],
+   "answer": "At least 3R",
+   "why": "At least 3R from the entry to the nearest overhead level, counting only levels above the entry.",
+   "lesson_line": "Three R of room, or the trade is not worth it.",
+   "facts": [
+    "c10"
+   ],
+   "wrong": {
+    "At least 1R": "1R does not reach the first trim at 3R. The room has to be 3R.",
+    "Any room at all": "A wall just overhead is the named mistake. We want 3R.",
+    "At least 10R": "10R is far more than the first trim needs. The line is 3R."
+   },
+   "house": true
+  },
+  {
+   "key": "q19",
+   "skill": "setup.weinstein_4b",
+   "rung": 3,
+   "format": "tf",
+   "criterion": "w4b.fresh_reason",
+   "q": "A fresh reason for the turn, like an earnings reaction, counts against a 4B-.",
+   "answer": "False",
+   "why": "False. A fresh reason for the turn, like an earnings reaction or a guidance change, helps. Keep the buy out of the 3 days before a report.",
+   "lesson_line": "A fresh reason for the turn helps the setup.",
+   "facts": [
+    "c14",
+    "h08"
+   ],
+   "house": true
+  },
+  {
+   "key": "q20",
+   "skill": "setup.weinstein_4b",
+   "rung": 3,
+   "format": "tf",
+   "criterion": "w4b.after_entry_stop",
+   "q": "After entry, the stop is the exit.",
+   "answer": "True",
+   "why": "True. The stop is the exit. It only moves up, never down or wider.",
+   "lesson_line": "The stop is the plan. It only moves up.",
+   "facts": [
+    "c40",
+    "h02"
+   ],
+   "house": true
+  },
+  {
+   "key": "q21",
+   "skill": "setup.weinstein_4b",
+   "rung": 4,
+   "format": "scenario",
+   "criterion": "w4b.no_chase",
+   "q": "Buy the open?",
+   "story": "The pause high is 40.00. The stock gaps open at 42.00.",
+   "choices": [
+    "Pass; 5% past the pause high",
+    "Buy at market; it is so strong",
+    "Buy half size at the open"
+   ],
+   "answer": "Pass; 5% past the pause high",
+   "calc": {
+    "fn": "pct_change",
+    "args": {
+     "start": 40.0,
+     "end": 42.0
+    },
+    "round": 1
+   },
+   "why": "Pass. Skip if already more than 4% above the trigger level; this is 5% over. Chasing costs size, because the stop stays put.",
+   "lesson_line": "More than 4% past the pause high is no trade.",
+   "facts": [
+    "c21",
+    "h11",
+    "h12"
+   ],
+   "wrong": {
+    "Buy at market; it is so strong": "Past 4% the stop stays far away and the shares shrink. That is a chase.",
+    "Buy half size at the open": "Half of a chase is still a chase. The line is 4%."
+   },
+   "house": true
+  },
+  {
+   "key": "q22",
+   "skill": "setup.weinstein_4b",
+   "rung": 4,
+   "format": "scenario",
+   "criterion": "w4b.never_plain_4b",
+   "q": "Buy it?",
+   "story": "A stock down 60% still makes new lows under a falling 30-week line. It looks cheap.",
+   "choices": [
+    "No; that stock is a plain 4B",
+    "Yes; it is cheap, down 60%",
+    "Yes, but only a small starter"
+   ],
+   "answer": "No; that stock is a plain 4B",
+   "why": "No. Never a 4B without the minus. A stock still making new lows is much too soon to consider buying.",
+   "lesson_line": "Cheap is not a reason. A falling stock is a falling stock.",
+   "facts": [
+    "c38",
+    "m01",
+    "x01"
+   ],
+   "wrong": {
+    "Yes; it is cheap, down 60%": "Buying because it seems cheap is the named mistake.",
+    "Yes, but only a small starter": "Size does not fix timing. It is much too soon to consider buying."
+   },
+   "house": true
+  },
+  {
+   "key": "q23",
+   "skill": "setup.weinstein_4b",
+   "rung": 4,
+   "format": "scenario",
+   "criterion": "w4b.inv_close_under_cycle_low",
+   "q": "What does that tell you?",
+   "story": "A stock bounces for three weeks, then closes under its cycle low.",
+   "choices": [
+    "The low call was wrong; still a 4",
+    "A bargain; buy more on the dip",
+    "A higher low; the setup is now on"
+   ],
+   "answer": "The low call was wrong; still a 4",
+   "why": "The low-for-the-cycle call was wrong. It is still a 4B or a 4.",
+   "lesson_line": "A close under the cycle low resets the count.",
+   "facts": [
+    "c35",
+    "c03"
+   ],
+   "wrong": {
+    "A bargain; buy more on the dip": "A close under the cycle low is no bargain. The low was not the low.",
+    "A higher low; the setup is now on": "A higher low sits above the cycle low. This closed under it."
+   },
+   "house": true
+  },
+  {
+   "key": "q24",
+   "skill": "setup.weinstein_4b",
+   "rung": 4,
+   "format": "scenario",
+   "criterion": "w4b.version_h_200",
+   "q": "Buy the break?",
+   "story": "A 4B- shape: a higher low, a 50-day reclaim and a pause. The close is still 12% under the 200-day.",
+   "choices": [
+    "No; no longs under the 200-day",
+    "Yes; the shape is perfect",
+    "Yes, on half size"
+   ],
+   "answer": "No; no longs under the 200-day",
+   "why": "No. No longs below the 200-day simple moving average, unless it is a parabolic long. Wait until price is back above it.",
+   "lesson_line": "The shape is not enough. The 200-day comes first.",
+   "facts": [
+    "h10"
+   ],
+   "wrong": {
+    "Yes; the shape is perfect": "A perfect shape under the 200-day is still under the 200-day.",
+    "Yes, on half size": "Half size does not change the 200-day rule."
+   },
+   "house": true
+  },
+  {
+   "key": "q25",
+   "skill": "setup.weinstein_4b",
+   "rung": 4,
+   "format": "numeric",
+   "criterion": "w4b.trim_2",
+   "q": "Bought at 12.37, stop 12.06. The stock trades to 13.92. How many R is that?",
+   "answer": 5.0,
+   "calc": {
+    "fn": "r_multiple",
+    "args": {
+     "entry": 12.37,
+     "stop": 12.06,
+     "exit": 13.92
+    },
+    "round": 1
+   },
+   "why": "5R. Each R is the fill minus the stop. That is where the second third comes off. This is AMD's buy.",
+   "lesson_line": "Count in R, not dollars. 5R is the second trim.",
+   "facts": [
+    "c29",
+    "h20",
+    "d05"
+   ],
+   "suffix": "R",
+   "house": true
+  },
+  {
+   "key": "q26",
+   "skill": "setup.weinstein_4b",
+   "rung": 4,
+   "format": "tf",
+   "criterion": "w4b.breakeven",
+   "q": "The stop moves to breakeven at 1R, well before the first trim.",
+   "answer": "False",
+   "why": "False. Stop to breakeven between 2R and 5R, at the first trim by default.",
+   "lesson_line": "Breakeven between 2R and 5R, at the first trim.",
+   "facts": [
+    "c27",
+    "h05"
+   ],
+   "house": true
+  },
+  {
+   "key": "q27",
+   "skill": "setup.weinstein_4b",
+   "rung": 4,
+   "format": "mcq",
+   "criterion": "w4b.pause_length_cue",
+   "q": "In our test, which pause above the 50-day did worst?",
+   "choices": [
+    "A bare 2 to 4 session pause",
+    "A pause of 5 to 10 sessions",
+    "A pause of 11 to 20 sessions",
+    "A pause of 21 to 40 sessions"
+   ],
+   "answer": "A bare 2 to 4 session pause",
+   "why": "A bare 2 to 4 session pause: 15.7% reached 3R. The 5 to 10 session pause did best, at 25.9%.",
+   "lesson_line": "Give the pause a few days. A bare two-day pause did worst.",
+   "facts": [
+    "d27",
+    "c09",
+    "d25"
+   ],
+   "wrong": {
+    "A pause of 5 to 10 sessions": "That did best: 25.9% reached 3R.",
+    "A pause of 11 to 20 sessions": "23.1% reached 3R, well above the bare pause.",
+    "A pause of 21 to 40 sessions": "21.3% reached 3R, also above the bare pause."
+   },
+   "house": true
+  },
+  {
+   "key": "q28",
+   "skill": "setup.weinstein_4b",
+   "rung": 4,
+   "format": "mcq",
+   "criterion": "w4b.group",
+   "q": "Which group reading helps a 4B-?",
+   "choices": [
+    "The group ETF closes above its 50-day",
+    "The group ETF falls hardest on the day",
+    "The group is not part of the 4B- call"
+   ],
+   "answer": "The group ETF closes above its 50-day",
+   "why": "The stock's group ETF or index closing above its own 50-day. It helps most when the group is basing too and the stock is among the first to reclaim its 50-day.",
+   "lesson_line": "A turning group lifts a turning stock.",
+   "facts": [
+    "c12",
+    "c13"
+   ],
+   "wrong": {
+    "The group ETF falls hardest on the day": "A group falling hardest is the weak end. We want the group turning up too.",
+    "The group is not part of the 4B- call": "A weak group is a named mistake. The group turning up helps."
+   },
+   "house": true
+  },
+  {
+   "key": "q29",
+   "skill": "setup.weinstein_4b",
+   "rung": 4,
+   "format": "scenario",
+   "criterion": "w4b.inv_close_under_higher_low",
+   "q": "What does that do to the setup?",
+   "story": "A stock sets a higher low, then closes under it two weeks before the pause is done.",
+   "choices": [
+    "It is off; the higher low failed",
+    "It is on; a fresh low is cheaper",
+    "Nothing; only the cycle low counts"
+   ],
+   "answer": "It is off; the higher low failed",
+   "why": "It is off. Under our working rule, a close under the higher low before the entry cancels the setup.",
+   "lesson_line": "A higher low that breaks is not a higher low.",
+   "facts": [
+    "c41",
+    "c04"
+   ],
+   "wrong": {
+    "It is on; a fresh low is cheaper": "A close under the higher low cancels the setup. A lower low is not a bargain.",
+    "Nothing; only the cycle low counts": "A close under the cycle low also cancels it, but a close under the higher low does too."
+   },
+   "house": true
+  },
+  {
+   "key": "q30",
+   "skill": "setup.weinstein_4b",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "w4b.base_length",
+   "q": "Is that a 4B-?",
+   "story": "A stock undercuts its low and reclaims it two sessions later. You want to buy the reclaim.",
+   "choices": [
+    "No; a 4B- waits for a higher low",
+    "Yes; it reclaimed the old low fast",
+    "Yes, if the reclaim volume is big"
+   ],
+   "answer": "No; a 4B- waits for a higher low",
+   "why": "No. A 4B- never closes under its cycle low. It waits 15 or more sessions for a higher low, a 50-day reclaim and a pause before the buy.",
+   "lesson_line": "An undercut and reclaim is quick. A 4B- takes weeks.",
+   "facts": [
+    "l2",
+    "c05"
+   ],
+   "wrong": {
+    "Yes; it reclaimed the old low fast": "That is a different setup that buys a quick reclaim. A 4B- never closes under its cycle low.",
+    "Yes, if the reclaim volume is big": "Volume does not make a quick reclaim into a 4B-. The 4B- waits for the base."
+   },
+   "house": true
+  },
+  {
+   "key": "q31",
+   "skill": "setup.weinstein_4b",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "w4b.higher_low",
+   "q": "Is that a 4B-?",
+   "story": "A stock flushes on twice its usual volume under every fast average. You buy the snap back two days later.",
+   "choices": [
+    "No; a capitulation snap back",
+    "Yes; it flushed hard to the low",
+    "Yes, if it holds the new low"
+   ],
+   "answer": "No; a capitulation snap back",
+   "why": "No. A capitulation buys the snap back within 3 sessions of a flush. A 4B- waits weeks for a higher low on drying volume and a 50-day reclaim.",
+   "lesson_line": "A snap back is quick. A 4B- takes weeks.",
+   "facts": [
+    "l3",
+    "c04"
+   ],
+   "wrong": {
+    "Yes; it flushed hard to the low": "A flush buys the snap back. A 4B- waits for the base.",
+    "Yes, if it holds the new low": "Holding the low is not enough. A 4B- waits for a higher low and a 50-day reclaim."
+   },
+   "house": true
+  },
+  {
+   "key": "q32",
+   "skill": "setup.weinstein_4b",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "w4b.higher_low",
+   "q": "Is it a 4B- yet?",
+   "story": "A stock bottoms and rallies straight into its 50-day with no pullback.",
+   "choices": [
+    "No; it has no higher low",
+    "Yes; it reclaimed the 50-day",
+    "Yes, on lower volume"
+   ],
+   "answer": "No; it has no higher low",
+   "why": "No. A higher low is the critical signal, and a V straight up into the 50-day has not shown one.",
+   "lesson_line": "No pullback, no higher low, no 4B- yet.",
+   "facts": [
+    "g7",
+    "m03",
+    "c04",
+    "x01"
+   ],
+   "wrong": {
+    "Yes; it reclaimed the 50-day": "The 50-day reclaim is one step. Without a higher low, it is a V.",
+    "Yes, on lower volume": "Volume cannot stand in for a higher low."
+   },
+   "house": true
+  },
+  {
+   "key": "q33",
+   "skill": "setup.weinstein_4b",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "w4b.room_to_run",
+   "q": "Take it?",
+   "story": "You would buy at 50.00 with the stop at 48.50. The falling 150-day sits at 52.00, just overhead.",
+   "choices": [
+    "Pass; only 1.33R of room",
+    "Take it; the 200-day will break",
+    "Take it, on half size"
+   ],
+   "answer": "Pass; only 1.33R of room",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(c - a) / (a - b)",
+     "a": 50.0,
+     "b": 48.5,
+     "c": 52.0
+    },
+    "round": 2
+   },
+   "why": "Pass. Our working rule wants at least 3R to the nearest overhead level, and the falling 150-day leaves only 1.33R.",
+   "lesson_line": "A wall just overhead is no trade. Count the room.",
+   "facts": [
+    "c10",
+    "m06"
+   ],
+   "wrong": {
+    "Take it; the 200-day will break": "Buying right under a falling long average with less than 3R of room is the named mistake.",
+    "Take it, on half size": "Half size does not buy more room."
+   },
+   "house": true
+  },
+  {
+   "key": "q34",
+   "skill": "setup.weinstein_4b",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "w4b.earnings_window",
+   "q": "Buy the break?",
+   "story": "A clean pause break sets up for tomorrow. The company reports after the close in 2 days.",
+   "choices": [
+    "No; no buys 3 sessions before a report",
+    "Yes; the shape is clean",
+    "Yes, and sell before the report"
+   ],
+   "answer": "No; no buys 3 sessions before a report",
+   "why": "No. No new buy in the 3 sessions before a report. Hold through a report only if up 5R.",
+   "lesson_line": "Check the report date before every buy.",
+   "facts": [
+    "c23",
+    "h08"
+   ],
+   "wrong": {
+    "Yes; the shape is clean": "A clean shape does not move the earnings window.",
+    "Yes, and sell before the report": "The rule is no new buy in that window, not a quick trade through it."
+   },
+   "house": true
+  },
+  {
+   "key": "q35",
+   "skill": "setup.weinstein_4b",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "w4b.not_stretched",
+   "q": "Buy the break?",
+   "story": "A pause breaks out, and the stock sits 12% over its 10-day average.",
+   "choices": [
+    "No; too far over the 10-day",
+    "Yes; the break itself is clean",
+    "Yes, but only on half size"
+   ],
+   "answer": "No; too far over the 10-day",
+   "why": "No. Skip if more than 10% above the 10-day average. This one is 12% over.",
+   "lesson_line": "A clean break, too far above its average, is a pass.",
+   "facts": [
+    "c22",
+    "h13"
+   ],
+   "wrong": {
+    "Yes; the break itself is clean": "The break is clean, but the stretch rule comes before the break.",
+    "Yes, but only on half size": "Half size does not cure a stretch."
+   },
+   "house": true
+  },
+  {
+   "key": "q36",
+   "skill": "setup.weinstein_4b",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "w4b.time_stop",
+   "q": "What do you do?",
+   "story": "You bought a 4B- break 10 trading days ago. It sits at 0.7R, drifting under the falling 200-day.",
+   "choices": [
+    "Sell; under 1R after 10 days",
+    "Hold; the stop has not traded",
+    "Add; it is cheap"
+   ],
+   "answer": "Sell; under 1R after 10 days",
+   "why": "Sell. A trade still under 1R after 10 trading days is sold, freeing the money.",
+   "lesson_line": "Ten days and nothing. The money has somewhere better to be.",
+   "facts": [
+    "c32",
+    "h15"
+   ],
+   "wrong": {
+    "Hold; the stop has not traded": "The time stop is its own exit. Under 1R after 10 days, the money goes elsewhere.",
+    "Add; it is cheap": "Adding along the way is the named mistake. One price, one stop."
+   },
+   "house": true
+  },
+  {
+   "key": "q37",
+   "skill": "setup.weinstein_4b",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "w4b.inv_market_red",
+   "q": "Buy it, or stand aside?",
+   "story": "A clean 4B- breaks the pause high, but the market reading just turned Red.",
+   "choices": [
+    "No new long; Red is mostly cash",
+    "Buy; the base is great and clean",
+    "Buy half size, tight stop"
+   ],
+   "answer": "No new long; Red is mostly cash",
+   "why": "No new long. Red is mostly cash and shorts, and a 4B- is a long. Existing trades keep their stops.",
+   "lesson_line": "A great base in a Red market still waits.",
+   "facts": [
+    "c39",
+    "c15"
+   ],
+   "wrong": {
+    "Buy; the base is great and clean": "Buying against the market is the named mistake. Red is mostly cash.",
+    "Buy half size, tight stop": "Half size is still a new long in a Red market."
+   },
+   "house": true
+  },
+  {
+   "key": "q38",
+   "skill": "setup.weinstein_4b",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "w4b.inv_close_under_50_before",
+   "q": "What now?",
+   "story": "A stock has reclaimed its 50-day and paused for a week. Today it closes back under the 50-day.",
+   "choices": [
+    "Wait for a new 2-session pause",
+    "Buy the dip; it is cheaper now",
+    "Move the stop down to the 200-day"
+   ],
+   "answer": "Wait for a new 2-session pause",
+   "why": "Wait for a new pause. A close back under the 50-day before the trigger re-arms the setup only after a new 2-session pause above it.",
+   "lesson_line": "Lost the 50-day, so wait for a fresh pause above it.",
+   "facts": [
+    "c36"
+   ],
+   "wrong": {
+    "Buy the dip; it is cheaper now": "The setup is off until a new pause forms. A dip under the 50-day is no entry.",
+    "Move the stop down to the 200-day": "There is no position yet, and the 200-day is not the stop."
+   },
+   "house": true
+  },
+  {
+   "key": "q39",
+   "skill": "setup.weinstein_4b",
+   "rung": 6,
+   "format": "numeric",
+   "criterion": "w4b.stop",
+   "q": "Account 50,000. Risk 1%. Buy 22.12, stop 21.49. How many shares?",
+   "answer": 793,
+   "calc": {
+    "fn": "shares_from_risk",
+    "args": {
+     "account": 50000,
+     "risk_pct": 1,
+     "entry": 22.12,
+     "stop": 21.49
+    },
+    "round": 0
+   },
+   "why": "793. Account times risk percent, divided by the buy minus the stop, rounded down. The stop sets the size.",
+   "lesson_line": "Stop first, distance second, size last.",
+   "facts": [
+    "h03",
+    "h01",
+    "d01"
+   ],
+   "suffix": " shares",
+   "house": true
+  },
+  {
+   "key": "q40",
+   "skill": "setup.weinstein_4b",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "w4b.trim_gap_open",
+   "q": "How do you play the open?",
+   "story": "You bought at 40.00 with the stop at 39.00, so 3R is 43.00. The next morning it opens at 43.60.",
+   "choices": [
+    "Take a third off at the open",
+    "Wait for the close to decide",
+    "Sell it all and take the gain"
+   ],
+   "answer": "Take a third off at the open",
+   "why": "Sell a third at the open. A trim level the day opens past is taken at the open.",
+   "lesson_line": "Take the trim the open hands you.",
+   "facts": [
+    "c30",
+    "h25",
+    "c28"
+   ],
+   "wrong": {
+    "Wait for the close to decide": "The level is already passed. Waiting gives the gap time to fill.",
+    "Sell it all and take the gain": "A third at 3R. The rest waits for 5R and the trail."
+   },
+   "house": true
+  },
+  {
+   "key": "q41",
+   "skill": "setup.weinstein_4b",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "w4b.stop_gap",
+   "q": "What now?",
+   "story": "You bought at 40.00 with the stop at 39.00. It gaps open at 38.20, and the first 30-minute low is 37.80.",
+   "choices": [
+    "Out now; the loss is past the 2R cap",
+    "The new stop is the 37.80 low",
+    "Hold; gaps tend to fill in time"
+   ],
+   "answer": "Out now; the loss is past the 2R cap",
+   "why": "Out. On a gap through the stop the first 30-minute low is the new stop, but past 2R you get out. A low of 37.80 is more than 2R from 40.00.",
+   "lesson_line": "A gap through the stop has a ceiling of 2R.",
+   "facts": [
+    "c24",
+    "h06",
+    "h07"
+   ],
+   "wrong": {
+    "The new stop is the 37.80 low": "The 30-minute low is the stop only while the loss is inside 2R. This one is past it.",
+    "Hold; gaps tend to fill in time": "Hope is not a rule. The gap rule has a ceiling, and this is past it."
+   },
+   "house": true
+  },
+  {
+   "key": "q42",
+   "skill": "setup.weinstein_4b",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "w4b.trail",
+   "q": "What now?",
+   "story": "You hold the last third of a fast mover after both trims. Today it closes under its 10-day.",
+   "choices": [
+    "Sell the last third on that close",
+    "Hold until the 50-day breaks down",
+    "Move the stop down to the 50-day"
+   ],
+   "answer": "Sell the last third on that close",
+   "why": "Sell the last third. A fast mover trails the 10-day, and we sell on a close below it.",
+   "lesson_line": "The trail is a close under the 10-day. Sell it.",
+   "facts": [
+    "c31",
+    "h21",
+    "h02"
+   ],
+   "wrong": {
+    "Hold until the 50-day breaks down": "The trail is the 10-day for a fast mover, not the 50-day.",
+    "Move the stop down to the 50-day": "The stop only moves up, never down or wider."
+   },
+   "house": true
+  },
+  {
+   "key": "q43",
+   "skill": "setup.weinstein_4b",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "w4b.size_by_grade",
+   "q": "How do you answer them?",
+   "story": "Your 4B- trade is working. A friend says to add along the way, as some traders do.",
+   "choices": [
+    "No; one price, one stop, no adds",
+    "Yes; add on each fresh higher low",
+    "Yes, but only add half the size"
+   ],
+   "answer": "No; one price, one stop, no adds",
+   "why": "No. Size from the stop; one price, one stop, no adding along the way. Adding on the way up is the named mistake.",
+   "lesson_line": "Full size once. A winner is not a reason to add.",
+   "facts": [
+    "c26",
+    "m05"
+   ],
+   "wrong": {
+    "Yes; add on each fresh higher low": "Adding to it on the way up is the named mistake.",
+    "Yes, but only add half the size": "A smaller add is still an add with a second price and a second stop."
+   },
+   "house": true
+  },
+  {
+   "key": "q44",
+   "skill": "setup.weinstein_4b",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "w4b.climax",
+   "q": "What do you do?",
+   "story": "You are up 4R in four days on a vertical, wide-range burst.",
+   "choices": [
+    "Sell a big part into the burst",
+    "Add; it is going parabolic",
+    "Hold it all; the trail will handle it"
+   ],
+   "answer": "Sell a big part into the burst",
+   "why": "Sell a big part into it. A climax run on your own long is for selling into; how much is a judgment call.",
+   "lesson_line": "A vertical burst is for selling into.",
+   "facts": [
+    "c34",
+    "h30"
+   ],
+   "wrong": {
+    "Add; it is going parabolic": "Adding is the named mistake, and a burst is for selling into.",
+    "Hold it all; the trail will handle it": "The trail catches the turn late. A burst is the moment to bank a big part."
+   },
+   "house": true
+  },
+  {
+   "key": "q45",
+   "skill": "setup.weinstein_4b",
+   "rung": 6,
+   "format": "tf",
+   "criterion": "w4b.position_adv",
+   "q": "Our position can be up to 5% of the stock's average daily volume.",
+   "answer": "False",
+   "why": "False. Never own more than 1% of a stock's average daily volume.",
+   "lesson_line": "Size to the stock's volume, not just the stop.",
+   "facts": [
+    "c18",
+    "h19"
+   ],
+   "house": true
+  },
+  {
+   "key": "q46",
+   "skill": "setup.weinstein_4b",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "w4b.market_reading",
+   "q": "How does the market change the buy?",
+   "story": "After a broad market decline the index turns up. A stock is among the first in its group to reclaim its 50-day.",
+   "choices": [
+    "Good; start with a few positions",
+    "Wait; the market must make a new high",
+    "Go all in on this one"
+   ],
+   "answer": "Good; start with a few positions",
+   "why": "Good conditions. The best turns come once the market itself turns up. After a correction, start with a few positions and add more only as they work.",
+   "lesson_line": "A market turning up is the wind behind the turn.",
+   "facts": [
+    "c16",
+    "h27",
+    "c13"
+   ],
+   "wrong": {
+    "Wait; the market must make a new high": "The best turns come when the market itself turns back up, not after a new high.",
+    "Go all in on this one": "After a correction, start with a few positions and add more only as the first ones work."
+   },
+   "house": true
+  },
+  {
+   "key": "q47",
+   "skill": "setup.weinstein_4b",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "w4b.short_term",
+   "q": "What do you do?",
+   "story": "Your 4B- stalls under the falling 200-day and slides toward the old low. A friend says to hold it as an investment.",
+   "choices": [
+    "Sell by the rules; never hold Stage 4",
+    "Hold it; it is a long-term bottom",
+    "Add to it; it is cheaper"
+   ],
+   "answer": "Sell by the rules; never hold Stage 4",
+   "why": "Sell by the rules. A 4B- is a short-term trade. Holding it as an investment, back into Stage 4, is the named mistake.",
+   "lesson_line": "Do not turn a short-term trade into an investment.",
+   "facts": [
+    "m09",
+    "c33",
+    "c32"
+   ],
+   "wrong": {
+    "Hold it; it is a long-term bottom": "Holding a short-term trade back down into Stage 4 is the named mistake.",
+    "Add to it; it is cheaper": "Adding is the named mistake, and the stop is the exit."
+   },
+   "house": true
+  },
+  {
+   "key": "q48",
+   "skill": "setup.weinstein_4b",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "w4b.after_entry_stop",
+   "q": "The stop traded. Was the loss a mistake?",
+   "story": "You bought a 4B- at 12.99 with the stop at 12.59. A 37.5% decline, a higher low, a 12-day pause. The next session fell to 12.48.",
+   "choices": [
+    "No; a planned loss, stop worked",
+    "Yes; the stop was set too tight",
+    "Yes; we bought it too late"
+   ],
+   "answer": "No; a planned loss, stop worked",
+   "why": "No. The stop is the plan, and the loss was the planned 3.1%. A correct-looking 4B- can still lose.",
+   "lesson_line": "A correct setup can lose. The stop makes it small.",
+   "facts": [
+    "d06",
+    "d07",
+    "d08",
+    "c40"
+   ],
+   "wrong": {
+    "Yes; the stop was set too tight": "The stop sits where the rules put it. Widening it to dodge a loss is the mistake.",
+    "Yes; we bought it too late": "The buy was at the pause high, not a chase."
+   },
+   "house": true
+  },
+  {
+   "key": "q49",
+   "skill": "setup.weinstein_4b",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "w4b.inv_close_under_50_before",
+   "q": "After the first stop-out, when do you buy again?",
+   "story": "A 39% drop to the March 2020 low, a higher low, a 13-day pause. The break took the 1.4% stop the next day.",
+   "choices": [
+    "Only when it triggers again",
+    "At once; it is the same setup",
+    "Never buy this stock again"
+   ],
+   "answer": "Only when it triggers again",
+   "why": "Only on a new trigger. After a stop-out, buy again only if the setup triggers again, as a new trade. META's second trigger also stopped; the real move came from a third base.",
+   "lesson_line": "A V bottom can fail twice. Only a new trigger buys it again.",
+   "facts": [
+    "h28",
+    "c36",
+    "d09",
+    "d10",
+    "d11"
+   ],
+   "wrong": {
+    "At once; it is the same setup": "After a stop-out, buy again only on a new trigger, as a new trade.",
+    "Never buy this stock again": "The setup can trigger again. The real move came from a third base."
+   },
+   "house": true
+  },
+  {
+   "key": "q50",
+   "skill": "setup.weinstein_4b",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "w4b.long_averages_flat",
+   "q": "What grade cue flagged this one?",
+   "story": "MSFT, 2001: a 66% Stage 4 decline, a 92-session base, an 18-day pause. The break reached a fraction of 1R, then the stop.",
+   "choices": [
+    "A falling 200-day over the trade",
+    "The pause was too long",
+    "The base was too short"
+   ],
+   "answer": "A falling 200-day over the trade",
+   "why": "A falling 200-day over the trade. The long averages should be flat or turning, not still falling steeply.",
+   "lesson_line": "Watch the long averages. A falling 200-day is overhead supply.",
+   "facts": [
+    "c11",
+    "d12",
+    "d13",
+    "d14",
+    "c09"
+   ],
+   "wrong": {
+    "The pause was too long": "An 18-day pause is inside the 5 to 20 sessions that did best.",
+    "The base was too short": "A 92-session base is long. The falling long average was the cue."
+   },
+   "house": true
+  },
+  {
+   "key": "q51",
+   "skill": "setup.weinstein_4b",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "w4b.market_reading",
+   "q": "Which check could have kept you out?",
+   "story": "Two 4B- triggers in a bear market, months apart. Each looked clean, and each stopped the next session.",
+   "choices": [
+    "The market reading",
+    "A tighter stop",
+    "A bigger position"
+   ],
+   "answer": "The market reading",
+   "why": "The market reading. Two 4B- triggers in the 2008 bear were both stopped without trading above the entry. Buying against the market is a named mistake.",
+   "lesson_line": "Forest first, then the trees. Check the market.",
+   "facts": [
+    "d15",
+    "d16",
+    "m08",
+    "c15"
+   ],
+   "wrong": {
+    "A tighter stop": "A tighter stop would have been hit even sooner. The missing filter was the market.",
+    "A bigger position": "More size on a losing setup only loses more."
+   },
+   "house": true
+  },
+  {
+   "key": "q52",
+   "skill": "setup.weinstein_4b",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "w4b.stage4",
+   "q": "Is it a 4B-?",
+   "story": "A stock drops 34% from its high. At the cycle low the 150-day was rising: 528.74 against 521.41 twenty sessions earlier.",
+   "choices": [
+    "No; a pullback in an uptrend",
+    "Yes; the drop is deep enough",
+    "Yes, if volume dried up"
+   ],
+   "answer": "No; a pullback in an uptrend",
+   "why": "No. A 34% drop under a 150-day that was still rising at the low is a pullback in an uptrend. That is a Remount or a pullback buy, not a Stage 4 turn.",
+   "lesson_line": "Read the 150-day at the low before you name it.",
+   "facts": [
+    "d19",
+    "d20",
+    "l1"
+   ],
+   "wrong": {
+    "Yes; the drop is deep enough": "A deep drop is not a Stage 4. The 150-day was rising at the low.",
+    "Yes, if volume dried up": "Dry volume does not change a rising 150-day at the low."
+   },
+   "house": true
+  },
+  {
+   "key": "q53",
+   "skill": "setup.weinstein_4b",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "w4b.higher_low",
+   "q": "Is that a real higher low?",
+   "story": "A V off a low. The higher low sits 6.8% above the cycle low, but the best high off the low was only 4.1% above it.",
+   "choices": [
+    "No; no 5% rally before it, so one leg",
+    "Yes; it is above the cycle low",
+    "Yes, if volume dried up"
+   ],
+   "answer": "No; no 5% rally before it, so one leg",
+   "why": "No. Our working rule puts a rally of 5% or more before the higher low. Here the best high off the low was only 4.1% above it, so it is one leg, not a base.",
+   "lesson_line": "A higher low needs a rally before it. Otherwise it is one leg.",
+   "facts": [
+    "c04"
+   ],
+   "wrong": {
+    "Yes; it is above the cycle low": "Above the cycle low is not enough. A rally of 5% or more has to come before it.",
+    "Yes, if volume dried up": "Dry volume does not make one leg into a base."
+   },
+   "house": true
+  },
+  {
+   "key": "q54",
+   "skill": "setup.weinstein_4b",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "w4b.earnings_window",
+   "q": "Does our earnings rule allow that buy?",
+   "story": "A vendor's example buys a 50-day reclaim at 189 on 2022-07-15 or 2022-07-18. The company reports after the close on 2022-07-19.",
+   "choices": [
+    "No; too close to the report",
+    "Yes; the reclaim was clean",
+    "Yes, if it holds the 50-day"
+   ],
+   "answer": "No; too close to the report",
+   "why": "No. No new buy in the 3 sessions before a report. That 50-day reclaim was bought one to two sessions before the report.",
+   "lesson_line": "Check the report date, even on a famous chart.",
+   "facts": [
+    "d23",
+    "d24",
+    "c23"
+   ],
+   "wrong": {
+    "Yes; the reclaim was clean": "A clean reclaim does not move the earnings window.",
+    "Yes, if it holds the 50-day": "Holding the 50-day does not change the report date."
+   },
+   "house": true
+  },
+  {
+   "key": "q55",
+   "skill": "setup.weinstein_4b",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "w4b.stop",
+   "q": "Write the plan.",
+   "story": "NUS, April 2013: 78 sessions off a December low, a February higher low, and a 19-day pause above a turning 50-day.",
+   "choices": [
+    "Buy 49.99, stop 49.05, a third at 3R",
+    "Buy 49.99, stop 45.00, hold it all",
+    "Wait for a Stage 2 breakout instead"
+   ],
+   "answer": "Buy 49.99, stop 49.05, a third at 3R",
+   "why": "Buy at market, 49.99, once price trades over the pause high. Stop 49.05, 1.9% away. A third comes off at 3R.",
+   "lesson_line": "Entry, stop, trim, trail. Write it before the open.",
+   "facts": [
+    "d03",
+    "d04",
+    "c19",
+    "h22",
+    "c28"
+   ],
+   "wrong": {
+    "Buy 49.99, stop 45.00, hold it all": "The stop here sat 1.9% away; 45.00 is far wider. And a third comes off at 3R.",
+    "Wait for a Stage 2 breakout instead": "That is a different trade. This is the 4B-, the short-term play."
+   },
+   "house": true
+  },
+  {
+   "key": "q56",
+   "skill": "setup.weinstein_4b",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "w4b.group",
+   "q": "Which gets the bigger size?",
+   "story": "Two 4B- breaks. A: a clean higher low, a tight pause on a flat 50-day, the group and market turning up. B: no higher low, a steeply falling 50-day, an old level just overhead.",
+   "choices": [
+    "A; every cue lines up",
+    "B; it has more upside",
+    "Equal; both broke out"
+   ],
+   "answer": "A; every cue lines up",
+   "why": "A. A clean higher low, a tight pause on a flat 50-day, and a group and market turning up are the A+ end. No higher low, a steeply falling 50-day and an old level just overhead are the B- end.",
+   "lesson_line": "Same setup, different grade. The base and the backdrop set the size.",
+   "facts": [
+    "g1",
+    "g2",
+    "g5",
+    "g3",
+    "g4",
+    "g7"
+   ],
+   "wrong": {
+    "B; it has more upside": "B has a wall overhead and no higher low. Its room is the problem.",
+    "Equal; both broke out": "Both broke the pause high, but the base and the backdrop differ."
+   },
+   "house": true
+  },
+  {
+   "key": "q57",
+   "skill": "setup.weinstein_4b",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "w4b.trim_1",
+   "q": "Did the system break?",
+   "story": "You take five 4B- trades by the rules. Four stop out, and one runs for 5R.",
+   "choices": [
+    "No; about one in five reaches 3R",
+    "Yes; the setup does not work",
+    "Yes; widen the stops"
+   ],
+   "answer": "No; about one in five reaches 3R",
+   "why": "No. In our test above the 200-day, 22.2% of 4B- hits reached 3R before a fixed stop. So four stops in five is ordinary. Keep stops small and take the trims when one works.",
+   "lesson_line": "A 4B- loses often. Small stops and trims keep it alive.",
+   "facts": [
+    "d25",
+    "d26",
+    "h05",
+    "h20"
+   ],
+   "wrong": {
+    "Yes; the setup does not work": "A low hit rate with small stops and trims is the design, not a failure.",
+    "Yes; widen the stops": "Widening the stop is the mistake. A small, fixed stop is what keeps the losses small."
+   },
+   "house": true
+  },
+  {
+   "key": "q58",
+   "skill": "setup.weinstein_4b",
+   "rung": 8,
+   "format": "tf",
+   "criterion": "w4b.short_term",
+   "q": "In Bulkowski's own trades, Stage 4 buys made money about 24% of the time.",
+   "answer": "True",
+   "why": "True. Bulkowski's own Stage 4 buys made money 24% of the time, so a 4B- is a low-hit-rate trade that lives on small stops and trims.",
+   "lesson_line": "Buying near a Stage 4 low is a low-odds trade. Trade it small and short.",
+   "facts": [
+    "c37",
+    "c33"
+   ],
+   "house": true
+  },
+  {
+   "key": "q59",
+   "skill": "setup.weinstein_4b",
+   "rung": 9,
+   "format": "mcq",
+   "criterion": "w4b.version_h_200",
+   "q": "Hidden ticker. A washout, a higher low, a pause over the 50-day. Above its 200-day? Take it or pass.",
+   "choices": [
+    "Take it; it is above the 200-day",
+    "Pass; the 200-day line is overhead",
+    "Pass; there is no real higher low"
+   ],
+   "answer": "Take it; it is above the 200-day",
+   "why": "Take it. A spring washout, a higher low, and an 11-day pause that walked up through the 50, 150 and 200-day lines. The prior close was above the 200-day. It ran past 5R within two weeks.",
+   "lesson_line": "The 200-day first, then the base. Both passed here.",
+   "facts": [
+    "h10",
+    "d29",
+    "d28",
+    "d00"
+   ],
+   "wrong": {
+    "Pass; the 200-day line is overhead": "Look again: price sits above the 200-day here.",
+    "Pass; there is no real higher low": "Look again: the second low sits well above the first."
+   },
+   "chart": {
+    "sym": "DY",
+    "asof": "2025-05-07",
+    "window": 120,
+    "forward": 20
+   },
+   "house": true
+  },
+  {
+   "key": "q60",
+   "skill": "setup.weinstein_4b",
+   "rung": 9,
+   "format": "mcq",
+   "criterion": "w4b.version_h_200",
+   "q": "Hidden ticker. A deep decline, a higher low, a 50-day reclaim. Is it above the 200-day? Take it or pass.",
+   "choices": [
+    "Pass; it is still under the 200-day",
+    "Take it; the base is textbook",
+    "Take it; the higher low is big"
+   ],
+   "answer": "Pass; it is still under the 200-day",
+   "why": "Pass. The close was 10.2% under the 200-day the day before the trigger. A base can work and still not be ours: no longs under the 200-day.",
+   "lesson_line": "The shape is not enough. The 200-day decides.",
+   "facts": [
+    "h10",
+    "d17",
+    "d18"
+   ],
+   "wrong": {
+    "Take it; the base is textbook": "The base is textbook, but the close is under the 200-day. That rule comes first.",
+    "Take it; the higher low is big": "A big higher low does not lift a close over the 200-day."
+   },
+   "chart": {
+    "sym": "BAC",
+    "asof": "2020-06-03",
+    "window": 120,
+    "forward": 20
+   },
+   "house": true
+  },
+  {
+   "key": "q61",
+   "skill": "setup.weinstein_4b",
+   "rung": 9,
+   "format": "scenario",
+   "criterion": "w4b.market_reading",
+   "q": "Which one do we take?",
+   "story": "Four candidates today. A: still making new lows. B: the close is under the 200-day. C: a higher low, a pause over the 50-day, 3R of room. D: reports in 2 days.",
+   "choices": [
+    "A; it is the cheapest",
+    "B; the pause is longest",
+    "C; a higher low and room to run",
+    "D; it has the freshest reason"
+   ],
+   "answer": "C; a higher low and room to run",
+   "why": "C. A plain 4B still making new lows, a close under the 200-day and a report inside 3 sessions each rule one out. C has the higher low and the room.",
+   "lesson_line": "Run every gate. One failure ends it.",
+   "facts": [
+    "c38",
+    "h10",
+    "c23",
+    "c04",
+    "c10"
+   ],
+   "wrong": {
+    "A; it is the cheapest": "A stock still making new lows is a plain 4B, much too soon to buy.",
+    "B; the pause is longest": "Under the 200-day, no longs. A long pause does not change that.",
+    "D; it has the freshest reason": "A report inside 3 sessions ends it, however fresh the reason."
+   },
+   "house": true
+  },
+  {
+   "key": "q62",
+   "skill": "setup.weinstein_4b",
+   "rung": 3,
+   "format": "fill",
+   "criterion": "w4b.market_turn",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "After a correction, start with a few positions and add more only as the first ones ___.",
+   "bank": [
+    "work",
+    "fail",
+    "gap",
+    "stall",
+    "expire"
+   ],
+   "answer": "work",
+   "why": "Work. After a correction, start with a few positions and add more only as the first ones work.",
+   "lesson_line": "Start small after a correction. Let the first positions earn the next ones.",
+   "facts": [
+    "c16",
+    "h27"
+   ],
+   "house": true
+  },
+  {
+   "key": "q63",
+   "skill": "setup.weinstein_4b",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "w4b.market_turn",
+   "q": "Do you take the third one?",
+   "story": "A broad selloff ends and the market reading turns Green again. You hold two 4B- trades, both past their first trim. A third 4B- triggers.",
+   "choices": [
+    "Yes; the first two are working",
+    "No; wait for a new index high",
+    "Yes, by adding to the first two"
+   ],
+   "answer": "Yes; the first two are working",
+   "why": "Yes. After a correction, start with a few positions and add more only as the first ones work. Yours are working.",
+   "lesson_line": "Add positions, not shares. Let the first ones prove the turn.",
+   "facts": [
+    "c16",
+    "h27",
+    "c26"
+   ],
+   "wrong": {
+    "No; wait for a new index high": "Our rule starts positions as the reading turns Green again. It does not wait for a new index high.",
+    "Yes, by adding to the first two": "That adds to a trade. Our plan is one price, one stop, no adding along the way."
+   },
+   "house": true
+  },
+  {
+   "key": "q64",
+   "skill": "setup.weinstein_4b",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "w4b.first_in_group",
+   "q": "Which stock earns the group cue on our card?",
+   "story": "Two stocks sit in one group, which is basing too. Both show the same higher low and pause above the 50-day. Stock A reclaimed its 50-day first. Stock B reclaimed it weeks later, after most of the group.",
+   "choices": [
+    "Stock A, among the first to reclaim",
+    "Stock B, it waited for the group",
+    "Neither; the order is not part of it"
+   ],
+   "answer": "Stock A, among the first to reclaim",
+   "why": "Stock A. Our card's cue is a basing group with the stock among the first in it to reclaim its 50-day.",
+   "lesson_line": "In a basing group, the early reclaimers earn the cue.",
+   "facts": [
+    "c13"
+   ],
+   "wrong": {
+    "Stock B, it waited for the group": "Stock B came late, after most of the group. The cue asks for among the first.",
+    "Neither; the order is not part of it": "The cue is about the order. The stock should be among the first in the group to reclaim its 50-day."
+   },
+   "house": true
+  },
+  {
+   "key": "q65",
+   "skill": "setup.weinstein_4b",
+   "rung": 4,
+   "format": "mcq",
+   "criterion": "w4b.long_averages_flat",
+   "q": "Which picture of the 150-day and 200-day lines is the better cue?",
+   "choices": [
+    "Flat, or turning over the trade",
+    "Falling steeply, price far below",
+    "No difference to the grade"
+   ],
+   "answer": "Flat, or turning over the trade",
+   "why": "Flat, or turning. Our card wants the 150-day and 200-day lines flat or turning over the trade, not still falling steeply.",
+   "lesson_line": "Flat or turning long averages are the better picture. A steep fall is not.",
+   "facts": [
+    "c11",
+    "x11"
+   ],
+   "wrong": {
+    "Falling steeply, price far below": "TraderLion: a sharply falling average with the stock far below it has likely not yet entered a true Stage 1.",
+    "No difference to the grade": "It is a cue that counts. Flat or turning lines are the better picture."
+   },
+   "house": true
+  },
+  {
+   "key": "q66",
+   "skill": "setup.weinstein_4b",
+   "rung": 6,
+   "format": "tf",
+   "criterion": "w4b.long_averages_flat",
+   "q": "A falling 200-day line cancels a 4B- on our card.",
+   "answer": "False",
+   "why": "False. The card calls flat or turning lines a cue. A steep fall grades worse, but a cue is not a veto.",
+   "lesson_line": "A falling long average is a weaker cue, not a rule that ends the setup.",
+   "facts": [
+    "c11",
+    "x11"
+   ],
+   "house": true
+  },
+  {
+   "key": "q67",
+   "skill": "setup.weinstein_4b",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "w4b.order",
+   "q": "Do you buy now?",
+   "story": "Pre-market, a 4B- stock trades through its pause high of 20.00. The open is an hour away.",
+   "choices": [
+    "No; wait for regular hours",
+    "Yes, with a market order",
+    "Yes, with a limit at 20.00"
+   ],
+   "answer": "No; wait for regular hours",
+   "why": "No. Our entry is a market order once the trigger trades, and only during regular hours.",
+   "lesson_line": "Market order, regular hours only. A pre-market print is not a buy.",
+   "facts": [
+    "c20",
+    "h22",
+    "h32"
+   ],
+   "wrong": {
+    "Yes, with a market order": "A market order is our order type, but pre-market is outside regular hours.",
+    "Yes, with a limit at 20.00": "Our entries are market orders, and pre-market is outside regular hours."
+   },
+   "house": true
+  },
+  {
+   "key": "q68",
+   "skill": "setup.weinstein_4b",
+   "rung": 6,
+   "format": "mcq",
+   "criterion": "w4b.stop_round_number",
+   "q": "Your planned stop level lands on exactly 25.00. Where does the stop go?",
+   "choices": [
+    "A few cents under 25.00",
+    "Right on the 25.00 line",
+    "A few cents above 25.00",
+    "A full dollar under 25.00"
+   ],
+   "answer": "A few cents under 25.00",
+   "why": "A few cents under 25.00. Our card keeps the stop off a round number: a few cents under it, not on it.",
+   "lesson_line": "A few cents under the round number, never right on it.",
+   "facts": [
+    "c42",
+    "h01"
+   ],
+   "wrong": {
+    "Right on the 25.00 line": "Not on a round number. The stop sits a few cents under it.",
+    "A few cents above 25.00": "That puts the stop above the level instead of under it. A long stop sits a few cents under.",
+    "A full dollar under 25.00": "A few cents is the gap. A full dollar widens the stop and shrinks the size."
+   },
+   "house": true
+  },
+  {
+   "key": "q69",
+   "skill": "setup.weinstein_4b",
+   "rung": 2,
+   "format": "tf",
+   "criterion": "w4b.stop_round_number",
+   "q": "Our card puts the stop right on the nearest round number.",
+   "answer": "False",
+   "why": "False. Not on a round number: a few cents under it.",
+   "lesson_line": "A few cents under the round number, not on it.",
+   "facts": [
+    "c42"
+   ],
+   "house": true
+  },
+  {
+   "key": "q70",
+   "skill": "setup.weinstein_4b",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "w4b.stop_broker",
+   "q": "What is wrong with that plan?",
+   "story": "You buy a 4B- and plan to sell by hand if it trades under your stop level. You place no stop order with your broker.",
+   "choices": [
+    "Every position needs a real stop order",
+    "Nothing; you will be watching the screen",
+    "An alert is enough if you act fast"
+   ],
+   "answer": "Every position needs a real stop order",
+   "why": "A stop kept in your head is not a stop. Every position has a real stop order with the broker.",
+   "lesson_line": "Place the order. A stop in your head is not a stop.",
+   "facts": [
+    "h31",
+    "c25"
+   ],
+   "wrong": {
+    "Nothing; you will be watching the screen": "Watching is not an order. The stop sits with the broker even when you look away.",
+    "An alert is enough if you act fast": "An alert is not an order. The rule is a real stop order with the broker."
+   },
+   "house": true
+  },
+  {
+   "key": "q71",
+   "skill": "setup.weinstein_4b",
+   "rung": 2,
+   "format": "tf",
+   "criterion": "w4b.stop_broker",
+   "q": "Our stop is a real order with the broker, and it only moves up.",
+   "answer": "True",
+   "why": "True. A real stop order with the broker, and it only moves up.",
+   "lesson_line": "Real order, with the broker. It only moves up.",
+   "facts": [
+    "c25",
+    "h31"
+   ],
+   "house": true
+  },
+  {
+   "key": "q72",
+   "skill": "setup.weinstein_4b",
+   "rung": 4,
+   "format": "tf",
+   "criterion": "w4b.trail",
+   "q": "On a steadier mover, we trail the last third under the 21-day, not the 10-day.",
+   "answer": "True",
+   "why": "True. A steadier mover trails the 21-day, and a fast mover trails the 10-day. We sell on a close below it.",
+   "lesson_line": "Fast mover, 10-day. Steadier mover, 21-day. Sell on the close below.",
+   "facts": [
+    "c31",
+    "h21"
+   ],
+   "house": true
+  },
+  {
+   "key": "q73",
+   "skill": "setup.weinstein_4b",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "w4b.climax",
+   "q": "What do you do?",
+   "story": "You hold two thirds after the 3R trim. In three days the stock goes parabolic, 4.5R up and far over its 10-day.",
+   "choices": [
+    "Sell a big part of it into the move",
+    "Hold it all until a 10-day close",
+    "Add to it while it keeps running",
+    "Hold it all; the burst proves it works"
+   ],
+   "answer": "Sell a big part of it into the move",
+   "why": "Sell a big part into the burst. A climax run on your own long is sold into; how much is a judgment call.",
+   "lesson_line": "A parabolic burst is for selling into. How much is your call.",
+   "facts": [
+    "c34",
+    "h30",
+    "c26"
+   ],
+   "wrong": {
+    "Hold it all until a 10-day close": "The trail catches the turn late. A parabolic burst is the moment to sell a big part.",
+    "Add to it while it keeps running": "No adding along the way: one price, one stop. A burst is for selling into.",
+    "Hold it all; the burst proves it works": "A burst is for selling into, not for holding all of it."
+   },
+   "house": true
+  }
+ ],
+ "conflicts": [
+  "The unit id SET.42 is provisional pending D-002 (the setup map): UNITS-method.md has no row for this setup (the card's unit is 'none'), so the unit is written from the card alone. Skill id setup.weinstein_4b is provisional too. The card renames the journal tag '4B Setup (Stan Weinstein)' to 4B- (D-016); the unit's title follows the brief and the questions say 4B-.",
+  "Pending-owner criteria kept OUT of every key (the course's current default, waiting on the owner): w4b.depth, the cycle low at least 30% under the 52-week high (D-070; q15 computes a depth percent only; the 30% appears in no key, and the stories that give a decline of 34%, 37.5%, 39%, 60% or 66% are the dossier's facts or round numbers, never a threshold); w4b.time_in_decline (D-070; no item); w4b.flattening_50, 1% lower than 10 sessions ago (D-070; the grading rows are used as cues without the number, in q56); w4b.version_h_200, whether the 4B- is a second named exception to B26 or watch-only (D-009; every 200-day item keys only the settled B26, no longs under the 200-day, and no item teaches Weinstein's own under-200-day version as a trade; the dossier's scan found that version did better on a fixed-stop test, 30.1% against 22.2% to 3R, which the owner should see); w4b.rs_line and RS 80 (D-011; no item asks about RS); w4b.stop and w4b.stop_width, the stop under the pause low or under the day's low and the widest allowed at 3%, 5% or 8% (D-005; no key names where the stop sits; the walk-throughs and q55 quote the scan's stops as data, and the rulebook's A3, A4 and A5 appear only as rules for every setup); w4b.trigger (D-003; see the next item). D-004 (scanners) and D-016 (the rename) are not asked.",
+  "JUDGMENT CALL, w4b.trigger (D-003, pending): the unit needs an entry, so q12 and the walk-throughs use the card's own default, price trades above the highest high of the pause above the 50-day, bought at market during regular hours (rulebook E57 is settled; the 4% chase cap is settled). The owner's Kicker ruling is borrowed by analogy and he has not ruled on the 4B-; the GTA buys on a close above a level. If the owner picks the close, q12 and the 'trades over the pause high' lines in w1 to w3 need re-keying.",
+  "Proposed criteria keyed from the card: the 252-session cycle low (q8, q15), the 150-day falling at the low (q3, q52), a higher low at least 3% above the cycle low, 10 sessions later, after a 5% rally (q9, q16, q53), at least 15 sessions from the low (q13), a pause of at least 2 closes (q10), room of at least 3R (q18, q33). These are the dossier's own tests ('my proposal', checked by its scan), not a source's numbers and not owner rulings; every question on them carries house: true and the owner's review is the gate. The cold check made each read as 'our working rule' in the why.",
+  "Sources: Weinstein's own words reach us only second-hand. The 2005 Global Trend Alert is a forum-posted copy of a paid newsletter and is not cited; its legend lines are quoted through stageanalysis.net and the card. The TraderLion clip description with his words ('I think you've reached the bottom', his criteria list) was dropped from the facts because the quote checker could not find it on the YouTube page, which loads its description by script; the dossier's quote of it stands in the dossier. Deepvue's X posts are social media and are not cited. Weinstein's 1988 book was not read. No key rests on a vendor or practitioner page alone: stageanalysis.net (one publisher), Deepvue and TraderLion (a commercial partner of Weinstein) support the card's statements.",
+  "TraderLion's guide says both 'always wait for a clear Stage 1 base before considering buying again' and that 'Stage 4B offers a potential setup for short-term plays'; Deepvue says there is no reason to be long in Stage 4. q1 and q5 teach the 4B- as the short-term play for advanced traders on our trims and a plain 4B as not a buy; the classic Stage 1 base is a different, later buy.",
+  "Measured evidence: there is none for the 4B- itself. Bulkowski's own Stage 4 buys made money 24% of the time (a card statement; his pages carry an AI-training notice and are not quoted); our own scan of 2,016 hits found 25.7% reached 3R before a fixed stop, 22.2% above the 200-day. q57 uses the scan's numbers to show the setup is a low-hit-rate trade; q58 (the Bulkowski 24% line) was cut as single-sourced and off-target. The scan did not test RS, the group or the market reading.",
+  "q51 (TGT) was cut: the dossier's 'the market reading is the missing filter' is the author's untested inference, the second trigger (2009-04-30) came in the rally after the March 2009 low, and both triggers closed above their 200-days (the dossier says 'under a falling 200-day'). The TGT lines in the dossier's section 12 need correcting.",
+  "q54 (NFLX): Deepvue's $189 NFLX entry is dated by the dossier's own price check and the company's 8-K date, not by the vendor's post, which is not cited. The item keys the settled earnings window (3 sessions) and says nothing about how the vendor drew its box.",
+  "Examples: the dossier's example numbers (d1) were read off our own daily bars by the research scan (dossier sections 12 and 13), not from a public page; the owner has not picked his ten. Five of the ten are turns after a market-wide selloff. The walk-throughs (NUS, PENN, F) and the real cases (F, META, MSFT, TGT, BAC, COST, AAPL, NFLX, DY) depend on them. The fills are the scan's: the pause high plus a cent, or the open on a gap; a live market order fills a little differently. Prices are split-adjusted.",
+  "The chart questions (q59 DY asof 2025-05-07, the day before the trigger; q60 BAC asof 2020-06-03, the day before the trigger the dossier measures) show the member's own chart; the keys rest on the settled 200-day rule and the dossier's reads (d00, d17, d18, d28, d29). q59's prior close is above the 200-day (d00); q60's close is 10.2% under it (d17).",
+  "Hypothetical stories (q21 to q24, q29 to q38, q40 to q44, q46, q47, q57) use round numbers on purpose. Where a numeric question borrows a real name's prices (q14 and q39 PENN, q25 AMD) the key is arithmetic only.",
+  "The short mirror does not exist for this setup (dossier 8.6): the stage short that is ours lives in the Stage 4A breakdown and the bear gap. Weinstein's own version, the under-200-day 4B-, is a reading skill, not a trade here (D-009).",
+  "Sources that may read unreachable to the quote checker: the Internet Archive copy of the TraderLion guide (its capture date is the dossier's 2025-11-13; the URL uses the nearest-capture form) and Deepvue's page sometimes refuse scripts; the checker should confirm those quotes in a browser.",
+  "Cold check 2026-11-10: 56 pass (24 fixed), 0 fix, 8 cut. Look first at: (1) the dossier's example claims that the bars do not support: AAPL 2019 rallied 11.2% (not 4.1%) before its higher low, MSFT 2001's 200-day was flat and 16% under price, the TGT triggers closed above their 200-days, and DY took 9 sessions to 5R (q53 made hypothetical, q50 and q51 cut); (2) the proposed numbers keyed as 'our working rule' (3% higher low, 10 sessions, 5% rally, 15 sessions, 252-session low, 3R of room) and the pending D-003 trigger and D-005 stop width behind q12, q48 and the walk-throughs; (3) the dossier's finding that Weinstein's own under-200-day version did better on the fixed-stop test (30.1% against 22.2% to 3R), which B26 and D-009 keep out of the course.",
+  "Requoted 2026-11-10: d28 after the cards' market-reading rows were corrected."
+ ],
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "notes": "d03/d04/d00 verbatim. Bars: NUS 2013-04-18 high 50.87, buy 49.99, stop 49.05 (the prior day's low 49.10 minus 0.05) = 1.88%, close 50.50 over a flat 200-day 43.48, best run 31.9R. All numbers true; sentences 22 words or fewer.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "d01/d02 verbatim. Bars: PENN 2019-11-05 buy 22.12, stop 21.49 (2.85%), prior close 21.80 is 5.8% over the 200-day, best run 15.7R before the stop (3R came 24 sessions in, so the 'stalls' failure line is only a what-if). True.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "d06/d07/d08 verbatim. Bars: F 2024-02-12 high 13.07, low 12.64 (stop 12.59), buy 12.99 (3.08% stop), next session low 12.48, close 12.98 over a 200-day of 12.17. Step 4 said 'Nothing in the setup was wrong', which the pending stop-width ruling (D-005; 3.1% is just over 3%) and the untested RS and market reading cannot support; now 'the stop did its job'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q01": {
+   "status": "pass",
+   "notes": "x01 (stageanalysis.net) and x08 (Deepvue) verbatim, two publishers agree a plain 4B is not a buy; c38 on the card. Wrong notes true. variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q02": {
+   "status": "pass",
+   "notes": "x02 (stageanalysis.net, the stage legend) verbatim and c03 on the card. One publisher plus the card: acceptable because c03 is the card's own line (basis originator) and the item defines a term, not a trade. variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q03": {
+   "status": "pass",
+   "notes": "c02 (card, source consensus) and x04 (Deepvue) verbatim. Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q04": {
+   "status": "pass",
+   "notes": "x04 (Deepvue) and x05 (TraderLion) verbatim, two publishers agree 30 weeks is about 150 days and 40 weeks is 200.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q05": {
+   "status": "cut",
+   "notes": "Pure restatement of the card's short_term line, already asked applied in q47 (short-term, not an investment) and q43 (no adding). q47 and q43 kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q06": {
+   "status": "pass",
+   "notes": "c07 (card, basis originator) verbatim. Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q07": {
+   "status": "cut",
+   "notes": "Same fact as q60 (a chart of a 4B- shape still under the 200-day, B26) and q59 (the pass case). The chart items are the format the owner wants; this TF cut.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q08": {
+   "status": "pass",
+   "notes": "w4b.cycle_low is proposed ('my proposal'); c01 verbatim on the card. The why now says 'our working rule' so the 252 reads as the card's, not a source's. variety rewrite checked 2026-11-10",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q09": {
+   "status": "pass",
+   "notes": "w4b.higher_low is proposed ('my proposal'): 3%, 10 sessions, a 5% rally are the dossier's own scan rule, no source. Shown as 'our working rule'. Wrong note 'inside the noise' was unsourced; replaced.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q10": {
+   "status": "pass",
+   "notes": "w4b.pause is proposed; c08/c09 verbatim (c09 is the scan cue). Dossier splits checked: 2 to 4 sessions 15.7% to 3R against 25.9% for 5 to 10. 'Our scan' became 'our test'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q11": {
+   "status": "pass",
+   "notes": "B23 (h09) and c17 verbatim; settled. Key right. variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q12": {
+   "status": "pass",
+   "notes": "w4b.trigger is pending (D-003). E57 (market order) is settled; the 'when' is the card default. The why now says 'our default trigger'; no choice marks a close-based buyer wrong except as 'the first close over the 50-day', which is a different event (the reclaim, not the pause high). variety rewrite checked 2026-11-10",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q13": {
+   "status": "pass",
+   "notes": "w4b.base_length is proposed ('my proposal'); x10 (stageanalysis.net) supports only 'too early on a small base after a large decline', not the number 15. Reworded to our working rule; the number is the card's. variety rewrite checked 2026-11-10",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q14": {
+   "status": "pass",
+   "notes": "(22.12 - 21.49) = 0.63; 22.12 + 3 x 0.63 = 24.01, recomputed. Bars: PENN 2019-11-05 high 22.34, stop 21.49 (prior low 21.54 minus 0.05). d01 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q15": {
+   "status": "pass",
+   "notes": "(60.00 - 31.50) / 60.00 = 47.5%, recomputed. Computes a depth only; the 30% threshold (D-070, pending) is not used.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q16": {
+   "status": "pass",
+   "notes": "21.40 / 20.00 - 1 = 7.0%, recomputed. Threshold wording moved to 'our working rule'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q17": {
+   "status": "pass",
+   "notes": "w4b.volume_into_higher_low is proposed; c06/g1 verbatim on the card. Worded as our working rule.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q18": {
+   "status": "cut",
+   "notes": "Pure restatement of the 3R-of-room rule (the card's proposed w4b.room_to_run); q33 asks it as a worked case with the arithmetic. q33 kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q19": {
+   "status": "pass",
+   "notes": "c14 (proposed cue) and B22 (h08) verbatim. Key right. variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q20": {
+   "status": "pass",
+   "notes": "A4 (h02) and c40 verbatim; settled. Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q21": {
+   "status": "pass",
+   "notes": "(42.00 - 40.00) / 40.00 = 5.0%, recomputed. C28 (h11) settled; c21 verbatim. variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q22": {
+   "status": "pass",
+   "notes": "x01, c38, m01 verbatim. Key right; kept next to q01 because q01 defines the term and this applies it. variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q23": {
+   "status": "pass",
+   "notes": "c35 (proposed, basis originator) and c03 verbatim. Key right as the card stands. variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q24": {
+   "status": "cut",
+   "notes": "Same fact as q60 (the BAC chart: a 4B- shape under the 200-day is not ours) asked as a story. q60 kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q25": {
+   "status": "pass",
+   "notes": "(13.92 - 12.37) / (12.37 - 12.06) = 1.55 / 0.31 = 5.0, recomputed. Bars: AMD 2018-05-15 high 12.46, prior low 12.11 minus 0.05 = 12.06. d05 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q26": {
+   "status": "pass",
+   "notes": "B19 (h05), c27 verbatim; settled. Key right. variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q27": {
+   "status": "pass",
+   "notes": "d27 verbatim (15.7% / 11.8% for 2 to 4 sessions, 25.9% / 15.4% for 5 to 10, 23.1%, 21.3%). Every figure matches. 'Our scan' became 'our test'. It is a research finding about one fixed-stop test, not a rule; the card keeps it a cue. variety rewrite checked 2026-11-10",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q28": {
+   "status": "pass",
+   "notes": "c12/c13 (proposed, my proposal) verbatim. Key right as a cue. variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q29": {
+   "status": "pass",
+   "notes": "c41 is proposed ('my proposal'). Worded as our working rule.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q30": {
+   "status": "pass",
+   "notes": "l2 verbatim (the card's lookalike for the undercut and reclaim). 15 sessions is the card's proposed number. why split to sentences of 22 words or fewer. variety rewrite checked 2026-11-10",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q31": {
+   "status": "pass",
+   "notes": "l3 verbatim (the card's lookalike for capitulation). Key right. variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q32": {
+   "status": "pass",
+   "notes": "g7, m03 verbatim; x01. Key right (the card's mistake: no higher low).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q33": {
+   "status": "pass",
+   "notes": "(52.00 - 50.00) / (50.00 - 48.50) = 1.33, recomputed. The story had the falling 200-day at 52.00, above the 50.00 buy: a stock under its 200-day fails B26 outright, so the answer would not have been about room. Changed to the 150-day, which a Version H stock can sit under.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q34": {
+   "status": "cut",
+   "notes": "Same fact as q54 (no new buy in the 3 sessions before a report, B22), which asks it on a real chart example. q54 kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q35": {
+   "status": "pass",
+   "notes": "C29 (h13) settled; 12% over is past 10%. Key right. variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q36": {
+   "status": "pass",
+   "notes": "C33 (h15) settled; c32 verbatim. The story's 'drifting under the falling 200-day' is after the entry. Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q37": {
+   "status": "pass",
+   "notes": "F65 (D46: Red, mostly cash and shorts) is a guide (A10); the card's 'Red: no new longs' is stronger than the rulebook. Reworded to 'mostly cash'; c39 verbatim for 'existing trades keep their stops'. variety rewrite checked 2026-11-10",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q38": {
+   "status": "pass",
+   "notes": "c36 (proposed) verbatim. Key right as the card stands. variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q39": {
+   "status": "pass",
+   "notes": "500 / 0.63 = 793.65, rounded down to 793 shares = 17,541 dollars = 35.1% of the 50,000 account, under the 40% cap (A7). Bars: PENN buy 22.12, stop 21.49. Sizing checked.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q40": {
+   "status": "pass",
+   "notes": "F63 (h25) and c30 verbatim; 43.60 is past 43.00 (3R). Key right. variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q41": {
+   "status": "pass",
+   "notes": "R = 1.00; the first 30-minute low 37.80 is a 2.2R loss, past the 2R ceiling, so out (B20, h06/h07). Key right. variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q42": {
+   "status": "cut",
+   "notes": "cut 2026-11-11: duplicate of SET.41 q42. flagged-question fix checked 2026-11-11: the cut is right, kept twin SET.41 q42 asks the same thing.",
+   "by": "writer"
+  },
+  "q43": {
+   "status": "pass",
+   "notes": "A5 (c26) and m05 verbatim; settled. Key right. Kept over q5. variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q44": {
+   "status": "cut",
+   "notes": "cut 2026-11-11: duplicate of SET.41 q46. flagged-question fix checked 2026-11-11: the cut is right, kept twin SET.41 q46 asks the same thing.",
+   "by": "writer"
+  },
+  "q45": {
+   "status": "pass",
+   "notes": "D42 (h19) and c18 verbatim; settled. Key right. variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q46": {
+   "status": "pass",
+   "notes": "c16 and F68 (h27) verbatim; settled. why split to sentences of 22 words or fewer.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q47": {
+   "status": "pass",
+   "notes": "m09, c33 verbatim; C33 time stop. why split to sentences of 22 words or fewer.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q48": {
+   "status": "pass",
+   "notes": "Bars: F 2024-02-12 buy 12.99, stop 12.59 (3.08%), next low 12.48. The old key 'rules followed' and wrong note 'everything passed' claimed more than the data shows: the widest stop allowed (3%, 5% or 8%) is pending (D-005), so a 3.1% stop passes only under 5% or 8%, and RS and the market reading were never tested. Re-keyed on 'the stop did its job'. flagged-question fix checked 2026-11-11",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q49": {
+   "status": "pass",
+   "notes": "Bars: META 2020-05-11 buy 213.22, stop 210.32 (1.36%), next session low 210.00. The story said 'the break closed mid-range', which no source states (it closed 61% up its range); removed. The key said 'after a new pause', but B21 asks only for a new trigger (the re-arm rule c36 is about a close under the 50-day); re-keyed on B21. flagged-question fix checked 2026-11-11",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q50": {
+   "status": "cut",
+   "notes": "Bars contradict the key. MSFT 2001-05-07: the 200-day was 30.74 and flat through the trade (30.74 to 30.75), it had fallen 2.0% in the 20 sessions before, and price (35.69) sat 16% ABOVE it, so it was not overhead supply (the lesson line said it was) and not 'still falling steeply'. The dossier's 'a 200-day that was still falling' (d14) does not hold as a cue for this loss. Also the 4.7% stop (d12) is the more obvious flag, and the story omits it.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q51": {
+   "status": "cut",
+   "notes": "The key (the market reading would have kept you out) is the dossier author's untested inference (d16); the story does not give the reading; 'A tighter stop' and 'A bigger position' are obviously silly distractors; and the second TGT trigger (2009-04-30) came after the March 2009 low, in a rally, not a falling market. Bars also show both triggers closed ABOVE their 200-days (55.01 vs 51.72; 41.26 vs 38.75), not 'under a falling 200-day' as the dossier says.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q52": {
+   "status": "pass",
+   "notes": "Bars: COST cycle low 406.51 on 2022-05-20, 52-week high 612.27 on 2022-04-07 (a 33.6% drop), 150-day 528.74 against 521.41 twenty sessions earlier (rising). d19/d20/l1 verbatim. why split to sentences of 22 words or fewer.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q53": {
+   "status": "pass",
+   "notes": "The original used AAPL 2019. Bars: AAPL's cycle low was 35.50 (2019-01-03) and it rallied to 39.47 (+11.2%) on 2019-01-18 before the 37.93 higher low (+6.8%), so the dossier's 'the high off the low was 4.1% above it' (d21) is wrong and AAPL would have PASSED the 5% rally test. Made hypothetical with the same numbers; keyed on the card's proposed 5% rally rule, shown as our working rule.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q54": {
+   "status": "pass",
+   "notes": "Bars: NFLX closed back over its 50-day on 2022-07-15 (18.91 split-adjusted, 189.1 as traded) and 07-18, reported after the close on 07-19. d23/d24 verbatim. The why's 'most of the move was the earnings gap' had no source; removed. flagged-question fix checked 2026-11-11",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q55": {
+   "status": "pass",
+   "notes": "Bars: NUS 2013-04-18 buy 49.99, stop 49.05 (prior day's low 49.10 minus 0.05), 1.88%. d03/d04 verbatim. Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q56": {
+   "status": "pass",
+   "notes": "Grade cues g1 to g7 verbatim on the card. B's 'falling 200-day just overhead' meant a stock under its 200-day, which B26 rules out entirely rather than grades B-; changed to 'an old level just overhead'. E50: grading is discretionary, no thresholds stated.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q57": {
+   "status": "pass",
+   "notes": "d25/d26 verbatim: Version H 22.2% to 3R, 1,110 hits. The why said 'the trims and the trail pay for the losses', which no test shows; removed. 'The scan' became 'our test'. The dossier notes the hit count is high because the rule fires on most 50-day-pause breakouts after a 30% decline, so the figure is a base rate for the filter, not for a hand-picked setup.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q58": {
+   "status": "cut",
+   "notes": "Single un-quoted source: the card's line c37 restates Bulkowski's 24.41% (his own 440 buys, 1987 to 2010, stages assigned by himself after the fact); his page is not in the facts, so there is no Tier 2 quote and no second publisher. It is also about Stage 4 buys in general, not the 4B-, and the dossier says the burden of proof is on the setup. The 'so a 4B- is a low-hit-rate trade' was an inference. q57 teaches the low hit rate from our own test.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q59": {
+   "status": "pass",
+   "notes": "Chart: DY 2025-05-07 has 7,622 daily bars up to the date and 380 after; close 183.33, 50-day 157.14, 200-day 177.27 (above both). Bars: buy 186.41 on 2025-05-08, stop 182.62, 5R = 205.36 first traded on 2025-05-21, the 9th session after the buy day; the dossier says 'in 8 sessions' (3R came on the 8th). Reworded to 'within two weeks'. Requoted 2026-11-10: dossier now says 5R in 9 sessions (was 8); the why already says 'within two weeks'. No text change. flagged-question fix checked 2026-11-11",
+   "fixed": true,
+   "by": "requoter"
+  },
+  "q60": {
+   "status": "pass",
+   "notes": "Chart: BAC 2020-06-03 has 6,387 daily bars up to the date and 1,618 after; close 25.99 against a 200-day of 28.93 (10.2% under), 50-day 22.74 (reclaimed). Key right by B26; d17/d18 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q61": {
+   "status": "pass",
+   "notes": "Each of A, B and D fails a settled or card gate (plain 4B, B26, B22); C has the higher low and 3R of room (the room number is the card's proposal). c38/h10/c23/c04/c10 verbatim. Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q62": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q63": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; fixed: wrong note now rests on F68 (start as the reading turns Green) instead of an inference about new highs",
+   "by": "checker",
+   "fixed": true
+  },
+  "q64": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q65": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q66": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; fixed: dropped 'whenever' (absolute-word tell on a false statement)",
+   "by": "checker",
+   "fixed": true
+  },
+  "q67": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q68": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q69": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q70": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q71": {
+   "status": "cut",
+   "notes": "cut 2026-11-11: duplicate of SET.09 q84. flagged-question fix checked 2026-11-11: the cut is right, kept twin SET.09 q84 asks the same thing and names the gap exception.",
+   "by": "writer"
+  },
+  "q72": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-11",
+   "by": "writer"
+  },
+  "q73": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-11: fixed the story: it said 8R up with only the 3R trim taken, but the plan sells the next third at 5R, so it now stops at 4.5R",
+   "by": "writer"
+  }
+ }
+}

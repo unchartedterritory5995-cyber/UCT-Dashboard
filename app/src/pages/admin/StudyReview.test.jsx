@@ -476,6 +476,16 @@ describe('StudyReview helpers', () => {
     expect(checksOf({ import_flags: null }).every((c) => c.pass)).toBe(true)
   })
 
+  it('provenanceOf lists the cited pages of a course question with their quotes and https links', () => {
+    const p = provenanceOf({ reveal_json: { depth: { sources: [
+      { name: 'SEC, Investor.gov: Bid price', url: 'https://www.investor.gov/x', quote: 'The bid is the highest price.', tier: 1, accessed: '2026-11-08' },
+      { name: 'UCT house rule: sizing', url: 'repo:docs/study/sizing_rule.md#1', quote: 'Under 1% is normal.', tier: 3 },
+    ] } } })
+    expect(p.kind).toBe('support')
+    expect(p.lines[0]).toEqual({ source: 'SEC, Investor.gov: Bid price · tier 1 · read 2026-11-08', text: '"The bid is the highest price."', url: 'https://www.investor.gov/x' })
+    expect(p.lines[1].url).toBeNull()
+  })
+
   it('provenanceOf prefers the verbatim quote, then geometry, then the rule', () => {
     expect(provenanceOf({ reveal_json: { quote: 'word for word' } })).toEqual({ kind: 'quote', text: 'word for word' })
     expect(provenanceOf({ reveal_json: { rule: 'Position % = risk % / stop %' } })).toEqual({ kind: 'rule', text: 'Position % = risk % / stop %' })

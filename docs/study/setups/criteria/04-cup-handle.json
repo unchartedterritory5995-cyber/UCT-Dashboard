@@ -1,0 +1,1798 @@
+{
+ "setup": "04-cup-handle",
+ "name": "Cup with Handle",
+ "unit": "SET.09",
+ "direction": "long",
+ "timeframe": "daily",
+ "dossier": "docs/study/setups/research/04-cup-handle.md",
+ "as_of": "2026-11-09",
+ "card": {
+  "context": "A leader that has already run at least 30% rests in a rounded base read on the weekly chart, above its 200-day, with RS 80 or more and growing sales. First or second base. Green or Yellow market, best at the start of a new uptrend.",
+  "pattern": "A smooth U, 7 to 65 weeks long and 12% to 33% deep, climbs back near the old high, then dips into a handle: 5 days or more, drifting sideways to down in the upper half on lighter volume, holding the 50-day, tight at the end.",
+  "trigger": "BASE BREAKOUT: price trades through the handle's high during regular hours, bought at market, no more than 4% past it. The in-handle shakeout is the owner's lower-risk way in.",
+  "stop": "A few cents under the buy day's low or the prior day's, usually within about 3%; never wider than a few cents under the handle low.",
+  "failure_mode": "A wedging or deep handle, a V-shaped cup or a late base breaks out and fades back through the pivot to the stop. 62% of cup breakouts throw back to the pivot within 30 days, so the day's-low stop is tested often."
+ },
+ "entry_trigger": "BASE BREAKOUT",
+ "criteria": [
+  {
+   "id": "ch.prior_trend",
+   "field": "context",
+   "statement": "The stock rose at least 30% from its lowest low of the prior 6 months (120 sessions) to the left-side high.",
+   "measure": {
+    "what": "left-side high / lowest low of the prior 120 sessions - 1",
+    "op": ">=",
+    "value": 30,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "glossary": "prior_trend",
+   "basis": "originator",
+   "sources": [
+    "S7",
+    "S1"
+   ],
+   "options": [
+    {
+     "value": "30% over 120 sessions",
+     "basis": "IBD's 30% (S7, S1); the 120-session window is the dossier's proposal, from the screener"
+    },
+    {
+     "value": "30% over 65 sessions",
+     "basis": "the glossary's canonical window for every base (from dossier 01)"
+    }
+   ],
+   "recommended": "30% over 120 sessions",
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Prior trend",
+   "evidence": "The scan used 30% over 120 sessions; the ten examples ran 31% to 72% before the cup. AAII 2015 and Stockbee repeat O'Neil, so they are not independent."
+  },
+  {
+   "id": "ch.leadership",
+   "field": "context",
+   "statement": "RS rating 80 or more, in one of the strongest groups.",
+   "measure": {
+    "what": "RS rating",
+    "op": ">=",
+    "value": 80,
+    "unit": "rating 1 to 99"
+   },
+   "glossary": "leader",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "C31",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Leadership",
+   "evidence": "The scanner has no RS test (its rs_trend is an absolute trend). Not coded in the scan."
+  },
+  {
+   "id": "ch.fundamentals",
+   "field": "context",
+   "statement": "Growing sales and earnings preferred; the chart comes first.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "D40",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Fundamentals",
+   "evidence": "IBD's CAN SLIM; the owner on RBRK: For CANSLIM checks all the boxes."
+  },
+  {
+   "id": "ch.base_count",
+   "field": "context",
+   "statement": "First or second base since the last real correction; a third or later base is graded down.",
+   "measure": {
+    "what": "bases since the last real correction",
+    "op": "<=",
+    "value": 2,
+    "unit": "bases",
+    "timeframe": "daily"
+   },
+   "glossary": "base_count",
+   "basis": "originator",
+   "sources": [
+    "S13"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Base count",
+   "evidence": "Not coded in the scan. WDAY 2021-09-22, a 30-week cup with the handle resting on the 50-day, failed at 0.0R: a late, tired base is the filter the scan cannot apply."
+  },
+  {
+   "id": "ch.chart_weekly",
+   "field": "context",
+   "statement": "Find and measure the base on the weekly chart; time the buy on the daily.",
+   "basis": "originator",
+   "sources": [
+    "S1",
+    "S36"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "weekly base, daily trigger: IBD counts weeks (S1); about half the owner's cups are weekly reads (S36)"
+    },
+    {
+     "value": "b",
+     "basis": "daily only"
+    },
+    {
+     "value": "c",
+     "basis": "both as separate versions"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-012",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Chart; 10 question 1",
+   "evidence": "The scan ran on daily bars with weeks counted as 5 sessions."
+  },
+  {
+   "id": "ch.above_200",
+   "field": "context",
+   "statement": "Price above the 200-day SMA at the buy.",
+   "measure": {
+    "what": "entry price against the 200-day SMA",
+    "op": ">",
+    "value": "200-day SMA",
+    "timeframe": "daily"
+   },
+   "glossary": "above_200",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B26",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 200-day",
+   "evidence": "20 of the 100 draft bank cup items were below their 200-day at the breakout. Chart IQ can still pass a stock under its 200-day."
+  },
+  {
+   "id": "ch.liquidity",
+   "field": "context",
+   "statement": "Price $10 or more and $20 million or more traded a day on average.",
+   "measure": {
+    "what": "close",
+    "op": ">=",
+    "value": 10,
+    "unit": "$",
+    "and": "50-day average dollar volume >= 20,000,000"
+   },
+   "glossary": "liquidity",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B23",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Liquidity",
+   "evidence": "Bracco's SIDU ($5) would fail it. The scan used the house floor over 2,630 names."
+  },
+  {
+   "id": "ch.position_adv",
+   "field": "management",
+   "statement": "The position is at most 1% of average daily volume.",
+   "measure": {
+    "what": "shares / average daily volume",
+    "op": "<=",
+    "value": 1,
+    "unit": "%"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "D42",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Liquidity"
+  },
+  {
+   "id": "ch.market_reading",
+   "field": "context",
+   "statement": "Green market: full risk. Yellow: smaller and fewer. Orange: A+ only. Red: mostly cash and shorts.",
+   "glossary": "market_reading",
+   "basis": "house rule",
+   "sources": [
+    "S17"
+   ],
+   "house_rule": "F65",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.7",
+   "evidence": "Zanger: the best cups come at the beginning of a market move after a good correction, not at the end of a major advance (S17). Not coded in the scan."
+  },
+  {
+   "id": "ch.new_uptrend",
+   "field": "context",
+   "statement": "A cue, not a rule: best at the start of a new market uptrend after a correction, with the group leading and several of its stocks setting up.",
+   "basis": "originator",
+   "sources": [
+    "S17",
+    "S36"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.7",
+   "evidence": "Zanger (S17); the unsigned XLV note judged the group by how many of its stocks were setting up (S36)."
+  },
+  {
+   "id": "ch.cup_length_min",
+   "field": "pattern",
+   "statement": "At least 7 weeks (35 sessions) from the left-side high to the day before the breakout, the handle included.",
+   "measure": {
+    "what": "sessions from the left-side high to the day before the breakout",
+    "op": ">=",
+    "value": 35,
+    "unit": "sessions",
+    "timeframe": "daily"
+   },
+   "glossary": "base_length",
+   "basis": "originator",
+   "sources": [
+    "S2",
+    "S7",
+    "S1"
+   ],
+   "options": [
+    {
+     "value": 35,
+     "basis": "IBD: a proper cup base needs to span a minimum of seven weeks (S2, S7)"
+    },
+    {
+     "value": 30,
+     "basis": "IBD's cup-without-handle column: a cup can be as short as six weeks (S5)"
+    }
+   ],
+   "recommended": 35,
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Cup length",
+   "evidence": "The scan used 35 sessions; the examples ran 7.6 (WPM) to 21.6 weeks (MCO). Daily or hourly mini cups under 7 weeks are flags or tight ranges (D-002, 04:2)."
+  },
+  {
+   "id": "ch.cup_length_max",
+   "field": "pattern",
+   "statement": "At most 65 weeks (325 sessions).",
+   "measure": {
+    "what": "sessions from the left-side high to the day before the breakout",
+    "op": "<=",
+    "value": 325,
+    "unit": "sessions",
+    "timeframe": "daily"
+   },
+   "glossary": "base_length",
+   "basis": "originator",
+   "sources": [
+    "S1",
+    "S7",
+    "S26"
+   ],
+   "options": [
+    {
+     "value": "65 weeks",
+     "basis": "IBD (S1, S7) and Bulkowski (S26): 7 to 65 weeks"
+    },
+    {
+     "value": "26 weeks",
+     "basis": "a middle cap"
+    },
+    {
+     "value": "13 weeks",
+     "basis": "the scanner's 65 daily bars (cup_handle_uct.py)"
+    }
+   ],
+   "recommended": "65 weeks",
+   "status": "pending-owner",
+   "owner_question": "D-051",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Cup length; 10 question 3",
+   "evidence": "The scanner cannot see most of the cups IBD calls best (it caps at 13 weeks). WDAY's 30-week cup failed; MCO's 21.6-week cup ran 8.5R."
+  },
+  {
+   "id": "ch.cup_length_best",
+   "field": "pattern",
+   "statement": "Best between 3 and 6 months (63 to 126 sessions), symmetric; very long or lopsided cups grade down.",
+   "measure": {
+    "what": "sessions from the left-side high to the day before the breakout",
+    "op": "in",
+    "value": [
+     63,
+     126
+    ],
+    "unit": "sessions",
+    "timeframe": "daily"
+   },
+   "glossary": "base_length",
+   "basis": "originator",
+   "sources": [
+    "S1",
+    "S5"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Cup length; 9 Length row",
+   "evidence": "IBD: most outstanding cup patterns will last between three and six months (S5)."
+  },
+  {
+   "id": "ch.cup_depth",
+   "field": "pattern",
+   "statement": "Depth from the left-side high to the cup's lowest intraday low: 12% to 33% in a normal market. 33% to 35% is allowed but graded down.",
+   "measure": {
+    "what": "(left-side high - lowest intraday low of the cup) / left-side high",
+    "op": "in",
+    "value": [
+     12,
+     35
+    ],
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "glossary": "base_depth",
+   "basis": "originator",
+   "sources": [
+    "S2",
+    "S7",
+    "S6"
+   ],
+   "options": [
+    {
+     "value": "12% to 33%, 50% only after a bear market",
+     "basis": "IBD (S2, S7, S5)"
+    },
+    {
+     "value": "12% to 35%",
+     "basis": "IBD's own 35% ceiling (S7, S6)"
+    },
+    {
+     "value": "20% to 35%",
+     "basis": "Zanger (S17)"
+    }
+   ],
+   "recommended": "12% to 33%, 50% only after a bear market",
+   "status": "pending-owner",
+   "owner_question": "D-052",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Cup depth; 10 question 4",
+   "evidence": "The scan allowed 12% to 35% with the low in the middle 60% of the cup. The examples ran 12.1% (AAPL) to 21.3% (MCO). 9 of the 100 draft bank items are deeper than 33%, 7 deeper than 35%."
+  },
+  {
+   "id": "ch.cup_depth_bear",
+   "field": "pattern",
+   "statement": "Up to 50% deep only for a cup formed in a bear market.",
+   "measure": {
+    "what": "(left-side high - lowest intraday low of the cup) / left-side high",
+    "op": "<=",
+    "value": 50,
+    "unit": "%",
+    "timeframe": "daily",
+    "note": "only when the cup formed in a bear market"
+   },
+   "glossary": "base_depth",
+   "basis": "originator",
+   "sources": [
+    "S5",
+    "S7"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Cup depth",
+   "evidence": "IBD: in bear markets, cups can run as deep as 50% (S5). Not coded in the scan."
+  },
+  {
+   "id": "ch.depth_vs_market",
+   "field": "pattern",
+   "statement": "The cup falls no more than about 2.5 times the index's decline over the same weeks.",
+   "measure": {
+    "what": "cup depth / the index's decline over the same weeks",
+    "op": "<=",
+    "value": 2.5,
+    "unit": "x",
+    "timeframe": "weekly"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S5"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Depth vs market",
+   "evidence": "IBD calls 1.5 to 2.5 times the market's correction normal for growth stocks (S5); using 2.5 as the ceiling is the dossier's proposal. Not coded in the scan."
+  },
+  {
+   "id": "ch.shape_u",
+   "field": "pattern",
+   "statement": "A rounded U, not a V: at least 30% of the cup's bars have their low in the cup's bottom quarter.",
+   "measure": {
+    "what": "share of the cup's bars whose low sits in the bottom quarter of the cup's range",
+    "op": ">=",
+    "value": 30,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S1",
+    "S5",
+    "S26",
+    "S30",
+    "S31"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Shape",
+   "evidence": "U not V is IBD's (S1, S5) and the consensus (Bulkowski S26, StockCharts S30, AAII S31); the 30% bottom-quarter test is the scanner's own U-versus-V check. EFX spent two months of lows in the bottom quarter."
+  },
+  {
+   "id": "ch.shape_no_wild_weeks",
+   "field": "pattern",
+   "statement": "At most two weeks inside the cup with a high-to-low range of 10% or more.",
+   "measure": {
+    "what": "weeks inside the cup whose high-to-low range is 10% or more of price",
+    "op": "<=",
+    "value": 2,
+    "unit": "weeks",
+    "timeframe": "weekly"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S3"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Shape",
+   "evidence": "IBD: no jagged edges or many wild weekly swings of 10% to 15% or more (S3); the count of two is the dossier's. ULTA 2016-12-16 had exactly two heavy weeks inside the cup and faded to the stop at 0.9R: the ceiling is the maximum, not the grade."
+  },
+  {
+   "id": "ch.shape_symmetry",
+   "field": "pattern",
+   "statement": "Down weeks on the left side roughly match up weeks on the right.",
+   "basis": "originator",
+   "sources": [
+    "S3"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Shape; 9 Length row",
+   "evidence": "IBD 2013-02-04 (S3). A cue; FFIV is the symmetric example."
+  },
+  {
+   "id": "ch.right_side",
+   "field": "pattern",
+   "statement": "The right side climbs back to within about 10% of the left-side high before the handle starts.",
+   "measure": {
+    "what": "(left-side high - right rim) / left-side high",
+    "op": "<=",
+    "value": 10,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S7",
+    "S17"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Right side",
+   "evidence": "IBD says the handle forms in the upper half (S7); Zanger puts the handle about 5% below the old high (S17). The scan used a right rim within 10% below (or 5% above) the left-side high."
+  },
+  {
+   "id": "ch.handle_length_min",
+   "field": "pattern",
+   "statement": "The handle is at least 5 sessions long.",
+   "measure": {
+    "what": "sessions in the handle",
+    "op": ">=",
+    "value": 5,
+    "unit": "sessions",
+    "timeframe": "daily"
+   },
+   "glossary": "base_length",
+   "basis": "originator",
+   "sources": [
+    "S7",
+    "S8"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Handle length",
+   "evidence": "IBD: if it is shorter than five days, it is not a handle (S8). 40 of the 100 draft bank items have handles under 5 sessions. The examples ran 5 (AX) to 19 days (MCO)."
+  },
+  {
+   "id": "ch.handle_length_typical",
+   "field": "pattern",
+   "statement": "Usually 1 to 4 weeks; a handle over about 22 sessions is graded down.",
+   "measure": {
+    "what": "sessions in the handle",
+    "op": "<=",
+    "value": 22,
+    "unit": "sessions",
+    "timeframe": "daily"
+   },
+   "glossary": "base_length",
+   "basis": "source consensus",
+   "sources": [
+    "S31",
+    "S30",
+    "S17",
+    "S26",
+    "S8"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Handle length; 9 Handle length row",
+   "evidence": "AAII and StockCharts 1 to 4 weeks, Zanger 4 days to 3 weeks; IBD wants more than one or two weeks (S8); Bulkowski: handles shorter than his median 22 days did better (S26). The 22-day grade-down is the dossier's."
+  },
+  {
+   "id": "ch.handle_depth",
+   "field": "pattern",
+   "statement": "The handle falls at most 12% from its own high.",
+   "measure": {
+    "what": "(handle high - handle low) / handle high",
+    "op": "<=",
+    "value": 12,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "glossary": "base_depth",
+   "basis": "originator",
+   "sources": [
+    "S6"
+   ],
+   "options": [
+    {
+     "value": "12%",
+     "basis": "IBD: usually no more than 8% to 12% (S6)"
+    },
+    {
+     "value": "about 5% to 8% only",
+     "basis": "Zanger (S17)"
+    },
+    {
+     "value": "a third of the cup's depth",
+     "basis": "AAII 2001 (S31)"
+    }
+   ],
+   "recommended": "12%",
+   "status": "pending-owner",
+   "owner_question": "D-053",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Handle depth; 10 question 5",
+   "evidence": "The scan used 3% to 12% (under 3% is a flat shelf, not a handle). The examples' handles ran 3.0% to 6.7%. The scanner caps the handle at half the cup's depth, which allows 17.5% on a 35% cup."
+  },
+  {
+   "id": "ch.handle_depth_best",
+   "field": "pattern",
+   "statement": "A handle of 8% or less is better; about 5% is best.",
+   "measure": {
+    "what": "(handle high - handle low) / handle high",
+    "op": "<=",
+    "value": 8,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "glossary": "base_depth",
+   "basis": "my proposal",
+   "sources": [
+    "S17",
+    "S6"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Handle depth; 9 Handle depth row",
+   "evidence": "Leans on Zanger's about 5% below the old high (S17) and IBD's 8% to 12% (S6). Nine of the ten examples had handles under 7%."
+  },
+  {
+   "id": "ch.handle_position",
+   "field": "pattern",
+   "statement": "The handle's midpoint (halfway between its high and low) sits above the cup's midpoint.",
+   "measure": {
+    "what": "handle midpoint against the cup's midpoint",
+    "op": ">",
+    "value": "cup midpoint",
+    "timeframe": "daily"
+   },
+   "basis": "originator",
+   "sources": [
+    "S7",
+    "S2"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Handle position",
+   "evidence": "IBD 2015-09-11 gives the midpoint test (S7); handles that form too low present added risk of failure. The scan required it."
+  },
+  {
+   "id": "ch.handle_upper_third",
+   "field": "pattern",
+   "statement": "A handle in the upper third of the base, within about 5% of the old high, is better.",
+   "measure": {
+    "what": "handle position in the base",
+    "op": "in",
+    "value": "upper third",
+    "and": "handle high within 5% of the left-side high"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S32",
+    "S21",
+    "S17"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Handle position; 9 Handle position row",
+   "evidence": "AAII 2015: upper half or third (S32); Minervini's 2020-05-13 post describes one chart's handle in the upper third, not a stated rule (S21); Zanger's about 5% below the old high (S17). RRC's handle sat in the upper third just under the rim."
+  },
+  {
+   "id": "ch.handle_drift",
+   "field": "pattern",
+   "statement": "The handle's lows drift sideways to down: a straight line fitted through the handle's daily lows slopes flat or down. Rising lows (a wedge) is not a handle.",
+   "measure": {
+    "what": "slope of a least-squares line through the handle's daily lows",
+    "op": "<=",
+    "value": 0,
+    "timeframe": "daily"
+   },
+   "glossary": "flat_drift",
+   "basis": "originator",
+   "sources": [
+    "S8",
+    "S9",
+    "S4"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Handle drift",
+   "evidence": "IBD: stocks with wedging handles have a higher failure rate (S8); a wedging handle with no shakeouts is a sign to steer clear (S9). The slope test is the screener's and the dossier's. The owner on ANET: inside day to avoid wedging up behavior."
+  },
+  {
+   "id": "ch.handle_volume",
+   "field": "pattern",
+   "statement": "The handle's average daily volume is below the cup's average daily volume. Some very quiet days near the handle low is a grade cue, not a gate.",
+   "glossary": "dry_up",
+   "basis": "originator",
+   "sources": [
+    "S2",
+    "S8",
+    "S9"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Handle volume",
+   "evidence": "IBD gives the direction, no number (S2, S8). The examples' handles ran 0.63x (CNC) to 0.97x (RRC) of the cup's volume: RRC is the cue at its weakest acceptable."
+  },
+  {
+   "id": "ch.handle_above_50",
+   "field": "pattern",
+   "statement": "The handle holds above the 50-day line: no daily close below the 50-day SMA during the handle.",
+   "measure": {
+    "what": "daily closes in the handle below the 50-day SMA",
+    "op": "==",
+    "value": 0,
+    "unit": "closes",
+    "timeframe": "daily"
+   },
+   "basis": "originator",
+   "sources": [
+    "S8"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Handle and averages",
+   "evidence": "IBD: a handle should generally form above the 50-day or 10-week moving averages (S8); the one-close test is the dossier's. WDAY's handle rested on the 50-day rather than well above it and failed."
+  },
+  {
+   "id": "ch.tight_end",
+   "field": "pattern",
+   "statement": "Tight at the end: the last 5 handle closes sit within about 3% of each other.",
+   "measure": {
+    "what": "(highest - lowest of the last 5 handle closes) / lowest",
+    "op": "<=",
+    "value": 3,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "glossary": "tight",
+   "basis": "my proposal",
+   "sources": [
+    "S9",
+    "S36"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Tightness",
+   "evidence": "IBD: areas of tight trading, no number (S9); the owner's 3 weeks tight and double inside days (S36). The glossary's default tightness is a 0.85 range ratio; this card keeps the fixed 3% spread. Scan: the 274 hits that passed it did a little better, 32.1% to 3R and 24.8% to 5R, against 30.3% and 22.6% for all."
+  },
+  {
+   "id": "ch.pivot",
+   "field": "trigger",
+   "statement": "The pivot is the highest price in the handle. For a cup without a handle, the left-side high. IBD adds 10 cents; with market orders the 10 cents does not matter.",
+   "measure": {
+    "what": "pivot",
+    "op": "==",
+    "value": "highest intraday high of the handle",
+    "timeframe": "daily"
+   },
+   "glossary": "pivot",
+   "basis": "originator",
+   "sources": [
+    "S6",
+    "S7",
+    "S5",
+    "S17"
+   ],
+   "house_rule": "E57",
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 A Pivot",
+   "evidence": "IBD (S6, S7) and Zanger (S17) buy as price trades through the handle high; the cup without a handle buys the left-side high (S5). Bulkowski and AAII use a close above the rim, a later moment."
+  },
+  {
+   "id": "ch.buy_point_offset",
+   "field": "trigger",
+   "statement": "How far past the handle high the buy point sits: a cent over (the Kicker plan), IBD's 10 cents, or at market as soon as it trades through.",
+   "measure": {
+    "what": "buy point offset above the handle high",
+    "op": "in",
+    "value": [
+     "$0.01",
+     "$0.10",
+     "at market as it trades through"
+    ]
+   },
+   "basis": "house rule",
+   "sources": [
+    "S6",
+    "S7"
+   ],
+   "house_rule": "E57",
+   "options": [
+    {
+     "value": "$0.01",
+     "basis": "the Kicker plan's cent over the level"
+    },
+    {
+     "value": "$0.10",
+     "basis": "IBD (S6, S7)"
+    },
+    {
+     "value": "at market as it trades through",
+     "basis": "E57 market orders; D-003's default"
+    }
+   ],
+   "recommended": "at market as it trades through",
+   "status": "pending-owner",
+   "owner_question": "D-003",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.2 A Order; 10 question 7",
+   "evidence": "The scan filled at the pivot plus a cent, or at the open when it gapped over the pivot."
+  },
+  {
+   "id": "ch.trigger",
+   "field": "trigger",
+   "statement": "Price trades above the pivot during regular hours. Buy with a market order.",
+   "measure": {
+    "what": "intraday high during regular hours",
+    "op": ">",
+    "value": "pivot"
+   },
+   "basis": "house rule",
+   "sources": [
+    "S7",
+    "S17"
+   ],
+   "house_rule": "E58",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 A Trigger",
+   "evidence": "Market orders are E57. The scanner's close on 1.5x the 20-bar volume is not the house trigger. Scan: SCHW 2024-11-06 and KMI 2016-09-08 gapped over the pivot and never traded above the open fill."
+  },
+  {
+   "id": "ch.no_chase",
+   "field": "trigger",
+   "statement": "No buy more than 4% above the pivot.",
+   "measure": {
+    "what": "fill / pivot - 1",
+    "op": "<=",
+    "value": 4,
+    "unit": "%"
+   },
+   "glossary": "chase_limit",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "C28",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 A Chase limit",
+   "evidence": "IBD's buy zone is 5% (S12); the house 4% wins."
+  },
+  {
+   "id": "ch.not_stretched",
+   "field": "trigger",
+   "statement": "At entry, no more than 10% above the 10-day average.",
+   "measure": {
+    "what": "entry / 10-day SMA - 1",
+    "op": "<=",
+    "value": 10,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "glossary": "stretched",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "C29",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 A Chase limit",
+   "evidence": "A fresh breakout from a handle is usually near its 10-day; it catches late chases."
+  },
+  {
+   "id": "ch.earnings_window",
+   "field": "trigger",
+   "statement": "No new buy in the 3 sessions before an earnings report; hold through a report only if the trade is up 5R.",
+   "measure": {
+    "what": "sessions until the next report",
+    "op": ">",
+    "value": 3,
+    "unit": "sessions"
+   },
+   "glossary": "earnings_blackout",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B22",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Earnings; 8.4",
+   "evidence": "13 scan hits triggered on an earnings-reaction day and were set aside as a different setup (D-025)."
+  },
+  {
+   "id": "ch.breakout_volume",
+   "field": "trigger",
+   "statement": "Volume on the trigger day: on pace for at least 40% above the 50-day average (1.4x) by the close. If the day closes with less, it is a warning, not an exit. For a cup without a handle, heavy volume matters more.",
+   "measure": {
+    "what": "trigger-day volume / 50-day average volume",
+    "op": ">=",
+    "value": 1.4,
+    "unit": "x",
+    "timeframe": "daily"
+   },
+   "glossary": "volume_surge",
+   "basis": "originator",
+   "sources": [
+    "S6",
+    "S31",
+    "S4",
+    "S5"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "required at 40% over the 50-day average: IBD (S6), AAII's 50-day baseline (S31)"
+    },
+    {
+     "value": "b",
+     "basis": "a warning only, graded, since we buy at market intraday: the dossier's recommendation; D-006's default"
+    },
+    {
+     "value": "c",
+     "basis": "no volume rule"
+    }
+   ],
+   "recommended": "b",
+   "status": "pending-owner",
+   "owner_question": "D-006",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.2 A Volume; 10 question 10",
+   "evidence": "GWW (0.73x) and EFX (0.78x) both ran 7.3R on light volume; FFIV (2.71x) and WB (2.99x) ran 41R and 32R; BX broke out on 4.9x and still stopped. IBD once called 38% barely sufficient (S4). The scan did not cut on volume."
+  },
+  {
+   "id": "ch.cup_no_handle",
+   "field": "trigger",
+   "statement": "A cup without a handle is a variant inside this lesson: the pivot is the left-side high, bought especially when the stock takes out that high in heavy trade.",
+   "basis": "originator",
+   "sources": [
+    "S5"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "a variant inside the Cup lesson: the dossier's recommendation; D-002's default"
+    },
+    {
+     "value": "b",
+     "basis": "its own setup"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-002",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.2 A; 10 question 12",
+   "evidence": "IBD 2013-10-03 (S5). The unsigned XLV note: either handles out or becomes a powerful cup without handle breakout (S36)."
+  },
+  {
+   "id": "ch.in_handle_buy",
+   "field": "trigger",
+   "statement": "The owner's lower-risk buy inside the handle: a tight day, an inside day, or a shakeout that undercuts an earlier handle low and reclaims it (red to green), with every pattern line true. The pivot breakout still confirms the trade.",
+   "basis": "UCT",
+   "sources": [
+    "S36",
+    "S9"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "the breakout over the handle high only"
+    },
+    {
+     "value": "b",
+     "basis": "the in-handle shakeout or mid range cheat only"
+    },
+    {
+     "value": "c",
+     "basis": "both: the breakout as the definition, the in-handle buy as our execution: the dossier's recommendation; D-027's default"
+    }
+   ],
+   "recommended": "c",
+   "status": "pending-owner",
+   "owner_question": "D-027",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.2 B; 10 question 6",
+   "evidence": "The owner: buying those shakeouts is the optimal RR; a red to green move to show presence of buyers (S36). IBD: most successful handles feature a shakeout (S9). It is what makes the house 3% stop possible on this pattern. Not measured in the scan."
+  },
+  {
+   "id": "ch.cheat_entry",
+   "field": "trigger",
+   "statement": "The 3-C or mid range cheat: an earlier buy on a pause in the lower to middle third of the base. An earlier, riskier read of the same base; if taught, a separate advanced lesson.",
+   "measure": {
+    "what": "entry location inside the base",
+    "op": "in",
+    "value": "lower to middle third"
+   },
+   "basis": "originator",
+   "sources": [
+    "S21",
+    "S20",
+    "S24",
+    "S36"
+   ],
+   "status": "pending-owner",
+   "owner_question": "D-027",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.2 B; 10 question 6",
+   "evidence": "Minervini: the cheat area develops in the lower to middle third of the base (S21); low cheats can be up to 8% below the 50-day (S24). The owner's BWXT mid range cheat entry (S36). Minervini's book rules were not read."
+  },
+  {
+   "id": "ch.stop",
+   "field": "stop",
+   "statement": "A few cents under the low of the buy day, or of the prior day.",
+   "measure": {
+    "what": "stop",
+    "op": "==",
+    "value": "a few cents under the buy day's low or the prior day's low"
+   },
+   "glossary": "stop_margin",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "A3",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.3 Default",
+   "evidence": "F62 gives the few cents. The scan used 5 cents under the lower of the trigger day's and the prior day's low, or the trigger day's low alone if that was wider than 3%."
+  },
+  {
+   "id": "ch.stop_width",
+   "field": "stop",
+   "statement": "The stop should sit within about 3% of the buy. If the honest stop is wider, wait for a tighter spot (a quiet day near the pivot, an in-handle shakeout), size down from the stop, or skip. Never move the stop closer to make it fit.",
+   "measure": {
+    "what": "(entry - stop) / entry",
+    "op": "<=",
+    "value": 3,
+    "unit": "%"
+   },
+   "glossary": "stop_width",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "A13",
+   "options": [
+    {
+     "value": "a",
+     "basis": "house default only (A3, F62)"
+    },
+    {
+     "value": "b",
+     "basis": "the handle low as the stop, sized down"
+    },
+    {
+     "value": "c",
+     "basis": "house default with the handle low as the outer limit: the dossier's recommendation"
+    }
+   ],
+   "recommended": "c",
+   "status": "pending-owner",
+   "owner_question": "D-008",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.3; 10 question 8",
+   "evidence": "The examples' stops sat 0.7% (FFIV) to 3.0% (CNC) under the fill; the scan's median was about 2.3%. BX 2019-11-26: a 1.2% stop reached 2.4R in two sessions, then one dip took it before the stock made new highs; the house answer is the breakeven move at 2R to 5R, not a wider stop."
+  },
+  {
+   "id": "ch.stop_outer_limit",
+   "field": "stop",
+   "statement": "Never wider than a few cents under the handle low: below the handle low the setup has failed. IBD's 7% to 8% loss limit is a reference, not ours.",
+   "measure": {
+    "what": "stop against the handle low",
+    "op": ">=",
+    "value": "a few cents under the handle low"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S26",
+    "S10",
+    "S12"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.3 Outer limit",
+   "evidence": "Bulkowski puts the stop at the handle low (S26); IBD sells at 7% or 8% below cost (S10, S12). The scanner's handle low times 0.985 gave 8.2% and 16.1% stops in the probe, far wider than A13."
+  },
+  {
+   "id": "ch.stop_broker",
+   "field": "stop",
+   "statement": "A real stop order with the broker. It only moves up.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "D41",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.3",
+   "evidence": "A4: the stop only moves up."
+  },
+  {
+   "id": "ch.stop_gap",
+   "field": "stop",
+   "statement": "A gap through the stop: the first 30-minute low is the new stop; out if that is past 2R.",
+   "measure": {
+    "what": "loss at the first 30-minute low of the gap-down day",
+    "op": "<=",
+    "value": 2,
+    "unit": "R",
+    "timeframe": "30-minute"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B20",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.3"
+  },
+  {
+   "id": "ch.breakeven",
+   "field": "management",
+   "statement": "Stop to breakeven between 2R and 5R, at the first trim by default.",
+   "measure": {
+    "what": "R at which the stop moves to the entry",
+    "op": "in",
+    "value": [
+     2,
+     5
+    ],
+    "unit": "R"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B19",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4"
+  },
+  {
+   "id": "ch.trim_1",
+   "field": "management",
+   "statement": "Sell a third at 3R.",
+   "measure": {
+    "what": "fraction sold at 3R",
+    "op": "==",
+    "value": 0.333,
+    "unit": "of the position"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B19",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4",
+   "evidence": "MCO reached 3R in 4 sessions and FFIV the next day; CNC, a slow mover, took 29 sessions."
+  },
+  {
+   "id": "ch.trim_2",
+   "field": "management",
+   "statement": "Sell a third at 5R.",
+   "measure": {
+    "what": "fraction sold at 5R",
+    "op": "==",
+    "value": 0.333,
+    "unit": "of the position"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "E51",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4",
+   "evidence": "All ten examples reached 5R. WB gapped higher the week after 5R: the case for holding the last third."
+  },
+  {
+   "id": "ch.trim_gap_open",
+   "field": "management",
+   "statement": "If it opens above a trim level, take that trim at the open.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "F63",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4"
+  },
+  {
+   "id": "ch.trail",
+   "field": "management",
+   "statement": "Trail the last third: a close under the 10-day for a fast mover, under the 21-day for a steadier one.",
+   "measure": {
+    "what": "close against the 10-day (fast) or 21-day (steadier) average",
+    "op": "<",
+    "value": "the average",
+    "timeframe": "daily"
+   },
+   "glossary": "trail",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "E52",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4",
+   "evidence": "AX reached 5R in about 7 weeks, then rolled over below the pivot: the example for trailing the last third under the 21-day."
+  },
+  {
+   "id": "ch.climax",
+   "field": "management",
+   "statement": "A climax run (Bracco's parabolic burst): sell a big part into it.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "C34",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4"
+  },
+  {
+   "id": "ch.time_stop",
+   "field": "management",
+   "statement": "Time stop: still under 1R after 10 trading days, sell.",
+   "measure": {
+    "what": "open R after 10 trading days",
+    "op": "<",
+    "value": 1,
+    "unit": "R"
+   },
+   "glossary": "time_stop",
+   "basis": "house rule",
+   "sources": [
+    "S26"
+   ],
+   "house_rule": "C33",
+   "options": [
+    {
+     "value": "a",
+     "basis": "C33 as written: D-019's default"
+    },
+    {
+     "value": "b",
+     "basis": "more time for cups: Bulkowski found 62% of cup breakouts throw back within 30 days (S26); IBD gives breakouts more time"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-019",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4; 10 question 9",
+   "evidence": "Nine of the ten examples were above 1R by the tenth session; CNC (3R in 29 sessions) and the scan's slow winners are the case for more time. The scan did not apply a time stop."
+  },
+  {
+   "id": "ch.throwback",
+   "field": "management",
+   "statement": "62% of cup breakouts come back to the breakout price within 30 days (Bulkowski). The day's-low stop will be tested often; that is normal, not a reason to widen it.",
+   "measure": {
+    "what": "throwback rate, Bulkowski's cup with handle, bull market",
+    "op": "==",
+    "value": 62,
+    "unit": "%",
+    "timeframe": "30 days"
+   },
+   "basis": "measured",
+   "sources": [
+    "S26",
+    "S28"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "4; 7 C33 row",
+   "evidence": "Bulkowski also found 47% of cups dropped substantially within two months of the breakout and 23% rose no more than 15% (S26). In the scan 85% of hits touched the stop at some point in 60 sessions; 197 of 403 never reached 1R."
+  },
+  {
+   "id": "ch.inv_handle",
+   "field": "invalidation",
+   "statement": "Before the buy: the handle's midpoint sits below the cup's midpoint, or the handle falls more than 12% from its own high.",
+   "measure": {
+    "what": "(handle high - handle low) / handle high",
+    "op": ">",
+    "value": 12,
+    "unit": "%",
+    "timeframe": "daily",
+    "or": "handle midpoint below the cup's midpoint"
+   },
+   "glossary": "base_depth",
+   "basis": "originator",
+   "sources": [
+    "S7",
+    "S6"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5"
+  },
+  {
+   "id": "ch.inv_wedge_or_short",
+   "field": "invalidation",
+   "statement": "Before the buy: the handle's lows rise (wedging), or the handle is shorter than 5 days.",
+   "measure": {
+    "what": "sessions in the handle",
+    "op": "<",
+    "value": 5,
+    "unit": "sessions",
+    "timeframe": "daily",
+    "or": "a rising line through the handle's lows"
+   },
+   "basis": "originator",
+   "sources": [
+    "S8",
+    "S7"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5"
+  },
+  {
+   "id": "ch.inv_volume_rises",
+   "field": "invalidation",
+   "statement": "Before the buy: volume rises through the handle.",
+   "glossary": "dry_up",
+   "basis": "originator",
+   "sources": [
+    "S2"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5"
+  },
+  {
+   "id": "ch.inv_close_under_50",
+   "field": "invalidation",
+   "statement": "Before the buy: a close below the 50-day during the handle.",
+   "measure": {
+    "what": "close against the 50-day SMA during the handle",
+    "op": "<",
+    "value": "50-day SMA",
+    "timeframe": "daily"
+   },
+   "basis": "originator",
+   "sources": [
+    "S8"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5",
+   "evidence": "IBD: should generally form above the 50-day (S8); treating one close as the disqualifier is the dossier's."
+  },
+  {
+   "id": "ch.inv_v_or_deep",
+   "field": "invalidation",
+   "statement": "Before the buy: the cup is a V, or deeper than 35% outside a bear market.",
+   "measure": {
+    "what": "(left-side high - lowest intraday low of the cup) / left-side high",
+    "op": ">",
+    "value": 35,
+    "unit": "%",
+    "timeframe": "daily",
+    "or": "fewer than 30% of the cup's bars with lows in the bottom quarter"
+   },
+   "glossary": "base_depth",
+   "basis": "originator",
+   "sources": [
+    "S5",
+    "S7"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5"
+  },
+  {
+   "id": "ch.inv_stale_handle",
+   "field": "invalidation",
+   "statement": "Before the buy: the handle runs past about 6 weeks (30 sessions) with no breakout; the base is getting stale.",
+   "measure": {
+    "what": "sessions in the handle",
+    "op": ">",
+    "value": 30,
+    "unit": "sessions",
+    "timeframe": "daily"
+   },
+   "glossary": "base_length",
+   "basis": "my proposal",
+   "sources": [
+    "S26"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5",
+   "evidence": "The scan allowed handles of 5 to 30 sessions. Bulkowski: shorter handles did better (S26)."
+  },
+  {
+   "id": "ch.inv_market_red",
+   "field": "invalidation",
+   "statement": "Before the buy: the market reading turns Red.",
+   "glossary": "market_reading",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "D46",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5"
+  },
+  {
+   "id": "ch.after_entry_stop",
+   "field": "invalidation",
+   "statement": "After the buy, the stop is the exit.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "A4",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5 After the buy",
+   "evidence": "The owner: my stop is my stop most of the time (2026-11-09). CMG-style failures with nothing wrong in the setup are why the stop, not an opinion, is the exit."
+  },
+  {
+   "id": "ch.close_back_in_handle",
+   "field": "invalidation",
+   "statement": "After the buy, a close back into the handle is a warning, not an exit by itself.",
+   "basis": "UCT",
+   "sources": [],
+   "status": "settled",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.5 After the buy",
+   "evidence": "The owner struck the rule cut at least half if the stock falls back into its base (2026-11-09, rule 15). WDAY 2021-09-22 closed near its high on the breakout day, then fell straight through the stop."
+  }
+ ],
+ "grading": {
+  "a_plus": [
+   "ch.base_count: first or second stage",
+   "ch.prior_trend: 30% or more in a few months, on rising volume and RS",
+   "ch.cup_depth: 12% to 25%, under 2.5 times the market's drop",
+   "ch.cup_length_best: 7 weeks to 6 months, symmetric",
+   "ch.shape_u: a smooth U, no 10% to 15% weekly swings",
+   "ch.handle_upper_third: upper third, within about 5% of the old high",
+   "ch.handle_depth_best: about 5% to 8%",
+   "ch.handle_length_typical: 1 to 3 weeks (under 22 days)",
+   "ch.handle_drift: drifts down, a shakeout of an earlier low, tight closes at the end",
+   "ch.handle_volume: dries up sharply",
+   "ch.breakout_volume: well above 50% over average",
+   "ch.leadership: RS 80 or more, a leading group, growing sales and earnings",
+   "ch.market_reading: Green, early in a new uptrend",
+   "ch.stop_width: stop within about 3%"
+  ],
+  "b_minus": [
+   "ch.base_count: third or later",
+   "ch.prior_trend: barely 30%, slow",
+   "ch.cup_depth: 30% to 35%",
+   "ch.cup_length_best: very long, lopsided",
+   "ch.shape_no_wild_weeks: jagged, V-ish, two violent weeks inside (ULTA)",
+   "ch.handle_position: just above the midpoint",
+   "ch.handle_depth: 10% to 12%",
+   "ch.handle_length_typical: over a month, or barely 5 days",
+   "ch.handle_drift: wedges up, loose, no shakeout",
+   "ch.handle_volume: stays heavy",
+   "ch.breakout_volume: about 40% or less",
+   "ch.leadership: RS lower, a lagging group",
+   "ch.market_reading: Yellow, late in a long run",
+   "ch.stop_width: the honest stop wider than 3%"
+  ],
+  "no_trade": [
+   "ch.inv_v_or_deep: a V, or deeper than 35% outside a bear market",
+   "ch.inv_handle: the handle below the cup's midpoint or deeper than 12%",
+   "ch.inv_wedge_or_short: a wedging handle, or under 5 days",
+   "ch.inv_close_under_50: a close under the 50-day in the handle",
+   "ch.above_200: under the 200-day",
+   "ch.cup_length_min: under 7 weeks (a flag or a tight range, not this setup)",
+   "ch.no_chase: more than 4% past the pivot",
+   "ch.not_stretched: more than 10% over the 10-day",
+   "ch.stop_outer_limit: the honest stop below the handle low; never pull it in",
+   "ch.earnings_window: a report within 3 sessions",
+   "ch.liquidity: under $10 or under $20 million a day",
+   "ch.inv_market_red: Red"
+  ]
+ },
+ "lookalikes": [
+  {
+   "setup": "01-flat-base",
+   "tell": "Measure the depth and the shape. A flat base falls 15% or less and stays boxy with a flat ceiling tapped at least twice; a cup falls 12% to 33% in a rounded U and then dips again into a handle before the buy.",
+   "criterion": "ch.cup_depth"
+  },
+  {
+   "setup": "06-vcp",
+   "tell": "Count the pullbacks. A cup is one rounded decline whose right side climbs back within 10% of the old high, then one handle at the rim; a VCP shows two or more separate pullbacks, each smaller than the last, and its pivot may sit well under the base high.",
+   "criterion": "ch.right_side"
+  },
+  {
+   "setup": "03-high-tight-flag",
+   "tell": "Measure the run before the rest. A high tight flag nearly doubles (90% or more in 8 weeks or less) and pauses 5 to 30 sessions with no rounded decline; a cup follows a 30% run and takes at least 7 weeks to round out and handle.",
+   "criterion": "ch.cup_length_min"
+  },
+  {
+   "setup": "02-bull-flag",
+   "tell": "Count the weeks. A flag is a 3 to 15 session drift right after a 20% pole; a daily or hourly mini cup under 7 weeks is a flag or a tight range, not a cup, and a handle only counts after a cup of 7 weeks or more.",
+   "criterion": "ch.handle_length_min"
+  }
+ ],
+ "invalidations": [
+  "Before the buy: the handle's midpoint sits below the cup's midpoint, or the handle falls more than 12% (ch.inv_handle).",
+  "Before the buy: the handle's lows rise, or the handle is under 5 days (ch.inv_wedge_or_short).",
+  "Before the buy: volume rises through the handle (ch.inv_volume_rises).",
+  "Before the buy: a close below the 50-day during the handle (ch.inv_close_under_50).",
+  "Before the buy: a V-shaped cup, or deeper than 35% outside a bear market (ch.inv_v_or_deep).",
+  "Before the buy: the handle runs past 30 sessions with no breakout (ch.inv_stale_handle).",
+  "Before the buy: the market reading turns Red (ch.inv_market_red).",
+  "Before the buy: a report within 3 sessions, wait (ch.earnings_window).",
+  "After the buy: the stop is the exit (ch.after_entry_stop).",
+  "After the buy: a close back into the handle is a warning, not an exit by itself (ch.close_back_in_handle)."
+ ],
+ "mistakes": [
+  "Buying a V-shaped recovery and calling it a cup.",
+  "Buying a handle in the lower half of the base.",
+  "Buying a handle that wedges up (the owner on ANET: inside day to avoid wedging up behavior).",
+  "Calling a 2 or 3-day dip a handle; under 5 days it is not one.",
+  "Chasing more than 4% past the pivot or more than 10% over the 10-day.",
+  "Buying a breakout on weak volume and ignoring it.",
+  "Trading a third or fourth-stage base like a first.",
+  "Using the handle low as the stop at full size, then taking an 8% to 12% loss.",
+  "Buying in a correction because the chart looks great.",
+  "Holding a failed breakout and hoping, or widening the stop.",
+  "Treating the measured-move target as a sure thing; Bulkowski found only 61% reach it.",
+  "Calling an hourly mini cup the same setup as a 7-week weekly base."
+ ],
+ "short_mirror": {
+  "exists": true,
+  "setup": "04-cup-handle",
+  "note": "The inverted cup with handle, D47 mirrored (dossier 8.6): a rounded top, a small weak bounce (the handle) and a break below the handle low, only below the 200-day SMA (B26), RS 20 or less in a weak group (C31 mirror), shorted at market as price trades under the handle low with the stop a few cents over that day's high. Our app has detectors/classical/inverse_cup_handle.py. Bulkowski's numbers are worse than the long's (18% break-even failure, 17% average decline, 556 trades). IBD teaches no short cup. Whether to build a lesson is D-001 (04:11); the dossier says not until the owner asks."
+ },
+ "best_conditions": "A Green market reading, Yellow at smaller size; best at the start of a new market uptrend after a correction (Zanger), when the group is leading and several of its stocks are setting up. IBD: cups form during intermediate declines in the general market, so the breakout often comes as the market turns.",
+ "management": {
+  "trim_1": "a third at 3R (B19)",
+  "trim_2": "a third at 5R (E51)",
+  "trail": "a close under the 10-day for a fast mover, the 21-day for a steadier one (E52)",
+  "breakeven": "between 2R and 5R, at the first trim by default (B19)",
+  "time_stop": "under 1R after 10 trading days, sell (C33); whether cups get more time is D-019",
+  "gap_open": "a trim level the day opens past is taken at the open (F63)",
+  "gap_against": "the first 30-minute low is the new stop; out if past 2R (B20)",
+  "climax": "sell a big part into a climax run (C34)",
+  "earnings": "hold through a report only if up 5R (B22)",
+  "overrides": "none. The dossier (8.4) finds nothing setup-specific is needed. Not ours: IBD's sell most at 20% to 25% and its 8-week hold, Bulkowski's 61% of the cup's height, the scanner's full-height target. Bulkowski's 62% throwback rate is a lesson note: the stop gets tested, it does not get widened."
+ },
+ "examples": {
+  "winners": 10,
+  "sheet_dir": "_study-resume/scratchpad/setups/04-cup-handle/final",
+  "base_rate": {
+   "hits": 428,
+   "stock_hits": 416,
+   "stock_hits_not_on_an_earnings_day": 403,
+   "r3_pct": 30.3,
+   "r5_pct": 22.6,
+   "stopped_pct": 85,
+   "never_1r_count": 197,
+   "median_best_excursion_r": 1.1,
+   "window": "60 sessions forward, fixed stop, no trims, no breakeven, no trail, no time stop; triggers from 2001-02-21 to 2026-11-02; one hit per name per 30 sessions; 2,630 liquid names"
+  },
+  "cuts": {
+   "all_416_stock_hits": {
+    "r3_pct": 30.8,
+    "r5_pct": 23.1
+   },
+   "tight_end_last_5_closes_within_3_pct": {
+    "hits": 274,
+    "r3_pct": 32.1,
+    "r5_pct": 24.8
+   },
+   "earnings_reaction_triggers": {
+    "hits": 13,
+    "note": "set aside as a different setup (D-025)"
+   },
+   "etf_hits": {
+    "hits": 12
+   }
+  },
+  "winners_list": [
+   "GWW 2004-09-29",
+   "EFX 2007-05-04",
+   "MCO 2012-09-06",
+   "RRC 2013-02-05",
+   "FFIV 2014-01-13",
+   "WB 2017-05-08",
+   "CNC 2018-04-16",
+   "AAPL 2021-11-17",
+   "WPM 2025-12-10",
+   "AX 2026-01-05"
+  ],
+  "failures": [
+   {
+    "ticker": "BX",
+    "date": "2019-11-26",
+    "criterion": "ch.stop_width",
+    "why": "a 10-week, 18%-deep cup, a 5-day handle, breakout on 4.9x volume, the heaviest in the scan; it reached 2.4R on the second session, then a one-day dip on the fifth session touched the 1.2% stop and the stock made new highs without us. A very tight trigger-day stop is cheap but fragile; the house answer is the breakeven move at 2R to 5R (B19), not a wider stop.",
+    "stopped": "stopped 4 sessions after the buy, 2019-12-03, low 51.78"
+   },
+   {
+    "ticker": "ULTA",
+    "date": "2016-12-16",
+    "criterion": "ch.shape_no_wild_weeks",
+    "why": "a 16-week, 19%-deep cup after a 76% run with an 8-day handle, at a glance the FFIV chart; inside the cup were a 10%-range week (the scan counts one; the rule allows two) and heavy-volume days, and the breakout faded within days to the stop with a best of 0.9R. The ceiling of two wide weeks is the maximum, not the grade: a cup with violent weeks inside it is a B- base.",
+    "stopped": "stopped 4 sessions after the buy, 2016-12-22, low 256.36"
+   },
+   {
+    "ticker": "WDAY",
+    "date": "2021-09-22",
+    "criterion": "ch.base_count",
+    "why": "a 30-week, 23%-deep cup with an 8-day handle sitting on the 50-day; the breakout day closed in the lower third of its range (270.71 against a 273.63 buy), then the stock fell straight through the stop the next day (best 0.0R) and later broke out again from a lower pivot. A cup over 6 months old with the handle resting on the 50-day is a late, tired base; the base-count rule is the filter the scan cannot apply.",
+    "stopped": "stopped the next session, 2021-09-23, low 264.55; the breakout day closed in the lower third"
+   },
+   {
+    "ticker": "SCHW",
+    "date": "2024-11-06",
+    "criterion": "ch.no_chase",
+    "why": "gapped over the pivot at the open, filled at the open and never traded above that fill in the window (best 0.0R); KMI 2016-09-08 did the same. A gap through a cup pivot without follow-through is what the chase limit (C28) and the 30-minute gap rule (B20) are there for.",
+    "stopped": "stopped the next session, 2024-11-07, low 72.90"
+   }
+  ],
+  "limits": "Daily bars, weeks counted as 5 sessions. Base count, the real RS rating and group, the market reading, the 2.5x-the-index ceiling and the bear-market 50% allowance are not in the scan. Stops are evaluated on daily lows. Best R is the high before the stop, not a realised trade. ARCB 2023-07-18 (best 78R) was left out of the ten because its stop was 0.29% under the buy. Nothing here is a published statistic.",
+  "near_misses": [
+   {
+    "ticker": "PEP",
+    "date": "2009-10-02",
+    "criterion": "ch.cup_depth",
+    "why": "cup 6.6% deep; the rule needs 12% to 35%. A shallow shelf, closer to a flat base."
+   },
+   {
+    "ticker": "MPWR",
+    "date": "2023-06-28",
+    "criterion": "ch.cup_length_min",
+    "why": "cup 20 sessions (4.0 weeks); the rule needs 35 sessions (7 weeks). A four-week dip, not a cup."
+   },
+   {
+    "ticker": "AAPL",
+    "date": "2021-04-29",
+    "criterion": "ch.handle_drift",
+    "why": "handle lows rise +0.53 a day (a wedge); the rule needs flat or down. A wedging handle with no shakeout."
+   },
+   {
+    "ticker": "META",
+    "date": "2024-06-26",
+    "criterion": "ch.shape_u",
+    "why": "12% of the cup's bars have lows in the bottom quarter; the rule needs 30%. A V, not a U."
+   }
+  ],
+  "sheets": {
+   "failures": "final/fail_1-4.png",
+   "near_misses": "final/near_1-4.png",
+   "pair": "final/pair_01-flat-base.png"
+  }
+ },
+ "question_seeds": [
+  {
+   "kind": "recall",
+   "criterion": "ch.cup_length_min",
+   "seed": "How many weeks must a cup with handle take, the handle included, before the name applies?"
+  },
+  {
+   "kind": "recall",
+   "criterion": "ch.cup_depth",
+   "seed": "A cup falls between what two percentages from its left-side high in a normal market?"
+  },
+  {
+   "kind": "recall",
+   "criterion": "ch.handle_length_min",
+   "seed": "What is the shortest a handle can be and still count?"
+  },
+  {
+   "kind": "spot",
+   "criterion": "ch.pivot",
+   "seed": "Hidden ticker: tap the pivot, the handle high this stock must trade through."
+  },
+  {
+   "kind": "spot",
+   "criterion": "ch.handle_drift",
+   "seed": "Hidden ticker: which of these four handles wedges up? Pass on it."
+  },
+  {
+   "kind": "spot",
+   "criterion": "ch.handle_position",
+   "seed": "Hidden ticker: is this handle's midpoint above the cup's midpoint? Take it or pass."
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "ch.cup_depth",
+   "seed": "Flat base or cup: this base fell 24% in a rounded U and then dipped 5% under the rim. Which is it?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "ch.right_side",
+   "seed": "Cup or VCP: the base shows one rounded decline, a climb back to the rim and one dip; or three pullbacks each smaller than the last. Which is which?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "ch.cup_length_min",
+   "seed": "Cup or high tight flag: the stock doubled in 6 weeks and paused 12 sessions just under the high. Which is it?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "ch.handle_length_min",
+   "seed": "Handle or flag: a 3-day dip after a 4-week rounded base. Does the cup with handle name apply?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "ch.no_chase",
+   "seed": "The handle high is 60.00 and the stock is trading 62.70 at 10:30. Buy, or pass?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "ch.in_handle_buy",
+   "seed": "The handle undercuts last week's low in the morning and trades back above it by 10:15 with every pattern line true. What is the trade and where is the stop?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "ch.close_back_in_handle",
+   "seed": "You bought the breakout at 91.20. It closes at 89.60, back inside the handle, above your stop. What now?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "ch.throwback",
+   "seed": "Four days after the breakout price comes back to the pivot. Widen the stop, hold it, or sell?"
+  },
+  {
+   "kind": "grade",
+   "criterion": "ch.breakout_volume",
+   "seed": "Same cup, two breakout days: one on 0.7x volume closing near the high, one on 2.7x closing near the high. Grade each."
+  },
+  {
+   "kind": "grade",
+   "criterion": "ch.handle_depth_best",
+   "seed": "Two handles: one 4% deep drifting down, one 11% deep. Grade each."
+  },
+  {
+   "kind": "grade",
+   "criterion": "ch.base_count",
+   "seed": "This is the stock's fourth cup since the last correction. A+, B, or pass?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "ch.cup_depth",
+   "seed": "Left-side high 80.00, cup low 58.00. How deep is the cup, and is it inside 33%?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "ch.handle_depth",
+   "seed": "Handle high 78.50, handle low 74.20. How deep is the handle, and does it pass 12%?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "ch.stop_width",
+   "seed": "Fill 56.61, buy day's low 55.30, a few cents under it for the stop. Is the stop inside 3%?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "ch.trim_1",
+   "seed": "Bought at 91.29 with the stop at 90.67. Where is 3R?"
+  }
+ ],
+ "owner_decisions": [
+  "D-001",
+  "D-002",
+  "D-003",
+  "D-006",
+  "D-007",
+  "D-008",
+  "D-010",
+  "D-012",
+  "D-019",
+  "D-027",
+  "D-037",
+  "D-051",
+  "D-052",
+  "D-053"
+ ],
+ "conflicts": [
+  "Depth, from the high or from the advance: IBD, Zanger and AAII 2001 measure the fall from the old high (12% to 35%); StockCharts and AAII 2015 measure a third of the prior advance. The card measures from the high (D-052).",
+  "Depth ceiling: IBD alone gives 33%, 35% and 30% or 35% in different columns, plus 50% in bear markets; Zanger 20% to 35%; the scanner 12% to 35%; Chart IQ 15% to 50%; the classical cup 12% to 50%. The card takes 12% to 33% with 33% to 35% graded down and 50% only in a bear market (D-052).",
+  "Cup length: IBD 7 to 65 weeks (one column says 6); Zanger 8 to 12 weeks; StockCharts 1 to 6 months; AAII 2001 one month in bull markets to 12 in bear markets; the scanner caps at 65 daily bars (13 weeks). The card takes 7 to 65 weeks (D-051).",
+  "Handle depth: IBD usually 8% to 12%; Zanger about 5% below the old high; AAII 2001 a third of the cup's depth, at most half; the scanner half the cup's depth (up to 17.5%). The card takes 12% with 8% and 5% as grades (D-053).",
+  "Handle position: IBD and Bulkowski upper half; AAII 2001 not into the lower half; AAII 2015 upper half or third; Minervini's one post describes a handle in the upper third of one chart. The card gates on IBD's midpoint test and grades the upper third.",
+  "Handle length: IBD at least 5 days and more than one or two weeks; Bulkowski at least 1 week, no maximum, under his 22-day median better; Zanger 4 days to 3 weeks; AAII and StockCharts 1 to 4 weeks; the scanner 5 to 15 bars and rejects a handle whose low is in its last 30%, which IBD praises as a shakeout. The card takes 5 sessions as the floor and 22 as the grade-down.",
+  "The trigger: IBD and Zanger buy as price trades through the handle high (IBD adds 10 cents); Bulkowski and AAII use a close above the rim; the scanner a close on 1.5x the 20-bar volume. The house buys at market as it trades through (E57); the cent, the dime or at market is D-003.",
+  "Breakout volume: IBD 40% to 50% above average (once calling 38% barely sufficient); AAII 50% over the 50-day; Zanger's ZVR; the scanner's 1.5x the 20-bar average. The card makes 1.4x the 50-day a warning and a grade, not a gate (D-006). The scan's light-volume winners (GWW, EFX) and heavy-volume loser (BX) say the same.",
+  "The stop: IBD 7% to 8% below cost (4% in a weak market); Bulkowski the handle low; the scanner the handle low times 0.985 (8.2% and 16.1% in the probe); Zanger, StockCharts and AAII give none. The house day's-low stop within about 3% wins, with the handle low as the outer limit (D-008).",
+  "Exits: IBD sells most at 20% to 25% and holds 8 weeks after a fast 20%; Bulkowski 61% of the cup height; StockCharts and AAII the full cup height; the scanner the full height. The house thirds win. Whether C33's 10-day time stop gives cups more time is D-019.",
+  "Prior-trend window: the dossier measures 30% over 120 sessions (6 months, the screener's window); the glossary's canonical base window is 65 sessions (dossier 01). The card keeps 120 and says so; the question bank treats the two windows as the same test.",
+  "Tightness: the glossary's default is a 0.85 range ratio; this card keeps the dossier's fixed 3% spread of the last 5 handle closes, listed as an override under tight.",
+  "Early entries: Minervini's 3-C and Bulkowski's handle trendline buy before the pivot; IBD's handle columns buy at the pivot; the owner's mid range cheat and in-handle shakeouts are his execution. The card teaches the pivot as the definition and the in-handle buy as execution, the cheat as a separate advanced lesson (D-027).",
+  "The scanner's stacked gate (close above the 10-day, 20-day, 50-day and 200-day) is stricter than any source and, with the 13-week cap, likely explains why it fires on 2 of 2,890 symbols; its narrative carries unsourced claims (Zanger's highest-edge setup, 18-28% deep cups, since the 1960s, 1.5x to 3x the projection) that D-010 removes.",
+  "The 100 draft bank cup items: 40 have handles under 5 sessions, 20 were under the 200-day, 9 are deeper than 33%, 5 are shorter than 35 sessions. They are rebuilt from this card before any go live (D-004, D-007).",
+  "The screener's IBD-style cup (bc:cup-with-handle) had its member drawing withdrawn on 2026-10-24 after a blind recertification; two of its code comments (no IBD minimum handle length) are contradicted by IBD's five-day floor.",
+  "Bulkowski's site carries a notice against use for AI training; his numbers are cited with links and short quotes only. He ranks the cup 3rd of 39 on his hindsight measure and 11th in his fixed-holding table."
+ ]
+}

@@ -1,0 +1,3598 @@
+{
+ "unit": "V.10",
+ "track": "V",
+ "title": "Macro words",
+ "teaches": "The words on an econ calendar and in Fed headlines: the FOMC, the federal funds rate and its target range, hawks and doves, the dot plot, QE, QT and the taper; CPI, core CPI, PCE, PPI and disinflation; payrolls, the unemployment rate and jobless claims; GDP, real GDP and annual rates; Treasury yields, basis points, the yield curve and inversion; SOFR and M2.",
+ "skills": [
+  {
+   "id": "vocab.macro_terms",
+   "title": "Macro words"
+  }
+ ],
+ "as_of": "2026-11-09",
+ "sources": [
+  {
+   "id": "s1",
+   "tier": 1,
+   "publisher": "Federal Reserve Board",
+   "title": "Federal Open Market Committee",
+   "url": "https://www.federalreserve.gov/monetarypolicy/fomc.htm",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s2",
+   "tier": 1,
+   "publisher": "Federal Reserve Board",
+   "title": "What is the FOMC and when does it meet? (FAQ)",
+   "url": "https://www.federalreserve.gov/faqs/about_12844.htm",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s3",
+   "tier": 1,
+   "publisher": "Federal Reserve Board",
+   "title": "Monetary Policy: What Are Its Goals? How Does It Work?",
+   "url": "https://www.federalreserve.gov/monetarypolicy/monetary-policy-what-are-its-goals-how-does-it-work.htm",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s4",
+   "tier": 1,
+   "publisher": "Federal Reserve Board",
+   "title": "Open Market Operations (FOMC target rate changes table)",
+   "url": "https://www.federalreserve.gov/monetarypolicy/openmarket.htm",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s5",
+   "tier": 1,
+   "publisher": "Federal Reserve Board",
+   "title": "Federal Reserve issues FOMC statement (September 16, 2026)",
+   "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20260916a.htm",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s6",
+   "tier": 1,
+   "publisher": "Federal Reserve Board",
+   "title": "Federal Reserve issues FOMC statement (October 28, 2026)",
+   "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20261028a.htm",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s7",
+   "tier": 1,
+   "publisher": "Federal Reserve Board",
+   "title": "Meeting calendars, statements, and minutes (2021-2027)",
+   "url": "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s8",
+   "tier": 1,
+   "publisher": "Federal Reserve Board",
+   "title": "Guide to the Summary of Economic Projections",
+   "url": "https://www.federalreserve.gov/monetarypolicy/guide-to-the-summary-of-economic-projections.htm",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s9",
+   "tier": 1,
+   "publisher": "Federal Reserve Board",
+   "title": "What is inflation, and how does the Federal Reserve evaluate changes in the rate of inflation? (FAQ)",
+   "url": "https://www.federalreserve.gov/faqs/economy_14419.htm",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s10",
+   "tier": 1,
+   "publisher": "Federal Reserve Board",
+   "title": "What is the money supply? Is it important? (FAQ)",
+   "url": "https://www.federalreserve.gov/faqs/money_12845.htm",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s11",
+   "tier": 1,
+   "publisher": "Federal Reserve Board",
+   "title": "Plans for Reducing the Size of the Federal Reserve's Balance Sheet (May 4, 2022)",
+   "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20220504b.htm",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s12",
+   "tier": 1,
+   "publisher": "Federal Reserve Board",
+   "title": "Beige Book",
+   "url": "https://www.federalreserve.gov/monetarypolicy/beige-book-default.htm",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s13",
+   "tier": 1,
+   "publisher": "Federal Reserve Board",
+   "title": "Recent balance sheet trends",
+   "url": "https://www.federalreserve.gov/monetarypolicy/bst_recenttrends.htm",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s14",
+   "tier": 1,
+   "publisher": "Federal Reserve Board",
+   "title": "Speech by Governor Waller on thoughts on quantitative tightening (March 1, 2024)",
+   "url": "https://www.federalreserve.gov/newsevents/speech/waller20240301a.htm",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s15",
+   "tier": 1,
+   "publisher": "Federal Reserve Board",
+   "title": "Speech by Chair Powell on the economic outlook and monetary policy (October 14, 2025)",
+   "url": "https://www.federalreserve.gov/newsevents/speech/powell20251014a.htm",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s16",
+   "tier": 1,
+   "publisher": "Federal Reserve Bank of New York",
+   "title": "Secured Overnight Financing Rate Data",
+   "url": "https://www.newyorkfed.org/markets/reference-rates/sofr",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s17",
+   "tier": 1,
+   "publisher": "Federal Reserve Bank of New York",
+   "title": "Effective Federal Funds Rate",
+   "url": "https://www.newyorkfed.org/markets/reference-rates/effr",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s18",
+   "tier": 1,
+   "publisher": "U.S. Bureau of Labor Statistics",
+   "title": "Consumer Price Index Frequently Asked Questions",
+   "url": "https://www.bls.gov/cpi/questions-and-answers.htm",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s19",
+   "tier": 1,
+   "publisher": "U.S. Bureau of Labor Statistics",
+   "title": "Consumer Price Index, September 2026 (news release, Oct. 14, 2026)",
+   "url": "https://www.bls.gov/news.release/archives/cpi_10142026.htm",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s20",
+   "tier": 1,
+   "publisher": "U.S. Bureau of Labor Statistics",
+   "title": "What price changes contributed the most to increases in the CPI in 2024? (Beyond the Numbers, Casey Carter, August 2025)",
+   "url": "https://www.bls.gov/opub/btn/volume-14/what-price-changes-contributed-the-most-to-increases-in-the-cpi-in-2024.htm",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s21",
+   "tier": 1,
+   "publisher": "U.S. Bureau of Labor Statistics",
+   "title": "Glossary",
+   "url": "https://www.bls.gov/bls/glossary.htm",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s22",
+   "tier": 1,
+   "publisher": "U.S. Bureau of Labor Statistics",
+   "title": "Producer Price Indexes (PPI home)",
+   "url": "https://www.bls.gov/ppi/",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s23",
+   "tier": 1,
+   "publisher": "U.S. Bureau of Economic Analysis",
+   "title": "Personal Consumption Expenditures Price Index",
+   "url": "https://www.bea.gov/data/personal-consumption-expenditures-price-index",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s24",
+   "tier": 1,
+   "publisher": "U.S. Bureau of Economic Analysis",
+   "title": "Personal Consumption Expenditures Price Index, Excluding Food and Energy",
+   "url": "https://www.bea.gov/data/personal-consumption-expenditures-price-index-excluding-food-and-energy",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s25",
+   "tier": 1,
+   "publisher": "U.S. Bureau of Economic Analysis",
+   "title": "Personal Income and Outlays, September 2026 (news release, Oct. 29, 2026)",
+   "url": "https://www.bea.gov/news/2026/personal-income-and-outlays-september-2026",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s26",
+   "tier": 1,
+   "publisher": "U.S. Bureau of Labor Statistics",
+   "title": "CES Frequently Asked Questions",
+   "url": "https://www.bls.gov/web/empsit/cesfaq.htm",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s27",
+   "tier": 1,
+   "publisher": "U.S. Bureau of Labor Statistics",
+   "title": "How the Government Measures Unemployment",
+   "url": "https://www.bls.gov/cps/cps_htgm.htm",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s28",
+   "tier": 1,
+   "publisher": "U.S. Bureau of Labor Statistics",
+   "title": "The Employment Situation, October 2026 (news release, Nov. 6, 2026)",
+   "url": "https://www.bls.gov/news.release/archives/empsit_11062026.htm",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s29",
+   "tier": 1,
+   "publisher": "U.S. Department of Labor, Employment and Training Administration",
+   "title": "UI Weekly Claims News Release: publication schedule and archives",
+   "url": "https://oui.doleta.gov/unemploy/claims_arch.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s30",
+   "tier": 1,
+   "publisher": "U.S. Bureau of Economic Analysis",
+   "title": "Gross Domestic Product (Learning Center)",
+   "url": "https://www.bea.gov/resources/learning-center/what-to-know-gdp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s31",
+   "tier": 1,
+   "publisher": "U.S. Bureau of Economic Analysis",
+   "title": "GDP (Advance Estimate), 3rd Quarter 2026 (news release, Oct. 29, 2026)",
+   "url": "https://www.bea.gov/news/2026/gdp-advance-estimate-3rd-quarter-2026",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s32",
+   "tier": 2,
+   "publisher": "NBER",
+   "title": "Business Cycle Dating Procedure: Frequently Asked Questions",
+   "url": "https://www.nber.org/business-cycle-dating-procedure-frequently-asked-questions",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s33",
+   "tier": 2,
+   "publisher": "NBER",
+   "title": "Business Cycle Dating",
+   "url": "https://www.nber.org/research/business-cycle-dating",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s34",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "How Recessions Happen: Causes and Real-World Examples (updated July 20, 2026)",
+   "url": "https://www.investopedia.com/terms/r/recession.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s35",
+   "tier": 1,
+   "publisher": "U.S. Department of the Treasury",
+   "title": "Interest Rates - Frequently Asked Questions",
+   "url": "https://home.treasury.gov/policy-issues/financing-the-government/interest-rate-statistics/interest-rates-frequently-asked-questions",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s36",
+   "tier": 1,
+   "publisher": "U.S. Department of the Treasury",
+   "title": "Daily Treasury Par Yield Curve Rates, October 2026",
+   "url": "https://home.treasury.gov/resource-center/data-chart-center/interest-rates/TextView?type=daily_treasury_yield_curve&field_tdr_date_value_month=202610",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s37",
+   "tier": 1,
+   "publisher": "U.S. Department of the Treasury, TreasuryDirect",
+   "title": "Understanding Pricing and Interest Rates",
+   "url": "https://www.treasurydirect.gov/marketable-securities/understanding-pricing/",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s38",
+   "tier": 1,
+   "publisher": "SEC, Office of Investor Education and Advocacy",
+   "title": "Investor Bulletin: Interest Rate Risk",
+   "url": "https://www.sec.gov/files/ib_interestraterisk.pdf",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s39",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Bonds",
+   "url": "https://www.investor.gov/introduction-investing/investing-basics/investment-products/bonds-or-fixed-income-products/bonds",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s40",
+   "tier": 1,
+   "publisher": "FINRA",
+   "title": "Bonds",
+   "url": "https://www.finra.org/investors/investing/investment-products/bonds",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s41",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Glossary: Basis Point",
+   "url": "https://www.investor.gov/introduction-investing/investing-basics/glossary/basis-point",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s42",
+   "tier": 1,
+   "publisher": "CME Group",
+   "title": "CME FedWatch",
+   "url": "https://www.cmegroup.com/markets/interest-rates/cme-fedwatch-tool.html",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s43",
+   "tier": 1,
+   "publisher": "Federal Reserve Bank of St. Louis, FRED",
+   "title": "10-Year Treasury Constant Maturity Minus 2-Year Treasury Constant Maturity (T10Y2Y)",
+   "url": "https://fred.stlouisfed.org/series/T10Y2Y",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s44",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Inflation Hawks Explained: Hawkish vs. Dovish Monetary Policies (updated April 11, 2026)",
+   "url": "https://www.investopedia.com/terms/h/hawk.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s45",
+   "tier": 1,
+   "publisher": "FDIC",
+   "title": "What the Yield Curve Does (and Doesn't) Tell Us (FYI: An Update on Emerging Issues in Banking, February 22, 2006)",
+   "url": "https://www.fdic.gov/analysis/archived-research/fyi/022206fyi.pdf",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s46",
+   "tier": 1,
+   "publisher": "Federal Reserve Board",
+   "title": "Headline versus Core Inflation in the Conduct of Monetary Policy (speech by Governor Frederic S. Mishkin, October 20, 2007)",
+   "url": "https://www.federalreserve.gov/newsevents/speech/mishkin20071020a.htm",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s47",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Basis Point: Meaning, Value, and Uses (Jason Fernando, updated September 24, 2026)",
+   "url": "https://www.investopedia.com/terms/b/basispoint.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s48",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "How Quantitative Easing Spurs Economic Recovery: A Detailed Guide (updated May 4, 2026)",
+   "url": "https://www.investopedia.com/terms/q/quantitative-easing.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s49",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Dot Plot: Understanding Types, Uses, and Federal Reserve Insights (updated April 7, 2026)",
+   "url": "https://www.investopedia.com/dot-plot-4581755",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s50",
+   "tier": 2,
+   "publisher": "Federal Reserve Bank of Kansas City",
+   "title": "Understanding Hawks and Doves (George A. Kahn and Amy Oksol, The Macro Bulletin, June 27, 2018)",
+   "url": "https://www.kansascityfed.org/documents/5622/macrobulletins-Understanding%20Hawks%20and%20Doves.pdf",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s51",
+   "tier": 2,
+   "publisher": "Federal Reserve Bank of St. Louis",
+   "title": "What Is Quantitative Tightening? (Kristie M. Engemann, Open Vault blog, July 2019)",
+   "url": "https://www.stlouisfed.org/open-vault/2019/july/what-is-quantitative-tightening",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s52",
+   "tier": 2,
+   "publisher": "Federal Reserve Bank of St. Louis",
+   "title": "Between Headline and Core: Inflation Excluding Energy Goods (Fernando M. Martin, On the Economy blog, July 15, 2026)",
+   "url": "https://www.stlouisfed.org/on-the-economy/2026/jul/between-headline-core-inflation-excluding-energy-goods",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s53",
+   "tier": 2,
+   "publisher": "Federal Reserve History (Federal Reserve System)",
+   "title": "The Great Recession and Its Aftermath (John Weinberg, written as of November 22, 2013)",
+   "url": "https://www.federalreservehistory.org/essays/great-recession-and-its-aftermath",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s54",
+   "tier": 2,
+   "publisher": "Federal Reserve Bank of Cleveland",
+   "title": "Yield Curve and Predicted GDP Growth (indicator page, last updated October 29, 2026)",
+   "url": "https://www.clevelandfed.org/indicators-and-data/yield-curve-and-predicted-gdp-growth",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s55",
+   "tier": 2,
+   "publisher": "Charles Schwab (Schwab Asset Management)",
+   "title": "How to decipher the Federal Reserve's Dot Plot",
+   "url": "https://schwabassetmanagement.com/story/understanding-feds-dot-plot",
+   "accessed": "2026-11-09"
+  }
+ ],
+ "facts": [
+  {
+   "id": "f1",
+   "source": "s1",
+   "quote": "The federal funds rate is the interest rate at which depository institutions lend balances at the Federal Reserve to other depository institutions overnight.",
+   "claim": "The federal funds rate is what banks charge each other to lend their balances at the Fed overnight."
+  },
+  {
+   "id": "f2",
+   "source": "s1",
+   "quote": "consists of twelve members--the seven members of the Board of Governors of the Federal Reserve System; the president of the Federal Reserve Bank of New York; and four of the remaining eleven Reserve Bank presidents",
+   "claim": "The FOMC has twelve voting members: seven governors, the New York Fed president and four of the other eleven Reserve Bank presidents."
+  },
+  {
+   "id": "f3",
+   "source": "s1",
+   "quote": "Nonvoting Reserve Bank presidents attend the meetings of the Committee, participate in the discussions, and contribute to the Committee's assessment of the economy and policy options.",
+   "claim": "Reserve Bank presidents without a vote still attend FOMC meetings and join the discussion."
+  },
+  {
+   "id": "f4",
+   "source": "s1",
+   "quote": "The FOMC holds eight regularly scheduled meetings per year.",
+   "claim": "The FOMC has eight scheduled meetings a year."
+  },
+  {
+   "id": "f5",
+   "source": "s1",
+   "quote": "Committee membership changes at the first regularly scheduled meeting of the year.",
+   "claim": "The rotating voters change at the first scheduled meeting of each year."
+  },
+  {
+   "id": "f6",
+   "source": "s1",
+   "quote": "Changes in the federal funds rate trigger a chain of events that affect other short-term interest rates, foreign exchange rates, long-term interest rates, the amount of money and credit",
+   "claim": "A change in the fed funds rate ripples into other rates, the dollar, and money and credit."
+  },
+  {
+   "id": "f7",
+   "source": "s2",
+   "quote": "The FOMC is composed of 12 members--the seven members of the Board of Governors and five of the 12 Reserve Bank presidents.",
+   "claim": "The FOMC's 12 voters are the seven governors plus five of the 12 Reserve Bank presidents."
+  },
+  {
+   "id": "f8",
+   "source": "s2",
+   "quote": "The FOMC schedules eight meetings per year, one about every six weeks or so.",
+   "claim": "FOMC meetings come about every six weeks, eight a year."
+  },
+  {
+   "id": "f9",
+   "source": "s2",
+   "quote": "The Committee may also hold unscheduled meetings as necessary to review economic and financial developments.",
+   "claim": "The FOMC can add unscheduled meetings when needed."
+  },
+  {
+   "id": "f10",
+   "source": "s2",
+   "quote": "The FOMC issues a policy statement following each regular meeting that summarizes the Committee's economic outlook and the policy decision at that meeting.",
+   "claim": "After each regular meeting the FOMC releases a statement with its outlook and its decision."
+  },
+  {
+   "id": "f11",
+   "source": "s2",
+   "quote": "A full set of minutes for each FOMC meeting is published three weeks after the conclusion of each regular meeting, and complete transcripts of FOMC meetings are published five years after the meeting.",
+   "claim": "Minutes come out three weeks after each regular meeting; full transcripts after five years."
+  },
+  {
+   "id": "f12",
+   "source": "s2",
+   "quote": "By law, the Federal Reserve conducts monetary policy to achieve its macroeconomic objectives of maximum employment and stable prices.",
+   "claim": "By law the Fed aims for maximum employment and stable prices."
+  },
+  {
+   "id": "f13",
+   "source": "s3",
+   "quote": "The Federal Reserve Act mandates that the Federal Reserve conduct monetary policy \"so as to promote effectively the goals of maximum employment, stable prices, and moderate long-term interest rates.\"",
+   "claim": "The Federal Reserve Act lists maximum employment, stable prices and moderate long-term interest rates."
+  },
+  {
+   "id": "f14",
+   "source": "s3",
+   "quote": "Even though the act lists three distinct goals of monetary policy, the Fed's mandate for monetary policy is commonly known as the dual mandate.",
+   "claim": "The Fed's goals are commonly called the dual mandate."
+  },
+  {
+   "id": "f15",
+   "source": "s3",
+   "quote": "All 12 of the Reserve Bank presidents attend FOMC meetings and participate in FOMC discussions, but only the presidents who are Committee members at the time may vote on policy decisions.",
+   "claim": "All 12 Reserve Bank presidents attend and talk, but only the current members vote."
+  },
+  {
+   "id": "f16",
+   "source": "s3",
+   "quote": "low and stable inflation at the rate of 2 percent per year, as measured by the annual change in the price index for personal consumption expenditures",
+   "claim": "The Fed's goal is 2 percent inflation a year, measured by the annual change in the PCE price index."
+  },
+  {
+   "id": "f17",
+   "source": "s3",
+   "quote": "The federal funds rate is the interest rate that banks pay to borrow reserve balances overnight.",
+   "claim": "The federal funds rate is what banks pay to borrow reserves overnight."
+  },
+  {
+   "id": "f18",
+   "source": "s3",
+   "quote": "The FOMC has the ability to influence the federal funds rate--and thus the cost of short-term interbank credit--by changing the rate of interest the Fed pays on reserve balances that banks hold at the Fed.",
+   "claim": "The Fed steers fed funds by setting the interest it pays banks on reserve balances."
+  },
+  {
+   "id": "f19",
+   "source": "s3",
+   "quote": "the rates of return on commercial paper and U.S. Treasury bills--which are short-term debt securities issued by private companies and the federal government, respectively, to raise funds--typically move closely with the federal funds rate.",
+   "claim": "Treasury bill yields, a loan to the government, usually move closely with fed funds."
+  },
+  {
+   "id": "f20",
+   "source": "s3",
+   "quote": "The rates charged on longer-term loans are related to expectations of how monetary policy and the broader economy will evolve over the duration of the loans, not just to the current level of the federal funds rate.",
+   "claim": "Long-term rates depend on expected policy and the economy, not just today's fed funds rate."
+  },
+  {
+   "id": "f21",
+   "source": "s3",
+   "quote": "when the FOMC eases monetary policy (that is, reduces its target for the federal funds rate), the resulting lower interest rates on consumer loans elicit greater spending on goods and services",
+   "claim": "Easing means cutting the fed funds target; lower loan rates lift spending."
+  },
+  {
+   "id": "f22",
+   "source": "s3",
+   "quote": "the Fed can guide economic activity back to more sustainable levels and keep inflation in check by tightening monetary policy to raise interest rates.",
+   "claim": "Tightening means raising rates to cool the economy and inflation."
+  },
+  {
+   "id": "f23",
+   "source": "s3",
+   "quote": "Since December 2008, the FOMC has stated its target for the federal funds rate in terms of a range that is 25 basis points wide.",
+   "claim": "Since December 2008 the fed funds target has been a range 25 basis points wide."
+  },
+  {
+   "id": "f24",
+   "source": "s3",
+   "quote": "One of the ways in which the FOMC provided further support to the economy was by offering explicit forward guidance about expected future monetary policy in its communications.",
+   "claim": "Forward guidance is the Fed communicating what it expects to do with policy."
+  },
+  {
+   "id": "f25",
+   "source": "s3",
+   "quote": "Short-term interest rates expected to prevail in the future and longer-term yields on bonds fell in response to this forward guidance.",
+   "claim": "Expected short rates and long bond yields fell in response to forward guidance."
+  },
+  {
+   "id": "f26",
+   "source": "s3",
+   "quote": "Another key monetary policy tool deployed in response to the financial crisis was large-scale asset purchases, which were purchases in securities markets over six years of roughly $3.7 trillion in longer-term Treasury securities",
+   "claim": "After the 2008 crisis the Fed bought roughly $3.7 trillion of longer-term securities over six years."
+  },
+  {
+   "id": "f27",
+   "source": "s3",
+   "quote": "By boosting the overall demand for these securities, the Fed put additional downward pressure on longer-term interest rates.",
+   "claim": "The purchases pushed longer-term interest rates down."
+  },
+  {
+   "id": "f28",
+   "source": "s3",
+   "quote": "A further step toward normalization occurred in October 2017, when the FOMC began a gradual reduction in its securities holdings.",
+   "claim": "In October 2017 the FOMC began shrinking its securities holdings."
+  },
+  {
+   "id": "f29",
+   "source": "s3",
+   "quote": "Lower interest rates can make holding equities more attractive, which raises stock prices and adds to wealth.",
+   "claim": "Lower rates can make stocks more attractive and lift their prices."
+  },
+  {
+   "id": "f30",
+   "source": "s4",
+   "quote": "Basis points: 1/100 percentage point",
+   "claim": "A basis point is one hundredth of a percentage point."
+  },
+  {
+   "id": "f31",
+   "source": "s4",
+   "quote": "September 17 25 0 3.75-4.00",
+   "claim": "The Fed's table records a 25 basis point increase effective September 17, 2026, to 3.75-4.00%."
+  },
+  {
+   "id": "f32",
+   "source": "s5",
+   "quote": "The Committee decided to raise the target range for the federal funds rate by 1/4 percentage point to 3-3/4 to 4 percent, in support of the Federal Reserve's dual mandate.",
+   "claim": "On September 16, 2026 the FOMC raised its range by 1/4 point to 3-3/4 to 4 percent."
+  },
+  {
+   "id": "f33",
+   "source": "s6",
+   "quote": "The Committee decided to maintain the target range for the federal funds rate at 3-3/4 to 4 percent, in support of the Federal Reserve's dual mandate.",
+   "claim": "On October 28, 2026 the FOMC held its range at 3-3/4 to 4 percent."
+  },
+  {
+   "id": "f34",
+   "source": "s6",
+   "quote": "Voting against the monetary policy action were Lisa D. Cook and Beth M. Hammack, who preferred to raise the target range for the federal funds rate by 1/4 percentage point at this meeting.",
+   "claim": "Two voters dissented on October 28, 2026, wanting a 1/4 point hike."
+  },
+  {
+   "id": "f35",
+   "source": "s6",
+   "quote": "Inflation remains elevated.",
+   "claim": "The October 2026 statement said inflation remains elevated."
+  },
+  {
+   "id": "f36",
+   "source": "s7",
+   "quote": "The minutes of regularly scheduled meetings are released three weeks after the date of the policy decision.",
+   "claim": "Minutes come out three weeks after the decision."
+  },
+  {
+   "id": "f37",
+   "source": "s8",
+   "quote": "Economic projections are collected from each member of the Board of Governors and each Federal Reserve Bank president four times a year, in connection with the Federal Open Market Committee's (FOMC's) meetings in March, June, September, and December.",
+   "claim": "Every governor and every Reserve Bank president submits projections four times a year, at the March, June, September and December meetings."
+  },
+  {
+   "id": "f38",
+   "source": "s8",
+   "quote": "The charts and tables associated with those projections are released shortly following the end of an FOMC meeting.",
+   "claim": "The projections come out right after the meeting."
+  },
+  {
+   "id": "f39",
+   "source": "s8",
+   "quote": "Each shaded circle indicates the value (rounded to the nearest 1/8 percentage point) of an individual participant's judgment of the midpoint of the appropriate target range for the federal funds rate",
+   "claim": "Each dot is one participant's view of the right midpoint for the fed funds target range."
+  },
+  {
+   "id": "f40",
+   "source": "s8",
+   "quote": "Participants' assessments of the appropriate future path of the federal funds rate are also subject to considerable uncertainty.",
+   "claim": "Officials' projected rate paths carry considerable uncertainty."
+  },
+  {
+   "id": "f41",
+   "source": "s9",
+   "quote": "The most common type of core inflation measures exclude items that tend to go up and down in price dramatically or often, like food and energy items.",
+   "claim": "Core inflation measures usually drop food and energy because their prices swing a lot."
+  },
+  {
+   "id": "f42",
+   "source": "s9",
+   "quote": "The FOMC uses the PCE price index largely because it covers a wide range of household spending.",
+   "claim": "The Fed uses PCE mainly because it covers a wide range of household spending."
+  },
+  {
+   "id": "f43",
+   "source": "s9",
+   "quote": "However, the Fed closely tracks other inflation measures as well, including the consumer price indexes and producer price indexes issued by the Department of Labor.",
+   "claim": "The Fed also tracks CPI and PPI from the Labor Department."
+  },
+  {
+   "id": "f44",
+   "source": "s10",
+   "quote": "M2: M1 plus small-denomination time deposits (those issued in amounts of less than $100,000) and retail money market mutual fund shares.",
+   "claim": "M2 is M1 plus small time deposits and retail money market fund shares."
+  },
+  {
+   "id": "f45",
+   "source": "s10",
+   "quote": "Data on money supply are reported in the Federal Reserve's H.6 statistical release",
+   "claim": "The Fed reports the money supply in its H.6 release."
+  },
+  {
+   "id": "f46",
+   "source": "s10",
+   "quote": "The money supply is commonly defined as a group of safe assets that households and businesses can use to make payments or to hold as short-term investments.",
+   "claim": "The money supply is safe assets people can spend or hold short term."
+  },
+  {
+   "id": "f47",
+   "source": "s10",
+   "quote": "For example, U.S. currency and balances held in checking accounts and savings accounts are included in many measures of the money supply.",
+   "claim": "Cash and checking and savings balances count in many money supply measures."
+  },
+  {
+   "id": "f48",
+   "source": "s11",
+   "quote": "all Committee participants agreed to the following plans for significantly reducing the Federal Reserve's securities holdings.",
+   "claim": "In May 2022 the FOMC agreed plans to significantly reduce the Fed's securities holdings."
+  },
+  {
+   "id": "f49",
+   "source": "s11",
+   "quote": "The Committee intends to reduce the Federal Reserve's securities holdings over time in a predictable manner primarily by adjusting the amounts reinvested of principal payments received from securities held in the System Open Market Account (SOMA).",
+   "claim": "The 2022 plan shrank holdings mainly by reinvesting less of the principal from maturing securities."
+  },
+  {
+   "id": "f50",
+   "source": "s11",
+   "quote": "For Treasury securities, the cap will initially be set at $30 billion per month and after three months will increase to $60 billion per month.",
+   "claim": "The Treasury runoff cap started at $30 billion a month and rose to $60 billion."
+  },
+  {
+   "id": "f51",
+   "source": "s12",
+   "quote": "Commonly known as the Beige Book, this report is published eight times per year.",
+   "claim": "The Beige Book comes out eight times a year."
+  },
+  {
+   "id": "f52",
+   "source": "s12",
+   "quote": "Each Federal Reserve Bank gathers anecdotal information on current economic conditions in its District through reports from Bank and Branch directors and interviews with key business contacts, economists, market experts, and other sources.",
+   "claim": "Each Reserve Bank gathers anecdotal reports on conditions in its District from business contacts and others."
+  },
+  {
+   "id": "f53",
+   "source": "s13",
+   "quote": "Charts are generally updated following the publication of the H.4.1, which is typically published at 4:30 ET on Thursdays.",
+   "claim": "The Fed's weekly balance sheet release, the H.4.1, is typically out on Thursdays."
+  },
+  {
+   "id": "f54",
+   "source": "s14",
+   "quote": "Often called \"large-scale asset purchases\" (LSAPs) by central bankers, the view of quantitative easing, or QE, as a tool to add monetary policy accommodation and QT to tighten policy has changed over time.",
+   "claim": "Central bankers call QE large-scale asset purchases; QE adds accommodation and QT tightens."
+  },
+  {
+   "id": "f55",
+   "source": "s14",
+   "quote": "As we have seen with the current phase of QT, runoff up to $95 billion a month is not causing substantial strains in financial markets",
+   "claim": "In the 2022 round of QT, runoff ran up to $95 billion a month."
+  },
+  {
+   "id": "f56",
+   "source": "s15",
+   "quote": "Since June 2022, we have reduced the size of our balance sheet by $2.2 trillion",
+   "claim": "From June 2022 the Fed cut its balance sheet by $2.2 trillion."
+  },
+  {
+   "id": "f57",
+   "source": "s15",
+   "quote": "At our meeting in November 2021, we announced a phaseout of asset purchases. At our next meeting in December, we doubled the pace of the taper and said that asset purchases would conclude by mid-March of 2022.",
+   "claim": "The taper was the Fed's phaseout of its bond purchases, announced in November 2021 and sped up in December."
+  },
+  {
+   "id": "f58",
+   "source": "s15",
+   "quote": "The \"taper tantrum\" was a sharp market selloff in 2013 when Chair Ben Bernanke suggested the Fed might soon reduce its asset purchases, causing Treasury yields to spike and triggering volatility in financial markets.",
+   "claim": "The 2013 taper tantrum: a hint of slower Fed buying sent Treasury yields spiking."
+  },
+  {
+   "id": "f59",
+   "source": "s16",
+   "quote": "The Secured Overnight Financing Rate (SOFR) is a broad measure of the cost of borrowing cash overnight collateralized by Treasury securities.",
+   "claim": "SOFR measures the cost of overnight borrowing backed by Treasury securities."
+  },
+  {
+   "id": "f60",
+   "source": "s16",
+   "quote": "Each business day, the New York Fed publishes the SOFR on the New York Fed website at approximately 8:00 a.m. ET.",
+   "claim": "The New York Fed publishes SOFR every business day."
+  },
+  {
+   "id": "f61",
+   "source": "s17",
+   "quote": "The federal funds market consists of domestic unsecured borrowings in U.S. dollars by depository institutions from other depository institutions and certain other entities, primarily government-sponsored enterprises.",
+   "claim": "Fed funds borrowing is unsecured lending between banks and a few other institutions."
+  },
+  {
+   "id": "f62",
+   "source": "s18",
+   "quote": "The Consumer Price Index (CPI) is a measure of the average change over time in the prices paid by consumers for a representative basket of consumer goods and services.",
+   "claim": "CPI tracks the average change in prices consumers pay for a basket of goods and services."
+  },
+  {
+   "id": "f63",
+   "source": "s18",
+   "quote": "The CPI measures the average price change over time for a market basket of goods and services for two target populations: All Urban Consumers (CPI-U population) and Urban Wage Earners and Clerical Workers (CPI-W population).",
+   "claim": "CPI covers urban consumers (CPI-U) and urban wage earners (CPI-W)."
+  },
+  {
+   "id": "f64",
+   "source": "s18",
+   "quote": "The CPI also does not include investment items, such as stocks, bonds, real estate, and life insurance because these items relate to savings, and not day-to-day consumption expenses.",
+   "claim": "CPI leaves out stocks, bonds, real estate and life insurance."
+  },
+  {
+   "id": "f65",
+   "source": "s18",
+   "quote": "BLS publishes thousands of other consumer price indexes, such as all items less food and energy",
+   "claim": "BLS publishes an index for all items less food and energy."
+  },
+  {
+   "id": "f66",
+   "source": "s18",
+   "quote": "Some users of CPI data use this index because food and energy prices are relatively volatile, and they want to focus on what they perceive to be the \"core\" or \"underlying\" rate of inflation.",
+   "claim": "People use the index without food and energy to see core, underlying inflation."
+  },
+  {
+   "id": "f67",
+   "source": "s18",
+   "quote": "The C-CPI-U also allows for substitution across item categories and is thought by some to be a closer approximation to a cost-of-living index.",
+   "claim": "The chained CPI (C-CPI-U) is another BLS index."
+  },
+  {
+   "id": "f68",
+   "source": "s19",
+   "quote": "The Consumer Price Index for All Urban Consumers (CPI-U) increased 0.6 percent on a seasonally adjusted basis in September after rising 0.4 percent in August",
+   "claim": "CPI rose 0.6% in September 2026."
+  },
+  {
+   "id": "f69",
+   "source": "s19",
+   "quote": "The index for gasoline rose 9.1 percent in September, accounting for over half of the monthly all items increase.",
+   "claim": "Gasoline rose 9.1% and made up over half of September's rise."
+  },
+  {
+   "id": "f70",
+   "source": "s19",
+   "quote": "The index for all items less food and energy rose 0.3 percent in September, as it did in August.",
+   "claim": "Core CPI rose 0.3% in September 2026."
+  },
+  {
+   "id": "f71",
+   "source": "s19",
+   "quote": "Indexes that increased over the month include recreation, used cars and trucks, education, airline fares, medical care, and apparel.",
+   "claim": "September's core gains included services such as airline fares and medical care."
+  },
+  {
+   "id": "f72",
+   "source": "s19",
+   "quote": "Over the last 12 months, the all items index increased 3.7 percent before seasonal adjustment.",
+   "claim": "CPI was up 3.7% from a year earlier in September 2026."
+  },
+  {
+   "id": "f73",
+   "source": "s20",
+   "quote": "Between December 2023 and December 2024, consumer prices experienced disinflation, where prices still increased but by a smaller amount than before.",
+   "claim": "Disinflation means prices still rise, but by less than before."
+  },
+  {
+   "id": "f74",
+   "source": "s21",
+   "quote": "Deflation Falling prices for goods and services over time.",
+   "claim": "BLS defines deflation as falling prices for goods and services over time."
+  },
+  {
+   "id": "f75",
+   "source": "s21",
+   "quote": "When deflation occurs, the purchasing power of money increases. For example, if the inflation rate is −2 percent annually, then, theoretically, a $1 basket of apples will cost $0.98 in a year.",
+   "claim": "With -2% inflation, a $1 basket costs $0.98 a year later."
+  },
+  {
+   "id": "f76",
+   "source": "s21",
+   "quote": "Unemployment rate Number unemployed as a percentage of the labor force.",
+   "claim": "BLS defines the unemployment rate as the number unemployed as a percentage of the labor force."
+  },
+  {
+   "id": "f77",
+   "source": "s21",
+   "quote": "Classification as unemployed in no way depends upon a person’s eligibility for, or receipt of, unemployment insurance benefits.",
+   "claim": "Being counted as unemployed has nothing to do with getting benefits."
+  },
+  {
+   "id": "f78",
+   "source": "s22",
+   "quote": "The Producer Price Index (PPI) program measures the average change over time in the selling prices received by domestic producers for their output.",
+   "claim": "PPI tracks the selling prices domestic producers receive."
+  },
+  {
+   "id": "f79",
+   "source": "s23",
+   "quote": "A measure of the prices that people living in the United States, or those buying on their behalf, pay for goods and services.",
+   "claim": "BEA's PCE price index measures prices paid by people living in the U.S."
+  },
+  {
+   "id": "f80",
+   "source": "s23",
+   "quote": "The PCE price index, released each month in the Personal Income and Outlays report, reflects changes in the prices of goods and services purchased by consumers in the United States.",
+   "claim": "BEA releases the PCE price index monthly in the Personal Income and Outlays report."
+  },
+  {
+   "id": "f81",
+   "source": "s24",
+   "quote": "The PCE Price Index Excluding Food and Energy, also known as the core PCE price index, is released as part of the monthly Personal Income and Outlays report.",
+   "claim": "Core PCE is PCE without food and energy, in the same monthly report."
+  },
+  {
+   "id": "f82",
+   "source": "s24",
+   "quote": "The core index makes it easier to see the underlying inflation trend by excluding two categories",
+   "claim": "Core PCE leaves out food and energy to show the underlying trend."
+  },
+  {
+   "id": "f83",
+   "source": "s24",
+   "quote": "The core PCE price index is closely watched by the Federal Reserve as it conducts monetary policy.",
+   "claim": "The Fed watches core PCE closely."
+  },
+  {
+   "id": "f84",
+   "source": "s25",
+   "quote": "From the same month one year ago, the PCE price index for September increased 3.6 percent. Excluding food and energy, the PCE price index increased 3.1 percent from one year ago.",
+   "claim": "September 2026: PCE prices up 3.6% from a year earlier, core PCE up 3.1%."
+  },
+  {
+   "id": "f85",
+   "source": "s26",
+   "quote": "CES employment is an estimate of the number of nonfarm, payroll jobs in the U.S. economy.",
+   "claim": "The payroll survey counts nonfarm payroll jobs."
+  },
+  {
+   "id": "f86",
+   "source": "s26",
+   "quote": "Data exclude proprietors, self-employed, unpaid family or volunteer workers, farm workers, and household workers.",
+   "claim": "Payrolls leave out the self-employed, farm workers and household workers."
+  },
+  {
+   "id": "f87",
+   "source": "s26",
+   "quote": "Persons on the payroll of more than one establishment are counted in each establishment.",
+   "claim": "Someone on two payrolls is counted twice."
+  },
+  {
+   "id": "f88",
+   "source": "s26",
+   "quote": "Employment is the total number of persons on establishment payrolls employed full- or part-time who received pay",
+   "claim": "Payroll jobs include full- and part-time workers who were paid."
+  },
+  {
+   "id": "f89",
+   "source": "s26",
+   "quote": "Government employment covers only civilian employees; it excludes uniformed members of the armed services.",
+   "claim": "Payrolls include civilian government jobs."
+  },
+  {
+   "id": "f90",
+   "source": "s26",
+   "quote": "The Current Employment Statistics (CES) program is a monthly survey of business establishments (or jobs).",
+   "claim": "The payroll survey asks businesses; it counts jobs."
+  },
+  {
+   "id": "f91",
+   "source": "s26",
+   "quote": "The Current Population Survey (CPS) is a monthly survey of households (or people). The household survey produces estimates about the labor force, the employed, the unemployed, the unemployment rate",
+   "claim": "The household survey asks people; it produces the unemployment rate."
+  },
+  {
+   "id": "f92",
+   "source": "s26",
+   "quote": "CES data are published 3 weeks after the week that includes the 12th of the month, typically the first Friday of the following month.",
+   "claim": "The payroll data usually come out the first Friday of the next month."
+  },
+  {
+   "id": "f93",
+   "source": "s27",
+   "quote": "People are classified as unemployed if they do not have a job, have actively looked for work in the prior 4 weeks, and are currently available for work.",
+   "claim": "Unemployed means no job, looked for work in the past 4 weeks, and available."
+  },
+  {
+   "id": "f94",
+   "source": "s27",
+   "quote": "Perhaps the most widely known labor market indicator, this statistic reflects the number of unemployed people as a percentage of the labor force.",
+   "claim": "The unemployment rate is the unemployed as a share of the labor force."
+  },
+  {
+   "id": "f95",
+   "source": "s27",
+   "quote": "the labor force is made up of the employed and the unemployed. The remainder—those who have no job and are not looking for one—are counted as not in the labor force.",
+   "claim": "People with no job who aren't looking are not in the labor force."
+  },
+  {
+   "id": "f96",
+   "source": "s27",
+   "quote": "Workers who lose their jobs may file applications to determine if they are eligible for UI assistance. These applications are referred to as \"initial claims.\"",
+   "claim": "Initial claims are applications for unemployment benefits from people who lost jobs."
+  },
+  {
+   "id": "f97",
+   "source": "s27",
+   "quote": "Claimants who meet the eligibility requirements must file \"continuing claims\" for each week that they seek benefits.",
+   "claim": "Continuing claims are filed each week a person seeks benefits."
+  },
+  {
+   "id": "f98",
+   "source": "s27",
+   "quote": "Each month, national summary statistics on unemployment and employment are published in a news release titled The Employment Situation",
+   "claim": "The monthly jobs report is titled The Employment Situation."
+  },
+  {
+   "id": "f99",
+   "source": "s28",
+   "quote": "Total nonfarm payroll employment rose by 165,000 in October, and the unemployment rate changed little at 4.1 percent",
+   "claim": "October 2026: payrolls up 165,000; unemployment rate 4.1%."
+  },
+  {
+   "id": "f100",
+   "source": "s28",
+   "quote": "The household survey measures labor force status, including unemployment, by demographic characteristics. The establishment survey measures nonfarm employment, hours, and earnings by industry.",
+   "claim": "Household survey: unemployment. Establishment survey: nonfarm jobs."
+  },
+  {
+   "id": "f101",
+   "source": "s28",
+   "quote": "Both the unemployment rate, at 4.1 percent, and the number of unemployed people, at 7.1 million, changed little in October.",
+   "claim": "October 2026: 7.1 million unemployed."
+  },
+  {
+   "id": "f102",
+   "source": "s28",
+   "quote": "These individuals were not counted as unemployed because they were not actively looking for work during the 4 weeks preceding the survey or were unavailable to take a job.",
+   "claim": "People who want a job but didn't look in the past 4 weeks aren't counted as unemployed."
+  },
+  {
+   "id": "f103",
+   "source": "s29",
+   "quote": "The UI Weekly Claims News Release is published each week on Thursday morning at 8:30am EST.",
+   "claim": "The weekly claims report comes out Thursday mornings at 8:30."
+  },
+  {
+   "id": "f104",
+   "source": "s30",
+   "quote": "The value of the final goods and services produced in the United States is the gross domestic product.",
+   "claim": "GDP is the value of final goods and services produced in the U.S."
+  },
+  {
+   "id": "f105",
+   "source": "s30",
+   "quote": "Most often, the number you'll hear people refer to as \"GDP\" is a percentage. That's the rate of change in real GDP from the previous quarter or year.",
+   "claim": "The GDP number in the news is usually real GDP's growth rate."
+  },
+  {
+   "id": "f106",
+   "source": "s30",
+   "quote": "\"Real\" or \"chained\" GDP numbers have been adjusted to remove the effects of inflation over time, so different periods can be compared.",
+   "claim": "Real GDP is adjusted to remove inflation."
+  },
+  {
+   "id": "f107",
+   "source": "s30",
+   "quote": "\"Current-dollar\" or \"nominal\" GDP estimates are based on market prices during the period being measured.",
+   "claim": "Nominal GDP uses each period's own prices."
+  },
+  {
+   "id": "f108",
+   "source": "s30",
+   "quote": "Quarterly GDP data are reported at annual rates, for ease of comparison, unless otherwise specified.",
+   "claim": "Quarterly GDP growth is reported at an annual rate."
+  },
+  {
+   "id": "f109",
+   "source": "s30",
+   "quote": "Because for each quarter, BEA estimates GDP three times.",
+   "claim": "BEA estimates each quarter's GDP three times."
+  },
+  {
+   "id": "f110",
+   "source": "s30",
+   "quote": "The advance estimate, coming about a month after the quarter's end, is an early look based on the best information available at that time.",
+   "claim": "The advance estimate is BEA's early first look, about a month after the quarter."
+  },
+  {
+   "id": "f111",
+   "source": "s30",
+   "quote": "The second estimate and third estimate each incorporate additional source data that weren't available the month before, improving accuracy.",
+   "claim": "The second and third estimates add data and improve accuracy."
+  },
+  {
+   "id": "f112",
+   "source": "s31",
+   "quote": "Real GDP increased at an annual rate of 3.4 percent (0.8 percent at a quarterly rate",
+   "claim": "Q3 2026 real GDP: 3.4% at an annual rate, 0.8% at a quarterly rate."
+  },
+  {
+   "id": "f113",
+   "source": "s31",
+   "quote": "reflecting increases in investment, consumer spending, and government spending that were partly offset by a decrease in exports",
+   "claim": "GDP includes investment, consumer spending, government spending and exports."
+  },
+  {
+   "id": "f114",
+   "source": "s32",
+   "quote": "The NBER's traditional definition of a recession is that it is a significant decline in economic activity that is spread across the economy and that lasts more than a few months.",
+   "claim": "The NBER defines a recession as a significant, widespread decline lasting more than a few months."
+  },
+  {
+   "id": "f115",
+   "source": "s32",
+   "quote": "Most of the recessions identified by our procedures do consist of two or more consecutive quarters of declining real GDP, but not all of them.",
+   "claim": "Most, but not all, recessions include two straight quarters of falling real GDP."
+  },
+  {
+   "id": "f116",
+   "source": "s32",
+   "quote": "In 2001, for example, the recession did not include two consecutive quarters of decline in real GDP.",
+   "claim": "The 2001 recession did not have two straight negative GDP quarters."
+  },
+  {
+   "id": "f117",
+   "source": "s32",
+   "quote": "The shortest elapsed time was four months (February 2020 peak) and the longest was 21 months",
+   "claim": "NBER announcements have come four to 21 months after the turning point."
+  },
+  {
+   "id": "f118",
+   "source": "s32",
+   "quote": "December 2007 December 1, 2008 12",
+   "claim": "The December 2007 peak was announced on December 1, 2008, 12 months later."
+  },
+  {
+   "id": "f119",
+   "source": "s33",
+   "quote": "As a result, the committee tends to wait to identify a peak until a number of months after it has actually occurred.",
+   "claim": "The NBER waits months after a peak before naming it."
+  },
+  {
+   "id": "f120",
+   "source": "s34",
+   "quote": "Since some of these qualities may not be evident when a downturn first begins, many recessions are called retroactively.",
+   "claim": "Many recessions are called after the fact."
+  },
+  {
+   "id": "f121",
+   "source": "s34",
+   "quote": "A downturn must be deep, pervasive, and lasting to qualify as a recession by NBER’s definition.",
+   "claim": "NBER's test is depth, breadth and duration."
+  },
+  {
+   "id": "f122",
+   "source": "s35",
+   "quote": "Why do longer CMT maturities sometimes have yields lower than the shorter maturities (i.e., \"inverted yield curve rates\")?",
+   "claim": "Treasury calls long yields below short yields inverted yield curve rates."
+  },
+  {
+   "id": "f123",
+   "source": "s35",
+   "quote": "Because of this, short term rates can sometimes exceed longer term rates.",
+   "claim": "Short-term rates can sometimes sit above long-term rates."
+  },
+  {
+   "id": "f124",
+   "source": "s35",
+   "quote": "The par yield curve and the CMT rates merely indicate what rates were in the past and what they are now.",
+   "claim": "Treasury's curve shows rates past and present, not a forecast."
+  },
+  {
+   "id": "f125",
+   "source": "s36",
+   "quote": "This curve, which relates the yield on a security to its time to maturity, is based on the closing market bid prices on the most recently auctioned Treasury securities in the over-the-counter market.",
+   "claim": "Treasury's yield curve relates each security's yield to its time to maturity."
+  },
+  {
+   "id": "f126",
+   "source": "s36",
+   "quote": "The CMT yield values are read from the par yield curve at fixed maturities, currently 1, 1.5, 2, 3, 4 and 6 months and 1, 2, 3, 5, 7, 10, 20, and 30 years.",
+   "claim": "Treasury reads its curve at maturities from 1 month to 30 years."
+  },
+  {
+   "id": "f127",
+   "source": "s36",
+   "quote": "1 Mo 1.5 Mo 2 Mo 3 Mo 4 Mo 6 Mo 1 Yr 2 Yr 3 Yr 5 Yr 7 Yr 10 Yr 20 Yr 30 Yr",
+   "claim": "The table's yield columns run from 1 month to 30 years, in that order."
+  },
+  {
+   "id": "f128",
+   "source": "s36",
+   "quote": "10/01/2026 N/A N/A N/A N/A N/A N/A N/A N/A N/A N/A N/A 4.06 4.10 4.13 4.17 4.26 4.27 4.44 4.78 4.91 5.01 5.12 5.24 5.64 5.61",
+   "claim": "October 1, 2026: 2-year 4.78%, 10-year 5.24%."
+  },
+  {
+   "id": "f129",
+   "source": "s36",
+   "quote": "10/30/2026 N/A N/A N/A N/A N/A N/A N/A N/A N/A N/A N/A 4.06 4.09 4.16 4.16 4.18 4.25 4.36 4.56 4.65 4.71 4.80 4.94 5.34 5.31",
+   "claim": "October 30, 2026: 3-month 4.16%, 2-year 4.56%, 10-year 4.94%, 30-year 5.31%."
+  },
+  {
+   "id": "f130",
+   "source": "s37",
+   "quote": "Bills are short-term securities that mature in one year or less.",
+   "claim": "Treasury bills mature in a year or less."
+  },
+  {
+   "id": "f131",
+   "source": "s37",
+   "quote": "Bonds are long-term securities that mature in 20 or 30 years.",
+   "claim": "Treasury bonds mature in 20 or 30 years."
+  },
+  {
+   "id": "f132",
+   "source": "s37",
+   "quote": "Notes are relatively short or medium-term securities that mature in 2, 3, 5, 7, or 10 years.",
+   "claim": "Treasury notes mature in 2, 3, 5, 7 or 10 years."
+  },
+  {
+   "id": "f133",
+   "source": "s38",
+   "quote": "A fundamental principle of bond investing is that market interest rates and bond prices generally move in opposite directions. When market interest rates rise, prices of fixed-rate bonds fall.",
+   "claim": "When market rates rise, prices of fixed-rate bonds fall, and the reverse."
+  },
+  {
+   "id": "f134",
+   "source": "s39",
+   "quote": "If bonds are held to maturity the investor will receive the face value, plus interest. If sold before maturity, the bond may be worth more or less than the face value.",
+   "claim": "Before maturity a bond's price can be above or below face value."
+  },
+  {
+   "id": "f135",
+   "source": "s40",
+   "quote": "When interest rates rise, bond prices tend to fall, and vice versa.",
+   "claim": "Rates up, bond prices down, and the other way round."
+  },
+  {
+   "id": "f136",
+   "source": "s41",
+   "quote": "One one-hundredth (.01) of a percentage point. For example, eight percent is equal to 800 basis points.",
+   "claim": "A basis point is 0.01 of a percentage point; 8% is 800 basis points."
+  },
+  {
+   "id": "f137",
+   "source": "s42",
+   "quote": "Use FedWatch to track the probabilities of changes to the Fed rate, as implied by 30-Day Fed Funds futures prices.",
+   "claim": "FedWatch odds come from 30-Day Fed Funds futures prices."
+  },
+  {
+   "id": "f138",
+   "source": "s43",
+   "quote": "Series is calculated as the spread between 10-Year Treasury Constant Maturity (BC_10YEAR) and 2-Year Treasury Constant Maturity (BC_2YEAR).",
+   "claim": "FRED's 10-year minus 2-year spread is the 10-year Treasury yield minus the 2-year yield."
+  },
+  {
+   "id": "f139",
+   "source": "s44",
+   "quote": "The opposite of a hawk is known as a dove, or an economic policy advisor who prefers monetary policies that involve low interest rates.",
+   "claim": "A dove prefers policies with low interest rates."
+  },
+  {
+   "id": "f140",
+   "source": "s45",
+   "quote": "A yield curve is simply a graph depicting the yields of similar debt instruments of differing maturities.",
+   "claim": "A yield curve graphs the yields of similar debt at different maturities."
+  },
+  {
+   "id": "f141",
+   "source": "s45",
+   "quote": "the yield curve generally has inverted—a condition where short-term rates exceed long-term rates—up to two years ahead of a recession.",
+   "claim": "Inverted means short-term rates above long-term rates; it has often come before recessions."
+  },
+  {
+   "id": "f142",
+   "source": "s45",
+   "quote": "In the past, a narrowing, or flattening, of the spread has tended to foretell both slower economic growth and increased pressure on bank earnings.",
+   "claim": "A flattening curve is a narrowing gap between short and long rates."
+  },
+  {
+   "id": "f143",
+   "source": "s45",
+   "quote": "the beginning of a recession has seldom followed a period with a steep (positively sloped) yield curve within two years",
+   "claim": "A steep curve is positively sloped: long rates well above short rates."
+  },
+  {
+   "id": "f144",
+   "source": "s45",
+   "quote": "The inverted yield curve during 1966, the near-inversions in both 1987 and 1995, and the inversion in 1998 are also examples of inaccurate growth signals.",
+   "claim": "Some inversions were false alarms."
+  },
+  {
+   "id": "f145",
+   "source": "s45",
+   "quote": "Sometimes, however, the yield curve flattens or inverts for reasons that may not necessarily foreshadow slower economic growth.",
+   "claim": "The curve can flatten or invert without slower growth following."
+  },
+  {
+   "id": "f146",
+   "source": "s46",
+   "quote": "regarding core PCE inflation, not headline inflation, the latter of which includes all items in the price index.",
+   "claim": "Headline inflation includes all items in the price index."
+  },
+  {
+   "id": "f147",
+   "source": "s46",
+   "quote": "By including all items‑‑including particularly volatile items like food and energy‑‑headline measures of inflation are inherently noisy and often do not reflect changes in the underlying rate of inflation",
+   "claim": "Headline includes volatile food and energy, so it is noisy."
+  },
+  {
+   "id": "f148",
+   "source": "s46",
+   "quote": "controlling headline inflation, not core inflation, is‑‑along with maintaining maximum sustainable employment‑‑the ultimate aim of monetary policy.",
+   "claim": "The aim is headline inflation; core is a guide."
+  },
+  {
+   "id": "f149",
+   "source": "s47",
+   "quote": "One basis point equals one-hundredth of a percentage point, making it a precise way to discuss even very small rate movements.",
+   "claim": "A basis point is a hundredth of a percentage point."
+  },
+  {
+   "id": "f150",
+   "source": "s47",
+   "quote": "it could conceivably mean that the financial instrument is now 11% (0.10 x (1 + 0.10), or it could mean that it is now 20% (10% + 10% = 20%).",
+   "claim": "A 10% rate that 'rises 10%' could be read as 11% or 20%."
+  },
+  {
+   "id": "f151",
+   "source": "s47",
+   "quote": "If the instrument is priced at a 10% rate of interest and experiences a 100 bp move up, its rate would then be 11%.",
+   "claim": "A 100 bp rise takes a 10% rate to 11%, with no ambiguity."
+  },
+  {
+   "id": "f152",
+   "source": "s44",
+   "quote": "An inflation hawk is a policymaker who prioritizes curbing inflation through higher interest rates, even at the potential expense of economic growth and employment.",
+   "claim": "A hawk puts curbing inflation first and favors higher rates."
+  },
+  {
+   "id": "f153",
+   "source": "s44",
+   "quote": "Bulls and bears are also used—the former refers to a market affected by rising prices, while the latter is typically one where prices are falling.",
+   "claim": "Bulls and bears describe markets, not Fed policy views."
+  },
+  {
+   "id": "f154",
+   "source": "s48",
+   "quote": "Quantitative easing (QE) is a monetary policy tool used by central banks to stimulate the economy by purchasing securities and increasing the money supply.",
+   "claim": "QE is a central bank buying securities to stimulate the economy."
+  },
+  {
+   "id": "f155",
+   "source": "s49",
+   "quote": "FOMC members place dots on the dot plot to denote their projections for future interest rates in subsequent years and the long run.",
+   "claim": "Each dot on the dot plot is an official's rate projection."
+  },
+  {
+   "id": "f156",
+   "source": "s49",
+   "quote": "Importantly, it is not known which dot belongs to which FOMC member.",
+   "claim": "The dots are anonymous."
+  },
+  {
+   "id": "f157",
+   "source": "s50",
+   "quote": "Hawks are viewed as favoring tighter monetary policy with an emphasis on controlling inflation. In contrast, doves are viewed as favoring easier monetary policy with an emphasis on maintaining maximum employment.",
+   "claim": "Hawks favor tighter policy to control inflation; doves favor easier policy for employment."
+  },
+  {
+   "id": "f158",
+   "source": "s50",
+   "quote": "These projections (without attribution) are released to the public in conjunction with the Chair's post-meeting press conference in the Summary of Economic Projections (SEP).",
+   "claim": "The projections are published without names in the SEP."
+  },
+  {
+   "id": "f159",
+   "source": "s51",
+   "quote": "Quantitative easing, or QE, refers to policies that substantially expand the size of the Fed’s balance sheet. Quantitative tightening, or QT, refers to the opposite—policies that reduce the size of the Fed’s balance sheet.",
+   "claim": "QE grows the Fed's balance sheet; QT shrinks it."
+  },
+  {
+   "id": "f160",
+   "source": "s51",
+   "quote": "With the policy rate near zero, the FOMC used three large-scale asset purchase programs (that is, QE) in an effort to reduce longer-term interest rates.",
+   "claim": "With rates near zero the FOMC used QE to push long-term rates down."
+  },
+  {
+   "id": "f161",
+   "source": "s51",
+   "quote": "The last round of quantitative easing ended in October 2014.",
+   "claim": "The post-crisis QE ended in October 2014."
+  },
+  {
+   "id": "f162",
+   "source": "s51",
+   "quote": "And the idea of unwinding the balance sheet is simply stopping the replacement of securities that mature.",
+   "claim": "Unwinding the balance sheet means not replacing bonds that mature."
+  },
+  {
+   "id": "f163",
+   "source": "s52",
+   "quote": "the Fed uses the personal consumption expenditures (PCE) price index (also known as headline PCE), while it often relies on excluding food and energy (also known as core PCE) to identify underlying trends",
+   "claim": "The Fed's objective uses headline PCE; core PCE is for the underlying trend."
+  },
+  {
+   "id": "f164",
+   "source": "s52",
+   "quote": "However, headline inflation is clearly more volatile than core.",
+   "claim": "Headline inflation is more volatile than core."
+  },
+  {
+   "id": "f165",
+   "source": "s53",
+   "quote": "These included additional LSAP programs, known more popularly as quantitative easing, or QE.",
+   "claim": "The Fed's large-scale asset purchases are popularly called QE."
+  },
+  {
+   "id": "f166",
+   "source": "s54",
+   "quote": "The rule of thumb is that an inverted yield curve (short rates above long rates) indicates a recession in about a year, and yield curve inversions have preceded each of the last eight recessions",
+   "claim": "Rule of thumb: an inversion signals a recession in about a year. Inversions preceded each of the last eight recessions."
+  },
+  {
+   "id": "f167",
+   "source": "s54",
+   "quote": "There have been three notable false positives: an inversion in late 1966, a very flat curve in late 1998, and the inversion from late 2022 through late 2024.",
+   "claim": "Inversions have given false alarms, including late 2022 to late 2024."
+  },
+  {
+   "id": "f168",
+   "source": "s54",
+   "quote": "More generally, a flat curve indicates weak growth and, conversely, a steep curve indicates strong growth.",
+   "claim": "Flat curves go with weak growth, steep curves with strong growth."
+  },
+  {
+   "id": "f169",
+   "source": "s54",
+   "quote": "The bottom line is that yield curves contain important information for business cycle analysis, but, like other indicators, should be interpreted with caution.",
+   "claim": "Read the yield curve with caution, like any indicator."
+  },
+  {
+   "id": "f170",
+   "source": "s55",
+   "quote": "Each dot represents a Fed policy maker's view for where they think the target range for the fed funds rate will be at the end of each year.",
+   "claim": "Each dot is one official's view of the year-end fed funds range."
+  },
+  {
+   "id": "f171",
+   "source": "s55",
+   "quote": "Markets general focus on the median \"dot\" or projection.",
+   "claim": "Markets mostly watch the median dot."
+  },
+  {
+   "id": "f172",
+   "source": "s32",
+   "quote": "When did the NBER become the quasi-official arbiter of US business cycle dates?",
+   "claim": "The NBER is the quasi-official arbiter of US business cycle dates."
+  },
+  {
+   "id": "f173",
+   "source": "s27",
+   "quote": "Workers expecting to be recalled from temporary layoff are counted as unemployed whether or not they have engaged in a specific job seeking activity.",
+   "claim": "People on temporary layoff expecting recall count as unemployed even without a job search."
+  }
+ ],
+ "walkthroughs": [
+  {
+   "key": "w1",
+   "title": "The Fed's words",
+   "steps": [
+    "The FOMC is the Fed's rate committee. It meets eight times a year on a set schedule.",
+    "It sets a target range for the federal funds rate, what banks charge each other overnight.",
+    "Hawks lean toward tighter policy to fight inflation. Doves lean toward easier policy to support jobs.",
+    "QE means the Fed buys bonds and its balance sheet grows. QT is the reverse."
+   ],
+   "facts": [
+    "f4",
+    "f1",
+    "f23",
+    "f157",
+    "f159",
+    "f54"
+   ]
+  },
+  {
+   "key": "w2",
+   "title": "The data words",
+   "steps": [
+    "CPI tracks what consumers pay. Core CPI drops food and energy, two categories whose prices swing a lot.",
+    "The Fed's 2% inflation goal is measured with the PCE price index from BEA, not CPI.",
+    "The jobs report has two surveys. Payrolls come from employers. The unemployment rate comes from households.",
+    "GDP is the value of what the economy produces. Real GDP strips out inflation."
+   ],
+   "facts": [
+    "f62",
+    "f65",
+    "f66",
+    "f16",
+    "f80",
+    "f100",
+    "f90",
+    "f91",
+    "f104",
+    "f106",
+    "f41"
+   ]
+  },
+  {
+   "key": "w3",
+   "title": "The bond words",
+   "steps": [
+    "Bond prices and yields move in opposite directions. When yields rise, prices of existing bonds fall.",
+    "A basis point is a hundredth of a percentage point. A quarter-point Fed move is 25 basis points.",
+    "The yield curve lines up Treasury yields from short maturities to long. Usually it slopes up.",
+    "When short yields sit above long ones, the curve is inverted. It has warned of recessions, with false alarms."
+   ],
+   "facts": [
+    "f133",
+    "f135",
+    "f136",
+    "f23",
+    "f125",
+    "f122",
+    "f143",
+    "f123",
+    "f141",
+    "f166",
+    "f167",
+    "f144"
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "key": "q01",
+   "skill": "vocab.macro_terms",
+   "rung": 1,
+   "format": "mcq",
+   "term": "Federal funds rate",
+   "q": "Which rate is this: what banks charge each other to lend reserves overnight?",
+   "choices": [
+    "Federal funds rate",
+    "SOFR",
+    "3-month Treasury bill yield",
+    "Interest on reserve balances"
+   ],
+   "answer": "Federal funds rate",
+   "why": "Federal funds rate. It's the rate banks pay to borrow reserve balances from each other overnight. The FOMC sets a target for it.",
+   "lesson_line": "When the news says the Fed raised rates, it means the target range for the federal funds rate.",
+   "facts": [
+    "f1",
+    "f17",
+    "f23",
+    "f59",
+    "f61",
+    "f19",
+    "f18",
+    "f32"
+   ],
+   "wrong": {
+    "SOFR": "SOFR is also overnight, but those loans are backed by Treasury securities. Fed funds loans are unsecured.",
+    "3-month Treasury bill yield": "Bill yields usually move closely with fed funds, but a bill is a loan to the government, not between banks.",
+    "Interest on reserve balances": "That's what the Fed pays banks on balances held at the Fed. It's the lever the Fed uses to steer fed funds."
+   }
+  },
+  {
+   "key": "q02",
+   "skill": "vocab.macro_terms",
+   "rung": 1,
+   "format": "mcq",
+   "term": "Dual mandate",
+   "q": "People call the Fed's job a dual mandate. Which two goals does that mean?",
+   "choices": [
+    "Maximum employment and stable prices",
+    "Stable prices and a strong US dollar",
+    "Low rates and rising stock prices",
+    "Price stability, nothing else"
+   ],
+   "answer": "Maximum employment and stable prices",
+   "why": "Maximum employment and stable prices. The law also lists moderate long-term interest rates, but the goals are commonly called the dual mandate.",
+   "lesson_line": "Jobs and inflation. Read every Fed decision against those two goals.",
+   "facts": [
+    "f14",
+    "f13",
+    "f12",
+    "f6",
+    "f29"
+   ],
+   "wrong": {
+    "Stable prices and a strong US dollar": "The dollar isn't one of the Fed's legal goals. Rate changes do move it, as a side effect.",
+    "Low rates and rising stock prices": "Stock prices aren't a Fed goal. Rates affect stocks, but the mandate is jobs and prices.",
+    "Price stability, nothing else": "Prices are only half of it. The Fed's law puts maximum employment right next to stable prices."
+   }
+  },
+  {
+   "key": "q03",
+   "skill": "vocab.macro_terms",
+   "rung": 1,
+   "format": "mcq",
+   "term": "Hawk",
+   "q": "On the Fed, what does it mean to call an official a hawk?",
+   "choices": [
+    "Favors tighter policy to curb inflation",
+    "Favors easier policy to support jobs",
+    "Wants the Fed to buy more bonds",
+    "Expects the stock market to fall"
+   ],
+   "answer": "Favors tighter policy to curb inflation",
+   "why": "Favors tighter policy to curb inflation. Hawks put controlling inflation first and lean toward higher rates, even at some cost to growth.",
+   "lesson_line": "Hawk: higher rates, inflation first. Dove: lower rates, jobs first. Know who's talking before you react.",
+   "facts": [
+    "f157",
+    "f152",
+    "f139",
+    "f54",
+    "f153"
+   ],
+   "wrong": {
+    "Favors easier policy to support jobs": "That's a dove. Doves lean toward lower rates to support employment.",
+    "Wants the Fed to buy more bonds": "Buying bonds is QE, which eases policy. Hawks lean the other way, toward tighter policy.",
+    "Expects the stock market to fall": "That's a bear, a market word. Hawk and dove describe views on Fed policy."
+   }
+  },
+  {
+   "key": "q04",
+   "skill": "vocab.macro_terms",
+   "rung": 1,
+   "format": "mcq",
+   "term": "CPI",
+   "q": "Which gauge is this: BLS's monthly measure of the prices consumers pay for a basket of goods and services?",
+   "choices": [
+    "CPI",
+    "PPI",
+    "PCE price index"
+   ],
+   "answer": "CPI",
+   "why": "CPI. The Consumer Price Index measures the average change over time in prices consumers pay for a basket of goods and services.",
+   "lesson_line": "CPI is the consumer's price tag, published by BLS.",
+   "facts": [
+    "f62",
+    "f78",
+    "f80",
+    "f42"
+   ],
+   "wrong": {
+    "PPI": "PPI tracks the selling prices domestic producers receive, not what consumers pay.",
+    "PCE price index": "PCE also tracks consumer prices, but it comes from BEA, not BLS."
+   }
+  },
+  {
+   "key": "q05",
+   "skill": "vocab.macro_terms",
+   "rung": 1,
+   "format": "mcq",
+   "term": "Nonfarm payrolls",
+   "q": "The jobs report leads with nonfarm payrolls. What does that number count?",
+   "choices": [
+    "Jobs on business and government payrolls",
+    "People who tell a survey they have a job",
+    "New claims filed for jobless benefits",
+    "Everyone who is working, farms included"
+   ],
+   "answer": "Jobs on business and government payrolls",
+   "why": "Jobs on business and government payrolls. BLS surveys employers, and the count leaves out farm workers, the self-employed and household workers.",
+   "lesson_line": "Payrolls count jobs, as reported by employers. Farm work and self-employment sit outside it.",
+   "facts": [
+    "f85",
+    "f90",
+    "f86",
+    "f89",
+    "f91",
+    "f96"
+   ],
+   "wrong": {
+    "People who tell a survey they have a job": "That's the household survey, which BLS uses for the unemployment rate. Payrolls come from employers.",
+    "New claims filed for jobless benefits": "That's initial claims, a weekly count of people applying for unemployment benefits.",
+    "Everyone who is working, farms included": "Nonfarm means farm workers are left out, along with the self-employed."
+   }
+  },
+  {
+   "key": "q06",
+   "skill": "vocab.macro_terms",
+   "rung": 1,
+   "format": "mcq",
+   "term": "GDP",
+   "q": "What does gross domestic product (GDP) measure?",
+   "choices": [
+    "Value of final goods and services made",
+    "Total spending by the federal government",
+    "Total value of the stock market",
+    "Money in checking and savings accounts"
+   ],
+   "answer": "Value of final goods and services made",
+   "why": "Value of final goods and services made. BEA defines GDP as the value of the final goods and services produced in the United States.",
+   "lesson_line": "GDP is the economy's output. The number in the news is usually how fast real GDP grew.",
+   "facts": [
+    "f104",
+    "f105",
+    "f113",
+    "f47"
+   ],
+   "wrong": {
+    "Total spending by the federal government": "Government spending is one part of GDP, along with consumer spending, investment and exports.",
+    "Total value of the stock market": "Stock values aren't output. GDP counts goods and services produced.",
+    "Money in checking and savings accounts": "That's part of the money supply, a different measure."
+   }
+  },
+  {
+   "key": "q07",
+   "skill": "vocab.macro_terms",
+   "rung": 1,
+   "format": "mcq",
+   "term": "Yield curve",
+   "q": "What does the Treasury yield curve show?",
+   "choices": [
+    "Yields across maturities, short to long",
+    "A single bond's yield over the past year",
+    "The Fed's projected rate path",
+    "The gap between stock and bond yields"
+   ],
+   "answer": "Yields across maturities, short to long",
+   "why": "Yields across maturities, short to long. Treasury's curve relates the yield on a security to its time to maturity, from 1 month out to 30 years.",
+   "lesson_line": "A yield curve is one day's snapshot of rates at every maturity. One yield charted over time is a different chart.",
+   "facts": [
+    "f125",
+    "f126",
+    "f140",
+    "f39"
+   ],
+   "wrong": {
+    "A single bond's yield over the past year": "That's the history of one yield. The curve compares many maturities on the same day.",
+    "The Fed's projected rate path": "That's the dot plot, Fed officials' projections for the fed funds rate.",
+    "The gap between stock and bond yields": "That compares two kinds of assets. The Treasury curve compares Treasury yields at different maturities."
+   }
+  },
+  {
+   "key": "q08",
+   "skill": "vocab.macro_terms",
+   "rung": 1,
+   "format": "mcq",
+   "term": "Basis point",
+   "q": "Rates are often quoted in basis points. What is one basis point?",
+   "choices": [
+    "0.01 percentage point",
+    "0.1 percentage point",
+    "1 percentage point",
+    "1% of the current rate"
+   ],
+   "answer": "0.01 percentage point",
+   "why": "0.01 percentage point. A basis point is one hundredth of a percentage point. Eight percent is 800 basis points.",
+   "lesson_line": "Basis points keep rate talk exact. 25 basis points is a quarter of a percentage point.",
+   "facts": [
+    "f136",
+    "f30",
+    "f149",
+    "f23",
+    "f151",
+    "f150"
+   ],
+   "wrong": {
+    "0.1 percentage point": "That's ten basis points, not one.",
+    "1 percentage point": "A full point is 100 basis points.",
+    "1% of the current rate": "That's a relative change, and it causes mix-ups. Basis points measure the rate's move itself."
+   }
+  },
+  {
+   "key": "q09",
+   "skill": "vocab.macro_terms",
+   "rung": 1,
+   "format": "mcq",
+   "term": "Quantitative easing",
+   "q": "What is quantitative easing (QE)?",
+   "choices": [
+    "Large-scale Fed bond buying",
+    "The Fed cutting its target range",
+    "The Fed letting its bonds mature",
+    "Congress raising its spending"
+   ],
+   "answer": "Large-scale Fed bond buying",
+   "why": "Large-scale Fed bond buying. Central bankers call it large-scale asset purchases. It grows the Fed's balance sheet and pushes longer-term rates down.",
+   "lesson_line": "QE works on long rates. Rate cuts work on the short end. Both ease policy.",
+   "facts": [
+    "f54",
+    "f165",
+    "f159",
+    "f27",
+    "f160",
+    "f162",
+    "f154"
+   ],
+   "wrong": {
+    "The Fed cutting its target range": "That's a plain rate cut. QE is what the Fed added when the policy rate was already near zero.",
+    "The Fed letting its bonds mature": "That's how QT shrinks the balance sheet, the opposite of QE.",
+    "Congress raising its spending": "Government spending isn't a Fed tool. QE is the central bank buying securities."
+   }
+  },
+  {
+   "key": "q10",
+   "skill": "vocab.macro_terms",
+   "rung": 2,
+   "format": "fill",
+   "term": "FOMC",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "The ___ holds eight scheduled meetings a year to set interest rate policy.",
+   "bank": [
+    "FOMC",
+    "BLS",
+    "BEA",
+    "NBER",
+    "SEC"
+   ],
+   "answer": "FOMC",
+   "why": "FOMC. The Federal Open Market Committee meets eight times a year, about every six weeks, and can add meetings when needed.",
+   "lesson_line": "Put the eight FOMC dates on your calendar before the year starts.",
+   "facts": [
+    "f4",
+    "f8",
+    "f9"
+   ]
+  },
+  {
+   "key": "q11",
+   "skill": "vocab.macro_terms",
+   "rung": 2,
+   "format": "mcq",
+   "term": "Quantitative tightening",
+   "q": "The Fed shrinks its balance sheet, letting bonds mature without replacing them. Which term is this?",
+   "choices": [
+    "Quantitative tightening",
+    "Tapering",
+    "Quantitative easing",
+    "Forward guidance"
+   ],
+   "answer": "Quantitative tightening",
+   "why": "Quantitative tightening. QT means policies that reduce the size of the Fed's balance sheet. The Fed has done it mainly by not reinvesting maturing bonds.",
+   "lesson_line": "Tapering slows the buying. QT shrinks what's already owned. Different steps.",
+   "facts": [
+    "f159",
+    "f49",
+    "f162",
+    "f54",
+    "f57",
+    "f24"
+   ],
+   "wrong": {
+    "Tapering": "Tapering winds down new purchases. Until they stop, the Fed is still adding bonds.",
+    "Quantitative easing": "QE is the opposite: buying bonds and growing the balance sheet.",
+    "Forward guidance": "Forward guidance is talk, the Fed signaling its likely path. No bonds change hands."
+   }
+  },
+  {
+   "key": "q12",
+   "skill": "vocab.macro_terms",
+   "rung": 2,
+   "format": "fill",
+   "term": "Core CPI",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "BLS's index for all items less food and energy is often called ___.",
+   "bank": [
+    "core CPI",
+    "headline CPI",
+    "chained CPI",
+    "CPI-W"
+   ],
+   "answer": "core CPI",
+   "why": "Core CPI. Food and energy prices are relatively volatile, so some users watch the index without them to see underlying inflation.",
+   "lesson_line": "Headline CPI is everything. Core CPI drops food and energy to show the trend underneath.",
+   "facts": [
+    "f65",
+    "f66",
+    "f41",
+    "f67",
+    "f63"
+   ]
+  },
+  {
+   "key": "q13",
+   "skill": "vocab.macro_terms",
+   "rung": 2,
+   "format": "mcq",
+   "term": "PCE price index",
+   "q": "What does the PCE price index track?",
+   "choices": [
+    "Prices people pay for goods and services",
+    "Prices producers get for their output",
+    "The value of all goods and services made",
+    "Only what urban consumers pay"
+   ],
+   "answer": "Prices people pay for goods and services",
+   "why": "Prices people pay for goods and services. BEA's PCE price index covers what people living in the U.S., or those buying for them, pay.",
+   "lesson_line": "PCE is BEA's consumer price gauge, and the one the Fed's 2% goal is written in.",
+   "facts": [
+    "f79",
+    "f80",
+    "f16",
+    "f78",
+    "f104",
+    "f63"
+   ],
+   "wrong": {
+    "Prices producers get for their output": "That's the Producer Price Index from BLS, the seller's side.",
+    "The value of all goods and services made": "That's GDP, a measure of output, not prices.",
+    "Only what urban consumers pay": "That's closer to CPI, built on urban consumers. PCE covers people living across the U.S."
+   }
+  },
+  {
+   "key": "q14",
+   "skill": "vocab.macro_terms",
+   "rung": 2,
+   "format": "mcq",
+   "term": "Unemployment rate",
+   "q": "How does BLS define the unemployment rate?",
+   "choices": [
+    "Unemployed as a share of the labor force",
+    "Unemployed as a share of all adults",
+    "People on jobless benefits, as a share",
+    "Jobs lost this month, as a share of jobs"
+   ],
+   "answer": "Unemployed as a share of the labor force",
+   "why": "Unemployed as a share of the labor force. The labor force is the employed plus the unemployed. Most jobless people who aren't looking sit outside it.",
+   "lesson_line": "Jobless and not looking usually means out of the labor force, and out of the rate.",
+   "facts": [
+    "f76",
+    "f94",
+    "f95",
+    "f77",
+    "f93",
+    "f173"
+   ],
+   "wrong": {
+    "Unemployed as a share of all adults": "That would count retirees and students. The labor force only includes people working or looking.",
+    "People on jobless benefits, as a share": "BLS classifies people by survey answers. Getting benefits has nothing to do with it.",
+    "Jobs lost this month, as a share of jobs": "That's a monthly change. The rate is the share of the labor force unemployed at the survey."
+   }
+  },
+  {
+   "key": "q15",
+   "skill": "vocab.macro_terms",
+   "rung": 2,
+   "format": "mcq",
+   "term": "Inverted yield curve",
+   "q": "Short-term Treasury yields sit above long-term yields. What is that curve called?",
+   "choices": [
+    "Inverted yield curve",
+    "Steep yield curve",
+    "Flat yield curve"
+   ],
+   "answer": "Inverted yield curve",
+   "why": "Inverted yield curve. Usually longer maturities pay more. When short-term rates exceed long-term rates, the curve is inverted.",
+   "lesson_line": "Inverted means short above long. It has often come before recessions, so it's worth watching.",
+   "facts": [
+    "f122",
+    "f123",
+    "f141",
+    "f143",
+    "f142",
+    "f168",
+    "f166"
+   ],
+   "wrong": {
+    "Steep yield curve": "Steep means positively sloped, long yields well above short ones. That's the opposite picture.",
+    "Flat yield curve": "Flat means the gap between short and long yields has narrowed to little or nothing."
+   }
+  },
+  {
+   "key": "q16",
+   "skill": "vocab.macro_terms",
+   "rung": 2,
+   "format": "mcq",
+   "term": "SOFR",
+   "q": "What does SOFR measure?",
+   "choices": [
+    "Overnight loans backed by Treasuries",
+    "Overnight bank loans with no collateral",
+    "The yield on 10-year Treasury notes",
+    "The rate the Fed pays on bank reserves"
+   ],
+   "answer": "Overnight loans backed by Treasuries",
+   "why": "Overnight borrowing backed by Treasuries. The New York Fed publishes it every business day as a broad measure of that cost.",
+   "lesson_line": "SOFR is secured by Treasuries. Fed funds is unsecured. Both are overnight rates.",
+   "facts": [
+    "f59",
+    "f60",
+    "f61",
+    "f18"
+   ],
+   "wrong": {
+    "Overnight bank loans with no collateral": "That's the federal funds market, which is unsecured.",
+    "The yield on 10-year Treasury notes": "SOFR is an overnight rate, not a 10-year yield.",
+    "The rate the Fed pays on bank reserves": "That's interest on reserve balances, set by the Fed."
+   }
+  },
+  {
+   "key": "q17",
+   "skill": "vocab.macro_terms",
+   "rung": 2,
+   "format": "fill",
+   "term": "Employment Situation",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "BLS's monthly jobs report is titled The ___.",
+   "bank": [
+    "Employment Situation",
+    "Beige Book",
+    "Personal Income and Outlays",
+    "Summary of Economic Projections"
+   ],
+   "answer": "Employment Situation",
+   "why": "Employment Situation. That BLS news release carries both the payroll count and the unemployment rate.",
+   "lesson_line": "On an econ calendar, the jobs report often shows up as Employment Situation. Same report.",
+   "facts": [
+    "f98",
+    "f100",
+    "f92"
+   ]
+  },
+  {
+   "key": "q18",
+   "skill": "vocab.macro_terms",
+   "rung": 2,
+   "format": "mcq",
+   "term": "Beige Book",
+   "q": "What is the Fed's Beige Book?",
+   "choices": [
+    "Reports on local business conditions",
+    "The minutes of each FOMC meeting",
+    "Fed officials' rate projections",
+    "The Fed's weekly balance sheet"
+   ],
+   "answer": "Reports on local business conditions",
+   "why": "Reports on local business conditions. Each Reserve Bank gathers anecdotal reports from business contacts and others in its District. It comes out eight times a year.",
+   "lesson_line": "The Beige Book is the Fed's ground-level read: stories from businesses, not hard data.",
+   "facts": [
+    "f51",
+    "f52",
+    "f36",
+    "f37",
+    "f53"
+   ],
+   "wrong": {
+    "The minutes of each FOMC meeting": "Minutes are a separate release, out three weeks after each decision.",
+    "Fed officials' rate projections": "Those are in the Summary of Economic Projections, home of the dot plot.",
+    "The Fed's weekly balance sheet": "That's a different release, the H.4.1, typically out on Thursdays."
+   }
+  },
+  {
+   "key": "q19",
+   "skill": "vocab.macro_terms",
+   "rung": 3,
+   "format": "fill",
+   "term": "dove",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "An FOMC member who leans toward easier policy to support jobs is called a ___.",
+   "bank": [
+    "dove",
+    "hawk",
+    "bear",
+    "bull"
+   ],
+   "answer": "dove",
+   "why": "Dove. Doves lean toward easier policy and lower rates, with an emphasis on maximum employment.",
+   "lesson_line": "Doves lean toward cuts, hawks toward hikes. Bulls and bears are about markets, not the Fed.",
+   "facts": [
+    "f157",
+    "f139",
+    "f153"
+   ]
+  },
+  {
+   "key": "q20",
+   "skill": "vocab.macro_terms",
+   "rung": 4,
+   "format": "mcq",
+   "term": "FOMC minutes",
+   "q": "When do the minutes of a regular FOMC meeting come out?",
+   "choices": [
+    "Three weeks after the decision",
+    "The same day as the decision",
+    "Five years after the meeting"
+   ],
+   "answer": "Three weeks after the decision",
+   "why": "Three weeks after the decision. Decision day brings the policy statement. The minutes, with more of the discussion, follow three weeks later.",
+   "lesson_line": "Statement on the day, minutes in three weeks, full transcripts after five years.",
+   "facts": [
+    "f36",
+    "f11",
+    "f10"
+   ],
+   "wrong": {
+    "The same day as the decision": "Decision day brings the policy statement. The minutes come later.",
+    "Five years after the meeting": "That's when full transcripts come out. The minutes arrive much sooner."
+   }
+  },
+  {
+   "key": "q21",
+   "skill": "vocab.macro_terms",
+   "rung": 4,
+   "format": "tf",
+   "term": "CPI",
+   "q": "The CPI leaves out investment items like stocks and bonds.",
+   "answer": "True",
+   "why": "True. BLS leaves out investment items like stocks, bonds, real estate and life insurance. Those relate to savings, not day-to-day spending.",
+   "lesson_line": "CPI tracks day-to-day spending, not asset prices. A stock rally doesn't show up in it.",
+   "facts": [
+    "f64",
+    "f62"
+   ]
+  },
+  {
+   "key": "q22",
+   "skill": "vocab.macro_terms",
+   "rung": 3,
+   "format": "mcq",
+   "term": "PPI",
+   "q": "Which BLS index tracks the selling prices that domestic producers get for their output?",
+   "choices": [
+    "PPI",
+    "CPI",
+    "PCE price index"
+   ],
+   "answer": "PPI",
+   "why": "PPI. The Producer Price Index measures the average change over time in the selling prices received by domestic producers.",
+   "lesson_line": "PPI is the seller's side, CPI the shopper's side. The Fed tracks both.",
+   "facts": [
+    "f78",
+    "f62",
+    "f43",
+    "f80"
+   ],
+   "wrong": {
+    "CPI": "CPI measures what consumers pay, not what producers receive.",
+    "PCE price index": "PCE is BEA's consumer price gauge, not a producer price measure."
+   }
+  },
+  {
+   "key": "q23",
+   "skill": "vocab.macro_terms",
+   "rung": 3,
+   "format": "mcq",
+   "term": "Initial claims",
+   "q": "In the weekly jobless claims report, what are initial claims?",
+   "choices": [
+    "New applications for jobless benefits",
+    "Repeat filings by people on benefits",
+    "New jobs added that week",
+    "People who stopped looking for work"
+   ],
+   "answer": "New applications for jobless benefits",
+   "why": "New applications for jobless benefits. Workers who lose their jobs apply to find out if they're eligible. Those applications are initial claims.",
+   "lesson_line": "Initial claims are first filings. Continuing claims are the weekly refilings after. The report usually lands Thursdays, 8:30 a.m. ET.",
+   "facts": [
+    "f96",
+    "f97",
+    "f103",
+    "f85",
+    "f95"
+   ],
+   "wrong": {
+    "Repeat filings by people on benefits": "Those are continuing claims, filed each week a person seeks benefits.",
+    "New jobs added that week": "Job gains come from the monthly payroll survey, not the claims report.",
+    "People who stopped looking for work": "Those people count as not in the labor force. Claims track benefit filings."
+   }
+  },
+  {
+   "key": "q24",
+   "skill": "vocab.macro_terms",
+   "rung": 4,
+   "format": "tf",
+   "term": "Treasury yield",
+   "q": "When Treasury yields rise, prices of fixed-rate Treasuries already issued fall.",
+   "answer": "True",
+   "why": "True. Market rates and bond prices generally move in opposite directions. When rates rise, prices of fixed-rate bonds fall.",
+   "lesson_line": "Yields up, bond prices down. Think of a seesaw.",
+   "facts": [
+    "f133",
+    "f135"
+   ]
+  },
+  {
+   "key": "q25",
+   "skill": "vocab.macro_terms",
+   "rung": 3,
+   "format": "mcq",
+   "term": "M2",
+   "q": "What does M2 measure?",
+   "choices": [
+    "A broad money supply measure",
+    "Total Fed holdings of bonds",
+    "New cash printed this year",
+    "Bank loans to small businesses"
+   ],
+   "answer": "A broad money supply measure",
+   "why": "A broad measure of the money supply. M2 is M1 plus small time deposits and retail money market fund shares. The Fed reports it in its H.6 release.",
+   "lesson_line": "M2 is cash, bank deposits and retail money funds: money people can spend or park short term.",
+   "facts": [
+    "f44",
+    "f45",
+    "f46",
+    "f47",
+    "f159",
+    "f48"
+   ],
+   "wrong": {
+    "Total Fed holdings of bonds": "That's the Fed's securities holdings, which grow with QE and shrink with QT.",
+    "New cash printed this year": "Currency is only one piece. M2 also counts bank deposits and retail money funds.",
+    "Bank loans to small businesses": "Loans are credit. M2 counts money: cash, deposits and money fund balances."
+   }
+  },
+  {
+   "key": "q26",
+   "skill": "vocab.macro_terms",
+   "rung": 4,
+   "format": "tf",
+   "term": "Target range",
+   "q": "The FOMC sets its federal funds target as a range 25 basis points wide, not one exact rate.",
+   "answer": "True",
+   "why": "True. Since December 2008 the FOMC has stated its target as a range 25 basis points wide, like 3-3/4 to 4 percent.",
+   "lesson_line": "Fed headlines quote a range. A quarter-point move shifts both ends by 25 basis points.",
+   "facts": [
+    "f23",
+    "f32",
+    "f33"
+   ]
+  },
+  {
+   "key": "q27",
+   "skill": "vocab.macro_terms",
+   "rung": 4,
+   "format": "mcq",
+   "term": "Dot plot",
+   "q": "Which Fed chart shows each official's view of where the fed funds rate should be at each year-end?",
+   "choices": [
+    "The dot plot",
+    "The yield curve",
+    "The Beige Book",
+    "CME FedWatch"
+   ],
+   "answer": "The dot plot",
+   "why": "The dot plot. Each dot is one participant's view of the right midpoint for the fed funds target range. Dots cover each year-end and the longer run.",
+   "lesson_line": "Dots are views, not promises. Markets mostly watch the median dot.",
+   "facts": [
+    "f39",
+    "f170",
+    "f155",
+    "f171",
+    "f40",
+    "f125",
+    "f52",
+    "f137"
+   ],
+   "wrong": {
+    "The yield curve": "The yield curve shows market yields by maturity, not officials' views.",
+    "The Beige Book": "The Beige Book is anecdotal reports on local business conditions.",
+    "CME FedWatch": "FedWatch shows odds implied by fed funds futures prices. That's the market's view, not the Fed's."
+   }
+  },
+  {
+   "key": "q28",
+   "skill": "vocab.macro_terms",
+   "rung": 4,
+   "format": "scenario",
+   "term": "Easing",
+   "story": "Inflation has cooled and hiring has slowed. At its meeting, the FOMC lowers its target range for the federal funds rate.",
+   "q": "Which word describes that kind of move?",
+   "choices": [
+    "Easing",
+    "Tightening",
+    "Tapering"
+   ],
+   "answer": "Easing",
+   "why": "Easing. The Fed calls a cut in its fed funds target an easing of monetary policy. Lower loan rates tend to lift spending.",
+   "lesson_line": "Cuts ease policy. Hikes tighten it.",
+   "facts": [
+    "f21",
+    "f22",
+    "f57"
+   ],
+   "wrong": {
+    "Tightening": "Tightening is raising rates to cool demand and inflation.",
+    "Tapering": "Tapering is slowing bond purchases. This was a rate cut."
+   }
+  },
+  {
+   "key": "q29",
+   "skill": "vocab.macro_terms",
+   "rung": 4,
+   "format": "mcq",
+   "term": "Headline inflation",
+   "q": "Which term means the inflation rate for all items, food and energy included?",
+   "choices": [
+    "Headline inflation",
+    "Core inflation",
+    "Disinflation",
+    "Deflation"
+   ],
+   "answer": "Headline inflation",
+   "why": "Headline inflation. It covers all items in the price index, volatile food and energy included. Core strips those two out.",
+   "lesson_line": "Headline is everything in the basket. Core shows the trend underneath.",
+   "facts": [
+    "f146",
+    "f147",
+    "f163",
+    "f65",
+    "f73",
+    "f74"
+   ],
+   "wrong": {
+    "Core inflation": "Core leaves out food and energy.",
+    "Disinflation": "Disinflation is inflation slowing down, with prices still rising.",
+    "Deflation": "Deflation is prices falling."
+   }
+  },
+  {
+   "key": "q30",
+   "skill": "vocab.macro_terms",
+   "rung": 4,
+   "format": "mcq",
+   "term": "Disinflation",
+   "q": "What does disinflation mean?",
+   "choices": [
+    "Prices rising, but more slowly",
+    "Prices falling across the economy",
+    "Prices rising faster each month",
+    "Food and energy taken out of CPI"
+   ],
+   "answer": "Prices rising, but more slowly",
+   "why": "Prices rising, but more slowly. BLS describes disinflation as prices still increasing, just by a smaller amount than before.",
+   "lesson_line": "Disinflation is not deflation. Prices still go up, only slower.",
+   "facts": [
+    "f73",
+    "f74",
+    "f65"
+   ],
+   "wrong": {
+    "Prices falling across the economy": "That's deflation, falling prices over time.",
+    "Prices rising faster each month": "That's inflation speeding up, the opposite of disinflation.",
+    "Food and energy taken out of CPI": "That's core CPI, a narrower index."
+   }
+  },
+  {
+   "key": "q31",
+   "skill": "vocab.macro_terms",
+   "rung": 4,
+   "format": "mcq",
+   "term": "Real GDP",
+   "q": "BEA reports real GDP. What makes it real?",
+   "choices": [
+    "It's adjusted to remove inflation",
+    "It's final, with no more revisions",
+    "It's measured in that period's prices",
+    "It counts only physical goods"
+   ],
+   "answer": "It's adjusted to remove inflation",
+   "why": "It's adjusted to remove inflation. Real GDP takes out the effect of price changes so different periods compare fairly.",
+   "lesson_line": "Real means after inflation. The GDP growth number in the news is real growth.",
+   "facts": [
+    "f106",
+    "f107",
+    "f109",
+    "f105",
+    "f104"
+   ],
+   "wrong": {
+    "It's final, with no more revisions": "Real has nothing to do with revisions. BEA estimates each quarter three times.",
+    "It's measured in that period's prices": "That's nominal, or current-dollar, GDP.",
+    "It counts only physical goods": "GDP counts services too, not just goods."
+   }
+  },
+  {
+   "key": "q32",
+   "skill": "vocab.macro_terms",
+   "rung": 4,
+   "format": "fill",
+   "term": "basis points",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "The Fed raised its range by 1/4 percentage point, or 25 ___.",
+   "bank": [
+    "basis points",
+    "percent",
+    "percentage points",
+    "dollars"
+   ],
+   "answer": "basis points",
+   "why": "Basis points. One basis point is a hundredth of a percentage point, so a quarter point is 25 of them.",
+   "lesson_line": "Fed statements say percentage points. Traders say basis points. A quarter point is 25 bps.",
+   "facts": [
+    "f136",
+    "f30",
+    "f32",
+    "f31"
+   ]
+  },
+  {
+   "key": "q33",
+   "skill": "vocab.macro_terms",
+   "rung": 4,
+   "format": "mcq",
+   "term": "Taper",
+   "q": "In late 2021 the Fed began to taper. What does taper mean?",
+   "choices": [
+    "Slow and then end bond buying",
+    "Sell bonds the Fed already owns",
+    "Cut the fed funds rate in steps",
+    "Raise the fed funds rate slowly"
+   ],
+   "answer": "Slow and then end bond buying",
+   "why": "Slow and then end bond buying. In November 2021 the Fed announced a phaseout of its asset purchases, then doubled the pace of the taper in December.",
+   "lesson_line": "Taper is QE winding down, not QT. The Fed stops adding before it starts shrinking.",
+   "facts": [
+    "f57",
+    "f159",
+    "f49",
+    "f56"
+   ],
+   "wrong": {
+    "Sell bonds the Fed already owns": "Tapering doesn't touch what the Fed owns. Shrinking its holdings is QT, a later step.",
+    "Cut the fed funds rate in steps": "Tapering is about bond purchases, not the rate.",
+    "Raise the fed funds rate slowly": "Rate hikes are a separate tool. Tapering only slows bond buying."
+   }
+  },
+  {
+   "key": "q34",
+   "skill": "vocab.macro_terms",
+   "rung": 4,
+   "format": "mcq",
+   "term": "Personal Income and Outlays",
+   "q": "Your calendar lists BEA's monthly report that carries the PCE price index. What is it called?",
+   "choices": [
+    "Personal Income and Outlays",
+    "The Employment Situation",
+    "Producer Price Index",
+    "Summary of Economic Projections"
+   ],
+   "answer": "Personal Income and Outlays",
+   "why": "Personal Income and Outlays. BEA releases the PCE price index, and its core version, each month in that report.",
+   "lesson_line": "Look for Personal Income and Outlays on the calendar. That's PCE day.",
+   "facts": [
+    "f80",
+    "f81",
+    "f98",
+    "f78",
+    "f37"
+   ],
+   "wrong": {
+    "The Employment Situation": "That's the BLS jobs report.",
+    "Producer Price Index": "PPI is its own BLS release, about producer prices.",
+    "Summary of Economic Projections": "That's the Fed's projections, four times a year with FOMC meetings."
+   }
+  },
+  {
+   "key": "q35",
+   "skill": "vocab.macro_terms",
+   "rung": 7,
+   "format": "tf",
+   "term": "FOMC",
+   "q": "At an FOMC meeting, 12 Reserve Bank presidents cast votes.",
+   "answer": "False",
+   "why": "False. All 12 presidents attend and join the discussion. Only five vote: the New York Fed president plus four others on a rotation.",
+   "lesson_line": "Twelve voters: seven governors and five presidents. The rotating seats change each year, so check who votes.",
+   "facts": [
+    "f15",
+    "f7",
+    "f2",
+    "f3",
+    "f5"
+   ]
+  },
+  {
+   "key": "q36",
+   "skill": "vocab.macro_terms",
+   "rung": 5,
+   "format": "mcq",
+   "term": "Forward guidance",
+   "q": "The Fed tells the public how it expects to set policy in the months ahead. What is that called?",
+   "choices": [
+    "Forward guidance",
+    "The Beige Book",
+    "Quantitative easing",
+    "The dual mandate"
+   ],
+   "answer": "Forward guidance",
+   "why": "Forward guidance. It's the Fed's communication about expected future policy. The FOMC used it to add support when the fed funds rate was near zero.",
+   "lesson_line": "Guidance can move markets before the Fed acts. Long rates respond to expected policy, not just today's rate.",
+   "facts": [
+    "f24",
+    "f25",
+    "f20",
+    "f52",
+    "f54",
+    "f14"
+   ],
+   "wrong": {
+    "The Beige Book": "That's anecdotal reports on regional business conditions.",
+    "Quantitative easing": "QE is buying bonds, an action, not a statement about the future.",
+    "The dual mandate": "That's the Fed's goals: maximum employment and stable prices."
+   }
+  },
+  {
+   "key": "q37",
+   "skill": "vocab.macro_terms",
+   "rung": 5,
+   "format": "mcq",
+   "term": "Summary of Economic Projections",
+   "q": "Which FOMC meetings come with fresh projections, including a new dot plot?",
+   "choices": [
+    "March, June, September, December",
+    "Every scheduled meeting",
+    "Only the December meeting"
+   ],
+   "answer": "March, June, September, December",
+   "why": "March, June, September, December. Projections are collected four times a year, at those meetings, and released shortly after.",
+   "lesson_line": "Four of the eight meetings bring new projections. Know which ones before the week starts.",
+   "facts": [
+    "f37",
+    "f38",
+    "f4"
+   ],
+   "wrong": {
+    "Every scheduled meeting": "There are eight meetings but only four rounds of projections.",
+    "Only the December meeting": "December is one of four. Projections also come in March, June and September."
+   }
+  },
+  {
+   "key": "q38",
+   "skill": "vocab.macro_terms",
+   "rung": 7,
+   "format": "numeric",
+   "term": "Basis point",
+   "q": "Oct. 1, 2026: the 10-year Treasury yielded 5.24%. Oct. 30: 4.94%. How many basis points did it fall?",
+   "answer": 30,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(start - end) * 100",
+     "start": 5.24,
+     "end": 4.94
+    }
+   },
+   "suffix": "basis points",
+   "why": "30 basis points. The yield fell from 5.24% to 4.94%, and each hundredth of a percentage point is one basis point.",
+   "lesson_line": "Quote yield moves in basis points. It avoids the percent-of-a-percent mix-up.",
+   "facts": [
+    "f128",
+    "f129",
+    "f127",
+    "f136"
+   ]
+  },
+  {
+   "key": "q39",
+   "skill": "vocab.macro_terms",
+   "rung": 5,
+   "format": "tf",
+   "term": "Headline inflation",
+   "q": "Headline inflation tends to jump around more than core inflation.",
+   "answer": "True",
+   "why": "True. Headline includes volatile food and energy, which makes it noisy. A St. Louis Fed economist finds headline clearly more volatile than core.",
+   "lesson_line": "A wild month in headline is often gas or groceries. Check core before you read too much into it.",
+   "facts": [
+    "f164",
+    "f147",
+    "f82",
+    "f66",
+    "f41"
+   ]
+  },
+  {
+   "key": "q40",
+   "skill": "vocab.macro_terms",
+   "rung": 5,
+   "format": "mcq",
+   "term": "Establishment survey",
+   "q": "The jobs report uses two surveys. Which one produces the nonfarm payroll number?",
+   "choices": [
+    "Establishment survey",
+    "Household survey",
+    "Weekly jobless claims"
+   ],
+   "answer": "Establishment survey",
+   "why": "Establishment survey. It surveys businesses about the jobs on their payrolls. The household survey gives the unemployment rate.",
+   "lesson_line": "Payrolls from employers, unemployment rate from households. Two surveys, one report.",
+   "facts": [
+    "f100",
+    "f90",
+    "f91",
+    "f103",
+    "f96"
+   ],
+   "wrong": {
+    "Household survey": "The household survey asks people, and it produces the unemployment rate.",
+    "Weekly jobless claims": "Claims are a separate weekly Labor Department release about benefit filings."
+   }
+  },
+  {
+   "key": "q41",
+   "skill": "vocab.macro_terms",
+   "rung": 7,
+   "format": "tf",
+   "term": "Advance estimate",
+   "q": "BEA's advance estimate of GDP is its final word on that quarter.",
+   "answer": "False",
+   "why": "False. BEA estimates each quarter three times. The advance estimate is an early look about a month after the quarter ends. Two more estimates add data.",
+   "lesson_line": "The first GDP print is an early look. Expect revisions.",
+   "facts": [
+    "f109",
+    "f110",
+    "f111"
+   ]
+  },
+  {
+   "key": "q42",
+   "skill": "vocab.macro_terms",
+   "rung": 5,
+   "format": "tf",
+   "term": "M2",
+   "q": "Money in a retail money market fund counts in M2.",
+   "answer": "True",
+   "why": "True. M2 is M1 plus small-denomination time deposits and retail money market fund shares.",
+   "lesson_line": "M2 is broad money: cash, deposits and retail money funds.",
+   "facts": [
+    "f44"
+   ]
+  },
+  {
+   "key": "q43",
+   "skill": "vocab.macro_terms",
+   "rung": 5,
+   "format": "mcq",
+   "term": "Treasury note",
+   "q": "Traders talk about the 10-year. What type of Treasury security is it?",
+   "choices": [
+    "A Treasury note",
+    "A Treasury bill",
+    "A Treasury bond"
+   ],
+   "answer": "A Treasury note",
+   "why": "A Treasury note. Notes mature in 2, 3, 5, 7 or 10 years. Bills mature in a year or less, and bonds in 20 or 30 years.",
+   "lesson_line": "Bills are short, notes are the middle, bonds are the long end. The 10-year is a note.",
+   "facts": [
+    "f132",
+    "f130",
+    "f131"
+   ],
+   "wrong": {
+    "A Treasury bill": "Bills are short-term, a year or less.",
+    "A Treasury bond": "Treasury bonds are the 20- and 30-year."
+   }
+  },
+  {
+   "key": "q44",
+   "skill": "vocab.macro_terms",
+   "rung": 6,
+   "format": "scenario",
+   "term": "Not in the labor force",
+   "story": "Dana's job ended for good in the spring. She'd like work but hasn't looked in two months. BLS surveys her household.",
+   "q": "How does BLS classify Dana?",
+   "choices": [
+    "Not in the labor force",
+    "Unemployed; wants work",
+    "Employed, between jobs"
+   ],
+   "answer": "Not in the labor force",
+   "why": "Not in the labor force. To count as unemployed you must have looked for work in the prior 4 weeks. Wanting a job isn't enough.",
+   "lesson_line": "People who stop looking usually drop out of the unemployment rate. A falling rate isn't always good news.",
+   "facts": [
+    "f93",
+    "f102",
+    "f95",
+    "f173"
+   ],
+   "wrong": {
+    "Unemployed; wants work": "She hasn't actively looked in the prior 4 weeks, so she doesn't meet the test.",
+    "Employed, between jobs": "She has no job, so she isn't employed."
+   }
+  },
+  {
+   "key": "q45",
+   "skill": "vocab.macro_terms",
+   "rung": 6,
+   "format": "scenario",
+   "term": "Quantitative easing",
+   "story": "The fed funds rate is already near zero. The economy still needs help. The Fed starts buying huge amounts of longer-term Treasuries.",
+   "q": "Which term fits what the Fed is doing?",
+   "choices": [
+    "Quantitative easing",
+    "Quantitative tightening",
+    "Forward guidance"
+   ],
+   "answer": "Quantitative easing",
+   "why": "Quantitative easing. With the policy rate near zero, the FOMC bought longer-term securities to push long-term rates down. That's QE.",
+   "lesson_line": "When the rate can't go lower, the Fed can still buy bonds. That's QE.",
+   "facts": [
+    "f160",
+    "f26",
+    "f27",
+    "f165",
+    "f159",
+    "f24"
+   ],
+   "wrong": {
+    "Quantitative tightening": "QT shrinks the balance sheet. Buying bonds grows it.",
+    "Forward guidance": "Guidance is talk about future policy. Here the Fed is buying bonds."
+   }
+  },
+  {
+   "key": "q46",
+   "skill": "vocab.macro_terms",
+   "rung": 7,
+   "format": "scenario",
+   "term": "Positively sloped yield curve",
+   "story": "Treasury yields on Oct. 30, 2026: 3-month 4.16%, 2-year 4.56%, 10-year 4.94%, 30-year 5.31%.",
+   "q": "What shape is the curve?",
+   "choices": [
+    "Sloping up, the usual shape",
+    "Inverted, short yields on top",
+    "Flat, short close to long"
+   ],
+   "answer": "Sloping up, the usual shape",
+   "why": "Sloping up, the usual shape. Yields climb from 4.16% at 3 months to 5.31% at 30 years. Longer maturities pay more, as they usually do.",
+   "lesson_line": "Read the curve left to right. Yields rising with maturity is the usual shape.",
+   "facts": [
+    "f129",
+    "f127",
+    "f143",
+    "f122",
+    "f141",
+    "f142"
+   ],
+   "wrong": {
+    "Inverted, short yields on top": "Inverted would need short yields above long ones. Here the 3-month is the lowest of the four.",
+    "Flat, short close to long": "Flat means a narrow gap between short and long yields. Here the 30-year, at 5.31%, sits well above the 3-month at 4.16%."
+   }
+  },
+  {
+   "key": "q47",
+   "skill": "vocab.macro_terms",
+   "rung": 6,
+   "format": "mcq",
+   "term": "FedWatch",
+   "q": "CME FedWatch shows the odds of a Fed rate move. Where do those odds come from?",
+   "choices": [
+    "Fed funds futures prices",
+    "Votes cast by FOMC members",
+    "A survey of economists",
+    "The Fed's dot plot"
+   ],
+   "answer": "Fed funds futures prices",
+   "why": "Fed funds futures prices. FedWatch tracks the probabilities of rate changes implied by 30-Day Fed Funds futures.",
+   "lesson_line": "FedWatch is the market's bet, not the Fed's plan. Compare it with the dots.",
+   "facts": [
+    "f137",
+    "f39",
+    "f10"
+   ],
+   "wrong": {
+    "Votes cast by FOMC members": "Votes happen at the meeting. FedWatch odds are priced before it, from futures.",
+    "A survey of economists": "No survey. The odds are backed out of futures prices.",
+    "The Fed's dot plot": "The dots are officials' projections. FedWatch reflects what traders are pricing."
+   }
+  },
+  {
+   "key": "q48",
+   "skill": "vocab.macro_terms",
+   "rung": 6,
+   "format": "scenario",
+   "term": "Deflation",
+   "story": "Over the past year, the overall price level fell. A basket of goods that cost $1.00 now costs $0.98.",
+   "q": "Which word fits?",
+   "choices": [
+    "Deflation",
+    "Disinflation",
+    "Recession"
+   ],
+   "answer": "Deflation",
+   "why": "Deflation. BLS defines it as falling prices for goods and services over time. Here the basket costs 2% less.",
+   "lesson_line": "Deflation means prices fall. Disinflation means they rise more slowly. Mix them up and you misread the report.",
+   "facts": [
+    "f74",
+    "f75",
+    "f73",
+    "f114"
+   ],
+   "wrong": {
+    "Disinflation": "Disinflation is prices still rising, just more slowly. Here they fell.",
+    "Recession": "A recession is a broad decline in economic activity. This story is about prices."
+   }
+  },
+  {
+   "key": "q49",
+   "skill": "vocab.macro_terms",
+   "rung": 7,
+   "format": "scenario",
+   "term": "Hawk",
+   "story": "Oct. 28, 2026: the FOMC held its range at 3-3/4 to 4 percent. Two voters dissented. They wanted a 1/4-point hike.",
+   "q": "Which word fits the two dissenters?",
+   "choices": [
+    "Hawks",
+    "Doves",
+    "Bears"
+   ],
+   "answer": "Hawks",
+   "why": "Hawks. They wanted tighter policy than the majority. Hawks lean toward higher rates to bring inflation down.",
+   "lesson_line": "Dissents show where the debate is. Two votes for a hike is a hawkish signal.",
+   "facts": [
+    "f34",
+    "f33",
+    "f35",
+    "f157",
+    "f152",
+    "f153"
+   ],
+   "wrong": {
+    "Doves": "Doves lean toward easier policy. These two wanted a hike.",
+    "Bears": "Bears are pessimists about markets. This is about views on Fed policy."
+   }
+  },
+  {
+   "key": "q50",
+   "skill": "vocab.macro_terms",
+   "rung": 7,
+   "format": "scenario",
+   "term": "Core CPI",
+   "story": "September 2026 CPI: all items up 0.6% for the month. Gasoline jumped 9.1%, over half the rise. Core rose 0.3%.",
+   "q": "Why did the headline number rise faster than core?",
+   "choices": [
+    "Energy, which core leaves out",
+    "Shelter, which core leaves out",
+    "Core counts only goods"
+   ],
+   "answer": "Energy, which core leaves out",
+   "why": "Energy, which core leaves out. Gasoline rose 9.1% and made up over half of the monthly increase. Core leaves out food and energy, and it rose 0.3%.",
+   "lesson_line": "When headline and core split, look at energy and food first. Core shows the trend underneath.",
+   "facts": [
+    "f68",
+    "f69",
+    "f70",
+    "f65",
+    "f71"
+   ],
+   "wrong": {
+    "Shelter, which core leaves out": "Shelter stays in core. Only food and energy come out.",
+    "Core counts only goods": "Core includes services too. BLS listed airline fares and medical care among September's increases."
+   }
+  },
+  {
+   "key": "q51",
+   "skill": "vocab.macro_terms",
+   "rung": 8,
+   "format": "scenario",
+   "term": "PCE price index",
+   "story": "September 2026, versus a year earlier: CPI up 3.7%. PCE price index up 3.6%. Core PCE up 3.1%.",
+   "q": "Which number does the Fed's 2% inflation goal refer to?",
+   "choices": [
+    "PCE, up 3.6%",
+    "CPI, up 3.7%",
+    "Core PCE, up 3.1%"
+   ],
+   "answer": "PCE, up 3.6%",
+   "why": "PCE, up 3.6%. The FOMC defines its 2% goal as the annual change in the PCE price index. It watches core PCE for the underlying trend.",
+   "lesson_line": "Goal in PCE, trend in core PCE. Here both sit well above 2%.",
+   "facts": [
+    "f16",
+    "f163",
+    "f148",
+    "f84",
+    "f72",
+    "f43",
+    "f83"
+   ],
+   "wrong": {
+    "CPI, up 3.7%": "The Fed tracks CPI, but its 2% goal is written in PCE terms.",
+    "Core PCE, up 3.1%": "Core PCE helps the Fed read the trend. The goal itself uses the full PCE index."
+   }
+  },
+  {
+   "key": "q52",
+   "skill": "vocab.macro_terms",
+   "rung": 7,
+   "format": "scenario",
+   "term": "Annual rate",
+   "story": "BEA's advance estimate: real GDP grew at an annual rate of 3.4% in the third quarter of 2026.",
+   "q": "About how much did real GDP grow within the quarter itself?",
+   "choices": [
+    "About 0.8%",
+    "3.4%",
+    "About 13.6%"
+   ],
+   "answer": "About 0.8%",
+   "why": "About 0.8%. BEA reports quarterly GDP at annual rates. The same release says 3.4% at an annual rate was 0.8% at a quarterly rate.",
+   "lesson_line": "GDP headlines are annualized. The quarter's own growth is far smaller, so check which rate you're reading.",
+   "facts": [
+    "f108",
+    "f112"
+   ],
+   "wrong": {
+    "3.4%": "That's the annualized pace, not the quarter's own growth.",
+    "About 13.6%": "That scales the wrong way. The annual rate already stretches the quarter out to a year."
+   }
+  },
+  {
+   "key": "q53",
+   "skill": "vocab.macro_terms",
+   "rung": 8,
+   "format": "scenario",
+   "term": "Nonfarm payrolls",
+   "story": "October 2026: nonfarm payrolls rose by 165,000. A friend says that means 165,000 more people have jobs.",
+   "q": "What's the catch?",
+   "choices": [
+    "Payrolls count jobs, not people",
+    "Payrolls count only part-time work",
+    "That's the count of unemployed"
+   ],
+   "answer": "Payrolls count jobs, not people",
+   "why": "Payrolls count jobs, not people. Someone on two payrolls is counted at each one. Counts of people come from the household survey.",
+   "lesson_line": "Payrolls measure jobs. The household survey measures people. In the same month they can tell different stories.",
+   "facts": [
+    "f87",
+    "f85",
+    "f91",
+    "f99",
+    "f88",
+    "f101"
+   ],
+   "wrong": {
+    "Payrolls count only part-time work": "Payrolls include full- and part-time workers who were paid.",
+    "That's the count of unemployed": "BLS counted 7.1 million unemployed that month. The 165,000 is the change in payroll jobs."
+   }
+  },
+  {
+   "key": "q54",
+   "skill": "vocab.macro_terms",
+   "rung": 7,
+   "format": "scenario",
+   "term": "Treasury yield",
+   "story": "During October 2026 the 10-year Treasury yield fell from 5.24% to 4.94%. You bought a 10-year note on Oct. 1.",
+   "q": "What happened to the note's market price?",
+   "choices": [
+    "It rose",
+    "It fell",
+    "It stayed at face value"
+   ],
+   "answer": "It rose",
+   "why": "It rose. Market rates and bond prices move in opposite directions, so falling yields lift the prices of bonds already issued.",
+   "lesson_line": "Falling yields are rising bond prices. Same move, two ways of saying it.",
+   "facts": [
+    "f133",
+    "f135",
+    "f134",
+    "f128",
+    "f129"
+   ],
+   "wrong": {
+    "It fell": "That's what happens when yields rise.",
+    "It stayed at face value": "A note pays face value at maturity. Before then its price moves with rates."
+   }
+  },
+  {
+   "key": "q55",
+   "skill": "vocab.macro_terms",
+   "rung": 8,
+   "format": "tf",
+   "term": "Recession",
+   "q": "The NBER, which dates US recessions, defines one as two straight quarters of falling real GDP.",
+   "answer": "False",
+   "why": "False. The NBER's definition is a significant decline, spread across the economy, lasting more than a few months. The 2001 recession didn't have two negative GDP quarters.",
+   "lesson_line": "Two down quarters is a press rule of thumb, not the NBER's test.",
+   "facts": [
+    "f114",
+    "f115",
+    "f116",
+    "f121",
+    "f172"
+   ]
+  },
+  {
+   "key": "q56",
+   "skill": "vocab.macro_terms",
+   "rung": 8,
+   "format": "tf",
+   "term": "Dot plot",
+   "q": "Nonvoting Reserve Bank presidents leave their dot off the dot plot.",
+   "answer": "False",
+   "why": "False. Projections come from every Fed governor and every Reserve Bank president, voters or not. And the dots don't say who is who.",
+   "lesson_line": "The dot plot shows all participants, not just this year's voters. Weigh the median, not one dot.",
+   "facts": [
+    "f37",
+    "f158",
+    "f156",
+    "f171"
+   ]
+  },
+  {
+   "key": "q57",
+   "skill": "vocab.macro_terms",
+   "rung": 8,
+   "format": "tf",
+   "term": "Quantitative tightening",
+   "q": "In the QT that began in 2022, the Fed shrank its holdings mainly by selling bonds into the market.",
+   "answer": "False",
+   "why": "False. The plan let maturing securities run off without reinvestment, up to monthly caps. Runoff ran up to $95 billion a month.",
+   "lesson_line": "That QT was mostly runoff: bonds matured and weren't replaced. No fire sale.",
+   "facts": [
+    "f49",
+    "f48",
+    "f50",
+    "f55",
+    "f56",
+    "f162"
+   ]
+  },
+  {
+   "key": "q58",
+   "skill": "vocab.macro_terms",
+   "rung": 8,
+   "format": "scenario",
+   "term": "Taper tantrum",
+   "story": "2013: the Fed chair hints the Fed may soon slow its bond buying. Treasury yields spike and markets turn volatile.",
+   "q": "What name did that episode get?",
+   "choices": [
+    "The taper tantrum",
+    "Quantitative tightening",
+    "A yield curve inversion"
+   ],
+   "answer": "The taper tantrum",
+   "why": "The taper tantrum. In 2013 Chair Bernanke suggested the Fed might soon reduce its asset purchases, and Treasury yields spiked.",
+   "lesson_line": "Even a hint about slowing purchases can move yields. Markets trade the Fed's words before its actions.",
+   "facts": [
+    "f58",
+    "f28",
+    "f161",
+    "f141"
+   ],
+   "wrong": {
+    "Quantitative tightening": "QT didn't start until October 2017. In 2013 the Fed was still buying.",
+    "A yield curve inversion": "Yields spiked. An inversion means short yields above long ones, a different thing."
+   }
+  },
+  {
+   "key": "q59",
+   "skill": "vocab.macro_terms",
+   "rung": 9,
+   "format": "tf",
+   "term": "Inverted yield curve",
+   "q": "An inverted yield curve is a sure sign of a recession within about a year.",
+   "answer": "False",
+   "why": "False. The rule of thumb says about a year, and inversions came before each of the last eight recessions. But there were false alarms, including late 2022 through late 2024.",
+   "lesson_line": "An inversion is a warning light, not a timer. Use it with other evidence.",
+   "facts": [
+    "f166",
+    "f167",
+    "f169",
+    "f144",
+    "f145",
+    "f124"
+   ]
+  },
+  {
+   "key": "q60",
+   "skill": "vocab.macro_terms",
+   "rung": 9,
+   "format": "scenario",
+   "term": "Recession",
+   "story": "The economy peaked in December 2007. The NBER announced that peak on December 1, 2008, a year later.",
+   "q": "What does that tell you about waiting for the NBER's recession call?",
+   "choices": [
+    "It comes long after the turn",
+    "It comes before the turn",
+    "It comes within days of the turn"
+   ],
+   "answer": "It comes long after the turn",
+   "why": "It comes long after the turn. The NBER waits months to identify a peak. Its announcements have come four to 21 months after the turning point.",
+   "lesson_line": "Don't wait for the NBER's call to manage risk. It comes months late.",
+   "facts": [
+    "f118",
+    "f117",
+    "f119",
+    "f120",
+    "f172"
+   ],
+   "wrong": {
+    "It comes before the turn": "The NBER dates turning points after they happen, once the data show them.",
+    "It comes within days of the turn": "The shortest gap on record was four months."
+   }
+  },
+  {
+   "key": "q61",
+   "skill": "vocab.macro_terms",
+   "rung": 8,
+   "format": "scenario",
+   "term": "Percentage point",
+   "story": "A loan rate goes from 10% to 11%. One headline says the rate rose 10%. Another says it rose 1%.",
+   "q": "Which way of saying it can't be misread?",
+   "choices": [
+    "Up by 100 basis points",
+    "Up 10% in the headline",
+    "Up 1% in the headline"
+   ],
+   "answer": "Up by 100 basis points",
+   "why": "Up by 100 basis points. A 10% rise could mean 11% or 20%. Basis points measure the rate's own move, so there's no mix-up.",
+   "lesson_line": "Say rate moves in basis points or percentage points, never in percent.",
+   "facts": [
+    "f150",
+    "f151",
+    "f149",
+    "f136"
+   ],
+   "wrong": {
+    "Up 10% in the headline": "That's a percent of the old rate. Some readers will think the rate is now 20%.",
+    "Up 1% in the headline": "One percent of what? Read as a share of the old rate, it would barely be a change."
+   }
+  },
+  {
+   "key": "q62",
+   "skill": "vocab.macro_terms",
+   "rung": 7,
+   "format": "numeric",
+   "term": "10-year minus 2-year spread",
+   "q": "Oct. 30, 2026: the 2-year Treasury yields 4.56%, the 10-year 4.94%. What is the 10-year minus 2-year spread, in basis points?",
+   "answer": 38,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(ten - two) * 100",
+     "ten": 4.94,
+     "two": 4.56
+    }
+   },
+   "suffix": "basis points",
+   "why": "38 basis points. FRED tracks this spread as the 10-year yield minus the 2-year. Positive means the curve slopes up from 2 to 10 years.",
+   "lesson_line": "Track the 10-year minus 2-year spread in basis points. Below zero, that part of the curve is inverted.",
+   "facts": [
+    "f138",
+    "f129",
+    "f127",
+    "f136",
+    "f123",
+    "f141"
+   ]
+  },
+  {
+   "key": "q63",
+   "skill": "vocab.macro_terms",
+   "rung": 7,
+   "format": "tf",
+   "term": "SOFR",
+   "q": "SOFR, like the federal funds rate, measures unsecured overnight borrowing.",
+   "answer": "False",
+   "why": "False. SOFR covers overnight borrowing backed by Treasury securities. The federal funds market is unsecured lending between banks and a few other institutions.",
+   "lesson_line": "SOFR is the secured overnight rate. Fed funds is the unsecured one.",
+   "facts": [
+    "f59",
+    "f61"
+   ]
+  }
+ ],
+ "conflicts": [
+  "Investopedia lines seen and NOT used: the fed funds page says the December 18, 2024 cut 'marked the first rate cut in over four years' (the Fed cut in September and November 2024 too) and that 'By law, banks must maintain a reserve'; the nonfarm payroll page lists nonprofits among the exclusions, which BLS's CES FAQ does not; the headline-inflation page says headline is 'not adjusted for volatility, including seasonal changes' and 'usually quoted on an annualized basis', while BLS publishes a seasonally adjusted monthly all-items change; the yield-curve page opens by calling the curve a picture of 'yields over time', while Treasury's curve relates yield to time to maturity on one day (q07 teaches the 'over time' reading as the wrong choice). None of those pages is cited.",
+  "Sources dropped for reachability: Investopedia's yield-curve, dove and headline-inflation pages loaded earlier on 2026-11-09 but later the same day refused this machine's plain client (HTTP 402/403), and the Wayback Machine was rate-limited, so their quotes could not be re-confirmed. They were replaced with Tier 1 pages: FDIC's 2006 yield-curve paper and Treasury's FAQ for curve shapes, Governor Mishkin's 2007 speech for headline inflation, and the Investopedia hawk page's own dove sentence (that page was reachable). 'Normal yield curve' is taught as 'sloping up, the usual shape' (q46, w3): Treasury's FAQ says longer maturities only 'sometimes' yield less, and FDIC calls the steep case 'positively sloped'. No reachable official page defined the label 'normal', so the label is not keyed.",
+  "Tiers: Reserve Bank research and education pages (Kansas City Fed Macro Bulletin, St. Louis Fed Open Vault and On the Economy, Cleveland Fed indicator commentary) and the Federal Reserve History essay are filed as Tier 2 (Federal Reserve research), as are NBER's pages (the contract lists NBER under Tier 2). Board of Governors pages and Board members' speeches on federalreserve.gov, the New York Fed's reference-rate pages and the FDIC paper are Tier 1. Keys resting on Tier 2 alone pair two publishers: hawk/dove (Kansas City Fed + Investopedia's hawk page), recession (NBER + Investopedia), dot plot naming (Schwab + Investopedia, with the Fed's SEP guide as Tier 1).",
+  "Mishkin's speech is from 2007, before the FOMC's written 2% PCE goal (2012). It is cited only for what 'headline' means (all items) and why it is noisy, and in q51 next to the current Board page that sets the goal in PCE terms (mp_2pct) and the St. Louis Fed's 2026 note that the objective uses headline PCE.",
+  "Yield-curve false alarms: the Cleveland Fed lists late 1966, late 1998 and late 2022 through late 2024; FDIC (2006, measured with fed funds versus the 10-year) lists 1966, near-inversions in 1987 and 1995, and 1998. The two lists differ by measure; q59 keys only that false alarms happened, with the Cleveland Fed's 2022-24 example in the why.",
+  "Current policy, as of 2026-11-09: the FOMC raised its range 1/4 point to 3-3/4 to 4 percent on September 16, 2026 and held it there on October 28, 2026 with two dissents for a hike. q26 and q49 quote those statements as dated facts; no question asks what the rate is today.",
+  "QT status is not stated or quizzed. q57 asks only how the round that began in 2022 shrank holdings (the May 4, 2022 plan: mainly reduced reinvestment under monthly caps; Governor Waller, March 2024: runoff up to $95 billion a month). Powell (October 14, 2025) says holdings fell $2.2 trillion since June 2022. Whether runoff is running on any later date is left out.",
+  "Live pages: BLS's CPI and CES home pages, BEA's PCE and GDP data pages and the Cleveland Fed table change every month. Every number in this file comes from an archived release (BLS CPI Oct. 14, 2026; BLS Employment Situation Nov. 6, 2026; BEA GDP and Personal Income and Outlays, Oct. 29, 2026) or Treasury's completed October 2026 yield table. From the live pages only definition sentences are quoted. The PPI home page and DOL claims page are quoted for their standing definition and schedule lines only.",
+  "Yield table: Treasury's October 2026 page lists 11 N/A columns (bank discount and coupon equivalent bill rates, 20/30-year extrapolation) before the 14 constant-maturity yields, in the order 1 Mo, 1.5 Mo, 2 Mo, 3 Mo, 4 Mo, 6 Mo, 1 Yr, 2 Yr, 3 Yr, 5 Yr, 7 Yr, 10 Yr, 20 Yr, 30 Yr (fact quoting the header). Oct. 1: 2-year 4.78, 10-year 5.24. Oct. 30: 3-month 4.16, 2-year 4.56, 10-year 4.94, 20-year 5.34, 30-year 5.31. The Cleveland Fed's monthly averages for October (3-month 4.24, 10-year 5.07) are consistent. On Oct. 30 the 20-year sat slightly above the 30-year; q46 shows only the 3-month, 2-year, 10-year and 30-year points, all rising, so its key holds.",
+  "Jobless claims: DOL's archive page says the weekly release comes out Thursday 'at 8:30am EST', with holiday exceptions; q23's lesson says 'usually ... 8:30 a.m. ET'. The release time zone wording follows F7.07's note (daylight months are EDT).",
+  "Annual rate (q52): BEA's Q3 2026 advance release gives both figures, 3.4 percent at an annual rate and 0.8 percent at a quarterly rate. The lesson line says 'roughly a quarter of the headline' as a mental shortcut; the key is the 0.8 percent BEA printed, never a computed division.",
+  "Unemployment classification (q44): BLS counts people on temporary layoff expecting recall as unemployed without a job search (noted in F7.07's conflicts). Dana's job 'ended for good', so the exception does not apply.",
+  "Word Match note for the app owner (not a content conflict): study_store.game_pool('match') takes every approved vocab recall item whose term differs from its answer, which includes true/false items (answer 'True'/'False') and non-definition multiple choice. This file follows the contract (term on every question); the pool would need a kind filter for the pairs to stay meaningful.",
+  "Checker, 2026-11-09: the market nickname '2s10s' was dropped from q62 and fact f138. No Tier 1 or Tier 2 page that uses the name could be read (CME Group's yield-curve pages refused the plain client with HTTP 403 and timed out under WebFetch), so q62 teaches it as FRED's '10-year minus 2-year' spread. 'Official recession' wording (q55, q60) now names the NBER, which its own FAQ calls the 'quasi-official arbiter of US business cycle dates' (f172)."
+ ],
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "notes": "f4, f1, f23, f157, f159, f54 re-read in context on federalreserve.gov, KC Fed, St. Louis Fed: eight scheduled meetings, target range, hawk/dove, QE/QT all match.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "Changed 'the two jumpiest parts' (a superlative no source states) to 'two categories whose prices swing a lot' and added f41 (Fed FAQ). PCE goal (f16), two surveys (f90, f91, f100), GDP/real GDP (f104, f106) re-checked.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "f133 (SEC), f136, f23, f125, f122/f123, f141, f166/f167 re-read in context. 'Usually slopes up' rests on Treasury's FAQ saying longer maturities only 'sometimes' yield less.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q01": {
+   "status": "pass",
+   "notes": "f1/f17 (Fed) define fed funds; SOFR secured (f59, NY Fed), bills (f19), IORB (f18) wrong choices hold. Lesson now says 'target range' to match the statements (f32 added).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q02": {
+   "status": "pass",
+   "notes": "f12-f14 (Board pages): dual mandate = max employment + stable prices; moderate long-term rates noted. Dollar and stock prices are not legal goals (f13); f6, f29 support the side-effect lines. variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q03": {
+   "status": "pass",
+   "notes": "Two Tier 2 publishers agree (KC Fed Macro Bulletin f157, Investopedia f152). Dove, QE (f54), bear (f153) distractors correctly wrong.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q04": {
+   "status": "pass",
+   "notes": "f62 (BLS CPI FAQ) keys CPI; PPI (f78) wrong. Removed 'covers a wider range of spending' from the PCE wrong-line: no cited quote compares the scope of PCE and CPI.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q05": {
+   "status": "pass",
+   "notes": "BLS CES FAQ (f85, f86, f89, f90): payroll jobs from establishments incl. civilian government; excludes farm, self-employed, household workers. Answer is 40 characters. variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q06": {
+   "status": "pass",
+   "notes": "BEA learning center f104 defines GDP; government spending is one component (f113, Q3 2026 release); money supply line from Fed FAQ f47.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q07": {
+   "status": "pass",
+   "notes": "Treasury par-curve text f125/f126 (1 month to 30 years) and FDIC f140. Dot plot (f39) and one-yield-over-time distractors correctly wrong. variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q08": {
+   "status": "pass",
+   "notes": "Investor.gov f136 and Fed table footnote f30: 1 bp = 0.01 percentage point; 8% = 800 bp. Relative-change distractor explained with Investopedia f150.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q09": {
+   "status": "pass",
+   "notes": "Waller speech f54 (LSAPs), Fed History f165, St. Louis Fed f159/f160/f162 and Board f27 all support; QT runoff and rate-cut distractors correctly wrong.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q10": {
+   "status": "pass",
+   "notes": "Fed FOMC page f4 and FAQ f8/f9: eight scheduled meetings, about every six weeks, unscheduled ones possible. Bank words are all real agencies, only FOMC fits.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q11": {
+   "status": "pass",
+   "notes": "St. Louis Fed f159/f162 and May 2022 plan f49: QT shrinks the balance sheet by not replacing maturing bonds. Taper (Powell f57) is a slowdown of purchases, not shrinking.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q12": {
+   "status": "pass",
+   "notes": "BLS CPI FAQ f65/f66. 'What most people call' was unsupported, so the sentence now says 'often called'; the why follows BLS's 'relatively volatile' and 'some users'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q13": {
+   "status": "pass",
+   "notes": "BEA f79/f80: PCE prices paid by people living in the U.S.; PPI (f78), GDP (f104), CPI's urban populations (f63) make the wrong choices wrong.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q14": {
+   "status": "pass",
+   "notes": "BLS glossary f76 and CPS page f94/f95 key it. BLS counts temporary-layoff workers as unemployed without a search (f173 added), so the why and lesson now say 'most' / 'usually' instead of an absolute. variety rewrite checked 2026-11-10",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q15": {
+   "status": "pass",
+   "notes": "Treasury FAQ f122/f123 and FDIC f141 define inversion; FDIC f143 (steep = positively sloped) and f142 (flattening) make the other two wrong.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q16": {
+   "status": "pass",
+   "notes": "NY Fed SOFR page f59/f60 (Treasury-collateralized, published each business day); NY Fed EFFR page f61 (fed funds unsecured). Answer is 40 characters. variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q17": {
+   "status": "pass",
+   "notes": "BLS CPS page f98: the monthly release is titled The Employment Situation; f100 confirms it carries both surveys. Other bank items are real, different releases.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q18": {
+   "status": "pass",
+   "notes": "Fed Beige Book page f51/f52 (eight times a year, anecdotal District reports). Minutes (f36), SEP (f37), H.4.1 Thursdays (f53) all correctly placed elsewhere.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q19": {
+   "status": "pass",
+   "notes": "KC Fed f157 and Investopedia f139: doves favor easier policy and low rates for employment. Bear/bull are market words (f153).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q20": {
+   "status": "pass",
+   "notes": "Current Fed calendar page f36 and FAQ f11: minutes three weeks after the decision, transcripts after five years, statement on the day (f10).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q21": {
+   "status": "pass",
+   "notes": "BLS CPI FAQ f64 excludes stocks, bonds, real estate, life insurance. Lesson no longer calls CPI 'the cost of living' (BLS distinguishes CPI from a full cost-of-living index); now 'day-to-day spending', BLS's own words. variety rewrite checked 2026-11-10",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q22": {
+   "status": "pass",
+   "notes": "BLS PPI home f78 keys PPI; CPI (f62) and PCE (f80) are consumer measures. Fed tracks both CPI and PPI (f43).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q23": {
+   "status": "pass",
+   "notes": "BLS CPS page f96/f97 define initial and continuing claims; DOL page f103 gives Thursday 8:30 release (holiday exceptions noted in conflicts).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q24": {
+   "status": "pass",
+   "notes": "SEC bulletin f133 says rates and bond prices 'generally' move opposite for fixed-rate bonds. Statement narrowed to fixed-rate Treasuries (floating-rate notes exist) and the why now follows the SEC wording.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q25": {
+   "status": "pass",
+   "notes": "Fed FAQ f44-f47: M2 = M1 + small time deposits + retail money funds, H.6 release. Bond-holdings wrong-line now says 'securities holdings' (f48) instead of equating them with the whole balance sheet. flagged-question fix checked 2026-11-11",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q26": {
+   "status": "pass",
+   "notes": "Board page f23: range 25 bp wide since December 2008; Sept 16 and Oct 28, 2026 statements (re-fetched live) both quote 3-3/4 to 4 percent.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q27": {
+   "status": "pass",
+   "notes": "SEP guide f39 (midpoint of appropriate range, year-end or longer run), Schwab f170/f171, Investopedia f155. The why had a 27-word sentence (over the 22 limit); split in two.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q28": {
+   "status": "pass",
+   "notes": "Board page f21: easing = reducing the fed funds target; f22 tightening; taper is purchases (f57).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q29": {
+   "status": "pass",
+   "notes": "Mishkin speech f146/f147 (headline = all items, noisy), St. Louis Fed f163; core, disinflation (f73), deflation (f74) distractors correctly wrong.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q30": {
+   "status": "pass",
+   "notes": "BLS Beyond the Numbers f73: disinflation = prices still increased but by less. Deflation (f74) and core (f65) distractors correctly wrong.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q31": {
+   "status": "pass",
+   "notes": "BEA learning center f106/f107/f109: real GDP adjusted for inflation; nominal uses period prices; three estimates per quarter.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q32": {
+   "status": "pass",
+   "notes": "Sept 16, 2026 statement f32 (1/4 percentage point) and Investor.gov f136: a quarter point is 25 bp. Other bank words do not fit.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q33": {
+   "status": "pass",
+   "notes": "Powell Oct 2025 speech f57 (November 2021 phaseout, doubled pace in December). 'Sell bonds' wrong-line no longer equates QT with selling (q57 teaches QT was runoff); f56 added.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q34": {
+   "status": "pass",
+   "notes": "BEA PCE pages f80/f81: PCE and core PCE come out in the monthly Personal Income and Outlays report.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q35": {
+   "status": "pass",
+   "notes": "Board page f15 and FOMC page f2/f3: all 12 presidents attend, five vote. The why's 23-word sentence split to meet the 22-word limit. variety rewrite checked 2026-11-10 (edited: q)",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q36": {
+   "status": "pass",
+   "notes": "Board page f24/f25 (forward guidance near zero, expected rates and long yields fell); f20 supports the lesson.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q37": {
+   "status": "pass",
+   "notes": "Current SEP guide f37/f38: projections at the March, June, September and December meetings, released shortly after.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q38": {
+   "status": "pass",
+   "notes": "Re-parsed Treasury's October 2026 table HTML: header '10 Yr' column reads 5.24 on 10/01/2026 and 4.94 on 10/30/2026. calc (5.24-4.94)*100 = 30 recomputed by hand.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q39": {
+   "status": "pass",
+   "notes": "Mishkin f147 (Tier 1, headline noisy), BEA core page f82 context (food and energy swing more), St. Louis Fed f164. Why now attributes the blog finding to 'a St. Louis Fed economist'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q40": {
+   "status": "pass",
+   "notes": "Oct 2026 Employment Situation f100 and CES FAQ f90/f91: establishment survey gives payrolls, household survey the unemployment rate; claims are DOL (f103).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q41": {
+   "status": "pass",
+   "notes": "BEA learning center f109-f111: three estimates per quarter; advance is an early look.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q42": {
+   "status": "pass",
+   "notes": "Fed FAQ f44: M2 includes retail money market fund shares.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q43": {
+   "status": "pass",
+   "notes": "TreasuryDirect f130-f132: notes mature in 2-10 years, so the 10-year is a note; bills a year or less; bonds 20 or 30 years.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q44": {
+   "status": "pass",
+   "notes": "CPS page f93/f95 and Oct 2026 release f102: no search in prior 4 weeks means not unemployed. 'Ended for good' rules out the temporary-layoff exception (f173 added). Lesson now says 'usually'. flagged-question fix checked 2026-11-11 Wrong choice shortened to \"Unemployed; wants work\" so the three choices are the same length.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q45": {
+   "status": "pass",
+   "notes": "St. Louis Fed f160 and Board f26/f27: with the rate near zero the FOMC bought longer-term securities to push long rates down = QE.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q46": {
+   "status": "pass",
+   "notes": "Re-parsed Treasury HTML for 10/30/2026: 3 Mo 4.16, 2 Yr 4.56, 10 Yr 4.94, 30 Yr 5.31, all rising (20 Yr 5.34 omitted, noted in conflicts). Flat wrong-line had an uncomputed 'more than a point'; now quotes the two yields. flagged-question fix checked 2026-11-11 Flat choice shortened to \"Flat, short close to long\" so the right choice is not the shortest.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q47": {
+   "status": "pass",
+   "notes": "CME FedWatch page f137: probabilities implied by 30-Day Fed Funds futures prices. Votes, survey and dot plot distractors correctly wrong.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q48": {
+   "status": "pass",
+   "notes": "BLS glossary f74/f75: deflation = falling prices; -2% turns a $1 basket into $0.98. Disinflation (f73) and recession (f114) correctly wrong.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q49": {
+   "status": "pass",
+   "notes": "Oct 28, 2026 statement re-fetched live: 10-2 vote, hold at 3-3/4 to 4 percent, Cook and Hammack preferred a 1/4-point hike. Wanting tighter policy fits hawk (f157, f152).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q50": {
+   "status": "pass",
+   "notes": "Sept 2026 CPI release re-fetched live: all items +0.6%, gasoline +9.1% over half the rise, core +0.3%, food unchanged; shelter sits in the core section. Why's 'so it rose 0.3%' causal wording fixed.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q51": {
+   "status": "pass",
+   "notes": "Board page f16 (2% goal in PCE), BEA Sept 2026 release re-fetched (PCE 3.6%, core 3.1%), BLS CPI 3.7% (f72). Key and distractors correct.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q52": {
+   "status": "pass",
+   "notes": "BEA Q3 2026 advance release re-fetched: 3.4% annual rate, 0.8% quarterly rate. Lesson's 'roughly a quarter of the headline' was an unsourced computed shortcut; replaced with a plain warning.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q53": {
+   "status": "pass",
+   "notes": "CES FAQ f87 (a person on two payrolls counted at each) and f91; Oct 2026 release (165,000 jobs, 7.1 million unemployed) re-fetched live.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q54": {
+   "status": "pass",
+   "notes": "SEC f133, FINRA f135, Investor.gov f134; Treasury table 10 Yr 5.24 to 4.94 verified from the HTML. Falling yields mean a fixed-rate note's price rose.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q55": {
+   "status": "pass",
+   "notes": "NBER FAQ f114-f116. 'Official definition' was loose: NBER calls itself the 'quasi-official arbiter' (f172 added). Statement now names the NBER; key False unchanged.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q56": {
+   "status": "pass",
+   "notes": "SEP guide f37 (every governor and every Reserve Bank president), KC Fed f158 and Investopedia f156 (dots unattributed). variety rewrite checked 2026-11-10 (edited: q)",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q57": {
+   "status": "pass",
+   "notes": "May 4, 2022 plan f49/f50 and Waller f55 ($95 billion a month runoff). Why reworded to 'run off without reinvestment, up to monthly caps', matching the plan's mechanics.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q58": {
+   "status": "pass",
+   "notes": "Powell Oct 14, 2025 speech footnote 10 re-fetched live (f58). QT began October 2017 (f28) and QE ran to October 2014 (f161), so the QT wrong-line holds.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q59": {
+   "status": "pass",
+   "notes": "Cleveland Fed f166/f167/f169 (rule of thumb, three false positives incl. late 2022-late 2024) and FDIC f144/f145. Key False; f166 claim now keeps the 'rule of thumb' hedge. variety rewrite checked 2026-11-10 (edited: q)",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q60": {
+   "status": "pass",
+   "notes": "NBER FAQ table f117/f118 (Dec 2007 peak announced Dec 1, 2008; gaps 4 to 21 months) and f119. Wording now 'the NBER's recession call' instead of 'official' (f172).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q61": {
+   "status": "pass",
+   "notes": "Investopedia basis-point page f150/f151: a 10% rate 'up 10%' could mean 11% or 20%; 100 bp takes 10% to 11%. Both percent wordings genuinely ambiguous. flagged-question fix checked 2026-11-11 Right choice lengthened to \"Up by 100 basis points\" so it is not the shortest.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q62": {
+   "status": "pass",
+   "notes": "calc (4.94-4.56)*100 = 38 recomputed from Treasury HTML columns. The '2s10s' nickname had no readable reliable source (CME 403/timeout), so it is taught as FRED's 10-year minus 2-year spread (f138).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q63": {
+   "status": "pass",
+   "notes": "NY Fed SOFR f59 (collateralized by Treasuries) vs NY Fed EFFR f61 (unsecured). Key False. Same contrast as q16 but asked as a true/false trap, not a definition.",
+   "fixed": false,
+   "by": "checker"
+  }
+ }
+}

@@ -1,0 +1,1450 @@
+{
+ "unit": "F6.02",
+ "track": "F6",
+ "title": "What you pay: premium",
+ "teaches": "The premium is the option's price, quoted per share and paid per contract (usually 100 shares); buying opens a debit and caps your loss at the premium, selling opens a credit that caps your gain, not your loss.",
+ "skills": [
+  {
+   "id": "options.premium",
+   "title": "What you pay: premium"
+  }
+ ],
+ "as_of": "2026-11-09",
+ "sources": [
+  {
+   "id": "s1",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "What is an Option?",
+   "url": "https://www.optionseducation.org/optionsoverview/what-is-an-option",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s2",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Options Basics",
+   "url": "https://www.optionseducation.org/optionsoverview/options-basics",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s3",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Options Pricing",
+   "url": "https://www.optionseducation.org/optionsoverview/options-pricing",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s4",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Leverage & Risk",
+   "url": "https://www.optionseducation.org/optionsoverview/leverage-risk",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s5",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "What are the Benefits & Risks?",
+   "url": "https://www.optionseducation.org/optionsoverview/what-are-the-benefits-risks",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s6",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Long Call",
+   "url": "https://www.optionseducation.org/strategies/all-strategies/long-call",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s7",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Bull Call Spread (Debit Call Spread)",
+   "url": "https://www.optionseducation.org/strategies/all-strategies/bull-call-spread-debit-call-spread",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s8",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Bull Put Spread (Credit Put Spread)",
+   "url": "https://www.optionseducation.org/strategies/all-strategies/bull-put-spread-credit-put-spread",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s9",
+   "tier": 1,
+   "publisher": "The Options Clearing Corporation and the US options exchanges",
+   "title": "Characteristics and Risks of Standardized Options (June 2024 edition)",
+   "url": "https://cdn.robinhood.com/assets/robinhood/legal/Characteristics%20and%20Risks%20of%20Standardized%20Options.pdf",
+   "accessed": "2026-11-09",
+   "why_reliable": "The official options disclosure document every options customer must receive (June 2024 edition; its cover reads JUNE 2024 and it is copyright the US options exchanges and OCC). theocc.com refuses plain clients, so this cites the copy Robinhood distributes to its customers, the same copy F6.03 cites."
+  },
+  {
+   "id": "s10",
+   "tier": 1,
+   "publisher": "FINRA",
+   "title": "Options",
+   "url": "https://www.finra.org/investors/investing/investment-products/options",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s11",
+   "tier": 1,
+   "publisher": "FINRA",
+   "title": "4210. Margin Requirements (version effective Oct 22, 2026 onwards)",
+   "url": "https://www.finra.org/rules-guidance/rulebooks/finra-rules/4210",
+   "accessed": "2026-11-09",
+   "why_reliable": "FINRA's own rulebook page. Read 2026-11-09: the page lists the current version as 'Oct 22, 2026 onwards' (last amended by SR-FINRA-2026-022), and the long-option margin text quoted here is in that current version."
+  },
+  {
+   "id": "s12",
+   "tier": 2,
+   "publisher": "Fidelity",
+   "title": "Understanding options pricing",
+   "url": "https://www.fidelity.com/learning-center/trading-investing/understanding-options-pricing",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s13",
+   "tier": 2,
+   "publisher": "Fidelity",
+   "title": "What Is A Bull Call Spread? (Options Strategy Guide)",
+   "url": "https://www.fidelity.com/learning-center/investment-products/options/options-strategy-guide/bull-call-spread",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s14",
+   "tier": 2,
+   "publisher": "Fidelity",
+   "title": "Bull Put Spread (Options Strategy Guide)",
+   "url": "https://www.fidelity.com/learning-center/investment-products/options/options-strategy-guide/bull-put-spread",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s15",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Exercising Options",
+   "url": "https://www.optionseducation.org/optionsoverview/exercising-options",
+   "accessed": "2026-11-09"
+  }
+ ],
+ "facts": [
+  {
+   "id": "f1",
+   "source": "s1",
+   "quote": "When you buy an option, the purchase price is called the premium. If you sell, the premium is the amount you receive.",
+   "claim": "The premium is the option's price: the buyer pays it and the seller receives it."
+  },
+  {
+   "id": "f2",
+   "source": "s1",
+   "quote": "The premium isn't fixed and changes constantly.",
+   "claim": "An option's premium is not fixed; it changes all the time."
+  },
+  {
+   "id": "f3",
+   "source": "s1",
+   "quote": "Changing prices reflect the give and take between what buyers are willing to pay and what sellers are willing to accept for the option.",
+   "claim": "The premium moves with what buyers will pay and what sellers will accept."
+  },
+  {
+   "id": "f4",
+   "source": "s1",
+   "quote": "If you buy options, you begin with a net debit. That means you've spent money you might never recover if you don't sell your option at a profit or exercise it.",
+   "claim": "Buying an option opens with a net debit: money spent that you may never get back."
+  },
+  {
+   "id": "f5",
+   "source": "s1",
+   "quote": "If you do make money on a transaction, you must subtract the cost of the premium from any income to find net profit.",
+   "claim": "Your profit is what you take in minus the premium you paid."
+  },
+  {
+   "id": "f6",
+   "source": "s1",
+   "quote": "As a seller, you begin with a net credit because you collect the premium. If the option is never exercised, you keep the money.",
+   "claim": "Selling an option opens with a net credit: you collect the premium and keep it if the option is never exercised."
+  },
+  {
+   "id": "f7",
+   "source": "s1",
+   "quote": "All market participants affect the price of an options through the process of supply and demand where buyers and sellers come together creating best bid/ask of all bids and offers.",
+   "claim": "Option prices come from supply and demand, shown as the best bid and ask."
+  },
+  {
+   "id": "f8",
+   "source": "s2",
+   "quote": "Equity option contracts usually represent 100 shares of the underlying stock.",
+   "claim": "A stock option contract usually covers 100 shares."
+  },
+  {
+   "id": "f9",
+   "source": "s2",
+   "quote": "Buyers and sellers set option prices in the exchange markets.",
+   "claim": "Buyers and sellers on the exchanges set option prices."
+  },
+  {
+   "id": "f10",
+   "source": "s2",
+   "quote": "An option's price is called the premium and is priced at a per share basis. The option holder’s potential loss is limited to the initial premium paid for the contract.",
+   "claim": "The premium is quoted per share, and a buyer's loss is limited to the premium paid."
+  },
+  {
+   "id": "f11",
+   "source": "s2",
+   "quote": "the writer collects the premium and has theoretically unlimited loss potential for a call option and substantial loss potential for a put option.",
+   "claim": "A seller collects the premium but can lose without limit on a call and a lot on a put."
+  },
+  {
+   "id": "f12",
+   "source": "s3",
+   "quote": "Factors having a significant effect on options premium include: Underlying price Strike Time until expiration Implied volatility Dividends Interest rate",
+   "claim": "The premium is driven by the stock price, the strike, time to expiry, implied volatility, dividends and interest rates."
+  },
+  {
+   "id": "f13",
+   "source": "s3",
+   "quote": "Dividends and risk-free interest rate have a lesser effect.",
+   "claim": "Dividends and interest rates move the premium less than the other factors."
+  },
+  {
+   "id": "f14",
+   "source": "s3",
+   "quote": "These price changes have opposite effects on calls and puts. For instance, as the value of the underlying security rises, a call will generally increase. However, the value of a put will generally decrease in price.",
+   "claim": "A rising stock generally lifts calls and lowers puts."
+  },
+  {
+   "id": "f15",
+   "source": "s3",
+   "quote": "Higher volatility estimates indicate greater expected fluctuations (in either direction) in underlying price levels. This expectation generally results in higher option premiums for puts and calls alike.",
+   "claim": "Higher expected movement generally means higher premiums for calls and puts."
+  },
+  {
+   "id": "f16",
+   "source": "s3",
+   "quote": "Generally, as expiration approaches, the levels of an option's time value decrease or erode for both puts and calls.",
+   "claim": "Time value generally erodes as expiry approaches, for calls and puts."
+  },
+  {
+   "id": "f17",
+   "source": "s4",
+   "quote": "if the owner's options expire with no value, this loss can be the entire amount of the premium paid for the option. An uncovered option writer may face unlimited risk.",
+   "claim": "A buyer whose options expire worthless loses the whole premium; an uncovered writer can face unlimited risk."
+  },
+  {
+   "id": "f18",
+   "source": "s4",
+   "quote": "For a put, the fact that the stock cannot fall below $0 in price limits the risk of loss. This potential loss could still be quite large if the underlying stock declines significantly in price.",
+   "claim": "A put seller's loss stops at a stock price of zero, but it can still be very large."
+  },
+  {
+   "id": "f19",
+   "source": "s5",
+   "quote": "As an options holder, you risk the entire amount of the premium you pay.",
+   "claim": "An option buyer risks the whole premium paid."
+  },
+  {
+   "id": "f20",
+   "source": "s5",
+   "quote": "if you write an uncovered call, you face unlimited potential loss, since there is no cap on how high a stock price can rise.",
+   "claim": "Writing an uncovered call carries unlimited risk because a stock has no price ceiling."
+  },
+  {
+   "id": "f21",
+   "source": "s6",
+   "quote": "An option holder cannot lose more than the initial price paid for the option.",
+   "claim": "An option buyer cannot lose more than the price paid."
+  },
+  {
+   "id": "f22",
+   "source": "s6",
+   "quote": "it might make sense to sell the call while it still has some time value. A timely decision might allow the investor to recoup some or even all of the investment.",
+   "claim": "Selling a losing call while it still has value can recover part of what you paid."
+  },
+  {
+   "id": "f23",
+   "source": "s6",
+   "quote": "Since this investor did not originally set aside the cash to buy the stock, an unexpected exercise could be a major inconvenience and require urgent measures to come up with the cash for settlement.",
+   "claim": "If a call is exercised and you haven't set aside cash for the shares, you have to find it fast."
+  },
+  {
+   "id": "f24",
+   "source": "s7",
+   "quote": "The strike price of the short call is higher than the strike of the long call, which means this strategy will always require an initial outlay (debit).",
+   "claim": "A bull call spread always opens as a debit."
+  },
+  {
+   "id": "f25",
+   "source": "s7",
+   "quote": "The short call's main purpose is to help pay for the long call's upfront cost.",
+   "claim": "The call you sell in a bull call spread helps pay for the call you buy."
+  },
+  {
+   "id": "f26",
+   "source": "s8",
+   "quote": "Because of the relationship between the two strike prices, the investor will always receive a premium (credit) when initiating this position.",
+   "claim": "A bull put spread always opens as a credit."
+  },
+  {
+   "id": "f27",
+   "source": "s8",
+   "quote": "The most this spread can earn is the net premium received at the outset",
+   "claim": "The most a bull put spread can make is the credit received."
+  },
+  {
+   "id": "f28",
+   "source": "s8",
+   "quote": "The maximum loss is the difference between the strikes, less the credit received when putting on the position.",
+   "claim": "A bull put spread's maximum loss is the strike width minus the credit."
+  },
+  {
+   "id": "f29",
+   "source": "s7",
+   "quote": "The bull call spread requires a known initial outlay for an unknown eventual return; the bull put spread produces a known initial cash inflow in exchange for a possible outlay later on.",
+   "claim": "A debit spread pays out cash now; a credit spread takes cash in now but may cost money later."
+  },
+  {
+   "id": "f30",
+   "source": "s9",
+   "quote": "The premium is the price that the holder of an option pays and the writer of an option receives for the rights conveyed by the option.",
+   "claim": "The premium is what the buyer pays and the seller receives for the option's rights."
+  },
+  {
+   "id": "f31",
+   "source": "s9",
+   "quote": "The premium does not constitute a “down-payment.”",
+   "claim": "The premium is not a down payment on the shares."
+  },
+  {
+   "id": "f32",
+   "source": "s9",
+   "quote": "The premium is not fixed by the options markets or by OCC.",
+   "claim": "Neither the exchanges nor the OCC fix the premium."
+  },
+  {
+   "id": "f33",
+   "source": "s9",
+   "quote": "the unit of trading for most options on equity securities is 100 shares.",
+   "claim": "Most stock options trade in units of 100 shares."
+  },
+  {
+   "id": "f34",
+   "source": "s9",
+   "quote": "If the option is trading at a premium of, say, $4 per share, then the aggregate premium for a single option contract would be $400.",
+   "claim": "A premium of 4 dollars a share means 400 dollars for one contract."
+  },
+  {
+   "id": "f35",
+   "source": "s9",
+   "quote": "In June an investor buys a December XYZ 50 call at an aggregate premium of $500.",
+   "claim": "In the example, the investor pays 500 dollars in total for the call."
+  },
+  {
+   "id": "f36",
+   "source": "s9",
+   "quote": "if by September the market price of the option has decreased to $300, the investor might still decide to sell the option in a closing transaction, thereby limiting his loss to $200.",
+   "claim": "When the call falls to 300 dollars, selling it to close limits the loss to 200 dollars."
+  },
+  {
+   "id": "f37",
+   "source": "s9",
+   "quote": "An option holder runs the risk of losing the entire amount paid for the option in a relatively short period of time.",
+   "claim": "A buyer can lose everything paid for an option, and fast."
+  },
+  {
+   "id": "f38",
+   "source": "s9",
+   "quote": "An investor receives a premium of $4 a share for writing an uncovered XYZ 50 call option and the stock price jumps to $69 as the option approaches expiration.",
+   "claim": "In the example, a 4-dollar uncovered call is written and the stock jumps to 69."
+  },
+  {
+   "id": "f39",
+   "source": "s9",
+   "quote": "If the investor liquidates his option position at, say, $19, in an offsetting closing purchase transaction, he will incur a loss of $1,500 (the $1,900 paid in the offsetting purchase transaction less the $400 option premium",
+   "claim": "Buying it back at 19 loses 1,500 dollars: 1,900 paid less the 400 collected."
+  },
+  {
+   "id": "f40",
+   "source": "s9",
+   "quote": "The writer of a put option bears a risk of loss if the value of the underlying interest declines below the exercise price, and such loss could be substantial if the decline is significant",
+   "claim": "A put seller loses if the stock falls below the strike, and the loss can be large."
+  },
+  {
+   "id": "f41",
+   "source": "s9",
+   "quote": "A writer of a physical delivery put who is assigned an exercise must purchase the underlying interest at the exercise price",
+   "claim": "An assigned put seller must buy the shares at the strike."
+  },
+  {
+   "id": "f42",
+   "source": "s9",
+   "quote": "Investor C invests his entire $5,000 in 10 XYZ 50 calls.",
+   "claim": "Investor C puts the whole 5,000 dollars into 10 calls."
+  },
+  {
+   "id": "f43",
+   "source": "s9",
+   "quote": "Investor B invests $500 in the purchase of an XYZ 50 call (covering 100 shares of XYZ at a premium of $5 a share)",
+   "claim": "Investor B spends 500 dollars on one call at 5 dollars a share."
+  },
+  {
+   "id": "f44",
+   "source": "s9",
+   "quote": "would lose all of his investment if the price of XYZ stayed at or below 50.",
+   "claim": "Investor C loses everything if the stock ends at or below 50."
+  },
+  {
+   "id": "f45",
+   "source": "s9",
+   "quote": "The impact of transaction costs on profitability is often greater for options transactions than for transactions in the underlying interests because these costs are often greater in relation to options premiums",
+   "claim": "Commissions often weigh more on options than on stock because they are large next to the premium."
+  },
+  {
+   "id": "f46",
+   "source": "s9",
+   "quote": "The transaction costs of options investing consist primarily of commissions (which are imposed in opening, closing, exercise and assignment transactions)",
+   "claim": "Options trades cost commissions to open, close, exercise and be assigned."
+  },
+  {
+   "id": "f47",
+   "source": "s10",
+   "quote": "A standard-size options contract is equal to 100 shares of the underlying security.",
+   "claim": "A standard options contract equals 100 shares."
+  },
+  {
+   "id": "f48",
+   "source": "s10",
+   "quote": "For the purchaser of an option, the premium paid is your maximum loss. For the seller of an option, the premium you receive at the time of the sale is your maximum profit.",
+   "claim": "A buyer's maximum loss is the premium paid; a seller's maximum profit is the premium received."
+  },
+  {
+   "id": "f49",
+   "source": "s10",
+   "quote": "In the case of an uncovered, or naked, call, where an investor sells a call option without owning the underlying stock, the maximum loss is theoretically unlimited.",
+   "claim": "Selling a call without owning the stock has a theoretically unlimited maximum loss."
+  },
+  {
+   "id": "f50",
+   "source": "s10",
+   "quote": "The premium is a nonrefundable payment in full from the purchaser to the seller in exchange for the rights conveyed by the option.",
+   "claim": "The premium is paid in full and never refunded."
+  },
+  {
+   "id": "f51",
+   "source": "s10",
+   "quote": "Because one options contract is tied to 100 shares of stock, exercising a call can require substantial funds. For a contract with a strike price of $100, the owner of a call would need $10,000 to exercise.",
+   "claim": "Exercising one call costs the strike times 100: 10,000 dollars for a 100 strike."
+  },
+  {
+   "id": "f52",
+   "source": "s11",
+   "quote": "carried \"long\" in a customer's account that expires in nine months or less, initial margin must be deposited and maintained equal to at least 100 percent of the purchase price of the option",
+   "claim": "Under FINRA's rule, an option you buy that expires in nine months or less must be paid for in full."
+  },
+  {
+   "id": "f53",
+   "source": "s11",
+   "quote": "\"Long\" options must be paid for in full. The proceeds of the \"short\" options may be applied towards the cost of the \"long\" options and/or any margin requirement.",
+   "claim": "In a spread, the options you buy are paid in full, and the premium from the ones you sell can go toward that cost."
+  },
+  {
+   "id": "f54",
+   "source": "s12",
+   "quote": "an option seller could expect to receive a total premium of $790 ($7.90 premium x 100 shares) and an option buyer could expect to pay a total premium of $800 ($8.00 premium x 100 shares)",
+   "claim": "With bid 7.90 and ask 8.00, a seller receives 790 dollars and a buyer pays 800 dollars per contract."
+  },
+  {
+   "id": "f55",
+   "source": "s12",
+   "quote": "An option has a bid of $7.90 and an ask of $8.00.",
+   "claim": "The example quote is bid 7.90, ask 8.00."
+  },
+  {
+   "id": "f56",
+   "source": "s12",
+   "quote": "Options buyers focus on the ask price as it represents the cost and risk of purchasing an option. Sellers focus on the bid price, which is the premium received for taking on the contract's risk.",
+   "claim": "A buyer pays the ask and a seller receives the bid."
+  },
+  {
+   "id": "f57",
+   "source": "s12",
+   "quote": "Sell the call option and lock in a theoretical profit of $400 ($5 sale − $1 purchase = $4 profit x 100 shares = $400.)",
+   "claim": "Profit on one contract is sale price minus purchase price, times 100."
+  },
+  {
+   "id": "f58",
+   "source": "s13",
+   "quote": "Buy 1 JKL 100 call at (3.30) Sell 1 JKL 105 call at 1.50 Net cost = (1.80)",
+   "claim": "Buying a call at 3.30 and selling a higher-strike call at 1.50 nets a cost of 1.80 a share."
+  },
+  {
+   "id": "f59",
+   "source": "s13",
+   "quote": "the term “debit” refers to the fact that the strategy is created for a net cost, or net debit.",
+   "claim": "A debit spread is one that costs you money to open."
+  },
+  {
+   "id": "f60",
+   "source": "s14",
+   "quote": "Sell 1 JKL 100 put at 3.20 Buy 1 JKL 95 put at (1.30) Net credit = 1.90",
+   "claim": "Selling a put at 3.20 and buying a lower-strike put at 1.30 nets a credit of 1.90 a share."
+  },
+  {
+   "id": "f61",
+   "source": "s14",
+   "quote": "The term “credit” refers to the fact that the strategy is created for a net credit, or net amount received.",
+   "claim": "A credit spread is one that pays you money to open."
+  },
+  {
+   "id": "f62",
+   "source": "s14",
+   "quote": "The maximum risk is equal to the difference between the strike prices minus the net credit received including commissions.",
+   "claim": "A bull put spread's maximum risk is the strike width minus the net credit."
+  },
+  {
+   "id": "f63",
+   "source": "s15",
+   "quote": "When an investor exercises a call option, the net price paid for the underlying stock on a per share basis is the sum of the call's strike price plus the premium paid for the call.",
+   "claim": "Shares bought by exercising a call really cost the strike plus the premium paid."
+  },
+  {
+   "id": "f64",
+   "source": "s9",
+   "quote": "Readers should not assume that options premiums will necessarily conform or correlate with any theoretical options pricing formula, chart, last sale, or the prices of the underlying interest, related interests or other options at any particular time.",
+   "claim": "A premium need not match the last sale, a formula or a chart at any moment."
+  },
+  {
+   "id": "f65",
+   "source": "s15",
+   "quote": "an investor who has written a call contract is assigned an exercise notice on that call, the net price received on per share basis is the sum of the call's strike price plus the premium received",
+   "claim": "An assigned call seller receives the strike for the shares, plus the premium collected earlier."
+  }
+ ],
+ "walkthroughs": [
+  {
+   "key": "w1",
+   "title": "A quote is per share",
+   "steps": [
+    "Stock option prices are quoted per share.",
+    "Most stock option contracts cover 100 shares.",
+    "So a $4 quote costs $400 for one contract, before commissions."
+   ],
+   "facts": [
+    "f10",
+    "f33",
+    "f34"
+   ]
+  },
+  {
+   "key": "w2",
+   "title": "Debit or credit",
+   "steps": [
+    "Buy an option and you start with a net debit. The premium leaves your account.",
+    "Sell one to open and you start with a net credit. The premium comes in.",
+    "With two legs, net them. Pay more than you collect and it's a debit. Collect more and it's a credit."
+   ],
+   "facts": [
+    "f4",
+    "f6",
+    "f53",
+    "f58",
+    "f60",
+    "f59",
+    "f61"
+   ]
+  },
+  {
+   "key": "w3",
+   "title": "What each side can lose",
+   "steps": [
+    "A buyer can't lose more than the premium paid, plus commissions.",
+    "A seller's best case is keeping the premium collected.",
+    "A seller's worst case is much bigger. On a call written without the stock, there's no ceiling."
+   ],
+   "facts": [
+    "f21",
+    "f46",
+    "f48",
+    "f49",
+    "f11"
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "key": "q01",
+   "skill": "options.premium",
+   "rung": 1,
+   "format": "mcq",
+   "q": "In options, what does the premium mean?",
+   "choices": [
+    "The price paid for the option",
+    "The strike price",
+    "A deposit toward the shares",
+    "The broker's commission"
+   ],
+   "answer": "The price paid for the option",
+   "term": "Premium",
+   "why": "The price paid for the option. The buyer pays it, the seller receives it, and it changes all day.",
+   "lesson_line": "Premium is just the option's price. The buyer pays it, the seller collects it.",
+   "facts": [
+    "f1",
+    "f30",
+    "f2",
+    "f31",
+    "f46"
+   ],
+   "wrong": {
+    "The strike price": "The strike is the price you'd buy or sell the shares at if you exercise. The premium is what the option itself costs.",
+    "A deposit toward the shares": "It isn't a down payment on the shares. It pays for the right, and that's all it buys.",
+    "The broker's commission": "Commissions are a separate cost of the trade. The premium goes from the buyer to the seller."
+   }
+  },
+  {
+   "key": "q02",
+   "skill": "options.premium",
+   "rung": 1,
+   "format": "tf",
+   "q": "If you never exercise an option you bought, the premium is refunded at expiry.",
+   "answer": "False",
+   "why": "False. The premium is a nonrefundable payment in full from buyer to seller. If the option expires worthless, that money is gone.",
+   "lesson_line": "Premium spent is spent. Treat it as gone the moment you buy.",
+   "facts": [
+    "f50",
+    "f31",
+    "f4"
+   ]
+  },
+  {
+   "key": "q03",
+   "skill": "options.premium",
+   "rung": 2,
+   "format": "fill",
+   "q": "Fill in the blank.",
+   "sentence": "Stock option prices are quoted per ___.",
+   "bank": [
+    "share",
+    "contract",
+    "day",
+    "lot"
+   ],
+   "answer": "share",
+   "why": "Share. The quote is per share, and a standard contract covers 100 shares, so the contract costs 100 times the quote.",
+   "lesson_line": "Read every option quote as per share. The contract is 100 times that.",
+   "facts": [
+    "f10",
+    "f8",
+    "f47"
+   ]
+  },
+  {
+   "key": "q04",
+   "skill": "options.premium",
+   "rung": 2,
+   "format": "mcq",
+   "q": "A call is quoted at 1.50. What does one contract cost, before commissions?",
+   "choices": [
+    "$150",
+    "$1.50",
+    "$15",
+    "$1,500"
+   ],
+   "answer": "$150",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "premium * multiplier * contracts",
+     "premium": 1.5,
+     "multiplier": 100,
+     "contracts": 1
+    }
+   },
+   "why": "$150. The 1.50 is per share, and one contract covers 100 shares.",
+   "lesson_line": "Price the contract, not the quote. That's the number that leaves your account.",
+   "facts": [
+    "f10",
+    "f34",
+    "f47"
+   ],
+   "wrong": {
+    "$1.50": "That's the per-share quote. A contract covers 100 shares, so you pay 100 times that.",
+    "$15": "That's a tenth of the real cost. A standard contract covers 100 shares, not ten.",
+    "$1,500": "That's ten contracts' worth. One contract is 1.50 times 100."
+   }
+  },
+  {
+   "key": "q05",
+   "skill": "options.premium",
+   "rung": 2,
+   "format": "mcq",
+   "q": "You sell to open one put. Is that a debit or a credit to your account?",
+   "choices": [
+    "A net credit",
+    "A net debit",
+    "Nothing until expiry"
+   ],
+   "answer": "A net credit",
+   "why": "A net credit. You collect the premium when you sell, so the cash comes in up front.",
+   "lesson_line": "Selling to open brings cash in. Buying to open sends it out.",
+   "facts": [
+    "f6",
+    "f1",
+    "f30"
+   ],
+   "wrong": {
+    "A net debit": "A debit is how a buyer starts. You sold, so the premium comes to you.",
+    "Nothing until expiry": "You collect the premium when you sell, not at expiry. That's why you start with a credit."
+   }
+  },
+  {
+   "key": "q06",
+   "skill": "options.premium",
+   "rung": 3,
+   "format": "tf",
+   "q": "If you buy a call, the most you can lose on it is the premium you paid, plus commissions.",
+   "answer": "True",
+   "why": "True. A buyer's maximum loss is the premium paid. Commissions to open and close come on top.",
+   "lesson_line": "As a buyer, the premium is your worst case. Size it like a loss you can take in full.",
+   "facts": [
+    "f48",
+    "f21",
+    "f46"
+   ]
+  },
+  {
+   "key": "q07",
+   "skill": "options.premium",
+   "rung": 3,
+   "format": "mcq",
+   "q": "You sell to open a call. What's the most you can make on the option itself?",
+   "choices": [
+    "The premium you collected",
+    "Unlimited, if the stock falls",
+    "The strike price times 100"
+   ],
+   "answer": "The premium you collected",
+   "why": "The premium you collected. A seller's maximum profit is the premium received when the option is sold.",
+   "lesson_line": "Sell an option and the premium is your best case. Weigh it against the worst case.",
+   "facts": [
+    "f48",
+    "f6",
+    "f65"
+   ],
+   "wrong": {
+    "Unlimited, if the stock falls": "A falling stock can only take the call to zero. Then you keep the premium, and that's the ceiling.",
+    "The strike price times 100": "That's what you'd be paid for the shares if assigned. It isn't profit on the option."
+   }
+  },
+  {
+   "key": "q08",
+   "skill": "options.premium",
+   "rung": 3,
+   "format": "mcq",
+   "q": "Who sets the premium on a listed option?",
+   "choices": [
+    "Buyers and sellers trading it",
+    "The OCC, once a day",
+    "The exchange, at listing",
+    "The company that issued the stock"
+   ],
+   "answer": "Buyers and sellers trading it",
+   "why": "Buyers and sellers trading it. The premium isn't fixed by the exchanges or the Options Clearing Corporation (OCC). It's wherever a buyer and a seller agree.",
+   "lesson_line": "No one sets the premium for you. It's a market price, and it moves.",
+   "facts": [
+    "f32",
+    "f9",
+    "f3",
+    "f2"
+   ],
+   "wrong": {
+    "The OCC, once a day": "The premium is not fixed by the OCC. It changes all day as buyers and sellers trade.",
+    "The exchange, at listing": "The options markets don't fix the premium. They're where buyers and sellers meet and agree on it.",
+    "The company that issued the stock": "The company has no say in its option prices. Buyers and sellers set them on the exchanges."
+   }
+  },
+  {
+   "key": "q09",
+   "skill": "options.premium",
+   "rung": 3,
+   "format": "mcq",
+   "q": "Which of these usually moves a stock option's premium the least?",
+   "choices": [
+    "The interest rate",
+    "The stock's price",
+    "Time left to expiry",
+    "Implied volatility"
+   ],
+   "answer": "The interest rate",
+   "why": "The interest rate. Rates and dividends have a lesser effect than the stock's price, time left and implied volatility.",
+   "lesson_line": "Price, time and implied volatility drive the premium. Rates matter, but much less.",
+   "facts": [
+    "f12",
+    "f13",
+    "f14",
+    "f15",
+    "f16"
+   ],
+   "wrong": {
+    "The stock's price": "The stock's price is a major driver. A rising stock generally lifts calls and lowers puts.",
+    "Time left to expiry": "Time is a major driver. Time value erodes as expiry gets closer.",
+    "Implied volatility": "Implied volatility is a major driver. Bigger expected moves mean higher premiums for calls and puts."
+   }
+  },
+  {
+   "key": "q10",
+   "skill": "options.premium",
+   "rung": 4,
+   "format": "numeric",
+   "q": "You buy 3 call contracts quoted at 2.40. What's the total premium you pay, before commissions?",
+   "answer": 720,
+   "prefix": "$",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "contracts * premium * multiplier",
+     "contracts": 3,
+     "premium": 2.4,
+     "multiplier": 100
+    }
+   },
+   "why": "$720. 2.40 a share, times 100 shares, times 3 contracts.",
+   "lesson_line": "Quote, times 100, times contracts. Do that math before every order.",
+   "facts": [
+    "f34",
+    "f47",
+    "f10"
+   ]
+  },
+  {
+   "key": "q11",
+   "skill": "options.premium",
+   "rung": 4,
+   "format": "tf",
+   "q": "The stock rises. All else equal, a put on that stock generally gets cheaper.",
+   "answer": "True",
+   "why": "True. A rising stock generally lifts call premiums and lowers put premiums. Same move, opposite effects.",
+   "lesson_line": "Stock up: calls generally rise, puts generally fall.",
+   "facts": [
+    "f14"
+   ]
+  },
+  {
+   "key": "q12",
+   "skill": "options.premium",
+   "rung": 4,
+   "format": "scenario",
+   "story": "You buy 2 calls at 3.10. In the same order, you sell 2 higher-strike calls at 1.25. Same stock, same expiry.",
+   "q": "What's the net on this trade when it fills, before commissions?",
+   "choices": [
+    "$370 debit",
+    "$370 credit",
+    "$185 debit",
+    "$870 debit"
+   ],
+   "answer": "$370 debit",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(long - short) * contracts * multiplier",
+     "long": 3.1,
+     "short": 1.25,
+     "contracts": 2,
+     "multiplier": 100
+    }
+   },
+   "why": "$370 debit. You pay 3.10 and collect 1.25 a share on each spread. Net that, times 100, times 2.",
+   "lesson_line": "Net the legs first. Pay more than you collect and it's a debit.",
+   "facts": [
+    "f24",
+    "f25",
+    "f53",
+    "f58",
+    "f59"
+   ],
+   "wrong": {
+    "$370 credit": "You paid more for the calls you bought than you got for the ones you sold. Money went out.",
+    "$185 debit": "That's one spread. You traded 2 of each.",
+    "$870 debit": "That adds the two premiums. The calls you sell pay you, so they cut the cost."
+   }
+  },
+  {
+   "key": "q13",
+   "skill": "options.premium",
+   "rung": 5,
+   "format": "numeric",
+   "q": "You sell 1 put at 2.80 and buy 1 lower-strike put at 1.05, same expiry. What credit do you collect, before commissions?",
+   "answer": 175,
+   "prefix": "$",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(short - long) * contracts * multiplier",
+     "short": 2.8,
+     "long": 1.05,
+     "contracts": 1,
+     "multiplier": 100
+    }
+   },
+   "why": "$175. You collect 2.80 and pay 1.05 a share. The difference, times 100, is the credit.",
+   "lesson_line": "Collect more than you pay and the trade opens as a credit.",
+   "facts": [
+    "f26",
+    "f53",
+    "f60",
+    "f61"
+   ]
+  },
+  {
+   "key": "q14",
+   "skill": "options.premium",
+   "rung": 5,
+   "format": "scenario",
+   "story": "In June you buy a call for $500 in total. By September the call's market price is $300. You've lost faith in the trade.",
+   "q": "If you sell to close now, what's your loss before commissions?",
+   "choices": [
+    "$200",
+    "$500",
+    "$300",
+    "Nothing until it expires"
+   ],
+   "answer": "$200",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "paid - value",
+     "paid": 500,
+     "value": 300
+    }
+   },
+   "why": "$200. You paid $500 and get $300 back. Selling to close caps the loss there.",
+   "lesson_line": "The premium is your worst case, not your only exit. You can sell what's left.",
+   "facts": [
+    "f35",
+    "f36",
+    "f22",
+    "f16"
+   ],
+   "wrong": {
+    "$500": "That's the loss if you hold and it expires worthless. Selling now gets back what the call is still worth.",
+    "$300": "That's what you get back, not what you lose.",
+    "Nothing until it expires": "Selling to close settles it today. You paid $500 and get back $300, so the loss is real now."
+   }
+  },
+  {
+   "key": "q15",
+   "skill": "options.premium",
+   "rung": 5,
+   "format": "tf",
+   "q": "Relative to the money spent, commissions often bite harder on options than on stock.",
+   "answer": "True",
+   "why": "True. Commissions are often large next to an option's premium, so they take a bigger share of the trade.",
+   "lesson_line": "On cheap options, count the commissions before you count the profit.",
+   "facts": [
+    "f45",
+    "f46"
+   ]
+  },
+  {
+   "key": "q16",
+   "skill": "options.premium",
+   "rung": 6,
+   "format": "tf",
+   "q": "In a regular margin account, FINRA's rule as of November 2026 lets you borrow to buy a call expiring in three months.",
+   "answer": "False",
+   "why": "False. An option you buy that expires in nine months or less needs margin of at least 100 percent of its price. You pay in full.",
+   "lesson_line": "Short-dated options you buy are paid for in full. The cash you put up is the cash at risk.",
+   "facts": [
+    "f52",
+    "f53"
+   ]
+  },
+  {
+   "key": "q17",
+   "skill": "options.premium",
+   "rung": 6,
+   "format": "numeric",
+   "q": "You bought 4 calls at 1.20 and sold them at 2.05. What's your profit before commissions?",
+   "answer": 340,
+   "prefix": "$",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(exit - entry) * contracts * multiplier",
+     "exit": 2.05,
+     "entry": 1.2,
+     "contracts": 4,
+     "multiplier": 100
+    }
+   },
+   "why": "$340. Sale price minus purchase price per share, times 100 shares, times 4 contracts.",
+   "lesson_line": "Profit is exit minus entry, times 100, times contracts. Take the premium off before you call it a win.",
+   "facts": [
+    "f5",
+    "f57",
+    "f47"
+   ]
+  },
+  {
+   "key": "q18",
+   "skill": "options.premium",
+   "rung": 6,
+   "format": "scenario",
+   "story": "A call shows bid 7.90, ask 8.00. You buy one contract at the ask. Nothing moves.",
+   "q": "If you sold it right back at the bid, what would you lose, before commissions?",
+   "choices": [
+    "$10",
+    "$0.10",
+    "Nothing, the price didn't move",
+    "$790"
+   ],
+   "answer": "$10",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(ask - bid) * multiplier",
+     "ask": 8,
+     "bid": 7.9,
+     "multiplier": 100
+    }
+   },
+   "why": "$10. You pay $800 at the ask and would get $790 at the bid. The spread costs you the moment you fill.",
+   "lesson_line": "Buying at the ask and selling at the bid costs you the spread. Check it before you trade.",
+   "facts": [
+    "f54",
+    "f55",
+    "f56",
+    "f7"
+   ],
+   "wrong": {
+    "$0.10": "That's the gap per share. One contract covers 100 shares.",
+    "Nothing, the price didn't move": "You bought at the ask and would sell at the bid. That gap costs you even when nothing moves.",
+    "$790": "That's what you'd get back, not what you'd lose."
+   }
+  },
+  {
+   "key": "q19",
+   "skill": "options.premium",
+   "rung": 7,
+   "format": "scenario",
+   "story": "Your plan risks at most $500 on this idea. The call you want is offered at 2.50. You may hold it to expiry.",
+   "q": "How many contracts keep your worst case at $500, before commissions?",
+   "choices": [
+    "2 contracts",
+    "4 contracts",
+    "200 contracts"
+   ],
+   "answer": "2 contracts",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "risk / (premium * multiplier)",
+     "risk": 500,
+     "premium": 2.5,
+     "multiplier": 100
+    }
+   },
+   "why": "2 contracts. Each costs 2.50 times 100, and held to expiry the whole premium can go.",
+   "lesson_line": "If you might hold to expiry, size so losing the whole premium is a loss you planned for.",
+   "facts": [
+    "f48",
+    "f19",
+    "f17",
+    "f34"
+   ],
+   "wrong": {
+    "4 contracts": "That plans on losing only half the premium. Held to expiry, all of it can go.",
+    "200 contracts": "That forgets the multiplier. Each contract costs 2.50 times 100, not 2.50."
+   }
+  },
+  {
+   "key": "q20",
+   "skill": "options.premium",
+   "rung": 7,
+   "format": "numeric",
+   "q": "Your account is $20,000. You buy 4 calls at 1.25 and they expire worthless. What percent of the account is gone?",
+   "answer": 2.5,
+   "suffix": "%",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "contracts * premium * multiplier / account * 100",
+     "contracts": 4,
+     "premium": 1.25,
+     "multiplier": 100,
+     "account": 20000
+    }
+   },
+   "why": "2.5%. 4 contracts at 1.25 times 100 is the premium you paid, and a buyer can lose all of it.",
+   "lesson_line": "Know the premium as a percent of your account before you buy. That's your real risk.",
+   "facts": [
+    "f17",
+    "f37",
+    "f47"
+   ]
+  },
+  {
+   "key": "q21",
+   "skill": "options.premium",
+   "rung": 7,
+   "format": "scenario",
+   "story": "You sell to open an XYZ 50 call for 4.00 without owning XYZ. A takeover bid sends XYZ to 69. The call now costs 19.00 to buy back.",
+   "q": "If you buy it back here, what do you lose, before commissions?",
+   "choices": [
+    "$1,500",
+    "$400",
+    "$1,900",
+    "$2,300"
+   ],
+   "answer": "$1,500",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(buyback - credit) * multiplier",
+     "buyback": 19,
+     "credit": 4,
+     "multiplier": 100
+    }
+   },
+   "why": "$1,500. You pay $1,900 to buy it back and keep the $400 you collected.",
+   "lesson_line": "On a naked call, the credit caps your gain. Nothing caps the loss.",
+   "facts": [
+    "f38",
+    "f39",
+    "f49",
+    "f20"
+   ],
+   "wrong": {
+    "$400": "That's the credit you collected. It's your best case, not a cap on the loss.",
+    "$1,900": "That's the buyback cost. The $400 you collected comes off it.",
+    "$2,300": "That adds the $400 to the buyback. The credit offsets the loss, it doesn't add to it."
+   }
+  },
+  {
+   "key": "q22",
+   "skill": "options.premium",
+   "rung": 8,
+   "format": "scenario",
+   "story": "You bought one 100-strike call for 2.50. At expiry it's in the money, and your broker exercises it.",
+   "q": "Counting the call's cost, how much cash have you put into those 100 shares, before commissions?",
+   "choices": [
+    "$10,250",
+    "$10,000",
+    "$9,750",
+    "$250"
+   ],
+   "answer": "$10,250",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(strike + premium) * multiplier",
+     "strike": 100,
+     "premium": 2.5,
+     "multiplier": 100
+    }
+   },
+   "why": "$10,250. The shares cost the strike plus the premium you paid: 100 plus 2.50 a share, times 100.",
+   "lesson_line": "Exercise never refunds the premium. Your real price for the shares is strike plus premium.",
+   "facts": [
+    "f63",
+    "f51",
+    "f31",
+    "f23"
+   ],
+   "wrong": {
+    "$10,000": "That's the exercise alone. The premium was spent too, and it's part of what the shares cost you.",
+    "$9,750": "That treats the premium as a down payment. It isn't. The full strike is due on top of it.",
+    "$250": "That's only the call. Exercising then costs the strike times 100."
+   }
+  },
+  {
+   "key": "q23",
+   "skill": "options.premium",
+   "rung": 8,
+   "format": "mcq",
+   "q": "XYZ is at 50. You sell the 50 put for 3.00. If XYZ goes to zero, what do you lose, before commissions?",
+   "choices": [
+    "$4,700",
+    "$300",
+    "$5,000"
+   ],
+   "answer": "$4,700",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(strike - premium) * multiplier",
+     "strike": 50,
+     "premium": 3,
+     "multiplier": 100
+    }
+   },
+   "why": "$4,700. Assigned, you pay 50 a share for stock worth nothing. The 3.00 you collected cuts the loss.",
+   "lesson_line": "A put seller's risk runs all the way to zero. The premium only trims it.",
+   "facts": [
+    "f40",
+    "f41",
+    "f18",
+    "f11",
+    "f47"
+   ],
+   "wrong": {
+    "$300": "That's the premium, the buyer's worst case. The seller's risk is the fall to zero.",
+    "$5,000": "That forgets the 3.00 a share you collected. The premium cuts the loss."
+   }
+  },
+  {
+   "key": "q24",
+   "skill": "options.premium",
+   "rung": 8,
+   "format": "tf",
+   "q": "On a credit put spread, the credit you collect is the most you can lose.",
+   "answer": "False",
+   "why": "False. The credit is the most you can make. The most you can lose is the gap between the strikes, less that credit.",
+   "lesson_line": "On a credit, the cash you collect is your best case. Know the worst case before you sell.",
+   "facts": [
+    "f27",
+    "f28",
+    "f29",
+    "f62"
+   ]
+  },
+  {
+   "key": "q25",
+   "skill": "options.premium",
+   "rung": 9,
+   "format": "tf",
+   "q": "On an option chain, the last trade price is what you'll pay if you buy right now.",
+   "answer": "False",
+   "why": "False. The ask is what buying right now costs, and the disclosure document warns premiums won't necessarily match the last sale.",
+   "lesson_line": "Don't price an option off its last trade. Price your order off the bid and the ask.",
+   "facts": [
+    "f56",
+    "f64",
+    "f7"
+   ]
+  },
+  {
+   "key": "q26",
+   "skill": "options.premium",
+   "rung": 9,
+   "format": "scenario",
+   "story": "Three traders each have $5,000 and like XYZ at 50. A buys 100 shares. B buys one 50 call at 5.00 and parks the rest in T-bills. C buys ten 50 calls at 5.00.",
+   "q": "XYZ is at 46 when the calls expire. Who lost the most?",
+   "choices": [
+    "C, all $5,000",
+    "A, who owns the shares",
+    "B, who bought one call",
+    "All about the same"
+   ],
+   "answer": "C, all $5,000",
+   "why": "C, all $5,000. C put the whole account into premium, and calls struck at 50 are worth nothing with XYZ at 46.",
+   "lesson_line": "Same idea, three outcomes. How much premium you spend decides the damage.",
+   "facts": [
+    "f42",
+    "f43",
+    "f44",
+    "f37"
+   ],
+   "wrong": {
+    "A, who owns the shares": "A is down only the drop from 50 to 46, and still holds the shares.",
+    "B, who bought one call": "B can lose only the one call's premium. The rest sits safe in T-bills.",
+    "All about the same": "Same stock, same view, but very different amounts of premium at risk."
+   }
+  }
+ ],
+ "conflicts": [
+  "Max loss for a call seller: FINRA says 'theoretically unlimited' (f49); OIC says 'unlimited' (f20, f17). The unit never keys a number for it: w3 says a naked call has 'no ceiling' and q21's lesson line says its loss isn't capped, which fits both wordings.",
+  "Buyer's max loss: FINRA (f48) and OIC (f21) give the premium paid; the disclosure document lists commissions as a separate cost of opening and closing (f46). q06 keys 'the premium you paid, plus commissions', and every dollar question says 'before commissions'.",
+  "Contract size after corporate actions: the disclosure document's 3-for-2 example adjusts a contract to 150 shares at a new strike, while its 1-for-10 reverse split example keeps the 100 multiplier for the price and changes only the shares delivered. The dollar math on adjusted contracts differs case by case, so this unit computes every premium on a standard 100-share contract and never on an adjusted one. That the 100-share rule has exceptions belongs to F6.01.",
+  "q06 keys the official buyer rule (FINRA f48, OIC f21): the premium is the most the option itself can lose. If an in-the-money call is exercised into shares, those shares are a new position with their own risk (FINRA's options page also warns about pin risk at expiry). q22 teaches that exercised shares cost the strike plus the premium; exercise risk belongs to F6.16.",
+  "OIC's Long Call page shows a stray header line copied from its butterfly page; the cited lines (f21, f22, f23) are in the Long Call page's own body text.",
+  "q16 is asked for a regular (strategy-based) margin account. FINRA 4210(g) portfolio margin is 'an alternative to the \"strategy-based\" margin requirements' for approved accounts: the requirement is the portfolio's greatest theoretical loss, with a per-contract minimum 'not to exceed the market value in the case of long contracts', so a long option there can need less than 100 percent. The unit does not teach portfolio margin; a cash account pays in full anyway."
+ ],
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "notes": "Re-fetched 2026-11-09 (plain client, quote check 65/65 found) and read in context. f10 (OIC), f33/f34 (ODD June 2024). Step 1 now 'Stock option prices' (index options are not quoted per share).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "Re-fetched 2026-11-09 (plain client, quote check 65/65 found) and read in context. f4/f6 (OIC). Step 2 now 'Sell one to open' (selling an option you own closes it, no new credit). Added f59/f61 (Fidelity terms); nets 3.30-1.50=1.80, 3.20-1.30=1.90 checked.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "Re-fetched 2026-11-09 (plain client, quote check 65/65 found) and read in context. f21, f46, f48, f49 support each step. Added f11 (OIC: writer's call loss theoretically unlimited, put loss substantial) to back 'much bigger'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q01": {
+   "status": "pass",
+   "notes": "Re-fetched 2026-11-09 (plain client, quote check 65/65 found) and read in context. Key is f1 (OIC) and f30 (ODD) word for word; deposit wrong per f31 ('does not constitute a down-payment'), commission wrong per f46. Answer 29 chars fits Word Match.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q02": {
+   "status": "pass",
+   "notes": "Re-fetched 2026-11-09 (plain client, quote check 65/65 found) and read in context. 'never use' now 'never exercise' (what 'use' meant; taught in F6.01). False per f50 (FINRA: nonrefundable payment in full) and f31.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q03": {
+   "status": "pass",
+   "notes": "Re-fetched 2026-11-09 (plain client, quote check 65/65 found) and read in context. Sentence now 'Stock option prices are quoted per ___' (f10 OIC per share basis; index options are per point). Each bank word is wrong; f8/f47 back x100.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q04": {
+   "status": "pass",
+   "notes": "Re-fetched 2026-11-09 (plain client, quote check 65/65 found) and read in context. 1.50 x 100 x 1 = 150 by hand and calc. Each wrong is a real slip (per-share quote, x10, ten contracts). f10, f34, f47.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q05": {
+   "status": "pass",
+   "notes": "Re-fetched 2026-11-09 (plain client, quote check 65/65 found) and read in context. Key per f6 (OIC). Why said the seller keeps the premium 'if the put is never exercised', which reads as if assignment returns it (OIC's next line: kept either way). Now: cash comes in up front.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q06": {
+   "status": "pass",
+   "notes": "Re-fetched 2026-11-09 (plain client, quote check 65/65 found) and read in context. True per FINRA f48 and OIC f21; commissions extra per f46. Added 'on it': an exercised call becomes shares with their own risk (FINRA expiration risk; see conflicts).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q07": {
+   "status": "pass",
+   "notes": "Re-fetched 2026-11-09 (plain client, quote check 65/65 found) and read in context. f48 (FINRA): seller's max profit is the premium received; f65 (OIC) backs the strike x 100 wrong. 'Unlimited if it falls' is a real short-stock mix-up.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q08": {
+   "status": "pass",
+   "notes": "Re-fetched 2026-11-09 (plain client, quote check 65/65 found) and read in context. f9 (OIC: buyers and sellers set prices in the exchange markets), f32 (ODD: not fixed by the markets or OCC). Every wrong is contradicted by those quotes. Track audit 2026-11-09: why names the Options Clearing Corporation once before the 'OCC' choice.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q09": {
+   "status": "pass",
+   "notes": "Re-fetched 2026-11-09 (plain client, quote check 65/65 found) and read in context. f13 (OIC): dividends and the risk-free rate have a lesser effect; 'usually' matches OIC's hedge. Dividends left out of the choices on purpose (they matter near ex-dates).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q10": {
+   "status": "pass",
+   "notes": "Re-fetched 2026-11-09 (plain client, quote check 65/65 found) and read in context. 3 x 2.40 x 100 = 720 by hand and calc; f34, f47.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q11": {
+   "status": "pass",
+   "notes": "Re-fetched 2026-11-09 (plain client, quote check 65/65 found) and read in context. f14 (OIC): as the stock rises a put will generally decrease; the statement keeps 'All else equal' and 'generally'.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q12": {
+   "status": "pass",
+   "notes": "Re-fetched 2026-11-09 (plain client, quote check 65/65 found) and read in context. (3.10 - 1.25) x 2 x 100 = 370 debit by hand; $185 = one spread, $870 = (3.10 + 1.25) x 200. Debit per f24/f59; f53 FINRA long paid in full, short proceeds applied.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q13": {
+   "status": "pass",
+   "notes": "Re-fetched 2026-11-09 (plain client, quote check 65/65 found) and read in context. (2.80 - 1.05) x 100 = 175 by hand; credit per f26 (OIC) and f61 (Fidelity); f60 is Fidelity's own 3.20/1.30 credit example.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q14": {
+   "status": "pass",
+   "notes": "Re-fetched 2026-11-09 (plain client, quote check 65/65 found) and read in context. ODD example f35/f36: paid $500, worth $300, loss $200. The 'Nothing until it expires' note said holding 'doesn't erase the loss' (not certain, the stock can rally); now says selling settles it today.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q15": {
+   "status": "pass",
+   "notes": "Re-fetched 2026-11-09 (plain client, quote check 65/65 found) and read in context. f45 (ODD): transaction costs often greater in relation to option premiums; 'often' kept. Still true with per-contract fees in 2026.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q16": {
+   "status": "pass",
+   "notes": "Re-fetched 2026-11-09 (plain client, quote check 65/65 found) and read in context. f52/f53 read in FINRA 4210's current version (Oct 22, 2026 onwards, SR-FINRA-2026-022). 4210(g) portfolio margin can need under 100 percent on a long option, so the statement now says 'In a regular margin account'; why rewritten; conflicts note added.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q17": {
+   "status": "pass",
+   "notes": "Re-fetched 2026-11-09 (plain client, quote check 65/65 found) and read in context. (2.05 - 1.20) x 4 x 100 = 340 by hand; method from f57 (Fidelity: $5 - $1 = $4 x 100) and f5 (OIC).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q18": {
+   "status": "pass",
+   "notes": "Re-fetched 2026-11-09 (plain client, quote check 65/65 found) and read in context. (8.00 - 7.90) x 100 = 10; $800/$790 from f54 (Fidelity). Lesson said 'Buy at the ask, sell at the bid' as an instruction (teaches always crossing the spread); now says crossing costs the spread, check it first.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q19": {
+   "status": "cut",
+   "notes": "duplicate of F6.11#q15. Track audit 2026-11-09: Same calc and lesson (contracts = risk budget / (premium x 100), treating the whole premium as the risk). F6.11's version names the real mistake ('as many as your cash buys'). The checker had passed it (its note is kept under 'prior'); the question stays in the file as the record.",
+   "fixed": false,
+   "by": "auditor",
+   "prior": {
+    "status": "pass",
+    "notes": "Re-fetched 2026-11-09 (plain client, quote check 65/65 found) and read in context. 500 / (2.50 x 100) = 2 by hand. Story allows holding to expiry, so the full premium is the risk (f17, f19, f48). Sizing to a full premium loss is a sound risk-first habit.",
+    "fixed": false,
+    "by": "checker"
+   }
+  },
+  "q20": {
+   "status": "pass",
+   "notes": "Re-fetched 2026-11-09 (plain client, quote check 65/65 found) and read in context. 4 x 1.25 x 100 = 500; 500 / 20,000 = 2.5% by hand and calc. f17 (OIC): the loss can be the entire premium.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q21": {
+   "status": "pass",
+   "notes": "Re-fetched 2026-11-09 (plain client, quote check 65/65 found) and read in context. The ODD's own example f38/f39: 4.00 credit, buyback 19, loss $1,500; $2,300 = (19 + 4) x 100. Lesson 'the credit is capped' was muddled; now 'the credit caps your gain. Nothing caps the loss' (f49).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q22": {
+   "status": "pass",
+   "notes": "Re-fetched 2026-11-09 (plain client, quote check 65/65 found) and read in context. (100 + 2.50) x 100 = 10,250 by hand; f63 (OIC) net price = strike + premium; f51 (FINRA) $10,000 to exercise a 100 strike. Added 'before commissions' (ODD f46: exercise carries commissions).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q23": {
+   "status": "pass",
+   "notes": "Re-fetched 2026-11-09 (plain client, quote check 65/65 found) and read in context. (50 - 3) x 100 = 4,700 by hand. Why said 'You must buy', true only if assigned (f41); now 'Assigned, you pay 50 a share'. Buying the put back near 50 gives the same loss.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q24": {
+   "status": "pass",
+   "notes": "Re-fetched 2026-11-09 (plain client, quote check 65/65 found) and read in context. False per f27/f28 (OIC) and f62 (Fidelity), all about the bull put spread. 'a credit spread' (could mean ratio or other structures) is now 'a credit put spread', the name OIC and Fidelity both give it.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q25": {
+   "status": "pass",
+   "notes": "Re-fetched 2026-11-09 (plain client, quote check 65/65 found) and read in context. False per f56 (Fidelity: the ask is the cost of buying) and f64 (ODD: premiums need not match the last sale). Why said 'A buyer pays the ask' flatly (limit orders can fill inside); now 'The ask is what buying right now costs'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q26": {
+   "status": "pass",
+   "notes": "Re-fetched 2026-11-09 (plain client, quote check 65/65 found) and read in context. The ODD's A/B/C example and table at expiration, price 46: A -400, B -427, C -5,000 (-100%); C lost most, 'about the same' wrong. 'sits at 46 on expiry day' now 'is at 46 when the calls expire'.",
+   "fixed": true,
+   "by": "checker"
+  }
+ }
+}

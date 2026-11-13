@@ -1,0 +1,3096 @@
+{
+ "unit": "SET.11",
+ "track": "SET",
+ "title": "Launchpad",
+ "teaches": "The launchpad as we trade it: after a real correction a stock rests five weeks or more under three averages pinched within 3% of price near a flat 200-day, the launch bar closes above all four averages up 2% or more in the top of its range, the stop sits a few cents under the launch day's low, a third comes off at 3R and 5R with the rest on the 21-day trail, and the stock, the base and the market, not the bar, carry the edge.",
+ "skills": [
+  {
+   "id": "setup.launchpad",
+   "title": "Launchpad"
+  }
+ ],
+ "as_of": "2026-11-10",
+ "card": "docs/study/setups/criteria/07-launchpad.json",
+ "sources": [
+  {
+   "id": "s1",
+   "tier": 2,
+   "publisher": "TraderLion",
+   "title": "Characteristics of a proper base, X thread of 7 May 2022 (copy on Thread Reader App)",
+   "url": "https://threadreaderapp.com/thread/1522961878850453505.html",
+   "accessed": "2026-11-10",
+   "why_reliable": "TraderLion is an established trading-education publisher and the circle that named the Launch Pad setup; the dossier read this copy of its X thread and matched the four steps word for word."
+  },
+  {
+   "id": "s2",
+   "tier": 2,
+   "publisher": "TraderLion",
+   "title": "Ameet Rai, 3 Early Entry Techniques To Improve Win Rate (2024-07-14, modified 2024-10-10)",
+   "url": "https://traderlion.com/trading-strategies/3-early-entry-techniques-to-improve-win-rate/",
+   "accessed": "2026-11-10",
+   "why_reliable": "A named author at an established trading-education publisher (originator circle). The live page challenges non-browser clients; the dossier read the post through TraderLion's public WordPress API."
+  },
+  {
+   "id": "s3",
+   "tier": 2,
+   "publisher": "TraderLion",
+   "title": "Ross Haber, Launchpad Setup: How I Find Early Entries (2026-08-21, modified 2026-10-01)",
+   "url": "https://traderlion.com/profile/ross-haber/launchpad-setup/",
+   "accessed": "2026-11-10",
+   "why_reliable": "A named author (Haber co-wrote The Trader's Handbook) at an established trading-education publisher. Read through TraderLion's public WordPress API because the page refuses non-browser clients."
+  },
+  {
+   "id": "s4",
+   "tier": 2,
+   "publisher": "Deepvue",
+   "title": "The Launch Pad Setup: Your Guide to Early Stock Entry (2024-09-21)",
+   "url": "https://deepvue.com/indicators/launch-pad-the-early-entry-technique/",
+   "accessed": "2026-11-10",
+   "why_reliable": "The screener company founded by TraderLion's Rai, Moglen and Haber; a data provider's own write-up. Same school as TraderLion, so it never counts as a second publisher for a key."
+  },
+  {
+   "id": "h1",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
+   "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
+   "accessed": "2026-11-10"
+  },
+  {
+   "id": "c1",
+   "tier": 3,
+   "publisher": "UCT setup criteria card",
+   "title": "Launchpad criteria card (docs/study/setups/criteria/07-launchpad.json, as of 2026-11-09)",
+   "url": "repo:docs/study/setups/criteria/07-launchpad.json",
+   "accessed": "2026-11-10"
+  },
+  {
+   "id": "d1",
+   "tier": 3,
+   "publisher": "UCT setup research (examples read from our own daily bars)",
+   "title": "Launchpad dossier, sections 12 and 13: examples, failures and near-misses from our data",
+   "url": "repo:docs/study/setups/research/07-launchpad.md#12-examples-from-our-data",
+   "accessed": "2026-11-10"
+  },
+  {
+   "id": "u1",
+   "tier": 3,
+   "publisher": "UCT Substack (the owner's published words)",
+   "title": "Sunday Scans, 2025-08-24 (TSLA, TSDR's Weekly Outlook & Watchlist)",
+   "url": "https://unchartedterritoryy.substack.com/p/sunday-scans-ffa",
+   "accessed": "2026-11-10"
+  },
+  {
+   "id": "u2",
+   "tier": 3,
+   "publisher": "UCT Substack (the owner's published words)",
+   "title": "Sunday Scans, 2026-07-12 (RDDT, TSDR's Weekly Outlook & Watchlist)",
+   "url": "https://unchartedterritoryy.substack.com/p/sunday-scans-898",
+   "accessed": "2026-11-10"
+  }
+ ],
+ "facts": [
+  {
+   "id": "t01",
+   "source": "s1",
+   "quote": "The Launch Pad Setup occurs when price reclaims important KMAs to the upside on volume.",
+   "claim": "TraderLion: the Launch Pad is price reclaiming its key moving averages on volume."
+  },
+  {
+   "id": "t02",
+   "source": "s1",
+   "quote": "Price trades underneath the KMAs in a base",
+   "claim": "TraderLion step one: price trades underneath the key averages in a base."
+  },
+  {
+   "id": "t03",
+   "source": "s1",
+   "quote": "Price reclaims these KMAs to the upside",
+   "claim": "TraderLion step two: price reclaims the averages."
+  },
+  {
+   "id": "t04",
+   "source": "s1",
+   "quote": "The KMAs start to curl underneath price, forming a Launch Pad for higher prices",
+   "claim": "TraderLion step three: the averages curl underneath price, forming the launch pad."
+  },
+  {
+   "id": "t05",
+   "source": "s1",
+   "quote": "Price retests the KMAs & bounces off of them",
+   "claim": "TraderLion step four: price retests the averages and bounces."
+  },
+  {
+   "id": "r01",
+   "source": "s2",
+   "quote": "the Power of 3 Setup occurs when a stock goes from trading below its 10, 21, and 50-day Simple Moving Averages to trading above in a single session.",
+   "claim": "Rai: the Power of 3 is a stock going from below its 10, 21 and 50-day averages to above them in one session."
+  },
+  {
+   "id": "r02",
+   "source": "s2",
+   "quote": "Moving averages should be horizontal as price breaks through. Downtrending MAs decrease the probability of success of the setup.",
+   "claim": "Rai: the averages should be horizontal as price breaks through; falling averages hurt the odds."
+  },
+  {
+   "id": "r03",
+   "source": "s2",
+   "quote": "Stop techniques usually all revolve around the stock breaking below recent lows (preferably within 3-5% of entry price) or multi-day closes below the moving averages of interest.",
+   "claim": "Rai: stops sit under recent lows, preferably within 3 to 5% of the entry."
+  },
+  {
+   "id": "b01",
+   "source": "s3",
+   "quote": "a stock's key moving averages converge to the upside in a tight bunch beneath price.",
+   "claim": "Haber: the key averages converge in a tight bunch beneath price."
+  },
+  {
+   "id": "b02",
+   "source": "s3",
+   "quote": "Tight relative to itself. The bunch should be visibly tighter than the averages were during the prior decline or base.",
+   "claim": "Haber: tight means visibly tighter than the averages were during the prior decline."
+  },
+  {
+   "id": "b03",
+   "source": "s3",
+   "quote": "A pile of flat averages above price is a ceiling, not a launchpad.",
+   "claim": "Haber: flat averages above price are a ceiling, not a launchpad."
+  },
+  {
+   "id": "b04",
+   "source": "s3",
+   "quote": "A launchpad forming on an early-stage base at the start of a new uptrend carries far more weight than one forming after the stock has already doubled.",
+   "claim": "Haber: an early-stage launchpad carries far more weight than one after the stock has doubled."
+  },
+  {
+   "id": "b05",
+   "source": "s3",
+   "quote": "Wide, loose stocks with huge average daily ranges can form something that looks like a launchpad, but it's often a trap",
+   "claim": "Haber: wide, loose stocks with huge daily ranges form launchpad look-alikes that are often a trap."
+  },
+  {
+   "id": "b06",
+   "source": "s3",
+   "quote": "If the distance is more than 3%, the entry isn't there yet. Wait, or pass.",
+   "claim": "Haber: if the stop is more than 3% away, wait or pass."
+  },
+  {
+   "id": "v01",
+   "source": "s4",
+   "quote": "In each bull market cycle, the strongest stocks will pause their advance, consolidate their recent gains, form a new base, and then break out to even higher levels.",
+   "claim": "Deepvue: the strongest stocks pause, consolidate, form a new base, then break out."
+  },
+  {
+   "id": "v02",
+   "source": "s4",
+   "quote": "A protective stop can then be placed at the opposite end of the range.",
+   "claim": "Deepvue puts the stop at the other end of the tight range."
+  },
+  {
+   "id": "h01",
+   "source": "h1",
+   "quote": "Stop first (by default a few cents under the day's low or the prior day's low, F62); the size comes from the stop; if the honest stop does not fit the risk, skip the trade.",
+   "claim": "A3: stop first, a few cents under the day's low; the size comes from the stop; if the honest stop does not fit, skip."
+  },
+  {
+   "id": "h02",
+   "source": "h1",
+   "quote": "The stop is the exit. It only moves up, never down or wider. The one exception is the gap rule (B20).",
+   "claim": "A4: the stop is the exit; it only moves up, never wider; the gap rule is the one exception."
+  },
+  {
+   "id": "h03",
+   "source": "h1",
+   "quote": "Shares = account × risk % ÷ (entry − stop), rounded down, then capped: the size is the SMALLER of the risk-based size and the position cap",
+   "claim": "A5: shares are account times risk percent, divided by entry minus stop, rounded down, then capped."
+  },
+  {
+   "id": "h04",
+   "source": "h1",
+   "quote": "\"I almost never take a loss greater than 3%\": the stop usually sits within about 3% of the buy (a loss on the position, not the account).",
+   "claim": "A13: the stop usually sits within about 3% of the buy."
+  },
+  {
+   "id": "h05",
+   "source": "h1",
+   "quote": "Move the stop to breakeven at 2R to 5R, ideally. The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
+   "claim": "B19: breakeven between 2R and 5R; the hard rule for the first trim is a third at 3R."
+  },
+  {
+   "id": "h06",
+   "source": "h1",
+   "quote": "A gap against the stop: the first 30 minutes of the gap-down day decide. The low of the first 30-minute bar is the new stop.",
+   "claim": "B20: on a gap through the stop, the first 30-minute low is the new stop."
+  },
+  {
+   "id": "h07",
+   "source": "h1",
+   "quote": "With a ceiling: if the first 30 minutes take the loss past 2R, get out.",
+   "claim": "B20's ceiling: if the first 30 minutes take the loss past 2R, get out."
+  },
+  {
+   "id": "h08",
+   "source": "h1",
+   "quote": "No new buys in the 3 days before an earnings report; hold through a report only if the trade is up 5R.",
+   "claim": "B22: no new buys in the 3 days before a report; hold through one only if up 5R."
+  },
+  {
+   "id": "h09",
+   "source": "h1",
+   "quote": "Trade only stocks at $10 or more that trade at least $20 million a day.",
+   "claim": "B23: only stocks at $10 or more trading at least $20 million a day."
+  },
+  {
+   "id": "h10",
+   "source": "h1",
+   "quote": "The 200-day line: no longs below the 200-day simple moving average, unless it is a parabolic long; shorts only below the 200-day, never above it unless it is a parabolic short.",
+   "claim": "B26: no longs below the 200-day simple moving average, except a parabolic long."
+  },
+  {
+   "id": "h11",
+   "source": "h1",
+   "quote": "No chasing: never buy more than 4% above the buy point.",
+   "claim": "C28: never buy more than 4% above the buy point."
+  },
+  {
+   "id": "h12",
+   "source": "h1",
+   "quote": "Chasing costs size, not risk: the stop stays under the buy point, so the distance grows and the shares shrink (A5).",
+   "claim": "C28: chasing costs size, because the stop stays put and the distance grows."
+  },
+  {
+   "id": "h15",
+   "source": "h1",
+   "quote": "Time stop: a trade still under 1R after 10 trading days is sold, freeing the money.",
+   "claim": "C33: a trade still under 1R after 10 trading days is sold."
+  },
+  {
+   "id": "h16",
+   "source": "h1",
+   "quote": "A climax run on your own long (Bracco's parabolic burst): sell a big part into it, a judgment call.",
+   "claim": "C34: a climax run on your own long: sell a big part into it."
+  },
+  {
+   "id": "h17",
+   "source": "h1",
+   "quote": "Prefer stocks with growing sales and earnings; the chart comes first.",
+   "claim": "D40: growing sales and earnings preferred; the chart comes first."
+  },
+  {
+   "id": "h18",
+   "source": "h1",
+   "quote": "Every position has a real stop order with the broker, not a stop kept in your head.",
+   "claim": "D41: a real stop order with the broker."
+  },
+  {
+   "id": "h19",
+   "source": "h1",
+   "quote": "Never own more than 1% of a stock's average daily volume; illiquid stocks are not even watched.",
+   "claim": "D42: never own more than 1% of a stock's average daily volume."
+  },
+  {
+   "id": "h20",
+   "source": "h1",
+   "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
+   "claim": "E51: another third at 5R, then trail the last third."
+  },
+  {
+   "id": "h21",
+   "source": "h1",
+   "quote": "Default trail: the 10-day average for fast movers, the 21-day for steadier ones; sell on a close below it.",
+   "claim": "E52: trail the 10-day for fast movers, the 21-day for steadier ones; sell on a close below it."
+  },
+  {
+   "id": "h22",
+   "source": "h1",
+   "quote": "Entries are market orders.",
+   "claim": "E57: entries are market orders."
+  },
+  {
+   "id": "h24",
+   "source": "h1",
+   "quote": "The stop sits a few cents under the day's low, not exactly on it.",
+   "claim": "F62: the stop sits a few cents under the day's low."
+  },
+  {
+   "id": "h25",
+   "source": "h1",
+   "quote": "If a stock opens above a trim level (3R, 5R), take that trim at the open.",
+   "claim": "F63: a trim level the day opens past is taken at the open."
+  },
+  {
+   "id": "h26",
+   "source": "h1",
+   "quote": "The market reading as a guide (A10): Green, full risk per grade and up to 10 positions; Yellow, smaller and fewer; Orange, only A+ setups; Red, mostly cash and shorts.",
+   "claim": "F65: Green full risk; Yellow smaller and fewer; Orange only A+; Red mostly cash and shorts."
+  },
+  {
+   "id": "h27",
+   "source": "h1",
+   "quote": "After a market correction, when the reading turns Green again, start with a few positions and add more only as the first ones work",
+   "claim": "F68: after a correction, start with a few positions and add as they work."
+  },
+  {
+   "id": "h28",
+   "source": "h1",
+   "quote": "After a stop-out, buy again only if the setup triggers again, as a new trade with its own stop and every rule.",
+   "claim": "B21: after a stop-out, buy again only on a new trigger, as a new trade."
+  },
+  {
+   "id": "h29",
+   "source": "h1",
+   "quote": "The same stock: at most 3 tries in a week and 6 in a month.",
+   "claim": "E56: at most 3 tries in a week and 6 in a month on one stock."
+  },
+  {
+   "id": "h31",
+   "source": "h1",
+   "quote": "The full size at one price with one stop; no adding.",
+   "claim": "A5: the full size at one price with one stop; no adding."
+  },
+  {
+   "id": "c01",
+   "source": "c1",
+   "quote": "Close of $10 or more and $20 million or more traded a day on average over 50 days.",
+   "claim": "Liquidity: a close of $10 or more and $20 million a day over 50 days."
+  },
+  {
+   "id": "c02",
+   "source": "c1",
+   "quote": "A real correction first: the lowest close of the last 60 sessions is at least 15% under the highest high of the 60 sessions before that.",
+   "claim": "A real correction first: the lowest close of the last 60 sessions at least 15% under the prior 60 sessions' high."
+  },
+  {
+   "id": "c03",
+   "source": "c1",
+   "quote": "A long base: at least 25 sessions (5 weeks) of closes within 10% of the bundle's middle.",
+   "claim": "A long base: at least 25 sessions of closes within 10% of the bundle's middle."
+  },
+  {
+   "id": "c04",
+   "source": "c1",
+   "quote": "The last 30 closes span no more than 20% of price.",
+   "claim": "The last 30 closes span no more than 20% of price."
+  },
+  {
+   "id": "c05",
+   "source": "c1",
+   "quote": "Fewer than 20 of the prior 40 closes are above the highest of the three averages.",
+   "claim": "Fewer than 20 of the prior 40 closes sit above the highest of the three averages."
+  },
+  {
+   "id": "c06",
+   "source": "c1",
+   "quote": "The bundle is tight: the 8 EMA, 21 EMA and 50 SMA lie within 3% of price of each other on the day before the launch.",
+   "claim": "Tight: the bundle's three averages lie within 3% of price of each other the day before the launch."
+  },
+  {
+   "id": "c07",
+   "source": "c1",
+   "quote": "The 200-day is close: within 10% of the bundle's middle on the day before the launch. Better: at or just under the bundle.",
+   "claim": "The 200-day is close, within 10% of the bundle's middle; better at or just under the bundle."
+  },
+  {
+   "id": "c08",
+   "source": "c1",
+   "quote": "The launch bar closes above all four averages: the 8, 21, 50 and the 200. A close inside the bundle or under the 200-day is not the launch.",
+   "claim": "The launch bar closes above all four averages; a close inside the bundle or under the 200-day is not the launch."
+  },
+  {
+   "id": "c09",
+   "source": "c1",
+   "quote": "The launch bar is a real push: up 2% or more on the day.",
+   "claim": "The launch bar is up 2% or more on the day."
+  },
+  {
+   "id": "c10",
+   "source": "c1",
+   "quote": "The launch bar closes in the top 35% of its range (0.65 of the range or higher).",
+   "claim": "The launch bar closes in the top 35% of its range, 0.65 or higher."
+  },
+  {
+   "id": "c11",
+   "source": "c1",
+   "quote": "Volume of 2 times the 50-day average or more is the A+ version of the launch bar, not a rule.",
+   "claim": "Volume of 2 times the 50-day average is the A+ launch bar, not a rule."
+  },
+  {
+   "id": "c12",
+   "source": "c1",
+   "quote": "Not a gap or news bar: the launch opens no more than 6% above the prior close and is not a one-off macro or news day. A bigger gap is a different setup (Kicker, earnings gap).",
+   "claim": "The launch opens no more than 6% above the prior close and is not a news bar; a bigger gap is another setup."
+  },
+  {
+   "id": "c13",
+   "source": "c1",
+   "quote": "The stack forms as it launches: 8 above 21 above 50 on the launch day or within the next 3 sessions. Not required beforehand.",
+   "claim": "The stack forms as it launches, on the launch day or within 3 sessions; not required beforehand."
+  },
+  {
+   "id": "c14",
+   "source": "c1",
+   "quote": "No new buy in the 3 days before an earnings report.",
+   "claim": "No new buy in the 3 days before an earnings report."
+  },
+  {
+   "id": "c15",
+   "source": "c1",
+   "quote": "a leader or a stock in a strong group, not a slow bank. Growing sales and earnings preferred; the chart comes first.",
+   "claim": "A stock we would trade: a leader or a stock in a strong group, not a slow bank."
+  },
+  {
+   "id": "c16",
+   "source": "c1",
+   "quote": "The launch is the convergence and the dangle, not a breakout bar. The trigger bar may still be inside the base; a 20-day breakout is not required.",
+   "claim": "The launch is the convergence and the dangle, not a breakout bar; the trigger bar may still be inside the base."
+  },
+  {
+   "id": "c17",
+   "source": "c1",
+   "quote": "A few cents under the launch day's low for the close entry",
+   "claim": "The stop: a few cents under the launch day's low."
+  },
+  {
+   "id": "c18",
+   "source": "c1",
+   "quote": "Not the scanner's stop under the bundle, and not the base low. Both sit far outside the 3% habit.",
+   "claim": "Never the stop under the bundle or at the base low; both sit far outside the 3% habit."
+  },
+  {
+   "id": "c19",
+   "source": "c1",
+   "quote": "Trail the last third on a close under the 21-day EMA, the steadier trail. Use the 10-day only if the stock is a fast mover.",
+   "claim": "Trail the last third on a close under the 21-day; the 10-day only for a fast mover."
+  },
+  {
+   "id": "c20",
+   "source": "c1",
+   "quote": "Launchpads come out of long bases and tend to trend along the 21-day",
+   "claim": "Launchpads come out of long bases and tend to trend along the 21-day."
+  },
+  {
+   "id": "c21",
+   "source": "c1",
+   "quote": "Time stop: still under 1R after 10 trading days, sell. A pad that does not expand is a quiet failure.",
+   "claim": "Time stop: under 1R after 10 trading days, sell; a pad that does not expand is a quiet failure."
+  },
+  {
+   "id": "c22",
+   "source": "c1",
+   "quote": "Before the entry: the bundle spreads wider than 3% again, or price closes back under the 200-day after a pop. Off the list.",
+   "claim": "Before the entry: a bundle wider than 3% again, or a close back under the 200-day, takes it off the list."
+  },
+  {
+   "id": "c23",
+   "source": "c1",
+   "quote": "Price rallies up into the bundle in a V from far below and breaks out. That is a breakout, not a launchpad.",
+   "claim": "A V rally up into the bundle is a breakout, not a launchpad."
+  },
+  {
+   "id": "c24",
+   "source": "c1",
+   "quote": "Price is riding on top of the bundle in an uptrend: a pullback breakout, not a launchpad.",
+   "claim": "Price riding on top of the bundle in an uptrend is a pullback breakout, not a launchpad."
+  },
+  {
+   "id": "c25",
+   "source": "c1",
+   "quote": "A quick break and reclaim is a fake-out, not a failure.",
+   "claim": "A quick break and reclaim of the bundle is a fake-out, not a failure."
+  },
+  {
+   "id": "c26",
+   "source": "c1",
+   "quote": "After the entry, a close back under the 200-day is not an exit; the stop is. The stop only moves up.",
+   "claim": "After the entry a close back under the 200-day is not an exit; the stop is."
+  },
+  {
+   "id": "c27",
+   "source": "c1",
+   "quote": "B26 governs new longs, not open ones.",
+   "claim": "The 200-day rule governs new longs, not open ones."
+  },
+  {
+   "id": "c28",
+   "source": "c1",
+   "quote": "Green market: full risk. Yellow: smaller and fewer. Orange: A+ launchpads only. Red: the long version is off; the bearish mirror is the trade.",
+   "claim": "Green full risk; Yellow smaller and fewer; Orange A+ launchpads only; Red the long is off."
+  },
+  {
+   "id": "c29",
+   "source": "c1",
+   "quote": "A cue, not a rule: best when the reading is turning Green after a correction and leaders are basing. Start with a few positions and add more only as the first ones work.",
+   "claim": "Best when the reading turns Green after a correction and leaders are basing; start with a few positions."
+  },
+  {
+   "id": "c30",
+   "source": "c1",
+   "quote": "The first launchpad after the bottom grades higher than a late, repeated one.",
+   "claim": "The first launchpad after the bottom grades higher than a late, repeated one."
+  },
+  {
+   "id": "c31",
+   "source": "c1",
+   "quote": "Slow, heavy names grade down; wide, loose stocks with huge ranges are a trap.",
+   "claim": "Slow, heavy names grade down; wide, loose stocks with huge ranges are a trap."
+  },
+  {
+   "id": "c32",
+   "source": "c1",
+   "quote": "Another UCT setup on the launch day (an Oops, an inside day) is an A+ cue.",
+   "claim": "Another UCT setup on the launch day is an A+ cue."
+  },
+  {
+   "id": "c33",
+   "source": "c1",
+   "quote": "the launch is the close above the averages, not a base top.",
+   "claim": "The lookalike tell against the flat base: the launch is the close above the averages, not a base top."
+  },
+  {
+   "id": "c34",
+   "source": "c1",
+   "quote": "A flat base holds above the 50-day (80% of closes at or above it) and breaks out over its own highest high",
+   "claim": "A flat base holds above the 50-day and breaks out over its own highest high."
+  },
+  {
+   "id": "c35",
+   "source": "c1",
+   "quote": "A wedge pop is a tight range of a few days under the 10 and 20-day EMAs after a decline, and the pop reclaims those two fast lines",
+   "claim": "A wedge pop is a tight range of a few days under the fast averages after a decline, and the pop reclaims them."
+  },
+  {
+   "id": "c36",
+   "source": "c1",
+   "quote": "a launchpad rests 25 sessions or more with the 8, 21 and 50-day within 3% of each other near the 200, and the launch clears all four.",
+   "claim": "A launchpad rests 25 sessions or more with the averages within 3% of each other near the 200-day."
+  },
+  {
+   "id": "c37",
+   "source": "c1",
+   "quote": "A VCP's pullbacks shrink one after another above a rising 50-day and the buy is the pivot, the final contraction's high",
+   "claim": "A VCP's pullbacks shrink one after another above a rising 50-day and the buy is the pivot."
+  },
+  {
+   "id": "c38",
+   "source": "c1",
+   "quote": "a launchpad's base is flat under a bundle of averages that have gone flat, and the trigger is the close above them with no pivot required.",
+   "claim": "A launchpad's base is flat under flat averages, and the trigger is the close above them with no pivot."
+  },
+  {
+   "id": "c39",
+   "source": "c1",
+   "quote": "A 20 EMA pullback tags a rising 20 EMA from above with the 20 above the 50 and buys the turn at the line",
+   "claim": "A 20 EMA pullback tags a rising 20 EMA from above and buys the turn at the line."
+  },
+  {
+   "id": "c40",
+   "source": "c1",
+   "quote": "a launchpad follows a 15% correction and five weeks or more under a tight bundle.",
+   "claim": "A launchpad follows a 15% correction and five weeks or more under a tight bundle."
+  },
+  {
+   "id": "c41",
+   "source": "c1",
+   "quote": "Putting the stop under the whole base or under the averages, then sizing as if it were tight.",
+   "claim": "A named mistake: the stop under the whole base or the averages, sized as if it were tight."
+  },
+  {
+   "id": "c42",
+   "source": "c1",
+   "quote": "Believing the bundle alone is the edge. On daily bars it adds one or two points over any strong day above the averages. The stock, the base and the market are the edge.",
+   "claim": "The bundle alone is not the edge; the stock, the base and the market are."
+  },
+  {
+   "id": "c43",
+   "source": "c1",
+   "quote": "lp.correction: a deep correction first, -20% or deeper",
+   "claim": "The A+ cue: a deep correction first, 20% or deeper."
+  },
+  {
+   "id": "c44",
+   "source": "c1",
+   "quote": "lp.near_200: the 200 well away from the bundle, or the launch still under it (a cut)",
+   "claim": "The B- end: the 200-day well away from the bundle; the launch still under it is a cut."
+  },
+  {
+   "id": "c45",
+   "source": "c1",
+   "quote": "The launch bar looks the same on winners and losers; the stock, the base and the market carry the edge.",
+   "claim": "The launch bar looks the same on winners and losers; the stock, the base and the market carry the edge."
+  },
+  {
+   "id": "c46",
+   "source": "c1",
+   "quote": "lp.bundle_tight: the averages are not tight (Manrav: I won't call that a launch pad, the EMA's are not tight)",
+   "claim": "No trade when the averages are not tight; Manrav: I won't call that a launch pad, the EMA's are not tight."
+  },
+  {
+   "id": "c47",
+   "source": "c1",
+   "quote": "Calling a V rally up into the bundle a launchpad; that is a breakout (TAN, MARA, SONO, JD, MGNI).",
+   "claim": "A named mistake: calling a V rally up into the bundle a launchpad."
+  },
+  {
+   "id": "c48",
+   "source": "c1",
+   "quote": "lp.not_gap: a news bar or a gap over 6% as the trigger (INTC, ARKK)",
+   "claim": "No trade: a news bar or a gap over 6% as the trigger."
+  },
+  {
+   "id": "c49",
+   "source": "c1",
+   "quote": "The position is at most 1% of the stock's average daily volume.",
+   "claim": "The position is at most 1% of the stock's average daily volume."
+  },
+  {
+   "id": "c50",
+   "source": "c1",
+   "quote": "A real stop order with the broker. It only moves up.",
+   "claim": "A real stop order with the broker; it only moves up."
+  },
+  {
+   "id": "c51",
+   "source": "c1",
+   "quote": "A gap through the stop: the first 30-minute low is the new stop; out if that is past 2R.",
+   "claim": "A gap through the stop: the first 30-minute low is the new stop; out if past 2R."
+  },
+  {
+   "id": "c52",
+   "source": "c1",
+   "quote": "Stop to the entry once 2R has traded (B19 says 2R to 5R; 2R is the low end).",
+   "claim": "Breakeven once 2R has traded, the low end of B19's 2R to 5R."
+  },
+  {
+   "id": "c53",
+   "source": "c1",
+   "quote": "All ten examples reached 5R before the fixed stop.",
+   "claim": "All ten launchpad examples reached 5R before the fixed stop."
+  },
+  {
+   "id": "c54",
+   "source": "c1",
+   "quote": "Among the ten examples 3R came in 3 to 33 sessions (median about 11).",
+   "claim": "Among the ten examples 3R came in 3 to 33 sessions."
+  },
+  {
+   "id": "c55",
+   "source": "c1",
+   "quote": "The launch bar is the Launchpad trigger (his naming).",
+   "claim": "The launch bar is the Launchpad trigger."
+  },
+  {
+   "id": "c56",
+   "source": "c1",
+   "quote": "+4.1% on 2.13x volume, stopped the next session. A 2x launch bar was not a protection.",
+   "claim": "TEAM, April 2021: +4.1% on 2.13x volume, stopped the next session; a 2x launch bar was not a protection."
+  },
+  {
+   "id": "d01",
+   "source": "d1",
+   "quote": "KBH | 2004-09-01 | -24.8% | 2.91% | 2.6% | 15 / 13 | +2.5%, 0.94, 1.27x | 35.26 | 34.26 (2.9%) | 11.2 (3R in 7 sessions)",
+   "claim": "KBH, launch 2004-09-01: a 24.8% correction, a 2.91% bundle, +2.5% closing at 0.94 on 1.27x; buy 35.26, stop 34.26; 11.2R, 3R in 7 sessions."
+  },
+  {
+   "id": "d02",
+   "source": "d1",
+   "quote": "a 4-month correction, two months of closes around a flat 200-day, the averages pinch to within 3% and the launch closes above all four; stacked on the day",
+   "claim": "KBH: a four-month correction, two months around a flat 200-day, the averages pinch within 3%, the launch closes above all four."
+  },
+  {
+   "id": "d03",
+   "source": "d1",
+   "quote": "BABA | 2025-01-24 | -31.6% | 1.86% | 1.0% | 26 / 0 | +3.5%, 0.98, 1.33x | 89.14 | 86.43 (3.0%) | 21.9 (3R in 3)",
+   "claim": "BABA, launch 2025-01-24: a 31.6% correction, a 1.86% bundle, the 200-day 1.0% away; +3.5% closing at 0.98 on 1.33x; buy 89.14, stop 86.43; 21.9R, 3R in 3."
+  },
+  {
+   "id": "d04",
+   "source": "d1",
+   "quote": "26 of 40 closes under the bundle and none above it, the 200-day 1% from the bundle, the launch closes at its high; not stacked on the day (the 50 was still on top), stacked within 3 sessions",
+   "claim": "BABA: 26 of 40 closes under the bundle and none above, the 200-day 1% away, the launch closes at its high; stacked within 3 sessions."
+  },
+  {
+   "id": "d05",
+   "source": "d1",
+   "quote": "DDOG | 2024-10-04 | -22.1% | 1.66% | 5.8% | 11 / 7 | +4.4%, 0.97, 1.63x | 122.69 | 118.32 (3.6%) | 10.8 (3R in 33)",
+   "claim": "DDOG, launch 2024-10-04: a 22.1% correction, +4.4% closing at 0.97 on 1.63x; buy 122.69, stop 118.32 (3.6%); 10.8R, 3R in 33 sessions."
+  },
+  {
+   "id": "d06",
+   "source": "d1",
+   "quote": "the launch closes near its high, then the stock dangles along the 21 EMA for four weeks (the retest the originators buy) before the run; 3R took 33 sessions, yet it was over 1R inside 10 days",
+   "claim": "DDOG: the stock dangled along the 21 EMA for four weeks before the run; 3R took 33 sessions, but it was over 1R inside 10 days."
+  },
+  {
+   "id": "d07",
+   "source": "d1",
+   "quote": "RMD | 2006-10-24 | -21.1% | 0.95% | 5.1% | 23 / 2 | +4.3%, 0.84, 1.87x | 21.41 | 20.91 (2.3%) | 11.3 (3R in 12)",
+   "claim": "RMD, launch 2006-10-24: buy 21.41, stop 20.91 (2.3%); 11.3R, 3R in 12."
+  },
+  {
+   "id": "d08",
+   "source": "d1",
+   "quote": "two months of closes UNDER a converging bundle, a flat 200-day just above, then one wide bar through all four on 1.9x volume; not stacked on the day, stacked within 3",
+   "claim": "RMD: two months of closes under a converging bundle, then one wide bar through all four on 1.9x volume; stacked within 3 sessions."
+  },
+  {
+   "id": "d09",
+   "source": "d1",
+   "quote": "AIZ | 2013-01-14 | -15.4% | 0.87% | 2.3% | 20 / 4 | +2.0%, 1.00, 1.24x | 36.92 | 36.15 (2.1%) | 14.2 (3R in 13)",
+   "claim": "AIZ, launch 2013-01-14: +2.0% closing at 1.00 on 1.24x; buy 36.92, stop 36.15; 14.2R."
+  },
+  {
+   "id": "d10",
+   "source": "d1",
+   "quote": "the smallest launch bar of the ten (+2.0%, the floor of rule 8) out of a very tight pad; the 200-day flat and 2% away",
+   "claim": "AIZ: the smallest launch bar of the ten, +2.0%, the floor, out of a very tight pad with the 200-day 2% away."
+  },
+  {
+   "id": "d11",
+   "source": "d1",
+   "quote": "MSCI | 2017-01-04 | -15.0% | 1.32% | 0.8% | 18 / 3 | +2.5%, 0.81, 1.46x | 80.71 | 79.03 (2.1%) | 17.0 (3R in 20)",
+   "claim": "MSCI, launch 2017-01-04: a 15.0% correction, the 200-day 0.8% from the bundle; buy 80.71, stop 79.03; 17.0R, 3R in 20."
+  },
+  {
+   "id": "d12",
+   "source": "d1",
+   "quote": "the 200-day is inside the bundle (0.8% away): all four averages in a 2% band for weeks, then a quiet +2.5% launch; the slow kind of pad, 3R took 20 sessions",
+   "claim": "MSCI: the 200-day inside the bundle, all four averages in a 2% band for weeks, a quiet +2.5% launch; 3R took 20 sessions."
+  },
+  {
+   "id": "d13",
+   "source": "d1",
+   "quote": "BA | 2021-11-15 | 233.09 | 226.87 (2.7%) | day 1, 2021-11-16, low 225.51",
+   "claim": "BA, launch 2021-11-15: buy 233.09, stop 226.87 (2.7%); stopped on day 1."
+  },
+  {
+   "id": "d14",
+   "source": "d1",
+   "quote": "a 20% correction, a 0.72% bundle, +5.5% on 2.55x volume above all four averages. The next session traded through the launch low and closed at 225.80; the low within 10 sessions was 193.85.",
+   "claim": "BA: a 20% correction, a 0.72% bundle, +5.5% on 2.55x above all four; the next session took the stop; BA had been in a downtrend for two years."
+  },
+  {
+   "id": "d15",
+   "source": "d1",
+   "quote": "NEE | 2025-03-10 | 76.16 | 72.43 (4.9%) | day 2, 2025-03-12, low 71.78",
+   "claim": "NEE, launch 2025-03-10: buy 76.16, stop 72.43 (4.9%); stopped on day 2."
+  },
+  {
+   "id": "d16",
+   "source": "d1",
+   "quote": "The stop was 4.9% away, near the 6% cap, so the position was small; the loss stayed at 1R.",
+   "claim": "NEE: the stop was 4.9% away, so the position was small; the loss stayed at 1R."
+  },
+  {
+   "id": "d17",
+   "source": "d1",
+   "quote": "FDX | 2010-07-26 | 67.20 | 66.03 (1.7%) | day 1, 2010-07-27, low 65.92",
+   "claim": "FDX, launch 2010-07-26: buy 67.20, stop 66.03 (1.7%); stopped on day 1."
+  },
+  {
+   "id": "d18",
+   "source": "d1",
+   "quote": "The launch opened 4.2% up (inside the 6% line) and its whole range was 66.08 to 67.40, so the honest stop was 1.7% and sat inside the noise; the next session traded through it.",
+   "claim": "FDX: the launch opened 4.2% up and its whole range was 66.08 to 67.40, so the honest stop was 1.7%, inside the noise; the next session took it."
+  },
+  {
+   "id": "d19",
+   "source": "d1",
+   "quote": "CMCSA | 2017-12-04 | 37.79 | 36.89 (2.4%) | day 2, 2017-12-06, low 36.13",
+   "claim": "CMCSA, launch 2017-12-04: buy 37.79, stop 36.89 (2.4%); stopped on day 2."
+  },
+  {
+   "id": "d20",
+   "source": "d1",
+   "quote": "One flat day (high 37.85, 0.07R), then two red days back into the bundle. A big-volume launch in a slow large cap.",
+   "claim": "CMCSA: one flat day, then two red days back into the bundle; a big-volume launch in a slow large cap."
+  },
+  {
+   "id": "d21",
+   "source": "d1",
+   "quote": "the lowest close of the last 60 sessions is 11.2% under the prior 60-session high; the rule needs 15% or more",
+   "claim": "MSFT 2023-10-06 near-miss: the correction was 11.2%; the rule needs 15% or more."
+  },
+  {
+   "id": "d22",
+   "source": "d1",
+   "quote": "a shallow pullback in an uptrend over a rising 200-day (7.5% away); a moving-average pullback (setups 11 and 12), not a pad.",
+   "claim": "MSFT: a shallow pullback in an uptrend over a rising 200-day; a moving-average pullback, not a pad."
+  },
+  {
+   "id": "d23",
+   "source": "d1",
+   "quote": "the 8, 21 and 50-day span 5.77% of price the day before (16.66 to 15.49 against a 16.80 close); the rule is 3% or less",
+   "claim": "AAPL 2013-08-13 near-miss: the three averages span 5.77% of price; the rule is 3% or less."
+  },
+  {
+   "id": "d24",
+   "source": "d1",
+   "quote": "the averages had not converged; a +4.8% breakout on 2.78x volume through a loose bundle under a falling 200-day. A rally bar, not a launch",
+   "claim": "AAPL 2013: the averages had not converged; a +4.8% breakout on 2.78x through a loose bundle under a falling 200-day; a rally bar, not a launch."
+  },
+  {
+   "id": "d25",
+   "source": "d1",
+   "quote": "price rode on top of the averages after the February low; a pullback breakout (the lp.inv_pullback_breakout shape), not a pad",
+   "claim": "JPM 2016-05-18 near-miss: price rode on top of the averages; a pullback breakout, not a pad."
+  },
+  {
+   "id": "d26",
+   "source": "d1",
+   "quote": "the bar closes at 148.03, above the 8/21/50 (top 146.83) but under the 200-day (154.21); the launch must clear all four",
+   "claim": "AAPL 2022-11-30 near-miss: the bar closes at 148.03, above the bundle but under the 200-day at 154.21; the launch must clear all four."
+  },
+  {
+   "id": "d27",
+   "source": "d1",
+   "quote": "a bundle reclaim under a falling 200-day after a 23% correction; +4.9% on 1.25x volume. Stopped on the way to the December low",
+   "claim": "AAPL 2022: a bundle reclaim under a falling 200-day; stopped on the way to the December low."
+  },
+  {
+   "id": "d28",
+   "source": "d1",
+   "quote": "The stop did its job every time: four losses of 1R each, none worse.",
+   "claim": "The four failures: four losses of 1R each, none worse."
+  },
+  {
+   "id": "d29",
+   "source": "d1",
+   "quote": "On the launch bar nothing separated them from the ten winners: +4.6% to +5.6% on 1.8x to 2.6x volume, closes in the top third of the range, above all four averages",
+   "claim": "The failures' launch bars looked like the winners': +4.6% to +5.6% on 1.8x to 2.6x volume, closing in the top third."
+  },
+  {
+   "id": "d30",
+   "source": "d1",
+   "quote": "a launch bar with 2x or more volume was not a protection",
+   "claim": "A launch bar with 2x or more volume was not a protection."
+  },
+  {
+   "id": "d31",
+   "source": "d1",
+   "quote": "The base, the leadership of the stock and the market reading carry the edge",
+   "claim": "The base, the leadership of the stock and the market reading carry the edge."
+  },
+  {
+   "id": "d32",
+   "source": "d1",
+   "quote": "2,417 hits; 26.6% reached 3R and 14.6% reached 5R",
+   "claim": "The scan: 2,417 launches; 26.6% reached 3R and 14.6% reached 5R before a fixed stop."
+  },
+  {
+   "id": "d33",
+   "source": "d1",
+   "quote": "BA had been in a downtrend for two years.",
+   "claim": "BA had been in a downtrend for two years."
+  },
+  {
+   "id": "u01",
+   "source": "u1",
+   "quote": "Got my position on Friday at $324 but really like this launchpad here with all the moving averages stacked tight. Clear risk against Friday’s low or the 200SMA.",
+   "claim": "TSLA, August 2025: a launchpad with the averages stacked tight; the risk is against Friday's low or the 200-day."
+  },
+  {
+   "id": "u02",
+   "source": "u2",
+   "quote": "The 200SMA remount was attractive out of this mini base here but it is still curling lower.",
+   "claim": "RDDT, July 2026: the 200-day still curling lower made it a wait."
+  },
+  {
+   "id": "u03",
+   "source": "u2",
+   "quote": "If we get a launchpad to form I will be increasingly more interested in it.",
+   "claim": "RDDT: a launchpad forming would make it more interesting."
+  },
+  {
+   "id": "r1",
+   "source": "c1",
+   "quote": "The buy: a market order in the last minutes of the launch day, once the day already meets the launch tests",
+   "claim": "The Launchpad buy is a market order in the last minutes of the launch day."
+  }
+ ],
+ "walkthroughs": [
+  {
+   "key": "w1",
+   "title": "KBH, September 2004: the textbook pad",
+   "steps": [
+    "KBH, 2004. A four-month correction of 24.8%. Then two months around a flat 200-day while the averages pinch within 3%.",
+    "Context and pattern check out: a real correction, a long base, a tight bundle, the 200-day close. Now wait for the launch.",
+    "2004-09-01: up 2.5%, closing at 0.94 of its range, above all four averages. Fill 35.26; stop under the low, 34.26.",
+    "Failure mode: the next session trades through the launch low. Instead 3R comes in seven sessions. Trim a third."
+   ],
+   "facts": [
+    "d01",
+    "d02",
+    "c02",
+    "c06",
+    "c08",
+    "c17",
+    "h24",
+    "h05"
+   ]
+  },
+  {
+   "key": "w2",
+   "title": "BABA, January 2025: under the bundle, then the launch",
+   "steps": [
+    "BABA, 2025. After a 31.6% correction, 26 of 40 closes sat under the bundle, none above. The 200-day is 1% away.",
+    "That is the picture: weeks under pinched averages, with the 200-day close by.",
+    "2025-01-24: up 3.5%, closing at its high above all four. Fill 89.14; stop a few cents under the low, 86.43.",
+    "Not stacked on the day; the stack formed within 3 sessions. 3R came in three sessions. The first third comes off."
+   ],
+   "facts": [
+    "d03",
+    "d04",
+    "c07",
+    "c08",
+    "c13",
+    "c17",
+    "h24",
+    "h05"
+   ]
+  },
+  {
+   "key": "w3",
+   "title": "DDOG, October 2024: the dangle, the trail and the time stop",
+   "steps": [
+    "DDOG, 2024. A 22.1% correction, a 1.66% bundle. On 2024-10-04 it launches up 4.4%, closing at 0.97, on 1.63x volume.",
+    "Fill 122.69; stop 118.32, 3.6% away. Over 3%, so the size shrinks. Never pull the stop in to fit.",
+    "Then it dangles along the 21 EMA for four weeks. Over 1R inside 10 days, so the time stop stays quiet.",
+    "3R takes 33 sessions. Launchpads come out of long bases and trend along the 21-day. That is why the 21-day trails."
+   ],
+   "facts": [
+    "d05",
+    "d06",
+    "h01",
+    "h04",
+    "c21",
+    "h15",
+    "c19",
+    "c20"
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "key": "q01",
+   "skill": "setup.launchpad",
+   "rung": 1,
+   "format": "mcq",
+   "criterion": "lp.launch_above_all",
+   "q": "In one line, what is a launchpad?",
+   "choices": [
+    "Tight averages, a long rest, a launch",
+    "A box at the highs after a 30% run-up",
+    "A pole that doubles in a few weeks",
+    "A V rally up through the averages"
+   ],
+   "answer": "Tight averages, a long rest, a launch",
+   "why": "Tight averages, a long rest, a launch. TraderLion: price trades underneath the averages in a base, reclaims them, and they curl underneath price.",
+   "lesson_line": "A launchpad is a long rest under averages that pinched together, then the day price clears them.",
+   "facts": [
+    "t02",
+    "t03",
+    "t04",
+    "c16",
+    "c36"
+   ],
+   "house": true,
+   "wrong": {
+    "A box at the highs after a 30% run-up": "That is a flat base: it holds above the 50-day and breaks out over its own high.",
+    "A pole that doubles in a few weeks": "That is the high tight flag's pole. A launchpad follows a correction, not a doubling.",
+    "A V rally up through the averages": "A V rally up into the bundle is a breakout, not a launchpad. The pad lives under the averages for weeks."
+   }
+  },
+  {
+   "key": "q02",
+   "skill": "setup.launchpad",
+   "rung": 1,
+   "format": "mcq",
+   "criterion": "lp.correction",
+   "q": "What comes before a launchpad base?",
+   "choices": [
+    "A real correction",
+    "A run of 30% to new highs",
+    "An earnings gap",
+    "A parabolic climb"
+   ],
+   "answer": "A real correction",
+   "why": "A real correction. The lowest close of the last 60 sessions sits at least 15% under the highest high of the 60 sessions before that.",
+   "lesson_line": "No correction, no pad. The rest comes after the fall.",
+   "facts": [
+    "c02",
+    "c40",
+    "c43"
+   ],
+   "house": true,
+   "wrong": {
+    "A run of 30% to new highs": "That is the flat base's prior trend. A launchpad is the opposite: a decline comes first.",
+    "An earnings gap": "A gap is a different setup. The pad is weeks of rest after a correction.",
+    "A parabolic climb": "A parabolic move is a climax, not a correction. The pad needs the fall first."
+   }
+  },
+  {
+   "key": "q03",
+   "skill": "setup.launchpad",
+   "rung": 1,
+   "format": "tf",
+   "criterion": "lp.stop",
+   "q": "On a launchpad the stop goes a few cents under the launch day's low.",
+   "answer": "True",
+   "why": "True. A few cents under the launch day's low, not exactly on it. Never under the bundle or the base low.",
+   "lesson_line": "Stop first: a few cents under the launch day's low.",
+   "facts": [
+    "c17",
+    "h24",
+    "h01",
+    "c18"
+   ],
+   "house": true
+  },
+  {
+   "key": "q04",
+   "skill": "setup.launchpad",
+   "rung": 1,
+   "format": "fill",
+   "criterion": "lp.launch_above_all",
+   "q": "Tap the number that fits the blank.",
+   "sentence": "The launch bar closes above all ___ averages, the 200-day among them.",
+   "bank": [
+    "four",
+    "three",
+    "two",
+    "five",
+    "six"
+   ],
+   "answer": "four",
+   "why": "Four. The launch bar closes above all four averages; a close inside the bundle or under the 200-day is not the launch. No longs below the 200-day.",
+   "lesson_line": "Above all four, or it is not the launch.",
+   "facts": [
+    "c08",
+    "h10"
+   ],
+   "house": true
+  },
+  {
+   "key": "q05",
+   "skill": "setup.launchpad",
+   "rung": 1,
+   "format": "mcq",
+   "criterion": "lp.trail",
+   "q": "Which average trails a launchpad's last third by default?",
+   "choices": [
+    "The 21-day",
+    "The 10-day",
+    "The 50-day",
+    "The 200-day"
+   ],
+   "answer": "The 21-day",
+   "why": "The 21-day, the steadier trail. Launchpads come out of long bases and tend to trend along the 21-day; the 10-day only for a fast mover.",
+   "lesson_line": "A pad trends along the 21-day. Trail it there and sell the close below.",
+   "facts": [
+    "c19",
+    "c20",
+    "h21"
+   ],
+   "house": true,
+   "wrong": {
+    "The 10-day": "The 10-day is for a fast mover. A pad out of a long base usually trends slower than that.",
+    "The 50-day": "Too far. A close under the 50-day gives back most of the move.",
+    "The 200-day": "The 200-day is the context line, not a trail. It sits far below a working pad."
+   }
+  },
+  {
+   "key": "q06",
+   "skill": "setup.launchpad",
+   "rung": 1,
+   "format": "tf",
+   "criterion": "lp.tradeable_name",
+   "q": "A textbook pad in a slow regional bank gets the same grade as one in a leader.",
+   "answer": "False",
+   "why": "False. A leader or a stock in a strong group, not a slow bank. Growing sales and earnings preferred; the chart comes first.",
+   "lesson_line": "The pad is the shape. The stock is the trade.",
+   "facts": [
+    "c15",
+    "h17",
+    "c31"
+   ],
+   "house": true
+  },
+  {
+   "key": "q07",
+   "skill": "setup.launchpad",
+   "rung": 1,
+   "format": "tf",
+   "criterion": "lp.not_breakout_bar",
+   "q": "The launch bar must also be a breakout over the base's high.",
+   "answer": "False",
+   "why": "False. The launch is the convergence and the dangle, not a breakout bar. The trigger bar may still be inside the base.",
+   "lesson_line": "The launch is the close above the averages, not a base top.",
+   "facts": [
+    "c16",
+    "c33"
+   ],
+   "house": true
+  },
+  {
+   "key": "q08",
+   "skill": "setup.launchpad",
+   "rung": 1,
+   "format": "mcq",
+   "criterion": "lp.near_200",
+   "q": "Where does the 200-day sit on a good launchpad?",
+   "choices": [
+    "At or just under the bundle",
+    "Far above price, as a ceiling",
+    "Far below, a full 30% away",
+    "Its position does not matter"
+   ],
+   "answer": "At or just under the bundle",
+   "why": "At or just under the bundle, within 10% of its middle. Haber: a pile of flat averages above price is a ceiling, not a launchpad.",
+   "lesson_line": "The 200-day close by is part of the picture. A 200-day still curling lower is a wait.",
+   "facts": [
+    "c07",
+    "b03",
+    "u02"
+   ],
+   "house": true,
+   "wrong": {
+    "Far above price, as a ceiling": "Flat averages above price are a ceiling, not a launchpad.",
+    "Far below, a full 30% away": "Too far. The 200-day sits within 10% of the bundle's middle, better at or just under it.",
+    "Its position does not matter": "It matters. The launch has to clear the 200-day too, and it should be close."
+   }
+  },
+  {
+   "key": "q09",
+   "skill": "setup.launchpad",
+   "rung": 2,
+   "format": "mcq",
+   "criterion": "lp.base_length",
+   "q": "How long is a launchpad base, at least?",
+   "choices": [
+    "25 sessions, about five weeks",
+    "5 sessions, about one week",
+    "10 sessions, about two weeks",
+    "100 sessions, about five months"
+   ],
+   "answer": "25 sessions, about five weeks",
+   "why": "At least 25 sessions: five weeks of closes within 10% of the bundle's middle. A wedge pop is the few-day version.",
+   "lesson_line": "Five weeks or more under the bundle. Days are a wedge pop, not a pad.",
+   "facts": [
+    "c03",
+    "c40",
+    "c35"
+   ],
+   "house": true,
+   "wrong": {
+    "5 sessions, about one week": "A tight range of a few days under the fast averages is a wedge pop, not a launchpad.",
+    "10 sessions, about two weeks": "Two weeks is a pause, not a pad. The rule is 25 sessions.",
+    "100 sessions, about five months": "Five months is not the rule. The floor is 25 sessions."
+   }
+  },
+  {
+   "key": "q10",
+   "skill": "setup.launchpad",
+   "rung": 2,
+   "format": "tf",
+   "criterion": "lp.launch_gain",
+   "q": "The launch bar must be up 2% or more on the day.",
+   "answer": "True",
+   "why": "True. A real push: up 2% or more. AIZ launched on exactly +2.0%, the floor, and still ran.",
+   "lesson_line": "A launch is a push, not a drift. Two percent is the floor.",
+   "facts": [
+    "c09",
+    "d10",
+    "d09"
+   ],
+   "house": true
+  },
+  {
+   "key": "q11",
+   "skill": "setup.launchpad",
+   "rung": 2,
+   "format": "mcq",
+   "criterion": "lp.stop_not_bundle",
+   "q": "Where does the launchpad stop never go?",
+   "choices": [
+    "Under the bundle or the base low",
+    "A few cents under the launch low",
+    "With the broker as a real order",
+    "Up to breakeven after 2R"
+   ],
+   "answer": "Under the bundle or the base low",
+   "why": "Never under the bundle or the base low. Both sit far outside the 3% habit; the stop is a few cents under the launch day's low.",
+   "lesson_line": "The base low is not the stop. Neither is the bottom of the averages.",
+   "facts": [
+    "c18",
+    "h04",
+    "c41"
+   ],
+   "house": true,
+   "wrong": {
+    "A few cents under the launch low": "That is exactly where it goes.",
+    "With the broker as a real order": "That is the rule, not the mistake. A stop in your head is the mistake.",
+    "Up to breakeven after 2R": "Moving it up is allowed. Moving it down or wider is not."
+   }
+  },
+  {
+   "key": "q12",
+   "skill": "setup.launchpad",
+   "rung": 2,
+   "format": "tf",
+   "criterion": "lp.earnings_window",
+   "q": "A launch bar that prints two sessions before an earnings report can be bought.",
+   "answer": "False",
+   "why": "False. No new buy in the 3 days before an earnings report. If it is still a pad after the report, it can launch again.",
+   "lesson_line": "A launch into earnings is a gap you cannot stop. Wait.",
+   "facts": [
+    "c14",
+    "h08"
+   ],
+   "house": true
+  },
+  {
+   "key": "q13",
+   "skill": "setup.launchpad",
+   "rung": 2,
+   "format": "fill",
+   "criterion": "lp.bundle_tight",
+   "q": "Tap the number that fits the blank.",
+   "sentence": "The bundle's three averages lie within ___% of price of each other on the day before the launch.",
+   "bank": [
+    "3",
+    "1",
+    "5",
+    "10",
+    "2"
+   ],
+   "answer": "3",
+   "why": "3%. Tight means the three averages within 3% of price of each other. Manrav: I won't call that a launch pad, the EMA's are not tight.",
+   "lesson_line": "Tight is a number here: three percent of price across the three lines.",
+   "facts": [
+    "c06",
+    "c46",
+    "b02"
+   ],
+   "house": true
+  },
+  {
+   "key": "q14",
+   "skill": "setup.launchpad",
+   "rung": 2,
+   "format": "scenario",
+   "criterion": "lp.inv_v_rally",
+   "q": "Launchpad or breakout?",
+   "choices": [
+    "A breakout, not a launchpad",
+    "A launchpad; it cleared all four",
+    "A launchpad, A+ for the speed"
+   ],
+   "answer": "A breakout, not a launchpad",
+   "why": "A breakout. Price rallied up into the bundle in a V from far below; a launchpad lives under the averages for weeks first.",
+   "lesson_line": "A V into the averages is a breakout wearing a pad's name.",
+   "facts": [
+    "c23",
+    "c47",
+    "c03"
+   ],
+   "house": true,
+   "wrong": {
+    "A launchpad; it cleared all four": "Clearing all four is the launch bar's job. The pad needs weeks of rest under them first, and there were none.",
+    "A launchpad, A+ for the speed": "Speed is the tell against it. A pad is slow: five weeks or more under the bundle."
+   },
+   "story": "The stock fell 25% below its averages, then rallied straight up into them. It closed above all four within one week."
+  },
+  {
+   "key": "q15",
+   "skill": "setup.launchpad",
+   "rung": 2,
+   "format": "mcq",
+   "criterion": "lp.position_adv",
+   "q": "The stock averages 3,000,000 shares a day. The most you may own?",
+   "choices": [
+    "30,000 shares, 1% of the volume",
+    "300,000 shares, a tenth of volume",
+    "3,000 shares, a tenth of the cap",
+    "No ceiling with a tight stop"
+   ],
+   "answer": "30,000 shares, 1% of the volume",
+   "why": "30,000 shares. The position is at most 1% of the stock's average daily volume.",
+   "lesson_line": "One percent of the daily volume, and not a share more.",
+   "facts": [
+    "c49",
+    "h19"
+   ],
+   "house": true,
+   "wrong": {
+    "300,000 shares, a tenth of volume": "That is a tenth of the day's volume. You could not get out without moving it.",
+    "3,000 shares, a tenth of the cap": "That is a tenth of the 1% ceiling. The ceiling is 1%, not less.",
+    "No ceiling with a tight stop": "A stop cannot catch a gap. The ceiling stands."
+   }
+  },
+  {
+   "key": "q16",
+   "skill": "setup.launchpad",
+   "rung": 2,
+   "format": "tf",
+   "criterion": "lp.stock_can_move",
+   "q": "Wide, loose stocks with huge daily ranges make the best launchpads.",
+   "answer": "False",
+   "why": "False. Slow, heavy names grade down, and wide, loose stocks with huge ranges are a trap. Haber says the same.",
+   "lesson_line": "A stock that can move, not one that thrashes. Both ends grade down.",
+   "facts": [
+    "c31",
+    "b05"
+   ],
+   "house": true
+  },
+  {
+   "key": "q17",
+   "skill": "setup.launchpad",
+   "rung": 3,
+   "format": "scenario",
+   "criterion": "lp.market_reading",
+   "q": "Buy it?",
+   "choices": [
+    "No; Orange is A+ only",
+    "Yes; the launch is the launch",
+    "Yes, half size"
+   ],
+   "answer": "No; Orange is A+ only",
+   "why": "No. Orange: A+ launchpads only. Green is full risk, Yellow smaller and fewer, Red the long version is off.",
+   "lesson_line": "Read the market before the pad. Orange buys A+ and nothing else.",
+   "facts": [
+    "c28",
+    "h26"
+   ],
+   "house": true,
+   "wrong": {
+    "Yes; the launch is the launch": "The launch fired and the reading still says A+ only. A B grade waits.",
+    "Yes, half size": "Orange is about grade, not size. A B setup stays on the bench."
+   },
+   "story": "The reading turned Orange this week. A clean launchpad launches in a stock you grade B."
+  },
+  {
+   "key": "q18",
+   "skill": "setup.launchpad",
+   "rung": 3,
+   "format": "tf",
+   "criterion": "lp.trim_2",
+   "q": "In our scan of 2,417 launchpads, most reached 5R before the fixed stop.",
+   "answer": "False",
+   "why": "False. 26.6% reached 3R and 14.6% reached 5R before the fixed stop. Most launches never get there.",
+   "lesson_line": "Most launchpads never reach 5R. The small stop keeps the misses small.",
+   "facts": [
+    "d32",
+    "h20"
+   ],
+   "house": true
+  },
+  {
+   "key": "q19",
+   "skill": "setup.launchpad",
+   "rung": 3,
+   "format": "numeric",
+   "criterion": "lp.trim_1",
+   "q": "Bought at 35.26 with the stop at 34.26. Where is 3R?",
+   "answer": 38.26,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "a + 3 * (a - b)",
+     "a": 35.26,
+     "b": 34.26
+    },
+    "round": 2
+   },
+   "why": "38.26. One R is the fill minus the stop; add three of those to the fill. KBH got there in seven sessions.",
+   "lesson_line": "Know your 3R before the open. The first third comes off there.",
+   "facts": [
+    "h05",
+    "d01"
+   ],
+   "house": true,
+   "prefix": "$"
+  },
+  {
+   "key": "q20",
+   "skill": "setup.launchpad",
+   "rung": 3,
+   "format": "scenario",
+   "criterion": "lp.launch_above_all",
+   "q": "Is this the launch?",
+   "choices": [
+    "No; it must clear the 200-day too",
+    "Yes; three of four is enough",
+    "Yes; the volume makes it"
+   ],
+   "answer": "No; it must clear the 200-day too",
+   "why": "No. The launch closes above all four averages; under the 200-day is not the launch. AAPL did exactly this once and stopped on the way to the December low.",
+   "lesson_line": "Three of four is a reclaim, not a launch. The 200-day counts.",
+   "facts": [
+    "c08",
+    "h10",
+    "d26",
+    "d27"
+   ],
+   "house": true,
+   "wrong": {
+    "Yes; three of four is enough": "A close inside the bundle or under the 200-day is not the launch. All four, or wait.",
+    "Yes; the volume makes it": "Volume grades the bar. It does not put the close above the 200-day."
+   },
+   "story": "A +4% day on 2x volume closes above the three fast averages but 0.5% under the 200-day."
+  },
+  {
+   "key": "q21",
+   "skill": "setup.launchpad",
+   "rung": 3,
+   "format": "mcq",
+   "criterion": "lp.inv_pullback_breakout",
+   "q": "For the whole base price rode on top of the bundle in an uptrend, then popped. What is it?",
+   "choices": [
+    "A pullback breakout, not a pad",
+    "A launchpad",
+    "A V rally"
+   ],
+   "answer": "A pullback breakout, not a pad",
+   "why": "A pullback breakout. A launchpad lives under the averages; price riding on top of them in an uptrend is a pullback. JPM rode on top after a February low and popped: a pullback, not a pad.",
+   "lesson_line": "Under the averages for weeks, or it is not a pad.",
+   "facts": [
+    "c24",
+    "d25",
+    "c39"
+   ],
+   "house": true,
+   "wrong": {
+    "A launchpad": "The pad needs price under the bundle. On top of it the whole time is a different trade.",
+    "A V rally": "A V rally comes from far below. This one never left the top of the averages."
+   }
+  },
+  {
+   "key": "q22",
+   "skill": "setup.launchpad",
+   "rung": 3,
+   "format": "tf",
+   "criterion": "lp.stack_forms",
+   "q": "The full stack of the three averages must already be in place before the launch.",
+   "answer": "False",
+   "why": "False. The stack forms as it launches, on the launch day or within the next 3 sessions. RMD and BABA stacked within 3 sessions.",
+   "lesson_line": "The stack is the result of the launch, not a condition for it.",
+   "facts": [
+    "c13",
+    "d08",
+    "d04"
+   ],
+   "house": true
+  },
+  {
+   "key": "q23",
+   "skill": "setup.launchpad",
+   "rung": 3,
+   "format": "scenario",
+   "criterion": "lp.no_chase",
+   "q": "Buy, or pass?",
+   "choices": [
+    "Pass; 5% over the launch close",
+    "Buy; still near the averages",
+    "Buy half size to cut the risk"
+   ],
+   "answer": "Pass; 5% over the launch close",
+   "why": "Pass. Never buy more than 4% above the buy point; this open is 5% over the launch close. Chasing costs size, not risk.",
+   "lesson_line": "I would rather miss it than chase it. Four percent and done.",
+   "facts": [
+    "h11",
+    "h12"
+   ],
+   "house": true,
+   "wrong": {
+    "Buy; still near the averages": "Near is not the test. The open is 5% past the launch close, and further still past the averages.",
+    "Buy half size to cut the risk": "Half of a chase is still a chase."
+   },
+   "story": "The launch closed at 50.00. Next morning it opens at 52.50. The top of the averages sits at 47.00.",
+   "calc": {
+    "fn": "pct_change",
+    "args": {
+     "start": 50.0,
+     "end": 52.5
+    },
+    "round": 1
+   }
+  },
+  {
+   "key": "q24",
+   "skill": "setup.launchpad",
+   "rung": 3,
+   "format": "fill",
+   "criterion": "lp.time_stop",
+   "q": "Tap the number that fits the blank.",
+   "sentence": "A launchpad still under ___R after 10 trading days is sold.",
+   "bank": [
+    "1",
+    "2",
+    "3",
+    "5",
+    "0.5"
+   ],
+   "answer": "1",
+   "why": "1R. Still under 1R after 10 trading days, sell; a pad that does not expand is a quiet failure. DDOG was over 1R inside 10 days, so it stayed.",
+   "lesson_line": "Ten days and nothing is a quiet failure. The money has somewhere better to be.",
+   "facts": [
+    "c21",
+    "h15",
+    "d06"
+   ],
+   "house": true
+  },
+  {
+   "key": "q25",
+   "skill": "setup.launchpad",
+   "rung": 3,
+   "format": "mcq",
+   "criterion": "lp.not_gap",
+   "q": "The launch opens 8% above the prior close on a news item. Our read?",
+   "choices": [
+    "Not the launch; a gap trade",
+    "The launch, A+ for the gap",
+    "The launch if volume is 2x"
+   ],
+   "answer": "Not the launch; a gap trade",
+   "why": "Not the launch. The launch opens no more than 6% above the prior close and is not a news bar. A bigger gap is a different setup.",
+   "lesson_line": "A news gap is its own setup with its own rules. The pad launches on a push, not a gap.",
+   "facts": [
+    "c12",
+    "c48"
+   ],
+   "house": true,
+   "wrong": {
+    "The launch, A+ for the gap": "A gap over 6% is a different setup, a Kicker or an earnings gap, not a launch.",
+    "The launch if volume is 2x": "Volume grades a launch. It cannot turn a news gap into one."
+   }
+  },
+  {
+   "key": "q26",
+   "skill": "setup.launchpad",
+   "rung": 4,
+   "format": "numeric",
+   "criterion": "lp.correction",
+   "q": "The highest high of sessions 61 to 120 back was 80.00; the lowest close of the last 60 is 66.00. The correction, in percent?",
+   "answer": 17.5,
+   "calc": {
+    "fn": "drawdown_pct",
+    "args": {
+     "peak": 80.0,
+     "trough": 66.0
+    },
+    "round": 1
+   },
+   "why": "17.5%. The lowest close of the last 60 sessions against the highest high of the 60 before that. At least 15% is the line, so it qualifies.",
+   "lesson_line": "Measure the fall before the rest. A pad with no correction in front of it is a pullback.",
+   "facts": [
+    "c02"
+   ],
+   "house": true,
+   "suffix": "%"
+  },
+  {
+   "key": "q27",
+   "skill": "setup.launchpad",
+   "rung": 4,
+   "format": "numeric",
+   "criterion": "lp.bundle_tight",
+   "q": "The 8 EMA is 41.20, the 21 EMA 40.60, the 50 SMA 40.10 and price 40.50. The bundle's width in percent of price?",
+   "answer": 2.72,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(a - b) / p * 100",
+     "a": 41.2,
+     "b": 40.1,
+     "p": 40.5
+    },
+    "round": 2
+   },
+   "why": "2.72%. The highest average minus the lowest, divided by price. Inside the 3% line, so the bundle is tight.",
+   "lesson_line": "Highest line minus lowest line, over price. Three percent is the line.",
+   "facts": [
+    "c06"
+   ],
+   "house": true,
+   "suffix": "%"
+  },
+  {
+   "key": "q28",
+   "skill": "setup.launchpad",
+   "rung": 4,
+   "format": "numeric",
+   "criterion": "lp.launch_close",
+   "q": "The launch bar ran 30.00 to 32.00 and closed at 31.40. Where in its range did it close, 0 to 1?",
+   "answer": 0.7,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(c - l) / (h - l)",
+     "c": 31.4,
+     "l": 30.0,
+     "h": 32.0
+    },
+    "round": 2
+   },
+   "why": "0.70 of the range. The floor is 0.65, the top 35%, so it passes. The winners mostly closed near the high.",
+   "lesson_line": "Close minus low, over high minus low. Top third or better.",
+   "facts": [
+    "c10",
+    "d04"
+   ],
+   "house": true
+  },
+  {
+   "key": "q29",
+   "skill": "setup.launchpad",
+   "rung": 4,
+   "format": "numeric",
+   "criterion": "lp.stop",
+   "q": "Bought at 122.69 with the stop at 118.32. How far below the fill is the stop, in percent?",
+   "answer": 3.56,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(a - b) / a * 100",
+     "a": 122.69,
+     "b": 118.32
+    },
+    "round": 2
+   },
+   "why": "3.56%. Fill minus stop, divided by the fill. Over the 3% habit, so the position shrinks; never pull the stop in to fit.",
+   "lesson_line": "Stop first, distance second, size last.",
+   "facts": [
+    "h04",
+    "h03",
+    "d05"
+   ],
+   "house": true,
+   "suffix": "%"
+  },
+  {
+   "key": "q30",
+   "skill": "setup.launchpad",
+   "rung": 4,
+   "format": "scenario",
+   "criterion": "lp.close_back_under_200",
+   "q": "Sell, or hold?",
+   "choices": [
+    "Hold; the stop is the exit",
+    "Sell; under the 200-day is off",
+    "Sell half"
+   ],
+   "answer": "Hold; the stop is the exit",
+   "why": "Hold. After the entry a close back under the 200-day is not an exit; the stop is, and it only moves up. The 200-day rule governs new longs, not open ones.",
+   "lesson_line": "The 200-day rule is for buying. Once in, my stop is my stop.",
+   "facts": [
+    "c26",
+    "c27",
+    "h02"
+   ],
+   "house": true,
+   "wrong": {
+    "Sell; under the 200-day is off": "No longs below the 200-day is a rule for new buys. An open trade answers to its stop.",
+    "Sell half": "Half of a rule that does not apply is still not a rule. Hold to the stop."
+   },
+   "story": "Three days after the launch the stock closes 1% under the 200-day. It sits above your stop."
+  },
+  {
+   "key": "q31",
+   "skill": "setup.launchpad",
+   "rung": 4,
+   "format": "scenario",
+   "criterion": "lp.stop_gap",
+   "q": "Where is the stop now?",
+   "choices": [
+    "71.20, the first 30-minute low",
+    "Sell at the open, at 71.80",
+    "72.43 still; the gap is noise",
+    "Get out; the gap is past 2R"
+   ],
+   "answer": "71.20, the first 30-minute low",
+   "why": "71.20. A gap through the stop hands it to the first 30-minute low. That low is inside the 2R ceiling, so it is the new stop.",
+   "lesson_line": "A gap through the stop is the one exception. The first 30 minutes decide.",
+   "facts": [
+    "h06",
+    "h07",
+    "c51"
+   ],
+   "house": true,
+   "wrong": {
+    "Sell at the open, at 71.80": "The gap rule gives it the first 30 minutes. The 30-minute low is the decision, not the open.",
+    "72.43 still; the gap is noise": "Price is already under it. A stop that has been gapped through needs the gap rule.",
+    "Get out; the gap is past 2R": "The 30-minute low is inside 2R here. The ceiling has not been hit."
+   },
+   "story": "You bought the launch at 76.16 with the stop at 72.43. It gaps open at 71.80, under the stop. The first 30-minute bar's low is 71.20."
+  },
+  {
+   "key": "q32",
+   "skill": "setup.launchpad",
+   "rung": 4,
+   "format": "scenario",
+   "criterion": "lp.confluence",
+   "q": "What does the second setup do to the grade?",
+   "choices": [
+    "Lifts it; an A+ cue",
+    "Nothing; one setup at a time",
+    "Lowers it; too busy a day"
+   ],
+   "answer": "Lifts it; an A+ cue",
+   "why": "Lifts it. Another UCT setup on the launch day, an Oops or an inside day, is an A+ cue.",
+   "lesson_line": "Two setups on one bar is confluence. It grades the pad up.",
+   "facts": [
+    "c32"
+   ],
+   "house": true,
+   "wrong": {
+    "Nothing; one setup at a time": "Confluence counts. Two of our setups on the launch day is the A+ row.",
+    "Lowers it; too busy a day": "A second setup is not noise. It is more reason, not less."
+   },
+   "story": "The launch bar also prints an Oops reversal the same day: it opened under the prior low and reclaimed it."
+  },
+  {
+   "key": "q33",
+   "skill": "setup.launchpad",
+   "rung": 4,
+   "format": "tf",
+   "criterion": "lp.breakeven",
+   "q": "On a launchpad the stop moves to the entry once 2R has traded, the low end of the rule's range.",
+   "answer": "True",
+   "why": "True. Stop to the entry once 2R has traded; the rule says 2R to 5R and 2R is the low end.",
+   "lesson_line": "Two R, and the trade is free. Then let the trims do the rest.",
+   "facts": [
+    "c52",
+    "h05"
+   ],
+   "house": true
+  },
+  {
+   "key": "q34",
+   "skill": "setup.launchpad",
+   "rung": 4,
+   "format": "scenario",
+   "criterion": "lp.stop",
+   "q": "What happens to the size?",
+   "choices": [
+    "It shrinks; the stop stays honest",
+    "Pull the stop to 3% to fit",
+    "Keep full size; the pad is tight"
+   ],
+   "answer": "It shrinks; the stop stays honest",
+   "why": "The size shrinks. Shares come from the account risk divided by the stop distance; a wider honest stop means fewer shares, never a tighter stop.",
+   "lesson_line": "You never pick a size and back-fit a stop inside the noise.",
+   "facts": [
+    "h03",
+    "h01",
+    "c41"
+   ],
+   "house": true,
+   "wrong": {
+    "Pull the stop to 3% to fit": "That is the named mistake: sizing as if the stop were tight. Stop first, size last.",
+    "Keep full size; the pad is tight": "The pad being tight does not make the stop tight. The day's low is 4.5% away."
+   },
+   "story": "The launch fills at 48.60. The day's low is 46.40, about 4.5% under your fill."
+  },
+  {
+   "key": "q35",
+   "skill": "setup.launchpad",
+   "rung": 4,
+   "format": "fill",
+   "criterion": "lp.launch_volume_2x",
+   "q": "Tap the number that fits the blank.",
+   "sentence": "Volume of ___ times the 50-day average on the launch bar is the A+ version, not a rule.",
+   "bank": [
+    "2",
+    "1.5",
+    "3",
+    "1",
+    "4"
+   ],
+   "answer": "2",
+   "why": "2 times. Volume of 2 times the 50-day average or more is the A+ launch bar, not a rule. A 2x launch bar was not a protection.",
+   "lesson_line": "Heavy volume grades the launch up. It does not make it safe.",
+   "facts": [
+    "c11",
+    "d30"
+   ],
+   "house": true
+  },
+  {
+   "key": "q36",
+   "skill": "setup.launchpad",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "lp.tradeable_name",
+   "q": "What would have kept you out?",
+   "choices": [
+    "The stock: two years in a downtrend",
+    "The volume: 2.55x is too much",
+    "The bundle: 0.72% is too tight"
+   ],
+   "answer": "The stock: two years in a downtrend",
+   "why": "The stock. Every measurable line passed; a stock we would trade is the line that keeps a learner out. BA had been in a downtrend for two years. The stop kept the loss at 1R.",
+   "lesson_line": "The launch bar looks the same on winners and losers. The stock carries the edge.",
+   "facts": [
+    "d13",
+    "d14",
+    "d33",
+    "c15",
+    "d28",
+    "c45"
+   ],
+   "house": true,
+   "wrong": {
+    "The volume: 2.55x is too much": "Heavy volume is a plus, not a flaw. The failures and the winners both had it.",
+    "The bundle: 0.72% is too tight": "Tighter is fine. The bundle passed; the stock did not."
+   },
+   "story": "A 20% correction, a 0.72% bundle, a +5.5% launch on 2.55x volume above all four averages. You bought at 233.09, stop 226.87. The next session takes the stop and keeps falling."
+  },
+  {
+   "key": "q37",
+   "skill": "setup.launchpad",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "lp.stop",
+   "q": "What did the wide stop change?",
+   "choices": [
+    "The size: fewer shares, 1R lost",
+    "Nothing; risk is risk",
+    "It should have been pulled to 3%"
+   ],
+   "answer": "The size: fewer shares, 1R lost",
+   "why": "The size. A stop 4.9% away means fewer shares, so the loss stayed at 1R. The rule's job was to keep the loss at 1R, and it did.",
+   "lesson_line": "A wide honest stop buys fewer shares. It never buys a tighter stop.",
+   "facts": [
+    "d15",
+    "d16",
+    "h03"
+   ],
+   "house": true,
+   "wrong": {
+    "Nothing; risk is risk": "Risk is the same only because the size changed. That is the whole point of sizing from the stop.",
+    "It should have been pulled to 3%": "Pulling a stop in to fit is the named mistake. The honest stop stays; the size moves."
+   },
+   "story": "A 22% correction, a tight pad, a +4.6% launch on 2.36x volume. The stop sat 4.9% under the close. Two sessions later the stop traded."
+  },
+  {
+   "key": "q38",
+   "skill": "setup.launchpad",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "lp.not_gap",
+   "q": "What was the lesson?",
+   "choices": [
+    "A gap launch leaves a stop in the noise",
+    "Never buy a launch on 1.8x volume",
+    "The stop should have been the base low"
+   ],
+   "answer": "A gap launch leaves a stop in the noise",
+   "why": "A launch that is mostly a gap leaves a stop inside the noise. The next session traded through it; the base low is never the stop.",
+   "lesson_line": "A push builds a range to stop under. A gap builds nothing.",
+   "facts": [
+    "d17",
+    "d18",
+    "c18",
+    "c12"
+   ],
+   "house": true,
+   "wrong": {
+    "Never buy a launch on 1.8x volume": "Volume was not the problem. The bar's anatomy was: a gap with almost no range.",
+    "The stop should have been the base low": "The base low is never the stop. It sits far outside the 3% habit."
+   },
+   "story": "The launch opened 4.2% up and its whole range ran 66.08 to 67.40. You bought the close at 67.20; the honest stop was 1.7% away. The next session traded through it."
+  },
+  {
+   "key": "q39",
+   "skill": "setup.launchpad",
+   "rung": 5,
+   "format": "mcq",
+   "criterion": "lp.first_pad",
+   "q": "Two pads, same shape. One is the first after the bottom; one comes after the stock already doubled. Which grades higher?",
+   "choices": [
+    "The first after the bottom",
+    "The later one; a proven stock",
+    "Equal; shape is shape"
+   ],
+   "answer": "The first after the bottom",
+   "why": "The first after the bottom. It grades higher than a late, repeated one. Haber: an early-stage launchpad carries far more weight than one after the stock has already doubled.",
+   "lesson_line": "The first pad out of the bottom is the one. Late pads come after the run.",
+   "facts": [
+    "c30",
+    "b04"
+   ],
+   "house": true,
+   "wrong": {
+    "The later one; a proven stock": "Proven means the run already happened. The late pad forms after the stock has doubled.",
+    "Equal; shape is shape": "Shape is one row of the grade. Where it sits in the stock's cycle is another."
+   }
+  },
+  {
+   "key": "q40",
+   "skill": "setup.launchpad",
+   "rung": 5,
+   "format": "tf",
+   "criterion": "lp.trim_gap_open",
+   "q": "If a launchpad long opens above 3R, the first third is sold at the open.",
+   "answer": "True",
+   "why": "True. If a stock opens above a trim level, take that trim at the open. The 3R third comes off right there.",
+   "lesson_line": "A gap through a trim level is the trim. Take it at the open.",
+   "facts": [
+    "h25",
+    "h05"
+   ],
+   "house": true
+  },
+  {
+   "key": "q41",
+   "skill": "setup.launchpad",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "lp.earnings_window",
+   "q": "Buy it?",
+   "choices": [
+    "No; a report inside 3 days",
+    "Yes; the launch is the launch",
+    "Yes, half size"
+   ],
+   "answer": "No; a report inside 3 days",
+   "why": "No. No new buy in the 3 days before an earnings report. If it is still a pad after the report, it can launch again.",
+   "lesson_line": "A launch two days before earnings is a coin flip with a story. Wait.",
+   "facts": [
+    "c14",
+    "h08"
+   ],
+   "house": true,
+   "wrong": {
+    "Yes; the launch is the launch": "The launch fired, and the calendar still says no. The earnings rule is a hard line.",
+    "Yes, half size": "Size does not fix a report risk. Smaller is still in."
+   },
+   "story": "The launch bar prints today, clean on every line. Earnings come after the close in two sessions."
+  },
+  {
+   "key": "q42",
+   "skill": "setup.launchpad",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "lp.leaders_basing",
+   "q": "How many on day one?",
+   "choices": [
+    "A few; add more as they work",
+    "All six; Green is full risk",
+    "None; wait a week"
+   ],
+   "answer": "A few; add more as they work",
+   "why": "A few. When the reading turns Green after a correction, start with a few positions and add more only as the first ones work. Leaders basing as the market turns is the best setting.",
+   "lesson_line": "Green after a correction: a few positions first. Let the winners earn the next ones.",
+   "facts": [
+    "c29",
+    "h27"
+   ],
+   "house": true,
+   "wrong": {
+    "All six; Green is full risk": "Full risk per grade is the ceiling, not the first day's order. Earn it.",
+    "None; wait a week": "Waiting a week after the turn is how you miss the first leg. A few is the rule."
+   },
+   "story": "After a correction the reading turns Green. Six launchpads on your list launch the same week."
+  },
+  {
+   "key": "q43",
+   "skill": "setup.launchpad",
+   "rung": 5,
+   "format": "mcq",
+   "criterion": "lp.climax",
+   "q": "Three weeks after the launch the stock goes vertical: three straight up days, two gap ups, rising volume. Our move?",
+   "choices": [
+    "Sell a big part into it",
+    "Add; it is working",
+    "Hold all for the 21-day trail"
+   ],
+   "answer": "Sell a big part into it",
+   "why": "Sell a big part into it. A climax run on your own long: sell a big part, a judgment call.",
+   "lesson_line": "Sell partials into strength. A climax is strength you sell into.",
+   "facts": [
+    "h16"
+   ],
+   "house": true,
+   "wrong": {
+    "Add; it is working": "Full size at one price with one stop; no adding. A climax is where you sell, not buy.",
+    "Hold all for the 21-day trail": "The trail is for the last third. A climax run asks for a big sale before the trail ever triggers."
+   }
+  },
+  {
+   "key": "q44",
+   "skill": "setup.launchpad",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "lp.launch_close",
+   "q": "Which grades higher?",
+   "choices": [
+    "The 0.98 close on 2.1x",
+    "The 0.70 close; quieter is better",
+    "Equal; both passed"
+   ],
+   "answer": "The 0.98 close on 2.1x",
+   "why": "The 0.98 close on 2.1x. A close near the high and volume about 2 times average is the A+ launch bar. The floor is 0.65 of the range.",
+   "lesson_line": "Close near the high on heavy volume grades the launch up. Both still need the pad behind them.",
+   "facts": [
+    "c10",
+    "c11"
+   ],
+   "house": true,
+   "wrong": {
+    "The 0.70 close; quieter is better": "Quiet is for inside the pad. The launch wants a strong close and a crowd.",
+    "Equal; both passed": "Passing is the gate. The close and the volume are the grade."
+   },
+   "story": "Same pad, two launch days. One closes at 0.70 of its range on 1.3x volume. The other closes at 0.98 on 2.1x."
+  },
+  {
+   "key": "q45",
+   "skill": "setup.launchpad",
+   "rung": 6,
+   "format": "numeric",
+   "criterion": "lp.stop",
+   "q": "Account 40,000. Risk 1%. Fill 89.14, stop 86.43. How many shares?",
+   "answer": 147,
+   "calc": {
+    "fn": "shares_from_risk",
+    "args": {
+     "account": 40000,
+     "risk_pct": 1,
+     "entry": 89.14,
+     "stop": 86.43
+    },
+    "round": 0
+   },
+   "why": "147. Account times risk percent, divided by the fill minus the stop, rounded down. The stop sets the size, never the other way round.",
+   "lesson_line": "Stop first, distance second, size last.",
+   "facts": [
+    "h03",
+    "h01",
+    "d03"
+   ],
+   "house": true,
+   "suffix": " shares"
+  },
+  {
+   "key": "q46",
+   "skill": "setup.launchpad",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "lp.inv_bundle_spreads",
+   "q": "Still on the list?",
+   "choices": [
+    "No; the bundle spread; drop it",
+    "Yes; keep waiting for a launch",
+    "Yes; buy the 200-day retest"
+   ],
+   "answer": "No; the bundle spread; drop it",
+   "why": "No. Before the entry, a bundle wider than 3% again takes it off the list. So does a close back under the 200-day after a pop.",
+   "lesson_line": "A pad that unwinds is not resting. Drop it and look again later.",
+   "facts": [
+    "c22"
+   ],
+   "house": true,
+   "wrong": {
+    "Yes; keep waiting for a launch": "There is no pad to launch from once the averages fan out past 3%.",
+    "Yes; buy the 200-day retest": "Under the 200-day there is no long to buy. The pad is off."
+   },
+   "story": "You have watched a pad for six weeks. This week the three averages fan out to 4.5% apart and price slides under the 200-day."
+  },
+  {
+   "key": "q47",
+   "skill": "setup.launchpad",
+   "rung": 6,
+   "format": "mcq",
+   "criterion": "lp.base_span",
+   "q": "Over the last 30 sessions the closes span 24% of price. Does the base pass?",
+   "choices": [
+    "No; the span must be 20% or less",
+    "Yes; wide bases are stronger",
+    "Yes, if the bundle is tight"
+   ],
+   "answer": "No; the span must be 20% or less",
+   "why": "No. The last 30 closes span no more than 20% of price. A 24% span is a loose base, not a pad.",
+   "lesson_line": "A pad is a flat rest. A 24% swing is not flat.",
+   "facts": [
+    "c04"
+   ],
+   "house": true,
+   "wrong": {
+    "Yes; wide bases are stronger": "Wide and loose is a trap, not strength. The rule is 20% or less.",
+    "Yes, if the bundle is tight": "A tight bundle over a loose base is a contradiction. Both have to pass."
+   }
+  },
+  {
+   "key": "q48",
+   "skill": "setup.launchpad",
+   "rung": 6,
+   "format": "tf",
+   "criterion": "lp.stop_broker",
+   "q": "A launchpad stop may be kept in your head as long as you watch the close.",
+   "answer": "False",
+   "why": "False. A real stop order with the broker; it only moves up. Every position has a real stop order, not a stop kept in your head.",
+   "lesson_line": "A stop in your head is a debate. A stop with the broker is an appointment.",
+   "facts": [
+    "c50",
+    "h18"
+   ],
+   "house": true
+  },
+  {
+   "key": "q49",
+   "skill": "setup.launchpad",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "lp.close_under_bundle",
+   "q": "What was that?",
+   "choices": [
+    "A fake-out, not a failure",
+    "A failure; sell the first close",
+    "A new launch; add"
+   ],
+   "answer": "A fake-out, not a failure",
+   "why": "A fake-out. A quick break and reclaim is a fake-out, not a failure; the stop decides, and it only moves up.",
+   "lesson_line": "A one-day dip under the bundle is noise. The stop is the decision.",
+   "facts": [
+    "c25",
+    "c26",
+    "h02"
+   ],
+   "house": true,
+   "wrong": {
+    "A failure; sell the first close": "A close under the bundle is a warning. The stop is the exit, and it was above the stop.",
+    "A new launch; add": "Full size at one price with one stop; no adding. The reclaim is the same trade continuing."
+   },
+   "story": "Two days after the launch the stock closes back under the bundle, above your stop. The next day it closes back above it."
+  },
+  {
+   "key": "q50",
+   "skill": "setup.launchpad",
+   "rung": 6,
+   "format": "mcq",
+   "criterion": "lp.liquidity",
+   "q": "A clean pad on an $8 stock trading $6 million a day. Take it?",
+   "choices": [
+    "No; under $10 and $20 million",
+    "Yes; the pad is the pad",
+    "Yes, small"
+   ],
+   "answer": "No; under $10 and $20 million",
+   "why": "No. A close of $10 or more and $20 million a day traded over 50 days. The chart is fine and the stock is not ours.",
+   "lesson_line": "A clean pad in a thin stock is still a thin stock.",
+   "facts": [
+    "c01",
+    "h09"
+   ],
+   "house": true,
+   "wrong": {
+    "Yes; the pad is the pad": "The liquidity rule comes before the chart. Illiquid stocks are not even watched.",
+    "Yes, small": "Size does not make a thin stock liquid."
+   }
+  },
+  {
+   "key": "q51",
+   "skill": "setup.launchpad",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "lp.base_length",
+   "q": "Launchpad or wedge pop?",
+   "choices": [
+    "A wedge pop; days, not weeks",
+    "A launchpad; it cleared the averages",
+    "Neither; the fall was too deep"
+   ],
+   "answer": "A wedge pop; days, not weeks",
+   "why": "A wedge pop. A tight range of a few days under the fast averages, then a pop over them. A launchpad rests 25 sessions or more with the averages pinched near the 200-day.",
+   "lesson_line": "Count the sessions. A pad is weeks; a wedge pop is days.",
+   "facts": [
+    "c35",
+    "c36",
+    "c03"
+   ],
+   "house": true,
+   "wrong": {
+    "A launchpad; it cleared the averages": "Clearing two fast averages after four days is the wedge pop's trigger. A pad needs weeks under all three.",
+    "Neither; the fall was too deep": "Deep is fine for either. The length of the rest is what separates them."
+   },
+   "story": "After a 30% fall the stock holds a four-day tight range under the two fast averages, then pops over them."
+  },
+  {
+   "key": "q52",
+   "skill": "setup.launchpad",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "lp.correction",
+   "q": "Launchpad?",
+   "choices": [
+    "No; the fall was too shallow",
+    "Yes; the averages pinched",
+    "Yes; above the 200-day is enough"
+   ],
+   "answer": "No; the fall was too shallow",
+   "why": "No. The rule needs a correction of 15% or more. 11.2% is a shallow pullback in an uptrend, a moving-average pullback, not a pad.",
+   "lesson_line": "A shallow dip in an uptrend is a pullback trade with its own rules.",
+   "facts": [
+    "d21",
+    "d22",
+    "c02"
+   ],
+   "house": true,
+   "wrong": {
+    "Yes; the averages pinched": "Averages pinch in pullbacks too. The pad needs the correction first.",
+    "Yes; above the 200-day is enough": "Above the 200-day is the context for every long. It does not make a pullback a pad."
+   },
+   "story": "A pullback over a rising 200-day: the lowest close of the last 60 sessions is 11.2% under the prior 60-session high. The averages pinch and a strong day closes above them."
+  },
+  {
+   "key": "q53",
+   "skill": "setup.launchpad",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "lp.bundle_tight",
+   "q": "Launchpad?",
+   "choices": [
+    "No; the averages never converged",
+    "Yes; 2.78x volume is A+",
+    "Yes; it cleared the three"
+   ],
+   "answer": "No; the averages never converged",
+   "why": "No. The averages had not converged; the rule is 3% or less. A rally bar through a loose bundle under a falling 200-day is a breakout, not a launch.",
+   "lesson_line": "No bundle, no pad. A big bar through loose averages is just a big bar.",
+   "facts": [
+    "d23",
+    "d24",
+    "c06"
+   ],
+   "house": true,
+   "wrong": {
+    "Yes; 2.78x volume is A+": "Volume grades a launch that exists. A 5.77% spread means there was no pad to launch from.",
+    "Yes; it cleared the three": "It cleared loose averages under a falling 200-day. That is a rally bar, not a launch."
+   },
+   "story": "The three averages span 5.77% of price the day before. A +4.8% bar on 2.78x volume breaks through them under a falling 200-day."
+  },
+  {
+   "key": "q54",
+   "skill": "setup.launchpad",
+   "rung": 7,
+   "format": "tf",
+   "criterion": "lp.not_above_bundle",
+   "q": "A base where most closes sat above the three averages is still a launchpad if they are tight.",
+   "answer": "False",
+   "why": "False. Fewer than 20 of the prior 40 closes above the highest of the three averages. Riding on top of the bundle is a pullback breakout, not a launchpad.",
+   "lesson_line": "Tight averages under price for weeks is a pullback. The pad has price under them.",
+   "facts": [
+    "c05",
+    "c24"
+   ],
+   "house": true
+  },
+  {
+   "key": "q55",
+   "skill": "setup.launchpad",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "lp.tradeable_name",
+   "q": "What is the read?",
+   "choices": [
+    "Right bar, wrong stock; 1R lost",
+    "The volume lied; skip 2x bars",
+    "The stop was too tight"
+   ],
+   "answer": "Right bar, wrong stock; 1R lost",
+   "why": "Right bar, wrong stock. A big-volume launch in a slow large cap. The launch bar looks the same on winners and losers; the stock carries the edge. The loss stayed at 1R.",
+   "lesson_line": "The bar is the timing. The stock, the base and the market are the edge.",
+   "facts": [
+    "d19",
+    "d20",
+    "c45",
+    "d28"
+   ],
+   "house": true,
+   "wrong": {
+    "The volume lied; skip 2x bars": "Heavy volume did not cause the loss. The winners had it too.",
+    "The stop was too tight": "A few cents under the launch low is the rule. The stop did its job: 1R, none worse."
+   },
+   "story": "A 16% correction, a 0.83% bundle, a +4.9% launch on 2.17x volume in a slow large cap. One flat day, then two red days back into the bundle took the stop."
+  },
+  {
+   "key": "q56",
+   "skill": "setup.launchpad",
+   "rung": 7,
+   "format": "numeric",
+   "criterion": "lp.trim_2",
+   "q": "Bought at 89.14, stop 86.43. The stock trades to 102.69. How many R is that?",
+   "answer": 5.0,
+   "calc": {
+    "fn": "r_multiple",
+    "args": {
+     "entry": 89.14,
+     "stop": 86.43,
+     "exit": 102.69
+    },
+    "round": 1
+   },
+   "why": "5R. Each R is the fill minus the stop. That is where the second third comes off; BABA got there fast.",
+   "lesson_line": "Count in R, not dollars. 5R is the second trim.",
+   "facts": [
+    "h20",
+    "d03"
+   ],
+   "house": true,
+   "suffix": "R"
+  },
+  {
+   "key": "q57",
+   "skill": "setup.launchpad",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "lp.inv_pullback_breakout",
+   "q": "Launchpad or flat base?",
+   "choices": [
+    "A flat base; buy the base top",
+    "A launchpad; averages nearby",
+    "Both; take whichever you like"
+   ],
+   "answer": "A flat base; buy the base top",
+   "why": "A flat base. It holds above the 50-day and breaks out over its own highest high. A launchpad lives under the averages, and the launch is the close above them.",
+   "lesson_line": "Look where the closes sat. Above the 50-day in a box is the flat base.",
+   "facts": [
+    "c34",
+    "c33",
+    "c24"
+   ],
+   "house": true,
+   "wrong": {
+    "A launchpad; averages nearby": "Near is not under. A pad spends weeks under the bundle; this one never did.",
+    "Both; take whichever you like": "Each has its own trigger and stop. Name it first, then trade it by its own card."
+   },
+   "story": "For nine weeks every close held above a rising 50-day in a box near the highs. Today it trades through the box's top."
+  },
+  {
+   "key": "q58",
+   "skill": "setup.launchpad",
+   "rung": 7,
+   "format": "tf",
+   "criterion": "lp.stop_gap",
+   "q": "If the first 30 minutes of a gap-down day take the loss past 2R, you get out.",
+   "answer": "True",
+   "why": "True. The first 30-minute low is the new stop; out if that is past 2R.",
+   "lesson_line": "The gap rule has a ceiling. Two R, and you are out.",
+   "facts": [
+    "h07",
+    "c51"
+   ],
+   "house": true
+  },
+  {
+   "key": "q59",
+   "skill": "setup.launchpad",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "lp.time_stop",
+   "q": "Does the time stop fire?",
+   "choices": [
+    "No; over 1R, so it stays",
+    "Yes; ten days without 3R",
+    "Yes; sell half"
+   ],
+   "answer": "No; over 1R, so it stays",
+   "why": "No. The time stop sells a trade still under 1R after 10 trading days; this one was over 1R, so it stays. DDOG took 33 sessions to 3R and ran to 10.8R.",
+   "lesson_line": "The time stop asks for 1R, not 3R. A slow pad that is working is left alone.",
+   "facts": [
+    "c21",
+    "h15",
+    "d05",
+    "d06"
+   ],
+   "house": true,
+   "wrong": {
+    "Yes; ten days without 3R": "The line is 1R, not 3R. Over 1R in ten days means the trade has done something.",
+    "Yes; sell half": "There is no half rule here. Either it is under 1R and sold, or it stays."
+   },
+   "story": "You bought the launch at 122.69, stop 118.32. The stock dangles along the 21-day for four weeks, over 1R but under 3R by day ten."
+  },
+  {
+   "key": "q60",
+   "skill": "setup.launchpad",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "lp.trail",
+   "q": "What happens to the last third?",
+   "choices": [
+    "Sold on that close under the 21-day",
+    "Held; the stop is at breakeven",
+    "Held until a close under the 50-day"
+   ],
+   "answer": "Sold on that close under the 21-day",
+   "why": "Sold. The last third trails the 21-day, the steadier trail, and comes off on a close below it. The 10-day is only for a fast mover.",
+   "lesson_line": "Two thirds banked, the last third on the trail. The close below the line is the exit.",
+   "facts": [
+    "c19",
+    "h21"
+   ],
+   "house": true,
+   "wrong": {
+    "Held; the stop is at breakeven": "Breakeven is the floor, not the plan. The trail is the exit for the last third.",
+    "Held until a close under the 50-day": "That gives back most of the move. The 21-day is the trail line."
+   },
+   "story": "Two thirds are banked at 3R and 5R. Today the steady mover closes under the 21-day for the first time since the launch."
+  },
+  {
+   "key": "q61",
+   "skill": "setup.launchpad",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "lp.stop",
+   "q": "Buy again?",
+   "choices": [
+    "Yes, but as a new trade",
+    "No; each pad gets one try",
+    "Yes, with a wider stop"
+   ],
+   "answer": "Yes, but as a new trade",
+   "why": "Yes. After a stop-out, buy again only if the setup triggers again, as a new trade with its own stop and every rule. At most 3 tries in a week.",
+   "lesson_line": "A stop-out is not a verdict on the setup. The next launch is a new trade.",
+   "facts": [
+    "h28",
+    "h29",
+    "c08"
+   ],
+   "house": true,
+   "wrong": {
+    "No; each pad gets one try": "The limit is 3 tries in a week and 6 in a month, not one.",
+    "Yes, with a wider stop": "The stop is the day's low again. A wider stop to avoid a repeat is the mistake."
+   },
+   "story": "Stopped out of a launchpad on Tuesday. Thursday the stock closes back above all four averages, up 3%, on volume."
+  },
+  {
+   "key": "q62",
+   "skill": "setup.launchpad",
+   "rung": 8,
+   "format": "tf",
+   "criterion": "lp.launch_above_all",
+   "q": "On daily bars the launch bar alone is the edge; the base and the stock are secondary.",
+   "answer": "False",
+   "why": "False. The launch bar looks the same on winners and losers. The stock, the base and the market are the edge; the launch bar is the timing.",
+   "lesson_line": "The bar times the trade. The stock, the base and the market decide it.",
+   "facts": [
+    "c42",
+    "c45",
+    "d31"
+   ],
+   "house": true
+  },
+  {
+   "key": "q63",
+   "skill": "setup.launchpad",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "lp.launch_gain",
+   "q": "Is this the launch?",
+   "choices": [
+    "No; under the 2% push",
+    "Yes; the close and volume carry it",
+    "Yes; above all four is enough"
+   ],
+   "answer": "No; under the 2% push",
+   "why": "No. The launch bar is a real push, up 2% or more on the day. A strong close on volume does not replace the push.",
+   "lesson_line": "Every launch test has to pass. A quiet day above the averages is a wait.",
+   "facts": [
+    "c09",
+    "c08"
+   ],
+   "house": true,
+   "wrong": {
+    "Yes; the close and volume carry it": "The close and the volume grade a launch. They do not make a 1.5% day a push.",
+    "Yes; above all four is enough": "Above all four is one test. Up 2% or more is another, and it failed."
+   },
+   "story": "A pad launches on a +1.5% day that closes at 0.9 of its range on 1.8x volume, above all four averages."
+  },
+  {
+   "key": "q64",
+   "skill": "setup.launchpad",
+   "rung": 8,
+   "format": "mcq",
+   "criterion": "lp.near_200",
+   "q": "Two pads: one with the 200-day right under the bundle, one with the 200-day 9% below it. Which grades higher?",
+   "choices": [
+    "The one on the 200-day",
+    "The one 9% below; more room",
+    "Equal; both within 10%"
+   ],
+   "answer": "The one on the 200-day",
+   "why": "The one on the 200-day. Better: at or just under the bundle; the 200-day well away from the bundle is the B- end.",
+   "lesson_line": "The closer the 200-day, the better the pad. Nine percent away passes, but grades lower.",
+   "facts": [
+    "c07",
+    "c44"
+   ],
+   "house": true,
+   "wrong": {
+    "The one 9% below; more room": "Room is not the point. The 200-day near the bundle is what the setup wants.",
+    "Equal; both within 10%": "Both pass the gate. The grade separates them: at the bundle is A+, well away is B-."
+   }
+  },
+  {
+   "key": "q65",
+   "skill": "setup.launchpad",
+   "rung": 9,
+   "format": "scenario",
+   "criterion": "lp.stop",
+   "q": "Write the plan: entry, stop, first trim.",
+   "choices": [
+    "Late market buy; day-low stop; 3R",
+    "Limit below market; base-low stop",
+    "Next open; 200-day stop; out at 2R"
+   ],
+   "answer": "Late market buy; day-low stop; 3R",
+   "why": "Buy at market in the last minutes, stop a few cents under the launch day's low, a third off at 3R. By our current default the close is the entry only for setups defined by their close, and the Launchpad is one. BABA filled at 89.14, with the stop at 86.43, and reached 3R in three sessions.",
+   "lesson_line": "Entry, stop, trim, trail. Know them before you buy and execute without a debate.",
+   "facts": [
+    "d03",
+    "d04",
+    "r1",
+    "c17",
+    "h22",
+    "h05",
+    "c18",
+    "c52"
+   ],
+   "house": true,
+   "wrong": {
+    "Limit below market; base-low stop": "A limit below the market can miss the launch, and the base low is not the stop.",
+    "Next open; 200-day stop; out at 2R": "The 200-day is context, not a stop. At 2R the stop moves up; it is not the exit."
+   },
+   "story": "BABA, January 2025: 26 of 40 closes under the bundle, the 200-day 1% away. In the last minutes of 2025-01-24 it sits at its high, up 3.5%, above all four."
+  },
+  {
+   "key": "q66",
+   "skill": "setup.launchpad",
+   "rung": 9,
+   "format": "mcq",
+   "criterion": "lp.inv_pullback_breakout",
+   "q": "Hidden ticker, the day before a launch. Did price live under the pinched averages near the 200-day? Take it or pass.",
+   "choices": [
+    "Take it; weeks under the bundle",
+    "Pass; it rode on top of the averages",
+    "Pass; the 200-day is far away"
+   ],
+   "answer": "Take it; weeks under the bundle",
+   "why": "Take it. 26 of 40 closes under the bundle and none above, the 200-day 1% from the bundle. The next day it closed at its high above all four and ran to 21.9R.",
+   "lesson_line": "Weeks under pinched averages, the 200-day close: that is the pad. Then wait for the launch.",
+   "facts": [
+    "d03",
+    "d04",
+    "c24",
+    "c07"
+   ],
+   "house": true,
+   "wrong": {
+    "Pass; it rode on top of the averages": "Look again: the closes sat under the bundle for weeks, none above it.",
+    "Pass; the 200-day is far away": "The 200-day sits 1% from the bundle here. That is as close as it gets."
+   },
+   "chart": {
+    "sym": "BABA",
+    "asof": "2025-01-23",
+    "window": 120,
+    "forward": 20
+   }
+  },
+  {
+   "key": "q67",
+   "skill": "setup.launchpad",
+   "rung": 9,
+   "format": "mcq",
+   "criterion": "lp.launch_above_all",
+   "q": "Hidden ticker. Today's bar closed above the three fast averages. Is it the launch? Take it or pass.",
+   "choices": [
+    "Pass; still under the 200-day",
+    "Take it; it cleared the bundle",
+    "Take it; 1.25x volume is enough"
+   ],
+   "answer": "Pass; still under the 200-day",
+   "why": "Pass. It closed above the bundle but under the 200-day; the launch must clear all four. A bundle reclaim under a falling 200-day, and it stopped on the way to the December low.",
+   "lesson_line": "Three of four is a reclaim. Four of four is the launch.",
+   "facts": [
+    "c08",
+    "d26",
+    "d27",
+    "h10"
+   ],
+   "house": true,
+   "wrong": {
+    "Take it; it cleared the bundle": "Clearing the bundle is three of four. The 200-day sits above the close.",
+    "Take it; 1.25x volume is enough": "Volume grades a launch. It does not put the close above the 200-day."
+   },
+   "chart": {
+    "sym": "AAPL",
+    "asof": "2022-11-30",
+    "window": 120,
+    "forward": 20
+   }
+  },
+  {
+   "key": "q68",
+   "skill": "setup.launchpad",
+   "rung": 9,
+   "format": "tf",
+   "criterion": "lp.stop",
+   "q": "Haber waits or passes when the stop is more than 3% away; our stop usually sits within about 3% of the buy.",
+   "answer": "True",
+   "why": "True. Haber: if the distance is more than 3%, the entry isn't there yet; wait, or pass. Our stop usually sits within about 3%, and a wider honest stop means a smaller size.",
+   "lesson_line": "Three percent is the habit, on both sides of the desk.",
+   "facts": [
+    "b06",
+    "h04",
+    "h03"
+   ],
+   "house": true
+  }
+ ],
+ "conflicts": [
+  "Pending-owner criteria kept OUT of every key (the course's current default, waiting on the owner): lp.trigger, the buy at the launch-day close against the intraday trigger over the prior day's high (D-003; no question keys when to buy; the walk-throughs and q64 use the dossier's fills, which were the launch-day close, as the example's facts, and q64's key reads '89.14 at market' without naming the close); lp.which_averages, 8/21/50 against 9/20/50 (D-021; the bundle is 'the three averages' in every key, the numbers appear only inside quoted card statements and the q27 seed); lp.under_bundle, 10 of 40 closes under (D-062; q66 keys 'weeks under the bundle' on the dossier's BABA read and the settled lp.inv_pullback_breakout, never the count); lp.poke_above, the dangle (D-062; no item); lp.launch_volume 1.2x (D-006; never a gate here; q35 and q44 key only the 2x A+ cue, and the 1.2 was removed from q35's bank); lp.leadership, whether C31's RS 80 applies to a stock just out of a correction (D-011; no RS question in this unit); lp.no_chase, the buy point for C28 (D-022; q23 is a pass under both options, launch close or top of the averages, and keys the 4% as C28's settled number); lp.not_stretched, which 10-day (D-017; no item); lp.stop_cap 6% (D-005; q37 and q29 key only 'a wider stop means fewer shares', A5, never the cap; the 6% appears only inside d16's quote); lp.weekly_cue (D-012), lp.name_split (D-002), lp.trigger_intraday_option and lp.intraday_fail_close (D-003): no items.",
+  "The unit id SET.11 is the UNITS-method row's id (Bases & Breakouts, uct_launch_pad); the row describes a higher-low entry with the stop below the pad and the 9>20>50>200 stack check first, which the card has since replaced with the launch bar and the stop under the launch day's low; this unit follows the card.",
+  "Which averages: the card's own statements name the 8 EMA, 21 EMA and 50 SMA (c06, c08, c13, c36) and the owner's words name 9/20/50 (D-021). Those quotes are cited as written; no key depends on the choice.",
+  "Deepvue (s4) is run by TraderLion's co-founders, so it is the same school as s1 to s3; no key rests on those two as two publishers. Every rule key carries house: true on the card, the rulebook or the dossier.",
+  "The dossier's example numbers (d1) were read off our own daily bars by the research scan (dossier sections 12 and 13), not from a public page; the owner has not reviewed the ten names. The walk-throughs (KBH, BABA, DDOG) and the failure stories (BA, CMCSA, NEE, FDX) depend on it; the checker and the owner should confirm them before the unit goes live.",
+  "The fills in the walk-throughs and q64 are the scan's fills at the launch-day close (35.26, 89.14, 122.69) with the stop 5 cents under the launch-day low; a live market order fills a little differently.",
+  "lp.stop_cap and the stop width: A13's about 3% was never met at the close on the owner's 26 kept charts (median 4.0%); this unit teaches only A3/A5 (a wider honest stop means fewer shares, never a tighter stop) and leaves the cap and the choice of entry to D-005 and D-003.",
+  "The failure stories cite the dossier's criterion tags: BA and CMCSA (lp.tradeable_name), NEE (lp.stop_cap on the card; keyed here as the size rule A5, lp.stop), FDX (lp.not_gap). TEAM 2021-04-30 is quoted (c56) only as the card's own line that a 2x launch bar was not a protection.",
+  "The chart questions (q65 BABA asof 2025-01-23, q66 AAPL asof 2022-11-30) show the member's own chart with their averages; the keys rest on the dossier's reads (d04, d26, d27). If the member's chart settings do not draw the 8, 21, 50 and 200-day, the question still reads; the importer resolves the bars from our own history.",
+  "The owner's published Substack words (u1, u2) are cited as Tier 3 house sources with their URLs; the quote checker marks Tier 3 as house and does not fetch them.",
+  "The short mirror (the bearish launch pad, dossier 8.6) is not taught here (D-001).",
+  "The sources s2 and s3 (traderlion.com) refuse non-browser clients; the quote checker will report them unreachable and the checker must confirm the quotes with a browser or TraderLion's public WordPress API as the dossier did.",
+  "Cold check 2026-11-10: 62 pass (13 fixed), 1 fix, 8 cut. Look first at: (1) q65's written plan keys the launch-day-close entry and the launch-low stop, which is D-003 option A; it is held, and every walk-through narrates the same close fill. (2) q18 keyed 'all ten examples reached 5R' as a fact; those ten were picked as winners, so it now asks the scan's base rate (14.6% reached 5R). (3) Seven duplicates cut (q20, q21, q24, q34, q36, q41, q58) plus q38, FDX's 'stop in the noise', which passed the 6% gap line and has no rule behind it, as in the pilot. The u01-u03 quotes are verbatim in dossier 6.2, which 3.5 names as where the owner's full quotes sit.",
+  "Keyed on the adopted default of D-003 (provisional, 2026-11-10): the Launchpad is defined by its close, so the buy is a market order in the last minutes of the launch day with the stop a few cents under that day's low; q65 keys that. If the owner picks the intraday option, the entry is the trade-through of the prior day's high with the stop under the prior day's low, and q65 is re-keyed."
+ ],
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "notes": "KBH numbers match the dossier row (-24.8%, 2.91% bundle, +2.5%, 0.94, buy 35.26, stop 34.26, 3R in 7 sessions). The fill is the scan's launch-day close, narrated as the example's fact; no key on the entry time (D-003).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "BABA numbers match (-31.6%, 26/0 of 40, 200-day 1.0%, +3.5%, 0.98, buy 89.14, stop 86.43, 3R in 3). Step 2 claimed 'a stock that can move, the market turning': nothing in the dossier says the market was turning in January 2025 or measures BABA's range; cut to what the row shows.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "DDOG numbers match (-22.1%, 1.66%, +4.4%, 0.97, 1.63x, buy 122.69, stop 118.32 = 3.56%, 3R in 33, over 1R inside 10 days). Size shrinks with the wider stop (A5); no stop cap keyed (D-005).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q01": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier (sections 3, 6, 12, 13) and the rulebook; voice clean. variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q02": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier (sections 3, 6, 12, 13) and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q03": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier (sections 3, 6, 12, 13) and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q04": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier (sections 3, 6, 12, 13) and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q05": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier (sections 3, 6, 12, 13) and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q06": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier (sections 3, 6, 12, 13) and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q07": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier (sections 3, 6, 12, 13) and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q08": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier (sections 3, 6, 12, 13) and the rulebook; voice clean. Wrong choice reworded to even the lengths. variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q09": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier (sections 3, 6, 12, 13) and the rulebook; voice clean. Unsupported wrong note ('Many pads run that long') replaced. variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q10": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier (sections 3, 6, 12, 13) and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q11": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier (sections 3, 6, 12, 13) and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q12": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier (sections 3, 6, 12, 13) and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q13": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier (sections 3, 6, 12, 13) and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q14": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier (sections 3, 6, 12, 13) and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q15": {
+   "status": "pass",
+   "notes": "30,000 = 1% of 3,000,000 (D42). The 3,000 wrong note said 'a tenth of the line', which does not read; now 'a tenth of the 1% ceiling'. variety rewrite checked 2026-11-10",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q16": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier (sections 3, 6, 12, 13) and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q17": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier (sections 3, 6, 12, 13) and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q18": {
+   "status": "pass",
+   "notes": "Rewritten. It keyed 'all ten examples reached 5R' as a fact worth learning: those ten were picked as winners, so it teaches survivorship. Now asks the scan's base rate (d32: 2,417 hits, 26.6% to 3R, 14.6% to 5R), keyed False.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q19": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier (sections 3, 6, 12, 13) and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q20": {
+   "status": "cut",
+   "notes": "Duplicate of q67 (AAPL 2022-11-30: above the three fast averages, under the 200-day, not the launch); the chart version is kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q21": {
+   "status": "cut",
+   "notes": "Duplicate of q54 (price riding on top of the bundle is a pullback breakout, not a pad); q54 kept at rung 7.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q22": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier (sections 3, 6, 12, 13) and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q23": {
+   "status": "pass",
+   "notes": "5.0 re-derived (52.50 / 50.00 - 1). Passes under both D-022 buy points (5% over the launch close, 11.7% over the 47.00 top of the averages). The wrong note said 'the averages are not the buy point; the launch close is', which picks D-022's option for the owner: now says the open is past both. Two wrong choices shortened to even the lengths. variety rewrite checked 2026-11-10",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q24": {
+   "status": "cut",
+   "notes": "Duplicate of q59 (the time stop's 1R line after 10 days, DDOG); q59 kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q25": {
+   "status": "pass",
+   "notes": "Key on c12 (proposed). Why had a 24-word sentence: split.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q26": {
+   "status": "pass",
+   "notes": "17.5 re-derived (1 - 66/80).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q27": {
+   "status": "pass",
+   "notes": "2.72 re-derived ((41.20 - 40.10) / 40.50). The averages are the card's 8/21/50 as given in the question; no key depends on D-021.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q28": {
+   "status": "pass",
+   "notes": "0.70 re-derived ((31.40 - 30.00) / 2.00); the 0.65 floor is c10 (proposed).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q29": {
+   "status": "pass",
+   "notes": "3.56 re-derived ((122.69 - 118.32) / 122.69); DDOG's levels match d05. No stop cap keyed (D-005).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q30": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier (sections 3, 6, 12, 13) and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q31": {
+   "status": "pass",
+   "notes": "NEE's levels: R = 3.73; a 71.20 first-30-minute low is a 4.96 loss, 1.33R, inside B20's 2R ceiling. Key right. Wrong choice shortened. variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q32": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier (sections 3, 6, 12, 13) and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q33": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier (sections 3, 6, 12, 13) and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q34": {
+   "status": "cut",
+   "notes": "Duplicate of q37: both key A5's 'a wider honest stop means fewer shares, never a tighter stop'; q37 (NEE) kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q35": {
+   "status": "pass",
+   "notes": "Keys only the 2x A+ cue (proposed), never D-006's 1.2x gate. Why had a 25-word sentence: split.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q36": {
+   "status": "cut",
+   "notes": "Duplicate of q55: both key 'the stock (lp.tradeable_name) would have kept you out; the bar looks the same on winners and losers'; q55 (CMCSA) kept at rung 7.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q37": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier (sections 3, 6, 12, 13) and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q38": {
+   "status": "cut",
+   "notes": "FDX's launch opened 4.2% up, inside the card's 6% gap line, so lp.not_gap passed; the key ('a gap launch leaves a stop in the noise') has no card or rulebook rule behind it. Same call the pilot's checker made on SET.07's XOM 'stop inside the noise' lesson and SET.08's TSLA.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q39": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier (sections 3, 6, 12, 13) and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q40": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier (sections 3, 6, 12, 13) and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q41": {
+   "status": "cut",
+   "notes": "Duplicate of q12 (a launch two sessions before earnings is not bought, B22).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q42": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier (sections 3, 6, 12, 13) and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q43": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier (sections 3, 6, 12, 13) and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q44": {
+   "status": "pass",
+   "notes": "Grade cues c10/c11 (proposed). Why had a 23-word sentence: split.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q45": {
+   "status": "pass",
+   "notes": "147 re-derived: 400 / 2.71 = 147.6, rounded down. 147 x 89.14 = 13,104, 33% of 40,000, under the 40% cap (A7).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q46": {
+   "status": "pass",
+   "notes": "Key on c22 (proposed). Why had a 24-word sentence: split. Two wrong choices shortened. variety rewrite checked 2026-11-10",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q47": {
+   "status": "pass",
+   "notes": "24% fails both base_span options (20% proposed, 22% the finder's).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q48": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier (sections 3, 6, 12, 13) and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q49": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier (sections 3, 6, 12, 13) and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q50": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier (sections 3, 6, 12, 13) and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q51": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier (sections 3, 6, 12, 13) and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q52": {
+   "status": "pass",
+   "notes": "MSFT 2023-10-06 near-miss numbers match d21/d22. 11.2% fails both lp.correction options (15, 13). Why had a 23-word sentence: split.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q53": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier (sections 3, 6, 12, 13) and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q54": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier (sections 3, 6, 12, 13) and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q55": {
+   "status": "pass",
+   "notes": "CMCSA numbers match d19/d20. 'Right rules, wrong stock' contradicted itself (a stock we would trade, lp.tradeable_name, is one of the rules): now 'right bar, wrong stock'. Why had a 24-word sentence: split.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q56": {
+   "status": "pass",
+   "notes": "5.0 re-derived ((102.69 - 89.14) / 2.71); BABA reached 21.9R, so it got there.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q57": {
+   "status": "pass",
+   "notes": "The card's flat-base lookalike (c34, c33). Why had a 31-word sentence: split. Wrong choice shortened. variety rewrite checked 2026-11-10",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q58": {
+   "status": "cut",
+   "notes": "Duplicate of q31 (B20: the first 30-minute low is the new stop, out past 2R); q31 asks both halves on numbers.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q59": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier (sections 3, 6, 12, 13) and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q60": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier (sections 3, 6, 12, 13) and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q61": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier (sections 3, 6, 12, 13) and the rulebook; voice clean. flagged-question fix checked 2026-11-11",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q62": {
+   "status": "pass",
+   "notes": "The why opened on 'the bundle alone adds one or two points', which answers a different question (the bundle, not the bar) in an unexplained unit; now leads with c45, the bar looks the same on winners and losers.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q63": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier (sections 3, 6, 12, 13) and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q64": {
+   "status": "pass",
+   "notes": "Key on c07/c44 (proposed grade rows). The lesson line called 9% away 'a B-': the card gives no number for 'well away', so it now says only that it grades lower.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q65": {
+   "status": "pass",
+   "notes": "Re-keyed on the adopted default of D-003 (the close is the entry only where the setup is defined by its close: Slingshot, Launchpad; the stop is still the day's low), so the close entry and day's-low stop stay. The old story gave none of the numbers the choices used (89.14, 86.43), so the key could be reached by elimination: the choices now describe the plan in words and the story gives the facts that decide it. Lesson line no longer says 'before the close' (D39 is before the open). Numbers verbatim in d03: BABA fill 89.14, stop 86.43, 3R in 3; bars db confirms the 2025-01-24 close 89.14 (high 89.19, low 86.48).",
+   "fixed": true,
+   "by": "resolver"
+  },
+  "q66": {
+   "status": "pass",
+   "notes": "BABA asof 2025-01-23 is the session before the 2025-01-24 launch; d04's 26 of 40 under, none above. Keys 'weeks under the bundle', never D-062's count.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q67": {
+   "status": "pass",
+   "notes": "AAPL asof 2022-11-30 is the near-miss bar itself (close 148.03, 8/21/50 top 146.83, 200-day 154.21, d26). lp.launch_above_all is settled.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q68": {
+   "status": "pass",
+   "notes": "Haber's 3% quoted as his (b06, verbatim in dossier 3.8); our half is A13. No cap keyed.",
+   "fixed": false,
+   "by": "checker"
+  }
+ }
+}

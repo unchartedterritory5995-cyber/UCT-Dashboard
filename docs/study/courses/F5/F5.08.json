@@ -1,0 +1,1734 @@
+{
+ "unit": "F5.08",
+ "track": "F5",
+ "title": "Earnings Desk: real quarters",
+ "teaches": "Read real quarters the way a desk does: put the company's own numbers against the consensus, call beat, miss or in line, work the surprise in percent, then read the guide and the rest of the report, because a beat does not promise a rally and a miss does not promise a drop.",
+ "skills": [
+  {
+   "id": "fund.earnings_desk",
+   "title": "Earnings Desk: real quarters"
+  }
+ ],
+ "as_of": "2026-11-09",
+ "sources": [
+  {
+   "id": "s1",
+   "tier": 1,
+   "publisher": "FINRA",
+   "title": "What Is Earnings Season? (Investor Insights, July 23, 2024)",
+   "url": "https://www.finra.org/investors/insights/earnings-season",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s2",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "How to Read an 8-K",
+   "url": "https://www.investor.gov/news-alerts/investor-bulletins/how-read-8-k",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s3",
+   "tier": 1,
+   "publisher": "Netflix, Inc., Form 8-K Exhibit 99.1 (SEC EDGAR)",
+   "title": "Q1 2022 letter to shareholders (April 19, 2022)",
+   "url": "https://www.sec.gov/Archives/edgar/data/1065280/000106528022000144/ex991_q122.htm",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s4",
+   "tier": 1,
+   "publisher": "Meta Platforms, Inc., Form 8-K Exhibit 99.1 (SEC EDGAR)",
+   "title": "Meta Reports Fourth Quarter and Full Year 2022 Results (February 1, 2023)",
+   "url": "https://www.sec.gov/Archives/edgar/data/1326801/000132680123000008/meta-12312022xexhibit991.htm",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s5",
+   "tier": 1,
+   "publisher": "Walmart Inc., Form 8-K Exhibit 99.1 (SEC EDGAR)",
+   "title": "Q1 FY23 earnings release (May 17, 2022)",
+   "url": "https://www.sec.gov/Archives/edgar/data/104169/000010416922000024/earningsreleasefy23q1.htm",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s6",
+   "tier": 1,
+   "publisher": "Target Corporation, Form 8-K Exhibit 99 (SEC EDGAR)",
+   "title": "Target Corporation Reports First Quarter Earnings (May 18, 2022)",
+   "url": "https://www.sec.gov/Archives/edgar/data/27419/000002741922000011/a2022q1ex-99.htm",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s7",
+   "tier": 1,
+   "publisher": "NIKE, Inc., Form 8-K Exhibit 99.1 (SEC EDGAR)",
+   "title": "NIKE, Inc. Reports Fiscal 2024 Fourth Quarter and Full Year Results (June 27, 2024)",
+   "url": "https://www.sec.gov/Archives/edgar/data/320187/000032018724000028/q4fy24exhibit991er.htm",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s8",
+   "tier": 1,
+   "publisher": "Alphabet Inc., Form 8-K Exhibit 99.1 (SEC EDGAR)",
+   "title": "Alphabet Announces First Quarter 2024 Results (April 25, 2024)",
+   "url": "https://www.sec.gov/Archives/edgar/data/1652044/000165204424000047/googexhibit991q12024.htm",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s9",
+   "tier": 2,
+   "publisher": "CNBC",
+   "title": "Netflix shares crater 25% after company reports it lost subscribers for the first time in more than 10 years (Sarah Whitten, April 19, 2022)",
+   "url": "https://www.cnbc.com/2022/04/19/netflix-nflx-earnings-q1-2022.html",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s10",
+   "tier": 2,
+   "publisher": "CNBC",
+   "title": "Netflix earnings reports during the pandemic have been nightmares for investors (Jesse Pound, July 19, 2022)",
+   "url": "https://www.cnbc.com/2022/07/19/netflix-earnings-during-the-pandemic-have-been-investor-nightmares.html",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s11",
+   "tier": 2,
+   "publisher": "Variety (Variety Australia edition)",
+   "title": "Netflix Loses 200,000 Subscribers in Q1, Predicts Loss of 2 Million More in Q2 (April 20, 2022)",
+   "url": "https://au.variety.com/2022/tv/news/netflix-loses-subscribers-q1-earnings-1834",
+   "accessed": "2026-11-09",
+   "why_reliable": "Variety is the long-established entertainment trade paper; this is its licensed Australian edition (staff byline, dated 2022-04-20). Used only to corroborate figures: its Refinitiv consensus ($2.89 EPS, $7.93 billion revenue) matches CNBC's, and its FactSet subscriber estimate shows how survey numbers differ."
+  },
+  {
+   "id": "s12",
+   "tier": 2,
+   "publisher": "CNBC",
+   "title": "Meta shares soar almost 20% on fourth-quarter revenue beat (Jonathan Vanian, February 1, 2023)",
+   "url": "https://www.cnbc.com/2023/02/01/facebook-parent-meta-earnings-q4-2022.html",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s13",
+   "tier": 2,
+   "publisher": "Fortune (Bloomberg News story)",
+   "title": "Meta's after-hours stock price rockets after Mark Zuckerberg announces plans to trim layers of middle management (Kurt Wagner, Bloomberg, February 2, 2023)",
+   "url": "https://fortune.com/2023/02/02/meta-after-hours-stock-price-rockets-after-mark-zuckerberg-call/",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s14",
+   "tier": 2,
+   "publisher": "Morningstar",
+   "title": "Meta shares soar 23% on revenue beat, efficiency drive (Lukas Strobl, 2 February 2023)",
+   "url": "https://www.morningstar.com.au/insights/stocks/231500/meta-shares-soar-23-on-revenue-beat-efficiency-drive",
+   "accessed": "2026-11-09",
+   "why_reliable": "Morningstar is a major investment research firm; the article is by Lukas Strobl, its editorial director for Europe, and quotes Morningstar analyst Ali Mogharabi. Used only to corroborate the next-day close (up 23% at $188), which agrees with CNBC's same-day report (s27). Its write-up slips elsewhere (a '$56 billion' buyback and a '$95-100 billion' prior cost range, where the release says $40 billion and $94-100 billion), so nothing rests on it alone."
+  },
+  {
+   "id": "s15",
+   "tier": 2,
+   "publisher": "CNBC",
+   "title": "Walmart shares fall as higher costs, supply chain problems and inventories eat into profits (Melissa Repko, May 17, 2022)",
+   "url": "https://www.cnbc.com/2022/05/17/walmart-wmt-earnings-q1-2023.html",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s16",
+   "tier": 2,
+   "publisher": "CNBC",
+   "title": "Target shares sink 25% after company says high costs, inventory woes hit profits (Melissa Repko, May 18, 2022)",
+   "url": "https://www.cnbc.com/2022/05/18/target-tgt-q1-2022-earnings.html",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s17",
+   "tier": 2,
+   "publisher": "CNBC",
+   "title": "5 things to know before the stock market opens Thursday (May 19, 2022)",
+   "url": "https://www.cnbc.com/2022/05/19/5-things-to-know-before-the-stock-market-opens-thursday-may-19.html",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s18",
+   "tier": 2,
+   "publisher": "CNBC",
+   "title": "Nike shares plunge after retailer says quarterly sales will fall 10%, warns on China weakness (Gabrielle Fonrouge, June 27, 2024, updated June 28)",
+   "url": "https://www.cnbc.com/2024/06/27/nike-nke-earnings-q4-2024.html",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s19",
+   "tier": 2,
+   "publisher": "CNBC",
+   "title": "Alphabet shares jump 14% on earnings beat, first-ever dividend (Jennifer Elias, April 25, 2024)",
+   "url": "https://www.cnbc.com/2024/04/25/alphabet-set-to-report-first-quarter-results-after-market-close.html",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s20",
+   "tier": 2,
+   "publisher": "CNBC",
+   "title": "Alphabet soars most since 2015 on strong earnings, first dividend and $70 billion buyback (Alex Koller, April 26, 2024)",
+   "url": "https://www.cnbc.com/2024/04/26/alphabet-stock-up-on-strong-earnings-first-ever-dividend-buyback.html",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s21",
+   "tier": 2,
+   "publisher": "Zacks Investment Research",
+   "title": "Zacks Research System (Zacks Pro) report descriptions: EPS Surprises",
+   "url": "https://www.zackspro.com/da_4.asp",
+   "accessed": "2026-11-09",
+   "why_reliable": "Zacks Investment Research is a long-running US research firm whose consensus estimates the press quotes (AP cites a Zacks survey for Walmart's quarter, s28). This page is Zacks's own description of how its EPS surprise report is calculated."
+  },
+  {
+   "id": "s22",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "What Earnings Surprises Mean for Stock Prices (James Chen, updated April 2, 2026)",
+   "url": "https://www.investopedia.com/terms/e/earningssurprise.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s23",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "What Is Guidance and How Should Investors React? (Dan Rosenberg, March 26, 2026)",
+   "url": "https://www.schwab.com/learn/story/what-is-guidance-and-how-should-investors-react",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s24",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "Why Stocks Sometimes Ignore Good (or Bad) News (Will Daniel, June 2, 2026)",
+   "url": "https://www.schwab.com/learn/story/why-stocks-sometimes-ignore-good-or-bad-news",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s25",
+   "tier": 2,
+   "publisher": "Fidelity Investments",
+   "title": "Research Help: Key Stats, Earnings, Dividends, Ownership, and Financial Statements",
+   "url": "https://www.fidelity.com/webcontent/ap010098-etf-content/19.11.0/help/research/learn_er_fundamentals.shtml",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s26",
+   "tier": 2,
+   "publisher": "FactSet",
+   "title": "Earnings Insight, November 6, 2026 (John Butters, VP, Senior Earnings Analyst)",
+   "url": "https://advantage.factset.com/hubfs/Website/Resources%20Section/Research%20Desk/Earnings%20Insight/EarningsInsight_110626.pdf",
+   "accessed": "2026-11-09",
+   "why_reliable": "FactSet is a major financial data provider whose estimates the financial press cites daily (AP cites a FactSet poll for Target, s29). Earnings Insight is its weekly research note, signed by senior earnings analyst John Butters. Used only for how FactSet classifies a guided range: by its midpoint."
+  },
+  {
+   "id": "s27",
+   "tier": 2,
+   "publisher": "CNBC",
+   "title": "Meta shares rocket 23%, one of the best days in over a decade (Rohan Goswami, February 2, 2023, updated 4:00 PM EST)",
+   "url": "https://www.cnbc.com/2023/02/02/meta-stock-rockets-20percent-on-solid-earnings-analyst-reactions.html",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s28",
+   "tier": 2,
+   "publisher": "Associated Press (via WKMG News 6, ClickOrlando)",
+   "title": "Walmart Q1 profit dragged down as inflation takes a bite (Anne D'Innocenzio, AP, May 17, 2022)",
+   "url": "https://www.clickorlando.com/business/2022/05/17/walmart-profit-hit-as-inflation-afflicts-low-wage-earners/",
+   "accessed": "2026-11-09",
+   "why_reliable": "An Associated Press story (AP is a Tier 2 publisher) carried in full by WKMG News 6, a Graham Media station, under the AP byline and date. AP reprints elsewhere refuse the plain client, so the station's copy is cited."
+  },
+  {
+   "id": "s29",
+   "tier": 2,
+   "publisher": "Associated Press (via News 9, KWTV Oklahoma City)",
+   "title": "Target Feels Inflation's Sting In First Quarter, Shares Slip (AP, May 18, 2022)",
+   "url": "https://www.news9.com/story/6284e33d041bfa0723103223/target-feels-inflations-sting-in-first-quarter-shares-slip",
+   "accessed": "2026-11-09",
+   "why_reliable": "An Associated Press story (AP is a Tier 2 publisher) carried by News 9 (KWTV, Griffin Media) under the AP credit, dated May 18, 2022, 07:12 AM. Used only for the consensus and the beat or miss calls."
+  },
+  {
+   "id": "s30",
+   "tier": 2,
+   "publisher": "Reuters (via RTÉ News)",
+   "title": "Google parent Alphabet announces first-ever dividend (Reuters, RTÉ, April 26, 2024)",
+   "url": "https://www.rte.ie/news/business/2024/0426/1445779-alphabet-first-ever-dividend/",
+   "accessed": "2026-11-09",
+   "why_reliable": "A Reuters story (Reuters is a Tier 2 publisher) carried by RTÉ, Ireland's national public broadcaster, marked 'Source: Reuters'. Used only for the LSEG estimate and the beat call."
+  }
+ ],
+ "facts": [
+  {
+   "id": "f01",
+   "source": "s1",
+   "quote": "several groups track a “consensus” estimate that’s the average for all the analysts covering the stock.",
+   "claim": "The consensus is the average estimate of the analysts who cover the stock."
+  },
+  {
+   "id": "f02",
+   "source": "s1",
+   "quote": "A company beats (exceeds) the estimate or misses (falls short of) the estimate based on how actual earnings or revenues compare to the consensus. If the number equals the estimate, it’s said to be in line.",
+   "claim": "Actual above the consensus is a beat, below is a miss, equal is in line, for earnings and for revenue."
+  },
+  {
+   "id": "f03",
+   "source": "s1",
+   "quote": "But simply beating or missing estimates isn’t always what moves a company’s stock price.",
+   "claim": "A beat or a miss on its own doesn't always decide which way the stock moves."
+  },
+  {
+   "id": "f04",
+   "source": "s1",
+   "quote": "Sometimes a company might beat estimates but provide a dour outlook for the future, leading the share price to drop.",
+   "claim": "A company can beat and still fall when its outlook disappoints."
+  },
+  {
+   "id": "f05",
+   "source": "s1",
+   "quote": "During these calls, management might give more color on the quarter, take questions from Wall Street analysts and provide guidance on the company’s future prospects.",
+   "claim": "Management often gives its guidance on the earnings call."
+  },
+  {
+   "id": "f06",
+   "source": "s2",
+   "quote": "Many companies announce their quarterly and annual results simultaneously in a press release and an 8-K (which includes the press release as an exhibit).",
+   "claim": "The company's own numbers come in its press release, filed as an exhibit to an 8-K."
+  },
+  {
+   "id": "f10",
+   "source": "s3",
+   "quote": "EPS of $3.53 vs. $3.75 a year ago included a $162 million non-cash unrealized gain from F/X remeasurement on our Euro denominated debt.",
+   "claim": "Netflix's first-quarter 2022 EPS was $3.53, and it included a $162 million non-cash currency gain."
+  },
+  {
+   "id": "f11",
+   "source": "s3",
+   "quote": "Paid net additions were -0.2m compared against our guidance forecast of 2.5m and 4.0m in the same quarter a year ago.",
+   "claim": "Netflix lost 0.2 million paid members in the quarter, against its own forecast of adding 2.5 million."
+  },
+  {
+   "id": "f12",
+   "source": "s3",
+   "quote": "For Q2’22, we forecast paid net additions of -2.0m vs. +1.5m in the year ago quarter.",
+   "claim": "Netflix guided to losing 2 million paid members in the second quarter of 2022."
+  },
+  {
+   "id": "f13",
+   "source": "s9",
+   "quote": "EPS: $3.53 vs, $2.89, according to a Refinitiv survey of analysts.",
+   "claim": "Netflix earned $3.53 a share against a $2.89 Refinitiv consensus."
+  },
+  {
+   "id": "f14",
+   "source": "s9",
+   "quote": "Revenue: $7.87 billion vs. $7.93 billion, according to a Refinitiv survey of analysts.",
+   "claim": "Netflix's revenue was $7.87 billion against $7.93 billion expected."
+  },
+  {
+   "id": "f15",
+   "source": "s9",
+   "quote": "Global paid net subscriber additions: A loss of 200,000 compared with 2.73 million adds expected, according to StreetAccount estimates.",
+   "claim": "Netflix lost 200,000 subscribers where StreetAccount's survey expected 2.73 million added."
+  },
+  {
+   "id": "f16",
+   "source": "s9",
+   "quote": "Netflix previously told shareholders it expected to add 2.5 million net subscribers during the first quarter.",
+   "claim": "Netflix's own forecast for the quarter was 2.5 million net adds."
+  },
+  {
+   "id": "f17",
+   "source": "s9",
+   "quote": "its first decline in paid users in more than a decade",
+   "claim": "It was Netflix's first drop in paid users in more than ten years."
+  },
+  {
+   "id": "f18",
+   "source": "s10",
+   "quote": "The first quarter of 2022 , reported in April, was particularly bad for Netflix. The stock plunged 35% in one day after the company reported a miss on revenue and and a surprise loss of subscribers.",
+   "claim": "After its first-quarter 2022 report, Netflix fell 35% in one day, on a revenue miss and a surprise subscriber loss."
+  },
+  {
+   "id": "f19",
+   "source": "s10",
+   "quote": "Historically, subscriber growth has been a key metric each quarter for Netflix.",
+   "claim": "Subscriber growth had long been a key number for Netflix each quarter."
+  },
+  {
+   "id": "f20",
+   "source": "s11",
+   "quote": "Analysts forecast earnings per share (EPS) of $2.89 on $7.93 billion in revenue, according to analyst consensus data provided by Refinitiv.",
+   "claim": "Variety reports the same Refinitiv consensus: $2.89 EPS on $7.93 billion revenue."
+  },
+  {
+   "id": "f21",
+   "source": "s11",
+   "quote": "Wall Street analysts expected Netflix to add 2.8 million new subscribers worldwide in the first quarter vs. 3.98 million in the year-earlier period, according to FactSet.",
+   "claim": "FactSet's survey expected 2.8 million new subscribers, a different number from StreetAccount's."
+  },
+  {
+   "id": "f22",
+   "source": "s11",
+   "quote": "In after-hours trading, the stock fell more than 22% following Netflix’s Q1 subscriber loss reveal and projections for deeper loss in Q2.",
+   "claim": "Variety tied the after-hours drop to the subscriber loss and the forecast of more losses."
+  },
+  {
+   "id": "f23",
+   "source": "s4",
+   "quote": "Diluted earnings per share (EPS) $1.76 $3.67 (52)%",
+   "claim": "Meta's fourth-quarter 2022 diluted EPS was $1.76, down 52% from $3.67 a year earlier (release table)."
+  },
+  {
+   "id": "f24",
+   "source": "s4",
+   "quote": "Revenue was $32.17 billion and $116.61 billion, a decrease of 4% and 1% year-over-year for the fourth quarter and full year 2022, respectively.",
+   "claim": "Meta's fourth-quarter 2022 revenue was $32.17 billion, down 4% from a year earlier."
+  },
+  {
+   "id": "f25",
+   "source": "s4",
+   "quote": "This includes charges related to our restructuring efforts of $4.20 billion and $4.61 billion in the fourth quarter and full year 2022, respectively.",
+   "claim": "Meta's fourth-quarter costs included $4.20 billion of restructuring charges."
+  },
+  {
+   "id": "f26",
+   "source": "s4",
+   "quote": "Excluding these charges, our operating margin would have been 13 percentage points higher, our effective tax rate would have been one percentage point lower, and our diluted EPS would have been $1.24 higher",
+   "claim": "Without the restructuring charges, Meta's fourth-quarter diluted EPS would have been $1.24 higher."
+  },
+  {
+   "id": "f27",
+   "source": "s4",
+   "quote": "We also announced today a $40 billion increase in our share repurchase authorization.",
+   "claim": "Meta added $40 billion to its buyback authorization."
+  },
+  {
+   "id": "f28",
+   "source": "s4",
+   "quote": "We anticipate our full-year 2023 total expenses will be in the range of $89-95 billion, lowered from our prior outlook of $94-100 billion",
+   "claim": "Meta lowered its 2023 expense outlook."
+  },
+  {
+   "id": "f29",
+   "source": "s4",
+   "quote": "We expect first quarter 2023 total revenue to be in the range of $26-28.5 billion.",
+   "claim": "Meta guided first-quarter 2023 revenue to $26 billion to $28.5 billion."
+  },
+  {
+   "id": "f30",
+   "source": "s12",
+   "quote": "Revenue: $32.17 billion vs $31.53 billion expected, according to Refinitiv",
+   "claim": "Meta's revenue beat: $32.17 billion against $31.53 billion expected."
+  },
+  {
+   "id": "f31",
+   "source": "s12",
+   "quote": "Because of those charges, it's difficult to compare the company's earnings per share to analyst estimates of $2.22 per share.",
+   "claim": "CNBC: the charges made Meta's EPS hard to compare with the $2.22 estimate."
+  },
+  {
+   "id": "f32",
+   "source": "s12",
+   "quote": "Earnings: $1.76 per share",
+   "claim": "Meta reported EPS of $1.76."
+  },
+  {
+   "id": "f33",
+   "source": "s12",
+   "quote": "Analysts were expecting sales of $27.1 billion, according to Refinitv.",
+   "claim": "Refinitiv's consensus for Meta's first-quarter 2023 revenue was $27.1 billion."
+  },
+  {
+   "id": "f34",
+   "source": "s13",
+   "quote": "Fourth-quarter sales fell 4% to $32.2 billion, the third straight period of declines. Even so, the total beat analysts’ estimates",
+   "claim": "Bloomberg: Meta's sales fell from a year earlier and still beat estimates."
+  },
+  {
+   "id": "f35",
+   "source": "s13",
+   "quote": "Meta projected revenue of $26 billion to $28.5 billion for the first quarter, in line with an average projection of $27.3 billion.",
+   "claim": "Bloomberg cites an average projection of $27.3 billion for the same quarter."
+  },
+  {
+   "id": "f36",
+   "source": "s13",
+   "quote": "Meta Platforms Inc.’s shares soared more than 20%, on track for their biggest gain in 10 years, after Chief Executive Officer Mark Zuckerberg announced plans to make the social media giant leaner, more efficient and more decisive.",
+   "claim": "Bloomberg tied Meta's after-hours jump to its plans to cut costs."
+  },
+  {
+   "id": "f37",
+   "source": "s14",
+   "quote": "Meta's Nasdaq-listed shares closed up 23% at $188, the highest price since June 2022.",
+   "claim": "Meta closed up 23% the day after the report."
+  },
+  {
+   "id": "f38",
+   "source": "s14",
+   "quote": "surged more than 20% as its fourth-quarter revenue result beat analysts' expectations.",
+   "claim": "Morningstar tied the jump to the revenue beat."
+  },
+  {
+   "id": "f39",
+   "source": "s27",
+   "quote": "Meta shares jumped over 23% on Thursday, one of the stocks best day in nearly a decade, with a slew of analyst upgrades coming off the back of a fourth-quarter revenue beat and optimistic prognostications from CEO Mark Zuckerberg.",
+   "claim": "CNBC: Meta jumped over 23% the day after the report, on the revenue beat and Zuckerberg's outlook."
+  },
+  {
+   "id": "f40",
+   "source": "s5",
+   "quote": "Q1 FY23 GAAP EPS of $0.74",
+   "claim": "Walmart's GAAP EPS for the first quarter of fiscal 2023 was 74 cents."
+  },
+  {
+   "id": "f41",
+   "source": "s5",
+   "quote": "Adjusted EPS $1.30",
+   "claim": "Walmart's adjusted EPS for the quarter was $1.30 (release reconciliation table)."
+  },
+  {
+   "id": "f42",
+   "source": "s5",
+   "quote": "Total revenue was $141.6 billion, up 2.4%, or 2.6% in constant currency",
+   "claim": "Walmart's revenue was $141.6 billion, up 2.4%."
+  },
+  {
+   "id": "f43",
+   "source": "s5",
+   "quote": "Bottom-line results were unexpected and reflect the unusual environment. U.S. inflation levels, particularly in food and fuel, created more pressure on margin mix and operating costs than we expected.",
+   "claim": "Walmart's CEO: food and fuel inflation squeezed margins and costs more than expected."
+  },
+  {
+   "id": "f44",
+   "source": "s5",
+   "quote": "Company provides updated outlook for Q2 and full year",
+   "claim": "Walmart updated its outlook in the same release."
+  },
+  {
+   "id": "f45",
+   "source": "s5",
+   "quote": "EPS Increase mid single-digits",
+   "claim": "Walmart's February guidance table had full-year EPS rising mid single digits."
+  },
+  {
+   "id": "f46",
+   "source": "s5",
+   "quote": "Decrease about 1%",
+   "claim": "Walmart's May guidance table has full-year EPS falling about 1%."
+  },
+  {
+   "id": "f47",
+   "source": "s15",
+   "quote": "Earnings per share: $1.30 adjusted vs. $1.48 expected",
+   "claim": "Walmart earned $1.30 adjusted against $1.48 expected."
+  },
+  {
+   "id": "f48",
+   "source": "s15",
+   "quote": "Revenue: $141.57 billion reported vs. $138.94 billion expected",
+   "claim": "Walmart's revenue was $141.57 billion against $138.94 billion expected."
+  },
+  {
+   "id": "f49",
+   "source": "s15",
+   "quote": "The company's adjusted earnings were $1.30 per share, 18 cents per share less than what financial analysts expected, according to financial market data provider Refinitiv.",
+   "claim": "Walmart's adjusted EPS came in 18 cents short of the Refinitiv consensus."
+  },
+  {
+   "id": "f50",
+   "source": "s15",
+   "quote": "Walmart on Tuesday reported quarterly earnings that missed Wall Street's expectations by a wide margin",
+   "claim": "Walmart missed earnings expectations by a wide margin."
+  },
+  {
+   "id": "f51",
+   "source": "s15",
+   "quote": "The company raised its outlook for sales this year, saying it expects net sales to increase about 4% in constant currency for the full year. It previously anticipated a 3% increase.",
+   "claim": "Walmart raised its full-year sales outlook from about 3% growth to about 4%."
+  },
+  {
+   "id": "f52",
+   "source": "s15",
+   "quote": "But Walmart also lowered profit expectations. Earnings per share for the year will decrease by about 1% compared with the mid-single-digit increase it previously expected, the company projected.",
+   "claim": "Walmart cut its full-year EPS outlook from a mid-single-digit rise to a fall of about 1%."
+  },
+  {
+   "id": "f53",
+   "source": "s15",
+   "quote": "Shares of the company touched a 52-week low on Tuesday. They closed at $131.35, down 11.38%.",
+   "claim": "Walmart closed down 11.38% on report day."
+  },
+  {
+   "id": "f54",
+   "source": "s5",
+   "quote": "We have calculated Adjusted EPS for the three months ended April 30, 2022 by adjusting EPS for unrealized and realized gains and losses on the company’s equity investments.",
+   "claim": "Walmart's adjusted EPS for the quarter leaves out one item: gains and losses on its equity investments."
+  },
+  {
+   "id": "f55",
+   "source": "s6",
+   "quote": "Adjusted diluted earnings per share $2.19 $3.69",
+   "claim": "Target's adjusted diluted EPS was $2.19, against $3.69 a year earlier (release table)."
+  },
+  {
+   "id": "f56",
+   "source": "s6",
+   "quote": "Operating margin rate of 5.3 percent was well below expectations, driven primarily by gross margin pressure reflecting actions to reduce excess inventory as well as higher freight and transportation costs.",
+   "claim": "Target says its 5.3% operating margin was well below expectations, hit by markdowns and freight costs."
+  },
+  {
+   "id": "f57",
+   "source": "s6",
+   "quote": "Throughout the quarter, we faced unexpectedly high costs, driven by a number of factors, resulting in profitability that came in well below our expectations",
+   "claim": "Target's CEO: unexpectedly high costs pushed profit well below the company's own expectations."
+  },
+  {
+   "id": "f58",
+   "source": "s16",
+   "quote": "Earnings per share: $2.19 adjusted vs. $3.07 expected",
+   "claim": "Target earned $2.19 adjusted against $3.07 expected."
+  },
+  {
+   "id": "f59",
+   "source": "s16",
+   "quote": "Revenue: $25.17 billion vs. $24.49 billion expected",
+   "claim": "Target's revenue was $25.17 billion against $24.49 billion expected."
+  },
+  {
+   "id": "f60",
+   "source": "s16",
+   "quote": "Excluding items, Target earned $2.19 per share, 88 cents short of the $3.07 expected by analysts surveyed by Refinitiv.",
+   "claim": "Target's adjusted EPS came in 88 cents short of the consensus."
+  },
+  {
+   "id": "f61",
+   "source": "s16",
+   "quote": "The company's shares fell nearly 25% and hit a 52-week low.",
+   "claim": "Target fell nearly 25% on report day."
+  },
+  {
+   "id": "f62",
+   "source": "s16",
+   "quote": "Target's results mirrored Walmart's quarterly earnings performance.",
+   "claim": "CNBC: Target's quarter mirrored Walmart's."
+  },
+  {
+   "id": "f63",
+   "source": "s17",
+   "quote": "Target's inflation-driven earnings miss confirmed the same story from Walmart a day earlier.",
+   "claim": "Target's miss confirmed Walmart's story a day later."
+  },
+  {
+   "id": "f64",
+   "source": "s17",
+   "quote": "They both tanked in their worst days since 1987 after their respective earnings reports Tuesday and Wednesday.",
+   "claim": "Walmart and Target both had their worst days since 1987 after these reports."
+  },
+  {
+   "id": "f65",
+   "source": "s7",
+   "quote": "Diluted earnings per share was $0.99, including $0.02 of restructuring charges, net of tax benefit. Excluding these charges, Diluted earnings per share would have been $1.01",
+   "claim": "Nike's fiscal fourth-quarter 2024 EPS was 99 cents, or $1.01 without restructuring charges."
+  },
+  {
+   "id": "f66",
+   "source": "s7",
+   "quote": "our fourth quarter results highlighted challenges that have led us to update our Fiscal '25 outlook.",
+   "claim": "Nike's release says it updated its fiscal 2025 outlook, without giving the new numbers there."
+  },
+  {
+   "id": "f67",
+   "source": "s7",
+   "quote": "NIKE, Inc. management will host a conference call beginning at approximately 2:00 p.m. PT on June 27, 2024, to review fiscal fourth quarter and full year results.",
+   "claim": "Nike held its earnings call the same afternoon."
+  },
+  {
+   "id": "f68",
+   "source": "s18",
+   "quote": "Earnings per share: $1.01 adjusted vs. 83 cents expected",
+   "claim": "Nike earned $1.01 adjusted against 83 cents expected."
+  },
+  {
+   "id": "f69",
+   "source": "s18",
+   "quote": "Revenue: $12.61 billion vs. $12.84 billion expected",
+   "claim": "Nike's revenue was $12.61 billion against $12.84 billion expected."
+  },
+  {
+   "id": "f70",
+   "source": "s18",
+   "quote": "now expects fiscal 2025 sales to be down mid-single digits, compared to analyst estimates of a 0.9% increase. Nike previously expected sales to grow.",
+   "claim": "Nike guided fiscal 2025 sales down mid single digits; analysts expected a 0.9% rise."
+  },
+  {
+   "id": "f71",
+   "source": "s18",
+   "quote": "The company cut its guidance as it contends with slower online sales, planned declines in classic footwear franchises, “increased macro uncertainty” in the Greater China region and “uneven consumer trends” across Nike’s markets, Friend said.",
+   "claim": "Finance chief Matthew Friend explained the guidance cut."
+  },
+  {
+   "id": "f72",
+   "source": "s18",
+   "quote": "the retailer's finance chief Matthew Friend said on a call with analysts Thursday.",
+   "claim": "Friend spoke on the analyst call on report day."
+  },
+  {
+   "id": "f73",
+   "source": "s18",
+   "quote": "Shares of Nike plunged on Friday after the retailer cut its full-year guidance and said it expects sales to drop 10% during its current quarter",
+   "claim": "CNBC tied Nike's plunge to the guidance cut."
+  },
+  {
+   "id": "f74",
+   "source": "s18",
+   "quote": "Nike shares plunged nearly 20% in trading Friday.",
+   "claim": "Nike fell nearly 20% the day after the report."
+  },
+  {
+   "id": "f75",
+   "source": "s8",
+   "quote": "We delivered revenues of $80.5 billion, up 15% year-on-year, and operating margin expansion.",
+   "claim": "Alphabet's first-quarter 2024 revenue was $80.5 billion, up 15%."
+  },
+  {
+   "id": "f76",
+   "source": "s8",
+   "quote": "Net income $15,051 $23,662 Diluted EPS $1.17 $1.89",
+   "claim": "Alphabet's first-quarter 2024 diluted EPS was $1.89, up from $1.17 a year earlier (release table)."
+  },
+  {
+   "id": "f77",
+   "source": "s8",
+   "quote": "Alphabet’s Board of Directors today approved the initiation of a cash dividend program, and declared a cash dividend of $0.20 per share",
+   "claim": "Alphabet started paying a dividend, 20 cents a share."
+  },
+  {
+   "id": "f78",
+   "source": "s8",
+   "quote": "Alphabet’s Board of Directors today authorized the company to repurchase up to an additional $70.0 billion of its Class A and Class C shares",
+   "claim": "Alphabet authorized $70 billion more in buybacks."
+  },
+  {
+   "id": "f79",
+   "source": "s19",
+   "quote": "Earnings per share: $1.89 vs. $1.51 expected by LSEG",
+   "claim": "Alphabet earned $1.89 against $1.51 expected."
+  },
+  {
+   "id": "f80",
+   "source": "s19",
+   "quote": "Revenue: $80.54 billion vs. $78.59 billion expected by LSEG",
+   "claim": "Alphabet's revenue was $80.54 billion against $78.59 billion expected."
+  },
+  {
+   "id": "f81",
+   "source": "s20",
+   "quote": "Alphabet shares shot up 10% on Friday after the company posted better-than-expected first-quarter results and greenlit its first-ever dividend and a $70 billion buyback.",
+   "claim": "Alphabet rose 10% the day after the report."
+  },
+  {
+   "id": "f82",
+   "source": "s20",
+   "quote": "It's the sharpest rally for the stock since a 16% jump in July 2015.",
+   "claim": "It was Alphabet's sharpest rally since July 2015."
+  },
+  {
+   "id": "f83",
+   "source": "s21",
+   "quote": "EPS Surprise is calculated as [(Actual EPS - Consensus EPS)/Absolute value of Consensus EPS] x 100 (expressed in percent).",
+   "claim": "Surprise percent is actual minus consensus, divided by the consensus, times 100."
+  },
+  {
+   "id": "f84",
+   "source": "s22",
+   "quote": "An earnings surprise occurs when a company's reported quarterly or annual profits are above or below analysts' expectations.",
+   "claim": "An earnings surprise is profit above or below what analysts expected."
+  },
+  {
+   "id": "f85",
+   "source": "s22",
+   "quote": "A negative earnings surprise will usually result in a decline in share price.",
+   "claim": "A miss usually, not always, sends the stock lower."
+  },
+  {
+   "id": "f86",
+   "source": "s23",
+   "quote": "If a company doesn't put the guidance in the release itself, investors might find it in associated materials or might have to wait for the company's earnings call to find out.",
+   "claim": "When the release has no guidance, look for it on the earnings call."
+  },
+  {
+   "id": "f87",
+   "source": "s23",
+   "quote": "Though guidance usually appears near the bottom of a company's earnings release, it can often be the top factor in determining near-term share price.",
+   "claim": "Guidance often drives the near-term price more than anything else in the release."
+  },
+  {
+   "id": "f88",
+   "source": "s24",
+   "quote": "A company can report standout earnings, but if guidance disappoints, investors may anticipate weaker future earnings, leading the stock to fall.",
+   "claim": "Strong earnings with weak guidance can send a stock lower."
+  },
+  {
+   "id": "f89",
+   "source": "s24",
+   "quote": "Conversely, a company can report weak earnings but offer upbeat guidance and bullish commentary on an earnings call, causing its stock to rise.",
+   "claim": "Weak earnings with upbeat guidance can send a stock higher."
+  },
+  {
+   "id": "f90",
+   "source": "s24",
+   "quote": "Headline numbers don't tell the whole story.",
+   "claim": "The headline numbers are not the whole report."
+  },
+  {
+   "id": "f91",
+   "source": "s25",
+   "quote": "This approach allows for a \"apples to apples\" comparisons by only using estimates and actual earnings figures created on the same accounting basis.",
+   "claim": "Compare an estimate and an actual only on the same accounting basis."
+  },
+  {
+   "id": "f92",
+   "source": "s26",
+   "quote": "Guidance is classified as negative if the estimate (or mid-point of a range estimates) provided by a company is lower than the mean EPS estimate the day before the guidance was issued.",
+   "claim": "FactSet judges a guided range by its midpoint against the consensus."
+  },
+  {
+   "id": "f93",
+   "source": "s23",
+   "quote": "Disappointing shareholders and analysts when a company misses guidance",
+   "claim": "Schwab: a company that misses its own guidance disappoints shareholders and analysts."
+  },
+  {
+   "id": "f94",
+   "source": "s28",
+   "quote": "Adjusted earnings per share totaled $1.30, but that's still far short of the per-share earnings of $1.48 that Wall Street had expected, according to a survey by Zacks Investment Research.",
+   "claim": "AP, using a Zacks survey, also puts Walmart's $1.30 adjusted EPS far short of the $1.48 expected."
+  },
+  {
+   "id": "f95",
+   "source": "s28",
+   "quote": "Sales rose 2.4% to $141.57 billion, better than the $138.8 billion that analysts had projected.",
+   "claim": "AP: Walmart's sales beat a $138.8 billion projection, a different survey from CNBC's $138.94 billion."
+  },
+  {
+   "id": "f96",
+   "source": "s28",
+   "quote": "Higher labor and fuel costs as well as higher inventory levels dragged down the company's profits.",
+   "claim": "AP: labor, fuel and inventory costs dragged down Walmart's profit."
+  },
+  {
+   "id": "f97",
+   "source": "s29",
+   "quote": "Per-share earnings adjusted for one time costs were $2.19, far from Wall Street projections of $3.07 a share expected by industry analysts polled by FactSet.",
+   "claim": "AP, using a FactSet poll, also puts Target's $2.19 adjusted EPS far below the $3.07 expected."
+  },
+  {
+   "id": "f98",
+   "source": "s29",
+   "quote": "Revenue rose 4% to $24.83 billon in the quarter, a little better than expected.",
+   "claim": "AP: Target's sales ($24.83 billion, before other revenue) came in a little better than expected."
+  },
+  {
+   "id": "f99",
+   "source": "s30",
+   "quote": "Alphabet beat expectations for the quarter in sales, profit and advertising",
+   "claim": "Reuters: Alphabet beat expectations on sales and on profit."
+  },
+  {
+   "id": "f100",
+   "source": "s30",
+   "quote": "Revenue was $80.54 billion for the quarter ended March 31, compared with estimates of $78.59 billion, according to LSEG data.",
+   "claim": "Reuters gives the same LSEG revenue estimate as CNBC: $78.59 billion."
+  }
+ ],
+ "walkthroughs": [
+  {
+   "key": "w1",
+   "title": "Two numbers, one verdict",
+   "steps": [
+    "Every quarter has two sides. The company's own numbers usually come in a press release, filed with an 8-K.",
+    "The other side is the consensus: the average of the analysts' estimates.",
+    "Above the consensus is a beat. Below is a miss. Equal is in line.",
+    "Then work the surprise: actual minus consensus, divided by the consensus, times 100."
+   ],
+   "facts": [
+    "f06",
+    "f01",
+    "f02",
+    "f83"
+   ]
+  },
+  {
+   "key": "w2",
+   "title": "Netflix, April 2022",
+   "steps": [
+    "Netflix earns $3.53 a share. The consensus was $2.89. An EPS beat.",
+    "But paid members fall by 0.2 million, against its own forecast of 2.5 million added.",
+    "And it guides to losing 2 million more next quarter. The stock plunges 35% in one day.",
+    "The beat was about the quarter just gone. Members and the guide were about what comes next."
+   ],
+   "facts": [
+    "f13",
+    "f11",
+    "f12",
+    "f18",
+    "f19"
+   ]
+  },
+  {
+   "key": "w3",
+   "title": "Meta, February 2023",
+   "steps": [
+    "Meta reports EPS of $1.76. Analysts expected $2.22. On its face, a miss.",
+    "But $4.20 billion of restructuring charges sit in that number. Without them, EPS is $1.24 higher.",
+    "Revenue beats, the 2023 cost outlook comes down, and the buyback grows by $40 billion.",
+    "The stock closes up 23% the next day. Read the whole release, not one line."
+   ],
+   "facts": [
+    "f32",
+    "f31",
+    "f25",
+    "f26",
+    "f30",
+    "f28",
+    "f27",
+    "f37",
+    "f39"
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "key": "q01",
+   "skill": "fund.earnings_desk",
+   "rung": 1,
+   "format": "mcq",
+   "q": "Netflix, first quarter 2022: EPS of $3.53. The Refinitiv consensus was $2.89. How does EPS read?",
+   "choices": [
+    "A beat",
+    "A miss",
+    "In line"
+   ],
+   "answer": "A beat",
+   "why": "A beat. $3.53 is well above the $2.89 consensus, and actual above the estimate is a beat.",
+   "lesson_line": "Actual against the consensus. Above is a beat, below is a miss, equal is in line.",
+   "facts": [
+    "f10",
+    "f13",
+    "f20",
+    "f02"
+   ],
+   "wrong": {
+    "A miss": "A miss means actual came in below the estimate. $3.53 is above $2.89.",
+    "In line": "In line means actual equals the estimate. $3.53 and $2.89 are far apart."
+   }
+  },
+  {
+   "key": "q02",
+   "skill": "fund.earnings_desk",
+   "rung": 1,
+   "format": "tf",
+   "q": "Walmart, first quarter of fiscal 2023: adjusted EPS of $1.30 against $1.48 expected. That's a beat.",
+   "answer": "False",
+   "why": "False. $1.30 is below the $1.48 estimate, so it's a miss. CNBC called it a miss by a wide margin.",
+   "lesson_line": "Below the consensus is a miss. Get the direction right before anything else.",
+   "facts": [
+    "f41",
+    "f47",
+    "f50",
+    "f02",
+    "f94"
+   ]
+  },
+  {
+   "key": "q03",
+   "skill": "fund.earnings_desk",
+   "rung": 2,
+   "format": "fill",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "Actual EPS minus the consensus, divided by the consensus, times 100, is the earnings ___ in percent.",
+   "bank": [
+    "surprise",
+    "margin",
+    "guidance",
+    "growth",
+    "multiple"
+   ],
+   "answer": "surprise",
+   "why": "Surprise. Zacks works it as actual minus consensus, over the consensus, times 100. Positive is a beat, negative a miss. When a loss is expected, Zacks divides by the consensus without its minus sign.",
+   "lesson_line": "The surprise in percent puts a beat at Netflix and a miss at Walmart on the same scale.",
+   "facts": [
+    "f83",
+    "f84"
+   ]
+  },
+  {
+   "key": "q04",
+   "skill": "fund.earnings_desk",
+   "rung": 2,
+   "format": "mcq",
+   "q": "Alphabet, first quarter 2024: EPS $1.89 vs $1.51 expected. Revenue $80.54 billion vs $78.59 billion expected. How does it read?",
+   "choices": [
+    "Beat on both",
+    "EPS beat, revenue missed",
+    "Revenue beat, EPS missed",
+    "In line on both"
+   ],
+   "answer": "Beat on both",
+   "why": "Beat on both. $1.89 tops $1.51, and $80.54 billion tops $78.59 billion. Revenue grew 15% from a year earlier.",
+   "lesson_line": "Read EPS and revenue as two lines. Each one beats or misses on its own.",
+   "facts": [
+    "f76",
+    "f75",
+    "f79",
+    "f80",
+    "f02",
+    "f99",
+    "f100"
+   ],
+   "wrong": {
+    "EPS beat, revenue missed": "Revenue beat too: $80.54 billion against $78.59 billion expected.",
+    "Revenue beat, EPS missed": "EPS beat: $1.89 against $1.51 expected.",
+    "In line on both": "In line means equal to the estimate. Both numbers came in above it."
+   }
+  },
+  {
+   "key": "q05",
+   "skill": "fund.earnings_desk",
+   "rung": 2,
+   "format": "mcq",
+   "q": "Target, first quarter 2022: adjusted EPS $2.19 vs $3.07 expected. Revenue $25.17 billion vs $24.49 billion expected. How does it read?",
+   "choices": [
+    "EPS missed, revenue beat",
+    "EPS beat, revenue missed",
+    "Missed on both",
+    "Beat on both"
+   ],
+   "answer": "EPS missed, revenue beat",
+   "why": "EPS missed, revenue beat. Sales came in above the estimate, but profit per share fell 88 cents short.",
+   "lesson_line": "A sales beat and a profit miss can sit in one report. Say both halves out loud.",
+   "facts": [
+    "f55",
+    "f58",
+    "f59",
+    "f60",
+    "f02",
+    "f97",
+    "f98"
+   ],
+   "wrong": {
+    "EPS beat, revenue missed": "That's backwards. $2.19 is below $3.07, and $25.17 billion is above $24.49 billion.",
+    "Missed on both": "Revenue beat: $25.17 billion against $24.49 billion expected.",
+    "Beat on both": "EPS missed: $2.19 against $3.07 expected."
+   }
+  },
+  {
+   "key": "q06",
+   "skill": "fund.earnings_desk",
+   "rung": 3,
+   "format": "tf",
+   "q": "Two news outlets can print different \"expected\" numbers for the same quarter.",
+   "answer": "True",
+   "why": "True. Each outlet quotes a survey, and surveys differ. For one Netflix quarter, StreetAccount expected 2.73 million new members and FactSet 2.8 million. For one Meta guide, $27.1 billion at Refinitiv, $27.3 billion in Bloomberg's story.",
+   "lesson_line": "Know whose consensus you're reading. On a close call, the survey can change the verdict.",
+   "facts": [
+    "f15",
+    "f21",
+    "f33",
+    "f35",
+    "f01"
+   ]
+  },
+  {
+   "key": "q07",
+   "skill": "fund.earnings_desk",
+   "rung": 3,
+   "format": "mcq",
+   "q": "Nike's fiscal Q4 2024 release says results \"led us to update our Fiscal '25 outlook.\" No new numbers follow. Where do you find them?",
+   "choices": [
+    "On the earnings call",
+    "In the consensus estimate",
+    "In the after-hours price",
+    "In the prior quarter's release"
+   ],
+   "answer": "On the earnings call",
+   "why": "On the earnings call. Nike held it the same afternoon, and finance chief Matthew Friend spoke to analysts there about the outlook. When the release has no outlook numbers, check its supporting materials and the call.",
+   "lesson_line": "Guidance isn't always in the release. When it's missing, check the call.",
+   "facts": [
+    "f66",
+    "f67",
+    "f72",
+    "f71",
+    "f86",
+    "f05"
+   ],
+   "wrong": {
+    "In the consensus estimate": "That's the analysts' average forecast, not the company's own.",
+    "In the after-hours price": "A price shows how the market reacts. It doesn't tell you what the company forecast.",
+    "In the prior quarter's release": "It was written last quarter. It can't hold the outlook Nike just updated."
+   }
+  },
+  {
+   "key": "q08",
+   "skill": "fund.earnings_desk",
+   "rung": 3,
+   "format": "tf",
+   "q": "When a company gives its own forecast for a number, the quarter is also judged against that forecast.",
+   "answer": "True",
+   "why": "True. Netflix forecast 2.5 million new paid members for the quarter and lost 0.2 million. Its own letter set the result against that forecast. Schwab lists missing guidance as one way a company disappoints shareholders and analysts.",
+   "lesson_line": "Two bars to clear: the analysts' consensus and the company's own forecast. Check both.",
+   "facts": [
+    "f11",
+    "f16",
+    "f93"
+   ]
+  },
+  {
+   "key": "q09",
+   "skill": "fund.earnings_desk",
+   "rung": 4,
+   "format": "numeric",
+   "q": "Alphabet, first quarter 2024: EPS $1.89. The LSEG consensus was $1.51. What was the surprise, in percent?",
+   "answer": 25.2,
+   "suffix": "%",
+   "calc": {
+    "fn": "pct_change",
+    "args": {
+     "start": 1.51,
+     "end": 1.89
+    },
+    "round": 1
+   },
+   "why": "25.2%. $1.89 minus $1.51, divided by $1.51, times 100. A big beat.",
+   "lesson_line": "Work every surprise in percent. Then a big company and a small one read on one scale.",
+   "facts": [
+    "f76",
+    "f79",
+    "f83"
+   ]
+  },
+  {
+   "key": "q10",
+   "skill": "fund.earnings_desk",
+   "rung": 4,
+   "format": "numeric",
+   "q": "Netflix forecast 2.5 million new paid members for the first quarter of 2022. It lost 0.2 million. How many million short was it?",
+   "answer": 2.7,
+   "suffix": "million",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "forecast + lost",
+     "forecast": 2.5,
+     "lost": 0.2
+    }
+   },
+   "why": "2.7 million. From a planned 2.5 million added to 0.2 million lost is a swing of 2.7 million. It was Netflix's first decline in paid users in more than a decade.",
+   "lesson_line": "Measure the miss against the company's own forecast too. Netflix missed its own badly.",
+   "facts": [
+    "f11",
+    "f16",
+    "f17"
+   ]
+  },
+  {
+   "key": "q11",
+   "skill": "fund.earnings_desk",
+   "rung": 4,
+   "format": "mcq",
+   "q": "Meta, fourth quarter 2022: revenue $32.17 billion, down 4% from a year earlier. Analysts expected $31.53 billion. How does revenue read?",
+   "choices": [
+    "A beat, though sales fell",
+    "A miss, because sales fell",
+    "In line with last year",
+    "Can't tell without EPS"
+   ],
+   "answer": "A beat, though sales fell",
+   "why": "A beat, though sales fell. Beat and miss are measured against the estimate, not against last year. $32.17 billion is above $31.53 billion.",
+   "lesson_line": "Growth compares with last year. Beat or miss compares with the estimate. Keep the two apart.",
+   "facts": [
+    "f24",
+    "f30",
+    "f34",
+    "f02"
+   ],
+   "wrong": {
+    "A miss, because sales fell": "Falling from a year ago is about growth. Against the $31.53 billion estimate, it beat.",
+    "In line with last year": "In line means equal to the estimate. Sales were down 4% on last year and above the estimate.",
+    "Can't tell without EPS": "Revenue is read on its own line. You only need actual and estimate."
+   }
+  },
+  {
+   "key": "q12",
+   "skill": "fund.earnings_desk",
+   "rung": 5,
+   "format": "numeric",
+   "q": "Walmart, first quarter of fiscal 2023: adjusted EPS $1.30. The Refinitiv consensus was $1.48. By what percent did it miss?",
+   "answer": 12.2,
+   "suffix": "%",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(consensus - actual) / consensus * 100",
+     "consensus": 1.48,
+     "actual": 1.3
+    },
+    "round": 1
+   },
+   "why": "12.2%. It came in 18 cents short of $1.48. Divide the shortfall by the estimate.",
+   "lesson_line": "Put the miss in percent, so you can weigh it against any other quarter.",
+   "facts": [
+    "f41",
+    "f47",
+    "f49",
+    "f83"
+   ]
+  },
+  {
+   "key": "q13",
+   "skill": "fund.earnings_desk",
+   "rung": 5,
+   "format": "numeric",
+   "q": "Meta's Q4 2022 EPS was $1.76. Its release says that without restructuring charges, EPS would have been $1.24 higher. What EPS is that?",
+   "answer": 3,
+   "prefix": "$",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "reported + charges",
+     "reported": 1.76,
+     "charges": 1.24
+    }
+   },
+   "why": "$3.00. $1.76 plus $1.24. That's EPS without the $4.20 billion of restructuring charges.",
+   "lesson_line": "When a big charge sits in EPS, work the number without it too. Then compare.",
+   "facts": [
+    "f23",
+    "f26",
+    "f25",
+    "f32"
+   ]
+  },
+  {
+   "key": "q14",
+   "skill": "fund.earnings_desk",
+   "rung": 5,
+   "format": "scenario",
+   "story": "Nike, fiscal Q4 2024: adjusted EPS $1.01 vs 83 cents expected. Revenue $12.61 billion vs $12.84 billion expected. On the call, it guides fiscal 2025 sales down mid-single digits. Analysts expected a 0.9% rise.",
+   "q": "Which line in this report worries you most?",
+   "choices": [
+    "The full-year sales guide",
+    "The adjusted EPS line",
+    "The revenue miss for the quarter",
+    "Nothing: EPS beat the estimate"
+   ],
+   "answer": "The full-year sales guide",
+   "why": "The full-year sales guide. Analysts saw the year growing 0.9%, and Nike guided to a drop. Guidance looks ahead and often sets the near-term price. Shares plunged nearly 20% the next day.",
+   "lesson_line": "Read the guide before you celebrate the beat. The beat is last quarter; the guide is the year ahead.",
+   "facts": [
+    "f68",
+    "f65",
+    "f69",
+    "f70",
+    "f73",
+    "f74",
+    "f87",
+    "f88",
+    "f04"
+   ],
+   "wrong": {
+    "The adjusted EPS line": "It beat: $1.01 against 83 cents expected. And it's the quarter just gone.",
+    "The revenue miss for the quarter": "It matters, but it's one quarter. The guide marks down the whole year ahead.",
+    "Nothing: EPS beat the estimate": "A beat doesn't cancel a weak outlook. CNBC tied the plunge to the guidance cut."
+   }
+  },
+  {
+   "key": "q15",
+   "skill": "fund.earnings_desk",
+   "rung": 6,
+   "format": "mcq",
+   "q": "Walmart, May 2022. New full-year guide: sales up about 4%, was 3%. EPS down about 1%, was up mid single digits. How does it read?",
+   "choices": [
+    "Sales raised, profit cut",
+    "A raise across the board",
+    "A cut across the board",
+    "No real change"
+   ],
+   "answer": "Sales raised, profit cut",
+   "why": "Sales raised, profit cut. Walmart expects to sell more and keep less of it. Its CEO blamed food and fuel inflation for the squeeze on margins and costs.",
+   "lesson_line": "A guide can raise sales and cut profit at once. Read both lines before you call it.",
+   "facts": [
+    "f51",
+    "f52",
+    "f44",
+    "f45",
+    "f46",
+    "f43"
+   ],
+   "wrong": {
+    "A raise across the board": "Only sales went up. The EPS outlook went from growth to a drop of about 1%.",
+    "A cut across the board": "The sales outlook went up, from about 3% to about 4%.",
+    "No real change": "Both lines moved, and the EPS line flipped from growth to decline."
+   }
+  },
+  {
+   "key": "q16",
+   "skill": "fund.earnings_desk",
+   "rung": 6,
+   "format": "numeric",
+   "q": "Target, first quarter 2022: adjusted EPS $2.19. The Refinitiv consensus was $3.07. By what percent did it miss?",
+   "answer": 28.7,
+   "suffix": "%",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(consensus - actual) / consensus * 100",
+     "consensus": 3.07,
+     "actual": 2.19
+    },
+    "round": 1
+   },
+   "why": "28.7%. It came in 88 cents short of $3.07. Divide the shortfall by the estimate.",
+   "lesson_line": "Size every miss in percent before you judge it. This one was deep.",
+   "facts": [
+    "f55",
+    "f58",
+    "f60",
+    "f83"
+   ]
+  },
+  {
+   "key": "q17",
+   "skill": "fund.earnings_desk",
+   "rung": 7,
+   "format": "scenario",
+   "story": "Walmart, first quarter of fiscal 2023. Revenue: $141.57 billion vs $138.94 billion expected. Adjusted EPS: $1.30 vs $1.48 expected.",
+   "q": "What does that mix tell you about the quarter?",
+   "choices": [
+    "Sales held; costs hit profit",
+    "Shoppers pulled back sharply",
+    "A one-time charge hit EPS",
+    "A strong quarter all around"
+   ],
+   "answer": "Sales held; costs hit profit",
+   "why": "Sales held; costs hit profit. The CEO said food and fuel inflation put more pressure on margins and costs than expected. The stock closed down 11.38% that day.",
+   "lesson_line": "A sales beat with a profit miss points at costs and margins. Find out which, and whether they'll last.",
+   "facts": [
+    "f48",
+    "f47",
+    "f42",
+    "f43",
+    "f54",
+    "f50",
+    "f53",
+    "f96"
+   ],
+   "wrong": {
+    "Shoppers pulled back sharply": "Revenue beat the estimate, so shoppers kept buying. The squeeze came below the sales line.",
+    "A one-time charge hit EPS": "Adjusted EPS already leaves out the investment gains and losses. The miss came from running costs: labor, fuel and inventory.",
+    "A strong quarter all around": "Profit missed by a wide margin. A sales beat doesn't make up for that."
+   }
+  },
+  {
+   "key": "q18",
+   "skill": "fund.earnings_desk",
+   "rung": 7,
+   "format": "scenario",
+   "story": "Netflix, first quarter 2022: EPS $3.53 vs $2.89 expected, revenue $7.87 billion vs $7.93 billion. Paid members fell by 200,000, against 2.73 million adds expected. It guides to losing 2 million more next quarter.",
+   "q": "What's the real news in this report?",
+   "choices": [
+    "Members fell, more losses guided",
+    "The EPS beat over the estimate",
+    "The slight revenue miss on sales",
+    "A currency gain inside the EPS"
+   ],
+   "answer": "Members fell, more losses guided",
+   "why": "Members fell, with more losses guided. Subscriber growth had long been a key number for Netflix, and it went into reverse. The stock plunged 35% in one day.",
+   "lesson_line": "Find the key number for each stock. For Netflix in 2022, that was members, not EPS.",
+   "facts": [
+    "f15",
+    "f12",
+    "f11",
+    "f13",
+    "f14",
+    "f10",
+    "f19",
+    "f22",
+    "f18",
+    "f04"
+   ],
+   "wrong": {
+    "The EPS beat over the estimate": "It's real, but it looks back. Members and the guide speak to what comes next.",
+    "The slight revenue miss on sales": "It missed, but only just: $7.87 billion against $7.93 billion. CNBC and Variety both led with the subscriber loss.",
+    "A currency gain inside the EPS": "The $3.53 did include a $162 million non-cash currency gain, worth knowing. But subscriber growth was the key metric, and it went the wrong way."
+   }
+  },
+  {
+   "key": "q19",
+   "skill": "fund.earnings_desk",
+   "rung": 7,
+   "format": "scenario",
+   "story": "Meta, fourth quarter 2022: EPS $1.76 vs $2.22 expected. Its release says $4.20 billion of restructuring charges are in that number. Without them, EPS would be $1.24 higher.",
+   "q": "How do you read the EPS line?",
+   "choices": [
+    "Unclear: the charges muddy it",
+    "A clean miss",
+    "A clean beat, once charges are out",
+    "In line, once adjusted"
+   ],
+   "answer": "Unclear: the charges muddy it",
+   "why": "Unclear: the charges muddy it. You don't know whether the $2.22 estimate allowed for them, and CNBC said they made the comparison difficult. The stock closed up 23% the next day.",
+   "lesson_line": "When a big charge sits in EPS, compare like with like before you call a beat or a miss.",
+   "facts": [
+    "f31",
+    "f25",
+    "f26",
+    "f23",
+    "f32",
+    "f91",
+    "f37",
+    "f39"
+   ],
+   "wrong": {
+    "A clean miss": "$1.76 is under $2.22, but $4.20 billion of charges sit inside it. That's not a clean comparison.",
+    "A clean beat, once charges are out": "Without the charges, EPS would be $1.24 higher, above $2.22. But you don't know if the estimate left the charges out.",
+    "In line, once adjusted": "In line means equal to the estimate. No version of the number equals $2.22."
+   }
+  },
+  {
+   "key": "q20",
+   "skill": "fund.earnings_desk",
+   "rung": 8,
+   "format": "tf",
+   "q": "The bigger a company's EPS beat, the bigger the stock's jump the next day.",
+   "answer": "False",
+   "why": "False. Nike earned $1.01 against 83 cents expected and plunged nearly 20%. Alphabet earned $1.89 against $1.51 and rose 10%. Netflix beat too, and fell 35% in one day.",
+   "lesson_line": "The size of the beat doesn't set the move. The guide and the rest of the report do.",
+   "facts": [
+    "f68",
+    "f65",
+    "f74",
+    "f79",
+    "f81",
+    "f13",
+    "f18",
+    "f03",
+    "f88"
+   ]
+  },
+  {
+   "key": "q21",
+   "skill": "fund.earnings_desk",
+   "rung": 8,
+   "format": "tf",
+   "q": "A company that reports EPS below the consensus will see its stock fall.",
+   "answer": "False",
+   "why": "False. A miss usually hurts, but not always. Meta's reported $1.76 sat below the $2.22 estimate, charges and all. Revenue beat, it cut its cost outlook, and it closed up 23% the next day.",
+   "lesson_line": "A miss usually hurts, but the rest of the report can outweigh it. Read past the EPS line.",
+   "facts": [
+    "f85",
+    "f03",
+    "f89",
+    "f32",
+    "f31",
+    "f30",
+    "f28",
+    "f36",
+    "f38",
+    "f37",
+    "f39"
+   ]
+  },
+  {
+   "key": "q22",
+   "skill": "fund.earnings_desk",
+   "rung": 8,
+   "format": "scenario",
+   "story": "May 2022. On Tuesday, Walmart's sales beat but its profit missed, and it blamed food and fuel inflation. You own Target, which reports on Wednesday.",
+   "q": "What does Walmart's report tell you about your Target shares?",
+   "choices": [
+    "The same costs may squeeze Target",
+    "Nothing: they're separate companies",
+    "Target should gain from Walmart's miss",
+    "Sales beat, so retail is fine"
+   ],
+   "answer": "The same costs may squeeze Target",
+   "why": "The same costs may squeeze Target. Target missed by 88 cents and blamed freight and transportation costs. Its shares fell nearly 25%, and both stocks had their worst days since 1987.",
+   "lesson_line": "When a bigger name in your group reports a cost squeeze, treat it as a warning for yours.",
+   "facts": [
+    "f43",
+    "f57",
+    "f56",
+    "f60",
+    "f62",
+    "f63",
+    "f61",
+    "f64"
+   ],
+   "wrong": {
+    "Nothing: they're separate companies": "Separate companies, same kind of costs. Target's miss mirrored Walmart's a day later.",
+    "Target should gain from Walmart's miss": "Walmart missed on costs, not on lost customers. Costs like freight hit Target too.",
+    "Sales beat, so retail is fine": "Walmart's sales beat, and its profit still missed. Sales alone miss the story."
+   }
+  },
+  {
+   "key": "q23",
+   "skill": "fund.earnings_desk",
+   "rung": 9,
+   "format": "scenario",
+   "story": "Two EPS beats. Nike, fiscal Q4 2024: EPS $1.01 vs 83 cents, revenue $12.61 billion vs $12.84 billion, full-year sales guided down. Alphabet, first quarter 2024: EPS $1.89 vs $1.51, revenue $80.54 billion vs $78.59 billion, first dividend.",
+   "q": "Which report carried bad news beyond the EPS line?",
+   "choices": [
+    "Nike's: a revenue miss and a cut guide",
+    "Alphabet's: dividends mean slower growth",
+    "Both: any beat gets sold",
+    "Neither: both beat on EPS"
+   ],
+   "answer": "Nike's: a revenue miss and a cut guide",
+   "why": "Nike's. Its revenue missed and its guide marked the year down. Alphabet's revenue beat and grew 15%. Nike plunged nearly 20%; Alphabet rose 10%, its sharpest rally since July 2015.",
+   "lesson_line": "Two beats, two opposite days. Read past the EPS line before you decide anything.",
+   "facts": [
+    "f68",
+    "f65",
+    "f69",
+    "f70",
+    "f79",
+    "f80",
+    "f75",
+    "f77",
+    "f78",
+    "f74",
+    "f81",
+    "f82",
+    "f04",
+    "f88",
+    "f90"
+   ],
+   "wrong": {
+    "Alphabet's: dividends mean slower growth": "Revenue grew 15% and beat. The dividend came with a $70 billion buyback, not a slowdown.",
+    "Both: any beat gets sold": "Alphabet's beat was bought: the stock rose 10%.",
+    "Neither: both beat on EPS": "EPS is one line. Nike's revenue and guide both disappointed."
+   }
+  },
+  {
+   "key": "q24",
+   "skill": "fund.earnings_desk",
+   "rung": 9,
+   "format": "scenario",
+   "story": "Meta guides first-quarter 2023 revenue to $26 billion to $28.5 billion. Refinitiv's consensus is $27.1 billion. Bloomberg News cites an average projection of $27.3 billion.",
+   "q": "How does the midpoint of the guide compare?",
+   "choices": [
+    "$27.25B: above one, below the other",
+    "A beat: the top end is $28.5B",
+    "A miss: the low end is $26B",
+    "Exactly in line with both"
+   ],
+   "answer": "$27.25B: above one, below the other",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(low + high) / 2",
+     "low": 26,
+     "high": 28.5
+    }
+   },
+   "why": "$27.25B: above one, below the other. Read a range at its midpoint, as FactSet does when it scores EPS guidance. That sits above Refinitiv's $27.1 billion and just under the $27.3 billion average. Both gaps are small, and Bloomberg called the range in line.",
+   "lesson_line": "Judge a guided range by its midpoint, and know whose consensus you're using. Close calls flip with the survey.",
+   "facts": [
+    "f29",
+    "f33",
+    "f35",
+    "f92",
+    "f01"
+   ],
+   "wrong": {
+    "A beat: the top end is $28.5B": "The top end is the best case. A range is read at its midpoint.",
+    "A miss: the low end is $26B": "The low end is the worst case. A range is read at its midpoint.",
+    "Exactly in line with both": "In line means equal. $27.25 billion matches neither number, though it's close to both."
+   }
+  }
+ ],
+ "conflicts": [
+  "Survey providers differ. Netflix Q1 2022 subscriber adds: StreetAccount 2.73 million (CNBC) vs FactSet 2.8 million (Variety). Meta Q1 2023 revenue: Refinitiv $27.1 billion (CNBC) vs an average projection of $27.3 billion (Bloomberg via Fortune, compiler not named). q06 and q24 key exactly this. Every beat/miss key uses one named survey as CNBC printed it (Refinitiv in 2022-23, LSEG in 2024), never a mix. Facebook Q2 2018 was considered and left out: secondary reports seen in research put a $1.74 actual against $1.72 (Refinitiv) and $1.75 (Zacks), opposite sides of the line, and I could not verify either on a citable page.",
+  "Netflix EPS basis: CNBC writes 'Excluding items, the company earned $3.53', but Netflix reports one diluted EPS ($3.53, GAAP), and its letter says that figure included a $162 million non-cash F/X gain. Whether the $2.89 Refinitiv consensus modelled the gain is unknown. q01 keys only the direction (a beat, by a wide gap); q18 names the gain as a wrong choice, not as the story.",
+  "Netflix reaction timing: CNBC Apr 19 'cratered more than 25%' (after hours), Variety 'more than 22%' (after hours), CNBC Jul 19 'plunged 35% in one day' (the next session). Reveals use only the 35% one-day figure, credited to CNBC. CNBC's July story says the drop followed 'a miss on revenue and a surprise loss of subscribers'; q18 keys members as the real news because CNBC's April story and Variety both lead with the subscriber loss and the forecast of more losses, and the revenue wrong-note says it missed.",
+  "Meta EPS comparability: the release says EPS would have been $1.24 higher without restructuring charges ($3.00); CNBC says the charges make the $2.22 comparison 'difficult'. Other outlets cite a FactSet estimate of $2.26 (seen in research, not cited). q13 asks only the arithmetic; q19 keys 'unclear', never 'a beat'. q21 calls $1.76 vs $2.22 'reported EPS below the consensus', which is literally true, and the why says why it rallied anyway.",
+  "Meta reaction: CNBC 'almost 20%' and Bloomberg 'more than 20%' are after hours on Feb 1, 2023; Morningstar's 'closed up 23% at $188' is the Feb 2 close. Morningstar's page metadata shows 02 February 2023 with a 09:18 UTC stamp, earlier than that day's US close; the text ('Thursday's opening level', 'closed up 23%') only fits a write-up after the Feb 2 close, likely Australian date. Used only in reveals.",
+  "Walmart: GAAP EPS $0.74 vs adjusted $1.30; the $1.48 consensus is adjusted (CNBC), so q02, q12 and q17 compare adjusted with adjusted. The guide numbers in q15 are CNBC's wording; the release's guidance table (Feb. 17 vs May 17 columns) shows the same: EPS 'Increase mid single-digits' to 'Decrease about 1%', net sales 'Increase about 3%' to 'about 4%' in constant currency. CNBC also says Walmart fell another 7% the next day; not used.",
+  "Target: GAAP EPS $2.16 vs adjusted $2.19; the $3.07 consensus is adjusted. The release rounds revenue to $25.2 billion; CNBC's $25.17 billion is used in questions. 'Fell nearly 25%' is CNBC's report-day figure.",
+  "Nike: the release gives GAAP diluted EPS $0.99 and $1.01 excluding restructuring charges; CNBC's $1.01 adjusted matches the latter, so q14/q20/q23 compare $1.01 with the 83-cent LSEG consensus. Other outlets cited $0.84 (seen in research, not cited). The fiscal 2025 guide is not in the release (it says only that results 'led us to update our Fiscal '25 outlook'); CNBC attributes the guide to finance chief Matthew Friend on the call, which q07 keys. CNBC's 'plunged nearly 20% in trading Friday' was updated at 11:11 AM ET Friday; reveals say 'plunged nearly 20% the next day' as CNBC worded it, not a closing figure.",
+  "Alphabet: CNBC's Apr 25 headline says shares 'jump 14%' (after hours); the Apr 26 story says they 'shot up 10%' that session and closed at $171.95. Reveals use the 10% session move.",
+  "Surprise denominator: Zacks divides by the absolute value of the consensus; every consensus here is positive, so it equals the plain form used in q03, q09, q12 and q16.",
+  "Second publishers (checker, 2026-11-09): AP via WKMG ClickOrlando for Walmart (adjusted EPS $1.30 vs $1.48, Zacks survey; sales vs a $138.8 billion projection, a different survey from CNBC's $138.94 billion, a beat either way); AP via News 9 for Target ($2.19 vs $3.07, FactSet poll; AP's $24.83 billion is sales before other revenue, the release's total revenue is $25.17 billion, both beat); Reuters via RTÉ for Alphabet (same LSEG $78.59 billion; 'beat expectations for the quarter in sales, profit'). Nike's 83-cent and $12.84 billion consensus still rests on CNBC alone: other estimates seen in research (84 and 85 cents, $12.86 billion) sit on the same side, so the beat/miss direction holds, and q14/q23 key the guide and the mix, not the consensus figure.",
+  "Fortune's Target story (May 18, 2022) says revenue 'was a bit short' while printing $25.17 billion against $24.49 billion expected: an error on its face. Not cited.",
+  "Alphabet's $1.89 includes a $0.15 lift from equity-securities gains (release footnote). q04, q09 and q20 use the reported $1.89 as CNBC and LSEG compared it; without the lift EPS is still above every estimate seen ($1.49 Zacks, $1.51 LSEG, $1.53 Bloomberg).",
+  "Walmart f54 moved from CNBC to the release (Tier 1): CNBC's sentence mixed this quarter's adjustment with a prior-year divestiture loss. This quarter's adjusted EPS removes one item, equity-investment gains and losses ($0.56).",
+  "Meta next-day move: CNBC (Feb 2, 2023, updated 4:00 PM EST) 'jumped over 23% on Thursday'; Morningstar AU 'closed up 23% at $188'. Two publishers agree. Morningstar's piece also says a '$56 billion' buyback and a '$95-100 billion' prior cost range (the release: $40 billion, $94-100 billion), so it is used only as corroboration."
+ ],
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "notes": "f06 (Investor.gov), f01/f02 (FINRA, Jul 23 2024) and f83 (Zacks) confirmed live, in context. Changed step 1 from 'come in its press release' to 'usually come in a press release, filed with an 8-K': Investor.gov says 'Many companies', not all.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "f13 (CNBC), f11/f12 (Netflix letter on EDGAR), f18/f19 (CNBC Jul 2022) confirmed live. Dropped 'clean' from 'A clean EPS beat': the $3.53 held a $162 million F/X gain and nobody knows whether the $2.89 consensus modelled it (conflicts).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "Meta release (EDGAR) confirms $1.76, $4.20 billion of charges, '$1.24 higher', the $40 billion buyback add and the lowered $89-95 billion expense outlook; CNBC f30/f31 confirmed. 1.76 + 1.24 = 3.00. Added f39 (CNBC, Feb 2 2023, updated 4:00 PM: 'jumped over 23% on Thursday') so the 23% day no longer rests on Morningstar AU alone.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q01": {
+   "status": "pass",
+   "notes": "Netflix letter (Tier 1): EPS $3.53. CNBC and Variety both print the Refinitiv $2.89. A beat by FINRA's definition (f02). Wrong choices really wrong. Keys direction only; the F/X-gain caveat stays in conflicts.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q02": {
+   "status": "pass",
+   "notes": "Release (Tier 1): adjusted EPS $1.30. The $1.48 consensus was CNBC only; added f94 (AP via WKMG, Zacks survey: $1.30 'far short of' $1.48). False confirmed.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q03": {
+   "status": "cut",
+   "notes": "duplicate of F5.02#q04. Track audit 2026-11-09: Both are fill-in items whose answer is 'surprise'. F5.02 teaches the surprise and works its formula (w1, q09, q12), so F5.02#q04 is kept; F5.08 keeps its real-quarter surprise drills (q09, q12, q16). The question stays in the file as the record. Checker's earlier note (pass): Zacks formula (f83) and Investopedia definition (f84) confirmed live. Bank distractors plausible and wrong. Added one sentence to the why: Zacks divides by the absolute value of the consensus, which matters when a loss is expected, so the plain form is not taught as universal.",
+   "fixed": false,
+   "by": "track auditor"
+  },
+  "q04": {
+   "status": "pass",
+   "notes": "Release (Tier 1): $80.5 billion, up 15%; EPS $1.89. CNBC (LSEG $1.51, $78.59 billion) confirmed; added Reuters via RTÉ (f99, f100): same $78.59 billion and 'beat expectations for the quarter in sales, profit'. Other EPS estimates seen ($1.49, $1.53) are all below $1.89.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q05": {
+   "status": "pass",
+   "notes": "Release (Tier 1): adjusted EPS $2.19, revenue $25.2 billion. CNBC ($3.07, $24.49 billion) confirmed; added AP via News 9 (f97: $3.07 FactSet; f98: sales 'a little better than expected'). 3.07 - 2.19 = 0.88 rechecked. Fortune's 'a bit short' revenue line is an error (conflicts), not used.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q06": {
+   "status": "pass",
+   "notes": "Rewritten as a True statement. 'Every news outlet uses the same expected number' gave the answer away with 'every', and 4 of the 5 true/false keys were False. Facts confirmed live: StreetAccount 2.73m (CNBC), FactSet 2.8m (Variety), Refinitiv $27.1B (CNBC), $27.3B (Bloomberg via Fortune); FINRA f01 'several groups track'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q07": {
+   "status": "pass",
+   "notes": "Nike release (EDGAR) read in full: only 'update our Fiscal '25 outlook', no numbers. CNBC: Friend explained the cut and spoke on the analyst call. FINRA f05 (guidance on calls) and Schwab f86 confirmed. Schwab also names 'associated materials', so the why's 'the call is where they come out' became 'check its supporting materials and the call', and the lesson line was softened to match. Wrong note for the prior release said it \"holds the old outlook\"; Nike gives its outlook on the call, so that was unproven. Now: it was written last quarter and cannot hold the update.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q08": {
+   "status": "pass",
+   "notes": "Netflix letter (Tier 1) sets -0.2m against its 2.5m forecast. The general statement rested on one example; added Schwab f93 ('Disappointing shareholders and analysts when a company misses guidance'), confirmed on the live page, and one line in the why.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q09": {
+   "status": "pass",
+   "notes": "(1.89 - 1.51) / 1.51 x 100 = 25.17, rounds to 25.2; calc pct_change matches. Inputs stated in the question; method f83 (Zacks). The release says equity gains lifted the $1.89 by $0.15 (conflicts); the beat holds either way.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q10": {
+   "status": "pass",
+   "notes": "Letter: -0.2m against a 2.5m forecast. 2.5 + 0.2 = 2.7 million rechecked. 'First decline in paid users in more than a decade' confirmed on CNBC.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q11": {
+   "status": "pass",
+   "notes": "Release (Tier 1): $32.17 billion, down 4%. Beat confirmed by CNBC ($31.53B Refinitiv) and Bloomberg via Fortune ('the total beat analysts' estimates'). Wrong choices fairly explained; growth vs estimate is a real confusion.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q12": {
+   "status": "pass",
+   "notes": "(1.48 - 1.30) / 1.48 x 100 = 12.16, rounds to 12.2; calc matches. The 18-cent gap confirmed (CNBC f49); adjusted $1.30 in the release (Tier 1). AP prints the same $1.48.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q13": {
+   "status": "pass",
+   "notes": "Release footnote (Tier 1): 'diluted EPS would have been $1.24 higher' for Q4 2022. 1.76 + 1.24 = 3.00; calc matches.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q14": {
+   "status": "pass",
+   "notes": "CNBC: $1.01 adjusted vs 83 cents (LSEG), $12.61B vs $12.84B, FY25 sales down mid-single digits vs analysts' 0.9% rise, 'plunged nearly 20% in trading Friday'; release confirms $1.01 ex-charges. Key backed by FINRA f04 (Tier 1) and Schwab f87/f88; 'often' matches Schwab's hedge. Consensus rests on CNBC alone (other estimates seen sit on the same side). variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q15": {
+   "status": "pass",
+   "notes": "Release guidance table (Feb 17 vs May 17 columns) read: net sales 'Increase about 3%' to 'about 4%' in constant currency; EPS 'Increase mid single-digits' to 'Decrease about 1%'. CNBC agrees. f46's bare quote also appears on the operating-income row, but the EPS row and CNBC f52 confirm the claim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q16": {
+   "status": "pass",
+   "notes": "(3.07 - 2.19) / 3.07 x 100 = 28.66, rounds to 28.7; calc matches. 88 cents confirmed (CNBC f60); release (Tier 1) has $2.19; AP prints the same $3.07 (FactSet).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q17": {
+   "status": "pass",
+   "notes": "Revenue beat and EPS miss confirmed (CNBC; release $141.6B, $1.30). f54 was CNBC's line mixing in a prior-year divestiture loss; replaced with the release's own line (this quarter removes only equity-investment gains and losses). Added AP f96 (labor, fuel, inventory costs); the 'one-time charge' wrong note now names them. Lesson line now says 'costs and margins': the CEO named margin mix as well as operating costs. flagged-question fix checked 2026-11-11",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q18": {
+   "status": "pass",
+   "notes": "CNBC Apr 19 (StreetAccount 2.73m; Refinitiv $2.89, $7.93B), Variety and the letter confirmed. f19's quote says 'a key metric'; the why, lesson line and a wrong note said 'the number Netflix was judged on', an overstatement, now 'a key number / the key metric'. CNBC's July story also names the revenue miss, and the wrong note does not deny it. f18's quote extended to the whole sentence. Wrong choice shortened so it is not the unique longest. variety rewrite checked 2026-11-10",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q19": {
+   "status": "pass",
+   "notes": "CNBC f31 ('difficult to compare ... $2.22') confirmed live; release confirms the charges and '$1.24 higher'. 'Unclear' is what CNBC says; wrong notes are fair and not silly. Added f39 for the 23% day.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q20": {
+   "status": "pass",
+   "notes": "Nike beat ($1.01 vs 83 cents) and fell nearly 20%; Alphabet beat ($1.89 vs $1.51) and rose 10%; Netflix beat and fell 35% in one day: all confirmed live. FINRA f03 (Tier 1) supports False.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q21": {
+   "status": "pass",
+   "notes": "Investopedia 'usually' (f85), FINRA f03 and Schwab f89 confirmed. Meta is the unit's own 'unclear' EPS case (q19), so the why now says 'reported $1.76 sat below the $2.22 estimate, charges and all' instead of presenting a clean miss. Added CNBC f39 (23%, revenue beat).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q22": {
+   "status": "pass",
+   "notes": "CNBC May 19 2022: Target's miss 'confirmed the same story from Walmart'; both had their 'worst days since 1987'. Target release: freight and transportation costs and markdowns; CNBC: 88 cents, nearly 25%. Key is hedged ('may'); reading a peer's report is sound practice, and no trade action is keyed.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q23": {
+   "status": "pass",
+   "notes": "Nike: revenue missed ($12.61B vs $12.84B, CNBC) and the FY25 guide was cut; release confirms $12.6B and an outlook update. Alphabet: revenue beat ($80.54B vs $78.59B, CNBC and Reuters) and grew 15% (release); up 10%, sharpest since July 2015 (CNBC Apr 26). Wrong choices really wrong.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q24": {
+   "status": "pass",
+   "notes": "(26 + 28.5) / 2 = 27.25 rechecked; above $27.1B (CNBC, Refinitiv), below $27.3B (Bloomberg via Fortune). FactSet midpoint rule confirmed in the Nov 6 2026 Earnings Insight, and the why says it is FactSet's EPS rule. Bloomberg itself called the range 'in line', so the why now says both gaps are small, so members do not over-read a tiny gap.",
+   "fixed": true,
+   "by": "checker"
+  }
+ }
+}

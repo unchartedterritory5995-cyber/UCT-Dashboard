@@ -1,0 +1,1264 @@
+{
+ "setup": "43-red-to-green",
+ "name": "Red to Green",
+ "unit": "none",
+ "direction": "long",
+ "timeframe": "hourly",
+ "dossier": "docs/study/setups/research/43-red-to-green.md",
+ "as_of": "2026-11-09",
+ "card": {
+  "context": "One of the four entry triggers (SET.06), riding on a setup that already qualifies: a leader (RS 80 or more) above the 200-day with a rising 20-day EMA, pulling back 1 to 5 sessions into the 9 or 20-day EMA, the 50-day, gap support or an HVC. The one named setup: gap down red to green at the 20-day EMA.",
+  "pattern": "The stock opens 0.7% to about 4% below the prior day's close, dips to the level and trades back up through the prior close. The line is the prior close, never the open or VWAP.",
+  "trigger": "RED TO GREEN: the first trade one cent over the prior close after trading below it, bought at market, no more than 4% above it, full size at once.",
+  "stop": "A few cents under the day's low at the time of the buy, the low of the dip; within about 3% (median 1%).",
+  "failure_mode": "The cross is common (two of three gap-down days) and the close is a coin flip: half close back under the line. The whippy first-minute cross on a tiny gap is stopped the same day two times in three; a close back under the prior close is the warning."
+ },
+ "entry_trigger": "RED TO GREEN",
+ "criteria": [
+  {
+   "id": "rg.line",
+   "field": "trigger",
+   "statement": "Red to green: after trading below the prior day's official close, the stock trades at least one cent above it during regular hours. The line is the prior close, never the day's open or VWAP.",
+   "measure": {
+    "what": "first trade through the prior day's close after the stock traded below it",
+    "op": ">=",
+    "value": "prior close + $0.01",
+    "timeframe": "intraday"
+   },
+   "glossary": "red_to_green",
+   "basis": "UCT",
+   "sources": [
+    "S3",
+    "S5",
+    "S7",
+    "S9"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "the prior close: every named source (Investors Underground S5, Aziz as quoted S7, Bohen S9) and the owner's 2026-11-01 ruling 'take out previous day close'"
+    },
+    {
+     "value": "b",
+     "basis": "the day's open (candle color): the app's hourly Go Signal finder today; a TradingView user idea (S26)"
+    }
+   ],
+   "recommended": "a",
+   "status": "settled",
+   "owner_question": "D-145",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8 Name and line; 10 question 2",
+   "evidence": "D-145 settles 43:2 from the owner's words: 'the first hourly candle should go green to red and take out previous day close'. The app holds five definitions (5.7); the hourly finder that uses the day's open is to be fixed. Mistake 9: a green candle (close over open) while the stock is still under the prior close is not a red to green."
+  },
+  {
+   "id": "rg.role",
+   "field": "context",
+   "statement": "A trigger that rides on a setup: the entry for a stock that already qualifies (a leader pulling back to support, a post-earnings flag, an inside day, a gap support). On its own it has no edge. The one named setup: gap down red to green at the 20-day EMA.",
+   "basis": "UCT",
+   "sources": [
+    "S1",
+    "S31"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "a trigger only, taught inside other setups: the course plans"
+    },
+    {
+     "value": "b",
+     "basis": "its own setup unit: the journal's swing and intraday tags"
+    },
+    {
+     "value": "c",
+     "basis": "both: a trigger lesson plus one named setup, gap down red to green at the 20-day EMA: the dossier; D-002's note"
+    }
+   ],
+   "recommended": "c",
+   "status": "pending-owner",
+   "owner_question": "D-002",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8 It is a trigger that rides on a setup; 10 question 1",
+   "evidence": "The owner, 2025-06-22: 'There is nothing I like more than a gap down reversal to give me signal. Especially in a strong trend that is pulling back to a key area or moving average.' Measured: buying every cross (Table 2: -0.03R with the house plan, against -0.13R for a random 10:30 entry) or every day that closed red to green (Table 5: +0.05R against +0.04R) made about what a random entry made, over 26 years and in the recent window.",
+   "measure": {
+    "what": "the setup the trigger rides on",
+    "op": "in",
+    "value": [
+     "a leader pulling back to support",
+     "a post-earnings flag",
+     "an inside day",
+     "a gap support",
+     "gap down red to green at the 20-day EMA (the named setup)"
+    ]
+   }
+  },
+  {
+   "id": "rg.gap_floor",
+   "field": "pattern",
+   "statement": "The A version opens at least 0.7% below the prior close. A smaller gap down, or a flat or green open that dips red (Bracco's TEM), is a lesser version.",
+   "measure": {
+    "what": "(prior close - open) / prior close",
+    "op": ">=",
+    "value": 0.7,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "glossary": "gap",
+   "basis": "UCT",
+   "sources": [
+    "S1"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "0.7% floor for the A version, smaller allowed as B: the owner's 2025-06-22 words; D-133's default"
+    },
+    {
+     "value": "b",
+     "basis": "any open below the close"
+    },
+    {
+     "value": "c",
+     "basis": "any trade below, even after a green open: Bracco's TEM (2025-06-09)"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-133",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8 The open; 10 question 3",
+   "evidence": "The owner: 'Ideal scenario for next week is a gap down of 0.7% or more that gets bought up.' The floor rests on his words, not on a test: in the 5-minute window bigger gaps did not do better, and the hourly scan found no difference inside the 0.7% to 4% band (0.7-1.5%: 30.3% to 3R; 1.5-2.5%: 33.0%; 2.5-4%: 28.6%). Gaps under 0.7% were stopped the same day 59% of the time."
+  },
+  {
+   "id": "rg.gap_ceiling",
+   "field": "pattern",
+   "statement": "A gap of more than about 4% is a news event and belongs to the gap setups (Bear Gap, News Failure, Episodic Pivot), unless the owner says otherwise.",
+   "measure": {
+    "what": "(prior close - open) / prior close",
+    "op": "<=",
+    "value": 4,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "glossary": "gap",
+   "basis": "my proposal",
+   "sources": [
+    "S17",
+    "S20"
+   ],
+   "status": "pending-owner",
+   "owner_question": "D-133",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8 Gap ceiling; 10 question 3",
+   "evidence": "Table 1: a 4% to 8% gap down traded back above the prior close 23% of the time, 8% or more 11%; Bulkowski (S17) 23% for 3%+ gaps in the 2010s; QuantRocket's large down gaps keep falling (S20). The owner's AEHR -9% reversal is the rare exception. D-133's default: 0.7% with a 4% ceiling."
+  },
+  {
+   "id": "rg.above_200",
+   "field": "context",
+   "statement": "The prior close is above the 200-day simple moving average.",
+   "measure": {
+    "what": "prior close against the 200-day SMA",
+    "op": ">",
+    "value": "200-day SMA",
+    "timeframe": "daily"
+   },
+   "glossary": "above_200",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B26",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8 Prior trend and location",
+   "evidence": "His red to greens are almost all on leaders above it. Table 1: above or below the 200-day made no difference to the hold rate (50.6% against 50.2%); the rule is the house's, not a measured edge. The scan's 200-day-level hits: 5, none worked."
+  },
+  {
+   "id": "rg.ema20_rising",
+   "field": "context",
+   "statement": "The 20-day EMA is rising: today's value above the value 5 sessions ago.",
+   "measure": {
+    "what": "20-day EMA today - 20-day EMA 5 sessions ago",
+    "op": ">",
+    "value": 0,
+    "unit": "$",
+    "timeframe": "daily"
+   },
+   "glossary": "rising_average",
+   "basis": "my proposal",
+   "sources": [
+    "S1"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8 Rising 20-day EMA",
+   "evidence": "The owner: 'a strong trend that is pulling back', 'a rising 20EMA' (TWLO, 2026-09-06). The 5-session window is the dossier's. His ALAB 2026-08-13 sat under a falling 20-day EMA, 13% under its 50-day, and failed."
+  },
+  {
+   "id": "rg.leader",
+   "field": "context",
+   "statement": "RS rating 80 or more.",
+   "measure": {
+    "what": "RS rating",
+    "op": ">=",
+    "value": 80,
+    "unit": "rating 1 to 99"
+   },
+   "glossary": "leader",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "C31",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8 RS 80 or more",
+   "evidence": "Table 3: the RS proxy 80 or more was among the better groups (+0.03R, 27% winners) against 20 to 50 (-0.10R). The scan's proxy is a percentile of the IBD-style weighted return, not the app's rating; the examples ran 93 to 97 where quoted."
+  },
+  {
+   "id": "rg.not_stretched",
+   "field": "context",
+   "statement": "Within 10% of the 10-day average at the prior close.",
+   "measure": {
+    "what": "prior close / 10-day SMA - 1",
+    "op": "<=",
+    "value": 10,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "glossary": "stretched",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "C29",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8 Within 10% of the 10-day",
+   "evidence": "Table 3: the extended group was the worst cut, -0.27R (262 trades) against -0.02R within 10%."
+  },
+  {
+   "id": "rg.support_tag",
+   "field": "pattern",
+   "statement": "The dip tags support: the low before the cross is within 1% of the prior day's 9-day EMA, 20-day EMA, 50-day or 200-day SMA, or a level he marks (gap support, HVC, inside day low, breakout level).",
+   "measure": {
+    "what": "(low before the cross - level) / level",
+    "op": "<=",
+    "value": 1,
+    "unit": "%",
+    "timeframe": "intraday"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S1"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8 The dip tags support",
+   "evidence": "The owner's 20EMA, 9EMA, 200SMA, HVC and gap support quotes; the 1% is the dossier's. Measured: the tag did not change the 5-minute result (tag -0.05R, no tag -0.02R), and the hourly scan's levels came out alike (9-day EMA 31.5% to 3R, 20-day EMA 30.8%, 50-day 30.6%, prior day's low 30.3%). The level is where he looks, not a measured edge."
+  },
+  {
+   "id": "rg.structure_before",
+   "field": "pattern",
+   "statement": "Structure before: an orderly pullback, flag, inside day or higher low in the last 1 to 5 sessions. Not measurable from one bar; graded.",
+   "measure": {
+    "what": "sessions of orderly pullback, flag, inside day or higher low before the gap-down day",
+    "op": "in",
+    "value": [
+     1,
+     5
+    ],
+    "unit": "sessions",
+    "timeframe": "daily"
+   },
+   "glossary": "inside_day",
+   "basis": "UCT",
+   "sources": [
+    "S1"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8 Structure before",
+   "evidence": "The owner on TWLO (2026-09-06): 'an inside day and a higher low at a rising 20EMA'; 'Flagging out'. HOOD 2024-11-04: a 5-day flag at the 50-day; TSEM 2025-09-17: a 3-day inside pause."
+  },
+  {
+   "id": "rg.liquidity",
+   "field": "context",
+   "statement": "Price $10 or more and $20 million or more traded a day on average.",
+   "measure": {
+    "what": "close",
+    "op": ">=",
+    "value": 10,
+    "unit": "$",
+    "and": "50-day average dollar volume >= 20,000,000"
+   },
+   "glossary": "liquidity",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B23",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8 Liquidity",
+   "evidence": "Every test used it. His TE idea (about $7.60) would fail it."
+  },
+  {
+   "id": "rg.position_adv",
+   "field": "management",
+   "statement": "Own no more than 1% of the stock's average daily volume.",
+   "measure": {
+    "what": "shares / average daily volume",
+    "op": "<=",
+    "value": 1,
+    "unit": "%"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "D42",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8 Liquidity"
+  },
+  {
+   "id": "rg.earnings_window",
+   "field": "trigger",
+   "statement": "No earnings in the next 3 sessions. A red to green in a post-earnings flag is after the report, which is fine.",
+   "measure": {
+    "what": "sessions until the next report",
+    "op": ">",
+    "value": 3,
+    "unit": "sessions"
+   },
+   "glossary": "earnings_blackout",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B22",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8 No earnings in the next 3 sessions",
+   "evidence": "ZETA, DDOG, RELY and TXN were post-earnings flags. The scan excluded earnings reaction days (an earnings gap is another setup) and reports within 3 sessions."
+  },
+  {
+   "id": "rg.volume",
+   "field": "pattern",
+   "statement": "No hard volume rule. Higher volume on the reclaim and a wider range are a plus, graded.",
+   "basis": "UCT",
+   "sources": [
+    "S1",
+    "S5"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8 Volume",
+   "evidence": "The owner on CRS: 'I would love for volume to increase as well as the intraday range on an expansion day.' Investors Underground: 'greeted with more buyers'. Measured: first-30-minute relative volume did not separate winners in the 5-minute test. ANF 2026-10-08 ran 18.5R on 0.6x volume, its one blemish."
+  },
+  {
+   "id": "rg.trigger",
+   "field": "trigger",
+   "statement": "The first trade at least one cent over the prior close after the stock traded below it. Do not buy under the line in anticipation.",
+   "measure": {
+    "what": "entry event",
+    "op": "==",
+    "value": "the first trade through the prior close + $0.01",
+    "timeframe": "intraday"
+   },
+   "glossary": "red_to_green",
+   "basis": "source consensus",
+   "sources": [
+    "S1",
+    "S5",
+    "S9"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "the first trade through: the owner ('Bought Thursday red to green'); Investors Underground S5"
+    },
+    {
+     "value": "b",
+     "basis": "a 5-minute close over the line: fewer whipsaws, worse price"
+    },
+    {
+     "value": "c",
+     "basis": "the day's close over the line: the daily footprint; Table 5, no better"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-003",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8 The buy: Trigger; 10 question 4",
+   "evidence": "Bohen (S9): 'wait for confirmation'; Investors Underground's 'anticipate' is the aggressive day-trader variant, not for the course. The whippy case: in the first 5-minute bar 67% of crosses were stopped the same day; TXG 2026-09-08 ticked over the prior close at 9:30 and printed the day's low at 9:45, after the cross, so the first-trade buy was stopped in 15 minutes before the stock ran 37R. One in eight of the 40 best candidates had this shape; it argues for the 5-minute or hourly close option in a first-hour cross."
+  },
+  {
+   "id": "rg.order",
+   "field": "trigger",
+   "statement": "A market order as price trades through; a stop-market order a cent over the prior close is the same.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "E57",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8 Order"
+  },
+  {
+   "id": "rg.no_chase",
+   "field": "trigger",
+   "statement": "Skip if the price is more than 4% above the prior close when you act. A stock already 4% green is a chase.",
+   "measure": {
+    "what": "fill / prior close - 1",
+    "op": "<=",
+    "value": 4,
+    "unit": "%"
+   },
+   "glossary": "chase_limit",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "C28",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8 No chase",
+   "evidence": "The buy point here is the prior close."
+  },
+  {
+   "id": "rg.full_size",
+   "field": "trigger",
+   "statement": "Full size at one price. No starter, no add.",
+   "basis": "house rule",
+   "sources": [
+    "S1"
+   ],
+   "house_rule": "A5",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8 Full size at one price",
+   "evidence": "The owner on ALAB: 'Any sort of GO SIGNAL would allow me entry with immediate full size.' VIOTTI's starter-then-add plan and the brain template's add-on rules are not ours."
+  },
+  {
+   "id": "rg.timing",
+   "field": "trigger",
+   "statement": "No time-of-day rule. A quick cross, in the first or second hourly candle (by 11:00 ET), is a grading factor, not a rule.",
+   "measure": {
+    "what": "clock-aligned hourly candle in which the cross happens",
+    "op": "<=",
+    "value": 2,
+    "unit": "hourly candle",
+    "timeframe": "hourly"
+   },
+   "glossary": "hourly_bar",
+   "basis": "house rule",
+   "sources": [
+    "S1",
+    "S3"
+   ],
+   "house_rule": "C30",
+   "status": "settled",
+   "owner_question": "D-143",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8 Common mistakes 3; 9 A+; 10 question 7",
+   "evidence": "D-143 settles 43:7. The owner: 'quick red to green'; for the Go Signal 'in the first or second hourly candle'. Hourly scan: the hour of the cross changed little in how far the trade went (bar 1: 31.1% to 3R, bar 2: 28.7%, bar 3: 30.4%) but a lot in same-day stop-outs (29.1%, 11.8%, 7.9%): the first-hour cross is the fast one and the whippy one. Table 4: 84% of all crosses come in the first hour."
+  },
+  {
+   "id": "rg.stop",
+   "field": "stop",
+   "statement": "A few cents under the day's low at the time of the buy, the low of the dip.",
+   "measure": {
+    "what": "stop",
+    "op": "==",
+    "value": "a few cents under the day's low at the buy",
+    "timeframe": "intraday"
+   },
+   "glossary": "stop_margin",
+   "basis": "house rule",
+   "sources": [
+    "S1",
+    "S19"
+   ],
+   "house_rule": "A3",
+   "options": [
+    {
+     "value": "a",
+     "basis": "a few cents under the day's low at entry: A3, F62; the owner ('a stop at Thursday's low'); Bracco ('moved my stops up to todays low'); Kullamagi S19 for intraday entries"
+    },
+    {
+     "value": "b",
+     "basis": "under the prior day's low: the one logged trigger in setup_criteria.json"
+    },
+    {
+     "value": "c",
+     "basis": "under the key moving average: the brain template"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-008",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8 The stop; 10 question 5",
+   "evidence": "The day's low is what he and Bracco used, the tightest honest stop, and the rulebook's default. The scan used 3 cents under the day's low so far; the examples' stops ran 1.1% to 2.4%."
+  },
+  {
+   "id": "rg.stop_width",
+   "field": "stop",
+   "statement": "Within about 3% of the entry. If the honest stop is wider, skip or size down by the stop.",
+   "measure": {
+    "what": "(entry - stop) / entry",
+    "op": "<=",
+    "value": 3,
+    "unit": "%"
+   },
+   "glossary": "stop_width",
+   "basis": "house rule",
+   "sources": [
+    "S31"
+   ],
+   "house_rule": "A13",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8 Width",
+   "evidence": "Measured: 94% of intraday red-to-green stops were within 3% (median 1.0%); end-of-day entries are wider (median 2.1%, 73% within 3%). The brain template's 8% maximum loses to A13."
+  },
+  {
+   "id": "rg.stop_only_up",
+   "field": "stop",
+   "statement": "A real stop order with the broker. It only moves up; never a stop wider than the dip's low to give it room.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "A4",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8 What invalidates it; 8 Common mistakes 7",
+   "evidence": "D41 for the broker order."
+  },
+  {
+   "id": "rg.stop_gap",
+   "field": "stop",
+   "statement": "A gap through the stop: the first 30-minute low is the new stop; out past 2R.",
+   "measure": {
+    "what": "loss at the first 30-minute low of the gap-down day",
+    "op": "<=",
+    "value": 2,
+    "unit": "R",
+    "timeframe": "30-minute"
+   },
+   "basis": "house rule",
+   "sources": [
+    "S1"
+   ],
+   "house_rule": "B20",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8 Trims and trail; 8 Common mistakes 8",
+   "evidence": "His CRM loss, a 4.9% gap down the morning after a red to green day after a peer's report ('when ServiceNow dumped'), is exactly this case. NVDA 2025-08-14 closed green at 72% of its range, reached 0.63R and was stopped two sessions later on the next gap down."
+  },
+  {
+   "id": "rg.breakeven",
+   "field": "management",
+   "statement": "Stop to breakeven between 2R and 5R, at the first trim by default.",
+   "measure": {
+    "what": "R at which the stop moves to the entry",
+    "op": "in",
+    "value": [
+     2,
+     5
+    ],
+    "unit": "R"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B19",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8 Trims and trail"
+  },
+  {
+   "id": "rg.trim_1",
+   "field": "management",
+   "statement": "Sell a third at 3R.",
+   "measure": {
+    "what": "fraction sold at 3R",
+    "op": "==",
+    "value": 0.333,
+    "unit": "of the position"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B19",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8 Trims and trail",
+   "evidence": "Nine of the ten examples reached 3R the next day. 91.5% of the scan's hits touched the fixed stop within 60 sessions, usually after the targets: the trims keep the result."
+  },
+  {
+   "id": "rg.trim_2",
+   "field": "management",
+   "statement": "Sell a third at 5R.",
+   "measure": {
+    "what": "fraction sold at 5R",
+    "op": "==",
+    "value": 0.333,
+    "unit": "of the position"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "E51",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8 Trims and trail"
+  },
+  {
+   "id": "rg.trim_gap_open",
+   "field": "management",
+   "statement": "If the stock opens past a trim level, take that trim at the open.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "F63",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8 Trims and trail"
+  },
+  {
+   "id": "rg.trail",
+   "field": "management",
+   "statement": "Trail the last third: a close under the 10-day average for fast movers, the 21-day for steadier ones.",
+   "measure": {
+    "what": "close against the 10-day (fast) or 21-day (steadier) average",
+    "op": "<",
+    "value": "the average",
+    "timeframe": "daily"
+   },
+   "glossary": "trail",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "E52",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8 Trims and trail",
+   "evidence": "The brain template's 20-day EMA trail is consistent with the 21-day."
+  },
+  {
+   "id": "rg.time_stop",
+   "field": "management",
+   "statement": "Time stop: under 1R after 10 sessions, sell.",
+   "measure": {
+    "what": "open R after 10 trading days",
+    "op": "<",
+    "value": 1,
+    "unit": "R"
+   },
+   "glossary": "time_stop",
+   "basis": "house rule",
+   "sources": [
+    "S1"
+   ],
+   "house_rule": "C33",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8 Trims and trail",
+   "evidence": "The owner: 'minimum 3-7 day burst swing trades'. A green close is not a free pass: 102 of 540 RS-90+ level hits that closed green were stopped within a few sessions under 1R (META 2024-04-10, COHR 2026-06-30)."
+  },
+  {
+   "id": "rg.inv_close_back_under",
+   "field": "invalidation",
+   "statement": "After the entry: a close back under the prior close the same day is a warning sign, not an exit. The stop is the exit.",
+   "basis": "house rule",
+   "sources": [
+    "S3",
+    "S31"
+   ],
+   "house_rule": "A4",
+   "options": [
+    {
+     "value": "a",
+     "basis": "sell at the close: the brain template"
+    },
+    {
+     "value": "b",
+     "basis": "keep the stop ('my stop is my stop'): A4; D-136"
+    },
+    {
+     "value": "c",
+     "basis": "teach it only as a warning: the dossier"
+    }
+   ],
+   "recommended": "c",
+   "status": "settled",
+   "owner_question": "D-136",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8 What invalidates it: Option, his call; 10 question 6",
+   "evidence": "D-136 settles 43:6: keep the stop; taught as a warning. Measured: on 1,969 trades that closed back under the prior close but were not stopped, selling at the close averaged -0.34R against -0.47R holding; the whole plan moved from -0.03R to -0.01R, a small help in one period. TSLA 2025-01-22, MU 2026-10-08 and AMD 2024-03-14 crossed the line and spent the day under it."
+  },
+  {
+   "id": "rg.tries",
+   "field": "management",
+   "statement": "A third failed attempt in a week on the same stock: stop trying. At most 3 tries a week and 6 a month.",
+   "measure": {
+    "what": "tries on the same stock",
+    "op": "<=",
+    "value": 3,
+    "unit": "a week",
+    "and": "6 a month"
+   },
+   "basis": "house rule",
+   "sources": [
+    "S1"
+   ],
+   "house_rule": "E56",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8 What invalidates it",
+   "evidence": "Red to green attempts repeat on the same name: NOW and CRM crossed on several days in a row. TWLO 2026-09-02 was stopped the same day; the retry on 2026-09-15 at the same level ran 14.8R. CRM 2026-10-19, 10-20 and 10-27 all faded."
+  },
+  {
+   "id": "rg.market_reading",
+   "field": "context",
+   "statement": "Green market: full risk. Yellow: smaller and fewer. Orange: A+ only. Red: mostly cash, plus shorts below the 200-day.",
+   "glossary": "market_reading",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "F65",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8 Best market conditions; 8 What invalidates it",
+   "evidence": "D46 for Red. The owner on NOW (2026-09-27): 'the market had other plans'.",
+   "measure": {
+    "what": "the app's market reading",
+    "op": "in",
+    "value": [
+     "Green",
+     "Yellow",
+     "Orange"
+    ],
+    "note": "Red: mostly cash, plus shorts below the 200-day"
+   }
+  },
+  {
+   "id": "rg.index_gap_down",
+   "field": "context",
+   "statement": "A cue: the index itself gaps down and gets bought the same morning.",
+   "measure": {
+    "what": "the index's open against its prior close, and its trade back through it",
+    "op": "==",
+    "value": "a gap down reclaimed the same morning",
+    "timeframe": "intraday"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S1"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8 Best market conditions",
+   "evidence": "The owner, 2025-08-10: 'I would love a gap down and red to green move on Tuesday or even Wednesday. This would be an extremely actionable day for me.' CDE 2025-08-22: the market gapped down and was bought the same morning."
+  },
+  {
+   "id": "rg.young_listing",
+   "field": "context",
+   "statement": "A stock with no 200-day average yet (Q, GLXY in his examples): whether a long is allowed and under what rule, for example above the 50-day or above the IPO-day low, is the owner's call.",
+   "measure": {
+    "what": "sessions since listing",
+    "op": "<",
+    "value": 200,
+    "unit": "sessions",
+    "timeframe": "daily"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S1"
+   ],
+   "status": "pending-owner",
+   "owner_question": "D-034",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "7 Conflicts 2; 10 question 11",
+   "evidence": "B26 needs a 200-day line; E53 says no IPO rule. The course needs one sentence."
+  },
+  {
+   "id": "rg.short_g2r",
+   "field": "trigger",
+   "statement": "The short mirror, green to red: after trading above the prior close, the stock trades at least one cent under it; short with a market order. Only below the 200-day, RS 20 or less, a falling 20-day EMA, the gap up at least 0.7% into resistance (the 20-day EMA, the 50-day, a breakdown level), not hard to borrow. Stop a few cents over the day's high, within about 3%; trims, trail and time stop mirrored.",
+   "measure": {
+    "what": "first trade under the prior close after trading above it",
+    "op": "<=",
+    "value": "prior close - $0.01",
+    "timeframe": "intraday",
+    "and": "prior close < 200-day SMA; RS rating <= 20; gap up >= 0.7%"
+   },
+   "glossary": "red_to_green",
+   "basis": "house rule",
+   "sources": [
+    "S5",
+    "S7",
+    "S31"
+   ],
+   "house_rule": "D47",
+   "options": [
+    {
+     "value": "a",
+     "basis": "a short setup only, below the 200-day, as our long reversed: D47"
+    },
+    {
+     "value": "b",
+     "basis": "also the bullish shakeout inside the Go Signal"
+    },
+    {
+     "value": "c",
+     "basis": "both, clearly separated: the dossier"
+    }
+   ],
+   "recommended": "c",
+   "status": "pending-owner",
+   "owner_question": "D-001",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8 The short mirror; 10 question 8",
+   "evidence": "Aziz as quoted (S7) and Investors Underground (S5) name green to red. The EMA and the 0.7% are the dossier's. Measured (Table 2): green to red shorts +0.48R with the house plan against +0.18R for a random short, in a falling market; above or below the 200-day made little difference in that window."
+  },
+  {
+   "id": "rg.short_not_leader",
+   "field": "context",
+   "statement": "Never short a green to red in a leader above the 200-day: in his Go Signal that move is the shakeout before the long.",
+   "measure": {
+    "what": "prior close against the 200-day SMA for a green-to-red short",
+    "op": "<",
+    "value": "200-day SMA",
+    "timeframe": "daily"
+   },
+   "glossary": "above_200",
+   "basis": "UCT",
+   "sources": [
+    "S3"
+   ],
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8 The short mirror; 6.4",
+   "evidence": "The owner, 2026-11-01: 'the first hourly candle should go green to red and take out previous day close'. Read with B26: his green to red through the prior close in a leader is bullish, not a short."
+  },
+  {
+   "id": "rg.short_parabolic",
+   "field": "context",
+   "statement": "A parabolic climax day is Bracco's separate setup: first entry under VWAP, second under the day's low, stop the day's high, target the 9-day EMA. Do not mix the two.",
+   "measure": {
+    "what": "setup used on a parabolic climax day",
+    "op": "==",
+    "value": "the parabolic short (setup 39), not green to red"
+   },
+   "glossary": "parabolic_burst",
+   "basis": "UCT",
+   "sources": [
+    "S2"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8 The short mirror",
+   "evidence": "Bracco, The Parabolic Short (2025-06-13): 'The gap down the following day is key, as longs from the previous close are underwater and short sellers take advantage.'"
+  }
+ ],
+ "grading": {
+  "a_plus": [
+   "rg.leader: a true leader, RS 90 or more, in a strong group, above a rising 20-day, 50-day and 200-day",
+   "rg.structure_before: an orderly pullback of a few days on lighter volume into the rising 20-day EMA (or 9-day EMA, 50-day, gap support, HVC), ideally after an inside day or a higher low",
+   "rg.gap_floor: a gap down of 0.7% to about 3% that tags the level",
+   "rg.timing: a quick cross inside the first hour that does not chop back and forth across the line",
+   "rg.index_gap_down: the market gapped down too and got bought",
+   "rg.inv_close_back_under: the day closes above the prior close in the top third of its range and the next day holds the red-to-green day's low (known after the buy; use it to grade examples and judge the hold)",
+   "rg.stop_width: stop 1% to 2.5% under the entry",
+   "rg.market_reading: Green; in Orange only if everything else grades A+ (F65)"
+  ],
+  "b_minus": [
+   "rg.support_tag: not at a level, in the middle of nowhere",
+   "rg.ema20_rising: the 20-day EMA flat or falling (his ALAB 2026-08-13)",
+   "rg.gap_floor: a tiny gap under 0.7% crossed in the first minutes, or many crosses back and forth",
+   "rg.timing: a slow, grinding cross long after the open",
+   "rg.leader: RS under 80",
+   "rg.not_stretched: more than 10% over the 10-day",
+   "rg.earnings_window: earnings within 3 sessions",
+   "rg.stop_width: a stop over 3%",
+   "rg.gap_ceiling: a big news gap down",
+   "rg.market_reading: Yellow (smaller and fewer)"
+  ],
+  "no_trade": [
+   "rg.above_200: below the 200-day",
+   "rg.gap_ceiling: a gap of more than about 4% on news (a gap setup instead)",
+   "rg.no_chase: more than 4% above the prior close",
+   "rg.trigger: buying under the line in anticipation",
+   "rg.tries: the third failed attempt in a week",
+   "rg.liquidity: under $10 or under $20 million a day",
+   "rg.market_reading: Red; Orange below A+"
+  ]
+ },
+ "lookalikes": [
+  {
+   "setup": "30-oops-reversal",
+   "tell": "Mark which line was undercut and reclaimed. An Oops opens below the prior day's LOW and reclaims that low. A red to green only needs a dip under the prior CLOSE and a trade back over it. A day that did both is an Oops first; in the 5-minute test the undercut-of-the-prior-low crosses did worse (-0.11R against +0.05R).",
+   "criterion": "rg.line"
+  },
+  {
+   "setup": "42-go-signal",
+   "tell": "Check the clock and the flag. A Go Signal is the red to green with a timer and a level: an hourly close back over the prior close by the end of the second hourly candle, from an undercut of a tight hourly flag at the 20-day EMA. A cross at 2 pm, or with no flag under it, is a trigger, not a Go Signal.",
+   "criterion": "rg.timing"
+  },
+  {
+   "setup": "26-kicker",
+   "tell": "Look at the open. A Kicker opens above the prior close and never trades back to it, so it cannot go red to green. The course line calling the Kicker the cleanest red to green entry is wrong under the prior-close definition.",
+   "criterion": "rg.gap_floor"
+  },
+  {
+   "setup": "27-bear-gap",
+   "tell": "Measure the gap. A red to green opens 0.7% to about 4% below the prior close and reclaims it the same morning. A gap of more than 4% on news rarely fills the same day (23% for 4% to 8%, 11% for 8% or more); that is a gap setup, not this trigger.",
+   "criterion": "rg.gap_ceiling"
+  }
+ ],
+ "invalidations": [
+  "Before the buy: the stock is below the 200-day (rg.above_200), more than 10% over its 10-day (rg.not_stretched), has earnings within 3 sessions (rg.earnings_window), or the gap is over about 4% on news (rg.gap_ceiling).",
+  "Before the buy: the market reading is Red (rg.market_reading).",
+  "Before the buy: the fill would be more than 4% over the prior close (rg.no_chase).",
+  "Before the buy: the third failed attempt in a week on the same stock (rg.tries).",
+  "After the buy: a trade below the stop; it only moves up (rg.stop_only_up).",
+  "After the buy: a close back under the prior close the same day is a warning, not an exit (rg.inv_close_back_under)."
+ ],
+ "mistakes": [
+  "Buying under the line in anticipation.",
+  "Treating every red to green as a signal: two of three gap-down days cross, half fail by the close.",
+  "A whippy first-minute cross on a tiny gap: in the first 5-minute bar, 67% were stopped the same day.",
+  "Buying the cross in a stock that faded hard the day before, into trapped buyers (Bohen's reasoning; our data did not confirm it).",
+  "Buying a big news gap down because it ticked green.",
+  "Ignoring the market: 'the market had other plans' (NOW, 2026-09-27).",
+  "A stop wider than the dip's low, set to give it room.",
+  "Forgetting that a gap can jump the stop: CRM's 4% loss came on the next morning's gap after a peer's report.",
+  "Calling a green candle (close over the open) a red to green while the stock is still under the prior close.",
+  "Starting small and adding on the cross.",
+  "Shorting a green to red in a leader above the 200-day: that is the Go Signal's shakeout."
+ ],
+ "short_mirror": {
+  "exists": true,
+  "setup": "43-red-to-green",
+  "note": "Green to red is in this dossier (8): after trading above the prior close the stock trades a cent under it, shorted at market, only below the 200-day with RS 20 or less, a falling 20-day EMA, a gap up of at least 0.7% into resistance and a normal borrow; stop a few cents over the day's high within 3%; trims and trail mirrored. Two cautions: a green to red in a leader above the 200-day is the Go Signal's bullish shakeout (never a short), and a parabolic climax day is Bracco's parabolic short, a different setup. The 5-minute test found +0.48R for green-to-red shorts against +0.18R for a random short, in a falling market. Whether to teach it is D-001 (question 8); the intraday tags are D-035."
+ },
+ "best_conditions": "A Green market reading, ideally the index itself gapping down and getting bought the same morning. Leaders a few days into an orderly pullback at a rising 20-day EMA, after an inside day or a higher low. Shorts: a Red market with the stock below its 200-day.",
+ "management": {
+  "trim_1": "a third at 3R (B19)",
+  "trim_2": "a third at 5R (E51)",
+  "trail": "a close under the 10-day for a fast mover, the 21-day for a steadier one (E52); the brain template's 20-day EMA trail matches",
+  "breakeven": "between 2R and 5R, at the first trim by default (B19)",
+  "time_stop": "under 1R after 10 sessions, sell (C33)",
+  "gap_open": "a trim level the day opens past is taken at the open (F63)",
+  "gap_against": "the first 30-minute low is the new stop; out if past 2R (B20); CRM's 4.9% gap down is the case",
+  "overrides": "none. Nothing in the sources argues for different trims or trail. The brain template's sell-at-the-close on a failed reclaim is taught as a warning, not an exit (D-136); its 8% maximum stop loses to A13."
+ },
+ "examples": {
+  "winners": 10,
+  "sheet_dir": "_study-resume/scratchpad/setups/43-red-to-green/final",
+  "base_rate": {
+   "hits": 3897,
+   "r3_pct": 30.8,
+   "r5_pct": 21.4,
+   "stopped_same_day_pct": 26.1,
+   "stopped_pct": 91.5,
+   "window": "the rest of the session on hourly bars, then 60 sessions of daily bars; fixed stop 3 cents under the day's low so far, no trims, no breakeven, no trail; 2023-12-12 to 2026-11-06, the 963 names with hourly bars that met the liquidity rule, ETFs excluded from the examples; the section-8 rule: above the 200-day, rising 20-day EMA, RS proxy 80+, within 10% of the 10-day, the open 0.7% to 4% below the prior close and not an earnings reaction day, the dip low within 1% of the 9-day EMA, 20-day EMA, 50-day, 200-day or the prior day's low, the first hourly bar whose high trades above the prior close by bar 3 (12:30), stop within 3%, no earnings in the next 3 sessions"
+  },
+  "cuts": {
+   "closed_above_prior_close": {
+    "hits": 2037,
+    "r3_pct": 47.7,
+    "r5_pct": 33.0
+   },
+   "closed_red": {
+    "hits": 1860,
+    "r3_pct": 12.3,
+    "r5_pct": 8.7
+   },
+   "cross_in_hourly_bar_1": {
+    "r3_pct": 31.1,
+    "stopped_same_day_pct": 29.1
+   },
+   "cross_in_hourly_bar_2": {
+    "r3_pct": 28.7,
+    "stopped_same_day_pct": 11.8
+   },
+   "cross_in_hourly_bar_3": {
+    "r3_pct": 30.4,
+    "stopped_same_day_pct": 7.9
+   },
+   "level_9_day_ema": {
+    "r3_pct": 31.5
+   },
+   "level_20_day_ema": {
+    "r3_pct": 30.8
+   },
+   "level_50_day_sma": {
+    "r3_pct": 30.6
+   },
+   "level_prior_day_low": {
+    "r3_pct": 30.3
+   },
+   "level_200_day_sma": {
+    "hits": 5,
+    "note": "none worked"
+   },
+   "gap_0_7_to_1_5": {
+    "r3_pct": 30.3
+   },
+   "gap_1_5_to_2_5": {
+    "r3_pct": 33.0
+   },
+   "gap_2_5_to_4": {
+    "hits": 42,
+    "r3_pct": 28.6
+   },
+   "by_year": {
+    "2024": 32.2,
+    "2025": 30.7,
+    "2026": 29.9,
+    "note": "percent to 3R"
+   },
+   "daily_footprint_25_years": {
+    "hits": 71620,
+    "r3_pct": 31.2,
+    "r5_pct": 21.3,
+    "closed_green_hits": 38040,
+    "closed_green_r3_pct": 43.0,
+    "closed_green_r5_pct": 29.7,
+    "note": "2001-01-01 to 2026-11-06, 2,630 names; blind to same-day stop-outs, so optimistic by about 26 points; every year between 21% and 39% to 3R"
+   },
+   "section_4_tests": {
+    "table_2_r2g_plan_mean_r": -0.03,
+    "table_2_baseline_10_30_mean_r": -0.13,
+    "table_2_g2r_short_mean_r": 0.48,
+    "table_2_baseline_short_mean_r": 0.18,
+    "table_5_r2g_days_mean_r": 0.05,
+    "table_5_baseline_up_days_mean_r": 0.04,
+    "note": "5-minute bars 2026-08-17 to 2026-11-06 (Table 2) and daily bars 2000 to 2026 (Table 5), the house plan; the trigger alone made about what a random entry made"
+   }
+  },
+  "winners_list": [
+   "HOOD 2024-11-04",
+   "TWLO 2024-11-20",
+   "DAL 2024-10-29",
+   "CEG 2025-10-01",
+   "CDE 2025-08-22",
+   "TSEM 2025-09-17",
+   "TPR 2025-12-04",
+   "PANW 2026-06-11",
+   "ANF 2026-10-08",
+   "APA 2026-08-07"
+  ],
+  "failures": [
+   {
+    "ticker": "TXG",
+    "date": "2026-09-08",
+    "criterion": "rg.trigger",
+    "why": "9-day EMA, RS 100, closed green, best 37R on hourly bars; the 5-minute bars show the first bar ticking over the prior close at 9:30 with a low of 61.68 and the day's low of 61.61 printing at 9:45, after that first cross. A first-trade buy with the stop under the low so far (61.65) was stopped 15 minutes later; the stock then crossed again and ran. One in eight of the 40 best candidates had this shape."
+   },
+   {
+    "ticker": "TSLA",
+    "date": "2025-01-22",
+    "criterion": "rg.inv_close_back_under",
+    "why": "9-day EMA, gap -1.7%, crossed in hour one, closed at 4% of its range; stopped before the close. Among 992 bar-1 hits with RS 90+ at a level, 292 (29%) were stopped the same day: MU 2026-10-08, AMD 2024-03-14, 2025-11-11 and 2025-11-17 (20-day EMA, all closed in the bottom third), PLTR 2025-04-21 (50-day). Same-day stop-outs are the main cost, even in leaders at a level."
+   },
+   {
+    "ticker": "NVDA",
+    "date": "2025-08-14",
+    "criterion": "rg.stop_gap",
+    "why": "9-day EMA, closed green at 72% of its range, best 0.63R, stopped two sessions later on the next gap down. A green close is not a free pass: 102 of 540 RS-90+ level hits that closed green were stopped within a few sessions without reaching 1R (META 2024-04-10, COHR 2026-06-30)."
+   },
+   {
+    "ticker": "TWLO",
+    "date": "2026-09-02",
+    "criterion": "rg.tries",
+    "why": "met every rule at the 20-day EMA, crossed in hour one, stopped the same day (best 0.6R); the retry on 2026-09-15 at the same level ran 14.8R. CRM 2026-10-19 and 10-20 crossed at the 20-day EMA and faded (0.6R and 1.5R before the stop); CRM 2026-10-27 was stopped the same day. His ALAB 2026-08-13, NOW 2026-09 and BE 2026-03 trades did not pass the scan's filters."
+   },
+   {
+    "ticker": "AMD",
+    "date": "2024-03-14",
+    "criterion": "rg.timing",
+    "why": "20-day EMA, gap -1.0%, crossed in hour one on 1.06x volume, bought 194.80, stop 190.33 (2.29%): 0.06R, stopped at 12:30, closed red at 23% of the range. The first-hour cross is the whippy one."
+   },
+   {
+    "ticker": "CRM",
+    "date": "2026-10-27",
+    "criterion": "rg.tries",
+    "why": "20-day EMA, gap -1.0%, crossed in hour one on 0.62x volume, bought 247.62, stop 241.49 (2.48%): 0.00R, stopped at 10:30, closed at 3% of the range; the third stab in seven sessions after 10-19 and 10-20 faded."
+   }
+  ],
+  "limits": "The RS filter is a proxy rank, not the app's rating. Hourly bars begin 2023-12-12, so the examples span three years; the 25-year daily footprint is blind to same-day stop-outs. Hourly bars start 9:30 (bar 1 ends 10:30), so 'first hourly candle' here is the first hour, not the 10:00 candle of a clock-aligned chart. Nothing was trimmed, trailed or moved to breakeven; the R figures are high-water marks. No example is an earnings reaction day. Today's names only; no costs.",
+  "near_misses": [
+   {
+    "ticker": "PLTR",
+    "date": "2026-09-24",
+    "criterion": "rg.support_tag",
+    "why": "the dip low 188.24 is 2.9% above the nearest level, the prior day's low 182.94 (rule within 1%); a trigger with no setup under it; 0.8R then stopped 2026-09-28."
+   },
+   {
+    "ticker": "APP",
+    "date": "2025-10-17",
+    "criterion": "rg.ema20_rising",
+    "why": "20-day EMA 612.33 under its value 5 sessions earlier 624.73 (rule rising); a bounce in a correction, not a pullback in a trend; 0.00R, stopped the same day."
+   },
+   {
+    "ticker": "WWD",
+    "date": "2024-07-24",
+    "criterion": "rg.earnings_window",
+    "why": "a report on 2024-07-29, three sessions after the buy (rule none in the next 3 sessions); at the 50-day SMA, 0.00R, stopped the same day."
+   },
+   {
+    "ticker": "DELL",
+    "date": "2026-07-07",
+    "criterion": "rg.stop_width",
+    "why": "a 3.4% gap down to the 20-day EMA; the stop 397.66 sits 3.44% under the buy 411.81 (rule about 3%); skip or size down; 0.00R, stopped the same day."
+   }
+  ],
+  "sheets": {
+   "failures": "final/fail_1-4.png",
+   "near_misses": "final/near_1-4.png",
+   "pair": "final/pair_30-oops-reversal.png"
+  }
+ },
+ "question_seeds": [
+  {
+   "kind": "recall",
+   "criterion": "rg.line",
+   "seed": "Which price is the red-to-green line: the open, VWAP or the prior close?"
+  },
+  {
+   "kind": "recall",
+   "criterion": "rg.gap_floor",
+   "seed": "How far below the prior close must the A version open?"
+  },
+  {
+   "kind": "recall",
+   "criterion": "rg.stop",
+   "seed": "Where does the stop go on a red-to-green buy?"
+  },
+  {
+   "kind": "spot",
+   "criterion": "rg.line",
+   "seed": "Hidden ticker, hourly chart with the prior close drawn: tap the candle where it went red to green."
+  },
+  {
+   "kind": "spot",
+   "criterion": "rg.support_tag",
+   "seed": "Hidden ticker, daily chart: which line did the dip tag before the cross? Tap it, or say none."
+  },
+  {
+   "kind": "spot",
+   "criterion": "rg.inv_close_back_under",
+   "seed": "Hidden ticker: four red-to-green days, two closed back under the line. Which two?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "rg.line",
+   "seed": "Red to green or Oops: the stock opened under yesterday's low and reclaimed it by 10:15. Which is it?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "rg.timing",
+   "seed": "Red to green or Go Signal: the cross came at 14:00 with no hourly flag under it. Which is it?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "rg.gap_floor",
+   "seed": "Can a Kicker be a red-to-green entry? Look at where it opens and answer why or why not."
+  },
+  {
+   "kind": "scenario",
+   "criterion": "rg.trigger",
+   "seed": "The stock is 20 cents under the prior close at 9:52 and looks like it will cross. Buy now, or wait for the trade through?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "rg.inv_close_back_under",
+   "seed": "You bought the cross at 96.36. It closes at 95.90, back under the line, above your stop at 94.67. What now?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "rg.gap_ceiling",
+   "seed": "A leader gaps down 7% on a downgrade and ticks green at 10:40. Red to green, or another setup?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "rg.short_not_leader",
+   "seed": "A leader above its 200-day opens green and falls through the prior close in the first hour. Short it?"
+  },
+  {
+   "kind": "grade",
+   "criterion": "rg.timing",
+   "seed": "Two crosses at the 20-day EMA: one at 9:50 on a 0.9% gap that holds, one at 13:30 after chopping across the line four times. Grade each."
+  },
+  {
+   "kind": "grade",
+   "criterion": "rg.ema20_rising",
+   "seed": "Gap down 1%, crosses in hour one, but the 20-day EMA is falling and the stock sits 13% under its 50-day. What grade?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "rg.gap_floor",
+   "seed": "Prior close 329.07, open 325.97. What is the gap in percent, and does it reach the 0.7% floor?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "rg.stop_width",
+   "seed": "Bought 23.98 with the dip low at 23.54 and the stop 3 cents under it. What is the risk in percent, and is it inside 3%?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "rg.trim_1",
+   "seed": "Fill 111.93, stop 110.75. Where are 3R and 5R?"
+  }
+ ],
+ "owner_decisions": [
+  "D-001",
+  "D-002",
+  "D-003",
+  "D-007",
+  "D-008",
+  "D-010",
+  "D-028",
+  "D-034",
+  "D-035",
+  "D-133",
+  "D-136",
+  "D-143",
+  "D-145"
+ ],
+ "conflicts": [
+  "Setup or trigger: the course plans call Red to Green an entry trigger (SET.06); the journal lists it as a swing setup and an intraday setup; TRADE_PLANS.md has no row (the Go Signal row carries the only plan). The card takes (c): a trigger lesson plus one named setup, gap down red to green at the 20-day EMA (D-002). The unit is 'none' because no SET row carries the name.",
+  "The line: five definitions inside the app (the bar label, the chart reader's 2% gap and 1.2x volume, the Go Signal daily detector, the hourly finder's close over the hour's open, the Oops label). The owner's ruling and every named source use the prior close; D-145 settles it and the hourly finder is to be fixed.",
+  "The Kicker: UNITS-method M9.L5 and the curriculum call the Kicker 'the cleanest RED TO GREEN entry'. A Kicker opens above the prior close, so it is not red at the open. Fixing the line is D-010 (question 12).",
+  "The stop: the owner and Bracco use the day's low; setup_criteria.json gives the prior day's low as the published stop; the brain template uses the key moving average and an 8% maximum. The card takes the day's low (A3) within 3% (A13); D-008.",
+  "The failed reclaim: the brain template sells at the close when the day closes back under the prior close; A4 and the owner's 'my stop is my stop' keep the stop. Measured: a small help (-0.34R against -0.47R on those trades), one period. D-136 settles it as a warning.",
+  "Timing against C30: the owner wants a 'quick' red to green and, for the Go Signal, the first or second hourly candle; C30 forbids a time-of-day rule. D-143: a grading factor. Measured, mixed: in the 5-minute test crosses between 9:35 and 11:55 did worst while first-bar and afternoon crosses were about flat; in the hourly data the hour did not change the hold rate, only the same-day stop rate.",
+  "The gap floor: the owner's 0.7% rests on his words; our data showed no edge from bigger gaps inside the 0.7% to 4% band, and gaps under 0.7% were stopped the same day 59% of the time. The 4% ceiling is the dossier's, from the fill rates (D-133).",
+  "Green to red: D47 makes it the long reversed below the 200-day; the owner's Go Signal uses green to red through the prior close in a leader as a bullish shakeout; Bracco's parabolic short is a third use on climax days. The card separates the three and never shorts a leader above the 200-day.",
+  "Young listings: Q and GLXY in his examples had no 200-day average; B26 needs one and E53 says no IPO rule. D-034.",
+  "Edge: in four tests over 26 years and the recent window, buying the cross or the close made about what a random entry with the same stop made; the obvious filters moved it only slightly. The value, if any, comes from what he chooses to watch and the tight stop, not the cross. Every number here is a rough guide, not a lesson fact.",
+  "The first-hour cross hides the order of the low and the cross on hourly bars (TXG): for the nine examples before 2026-08-17 the honest statement is that the day's low sat under the first hour's cross and whether it printed before or after the first tick through the line cannot be seen.",
+  "Private notes: the 2024 Discord note rating red to green five stars and the 2025-05-22 desk log exist only as summaries; whether the course may quote them is D-028."
+ ]
+}

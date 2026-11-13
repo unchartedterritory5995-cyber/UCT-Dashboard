@@ -1,0 +1,1640 @@
+{
+ "setup": "06-vcp",
+ "name": "VCP (Volatility Contraction Pattern)",
+ "unit": "SET.12",
+ "direction": "long",
+ "timeframe": "daily",
+ "dossier": "docs/study/setups/research/06-vcp.md",
+ "as_of": "2026-11-09",
+ "card": {
+  "context": "A leader in a Stage 2 uptrend that passes Minervini's Trend Template: above a rising 200-day and the 150-day, within 25% of the 52-week high, at least 30% above the 52-week low, RS 80 or more, after a 30% run. First or second base. Green market.",
+  "pattern": "Two to six pullbacks inside the base, each at most three quarters as deep as the one before, the first 10% to 40% and the last 10% or less, higher lows, volume drying up into the final tight range, no heavy down day on the right side.",
+  "trigger": "BASE BREAKOUT: price trades through the top of the final contraction (the pivot, which may sit below the base's high) during regular hours, bought at market, no more than 4% past it.",
+  "stop": "A few cents under the entry day's low, usually within about 3%. If the entry day's low is already under the final contraction's low, the base has broken and there is no trade.",
+  "failure_mode": "The breakout day closes back inside the base (the squat) and the next sessions take the stop; a base whose pullbacks stop shrinking, or a heavy-volume down day on the right side, says supply is still coming. Minervini: only about half of purchases are right."
+ },
+ "entry_trigger": "BASE BREAKOUT",
+ "criteria": [
+  {
+   "id": "vcp.trend_template",
+   "field": "context",
+   "statement": "Minervini's Trend Template on the day of the buy: close above the 150-day and 200-day SMA; the 150-day above the 200-day; the 200-day higher than 21 sessions ago; the 50-day above the 150-day and 200-day; close above the 50-day; close within 25% of the 52-week high.",
+   "measure": {
+    "what": "close > 50-day SMA, 50 > 150 > 200, 200-day SMA today > 200-day SMA 21 sessions ago, and close >= 75% of the 52-week high",
+    "op": "==",
+    "value": true,
+    "timeframe": "daily"
+   },
+   "glossary": "ma_stack",
+   "basis": "originator",
+   "sources": [
+    "S2"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "the full 8-line Trend Template with RS 80: the dossier's recommendation; D-060's default makes it the A cue with B26 and C31 as the gate"
+    },
+    {
+     "value": "b",
+     "basis": "only B26 (the 200-day) and C31 (RS 80)"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-060",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 line 1; 10 question 9",
+   "evidence": "The 21-session reading of at least 1 month is the dossier's; the glossary's rising_average uses 20. The scan required the full template. GXO's 200-day was still flattening at the base's start and rising by the buy. The scanner checks only 2 of the 8 lines and passes automatically under 200 bars."
+  },
+  {
+   "id": "vcp.above_52w_low",
+   "field": "context",
+   "statement": "The close is at least 30% above the 52-week low (the 2013 text); the 2017 book says 25%.",
+   "measure": {
+    "what": "close / 52-week low - 1",
+    "op": ">=",
+    "value": 30,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "basis": "originator",
+   "sources": [
+    "S2",
+    "S12"
+   ],
+   "options": [
+    {
+     "value": 30,
+     "basis": "Trade Like a Stock Market Wizard, 2013, verified on his blog (S2); the dossier's recommendation"
+    },
+    {
+     "value": 25,
+     "basis": "Think and Trade Like a Champion, 2017, per the repo file, not re-verified (S12); D-060's default"
+    }
+   ],
+   "recommended": 30,
+   "status": "pending-owner",
+   "owner_question": "D-060",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 line 2; 10 question 9",
+   "evidence": "The scan used 30%."
+  },
+  {
+   "id": "vcp.leadership",
+   "field": "context",
+   "statement": "RS rating 80 or more, in one of the strongest groups. Minervini's floor is 70, preferably in the 90s.",
+   "measure": {
+    "what": "RS rating",
+    "op": ">=",
+    "value": 80,
+    "unit": "rating 1 to 99"
+   },
+   "glossary": "leader",
+   "basis": "house rule",
+   "sources": [
+    "S2",
+    "S12",
+    "S13"
+   ],
+   "house_rule": "C31",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 line 3",
+   "evidence": "Minervini: no less than 70 (S2), preferably in the 90s (S12); ChartMill 70, preferably 80 (S13). The scan stood in a 126-day return above SPY's for the rating."
+  },
+  {
+   "id": "vcp.prior_advance",
+   "field": "context",
+   "statement": "The base's first high is at least 30% above the lowest low of the 6 months (126 sessions) before it.",
+   "measure": {
+    "what": "base's first high / lowest low of the prior 126 sessions - 1",
+    "op": ">=",
+    "value": 30,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "glossary": "prior_trend",
+   "basis": "source consensus",
+   "sources": [
+    "S13",
+    "S12",
+    "S18"
+   ],
+   "options": [
+    {
+     "value": 20,
+     "basis": "the pattern-engine scanner, 20% in 60 bars"
+    },
+    {
+     "value": 30,
+     "basis": "ChartMill citing O'Neil's base rule (S13); Minervini's 30, 40, 50 percent or even much more (S12); Kullamagi's related Breakouts setup (S18); the dossier's recommendation; D-029's default"
+    },
+    {
+     "value": "none beyond the Trend Template",
+     "basis": "the template alone"
+    }
+   ],
+   "recommended": 30,
+   "status": "pending-owner",
+   "owner_question": "D-029",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 line 4; 10 question 8",
+   "evidence": "The 6-month window is the dossier's (the glossary's canonical base window is 65 sessions). The examples ran +40% (NKE) to +193% (REGN) before the base."
+  },
+  {
+   "id": "vcp.base_count",
+   "field": "context",
+   "statement": "Best as the first or second base after a correction or a Stage 1 base; a third or fourth base late in a long run is a mistake.",
+   "measure": {
+    "what": "bases since the correction or Stage 1 base",
+    "op": "<=",
+    "value": 2,
+    "unit": "bases",
+    "timeframe": "daily"
+   },
+   "glossary": "base_count",
+   "basis": "originator",
+   "sources": [
+    "S2",
+    "S13"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.7; 8.8 mistake 8; 9 Base number row",
+   "evidence": "Minervini: a late-stage base that is obvious to everyone and prone to failure (S2); ChartMill: a first or second base has better odds than a third or fourth (S13). Not coded in the scan."
+  },
+  {
+   "id": "vcp.above_200",
+   "field": "context",
+   "statement": "Price above the 200-day SMA at the buy.",
+   "measure": {
+    "what": "entry price against the 200-day SMA",
+    "op": ">",
+    "value": "200-day SMA",
+    "timeframe": "daily"
+   },
+   "glossary": "above_200",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B26",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5 line 4; 7 B26 row",
+   "evidence": "A VCP sits above the 150 and 200-day by definition. The scanner's trend check passes automatically under 200 bars, so B26 cannot be checked on those stocks either."
+  },
+  {
+   "id": "vcp.liquidity",
+   "field": "context",
+   "statement": "Close $10 or more; 50-day average dollar volume $20 million or more.",
+   "measure": {
+    "what": "close",
+    "op": ">=",
+    "value": 10,
+    "unit": "$",
+    "and": "50-day average dollar volume >= 20,000,000"
+   },
+   "glossary": "liquidity",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B23",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 line 13",
+   "evidence": "The 50-day window is the dossier's (B23 names none); a dry-up week can push a thin stock under $20 million. The scanner has no floor of its own."
+  },
+  {
+   "id": "vcp.position_adv",
+   "field": "management",
+   "statement": "The position is at most 1% of average daily volume. A tight VCP stop makes big sizes: 1% risk on a 2% stop is 50%, capped to 40% by A7.",
+   "measure": {
+    "what": "shares / average daily volume",
+    "op": "<=",
+    "value": 1,
+    "unit": "%"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "D42",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "7 A5 and A7 row; 7 B23 and D42 row"
+  },
+  {
+   "id": "vcp.not_stretched",
+   "field": "context",
+   "statement": "The close is no more than 10% above the 10-day average.",
+   "measure": {
+    "what": "close / 10-day SMA - 1",
+    "op": "<=",
+    "value": 10,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "glossary": "stretched",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "C29",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 line 14",
+   "evidence": "A stock at its pivot after a tight range is rarely 10% above its 10-day; it matters only on a gap through the pivot."
+  },
+  {
+   "id": "vcp.market_reading",
+   "field": "context",
+   "statement": "Green: normal. Yellow: smaller and fewer. Orange: A+ only. Red: no VCP buys.",
+   "glossary": "market_reading",
+   "basis": "house rule",
+   "sources": [
+    "S13",
+    "S4"
+   ],
+   "house_rule": "F65",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.2 line 6; 8.7",
+   "evidence": "ChartMill: in a negative market environment even perfect VCPs fail en masse (S13); Minervini sits out or trades small in corrections (S4). Not coded in the scan."
+  },
+  {
+   "id": "vcp.fundamentals",
+   "field": "context",
+   "statement": "Growing sales and earnings preferred; the chart comes first.",
+   "basis": "house rule",
+   "sources": [
+    "S3"
+   ],
+   "house_rule": "D40",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.7; 7 D40 row",
+   "evidence": "Minervini's SEPA: companies that deliver strong earnings and sales with the stock price in a long term uptrend (S3)."
+  },
+  {
+   "id": "vcp.weekly",
+   "field": "context",
+   "statement": "Weekly VCPs: the same rules on the weekly chart, with the contractions measured on weekly bars. Bases longer than about 20 weeks read better on the weekly chart.",
+   "measure": {
+    "what": "base length at which the weekly chart is read",
+    "op": ">=",
+    "value": 20,
+    "unit": "weeks",
+    "timeframe": "weekly"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S25",
+    "S13"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "daily definition, the weekly as a grade cue and context: D-012's default"
+    },
+    {
+     "value": "b",
+     "basis": "weekly and ETF or index VCPs taught as the same setup: the owner's NVDA weekly VCP (S25); ChartMill (S13)"
+    },
+    {
+     "value": "c",
+     "basis": "left out"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-012",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.1 line 15; 10 question 11",
+   "evidence": "The owner on NVDA weekly: 2-3 weeks of wiggle here around the breakout to fill out this weekly VCP (S25). The index and ETF VCPs (SPY, QQQ, PBW) come from the unsigned Index and ETF section. The scan ran daily only."
+  },
+  {
+   "id": "vcp.count",
+   "field": "pattern",
+   "statement": "Two to six contractions (Ts), each a fall from a swing high to the next swing low inside the base. A T must be at least 2% deep to count.",
+   "measure": {
+    "what": "contractions at least 2% deep from the base's first high to the pivot",
+    "op": "in",
+    "value": [
+     2,
+     6
+    ],
+    "unit": "contractions",
+    "timeframe": "daily"
+   },
+   "basis": "originator",
+   "sources": [
+    "S1",
+    "S13",
+    "S15"
+   ],
+   "options": [
+    {
+     "value": 2,
+     "basis": "Minervini: anywhere from two to six (S1); ChartMill: two is the minimum (S13); the dossier's recommendation; D-058's default"
+    },
+    {
+     "value": 3,
+     "basis": "ChartMill's most common picture (S13); TraderLion's solid VCP (S15); Chart IQ's strict check"
+    }
+   ],
+   "recommended": 2,
+   "status": "pending-owner",
+   "owner_question": "D-058",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 line 5; 10 question 6",
+   "evidence": "The 2% floor is the dossier's. Scan: hits with 3 contractions did better than hits with 2 (35.5% to 3R against 28.1%); the twelve 4-T hits (50%) are too few to lean on. 2,649 of the 2,989 hits had exactly two."
+  },
+  {
+   "id": "vcp.count_a_plus",
+   "field": "pattern",
+   "statement": "Three or four clean contractions, each about half the last, is the A+ picture; two contractions, or ratios near 0.75, is B-.",
+   "measure": {
+    "what": "contractions",
+    "op": "in",
+    "value": [
+     3,
+     4
+    ],
+    "unit": "contractions",
+    "timeframe": "daily"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S1",
+    "S13"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "9 Ts row",
+   "evidence": "Neither Minervini nor ChartMill ranks 3 to 4 above 2; the split is the dossier's. ON (four Ts: 19.4%, 7.8%, 5.8%, 3.5%) is the model footprint. The scan's 3-T hits beat the 2-T hits."
+  },
+  {
+   "id": "vcp.ratio",
+   "field": "pattern",
+   "statement": "Each contraction's depth is at most 0.75 times the previous contraction's depth.",
+   "measure": {
+    "what": "depth of each contraction / depth of the one before",
+    "op": "<=",
+    "value": 0.75,
+    "unit": "x",
+    "timeframe": "daily"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S1",
+    "S12"
+   ],
+   "options": [
+    {
+     "value": 0.85,
+     "basis": "the pattern-engine scanner (System A); too loose, it lets 20%, 16%, 13% count"
+    },
+    {
+     "value": 0.8,
+     "basis": "Chart IQ"
+    },
+    {
+     "value": 0.75,
+     "basis": "the screener's upper bound (System D); the dossier's recommendation; D-059's default"
+    },
+    {
+     "value": "0.35 to 0.75",
+     "basis": "System D's full band, which also forbids very fast shrinking"
+    }
+   ],
+   "recommended": 0.75,
+   "status": "pending-owner",
+   "owner_question": "D-059",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 line 6; 10 question 7",
+   "evidence": "Minervini: about half (plus or minus a reasonable amount), no number (S1); his blog examples run 0.40 to 0.60 and the repo's book examples 0.38 to 0.75 (S12). The 0.75 gate is strict: 2,649 of 2,989 scan hits had exactly two contractions."
+  },
+  {
+   "id": "vcp.first_t",
+   "field": "pattern",
+   "statement": "The first (deepest) contraction is 10% to 40%. Never a base that fell 60% or more.",
+   "measure": {
+    "what": "depth of the first contraction from the base's first high",
+    "op": "in",
+    "value": [
+     10,
+     40
+    ],
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "glossary": "base_depth",
+   "basis": "originator",
+   "sources": [
+    "S12",
+    "S13"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 line 7",
+   "evidence": "Minervini 2017 per the repo: 10 to 35 percent, some 40; 60 percent or more is off my radar (S12); ChartMill 10% to 35%, over 50% a red flag (S13). The examples' first legs ran 10.0% (NKE) to 26.0% (REGN); CRWD's 31.5% first leg plus a squat failed."
+  },
+  {
+   "id": "vcp.final_t",
+   "field": "pattern",
+   "statement": "The final contraction is 10% or less; 3% to 6% with tight closes is best, 8% to 10% with loose closes is B-.",
+   "measure": {
+    "what": "depth of the final contraction from its high to its low",
+    "op": "<=",
+    "value": 10,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "glossary": "base_depth",
+   "basis": "my proposal",
+   "sources": [
+    "S13",
+    "S1",
+    "S12"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 line 8; 9 Final T row",
+   "evidence": "Only one outside source states the number (ChartMill: under 10%, ideally 3% to 6%, S13); Minervini's own examples end at 8% and 5% (S1) and 3% to 8% (S12). Our System A and Chart IQ use 10%, but app engines are not sources. The examples' final Ts ran 3.4% (TRV) to 7.1% (MOG-A)."
+  },
+  {
+   "id": "vcp.higher_lows",
+   "field": "pattern",
+   "statement": "Higher lows: the final contraction's low is above the lowest low of the base.",
+   "measure": {
+    "what": "final contraction's low against the base's lowest low",
+    "op": ">",
+    "value": "base low",
+    "timeframe": "daily"
+   },
+   "basis": "source consensus",
+   "sources": [
+    "S14",
+    "S18",
+    "S25"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 line 9",
+   "evidence": "Deepvue: higher lows during each contraction (S14); Kullamagi's related setup: higher lows and tightening range (S18); the owner wants higher lows (S25). The scan required it."
+  },
+  {
+   "id": "vcp.length_min",
+   "field": "pattern",
+   "statement": "At least 15 sessions (3 weeks) from the base's first high to the pivot. No upper limit.",
+   "measure": {
+    "what": "sessions from the base's first high to the pivot",
+    "op": ">=",
+    "value": 15,
+    "unit": "sessions",
+    "timeframe": "daily"
+   },
+   "glossary": "base_length",
+   "basis": "my proposal",
+   "sources": [
+    "S12",
+    "S15",
+    "S13"
+   ],
+   "options": [
+    {
+     "value": "none",
+     "basis": "Minervini publishes no minimum (S12)"
+    },
+    {
+     "value": 15,
+     "basis": "3 weeks: the dossier's recommendation; D-061's default"
+    },
+    {
+     "value": 30,
+     "basis": "6 weeks: TraderLion's solid VCP takes 6 to 12 weeks (S15)"
+    }
+   ],
+   "recommended": 15,
+   "status": "pending-owner",
+   "owner_question": "D-061",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 line 10; 10 question 10",
+   "evidence": "Minervini's examples run 6 to 40 weeks (S12); ChartMill: a few weeks to more than a year (S13). The scanner's text claims a 6-13 week sweet spot found in no Minervini text. The examples ran 6.0 (JOYY) to 16.6 weeks (REGN)."
+  },
+  {
+   "id": "vcp.volume_dry",
+   "field": "pattern",
+   "statement": "Volume dries up: the final contraction's average daily volume is below the first contraction's and below the 50-day average, with at least one day in the final contraction at or under half the 50-day average.",
+   "measure": {
+    "what": "final contraction's average volume / 50-day average volume",
+    "op": "<",
+    "value": 1,
+    "unit": "x",
+    "timeframe": "daily",
+    "and": "final-T average volume < first-T average volume, and at least one final-T day <= 0.5x the 50-day average"
+   },
+   "glossary": "dry_up",
+   "basis": "originator",
+   "sources": [
+    "S1",
+    "S12"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 line 11",
+   "evidence": "Minervini gives the direction (S1) and, per the repo, volume on the final contraction below the 50-day average with one or two days when volume is extremely low (S12); the half-the-average day is the dossier's reading of extremely low. The glossary makes dry-up a cue elsewhere; this card keeps the gate because it is the originator's defining feature. RNG's final T ran 0.46x the average."
+  },
+  {
+   "id": "vcp.no_right_side_selling",
+   "field": "pattern",
+   "statement": "No selling on the right side: no down day in the second half of the base on volume of 1.5 times the 50-day average or more.",
+   "measure": {
+    "what": "down days in the second half of the base with volume >= 1.5x the 50-day average",
+    "op": "==",
+    "value": 0,
+    "unit": "days",
+    "timeframe": "daily"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S13",
+    "S12"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 line 12",
+   "evidence": "ChartMill: several down days on heavy volume in the right half mean distribution is still going on (S13); Minervini: if price and volume do not quiet down on the right side, supply is still coming (S12). The 1.5 is the dossier's. The scan required it."
+  },
+  {
+   "id": "vcp.tight_closes",
+   "field": "pattern",
+   "statement": "A grade cue: tight closes with little change from one day to the next and from one week to the next in the final contraction.",
+   "glossary": "tight",
+   "basis": "originator",
+   "sources": [
+    "S12",
+    "S17"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "9 Final T row",
+   "evidence": "Minervini 2017 per the repo (S12); TraderLion's tight areas page on O'Neil's tight weekly action (S17). The glossary's default tightness is a 0.85 range ratio; this card grades on the closes."
+  },
+  {
+   "id": "vcp.pivot_location",
+   "field": "pattern",
+   "statement": "A grade cue: a pivot at or near a 52-week or all-time high (no overhead supply) is A+; a pivot well below the left-side high is B-.",
+   "measure": {
+    "what": "pivot against the 52-week high",
+    "op": ">=",
+    "value": "near the 52-week high for A+",
+    "timeframe": "daily"
+   },
+   "basis": "originator",
+   "sources": [
+    "S9",
+    "S24"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "9 Pivot location row",
+   "evidence": "Minervini: a stock hitting a new high has no overhead supply to contend with (S9); George and Hwang: nearness to the 52-week high forecasts returns (S24). None of the ten examples' pivots sat above the base's left-side high; SHOP's pivot sat well under its February high and still ran 16R."
+  },
+  {
+   "id": "vcp.shakeout",
+   "field": "pattern",
+   "statement": "A grade cue: the last contraction undercuts a nearby low and recovers, then makes a higher low (the owner's one more contraction); no shakeout or a lower low is B-.",
+   "basis": "UCT",
+   "sources": [
+    "S25"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "9 Shakeout row; 6",
+   "evidence": "The owner on TSLA: a shakeout back into the $430 range and one last contraction to set this up as five star; on INOD: one more contraction and a higher low giving an undercut or hammer candle; Bracco's 5-star base (S25)."
+  },
+  {
+   "id": "vcp.pivot",
+   "field": "trigger",
+   "statement": "The pivot is the high of the final contraction. It may sit below the base's left-side high.",
+   "measure": {
+    "what": "pivot",
+    "op": "==",
+    "value": "highest intraday high of the final contraction",
+    "timeframe": "daily"
+   },
+   "glossary": "pivot",
+   "basis": "originator",
+   "sources": [
+    "S12",
+    "S13"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 line 1",
+   "evidence": "Minervini: a pivot point can occur in connection with a stock breaking into new high territory or below the stock's high (S12); ChartMill: the top of the final contraction, not the highest price of the entire base (S13). The screener (System D) puts its pivot at the top of the base instead. In all ten examples the final contraction's high, not the base's high, was the buy point."
+  },
+  {
+   "id": "vcp.trigger",
+   "field": "trigger",
+   "statement": "Price trades above the pivot during regular hours: a market order the moment it does. If the stock opens above the pivot, a market order when it takes out the opening-range high. No close-only signal.",
+   "measure": {
+    "what": "intraday high during regular hours",
+    "op": ">",
+    "value": "pivot (or the opening-range high when the open is above the pivot)"
+   },
+   "glossary": "opening_range",
+   "basis": "house rule",
+   "sources": [
+    "S25",
+    "S13",
+    "S18"
+   ],
+   "house_rule": "E57",
+   "options": [
+    {
+     "value": "a",
+     "basis": "a market order when price trades above the pivot: E57; the dossier's recommendation; D-003's default"
+    },
+    {
+     "value": "b",
+     "basis": "a resting buy-stop above the pivot (ChartMill, S13); D-038 says it satisfies E57"
+    },
+    {
+     "value": "c",
+     "basis": "the opening-range high on the breakout day: the owner's practice (S25); Kullamagi (S18); also recommended"
+    },
+    {
+     "value": "d",
+     "basis": "a daily close above the pivot on 1.5x the 20-bar volume: the scanner's version"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-003",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 line 2; 10 question 4",
+   "evidence": "The owner: break the opening range. Can enter there and place a stop at LOD (S25). The scan filled at the pivot plus a cent, or the open when it gapped over the pivot (MOG-A filled at 325.06 against a 322.21 pivot)."
+  },
+  {
+   "id": "vcp.no_chase",
+   "field": "trigger",
+   "statement": "No buy more than 4% above the pivot.",
+   "measure": {
+    "what": "fill / pivot - 1",
+    "op": "<=",
+    "value": 4,
+    "unit": "%"
+   },
+   "glossary": "chase_limit",
+   "basis": "house rule",
+   "sources": [
+    "S12"
+   ],
+   "house_rule": "C28",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 line 3",
+   "evidence": "Minervini: without chasing the stock up more than a few percentage points, no number (S12). The scan skipped fills more than 4% above the pivot."
+  },
+  {
+   "id": "vcp.breakout_volume",
+   "field": "trigger",
+   "statement": "Volume on the breakout day is a grade factor, not a gate. For an A+: at least 1.4 times the 50-day average by the close, closing near the high.",
+   "measure": {
+    "what": "breakout-day volume / 50-day average volume",
+    "op": ">=",
+    "value": 1.4,
+    "unit": "x",
+    "timeframe": "daily"
+   },
+   "glossary": "volume_surge",
+   "basis": "originator",
+   "sources": [
+    "S4",
+    "S19",
+    "S13"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "no volume rule, grade only: Minervini lets it come a day or two later (S4); the dossier's recommendation; D-006's default"
+    },
+    {
+     "value": "b",
+     "basis": "at least 40% over the 50-day average: IBD (S19), ChartMill (S13); the A+ mark"
+    },
+    {
+     "value": "c",
+     "basis": "1.5 times the 20-day average: the scanner"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-006",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.2 line 4; 10 question 5",
+   "evidence": "Scan: breakout-day volume of 1.4x or more reached 3R 39.7% against 27.5% below it, which supports the grade. NKE (0.7x) still ran 10.4R: a B grade on volume that worked. The close-near-the-high half has no outside source beyond the scanner's member text."
+  },
+  {
+   "id": "vcp.earnings_window",
+   "field": "trigger",
+   "statement": "No new buy within 3 trading days before a report; hold through a report only if the trade is up 5R.",
+   "measure": {
+    "what": "sessions until the next report",
+    "op": ">",
+    "value": 3,
+    "unit": "sessions"
+   },
+   "glossary": "earnings_blackout",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B22",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 line 5; 8.4 line 6",
+   "evidence": "A pivot that triggers inside the window is skipped. Not applied in the scan."
+  },
+  {
+   "id": "vcp.cheat_entry",
+   "field": "trigger",
+   "statement": "The cheat entry (buying in a tight consolidation with the pivot roughly in the middle of the base, before the pivot breaks) is an advanced entry, not the lesson's buy.",
+   "basis": "UCT",
+   "sources": [
+    "S25",
+    "S13"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "part of the VCP lesson"
+    },
+    {
+     "value": "b",
+     "basis": "a separate advanced entry: D-027's default (the same setup, an earlier trigger, the same stop rule)"
+    },
+    {
+     "value": "c",
+     "basis": "left out; ChartMill tells beginners to start with the classic pivot entry (S13)"
+    }
+   ],
+   "recommended": "b",
+   "status": "pending-owner",
+   "owner_question": "D-027",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.8 mistake 3; 10 question 12",
+   "evidence": "The owner's BWXT mid range cheat entry (S25); the Index and ETF writer's looking to get exposure prior to that on ARKK (S25). Not measured in the scan."
+  },
+  {
+   "id": "vcp.stop",
+   "field": "stop",
+   "statement": "A few cents under the low of the entry day, or the prior day's low if the buy comes early and that low is tighter and still under the pivot.",
+   "measure": {
+    "what": "stop",
+    "op": "==",
+    "value": "a few cents under the entry day's low (or the prior day's low when tighter and under the pivot)"
+   },
+   "glossary": "stop_margin",
+   "basis": "house rule",
+   "sources": [
+    "S13",
+    "S15",
+    "S18"
+   ],
+   "house_rule": "A3",
+   "options": [
+    {
+     "value": "a",
+     "basis": "a few cents under the entry day's low: A3, F62; usually within 3%; the dossier's recommendation; D-008's default"
+    },
+    {
+     "value": "b",
+     "basis": "a few cents under the final contraction's low: ChartMill (S13), TraderLion (S15), the app; often 4% to 10% wide"
+    },
+    {
+     "value": "c",
+     "basis": "the day's low, but skip if the final contraction is deeper than some limit"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-008",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.3 lines 1 and 4; 10 question 2",
+   "evidence": "F62 gives the few cents; the prior-day-low condition is the dossier's. Kullamagi: stop is always lows of the day (S18). The scanner's stop (final low x 0.985) is 4.1% to 11.4% wide. The scan used 5 cents under the lower of the buy day's and the prior day's low."
+  },
+  {
+   "id": "vcp.stop_structure_check",
+   "field": "stop",
+   "statement": "If the entry day's low is already below the final contraction's low, the base has broken: no trade.",
+   "measure": {
+    "what": "entry day's low against the final contraction's low",
+    "op": ">=",
+    "value": "final contraction's low",
+    "timeframe": "daily"
+   },
+   "basis": "my proposal",
+   "sources": [],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.3 line 2",
+   "evidence": "The scan refused a buy whose day's low was under the final contraction's low."
+  },
+  {
+   "id": "vcp.stop_width",
+   "field": "stop",
+   "statement": "The stop usually sits within about 3% of the entry. If the honest stop does not fit the risk, skip; never tighten it to fit.",
+   "measure": {
+    "what": "(entry - stop) / entry",
+    "op": "<=",
+    "value": 3,
+    "unit": "%"
+   },
+   "glossary": "stop_width",
+   "basis": "house rule",
+   "sources": [
+    "S13",
+    "S18"
+   ],
+   "house_rule": "A13",
+   "options": [
+    {
+     "value": "a",
+     "basis": "about 3% as a hard ceiling (A13)"
+    },
+    {
+     "value": "b",
+     "basis": "an A+ VCP may take a 4% to 6% stop at smaller size (A5); D-005's default: up to one ADR, sized down, graded a notch lower"
+    },
+    {
+     "value": "c",
+     "basis": "a floor as well: never tighter than 1 ATR (ChartMill, S13), against Kullamagi's never wider than the ATR or ADR (S18)"
+    }
+   ],
+   "recommended": "b",
+   "status": "pending-owner",
+   "owner_question": "D-005",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.3 line 3; 10 question 3",
+   "evidence": "The scan's median stop was 3.4%; the examples ran 2.0% (NKE, SHOP) to 4.5% (PHM). AXON 2025-02-18: a fill at the open above the pivot left a 0.3% stop, and the next day gapped far through it; that is the case ChartMill's ATR floor is aimed at, and B20 governed the exit."
+  },
+  {
+   "id": "vcp.stop_gap",
+   "field": "stop",
+   "statement": "A gap through the stop: the first 30-minute low of the gap-down day is the new stop; out if that is past 2R.",
+   "measure": {
+    "what": "loss at the first 30-minute low of the gap-down day",
+    "op": "<=",
+    "value": 2,
+    "unit": "R",
+    "timeframe": "30-minute"
+   },
+   "basis": "house rule",
+   "sources": [
+    "S8"
+   ],
+   "house_rule": "B20",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.3 line 5",
+   "evidence": "Minervini: get out immediately, take whatever the next bid price is (S8); the house 30-minute rule wins."
+  },
+  {
+   "id": "vcp.stop_broker",
+   "field": "stop",
+   "statement": "A real stop order with the broker. It only moves up.",
+   "basis": "house rule",
+   "sources": [
+    "S5"
+   ],
+   "house_rule": "D41",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.3 line 6",
+   "evidence": "A4. Minervini against widening stops for volatile stocks: I strongly disagree (S5)."
+  },
+  {
+   "id": "vcp.one_buy",
+   "field": "management",
+   "statement": "One full buy at one price, one stop. No pilot buys, no adding.",
+   "basis": "house rule",
+   "sources": [
+    "S4"
+   ],
+   "house_rule": "A5",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 line 7; 7 A5 row",
+   "evidence": "Minervini incrementally commits to positions, then steps on the gas (S4); the house wins (D-135)."
+  },
+  {
+   "id": "vcp.breakeven",
+   "field": "management",
+   "statement": "Stop to breakeven between 2R and 5R, at the first trim by default.",
+   "measure": {
+    "what": "R at which the stop moves to the entry",
+    "op": "in",
+    "value": [
+     2,
+     5
+    ],
+    "unit": "R"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B19",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4 line 1",
+   "evidence": "META 2024-07-05 reached 1.18R and was stopped 5 sessions later; the breakeven move would not yet have applied."
+  },
+  {
+   "id": "vcp.trim_1",
+   "field": "management",
+   "statement": "Sell a third at 3R.",
+   "measure": {
+    "what": "fraction sold at 3R",
+    "op": "==",
+    "value": 0.333,
+    "unit": "of the position"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B19",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4 line 2",
+   "evidence": "JOYY, TRV and SHOP reached 3R the next day; REGN took 27 sessions."
+  },
+  {
+   "id": "vcp.trim_2",
+   "field": "management",
+   "statement": "Sell a third at 5R.",
+   "measure": {
+    "what": "fraction sold at 5R",
+    "op": "==",
+    "value": 0.333,
+    "unit": "of the position"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "E51",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4 line 2",
+   "evidence": "All ten examples reached 5R."
+  },
+  {
+   "id": "vcp.trim_gap_open",
+   "field": "management",
+   "statement": "If the stock opens above a trim level, trim at the open.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "F63",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4 line 2"
+  },
+  {
+   "id": "vcp.trail",
+   "field": "management",
+   "statement": "Trail the last third under the 10-day (fast movers) or the 21-day (steadier), sold on a close below.",
+   "measure": {
+    "what": "close against the 10-day (fast) or 21-day (steadier) average",
+    "op": "<",
+    "value": "the average",
+    "timeframe": "daily"
+   },
+   "glossary": "trail",
+   "basis": "house rule",
+   "sources": [
+    "S18"
+   ],
+   "house_rule": "E52",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4 line 3",
+   "evidence": "Kullamagi trails his breakouts with nearly the same lines, the 10 or 20-day (S18)."
+  },
+  {
+   "id": "vcp.time_stop",
+   "field": "management",
+   "statement": "Time stop: still under 1R after 10 trading days, sell.",
+   "measure": {
+    "what": "open R after 10 trading days",
+    "op": "<",
+    "value": 1,
+    "unit": "R"
+   },
+   "glossary": "time_stop",
+   "basis": "house rule",
+   "sources": [
+    "S3"
+   ],
+   "house_rule": "C33",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4 line 4",
+   "evidence": "Fits Minervini: a proper VCP breakout should rally back to new highs within a number of days up to a few weeks (S3). Not applied in the scan."
+  },
+  {
+   "id": "vcp.climax",
+   "field": "management",
+   "statement": "A climax run (Bracco's parabolic burst): sell a big part into it.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "C34",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4 line 6"
+  },
+  {
+   "id": "vcp.warning_signs",
+   "field": "management",
+   "statement": "Warnings, not exits: a close below the 20-day average soon after the breakout (Minervini says it cuts the odds about in half); three lower lows on rising volume; a breakout day that closes back in the base (a squat), which can take up to 10 days to recover. The stop stays the exit.",
+   "measure": {
+    "what": "close against the 20-day average soon after the breakout",
+    "op": "<",
+    "value": "20-day average",
+    "timeframe": "daily",
+    "note": "a warning only; the stop is the exit (A4)"
+   },
+   "basis": "originator",
+   "sources": [
+    "S12"
+   ],
+   "house_rule": "A4",
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.4 line 5",
+   "evidence": "Minervini 2017 per the repo (S12). The owner struck the cut-half rule: my stop is my stop most of the time (D-136). Scan: a close above the pivot on the buy day reached 3R 36.9% of the time against 18.9% for a close back inside the base."
+  },
+  {
+   "id": "vcp.inv_wide_loose",
+   "field": "invalidation",
+   "statement": "Before the buy: a contraction as deep as, or deeper than, the one before (wide and loose).",
+   "measure": {
+    "what": "depth of a contraction / depth of the one before",
+    "op": ">=",
+    "value": 1,
+    "unit": "x",
+    "timeframe": "daily"
+   },
+   "glossary": "wide_and_loose",
+   "basis": "originator",
+   "sources": [
+    "S1",
+    "S13"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5 line 1",
+   "evidence": "The glossary's base test (the last 10 sessions' range against the first 10) is replaced here by the VCP's own: each contraction against the one before."
+  },
+  {
+   "id": "vcp.inv_first_t_deep",
+   "field": "invalidation",
+   "statement": "Before the buy: the first contraction over 40%, or any fall of 60% or more.",
+   "measure": {
+    "what": "depth of the first contraction",
+    "op": ">",
+    "value": 40,
+    "unit": "%",
+    "timeframe": "daily",
+    "or": "any fall of 60% or more"
+   },
+   "glossary": "base_depth",
+   "basis": "originator",
+   "sources": [
+    "S12"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5 line 2",
+   "evidence": "CRWD 2021-04-22: a 31.5% first leg (inside the rule) plus a squat; stopped after 5 sessions at a best of 0.34R. Two of the warnings at once."
+  },
+  {
+   "id": "vcp.inv_close_under_final_low",
+   "field": "invalidation",
+   "statement": "Before the buy: a close below the final contraction's low. The count starts again; a new tight contraction makes a new pivot.",
+   "measure": {
+    "what": "close against the final contraction's low",
+    "op": "<",
+    "value": "final contraction's low",
+    "timeframe": "daily"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S13"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5 line 3",
+   "evidence": "ChartMill: the level at which the structure of the pattern breaks (S13)."
+  },
+  {
+   "id": "vcp.inv_trend",
+   "field": "invalidation",
+   "statement": "Before the buy: any Trend Template line fails, or the close goes under the 200-day.",
+   "measure": {
+    "what": "close against the 200-day SMA",
+    "op": "<",
+    "value": "200-day SMA",
+    "timeframe": "daily",
+    "or": "any Trend Template line fails"
+   },
+   "glossary": "above_200",
+   "basis": "house rule",
+   "sources": [
+    "S2"
+   ],
+   "house_rule": "B26",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5 line 4"
+  },
+  {
+   "id": "vcp.inv_heavy_down_day",
+   "field": "invalidation",
+   "statement": "Before the buy: a heavy-volume down day in the right half of the base (1.5 times the 50-day average or more).",
+   "measure": {
+    "what": "volume on a down day in the second half of the base / 50-day average volume",
+    "op": ">=",
+    "value": 1.5,
+    "unit": "x",
+    "timeframe": "daily"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S13"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5 line 5"
+  },
+  {
+   "id": "vcp.inv_chase",
+   "field": "invalidation",
+   "statement": "Before the buy: price already more than 4% above the pivot when you find it.",
+   "measure": {
+    "what": "price / pivot - 1",
+    "op": ">",
+    "value": 4,
+    "unit": "%"
+   },
+   "glossary": "chase_limit",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "C28",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5 line 6"
+  },
+  {
+   "id": "vcp.after_entry_stop",
+   "field": "invalidation",
+   "statement": "After the buy: the stop is the exit. Nothing else forces an exit except the time stop and the trail.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "A4",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5 After the buy",
+   "evidence": "CMG 2020-12-16: contractions 14.2% and 4.6%, 2.0x volume, a close above the pivot, an A grade on its face; it reached 0.87R and fell to the stop 11 sessions later. A failure with nothing wrong in the setup: the reason the stop, not an opinion, is the exit."
+  },
+  {
+   "id": "vcp.squat",
+   "field": "invalidation",
+   "statement": "After the buy: a breakout day that closes back inside the base (the squat) is the warning with the worst numbers in the scan, not an exit by itself.",
+   "measure": {
+    "what": "scan: 3R rate for a buy day that closed above the pivot against one that closed back inside the base",
+    "op": "==",
+    "value": "36.9% against 18.9%",
+    "timeframe": "80 sessions"
+   },
+   "basis": "measured",
+   "sources": [
+    "S12",
+    "S26"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.4 line 5; 12",
+   "evidence": "ALGN 2007-10-17: 2.3x volume through the 28.64 pivot, a close at 28.14 back inside the base, and the next day's low took the stop. Minervini: a recovery can take up to 10 days (S12)."
+  }
+ ],
+ "grading": {
+  "a_plus": [
+   "vcp.trend_template: all 8 lines, the 200-day rising for months",
+   "vcp.leadership: RS 90 or more, the RS line up for 13 weeks or more, a leading group with other names setting up",
+   "vcp.base_count: first or second base of the trend",
+   "vcp.count_a_plus: 3 to 4 clean contractions, each about half the last",
+   "vcp.final_t: 3% to 6%, tight closes day to day",
+   "vcp.shakeout: the last contraction undercuts a nearby low and recovers, then a higher low",
+   "vcp.volume_dry: below the 50-day average with 1 to 2 very low days",
+   "vcp.no_right_side_selling: quiet right side, up days on more volume than down days",
+   "vcp.pivot_location: at or near a 52-week or all-time high",
+   "vcp.breakout_volume: 1.5 to 2 times the 50-day average, closing near the high",
+   "vcp.stop_width: the day-low stop 2% or less",
+   "vcp.market_reading: Green",
+   "vcp.fundamentals: growing sales and earnings"
+  ],
+  "b_minus": [
+   "vcp.trend_template: only just passing, the 200-day flat-ish",
+   "vcp.leadership: RS 80 to 85, a lone stock in a weak group",
+   "vcp.base_count: third or fourth base",
+   "vcp.count: 2 contractions, or ratios near 0.75",
+   "vcp.final_t: 8% to 10%, loose closes",
+   "vcp.shakeout: no shakeout, or a lower low",
+   "vcp.volume_dry: about average in the final contraction",
+   "vcp.no_right_side_selling: some heavy down days",
+   "vcp.pivot_location: well below the left-side high (overhead supply)",
+   "vcp.breakout_volume: near average, closes mid-range",
+   "vcp.stop_width: 3% or more",
+   "vcp.market_reading: Yellow",
+   "vcp.fundamentals: none"
+  ],
+  "no_trade": [
+   "vcp.inv_wide_loose: a contraction as deep as the one before",
+   "vcp.inv_first_t_deep: the first contraction over 40%, or a 60% fall",
+   "vcp.inv_close_under_final_low: a close under the final contraction's low",
+   "vcp.inv_trend: a Trend Template line fails, or under the 200-day",
+   "vcp.inv_heavy_down_day: a 1.5x down day in the right half",
+   "vcp.inv_chase: more than 4% past the pivot",
+   "vcp.not_stretched: more than 10% over the 10-day",
+   "vcp.stop_structure_check: the entry day's low under the final contraction's low",
+   "vcp.earnings_window: a report within 3 sessions",
+   "vcp.liquidity: under $10 or under $20 million a day",
+   "vcp.market_reading: Red"
+  ]
+ },
+ "lookalikes": [
+  {
+   "setup": "01-flat-base",
+   "tell": "Measure the pullbacks. A flat base holds one 10% to 15% box with no shrinking pullbacks and breaks out above the base high; a VCP's pullbacks shrink one after another (each at most three quarters of the last) and its pivot can sit under the base high. Minervini: a 4 to 7 week flat base has no real volatility contraction.",
+   "criterion": "vcp.ratio"
+  },
+  {
+   "setup": "04-cup-handle",
+   "tell": "Count the contractions. A cup is one rounded decline and one handle at the rim; a cup whose handle meets the shrinking rule is also a VCP (ChartMill), so two or more shrinking pullbacks make it a VCP and one round trip plus a handle makes it a cup.",
+   "criterion": "vcp.count"
+  },
+  {
+   "setup": "03-high-tight-flag",
+   "tell": "Look at the pole and the depth. A high tight flag follows a 90% or more run in 8 weeks or less and pauses 5 to 30 sessions at most 25% deep with no shrinking pullbacks needed; a VCP follows a 30% run and needs a 10% to 40% first contraction that shrinks. Minervini's waiver: a base under 10% deep needs no contraction, it is already tight.",
+   "criterion": "vcp.first_t"
+  },
+  {
+   "setup": "02-bull-flag",
+   "tell": "Count the sessions and the pullbacks. A flag is one 3 to 15 session drift right after a 20% pole; a VCP needs at least 15 sessions and two or more separate pullbacks. A rest over 20 sessions with no pole is judged as a base.",
+   "criterion": "vcp.length_min"
+  }
+ ],
+ "invalidations": [
+  "Before the buy: a contraction as deep as, or deeper than, the one before (vcp.inv_wide_loose).",
+  "Before the buy: the first contraction over 40%, or any fall of 60% or more (vcp.inv_first_t_deep).",
+  "Before the buy: a close below the final contraction's low; the count starts again (vcp.inv_close_under_final_low).",
+  "Before the buy: any Trend Template line fails, or the close goes under the 200-day (vcp.inv_trend).",
+  "Before the buy: a heavy-volume down day in the right half of the base (vcp.inv_heavy_down_day).",
+  "Before the buy: price already more than 4% above the pivot (vcp.inv_chase).",
+  "Before the buy: earnings within 3 trading days (vcp.earnings_window).",
+  "After the buy: the stop is the exit; nothing else forces an exit except the time stop and the trail (vcp.after_entry_stop).",
+  "After the buy: a squat, a close under the 20-day or three lower lows on rising volume are warnings, not exits (vcp.warning_signs, vcp.squat)."
+ ],
+ "mistakes": [
+  "Calling any sideways wiggle a VCP: the contractions must shrink.",
+  "Buying a base in a downtrend because it looks tight. Minervini: if the long-term trend is not up, the stock simply does not qualify.",
+  "Buying during the first deep pullback or in the middle of the base before the pivot breaks (a deliberate cheat entry is a different, advanced entry).",
+  "Chasing far above the pivot.",
+  "Ignoring heavy-volume down days on the right side.",
+  "Trading VCPs in a weak market.",
+  "Widening the stop to give the stock more room.",
+  "Buying a third or fourth base late in a long run.",
+  "Treating a flat base as a VCP, or the reverse (our own Model Book Flat Base card does this).",
+  "Setting a stop tighter than one day's normal range (ChartMill's view; Kullamagi pulls the other way, and the owner decides)."
+ ],
+ "short_mirror": {
+  "exists": false,
+  "setup": "06-vcp",
+  "note": "No published short VCP: Minervini goes short a stage 4 downtrend but describes no VCP for shorts, and a search for an inverse or bearish VCP found only indicator pages. If the owner wants one under D47 the dossier's draft (8.6) is: a Stage 4 stock under a falling 150 and 200-day (B26), RS 20 or lower (C31 mirror), a prior fall of 30% or more, 2 to 6 rallies each at most 0.75 times the previous, volume drying up on the rallies, a market-order short as price trades under the low of the final rally, the stop a few cents over the entry day's high, hard-to-borrow names skipped (D48). Not taught until the owner shows two or three of his own examples (D-001, 06:13)."
+ },
+ "best_conditions": "A Green market reading, with leaders setting up and breaking out; early in a new uptrend, the first or second base after a correction or a Stage 1 base. After a correction, start with a few positions and add more positions only as the first ones work (F68; Minervini's 2013 Q&A says the same about waiting for a second wave). Stocks with growing sales and earnings in leading groups.",
+ "management": {
+  "trim_1": "a third at 3R (B19)",
+  "trim_2": "a third at 5R (E51)",
+  "trail": "a close under the 10-day for a fast mover, the 21-day for a steadier one (E52); Kullamagi trails the 10 or 20-day",
+  "breakeven": "between 2R and 5R, at the first trim by default (B19)",
+  "time_stop": "under 1R after 10 trading days, sell (C33); fits Minervini's within a number of days up to a few weeks",
+  "gap_open": "a trim level the day opens past is taken at the open (F63)",
+  "gap_against": "the first 30-minute low is the new stop; out if past 2R (B20)",
+  "climax": "sell a big part into a climax run (C34)",
+  "earnings": "hold through a report only if up 5R (B22)",
+  "overrides": "none. The dossier (8.4) says the VCP needs nothing of its own. Not ours: the scanner's measured-move target (pivot plus the pivot minus the first contraction's low), TraderLion's gains of 15% or more, Minervini's scaling in (A5) and his 1.25% to 2.5% risk (A1, E49), Kullamagi's sell a third to a half after 3 to 5 days. His post-breakout warnings are taught as warnings, not exits (A4)."
+ },
+ "examples": {
+  "winners": 10,
+  "sheet_dir": "_study-resume/scratchpad/setups/06-vcp/final",
+  "base_rate": {
+   "hits": 2989,
+   "r3_pct": 29.0,
+   "r5_pct": 18.5,
+   "stopped_pct": 84.6,
+   "hits_with_exactly_two_contractions": 2649,
+   "median_stop_pct": 3.4,
+   "window": "80 sessions forward, fixed stop, no trims, no breakeven, no trail, no time stop; 2000-01-03 to 2026-11-04; one hit per name per 30 sessions; 2,630 liquid names; RS stood in by a 126-day return above SPY's"
+  },
+  "cuts": {
+   "three_contractions": {
+    "r3_pct": 35.5,
+    "against_two": {
+     "r3_pct": 28.1
+    },
+    "note": "the twelve 4-T hits reached 3R 50% of the time, too few to lean on"
+   },
+   "breakout_volume_1_4x_or_more": {
+    "r3_pct": 39.7,
+    "below": {
+     "r3_pct": 27.5
+    }
+   },
+   "close_above_pivot_on_the_buy_day": {
+    "r3_pct": 36.9,
+    "close_back_inside_the_base": {
+     "r3_pct": 18.9
+    }
+   }
+  },
+  "winners_list": [
+   "ON 2017-08-30",
+   "PHM 2003-10-01",
+   "RNG 2020-01-02",
+   "JOYY 2014-01-02",
+   "REGN 2012-08-23",
+   "MOG-A 2026-05-26",
+   "GXO 2023-05-10",
+   "NKE 2018-05-15",
+   "TRV 2000-07-25",
+   "SHOP 2021-06-14"
+  ],
+  "failures": [
+   {
+    "ticker": "ALGN",
+    "date": "2007-10-17",
+    "criterion": "vcp.squat",
+    "why": "two contractions (27.5%, 7.1%), a 59-session base, 2.3x volume through the 28.64 pivot, but the day closed at 28.14, back inside the base; the next day's low, 27.64, took out the 27.70 stop. Best 0R. A breakout that closes back in the base is the warning sign with the worst numbers in the scan.",
+    "stopped": "stopped 1 session after the buy, 2007-10-18, low 27.64"
+   },
+   {
+    "ticker": "CMG",
+    "date": "2020-12-16",
+    "criterion": "vcp.after_entry_stop",
+    "why": "contractions 14.2% and 4.6%, 2.0x volume, a close above the pivot, an A grade on its face; it reached only 0.87R and fell to the stop 11 sessions later (2021-01-04). A failure with nothing wrong in the setup: the reason the stop, not an opinion, is the exit.",
+    "stopped": "stopped 11 sessions after the buy, 2021-01-04, low 26.25"
+   },
+   {
+    "ticker": "META",
+    "date": "2024-07-05",
+    "criterion": "vcp.breakeven",
+    "why": "contractions 22.0% and 5.7%, 61 sessions, 1.4x volume, a close above the pivot at 539.91 against a 522.88 pivot; best 1.18R, then stopped 5 sessions later (2024-07-12, low 494.23). The stop was 3.2% under; the breakeven move (B19) would not yet have applied at 1.18R.",
+    "stopped": "stopped 5 sessions after the buy, 2024-07-12, low 494.23"
+   },
+   {
+    "ticker": "AXON",
+    "date": "2025-02-18",
+    "criterion": "vcp.stop_width",
+    "why": "a stop-placement lesson, not a pattern failure: the stock opened above the pivot, the fill was 694.02 and the buy day's low 691.86, so the day-low stop sat 0.3% under the fill; the next day gapped to a 592.76 low, far through it, and B20 (the first 30-minute low, out past 2R) governed the exit. The case ChartMill's ATR floor is aimed at, and a question for the owner (D-005)."
+   },
+   {
+    "ticker": "CRWD",
+    "date": "2021-04-22",
+    "criterion": "vcp.inv_first_t_deep",
+    "why": "a 31.5% first contraction, a close back under the pivot (54.18 against 55.81), a 5.1% stop; stopped after 5 sessions with a best of 0.34R. A deep first leg plus a squat: two of the warnings at once.",
+    "stopped": "stopped 5 sessions after the buy, 2021-04-29, low 52.10"
+   }
+  ],
+  "limits": "Daily bars only, so the moment price trades through the pivot is modelled as the pivot plus a cent (or the open) with no intraday confirmation; the RS gate is a 126-day return against SPY, not an RS rating; no earnings filter (B22) and no market filter (F65); the stop is fixed for 80 sessions, so the base rate understates what the trims and the breakeven move would produce. MOG-A is Moog's class A share, a stock, not an ETF. Nothing here is a published statistic, and Minervini publishes none.",
+  "near_misses": [
+   {
+    "ticker": "CAT",
+    "date": "2010-01-11",
+    "criterion": "vcp.ratio",
+    "why": "T2 9.0% is 0.79x T1 11.5%; the rule needs 0.75x or less. Two pullbacks of almost the same size (11.5%, 9.0%): a wide and loose base, not a contraction."
+   },
+   {
+    "ticker": "BIIB",
+    "date": "2014-05-28",
+    "criterion": "vcp.final_t",
+    "why": "final contraction 11.5%; the rule allows at most 10%. A 24% first leg and a 12% second leg: the final pullback is still too wide to be the tight last T a VCP needs; a loose cup."
+   },
+   {
+    "ticker": "AMZN",
+    "date": "2020-08-06",
+    "criterion": "vcp.volume_dry",
+    "why": "final-T volume 1.13x the 50-day average, 0.89x the first T's, quietest day 0.81x; the rule needs below 1x, below the first T and a day at 0.5x or under. Two shrinking pullbacks (14%, 4%) but no dry-up: the final leg traded above the 50-day average volume with no quiet day."
+   },
+   {
+    "ticker": "UNH",
+    "date": "2021-08-04",
+    "criterion": "vcp.first_t",
+    "why": "first contraction 9.1%; the rule needs 10% to 40%. A 9% first leg: a base too shallow to contract from; by Minervini's own waiver it is a flat base, judged by the flat-base rules."
+   }
+  ],
+  "sheets": {
+   "failures": "final/fail_1-4.png",
+   "near_misses": "final/near_1-4.png",
+   "pair": "final/pair_01-flat-base.png"
+  }
+ },
+ "question_seeds": [
+  {
+   "kind": "recall",
+   "criterion": "vcp.count",
+   "seed": "How many contractions does a VCP need at the least, and how many does Minervini say is typical?"
+  },
+  {
+   "kind": "recall",
+   "criterion": "vcp.ratio",
+   "seed": "Each contraction must be at most what fraction of the one before it on this card?"
+  },
+  {
+   "kind": "recall",
+   "criterion": "vcp.pivot",
+   "seed": "Where is a VCP's pivot, and may it sit below the base's high?"
+  },
+  {
+   "kind": "spot",
+   "criterion": "vcp.pivot",
+   "seed": "Hidden ticker: tap the pivot, the top of the final contraction this stock must trade through."
+  },
+  {
+   "kind": "spot",
+   "criterion": "vcp.volume_dry",
+   "seed": "Hidden ticker: which of these four bases has volume drying up into the final contraction?"
+  },
+  {
+   "kind": "spot",
+   "criterion": "vcp.inv_heavy_down_day",
+   "seed": "Hidden ticker: find the heavy-volume down day on the right side of this base. Take it or pass."
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "vcp.ratio",
+   "seed": "VCP or flat base: do the pullbacks inside this base shrink one after another, or hold one 12% box?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "vcp.count",
+   "seed": "VCP or cup with handle: one rounded decline and a handle at the rim, or three pullbacks each smaller than the last. Which is which?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "vcp.first_t",
+   "seed": "VCP or high tight flag: the stock doubled in 7 weeks and paused 12 sessions, 8% deep, with no shrinking pullbacks. Which is it?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "vcp.length_min",
+   "seed": "VCP or bull flag: a 7-session drift after a 25% pole, or a 9-week base with three shrinking pullbacks. Which is which?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "vcp.trigger",
+   "seed": "The pivot is 16.47 and the stock opens at 16.80 on heavy volume. What is the buy, and where is the stop?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "vcp.stop_structure_check",
+   "seed": "Price trades through the pivot at 11:00, but the day's low already sits under the final contraction's low. Buy, or pass?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "vcp.warning_signs",
+   "seed": "You bought the breakout at 28.65. It closes at 28.14, back inside the base, above your stop. What now?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "vcp.earnings_window",
+   "seed": "The final contraction is perfect and the report is in 2 sessions. Buy the breakout today?"
+  },
+  {
+   "kind": "grade",
+   "criterion": "vcp.count_a_plus",
+   "seed": "Two bases: one with four contractions of 19%, 8%, 6% and 3.5%; one with two contractions of 20% and 14%. Grade each."
+  },
+  {
+   "kind": "grade",
+   "criterion": "vcp.breakout_volume",
+   "seed": "Same base, two breakout days: one on 0.7x the 50-day volume, one on 2.4x closing at the high. Grade each."
+  },
+  {
+   "kind": "grade",
+   "criterion": "vcp.base_count",
+   "seed": "This is the stock's fourth base of a two-year run. A+, B, or pass?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "vcp.ratio",
+   "seed": "The first pullback was 20%, the second 16%, the third 13%. Does the base pass the three-quarters rule?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "vcp.final_t",
+   "seed": "The final contraction's high is 170.00 and its low 164.05. How deep is it, and is it inside 10%?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "vcp.stop_width",
+   "seed": "Fill 169.99, buy day's low 165.44, a few cents under it for the stop. How wide is the stop, and is it inside about 3%?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "vcp.trim_1",
+   "seed": "Bought at 17.38 with the stop at 16.59. Where is 3R?"
+  }
+ ],
+ "owner_decisions": [
+  "D-001",
+  "D-002",
+  "D-003",
+  "D-005",
+  "D-006",
+  "D-007",
+  "D-008",
+  "D-010",
+  "D-012",
+  "D-027",
+  "D-028",
+  "D-029",
+  "D-058",
+  "D-059",
+  "D-060",
+  "D-061"
+ ],
+ "conflicts": [
+  "Minimum number of contractions: Minervini two; ChartMill two as the minimum and three to four as the common picture; TraderLion two in one place and three in another; our pattern engine and screener need two, Chart IQ's strict check three. The card takes two with three or four as A+ (D-058).",
+  "How much smaller each contraction must be: Minervini about half, tolerance unstated; System A under 0.85, System D 0.35 to 0.75, Chart IQ under 0.8; no outside source gives a number. The card takes 0.75 (D-059).",
+  "The 52-week-low distance in the Trend Template: 30% in the 2013 text (verified), 25% in the 2017 text (repo, not re-verified). The card takes 30% (D-060).",
+  "The RS floor: Minervini 70, preferably the 90s; ChartMill 70, preferably 80; the house 80 (C31). The house wins.",
+  "Breakout volume: Minervini gives no percentage and will wait a day or two; IBD 40% minimum (50-day window per ChartMill); TraderLion 30-40%; the scanner 1.5x the 20-day. The card makes it a grade factor with 1.4x the 50-day as A+ (D-006); the scan sides with the grade (39.7% against 27.5%).",
+  "The stop: Minervini (as summarized) and ChartMill and TraderLion put it under the final contraction (4% to 11% wide in the app); Kullamagi the day's low, no wider than the ATR; the house a few cents under the day's low within about 3%. The card takes the day's low with a structure check (D-008); the floor against the ceiling (ChartMill's 1 ATR floor, Kullamagi's ADR ceiling) is D-005.",
+  "Length: Minervini publishes no minimum; TraderLion 6 to 12 weeks; the scanner's text claims a 6-13 week sweet spot found in no Minervini text; the code accepts 10 bars while its header says 30. The card takes 15 sessions (D-061).",
+  "Flat base against VCP: Minervini says a 4 to 7 week flat base has no real volatility contraction; the owner ruled TAN more of a VCP or flat base breakout; our Model Book's Flat Base card describes a VCP; Chart IQ relabels a failed strict VCP as a flat base. The card keeps the VCP as its own unit and the Flat Base card is redrawn (D-002).",
+  "Entry order: ChartMill a resting buy stop limit; Kullamagi the opening-range high; the house market orders; the scanner a daily close. The card takes the market order or the opening-range high (D-003); D-038 says a resting buy-stop satisfies E57.",
+  "Building the position: Minervini adds in steps; the house one full buy, one stop (A5, D-135). Risk per trade: Minervini 1.25% to 2.5%; the house 0.25% to 1.5% by grade with 2% the ceiling (A1, E49).",
+  "The pivot in the app: System A puts it at the final contraction's high (the originator's), System D at the top of the base; Chart IQ is a third rule set; the two engines agreed on 6 of 386 and 58 production flags. One rule set for all three is D-010 and D-004.",
+  "Prior-advance window: the dossier measures 30% over 6 months (126 sessions); the glossary's canonical base window is 65 sessions. The card keeps 126 and says so.",
+  "Dry-up: the glossary makes it a cue for most setups; this card keeps it a gate, with the extra half-the-average day, because it is the originator's defining feature (the glossary lists 06 as the exception).",
+  "The 82-case gold standard was labelled by four model personas, not people; its answer keys wait for the owner's review (D-007, 06:14).",
+  "Unsourced member-facing text: vcp.py's claims that Kullamagi runs the VCP as his core setup, Ryan Pierpont's IBD methodology (he is a real contest finisher; the claim about him is unsourced), the 6-13 week sweet spot; two Minervini quotes in quotes.json; the Compass and Study text deep base (25-50% from prior high) against Minervini's 10% to 35%. Removed or sourced under D-010.",
+  "The repo's research file 03 read Minervini's 2017 book from an unlicensed PDF and prints the link; every [repo, not re-verified] quote on this card (S12) waits on a bought copy (D-028, 06:16).",
+  "Measured evidence: no published, sample-based success rate exists for the VCP; TraderLion's 60-70% of VCP breakouts and more than 50% of superperformers name no study and are not taught; Bulkowski's NR7 (one quiet day, his site carries an AI-training notice) shows only that quietness does not pick the direction."
+ ]
+}

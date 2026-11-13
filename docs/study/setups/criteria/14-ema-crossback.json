@@ -1,0 +1,1444 @@
+{
+ "setup": "14-ema-crossback",
+ "name": "EMA Crossback",
+ "unit": "SET.15",
+ "direction": "long",
+ "timeframe": "daily",
+ "dossier": "docs/study/setups/research/14-ema-crossback.md",
+ "as_of": "2026-11-09",
+ "card": {
+  "context": "A liquid leader (RS 80 or more) above its 200-day that has just started a new up-cycle: a Wedge Pop (a close back above the 9 and 20 EMA out of a tight range on volume) or a breakout, 3 to 20 sessions earlier, the 9 EMA above a rising 20 EMA. Green or Yellow market, early in its cycle.",
+  "pattern": "The first pullback since the pop: a 2 to 10 session sideways or slow drift from the post-pop high into the 9/20 zone, and a hold day whose low reaches the zone (down to 1% under the 20 EMA) and closes at or above the 20 EMA in the upper half of its range.",
+  "trigger": "PREV DAY HIGH BREAK: buy at market as price trades a few cents above the hold day's high on any of the next 3 sessions; after that the setup is stale. A 30 or 65-minute breakout or red to green on the hold day is the advanced version.",
+  "stop": "A few cents under the hold day's low, usually 1 to 3% away; size down past 3%, skip past 5% or past the stock's average daily range.",
+  "failure_mode": "The hold day's low breaks before or just after the trigger, or the stock closes under the 20 EMA on heavy volume and the 9 crosses under the 20. Late crossbacks (long after the pop, or after an Exhaustion Extension) and crossbacks taken with the Nasdaq under its 20 EMA fail most."
+ },
+ "entry_trigger": "PREV DAY HIGH BREAK",
+ "criteria": [
+  {
+   "id": "xbk.definition",
+   "field": "context",
+   "statement": "The course teaches Kell's definition: the first pullback into the rising 10 and 20-day EMAs (our 9/20) after a stock has turned up out of a decline (his Wedge Pop) or broken out. Not the house text's re-entry after an extension.",
+   "measure": {
+    "what": "the stage of Kell's cycle the crossback follows",
+    "op": "==",
+    "value": "the Wedge Pop (or a breakout), before any Base n' Break or Exhaustion Extension"
+   },
+   "basis": "originator",
+   "sources": [
+    "S2",
+    "S3",
+    "S1"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "Kell's: the first pullback into the rising averages right after a Wedge Pop or breakout; the dossier's recommendation; D-002's default (the card, playbook, lesson and definitions.json are corrected)"
+    },
+    {
+     "value": "b",
+     "basis": "the house text: a re-entry after an extension, with the averages crossing (the Model Book card and playbook, the UCT Method lesson, SET.15)"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-002",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1; 8.9 What comes before; 10 question 1",
+   "evidence": "Kell: The EMA Crossback refers to the first time the stock price retests its moving averages after a strong upward move, called a Wedge Pop (S2). After an extension his cycle expects a Base n' Break or a Wedge Drop (S3). The playbook's the 9-EMA crosses the 20-EMA is not part of his crossback: if the 9 has to cross the 20 again, it was under it, which Kell treats as no-long territory (5.4)."
+  },
+  {
+   "id": "xbk.vs_pullback",
+   "field": "context",
+   "statement": "The border with the 20 EMA Pullback (setup 11): the first test after a new up-cycle starts is the Crossback; later orderly tests of the 20 EMA are the Pullback.",
+   "measure": {
+    "what": "tests of the averages since the new up-cycle began, this one included",
+    "op": "==",
+    "value": 1,
+    "unit": "tests",
+    "timeframe": "daily"
+   },
+   "basis": "originator",
+   "sources": [
+    "S2",
+    "S6"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "Crossback = the first test after a new up-cycle starts; 20 EMA Pullback = any later orderly test of the 20: the dossier's recommendation; D-002's default"
+    },
+    {
+     "value": "b",
+     "basis": "merge them into one setup with the crossback as its A+ case"
+    },
+    {
+     "value": "c",
+     "basis": "keep both names loosely, as now"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-002",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "10 question 3",
+   "evidence": "Kell: The Base n' Break is another pullback into the moving averages after the EMA Crossback (S6). The lab test: first test +0.023R, third or later -0.070R (4.4)."
+  },
+  {
+   "id": "xbk.liquidity",
+   "field": "context",
+   "statement": "Price $10 or more and at least $20 million traded a day on the 50-day average.",
+   "measure": {
+    "what": "close",
+    "op": ">=",
+    "value": 10,
+    "unit": "$",
+    "and": "50-day average dollar volume >= 20,000,000"
+   },
+   "glossary": "liquidity",
+   "basis": "house rule",
+   "sources": [
+    "S13"
+   ],
+   "house_rule": "B23",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Universe",
+   "evidence": "Kell's own screen (as Deepvue reports it) is stricter on price ($20) and adds a $2 to $25 billion market cap (S13). The scan's top raw winners were ETFs and slow dividend stocks with sub-1% stops (SPY 2005, AGG 2019, IEF 2020, VZ 2013); they pass the maths but are not what the setup teaches."
+  },
+  {
+   "id": "xbk.position_adv",
+   "field": "management",
+   "statement": "The position is never more than 1% of the stock's daily volume.",
+   "measure": {
+    "what": "shares / average daily volume",
+    "op": "<=",
+    "value": 1,
+    "unit": "%"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "D42",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Universe"
+  },
+  {
+   "id": "xbk.leadership",
+   "field": "context",
+   "statement": "A leader: RS rating 80 or more, in a strong group.",
+   "measure": {
+    "what": "RS rating",
+    "op": ">=",
+    "value": 80,
+    "unit": "rating 1 to 99"
+   },
+   "glossary": "leader",
+   "basis": "house rule",
+   "sources": [
+    "S13"
+   ],
+   "house_rule": "C31",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 A leader",
+   "evidence": "Fits Kell: leaders that turn first. The Study bank holds 116 crossback drafts that lagged the S&P 500 over the prior 63 sessions (5.7). D-011's default keeps C31 as written for crossbacks, read on the entry day. Not in the scan."
+  },
+  {
+   "id": "xbk.fundamentals",
+   "field": "context",
+   "statement": "Growing sales and earnings preferred; the chart comes first.",
+   "basis": "house rule",
+   "sources": [
+    "S13"
+   ],
+   "house_rule": "D40",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1 A leader",
+   "evidence": "Deepvue's account of Kell's screen: Earnings and sales growth in recent quarters over 30% (S13)."
+  },
+  {
+   "id": "xbk.above_200",
+   "field": "context",
+   "statement": "The hold day closes above the 200-day SMA. A crossback is not a parabolic long, so B26 has no exception here.",
+   "measure": {
+    "what": "close against the 200-day SMA on the hold day",
+    "op": ">",
+    "value": "200-day SMA",
+    "timeframe": "daily"
+   },
+   "glossary": "above_200",
+   "basis": "house rule",
+   "sources": [
+    "S3"
+   ],
+   "house_rule": "B26",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Long trend; 7 B26 row",
+   "evidence": "The main conflict with Kell: his cycle has no 200-day condition (the 50 and 200 simple moving averages help us stay in tune with the longer trend, S3), so a first crossback after a deep correction can come under the 200-day. In the lab test about a quarter of liquid crossbacks (24,090 of 97,343) were under it; 88 of the Study bank's 300 drafts are. D-009's default keeps them as reading drills marked not a buy for us."
+  },
+  {
+   "id": "xbk.ma200_rising",
+   "field": "context",
+   "statement": "Prefer the 200-day rising: higher than 20 sessions ago. A grade cue.",
+   "measure": {
+    "what": "200-day SMA today - 200-day SMA 20 sessions ago",
+    "op": ">",
+    "value": 0,
+    "unit": "$",
+    "timeframe": "daily"
+   },
+   "glossary": "rising_average",
+   "basis": "my proposal",
+   "sources": [],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Long trend",
+   "evidence": "The lab test's best case was a fresh turn: a stock that closed lower than a quarter earlier yet sat above a rising 200-day (+0.107R). The scan required a 200-day no lower than 20 sessions earlier on the hold day; 110 of the Study bank's drafts have a falling 200-day."
+  },
+  {
+   "id": "xbk.wedge_pop_first",
+   "field": "context",
+   "statement": "The new up-cycle came first, the textbook case: a Wedge Pop 3 to 20 sessions earlier. The stock had spent most of the prior 3 weeks under the 20-day EMA (at least 8 of the 15 prior closes), then closed back above both the 9 and the 20-day EMA, out of a tightening range, on above-average volume.",
+   "measure": {
+    "what": "sessions from the Wedge Pop day to the hold day",
+    "op": "in",
+    "value": [
+     3,
+     20
+    ],
+    "unit": "sessions",
+    "note": "the pop: at least 8 of the 15 prior closes under the 20 EMA, then a close above both the 9 and 20 EMA out of a tightening range on volume above the 50-day average",
+    "timeframe": "daily"
+   },
+   "basis": "originator",
+   "sources": [
+    "S2",
+    "S5",
+    "S25"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "3 to 20 sessions after the pop: the 3-session minimum and the 8-of-15 test are Chart IQ's; the 20-session maximum is the dossier's proposal; D-076's default (a window the quiz can check)"
+    },
+    {
+     "value": "b",
+     "basis": "any time before the first new high"
+    },
+    {
+     "value": "c",
+     "basis": "his number"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-076",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 The new up-cycle came first (a); 10 question 5",
+   "evidence": "Kell: A Wedge Pop occurs when the price reclaims both the 10-day and 20-day EMAs after a sharp drop (S10); Most Wedge Pops that lead to new, powerful trends start with gaps (S5). In the lab test crossbacks more than 40 sessions after the pop lost money. The scan: the Wedge Pop version 30.6% / 18.9% (5,171) against the breakout version 28.3% / 17.2%; pop to hold day 3 to 10 sessions 28.5% / 17.4%, 11 to 20 sessions 30.0% / 18.5%. LLY 2024-09-03 waited 16 sessions and was stopped at 0R."
+  },
+  {
+   "id": "xbk.breakout_first",
+   "field": "context",
+   "statement": "Allowed in place of the pop: a breakout over a base's pivot or a key level, 3 to 20 sessions earlier.",
+   "measure": {
+    "what": "sessions from the breakout day (a close over the prior 20-session high on at least 1.2x volume) to the hold day",
+    "op": "in",
+    "value": [
+     3,
+     20
+    ],
+    "unit": "sessions",
+    "timeframe": "daily"
+   },
+   "basis": "originator",
+   "sources": [
+    "S11"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 The new up-cycle came first (b)",
+   "evidence": "Kell's DKNG note: Pulling back to the Crossback after a nice breakout (S11); DKNG's breakout was over a price level, not to a new high. The 3 to 20 sessions are the dossier's proposal. TraderLion staff's breakout means the pop over the EMAs, so it supports the pop, not this line. The scan's breakout version: 16,290 trades, 28.3% / 17.2%."
+  },
+  {
+   "id": "xbk.averages",
+   "field": "context",
+   "statement": "At the hold day the 9-day EMA is above the 20-day EMA, and the 20-day EMA is higher than 5 sessions earlier. The course teaches the 9/20 pair and says Kell uses 10/20.",
+   "measure": {
+    "what": "9 EMA - 20 EMA, and 20 EMA today - 20 EMA 5 sessions ago",
+    "op": ">",
+    "value": 0,
+    "unit": "$",
+    "timeframe": "daily"
+   },
+   "glossary": "rising_average",
+   "basis": "originator",
+   "sources": [
+    "S3",
+    "S25"
+   ],
+   "options": [
+    {
+     "value": "9/20",
+     "basis": "the house 9/20 pair with a note that Kell uses 10/20: the Model Book, UCT's writers, the Study stack; D-021's default"
+    },
+    {
+     "value": "10/20",
+     "basis": "Kell's 10 and 20-day EMAs, for this setup only (S2, S3)"
+    }
+   ],
+   "recommended": "9/20",
+   "status": "pending-owner",
+   "owner_question": "D-021",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 The averages; 10 question 2",
+   "evidence": "Kell: When the 10-day exponential moving average is below the 20-day, there is no reason to be long the stock (S3). Chart IQ uses the same 5-session slope on the 20 EMA (S25). The unsigned 2026-04-12 intro's 9EMA>20EMA>50SMA>200SMA is a checklist for the indexes, not a stock rule."
+  },
+  {
+   "id": "xbk.first_test",
+   "field": "context",
+   "statement": "Which test: the first pullback into the 9/20 zone since the pop or breakout. A later test after a new high is a Base n' Break: graded lower here, or taught as its own setup.",
+   "measure": {
+    "what": "pullbacks into the 9/20 zone since the pop or breakout, this one included",
+    "op": "==",
+    "value": 1,
+    "unit": "pullbacks",
+    "timeframe": "daily"
+   },
+   "basis": "originator",
+   "sources": [
+    "S2",
+    "S6"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "teach only the first: Kell (S2, S6); the dossier's recommendation"
+    },
+    {
+     "value": "b",
+     "basis": "allow the second as a B grade: D-026's default (the first an A, the second a B; the third and later not this setup until a new high resets the count)"
+    },
+    {
+     "value": "c",
+     "basis": "teach Base n' Break as its own setup (dossier 18, 8.14)"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-026",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Which test; 10 question 7",
+   "evidence": "Kell: the first time the stock price retests its moving averages (S2). The lab test agrees: first +0.023R, third or later -0.070R (4.4). Kell: once you get two Base n' Breaks, you should realize you are late in the intermediate-term cycle (dossier 18)."
+  },
+  {
+   "id": "xbk.drift",
+   "field": "pattern",
+   "statement": "Shape and length: a sideways or slow drift of about 2 to 10 sessions from the post-pop high into the averages.",
+   "measure": {
+    "what": "sessions from the post-pop high to the hold day",
+    "op": "in",
+    "value": [
+     2,
+     10
+    ],
+    "unit": "sessions",
+    "timeframe": "daily"
+   },
+   "basis": "originator",
+   "sources": [
+    "S2",
+    "S10"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Shape and length",
+   "evidence": "Kell: The EMA Crossback works best when the price gently moves sideways, allowing the moving averages to rise to the price (S2); the staff: A slow drift into the EMAs is ideal (S10). The session counts are the dossier's proposal. The ten examples drifted 2 to 6 sessions. Dossiers 11 and 12 propose 2 to 15 and 2 to 8 for their pullbacks (conflicts)."
+  },
+  {
+   "id": "xbk.depth",
+   "field": "pattern",
+   "statement": "Depth: the hold day's low trades into the zone between the 9-day EMA and about 1% under the 20-day EMA, and the close is at or above the 20-day EMA.",
+   "measure": {
+    "what": "(the hold day's low - the 20 EMA) / the 20 EMA",
+    "op": ">=",
+    "value": -1,
+    "unit": "%",
+    "and": "the low at or under the 9 EMA; the close >= the 20 EMA",
+    "timeframe": "daily"
+   },
+   "glossary": "touch",
+   "basis": "originator",
+   "sources": [
+    "S2",
+    "S11",
+    "S25"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Depth",
+   "evidence": "Kell: dip back into the 10 or 20-day EMA (S2); his TSLA undercut into the Daily 20EMA and found support (S11). The 1% is the dossier's proposal; Chart IQ allows a low up to 2% above the 20 EMA and only counts the 20 (S25). The scan: a hold-day low under the 20 EMA by up to 1% did not hurt (30.1% / 18.0% against 28.6% / 17.5%). The glossary's touch (0.25 ATR above to 1 ATR below) is the pullback cards' band; this card keeps Kell's two-line zone."
+  },
+  {
+   "id": "xbk.volume",
+   "field": "pattern",
+   "statement": "No hard volume rule. A quiet drift (pullback volume under the 50-day average) is a grading cue only; a heavy-volume close under the 20-day EMA still invalidates.",
+   "measure": {
+    "what": "average volume of the pullback sessions / 50-day average volume",
+    "op": "<",
+    "value": 1,
+    "unit": "x",
+    "timeframe": "daily"
+   },
+   "glossary": "dry_up",
+   "basis": "my proposal",
+   "sources": [
+    "S19",
+    "S11",
+    "S10"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "no volume rule, a cue only: the dossier's recommendation; D-006's default"
+    },
+    {
+     "value": "b",
+     "basis": "keep a quiet pullback as a rule: Shannon's volume contracting during pullbacks (S19); dossiers 11 and 12"
+    },
+    {
+     "value": "c",
+     "basis": "his own reading"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-006",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Volume; 10 question 15",
+   "evidence": "Kell describes one light-volume crossback day (MELI, S11) but states no volume rule; TraderLion staff want volume increasing on up days (S10). The lab test on 30 names: quiet pullbacks did worse (4.4 item 5); the full scan: under 0.8x the 50-day 29.4% / 18.9% against 28.7% / 17.2%, a small edge the other way. LW 2018-10-15 ran its pullback on 2.1x volume and still paid 9.3R."
+  },
+  {
+   "id": "xbk.hold_day",
+   "field": "trigger",
+   "statement": "The hold day: the first session of the pullback whose low reaches the 9/20 zone and which closes at or above the 20-day EMA in the upper half of its range.",
+   "measure": {
+    "what": "close position of the hold day, (close - low) / (high - low)",
+    "op": ">=",
+    "value": 0.5,
+    "and": "close >= the 20 EMA; the low in the 9/20 zone",
+    "timeframe": "daily"
+   },
+   "glossary": "close_position",
+   "basis": "UCT",
+   "sources": [
+    "S25",
+    "S2"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.2 The hold day",
+   "evidence": "Chart IQ's crossback rule (a bar closing at or above the 20 EMA in the upper half of its range, S25); Kell: wait for confirmation that buyers are stepping in (S2). The ten examples closed 0.58 to 0.88 of their range."
+  },
+  {
+   "id": "xbk.trigger",
+   "field": "trigger",
+   "statement": "The trigger: buy at market when price trades a few cents above the hold day's high, on any of the next 3 sessions. If it has not triggered by then, the setup is stale.",
+   "measure": {
+    "what": "intraday high on one of the next 3 sessions against the hold day's high",
+    "op": ">",
+    "value": "hold day's high + a few cents",
+    "timeframe": "daily"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S11",
+    "S23"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "over the hold day's high: the owner's 2026-11-02 ruling (The entry is supposed to trigger OVER previous day high not at mkt close!); Bracco's one candle to hold then break its high; Kell's TSLA Follow through on Friday's high (S11); D-003's default"
+    },
+    {
+     "value": "b",
+     "basis": "an intraday 30 or 65-minute trigger on the hold day: Kell's The best case scenario for me is buying support on the daily chart via a breakout on the 65 Min chart (S12)"
+    },
+    {
+     "value": "c",
+     "basis": "both, (a) as standard and (b) as advanced: the dossier's recommendation"
+    }
+   ],
+   "recommended": "c",
+   "status": "pending-owner",
+   "owner_question": "D-003",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 The trigger; 10 question 4",
+   "evidence": "The 3-session window is the dossier's proposal. The scan bought 2 cents over the hold-day high within the next 3 sessions (a gap open above it filled at the open): 21,461 trades, 28.9% to 3R. The lab test: 73.8% of events triggered."
+  },
+  {
+   "id": "xbk.intraday_option",
+   "field": "trigger",
+   "statement": "The advanced version: an intraday trigger on the hold day itself (a 30 or 65-minute breakout, or red to green over the prior close), with the same stop, the day's low.",
+   "measure": {
+    "what": "the intraday trigger on the hold day",
+    "op": "in",
+    "value": [
+     "30-minute breakout",
+     "65-minute breakout",
+     "red to green"
+    ],
+    "timeframe": "intraday"
+   },
+   "glossary": "red_to_green",
+   "basis": "originator",
+   "sources": [
+    "S12"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.2 Option for the owner",
+   "evidence": "Kell: buying support on the daily chart via a breakout on the 65 Min chart (S12). D-012's default sends hourly versions to the Go Signal and 30-Minute Pivot lessons as entry timing. Not scanned."
+  },
+  {
+   "id": "xbk.market_order",
+   "field": "trigger",
+   "statement": "A market order the moment the trigger trades, in regular hours.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "E57",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "7 E57 row",
+   "evidence": "E58 keeps it to regular hours. The UCT Method scripts' buy-stop above the reclaim bar's high is a resting order; ours is a market order when it trades."
+  },
+  {
+   "id": "xbk.no_chase",
+   "field": "trigger",
+   "statement": "Skip if the fill is more than 4% above the trigger.",
+   "measure": {
+    "what": "fill / hold day's high - 1",
+    "op": "<=",
+    "value": 4,
+    "unit": "%"
+   },
+   "glossary": "chase_limit",
+   "basis": "house rule",
+   "sources": [
+    "S11"
+   ],
+   "house_rule": "C28",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 No chase",
+   "evidence": "Close in spirit to Kell's It may only be 3-4% above the moving averages but that was too much (S11). ASML 2020-11-27 gapped open over the trigger and filled 1.1% over the buy point, inside C28."
+  },
+  {
+   "id": "xbk.not_stretched",
+   "field": "trigger",
+   "statement": "At entry, no more than 10% above the 10-day average.",
+   "measure": {
+    "what": "entry / 10-day SMA - 1",
+    "op": "<=",
+    "value": 10,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "glossary": "stretched",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "C29",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "7 C29 row",
+   "evidence": "Rarely binds at a crossback: price is at the 9 or 20-day by definition."
+  },
+  {
+   "id": "xbk.earnings_window",
+   "field": "trigger",
+   "statement": "No new buy if a report is due within 3 sessions; hold through a report only if the trade is up 5R.",
+   "measure": {
+    "what": "sessions until the next report",
+    "op": ">",
+    "value": 3,
+    "unit": "sessions"
+   },
+   "glossary": "earnings_blackout",
+   "basis": "house rule",
+   "sources": [
+    "S11",
+    "S23"
+   ],
+   "house_rule": "B22",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 Not into earnings",
+   "evidence": "Kell and the owner both set up crossbacks into earnings (NFLX 2023, PL 2025); our rule says skip those. JAZZ 2013-11-01 (27R) and AMD 2019-10-24 (23R) were dropped from the examples for B22. Kell's reduced earnings size through a report is not taught (D-137)."
+  },
+  {
+   "id": "xbk.one_price",
+   "field": "trigger",
+   "statement": "A full new entry at one price with one stop. No pilot, no add on follow-through, no staggered stops under the 10 and 20 EMA.",
+   "measure": {
+    "what": "entries per trade",
+    "op": "==",
+    "value": 1,
+    "unit": "entry, one stop"
+   },
+   "basis": "house rule",
+   "sources": [
+    "S12",
+    "S10"
+   ],
+   "house_rule": "A5",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 Size; 10 question 13",
+   "evidence": "D-135 settles it: the crossback is a full new entry, not an add. Conflicts with Kell's method (two pieces, staggered stops, S12), TraderLion's scale in (S10) and the curriculum's add-on-only label (5.5); Kell uses it to open trades (a clear EMA Crossback provided an ideal entry, ARM)."
+  },
+  {
+   "id": "xbk.stop",
+   "field": "stop",
+   "statement": "A few cents under the hold day's low.",
+   "measure": {
+    "what": "stop",
+    "op": "==",
+    "value": "a few cents under the hold day's low"
+   },
+   "glossary": "stop_margin",
+   "basis": "house rule",
+   "sources": [
+    "S12",
+    "S2"
+   ],
+   "house_rule": "A3",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.3",
+   "evidence": "F62 gives the few cents. Kell: If buying off support, it is usually against the 10 or 20EMA and will use that low as my stop (S12); Place your stop-loss just below the pivot or price bars (S2). The scan used 3 cents under the hold-day low; the lab test's median stop was 2.01%. MU 2025-08-19: a clean-looking crossback that simply failed; the stop did its job."
+  },
+  {
+   "id": "xbk.stop_width",
+   "field": "stop",
+   "statement": "If the honest stop is more than about 3% from the entry, size down to keep the risk; more than 5%, or more than the stock's average daily range, is a skip. Never tighten the stop to fit.",
+   "measure": {
+    "what": "(entry - stop) / entry",
+    "op": "<=",
+    "value": 3,
+    "unit": "%",
+    "and": "skip past 5% or past the 20-session ADR"
+   },
+   "glossary": "stop_width",
+   "basis": "house rule",
+   "sources": [
+    "S12",
+    "S21"
+   ],
+   "house_rule": "A13",
+   "options": [
+    {
+     "value": "a",
+     "basis": "size down and take it above 3%"
+    },
+    {
+     "value": "b",
+     "basis": "skip above 3%"
+    },
+    {
+     "value": "c",
+     "basis": "size down to 5% or the stock's ADR, skip past that: the dossier's recommendation (the 5% is its proposal; Kullamagi's ATR or ADR cap, S21, is for his breakouts); D-005's default is one ADR, graded one notch lower"
+    }
+   ],
+   "recommended": "c",
+   "status": "pending-owner",
+   "owner_question": "D-005",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.3; 10 question 6",
+   "evidence": "Kell's own stop is 1-2% on his support buys (S12). The scan: stop 2% or less 31.1% / 20.2%; 2% to 3% 28.3% / 17.0%; 3% to 5% 26.5% / 14.7%, so a tight stop pays. CROX (4.2%), NET (3.2%), CLS (3.4%) and HOOD (3.6%) are the size-down examples; VRT 2025-09-18 (10R) was left out for a 4.6% stop. A wide stop means the pullback was violent, a warning in itself."
+  },
+  {
+   "id": "xbk.stop_broker",
+   "field": "stop",
+   "statement": "A real stop order with the broker. It only moves up.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "D41",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.3",
+   "evidence": "A4: the stop only moves up. The UCT Method's TSLA 2020 worked example carries a stop of about 9%, three times the house norm (5.5)."
+  },
+  {
+   "id": "xbk.stop_gap",
+   "field": "stop",
+   "statement": "A gap through the stop: the first 30-minute low becomes the stop; out if the loss passes 2R.",
+   "measure": {
+    "what": "loss at the first 30-minute low of the gap-down day",
+    "op": "<=",
+    "value": 2,
+    "unit": "R",
+    "timeframe": "30-minute"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B20",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.3"
+  },
+  {
+   "id": "xbk.breakeven",
+   "field": "management",
+   "statement": "Breakeven once the trade reaches 2R; the rule allows 2R to 5R, at the first trim by default.",
+   "measure": {
+    "what": "R at which the stop moves to the entry",
+    "op": "in",
+    "value": [
+     2,
+     5
+    ],
+    "unit": "R"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B19",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4",
+   "evidence": "The lab test found the house management (breakeven at 2R, the 10-session time stop, trims at 3R and 5R) earned 0.17R to 0.32R less per trade than holding to a close under the 21-day EMA, for crossbacks and random days alike (question 16). D-019's default sends that finding to one replay across all setups before any course teaches a change."
+  },
+  {
+   "id": "xbk.trim_1",
+   "field": "management",
+   "statement": "Sell a third at 3R.",
+   "measure": {
+    "what": "fraction sold at 3R",
+    "op": "==",
+    "value": 0.333,
+    "unit": "of the position"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B19",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4",
+   "evidence": "The ten examples reached 3R in 1 to 11 sessions. Three winners in ten among the machine-found candidates is close to the lab test's 29% win rate: the setup pays through a few large winners, not a high hit rate."
+  },
+  {
+   "id": "xbk.trim_2",
+   "field": "management",
+   "statement": "Sell a third at 5R.",
+   "measure": {
+    "what": "fraction sold at 5R",
+    "op": "==",
+    "value": 0.333,
+    "unit": "of the position"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "E51",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4"
+  },
+  {
+   "id": "xbk.trim_gap_open",
+   "field": "management",
+   "statement": "Take a trim at the open if it gaps past the level.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "F63",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4"
+  },
+  {
+   "id": "xbk.trail",
+   "field": "management",
+   "statement": "The last third: out on the first close under the 10-day EMA for a fast mover, the 21-day for a steadier one.",
+   "measure": {
+    "what": "close against the 10-day (fast) or 21-day (steadier) average",
+    "op": "<",
+    "value": "the average",
+    "timeframe": "daily"
+   },
+   "glossary": "trail",
+   "basis": "house rule",
+   "sources": [
+    "S12"
+   ],
+   "house_rule": "E52",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4",
+   "evidence": "Fits Kell: I use the 10/20EMA as a trailing stop (S12). Kell sells into extensions instead of at fixed R; C34 covers a climax."
+  },
+  {
+   "id": "xbk.time_stop",
+   "field": "management",
+   "statement": "Under 1R after 10 sessions: sell.",
+   "measure": {
+    "what": "open R after 10 trading days",
+    "op": "<",
+    "value": 1,
+    "unit": "R"
+   },
+   "glossary": "time_stop",
+   "basis": "house rule",
+   "sources": [
+    "S2"
+   ],
+   "house_rule": "C33",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4",
+   "evidence": "Fits the setup: a crossback is meant to work early. Kell's If the price fails at the pivot and reverses lower, then the timing isn't right yet (S2) is about a failed pivot, not about time (12 removed in checking). The exits question is D-019."
+  },
+  {
+   "id": "xbk.climax",
+   "field": "management",
+   "statement": "A climax run (Bracco's parabolic burst) or an Exhaustion Extension far above the 10-day EMA: sell a big part into it.",
+   "measure": {
+    "what": "close against the 10-day EMA on a climax run",
+    "op": ">>",
+    "value": "10-day EMA"
+   },
+   "basis": "house rule",
+   "sources": [
+    "S12",
+    "S8"
+   ],
+   "house_rule": "C34",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4",
+   "evidence": "Kell sells into extensions from the Daily 10EMA (S12); the Exhaustion Extension is his sell-into-strength stage (S8)."
+  },
+  {
+   "id": "xbk.tries",
+   "field": "management",
+   "statement": "At most 3 tries a week and 6 a month on one stock; a new try only on a new trigger.",
+   "measure": {
+    "what": "tries on one stock",
+    "op": "<=",
+    "value": 3,
+    "unit": "a week",
+    "and": "6 a month"
+   },
+   "basis": "house rule",
+   "sources": [
+    "S12"
+   ],
+   "house_rule": "E56",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "7 E56 row; 8.8 mistake 6",
+   "evidence": "Matches Kell's warning against being stopped out 2-3x in a stock that is only consolidating (S12). B21: buy again only if the setup triggers again."
+  },
+  {
+   "id": "xbk.inv_low_break",
+   "field": "invalidation",
+   "statement": "Before the trigger: the hold day's low breaks. The setup is off until a new hold day forms.",
+   "measure": {
+    "what": "intraday low against the hold day's low, before the trigger",
+    "op": "<",
+    "value": "hold day's low",
+    "timeframe": "daily"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S2"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5",
+   "evidence": "Kell: If the price fails at the pivot and reverses lower, then the timing isn't right yet (S2). The scan skipped a trade if the hold-day low broke first."
+  },
+  {
+   "id": "xbk.inv_stale",
+   "field": "invalidation",
+   "statement": "Before the trigger: no trigger within 3 sessions of the hold day. The setup is stale.",
+   "measure": {
+    "what": "sessions since the hold day without a trade over its high",
+    "op": ">",
+    "value": 3,
+    "unit": "sessions",
+    "timeframe": "daily"
+   },
+   "basis": "my proposal",
+   "sources": [],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5; 8.2 The trigger",
+   "evidence": "The dossier's proposal; the scan applied it."
+  },
+  {
+   "id": "xbk.inv_heavy_close_under",
+   "field": "invalidation",
+   "statement": "Before the trigger: a close under the 20-day EMA on above-average volume.",
+   "measure": {
+    "what": "close against the 20 EMA, with volume / 50-day average volume",
+    "op": "<",
+    "value": "20 EMA",
+    "and": "volume > 1.0x the 50-day average",
+    "timeframe": "daily"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S11"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5",
+   "evidence": "Kell's stop-out: it broke the 20EMA (S11). The scan allowed no close more than 1% under the 20 EMA before the hold day."
+  },
+  {
+   "id": "xbk.inv_cross",
+   "field": "invalidation",
+   "statement": "The 9-day EMA crosses under the 20-day EMA. Kell: there is no reason to be long the stock.",
+   "measure": {
+    "what": "9 EMA - 20 EMA",
+    "op": "<",
+    "value": 0,
+    "unit": "$",
+    "timeframe": "daily"
+   },
+   "basis": "originator",
+   "sources": [
+    "S3"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5; 8.8 mistake 3",
+   "evidence": "Kell (S3). The screener's EMA_CROSSBACK structure tests the opposite event, an upward 9-over-20 cross in the last 30 sessions, which means the 9 had been under the 20 (5.2)."
+  },
+  {
+   "id": "xbk.inv_late_cycle",
+   "field": "invalidation",
+   "statement": "It is not the first test (a Base n' Break, graded lower), or it comes after an Exhaustion Extension (then the next stage in Kell's cycle is a Wedge Drop, not a crossback).",
+   "measure": {
+    "what": "the last named stage before this pullback",
+    "op": "in",
+    "value": [
+     "Wedge Pop",
+     "breakout"
+    ]
+   },
+   "basis": "originator",
+   "sources": [
+    "S3",
+    "S8"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.5; 8.8 mistake 2",
+   "evidence": "Kell's cycle order (S3): Reversal Extension, Wedge Pop, EMA Crossback, Base n' Break, Exhaustion Extension, Wedge Drop. Chart IQ names a later test after a Base n' break or Exhaustion extension EMA crossback again (5.1); our house text makes the same mistake (5.4). LLY 2024-09-03, already up 15% over the prior quarter, waited 16 sessions after its pop and was stopped at 0R."
+  },
+  {
+   "id": "xbk.inv_failed_history",
+   "field": "invalidation",
+   "statement": "The stock's own history: repeated failed crossbacks on its chart, or many crossbacks triggering and failing on low volume across the market (weak risk appetite).",
+   "basis": "UCT",
+   "sources": [
+    "S23"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.5; 8.7",
+   "evidence": "Bracco, notes 12152 and 12121 (6.4). NFLX 2023-04-11 could not hold its pullback low into the print."
+  },
+  {
+   "id": "xbk.market_reading",
+   "field": "context",
+   "statement": "Green market: full risk. Yellow: smaller and fewer. Orange: A+ only. Red: mostly cash and shorts.",
+   "glossary": "market_reading",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "F65",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Market",
+   "evidence": "The dossier proposes cutting Orange for this setup; F65 itself still allows A+ setups in Orange, so the card keeps F65 and leaves the cut as a note."
+  },
+  {
+   "id": "xbk.index_20ema",
+   "field": "context",
+   "statement": "A cue, not a gate: the Nasdaq is not below its 20-day EMA, or a market Wedge Pop has just happened.",
+   "measure": {
+    "what": "Nasdaq close against its 20-day EMA",
+    "op": ">=",
+    "value": "index 20-day EMA",
+    "timeframe": "daily"
+   },
+   "basis": "originator",
+   "sources": [
+    "S12",
+    "S23"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Market; 8.7",
+   "evidence": "Kell trades less during index corrections (below 20EMA) (S12); the unsigned UCT intro: You will always wish you traded less when the indexes are below the 20EMA (S23). In the lab test the QQQ filter made little difference on its own (+0.005R above its 20 EMA, -0.025R below, ranges overlapping). D-023's default: no setup adds its own index filter. AAPL 2022-02-09 was bought with the QQQ just back over its 20-day EMA inside the January 2022 correction and stopped at 0R."
+  },
+  {
+   "id": "xbk.weekly",
+   "field": "context",
+   "statement": "Weekly and monthly crossbacks (the owner's and Bracco's CHYM, CRCL, CRWV) are a grade cue and a context lesson, not a second definition.",
+   "measure": {
+    "what": "the chart the setup is defined on",
+    "op": "==",
+    "value": "daily"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S23",
+    "S10"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "daily only: D-012's default"
+    },
+    {
+     "value": "b",
+     "basis": "daily and weekly: the owner and Bracco use weekly crossbacks"
+    },
+    {
+     "value": "c",
+     "basis": "all time frames as Kell does"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-012",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "10 question 8; 9 A+ cues",
+   "evidence": "The staff: Always zoom out to the weekly timeframe (S10); Kell via Moglen: extended from its 10 emas on both a daily and weekly timeframe (S14). The weekly chart in an uptrend and not stretched far above its 10-week line is an A+ cue."
+  }
+ ],
+ "grading": {
+  "a_plus": [
+   "xbk.wedge_pop_first: the first crossback after a powerful Wedge Pop, a gap, heavy volume, a close at the top of the range (Most Wedge Pops that lead to new, powerful trends start with gaps)",
+   "xbk.drift: a sideways drift that lets the averages rise to price, with tight bars (light volume is the sources' cue too; the lab test did not support it)",
+   "xbk.ma200_rising: a fresh turn, the stock corrected over the prior quarter, held above a rising 200-day, and is just starting a new up-cycle",
+   "xbk.hold_day: the hold day closes strong at or above the 20 EMA; the stop is 2% or less (xbk.stop_width)",
+   "xbk.leadership: a true leader, it turned before the market, RS near the top, strong earnings and sales growth (xbk.fundamentals)",
+   "xbk.index_20ema: the market is itself starting a new up-cycle (an index Wedge Pop or follow-through)",
+   "xbk.weekly: the weekly chart in an uptrend and not stretched far above its 10-week line"
+  ],
+  "b_minus": [
+   "xbk.first_test: a second or later test (a Base n' Break), or late in a long advance",
+   "xbk.stop_width: a deep or violent pullback, heavy-volume down days, a close under the 20 EMA, a stop over 3%",
+   "xbk.averages: the 9 EMA flattening toward the 20; the 50-day flat",
+   "xbk.index_20ema: the market under its 20-day EMA, or crossbacks failing all around",
+   "xbk.inv_failed_history: a stock whose past crossbacks failed; earnings near (xbk.earnings_window)"
+  ],
+  "no_trade": [
+   "xbk.above_200: under the 200-day (B26, no exception)",
+   "xbk.inv_cross: the 9 EMA under the 20 EMA",
+   "xbk.inv_late_cycle: after an Exhaustion Extension (a Wedge Drop is next, not a crossback)",
+   "xbk.inv_low_break: the hold day's low broke before the trigger",
+   "xbk.inv_stale: no trigger within 3 sessions",
+   "xbk.inv_heavy_close_under: a close under the 20 EMA on above-average volume",
+   "xbk.earnings_window: a report within 3 sessions",
+   "xbk.leadership: RS under 80",
+   "xbk.liquidity: under $10 or under $20 million a day",
+   "xbk.stop_width: a stop past 5% or past the stock's average daily range",
+   "xbk.market_reading: Red"
+  ]
+ },
+ "lookalikes": [
+  {
+   "setup": "11-ema20-pullback",
+   "tell": "Count the sessions since the stock closed back above both the 9 and 20 EMA out of a decline, and count the tests since. The first test of the averages 3 to 20 sessions after that Wedge Pop is the Crossback; a tap of a 20 EMA that has been rising for weeks, after a 1.5 ATR advance off the line, is the 20 EMA Pullback.",
+   "criterion": "xbk.first_test"
+  },
+  {
+   "setup": "15-wedge-pop",
+   "tell": "Ask whether the averages were just reclaimed or just held. A Wedge Pop is the day that closes back above both EMAs out of a tight range after at least 8 of 15 closes under the 20 EMA; the Crossback is the pullback after it that holds the averages with the 9 still above the 20. One close back over the 20 EMA is a pop setting up, not a crossback.",
+   "criterion": "xbk.wedge_pop_first"
+  },
+  {
+   "setup": "18-qullamaggie-kell",
+   "tell": "Count the rests since the pop and look at where the buy is. Kell's Base n' Break is the second or later rest, a 5 to 15 session base near the highs bought through its pivot into new highs; the Crossback is the first rest, bought a few cents over the hold day's high at the averages.",
+   "criterion": "xbk.first_test"
+  },
+  {
+   "setup": "13-ma-reclaim",
+   "tell": "Ask which line and whether it was lost. A Crossback holds the rising 9 and 20 EMA with no run of closes under them; a Remount is a 50-day or 200-day line lost for 5 or more consecutive closes and then retaken.",
+   "criterion": "xbk.depth"
+  },
+  {
+   "setup": "02-bull-flag",
+   "tell": "Measure the pole and the place. A bull flag needs a 20% or larger gain inside 20 sessions and a 3 to 15 session tight drift that gives back at most half of it, anywhere above the 20 EMA; the Crossback's drift must reach the 9/20 zone, needs no pole, and follows a Wedge Pop or breakout 3 to 20 sessions earlier.",
+   "criterion": "xbk.depth"
+  }
+ ],
+ "invalidations": [
+  "Before the trigger: the hold day's low breaks (xbk.inv_low_break).",
+  "Before the trigger: no trigger within 3 sessions (xbk.inv_stale).",
+  "Before the trigger: a close under the 20-day EMA on above-average volume (xbk.inv_heavy_close_under).",
+  "The 9-day EMA crosses under the 20-day EMA (xbk.inv_cross).",
+  "Not the first test, or after an Exhaustion Extension (xbk.inv_late_cycle).",
+  "The stock's own history of failed crossbacks, or crossbacks failing all around on low volume (xbk.inv_failed_history).",
+  "Earnings within 3 sessions; price under the 200-day; RS under 80 (xbk.earnings_window, xbk.above_200, xbk.leadership).",
+  "After entry: the stop; under 1R after 10 sessions, out (xbk.stop, xbk.time_stop)."
+ ],
+ "mistakes": [
+  "Buying the touch before buyers show (no hold day, no trigger).",
+  "Calling a late-trend pullback, or a pullback after an Exhaustion Extension, a crossback (our own house text makes this mistake).",
+  "Buying while the 9 is under the 20.",
+  "Mixing it up with the Wedge Pop: one close back over the 20 EMA is a pop setting up, not a crossback (Bracco; Kell: Many traders mistakenly believe the Wedge Pop is simply about crossing the moving averages).",
+  "Buying 3-4% above the averages (Kell).",
+  "Re-buying the same consolidating stock again and again (Kell's 2-3x lesson; E56).",
+  "Adding or scaling in (A5).",
+  "Buying under the 200-day or into earnings (B26, B22)."
+ ],
+ "short_mirror": {
+  "exists": true,
+  "setup": "14-ema-crossback",
+  "note": "The Downside EMA Crossback, which Kell defines exactly (S4) and D47 mirrors (dossier 8.6): a close below the 200-day SMA (B26), preferably a falling one; RS 20 or less, weakest groups (C31 mirror); borrow available and cheap (D48); a Red market (D46, F65); a Wedge Drop 3 to 20 sessions earlier (a close back under both EMAs after a run above them); the 9-day EMA under the 20-day, both falling; the first rally into the 9/20 zone stalls with a close at or under the 20-day EMA in the lower half of its range; short with a market order a few cents under that rejection day's low; stop a few cents over its high. Kell: Enter the short position when weakness drags the price through the pivot; only In more severe market conditions, and Stay in cash is his default. The dossier recommends teaching it as a Red-market short only (question 9); D-001's shared default is recognition only until he shows examples. Not scanned. The Model Book card's short side (one of the four climax-day entries for the Parabolic Short) is not Kell's downside crossback, which follows a Wedge Drop, not a climax (5.4)."
+ },
+ "best_conditions": "The start of a new market up-cycle: the index has just made its own Wedge Pop or follow-through, and leaders are crossing back while the index is still pulling back (UCT 2026-04-12: Now looking for continuation and crossback). Not late in the market's advance, nor late in the stock's own (Kell: just like buying late in an uptrend); the lab test's best case was a fresh turn (+0.107R) and its worst a stock already up 20% to 50% over the quarter (-0.062R). Not when many crossbacks are triggering and failing on low volume (Bracco).",
+ "management": {
+  "trim_1": "a third at 3R (B19)",
+  "trim_2": "a third at 5R (E51)",
+  "trail": "the first close under the 10-day EMA for a fast mover, the 21-day for a steadier one (E52); fits Kell's 10/20 EMA trail",
+  "breakeven": "once the trade reaches 2R, the rule allows 2R to 5R, at the first trim by default (B19)",
+  "time_stop": "under 1R after 10 sessions, sell (C33)",
+  "gap_open": "a trim level the day opens past is taken at the open (F63)",
+  "gap_against": "the first 30-minute low is the new stop; out if past 2R (B20)",
+  "climax": "a climax run or an Exhaustion Extension far above the 10-day EMA: sell a big part into it (C34)",
+  "overrides": "none. The dossier (8.4) says this setup needs nothing special. Not ours: Kell's two pieces with staggered stops under the 10 and 20 EMA, his selling into extensions instead of at fixed R, TraderLion's scale in, and the curriculum's add-on-only label. The lab test's finding that holding to a close under the 21-day EMA beat the house management by 0.17R to 0.32R per trade goes to one replay across all setups (D-019). TRADE_PLANS.md has no row for this setup."
+ },
+ "examples": {
+  "winners": 10,
+  "sheet_dir": "_study-resume/scratchpad/setups/14-ema-crossback/final",
+  "base_rate": {
+   "hits": 21461,
+   "r3_pct": 28.9,
+   "r5_pct": 17.6,
+   "stopped_pct": 82.6,
+   "median_best_r": 1.2,
+   "window": "60 sessions forward, fixed stop, no trims, no breakeven, no trail; 2000-01-01 to 2026-11-06; 2,630 names that ever met the liquidity rule; a Wedge Pop (8.1a) or breakout (8.1b) day above the 200-day, the hold day 3 to 20 sessions later, the buy 2 cents over the hold-day high within 3 sessions, stop 3 cents under the hold-day low, skipped past 5%; no RS or market filter; steady across decades (2000-09 29.0%, 2010-19 29.3%, 2020-26 28.3% to 3R)"
+  },
+  "cuts": {
+   "wedge_pop_first": {
+    "hits": 5171,
+    "r3_pct": 30.6,
+    "r5_pct": 18.9
+   },
+   "breakout_first": {
+    "hits": 16290,
+    "r3_pct": 28.3,
+    "r5_pct": 17.2
+   },
+   "stop_2_pct_or_less": {
+    "hits": 8473,
+    "r3_pct": 31.1,
+    "r5_pct": 20.2
+   },
+   "stop_2_to_3_pct": {
+    "hits": 7149,
+    "r3_pct": 28.3,
+    "r5_pct": 17.0
+   },
+   "stop_3_to_5_pct": {
+    "hits": 5839,
+    "r3_pct": 26.5,
+    "r5_pct": 14.7
+   },
+   "pop_to_hold_3_to_10_sessions": {
+    "hits": 16466,
+    "r3_pct": 28.5,
+    "r5_pct": 17.4
+   },
+   "pop_to_hold_11_to_20_sessions": {
+    "hits": 4995,
+    "r3_pct": 30.0,
+    "r5_pct": 18.5
+   },
+   "pullback_volume_under_0_8x": {
+    "hits": 5707,
+    "r3_pct": 29.4,
+    "r5_pct": 18.9
+   },
+   "pullback_volume_0_8x_or_more": {
+    "hits": 15754,
+    "r3_pct": 28.7,
+    "r5_pct": 17.2
+   },
+   "hold_low_under_20_ema_by_up_to_1_pct": {
+    "hits": 4248,
+    "r3_pct": 30.1,
+    "r5_pct": 18.0
+   },
+   "hold_low_at_or_above_20_ema": {
+    "hits": 17213,
+    "r3_pct": 28.6,
+    "r5_pct": 17.5
+   }
+  },
+  "winners_list": [
+   "CROX 2007-04-23",
+   "NOC 2014-11-11",
+   "UAA 2015-06-16",
+   "ALGN 2017-02-10",
+   "LW 2018-10-15",
+   "ASML 2020-11-27",
+   "SNPS 2021-06-04",
+   "NET 2023-11-13",
+   "CLS 2024-10-03",
+   "HOOD 2025-09-16"
+  ],
+  "failures": [
+   {
+    "ticker": "MU",
+    "date": "2025-08-19",
+    "criterion": "xbk.stop",
+    "why": "pop 08-08 on 1.3x volume, a 3-day drift, hold day 08-18, entry 123.70 with a 2.5% stop; stopped the next session (08-20) with a best excursion of 0R. A clean-looking crossback that simply failed: the stop did its job."
+   },
+   {
+    "ticker": "LLY",
+    "date": "2024-09-03",
+    "criterion": "xbk.wedge_pop_first",
+    "why": "pop 08-08 (2.9x, the earnings gap), 16 sessions to the hold day, a 6-day drift, entry 961.02, 2.1% stop; stopped on 09-04, best 0R. The long wait after the pop and a stock already up 15% over the prior quarter match 8.7's warning about buying late in the stock's own advance (xbk.inv_late_cycle)."
+   },
+   {
+    "ticker": "NFLX",
+    "date": "2023-04-11",
+    "criterion": "xbk.earnings_window",
+    "why": "pop 03-23, a 2-day drift, entry 34.34 (split-adjusted), 3.2% stop; stopped 04-12, best 0R, with the report's reaction day on 04-19. The entry was 5 sessions before earnings, outside B22's 3-session window, but the stock could not hold its pullback low into the print."
+   },
+   {
+    "ticker": "AAPL",
+    "date": "2022-02-09",
+    "criterion": "xbk.index_20ema",
+    "why": "pop 01-28 off the January low, hold 02-08, 2.6% stop; stopped 02-11 with 0R. The Nasdaq 100 had closed under its own 20-day EMA the day before the entry and regained it only that day, inside the January 2022 correction: the market condition Kell and UCT's intro both warn about."
+   }
+  ],
+  "limits": "Daily bars only (the 65-minute trigger was not tested); no RS or market data in the scan; the short mirror was not scanned; the base rate is the raw pattern with a fixed stop; a scan cannot see the clean and obvious quality the owner grades by eye, which is why the ten were chosen by looking at every chart, not by best R. The ten machine-found candidates in 8.10 (three winners in ten) are leads for him to chart and grade.",
+  "near_misses": [
+   {
+    "ticker": "NOW",
+    "date": "2023-12-06",
+    "criterion": "xbk.wedge_pop_first",
+    "why": "26 sessions from the pop (10-27) to the hold day (12-05), over the 3 to 20 rule; first touch or later: a tap of a 20 EMA risen for five weeks, the 20 EMA Pullback card. Stopped, best 2.38R."
+   },
+   {
+    "ticker": "AMZN",
+    "date": "2023-11-22",
+    "criterion": "xbk.first_test",
+    "why": "the second pullback into the 9/20 zone since the pop of 10-30 (hold 11-21); the second rest is a Base n' Break or a pullback, graded lower. It worked (9.94R) but is not this card's entry."
+   },
+   {
+    "ticker": "AMAT",
+    "date": "2023-08-28",
+    "criterion": "xbk.depth",
+    "why": "the hold day's low 2.1% under the 20 EMA, over the 1% rule (hold 08-25); a deeper undercut, the MAU&R shape if anything. Stopped, best 2.27R."
+   },
+   {
+    "ticker": "GE",
+    "date": "2026-01-02",
+    "criterion": "xbk.hold_day",
+    "why": "the hold day (12-31) closed in the lower 3% of its range, not the upper half; a weak hold. It still reached 3R (best 3.5R) before the stop, which is luck, not the setup."
+   }
+  ],
+  "sheets": {
+   "failures": "final/fail_1-4.png",
+   "near_misses": "final/near_1-4.png",
+   "pair": "final/pair_11-ema20-pullback.png"
+  }
+ },
+ "question_seeds": [
+  {
+   "kind": "recall",
+   "criterion": "xbk.definition",
+   "seed": "In Kell's cycle, which stage comes right before the EMA Crossback, and which comes after it?"
+  },
+  {
+   "kind": "recall",
+   "criterion": "xbk.trigger",
+   "seed": "What is the buy on a crossback, how many sessions does it have to trigger, and where is the stop?"
+  },
+  {
+   "kind": "recall",
+   "criterion": "xbk.averages",
+   "seed": "Which two averages define the crossback zone for us, and which pair does Kell use?"
+  },
+  {
+   "kind": "spot",
+   "criterion": "xbk.wedge_pop_first",
+   "seed": "Hidden ticker: tap the Wedge Pop, the day that closed back above both the 9 and 20 EMA out of the tight range."
+  },
+  {
+   "kind": "spot",
+   "criterion": "xbk.hold_day",
+   "seed": "Hidden ticker: tap the hold day, the first session of the drift whose low reached the 9/20 zone and closed in the upper half above the 20 EMA."
+  },
+  {
+   "kind": "spot",
+   "criterion": "xbk.inv_cross",
+   "seed": "Hidden ticker: is the 9 EMA still above the 20 EMA on this pullback? Take the crossback or pass."
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "xbk.first_test",
+   "seed": "Crossback or 20 EMA Pullback: the stock closed back over the 9 and 20 EMA eight sessions ago after a three-month correction and is testing them for the first time. Which is it?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "xbk.wedge_pop_first",
+   "seed": "Crossback or Wedge Pop: after 10 of 15 closes under the 20 EMA, today closed above both averages out of a tight range on 1.6x volume. Which is it, and what would make the other one?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "xbk.inv_late_cycle",
+   "seed": "Crossback or Base n' Break: the stock has already pulled into the averages twice since its pop and made new highs after each; this is the third rest. Which is it?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "xbk.depth",
+   "seed": "Crossback or Remount: the stock closed under its 50-day for nine sessions and today closed back above it with the 9 EMA still under the 20. Which is it?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "xbk.inv_stale",
+   "seed": "The hold day printed Monday; by Thursday's close price has not traded over its high. Keep the alert, or drop it?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "xbk.above_200",
+   "seed": "A textbook first crossback after a gap-up Wedge Pop, but the stock is still 6% under its 200-day. Buy?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "xbk.one_price",
+   "seed": "You bought the crossback over the hold day's high at 50.64. Two days later it clears the pop high. Kell would add; what does the card say?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "xbk.earnings_window",
+   "seed": "The hold day closed today; the company reports in 3 sessions. Buy tomorrow's break of the high?"
+  },
+  {
+   "kind": "grade",
+   "criterion": "xbk.wedge_pop_first",
+   "seed": "Two crossbacks: one 5 sessions after a gap-up pop on 3.6x volume, one 18 sessions after a 1.0x pop with the stock already up 15% on the quarter. Grade each."
+  },
+  {
+   "kind": "grade",
+   "criterion": "xbk.stop_width",
+   "seed": "Same drift, two hold days: one with the low 1.0% under the entry, one with the low 4.2% under. Grade each and say what happens to size."
+  },
+  {
+   "kind": "grade",
+   "criterion": "xbk.index_20ema",
+   "seed": "A clean crossback on a leader while the QQQ is three days under its 20-day EMA. What grade, and what does F65 add?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "xbk.depth",
+   "seed": "The 20 EMA is 100.00 and the hold day's low was 99.20 with a close of 100.60. Is the low inside the zone by the rule?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "xbk.wedge_pop_first",
+   "seed": "The pop closed above both EMAs on 2026-01-05; the hold day is 2026-02-09. How many sessions apart, and is that inside the window?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "xbk.trim_1",
+   "seed": "Bought 2 cents over the hold-day high at 116.55 with the stop at 112.39. Where are 3R and 5R?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "xbk.hold_day",
+   "seed": "The hold day's high was 64.00, low 61.00 and close 63.40. What is its close position, and does it pass?"
+  }
+ ],
+ "owner_decisions": [
+  "D-001",
+  "D-002",
+  "D-003",
+  "D-005",
+  "D-006",
+  "D-009",
+  "D-010",
+  "D-012",
+  "D-014",
+  "D-015",
+  "D-019",
+  "D-021",
+  "D-026",
+  "D-076",
+  "D-135"
+ ],
+ "conflicts": [
+  "Source ids on this card: the dossier's section 11 numbers nothing, so S<n> is the n-th row in reading order as the validator counts them (S1 Kell's own site, S2 the EMA Crossback article, S3 the Cycle of Price Action, S4 the downside crossback, S5 the Wedge Pop, S6 Base n' Break, S8 the Exhaustion Extension and Wedge Drop pages, S10 the TraderLion staff article, S11 Kell's Weeklies Watch, S12 the Stockbsessed interview, S13 Deepvue, S14 Moglen, S19 AlphaTrends, S21 Kullamagi, S23 UCT's Substack, S25 the repo files).",
+  "What comes before: Kell's Wedge Pop (or a breakout); the Model Book card, playbook, the UCT Method lesson and SET.15 say a re-entry after an extension with the 9 crossing the 20, which puts it in the wrong stage of his cycle; the curriculum calls it add-only. D-002's default takes Kell's definition and D-014 rewrites the house text.",
+  "The border with the 20 EMA Pullback (11): this dossier proposes first test after a new up-cycle = Crossback, later tests = Pullback (D-002); dossier 11 allows a first or second tap and dossier 12 grades the third down. The lab test: first +0.023R, third or later -0.070R.",
+  "Lines: Kell's 10/20 EMA against the house 9/20; the screener structure and Chart IQ use 9/20 and 10/20 respectively. D-021's default: 9/20 everywhere with a one-line note where an originator uses 10/20.",
+  "B26: Kell's cycle has no 200-day condition; about a quarter of liquid crossbacks in the lab test and 88 of the Study bank's 300 drafts were under the 200-day. D-009's default keeps them as reading drills marked not a buy for us; Kell's own TSLA 2023-03-21 pop would be skipped.",
+  "Which line must be touched: Chart IQ counts only the 20 EMA (a first pullback that holds the 10 and never comes within 2% of the 20 is not named); Kell says the 10 or 20-day. The card keeps Kell's two-line zone with the close over the 20 as the measurable test. The glossary's touch band (0.25 ATR above to 1 ATR below) is the pullback cards' and differs from this card's 1% under the 20 EMA.",
+  "Volume: Shannon and common teaching prefer a quiet pullback; TraderLion staff want rising volume on up days; Kell states no rule; the lab test on 30 names found quiet pullbacks did worse while the full scan found a small edge the other way. D-006's default: a cue only. Dossiers 11 and 12 write the quiet pullback as a rule.",
+  "Drift length: this dossier 2 to 10 sessions; dossier 11 2 to 15; dossier 12 2 to 8. One number for the pullback family is open.",
+  "The 20 EMA's rising test: this dossier and Chart IQ use 5 sessions (the glossary's canonical); dossiers 11 and 12 use 10.",
+  "Adds: Kell buys in two pieces with staggered stops under the 10 and 20 EMA and adds at the crossback; TraderLion says scale in; the curriculum calls the crossback add-only; A5 says one price, one stop (D-135 settled).",
+  "Earnings: Kell and the owner both set up crossbacks into reports (NFLX 2023, PL 2025); B22 says skip (D-137). Two of the scan's best winners (JAZZ 2013, AMD 2019) were dropped for it.",
+  "The exits: the lab test found the house management earned 0.17R to 0.32R less per trade than holding to a close under the 21-day EMA, for crossbacks and random days alike (question 16). D-019's default: one replay across all setups before any course teaches a change.",
+  "The index filter: Kell trades less below the index's 20 EMA and UCT's intro agrees; the lab test found the QQQ filter made little difference on its own; D-023's default is no per-setup index rule. The dossier's cut of Orange is a proposal; F65 allows A+ in Orange and the card keeps F65.",
+  "Unverified text shown to members: all 300 Study bank items quote Kell as saying If you miss the Wedge Pop, wait for the EMA Crossback; no Kell text carries it (the nearest is TraderLion staff's Wait for the EMA Crossback). definitions.json says no standard source names EMA Crossback (wrong: Kell named and defined it). kell_cycle.py credits a Victorious Stock Operator that does not exist (his ebook is Victory in Stock Trading) and labels numbers as Kell's that appear in no Kell text. D-010 covers the removals.",
+  "The screener structure EMA_CROSSBACK tests an upward 9-over-20 cross (a state Kell calls no-long territory) and its prior-advance test cannot tell up from down (a code bug, 5.2); tests/test_ema_crossback.py locks these in. D-004 covers the rebuild. No journal tag exists for the setup (D-014).",
+  "The Model Book card's short side (one of the four climax-day entries for the Parabolic Short) is not in Bracco's public post and is not Kell's downside crossback, which follows a Wedge Drop. The card's short mirror is Kell's.",
+  "The owner's forward log of crossbacks (question 14) and the three UCT videos on Kell's cycle (not watched) are the missing house evidence (D-015)."
+ ]
+}

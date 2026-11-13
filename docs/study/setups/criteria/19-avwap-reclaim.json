@@ -1,0 +1,1356 @@
+{
+ "setup": "19-avwap-reclaim",
+ "name": "AVWAP Reclaim",
+ "unit": "none",
+ "direction": "long",
+ "timeframe": "daily",
+ "dossier": "docs/study/setups/research/19-avwap-reclaim.md",
+ "as_of": "2026-11-09",
+ "card": {
+  "context": "A stock above its 200-day (better, a rising one), RS 80 or more, that fell at least 4 ATR from a major high (or from an earnings gap day or its IPO day) and spent weeks closing under the AVWAP from that event. Green or Yellow market.",
+  "pattern": "Fifteen or more closes under the AVWAP from the high, clearly under it with no pokes over, at most 2 crossings in 30 sessions, the line flattened; then one close 0.3 to 1.0 ATR back above it without a gap over.",
+  "trigger": "PREV DAY HIGH BREAK: the next session, a market order as price trades one cent above the reclaim day's high.",
+  "stop": "A few cents under the reclaim day's low, which normally sits at or under the AVWAP, so a stop-out also means the reclaim failed; usually within about 3%.",
+  "failure_mode": "The reclaim is a poke: the next session never clears the reclaim day's high, or it does and the stock slips back under the line and takes the stop. Loud volume on the reclaim day did not help in our scan; the index's own standing did."
+ },
+ "entry_trigger": "PREV DAY HIGH BREAK",
+ "criteria": [
+  {
+   "id": "av.scope",
+   "field": "context",
+   "statement": "The AVWAP reclaim is both a Foundations lesson (F2b.08, reading anchored VWAPs as levels inside HVE, Gap Support and U&R) and one setup card. There is no Model Book card or journal tag for it today.",
+   "measure": {
+    "what": "where the AVWAP reclaim is taught",
+    "op": "in",
+    "value": [
+     "its own setup only",
+     "a Foundations lesson only",
+     "both"
+    ]
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S30",
+    "S20"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "its own setup with a card and tag"
+    },
+    {
+     "value": "b",
+     "basis": "a Foundations lesson on reading AVWAPs, used inside other setups"
+    },
+    {
+     "value": "c",
+     "basis": "both: the dossier's lean and the register's default (D-002)"
+    }
+   ],
+   "recommended": "c",
+   "status": "pending-owner",
+   "owner_question": "D-002",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "10 question 1; 5.3",
+   "evidence": "UCT's posts use AVWAPs mostly as levels and confluence (55 mentions in 32 posts); the owner's one AVWAP ruling is an AVWAP from the HVC candle day as a level on HVE charts (dossier 6.5)."
+  },
+  {
+   "id": "av.anchor_high",
+   "field": "context",
+   "statement": "The core anchor, from the high: the highest high of the last 150 sessions, at least 20 sessions old. Anchor only to an event everyone can see on the chart.",
+   "measure": {
+    "what": "sessions over which the anchor high is the highest high, and its age",
+    "op": ">=",
+    "value": 150,
+    "unit": "sessions",
+    "timeframe": "daily",
+    "and": "anchor at least 20 sessions old"
+   },
+   "basis": "originator",
+   "sources": [
+    "S4",
+    "S2",
+    "S25"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "only the high: the member drawing's anchor"
+    },
+    {
+     "value": "b",
+     "basis": "the high, the earnings gap day and the IPO day as three named variants: the dossier's lean and the register's default (D-082)"
+    },
+    {
+     "value": "c",
+     "basis": "any meaningful event, lows included: Shannon's own worked reclaim is of an AVWAP from a December low"
+    }
+   ],
+   "recommended": "b",
+   "status": "pending-owner",
+   "owner_question": "D-082",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 rule 1; 10 question 2",
+   "evidence": "The numbers are the app drawing's (setup_draw_r3.py, blind-checked). Shannon: the AVWAP tells me whether the average participant from a prior high is winning or losing (dossier 3.2); his 2017 slides: once the VWAP from the prior peak was breached, buyers were in control again (3.1b). The owner's AEVA note is his clearest reclaim of an AVWAP from a high. All ten examples are this variant; AME 2009 was rejected because its anchor was a one-day spike the eye does not read as the top."
+  },
+  {
+   "id": "av.anchor_earnings",
+   "field": "context",
+   "statement": "Variant, from the earnings gap: the day of the most recent earnings gap up, a gap of at least 4% on at least twice normal volume (the Gap Support lesson's definition).",
+   "measure": {
+    "what": "open / prior close - 1 on the anchor day",
+    "op": ">=",
+    "value": 4,
+    "unit": "%",
+    "timeframe": "daily",
+    "and": "volume >= 2 x the 50-day average"
+   },
+   "glossary": "gap",
+   "basis": "my proposal",
+   "sources": [
+    "S20",
+    "S6",
+    "S31"
+   ],
+   "status": "pending-owner",
+   "owner_question": "D-082",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.1 rule 2",
+   "evidence": "The owner's most frequent anchor in his own Substack sections (DDOG, TWLO, TEAM, SNOW); Shannon's event-based anchor (dossier 3.3). Reusing the Gap Support numbers is the dossier's proposal. No example in the scan is this variant."
+  },
+  {
+   "id": "av.anchor_ipo",
+   "field": "context",
+   "statement": "Variant, from the IPO: the first trading day.",
+   "basis": "originator",
+   "sources": [
+    "S6",
+    "S2",
+    "S20"
+   ],
+   "status": "pending-owner",
+   "owner_question": "D-082",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.1 rule 3",
+   "evidence": "The owner on HNGE: Huge move after getting above the IPO AVWAP; Bracco on FLY: Clean above the IPO anchored VWAP now which is big for me to get involved (dossier 6). Shannon's slides: VWAP allows us to see control shift from Sellers to buyers in a fresh IPO (3.1b)."
+  },
+  {
+   "id": "av.not_anchors",
+   "field": "context",
+   "statement": "Not this setup: swing-low, Fed-day and year-to-date anchors. Teach them as support levels and market reads. The HVE or HVC-day anchor the owner chose for HVE charts is a level too, unless he says otherwise.",
+   "basis": "my proposal",
+   "sources": [
+    "S1",
+    "S30"
+   ],
+   "status": "pending-owner",
+   "owner_question": "D-082",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 rule 4",
+   "evidence": "A teaching choice only: Shannon reads a reclaim from a low the same way (his AVWAP page's worked example). A quick undercut of a rising AVWAP belongs with U&R and Gap Support, where the owner already has rulings (dossier 3.11 item 9)."
+  },
+  {
+   "id": "av.above_200",
+   "field": "context",
+   "statement": "The close is above the 200-day SMA on the reclaim day.",
+   "measure": {
+    "what": "reclaim-day close against the 200-day SMA",
+    "op": ">",
+    "value": "200-day SMA",
+    "timeframe": "daily"
+   },
+   "glossary": "above_200",
+   "basis": "house rule",
+   "sources": [
+    "S24"
+   ],
+   "house_rule": "B26",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 rule 5",
+   "evidence": "The biggest house conflict: a reclaim of the AVWAP from a big high can come after a deep fall, under the 200-day. Neither app rule checks it; the scanner fires below a falling 200-day (dossier 5.1). The scan required it."
+  },
+  {
+   "id": "av.ma200_rising",
+   "field": "context",
+   "statement": "Better: the 200-day is higher than it was 20 sessions ago.",
+   "measure": {
+    "what": "200-day SMA today - 200-day SMA 20 sessions ago",
+    "op": ">",
+    "value": 0,
+    "unit": "$",
+    "timeframe": "daily"
+   },
+   "glossary": "rising_average",
+   "basis": "my proposal",
+   "sources": [],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1 rule 5",
+   "evidence": "The same test as bull_gate in setup_draw_r2.py, which the pennant and Darvas box drawings use. Scan: a rising 200-day (877 hits) helped only at 5R, 15.8% against 12.0%."
+  },
+  {
+   "id": "av.leadership",
+   "field": "context",
+   "statement": "RS rating 80 or more, in one of the strongest groups.",
+   "measure": {
+    "what": "RS rating",
+    "op": ">=",
+    "value": 80,
+    "unit": "rating 1 to 99"
+   },
+   "glossary": "leader",
+   "basis": "house rule",
+   "sources": [
+    "S6"
+   ],
+   "house_rule": "C31",
+   "options": [
+    {
+     "value": "a",
+     "basis": "C31 as written, read on the entry day: the dossier's recommendation and the register's default (D-011, which lists the AVWAP reclaim as a continuation setup)"
+    },
+    {
+     "value": "b",
+     "basis": "RS read on the stock's standing before the fall (dossier 12)"
+    },
+    {
+     "value": "c",
+     "basis": "exempt, like the parabolic and mean-reversion trades C31 names"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-011",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 rule 6; 10 question 8; 12 Relative strength",
+   "evidence": "Shannon ignores RS charts; the house rule wins. But nine of the ten examples score under 80 on the 12-month proxy (33 to 76; only BX at 83): the setup requires a fall of at least 4 ATR from a high, which pulls a 12-month rating down. Applied literally, C31 removes most of these trades. The owner should see this (conflicts)."
+  },
+  {
+   "id": "av.liquidity",
+   "field": "context",
+   "statement": "Price $10 or more and $20 million or more traded a day on average.",
+   "measure": {
+    "what": "close",
+    "op": ">=",
+    "value": 10,
+    "unit": "$",
+    "and": "50-day average dollar volume >= 20,000,000"
+   },
+   "glossary": "liquidity",
+   "basis": "house rule",
+   "sources": [
+    "S16"
+   ],
+   "house_rule": "B23",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 rule 7",
+   "evidence": "Also protects the AVWAP itself: TrendSpider notes thin stocks distort it (dossier 3.8)."
+  },
+  {
+   "id": "av.position_adv",
+   "field": "management",
+   "statement": "The position is at most 1% of average daily volume.",
+   "measure": {
+    "what": "shares / average daily volume",
+    "op": "<=",
+    "value": 1,
+    "unit": "%"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "D42",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 rule 7"
+  },
+  {
+   "id": "av.market_reading",
+   "field": "context",
+   "statement": "Green market: full risk. Yellow: smaller and fewer. Orange: A+ only. Red: no new longs.",
+   "measure": {
+    "what": "the app's market reading on the trigger day",
+    "op": "in",
+    "value": [
+     "Green",
+     "Yellow",
+     "Orange (A+ only)"
+    ]
+   },
+   "glossary": "market_reading",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "F65",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.7",
+   "evidence": "TMO 2022-03-22, a +0.78 ATR close on 1.54x volume after a 9.6 ATR fall, in a year the broad market fell: stopped with 0.0R. The scan did not read the market."
+  },
+  {
+   "id": "av.index_above_avwap",
+   "field": "context",
+   "statement": "The index (QQQ or SPY) is above its AVWAP from the most recent major low or follow-through day.",
+   "basis": "my proposal",
+   "sources": [
+    "S20",
+    "S2"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.7",
+   "evidence": "Bracco's and the index sections' standing practice (the follow-through day anchored VWAP from 4/8; the April low AVWAP); Shannon reads the market by its year-to-date and event anchors. As a filter it is the dossier's proposal."
+  },
+  {
+   "id": "av.group_reclaims",
+   "field": "context",
+   "statement": "A grade marker: several stocks in the same group reclaiming together. Best after a correction ends, when leaders are first getting back above their AVWAPs from their highs.",
+   "basis": "my proposal",
+   "sources": [
+    "S20"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.7; 9 Group row",
+   "evidence": "UCT's writers watch groups move together (the owner on SNOW and its peers), but no UCT text ties that to AVWAP reclaims."
+  },
+  {
+   "id": "av.real_fall",
+   "field": "pattern",
+   "statement": "A real fall (core variant): the anchor high minus the lowest low since the anchor is at least 4 ATR.",
+   "measure": {
+    "what": "(anchor high - lowest low since the anchor) / ATR(14)",
+    "op": ">=",
+    "value": 4,
+    "unit": "ATR",
+    "timeframe": "daily"
+   },
+   "glossary": "atr",
+   "basis": "UCT",
+   "sources": [
+    "S25"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 rule 8",
+   "evidence": "The drawing's number. Scan: a deeper fall (8 ATR or more, 627 hits) reached 5R more often, 16.7% against 12.9%. The ten examples fell 4.8 to 15.8 ATR (8.5% to 19.3%)."
+  },
+  {
+   "id": "av.time_under",
+   "field": "pattern",
+   "statement": "Time under the line: the 15 closes before the reclaim day all closed under the AVWAP, on average at least 0.2 ATR under, and none of those days' highs went more than 0.25 ATR over it.",
+   "measure": {
+    "what": "closes under the AVWAP right before the reclaim day",
+    "op": ">=",
+    "value": 15,
+    "unit": "closes",
+    "timeframe": "daily",
+    "and": "average depth >= 0.2 ATR under; no high more than 0.25 ATR over"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S25",
+    "S24"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "15 closes for every anchor: the drawing, and what passed the blind check"
+    },
+    {
+     "value": "b",
+     "basis": "5 closes: the scanner"
+    },
+    {
+     "value": "c",
+     "basis": "15 for the high anchor, 5 for the earnings and IPO anchors (the younger anchors have less history): the register's default (D-083); the dossier recommends 15 for the high and leaves the others to the owner"
+    }
+   ],
+   "recommended": "c",
+   "status": "pending-owner",
+   "owner_question": "D-083",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 rule 9; 10 question 3",
+   "evidence": "Fifteen makes the trapped-holder story real. Scan: how long the stock had been under (30 sessions or fewer against more) made no difference. The ten examples spent 27 to 74 closes under."
+  },
+  {
+   "id": "av.first_reclaim",
+   "field": "pattern",
+   "statement": "First reclaim, not chop: at most 2 closes above the line since 3 sessions after the anchor, and at most 2 crossings of the line in the 30 sessions before the reclaim.",
+   "measure": {
+    "what": "crossings of the AVWAP in the 30 sessions before the reclaim",
+    "op": "<=",
+    "value": 2,
+    "unit": "crossings",
+    "timeframe": "daily",
+    "and": "at most 2 closes above the line since 3 sessions after the anchor"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S25",
+    "S1",
+    "S2"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 rule 10",
+   "evidence": "The drawing's rule. Shannon: when prices oscillate above and below the AVWAP it indicates indecision (dossier 3.1). Not touches from below: his slides read repeated tests of a line as making an eventual break more likely (3.11 item 12), so the lesson must not call a line tested many times a weaker reclaim."
+  },
+  {
+   "id": "av.line_flattened",
+   "field": "pattern",
+   "statement": "The line has flattened: the AVWAP fell less than 0.5 ATR over the 10 sessions before the reclaim.",
+   "measure": {
+    "what": "(AVWAP 10 sessions ago - AVWAP on the reclaim day) / ATR(14)",
+    "op": "<",
+    "value": 0.5,
+    "unit": "ATR",
+    "timeframe": "daily"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S1",
+    "S2"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 rule 11",
+   "evidence": "The idea is Shannon's: the buyers had regained control as the price surged above the flat AVWAP; a move above a DECLINING VWAP will often fail; the steeper the angle, the more likely a move across it fails (dossier 3.1, 3.1b). No source gives a number; the 0.5 ATR is the dossier's, and it says drop it if the owner prefers the drawing as is. EPC's line flattened for a month at 52; AJG's was flat for six weeks."
+  },
+  {
+   "id": "av.reclaim_day_close",
+   "field": "pattern",
+   "statement": "The reclaim day closes 0.3 to 1.0 ATR above the AVWAP: clear, but not stretched.",
+   "measure": {
+    "what": "(reclaim-day close - AVWAP) / ATR(14)",
+    "op": "in",
+    "value": [
+     0.3,
+     1.0
+    ],
+    "unit": "ATR",
+    "timeframe": "daily"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S25"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 rule 12",
+   "evidence": "The drawing's rule. Scan: how far the close sat over the line (0.3 to 0.5 ATR against 0.5 to 1.0 ATR) made no difference. The ten examples closed +0.31 to +0.86 ATR over."
+  },
+  {
+   "id": "av.no_gap_over",
+   "field": "pattern",
+   "statement": "The reclaim day did not open more than 0.5 ATR above the line. A gap over the line is a gap setup, judged as a Kicker or a gap, not this.",
+   "measure": {
+    "what": "(reclaim-day open - AVWAP) / ATR(14)",
+    "op": "<=",
+    "value": 0.5,
+    "unit": "ATR",
+    "timeframe": "daily"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S25",
+    "S3"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 rule 12; 3.11 item 11",
+   "evidence": "The drawing's rule, kept because the owner has rulings on gaps and Kickers. Not Shannon's split: he reads a gap over a cluster of AVWAPs as putting buyers back in control (dossier 3.1c). The lesson says so."
+  },
+  {
+   "id": "av.reclaim_close_strong",
+   "field": "pattern",
+   "statement": "A+ cue: the reclaim day closes near its high.",
+   "measure": {
+    "what": "(close - low) / (high - low) of the reclaim day",
+    "op": ">=",
+    "value": 0.75,
+    "unit": "of the range",
+    "timeframe": "daily"
+   },
+   "glossary": "close_position",
+   "basis": "my proposal",
+   "sources": [],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "9 The reclaim day row",
+   "evidence": "A B- closes mid-range, just over the line, as the third close-over in a month (section 9). The 0.75 is the glossary's A-grade close; the dossier says only near its high."
+  },
+  {
+   "id": "av.volume",
+   "field": "pattern",
+   "statement": "Volume on the reclaim day: not a gate. A grade marker at 1.5x or more of the 20-day average.",
+   "measure": {
+    "what": "reclaim-day volume / 20-day average volume",
+    "op": ">=",
+    "value": 1.5,
+    "unit": "x",
+    "timeframe": "daily"
+   },
+   "glossary": "volume_surge",
+   "basis": "my proposal",
+   "sources": [
+    "S24",
+    "S1"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "no rule: the drawing; Shannon gives no number"
+    },
+    {
+     "value": "b",
+     "basis": "a gate at 1.5x the 20-day average: the scanner"
+    },
+    {
+     "value": "c",
+     "basis": "a grade marker only: the dossier's recommendation; the register's default makes volume a cue for every setup with 1.5x the 50-day as the A+ cue (D-006)"
+    }
+   ],
+   "recommended": "c",
+   "status": "pending-owner",
+   "owner_question": "D-006",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1 rule 13; 9 Volume row; 10 question 7",
+   "evidence": "Scan, stocks only: 1.5x the 50-day average or more (139 hits) 22.3% to 3R and 10.8% to 5R; under 1.5x 26.2% and 15.8%; under 1.0x (562 hits) 27.0% and 17.1%. That sides with no gate and argues against the marker until the owner has looked. DIS 2021-07-13 reclaimed on 2.47x, the heaviest of the failures, and stopped at 0.17R. The glossary's canonical surge is 1.4x the 50-session average (conflicts)."
+  },
+  {
+   "id": "av.daily_bars",
+   "field": "pattern",
+   "statement": "The AVWAP is computed from daily bars: typical price times volume, summed from the anchor day, divided by volume. It is an approximation of the intraday line, and the lesson says so.",
+   "basis": "UCT",
+   "sources": [
+    "S27",
+    "S15",
+    "S1"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8 preamble; 8.8 mistake 8; 3.11 item 8",
+   "evidence": "ChartSchool's formula, the one the app uses (indicator_compute.py). Shannon: always use as short a timeframe as possible (dossier 3.1). Daily bars are what we can draw for every example."
+  },
+  {
+   "id": "av.confluence",
+   "field": "pattern",
+   "statement": "A+ cue: the AVWAP sits at a second level, the 50-day SMA, a prior breakout level or another AVWAP.",
+   "measure": {
+    "what": "other levels (the 50-day SMA, a prior breakout level, another AVWAP) at the AVWAP",
+    "op": ">=",
+    "value": 1,
+    "unit": "levels",
+    "timeframe": "daily"
+   },
+   "basis": "source consensus",
+   "sources": [
+    "S6",
+    "S15",
+    "S16",
+    "S20"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "9 Confluence row",
+   "evidence": "Shannon: it's more likely when we have that confluence (dossier 3.3); ChartSchool: where multiple Anchored VWAP lines converge; the owner's TWLO, APPS and TEAM notes. MAS 2024-07-15: the reclaim day, the 50-day and the trigger all within one ATR."
+  },
+  {
+   "id": "av.overhead",
+   "field": "pattern",
+   "statement": "B- cue: another AVWAP from a higher high, an IPO-high AVWAP or a bear gap sits within a few percent overhead. Clear air to the next line is the A+.",
+   "basis": "UCT",
+   "sources": [
+    "S20",
+    "S6"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.8 mistake 5; 9 Overhead row",
+   "evidence": "The owner on CRCL: the anchored VWAPs from IPO open and IPO high continue to give this a tough time at $130; on CRWV: the bear gap to the left just around $120 is acting as resistance (dossier 6.1). CAT 2005-05-18 had the 50-day just overhead and paused two weeks before running."
+  },
+  {
+   "id": "av.not_stretched",
+   "field": "trigger",
+   "statement": "At entry, no more than 10% above the 10-day average.",
+   "measure": {
+    "what": "entry / 10-day SMA - 1",
+    "op": "<=",
+    "value": 10,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "glossary": "stretched",
+   "basis": "house rule",
+   "sources": [
+    "S25"
+   ],
+   "house_rule": "C29",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 rule 14",
+   "evidence": "The drawing's no more than 1 ATR above the line is a similar idea. The scan gated on it."
+  },
+  {
+   "id": "av.trigger",
+   "field": "trigger",
+   "statement": "The trigger: the next session, a market order once price trades one cent above the reclaim day's high.",
+   "measure": {
+    "what": "intraday price during regular hours, the session after the reclaim day",
+    "op": ">",
+    "value": "reclaim day's high, plus one cent"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S4",
+    "S6",
+    "S29"
+   ],
+   "house_rule": "E57",
+   "options": [
+    {
+     "value": "a",
+     "basis": "the next session, over the reclaim day's high: Shannon's buy strength after in daily-bar terms, the owner's Kicker ruling (the entry over the previous day's high), the register's default (D-003)"
+    },
+    {
+     "value": "b",
+     "basis": "a market order in the last minutes of the reclaim day: earlier, a tighter stop, more failed reclaims (reasoning, not measured); close to the scanner's close + 0.1%"
+    },
+    {
+     "value": "c",
+     "basis": "intraday on the reclaim day after a VWAP undercut and remount: the owner's own tactic, not drawable on daily bars"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-003",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 Trigger; 10 question 4",
+   "evidence": "Scan: a fill the very next session (967 hits) did better than a fill on day 2 or 3 (102 hits): 26.2% and 15.5% against 21.6% and 11.8%. That sides with the next session over the 3-session grace the scan allowed. ENVA 2026-04-13 took three sessions to trigger and was set aside. BX gapped over the trigger and filled at the open, 22.43 against 22.38."
+  },
+  {
+   "id": "av.no_chase",
+   "field": "trigger",
+   "statement": "No buy more than 4% above the trigger.",
+   "measure": {
+    "what": "fill / trigger - 1",
+    "op": "<=",
+    "value": 4,
+    "unit": "%"
+   },
+   "glossary": "chase_limit",
+   "basis": "house rule",
+   "sources": [
+    "S6"
+   ],
+   "house_rule": "C28",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 No chase",
+   "evidence": "Shannon, on a 7% rally in three or four days into a breakout: maybe a half of a risk unit (dossier 3.3). The scan abandoned fills more than 4% over the trigger."
+  },
+  {
+   "id": "av.earnings_window",
+   "field": "trigger",
+   "statement": "No new buy in the 3 sessions before an earnings report. The earnings-AVWAP variant forms after the report, so it is usually clear.",
+   "measure": {
+    "what": "sessions until the next report",
+    "op": ">",
+    "value": 3,
+    "unit": "sessions"
+   },
+   "glossary": "earnings_blackout",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B22",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 Earnings",
+   "evidence": "CDW 2019-02-05 (a clean 22.4R reclaim) and TPR 2025-05-05 (18.4R) were replaced because the buy fell inside the blackout: worth showing as what the rule stops you from doing."
+  },
+  {
+   "id": "av.size_by_grade",
+   "field": "management",
+   "statement": "Size from the stop, the grade and the market reading.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "E49",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.2 Size",
+   "evidence": "A1, A5, D38, E49, F65 together."
+  },
+  {
+   "id": "av.stop",
+   "field": "stop",
+   "statement": "A few cents under the reclaim day's low; with the recommended trigger, that is the prior day's low. That low normally sits at or under the AVWAP, so a stop-out also means the reclaim failed.",
+   "measure": {
+    "what": "stop",
+    "op": "==",
+    "value": "a few cents under the reclaim day's low"
+   },
+   "glossary": "stop_margin",
+   "basis": "house rule",
+   "sources": [
+    "S6",
+    "S24"
+   ],
+   "house_rule": "A3",
+   "options": [
+    {
+     "value": "a",
+     "basis": "a few cents under the reclaim day's low: the house default (A3, F62), the dossier's recommendation and the register's default (D-008)"
+    },
+    {
+     "value": "b",
+     "basis": "the AVWAP minus 0.5 ATR: the scanner; no source"
+    },
+    {
+     "value": "c",
+     "basis": "a tighter intraday stop: Shannon's about 1.8% under a short-timeframe prior low"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-008",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.3; 10 question 5",
+   "evidence": "Scan: stops of 2% or less 26.5% and 17.5% (3R and 5R); 2 to 3%, 29.3% and 17.0%; over 3%, 22.5% and 12.3%. The ten examples' stops sat 1.1% to 2.3% under the fill. AMZN 2026-10-12: everything in the picture was right and it still failed; the stop, not the pattern, is the protection."
+  },
+  {
+   "id": "av.stop_width",
+   "field": "stop",
+   "statement": "Usually within about 3%. If the honest stop is wider, size down from it; if it does not fit the risk, skip. Never tighten it into the noise to make it fit.",
+   "measure": {
+    "what": "(entry - stop) / entry",
+    "op": "<=",
+    "value": 3,
+    "unit": "%"
+   },
+   "glossary": "stop_width",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "A13",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.3",
+   "evidence": "Many reclaim days may be wide bars (reasoning, not measured). Never tighten is the dossier's reading of A3's honest stop, not a rule's words. The scan skipped stops more than 5% under the fill; A13's about 3% earned its place in the cut above."
+  },
+  {
+   "id": "av.stop_not_scanner",
+   "field": "stop",
+   "statement": "Not the scanner's stop, the AVWAP minus 0.5 ATR. No source has it, and the house default exists.",
+   "measure": {
+    "what": "stop reference",
+    "op": "==",
+    "value": "the reclaim day's low, not the AVWAP minus 0.5 ATR"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S24"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.3 Not",
+   "evidence": "The scanner's 0.5 ATR anti-whipsaw filter is one of the claims attributed to Shannon that the dossier found nowhere (5.1 item 2)."
+  },
+  {
+   "id": "av.stop_gap",
+   "field": "stop",
+   "statement": "A gap through the stop: the first 30-minute low is the new stop; out if that is past 2R.",
+   "measure": {
+    "what": "loss at the first 30-minute low of the gap-down day",
+    "op": "<=",
+    "value": 2,
+    "unit": "R",
+    "timeframe": "30-minute"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B20",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.3"
+  },
+  {
+   "id": "av.breakeven",
+   "field": "management",
+   "statement": "Stop to breakeven between 2R and 5R, at the first trim by default.",
+   "measure": {
+    "what": "R at which the stop moves to the entry",
+    "op": "in",
+    "value": [
+     2,
+     5
+    ],
+    "unit": "R"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B19",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4"
+  },
+  {
+   "id": "av.trim_1",
+   "field": "management",
+   "statement": "Sell a third at 3R.",
+   "measure": {
+    "what": "fraction sold at 3R",
+    "op": "==",
+    "value": 0.333,
+    "unit": "of the position"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B19",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4",
+   "evidence": "Among the scan's winners the median time to 3R was 12 sessions; the ten examples took 3 to 15. NOW 2017 and MAS 2024 had their report reaction day land after the first trim was due."
+  },
+  {
+   "id": "av.trim_2",
+   "field": "management",
+   "statement": "Sell a third at 5R.",
+   "measure": {
+    "what": "fraction sold at 5R",
+    "op": "==",
+    "value": 0.333,
+    "unit": "of the position"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "E51",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4",
+   "evidence": "For contrast only, Shannon's own style: on a fast first day a third off, often near the daily R2 pivot (not necessarily at daily R2). Not ours."
+  },
+  {
+   "id": "av.trim_gap_open",
+   "field": "management",
+   "statement": "If the stock opens above a trim level, take that trim at the open.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "F63",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4"
+  },
+  {
+   "id": "av.trail",
+   "field": "management",
+   "statement": "Trail the last third: a close under the 10-day average for a fast mover, under the 21-day for a steadier one.",
+   "measure": {
+    "what": "close against the 10-day (fast) or 21-day (steadier) average",
+    "op": "<",
+    "value": "the average",
+    "timeframe": "daily"
+   },
+   "glossary": "trail",
+   "basis": "house rule",
+   "sources": [
+    "S6"
+   ],
+   "house_rule": "E52",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4",
+   "evidence": "Shannon trails under 15-minute higher lows above a rising 5-day, later the 10 or 20-day (dossier 3.3). Not ours. O 2020-01-16 reached 5R and then fell by half inside the window: a chart for the trims-and-trail lesson."
+  },
+  {
+   "id": "av.time_stop",
+   "field": "management",
+   "statement": "Time stop: still under 1R after 10 trading days, sell.",
+   "measure": {
+    "what": "open R after 10 trading days",
+    "op": "<",
+    "value": 1,
+    "unit": "R"
+   },
+   "glossary": "time_stop",
+   "basis": "house rule",
+   "sources": [
+    "S6"
+   ],
+   "house_rule": "C33",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4",
+   "evidence": "Fits Shannon's typical trade of three to six days (dossier 3.3). Scan: 51% of hits never reached 1R."
+  },
+  {
+   "id": "av.inv_close_back_before_trigger",
+   "field": "invalidation",
+   "statement": "Before the buy: a close back at or under the AVWAP before the trigger trades. No trade.",
+   "basis": "UCT",
+   "sources": [
+    "S25",
+    "S1"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5 Before the buy",
+   "evidence": "The drawing: every close since the reclaim must stay above. Shannon: Don't hold and hope (dossier 3.1). The scan abandoned the trigger if a close came back at or under the line first."
+  },
+  {
+   "id": "av.after_entry_stop",
+   "field": "invalidation",
+   "statement": "After the buy, the stop is the exit.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "A4",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5 After the buy"
+  },
+  {
+   "id": "av.close_back_under_after_buy",
+   "field": "invalidation",
+   "statement": "After the buy, a close back under the AVWAP is not an exit by itself. The stop decides.",
+   "basis": "house rule",
+   "sources": [
+    "S2",
+    "S24"
+   ],
+   "house_rule": "A4",
+   "status": "settled",
+   "owner_question": "D-136",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.5 After the buy; 10 question 6",
+   "evidence": "Settled by A4 and the owner's verdict on rule 15 (D-136: a close back under the AVWAP after the buy is not an exit). Shannon's 2017 slides lean the same way: be more aware of the direction of the VWAP than whether it closes above or below it for a session or two. The scanner's exit immediately text has no source."
+  },
+  {
+   "id": "av.reentry",
+   "field": "invalidation",
+   "statement": "A new try only on a new trigger, as a new trade with its own stop; at most 3 tries a week and 6 a month on one stock.",
+   "measure": {
+    "what": "tries on one stock",
+    "op": "<=",
+    "value": 3,
+    "unit": "a week",
+    "and": "at most 6 a month"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B21",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "7 B21 row",
+   "evidence": "E56 caps the tries. The scan allowed one hit per name per 20 sessions."
+  }
+ ],
+ "grading": {
+  "a_plus": [
+   "av.anchor_high: an event everyone sees: the stock's major high, a big earnings gap, the IPO day",
+   "av.ma200_rising: above a rising 200-day; av.leadership: RS 80 or more in a top group",
+   "av.time_under: 15 or more closes clearly under, no pokes",
+   "av.line_flattened: the line flattened before the reclaim",
+   "av.first_reclaim: the first reclaim; av.reclaim_close_strong: closes near its high, 0.3 to 1.0 ATR over the line",
+   "av.volume: 1.5x or more of the 20-day average (the scan says it did not help)",
+   "av.confluence: the AVWAP sits at the 50-day, a prior breakout level or another AVWAP",
+   "av.overhead: clear air to the next AVWAP or gap",
+   "av.stop_width: 3% or less",
+   "av.market_reading: Green; av.index_above_avwap: the index above its AVWAP from the last low; in Orange only if everything else grades A+ (F65)",
+   "av.group_reclaims: several group members reclaiming"
+  ],
+  "b_minus": [
+   "av.anchor_high: a minor wiggle or an arbitrary date",
+   "av.ma200_rising: just above a flat 200-day; av.leadership: RS barely 80",
+   "av.time_under: just enough closes, hugging the line",
+   "av.line_flattened: still falling steeply",
+   "av.first_reclaim: the third close-over in a month, chopping; av.reclaim_close_strong: closes mid-range, just over the line",
+   "av.volume: below average",
+   "av.confluence: the line alone",
+   "av.overhead: another AVWAP or a bear gap within a few percent",
+   "av.stop_width: wider than 3%",
+   "av.market_reading: Yellow (smaller and fewer)",
+   "av.group_reclaims: alone in a weak group"
+  ],
+  "no_trade": [
+   "av.above_200: under the 200-day",
+   "av.first_reclaim: more than 2 crossings in 30 sessions (chop)",
+   "av.no_gap_over: a gap open more than 0.5 ATR over the line (a gap setup instead)",
+   "av.reclaim_day_close: a close more than 1 ATR over the line",
+   "av.no_chase: a fill more than 4% over the trigger",
+   "av.inv_close_back_before_trigger: a close back under the line before the trigger",
+   "av.earnings_window: a report within 3 sessions",
+   "av.liquidity: under $10 or under $20 million a day",
+   "av.market_reading: Red; Orange below A+"
+  ]
+ },
+ "lookalikes": [
+  {
+   "setup": "32-remount",
+   "tell": "Name the line. A Remount takes back a moving average or a flat price level the stock held before; an AVWAP reclaim takes back the volume-weighted average cost since one named event (a high, an earnings gap day, the IPO day). If the line starts at an event day and bends with volume, it is the AVWAP.",
+   "criterion": "av.anchor_high"
+  },
+  {
+   "setup": "29-undercut-rally",
+   "tell": "Count the closes under the line. A U&R dips under a prior low and closes back above it within 3 sessions; an AVWAP reclaim comes after 15 or more closes under the line, with the line flattened.",
+   "criterion": "av.time_under"
+  },
+  {
+   "setup": "25-gap-support",
+   "tell": "Which side of the line is the stock on? Gap Support buys a test that holds the gap-up day's low from above; the earnings-AVWAP reclaim buys the first close back over the line from below, after weeks under it.",
+   "criterion": "av.anchor_earnings"
+  },
+  {
+   "setup": "26-kicker",
+   "tell": "Look at the reclaim day's open. A Kicker gaps up through a red day's high; an AVWAP reclaim day may not open more than 0.5 ATR over the line. A gap over the line is judged as a gap or a Kicker, not as this.",
+   "criterion": "av.no_gap_over"
+  },
+  {
+   "setup": "13-ma-reclaim",
+   "tell": "The 50-day and 200-day are averages of closes that every chart carries; the AVWAP is the average cost since one event. Both can be lost for weeks and taken back; only the AVWAP card asks which event the line is anchored to.",
+   "criterion": "av.daily_bars"
+  }
+ ],
+ "invalidations": [
+  "Before the buy: a close back at or under the AVWAP before the trigger trades (av.inv_close_back_before_trigger).",
+  "Not the setup at all: under the 200-day (av.above_200); more than 2 crossings in 30 sessions (av.first_reclaim); a gap open more than 0.5 ATR over the line (av.no_gap_over); a close more than 1 ATR over the line (av.reclaim_day_close); a fill more than 4% over the trigger (av.no_chase).",
+  "Before the buy: a report within 3 sessions, wait (av.earnings_window).",
+  "After the buy: the stop is the exit (av.after_entry_stop); a close back under the AVWAP is not an exit by itself (av.close_back_under_after_buy).",
+  "After the buy: still under 1R after 10 trading days, sell (av.time_stop).",
+  "A second try only on a new trigger, at most 3 a week (av.reentry)."
+ ],
+ "mistakes": [
+  "Buying the touch of the line instead of the proof. Shannon: levels of interest, not a place to do business; don't buy the dip, buy strength after.",
+  "An arbitrary anchor. Anchor only to events everyone can see: major highs and lows, big news, strong reversals.",
+  "Buying a poke in a chop. Many crossings mean indecision.",
+  "Chasing a reclaim that already ran 7% to 10% in three or four days.",
+  "Ignoring the next line up: another AVWAP from a higher high, an IPO-high AVWAP or a bear gap just overhead.",
+  "Taking it under the 200-day.",
+  "Holding and hoping after it slices back under. Our answer is the stop.",
+  "Treating the daily-bar line as exact. It approximates the intraday line.",
+  "Mixing anchors without saying which. A reclaim of the AVWAP from a low tells a different story from a reclaim of the AVWAP from a high. Name the anchor in every example.",
+  "Teaching the scanner's text: its 60 to 65% rates, the kiss-goodbye pattern, the 0.5 ATR anti-whipsaw stop, the R:R 2.0 line and the exit immediately guidance have no source, and Wiley is the wrong publisher."
+ ],
+ "short_mirror": {
+  "exists": true,
+  "setup": "19-avwap-reclaim",
+  "note": "The AVWAP loss (dossier 8.6), the drawing reversed: close under the 200-day (B26); RS 20 or less, weakest groups (C31 mirror); anchor the lowest low of the last 150 sessions, at least 20 sessions old; a rise of at least 4 ATR from it; the 15 closes before the loss day all above the AVWAP from that low; at most 2 crossings in 30 sessions; the loss day closes 0.3 to 1.0 ATR under the line and did not open more than 0.5 ATR under it; enter the next session a cent under the loss day's low; stop a few cents over the loss day's high; trims and trail reversed; skip if hard to borrow (D48). Shannon's rejection test after anchoring to a high and Bracco's late-stage tops rejecting swing-high AVWAPs are the variant (a rally into a falling AVWAP that fails there). The app has no code for it; not scanned. Teaching it is D-001."
+ },
+ "best_conditions": "A Green market reading (Yellow smaller and fewer; Orange A+ only), with the index above its AVWAP from the most recent major low or follow-through day, after a correction ends and leaders are first getting back above their AVWAPs from their highs. Several stocks in the same group reclaiming together is the grade marker.",
+ "management": {
+  "trim_1": "a third at 3R (B19)",
+  "trim_2": "a third at 5R (E51)",
+  "trail": "a close under the 10-day for a fast mover, the 21-day for a steadier one (E52)",
+  "breakeven": "between 2R and 5R, at the first trim by default (B19)",
+  "time_stop": "under 1R after 10 trading days, sell (C33)",
+  "gap_open": "a trim level the day opens past is taken at the open (F63)",
+  "gap_against": "the first 30-minute low is the new stop; out if past 2R (B20)",
+  "overrides": "none. The dossier (8.4) says the setup needs nothing special. Not ours: Shannon's first third on a fast day one (often near daily R2) and his 15-minute higher-low trail; the scanner's 30-day-high target."
+ },
+ "examples": {
+  "winners": 10,
+  "sheet_dir": "_study-resume/scratchpad/setups/19-avwap-reclaim/final",
+  "base_rate": {
+   "hits": 1128,
+   "stock_hits": 1069,
+   "r3_pct": 25.7,
+   "r5_pct": 15.2,
+   "stopped_pct": 81,
+   "never_1r_pct": 51,
+   "median_sessions_to_3r": 12,
+   "window": "60 sessions forward, fixed stop, no trims, no breakeven, no trail, no time stop; 1996-08-02 to 2026-11-05; 2,630 names; the from-the-high variant only; one hit per name per 20 sessions; stock hits for the rates"
+  },
+  "cuts": {
+   "stop_2_pct_or_less": {
+    "r3_pct": 26.5,
+    "r5_pct": 17.5
+   },
+   "stop_2_to_3_pct": {
+    "r3_pct": 29.3,
+    "r5_pct": 17.0
+   },
+   "stop_over_3_pct": {
+    "r3_pct": 22.5,
+    "r5_pct": 12.3
+   },
+   "fill_next_session": {
+    "hits": 967,
+    "r3_pct": 26.2,
+    "r5_pct": 15.5,
+    "day_2_or_3": {
+     "hits": 102,
+     "r3_pct": 21.6,
+     "r5_pct": 11.8
+    }
+   },
+   "fall_8_atr_or_more": {
+    "hits": 627,
+    "r5_pct": 16.7,
+    "below": {
+     "r5_pct": 12.9
+    }
+   },
+   "ma200_rising_20": {
+    "hits": 877,
+    "r5_pct": 15.8,
+    "below": {
+     "r5_pct": 12.0
+    }
+   },
+   "reclaim_volume_1_5x_or_more": {
+    "hits": 139,
+    "r3_pct": 22.3,
+    "r5_pct": 10.8,
+    "under_1_5x": {
+     "r3_pct": 26.2,
+     "r5_pct": 15.8
+    },
+    "under_1_0x": {
+     "hits": 562,
+     "r3_pct": 27.0,
+     "r5_pct": 17.1
+    }
+   },
+   "no_difference": "how far the reclaim close sat over the line (0.3 to 0.5 ATR against 0.5 to 1.0 ATR) and how long the stock had been under (30 sessions or fewer against more)"
+  },
+  "winners_list": [
+   "MAR 2004-09-16",
+   "CAT 2005-05-18",
+   "EPC 2006-12-28",
+   "BX 2013-09-11",
+   "WMB 2014-04-17",
+   "NOW 2017-04-20",
+   "HLF 2018-01-22",
+   "AJG 2021-02-22",
+   "JPM 2023-11-15",
+   "MAS 2024-07-15"
+  ],
+  "failures": [
+   {
+    "ticker": "AMZN",
+    "date": "2026-10-12",
+    "criterion": "av.stop",
+    "why": "the AVWAP from the 2026-08-03 high reclaimed on 2026-10-09 after a 7.6 ATR fall and 47 closes under, a +0.42 ATR close, stop 2.6%; the stock never traded above the fill again and was stopped (0.0R). Everything in the picture was right and it still failed: the stop, not the pattern, is the protection."
+   },
+   {
+    "ticker": "DIS",
+    "date": "2021-07-13",
+    "criterion": "av.volume",
+    "why": "86 closes under the line from the 2021-03-08 high, the reclaim on 2.47x volume, the heaviest of any failure; stop 4.1%; stopped at 0.17R. The loud volume did not help, which matches the base-rate cut."
+   },
+   {
+    "ticker": "TMO",
+    "date": "2022-03-22",
+    "criterion": "av.market_reading",
+    "why": "a +0.78 ATR close on 1.54x volume after a 9.6 ATR fall, in a year the broad market fell; stopped with 0.0R. The index's own standing matters, and the scan did not read it."
+   },
+   {
+    "ticker": "PG",
+    "date": "2017-06-16",
+    "criterion": "av.stop_gap",
+    "why": "reclaim 2017-06-15 of the AVWAP from the 2017-03-17 high (8.6 ATR fall, 61 closes under, +0.83 ATR close on 1.06x volume), buy 89.72, stop 88.20 (1.7%); drifted to +0.32R, closed back under the line on day 7 and gapped through the stop on day 9 (2017-06-29); all of the next 10 closes stayed under."
+   },
+   {
+    "ticker": "LIN",
+    "date": "2019-09-13",
+    "criterion": "av.after_entry_stop",
+    "why": "reclaim 2019-09-12 of the AVWAP from the 2019-07-23 high (8.4 ATR fall, 35 closes under, +0.41 ATR close), buy 192.63, stop 189.29 (1.7%); stopped the next session with one close under the line, then held the line and printed the 3R level 39 sessions later without us. A re-entry is a new trigger (av.reentry)."
+   },
+   {
+    "ticker": "MRK",
+    "date": "2012-12-12",
+    "criterion": "av.after_entry_stop",
+    "why": "reclaim 2012-12-11 of the AVWAP from the 2012-10-18 high (11.2 ATR fall, 34 closes under, +0.68 ATR close on 1.26x volume), buy 43.22, stop 42.43 (1.8%); stopped the next session and never traded above the fill, the next 10 closes all back under the line, the low 20 sessions later 11.6% under the buy."
+   }
+  ],
+  "limits": "The from-the-high variant only; the earnings and IPO anchors were not scanned. The RS rating and group (a proxy is given), the earnings blackout (checked by hand for the ten) and the market reading are not in the scan. No delisted names. The daily-bar line differs from the intraday line. Nothing here is a published statistic; no source publishes a rate for AVWAP reclaims.",
+  "near_misses": [
+   {
+    "ticker": "ADC",
+    "date": "2019-01-09",
+    "criterion": "av.real_fall",
+    "why": "the fall from the 2018-12-07 anchor high was 3.9 ATR; the rule wants 4 or more. A one-month dip reclaimed after 19 closes under; it reached 6.4R, a borderline case for a grade question."
+   },
+   {
+    "ticker": "AAPL",
+    "date": "2021-10-19",
+    "criterion": "av.line_flattened",
+    "why": "the AVWAP from the 2021-09-07 high still fell 0.56 ATR over the 10 sessions before the reclaim; the rule wants under 0.5. It reached 9.3R; the owner may want the 0.5 ATR cut read as a grade cue."
+   },
+   {
+    "ticker": "CAG",
+    "date": "2019-11-15",
+    "criterion": "av.reclaim_day_close",
+    "why": "the reclaim day closed only +0.23 ATR over the line; the rule wants 0.3 to 1.0 ATR. A marginal poke inside the noise; it chopped to 2.7R before the December earnings gap."
+   },
+   {
+    "ticker": "AGCO",
+    "date": "2019-09-09",
+    "criterion": "av.no_gap_over",
+    "why": "the reclaim day opened +0.91 ATR over the line; the rule allows 0.5 ATR at most. The line was never retaken from below in regular hours: a gap setup, not an AVWAP reclaim; it reached 3.1R."
+   }
+  ],
+  "sheets": {
+   "failures": "final/fail_1-4.png",
+   "near_misses": "final/near_1-4.png",
+   "pair": "final/pair_32-remount.png"
+  }
+ },
+ "question_seeds": [
+  {
+   "kind": "recall",
+   "criterion": "av.anchor_high",
+   "seed": "Which three anchors does the AVWAP reclaim card name, and which one is the core variant?"
+  },
+  {
+   "kind": "recall",
+   "criterion": "av.time_under",
+   "seed": "How many closes must sit under the AVWAP from the high before a close back over it counts as a reclaim?"
+  },
+  {
+   "kind": "recall",
+   "criterion": "av.stop",
+   "seed": "Where does the stop go on an AVWAP reclaim, and why does a stop-out also mean the reclaim failed?"
+  },
+  {
+   "kind": "spot",
+   "criterion": "av.anchor_high",
+   "seed": "Hidden ticker: tap the high the AVWAP should be anchored to."
+  },
+  {
+   "kind": "spot",
+   "criterion": "av.first_reclaim",
+   "seed": "Hidden ticker with the AVWAP drawn: is this the first clean reclaim, or the third poke in a month? Take it or pass."
+  },
+  {
+   "kind": "spot",
+   "criterion": "av.line_flattened",
+   "seed": "Hidden ticker, two AVWAP reclaims: which line had flattened before the close back over it?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "av.time_under",
+   "seed": "AVWAP reclaim or U&R: the stock dipped under the line on Tuesday and closed back over it on Thursday. Which is it?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "av.anchor_earnings",
+   "seed": "AVWAP reclaim or Gap Support: price fell to the gap-up day's low from above, held it and closed in the upper half. Which is it?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "av.no_gap_over",
+   "seed": "The reclaim day opened 1.2 ATR above the line on news and closed higher. AVWAP reclaim, or a gap setup?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "av.trigger",
+   "seed": "Yesterday closed 0.6 ATR over the AVWAP, high 52.40. Today it opens at 52.10 and trades 52.41 at 9:47. What do you do?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "av.inv_close_back_before_trigger",
+   "seed": "The reclaim day closed over the line; the next day never cleared its high and closed back under the AVWAP. Keep the alert?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "av.close_back_under_after_buy",
+   "seed": "You are in at 52.41 with the stop at 50.95. Day three closes at 51.40, back under the AVWAP but above the stop. Sell, or hold to the stop?"
+  },
+  {
+   "kind": "grade",
+   "criterion": "av.volume",
+   "seed": "Two reclaim days: one on 0.6x volume closing at its high, one on 2.5x volume closing mid-range. Grade each, and say what our scan found about the volume."
+  },
+  {
+   "kind": "grade",
+   "criterion": "av.overhead",
+   "seed": "The AVWAP from the high is reclaimed, but the IPO-high AVWAP sits 3% overhead. A+, B, or B-?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "av.real_fall",
+   "seed": "Anchor high 60.00, lowest low since 51.00, ATR 1.80. How many ATR did it fall, and does it qualify?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "av.reclaim_day_close",
+   "seed": "AVWAP 45.20, ATR 1.10, the reclaim day closes 46.55. How far over the line in ATR, and is it inside 0.3 to 1.0?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "av.stop_width",
+   "seed": "Fill 22.93, reclaim day's low 22.71, a few cents under it for the stop. Is the stop inside 3%?"
+  }
+ ],
+ "owner_decisions": [
+  "D-001",
+  "D-002",
+  "D-003",
+  "D-006",
+  "D-007",
+  "D-008",
+  "D-010",
+  "D-011",
+  "D-082",
+  "D-083",
+  "D-136"
+ ],
+ "conflicts": [
+  "Sources: the dossier's section 11 tables are keyed by title and number nothing, so the card cites them by reading order as the validator reads it (S1 Shannon's AVWAP page, S2 his 2017 slides, S3 his 2017 how-to post, S4 his buy-strength page, S6 the Fill the Gap transcript, S15 ChartSchool, S16 TrendSpider, S20 the UCT Substack, S24 the scanner, S25 the member drawing, S27 the indicator maths, S29 the trade plans and rulings, S30 the HVE-overlay ruling and F2b.08, S31 the Study bank and levels dossiers).",
+  "Is the reclaim a signal: Shannon and his company say no, a place to look for evidence; TrendSpider calls a breakout above a signal; the scanner fires on the daily close. The card teaches it as a setup with a next-session confirmation trigger (D-003).",
+  "Which anchor: Shannon's buy-strength page names the prior high and his slides the prior peak, but his AVWAP page's worked reclaim is from a December low; the scanner gives its top score to a swing low and calls it Shannon's primary anchor with no source; the drawing uses the 150-day high. The card's three named anchors are a teaching choice, not a source rule (D-082).",
+  "How long under: scanner 5, drawing 15, sources silent. 15 for the high; the earnings and IPO variants are D-083.",
+  "Volume: scanner gate 1.5x the 20-day, drawing none, Shannon no number; our scan found heavy reclaim volume did worse. A grade marker at most, and the dossier argues against even that until the owner has looked (D-006). The glossary's canonical surge is 1.4x the 50-session average; the card keeps the dossier's 1.5x the 20-day.",
+  "Relative strength: Shannon ignores RS charts; C31 requires RS 80. Nine of the ten examples score under 80 on the proxy because the required 4 ATR fall pulls a 12-month rating down. Applied literally, C31 removes most of these trades; RS before the fall or an exemption is the owner's call (D-011).",
+  "The stop: the scanner's AVWAP minus 0.5 ATR has no source; Shannon's is a tight intraday stop; the house day's low wins (D-008).",
+  "A gap over the line: the drawing rejects a reclaim day that opened more than 0.5 ATR over; Shannon reads a gap over a cluster of AVWAPs as buyers back in control. The card keeps the drawing's split and says it is ours.",
+  "One close or the line's direction: both app rules trigger on closes; Shannon's slides weigh the direction of the line over a close or two. The card keeps the close-based trigger and adds the flattened-line test (the number is the dossier's).",
+  "First test or many: the drawing counts earlier closes above the line and crossings, not touches from below; Shannon's slides read repeated tests as making a break more likely. Compatible, but the lesson must not call a line tested many times a weaker reclaim.",
+  "Two in-house rules: the scanner (deepest swing low, oldest 3% gap or the high of bars 5 to 60 back; 5 closes; any close above; 1.5x volume; no 200-day test; stop AVWAP minus 0.5 ATR; target the 30-day high) and the drawing (150-day high, 4 ATR fall, 15 closes, first reclaim, 0.3 to 1.0 ATR, no gap over, no volume test, no 200-day test). The card follows the drawing plus B26; bringing the scanner in line and removing its unsourced Shannon claims is D-010 and the scanner question.",
+  "The scanner prints an R:R of 2.0 cleared on every detection no matter the numbers (0.84 and 0.22 on synthetic reclaims), and names Wiley as the book's publisher (it is Alphatrends Publishing).",
+  "Calculation: Shannon wants the shortest timeframe; the app computes the line from daily bars. The course keeps daily bars and says the line is approximate.",
+  "Unit: no UNITS-method SET row is titled AVWAP Reclaim; the register's default is a Foundations lesson (F2b.08) plus one setup card (D-002). The trigger is the next session over the reclaim day's high, so the card's entry type is PREV DAY HIGH BREAK; the reclaim itself could be read as a PREV LOW RECLAIM of the line."
+ ]
+}

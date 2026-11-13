@@ -1,0 +1,1474 @@
+{
+ "unit": "F12.02",
+ "track": "F12",
+ "title": "The daily routine",
+ "teaches": "Run the trading day on three checkpoints: a premarket that reads the futures, the calendar and the news, then narrows the list to a few names with levels, entries, stops and alerts; a midday check on what you hold, your stops and news due later; and a recap after the close that reviews stops, checks tonight's reports and writes tomorrow's plan.",
+ "skills": [
+  {
+   "id": "process.routine",
+   "title": "The daily routine"
+  }
+ ],
+ "as_of": "2026-11-09",
+ "sources": [
+  {
+   "id": "s1",
+   "tier": 1,
+   "publisher": "CME Group",
+   "title": "E-mini S&P 500 Overview (the exchange's product page)",
+   "url": "https://www.cmegroup.com/markets/equities/sp/e-mini-sandp500.html",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s2",
+   "tier": 1,
+   "publisher": "U.S. Bureau of Labor Statistics",
+   "title": "Schedule of Selected Releases 2026",
+   "url": "https://www.bls.gov/schedule/2026/home.htm",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s3",
+   "tier": 1,
+   "publisher": "Federal Reserve Board",
+   "title": "Federal Reserve issues FOMC statement (press release, October 28, 2026)",
+   "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20261028a.htm",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s4",
+   "tier": 1,
+   "publisher": "NYSE",
+   "title": "Holidays & Trading Hours",
+   "url": "https://www.nyse.com/markets/hours-calendars",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s5",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Extended-Hours Trading: Investor Bulletin (June 6, 2022)",
+   "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins-42",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s6",
+   "tier": 1,
+   "publisher": "FINRA",
+   "title": "Extended-Hours Trading: Know the Risks (July 31, 2024)",
+   "url": "https://www.finra.org/investors/insights/extended-hours-trading",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s7",
+   "tier": 1,
+   "publisher": "FINRA",
+   "title": "What Is Earnings Season? (July 23, 2024)",
+   "url": "https://www.finra.org/investors/insights/earnings-season",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s10",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "Trading Near the Bells (Kevin Horner, November 26, 2024)",
+   "url": "https://www.schwab.com/learn/story/trading-near-bells",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s11",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "5 Elements of a Smart Trade Plan (October 23, 2024)",
+   "url": "https://www.schwab.com/learn/story/5-elements-smart-trade-plan",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s12",
+   "tier": 2,
+   "publisher": "Fidelity Investments",
+   "title": "What is a trading plan? (Fidelity Learn, October 22, 2026)",
+   "url": "https://www.fidelity.com/learning-center/smart-money/trading-plan",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s13",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Pre-Market Trading Explained: Benefits, Risks, and Opportunities (James Chen, CMT)",
+   "url": "https://www.investopedia.com/terms/p/premarket.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s14",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Best Times of the Day, Week, and Month to Trade Stocks (Peter Gratton, updated 2026-04-28)",
+   "url": "https://www.investopedia.com/day-trading/best-time-day-week-month-trade-stocks/",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s15",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Watchlist: Definition, Purpose, and How To Create One (Adam Hayes, CFA, updated 2026-09-24)",
+   "url": "https://www.investopedia.com/terms/w/watchlist.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s16",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Beginner's Guide: Key Day-Trading Rules You Need to Know (Prableen Bajpai, updated 2026-08-12)",
+   "url": "https://www.investopedia.com/articles/active-trading/071414/day-trading-rules-rookies-dont-play-it-ear.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s17",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "10 Steps To Building a Winning Trading Plan (Cedric Thompson, updated 2026-07-01)",
+   "url": "https://www.investopedia.com/articles/trading/04/042104.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s18",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Master the CANSLIM Strategy for Financial Growth (James Chen, CMT, updated 2026-08-24)",
+   "url": "https://www.investopedia.com/terms/c/canslim.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s19",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Master the Economic Calendar: Essential Features & Investment FAQs (James Chen, CMT, updated 2026-10-05)",
+   "url": "https://www.investopedia.com/terms/e/economic-calendar.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s20",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Master Position Sizing: Minimize Risk and Boost Investment Returns (James Chen, CMT, updated 2026-07-01)",
+   "url": "https://www.investopedia.com/terms/p/positionsizing.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s21",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Unlock Trading Success: 20 Essential Rules for Professionals (Alan Farley, updated 2026-08-19)",
+   "url": "https://www.investopedia.com/articles/active-trading/022715/20-rules-followed-professional-traders.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s30",
+   "tier": 2,
+   "publisher": "StockCharts.com",
+   "title": "Investing Routines: A Pillar of Any Successful Program (Gatis Roze, June 29, 2012)",
+   "url": "https://stockcharts.com/articles/journal/2012/06/investing-routines-a-pillar-of-any-successful-program.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Gatis Roze, MBA (Stanford), CMT, past president of the TSAA, a full-time trader of his own account since 1989 and author of Tensile Trading (Wiley, 2016). Published on StockCharts.com, whose ChartSchool lists this series as 'The Trader's Journal by Gatis Roze'. Signed and dated; cited only for his own routine and process advice, nothing time-sensitive."
+  },
+  {
+   "id": "s31",
+   "tier": 2,
+   "publisher": "StockCharts.com",
+   "title": "A Day in the Life of a Stock Market Trader - Redux (Gatis Roze, June 7, 2013)",
+   "url": "https://stockcharts.com/articles/journal/2013/06/a-day-in-the-life-of-a-stock-market-trader-redux.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Gatis Roze, MBA (Stanford), CMT, past president of the TSAA, a full-time trader of his own account since 1989 and author of Tensile Trading (Wiley, 2016). Published on StockCharts.com, whose ChartSchool lists this series as 'The Trader's Journal by Gatis Roze'. Signed and dated; cited only for his own routine and process advice, nothing time-sensitive."
+  },
+  {
+   "id": "s32",
+   "tier": 2,
+   "publisher": "StockCharts.com",
+   "title": "Tensile Trading: Stage #5 The Stairway to Reproducing Profits - Routines (Gatis Roze, August 23, 2013)",
+   "url": "https://stockcharts.com/articles/journal/2013/08/tensile-trading-stage-5-the-stairway-to-reproducing-profits-routines.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Gatis Roze, MBA (Stanford), CMT, past president of the TSAA, a full-time trader of his own account since 1989 and author of Tensile Trading (Wiley, 2016). Published on StockCharts.com, whose ChartSchool lists this series as 'The Trader's Journal by Gatis Roze'. Signed and dated; cited only for his own routine and process advice, nothing time-sensitive."
+  },
+  {
+   "id": "s33",
+   "tier": 2,
+   "publisher": "StockCharts.com",
+   "title": "A Day in the Life of a Stock Market Trader: Part III 11:30 AM - 1:00 PM (Gatis Roze, June 14, 2013)",
+   "url": "https://stockcharts.com/articles/journal/2013/06/a-day-in-the-life-of-a-stock-market-trader-part-iii-1130-am-100-pm-nyc-time.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Gatis Roze, MBA (Stanford), CMT, past president of the TSAA, a full-time trader of his own account since 1989 and author of Tensile Trading (Wiley, 2016). Published on StockCharts.com, whose ChartSchool lists this series as 'The Trader's Journal by Gatis Roze'. Signed and dated; cited only for his own routine and process advice, nothing time-sensitive."
+  },
+  {
+   "id": "s34",
+   "tier": 2,
+   "publisher": "StockCharts.com",
+   "title": "A Day in the Life of a Stock Market Trader: The Last 90 Minutes (Gatis Roze, July 5, 2013)",
+   "url": "https://stockcharts.com/articles/journal/2013/07/a-day-in-the-life-of-a-stock-market-trader-the-last-90-minutes.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Gatis Roze, MBA (Stanford), CMT, past president of the TSAA, a full-time trader of his own account since 1989 and author of Tensile Trading (Wiley, 2016). Published on StockCharts.com, whose ChartSchool lists this series as 'The Trader's Journal by Gatis Roze'. Signed and dated; cited only for his own routine and process advice, nothing time-sensitive."
+  },
+  {
+   "id": "s35",
+   "tier": 2,
+   "publisher": "StockCharts.com",
+   "title": "A Day in the Life of a Stock Market Trader: The First 3 Hours (Gatis Roze, May 31, 2013)",
+   "url": "https://stockcharts.com/articles/journal/2013/05/a-day-in-the-life-of-a-stock-market-trader-the-first-3-hours.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Gatis Roze, MBA (Stanford), CMT, past president of the TSAA, a full-time trader of his own account since 1989 and author of Tensile Trading (Wiley, 2016). Published on StockCharts.com, whose ChartSchool lists this series as 'The Trader's Journal by Gatis Roze'. Signed and dated; cited only for his own routine and process advice, nothing time-sensitive."
+  },
+  {
+   "id": "s36",
+   "tier": 2,
+   "publisher": "StockCharts.com",
+   "title": "John Murphy's 10 Laws of Technical Trading (ChartSchool)",
+   "url": "https://chartschool.stockcharts.com/table-of-contents/overview/john-murphys-10-laws-of-technical-trading",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s37",
+   "tier": 2,
+   "publisher": "StockCharts.com",
+   "title": "Pivot Points (ChartSchool)",
+   "url": "https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/technical-overlays/pivot-points",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s40",
+   "tier": 2,
+   "publisher": "Brett Steenbarger, TraderFeed",
+   "title": "Formulating an Initial Game Plan for the Day (2010-01-06)",
+   "url": "https://traderfeed.blogspot.com/2010/01/formulating-initial-game-plan-for-day.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Brett N. Steenbarger, Ph.D.: clinical psychologist and performance coach to portfolio managers and traders, author of four Wiley trading-psychology books (the contract's Tier 2 list names Steenbarger). TraderFeed is his own blog; every post is signed and dated, with his author bio on the page."
+  },
+  {
+   "id": "s41",
+   "tier": 2,
+   "publisher": "Brett Steenbarger, TraderFeed",
+   "title": "Best Practices in Trading: Organizing Your Trading Morning (2015-03-02)",
+   "url": "https://traderfeed.blogspot.com/2015/03/best-practices-in-trading-organizing_2.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Brett N. Steenbarger, Ph.D.: clinical psychologist and performance coach to portfolio managers and traders, author of four Wiley trading-psychology books (the contract's Tier 2 list names Steenbarger). TraderFeed is his own blog; every post is signed and dated, with his author bio on the page. This post publishes, in his own words, the written morning list of Steve Spencer, a trader at SMB Capital (SMB Trading)."
+  },
+  {
+   "id": "s50",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The house sizing rule, section 2: Stop first (owner's answer)",
+   "url": "repo:docs/study/sizing_rule.md#2-stop-first",
+   "accessed": "2026-11-09"
+  }
+ ],
+ "facts": [
+  {
+   "id": "fc1",
+   "source": "s1",
+   "quote": "Nearly 24-hour access means your hands aren’t tied when off-hour news and events occur",
+   "claim": "S&P 500 index futures trade nearly 24 hours, so they react to news while stocks are closed."
+  },
+  {
+   "id": "fc2",
+   "source": "s1",
+   "quote": "Nearly 24-hour access means no waiting for the ETF market open when market events (Brexit, U.S. elections) happen post-close",
+   "claim": "When big events hit after the close, the futures react without waiting for the open."
+  },
+  {
+   "id": "fc3",
+   "source": "s1",
+   "quote": "Key economic reports and factors that move markets This monthly report shows changes in U.S. jobs, drives Fed policy and indicates economic growth.",
+   "claim": "CME lists the monthly jobs report among the economic reports that move markets."
+  },
+  {
+   "id": "fc4",
+   "source": "s1",
+   "quote": "The Consumer Price Index measures inflation or cost-of-living changes through average price of a basket of goods and services.",
+   "claim": "CPI, the inflation report, is on the same CME list of market-moving reports."
+  },
+  {
+   "id": "fc5",
+   "source": "s1",
+   "quote": "Trade and track one ES future vs. 500 stocks to get nearly identical exposure",
+   "claim": "One E-mini S&P 500 future gives nearly the same exposure as owning the 500 stocks."
+  },
+  {
+   "id": "fb1",
+   "source": "s2",
+   "quote": "Tuesday, November 10, 2026 08:30 AM Consumer Price Index for October 2026",
+   "claim": "BLS releases October's CPI on Tuesday, Nov. 10, 2026, at 8:30 a.m."
+  },
+  {
+   "id": "fb2",
+   "source": "s2",
+   "quote": "NOTE: All times on calendar are Eastern Time.",
+   "claim": "BLS release times are Eastern Time."
+  },
+  {
+   "id": "ff1",
+   "source": "s3",
+   "quote": "October 28, 2026 Federal Reserve issues FOMC statement For release at 2:00 p.m. EDT",
+   "claim": "The Fed's Oct. 28, 2026 policy statement came out at 2:00 p.m. Eastern, during the trading session."
+  },
+  {
+   "id": "fn1",
+   "source": "s4",
+   "quote": "Core Trading Session: 9:30 a.m. to 4:00 p.m. ET",
+   "claim": "The NYSE core session runs from 9:30 a.m. to 4:00 p.m. ET."
+  },
+  {
+   "id": "fs1",
+   "source": "s5",
+   "quote": "Companies may announce important news or financial information outside of regular trading hours.",
+   "claim": "Companies can release big news while the market is closed."
+  },
+  {
+   "id": "fs2",
+   "source": "s5",
+   "quote": "The prices of some stocks traded during extended-hours trading may not reflect the prices of those stocks during regular hours, either at the end of the regular trading session or upon the opening of regular trading the next business day.",
+   "claim": "A premarket price may not match where the stock trades once the regular session opens."
+  },
+  {
+   "id": "fs3",
+   "source": "s5",
+   "quote": "during extended-hours trading there generally is less trading interest and therefore less price competition for most stocks",
+   "claim": "Premarket and after-hours trading is thinner, with less price competition."
+  },
+  {
+   "id": "fr1",
+   "source": "s6",
+   "quote": "The next day’s opening prices are generated based on supply and demand for the securities at or around the time markets open.",
+   "claim": "The opening price is set by supply and demand at the open, not by the earlier premarket trades."
+  },
+  {
+   "id": "fr2",
+   "source": "s6",
+   "quote": "For example, a company that reports disappointing earnings after the market closes might see a rapid decline in its share price during after-hours trading due to the market’s reaction to the announcement.",
+   "claim": "A weak report after the close can drop a stock fast in after-hours trading."
+  },
+  {
+   "id": "fe1",
+   "source": "s7",
+   "quote": "Companies usually release their earnings reports and accompanying press releases before the market opens or after it closes.",
+   "claim": "Earnings usually come out before the open or after the close."
+  },
+  {
+   "id": "sb1",
+   "source": "s10",
+   "quote": "More shares trade hand early in the day; then the action often slows at midday; and then volume grows again near the end of the day.",
+   "claim": "Volume is usually heavy early, slows at midday and picks up again near the close."
+  },
+  {
+   "id": "sb2",
+   "source": "s10",
+   "quote": "But when news breaks outside of trading hours, an imbalance between buy and sell orders may cause a stock to open dramatically higher or lower than its price at the previous close.",
+   "claim": "News that breaks while the market is closed can make a stock open far from its prior close."
+  },
+  {
+   "id": "sb3",
+   "source": "s10",
+   "quote": "Big news during the day—say, a Federal Reserve interest rate announcement—can upset these market tendencies.",
+   "claim": "A scheduled event like a Fed rate decision can upset the day's usual rhythm."
+  },
+  {
+   "id": "sb4",
+   "source": "s10",
+   "quote": "You never know what news might hit after the close, and there’s always the potential for the stock to gap lower the next trading day.",
+   "claim": "News after the close can gap a stock lower the next day."
+  },
+  {
+   "id": "sb5",
+   "source": "s10",
+   "quote": "stop orders can help protect against significant declines—especially when you’re not available to actively monitor your positions during trading hours.",
+   "claim": "A stop order helps most when you can't watch your positions during the day."
+  },
+  {
+   "id": "ss1",
+   "source": "s11",
+   "quote": "A watchlist is a list of securities you’re interested in trading because they meet certain criteria.",
+   "claim": "A watchlist holds the stocks that meet your criteria."
+  },
+  {
+   "id": "ss2",
+   "source": "s11",
+   "quote": "Daily : Monitor open positions : Look for new support levels and opportunities to adjust your stops.",
+   "claim": "Every day, review open positions for new support levels and chances to adjust your stops."
+  },
+  {
+   "id": "ss3",
+   "source": "s11",
+   "quote": "Plan for the week ahead : Identify potential news events relevant to your portfolio like earnings announcements, dividends, or major economic news.",
+   "claim": "Each week, find the earnings dates and economic news that matter to what you own."
+  },
+  {
+   "id": "ss4",
+   "source": "s11",
+   "quote": "Determining your entry rules before you buy reduces the guesswork when deciding when to enter a trade.",
+   "claim": "Setting entry rules before you buy takes the guesswork out of the entry."
+  },
+  {
+   "id": "fp1",
+   "source": "s12",
+   "quote": "You shouldn't alter a trading plan as a knee-jerk reaction to temporary market events, like when stock prices take a dive.",
+   "claim": "Don't change your plan as a knee-jerk reaction to a short-term move."
+  },
+  {
+   "id": "fp2",
+   "source": "s12",
+   "quote": "advanced charting, price alerts, and other trading tools to help you decide when to act.",
+   "claim": "Price alerts help you know when to act."
+  },
+  {
+   "id": "ip1",
+   "source": "s13",
+   "quote": "Many investors and traders watch the pre-market trading activity to judge the strength and direction of the market in anticipation of the regular trading session.",
+   "claim": "Traders watch the premarket to judge the market's strength and direction before the open."
+  },
+  {
+   "id": "ip2",
+   "source": "s13",
+   "quote": "Index-based exchange-traded funds (ETFs), such as the SPDR S&P 500 ETF ( SPY ), have moving quotes due to the trading in the S&P 500 futures contracts.",
+   "claim": "SPY's premarket quotes move with the S&P 500 futures."
+  },
+  {
+   "id": "ip3",
+   "source": "s13",
+   "quote": "Many of the most widely held top holdings in benchmark indices may also get movement in the event of a significant gap up or down in the S&P 500 futures.",
+   "claim": "A big gap in the futures can also move the largest stocks in the index."
+  },
+  {
+   "id": "ip5",
+   "source": "s13",
+   "quote": "However, there is no guarantee that pre-market prices will stick.",
+   "claim": "Premarket prices may not hold."
+  },
+  {
+   "id": "ib1",
+   "source": "s14",
+   "quote": "The middle of the day tends to be the calmest and most stable period of most trading days.",
+   "claim": "Midday is usually the calmest part of the session."
+  },
+  {
+   "id": "ib2",
+   "source": "s14",
+   "quote": "By 11:30 a.m., volatility and volume often decrease significantly, leading many day traders to close their positions.",
+   "claim": "By late morning, volume and volatility often drop off."
+  },
+  {
+   "id": "ib3",
+   "source": "s14",
+   "quote": "The opening and closing hours of the trading day tend to be the most volatile and active periods.",
+   "claim": "The first and last hours of the session are usually the most volatile and active."
+  },
+  {
+   "id": "iw1",
+   "source": "s15",
+   "quote": "A watchlist is a set of securities that an investor monitors for potential trading or investing opportunities.",
+   "claim": "A watchlist is the set of stocks you monitor for trades."
+  },
+  {
+   "id": "iw3",
+   "source": "s15",
+   "quote": "By narrowing the market down to a list of key securities, traders can focus their attention to closely watch the securities that they are interested in.",
+   "claim": "A short list lets you watch the names that matter closely."
+  },
+  {
+   "id": "id1",
+   "source": "s16",
+   "quote": "Don’t play it by ear—you must have some pre-fixed levels in your mind for every stock you plan to trade.",
+   "claim": "Set your levels in advance for every stock you plan to trade."
+  },
+  {
+   "id": "it1",
+   "source": "s17",
+   "quote": "You should write a plan that has clear signals that aren’t subject to change while you’re trading, but they should be subject to reevaluation when the markets are closed.",
+   "claim": "Write rules that don't change while you're trading, and rework them when the market is closed."
+  },
+  {
+   "id": "it2",
+   "source": "s17",
+   "quote": "Above all, don’t let impulse guide you during the trading day.",
+   "claim": "Don't trade on impulse during the session."
+  },
+  {
+   "id": "it3",
+   "source": "s17",
+   "quote": "take a step back and consider the overall market condition.",
+   "claim": "Before buying a stock, step back and look at the whole market."
+  },
+  {
+   "id": "ic1",
+   "source": "s18",
+   "quote": "M - Determine market direction by reviewing market averages daily.",
+   "claim": "O'Neil's CAN SLIM checks the market's direction every day from the major averages."
+  },
+  {
+   "id": "ic2",
+   "source": "s18",
+   "quote": "However, CANSLIM stocks can quickly decline if the market shifts and institutional investors move to safer assets.",
+   "claim": "Even strong growth stocks can drop fast when the market turns."
+  },
+  {
+   "id": "ic3",
+   "source": "s18",
+   "quote": "Some suggest focusing on leading stocks, which usually have superior fundamentals and belong to leading industry groups or sectors.",
+   "claim": "Leading stocks usually belong to leading industry groups or sectors."
+  },
+  {
+   "id": "ie1",
+   "source": "s19",
+   "quote": "The economic calendar refers to the scheduled dates of significant releases or events that may affect the movement of individual security prices or markets as a whole.",
+   "claim": "The economic calendar lists the scheduled reports and events that can move a stock or the whole market."
+  },
+  {
+   "id": "ie2",
+   "source": "s19",
+   "quote": "Key categories of events it covers include projections and reports, including jobless claims, home starts, and interest rate announcements.",
+   "claim": "The economic calendar covers reports such as jobless claims and interest rate announcements."
+  },
+  {
+   "id": "ips1",
+   "source": "s20",
+   "quote": "For stock trades, the trade risk is the dollar difference between the entry price and the stop-loss.",
+   "claim": "Risk per share is the distance from your entry to your stop."
+  },
+  {
+   "id": "ips2",
+   "source": "s20",
+   "quote": "Even with proper position sizing, investors can lose more than their intended risk amount if a security gaps beyond a stop-loss order.",
+   "claim": "A gap past your stop can cost more than you planned."
+  },
+  {
+   "id": "ir1",
+   "source": "s21",
+   "quote": "Don’t try to make up for a losing trade by trading more. Revenge trading is a recipe for disaster.",
+   "claim": "Trading more to win back a loss is revenge trading, and it backfires."
+  },
+  {
+   "id": "ir2",
+   "source": "s21",
+   "quote": "Stay away from stock boards and chat rooms, where people are less than serious and many of them have ulterior motives.",
+   "claim": "Stock boards and chat rooms are full of people with their own motives."
+  },
+  {
+   "id": "rp1",
+   "source": "s30",
+   "quote": "I have routines for pre-market hours, market hours and after-market hours.",
+   "claim": "Roze runs separate routines before, during and after the session."
+  },
+  {
+   "id": "rp2",
+   "source": "s30",
+   "quote": "With my checklists in hand, I know what to do next and how much more I have to do. And most importantly, I know when the job is done.",
+   "claim": "A checklist tells you what's next and when the job is done."
+  },
+  {
+   "id": "rp3",
+   "source": "s30",
+   "quote": "Write down your routines. Keep them up front on your desk or bulletin board. Out of sight is unfortunately out of mind.",
+   "claim": "Write the routine down and keep it where you can see it."
+  },
+  {
+   "id": "rp4",
+   "source": "s30",
+   "quote": "Gatis is a veteran full-time stock market investor who has traded his own account since 1989",
+   "claim": "Roze has traded his own account full time since 1989."
+  },
+  {
+   "id": "rr1",
+   "source": "s31",
+   "quote": "you must design and choreograph your pit stop routines to reflect the time parameters and constraints of your existing day",
+   "claim": "Build the routine around the time your real day allows."
+  },
+  {
+   "id": "rs1",
+   "source": "s32",
+   "quote": "I started with relatively simple daily “To Do” lists, but discovered quickly that the best planned days generally produced the best results.",
+   "claim": "Roze found that his best planned days generally gave his best results."
+  },
+  {
+   "id": "r3a",
+   "source": "s33",
+   "quote": "Experience has taught me that the likelihood of a solitary naked stock levitating all by itself – apart from its sector, industry and sisters – is so rare as to not warrant consideration.",
+   "claim": "A stock rarely rises on its own while its sector and group don't."
+  },
+  {
+   "id": "r3b",
+   "source": "s33",
+   "quote": "Now that I’m in the groove, I shift my focus to what I own because an attention to protection takes precedence over searching out fresh new purchases.",
+   "claim": "Roze checks what he owns before he looks for new buys: protection comes first."
+  },
+  {
+   "id": "rl1",
+   "source": "s34",
+   "quote": "I have my routines, and both the bullish and bearish action plans for either scenario that I worked on in those calmer hours when the market was closed.",
+   "claim": "Roze works out his plans for both outcomes while the market is closed."
+  },
+  {
+   "id": "rf1",
+   "source": "s35",
+   "quote": "My early morning modus operandi is more that of reviewing my charts and adjusting alerts (not stops)",
+   "claim": "Roze's early routine reviews his charts and adjusts his price alerts."
+  },
+  {
+   "id": "rf2",
+   "source": "s35",
+   "quote": "Because I watch the market closely during trading hours, I tend to use soft stops as opposed to hard stops that are entered in the market with your broker.",
+   "claim": "Roze uses mental stops because he watches the market closely during trading hours."
+  },
+  {
+   "id": "m1",
+   "source": "s36",
+   "quote": "Even if you only trade the short term, you will do better if you're trading in the same direction as the intermediate- and longer-term trends.",
+   "claim": "Short-term trades do better in the direction of the bigger trend."
+  },
+  {
+   "id": "m2",
+   "source": "s36",
+   "quote": "The best place to buy a market is near support levels. That support is usually a previous reaction low.",
+   "claim": "Support is usually a previous low."
+  },
+  {
+   "id": "m3",
+   "source": "s36",
+   "quote": "when a support level has been broken, it will usually produce selling on subsequent rallies – the old “low” can become the new “high.”",
+   "claim": "Broken support usually brings selling on the way back up."
+  },
+  {
+   "id": "pv1",
+   "source": "s37",
+   "quote": "At the beginning of the trading day, floor traders would look at the previous day's high, low, and close to calculate a Pivot Point for the current trading day.",
+   "claim": "Floor traders started each day from yesterday's high, low and close."
+  },
+  {
+   "id": "t1",
+   "source": "s40",
+   "quote": "My trading day begins early in the morning with an assessment of overseas markets, an advance look at economic reports due for the day, a review of the prior day's market indicators, and a view of overnight Globex trading.",
+   "claim": "Steenbarger's morning covers overseas markets, the day's economic reports, yesterday's indicators and the overnight futures."
+  },
+  {
+   "id": "t2",
+   "source": "s40",
+   "quote": "Out of that overview comes my initial game plan for the day; that plan will be modified as those reports come out and we see how the markets respond to them.",
+   "claim": "His first game plan gets adjusted as the reports come out and the market reacts."
+  },
+  {
+   "id": "t3",
+   "source": "s41",
+   "quote": "Enter alerts for 2nd day plays into Gr8Trade (pop up alerts if stock trades at key prices)",
+   "claim": "SMB trader Steve Spencer sets alerts at key prices before the open."
+  },
+  {
+   "id": "t4",
+   "source": "s41",
+   "quote": "Ideas must include entries/stops/targets/risk amount",
+   "claim": "Every idea on Spencer's morning plan has an entry, a stop, a target and a risk amount."
+  },
+  {
+   "id": "t5",
+   "source": "s41",
+   "quote": "He identifies and prioritizes opportunities during his preparation and thus is able to act quickly and decisively when trades actually set up.",
+   "claim": "Ranking ideas during prep is what lets you act fast when one sets up."
+  },
+  {
+   "id": "t6",
+   "source": "s41",
+   "quote": "Second, the routine enables Steve to process an unusually large amount of information in a concentrated period of time.",
+   "claim": "A good routine packs a lot of information into a short window."
+  },
+  {
+   "id": "t7",
+   "source": "s41",
+   "quote": "Here is the current list of things I do each morning after arriving at the office",
+   "claim": "Spencer, a professional trader at SMB, keeps a set list of what he does each morning."
+  },
+  {
+   "id": "t8",
+   "source": "s41",
+   "quote": "Enter top trading ideas into journal (important for later review process)",
+   "claim": "Spencer logs his top ideas so he can review them later."
+  },
+  {
+   "id": "h1",
+   "source": "s50",
+   "quote": "Default stop: the low of the day, or the prior day's low. (Owner's answer.)",
+   "claim": "Our default stop is the low of the day or the prior day's low."
+  }
+ ],
+ "walkthroughs": [
+  {
+   "key": "w1",
+   "title": "Before the open",
+   "steps": [
+    "Run the day on three checkpoints: before the open, during the session, and after the close.",
+    "Start wide. Index futures trade nearly 24 hours, so they show how the market took the overnight news.",
+    "Then the calendar. CPI lands at 8:30 a.m. ET, and companies usually report before the open or after the close.",
+    "Then narrow your list to the few best names. Each gets levels, an entry, a stop and a risk amount."
+   ],
+   "facts": [
+    "rp1",
+    "fc1",
+    "fb1",
+    "fb2",
+    "fe1",
+    "iw3",
+    "t4"
+   ]
+  },
+  {
+   "key": "w2",
+   "title": "During the session",
+   "steps": [
+    "Volume is usually heavy early, slows at midday, and picks up again into the close.",
+    "Midday is a check, not a hunt: what you own, your stops, and news due later, like a 2:00 p.m. Fed statement.",
+    "The rules you wrote stay the rules. Changes wait until the market is closed."
+   ],
+   "facts": [
+    "sb1",
+    "ib1",
+    "ss2",
+    "ff1",
+    "it1"
+   ]
+  },
+  {
+   "key": "w3",
+   "title": "After the close",
+   "steps": [
+    "The recap starts with what you own. Check each stop, and consider raising it under a new higher low.",
+    "Check who reports tonight or before tomorrow's open. News after the close can gap a stock past your stop.",
+    "Then log today's ideas and write tomorrow's list and levels while the market is closed.",
+    "Veteran trader Gatis Roze found his best planned days generally gave his best results."
+   ],
+   "facts": [
+    "ss2",
+    "m2",
+    "fe1",
+    "sb4",
+    "ips2",
+    "t8",
+    "rl1",
+    "rs1"
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "key": "q01",
+   "skill": "process.routine",
+   "rung": 1,
+   "format": "mcq",
+   "q": "Before the 9:30 a.m. ET open, what do S&P 500 futures show you?",
+   "choices": [
+    "How the market takes overnight news",
+    "The exact price stocks will open at",
+    "Which stocks will lead today",
+    "Nothing that matters for stocks"
+   ],
+   "answer": "How the market takes overnight news",
+   "why": "How the market takes overnight news. The futures trade nearly 24 hours, so they react while the regular session is closed. SPY's premarket quotes move with them.",
+   "lesson_line": "Futures are the market's overnight vote. A hint about the open, not a promise.",
+   "facts": [
+    "fc1",
+    "fc2",
+    "fc5",
+    "fn1",
+    "ip1",
+    "ip2",
+    "ip3",
+    "fr1",
+    "ip5",
+    "fs2"
+   ],
+   "wrong": {
+    "The exact price stocks will open at": "No. The open is set by supply and demand at the open itself, and premarket prices may not hold.",
+    "Which stocks will lead today": "The futures track the whole index. They can't tell you which names will lead.",
+    "Nothing that matters for stocks": "They do matter. SPY's premarket quotes move with the futures, and a big gap moves the largest index stocks too."
+   }
+  },
+  {
+   "key": "q02",
+   "skill": "process.routine",
+   "rung": 1,
+   "format": "tf",
+   "q": "Midday is usually the busiest, most volatile stretch of the trading day.",
+   "answer": "False",
+   "why": "False. Volume is heavy early, often slows at midday, and grows again into the close. The middle of the day tends to be the calmest stretch.",
+   "lesson_line": "Busy open, quiet middle, busy close. Plan your checks around that shape.",
+   "facts": [
+    "sb1",
+    "ib1",
+    "ib2"
+   ]
+  },
+  {
+   "key": "q03",
+   "skill": "process.routine",
+   "rung": 1,
+   "format": "mcq",
+   "q": "You're building tomorrow's watchlist. What earns a stock a spot on it?",
+   "choices": [
+    "It meets your setup criteria",
+    "It was today's biggest gainer",
+    "A chat room is buzzing about it"
+   ],
+   "answer": "It meets your setup criteria",
+   "why": "It meets your setup criteria. A watchlist holds the names that fit your rules, so you can watch them for an entry signal.",
+   "lesson_line": "The list is for names that fit your setups, not names that are loud.",
+   "facts": [
+    "ss1",
+    "iw1",
+    "ir2"
+   ],
+   "wrong": {
+    "It was today's biggest gainer": "A big day can be part of a setup, but on its own it's just a move. The list holds names that meet your criteria.",
+    "A chat room is buzzing about it": "Buzz isn't a criterion. Investopedia warns that many chat-room posters have ulterior motives. Check the name against your own rules."
+   }
+  },
+  {
+   "key": "q04",
+   "skill": "process.routine",
+   "rung": 2,
+   "format": "fill",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "The economic ___ lists the scheduled reports and events that can move the whole market.",
+   "bank": [
+    "calendar",
+    "journal",
+    "watchlist",
+    "scanner"
+   ],
+   "answer": "calendar",
+   "why": "Calendar. The economic calendar lists the scheduled dates of big reports and events that can move a stock or the whole market. BLS, for one, posts its release dates and times in Eastern Time.",
+   "lesson_line": "Check the economic calendar every premarket. A scheduled report can move the whole market.",
+   "facts": [
+    "ie1",
+    "fb1",
+    "fb2",
+    "fc3"
+   ]
+  },
+  {
+   "key": "q05",
+   "skill": "process.routine",
+   "rung": 2,
+   "format": "mcq",
+   "q": "Your levels are marked on four names. How do you catch the moment one of them trades?",
+   "choices": [
+    "Set price alerts at your levels",
+    "Keep flipping through the charts",
+    "Buy all four now so none get away"
+   ],
+   "answer": "Set price alerts at your levels",
+   "why": "Set price alerts at your levels. SMB trader Steve Spencer loads alerts at key prices before the open, so the market tells him when a level trades.",
+   "lesson_line": "Let alerts do the watching. You show up when a level trades.",
+   "facts": [
+    "t3",
+    "fp2",
+    "rf1",
+    "ss4"
+   ],
+   "wrong": {
+    "Keep flipping through the charts": "You'll catch some levels and miss others, and constant flipping invites impulse trades.",
+    "Buy all four now so none get away": "That skips your entry rules. Rules set before you buy are what take the guesswork out of the entry."
+   }
+  },
+  {
+   "key": "q06",
+   "skill": "process.routine",
+   "rung": 3,
+   "format": "tf",
+   "q": "Once the bell rings, it's fine to rewrite your entry and stop rules on the fly.",
+   "answer": "False",
+   "why": "False. Your rules shouldn't change while you're trading. Rework them when the market is closed, not as a knee-jerk reaction mid-session.",
+   "lesson_line": "During the session you execute. Rule changes wait for the close.",
+   "facts": [
+    "it1",
+    "it2",
+    "fp1"
+   ]
+  },
+  {
+   "key": "q07",
+   "skill": "process.routine",
+   "rung": 3,
+   "format": "mcq",
+   "q": "Your scan found a perfect-looking chart. What else does your premarket check before you plan the buy?",
+   "choices": [
+    "The market's trend and its sector",
+    "Nothing, a great chart is enough",
+    "Analysts' price targets for it"
+   ],
+   "answer": "The market's trend and its sector",
+   "why": "The market's trend and its sector. CAN SLIM checks market direction daily, and leaders usually come from leading groups. Veteran trader Gatis Roze finds a stock rarely rises apart from its sector.",
+   "lesson_line": "Read the market and the group, then the stock.",
+   "facts": [
+    "ic1",
+    "ic3",
+    "it3",
+    "r3a",
+    "m1"
+   ],
+   "wrong": {
+    "Nothing, a great chart is enough": "Charts don't trade in a vacuum. You do better trading in the direction of the bigger trend.",
+    "Analysts' price targets for it": "A target is someone's opinion about where it could go. It doesn't tell you if the market is helping or hurting right now."
+   }
+  },
+  {
+   "key": "q08",
+   "skill": "process.routine",
+   "rung": 4,
+   "format": "scenario",
+   "story": "CPI morning. The report is due at 8:30 a.m. ET. At 8:00 your plan is set: three names, with levels, entries and stops.",
+   "q": "What do you do when the number hits?",
+   "choices": [
+    "See how the market takes it, then adjust",
+    "Ignore it, CPI doesn't move stocks",
+    "Scrap the plan and start over",
+    "Buy all three before it comes out"
+   ],
+   "answer": "See how the market takes it, then adjust",
+   "why": "See how the market takes it, then adjust. CPI can move the whole market, and the futures react before stocks open at 9:30. Trading coach Brett Steenbarger adjusts his game plan as reports come out and markets respond.",
+   "lesson_line": "Know the calendar before you plan. A scheduled report can rewrite the morning.",
+   "facts": [
+    "fb1",
+    "fb2",
+    "fc3",
+    "fc4",
+    "t2",
+    "fn1",
+    "fs3"
+   ],
+   "wrong": {
+    "Ignore it, CPI doesn't move stocks": "It does. CME lists CPI and the jobs report among the economic reports that move markets.",
+    "Scrap the plan and start over": "The plan is a draft, not trash. Steenbarger adjusts his game plan as the reports come out.",
+    "Buy all three before it comes out": "That bets on a number nobody has seen yet, in a thin premarket with little price competition."
+   }
+  },
+  {
+   "key": "q09",
+   "skill": "process.routine",
+   "rung": 4,
+   "format": "numeric",
+   "q": "S&P 500 futures were at 6,000 at 4:00 p.m. yesterday. At 8:45 a.m. today they're at 5,940. How far down are they, in percent?",
+   "answer": 1,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(start - end) / start * 100",
+     "start": 6000,
+     "end": 5940
+    }
+   },
+   "suffix": "%",
+   "why": "1%. From 6,000 to 5,940 is a 1% drop. The futures track the S&P 500, and SPY and the biggest index stocks tend to move with them before the open.",
+   "lesson_line": "Read futures in percent, not points. Points mean little until you size them against the level.",
+   "facts": [
+    "fc1",
+    "fc5",
+    "ip1",
+    "ip2",
+    "ip3"
+   ]
+  },
+  {
+   "key": "q10",
+   "skill": "process.routine",
+   "rung": 4,
+   "format": "mcq",
+   "q": "Before the open you mark yesterday's high, low and close on a name. Which one is our default stop for a new long?",
+   "choices": [
+    "Yesterday's low",
+    "Yesterday's high",
+    "Yesterday's close"
+   ],
+   "answer": "Yesterday's low",
+   "house": true,
+   "why": "Yesterday's low. Our default stop is the low of the day or the prior day's low. Before the open, today's low doesn't exist yet, so yesterday's low is the one you can mark.",
+   "lesson_line": "Mark yesterday's high and low on every name. Our default stop sits under a low.",
+   "facts": [
+    "h1",
+    "pv1",
+    "id1"
+   ],
+   "wrong": {
+    "Yesterday's high": "Worth marking, but our default stop for a long sits under a low, not at a high.",
+    "Yesterday's close": "Useful context, but our default stop uses the low of the day or the prior day's low, not the close."
+   }
+  },
+  {
+   "key": "q11",
+   "skill": "process.routine",
+   "rung": 5,
+   "format": "scenario",
+   "story": "Sunday night your scans leave 45 names. Monday you get 20 minutes of prep before work.",
+   "q": "What do you do with the list tonight?",
+   "choices": [
+    "Narrow it to the few best setups",
+    "Watch all 45 and react to movers",
+    "Buy a little of each to be safe",
+    "Add names so you miss nothing"
+   ],
+   "answer": "Narrow it to the few best setups",
+   "why": "Narrow it to the few best setups. Twenty minutes won't cover 45 charts well. As trading coach Brett Steenbarger notes, ranking ideas during prep is what lets you act fast when one sets up.",
+   "lesson_line": "Narrow your list. The best names get your attention, the rest wait.",
+   "facts": [
+    "iw3",
+    "t5",
+    "rr1"
+   ],
+   "wrong": {
+    "Watch all 45 and react to movers": "That's more than you can follow closely, and reacting to movers turns into chasing them.",
+    "Buy a little of each to be safe": "That's dozens of trades with no plan behind any of them. Every buy needs an entry, a stop and a risk amount first.",
+    "Add names so you miss nothing": "More names means less attention on each one. Narrowing is what lets you act fast when one sets up."
+   }
+  },
+  {
+   "key": "q12",
+   "skill": "process.routine",
+   "rung": 5,
+   "format": "scenario",
+   "story": "Your plan: buy over $50, stop at $48. Overnight news hits. At 9:00 a.m. the stock is $53.50 premarket.",
+   "q": "If you buy at $53.50, what's your risk per share to the $48 stop?",
+   "choices": [
+    "$5.50, up from $2",
+    "Still $2, the stop didn't move",
+    "$3.50, how far it gapped past $50",
+    "Less, the move is in my favor"
+   ],
+   "answer": "$5.50, up from $2",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "entry - stop",
+     "entry": 53.5,
+     "stop": 48
+    }
+   },
+   "why": "$5.50, up from $2. Risk per share is entry minus stop. The stop stayed at $48, but buying at $53.50 makes each share risk far more than your plan did.",
+   "lesson_line": "A gap rewrites your plan's numbers. Re-plan it or pass, but don't buy on the old math.",
+   "facts": [
+    "ips1",
+    "sb2",
+    "fs1"
+   ],
+   "wrong": {
+    "Still $2, the stop didn't move": "The stop didn't move, but your entry did. Entry minus stop is now much wider.",
+    "$3.50, how far it gapped past $50": "That's how far it ran past your $50 trigger, not the distance down to your stop.",
+    "Less, the move is in my favor": "Paying more for the same stop means more risk per share, not less."
+   }
+  },
+  {
+   "key": "q13",
+   "skill": "process.routine",
+   "rung": 6,
+   "format": "mcq",
+   "q": "It's 12:30 p.m. and the market has gone quiet. What comes first in your midday check?",
+   "choices": [
+    "Positions, stops and news due later",
+    "A fresh scan for new names to buy",
+    "Lower stops to give trades more room"
+   ],
+   "answer": "Positions, stops and news due later",
+   "why": "Positions, stops and news due later. Protection comes before new buys. Know what's scheduled too: the Fed's Oct. 28, 2026 statement landed at 2:00 p.m. ET.",
+   "lesson_line": "Midday is a check, not a hunt.",
+   "facts": [
+    "ss2",
+    "ff1",
+    "sb3",
+    "ib1",
+    "r3b"
+   ],
+   "wrong": {
+    "A fresh scan for new names to buy": "New buys can wait. Veteran trader Gatis Roze checks what he owns first: protection takes precedence over fresh purchases.",
+    "Lower stops to give trades more room": "Moving a stop lower on a long adds risk you never planned. Stops move with a trade, not away from it."
+   }
+  },
+  {
+   "key": "q14",
+   "skill": "process.routine",
+   "rung": 6,
+   "format": "scenario",
+   "story": "At 2:00 p.m. the market whips both ways, and your stock swings through your stop and back. Later you learn the Fed's statement came out at 2:00.",
+   "q": "Which premarket step would have warned you?",
+   "choices": [
+    "Checking the day's economic calendar",
+    "Reading the overnight index futures",
+    "Marking levels on each of your names",
+    "Scanning your names' news"
+   ],
+   "answer": "Checking the day's economic calendar",
+   "why": "Checking the day's economic calendar. Rate announcements are on it, and the Fed's Oct. 28, 2026 statement came out at 2:00 p.m. ET. Big news like that can upset the day's normal rhythm.",
+   "lesson_line": "Levels tell you where. The calendar tells you when.",
+   "facts": [
+    "ff1",
+    "ie1",
+    "ie2",
+    "sb3",
+    "t1"
+   ],
+   "wrong": {
+    "Reading the overnight index futures": "Futures show the overnight mood. They don't tell you what's scheduled at 2:00 p.m.",
+    "Marking levels on each of your names": "Levels tell you where to act, not when the market is about to jolt.",
+    "Scanning your names' news": "Company news matters, but a Fed statement is market-wide and scheduled. It sits on the economic calendar."
+   }
+  },
+  {
+   "key": "q15",
+   "skill": "process.routine",
+   "rung": 6,
+   "format": "scenario",
+   "story": "After the close you run your recap. One holding just made a new higher low, well above your stop.",
+   "q": "What does the recap do with that stop?",
+   "choices": [
+    "Consider raising it under the new low",
+    "Lower it to give the trade more room",
+    "Cancel it, since the trade is working"
+   ],
+   "answer": "Consider raising it under the new low",
+   "why": "Consider raising it under the new low. Schwab's daily routine: monitor open positions for new support levels and chances to adjust your stops. Support is usually a previous low.",
+   "lesson_line": "Stops move one way: in the direction of the trade.",
+   "facts": [
+    "ss2",
+    "m2"
+   ],
+   "wrong": {
+    "Lower it to give the trade more room": "Widening a stop on a winner adds risk for no reason.",
+    "Cancel it, since the trade is working": "Working trades can turn. Without a stop, a winner can become a loser."
+   }
+  },
+  {
+   "key": "q16",
+   "skill": "process.routine",
+   "rung": 7,
+   "format": "scenario",
+   "story": "You work 9 to 5 and can't watch the market. You hold two swing trades with stops planned at yesterday's lows.",
+   "q": "Where should those stops live during the day?",
+   "choices": [
+    "As stop orders at your broker",
+    "In your head, checked at lunch",
+    "Nowhere until you get home"
+   ],
+   "answer": "As stop orders at your broker",
+   "why": "As stop orders at your broker. Schwab notes stop orders can help protect you, especially when you can't watch your positions. Gatis Roze uses mental stops because he watches the market closely. A gap can still skip a stop.",
+   "lesson_line": "If you can't watch, your stops have to be real orders, not intentions.",
+   "facts": [
+    "sb5",
+    "rf2",
+    "ips2"
+   ],
+   "wrong": {
+    "In your head, checked at lunch": "Between checks, nothing acts on it. A mental stop only works for someone watching the screen.",
+    "Nowhere until you get home": "Then a bad day has no limit until you're home. That's a loss you never planned."
+   }
+  },
+  {
+   "key": "q17",
+   "skill": "process.routine",
+   "rung": 7,
+   "format": "scenario",
+   "story": "You skipped Monday's recap and Tuesday's prep. At 4:05 p.m. Tuesday, a stock you hold reports. It falls 11% after hours.",
+   "q": "Which step would have flagged it in time?",
+   "choices": [
+    "Checking earnings dates for holdings",
+    "Reading the futures each morning",
+    "Placing a stop under yesterday's low",
+    "The midday check on volume"
+   ],
+   "answer": "Checking earnings dates for holdings",
+   "why": "Checking earnings dates for holdings. Companies usually report before the open or after the close, and Schwab's routine checks the week ahead for earnings. Knowing it Monday gave you Tuesday's session to decide.",
+   "lesson_line": "Every day, check who reports tonight and tomorrow morning. Decide before the close, not after the gap.",
+   "facts": [
+    "fe1",
+    "fr2",
+    "ss3",
+    "sb4",
+    "ips2"
+   ],
+   "wrong": {
+    "Reading the futures each morning": "Futures show the market's mood. They don't list a company's report date.",
+    "Placing a stop under yesterday's low": "A stop can't stop a report. The stock can gap past it, and the fill lands far below.",
+    "The midday check on volume": "Volume says nothing about a report date. The earnings calendar does."
+   }
+  },
+  {
+   "key": "q18",
+   "skill": "process.routine",
+   "rung": 7,
+   "format": "tf",
+   "q": "If you can't spend two hours on premarket prep, a routine isn't worth having.",
+   "answer": "False",
+   "why": "False. Build the routine around the day you really have. A good routine packs a lot of information into a short window.",
+   "lesson_line": "A short routine you run every day beats a long one you skip.",
+   "facts": [
+    "rr1",
+    "t6"
+   ]
+  },
+  {
+   "key": "q19",
+   "skill": "process.routine",
+   "rung": 8,
+   "format": "scenario",
+   "story": "For three weeks the S&P 500 has made lower highs and lower lows. Most names on your list broke support. One chart still looks perfect.",
+   "q": "How does your premarket treat that one name?",
+   "choices": [
+    "Extra caution, the market is against it",
+    "Full size, a great chart is all you need",
+    "Buy the names that broke, they're cheap"
+   ],
+   "answer": "Extra caution, the market is against it",
+   "why": "Extra caution. You do better trading in the direction of the bigger trend, and even strong stocks can drop fast when the market turns.",
+   "lesson_line": "Check the market before the stock. A great chart can still fail when the market falls.",
+   "facts": [
+    "m1",
+    "r3a",
+    "ic1",
+    "ic2",
+    "m3"
+   ],
+   "wrong": {
+    "Full size, a great chart is all you need": "CAN SLIM checks market direction daily for a reason: even strong stocks can drop fast when the market turns.",
+    "Buy the names that broke, they're cheap": "Broken support isn't a discount. It usually brings selling on the way back up."
+   }
+  },
+  {
+   "key": "q20",
+   "skill": "process.routine",
+   "rung": 8,
+   "format": "tf",
+   "q": "Written checklists are for beginners. Experienced traders run their routine from memory.",
+   "answer": "False",
+   "why": "False. Gatis Roze, trading his own account since 1989, works from written checklists and says to keep them in sight. SMB's Steve Spencer keeps a set list for his morning.",
+   "lesson_line": "Out of sight is out of mind. Write the routine down and keep it where you can see it.",
+   "facts": [
+    "rp3",
+    "rp2",
+    "rp4",
+    "t7"
+   ]
+  },
+  {
+   "key": "q21",
+   "skill": "process.routine",
+   "rung": 9,
+   "format": "scenario",
+   "story": "Down day. You took two small losses, both by the plan, and still hold three names. It's 4:10 p.m., and you want to shut the laptop and forget it.",
+   "q": "What does tonight's recap still need?",
+   "choices": [
+    "Stops, reports due, tomorrow's list",
+    "Nothing, a red day earns a night off",
+    "A bigger list to win it back tomorrow",
+    "Looser stops so they don't hit again"
+   ],
+   "answer": "Stops, reports due, tomorrow's list",
+   "why": "Stops, reports due, tomorrow's list. The recap isn't a mood check. It sets up tomorrow: stops reviewed, reports known, the next plan written while the market is closed.",
+   "lesson_line": "Red day or green day, the recap runs. It's how tomorrow starts.",
+   "facts": [
+    "ss2",
+    "ss3",
+    "rl1",
+    "it1",
+    "ir1"
+   ],
+   "wrong": {
+    "Nothing, a red day earns a night off": "Losses taken by the plan are the cost of trading. What you still hold and tomorrow's plan still need the recap.",
+    "A bigger list to win it back tomorrow": "That's trading more to win back a loss. Investopedia calls revenge trading a recipe for disaster.",
+    "Looser stops so they don't hit again": "Widening stops to dodge losses just makes the next loss bigger."
+   }
+  },
+  {
+   "key": "q22",
+   "skill": "process.routine",
+   "rung": 9,
+   "format": "scenario",
+   "story": "You work days. You get 20 minutes before work and about an hour after 5 p.m.",
+   "q": "Where does the heavy planning go?",
+   "choices": [
+    "Evenings: list, levels and stops",
+    "Mornings: scan everything from scratch",
+    "Lunch break: scan and buy midday",
+    "Skip prep and react to the open"
+   ],
+   "answer": "Evenings: list, levels and stops",
+   "why": "Evenings: list, levels and stops. That's your longest window, and the market is closed. Then the 20 morning minutes go to futures, the calendar and news on your names.",
+   "lesson_line": "Build the plan at night. Use the morning to check it, not to write it.",
+   "facts": [
+    "rl1",
+    "it1",
+    "rr1",
+    "t1",
+    "ib3"
+   ],
+   "wrong": {
+    "Mornings: scan everything from scratch": "There's no time for that. Twenty minutes is for checking the plan, not building it.",
+    "Lunch break: scan and buy midday": "Midday is for checking what you hold. Building the plan belongs to the hours when the market is closed.",
+    "Skip prep and react to the open": "Then every decision is made on impulse, at the busiest, most volatile time of day."
+   }
+  }
+ ],
+ "conflicts": [
+  "Premarket start time: Investopedia (s13) says premarket trading runs from 4 a.m. ET; FINRA (s6) says it is 'typically defined as taking place from 7 - 9:30 a.m. ET'; brokers differ. The unit never keys a premarket start time (F1.05 owns session hours).",
+  "No single order for the premarket: Steenbarger (s40) starts with overseas markets, the day's economic reports, yesterday's indicators and overnight Globex; Roze (s35, s32) starts with the news, the Nasdaq premarket pages and overseas markets, then runs top-down (market trends, then sectors, then stocks); Spencer (s41) runs platforms, his game plan, alerts, a scanner and his journal. Investopedia's 10 Steps (s17) looks at the stock first and then steps back to the market, the reverse of Roze's top-down. So no question keys a fixed order of steps. The unit keys only what they share: plan when the market is closed (q06, q22), know the calendar (q04, q08, q14), narrow the list (q11), set levels, stops and alerts (q05, q10), and read the market as well as the stock (q07, q19). The row's 'P: order the routine' is taught that way.",
+  "Steenbarger (t2) modifies his game plan as the morning reports come out, while Investopedia (it1) and Fidelity (fp1) say the plan's rules should not change while you are trading. Not a contradiction: Steenbarger adjusts his read of the market; the entry and stop rules stay. q06 keys the rules; q08 keys adjusting the plan to the report.",
+  "Trading the open: Investopedia's beginner day-trading guide (s16) suggests novices watch the first 15-20 minutes, and Roze (s35) is 'seldom active' in the first hour, while Investopedia's timing piece (s14) says many professionals focus on the opening hour. The unit never keys whether to trade the open.",
+  "Mental vs hard stops: Roze (rf2) uses 'soft' (mental) stops because he watches all session. q16 keys only the case of a member who cannot watch (a resting stop order), with Schwab (sb5) and the gap caveat (ips2); it does not say mental stops are wrong for someone at the screen.",
+  "Roze's StockCharts articles date from 2012-2013. They are cited only for process advice that does not expire (write routines down, fit them to your day, plan when the market is closed, check the group). His lunchtime 'manipulation' view and the Trader's Almanac last-half-hour statistic in the same series are not used.",
+  "Investopedia's economic-calendar page (s19) suggests a trader who 'guesses correctly' can open a position right before an announcement. That is a gamble on an unseen number, and the unit teaches the opposite (q08 wrong choice 'Buy all three before it comes out'); only the page's definition of the calendar (ie1) is cited.",
+  "Futures hours: Investopedia's E-mini page gives Sunday-Friday 6 p.m. to 5 p.m. ET with a 5-6 p.m. halt, but CME's own contract-spec table loads by script and could not be read as page text. The unit says only 'nearly 24 hours' (CME's own product page, fc1) and never keys exact futures hours.",
+  "Unit plan row 'covers': course M6 'premarket routine' and dossier M12 are docs/curriculum, which the contract forbids as a source; not used. The Journal day-notes shape (prep, mid-day, recap) matches the unit's three checkpoints, but no house page states a routine in the owner's words, so the only house question (q10) rests on the owner's default stop (sizing_rule.md section 2), which F9.02 also asks directly; q10 asks it from the premarket angle (before the open only yesterday's low exists).",
+  "Overlap with F8.07 (the daily MENTAL routine, same Steenbarger morning posts): F8.07 owns the warm-up of the trader, breaks and the emotional cool-down; this unit owns the market and process side (futures, calendar, list, levels, alerts, midday check, the mechanical recap). Facts shared with F8.07 (Spencer's morning list, Steenbarger's game plan) are asked here from a different angle. Overlap with F7.07 (release times), F5.04 (earnings timing) and F1.05 / F10.04 (extended hours): those facts appear here only inside routine decisions, never asked as the same recall question.",
+  "Source check (checker, 2026-11-09): Investopedia's pre-market page (s13) now refuses every automated client (HTTP 402/403 to curl, the quote checker and WebFetch; the Wayback Machine's 2026 capture is also a 402). Its four quotes (ip1, ip2, ip3, ip5) were confirmed word for word on the Wayback Machine capture of 2025-08-21 (page 'Updated August 15, 2025', James Chen). The writer's 'updated 2026-09-17' could not be confirmed and was dropped from the title. They are evergreen market-structure facts; q01 and q09 also rest on CME's own page (fc1, fc5)."
+ ],
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "notes": "rp1 (Roze), fc1 (CME), fb1+fb2 (BLS: Oct CPI Tue Nov 10 2026, 08:30 AM, all times ET), fe1 (FINRA), iw3, t4 (Spencer: entries/stops/targets/risk amount) all confirmed on the live pages, read in context. Changed: 'companies report before the open or after the close' to 'usually report', because FINRA's quote says 'usually'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "sb1 (Schwab goblet), ib1, ss2, ff1 (Fed: Oct 28 2026 statement 'For release at 2:00 p.m. EDT') and it1 confirmed live. Changed step 1 from a flat 'Volume is heavy early' to 'usually heavy early': Schwab says 'this isn't always case and exceptions can occur'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "ss2, m2, fe1, sb4, ips2, t8, rl1, rs1 confirmed live in context. Changed 'raise it under a new higher low' to 'consider raising it', to match q15 and Schwab's 'opportunities to adjust your stops' (not a must).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q01": {
+   "status": "pass",
+   "notes": "Key rests on CME's own page (Tier 1): fc1/fc2 nearly 24-hour access when off-hour news hits; fr1 (FINRA: open set by supply and demand at the open) and fs2 (SEC) make 'exact price' really wrong. Changed why 'react while stocks are shut' to 'while the regular session is closed' (stocks do trade premarket, and the next sentence cites SPY's premarket quotes). Added fc5 (CME: one ES future tracks the 500 stocks) and fn1 (9:30 open). ip1/ip2/ip3/ip5: Investopedia now refuses every client (402/403, WebFetch too); confirmed word for word on the Wayback capture of 2025-08-21 (page updated 2025-08-15). See conflicts. variety rewrite checked 2026-11-10.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q02": {
+   "status": "pass",
+   "notes": "sb1 (Schwab: volume slows at midday) and ib1/ib2 (Investopedia: middle of the day tends to be calmest) confirmed live; two Tier 2 publishers agree. The statement says 'usually', matching both sources' hedges, so False is right as written.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q03": {
+   "status": "cut",
+   "notes": "duplicate of F12.01#q11. Track audit 2026-11-09: both ask which names belong on your list and key 'the stocks that meet your criteria' from the same Schwab '5 Elements of a Smart Trade Plan' page (here ss1, there f08/f09), as an MCQ with the same two distractors (today's biggest mover, a chat room's buzz). F12.01 q11 comes first in the track, has four choices (adds 'stocks you already know well') and Investopedia's plan page as its second publisher, so it is kept. This item was right as written: the checker's earlier note stands (ss1, iw1 and ir2 confirmed live; the chat-room note softened).",
+   "fixed": false,
+   "by": "track-auditor"
+  },
+  "q04": {
+   "status": "pass",
+   "notes": "ie1 (Investopedia economic calendar, updated 2026-10-05) confirmed live; only 'calendar' fits the blank. fb1/fb2 (BLS) and fc3 (CME) confirmed. Changed lesson line 'can move everything' to 'can move the whole market' (the source's words, no overstatement).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q05": {
+   "status": "pass",
+   "notes": "t3 (Spencer of SMB Trading, on Steenbarger's dated post: 'pop up alerts if stock trades at key prices'), fp2 (Fidelity: price alerts help you decide when to act), rf1 (Roze adjusts alerts each morning) and ss4 (Schwab) confirmed live. Three publishers agree. 'Buy all four now' really breaks the entry rules; flipping charts is a believable but weaker habit.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q06": {
+   "status": "pass",
+   "notes": "it1/it2 (Investopedia 10 Steps: signals 'aren't subject to change while you're trading... reevaluation when the markets are closed') and fp1 (Fidelity: no knee-jerk changes) confirmed live. Two publishers. Statement is about rewriting rules mid-session, so False is right; Steenbarger's adjusting of his read (q08) is handled in conflicts.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q07": {
+   "status": "pass",
+   "notes": "ic1 (CAN SLIM: M = market direction daily), it3 (Investopedia: step back to the overall market), m1 (Murphy, StockCharts) and r3a (Roze) confirmed in context. The 'sector' half of the key had only one publisher (Roze), so added ic3 from the same Investopedia CAN SLIM page (leading stocks 'belong to leading industry groups or sectors', confirmed live). Why reworded to say exactly that, and Roze's line now matches his quote ('apart from its sector').",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q08": {
+   "status": "pass",
+   "notes": "fb1 (BLS: CPI 08:30 AM ET, Nov 10 2026, confirmed on the current 2026 schedule), fc3/fc4 (CME lists CPI among reports that move markets), t2 (Steenbarger modifies his plan as reports come out), fs3 (SEC: thin premarket) confirmed. Report lands before the 9:30 open (fn1), so adjusting then does not clash with q06. Changed 'CPI moves the whole market' to 'can move' (no guarantee).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q09": {
+   "status": "pass",
+   "notes": "Recomputed: (6000 - 5940) / 6000 x 100 = 60 / 6000 x 100 = 1%. calc matches. Added fc5 (CME, Tier 1: one ES future gives nearly identical exposure to the 500 stocks) so the 'futures track the index' line does not rest only on the unreachable s13; why now says the futures track the S&P 500 and that SPY and the biggest stocks 'tend to' move with them (hedged). s13 quotes confirmed on the Wayback capture, see conflicts.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q10": {
+   "status": "pass",
+   "notes": "House question: h1 matches sizing_rule.md section 2 line 1 ('Default stop: the low of the day, or the prior day's low.' Owner's answer). Among yesterday's high, low and close only the low is our default; before the open today's low does not exist, so the reasoning holds. pv1 (StockCharts pivots: floor traders started from the prior high, low, close) and id1 confirmed live. Same rule as F9.02, asked from the premarket angle; not a duplicate inside this unit.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q11": {
+   "status": "pass",
+   "notes": "iw3 (Investopedia), t5 (Steenbarger's own commentary on Spencer: prioritizing during prep lets him act quickly; correctly attributed to Steenbarger) and rr1 (Roze) confirmed live. Changed the story from narrowing 45 names inside the 20-minute premarket to doing it Sunday night, because q22 and w3 teach that the plan is built when the market is closed and the morning only checks it.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q12": {
+   "status": "pass",
+   "notes": "Recomputed: 53.50 - 48 = 5.50 (calc matches); the planned risk was 50 - 48 = 2. ips1 (Investopedia: trade risk = entry minus stop) confirmed live. Renamed the choice '$3.50, the size of the gap' to '$3.50, how far it gapped past $50', because the gap is measured from the prior close, which the story never gives; 53.50 - 50 = 3.50 is the jump over the trigger, and the wrong note now says so. Lesson (re-plan or pass) is sound risk practice.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q13": {
+   "status": "pass",
+   "notes": "ss2 (Schwab daily: monitor open positions, adjust stops), ff1 (Fed 2:00 p.m. EDT), r3b (Roze: 'protection takes precedence over searching out fresh new purchases. That comes later.') confirmed live. Roze still hunts for buys later in the day, so a midday scan is not wrong in itself; changed the question to 'What comes first in your midday check?' and the scan's wrong note to 'New buys can wait', which is what the source says. variety rewrite checked 2026-11-10.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q14": {
+   "status": "pass",
+   "notes": "ff1 (Fed: Oct 28 2026 statement at 2:00 p.m. EDT), ie1, sb3 (Schwab: a Fed rate announcement can upset intraday tendencies), t1 confirmed live. The why generalised one release into 'Fed statements come out mid-session'; now states only the dated example and adds ie2 (Investopedia, confirmed live: the calendar covers 'interest rate announcements'), which is what makes the calendar the right step. variety rewrite checked 2026-11-10.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q15": {
+   "status": "pass",
+   "notes": "ss2 (Schwab: look for new support levels and opportunities to adjust your stops) and m2 (Murphy: support is usually a previous reaction low) confirmed live; two publishers. 'Consider' keeps it a judgment, and it does not clash with the owner's own management rule (trail rising moving averages, sizing_rule.md section 6). Lowering or cancelling a stop on a winner are real mistakes. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q16": {
+   "status": "pass",
+   "notes": "sb5 (Schwab: stop orders 'can help protect against significant declines, especially when you're not available to actively monitor'; context also says no guarantee of the stop price), rf2 (Roze: soft stops because he watches closely) and ips2 (gap past a stop) confirmed live. Changed 'Schwab notes stop orders help most' to 'can help protect you, especially when', which is Schwab's hedge. Fact rf2's claim lost an 'only' the quote does not say.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q17": {
+   "status": "pass",
+   "notes": "fe1 (FINRA: usually before the open or after the close), fr2 (FINRA: disappointing earnings after the close, rapid after-hours decline), ss3 (Schwab: plan the week ahead for earnings announcements), sb4, ips2 confirmed live. The why claimed 'the dates are set ahead' with no quote saying it; now it cites Schwab's week-ahead check instead. A stop cannot act on an after-hours report, so that distractor is really wrong.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q18": {
+   "status": "pass",
+   "notes": "rr1 (Roze: fit the routine to 'the brutally honest reality of the day you live') and t6 (Steenbarger: the routine processes much information in a concentrated period) confirmed live. Dropped 'That's the point of it': Steenbarger names that as one of two purposes, not the point.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q19": {
+   "status": "pass",
+   "notes": "m1 (Murphy), ic1/ic2 (CAN SLIM: market direction daily; CANSLIM stocks can quickly decline if the market shifts), m3 (broken support brings selling on rallies) confirmed live. The why said 'a stock rarely rises on its own while its group and the market fall', which stretches Roze's quote (sector and sisters only, not the market); now uses only Murphy and Investopedia. Lesson line 'is the exception' (unsourced) replaced with 'can still fail when the market falls' (ic2). Key is caution, not a ban, which fits how leaders are watched in a weak market.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q20": {
+   "status": "pass",
+   "notes": "rp1/rp2/rp3/rp4 (Roze: 'checklist junkie', written checklists, 'Write down your routines. Keep them up front', trading his own account since 1989) and t7 (Spencer's morning list) confirmed live. The why said Spencer 'runs his morning from a written list'; the source shows he keeps a set numbered list, not that he reads it each morning. Reworded to 'keeps a set list for his morning', and Roze's line to 'works from written checklists and says to keep them in sight'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q21": {
+   "status": "pass",
+   "notes": "ss2 (stops daily), ss3 (news events ahead), rl1 (Roze plans when the market is closed), it1, ir1 (Investopedia: revenge trading 'a recipe for disaster') confirmed live. The story never said the member still held anything, yet the key and a wrong note review stops on holdings; added 'and still hold three names' to the story.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q22": {
+   "status": "pass",
+   "notes": "rl1, it1 (plan when the market is closed), rr1 (fit the day you have), t1, ib3 (open and close most volatile) confirmed live. The why said only 'plan while the market is closed', which is also true of the 20 morning minutes; now it gives the real reason too ('your longest window, and the market is closed').",
+   "fixed": true,
+   "by": "checker"
+  }
+ }
+}

@@ -1,0 +1,1280 @@
+{
+ "setup": "37-wick-play",
+ "name": "Wick Play",
+ "unit": "none",
+ "direction": "long",
+ "timeframe": "daily",
+ "dossier": "docs/study/setups/research/37-wick-play.md",
+ "as_of": "2026-11-09",
+ "card": {
+  "context": "A leader (RS 80 or more) above its 50 and 200-day with the 50 over the 200, best within a few weeks of an explosion (a gap or a big-volume breakout), not more than 10% over its 10-day. Green market.",
+  "pattern": "Day 1 closes off its high, leaving an upper wick of a quarter of its range or more. Day 2 opens inside that wick and holds above day 1's body top: strict, its whole range inside the wick; same-day, it opens in the wick and pushes through the top of it.",
+  "trigger": "PREV DAY HIGH BREAK: on day 2, buy at market as price trades over day 1's high while day 2 has held above the body (the push); or, if day 2 closed still inside the wick, on day 3 a cent over day 2's high. No more than 4% over the trigger.",
+  "stop": "A few cents under day 2's low (the prior day's low) for the day-3 buy; under the day's low at the moment of the buy for the same-day push, never lower than day 1's body top.",
+  "failure_mode": "Day 2 trades into day 1's body before the push, or the entry day reverses through the stop the same session. Read alone, a long upper wick is bearish; the setup only flips that when the hold works."
+ },
+ "entry_trigger": "PREV DAY HIGH BREAK",
+ "criteria": [
+  {
+   "id": "wk.leadership",
+   "field": "context",
+   "statement": "A leader: RS rating 80 or more, in a strong group.",
+   "measure": {
+    "what": "RS rating",
+    "op": ">=",
+    "value": 80,
+    "unit": "rating 1 to 99"
+   },
+   "glossary": "leader",
+   "basis": "house rule",
+   "sources": [
+    "S22",
+    "S11",
+    "S7",
+    "S3"
+   ],
+   "house_rule": "C31",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Stock",
+   "evidence": "The strong-stock context is TaPlot's (strong stock with momentum to the upside; True Market Leaders; not every wick play is buyable), TraderLion's MU review (strong action into new all-time highs after an 18% earnings gap) and Kell's frame (an explosion first). The RS 80 number is the house's. The dossier's run used a 126-day return in the top 20% as a stand-in."
+  },
+  {
+   "id": "wk.trend",
+   "field": "context",
+   "statement": "Close above the 50-day and the 200-day, with the 50-day above the 200-day.",
+   "measure": {
+    "what": "close > 50-day SMA > 200-day SMA",
+    "op": "==",
+    "value": true,
+    "timeframe": "daily"
+   },
+   "glossary": "ma_stack",
+   "basis": "house rule",
+   "sources": [
+    "S22",
+    "S21"
+   ],
+   "house_rule": "B26",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Trend",
+   "evidence": "B26 for the 200-day; the 50-day is the dossier's proposal. Every source wants a strong uptrend. The run and the scan both used it."
+  },
+  {
+   "id": "wk.explosion",
+   "field": "context",
+   "statement": "Best within 15 sessions of an explosion: a 4% gap on at least 1.5 times the 50-day volume, or a close at a new 50-day high on that volume. A grading plus, not a requirement.",
+   "measure": {
+    "what": "sessions since a 4% gap or a new 50-day closing high on 1.5x the 50-day volume",
+    "op": "<=",
+    "value": 15,
+    "unit": "sessions",
+    "timeframe": "daily"
+   },
+   "glossary": "gap",
+   "basis": "originator",
+   "sources": [
+    "S3",
+    "S21"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Prior move",
+   "evidence": "Kell's thread: an EXPLOSION, a CONTRACTION, then a CONTINUATION; find explosions, then execute on the contraction; inside days, wick play, etc all beneficial. The numbers are the dossier's; no source gives one. The run did not confirm it helps (V1 after an explosion -0.14R / +0.23R against -0.26R / +0.15R without, within the noise) and the scan found 24.5% to 3R with one against 28.0% without. SWKS, NVDA, TTMI and AIR among the examples had one."
+  },
+  {
+   "id": "wk.day1_wick",
+   "field": "pattern",
+   "statement": "Day 1 closes below its high, leaving an upper wick. For teaching, the wick (high minus body top) is at least a quarter of day 1's range.",
+   "measure": {
+    "what": "(day 1 high - max(day 1 open, day 1 close)) / (day 1 high - day 1 low)",
+    "op": ">=",
+    "value": 0.25,
+    "timeframe": "daily"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S11",
+    "S2",
+    "S21"
+   ],
+   "options": [
+    {
+     "value": 0,
+     "basis": "no minimum: Kell, TaPlot (closes off the highs), Deepvue give none"
+    },
+    {
+     "value": 0.25,
+     "basis": "a quarter of the range so the zone is plain on a chart: the dossier's proposal"
+    }
+   ],
+   "recommended": 0.25,
+   "status": "pending-owner",
+   "owner_question": "D-116",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Day 1; 10 question 5",
+   "evidence": "The run found no benefit from bigger wicks (a day-1 wick over half the range did slightly worse than one under a quarter). Scan: wicks of 25% to 50% of the range (223 hits) reached 3R 31.4% against 26.0% for bigger wicks. The body top is the higher of day 1's open and close; using the close on a red day 1 is the error flagged in setup_criteria.json (the FIG 10-08 case). D-116's default: a quarter of the range."
+  },
+  {
+   "id": "wk.day2_strict",
+   "field": "pattern",
+   "statement": "Day 2, strict form (Wick Play): its low is above day 1's body top and its high is below day 1's high. The whole day sits inside the wick, so it is also an inside day.",
+   "measure": {
+    "what": "day 2 low against day 1's body top, and day 2 high against day 1's high",
+    "op": ">",
+    "value": "day 1 body top; and day 2 high < day 1 high",
+    "timeframe": "daily"
+   },
+   "glossary": "inside_day",
+   "basis": "originator",
+   "sources": [
+    "S10",
+    "S11",
+    "S1"
+   ],
+   "status": "pending-owner",
+   "owner_question": "D-115",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Day 2, strict form; 10 question 1",
+   "evidence": "Deepvue's dictionary (the screener tied to TraderLion, where Kell teaches): the low of the current candle is greater than the larger of the prior day's open or close and the high of the current candle is less than the prior day's high. TaPlot's wick inside day. Kell's own 2020 words: when price opens up inside the wick of the previous days bar, if it can hold positive, staying in the wick, its a sign of strength. Strict wick plays are rare: 1,433 in about 1.09 million leader-days, about 54 a year across the store. D-115's default: both forms, as two entries of one setup."
+  },
+  {
+   "id": "wk.day2_same_day",
+   "field": "pattern",
+   "statement": "Day 2, same-day form (In the Wick and push): it opens above day 1's body top and below day 1's high, and has not traded under the body top when it breaks day 1's high.",
+   "measure": {
+    "what": "day 2 open",
+    "op": "in",
+    "value": "(day 1 body top, day 1 high)",
+    "timeframe": "daily",
+    "and": "day 2 low >= day 1 body top up to the moment it trades over day 1's high"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S16",
+    "S2",
+    "S10",
+    "S19",
+    "S21"
+   ],
+   "status": "pending-owner",
+   "owner_question": "D-115",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Day 2, same-day form; 10 question 1",
+   "evidence": "His OPEN scenario: or a gap up wick play with immediate push (2025-10-05); his FIG and MXL desk logs (wick play and blast). Deepvue's In the Wick: opens below yesterday's high and today's low never breaks below the larger of yesterday's open or close. Kell's APPS 2021-03-11 is this form: open in the wick, pulled back some, based intra and now holding in the wick; on the bars it opened 80.99 inside the wick, held above the body and broke 83.30. The looser In the Wick day is about 27 times as common as the strict form."
+  },
+  {
+   "id": "wk.body_touch",
+   "field": "pattern",
+   "statement": "Touching the body: the strict form allows none. Kell allowed a little (GOOG); a measurable version is a dip of at most 0.25 ATR under day 1's body top, graded B rather than A.",
+   "measure": {
+    "what": "(day 1 body top - day 2 low) / ATR(14)",
+    "op": "<=",
+    "value": 0.25,
+    "unit": "ATR",
+    "timeframe": "daily",
+    "note": "0 for the A grade; up to 0.25 ATR graded B"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S10",
+    "S11",
+    "S5",
+    "S7"
+   ],
+   "options": [
+    {
+     "value": 0,
+     "basis": "never into the body: Deepvue, TaPlot"
+    },
+    {
+     "value": 0.25,
+     "basis": "a little, as Kell allowed on GOOG (0.35 on a $117 stock, about 0.3%) and TraderLion's MU (dipped under and closed back in the wick); graded B; D-116's default"
+    }
+   ],
+   "recommended": 0.25,
+   "status": "pending-owner",
+   "owner_question": "D-116",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Touching the body; 10 question 4",
+   "evidence": "Kell on GOOG 2023-05-12: traded a little inside the Thursday body but looks like a wick play to me. His own rule is looser than the strict dictionary form. OPEN 2025-10-06 went 6 cents into the body and still pushed."
+  },
+  {
+   "id": "wk.volume_day2",
+   "field": "pattern",
+   "statement": "Day 2 lighter than day 1 is a grading plus, not a requirement.",
+   "measure": {
+    "what": "day 2 volume / day 1 volume",
+    "op": "<",
+    "value": 1,
+    "unit": "x",
+    "timeframe": "daily"
+   },
+   "glossary": "dry_up",
+   "basis": "my proposal",
+   "sources": [
+    "S21",
+    "S3",
+    "S8"
+   ],
+   "options": [
+    {
+     "value": "prefer",
+     "basis": "the dossier's proposal; D-006's default for pullback-type cues"
+    },
+    {
+     "value": "require",
+     "basis": "a search engine's paraphrase of Kell's slides wants a dry-up; the slides were not read"
+    },
+    {
+     "value": "ignore",
+     "basis": "the run found no clear difference"
+    }
+   ],
+   "recommended": "prefer",
+   "status": "pending-owner",
+   "owner_question": "D-006",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Volume; 10 question 6",
+   "evidence": "No published rule could be read; Kell's thread says every scenario has volume. The run: V1 with day 2 under 70% of day 1's volume -0.20R, day 2 heavier -0.33R (conservative), within noise. Scan: lighter 26.9% to 3R against 25.8%. Nine of the ten examples had day 2 under day 1's volume (0.43x to 0.99x)."
+  },
+  {
+   "id": "wk.not_stretched",
+   "field": "context",
+   "statement": "Within 10% of the 10-day average at day 1's close.",
+   "measure": {
+    "what": "day 1 close / 10-day SMA - 1",
+    "op": "<=",
+    "value": 10,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "glossary": "stretched",
+   "basis": "house rule",
+   "sources": [
+    "S22",
+    "S19",
+    "S21"
+   ],
+   "house_rule": "C29",
+   "status": "pending-owner",
+   "owner_question": "D-017",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Location; 7 C29 row; 10 question 8",
+   "evidence": "Conflict: wick plays often come right after an explosion; his MXL wick play and blast sat about 41% over its 10-day, FIG's 10-08 day 12.5%, Kell's GOOG 7.8%. D-017's default keeps C29 for base and pullback entries and measures catalyst days against the 10-day as of the prior close. Scan failures DDOG 2020-10-06 (9.6% over, almost at the line) and ANET 2025-08-13 (8% over) show a stretched name's first push failing inside the day; AIR (example 10) was 8.9% over."
+  },
+  {
+   "id": "wk.liquidity",
+   "field": "context",
+   "statement": "Price $10 or more and $20 million a day.",
+   "measure": {
+    "what": "close",
+    "op": ">=",
+    "value": 10,
+    "unit": "$",
+    "and": "50-day average dollar volume >= 20,000,000"
+   },
+   "glossary": "liquidity",
+   "basis": "house rule",
+   "sources": [
+    "S22",
+    "S16",
+    "S17"
+   ],
+   "house_rule": "B23",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Liquidity",
+   "evidence": "Two UCT examples fail it: OPEN traded near $8 to $9 and UMC near $7.50. GLNG (example 7) sat at the $20 million floor."
+  },
+  {
+   "id": "wk.position_adv",
+   "field": "management",
+   "statement": "Never more than 1% of the average daily volume.",
+   "measure": {
+    "what": "shares / average daily volume",
+    "op": "<=",
+    "value": 1,
+    "unit": "%"
+   },
+   "basis": "house rule",
+   "sources": [
+    "S22"
+   ],
+   "house_rule": "D42",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Liquidity"
+  },
+  {
+   "id": "wk.timeframe",
+   "field": "context",
+   "statement": "Daily candles. A weekly wick play (Manrav's UMC) is a UCT extension, not the definition.",
+   "basis": "UCT",
+   "sources": [
+    "S17",
+    "S11",
+    "S10"
+   ],
+   "status": "pending-owner",
+   "owner_question": "D-012",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Timeframe; 10 question 7",
+   "evidence": "Every source uses daily candles; Manrav: wick play on weekly, trading inside the wick from the week of 10/10. The dossier could not reproduce his weekly reading on bars built from the store's daily bars. D-012's default: one daily definition per setup."
+  },
+  {
+   "id": "wk.trigger_b",
+   "field": "trigger",
+   "statement": "Option B, the same-day push, first in order: on day 2, buy at market as soon as price trades over day 1's high, provided day 2 opened inside the wick and has not traded into day 1's body.",
+   "measure": {
+    "what": "intraday high on day 2",
+    "op": ">",
+    "value": "day 1's high, with day 2's open inside the wick and its low so far at or above day 1's body top",
+    "timeframe": "daily"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S16",
+    "S2",
+    "S1",
+    "S19",
+    "S21"
+   ],
+   "options": [
+    {
+     "value": "B",
+     "basis": "the same-day push over day 1's high: Kell's APPS, Kell 2020 (hold positive, staying in the wick), his gap up wick play with immediate push; the dossier's first entry"
+    },
+    {
+     "value": "A",
+     "basis": "the strict form, bought on day 3 over day 2's high: Deepvue, TaPlot; the patient fallback"
+    },
+    {
+     "value": "both",
+     "basis": "one setup, two entries, B first and A when day 2 closes still inside the wick: the dossier's recommendation; D-115's default"
+    }
+   ],
+   "recommended": "both",
+   "status": "pending-owner",
+   "owner_question": "D-115",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 Option B and Recommendation; 10 question 1",
+   "evidence": "On daily bars the same-day push did better than an ordinary break of the prior day's high with the same stop under day 1's low (-0.04R against -0.18R conservative; +0.13R against +0.10R optimistic): a modest plus at best. Kell did not state a trigger in words; day 1's high is the owner's push and the bars of Kell's APPS. The scan covered the strict form only."
+  },
+  {
+   "id": "wk.trigger_b_orb",
+   "field": "trigger",
+   "statement": "The same-day trigger level: over day 1's high, or the 30-minute opening-range break as ruled for the Kicker.",
+   "measure": {
+    "what": "the same-day trigger level",
+    "op": "in",
+    "value": [
+     "day 1's high",
+     "the high of the first 30-minute bar of day 2"
+    ],
+    "timeframe": "30-minute"
+   },
+   "glossary": "opening_range",
+   "basis": "my proposal",
+   "sources": [
+    "S22",
+    "S16"
+   ],
+   "status": "pending-owner",
+   "owner_question": "D-003",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "10 question 2",
+   "evidence": "His Kicker ruling (TRADE_PLANS.md): over the red day's high, or the day-1 30-minute opening-range break. D-003's default for every daily setup: as price trades through the pivot or the prior day's high, market order."
+  },
+  {
+   "id": "wk.trigger_a",
+   "field": "trigger",
+   "statement": "Option A, the strict form: on day 3, buy at market as soon as price trades a cent over day 2's high. If day 3 is itself an inside day in the same wick, the setup rolls forward one day.",
+   "measure": {
+    "what": "intraday high on day 3",
+    "op": ">",
+    "value": "day 2's high",
+    "timeframe": "daily"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S11",
+    "S22",
+    "S21"
+   ],
+   "status": "pending-owner",
+   "owner_question": "D-115",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 Option A; 8.5",
+   "evidence": "TaPlot: trigger happens on day 3 when price moves over the high of the wick inside day (TaPlot's wording, crediting Kell; the day-3 trigger is TaPlot's, not Kell's). E57 for the market order. The scan: 1,755 strict hits, 26.7% to 3R; of the dossier's run's 1,433 strict signals, 929 filled, 449 were voided because day 2's low broke first, 49 never reached the trigger on day 3."
+  },
+  {
+   "id": "wk.no_chase",
+   "field": "trigger",
+   "statement": "If the trigger day opens more than 4% over the trigger, skip. A gap over is a gap trade.",
+   "measure": {
+    "what": "open / trigger - 1",
+    "op": "<=",
+    "value": 4,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "glossary": "chase_limit",
+   "basis": "house rule",
+   "sources": [
+    "S22",
+    "S21"
+   ],
+   "house_rule": "C28",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 Option A; 8.5",
+   "evidence": "The run skipped 6 of 1,433 strict signals as a chase. Scan: a fill at the trigger did better than a gap-over fill (3R 28.7% against 22.8%, 1,142 against 613 hits). XPEV (example 5) opened 1.5% over the trigger, still inside C28."
+  },
+  {
+   "id": "wk.order",
+   "field": "trigger",
+   "statement": "A market order when price crosses the trigger.",
+   "basis": "house rule",
+   "sources": [
+    "S22"
+   ],
+   "house_rule": "E57",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2"
+  },
+  {
+   "id": "wk.stop_a",
+   "field": "stop",
+   "statement": "Option A: a few cents under day 2's low, which is the prior day's low at the time of the buy.",
+   "measure": {
+    "what": "stop",
+    "op": "==",
+    "value": "a few cents under day 2's low"
+   },
+   "glossary": "stop_margin",
+   "basis": "house rule",
+   "sources": [
+    "S22",
+    "S21"
+   ],
+   "house_rule": "A3",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.3 Option A",
+   "evidence": "A3 and F62; the strict form fits the house stop exactly. The run: median 1.97%, 78% within 3%. The scan used 3 cents under day 2's low; the examples' stops ran 0.89% to 3.27%."
+  },
+  {
+   "id": "wk.stop_b",
+   "field": "stop",
+   "statement": "Option B: a few cents under the day's low at the moment of the buy, which can be no lower than day 1's body top if the setup is valid. The body top is the line the setup says must hold.",
+   "measure": {
+    "what": "which low the stop sits under",
+    "op": "in",
+    "value": [
+     "the day's low at the moment of the buy",
+     "day 2's low (strict form)",
+     "day 1's body top"
+    ]
+   },
+   "glossary": "stop_margin",
+   "basis": "house rule",
+   "sources": [
+    "S22",
+    "S10",
+    "S11",
+    "S21"
+   ],
+   "house_rule": "A3",
+   "options": [
+    {
+     "value": "a",
+     "basis": "under day 2's low: the strict form's stop (A3, the prior day's low)"
+    },
+    {
+     "value": "b",
+     "basis": "under the day's low at the buy: A3 for the same-day form; the dossier's choice"
+    },
+    {
+     "value": "c",
+     "basis": "under day 1's body top: the line the setup says must hold (Deepvue, TaPlot); 4.0% to 8.9% away on the five same-day cases"
+    }
+   ],
+   "recommended": "b",
+   "status": "pending-owner",
+   "owner_question": "D-008",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.3 Option B; 10 question 3",
+   "evidence": "On the five same-day cases (APPS, OPEN, FIG twice, MXL) a stop under day 1's body top was 4.0% to 8.9% from a buy at the top of the wick and under day 1's low 8.4% to 17.3%; under day 2's own low 2.6% to 9.0% (within 5% in three of five), assuming the day's low printed before the break, which daily bars cannot confirm. TraderLion's MU: Oliver staggered his stops with the 10 and 20 exponential moving averages under the day's low."
+  },
+  {
+   "id": "wk.stop_width",
+   "field": "stop",
+   "statement": "Size from the honest stop. It usually sits within about 3%; a much wider stop means a smaller position, and if it does not fit the risk at all, skip. Never tighten it to fit.",
+   "measure": {
+    "what": "(entry - stop) / entry",
+    "op": "<=",
+    "value": 3,
+    "unit": "%",
+    "note": "wider: size down (A5) or skip (A3); the scan skipped stops over 8%"
+   },
+   "glossary": "stop_width",
+   "basis": "house rule",
+   "sources": [
+    "S22",
+    "S21",
+    "S2"
+   ],
+   "house_rule": "A13",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.3 Fit check",
+   "evidence": "The strict form fits: median 1.97%, 78% within 3%; 1,563 of the scan's 1,755 hits at 3% or less. The same-day form is often wider: Kell's APPS stop to the body top about 9% (A13 fails). MRNA (8.9 example 4) worked with a 4.15% stop at smaller size; TTMI (example 9) at 3.27% is a touch over."
+  },
+  {
+   "id": "wk.stop_broker",
+   "field": "stop",
+   "statement": "A real stop order with the broker. After the buy, the stop is the exit; it only moves up.",
+   "basis": "house rule",
+   "sources": [
+    "S22"
+   ],
+   "house_rule": "D41",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.3; 8.5",
+   "evidence": "A4. AXON 2023-01-31 (8.9 example 7) was stopped on 2023-02-07, then rose to 4.5R within 20 sessions: a stop is a stop, and a re-entry needs a new setup (B21)."
+  },
+  {
+   "id": "wk.stop_gap",
+   "field": "stop",
+   "statement": "A gap through the stop: the first 30-minute low is the new stop; out if that is past 2R.",
+   "measure": {
+    "what": "loss at the first 30-minute low of the gap-down day",
+    "op": "<=",
+    "value": 2,
+    "unit": "R",
+    "timeframe": "30-minute"
+   },
+   "basis": "house rule",
+   "sources": [
+    "S22"
+   ],
+   "house_rule": "B20",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.3",
+   "evidence": "Not modelled in the run or the scan (gaps through the stop exit at the open). SHOP 2024-02-13 opened 15% under its stop."
+  },
+  {
+   "id": "wk.breakeven",
+   "field": "management",
+   "statement": "Stop to breakeven at 2R to 5R.",
+   "measure": {
+    "what": "R at which the stop moves to the entry",
+    "op": "in",
+    "value": [
+     2,
+     5
+    ],
+    "unit": "R"
+   },
+   "basis": "house rule",
+   "sources": [
+    "S22"
+   ],
+   "house_rule": "B19",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4"
+  },
+  {
+   "id": "wk.trim_1",
+   "field": "management",
+   "statement": "A third at 3R.",
+   "measure": {
+    "what": "fraction sold at 3R",
+    "op": "==",
+    "value": 0.333,
+    "unit": "of the position"
+   },
+   "basis": "house rule",
+   "sources": [
+    "S22"
+   ],
+   "house_rule": "B19",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4",
+   "evidence": "The first trim is fast on these: GLNG and SPOT reached 3R on the first session, five more examples by day 3."
+  },
+  {
+   "id": "wk.trim_2",
+   "field": "management",
+   "statement": "A third at 5R.",
+   "measure": {
+    "what": "fraction sold at 5R",
+    "op": "==",
+    "value": 0.333,
+    "unit": "of the position"
+   },
+   "basis": "house rule",
+   "sources": [
+    "S22"
+   ],
+   "house_rule": "E51",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4",
+   "evidence": "LHX (example 5) reached 5R on day 11 and the fixed-stop walk then lost it in the February 2020 selloff; NVDA's 60-session walk ended at the original stop in January 2022. The trims and the trail are what bank a wick play."
+  },
+  {
+   "id": "wk.trim_gap_open",
+   "field": "management",
+   "statement": "A trim level gapped through: take it at the open.",
+   "basis": "house rule",
+   "sources": [
+    "S22"
+   ],
+   "house_rule": "F63",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4"
+  },
+  {
+   "id": "wk.trail",
+   "field": "management",
+   "statement": "Trail the rest under the 10-day for fast movers, the 21-day for steadier ones, on a close below it.",
+   "measure": {
+    "what": "close against the 10-day (fast) or 21-day (steadier) average",
+    "op": "<",
+    "value": "the average",
+    "timeframe": "daily"
+   },
+   "glossary": "trail",
+   "basis": "house rule",
+   "sources": [
+    "S22",
+    "S19"
+   ],
+   "house_rule": "E52",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4",
+   "evidence": "No source gives a wick-play exit. His MXL summary: he would trail the stop at the previous candle's low (a KB paraphrase)."
+  },
+  {
+   "id": "wk.time_stop",
+   "field": "management",
+   "statement": "Under 1R after 10 sessions: sell.",
+   "measure": {
+    "what": "open R after 10 trading days",
+    "op": "<",
+    "value": 1,
+    "unit": "R"
+   },
+   "glossary": "time_stop",
+   "basis": "house rule",
+   "sources": [
+    "S22"
+   ],
+   "house_rule": "C33",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4"
+  },
+  {
+   "id": "wk.earnings_window",
+   "field": "trigger",
+   "statement": "No new buy in the 3 days before a report.",
+   "measure": {
+    "what": "sessions until the next report",
+    "op": ">",
+    "value": 3,
+    "unit": "sessions"
+   },
+   "glossary": "earnings_blackout",
+   "basis": "house rule",
+   "sources": [
+    "S22",
+    "S17",
+    "S21"
+   ],
+   "house_rule": "B22",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5; 7 B22 row",
+   "evidence": "SHOP 2024-02-12: a clean strict wick play, filled at 91.40 with a 2.75% stop; on 02-13 it opened at 77.80, 15% lower, through the stop on the earnings reaction. Manrav's UMC note named earnings eight calendar days out. Not applied in the scan; checked by hand on the ten examples (MELI, GOOGL and NVDA reported after 5R)."
+  },
+  {
+   "id": "wk.inv_body",
+   "field": "invalidation",
+   "statement": "Before the buy: day 2 trades into day 1's body (strict form), or past the tolerance in wk.body_touch if the owner adopts Kell's looser reading. Off.",
+   "measure": {
+    "what": "day 2 low against day 1's body top",
+    "op": "<",
+    "value": "day 1 body top (minus the tolerance, if any)",
+    "timeframe": "daily"
+   },
+   "basis": "originator",
+   "sources": [
+    "S10",
+    "S11"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5",
+   "evidence": "Deepvue and TaPlot: if stock holds in the wick and doesn't trade in the body of yesterdays candle, it is a sign of strength. In 74% of same-day pushes the price went under the body top at some point; only intraday bars can say whether before or after the break (4.3 item 5)."
+  },
+  {
+   "id": "wk.inv_stop_first",
+   "field": "invalidation",
+   "statement": "Before the buy: price trades under the planned stop before the trigger. The buy is cancelled.",
+   "measure": {
+    "what": "intraday low before the trigger against the planned stop",
+    "op": "<",
+    "value": "the planned stop",
+    "timeframe": "daily"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S21"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5",
+   "evidence": "The run voided 449 of 1,433 strict signals because day 2's low broke before the trigger. The scan skipped a hit whose day-3 open was already under the planned stop."
+  },
+  {
+   "id": "wk.inv_no_trigger",
+   "field": "invalidation",
+   "statement": "Strict form: the trigger does not come on day 3. The setup is over unless day 3 is itself an inside day in the same wick, in which case it rolls forward one day.",
+   "measure": {
+    "what": "sessions after day 2 in which the break over day 2's high may be bought",
+    "op": "<=",
+    "value": 1,
+    "unit": "sessions",
+    "timeframe": "daily"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S11",
+    "S21"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5",
+   "evidence": "TaPlot's trigger is day 3. The run: 49 strict signals never reached the trigger on day 3."
+  },
+  {
+   "id": "wk.market_reading",
+   "field": "context",
+   "statement": "A Green market reading. Orange: A+ only. Red: mostly cash and shorts.",
+   "glossary": "market_reading",
+   "basis": "house rule",
+   "sources": [
+    "S22"
+   ],
+   "house_rule": "F65",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.7",
+   "evidence": "B18, F65. Not in the run or the scan."
+  },
+  {
+   "id": "wk.group_explosions",
+   "field": "context",
+   "statement": "A cue: a leading group with fresh explosions (gaps, volume), and the weekly and monthly charts set up. Kell: best if MONTHLY is set up.",
+   "basis": "originator",
+   "sources": [
+    "S3"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.7; 9 Higher timeframe row",
+   "evidence": "Kell's thread on his favourite setups: every scenario has volume cause volume=price, cause=effect AND best if MONTHLY is set up."
+  },
+  {
+   "id": "wk.new_listing",
+   "field": "context",
+   "statement": "A new listing with no 200-day yet (FIG, listed 2025-07-31): allowed under E53, or wait for a 200-day. Until he rules, the 50-day stands in.",
+   "measure": {
+    "what": "sessions since listing",
+    "op": ">=",
+    "value": 200,
+    "unit": "sessions",
+    "note": "fewer: the 50-day SMA stands in, pending D-034"
+   },
+   "glossary": "above_200",
+   "basis": "house rule",
+   "sources": [
+    "S22",
+    "S19",
+    "S21"
+   ],
+   "house_rule": "E53",
+   "status": "pending-owner",
+   "owner_question": "D-034",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "7 B26 row; 10 question 12",
+   "evidence": "E53 sets no IPO rule. FIG's two same-day wick plays (2025-10-07 and 10-08) came with no 200-day. D-034's default: the long must be above the 50-day and the IPO-day low until the 200-day exists."
+  },
+  {
+   "id": "wk.not_lower_wick",
+   "field": "pattern",
+   "statement": "Not a lower-wick (hammer) buy at support, and not the Go Signal's lower wick after a sweep. The wick play is the hold inside the prior day's upper wick. The house glossary entry and the Quote of the Day line that say otherwise are wrong.",
+   "measure": {
+    "what": "the wick the setup is named for",
+    "op": "==",
+    "value": "day 1's upper wick (high minus body top), never a lower wick"
+   },
+   "basis": "originator",
+   "sources": [
+    "S1",
+    "S2",
+    "S10",
+    "S11",
+    "S20"
+   ],
+   "status": "pending-owner",
+   "owner_question": "D-010",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "2 What it is not; 5.3; 10 question 11",
+   "evidence": "Every source (Kell, TaPlot, Deepvue, TraderLion, the owner) means the upper wick. definitions.json calls it buying off a long lower wick and says no external source names a wick play: wrong twice. quotes.json carries a line attributed to Kell (a candlestick wick at a key support or resistance level is not a failed move) found in no Kell source; it describes a rejection at a level. D-010's default: remove or rewrite unsourced member-facing text now. UCT writers use lower wick often for buyers at support, a different idea."
+  },
+  {
+   "id": "wk.journal_family",
+   "field": "context",
+   "statement": "A continuation setup in a strong uptrend: the journal tag belongs in Momentum and Trend, not Reversals and Reclaims.",
+   "basis": "originator",
+   "sources": [
+    "S11",
+    "S3",
+    "S20"
+   ],
+   "status": "pending-owner",
+   "owner_question": "D-016",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "5.2; 10 question 9",
+   "evidence": "setupTagMap.js files Wick Play under Reversals and Reclaims; TaPlot (strong stock with momentum to the upside) and Kell (an explosion, a contraction, then a continuation) treat it as continuation. D-016's row for 37:9: Momentum and Trend."
+  },
+  {
+   "id": "wk.intraday_measure",
+   "field": "trigger",
+   "statement": "The same-day form's stop cannot be tested on daily bars. Measure it on 30-minute bars before it goes into a scanner, a drill or Hard mode.",
+   "measure": {
+    "what": "bar size needed to order the low and the break on day 2",
+    "op": "<=",
+    "value": 30,
+    "unit": "minutes"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S21"
+   ],
+   "status": "pending-owner",
+   "owner_question": "D-117",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "4.3 item 5; 8.2; 10 question 14",
+   "evidence": "Leaving the ambiguous days out gives +1.21R; counting them all as losses gives -0.41R; neither is the answer. D-117's default: measure it on 30-minute bars first; no unmeasured claim in Hard mode."
+  }
+ ],
+ "grading": {
+  "a_plus": [
+   "wk.leadership: a true leader, RS 90 or more, in the strongest group",
+   "wk.explosion: a fresh explosion (gaps, big volume, a breakout) in the last few weeks (not confirmed in the run)",
+   "wk.day2_strict: day 2 entirely inside the wick, a narrow range",
+   "wk.day1_wick: a clear upper wick, a quarter of day 1's range or more",
+   "wk.volume_day2: day 2 quieter than day 1 (no measured difference)",
+   "wk.stop_width: the stop within 3%",
+   "wk.not_stretched: close to the 10-day and 21-day averages",
+   "wk.market_reading: Green",
+   "wk.earnings_window: no earnings within the hold window",
+   "wk.group_explosions: weekly and monthly charts set up (Kell: best if MONTHLY is set up)"
+  ],
+  "b_minus": [
+   "wk.leadership: RS near 80, the group not leading",
+   "wk.explosion: a slow drift, no recent catalyst",
+   "wk.body_touch: dipped into the body (a little, Kell's GOOG)",
+   "wk.day1_wick: a tiny wick",
+   "wk.volume_day2: day 2 heavy and red",
+   "wk.stop_width: wider, size cut to fit",
+   "wk.not_stretched: near the C29 limit",
+   "wk.market_reading: Yellow",
+   "wk.earnings_window: earnings within a couple of weeks",
+   "wk.group_explosions: weekly overhead supply"
+  ],
+  "no_trade": [
+   "wk.inv_body: day 2 traded well into day 1's body",
+   "wk.not_lower_wick: a lower wick, a hammer or a Go Signal day called a wick play",
+   "wk.no_chase: the trigger day opens more than 4% over the trigger",
+   "wk.not_stretched: more than 10% over the 10-day (MXL at 41%, until D-017 rules)",
+   "wk.trend: under the 200-day",
+   "wk.earnings_window: a report within 3 days",
+   "wk.liquidity: under $10 or $20 million a day (OPEN, UMC)",
+   "wk.market_reading: Red"
+  ]
+ },
+ "lookalikes": [
+  {
+   "setup": "08-inside-day",
+   "tell": "Look where the small day sits. A wick play's day 2 sits wholly above day 1's body top, inside the upper wick; an ordinary inside day may sit anywhere inside day 1's range. Every strict wick play is an inside day; most inside days are not wick plays.",
+   "criterion": "wk.day2_strict"
+  },
+  {
+   "setup": "26-kicker",
+   "tell": "Check the day before the open. A Kicker needs a weak red day closing in the lowest 35% of its range and then a gap of 1.5% or more over its close that trades through its high; a wick play's day 1 is a strong bar that left a wick above, and day 2 opens below day 1's high, inside that wick, not above it.",
+   "criterion": "wk.day2_same_day"
+  },
+  {
+   "setup": "42-go-signal",
+   "tell": "Which wick is it. A Go Signal's day opens under the prior close, sweeps support and leaves a lower wick as buyers step in on the hourly chart; a wick play's day 2 opens above the prior body top in the upper wick and must never look below it.",
+   "criterion": "wk.not_lower_wick"
+  },
+  {
+   "setup": "30-oops-reversal",
+   "tell": "Watch the open. An Oops opens under the prior close and trades under the prior day's low before reclaiming it; a wick play's day 2 opens above the prior day's body top and the setup is void the moment it trades into that body. His MXL had an Oops on day 2 and the wick play on day 4, two different days.",
+   "criterion": "wk.day2_same_day"
+  }
+ ],
+ "invalidations": [
+  "Before the buy: day 2 trades into day 1's body (strict), or past the tolerance if the owner adopts Kell's looser reading (wk.inv_body).",
+  "Before the buy: price trades under the planned stop before the trigger (wk.inv_stop_first).",
+  "Before the buy: the trigger day opens more than 4% past the trigger (wk.no_chase); earnings within 3 days (wk.earnings_window); under the 200-day (wk.trend); more than 10% over the 10-day (wk.not_stretched).",
+  "Before the buy: the strict trigger does not come on day 3; it rolls forward only if day 3 is itself inside the same wick (wk.inv_no_trigger).",
+  "After the buy: the stop is the exit; it only moves up (wk.stop_broker)."
+ ],
+ "mistakes": [
+  "Treating any long wick as a wick play; the house glossary's lower-wick version is a different setup.",
+  "Buying day 1 itself (the wick day) instead of waiting for the hold. The hold is the signal.",
+  "Buying when day 2 has traded well into the body.",
+  "Buying a laggard. TaPlot: not every wick play is buyable.",
+  "Chasing a day-3 gap far past the trigger; buying a stock stretched far over its 10-day.",
+  "Moving the stop under day 1's low to give it room.",
+  "Buying into a report: SHOP's clean wick play gapped 15% through its stop on earnings."
+ ],
+ "short_mirror": {
+  "exists": false,
+  "setup": "37-wick-play",
+  "note": "No source read defines a bearish wick play (a search engine's summary of TraderLion's paid lesson says it also works in reverse; the lesson is paid and unread). By D47 the mirror would be (dossier 8.6): a weak stock under its 200-day (B26) with RS 20 or less, a red day 1 closing off its low with a lower wick, day 2 wholly inside that lower wick, short a cent under day 2's low on day 3, stop a few cents over day 2's high, skip hard-to-borrow names (D48). Warning: a lower wick is usually read as bullish (a hammer), so the mirror reads opposite to the common lesson. Taught only if he wants it; D-001."
+ },
+ "best_conditions": "A Green market reading (B18, F65); in Orange only an A+. A leading group with fresh explosions (gaps, volume) and the weekly and monthly charts set up, Kell's frame: find explosions, then execute on the contraction. The run found no edge from the market or the explosion on daily bars; the context rests on Kell, TaPlot and the owner's use.",
+ "management": {
+  "trim_1": "a third at 3R (B19)",
+  "trim_2": "a third at 5R (E51)",
+  "trail": "a close under the 10-day for a fast mover, the 21-day for a steadier one (E52)",
+  "breakeven": "between 2R and 5R, at the first trim by default (B19)",
+  "time_stop": "under 1R after 10 trading days, sell (C33)",
+  "gap_open": "a trim level the day opens past is taken at the open (F63)",
+  "gap_against": "the first 30-minute low is the new stop; out if past 2R (B20)",
+  "overrides": "none. No source gives a wick-play exit; the dossier (8.4) keeps the house defaults. Not ours: TraderLion's staggered stops at the 10 and 20 EMAs under the day's low (the MU review), the owner's MXL trail at the previous candle's low (a KB paraphrase), Manrav's pullback-to-the-21-EMA entry."
+ },
+ "examples": {
+  "winners": 10,
+  "sheet_dir": "_study-resume/scratchpad/setups/37-wick-play/final",
+  "base_rate": {
+   "hits": 1755,
+   "r3_pct": 26.7,
+   "r5_pct": 17.7,
+   "entry_day_low_under_stop": 511,
+   "floor_r3_pct": 22.3,
+   "floor_r5_pct": 14.9,
+   "stops_at_3_pct_or_less": 1563,
+   "window": "60 sessions from the day after entry, fixed stop 3 cents under day 2's low, no trims, no breakeven, no trail; strict form only (the same-day push needs intraday bars); 2,630 liquid names, bars 1984 to 2026; day 1's wick at least a quarter of its range, above the 50 and 200 with the 50 over the 200, within 10% of the 10-day; day 3 a cent over day 2's high or the open on a gap, skipped past 4% or under the planned stop; stops over 8% skipped; no earnings or RS filter"
+  },
+  "cuts": {
+   "fill_at_trigger_vs_gap_over": {
+    "r3_pct": 28.7,
+    "hits": 1142,
+    "gap_over": {
+     "r3_pct": 22.8,
+     "hits": 613
+    }
+   },
+   "explosion_in_prior_15_sessions": {
+    "r3_pct": 24.5,
+    "without": {
+     "r3_pct": 28.0
+    }
+   },
+   "day2_lighter_than_day1": {
+    "r3_pct": 26.9,
+    "heavier": {
+     "r3_pct": 25.8
+    }
+   },
+   "stop_under_3_pct": {
+    "r3_pct": 26.9,
+    "over_3_pct": {
+     "r3_pct": 25.0
+    }
+   },
+   "wick_25_to_50_pct_of_range": {
+    "r3_pct": 31.4,
+    "hits": 223,
+    "bigger_wicks": {
+     "r3_pct": 26.0
+    }
+   },
+   "dossier_run_house_plan_mean_r": {
+    "strict_wick_play": "-0.22 / +0.18 (929 trades)",
+    "inside_day_not_in_the_wick": "-0.12 / +0.21 (73,687)",
+    "any_leader_day": "-0.10 / +0.10 (67,630)",
+    "same_day_push_stop_under_day1_low": "-0.04 / +0.13 (139,308)",
+    "ordinary_prior_day_high_break": "-0.18 / +0.10 (118,780)",
+    "note": "conservative / optimistic scoring of the entry-day ambiguity; the strict form did not beat an ordinary inside day in the same leaders"
+   }
+  },
+  "winners_list": [
+   "GOOGL 2007-09-14",
+   "SWKS 2014-02-10",
+   "WB 2016-06-30",
+   "MELI 2017-02-06",
+   "LHX 2020-01-17",
+   "NVDA 2021-10-29",
+   "GLNG 2022-03-18",
+   "SPOT 2024-09-23",
+   "TTMI 2025-06-09",
+   "AIR 2026-01-12"
+  ],
+  "failures": [
+   {
+    "ticker": "AMZN",
+    "date": "2018-09-04",
+    "criterion": "wk.stop_width",
+    "why": "a 60% wick on 2018-08-30, a clean inside day, a fill at 101.33 with a 1.1% stop, 1.1% under the 52-week high; the next session's low was 99.49, stopped for 0R, and the stock never traded above 102.53 in the following 20 sessions. A perfect-looking wick play at the end of a run is still a 1%-stop bet on one more push; the rule did not fail, the run was over."
+   },
+   {
+    "ticker": "DDOG",
+    "date": "2020-10-06",
+    "criterion": "wk.not_stretched",
+    "why": "the wick day sat 9.6% over its 10-day, almost at the C29 line, and day 2's low left a 4.1% stop; day 3 traded through the trigger to 109.60 and down to 102.14, under the stop, the same day; stopped on 10-08, then ran to 2.3R within a week. A stretched name with a wide stop: skip, or take the stop and wait for a new setup."
+   },
+   {
+    "ticker": "SHOP",
+    "date": "2024-02-12",
+    "criterion": "wk.earnings_window",
+    "why": "a 55% wick on 02-08, a clean inside day, a fill at 91.40 with a 2.75% stop; on 02-13 it opened at 77.80, 15% lower, far through the stop on the earnings reaction. B22 is the lesson."
+   },
+   {
+    "ticker": "ANET",
+    "date": "2025-08-13",
+    "criterion": "wk.stop_broker",
+    "why": "day 1 carried an 84% wick three sessions after the earnings reaction, 8% over the 10-day; day 3 printed 141.99 through the 141.46 trigger and closed at 138.01 with a low of 136.01, 3.9% under the entry: stopped on the entry day on any ordering of the bars; then 4.5R within 20 sessions. A stretched name's first push can fail inside the day, and a stop is a stop."
+   },
+   {
+    "ticker": "V",
+    "date": "2019-10-15",
+    "criterion": "wk.explosion",
+    "why": "day 1 2019-10-11 with a 91% wick, day 2 wholly inside it, bought day 3 at 178.42 with a 0.75% stop at 177.08; stopped the next session (low 176.27) and the stock fell to 170.18 within 10 sessions. No explosion in the prior 15 sessions and 5.3% under the 52-week high: a wick play in a pullback, not after a burst, with a stop inside the noise."
+   }
+  ],
+  "near_misses": [
+   {
+    "ticker": "AMZN",
+    "date": "2020-08-26",
+    "criterion": "wk.day2_strict",
+    "why": "day 1 2020-08-24 (57% wick), day 2's low 163.35 dips 1.3% (0.54 ATR) under day 1's body top 165.51; the strict form allows none and the B grade at most 0.25 ATR. An inside day that touched the body, not a wick play."
+   },
+   {
+    "ticker": "TSLA",
+    "date": "2018-06-11",
+    "criterion": "wk.trend",
+    "why": "day 1 2018-06-07 (84% wick), day 2 inside the wick, but the close is 2.2% under the 200-day and the 50-day is 10.2% under the 200-day; the rule needs close > 50 > 200. A reclaim attempt under a falling 200-day."
+   },
+   {
+    "ticker": "PBR",
+    "date": "2019-01-09",
+    "criterion": "wk.not_stretched",
+    "why": "day 1 2019-01-07 (44% wick) closed 12.3% over the 10-day SMA; the rule is 10% or less. The pause came too far from the averages; stopped."
+   },
+   {
+    "ticker": "REGN",
+    "date": "2013-05-03",
+    "criterion": "wk.stop_width",
+    "why": "day 1 2013-05-01 (40% wick), day 2 inside it, but the honest stop under day 2's low is 8.12% from the entry and the open was 3.64% over the trigger; the rule wants about 3%. Size down or skip."
+   }
+  ],
+  "sheets": {
+   "failures": "final/fail_1-4.png",
+   "near_misses": "final/near_1-4.png",
+   "pair": "final/pair_08-inside-day.png"
+  },
+  "limits": "Daily bars only: the entry day's own low under the stop (511 hits) cannot be ordered against the trigger, so the base rate is quoted with its floor; the same-day push was not scanned at all (D-117). No earnings, RS or market filter in the scan. Survivors only. The strict form is rare (about 54 a year across the store), so the sample is small and unstable by decade. No one has published statistics for a wick play by that name."
+ },
+ "question_seeds": [
+  {
+   "kind": "recall",
+   "criterion": "wk.day2_strict",
+   "seed": "In the strict wick play, where must day 2's low and high sit against day 1?"
+  },
+  {
+   "kind": "recall",
+   "criterion": "wk.day1_wick",
+   "seed": "What is day 1's body top when day 1 is a red candle, and how big must the wick above it be?"
+  },
+  {
+   "kind": "recall",
+   "criterion": "wk.stop_a",
+   "seed": "Where does the stop go on a day-3 wick-play buy?"
+  },
+  {
+   "kind": "spot",
+   "criterion": "wk.day2_strict",
+   "seed": "Hidden ticker: tap the day that sits wholly inside the prior day's upper wick."
+  },
+  {
+   "kind": "spot",
+   "criterion": "wk.inv_body",
+   "seed": "Hidden ticker: did day 2 hold above day 1's body, or trade into it? Valid or void."
+  },
+  {
+   "kind": "spot",
+   "criterion": "wk.not_lower_wick",
+   "seed": "Hidden ticker: four bars with long wicks; which one is the wick play and which are hammers or Go Signal days?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "wk.day2_strict",
+   "seed": "Wick play or plain inside day: the small bar sits in the lower half of yesterday's range. Which is it?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "wk.day2_same_day",
+   "seed": "Wick play or Kicker: yesterday closed weak in the bottom of its range and today gapped 3% over its high. Which is it?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "wk.day2_same_day",
+   "seed": "Wick play or Oops: today opened under yesterday's close, undercut its low and reclaimed it. Which is it?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "wk.not_lower_wick",
+   "seed": "The house glossary calls a long lower wick at support a wick play. Right or wrong, and why?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "wk.trigger_b",
+   "seed": "Day 1 ran 74.00 to 83.30 and closed 75.89. Today opened at 80.99 and is trading 82.50 with a low of 78.60. What is the trigger, and is the setup still valid?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "wk.no_chase",
+   "seed": "Day 2's high is 24.96 and day 3 opens at 26.10. Buy the open, or pass?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "wk.earnings_window",
+   "seed": "A clean strict wick play prints and the report is tomorrow night. Buy day 3?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "wk.inv_no_trigger",
+   "seed": "Day 3 never traded over day 2's high and closed inside the same wick. Is the setup over?"
+  },
+  {
+   "kind": "grade",
+   "criterion": "wk.body_touch",
+   "seed": "Two wick plays: one whose day 2 never touched the body, one that dipped 0.2 ATR under the body top and closed back in the wick. Grade each."
+  },
+  {
+   "kind": "grade",
+   "criterion": "wk.not_stretched",
+   "seed": "A textbook hold in the wick on a stock 41% over its 10-day after an EP (MXL). Grade it under today's rules."
+  },
+  {
+   "kind": "grade",
+   "criterion": "wk.stop_width",
+   "seed": "The day-3 trigger is 72.03 and day 2's low 69.07 (MRNA). What is the stop in percent, the grade, and the size?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "wk.day1_wick",
+   "seed": "Day 1: open 32.46, high 34.00, low 31.83, close 32.11. What is the body top, and what share of the range is the upper wick?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "wk.stop_a",
+   "seed": "Day 2's high is 190.70 and its low 189.04. Where is the day-3 trigger, the stop, and how far is the stop in percent?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "wk.trim_1",
+   "seed": "Bought at 30.70 with the stop at 30.32. Where is 3R, and where is 5R?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "wk.body_touch",
+   "seed": "Day 1's body top is 56.96, the ATR is 3.20, and day 2's low printed 56.40. How far into the body is that in ATR, and does it pass the 0.25 ATR tolerance?"
+  }
+ ],
+ "owner_decisions": [
+  "D-001",
+  "D-003",
+  "D-006",
+  "D-007",
+  "D-008",
+  "D-010",
+  "D-012",
+  "D-016",
+  "D-017",
+  "D-034",
+  "D-115",
+  "D-116",
+  "D-117"
+ ],
+ "conflicts": [
+  "Strict or same-day: Deepvue's Wick Play and TaPlot keep day 2 entirely inside the wick and buy day 3; Kell's APPS, Deepvue's In the Wick and the owner's gap up wick play with immediate push allow (or want) day 2 to break the top of the wick itself. The card teaches both as two entries of one setup, the push first (D-115).",
+  "Touching the body: TaPlot and Deepvue never; Kell (GOOG) a little; TraderLion's MU dipped under and closed back in the wick. The card allows 0.25 ATR at a B grade (D-116).",
+  "The trigger: over day 2's high (TaPlot), over day 1's high (the same-day form), the next day's gap (TraderLion's MU), or a pullback to the 21 EMA (Manrav). The day-3 trigger is TaPlot's wording, not Kell's; Kell stated no trigger in words.",
+  "The stop: Kell gives none; TraderLion's MU staggered stops at the 10 and 20 EMAs under the day's low; the house stop under day 2's low fits the strict form exactly, while the same-day form's natural stop (day 1's body top) ran 4.0% to 8.9% on the five named cases and cannot be tested on daily bars (D-008, D-117).",
+  "C29: the owner's MXL (41% over its 10-day) and FIG (12.5%) break it; wick plays come right after an explosion. The card keeps C29 and sends it to D-017.",
+  "Timeframe: every source uses daily candles; Manrav's UMC is weekly and could not be reproduced on bars built from daily data (D-012).",
+  "Context: Deepvue's definitions carry none; every trader source insists on a strong leader; the word leader is TaPlot's alone (TraderLion's MU review says strong action, Kell says explosion). The RS 80 is the house's.",
+  "Measured edge: the strict form did not beat an ordinary inside day in the same leaders (-0.22R to +0.18R against -0.12R to +0.21R) and inside days alone showed no edge in dossier 08; the same-day push beat an ordinary prior-day-high break modestly. Nothing here is a published statistic, and the strict sample is unstable by decade.",
+  "House text that is wrong: definitions.json (a lower-wick buy; no external source names it), quotes.json's Kell line (unverified, describes a rejection at a level), setupTagMap.js (Reversals and Reclaims), the Chart builder's refusal of a Wick Play starter (it is a two-bar pattern with a threshold-free definition), and setup_criteria.json's formula using day 1's close as the body top (wrong on a red day 1). D-010 and D-016.",
+  "Liquidity: two UCT examples (OPEN about $8, UMC about $7.50) fail B23; FIG had no 200-day (D-034).",
+  "Sources: this dossier's section 11 is a table with no explicit S-ids, so the card cites each source by its row position as the validator reads it (S1 to S3 and S5 Kell's own words, S7 TraderLion's MU review, S10 Deepvue, S11 TaPlot, S13 and S14 Bulkowski, S16 and S17 UCT's two wick-play posts, S19 the KB extracts, S20 the house code and texts, S21 the bar store behind the dossier's run, S22 the rulebook). Every basis tag follows the dossier's own: Deepvue and TaPlot lines are originator (Kell's circle), the owner's lines UCT, the dossier's numbers my proposal."
+ ]
+}

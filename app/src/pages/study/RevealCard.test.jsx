@@ -179,10 +179,45 @@ describe('RevealCard trade review', () => {
     expect(box).toHaveTextContent('The trade · your Kicker rules')
     expect(box).toHaveTextContent('$10.71')
     expect(box).toHaveTextContent('$11.13 · $11.34')
-    expect(box).toHaveTextContent('3R hit on session 1')
+    // the house trims (sizing_rule.md §9): a third at 3R, a third at 5R, named from the plan's trim_r (3R and 5R when it has none)
+    expect(box).toHaveTextContent('a third at 3R, hit on the signal day; a third at 5R, hit on session 1')
   })
   it('a reveal without a plan shows no trade', () => {
     render(<RevealCard correct reveal={{ answer: 'Yes' }} item={item} fire={false} />)
     expect(screen.queryByTestId('trade-review')).toBeNull()
+  })
+
+  // course questions (docs/study/courses, owner 2026-11-08: "verified and accurate against reliable information sources")
+  const course = {
+    lesson: "That's the bid. It is the most a buyer will pay right now.",
+    provenance: { source_kind: 'course', source_ref: 'docs/study/courses/F1/F1.03.json#q01' },
+    depth: { sources: [{ name: 'SEC, Investor.gov: Bid price', url: 'https://www.investor.gov/x', quote: 'q' },
+                       { name: 'FINRA: Order types', url: 'https://www.finra.org/y', quote: 'q' }] },
+    wrong: { 'The ask': 'That is the price sellers want.' },
+    answer: { answer: 'The bid' },
+  }
+
+  it('names the cited pages as links, never the repo path', () => {
+    render(<RevealCard correct reveal={course} item={{ id: 'c1', type: 'recall' }} feedback={false} />)
+    const src = screen.getByTestId('reveal-sources')
+    expect(src).toHaveTextContent('Sources')
+    const links = src.querySelectorAll('a')
+    expect(links).toHaveLength(2)
+    expect(links[0]).toHaveAttribute('href', 'https://www.investor.gov/x')
+    expect(links[0]).toHaveAttribute('rel', 'noopener noreferrer')
+    expect(screen.queryByText(/docs\/study\/courses/)).toBeNull()
+  })
+
+  it('on a wrong pick, says why that pick was wrong', () => {
+    render(<RevealCard correct={false} reveal={course} item={{ id: 'c1', type: 'recall' }} picked="The ask" feedback={false} />)
+    expect(screen.getByTestId('wrong-why')).toHaveTextContent('Why not The ask')
+    expect(screen.getByTestId('wrong-why')).toHaveTextContent('That is the price sellers want.')
+  })
+
+  it('shows no why-not line on a right answer or a pick with no note', () => {
+    const { rerender } = render(<RevealCard correct reveal={course} item={{ id: 'c1' }} picked="The bid" feedback={false} />)
+    expect(screen.queryByTestId('wrong-why')).toBeNull()
+    rerender(<RevealCard correct={false} reveal={course} item={{ id: 'c1' }} picked="The open" feedback={false} />)
+    expect(screen.queryByTestId('wrong-why')).toBeNull()
   })
 })

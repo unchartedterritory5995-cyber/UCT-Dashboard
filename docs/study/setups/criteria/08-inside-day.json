@@ -1,0 +1,1346 @@
+{
+ "setup": "08-inside-day",
+ "name": "Inside Day",
+ "unit": "none",
+ "direction": "long",
+ "timeframe": "daily",
+ "dossier": "docs/study/setups/research/08-inside-day.md",
+ "as_of": "2026-11-09",
+ "card": {
+  "context": "A leader above its 200-day with the 50-day above it, above a rising 21-day EMA, inside a bigger setup: 1 to 10 sessions after a breakout, an earnings gap, an HVE, a Kicker or a Go Signal, at the rising 10 or 20-day, or just under a breakout spot. Green or Yellow market.",
+  "pattern": "One quiet bar: today's high is below yesterday's high and today's low is above yesterday's low. Not stretched, not tiny: the stop it gives is at most 1 ATR and ideally within 3%.",
+  "trigger": "PREV DAY HIGH BREAK: price trades a cent over the inside day's high within the next 3 sessions, bought at market, no more than 4% over it. If the low trades first, the buy is off and the reclaim is the Oops (scenario B).",
+  "stop": "A few cents under the inside day's low. Never the mother bar's low to give it room.",
+  "failure_mode": "The low trades first, or the break lasts a day and the stop goes. The bar alone is near random; the stock, the location and the market carry the edge."
+ },
+ "entry_trigger": "PREV DAY HIGH BREAK",
+ "criteria": [
+  {
+   "id": "id.shape",
+   "field": "pattern",
+   "statement": "An inside day: today's high is below yesterday's high and today's low is above yesterday's low. Strict: a tie on either side does not count.",
+   "measure": {
+    "what": "today's high against yesterday's high, and today's low against yesterday's low",
+    "op": "<",
+    "value": "yesterday's high; and today's low > yesterday's low",
+    "timeframe": "daily"
+   },
+   "glossary": "inside_day",
+   "basis": "originator",
+   "sources": [
+    "S1",
+    "S4",
+    "S16",
+    "S33"
+   ],
+   "options": [
+    {
+     "value": "strict",
+     "basis": "Crabel (the originator of the tested version, via a reproduction), Bulkowski, the screener's single Inside Day label"
+    },
+    {
+     "value": "ties allowed",
+     "basis": "Brooks, our scanners, the screener's inside-run labels"
+    }
+   ],
+   "recommended": "strict",
+   "status": "pending-owner",
+   "owner_question": "D-063",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 item 1; 10 question 1",
+   "evidence": "The shape is Crabel's (3.1): an Inside Day's high is less than the previous day's high and the Inside Day's low is greater than the previous day's low. Strict is recommended for teaching because it is the originator's; ties are rare and did not do worse (tie-only days: 696 trades against 13,233 strict in the stacked group, E2 +0.09R with a standard error of 0.08R). A choice for clarity, not for edge. The glossary's canonical form is strict."
+  },
+  {
+   "id": "id.mother_bar",
+   "field": "pattern",
+   "statement": "The mother bar is the day the inside day sits inside.",
+   "basis": "my proposal",
+   "sources": [
+    "S33"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.1 item 2",
+   "evidence": "A common price-action label used in the app's code; none of the sources read uses the word. Bulkowski calls the two days the pattern."
+  },
+  {
+   "id": "id.double_inside",
+   "field": "pattern",
+   "statement": "A double inside day is 2 inside days in a row, each inside the day before; a triple is 3.",
+   "measure": {
+    "what": "consecutive inside days, each inside the day before",
+    "op": ">=",
+    "value": 2,
+    "unit": "days",
+    "timeframe": "daily"
+   },
+   "glossary": "inside_day",
+   "basis": "UCT",
+   "sources": [
+    "S30",
+    "S31",
+    "S16",
+    "S8"
+   ],
+   "options": [
+    {
+     "value": "each inside the day before",
+     "basis": "UCT usage; Brooks's ii and iii"
+    },
+    {
+     "value": "days that stay inside the first mother bar",
+     "basis": "the owner's META note: basically 4 inside days within a decent pullback bar on Monday (2026-10-04)"
+    }
+   ],
+   "recommended": "each inside the day before",
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1 item 3",
+   "evidence": "His words: Double inside day, oops reversal. Simple shit nothing new (KB 14619). Mish Schneider: 2 inside days in a row is an even clearer signal of indecision. Test: stack plus double inside, 789 trades, -0.06R / -0.03R, no better than a single. Owner to choose the count."
+  },
+  {
+   "id": "id.trend_200",
+   "field": "context",
+   "statement": "Close above the 200-day SMA, and the 50-day above the 200-day.",
+   "measure": {
+    "what": "close > 200-day SMA, and 50-day SMA > 200-day SMA",
+    "op": "==",
+    "value": true,
+    "timeframe": "daily"
+   },
+   "glossary": "ma_stack",
+   "basis": "house rule",
+   "sources": [
+    "S33",
+    "S8"
+   ],
+   "house_rule": "B26",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 item 4",
+   "evidence": "B26 is hard; the 50 over 200 is the dossier's proposal. uct_inside_day does not check the 200-day. Mish's AAPL 2009 example sat 17% under its 200-day and fails it. The scan used both."
+  },
+  {
+   "id": "id.trend_21",
+   "field": "context",
+   "statement": "The 21-day EMA is rising and the close is above it, or a fresh breakout or gap came within the last 10 sessions.",
+   "measure": {
+    "what": "close > 21-day EMA and 21-day EMA > its value 5 sessions ago",
+    "op": "==",
+    "value": true,
+    "timeframe": "daily",
+    "or": "a 60-day closing high, an earnings gap, an HVE, a Kicker or a Go Signal inside the last 10 sessions"
+   },
+   "glossary": "rising_average",
+   "basis": "UCT",
+   "sources": [
+    "S30",
+    "S33"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "the full 8 > 21 > 50 stack (the scanner)"
+    },
+    {
+     "value": "b",
+     "basis": "close over a rising 21 EMA (the id4 scanner)"
+    },
+    {
+     "value": "c",
+     "basis": "just over the 50 and 200-day plus a location rule (the dossier's recommendation; D-066's default)"
+    }
+   ],
+   "recommended": "c",
+   "status": "pending-owner",
+   "owner_question": "D-066",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 item 4; 10 question 7",
+   "evidence": "His examples: all the moving averages stack and price holding above rising 9ema and 20ema (DDOG); an inside day and a higher low at a rising 20EMA. The scan required a close above a rising 21-day EMA. The 5-session window for rising is the glossary's."
+  },
+  {
+   "id": "id.no_full_stack",
+   "field": "context",
+   "statement": "Do not require the full 8 above 21 above 50 stack. It is a cue.",
+   "measure": {
+    "what": "8 EMA > 21 EMA > 50 SMA required",
+    "op": "==",
+    "value": false,
+    "timeframe": "daily"
+   },
+   "glossary": "ma_stack",
+   "basis": "measured",
+   "sources": [
+    "S34",
+    "S30"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1 item 4",
+   "evidence": "From the dossier's own test: inside day above the 200-day, 26,586 trades, -0.02R / -0.05R; with the stack, 13,233 trades, -0.06R / -0.08R. His own examples often lack it (RDDT, KVYO, METC, AAOI, SMTC not stacked). The glossary reads 08's stack as a cue."
+  },
+  {
+   "id": "id.location",
+   "field": "context",
+   "statement": "One of three locations: 1 to 10 sessions after a breakout, an earnings gap, an HVE, a Kicker or a Go Signal; at the rising 10 or 20-day, within about 1 ATR of the 21 EMA; or just under a breakout spot.",
+   "measure": {
+    "what": "sessions since the breakout, gap, HVE, Kicker or Go Signal",
+    "op": "<=",
+    "value": 10,
+    "unit": "sessions",
+    "timeframe": "daily",
+    "or": "the inside day's low within 1 ATR(14) of the 21-day EMA; or the inside day's high within a few percent under a base top"
+   },
+   "glossary": "touch",
+   "basis": "UCT",
+   "sources": [
+    "S30",
+    "S31",
+    "S32"
+   ],
+   "status": "pending-owner",
+   "owner_question": "D-066",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 item 5",
+   "evidence": "His words: look for an inside day or two up here (SHOP after the breakout); GO SIGNAL on Wednesday followed by inside day Thursday (ASML); HVE on earnings day followed up by inside day (2025-06-08); an inside day after a 20EMA shakeout (SMTC); tight inside day below breakout spot (ZETA). Scan: at-the-21-EMA location 28.1% to 3R against 26.0% post-breakout; the hourly subset within 1 ATR of the 21 EMA was the only context that looked better (597 trades, +0.05R to +0.21R)."
+  },
+  {
+   "id": "id.not_setup_alone",
+   "field": "context",
+   "statement": "The inside day is an entry tool inside a bigger setup, not a setup by itself. The bar alone is near random.",
+   "basis": "UCT",
+   "sources": [
+    "S30",
+    "S4",
+    "S22",
+    "S34"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "Read this first item 4; 8.8 mistake 27",
+   "evidence": "His approach: Give me an oops. Give me some sideways and a tap of the 20EMA. Give me an inside day. A little cheat with an inside day or two (AAOI). Bulkowski: the trend leading in is up only 53% of the time. The dossier's test: a mechanical break in an uptrend did not beat the same order on any other uptrend day, hour by hour. Scan: 101,129 buys, 26.7% to 3R, 88.2% eventually stopped, median best 0.94R."
+  },
+  {
+   "id": "id.not_stretched",
+   "field": "trigger",
+   "statement": "Close no more than 10% over the 10-day average. The member drawing's 6%-over-the-50-day gate is not used.",
+   "measure": {
+    "what": "close / 10-day SMA - 1",
+    "op": "<=",
+    "value": 10,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "glossary": "stretched",
+   "basis": "house rule",
+   "sources": [
+    "S30",
+    "S33",
+    "S34"
+   ],
+   "house_rule": "C29",
+   "status": "pending-owner",
+   "owner_question": "D-017",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 item 6; 10 question 8",
+   "evidence": "HOOD 2026-09-04 was 11.0% over its 10-day SMA and was stopped the day it triggered. CRCL is on the line: 9.7% over the 10-day SMA (passes) but 10.2% over a 10-day EMA (fails). QCOM 2020-08-04 goes the other way: 13.0% over its 10-day SMA (fails) but about 9.7% over its 10-day EMA (passes), so its answer also flips on D-017 (corrected 2026-11-10 against the bars). The drawing's 6% gate hides COIN (+14% over the 50), POET (+17%) and TraderLion's NVDA (+13%). D-017's default: the 10-day SMA, the entry day not in it, the 6% gate dropped. Scan failure TSLA 2021-01-13 passed by a hair (9.1%) and was 17% over the 21 EMA."
+  },
+  {
+   "id": "id.stop_size",
+   "field": "pattern",
+   "statement": "Size: the stop distance (the trigger to a few cents under the low) is at most 1 ATR(14), and ideally within about 3%.",
+   "measure": {
+    "what": "(inside day's high - stop under its low) / inside day's high",
+    "op": "<=",
+    "value": "1 ATR(14), ideally 3%",
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "glossary": "stop_width",
+   "basis": "my proposal",
+   "sources": [
+    "S15",
+    "S6",
+    "S34"
+   ],
+   "options": [
+    {
+     "value": "1 ATR",
+     "basis": "Kullamagi's ATR limit (stop should not be wider than the ATR or ADR of the stock); the dossier's proposal"
+    },
+    {
+     "value": "3%",
+     "basis": "A13's about 3%"
+    },
+    {
+     "value": "none",
+     "basis": "no limit; size down instead (A5)"
+    }
+   ],
+   "recommended": "1 ATR",
+   "status": "pending-owner",
+   "owner_question": "D-005",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 item 7; 10 question 6",
+   "evidence": "In the large-cap test the median stop was 1.5% and 88% were within 3%. On his names it is often wider from the fill: COIN 4.2%, RDDT 4.2%, HOOD 4.2%, POET 7.9% (5.8% from the trigger). TraderLion: a stop within about 5%. The scan used 1 ATR and 3.5% of the trigger; its ten examples ran 1.06% to 2.47%."
+  },
+  {
+   "id": "id.not_tighter_better",
+   "field": "pattern",
+   "statement": "Do not treat a tiny inside day, an NR4 or an NR7 as better. A sliver under 0.4 ATR whose low sits inside the noise is the B- end.",
+   "measure": {
+    "what": "inside day's range / ATR(14)",
+    "op": ">=",
+    "value": 0.4,
+    "timeframe": "daily",
+    "note": "about 0.5 to 1 ATR is a normal-sized pause; under 0.4 is noise"
+   },
+   "basis": "measured",
+   "sources": [
+    "S34",
+    "S1",
+    "S33"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1 item 7; 9 Size row",
+   "evidence": "From the dossier's measurement: inside days of 0.7 ATR or less (the scanner's cap) did worse than wider ones in both scorings and in the hourly check (-0.16R against 0.00R, Dec 2023 to Oct 2026); 47% of trades from inside days under 0.4 ATR were ambiguous. Stack plus ID/NR7: -0.11R. Crabel found NR4 and NR7 better for the next day's opening range breakout held to the close, a different trade. Scan: a stop 2% or tighter 27.1% to 3R against 25.9% wider, within noise."
+  },
+  {
+   "id": "id.close_upper_half",
+   "field": "pattern",
+   "statement": "Prefer a close in the upper half of the inside day's range. A grading cue, not a rule.",
+   "measure": {
+    "what": "(close - low) / (high - low) of the inside day",
+    "op": ">=",
+    "value": 0.5,
+    "timeframe": "daily"
+   },
+   "glossary": "close_position",
+   "basis": "UCT",
+   "sources": [
+    "S30",
+    "S34"
+   ],
+   "options": [
+    {
+     "value": "cue",
+     "basis": "the dossier's recommendation; D-039's default for every setup"
+    },
+    {
+     "value": "rule",
+     "basis": "the daily test favoured it"
+    }
+   ],
+   "recommended": "cue",
+   "status": "pending-owner",
+   "owner_question": "D-039",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1 item 8; 10 question 10",
+   "evidence": "His words: really like the strong close with the inside day Friday (QBTS); weak inside bar closing near the bottom (QQQ weekly). Daily scoring: lower-half closes much worse (-0.20R against 0.00R); the hourly check closed the gap (many lower-half inside days break their low first, which daily scoring had counted as losses). Scan: upper half 26.8% to 3R against lower half 26.7%."
+  },
+  {
+   "id": "id.volume_lighter",
+   "field": "pattern",
+   "statement": "Volume lighter than the mother bar is preferred, not required.",
+   "measure": {
+    "what": "inside day's volume / mother bar's volume",
+    "op": "<",
+    "value": 1,
+    "unit": "x",
+    "timeframe": "daily"
+   },
+   "glossary": "dry_up",
+   "basis": "source consensus",
+   "sources": [
+    "S6",
+    "S7",
+    "S8",
+    "S34"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1 item 9",
+   "evidence": "TraderLion (best when the inside bar comes on low volume), Morpheus (a tight-ranged inside day on lighter volume), Mish. The dossier's test found no effect (stack plus volume below the mother bar: -0.07R / -0.09R); the scan: lighter 26.6% to 3R against heavier 27.1%. Nine of the ten examples came on 0.59x to 0.95x of the mother bar."
+  },
+  {
+   "id": "id.liquidity",
+   "field": "context",
+   "statement": "Price $10 or more and $20 million or more traded a day.",
+   "measure": {
+    "what": "close",
+    "op": ">=",
+    "value": 10,
+    "unit": "$",
+    "and": "average dollar volume >= 20,000,000 a day"
+   },
+   "glossary": "liquidity",
+   "basis": "house rule",
+   "sources": [
+    "S33",
+    "S6"
+   ],
+   "house_rule": "B23",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 item 10",
+   "evidence": "The app's floor is $2 and $10,000; TraderLion's scan uses $3 million over 20 days. The scan used a 20-day average of $20 million."
+  },
+  {
+   "id": "id.leadership",
+   "field": "context",
+   "statement": "RS rating 80 or more, in one of the strongest groups.",
+   "measure": {
+    "what": "RS rating",
+    "op": ">=",
+    "value": 80,
+    "unit": "rating 1 to 99"
+   },
+   "glossary": "leader",
+   "basis": "house rule",
+   "sources": [
+    "S6"
+   ],
+   "house_rule": "C31",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 item 10",
+   "evidence": "Fits his usage (TraderLion: names already showing momentum). Not in the scan; a 126-day return rank among the test's 187 names did not help."
+  },
+  {
+   "id": "id.earnings_window",
+   "field": "trigger",
+   "statement": "Not within 3 days before an earnings report.",
+   "measure": {
+    "what": "sessions until the next report",
+    "op": ">",
+    "value": 3,
+    "unit": "sessions"
+   },
+   "glossary": "earnings_blackout",
+   "basis": "house rule",
+   "sources": [
+    "S31"
+   ],
+   "house_rule": "B22",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 item 11",
+   "evidence": "Many of his inside days are after a report (RKT: inside day post earnings), which is fine; one just before a report is not. The ten examples were checked by hand."
+  },
+  {
+   "id": "id.trigger",
+   "field": "trigger",
+   "statement": "Price trades a cent over the inside day's high. For a double inside day, over the most recent inside day's high.",
+   "measure": {
+    "what": "intraday high during regular hours",
+    "op": ">",
+    "value": "the inside day's high (the prior day's high at the time of the buy)",
+    "timeframe": "daily"
+   },
+   "basis": "source consensus",
+   "sources": [
+    "S30",
+    "S31",
+    "S7",
+    "S9",
+    "S6",
+    "S18",
+    "S3",
+    "S4"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "the inside day's high: the owner (RDDT: break inside day high of $147.40; AMSC: buy trigger through 24.30), Morpheus, Stockbsessed, TraderLion, Beggs, StockCharts"
+    },
+    {
+     "value": "b",
+     "basis": "the mother bar's high: Bulkowski (on a close), Mish's AAPL, TraderLion's second option, Study's own glossary (the two-day high)"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-064",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 item 12; 10 question 2",
+   "evidence": "D-064's default: the inside day's high, with the mother bar's high as the A cue when the two are close. The double-inside rule is the dossier's proposal; the scan counted a double that triggered both bars on one day once, from the more recent. Study's chart_words.json still says the two-day high and should follow the ruling."
+  },
+  {
+   "id": "id.order",
+   "field": "trigger",
+   "statement": "A market order as it trades through. A buy-stop market order resting a cent over the high does the same.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "E57",
+   "status": "pending-owner",
+   "owner_question": "D-038",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 item 13; 10 question 13",
+   "evidence": "E57: I market order everything. D-038's default: a resting buy-stop that turns into a market order satisfies E57."
+  },
+  {
+   "id": "id.valid_window",
+   "field": "trigger",
+   "statement": "The trigger stays live for the next 3 sessions, as long as the inside day's low has not traded first.",
+   "measure": {
+    "what": "sessions after the inside day in which the break may be bought",
+    "op": "<=",
+    "value": 3,
+    "unit": "sessions",
+    "timeframe": "daily"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S33",
+    "S34",
+    "S1"
+   ],
+   "options": [
+    {
+     "value": 1,
+     "basis": "next day only: Crabel's next-session opening range (per the reproduction)"
+    },
+    {
+     "value": 3,
+     "basis": "the scanner's window; the dossier's test (1 and 3 sessions gave the same result)"
+    },
+    {
+     "value": "until the low breaks",
+     "basis": "option (c) in question 9"
+    }
+   ],
+   "recommended": 3,
+   "status": "pending-owner",
+   "owner_question": "D-067",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 item 14; 10 question 9",
+   "evidence": "D-067's default: 3 sessions, a middle number the quiz can check. All ten examples triggered the very next session. For inside days above the 200-day the next day traded over the high 58% of the time."
+  },
+  {
+   "id": "id.gap_over",
+   "field": "trigger",
+   "statement": "A gap over the trigger: buy at the open only if it opens no more than 4% over the inside day's high. More is a gap trade, not this setup.",
+   "measure": {
+    "what": "open / inside day's high - 1",
+    "op": "<=",
+    "value": 4,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "glossary": "chase_limit",
+   "basis": "house rule",
+   "sources": [
+    "S34"
+   ],
+   "house_rule": "C28",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 item 15",
+   "evidence": "The dossier's test and the scan both applied it. NVDA 2024-01-16 (example 9) gapped 0.1% over the trigger; POET's 7 Oct open at 6.73 was 2.4% over its 6.57 high and the stop from that open was 7.9%."
+  },
+  {
+   "id": "id.scenario_b",
+   "field": "trigger",
+   "statement": "The trap: if price trades under the inside day's low first, the buy over the high is cancelled. If it then reclaims the inside day's low (or the prior close) the same day, that is an Oops Reversal off the inside day: buy the reclaim, stop a few cents under that day's low.",
+   "measure": {
+    "what": "after a trade under the inside day's low, price trades back above that low or the prior close the same session",
+    "op": "==",
+    "value": true,
+    "timeframe": "daily"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S30",
+    "S31",
+    "S19"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "taught inside this lesson"
+    },
+    {
+     "value": "b",
+     "basis": "only in the Oops lesson"
+    },
+    {
+     "value": "c",
+     "basis": "both, cross-linked (the dossier's recommendation; D-002's row for 08:4)"
+    }
+   ],
+   "recommended": "c",
+   "status": "pending-owner",
+   "owner_question": "D-002",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.2 item 16; 10 question 4",
+   "evidence": "His RDDT note: two scenarios possible, break inside day high of $147.40 or undercut and reclaim $141.30 with a stop at the new established support. KVYO: ENTRY at $29.90 on reclaim of double inside day, stop at LOD. AAOI bought the undercut and reclaim of the inside day. METC and INTC the same. Manrav: inside day or double inside days and oops is a repeatable edge. Not in the scan."
+  },
+  {
+   "id": "id.anticipation",
+   "field": "trigger",
+   "statement": "Anticipation, optional: buying late on the inside day itself with the stop under its low, as he did with SOUN.",
+   "basis": "UCT",
+   "sources": [
+    "S30"
+   ],
+   "status": "pending-owner",
+   "owner_question": "D-065",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.2 item 17; 10 question 5",
+   "evidence": "SOUN ($14.35) bought the double inside days, usually wait for a GO SIGNAL, but wanted a chunk. POET is less clear: the same post lists his cost at $6.73, the 7 Oct open above the inside day's 6.57 high, so it may have been bought on the gap over the trigger. D-065's default: the break only in the lesson; anticipation goes to the early-entries lesson; he confirms the POET date."
+  },
+  {
+   "id": "id.stop",
+   "field": "stop",
+   "statement": "A few cents under the inside day's low. For scenario B, under the reclaim day's low.",
+   "measure": {
+    "what": "stop",
+    "op": "==",
+    "value": "a few cents under the inside day's low"
+   },
+   "glossary": "stop_margin",
+   "basis": "house rule",
+   "sources": [
+    "S9",
+    "S18",
+    "S6",
+    "S33"
+   ],
+   "house_rule": "A3",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.3 item 18",
+   "evidence": "A3 and F62; Stockbsessed (setting my stop right below the low of the day), Beggs, TraderLion. The app stops exactly at the low, with no buffer. The scan used 5 cents under."
+  },
+  {
+   "id": "id.stop_double",
+   "field": "stop",
+   "statement": "Double inside day: the stop goes under the most recent inside day's low (tighter) or the first one's (wider).",
+   "measure": {
+    "what": "which inside day's low the stop sits under",
+    "op": "in",
+    "value": [
+     "the most recent inside day's low",
+     "the first inside day's low"
+    ]
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S31"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "the last inside day's low: tighter; D-008's default (the entry day's low, the pattern low as the outer limit)"
+    },
+    {
+     "value": "b",
+     "basis": "the first inside day's low: wider"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-008",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.3 item 18; 10 question 3",
+   "evidence": "His KVYO stop at 29.35 sat under the swept double-inside lows (29.36), the pattern low, on a scenario B entry."
+  },
+  {
+   "id": "id.stop_wide",
+   "field": "stop",
+   "statement": "If the stop is more than 1 ATR or well over 3%, size down (A5) or skip (A3). Never use the mother low just to give it room.",
+   "measure": {
+    "what": "(entry - stop) / entry",
+    "op": "<=",
+    "value": "1 ATR(14), or about 3%",
+    "unit": "%"
+   },
+   "glossary": "stop_width",
+   "basis": "house rule",
+   "sources": [
+    "S4",
+    "S33"
+   ],
+   "house_rule": "A3",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.3 item 19",
+   "evidence": "A3, A5, A13; A4 once in the trade. Bulkowski's pattern stop does sit under the mother low; that is his wider, close-confirmed version of the trade (a close over the first day's high, bought the next open), not ours. The classic app detector's 1.5% under the mother low is far wider than any source's."
+  },
+  {
+   "id": "id.stop_gap",
+   "field": "stop",
+   "statement": "A gap through the stop: the first 30-minute low is the new stop; out if that is past 2R.",
+   "measure": {
+    "what": "loss at the first 30-minute low of the gap-down day",
+    "op": "<=",
+    "value": 2,
+    "unit": "R",
+    "timeframe": "30-minute"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B20",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.3 item 20",
+   "evidence": "NVDA 2025-01-27 gapped to 124.80 from a 143.67 stop (a news gap): B20 is what saves the account when the gap comes through it. Not simulated in the scan (no 30-minute bars before 2026-08-17)."
+  },
+  {
+   "id": "id.breakeven",
+   "field": "management",
+   "statement": "Stop to breakeven between 2R and 5R.",
+   "measure": {
+    "what": "R at which the stop moves to the entry",
+    "op": "in",
+    "value": [
+     2,
+     5
+    ],
+    "unit": "R"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B19",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4 item 21"
+  },
+  {
+   "id": "id.trim_1",
+   "field": "management",
+   "statement": "Sell a third at 3R.",
+   "measure": {
+    "what": "fraction sold at 3R",
+    "op": "==",
+    "value": 0.333,
+    "unit": "of the position"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B19",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4 item 21",
+   "evidence": "With a stop of about 1% to 2%, 3R is often a 3% to 6% move; JBLU, MPC and FTNT reached it within three sessions."
+  },
+  {
+   "id": "id.trim_2",
+   "field": "management",
+   "statement": "Sell a third at 5R.",
+   "measure": {
+    "what": "fraction sold at 5R",
+    "op": "==",
+    "value": 0.333,
+    "unit": "of the position"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "E51",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4 item 21"
+  },
+  {
+   "id": "id.trim_gap_open",
+   "field": "management",
+   "statement": "If it opens above a trim level, take that trim at the open.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "F63",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4 item 21"
+  },
+  {
+   "id": "id.trail",
+   "field": "management",
+   "statement": "Trail the last third: a close under the 10-day for a fast mover, under the 21-day for a steadier one.",
+   "measure": {
+    "what": "close against the 10-day (fast) or 21-day (steadier) average",
+    "op": "<",
+    "value": "the average",
+    "timeframe": "daily"
+   },
+   "glossary": "trail",
+   "basis": "house rule",
+   "sources": [
+    "S33"
+   ],
+   "house_rule": "E52",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4 item 21",
+   "evidence": "The app's narratives still say 2R and 3R targets; B19 and E51 replace them. Scan: with a fixed stop and no trail the buys lose on average (88.2% eventually stopped), which is why the trail matters here."
+  },
+  {
+   "id": "id.time_stop",
+   "field": "management",
+   "statement": "Time stop: under 1R after 10 trading days, sell.",
+   "measure": {
+    "what": "open R after 10 trading days",
+    "op": "<",
+    "value": 1,
+    "unit": "R"
+   },
+   "glossary": "time_stop",
+   "basis": "house rule",
+   "sources": [
+    "S3"
+   ],
+   "house_rule": "C33",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4 item 22",
+   "evidence": "StockCharts on narrow-range breaks: it is important that the trade starts working right away. VST (example 8) was the slow one, 10 days to 3R, then a 60R run."
+  },
+  {
+   "id": "id.inv_low_first",
+   "field": "invalidation",
+   "statement": "Before the entry: the inside day's low trades first. The buy over the high is off; watch for scenario B.",
+   "measure": {
+    "what": "intraday low against the inside day's low, before the trigger",
+    "op": "<",
+    "value": "the inside day's low",
+    "timeframe": "daily"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S30"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5 item 23",
+   "evidence": "The scan cancelled the buy when the low traded first (24,410 of the buys whose entry day also traded under the stop were counted as surviving day one; dropping them gives 30.7% to 3R). ZETA 2025-08-29 and CRCL 2026-09-04 broke the low without triggering."
+  },
+  {
+   "id": "id.inv_close_under_21",
+   "field": "invalidation",
+   "statement": "Before the entry: a close under the 21-day EMA.",
+   "measure": {
+    "what": "close against the 21-day EMA",
+    "op": "<",
+    "value": "21-day EMA",
+    "timeframe": "daily"
+   },
+   "glossary": "fast_averages",
+   "basis": "UCT",
+   "sources": [
+    "S30"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5 item 23",
+   "evidence": "Scan failure NVDA 2024-03-28: the stock closed above its 10-day from 19 to 26 March, then under it on 27 and 28 March (90.36 against 91.00) and stayed under it through 10 April; it was still over its 21-day EMA (90.36 against 87.72), so this example shows the stall under the fast average, not a close under the 21-day. An inside day under the fast average is a pause in a range, not a continuation. (corrected 2026-11-10 against the bars): the earlier text said it had been under the 10-day for a week and the break lasted one day."
+  },
+  {
+   "id": "id.after_entry_stop",
+   "field": "invalidation",
+   "statement": "After the entry, the stop is the exit. An entry day that closes back under the inside day's high is a warning, not an exit; hold to the stop.",
+   "basis": "house rule",
+   "sources": [
+    "S3"
+   ],
+   "house_rule": "A4",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5 item 24; 10 question 15",
+   "evidence": "D-136 (settled): A4 and his words, my stop is my stop most of the time. The early-warning rule in 8.5 item 24 (StockCharts: starts working right away) was the dossier's untested proposal; the ruling keeps the stop as the only exit."
+  },
+  {
+   "id": "id.market_reading",
+   "field": "context",
+   "statement": "Green or Yellow market. Orange: A+ only. Red: mostly cash and shorts.",
+   "glossary": "market_reading",
+   "basis": "house rule",
+   "sources": [
+    "S31"
+   ],
+   "house_rule": "F65",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.7 item 26",
+   "evidence": "B18, F65. Not in the scan."
+  },
+  {
+   "id": "id.index_inside_days",
+   "field": "context",
+   "statement": "When the indexes print a cluster of inside days, wait for the break. Contraction comes before expansion, in either direction.",
+   "basis": "UCT",
+   "sources": [
+    "S31",
+    "S30",
+    "S2"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.7 item 26",
+   "evidence": "His words: Market is screaming to wait til Thursday to trade imo; lot of inside days in the market rn (KB 10832). Bracco: inside bars across the board with weak closes, which made the gap up on Thursday very intriguing (2026-06-14). Raschke: buyers and sellers appear to be in perfect balance."
+  },
+  {
+   "id": "id.run_length",
+   "field": "context",
+   "statement": "Not after a long run: an inside day after the stock is up 5 or 6 days in a row is the B- end.",
+   "measure": {
+    "what": "consecutive up closes before the inside day",
+    "op": "<=",
+    "value": 4,
+    "unit": "days",
+    "timeframe": "daily"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S30"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.8 mistake 28; 9 Stretch row",
+   "evidence": "His words: staying focused on things HERE vs as they are up 6 days in a row is how you get positioned in big legs (2026-07-12). The 4 is the card's reading of his 5 to 6."
+  },
+  {
+   "id": "id.room",
+   "field": "context",
+   "statement": "Room: clear air to the next level. A bearish gap or an old high just overhead is the B- end.",
+   "basis": "UCT",
+   "sources": [
+    "S31"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "9 Room row",
+   "evidence": "His HTZ desk log: inside day at MAs. Does have a bearish gap above to $6.94. Can take over inside day highs and observe how it acts around 7 (KB 10095)."
+  },
+  {
+   "id": "id.nr_day_not_inside",
+   "field": "pattern",
+   "statement": "A narrow-range day that is not inside (an NR7, Morpheus's BOOT day), a harami judged on bodies, or a day that only opened inside yesterday's range is not this setup.",
+   "measure": {
+    "what": "the inside test (high below the prior high and low above the prior low)",
+    "op": "==",
+    "value": true,
+    "timeframe": "daily"
+   },
+   "glossary": "inside_day",
+   "basis": "my proposal",
+   "sources": [
+    "S7",
+    "S23",
+    "S33",
+    "S8"
+   ],
+   "status": "pending-owner",
+   "owner_question": "D-002",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.8 mistake 34; 10 question 16",
+   "evidence": "Morpheus's BOOT 13 Aug 2018 was not an inside day on Yahoo bars (an NR7). Edgeful's inside day is an open-location statistic. D-002's row for 08:16: not ours, a one-line mention. The screener's NR7 marks about 21% of the market on a given day."
+  },
+  {
+   "id": "id.inside_week",
+   "field": "context",
+   "statement": "Inside weeks and inside months: the same lesson as a variant, or their own. Daily is the definition.",
+   "basis": "UCT",
+   "sources": [
+    "S30"
+   ],
+   "status": "pending-owner",
+   "owner_question": "D-012",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "10 question 11",
+   "evidence": "Manrav's SSRM (triple inside weeks and double inside days); Bracco's month of lower highs and higher lows. D-012's default: one daily definition per setup; the weekly a grade cue and context."
+  }
+ ],
+ "grading": {
+  "a_plus": [
+   "id.leadership: RS 90 or more, a leader in a leading group",
+   "id.market_reading: Green, indexes trending; in Orange only if everything else grades A+ (F65)",
+   "id.location: 1 to 5 days after a breakout or earnings gap on big volume, or the first tag of the rising 10/20-day",
+   "id.close_upper_half: upper half, near the high",
+   "id.stop_size: a normal-sized pause for the stock (about 0.5 to 1 ATR), stop within 1% to 3%",
+   "id.not_stretched: 0 to 5% over the 10-day",
+   "id.volume_lighter: lighter than the mother bar after a heavy-volume expansion",
+   "id.room: clear air to the next level",
+   "id.earnings_window: no earnings for 3 or more days"
+  ],
+  "b_minus": [
+   "id.leadership: RS under 80, a laggard group",
+   "id.market_reading: indexes printing their own inside days (id.index_inside_days), or a Yellow reading (smaller and fewer)",
+   "id.location: the middle of a choppy range, under a falling 50-day",
+   "id.close_upper_half: lower half, near the low",
+   "id.stop_size: the stop over 1 ATR or over 4%; or a sliver under 0.4 ATR whose low sits inside the noise (id.not_tighter_better)",
+   "id.not_stretched: over 10% over the 10-day; id.run_length: up 5 to 6 days in a row",
+   "id.volume_lighter: a heavy, wide, red mother bar with a long upper wick",
+   "id.room: a bearish gap or old high just overhead (his HTZ note)",
+   "id.earnings_window: earnings within 3 days"
+  ],
+  "no_trade": [
+   "id.trend_200: under the 200-day, or the 50-day under the 200 (B26)",
+   "id.not_stretched: more than 10% over the 10-day (HOOD)",
+   "id.gap_over: a gap more than 4% over the inside day's high",
+   "id.inv_low_first: the low traded first (then only scenario B, if it reclaims)",
+   "id.earnings_window: a report within 3 sessions",
+   "id.liquidity: under $10 or under $20 million a day",
+   "id.nr_day_not_inside: not an inside day at all (an NR7, a harami, an inside open)",
+   "id.market_reading: Red; Orange below A+"
+  ]
+ },
+ "lookalikes": [
+  {
+   "setup": "37-wick-play",
+   "tell": "Look where the small day sits inside the big one. A wick play's whole day sits above the prior day's body top, inside its upper wick; an ordinary inside day can sit anywhere inside the prior range. Every strict wick play is an inside day; most inside days are not wick plays.",
+   "criterion": "id.shape"
+  },
+  {
+   "setup": "30-oops-reversal",
+   "tell": "Watch which side trades first. The inside-day buy is the trade over the high before the low breaks; if the low breaks first and price reclaims it or the prior close the same day, the trade is the Oops off the inside day (scenario B), stop under that day's low.",
+   "criterion": "id.scenario_b"
+  },
+  {
+   "setup": "26-kicker",
+   "tell": "Check the bar before the gap. A Kicker needs a weak red day closing in the lowest 35% of its range and a gap of 1.5% or more over its close the next morning; an inside day is a quiet bar bought a cent over its high, and a gap of more than 4% over that high is no longer this setup.",
+   "criterion": "id.gap_over"
+  },
+  {
+   "setup": "02-bull-flag",
+   "tell": "Count the pause. A bull flag is 3 to 15 sessions of drift after a 20% pole, bought at support inside it or over the flag's top; an inside day is one bar, bought over its own high, usually 1 to 10 sessions after the breakout. An inside day inside a flag is the flag's entry, not a second setup.",
+   "criterion": "id.location"
+  }
+ ],
+ "invalidations": [
+  "Before the entry: the inside day's low trades first; the buy over the high is off, watch for scenario B (id.inv_low_first).",
+  "Before the entry: a close under the 21-day EMA (id.inv_close_under_21).",
+  "Before the entry: an earnings date inside 3 days (id.earnings_window).",
+  "Before the entry: a Red market (id.market_reading).",
+  "Before the entry: a gap of more than 4% over the inside day's high; a gap trade, not this setup (id.gap_over).",
+  "After the entry: the stop is the exit; an entry day that closes back under the inside day's high is a warning, not an exit (id.after_entry_stop).",
+  "After the entry: under 1R after 10 trading days, sell (id.time_stop)."
+ ],
+ "mistakes": [
+  "Buying every inside day. The bar alone is near random (Bulkowski 53%; the dossier's test; the scan's 26.7% to 3R with 88% stopped).",
+  "Buying a stretched one: more than 10% over the 10-day (HOOD, Sep 2026) or after up 6 days in a row.",
+  "Reading a weak-close inside day (lower half of its range, under resistance) as bullish (the QQQ and XLF notes).",
+  "Chasing a gap over the trigger by more than 4%.",
+  "Using the mother low as the stop because the inside low feels too tight, then sizing as if it were tight.",
+  "Ignoring the failure: a break of the low first is information, and the reclaim (scenario B) can be the better trade (RDDT, KVYO, AAOI, METC, INTC).",
+  "Buying just before earnings.",
+  "Calling a harami, a narrow-range day or a day that only opened inside yesterday's range an inside day.",
+  "Taking the setup in a market full of inside days before it picks a direction."
+ ],
+ "short_mirror": {
+  "exists": true,
+  "setup": "08-inside-day",
+  "note": "The mirror (dossier 8.6), D47 reversed: below the 200-day only (B26; a falling 200-day is the dossier's proposal), a close under a falling 21 EMA and 50-day, RS 20 or less (C31 mirror), an inside day after a breakdown or a bounce into the falling 10 or 20-day, closing in the lower half; sell short a cent under the low; stop a few cents over the high; skip hard-to-borrow names (D48). UCT's two examples are bearish tells, not logged shorts: XLF 17 Apr 2025 (a short under its low would have reversed the next day) and the QQQ weekly of 5 Jul 2026. Not measured. Whether to teach it is D-001."
+ },
+ "best_conditions": "A Green or Yellow market (B18, F65) with the indexes trending; the best inside days come 1 to 5 days after a breakout, an earnings gap, an HVE, a Kicker or a Go Signal on big volume, or at the first tag of the rising 10/20-day. When the indexes themselves print a cluster of inside days, wait for the break; contraction comes before expansion in either direction.",
+ "management": {
+  "trim_1": "a third at 3R (B19)",
+  "trim_2": "a third at 5R (E51)",
+  "trail": "a close under the 10-day for a fast mover, the 21-day for a steadier one (E52)",
+  "breakeven": "between 2R and 5R, at the first trim by default (B19)",
+  "time_stop": "under 1R after 10 trading days, sell (C33)",
+  "gap_open": "a trim level the day opens past is taken at the open (F63)",
+  "gap_against": "the first 30-minute low is the new stop; out if past 2R (B20)",
+  "overrides": "none. The dossier (8.4) finds no setup-specific reason to differ. Not ours: Crabel's same-day exit at the close, Bulkowski's target of twice the pattern height, Mish's half an ATR then 1.5 ATR, the app's 2R and 3R targets."
+ },
+ "examples": {
+  "winners": 10,
+  "sheet_dir": "_study-resume/scratchpad/setups/08-inside-day/final",
+  "base_rate": {
+   "hits": 101129,
+   "r3_pct": 26.7,
+   "r5_pct": 18.2,
+   "stopped_pct": 88.2,
+   "median_best_r": 0.94,
+   "entry_day_ambiguous_buys": 24410,
+   "r3_pct_without_ambiguous": 30.7,
+   "r5_pct_without_ambiguous": 20.8,
+   "window": "60 trading days from the day after entry, fixed stop 5 cents under the inside low, no trims, no breakeven, no trail; 2000-01-03 to 2026-11-06; 2,630 liquid names; strict inside days above the 200-day with the 50 over the 200, above a rising 21-day EMA, within 10% of the 10-day SMA, at one of two locations, stop at most 1 ATR and 3.5%; bought the first time price traded over the high in the next 3 sessions, at the open on a gap of 4% or less; cancelled if the low traded first; no earnings or RS filter"
+  },
+  "cuts": {
+   "close_upper_half_vs_lower": {
+    "r3_pct": 26.8,
+    "lower_half_r3_pct": 26.7
+   },
+   "at_21_ema_vs_post_breakout": {
+    "r3_pct": 28.1,
+    "post_breakout_r3_pct": 26.0
+   },
+   "lighter_volume_vs_heavier": {
+    "r3_pct": 26.6,
+    "heavier_r3_pct": 27.1
+   },
+   "stop_2pct_or_tighter_vs_wider": {
+    "r3_pct": 27.1,
+    "wider_r3_pct": 25.9
+   },
+   "before_2015_vs_since": {
+    "r3_pct": 28.1,
+    "since_2015_r3_pct": 25.9
+   },
+   "dossier_test_control": {
+    "note": "187 liquid names 2012 to 2026: a mechanical break in an uptrend (-0.02R to +0.24R depending on the same-bar scoring) did not beat the same order on any other uptrend day (+0.03R to +0.21R); settled hour by hour for Dec 2023 to Oct 2026, inside day plus stack -0.09R / -0.11R against the control +0.05R / +0.02R"
+   }
+  },
+  "winners_list": [
+   "JBLU 2003-08-07",
+   "ATI 2006-01-19",
+   "MPC 2013-01-14",
+   "ALGN 2017-03-14",
+   "CDNS 2019-02-05",
+   "CVNA 2020-06-30",
+   "FTNT 2021-06-11",
+   "VST 2023-12-21",
+   "NVDA 2024-01-12",
+   "GOOGL 2025-08-26"
+  ],
+  "failures": [
+   {
+    "ticker": "NVDA",
+    "date": "2024-04-01",
+    "criterion": "id.inv_close_under_21",
+    "why": "inside day 2024-03-28, bought at 91.31 with the stop at 89.14; the stock closed above its 10-day from 19 to 26 March, then under it on 27 and 28 March (close 90.36 against a 10-day of 91.00) and stayed under it through 10 April; it was still over its 21-day EMA (90.36 against 87.72). The stop went on 2024-04-02. An inside day under the fast average is a pause in a range, not a continuation. (corrected 2026-11-10 against the bars)."
+   },
+   {
+    "ticker": "TSLA",
+    "date": "2021-01-14",
+    "criterion": "id.not_stretched",
+    "why": "inside day 2021-01-13, bought at 286.83 with the stop at 277.28; passed C29 by a hair (9.1% over the 10-day) but was 17% over the 21 EMA after a vertical January; stopped the next session. Near the 10% line, treat it as stretched."
+   },
+   {
+    "ticker": "NVDA",
+    "date": "2025-01-24",
+    "criterion": "id.stop_gap",
+    "why": "inside day 2025-01-23 closed at the top of its range, 6.4% over the 10-day; bought at 148.37 on a gap over the 147.24 trigger, stop 143.67; the entry day reversed to 141.88 and stopped the trade the same day, and on 2025-01-27 the stock gapped to 124.80 on news. A perfect-looking bar is still a coin flip; the stop is the plan and B20 is what saves the account when the gap comes through it."
+   },
+   {
+    "ticker": "HOOD",
+    "date": "2026-09-08",
+    "criterion": "id.not_stretched",
+    "why": "his own 4 Sep 2026 inside day, 11.0% over its 10-day SMA; triggered and stopped the same day. C29 would have skipped it."
+   },
+   {
+    "ticker": "NFLX",
+    "date": "2018-03-16",
+    "criterion": "id.after_entry_stop",
+    "why": "inside day 2018-03-15 (85% of the mother bar's range), bought at 32.35 with the stop at 31.76 (1.81%); the entry day closed at its low, 31.84, back under the inside day's high, and the next session opened at 31.58, under the stop, with a low of 30.73. The entry-day close under the high is the warning; the stop is the exit, and B20 handles the gap."
+   },
+   {
+    "ticker": "AMZN",
+    "date": "2017-05-30",
+    "criterion": "id.run_length",
+    "why": "inside day 2017-05-26 after six up closes in a row, bought at 49.94 with a 1.06% stop at 49.41; the next session's low was 49.11 and the stock fell to 46.35 within 10 sessions. A pause at the end of a run with a stop inside the day's noise is the B- end."
+   }
+  ],
+  "near_misses": [
+   {
+    "ticker": "MSFT",
+    "date": "2024-02-09",
+    "criterion": "id.shape",
+    "why": "bar 2024-02-08: its high is 0.30% above the prior day's high while its low is 1.26% inside; both ends must be inside. A narrow-range day, not an inside day (id.nr_day_not_inside)."
+   },
+   {
+    "ticker": "AMZN",
+    "date": "2025-10-16",
+    "criterion": "id.trend_21",
+    "why": "bar 2025-10-15: the close is 2.9% under the 21-day EMA and the EMA fell 0.9% over 5 sessions; the rule needs a rising 21-day EMA with the close above it. An inside day inside a pullback under the fast averages, closer to a reclaim setup than a continuation."
+   },
+   {
+    "ticker": "QCOM",
+    "date": "2020-08-05",
+    "criterion": "id.not_stretched",
+    "why": "bar 2020-08-04, three sessions after the 2020-07-30 earnings gap: the close is 13.0% over the 10-day SMA; the rule is 10% or less. Over the 10-day EMA it is about 9.7%, which would pass: the answer flips on D-017 (corrected 2026-11-10 against the bars)."
+   },
+   {
+    "ticker": "AAPL",
+    "date": "2017-08-02",
+    "criterion": "id.gap_over",
+    "why": "bar 2017-08-01 is a clean inside day at the 21-day EMA, but the next open was 6.0% over its high on the earnings reaction (report 2017-08-01 after the close); the rule is 4% or less. An earnings gap trade, not an inside-day buy."
+   }
+  ],
+  "sheets": {
+   "failures": "final/fail_1-4.png",
+   "near_misses": "final/near_1-4.png",
+   "pair": "final/pair_37-wick-play.png"
+  },
+  "limits": "Daily bars only: the 30-minute stop rule was not simulated and the entry day's order of events is unknown (the truth sits between 26.7% and 30.7% to 3R). No RS rating or market reading history; earnings dates thin before 2005. Survivors only. Scenario B was not scanned. The short mirror was not scanned."
+ },
+ "question_seeds": [
+  {
+   "kind": "recall",
+   "criterion": "id.shape",
+   "seed": "What two things must be true of today's bar for it to be an inside day?"
+  },
+  {
+   "kind": "recall",
+   "criterion": "id.valid_window",
+   "seed": "How many sessions does the inside-day trigger stay live, and what cancels it?"
+  },
+  {
+   "kind": "recall",
+   "criterion": "id.stop",
+   "seed": "Where does the stop go on an inside-day break, and which low is never used to give it room?"
+  },
+  {
+   "kind": "spot",
+   "criterion": "id.shape",
+   "seed": "Hidden ticker: tap the inside day in this run of bars."
+  },
+  {
+   "kind": "spot",
+   "criterion": "id.location",
+   "seed": "Hidden ticker: is this inside day sitting at the rising 20-day, just after a breakout, or in the middle of chop? Take it or pass."
+  },
+  {
+   "kind": "spot",
+   "criterion": "id.trend_200",
+   "seed": "Hidden ticker: is this inside day above the 200-day with the 50-day over it? Take it or pass."
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "id.shape",
+   "seed": "Inside day or wick play: the small bar sits entirely above the prior day's body, inside its upper wick. Which name applies, and does it matter?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "id.scenario_b",
+   "seed": "The low broke at 10:05 and price reclaimed the prior close by 11:00. Inside-day break or Oops? Where is the stop?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "id.nr_day_not_inside",
+   "seed": "Today's range is the narrowest of 7 days but its high is above yesterday's high. Inside day or not?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "id.gap_over",
+   "seed": "A quiet bar, then a 6% gap up over its high on a weak red day's heels. Inside-day break, Kicker, or a gap trade?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "id.gap_over",
+   "seed": "The inside day's high is 50.00 and the stock opens at 52.50. Buy the open, or pass?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "id.after_entry_stop",
+   "seed": "You bought the break at 50.05. It closes at 49.60, back under the inside day's high, above your stop at 48.70. What now?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "id.inv_low_first",
+   "seed": "Your buy-stop sits a cent over the high. The stock opens flat and trades under the inside day's low at 9:45. What happens to the order?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "id.index_inside_days",
+   "seed": "SPY and QQQ both printed inside days and your focus list has three. Trade them today?"
+  },
+  {
+   "kind": "grade",
+   "criterion": "id.not_stretched",
+   "seed": "Two inside days after a breakout: one 3% over its 10-day, one 11% over. Grade each."
+  },
+  {
+   "kind": "grade",
+   "criterion": "id.stop_size",
+   "seed": "The inside day's range is 0.3 ATR and the stop would be 0.8%. A+ because it is tight, or B- because the low sits in the noise?"
+  },
+  {
+   "kind": "grade",
+   "criterion": "id.room",
+   "seed": "A clean inside day at the 20 EMA with an unfilled bearish gap 2% overhead. What grade and why?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "id.stop_size",
+   "seed": "The inside day's high is 41.09, its low 40.50, and the 14-day ATR is 1.30. How wide is the stop in percent and in ATR, and does it qualify?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "id.trim_1",
+   "seed": "Bought at 20.71 with the stop at 20.47. Where is 3R?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "id.not_stretched",
+   "seed": "The close is 148.37 and the 10-day SMA is 139.45. How far over is it, and does C29 allow the buy?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "id.close_upper_half",
+   "seed": "The inside day ran 30.90 to 31.33 and closed at 31.28. Where in the range did it close?"
+  }
+ ],
+ "owner_decisions": [
+  "D-001",
+  "D-002",
+  "D-005",
+  "D-008",
+  "D-012",
+  "D-014",
+  "D-017",
+  "D-038",
+  "D-039",
+  "D-063",
+  "D-064",
+  "D-065",
+  "D-066",
+  "D-067",
+  "D-136"
+ ],
+ "conflicts": [
+  "Ties: Crabel and Bulkowski require strictly lower highs and higher lows; Brooks allows at or below; our app does both (strict in the classic detectors and the screener's single label, ties in the UCT scanners, the member drawing and the screener's inside runs). The card takes strict (D-063).",
+  "Which high to buy over: the inside day's own high (Crabel's opening range aside, Raschke via Beggs, Morpheus, Stockbsessed, UCT) against the mother bar's high (Bulkowski, Mish's AAPL, TraderLion's second option, Investopedia as summarised, the classic app detector, and Study's own chart_words.json). The card takes the inside day's high (D-064); Study's glossary entry should follow the ruling.",
+  "Intraday break or a close: Bulkowski waits for a close above the first day's high and buys the next open; everyone else acts on the intraday break. The card acts on the break.",
+  "Direction: Crabel, Raschke, Mish, Brooks and StockCharts treat it as two-sided; TraderLion, Morpheus and UCT trade it with the trend; Crabel goes one-sided only in a market with a strong bias. The card is long with the trend; the mirror is D-001.",
+  "The stop: the inside-day low (most), the mother-bar low (Bulkowski's pattern stop, TraderLion's second option), 7% (Bulkowski's trading tip), ATR-based (StockCharts, Mish), the inside day's close when the bar is wide (Stockbsessed). The house wins: a few cents under the inside day's low; the classic detector's 1.5% under the mother low is rejected.",
+  "How long it stays valid: Crabel trades the next session's opening range; the scanner keeps a fire for 3 sessions; Morpheus watches within a few days of the gap. The card takes 3 (D-067).",
+  "Exit: Crabel's same-day exit at the close against swing holds; the house trims and trail win.",
+  "Is it a setup at all: Bonde calls NR7-type systems a distraction; Quantified Strategies calls the inside day alone a poor trading signal; Bulkowski's edge in stocks is small and none in ETFs; the dossier's test and the scan agree. The card teaches it as an entry inside a bigger setup, which is how the owner uses it.",
+  "Tightness: the scanner caps the inside range at 0.7 ATR and the drawing at 60% of the mother's; the dossier's test found tighter did worse. The card drops the cap and flags slivers under 0.4 ATR as the B- end.",
+  "The 6%-over-the-50-day textbook gate hides most of his published examples (COIN, POET, NVDA); C29's 10% over the 10-day is the only stretch rule on the card (D-017). Which 10-day average C29 means (SMA or EMA) decides CRCL.",
+  "App text to fix before anything is taught from it: the NR7 detector's NR4 bonus is always true once NR7 passes, and its narrative's Crabel and Raschke claims (65% follow-through, NR4 plus NR7 confluence, clean breakout signatures) were not found in any source; the inside-bar detector's Stockbee claim likewise. D-014 adds the missing Inside Day card and journal tag.",
+  "Sources: this dossier's section 11 is a table with no explicit S-ids, so the card cites each source by its row position as the validator reads it (S1 Crabel via the reproduction, S4 Bulkowski, S6 TraderLion, S30 the UCT Substack, S31 the UCT knowledge base, S33 the app code, S34 the Yahoo bars behind the dossier's own test)."
+ ]
+}

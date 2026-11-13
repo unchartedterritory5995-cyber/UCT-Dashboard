@@ -1,0 +1,1627 @@
+{
+ "setup": "24-high-volume-edge",
+ "name": "High Volume Edge",
+ "unit": "SET.21",
+ "direction": "long",
+ "timeframe": "daily",
+ "dossier": "docs/study/setups/research/24-high-volume-edge.md",
+ "as_of": "2026-11-09",
+ "card": {
+  "context": "A lesser-known stock, often neglected or beaten down, with no prior trend required. A fresh story arrives all at once. The trade, not the HVE day, must be above the 200-day. Green or Yellow market.",
+  "pattern": "One up day on record volume that dwarfs everything before it: about 10x the 50-day average or 2.5x the old record, up 8% or more. Its close is the HVC, a level marked with a ray and an AVWAP for months.",
+  "trigger": "RED TO GREEN on day 2: the session after the HVE opens at or under the HVC, trades under it, then trades back over it; a market order a cent over the HVC.",
+  "stop": "A few cents under the day-2 low, the low made before the reclaim. Never the HVC itself, and never the HVE low on a day-2 entry.",
+  "failure_mode": "Day 2 reclaims the HVC and closes back under the fill, or the stock slices back under the HVE low within weeks and the level turns into overhead. A record day after a 60% run is a climax, not a start."
+ },
+ "entry_trigger": "RED TO GREEN",
+ "criteria": [
+  {
+   "id": "hve.above_200",
+   "field": "context",
+   "statement": "The trade, not the HVE day, is above the 200-day SMA at the moment of entry.",
+   "measure": {
+    "what": "fill price against the 200-day SMA on day 2",
+    "op": ">",
+    "value": "200-day SMA",
+    "timeframe": "daily"
+   },
+   "glossary": "above_200",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B26",
+   "status": "settled",
+   "owner_question": "D-009",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Location vs the averages; 7 B26 row",
+   "evidence": "Of the 14 kept charts with a 200-day, 12 closed the HVE day above it (RUM and CRBU did not), so a day-2 entry usually qualifies. D-020's default reads B26 on price at the moment of entry; a gap that opens under and trades above counts."
+  },
+  {
+   "id": "hve.no_200_history",
+   "field": "context",
+   "statement": "A stock listed under a year has no 200-day; whether it is exempt from B26 is his call. Five of his 19 kept charts had no 200-day in our data (NAVN was 100 sessions old).",
+   "measure": {
+    "what": "sessions of history",
+    "op": "<",
+    "value": 200,
+    "unit": "sessions",
+    "timeframe": "daily"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S31"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "exempt: the record is measured since the IPO (at least 60 sessions) and no 200-day test applies"
+    },
+    {
+     "value": "b",
+     "basis": "not exempt: wait for the 200-day to exist"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-009",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "10 question 6; 12 (the IPO supplement)",
+   "evidence": "The examples scan ran a supplement on 136 IPO-year names with the record measured since listing and no B26 test: 14 hits, NAVN 2026-03-26 among them. E53 says there is no rule for new listings."
+  },
+  {
+   "id": "hve.liquidity",
+   "field": "context",
+   "statement": "Price $10 or more and $20 million or more traded a day, measured on the 20 sessions after the HVE rather than the 50 before it.",
+   "measure": {
+    "what": "close at entry",
+    "op": ">=",
+    "value": 10,
+    "unit": "$",
+    "and": "average dollar volume over the 20 sessions after the HVE >= 20,000,000"
+   },
+   "glossary": "liquidity",
+   "basis": "house rule",
+   "sources": [
+    "S1"
+   ],
+   "house_rule": "B23",
+   "options": [
+    {
+     "value": "a",
+     "basis": "B23 on the 20 days after the HVE (the dossier's proposal; only INOD of 19 kept fails)"
+    },
+    {
+     "value": "b",
+     "basis": "waive the $10 floor for HVEs"
+    },
+    {
+     "value": "c",
+     "basis": "B23 as written on the 50 days before, and drop those charts"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-030",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Liquidity; 10 question 5",
+   "evidence": "7 of 19 kept charts closed under $10 and 12 of 19 traded under $20M a day before the event, but only 1 of 19 (INOD) under $20M in the 20 days after. He exempted the HVE from the bank's liquidity cut on 2026-11-07 (great visuals may stay). D-030's default measures B23 on the entry day with the gap day included."
+  },
+  {
+   "id": "hve.position_adv",
+   "field": "management",
+   "statement": "The position is at most 1% of the stock's average daily volume, measured on the post-event average.",
+   "measure": {
+    "what": "shares / average daily volume over the 20 sessions after the HVE",
+    "op": "<=",
+    "value": 1,
+    "unit": "%"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "D42",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Liquidity; 7 D42 row"
+  },
+  {
+   "id": "hve.leadership",
+   "field": "context",
+   "statement": "RS rating 80 or more is not required on the HVE day: the stock is often neglected or beaten down before it, a median 26% off its 52-week high. Whether C31 applies is his call.",
+   "measure": {
+    "what": "RS rating on the entry day",
+    "op": ">=",
+    "value": 80,
+    "unit": "rating 1 to 99",
+    "note": "not required if the owner exempts the HVE as C31's mean-reversion class"
+   },
+   "glossary": "leader",
+   "basis": "house rule",
+   "sources": [
+    "S1"
+   ],
+   "house_rule": "C31",
+   "options": [
+    {
+     "value": "a",
+     "basis": "exempt: an HVE on a neglected name is C31's mean-reversion class; the cue is an RS line that held up (D-011's default)"
+    },
+    {
+     "value": "b",
+     "basis": "C31 as written on the entry day"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-011",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1 The stock; 7 C31 row; 10 question 6",
+   "evidence": "Not measured: no RS history in our data. His kept charts sat a median 26% off the 52-week high (NAVN 60%, RUM 57%). Question 6 maps to D-020 in the register; D-011's default names an EP or HVE on a neglected name as exempt and asks him to confirm the class list."
+  },
+  {
+   "id": "hve.lesser_known",
+   "field": "context",
+   "statement": "A lesser-known stock: 50-day dollar volume under about $100 million a day before the event. Not a mega-cap.",
+   "measure": {
+    "what": "average dollar volume over the 50 sessions before the HVE day",
+    "op": "<",
+    "value": 100000000,
+    "unit": "$",
+    "timeframe": "daily"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S1",
+    "S20"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1 The stock",
+   "evidence": "15 of 19 kept charts and 5 of 16 cuts pass; the kept median was $14.6M a day before the event against $315M for the cuts. Bonde says earnings breakouts on widely covered companies do not do as well. AAPL, ASML and ORCL were cut as a PEG or not part of the edge."
+  },
+  {
+   "id": "hve.no_prior_trend",
+   "field": "context",
+   "statement": "No prior advance is required. The HVE is often the first day of a new story; his kept charts sat a median 26% off the 52-week high the day before.",
+   "measure": {
+    "what": "prior close / 52-week high - 1",
+    "op": ">=",
+    "value": -100,
+    "unit": "%",
+    "note": "no floor; recorded, not filtered"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S9",
+    "S11"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Prior trend",
+   "evidence": "His NAVN words: a stock completely resets and becomes a new stock after an HVE, especially one that is unknown, neglected, or beaten down. Duncan prefers new highs or within 20% of them; the owner's best examples are far below their highs."
+  },
+  {
+   "id": "hve.fresh_catalyst",
+   "field": "context",
+   "statement": "A fresh story: a contract, a trial result, a partnership, a government stake, an IPO-year re-rating, or earnings so big the volume is extreme. Earnings on ordinary big volume is a PEG, not an HVE. A judgment on the news, not a bar test.",
+   "glossary": "earnings_reaction_day",
+   "basis": "UCT",
+   "sources": [
+    "S1"
+   ],
+   "status": "settled",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 The story; 3.1",
+   "evidence": "Owner verdicts 2026-10-25 (owner_verdicts.jsonl lines 118 to 153): ASML 'Again, just a PEG'; ORCL 'Just a peg but it is an HVC'; on earnings, 'Close, but earnings days can count'. Where the cache knows the dates, 17% of owner-definition days were earnings days; FSLY 2026-02-12 (earnings, 27x) was his '100% A+'."
+  },
+  {
+   "id": "hve.market_reading",
+   "field": "context",
+   "statement": "Green market: full risk. Yellow: smaller and fewer. Orange: A+ only. Red: mostly cash and shorts. No HVE-specific market condition was found.",
+   "glossary": "market_reading",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "F65",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.7",
+   "evidence": "The day-2 reclaim stayed positive with SPY above its 200-day (C +0.63R optimistic, 1,769 cases) and below it (+0.48R, 395 cases). TraderLion adds 'if the market holds up'."
+  },
+  {
+   "id": "hve.group_move",
+   "field": "context",
+   "statement": "A cue, not a rule: a group or theme setting volume records on the same day helps.",
+   "basis": "UCT",
+   "sources": [
+    "S9",
+    "S16"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.7",
+   "evidence": "An unsigned UCT note on four nuclear names (SMR, NNE, OKLO, LTBR) that all set volume records on the same day: the group will likely move in unison. Not measured."
+  },
+  {
+   "id": "hve.record_volume",
+   "field": "pattern",
+   "statement": "A record: the day's volume is higher than every prior session in the stock's history, or since the IPO for a stock listed under a year. At the least it beats the prior 252 sessions.",
+   "measure": {
+    "what": "day's volume / highest volume of all prior sessions",
+    "op": ">",
+    "value": 1,
+    "unit": "x",
+    "timeframe": "daily",
+    "floor": "above the highest volume of the prior 252 sessions"
+   },
+   "basis": "source consensus",
+   "sources": [
+    "S14",
+    "S16",
+    "S11",
+    "S19",
+    "S5",
+    "S31"
+   ],
+   "options": [
+    {
+     "value": "ever",
+     "basis": "the all-history record, or since the IPO: TraderLion, Duncan, Ameet Rai, UCT's own volume tool; 16 of 19 kept charts"
+    },
+    {
+     "value": "year",
+     "basis": "a one-year record (the app's detector sees 199 sessions; RUM, a great, was a one-year record)"
+    }
+   ],
+   "recommended": "ever",
+   "status": "pending-owner",
+   "owner_question": "D-089",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Volume: a record; 10 question 2",
+   "evidence": "Kept 19 of 19 above the prior-year record and 16 of 19 all-history; cuts 5 of 16 all-history. The all-history record separated kept from cut better than anything but the size of the day. The outside sources (TraderLion's 2024 post, Duncan, Ameet Rai) define the volume by rank; the dossier's section 11 carries no S-ids, so they are named here instead."
+  },
+  {
+   "id": "hve.volume_multiple",
+   "field": "pattern",
+   "statement": "It dwarfs the past: about 10x the 50-day average volume or more, or at least 2.5x the old record (the largest prior volume in up to 252 sessions).",
+   "measure": {
+    "what": "day's volume / 50-day average volume (the 50 sessions before the day)",
+    "op": ">=",
+    "value": 10,
+    "unit": "x",
+    "timeframe": "daily",
+    "or": "day's volume / largest prior volume in up to 252 sessions >= 2.5"
+   },
+   "glossary": "average_volume",
+   "basis": "UCT",
+   "sources": [
+    "S1",
+    "S2",
+    "S20",
+    "S31"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "10x OR 2.5x the old record: the finder that drew pass 3 (he kept 15 of 18); misses COMP (9.0x, 2.26x) and CPNG (4.4x, 1.31x), which he kept"
+    },
+    {
+     "value": "b",
+     "basis": "a record only, any multiple: his own Substack usage (NBIS 7.4x, PUMP 9.1x, VELO 6.8x)"
+    },
+    {
+     "value": "c",
+     "basis": "10x AND an all-history record: the strictest; four of his five greats pass"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-089",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Volume: it dwarfs the past; 10 question 1",
+   "evidence": "The 'ten times' is the analysts' encoding of his 'dwarfs', not his words; Bonde's 'typically of 10 times or more' was said of earnings breakouts that went on to 100% moves. Kept charts: median 27x the 50-day and 4.3x the old record; cuts 5.9x and 1.3x. Examples scan: 193 hits on this rule, 48.2% to 3R."
+  },
+  {
+   "id": "hve.a_plus_record",
+   "field": "pattern",
+   "statement": "The A+ cue: 10x the 50-day average and an all-history record on the same day.",
+   "measure": {
+    "what": "day's volume / 50-day average volume",
+    "op": ">=",
+    "value": 10,
+    "unit": "x",
+    "timeframe": "daily",
+    "and": "volume above every prior session in the stock's history"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S1",
+    "S31"
+   ],
+   "status": "pending-owner",
+   "owner_question": "D-089",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Volume (option c); 9 volume row",
+   "evidence": "Four of his five greats (NAVN, FSLY, MRNA, WVE) pass; RUM was a one-year record. In the examples scan the cue did not move the rate (85 hits, 49.4% to 3R against 48.2% for all)."
+  },
+  {
+   "id": "hve.up_close",
+   "field": "pattern",
+   "statement": "An up close: the HVE day closes over the prior close. Long only.",
+   "measure": {
+    "what": "close against the prior close",
+    "op": ">",
+    "value": "prior close",
+    "timeframe": "daily"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S2"
+   ],
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Direction; 3.1",
+   "evidence": "Owner, 2026-10-23: 'Any up day on record volume' (spot.fixtures.jsonl line 5; long only). The app's detector also fires on down closes and calls them bearish; see hve.inv_down_close."
+  },
+  {
+   "id": "hve.min_move",
+   "field": "pattern",
+   "statement": "The move: up at least 8% on the day, close to close.",
+   "measure": {
+    "what": "close / prior close - 1",
+    "op": ">=",
+    "value": 8,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S1",
+    "S11",
+    "S31"
+   ],
+   "options": [
+    {
+     "value": 8,
+     "basis": "his kept minimum (NTRS +8.0%)"
+    },
+    {
+     "value": 10,
+     "basis": "Duncan: anything over 10% is notable"
+    },
+    {
+     "value": 20,
+     "basis": "all five of his greats rose 33% or more"
+    }
+   ],
+   "recommended": 8,
+   "status": "pending-owner",
+   "owner_question": "D-093",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 The move; 10 question 11",
+   "evidence": "914 of 2,181 owner-definition days rose under 5%: not a new story. None of his kept charts rose under 8%; kept median +50%, cuts +13%. D-093's default: 8% to qualify, 20% for an A+."
+  },
+  {
+   "id": "hve.big_move_a_plus",
+   "field": "pattern",
+   "statement": "Up 20% or more on the day is the A+ cue; his greats rose 33% to 177%.",
+   "measure": {
+    "what": "close / prior close - 1",
+    "op": ">=",
+    "value": 20,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S1",
+    "S31"
+   ],
+   "status": "pending-owner",
+   "owner_question": "D-093",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1 The move; 9 the day row",
+   "evidence": "Universe: days up 20%+ (686) made +0.32R on the close entry against +0.04R for all; the day-2 reclaim +0.43R against +0.37R. 97% of such days close more than 10% over the 10-day (hve.not_stretched)."
+  },
+  {
+   "id": "hve.gap_at_open",
+   "field": "pattern",
+   "statement": "The A+ day gaps at the open: his kept charts opened a median 28% above the prior close (0.5% to 84%). A cue, not a rule: ERAS (good) gapped 3% and FUN 0.5%.",
+   "measure": {
+    "what": "open / prior close - 1",
+    "op": ">",
+    "value": 0,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "glossary": "gap",
+   "basis": "my proposal",
+   "sources": [
+    "S11",
+    "S16",
+    "S1"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1; 9 the day row; 3.12 point 3",
+   "evidence": "Duncan and TraderLion want a gap day; the owner ruled 'any up day'. Kept median gap +28%, cuts +7%."
+  },
+  {
+   "id": "hve.close_position",
+   "field": "pattern",
+   "statement": "The close sits in the upper half of the day's range (DCR 0.5 or more); 0.7 or more preferred. A grade cue, not a hard line.",
+   "measure": {
+    "what": "(close - low) / (high - low)",
+    "op": ">=",
+    "value": 0.5,
+    "unit": "ratio 0 to 1",
+    "timeframe": "daily"
+   },
+   "glossary": "close_position",
+   "basis": "source consensus",
+   "sources": [
+    "S11",
+    "S16",
+    "S2"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1 The close; 9 the close row",
+   "evidence": "The numbers are Duncan's (50% floor, 75% ideal); TraderLion asks for a strong closing range. He cut TVTX (0.18) and DYN (0.38) but kept CRBU at 0.35 and COMP at 0.41, and the 2026-10-23 record says a strong close is NOT required (the analyst's words). Kept median 0.80, cuts 0.83: the close did not separate them. MBX 2025-09-22 (DCR 0.26) is the failure that teaches it."
+  },
+  {
+   "id": "hve.excluded_days",
+   "field": "pattern",
+   "statement": "Not these days: the monthly options expiry (the third Friday) and the last session of a month. The volume is not demand.",
+   "measure": {
+    "what": "the HVE day is a monthly OPEX or a month's last session",
+    "op": "==",
+    "value": false
+   },
+   "basis": "UCT",
+   "sources": [
+    "S1"
+   ],
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Not these days; 3.1",
+   "evidence": "Owner, 2026-10-25, on LRCX: 'Make sure we do not have end of month and OPEX days marked as HVE days'. The app's detector does not exclude them."
+  },
+  {
+   "id": "hve.excluded_days_more",
+   "field": "pattern",
+   "statement": "Also not these: the last Friday of June (index reconstitution) and an acquisition announcement, where the next 20 sessions pin in a tiny range near the deal price.",
+   "measure": {
+    "what": "the HVE day is the last Friday of June, or the next 20 sessions sit inside a 6% box with the 20-session return within 3%",
+    "op": "==",
+    "value": false,
+    "timeframe": "daily"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S5",
+    "S31"
+   ],
+   "options": [
+    {
+     "value": "yes",
+     "basis": "add both: 4% of mechanical hits fell on the June Friday (his cut RCL 2025-06-27 was that day) and 5% looked like pins"
+    },
+    {
+     "value": "no",
+     "basis": "OPEX and month-end only"
+    }
+   ],
+   "recommended": "yes",
+   "status": "pending-owner",
+   "owner_question": "D-092",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Not these days; 10 question 9",
+   "evidence": "The app's own narrative warns about acquisition pins but the code does not test for them. The pin test is the dossier's stand-in."
+  },
+  {
+   "id": "hve.not_climax",
+   "field": "pattern",
+   "statement": "Not a climax: not after a run of 60% or more in the prior 60 sessions, and not on the third to fifth day of a straight-up burst.",
+   "measure": {
+    "what": "close before the HVE / lowest low of the prior 60 sessions - 1",
+    "op": "<",
+    "value": 60,
+    "unit": "%",
+    "timeframe": "daily",
+    "and": "not day 3 to 5 of a parabolic burst"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S9",
+    "S10",
+    "S23",
+    "S31"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Not a climax; 6.3",
+   "evidence": "Bracco's OKLO note: a record at a base breakout with a catalyst is a start; a near-record after 80% in seven days is exhaustion. Measured: after 60%+ runs the 20-session return was a median -5.7% (37% positive, 95 cases) against +0.3% after runs of 0% to 30%. Wyckoff's buying climax says the same."
+  },
+  {
+   "id": "hve.mark_level",
+   "field": "pattern",
+   "statement": "Mark the level: a horizontal ray at the HVC and an anchored VWAP from the HVE day, kept on the chart for months. Later setups form there.",
+   "basis": "UCT",
+   "sources": [
+    "S1",
+    "S24"
+   ],
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Mark the level; 3.1",
+   "evidence": "Owner, 2026-10-25: 'slap a horizontal ray on the close of the HVC candle and also put an AVWAP on it from the HVC candle day' (hveOverlay.js). On CVX: it is meant to be a major level to mark out on your chart. Brian Shannon anchors a VWAP at a large price movement event."
+  },
+  {
+   "id": "hve.no_ma_requirement",
+   "field": "context",
+   "statement": "No 10, 21 or 50-day requirement on the HVE day; none was found in any source.",
+   "measure": {
+    "what": "requirement on the 10, 21 or 50-day averages",
+    "op": "==",
+    "value": "none"
+   },
+   "basis": "my proposal",
+   "sources": [],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Location vs the averages"
+  },
+  {
+   "id": "hve.timeframe_daily",
+   "field": "context",
+   "statement": "The setup is defined on the daily chart. Weekly and monthly HVE candles (ChartMaster's MDB and LASR) are a context note, not this setup, unless he rules otherwise.",
+   "basis": "UCT",
+   "sources": [
+    "S9"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "daily only; the weekly as a grade cue or context (D-012's default)"
+    },
+    {
+     "value": "b",
+     "basis": "weekly and monthly HVEs are the same setup"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-012",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "6.4; 10 question 14"
+  },
+  {
+   "id": "hve.day2_window",
+   "field": "trigger",
+   "statement": "The taught trigger is on day 2, the one session after the HVE day. Not the HVE close, not a later day.",
+   "measure": {
+    "what": "sessions after the HVE day",
+    "op": "==",
+    "value": 1,
+    "unit": "sessions",
+    "timeframe": "daily"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S7",
+    "S15",
+    "S31"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 (entry C); 3.7",
+   "evidence": "TSDR's desk log on QBTS (KB 10097): a red-to-green entry through the HVC of $10.45, stop at the day-2 low. TraderLion's PLTR day-2 post points the same way but its text past the first line is unverified. In every group the day-2 reclaim was the best and steadiest entry: +0.37R a trade (conservative) on 804, +0.82R on the filtered set; on his kept charts +2.68R conservative."
+  },
+  {
+   "id": "hve.day2_dip",
+   "field": "trigger",
+   "statement": "Day 2 opens at or under the HVC and trades under it. A day 2 that opens over the HVC and never trades under it is not this trigger; it may become a later entry.",
+   "measure": {
+    "what": "day-2 open against the HVC",
+    "op": "<=",
+    "value": "HVC",
+    "timeframe": "daily",
+    "and": "day-2 low < HVC before the reclaim"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S7",
+    "S31"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 Trigger",
+   "evidence": "Manrav's version (day 2 opens over the HVC, buy the open, stop under the HVC) was stopped 90% of the time and its mean swung on a few huge winners (-0.16R on 949; +1.83R on one subset)."
+  },
+  {
+   "id": "hve.trigger",
+   "field": "trigger",
+   "statement": "Red to green through the HVC: the moment day 2 trades back over the HVE close, buy with a market order a cent over the HVC.",
+   "measure": {
+    "what": "day-2 price after trading under the HVC",
+    "op": ">",
+    "value": "HVC",
+    "timeframe": "intraday on day 2"
+   },
+   "glossary": "red_to_green",
+   "basis": "UCT",
+   "sources": [
+    "S7",
+    "S31"
+   ],
+   "house_rule": "E57",
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 Trigger, Order",
+   "evidence": "Market orders are E57. The line here is the HVC, the prior day's close, which is also the house red-to-green line. Daily bars cannot tell if the day-2 low came before or after the fill, so the dossier gives both counts; the conservative one treats a reclaim day that closed back under the entry as a full loss (NAVN, WVE and APLD did)."
+  },
+  {
+   "id": "hve.no_chase",
+   "field": "trigger",
+   "statement": "No buy more than 4% over the HVC; the HVC is the buy point.",
+   "measure": {
+    "what": "fill / HVC - 1",
+    "op": "<=",
+    "value": 4,
+    "unit": "%"
+   },
+   "glossary": "chase_limit",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "C28",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 No chase; 7 C28 row",
+   "evidence": "A market order a cent over the HVC cannot breach it; a later buy can."
+  },
+  {
+   "id": "hve.not_stretched",
+   "field": "trigger",
+   "statement": "C29 (no long more than 10% over its 10-day average) is measured against the 10-day as of the prior close on the day-2 entry, so the HVE day's own gap does not disqualify it; from day 3 it applies as written.",
+   "measure": {
+    "what": "entry / 10-day SMA as of the close before the HVE day - 1",
+    "op": "<=",
+    "value": 10,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "glossary": "stretched",
+   "basis": "house rule",
+   "sources": [
+    "S31"
+   ],
+   "house_rule": "C29",
+   "options": [
+    {
+     "value": "a",
+     "basis": "an HVE exception for the day-2 entry only (the data: extension did not hurt day-2 entries after an HVE)"
+    },
+    {
+     "value": "b",
+     "basis": "no exception: wait for later entries"
+    },
+    {
+     "value": "c",
+     "basis": "an exception for A+ HVEs only"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-017",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2; 7 C29 row; 10 question 3",
+   "evidence": "97% of owner-definition days up 20%+ close more than 10% over the 10-day; 16 of 19 kept charts did. Day-2 reclaims more than 25% over the 10-day EMA made +0.35R after an HVE (115 trades) but -0.30R after an ordinary strong day (125). D-017's default: measured against the 10-day as of the prior close on a catalyst day."
+  },
+  {
+   "id": "hve.earnings_window",
+   "field": "trigger",
+   "statement": "No new buy in the 3 sessions before an earnings report. An earnings HVE falls just after a report, so this binds the later entries.",
+   "measure": {
+    "what": "sessions until the next report",
+    "op": ">",
+    "value": 3,
+    "unit": "sessions"
+   },
+   "glossary": "earnings_blackout",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B22",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "7 B22 row"
+  },
+  {
+   "id": "hve.regular_hours",
+   "field": "trigger",
+   "statement": "No buys outside regular trading hours. Bonde buys the event day pre-market; we do not.",
+   "basis": "house rule",
+   "sources": [
+    "S20"
+   ],
+   "house_rule": "E58",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "3.5; 8.2"
+  },
+  {
+   "id": "hve.later_entries",
+   "field": "trigger",
+   "statement": "After day 2, the follow-up entries are the house's own setups at the level: an Oops Reversal or an undercut and rally at the HVC, a hold of the 9 or 20 EMA near the HVC, a tight flag over the HVC. Each has its own trigger and stop.",
+   "measure": {
+    "what": "later entry",
+    "op": "in",
+    "value": [
+     "Oops Reversal at the HVC",
+     "undercut and rally of the HVC",
+     "hold of the 9 or 20 EMA near the HVC",
+     "tight flag over the HVC"
+    ]
+   },
+   "basis": "UCT",
+   "sources": [
+    "S9"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.2 Later entries (D); 6.2",
+   "evidence": "His posts on NAVN, INOD, NEXA, UMAC and PUMP. The two mechanical stand-ins (the return that holds, a rules-allowed later pullback) were flat (-0.07R and -0.09R): the bars alone do not show the edge of his discretionary later entries."
+  },
+  {
+   "id": "hve.stop",
+   "field": "stop",
+   "statement": "A few cents under the day-2 low, the low made before the reclaim.",
+   "measure": {
+    "what": "stop",
+    "op": "==",
+    "value": "a few cents under the day-2 low"
+   },
+   "glossary": "stop_margin",
+   "basis": "house rule",
+   "sources": [
+    "S7",
+    "S31"
+   ],
+   "house_rule": "A3",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.3",
+   "evidence": "F62 gives the few cents. TSDR on QBTS: risk to LOD at 9.83, a few pennies below, so the stop at $9.80. The examples scan used two cents under the day-2 low: median 2.2% of the entry."
+  },
+  {
+   "id": "hve.stop_width",
+   "field": "stop",
+   "statement": "The day-2 stop is a median 2.3% wide overall but 5.2% on days up 20% or more. If the honest stop is wider than the plan allows, skip and wait for a later entry; never pull it in.",
+   "measure": {
+    "what": "(entry - stop) / entry",
+    "op": "<=",
+    "value": 3,
+    "unit": "%",
+    "note": "the ceiling is his call; A13 says about 3%"
+   },
+   "glossary": "stop_width",
+   "basis": "house rule",
+   "sources": [
+    "S31"
+   ],
+   "house_rule": "A13",
+   "options": [
+    {
+     "value": "a",
+     "basis": "no ceiling: size from the stop (A5)"
+    },
+    {
+     "value": "b",
+     "basis": "skip over a set percent he names (the examples scan used 8%)"
+    },
+    {
+     "value": "c",
+     "basis": "cap at 3% (A13) and accept more stop-outs"
+    },
+    {
+     "value": "d",
+     "basis": "up to one ADR, size down and grade one notch lower; past one ADR skip (D-005's default)"
+    }
+   ],
+   "recommended": "d",
+   "status": "pending-owner",
+   "owner_question": "D-005",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.3; 10 question 4",
+   "evidence": "NAVN 2026-03-26, his 'perfect' HVE: the day-2 low was 7.2% under the HVC, the honest stop 7.5% wide; taken as the scan takes it, the stop was hit on day 4 before the run to +87%. Examples scan: stops within 3% (118 hits) reached 3R 55.1% of the time against 48.2% for all."
+  },
+  {
+   "id": "hve.stop_not_hvc",
+   "field": "stop",
+   "statement": "The HVC itself is never the stop: price trades under it in 98% of cases within 60 sessions, and he says that is fine.",
+   "measure": {
+    "what": "stop placed at the HVC",
+    "op": "==",
+    "value": false
+   },
+   "basis": "UCT",
+   "sources": [
+    "S1",
+    "S31"
+   ],
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.3 Not the HVC; 3.12 point 6",
+   "evidence": "Owner on CVX, 2026-10-25 (owner_verdicts.jsonl line 124): 'they can go below the HVC that is fine. It is meant to be a major level to mark out on your chart.' Duncan exits on a close under the HVC and Manrav stops there; the data side with the owner. 18 of 19 kept charts traded under the HVC within 60 sessions."
+  },
+  {
+   "id": "hve.stop_not_hve_low",
+   "field": "stop",
+   "statement": "The HVE day's own low is not the stop for a day-2 entry; on a close entry it is a median 19.9% away on his kept charts. Whether the close entry is taught at all is his call.",
+   "measure": {
+    "what": "(HVE close - HVE low) / HVE close on his kept charts",
+    "op": "==",
+    "value": 19.9,
+    "unit": "% (median)",
+    "timeframe": "daily"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S5",
+    "S31"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "do not teach the close entry; day 2 and the later entries only"
+    },
+    {
+     "value": "b",
+     "basis": "teach the close entry with the HVE-low stop and size from it (A5)"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-005",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 (entry A); 8.3; 10 question 4",
+   "evidence": "The close entry with the HVE-low stop: +0.04R on all 2,181 owner-definition days, +0.49R on all-history records up 20%+; with a 3% cap it was stopped 88% of the time. The app, Duncan and the playbook buy or mark the HVC on day 1; the owner's playbook says the edge is a level, not a buy signal."
+  },
+  {
+   "id": "hve.stop_broker",
+   "field": "stop",
+   "statement": "A real stop order with the broker. It only moves up.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "D41",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "7",
+   "evidence": "A4: the stop only moves up."
+  },
+  {
+   "id": "hve.stop_gap",
+   "field": "stop",
+   "statement": "A gap through the stop: the first 30-minute low is the new stop; out if that is past 2R. HVE names gap often.",
+   "measure": {
+    "what": "loss at the first 30-minute low of the gap-down day",
+    "op": "<=",
+    "value": 2,
+    "unit": "R",
+    "timeframe": "30-minute"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B20",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "7 B20 row"
+  },
+  {
+   "id": "hve.one_entry",
+   "field": "management",
+   "statement": "Full size at one price with one stop; no adding. TSDR added to WULF and AEVA in his posts; the course does not teach adds.",
+   "basis": "house rule",
+   "sources": [
+    "S9"
+   ],
+   "house_rule": "A5",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "7 A5 row"
+  },
+  {
+   "id": "hve.breakeven",
+   "field": "management",
+   "statement": "Stop to breakeven between 2R and 5R, at the first trim by default.",
+   "measure": {
+    "what": "R at which the stop moves to the entry",
+    "op": "in",
+    "value": [
+     2,
+     5
+    ],
+    "unit": "R"
+   },
+   "basis": "house rule",
+   "sources": [
+    "S31"
+   ],
+   "house_rule": "B19",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4",
+   "evidence": "KOD 2026-09-28 and PRTA 2022-09-28 both reached 2.2R to 2.4R and came back through the stop: the breakeven move at 2R turns those into scratches."
+  },
+  {
+   "id": "hve.trim_1",
+   "field": "management",
+   "statement": "Sell a third at 3R.",
+   "measure": {
+    "what": "fraction sold at 3R",
+    "op": "==",
+    "value": 0.333,
+    "unit": "of the position"
+   },
+   "basis": "house rule",
+   "sources": [
+    "S11",
+    "S31"
+   ],
+   "house_rule": "B19",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4",
+   "evidence": "Because the day-2 stop is small, 3R is often only 3% to 7% over the buy and came the next session in most winners of the examples scan. Duncan trims a third at 1R and 2R; the house thirds win."
+  },
+  {
+   "id": "hve.trim_2",
+   "field": "management",
+   "statement": "Sell a third at 5R.",
+   "measure": {
+    "what": "fraction sold at 5R",
+    "op": "==",
+    "value": 0.333,
+    "unit": "of the position"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "E51",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4"
+  },
+  {
+   "id": "hve.trim_gap_open",
+   "field": "management",
+   "statement": "If it opens above a trim level, take that trim at the open.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "F63",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4"
+  },
+  {
+   "id": "hve.trail",
+   "field": "management",
+   "statement": "Trail the last third on a close under the 10-day average: HVE names are fast movers.",
+   "measure": {
+    "what": "close against the 10-day average",
+    "op": "<",
+    "value": "the average",
+    "timeframe": "daily"
+   },
+   "glossary": "trail",
+   "basis": "house rule",
+   "sources": [
+    "S9",
+    "S11",
+    "S31"
+   ],
+   "house_rule": "E52",
+   "options": [
+    {
+     "value": "a",
+     "basis": "E52 as written: the 10-day for fast movers (D-024's default, exponential)"
+    },
+    {
+     "value": "b",
+     "basis": "the 20 EMA he uses in his posts (WULF, FSLY, KB 10252)"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-024",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4; 10 question 10",
+   "evidence": "In the replay the 21-day version was within a few hundredths of an R of the 10-day everywhere. Duncan trails the 10 EMA. VRTX and INOD in the examples show why the last third is trailed: both went back under the HVC inside the window."
+  },
+  {
+   "id": "hve.time_stop",
+   "field": "management",
+   "statement": "Time stop: still under 1R after 10 trading days, sell.",
+   "measure": {
+    "what": "open R after 10 trading days",
+    "op": "<",
+    "value": 1,
+    "unit": "R"
+   },
+   "glossary": "time_stop",
+   "basis": "house rule",
+   "sources": [
+    "S31"
+   ],
+   "house_rule": "C33",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4",
+   "evidence": "78% of mechanical HVEs come back to the HVC within 60 sessions (median 5 sessions); a trade that goes nowhere for 10 days is out."
+  },
+  {
+   "id": "hve.climax",
+   "field": "management",
+   "statement": "A climax run on your own long (Bracco's parabolic burst): sell a big part into it.",
+   "glossary": "parabolic_burst",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "C34",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "7 C34 row"
+  },
+  {
+   "id": "hve.first_return",
+   "field": "management",
+   "statement": "The call at the first return to the HVC (the first later session whose low reaches it after at least one close above it) is unruled. The Trade Story game stops there and waits on his word.",
+   "measure": {
+    "what": "action at the first return to the HVC",
+    "op": "in",
+    "value": [
+     "hold with the plan's stop",
+     "take some off",
+     "sell the rest"
+    ]
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S1",
+    "S4",
+    "S31"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "hold with the plan's stop: on his kept charts a new high came first 8 times in the 13 that can be decided; on gallery-like HVEs 61%; on all mechanical ones 47%"
+    },
+    {
+     "value": "b",
+     "basis": "take some off: the trade plan calls the first return the cleanest decision point; D-013's default reads a named spot as a cue to take the 3R third early"
+    },
+    {
+     "value": "c",
+     "basis": "sell the rest"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-090",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4 At the first return; 10 question 7; 5.2",
+   "evidence": "Owner, 2026-11-09 (owner_verdicts.jsonl line 534): 'yes add those stops too, keep going' approved the game stop; he has not said what to do there. Holding the close-entry trade through the return averaged +0.05R to +0.35R on the stronger subsets. The first return is usually within a week (median 5 sessions; 9.5 on his kept charts), not 'often weeks later'."
+  },
+  {
+   "id": "hve.inv_no_trigger",
+   "field": "invalidation",
+   "statement": "Before the trade: day 2 never trades back over the HVC. No trigger; the chart may give a later entry at the level.",
+   "measure": {
+    "what": "day-2 high against the HVC",
+    "op": "<=",
+    "value": "HVC",
+    "timeframe": "daily",
+    "note": "no trigger when true"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S31"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5 Before the trade",
+   "evidence": "FSLY 2026-02-12 and ERAS 2026-01-07 never came back to the HVC in 60 sessions; both were greats he kept, and neither gave the day-2 trigger."
+  },
+  {
+   "id": "hve.inv_level_fails",
+   "field": "invalidation",
+   "statement": "For the level: a close under the HVE day's low ends it as support. After that the HVC is overhead, not a floor. Common: 6 of his 19 kept charts and 69% of mechanical HVEs within 60 sessions.",
+   "measure": {
+    "what": "close against the HVE day's low",
+    "op": "<",
+    "value": "HVE low",
+    "timeframe": "daily"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S5",
+    "S31"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.5 For the level",
+   "evidence": "The app's stop line for the close entry. After the first return on his kept charts, the HVE low broke first on 5 (COMP, FUN, CPNG, CRBU, NTLA)."
+  },
+  {
+   "id": "hve.under_hvc_not_failure",
+   "field": "invalidation",
+   "statement": "Trading or closing under the HVC is not an invalidation of the level. Do not erase it.",
+   "basis": "UCT",
+   "sources": [
+    "S1",
+    "S31"
+   ],
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.5 Not an invalidation; 8.8 mistake 6",
+   "evidence": "Owner verdict on CVX, 2026-10-25. Of 2,181 mechanical HVEs, 98% traded under the HVC within 60 sessions and 78% came back to it; those that never closed under it in 20 sessions (16%) rose a median +24.7% at best against +10.1%."
+  },
+  {
+   "id": "hve.after_entry_stop",
+   "field": "invalidation",
+   "statement": "After the entry, the stop is the exit.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "A4",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5 For the trade",
+   "evidence": "The owner, 2026-11-09: my stop is my stop most of the time."
+  },
+  {
+   "id": "hve.inv_down_close",
+   "field": "invalidation",
+   "statement": "A record-volume DOWN day is not an HVE and not a short. The app calls it bearish; the data say the median 20-session return after 3,071 such days was +1.1%. Teach it as a capitulation watch, a different setup.",
+   "measure": {
+    "what": "close against the prior close on the record day",
+    "op": "<",
+    "value": "prior close",
+    "timeframe": "daily",
+    "note": "fails hve.up_close; not this setup"
+   },
+   "basis": "measured",
+   "sources": [
+    "S31",
+    "S29",
+    "S9",
+    "S12"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "the detector stops firing on down closes"
+    },
+    {
+     "value": "b",
+     "basis": "relabel them as a capitulation watch (a different setup)"
+    },
+    {
+     "value": "c",
+     "basis": "leave as is"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-091",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.6; 4.3 (d); 10 question 8",
+   "evidence": "44% closed back over the down day's high within 10 sessions. Bracco reads TEM, IGV and ETHU record down days as possible bottoms; Duncan shows BROS. D-091's default: (a) for the HVE, (b) as a cue for the capitulation setup."
+  }
+ ],
+ "grading": {
+  "a_plus": [
+   "hve.a_plus_record: an all-history record at 10x to 100x+ the 50-day (his greats ran 1.1x to 5.3x the old record)",
+   "hve.big_move_a_plus: up 30% or more with a big gap (hve.gap_at_open)",
+   "hve.close_position: the upper part of the range (greats 0.59 to 0.96; FSLY, his 100% A+, 0.59)",
+   "hve.fresh_catalyst: a fresh, specific catalyst; a story that resets the stock",
+   "hve.lesser_known: a lesser-known name, small dollar volume before the day",
+   "hve.not_climax: early in a new story (on WVE he preferred the second, larger surge)",
+   "hve.stop_width: the day-2 stop within about 3%",
+   "hve.inv_level_fails: holds near the HVC afterward and builds a flag",
+   "hve.market_reading: Green; in Orange only if everything else grades A+ (F65)"
+  ],
+  "b_minus": [
+   "hve.record_volume: a one-year record at 3x to 6x; under the old record",
+   "hve.min_move: up under 10%",
+   "hve.close_position: the lower half of a huge range (TVTX and DYN were cut)",
+   "hve.excluded_days: an index day, an expiry day, an ordinary earnings beat",
+   "hve.lesser_known: a mega-cap or a well-owned large cap (AAPL, ASML, ORCL were cut)",
+   "hve.not_climax: after a long run",
+   "hve.inv_level_fails: slices back under the HVE low quickly",
+   "hve.market_reading: Yellow (smaller and fewer)"
+  ],
+  "no_trade": [
+   "hve.up_close: a down close",
+   "hve.excluded_days: OPEX, month-end (and hve.excluded_days_more: the June reconstitution Friday, an acquisition pin)",
+   "hve.fresh_catalyst: earnings on ordinary big volume (a PEG), or any year-high volume on a mega-cap (an HVC)",
+   "hve.not_climax: a record after a 60% run in 60 sessions",
+   "hve.above_200: the entry under the 200-day",
+   "hve.inv_no_trigger: day 2 never trades back over the HVC",
+   "hve.no_chase: more than 4% over the HVC",
+   "hve.stop_width: the honest day-2 stop does not fit; never pull it in",
+   "hve.earnings_window: a report within 3 sessions",
+   "hve.liquidity: under $10 or under $20 million a day after the event",
+   "hve.market_reading: Red; Orange below A+"
+  ]
+ },
+ "lookalikes": [
+  {
+   "setup": "21-power-earnings-gap",
+   "tell": "Rank the volume, not the gap. An earnings gap on big but ordinary volume in a well-owned name is a PEG; an HVE's volume beats every prior session in the stock's history and is about 10x normal, usually in a name nobody owned.",
+   "criterion": "hve.volume_multiple"
+  },
+  {
+   "setup": "20-episodic-pivot",
+   "tell": "Ask which day you are buying. An EP is bought on the gap day itself over the opening-range high with the day's low as the stop; the HVE waits for day 2 to dip under the record day's close and reclaim it, with the day-2 low as the stop.",
+   "criterion": "hve.day2_window"
+  },
+  {
+   "setup": "25-gap-support",
+   "tell": "Find the line. Gap Support defends the gap-up day's LOW days or weeks later; the HVE's line is the record day's CLOSE, marked with a ray and an AVWAP, and the taught entry is the very next session.",
+   "criterion": "hve.mark_level"
+  },
+  {
+   "setup": "34-capitulation",
+   "tell": "Check the colour of the record bar. A record-volume day that closed DOWN is never an HVE; it is a capitulation watch for a long, graded on the climax checklist, not on this card.",
+   "criterion": "hve.inv_down_close"
+  }
+ ],
+ "invalidations": [
+  "Before the trade: day 2 never trades back over the HVC (hve.inv_no_trigger).",
+  "Before the trade: the day was OPEX, month-end, the June reconstitution Friday or an acquisition pin (hve.excluded_days, hve.excluded_days_more).",
+  "Before the trade: the volume came after a 60% run in 60 sessions, a climax (hve.not_climax).",
+  "Before the trade: the record day closed down (hve.inv_down_close) or on ordinary big earnings volume (hve.fresh_catalyst).",
+  "Before the trade: the entry would be under the 200-day (hve.above_200) or inside 3 sessions of a report (hve.earnings_window).",
+  "After the entry: the stop is the exit (hve.after_entry_stop).",
+  "For the level: a close under the HVE day's low ends it as support (hve.inv_level_fails); trading under the HVC does not (hve.under_hvc_not_failure)."
+ ],
+ "mistakes": [
+  "Calling any year-high volume an HVE: a 3x day on a mega-cap is an HVC.",
+  "Calling an earnings gap on ordinary big volume an HVE: that is a PEG.",
+  "Marking an OPEX, month-end or index-reconstitution day as the edge.",
+  "Buying the HVE close with a 3% stop: stopped 88% of the time.",
+  "Buying the HVE close with the HVE-low stop at full size: a 20% stop.",
+  "Treating a close under the HVC as a failure and erasing the level.",
+  "Buying a record-volume day that comes after a 60%+ run: a climax.",
+  "Shorting a down-close record day because the app called it bearish.",
+  "Chasing day 2 more than 4% over the HVC.",
+  "Forgetting the level: the HVC and its AVWAP matter for months; later setups form there.",
+  "Adding to it later (TSDR's WULF and AEVA adds are not taught)."
+ ],
+ "short_mirror": {
+  "exists": false,
+  "setup": "34-capitulation",
+  "note": "He ruled the HVE long only. The mirror image, a record-volume down day, is not bearish on average: in 3,071 cases the median 20-session return was +1.1% (55% positive) and 44% closed back over the down day's high within 10 sessions. Bracco treats such days as possible bottoms (TEM, IGV, ETHU) and Duncan shows one (BROS). The dossier recommends no short mirror and teaches the down-close record day as a capitulation watch, a different setup (D-091). D47 does not apply."
+ },
+ "best_conditions": "Follow the market filter (F65). No HVE-specific condition was found: the day-2 reclaim stayed positive with SPY above and below its 200-day, before and after 2010, on earnings and non-earnings days. A group or theme setting records on the same day helps; TraderLion adds 'if the market holds up'.",
+ "management": {
+  "trim_1": "a third at 3R (B19)",
+  "trim_2": "a third at 5R (E51)",
+  "trail": "a close under the 10-day average, HVE names being fast movers (E52); his posts trail the 20 EMA (D-024)",
+  "breakeven": "between 2R and 5R, at the first trim by default (B19)",
+  "time_stop": "under 1R after 10 trading days, sell (C33)",
+  "gap_open": "a trim level the day opens past is taken at the open (F63)",
+  "gap_against": "the first 30-minute low is the new stop; out if past 2R (B20)",
+  "climax": "sell a big part into a climax run (C34)",
+  "overrides": "none settled. The trade plan names the first return to the high-volume close as the cleanest decision point; what to do there is unruled (hve.first_return, D-090). Not ours: the detector's 2R and 3R targets, Duncan's thirds at 1R and 2R, Bonde's four-part exit at 20%+, Manrav's HVC stop."
+ },
+ "examples": {
+  "winners": 10,
+  "sheet_dir": "_study-resume/scratchpad/setups/24-high-volume-edge/final",
+  "base_rate": {
+   "hits": 193,
+   "main_scan_hits": 179,
+   "ipo_supplement_hits": 14,
+   "r3_pct": 48.2,
+   "r5_pct": 37.3,
+   "stopped_pct": 78.8,
+   "median_stop_pct": 2.2,
+   "median_best_r": 2.8,
+   "window": "60 sessions forward from the day-2 buy, fixed stop two cents under the day-2 low (skipped if wider than 8%), no trims, no breakeven, no trail; 1999 to 2026; 2,630 liquid names plus 136 IPO-year names; one hit per name per 60 sessions"
+  },
+  "cuts": {
+   "stop_within_3_pct": {
+    "hits": 118,
+    "r3_pct": 55.1,
+    "r5_pct": 44.9
+   },
+   "all_history_record_10x": {
+    "hits": 85,
+    "r3_pct": 49.4,
+    "r5_pct": 38.8
+   },
+   "dcr_0_5_and_up_20_pct": {
+    "hits": 86,
+    "r3_pct": 47.7,
+    "r5_pct": 39.5
+   },
+   "dollar_volume_under_100m_before": {
+    "hits": 168,
+    "r3_pct": 49.4,
+    "r5_pct": 37.5
+   },
+   "owner_definition_universe_day2_reclaim": {
+    "hits": 804,
+    "mean_r_house_plan": 0.37,
+    "note": "section 4.3 (b), conservative count; +0.82R on the subset above the 200-day, $10+, $20M a day after"
+   }
+  },
+  "winners_list": [
+   "VRTX 2012-05-07",
+   "TVTX 2015-03-18",
+   "AMRN 2018-09-24",
+   "DOCU 2019-09-06",
+   "NTLA 2021-06-28",
+   "MDGL 2022-12-19",
+   "FCNCA 2023-03-27",
+   "INSM 2024-05-28",
+   "GRPN 2025-03-12",
+   "INOD 2026-05-08"
+  ],
+  "owner_graded": [
+   "NAVN 2026-03-26",
+   "FSLY 2026-02-12",
+   "MRNA 2026-08-19",
+   "RUM 2024-01-23",
+   "WVE 2024-10-16",
+   "EVGO 2024-10-03",
+   "VKTX 2022-12-19",
+   "ERAS 2026-01-07",
+   "CLPT 2025-09-24",
+   "COMP 2026-01-07"
+  ],
+  "failures": [
+   {
+    "ticker": "NAVN",
+    "date": "2026-03-27",
+    "criterion": "hve.stop_width",
+    "why": "the owner's 'perfect' HVE gave the day-2 trigger (opened 12.80 under the 13.11 HVC and traded through it) but the day-2 low was 7.2% under the HVC, a 7.5% stop; taken as the scan takes it, the stop was hit on the day-4 undercut before the run to +87%. When the day-2 stop is too wide, skip and wait for a later entry at the level."
+   },
+   {
+    "ticker": "MBX",
+    "date": "2025-09-23",
+    "criterion": "hve.close_position",
+    "why": "+100% on 62x the 50-day and 10x the old record, but a close at 0.26 of the range; the day-2 reclaim with a 7.4% stop never saw a cent of profit. A record day that closes in the bottom quarter is a supply day dressed as an HVE."
+   },
+   {
+    "ticker": "KOD",
+    "date": "2026-09-29",
+    "criterion": "hve.breakeven",
+    "why": "+178% on 57x, an all-time record, close 0.83; triggered, reached 2.2R and came back through the 7.0% stop. PRTA 2022-09-28 (+88%, 27x, close 0.90) did the same at 2.4R with a 4.3% stop. No cue predicts these; the breakeven move at 2R makes them scratches."
+   },
+   {
+    "ticker": "QGEN",
+    "date": "2026-01-21",
+    "criterion": "hve.inv_level_fails",
+    "why": "HVE 2026-01-20 +16.6% on 11.6x, 2.8x the old record, close 0.80; day 2 reclaimed the HVC (buy 55.46, stop 53.73, 3.1%); the stop traded 2 sessions later at 0.0R, the stock never cleared the HVE high and slid to 38.80, under the HVE low 46.07. The HVC turned into overhead."
+   },
+   {
+    "ticker": "SE",
+    "date": "2023-03-08",
+    "criterion": "hve.after_entry_stop",
+    "why": "HVE 2023-03-07 +21.8% on 11.6x, an all-time record, close 0.89; buy 80.07, stop 77.24 (3.5%); the stop traded the next session at 0.0R (a shake-out to 71.08), then the stock ran to 88.84 by 04-04 with no new day-2 trigger. The stop is the exit; a re-entry needs a new trigger (B21)."
+   },
+   {
+    "ticker": "YELP",
+    "date": "2018-08-10",
+    "criterion": "hve.after_entry_stop",
+    "why": "an earnings HVE (2018-08-09, +26.7% on 16.0x, 2.4x the old record, close 0.77); buy 48.34, stop 47.52 (1.7%); day 2 closed 49.35 over the HVC and day 3 reversed from 49.56 to 46.94 through the stop (0.0R), then drifted to 43.77 by 08-22."
+   },
+   {
+    "ticker": "NKTR",
+    "date": "2017-03-21",
+    "criterion": "hve.breakeven",
+    "why": "HVE 2017-03-20 +42.6% on 11.8x, close 0.94; buy 331.66, stop 323.98 (2.3%); 2.3R on 03-22, then the stop traded by 2 cents on 03-27 (low 322.50) on a day that closed at 350.70. A 2R gain given back is a scratch under the breakeven rule (B19)."
+   }
+  ],
+  "limits": "Daily bars only: the day-2 low is used as the low before the reclaim. No RS rating, no market reading, no news text. Survivors only. Earnings dates complete from about 2005. Prices split-adjusted (AMRN's scale should be checked against the owner's platform). The finder's thresholds were tuned on his picks; nothing tests his eye for the story.",
+  "near_misses": [
+   {
+    "ticker": "ROKU",
+    "date": "2019-05-10",
+    "criterion": "hve.volume_multiple",
+    "why": "record day 2019-05-09: +28.1%, a one-year record, close 0.99, but only 4.7x the 50-day and 1.17x the old record (the rule needs 10x or 2.5x). An earnings gap on ordinary volume in a well-owned name: a PEG (setup 21). Taken as an HVE: 0.0R."
+   },
+   {
+    "ticker": "GNRC",
+    "date": "2020-02-13",
+    "criterion": "hve.min_move",
+    "why": "record day 2020-02-12: 22.6x the 50-day, 4.2x the old record, an all-time record, close 0.82, but up only 3.2% on the day (the rule needs 8%). Volume without a move; the stock fell 25% in the next month."
+   },
+   {
+    "ticker": "GPCR",
+    "date": "2025-12-09",
+    "criterion": "hve.not_climax",
+    "why": "record day 2025-12-08: +102.5% on 18.2x, 3.2x the old record, close 0.50, but the close before it was 72.5% over the 60-session low (the rule says under 60%). A climax, not a start: the day-2 trigger was stopped at 0.0R and the stock topped within two months."
+   },
+   {
+    "ticker": "NRG",
+    "date": "2017-07-13",
+    "criterion": "hve.day2_dip",
+    "why": "record day 2017-07-12: +29.4% on 10.6x, 2.65x the old record, an all-time record, close 0.98; day 2 opened 2.1% over the HVC and its low stayed 1.7% over it, so there was no red-to-green and no trigger. A later entry at the level (8.2, entry D) is a different trade."
+   }
+  ],
+  "sheets": {
+   "failures": "final/fail_1-4.png",
+   "near_misses": "final/near_1-4.png",
+   "pair": "final/pair_21-power-earnings-gap.png"
+  }
+ },
+ "question_seeds": [
+  {
+   "kind": "recall",
+   "criterion": "hve.volume_multiple",
+   "seed": "How many times its 50-day average volume does an HVE day trade, and what is the other way to qualify?"
+  },
+  {
+   "kind": "recall",
+   "criterion": "hve.stop",
+   "seed": "Where does the stop go on the day-2 entry?"
+  },
+  {
+   "kind": "recall",
+   "criterion": "hve.excluded_days",
+   "seed": "Name the two calendar days that never count as an HVE."
+  },
+  {
+   "kind": "spot",
+   "criterion": "hve.mark_level",
+   "seed": "Hidden ticker: tap the HVC, the close of the record-volume day, and say where the AVWAP is anchored."
+  },
+  {
+   "kind": "spot",
+   "criterion": "hve.day2_dip",
+   "seed": "Hidden ticker: did day 2 open at or under the HVC and trade through it? Take it or pass."
+  },
+  {
+   "kind": "spot",
+   "criterion": "hve.not_climax",
+   "seed": "Hidden ticker: this record day comes after a 90% run in two months. Start or climax?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "hve.volume_multiple",
+   "seed": "HVE or PEG: an earnings gap on 3x average volume in a mega-cap, closing strong. Which is it?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "hve.day2_window",
+   "seed": "HVE or EP: the stock gapped 25% on record volume; are you buying over the opening-range high today, or waiting for tomorrow's dip and reclaim?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "hve.inv_down_close",
+   "seed": "The record-volume day closed down 15%. HVE, short, or capitulation watch?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "hve.under_hvc_not_failure",
+   "seed": "Six sessions after the HVE the stock closes 5% under the HVC, above your stop. Erase the level, sell, or hold?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "hve.first_return",
+   "seed": "The stock ran 30% and now dips back to the HVC for the first time. The plan's stop is far below. What does the plan say to do here?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "hve.no_chase",
+   "seed": "The HVC is 20.00; day 2 dipped to 19.40 and is now trading 21.10. Buy, or pass?"
+  },
+  {
+   "kind": "grade",
+   "criterion": "hve.a_plus_record",
+   "seed": "Two record days: one a one-year record at 5x the 50-day, one an all-history record at 27x. Grade each."
+  },
+  {
+   "kind": "grade",
+   "criterion": "hve.close_position",
+   "seed": "Up 100% on 60x volume but closed at 0.26 of the range. What grade, and why?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "hve.volume_multiple",
+   "seed": "The 50-day average is 2.1 million shares, the old record 9 million, and today traded 24 million. Does it qualify, and by which test?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "hve.stop_width",
+   "seed": "HVC 58.12, day-2 low 57.56, fill 58.13. How wide is the stop, and does it fit A13?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "hve.trim_1",
+   "seed": "Bought at 20.18 with the stop at 19.89. Where is 3R, and where is 5R?"
+  }
+ ],
+ "owner_decisions": [
+  "D-004",
+  "D-005",
+  "D-009",
+  "D-011",
+  "D-012",
+  "D-016",
+  "D-017",
+  "D-024",
+  "D-030",
+  "D-089",
+  "D-090",
+  "D-091",
+  "D-092",
+  "D-093"
+ ],
+ "conflicts": [
+  "Sources are cited by the ids the validator reads from the dossier's section 11 (the n-th top-level bullet in reading order): S1 the owner verdict log, S2 spot.fixtures.jsonl, S3 the rulebook, S4 TRADE_PLANS and the levels files, S5 the code, S7 the brain KB rows, S9 the UCT Substack, S10 Bracco's Parabolic Short, S11 and S12 Duncan, S14 to S16 TraderLion, S19 Ameet Rai, S20 Bonde, S22 Kullamagi, S23 Wyckoff, S24 Shannon, S25 Bulkowski, S26 to S30 the academic papers, S31 the local bars. Duncan's originator status is unproven, so no criterion carries basis 'originator'.",
+  "Rank or multiple: TraderLion, Duncan, Ameet Rai and UCT's indicator define the volume by rank (ever, one year, since the IPO); the owner's analysts encode a multiple (10x); his own Substack usage calls NBIS (7.4x), PUMP (9.1x) and VELO (6.8x) HVEs. The card takes 10x or 2.5x the record as the rule and the all-history record at 10x as the A+ cue (D-089).",
+  "Ever or one year: HVE literally means ever; the app's detector sees 199 sessions in production and labels every firing 'all the data on file'. The all-history record separated his kept charts from his cuts (16 of 19 against 5 of 16). D-089.",
+  "The entry: the app and Duncan buy the HVC on day 1; Bonde buys the event day at the open; Ameet Rai calls the HVC a secondary entry; TSDR and Manrav buy day 2. The card teaches day 2 red to green, the only entry positive in every group, and the later setups at the level.",
+  "The stop: Duncan 3% to 5% under the HVC or a close under it; Manrav the HVC; the app the HVE low (a median 19.9% on his kept charts). The owner: price can go below the HVC. The card: the day-2 low (A3, F62); the ceiling is D-005.",
+  "The trim at the first return: the trade plan calls it the cleanest decision point; Trade Story stops there with his OK of 2026-11-09 ('yes add those stops too'); he has not said what to do. D-013's default reads a named spot as a cue to take the 3R third early; the dossier recommends holding with the plan's stop. The card leaves it pending-owner (D-090).",
+  "C29: nearly every big HVE closes more than 10% over its 10-day. D-017's default measures the 10-day as of the prior close on a catalyst day. The card follows that reading, pending his word.",
+  "B23: 7 of 19 kept charts closed under $10 and 12 traded under $20M before the event; the card measures B23 on the 20 sessions after (D-030), and he allowed great visuals to stay on 2026-11-07.",
+  "B26 and C31: 5 kept charts started under the 200-day and 5 had no 200-day; neglected names rarely carry RS 80. The card reads B26 at the entry price (D-020) and treats RS as a cue pending his class list (D-011's default names the HVE on a neglected name as exempt).",
+  "Down-close record days: the app calls them bearish with a stop at the bar's high; the data (3,071 cases), Campbell, Grossman and Wang's model, Bracco and Duncan read them as possible bottoms. The card: not this setup, a capitulation watch (D-091).",
+  "The atlas sample: the deep scan's 40% one-day-move guard throws out every HVE that rose more than 40% on the day (13 of his 19 kept), so its 2.9% median risk describes small-move record days, not his picture.",
+  "Names: the Model Book says High Volume Edge, the authors say High Volume Close; the journal has only an HVC tag, the thing he says an HVE is not; one KB summary expands HVE as High Volume Event. D-016's default: one tag, 'High Volume Edge (HVC)'.",
+  "The detector: fires on any year-high volume (about six 'just HVC' days for every owner-definition day), on down closes, with no OPEX or month-end exclusion, no minimum move, a $3 floor and 2R/3R targets. D-004 rebuilds it to this card.",
+  "Unsourced numbers in the app's narrative: 'half an ATR', 'roughly 25 sessions', 'often weeks later'. The first return is usually within a week. None is used on this card.",
+  "A house claim: setup_sources.json calls Duncan 'THE ORIGINATOR OF HVC'; TraderLion's labels predate his earliest dated post and Ameet Rai says he classified the variants. Originator is unproven; the card names no originator."
+ ]
+}

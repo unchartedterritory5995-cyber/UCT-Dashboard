@@ -1,0 +1,1516 @@
+{
+ "setup": "15-wedge-pop",
+ "name": "Wedge Pop",
+ "unit": "SET.16",
+ "direction": "long",
+ "timeframe": "daily",
+ "dossier": "docs/study/setups/research/15-wedge-pop.md",
+ "as_of": "2026-11-10",
+ "card": {
+  "context": "A stock that has corrected and spent most of three weeks under its 20-day EMA, after a capitulation low or a rounded one, held up better than the index, and still sits above the 200-day. Best within about four weeks of the index's own low and pop, early in a new cycle.",
+  "pattern": "A base of at least 3 sessions under or against the flattening 10 and 20-day EMAs, most closes at or under the higher one, daily ranges shrinking, volume drying up. The pivot is the base's high.",
+  "trigger": "BASE BREAKOUT: the first trade through the pivot that is also above both averages, bought at market, no more than 4% past the pivot; the day should close above both EMAs in the top 40% of its range on more volume than the base days.",
+  "stop": "A few cents under the pop day's low; if that is wider than about 3%, a smaller position or a pass, never a tighter stop.",
+  "failure_mode": "The pop fades: it closes back under the pivot or under both averages and back inside the base within days, usually on no rise in volume, and the next session takes the stop. A pop on the earnings-reaction day or three sessions before a report dies the same way."
+ },
+ "entry_trigger": "BASE BREAKOUT",
+ "criteria": [
+  {
+   "id": "wp.prior_decline",
+   "field": "context",
+   "statement": "The stock fell into a correction and spent most of the last three weeks under its 20-day EMA: at least 8 of the 15 closes before the pop day are under the 20 EMA.",
+   "measure": {
+    "what": "closes under the 20-day EMA in the 15 sessions before the pop day",
+    "op": ">=",
+    "value": 8,
+    "unit": "closes",
+    "timeframe": "daily"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S23",
+    "S1",
+    "S2",
+    "S9"
+   ],
+   "options": [
+    {
+     "value": "b",
+     "basis": "any decline that spent most of three weeks under the 20 EMA (8 of 15 closes): Kell's rounded lows (COIN) and his MU and CAVA pops inside uptrends"
+    },
+    {
+     "value": "a",
+     "basis": "a capitulation day (a Reversal Extension) must come first"
+    }
+   ],
+   "recommended": "b",
+   "status": "pending-owner",
+   "owner_question": "D-077",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Prior decline; 10 question 2",
+   "evidence": "The 8-of-15 test is Chart IQ's (S23). Scan: the count of closes under the 20 EMA (12 or more of 15 against 8 to 11) made no difference, 43.1% / 29.3% against 41.8% / 29.0%. A decline of 15% or more into the low did a little better, 44.9% / 30.4% against 39.9% / 27.6%. TEAM 2019-05-08 qualified with the fewest closes under (9) and a 14% decline."
+  },
+  {
+   "id": "wp.low_first",
+   "field": "context",
+   "statement": "A low first: a capitulation day (a Reversal Extension) or a slower, rounded low. A Reversal Extension is not required; it is the A+ cue.",
+   "measure": {
+    "what": "the lowest low of the 20 sessions before the pop is also the lowest low of the 40 sessions before it",
+    "op": "==",
+    "value": true,
+    "timeframe": "daily"
+   },
+   "basis": "originator",
+   "sources": [
+    "S3",
+    "S25",
+    "S1"
+   ],
+   "status": "pending-owner",
+   "owner_question": "D-077",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 A low first",
+   "evidence": "Kell: sometimes an intermediate bottom is more gradual and forms a rounded bottom (S3). On COIN: the rounded bottom never formed a textbook Reversal Extension but formed a tight tradeable range after the Wedge Pop (S25). The fresh-low test is the scan's reading of a low first."
+  },
+  {
+   "id": "wp.above_200",
+   "field": "context",
+   "statement": "The pop day closes above the 200-day simple moving average. About half of all pops come under it and are not ours.",
+   "measure": {
+    "what": "close against the 200-day SMA",
+    "op": ">",
+    "value": "200-day SMA",
+    "timeframe": "daily"
+   },
+   "glossary": "above_200",
+   "basis": "house rule",
+   "sources": [
+    "S24",
+    "S6"
+   ],
+   "house_rule": "B26",
+   "options": [
+    {
+     "value": "a",
+     "basis": "keep B26 as it is: only pops above the 200-day (the dossier's recommendation; the data mildly agree, +0.09R against +0.03R)"
+    },
+    {
+     "value": "b",
+     "basis": "allow index and ETF pops under it as a market tell only"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-009",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Location; 7; 10 question 3",
+   "evidence": "Half the app's pops were under the 200-day (4.4); 4 of the 24 dated named pops were (TSLA 2023-03-21, XRT, QQQ 2025-03-24, CRWV 2026-01-12). FNV 2016-02-03 and DHI 2023-11-01 closed 0.6% and 0.8% above it, the thinnest passes of the ten. The Wedge Pop is not a parabolic long, so B26's exception does not cover it."
+  },
+  {
+   "id": "wp.liquidity",
+   "field": "context",
+   "statement": "Price $10 or more and $20 million or more traded a day on the 50-day average.",
+   "measure": {
+    "what": "close",
+    "op": ">=",
+    "value": 10,
+    "unit": "$",
+    "and": "50-day average dollar volume >= 20,000,000"
+   },
+   "glossary": "liquidity",
+   "basis": "house rule",
+   "sources": [
+    "S9"
+   ],
+   "house_rule": "B23",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Liquidity",
+   "evidence": "Kell's own screens (over $20, over 500,000 shares, $2 to $25 billion market cap per Deepvue) are stricter; ours is the looser floor."
+  },
+  {
+   "id": "wp.position_adv",
+   "field": "management",
+   "statement": "The position is at most 1% of average daily volume.",
+   "measure": {
+    "what": "shares / average daily volume",
+    "op": "<=",
+    "value": 1,
+    "unit": "%"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "D42",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "7"
+  },
+  {
+   "id": "wp.relative_strength",
+   "field": "context",
+   "statement": "The stock held up better than its index during the decline: its fall from its 60-session high to the base low is smaller, in percent, than QQQ's or SPY's over the same days.",
+   "measure": {
+    "what": "the stock's fall from its 60-session high to the base low, minus the index's fall over the same days",
+    "op": "<",
+    "value": 0,
+    "unit": "percentage points",
+    "timeframe": "daily"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S2",
+    "S9"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "require an RS rating of 80 or more (C31 as written; only 16% of the app's pops qualify on the day)"
+    },
+    {
+     "value": "b",
+     "basis": "require only that the stock held up better than its index in the decline"
+    },
+    {
+     "value": "c",
+     "basis": "treat RS as a grade factor, not a gate"
+    }
+   ],
+   "status": "pending-owner",
+   "owner_question": "D-011",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Relative strength; 10 question 7",
+   "evidence": "Kell: this phase is critical for spotting relative strength against market indices (S2). Not coded in the scan. The dossier gives no recommendation; the data favour RS but a literal RS 80 leaves few trades."
+  },
+  {
+   "id": "wp.leadership",
+   "field": "context",
+   "statement": "Ideally an RS rating of 80 or more. Only 16% of the app's pops had an RS proxy of 80 or more on the day, so this line is in tension with the setup.",
+   "measure": {
+    "what": "RS rating on the pop day",
+    "op": ">=",
+    "value": 80,
+    "unit": "rating 1 to 99"
+   },
+   "glossary": "leader",
+   "basis": "house rule",
+   "sources": [
+    "S24",
+    "S2"
+   ],
+   "house_rule": "C31",
+   "status": "pending-owner",
+   "owner_question": "D-011",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "7 C31 row; 10 question 7",
+   "evidence": "The app's pops: an RS proxy median of 42; RS 80+ pops did best (+0.14R). The owner should decide whether C31 gates this setup."
+  },
+  {
+   "id": "wp.market_timing",
+   "field": "context",
+   "statement": "Best within about 20 sessions after the index makes its own Reversal Extension and Wedge Pop: the first leaders pop or break out of bases then.",
+   "measure": {
+    "what": "sessions since the index's own Wedge Pop",
+    "op": "<=",
+    "value": 20,
+    "unit": "sessions",
+    "timeframe": "daily"
+   },
+   "basis": "originator",
+   "sources": [
+    "S3",
+    "S2",
+    "S22"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "teach the index's own Wedge Pop as a market tell next to the Follow Through Day, as the Sunday Scans do"
+    },
+    {
+     "value": "b",
+     "basis": "keep the course to stocks"
+    }
+   ],
+   "status": "pending-owner",
+   "owner_question": "D-018",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.7; 10 question 8",
+   "evidence": "Kell: get aggressive trading individual stocks when you see a Reversal Extension on the index (S3). The 20 sessions are the dossier's. The daily test (4.4) found NO measurable edge for stock pops right after a QQQ pop, so this rests on Kell's and UCT's experience. DHI 2023-11-01 popped three sessions after SPY's low; SNOW 2025-04-24 popped while the index itself was popping."
+  },
+  {
+   "id": "wp.early_cycle",
+   "field": "context",
+   "statement": "Early in a new cycle, not the fourth base of an old one. A late-cycle base is B-.",
+   "measure": {
+    "what": "bases since the cycle's Reversal Extension, counting this one",
+    "op": "<=",
+    "value": 2,
+    "unit": "bases",
+    "timeframe": "daily"
+   },
+   "glossary": "base_count",
+   "basis": "UCT",
+   "sources": [
+    "S23",
+    "S22"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.7; 9 B-",
+   "evidence": "Bracco, as the brain file summarises him on gold: wedge pops follow through with much higher probability early in a cycle (KB 11404, a summary, not his words)."
+  },
+  {
+   "id": "wp.market_reading",
+   "field": "context",
+   "statement": "Green or Yellow market: trade it. Orange: only an A+ pop. Red: mostly cash.",
+   "glossary": "market_reading",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "F65",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.7",
+   "evidence": "Kell uses the index's own Wedge Pop as his market buy signal; UCT pairs it with the Follow Through Day. Not coded in the scan."
+  },
+  {
+   "id": "wp.catalyst",
+   "field": "context",
+   "statement": "A catalyst behind the pop (an earnings reaction after the report, or real news) is an A+ cue.",
+   "basis": "originator",
+   "sources": [
+    "S5",
+    "S22"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "9 A+",
+   "evidence": "Kell's AMD (2023-11-01) and MELI (2023-02-24) pops were earnings reactions (S5); the owner's BIDU pop followed news of an IPO of a chip design and AI segment (S22). A pop that is itself the earnings-reaction day is judged by wp.not_earnings_day."
+  },
+  {
+   "id": "wp.no_overhead",
+   "field": "context",
+   "statement": "Overhead supply right above the pivot (an unfilled gap down, or a falling 50-day just over it) is a B- cue; reclaiming the 50-day too is A+.",
+   "measure": {
+    "what": "a falling 50-day SMA or an unfilled gap-down window within one ATR above the pivot",
+    "op": "==",
+    "value": false,
+    "timeframe": "daily"
+   },
+   "glossary": "atr",
+   "basis": "originator",
+   "sources": [
+    "S6",
+    "S22"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "9 A+; 9 B-",
+   "evidence": "Kell on TSLA: rejecting at the gap resistance (S6). The one-ATR reach is this card's reading of right above; the dossier gives no distance."
+  },
+  {
+   "id": "wp.timeframe",
+   "field": "context",
+   "statement": "The daily chart is the course's chart. Hourly and 65-minute pops, which the owner and Kell use for entries and higher lows to risk against, are taught only if he says so.",
+   "measure": {
+    "what": "the pop's bars",
+    "op": "in",
+    "value": [
+     "daily",
+     "hourly",
+     "65-minute"
+    ]
+   },
+   "glossary": "hourly_bar",
+   "basis": "UCT",
+   "sources": [
+    "S22",
+    "S23",
+    "S2"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "daily only"
+    },
+    {
+     "value": "b",
+     "basis": "also hourly and 65-minute, as the Sunday Scans and Kell use it"
+    }
+   ],
+   "status": "pending-owner",
+   "owner_question": "D-012",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "6.1; 10 question 9",
+   "evidence": "The owner (KB 10165): this is a time where I use HOURLY charts and the cycle of price action to look for wedge pops; it prevents me from searching for bottom and gives me higher low areas to risk off. Kell: hourly and 15-minute charts are for timing entries."
+  },
+  {
+   "id": "wp.base_sessions",
+   "field": "pattern",
+   "statement": "The base: after the low, at least 3 sessions in which at least half the closes sit at or under the higher of the 10 and 20-day EMAs.",
+   "measure": {
+    "what": "sessions from the day after the low to the day before the pop, with closes at or under the higher EMA",
+    "op": ">=",
+    "value": 3,
+    "unit": "sessions, at least half of them closing at or under the higher average",
+    "timeframe": "daily"
+   },
+   "glossary": "base_length",
+   "basis": "my proposal",
+   "sources": [
+    "S1",
+    "S2",
+    "S23"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 The base",
+   "evidence": "Kell: price has a few days to retreat, as price volatility contracts (S1, S2). The numbers are the dossier's and the app's. Scan: short bases of 3 to 5 sessions (1,504 hits) did slightly better than longer ones, 46.5% / 32.4% against 41.5% / 28.2%. RCL 2009-07-15 is the shortest the rule allows (4 days). The ten examples ran 4 to 14 days."
+  },
+  {
+   "id": "wp.base_tight",
+   "field": "pattern",
+   "statement": "Ranges shrink: the last 5 sessions' average daily range is under 0.85 times the average range of the 10 sessions before them. A shakeout (an undercut of the prior low by 1% that still closes up in the last 3 days) also counts.",
+   "measure": {
+    "what": "mean daily range of the last 5 sessions / mean daily range of the 10 sessions before them",
+    "op": "<",
+    "value": 0.85,
+    "unit": "x",
+    "timeframe": "daily",
+    "or": "one of the last 3 days undercut the prior low by 1% and closed up"
+   },
+   "glossary": "tight",
+   "basis": "my proposal",
+   "sources": [
+    "S23",
+    "S1",
+    "S22"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 The base; 5.1",
+   "evidence": "Kell: as price volatility contracts (S1); the owner: get tight, need near term tightening, nice and tight (S22). The 0.85 is Chart IQ's and the glossary's. TGT 2021-03-19 contracted to 0.44, the tightest of the ten; NET 2020-09-18 to 0.57."
+  },
+  {
+   "id": "wp.base_volume_dry",
+   "field": "pattern",
+   "statement": "Volume drying up through the base is the A+ cue: distribution volume decreasing before accumulation picks up.",
+   "glossary": "dry_up",
+   "basis": "originator",
+   "sources": [
+    "S1",
+    "S22"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "9 A+; 1",
+   "evidence": "Kell: a key sign of a new uptrend is when distribution volume decreases while accumulation volume picks up (S1). The unsigned MSTR note: tight wedging action on very low volume here for 4-5 days (S22)."
+  },
+  {
+   "id": "wp.averages",
+   "field": "pattern",
+   "statement": "The averages are the 10-day and 20-day EMAs, Kell's pair. The house 9/20 pair is the option.",
+   "measure": {
+    "what": "the two averages the pop must close above",
+    "op": "==",
+    "value": "10-day and 20-day EMA",
+    "timeframe": "daily"
+   },
+   "glossary": "fast_averages",
+   "basis": "originator",
+   "sources": [
+    "S1",
+    "S2",
+    "S23"
+   ],
+   "options": [
+    {
+     "value": "10/20",
+     "basis": "Kell's pair; the app's Chart IQ reader already uses it"
+    },
+    {
+     "value": "9/20",
+     "basis": "the Model Book's and UCT's pair"
+    },
+    {
+     "value": "20",
+     "basis": "the 20 EMA alone"
+    }
+   ],
+   "recommended": "10/20",
+   "status": "pending-owner",
+   "owner_question": "D-021",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 The averages; 10 question 1",
+   "evidence": "Four definitions in one app: Chart IQ 10/20, Chart IQ v2 9/21, the Model Book 9/20, the pattern engine none (5.7). Manrav reads it on the 21 EMA."
+  },
+  {
+   "id": "wp.pivot",
+   "field": "pattern",
+   "statement": "The pivot is the highest high of the base: short-term resistance.",
+   "measure": {
+    "what": "pivot",
+    "op": "==",
+    "value": "highest intraday high of the base sessions",
+    "timeframe": "daily"
+   },
+   "glossary": "pivot",
+   "basis": "originator",
+   "sources": [
+    "S1",
+    "S9"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 The pivot",
+   "evidence": "Kell: if the price breaks above the pivot, the trend should continue upward; if the price fails and drops, the timing isn't right yet (S1). C28 needs the pivot defined this way (7)."
+  },
+  {
+   "id": "wp.trigger",
+   "field": "trigger",
+   "statement": "The first trade through the pivot that is also above both averages. Buy at market as it trades through.",
+   "measure": {
+    "what": "intraday high during regular hours against the pivot, with price above the 10 and 20-day EMAs",
+    "op": ">",
+    "value": "pivot",
+    "timeframe": "daily"
+   },
+   "basis": "originator",
+   "sources": [
+    "S1",
+    "S2",
+    "S9"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "through the pivot during the day (the dossier's recommendation)"
+    },
+    {
+     "value": "b",
+     "basis": "at the close, when it closes above both averages"
+    },
+    {
+     "value": "c",
+     "basis": "the break of the pop day's high after a few tight days (the owner's INCY plan), the fallback when the pop runs more than 4% past the pivot"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-003",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 Trigger; 10 question 5",
+   "evidence": "Kell: trades through the price range, reclaims the moving averages (S1); a break above short-term resistance and a reclaiming of the moving averages (S2). Scan: buying the pivot intraday reached 3R 42.7% of the time against 20.6% in 4.4's close-based test, partly because the pop day's own run from the pivot to the close is counted, and partly because the intraday buyer also takes the pops that fade before the close, which the scan never counts."
+  },
+  {
+   "id": "wp.pop_close",
+   "field": "trigger",
+   "statement": "The pop day closes above both the 10 and 20-day EMAs, above the pivot, in the top 40% of its range. Known only at the close, so it grades the pop and tells the next day whether the setup is real.",
+   "measure": {
+    "what": "(close - low) / (high - low) on the pop day, with the close above both EMAs and the pivot",
+    "op": ">=",
+    "value": 0.6,
+    "timeframe": "daily"
+   },
+   "glossary": "close_position",
+   "basis": "my proposal",
+   "sources": [
+    "S23",
+    "S1"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 The pop day; 13 base rate cuts",
+   "evidence": "The 40% is Chart IQ's. Scan: a close back under the pivot on the pop day (1,026 hits) cut the rate to 23.1% / 14.0% against 46.5% / 32.1% for a close above it, the strongest single cut. CROX 2007-04-04 closed in the top 3% of its range; TEAM in the top 4%."
+  },
+  {
+   "id": "wp.volume",
+   "field": "trigger",
+   "statement": "Pop-day volume is above the prior day's and above the average of the base days. The 50-day average is not required.",
+   "measure": {
+    "what": "pop-day volume / mean volume of the base days",
+    "op": ">",
+    "value": 1,
+    "unit": "x",
+    "timeframe": "daily",
+    "and": "pop-day volume > the prior day's volume"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S1",
+    "S23",
+    "S24"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "above the prior day and the base days (the dossier's recommendation: half the pops Kell and UCT named had less than the 50-day average)"
+    },
+    {
+     "value": "b",
+     "basis": "at least 1.05 times the 50-day average (the app)"
+    },
+    {
+     "value": "c",
+     "basis": "at least 1.5 times the 50-day average"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-006",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Volume; 10 question 4",
+   "evidence": "Kell: increased accumulation volume (S1). Of 24 named pops, 18 beat the prior day and 10 reached 1.05 times the 50-day average (4.5). Scan: pop-day volume of 1.5 times the base days or more (2,119 hits) reached 48.0% / 32.8% against 40.0% / 27.4% below it; the app's 1.05 times the 50-day added little (43.9% / 30.3% against 40.6% / 27.1%). STLD 2026-03-31 popped on only 1.2 times the base and still worked: volume grades, the measure gates."
+  },
+  {
+   "id": "wp.gap_up",
+   "field": "trigger",
+   "statement": "A gap up through the pivot and the averages is the A+ pop. If it opens above the pivot, buy at the open when the gap is no more than 4% above it.",
+   "measure": {
+    "what": "open / prior close - 1 on the pop day",
+    "op": ">=",
+    "value": 1,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "glossary": "gap",
+   "basis": "originator",
+   "sources": [
+    "S1"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.2 Order; 9 A+",
+   "evidence": "Kell: most Wedge Pops that lead to new, powerful trends start with gaps; gaps show the street is caught off guard (S1). Scan: a gap open of 1% or more (1,333 hits) did better, 46.2% / 33.6%. RCL, NET and SNOW were bought at the open on gaps of 3.9%, 1.1% and 1.2%."
+  },
+  {
+   "id": "wp.market_order",
+   "field": "trigger",
+   "statement": "A market order when it trades through the pivot, regular hours only.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "E57",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 Order",
+   "evidence": "E58 keeps it inside regular hours. The scan filled at the pivot plus a cent, or at the open when the open gapped above the pivot."
+  },
+  {
+   "id": "wp.no_chase",
+   "field": "trigger",
+   "statement": "No buy more than 4% past the pivot. A pop day that runs further is a chase; wait for the first tight day or pullback after it.",
+   "measure": {
+    "what": "fill / pivot - 1",
+    "op": "<=",
+    "value": 4,
+    "unit": "%"
+   },
+   "glossary": "chase_limit",
+   "basis": "house rule",
+   "sources": [
+    "S22"
+   ],
+   "house_rule": "C28",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2; 7",
+   "evidence": "SLB 2022-01-03 ran one wide bar from inside the base to a close 4.9% over the pivot: buyable only as it traded through, a chase at the close."
+  },
+  {
+   "id": "wp.second_chance",
+   "field": "trigger",
+   "statement": "If the pop day runs more than 4% past the pivot, the fallback is the break of the pop day's high after a few tight days, as the owner planned on INCY; or wait for the first pullback, the EMA Crossback.",
+   "measure": {
+    "what": "intraday high against the pop day's high, after 2 or more tight sessions inside the pop day's range",
+    "op": ">",
+    "value": "pop day's high",
+    "timeframe": "daily"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S22"
+   ],
+   "status": "pending-owner",
+   "owner_question": "D-003",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.2 Not more than 4% past the pivot; 10 question 5 (c)",
+   "evidence": "The owner on INCY: four days of rest within a wedge pop candle; a buyer on strength through $100.5 looking for a close above $103.50. Bracco on NBIS: going to be watching on the next pullback (S22)."
+  },
+  {
+   "id": "wp.crossback_separate",
+   "field": "trigger",
+   "statement": "The first pullback into the rising averages after the pop is the EMA Crossback, a separate setup and a new trade, not an add.",
+   "basis": "originator",
+   "sources": [
+    "S1",
+    "S2"
+   ],
+   "house_rule": "A5",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.2 The second chance; 7 A5 row",
+   "evidence": "Kell adds on each new range (AMD); the Model Book says scale into strength; A5 says one entry, one stop. The crossback is setup 14."
+  },
+  {
+   "id": "wp.not_stretched",
+   "field": "trigger",
+   "statement": "At entry, no more than 10% above the 10-day average.",
+   "measure": {
+    "what": "entry / 10-day SMA - 1",
+    "op": "<=",
+    "value": 10,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "glossary": "stretched",
+   "basis": "house rule",
+   "sources": [
+    "S24"
+   ],
+   "house_rule": "C29",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Location; 7",
+   "evidence": "4 of 24 named pops (BE, CRWV, AI, ASTS) and 10% of the app's pops break it."
+  },
+  {
+   "id": "wp.earnings_window",
+   "field": "trigger",
+   "statement": "No new buy in the 3 sessions before an earnings report. A pop on the day after the report is allowed.",
+   "measure": {
+    "what": "sessions until the next report",
+    "op": ">",
+    "value": 3,
+    "unit": "sessions"
+   },
+   "glossary": "earnings_blackout",
+   "basis": "house rule",
+   "sources": [
+    "S24"
+   ],
+   "house_rule": "B22",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "7 B22 row; 13 failures",
+   "evidence": "MU 2022-03-29: a textbook pop on 1.8 times the 50-day volume; Micron reported that evening and the next day's low went through the stop at the open. AMZN 2016-01-28 is the same story. Not coded in the scan; applied to the examples."
+  },
+  {
+   "id": "wp.not_earnings_day",
+   "field": "trigger",
+   "statement": "A pop that is itself the earnings-reaction day is an Episodic Pivot or a Power Earnings Gap, not a Wedge Pop.",
+   "measure": {
+    "what": "the pop day is the first session after a report",
+    "op": "==",
+    "value": false
+   },
+   "glossary": "earnings_reaction_day",
+   "basis": "my proposal",
+   "sources": [
+    "S24",
+    "S5"
+   ],
+   "status": "pending-owner",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "13 CRWD failure; 7 B22 row",
+   "evidence": "CRWD 2021-03-17: the pop was the earnings-reaction day on 3 times the 50-day volume and the day's range left a stop 8.6% below the fill; stopped the next session. Kell's own AMD and MELI pops were earnings reactions, so this line is the card's and the owner may read it as D-025 (not in this dossier's register rows).",
+   "owner_question": "D-025"
+  },
+  {
+   "id": "wp.cross_alone",
+   "field": "trigger",
+   "statement": "A cross of the averages alone is not a Wedge Pop: it needs the tight base and the pivot.",
+   "basis": "originator",
+   "sources": [
+    "S1",
+    "S23"
+   ],
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.8; 5.1",
+   "evidence": "Kell: many traders mistakenly believe the Wedge Pop is simply about crossing the moving averages. The app's Back over the EMAs stage (three closes over both averages with no real pop) is the not-a-pop case."
+  },
+  {
+   "id": "wp.stop",
+   "field": "stop",
+   "statement": "A few cents under the pop day's low.",
+   "measure": {
+    "what": "stop",
+    "op": "==",
+    "value": "a few cents under the pop day's low"
+   },
+   "glossary": "stop_margin",
+   "basis": "house rule",
+   "sources": [
+    "S25",
+    "S4"
+   ],
+   "house_rule": "A3",
+   "options": [
+    {
+     "value": "a",
+     "basis": "under the pop day's low (the house default; Kell's CAVA stop)"
+    },
+    {
+     "value": "b",
+     "basis": "under the base low (the Model Book; wider)"
+    },
+    {
+     "value": "c",
+     "basis": "staggered under the 10 and 20 EMA (Kell's MU), not used under A5"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-008",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.3; 10 question 6",
+   "evidence": "Kell on CAVA: initiated his position with a stop set under the day's low (S25). On MU and the three index pops the 10 and 20 EMAs sat at or above the pop day's low, so his staggered stop was not wider. The scan used 5 cents under the pop day's low; the examples' stops ran 1.1% to 3.6%. On a gap open the stop sits above the pivot (RCL)."
+  },
+  {
+   "id": "wp.stop_width",
+   "field": "stop",
+   "statement": "If the honest stop is wider than about 3%, take a smaller position or skip; never tighten the stop to fit. A stop that has to be 8% or more away is B- at best.",
+   "measure": {
+    "what": "(entry - stop) / entry",
+    "op": "<=",
+    "value": 3,
+    "unit": "%",
+    "and": "a wider stop shrinks the shares (A5); 8% or more is B-"
+   },
+   "glossary": "stop_width",
+   "basis": "house rule",
+   "sources": [
+    "S24",
+    "S23"
+   ],
+   "house_rule": "A13",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.3; 7 A13 row; 9 B-",
+   "evidence": "Pop days are big days: the day's-low stop had a median of 3.7% on the named pops (5.2% on stocks) and 3.1% on the app's pops, so about half need a wider stop than 3%. Scan: a stop within 3% (5,170 hits) reached 45.5% / 31.5% against 29.8% / 18.2% for wider stops. The 8% is the brain template's family maximum. CROX's 3.6% stop was the widest of the ten: smaller size, not a skip."
+  },
+  {
+   "id": "wp.stop_hourly",
+   "field": "stop",
+   "statement": "For an intraday entry, an option the owner may allow: the stop under the pivot day's low on the hourly chart.",
+   "measure": {
+    "what": "stop",
+    "op": "==",
+    "value": "a few cents under the pivot bar's low on the hourly chart",
+    "timeframe": "hourly"
+   },
+   "glossary": "hourly_bar",
+   "basis": "my proposal",
+   "sources": [
+    "S2",
+    "S22"
+   ],
+   "status": "pending-owner",
+   "owner_question": "D-008",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.3 Options",
+   "evidence": "Built on Kell's hourly and 15-minute charts are for timing entries and the owner's hourly higher lows to risk off (KB 10165)."
+  },
+  {
+   "id": "wp.stop_gap",
+   "field": "stop",
+   "statement": "A gap through the stop: the first 30-minute low is the new stop; out if that is past 2R.",
+   "measure": {
+    "what": "loss at the first 30-minute low of the gap-down day",
+    "op": "<=",
+    "value": 2,
+    "unit": "R",
+    "timeframe": "30-minute"
+   },
+   "basis": "house rule",
+   "sources": [
+    "S24"
+   ],
+   "house_rule": "B20",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "7 B20 row",
+   "evidence": "10% of the house trades in 4.4 gapped through."
+  },
+  {
+   "id": "wp.stop_broker",
+   "field": "stop",
+   "statement": "A real stop order with the broker. It only moves up, never down when the first days are weak.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "D41",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.8",
+   "evidence": "A4: the stop only moves up. Kell: if it fails, cut losses quickly."
+  },
+  {
+   "id": "wp.breakeven",
+   "field": "management",
+   "statement": "Stop to breakeven between 2R and 5R, at the first trim by default.",
+   "measure": {
+    "what": "R at which the stop moves to the entry",
+    "op": "in",
+    "value": [
+     2,
+     5
+    ],
+    "unit": "R"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B19",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4"
+  },
+  {
+   "id": "wp.trim_1",
+   "field": "management",
+   "statement": "Sell a third at 3R.",
+   "measure": {
+    "what": "fraction sold at 3R",
+    "op": "==",
+    "value": 0.333,
+    "unit": "of the position"
+   },
+   "glossary": "trail",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B19",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4",
+   "evidence": "Among the scan's winners the median time to 3R was 3 sessions; eight of the ten examples reached it within 3 sessions."
+  },
+  {
+   "id": "wp.trim_2",
+   "field": "management",
+   "statement": "Sell a third at 5R.",
+   "measure": {
+    "what": "fraction sold at 5R",
+    "op": "==",
+    "value": 0.333,
+    "unit": "of the position"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "E51",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4"
+  },
+  {
+   "id": "wp.trim_gap_open",
+   "field": "management",
+   "statement": "If it opens above a trim level, take that trim at the open.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "F63",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4"
+  },
+  {
+   "id": "wp.trail",
+   "field": "management",
+   "statement": "Trail the last third: a close under the 10-day for a fast mover, under the 21-day for a steadier one.",
+   "measure": {
+    "what": "close against the 10-day (fast) or 21-day (steadier) average",
+    "op": "<",
+    "value": "the average",
+    "timeframe": "daily"
+   },
+   "basis": "house rule",
+   "sources": [
+    "S22",
+    "S2"
+   ],
+   "house_rule": "E52",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4; 7",
+   "evidence": "Kell trails the averages and exits on a Wedge Drop or a gap through them. The owner on PL: trailed the 9ema, then the 20EMA as it came through my buy price and first trim, then the 50SMA."
+  },
+  {
+   "id": "wp.exhaustion_sell",
+   "field": "management",
+   "statement": "Sell a big part into an Exhaustion Extension: a climax run far above the averages.",
+   "glossary": "parabolic_burst",
+   "basis": "house rule",
+   "sources": [
+    "S2"
+   ],
+   "house_rule": "C34",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4",
+   "evidence": "Kell reduces into an Exhaustion Extension. C34 is written for Bracco's parabolic burst; whether it also covers a Kell extension without a burst is dossier 18's question 11."
+  },
+  {
+   "id": "wp.time_stop",
+   "field": "management",
+   "statement": "Time stop: still under 1R after 10 trading days, sell.",
+   "measure": {
+    "what": "open R after 10 trading days",
+    "op": "<",
+    "value": 1,
+    "unit": "R"
+   },
+   "glossary": "time_stop",
+   "basis": "house rule",
+   "sources": [
+    "S24"
+   ],
+   "house_rule": "C33",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4; 7",
+   "evidence": "18% of the house trades in 4.4 left on it. Every one of the ten examples was above 1R by the tenth session."
+  },
+  {
+   "id": "wp.no_adds",
+   "field": "management",
+   "statement": "The full size at one price with one stop. No adding on the way up.",
+   "basis": "house rule",
+   "sources": [
+    "S22",
+    "S5"
+   ],
+   "house_rule": "A5",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "7 A5 row; 8.8",
+   "evidence": "Kell adds on each new range (AMD, S5); the Model Book says scale into strength; the owner's CRWV at $88 and $93 was a starter. A5 wins: teach one entry."
+  },
+  {
+   "id": "wp.inv_pop_low",
+   "field": "invalidation",
+   "statement": "After the pop: a close back under the pop day's low means the pop failed. The stop is just under it anyway.",
+   "measure": {
+    "what": "close against the pop day's low",
+    "op": "<",
+    "value": "pop day's low",
+    "timeframe": "daily"
+   },
+   "basis": "originator",
+   "sources": [
+    "S23",
+    "S1"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5",
+   "evidence": "The app's confirmed() drops a pop once any later close falls under the pop day's low (S23). Kell: if it fails, cut losses quickly (S1)."
+  },
+  {
+   "id": "wp.inv_back_in_base",
+   "field": "invalidation",
+   "statement": "After the pop: a close back under both averages and back inside the base within 5 sessions.",
+   "measure": {
+    "what": "sessions after the pop in which a close sits under both EMAs and under the pivot",
+    "op": "<=",
+    "value": 5,
+    "unit": "sessions",
+    "timeframe": "daily"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S6"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5",
+   "evidence": "Kell on TSLA: playing defense (S6). The exact test is the dossier's."
+  },
+  {
+   "id": "wp.inv_no_volume",
+   "field": "invalidation",
+   "statement": "Before the buy: the pop comes on volume no higher than the base days.",
+   "measure": {
+    "what": "pop-day volume / mean volume of the base days",
+    "op": "<=",
+    "value": 1,
+    "unit": "x",
+    "timeframe": "daily"
+   },
+   "basis": "originator",
+   "sources": [
+    "S6",
+    "S1"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5",
+   "evidence": "Kell on QQQ 2023: the first two potential Wedge Pops failed with no increase in accumulation (S6). COIN 2024-08-23: a pop on only 1.04 times the 50-day volume with a 4.7% stop, stopped two sessions later."
+  },
+  {
+   "id": "wp.inv_index_falling",
+   "field": "invalidation",
+   "statement": "Before the buy: the index is still making lower lows with its averages falling.",
+   "measure": {
+    "what": "the index's 10 and 20-day EMAs against 5 sessions ago, with a new 20-session low in the last 5 sessions",
+    "op": "<",
+    "value": 0,
+    "unit": "$",
+    "timeframe": "daily"
+   },
+   "basis": "originator",
+   "sources": [
+    "S6",
+    "S2"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5; 9 B-",
+   "evidence": "Kell's QQQ 2023 note (S6). The measure is this card's reading of lower lows with the averages falling; the dossier gives the words, not the numbers."
+  },
+  {
+   "id": "wp.after_entry_stop",
+   "field": "invalidation",
+   "statement": "After the entry, the stop is the exit, with the time stop.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "A4",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.3; 8.8"
+  }
+ ],
+ "grading": {
+  "a_plus": [
+   "wp.market_timing: the index has just made its own Reversal Extension and Wedge Pop",
+   "wp.relative_strength: the stock held up during the fall, near its highs, RS high",
+   "wp.low_first: a capitulation day first, then a clear tight base of several days under the flattening averages",
+   "wp.base_tight: ranges shrinking, volume drying up",
+   "wp.gap_up: the pop gaps up through the averages and the pivot, closes near the high, on clearly more volume than the base days",
+   "wp.catalyst: an earnings reaction after the report, or real news",
+   "wp.no_overhead: above the 200-day, ideally reclaiming the 50-day too, in a leading group",
+   "wp.stop_width: a day's-low stop within about 3%, sized normally"
+  ],
+  "b_minus": [
+   "wp.volume: no rise in volume",
+   "wp.base_tight: a wide, sloppy base",
+   "wp.leadership: a laggard",
+   "wp.not_stretched: more than 10% above the 10-day",
+   "wp.inv_index_falling: the index still falling with its averages pointing down",
+   "wp.early_cycle: a late-cycle base, the third or fourth of an old trend",
+   "wp.no_overhead: an unfilled gap down or a falling 50-day just over the pivot",
+   "wp.stop_width: a stop that has to be 8% or more away"
+  ],
+  "no_trade": [
+   "wp.above_200: under the 200-day",
+   "wp.cross_alone: a cross of the averages with no tight base and no pivot",
+   "wp.inv_no_volume: the pop on volume no higher than the base days",
+   "wp.no_chase: more than 4% past the pivot",
+   "wp.not_stretched: more than 10% over the 10-day",
+   "wp.earnings_window: a report within 3 sessions",
+   "wp.not_earnings_day: the pop is the earnings-reaction day (an EP or PEG instead)",
+   "wp.liquidity: under $10 or under $20 million a day",
+   "wp.market_reading: Red, or Orange unless A+"
+  ]
+ },
+ "lookalikes": [
+  {
+   "setup": "14-ema-crossback",
+   "tell": "Count the closes under the 20 EMA in the three weeks before. A wedge pop comes from under the averages (8 or more of 15 closes under) and is the first push back through them; a crossback is the first pullback into averages the stock already rides, within 20 sessions after a pop. One close back over the 20 EMA is a pop setting up, not a crossback.",
+   "criterion": "wp.prior_decline"
+  },
+  {
+   "setup": "29-undercut-rally",
+   "tell": "Look for the base and the averages. A U&R reclaims one prior low within 3 sessions and can fire from under the averages; a wedge pop needs 3 or more tight sessions under the 10 and 20 EMAs, a trade through their high, and a close above both averages.",
+   "criterion": "wp.pop_close"
+  },
+  {
+   "setup": "13-ma-reclaim",
+   "tell": "Measure the range before the day. A remount retakes a line lost for 5 or more closes with one wide candle and needs no tight base; a wedge pop needs the last 5 sessions' ranges under 0.85 times the 10 before and a pivot to trade through.",
+   "criterion": "wp.base_tight"
+  },
+  {
+   "setup": "20-episodic-pivot",
+   "tell": "Check the calendar. If the pop day is the first session after a report, it is an Episodic Pivot or a Power Earnings Gap and is traded by that card's gap, volume and stop rules, not as a wedge pop.",
+   "criterion": "wp.not_earnings_day"
+  }
+ ],
+ "invalidations": [
+  "Before the buy: the pop comes on volume no higher than the base days (wp.inv_no_volume).",
+  "Before the buy: the index is still making lower lows with its averages falling (wp.inv_index_falling).",
+  "Before the buy: a report within 3 sessions, wait (wp.earnings_window); the pop is itself the earnings-reaction day (wp.not_earnings_day).",
+  "Before the buy: under the 200-day (wp.above_200); a cross with no base and no pivot (wp.cross_alone).",
+  "After the pop: a close back under the pop day's low (wp.inv_pop_low).",
+  "After the pop: a close under both averages and back inside the base within 5 sessions (wp.inv_back_in_base).",
+  "After the entry: the stop is the exit, with the time stop (wp.after_entry_stop)."
+ ],
+ "mistakes": [
+  "Buying the Reversal Extension low itself, bottom fishing. Kell: trading the daily Reversal Extension is best avoided.",
+  "Calling any cross of the averages a Wedge Pop, with no tight base and no pivot.",
+  "Buying inside the wedge before the pop.",
+  "Taking a pop with no rise in volume.",
+  "Chasing a pop day far past the pivot.",
+  "Buying a pop under the 200-day.",
+  "Adding to it on the way up.",
+  "Moving the stop down when the first days are weak.",
+  "Buying a pop in the 3 sessions before a report, or the earnings-reaction day as if it were a wedge pop (MU, AMZN, CRWD).",
+  "Trading the window between the Reversal Extension and the Wedge Pop, the hardest period to trade."
+ ],
+ "short_mirror": {
+  "exists": true,
+  "setup": "16-wedge-drop",
+  "note": "Kell's Wedge Drop after an Exhaustion Extension (or, his cycle page says, sometimes after a stall without one): a tight range up into the averages, then a break down through them. Only below the 200-day (B26, D47); a first Wedge Drop at a top is almost always above it, so in our course it is usually an exit, not a short. Setup 16 has its own dossier. The Model Book's Wedge Drop text puts it after a Reversal Extension, which no Kell source read supports."
+ },
+ "best_conditions": "Within about 20 sessions after the index makes its own Reversal Extension and Wedge Pop, early in a new cycle, in a Green or Yellow market (Orange only an A+ pop; Red mostly cash). The daily test found no measurable edge for stock pops right after a QQQ pop, so the timing rests on Kell's and UCT's experience, not on our numbers.",
+ "management": {
+  "trim_1": "a third at 3R (B19)",
+  "trim_2": "a third at 5R (E51)",
+  "trail": "a close under the 10-day for a fast mover, the 21-day for a steadier one (E52); the owner trailed PL with the 9 EMA, then the 20 EMA, then the 50 SMA",
+  "breakeven": "between 2R and 5R, at the first trim by default (B19)",
+  "time_stop": "under 1R after 10 trading days, sell (C33)",
+  "gap_open": "a trim level the day opens past is taken at the open (F63)",
+  "gap_against": "the first 30-minute low is the new stop; out if past 2R (B20)",
+  "climax": "sell a big part into an Exhaustion Extension, a climax run far above the averages (C34)",
+  "overrides": "none. The dossier (8.4) finds nothing in the setup asks for its own. Not ours: Kell's adds at each new range and his staggered stops under the 10 and 20 EMA (A5, one stop); the Model Book's scale into strength and its stop under the wedge low; the pattern engine's Kell detector levels, which point the wrong way (5.2). No trade plan exists in the app yet (5.5), so Hard mode cannot show an entry and stop for it until this card is built into one."
+ },
+ "examples": {
+  "winners": 10,
+  "sheet_dir": "_study-resume/scratchpad/setups/15-wedge-pop/final",
+  "base_rate": {
+   "hits": 6518,
+   "stock_hits": 6289,
+   "r3_pct": 42.7,
+   "r5_pct": 29.2,
+   "stopped_pct": 81.8,
+   "median_stop_pct": 1.7,
+   "median_sessions_to_3r": 3,
+   "window": "60 sessions forward from the day after the pop, fixed stop 5 cents under the pop day's low, no trims, no breakeven, no trail, no time stop; 2000-01-01 to 2026-11-04 over the 2,630 names that ever met the house liquidity rule; one hit per name per 20 sessions; stops wider than 10% or narrower than 0.75% dropped; the fill at the pivot intraday, so the pop day's qualifying facts (the close, the volume) are known only after the fill"
+  },
+  "cuts": {
+   "pop_volume_1_5x_base_or_more": {
+    "hits": 2119,
+    "r3_pct": 48.0,
+    "r5_pct": 32.8,
+    "below": {
+     "r3_pct": 40.0,
+     "r5_pct": 27.4
+    }
+   },
+   "close_back_under_pivot": {
+    "hits": 1026,
+    "r3_pct": 23.1,
+    "r5_pct": 14.0,
+    "close_above_pivot": {
+     "r3_pct": 46.5,
+     "r5_pct": 32.1
+    }
+   },
+   "gap_open_1_pct_or_more": {
+    "hits": 1333,
+    "r3_pct": 46.2,
+    "r5_pct": 33.6
+   },
+   "stop_within_3_pct": {
+    "hits": 5170,
+    "r3_pct": 45.5,
+    "r5_pct": 31.5,
+    "wider": {
+     "r3_pct": 29.8,
+     "r5_pct": 18.2
+    }
+   },
+   "decline_15_pct_or_more": {
+    "hits": 3516,
+    "r3_pct": 44.9,
+    "r5_pct": 30.4,
+    "shallower": {
+     "r3_pct": 39.9,
+     "r5_pct": 27.6
+    }
+   },
+   "closes_under_20ema_12_or_more_of_15": {
+    "r3_pct": 43.1,
+    "r5_pct": 29.3,
+    "closes_8_to_11": {
+     "r3_pct": 41.8,
+     "r5_pct": 29.0
+    }
+   },
+   "base_3_to_5_sessions": {
+    "hits": 1504,
+    "r3_pct": 46.5,
+    "r5_pct": 32.4,
+    "longer": {
+     "r3_pct": 41.5,
+     "r5_pct": 28.2
+    }
+   },
+   "app_volume_1_05x_50day": {
+    "hits": 4020,
+    "r3_pct": 43.9,
+    "r5_pct": 30.3,
+    "below": {
+     "r3_pct": 40.6,
+     "r5_pct": 27.1
+    }
+   }
+  },
+  "winners_list": [
+   "CROX 2007-04-04",
+   "RCL 2009-07-15",
+   "FNV 2016-02-03",
+   "TEAM 2019-05-08",
+   "NET 2020-09-18",
+   "TGT 2021-03-19",
+   "SLB 2022-01-03",
+   "DHI 2023-11-01",
+   "SNOW 2025-04-24",
+   "STLD 2026-03-31"
+  ],
+  "failures": [
+   {
+    "ticker": "MU",
+    "date": "2022-03-29",
+    "criterion": "wp.earnings_window",
+    "why": "a pop through 81.20 on 1.8 times the 50-day volume, closing at 82.05 above both EMAs, after a 31% decline and 14 of 15 closes under the 20 EMA: a textbook picture. Micron reported that evening; the next day's low of 78.60 went through the 79.21 stop at the open. AMZN 2016-01-28 is the same story."
+   },
+   {
+    "ticker": "CRWD",
+    "date": "2021-03-17",
+    "criterion": "wp.not_earnings_day",
+    "why": "the pop was itself the earnings-reaction day on 3 times the 50-day volume, and the day's range left a stop 8.6% below the fill; stopped the next session at 47.40. An earnings-day pop is an Episodic Pivot or Power Earnings Gap, and a stop wider than about 3% is a reason for a smaller position or a pass, never a reason to tighten it to fit."
+   },
+   {
+    "ticker": "COIN",
+    "date": "2024-08-23",
+    "criterion": "wp.volume",
+    "why": "a 13-day base after a 41% decline, 15 of 15 closes under the 20 EMA, then a pop through 209.80 that closed at 211.40, but on only 1.04 times the 50-day volume and with a 4.7% stop; two sessions later the low of 194.10 took the stop. Pops with volume under 1.5 times the base and a stop wider than 3% were the scan's weakest groups; this one was both."
+   },
+   {
+    "ticker": "PLTR",
+    "date": "2025-12-10",
+    "criterion": "wp.stop",
+    "why": "A 29% decline, 10 of 15 closes under the 20 EMA, an 11-day base 147.56 to 183.88, a gap open at 184.95 on 1.86x the base days' volume, closing high in its range at 187.91. The next session's low (180.21) took the 182.70 stop. A valid pop that failed; the stop did its job."
+   },
+   {
+    "ticker": "AMZN",
+    "date": "2018-11-07",
+    "criterion": "wp.breakeven",
+    "why": "A 28% decline, 15 of 15 closes under the 20 EMA, a 5-day base 73.82 to 84.87, a pop closing at the high (87.77) on 1.19x the base days' volume. It reached 2.5R in two sessions and was stopped on day 3 (low 81.50) in the late-2018 selloff. Under the house plan the stop would have been at breakeven by then."
+   }
+  ],
+  "limits": "Relative strength against the index, the RS rating, the market reading, the trims, the time stop and the earnings blackout are not in the scan; the fill is at the pivot intraday while the pop day's qualifying facts are known only at the close, so a trader who buys the pivot as it trades also takes the pops that fade before the close, which the scan never counts (the main reason the rate is far above 4.4's close-based 20.6%); survivorship; a fixed stop. Nothing here is a published statistic.",
+  "near_misses": [
+   {
+    "ticker": "DECK",
+    "date": "2024-05-14",
+    "criterion": "wp.prior_decline",
+    "why": "7 of the 15 closes before the pop under the 20 EMA; the rule is 8 or more. A 12-day base after an 18% dip with a 1.4x pop, but only 7 of the 15 closes before it were under the 20 EMA. A pullback inside an uptrend the stock already rides: the EMA Crossback (setup 14) or a moving-average pullback, not a pop from under the averages. Best 9.2R."
+   },
+   {
+    "ticker": "TSLA",
+    "date": "2023-11-14",
+    "criterion": "wp.base_tight",
+    "why": "last 5 sessions' ranges 1.11x the 10 before; the rule is under 0.85x. A 30% decline, 14 of 15 closes under the 20 EMA, a 9-day base, but the last 5 sessions' ranges were 1.11x the 10 before them: nothing tightened. A wide, loose rebound through the averages is a remount (setup 13), not a wedge pop. Best 2.68R, stopped."
+   },
+   {
+    "ticker": "AMZN",
+    "date": "2019-01-04",
+    "criterion": "wp.above_200",
+    "why": "pop closed -7.3% against the 200-day; the rule is a close above it. A 36% decline, a 6-day base and a pop on 1.1x the base's volume, but the pop closed 7.3% under the 200-day. A bear-market rally pop under the 200-day is not ours (B26). It worked (best 7.46R) without us."
+   },
+   {
+    "ticker": "CSCO",
+    "date": "2026-07-27",
+    "criterion": "wp.volume",
+    "why": "pop volume 0.88x the base days and 0.83x the prior day; the rule is above both. An 18% decline, 12 of 15 closes under the 20 EMA, a 6-day tight base, a trade through the pivot and a close above both EMAs, but on 0.88x the base days' volume and 0.83x the prior day's. A cross of the averages with no demand (wp.inv_no_volume). Best 0.0R, stopped."
+   }
+  ],
+  "sheets": {
+   "failures": "final/fail_1-4.png",
+   "near_misses": "final/near_1-4.png",
+   "pair": "final/pair_14-ema-crossback.png"
+  }
+ },
+ "question_seeds": [
+  {
+   "kind": "recall",
+   "criterion": "wp.prior_decline",
+   "seed": "How many of the last 15 closes must sit under the 20-day EMA before a push back through the averages can be a wedge pop?"
+  },
+  {
+   "kind": "recall",
+   "criterion": "wp.averages",
+   "seed": "Which two averages must the pop day close above, and whose pair are they?"
+  },
+  {
+   "kind": "recall",
+   "criterion": "wp.stop",
+   "seed": "Where does the stop go on a wedge pop?"
+  },
+  {
+   "kind": "spot",
+   "criterion": "wp.pivot",
+   "seed": "Hidden ticker: tap the pivot, the high of the tight base this stock must trade through."
+  },
+  {
+   "kind": "spot",
+   "criterion": "wp.base_tight",
+   "seed": "Hidden ticker: which of these four bases under the averages has its ranges shrinking?"
+  },
+  {
+   "kind": "spot",
+   "criterion": "wp.above_200",
+   "seed": "Hidden ticker: is this pop above the 200-day? Take it or pass."
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "wp.prior_decline",
+   "seed": "Wedge pop or EMA crossback: the stock has closed above the 20 EMA on 13 of the last 15 days and just dipped to it. Which is it?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "wp.cross_alone",
+   "seed": "Wedge pop or a plain cross: price closed over both averages today, but the last two weeks were wide and ragged with no pivot. Which is it?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "wp.not_earnings_day",
+   "seed": "Wedge pop or episodic pivot: the push through the averages came on the morning after the report, on 3x volume, with the day's low 8% under the open. Which card?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "wp.pop_close",
+   "seed": "Wedge pop or U&R: price undercut last week's low, reclaimed it the same day and closed above the 20 EMA but under the 10 EMA. Which is it?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "wp.no_chase",
+   "seed": "The pivot is 30.24 and the stock is trading 31.70 at 11:00 after one wide bar. Buy, or wait for the tight days?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "wp.inv_pop_low",
+   "seed": "You bought the pop at 45.53. Two days later it closes at 44.60, under the pop day's low but a few cents above your stop. What now?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "wp.earnings_window",
+   "seed": "A textbook pop on 1.8x volume after a 31% decline, and the company reports tonight. Buy?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "wp.gap_up",
+   "seed": "The stock opens 3.9% above the pivot on the pop day. Buy the open, or wait for a pullback to the pivot?"
+  },
+  {
+   "kind": "grade",
+   "criterion": "wp.volume",
+   "seed": "Same base, two pop days: one on 1.2 times the base days' volume, one on 2.5 times with a gap up. Grade each."
+  },
+  {
+   "kind": "grade",
+   "criterion": "wp.stop_width",
+   "seed": "The pop day's low sits 3.6% under your fill. What grade, and what does it change: the size, or the stop?"
+  },
+  {
+   "kind": "grade",
+   "criterion": "wp.market_timing",
+   "seed": "Two pops: one three sessions after the index's own low, one in the index's fourth month of advance in a stock on its fourth base. Grade each."
+  },
+  {
+   "kind": "numeric",
+   "criterion": "wp.base_tight",
+   "seed": "The last 5 sessions averaged a 2.10 range; the 10 before averaged 3.00. What is the ratio, and is the base tight enough?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "wp.trim_1",
+   "seed": "Bought at 175.52 with the stop at 171.31. Where is 3R, and where is 5R?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "wp.stop_width",
+   "seed": "Fill 24.58, pop day's low 23.72, a few cents under it for the stop. Is the stop inside 3%, and what does the answer change?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "wp.pop_close",
+   "seed": "The pop day ran 100.00 to 106.00 and closed at 104.00. Where in its range did it close, and does it pass the top-40% line?"
+  }
+ ],
+ "owner_decisions": [
+  "D-003",
+  "D-006",
+  "D-007",
+  "D-008",
+  "D-009",
+  "D-010",
+  "D-011",
+  "D-012",
+  "D-015",
+  "D-018",
+  "D-021",
+  "D-025",
+  "D-077"
+ ],
+ "conflicts": [
+  "The averages: Kell's 10/20 EMA (S1, S2, Chart IQ) against the Model Book's 9/20, Chart IQ v2's 9/21 and Manrav's 21. The card takes Kell's pair (D-021).",
+  "The 200-day: half the app's pops and 4 of the 24 dated named pops (TSLA 2023-03-21, XRT, QQQ 2025-03-24, CRWV 2026-01-12) were under it, and Kell's March 2025 index signal came with QQQ under it. B26 is hard and the Wedge Pop is not a parabolic long; the card keeps B26 (D-009). The data mildly agree (+0.09R against +0.03R).",
+  "Relative strength: Kell wants it; only 16% of the app's pops had an RS proxy of 80 or more on the day (median 42); RS 80+ pops did best (+0.14R). The card carries the dossier's held-up-better-than-the-index measure and leaves C31's gate to D-011.",
+  "Volume: Kell's increased accumulation volume (S1) against the app's 1.05 times the 50-day; half the named pops had less than the 50-day average. The card gates on more than the prior day and the base days and grades on 1.5 times the base days (D-006). STLD worked on 1.2x.",
+  "A Reversal Extension first: Kell's COIN never formed one and his MU and CAVA pops came on pullbacks inside uptrends, which an 8-of-15 test may or may not catch. The card does not require it (D-077).",
+  "The stop: the day's low (house; Kell's CAVA) against the Model Book's wedge low and Kell's staggered stops under the 10 and 20 EMA. On MU and the index pops the averages sat at or above the day's low, so his stop was not wider. About half the pops need a stop wider than 3%; A5 handles it by cutting the size (D-008, A13).",
+  "The entry: through the pivot during the day (the card) against the close (the app's reader) and the break of the pop day's high after tight days (the owner's INCY plan, the card's fallback). The intraday scan's 42.7% counts the pop day's own run and misses the pops that fade before the close; 4.4's close-based test gave 20.6% (D-003).",
+  "Adds: Kell adds on each new range and the Model Book says scale into strength; A5 forbids it. The crossback is a separate setup (14).",
+  "Market timing: Kell and UCT put the first leaders' pops within weeks of the index's own; the daily test found no measurable edge (a first-draft +0.17R was removed in checking as not reproducible). The card keeps it as a cue with that caveat (D-018).",
+  "The app: Chart IQ fires on 5 of 24 named pops, mainly on its volume floor and 8-of-15 rule; the pattern engine's Kell detector teaches the wrong cycle, invents Kell quotes and numbers, cannot call a Wedge Pop (stage 2 is unreachable) and points its levels the wrong way; the knowledge entry sd-010 calls it a classical falling wedge; the book title Victorious Stock Operator is wrong (Victory in Stock Trading). None of that reaches this card (D-010).",
+  "Authorship: several Wedge Pop lines sit in unsigned INTRO and Index & ETF sections, and the Study glossary credits one of them to the owner; whether those sections are his is D-015. The brain file's Bracco lines are summaries, not his words, where the card says so.",
+  "Model charts: the 30 named cases in 4.5 plus Kell's CAVA 2024-04-26 are the candidates (D-007); the card's ten are the scan's, chosen by the rules and the visual review.",
+  "An earnings-day pop: Kell's AMD and MELI pops were earnings reactions; the card sends them to the EP and PEG cards (wp.not_earnings_day) from the CRWD failure. This dossier's register rows carry no D-025, so the line is marked proposed, not pending."
+ ]
+}

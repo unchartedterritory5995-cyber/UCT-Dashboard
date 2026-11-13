@@ -1,0 +1,1553 @@
+{
+ "setup": "07-launchpad",
+ "name": "Launchpad",
+ "unit": "SET.11",
+ "direction": "long",
+ "timeframe": "daily",
+ "dossier": "docs/study/setups/research/07-launchpad.md",
+ "as_of": "2026-11-09",
+ "card": {
+  "context": "A stock he would trade, out of a real correction of 15% or more, rests for five weeks or more while its 8, 21 and 50-day averages pinch within 3% of price near a flat 200-day. Price lived under and through that bundle. Green market, or turning Green.",
+  "pattern": "A long flat base under a tight bundle of averages, the 200-day within 10% of it. Most closes sat under the bundle, then a first poke above (the dangle), then the launch.",
+  "trigger": "OTHER: the launch bar, the day that closes above all four averages, up 2% or more, in the top 35% of its range, on volume. Buy at market in the last minutes. The intraday trigger over the prior day's high is the option he decides.",
+  "stop": "A few cents under the launch day's low (median 4% on his kept charts); skip if that honest stop is more than 6% away. Never under the bundle or the base low.",
+  "failure_mode": "The next session trades through the launch low and keeps falling, or the stock closes back inside the bundle and goes quiet. The launch bar looks the same on winners and losers; the stock, the base and the market carry the edge."
+ },
+ "entry_trigger": "OTHER",
+ "criteria": [
+  {
+   "id": "lp.liquidity",
+   "field": "context",
+   "statement": "Close of $10 or more and $20 million or more traded a day on average over 50 days.",
+   "measure": {
+    "what": "close",
+    "op": ">=",
+    "value": 10,
+    "unit": "$",
+    "and": "50-day average dollar volume >= 20,000,000"
+   },
+   "glossary": "liquidity",
+   "basis": "house rule",
+   "sources": [
+    "S3",
+    "S5"
+   ],
+   "house_rule": "B23",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 rule 1",
+   "evidence": "B23 sets no window; the 50-day window is the dossier's proposal (the bank finder uses 120 sessions). All 26 kept charts passed. TDOC and UMC team ideas fail it."
+  },
+  {
+   "id": "lp.position_adv",
+   "field": "management",
+   "statement": "The position is at most 1% of the stock's average daily volume.",
+   "measure": {
+    "what": "shares / average daily volume",
+    "op": "<=",
+    "value": 1,
+    "unit": "%"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "D42",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 rule 1"
+  },
+  {
+   "id": "lp.correction",
+   "field": "context",
+   "statement": "A real correction first: the lowest close of the last 60 sessions is at least 15% under the highest high of the 60 sessions before that.",
+   "measure": {
+    "what": "1 - lowest close of the last 60 sessions / highest high of sessions 61 to 120 back",
+    "op": ">=",
+    "value": 15,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "glossary": "prior_trend",
+   "basis": "my proposal",
+   "sources": [
+    "S2",
+    "S5",
+    "S25"
+   ],
+   "options": [
+    {
+     "value": 15,
+     "basis": "the house finder's calibration; cuts PEP (-13%)"
+    },
+    {
+     "value": 13,
+     "basis": "the shallowest of his kept charts (PEP)"
+    }
+   ],
+   "recommended": 15,
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 rule 2",
+   "evidence": "The idea is the owner's (after a real correction); the 15% is the finder's number, not his words. Kept charts: median -22%, from -13% to -34%; cuts median -21%. Great charts ran -20% or deeper (median -25%); okay charts median -21%. The glossary lists this setup as the reverse of prior_trend: a decline comes first."
+  },
+  {
+   "id": "lp.base_length",
+   "field": "pattern",
+   "statement": "A long base: at least 25 sessions (5 weeks) of closes within 10% of the bundle's middle.",
+   "measure": {
+    "what": "sessions whose close is within 10% of the midpoint of the 8 EMA, 21 EMA and 50 SMA",
+    "op": ">=",
+    "value": 25,
+    "unit": "sessions",
+    "timeframe": "daily"
+   },
+   "glossary": "base_length",
+   "basis": "my proposal",
+   "sources": [
+    "S25"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 rule 3",
+   "evidence": "Measured on his picks: 25 of 26 kept had 25 or more such sessions, 14 had 80 or more. WDAY, one of his great charts, had 23 and would be cut. The scan asked for 25 of the last 40 closes."
+  },
+  {
+   "id": "lp.base_span",
+   "field": "pattern",
+   "statement": "The last 30 closes span no more than 20% of price.",
+   "measure": {
+    "what": "(highest close - lowest close of the last 30 sessions) / price",
+    "op": "<=",
+    "value": 20,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "glossary": "base_depth",
+   "basis": "my proposal",
+   "sources": [
+    "S5",
+    "S25"
+   ],
+   "options": [
+    {
+     "value": 20,
+     "basis": "the dossier's proposal"
+    },
+    {
+     "value": 22,
+     "basis": "the house finder's gate"
+    }
+   ],
+   "recommended": 20,
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 rule 3",
+   "evidence": "Kept charts: the 30-day span had a median of 11% and was at most 17%. The ten examples ran 0.53% to 2.91% for the bundle width and all under the 20% span."
+  },
+  {
+   "id": "lp.under_bundle",
+   "field": "pattern",
+   "statement": "Price lived under the bundle: at least 10 of the prior 40 closes are under the lowest of the 8 EMA, 21 EMA and 50 SMA.",
+   "measure": {
+    "what": "closes under the lowest of the three averages in the prior 40 sessions",
+    "op": ">=",
+    "value": 10,
+    "unit": "closes",
+    "timeframe": "daily"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S1",
+    "S25"
+   ],
+   "status": "pending-owner",
+   "owner_question": "D-062",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 rule 4",
+   "evidence": "His MSTR, ADM, TAN, MARA, SONO and JD rulings; measured. Kept charts: 21 of 26 pass; his cuts: 7 of 15. The count of 10 is the dossier's proposal. This, not the bundle's width, is what separates his kept charts from his cuts. D-062 asks whether under the bundle, then a first poke above, then the launch is the order he wants taught."
+  },
+  {
+   "id": "lp.not_above_bundle",
+   "field": "pattern",
+   "statement": "Fewer than 20 of the prior 40 closes are above the highest of the three averages.",
+   "measure": {
+    "what": "closes above the highest of the three averages in the prior 40 sessions",
+    "op": "<",
+    "value": 20,
+    "unit": "closes",
+    "timeframe": "daily"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S1",
+    "S25"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 rule 4",
+   "evidence": "His GOOGL cut (price rode on top of the bundle in an uptrend). Kept: 22 of 26 pass; cuts: 6 of 15. F (his B-) had 19 of 40 sessions above and 2 below."
+  },
+  {
+   "id": "lp.poke_above",
+   "field": "pattern",
+   "statement": "The dangle: a first close above all four averages inside the 10 sessions before the launch, then a retest. A cue, not a rule.",
+   "measure": {
+    "what": "closes above all four averages in the 10 sessions before the launch day",
+    "op": ">=",
+    "value": 1,
+    "unit": "closes",
+    "timeframe": "daily"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S1",
+    "S12",
+    "S25"
+   ],
+   "status": "pending-owner",
+   "owner_question": "D-062",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1 rule 4; 10 question 4",
+   "evidence": "His words: I like when they dangle and retest the launchpad a bit (ADBE); I want the dangle above the launchpad for a bit (CAT). In 18 of 26 kept charts the stock had closed above all four averages at least once in the 10 sessions before the marked launch, so the first bar that closes above every average is not literally what he picked. TraderLion's Launch Pad (3.7) is this retest."
+  },
+  {
+   "id": "lp.bundle_tight",
+   "field": "pattern",
+   "statement": "The bundle is tight: the 8 EMA, 21 EMA and 50 SMA lie within 3% of price of each other on the day before the launch.",
+   "measure": {
+    "what": "(highest - lowest of the three averages) / price, the day before the launch",
+    "op": "<=",
+    "value": 3,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "glossary": "tight",
+   "basis": "my proposal",
+   "sources": [
+    "S13",
+    "S16",
+    "S18",
+    "S25"
+   ],
+   "options": [
+    {
+     "value": 3,
+     "basis": "the dossier's proposal; all kept charts at or under 2.9%"
+    },
+    {
+     "value": "1 ATR",
+     "basis": "the team playbook row; his widest kept was 1.4 ATR"
+    }
+   ],
+   "recommended": 3,
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 rule 5",
+   "evidence": "Measured: kept median 1.7% (about 0.6 ATR), range 0.3% to 2.9%. Width does not separate kept from cut (both median 1.7%). Deepvue's 1 to 3% and StratLab's 1 to 3% measure other things and both trace to the TraderLion circle, so this is not a consensus. Haber sets no number (tight relative to itself). The glossary lists this as an override: tightness of the averages, not of price."
+  },
+  {
+   "id": "lp.which_averages",
+   "field": "pattern",
+   "statement": "The bundle is the 8 EMA, 21 EMA and 50 SMA, with the 200 SMA as the fourth average the launch must clear.",
+   "measure": {
+    "what": "the averages in the bundle",
+    "op": "==",
+    "value": "8 EMA, 21 EMA, 50 SMA; the 200 SMA as the fourth"
+   },
+   "glossary": "fast_averages",
+   "basis": "UCT",
+   "sources": [
+    "S1",
+    "S5",
+    "S6",
+    "S7",
+    "S12",
+    "S13"
+   ],
+   "options": [
+    {
+     "value": "A",
+     "basis": "8 EMA, 21 EMA, 50 SMA + 200 SMA: the bank lesson, the scanners, Manrav"
+    },
+    {
+     "value": "B",
+     "basis": "9 EMA, 20 EMA, 50 SMA + 200 SMA: his MSTR words, the Model Book glyph, his hourly pads"
+    },
+    {
+     "value": "C",
+     "basis": "8/21/30/50: the Model Book playbook"
+    },
+    {
+     "value": "D",
+     "basis": "10, 21, 50 and 200 SMA: Haber and TraderLion 2024 (originators)"
+    }
+   ],
+   "recommended": "A",
+   "status": "pending-owner",
+   "owner_question": "D-021",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 preamble; 10 question 5",
+   "evidence": "The numbers barely change between A and B; one set should be taught. D-021's default is the 9 and 20 EMA everywhere with a one-line note where an originator uses other lines. The 50-day is the only average every source shares."
+  },
+  {
+   "id": "lp.near_200",
+   "field": "context",
+   "statement": "The 200-day is close: within 10% of the bundle's middle on the day before the launch. Better: at or just under the bundle.",
+   "measure": {
+    "what": "|200-day SMA - midpoint of the bundle| / price, the day before the launch",
+    "op": "<=",
+    "value": 10,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S1",
+    "S7",
+    "S8",
+    "S25"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 rule 6",
+   "evidence": "His at or near the 200-day; Manrav prefers pads close to the 200 (KB 12198). Measured: 24 of 26 kept pass on the day before (RYTM 11%, IBKR 16% further). The 10% is the dossier's proposal. His RDDT note: a 200-day still curling lower made it a wait."
+  },
+  {
+   "id": "lp.launch_above_all",
+   "field": "trigger",
+   "statement": "The launch bar closes above all four averages: the 8, 21, 50 and the 200. A close inside the bundle or under the 200-day is not the launch.",
+   "measure": {
+    "what": "close against the highest of the 8 EMA, 21 EMA, 50 SMA and 200 SMA",
+    "op": ">",
+    "value": "the highest of the four averages",
+    "timeframe": "daily"
+   },
+   "glossary": "above_200",
+   "basis": "house rule",
+   "sources": [
+    "S1",
+    "S3"
+   ],
+   "house_rule": "B26",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 rule 7",
+   "evidence": "His WSM ruling (Nah, I want it above: WSM cleared the bundle but not the 200) and ADSK (closed inside the bundle). Three kept charts from passes 2 and 3 (F, RYTM, IBKR) closed under the 200 on our bars; whether they stay as exceptions or are recut is D-009. v4 and the bank finder do not require the 200; B26 does."
+  },
+  {
+   "id": "lp.launch_gain",
+   "field": "trigger",
+   "statement": "The launch bar is a real push: up 2% or more on the day.",
+   "measure": {
+    "what": "close / prior close - 1",
+    "op": ">=",
+    "value": 2,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S5",
+    "S25"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 rule 8",
+   "evidence": "The house finder's gate. Kept charts: median +5.2%, range +2.4% to +9.9%. AIZ (example 4) launched on exactly +2.0%, the floor."
+  },
+  {
+   "id": "lp.launch_close",
+   "field": "trigger",
+   "statement": "The launch bar closes in the top 35% of its range (0.65 of the range or higher).",
+   "measure": {
+    "what": "(close - low) / (high - low)",
+    "op": ">=",
+    "value": 0.65,
+    "timeframe": "daily"
+   },
+   "glossary": "close_position",
+   "basis": "my proposal",
+   "sources": [
+    "S5",
+    "S25"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 rule 8",
+   "evidence": "The finder's gate; the glossary lists 0.65 as this setup's own floor. Kept median 0.95 of the range. ALLE, a kept chart, closed at exactly 0.65; a top-third rule would cut it. Great charts closed near the high."
+  },
+  {
+   "id": "lp.launch_volume",
+   "field": "trigger",
+   "statement": "Launch-bar volume above its 50-day average: 1.2 times or more.",
+   "measure": {
+    "what": "launch-day volume / 50-day average volume",
+    "op": ">=",
+    "value": 1.2,
+    "unit": "x",
+    "timeframe": "daily"
+   },
+   "glossary": "volume_surge",
+   "basis": "my proposal",
+   "sources": [
+    "S5",
+    "S7",
+    "S12",
+    "S25"
+   ],
+   "options": [
+    {
+     "value": 1.2,
+     "basis": "the house finder's gate; TraderLion 2024 wants volume increasing through the averages"
+    },
+    {
+     "value": "cue",
+     "basis": "D-006's default: volume is a grading cue, not a gate; TEAM (a great) launched on 0.76x"
+    },
+    {
+     "value": 2,
+     "basis": "the brain template's 2x; only 11 of 26 kept had it"
+    }
+   ],
+   "recommended": 1.2,
+   "status": "pending-owner",
+   "owner_question": "D-006",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 rule 8; 10 question 10",
+   "evidence": "Kept charts: median 1.8x, 8 of 26 under 1.5x, TEAM 0.76x. Great charts median 2.1x, okay 1.6x. Scan: a 2x launch bar was no protection (the four named failures all had 2x or more). CME (example 2) was 1.19x, a hair under."
+  },
+  {
+   "id": "lp.launch_volume_2x",
+   "field": "trigger",
+   "statement": "Volume of 2 times the 50-day average or more is the A+ version of the launch bar, not a rule.",
+   "measure": {
+    "what": "launch-day volume / 50-day average volume",
+    "op": ">=",
+    "value": 2,
+    "unit": "x",
+    "timeframe": "daily"
+   },
+   "glossary": "volume_surge",
+   "basis": "UCT",
+   "sources": [
+    "S7",
+    "S25"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1 rule 8; 9 The launch bar row",
+   "evidence": "11 of 26 kept launches had 2x or more. Section 12: the scan's failures BA (2.55x), CMCSA (2.17x), NEE (2.36x) and TEAM 2021 (2.13x) all had it, so it is a cue only."
+  },
+  {
+   "id": "lp.not_gap",
+   "field": "trigger",
+   "statement": "Not a gap or news bar: the launch opens no more than 6% above the prior close and is not a one-off macro or news day. A bigger gap is a different setup (Kicker, earnings gap).",
+   "measure": {
+    "what": "open / prior close - 1",
+    "op": "<=",
+    "value": 6,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "glossary": "gap",
+   "basis": "my proposal",
+   "sources": [
+    "S1",
+    "S5"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 rule 9",
+   "evidence": "From the log's notes on his ARKK cut (an election-day gap) and INTC cut (a news bar); the 6% is the finder's gate. No kept chart gapped more than 3.1%. The glossary lists the 6% as this setup's gap ceiling."
+  },
+  {
+   "id": "lp.stack_forms",
+   "field": "pattern",
+   "statement": "The stack forms as it launches: 8 above 21 above 50 on the launch day or within the next 3 sessions. Not required beforehand.",
+   "measure": {
+    "what": "sessions after the launch day by which 8 EMA > 21 EMA > 50 SMA holds",
+    "op": "<=",
+    "value": 3,
+    "unit": "sessions",
+    "timeframe": "daily"
+   },
+   "glossary": "ma_stack",
+   "basis": "UCT",
+   "sources": [
+    "S2",
+    "S25"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1 rule 10",
+   "evidence": "The recorded action of his 2026-10-23 ruling: the full stack is not required. 22 of 26 kept were stacked on the day; RMD and BABA (examples 3 and 10) stacked within 3 sessions. The 3 sessions is the dossier's proposal. Scan: the 967 hits already stacked on the launch day reached 3R 23.9% of the time against 26.6% overall, so the stack on the day adds nothing. Not a gate because it cannot be known at the buy."
+  },
+  {
+   "id": "lp.earnings_window",
+   "field": "trigger",
+   "statement": "No new buy in the 3 days before an earnings report.",
+   "measure": {
+    "what": "sessions until the next report",
+    "op": ">",
+    "value": 3,
+    "unit": "sessions"
+   },
+   "glossary": "earnings_blackout",
+   "basis": "house rule",
+   "sources": [
+    "S3",
+    "S7"
+   ],
+   "house_rule": "B22",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 rule 11",
+   "evidence": "B22 does not say trading or calendar days; the glossary reads it as sessions. Manrav skipped AMGN and QUBT for earnings. The scan dropped 447 of 2,864 hits with a reaction day on the launch day or the next 3 sessions."
+  },
+  {
+   "id": "lp.leadership",
+   "field": "context",
+   "statement": "RS rating 80 or more, in one of the strongest groups, if C31 applies to a stock just out of a correction.",
+   "measure": {
+    "what": "RS rating",
+    "op": ">=",
+    "value": 80,
+    "unit": "rating 1 to 99"
+   },
+   "glossary": "leader",
+   "basis": "house rule",
+   "sources": [
+    "S3",
+    "S7",
+    "S13"
+   ],
+   "house_rule": "C31",
+   "status": "pending-owner",
+   "owner_question": "D-011",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 rule 12; 10 question 7",
+   "evidence": "Possible conflict: a stock just out of a 20% to 35% correction often has a middling RS; Manrav's QUBT launchpad showed RS 31. Not measured (the app's ratings go back one year). D-011's default keeps C31 as written for the Launchpad, a continuation setup. Haber's group test for comparison: four or more of a group's top ten RS names forming pads."
+  },
+  {
+   "id": "lp.tradeable_name",
+   "field": "context",
+   "statement": "A stock he would trade: a leader or a stock in a strong group, not a slow bank. Growing sales and earnings preferred; the chart comes first.",
+   "basis": "house rule",
+   "sources": [
+    "S1",
+    "S3",
+    "S13"
+   ],
+   "house_rule": "D40",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1 rule 12",
+   "evidence": "His FITB ruling: it is good but I would not trade it probably, it is a lame regional bank. His TTC (ugly chart) and Z (do not like the look). Section 12: BA 2021 and CMCSA 2017 passed every measurable line and failed; this line is the one that would have kept a learner out."
+  },
+  {
+   "id": "lp.not_breakout_bar",
+   "field": "pattern",
+   "statement": "The launch is the convergence and the dangle, not a breakout bar. The trigger bar may still be inside the base; a 20-day breakout is not required.",
+   "measure": {
+    "what": "a close above the 20-day high required on the launch day",
+    "op": "==",
+    "value": false
+   },
+   "basis": "UCT",
+   "sources": [
+    "S1",
+    "S2"
+   ],
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "3.1; 8.5",
+   "evidence": "The pass-2 record on his Perfect WDAY: the trigger bar is still inside the base, so the Launchpad is the convergence and the dangle, not a breakout bar. His cuts for the opposite: TAN (more of a VCP or flat base breakout), MARA, SONO, JD, MGNI (more of a breakout)."
+  },
+  {
+   "id": "lp.trigger",
+   "field": "trigger",
+   "statement": "The buy: a market order in the last minutes of the launch day, once the day already meets the launch tests (above all four averages, up 2% or more, in the top 35% of its range, volume above average).",
+   "measure": {
+    "what": "fill time",
+    "op": "==",
+    "value": "the launch-day close, once lp.launch_above_all, lp.launch_gain, lp.launch_close and lp.launch_volume hold"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S2",
+    "S4",
+    "S25"
+   ],
+   "options": [
+    {
+     "value": "A",
+     "basis": "the launch-day close: the bank lesson's event; best in the fair test"
+    },
+    {
+     "value": "B",
+     "basis": "intraday, over the higher of the prior day's high and the top of all four averages, sold at the close if the day fails: his Kicker ruling and his TWLO trade; best on his kept charts, many false starts"
+    },
+    {
+     "value": "C",
+     "basis": "the next day over the launch-day high: lowest of the three"
+    },
+    {
+     "value": "D",
+     "basis": "inside the pad before the launch: Manrav, the team row; an anticipation buy"
+    },
+    {
+     "value": "E",
+     "basis": "the retest of the averages or the next small consolidation: TraderLion's Launch Pad, Haber's consolidation pivot; not measured"
+    }
+   ],
+   "recommended": "A",
+   "status": "pending-owner",
+   "owner_question": "D-003",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2; 10 question 1",
+   "evidence": "Fair test on 3,071 finder launches with the house plan: close +0.05R a trade, next day +0.04R, intraday held +0.43R but the intraday trigger had to take 26,398 armed days (7.6 false starts per launch) and lost 804R in total against +167R for the close. On his 26 kept charts the intraday trigger made +4.38R a trade against +2.27R at the close. D-003's default: the close is the entry only where the setup is defined by its close (Slingshot, Launchpad)."
+  },
+  {
+   "id": "lp.trigger_intraday_option",
+   "field": "trigger",
+   "statement": "Option B, one entry style for every setup: a market order the moment price trades over the higher of the prior day's high and the top of all four averages; stop a few cents under the prior day's low; sell at the close if the day does not close as a launch.",
+   "measure": {
+    "what": "intraday high",
+    "op": ">",
+    "value": "max(prior day's high, highest of the four averages)",
+    "timeframe": "daily",
+    "note": "sold at the close if the day closes back inside the bundle, under the 200-day, or up less than 2%"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S1",
+    "S8",
+    "S25"
+   ],
+   "status": "pending-owner",
+   "owner_question": "D-003",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.2 Option for the owner",
+   "evidence": "Built on his Kicker ruling (OVER previous day high not at mkt close) and his own TWLO trade as TSDR (into TWLO on Monday over Friday's high). Its stop fits A13 better (median 3.4%; 7 of 22 within 3%) and none was over 10% above its 10-day at the entry. It suits a trader who only arms his best bases."
+  },
+  {
+   "id": "lp.no_chase",
+   "field": "trigger",
+   "statement": "No buy more than 4% above the buy point. The buy point is the launch close (or the trigger level for the intraday entry), not the top of the averages.",
+   "measure": {
+    "what": "fill / launch close - 1",
+    "op": "<=",
+    "value": 4,
+    "unit": "%"
+   },
+   "glossary": "chase_limit",
+   "basis": "house rule",
+   "sources": [
+    "S3",
+    "S25"
+   ],
+   "house_rule": "C28",
+   "status": "pending-owner",
+   "owner_question": "D-022",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 Not recommended; 10 question 13",
+   "evidence": "If the buy point were the top of the averages (the 200 included), 15 of 26 kept launches closed more than 4% above it and C28 would cut most of his picks. D-022's default: the buy point is the trigger level, never the structure's far edge. The scan recorded the close's distance over the top of the averages."
+  },
+  {
+   "id": "lp.not_stretched",
+   "field": "trigger",
+   "statement": "A launch that closes more than 10% over its 10-day average is skipped.",
+   "measure": {
+    "what": "launch close / 10-day SMA - 1",
+    "op": "<=",
+    "value": 10,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "glossary": "stretched",
+   "basis": "house rule",
+   "sources": [
+    "S3",
+    "S25"
+   ],
+   "house_rule": "C29",
+   "status": "pending-owner",
+   "owner_question": "D-017",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 No chase; 10 question 8",
+   "evidence": "Conflict on the model chart: MSTR closed 10.2% over its 10-day EMA, 11.8% over the 10-day SMA counting the launch day, 13.1% over the prior 10 days' SMA. NOW, DDOG, CELH and ODFL were over 10% on at least one reading. D-017's default: the 10-day SMA, the entry day not in it. The scan skipped closes more than 10% over the 10-day SMA; ILMN (example 7) was 8.6% over."
+  },
+  {
+   "id": "lp.stop",
+   "field": "stop",
+   "statement": "A few cents under the launch day's low for the close entry; under the prior day's low for the intraday entry, known before the open.",
+   "measure": {
+    "what": "stop",
+    "op": "==",
+    "value": "a few cents under the launch day's low (close entry) or the prior day's low (intraday entry)"
+   },
+   "glossary": "stop_margin",
+   "basis": "house rule",
+   "sources": [
+    "S3",
+    "S7",
+    "S8"
+   ],
+   "house_rule": "A3",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.3",
+   "evidence": "A3 and F62. The team row's low of day; his TSLA note (clear risk against Friday's low or the 200SMA). Kept charts: median 4.0% from the close, 3.4% from the intraday trigger. The scan used 5 cents under the launch-day low; the ten examples' stops ran 2.1% to 4.1%."
+  },
+  {
+   "id": "lp.stop_cap",
+   "field": "stop",
+   "statement": "A cap for this setup: skip the trade if the honest stop is more than 6% under the entry. A wider honest stop means a smaller position, never a tighter stop.",
+   "measure": {
+    "what": "(entry - stop) / entry",
+    "op": "<=",
+    "value": 6,
+    "unit": "%"
+   },
+   "glossary": "stop_width",
+   "basis": "my proposal",
+   "sources": [
+    "S12",
+    "S13",
+    "S25"
+   ],
+   "options": [
+    {
+     "value": "A",
+     "basis": "accept 3.5% to 6% for this setup and let the size shrink (A5)"
+    },
+    {
+     "value": "B",
+     "basis": "skip any launch whose honest stop is over a cap: 6% (the dossier) or the originators' 3% (Haber: if the distance is more than 3%, the entry isn't there yet)"
+    },
+    {
+     "value": "C",
+     "basis": "prefer entry B, whose stop under the prior-day low is tighter when the trigger fills early"
+    },
+    {
+     "value": "D",
+     "basis": "prefer entry E, the retest, which is how the originators reach 3%"
+    }
+   ],
+   "recommended": "B",
+   "status": "pending-owner",
+   "owner_question": "D-005",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.3; 10 question 2",
+   "evidence": "A13's about 3% is never met at the close: 0 of 26 kept charts within 3% (the tightest, BIDU, 3.00%); median 4.0%; 7 of 26 over 6% (MSTR 8.5%, LYFT 9.9%). The 6% cap skips 7 of 26 at the close but only 1 of 22 with the intraday entry. D-005's default for all setups: up to one ADR, size down and grade one notch lower; past one ADR, skip. The scan skipped stops over 6%."
+  },
+  {
+   "id": "lp.stop_not_bundle",
+   "field": "stop",
+   "statement": "Not the scanner's stop under the bundle, and not the base low. Both sit far outside the 3% habit.",
+   "measure": {
+    "what": "stop placed under the bundle or at the base low",
+    "op": "==",
+    "value": false
+   },
+   "basis": "house rule",
+   "sources": [
+    "S4",
+    "S5"
+   ],
+   "house_rule": "A13",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.3 Not recommended",
+   "evidence": "The scanner's stop (0.25 ATR under the lower of the 21 and 50) sat a median 8.0% under the launch close on his kept charts; the 20-day base low a median 13.3%. The house replay (evidence.md) found both reach 2R and 3R less often."
+  },
+  {
+   "id": "lp.stop_broker",
+   "field": "stop",
+   "statement": "A real stop order with the broker. It only moves up.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "D41",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.3",
+   "evidence": "A4: the stop only moves up, never down or wider."
+  },
+  {
+   "id": "lp.stop_gap",
+   "field": "stop",
+   "statement": "A gap through the stop: the first 30-minute low is the new stop; out if that is past 2R.",
+   "measure": {
+    "what": "loss at the first 30-minute low of the gap-down day",
+    "op": "<=",
+    "value": 2,
+    "unit": "R",
+    "timeframe": "30-minute"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B20",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.3",
+   "evidence": "The daily replays exit at the open on a gap under the stop because the 30-minute bar cannot be seen."
+  },
+  {
+   "id": "lp.breakeven",
+   "field": "management",
+   "statement": "Stop to the entry once 2R has traded (B19 says 2R to 5R; 2R is the low end).",
+   "measure": {
+    "what": "R at which the stop moves to the entry",
+    "op": "in",
+    "value": [
+     2,
+     5
+    ],
+    "unit": "R"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B19",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4"
+  },
+  {
+   "id": "lp.trim_1",
+   "field": "management",
+   "statement": "Sell a third at 3R.",
+   "measure": {
+    "what": "fraction sold at 3R",
+    "op": "==",
+    "value": 0.333,
+    "unit": "of the position"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B19",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4",
+   "evidence": "Among the ten examples 3R came in 3 to 33 sessions (median about 11)."
+  },
+  {
+   "id": "lp.trim_2",
+   "field": "management",
+   "statement": "Sell a third at 5R.",
+   "measure": {
+    "what": "fraction sold at 5R",
+    "op": "==",
+    "value": 0.333,
+    "unit": "of the position"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "E51",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4",
+   "evidence": "All ten examples reached 5R before the fixed stop."
+  },
+  {
+   "id": "lp.trim_gap_open",
+   "field": "management",
+   "statement": "If it opens above a trim level, take that trim at the open.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "F63",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4"
+  },
+  {
+   "id": "lp.trail",
+   "field": "management",
+   "statement": "Trail the last third on a close under the 21-day EMA, the steadier trail. Use the 10-day only if the stock is a fast mover.",
+   "measure": {
+    "what": "close against the 21-day EMA (default) or the 10-day average (fast mover)",
+    "op": "<",
+    "value": "the average",
+    "timeframe": "daily"
+   },
+   "glossary": "trail",
+   "basis": "house rule",
+   "sources": [
+    "S3",
+    "S4",
+    "S7"
+   ],
+   "house_rule": "E52",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4",
+   "evidence": "Launchpads come out of long bases and tend to trend along the 21-day: Manrav's RBLX note rides 8 and 21 EMAs; the app's trade plan trails the 21-day. The glossary lists this as the 21 default. DDOG (example 9) dangled along the 21 EMA for four weeks before its run."
+  },
+  {
+   "id": "lp.time_stop",
+   "field": "management",
+   "statement": "Time stop: still under 1R after 10 trading days, sell. A pad that does not expand is a quiet failure.",
+   "measure": {
+    "what": "open R after 10 trading days",
+    "op": "<",
+    "value": 1,
+    "unit": "R"
+   },
+   "glossary": "time_stop",
+   "basis": "house rule",
+   "sources": [
+    "S3",
+    "S5"
+   ],
+   "house_rule": "C33",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4",
+   "evidence": "DDOG (example 9) took 33 sessions to 3R but was over 1R inside 10 days, so C33 would not have fired. The scanner's own narrative calls a pad that does not expand a quiet failure."
+  },
+  {
+   "id": "lp.climax",
+   "field": "management",
+   "statement": "A climax run (Bracco's parabolic burst): sell a big part into it.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "C34",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4"
+  },
+  {
+   "id": "lp.inv_bundle_spreads",
+   "field": "invalidation",
+   "statement": "Before the entry: the bundle spreads wider than 3% again, or price closes back under the 200-day after a pop. Off the list.",
+   "measure": {
+    "what": "(highest - lowest of the three averages) / price",
+    "op": ">",
+    "value": 3,
+    "unit": "%",
+    "timeframe": "daily",
+    "or": "a close back under the 200-day SMA after a poke above"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S1"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5 Before the entry",
+   "evidence": "His WSM ruling for the 200; the 3% number is the dossier's."
+  },
+  {
+   "id": "lp.inv_v_rally",
+   "field": "invalidation",
+   "statement": "Price rallies up into the bundle in a V from far below and breaks out. That is a breakout, not a launchpad.",
+   "measure": {
+    "what": "closes under the lowest of the three averages in the prior 40 sessions",
+    "op": "<",
+    "value": 10,
+    "unit": "closes",
+    "timeframe": "daily",
+    "note": "the measurable form of a V rally: price did not live under the bundle"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S1"
+   ],
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5 Before the entry; 8.8 mistake 2",
+   "evidence": "His cuts: TAN (more of a VCP or flat base breakout), MARA (more of a breakout vs a launchpad), SONO, JD (more of a sudden breakout), MGNI."
+  },
+  {
+   "id": "lp.inv_pullback_breakout",
+   "field": "invalidation",
+   "statement": "Price is riding on top of the bundle in an uptrend: a pullback breakout, not a launchpad.",
+   "measure": {
+    "what": "closes above the highest of the three averages in the prior 40 sessions",
+    "op": ">=",
+    "value": 20,
+    "unit": "closes",
+    "timeframe": "daily"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S1",
+    "S25"
+   ],
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5 Before the entry; 8.8 mistake 1",
+   "evidence": "His GOOGL cut (Nah I think I want them to look more like MSTR than this). Measured: only 4 of 26 kept had 20 or more closes above the bundle; 9 of 15 cuts did."
+  },
+  {
+   "id": "lp.intraday_fail_close",
+   "field": "invalidation",
+   "statement": "After an intraday entry (option B): if the day closes back inside the bundle, under the 200-day, or up less than 2%, sell at the close.",
+   "measure": {
+    "what": "the entry day's close",
+    "op": "<",
+    "value": "the highest of the four averages, or the prior close plus 2%",
+    "timeframe": "daily"
+   },
+   "basis": "my proposal",
+   "sources": [],
+   "status": "pending-owner",
+   "owner_question": "D-003",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.5 After the entry",
+   "evidence": "In the fair test the trigger fired about 7.6 times for every real launch; selling the false starts at the close cost little each (median -0.06R) but added up. Only applies if he chooses entry B."
+  },
+  {
+   "id": "lp.close_under_bundle",
+   "field": "invalidation",
+   "statement": "After the entry, a close back under the bundle that is not reclaimed the next day is the team row's invalidation. With the stop under the launch or prior-day low it usually coincides with the stop; the stop decides.",
+   "basis": "UCT",
+   "sources": [
+    "S7"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.5 After the entry",
+   "evidence": "The team playbook row (KB 15867): A close below the 21 EMA/50 SMA cluster. A quick break and reclaim is a fake-out, not a failure."
+  },
+  {
+   "id": "lp.close_back_under_200",
+   "field": "invalidation",
+   "statement": "After the entry, a close back under the 200-day is not an exit; the stop is. The stop only moves up.",
+   "measure": {
+    "what": "a close under the 200-day SMA after the entry treated as an exit",
+    "op": "==",
+    "value": false,
+    "timeframe": "daily"
+   },
+   "basis": "house rule",
+   "sources": [
+    "S3"
+   ],
+   "house_rule": "A4",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5 After the entry; 10 question 14",
+   "evidence": "D-136 (settled): A4, and his words on 2026-11-09, my stop is my stop most of the time. B26 governs new longs, not open ones."
+  },
+  {
+   "id": "lp.market_reading",
+   "field": "context",
+   "statement": "Green market: full risk. Yellow: smaller and fewer. Orange: A+ launchpads only. Red: the long version is off; the bearish mirror is the trade.",
+   "glossary": "market_reading",
+   "basis": "house rule",
+   "sources": [
+    "S3",
+    "S4"
+   ],
+   "house_rule": "F65",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.7",
+   "evidence": "Honest note: in the house atlas the finder's worked rate was the same with SPY in an uptrend, a downtrend or mixed (24%, 24%, 25%). The market filter is a house rule, not something this setup's numbers prove. Launchpads cluster at the end of corrections, when the reading may still be Yellow or Orange."
+  },
+  {
+   "id": "lp.leaders_basing",
+   "field": "context",
+   "statement": "A cue, not a rule: best when the reading is turning Green after a correction and leaders are basing. Start with a few positions and add more only as the first ones work.",
+   "basis": "house rule",
+   "sources": [
+    "S3",
+    "S7"
+   ],
+   "house_rule": "F68",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.7",
+   "evidence": "The brain's summary of Manrav: he buys launch pads and looks for relative strength during corrections (KB 12875). Bracco loves early launchpads, the first one in a base (KB 12021)."
+  },
+  {
+   "id": "lp.first_pad",
+   "field": "context",
+   "statement": "The first launchpad after the bottom grades higher than a late, repeated one.",
+   "basis": "UCT",
+   "sources": [
+    "S7",
+    "S13"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "9 First pad in the base row",
+   "evidence": "Bracco (KB 12021, summary). Haber (originator, 3.8): a launchpad forming on an early-stage base at the start of a new uptrend carries far more weight than one forming after the stock has already doubled; the ones to be careful of form late in a stock's cycle."
+  },
+  {
+   "id": "lp.stock_can_move",
+   "field": "context",
+   "statement": "A stock that can move: his great charts had a higher normal range (median ATR 3.5% of price) than his okay charts (2.7%). Slow, heavy names grade down; wide, loose stocks with huge ranges are a trap.",
+   "measure": {
+    "what": "14-day ATR as a percent of price",
+    "op": ">=",
+    "value": "about 3 on his great charts; 2.6 to 2.7 on good and okay",
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S1",
+    "S13",
+    "S25"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "9 A stock that can move row",
+   "evidence": "His MSTR words: a stock that can move really nicely. Measured by his grade: great median 3.5%, good 2.6%, okay 2.7%. Haber warns the other way about the extreme: wide, loose stocks with huge average daily ranges are often a trap. No threshold is proposed."
+  },
+  {
+   "id": "lp.weekly_cue",
+   "field": "context",
+   "statement": "Daily and weekly launchpads together are the A+ version. The course is daily only; the weekly is a grade cue and context, not a second definition.",
+   "basis": "UCT",
+   "sources": [
+    "S7",
+    "S8"
+   ],
+   "status": "pending-owner",
+   "owner_question": "D-012",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "9 Timeframes row; 10 question 9",
+   "evidence": "The team row (KB 15867); Manrav's TDOC (a launch pad on daily and weekly); his own TWLO weekly launchpad and ZM and ENPH hourly pads. D-012's default: one daily definition per setup, the weekly a grade cue, the hourly as entry timing."
+  },
+  {
+   "id": "lp.confluence",
+   "field": "context",
+   "statement": "Another UCT setup on the launch day (an Oops, an inside day) is an A+ cue.",
+   "basis": "UCT",
+   "sources": [
+    "S1"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "9 Confluence row",
+   "evidence": "His TEAM verdict: Beautiful. Also an oops when it triggers that day (line 73)."
+  },
+  {
+   "id": "lp.name_split",
+   "field": "trigger",
+   "statement": "The launch bar is the Launchpad trigger (his naming). TraderLion's split (the Power of 3 reclaim bar, then the Launch Pad retest) is taught as a note; the retest is the second-chance entry, not the main one.",
+   "measure": {
+    "what": "the bar named as the trigger",
+    "op": "==",
+    "value": "the first close above all four averages (the launch bar), not the retest after it"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S2",
+    "S12"
+   ],
+   "status": "pending-owner",
+   "owner_question": "D-002",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "3.7; 10 question 15",
+   "evidence": "Rai 2024 (originator circle): the Power of 3 occurs when a stock goes from trading below its 10, 21 and 50-day SMAs to trading above in a single session; the Launch Pad is the retest where the averages that were resistance become support. D-002's row for 07:15 keeps his naming."
+  }
+ ],
+ "grading": {
+  "a_plus": [
+   "lp.correction: a deep correction first, -20% or deeper (his great charts median -25%)",
+   "lp.under_bundle: under and through the bundle for weeks, then a dangle and retest (lp.poke_above)",
+   "lp.stock_can_move: a stock that can move, ATR about 3.5% of price, in a leading group with growing sales and earnings (lp.tradeable_name)",
+   "lp.launch_close: a strong close near the high; lp.launch_volume_2x: volume about 2x (great median 2.1x)",
+   "lp.near_200: the 200-day at or just under the bundle; the launch clears all four (lp.launch_above_all)",
+   "lp.weekly_cue: daily and weekly launchpads together",
+   "lp.first_pad: the first launchpad after the bottom",
+   "lp.confluence: another UCT setup on the launch day (TEAM's Oops)",
+   "lp.stop_cap: the honest stop within about 3% to 4%",
+   "lp.market_reading: Green, leaders basing as the market turns (lp.leaders_basing); in Orange only if everything else grades A+ (F65)"
+  ],
+  "b_minus": [
+   "lp.correction: a shallow fall, about -15% (okay median -21%)",
+   "lp.not_above_bundle: above the bundle most of the time (F: 19 of 40 sessions above, 2 below; his B-)",
+   "lp.stock_can_move: a slow, heavy name (FITB: a lame regional bank; MGM C-)",
+   "lp.launch_volume: weaker volume (okay median 1.6x)",
+   "lp.near_200: the 200 well away from the bundle, or the launch still under it (a cut)",
+   "lp.weekly_cue: daily only",
+   "lp.first_pad: a late, repeated pad after the stock has already run",
+   "lp.stop_cap: the stop near 6%, size cut to fit",
+   "lp.market_reading: Yellow (smaller and fewer)"
+  ],
+  "no_trade": [
+   "lp.launch_above_all: the pop closes inside the bundle or under the 200-day (ADSK, WSM; B26)",
+   "lp.inv_v_rally: a V rally up into the bundle (a breakout, not a launchpad)",
+   "lp.inv_pullback_breakout: price rode on top of the bundle the whole time (GOOGL)",
+   "lp.bundle_tight: the averages are not tight (Manrav: I won't call that a launch pad, the EMA's are not tight)",
+   "lp.not_gap: a news bar or a gap over 6% as the trigger (INTC, ARKK)",
+   "lp.earnings_window: a report within 3 days",
+   "lp.no_chase: more than 4% past the launch close; lp.not_stretched: more than 10% over the 10-day",
+   "lp.stop_cap: the honest stop over 6%, or any stop under the bundle or the base low",
+   "lp.liquidity: under $10 or under $20 million a day",
+   "lp.market_reading: Red; Orange below A+"
+  ]
+ },
+ "lookalikes": [
+  {
+   "setup": "01-flat-base",
+   "tell": "Look where the closes sat. A flat base holds above the 50-day (80% of closes at or above it) and breaks out over its own highest high; a launchpad lived under the pinched 8/21/50 for 10 or more of the last 40 closes, near the 200-day, and the launch is the close above the averages, not a base top.",
+   "criterion": "lp.under_bundle"
+  },
+  {
+   "setup": "15-wedge-pop",
+   "tell": "Count the sessions and the averages. A wedge pop is a tight range of a few days under the 10 and 20-day EMAs after a decline, and the pop reclaims those two fast lines; a launchpad rests 25 sessions or more with the 8, 21 and 50-day within 3% of each other near the 200, and the launch clears all four.",
+   "criterion": "lp.base_length"
+  },
+  {
+   "setup": "06-vcp",
+   "tell": "Trace the pullbacks. A VCP's pullbacks shrink one after another above a rising 50-day and the buy is the pivot, the final contraction's high; a launchpad's base is flat under a bundle of averages that have gone flat, and the trigger is the close above them with no pivot required.",
+   "criterion": "lp.not_breakout_bar"
+  },
+  {
+   "setup": "11-ema20-pullback",
+   "tell": "Check the order of the lines. A 20 EMA pullback tags a rising 20 EMA from above with the 20 above the 50 and buys the turn at the line; a launchpad's three averages are pinched and flat (17 of 26 kept had a flat or falling 50-day) and price spent weeks under them.",
+   "criterion": "lp.not_above_bundle"
+  },
+  {
+   "setup": "31-slingshot",
+   "tell": "Measure the rest. A slingshot is a 3 to 7 close pause under a 4-day average of the highs right after a drive, bought on the first close back over it; a launchpad follows a 15% correction and five weeks or more under a tight bundle.",
+   "criterion": "lp.correction"
+  }
+ ],
+ "invalidations": [
+  "Before the entry: the bundle spreads wider than 3% again, or price closes back under the 200-day after a pop (lp.inv_bundle_spreads).",
+  "Before the entry: price rallies up into the bundle in a V from far below and breaks out; a breakout, not a launchpad (lp.inv_v_rally).",
+  "Before the entry: price is riding on top of the bundle in an uptrend; a pullback breakout (lp.inv_pullback_breakout).",
+  "Before the entry: an earnings report is 3 days or less away (lp.earnings_window).",
+  "After the entry: the stop is the exit; it only moves up (lp.stop_broker, lp.close_back_under_200).",
+  "After an intraday entry: the day closes back inside the bundle or under the 200-day; sell at the close (lp.intraday_fail_close, if he chooses entry B).",
+  "After the entry: a close back under the bundle not reclaimed the next day is the team row's warning; the stop decides (lp.close_under_bundle).",
+  "After the entry: under 1R after 10 trading days, sell (lp.time_stop)."
+ ],
+ "mistakes": [
+  "Calling a pullback in an uptrend a launchpad: price rode on top of the bundle the whole time (GOOGL).",
+  "Calling a V rally up into the bundle a launchpad; that is a breakout (TAN, MARA, SONO, JD, MGNI).",
+  "Buying a pop that closes inside the bundle or still under the 200-day (ADSK, WSM).",
+  "Averages that are not actually tight. Manrav: I won't call that a launch pad, the EMA's are not tight. The Model Book: forcing the trade before the moving averages have actually converged.",
+  "A wide, sloppy base or a news bar as the trigger (INTC, ARKK).",
+  "Buying into earnings.",
+  "Chasing: more than 4% past the launch close, or a launch more than 10% over the 10-day.",
+  "Putting the stop under the whole base or under the averages, then sizing as if it were tight.",
+  "Adding on the way up (the team row's add on the 50 SMA reclaim).",
+  "Believing the bundle alone is the edge. On daily bars it adds one or two points over any strong day above the averages. The stock, the base and the market are the edge."
+ ],
+ "short_mirror": {
+  "exists": true,
+  "setup": "07-launchpad",
+  "note": "The bearish launch pad (dossier 8.6), D47 mirrored: after a real rally, price lives above and through a tight bundle for weeks near a flat or falling 200-day; the trigger day closes below all four averages (B26: shorts only below the 200), down 2% or more, in the bottom third of its range, on above-average volume; short at market as price trades under the lower of the prior day's low and the bottom of the averages; stop a few cents over the prior day's high; RS 20 or less (C31 mirror); skip hard-to-borrow names (D48). UCT already uses it as an index caution (QQQ 2026-01-04 and 2026-02-16) and the owner as a 65-minute sell signal. Not measured. Whether to teach it is D-001; the Model Book card still says direction both (D-014)."
+ },
+ "best_conditions": "The market reading Green, or turning Green after a correction while leaders are basing (F65, F68); Manrav buys launch pads and looks for relative strength during corrections. In Orange only an A+ launchpad; in Red the long is off. Honest note: the atlas found the same worked rate in up, down and mixed markets (24%, 24%, 25%).",
+ "management": {
+  "trim_1": "a third at 3R (B19)",
+  "trim_2": "a third at 5R (E51)",
+  "trail": "a close under the 21-day EMA by default, the steadier trail; the 10-day only for a fast mover (E52)",
+  "breakeven": "at 2R, the low end of B19's 2R to 5R (B19)",
+  "time_stop": "under 1R after 10 trading days, sell (C33)",
+  "gap_open": "a trim level the day opens past is taken at the open (F63)",
+  "gap_against": "the first 30-minute low is the new stop; out if past 2R (B20)",
+  "climax": "sell a big part into a climax run (C34)",
+  "overrides": "The trail defaults to the 21-day EMA rather than the 10-day: launchpads come out of long bases and tend to trend along the 21 (Manrav's RBLX rides 8 and 21 EMAs; the app's plan trails the rising 21-day or each higher low, TRADE_PLANS.md). The stop cap of 6% is the setup's own (lp.stop_cap, D-005). Not ours: the scanner's 2R and 3R targets, the brain template's 8% stop, the team row's adds, and the scanner's stop 0.25 ATR under the lower of the 21 and 50."
+ },
+ "examples": {
+  "winners": 10,
+  "sheet_dir": "_study-resume/scratchpad/setups/07-launchpad/final",
+  "base_rate": {
+   "hits": 2417,
+   "hits_before_earnings_filter": 2864,
+   "r3_pct": 26.6,
+   "r5_pct": 14.6,
+   "stacked_on_the_day_r3_pct": 23.9,
+   "window": "60 sessions forward, fixed stop 5 cents under the launch-day low, no trims, no breakeven, no trail, no time stop; 1996 to 2026; 2,630 liquid names; one hit per name per 40 sessions; stops over 6% and closes over 10% above the 10-day SMA skipped; hits with an earnings reaction day on the launch day or the next 3 sessions dropped"
+  },
+  "cuts": {
+   "kept_charts_house_plan": {
+    "close_entry_mean_r": 2.27,
+    "intraday_entry_mean_r": 4.38,
+    "next_day_entry_mean_r": 1.79,
+    "n": 26,
+    "note": "chosen to work"
+   },
+   "fair_test_finder_launches": {
+    "n": 3071,
+    "close_entry_mean_r": 0.05,
+    "intraday_held_mean_r": 0.43,
+    "next_day_mean_r": 0.04,
+    "armed_days_for_intraday_trigger": 26398,
+    "armed_days_mean_r": -0.03
+   },
+   "baseline_any_strong_day_above_all_averages": {
+    "n": 42992,
+    "close_entry_mean_r": 0.04,
+    "r3_pct": 25,
+    "note": "the launchpad context adds one or two points over any strong day above the averages (4.3 d)"
+   }
+  },
+  "winners_list": [
+   "KBH 2004-09-01",
+   "CME 2005-05-16",
+   "RMD 2006-10-24",
+   "AIZ 2013-01-14",
+   "CMC 2016-11-04",
+   "MSCI 2017-01-04",
+   "ILMN 2020-12-01",
+   "RL 2023-11-14",
+   "DDOG 2024-10-04",
+   "BABA 2025-01-24"
+  ],
+  "failures": [
+   {
+    "ticker": "BA",
+    "date": "2021-11-15",
+    "criterion": "lp.tradeable_name",
+    "why": "a 20% correction, a 0.7%-wide bundle, a +5.5% launch on 2.55x volume above all four averages: every box ticked. It traded through the stop (2.7% under the close) the next session and kept falling. BA had spent two years in a downtrend; a stock he would trade is the only line that keeps a learner out."
+   },
+   {
+    "ticker": "CMCSA",
+    "date": "2017-12-04",
+    "criterion": "lp.tradeable_name",
+    "why": "a 16% correction, a 0.8% bundle, +4.9% on 2.17x volume; stopped two sessions later. A big-volume launch in a slow large cap, the kind the FITB ruling warns about."
+   },
+   {
+    "ticker": "NEE",
+    "date": "2025-03-10",
+    "criterion": "lp.stop_cap",
+    "why": "a 22% correction, a 0.7% bundle, +4.6% on 2.36x volume, the stop 4.9% away (near the 6% cap); stopped two sessions later. The wide stop meant a small position: the rule's job was to keep the loss at 1R, and it did."
+   },
+   {
+    "ticker": "TEAM",
+    "date": "2021-04-30",
+    "criterion": "lp.launch_volume_2x",
+    "why": "a different date from his kept TEAM chart: +4.1% on 2.13x volume, stopped the next session. A 2x launch bar was not a protection."
+   },
+   {
+    "ticker": "FDX",
+    "date": "2010-07-26",
+    "criterion": "lp.not_gap",
+    "why": "a 28% correction, a 2.95% bundle (at the 3% line), +5.6% on 1.83x volume; the launch opened 4.2% up, inside the 6% line, and its whole range was 1.96%, so the honest stop was 1.7%. The next session traded through it. A launch that is mostly a gap leaves a stop inside the noise."
+   }
+  ],
+  "near_misses": [
+   {
+    "ticker": "MSFT",
+    "date": "2023-10-06",
+    "criterion": "lp.correction",
+    "why": "the lowest close of the last 60 sessions is 11.2% under the prior 60-session high; the rule needs 15% or more. A shallow pullback in an uptrend over a rising 200-day: a moving-average pullback, not a pad."
+   },
+   {
+    "ticker": "AAPL",
+    "date": "2013-08-13",
+    "criterion": "lp.bundle_tight",
+    "why": "the 8/21/50 span 5.77% of price the day before; the rule is 3% or less. The averages had not converged; the bar is a breakout through a loose bundle under a falling 200-day."
+   },
+   {
+    "ticker": "JPM",
+    "date": "2016-05-18",
+    "criterion": "lp.under_bundle",
+    "why": "3 of the last 40 closes under the bundle and 18 above; the rule needs 10 or more under. Price rode on top of the averages after the February low: a pullback breakout, not a pad."
+   },
+   {
+    "ticker": "AAPL",
+    "date": "2022-11-30",
+    "criterion": "lp.launch_above_all",
+    "why": "the bar closes at 148.03, above the 8/21/50 (top 146.83) but under the 200-day (154.21); the launch must clear all four. A bundle reclaim under a falling 200-day."
+   }
+  ],
+  "sheets": {
+   "failures": "final/fail_1-4.png",
+   "near_misses": "final/near_1-4.png",
+   "pair": "final/pair_01-flat-base.png"
+  },
+  "limits": "Base count of pads, the real RS rating and group, the market reading and his grade are not in the scan. No delisted names, so the base rate leans toward survivors. Daily bars cannot order the moves inside a day, so the intraday entry's false starts are measured only in the fair test. Nothing here is a published statistic."
+ },
+ "question_seeds": [
+  {
+   "kind": "recall",
+   "criterion": "lp.which_averages",
+   "seed": "Name the three averages in the bundle and the fourth one the launch must clear."
+  },
+  {
+   "kind": "recall",
+   "criterion": "lp.correction",
+   "seed": "How deep must the correction before a launchpad base be, measured over which window?"
+  },
+  {
+   "kind": "recall",
+   "criterion": "lp.trail",
+   "seed": "Which average trails the last third of a launchpad by default, and why not the 10-day?"
+  },
+  {
+   "kind": "spot",
+   "criterion": "lp.launch_above_all",
+   "seed": "Hidden ticker: tap the launch bar, the first close above all four averages after weeks under them."
+  },
+  {
+   "kind": "spot",
+   "criterion": "lp.under_bundle",
+   "seed": "Hidden ticker: did price live under the bundle for most of this base, or ride on top of it? Launchpad or pass."
+  },
+  {
+   "kind": "spot",
+   "criterion": "lp.poke_above",
+   "seed": "Hidden ticker: find the dangle, the first poke above the averages and the retest before the launch."
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "lp.under_bundle",
+   "seed": "Launchpad or flat base: the closes held above a rising 50-day for the whole base and the buy is the base top. Which is it?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "lp.base_length",
+   "seed": "Launchpad or wedge pop: a 4-day tight range under the 10 and 20 EMAs after a 30% fall, then a pop over them. Which is it?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "lp.inv_v_rally",
+   "seed": "The stock rallied from 25% below the averages straight into them and closed above all four in one week. Launchpad or breakout?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "lp.not_above_bundle",
+   "seed": "Launchpad or 20 EMA pullback: the 20 EMA sits above a rising 50-day and price tagged it from above. Which is it?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "lp.no_chase",
+   "seed": "The launch closed at 50.00 and opens at 52.50 the next morning. The top of the averages is 47.00. Buy, or pass?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "lp.close_back_under_200",
+   "seed": "Three days after the launch the stock closes 1% under the 200-day, above your stop. Sell, or hold?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "lp.launch_above_all",
+   "seed": "A +4% day on 2x volume closes above the 8, 21 and 50 but 0.5% under the 200-day. Is this the launch?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "lp.earnings_window",
+   "seed": "The launch bar prints today and earnings are in 2 sessions. Buy the close?"
+  },
+  {
+   "kind": "grade",
+   "criterion": "lp.correction",
+   "seed": "Two launchpads: one after a 13% dip, one after a 30% correction, same bundle and launch bar. Grade each."
+  },
+  {
+   "kind": "grade",
+   "criterion": "lp.stop_cap",
+   "seed": "The launch closed 8.5% above its low (MSTR). What is the stop, the grade and the size?"
+  },
+  {
+   "kind": "grade",
+   "criterion": "lp.tradeable_name",
+   "seed": "A textbook pad in a regional bank with flat earnings. A+, B-, or pass?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "lp.bundle_tight",
+   "seed": "The 8 EMA is 41.20, the 21 EMA 40.60, the 50 SMA 40.10 and price 40.50. How wide is the bundle in percent of price, and is it tight enough?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "lp.correction",
+   "seed": "The highest high of sessions 61 to 120 back was 80.00 and the lowest close of the last 60 sessions 66.00. How deep was the correction, and does it qualify?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "lp.stop",
+   "seed": "Bought at the close, 35.26, with the launch day's low at 34.31. Where is the stop, how far is it in percent, and where is 3R?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "lp.launch_close",
+   "seed": "The launch bar ran 30.00 to 32.00 and closed at 31.40. Where in the range did it close, and does it pass the 0.65 floor?"
+  }
+ ],
+ "owner_decisions": [
+  "D-001",
+  "D-002",
+  "D-003",
+  "D-004",
+  "D-005",
+  "D-006",
+  "D-009",
+  "D-011",
+  "D-012",
+  "D-014",
+  "D-017",
+  "D-021",
+  "D-022",
+  "D-062",
+  "D-136"
+ ],
+ "conflicts": [
+  "Which averages: every source uses a different set (8/21/50 the bank lesson, scanners and Manrav; 9/20/50 his MSTR words and the Model Book glyph; 8/21/30/50 the Model Book playbook; 10/21/50 StratLab and TraderLion 2024; 21/50/65 Deepvue; 10/21/50/200 SMAs plus 23 and 65 EMAs Haber). The 50-day is the only one shared. The card takes 8/21/50 plus the 200 and sends the choice to D-021.",
+  "Stage: the owner and Weinstein-style framings put it at a bottom after a correction near a flat 200-day; Haber wants an early-stage base at the start of a new uptrend and warns against declining longer-term averages; Deepvue puts it in a leader's later base with rising, aligned averages. His kept charts mostly had a flat or falling 50-day (only 9 of 26 rose over 20 sessions). The card follows his charts.",
+  "Stacked before, or stacking at the launch: Deepvue and the team row want the stack in place; his ruling says the full stack is not required and forms as the MAs stack. The card makes the stack a cue (lp.stack_forms); the scan found it adds nothing on the day.",
+  "Under or above the bundle in the base: TraderLion's thread and his MSTR words say under, then above; TraderLion 2024 splits it into the Power of 3 reclaim and the Launch Pad retest; Haber, Deepvue and the team row have the averages beneath price. His own words go both ways (MSTR hanging underneath; GE and CAT the dangle above). The card teaches under, then a first poke above, then the launch (D-062).",
+  "Entry: inside the pad (team row, Manrav), above the tight range (Deepvue), the close above all averages (bank lesson, StratLab), over the prior day's high (his TWLO trade), the higher low at the pad (his ARM note), a break of the base high (Model Book playbook, TraderLion 2024, Haber). The card recommends the close with the intraday trigger as his option (D-003); the fair test and his kept charts point different ways.",
+  "The stop: the day's low (team row, his TSLA note), the base low or the other end of the range (Deepvue, playbook), the consolidation-pivot low or a close under the respected average with 3% as the most (Haber), recent lows within 3 to 5% (TraderLion 2024), the 65 EMA (Manrav), the 20 EMA (his TWLO trade), the 200-day (his TSLA note). The house wins: the day's low (A3), never the bundle or the base low.",
+  "A13 against the launch bar: a stop under the launch-day low was never within 3% on his 26 kept charts (median 4.0%); the originators hold to 3% but buy the retest, not the launch bar. The card proposes a 6% cap (D-005); the glossary lists 6% as this setup's override.",
+  "C29 on the model chart: MSTR closed 10.2% to 13.1% over its 10-day by reading; four more kept charts were over 10%. The card keeps C29 and sends it to D-017 (which 10-day, and whether the launch day counts).",
+  "C28's buy point: the top of the averages would cut 15 of 26 kept launches; the card makes the launch close (or the trigger level) the buy point (D-022).",
+  "Volume: TraderLion's thread says on volume and its 2024 post wants volume increasing; the brain template wants 2x; the owner, Haber and Deepvue set no rule. His kept median was 1.8x with TEAM at 0.76x. The card keeps 1.2x as a gate pending D-006, whose default makes it a cue.",
+  "Direction: the Model Book calls it symmetrical and his 2026-10-23 playbook-version ruling adopted that definition; his later lesson is long only; UCT uses the bearish launch pad as a separate sell signal. The card is long with the mirror in short_mirror (D-001, D-014).",
+  "Six definitions inside one app (two scanners, the member tag's textbook check, two Chart IQ rules, the bank finder) with different averages, widths and stops; the scanners fire on 3 and 1 of his 26 kept launches and the member tag on none. The bank finder is the only code built on his picture (D-004).",
+  "The brain's template is labelled Launchpad (Qullamaggie) with no support: Kullamagi's setups page names no launch pad. Not used on this card.",
+  "Deepvue is not independent of TraderLion (Rai, Moglen and Haber are its co-founders), so no line on this card is tagged source consensus from those two; they are one school.",
+  "Sources: this dossier's section 11 is a bulleted list with no explicit S-ids, so the card cites each source by its position in that list as the validator reads it (S1 the verdict log, S12 Rai 2024, S13 Haber 2026, S16 Deepvue, S25 the checker's re-run scripts). Lines that rest on the TraderLion circle are tagged UCT or my proposal because the dossier itself tags them so (one school, not a consensus); the originators are named in evidence."
+ ]
+}

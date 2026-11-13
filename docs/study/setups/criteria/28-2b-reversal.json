@@ -1,0 +1,1328 @@
+{
+ "setup": "28-2b-reversal",
+ "name": "2B Reversal",
+ "unit": "SET.24",
+ "direction": "long",
+ "timeframe": "daily",
+ "dossier": "docs/study/setups/research/28-2b-reversal.md",
+ "as_of": "2026-11-10",
+ "card": {
+  "context": "A strong stock, RS 80 or more, above its 200-day, often near the 50-day or 200-day while the whole market washes out under its own prior lows and reclaims them. The reading turning from Orange or Yellow toward Green.",
+  "pattern": "A swing low made 5 to 60 sessions ago with a rally of at least 1 ATR off it. The first break under that low goes no more than 3% under it and fails to follow through.",
+  "trigger": "PREV LOW RECLAIM: price trades back above the broken swing low on the break day or within the next 3 sessions, bought at market, no more than 4% above the low.",
+  "stop": "A few cents under the lowest low of the undercut, the new extreme. On a same-day reclaim that is the day's low. More than 3% away: size down, or wait for the hourly higher low.",
+  "failure_mode": "The reclaim does not hold: price trades back under the new low within days, usually while the market is still making lower lows. Out at once. A third of all hits never reached 1R."
+ },
+ "entry_trigger": "PREV LOW RECLAIM",
+ "criteria": [
+  {
+   "id": "tb.above_200",
+   "field": "context",
+   "statement": "The close on the reclaim day is above the 200-day SMA.",
+   "measure": {
+    "what": "reclaim-day close against the 200-day SMA",
+    "op": ">",
+    "value": "200-day SMA",
+    "timeframe": "daily"
+   },
+   "glossary": "above_200",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B26",
+   "status": "pending-owner",
+   "owner_question": "D-009",
+   "options": [
+    {
+     "value": "a",
+     "basis": "B26 as written: longs above the 200-day only (the dossier's rule)"
+    },
+    {
+     "value": "b",
+     "basis": "a named exception for 2Bs below the 50-day but above the 200-day is already allowed; the question is the owner's 2025-12-07 note on undercuts below the MAs (28:9)"
+    }
+   ],
+   "recommended": "a",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Prior trend and location",
+   "evidence": "About half of all liquid 2B bottoms in the dossier's check (71,669 of 144,669) were below the 200-day and did no better (27.6% to 3R). One of Bracco's seven named 2Bs (GEV) was below it on the reclaim day. The curriculum's SPY 2011 example was far below it. The owner: the undercut below the MAs is not something I generally do."
+  },
+  {
+   "id": "tb.ma200_rising",
+   "field": "context",
+   "statement": "Best when the 200-day is rising: higher than it was 20 sessions ago.",
+   "measure": {
+    "what": "200-day SMA today - 200-day SMA 20 sessions ago",
+    "op": ">",
+    "value": 0,
+    "unit": "$",
+    "timeframe": "daily"
+   },
+   "glossary": "rising_average",
+   "basis": "UCT",
+   "sources": [
+    "S9"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Prior trend and location; 9 A+",
+   "evidence": "Bracco's names put in this exact reversal pattern near their 200-day moving averages. The 20-session window is the glossary's reading of rising; the dossier says rising without a number."
+  },
+  {
+   "id": "tb.near_averages",
+   "field": "context",
+   "statement": "Best when the undercut low sits at the 50-day or 200-day SMA: within 0.25 ATR above the line or up to 1 ATR under it.",
+   "measure": {
+    "what": "undercut low against the 50-day or 200-day SMA",
+    "op": "in",
+    "value": "0.25 ATR above to 1 ATR below",
+    "unit": "ATR",
+    "timeframe": "daily"
+   },
+   "glossary": "touch",
+   "basis": "UCT",
+   "sources": [
+    "S9"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Prior trend and location; 9 A+",
+   "evidence": "The dossier says near the 50-day or 200-day, the way Bracco describes it, with no distance. The band is the glossary's touch band, not a number from the dossier; the owner may prefer his own words."
+  },
+  {
+   "id": "tb.market_washout",
+   "field": "context",
+   "statement": "The indexes are washing out under their own prior lows and reclaiming them, and leaders undercut their lows at the same time. A market still making lower lows with no reclaim is not the place.",
+   "basis": "UCT",
+   "sources": [
+    "S9"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.7 Best market conditions; 12 Notable failures",
+   "evidence": "Bracco 2026-04-05: as the indices broke down and trended significantly below previous lows, all the RS names briefly undercut those previous lows and reclaimed as market came off the lows. Scan: NVDA 2024-04-18, AMD 2024-04-16 and TSLA 2023-08-11 were clean 2Bs in leaders that failed while the market was still falling; the dossier calls 8.7 a gate, not a footnote. In the second pass, leaders with SPY under its 50-day were higher 20 sessions later 61% of the time against 55% for a random day, but the median stop was 3.3%."
+  },
+  {
+   "id": "tb.market_reading",
+   "field": "context",
+   "statement": "Green market: full risk. Yellow: smaller and fewer. Orange: A+ only. Red: mostly cash and shorts. Start with a few positions as the reading turns Green again.",
+   "glossary": "market_reading",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "F65",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.7 Best market conditions; 7 B18, F65, F68 row",
+   "evidence": "F68: after a correction, when the reading turns Green again, start with a few positions and add more only as the first ones work. Bracco's best 2Bs come as the market makes a low and turns."
+  },
+  {
+   "id": "tb.leader",
+   "field": "context",
+   "statement": "RS rating 80 or more, in a strong group.",
+   "measure": {
+    "what": "RS rating",
+    "op": ">=",
+    "value": 80,
+    "unit": "rating 1 to 99"
+   },
+   "glossary": "leader",
+   "basis": "house rule",
+   "sources": [
+    "S9"
+   ],
+   "house_rule": "C31",
+   "options": [
+    {
+     "value": "a",
+     "basis": "C31 applies: RS 80 or more, as Bracco's RS names (the dossier's lean)"
+    },
+    {
+     "value": "b",
+     "basis": "a 2B is a mean-reversion trade and C31 exempts it"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-011",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Leaders; 10 question 5",
+   "evidence": "Bracco's version is RS names. The dossier's check could not read an RS rating; its leader proxy (6-month gain of 30% or more, within 25% of the 52-week high, rising 200-day) did no better in R than the rest (26.8% against 27.1% to 3R) but pointed up more often in a market pullback. The register's default lists the washout U&R, not the 2B, in the exempt class."
+  },
+  {
+   "id": "tb.liquidity",
+   "field": "context",
+   "statement": "Price $10 or more and $20 million or more traded a day on average.",
+   "measure": {
+    "what": "close",
+    "op": ">=",
+    "value": 10,
+    "unit": "$",
+    "and": "50-day average dollar volume >= 20,000,000"
+   },
+   "glossary": "liquidity",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B23",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Liquidity",
+   "evidence": "The scan used the house floor on the 50-day average. The owner wants good spots on good stocks."
+  },
+  {
+   "id": "tb.position_adv",
+   "field": "management",
+   "statement": "The position is at most 1% of average daily volume.",
+   "measure": {
+    "what": "shares / average daily volume",
+    "op": "<=",
+    "value": 1,
+    "unit": "%"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "D42",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Liquidity"
+  },
+  {
+   "id": "tb.earnings_window",
+   "field": "context",
+   "statement": "No new buy in the 3 sessions before a report.",
+   "measure": {
+    "what": "sessions until the next report",
+    "op": ">",
+    "value": 3,
+    "unit": "sessions"
+   },
+   "glossary": "earnings_blackout",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B22",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Earnings",
+   "evidence": "AAPL 2014-10-15 and MU 2025-12-17 were clean 2Bs that worked and were dropped from the candidates because B22 forbids the buy. The ten examples were checked against the earnings table by hand."
+  },
+  {
+   "id": "tb.clean_lead_in",
+   "field": "context",
+   "statement": "An orderly drift into the low: no outsized red news candle just before the break.",
+   "basis": "UCT",
+   "sources": [
+    "S10"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Clean lead-in; 9 A+",
+   "evidence": "By analogy from the owner's Oops rulings: a big red candle prior takes the stock off his list (ULTA, FLEX, C, GTLB). The dossier gives no size for outsized; the Oops card measures it (no bar in the 5 sessions before with a drop over 4% or a range over 2.5 ATR), and this card can borrow that number if the owner wants one test for the family."
+  },
+  {
+   "id": "tb.level",
+   "field": "pattern",
+   "statement": "The level is a swing low (no lower low in the 5 sessions on each side) made 5 to 60 sessions before the break, with a rally of at least 1 ATR off it before the break. Also allowed, by the owner's usage: last week's low, a range low, or the low of a pullback to the 20 EMA or 50 SMA.",
+   "measure": {
+    "what": "sessions from the swing low to the break day",
+    "op": "in",
+    "value": [
+     5,
+     60
+    ],
+    "unit": "sessions",
+    "and": "highest high between the swing low and the break at least 1 ATR(14) above the swing low",
+    "timeframe": "daily"
+   },
+   "glossary": "swing_low",
+   "basis": "my proposal",
+   "sources": [
+    "S1",
+    "S4",
+    "S6",
+    "S9"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "any swing low 5 to 60 sessions old with a rally between (the dossier's proposal; Turtle Soup's 3 to 4 sessions and Bulkowski's median 21 days sit inside the window)"
+    },
+    {
+     "value": "b",
+     "basis": "only multi-week lows the whole market can see (the A cue in the register's default)"
+    },
+    {
+     "value": "c",
+     "basis": "also last week's low and range lows, as in the owner's posts (QBTS, TEAM, RDDT)"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-101",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 The level; 8.9 Which level",
+   "evidence": "Scan (rescanned 2026-11-10 with fills at the reclaim): the age of the level (6 to 15 sessions against over 30) made little difference, 55.5% against 59.9% to 3R (was 42.3% against 44.1% with fills at the open). The dossier's check: 5 to 20 sessions old 27.1% against 21 to 60 sessions 26.9%. Sperandeo gives no lookback; nothing in the house sets one (the starterScans note is right)."
+  },
+  {
+   "id": "tb.not_oops",
+   "field": "pattern",
+   "statement": "A one-day dip under yesterday's low is an Oops, not a 2B: the level must be at least 5 sessions old.",
+   "measure": {
+    "what": "age of the broken low",
+    "op": ">=",
+    "value": 5,
+    "unit": "sessions",
+    "timeframe": "daily"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S12"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 The level; 5.3 The Model Book card",
+   "evidence": "The Model Book glyph shows a one-day dip under the previous candle's low in a straight decline, with no prior swing low: it reads as an Oops or Turtle Soup Plus One, not a 2B. The draft curriculum calls the Oops the gap-open variant of the identical mechanics."
+  },
+  {
+   "id": "tb.first_break",
+   "field": "pattern",
+   "statement": "The break is the first session to trade under that low since it formed.",
+   "measure": {
+    "what": "sessions that traded under the swing low before the break day",
+    "op": "==",
+    "value": 0,
+    "unit": "sessions",
+    "timeframe": "daily"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S1",
+    "S11"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 First break",
+   "evidence": "Sperandeo's previous extreme. Chart IQ's two_b_reversal label, replayed on the same bars, fired 149,226 times and only 2.5% were the first break of the swing low; only 42.2% closed back above it. That is a bounce in a decline, not a 2B."
+  },
+  {
+   "id": "tb.depth",
+   "field": "pattern",
+   "statement": "The lowest low of the undercut is no more than 3% under the prior low (about 1 ATR or less in most leaders), so the stop fits A13. Deeper undercuts only with a smaller size or a later, tighter entry.",
+   "measure": {
+    "what": "(prior low - lowest low of the undercut) / prior low",
+    "op": "<=",
+    "value": 3,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S4",
+    "S14"
+   ],
+   "house_rule": "A13",
+   "options": [
+    {
+     "value": 3,
+     "basis": "the dossier's line, from A13 (undercuts under 2% did best in R)"
+    },
+    {
+     "value": 5,
+     "basis": "Bulkowski's 2B: the second extreme overshoots by up to 5% (S4)"
+    },
+    {
+     "value": "none",
+     "basis": "Sperandeo gives no depth"
+    }
+   ],
+   "recommended": 3,
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Depth; 8.9 How deep",
+   "evidence": "Scan (rescanned 2026-11-10 with fills at the reclaim): an undercut of 1% or less (26,267 hits) reached 3R 64.7% and 5R 55.0%; 1% to 2% 48.6% / 34.8%; 2% to 3% 41.8% / 26.8% (was 44.4% / 32.6%, 41.4% / 28.7%, 38.4% / 23.9% with fills at the open). The dossier's check: over 5% reached 5R only 7.2% of the time with a median 8.96% stop. Six of UCT's seven named 2Bs undercut by 1.8% to 15.8% (HOOD 15.8%, PLTR 11.3%, RKLB 12.4%); only SPOT and NFLX stayed under 4%."
+  },
+  {
+   "id": "tb.reclaim_window",
+   "field": "pattern",
+   "statement": "A close back above the prior low on the break day or within the next 3 sessions. Same day or next day is the better grade.",
+   "measure": {
+    "what": "sessions from the break day to the first close back above the prior low",
+    "op": "<=",
+    "value": 3,
+    "unit": "sessions",
+    "timeframe": "daily"
+   },
+   "glossary": "reclaim_window",
+   "basis": "originator",
+   "sources": [
+    "S1",
+    "S3",
+    "S6",
+    "S14"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "same day only (Turtle Soup)"
+    },
+    {
+     "value": "b",
+     "basis": "same day or next day (Turtle Soup Plus One; Sperandeo's within one day or less for a minor extreme)"
+    },
+    {
+     "value": "c",
+     "basis": "within 3 sessions (the dossier; Sperandeo's three to five days for an intermediate extreme, 1993)"
+    }
+   ],
+   "recommended": "c",
+   "status": "pending-owner",
+   "owner_question": "D-102",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Time; 8.9 How soon",
+   "evidence": "Sperandeo 1993: a minor 2B fails within one day or less, an intermediate one within three to five days, a major one within seven to ten days; 1994 adds immediately. Scan (rescanned 2026-11-10 with fills at the reclaim): a same-day reclaim (28,067 hits) 64.3% / 54.2% with the stop under the day's low, which is known only at the close (a 5-minute check with the stop under the low so far gave 31.0% to 3R), a next-day reclaim (12,149 hits) 47.9% / 33.6% and 39.4% / 26.0% for 2 to 3 days (was 41.0% / 29.6% same day and 39.5% / 26.0% for 2 to 3 days, with the same-day fill at the open). The dossier's close-entry check: same-day reclaims had tighter stops (1.66% against 3.07%) and more 5R wins (18.6% against 14.8%)."
+  },
+  {
+   "id": "tb.reclaim_close",
+   "field": "pattern",
+   "statement": "The reclaim day closes in the upper half of its range. A close in the bottom half invalidates it.",
+   "measure": {
+    "what": "(close - low) / (high - low) of the reclaim day",
+    "op": ">=",
+    "value": 0.5,
+    "timeframe": "daily"
+   },
+   "glossary": "close_position",
+   "basis": "my proposal",
+   "sources": [
+    "S11"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.5; 9 A+ (closing in the top part of the day's range)",
+   "evidence": "The house Undercut & Reclaim scanner requires the upper half. The scan used it as a gate. Example: QCOM 2020-09-21 closed in the top 6% of its range, MU 2024-02-20 in the top 4%."
+  },
+  {
+   "id": "tb.volume",
+   "field": "pattern",
+   "statement": "Quiet on the break (at or under the 50-day average volume), heavier on the reclaim. A grade booster, not a gate.",
+   "measure": {
+    "what": "break-day volume / 50-day average volume",
+    "op": "<=",
+    "value": 1,
+    "unit": "x",
+    "timeframe": "daily"
+   },
+   "glossary": "dry_up",
+   "basis": "originator",
+   "sources": [
+    "S1",
+    "S14"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "quiet failure, heavier reversal: Sperandeo (S1); the dossier's check agrees, weakly"
+    },
+    {
+     "value": "b",
+     "basis": "heavy volume on the failed break is the trapped crowd: the draft curriculum M10.L2 (S13), no source"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-006",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Volume; 8.9 Volume; 10 question 8",
+   "evidence": "Sperandeo: the failure usually occurs on low to normal volume. Scan (rescanned 2026-11-10 with fills at the reclaim): a quiet break (18,364 hits) 57.7% / 46.9% against 56.6% / 43.8% for a loud one (over 1.5x) (was 43.0% / 30.8% against 42.3% / 29.3% with fills at the open). The dossier's check: break-day volume under 1.0x reached 5R 19.0%, 1.5x or more 13.9%. The ten examples broke on 0.64x to 1.10x."
+  },
+  {
+   "id": "tb.trigger",
+   "field": "trigger",
+   "statement": "Price trades back above the broken swing low after the undercut. A market order when it trades back above (intraday), or near the close if the day closes back above.",
+   "measure": {
+    "what": "intraday price during regular hours, after the undercut",
+    "op": ">",
+    "value": "the broken swing low"
+   },
+   "basis": "originator",
+   "sources": [
+    "S1",
+    "S6",
+    "S7"
+   ],
+   "house_rule": "E57",
+   "options": [
+    {
+     "value": "a",
+     "basis": "a market order when it trades back above the old low (the dossier; E57; Sperandeo and Turtle Soup use a stop order at the level, the same price in practice)"
+    },
+    {
+     "value": "b",
+     "basis": "only on a close above"
+    },
+    {
+     "value": "c",
+     "basis": "the owner's AMD way: the next hourly higher low"
+    },
+    {
+     "value": "d",
+     "basis": "over the reclaim day's high"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-003",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 Trigger; 8.2 Order; 10 question 4",
+   "evidence": "Scan (rescanned 2026-11-10: the fill at the level plus a cent, or the open when a later session gapped above it): 56.7% to 3R and 45.1% to 5R (was 42.7% and 30.2%, when a same-day reclaim was filled at the day's open). The dossier's check with an entry at the reclaim day's close: 27.0%, the same as a random day. The gap between 27% and 57% is mostly the fill: a later, higher fill with the same stop makes R larger and 3R farther away. With a stop a few cents under a shallow undercut, R is often under 1% of price, so slippage matters more here than in any other setup."
+  },
+  {
+   "id": "tb.tighter_entry",
+   "field": "trigger",
+   "statement": "For a deep undercut or a stop over 3%: wait for the next hourly higher low after the reclaim, or an inside day, and buy its break with the stop under that day's low.",
+   "measure": {
+    "what": "(entry - stop) / entry at the reclaim",
+    "op": ">",
+    "value": 3,
+    "unit": "%",
+    "note": "then the entry moves to the hourly higher low or the inside day's break"
+   },
+   "glossary": "hourly_bar",
+   "basis": "UCT",
+   "sources": [
+    "S9"
+   ],
+   "status": "pending-owner",
+   "owner_question": "D-005",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.2 The tighter alternative; 10 question 6",
+   "evidence": "The owner on AMD 2026-09-06: failed breakdown below $460 with strong candle, next higher low on the hourly is actionable. The dossier proposes this for the 3% condition. In the market-washout cases Bracco names, the stop beyond the undercut was a median 3.3% and the R edge vanished: the practical case for a later, tighter entry."
+  },
+  {
+   "id": "tb.no_chase",
+   "field": "trigger",
+   "statement": "No buy more than 4% above the broken low.",
+   "measure": {
+    "what": "fill / broken low - 1",
+    "op": "<=",
+    "value": 4,
+    "unit": "%"
+   },
+   "glossary": "chase_limit",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "C28",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 No chasing",
+   "evidence": "The buy point is the broken low. A gap back more than 4% above it is skipped. A later session that opens above the level fills at the open (U 2022-04-05 and INTC 2026-03-31 in the examples). A same-day reclaim fills at the level plus a cent, because the undercut comes after the open: MKSI 2025-11-21 opened 138.24, above the 136.95 level, fell to 134.74 and closed 144.00, so the buy is 136.96 (rescanned 2026-11-10; the first scan filled at the open)."
+  },
+  {
+   "id": "tb.never_before_reclaim",
+   "field": "trigger",
+   "statement": "Never before the reclaim. Buying the undercut itself is guessing.",
+   "basis": "source consensus",
+   "sources": [
+    "S1",
+    "S4"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 Never before the reclaim; 8.8 mistake 1",
+   "evidence": "Sperandeo's trigger is the return through the level; Bulkowski: buying the 2B bottom early carries a much greater risk of a failed trade."
+  },
+  {
+   "id": "tb.not_stretched",
+   "field": "trigger",
+   "statement": "At entry, no more than 10% above the 10-day average.",
+   "measure": {
+    "what": "entry / 10-day SMA - 1",
+    "op": "<=",
+    "value": 10,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "glossary": "stretched",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "C29",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "7 C29 row",
+   "evidence": "A 2B bottom sits at a low; almost never stretched. The scan applied it."
+  },
+  {
+   "id": "tb.stop",
+   "field": "stop",
+   "statement": "A few cents under the lowest low of the undercut (the new extreme). On a same-day reclaim that is the day's low.",
+   "measure": {
+    "what": "stop",
+    "op": "==",
+    "value": "a few cents under the lowest low from the break to the reclaim"
+   },
+   "glossary": "stop_margin",
+   "basis": "originator",
+   "sources": [
+    "S1",
+    "S9"
+   ],
+   "house_rule": "F62",
+   "options": [
+    {
+     "value": "a",
+     "basis": "under the lowest low of the undercut, the new extreme: Sperandeo (use the new high to compute your initial stop); F62"
+    },
+    {
+     "value": "b",
+     "basis": "under the day you buy: the owner's Stop at LOD (QBTS), the same price on a same-day reclaim"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-005",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.3; 8.9 Stop; 10 question 6",
+   "evidence": "On a same-day reclaim the two agree. On a 1 to 3 day reclaim the extreme may be an earlier day's low; the dossier asks which (question 6). The scan used 5 cents under the lowest low of the undercut. Turtle Soup Plus One uses the lower of two days' lows."
+  },
+  {
+   "id": "tb.stop_width",
+   "field": "stop",
+   "statement": "If the stop is more than about 3% below the entry, size down so the risk stays inside the grade's budget, or use the tighter entry. Never move the stop closer to make the size bigger.",
+   "measure": {
+    "what": "(entry - stop) / entry",
+    "op": "<=",
+    "value": 3,
+    "unit": "%"
+   },
+   "glossary": "stop_width",
+   "basis": "house rule",
+   "sources": [
+    "S9",
+    "S14"
+   ],
+   "house_rule": "A13",
+   "options": [
+    {
+     "value": "a",
+     "basis": "stop under the new low and size down (A5): the dossier's 8.3"
+    },
+    {
+     "value": "b",
+     "basis": "skip it (A3)"
+    },
+    {
+     "value": "c",
+     "basis": "wait for a tighter spot (the hourly higher low, an inside day) with its own stop: the owner's AMD way"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-005",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.3; 10 question 6",
+   "evidence": "The dossier's check: median stop 2.12%, two thirds within 3%; under half within 3% when the reclaim took 1 to 3 days; none when the undercut was over 3%. Scan (rescanned 2026-11-10 with fills at the reclaim): a stop of 1% of price or less (21,826 hits) reached 3R 67.3% against 42.3% for stops over 2% (was 9,932 hits, 55.5% against 34.7%, with fills at the open), but a sub-1% stop is the one most exposed to slippage and noise. INTC 2026-03-31: a 3.27% stop, just over the line, so half size or the hourly entry. The register's default for all setups is up to one ADR at a lower grade."
+  },
+  {
+   "id": "tb.stop_broker",
+   "field": "stop",
+   "statement": "A real stop order with the broker. It only moves up.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "D41",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "7 A4 row; 8.3",
+   "evidence": "A4: the stop only moves up. Sperandeo: admit defeat immediately."
+  },
+  {
+   "id": "tb.stop_gap",
+   "field": "stop",
+   "statement": "A gap through the stop: the first 30-minute low is the new stop; out if that is past 2R.",
+   "measure": {
+    "what": "loss at the first 30-minute low of the gap-down day",
+    "op": "<=",
+    "value": 2,
+    "unit": "R",
+    "timeframe": "30-minute"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B20",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "7 B20 row",
+   "evidence": "NVDA 2024-04-19 opened 83.15 and fell to 75.61, a 9% day through the stop with no warning on the daily chart. Bought at the level plus a cent on 04-18 (83.03), the stop was 82.35, 0.82% away."
+  },
+  {
+   "id": "tb.breakeven",
+   "field": "management",
+   "statement": "Stop to breakeven between 2R and 5R, at the first trim by default.",
+   "measure": {
+    "what": "R at which the stop moves to the entry",
+    "op": "in",
+    "value": [
+     2,
+     5
+    ],
+    "unit": "R"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B19",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4"
+  },
+  {
+   "id": "tb.trim_1",
+   "field": "management",
+   "statement": "Sell a third at 3R.",
+   "measure": {
+    "what": "fraction sold at 3R",
+    "op": "==",
+    "value": 0.333,
+    "unit": "of the position"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B19",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4",
+   "evidence": "Among the scan's long winners the median time to 3R was 3 sessions; in the dossier's close-entry check, 6 sessions. Turtle Soup took partial profits in 2 to 6 bars."
+  },
+  {
+   "id": "tb.trim_2",
+   "field": "management",
+   "statement": "Sell a third at 5R.",
+   "measure": {
+    "what": "fraction sold at 5R",
+    "op": "==",
+    "value": 0.333,
+    "unit": "of the position"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "E51",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4"
+  },
+  {
+   "id": "tb.trim_gap_open",
+   "field": "management",
+   "statement": "If it opens above a trim level, take that trim at the open.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "F63",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4"
+  },
+  {
+   "id": "tb.trail",
+   "field": "management",
+   "statement": "Trail the last third: a close under the 10-day for a fast mover, under the 21-day for a steadier one.",
+   "measure": {
+    "what": "close against the 10-day (fast) or 21-day (steadier) average",
+    "op": "<",
+    "value": "the average",
+    "timeframe": "daily"
+   },
+   "glossary": "trail",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "E52",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4",
+   "evidence": "JBL 2023-08-18 reached 3R on day 2 and sat at +4% after 20 sessions before the gap to 130: the case for the trims and the trail."
+  },
+  {
+   "id": "tb.first_resistance",
+   "field": "management",
+   "statement": "The first resistance is often the rally high between the two lows; when 3R came, it came in a median of 6 sessions (close entry) or 3 sessions (the level fill).",
+   "measure": {
+    "what": "median sessions from the entry to 3R, winners only",
+    "op": "in",
+    "value": [
+     3,
+     6
+    ],
+    "unit": "sessions"
+   },
+   "basis": "measured",
+   "sources": [
+    "S14"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4 Note for the lesson; 4.4; 12",
+   "evidence": "A note for the lesson, not a rule: the rally high is where the first sellers sit."
+  },
+  {
+   "id": "tb.time_stop",
+   "field": "management",
+   "statement": "Time stop: still under 1R after 10 trading days, sell.",
+   "measure": {
+    "what": "open R after 10 trading days",
+    "op": "<",
+    "value": 1,
+    "unit": "R"
+   },
+   "glossary": "time_stop",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "C33",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4",
+   "evidence": "A 2B that has not moved in 10 days has not carried through the other way. Every one of the ten examples was above 1R by the tenth session."
+  },
+  {
+   "id": "tb.inv_no_reclaim",
+   "field": "invalidation",
+   "statement": "No close back above the broken low within 3 sessions: it is a breakdown, not a 2B.",
+   "measure": {
+    "what": "sessions from the break day without a close back above the prior low",
+    "op": ">",
+    "value": 3,
+    "unit": "sessions",
+    "timeframe": "daily"
+   },
+   "glossary": "reclaim_window",
+   "basis": "my proposal",
+   "sources": [
+    "S1"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5",
+   "evidence": "The number is the dossier's; the shape is Sperandeo's (a minor 2B fails within one day or less, an intermediate one within three to five days). Five or more closes under the level is a Remount, not a 2B."
+  },
+  {
+   "id": "tb.after_entry_stop",
+   "field": "invalidation",
+   "statement": "After the entry, a trade under the new low is the exit, at once.",
+   "basis": "house rule",
+   "sources": [
+    "S1"
+   ],
+   "house_rule": "A4",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5; 8.3",
+   "evidence": "Sperandeo: admit defeat immediately and take the loss; you lose properly. TSLA 2023-08-11: the next session gapped under the level and the stock fell four more days to 219."
+  },
+  {
+   "id": "tb.reclaim_fails",
+   "field": "invalidation",
+   "statement": "After the reclaim, a close back under the broken low within 2 sessions means the failure has failed. A warning: hold to the stop, do not add.",
+   "measure": {
+    "what": "sessions after the reclaim in which a close falls back under the broken low",
+    "op": "<=",
+    "value": 2,
+    "unit": "sessions",
+    "timeframe": "daily"
+   },
+   "basis": "house rule",
+   "sources": [
+    "S10"
+   ],
+   "house_rule": "A4",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.5",
+   "evidence": "The dossier proposed tighten or exit. The owner struck the cut-half rule on 2026-11-09 (my stop is my stop most of the time), and the register's D-136 settles the same question for the U&R (29:8) and the Oops (30:2) as hold to the stop. TSLA 2023-08-11 is the picture: a second, deeper break."
+  },
+  {
+   "id": "tb.below_50_grade",
+   "field": "context",
+   "statement": "Below the 50-day with a flat or falling 200-day grades B-, size down or skip; never below the 200-day.",
+   "measure": {
+    "what": "reclaim-day close against the 50-day SMA, with the 200-day not higher than 20 sessions ago",
+    "op": "<",
+    "value": "50-day SMA",
+    "timeframe": "daily"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S9",
+    "S10"
+   ],
+   "status": "pending-owner",
+   "owner_question": "D-009",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "9 B-; 10 question 9",
+   "evidence": "The owner's 2025-12-07 note said he was adding a variety of short-term undercuts below the MAs to his playbook; question 9 asks whether a 2B below the 50-day but above the 200-day is fine. JBL 2023-08-18 reclaimed under the 50-day and worked."
+  }
+ ],
+ "grading": {
+  "a_plus": [
+   "tb.leader: an RS leader (80 or more) in a strong group, above a rising 200-day (tb.ma200_rising)",
+   "tb.near_averages: the undercut comes at the 50-day or 200-day",
+   "tb.market_washout: the market itself is undercutting and reclaiming its lows; peers in the group do the same (Bracco's chart theme)",
+   "tb.level: a clear, obvious prior low many traders can see (a multi-week swing low or last week's low)",
+   "tb.depth: a shallow undercut, under about 2%",
+   "tb.reclaim_window: a same-day reclaim, closing in the top part of the day's range (tb.reclaim_close)",
+   "tb.volume: quiet volume on the break, heavier on the reclaim",
+   "tb.stop_width: stop within 3%",
+   "tb.clean_lead_in: an orderly drift into the low, no big red news candle before it",
+   "tb.market_reading: Green, or turning Green"
+  ],
+  "b_minus": [
+   "tb.below_50_grade: below the 50-day with a flat or falling 200-day",
+   "tb.depth: a deep undercut (over 3%) bought at the reclaim with the wide stop",
+   "tb.volume: a loud break (1.5x volume or more) with a weak reclaim",
+   "tb.level: the level is minor (a few days old) or already broken before (tb.first_break)",
+   "tb.reclaim_window: the reclaim takes 2 to 3 sessions",
+   "tb.leader: a good name but not a top leader; the market still mixed (tb.market_washout)",
+   "tb.earnings_window: earnings within days; an obscure or thin name (tb.liquidity)"
+  ],
+  "no_trade": [
+   "tb.above_200: below the 200-day at entry",
+   "tb.inv_no_reclaim: no close back above the broken low within 3 sessions",
+   "tb.never_before_reclaim: the undercut itself, before the reclaim",
+   "tb.not_oops: a one-day dip under yesterday's low with no prior swing low",
+   "tb.no_chase: more than 4% past the broken low",
+   "tb.earnings_window: a report within 3 sessions",
+   "tb.liquidity: under $10 or under $20 million a day",
+   "tb.market_reading: Red; a market still making lower lows with no reclaim (tb.market_washout)"
+  ]
+ },
+ "lookalikes": [
+  {
+   "setup": "29-undercut-rally",
+   "tell": "Name the level. A 2B's level is one swing low at least 5 sessions old that price rallied 1 ATR off, on its first break; if the level is a rising 20 EMA or 50-day, a prior high, a round number or the 10-session range low, it is a U&R.",
+   "criterion": "tb.level"
+  },
+  {
+   "setup": "30-oops-reversal",
+   "tell": "Count the days back to the broken low. An Oops opens under the prior close, breaks yesterday's low and reclaims the prior close the same day; a 2B breaks a swing low at least 5 sessions old and may take up to 3 sessions to close back above it.",
+   "criterion": "tb.not_oops"
+  },
+  {
+   "setup": "35-wyckoff-spring-upthrust",
+   "tell": "Look left for a flat range. A spring's level is the floor of a sideways range of 15 sessions or more, touched at least twice, and the close is back inside the same day or the next; a 2B's level is a single swing low with a rally of at least 1 ATR between it and the break.",
+   "criterion": "tb.level"
+  },
+  {
+   "setup": "32-remount",
+   "tell": "Count the closes under the level. A 2B closes back above within 3 sessions; five or more closes under it is a Remount, bought on the retake of the line, not on the reclaim of a low.",
+   "criterion": "tb.reclaim_window"
+  },
+  {
+   "setup": "34-capitulation",
+   "tell": "Measure the drop into the low. A 2B is a strong stock above its 200-day undercutting a prior low by 3% or less on quiet volume; a capitulation is a 2 ATR flush on 2x volume under the 5, 9 and 20-day with the burst boxes checked, and it may sit under the 200-day as a parabolic long.",
+   "criterion": "tb.depth"
+  }
+ ],
+ "invalidations": [
+  "Before the trigger: no close back above the broken low within 3 sessions, a breakdown (tb.inv_no_reclaim).",
+  "Before the trigger: the reclaim day closes in the bottom half of its range (tb.reclaim_close).",
+  "Before the trigger: the level was already broken before, or it is only yesterday's low (tb.first_break, tb.not_oops).",
+  "Before the trigger: below the 200-day at entry (tb.above_200).",
+  "Before the trigger: a report within 3 sessions, wait (tb.earnings_window).",
+  "Before the trigger: a market still making lower lows with no reclaim, or an isolated breakdown on news (tb.market_washout, tb.clean_lead_in).",
+  "After the entry: a trade under the new low is the exit, at once (tb.after_entry_stop).",
+  "After the entry: a close back under the broken low within 2 sessions is the warning that the failure has failed; hold to the stop, do not add (tb.reclaim_fails)."
+ ],
+ "mistakes": [
+  "Buying the break before the reclaim. Sperandeo's trigger is the return through the level; Bulkowski: a much greater risk.",
+  "Holding when the new low breaks. Sperandeo: you lose properly.",
+  "Calling any dip under yesterday's low a 2B. The Model Book drawing does this.",
+  "Shorting a leader's failed breakout above the 200-day. UCT buys it: the squat.",
+  "Taking a deep undercut at full size: the stop is far wider than it looks (HOOD 15.8%, PLTR 11.3%).",
+  "Trusting a loud break: heavy volume on the break did worse, as Sperandeo would expect.",
+  "2Bs below the 200-day, or in names you would not normally trade.",
+  "Expecting the shape alone to pay: it did no better than a random day without the leader, the market low and the entry at the level.",
+  "Buying a 2B while the market is still making lower lows (NVDA and AMD, April 2024)."
+ ],
+ "short_mirror": {
+  "exists": true,
+  "setup": "28-2b-reversal",
+  "note": "The 2B top, dossier 8.6: only below the 200-day (B26, D47). A stock below its 200-day SMA rallies above a prior swing high, fails, and closes back under it within 1 to 3 sessions; short the move back under, stop a few cents above the new high; RS 20 or less, a weak group, not hard to borrow (C31 mirror, D48); the same depth, time, trims and time stop reversed. Not above the 200-day: in a leader a failed breakout is UCT's squat, a buy (buy with 10 toes down). The dossier's check found no edge for 2B-top shorts above the 200-day (22.3% to 3R); the scan's shorts below it reached 3R 39.0% and 5R 26.5% (GLW 2008-08-12, U 2022-04-05). Best in a Red market (D46). Nobody at UCT has written a 2B short on a stock. Whether to teach it is D-001 (28:7)."
+ },
+ "best_conditions": "Long: the indexes are washing out under their own prior lows and reclaiming them (the market put in a low), the reading is turning from Orange or Yellow toward Green, and leaders are undercutting their own lows near the 50-day or 200-day. Start with a few positions (F68). Short: a Red market, a stock below a falling 200-day, a weak bounce into a prior swing high.",
+ "management": {
+  "trim_1": "a third at 3R (B19)",
+  "trim_2": "a third at 5R (E51)",
+  "trail": "a close under the 10-day for a fast mover, the 21-day for a steadier one (E52)",
+  "breakeven": "between 2R and 5R, at the first trim by default (B19)",
+  "time_stop": "under 1R after 10 trading days, sell (C33)",
+  "gap_open": "a trim level the day opens past is taken at the open (F63)",
+  "gap_against": "the first 30-minute low is the new stop; out if past 2R (B20)",
+  "overrides": "none. The dossier (8.4) keeps the house defaults and adds a note: the first resistance is often the rally high between the two lows, and 3R came in a median of 3 to 6 sessions. Not ours: Turtle Soup's partial profits in 2 to 6 bars, Sperandeo's exit when prices break past the new 2B high."
+ },
+ "examples": {
+  "winners": 10,
+  "sheet_dir": "_study-resume/scratchpad/setups/28-2b-reversal/final",
+  "base_rate": {
+   "hits": 74068,
+   "long_hits": 46377,
+   "short_hits": 27691,
+   "r3_pct": 56.7,
+   "r5_pct": 45.1,
+   "stopped_pct": 80.5,
+   "never_1r_pct": 25.5,
+   "median_sessions_to_3r": 1,
+   "median_stop_pct": 1.08,
+   "short_r3_pct": 52.6,
+   "short_r5_pct": 40.8,
+   "short_median_stop_pct": 1.11,
+   "window": "60 sessions forward, fixed stop 5 cents under the undercut low (the day's low for a same-day reclaim, known only at the close), no trims, no breakeven, no trail, no time stop; 1988-07-12 to 2026-11-09 (bars refreshed after the first scan); the fill at the level plus a cent, or the open when a later session gapped above the level (never the open of the break day); longs above the 200-day, shorts below it",
+   "rescanned": "2026-11-10 with fills at the reclaim; the earlier figures used the open",
+   "was": {
+    "hits": 71881,
+    "long_hits": 44919,
+    "short_hits": 26962,
+    "r3_pct": 42.7,
+    "r5_pct": 30.2,
+    "stopped_pct": 81,
+    "never_1r_pct": 33.6,
+    "median_sessions_to_3r": 3,
+    "median_stop_pct": 1.69,
+    "short_r3_pct": 39.0,
+    "short_r5_pct": 26.5,
+    "note": "a same-day reclaim was filled at the day's open when it was above the level"
+   },
+   "same_day_live_stop_check": {
+    "hits": 406,
+    "window": "2026-08-17 to 2026-11-06, 5-minute bars, 1,000 names",
+    "r3_pct_day_low_stop": 60.3,
+    "r3_pct_live_stop": 31.0,
+    "stopped_same_day": 195,
+    "note": "5-minute bars cannot order events inside one bar"
+   }
+  },
+  "cuts": {
+   "next_day_reclaim": {
+    "hits": 12149,
+    "r3_pct": 47.9,
+    "r5_pct": 33.6,
+    "same_day": {
+     "hits": 28067,
+     "r3_pct": 64.3,
+     "r5_pct": 54.2,
+     "was_r3_pct": 41.0,
+     "was_r5_pct": 29.6
+    },
+    "two_to_three_days": {
+     "r3_pct": 39.4,
+     "r5_pct": 26.0
+    },
+    "was_hits": 12143
+   },
+   "quiet_break_at_or_under_50_day_volume": {
+    "hits": 18364,
+    "r3_pct": 57.7,
+    "r5_pct": 46.9,
+    "loud_over_1_5x": {
+     "r3_pct": 56.6,
+     "r5_pct": 43.8
+    },
+    "was": {
+     "hits": 18084,
+     "r3_pct": 43.0,
+     "r5_pct": 30.8,
+     "loud_r3_pct": 42.3,
+     "loud_r5_pct": 29.3
+    }
+   },
+   "undercut_1_pct_or_less": {
+    "hits": 26267,
+    "r3_pct": 64.7,
+    "r5_pct": 55.0,
+    "one_to_two_pct": {
+     "r3_pct": 48.6,
+     "r5_pct": 34.8
+    },
+    "two_to_three_pct": {
+     "r3_pct": 41.8,
+     "r5_pct": 26.8
+    },
+    "was": {
+     "hits": 25434,
+     "r3_pct": 44.4,
+     "r5_pct": 32.6,
+     "one_to_two": [
+      41.4,
+      28.7
+     ],
+     "two_to_three": [
+      38.4,
+      23.9
+     ]
+    }
+   },
+   "stop_under_1_pct_of_price": {
+    "hits": 21826,
+    "r3_pct": 67.3,
+    "r5_pct": 58.5,
+    "stop_over_2_pct": {
+     "r3_pct": 42.3,
+     "r5_pct": 27.6
+    },
+    "note": "tight stops pay, when they are real; a sub-1% stop is the most exposed to slippage",
+    "was": {
+     "hits": 9932,
+     "r3_pct": 55.5,
+     "r5_pct": 43.5,
+     "over_2_r3_pct": 34.7,
+     "over_2_r5_pct": 22.0
+    }
+   },
+   "level_age_6_to_15_vs_over_30": {
+    "r3_pct": 55.5,
+    "over_30_r3_pct": 59.9,
+    "note": "little difference",
+    "was": {
+     "r3_pct": 42.3,
+     "over_30_r3_pct": 44.1
+    }
+   },
+   "close_entry_check_section_4_4": {
+    "hits": 72944,
+    "r3_pct": 27.0,
+    "r5_pct": 17.2,
+    "baseline_r3_pct": 27.0,
+    "baseline_r5_pct": 19.4,
+    "note": "entry at the reclaim day's close; geometry alone is not an edge; the scan's higher rate is the fill at the level"
+   }
+  },
+  "winners_list": [
+   "GLW 2008-08-12 (short)",
+   "RL 2009-07-08",
+   "DINO 2018-03-01",
+   "SHOP 2019-11-08",
+   "QCOM 2020-09-21",
+   "U 2022-04-05 (short)",
+   "JBL 2023-08-18",
+   "MU 2024-02-20",
+   "MKSI 2025-11-21",
+   "INTC 2026-03-31"
+  ],
+  "uct_named": [
+   "HOOD 2025-04-07 (15.8% undercut)",
+   "PLTR 2025-04-07 (11.3%)",
+   "NFLX 2025-04-04 (0.1%, then 3.9% on 04-07)",
+   "SPOT 2025-04-07 (1.8%)",
+   "GEV 2025-04-04 (5.3%, below the 200-day)",
+   "ASTS 2026-03-31 (6.9%)",
+   "RKLB 2026-03-31 (12.4%)"
+  ],
+  "failures": [
+   {
+    "ticker": "NVDA",
+    "date": "2024-04-18",
+    "criterion": "tb.market_washout",
+    "why": "the April 9 low (83.02) undercut by 0.75% and reclaimed the same day, the 18th (open 84.97, low 82.40, close 84.67, upper half; buy 83.03, stop 82.35, 0.82% away); the next day opened 83.15 and fell to 75.61, a 9% day through the stop with no warning on the daily chart; the market and the chip group were still making lower lows."
+   },
+   {
+    "ticker": "AMD",
+    "date": "2024-04-16",
+    "criterion": "tb.market_washout",
+    "why": "the same week, the same group: the February 21 low (161.81) undercut 1.9% on April 15, reclaimed on the 16th (close 163.46), and the next day fell 6% to 154.02, through the stop at 158.71."
+   },
+   {
+    "ticker": "TSLA",
+    "date": "2023-08-11",
+    "criterion": "tb.reclaim_fails",
+    "why": "the June 26 low (240.70) undercut 1.1% and reclaimed the same day (close 242.65; buy 240.71, stop 237.97, 1.14% away); the next session gapped under the level and the stock fell four more days to 219: a second, deeper break in which the failure had failed."
+   },
+   {
+    "ticker": "PYPL",
+    "date": "2018-03-26",
+    "criterion": "tb.market_washout",
+    "why": "the 76.93 low (03-02) undercut 0.75% and reclaimed the next day; the open fill 77.98, stop 76.30; the following day reversed from 79.59 to a 76.31 close through the stop, and SPY made a lower low on 04-02."
+   },
+   {
+    "ticker": "MGM",
+    "date": "2017-07-05",
+    "criterion": "tb.after_entry_stop",
+    "why": "the 30.82 low (06-12) undercut 1.65% and reclaimed the next day; buy 30.83, stop 30.26; the next day's low touched the stop to the cent and the stock was 31.98 twenty sessions later. Out at once; a retry needs a new trigger."
+   }
+  ],
+  "limits": "No RS rating or group (a leader proxy only in the dossier's check, nothing in the scan), no market reading, no earnings filter beyond the ten examples, no clean lead-in test, no trims. Fill at the level plus a cent is the best case for a market order; R is often under 1% of price (23% of long hits have a stop of 0.5% or less), so slippage matters most here. The stop is scored under the undercut's lowest low, which for a same-day reclaim is known only at the close: a 5-minute check of 406 same-day hits gave 60.3% to 3R with that stop and 31.0% with the stop under the low so far at the fill. Survivor universe. Nothing here is a published statistic.",
+  "near_misses": [
+   {
+    "ticker": "DELL",
+    "date": "2024-07-22",
+    "criterion": "tb.depth",
+    "why": "the undercut went 4.36% under the 127.59 low (to 122.03), 3 closes under, reclaim on day 3; the rule is 3% or less. The stop would be 4.83%. Not a 2B at full size."
+   },
+   {
+    "ticker": "GS",
+    "date": "2017-01-25",
+    "criterion": "tb.reclaim_window",
+    "why": "6 closes under the 236.64 low before the first close back above; the rule is within 3 sessions. A Remount (32-remount), bought on the retake of the line."
+   },
+   {
+    "ticker": "GOOG",
+    "date": "2026-07-20",
+    "criterion": "tb.reclaim_close",
+    "why": "the reclaim day (a gap over the 348.66 level after 1 close under) closed at 0.14 of its range; the rule is the upper half. A failed reclaim, not a trigger."
+   },
+   {
+    "ticker": "META",
+    "date": "2026-01-08",
+    "criterion": "tb.above_200",
+    "why": "a same-day undercut (0.45%) and reclaim of the 638.61 low with the close 4.2% under the 200-day SMA; the rule is a close above it. Watch only under B26. Rescanned 2026-11-10 with the buy at the level plus a cent (638.62, stop 635.67, 0.46%; was 645.88 at the open): it reached 5.5R before the stop, so the gate is about odds, not about this chart."
+   }
+  ],
+  "sheets": {
+   "failures": "final/fail_1-4.png",
+   "near_misses": "final/near_1-4.png",
+   "pair": "final/pair_29-undercut-rally.png"
+  }
+ },
+ "question_seeds": [
+  {
+   "kind": "recall",
+   "criterion": "tb.reclaim_window",
+   "seed": "After the first break of a swing low, within how many sessions must the stock close back above it to be a 2B?"
+  },
+  {
+   "kind": "recall",
+   "criterion": "tb.stop",
+   "seed": "Where does the stop go on a 2B bottom, and what is it on a same-day reclaim?"
+  },
+  {
+   "kind": "recall",
+   "criterion": "tb.volume",
+   "seed": "Sperandeo says the failed break usually comes on what kind of volume?"
+  },
+  {
+   "kind": "spot",
+   "criterion": "tb.level",
+   "seed": "Hidden ticker: tap the swing low this stock broke and the day it closed back above it."
+  },
+  {
+   "kind": "spot",
+   "criterion": "tb.first_break",
+   "seed": "Hidden ticker: is today's dip the first break of that low, or had it already been broken? Take it or pass."
+  },
+  {
+   "kind": "spot",
+   "criterion": "tb.reclaim_close",
+   "seed": "Hidden ticker: four reclaim days, one closes in the bottom half of its range. Which one fails the rule?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "tb.not_oops",
+   "seed": "2B or Oops: the stock opened under yesterday's close, broke yesterday's low and closed back above the close. Which is it, and why?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "tb.level",
+   "seed": "2B or U&R: the level broken was the rising 50-day, not a swing low. Which card applies?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "tb.reclaim_window",
+   "seed": "2B or Remount: the stock closed under the old low for six sessions before retaking it. Which is it?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "tb.never_before_reclaim",
+   "seed": "The stock is 1% under a three-week low at 10:30 and has not come back through it. Buy now, or wait?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "tb.market_washout",
+   "seed": "A clean 2B in a leader, but the Nasdaq made another lower low today with no reclaim. Take it, size down, or pass?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "tb.reclaim_fails",
+   "seed": "You bought the reclaim at 100.05. The next day closes at 99.40, back under the old low, above your stop. What now?"
+  },
+  {
+   "kind": "grade",
+   "criterion": "tb.depth",
+   "seed": "Two 2Bs in the same market low: one undercut 1.2% and reclaimed the same day, one undercut 11% and reclaimed two days later. Grade each and name the entry for the second."
+  },
+  {
+   "kind": "grade",
+   "criterion": "tb.below_50_grade",
+   "seed": "A 2B above the 200-day but below a falling 50-day. A+, B-, or pass?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "tb.depth",
+   "seed": "The prior swing low is 50.00 and the undercut low is 48.80. How deep is the undercut in percent, and does it fit the 3% line?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "tb.stop_width",
+   "seed": "Fill 50.01, stop 48.75. What is the stop in percent, and does it fit A13 at full size?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "tb.trim_1",
+   "seed": "Bought at 42.89 with the stop at 42.37. Where is 3R, and where is 5R?"
+  }
+ ],
+ "owner_decisions": [
+  "D-001",
+  "D-002",
+  "D-003",
+  "D-004",
+  "D-005",
+  "D-006",
+  "D-007",
+  "D-009",
+  "D-011",
+  "D-101",
+  "D-102"
+ ],
+ "conflicts": [
+  "Which level: any swing low (Sperandeo); the 20-day low (Turtle Soup); the range low (Wyckoff); any known level (UCT). The card takes a 5-session swing low 5 to 60 sessions old with a 1 ATR rally between, plus the owner's named levels (D-101). The glossary's swing low is 5 sessions each side (28, 33) against 3 in 29 and the app.",
+  "How soon: one day for a minor extreme, three to five for an intermediate one, seven to ten for a major one (Sperandeo 1993, 2008); immediately (1994); same day or Plus One (Turtle Soup). The card takes 3 sessions with same or next day graded higher (D-102); the rescan scores the same-day reclaim best (64.3% to 3R, but with a stop known only at the close; 31.0% in the 5-minute live-stop check) against 47.9% next day, and the close-entry check found the same day best.",
+  "How deep: Sperandeo gives no number; Bulkowski within 5%; the card takes 3% from A13. Six of UCT's seven named 2Bs went 1.8% to 15.8% under, so UCT's own examples mostly fail the card's depth and teach the deep-undercut problem (D-005).",
+  "Volume: Sperandeo's quiet failure against the draft curriculum's heavy volume as the trapped crowd. Both checks lean Sperandeo's way, weakly (D-006).",
+  "Entry: a stop order at the level (Sperandeo, Turtle Soup); a market order (E57); the next hourly higher low (the owner's AMD note). The scan's fill at the level gives 56.7% to 3R (was 42.7% when a same-day reclaim was filled at the open; rescanned 2026-11-10); the close entry 27%, the same as a random day; the edge is the fill and the context, not the shape (D-003).",
+  "The stop on a slow reclaim: under the lowest low of the undercut (Sperandeo, F62) or under the day you buy (the owner's Stop at LOD). The same price on a same-day reclaim; the dossier's question 6 (D-005).",
+  "RS: Bracco's RS names against C31's mean-reversion exemption. The dossier leans to C31; the register's default puts the washout U&R, not the 2B, in the exempt class (D-011).",
+  "The short side: every outside source teaches the 2B top as the mirror; UCT buys a leader's failed breakout (the squat) and only reads failed breakouts on the indexes as warnings. The card allows the short only below the 200-day (B26), and whether to teach it is D-001.",
+  "The 200-day: about half of liquid 2B bottoms sit below it and did no worse in the check; B26 is a hard rule and wins. GEV (Bracco's name) and the curriculum's SPY 2011 example were below it (D-009).",
+  "Chart IQ's two_b_reversal label (computed, as far as traced not shown) fires on bounces under an already-broken low (only 2.5% first breaks, 57.8% never closed back above); it needs the close back above and a first break before anyone surfaces it, and it has no 2B top though the Model Book card says both (D-004).",
+  "The Model Book glyph lacks the prior swing low; the coach prompt calls the 2B high-quality with no source; the draft curriculum's partials at 2R and 3R and size-smallest doctrine are not house rules (D-004, D-010).",
+  "Scan against the dossier's check: 56.7% to 3R with the fill at the level (was 42.7%, with a same-day fill at the open) against 27.0% with a close entry on a similar rule. The card quotes both and says why they differ.",
+  "Near the averages and the clean lead-in are the owner's and Bracco's words without numbers; the card borrows the glossary's touch band and the Oops card's bar-size test and says so."
+ ]
+}

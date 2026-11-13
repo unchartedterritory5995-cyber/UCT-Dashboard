@@ -1,0 +1,1512 @@
+{
+ "unit": "F6.08",
+ "track": "F6",
+ "title": "IV and the expected move",
+ "teaches": "Implied volatility is the market's one-year, one standard deviation move (about 68% of outcomes); scale it to any window with the square root of time, read the move priced for a report from the straddle, and judge real moves and stops against it.",
+ "skills": [
+  {
+   "id": "options.expected_move",
+   "title": "IV and the expected move"
+  }
+ ],
+ "as_of": "2026-11-09",
+ "sources": [
+  {
+   "id": "s1",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "May Key Takeaways: The Rule of 16 and the 0DTE Risk Profile (June 2026, instructor Mat Cashman)",
+   "url": "https://www.optionseducation.org/news/may-keytakeaways",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s2",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "April Office Hours FAQs: Options Strategy, Time Decay, and Market Mechanics (April 2026)",
+   "url": "https://www.optionseducation.org/news/april-office-hours-faqs-options-strategy-time-decay-and-market-mechanics",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s3",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Volatility & the Greeks",
+   "url": "https://www.optionseducation.org/advancedconcepts/volatility-the-greeks",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s4",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Vega",
+   "url": "https://www.optionseducation.org/advancedconcepts/vega",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s5",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "What Is Implied Volatility? Basics and Examples (Will Daniel, September 2, 2026)",
+   "url": "https://www.schwab.com/learn/story/what-is-implied-volatility-basics-examples",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s6",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "Tools for Trading Options Around Earnings (January 20, 2026)",
+   "url": "https://www.schwab.com/learn/story/trading-options-around-earnings-announcements",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s7",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "Price Movement Indicator: Market Maker Move (August 5, 2025)",
+   "url": "https://www.schwab.com/learn/story/price-movement-indicator-market-maker-move",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s8",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "Using Options Volatility Data to Research Moves (November 19, 2025)",
+   "url": "https://www.schwab.com/learn/story/using-sentiment-analysis-tools-your-trading",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s9",
+   "tier": 2,
+   "publisher": "Fidelity Investments",
+   "title": "What you need to know about volatility (Trading Strategy Desk, Options Intermediate Week 4, webinar slides, 2022)",
+   "url": "https://www.fidelity.com/bin-public/060_www_fidelity_com/documents/learning-center/2._What_you_need_to_know_about_Volatility_v3.pdf",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s10",
+   "tier": 2,
+   "publisher": "Fidelity Investments",
+   "title": "What you need to know about volatility (webinar transcript, presenters James Savage and Jonathan Lord, Trading Strategy Desk)",
+   "url": "https://www.fidelity.com/bin-public/060_www_fidelity_com/documents/learning-center/know-about-vol-transcript.pdf",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s11",
+   "tier": 2,
+   "publisher": "Fidelity Investments",
+   "title": "Options trading around earnings (webinar transcript, Trading Strategy Desk, presenter Konstantin Vrandopulo, 2022)",
+   "url": "https://www.fidelity.com/bin-public/060_www_fidelity_com/documents/learning-center/options-around-earnings-transcript.pdf",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s12",
+   "tier": 2,
+   "publisher": "Cboe Global Markets",
+   "title": "Understanding Implied Volatility (Russell Rhoads, CFA, Senior Instructor, The Options Institute at CBOE; webcast slides, October 16, 2013, hosted by Interactive Brokers)",
+   "url": "https://www.interactivebrokers.com/webinars/WB_1812_CBOE_Understanding_Implied_Volatility.pdf",
+   "accessed": "2026-11-09",
+   "why_reliable": "A Cboe Options Institute education deck (copyright CBOE 2013) by its senior instructor, given as an Interactive Brokers webcast; Cboe education is Tier 2 under the contract. The PDF is served from interactivebrokers.com, so the publisher named is Cboe, the author's institution."
+  },
+  {
+   "id": "s13",
+   "tier": 2,
+   "publisher": "CME Group",
+   "title": "Discover Options Volatility (Introduction to Options course)",
+   "url": "https://www.cmegroup.com/education/courses/introduction-to-options/discover-options-volatility",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s14",
+   "tier": 2,
+   "publisher": "Cboe Global Markets",
+   "title": "Inside Volatility Trading: Breaking Down the VIX Index and its Correlation to the S&P 500 Index (Cboe Insights, Scott Bauer, June 21, 2022)",
+   "url": "https://www.cboe.com/insights/posts/inside-volatility-trading-breaking-down-the-vix-index-and-its-correlation-to-the-s-p-500-index/",
+   "accessed": "2026-11-09",
+   "why_reliable": "Published by Cboe, the exchange that calculates the VIX, on cboe.com. Filed as Tier 2 (Cboe education and commentary), not Tier 1: it is a signed insights post, not the VIX methodology document."
+  },
+  {
+   "id": "s15",
+   "tier": 2,
+   "publisher": "Interactive Brokers (IBKR Campus, Traders' Insight)",
+   "title": "Use Your TWS to See What the Options Market Thinks About Earnings Expectations (Steve Sosnick, Chief Strategist, July 24, 2020)",
+   "url": "https://www.interactivebrokers.com/campus/traders-insight/securities/options/use-your-tws-to-see-what-the-options-market-thinks-about-earnings-expectations/",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s16",
+   "tier": 2,
+   "publisher": "Cboe Global Markets",
+   "title": "What Options Data May Indicate About Mag 7 Earnings (Cboe Insights, July 30, 2025)",
+   "url": "https://www.cboe.com/insights/posts/what-options-data-may-indicate-about-mag-7-earnings",
+   "accessed": "2026-11-09",
+   "why_reliable": "Published by Cboe, the options exchange operator, on cboe.com. Filed as Tier 2 (Cboe education and commentary), not Tier 1: it is market commentary, not a rule or a methodology document."
+  }
+ ],
+ "facts": [
+  {
+   "id": "f1",
+   "source": "s1",
+   "quote": "Implied volatility is quoted as an annualized number, even when it is derived from an option with only days remaining until expiration.",
+   "claim": "Implied volatility is always quoted as a one-year number, even on an option with only days left."
+  },
+  {
+   "id": "f2",
+   "source": "s1",
+   "quote": "The Rule of 16 converts that annual figure into a daily standard deviation expressed in dollar terms.",
+   "claim": "The Rule of 16 turns the yearly IV into one day's standard deviation in dollars."
+  },
+  {
+   "id": "f3",
+   "source": "s1",
+   "quote": "The formula is: Daily Standard Deviation = (Implied Volatility as a percentage × Underlying Price) ÷ √Trading Days.",
+   "claim": "One day's standard deviation is the IV times the stock price, divided by the square root of the trading days in a year."
+  },
+  {
+   "id": "f4",
+   "source": "s1",
+   "quote": "the denominator converts that figure into daily, weekly (√52), or monthly (√12) terms.",
+   "claim": "Dividing by the square root of 52 gives a week; by the square root of 12, a month."
+  },
+  {
+   "id": "f5",
+   "source": "s1",
+   "quote": "The result describes magnitude of expected movement, not direction.",
+   "claim": "The expected move is a size, not a direction."
+  },
+  {
+   "id": "f6",
+   "source": "s1",
+   "quote": "A $100 stock with 20% implied volatility implies approximately $1.25 of daily movement.",
+   "claim": "A $100 stock at 20% IV is priced for about $1.25 of movement a day."
+  },
+  {
+   "id": "f7",
+   "source": "s1",
+   "quote": "A subsequent $7 underlying move would represent roughly 5.6 standard deviations—a substantial outlier relative to expectations.",
+   "claim": "On that stock, a $7 move is about 5.6 daily standard deviations: a big outlier."
+  },
+  {
+   "id": "f8",
+   "source": "s1",
+   "quote": "When implied volatility changes after a move, the forward-looking expectation changes as well.",
+   "claim": "When IV changes, the expected move from here changes with it."
+  },
+  {
+   "id": "f9",
+   "source": "s1",
+   "quote": "When the underlying delivers less movement than implied volatility suggested, the options are sometimes referred to as “underperforming expectations”",
+   "claim": "When the stock moves less than the IV priced, the options are said to underperform expectations."
+  },
+  {
+   "id": "f10",
+   "source": "s1",
+   "quote": "The Rule of 16 provides context for evaluating realized price moves relative to what option prices were implying",
+   "claim": "The Rule of 16 lets you judge a real move against the move the options priced."
+  },
+  {
+   "id": "f11",
+   "source": "s2",
+   "quote": "Because there are approximately 252 trading days in a year, the square root of 252 is close to 16",
+   "claim": "There are about 252 trading days a year, and the square root of 252 is about 16."
+  },
+  {
+   "id": "f12",
+   "source": "s2",
+   "quote": "Multiplying that percentage by the stock price converts it to a dollar figure.",
+   "claim": "Multiply the daily percent by the stock price to get the daily move in dollars."
+  },
+  {
+   "id": "f13",
+   "source": "s2",
+   "quote": "Dividing by the square root of 52 produces the expected weekly move; dividing by 2 (the square root of 4) gives the quarterly expected move.",
+   "claim": "A quarter, a fourth of a year, gets half the yearly move: divide by the square root of 4."
+  },
+  {
+   "id": "f14",
+   "source": "s2",
+   "quote": "it does not determine whether that implied volatility is rich or cheap.",
+   "claim": "The Rule of 16 does not tell you if the IV is too high or too low."
+  },
+  {
+   "id": "f15",
+   "source": "s2",
+   "quote": "If the underlying delivers more movement than the implied daily standard deviation suggests, option prices are more likely to rise. If the underlying delivers less movement, options are more likely to decline in value.",
+   "claim": "More movement than priced tends to lift option prices; less movement tends to sink them."
+  },
+  {
+   "id": "f16",
+   "source": "s2",
+   "quote": "Traders who are long these options need underlying movement that outpaces the time value being lost each day.",
+   "claim": "An option buyer needs the stock to move more than the time value lost each day."
+  },
+  {
+   "id": "f17",
+   "source": "s3",
+   "quote": "Implied Volatility is a measure of how much the marketplace expects the asset price to move based on the price of the option.",
+   "claim": "Implied volatility is the move the market expects, read from the option's price."
+  },
+  {
+   "id": "f18",
+   "source": "s3",
+   "quote": "Statistical (Historical) Volatility is a measure of actual asset price changes over a specific period.",
+   "claim": "Historical volatility measures the moves that actually happened over a past period."
+  },
+  {
+   "id": "f19",
+   "source": "s3",
+   "quote": "We denote the official mathematical value of volatility as \"the annualized standard deviation of a stock’s daily price changes.\"",
+   "claim": "Volatility is a standard deviation, stated on a yearly basis."
+  },
+  {
+   "id": "f20",
+   "source": "s4",
+   "quote": "the market is the ultimate determining factor of current implied volatility levels",
+   "claim": "The market, through option prices, decides what IV is."
+  },
+  {
+   "id": "f21",
+   "source": "s5",
+   "quote": "More specifically, IV represents the market's expected one-standard-deviation move in an underlying security over a one-year period.",
+   "claim": "IV is the market's expected one standard deviation move over one year."
+  },
+  {
+   "id": "f22",
+   "source": "s5",
+   "quote": "The important part here is that one standard deviation encompasses roughly 68% of potential outcomes.",
+   "claim": "One standard deviation covers roughly 68% of outcomes."
+  },
+  {
+   "id": "f23",
+   "source": "s5",
+   "quote": "Imagine ZYX stock is trading at $100, and an option for that stock has an IV of 20%.",
+   "claim": "Schwab's example: a $100 stock with an IV of 20%."
+  },
+  {
+   "id": "f24",
+   "source": "s5",
+   "quote": "the IV suggests the market is pricing in a roughly 68% chance that the stock will trade between $80 and $120",
+   "claim": "That IV prices a roughly 68% chance the stock is between $80 and $120 a year out."
+  },
+  {
+   "id": "f25",
+   "source": "s5",
+   "quote": "multiply the current stock price ($100) by the IV (20%) and then adjust for the shorter period using the square root of the portion of the year represented by those 30 days",
+   "claim": "For 30 days: price times IV, times the square root of the part of the year those days make up."
+  },
+  {
+   "id": "f26",
+   "source": "s5",
+   "quote": "The calculation yields an expected move of $5.73, giving ZYX an estimated 30-day price range of roughly $94.27 to $105.73.",
+   "claim": "That works out to about $5.73 over 30 days: roughly $94.27 to $105.73."
+  },
+  {
+   "id": "f27",
+   "source": "s5",
+   "quote": "These expected ranges aren't predictions or guarantees. The underlying can move beyond them, and IV itself changes as market expectations shift.",
+   "claim": "The range is not a promise; the stock can move past it, and IV itself changes."
+  },
+  {
+   "id": "f28",
+   "source": "s5",
+   "quote": "Importantly, IV doesn't predict the direction of a price move, only the size of potential price swings (up or down).",
+   "claim": "IV gives the size of the swing, not its direction."
+  },
+  {
+   "id": "f29",
+   "source": "s5",
+   "quote": "Then, once the event has passed and that uncertainty dissipates, IV can quickly drop.",
+   "claim": "Once an event like earnings is out, IV can drop fast."
+  },
+  {
+   "id": "f30",
+   "source": "s6",
+   "quote": "IV greatly impacts options pricing and tends to be elevated before earnings.",
+   "claim": "IV tends to be high going into earnings."
+  },
+  {
+   "id": "f31",
+   "source": "s6",
+   "quote": "a 20% IV for a $30 stock indicates traders think the stock might either rise or fall $6 (20%) from its current level",
+   "claim": "A $30 stock at 20% IV is priced for a $6 move either way over a year."
+  },
+  {
+   "id": "f32",
+   "source": "s6",
+   "quote": "This assumes a normal return distribution and is not guaranteed.",
+   "claim": "The expected move assumes a bell-curve spread of returns, and it is not guaranteed."
+  },
+  {
+   "id": "f33",
+   "source": "s6",
+   "quote": "finding the expected daily move may still be helpful for traders looking to gauge the potential risk involved in a trade",
+   "claim": "The expected daily move helps you size up a trade's risk."
+  },
+  {
+   "id": "f34",
+   "source": "s6",
+   "quote": "The calculations are theoretical, and a stock might see a move that is greater or less than the implied move.",
+   "claim": "The priced move is theoretical; the real move can be bigger or smaller."
+  },
+  {
+   "id": "f35",
+   "source": "s7",
+   "quote": "In normal markets, IV is lower in the front-month options contract than it is in later months.",
+   "claim": "Normally the nearest expiry carries lower IV than later ones."
+  },
+  {
+   "id": "f36",
+   "source": "s7",
+   "quote": "When the market is pricing in a potentially outsized move, such as right before an earnings release or other company announcement, front-month IV might be higher.",
+   "claim": "Right before earnings or other news, the nearest expiry's IV can be the higher one."
+  },
+  {
+   "id": "f37",
+   "source": "s7",
+   "quote": "The image above shows a stock trading at $216.88 with an MMM of ±16.74. This indicates the options market has priced in a move to as low as $200.14 and as high as $233.62.",
+   "claim": "Schwab's example: a $216.88 stock priced for a $16.74 move either way, $200.14 to $233.62."
+  },
+  {
+   "id": "f38",
+   "source": "s7",
+   "quote": "Note that the MMM value does not guarantee a stock will move by a certain magnitude, nor does it indicate in which direction a move might occur.",
+   "claim": "The priced event move guarantees no size and gives no direction."
+  },
+  {
+   "id": "f39",
+   "source": "s8",
+   "quote": "The above option chain for IBM reflects a series volatility of 30.67% for the year.",
+   "claim": "In Schwab's IBM example, the November series showed an IV of 30.67%."
+  },
+  {
+   "id": "f40",
+   "source": "s8",
+   "quote": "the series volatility reading for the October 24 weekly options was notably higher, near 79%, likely because IBM reported earnings on October 22.",
+   "claim": "IBM's October 24 weekly options showed IV near 79%, likely because of its October 22 report."
+  },
+  {
+   "id": "f41",
+   "source": "s9",
+   "quote": "68% likelihood the stock will end the period within 1 standard deviation",
+   "claim": "About 68% of the time the stock ends the period within one standard deviation."
+  },
+  {
+   "id": "f42",
+   "source": "s9",
+   "quote": "95% likelihood the stock will end the period within 2 standard deviations",
+   "claim": "About 95% of the time it ends within two standard deviations."
+  },
+  {
+   "id": "f43",
+   "source": "s9",
+   "quote": "99% likelihood the stock will end the period within 3 standard deviations",
+   "claim": "About 99% of the time it ends within three standard deviations."
+  },
+  {
+   "id": "f44",
+   "source": "s9",
+   "quote": "It’s helpful to remember that 16% IV results in a 1% daily expected move",
+   "claim": "An IV of 16% prices about a 1% move a day."
+  },
+  {
+   "id": "f45",
+   "source": "s9",
+   "quote": "most prevalent around known upcoming events like earnings announcements where the options expiring soonest, but after the event will tend to have the highest IV levels",
+   "claim": "Around earnings, the first expiry after the report tends to carry the highest IV."
+  },
+  {
+   "id": "f46",
+   "source": "s9",
+   "quote": "Measure of expected movement • Based on calendar days for a theoretical option",
+   "claim": "Fidelity describes IV as built on calendar days."
+  },
+  {
+   "id": "f47",
+   "source": "s9",
+   "quote": "62.35% annualized expected move based on hypothetical 30-day option contracts",
+   "claim": "Even IV taken from 30-day options is shown as a yearly figure."
+  },
+  {
+   "id": "f48",
+   "source": "s10",
+   "quote": "volatility is proportional to the square root of time, and not time directly.",
+   "claim": "Moves grow with the square root of time, not with time itself."
+  },
+  {
+   "id": "f49",
+   "source": "s10",
+   "quote": "If it’s at 32, what type of movement would you expect? Well, a 2% movement.",
+   "claim": "An IV of 32% prices about a 2% move a day."
+  },
+  {
+   "id": "f50",
+   "source": "s10",
+   "quote": "a movement that’s going to be for this $100 stock within the range of 98.75 and 101.25 is to be expected.",
+   "claim": "On the $100 stock at 20% IV, a day inside 98.75 to 101.25 is an expected day."
+  },
+  {
+   "id": "f51",
+   "source": "s11",
+   "quote": "And option traders would frequently use the price of a straddle as the expected move of a stock post-earnings event.",
+   "claim": "Option traders often use the straddle price as the expected move after earnings."
+  },
+  {
+   "id": "f52",
+   "source": "s11",
+   "quote": "So the stock is at 162 and a half and I’m going to look at the at-the-money or as close to at-the-money 162 and a half call and put.",
+   "claim": "Fidelity's live example: a $162.50 stock and the 162.50 call and put."
+  },
+  {
+   "id": "f53",
+   "source": "s11",
+   "quote": "So one day to go, 162 and a half put and call is approximately trading for eight dollars and let’s call it 30 cents.",
+   "claim": "With one day to expiry, that straddle traded for about $8.30."
+  },
+  {
+   "id": "f54",
+   "source": "s11",
+   "quote": "Why don’t we go back to our chart and throw on eight bucks on either side in terms of a range.",
+   "claim": "The instructor laid the straddle price on both sides of the stock price as the range."
+  },
+  {
+   "id": "f55",
+   "source": "s11",
+   "quote": "If my one standard deviation expectation is 68 percent of occurrences",
+   "claim": "One standard deviation is about 68% of outcomes."
+  },
+  {
+   "id": "f56",
+   "source": "s11",
+   "quote": "16 percent on either side. The stock can go up or down or it can remain within the range of expectations.",
+   "claim": "Outside the one standard deviation range sits about 16% on each side."
+  },
+  {
+   "id": "f57",
+   "source": "s11",
+   "quote": "Notice that our implied volatility at the money is 115 percent right now.",
+   "claim": "With the report hours away, the at-the-money IV read 115%."
+  },
+  {
+   "id": "f58",
+   "source": "s12",
+   "quote": "Price x Implied Volatility x Square Root (Days / 365) or Price x Implied Volatility x Square Root (Days / 252)",
+   "claim": "Expected move: price times IV times the square root of days over 365, or of trading days over 252."
+  },
+  {
+   "id": "f59",
+   "source": "s12",
+   "quote": "Market Pricing with 95.4% Certainty XYZ Between 60.00 and 140.00 in 1 Year",
+   "claim": "A $100 stock at 20% IV has about a 95.4% priced chance of ending the year between 60 and 140."
+  },
+  {
+   "id": "f60",
+   "source": "s12",
+   "quote": "Market Pricing with 99.7% Certainty XYZ Between 40.00 and 160.00 in 1 Year",
+   "claim": "And about a 99.7% priced chance of ending between 40 and 160: three standard deviations."
+  },
+  {
+   "id": "f61",
+   "source": "s12",
+   "quote": "Statistically (assuming the market is correct) a stock should close within up or down 1 standard deviation 68.2% of the time.",
+   "claim": "The 68% assumes the market's pricing is right."
+  },
+  {
+   "id": "f62",
+   "source": "s12",
+   "quote": "What percent of the time does a stock close outside 1 standard deviation during this 30 day period? 54.1%",
+   "claim": "In Cboe's simulation, 54.1% of 30-day paths closed outside one standard deviation at some point."
+  },
+  {
+   "id": "f63",
+   "source": "s12",
+   "quote": "If you consistently initiated a trade based on implied volatility being correctly priced and you checked your account daily over a 30 day period over half of the trades would cause some concern.",
+   "claim": "Even if IV is priced right, over half of trades would look worrying at some point in 30 days."
+  },
+  {
+   "id": "f64",
+   "source": "s12",
+   "quote": "Quickly after the catalyst has come to fruition, implied volatility will drop to lower levels",
+   "claim": "Soon after the event, IV drops."
+  },
+  {
+   "id": "f65",
+   "source": "s13",
+   "quote": "In the options world, volatility is quoted as an annualized number. You can calculate a one year, one standard deviation move,by taking the volatility times the underlying price.",
+   "claim": "Volatility is quoted yearly; the one-year, one standard deviation move is the IV times the price."
+  },
+  {
+   "id": "f66",
+   "source": "s13",
+   "quote": "if the underlying price was 100 and volatility was 20%, a one standard deviation move would be 20 points, up or down. This would create an expected price range of 80 to 120.",
+   "claim": "Price 100 and volatility 20%: one standard deviation is 20 points, a range of 80 to 120."
+  },
+  {
+   "id": "f67",
+   "source": "s13",
+   "quote": "If you have a different time horizon, we can calculate that as well by adjusting the volatility by using the square root of time.",
+   "claim": "For other windows, scale the volatility by the square root of time."
+  },
+  {
+   "id": "f68",
+   "source": "s14",
+   "quote": "the VIX Index tells us the level of expected volatility of the S&P 500 Index for the next 30 days, with a 68% confidence level, or a one standard deviation of the normal probability curve.",
+   "claim": "The VIX is the S&P 500's expected volatility for the next 30 days, a one standard deviation figure off the bell curve."
+  },
+  {
+   "id": "f69",
+   "source": "s14",
+   "quote": "dividing the VIX Index level of 28 not by 12 (since there are 12 months in a year), but by the square root of 12 (approximately 3.46).",
+   "claim": "To get a month from a VIX of 28, divide by the square root of 12, about 3.46, not by 12."
+  },
+  {
+   "id": "f70",
+   "source": "s14",
+   "quote": "This would imply a move of 8.09% over the next month",
+   "claim": "A VIX of 28 implies about an 8.09% move over the next month."
+  },
+  {
+   "id": "f71",
+   "source": "s14",
+   "quote": "Since the VIX Index uses calendar day annualization (365 days) rather than many historical/realized volatility measurements which use trading day annualization (252 days)",
+   "claim": "Some measures annualize over 365 calendar days, others over 252 trading days."
+  },
+  {
+   "id": "f72",
+   "source": "s15",
+   "quote": "The simplest way to see that anticipated move is to look at the nearest term, at-money straddle.",
+   "claim": "The quickest read of the move priced for a report is the nearest at-the-money straddle."
+  },
+  {
+   "id": "f73",
+   "source": "s15",
+   "quote": "Another way to do that is to take the average of the implied volatilities, which are displayed in annualized terms, and convert them to daily volatilities by dividing by 16.",
+   "claim": "The other way: take the yearly IV and divide by 16 for one day."
+  },
+  {
+   "id": "f74",
+   "source": "s15",
+   "quote": "You will see that those numbers generally agree if the options are very short-lived.",
+   "claim": "For very short-dated options, the straddle read and the IV read generally agree."
+  },
+  {
+   "id": "f75",
+   "source": "s16",
+   "quote": "Mathematically, a comparison between near-term volatility and longer-dated volatility results in the expected standard deviation for the post-earnings day.",
+   "claim": "Comparing the near expiry's IV with a later expiry's IV is how the move priced for the report day is pulled out."
+  }
+ ],
+ "walkthroughs": [
+  {
+   "key": "w1",
+   "title": "One number, one year",
+   "steps": [
+    "Implied volatility is quoted as a one-year number, even on an option with days left.",
+    "It's one standard deviation. That covers roughly 68% of outcomes.",
+    "Stock at $100, IV of 20%. The market prices a roughly 68% chance it trades between $80 and $120 a year out.",
+    "It's a size, not a direction. It says how far, not which way."
+   ],
+   "facts": [
+    "f1",
+    "f21",
+    "f22",
+    "f23",
+    "f24",
+    "f5",
+    "f28"
+   ]
+  },
+  {
+   "key": "w2",
+   "title": "Shrink it to your window",
+   "steps": [
+    "Moves grow with the square root of time, not with time itself.",
+    "For a window in calendar days: price times IV, times the square root of the days over 365.",
+    "$100 at 20% IV over 30 days comes to about $5.73. That's a range of roughly $94.27 to $105.73.",
+    "For one trading day, the Rule of 16: divide the IV by 16. $100 at 20% is about $1.25."
+   ],
+   "facts": [
+    "f48",
+    "f58",
+    "f25",
+    "f26",
+    "f11",
+    "f6"
+   ]
+  },
+  {
+   "key": "w3",
+   "title": "The move priced for a report",
+   "steps": [
+    "Into a report, the first expiry after it tends to carry the highest IV. The event sits inside it.",
+    "The quick read is that expiry's at-the-money straddle. Lay its price on both sides of the stock.",
+    "When the options are very short-dated, the straddle and the IV math generally agree. Either gives the size, never the side.",
+    "Once the report is out, IV usually drops fast. It was an estimate, and the stock can move more or less."
+   ],
+   "facts": [
+    "f45",
+    "f36",
+    "f72",
+    "f51",
+    "f54",
+    "f74",
+    "f5",
+    "f29",
+    "f64",
+    "f34"
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "key": "q01",
+   "skill": "options.expected_move",
+   "rung": 1,
+   "format": "mcq",
+   "q": "A stock's options show an implied volatility of 30%. Over what span of time is that 30% quoted?",
+   "choices": [
+    "One year",
+    "Until the option expires",
+    "One trading day",
+    "One month"
+   ],
+   "answer": "One year",
+   "why": "One year. Implied volatility is quoted as a yearly number, even on an option with only days left.",
+   "lesson_line": "IV is always a yearly number. Scale it down before you use it.",
+   "facts": [
+    "f1",
+    "f21",
+    "f65",
+    "f47",
+    "f11"
+   ],
+   "wrong": {
+    "Until the option expires": "That's the natural guess, but no. Even an option with days left shows a yearly IV.",
+    "One trading day": "That's what you get after dividing the IV by about 16. The quote itself is yearly.",
+    "One month": "Even IV taken from 30-day options is shown as a yearly figure."
+   }
+  },
+  {
+   "key": "q02",
+   "skill": "options.expected_move",
+   "rung": 1,
+   "format": "mcq",
+   "q": "Where does a stock's implied volatility come from?",
+   "choices": [
+    "Its options' current prices",
+    "Its own past price moves",
+    "Analysts' price targets",
+    "A number the exchange sets"
+   ],
+   "answer": "Its options' current prices",
+   "why": "Its options' current prices. Implied volatility is the move the market expects, read from what the options cost.",
+   "lesson_line": "IV is the options market talking. Past moves are a different number: historical volatility.",
+   "facts": [
+    "f17",
+    "f18",
+    "f20"
+   ],
+   "wrong": {
+    "Its own past price moves": "That's historical volatility, built from moves that already happened. IV looks forward.",
+    "Analysts' price targets": "Targets are analysts' views on price. IV comes from what the options trade for.",
+    "A number the exchange sets": "Nobody sets it. The market's option prices decide it."
+   }
+  },
+  {
+   "key": "q03",
+   "skill": "options.expected_move",
+   "rung": 2,
+   "format": "mcq",
+   "q": "IV prices a one standard deviation move. About how much of the possible outcomes does one standard deviation cover?",
+   "choices": [
+    "About 68% of outcomes",
+    "About 50% of outcomes",
+    "About 95% of outcomes",
+    "About 99% of outcomes"
+   ],
+   "answer": "About 68% of outcomes",
+   "why": "About 68%, roughly two out of three. That's what a one standard deviation range holds.",
+   "lesson_line": "One standard deviation holds about two outcomes in three. The other third lands outside it.",
+   "facts": [
+    "f22",
+    "f41",
+    "f55",
+    "f42",
+    "f43",
+    "f19"
+   ],
+   "wrong": {
+    "About 50% of outcomes": "That's a coin flip. One standard deviation covers more than half: about 68%.",
+    "About 95% of outcomes": "That's two standard deviations. One covers about 68%.",
+    "About 99% of outcomes": "That's about three standard deviations, a much wider range."
+   }
+  },
+  {
+   "key": "q04",
+   "skill": "options.expected_move",
+   "rung": 2,
+   "format": "fill",
+   "q": "Tap the number that fits the blank.",
+   "sentence": "For one day's expected move, divide the implied volatility by about ___.",
+   "bank": [
+    "16",
+    "12",
+    "52",
+    "252",
+    "365"
+   ],
+   "answer": "16",
+   "why": "16. There are about 252 trading days in a year, and the square root of 252 is close to 16. That's the Rule of 16.",
+   "lesson_line": "IV divided by 16 is one day's expected move, in percent.",
+   "facts": [
+    "f11",
+    "f2",
+    "f44"
+   ]
+  },
+  {
+   "key": "q05",
+   "skill": "options.expected_move",
+   "rung": 2,
+   "format": "numeric",
+   "q": "A $50 stock has an implied volatility of 30%. What is its one-year, one standard deviation move, in dollars?",
+   "answer": 15,
+   "prefix": "$",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "price * iv / 100",
+     "price": 50,
+     "iv": 30
+    }
+   },
+   "why": "$15. The one-year, one standard deviation move is the price times the IV: $50 times 30%.",
+   "lesson_line": "Price times IV is the one-year move. Every shorter window starts from there.",
+   "facts": [
+    "f65",
+    "f66",
+    "f31"
+   ]
+  },
+  {
+   "key": "q06",
+   "skill": "options.expected_move",
+   "rung": 3,
+   "format": "tf",
+   "q": "The 68% range from IV assumes the market's pricing is right and returns follow a bell curve.",
+   "answer": "True",
+   "why": "True. The math assumes a normal, bell-shaped spread of returns and a market that priced it right. It's an estimate, not a promise.",
+   "lesson_line": "The 68% is a model's number. Real stocks can and do move past it.",
+   "facts": [
+    "f61",
+    "f32",
+    "f68",
+    "f27"
+   ]
+  },
+  {
+   "key": "q07",
+   "skill": "options.expected_move",
+   "rung": 3,
+   "format": "tf",
+   "q": "Same stock, same price, same days left: double the implied volatility and the expected move doubles.",
+   "answer": "True",
+   "why": "True. The expected move is the price times the IV, scaled for time, so it moves in step with IV. 16% IV prices about 1% a day; 32% prices about 2%.",
+   "lesson_line": "Twice the IV, twice the move. Read the IV as the size of the swing.",
+   "facts": [
+    "f3",
+    "f44",
+    "f49"
+   ]
+  },
+  {
+   "key": "q08",
+   "skill": "options.expected_move",
+   "rung": 3,
+   "format": "mcq",
+   "q": "A $100 stock has an implied volatility of 20%. Which one-year range holds about 95% of outcomes?",
+   "choices": [
+    "$60 to $140",
+    "$80 to $120",
+    "$40 to $160",
+    "$90 to $110"
+   ],
+   "answer": "$60 to $140",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "price - 2 * price * iv / 100",
+     "price": 100,
+     "iv": 20
+    }
+   },
+   "why": "$60 to $140. That's two standard deviations: twice the $20 one-year move, each way.",
+   "lesson_line": "One standard deviation holds about 68%. Two hold about 95%. More certainty costs a wider range.",
+   "facts": [
+    "f59",
+    "f42",
+    "f41",
+    "f66",
+    "f60"
+   ],
+   "wrong": {
+    "$80 to $120": "That's one standard deviation. It holds about 68% of outcomes, not 95%.",
+    "$40 to $160": "That's three standard deviations, about 99.7% in Cboe's version of this example.",
+    "$90 to $110": "That's half a standard deviation each way. It holds well under 68%."
+   }
+  },
+  {
+   "key": "q09",
+   "skill": "options.expected_move",
+   "rung": 4,
+   "format": "numeric",
+   "q": "An $80 stock has an implied volatility of 35%. What is its one standard deviation move over the next 30 calendar days?",
+   "answer": 8.03,
+   "prefix": "$",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "price * iv / 100 * (days / 365) ** 0.5",
+     "price": 80,
+     "iv": 35,
+     "days": 30
+    }
+   },
+   "why": "$8.03. Take the one-year move, $80 times 35%. Then multiply by the square root of 30 over 365.",
+   "lesson_line": "Calendar days go over 365. Take the square root, then multiply it by the one-year move.",
+   "facts": [
+    "f58",
+    "f25",
+    "f67"
+   ]
+  },
+  {
+   "key": "q10",
+   "skill": "options.expected_move",
+   "rung": 4,
+   "format": "numeric",
+   "q": "A $48 stock has an implied volatility of 40%. Using the Rule of 16, what is one day's expected move, in dollars?",
+   "answer": 1.2,
+   "prefix": "$",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "price * iv / 100 / 16",
+     "price": 48,
+     "iv": 40
+    }
+   },
+   "why": "$1.20. Multiply $48 by 40%, then divide by 16 for one trading day.",
+   "lesson_line": "Price times IV, divided by 16. That's a normal day's move, up or down.",
+   "facts": [
+    "f3",
+    "f11",
+    "f12"
+   ]
+  },
+  {
+   "key": "q11",
+   "skill": "options.expected_move",
+   "rung": 4,
+   "format": "scenario",
+   "story": "A stock trades at $216.88 into its earnings report. The options price a move of $16.74 for the report, either way.",
+   "q": "What price range are the options pricing for the report?",
+   "choices": [
+    "$200.14 to $233.62",
+    "$208.51 to $225.25",
+    "$216.88 to $233.62",
+    "$183.40 to $250.36"
+   ],
+   "answer": "$200.14 to $233.62",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "price - move",
+     "price": 216.88,
+     "move": 16.74
+    }
+   },
+   "why": "$200.14 to $233.62. The move applies each way: $216.88 minus $16.74, and $216.88 plus $16.74.",
+   "lesson_line": "Add the priced move to the stock price and take it away. That's the range being priced.",
+   "facts": [
+    "f37",
+    "f38",
+    "f5"
+   ],
+   "wrong": {
+    "$208.51 to $225.25": "That splits the $16.74 between up and down. The full move applies in each direction.",
+    "$216.88 to $233.62": "That only counts a move up. The priced move has no direction.",
+    "$183.40 to $250.36": "That doubles the priced move. The options priced $16.74 each way, not twice that."
+   }
+  },
+  {
+   "key": "q12",
+   "skill": "options.expected_move",
+   "rung": 5,
+   "format": "numeric",
+   "q": "A stock's options price a one-day move of about 2.5%. Using the Rule of 16, about what implied volatility is that?",
+   "answer": 40,
+   "suffix": "%",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "daily * 16",
+     "daily": 2.5
+    }
+   },
+   "why": "40%. The Rule of 16 runs both ways: the daily move times 16 gives the yearly IV.",
+   "lesson_line": "Daily move times 16 is the IV. A stock priced for 2.5% a day carries about 40% IV.",
+   "facts": [
+    "f11",
+    "f73",
+    "f44"
+   ]
+  },
+  {
+   "key": "q13",
+   "skill": "options.expected_move",
+   "rung": 5,
+   "format": "mcq",
+   "q": "Same stock, same IV. The one-week expected move is $3. About what is the four-week move?",
+   "choices": [
+    "About $6",
+    "About $12",
+    "About $3"
+   ],
+   "answer": "About $6",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "week * 4 ** 0.5",
+     "week": 3
+    }
+   },
+   "why": "About $6. Moves grow with the square root of time. Four times the time is the square root of 4, so twice the move.",
+   "lesson_line": "Four times the time, twice the move. Never scale the move straight with the days.",
+   "facts": [
+    "f13",
+    "f48",
+    "f67"
+   ],
+   "wrong": {
+    "About $12": "That scales the move straight with time. It grows with the square root of time, so four weeks is twice one week.",
+    "About $3": "More time gives the stock room for a bigger move. The move grows, just not in a straight line."
+   }
+  },
+  {
+   "key": "q14",
+   "skill": "options.expected_move",
+   "rung": 5,
+   "format": "numeric",
+   "q": "A one standard deviation range holds about 68% of outcomes. About what percent of the time does the stock end above it?",
+   "answer": 16,
+   "suffix": "%",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(100 - inside) / 2",
+     "inside": 68
+    }
+   },
+   "why": "About 16%. The rest falls outside the range, split about evenly above and below it.",
+   "lesson_line": "Roughly one outcome in six lands above the range, and about one in six lands below it.",
+   "facts": [
+    "f22",
+    "f41",
+    "f55",
+    "f56"
+   ]
+  },
+  {
+   "key": "q15",
+   "skill": "options.expected_move",
+   "rung": 5,
+   "format": "numeric",
+   "q": "A stock trades at $162.50 into tonight's report. The 162.50 straddle expiring tomorrow costs $8.30. Where does the priced range top out?",
+   "answer": 170.8,
+   "prefix": "$",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "price + straddle",
+     "price": 162.5,
+     "straddle": 8.3
+    }
+   },
+   "why": "$170.80. Many traders use the straddle price as the expected move: $162.50 plus $8.30 on top, minus $8.30 below.",
+   "lesson_line": "Stock price plus and minus the straddle is the quick range priced for the report.",
+   "facts": [
+    "f51",
+    "f52",
+    "f53",
+    "f54",
+    "f72"
+   ]
+  },
+  {
+   "key": "q16",
+   "skill": "options.expected_move",
+   "rung": 6,
+   "format": "scenario",
+   "story": "A $100 stock carries an implied volatility of 20%. Today it moves $7.",
+   "q": "About how many one-day standard deviations is that move?",
+   "choices": [
+    "About 5.6",
+    "About 0.35",
+    "About 7",
+    "About 1.25"
+   ],
+   "answer": "About 5.6",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "move / (price * iv / 100 / 16)",
+     "move": 7,
+     "price": 100,
+     "iv": 20
+    },
+    "round": 1
+   },
+   "why": "About 5.6. One day's standard deviation here is about $1.25, and $7 is 5.6 of those. The Options Industry Council calls that a substantial outlier.",
+   "lesson_line": "Measure a day's move against the daily standard deviation. That tells you if it was a normal day.",
+   "facts": [
+    "f6",
+    "f7",
+    "f2"
+   ],
+   "wrong": {
+    "About 0.35": "That divides $7 by the one-year move of $20. Bring the move down to one day first.",
+    "About 7": "That counts each dollar as one standard deviation. Here one is about $1.25.",
+    "About 1.25": "That's the size of one daily standard deviation, not how many the move covers."
+   }
+  },
+  {
+   "key": "q17",
+   "skill": "options.expected_move",
+   "rung": 6,
+   "format": "mcq",
+   "q": "The VIX, the S&P 500's 30-day volatility gauge, reads 28. About what one-month move is that pricing?",
+   "choices": [
+    "About 8.1%",
+    "About 2.3%",
+    "About 28%",
+    "About 1.75%"
+   ],
+   "answer": "About 8.1%",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "vix / 12 ** 0.5",
+     "vix": 28
+    },
+    "round": 1
+   },
+   "why": "About 8.1%. The VIX is quoted as a yearly number too, so divide 28 by the square root of 12, about 3.46. Cboe worked the same case to 8.09%.",
+   "lesson_line": "The VIX is a yearly number. Divide it by the square root of 12 for a month.",
+   "facts": [
+    "f69",
+    "f70",
+    "f68",
+    "f4",
+    "f11"
+   ],
+   "wrong": {
+    "About 2.3%": "That divides 28 by 12. Divide by the square root of 12 instead.",
+    "About 28%": "That's the yearly figure. A month's move is far smaller.",
+    "About 1.75%": "That's about one trading day: 28 divided by 16."
+   }
+  },
+  {
+   "key": "q18",
+   "skill": "options.expected_move",
+   "rung": 7,
+   "format": "scenario",
+   "story": "A stock reports earnings Wednesday night. Its options expiring that Friday show an implied volatility near 79%. The next monthly options show about 31%.",
+   "q": "What most likely explains the gap?",
+   "choices": [
+    "It's the first expiry after earnings",
+    "Weekly options always carry higher IV",
+    "Traders expect the stock to drop",
+    "The monthly options are mispriced"
+   ],
+   "answer": "It's the first expiry after earnings",
+   "why": "It's the first expiry after the report, and that's where IV tends to run highest. The event sits inside those few days.",
+   "lesson_line": "Before a report, compare the expiries. The first one after it shows the event's premium most.",
+   "facts": [
+    "f45",
+    "f36",
+    "f35",
+    "f75",
+    "f28",
+    "f20"
+   ],
+   "wrong": {
+    "Weekly options always carry higher IV": "Normally the nearest expiry carries lower IV than later months. A report flips that.",
+    "Traders expect the stock to drop": "IV measures the size of the expected move, not its direction.",
+    "The monthly options are mispriced": "Both are market prices. The monthly IV also covers weeks of ordinary days, so the report weighs less in it."
+   }
+  },
+  {
+   "key": "q19",
+   "skill": "options.expected_move",
+   "rung": 7,
+   "format": "scenario",
+   "story": "A $60 stock has an implied volatility of 32%. Today it's up $1.10. A friend calls it a big day.",
+   "q": "Measured against what its options price, was it a big day?",
+   "choices": [
+    "No, the expected move is $1.20",
+    "Yes, a move near 2% is a big day",
+    "Can't tell without the chart"
+   ],
+   "answer": "No, the expected move is $1.20",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "price * iv / 100 / 16",
+     "price": 60,
+     "iv": 32
+    }
+   },
+   "why": "No. One day's expected move here is about $1.20, and $1.10 sits inside it. That's an ordinary day for this stock.",
+   "lesson_line": "Judge a day's move against the stock's own expected move, not a fixed percent.",
+   "facts": [
+    "f3",
+    "f10",
+    "f50",
+    "f49"
+   ],
+   "wrong": {
+    "Yes, a move near 2% is a big day": "A fixed percent ignores the stock. At 32% IV the options price about 2% a day, and this move is inside that.",
+    "Can't tell without the chart": "The options already give you the yardstick: price times IV, divided by 16."
+   }
+  },
+  {
+   "key": "q20",
+   "skill": "options.expected_move",
+   "rung": 7,
+   "format": "tf",
+   "q": "The Rule of 16 tells you whether a stock's options are overpriced.",
+   "answer": "False",
+   "why": "False. It turns IV into the size of move the market is pricing. Whether that's rich or cheap is a separate question.",
+   "lesson_line": "The Rule of 16 tells you what's priced. Compare it with what the stock actually delivers.",
+   "facts": [
+    "f14",
+    "f10"
+   ]
+  },
+  {
+   "key": "q21",
+   "skill": "options.expected_move",
+   "rung": 8,
+   "format": "tf",
+   "q": "A 68% chance of ending inside the range means a 68% chance the stock never trades outside it.",
+   "answer": "False",
+   "why": "False. The 68% is about where it ends. In a Cboe simulation, 54.1% of 30-day paths closed outside one standard deviation at some point.",
+   "lesson_line": "The range is about the finish line. The path can wander outside it first.",
+   "facts": [
+    "f41",
+    "f62",
+    "f63",
+    "f61"
+   ]
+  },
+  {
+   "key": "q22",
+   "skill": "options.expected_move",
+   "rung": 8,
+   "format": "scenario",
+   "story": "You buy calls on a stock with an implied volatility of 40%, about 2.5% a day. For a week it drifts sideways, moving about 0.5% a day.",
+   "q": "If that keeps up, what tends to happen to your calls?",
+   "choices": [
+    "Losing value: it moves less than priced",
+    "Holding value, the stock hasn't fallen",
+    "Gaining value, high IV pays the buyer"
+   ],
+   "answer": "Losing value: it moves less than priced",
+   "why": "Losing value. When the stock delivers less movement than the IV priced, options tend to fall. A buyer needs moves that outpace the daily time decay.",
+   "lesson_line": "Buy options and you need more movement than the market priced. Quiet days cost the buyer.",
+   "facts": [
+    "f15",
+    "f16",
+    "f9"
+   ],
+   "wrong": {
+    "Holding value, the stock hasn't fallen": "Not falling isn't enough. A call loses time value every quiet day.",
+    "Gaining value, high IV pays the buyer": "High IV means you paid up for movement. If the movement doesn't come, that premium drains away."
+   }
+  },
+  {
+   "key": "q23",
+   "skill": "options.expected_move",
+   "rung": 8,
+   "format": "scenario",
+   "story": "You buy a $40 stock with an implied volatility of 56%. You put your stop $0.90 below your entry.",
+   "q": "What does the IV tell you about that stop?",
+   "choices": [
+    "Inside one day's $1.40 expected move",
+    "Well outside a normal day's move",
+    "Nothing, IV is only for option traders"
+   ],
+   "answer": "Inside one day's $1.40 expected move",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "price * iv / 100 / 16",
+     "price": 40,
+     "iv": 56
+    }
+   },
+   "why": "It sits inside one day's expected move. Here that's about $1.40, and your stop is $0.90 away. An ordinary day can take it out.",
+   "lesson_line": "Check the day's expected move before you set a stop. Inside it, ordinary days can stop you out.",
+   "facts": [
+    "f3",
+    "f33",
+    "f22",
+    "f41"
+   ],
+   "wrong": {
+    "Well outside a normal day's move": "$0.90 is less than the $1.40 a normal day can move. The stop is inside it.",
+    "Nothing, IV is only for option traders": "IV is the market's estimate of how much the stock moves. That matters to anyone holding the shares."
+   }
+  },
+  {
+   "key": "q24",
+   "skill": "options.expected_move",
+   "rung": 9,
+   "format": "mcq",
+   "q": "Same stock, same IV. Two tools show different one-day expected moves. What most likely explains it?",
+   "choices": [
+    "One counts 365 days, one counts 252",
+    "One must have a bad formula",
+    "One shows up moves, one shows down"
+   ],
+   "answer": "One counts 365 days, one counts 252",
+   "why": "The day count. Some annualize over 365 calendar days, others over 252 trading days. Same IV, a different daily number.",
+   "lesson_line": "Know your tool's day count before you compare. Calendar days and trading days give different daily moves.",
+   "facts": [
+    "f71",
+    "f58",
+    "f46",
+    "f11",
+    "f5"
+   ],
+   "wrong": {
+    "One must have a bad formula": "Both conventions are in use. Cboe's VIX annualizes over 365 calendar days; the Rule of 16 uses 252 trading days.",
+    "One shows up moves, one shows down": "The expected move is the same size both ways. It has no direction."
+   }
+  },
+  {
+   "key": "q25",
+   "skill": "options.expected_move",
+   "rung": 9,
+   "format": "scenario",
+   "story": "Two days before a report, the weekly options show an IV of 120%. A friend plugs 120% into the 30-day formula to set his targets.",
+   "q": "What's the problem with his math?",
+   "choices": [
+    "The report is inflating that IV",
+    "Nothing, IV works for any window",
+    "IV can't really be above 100%"
+   ],
+   "answer": "The report is inflating that IV",
+   "why": "The report is inflating that IV. The first expiry after an event tends to carry the highest IV, and IV usually drops fast once the news is out.",
+   "lesson_line": "Event IV prices the event. Don't stretch it across a month of normal days.",
+   "facts": [
+    "f45",
+    "f30",
+    "f64",
+    "f29",
+    "f8",
+    "f57"
+   ],
+   "wrong": {
+    "Nothing, IV works for any window": "The formula assumes the IV holds. After the report it usually falls, so his month would be priced too wide.",
+    "IV can't really be above 100%": "It can. In a Fidelity earnings class, the at-the-money IV read 115% with the report hours away."
+   }
+  }
+ ],
+ "conflicts": [
+  "Day count. The OIC Rule of 16 (s1, s2), Schwab's expected daily move (s6) and Fidelity (s9, s10, s11) divide by the square root of about 252 trading days; Cboe's VIX post (s14) says the VIX annualizes over 365 calendar days and gives a daily figure as VIX divided by the square root of 365 (19.1), a smaller number than VIX divided by 16. Schwab's 30-day example (s5) and Rhoads (s12) use calendar days over 365. Rhoads shows the two agree for the same 30-day span when the days are counted to match (5.01 with 30 / 365, 5.05 with 21 / 252). The file teaches the Rule of 16 for one trading day and days over 365 for a window counted in calendar days, says which in every question, and q24 keys only that the two conventions give different daily numbers.",
+  "Straddle versus IV. The straddle quick read (s11, s15) and the IV-based one standard deviation move are not the same measure. Sosnick (s15) says the straddle read and IV divided by 16 'generally agree if the options are very short-lived' and that the straddle method 'ignores subtleties of time decay' when several days remain; Schwab's Market Maker Move (s8) 'uses a larger range than the usual one standard deviation'; Cboe's Mag 7 note (cited in F5.05) scales the implied standard deviation by a 2/3 rule of thumb. The file never asks which read is bigger; q15 uses the straddle only for a one-day option, where the sources say the reads agree, and w3 says 'generally agree'.",
+  "The 68% and 95% figures assume a normal distribution and a correctly priced market (Rhoads s12: 'assuming the market is correct'; Schwab s6: 'assumes a normal return distribution and is not guaranteed'). Fidelity's volatility class (s10) adds that 'black swan events that are supposed to happen once every billion years ... keep happening every five, ten years'. The file keys the percentages as 'about' and q06 keys the assumption itself; no question claims the tails are any particular size.",
+  "q14 splits the outside 32% evenly (about 16% above and 16% below). Fidelity's earnings class (s11) uses 16% on either side; with skew and the lognormal shape of prices the two tails are not exactly equal, so the question and the why say 'about'.",
+  "q11 uses the numbers of Schwab's Market Maker Move example (s7), a Schwab-proprietary event-move estimate, but asks only the range arithmetic and calls it 'the move the options price'; it does not claim the figure is one standard deviation (s8 says the MMM range is larger than one standard deviation).",
+  "q18 (checker, 2026-11-09): the writer's story named IBM and presented Schwab's chain (s8: October 24 weekly near 79%, November series 30.67%, report October 22) as a pre-report snapshot. Schwab does not say when the screenshot was taken, and its own text ('the 28 days before November 21 series options expire') points to October 24, two days AFTER the report; Schwab's explanation is only 'likely'. So the real-world framing could not be confirmed and the story is now a plain unnamed example (a report Wednesday night, that Friday's options near 79%, the next monthly about 31%). The key rests on Fidelity's rule (s9, f45) and Schwab's front-month note (s7, f35/f36), two Tier 2 publishers that agree. f39/f40 stay in facts, unused.",
+  "OIC's Rule of 16 page (s1) calls IV times price 'annual variance'; strictly it is the annual standard deviation in dollars. No fact quotes that sentence.",
+  "Fidelity's earnings transcript (s11) says 'square root of 253 is equal to 50.9', a slip (the square root of 253 is about 15.9); no fact quotes it. Fidelity's volatility slides (s9) are the cited source for '16% IV results in a 1% daily expected move'."
+ ],
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "notes": "All 16 sources re-read in context 2026-11-09 (15 by curl at 200; CME s13 refused curl (403) and WebFetch timed out, so read from the quote checker's own 200 fetch of today); quote check 75/75 found. f1 (OIC), f21-f24 (Schwab), f5 (OIC) say this. Step 4 'Up and down look the same to it' oversold the symmetry (skew exists); now 'It says how far, not which way', per f5 and f28.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "f48 (Fidelity transcript), f58 (Cboe deck), f25/f26 (Schwab: 100 x 20% x sqrt(30/365) = 5.734, recomputed), f11/f6 (OIC: 20/16 of $100 = $1.25) back every step.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "f45 (Fidelity horizontal skew), f72/f74 (Sosnick: nearest at-money straddle; 'generally agree if the options are very short-lived'), f51/f54 (Fidelity earnings class), f29/f64/f34. Keeps the sources' hedges (tends, generally, usually).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q01": {
+   "status": "pass",
+   "notes": "Key is f1 (OIC, Tier 1) word for word; CME (s13) 'always annualized' backs the lesson's 'always'. Wrong notes right: IV/16 is a day; f47 (Fidelity) shows 30-day IV as a yearly figure.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q02": {
+   "status": "cut",
+   "notes": "duplicate of F6.06#q02. Track audit 2026-11-09: Same fact and misconception (IV comes from option prices, not the stock's past moves, which is historical volatility). F6.06 defines IV and also has q04 on it. The checker had passed it (its note is kept under 'prior'); the question stays in the file as the record.",
+   "fixed": false,
+   "by": "auditor",
+   "prior": {
+    "status": "pass",
+    "notes": "f17 (OIC: 'based on the price of the option'), f18 (historical is past moves), f20 (OIC vega: 'the market is the ultimate determining factor'). Distractors are real beginner confusions.",
+    "fixed": false,
+    "by": "checker"
+   }
+  },
+  "q03": {
+   "status": "pass",
+   "notes": "68% from f22 (Schwab), f41 (Fidelity), f55; 95% and 99% wrong notes from f42/f43. Removed the 'term' field: 'About 68% of outcomes' is not a definition of one standard deviation, so it must not feed Word Match as one.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q04": {
+   "status": "pass",
+   "notes": "f11 (OIC: about 252 trading days, square root close to 16). Only 16 fits the blank; 12, 52, 252, 365 are the classic wrong divisors (sqrt(365) = 19.1 is not in the bank, so no second right answer).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q05": {
+   "status": "pass",
+   "notes": "50 x 30% = 15 recomputed. f65/f66 (CME) and f31 (Schwab) teach price x IV as the one-year, one standard deviation move.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q06": {
+   "status": "pass",
+   "notes": "f61 (Cboe deck: 'assuming the market is correct') and f32 (Schwab: 'assumes a normal return distribution and is not guaranteed'): two Tier 2 publishers agree. True is right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q07": {
+   "status": "pass",
+   "notes": "f3 (OIC formula) is linear in IV, so double IV doubles the move; f44/f49 (Fidelity: 16% to 1%, 32% to 2%) recomputed.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q08": {
+   "status": "pass",
+   "notes": "$100 x 20% = $20; two SDs = $60 to $140 (f59 Cboe 95.4%, f42 Fidelity 95%). $40-$160 is three SDs (f60, 99.7%); $90-$110 is half an SD each way (about 38%, so 'well under 68%' holds). Recomputed.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q09": {
+   "status": "pass",
+   "notes": "80 x 0.35 x sqrt(30/365) = 8.027, so 8.03, recomputed. Method from f58 (Cboe), f25 (Schwab), f67 (CME). The question says calendar days, so 365 is unambiguous.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q10": {
+   "status": "pass",
+   "notes": "48 x 0.40 / 16 = 1.20, recomputed. f3 (OIC formula), f11, f12.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q11": {
+   "status": "pass",
+   "notes": "216.88 -/+ 16.74 = 200.14 / 233.62, Schwab's own MMM example (f37), recomputed. Distractors recomputed: half the move 208.51-225.25, double 183.40-250.36. Asks only the arithmetic; never calls the MMM one SD (conflicts).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q12": {
+   "status": "pass",
+   "notes": "2.5 x 16 = 40, recomputed. f73 (Sosnick: divide annualized IV by 16 for a day), f11, f44 (16% is 1% a day).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q13": {
+   "status": "pass",
+   "notes": "$3 x sqrt(4) = $6. f13 (OIC: divide by 2, the square root of 4, for a quarter) and f48 (square root of time). 'Same IV' is stated, so a flat term structure is given.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q14": {
+   "status": "pass",
+   "notes": "(100 - 68) / 2 = 16. f56 (Fidelity: '16 percent on either side'); Fidelity's slide 13 shows the same 16/68/16 split. 'About' covers skew (conflicts).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q15": {
+   "status": "pass",
+   "notes": "162.50 + 8.30 = 170.80, recomputed. Fidelity earnings class (s11): report that night, one day to expiry, straddle about $8.30, 'eight bucks on either side'; Sosnick (s15) same method. Strike equals price, so no intrinsic to subtract.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q16": {
+   "status": "pass",
+   "notes": "100 x 20% / 16 = 1.25; 7 / 1.25 = 5.6: OIC f6/f7 (Tier 1) word for word. Distractors recomputed (7/20 = 0.35; 1.25 is one SD, not a count).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q17": {
+   "status": "pass",
+   "notes": "28 / sqrt(12) = 8.08, shown as 'About 8.1%'; Cboe (f69/f70) worked the same case to 8.09%. 2.3 = 28/12; 1.75 = 28/16 (OIC's FAQ applies the Rule of 16 to the VIX; Cboe's post uses /19.1 for a VIX day: in conflicts, not quizzed).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q18": {
+   "status": "pass",
+   "notes": "Story named IBM and treated Schwab's chain (s8) as a pre-report snapshot; Schwab gives no snapshot date, its '28 days before November 21' points to October 24 (after the October 22 report), and its cause is only 'likely'. Rewritten as an unnamed example; key rests on f45 (Fidelity) + f35/f36 (Schwab), read in context. variety rewrite checked 2026-11-10.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q19": {
+   "status": "pass",
+   "notes": "60 x 0.32 / 16 = 1.20, recomputed; 1.10/60 = 1.83%, so 'nearly 2%' is fair. f3 (OIC), f50 (Fidelity: a day inside 98.75-101.25 'is to be expected'), f10 (OIC: judge realized against implied). | flagged-question fix checked 2026-11-11",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q20": {
+   "status": "pass",
+   "notes": "False is right: f14 (OIC FAQ, Tier 1: 'it does not determine whether that implied volatility is rich or cheap').",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q21": {
+   "status": "pass",
+   "notes": "f62/f63 (Cboe deck: 1 million simulated paths, 30 trading days, 54.1% closed outside one SD at some point; slide 20 says 'checked your account daily'). 'Never trades outside' is even stronger than closes, so False holds.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q22": {
+   "status": "pass",
+   "notes": "Story said 'barely moves, about 0.5% a day': a call on a stock rising 0.5% every day can gain, so the key held only if the moves net out. Now 'drifts sideways, moving about 0.5% a day'. f15 (OIC: less movement than implied, options 'more likely to decline'), f16; 40/16 = 2.5 recomputed.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q23": {
+   "status": "pass",
+   "notes": "40 x 0.56 / 16 = 1.40, recomputed; the $0.90 stop is inside it. f3 (OIC), f33 (Schwab: the expected daily move helps 'gauge the potential risk'). Says ordinary days can hit it, never 'widen it'; fits the owner's 'never back-fit a stop inside the noise' (VOICE.md).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q24": {
+   "status": "pass",
+   "notes": "Stem said 'with neither tool being wrong', which ruled out 'One must have a bad formula' and left the key as the only fit: leading. Now 'What most likely explains it?'. f71 (Cboe: VIX uses 365 calendar days, many measures 252), f58, f46, f11 read in context; 20/15.87 vs 20/19.1 do differ.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q25": {
+   "status": "pass",
+   "notes": "Key 'Most of that IV is the report itself' claimed a share no source gives (the story never states the stock's normal IV). Now 'The report is inflating that IV', backed by f45 (Fidelity), f30 (Schwab, added), f64 (Cboe), f29. The 115% in a wrong note is f57 (Fidelity earnings class), read in context.",
+   "fixed": true,
+   "by": "checker"
+  }
+ }
+}

@@ -1,0 +1,1453 @@
+{
+ "unit": "F6.09",
+ "track": "F6",
+ "title": "Picking the strike",
+ "teaches": "How to pick a strike for a chart view: deeper in the money costs more and moves more like the stock, further out is cheaper but needs a bigger move, break-even has to sit inside your target, and a put's strike works like a stop a gap can't jump.",
+ "skills": [
+  {
+   "id": "options.strike",
+   "title": "Picking the strike"
+  }
+ ],
+ "as_of": "2026-11-09",
+ "sources": [
+  {
+   "id": "s1",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Delta",
+   "url": "https://www.optionseducation.org/advancedconcepts/delta",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s2",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Long Call",
+   "url": "https://www.optionseducation.org/strategies/all-strategies/long-call",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s3",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Long Put",
+   "url": "https://www.optionseducation.org/strategies/all-strategies/long-put",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s4",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Options Pricing",
+   "url": "https://www.optionseducation.org/optionsoverview/options-pricing",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s5",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Leverage & Risk",
+   "url": "https://www.optionseducation.org/optionsoverview/leverage-risk",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s6",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Protective Put (Married Put)",
+   "url": "https://www.optionseducation.org/strategies/all-strategies/protective-put-married-put",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s7",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Choosing the Right Strategy",
+   "url": "https://www.optionseducation.org/strategies/choosing-the-right-strategy",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s8",
+   "tier": 1,
+   "publisher": "The Options Clearing Corporation and the US options exchanges",
+   "title": "Characteristics and Risks of Standardized Options (June 2024 edition)",
+   "url": "https://cdn.robinhood.com/assets/robinhood/legal/Characteristics%20and%20Risks%20of%20Standardized%20Options.pdf",
+   "accessed": "2026-11-09",
+   "why_reliable": "The official options disclosure document every options customer must receive (June 2024 edition, the version Cboe Regulatory Circular RC24-009 says replaces all prior ones). theocc.com refuses plain clients, so this cites the copy Robinhood distributes to its customers (cover: June 2024; copyright the exchanges and OCC). Same copy F6.03 cites."
+  },
+  {
+   "id": "s9",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Stop, Stop-Limit, and Trailing Stop Orders: Investor Bulletin (July 13, 2017, updated August 18, 2026)",
+   "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins-15",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s10",
+   "tier": 2,
+   "publisher": "Fidelity",
+   "title": "Hit the right strike price for your strategy (Fidelity Viewpoints, March 17, 2026)",
+   "url": "https://www.fidelity.com/viewpoints/active-investor/hitting-the-right-strike-price",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s11",
+   "tier": 2,
+   "publisher": "Fidelity",
+   "title": "Buying calls: A beginner options strategy (Fidelity Viewpoints, June 16, 2026)",
+   "url": "https://www.fidelity.com/viewpoints/active-investor/how-to-buy-calls",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s12",
+   "tier": 2,
+   "publisher": "Fidelity",
+   "title": "The power of delta (Fidelity Viewpoints, June 21, 2023)",
+   "url": "https://www.fidelity.com/viewpoints/active-investor/power-of-delta",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s13",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "Options Delta, Probability, and Other Risk Analytics (August 28, 2023)",
+   "url": "https://www.schwab.com/learn/story/options-delta-probability-and-other-risk-analytics",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s14",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "Get to Know the Options Greeks (May 28, 2025)",
+   "url": "https://www.schwab.com/learn/story/get-to-know-option-greeks",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s15",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "Covered Calls: Beyond the Basics (June 6, 2024)",
+   "url": "https://www.schwab.com/learn/story/covered-calls-beyond-basics",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s16",
+   "tier": 2,
+   "publisher": "Interactive Brokers, IBKR Campus",
+   "title": "Using Options Instead of Stops, Part 2 (Steve Sosnick, May 20, 2020)",
+   "url": "https://www.interactivebrokers.com/campus/traders-insight/securities/options/using-options-instead-of-stops-part-2/",
+   "accessed": "2026-11-09",
+   "why_reliable": "Interactive Brokers' own education centre (a Tier 2 broker source), written by its Chief Strategist, Steve Sosnick. Used only for how a sell stop fills when a stock opens below it, which the SEC bulletin (f37, f38) states in general terms."
+  }
+ ],
+ "facts": [
+  {
+   "id": "f1",
+   "source": "s1",
+   "quote": "For an option with a Delta of .50, an investor can expect about a $.50 move in that option’s premium given a $1 move, up or down, in the underlying.",
+   "claim": "A .50 delta option moves about 50 cents for each $1 the stock moves."
+  },
+  {
+   "id": "f2",
+   "source": "s1",
+   "quote": "As the stock price rises and the call option goes deeper-in-the-money, Delta typically approaches 1.00 because of the increased likelihood the option will be in-the-money at expiration.",
+   "claim": "The deeper in the money a call goes, the closer its delta gets to 1.00."
+  },
+  {
+   "id": "f3",
+   "source": "s1",
+   "quote": "The closer an option's Delta is to 1.00 or -1.00, the more the price of the option responds (in terms of dollars) to actual long or short stock when the underlying moves.",
+   "claim": "The closer delta is to 1.00 (or -1.00 for a put), the more the option moves like owning (or shorting) the stock."
+  },
+  {
+   "id": "f4",
+   "source": "s1",
+   "quote": "Some traders view Delta as a percentage probability an option will wind up in-the-money at expiration. Therefore, an at-the-money option would have a .50 Delta or 50% chance of being in-the-money at expiration.",
+   "claim": "Some traders read delta as the rough odds an option finishes in the money; at the money that's about .50."
+  },
+  {
+   "id": "f5",
+   "source": "s1",
+   "quote": "An option with less than a .10 Delta (or less than 10% probability of being in-the-money) is not viewed as very likely to be in-the-money at any point and will need a strong move",
+   "claim": "An option under a .10 delta is unlikely to finish in the money and needs a strong move to be worth anything."
+  },
+  {
+   "id": "f6",
+   "source": "s1",
+   "quote": "As expiration nears, in-the-money call Deltas increase toward 1.00, at-the-money call Deltas remain around .50 and out-of-the-money call Deltas fall toward 0 provided other inputs remain constant.",
+   "claim": "Into expiry, in-the-money call deltas rise toward 1.00, at-the-money ones stay near .50, and out-of-the-money ones fall toward 0."
+  },
+  {
+   "id": "f7",
+   "source": "s1",
+   "quote": "It is important to remember that Delta is constantly changing during market hours and will typically not accurately predict the exact change in an option’s premium.",
+   "claim": "Delta keeps changing, so it's a guide to the option's move, not an exact prediction."
+  },
+  {
+   "id": "f8",
+   "source": "s2",
+   "quote": "The maximum loss is limited and occurs if the investor still holds the call at expiration and the stock is below the strike price.",
+   "claim": "A call held to expiry with the stock below the strike is the worst case: it expires worthless."
+  },
+  {
+   "id": "f9",
+   "source": "s2",
+   "quote": "At expiration, the strategy breaks even if the stock price is equal to the strike price plus the initial cost of the call option.",
+   "claim": "A long call breaks even at expiry at the strike plus the premium paid."
+  },
+  {
+   "id": "f10",
+   "source": "s2",
+   "quote": "The smaller initial outlay also gives the buyer a chance to achieve greater percentage gains (i.e., greater leverage).",
+   "claim": "Paying less up front gives a call buyer the chance at bigger percentage gains."
+  },
+  {
+   "id": "f11",
+   "source": "s2",
+   "quote": "Generally speaking, the earlier and sharper the increase in the stock's value, the better for the long call strategy.",
+   "claim": "A long call does best when the stock rises early and sharply."
+  },
+  {
+   "id": "f12",
+   "source": "s2",
+   "quote": "An option holder cannot lose more than the initial price paid for the option.",
+   "claim": "An option buyer can't lose more than the premium paid."
+  },
+  {
+   "id": "f13",
+   "source": "s2",
+   "quote": "Once time value disappears, all that remains is intrinsic value. For in-the-money options, that is the difference between the stock price and the strike price.",
+   "claim": "At expiry a call is worth the stock price minus the strike, if it's in the money."
+  },
+  {
+   "id": "f14",
+   "source": "s2",
+   "quote": "if a quick turnaround starts looking unlikely, it might make sense to sell the call while it still has some time value. A timely decision might allow the investor to recoup some or even all of the investment.",
+   "claim": "If the trade isn't working, selling the call while it still has time value can recover part of what you paid."
+  },
+  {
+   "id": "f15",
+   "source": "s3",
+   "quote": "The investor buys a put contract that is compatible with the expected timing and size of a downturn.",
+   "claim": "A put buyer picks the contract to fit how big and how soon the expected drop is."
+  },
+  {
+   "id": "f16",
+   "source": "s3",
+   "quote": "At expiration, the strategy breaks even if the stock price equals the strike price minus the cost of the option.",
+   "claim": "A long put breaks even at expiry at the strike minus the premium paid."
+  },
+  {
+   "id": "f17",
+   "source": "s3",
+   "quote": "The worst that can happen is for the stock price to be above the strike price at expiration with the put owner still holding the position.",
+   "claim": "A put held to expiry with the stock above the strike is the worst case: it expires worthless."
+  },
+  {
+   "id": "f18",
+   "source": "s3",
+   "quote": "Once time value disappears, all that remains is intrinsic value. For in-the-money options, that is the difference between the going stock price and the strike price.",
+   "claim": "At expiry a put is worth the strike minus the stock price, if it's in the money."
+  },
+  {
+   "id": "f19",
+   "source": "s4",
+   "quote": "An option's premium (intrinsic value plus time value) generally increases as the option becomes further in-the-money. It decreases as the option becomes more deeply out-of-the-money.",
+   "claim": "The deeper in the money a strike, the more the option costs; the further out, the less."
+  },
+  {
+   "id": "f20",
+   "source": "s4",
+   "quote": "Generally, as expiration approaches, the levels of an option's time value decrease or erode for both puts and calls. This effect is most noticeable with at-the-money options.",
+   "claim": "Time value erodes toward expiry, and at-the-money options feel it most."
+  },
+  {
+   "id": "f21",
+   "source": "s5",
+   "quote": "This means an option buyer can pay a relatively small premium for market exposure in relation to the contract value (usually 100 shares of the underlying stock).",
+   "claim": "One stock option contract usually covers 100 shares, for a premium that's small next to the shares' value."
+  },
+  {
+   "id": "f22",
+   "source": "s5",
+   "quote": "An investor can see large percentage gains from comparatively small, favorable percentage moves in the underlying product.",
+   "claim": "Small favorable moves in the stock can mean large percentage gains in the option."
+  },
+  {
+   "id": "f23",
+   "source": "s5",
+   "quote": "If the underlying stock price does not rise or fall as anticipated during the lifetime of the option, leverage could magnify the investment's percentage loss.",
+   "claim": "If the move doesn't come before expiry, the option's percentage loss is magnified."
+  },
+  {
+   "id": "f24",
+   "source": "s5",
+   "quote": "Options offer their owners a predetermined, set risk. However, if the owner's options expire with no value, this loss can be the entire amount of the premium paid for the option.",
+   "claim": "A buyer's risk is set at the premium, and an option that expires worthless loses all of it."
+  },
+  {
+   "id": "f25",
+   "source": "s5",
+   "quote": "By definition, an at-the-money or out-of-the-money option has no intrinsic value.",
+   "claim": "At-the-money and out-of-the-money options have no intrinsic value."
+  },
+  {
+   "id": "f26",
+   "source": "s6",
+   "quote": "The choice of strike prices determines where the downside protection 'kicks in’.",
+   "claim": "The put's strike sets where the protection starts."
+  },
+  {
+   "id": "f27",
+   "source": "s6",
+   "quote": "The strike becomes the 'floor' exit price at which the investor can liquidate the stock, regardless of how low the market price might fall.",
+   "claim": "With a protective put, the strike is a floor price you can sell at, however low the stock falls."
+  },
+  {
+   "id": "f28",
+   "source": "s6",
+   "quote": "If the purchase price of the stock was the same as the strike price of the option, then the loss is limited to the premium paid for the put option.",
+   "claim": "Stock bought at the strike: the worst loss is the put's premium."
+  },
+  {
+   "id": "f29",
+   "source": "s6",
+   "quote": "If the stock's purchase price was higher (lower), then the loss would be greater (smaller) by exactly that amount.",
+   "claim": "Stock bought above the strike: add the gap between your cost and the strike to the worst loss."
+  },
+  {
+   "id": "f30",
+   "source": "s6",
+   "quote": "The major drawback of the strategy is its cost, which raises the bar on netting upside profits.",
+   "claim": "The put's cost is the drawback: it raises the bar for profit."
+  },
+  {
+   "id": "f31",
+   "source": "s6",
+   "quote": "The strike price sets the minimum exit price.",
+   "claim": "A protective put's strike is your minimum exit price."
+  },
+  {
+   "id": "f32",
+   "source": "s7",
+   "quote": "many experts recommend that you designate an exit strategy or cut-off point in advance, and hold firm.",
+   "claim": "Set your exit or cut-off point before the trade, and stick to it."
+  },
+  {
+   "id": "f33",
+   "source": "s8",
+   "quote": "The more an option is out of the money and the shorter the remaining time to expiration, the greater the risk that an option holder will lose all or part of his investment in the option.",
+   "claim": "The further out of the money and the less time left, the bigger the risk of losing the premium."
+  },
+  {
+   "id": "f34",
+   "source": "s8",
+   "quote": "The greater the price movement of the underlying interest necessary for the option to become profitable (that is, the more the option is out of the money when purchased and the greater the cost of the option)",
+   "claim": "The further out of the money an option is when you buy it, the bigger the move it needs to turn a profit."
+  },
+  {
+   "id": "f35",
+   "source": "s8",
+   "quote": "The table demonstrates how increased leverage results in greater profit potential on the upside and greater risk of loss on the downside.",
+   "claim": "More leverage means more profit potential if right and more risk of loss if wrong."
+  },
+  {
+   "id": "f36",
+   "source": "s8",
+   "quote": "An option normally has very little time value if it is substantially in the money.",
+   "claim": "A deep in-the-money option usually carries very little time value."
+  },
+  {
+   "id": "f37",
+   "source": "s9",
+   "quote": "The stop price is not the guaranteed execution price for a stop order.",
+   "claim": "A stop order's stop price is not a guaranteed fill price."
+  },
+  {
+   "id": "f38",
+   "source": "s9",
+   "quote": "The execution price an investor receives for this market order can deviate significantly from the stop price due to the prices of available liquidity when the market order executes.",
+   "claim": "Once triggered, a stop becomes a market order that can fill well away from the stop price."
+  },
+  {
+   "id": "f39",
+   "source": "s10",
+   "quote": "Picking your options strike price boils down to a couple of key decisions, such as: What price do you think the underlying stock will move to over a certain period of time",
+   "claim": "Picking a strike starts with where you think the stock is going and over what time."
+  },
+  {
+   "id": "f40",
+   "source": "s10",
+   "quote": "Intuitively, the greater the probability suggested by delta, the more expensive the option will be.",
+   "claim": "The higher a strike's delta, the more the option costs."
+  },
+  {
+   "id": "f41",
+   "source": "s10",
+   "quote": "You almost always want to look for options that are heavily traded and have small bid-ask spreads if you want to focus on reducing your trading costs.",
+   "claim": "Heavily traded options with small bid-ask spreads keep your trading costs down."
+  },
+  {
+   "id": "f42",
+   "source": "s10",
+   "quote": "In-the-money options are relatively more expensive than out-of-the-money options.",
+   "claim": "In-the-money options cost more than out-of-the-money ones."
+  },
+  {
+   "id": "f43",
+   "source": "s10",
+   "quote": "A delta of 0.70 also implies a 70% probability that the option will be in the money at expiration.",
+   "claim": "Fidelity reads a 0.70 delta as about a 70% chance of finishing in the money."
+  },
+  {
+   "id": "f44",
+   "source": "s11",
+   "quote": "the maximum potential loss is the premium paid to purchase the call options.",
+   "claim": "A call buyer's most possible loss is the premium paid."
+  },
+  {
+   "id": "f45",
+   "source": "s11",
+   "quote": "Of course, once you exercise the options, you have to pay for the stock at the strike price",
+   "claim": "The strike is what you pay per share if you exercise a call."
+  },
+  {
+   "id": "f46",
+   "source": "s12",
+   "quote": "For example, if a long call is showing a delta of .30, the trader might think of the position as if he were long 30 shares.",
+   "claim": "A call's delta times 100 is roughly how many shares the contract acts like."
+  },
+  {
+   "id": "f47",
+   "source": "s13",
+   "quote": "many traders look at delta as an approximate percentage chance that an option will be ITM at expiration. Although it's not a perfect science, an options delta calculation can provide a pretty close estimate.",
+   "claim": "Many traders use delta as approximate odds of finishing in the money; it's an estimate, not a certainty."
+  },
+  {
+   "id": "f48",
+   "source": "s13",
+   "quote": "the 135-strike call is OTM, and its 0.22 delta implies it has about a 22% chance of finishing ITM at expiration. Another way of expressing this is to say the option has about a 78% chance of expiring worthless.",
+   "claim": "A 0.22 delta reads as about a 22% chance of finishing in the money, or about 78% of expiring worthless."
+  },
+  {
+   "id": "f49",
+   "source": "s14",
+   "quote": "This doesn't mean higher-delta options are always profitable because option buyers have to contest with time decay",
+   "claim": "A high delta doesn't make a trade profitable; buyers still have to beat time decay."
+  },
+  {
+   "id": "f50",
+   "source": "s14",
+   "quote": "At-the-money (ATM) options usually have a delta near 0.50.",
+   "claim": "An at-the-money call usually has a delta near 0.50."
+  },
+  {
+   "id": "f51",
+   "source": "s14",
+   "quote": "Delta should increase (and approach 1.00) as the option gets deeper ITM.",
+   "claim": "A call's delta climbs toward 1.00 the deeper in the money it goes."
+  },
+  {
+   "id": "f52",
+   "source": "s14",
+   "quote": "ATM options usually have a delta near –0.50.",
+   "claim": "An at-the-money put usually has a delta near -0.50."
+  },
+  {
+   "id": "f53",
+   "source": "s14",
+   "quote": "Delta should decrease (and approach –1.00) as the option gets deeper ITM.",
+   "claim": "A put's delta heads toward -1.00 the deeper in the money it goes."
+  },
+  {
+   "id": "f54",
+   "source": "s15",
+   "quote": "An at-the-money (ATM) call option typically has delta of around .50. Out-of-the-money (OTM) call options have delta less than .50, and in-the-money (ITM) call options have delta greater than .50.",
+   "claim": "Call deltas: about .50 at the money, below .50 out of the money, above .50 in the money."
+  },
+  {
+   "id": "f55",
+   "source": "s15",
+   "quote": "Some stocks have more actively traded options than others, and there can be substantial differences in spreads between the bids and asks in the options market.",
+   "claim": "Bid-ask spreads can differ a lot from one option to another."
+  },
+  {
+   "id": "f56",
+   "source": "s15",
+   "quote": "More liquid markets can make it easier to get in and out of stock and options positions at the desired prices.",
+   "claim": "Liquid options are easier to get in and out of at your price."
+  },
+  {
+   "id": "f57",
+   "source": "s15",
+   "quote": "Many traders tend to look for spreads that are 10% or less of the ask price.",
+   "claim": "A common rule of thumb: a bid-ask spread of 10% of the ask or less."
+  },
+  {
+   "id": "f58",
+   "source": "s5",
+   "quote": "if a put option has a strike price that is greater than the current market price of the underlying security, it is said to be in-the-money",
+   "claim": "A put is in the money when its strike is above the stock price."
+  },
+  {
+   "id": "f59",
+   "source": "s6",
+   "quote": "If the stock stays strong, the investor still gets the benefit of upside gains.",
+   "claim": "A protective put leaves your upside open: if the stock rises, you keep the gains."
+  },
+  {
+   "id": "f60",
+   "source": "s16",
+   "quote": "If it opens below $28, the order is triggered by the opening price and becomes a market sell order at whatever that prevailing price may be.",
+   "claim": "When a stock opens below a sell stop, the stop becomes a market order at whatever price is there."
+  }
+ ],
+ "walkthroughs": [
+  {
+   "key": "w1",
+   "title": "In, at or out of the money",
+   "steps": [
+    "Same stock, same expiry: the deeper in the money the strike, the more the option costs.",
+    "Deep in the money, a call's delta heads toward 1.00 and it moves most like the stock. A put's heads toward -1.00.",
+    "At the money, a call's delta sits around .50. Far out, delta is small and the option needs a strong move."
+   ],
+   "facts": [
+    "f19",
+    "f2",
+    "f3",
+    "f53",
+    "f50",
+    "f6",
+    "f5"
+   ]
+  },
+  {
+   "key": "w2",
+   "title": "Let the chart pick the strike",
+   "steps": [
+    "Start with your chart: the price you expect, and how soon you expect it.",
+    "Held to expiry, a call breaks even at strike plus premium. A put breaks even at strike minus premium.",
+    "If you'll hold to expiry, your target has to clear that line. If it doesn't, that strike is wrong for the trade.",
+    "Strikes further out are cheaper, but they need a bigger move, and the sooner it comes, the better."
+   ],
+   "facts": [
+    "f39",
+    "f15",
+    "f9",
+    "f16",
+    "f8",
+    "f34",
+    "f11",
+    "f19"
+   ]
+  },
+  {
+   "key": "w3",
+   "title": "The strike and your stop",
+   "steps": [
+    "Own the stock and a put, and the put's strike is your floor exit price until the put expires.",
+    "A stop price is a trigger, not a guaranteed fill. Gap below it, and you sell at whatever price is there.",
+    "A higher put strike gives a closer floor, and it costs more.",
+    "With a call, the premium is the most you can lose. Your chart stop still says when you're wrong."
+   ],
+   "facts": [
+    "f27",
+    "f31",
+    "f37",
+    "f38",
+    "f60",
+    "f26",
+    "f19",
+    "f12",
+    "f32"
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "key": "q01",
+   "skill": "options.strike",
+   "rung": 1,
+   "format": "mcq",
+   "q": "A stock trades at 100. Same expiry for all three. Which call costs the most?",
+   "choices": [
+    "The 90 call",
+    "The 100 call",
+    "The 110 call"
+   ],
+   "answer": "The 90 call",
+   "why": "The 90 call. Premium rises as a strike goes further in the money, and the 90 is the only one in the money here.",
+   "lesson_line": "Deeper in the money costs more. Further out costs less.",
+   "facts": [
+    "f19",
+    "f42",
+    "f25"
+   ],
+   "wrong": {
+    "The 100 call": "At the money it has no intrinsic value. The 90 call has intrinsic value on top of its time value.",
+    "The 110 call": "Out of the money, it's the cheapest of the three, not the priciest."
+   }
+  },
+  {
+   "key": "q02",
+   "skill": "options.strike",
+   "rung": 1,
+   "format": "tf",
+   "q": "An at-the-money call usually has a delta near 0.50.",
+   "answer": "True",
+   "why": "True. At the money, delta sits near 0.50. Deep in the money it heads toward 1.00, and far out of the money it's small.",
+   "lesson_line": "Delta shows where a strike sits: near 1.00 deep in, near 0.50 at the money, small far out.",
+   "facts": [
+    "f50",
+    "f6",
+    "f54",
+    "f2",
+    "f51"
+   ]
+  },
+  {
+   "key": "q03",
+   "skill": "options.strike",
+   "rung": 2,
+   "format": "mcq",
+   "q": "A stock trades at 80. Same expiry for all three. Which put moves most like being short the stock?",
+   "choices": [
+    "The 70 put",
+    "The 80 put",
+    "The 90 put"
+   ],
+   "answer": "The 90 put",
+   "why": "The 90 put. It's the furthest in the money, so its delta sits closest to -1.00, and the closer it gets, the more it moves like short stock.",
+   "lesson_line": "A put is in the money when its strike sits above the stock. Deep in, it moves most like a short sale.",
+   "facts": [
+    "f58",
+    "f53",
+    "f3",
+    "f52",
+    "f1"
+   ],
+   "wrong": {
+    "The 80 put": "At the money, its delta sits near -0.50. It moves about half as much as the stock, for now.",
+    "The 70 put": "That one is out of the money, struck below the stock. Of the three, its delta is furthest from -1.00."
+   }
+  },
+  {
+   "key": "q04",
+   "skill": "options.strike",
+   "rung": 2,
+   "format": "fill",
+   "q": "Fill in the blank.",
+   "sentence": "Buy further out of the money and the stock needs a ___ move before you profit.",
+   "bank": [
+    "smaller",
+    "slower",
+    "bigger",
+    "calmer"
+   ],
+   "answer": "bigger",
+   "why": "Bigger. The further out of the money an option is when you buy it, the greater the move needed for it to turn a profit.",
+   "lesson_line": "Every step further out raises the bar the stock has to clear.",
+   "facts": [
+    "f34",
+    "f5"
+   ]
+  },
+  {
+   "key": "q05",
+   "skill": "options.strike",
+   "rung": 2,
+   "format": "mcq",
+   "q": "You buy a call, at any strike. What's the most the trade can lose?",
+   "choices": [
+    "The strike price times 100",
+    "Unlimited, if the stock collapses",
+    "Nothing, if it's in the money now",
+    "The premium you paid"
+   ],
+   "answer": "The premium you paid",
+   "why": "The premium you paid. A call buyer can't lose more than that. A pricier strike just puts more dollars on the line.",
+   "lesson_line": "Whatever strike you pick, its premium is your worst case. Pick one you can afford to lose.",
+   "facts": [
+    "f12",
+    "f44",
+    "f8",
+    "f19",
+    "f45"
+   ],
+   "wrong": {
+    "The strike price times 100": "The strike is what you'd pay per share if you exercised. Your risk as a buyer is the premium.",
+    "Unlimited, if the stock collapses": "A collapse leaves the call worthless at expiry, nothing more. A call buyer's loss stops at the premium.",
+    "Nothing, if it's in the money now": "In the money today can be out of the money at expiry. The premium is still at risk."
+   }
+  },
+  {
+   "key": "q06",
+   "skill": "options.strike",
+   "rung": 3,
+   "format": "tf",
+   "q": "Own 100 shares and one 45 put, and you can sell at 45 however far the stock falls, until expiry.",
+   "answer": "True",
+   "why": "True. The put's strike is a floor exit price for the life of the put, however low the stock goes. One contract usually covers 100 shares.",
+   "lesson_line": "A put's strike is a floor under your shares, until expiry.",
+   "facts": [
+    "f27",
+    "f31",
+    "f21"
+   ]
+  },
+  {
+   "key": "q07",
+   "skill": "options.strike",
+   "rung": 3,
+   "format": "tf",
+   "q": "Moving your call strike further out of the money lowers the risk of losing your whole premium.",
+   "answer": "False",
+   "why": "False. The further out of the money, the greater the risk of losing all or part of what you paid. Cheaper isn't safer.",
+   "lesson_line": "A cheaper strike is a smaller check with a bigger chance of going to zero.",
+   "facts": [
+    "f33",
+    "f34"
+   ]
+  },
+  {
+   "key": "q08",
+   "skill": "options.strike",
+   "rung": 3,
+   "format": "mcq",
+   "q": "Before you pick a strike, what do you settle first?",
+   "choices": [
+    "Which strike is cheapest today",
+    "Where the stock goes, and by when",
+    "Which strike traded most today",
+    "How much you'd like to make"
+   ],
+   "answer": "Where the stock goes, and by when",
+   "why": "Where the stock goes, and by when. You pick the contract to fit the size and timing of the move you expect.",
+   "lesson_line": "Your target and your timeframe pick the strike. Price and volume come after.",
+   "facts": [
+    "f15",
+    "f39",
+    "f19",
+    "f34"
+   ],
+   "wrong": {
+    "Which strike is cheapest today": "The cheapest strike is the furthest out, and it needs the biggest move. Price comes after the view.",
+    "Which strike traded most today": "Liquidity matters, but only among the strikes that fit your view.",
+    "How much you'd like to make": "The payout you want doesn't move the stock. The view comes first."
+   }
+  },
+  {
+   "key": "q09",
+   "skill": "options.strike",
+   "rung": 4,
+   "format": "numeric",
+   "q": "The stock is at 50. You buy the 52.50 call for 0.99. Held to expiry, what stock price gets you back to even?",
+   "answer": 53.49,
+   "prefix": "$",
+   "calc": {
+    "fn": "option_breakeven",
+    "args": {
+     "kind": "call",
+     "strike": 52.5,
+     "premium": 0.99
+    }
+   },
+   "why": "$53.49. At expiry a call breaks even at the strike plus what you paid: 52.50 plus 0.99.",
+   "lesson_line": "Strike plus premium is the line. Your target has to clear it.",
+   "facts": [
+    "f9"
+   ]
+  },
+  {
+   "key": "q10",
+   "skill": "options.strike",
+   "rung": 4,
+   "format": "numeric",
+   "q": "A call shows a 0.22 delta. Read as rough odds, what's the chance it expires worthless, in percent?",
+   "answer": 78,
+   "suffix": "%",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(1 - delta) * 100",
+     "delta": 0.22
+    }
+   },
+   "why": "About 78%. A 0.22 delta reads as roughly a 22% chance of finishing in the money, so about 78% that it doesn't. It's an estimate.",
+   "lesson_line": "Read a strike's delta as rough odds of finishing in the money. Rough, never exact.",
+   "facts": [
+    "f48",
+    "f4",
+    "f47"
+   ]
+  },
+  {
+   "key": "q11",
+   "skill": "options.strike",
+   "rung": 4,
+   "format": "scenario",
+   "story": "Two call strikes fit your view on the same stock, and both cost about 2.00. One trades heavily with a 0.05 spread. The other is 0.60 wide and barely trades.",
+   "q": "Which strike do you take?",
+   "choices": [
+    "The heavily traded, tight one",
+    "The wide one, it may be a bargain",
+    "Either, spreads don't change much"
+   ],
+   "answer": "The heavily traded, tight one",
+   "why": "The heavily traded, tight one. Small bid-ask spreads cut your trading costs, and liquid options are easier to get in and out of at your price.",
+   "lesson_line": "Between two strikes that fit, take the one you can get in and out of cleanly.",
+   "facts": [
+    "f41",
+    "f55",
+    "f56"
+   ],
+   "wrong": {
+    "The wide one, it may be a bargain": "A wide, quiet market makes it harder to get in and out at the price you want. That's a cost, not a bargain.",
+    "Either, spreads don't change much": "Spreads can differ a lot from one option to the next, and a wide one is a real trading cost."
+   }
+  },
+  {
+   "key": "q12",
+   "skill": "options.strike",
+   "rung": 5,
+   "format": "numeric",
+   "q": "A call has a 0.70 delta. One contract covers 100 shares. Roughly how many shares does it act like, for now?",
+   "answer": 70,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "delta * shares",
+     "delta": 0.7,
+     "shares": 100
+    }
+   },
+   "why": "About 70. Delta times the 100 shares a contract covers. Delta keeps changing as the stock moves, so it's a snapshot.",
+   "lesson_line": "Pick the strike for the share-like exposure you want: delta times 100 per contract.",
+   "facts": [
+    "f46",
+    "f1",
+    "f21",
+    "f7"
+   ]
+  },
+  {
+   "key": "q13",
+   "skill": "options.strike",
+   "rung": 5,
+   "format": "scenario",
+   "story": "A stock trades at 100 and your target is 108 by expiry. The 95 call costs 7.10, the 100 call 4.15 and the 110 call 1.00.",
+   "q": "The stock closes at 108 on expiry day. Which call lost everything?",
+   "choices": [
+    "The 95 call",
+    "The 100 call",
+    "The 110 call",
+    "None, you were right on direction"
+   ],
+   "answer": "The 110 call",
+   "why": "The 110 call. It finished below its strike, so it expired worthless and took all 1.00 you paid.",
+   "lesson_line": "A strike above your target can't pay at expiry, even when the stock hits the target.",
+   "facts": [
+    "f8",
+    "f24",
+    "f13"
+   ],
+   "wrong": {
+    "The 95 call": "At 108 it's worth 108 minus 95, well above the 7.10 you paid.",
+    "The 100 call": "At 108 it's worth 108 minus 100, above the 4.15 you paid.",
+    "None, you were right on direction": "Direction isn't enough. A call below its strike at expiry is worth nothing."
+   }
+  },
+  {
+   "key": "q14",
+   "skill": "options.strike",
+   "rung": 5,
+   "format": "scenario",
+   "story": "A stock trades at 100. The 95 call costs 7.10, the 100 call 4.15 and the 110 call 1.00. It closes at 115 on expiry day.",
+   "q": "You bought the 110 call. What percentage did it make?",
+   "choices": [
+    "Up 15%",
+    "Up 400%",
+    "Up 500%"
+   ],
+   "answer": "Up 400%",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "((price - strike) - premium) / premium * 100",
+     "price": 115,
+     "strike": 110,
+     "premium": 1.0
+    }
+   },
+   "why": "Up 400%. It cost 1.00 and is worth 115 minus 110 at expiry. The 95 call made more dollars, but on a far bigger outlay.",
+   "lesson_line": "Far-out strikes pay the biggest percentages, but only when the big move shows up in time.",
+   "facts": [
+    "f10",
+    "f22",
+    "f35",
+    "f13"
+   ],
+   "wrong": {
+    "Up 500%": "That compares the call's value to its cost. The gain takes the 1.00 you paid off first.",
+    "Up 15%": "That's the stock's move. A small favorable move in the stock can mean a far bigger percentage in the option."
+   }
+  },
+  {
+   "key": "q15",
+   "skill": "options.strike",
+   "rung": 6,
+   "format": "scenario",
+   "story": "A stock trades at 100. The 90 call costs 10.95 and the 110 call costs 1.00. Both expire in a month.",
+   "q": "Held to expiry, which call breaks even closer to today's price?",
+   "choices": [
+    "The 110 call, at 101",
+    "Both, at their own strikes",
+    "The 90 call, at 100.95"
+   ],
+   "answer": "The 90 call, at 100.95",
+   "calc": {
+    "fn": "option_breakeven",
+    "args": {
+     "kind": "call",
+     "strike": 90,
+     "premium": 10.95
+    }
+   },
+   "why": "The 90 call, at 100.95. That's 90 plus 10.95. Very little of a deep in-the-money call's price is time value, so break-even sits close to the stock.",
+   "lesson_line": "Deep in the money costs more, but most of it is intrinsic, so break-even sits close.",
+   "facts": [
+    "f9",
+    "f36"
+   ],
+   "wrong": {
+    "The 110 call, at 101": "That adds the premium to today's price. Break-even is strike plus premium: 110 plus 1.00.",
+    "Both, at their own strikes": "Break-even adds the premium to the strike. The strike alone isn't enough."
+   }
+  },
+  {
+   "key": "q16",
+   "skill": "options.strike",
+   "rung": 6,
+   "format": "scenario",
+   "story": "XYZ trades at 80. Your chart says it breaks down to 72 within a month. The 75 put costs 1.50 and the 70 put costs 0.50.",
+   "q": "You buy the 75 put. XYZ closes at 72 on expiry day. What did it make or lose, per contract?",
+   "choices": [
+    "Made $300",
+    "Made $150",
+    "Made $650",
+    "Lost the $150 premium"
+   ],
+   "answer": "Made $150",
+   "calc": {
+    "fn": "option_payoff",
+    "args": {
+     "kind": "put",
+     "strike": 75,
+     "premium": 1.5,
+     "underlying": 72
+    }
+   },
+   "why": "Made $150. The put is worth 75 minus 72 at expiry, less the 1.50 you paid, times 100 shares. The 70 put, struck below your target, expired worthless.",
+   "lesson_line": "For a put, pick a strike above your downside target, with room for the premium.",
+   "facts": [
+    "f15",
+    "f16",
+    "f17",
+    "f18",
+    "f21"
+   ],
+   "wrong": {
+    "Made $300": "That's what the put is worth at expiry, 75 minus 72, times 100 shares. Take off the 1.50 you paid.",
+    "Made $650": "That counts the whole drop from 80. The put only gains below its 75 strike.",
+    "Lost the $150 premium": "The put finished in the money, worth 75 minus 72, more than the 1.50 you paid."
+   }
+  },
+  {
+   "key": "q17",
+   "skill": "options.strike",
+   "rung": 6,
+   "format": "tf",
+   "q": "If the stock just sits, an out-of-the-money call's delta tends to drift toward 0 as expiry nears.",
+   "answer": "True",
+   "why": "True. With other inputs steady, out-of-the-money call deltas fall toward 0 as expiry approaches. The call reacts less and less.",
+   "lesson_line": "An out-of-the-money strike wants its move early and sharp.",
+   "facts": [
+    "f6",
+    "f11"
+   ]
+  },
+  {
+   "key": "q18",
+   "skill": "options.strike",
+   "rung": 7,
+   "format": "tf",
+   "q": "A call with a 0.70 delta has about a 70% chance of making you money.",
+   "answer": "False",
+   "why": "False. Read loosely, delta is rough odds of finishing in the money. Held to expiry, profit needs more: the stock past strike plus premium.",
+   "lesson_line": "In the money and in profit are two different finish lines.",
+   "facts": [
+    "f4",
+    "f43",
+    "f9",
+    "f49"
+   ]
+  },
+  {
+   "key": "q19",
+   "skill": "options.strike",
+   "rung": 7,
+   "format": "scenario",
+   "story": "You like a stock for a two-week swing. You want the option to track the stock closely and lose little to time decay.",
+   "q": "Which strike fits that plan best?",
+   "choices": [
+    "The at-the-money call",
+    "A far out-of-the-money call",
+    "A deep in-the-money call"
+   ],
+   "answer": "A deep in-the-money call",
+   "why": "A deep in-the-money call. Its delta runs toward 1.00, so it tracks the stock, and very little of its price is time value. The catch: it costs the most.",
+   "lesson_line": "Deep in the money buys stock-like moves and little decay. You pay more up front for it.",
+   "facts": [
+    "f2",
+    "f3",
+    "f36",
+    "f19",
+    "f40",
+    "f50",
+    "f20",
+    "f25",
+    "f54"
+   ],
+   "wrong": {
+    "The at-the-money call": "Its delta sits near 0.50, and time decay hits at-the-money options hardest.",
+    "A far out-of-the-money call": "It has no intrinsic value, so its whole price is time value, and its delta is small."
+   }
+  },
+  {
+   "key": "q20",
+   "skill": "options.strike",
+   "rung": 7,
+   "format": "numeric",
+   "q": "You own shares bought at 50 and buy the 45 put for 0.55. Held to expiry, what's your worst-case loss per share?",
+   "answer": 5.55,
+   "prefix": "$",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "cost - strike + premium",
+     "cost": 50,
+     "strike": 45,
+     "premium": 0.55
+    }
+   },
+   "why": "$5.55. The put lets you sell at 45 however low the stock goes. That's 50 minus 45, plus the 0.55 the put cost.",
+   "lesson_line": "With a put, the worst case is your cost minus the strike, plus what the put cost.",
+   "facts": [
+    "f27",
+    "f28",
+    "f29"
+   ]
+  },
+  {
+   "key": "q21",
+   "skill": "options.strike",
+   "rung": 8,
+   "format": "tf",
+   "q": "A sell stop at 45 guarantees your shares sell at 45, even if the stock gaps down to 38.",
+   "answer": "False",
+   "why": "False. A stop price is a trigger, not a guaranteed fill. Gap to 38 and the stop becomes a market order at whatever price is there, far below 45. A 45 put is a real floor.",
+   "lesson_line": "A stop is a trigger. A put's strike is a floor. Know which one you're holding.",
+   "facts": [
+    "f37",
+    "f38",
+    "f60",
+    "f27"
+   ]
+  },
+  {
+   "key": "q22",
+   "skill": "options.strike",
+   "rung": 8,
+   "format": "scenario",
+   "story": "You own shares bought at 50, now trading at 50. Two months out, the 47.50 put costs 1.20 and the 45 put costs 0.55.",
+   "q": "Which put gives the closer floor, and what's the catch?",
+   "choices": [
+    "The 45 put, and it's cheaper too",
+    "The 47.50 put, but it costs more",
+    "The 47.50 put, but it caps your upside"
+   ],
+   "answer": "The 47.50 put, but it costs more",
+   "why": "The 47.50 put, but it costs more. The strike sets where protection kicks in, and the closer floor carries a higher price that raises your bar for profit.",
+   "lesson_line": "Pick a put strike like you'd pick a stop: closer protection costs more.",
+   "facts": [
+    "f26",
+    "f27",
+    "f30",
+    "f19",
+    "f59"
+   ],
+   "wrong": {
+    "The 45 put, and it's cheaper too": "Cheaper, yes, but its floor sits lower, so more of any drop is yours.",
+    "The 47.50 put, but it caps your upside": "A put leaves your upside open. If the stock stays strong, you keep the gains, less what the put cost."
+   }
+  },
+  {
+   "key": "q23",
+   "skill": "options.strike",
+   "rung": 8,
+   "format": "scenario",
+   "story": "You bought a 105 call when the stock broke out at 100. Your plan says the trade is wrong below 96. Today it closes at 95.",
+   "q": "What do you do with the call?",
+   "choices": [
+    "Hold, the most you lose is the premium",
+    "Buy more, it's cheaper now",
+    "Sell it, it closed below 96"
+   ],
+   "answer": "Sell it, it closed below 96",
+   "why": "Sell it. You set the cut-off at 96 in advance, so hold firm. Selling while the call still has time value can recover part of what you paid.",
+   "lesson_line": "The option caps your loss. Your chart stop still decides when you're wrong.",
+   "facts": [
+    "f32",
+    "f14",
+    "f24"
+   ],
+   "wrong": {
+    "Hold, the most you lose is the premium": "The cap is real, but your plan said out below 96. Hold a broken trade to expiry and you can lose the whole premium.",
+    "Buy more, it's cheaper now": "It's cheaper because the trade is going against you. Adding breaks the plan you set in advance."
+   }
+  },
+  {
+   "key": "q24",
+   "skill": "options.strike",
+   "rung": 8,
+   "format": "numeric",
+   "q": "A far out-of-the-money call is quoted 0.10 bid, 0.20 ask. How wide is the spread, as a percent of the ask?",
+   "answer": 50,
+   "suffix": "%",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(ask - bid) / ask * 100",
+     "ask": 0.2,
+     "bid": 0.1
+    }
+   },
+   "why": "50%. The spread is half the ask. Many traders look for 10% or less, so this one costs you badly getting in and getting out.",
+   "lesson_line": "On a cheap far strike, check the spread as a percent of the ask before you buy.",
+   "facts": [
+    "f57",
+    "f41",
+    "f56"
+   ]
+  },
+  {
+   "key": "q25",
+   "skill": "options.strike",
+   "rung": 9,
+   "format": "scenario",
+   "story": "A stock trades at 40 with a week to expiry. The 45 call is offered at 0.03 with a 0.03 delta. A friend calls it a cheap bet on a pop.",
+   "q": "What's the honest read on that strike?",
+   "choices": [
+    "Cheap, so the risk is small",
+    "Buy a lot, one pop pays for all",
+    "It moves like the stock, for less",
+    "It needs a big move in days"
+   ],
+   "answer": "It needs a big move in days",
+   "why": "It needs a big move in days. Under a .10 delta, an option needs a strong move to have value, and less time left makes the risk worse.",
+   "lesson_line": "I'd treat pennies on a far strike with days left as a long shot, not a bargain.",
+   "facts": [
+    "f5",
+    "f33",
+    "f24",
+    "f23",
+    "f3"
+   ],
+   "wrong": {
+    "Cheap, so the risk is small": "The price is small, but you can lose all of it, and the odds favor that.",
+    "Buy a lot, one pop pays for all": "If the pop doesn't come in time, size just magnifies the loss. A week isn't much time.",
+    "It moves like the stock, for less": "A 0.03 delta barely reacts to the stock. Stock-like moves need a delta near 1.00."
+   }
+  },
+  {
+   "key": "q26",
+   "skill": "options.strike",
+   "rung": 9,
+   "format": "numeric",
+   "q": "Your target is 110 by expiry. You buy the 110 call for 1.00. Held to expiry, how far past your target must the stock go to break even?",
+   "answer": 1,
+   "prefix": "$",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "strike + premium - target",
+     "strike": 110,
+     "premium": 1.0,
+     "target": 110
+    }
+   },
+   "why": "$1. Break-even is 110 plus 1.00, so the stock has to beat your target before the trade makes a cent. At exactly 110 the call expires worthless.",
+   "lesson_line": "Held to expiry, a strike at your target loses even when the target hits. Break-even has to sit below it.",
+   "facts": [
+    "f9",
+    "f8",
+    "f25"
+   ]
+  },
+  {
+   "key": "q27",
+   "skill": "options.strike",
+   "rung": 5,
+   "format": "tf",
+   "q": "A long put breaks even at expiry when the stock is at the strike minus the premium paid.",
+   "answer": "True",
+   "why": "True. At expiration a long put breaks even when the stock price equals the strike price minus the cost of the option.",
+   "lesson_line": "A put's break-even is the strike minus what you paid for it.",
+   "facts": [
+    "f16"
+   ]
+  },
+  {
+   "key": "q28",
+   "skill": "options.strike",
+   "rung": 3,
+   "format": "tf",
+   "q": "As expiry nears, time value erodes most noticeably in at-the-money options.",
+   "answer": "True",
+   "why": "True. Time value decreases as expiration approaches, for puts and calls, and the effect is most noticeable with at-the-money options.",
+   "lesson_line": "Time value fades toward expiry, and at-the-money options feel it most.",
+   "facts": [
+    "f20"
+   ]
+  }
+ ],
+ "conflicts": [
+  "How firmly delta reads as a probability: Fidelity (f43) says a 0.70 delta 'implies a 70% probability' of finishing in the money, flatly; OIC (f4) frames it as how 'some traders view Delta', and Schwab (f47) says it is 'not a perfect science'. The file only ever asks it as rough odds (q10 'Read as rough odds', q18) and keys nothing on it being exact.",
+  "What delta's probability is a probability OF: Fidelity's 'The power of delta' page (s12) is subtitled as helping to 'assess the probability of making a profit', while OIC (f4) and Schwab (f47, f48) tie delta to finishing in the money at expiry, and Schwab (f49) warns higher delta does not mean profit. q18 keys the OIC / Schwab reading (in the money is not profit, break-even per OIC f9) and cites no Fidelity line for profit odds.",
+  "The disclosure document (f34) lists 'the greater the cost of the option' alongside 'the more the option is out of the money' as raising the move needed to profit, while q15 shows the costlier deep in-the-money call breaking even closer to the stock price. Not a contradiction: the ODD's cost point compares options at the same moneyness; a deep in-the-money call's extra cost is intrinsic value, and very little of it is time value (f36). q15's why and lesson say exactly that."
+ ],
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's client (all 200, 60/60 found) and read in context; OIC and Fidelity pages also opened with WebFetch (Schwab and Investor.gov refuse WebFetch, read in full via the plain client). Steps 2-3 said delta heads to 1.00 / sits at .50 without saying 'call'; a put's goes to -1.00 (f53), and q03 teaches that. Now 'a call's delta' plus one line on puts; f50, f53 added. f19, f2, f3, f6, f5 (OIC) back the rest.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's client (all 200, 60/60 found) and read in context; OIC and Fidelity pages also opened with WebFetch (Schwab and Investor.gov refuse WebFetch, read in full via the plain client). Step 3 said a target short of break-even makes the strike wrong, but the OCC disclosure document says a holder can profit by selling before expiry; now conditioned 'If you'll hold to expiry'. Step 4 'they need it early' overstated OIC f11 ('the earlier and sharper ... the better'); now 'the sooner it comes, the better'. f9, f16 break-evens exact.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's client (all 200, 60/60 found) and read in context; OIC and Fidelity pages also opened with WebFetch (Schwab and Investor.gov refuse WebFetch, read in full via the plain client). Step 1 now says the floor lasts 'until the put expires' (f27, f31). Step 2's gap claim had no source naming a gap (SEC f37, f38 are general); added IBKR Campus f60 (s16, Tier 2, Interactive Brokers' Chief Strategist): a stop opened through becomes a market order at whatever price prevails. Steps 3-4 match f26, f19, f12, f32.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q01": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's client (all 200, 60/60 found) and read in context; OIC and Fidelity pages also opened with WebFetch (Schwab and Investor.gov refuse WebFetch, read in full via the plain client). Key right: a lower-strike call is worth more, same expiry (f19 OIC, f42 Fidelity). Wrong notes accurate (f25: ATM has no intrinsic value). Realistic and fair.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q02": {
+   "status": "cut",
+   "notes": "duplicate of F6.04#q03. Track audit 2026-11-09: Same fact (an at-the-money call's delta is about 0.50) asked as recall in both. F6.04 is the delta unit. The checker had passed it (its note is kept under 'prior'); the question stays in the file as the record.",
+   "fixed": false,
+   "by": "auditor",
+   "prior": {
+    "status": "pass",
+    "notes": "Sources re-fetched 2026-11-09 by the quote checker's client (all 200, 60/60 found) and read in context; OIC and Fidelity pages also opened with WebFetch (Schwab and Investor.gov refuse WebFetch, read in full via the plain client). Schwab f50 'usually ... near 0.50' and f54; OIC f6 '.50' at the money; f2/f51 for deep ITM. 'usually' matches the sources' hedge.",
+    "fixed": false,
+    "by": "checker"
+   }
+  },
+  "q03": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's client (all 200, 60/60 found) and read in context; OIC and Fidelity pages also opened with WebFetch (Schwab and Investor.gov refuse WebFetch, read in full via the plain client). Added 'Same expiry for all three': without it a long-dated 90 put can carry a smaller delta than a 1-day 80 put, so the key was true only under an unstated condition. Why said 'deep in the money' (90 vs 80 is arguable); now 'furthest in the money'. Lesson's put ITM definition had no cited fact; added f58 (OIC). Choices reordered so the key is not always first (no shuffle found in gen_courses or the drill players). ",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q04": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's client (all 200, 60/60 found) and read in context; OIC and Fidelity pages also opened with WebFetch (Schwab and Investor.gov refuse WebFetch, read in full via the plain client). f34 (OCC disclosure document): the more out of the money when bought, the greater the move needed to profit. Distractors each wrong ('slower' contradicts the same sentence's time point). Bank reordered so the answer is not first.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q05": {
+   "status": "cut",
+   "notes": "duplicate of F6.02#q06. Track audit 2026-11-09: Same fact (a call buyer can lose no more than the premium) asked as recall; F6.02 q06 asks it first, with commissions. The checker had passed it (its note is kept under 'prior'); the question stays in the file as the record.",
+   "fixed": false,
+   "by": "auditor",
+   "prior": {
+    "status": "pass",
+    "notes": "Sources re-fetched 2026-11-09 by the quote checker's client (all 200, 60/60 found) and read in context; OIC and Fidelity pages also opened with WebFetch (Schwab and Investor.gov refuse WebFetch, read in full via the plain client). Key: f12 (OIC), f44 (Fidelity). The wrong note for 'Unlimited, if the stock collapses' said 'That's a short seller's risk', which is wrong (a short seller's unlimited risk is a rising stock); rewritten from f8: a collapse just leaves the call worthless. f8 added. Choices reordered so the key is not always first (no shuffle found in gen_courses or the drill players). ",
+    "fixed": true,
+    "by": "checker"
+   }
+  },
+  "q06": {
+   "status": "cut",
+   "notes": "duplicate of F6.01#q22. Track audit 2026-11-09: Same fact (with shares plus a put, the put's strike is a floor you can sell at however far the stock falls), same 45 strike. F6.01's scenario is the richer item (it separates the put from a stop order and from cover above the strike). The checker had passed it (its note is kept under 'prior'); the question stays in the file as the record.",
+   "fixed": false,
+   "by": "auditor",
+   "prior": {
+    "status": "pass",
+    "notes": "Sources re-fetched 2026-11-09 by the quote checker's client (all 200, 60/60 found) and read in context; OIC and Fidelity pages also opened with WebFetch (Schwab and Investor.gov refuse WebFetch, read in full via the plain client). f27, f31 (OIC protective put): the strike is a floor exit price however low the stock falls. 'its 45 put' left open how many shares one put covers; now 'Own 100 shares and one 45 put', with f21 (contract usually 100 shares) in the why. American-style exercise makes the floor good until expiry.",
+    "fixed": true,
+    "by": "checker"
+   }
+  },
+  "q07": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's client (all 200, 60/60 found) and read in context; OIC and Fidelity pages also opened with WebFetch (Schwab and Investor.gov refuse WebFetch, read in full via the plain client). f33 (OCC disclosure document) says exactly this: further out of the money, greater risk of losing all or part. 'risk of losing your whole premium' reads as odds, not dollars, so False is fair.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q08": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's client (all 200, 60/60 found) and read in context; OIC and Fidelity pages also opened with WebFetch (Schwab and Investor.gov refuse WebFetch, read in full via the plain client). Leading: 'what do you need from your chart?' gave it away, since only the key is chart information. Now 'what do you settle first?', so cheapest / most traded are live temptations. Key from f15 (OIC) and f39 (Fidelity). Choices reordered so the key is not always first (no shuffle found in gen_courses or the drill players). ",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q09": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's client (all 200, 60/60 found) and read in context; OIC and Fidelity pages also opened with WebFetch (Schwab and Investor.gov refuse WebFetch, read in full via the plain client). 52.50 + 0.99 = 53.49, recomputed by hand and by calc option_breakeven; f9 (OIC) 'strike + premium'. 'Held to expiry' stated.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q10": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's client (all 200, 60/60 found) and read in context; OIC and Fidelity pages also opened with WebFetch (Schwab and Investor.gov refuse WebFetch, read in full via the plain client). 1 - 0.22 = 0.78, calc checked. Schwab f48 states this exact example (22% ITM, 78% worthless); OIC f4 (Tier 1) gives the delta-as-probability reading. 'Read as rough odds' keeps it honest (f47).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q11": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's client (all 200, 60/60 found) and read in context; OIC and Fidelity pages also opened with WebFetch (Schwab and Investor.gov refuse WebFetch, read in full via the plain client). Spreads were given in dollars with no option prices, and a 0.60 spread on a far pricier strike can be a smaller percent; added 'both cost about 2.00' so 0.05 vs 0.60 is a fair comparison (2.5% vs 30%). f41 Fidelity, f55/f56 Schwab agree (two Tier 2 publishers).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q12": {
+   "status": "cut",
+   "notes": "duplicate of F6.04#q11. Track audit 2026-11-09: Same calc and framing (delta x 100 = the shares one contract acts like). F6.04 is the delta unit. The checker had passed it (its note is kept under 'prior'); the question stays in the file as the record.",
+   "fixed": false,
+   "by": "auditor",
+   "prior": {
+    "status": "pass",
+    "notes": "Sources re-fetched 2026-11-09 by the quote checker's client (all 200, 60/60 found) and read in context; OIC and Fidelity pages also opened with WebFetch (Schwab and Investor.gov refuse WebFetch, read in full via the plain client). 0.70 x 100 = 70, calc checked. Fidelity f46 (.30 delta 'as if long 30 shares') plus OIC f1 and f21 (Tier 1) give the same arithmetic. 'for now' and f7 keep it a snapshot.",
+    "fixed": false,
+    "by": "checker"
+   }
+  },
+  "q13": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's client (all 200, 60/60 found) and read in context; OIC and Fidelity pages also opened with WebFetch (Schwab and Investor.gov refuse WebFetch, read in full via the plain client). At 108: 95 call worth 13 > 7.10, 100 call worth 8 > 4.15, 110 call worth 0 (f8, f13, f24). Chain checked against Black-Scholes at ~35% vol, one month: 7.14 / 4.19 / 1.05, realistic. Choices reordered so the key is not always first (no shuffle found in gen_courses or the drill players). ",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q14": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's client (all 200, 60/60 found) and read in context; OIC and Fidelity pages also opened with WebFetch (Schwab and Investor.gov refuse WebFetch, read in full via the plain client). 'By expiry the stock runs to 115' could mean it touched 115 earlier (then the call holds time value and the 400% is wrong); now 'It closes at 115 on expiry day'. (115-110-1)/1 = 400% recomputed; 500% is value/cost; 15% is the stock. 95 call makes 12.90 vs 4.00, so 'more dollars' holds. Choices reordered so the key is not always first (no shuffle found in gen_courses or the drill players). ",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q15": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's client (all 200, 60/60 found) and read in context; OIC and Fidelity pages also opened with WebFetch (Schwab and Investor.gov refuse WebFetch, read in full via the plain client). 90 + 10.95 = 100.95 vs 110 + 1.00 = 111, calc checked; the 101 distractor is the real 'premium on today's price' slip. f36 (OCC: substantially ITM has very little time value) backs the why; 90 call at 10.95 matches Black-Scholes (~10.99). Choices reordered so the key is not always first (no shuffle found in gen_courses or the drill players). ",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q16": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's client (all 200, 60/60 found) and read in context; OIC and Fidelity pages also opened with WebFetch (Schwab and Investor.gov refuse WebFetch, read in full via the plain client). (75-72-1.50) x 100 = $150, calc option_payoff checked; $300 = value, $650 = (80-72-1.50) x 100, $150 premium lost is wrong since the put is ITM. 70 put at 72 is worthless (f17). f16, f18 OIC. Choices reordered so the key is not always first (no shuffle found in gen_courses or the drill players). ",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q17": {
+   "status": "cut",
+   "notes": "duplicate of F6.04#q20. Track audit 2026-11-09: Same fact (with the stock still, an out-of-the-money call's delta falls toward 0 as expiry nears). F6.04 is the delta unit. The checker had passed it (its note is kept under 'prior'); the question stays in the file as the record.",
+   "fixed": false,
+   "by": "auditor",
+   "prior": {
+    "status": "pass",
+    "notes": "Sources re-fetched 2026-11-09 by the quote checker's client (all 200, 60/60 found) and read in context; OIC and Fidelity pages also opened with WebFetch (Schwab and Investor.gov refuse WebFetch, read in full via the plain client). OIC f6 verbatim, with 'provided other inputs remain constant' carried as 'If the stock just sits' plus 'tends to'. Lesson from f11.",
+    "fixed": false,
+    "by": "checker"
+   }
+  },
+  "q18": {
+   "status": "cut",
+   "notes": "duplicate of F6.04#q23. Track audit 2026-11-09: Same fact and trap (delta read as odds is about finishing in the money, not about profit; profit needs strike plus premium). F6.04's version works the break-even number. The checker had passed it (its note is kept under 'prior'); the question stays in the file as the record.",
+   "fixed": false,
+   "by": "auditor",
+   "prior": {
+    "status": "pass",
+    "notes": "Sources re-fetched 2026-11-09 by the quote checker's client (all 200, 60/60 found) and read in context; OIC and Fidelity pages also opened with WebFetch (Schwab and Investor.gov refuse WebFetch, read in full via the plain client). False is right: delta reads as odds of finishing ITM (OIC f4, Fidelity f43), and profit at expiry needs the stock past strike + premium (f9); Schwab f49 warns higher delta is not profit. Why now says 'Held to expiry' so the break-even line is exact. Fidelity s12's 'probability of profit' subtitle is in conflicts.",
+    "fixed": true,
+    "by": "checker"
+   }
+  },
+  "q19": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's client (all 200, 60/60 found) and read in context; OIC and Fidelity pages also opened with WebFetch (Schwab and Investor.gov refuse WebFetch, read in full via the plain client). Deep ITM: delta toward 1.00 (f2, f3), very little time value (f36 OCC), costs most (f19, f40). ATM: delta ~.50 (f50) and decay most noticeable at the money (f20). OTM: all time value (f25). Stock-replacement use of deep ITM calls is standard practice. Choices reordered so the key is not always first (no shuffle found in gen_courses or the drill players). ",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q20": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's client (all 200, 60/60 found) and read in context; OIC and Fidelity pages also opened with WebFetch (Schwab and Investor.gov refuse WebFetch, read in full via the plain client). 50 - 45 + 0.55 = 5.55, calc checked; OIC protective-put page's own max-loss line is 'Stock purchase price - strike price + premium paid' (f27-f29).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q21": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's client (all 200, 60/60 found) and read in context; OIC and Fidelity pages also opened with WebFetch (Schwab and Investor.gov refuse WebFetch, read in full via the plain client). False is right (SEC f37, f38). Added IBKR f60 for the gap itself (a stop opened through becomes a market order at the prevailing price); why reworded to that, no longer 'sells at the open'. Put as a real floor: f27.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q22": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's client (all 200, 60/60 found) and read in context; OIC and Fidelity pages also opened with WebFetch (Schwab and Investor.gov refuse WebFetch, read in full via the plain client). Leading: 'what's the catch?' with only the key naming a catch, and 'Same floor' was a weak foil. Replaced it with 'The 47.50 put, but it caps your upside', a real protective-put vs collar confusion, answered by new f59 (OIC: upside gains kept). Key from f26, f27, f30; 1.20 / 0.55 prices plausible. Choices reordered so the key is not always first (no shuffle found in gen_courses or the drill players). ",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q23": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's client (all 200, 60/60 found) and read in context; OIC and Fidelity pages also opened with WebFetch (Schwab and Investor.gov refuse WebFetch, read in full via the plain client). Key: f32 (OIC: set the cut-off in advance and hold firm), f14 (sell while time value remains). The key text 'Sell it, as planned' flagged itself as the virtuous choice; now 'Sell it, it closed below 96', with the why updated to match. Distractors are real rationalisations. Choices reordered so the key is not always first (no shuffle found in gen_courses or the drill players). ",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q24": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's client (all 200, 60/60 found) and read in context; OIC and Fidelity pages also opened with WebFetch (Schwab and Investor.gov refuse WebFetch, read in full via the plain client). (0.20-0.10)/0.20 = 50%, calc checked; f57 Schwab '10% or less of the ask'. Lesson said check the spread 'before you check anything else', which contradicts q08 (view first); now 'before you buy'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q25": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's client (all 200, 60/60 found) and read in context; OIC and Fidelity pages also opened with WebFetch (Schwab and Investor.gov refuse WebFetch, read in full via the plain client). Key from f5 (OIC: under .10 delta needs a strong move) and f33 (OCC: less time, more risk). Black-Scholes check: stock 40, 45 call, 7 days, ~45% vol gives ~0.03 price and ~0.03 delta, consistent. Distractors are real lottery-ticket mistakes, each answered from f24, f23, f3. Choices reordered so the key is not always first (no shuffle found in gen_courses or the drill players). ",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q26": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's client (all 200, 60/60 found) and read in context; OIC and Fidelity pages also opened with WebFetch (Schwab and Investor.gov refuse WebFetch, read in full via the plain client). 110 + 1.00 - 110 = 1, calc checked; at exactly 110 the call is worthless (f8, f25). Question lacked 'Held to expiry' (break-even before expiry differs); added. Lesson now says 'below it' instead of the unclear 'inside it'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q27": {
+   "status": "pass",
+   "notes": "New variety question. Key and why match the quote (f16 for q27, f20 for q28), both verbatim; no near-duplicate in the unit. variety rewrite checked 2026-11-10",
+   "by": "writer"
+  },
+  "q28": {
+   "status": "pass",
+   "notes": "New variety question. Key and why match the quote (f16 for q27, f20 for q28), both verbatim; no near-duplicate in the unit. variety rewrite checked 2026-11-10",
+   "by": "writer"
+  }
+ }
+}

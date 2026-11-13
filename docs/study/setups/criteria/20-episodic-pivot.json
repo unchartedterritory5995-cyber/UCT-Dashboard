@@ -1,0 +1,1473 @@
+{
+ "setup": "20-episodic-pivot",
+ "name": "Episodic Pivot",
+ "unit": "SET.18",
+ "direction": "long",
+ "timeframe": "daily",
+ "dossier": "docs/study/setups/research/20-episodic-pivot.md",
+ "as_of": "2026-11-09",
+ "card": {
+  "context": "A neglected stock, flat or down for three to six months with no EP in the last six, is re-priced by a named surprise: earnings, a contract, an FDA decision. Price is above the 200-day at the buy. Earnings season, Green or Yellow market.",
+  "pattern": "A gap of 10% or more on at least 3 times average volume that holds: no trade back to the prior close, a close in the upper half. Not a second EP, not a stock already up 50%.",
+  "trigger": "OTHER: on day one, a market buy as price trades over the opening-range high with the volume on pace. Or a delayed PREV DAY HIGH BREAK on days two to ten while the gap holds.",
+  "stop": "A few cents under the low of the day at the time of the buy, or under the trigger day's low on a delayed entry, and only when that is within about 3%.",
+  "failure_mode": "The gap sells off below the open or fills to the prior close on day one, or a late-cycle gap on a stock already up into the news reverses after one day. The stop under the day's low is where it is paid for."
+ },
+ "entry_trigger": "OTHER",
+ "criteria": [
+  {
+   "id": "ep.catalyst",
+   "field": "context",
+   "statement": "A named surprise released after the close or before the open: earnings and guidance first, then a contract or partnership, a regulatory or FDA decision. Write it in the plan. No named catalyst, no EP.",
+   "measure": {
+    "what": "catalyst type named in the plan",
+    "op": "in",
+    "value": [
+     "earnings or guidance",
+     "contract or partnership",
+     "regulatory or FDA decision",
+     "named sector event (if the owner allows)"
+    ]
+   },
+   "glossary": "earnings_reaction_day",
+   "basis": "originator",
+   "sources": [
+    "S30",
+    "S19",
+    "S17"
+   ],
+   "options": [
+    {
+     "value": "company news only",
+     "basis": "Bonde's high-probability list: earnings, contracts, FDA"
+    },
+    {
+     "value": "company news plus a named sector event",
+     "basis": "Kullamägi's sector EP, which can move without stock-specific news"
+    }
+   ],
+   "recommended": "company news only",
+   "status": "pending-owner",
+   "owner_question": "D-032",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1.1 Catalyst; 10 question 12",
+   "evidence": "Not coded in the scan; the catalyst is only classed earnings or news from the report database. Earnings gaps (358 hits) 37.7% / 25.7% and news gaps (138) 35.5% / 28.3% did about the same. Kullamägi calls biotech EPs the hardest."
+  },
+  {
+   "id": "ep.earnings_is_ep",
+   "field": "context",
+   "statement": "An earnings gap that meets these rules is an EP. A big earnings gap on an established name in a base is a PEG. The app's rule that forbids an earnings EP is retired.",
+   "measure": {
+    "what": "setup assigned to an earnings gap",
+    "op": "in",
+    "value": [
+     "EP (neglected name)",
+     "PEG (established name in a base)"
+    ]
+   },
+   "basis": "UCT",
+   "sources": [
+    "S52",
+    "S45"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "EP is any catalyst gap meeting the EP rules, earnings included; PEG is the earnings gap on an established name in a base (the owner's verdict log already files ASML, ORCL, RL, DUOL, GM as PEGs and FSLY as an A+ EP)"
+    },
+    {
+     "value": "b",
+     "basis": "keep the app's split: every earnings gap is a PEG (TERM-090)"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-002",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "10 question 1; 5.8 item 8",
+   "evidence": "Eight of the ten examples are earnings-reaction days per the report database; two are news gaps."
+  },
+  {
+   "id": "ep.gap_floor",
+   "field": "pattern",
+   "statement": "The open is at least 10% above the prior close.",
+   "measure": {
+    "what": "open / prior close - 1",
+    "op": ">=",
+    "value": 10,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "glossary": "gap",
+   "basis": "originator",
+   "sources": [
+    "S30",
+    "S6",
+    "S13"
+   ],
+   "options": [
+    {
+     "value": 4,
+     "basis": "the app today; Bonde's 2014 intraday screen"
+    },
+    {
+     "value": 8,
+     "basis": "Bonde's 2010 scan; Chart IQ"
+    },
+    {
+     "value": 10,
+     "basis": "Kullamägi's definition; the number Bonde decided on in 2007"
+    }
+   ],
+   "recommended": 10,
+   "status": "pending-owner",
+   "owner_question": "D-033",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1.2 Gap",
+   "evidence": "Scan at the 10% floor: gaps of 10% to 15% (366 hits) 36.6% / 27.9%, 15% to 20% (93) 35.5% / 21.5%, 20% to 30% (57) 36.8% / 26.3%. Gaps of 4% to 10% on news are taught as gappers or PEGs, not EPs. The ten examples gapped 10.5% to 26.5%."
+  },
+  {
+   "id": "ep.gap_too_big",
+   "field": "pattern",
+   "statement": "A gap over 25% is graded down, B- at best, not banned.",
+   "measure": {
+    "what": "open / prior close - 1",
+    "op": ">",
+    "value": 25,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "glossary": "gap",
+   "basis": "my proposal",
+   "sources": [
+    "S24"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1.3 Gap size caution",
+   "evidence": "Scan: the 25 gaps over 30% reached 3R 68.0% and 5R 52.0%, too few to lean on and against the caution; the owner's call. META 2013-07-25 gapped 26.5% and still reached 3R the day after entry."
+  },
+  {
+   "id": "ep.volume",
+   "field": "pattern",
+   "statement": "The gap day trades at least 3 times its 50-day average volume, and by the buy it is on pace: the full average daily volume has traded within the first 30 minutes.",
+   "measure": {
+    "what": "gap-day volume / 50-day average volume",
+    "op": ">=",
+    "value": 3,
+    "unit": "x",
+    "timeframe": "daily",
+    "and": "volume in the first 30 minutes >= the 50-day average daily volume"
+   },
+   "glossary": "volume_surge",
+   "basis": "originator",
+   "sources": [
+    "S30",
+    "S13"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1.4 Volume",
+   "evidence": "Scan: volume 3x to 5x (202 hits) 39.6% / 27.7%, 5x to 10x (248) 35.5% / 26.2%, 10x or more (91) 40.7% / 31.9%; no edge beyond 3x in this cut. MOD ran 89.9R on 3.2x, the floor. The first-30-minutes test cannot be checked on daily bars."
+  },
+  {
+   "id": "ep.volume_ideal",
+   "field": "pattern",
+   "statement": "The A+ version: 5 times the average or more, or the highest volume in years (a High Volume Edge day).",
+   "measure": {
+    "what": "gap-day volume / 50-day average volume",
+    "op": ">=",
+    "value": 5,
+    "unit": "x",
+    "timeframe": "daily",
+    "or": "the highest volume of the prior 252 sessions or more"
+   },
+   "glossary": "volume_surge",
+   "basis": "UCT",
+   "sources": [
+    "S13"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1.4 Volume; 9 A+ cues",
+   "evidence": "DLB 2006-11-10 traded 27.6x, the highest volume on its chart by far, and ran 17.1R."
+  },
+  {
+   "id": "ep.neglect",
+   "field": "context",
+   "statement": "Neglect: the close before the gap is no more than 25% above its close 126 sessions earlier, and no more than 15% above its close 63 sessions earlier.",
+   "measure": {
+    "what": "prior close / close 126 sessions earlier - 1",
+    "op": "<=",
+    "value": 25,
+    "unit": "%",
+    "timeframe": "daily",
+    "and": "prior close / close 63 sessions earlier - 1 <= 15%"
+   },
+   "glossary": "prior_trend",
+   "basis": "originator",
+   "sources": [
+    "S31",
+    "S9"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1.5 Neglect",
+   "evidence": "Scan: a stock flat or down over the prior 6 months (320 hits) 40.3% / 30.9% against one that was up (221) 34.4% / 23.1%. The 63-session line is untested. UI (+22%) and ENPH (+21%) sat near the 25% line. Of the 25 largest failures, 11 were up more than 10% over the prior six months."
+  },
+  {
+   "id": "ep.first_ep",
+   "field": "context",
+   "statement": "The first EP: no qualifying EP in the prior 126 sessions.",
+   "measure": {
+    "what": "earlier gaps of 10% or more on 3x volume in the prior 126 sessions",
+    "op": "==",
+    "value": 0,
+    "unit": "gaps",
+    "timeframe": "daily"
+   },
+   "basis": "originator",
+   "sources": [
+    "S6",
+    "S30"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1.6 First EP",
+   "evidence": "Coded in the scan as written. Bonde on late-cycle surprises: a blowout runaway move or a reversal after a one-day gap up."
+  },
+  {
+   "id": "ep.close",
+   "field": "pattern",
+   "statement": "The gap day closes in the upper half of its range and never trades back to the prior close. If buying intraday, price is above the open and above the opening-range high at the buy.",
+   "measure": {
+    "what": "(close - low) / (high - low) of the gap day",
+    "op": ">=",
+    "value": 0.5,
+    "unit": "of the range",
+    "timeframe": "daily",
+    "and": "the day's low > the prior close"
+   },
+   "glossary": "close_position",
+   "basis": "source consensus",
+   "sources": [
+    "S30",
+    "S33",
+    "S52"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1.7 Close",
+   "evidence": "Scan: a close in the top quarter (353 hits) 36.5% / 26.9% was not better than a close in the 50% to 75% band (188) 40.4% / 29.3%, so the top quarter stays a cue. ENPH closed at 56% of its range and still ran 20.7R."
+  },
+  {
+   "id": "ep.close_top_quarter",
+   "field": "pattern",
+   "statement": "A close in the top quarter of the range is a grade cue, not a gate.",
+   "measure": {
+    "what": "(close - low) / (high - low) of the gap day",
+    "op": ">=",
+    "value": 0.75,
+    "unit": "of the range",
+    "timeframe": "daily"
+   },
+   "glossary": "close_position",
+   "basis": "UCT",
+   "sources": [
+    "S51"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1.7 Close; 9 A+ cues",
+   "evidence": "The Model Book's top 25%. The scan found no edge in it (36.5% / 26.9% against 40.4% / 29.3% for the band below)."
+  },
+  {
+   "id": "ep.above_200",
+   "field": "context",
+   "statement": "The price at the buy is above the 200-day simple average. The gap may carry it there.",
+   "measure": {
+    "what": "price at entry against the 200-day SMA",
+    "op": ">",
+    "value": "200-day SMA",
+    "timeframe": "daily"
+   },
+   "glossary": "above_200",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B26",
+   "options": [
+    {
+     "value": "a",
+     "basis": "above at the moment of the buy counts, the gap may carry it there (the dossier)"
+    },
+    {
+     "value": "b",
+     "basis": "the prior close must already be above it"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-020",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1.8 Location; 10 question 7",
+   "evidence": "Neglected stocks are often under a falling 200-day. A gap day that closed still below it was not allowed and did worse in the dossier's data. The parabolic-long exception does not cover EPs."
+  },
+  {
+   "id": "ep.liquidity",
+   "field": "context",
+   "statement": "Price $10 or more and $20 million traded a day, measured on the gap day's own dollar volume.",
+   "measure": {
+    "what": "gap-day close",
+    "op": ">=",
+    "value": 10,
+    "unit": "$",
+    "and": "gap-day dollar volume >= 20,000,000"
+   },
+   "glossary": "liquidity",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B23",
+   "options": [
+    {
+     "value": "a",
+     "basis": "the 20-day average before the gap (27% of EP-like days pass)"
+    },
+    {
+     "value": "b",
+     "basis": "the gap day's own dollar volume (47% pass; the dossier's recommendation)"
+    },
+    {
+     "value": "c",
+     "basis": "both"
+    }
+   ],
+   "recommended": "b",
+   "status": "pending-owner",
+   "owner_question": "D-030",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1.9 Liquidity; 10 question 5",
+   "evidence": "Bonde's best EPs are low-priced, thin, low-float stocks, often under his own liquidity threshold before the catalyst. In the dossier's data 61% of EP-like days were priced $10 or more. The scan used the gap day's own dollar volume."
+  },
+  {
+   "id": "ep.position_adv",
+   "field": "management",
+   "statement": "The position is at most 1% of the stock's average daily volume; which average is the owner's call.",
+   "measure": {
+    "what": "shares / average daily volume",
+    "op": "<=",
+    "value": 1,
+    "unit": "%"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "D42",
+   "options": [
+    {
+     "value": "the 20-day average before the gap",
+     "basis": "the strict reading; caps size hard on a neglected name"
+    },
+    {
+     "value": "the 20-day average including the gap day",
+     "basis": "the dossier's suggestion"
+    }
+   ],
+   "recommended": "the 20-day average including the gap day",
+   "status": "pending-owner",
+   "owner_question": "D-030",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "7 D42 row; 10 question 5"
+  },
+  {
+   "id": "ep.fundamentals",
+   "field": "context",
+   "statement": "Earnings EPs: EPS or sales growth of at least 25% year over year with a beat is the cue; triple-digit growth and a raised guide are A+ cues. A grading cue, not a gate.",
+   "measure": {
+    "what": "EPS or sales growth, year over year",
+    "op": ">=",
+    "value": 25,
+    "unit": "%",
+    "and": "a beat; A+ at 100% or more with a raised guide"
+   },
+   "basis": "house rule",
+   "sources": [
+    "S30",
+    "S13"
+   ],
+   "house_rule": "D40",
+   "status": "settled",
+   "owner_question": "D-140",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1.10 Fundamentals; 10 question 11",
+   "evidence": "Settled as a cue, not a gate (D-140). Not coded in the scan."
+  },
+  {
+   "id": "ep.young_company",
+   "field": "context",
+   "statement": "An A+ cue: a young, small company, listed under 10 years, under $10 billion in value, with a low float.",
+   "measure": {
+    "what": "years since listing",
+    "op": "<",
+    "value": 10,
+    "unit": "years",
+    "and": "market value < $10 billion"
+   },
+   "basis": "originator",
+   "sources": [
+    "S13",
+    "S28"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "9 A+ cues",
+   "evidence": "Not coded in the scan. Bonde: companies with significant analyst coverage do not do as well."
+  },
+  {
+   "id": "ep.rs",
+   "field": "context",
+   "statement": "RS rating 80 or more, measured at the close of the gap day. Before the gap a neglected stock's RS is usually middling.",
+   "measure": {
+    "what": "RS rating at the gap-day close",
+    "op": ">=",
+    "value": 80,
+    "unit": "rating 1 to 99"
+   },
+   "glossary": "leader",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "C31",
+   "options": [
+    {
+     "value": "a",
+     "basis": "measure RS at the close of the gap day (the dossier's recommendation)"
+    },
+    {
+     "value": "b",
+     "basis": "exempt EPs like parabolic and mean-reversion trades"
+    },
+    {
+     "value": "c",
+     "basis": "require 80 or more before the gap (drops most neglected EPs)"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-011",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "7 C31 row; 10 question 6",
+   "evidence": "Both originators want a stock that did not rally for 3 to 6 months. The scan cannot read an RS rating."
+  },
+  {
+   "id": "ep.entry_day1",
+   "field": "trigger",
+   "statement": "Day one: after the first 5-minute candle (or the first 30 minutes for a slower start), buy at market when price trades above the opening-range high, the volume is on pace, and the stop under the low of the day so far is within 3% and within one average daily range. If the stop is wider, wait for the delayed entry.",
+   "measure": {
+    "what": "price against the opening-range high (5-minute, or 30-minute for a slower start)",
+    "op": ">",
+    "value": "opening-range high",
+    "timeframe": "5-minute or 30-minute",
+    "and": "(entry - low of day so far) / entry <= 3% and <= 1 x 20-session ADR"
+   },
+   "glossary": "opening_range",
+   "basis": "originator",
+   "sources": [
+    "S30",
+    "S17"
+   ],
+   "house_rule": "E57",
+   "options": [
+    {
+     "value": "a",
+     "basis": "day-one buys only when the low of day is within 3%, else wait (the dossier)"
+    },
+    {
+     "value": "b",
+     "basis": "allow up to one ADR with smaller size"
+    },
+    {
+     "value": "c",
+     "basis": "delayed entries only"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-005",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.2.1 Day 1; 10 question 4",
+   "evidence": "Daily bars cannot see the opening range; the scan proxied day one with the gap-day close and a stop under the gap-day low within 3% (49 hits) 30.6% / 22.4%. From the open the gap-day low was a median 1.4% to 2.9% away; from the close 6.7% to 7.3%. CACI 2004-08-19 is the one day-one example."
+  },
+  {
+   "id": "ep.not_stretched",
+   "field": "trigger",
+   "statement": "At the buy, no more than 10% above the 10-day average. On day one the gap itself breaks this on most EPs; the owner decides whether the day-one buy is exempt.",
+   "measure": {
+    "what": "entry / 10-day SMA - 1",
+    "op": "<=",
+    "value": 10,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "glossary": "stretched",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "C29",
+   "options": [
+    {
+     "value": "a",
+     "basis": "exempt the EP's day-one opening-range buy; the gap creates the distance (the dossier, with A13 still applied)"
+    },
+    {
+     "value": "b",
+     "basis": "keep it as written: EPs are bought on delayed entries only"
+    },
+    {
+     "value": "c",
+     "basis": "an EP-only cap such as 25% over the 10-day"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-017",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "7 C29 row; 10 question 3",
+   "evidence": "At the open, 65% of 10%+ gaps were already more than 10% over the 10-day; at the close 71% to 86%. Every UCT example broke it. The scan applied it only to delayed entries."
+  },
+  {
+   "id": "ep.no_chase",
+   "field": "trigger",
+   "statement": "No buy more than 4% above the opening-range high, or above the delayed trigger.",
+   "measure": {
+    "what": "fill / trigger level - 1",
+    "op": "<=",
+    "value": 4,
+    "unit": "%"
+   },
+   "glossary": "chase_limit",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "C28",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2.1; 7 C28 row",
+   "evidence": "The buy point is the opening-range high or the delayed trigger, never the old base pivot."
+  },
+  {
+   "id": "ep.regular_hours",
+   "field": "trigger",
+   "statement": "No pre-market or after-hours buys, though Bonde made his biggest EP money pre-market.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "E58",
+   "status": "settled",
+   "owner_question": "D-141",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2.1; 10 question 10",
+   "evidence": "Kullamägi rarely trades extended hours; the house follows him (D-141, settled)."
+  },
+  {
+   "id": "ep.entry_delayed",
+   "field": "trigger",
+   "statement": "Delayed entry, day 2 to day 10: while the gap holds (no trade below the gap-day low, no fill to the prior close), buy at market the first tight trigger with a stop within 3%: a break of the gap-day high; an inside or tight day, then a break of its high; a red-to-green move through the prior close; the Go Signal; or an undercut and reclaim of the gap-day close or the rising 10 or 21-day.",
+   "measure": {
+    "what": "sessions after the gap day at the trigger",
+    "op": "<=",
+    "value": 10,
+    "unit": "sessions",
+    "timeframe": "daily",
+    "and": "no trade below the gap-day low and no trade back to the prior close before the trigger; stop within 3%"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S52",
+    "S23",
+    "S15",
+    "S51"
+   ],
+   "options": [
+    {
+     "value": 10,
+     "basis": "the dossier's window; after it the chart is graded as its new base or flag"
+    },
+    {
+     "value": 252,
+     "basis": "Bonde watches his first three scans for a year for later entries"
+    }
+   ],
+   "recommended": 10,
+   "status": "pending-owner",
+   "owner_question": "D-084",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.2.2 Delayed entry; 10 question 9",
+   "evidence": "Scan: delayed entries (492 hits) 38.6% / 28.3% against the day-one proxy (49) 30.6% / 22.4%. A break of the post-gap high (393) 41.2% / 31.3% did better than the inside-day trigger (99) 28.3% / 16.2%. Entries came mostly on day 2 (205) and day 3 (94). Nine of the ten examples are day 2 to 4 entries."
+  },
+  {
+   "id": "ep.not_three_green",
+   "field": "trigger",
+   "statement": "Not after three green days in a row. A guide, not a gate.",
+   "measure": {
+    "what": "consecutive up closes before the delayed trigger",
+    "op": "<",
+    "value": 3,
+    "unit": "sessions",
+    "timeframe": "daily"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S45"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.2.3",
+   "evidence": "From the 2026-04-19 starter list. The scan skipped triggers after three green days."
+  },
+  {
+   "id": "ep.stop_day1",
+   "field": "stop",
+   "statement": "Day one: a few cents under the low of the day at the time of entry.",
+   "measure": {
+    "what": "stop",
+    "op": "==",
+    "value": "a few cents under the low of the day so far"
+   },
+   "glossary": "stop_margin",
+   "basis": "house rule",
+   "sources": [
+    "S30"
+   ],
+   "house_rule": "F62",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.3.1"
+  },
+  {
+   "id": "ep.stop_delayed",
+   "field": "stop",
+   "statement": "Delayed entry: a few cents under the trigger day's low.",
+   "measure": {
+    "what": "stop",
+    "op": "==",
+    "value": "a few cents under the trigger day's low"
+   },
+   "glossary": "stop_margin",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "A3",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.3.2",
+   "evidence": "The scan used 5 cents under the lower of the trigger day's and the prior day's lows, or the trigger day's low alone. The ten examples' stops sat 1.0% to 2.7% under the fill."
+  },
+  {
+   "id": "ep.stop_width",
+   "field": "stop",
+   "statement": "If the honest stop is wider than about 3%, skip the trade rather than tighten it.",
+   "measure": {
+    "what": "(entry - stop) / entry",
+    "op": "<=",
+    "value": 3,
+    "unit": "%"
+   },
+   "glossary": "stop_width",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "A13",
+   "options": [
+    {
+     "value": "a",
+     "basis": "skip, or wait for the tighter delayed trigger (A3, A13; the dossier)"
+    },
+    {
+     "value": "b",
+     "basis": "allow up to one ADR with smaller size (A5)"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-005",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.3.5; 7 A13 row",
+   "evidence": "The gap-day low was within 3% of the close only 3% to 33% of the time. The 47 hits with a stop under 1% reached 3R 63.8% of the time, but that R is tiny and inflated (one hit shows 551R on a 5-cent stop); the examples were chosen with stops of 1% or more."
+  },
+  {
+   "id": "ep.stop_only_up",
+   "field": "stop",
+   "statement": "A real stop order with the broker. Never widened; moved only up.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "A4",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.3.3",
+   "evidence": "D41 puts the stop with the broker."
+  },
+  {
+   "id": "ep.stop_gap",
+   "field": "stop",
+   "statement": "A gap through the stop: the first 30-minute low is the new stop; out if that is past 2R.",
+   "measure": {
+    "what": "loss at the first 30-minute low of the gap-down day",
+    "op": "<=",
+    "value": 2,
+    "unit": "R",
+    "timeframe": "30-minute"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B20",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.3.4",
+   "evidence": "EP stocks gap often, on follow-up news both ways."
+  },
+  {
+   "id": "ep.breakeven",
+   "field": "management",
+   "statement": "Stop to breakeven between 2R and 5R, at the first trim by default.",
+   "measure": {
+    "what": "R at which the stop moves to the entry",
+    "op": "in",
+    "value": [
+     2,
+     5
+    ],
+    "unit": "R"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B19",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4"
+  },
+  {
+   "id": "ep.trim_1",
+   "field": "management",
+   "statement": "Sell a third at 3R.",
+   "measure": {
+    "what": "fraction sold at 3R",
+    "op": "==",
+    "value": 0.333,
+    "unit": "of the position"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B19",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4",
+   "evidence": "Among the scan's winners the median time to 3R was 2 sessions. COIN fell back to the stop in December after 34R: the trims mattered."
+  },
+  {
+   "id": "ep.trim_2",
+   "field": "management",
+   "statement": "Sell a third at 5R.",
+   "measure": {
+    "what": "fraction sold at 5R",
+    "op": "==",
+    "value": 0.333,
+    "unit": "of the position"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "E51",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4"
+  },
+  {
+   "id": "ep.trim_gap_open",
+   "field": "management",
+   "statement": "If it opens above a trim level, take that trim at the open.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "F63",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4"
+  },
+  {
+   "id": "ep.trail",
+   "field": "management",
+   "statement": "Trail the last third on a close under the 10-day average while the stock moves fast, switching to the 21-day only after it builds its first base.",
+   "measure": {
+    "what": "close against the 10-day average (fast), then the 21-day after the first base",
+    "op": "<",
+    "value": "the average",
+    "timeframe": "daily"
+   },
+   "glossary": "trail",
+   "basis": "house rule",
+   "sources": [
+    "S30"
+   ],
+   "house_rule": "E52",
+   "options": [
+    {
+     "value": "a",
+     "basis": "the 10-day until the first base, then the 21-day (the dossier)"
+    },
+    {
+     "value": "b",
+     "basis": "the owner's 20 EMA"
+    },
+    {
+     "value": "c",
+     "basis": "the Model Book's 9 EMA; the curriculum's 10/20-day"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-024",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4; 10 question 8",
+   "evidence": "The owner trailed FSLY on the 20-day, then the weekly 9 EMA, and regretted it. ENPH topped and collapsed through the stop within the window: the case for the trail. WING trended above the 10-day into October."
+  },
+  {
+   "id": "ep.climax",
+   "field": "management",
+   "statement": "A climax run (Bracco's parabolic burst): sell a big part into it.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "C34",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4",
+   "evidence": "EP runs can turn parabolic (the owner's FSLY trim on extension from the 50-day)."
+  },
+  {
+   "id": "ep.time_stop",
+   "field": "management",
+   "statement": "Time stop: still under 1R after 10 trading days, sell. Bonde used 5 days.",
+   "measure": {
+    "what": "open R after 10 trading days",
+    "op": "<",
+    "value": 1,
+    "unit": "R"
+   },
+   "glossary": "time_stop",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "C33",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4",
+   "evidence": "All ten examples were above 1R by the tenth session."
+  },
+  {
+   "id": "ep.next_earnings",
+   "field": "management",
+   "statement": "The next report, about a quarter away: hold through it only if the trade is up 5R.",
+   "measure": {
+    "what": "open R at the next report",
+    "op": ">=",
+    "value": 5,
+    "unit": "R"
+   },
+   "glossary": "earnings_blackout",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B22",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4; 7 B22 row",
+   "evidence": "The buy comes after the report. FSLY qualified and still gave back much of the gain."
+  },
+  {
+   "id": "ep.inv_gap_fill",
+   "field": "invalidation",
+   "statement": "Before entry: the gap fills (a trade back to the prior close) on day one, or the gap-day low breaks. Step aside.",
+   "measure": {
+    "what": "the day's low against the prior close (day one), or the intraday low against the gap-day low (later)",
+    "op": "<=",
+    "value": "prior close, or the gap-day low",
+    "timeframe": "daily"
+   },
+   "glossary": "gap_fill",
+   "basis": "UCT",
+   "sources": [
+    "S52",
+    "S33"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5",
+   "evidence": "The journal template: if it fills the gap, step aside. Coded in the scan: no hit traded back to the prior close or below the gap-day low before the trigger."
+  },
+  {
+   "id": "ep.inv_sold_off",
+   "field": "invalidation",
+   "statement": "Day one: the stock gaps up and sells off below the open. Not an EP.",
+   "measure": {
+    "what": "price against the open on day one",
+    "op": "<",
+    "value": "the open",
+    "timeframe": "intraday"
+   },
+   "basis": "originator",
+   "sources": [
+    "S30"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5"
+  },
+  {
+   "id": "ep.inv_no_volume",
+   "field": "invalidation",
+   "statement": "The volume is not there by the first 30 minutes.",
+   "measure": {
+    "what": "volume in the first 30 minutes / 50-day average daily volume",
+    "op": "<",
+    "value": 1,
+    "unit": "x",
+    "timeframe": "30-minute"
+   },
+   "glossary": "volume_surge",
+   "basis": "originator",
+   "sources": [
+    "S30"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5"
+  },
+  {
+   "id": "ep.inv_weak_catalyst",
+   "field": "invalidation",
+   "statement": "No named catalyst, or a low-probability one: a media mention, an analyst upgrade alone.",
+   "basis": "originator",
+   "sources": [
+    "S16",
+    "S17"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5; 8.8 item 8"
+  },
+  {
+   "id": "ep.inv_late",
+   "field": "invalidation",
+   "statement": "A second EP after a big run, or a stock up 50% or more in the prior 6 months: graded down hard.",
+   "measure": {
+    "what": "prior close / close 126 sessions earlier - 1",
+    "op": ">=",
+    "value": 50,
+    "unit": "%",
+    "timeframe": "daily",
+    "or": "a second EP inside the window"
+   },
+   "glossary": "prior_trend",
+   "basis": "originator",
+   "sources": [
+    "S10",
+    "S31"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.5; 9 B- cues",
+   "evidence": "GOOGL 2015-07-17: a 13% earnings gap on 7.4x volume after a 19% six-month rise; the day-3 break reached only 0.5R before stopping out."
+  },
+  {
+   "id": "ep.market_reading",
+   "field": "context",
+   "statement": "Green and Yellow: allowed (Yellow smaller and fewer). Orange: only A+ EPs. Red: mostly cash and shorts. A guide, not a hard cap.",
+   "glossary": "market_reading",
+   "basis": "house rule",
+   "sources": [
+    "S36",
+    "S13"
+   ],
+   "house_rule": "F65",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.7",
+   "evidence": "Bonde says the market plays no role; Bulkowski says the earnings-surprise pattern works best in a bull market. Not coded in the scan."
+  },
+  {
+   "id": "ep.earnings_season",
+   "field": "context",
+   "statement": "Earnings season: most EPs come in a window of 3 to 4 weeks each quarter.",
+   "measure": {
+    "what": "weeks of each quarter's earnings season",
+    "op": "in",
+    "value": [
+     3,
+     4
+    ],
+    "unit": "weeks"
+   },
+   "basis": "originator",
+   "sources": [
+    "S30"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.7"
+  },
+  {
+   "id": "ep.correction_end",
+   "field": "context",
+   "statement": "EPs often work when the indexes do not. Teach them as the first longs to try as a correction ends, inside the house filter.",
+   "basis": "UCT",
+   "sources": [
+    "S45",
+    "S6"
+   ],
+   "house_rule": "F68",
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.7"
+  }
+ ],
+ "grading": {
+  "a_plus": [
+   "ep.fundamentals: an earnings EP with triple-digit EPS and sales growth, a big beat and a raised guide",
+   "ep.first_ep: the first EP in 6 months or more, after 3 to 6 months of sideways action or years of neglect",
+   "ep.gap_floor: a gap of 10% to about 20% that holds above the open",
+   "ep.close_top_quarter: closes near the top of its range",
+   "ep.volume_ideal: 5x to 10x the 50-day or the highest in years; the full ADV in the first 15 to 30 minutes",
+   "ep.young_company: listed under 10 years, under $10 billion, low float",
+   "ep.above_200: the gap clears the base and the 200-day; a strong or newly hot group, first of its group",
+   "ep.entry_day1: a tight stop available, within 3% of the opening-range high, or a tight first pullback",
+   "ep.market_reading: Green, or a market just coming out of a correction"
+  ],
+  "b_minus": [
+   "ep.gap_floor: a gap of 4% to 10%",
+   "ep.gap_too_big: a gap over 25%",
+   "ep.volume: only 2x to 3x the average",
+   "ep.inv_late: up 50% or more in the 6 months before the news; a second EP",
+   "ep.close: a close in the lower half of the day's range; a filled or nearly filled gap",
+   "ep.inv_weak_catalyst: a mention, an upgrade alone, or a widely covered large company",
+   "ep.stop_width: a stop only possible at 5% or more"
+  ],
+  "no_trade": [
+   "ep.catalyst: no named catalyst",
+   "ep.inv_gap_fill: the gap filled or the gap-day low broke before the trigger",
+   "ep.inv_sold_off: sold off below the open on day one",
+   "ep.inv_no_volume: the volume not there by the first 30 minutes",
+   "ep.above_200: under the 200-day at the buy",
+   "ep.liquidity: under $10 or under $20 million on the gap day",
+   "ep.stop_width: the honest stop does not fit; never pull it in",
+   "ep.no_chase: more than 4% past the trigger",
+   "ep.regular_hours: a pre-market buy",
+   "ep.market_reading: Red"
+  ]
+ },
+ "lookalikes": [
+  {
+   "setup": "21-power-earnings-gap",
+   "tell": "Look at the six months before the gap. An EP comes from a neglected stock, flat or down over six months, often under its averages, and gaps 10% or more; a PEG is an established leader gapping 4% or more out of a base it was already building.",
+   "criterion": "ep.neglect"
+  },
+  {
+   "setup": "22-news-gapper",
+   "tell": "Measure the gap. A News Gapper opens 4% or more on a headline; an EP needs 10% or more, the first in six months, on a name nobody was watching. Under 10% it is taught as a gapper, not an EP.",
+   "criterion": "ep.gap_floor"
+  },
+  {
+   "setup": "24-high-volume-edge",
+   "tell": "Compare the volume to the stock's whole history. An HVE is a record-volume up day, gap or no gap, whose close is a level to mark for a day-2 reclaim; an EP is a 10% gap on 3x average volume bought the same day over the opening-range high.",
+   "criterion": "ep.volume"
+  },
+  {
+   "setup": "26-kicker",
+   "tell": "Look at the day before. A Kicker needs a weak red close and then a gap of only 1.5% or more, rarely on earnings; an EP has a named catalyst and a 10% gap, and the prior day can be any color.",
+   "criterion": "ep.catalyst"
+  },
+  {
+   "setup": "23-news-failure",
+   "tell": "Read the close. An EP holds its gap and closes in the upper half; a News Failure gaps up on good news and closes red, under the prior close. The same headline, the opposite trade.",
+   "criterion": "ep.close"
+  }
+ ],
+ "invalidations": [
+  "Before entry: the gap fills to the prior close on day one, or the gap-day low breaks (ep.inv_gap_fill).",
+  "Day one: the stock sells off below the open (ep.inv_sold_off).",
+  "Day one: the volume is not there by the first 30 minutes (ep.inv_no_volume).",
+  "No named catalyst, or a low-probability one (ep.inv_weak_catalyst).",
+  "A second EP after a big run, or up 50% or more in the prior 6 months: graded down hard (ep.inv_late).",
+  "Before entry: the delayed window has passed; after 10 sessions the chart is its new base or flag setup (ep.entry_delayed).",
+  "After entry: the stop is the exit; it only moves up (ep.stop_only_up)."
+ ],
+ "mistakes": [
+  "Buying a gap without the volume, or a gap that sold off below the open.",
+  "Taking a day-one close entry with the gap-day low as the stop, 7% or more away, so the size is tiny or the 3% rule is broken. Buy early near the opening-range high or wait for the first tight pullback.",
+  "Buying pre-market, or chasing more than 4% over the opening-range high.",
+  "Buying a second EP late in a run, or a stock that already doubled into the news.",
+  "Treating every gap as one that must fill, or fading strong gaps. Bonde: people who believe all gaps get filled have a very difficult time trading this.",
+  "Selling everything in the first day or two and missing the multi-week trend.",
+  "A trail that is too loose for a fast mover (the owner's FSLY weekly 9 EMA lesson).",
+  "No named catalyst, or a weak one.",
+  "Ignoring the liquidity rule on small, thin names."
+ ],
+ "short_mirror": {
+  "exists": true,
+  "setup": "20-episodic-pivot",
+  "note": "The bearish EP (dossier 8.6): a gap down of 10% or more on 3x volume on bad news (a miss or a guidance cut), in a stock already below a falling 200-day (B26), RS 20 or less (C31 mirror), not hard to borrow (D48); short at market on a break of the opening-range low; stop a few cents above the high of the day; trims and trail mirrored (D47). Bonde runs bearish EP scans; Morales' shortable gap-down uses the intraday high as the covering guide. No published statistics on the bearish side. The app's Bear gap lesson defines no trade. The details are the dossier's proposal."
+ },
+ "best_conditions": "Earnings season, when most EPs come in a window of 3 to 4 weeks each quarter. Green or Yellow readings by the house filter, Orange only for an A+. EPs often work when the indexes do not and are the first longs to try as a correction ends, a few positions first and more as they work (F68).",
+ "management": {
+  "trim_1": "a third at 3R (B19)",
+  "trim_2": "a third at 5R (E51)",
+  "trail": "a close under the 10-day while it moves fast, the 21-day only after its first base (E52; the switch is the dossier's proposal, D-024)",
+  "breakeven": "between 2R and 5R, at the first trim by default (B19)",
+  "time_stop": "under 1R after 10 trading days, sell (C33); Bonde used 5 days",
+  "gap_open": "a trim level the day opens past is taken at the open (F63)",
+  "gap_against": "the first 30-minute low is the new stop; out if past 2R (B20)",
+  "climax": "sell a big part into a climax run (C34)",
+  "next_report": "hold through the next report only if up 5R (B22)",
+  "overrides": "none beyond the trail note: EPs are fast movers, so the 10-day is the default line until the first base. Not ours: Bonde's 5-day time stop, Kullamägi's sell a third to a half after 3 to 5 days, the Model Book's sell most on day one or two."
+ },
+ "examples": {
+  "winners": 10,
+  "sheet_dir": "_study-resume/scratchpad/setups/20-episodic-pivot/final",
+  "base_rate": {
+   "hits": 541,
+   "r3_pct": 37.9,
+   "r5_pct": 27.7,
+   "stopped_pct": 83,
+   "never_1r_pct": 43,
+   "median_sessions_to_3r": 2,
+   "window": "60 sessions forward, fixed stop, no trims, no breakeven, no trail, no time stop; 1996-10-25 to 2026-11-04; 2,630 names that ever met the house liquidity rule; one entry per gap"
+  },
+  "cuts": {
+   "earnings_gaps": {
+    "hits": 358,
+    "r3_pct": 37.7,
+    "r5_pct": 25.7
+   },
+   "news_gaps": {
+    "hits": 138,
+    "r3_pct": 35.5,
+    "r5_pct": 28.3
+   },
+   "day1_close_proxy": {
+    "hits": 49,
+    "r3_pct": 30.6,
+    "r5_pct": 22.4
+   },
+   "delayed_entries": {
+    "hits": 492,
+    "r3_pct": 38.6,
+    "r5_pct": 28.3
+   },
+   "post_gap_high_break": {
+    "hits": 393,
+    "r3_pct": 41.2,
+    "r5_pct": 31.3
+   },
+   "inside_day_trigger": {
+    "hits": 99,
+    "r3_pct": 28.3,
+    "r5_pct": 16.2
+   },
+   "gap_10_to_15": {
+    "hits": 366,
+    "r3_pct": 36.6,
+    "r5_pct": 27.9
+   },
+   "gap_15_to_20": {
+    "hits": 93,
+    "r3_pct": 35.5,
+    "r5_pct": 21.5
+   },
+   "gap_20_to_30": {
+    "hits": 57,
+    "r3_pct": 36.8,
+    "r5_pct": 26.3
+   },
+   "gap_over_30": {
+    "hits": 25,
+    "r3_pct": 68.0,
+    "r5_pct": 52.0,
+    "note": "too few to lean on; against the 8.1.3 caution"
+   },
+   "volume_3_to_5x": {
+    "hits": 202,
+    "r3_pct": 39.6,
+    "r5_pct": 27.7
+   },
+   "volume_5_to_10x": {
+    "hits": 248,
+    "r3_pct": 35.5,
+    "r5_pct": 26.2
+   },
+   "volume_10x_plus": {
+    "hits": 91,
+    "r3_pct": 40.7,
+    "r5_pct": 31.9
+   },
+   "neglected_flat_or_down_6mo": {
+    "hits": 320,
+    "r3_pct": 40.3,
+    "r5_pct": 30.9,
+    "up_into_gap": {
+     "hits": 221,
+     "r3_pct": 34.4,
+     "r5_pct": 23.1
+    }
+   },
+   "close_top_quarter": {
+    "hits": 353,
+    "r3_pct": 36.5,
+    "r5_pct": 26.9,
+    "band_50_to_75": {
+     "hits": 188,
+     "r3_pct": 40.4,
+     "r5_pct": 29.3
+    }
+   }
+  },
+  "winners_list": [
+   "MOD 2023-05-25",
+   "UI 2025-08-22",
+   "META 2013-07-25",
+   "DLB 2006-11-10",
+   "CACI 2004-08-19",
+   "OII 2010-10-27",
+   "ENPH 2021-10-27",
+   "COIN 2024-11-06",
+   "SIG 2014-02-19",
+   "WING 2018-08-03"
+  ],
+  "failures": [
+   {
+    "ticker": "SBUX",
+    "date": "2024-08-16",
+    "criterion": "ep.entry_delayed",
+    "why": "an 18% news gap on 2024-08-13 on 13x volume (a new CEO, not a report day) closed at 98% of its range; the day-4 inside-day break at 94.97 hit the stop the next session, 0R. A strong gap with no follow-through once the buyers who wanted in had bought; the inside-day trigger was the weaker one in the scan."
+   },
+   {
+    "ticker": "TSLA",
+    "date": "2019-10-28",
+    "criterion": "ep.stop_delayed",
+    "why": "a 17% earnings gap on 2019-10-24 on 4.4x volume, bought on the day-3 break of the post-gap high at 22.01 (split-adjusted); it hit the stop the next session without reaching 1R, though the stock went on to a far larger move months later. An EP entry can be right about the stock and still lose on the first trigger."
+   },
+   {
+    "ticker": "GOOGL",
+    "date": "2015-07-21",
+    "criterion": "ep.inv_late",
+    "why": "a 13% earnings gap on 2015-07-17 on 7.4x volume after a 19% six-month rise; the day-3 break reached only 0.5R before stopping out. The already-up-into-the-news case."
+   },
+   {
+    "ticker": "ANF",
+    "date": "2012-11-15",
+    "criterion": "ep.gap_too_big",
+    "why": "a 28.5% earnings gap on 2012-11-14 on 15.0x volume, closed at 97% of its range after a 31% six-month decline; the day-2 break of the post-gap high at 42.01 (stop 40.97) hit the stop the next session, 0.0R. The gap over the 25% line, bought on the first break and reversed at once."
+   }
+  ],
+  "limits": "The named catalyst, the fundamentals, the RS rating, the market reading and the trims are not in the scan. The real day-one buy over the opening-range high cannot be seen on daily bars; the day-one proxy is the close with the stop under the gap-day low within 3%, which is why nine of the ten examples are day 2 to 4 entries. No delisted names, so the base rate leans toward survivors. Nothing here is a published statistic.",
+  "near_misses": [
+   {
+    "ticker": "GOOG",
+    "date": "2013-10-18",
+    "criterion": "ep.gap_floor",
+    "why": "the open was 9.9% over the prior close on 6.9x volume, close at 90% of range; the rule is 10% or more. A report-day gap on an established leader: a Power Earnings Gap (21), not an EP. The would-be day-2 buy at 25.30 was stopped, 0.0R."
+   },
+   {
+    "ticker": "MU",
+    "date": "2024-09-26",
+    "criterion": "ep.close",
+    "why": "an 18.1% earnings gap on 4.6x that closed at 32% of its range; the rule is the upper half. The gap held (low 107.53 above the prior close 95.77) but the day faded: not an EP. The would-be close buy at 109.88 was stopped, 0.0R."
+   },
+   {
+    "ticker": "CRM",
+    "date": "2020-08-26",
+    "criterion": "ep.neglect",
+    "why": "a 16.6% earnings gap on 11.2x, close at 80%, on a stock up 25.5% over 126 sessions and 19.3% over 63; the rule is at most 25% and 15%. Not neglected: a Power Earnings Gap (21) on a leader at highs. The day-5 break at 278.29 was stopped, 0.0R."
+   },
+   {
+    "ticker": "AMZN",
+    "date": "2022-02-04",
+    "criterion": "ep.above_200",
+    "why": "a 12.1% earnings gap on 3.6x, close at 66%, down 17% over six months; the day-2 buy at 161.21 was under the 200-day (168.35); the rule is price above the 200-day. A bear-market gap under a falling average: no long. Stopped, 0.0R."
+   }
+  ],
+  "sheets": {
+   "failures": "final/fail_1-4.png",
+   "near_misses": "final/near_1-4.png",
+   "pair": "final/pair_21-power-earnings-gap.png"
+  }
+ },
+ "question_seeds": [
+  {
+   "kind": "recall",
+   "criterion": "ep.gap_floor",
+   "seed": "What is the smallest opening gap that makes an Episodic Pivot, and where do smaller catalyst gaps go?"
+  },
+  {
+   "kind": "recall",
+   "criterion": "ep.volume",
+   "seed": "How much volume must an EP day trade, and by when must it be on pace?"
+  },
+  {
+   "kind": "recall",
+   "criterion": "ep.stop_day1",
+   "seed": "Where does the stop go on a day-one EP buy?"
+  },
+  {
+   "kind": "spot",
+   "criterion": "ep.neglect",
+   "seed": "Hidden ticker: four gap days of 10% or more. Which one came from a neglected stock, flat or down over the prior six months?"
+  },
+  {
+   "kind": "spot",
+   "criterion": "ep.entry_delayed",
+   "seed": "Hidden ticker, day 3 after the gap: tap the trigger bar for the delayed entry and the low the stop sits under."
+  },
+  {
+   "kind": "spot",
+   "criterion": "ep.close",
+   "seed": "Hidden ticker: did this gap day hold? Tap the prior close and say whether the day traded back to it."
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "ep.neglect",
+   "seed": "EP or PEG: the stock gapped 12% on earnings out of a six-week base after a 40% run. Which is it?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "ep.gap_floor",
+   "seed": "EP or News Gapper: a contract headline, the open 6% up on 4x volume, a strong close. Which lesson owns it?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "ep.volume",
+   "seed": "EP or High Volume Edge: the day traded the most shares in the stock's history and closed up 9% with no gap. Which is it?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "ep.catalyst",
+   "seed": "EP or Kicker: a weak red close, then a 2% gap up through the red day's high with no news. Which is it?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "ep.entry_day1",
+   "seed": "The stock gapped 14% on 6x volume. At 9:40 it trades over the 5-minute high; the low of the day is 2.1% below. Buy, or wait?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "ep.stop_width",
+   "seed": "Same gap, but the low of the day is 8% under the price at 10:00. Buy with the day's low as the stop, tighten it, or wait for a delayed entry?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "ep.inv_sold_off",
+   "seed": "It gapped 11% and by 10:30 trades under its open on heavy volume. What is this, and what do you do?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "ep.regular_hours",
+   "seed": "The report is out at 7:30 and the stock is up 15% pre-market on big volume. Buy now, as Bonde would?"
+  },
+  {
+   "kind": "grade",
+   "criterion": "ep.inv_late",
+   "seed": "Two 12% earnings gaps on 5x volume: one on a stock flat for eight months, one on a stock up 70% in six months. Grade each."
+  },
+  {
+   "kind": "grade",
+   "criterion": "ep.gap_too_big",
+   "seed": "A 32% gap on 20x volume closing at the high, the first in a year. A+, A, B or B-?"
+  },
+  {
+   "kind": "grade",
+   "criterion": "ep.fundamentals",
+   "seed": "An earnings EP with sales up 140%, a beat and a raised guide, against one with sales up 20% and a beat. Grade the catalyst of each."
+  },
+  {
+   "kind": "numeric",
+   "criterion": "ep.gap_floor",
+   "seed": "Prior close 40.00, today's open 44.80. How big is the gap in percent, and does it clear the EP floor?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "ep.neglect",
+   "seed": "The close 126 sessions ago was 20.00 and the close before the gap is 24.00. Is the stock neglected by the card's line?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "ep.trim_1",
+   "seed": "Bought at 25.00 with the stop at 24.75. Where is 3R, and where is 5R?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "ep.volume",
+   "seed": "The 50-day average volume is 2 million shares and the gap day traded 5.5 million. What is the multiple, and does it pass?"
+  }
+ ],
+ "owner_decisions": [
+  "D-002",
+  "D-004",
+  "D-005",
+  "D-010",
+  "D-011",
+  "D-017",
+  "D-020",
+  "D-024",
+  "D-030",
+  "D-032",
+  "D-033",
+  "D-084",
+  "D-140",
+  "D-141"
+ ],
+ "conflicts": [
+  "Sources are cited by the validator's positional numbering of the dossier's section 11 (S1 is the first source in reading order, counting table body rows and top-level bullets); the dossier itself prints no ids.",
+  "Is an earnings gap an EP: the app's catalyst engine (TERM-090) says every earnings gap is a PEG; both originators and UCT's posts call earnings gaps EPs; the owner's verdict log files earnings spikes on established names as PEGs and FSLY's earnings gap as an A+ EP. The card takes EP for the neglected name and PEG for the established one (D-002).",
+  "The gap floor: the app 4%, Bonde 2010 8%, Kullamägi 10%. The card takes 10% and sends 4% to 10% gaps to the gapper and PEG lessons (D-033).",
+  "C29 on day one: 65% of 10%+ gaps are already more than 10% over the 10-day at the open and every UCT example broke it; kept as written it allows only delayed EP entries. The card recommends exempting the day-one opening-range buy with the 3% stop rule still applied (D-017).",
+  "A13 against the gap-day low: the gap-day low was a median 6.7% to 7.3% from the close, within 3% only 3% to 33% of the time. The card buys day one only when the low of day is within 3%, else waits for the delayed entry (D-005).",
+  "B23 on a neglected name: only 27% of EP-like days pass both tests on the 20-day average before the gap, 47% on the gap day's own dollar volume; Bonde's best EPs are below his own liquidity threshold before the catalyst. The card measures on the gap day (D-030).",
+  "C31 RS 80: both originators want a stock that did not rally for 3 to 6 months, so its RS before the gap is middling; C31 exempts only parabolic and mean-reversion trades. The card measures RS at the gap-day close (D-011).",
+  "E58 against Bonde: most EPs where he made big money he bought pre-market; Kullamägi rarely trades extended hours. The house follows Kullamägi (D-141, settled).",
+  "The trail: E52's 10-day and 21-day, the curriculum's 10/20-day, the Model Book's 9 EMA, the owner's 20-day and weekly 9 EMA on FSLY. The card recommends the 10-day until the first base, then the 21-day (D-024).",
+  "The Model Book playbook attributes the 30-minute wait, the 30-minute-low stop and the top-25% overnight rule to Kullamägi; the dossier could not find them in his writing. Keep as house rules, re-attribute or remove is D-010.",
+  "The app (section 5.8): the gap-floor sourcing, unsupported narrative claims, the 2x volume, the base window and prior-run check, the levels, the liquidity floor and the member-tag text need fixing to the card (D-004).",
+  "Bulkowski leans the other way on the market: buy an earnings-surprise breakout only if the market and industry are trending higher; Bonde says the market plays no role. The card keeps the house filter and teaches EPs as the first longs as a correction ends.",
+  "Gaps over 30%: the scan's 25 hits reached 3R 68% of the time, against the dossier's caution that gaps over 25% grade down. Too few to lean on; the caution stays as a cue and the owner decides.",
+  "Volume beyond 3x: the scan found no edge in 5x or 10x over 3x to 5x; the A+ cue is kept as the originators' and the owner's HVE reading, not as a measured edge."
+ ]
+}

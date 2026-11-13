@@ -1,0 +1,3342 @@
+{
+ "unit": "V.09",
+ "track": "V",
+ "title": "Fundamentals words",
+ "teaches": "The words on an earnings card and in a release: revenue, gross and operating margin, net income, EPS and diluted EPS, GAAP and adjusted, consensus, beat, miss, surprise, whisper, guidance, YoY, QoQ, TTM, fiscal year, BMO and AMC, P/E (trailing and forward), market cap, float, the implied move and the filings behind them.",
+ "skills": [
+  {
+   "id": "vocab.fund_terms",
+   "title": "Fundamentals words"
+  }
+ ],
+ "as_of": "2026-11-09",
+ "sources": [
+  {
+   "id": "s1",
+   "tier": 1,
+   "publisher": "SEC",
+   "title": "Beginners' Guide to Financial Statements",
+   "url": "https://www.sec.gov/about/reports-publications/beginners-guide-financial-statements",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s2",
+   "tier": 1,
+   "publisher": "SEC, Office of the Advocate for Small Business Capital Formation",
+   "title": "Income statement building blocks",
+   "url": "https://www.sec.gov/files/income-statement-building-blocks.pdf",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s3",
+   "tier": 1,
+   "publisher": "FINRA",
+   "title": "What Is Earnings Season? (Investor Insights, July 23, 2024)",
+   "url": "https://www.finra.org/investors/insights/earnings-season",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s4",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Market Capitalization (glossary)",
+   "url": "https://www.investor.gov/introduction-investing/investing-basics/glossary/market-capitalization",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s5",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Form 10-Q (glossary)",
+   "url": "https://www.investor.gov/introduction-investing/investing-basics/glossary/form-10-q",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s6",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Form 10-K (glossary)",
+   "url": "https://www.investor.gov/introduction-investing/investing-basics/glossary/form-10-k",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s7",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Form 8-K (glossary)",
+   "url": "https://www.investor.gov/introduction-investing/investing-basics/glossary/form-8-k",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s8",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Investor Bulletin: Understanding Order Types",
+   "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-understanding-order-types",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s9",
+   "tier": 1,
+   "publisher": "SEC",
+   "title": "Extended-Hours Trading: Investor Bulletin",
+   "url": "https://www.sec.gov/oiea/investor-alerts-and-bulletins/extended-hours-trading-investor-bulletin",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s10",
+   "tier": 1,
+   "publisher": "Nasdaq",
+   "title": "Glossary: Earnings per share (EPS)",
+   "url": "https://www.nasdaq.com/glossary/e/earnings-per-share",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s11",
+   "tier": 1,
+   "publisher": "Nasdaq",
+   "title": "Glossary: Price-earnings ratio",
+   "url": "https://www.nasdaq.com/glossary/p/price-earnings-ratio",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s12",
+   "tier": 1,
+   "publisher": "Nasdaq",
+   "title": "Glossary: Trailing earnings",
+   "url": "https://www.nasdaq.com/glossary/t/trailing-earnings",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s13",
+   "tier": 1,
+   "publisher": "Nasdaq",
+   "title": "Glossary: Market capitalization",
+   "url": "https://www.nasdaq.com/glossary/m/market-capitalization",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s14",
+   "tier": 1,
+   "publisher": "Nasdaq",
+   "title": "Glossary: Float",
+   "url": "https://www.nasdaq.com/glossary/f/float",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s15",
+   "tier": 1,
+   "publisher": "Nasdaq",
+   "title": "Glossary: Fiscal year (FY)",
+   "url": "https://www.nasdaq.com/glossary/f/fiscal-year",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s16",
+   "tier": 1,
+   "publisher": "Nasdaq",
+   "title": "Glossary: Gross profit margin",
+   "url": "https://www.nasdaq.com/glossary/g/gross-profit-margin",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s17",
+   "tier": 1,
+   "publisher": "Nasdaq",
+   "title": "Glossary: Profit margin",
+   "url": "https://www.nasdaq.com/glossary/p/profit-margin",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s18",
+   "tier": 1,
+   "publisher": "Nasdaq",
+   "title": "Glossary: Guidance",
+   "url": "https://www.nasdaq.com/glossary/g/guidance",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s19",
+   "tier": 1,
+   "publisher": "Nasdaq",
+   "title": "Glossary: Consensus forecast",
+   "url": "https://www.nasdaq.com/glossary/c/consensus-forecast",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s20",
+   "tier": 1,
+   "publisher": "Nasdaq",
+   "title": "Glossary: Fully diluted earnings per shares",
+   "url": "https://www.nasdaq.com/glossary/f/fully-diluted-earnings-per-shares",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s21",
+   "tier": 1,
+   "publisher": "SEC rule text, eCFR (17 CFR Part 244, Regulation G)",
+   "title": "Regulation G: disclosure of non-GAAP financial measures",
+   "url": "https://www.ecfr.gov/current/title-17/chapter-II/part-244",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s22",
+   "tier": 1,
+   "publisher": "NVIDIA Corporation, Form 8-K Exhibit 99.1 (SEC EDGAR)",
+   "title": "NVIDIA Announces Financial Results for Third Quarter Fiscal 2026 (Nov. 19, 2025)",
+   "url": "https://www.sec.gov/Archives/edgar/data/1045810/000104581025000228/q3fy26pr.htm",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s23",
+   "tier": 1,
+   "publisher": "Intel Corporation, Form 8-K Exhibit 99.1 (SEC EDGAR)",
+   "title": "Intel Reports Fourth-Quarter and Full-Year 2025 Financial Results (Jan. 22, 2026)",
+   "url": "https://www.sec.gov/Archives/edgar/data/50863/000005086326000009/q425earningsrelease.htm",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s24",
+   "tier": 1,
+   "publisher": "Meta Platforms, Inc. (investor relations)",
+   "title": "Meta to Announce Fourth Quarter and Full Year 2021 Results (Jan. 4, 2022)",
+   "url": "https://investor.atmeta.com/investor-news/press-release-details/2022/Meta-to-Announce-Fourth-Quarter-and-Full-Year-2021-Results/default.aspx",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s25",
+   "tier": 1,
+   "publisher": "JPMorgan Chase & Co. (investor relations)",
+   "title": "JPMorganChase to Host Third-Quarter 2026 Earnings Call (Sept. 17, 2026)",
+   "url": "https://www.jpmorganchase.com/ir/news/2026/jpmc-to-host-third-quarter-2026-earnings-call",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s26",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "What Is Guidance and How Should Investors React? (Dan Rosenberg, March 26, 2026)",
+   "url": "https://www.schwab.com/learn/story/what-is-guidance-and-how-should-investors-react",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s27",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "GAAP vs. Adjusted Earnings: Know the Difference (Dan Rosenberg, October 22, 2026)",
+   "url": "https://www.schwab.com/learn/story/gaap-vs-adjusted-earnings-know-difference",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s28",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "What Is the P/E Ratio? Why Investors Use It (Will Daniel, May 6, 2026)",
+   "url": "https://www.schwab.com/learn/story/stock-analysis-using-pe-ratio",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s29",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "Price Movement Indicator: Market Maker Move (August 5, 2025)",
+   "url": "https://www.schwab.com/learn/story/price-movement-indicator-market-maker-move",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s30",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "Earnings Season: 3 Things You Should Look For (February 26, 2024)",
+   "url": "https://www.schwab.com/learn/story/earnings-season-what-to-look",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s31",
+   "tier": 2,
+   "publisher": "Cboe Global Markets (Cboe Insights)",
+   "title": "Why Trade Options Around Earnings Season",
+   "url": "https://www.cboe.com/insights/posts/why-trade-options-around-earnings-season",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s32",
+   "tier": 2,
+   "publisher": "Interactive Brokers (IBKR Campus, Traders' Insight)",
+   "title": "Use Your TWS to See What the Options Market Thinks About Earnings Expectations (Steve Sosnick, July 24, 2020)",
+   "url": "https://www.interactivebrokers.com/campus/traders-insight/securities/options/use-your-tws-to-see-what-the-options-market-thinks-about-earnings-expectations/",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s33",
+   "tier": 2,
+   "publisher": "Fidelity Investments",
+   "title": "Company valuation ratios (Learning Center)",
+   "url": "https://www.fidelity.com/learning-center/trading-investing/fundamental-analysis/company-valuation-ratios",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s34",
+   "tier": 2,
+   "publisher": "Fidelity Investments",
+   "title": "Management and growth ratios (Learning Center)",
+   "url": "https://www.fidelity.com/learning-center/trading-investing/fundamental-analysis/management-growth-ratios",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s35",
+   "tier": 2,
+   "publisher": "Fidelity Investments",
+   "title": "Research Help: Key Stats, Earnings, Dividends, Ownership, and Financial Statements",
+   "url": "https://www.fidelity.com/webcontent/ap010098-etf-content/19.11.0/help/research/learn_er_fundamentals.shtml",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s36",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "What Earnings Surprises Mean for Stock Prices",
+   "url": "https://www.investopedia.com/terms/e/earningssurprise.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s37",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Whisper Number",
+   "url": "https://www.investopedia.com/terms/w/whispernumber.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s38",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Floating Stock: Definition, Example, and Why It's Important (Cory Mitchell, CMT)",
+   "url": "https://www.investopedia.com/terms/f/floating-stock.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s39",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Forward Price-to-Earnings (Forward P/E)",
+   "url": "https://www.investopedia.com/terms/f/forwardpe.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s40",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Year-Over-Year (YOY)",
+   "url": "https://www.investopedia.com/terms/y/year-over-year.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s41",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Quarter on Quarter (QOQ)",
+   "url": "https://www.investopedia.com/terms/q/qoq.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s42",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Gross Profit Margin",
+   "url": "https://www.investopedia.com/terms/g/gross_profit_margin.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s43",
+   "tier": 2,
+   "publisher": "Zacks Investment Research",
+   "title": "Zacks Research System (Zacks Pro) report descriptions: EPS Surprises",
+   "url": "https://www.zackspro.com/da_4.asp",
+   "accessed": "2026-11-09",
+   "why_reliable": "Zacks is a long-established earnings-estimate and research provider; this page documents how its own EPS-surprise reports are calculated."
+  },
+  {
+   "id": "s44",
+   "tier": 2,
+   "publisher": "CNBC",
+   "title": "Nvidia shares rise on stronger-than-expected revenue, forecast (Kif Leswing, Nov. 19, 2025)",
+   "url": "https://www.cnbc.com/2025/11/19/nvidia-nvda-earnings-report-q3-2026.html",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s45",
+   "tier": 2,
+   "publisher": "CNBC",
+   "title": "Intel stock plunges 13% on soft guidance, concerns about chip production (Jan. 22, 2026)",
+   "url": "https://www.cnbc.com/2026/01/22/intel-intc-earnings-report-q4-2025-.html",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s46",
+   "tier": 2,
+   "publisher": "Wall Street Horizon",
+   "title": "The Short List: Reporting Frequency Isn't the Only Difference with How Earnings Results Are Shared Worldwide (2022)",
+   "url": "https://wallstreethorizon.com/blog/Reporting-Frequency-Isnt-the-Only-Difference-with-How-Earnings-Results-Are-Shared-Worldwide",
+   "accessed": "2026-11-09",
+   "why_reliable": "Wall Street Horizon is an institutional corporate-event data provider (earnings dates and times) owned by TMX Group; the page describes the time-of-day labels in its own data."
+  },
+  {
+   "id": "s47",
+   "tier": 2,
+   "publisher": "Investing.com (Help Center)",
+   "title": "How to Find Earnings Times for US Companies on Investing.com (October 23, 2025)",
+   "url": "https://www.investing-support.com/hc/en-us/articles/115003946525-How-to-Find-Earnings-Times-for-US-Companies-on-Investing-com",
+   "accessed": "2026-11-09",
+   "why_reliable": "Investing.com is a major financial data platform; this is its own help page defining the BMO and AMC labels on its earnings calendar."
+  }
+ ],
+ "facts": [
+  {
+   "id": "f1",
+   "source": "s1",
+   "quote": "At the top of the income statement is the total amount of money brought in from sales of products or services.",
+   "claim": "The top of the income statement is the money brought in from sales."
+  },
+  {
+   "id": "f2",
+   "source": "s1",
+   "quote": "This top line is often referred to as gross revenues or sales.",
+   "claim": "The top line is revenue, also called sales."
+  },
+  {
+   "id": "f3",
+   "source": "s1",
+   "quote": "It’s called “gross” because expenses have not been deducted from it yet.",
+   "claim": "Revenue at the top line is before any expenses come out."
+  },
+  {
+   "id": "f4",
+   "source": "s1",
+   "quote": "Balance sheets show what a company owns and what it owes at a fixed point in time. Income statements show how much money a company made and spent over a period of time.",
+   "claim": "A balance sheet is a snapshot on one date; an income statement covers a period."
+  },
+  {
+   "id": "f5",
+   "source": "s1",
+   "quote": "The next line subtracts the costs of sales from the net revenues to arrive at a subtotal called “gross profit” or sometimes “gross margin.”",
+   "claim": "Revenue minus cost of sales is gross profit (the SEC notes the dollar figure is sometimes called gross margin)."
+  },
+  {
+   "id": "f6",
+   "source": "s1",
+   "quote": "This number tells you the amount of money the company spent to produce the goods or services it sold during the accounting period.",
+   "claim": "Cost of sales is what the company spent to produce what it sold in the period."
+  },
+  {
+   "id": "f7",
+   "source": "s1",
+   "quote": "Operating expenses are different from “costs of sales,” which were deducted above, because operating expenses cannot be linked directly to the production of the products or services being sold.",
+   "claim": "Operating expenses are costs not tied directly to making the product."
+  },
+  {
+   "id": "f8",
+   "source": "s1",
+   "quote": "After all operating expenses are deducted from gross profit, you arrive at operating profit before interest and income tax expenses. This is often called “income from operations.”",
+   "claim": "Gross profit minus operating expenses is operating income, before interest and taxes."
+  },
+  {
+   "id": "f9",
+   "source": "s1",
+   "quote": "Finally, income tax is deducted and you arrive at the bottom line: net profit or net losses. (Net profit is also called net income or net earnings.)",
+   "claim": "After interest and taxes comes the bottom line: net income, also called net earnings or net profit."
+  },
+  {
+   "id": "f10",
+   "source": "s1",
+   "quote": "To calculate EPS, you take the total net income and divide it by the number of outstanding shares of the company.",
+   "claim": "EPS is net income divided by shares outstanding."
+  },
+  {
+   "id": "f11",
+   "source": "s1",
+   "quote": "This calculation tells you how much money shareholders would receive for each share of stock they own if the company distributed all of its net income for the period.",
+   "claim": "EPS is what each share would get if all net income were paid out."
+  },
+  {
+   "id": "f12",
+   "source": "s1",
+   "quote": "Companies almost never distribute all of their earnings. Usually they reinvest them in the business.",
+   "claim": "Companies almost never pay out all their earnings."
+  },
+  {
+   "id": "f13",
+   "source": "s1",
+   "quote": "Operating Margin = Income from Operations / Net Revenues Operating margin is usually expressed as a percentage. It shows, for each dollar of sales, what percentage was profit.",
+   "claim": "Operating margin is operating income divided by revenue, shown as a percentage."
+  },
+  {
+   "id": "f14",
+   "source": "s1",
+   "quote": "P/E Ratio = Price per share / Earnings per share If a company’s stock is selling at $20 per share and the company is earning $2 per share, then the company’s P/E Ratio is 10 to 1.",
+   "claim": "P/E is share price divided by EPS."
+  },
+  {
+   "id": "f15",
+   "source": "s1",
+   "quote": "As a general rule, desirable ratios vary by industry.",
+   "claim": "What counts as a good ratio depends on the industry."
+  },
+  {
+   "id": "f16",
+   "source": "s2",
+   "quote": "Revenue is the dollar value of all the products the entity sold or services it provided to its customers. Revenue $ 835,000",
+   "claim": "In the SEC's example income statement, revenue is $835,000."
+  },
+  {
+   "id": "f17",
+   "source": "s2",
+   "quote": "Cost of Goods Sold reflects the direct expenses the entity incurred to produce the products it sells or services it provides",
+   "claim": "Cost of goods sold is the direct cost of producing what the company sells."
+  },
+  {
+   "id": "f18",
+   "source": "s2",
+   "quote": "Cost of goods sold 250,000 Gross profit 585,000",
+   "claim": "In the SEC's example, cost of goods sold is $250,000 and gross profit is $585,000."
+  },
+  {
+   "id": "f19",
+   "source": "s2",
+   "quote": "Operating Expenses, also called selling, general, and administrative expenses, include the overhead costs of running the business that are not associated with the costs to produce products or provide services.",
+   "claim": "Operating expenses are the overhead of running the business, not the cost of producing the product."
+  },
+  {
+   "id": "f20",
+   "source": "s2",
+   "quote": "Interest Expense is the amount of money the entity owes or paid to its lender under a loan obligation that accrued during the income statement period.",
+   "claim": "Interest expense is what the company owes its lenders for the period."
+  },
+  {
+   "id": "f21",
+   "source": "s2",
+   "quote": "The net income or net loss (also known as the “bottom line”) reported on the income statement",
+   "claim": "Net income or net loss is the bottom line."
+  },
+  {
+   "id": "f22",
+   "source": "s2",
+   "quote": "Diluted EPS includes shares of issued and outstanding common stock plus the common stock share equivalent of other securities that can be converted into or exercised for shares of common stock.",
+   "claim": "Diluted EPS also counts the shares that convertible or exercisable securities could become."
+  },
+  {
+   "id": "f23",
+   "source": "s3",
+   "quote": "The multi-week period following the end of each quarter when most public companies release their earnings reports is known as earnings season.",
+   "claim": "Earnings season is the few weeks after each quarter ends when most companies report."
+  },
+  {
+   "id": "f24",
+   "source": "s3",
+   "quote": "It typically begins the first two weeks after the end of each quarter (namely early/mid-January, early/mid-April, early/mid-July and early/mid-October).",
+   "claim": "Earnings season typically begins in the first two weeks after a calendar quarter ends."
+  },
+  {
+   "id": "f25",
+   "source": "s3",
+   "quote": "Earnings season can be a busy and volatile time in the stock market.",
+   "claim": "Earnings season can be busy and volatile."
+  },
+  {
+   "id": "f26",
+   "source": "s3",
+   "quote": "Public float refers to the combined value of a firm’s shares held by public investors and excludes those held by officers, large stakeholders or governments, who face certain selling restrictions.",
+   "claim": "Public float is the value of the shares held by public investors, leaving out officers, large stakeholders and governments."
+  },
+  {
+   "id": "f27",
+   "source": "s3",
+   "quote": "But companies are free to announce their results before they officially file the required forms, and most do so",
+   "claim": "Most companies announce results before they file the required SEC forms."
+  },
+  {
+   "id": "f28",
+   "source": "s3",
+   "quote": "For example, retailers might end the quarter in January instead of December to account for winter holidays and other seasonal sales and returns during the same quarter.",
+   "claim": "Seasonal businesses like retailers set their quarters around the holiday season."
+  },
+  {
+   "id": "f29",
+   "source": "s3",
+   "quote": "an indication of what management expects its numbers will be in the future.",
+   "claim": "Earnings releases often include management's expectations for future numbers."
+  },
+  {
+   "id": "f30",
+   "source": "s3",
+   "quote": "If a company does issue a press release, it’s required to file an SEC Form 8-K, which must include the text of the release.",
+   "claim": "An earnings press release has to be filed on Form 8-K with its full text."
+  },
+  {
+   "id": "f31",
+   "source": "s3",
+   "quote": "Companies usually release their earnings reports and accompanying press releases before the market opens or after it closes.",
+   "claim": "Companies usually report before the open or after the close."
+  },
+  {
+   "id": "f32",
+   "source": "s3",
+   "quote": "Many companies also hold earnings conference calls for analysts and investors. During these calls, management might give more color on the quarter, take questions from Wall Street analysts and provide guidance on the company’s future prospects.",
+   "claim": "On the earnings call, management explains the quarter, takes analysts' questions and may give guidance."
+  },
+  {
+   "id": "f33",
+   "source": "s3",
+   "quote": "These pieces are marketing documents and tend to be more optimistic than the text included in official filings.",
+   "claim": "Investor presentation decks are marketing documents and tend to be more optimistic than filings."
+  },
+  {
+   "id": "f34",
+   "source": "s3",
+   "quote": "several groups track a “consensus” estimate that’s the average for all the analysts covering the stock.",
+   "claim": "The consensus estimate is the average of the analysts covering the stock."
+  },
+  {
+   "id": "f35",
+   "source": "s3",
+   "quote": "A company beats (exceeds) the estimate or misses (falls short of) the estimate based on how actual earnings or revenues compare to the consensus. If the number equals the estimate, it’s said to be in line.",
+   "claim": "Above the consensus is a beat, below is a miss, equal is in line."
+  },
+  {
+   "id": "f36",
+   "source": "s3",
+   "quote": "However, sometimes there’s a “whisper number” that differs from the consensus.",
+   "claim": "A whisper number is an expectation that differs from the consensus."
+  },
+  {
+   "id": "f37",
+   "source": "s3",
+   "quote": "This whisper number can become the market expectation rather than the official estimate.",
+   "claim": "The whisper can become the market's real expectation."
+  },
+  {
+   "id": "f38",
+   "source": "s3",
+   "quote": "But simply beating or missing estimates isn’t always what moves a company’s stock price.",
+   "claim": "A beat or a miss doesn't always decide the stock's move."
+  },
+  {
+   "id": "f39",
+   "source": "s3",
+   "quote": "Sometimes a company might beat estimates but provide a dour outlook for the future, leading the share price to drop.",
+   "claim": "A company can beat and still drop on a weak outlook."
+  },
+  {
+   "id": "f40",
+   "source": "s3",
+   "quote": "Other times a stock that rallied ahead of its earnings release and met expectations by reporting great numbers simply doesn’t have enough new buyers to bid the shares higher",
+   "claim": "A stock that ran up into a good report can stall for lack of new buyers."
+  },
+  {
+   "id": "f41",
+   "source": "s3",
+   "quote": "Public companies must file quarterly and end-of-year numbers in SEC Form 10-Q and Form 10-K reports, respectively, according to set deadlines.",
+   "claim": "Quarterly numbers go in the 10-Q and annual numbers in the 10-K."
+  },
+  {
+   "id": "f42",
+   "source": "s4",
+   "quote": "Market capitalization is the value of a corporation determined by multiplying the current public market price of one share of the corporation by the number of total outstanding shares.",
+   "claim": "Market cap is the current share price times total shares outstanding."
+  },
+  {
+   "id": "f43",
+   "source": "s5",
+   "quote": "The Form 10-Q includes unaudited financial statements and provides a continuing view of the company's financial position during the year.",
+   "claim": "The 10-Q is the quarterly report, with unaudited financial statements."
+  },
+  {
+   "id": "f44",
+   "source": "s6",
+   "quote": "The annual report on Form 10-K provides a comprehensive overview of the company's business and financial condition and includes audited financial statements.",
+   "claim": "The 10-K is the annual report, with audited financial statements."
+  },
+  {
+   "id": "f45",
+   "source": "s7",
+   "quote": "Form 8-K is known as a “current report” and it is the report that companies must file with the SEC to announce major events that shareholders should know about.",
+   "claim": "The 8-K is the current report companies file for major events."
+  },
+  {
+   "id": "f46",
+   "source": "s8",
+   "quote": "The stop price is not the guaranteed execution price for a stop order. The stop price is a trigger that causes the stop order to become a market order.",
+   "claim": "A stop price is a trigger, not a guaranteed fill price."
+  },
+  {
+   "id": "f47",
+   "source": "s9",
+   "quote": "Regular trading hours for stocks traded on exchanges and certain other markets are from 9:30 a.m. to 4:00 p.m. Eastern Time.",
+   "claim": "The regular session runs 9:30 a.m. to 4:00 p.m. ET (SEC bulletin, as of 2026-11-09)."
+  },
+  {
+   "id": "f48",
+   "source": "s9",
+   "quote": "Extended-hours trading sessions may occur before or after regular trading hours.",
+   "claim": "Extended-hours sessions run before and after the regular session."
+  },
+  {
+   "id": "f49",
+   "source": "s9",
+   "quote": "Companies may announce important news or financial information outside of regular trading hours. These announcements, combined with other extended-hours trading risks, may lead to significant price changes in these companies’ stocks during extended hours trading.",
+   "claim": "News released outside regular hours can move a stock sharply in extended hours."
+  },
+  {
+   "id": "f50",
+   "source": "s9",
+   "quote": "The reduced level of trading interest in extended-hours trading generally results in wider spreads between the bid and ask prices for a stock or no quotes at all.",
+   "claim": "Spreads are usually wider in extended hours."
+  },
+  {
+   "id": "f51",
+   "source": "s10",
+   "quote": "A company's profit divided by its number of common outstanding shares.",
+   "claim": "EPS is profit divided by common shares outstanding."
+  },
+  {
+   "id": "f52",
+   "source": "s11",
+   "quote": "Shows the multiple of earnings at which a stock sells. Determined by dividing current stock price by current earnings per share",
+   "claim": "P/E is the current price divided by EPS: the multiple of earnings the stock sells at."
+  },
+  {
+   "id": "f53",
+   "source": "s11",
+   "quote": "Earnings per share for the P/E ratio are determined by dividing earnings for past 12 months by the number of common shares outstanding.",
+   "claim": "The standard P/E uses EPS from the past 12 months."
+  },
+  {
+   "id": "f54",
+   "source": "s11",
+   "quote": "Higher multiple means investors have higher expectations for future growth, and have bid up the stock's price.",
+   "claim": "A higher P/E means investors expect more growth."
+  },
+  {
+   "id": "f55",
+   "source": "s12",
+   "quote": "This ratio is usually distinguished as price to trailing earnings (today's price divided by the most recent 12 months of earnings) versus price to prospective earnings (today's price divided by consensus forecast earnings for the next 12 months).",
+   "claim": "Trailing P/E uses the last 12 months of earnings; forward (prospective) P/E uses the consensus forecast for the next 12 months."
+  },
+  {
+   "id": "f56",
+   "source": "s13",
+   "quote": "The total dollar value of all outstanding shares. Computed as shares times current market price. Capitalization is a measure of corporate size.",
+   "claim": "Market cap is shares outstanding times the current price, a measure of size."
+  },
+  {
+   "id": "f57",
+   "source": "s14",
+   "quote": "Number of shares of a corporation that are outstanding and available for trading by the public, excluding insiders",
+   "claim": "Float is the shares available for the public to trade, leaving out insiders."
+  },
+  {
+   "id": "f58",
+   "source": "s14",
+   "quote": "A stock's volatility is inversely correlated to its float.",
+   "claim": "Nasdaq's glossary links a smaller float with more volatility."
+  },
+  {
+   "id": "f59",
+   "source": "s15",
+   "quote": "The fiscal year serves as a period of reference for the company and does not necessarily correspond to the calendar year.",
+   "claim": "A fiscal year doesn't have to match the calendar year."
+  },
+  {
+   "id": "f60",
+   "source": "s15",
+   "quote": "Accounting period covering 12 consecutive months over which a company determines earnings and profits.",
+   "claim": "A fiscal year is any 12-month accounting period."
+  },
+  {
+   "id": "f61",
+   "source": "s16",
+   "quote": "Gross profit divided by sales, which is equal to each sales dollar left over after paying for the cost of goods sold.",
+   "claim": "Gross margin is gross profit divided by sales."
+  },
+  {
+   "id": "f62",
+   "source": "s17",
+   "quote": "Determined by dividing net income by revenue for the same 12-month period. Result is shown as a percentage. Also known as net profit margin.",
+   "claim": "Net (profit) margin is net income divided by revenue, as a percentage."
+  },
+  {
+   "id": "f63",
+   "source": "s18",
+   "quote": "Often management will give guidance or hints of the earnings per share prospects over the next quarter to try to direct the consensus to what is achievable.",
+   "claim": "Guidance is management's own hint at what's coming, often for the next quarter."
+  },
+  {
+   "id": "f64",
+   "source": "s18",
+   "quote": "Under Regulation FD, management needs to be very careful to provide guidance information to all shareholders",
+   "claim": "Regulation FD means guidance has to go to all shareholders."
+  },
+  {
+   "id": "f65",
+   "source": "s19",
+   "quote": "The mean of all financial analysts' forecasts for a company.",
+   "claim": "The consensus is the mean of the analysts' forecasts."
+  },
+  {
+   "id": "f66",
+   "source": "s20",
+   "quote": "Earnings per share expressed as if all outstanding convertible securities and warrants have been exercised.",
+   "claim": "Diluted EPS is EPS as if convertibles and warrants had become shares."
+  },
+  {
+   "id": "f67",
+   "source": "s21",
+   "quote": "A non-GAAP financial measure is a numerical measure of a registrant's historical or future financial performance, financial position or cash flows",
+   "claim": "A non-GAAP measure is a company's own measure of its performance."
+  },
+  {
+   "id": "f68",
+   "source": "s21",
+   "quote": "Excludes amounts, or is subject to adjustments that have the effect of excluding amounts, that are included in the most directly comparable measure calculated and presented in accordance with GAAP",
+   "claim": "A non-GAAP measure leaves out (or adds) amounts that the GAAP number includes (or leaves out)."
+  },
+  {
+   "id": "f69",
+   "source": "s21",
+   "quote": "the registrant must accompany that non-GAAP financial measure with: ( 1 ) A presentation of the most directly comparable financial measure calculated and presented in accordance with Generally Accepted Accounting Principles (GAAP)",
+   "claim": "A company showing a non-GAAP number must also present the comparable GAAP number."
+  },
+  {
+   "id": "f70",
+   "source": "s21",
+   "quote": "A reconciliation (by schedule or other clearly understandable method)",
+   "claim": "It must also reconcile the two numbers."
+  },
+  {
+   "id": "f71",
+   "source": "s21",
+   "quote": "GAAP refers to generally accepted accounting principles in the United States",
+   "claim": "GAAP means generally accepted accounting principles in the US."
+  },
+  {
+   "id": "f72",
+   "source": "s22",
+   "quote": "NVIDIA (NASDAQ: NVDA) today reported record revenue for the third quarter ended October 26, 2025, of $57.0 billion, up 22% from the previous quarter and up 62% from a year ago.",
+   "claim": "NVIDIA's Q3 fiscal 2026 ended Oct. 26, 2025; revenue was up 22% quarter over quarter and 62% year over year."
+  },
+  {
+   "id": "f73",
+   "source": "s22",
+   "quote": "Q3 FY26 Q2 FY26 Q3 FY25 Q/Q Y/Y Revenue $57,006 $46,743 $35,082",
+   "claim": "NVIDIA's table compares Q3 FY26 with Q2 FY26 (Q/Q) and Q3 FY25 (Y/Y); revenue was $57,006M, $46,743M and $35,082M."
+  },
+  {
+   "id": "f74",
+   "source": "s22",
+   "quote": "Operating income $36,010 $28,440 $21,869",
+   "claim": "NVIDIA's GAAP operating income was $36,010M in Q3 FY26."
+  },
+  {
+   "id": "f75",
+   "source": "s22",
+   "quote": "For the quarter, GAAP and non-GAAP gross margins were 73.4% and 73.6%, respectively.",
+   "claim": "NVIDIA reports gross margin as a percentage, on both GAAP and non-GAAP bases."
+  },
+  {
+   "id": "f76",
+   "source": "s22",
+   "quote": "NVIDIA’s outlook for the fourth quarter of fiscal 2026 is as follows: • Revenue is expected to be $65.0 billion, plus or minus 2%.",
+   "claim": "NVIDIA's outlook guided next-quarter revenue to $65.0 billion, plus or minus 2%."
+  },
+  {
+   "id": "f77",
+   "source": "s22",
+   "quote": "NVIDIA will conduct a conference call with analysts and investors to discuss its third quarter fiscal 2026 financial results and current financial prospects today at 2 p.m. Pacific time (5 p.m. Eastern time).",
+   "claim": "NVIDIA held its earnings call at 5 p.m. ET on report day."
+  },
+  {
+   "id": "f78",
+   "source": "s22",
+   "quote": "the company’s non-GAAP measures may be different from non-GAAP measures used by other companies.",
+   "claim": "Non-GAAP measures differ from company to company."
+  },
+  {
+   "id": "f79",
+   "source": "s23",
+   "quote": "Fourth-quarter earnings (loss) per share (EPS) attributable to Intel was $(0.12); non-GAAP EPS attributable to Intel was $0.15.",
+   "claim": "Intel's Q4 2025 GAAP EPS was a $0.12 loss; non-GAAP EPS was $0.15."
+  },
+  {
+   "id": "f80",
+   "source": "s23",
+   "quote": "Intel's guidance for the first quarter of 2026 includes both GAAP and non-GAAP estimates as follows",
+   "claim": "Intel calls its forecast for the next quarter guidance."
+  },
+  {
+   "id": "f81",
+   "source": "s24",
+   "quote": "announced today that the company's fourth quarter and full year 2021 financial results will be released after market close on Wednesday, February 2, 2022.",
+   "claim": "Meta's Q4 2021 results came out after market close on Wednesday, Feb. 2, 2022."
+  },
+  {
+   "id": "f82",
+   "source": "s24",
+   "quote": "Meta will host a conference call to discuss its results at 2 p.m. PT / 5 p.m. ET the same day.",
+   "claim": "Meta's call was at 5 p.m. ET the same day."
+  },
+  {
+   "id": "f83",
+   "source": "s25",
+   "quote": "will host a conference call to review third-quarter 2026 financial results on Tuesday, October 13, 2026 at 8:30 a.m. (ET). The results are scheduled to be released at approximately 7:00 a.m. (ET).",
+   "claim": "JPMorgan released Q3 2026 results at about 7:00 a.m. ET on Oct. 13, 2026, with an 8:30 a.m. ET call."
+  },
+  {
+   "id": "f84",
+   "source": "s26",
+   "quote": "guidance typically consists of target ranges for the coming quarter or sometimes for the full year ahead.",
+   "claim": "Guidance is usually a range for the next quarter, sometimes the full year."
+  },
+  {
+   "id": "f85",
+   "source": "s26",
+   "quote": "Since a stock's price is based on expectations of future profit growth",
+   "claim": "A stock's price rests on expectations of future profit growth."
+  },
+  {
+   "id": "f86",
+   "source": "s26",
+   "quote": "The company's earnings impressed, easily topping analysts' estimates. But shares cratered by double digits due to disappointing guidance",
+   "claim": "Intel beat estimates in January 2026 but fell double digits on weak guidance."
+  },
+  {
+   "id": "f87",
+   "source": "s26",
+   "quote": "Though guidance usually appears near the bottom of a company's earnings release, it can often be the top factor in determining near-term share price.",
+   "claim": "Guidance can be the biggest factor in the near-term price move."
+  },
+  {
+   "id": "f88",
+   "source": "s26",
+   "quote": "Even if a company raises its official guidance, shares may still be punished for missing the \"whisper number.\"",
+   "claim": "A stock can be punished for missing the whisper number."
+  },
+  {
+   "id": "f89",
+   "source": "s26",
+   "quote": "If a company doesn't put the guidance in the release itself, investors might find it in associated materials or might have to wait for the company's earnings call to find out.",
+   "claim": "Some companies give guidance only on the earnings call."
+  },
+  {
+   "id": "f90",
+   "source": "s27",
+   "quote": "Adjusted earnings exclude items that companies consider unusual or nonrecurring from a quarter.",
+   "claim": "Adjusted earnings leave out items the company calls unusual or one-time."
+  },
+  {
+   "id": "f91",
+   "source": "s27",
+   "quote": "Generally accepted accounting principles, or GAAP, are a strict set of accounting rules, standards, and procedures set by the Financial Accounting Standards Board.",
+   "claim": "GAAP is the set of accounting rules set by the FASB."
+  },
+  {
+   "id": "f92",
+   "source": "s27",
+   "quote": "All domestic companies that trade on U.S. exchanges must follow GAAP when filing financial statements with the U.S. Securities and Exchange Commission (SEC).",
+   "claim": "US companies must file their financial statements under GAAP."
+  },
+  {
+   "id": "f93",
+   "source": "s27",
+   "quote": "However, foreign companies that trade on U.S. exchanges are allowed to use International Financial Reporting Standards instead.",
+   "claim": "Foreign companies may use IFRS instead of GAAP."
+  },
+  {
+   "id": "f94",
+   "source": "s27",
+   "quote": "GAAP earnings can sometimes be negative even if adjusted earnings are positive.",
+   "claim": "A GAAP loss can sit next to an adjusted profit."
+  },
+  {
+   "id": "f95",
+   "source": "s27",
+   "quote": "A company has some wiggle room in defining these, which can cause debate over just what's \"one-time\" versus ongoing.",
+   "claim": "Companies choose for themselves what counts as one-time."
+  },
+  {
+   "id": "f96",
+   "source": "s27",
+   "quote": "any company that uses those is required to publish GAAP results as well.",
+   "claim": "A company using non-GAAP numbers must publish GAAP results too."
+  },
+  {
+   "id": "f97",
+   "source": "s28",
+   "quote": "The trailing P/E ratio uses EPS from the past 12 months, while the forward P/E ratio uses earnings estimates for the next 12 months",
+   "claim": "Trailing P/E uses the past 12 months of EPS; forward P/E uses estimates for the next 12 months."
+  },
+  {
+   "id": "f98",
+   "source": "s28",
+   "quote": "When investors or analysts discuss a stock's P/E ratio, it's often shorthand for the trailing P/E ratio.",
+   "claim": "A plain quoted P/E usually means the trailing P/E."
+  },
+  {
+   "id": "f99",
+   "source": "s28",
+   "quote": "Relies on uncertain earnings estimates that can change or vary by source",
+   "claim": "Forward P/E rests on estimates that change and differ by source."
+  },
+  {
+   "id": "f100",
+   "source": "s28",
+   "quote": "When a company has no earnings or has posted a net loss, its P/E ratio is usually listed as N/A (not applicable).",
+   "claim": "With a net loss, the P/E is usually listed as N/A."
+  },
+  {
+   "id": "f101",
+   "source": "s28",
+   "quote": "This refers to a company's trailing P/E ratio, which measures a stock's current price versus its earnings over the previous 12 months. TTM stands for trailing 12 months.",
+   "claim": "TTM means trailing 12 months."
+  },
+  {
+   "id": "f102",
+   "source": "s28",
+   "quote": "The earnings yield is simply the inverse of the P/E ratio (or earnings multiple) and is calculated by dividing current EPS by the stock's market price.",
+   "claim": "EPS divided by price is the earnings yield, the inverse of P/E."
+  },
+  {
+   "id": "f103",
+   "source": "s28",
+   "quote": "investors can learn more by comparing a company's P/E ratio to its own history, its sector/industry peers, and the broader stock market.",
+   "claim": "Judge a P/E against the company's history, its peers and the market."
+  },
+  {
+   "id": "f104",
+   "source": "s29",
+   "quote": "the MMM value does not guarantee a stock will move by a certain magnitude, nor does it indicate in which direction a move might occur.",
+   "claim": "The expected move promises neither size nor direction."
+  },
+  {
+   "id": "f105",
+   "source": "s29",
+   "quote": "This tells the trader the options market has priced in a $10 move, whether as low as $90 or as high as $110, due to an upcoming event like earnings.",
+   "claim": "Schwab's example: a $10 expected move on a $100 stock prices in anything from $90 to $110."
+  },
+  {
+   "id": "f106",
+   "source": "s29",
+   "quote": "The actual move could be more or less, up or down, or there could be no reaction at all.",
+   "claim": "The real move can be bigger, smaller, or nothing."
+  },
+  {
+   "id": "f107",
+   "source": "s29",
+   "quote": "The image above shows a stock trading at $216.88 with an MMM of ±16.74.",
+   "claim": "Schwab's example: a $216.88 stock with an expected move of 16.74."
+  },
+  {
+   "id": "f108",
+   "source": "s29",
+   "quote": "MMM is implying a potential 7.7% move of ±16.74",
+   "claim": "That expected move is about 7.7% of the price."
+  },
+  {
+   "id": "f109",
+   "source": "s29",
+   "quote": "Checking the MMM on an existing position ahead of earnings might be a good way to decide if it's worth the risk to hold through the event.",
+   "claim": "Use the expected move to decide whether a position is worth holding through earnings."
+  },
+  {
+   "id": "f110",
+   "source": "s30",
+   "quote": "Be aware that companies can report results when markets aren't even open, which can cause their stocks to \"gap\" or make a sharp move up or down with no trading occurring in between.",
+   "claim": "Reports outside market hours can make a stock gap."
+  },
+  {
+   "id": "f111",
+   "source": "s30",
+   "quote": "if a stock starts the trading day sharply lower from the day before and the trailing stop is triggered, the stock will be sold at the current market price, which may be considerably below the stop price.",
+   "claim": "After a gap down, a triggered stop sells at the market, possibly far below the stop."
+  },
+  {
+   "id": "f112",
+   "source": "s30",
+   "quote": "It typically begins two weeks after the end of the quarter (in the middle of January, April, July, and October) and lasts approximately six weeks.",
+   "claim": "Schwab: earnings season starts about two weeks after quarter end."
+  },
+  {
+   "id": "f113",
+   "source": "s31",
+   "quote": "The market prices in an expected move, and traders can choose to buy that move, sell it, or implement a range-bound strategy",
+   "claim": "Option prices around earnings carry an expected move."
+  },
+  {
+   "id": "f114",
+   "source": "s31",
+   "quote": "A stock is trading at $200 ahead of earnings and the options market is implying a move of around 8% in either direction.",
+   "claim": "Cboe's example: the options market implies a move of about 8% either way."
+  },
+  {
+   "id": "f115",
+   "source": "s32",
+   "quote": "Options markets signal the market’s expectation for the stock’s move after the earnings release. The simplest way to see that anticipated move is to look at the nearest term, at-money straddle.",
+   "claim": "The implied move is the post-earnings move the options market expects, read from the nearest at-the-money straddle."
+  },
+  {
+   "id": "f116",
+   "source": "s33",
+   "quote": "The P/E ratio gives investors an idea of what the market is willing to pay for the company's earnings.",
+   "claim": "P/E shows what the market pays for a company's earnings."
+  },
+  {
+   "id": "f117",
+   "source": "s33",
+   "quote": "To calculate it, take the company's market capitalization and divide it by the company's total sales over the past 12 months.",
+   "claim": "Price-to-sales is market cap divided by the past 12 months of sales."
+  },
+  {
+   "id": "f118",
+   "source": "s33",
+   "quote": "The P/S ratio can be used in place of the P/E ratio in situations where the company has a net loss.",
+   "claim": "With a net loss, use price-to-sales instead of P/E."
+  },
+  {
+   "id": "f119",
+   "source": "s33",
+   "quote": "It is calculated by dividing the P/E ratio by the earnings-per-share growth.",
+   "claim": "PEG is P/E divided by EPS growth."
+  },
+  {
+   "id": "f120",
+   "source": "s34",
+   "quote": "Gross profit margin is a profitability ratio that measures how much of every dollar of revenue is left over after paying cost of goods sold.",
+   "claim": "Gross margin is the share of each revenue dollar left after cost of goods sold."
+  },
+  {
+   "id": "f121",
+   "source": "s34",
+   "quote": "The higher the percentage, the more the company retains on each dollar of sales to service its other costs and obligations.",
+   "claim": "Gross profit has to cover all the other costs."
+  },
+  {
+   "id": "f122",
+   "source": "s34",
+   "quote": "Operating margin is the percentage that results when operating profit is divided by sales revenue.",
+   "claim": "Operating margin is operating profit divided by revenue."
+  },
+  {
+   "id": "f123",
+   "source": "s34",
+   "quote": "Keep in mind that the absolute levels of operating margin vary widely across industries.",
+   "claim": "Margins vary widely across industries."
+  },
+  {
+   "id": "f124",
+   "source": "s35",
+   "quote": "IBES estimates are calculated using the mean forecast from analysts' earnings expectations for a particular company",
+   "claim": "The consensus Fidelity shows is the mean of analysts' forecasts."
+  },
+  {
+   "id": "f125",
+   "source": "s36",
+   "quote": "An earnings surprise occurs when a company's reported quarterly or annual profits are above or below analysts' expectations.",
+   "claim": "An earnings surprise is reported results landing above or below analysts' expectations."
+  },
+  {
+   "id": "f126",
+   "source": "s37",
+   "quote": "Essentially, the whisper number is the unofficial consensus of what earnings and revenue for a company will be at the next announcement.",
+   "claim": "The whisper number is the unofficial consensus."
+  },
+  {
+   "id": "f127",
+   "source": "s37",
+   "quote": "If actual earnings are less than the whisper number the stock may sell off, even if the earnings beat the consensus (but below the whisper number).",
+   "claim": "A beat below the whisper can still sell off."
+  },
+  {
+   "id": "f128",
+   "source": "s38",
+   "quote": "Floating stock is calculated by subtracting closely-held shares and restricted stock from a firm’s total outstanding shares.",
+   "claim": "Float is outstanding shares minus closely held and restricted shares."
+  },
+  {
+   "id": "f129",
+   "source": "s38",
+   "quote": "shares that are purchased, sold, or even shorted by investors do not affect the float because these actions do not represent a change in the number of shares available for trade.",
+   "claim": "Short selling doesn't change the float."
+  },
+  {
+   "id": "f130",
+   "source": "s38",
+   "quote": "if a company decides to implement a share buyback , then the number of outstanding shares will decrease.",
+   "claim": "Buybacks reduce shares outstanding."
+  },
+  {
+   "id": "f131",
+   "source": "s38",
+   "quote": "Low float stocks tend to have higher spreads and higher volatility than a comparable larger float stock. Investors can find it difficult to enter or exit positions in stocks that have a low float.",
+   "claim": "Low-float stocks tend to have wider spreads, more volatility, and are harder to get in and out of."
+  },
+  {
+   "id": "f132",
+   "source": "s38",
+   "quote": "This is because, with fewer shares available, it may be harder to find a buyer or seller.",
+   "claim": "Fewer shares available can make it harder to find the other side."
+  },
+  {
+   "id": "f133",
+   "source": "s39",
+   "quote": "A lower forward P/E ratio compared to the current P/E suggests analysts expect earnings to increase.",
+   "claim": "Forward P/E below the current P/E means analysts expect earnings to rise."
+  },
+  {
+   "id": "f134",
+   "source": "s40",
+   "quote": "Year-over-year compares a company's financial performance in one period with its numbers for the same period one year earlier.",
+   "claim": "YoY compares a period with the same period a year earlier."
+  },
+  {
+   "id": "f135",
+   "source": "s40",
+   "quote": "YOY comparisons are popular when analyzing a company’s performance because they help mitigate seasonality",
+   "claim": "YoY comparisons help take out seasonality."
+  },
+  {
+   "id": "f136",
+   "source": "s41",
+   "quote": "Quarter on quarter (QOQ) growth measures the percentage change in a company's performance from one fiscal quarter to the next.",
+   "claim": "QoQ compares one quarter with the quarter just before."
+  },
+  {
+   "id": "f137",
+   "source": "s41",
+   "quote": "Comparing quarters on a year over year (YOY) basis can be more effective than on a quarter-on-quarter (QOQ) basis, as it gives a broader picture of company health and is not impacted by seasonal issues.",
+   "claim": "YoY can tell you more than QoQ, because seasons don't skew it."
+  },
+  {
+   "id": "f138",
+   "source": "s42",
+   "quote": "It’s typically expressed as a percentage and is also known as the gross margin ratio.",
+   "claim": "Gross margin is usually shown as a percentage."
+  },
+  {
+   "id": "f139",
+   "source": "s42",
+   "quote": "Software companies often report much higher gross margins than retailers or manufacturers because they generally have lower direct production costs.",
+   "claim": "Software firms often show much higher gross margins than retailers because their direct costs are lower."
+  },
+  {
+   "id": "f140",
+   "source": "s43",
+   "quote": "EPS Surprise is calculated as [(Actual EPS - Consensus EPS)/Absolute value of Consensus EPS] x 100 (expressed in percent).",
+   "claim": "Surprise % = (actual EPS minus consensus) divided by the absolute value of consensus, times 100."
+  },
+  {
+   "id": "f141",
+   "source": "s44",
+   "quote": "Earnings per share: $1.30 adjusted vs. $1.25 estimated Revenue: $57.01 billion vs. $54.92 billion estimated",
+   "claim": "NVIDIA's Q3 FY26: adjusted EPS $1.30 vs. $1.25 estimated (LSEG)."
+  },
+  {
+   "id": "f142",
+   "source": "s44",
+   "quote": "Shares of the AI chipmaker rose more than 4% in extended trading.",
+   "claim": "NVIDIA traded up more than 4% in extended hours after the report."
+  },
+  {
+   "id": "f143",
+   "source": "s44",
+   "quote": "Nvidia said it expects about $65 billion in sales in the current quarter, versus $61.66 billion expected by analysts.",
+   "claim": "NVIDIA guided to about $65 billion against $61.66 billion expected."
+  },
+  {
+   "id": "f144",
+   "source": "s45",
+   "quote": "Intel reported fourth-quarter earnings that beat Wall Street expectations but offered soft guidance for the current quarter.",
+   "claim": "Intel beat but guided soft."
+  },
+  {
+   "id": "f145",
+   "source": "s45",
+   "quote": "Shares of the company were down as much as 13% in after-hours trading.",
+   "claim": "Intel fell as much as 13% after hours."
+  },
+  {
+   "id": "f146",
+   "source": "s45",
+   "quote": "Earnings per share : 15 cents adjusted vs. 8 cents expected Revenue : $13.7 billion vs. $13.4 billion expected",
+   "claim": "Intel's Q4 2025: adjusted EPS 15 cents vs. 8 cents expected; revenue $13.7B vs. $13.4B expected."
+  },
+  {
+   "id": "f147",
+   "source": "s45",
+   "quote": "The company provided guidance for first-quarter revenue and earnings per share that came in below analysts' expectations.",
+   "claim": "Intel's next-quarter guidance came in below estimates."
+  },
+  {
+   "id": "f148",
+   "source": "s46",
+   "quote": "That can include an exact time, or an indication of before market open (BMO), after market close (AMC) or during market hours.",
+   "claim": "Earnings calendars mark report times as BMO (before market open), AMC (after market close) or during market hours."
+  },
+  {
+   "id": "f149",
+   "source": "s47",
+   "quote": "BMO (Before Market Open): The company will release earnings before trading begins for the day AMC (After Market Close): The company will release earnings after the market has closed for the day",
+   "claim": "BMO means results before the day's trading begins; AMC means results after the close."
+  }
+ ],
+ "walkthroughs": [
+  {
+   "key": "w1",
+   "title": "The income statement, top to bottom",
+   "steps": [
+    "Revenue is the top line: the money that came in from sales, before any costs.",
+    "Take out the cost of goods sold and you have gross profit. Take out operating expenses and you have operating income.",
+    "After interest and taxes you reach net income, the bottom line. Divide it by the shares outstanding and you get EPS."
+   ],
+   "facts": [
+    "f1",
+    "f2",
+    "f3",
+    "f5",
+    "f8",
+    "f9",
+    "f10"
+   ]
+  },
+  {
+   "key": "w2",
+   "title": "The bar the report has to clear",
+   "steps": [
+    "Before the report, analysts publish estimates. Their average is the consensus.",
+    "Above it is a beat, below it is a miss, equal is in line.",
+    "Guidance is management's forecast for what comes next. It can move the stock more than the quarter itself."
+   ],
+   "facts": [
+    "f34",
+    "f35",
+    "f29",
+    "f39",
+    "f87"
+   ]
+  },
+  {
+   "key": "w3",
+   "title": "When it lands and how big the move",
+   "steps": [
+    "BMO means the report lands before the 9:30 a.m. ET open. AMC means after the 4:00 p.m. ET close.",
+    "Either way, the first reaction can come in extended hours, where spreads are wider.",
+    "The implied move is the swing the options market is pricing in. It's a size, not a direction."
+   ],
+   "facts": [
+    "f148",
+    "f149",
+    "f47",
+    "f49",
+    "f50",
+    "f115",
+    "f104"
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "key": "q01",
+   "skill": "vocab.fund_terms",
+   "rung": 1,
+   "format": "mcq",
+   "term": "Revenue",
+   "q": "On an earnings card, what does revenue mean?",
+   "choices": [
+    "Money from sales, before costs",
+    "Profit left after every cost",
+    "Cash the company holds today",
+    "Profit divided by the shares"
+   ],
+   "answer": "Money from sales, before costs",
+   "why": "Money from sales, before costs. Revenue sits at the top of the income statement, before any expenses come out.",
+   "lesson_line": "Revenue is what came in. Profit is what's left. Don't mix them up on a card.",
+   "facts": [
+    "f1",
+    "f3",
+    "f9",
+    "f4",
+    "f10"
+   ],
+   "wrong": {
+    "Profit left after every cost": "That's net income, the bottom line. Revenue comes before any costs.",
+    "Cash the company holds today": "Cash sits on the balance sheet, a snapshot on one date. Revenue is sales over a period.",
+    "Profit divided by the shares": "That's EPS, net income divided by the shares outstanding."
+   }
+  },
+  {
+   "key": "q02",
+   "skill": "vocab.fund_terms",
+   "rung": 2,
+   "format": "fill",
+   "term": "Top line",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "Sales sit on the ___ line of the income statement.",
+   "bank": [
+    "top",
+    "bottom",
+    "gross",
+    "net",
+    "operating"
+   ],
+   "answer": "top",
+   "why": "Top. Revenue, or sales, is the first line of the income statement, so it gets called the top line.",
+   "lesson_line": "Top line is sales. Bottom line is net income.",
+   "facts": [
+    "f2",
+    "f1",
+    "f9"
+   ]
+  },
+  {
+   "key": "q03",
+   "skill": "vocab.fund_terms",
+   "rung": 1,
+   "format": "mcq",
+   "term": "Bottom line",
+   "q": "What does the bottom line mean on an income statement?",
+   "choices": [
+    "Net income, after all expenses",
+    "Sales before any costs",
+    "Profit before interest and taxes",
+    "The stock's lowest price of the day"
+   ],
+   "answer": "Net income, after all expenses",
+   "why": "Net income, after all expenses. It's the last line of the income statement: what the company earned or lost for the period.",
+   "lesson_line": "Bottom line means net income. It's what's left after every expense, taxes included.",
+   "facts": [
+    "f21",
+    "f9",
+    "f8",
+    "f1"
+   ],
+   "wrong": {
+    "Sales before any costs": "That's revenue, the top line.",
+    "Profit before interest and taxes": "That's operating income. Interest and taxes still come out after it.",
+    "The stock's lowest price of the day": "That's the day's low on a chart. The bottom line is an accounting number."
+   }
+  },
+  {
+   "key": "q04",
+   "skill": "vocab.fund_terms",
+   "rung": 2,
+   "format": "tf",
+   "term": "Net income",
+   "q": "Net income and net earnings are two names for the same number.",
+   "answer": "True",
+   "why": "True. The SEC's guide says net profit is also called net income or net earnings. It's the bottom line.",
+   "lesson_line": "Net income, net earnings, net profit: one number, the bottom line.",
+   "facts": [
+    "f9"
+   ]
+  },
+  {
+   "key": "q05",
+   "skill": "vocab.fund_terms",
+   "rung": 1,
+   "format": "mcq",
+   "term": "EPS",
+   "q": "What does EPS mean?",
+   "choices": [
+    "Net income per share",
+    "Revenue per share",
+    "Price divided by earnings",
+    "Dividend paid per share"
+   ],
+   "answer": "Net income per share",
+   "why": "Net income per share. Take the company's net income and divide it by its shares outstanding.",
+   "lesson_line": "EPS is the profit behind each share. It isn't cash paid out to you.",
+   "facts": [
+    "f10",
+    "f51",
+    "f11",
+    "f12",
+    "f52"
+   ],
+   "wrong": {
+    "Revenue per share": "Revenue is sales before costs. EPS uses net income, after costs.",
+    "Price divided by earnings": "That's the P/E ratio. It sets the share price against EPS.",
+    "Dividend paid per share": "EPS is what each share would get if all net income were paid out. Companies almost never do that."
+   }
+  },
+  {
+   "key": "q06",
+   "skill": "vocab.fund_terms",
+   "rung": 4,
+   "format": "numeric",
+   "term": "EPS",
+   "q": "A company earns $50 million in net income. It has 20 million shares outstanding. What is its EPS?",
+   "answer": 2.5,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "net_income / shares",
+     "net_income": 50,
+     "shares": 20
+    }
+   },
+   "prefix": "$",
+   "why": "$2.50. Net income divided by shares outstanding: $50 million over 20 million shares.",
+   "lesson_line": "EPS is net income divided by shares. Same profit spread over fewer shares means a higher EPS.",
+   "facts": [
+    "f10",
+    "f51"
+   ]
+  },
+  {
+   "key": "q07",
+   "skill": "vocab.fund_terms",
+   "rung": 3,
+   "format": "mcq",
+   "term": "Diluted EPS",
+   "q": "On an earnings release, what does diluted EPS mean?",
+   "choices": [
+    "EPS counting possible new shares",
+    "EPS with one-time items removed",
+    "EPS expected for the next year",
+    "EPS for the last 12 full months"
+   ],
+   "answer": "EPS counting possible new shares",
+   "why": "EPS counting possible new shares. Diluted EPS also counts the shares that options, warrants and convertible securities could become.",
+   "lesson_line": "Diluted EPS assumes those extra shares exist. More shares, less profit per share.",
+   "facts": [
+    "f22",
+    "f66",
+    "f90",
+    "f101"
+   ],
+   "wrong": {
+    "EPS with one-time items removed": "That's adjusted, or non-GAAP, EPS. Dilution is about the share count, not the items.",
+    "EPS expected for the next year": "That's an estimate. Diluted EPS is a reported number.",
+    "EPS for the last 12 full months": "That's trailing 12-month EPS, a time window. Diluted is about the share count."
+   }
+  },
+  {
+   "key": "q08",
+   "skill": "vocab.fund_terms",
+   "rung": 4,
+   "format": "fill",
+   "term": "Gross profit",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "Revenue minus the cost of goods sold leaves ___.",
+   "bank": [
+    "gross profit",
+    "net income",
+    "operating income",
+    "EPS",
+    "market cap"
+   ],
+   "answer": "gross profit",
+   "why": "Gross profit. Take what it cost to make the goods that were sold out of revenue, and gross profit is what's left.",
+   "lesson_line": "Gross profit has to pay for everything else: overhead, research, interest and taxes.",
+   "facts": [
+    "f5",
+    "f18",
+    "f17",
+    "f121"
+   ]
+  },
+  {
+   "key": "q09",
+   "skill": "vocab.fund_terms",
+   "rung": 2,
+   "format": "mcq",
+   "term": "Gross margin",
+   "q": "What does gross margin mean in an earnings release?",
+   "choices": [
+    "Gross profit as a % of revenue",
+    "Net income as a % of revenue",
+    "Operating income as a % of revenue",
+    "Revenue growth from a year ago"
+   ],
+   "answer": "Gross profit as a % of revenue",
+   "why": "Gross profit as a % of revenue. It shows how much of each sales dollar is left after the direct cost of the goods.",
+   "lesson_line": "Gross margin tells you what each sales dollar keeps after the cost of making the product.",
+   "facts": [
+    "f61",
+    "f120",
+    "f138",
+    "f75",
+    "f62",
+    "f13",
+    "f134"
+   ],
+   "wrong": {
+    "Net income as a % of revenue": "That's net margin, also called profit margin.",
+    "Operating income as a % of revenue": "That's operating margin. It also takes out operating expenses.",
+    "Revenue growth from a year ago": "That's year-over-year growth. A margin compares a profit with revenue."
+   }
+  },
+  {
+   "key": "q10",
+   "skill": "vocab.fund_terms",
+   "rung": 4,
+   "format": "numeric",
+   "term": "Gross margin",
+   "q": "Revenue is $835,000. Gross profit is $585,000. What is the gross margin, to one decimal place?",
+   "answer": 70.1,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "gross_profit / revenue * 100",
+     "gross_profit": 585000,
+     "revenue": 835000
+    },
+    "round": 1
+   },
+   "suffix": "%",
+   "why": "70.1%. Gross profit divided by revenue: $585,000 over $835,000, times 100. Those are the SEC's own example numbers.",
+   "lesson_line": "A margin is a profit divided by revenue. Know which profit you're using.",
+   "facts": [
+    "f16",
+    "f18",
+    "f61"
+   ]
+  },
+  {
+   "key": "q11",
+   "skill": "vocab.fund_terms",
+   "rung": 4,
+   "format": "mcq",
+   "term": "Cost of goods sold",
+   "q": "Which line shows the direct cost of making the products a company sold?",
+   "choices": [
+    "Cost of goods sold",
+    "Operating expenses",
+    "Interest expense"
+   ],
+   "answer": "Cost of goods sold",
+   "why": "Cost of goods sold. It's the direct cost of producing what was sold. The SEC's guide calls the same line cost of sales.",
+   "lesson_line": "Cost of goods sold comes out of revenue first. What's left is gross profit.",
+   "facts": [
+    "f17",
+    "f6",
+    "f5",
+    "f19",
+    "f7",
+    "f20"
+   ],
+   "wrong": {
+    "Operating expenses": "Those are overhead costs of running the business. They can't be tied directly to making the product.",
+    "Interest expense": "That's what the company owes its lenders on borrowed money."
+   }
+  },
+  {
+   "key": "q12",
+   "skill": "vocab.fund_terms",
+   "rung": 5,
+   "format": "mcq",
+   "term": "Operating margin",
+   "q": "What does operating margin measure?",
+   "choices": [
+    "Operating income divided by revenue",
+    "Gross profit divided by total sales",
+    "Net income divided by the shares",
+    "Share price divided by annual EPS"
+   ],
+   "answer": "Operating income divided by revenue",
+   "why": "Operating income divided by revenue. It shows how much of each sales dollar is left after running the business, before interest and taxes.",
+   "lesson_line": "Operating margin shows how well the core business turns sales into profit.",
+   "facts": [
+    "f13",
+    "f122",
+    "f8",
+    "f61",
+    "f10",
+    "f14"
+   ],
+   "wrong": {
+    "Gross profit divided by total sales": "That's gross margin. It comes before operating expenses.",
+    "Net income divided by the shares": "That's EPS, a per-share number, not a margin.",
+    "Share price divided by annual EPS": "That's the P/E ratio, a valuation number."
+   }
+  },
+  {
+   "key": "q13",
+   "skill": "vocab.fund_terms",
+   "rung": 7,
+   "format": "numeric",
+   "term": "Operating margin",
+   "q": "NVIDIA, Q3 fiscal 2026: revenue $57,006 million, operating income $36,010 million. What is the operating margin, to one decimal?",
+   "answer": 63.2,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "operating_income / revenue * 100",
+     "operating_income": 36010,
+     "revenue": 57006
+    },
+    "round": 1
+   },
+   "suffix": "%",
+   "why": "63.2%. Operating income over revenue: $36,010 million divided by $57,006 million, times 100. Those are NVIDIA's GAAP figures.",
+   "lesson_line": "Work the margin out yourself from the release. It takes seconds, and then you know the number.",
+   "facts": [
+    "f73",
+    "f74",
+    "f13"
+   ]
+  },
+  {
+   "key": "q14",
+   "skill": "vocab.fund_terms",
+   "rung": 7,
+   "format": "scenario",
+   "term": "Gross margin",
+   "story": "A software company reports a 75% gross margin. A grocery chain reports 25%.",
+   "q": "What can you conclude from that gap alone?",
+   "choices": [
+    "Direct costs differ by industry",
+    "The software company is better run",
+    "The grocery chain loses money",
+    "The software stock will go up more"
+   ],
+   "answer": "Direct costs differ by industry",
+   "why": "Their direct costs differ by industry. Software has low direct production costs, so its gross margins run much higher than a retailer's. Compare a company with its own industry.",
+   "lesson_line": "Compare margins inside an industry, not across industries.",
+   "facts": [
+    "f139",
+    "f15",
+    "f123",
+    "f8",
+    "f9"
+   ],
+   "wrong": {
+    "The software company is better run": "Margins vary widely by industry. Judge a company against its peers, not against a grocer.",
+    "The grocery chain loses money": "A 25% gross margin is still a profit before overhead. Net income comes further down.",
+    "The software stock will go up more": "A margin says nothing about where a stock goes next."
+   }
+  },
+  {
+   "key": "q15",
+   "skill": "vocab.fund_terms",
+   "rung": 2,
+   "format": "mcq",
+   "term": "GAAP",
+   "q": "On an earnings release, what does GAAP mean?",
+   "choices": [
+    "The standard US accounting rules",
+    "Management's adjusted numbers",
+    "The analysts' average estimate",
+    "The company's own forecast"
+   ],
+   "answer": "The standard US accounting rules",
+   "why": "The standard US accounting rules. GAAP stands for generally accepted accounting principles, set by the Financial Accounting Standards Board.",
+   "lesson_line": "GAAP is the rulebook number. Every adjusted number on the release is measured against it.",
+   "facts": [
+    "f71",
+    "f91",
+    "f92",
+    "f90",
+    "f34",
+    "f63"
+   ],
+   "wrong": {
+    "Management's adjusted numbers": "Those are non-GAAP, or adjusted, numbers.",
+    "The analysts' average estimate": "That's the consensus estimate.",
+    "The company's own forecast": "That's guidance."
+   }
+  },
+  {
+   "key": "q16",
+   "skill": "vocab.fund_terms",
+   "rung": 3,
+   "format": "mcq",
+   "term": "Non-GAAP",
+   "q": "What is a non-GAAP, or adjusted, number?",
+   "choices": [
+    "GAAP results with some items adjusted",
+    "Results checked by outside auditors",
+    "The analysts' estimate of earnings",
+    "Results under foreign accounting rules"
+   ],
+   "answer": "GAAP results with some items adjusted",
+   "why": "GAAP results with some items adjusted. The company leaves out, or adds, amounts that the GAAP number counts, often items it calls one-time.",
+   "lesson_line": "Adjusted means the company chose what to leave out. Always find the GAAP number next to it.",
+   "facts": [
+    "f67",
+    "f68",
+    "f90",
+    "f44",
+    "f92",
+    "f34",
+    "f93"
+   ],
+   "wrong": {
+    "Results checked by outside auditors": "The audited statements are the GAAP ones in the 10-K. Adjusted numbers are the company's own choices.",
+    "The analysts' estimate of earnings": "That's the consensus estimate. Non-GAAP numbers come from the company.",
+    "Results under foreign accounting rules": "Foreign companies may use IFRS instead of GAAP. That's a different rulebook, not an adjusted number."
+   }
+  },
+  {
+   "key": "q17",
+   "skill": "vocab.fund_terms",
+   "rung": 4,
+   "format": "tf",
+   "term": "Non-GAAP",
+   "q": "A public company that shows an adjusted, non-GAAP number must also show the comparable GAAP number.",
+   "answer": "True",
+   "why": "True. The SEC's Regulation G makes the company present the most directly comparable GAAP measure, plus a reconciliation between the two.",
+   "lesson_line": "The GAAP number is always in there somewhere. Find it before you trust the headline.",
+   "facts": [
+    "f69",
+    "f70",
+    "f96"
+   ]
+  },
+  {
+   "key": "q18",
+   "skill": "vocab.fund_terms",
+   "rung": 7,
+   "format": "scenario",
+   "term": "Adjusted EPS",
+   "story": "Intel, fourth quarter of 2025. GAAP EPS was a loss of $0.12 a share. Non-GAAP EPS was a profit of $0.15.",
+   "q": "What does the gap between those two numbers tell you?",
+   "choices": [
+    "Adjustments turned a loss into a profit",
+    "Intel's real profit was $0.15 a share",
+    "The two numbers cover different quarters",
+    "Non-GAAP is the audited figure"
+   ],
+   "answer": "Adjustments turned a loss into a profit",
+   "why": "Adjustments turned a loss into a profit. Under GAAP, Intel lost $0.12 a share. With items taken out, it showed $0.15. Schwab notes GAAP can be negative while adjusted is positive.",
+   "lesson_line": "When adjusted shows a profit and GAAP shows a loss, read the reconciliation before you trust the beat.",
+   "facts": [
+    "f79",
+    "f94",
+    "f68",
+    "f70",
+    "f44",
+    "f92",
+    "f95"
+   ],
+   "wrong": {
+    "Intel's real profit was $0.15 a share": "That's the adjusted figure, after items Intel chose to leave out. Under GAAP, Intel lost $0.12 a share.",
+    "The two numbers cover different quarters": "Both are the same fourth quarter of 2025. Only the items counted differ.",
+    "Non-GAAP is the audited figure": "Adjusted numbers are the company's own choices. The audited statements are GAAP, in the 10-K."
+   }
+  },
+  {
+   "key": "q19",
+   "skill": "vocab.fund_terms",
+   "rung": 8,
+   "format": "tf",
+   "term": "Adjusted EPS",
+   "q": "Adjusted EPS is calculated the same way at every company.",
+   "answer": "False",
+   "why": "False. NVIDIA's own release warns that its non-GAAP measures may differ from those other companies use. Each company picks its own adjustments.",
+   "lesson_line": "Compare GAAP with GAAP across companies. Adjusted numbers follow each company's own recipe.",
+   "facts": [
+    "f78",
+    "f95"
+   ]
+  },
+  {
+   "key": "q20",
+   "skill": "vocab.fund_terms",
+   "rung": 1,
+   "format": "mcq",
+   "term": "Consensus estimate",
+   "q": "What is the consensus estimate?",
+   "choices": [
+    "The analysts' average estimate",
+    "Management's own forward forecast",
+    "Traders' own unofficial number",
+    "Last year's reported EPS figure"
+   ],
+   "answer": "The analysts' average estimate",
+   "why": "The average of analysts' estimates. Several groups track it, and every beat or miss is measured against it.",
+   "lesson_line": "The consensus is the bar. The report gets judged against it.",
+   "facts": [
+    "f34",
+    "f65",
+    "f35",
+    "f63",
+    "f36",
+    "f134"
+   ],
+   "wrong": {
+    "Management's own forward forecast": "That's guidance. It comes from the company.",
+    "Traders' own unofficial number": "That's the whisper number.",
+    "Last year's reported EPS figure": "That's a past result. Comparing with it gives year-over-year growth, not the estimate."
+   }
+  },
+  {
+   "key": "q21",
+   "skill": "vocab.fund_terms",
+   "rung": 5,
+   "format": "scenario",
+   "term": "Consensus estimate",
+   "story": "Twelve analysts cover a stock. Their EPS estimates for the quarter average $0.80. The company has given no forecast.",
+   "q": "What do you call that $0.80?",
+   "choices": [
+    "The consensus estimate",
+    "The company's guidance",
+    "The whisper number",
+    "The trailing EPS"
+   ],
+   "answer": "The consensus estimate",
+   "why": "The consensus estimate. It's the average forecast of the analysts covering the stock. Fidelity's research pages use the mean of their forecasts.",
+   "lesson_line": "Consensus comes from analysts. Guidance comes from the company. Keep the two straight.",
+   "facts": [
+    "f34",
+    "f124",
+    "f65",
+    "f63",
+    "f126",
+    "f97"
+   ],
+   "wrong": {
+    "The company's guidance": "Guidance comes from management, and this company gave none.",
+    "The whisper number": "A whisper is unofficial. This is the published average of the analysts.",
+    "The trailing EPS": "Trailing EPS is what the company already earned over the past 12 months. This is a forecast."
+   }
+  },
+  {
+   "key": "q22",
+   "skill": "vocab.fund_terms",
+   "rung": 7,
+   "format": "scenario",
+   "term": "Beat",
+   "story": "NVIDIA reported on Nov. 19, 2025. Adjusted EPS came in at $1.30. Analysts polled by LSEG expected $1.25.",
+   "q": "How does that read against the estimate?",
+   "choices": [
+    "A beat",
+    "A miss",
+    "In line"
+   ],
+   "answer": "A beat",
+   "why": "A beat. Actual EPS of $1.30 topped the $1.25 estimate. FINRA's definition: a company beats when the actual number exceeds the consensus.",
+   "lesson_line": "Beat, miss or in line is always actual against consensus. Check revenue the same way.",
+   "facts": [
+    "f141",
+    "f35"
+   ],
+   "wrong": {
+    "A miss": "A miss means falling short of the estimate. $1.30 is above $1.25.",
+    "In line": "In line means the number equals the estimate. These two differ."
+   }
+  },
+  {
+   "key": "q23",
+   "skill": "vocab.fund_terms",
+   "rung": 4,
+   "format": "fill",
+   "term": "In line",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "Reported EPS matched the consensus to the penny, so EPS was ___.",
+   "bank": [
+    "in line",
+    "a beat",
+    "a miss",
+    "guided",
+    "whispered"
+   ],
+   "answer": "in line",
+   "why": "In line. FINRA: if the number equals the estimate, it's said to be in line.",
+   "lesson_line": "In line isn't a free pass. The stock still trades on guidance and on what was already priced in.",
+   "facts": [
+    "f35",
+    "f39",
+    "f40"
+   ]
+  },
+  {
+   "key": "q24",
+   "skill": "vocab.fund_terms",
+   "rung": 2,
+   "format": "mcq",
+   "term": "Earnings surprise",
+   "q": "What is an earnings surprise?",
+   "choices": [
+    "Actual results vs. the consensus",
+    "A report on an unexpected date",
+    "Any big price move after a report",
+    "A change in the company's guidance"
+   ],
+   "answer": "Actual results vs. the consensus",
+   "why": "Actual results vs. the consensus. A surprise is how far the reported number lands above or below what analysts expected.",
+   "lesson_line": "A surprise is a gap in the numbers, not a price move. Measure it, then watch the reaction.",
+   "facts": [
+    "f125",
+    "f140",
+    "f35",
+    "f38",
+    "f63"
+   ],
+   "wrong": {
+    "A report on an unexpected date": "That's a date change. The surprise is about the numbers.",
+    "Any big price move after a report": "That's the reaction. FINRA notes a beat or a miss doesn't always decide the move.",
+    "A change in the company's guidance": "Guidance is the company's forecast. The surprise compares this quarter's actual with the estimate."
+   }
+  },
+  {
+   "key": "q25",
+   "skill": "vocab.fund_terms",
+   "rung": 7,
+   "format": "numeric",
+   "term": "Earnings surprise",
+   "q": "NVIDIA's adjusted EPS was $1.30. The estimate was $1.25. What was the EPS surprise, in percent?",
+   "answer": 4,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(actual - estimate) / estimate * 100",
+     "actual": 1.3,
+     "estimate": 1.25
+    },
+    "round": 1
+   },
+   "suffix": "%",
+   "why": "4%. Actual minus estimate, divided by the estimate: ($1.30 minus $1.25) over $1.25, times 100. That's how Zacks measures EPS surprise.",
+   "lesson_line": "Surprise percent is actual minus estimate, over the estimate. A tiny estimate can make a small beat look huge.",
+   "facts": [
+    "f140",
+    "f141"
+   ]
+  },
+  {
+   "key": "q26",
+   "skill": "vocab.fund_terms",
+   "rung": 8,
+   "format": "scenario",
+   "term": "Earnings surprise",
+   "story": "Analysts expect a loss of $0.20 a share. The company reports a loss of $0.10 a share.",
+   "q": "How does that report read?",
+   "choices": [
+    "A beat: a 50% positive surprise",
+    "A miss: the company still lost money",
+    "A 50% negative surprise"
+   ],
+   "answer": "A beat: a 50% positive surprise",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(actual - estimate) / estimate_size * 100",
+     "actual": -0.1,
+     "estimate": -0.2,
+     "estimate_size": 0.2
+    },
+    "round": 1
+   },
+   "why": "A beat: a 50% positive surprise. The loss came in smaller than expected. Zacks divides by the size of the estimate, ignoring its sign, so a smaller loss counts as a beat.",
+   "lesson_line": "A smaller loss than expected is a beat. Divide by the size of the estimate, not its sign.",
+   "facts": [
+    "f140",
+    "f35"
+   ],
+   "wrong": {
+    "A miss: the company still lost money": "A beat or miss is measured against the estimate, not against zero. The loss was smaller than expected.",
+    "A 50% negative surprise": "Dividing by the negative estimate flips the sign. Zacks uses the estimate's absolute value, so it's positive."
+   }
+  },
+  {
+   "key": "q27",
+   "skill": "vocab.fund_terms",
+   "rung": 3,
+   "format": "mcq",
+   "term": "Whisper number",
+   "q": "What is a whisper number?",
+   "choices": [
+    "Traders' unofficial expectation",
+    "Management's private forecast",
+    "The lowest analyst estimate",
+    "Guidance given on the call"
+   ],
+   "answer": "Traders' unofficial expectation",
+   "why": "Traders' unofficial expectation. FINRA says a whisper number can differ from the consensus and can become the market's real expectation.",
+   "lesson_line": "The bar the stock has to clear may be the whisper, not the published consensus.",
+   "facts": [
+    "f36",
+    "f37",
+    "f126",
+    "f64",
+    "f34",
+    "f32"
+   ],
+   "wrong": {
+    "Management's private forecast": "A company's forecast is guidance, and Regulation FD means it goes to all shareholders, not a few.",
+    "The lowest analyst estimate": "That's one analyst's published number. The consensus is their average, and a whisper is unofficial.",
+    "Guidance given on the call": "Guidance comes from management, on the call or in the release. A whisper comes from the market."
+   }
+  },
+  {
+   "key": "q28",
+   "skill": "vocab.fund_terms",
+   "rung": 8,
+   "format": "scenario",
+   "term": "Whisper number",
+   "story": "Consensus EPS is $1.00. Traders expect closer to $1.10 and bid the stock up into the report. The company reports $1.05.",
+   "q": "What's the risk now?",
+   "choices": [
+    "A beat that missed the whisper",
+    "None, a beat always lifts the stock",
+    "It missed the consensus estimate",
+    "The report was exactly in line"
+   ],
+   "answer": "A beat that missed the whisper",
+   "why": "It beat consensus but missed the whisper. With the stock bid up toward $1.10, $1.05 can disappoint even though it tops $1.00.",
+   "lesson_line": "Know what's priced in before the print. A beat below the whisper can still sell off.",
+   "facts": [
+    "f127",
+    "f37",
+    "f40",
+    "f88",
+    "f38",
+    "f35"
+   ],
+   "wrong": {
+    "None, a beat always lifts the stock": "FINRA says beating or missing isn't always what moves the price.",
+    "It missed the consensus estimate": "$1.05 is above the $1.00 consensus. That's a beat.",
+    "The report was exactly in line": "In line means equal to the estimate. $1.05 isn't $1.00."
+   }
+  },
+  {
+   "key": "q29",
+   "skill": "vocab.fund_terms",
+   "rung": 1,
+   "format": "mcq",
+   "term": "Guidance",
+   "q": "What is guidance?",
+   "choices": [
+    "Management's forecast of results",
+    "The average of analysts' estimates",
+    "The standard US accounting rules",
+    "Last quarter's reported results"
+   ],
+   "answer": "Management's forecast of results",
+   "why": "Management's forecast of future results. It usually covers the coming quarter, sometimes the full year, often as a range.",
+   "lesson_line": "Earnings look back. Guidance looks ahead, and a stock's price rests on what's ahead.",
+   "facts": [
+    "f84",
+    "f29",
+    "f63",
+    "f85",
+    "f34",
+    "f71"
+   ],
+   "wrong": {
+    "The average of analysts' estimates": "That's the consensus. Guidance comes from the company itself.",
+    "The standard US accounting rules": "That's GAAP.",
+    "Last quarter's reported results": "Those are the actual results. Guidance is about what comes next."
+   }
+  },
+  {
+   "key": "q30",
+   "skill": "vocab.fund_terms",
+   "rung": 7,
+   "format": "mcq",
+   "term": "Guidance",
+   "q": "NVIDIA's release says fourth-quarter revenue is expected to be $65.0 billion, plus or minus 2%. Which word fits that line?",
+   "choices": [
+    "Guidance",
+    "Consensus estimate",
+    "Whisper number",
+    "Trailing revenue"
+   ],
+   "answer": "Guidance",
+   "why": "Guidance. It's NVIDIA's own forecast for the next quarter. CNBC compared it with $61.66 billion expected by analysts.",
+   "lesson_line": "Read the outlook first. Next quarter's guide against the consensus can matter more than the quarter itself.",
+   "facts": [
+    "f76",
+    "f143",
+    "f87",
+    "f80",
+    "f34",
+    "f126",
+    "f55"
+   ],
+   "wrong": {
+    "Consensus estimate": "The consensus is the analysts' average. This number comes from NVIDIA itself.",
+    "Whisper number": "A whisper is unofficial. This one is printed in the company's release.",
+    "Trailing revenue": "Trailing revenue is what already happened. This is a forecast."
+   }
+  },
+  {
+   "key": "q31",
+   "skill": "vocab.fund_terms",
+   "rung": 8,
+   "format": "scenario",
+   "term": "Guidance",
+   "story": "Intel, Jan. 22, 2026: EPS of 15 cents adjusted vs. 8 cents expected, revenue of $13.7 billion vs. $13.4 billion expected. First-quarter guidance came in below estimates. Shares fell as much as 13% after hours.",
+   "q": "What drove the drop?",
+   "choices": [
+    "Weak guidance",
+    "An EPS miss",
+    "A revenue miss",
+    "An in-line quarter"
+   ],
+   "answer": "Weak guidance",
+   "why": "Weak guidance. Intel beat the quarter, but its first-quarter forecast came in below analysts' expectations. FINRA notes a beat with a dour outlook can still drop the stock.",
+   "lesson_line": "A beat with a weak guide is a weak report. Read the outlook before you react to the headline.",
+   "facts": [
+    "f144",
+    "f147",
+    "f145",
+    "f146",
+    "f39",
+    "f86",
+    "f35"
+   ],
+   "wrong": {
+    "An EPS miss": "It was a beat: 15 cents against 8 cents expected.",
+    "A revenue miss": "Revenue beat too: $13.7 billion against $13.4 billion expected.",
+    "An in-line quarter": "In line means matching the estimate. Intel beat it."
+   }
+  },
+  {
+   "key": "q32",
+   "skill": "vocab.fund_terms",
+   "rung": 4,
+   "format": "mcq",
+   "term": "Earnings call",
+   "q": "After the release, management takes analysts' questions live. What is that event?",
+   "choices": [
+    "The earnings call",
+    "The 10-Q filing",
+    "The investor deck",
+    "The 8-K"
+   ],
+   "answer": "The earnings call",
+   "why": "The earnings call. Many companies hold one to add color on the quarter, take analysts' questions and give guidance.",
+   "lesson_line": "Listen for guidance on the call. Some companies save their outlook for it.",
+   "facts": [
+    "f32",
+    "f89",
+    "f77",
+    "f43",
+    "f33",
+    "f30"
+   ],
+   "wrong": {
+    "The 10-Q filing": "The 10-Q is a written quarterly report filed with the SEC.",
+    "The investor deck": "A deck is a set of slides. FINRA calls them marketing documents.",
+    "The 8-K": "The 8-K is a filed form. It carries the press release text."
+   }
+  },
+  {
+   "key": "q33",
+   "skill": "vocab.fund_terms",
+   "rung": 1,
+   "format": "mcq",
+   "term": "BMO",
+   "q": "On an earnings calendar, what does BMO mean?",
+   "choices": [
+    "Before market open",
+    "After market close",
+    "During market hours"
+   ],
+   "answer": "Before market open",
+   "why": "Before market open. The company releases its results before the regular session starts at 9:30 a.m. ET.",
+   "lesson_line": "BMO means the news is out before the bell. Have your plan set the night before.",
+   "facts": [
+    "f148",
+    "f149",
+    "f47",
+    "f31"
+   ],
+   "wrong": {
+    "After market close": "That's AMC.",
+    "During market hours": "Some companies do report during the session. That's its own label, not BMO."
+   }
+  },
+  {
+   "key": "q34",
+   "skill": "vocab.fund_terms",
+   "rung": 4,
+   "format": "fill",
+   "term": "AMC",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "Results due after the 4:00 p.m. ET close get tagged ___ on the earnings calendar.",
+   "bank": [
+    "AMC",
+    "BMO",
+    "EXT",
+    "YoY",
+    "TTM"
+   ],
+   "answer": "AMC",
+   "why": "AMC. It stands for after market close. The regular session ends at 4:00 p.m. ET, and the report comes after it.",
+   "lesson_line": "AMC means the news hits after the bell. Decide whether to hold before the close.",
+   "facts": [
+    "f148",
+    "f149",
+    "f47"
+   ]
+  },
+  {
+   "key": "q35",
+   "skill": "vocab.fund_terms",
+   "rung": 7,
+   "format": "scenario",
+   "term": "BMO",
+   "story": "JPMorgan Chase set its third-quarter 2026 results for about 7:00 a.m. ET on Oct. 13, 2026. Its call was at 8:30 a.m. ET.",
+   "q": "Which timing label fits that report?",
+   "choices": [
+    "BMO",
+    "AMC",
+    "During market hours"
+   ],
+   "answer": "BMO",
+   "why": "BMO. Both the release and the call were set for before the 9:30 a.m. ET open, so the first regular-session trade would already have the news.",
+   "lesson_line": "Check the label the night before. With a BMO report, the regular session gives you no chance to act first.",
+   "facts": [
+    "f83",
+    "f47",
+    "f148",
+    "f149"
+   ],
+   "wrong": {
+    "AMC": "AMC means after the 4:00 p.m. ET close. 7:00 a.m. is before the open.",
+    "During market hours": "The regular session runs 9:30 a.m. to 4:00 p.m. ET. Both events came before it."
+   }
+  },
+  {
+   "key": "q36",
+   "skill": "vocab.fund_terms",
+   "rung": 8,
+   "format": "scenario",
+   "term": "AMC",
+   "story": "Meta said its Q4 2021 results would come out after market close on Wednesday, Feb. 2, 2022. Its call was at 5 p.m. ET.",
+   "q": "When could the regular session first trade on the news?",
+   "choices": [
+    "Thursday, Feb. 3, at the open",
+    "Wednesday, before the close",
+    "Only once the 10-K was filed"
+   ],
+   "answer": "Thursday, Feb. 3, at the open",
+   "why": "Thursday, Feb. 3, at the open. After market close means after the 4:00 p.m. ET bell, so the next regular session at 9:30 a.m. ET was the first. Extended hours could react sooner.",
+   "lesson_line": "An AMC report hits the after-hours session first. The regular session meets it at the next open.",
+   "facts": [
+    "f81",
+    "f82",
+    "f47",
+    "f49",
+    "f27"
+   ],
+   "wrong": {
+    "Wednesday, before the close": "The results came out after the close, so Wednesday's regular session never saw them.",
+    "Only once the 10-K was filed": "The market trades the press release. Most companies announce results before they file the required forms."
+   }
+  },
+  {
+   "key": "q37",
+   "skill": "vocab.fund_terms",
+   "rung": 7,
+   "format": "tf",
+   "term": "Extended hours",
+   "q": "After an AMC report, the stock can't trade until the next morning's open.",
+   "answer": "False",
+   "why": "False. Extended-hours sessions run before and after regular hours. NVIDIA rose more than 4% in extended trading right after its report in November 2025.",
+   "lesson_line": "The first reaction often happens after hours. Spreads are wider there, so be careful with your orders.",
+   "facts": [
+    "f48",
+    "f49",
+    "f142",
+    "f141",
+    "f50",
+    "f72"
+   ]
+  },
+  {
+   "key": "q38",
+   "skill": "vocab.fund_terms",
+   "rung": 1,
+   "format": "mcq",
+   "term": "Year over year (YoY)",
+   "q": "What does YoY mean on an earnings release?",
+   "choices": [
+    "Vs. the same period last year",
+    "Vs. the quarter just before",
+    "The last 12 months added together",
+    "Vs. the average analyst estimate"
+   ],
+   "answer": "Vs. the same period last year",
+   "why": "Vs. the same period a year earlier. NVIDIA's Y/Y column sets this year's third quarter against last year's third quarter.",
+   "lesson_line": "YoY takes the season out. Same quarter, one year apart.",
+   "facts": [
+    "f134",
+    "f73",
+    "f136",
+    "f101",
+    "f35"
+   ],
+   "wrong": {
+    "Vs. the quarter just before": "That's quarter over quarter, also called sequential.",
+    "The last 12 months added together": "That's trailing 12 months, TTM.",
+    "Vs. the average analyst estimate": "That's the surprise: a beat or a miss."
+   }
+  },
+  {
+   "key": "q39",
+   "skill": "vocab.fund_terms",
+   "rung": 7,
+   "format": "numeric",
+   "term": "Year over year (YoY)",
+   "q": "NVIDIA revenue: $57,006 million in Q3 fiscal 2026, $35,082 million in Q3 fiscal 2025. YoY growth, to the nearest whole percent?",
+   "answer": 62,
+   "calc": {
+    "fn": "yoy_growth",
+    "args": {
+     "prior": 35082,
+     "current": 57006
+    },
+    "round": 0
+   },
+   "suffix": "%",
+   "why": "62%. Take $57,006 million minus $35,082 million, then divide by $35,082 million. NVIDIA's release says up 62% from a year ago.",
+   "lesson_line": "Growth is new minus old, divided by old. It takes seconds to check the release.",
+   "facts": [
+    "f73",
+    "f72",
+    "f134"
+   ]
+  },
+  {
+   "key": "q40",
+   "skill": "vocab.fund_terms",
+   "rung": 5,
+   "format": "mcq",
+   "term": "Quarter over quarter (QoQ)",
+   "q": "NVIDIA's table shows Q3 fiscal 2026 revenue up 22% in the Q/Q column. What does Q/Q compare?",
+   "choices": [
+    "Q3 with Q2 of that fiscal year",
+    "Q3 with Q3 of the prior fiscal year",
+    "Q3 with the analysts' estimate",
+    "Q3 with the full prior year"
+   ],
+   "answer": "Q3 with Q2 of that fiscal year",
+   "why": "Q3 with Q2 of the same fiscal year. NVIDIA's release says revenue rose 22% from the previous quarter and 62% from a year ago.",
+   "lesson_line": "Quarter over quarter is sequential. Seasons get in the way, so read it next to YoY.",
+   "facts": [
+    "f72",
+    "f73",
+    "f136",
+    "f137",
+    "f125"
+   ],
+   "wrong": {
+    "Q3 with Q3 of the prior fiscal year": "That's the Y/Y column, up 62%.",
+    "Q3 with the analysts' estimate": "That's the surprise. The table only holds NVIDIA's own results.",
+    "Q3 with the full prior year": "Q/Q is quarter against quarter. Setting one quarter against a full year mixes different lengths of time."
+   }
+  },
+  {
+   "key": "q41",
+   "skill": "vocab.fund_terms",
+   "rung": 7,
+   "format": "scenario",
+   "term": "Year over year (YoY)",
+   "story": "A retailer always does its biggest sales in the holiday quarter. First-quarter revenue is down 30% from the fourth quarter. It's up 8% from last year's first quarter.",
+   "q": "Which number tells you more about the trend?",
+   "choices": [
+    "The 8% year-over-year gain",
+    "The 30% drop from last quarter",
+    "Neither, revenue says nothing"
+   ],
+   "answer": "The 8% year-over-year gain",
+   "why": "The 8% year-over-year gain. Comparing the same quarter a year apart takes the holiday season out of the picture. The drop from the fourth quarter is mostly the calendar.",
+   "lesson_line": "For a seasonal business, read YoY. A sequential drop after the holidays is normal.",
+   "facts": [
+    "f135",
+    "f137",
+    "f28",
+    "f134"
+   ],
+   "wrong": {
+    "The 30% drop from last quarter": "The holiday quarter is always the biggest, so a drop right after it is expected.",
+    "Neither, revenue says nothing": "Revenue growth matters. You just need the right comparison."
+   }
+  },
+  {
+   "key": "q42",
+   "skill": "vocab.fund_terms",
+   "rung": 3,
+   "format": "mcq",
+   "term": "TTM",
+   "q": "On a stock's stats page, what does TTM mean?",
+   "choices": [
+    "The last 12 months of results",
+    "The next 12 months, estimated",
+    "The last fiscal year only",
+    "This quarter, annualized"
+   ],
+   "answer": "The last 12 months of results",
+   "why": "The last 12 months of results. TTM stands for trailing 12 months: the most recent 12 months of reported numbers.",
+   "lesson_line": "TTM is the freshest full year of results. It doesn't wait for the fiscal year to end.",
+   "facts": [
+    "f101",
+    "f55",
+    "f97",
+    "f60"
+   ],
+   "wrong": {
+    "The next 12 months, estimated": "That's a forward number, built on estimates.",
+    "The last fiscal year only": "A fiscal year is one fixed 12-month period. TTM always uses the most recent 12 months.",
+    "This quarter, annualized": "Annualizing multiplies one quarter out. TTM adds up 12 months of reported results."
+   }
+  },
+  {
+   "key": "q43",
+   "skill": "vocab.fund_terms",
+   "rung": 7,
+   "format": "scenario",
+   "term": "Fiscal year",
+   "story": "NVIDIA's third quarter of fiscal 2026 ended on October 26, 2025.",
+   "q": "Why does a quarter that ended in 2025 carry a 2026 label?",
+   "choices": [
+    "Its fiscal year isn't the calendar year",
+    "The quarter's results were estimated",
+    "Fiscal 2026 means next year's forecast"
+   ],
+   "answer": "Its fiscal year isn't the calendar year",
+   "why": "Its fiscal year isn't the calendar year. A fiscal year is a 12-month accounting period the company sets, and it doesn't have to match January to December.",
+   "lesson_line": "Line up quarters by the company's fiscal calendar, not the month on your screen.",
+   "facts": [
+    "f72",
+    "f59",
+    "f60",
+    "f28",
+    "f76"
+   ],
+   "wrong": {
+    "The quarter's results were estimated": "These are reported results, not estimates.",
+    "Fiscal 2026 means next year's forecast": "It names the fiscal year the quarter belongs to. NVIDIA's forecast sits in its Outlook section."
+   }
+  },
+  {
+   "key": "q44",
+   "skill": "vocab.fund_terms",
+   "rung": 1,
+   "format": "mcq",
+   "term": "P/E ratio",
+   "q": "What does the P/E ratio measure?",
+   "choices": [
+    "Share price divided by EPS",
+    "EPS divided by share price",
+    "Market cap divided by revenue",
+    "Net income divided by revenue"
+   ],
+   "answer": "Share price divided by EPS",
+   "why": "Share price divided by EPS. It shows what the market is paying for each dollar of the company's earnings.",
+   "lesson_line": "P/E is a price tag on earnings. A high one usually means the market expects growth.",
+   "facts": [
+    "f14",
+    "f52",
+    "f116",
+    "f54",
+    "f102",
+    "f117",
+    "f62"
+   ],
+   "wrong": {
+    "EPS divided by share price": "That's the earnings yield, the inverse of P/E.",
+    "Market cap divided by revenue": "That's the price-to-sales ratio.",
+    "Net income divided by revenue": "That's net margin, a profit measure."
+   }
+  },
+  {
+   "key": "q45",
+   "skill": "vocab.fund_terms",
+   "rung": 6,
+   "format": "tf",
+   "term": "P/E ratio",
+   "q": "When a company posts a net loss, its P/E is usually shown as N/A.",
+   "answer": "True",
+   "why": "True. With no earnings there's no meaningful multiple. Schwab says it's usually listed as N/A, and Fidelity points to price-to-sales instead.",
+   "lesson_line": "No earnings, no P/E. For money-losing companies, look at revenue-based measures.",
+   "facts": [
+    "f100",
+    "f118"
+   ]
+  },
+  {
+   "key": "q46",
+   "skill": "vocab.fund_terms",
+   "rung": 5,
+   "format": "tf",
+   "term": "Trailing P/E",
+   "q": "When someone quotes a stock's P/E without saying which one, they usually mean the trailing P/E.",
+   "answer": "True",
+   "why": "True. Schwab says a quoted P/E is often shorthand for the trailing P/E, which uses EPS from the past 12 months.",
+   "lesson_line": "Ask which P/E. Trailing uses what was earned. Forward uses what's expected.",
+   "facts": [
+    "f98",
+    "f97",
+    "f53"
+   ]
+  },
+  {
+   "key": "q47",
+   "skill": "vocab.fund_terms",
+   "rung": 3,
+   "format": "mcq",
+   "term": "Forward P/E",
+   "q": "What does forward P/E mean?",
+   "choices": [
+    "Price over next-12-month estimated EPS",
+    "Price over the last 12 months of EPS",
+    "Next year's expected share price",
+    "P/E divided by the growth rate"
+   ],
+   "answer": "Price over next-12-month estimated EPS",
+   "why": "Price over next-12-month estimated EPS. Nasdaq calls it price to prospective earnings: today's price divided by consensus forecast earnings for the next 12 months.",
+   "lesson_line": "Forward P/E is only as good as the estimates under it.",
+   "facts": [
+    "f55",
+    "f97",
+    "f99",
+    "f119"
+   ],
+   "wrong": {
+    "Price over the last 12 months of EPS": "That's the trailing P/E.",
+    "Next year's expected share price": "A P/E is a ratio, not a price target.",
+    "P/E divided by the growth rate": "That's the PEG ratio."
+   }
+  },
+  {
+   "key": "q48",
+   "skill": "vocab.fund_terms",
+   "rung": 8,
+   "format": "scenario",
+   "term": "Forward P/E",
+   "story": "A stock trades at $50. Its trailing P/E is 25. Its forward P/E is 20.",
+   "q": "What does that gap tell you about earnings?",
+   "choices": [
+    "Analysts expect EPS to rise",
+    "Analysts expect EPS to fall",
+    "The stock is 20% overvalued",
+    "Nothing, both use the same EPS"
+   ],
+   "answer": "Analysts expect EPS to rise",
+   "why": "Analysts expect EPS to rise. Same $50 price, smaller multiple: the estimated EPS must be bigger than the EPS of the past 12 months.",
+   "lesson_line": "Forward P/E below trailing means growth is expected. Then ask whether the estimates are believable.",
+   "facts": [
+    "f55",
+    "f133",
+    "f97",
+    "f103",
+    "f99"
+   ],
+   "wrong": {
+    "Analysts expect EPS to fall": "Falling estimates would push the forward P/E above the trailing P/E.",
+    "The stock is 20% overvalued": "A P/E alone isn't a fair-value gauge. Compare it with the stock's history and its peers.",
+    "Nothing, both use the same EPS": "Trailing uses the past 12 months of EPS. Forward uses estimates."
+   }
+  },
+  {
+   "key": "q49",
+   "skill": "vocab.fund_terms",
+   "rung": 1,
+   "format": "mcq",
+   "term": "Market cap",
+   "q": "What is market cap?",
+   "choices": [
+    "Price times shares outstanding",
+    "A year's total revenue from sales",
+    "The cash the company holds",
+    "Shares free for the public to trade"
+   ],
+   "answer": "Price times shares outstanding",
+   "why": "Share price times shares outstanding. It's the market's price tag on the whole company, and it's how companies get sized.",
+   "lesson_line": "Market cap is size. It changes every time the share price does.",
+   "facts": [
+    "f42",
+    "f56",
+    "f1",
+    "f4",
+    "f57"
+   ],
+   "wrong": {
+    "A year's total revenue from sales": "That's sales, from the income statement. Market cap comes from the share price.",
+    "The cash the company holds": "Cash is on the balance sheet. Market cap is the value the market puts on the shares.",
+    "Shares free for the public to trade": "That's the float, a share count, not a dollar value."
+   }
+  },
+  {
+   "key": "q50",
+   "skill": "vocab.fund_terms",
+   "rung": 4,
+   "format": "numeric",
+   "term": "Market cap",
+   "q": "A stock trades at $25. It has 80 million shares outstanding and a float of 50 million. What is its market cap, in billions?",
+   "answer": 2,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "price * shares_millions / 1000",
+     "price": 25,
+     "shares_millions": 80
+    }
+   },
+   "prefix": "$",
+   "suffix": "billion",
+   "why": "$2 billion. Market cap is the share price times all the shares outstanding: $25 times 80 million. The 50 million float doesn't change it.",
+   "lesson_line": "Market cap uses all the shares outstanding, not just the float.",
+   "facts": [
+    "f42",
+    "f56",
+    "f57"
+   ]
+  },
+  {
+   "key": "q51",
+   "skill": "vocab.fund_terms",
+   "rung": 2,
+   "format": "mcq",
+   "term": "Float",
+   "q": "What does float mean for a stock?",
+   "choices": [
+    "Shares open to public trading",
+    "All shares, insiders included",
+    "Shares sold short right now",
+    "Shares the company bought back"
+   ],
+   "answer": "Shares open to public trading",
+   "why": "Shares free for the public to trade. The float leaves out shares held by insiders and other locked-up holders.",
+   "lesson_line": "Float is the supply that actually trades. Shares outstanding can be far bigger.",
+   "facts": [
+    "f57",
+    "f26",
+    "f128",
+    "f129",
+    "f130"
+   ],
+   "wrong": {
+    "All shares, insiders included": "That's shares outstanding. The float takes out insiders' and restricted shares.",
+    "Shares sold short right now": "Short selling doesn't change the float. It just moves shares between holders.",
+    "Shares the company bought back": "A buyback shrinks the shares outstanding. Those shares aren't part of the float."
+   }
+  },
+  {
+   "key": "q52",
+   "skill": "vocab.fund_terms",
+   "rung": 5,
+   "format": "numeric",
+   "term": "Float",
+   "q": "A company has 100 million shares outstanding. Insiders hold 30 million restricted shares. Roughly how many shares float, in millions?",
+   "answer": 70,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "outstanding - insider_restricted",
+     "outstanding": 100,
+     "insider_restricted": 30
+    }
+   },
+   "suffix": "million",
+   "why": "About 70 million. Float is the shares outstanding minus closely held and restricted shares: 100 million minus 30 million.",
+   "lesson_line": "Take out the locked-up shares. What's left is the supply you're really trading against.",
+   "facts": [
+    "f128",
+    "f57"
+   ]
+  },
+  {
+   "key": "q53",
+   "skill": "vocab.fund_terms",
+   "rung": 7,
+   "format": "scenario",
+   "term": "Low float",
+   "story": "Two stocks both trade near $20. One has a float of 5 million shares. The other has a float of 500 million.",
+   "q": "Which one is likely to swing more?",
+   "choices": [
+    "The 5 million share float",
+    "The 500 million share float",
+    "No difference at the same price"
+   ],
+   "answer": "The 5 million share float",
+   "why": "The 5 million share float. Nasdaq's glossary says a stock's volatility runs inversely to its float. Low-float stocks also tend to have wider spreads and can be hard to get in and out of.",
+   "lesson_line": "Low float means thin supply. Expect bigger swings and wider spreads.",
+   "facts": [
+    "f58",
+    "f131",
+    "f132"
+   ],
+   "wrong": {
+    "The 500 million share float": "More shares available usually means calmer trading and an easier time finding a buyer or seller.",
+    "No difference at the same price": "Price doesn't tell you the supply. The float does."
+   }
+  },
+  {
+   "key": "q54",
+   "skill": "vocab.fund_terms",
+   "rung": 2,
+   "format": "mcq",
+   "term": "Implied move",
+   "q": "Before a report, what is a stock's implied move?",
+   "choices": [
+    "The move options are pricing in",
+    "The analysts' price target",
+    "The stock's average past reaction",
+    "A guaranteed post-report range"
+   ],
+   "answer": "The move options are pricing in",
+   "why": "The move options are pricing in. It's the size of swing the options market expects from the report, up or down. Some tools call it the expected move.",
+   "lesson_line": "The implied move is the market's bet on size, never on direction.",
+   "facts": [
+    "f115",
+    "f113",
+    "f104",
+    "f106"
+   ],
+   "wrong": {
+    "The analysts' price target": "A price target is an analyst's view of value. The implied move comes from option prices.",
+    "The stock's average past reaction": "That's history. The implied move is what options price in for this report.",
+    "A guaranteed post-report range": "Nothing is guaranteed. The real move can be bigger, smaller, or nothing at all."
+   }
+  },
+  {
+   "key": "q55",
+   "skill": "vocab.fund_terms",
+   "rung": 7,
+   "format": "tf",
+   "term": "Expected move",
+   "q": "An expected move of plus or minus $10 tells you which way the stock will go.",
+   "answer": "False",
+   "why": "False. Schwab is plain about it: the number doesn't say which direction the move will be, and it doesn't promise the size either. Cboe's example prices the move in either direction.",
+   "lesson_line": "The expected move gives you a size to plan around. Direction is still your call, and your risk.",
+   "facts": [
+    "f104",
+    "f106",
+    "f114",
+    "f115"
+   ]
+  },
+  {
+   "key": "q56",
+   "skill": "vocab.fund_terms",
+   "rung": 6,
+   "format": "numeric",
+   "term": "Expected move",
+   "q": "A stock at $216.88 has an expected move of $16.74 either way. What is that as a percent of the price, to one decimal?",
+   "answer": 7.7,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "move / price * 100",
+     "move": 16.74,
+     "price": 216.88
+    },
+    "round": 1
+   },
+   "suffix": "%",
+   "why": "7.7%. The move divided by the price: $16.74 over $216.88, times 100. That's the example Schwab uses.",
+   "lesson_line": "Turn the expected move into a percent. Then hold it next to your stop distance.",
+   "facts": [
+    "f107",
+    "f108"
+   ]
+  },
+  {
+   "key": "q57",
+   "skill": "vocab.fund_terms",
+   "rung": 8,
+   "format": "scenario",
+   "term": "Expected move",
+   "story": "You own a stock at $100 with a stop at $95. It reports tonight. Options price an earnings move of about $10.",
+   "q": "What should you plan for?",
+   "choices": [
+    "A gap that skips past your stop",
+    "A fill at exactly $95, whatever happens",
+    "A move up, since options lean bullish"
+   ],
+   "answer": "A gap that skips past your stop",
+   "why": "A gap that skips past your stop. The priced move is bigger than the distance to your stop, and a stop only turns into a market order once it's hit. After a gap, the fill can land well below $95.",
+   "lesson_line": "If the expected move is bigger than your stop distance, size for the gap or don't hold through the report.",
+   "facts": [
+    "f105",
+    "f46",
+    "f111",
+    "f110",
+    "f109",
+    "f104"
+   ],
+   "wrong": {
+    "A fill at exactly $95, whatever happens": "A stop price is a trigger, not a promised price. After a gap, the market order fills where the stock trades.",
+    "A move up, since options lean bullish": "The expected move has no direction. It's up or down."
+   }
+  },
+  {
+   "key": "q58",
+   "skill": "vocab.fund_terms",
+   "rung": 4,
+   "format": "tf",
+   "term": "10-K",
+   "q": "The 10-Q's financial statements are audited. The 10-K's are not.",
+   "answer": "False",
+   "why": "False. It is the other way round. Investor.gov says the annual 10-K includes audited financial statements, while the quarterly 10-Q includes unaudited ones.",
+   "lesson_line": "Quarterly numbers are unaudited. The annual 10-K is the audited version.",
+   "facts": [
+    "f44",
+    "f43",
+    "f41"
+   ]
+  },
+  {
+   "key": "q59",
+   "skill": "vocab.fund_terms",
+   "rung": 6,
+   "format": "scenario",
+   "term": "8-K",
+   "story": "A company puts out its quarterly earnings press release after the close.",
+   "q": "Which SEC form must carry the text of that release?",
+   "choices": [
+    "Form 8-K",
+    "Form 10-Q",
+    "Form 10-K"
+   ],
+   "answer": "Form 8-K",
+   "why": "Form 8-K. FINRA says a company that issues an earnings press release must file an 8-K that includes the release text.",
+   "lesson_line": "The 8-K is the fast filing. The full 10-Q or 10-K usually comes later.",
+   "facts": [
+    "f30",
+    "f45",
+    "f27",
+    "f43",
+    "f44"
+   ],
+   "wrong": {
+    "Form 10-Q": "The 10-Q is the quarterly report with unaudited statements. Most companies announce results before filing it.",
+    "Form 10-K": "The 10-K is the annual report, not the place for a press release."
+   }
+  },
+  {
+   "key": "q60",
+   "skill": "vocab.fund_terms",
+   "rung": 3,
+   "format": "tf",
+   "term": "Earnings season",
+   "q": "Earnings season usually starts about two months after a calendar quarter ends.",
+   "answer": "False",
+   "why": "False. FINRA says it typically begins in the first two weeks after quarter end, in January, April, July and October. Schwab puts it at about two weeks after.",
+   "lesson_line": "Mark the four seasons on your calendar. FINRA calls them a busy and volatile time.",
+   "facts": [
+    "f24",
+    "f23",
+    "f112",
+    "f25"
+   ]
+  },
+  {
+   "key": "q61",
+   "skill": "vocab.fund_terms",
+   "rung": 3,
+   "format": "tf",
+   "term": "Consensus estimate",
+   "q": "The consensus estimate is the highest number among the analysts covering a stock.",
+   "answer": "False",
+   "why": "False. The consensus is the average of all the analysts covering the stock, not the highest one.",
+   "lesson_line": "Consensus is the average of the analysts, not the high or the low.",
+   "facts": [
+    "f34"
+   ]
+  }
+ ],
+ "conflicts": [
+  "Gross margin naming: the SEC's Beginners' Guide says the dollar subtotal (revenue minus cost of sales) is called 'gross profit' or sometimes 'gross margin'. Nasdaq ('gross profit margin'), Fidelity, Investopedia and company releases (NVIDIA's '73.4%') use gross margin for the percentage. The file keys gross margin as the percentage, uses 'gross profit' for the dollar figure, and never offers 'gross profit in dollars' as a wrong answer.",
+  "Fidelity's Learning Center page 'What is price-to-earnings (PE) ratio?' (https://www.fidelity.com/learning-center/trading-investing/pe-ratio, read 2026-11-09) states the forward P/E as estimates divided by price and says a forward P/E HIGHER than the trailing P/E suggests expected growth. That is backwards for the standard ratio (Nasdaq: today's price divided by consensus forecast earnings; Schwab and Investopedia agree; the same price over a bigger EPS gives a smaller multiple). The page is NOT cited; the forward-P/E scenario follows Nasdaq, Schwab, Investopedia and the arithmetic.",
+  "Float: what is excluded differs by source. Nasdaq: shares available to the public, excluding insiders and restricted stock. FINRA (public float): excludes officers, large stakeholders and governments. Investopedia: subtracts closely held shares (insiders, major shareholders, employees) and restricted stock; its worked example even removes large institutions. Keys use only the shared core (insiders' and restricted shares are out), and the float calculation's story labels the excluded shares as insiders' restricted shares. Investopedia's institutions example is not used.",
+  "Earnings season start: FINRA says it 'typically begins the first two weeks after the end of each quarter'; Schwab says it 'typically begins two weeks after the end of the quarter'. The true/false item keys 'about two weeks after', which both support.",
+  "Earnings surprise: Investopedia's definition says profits 'significantly' differ from expectations; FINRA and Zacks treat any difference from consensus as a beat or a miss, and Zacks gives the percent formula. Keys use the plain comparison with consensus and Zacks' formula.",
+  "BMO and AMC: no Tier 1 page found that spells out the abbreviations. FINRA (Tier 1) states the practice (companies usually report before the market opens or after it closes) and company releases show it (JPMorgan about 7:00 a.m. ET, Meta 'after market close'); the abbreviations themselves rest on Wall Street Horizon and Investing.com, two independent publishers documenting their own calendars. BMO is also Bank of Montreal's ticker; not used.",
+  "Implied move vs expected move: IBKR (Sosnick) says 'implied move', Schwab (Market Maker Move) and Cboe say 'expected move', and UCT's earnings card labels it 'Expected move'. Treated as one idea with two names; the implied-move item says so.",
+  "Whisper numbers: Investopedia notes some brokers have called the traditional broker 'whisper' a myth; FINRA and Schwab describe whisper numbers as real market expectations. Keys use only FINRA's description (an unofficial expectation that can differ from the consensus and become the market's expectation).",
+  "Regular trading hours (9:30 a.m. to 4:00 p.m. ET) are from the SEC's Extended-Hours Trading bulletin as read 2026-11-09 (time-sensitive; exchanges have been working on longer sessions). Extended-session times vary by broker and are not quizzed.",
+  "Consensus figures differ by data provider. The NVIDIA beat and surprise items name LSEG's numbers as CNBC reported them ($1.25 expected); the surprise percent is computed from those two numbers only.",
+  "Market-cap size buckets (large, mid, small cap) differ by source (Investopedia uses $10 billion for large cap); not quizzed.",
+  "Low float and liquidity: the SEC staff's 2019 'Background Paper on the Market Structure for Thinly Traded Securities' reports a broker-dealer roundtable participant naming small floats as a main cause of low liquidity. That is a participant's view, not an SEC finding (and sec.gov refused the plain client), so it is not cited. q53 keys volatility (Nasdaq Tier 1, Investopedia agrees); wider spreads and hard entry and exit stay in its why as Investopedia's point only."
+ ],
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "notes": "f1-f3, f5, f8-f10 read in context on a fresh fetch of the SEC Beginners' Guide. Each step matches its fact. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "f34, f35, f29, f39 (FINRA Investor Insights, July 23, 2024) and f87 (Schwab, Mar 26, 2026) confirmed in context. 'Can move the stock more than the quarter' matches Schwab's 'can often be the top factor'. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "f148 (Wall Street Horizon), f149 (Investing.com), f47-f50 (SEC extended-hours bulletin, still live), f115 (IBKR), f104 (Schwab) confirmed. 9:30 to 4:00 ET is still the regular session as of 2026-11-09. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q01": {
+   "status": "pass",
+   "notes": "f1, f3, f4, f9, f10 (SEC Beginners' Guide) confirmed in context. Key and all three wrong notes right; the 30-character answer fits a tile. No change. | variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q02": {
+   "status": "pass",
+   "notes": "f1, f2, f9 (SEC) confirmed. Only 'top' fits; the other bank words are real income-statement words, not silly ones. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q03": {
+   "status": "pass",
+   "notes": "f21 (SEC small-business PDF), f1, f8, f9 (SEC guide) confirmed. 'Profit before interest and taxes' is correctly named operating income. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q04": {
+   "status": "pass",
+   "notes": "f9 (SEC): 'Net profit is also called net income or net earnings.' No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q05": {
+   "status": "pass",
+   "notes": "f10 (SEC), f51 (Nasdaq), f11, f12, f52 confirmed. Wrong notes right. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q06": {
+   "status": "pass",
+   "notes": "Recomputed 50 / 20 = 2.50. f10 (SEC) and f51 (Nasdaq) teach the method. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q07": {
+   "status": "pass",
+   "notes": "f22 (SEC: securities 'converted into or exercised for' shares) and f66 (Nasdaq) support the key; 'options' in the why is covered by 'exercised for'. Wrong notes right. No change. | variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q08": {
+   "status": "pass",
+   "notes": "f5, f17, f18 (SEC) and f121 (Fidelity) confirmed. Only 'gross profit' fits. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q09": {
+   "status": "pass",
+   "notes": "f61 (Nasdaq), f120 (Fidelity), f138 (Investopedia) and f75 (NVIDIA's 73.4%) all use gross margin as a percentage; the SEC's dollar usage is in conflicts and never offered as a choice. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q10": {
+   "status": "pass",
+   "notes": "Recomputed 585,000 / 835,000 x 100 = 70.06, so 70.1; f16, f18 are the SEC's own example. Lesson said 'A margin is always a profit divided by revenue'; no source says 'always', so it was dropped.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q11": {
+   "status": "pass",
+   "notes": "f17 (SEC small-business PDF), f5, f6, f7 (SEC guide), f19, f20 confirmed. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q12": {
+   "status": "pass",
+   "notes": "f13 (SEC: income from operations / net revenues) and f122 (Fidelity) confirmed. No change. | variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q13": {
+   "status": "pass",
+   "notes": "Recomputed 36,010 / 57,006 x 100 = 63.17, so 63.2. Both are GAAP rows in NVIDIA's 8-K table (f73, f74). No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q14": {
+   "status": "pass",
+   "notes": "f139 (Investopedia), f123 (Fidelity), f15 (SEC) agree margins are an industry matter; 'from that gap alone' keeps the key honest. f139's claim now says 'often', as the source does. No change to the question. | variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q15": {
+   "status": "pass",
+   "notes": "f71 (eCFR Regulation G: 'GAAP refers to generally accepted accounting principles in the United States') and f91 (Schwab, FASB) confirmed. No change. | variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q16": {
+   "status": "pass",
+   "notes": "f67, f68 (eCFR Regulation G 244.101) and f90 (Schwab) support the key. Wrong notes checked against f34, f44, f93. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q17": {
+   "status": "pass",
+   "notes": "f69, f70 (eCFR Regulation G 244.100(a)) and f96 (Schwab) confirmed. Regulation G binds SEC registrants, so the statement now says 'A public company' instead of 'A company'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q18": {
+   "status": "pass",
+   "notes": "f79 (Intel 8-K: GAAP $(0.12), non-GAAP $0.15) and f94 (Schwab) confirmed. The distractor 'Intel made money under GAAP' was contradicted by the story's own line; replaced with the real mistake 'Intel's real profit was $0.15 a share' (wrong note from f79, f95).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q19": {
+   "status": "cut",
+   "notes": "duplicate of F5.01#q18 (the same statement word for word; found by course_dups across tracks)",
+   "fixed": false,
+   "by": "integrator"
+  },
+  "q20": {
+   "status": "pass",
+   "notes": "f34 (FINRA: the average for all the analysts) and f65 (Nasdaq: the mean) confirmed. Wrong notes right. No change. | variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q21": {
+   "status": "pass",
+   "notes": "f34, f65, f124 (Fidelity: IBES mean) confirmed. It asks the word from the number, the reverse of q20, so not a duplicate. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q22": {
+   "status": "pass",
+   "notes": "f141 (CNBC: $1.30 adjusted vs. $1.25, LSEG) and f35 (FINRA beat) confirmed; NVIDIA's release is dated Nov. 19, 2025. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q23": {
+   "status": "pass",
+   "notes": "f35 (FINRA: 'If the number equals the estimate, it's said to be in line'). The sentence called the whole quarter in line from EPS alone; it now says 'so EPS was ___', which is what the definition covers.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q24": {
+   "status": "pass",
+   "notes": "f125 (Investopedia) and f140 (Zacks) agree a surprise is actual against expectations; f35 (FINRA) is the Tier 1 comparison with consensus. Investopedia's 'significantly' is in conflicts. No change. | variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q25": {
+   "status": "pass",
+   "notes": "Recomputed (1.30 - 1.25) / 1.25 x 100 = 4.0, the Zacks method (f140); the estimate is positive, so the absolute value changes nothing. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q26": {
+   "status": "pass",
+   "notes": "Recomputed (-0.10 - -0.20) / |-0.20| x 100 = +50 by Zacks' formula (f140 divides by the absolute value). A smaller loss than expected is a beat by FINRA's definition (f35). The -50% choice is the sign error that formula avoids. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q27": {
+   "status": "pass",
+   "notes": "f36, f37 (FINRA) confirmed. s37 (Investopedia whisper page) refused curl (403) and WebFetch today; f126 and f127 confirmed word for word in the Wayback copy of 2025-01-30 and in the quote checker's 200 copy fetched today (page updated Apr 27, 2022). No change. | variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q28": {
+   "status": "pass",
+   "notes": "f127 (Investopedia, confirmed as in q27), f37, f38, f40 (FINRA) and f88 (Schwab) support the key. The story put the whisper at $6.00 on a $5.00 consensus, a 20% gap no desk sees; now $1.10 against $1.00 with a $1.05 print, and the why and wrong notes match. | variety rewrite checked 2026-11-10",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q29": {
+   "status": "pass",
+   "notes": "f84 (Schwab: target ranges for the coming quarter or full year), f29 (FINRA), f63 (Nasdaq) confirmed. No change. | variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q30": {
+   "status": "pass",
+   "notes": "f76 (NVIDIA 8-K outlook: $65.0 billion, plus or minus 2%) and f143 (CNBC: $61.66 billion expected) confirmed. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q31": {
+   "status": "pass",
+   "notes": "f144-f147 (CNBC, Jan 22, 2026), f86 (Schwab: 'cratered by double digits due to disappointing guidance') and f39 (FINRA) agree on the cause. Story numbers match CNBC. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q32": {
+   "status": "pass",
+   "notes": "f32 (FINRA), f89 (Schwab), f77 (NVIDIA call notice) confirmed. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q33": {
+   "status": "pass",
+   "notes": "f148 (Wall Street Horizon) and f149 (Investing.com) agree on BMO; f47 (SEC) for 9:30 a.m. ET. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q34": {
+   "status": "pass",
+   "notes": "f148, f149, f47 confirmed; only AMC fits. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q35": {
+   "status": "pass",
+   "notes": "f83 (JPMorgan IR notice, Sept 17, 2026) gives SCHEDULED times: results about 7:00 a.m., call 8:30 a.m. ET, Tuesday Oct. 13, 2026 (checked the weekday). The why said both 'came before' the open; it now says both were set for before the open.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q36": {
+   "status": "pass",
+   "notes": "f81, f82 (Meta IR, Jan 4, 2022): after market close Wednesday Feb. 2, 2022, call 5 p.m. ET. Feb. 3, 2022 was a normal Thursday session. The story already says 'would come out'. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q37": {
+   "status": "pass",
+   "notes": "f48, f49, f50 (SEC bulletin) and f142 (CNBC: 'rose more than 4% in extended trading') confirmed. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q38": {
+   "status": "pass",
+   "notes": "f134 (Investopedia) and f73 (NVIDIA's Y/Y column) confirmed. No change. | variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q39": {
+   "status": "pass",
+   "notes": "Recomputed (57,006 - 35,082) / 35,082 = 62.49%, so 62, matching NVIDIA's 'up 62% from a year ago'. The lesson 'Then trust your own on the next card' was unclear; it now states the growth method.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q40": {
+   "status": "pass",
+   "notes": "f72, f73 (NVIDIA 8-K: the Q2 FY26 column, 'up 22% from the previous quarter') confirmed. No change. | variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q41": {
+   "status": "pass",
+   "notes": "f135, f137 (Investopedia) and f28 (FINRA's retailer example) support the key. f135 and f137 claims softened to the source's own words ('help', 'can'). No change to the question.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q42": {
+   "status": "pass",
+   "notes": "f101 (Schwab: 'TTM stands for trailing 12 months') and f55 (Nasdaq: the most recent 12 months) confirmed. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q43": {
+   "status": "pass",
+   "notes": "f72 (quarter ended Oct. 26, 2025) and f59, f60 (Nasdaq fiscal year) confirmed. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q44": {
+   "status": "pass",
+   "notes": "f14 (SEC), f52 (Nasdaq), f102 (Schwab earnings yield), f117 (Fidelity P/S), f62 confirmed. 'Usually means growth' hedges Nasdaq's line; Schwab adds a high P/E can also mean overvaluation. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q45": {
+   "status": "pass",
+   "notes": "f100 (Schwab: 'usually listed as N/A') and f118 (Fidelity: use P/S in place of P/E with a net loss) agree. Searched for a Tier 1 line and found none. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q46": {
+   "status": "pass",
+   "notes": "f98 (Schwab: often shorthand for the trailing P/E), f97, f53 (Nasdaq: P/E uses the past 12 months) confirmed. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q47": {
+   "status": "pass",
+   "notes": "f55 (Nasdaq: today's price over consensus forecast earnings for the next 12 months), f97 (Schwab), f119 (Fidelity PEG) confirmed. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q48": {
+   "status": "pass",
+   "notes": "Checked: $50 / 25 = $2.00 trailing EPS, $50 / 20 = $2.50 forward EPS, so estimates are higher. f55 and f133 agree; Fidelity's backwards page is in conflicts and not cited. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q49": {
+   "status": "pass",
+   "notes": "f42 (Investor.gov) and f56 (Nasdaq) confirmed. No change. | variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q50": {
+   "status": "pass",
+   "notes": "Was a fill ('shares ___' = outstanding) asking q49's exact fact again, with q49's answer giving it away. Rebuilt as a numeric: $25 x 80 million shares = $2 billion, with a 50 million float as the trap (f42, f56, f57). Calc recomputed.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q51": {
+   "status": "pass",
+   "notes": "f57 (Nasdaq), f26 (FINRA), f128-f130 (Investopedia) confirmed. f26's claim now says public float is a value, as FINRA's quote does. No change to the question. | variety rewrite checked 2026-11-10: wrong choices shortened so the right one is no longer the shortest",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q52": {
+   "status": "pass",
+   "notes": "Recomputed 100 - 30 = 70. f128 (Investopedia) and f57 (Nasdaq: excluding insiders or restricted stock) confirmed. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q53": {
+   "status": "pass",
+   "notes": "The key 'harder to get in and out of' rested on Investopedia alone (f131); the Tier 1 fact cited (f58, Nasdaq) is about volatility. It now asks which is likely to swing more, which Nasdaq and Investopedia both state; spreads and entry and exit stay in the why as Investopedia's point.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q54": {
+   "status": "pass",
+   "notes": "f115 (IBKR), f113 (Cboe), f104, f106 (Schwab) agree. The implied / expected naming is in conflicts. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q55": {
+   "status": "pass",
+   "notes": "f104 (Schwab: does not indicate direction), f106, f114 (Cboe: 'in either direction') confirmed. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q56": {
+   "status": "pass",
+   "notes": "Recomputed 16.74 / 216.88 x 100 = 7.72, so 7.7, matching Schwab's '7.7%' (f107, f108). No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q57": {
+   "status": "pass",
+   "notes": "f105 (Schwab), f46 (SEC: a stop becomes a market order), f110, f111 (Schwab gap risk) confirmed. Key and lesson put risk first. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q58": {
+   "status": "pass",
+   "notes": "f43, f44 (Investor.gov: 10-K audited, 10-Q unaudited) confirmed. No change. | variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q59": {
+   "status": "pass",
+   "notes": "f30 (FINRA: the 8-K must include the release text) and f45 (Investor.gov) confirmed. The lesson said the 10-Q comes later; after a fourth quarter it is the 10-K, so it now says '10-Q or 10-K'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q60": {
+   "status": "pass",
+   "notes": "f24 (FINRA: the first two weeks after quarter end) and f112 (Schwab: two weeks after) agree with 'about two weeks'. No change. | variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q61": {
+   "status": "pass",
+   "notes": "new 2026-11-10 variety question, awaiting second reader | variety rewrite checked 2026-11-10",
+   "by": "writer"
+  }
+ }
+}

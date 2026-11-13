@@ -1,0 +1,1386 @@
+{
+ "setup": "33-failed-hs-rounded-top",
+ "name": "Failed H&S / Rounded Top",
+ "unit": "SET.29",
+ "direction": "long",
+ "timeframe": "daily",
+ "dossier": "docs/study/setups/research/33-failed-hs-rounded-top.md",
+ "as_of": "2026-11-09",
+ "card": {
+  "context": "A leader in an uptrend: above a rising 200-day (B26) and its 50-day on the trigger day, RS 80 or more (C31, pending), after a 25% advance. Best when the market itself is correcting and the stock refuses to break down. The short mirror lives below the 200-day (B26) and is the weakest-supported part of the card.",
+  "pattern": "Three swing highs with the head 3% or more above the shoulders and a neckline through the lows (or a slow dome of 20 days or more), 15 to 100 days wide, 5% to 30% deep. The breakdown either never comes (A) or comes, falls under 10%, and is bought back (B).",
+  "trigger": "OTHER: the first trade over the right-shoulder high (the dome high for a rounded top) after the failure, at market, no more than 4% past it.",
+  "stop": "A few cents under the trigger day's low, within about 3%. The low of the failed breakdown is the invalidation line, not the stop: it sat a median 9.3% away.",
+  "failure_mode": "The failure fails: price closes back under the neckline and the top works after all (Bulkowski's double bust), or the trigger whipsaws through a tight day-low stop before the real move (AAPL 2026). A late-stage top can be the last push (GOOGL 2026)."
+ },
+ "entry_trigger": "OTHER",
+ "criteria": [
+  {
+   "id": "fh.direction",
+   "field": "context",
+   "statement": "The house meaning is the long: the breakdown everyone sees never comes, or comes and fails, and the squeeze fuels the next leg up. The classical neckline-break short is not a setup; the mirror short (a failed inverse H&S) is optional.",
+   "measure": {
+    "what": "what the course teaches",
+    "op": "in",
+    "value": [
+     "long only",
+     "long plus the mirror short",
+     "also the breakdown short"
+    ]
+   },
+   "basis": "UCT",
+   "sources": [
+    "S14",
+    "S17"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "long only, as the card and Bracco use it (the dossier's recommendation)"
+    },
+    {
+     "value": "b",
+     "basis": "long plus the mirror short, a failed inverse H&S (8B), as an optional Red-market card"
+    },
+    {
+     "value": "c",
+     "basis": "also the classical breakdown short (conflicts with B26 most of the time; -0.10R in the run)"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-001",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "The short version; 8.0; 10 question 1",
+   "evidence": "Bracco 2026-04-19: 'Remember the only way to trade a H&S pattern is to trade the failure of it.' The Model Book card, the course plan (SET.29) and definitions.json all frame it long. Run: long B +0.11R (CI +0.07 to +0.16); the mirror short -0.02R below the 200-day; the neckline-break short -0.10R."
+  },
+  {
+   "id": "fh.prior_trend",
+   "field": "context",
+   "statement": "An uptrend into the pattern: the close is above a rising 200-day SMA when the left shoulder forms, and the head is at least 25% above the lowest low of the 6 months before the left shoulder.",
+   "measure": {
+    "what": "head / lowest low of the 126 sessions before the left shoulder - 1",
+    "op": ">=",
+    "value": 25,
+    "unit": "%",
+    "timeframe": "daily",
+    "and": "close above a rising 200-day SMA at the left shoulder"
+   },
+   "glossary": "prior_trend",
+   "basis": "source consensus",
+   "sources": [
+    "S1",
+    "S2",
+    "S3",
+    "S4"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8A Prior trend",
+   "evidence": "Edwards and Magee item A ('a more or less extensive advance'), Murphy item 1 ('A prior uptrend'), StockCharts ('Without a prior uptrend ... there cannot be a Head and Shoulders reversal pattern'), Bulkowski ('Upward leading to the pattern'). The numbers are the dossier's; the app's detector has no trend test and fires in downtrends too. GOOGL 2026-09-18 passed the numbers while the real top was months earlier."
+  },
+  {
+   "id": "fh.hs_structure",
+   "field": "pattern",
+   "statement": "H&S: three swing highs, each higher than the 5 bars on either side; the head at least 3% above the higher shoulder; the two shoulders within 10% of each other.",
+   "measure": {
+    "what": "head / higher shoulder - 1",
+    "op": ">=",
+    "value": 3,
+    "unit": "%",
+    "timeframe": "daily",
+    "and": "|left shoulder - right shoulder| / higher shoulder <= 10%; each peak a 5-bar swing high"
+   },
+   "glossary": "swing_low",
+   "basis": "originator",
+   "sources": [
+    "S1",
+    "S2",
+    "S4"
+   ],
+   "options": [
+    {
+     "value": "head 3%, shoulders within 10%, 5-bar swings",
+     "basis": "the dossier's proposal"
+    },
+    {
+     "value": "shoulders within 15%, 3-bar swings, no head minimum",
+     "basis": "the app's head_shoulders.py"
+    }
+   ],
+   "recommended": "head 3%, shoulders within 10%, 5-bar swings",
+   "status": "pending-owner",
+   "owner_question": "D-110",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8A Structure, H&S; 10 question 9",
+   "evidence": "The shape is the originators' ('three peaks with the middle one highest'; Bulkowski: 'The two shoulders should peak near the same price'); the numbers are the dossier's. CAT 2024-07-18: shoulders 8.8% apart put the trigger almost at the head, stopped at once. The 10% is the outer limit, not the ideal; MSFT 2021's head only 1.4% over its shoulder was closer to a flat top."
+  },
+  {
+   "id": "fh.neckline",
+   "field": "pattern",
+   "statement": "The neckline runs through the lowest lows between the peaks and slopes no more than 0.5% of price per day. If it sits above the buy point the pattern is mis-drawn: skip.",
+   "measure": {
+    "what": "neckline slope",
+    "op": "<=",
+    "value": 0.5,
+    "unit": "% of price per day",
+    "timeframe": "daily"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S4",
+    "S17"
+   ],
+   "status": "pending-owner",
+   "owner_question": "D-110",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8A Structure, H&S; 12 notable failures",
+   "evidence": "The slope limit is the app's too. DDOG 2025-01-28: the neckline ran 2.4% above the right-shoulder high at the trigger; the drawn pattern was not a top, the trigger failed in two days and the stock lost 40%."
+  },
+  {
+   "id": "fh.rounded_top",
+   "field": "pattern",
+   "statement": "Rounded top: a slow arc of at least 20 trading days with no single swing high standing 3% above its neighbours; its neckline is the lower rim (the lowest low of the arc); the trigger is the dome high.",
+   "measure": {
+    "what": "arc length",
+    "op": ">=",
+    "value": 20,
+    "unit": "sessions",
+    "timeframe": "daily",
+    "and": "no swing high 3% above its neighbours; the lower rim is the lowest low of the arc"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S1",
+    "S4",
+    "S14"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "keep it in this setup, the dome high as the trigger (the dossier leans here; DECISIONS D-002's default)"
+    },
+    {
+     "value": "b",
+     "basis": "split it into its own card"
+    },
+    {
+     "value": "c",
+     "basis": "drop it: a close over a dome's high is a new-high breakout, close to the Flat Base and the Cup"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-002",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8A Structure, rounded top; 10 question 5",
+   "evidence": "Bulkowski's rim definition ('Downward breakouts are a close below the lower of the two rims'); his upward breakout from a rounding top ranks 2 of 39 (9% failure, 55% average rise). Run: 374 dome-high longs +0.03R, range crossing zero; the scan did not cover rounded tops. His own examples use it twice: the indexes in March 2026 ('Everyone obviously sees the big rounded top look') and AMD in August 2026."
+  },
+  {
+   "id": "fh.length",
+   "field": "pattern",
+   "statement": "Left shoulder to right shoulder (or rim to rim) 15 to 100 trading days.",
+   "measure": {
+    "what": "sessions from the left shoulder to the right shoulder",
+    "op": "in",
+    "value": [
+     15,
+     100
+    ],
+    "unit": "sessions",
+    "timeframe": "daily"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S6",
+    "S11"
+   ],
+   "status": "pending-owner",
+   "owner_question": "D-110",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8A Length",
+   "evidence": "IBD: 'as long as seven months to build'; Brandt: 'It is not unusual for H&S tops to be brief'. The ten examples ran 43 to 87 bars."
+  },
+  {
+   "id": "fh.depth",
+   "field": "pattern",
+   "statement": "Head to neckline 5% to 30%.",
+   "measure": {
+    "what": "(head - neckline under the head) / head",
+    "op": "in",
+    "value": [
+     5,
+     30
+    ],
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S4"
+   ],
+   "status": "pending-owner",
+   "owner_question": "D-110",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8A Depth",
+   "evidence": "Bulkowski: 'Tall patterns perform better than short ones.' The run's median height 11.3% (middle half 7.7% to 16.0%); the examples 9.2% to 20.9%."
+  },
+  {
+   "id": "fh.failure_b",
+   "field": "pattern",
+   "statement": "Version B (preferred): at least one close under the neckline, or an intraday undercut of the right armpit low, that does not fall more than 10% under the neckline before the trigger.",
+   "measure": {
+    "what": "lowest close under the neckline before the trigger, as a share of the neckline",
+    "op": "<=",
+    "value": 10,
+    "unit": "%",
+    "timeframe": "daily",
+    "and": "at least one close under the neckline or an undercut of the right armpit low"
+   },
+   "basis": "originator",
+   "sources": [
+    "S2",
+    "S4",
+    "S5",
+    "S14"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "only after a neckline break (version B, Bracco's 'failed breakdown')"
+    },
+    {
+     "value": "b",
+     "basis": "also when the break never comes (version A); the dossier recommends both with A graded lower (DECISIONS D-109's default)"
+    }
+   ],
+   "recommended": "b",
+   "status": "pending-owner",
+   "owner_question": "D-109",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8A The failure, version B; 10 question 2",
+   "evidence": "Murphy: 'any decisive close back above the neckline is a serious warning that the initial breakdown was probably a bad signal'; Bulkowski's bust: 'drops no more than 10%, turns around'; Brandt's 'A' and 'B'. Bracco: 'the best way to trade a head and shoulders top is to buy the failed breakdown of it.' Run: +0.11R (+0.07 to +0.16) against +0.01R for the baseline; scan: 7,059 hits, 30.2% to 3R, 20.0% to 5R."
+  },
+  {
+   "id": "fh.failure_a",
+   "field": "pattern",
+   "statement": "Version A (allowed, graded lower): no close under the neckline; price turns up from the right shoulder.",
+   "measure": {
+    "what": "closes under the neckline before the trigger",
+    "op": "==",
+    "value": 0,
+    "unit": "sessions",
+    "timeframe": "daily"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S1",
+    "S17"
+   ],
+   "status": "pending-owner",
+   "owner_question": "D-109",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8A The failure, version A",
+   "evidence": "The Model Book card's wording ('when the breakdown never comes'); Edwards and Magee's 'saved' patterns, 'perhaps 20%'. Run: +0.04R against +0.11R for version B; scan: 6,089 hits, 30.0% to 3R, no difference under a fixed stop. QQQ September 2025 (never closed under its August lows) is Bracco's version-A call."
+  },
+  {
+   "id": "fh.undercut_depth_cue",
+   "field": "pattern",
+   "statement": "A brief, shallow undercut (under 6% below the neckline) is the A+ form; 6% to 10% grades lower.",
+   "measure": {
+    "what": "depth of the failed break under the neckline",
+    "op": "<",
+    "value": 6,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "basis": "measured",
+   "sources": [
+    "S16"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "9 A+; 4.5 depth of the failed break",
+   "evidence": "Run: under 3% +0.12R; 3% to 6% +0.15R; 6% to 10% +0.05R (CI crosses zero). Six of the ten examples undercut 6% to 7% and still ran; the cue is a lean, not a gate."
+  },
+  {
+   "id": "fh.volume_cue",
+   "field": "trigger",
+   "statement": "No hard volume rule. Trigger-day volume 1.25x or more of the 50-day average is a grading plus.",
+   "measure": {
+    "what": "trigger-day volume / 50-day average volume",
+    "op": ">=",
+    "value": 1.25,
+    "unit": "x",
+    "timeframe": "daily"
+   },
+   "glossary": "volume_surge",
+   "basis": "my proposal",
+   "sources": [
+    "S4"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8A Volume",
+   "evidence": "Bulkowski: 'Heavy breakout volume suggests better performance.' ICLR 2015-01-14 triggered on 1.0x and ran 25%; MGM 1.9x, MCO 2.6x."
+  },
+  {
+   "id": "fh.above_200",
+   "field": "context",
+   "statement": "The close is above the 200-day SMA on the trigger day (hard).",
+   "measure": {
+    "what": "trigger-day close against the 200-day SMA",
+    "op": ">",
+    "value": "200-day SMA",
+    "timeframe": "daily"
+   },
+   "glossary": "above_200",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B26",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8A Location; 7",
+   "evidence": "79% of version-B triggers in the run were above it, and all of the house's examples (SMH, QQQ, AMD). Above the 200-day only: +0.13R (+0.08 to +0.18)."
+  },
+  {
+   "id": "fh.above_50",
+   "field": "context",
+   "statement": "The close is above the 50-day SMA on the trigger day.",
+   "measure": {
+    "what": "trigger-day close against the 50-day SMA",
+    "op": ">",
+    "value": "50-day SMA",
+    "timeframe": "daily"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S14"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8A Location",
+   "evidence": "Bracco on SMH: 'Failed Head and Shoulders breakdown at $325. 50SMA the line in the sand to stay above.' And: 'Step 2 is remounting the 50SMA and the 20EMA.' SPG, BXP and TOL triggered with the stock back over the 50-day."
+  },
+  {
+   "id": "fh.liquidity",
+   "field": "context",
+   "statement": "Price $10 or more and $20 million or more traded a day on average.",
+   "measure": {
+    "what": "close",
+    "op": ">=",
+    "value": 10,
+    "unit": "$",
+    "and": "50-day average dollar volume >= 20,000,000"
+   },
+   "glossary": "liquidity",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B23",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8A Liquidity"
+  },
+  {
+   "id": "fh.position_adv",
+   "field": "management",
+   "statement": "The position is at most 1% of average daily volume.",
+   "measure": {
+    "what": "shares / average daily volume",
+    "op": "<=",
+    "value": 1,
+    "unit": "%"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "D42",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8A Liquidity"
+  },
+  {
+   "id": "fh.leadership",
+   "field": "context",
+   "statement": "RS rating 80 or more, in a top group.",
+   "measure": {
+    "what": "RS rating on the trigger day",
+    "op": ">=",
+    "value": 80,
+    "unit": "rating 1 to 99"
+   },
+   "glossary": "leader",
+   "basis": "house rule",
+   "sources": [
+    "S14"
+   ],
+   "house_rule": "C31",
+   "options": [
+    {
+     "value": 80,
+     "basis": "C31 as written (it is not a parabolic or mean-reversion trade)"
+    },
+    {
+     "value": 70,
+     "basis": "a lower floor because the top itself pulled the RS down (the dossier's question)"
+    }
+   ],
+   "recommended": 80,
+   "status": "pending-owner",
+   "owner_question": "D-011",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8A Prior trend; 7 item 3; 10 question 6",
+   "evidence": "A stock in a topping pattern has often lost relative strength by the time it fails. Patrick's AMD note led with 'Relative strength. Everyone saw rounding top and it gave nothing back'. The scan did not apply C31."
+  },
+  {
+   "id": "fh.trigger",
+   "field": "trigger",
+   "statement": "The first trade above the right-shoulder high (the dome high for a rounded top) after the failure.",
+   "measure": {
+    "what": "intraday high during regular hours",
+    "op": ">",
+    "value": "right-shoulder high (or dome high)",
+    "timeframe": "daily"
+   },
+   "basis": "originator",
+   "sources": [
+    "S5",
+    "S17",
+    "S14"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "the earlier close back over the neckline (Murphy's warning; a lower entry, less proof)"
+    },
+    {
+     "value": "b",
+     "basis": "the right-shoulder high (Brandt's completion; the course plan; the dossier's recommendation)"
+    },
+    {
+     "value": "c",
+     "basis": "a penny over the head (Bulkowski; the most proof, the highest entry)"
+    },
+    {
+     "value": "d",
+     "basis": "a close through a falling line over the right side (Bracco's AMD, 2026-08-14)"
+    }
+   ],
+   "recommended": "b",
+   "status": "pending-owner",
+   "owner_question": "D-003",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8A The buy, Trigger; 10 question 3",
+   "evidence": "Brandt: 'The advance today, May 18, penetrated the May 10 right shoulder high and officially completed the failure pattern.' The course plan already says 'entry over the right-shoulder high'. 75% of (b) triggers later traded over the head within 60 bars. AMD 2026: which peak counts as the right shoulder changed the outcome (the 08-04 high ran +3.9R, the 561.47 high ended at breakeven)."
+  },
+  {
+   "id": "fh.trigger_window",
+   "field": "trigger",
+   "statement": "For version B the trigger comes within 40 bars of the failure; the failure itself within 60 bars of the right shoulder.",
+   "measure": {
+    "what": "sessions from the failed break to the trigger",
+    "op": "<=",
+    "value": 40,
+    "unit": "sessions",
+    "timeframe": "daily",
+    "and": "the failure within 60 sessions of the right shoulder"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S16"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "12 the scan's rule",
+   "evidence": "The scan's windows. Run: the speed of the reclaim did not matter much (within 5 bars +0.10R; over 15 bars +0.13R)."
+  },
+  {
+   "id": "fh.order",
+   "field": "trigger",
+   "statement": "A market order once price is through the level, during regular hours.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "E57",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8A Order",
+   "evidence": "E58 keeps it in regular hours. The scan bought at the level, or at the open when it gapped over."
+  },
+  {
+   "id": "fh.no_chase",
+   "field": "trigger",
+   "statement": "Not more than 4% above the right-shoulder high; on a gap past that, wait for a retest of the level or skip.",
+   "measure": {
+    "what": "fill / right-shoulder high - 1",
+    "op": "<=",
+    "value": 4,
+    "unit": "%"
+   },
+   "glossary": "chase_limit",
+   "basis": "house rule",
+   "sources": [
+    "S14",
+    "S16"
+   ],
+   "house_rule": "C28",
+   "options": [
+    {
+     "value": "a",
+     "basis": "keep C28 strict: skip or wait for a retest"
+    },
+    {
+     "value": "b",
+     "basis": "allow a larger gap when the gap is the failure itself (SMH 2026-04-08 opened 4.6% over its right shoulder, his best example)"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-022",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8A No chase; 7 item 2; 10 question 7",
+   "evidence": "Many failures complete on a gap: SMH 2026-04-08 (+4.6%, then +7.4R), LULU 2023-03-29 (+11.4% after earnings, -1.0R), AMD 2026-09-22 (+8.0%, breakeven). C28 costs the house its best example; that is the question."
+  },
+  {
+   "id": "fh.not_stretched",
+   "field": "trigger",
+   "statement": "At entry, no more than 10% above the 10-day average.",
+   "measure": {
+    "what": "entry / 10-day SMA - 1",
+    "op": "<=",
+    "value": 10,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "glossary": "stretched",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "C29",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8A Not stretched",
+   "evidence": "Run: the C28 and C29 filters together left +0.13R (+0.06 to +0.19) on 3,482 trades."
+  },
+  {
+   "id": "fh.earnings",
+   "field": "trigger",
+   "statement": "No new buy in the 3 sessions before a report.",
+   "measure": {
+    "what": "sessions until the next report",
+    "op": ">",
+    "value": 3,
+    "unit": "sessions"
+   },
+   "glossary": "earnings_blackout",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B22",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8A; 7 item 4",
+   "evidence": "Several failures complete on earnings gaps (LULU 2023, TWLO 2026); FDX 2003, MCO 2011 and NFLX 2025 triggered on reaction days, after the report, so B22 allowed them."
+  },
+  {
+   "id": "fh.stop",
+   "field": "stop",
+   "statement": "A few cents under the trigger day's low, with a real stop order.",
+   "measure": {
+    "what": "stop",
+    "op": "==",
+    "value": "a few cents under the trigger day's low"
+   },
+   "glossary": "stop_margin",
+   "basis": "house rule",
+   "sources": [
+    "S5",
+    "S14"
+   ],
+   "house_rule": "A3",
+   "options": [
+    {
+     "value": "a",
+     "basis": "a few cents under the trigger day's low (the house default; Brandt's own line; the dossier's recommendation)"
+    },
+    {
+     "value": "b",
+     "basis": "under the low of the failed break (a median 9.3% away, only 4% within 3%)"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-008",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8A The stop; 10 question 4",
+   "evidence": "Brandt: 'The market should probably not take out Wednesday's low', the trigger day. The owner: 'Stop at LOD if this triggers. My stops are always LOD until I can raise them to breakeven'. Run: median 2.1%, within 3% for 68%; the examples 1.1% to 2.7%. The scan used 5 cents under the lower of the trigger day's and prior day's lows."
+  },
+  {
+   "id": "fh.stop_width",
+   "field": "stop",
+   "statement": "If the stop is more than about 3% under the entry, size it down to the risk or skip.",
+   "measure": {
+    "what": "(entry - stop) / entry",
+    "op": "<=",
+    "value": 3,
+    "unit": "%"
+   },
+   "glossary": "stop_width",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "A13",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8A The stop; 7",
+   "evidence": "Run by stop width: 2% or less +0.11R (win 28%); 2% to 3% +0.07R; over 3% +0.15R (win 41%). AAPL 2026-08-28: a 1.5% stop under a big stock's trigger day was tight; stopped the next session, then the stock ran to 350."
+  },
+  {
+   "id": "fh.invalidation_line",
+   "field": "stop",
+   "statement": "The low of the failed breakdown is the invalidation line, not the stop.",
+   "measure": {
+    "what": "stop placed at the failed-break low",
+    "op": "==",
+    "value": false
+   },
+   "basis": "measured",
+   "sources": [
+    "S16"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8A The stop; 7 item 1",
+   "evidence": "A stop under the failed-break low was a median 9.3% away (4% within 3%). SPG 2005: the invalidation line (61.03) sat far from the usable 1.1% stop."
+  },
+  {
+   "id": "fh.stop_broker",
+   "field": "stop",
+   "statement": "A real stop order with the broker. It only moves up.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "D41",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "7"
+  },
+  {
+   "id": "fh.stop_gap",
+   "field": "stop",
+   "statement": "A gap through the stop: the first 30-minute low is the new stop; out if that is past 2R.",
+   "measure": {
+    "what": "loss at the first 30-minute low of the gap-down day",
+    "op": "<=",
+    "value": 2,
+    "unit": "R",
+    "timeframe": "30-minute"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B20",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "7"
+  },
+  {
+   "id": "fh.breakeven",
+   "field": "management",
+   "statement": "Stop to breakeven between 2R and 5R, at the first trim by default.",
+   "measure": {
+    "what": "R at which the stop moves to the entry",
+    "op": "in",
+    "value": [
+     2,
+     5
+    ],
+    "unit": "R"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B19",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8A Trims and trail"
+  },
+  {
+   "id": "fh.trim_1",
+   "field": "management",
+   "statement": "Sell a third at 3R.",
+   "measure": {
+    "what": "fraction sold at 3R",
+    "op": "==",
+    "value": 0.333,
+    "unit": "of the position"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B19",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8A Trims and trail",
+   "evidence": "Among the ten examples 3R came in 1 to 21 days (FDX, MCO and MUSA in a day; ICLR in 21)."
+  },
+  {
+   "id": "fh.trim_2",
+   "field": "management",
+   "statement": "Sell a third at 5R.",
+   "measure": {
+    "what": "fraction sold at 5R",
+    "op": "==",
+    "value": 0.333,
+    "unit": "of the position"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "E51",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8A Trims and trail"
+  },
+  {
+   "id": "fh.trim_gap_open",
+   "field": "management",
+   "statement": "If it opens above a trim level, take that trim at the open.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "F63",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "7"
+  },
+  {
+   "id": "fh.trail",
+   "field": "management",
+   "statement": "Trail the last third: a close under the 10-day for a fast mover, under the 21-day for a steadier one.",
+   "measure": {
+    "what": "close against the 10-day (fast) or 21-day (steadier) average",
+    "op": "<",
+    "value": "the average",
+    "timeframe": "daily"
+   },
+   "glossary": "trail",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "E52",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8A Trims and trail",
+   "evidence": "Nothing in the sources argues for a different trail. ICLR's slow three weeks to 3R, then a 25% run, is the case for the trail."
+  },
+  {
+   "id": "fh.time_stop",
+   "field": "management",
+   "statement": "Time stop: still under 1R after 10 trading days, sell.",
+   "measure": {
+    "what": "open R after 10 trading days",
+    "op": "<",
+    "value": 1,
+    "unit": "R"
+   },
+   "glossary": "time_stop",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "C33",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "7"
+  },
+  {
+   "id": "fh.head_reference",
+   "field": "management",
+   "statement": "A reference, not a rule: the head is the first place sellers may return; Brandt's target is the right-shoulder high plus the distance from the head down to the post-break low.",
+   "basis": "originator",
+   "sources": [
+    "S5"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8A Trims and trail",
+   "evidence": "Brandt: 'The target of 733 is based on projecting the distance between the April 26 high and the May 12 low (which is 69 cents) upward from the right shoulder high of 664.' After the failures that cleared the head, the median best high within 60 bars was 9.0% over the head."
+  },
+  {
+   "id": "fh.retries",
+   "field": "management",
+   "statement": "Count the tries: at most 3 in a week and 6 in a month. Failures whipsaw; a second entry over the same level is allowed.",
+   "measure": {
+    "what": "tries on the same stock",
+    "op": "<=",
+    "value": 3,
+    "unit": "in a week",
+    "and": "6 in a month"
+   },
+   "basis": "house rule",
+   "sources": [
+    "S4"
+   ],
+   "house_rule": "E56",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "7 item 5; 8A Common mistakes 8",
+   "evidence": "Bulkowski: of busted H&S tops 67% single bust, 3% double, 30% triple or more, so almost a third of busts whipsaw before the final move. AAPL 2026-08-28: stopped the next session, then the run to 350 without the trade."
+  },
+  {
+   "id": "fh.inv_deep_break",
+   "field": "invalidation",
+   "statement": "Before the trigger: a fall of more than 10% under the neckline. The top worked; this setup is gone.",
+   "measure": {
+    "what": "lowest close under the neckline, as a share of the neckline",
+    "op": ">",
+    "value": 10,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "basis": "originator",
+   "sources": [
+    "S4"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8A What invalidates it",
+   "evidence": "Bulkowski's bust rule: 'moves less than 10% away from the breakout price'. Run: 36% of neckline breaks fell 10% or more first."
+  },
+  {
+   "id": "fh.inv_200",
+   "field": "invalidation",
+   "statement": "Before the trigger: a close under the 200-day.",
+   "measure": {
+    "what": "close against the 200-day SMA",
+    "op": "<",
+    "value": "200-day SMA",
+    "timeframe": "daily"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B26",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8A What invalidates it"
+  },
+  {
+   "id": "fh.inv_after_buy",
+   "field": "invalidation",
+   "statement": "After the buy: a close back under the neckline is a failure of the failure; the stop should already be above that.",
+   "basis": "my proposal",
+   "sources": [
+    "S4"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8A What invalidates it",
+   "evidence": "Bulkowski's double bust. The stop under the trigger day's low usually sits above the neckline already."
+  },
+  {
+   "id": "fh.market",
+   "field": "context",
+   "statement": "A Green or Yellow reading (F65); in Orange, A+ only.",
+   "measure": {
+    "what": "market reading",
+    "op": "in",
+    "value": [
+     "Green",
+     "Yellow",
+     "Orange (A+ only)"
+    ]
+   },
+   "glossary": "market_reading",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "F65",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8A Best market conditions",
+   "evidence": "The run's edge was largest with SPY under its 50-day (+0.30R, win 37%, against +0.02R above it), a correction, which F65 sizes down rather than forbids; the reading decides size, the correction supplies the edge."
+  },
+  {
+   "id": "fh.market_correcting_cue",
+   "field": "context",
+   "statement": "A cue: best when the market itself is correcting or just turning up and the stock's top fails anyway, the leader refusing to break while the market falls.",
+   "basis": "UCT",
+   "sources": [
+    "S14",
+    "S16"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8A Best market conditions; 9 A+",
+   "evidence": "Bracco: 'this is why coming out of corrections I try to get a position in TQQQ and SOXL'; his March and April 2026 index calls. Run: SPY under its 50-day +0.30R (+0.21 to +0.38). MUSA 2022-03-15 (the early-2022 correction) and FDX 2003-03-19 (the 2003 low) are the examples."
+  },
+  {
+   "id": "fh.index_version",
+   "field": "context",
+   "statement": "The index version: read the pattern on the index ETF (QQQ, SMH); trade the leveraged ETF if desired (E54).",
+   "basis": "house rule",
+   "sources": [
+    "S14"
+   ],
+   "house_rule": "E54",
+   "status": "pending-owner",
+   "owner_question": "D-018",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8A Best market conditions; 7 item 7; 10 question 8",
+   "evidence": "Bracco: 'My main trading vehicle is always the TQQQ, SOXL, or Index futures.' SMH 2026-04-08 (+7.4R) and QQQ 2026-04-08 (+9.9R) are the house's own calls.",
+   "measure": {
+    "what": "the chart the pattern is read on",
+    "op": "==",
+    "value": "the index ETF (QQQ, SMH); the order may go in the leveraged ETF"
+   }
+  },
+  {
+   "id": "fh.late_stage",
+   "field": "context",
+   "statement": "Grade it lower when the stock has already run for a year or more: a failed top late in a long advance can be the last push.",
+   "measure": {
+    "what": "months since the advance began",
+    "op": ">=",
+    "value": 12,
+    "unit": "months"
+   },
+   "basis": "originator",
+   "sources": [
+    "S1"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8A Common mistakes 7; 9 B-",
+   "evidence": "Edwards and Magee: 'A Head-and-Shoulders Formation that does not work is a warning that even though there is still some life in the situation, a genuine turn is near.' GOOGL 2026-09-18: a lower-high structure under a higher May high; 0.8R, then down 20%."
+  },
+  {
+   "id": "fh.not_a_short",
+   "field": "trigger",
+   "statement": "Never short the right shoulder before the neckline breaks, and the neckline break is not taught as a short setup: 70% of breaks from tops above the 200-day happen above it (B26), and the run lost -0.10R.",
+   "measure": {
+    "what": "neckline breaks from tops above the 200-day that were still above it on the break day",
+    "op": "==",
+    "value": 70,
+    "unit": "%"
+   },
+   "basis": "house rule",
+   "sources": [
+    "S2",
+    "S16"
+   ],
+   "house_rule": "B26",
+   "status": "pending-owner",
+   "owner_question": "D-001",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8C; 8A Common mistakes 1",
+   "evidence": "Murphy: the topping signs are cause 'to liquidate long positions, but not necessarily enough to justify new short sales.' The app's own short stop (1% over the right shoulder) was a median 9.6% away. The course can teach the break as a sell signal for a long and as the event that sets up the failure."
+  },
+  {
+   "id": "fh.name",
+   "field": "context",
+   "statement": "Keep the name 'Failed H&S / Rounded Top' (Brandt's 'H&S failure' and Bulkowski's 'Busted Top' are the outside names).",
+   "basis": "my proposal",
+   "sources": [
+    "S5",
+    "S4",
+    "S17"
+   ],
+   "status": "pending-owner",
+   "owner_question": "D-016",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "2; 10 question 13",
+   "evidence": "DECISIONS D-016's default keeps the house name. No one coined the two halves as one setup; the only UCT use of both together is Bracco's 'failed rounded top / H&S' (AMD, 2026-08-16)."
+  }
+ ],
+ "grading": {
+  "a_plus": [
+   "fh.leadership: a leader, RS 80 or more, a top group, a big prior advance (fh.prior_trend; the AMD and SMH examples)",
+   "fh.hs_structure: a clear, widely visible top, the head 3% or more above both shoulders, or an obvious dome (fh.rounded_top); a level or rising neckline (fh.neckline)",
+   "fh.failure_b: version B with a brief, shallow undercut under 6% that is bought back (fh.undercut_depth_cue)",
+   "fh.trigger: the trigger over the right-shoulder high on rising volume (fh.volume_cue), within 4% of the level (fh.no_chase), with a stop of 3% or less (fh.stop_width)",
+   "fh.above_200: above a rising 50-day and 200-day on the trigger day (fh.above_50)",
+   "fh.market_correcting_cue: the market correcting or just turning up, the index itself failing to break down",
+   "fh.earnings: no report in the next 3 days"
+  ],
+  "b_minus": [
+   "fh.failure_a: version A with no undercut, or an undercut 6% to 10% deep that recovers slowly (fh.undercut_depth_cue)",
+   "fh.leadership: a stock that was not a leader; fh.late_stage: a year or more into its advance",
+   "fh.no_chase: a gap trigger more than 4% over the level (skip; B- at best if bought on a retest)",
+   "fh.hs_structure: a messy structure, the head barely above a shoulder (MSFT 2021, 1.4%), or a 'rounded top' that is really a range",
+   "fh.retries: the second or third try on the same pattern"
+  ],
+  "no_trade": [
+   "fh.inv_deep_break: a fall of more than 10% under the neckline, the top worked",
+   "fh.above_200: under the 200-day (fh.inv_200)",
+   "fh.neckline: the neckline sits above the buy point, a mis-drawn pattern",
+   "fh.no_chase: more than 4% past the right-shoulder high; fh.not_stretched: more than 10% over the 10-day",
+   "fh.stop_width: the honest stop does not fit; fh.invalidation_line: never the failed-break low as the stop",
+   "fh.earnings: a report within 3 sessions",
+   "fh.not_a_short: shorting the right shoulder or the neckline break",
+   "fh.market: a Red reading"
+  ]
+ },
+ "lookalikes": [
+  {
+   "setup": "28-2b-reversal",
+   "tell": "Count the peaks and find the trigger. A 2B breaks one prior swing low and is bought the moment price reclaims that low, within 1 to 3 sessions, with the stop under the new low. A failed H&S has three peaks over a neckline and waits for the trade over the right-shoulder high, with the stop under that day's low.",
+   "criterion": "fh.trigger"
+  },
+  {
+   "setup": "01-flat-base",
+   "tell": "Look at the ceiling. A flat base holds one range 15% deep or less with a flat top tapped twice and breaks out over it; a rounded top is a dome that first broke its lower rim (or sagged toward it) and then recovered, so the buy over the dome high comes after a failure, not out of a box.",
+   "criterion": "fh.rounded_top"
+  },
+  {
+   "setup": "36-mean-reversion",
+   "tell": "Ask when the buy comes. A mean-reversion long buys the turn on the flush day itself, into a level, and is out in 1 to 5 sessions at the average; a failed H&S waits weeks for the undercut to be bought back and then for the trade over the right-shoulder high, and holds for a trend.",
+   "criterion": "fh.failure_b"
+  }
+ ],
+ "invalidations": [
+  "Before the trigger: a fall of more than 10% under the neckline; the top worked (fh.inv_deep_break).",
+  "Before the trigger: a close under the 200-day (fh.inv_200).",
+  "Before the trigger: the neckline sits above the right-shoulder high; the pattern is mis-drawn (fh.neckline).",
+  "Before the trigger: no trigger within 40 bars of the failure (fh.trigger_window).",
+  "Before the trigger: a report within 3 sessions, wait (fh.earnings).",
+  "After the buy: the stop is the exit (fh.stop_broker); a close back under the neckline is a failure of the failure (fh.inv_after_buy).",
+  "After the buy: under 1R after 10 trading days, sell (fh.time_stop)."
+ ],
+ "mistakes": [
+  "Shorting the right shoulder before the neckline breaks. Murphy: the topping signs are cause 'to liquidate long positions, but not necessarily enough to justify new short sales.'",
+  "Calling every three bumps a head-and-shoulders. Brandt: 'novice market analysts are way to quick to mislabel market action as a H&S configuration.'",
+  "Buying the first bounce back to the neckline. That is the return move the short sellers expect; wait for the right-shoulder high.",
+  "Using the undercut low as the stop. It is usually far more than 3% away.",
+  "Chasing a gap far over the right shoulder (LULU 2023, 11.4%).",
+  "Trading it below the 200-day, or in a laggard whose 'top' was never a top.",
+  "Forgetting Edwards and Magee's warning: a failed top late in a long advance can be the last push (GOOGL 2026).",
+  "Re-buying every whipsaw. Count the tries (E56).",
+  "Drawing the neckline above the buy point (DDOG 2025): a mis-drawn pattern is not a top at all.",
+  "Reading the app's detector text as sourced: its Brandt quote, its Bulkowski '60-70%' and its 'Wyckoff 1908' are not in the sources."
+ ],
+ "short_mirror": {
+  "exists": true,
+  "setup": "33-failed-hs-rounded-top",
+  "note": "8B, a failed inverse head-and-shoulders (Bulkowski's busted H&S bottom): a stock below a falling 200-day (B26), RS 20 or less (C31 mirror), forms three swing lows with the middle lowest, closes over its neckline, rises less than 10%, and comes back; short the first trade under the right-shoulder low (Brandt's 'C' mirrored; Bulkowski a penny under the head), stop a few cents over the trigger day's high within about 3%, thirds at 3R and 5R, trail the rest on a close above the 10-day; skip if hard to borrow (D48); a Red market is its best condition (D46). Evidence: Bulkowski, 16% of H&S bottoms bust and single busts drop 22% on average; the run found -0.01R below the 200-day (CI -0.06 to +0.05), better than the baseline short (-0.08R) but not positive. The weakest-supported part of the dossier; whether to teach it is D-001. The classical neckline-break short is not proposed (8C)."
+ },
+ "best_conditions": "A Green or Yellow reading (F65); in Orange, A+ only. The edge was largest when the market itself was correcting (SPY under its 50-day, +0.30R) and a leader's top failed anyway: Bracco's 'coming out of corrections' and his March and April 2026 index calls. For the index version read the pattern on QQQ or SMH and trade TQQQ or SOXL if desired (E54, pending D-018).",
+ "management": {
+  "trim_1": "a third at 3R (B19)",
+  "trim_2": "a third at 5R (E51)",
+  "trail": "a close under the 10-day for a fast mover, the 21-day for a steadier one (E52)",
+  "breakeven": "between 2R and 5R, at the first trim by default (B19)",
+  "time_stop": "under 1R after 10 trading days, sell (C33)",
+  "gap_open": "a trim level the day opens past is taken at the open (F63)",
+  "gap_against": "the first 30-minute low is the new stop; out if past 2R (B20)",
+  "retries": "at most 3 tries in a week and 6 in a month (E56); failures whipsaw",
+  "overrides": "none. The dossier (8A) finds nothing in the sources that argues for different trims. References only: the head as the first place sellers may return, and Brandt's measured target (the right-shoulder high plus the head-to-post-break-low distance). Not ours: the app's H&S narrative 'cover part at 1R for a free trade', its short levels, and the rounded-top detector's stop (never within 3%)."
+ },
+ "examples": {
+  "winners": 10,
+  "sheet_dir": "_study-resume/scratchpad/setups/33-failed-hs-rounded-top/final",
+  "base_rate": {
+   "hits": 13148,
+   "r3_pct": 30.1,
+   "r5_pct": 20.0,
+   "stopped_pct": 84,
+   "median_stop_pct": 2.3,
+   "window": "60 bars forward, fixed stop 5 cents under the lower of the trigger day's and prior day's lows (the trigger day's low alone past 3%, skipped past 5%), no trims, no breakeven, no trail; 2000-01-01 to 2026-11-09 on all 2,630 liquid names; H&S only (no rounded-top scan); no grading, no market filter, no RS filter"
+  },
+  "cuts": {
+   "version_b_real_break_that_failed": {
+    "hits": 7059,
+    "r3_pct": 30.2,
+    "r5_pct": 20.0
+   },
+   "version_a_no_break": {
+    "hits": 6089,
+    "r3_pct": 30.0,
+    "r5_pct": 20.0
+   },
+   "house_run_2010_2026_600_tickers": {
+    "long_b_failed_breakdown": {
+     "trades": 6543,
+     "mean_r": 0.11,
+     "ci": "+0.07 to +0.16",
+     "win_pct": 33,
+     "reached_3r_pct": 27,
+     "median_stop_pct": 2.1,
+     "above_200_pct": 79
+    },
+    "long_b_above_200": {
+     "trades": 5189,
+     "mean_r": 0.13
+    },
+    "long_b_above_200_c28_c29": {
+     "trades": 3482,
+     "mean_r": 0.13
+    },
+    "long_a_breakdown_never_came": {
+     "trades": 32514,
+     "mean_r": 0.04
+    },
+    "long_b_spy_under_50_day": {
+     "mean_r": 0.3,
+     "ci": "+0.21 to +0.38",
+     "win_pct": 37
+    },
+    "long_b_spy_over_50_day": {
+     "mean_r": 0.02
+    },
+    "short_neckline_break": {
+     "trades": 16965,
+     "mean_r": -0.1
+    },
+    "short_mirror_failed_inverse_hs_below_200": {
+     "trades": 6792,
+     "mean_r": -0.01
+    },
+    "rounded_top_long_over_dome": {
+     "trades": 374,
+     "mean_r": 0.03
+    },
+    "baseline_long": {
+     "trades": 11602,
+     "mean_r": 0.01
+    },
+    "note": "the app's own detectors run every 5th bar, house management, survivors only, no costs; the writer's scripts were read, not re-run, in the cold check"
+   }
+  },
+  "winners_list": [
+   "FDX 2003-03-19",
+   "MGM 2004-09-14",
+   "SPG 2005-11-11",
+   "BXP 2010-02-26",
+   "MCO 2011-01-06",
+   "ICLR 2015-01-14",
+   "MUSA 2022-03-15",
+   "TOL 2024-07-12",
+   "NFLX 2025-04-21",
+   "ABNB 2026-06-15"
+  ],
+  "failures": [
+   {
+    "ticker": "AAPL",
+    "date": "2026-08-28",
+    "criterion": "fh.retries",
+    "why": "a clean 51-bar pattern (shoulders 317.40 / 320.28, head 13.5% over the neckline, a 2.8% undercut); the trigger over 320.28 was stopped the next session (stop 315.40, 1.5% away, best 0.0R), then the stock ran to 350 without the trade. A whipsaw, not a wrong read: count the tries and allow a second entry over the same level."
+   },
+   {
+    "ticker": "CAT",
+    "date": "2024-07-18",
+    "criterion": "fh.hs_structure",
+    "why": "the shoulders were 8.8% apart (334.87 left, 364.43 right), so the right-shoulder high sat almost at the head and the trigger was late and high; stopped at once (best 0.0R), two months of chop before the autumn run. Uneven shoulders grade lower; the 10% tolerance is the outer limit."
+   },
+   {
+    "ticker": "DDOG",
+    "date": "2025-01-28",
+    "criterion": "fh.neckline",
+    "why": "the neckline sloped up so steeply that it ran 2.4% above the right-shoulder high at the trigger: the drawn pattern was not a top. Failed in two days (best 0.0R); the stock lost 40% after its February earnings."
+   },
+   {
+    "ticker": "GOOGL",
+    "date": "2026-09-18",
+    "criterion": "fh.late_stage",
+    "why": "the H&S formed under a higher May high (405), a lower-high structure in a stock that had already topped; the trigger at 351.60 stalled under the 50-day and the neckline, reached 0.8R, and the stock fell 20% by late October. Edwards and Magee's 'last push' warning."
+   },
+   {
+    "ticker": "SMH",
+    "date": "2025-12-03",
+    "criterion": "fh.trigger",
+    "why": "Bracco's autumn 2025 call: the failed breakdown at $325 under the $333 neckline; under the right-shoulder trigger (360.00, the dossier's reading of his chart) it stopped out on 2025-12-12 (-1.0R), and SMH later rose past 400. Which level is the right shoulder, and the stop, decided the outcome."
+   },
+   {
+    "ticker": "LULU",
+    "date": "2023-03-29",
+    "criterion": "fh.no_chase",
+    "why": "the failure completed on an earnings gap 11.4% over the right shoulder (C28 says skip); bought anyway, -1.0R."
+   },
+   {
+    "ticker": "GILD",
+    "date": "2014-12-19",
+    "criterion": "fh.stop_gap",
+    "why": "a 67-bar pattern (shoulders 110.64 / 107.58, head 19.1% over the neckline, a 2.0% undercut), buy 107.59, stop 104.59 (2.8%); the next session opened at 96.73, under the stop, and the stock lost 20.1% within 60 sessions: the top worked, and the first 30-minute low with the 2R cap is the exit."
+   }
+  ],
+  "limits": "The scan is the H&S half of 8A only; no rounded-top scan was written. The stop, chase and stretch rules are house defaults with no discretion; the market reading, the RS rating and the grading were not applied, so the base rate is a floor for an ungraded signal. The earnings table was used only to flag trigger days. The house run's R results were read from the writer's summary files, not re-executed. Survivors only; no costs.",
+  "near_misses": [
+   {
+    "ticker": "VGK",
+    "date": "2021-07-12",
+    "criterion": "fh.depth",
+    "why": "the head is 4.7% over the neckline (rule: 5% to 30%): a flat shelf in an uptrend, not a top; an ETF; stopped at 0R."
+   },
+   {
+    "ticker": "JPM",
+    "date": "2025-05-05",
+    "criterion": "fh.hs_structure",
+    "why": "shoulders 226.75 / 254.67, 11.0% apart (rule: within 10%): a V recovery with the right shoulder near the head, a late and high trigger; stopped at 0R."
+   },
+   {
+    "ticker": "CSCO",
+    "date": "2025-05-13",
+    "criterion": "fh.inv_deep_break",
+    "why": "a close 10.9% under the neckline before the trigger (rule: more than 10% and the top worked): a completed top and a V recovery; stopped at 0R."
+   },
+   {
+    "ticker": "AMZN",
+    "date": "2014-06-11",
+    "criterion": "fh.above_200",
+    "why": "the trigger close is 2.6% under the 200-day SMA (rule: above it, B26): a bounce inside a decline; stopped at 0R."
+   }
+  ],
+  "sheets": {
+   "failures": "final/fail_1-4.png",
+   "near_misses": "final/near_1-4.png",
+   "pair": "final/pair_28-2b-reversal.png"
+  }
+ },
+ "question_seeds": [
+  {
+   "kind": "recall",
+   "criterion": "fh.trigger",
+   "seed": "Where is the buy on a failed head-and-shoulders: the neckline, the right-shoulder high, or the head?"
+  },
+  {
+   "kind": "recall",
+   "criterion": "fh.invalidation_line",
+   "seed": "What is the low of the failed breakdown used for, and why is it not the stop?"
+  },
+  {
+   "kind": "recall",
+   "criterion": "fh.direction",
+   "seed": "The house trades the failed H&S in which direction, and what does Bracco say is the only way to trade the pattern?"
+  },
+  {
+   "kind": "spot",
+   "criterion": "fh.neckline",
+   "seed": "Hidden ticker: tap the two lows the neckline runs through, then the right-shoulder high."
+  },
+  {
+   "kind": "spot",
+   "criterion": "fh.failure_b",
+   "seed": "Hidden ticker: which of these four tops broke its neckline, fell less than 10%, and was bought back?"
+  },
+  {
+   "kind": "spot",
+   "criterion": "fh.above_200",
+   "seed": "Hidden ticker: is this failed top above a rising 200-day with the stock back over its 50-day? Take it or pass."
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "fh.trigger",
+   "seed": "Failed H&S or 2B: price undercut a prior low and reclaimed it in two days. Is the buy now, or over the right-shoulder high?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "fh.rounded_top",
+   "seed": "Rounded top or flat base: this stock drifted in a dome for 8 weeks, dipped under its lower rim, and recovered. Which is it, and where is the trigger?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "fh.failure_a",
+   "seed": "Version A or version B: the right shoulder turned up without a close under the neckline. Which version, and how is it graded?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "fh.no_chase",
+   "seed": "The right-shoulder high is 404.39 and the stock opens at 423.17 on the failure gap. Buy at the open, wait for a retest, or skip?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "fh.inv_deep_break",
+   "seed": "The neckline broke and the stock is now 14% under it. Still a failed H&S candidate?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "fh.retries",
+   "seed": "You bought the trigger over 320.28 and were stopped the next day at 315.40. Today it trades back over 320.28. Buy again, or not?"
+  },
+  {
+   "kind": "grade",
+   "criterion": "fh.hs_structure",
+   "seed": "Two patterns: shoulders 0.4% apart with the head 11.7% over the neckline, and shoulders 8.8% apart with the head barely higher. Grade each."
+  },
+  {
+   "kind": "grade",
+   "criterion": "fh.market_correcting_cue",
+   "seed": "A leader's top fails while SPY sits under its 50-day in a correction. A+, B, or pass, and why?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "fh.depth",
+   "seed": "Head 47.22, neckline 40.82. How tall is the pattern in percent, and is it inside 5% to 30%?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "fh.stop_width",
+   "seed": "Bought at 42.98 with the stop at 42.42. How wide is the stop, and where is 3R?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "fh.failure_b",
+   "seed": "Neckline 65.03, the lowest low of the break 61.03. How deep was the undercut, and does it still qualify as a failure?"
+  }
+ ],
+ "owner_decisions": [
+  "D-001",
+  "D-002",
+  "D-003",
+  "D-004",
+  "D-007",
+  "D-008",
+  "D-010",
+  "D-011",
+  "D-016",
+  "D-018",
+  "D-022",
+  "D-109",
+  "D-110"
+ ],
+ "conflicts": [
+  "Direction: the task framed setup 33 as a short; every house record (the Model Book card, SET.29, definitions.json, Bracco's seven posts and the owner's two) frames it as a long, and the classical meaning agrees. The card is the long; the mirror short is 8B and the breakdown short is not a setup (D-001).",
+  "Sources: the card cites the dossier's own section 11 numbers (S1 Edwards and Magee, S2 Murphy, S3 StockCharts, S4 Bulkowski, S5 to S9 Brandt, S10 Wyckoff Analytics, S11 IBD teasers, S14 the UCT Substack, S16 the bar store, S17 the repo files).",
+  "How often a top fails: Edwards and Magee say post-break failures are 'extremely rare' and 'perhaps 20%' are saved before the break (estimates); Bulkowski measured 32% of breakdowns bust; the app's looser detector found 61% never broke and 38% of breaks failed. The card quotes the run as 'what the app's scanner sees', not the books.",
+  "What a failure means: a warning that the end is near (Edwards and Magee) against a trade in the new direction (Bulkowski, Brandt, UCT). The card trades it and keeps the warning as the late-stage grade cue.",
+  "The trigger: Murphy's close back over the neckline, Brandt's right-shoulder high, Bulkowski's penny over the head, Bracco's close through a falling line on AMD. The card takes the right-shoulder high (D-003); the later the trigger, the more proof and the higher the entry.",
+  "Symmetry: Bulkowski's guideline asks for similar shoulders while his data say asymmetric tops performed better (a higher left shoulder 25% declines against 19% for even shoulders); StockCharts prefers symmetry; the app requires 15%. The card's 10% is the dossier's (D-110); CAT 2024 shows why the outer limit is not the ideal.",
+  "Rounding tops: Edwards and Magee say they 'almost never deceive' and are rare in speculative stocks; Bulkowski's upward breakout ranks 2 of 39. The run found no edge either way (374 longs +0.03R) and the scan did not cover them; the card keeps the dome high as the trigger pending D-002.",
+  "Volume on rounding tops: Edwards and Magee call it 'high and irregular'; the app's rounded-top detector scores drying volume through the dome, which is the bottom's model. The card makes volume a cue only.",
+  "The stop: the structural stop under the failed-break low was a median 9.3% away and the rounded-top detector's stop (dome high plus 1.5%) a median 19.5%, never within 3%; the house trigger-day low (2.1%) is Brandt's own line. The card takes the house stop (D-008).",
+  "C28 on gap triggers: SMH 2026-04-08, the house's best example, opened 4.6% over its right shoulder; LULU 2023 11.4%; AMD 2026 8.0%. Strict C28 skips the best example (D-022).",
+  "C31: a topping stock has often lost RS by the time it fails; C31 applies by its text (it is not parabolic or mean reversion). The card keeps 80 and asks (D-011).",
+  "The app's detector text shows members a Brandt quote the dossier could not find, a Bulkowski '60-70%' his page contradicts (51% meet the target), a 'Wyckoff 1908' date no source supports, and 'cover part at 1R for a free trade' against B19's first trim at 3R; the rounded-top text credits Adam Grimes and Schabacker unverified. None is used on this card (D-010).",
+  "The Model Book card describes version A ('when the breakdown never comes') while Bracco's examples are version B; its glyph draws no neckline and no undercut. The card proposes both versions, A graded lower, and a redrawn glyph (D-109).",
+  "Schabacker's date: the app says 1932 (the reprint publisher's date), Brandt writes 1937; the book was not read. Not load-bearing on the card."
+ ]
+}

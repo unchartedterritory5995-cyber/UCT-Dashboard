@@ -1,0 +1,3088 @@
+{
+ "unit": "SET.33",
+ "track": "SET",
+ "title": "30-Minute Pivot",
+ "teaches": "The 30-minute pivot as we trade it: an entry timer on 30-minute bars for a daily long setup at a level, in a leader above its 50-day and 200-day with a rising 20-day EMA; a string of red 30-minute candles into the level, then the first green 30-minute candle, the pivot; the buy is a cent over its high at market, never more than 4% past it; the stop sits a few cents under a low, within 3% and the stock's daily range; the 40% position cap sets the size on tight stops; a third off at 3R and 5R, the rest on the trail; a loss at the stop is the plan working.",
+ "skills": [
+  {
+   "id": "setup.thirty_minute_pivot",
+   "title": "30-Minute Pivot"
+  }
+ ],
+ "as_of": "2026-11-10",
+ "card": "docs/study/setups/criteria/41-30-minute-pivot.json",
+ "sources": [
+  {
+   "id": "s6",
+   "tier": 2,
+   "publisher": "1ChartMaster (Elite Swing Traders), his posts on X",
+   "title": "The 30 minute pivot, his long description (2026-05-10)",
+   "url": "https://x.com/1ChartMaster/status/2053625926181593509",
+   "accessed": "2026-11-09",
+   "why_reliable": "The trader who named and developed the setup, in his own posts; he joined UCT as a trader, coach and admin in 2025. Social media, so used only for his own definition and never to key a rule alone; the dossier read the posts through the public FxTwitter API. The post reads like a third-person summary he posted on his own account."
+  },
+  {
+   "id": "s1",
+   "tier": 2,
+   "publisher": "1ChartMaster (Elite Swing Traders), his posts on X",
+   "title": "Why he built it (2025-03-11)",
+   "url": "https://x.com/1ChartMaster/status/1899546078191710598",
+   "accessed": "2026-11-09",
+   "why_reliable": "The trader who named and developed the setup, in his own posts; he joined UCT as a trader, coach and admin in 2025. Social media, so used only for his own definition and never to key a rule alone; the dossier read the posts through the public FxTwitter API."
+  },
+  {
+   "id": "s7",
+   "tier": 2,
+   "publisher": "1ChartMaster (Elite Swing Traders), his posts on X",
+   "title": "HOOD, a worked trade (2026-09-03)",
+   "url": "https://x.com/1ChartMaster/status/2095562525752406106",
+   "accessed": "2026-11-09",
+   "why_reliable": "The trader who named and developed the setup, in his own posts; he joined UCT as a trader, coach and admin in 2025. Social media, so used only for his own definition and never to key a rule alone; the dossier read the posts through the public FxTwitter API."
+  },
+  {
+   "id": "s8",
+   "tier": 2,
+   "publisher": "1ChartMaster (Elite Swing Traders), his posts on X",
+   "title": "His go-to for tight risk (2026-09-27)",
+   "url": "https://x.com/1ChartMaster/status/2104186021789499588",
+   "accessed": "2026-11-09",
+   "why_reliable": "The trader who named and developed the setup, in his own posts; he joined UCT as a trader, coach and admin in 2025. Social media, so used only for his own definition and never to key a rule alone; the dossier read the posts through the public FxTwitter API."
+  },
+  {
+   "id": "s23",
+   "tier": 2,
+   "publisher": "Linda Bradford Raschke (lindaraschke.net)",
+   "title": "Linda Bradford Raschke on Short Term Trading Strategies, AIQ Opening Bell Monthly (August 1997)",
+   "url": "https://lindaraschke.net/wp-content/uploads/2026/01/august1997.pdf",
+   "accessed": "2026-11-09",
+   "why_reliable": "Raschke, co-author of Street Smarts, in an interview on her own site; her Holy Grail entry is the older form of the same mechanics. Used for her rule only."
+  },
+  {
+   "id": "s22",
+   "tier": 2,
+   "publisher": "Kristjan Kullamagi (qullamaggie.com)",
+   "title": "3 TIMELESS setups that have made me TENS OF MILLIONS! (2021)",
+   "url": "https://qullamaggie.com/my-3-timeless-setups-that-have-made-me-tens-of-millions/",
+   "accessed": "2026-11-09",
+   "why_reliable": "The trader's own site, in his own words, with a public record widely covered in the trading press. Used for his stop cap and his first-green-candle entry only."
+  },
+  {
+   "id": "s24",
+   "tier": 2,
+   "publisher": "StockCharts ChartSchool",
+   "title": "Pivot Points",
+   "url": "https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/technical-overlays/pivot-points",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "u1",
+   "tier": 3,
+   "publisher": "UCT Substack (the owner's published writing)",
+   "title": "Sunday Scans, TSDR's Weekly Outlook section, GLW (2026-06-28)",
+   "url": "https://unchartedterritoryy.substack.com/p/sunday-scans-ae1",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "u2",
+   "tier": 3,
+   "publisher": "UCT Substack (the owner's published writing)",
+   "title": "Sunday Scans, TSDR's Weekly Outlook section, DELL (2026-10-04)",
+   "url": "https://unchartedterritoryy.substack.com/p/sunday-scans-4c6",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "u3",
+   "tier": 3,
+   "publisher": "UCT Substack (the owner's published writing)",
+   "title": "Sunday Scans, TSDR's Weekly Outlook section, LITE and TEAM (2026-10-11)",
+   "url": "https://unchartedterritoryy.substack.com/p/sunday-scans-31b",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "h1",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
+   "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
+   "accessed": "2026-11-10"
+  },
+  {
+   "id": "c1",
+   "tier": 3,
+   "publisher": "UCT setup criteria card",
+   "title": "30-Minute Pivot criteria card (docs/study/setups/criteria/41-30-minute-pivot.json, as of 2026-11-09)",
+   "url": "repo:docs/study/setups/criteria/41-30-minute-pivot.json",
+   "accessed": "2026-11-10"
+  },
+  {
+   "id": "d1",
+   "tier": 3,
+   "publisher": "UCT setup research (examples read from our own 30-minute bars)",
+   "title": "30-Minute Pivot dossier, sections 4.3, 12 and 14: named examples, examples, failures and near-misses",
+   "url": "repo:docs/study/setups/research/41-30-minute-pivot.md#12-examples-from-our-data",
+   "accessed": "2026-11-10"
+  }
+ ],
+ "facts": [
+  {
+   "id": "o01",
+   "source": "s6",
+   "quote": "a tactical entry method designed to help traders buy high momentum stocks at defined support levels while minimizing the risk of \"chasing\" a move.",
+   "claim": "The originator calls it a tactical entry method for buying strong stocks at support without chasing."
+  },
+  {
+   "id": "o02",
+   "source": "s6",
+   "quote": "The strategy focuses on \"RS names\" stocks that are holding up better than the broad market.",
+   "claim": "The originator uses it on RS names, stocks holding up better than the market."
+  },
+  {
+   "id": "o03",
+   "source": "s6",
+   "quote": "A key signal for this entry is seeing a string of red 30-minute candles in a stock that is otherwise in a strong uptrend.",
+   "claim": "The originator's signal: a string of red 30-minute candles in a stock in a strong uptrend."
+  },
+  {
+   "id": "o04",
+   "source": "s6",
+   "quote": "Rather than buying as the stock is falling, the trader waits for a \"pivot\" a specific point where the downward momentum on the 30minute chart shifts back to the upside.",
+   "claim": "The originator waits for the 30-minute chart to turn back up instead of buying the fall."
+  },
+  {
+   "id": "o05",
+   "source": "s6",
+   "quote": "By entering at the 30 minute pivot, you have a defined spot for a stop loss, usually just below the recent 30 minute low.",
+   "claim": "The originator's stop: usually just below the recent 30-minute low."
+  },
+  {
+   "id": "o06",
+   "source": "s6",
+   "quote": "It seeks to buy the \"dip\" in a leading stock, often near short term support levels like the 8 EMA",
+   "claim": "The originator buys the dip in a leader, often near a short-term average."
+  },
+  {
+   "id": "o07",
+   "source": "s1",
+   "quote": "I find during periods of volatility it can pretty hard to hold a position. That's why I developed my 30 min pivot strategy.",
+   "claim": "The originator built the 30-minute pivot for volatile markets, when a position is hard to hold."
+  },
+  {
+   "id": "o08",
+   "source": "s7",
+   "quote": "I buy weakness after strength and use the 30 min pivot to make it happen. Here's another example with the trade now over 10R. My price 102.99",
+   "claim": "HOOD: the originator bought weakness after strength with the pivot at 102.99; the trade went over 10R."
+  },
+  {
+   "id": "o09",
+   "source": "s8",
+   "quote": "30-min pivot is my goto for tight risk in leading names.",
+   "claim": "The originator uses it for tight risk in leading names."
+  },
+  {
+   "id": "r01",
+   "source": "s23",
+   "quote": "When the price touches the 20 period moving average, put a buy stop above the high of the previous bar.",
+   "claim": "Raschke's Holy Grail: at the 20-period average, a buy stop above the prior bar's high."
+  },
+  {
+   "id": "r02",
+   "source": "s23",
+   "quote": "Once filled, enter a protective sell stop at the newly formed swing low. Trail stops as profits grow.",
+   "claim": "Raschke: the stop goes at the new swing low, then trails."
+  },
+  {
+   "id": "k01",
+   "source": "s22",
+   "quote": "Stop is always lows of the day and stop should not be wider than the ATR or ADR of the stock",
+   "claim": "Kullamagi: the stop should not be wider than the stock's ATR or ADR."
+  },
+  {
+   "id": "k02",
+   "source": "s22",
+   "quote": "Entry is opening range highs or the first green 5-minute candle or any range break to the upside",
+   "claim": "Kullamagi's parabolic long buys the first green 5-minute candle, the same idea on another bar."
+  },
+  {
+   "id": "p01",
+   "source": "s24",
+   "quote": "Pivot Points use the prior period's high, low, and close to estimate future support and resistance levels.",
+   "claim": "ChartSchool: floor-trader pivot points are levels computed from the prior period's high, low and close."
+  },
+  {
+   "id": "p02",
+   "source": "s24",
+   "quote": "Pivot Points for 30-, 60-, and 120-minute charts use the prior week's high, low, and close.",
+   "claim": "ChartSchool: on 30-minute charts those pivot points come from the prior week's prices."
+  },
+  {
+   "id": "u01",
+   "source": "u1",
+   "quote": "I highlighted the trade opportunity last week Tuesday at the 30 min pivot off the 20EMA but for some god forsaken reason I did not execute.",
+   "claim": "GLW: our Sunday Scans flagged a 30-minute pivot off the 20-day EMA."
+  },
+  {
+   "id": "u02",
+   "source": "u2",
+   "quote": "Then on this 30 min pivot on Thursday I was able to load it back with bigger size at 527 and a 520 stop. Currently up 35 points on that or 5-1 RR.",
+   "claim": "DELL: a 30-minute pivot bought at 527 with a 520 stop, up 5 to 1 the next day."
+  },
+  {
+   "id": "u03",
+   "source": "u3",
+   "quote": "Main entry day at the 20EMA shake and 30 Minute Pivot at $895. A top tier example of the strategy.",
+   "claim": "LITE: the 20-day EMA shake and the 30-minute pivot, a top-tier example."
+  },
+  {
+   "id": "u04",
+   "source": "u3",
+   "quote": "Pulls into and undercuts this range slightly closing with a strong lower wick.",
+   "claim": "TEAM: an undercut of the range that closes with a strong lower wick."
+  },
+  {
+   "id": "h01",
+   "source": "h1",
+   "quote": "Stop first (by default a few cents under the day's low or the prior day's low, F62); the size comes from the stop; if the honest stop does not fit the risk, skip the trade.",
+   "claim": "A3: stop first; the size comes from the stop; if the honest stop does not fit, skip."
+  },
+  {
+   "id": "h02",
+   "source": "h1",
+   "quote": "The stop is the exit. It only moves up, never down or wider. The one exception is the gap rule (B20).",
+   "claim": "A4: the stop is the exit; it only moves up; the gap rule is the one exception."
+  },
+  {
+   "id": "h03",
+   "source": "h1",
+   "quote": "Shares = account × risk % ÷ (entry − stop), rounded down, then capped: the size is the SMALLER of the risk-based size and the position cap",
+   "claim": "A5: shares are account times risk percent, divided by entry minus stop, rounded down, then capped."
+  },
+  {
+   "id": "h04",
+   "source": "h1",
+   "quote": "\"I almost never take a loss greater than 3%\": the stop usually sits within about 3% of the buy (a loss on the position, not the account).",
+   "claim": "A13: the stop usually sits within about 3% of the buy."
+  },
+  {
+   "id": "h05",
+   "source": "h1",
+   "quote": "Move the stop to breakeven at 2R to 5R, ideally. The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
+   "claim": "B19: breakeven between 2R and 5R; the hard rule for the first trim is a third at 3R."
+  },
+  {
+   "id": "h06",
+   "source": "h1",
+   "quote": "A gap against the stop: the first 30 minutes of the gap-down day decide. The low of the first 30-minute bar is the new stop.",
+   "claim": "B20: on a gap through the stop, the first 30-minute low is the new stop."
+  },
+  {
+   "id": "h07",
+   "source": "h1",
+   "quote": "With a ceiling: if the first 30 minutes take the loss past 2R, get out.",
+   "claim": "B20's ceiling: if the first 30 minutes take the loss past 2R, get out."
+  },
+  {
+   "id": "h08",
+   "source": "h1",
+   "quote": "No new buys in the 3 days before an earnings report; hold through a report only if the trade is up 5R.",
+   "claim": "B22: no new buys in the 3 days before a report."
+  },
+  {
+   "id": "h09",
+   "source": "h1",
+   "quote": "Trade only stocks at $10 or more that trade at least $20 million a day.",
+   "claim": "B23: only stocks at $10 or more trading at least $20 million a day."
+  },
+  {
+   "id": "h10",
+   "source": "h1",
+   "quote": "The 200-day line: no longs below the 200-day simple moving average, unless it is a parabolic long; shorts only below the 200-day, never above it unless it is a parabolic short.",
+   "claim": "B26: no longs below the 200-day simple moving average, except a parabolic long."
+  },
+  {
+   "id": "h11",
+   "source": "h1",
+   "quote": "No chasing: never buy more than 4% above the buy point.",
+   "claim": "C28: never buy more than 4% above the buy point."
+  },
+  {
+   "id": "h12",
+   "source": "h1",
+   "quote": "Chasing costs size, not risk: the stop stays under the buy point, so the distance grows and the shares shrink (A5).",
+   "claim": "C28: chasing costs size, because the stop stays put and the distance grows."
+  },
+  {
+   "id": "h13",
+   "source": "h1",
+   "quote": "Too stretched to buy: skip a long that is more than 10% above its 10-day average.",
+   "claim": "C29: skip a long more than 10% above its 10-day average."
+  },
+  {
+   "id": "h14",
+   "source": "h1",
+   "quote": "Buy leaders: an RS rating of 80 or more, in one of the strongest groups, except parabolic and mean-reversion trades.",
+   "claim": "C31: buy leaders, an RS rating of 80 or more in a strong group."
+  },
+  {
+   "id": "h15",
+   "source": "h1",
+   "quote": "Time stop: a trade still under 1R after 10 trading days is sold, freeing the money.",
+   "claim": "C33: a trade still under 1R after 10 trading days is sold."
+  },
+  {
+   "id": "h16",
+   "source": "h1",
+   "quote": "We swing trade: days to a few weeks; a winner can be held longer while it keeps working.",
+   "claim": "C35: we swing trade, days to a few weeks."
+  },
+  {
+   "id": "h17",
+   "source": "h1",
+   "quote": "Max position 40% of the account",
+   "claim": "A7: the largest position is 40% of the account."
+  },
+  {
+   "id": "h17b",
+   "source": "h1",
+   "quote": "A tight stop never justifies a bigger position than that: a gap can jump the stop.",
+   "claim": "A7: a tight stop never justifies a bigger position, because a gap can jump the stop."
+  },
+  {
+   "id": "h18",
+   "source": "h1",
+   "quote": "Every position has a real stop order with the broker, not a stop kept in your head.",
+   "claim": "D41: a real stop order with the broker."
+  },
+  {
+   "id": "h20",
+   "source": "h1",
+   "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
+   "claim": "E51: another third at 5R, then trail the last third."
+  },
+  {
+   "id": "h21",
+   "source": "h1",
+   "quote": "Default trail: the 10-day average for fast movers, the 21-day for steadier ones; sell on a close below it.",
+   "claim": "E52: trail the 10-day for fast movers, the 21-day for steadier ones; sell on a close below it."
+  },
+  {
+   "id": "h22",
+   "source": "h1",
+   "quote": "Entries are market orders.",
+   "claim": "E57: entries are market orders."
+  },
+  {
+   "id": "h23",
+   "source": "h1",
+   "quote": "No new buys outside regular trading hours.",
+   "claim": "E58: no new buys outside regular hours."
+  },
+  {
+   "id": "h24",
+   "source": "h1",
+   "quote": "The stop sits a few cents under the day's low, not exactly on it.",
+   "claim": "F62: the stop sits a few cents under the low, not on it."
+  },
+  {
+   "id": "h25",
+   "source": "h1",
+   "quote": "If a stock opens above a trim level (3R, 5R), take that trim at the open.",
+   "claim": "F63: a trim level the day opens past is taken at the open."
+  },
+  {
+   "id": "h26",
+   "source": "h1",
+   "quote": "The market reading as a guide (A10): Green, full risk per grade and up to 10 positions; Yellow, smaller and fewer; Orange, only A+ setups; Red, mostly cash and shorts.",
+   "claim": "F65: Green full risk; Yellow smaller and fewer; Orange only A+; Red mostly cash and shorts."
+  },
+  {
+   "id": "h29",
+   "source": "h1",
+   "quote": "The same stock: at most 3 tries in a week and 6 in a month.",
+   "claim": "E56: at most 3 tries in a week and 6 in a month on one stock."
+  },
+  {
+   "id": "h30",
+   "source": "h1",
+   "quote": "No time-of-day rule.",
+   "claim": "C30: no time-of-day rule."
+  },
+  {
+   "id": "h34",
+   "source": "h1",
+   "quote": "In a Red market: mostly cash, plus shorts below the 200-day.",
+   "claim": "D46: in a Red market, mostly cash plus shorts."
+  },
+  {
+   "id": "h35",
+   "source": "h1",
+   "quote": "Setup grades set the size: A and B setups at normal size; A+ sized up; B- or lower sized down.",
+   "claim": "D38: the grade sets the size; B- or lower is sized down."
+  },
+  {
+   "id": "c01",
+   "source": "c1",
+   "quote": "The pivot candle is the first green 30-minute candle (close above open) after the red string, at the level.",
+   "claim": "The pivot candle: the first green 30-minute candle after the red string, at the level."
+  },
+  {
+   "id": "c02",
+   "source": "c1",
+   "quote": "A later 30-minute candle trades one cent above the pivot candle's high",
+   "claim": "The trigger: a later 30-minute candle trades a cent above the pivot candle's high."
+  },
+  {
+   "id": "c03",
+   "source": "c1",
+   "quote": "No buying while the red string is still falling; the green candle must close first.",
+   "claim": "No buying while the reds are still falling; the green candle must close first."
+  },
+  {
+   "id": "c04",
+   "source": "c1",
+   "quote": "Skip if the stop is more than 3% away or wider than the stock's average daily range. A risk over 3% is a sign the pivot candle is too wide.",
+   "claim": "Skip if the stop is over 3% or wider than the stock's average daily range."
+  },
+  {
+   "id": "c05",
+   "source": "c1",
+   "quote": "A few cents under the pivot candle's low (the day's low is the wider option); 3% or less and no wider than the stock's average daily range. Stops of 1% to 2% are normal.",
+   "claim": "The card's stop: a few cents under the pivot candle's low, the day's low the wider option; 1% to 2% is normal."
+  },
+  {
+   "id": "c06",
+   "source": "c1",
+   "quote": "A real stop order with the broker. It only moves up; never down to give it room after the pivot low breaks.",
+   "claim": "The stop sits with the broker and only moves up."
+  },
+  {
+   "id": "c07",
+   "source": "c1",
+   "quote": "The position is at most 40% of the account. Very tight stops make the risk-based size huge; the cap binds on almost every pivot, and a gap can jump a 1% stop.",
+   "claim": "The 40% cap binds on almost every pivot, because tight stops make the risk-based size huge."
+  },
+  {
+   "id": "c08",
+   "source": "c1",
+   "quote": "At 1% account risk and a 0.6% stop the formula asks for 167% of the account (A5); A7 caps it at 40%.",
+   "claim": "At 1% risk and a 0.6% stop the formula asks for 167% of the account; the cap is 40%."
+  },
+  {
+   "id": "c09",
+   "source": "c1",
+   "quote": "Before the trigger: any 30-minute candle trades under the pivot candle's low. Wait for a new red string and a new pivot.",
+   "claim": "A trade under the pivot low before the trigger voids the pivot; wait for a new one."
+  },
+  {
+   "id": "c10",
+   "source": "c1",
+   "quote": "The daily context breaks: a close under the level the pivot was meant to hold, for example under the 50-day SMA when the pivot was at the 50.",
+   "claim": "A daily close under the level the pivot was holding breaks the setup."
+  },
+  {
+   "id": "c11",
+   "source": "c1",
+   "quote": "The prior close is above the 50-day SMA and the 50-day is above the 200-day.",
+   "claim": "The prior close is above the 50-day, and the 50-day above the 200-day."
+  },
+  {
+   "id": "c12",
+   "source": "c1",
+   "quote": "The 20-day EMA is rising: above its value 5 sessions earlier.",
+   "claim": "The 20-day EMA is rising: above its value 5 sessions earlier."
+  },
+  {
+   "id": "c13",
+   "source": "c1",
+   "quote": "A clean red string of 3 or more candles is the A+ version.",
+   "claim": "A clean red string of 3 or more is the A+ version."
+  },
+  {
+   "id": "c14",
+   "source": "c1",
+   "quote": "Best when the pivot candle's low is the low of the pullback and it closes in the upper half of its range.",
+   "claim": "Best when the pivot candle's low is the pullback low and it closes in its upper half."
+  },
+  {
+   "id": "c15",
+   "source": "c1",
+   "quote": "No fixed depth. The daily pullback is usually 1 to 5 sessions into the average; no number is taught.",
+   "claim": "No fixed depth is taught for the daily pullback."
+  },
+  {
+   "id": "c16",
+   "source": "c1",
+   "quote": "A cue: the originator built it for volatile tapes, when holding a daily-stop position is hard.",
+   "claim": "A cue: it was built for volatile markets, when a daily-low stop is hard to hold."
+  },
+  {
+   "id": "c17",
+   "source": "c1",
+   "quote": "An ORB buys the first trade through the 9:30 to 10:00 high. A pivot buys the high of the first green candle after a string of red ones at a daily level, usually well below the morning high.",
+   "claim": "The ORB lookalike: the ORB buys the 9:30 to 10:00 high; the pivot buys a turn candle's high at a daily level."
+  },
+  {
+   "id": "c18",
+   "source": "c1",
+   "quote": "A Go Signal is an hourly close back above the prior day's close by the end of the second hourly candle, from an undercut of a tight hourly flag.",
+   "claim": "The Go Signal: an hourly close back over the prior day's close by the end of the second hourly candle."
+  },
+  {
+   "id": "c19",
+   "source": "c1",
+   "quote": "A pivot can form at any 30-minute candle and its line is the pivot candle's high, not the prior close. A 14:00 turn is a pivot, not a Go Signal.",
+   "claim": "A pivot can form at any 30-minute candle; its line is the pivot candle's high."
+  },
+  {
+   "id": "c20",
+   "source": "c1",
+   "quote": "The pullback to the rising 20-day EMA is the daily setup; the 30-minute pivot is the timer inside it that puts the stop under one candle instead of under the day.",
+   "claim": "The EMA pullback is the daily setup; the pivot is the timer inside it."
+  },
+  {
+   "id": "c21",
+   "source": "c1",
+   "quote": "If no daily level sits under the pivot candle, it is not this trade.",
+   "claim": "No daily level under the pivot candle, not this trade."
+  },
+  {
+   "id": "c22",
+   "source": "c1",
+   "quote": "A red to green buys the first trade through yesterday's close. A pivot buys the pivot candle's high, which can sit under yesterday's close",
+   "claim": "The red to green lookalike buys yesterday's close; the pivot buys its candle's high."
+  },
+  {
+   "id": "c23",
+   "source": "c1",
+   "quote": "Sizing up because the stop is tight. The 40% cap still applies, and a gap can jump a 1% stop.",
+   "claim": "A named mistake: sizing up because the stop is tight."
+  },
+  {
+   "id": "c24",
+   "source": "c1",
+   "quote": "Treating it as a day trade and selling the whole position at 1R to 2R.",
+   "claim": "A named mistake: selling it all at 1R to 2R as a day trade."
+  },
+  {
+   "id": "c25",
+   "source": "c1",
+   "quote": "A half-percent stop on a slow mega-cap: inside the noise, a coin flip (MSFT, NVDA).",
+   "claim": "A named mistake: a half-percent stop on a slow mega-cap sits inside the noise."
+  },
+  {
+   "id": "c26",
+   "source": "c1",
+   "quote": "Buying a pivot in the last hour: no session left to work (AAPL's 15:00 pivots).",
+   "claim": "A named mistake: a last-hour pivot has no session left to work."
+  },
+  {
+   "id": "c27",
+   "source": "c1",
+   "quote": "Calling any green candle a pivot. No level, no setup.",
+   "claim": "A named mistake: calling any green candle a pivot."
+  },
+  {
+   "id": "c28",
+   "source": "c1",
+   "quote": "a pivot floating in mid-range with no daily level under it is just a green candle.",
+   "claim": "A pivot floating mid-range with no daily level under it is just a green candle."
+  },
+  {
+   "id": "c29",
+   "source": "c1",
+   "quote": "a shake: the low undercuts the average or a prior low and the candle closes back above it",
+   "claim": "The A+ shake: the low undercuts the average and the candle closes back above it."
+  },
+  {
+   "id": "c30",
+   "source": "c1",
+   "quote": "pvt.trigger: the trigger comes late in the day",
+   "claim": "The B- row: a trigger late in the day."
+  },
+  {
+   "id": "c31",
+   "source": "c1",
+   "quote": "a tiny midday doji after two small red candles (noise, a stop of a few tenths of a percent)",
+   "claim": "The B- row: a tiny midday doji after small reds, a stop of a few tenths of a percent."
+  },
+  {
+   "id": "c32",
+   "source": "c1",
+   "quote": "pvt.trigger: the trigger comes within one or two candles",
+   "claim": "The A+ row: the trigger comes within one or two candles."
+  },
+  {
+   "id": "c33",
+   "source": "c1",
+   "quote": "Not a stand-alone setup: an entry timer on the 30-minute chart for a daily long setup at a level (EMA pullback, gap support, remount, undercut and rally, flag base).",
+   "claim": "The card: an entry timer on the 30-minute chart for a daily long setup at a level."
+  },
+  {
+   "id": "c34",
+   "source": "c1",
+   "quote": "Green: full use. Yellow: fewer, A and B grades. Orange: A+ only. Red: mostly cash, plus shorts below the 200-day.",
+   "claim": "Market reading: Green full use; Yellow fewer, A and B; Orange A+ only; Red mostly cash, plus shorts below the 200-day."
+  },
+  {
+   "id": "c35",
+   "source": "c1",
+   "quote": "A gap through the stop on a later day: the first 30-minute low is the new stop; out if that is past 2R. A different 30-minute rule; the course must not mix the two.",
+   "claim": "The gap rule is a different 30-minute rule from the pivot."
+  },
+  {
+   "id": "c36",
+   "source": "c1",
+   "quote": "Pivots fail and re-form; a re-entry needs a new pivot.",
+   "claim": "Pivots fail and re-form; a re-entry needs a new pivot."
+  },
+  {
+   "id": "c37",
+   "source": "c1",
+   "quote": "With a tight stop 3R and 5R come fast: DELL 3R the same afternoon and 5R the next morning; DK 3R in 6 bars.",
+   "claim": "With a tight stop, 3R and 5R come fast."
+  },
+  {
+   "id": "c38",
+   "source": "c1",
+   "quote": "90% of the scan's trades touched the fixed stop at some point in 20 sessions, usually after the targets: the trims are what keep the result.",
+   "claim": "Most scan trades touched the fixed stop later; the trims keep the result."
+  },
+  {
+   "id": "c39",
+   "source": "c1",
+   "quote": "Common here: DELL, LITE and HOOD all gapped through 3R or 5R.",
+   "claim": "Pivot winners often gap through a trim level."
+  },
+  {
+   "id": "c40",
+   "source": "c1",
+   "quote": "No new buy in the 3 sessions before an earnings report.",
+   "claim": "No new buy in the 3 sessions before a report."
+  },
+  {
+   "id": "c41",
+   "source": "c1",
+   "quote": "pvt.pullback_length: the fourth or later pullback to the same average",
+   "claim": "The B- row: the fourth or later pullback to the same average."
+  },
+  {
+   "id": "c42",
+   "source": "c1",
+   "quote": "pvt.leader: a true leader (RS 90+) in a leading group; the first or second pullback after a breakout",
+   "claim": "The A+ row: a true leader, the first or second pullback after a breakout."
+  },
+  {
+   "id": "c43",
+   "source": "c1",
+   "quote": "Not more than 10% above the 10-day average at the buy. Automatic at the average.",
+   "claim": "Not more than 10% over the 10-day at the buy."
+  },
+  {
+   "id": "c44",
+   "source": "c1",
+   "quote": "Stop to breakeven between 2R and 5R, at the first trim by default.",
+   "claim": "Breakeven between 2R and 5R, at the first trim by default."
+  },
+  {
+   "id": "c45",
+   "source": "c1",
+   "quote": "Nine of the ten scan examples triggered on the very next candle (the DELL and HOOD way).",
+   "claim": "Nine of the ten scan examples triggered on the very next candle."
+  },
+  {
+   "id": "c46",
+   "source": "c1",
+   "quote": "The scan used 3 cents under the pivot candle's low",
+   "claim": "The scan's stop sat 3 cents under the pivot candle's low."
+  },
+  {
+   "id": "c47",
+   "source": "c1",
+   "quote": "Price $10 or more and $20 million or more traded a day on average. Thin names make 30-minute candles noisy.",
+   "claim": "Liquidity: $10 or more and $20 million a day; thin names make noisy candles."
+  },
+  {
+   "id": "c48",
+   "source": "c1",
+   "quote": "Trail the last third under the 10-day for a fast mover, the 21-day for a steadier one, selling on a close below it.",
+   "claim": "Trail the last third under the 10 or 21-day, selling on a close below it."
+  },
+  {
+   "id": "c49",
+   "source": "c1",
+   "quote": "Time stop: still under 1R after 10 trading days, sell. A pivot that has not worked in 10 days is dead.",
+   "claim": "A pivot still under 1R after 10 trading days is sold."
+  },
+  {
+   "id": "c50",
+   "source": "c1",
+   "quote": "On a pivot the stop is usually close, so a gap down through it is likely.",
+   "claim": "A pivot's close stop makes a gap through it likely."
+  },
+  {
+   "id": "c51",
+   "source": "c1",
+   "quote": "At most 3 tries in a week and 6 in a month on the same stock.",
+   "claim": "At most 3 tries a week and 6 a month on one stock."
+  },
+  {
+   "id": "c52",
+   "source": "c1",
+   "quote": "The originator's 2025 'short but sweet' exits are an option, not ours.",
+   "claim": "The originator's quick 2025 exits are not ours."
+  },
+  {
+   "id": "c53",
+   "source": "c1",
+   "quote": "A market order when it trades, or a buy-stop one cent over the pivot high that becomes a market order. Regular hours only.",
+   "claim": "The order: market when it trades, regular hours only."
+  },
+  {
+   "id": "d01",
+   "source": "d1",
+   "quote": "DK 2026-08-24 | 6 reds from the 08-24 open (9:30 to 12:00) into the 10-day EMA 66.48; pivot 12:30, low 66.08, closed at its high | 66.83 (13:00) | 66.05 (1.17%) | 19.8",
+   "claim": "DK 2026-08-24: 6 reds into the 10-day EMA 66.48; pivot 12:30, low 66.08; buy 66.83 at 13:00, stop 66.05 (1.17%); best 19.8R."
+  },
+  {
+   "id": "d02",
+   "source": "d1",
+   "quote": "A 6-candle morning sell-off after the 08-21 thrust lands exactly on the rising 10-day; the pivot closes on its high and 3R comes in 6 bars",
+   "claim": "DK: the sell-off lands on the rising 10-day; the pivot closes on its high; 3R in 6 bars."
+  },
+  {
+   "id": "d03",
+   "source": "d1",
+   "quote": "PSX 2026-08-27 | 5 reds into the 10-day EMA 236.78; pivot 11:00, the day's low 237.12 | 238.91 (11:30) | 237.09 (0.76%) | 21.1",
+   "claim": "PSX 2026-08-27: 5 reds into the 10-day EMA 236.78; pivot 11:00, the day's low 237.12; buy 238.91, stop 237.09 (0.76%)."
+  },
+  {
+   "id": "d04",
+   "source": "d1",
+   "quote": "a quiet pullback onto the 10-day, the pivot is the day's low, the trigger is the next candle; 3R the next session, 5R two sessions on",
+   "claim": "PSX: a quiet pullback; the pivot is the day's low; 3R the next session, 5R two sessions on."
+  },
+  {
+   "id": "d05",
+   "source": "d1",
+   "quote": "DOCU 2026-10-06 | 5 reds into the 21-day EMA 67.53; pivot 14:00 undercut it (low 66.83) and closed at its high | 68.08 (14:30) | 66.80 (1.88%) | 13.9",
+   "claim": "DOCU 2026-10-06: 5 reds into the 21-day EMA 67.53; the 14:00 pivot undercut it to 66.83 and closed at its high; buy 68.08, stop 66.80 (1.88%)."
+  },
+  {
+   "id": "d06",
+   "source": "d1",
+   "quote": "a 5-candle flush through the 21-day, the pivot closes on its high; slower (3R on 10-09), 5R on 10-14",
+   "claim": "DOCU: a flush through the 21-day; 3R on 10-09, 5R on 10-14."
+  },
+  {
+   "id": "d07",
+   "source": "d1",
+   "quote": "HALO 2026-09-16 | 4 reds into the 21-day EMA 105.22; pivot 10:00, low 105.77 | 106.65 (10:30) | 105.74 (0.85%) | 12.3",
+   "claim": "HALO 2026-09-16: buy 106.65, stop 105.74 (0.85%); best 12.3R."
+  },
+  {
+   "id": "d08",
+   "source": "d1",
+   "quote": "5 reds into the 10-day EMA (339.05), pivot candle 15:00, low 341.13, closed near its high; the trigger was the last candle of the day. It never ticked above the buy (0.00R); the next morning's first candle took the stop.",
+   "claim": "AAPL 2026-10-16: a 15:00 pivot, the trigger the day's last candle; the next morning's first candle took the stop."
+  },
+  {
+   "id": "d09",
+   "source": "d1",
+   "quote": "AAPL | 2026-10-16 | 343.15 at 15:30 | 341.10 (0.60%)",
+   "claim": "AAPL: bought 343.15 at 15:30, stop 341.10 (0.60%)."
+  },
+  {
+   "id": "d10",
+   "source": "d1",
+   "quote": "4 reds into the 10-day EMA (497.14), pivot 12:30, low 499.00. Reached 0.48R the same afternoon, faded into the close, and the next morning's first candle took the stop.",
+   "claim": "MSFT 2026-09-01: reached 0.48R, then the next morning's first candle took the stop."
+  },
+  {
+   "id": "d11",
+   "source": "d1",
+   "quote": "MSFT | 2026-09-01 | 501.07 at 13:00 | 498.97 (0.42%)",
+   "claim": "MSFT: bought 501.07, stop 498.97 (0.42%)."
+  },
+  {
+   "id": "d12",
+   "source": "d1",
+   "quote": "3 reds into the 21-day EMA (112.63), pivot 12:30, low 112.99; the trigger came three candles later. 0.00R; the pivot low broke in the last hour.",
+   "claim": "INTC 2026-10-06: a pivot at the 21-day; the pivot low broke in the last hour."
+  },
+  {
+   "id": "d13",
+   "source": "d1",
+   "quote": "The second of three stabs in six sessions (09-29, 10-06, 10-07) on a name whose daily trend had already turned; E56 cuts the third try.",
+   "claim": "INTC: three stabs in six sessions on a name whose daily trend had turned."
+  },
+  {
+   "id": "d14",
+   "source": "d1",
+   "quote": "6 reds into the 21-day EMA (589.90), pivot 13:00, the day's low 595.11, closed in its upper half: the A+ shape. Reached 0.35R, drifted, and the next morning's first candle traded through the pivot low.",
+   "claim": "AXON 2026-08-24: the A+ shape, 0.35R, then the pivot low broke the next morning."
+  },
+  {
+   "id": "d15",
+   "source": "d1",
+   "quote": "AXON | 2026-08-24 | 601.49 at 13:30 | 595.08 (1.07%)",
+   "claim": "AXON: bought 601.49, stop 595.08 (1.07%)."
+  },
+  {
+   "id": "d16",
+   "source": "d1",
+   "quote": "Nothing in the rules was missing; a pivot low breaks about as often as it holds, and the stop is the exit.",
+   "claim": "AXON: nothing was missing; a pivot low breaks about as often as it holds."
+  },
+  {
+   "id": "d17",
+   "source": "d1",
+   "quote": "the stops sat 0.42% to 1.72% under the buy",
+   "claim": "The four losses had stops 0.42% to 1.72% under the buy."
+  },
+  {
+   "id": "d18",
+   "source": "d1",
+   "quote": "the house exit, the fixed stop that only moves up, is what kept each loss at 1R.",
+   "claim": "The fixed stop that only moves up kept each loss at 1R."
+  },
+  {
+   "id": "d19",
+   "source": "d1",
+   "quote": "A green candle floating in mid-range after 4 reds, with no daily level under it: just a green candle. Bought 1179.05 at 11:00, 0.28R, stopped the next morning.",
+   "claim": "URI 2026-11-03: a green candle with no level under it; 0.28R, then stopped."
+  },
+  {
+   "id": "d20",
+   "source": "d1",
+   "quote": "A one-candle dip to the 10-day EMA (210.39), not a pullback string. Bought 211.78 at 11:00, 1.42R, stopped at 13:30 the same day.",
+   "claim": "CRWD 2026-09-10: a one-candle dip, not a string; 1.42R, then stopped."
+  },
+  {
+   "id": "d21",
+   "source": "d1",
+   "quote": "the 11:30 candle traded under the pivot candle's low (142.41) before the trigger at 12:00",
+   "claim": "MRNA 2026-09-15: the 11:30 candle traded under the pivot low before the 12:00 trigger."
+  },
+  {
+   "id": "d22",
+   "source": "d1",
+   "quote": "A void pivot: once the pivot low trades, the setup resets and needs a new red string and a new pivot. Bought 143.81, 0.00R, stopped on the trigger candle.",
+   "claim": "MRNA: a void pivot; bought 143.81 and stopped on the trigger candle."
+  },
+  {
+   "id": "d23",
+   "source": "d1",
+   "quote": "20-day EMA 262.69 under its value 5 sessions earlier (264.36); the rule is rising",
+   "claim": "IQV 2026-10-14: the 20-day EMA was under its value 5 sessions earlier."
+  },
+  {
+   "id": "d24",
+   "source": "d1",
+   "quote": "3 reds into the 10-day EMA (261.94) in a stock whose 20-day has turned down: no daily setup under the timer.",
+   "claim": "IQV: a pivot in a stock whose 20-day had turned down."
+  },
+  {
+   "id": "d25",
+   "source": "d1",
+   "quote": "HOOD 2026-08-31 | 1ChartMaster | 102.99 / 101.16 (his) | 1.78% | 20-day EMA about 101.4, 50-day SMA about 101.3 | 2R next day; 3R and 5R on 2026-09-03",
+   "claim": "HOOD 2026-08-31: the originator's 102.99 with a 101.16 stop, 1.78%; 5R on 2026-09-03."
+  },
+  {
+   "id": "d26",
+   "source": "d1",
+   "quote": "the 10:30 candle was the first green one (high 102.67, low 101.20), and the 11:00 candle took out its high. His stop, 101.16, is 4 cents under that green candle's low",
+   "claim": "HOOD: the 10:30 candle was the first green one, low 101.20; his stop sat 4 cents under it."
+  },
+  {
+   "id": "d27",
+   "source": "d1",
+   "quote": "The two differ on four of the five named examples, not one: HOOD (pivot low 101.20, day low 100.69)",
+   "claim": "On HOOD the pivot candle's low was 101.20 and the day's low 100.69."
+  },
+  {
+   "id": "d28",
+   "source": "d1",
+   "quote": "Buying the break of a bar's high after a pullback touches a rising average, with the stop at the new swing low, is Linda Raschke's Holy Grail entry",
+   "claim": "The mechanics are Raschke's Holy Grail entry, older than the name."
+  },
+  {
+   "id": "d29",
+   "source": "d1",
+   "quote": "Red candles, first green candle, buy its high, at a daily average, came out at about zero after house management, and its interval straddles zero.",
+   "claim": "The bare mechanics came out at about zero in our replay."
+  },
+  {
+   "id": "d30",
+   "source": "d1",
+   "quote": "the first half hour's highs quoted in section 5.5 (DELL 543.15, HOOD 104.17, LITE 950.50) are the 9:30 candles' highs.",
+   "claim": "DELL's first half hour high was 543.15."
+  },
+  {
+   "id": "h36",
+   "source": "h1",
+   "quote": "Never own more than 1% of a stock's average daily volume; illiquid stocks are not even watched.",
+   "claim": "D42: never own more than 1% of a stock's average daily volume."
+  },
+  {
+   "id": "c54",
+   "source": "c1",
+   "quote": "The position is at most 1% of average daily volume.",
+   "claim": "Card: the position is at most 1% of average daily volume."
+  }
+ ],
+ "walkthroughs": [
+  {
+   "key": "w1",
+   "title": "DK, August 2026: the textbook pivot",
+   "steps": [
+    "DK, 2026-08-24, on 30-minute bars. A leader in an uptrend sells off all morning: 6 red candles, 9:30 to 12:00.",
+    "The selling lands on the rising 10-day EMA, 66.48. The 12:30 candle turns green, low 66.08, and closes at its high.",
+    "The 13:00 candle takes the pivot high: buy at market, 66.83. Stop 3 cents under the low, 66.05, 1.17% away.",
+    "Failure mode: a trade under 66.08. Not here. 3R arrives in 6 bars; a third comes off, stop to breakeven."
+   ],
+   "facts": [
+    "d01",
+    "d02",
+    "c01",
+    "c02",
+    "c46",
+    "h22",
+    "c09",
+    "h05",
+    "c44"
+   ]
+  },
+  {
+   "key": "w2",
+   "title": "DOCU, October 2026: the shake at the 21-day",
+   "steps": [
+    "DOCU, 2026-10-06, on 30-minute bars. A leader pulls back into its rising 21-day EMA, 67.53: 5 red candles.",
+    "The 14:00 candle flushes through the average to 66.83, then closes back above it, at its high. That is the shake.",
+    "The 14:30 candle trades over its high: buy at market, 68.08. Stop a few cents under the pivot low, 66.80, 1.88% away.",
+    "Slower than most: 3R on 10-09, 5R on 10-14. A third off at each. A swing trade, not a day trade."
+   ],
+   "facts": [
+    "d05",
+    "d06",
+    "c29",
+    "c01",
+    "h22",
+    "h24",
+    "h05",
+    "h20",
+    "h16"
+   ]
+  },
+  {
+   "key": "w3",
+   "title": "PSX, August 2026: when the cap sets the size",
+   "steps": [
+    "PSX, 2026-08-27, on 30-minute bars. A leader drifts down 5 red candles onto its rising 10-day EMA, 236.78.",
+    "The 11:00 candle is the pivot and the day's low, 237.12. Both stop choices agree here: a few cents under 237.12.",
+    "The 11:30 candle takes its high: buy 238.91, stop 237.09, 0.76% away. A stop that tight makes the risk-based size huge.",
+    "So the 40% position cap sets the size. 3R comes the next session, 5R two sessions on; the last third trails."
+   ],
+   "facts": [
+    "d03",
+    "d04",
+    "c05",
+    "h24",
+    "c07",
+    "h17",
+    "h03",
+    "h05",
+    "h20",
+    "h21"
+   ]
+  }
+ ],
+ "conflicts": [
+  "Pending-owner criteria kept OUT of every key (our current default, waiting on the owner): pvt.role (D-002: which setup the name means; keyed only as the originator's words, q02, and the card's lookalike tells, q45 and q50; the card's 'not a stand-alone setup' is quoted as c33 and never keyed alone); pvt.level (D-125: the 1% test never appears; q47 keys the card's own failure mode and named mistake, 'a green candle with no daily level under it', on the URI near-miss at 2.4%, a distance no option of D-125 calls 'at'; q57 computes a distance only and keys no line); pvt.red_string (D-126: the minimum of 2 never appears in a key or a wrong note; q18 and q52 key the proposed A+ cue of 3 or more; q48 keys 'one candle is not a string' on the originator's own 'a string of red'); pvt.trigger (D-127: 'the same session' never keyed; the trigger is keyed only as a cent over the pivot candle's high, which both options share; q40 grades a last-hour trigger lower by the card's B- row and C30, never bans it); pvt.inv_no_trigger (D-127: no item); pvt.entry_strict_vs_early (D-003: the early reclaim inside the turn, the owner's DELL fill at 527 against a pivot high of 530.43, is not taught; q45 uses DELL only to separate the pivot from the ORB); pvt.stop (D-008: neither stop is keyed as ours; keys rest on F62 'a few cents under, not on' (q08), the originator's stop as his (q09, q42), which of the two is tighter (q43), and the PSX plan (q58) where the pivot candle is the day's low and the two agree; the walk-throughs show the scan's stop, 3 cents under the pivot candle's low); pvt.volume (D-006: no volume item; q48 offers volume only as a wrong choice that does not supply the missing red string); pvt.short_mirror (D-001: the bear pivot is not taught). D-015 (whether to ask 1ChartMaster to confirm the wording) is open.",
+  "Sources: the originator's own words are posts on X. The contract lists social media as never a source; they are used here because he named and developed the setup and is on UCT's team, and the dossier and its checker read every post through the public FxTwitter API. They are Tier 2 from ONE publisher, so they never key alone: every question that cites them also cites a house rule, the card or the owner's Substack, and carries house: true. check_course_quotes found every one of them on its page on 2026-11-10. Post s6 reads like a generated third-person summary he posted on his own account (dossier 3.1). Owner's call whether to keep them.",
+  "The 30minpivotparty.com site and the three TradingView community scripts (dossier 3.4, 3.5) agree with the originator but are low-reliability (private authors, community code); none is cited.",
+  "UNITS-method SET.33 describes the first-half-hour reading ('consolidate under the first half-hour high, break with volume'; 'mark the first-30-minute high and the volume bar that confirms the break'). That is the ORB (SET.32) and does not match the originator's or the owner's trades (DELL: first half hour high 543.15, bought 527). This unit follows the card and D-002's note: the pivot is the turn candle at support. If the owner rules option b or c on D-002, the unit needs a rewrite.",
+  "Measured evidence: no published statistics exist. The dossier's replay found the bare mechanics at about zero after house management (d29), pivots away from an average no worse than those at one, and the first-half-hour version at -0.11R. The unit never claims an edge, never keys the base rate (27.1% to 3R, 19.7% to 5R, fixed stop) and teaches the judgment (leaders, levels, the shake, the clock) as the card's grading cues.",
+  "The dossier's example numbers (d1) are a Tier 3 repo source: read off our own 30-minute bars (Yahoo 5-minute bars built up) for one 12-week window, 2026-08-17 to 2026-11-06; the RS figure is a stand-in rank, not the app's rating. The owner has not reviewed the ten names; the checker and the owner should confirm them before the unit goes live.",
+  "The criteria card (c1) is a Tier 3 repo source for its proposed criteria (the 50 over 200 stack, the rising 20-day EMA, the pivot candle, the 3-or-more cue, the candle quality, the voiding rules, the lookalike tells, the grading rows); those are the dossier's proposals, not owner rulings; every question keyed on them carries house: true and the owner's review is the gate.",
+  "The 'stop inside the noise' lesson (MSFT, q41): the card lists it as a named mistake and its B- row grades a stop of a few tenths of a percent lower; no rulebook rule skips a small stop. q41 keys only the grade (graded down, the loss still 1R), never a pass. The SET.07 checker cut a similar item that had no card line behind it; this one has two.",
+  "Two 30-minute rules: the pivot (an entry timer) and B20 (a gap through the stop: the first 30-minute low is the new stop, out past 2R). The card says the course must not mix them; q31 and q54 teach B20 with the pivot timer as a wrong choice.",
+  "The originator's 2025 'short but sweet' exits and the Pivot Party's '3x the risk' target are not ours (the card's management overrides); q55 keys the house ladder and C35.",
+  "Raschke's Holy Grail as the ancestor (q37) is the dossier's statement (d28) with her own rule (r01, r02); her rule is on daily bars with an ADX filter and does not require a green bar, so the tf says 'an older form of these mechanics', not 'the same setup'.",
+  "No chart-carrying question: the contract's chart item draws daily bars from our own history (build_items sets tf D), and the pivot lives on 30-minute bars; a daily chart cannot show the red string, the pivot candle or the trigger. The unit carries none.",
+  "The unit id SET.33 is the plan's (UNITS-method.md: '30-Minute Pivot', M11.L1). q25 rounds 167.43 shares to 167, the same as A5's 'rounded down'.",
+  "Walk-through fills: the scan bought a cent over the pivot candle's high (or the candle's open if it gapped over) and stopped 3 cents under the pivot candle's low; a live market order fills a little differently. w3's 'both stop choices agree' holds because PSX's pivot candle made the day's low (d03).",
+  "Cold check 2026-11-10: 66 pass (63 questions and 3 walk-throughs; 17 fixed, 1 of them a walk-through), 0 fix, 1 cut (q42, the same stop-distance arithmetic as q16). Look first at: (1) the whole unit stands on D-002 option (a), the turn candle at support as the originator and the owner's published trades use it; if the owner rules b or c, q01, q45, q50 and the walk-throughs change, and q47 changes if D-125 drops the level; (2) the originator's X posts (o01 to o09) are social media, which the contract bars as a source; they are used only beside a house line and each quote was found on its page, but the owner should say whether to keep them; (3) q63 and the card's 3% skip are marked settled, yet A13 only says the stop 'usually' sits within about 3% and SET.32 holds the same line as pending D-005. Also fixed: q34 (Yellow is 'smaller and fewer' in F65; 'A and B grades' was the card's own addition), q35 (the story did not say the stock was still 12% over the 10-day at the buy), q58 (a buy price the story never gave), and 'A+ row' and 'B- row' wording (E50, grading is discretionary).",
+  "Requoted 2026-11-10: c34 after the cards' market-reading rows were corrected."
+ ],
+ "verify": {
+  "q01": {
+   "status": "pass",
+   "notes": "c01, o03, o04 verbatim. The pivot candle is a proposed line; the role of the name itself is D-002 (pending, but the owner's published trades use it this way). Wrong notes true. variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q02": {
+   "status": "pass",
+   "notes": "o01 verbatim (X post, checked on the page); u01 verbatim (the owner's Sunday Scans, GLW). The tf asks what the originator calls it, true on the quote. The card's 'not a stand-alone setup' (D-002) is not keyed.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q03": {
+   "status": "pass",
+   "notes": "c02 and c19 verbatim; r01 verbatim (Raschke). A cent over the pivot high holds under both D-127 options. Wrong notes true. variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q04": {
+   "status": "pass",
+   "notes": "c03 and o04 verbatim. False is right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q05": {
+   "status": "pass",
+   "notes": "B26 verbatim (h10). A hard rule.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q06": {
+   "status": "pass",
+   "notes": "C31 verbatim (h14); o02, o09 verbatim. True.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q07": {
+   "status": "pass",
+   "notes": "C28 and its size note verbatim (h11, h12). Settled.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q08": {
+   "status": "pass",
+   "notes": "F62 verbatim (h24); c05. Keyed only on 'a few cents under, not on'; the D-008 choice between the pivot low and the day's low is not keyed.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q09": {
+   "status": "pass",
+   "notes": "o05 verbatim; d26 (HOOD: first green candle low 101.20, his stop 101.16 = 4 cents under) verified. The question asks what the originator does, not what is ours. flagged-question fix checked 2026-11-11",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q10": {
+   "status": "pass",
+   "notes": "c11 verbatim (pvt.stack_50, proposed). True. variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q11": {
+   "status": "pass",
+   "notes": "c12 verbatim (proposed). Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q12": {
+   "status": "pass",
+   "notes": "p01 and p02 verbatim (ChartSchool, checked on the page). Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q13": {
+   "status": "pass",
+   "notes": "B23 verbatim (h09). $9 fails.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q14": {
+   "status": "pass",
+   "notes": "B22 verbatim (h08). A report Wednesday before the open puts a Monday buy inside the 3 sessions before it.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q15": {
+   "status": "pass",
+   "notes": "o07 and c16 verbatim. The why said a one-candle stop is 'far tighter than the day's low'; the dossier puts the pivot low only 0.25% to 0.55% above the day's low on four of the five named examples, so 'far' is gone.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q16": {
+   "status": "pass",
+   "notes": "calc (66.83-66.05)/66.83 = 1.17% checked against d01.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q17": {
+   "status": "pass",
+   "notes": "c04 verbatim (the 3% skip and the ADR test); k01 verbatim (Kullamagi, checked on the page). variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q18": {
+   "status": "pass",
+   "notes": "c13 and o03 verbatim; the 3-or-more cue is a proposed line. The minimum of 2 (D-126, pending) is not keyed. variety rewrite checked 2026-11-10 (edited: facts)",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q19": {
+   "status": "pass",
+   "notes": "E57 and E58 verbatim (h22, h23); c53 verbatim. True.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q20": {
+   "status": "pass",
+   "notes": "c32 and c45 verbatim (nine of ten triggered on the very next candle). The why called it 'the A+ row' and the lesson claimed 'a real turn usually gets taken out fast'; reworded as a cue (E50) and a statement of the card.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q21": {
+   "status": "pass",
+   "notes": "A4 (h02), D41 (h18), c06 verbatim. False is right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q22": {
+   "status": "pass",
+   "notes": "B19 (h05) and c44 verbatim: a third at 3R, breakeven at the first trim by default. A wrong note said 'we often wait for 5R in practice', which is the owner's habit, not a rule; reworded.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q23": {
+   "status": "pass",
+   "notes": "E51 verbatim (h20). Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q24": {
+   "status": "pass",
+   "notes": "calc 238.91 + 3 x (238.91-237.09) = 244.37 checked; d03/d04 (PSX 3R the next session).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q25": {
+   "status": "pass",
+   "notes": "calc 100,000 x 1% / 1.82 = 549.5, so 549 shares from the formula; 40,000 / 238.91 = 167.4, rounds down to 167 checked. A5, A7, c07 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q26": {
+   "status": "pass",
+   "notes": "c03, o04, c02 verbatim. A candle still open at 11:20 is not a pivot; right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q27": {
+   "status": "pass",
+   "notes": "c15 verbatim. False is right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q28": {
+   "status": "pass",
+   "notes": "E56 (h29) and c36 verbatim. Monday to Wednesday are three tries; a fourth on Thursday is over the weekly cap.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q29": {
+   "status": "pass",
+   "notes": "E52 (h21) and c48 verbatim. True. variety rewrite checked 2026-11-10 (edited: why)",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q30": {
+   "status": "pass",
+   "notes": "F63 verbatim (h25); c39 verbatim. Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q31": {
+   "status": "pass",
+   "notes": "B20 verbatim (h06, h07); c35 verbatim. Re-derived: 1R = 0.78; the gap open 65.70 is a 1.45R loss, inside the 2R ceiling; the first 30-minute low decides.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q32": {
+   "status": "pass",
+   "notes": "C33 verbatim (h15); c49 verbatim. True.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q33": {
+   "status": "pass",
+   "notes": "calc (111.20-106.65)/(106.65-105.74) = 4.55/0.91 = 5.0 checked; HALO d07 verified (best 12.3R, 3R in 6 bars, 5R in 2 sessions in dossier section 12).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q34": {
+   "status": "pass",
+   "notes": "F65 verbatim (h26): Yellow smaller and fewer. The key said 'Fewer, A and B grades'; 'A and B grades' is the card's addition (c34) and not in F65, and grades are E50's discretion, so the correct choice now says 'Fewer, and smaller than full size'. Requoted 2026-11-10: Yellow row unchanged on the card; key (fewer, smaller) holds. No text change. variety rewrite checked 2026-11-10",
+   "fixed": true,
+   "by": "requoter"
+  },
+  "q35": {
+   "status": "pass",
+   "notes": "C29 verbatim (h13); c43. The story gave the close 12% over the 10-day but not the stretch at the buy, after three red candles; it now says the stock is still 12% above the average at the pivot, so the skip follows.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q36": {
+   "status": "pass",
+   "notes": "c14 verbatim (a proposed cue). The dossier's own scan found a pivot that was the day's low did no better (26.7% against 27.4%), so this stays a cue 'on our card'. The wrong note called the doji 'the B- row' (E50); reworded. The correct choice now matches the card's 'upper half'. variety rewrite checked 2026-11-10",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q37": {
+   "status": "pass",
+   "notes": "d28 verbatim; r01, r02 verbatim (Raschke, interview on her own site). The tf says 'an older form of these mechanics', as the unit's conflicts line records (her rule is on daily bars with an ADX filter); true as hedged.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q38": {
+   "status": "pass",
+   "notes": "d14/d15/d16 verbatim (AXON 2026-08-24: 6 reds into the 21-day EMA 589.90, pivot 13:00 low 595.11, buy 601.49, stop 595.08 = 1.07%, 0.35R). The why's 'a pivot low breaks about as often as it holds' is the dossier's loose phrase and the scan's 27.1% to 3R does not show it; reworded to 'can break even on the best shape'. variety rewrite checked 2026-11-10",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q39": {
+   "status": "pass",
+   "notes": "d23/d24 verbatim (IQV 2026-10-14: 20-day EMA 262.69 against 264.36 five sessions earlier, stopped at 13:00). c12 proposed line. Right. variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q40": {
+   "status": "pass",
+   "notes": "d08/d09 verbatim (AAPL 2026-10-16: pivot 15:00, bought 343.15 at 15:30, stop 341.10 = 0.60%, stopped next morning); C30 (h30). The 'graded lower' is the card's cue and D-127 (same session) is not leaned on; a wrong note called the A+ row; reworded.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q41": {
+   "status": "pass",
+   "notes": "d10/d11 verbatim (MSFT 2026-09-01: buy 501.07, stop 498.97 = 0.42%, 0.48R, stopped next morning); c25, c31 verbatim. Keyed only as a lower-grade cue, never a skip (the unit's conflicts line); 'B- row' reworded. variety rewrite checked 2026-11-10 (edited: facts)",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q42": {
+   "status": "cut",
+   "notes": "same arithmetic as q16: the stop's distance as a percent of the fill, (fill - stop) / fill, asked a second time on a different trade (HOOD 1.78% against DK 1.17%). q16 keeps it; HOOD's numbers also come from the originator's X post read off a chart.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q43": {
+   "status": "pass",
+   "notes": "d27 verbatim (HOOD: pivot low 101.20, day's low 100.69); c05. The question asks which is tighter, so the D-008 choice is not keyed.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q44": {
+   "status": "pass",
+   "notes": "h05 and c44 verbatim (B19: breakeven 2R to 5R, at the first trim by default). 'Earlier is inside the noise' was unsourced and is removed.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q45": {
+   "status": "pass",
+   "notes": "u02 verbatim (the owner's Sunday Scans: 527 and a 520 stop, 5 to 1); d30 verbatim (DELL first half hour high 543.15); c17. 2026-10-01 is a Thursday, matching 'Thursday'. DELL's 527 was a reclaim inside the turn, under the pivot high 530.43 (D-003, pending); the question uses it only to separate the pivot from the ORB.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q46": {
+   "status": "pass",
+   "notes": "c18 and c19 verbatim. A 14:00 turn under yesterday's close is a pivot, not a Go Signal. Right. variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q47": {
+   "status": "pass",
+   "notes": "c27, c28, c21, d19 verbatim (URI 2026-11-03: 0.28R then stopped). Keyed on 'no level, no setup' (the owner's own words in the card's mistakes), not on the 1% test (D-125, pending). If the owner picks option b (no level needed) this item changes.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q48": {
+   "status": "pass",
+   "notes": "o03 and d20 verbatim (CRWD 2026-09-10: a one-candle dip, bought 211.78, 1.42R then stopped the same day). One red candle is not a string under any D-126 option except 'no count'.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q49": {
+   "status": "pass",
+   "notes": "c09, d21, d22 verbatim (MRNA 2026-09-15: pivot low 142.41 traded at 11:30, trigger 12:00, bought 143.81, stopped on the trigger candle). Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q50": {
+   "status": "pass",
+   "notes": "c20, c33, o01 verbatim. Keyed on the card's lookalike tell and the owner's own usage; D-002 (pending) is the owner's to confirm.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q51": {
+   "status": "pass",
+   "notes": "c22 verbatim. The story put the pivot high at 49.85 but 49.85 is the buy, a cent over the high; the choice now reads 49.84. variety rewrite checked 2026-11-10",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q52": {
+   "status": "pass",
+   "notes": "c13, c29, u03 verbatim (LITE: 'Main entry day at the 20EMA shake and 30 Minute Pivot at $895'). The why said our LITE trade 'was that shape' (6 reds undercutting the average), which no source says; now 'a 20-day EMA shake like that'. A wrong note's 'B- doji row' reworded. flagged-question fix checked 2026-11-11",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q53": {
+   "status": "pass",
+   "notes": "D46 and F65 verbatim; the card says Red takes no pivots and the rulebook says mostly cash and shorts; both point to no long. Right. Requoted 2026-11-10: the card no longer says 'Red: none' (now mostly cash, plus shorts below the 200-day); choice, why and a wrong note reworded to 'mostly cash'. Key (no long) holds. variety rewrite checked 2026-11-10",
+   "fixed": true,
+   "by": "requoter"
+  },
+  "q54": {
+   "status": "pass",
+   "notes": "B20 verbatim (h06, h07). Re-derived: 1R = 1.28; 2R below the buy = 68.08 - 2.56 = 65.52; the gap open 66.10 is a 1.55R loss and the first 30-minute low 65.30 a 2.17R loss, past the ceiling. Key right. variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q55": {
+   "status": "pass",
+   "notes": "c24 and C35 (h16) verbatim; B19/E51. A wrong note said the stop would sit 'at 2R'; breakeven is the entry, not +2R; reworded. variety rewrite checked 2026-11-10 (edited: why)",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q56": {
+   "status": "pass",
+   "notes": "c41 and c42 verbatim (the fourth or later pullback to the same average is a lower cue; D38 sizes B- down). 'B- row' and 'A+ row' reworded as cues (E50). variety rewrite checked 2026-11-10",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q57": {
+   "status": "pass",
+   "notes": "calc (237.12-236.78)/236.78 = 0.14% checked against d03. Computes a distance only; the 1% line (D-125) is not asked.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q58": {
+   "status": "pass",
+   "notes": "d03/d04 verbatim; A3/F62 verbatim. The correct choice named 'Buy 238.91', a price the story does not give (the pivot high is not stated); the choices now say 'Buy over pivot high; stop under 237.12' and the why gives PSX's 238.91 and 237.09. variety rewrite checked 2026-11-10",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q59": {
+   "status": "pass",
+   "notes": "c10, c12, d12, d13 verbatim (INTC: three stabs in six sessions, 09-29, 10-06, 10-07, on a name whose trend had turned). Right. variety rewrite checked 2026-11-10 (edited: why)",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q60": {
+   "status": "pass",
+   "notes": "c38 verbatim; DK d01: best 19.8R. Thirds at 3R and 5R (B19, E51) with the last third on the trail; right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q61": {
+   "status": "pass",
+   "notes": "c08 and c23 verbatim; A7 (h17b). 1% / 0.6% = 167% checked; the cap is 40%. Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q62": {
+   "status": "pass",
+   "notes": "d17/d18 verbatim (AAPL 0.60%, MSFT 0.42%, INTC 1.72%, AXON 1.07%: four long losses, all stopped, stops 0.42% to 1.72%). The why said all four met the candle rules and that four named causes 'separated them from the winners', which AXON ('nothing was missing') contradicts; reworded.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q63": {
+   "status": "cut",
+   "notes": "Cut 2026-11-10: keys 'over 3% is a skip', but A13 says only 'usually within about 3%' and what to do beyond it (skip, size down or cap) is the owner's D-005. A key must not rest on a pending number. c04 and h01 (A3) verbatim. The card marks the 3% skip settled (A13); the rulebook's own wording is 'usually within about 3%', and the ORB card (SET.32) holds the same line as pending D-005, so the owner should confirm it. Parabolic Long (SET.30) sizes down at 3% to 8%, a different setup.",
+   "fixed": false,
+   "by": "coordinator"
+  },
+  "q64": {
+   "status": "pass",
+   "notes": "calc (146.30-140.33)/140.33 = 4.25% checked; C28 verbatim (h11).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w1": {
+   "status": "pass",
+   "notes": "d01/d02 verbatim (DK 2026-08-24: 6 reds into the 10-day EMA 66.48, pivot 12:30 low 66.08 closed at its high, buy 66.83 at 13:00, stop 66.05 = 1.17%, 3R in 6 bars, best 19.8R). Step 4 said the break under 66.08 'never comes'; the data say only that the best reach came before the stop, so it now says 'not here'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "d05/d06 verbatim (DOCU 2026-10-06: 5 reds into the 21-day EMA 67.53, the 14:00 candle undercut it to 66.83 and closed at its high, buy 68.08 at 14:30, stop 66.80 = 1.88%, 3R on 10-09, 5R on 10-14). Right as written.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "d03/d04 verbatim (PSX 2026-08-27: 5 reds into the 10-day EMA 236.78, pivot 11:00 = the day's low 237.12, buy 238.91 at 11:30, stop 237.09 = 0.76%, 3R next session, 5R two sessions on). The 40% cap (A7) and the 167% sizing line (c08) match.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q65": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; 350,000 x 1% = 3,500 recomputed; D42 settled",
+   "by": "checker",
+   "fixed": false
+  },
+  "q66": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; min(9,000 risk, 7,000 cap, 5,000 = 1% of 500,000) = 5,000 recomputed; A5 and D42 settled",
+   "by": "checker",
+   "fixed": false
+  }
+ },
+ "questions": [
+  {
+   "key": "q01",
+   "skill": "setup.thirty_minute_pivot",
+   "rung": 1,
+   "format": "mcq",
+   "criterion": "pvt.pivot_candle",
+   "q": "On a 30-minute pivot, which candle is the pivot candle?",
+   "choices": [
+    "First green candle after the reds",
+    "The first candle of the trading day",
+    "The biggest red candle in the string",
+    "Any green candle at an average"
+   ],
+   "answer": "First green candle after the reds",
+   "why": "The first green 30-minute candle after the red string, at the level. The originator waits for the point where the 30-minute chart shifts back up.",
+   "lesson_line": "Reds into the level, then the first green candle. That candle is the pivot.",
+   "facts": [
+    "c01",
+    "o04",
+    "o03"
+   ],
+   "wrong": {
+    "The first candle of the trading day": "That is the opening range, a different timer. The pivot comes after a red string.",
+    "The biggest red candle in the string": "A red candle is still selling. The pivot is the first green one after the string.",
+    "Any green candle at an average": "Only the first green one after a red string counts. A later green candle is not the turn."
+   },
+   "house": true
+  },
+  {
+   "key": "q02",
+   "skill": "setup.thirty_minute_pivot",
+   "rung": 1,
+   "format": "tf",
+   "criterion": "pvt.role",
+   "q": "The originator calls the 30-minute pivot a tactical entry method for buying strong stocks at defined support levels.",
+   "answer": "True",
+   "why": "True. In his words, a tactical entry method to buy high momentum stocks at defined support levels without chasing. Our Sunday Scans use it the same way, off the 20-day EMA.",
+   "lesson_line": "The daily chart picks the stock and the level. The 30-minute pivot times the buy.",
+   "facts": [
+    "o01",
+    "u01",
+    "c20"
+   ],
+   "house": true
+  },
+  {
+   "key": "q03",
+   "skill": "setup.thirty_minute_pivot",
+   "rung": 1,
+   "format": "mcq",
+   "criterion": "pvt.trigger",
+   "q": "Where is the buy on a 30-minute pivot?",
+   "choices": [
+    "A cent over the pivot candle's high",
+    "A cent over the 9:30 to 10:00 high",
+    "At the close of the pivot candle itself",
+    "At the 20-day EMA, on a limit order"
+   ],
+   "answer": "A cent over the pivot candle's high",
+   "why": "A cent over the pivot candle's high, on a later 30-minute candle. Raschke's older version is the same idea: a buy stop above the high of the previous bar.",
+   "lesson_line": "The pivot candle's high is the line. A trade through it is the buy.",
+   "facts": [
+    "c02",
+    "r01",
+    "c19"
+   ],
+   "wrong": {
+    "A cent over the 9:30 to 10:00 high": "That is the ORB's line. The pivot's line is the turn candle's high, often well below it.",
+    "At the close of the pivot candle itself": "The close shows the turn. The buy waits for a later candle to take the high.",
+    "At the 20-day EMA, on a limit order": "The average is where the pivot forms. Buying the line itself is buying before the turn."
+   },
+   "house": true
+  },
+  {
+   "key": "q04",
+   "skill": "setup.thirty_minute_pivot",
+   "rung": 1,
+   "format": "tf",
+   "criterion": "pvt.not_before_close",
+   "q": "On a pivot you may buy while the red string is still falling, before the green candle closes.",
+   "answer": "False",
+   "why": "False. No buying while the red string is still falling; the green candle must close first. The originator waits for the pivot rather than buying as the stock falls.",
+   "lesson_line": "Let the green candle close. Then let a later candle take its high.",
+   "facts": [
+    "c03",
+    "o04"
+   ],
+   "house": true
+  },
+  {
+   "key": "q05",
+   "skill": "setup.thirty_minute_pivot",
+   "rung": 1,
+   "format": "mcq",
+   "criterion": "pvt.above_200",
+   "q": "The prior close is under the 200-day. A clean 30-minute pivot forms at the 20-day EMA. Our rule?",
+   "choices": [
+    "No long; it is below the 200-day",
+    "Buy; the pivot is clean",
+    "Buy half size",
+    "Buy if the next candle is green"
+   ],
+   "answer": "No long; it is below the 200-day",
+   "why": "No long. No longs below the 200-day simple moving average, unless it is a parabolic long. A clean candle does not move the line.",
+   "lesson_line": "Under the 200-day there is no pivot long to take.",
+   "facts": [
+    "h10"
+   ],
+   "wrong": {
+    "Buy; the pivot is clean": "The 200-day is a hard rule. A clean candle on the wrong side of it is still on the wrong side.",
+    "Buy half size": "Size does not fix a stock below the 200-day.",
+    "Buy if the next candle is green": "More green candles do not change where the stock sits against the 200-day."
+   },
+   "house": true
+  },
+  {
+   "key": "q06",
+   "skill": "setup.thirty_minute_pivot",
+   "rung": 1,
+   "format": "tf",
+   "criterion": "pvt.leader",
+   "q": "We use the 30-minute pivot on leaders: an RS rating of 80 or more, in a strong group.",
+   "answer": "True",
+   "why": "True. Buy leaders: an RS rating of 80 or more, in one of the strongest groups. The originator calls them RS names, holding up better than the market.",
+   "lesson_line": "The timer works on the stocks worth timing. Leaders first.",
+   "facts": [
+    "h14",
+    "o02",
+    "o09"
+   ],
+   "house": true
+  },
+  {
+   "key": "q07",
+   "skill": "setup.thirty_minute_pivot",
+   "rung": 1,
+   "format": "fill",
+   "criterion": "pvt.no_chase",
+   "q": "Tap the number that fits the blank.",
+   "sentence": "Skip a pivot fill more than ___% over the pivot candle's high.",
+   "bank": [
+    "4",
+    "2",
+    "5",
+    "8",
+    "10"
+   ],
+   "answer": "4",
+   "why": "4%. Never buy more than 4% above the buy point, and here the buy point is the pivot candle's high. Chasing costs size, not risk.",
+   "lesson_line": "Past 4% over the pivot high, the trade is gone. Wait for the next one.",
+   "facts": [
+    "h11",
+    "h12"
+   ],
+   "house": true
+  },
+  {
+   "key": "q08",
+   "skill": "setup.thirty_minute_pivot",
+   "rung": 2,
+   "format": "tf",
+   "criterion": "pvt.stop",
+   "q": "The stop sits a few cents under the low it protects, not exactly on it.",
+   "answer": "True",
+   "why": "True. The stop sits a few cents under the low, not exactly on it. A stop sitting on the exact low gets ticked.",
+   "lesson_line": "Under the low, never on it. A few cents of room is the rule.",
+   "facts": [
+    "h24",
+    "c05"
+   ],
+   "house": true
+  },
+  {
+   "key": "q09",
+   "skill": "setup.thirty_minute_pivot",
+   "rung": 2,
+   "format": "mcq",
+   "criterion": "pvt.stop",
+   "q": "Where does the originator put his stop on a 30-minute pivot?",
+   "choices": [
+    "Just under the 30-minute low",
+    "A flat 3% under the entry price",
+    "Under the 50-day moving average",
+    "Under last week's low"
+   ],
+   "answer": "Just under the 30-minute low",
+   "why": "Just under the recent 30-minute low. On his HOOD trade the stop, 101.16, sat 4 cents under the first green candle's low.",
+   "lesson_line": "The turn candle's low is the originator's line in the sand.",
+   "facts": [
+    "o05",
+    "d26"
+   ],
+   "wrong": {
+    "A flat 3% under the entry price": "A percent is not a level. His stop sits under the 30-minute low, usually much closer.",
+    "Under the 50-day moving average": "That is a daily level, far wider. The point of the timer is a stop under one candle.",
+    "Under last week's low": "Far too wide for this timer. The stop sits just under the recent 30-minute low."
+   },
+   "house": true
+  },
+  {
+   "key": "q10",
+   "skill": "setup.thirty_minute_pivot",
+   "rung": 2,
+   "format": "tf",
+   "criterion": "pvt.stack_50",
+   "q": "Our card wants the prior close above the 50-day and the 200-day above the 50-day.",
+   "answer": "False",
+   "why": "False. The prior close is above the 50-day SMA and the 50-day is above the 200-day, not the other way round. The originator's word for it: a strong uptrend.",
+   "lesson_line": "The pivot is a dip in an uptrend. No uptrend, no dip to buy.",
+   "facts": [
+    "c11",
+    "o03"
+   ],
+   "house": true
+  },
+  {
+   "key": "q11",
+   "skill": "setup.thirty_minute_pivot",
+   "rung": 2,
+   "format": "fill",
+   "criterion": "pvt.ema20_rising",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "Our card wants the 20-day EMA ___, above its value 5 sessions earlier.",
+   "bank": [
+    "rising",
+    "falling",
+    "flat",
+    "crossing",
+    "touched"
+   ],
+   "answer": "rising",
+   "why": "Rising. Our card wants the 20-day EMA above its value 5 sessions earlier. A flat or falling average is a stock that has stopped trending.",
+   "lesson_line": "Buy dips in a rising trend, not bounces in a falling one.",
+   "facts": [
+    "c12"
+   ],
+   "house": true
+  },
+  {
+   "key": "q12",
+   "skill": "setup.thirty_minute_pivot",
+   "rung": 2,
+   "format": "mcq",
+   "criterion": "pvt.pivot_candle",
+   "q": "A search for 30-minute pivots finds levels built from last week's high, low and close. What are those?",
+   "choices": [
+    "Floor-trader pivot points",
+    "Our 30-minute pivot",
+    "The opening range",
+    "A base's buy point"
+   ],
+   "answer": "Floor-trader pivot points",
+   "why": "Floor-trader pivot points. ChartSchool: they use the prior period's high, low and close; on 30-minute charts, the prior week's. Ours is a turn candle, not a formula.",
+   "lesson_line": "Same word, different thing. Our pivot is a candle you can see.",
+   "facts": [
+    "p01",
+    "p02",
+    "c01"
+   ],
+   "wrong": {
+    "Our 30-minute pivot": "Ours is the first green 30-minute candle after a red string. Nothing is computed.",
+    "The opening range": "The opening range is the first minutes' high and low, not last week's prices.",
+    "A base's buy point": "A base's buy point is the top of a base on the daily chart, not a formula."
+   },
+   "house": true
+  },
+  {
+   "key": "q13",
+   "skill": "setup.thirty_minute_pivot",
+   "rung": 2,
+   "format": "tf",
+   "criterion": "pvt.liquidity",
+   "q": "A pivot in a $9 stock that trades $40 million a day passes our liquidity rule.",
+   "answer": "False",
+   "why": "False. Only stocks at $10 or more that trade at least $20 million a day. Thin names make 30-minute candles noisy too.",
+   "lesson_line": "Price and dollar volume come before the candles.",
+   "facts": [
+    "h09",
+    "c47"
+   ],
+   "house": true
+  },
+  {
+   "key": "q14",
+   "skill": "setup.thirty_minute_pivot",
+   "rung": 2,
+   "format": "scenario",
+   "criterion": "pvt.earnings_window",
+   "story": "A leader forms a clean pivot at its 10-day EMA on Monday. The company reports Wednesday before the open.",
+   "q": "Take the pivot?",
+   "choices": [
+    "No; a report inside 3 sessions",
+    "Yes; the stop is tight",
+    "Yes, at half size",
+    "Yes, and sell before the report"
+   ],
+   "answer": "No; a report inside 3 sessions",
+   "why": "No. No new buys in the 3 days before an earnings report. A stop under one candle cannot catch a report gap.",
+   "lesson_line": "Check the calendar before the candles.",
+   "facts": [
+    "h08",
+    "c40"
+   ],
+   "wrong": {
+    "Yes; the stop is tight": "A tight stop is the problem here. A report gap jumps it.",
+    "Yes, at half size": "Size does not fix the calendar. The rule is no new buys.",
+    "Yes, and sell before the report": "The rule is about the buy. No new buys in the 3 days before a report."
+   },
+   "house": true
+  },
+  {
+   "key": "q15",
+   "skill": "setup.thirty_minute_pivot",
+   "rung": 2,
+   "format": "tf",
+   "criterion": "pvt.volatile_tape",
+   "q": "The originator built the 30-minute pivot for volatile markets, when a position is hard to hold.",
+   "answer": "True",
+   "why": "True. He says that during volatility it can be pretty hard to hold a position, and that is why he developed it. A stop under one 30-minute candle is tighter than the day's low.",
+   "lesson_line": "In a choppy market, a tighter defined risk is what lets you stay in.",
+   "facts": [
+    "o07",
+    "c16"
+   ],
+   "house": true
+  },
+  {
+   "key": "q16",
+   "skill": "setup.thirty_minute_pivot",
+   "rung": 3,
+   "format": "numeric",
+   "criterion": "pvt.stop_width",
+   "q": "Pivot candle low 66.08. You fill at 66.83 with the stop 3 cents under the low. How far is the stop, in percent?",
+   "answer": 1.17,
+   "why": "1.17%. The stop is 66.05; the fill minus the stop, divided by the fill. Well inside the 3% line, as DK's was.",
+   "lesson_line": "Stop first, then the distance, then the size.",
+   "facts": [
+    "c04",
+    "h04",
+    "d01"
+   ],
+   "house": true,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(a - b) / a * 100",
+     "a": 66.83,
+     "b": 66.05
+    },
+    "round": 2
+   },
+   "suffix": "%"
+  },
+  {
+   "key": "q17",
+   "skill": "setup.thirty_minute_pivot",
+   "rung": 3,
+   "format": "tf",
+   "criterion": "pvt.stop_width",
+   "q": "On our card, a pivot stop wider than 3% is fine as long as it is inside the stock's average daily range.",
+   "answer": "False",
+   "why": "False. Skip if the stop is more than 3% away or wider than the stock's average daily range. Both checks have to pass. Kullamagi's version: no wider than the ATR or ADR.",
+   "lesson_line": "Two checks on the stop: under 3%, and inside a normal day's range.",
+   "facts": [
+    "c04",
+    "k01"
+   ],
+   "house": true
+  },
+  {
+   "key": "q18",
+   "skill": "setup.thirty_minute_pivot",
+   "rung": 3,
+   "format": "mcq",
+   "criterion": "pvt.red_string_three",
+   "q": "Which red string grades highest on our card?",
+   "choices": [
+    "A clean string of 3 or more",
+    "A single deep red candle",
+    "Reds mixed with a few greens",
+    "Reds that are still falling"
+   ],
+   "answer": "A clean string of 3 or more",
+   "why": "A clean red string of 3 or more candles is the A+ version. The originator's signal is a string of red 30-minute candles in an uptrend.",
+   "lesson_line": "More clean reds into the level, more sellers used up.",
+   "facts": [
+    "c13",
+    "o03",
+    "d20"
+   ],
+   "wrong": {
+    "A single deep red candle": "One candle is a dip, not a string. CRWD's one-candle dip was stopped the same day.",
+    "Reds mixed with a few greens": "A mixed run is not a clean string. The pivot is the first green after the reds.",
+    "Reds that are still falling": "A string still falling has no pivot yet. Wait for the green candle to close."
+   },
+   "house": true
+  },
+  {
+   "key": "q19",
+   "skill": "setup.thirty_minute_pivot",
+   "rung": 3,
+   "format": "tf",
+   "criterion": "pvt.order",
+   "q": "A pivot entry is a market order as price trades through the pivot candle's high, in regular hours only.",
+   "answer": "True",
+   "why": "True. Entries are market orders, and no new buys outside regular trading hours. Only regular-hours candles count.",
+   "lesson_line": "Alert at the pivot high, market order on the trade through.",
+   "facts": [
+    "h22",
+    "h23",
+    "c53"
+   ],
+   "house": true
+  },
+  {
+   "key": "q20",
+   "skill": "setup.thirty_minute_pivot",
+   "rung": 3,
+   "format": "tf",
+   "criterion": "pvt.trigger",
+   "q": "On our card, a trigger that comes within one or two candles of the pivot is an A+ cue.",
+   "answer": "True",
+   "why": "True. A trigger within one or two candles of the pivot is a cue for the top grade. Nine of the ten scan examples triggered on the very next candle.",
+   "lesson_line": "Taken out within one or two candles is the cleaner version.",
+   "facts": [
+    "c32",
+    "c45"
+   ],
+   "house": true
+  },
+  {
+   "key": "q21",
+   "skill": "setup.thirty_minute_pivot",
+   "rung": 3,
+   "format": "tf",
+   "criterion": "pvt.stop_only_up",
+   "q": "After your fill, a candle dips toward the pivot low. You may lower the stop to give it room.",
+   "answer": "False",
+   "why": "False. The stop is a real order with the broker; it only moves up, never down to give it room. The one exception is the gap rule.",
+   "lesson_line": "The stop only moves one way: up.",
+   "facts": [
+    "c06",
+    "h02",
+    "h18"
+   ],
+   "house": true
+  },
+  {
+   "key": "q22",
+   "skill": "setup.thirty_minute_pivot",
+   "rung": 3,
+   "format": "mcq",
+   "criterion": "pvt.trim_1",
+   "q": "Your pivot long reaches 3R the same afternoon. What does the hard rule do?",
+   "choices": [
+    "Sell a third; stop to breakeven",
+    "Sell it all; bank the day",
+    "Hold everything for 5R",
+    "Raise the stop to the pivot high"
+   ],
+   "answer": "Sell a third; stop to breakeven",
+   "why": "Sell a third. The hard rule is a third at 3R, and the stop goes to breakeven at the first trim by default. With a tight stop, 3R comes fast.",
+   "lesson_line": "A third at 3R, the stop to breakeven. Then let the rest work.",
+   "facts": [
+    "h05",
+    "c44",
+    "c37"
+   ],
+   "wrong": {
+    "Sell it all; bank the day": "Selling it all at a quick R is the named day-trade mistake. We swing trade.",
+    "Hold everything for 5R": "The hard rule is a third at 3R. 5R is the second third.",
+    "Raise the stop to the pivot high": "Breakeven is the entry, not the pivot high. The stop moves there at the first trim."
+   },
+   "house": true
+  },
+  {
+   "key": "q23",
+   "skill": "setup.thirty_minute_pivot",
+   "rung": 3,
+   "format": "fill",
+   "criterion": "pvt.trim_2",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "After the first third at 3R, the next third comes off at ___.",
+   "bank": [
+    "5R",
+    "4R",
+    "10R",
+    "2R",
+    "6R"
+   ],
+   "answer": "5R",
+   "why": "5R. After the first third at 3R, another third at 5R, then trail the last third.",
+   "lesson_line": "3R, 5R, then the trail. The ladder is the same on every pivot.",
+   "facts": [
+    "h20",
+    "h05"
+   ],
+   "house": true
+  },
+  {
+   "key": "q24",
+   "skill": "setup.thirty_minute_pivot",
+   "rung": 4,
+   "format": "numeric",
+   "criterion": "pvt.trim_1",
+   "q": "Bought 238.91 with the stop at 237.09. Where is 3R?",
+   "answer": 244.37,
+   "why": "244.37. One R is the fill minus the stop; add three of those to the fill. PSX got there the next session.",
+   "lesson_line": "Know the 3R price before the fill.",
+   "facts": [
+    "h05",
+    "d03",
+    "d04"
+   ],
+   "house": true,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "a + 3 * (a - b)",
+     "a": 238.91,
+     "b": 237.09
+    },
+    "round": 2
+   },
+   "prefix": "$"
+  },
+  {
+   "key": "q25",
+   "skill": "setup.thirty_minute_pivot",
+   "rung": 4,
+   "format": "numeric",
+   "criterion": "pvt.size_cap",
+   "q": "Account 100,000, risk 1%. Fill 238.91, stop 237.09: the formula says 549 shares. How many do you buy under the 40% cap?",
+   "answer": 167,
+   "why": "167 shares. 40% of the account divided by the fill, rounded down. The size is the smaller of the risk-based size and the cap.",
+   "lesson_line": "A tight stop never buys a bigger position than the cap.",
+   "facts": [
+    "h17",
+    "h03",
+    "c07"
+   ],
+   "house": true,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "a * 0.40 / b",
+     "a": 100000,
+     "b": 238.91
+    },
+    "round": 0
+   },
+   "suffix": " shares"
+  },
+  {
+   "key": "q26",
+   "skill": "setup.thirty_minute_pivot",
+   "rung": 4,
+   "format": "scenario",
+   "criterion": "pvt.not_before_close",
+   "story": "Three red 30-minute candles into the rising 20-day EMA. At 11:20 the 11:00 candle is green so far.",
+   "q": "Buy now?",
+   "choices": [
+    "No; let the green candle close",
+    "Yes; the turn is here",
+    "Yes, half now, half later",
+    "No; the setup is void"
+   ],
+   "answer": "No; let the green candle close",
+   "why": "No. No buying while the red string is still falling; the green candle must close first. Then a later candle must take its high.",
+   "lesson_line": "A candle that is green so far is not a pivot yet.",
+   "facts": [
+    "c03",
+    "o04",
+    "c02"
+   ],
+   "wrong": {
+    "Yes; the turn is here": "Not yet. Until it closes green, it can still close red and extend the string.",
+    "Yes, half now, half later": "Full size at one price with one stop. Half a guess is still a guess.",
+    "No; the setup is void": "Nothing is void. It is waiting for the candle to close."
+   },
+   "house": true
+  },
+  {
+   "key": "q27",
+   "skill": "setup.thirty_minute_pivot",
+   "rung": 4,
+   "format": "tf",
+   "criterion": "pvt.pullback_length",
+   "q": "Our card teaches a fixed pullback depth for the 30-minute pivot.",
+   "answer": "False",
+   "why": "False. No fixed depth. The daily pullback is usually 1 to 5 sessions into the average, and no number is taught.",
+   "lesson_line": "Read the level, not a percent. The average decides where the pivot forms.",
+   "facts": [
+    "c15"
+   ],
+   "house": true
+  },
+  {
+   "key": "q28",
+   "skill": "setup.thirty_minute_pivot",
+   "rung": 4,
+   "format": "scenario",
+   "criterion": "pvt.tries",
+   "story": "You were stopped on Monday's, Tuesday's and Wednesday's pivots in the same stock. Thursday a fourth pivot prints.",
+   "q": "Buy it?",
+   "choices": [
+    "No; three tries a week is the limit",
+    "Yes; a new pivot is a new trade",
+    "Yes, at half size",
+    "Yes, if the reds were cleaner"
+   ],
+   "answer": "No; three tries a week is the limit",
+   "why": "No. At most 3 tries in a week and 6 in a month on the same stock. Pivots fail and re-form, and each re-entry counts.",
+   "lesson_line": "Three stabs a week on one name. Then let it go.",
+   "facts": [
+    "h29",
+    "c51",
+    "c36"
+   ],
+   "wrong": {
+    "Yes; a new pivot is a new trade": "Each re-entry is a new trade, and each one counts. Three is the weekly limit.",
+    "Yes, at half size": "Size does not reset the count.",
+    "Yes, if the reds were cleaner": "A cleaner shape does not buy a fourth try in a week."
+   },
+   "house": true
+  },
+  {
+   "key": "q29",
+   "skill": "setup.thirty_minute_pivot",
+   "rung": 4,
+   "format": "tf",
+   "criterion": "pvt.trail",
+   "q": "The last third of a pivot winner is sold the moment price touches its trailing average during the day.",
+   "answer": "False",
+   "why": "False. Trail the last third under the 10-day for a fast mover or the 21-day for a steadier one. Sell on a close below it.",
+   "lesson_line": "The pivot gets you in. A daily close takes the last third out.",
+   "facts": [
+    "c48",
+    "h21"
+   ],
+   "house": true
+  },
+  {
+   "key": "q30",
+   "skill": "setup.thirty_minute_pivot",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "pvt.trim_gap_open",
+   "story": "Your pivot long closed yesterday at 4.2R. This morning it gaps open at 5.6R.",
+   "q": "Where is the 5R trim taken?",
+   "choices": [
+    "At the open; the level is passed",
+    "At 5R exactly, with a limit",
+    "At the close",
+    "Nowhere; let it run"
+   ],
+   "answer": "At the open; the level is passed",
+   "why": "At the open. If a stock opens above a trim level, take that trim at the open. Pivot winners do this often.",
+   "lesson_line": "A gap through a trim level is the trim. Take it at the open.",
+   "facts": [
+    "h25",
+    "c39"
+   ],
+   "wrong": {
+    "At 5R exactly, with a limit": "5R is already behind you. A limit under the open fills only if it falls back.",
+    "At the close": "The rule says the open. Waiting hands the gap a chance to fill.",
+    "Nowhere; let it run": "The second third comes off at 5R. Only the last third runs on the trail."
+   },
+   "house": true
+  },
+  {
+   "key": "q31",
+   "skill": "setup.thirty_minute_pivot",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "pvt.stop_gap",
+   "story": "You hold a pivot long bought at 66.83, stop 66.05. A week later it gaps open at 65.70, under your stop.",
+   "q": "What sets the stop now?",
+   "choices": [
+    "The first 30-minute bar's low",
+    "A new pivot candle's low",
+    "Sell at the open, no matter what",
+    "No stop until it recovers"
+   ],
+   "answer": "The first 30-minute bar's low",
+   "why": "The first 30-minute bar's low. A gap against the stop hands it to the first 30 minutes of the gap-down day, with a ceiling: past 2R, get out. That is the gap rule, not a new pivot.",
+   "lesson_line": "Two 30-minute rules, two jobs. The pivot gets you in; the gap rule handles a gap.",
+   "facts": [
+    "h06",
+    "h07",
+    "c35",
+    "c50"
+   ],
+   "wrong": {
+    "A new pivot candle's low": "That is the entry timer. The gap rule uses the first 30-minute bar's low.",
+    "Sell at the open, no matter what": "The gap rule gives the first 30 minutes to decide, under a 2R ceiling.",
+    "No stop until it recovers": "There is always a stop. The first 30-minute low is the new one."
+   },
+   "house": true
+  },
+  {
+   "key": "q32",
+   "skill": "setup.thirty_minute_pivot",
+   "rung": 5,
+   "format": "tf",
+   "criterion": "pvt.time_stop",
+   "q": "A pivot long still under 1R after 10 trading days is sold.",
+   "answer": "True",
+   "why": "True. A trade still under 1R after 10 trading days is sold, freeing the money. A pivot that has not worked in 10 days is dead.",
+   "lesson_line": "Ten sessions and no progress. The money has better places to be.",
+   "facts": [
+    "h15",
+    "c49"
+   ],
+   "house": true
+  },
+  {
+   "key": "q33",
+   "skill": "setup.thirty_minute_pivot",
+   "rung": 5,
+   "format": "numeric",
+   "criterion": "pvt.trim_2",
+   "q": "Bought 106.65, stop 105.74. The stock trades 111.20. How many R is that?",
+   "answer": 5.0,
+   "why": "5R. The gain divided by one R, the fill minus the stop. That is where the second third comes off; HALO got there in two sessions.",
+   "lesson_line": "Count in R. 5R is the second trim.",
+   "facts": [
+    "h20",
+    "d07"
+   ],
+   "house": true,
+   "calc": {
+    "fn": "r_multiple",
+    "args": {
+     "entry": 106.65,
+     "stop": 105.74,
+     "exit": 111.2
+    },
+    "round": 1
+   },
+   "suffix": "R"
+  },
+  {
+   "key": "q34",
+   "skill": "setup.thirty_minute_pivot",
+   "rung": 5,
+   "format": "mcq",
+   "criterion": "pvt.market_reading",
+   "q": "The market reading is Yellow. Which pivots does our card take?",
+   "choices": [
+    "Fewer, and smaller size",
+    "All of them, at full size",
+    "Only the A+ pivots",
+    "None; sit in cash today"
+   ],
+   "answer": "Fewer, and smaller size",
+   "why": "Fewer, and smaller. Green is full risk, Yellow smaller and fewer, Orange only A+ setups, Red mostly cash and shorts.",
+   "lesson_line": "Read the market before the candles.",
+   "facts": [
+    "c34",
+    "h26"
+   ],
+   "wrong": {
+    "All of them, at full size": "That is Green. Yellow means smaller and fewer.",
+    "Only the A+ pivots": "That is Orange. Yellow is fewer and smaller, not A+ only.",
+    "None; sit in cash today": "That is Red. Yellow is fewer, not none."
+   },
+   "house": true
+  },
+  {
+   "key": "q35",
+   "skill": "setup.thirty_minute_pivot",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "pvt.not_stretched",
+   "story": "A leader trades 12% above its 10-day average. This morning: three red 30-minute candles, then a green one, with the stock still 12% above the average.",
+   "q": "Take a pivot over its high?",
+   "choices": [
+    "No; over 10% above the 10-day",
+    "Yes; the candle shape is right",
+    "Yes, at half size",
+    "Yes, if volume rises"
+   ],
+   "answer": "No; over 10% above the 10-day",
+   "why": "No. Skip a long more than 10% above its 10-day average. A pivot at the average is automatically fine; this one is nowhere near it.",
+   "lesson_line": "A pivot is a dip to the average. Far above the average, it is not a dip.",
+   "facts": [
+    "h13",
+    "c43"
+   ],
+   "wrong": {
+    "Yes; the candle shape is right": "The shape is fine; the stretch is not. More than 10% over the 10-day is a skip.",
+    "Yes, at half size": "Size does not fix a stretched stock.",
+    "Yes, if volume rises": "Volume does not change how far it sits above its average."
+   },
+   "house": true
+  },
+  {
+   "key": "q36",
+   "skill": "setup.thirty_minute_pivot",
+   "rung": 5,
+   "format": "mcq",
+   "criterion": "pvt.pivot_quality",
+   "q": "Two pivot candles at the 10-day EMA. Which grades higher on our card?",
+   "choices": [
+    "Pullback low, closes in upper half",
+    "Closes in the lower half of its range",
+    "Low above the string's low",
+    "A tiny doji mid-range"
+   ],
+   "answer": "Pullback low, closes in upper half",
+   "why": "The one whose low is the low of the pullback and that closes in the upper half of its range. That candle shows the sellers were absorbed.",
+   "lesson_line": "Where the candle closes tells you who won the half hour.",
+   "facts": [
+    "c14"
+   ],
+   "wrong": {
+    "Closes in the lower half of its range": "A weak close means the sellers still had the last word.",
+    "Low above the string's low": "Allowed, but the best pivot candle makes the pullback low itself.",
+    "A tiny doji mid-range": "A tiny candle after small reds is noise, with a stop of a few tenths of a percent."
+   },
+   "house": true
+  },
+  {
+   "key": "q37",
+   "skill": "setup.thirty_minute_pivot",
+   "rung": 5,
+   "format": "tf",
+   "criterion": "pvt.trigger",
+   "q": "Raschke's Holy Grail, buying over the prior bar's high at a rising average, is an older form of these mechanics.",
+   "answer": "True",
+   "why": "True. Buying the break of a bar's high after a pullback touches a rising average, stop at the new swing low, is her Holy Grail entry. The 30-minute pivot puts it on 30-minute bars.",
+   "lesson_line": "The name is new. The mechanics are old.",
+   "facts": [
+    "d28",
+    "r01",
+    "r02",
+    "c01"
+   ],
+   "house": true
+  },
+  {
+   "key": "q38",
+   "skill": "setup.thirty_minute_pivot",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "pvt.stop",
+   "story": "6 reds into the rising 21-day EMA. The pivot candle is the day's low and closes in its upper half. Bought 601.49, stop 595.08. The next morning's first candle trades through the pivot low.",
+   "q": "What went wrong?",
+   "choices": [
+    "Nothing; the stop was the exit",
+    "The stop was far too tight here",
+    "It needed a bigger red string",
+    "You should have sold at 0.35R"
+   ],
+   "answer": "Nothing; the stop was the exit",
+   "why": "Nothing. AXON had the A+ shape and every rule was met. A pivot low can break even on the best shape, and the stop is the exit. A planned 1R loss.",
+   "lesson_line": "You will take this loss again. The stop is why it stays small.",
+   "facts": [
+    "d14",
+    "d15",
+    "d16",
+    "h02",
+    "d18"
+   ],
+   "wrong": {
+    "The stop was far too tight here": "1.07% sits inside our normal range. Widening it would only make the loss bigger.",
+    "It needed a bigger red string": "Six reds is already the A+ shape. The candle count was not the problem.",
+    "You should have sold at 0.35R": "There is no exit at 0.35R. The plan is the stop or the trims."
+   },
+   "house": true
+  },
+  {
+   "key": "q39",
+   "skill": "setup.thirty_minute_pivot",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "pvt.ema20_rising",
+   "story": "Three reds into the 10-day EMA, then a green pivot candle. The 20-day EMA is 262.69; five sessions ago it was 264.36.",
+   "q": "Take it?",
+   "choices": [
+    "Pass; the 20-day EMA is falling",
+    "Take it; the candles are right",
+    "Take it at half size, tight stop",
+    "Take it if the 10-day holds"
+   ],
+   "answer": "Pass; the 20-day EMA is falling",
+   "why": "Pass. Our card wants the 20-day EMA above its value 5 sessions earlier. This one is under it: a stock turning down, with no daily setup under the timer.",
+   "lesson_line": "The timer needs a trend to time. Check the 20-day before the candles.",
+   "facts": [
+    "c12",
+    "d23",
+    "d24"
+   ],
+   "wrong": {
+    "Take it; the candles are right": "The candle shape passes; the daily trend fails. IQV was stopped the same afternoon.",
+    "Take it at half size, tight stop": "A pivot in a stock turning down is the wrong trade at any size.",
+    "Take it if the 10-day holds": "The 10-day holding does not make the 20-day rise."
+   },
+   "house": true
+  },
+  {
+   "key": "q40",
+   "skill": "setup.thirty_minute_pivot",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "pvt.trigger",
+   "story": "5 reds into the 10-day EMA. The pivot candle prints at 15:00 and the 15:30 candle takes its high. Bought 343.15, stop 341.10. The next morning's first candle takes the stop.",
+   "q": "How do you read the loss?",
+   "choices": [
+    "A valid trigger, graded lower",
+    "A broken rule: no buys after 15:00",
+    "An A+ trade with bad luck",
+    "A mistake: the stop was too wide"
+   ],
+   "answer": "A valid trigger, graded lower",
+   "why": "A valid trigger, graded lower. We have no time-of-day rule, but our card grades a late trigger lower: a last-hour pivot has no session left to work. The stop kept the loss at 1R.",
+   "lesson_line": "Late pivots are legal and weak. Grade them down, then let the stop do its job.",
+   "facts": [
+    "h30",
+    "c30",
+    "c26",
+    "d08",
+    "d09",
+    "d18"
+   ],
+   "wrong": {
+    "A broken rule: no buys after 15:00": "We have no time-of-day rule. The clock changes the grade, not the rule.",
+    "An A+ trade with bad luck": "A last-candle trigger has no session left to work. That is a weaker trade, not an A+.",
+    "A mistake: the stop was too wide": "0.60% is a tight stop. The clock was the weak spot, not the stop."
+   },
+   "house": true
+  },
+  {
+   "key": "q41",
+   "skill": "setup.thirty_minute_pivot",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "pvt.stop_width",
+   "story": "A slow mega-cap: 4 reds into the 10-day EMA, then a pivot. Bought 501.07 with the stop at 498.97, 0.42% away. It reaches 0.48R, then the next morning's first candle takes the stop.",
+   "q": "What does our card say about that stop?",
+   "choices": [
+    "Too tight for it; graded down",
+    "Perfect; tighter is always better",
+    "Too wide; move it closer",
+    "It breaks the 3% stop-distance rule"
+   ],
+   "answer": "Too tight for it; graded down",
+   "why": "Too tight for that stock. A stop of a few tenths of a percent sits inside a slow mega-cap's noise, a lower-grade cue. The loss was still 1R, as planned.",
+   "lesson_line": "A tight stop is only good if the stock's normal wiggle fits above it.",
+   "facts": [
+    "c31",
+    "c25",
+    "d10",
+    "d11",
+    "h35",
+    "d18"
+   ],
+   "wrong": {
+    "Perfect; tighter is always better": "Tighter is better only above the stock's noise. A few tenths on a slow name is a coin flip.",
+    "Too wide; move it closer": "0.42% is already very tight. Closer would sit deeper in the noise.",
+    "It breaks the 3% stop-distance rule": "3% is the ceiling. This stop is far under it; the problem is the other end."
+   },
+   "house": true
+  },
+  {
+   "key": "q42",
+   "skill": "setup.thirty_minute_pivot",
+   "rung": 6,
+   "format": "numeric",
+   "criterion": "pvt.stop_width",
+   "q": "The originator bought HOOD at 102.99 with his stop at 101.16. How far below the buy is the stop, in percent?",
+   "answer": 1.78,
+   "why": "1.78%. The buy minus the stop, divided by the buy. Inside the 3% line, and the trade went over 10R.",
+   "lesson_line": "Tight risk, a leader, a level. That is the whole idea.",
+   "facts": [
+    "o08",
+    "d25",
+    "h04"
+   ],
+   "house": true,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(a - b) / a * 100",
+     "a": 102.99,
+     "b": 101.16
+    },
+    "round": 2
+   },
+   "suffix": "%"
+  },
+  {
+   "key": "q43",
+   "skill": "setup.thirty_minute_pivot",
+   "rung": 6,
+   "format": "mcq",
+   "criterion": "pvt.stop",
+   "q": "The pivot candle's low is 101.20; the day's low is 100.69. Which stop is tighter?",
+   "choices": [
+    "A few cents under 101.20",
+    "A few cents under 100.69",
+    "They are the same stop",
+    "Exactly at 100.69"
+   ],
+   "answer": "A few cents under 101.20",
+   "why": "A few cents under 101.20, the pivot candle's low. On HOOD the pivot candle was not the day's low, so the two stops differ. Our card names the day's low as the wider option.",
+   "lesson_line": "When the pivot is not the day's low, the two stops are different trades. Know which one you are taking.",
+   "facts": [
+    "d27",
+    "c05",
+    "d26"
+   ],
+   "wrong": {
+    "A few cents under 100.69": "That is the day's low, the wider option. It sits further from the buy.",
+    "They are the same stop": "Only when the pivot candle makes the day's low. Here it did not.",
+    "Exactly at 100.69": "Never exactly on a low. And the day's low is the wider of the two anyway."
+   },
+   "house": true
+  },
+  {
+   "key": "q44",
+   "skill": "setup.thirty_minute_pivot",
+   "rung": 6,
+   "format": "tf",
+   "criterion": "pvt.breakeven",
+   "q": "Our default moves a pivot's stop to breakeven at 1R.",
+   "answer": "False",
+   "why": "False. Breakeven comes between 2R and 5R, at the first trim by default.",
+   "lesson_line": "Breakeven at the first trim, not at the first wiggle.",
+   "facts": [
+    "h05",
+    "c44"
+   ],
+   "house": true
+  },
+  {
+   "key": "q45",
+   "skill": "setup.thirty_minute_pivot",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "pvt.pivot_candle",
+   "story": "DELL, 2026-10-01. The first half hour's high is 543.15. It undercuts its 20-day EMA, turns on the 30-minute chart, and we buy at 527 with a 520 stop.",
+   "q": "Which trade was that?",
+   "choices": [
+    "A 30-minute pivot",
+    "An opening range breakout",
+    "A red to green"
+   ],
+   "answer": "A 30-minute pivot",
+   "why": "A 30-minute pivot. The buy sat well under the first half hour's high, at a turn near the 20-day EMA. An ORB buys the trade through the 9:30 to 10:00 high.",
+   "lesson_line": "Find the line being bought. The morning high is the ORB; the turn candle is the pivot.",
+   "facts": [
+    "c17",
+    "u02",
+    "d30"
+   ],
+   "wrong": {
+    "An opening range breakout": "The ORB would buy over 543.15. A 527 buy is far under the morning high.",
+    "A red to green": "A red to green buys the trade through yesterday's close. This buy is a turn at the 20-day."
+   },
+   "house": true
+  },
+  {
+   "key": "q46",
+   "skill": "setup.thirty_minute_pivot",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "pvt.trigger",
+   "story": "A leader drifts down all morning to its 10-day EMA. At 14:00 a green 30-minute candle closes near its high, still under yesterday's close.",
+   "q": "Pivot or Go Signal?",
+   "choices": [
+    "A 30-minute pivot",
+    "An hourly Go Signal",
+    "A red to green buy"
+   ],
+   "answer": "A 30-minute pivot",
+   "why": "A 30-minute pivot. A pivot can form at any 30-minute candle and its line is the pivot candle's high. A Go Signal is an hourly close back over the prior day's close by the second hourly candle.",
+   "lesson_line": "Check the clock and the line. An afternoon turn under yesterday's close is a pivot.",
+   "facts": [
+    "c19",
+    "c18"
+   ],
+   "wrong": {
+    "An hourly Go Signal": "A Go Signal needs an hourly close back over yesterday's close early in the day. This turn is at 14:00 and reclaims nothing.",
+    "A red to green buy": "It is still under yesterday's close. No red to green has happened."
+   },
+   "house": true
+  },
+  {
+   "key": "q47",
+   "skill": "setup.thirty_minute_pivot",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "pvt.level",
+   "story": "Four reds, then a green 30-minute candle. Its low sits 2.4% above the 10-day EMA, and no other daily level is near.",
+   "q": "What is it?",
+   "choices": [
+    "A green candle, not a pivot",
+    "An A+ pivot",
+    "A pivot at the 10-day EMA"
+   ],
+   "answer": "A green candle, not a pivot",
+   "why": "A green candle, not a pivot. A pivot floating in mid-range with no daily level under it is just a green candle. URI reached 0.28R and was stopped the next morning.",
+   "lesson_line": "No level, no setup. Find the daily line before you trust the candle.",
+   "facts": [
+    "c28",
+    "c27",
+    "c21",
+    "d19"
+   ],
+   "wrong": {
+    "An A+ pivot": "The A+ pivot sits on a rising average. This one floats above every daily level.",
+    "A pivot at the 10-day EMA": "2.4% above the average is not at it. The candle has nothing under it."
+   },
+   "house": true
+  },
+  {
+   "key": "q48",
+   "skill": "setup.thirty_minute_pivot",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "pvt.red_string",
+   "story": "One red 30-minute candle dips to the 10-day EMA, then a green one. You buy over the green candle's high at 211.78.",
+   "q": "What is missing?",
+   "choices": [
+    "A string of red candles",
+    "A higher close on the green candle",
+    "Heavier volume on the trigger"
+   ],
+   "answer": "A string of red candles",
+   "why": "A string of red candles. The originator's signal is a string of red 30-minute candles; one red candle is a dip, not a pullback string. CRWD reached 1.42R and was stopped the same day.",
+   "lesson_line": "Count the reds. One candle has not used up any sellers.",
+   "facts": [
+    "o03",
+    "d20",
+    "c13"
+   ],
+   "wrong": {
+    "A higher close on the green candle": "The close grades the candle. The missing piece is the pullback before it.",
+    "Heavier volume on the trigger": "Volume does not turn a one-candle dip into a string. The red string is what is missing."
+   },
+   "house": true
+  },
+  {
+   "key": "q49",
+   "skill": "setup.thirty_minute_pivot",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "pvt.inv_pivot_low",
+   "story": "The pivot candle's low is 142.41. At 11:30 a candle trades under 142.41. At 12:00 a candle trades over the pivot high.",
+   "q": "Buy at 12:00?",
+   "choices": [
+    "No; the pivot was void at 11:30",
+    "Yes; the high still triggered",
+    "Yes, with the stop under 11:30's low",
+    "Yes, at half size"
+   ],
+   "answer": "No; the pivot was void at 11:30",
+   "why": "No. Before the trigger, any 30-minute candle that trades under the pivot candle's low voids it. Wait for a new red string and a new pivot. MRNA was stopped on the trigger candle.",
+   "lesson_line": "Once the pivot low trades, the pivot is gone. Start the count again.",
+   "facts": [
+    "c09",
+    "d21",
+    "d22"
+   ],
+   "wrong": {
+    "Yes; the high still triggered": "A void pivot has no trigger left. The high belongs to a pivot that failed.",
+    "Yes, with the stop under 11:30's low": "That is a new stop on an old pivot. It needs a new red string and a new pivot.",
+    "Yes, at half size": "Size does not bring a void pivot back."
+   },
+   "house": true
+  },
+  {
+   "key": "q50",
+   "skill": "setup.thirty_minute_pivot",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "pvt.role",
+   "story": "A leader pulls back for three days into its rising 20-day EMA. You plan to buy over a 30-minute pivot candle's high there.",
+   "q": "Which is the daily setup here?",
+   "choices": [
+    "The 20-day EMA pullback",
+    "The 30-minute pivot",
+    "An opening range breakout"
+   ],
+   "answer": "The 20-day EMA pullback",
+   "why": "The 20-day EMA pullback. The pullback to the rising 20-day EMA is the daily setup; the 30-minute pivot is the timer inside it that puts the stop under one candle.",
+   "lesson_line": "Name the parent first. The pivot only times it.",
+   "facts": [
+    "c20",
+    "c33",
+    "o01"
+   ],
+   "wrong": {
+    "The 30-minute pivot": "The pivot is the entry timer. The setup it times is the pullback on the daily chart.",
+    "An opening range breakout": "Nothing here buys the first half hour's high. It is a pullback to an average."
+   },
+   "house": true
+  },
+  {
+   "key": "q51",
+   "skill": "setup.thirty_minute_pivot",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "pvt.trigger",
+   "story": "Yesterday's close is 50.40. This morning a pivot forms at the 10-day EMA, and you buy at 49.85, a cent over its high.",
+   "q": "What line would a red to green buy instead?",
+   "choices": [
+    "Yesterday's close, 50.40",
+    "The pivot candle's high, 49.84",
+    "The 10-day EMA itself"
+   ],
+   "answer": "Yesterday's close, 50.40",
+   "why": "Yesterday's close, 50.40. A red to green buys the first trade through yesterday's close. A pivot buys the pivot candle's high, which can sit under it.",
+   "lesson_line": "Same morning, two lines. Know which one your plan is buying.",
+   "facts": [
+    "c22"
+   ],
+   "wrong": {
+    "The pivot candle's high, 49.84": "That is the pivot's line, the one you bought. A red to green waits for yesterday's close.",
+    "The 10-day EMA itself": "The average is where the pivot formed. Neither trade buys the average itself."
+   },
+   "house": true
+  },
+  {
+   "key": "q52",
+   "skill": "setup.thirty_minute_pivot",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "pvt.red_string_three",
+   "story": "Two pivots at the rising 10-day EMA. One after two small reds. One after 6 reds that undercut the average and closed back over it.",
+   "q": "Which grades higher?",
+   "choices": [
+    "The 6-red undercut shake",
+    "The two small-red pivot",
+    "Equal; both are good pivots"
+   ],
+   "answer": "The 6-red undercut shake",
+   "why": "The 6 reds that undercut the line and closed back over it. A clean string of 3 or more is the top cue, and a shake that closes back above the average is the A+ pivot. Our LITE trade was a 20-day EMA shake like that.",
+   "lesson_line": "A long string into a shake of the average is the best version of this trade.",
+   "facts": [
+    "c13",
+    "c29",
+    "u03",
+    "c31"
+   ],
+   "wrong": {
+    "The two small-red pivot": "Small reds into a tiny candle is close to noise. The longer string grades higher.",
+    "Equal; both are good pivots": "Both may trigger. The grade, and so the size, differs."
+   },
+   "house": true
+  },
+  {
+   "key": "q53",
+   "skill": "setup.thirty_minute_pivot",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "pvt.market_reading",
+   "story": "The market reading is Red. A leader forms a textbook pivot at its rising 21-day EMA.",
+   "q": "What do you do?",
+   "choices": [
+    "No long; Red is mostly cash",
+    "Buy it; it is A+",
+    "Buy at half size, tight stop",
+    "Buy and sell at the close"
+   ],
+   "answer": "No long; Red is mostly cash",
+   "why": "No long. Our card says mostly cash in a Red market, plus shorts below the 200-day. The best candle in a Red market is still in a Red market.",
+   "lesson_line": "The market reading comes before the candles.",
+   "facts": [
+    "c34",
+    "h34",
+    "h26"
+   ],
+   "wrong": {
+    "Buy it; it is A+": "Orange allows A+. Red is mostly cash.",
+    "Buy at half size, tight stop": "Half size in a Red market is half a mistake.",
+    "Buy and sell at the close": "A day trade is still a long in a Red market."
+   },
+   "house": true
+  },
+  {
+   "key": "q54",
+   "skill": "setup.thirty_minute_pivot",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "pvt.stop_gap",
+   "story": "Bought 68.08, stop 66.80, so 2R below the buy is 65.52. Days later it gaps open at 66.10, and the first 30-minute low prints 65.30.",
+   "q": "What now?",
+   "choices": [
+    "Get out; the loss is past 2R",
+    "65.30 is the new stop; hold",
+    "Hold; wait for a new pivot",
+    "Sell half and hold the other half"
+   ],
+   "answer": "Get out; the loss is past 2R",
+   "why": "Get out. The first 30 minutes of the gap-down day set the new stop, with a ceiling: past 2R, you leave. 65.30 is under 65.52.",
+   "lesson_line": "The gap rule gives you 30 minutes, not a blank cheque.",
+   "facts": [
+    "h06",
+    "h07"
+   ],
+   "wrong": {
+    "65.30 is the new stop; hold": "The first 30-minute low is the stop only inside the 2R ceiling. This one is past it.",
+    "Hold; wait for a new pivot": "A new pivot is a new entry. This is the exit on the old trade.",
+    "Sell half and hold the other half": "The ceiling is a full exit. One stop, one exit."
+   },
+   "house": true
+  },
+  {
+   "key": "q55",
+   "skill": "setup.thirty_minute_pivot",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "pvt.trim_1",
+   "story": "Your pivot long reaches 2R by 15:00 on the first day. A friend says bank it all; it is a day trade.",
+   "q": "What is our plan?",
+   "choices": [
+    "Hold; thirds at 3R and 5R",
+    "Sell it all at 2R as a day trade",
+    "Sell half now, trail the rest",
+    "Tighten the stop to 2R"
+   ],
+   "answer": "Hold; thirds at 3R and 5R",
+   "why": "Hold to the ladder. Selling it all at 1R to 2R as a day trade is a named mistake. We swing trade, days to a few weeks. A third at 3R, another at 5R.",
+   "lesson_line": "The pivot is a swing entry with a tight stop. Let it become a swing.",
+   "facts": [
+    "c24",
+    "h16",
+    "h05",
+    "h20",
+    "c52"
+   ],
+   "wrong": {
+    "Sell it all at 2R as a day trade": "That is the named day-trade mistake. The winners run well past 2R.",
+    "Sell half now, trail the rest": "2R is not a trim level. The first trim is a third at 3R.",
+    "Tighten the stop to 2R": "The stop moves to breakeven, not up to 2R, and breakeven comes at the first trim by default."
+   },
+   "house": true
+  },
+  {
+   "key": "q56",
+   "skill": "setup.thirty_minute_pivot",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "pvt.pullback_length",
+   "story": "A leader makes its fourth pullback to the 10-day EMA since its breakout. The 30-minute pivot there is clean.",
+   "q": "How does our card grade it?",
+   "choices": [
+    "Lower: a fourth pullback",
+    "A+; the pivot is clean",
+    "No trade; a fourth is banned"
+   ],
+   "answer": "Lower: a fourth pullback",
+   "why": "Lower. The fourth or later pullback to the same average is a weaker cue, sized down. The first or second pullback after a breakout is the strongest.",
+   "lesson_line": "Count the touches. Every trip back to the same average is worth less.",
+   "facts": [
+    "c41",
+    "c42",
+    "h35"
+   ],
+   "wrong": {
+    "A+; the pivot is clean": "The candle is clean; the count is late. A+ is the first or second pullback.",
+    "No trade; a fourth is banned": "A fourth pullback is graded down and sized down, not banned."
+   },
+   "house": true
+  },
+  {
+   "key": "q57",
+   "skill": "setup.thirty_minute_pivot",
+   "rung": 8,
+   "format": "numeric",
+   "criterion": "pvt.level",
+   "q": "The 10-day EMA is 236.78 and the pivot candle's low is 237.12. How far above the average is the low, in percent?",
+   "answer": 0.14,
+   "why": "0.14%. The low minus the average, divided by the average. PSX's pivot sat right on its rising 10-day.",
+   "lesson_line": "Measure the gap between the candle and the line in percent.",
+   "facts": [
+    "d03",
+    "c01"
+   ],
+   "house": true,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(a - b) / b * 100",
+     "a": 237.12,
+     "b": 236.78
+    },
+    "round": 2
+   },
+   "suffix": "%"
+  },
+  {
+   "key": "q58",
+   "skill": "setup.thirty_minute_pivot",
+   "rung": 9,
+   "format": "scenario",
+   "criterion": "pvt.stop",
+   "story": "PSX, 2026-08-27: 5 reds into the rising 10-day EMA. The 11:00 candle is the pivot and the day's low, 237.12. The 11:30 candle takes its high.",
+   "q": "Which plan fits our rules?",
+   "choices": [
+    "Buy over the high; stop under 237.12",
+    "Buy at the 10-day EMA; stop at 230.00",
+    "Buy at the close; mental stop only"
+   ],
+   "answer": "Buy over the high; stop under 237.12",
+   "why": "Buy over the pivot high at market, stop just under 237.12. The stop sits a few cents under the pivot candle's low, which here is also the day's low. PSX bought 238.91 with the stop at 237.09.",
+   "lesson_line": "Entry, stop, size, trims. Written before the bell, run without a debate.",
+   "facts": [
+    "d03",
+    "d04",
+    "h22",
+    "h24"
+   ],
+   "wrong": {
+    "Buy at the 10-day EMA; stop at 230.00": "That buys the average itself before any turn, with a stop nowhere near a low.",
+    "Buy at the close; mental stop only": "The trigger is the trade through the pivot high, and every position has a real stop."
+   },
+   "house": true
+  },
+  {
+   "key": "q59",
+   "skill": "setup.thirty_minute_pivot",
+   "rung": 9,
+   "format": "scenario",
+   "criterion": "pvt.inv_context",
+   "story": "Your pivot at the 21-day EMA stopped out. The stock then closes under that 21-day EMA, and its 20-day EMA starts to fall. A new pivot forms the next day.",
+   "q": "Take it?",
+   "choices": [
+    "No; the daily context has broken",
+    "Yes; a new pivot is a new trade",
+    "Yes, with a tighter stop this time",
+    "Yes, if the reds are clean"
+   ],
+   "answer": "No; the daily context has broken",
+   "why": "No. A daily close under the level the pivot was meant to hold breaks the setup. A falling 20-day also fails the trend check. INTC took three stabs in six sessions like this.",
+   "lesson_line": "When the daily picture breaks, the 30-minute chart has nothing left to time.",
+   "facts": [
+    "c10",
+    "c12",
+    "d13",
+    "d12"
+   ],
+   "wrong": {
+    "Yes; a new pivot is a new trade": "A re-entry needs the setup intact. Under the level, with the 20-day falling, it is not.",
+    "Yes, with a tighter stop this time": "A tighter stop on a broken trend is a smaller version of the same mistake.",
+    "Yes, if the reds are clean": "INTC's candles were clean too. The daily picture was the difference."
+   },
+   "house": true
+  },
+  {
+   "key": "q60",
+   "skill": "setup.thirty_minute_pivot",
+   "rung": 9,
+   "format": "scenario",
+   "criterion": "pvt.trim_2",
+   "story": "You bought a pivot at 66.83, stop 66.05. It runs to 19.8R over the next weeks. Much later it falls back through 66.05.",
+   "q": "What did our plan keep?",
+   "choices": [
+    "Two thirds banked at 3R and 5R",
+    "Nothing; it hit the stop",
+    "Everything; it never moved",
+    "Half, sold at 2R"
+   ],
+   "answer": "Two thirds banked at 3R and 5R",
+   "why": "Two thirds banked. Most scan trades touched the fixed stop at some point, usually after the targets; the trims are what keep the result. The last third rode the trail, not the old stop.",
+   "lesson_line": "Sell partials into strength. The trims are what you keep when the move gives it back.",
+   "facts": [
+    "c38",
+    "h05",
+    "h20",
+    "h21",
+    "d01"
+   ],
+   "wrong": {
+    "Nothing; it hit the stop": "Only with no trims and no breakeven move. That is the scan's fixed-stop count, not our plan.",
+    "Everything; it never moved": "It moved 19.8R and back. The plan sells into that, a third at a time.",
+    "Half, sold at 2R": "2R is not a trim level. The trims are thirds at 3R and 5R."
+   },
+   "house": true
+  },
+  {
+   "key": "q61",
+   "skill": "setup.thirty_minute_pivot",
+   "rung": 9,
+   "format": "scenario",
+   "criterion": "pvt.size_cap",
+   "story": "A pivot's stop is 0.6% away. At 1% risk the formula asks for 167% of the account. A friend says the tight stop makes it safe.",
+   "q": "What is wrong with that?",
+   "choices": [
+    "A gap can jump the stop; cap it",
+    "Nothing; the risk is still 1%",
+    "Use margin to fit it",
+    "Widen the stop to fit the size"
+   ],
+   "answer": "A gap can jump the stop; cap it",
+   "why": "A gap can jump the stop. At 1% risk and a 0.6% stop the formula asks for 167% of the account; the cap is 40%. A tight stop never justifies a bigger position.",
+   "lesson_line": "A tight stop never licenses a monster position.",
+   "facts": [
+    "c08",
+    "h17b",
+    "c23"
+   ],
+   "wrong": {
+    "Nothing; the risk is still 1%": "The 1% assumes the stop fills. An overnight gap fills below it.",
+    "Use margin to fit it": "Margin raises the book's total, not the 40% cap on one position.",
+    "Widen the stop to fit the size": "The stop comes first and never moves to fit a size."
+   },
+   "house": true
+  },
+  {
+   "key": "q62",
+   "skill": "setup.thirty_minute_pivot",
+   "rung": 9,
+   "format": "scenario",
+   "criterion": "pvt.stop_only_up",
+   "story": "Four pivot longs lost this autumn: a last-hour trigger, a tiny stop on a mega-cap, a broken daily trend, a plain broken low. The stops sat 0.42% to 1.72% under the buy.",
+   "q": "What kept each loss at 1R?",
+   "choices": [
+    "The stop that only moves up",
+    "Selling at the first red candle",
+    "Moving the stop lower in time",
+    "Luck; the fills were bad"
+   ],
+   "answer": "The stop that only moves up",
+   "why": "The fixed stop that only moves up. The four lost for four different reasons, and the stop is what kept each loss at 1R.",
+   "lesson_line": "Losses are part of the plan. The stop is the part you control.",
+   "facts": [
+    "d18",
+    "d17",
+    "h02"
+   ],
+   "wrong": {
+    "Selling at the first red candle": "There is no exit on a red candle. The stop did the work.",
+    "Moving the stop lower in time": "Lowering the stop makes a loss bigger. It only moves up.",
+    "Luck; the fills were bad": "The fills were the planned trade through. The loss was planned too."
+   },
+   "house": true
+  },
+  {
+   "key": "q63",
+   "skill": "setup.thirty_minute_pivot",
+   "rung": 9,
+   "format": "scenario",
+   "criterion": "pvt.stop_width",
+   "story": "After four reds into the 50-day, the pivot candle is wide. A stop a few cents under its low sits 3.6% under the trigger.",
+   "q": "What now?",
+   "choices": [
+    "Pass; the honest stop is over 3%",
+    "Pull the stop up to 3%",
+    "Buy with half the risk",
+    "Use the 50-day as the stop"
+   ],
+   "answer": "Pass; the honest stop is over 3%",
+   "why": "Pass. Skip if the stop is more than 3% away; a risk over 3% is a sign the pivot candle is too wide. If the honest stop does not fit, skip the trade.",
+   "lesson_line": "You never pick a size and back-fit a stop inside the noise.",
+   "facts": [
+    "c04",
+    "h01"
+   ],
+   "wrong": {
+    "Pull the stop up to 3%": "A stop inside the candle is inside the noise. The stop is never pulled in to fit.",
+    "Buy with half the risk": "The card's line is the stop distance itself. Over 3% is a skip.",
+    "Use the 50-day as the stop": "The pivot's stop is under the candle's low. A daily average is a different, wider trade."
+   },
+   "house": true
+  },
+  {
+   "key": "q64",
+   "skill": "setup.thirty_minute_pivot",
+   "rung": 9,
+   "format": "numeric",
+   "criterion": "pvt.no_chase",
+   "q": "The pivot candle's high is 140.33. You look up and it trades 146.30. How far above the high is that, in percent?",
+   "answer": 4.25,
+   "why": "4.25%, past the 4% line. Skip it: chasing costs size, not risk, since the stop stays under the pivot low.",
+   "lesson_line": "Measure the chase before you buy it.",
+   "facts": [
+    "h11",
+    "h12"
+   ],
+   "house": true,
+   "calc": {
+    "fn": "pct_change",
+    "args": {
+     "start": 140.33,
+     "end": 146.3
+    },
+    "round": 2
+   },
+   "suffix": "%"
+  },
+  {
+   "key": "q65",
+   "skill": "setup.thirty_minute_pivot",
+   "rung": 5,
+   "format": "numeric",
+   "criterion": "pvt.position_adv",
+   "q": "A stock averages 350,000 shares a day. Under our 1% rule, what is the most we can hold in a pivot trade?",
+   "answer": 3500,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "a * 0.01",
+     "a": 350000
+    },
+    "round": 0
+   },
+   "why": "3,500 shares. One percent of 350,000. Never own more than 1% of a stock's average daily volume.",
+   "lesson_line": "Check the stock's volume as well as the stop. One percent is the ceiling.",
+   "facts": [
+    "h36",
+    "c54"
+   ],
+   "suffix": " shares",
+   "house": true
+  },
+  {
+   "key": "q66",
+   "skill": "setup.thirty_minute_pivot",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "pvt.position_adv",
+   "q": "What is the most you can buy?",
+   "story": "A pivot sets up in a stock that averages 500,000 shares a day. Your risk formula asks for 9,000 shares and the 40% cap allows 7,000.",
+   "choices": [
+    "5,000 shares",
+    "7,000 shares",
+    "9,000 shares"
+   ],
+   "answer": "5,000 shares",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "a * 0.01",
+     "a": 500000
+    },
+    "round": 0
+   },
+   "why": "5,000 shares. One percent of 500,000 is the tightest limit. Never own more than 1% of a stock's average daily volume.",
+   "lesson_line": "Size is the least of what the stop, the cap and the volume allow.",
+   "facts": [
+    "h36",
+    "h03",
+    "c54"
+   ],
+   "wrong": {
+    "7,000 shares": "That is the 40% cap. The volume rule is tighter.",
+    "9,000 shares": "That is what the risk formula asks. The cap and the volume rule both come first."
+   },
+   "house": true
+  }
+ ]
+}

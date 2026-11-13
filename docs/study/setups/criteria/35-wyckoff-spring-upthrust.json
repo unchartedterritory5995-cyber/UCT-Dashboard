@@ -1,0 +1,1271 @@
+{
+ "setup": "35-wyckoff-spring-upthrust",
+ "name": "Wyckoff Spring (and Upthrust)",
+ "unit": "none",
+ "direction": "long",
+ "timeframe": "daily",
+ "dossier": "docs/study/setups/research/35-wyckoff-spring-upthrust.md",
+ "as_of": "2026-11-10",
+ "card": {
+  "context": "A leader, RS 80 or more, above its 200-day, resting in a sideways range after an advance (a reaccumulation pause). Best when the index itself has just sprung back from a correction. The classic spring after a long decline sits under the 200-day and is off limits.",
+  "pattern": "A flat trading range of 20 sessions or more, 6% to 20% tall, its floor touched by at least two swing lows. The spring day dips 0.1 to 1 ATR under the floor and closes back inside the same day or the next, in the upper half of its range.",
+  "trigger": "PREV LOW RECLAIM: a market order as price trades back above the old range low after a quiet dip, or at the next open after a qualifying close; after a loud dip, wait for the quieter test that holds the spring low.",
+  "stop": "A few cents under the spring low, the lower of the two days on a two-bar spring; the same for the test entry. Over 3%: prefer the test or the intraday reclaim; 3% to 5% at a lower grade; over 5%, skip.",
+  "failure_mode": "The dip keeps going: a close back under the spring low, usually within days and often on a gap. 41% of springs broke their low before any test came and 77% before a close over the range top. A spring that fails usually fails at once."
+ },
+ "entry_trigger": "PREV LOW RECLAIM",
+ "criteria": [
+  {
+   "id": "spr.above_200",
+   "field": "context",
+   "statement": "Price is above the 200-day SMA on the spring day. No exception: the classic accumulation spring after a long decline is watch only until the stock is back above the line.",
+   "measure": {
+    "what": "spring-day close against the 200-day SMA",
+    "op": ">",
+    "value": "200-day SMA",
+    "timeframe": "daily"
+   },
+   "glossary": "above_200",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B26",
+   "options": [
+    {
+     "value": "a",
+     "basis": "B26 as written; below-200 springs taught as a read until price is back above (the dossier's rule; the register's default)"
+    },
+    {
+     "value": "b",
+     "basis": "a slow terminal shakeout (SPY March 2026, four weeks under the floor, three under the 200-day) bought once back above the 200-day; or sent to the 200-day Remount (setup 13)"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-009",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Prior trend; 10 questions 10 and 11",
+   "evidence": "One-bar springs above the 200-day +0.04R (5,422), below it +0.01R (5,609). MBLY July 2024 (a spring that never sprang, 16% to 50% under the 200-day) and SPY in March 2026 are the cases B26 keeps a long out of. UCT's own springs are leaders in uptrends (DELL 10.5% above its 200-day)."
+  },
+  {
+   "id": "spr.prior_advance",
+   "field": "context",
+   "statement": "Preferred: the 60 sessions before the range rose (a reaccumulation pause, Fraser's stepping stone), not a base after a decline.",
+   "measure": {
+    "what": "close at the start of the range against the close 60 sessions before it",
+    "op": ">",
+    "value": "the earlier close",
+    "timeframe": "daily"
+   },
+   "basis": "originator",
+   "sources": [
+    "S8",
+    "S12",
+    "S22",
+    "S25"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Prior trend, preferred; 9 Trend row",
+   "evidence": "Measured: the prior 60 days up +0.06R against down -0.03R. HWM 2025-08-20 is the stepping-stone case (a range after a 31% run); KMX 2020-12-29 fell 13% into its range and grades lower on this row."
+  },
+  {
+   "id": "spr.leader",
+   "field": "context",
+   "statement": "RS rating 80 or more; stronger than the market through the range.",
+   "measure": {
+    "what": "RS rating",
+    "op": ">=",
+    "value": 80,
+    "unit": "rating 1 to 99"
+   },
+   "glossary": "leader",
+   "basis": "house rule",
+   "sources": [
+    "S3"
+   ],
+   "house_rule": "C31",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Strength; 7 C31 row",
+   "evidence": "Wyckoff's own strength test: outperforming the market. A spring is not a mean-reversion trade in the house sense, so C31 applies. Measured with an RS proxy: 80 or more +0.05R, a wider stop (3.13%). The RS 80 condition could not be checked on the ten examples."
+  },
+  {
+   "id": "spr.liquidity",
+   "field": "context",
+   "statement": "Price $10 or more and $20 million a day or more.",
+   "measure": {
+    "what": "close",
+    "op": ">=",
+    "value": 10,
+    "unit": "$",
+    "and": "20-day average dollar volume >= 20,000,000"
+   },
+   "glossary": "liquidity",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B23",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Liquidity",
+   "evidence": "The dossier's check and the scan used the 20-day average; the glossary's shared window is 50 sessions."
+  },
+  {
+   "id": "spr.earnings_window",
+   "field": "context",
+   "statement": "No new buy within 3 days of a report; skip on buyout news.",
+   "measure": {
+    "what": "sessions until the next report",
+    "op": ">",
+    "value": 3,
+    "unit": "sessions",
+    "and": "no buyout news"
+   },
+   "glossary": "earnings_blackout",
+   "basis": "house rule",
+   "sources": [
+    "S22"
+   ],
+   "house_rule": "B22",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Earnings",
+   "evidence": "U 2026-10-29 to 11-02: the right shape in the wrong week; the owner skipped it for earnings and then buyout news. AAPL 2014-04-15 entered 5 sessions before its report, so B22 allowed it, and 3R came on the report gap."
+  },
+  {
+   "id": "spr.market_reading",
+   "field": "context",
+   "statement": "Springs: a Green or Yellow market. Upthrust shorts: a Red market, below the 200-day.",
+   "measure": {
+    "what": "the app's market reading",
+    "op": "in",
+    "value": [
+     "Green",
+     "Yellow"
+    ],
+    "note": "Orange only for an A+; a Red market is for upthrust shorts below the 200-day"
+   },
+   "glossary": "market_reading",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "F65",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.7"
+  },
+  {
+   "id": "spr.index_sprung",
+   "field": "context",
+   "statement": "Best when the index itself has just sprung back from a correction (Wyckoff's step 5: time your commitment with a turn in the stock market index).",
+   "measure": {
+    "what": "the index's own undercut and reclaim of a prior low",
+    "op": "==",
+    "value": true,
+    "note": "a cue; the dossier gives no window"
+   },
+   "basis": "originator",
+   "sources": [
+    "S3",
+    "S22",
+    "S25"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.7; 9 Market row",
+   "evidence": "Measured by period: 2008-09 -0.34R, 2010-19 +0.18R. AAPL and QQQ 2021-10-01 both sprang on the same day and both made 0.0R: the index's own spring failed, and so did the leader's. UCT's 2025-11 and 2026-04 index notes read the market's own failed breakdowns the same way."
+  },
+  {
+   "id": "spr.range_length",
+   "field": "pattern",
+   "statement": "A sideways trading range of at least 20 sessions behind the spring.",
+   "measure": {
+    "what": "sessions in the range before the spring day",
+    "op": ">=",
+    "value": 20,
+    "unit": "sessions",
+    "timeframe": "daily"
+   },
+   "glossary": "base_length",
+   "basis": "my proposal",
+   "sources": [
+    "S3",
+    "S24"
+   ],
+   "options": [
+    {
+     "value": 15,
+     "basis": "the app's scanner minimum; the owner's DELL and AMZN ranges were a week or two, sometimes on the hourly (the register's default)"
+    },
+    {
+     "value": 20,
+     "basis": "the dossier's proposal"
+    },
+    {
+     "value": 30,
+     "basis": "with 3 touches, closer to the classic schematic"
+    }
+   ],
+   "recommended": 20,
+   "status": "pending-owner",
+   "owner_question": "D-112",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Structure; 10 question 2",
+   "evidence": "No source gives a number; support is established in Phases A and B (ChartSchool). The scan used ranges of 60, 40 or 25 sessions (the longest that fits); the ten examples ran 25 to 60. A grade: 4 to 12 weeks."
+  },
+  {
+   "id": "spr.floor_touches",
+   "field": "pattern",
+   "statement": "A flat floor touched at least twice: two swing lows within about half an ATR of the range low, at least 5 sessions apart. Three or more touches grade higher.",
+   "measure": {
+    "what": "swing lows within 0.5 ATR of the range's lowest low, at least 5 sessions apart",
+    "op": ">=",
+    "value": 2,
+    "unit": "touches",
+    "timeframe": "daily"
+   },
+   "glossary": "ceiling",
+   "basis": "my proposal",
+   "sources": [
+    "S3",
+    "S24",
+    "S25"
+   ],
+   "status": "pending-owner",
+   "owner_question": "D-112",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Structure; 9 Range row",
+   "evidence": "Borrowed from the app's member drawing (3 touches within 0.5 ATR). Measured: 3 or more touches +0.07R; scan: two touches 27.6% against three or more 26.4% to 3R, no difference. GIS and KMX had four, ODFL five."
+  },
+  {
+   "id": "spr.range_height",
+   "field": "pattern",
+   "statement": "Range height 6% to 20% from the floor to the top. Over 20%: grade lower.",
+   "measure": {
+    "what": "(range high - range low) / range low",
+    "op": "in",
+    "value": [
+     6,
+     20
+    ],
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "glossary": "base_depth",
+   "basis": "my proposal",
+   "sources": [
+    "S24",
+    "S25"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Range height; 9 Range row",
+   "evidence": "Measured: 6% to 10% best (+0.09R, 77% of stops within 3%), 20% to 35% worst (-0.04R, 40% within 3%). TSLA 2025-02-06 (17.9%, near the top of the band, after a 73% run) was stopped on the entry day; its high that day (380.55) was 0.76R over the 373.04 fill, but the same bar took the stop (corrected 2026-11-10 against the bars). A grade: 6% to 12%."
+  },
+  {
+   "id": "spr.flat",
+   "field": "pattern",
+   "statement": "Flat: no clear slope, the closes drift less than a quarter of the range height.",
+   "measure": {
+    "what": "fitted drift of the range's closes / range height",
+    "op": "<",
+    "value": 0.25,
+    "timeframe": "daily"
+   },
+   "glossary": "flat_drift",
+   "basis": "my proposal",
+   "sources": [
+    "S24"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Flat",
+   "evidence": "The app drawing's rule (the member drawing uses 0.15 of the height, the scan a quarter). MSFT 2020-09-18 was dropped on sight: an 18% range that slopes with the high at the end is not flat. The flat base card measures flat as 10% of the average close; the two cards' lookalike lines say which applies."
+  },
+  {
+   "id": "spr.dip_depth",
+   "field": "pattern",
+   "statement": "The spring: the day's low goes under the range's lowest low by at least 0.1 ATR (a real undercut) and at most about 1 ATR. Over 1 ATR is a shakeout (grade lower); over 2 ATR is a breakdown, not a spring.",
+   "measure": {
+    "what": "(range low - spring-day low) / ATR(14)",
+    "op": "in",
+    "value": [
+     0.1,
+     1
+    ],
+    "unit": "ATR",
+    "note": "1 to 2 ATR grades lower; over 2 ATR is not a spring",
+    "timeframe": "daily"
+   },
+   "basis": "originator",
+   "sources": [
+    "S8",
+    "S13",
+    "S25"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 The spring; 9 The dip row",
+   "evidence": "Shallow is Fraser's #3 spring; the numbers are the dossier's. Measured: a dip under 0.5 ATR +0.04R with 23.1% to 3R; 1 to 2 ATR +0.02R, 12.8% to 3R, a 5.01% median stop. Scan: 0.1 to 0.5 ATR 27.5% against 0.5 to 1.0 ATR 26.0%. The ten examples dipped 0.13 to 0.80 ATR."
+  },
+  {
+   "id": "spr.reclaim_window",
+   "field": "pattern",
+   "statement": "The reclaim: it closes back above the old range low the same day (one-bar), or the next day (two-bar). Later than that: not this setup.",
+   "measure": {
+    "what": "sessions from the spring day to the first close back above the range low",
+    "op": "<=",
+    "value": 1,
+    "unit": "sessions",
+    "note": "0 = one-bar, 1 = two-bar",
+    "timeframe": "daily"
+   },
+   "glossary": "reclaim_window",
+   "basis": "source consensus",
+   "sources": [
+    "S3",
+    "S18",
+    "S22",
+    "S25"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "count two-bar springs (they measured better, +0.15R; the owner's AMZN example; the dossier and the register's default)"
+    },
+    {
+     "value": "b",
+     "basis": "one-bar only (ChartSchool's close within the TR)"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-113",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 The reclaim; 10 question 6",
+   "evidence": "ChartSchool: reverses to close within the TR; the glossary's 1-3 days. Measured: one-bar +0.03R (11,031), two-bar +0.15R (3,898); scan: one-bar 27.2% against two-bar 26.0% to 3R. The app's pattern-engine scanner cannot see a one-bar spring at all (conflicts). The shared reclaim window is 3 sessions; this card keeps the Wyckoff reading of 2."
+  },
+  {
+   "id": "spr.reclaim_close",
+   "field": "pattern",
+   "statement": "Close quality: the reclaim day closes in the upper half of its range.",
+   "measure": {
+    "what": "(close - low) / (high - low) of the reclaim day",
+    "op": ">=",
+    "value": 0.5,
+    "timeframe": "daily"
+   },
+   "glossary": "close_position",
+   "basis": "my proposal",
+   "sources": [
+    "S25"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Close quality; 9 The reclaim row",
+   "evidence": "Measured: a close in the top 30% of the day +0.06R (+0.01 to +0.12). A grade: the top third, then a strong up day on more volume (an SOS)."
+  },
+  {
+   "id": "spr.volume",
+   "field": "pattern",
+   "statement": "Record the dip's volume against the 50-day average. Quiet (under 1.0x): the reclaim can be bought. Loud (1.5x or more): wait for the test. Not a pass or fail gate.",
+   "measure": {
+    "what": "spring-day volume / 50-day average volume",
+    "op": "<",
+    "value": 1,
+    "unit": "x",
+    "note": "1.5x or more sends the entry to the test",
+    "timeframe": "daily"
+   },
+   "glossary": "dry_up",
+   "basis": "originator",
+   "sources": [
+    "S2",
+    "S8",
+    "S13",
+    "S17",
+    "S25"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "use it to choose the entry: quiet = buy now, loud = wait for the test (Fraser, Pruden; the dossier)"
+    },
+    {
+     "value": "b",
+     "basis": "a grading cue only (the register's default for every setup)"
+    },
+    {
+     "value": "c",
+     "basis": "ignore it (the daily data showed no difference either way)"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-006",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Volume; 3.10 point 1; 10 question 7",
+   "evidence": "The single biggest disagreement among the sources: the Wyckoff school wants a quiet spring and a test after a loud one; Taylor (CMT) wants heavy volume, the higher the better. Measured on daily bars: quiet (under 0.8x) +0.02R, 0.8x to 1.5x +0.04R, 1.5x or more +0.01R, 2.5x or more +0.05R; no separation. The ten examples dipped on 0.81x to 1.16x."
+  },
+  {
+   "id": "spr.location_averages",
+   "field": "pattern",
+   "statement": "Often the spring undercuts the 20-day or 50-day too (the owner's shakeout below the 20EMA and remount; shakeout under the 50SMA). It must stay above the 200-day.",
+   "measure": {
+    "what": "spring-day low against the 20-day EMA or 50-day SMA",
+    "op": "<",
+    "value": "the average",
+    "note": "a cue; the close stays above the 200-day",
+    "timeframe": "daily"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S22"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Location",
+   "evidence": "BTC 2025-07-27 and GLW 2026-06-21 in the owner's notes; BE 2026-06-21: after getting stopped below the 50SMA (dirty shakeout) but leaders do that sometimes."
+  },
+  {
+   "id": "spr.entry_reclaim",
+   "field": "trigger",
+   "statement": "Option A, the reclaim: a market order as price trades back above the old range low after the dip (intraday, the owner's DELL plan, reclaim of $142), or at the next open after a qualifying close. For quiet springs where the stop fits A13.",
+   "measure": {
+    "what": "intraday price after the dip, or the next open",
+    "op": ">",
+    "value": "the old range low"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S13",
+    "S22"
+   ],
+   "house_rule": "E57",
+   "options": [
+    {
+     "value": "a",
+     "basis": "the reclaim (the owner's DELL plan; Fraser's #3 spring)"
+    },
+    {
+     "value": "b",
+     "basis": "the test (Pruden: better; Fraser's #2)"
+    },
+    {
+     "value": "c",
+     "basis": "both, by volume: quiet = the reclaim, loud = the test (the dossier's recommendation)"
+    },
+    {
+     "value": "d",
+     "basis": "also the back-up after the range top (the LPS or BUEC)"
+    }
+   ],
+   "recommended": "c",
+   "status": "pending-owner",
+   "owner_question": "D-003",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 A; 10 question 3",
+   "evidence": "The owner's DELL math (2026-03-08): shakeout to $140 and reclaim of $142, so entry $142, stop $140, 3-1 by the time the breakout buyers step in. Measured: the spring itself at the next open +0.06R; the owner's intraday plan on DELL risked 3.2% against 5.6% at the next open and saw 10.5R within 20 sessions. The register's default for every daily setup is the trade-through at market."
+  },
+  {
+   "id": "spr.entry_test",
+   "field": "trigger",
+   "statement": "Option B, the test: 1 to 10 sessions after a loud spring, a quieter dip back toward the old floor that holds above the spring low and closes in its upper half; buy at the next open (or on its intraday turn), stop under the spring low.",
+   "measure": {
+    "what": "sessions from the spring to the test bar",
+    "op": "in",
+    "value": [
+     1,
+     10
+    ],
+    "unit": "sessions",
+    "and": "the test holds above the spring low, on lower volume, and closes in its upper half",
+    "timeframe": "daily"
+   },
+   "basis": "originator",
+   "sources": [
+    "S2",
+    "S13",
+    "S25"
+   ],
+   "status": "pending-owner",
+   "owner_question": "D-003",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.2 B",
+   "evidence": "Measured on the same springs: the test entry +0.11R (+0.14R above the 200-day) against +0.06R for the immediate entry; a test was found after 36% of springs, and 41% broke the spring low before any test came, so waiting skips those. ODFL 2021-10-01 is the kind the test entry would also have caught."
+  },
+  {
+   "id": "spr.entry_backup",
+   "field": "trigger",
+   "statement": "Option C, the back-up (LPS or BUEC): after the push to the top of the range, the first light-volume pullback that holds the old top. The add or the second chance; it overlaps the flat-base breakout.",
+   "basis": "originator",
+   "sources": [
+    "S2",
+    "S3",
+    "S13"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.2 C"
+  },
+  {
+   "id": "spr.not_breakout_entry",
+   "field": "trigger",
+   "statement": "Not the breakout over the range top with the stop under the spring low (the app's scanner plan): a median 12.5% stop and 1% reached 3R.",
+   "measure": {
+    "what": "median stop of the range-top breakout entry with the stop under the spring low",
+    "op": "==",
+    "value": 12.5,
+    "unit": "%"
+   },
+   "basis": "measured",
+   "sources": [
+    "S2",
+    "S24",
+    "S25"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 D; 5.1; 8.8 mistake 5",
+   "evidence": "Pruden and von Lichtenstein: you should not buy breakouts. Measured: only 16% of springs reached the range top first, 77% broke the spring low first; the entry +0.01R with no stop within 3%. The same breakout with the stop under the breakout day's low (the house default) is the Flat Base card's trade, -0.02R here."
+  },
+  {
+   "id": "spr.no_chase",
+   "field": "trigger",
+   "statement": "No chase: skip if the entry is more than 4% above the old range low, the buy point.",
+   "measure": {
+    "what": "fill / old range low - 1",
+    "op": "<=",
+    "value": 4,
+    "unit": "%"
+   },
+   "glossary": "chase_limit",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "C28",
+   "options": [
+    {
+     "value": "a",
+     "basis": "the old range low (the dossier's proposal; the register's default names the trigger level)"
+    },
+    {
+     "value": "b",
+     "basis": "the spring day's close"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-022",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 No chase; 10 question 4",
+   "evidence": "The scan skipped any entry more than 4% past the floor; a next open back under the floor filled at the floor when price traded through it that day."
+  },
+  {
+   "id": "spr.not_stretched",
+   "field": "trigger",
+   "statement": "At entry, no more than 10% above the 10-day average.",
+   "measure": {
+    "what": "entry / 10-day SMA - 1",
+    "op": "<=",
+    "value": 10,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "glossary": "stretched",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "C29",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "7 C29 row",
+   "evidence": "Rarely binding: a spring happens at the bottom of a range."
+  },
+  {
+   "id": "spr.stop",
+   "field": "stop",
+   "statement": "A few cents under the spring low (for a two-bar spring the lower of the two days). The same for the test entry.",
+   "measure": {
+    "what": "stop",
+    "op": "==",
+    "value": "a few cents under the lowest low of the dip"
+   },
+   "glossary": "stop_margin",
+   "basis": "house rule",
+   "sources": [
+    "S13",
+    "S17"
+   ],
+   "house_rule": "F62",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.3",
+   "evidence": "Fraser: under the low of the Spring day. Taylor: the spring low should not be violated by any significant degree. Not the old range low (too tight; the spring low is the real line), and not the app's 1.5% under it with a breakout entry (a median 14.3% stop in the replay of the app's code)."
+  },
+  {
+   "id": "spr.stop_width",
+   "field": "stop",
+   "statement": "Size from the stop (A5). If it is more than about 3% away: prefer the test or the intraday reclaim to tighten it; 3% to 5% only at a lower grade (smaller risk, E49); over 5%, skip.",
+   "measure": {
+    "what": "(entry - stop) / entry",
+    "op": "<=",
+    "value": 5,
+    "unit": "%",
+    "note": "about 3% at full grade; 3% to 5% graded down"
+   },
+   "glossary": "stop_width",
+   "basis": "my proposal",
+   "sources": [
+    "S25"
+   ],
+   "house_rule": "A13",
+   "options": [
+    {
+     "value": "a",
+     "basis": "skip over 3% (A13 read as a cap)"
+    },
+    {
+     "value": "b",
+     "basis": "allow 3% to 5% at a lower grade (the dossier's proposal)"
+    },
+    {
+     "value": "c",
+     "basis": "allow anything with the size cut by A5 (the register's default: up to one ADR, one grade lower)"
+    }
+   ],
+   "recommended": "b",
+   "status": "pending-owner",
+   "owner_question": "D-005",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.3; 10 question 5",
+   "evidence": "A13 is the main friction. Measured: 62% of one-bar springs had the stop within 3% at the next open (median 2.27%); deeper dips and tall ranges push it past. Scan: stop under 3% 27.1% / 18.5% to 3R / 5R, 3% to 5% 27.1% / 15.1%. The owner's examples at the next open ran 3.3% to 6.3% (AMZN 3.3%, LHX 3.6%, DELL 5.6%, BE 6.3%); his own intraday plans were 1.4% (DELL) and 2.3% (AMZN)."
+  },
+  {
+   "id": "spr.stop_never_lower",
+   "field": "stop",
+   "statement": "Never lower it; a real stop order with the broker.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "A4",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.3"
+  },
+  {
+   "id": "spr.stop_gap",
+   "field": "stop",
+   "statement": "A gap through the stop: the first 30-minute low is the new stop; out if past 2R.",
+   "measure": {
+    "what": "loss at the first 30-minute low of the gap-down day",
+    "op": "<=",
+    "value": 2,
+    "unit": "R",
+    "timeframe": "30-minute"
+   },
+   "basis": "house rule",
+   "sources": [
+    "S22"
+   ],
+   "house_rule": "B20",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.3; 7 B20 row",
+   "evidence": "A failed spring often gaps down (HPE, October 2026; AMZN 2026-09-01 gapped through the stop for -1.02R). The upthrust short NVO 2025-12-12 gapped from 48.10 to 52.67 through a 50.78 stop."
+  },
+  {
+   "id": "spr.trim_1",
+   "field": "management",
+   "statement": "A third at 3R.",
+   "measure": {
+    "what": "fraction sold at 3R",
+    "op": "==",
+    "value": 0.333,
+    "unit": "of the position"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B19",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4"
+  },
+  {
+   "id": "spr.breakeven",
+   "field": "management",
+   "statement": "Breakeven between 2R and 5R, at the first trim by default.",
+   "measure": {
+    "what": "R at which the stop moves to the entry",
+    "op": "in",
+    "value": [
+     2,
+     5
+    ],
+    "unit": "R"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B19",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4"
+  },
+  {
+   "id": "spr.trim_2",
+   "field": "management",
+   "statement": "A third at 5R.",
+   "measure": {
+    "what": "fraction sold at 5R",
+    "op": "==",
+    "value": 0.333,
+    "unit": "of the position"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "E51",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4"
+  },
+  {
+   "id": "spr.trim_gap_open",
+   "field": "management",
+   "statement": "If it opens above a trim level, take that trim at the open.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "F63",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "7 (TRADE_PLANS.md, every setup)"
+  },
+  {
+   "id": "spr.trail",
+   "field": "management",
+   "statement": "Trail the rest under the 21-day (most springs) or the 10-day (fast movers), out on a close below it.",
+   "measure": {
+    "what": "close against the 21-day (most springs) or 10-day (fast) average",
+    "op": "<",
+    "value": "the average",
+    "timeframe": "daily"
+   },
+   "glossary": "trail",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "E52",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4",
+   "evidence": "The dossier's check trailed the last third on a close through the 21-day EMA after 5R; DELL 2026-03-10 trailed out after 79 sessions for +12.8R."
+  },
+  {
+   "id": "spr.range_top_resistance",
+   "field": "management",
+   "statement": "The top of the range is the first resistance. From the reclaim entry it sat a median 4.8R away (72% of the time 3R or more), so the 3R trim usually comes at or before the range top.",
+   "measure": {
+    "what": "(range top - entry) / (entry - stop), median",
+    "op": "==",
+    "value": 4.8,
+    "unit": "R"
+   },
+   "basis": "measured",
+   "sources": [
+    "S22",
+    "S25"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.4; 9 Room row",
+   "evidence": "The owner's DELL note says the same: 3-1 by the time the breakout buyers step in. A grade: the range top 4R or more away; B-: under 3R to the range top."
+  },
+  {
+   "id": "spr.pf_count",
+   "field": "management",
+   "statement": "The Wyckoff point-and-figure count may be shown as a stop, look and listen level, not taught as a rule.",
+   "basis": "originator",
+   "sources": [
+    "S3",
+    "S7",
+    "S14"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4",
+   "evidence": "Wyckoff targets come from the P&F count (ChartSchool, Pruden, Fraser). The app's target of twice the range height is in no source."
+  },
+  {
+   "id": "spr.time_stop",
+   "field": "management",
+   "statement": "Under 1R after 10 sessions: out.",
+   "measure": {
+    "what": "open R after 10 trading days",
+    "op": "<",
+    "value": 1,
+    "unit": "R"
+   },
+   "glossary": "time_stop",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "C33",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.5",
+   "evidence": "Fits a spring that stalls: the sources' advice is to wait for a new spring or test, which C33 turns into an exit."
+  },
+  {
+   "id": "spr.inv_no_range",
+   "field": "invalidation",
+   "statement": "Before the buy: no real range behind the dip. A falling stock makes a new low every day; that is not a spring.",
+   "basis": "my proposal",
+   "sources": [
+    "S24"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5; 8.8 mistake 2",
+   "evidence": "The base catalog's own comment. IREN 2025-10-22 (191% above its 200-day, ATR 14%) was a pullback in a vertical stock, not a range spring; the next 20 sessions -33%."
+  },
+  {
+   "id": "spr.inv_close_under_low",
+   "field": "invalidation",
+   "statement": "Before the buy: a close back under the spring low, or a dip that keeps going (over 2 ATR) on heavy volume (Fraser's #1 spring, which should not be bought).",
+   "measure": {
+    "what": "(range low - lowest low) / ATR(14)",
+    "op": ">",
+    "value": 2,
+    "unit": "ATR",
+    "or": "a close back under the spring low before the entry",
+    "timeframe": "daily"
+   },
+   "basis": "originator",
+   "sources": [
+    "S8",
+    "S13"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5",
+   "evidence": "Fraser: a Shakeout (#1 Spring) is a failed Spring that should not be bought. HPE's hoped-for shakeout under $60 in October 2026 became a breakdown to 43.38."
+  },
+  {
+   "id": "spr.after_entry_stop",
+   "field": "invalidation",
+   "statement": "After the buy: the stop under the spring low is the exit. A spring that fails usually fails at once: 41% broke their low before any test came, 77% before a close over the range top.",
+   "measure": {
+    "what": "share of springs that broke the spring low before a close over the range top",
+    "op": "==",
+    "value": 77,
+    "unit": "%"
+   },
+   "basis": "house rule",
+   "sources": [
+    "S17",
+    "S25"
+   ],
+   "house_rule": "A4",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5",
+   "evidence": "MSFT 2023-08-08: everything the rules ask for, stopped on the entry day (2023-08-09); the day's high (327.11) was 0.18R over the 326.47 fill, but the same bar took the stop (corrected 2026-11-10 against the bars). The stop is the trade, not a formality. The register's D-136: no setup adds an exit before the stop."
+  }
+ ],
+ "grading": {
+  "a_plus": [
+   "spr.prior_advance: above a rising 50-day and 200-day after a prior advance",
+   "spr.leader: RS 90 or more, a leader in a leading group; held up while the market fell",
+   "spr.range_length: 4 to 12 weeks, flat, 6% to 12% tall (spr.range_height), 3 or more clean touches of the floor (spr.floor_touches)",
+   "spr.volume: shrinking on the down swings inside the range; quiet on the dip, or loud followed by a quiet test that holds",
+   "spr.dip_depth: shallow (under about 0.5 ATR), late in the range",
+   "spr.reclaim_close: closes in the top third, then a strong up day on more volume (an SOS)",
+   "spr.stop_width: within 3%",
+   "spr.range_top_resistance: the range top 4R or more away",
+   "spr.index_sprung: Green; the index itself just sprang back (spr.market_reading)",
+   "spr.earnings_window: none near"
+  ],
+  "b_minus": [
+   "spr.above_200: barely above the 200-day; a flat or falling 50-day",
+   "spr.leader: RS 80 to 85; the group lagging",
+   "spr.range_length: short, sloppy or tall (over 20%, spr.range_height), only 2 touches (spr.floor_touches)",
+   "spr.volume: heavy on the down swings; loud on the dip with no test yet",
+   "spr.dip_depth: deep (over 1 ATR), or early in the range",
+   "spr.reclaim_close: a weak close, no follow-through",
+   "spr.stop_width: 3% to 5%",
+   "spr.range_top_resistance: under 3R to the range top",
+   "spr.market_reading: Yellow; the index choppy"
+  ],
+  "no_trade": [
+   "spr.above_200: below the 200-day",
+   "spr.inv_close_under_low: a close back under the spring low, or a dip over 2 ATR on heavy volume",
+   "spr.inv_no_range: no real range behind the dip",
+   "spr.reclaim_window: no close back inside the range by the next day",
+   "spr.stop_width: a stop over 5%",
+   "spr.earnings_window: earnings within 3 days, or buyout news",
+   "spr.not_breakout_entry: the range-top breakout with the stop under the spring low",
+   "spr.no_chase: more than 4% above the old range low",
+   "spr.market_reading: an upthrust short above the 200-day; a spring in a Red market"
+  ]
+ },
+ "lookalikes": [
+  {
+   "setup": "29-undercut-rally",
+   "tell": "Look left. A spring needs a flat range of 20 sessions or more (15 on the app's minimum) with a floor touched at least twice, and the close back inside the same day or the next; a U&R's level can be one swing low, a rising average or a prior high, and it may take 3 sessions to close back above.",
+   "criterion": "spr.range_length"
+  },
+  {
+   "setup": "28-2b-reversal",
+   "tell": "Count the touches. A 2B's level is one swing low with a rally of at least 1 ATR between the low and the break; a spring's floor is a flat level touched by two or more swing lows at least 5 sessions apart inside a sideways range.",
+   "criterion": "spr.floor_touches"
+  },
+  {
+   "setup": "01-flat-base",
+   "tell": "Where does the trade start? A flat base is bought through the TOP of the range with the stop under the breakout day's low; a spring is bought at the FLOOR on the reclaim after the undercut, with the stop under the dip and the range top a median 4.8R away. A flat base is flat when its closes drift under 10% of price; a Wyckoff range when they drift under a quarter of its height.",
+   "criterion": "spr.entry_reclaim"
+  },
+  {
+   "setup": "32-remount",
+   "tell": "Count the closes under the floor. A spring is back inside within 2 sessions (one-bar or two-bar); 5 or more closes under the level is a Remount of a level, bought on the retake.",
+   "criterion": "spr.reclaim_window"
+  },
+  {
+   "setup": "30-oops-reversal",
+   "tell": "Which low broke? An Oops breaks yesterday's low and reclaims yesterday's close on one candle; a spring breaks the floor of a range of 20 sessions or more that was touched at least twice.",
+   "criterion": "spr.range_length"
+  },
+  {
+   "setup": "34-capitulation",
+   "tell": "Measure the dip. A spring goes 0.1 to 1 ATR under the floor in a stock above its 200-day; over 2 ATR is a breakdown, and a 2 ATR flush on 2x volume under the fast averages with the burst boxes checked is a capitulation, which may sit under the 200-day as a parabolic long.",
+   "criterion": "spr.dip_depth"
+  }
+ ],
+ "invalidations": [
+  "Before the buy: no real range behind the dip (spr.inv_no_range).",
+  "Before the buy: a close back under the spring low, or a dip over 2 ATR on heavy volume (spr.inv_close_under_low).",
+  "Before the buy: no close back inside the range by the next day (spr.reclaim_window).",
+  "Before the buy: below the 200-day (spr.above_200); earnings within 3 days or buyout news (spr.earnings_window).",
+  "After the buy: the stop under the spring low (spr.after_entry_stop).",
+  "After the buy: under 1R after 10 sessions, out (spr.time_stop)."
+ ],
+ "mistakes": [
+  "Buying a breakdown that never closed back inside the range.",
+  "Calling any undercut a spring when there is no flat range behind it.",
+  "Buying a loud, deep dip at once instead of waiting for the quieter test (Fraser).",
+  "Putting the stop under the old range low (too tight; the spring low is the real line) or far below it.",
+  "Buying the range-top breakout and keeping the stop under the spring low (the app's plan): a 12.5% median stop.",
+  "Buying a spring under the 200-day after a long decline (B26).",
+  "Shorting an upthrust in a leader above the 200-day (B26; UCT; measured -0.16R).",
+  "Adding to, or averaging down on, a spring that broke its low (A5, A4).",
+  "Buying right before earnings (B22).",
+  "Chasing the reclaim more than 4% above the old low (C28)."
+ ],
+ "short_mirror": {
+  "exists": true,
+  "setup": "35-wyckoff-spring-upthrust",
+  "note": "The upthrust, dossier 8.6: only below the 200-day SMA, RS 20 or less, in a weak group (B26, the C31 mirror); the same range rules mirrored at the ceiling; the day's high goes over the range's highest high by 0.1 to 1 ATR and the day closes back inside, or closes back inside the next day; short at the next open, better on the failed retest of the upthrust high (Fraser: the test of the UTAD is a strategic place for short sellers); stop a few cents over the upthrust high; skip hard-to-borrow (D48); grade cap B until the owner rules. Measured: the upthrust short lost -0.13R overall and -0.16R above the 200-day where B26 forbids it; in the house-legal zone +0.09R (range -0.06 to +0.23). The scan's shorts below the 200-day: 22.0% to 3R (GS 2018-11-08, TGT 2023-07-27). Not a short in a leader above the 200-day: UCT reads that as a coming failed breakout-squat buy. The more useful lesson is the warning for longs: a breakout that closes back inside its range is a reason not to buy, or to sell a position bought on it. Whether to teach the short, the warning only, or drop it is D-001 (35:8)."
+ },
+ "best_conditions": "Springs: a Green or Yellow market (F65), best when the index itself has just sprung back from a correction (Wyckoff's step 5; UCT's 2025-11 and 2026-04 index notes). Measured: bad in 2008-09 (-0.34R), best in 2010-19 (+0.18R). Upthrust shorts: a Red market, below the 200-day (D46); measured best in 2008-09 (+0.14R).",
+ "management": {
+  "trim_1": "a third at 3R (B19)",
+  "trim_2": "a third at 5R (E51)",
+  "trail": "a close under the 21-day for most springs, the 10-day for a fast mover (E52)",
+  "breakeven": "between 2R and 5R, at the first trim by default (B19)",
+  "time_stop": "under 1R after 10 trading days, sell (C33)",
+  "gap_open": "a trim level the day opens past is taken at the open (F63)",
+  "gap_against": "the first 30-minute low is the new stop; out if past 2R (B20)",
+  "overrides": "none. The dossier (8.4) keeps the house defaults and adds a note: the range top is the first resistance, a median 4.8R from the reclaim entry, so the 3R trim usually comes at or before it; the P&F count may be shown as a level, not a rule. Not ours: the app's target of twice the range height."
+ },
+ "examples": {
+  "winners": 10,
+  "sheet_dir": "_study-resume/scratchpad/setups/35-wyckoff-spring-upthrust/final",
+  "base_rate": {
+   "hits": 4774,
+   "r3_pct": 25.4,
+   "r5_pct": 16.2,
+   "springs": {
+    "hits": 3173,
+    "r3_pct": 27.1,
+    "r5_pct": 17.7,
+    "stopped_pct": 83.8,
+    "median_stop_pct": 2.15
+   },
+   "upthrust_shorts": {
+    "hits": 1601,
+    "r3_pct": 22.0,
+    "r5_pct": 13.2,
+    "stopped_pct": 89.3,
+    "median_stop_pct": 1.98
+   },
+   "window": "60 sessions forward, fixed stop 3 cents beyond the probe's extreme, skipped when wider than 5%, no trims, no breakeven, no trail; 2000-01 to 2026-11; the fill at the next open (or at the floor when the open was back under it); a range of 60, 40 or 25 sessions, 6% to 20% tall, drift under a quarter of the height, two floor touches; one hit per name per 30 sessions"
+  },
+  "cuts": {
+   "one_bar_vs_two_bar": {
+    "one_bar_r3_pct": 27.2,
+    "two_bar_r3_pct": 26.0
+   },
+   "stop_under_3_pct": {
+    "r3_pct": 27.1,
+    "r5_pct": 18.5,
+    "stop_3_to_5_pct": {
+     "r3_pct": 27.1,
+     "r5_pct": 15.1
+    }
+   },
+   "probe_0_1_to_0_5_atr": {
+    "r3_pct": 27.5,
+    "probe_0_5_to_1_atr_r3_pct": 26.0
+   },
+   "two_floor_touches": {
+    "r3_pct": 27.6,
+    "three_or_more_r3_pct": 26.4
+   },
+   "by_era": {
+    "2000_07": 23.8,
+    "2008_09": 20.5,
+    "2010_19": 31.6,
+    "2020_26": 24.9
+   },
+   "dossier_check_section_4_3": {
+    "one_bar_spring_mean_r": 0.03,
+    "two_bar_spring_mean_r": 0.15,
+    "random_day_same_plan_mean_r": -0.08,
+    "test_entry_mean_r": 0.11,
+    "breakout_entry_mean_r": 0.01,
+    "breakout_entry_median_stop_pct": 12.5,
+    "upthrust_short_mean_r": -0.13,
+    "upthrust_short_above_200_mean_r": -0.16,
+    "upthrust_short_house_legal_mean_r": 0.09,
+    "note": "house plan, 1996 to 2026; a small edge at best, about 0.1R better than a random entry with the same plan"
+   }
+  },
+  "winners_list": [
+   "GIS 2001-10-15",
+   "AAPL 2014-04-15",
+   "ULTA 2015-05-15",
+   "PH 2017-08-18",
+   "KMX 2020-12-29 (two-bar)",
+   "ODFL 2021-10-01",
+   "AVGO 2023-05-04",
+   "HWM 2025-08-20",
+   "GS 2018-11-08 (upthrust short)",
+   "TGT 2023-07-27 (upthrust short)"
+  ],
+  "uct_named": [
+   "DELL 2026-03-10 (the owner's model trade, +12.8R at the next open; his plan: entry 142, stop 137.47)",
+   "AMZN 2026-08-27/28 (a two-bar spring, gapped through the stop on 09-01, -1.02R)",
+   "LHX 2026-02-25 (+1.0R after 3R and breakeven)",
+   "BE 2026-06-10/11 (dirty shakeout, +2.8R, then -40%)",
+   "U 2026-10-29 to 11-02 (the right shape, B22 forbids it)",
+   "MBLY July 2024 (Bracco: a spring that never sprang; B26)",
+   "QQQ 2025-12-10 (Bracco: a UTAD; B26 forbids the short)"
+  ],
+  "failures": [
+   {
+    "ticker": "TSLA",
+    "date": "2025-02-06",
+    "criterion": "spr.range_height",
+    "why": "a 25-day range 373.04 to 439.74, 17.9% tall, three touches, probe 0.52 ATR on 0.97x volume, stop 2.65%; bought 373.04 (the floor; the entry-day open, 370.19, was under it); the entry day's high (380.55) was 0.76R over the fill, but the same bar's low (360.34) took the 363.15 stop first, so the best is 0.0R (corrected 2026-11-10 against the bars): the earlier text said it never traded above the entry. It broke the spring low on the entry day and gapped on. A tall range after a 73% run in the prior 60 sessions, in a market turning down."
+   },
+   {
+    "ticker": "MSFT",
+    "date": "2023-08-08",
+    "criterion": "spr.after_entry_stop",
+    "why": "a 40-day range, 13.1% tall, three touches, a cents-deep 0.16 ATR probe on 0.76x volume, stop 1.07%: everything the rules ask for, stopped on the entry day (2023-08-09); the day's high (327.11) was 0.64, or 0.18R, over the 326.47 fill, but the same bar's low (321.05) took the 322.97 stop first (corrected 2026-11-10 against the bars): the earlier text said it never showed a profit and was stopped on the third day. A spring that fails usually fails at once."
+   },
+   {
+    "ticker": "AAPL",
+    "date": "2021-10-01",
+    "criterion": "spr.index_sprung",
+    "why": "AAPL and QQQ both sprang on the same day and both made 0.0R: a market-wide shakeout that did not finish; the index's own spring failed, and so did the leader's."
+   },
+   {
+    "ticker": "NVO",
+    "date": "2025-12-12",
+    "criterion": "spr.stop_gap",
+    "why": "an upthrust short, stop 1.64%; ran to 2.98R, a hair short of the 3R trim, then gapped from 48.10 to an open of 52.67 through the 50.78 stop on 12-23. B20 applies; the upthrust short below the 200-day stays capped at grade B."
+   },
+   {
+    "ticker": "GOOGL",
+    "date": "2019-05-09",
+    "criterion": "spr.market_reading",
+    "why": "a 40-day range 57.92-64.85 (12.0% tall, two touches), a 0.14 ATR probe on 0.91x volume, closed back inside the same day; bought 58.44 at the 05-10 open, stop 57.70 (1.27%); that day dipped to 57.32 through the stop and the stock fell to 51.35 by 06-03 as SPY made lower lows (279.93 on 05-13). Not a Green market."
+   }
+  ],
+  "limits": "Daily bars only (the owner's intraday reclaim and B20 cannot be tested; the next-open entry is usually worse than the reclaim); the range and spring rules are one reading of sources that publish no numbers; no RS rating or group (C31 not applied); survivors; events cluster on market-wide days; one management plan; no commissions, slippage, borrow fees. Nothing here is a published statistic, and no published success rate for springs exists.",
+  "near_misses": [
+   {
+    "ticker": "COST",
+    "date": "2021-01-20",
+    "criterion": "spr.dip_depth",
+    "why": "the probe went 1.34 ATR under the 359.50 floor (to 352.44), one close under, back inside the next day; the rule is 0.1 to 1 ATR (1 to 2 ATR grades lower, over 2 is a breakdown). Stop 2.46%; made 0.52R, stopped."
+   },
+   {
+    "ticker": "INTC",
+    "date": "2005-08-29",
+    "criterion": "spr.reclaim_window",
+    "why": "3 closes under the 25.61 floor and the close back inside on day 4; the rule is the same day or the next. A U&R of the range low at best (29-undercut-rally), with more closes a Remount; made 0.35R, stopped."
+   },
+   {
+    "ticker": "AMZN",
+    "date": "2021-08-12",
+    "criterion": "spr.floor_touches",
+    "why": "the floor (164.99) was touched by one swing low, 40 sessions old, that price rallied 14% off; the rule is a flat floor touched at least twice. A 2B of a single low (28-2b-reversal), not a spring; made 0.01R, stopped."
+   },
+   {
+    "ticker": "NFLX",
+    "date": "2025-09-15",
+    "criterion": "spr.range_length",
+    "why": "the range behind the probe is 19 sessions long (118.24-126.71 from 08-18); the rule is 20 or more. A U&R of a three-week shelf low (29-undercut-rally), not a spring; made 0.87R, stopped."
+   }
+  ],
+  "sheets": {
+   "failures": "final/fail_1-4.png",
+   "near_misses": "final/near_1-4.png",
+   "pair": "final/pair_29-undercut-rally.png"
+  }
+ },
+ "question_seeds": [
+  {
+   "kind": "recall",
+   "criterion": "spr.reclaim_window",
+   "seed": "A one-bar spring and a two-bar spring: what is the difference, and by when must the close be back inside the range?"
+  },
+  {
+   "kind": "recall",
+   "criterion": "spr.stop",
+   "seed": "Where does the stop go on a spring: under the old range low, or under the spring low?"
+  },
+  {
+   "kind": "recall",
+   "criterion": "spr.volume",
+   "seed": "After a loud spring (1.5x volume or more), what does the Wyckoff school say to wait for before buying?"
+  },
+  {
+   "kind": "spot",
+   "criterion": "spr.floor_touches",
+   "seed": "Hidden ticker: tap the floor of the range and each swing low that touched it. Is it two or three?"
+  },
+  {
+   "kind": "spot",
+   "criterion": "spr.dip_depth",
+   "seed": "Hidden ticker: tap the spring day. Did it dip under the floor by about half an ATR, or by two?"
+  },
+  {
+   "kind": "spot",
+   "criterion": "spr.flat",
+   "seed": "Hidden ticker: two sideways areas, one slopes with its high at the end. Which one is a Wyckoff range?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "spr.range_length",
+   "seed": "Spring or U&R: the level undercut was the rising 50-day, with no flat range behind it. Which card applies?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "spr.entry_reclaim",
+   "seed": "Spring or flat base: the same range, one trader buys the reclaim at the floor, the other buys through the top. Name each trade and its stop."
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "spr.reclaim_window",
+   "seed": "Spring or Remount: the stock closed under the floor for six sessions before closing back inside. Which is it?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "spr.entry_test",
+   "seed": "The spring day dipped 0.8 ATR under the floor on 2.3x volume and closed back inside. Buy the reclaim now, or wait? For what?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "spr.not_breakout_entry",
+   "seed": "The scanner says entry at the range top plus 0.1%, stop 1.5% under the spring low. What is wrong with that plan, in percent?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "spr.above_200",
+   "seed": "A textbook spring under a flat 200-day after a nine-month decline. Buy, watch, or pass? What would make it buyable?"
+  },
+  {
+   "kind": "grade",
+   "criterion": "spr.range_height",
+   "seed": "Two springs: one from an 8% range with three floor touches and a 0.3 ATR dip, one from a 24% range with two touches and a 1.4 ATR dip. Grade each."
+  },
+  {
+   "kind": "grade",
+   "criterion": "spr.stop_width",
+   "seed": "The reclaim entry gives a 4.2% stop; the test two days later would give 2.1%. Grade and size each."
+  },
+  {
+   "kind": "numeric",
+   "criterion": "spr.range_top_resistance",
+   "seed": "Entry 142.00, stop 137.47, the range top 148.00. How many R is the range top away, and where does the first trim come?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "spr.dip_depth",
+   "seed": "The floor is 150.00, ATR is 3.00, the spring low is 149.10. How deep is the dip in ATR, and is it a spring, a shakeout or a breakdown?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "spr.range_height",
+   "seed": "Floor 91.25, top 100.68. How tall is the range in percent, and is it inside the 6% to 20% band?"
+  }
+ ],
+ "owner_decisions": [
+  "D-001",
+  "D-002",
+  "D-003",
+  "D-004",
+  "D-005",
+  "D-006",
+  "D-009",
+  "D-022",
+  "D-112",
+  "D-113"
+ ],
+ "conflicts": [
+  "Own setup or a variant: the dossier leans to a named variant inside U&R (29), taught as a U&R under a flat base; the register agrees (D-002). UCT never says Wyckoff spring in public; its words are shakeout, failed breakdown, UnR, shake n bake.",
+  "Volume, the biggest disagreement: Fraser, Pruden and ChartSchool want a quiet spring and a test after a loud one; Taylor (CMT) wants heavy volume, the higher the better. Daily bars show no separation. The card uses volume to choose the entry (D-006).",
+  "Shakeout means a bullish spring on steroids to ChartSchool and Pruden 2014, and a failed spring that should not be bought to Fraser; UCT uses it for a bullish dip that is bought. The card keeps Fraser's #1 (over 2 ATR on heavy volume) as the no-buy.",
+  "Where to buy: the spring (Fraser #3), the test (Pruden: better), the back-up, or the breakout (nobody in the school; the app). The test measured best on daily bars (+0.11R); the owner buys the reclaim intraday (D-003).",
+  "How quickly: 1 to 3 days (the glossary's reclaim window) against 2 here (the Wyckoff reading); the glossary records 35 as the override. A UTAD can stay above resistance days to weeks (Fraser 2015) while the app requires a close back inside within 3 bars.",
+  "Range length: 15 (the app, the owner's DELL and AMZN), 20 (the dossier), 30 with 3 touches (the classic). The register's default is 15 (D-112). Flat: a quarter of the range height here against 10% of the average close on the flat base (glossary conflict 43).",
+  "The 200-day: B26 excludes the classic accumulation spring after a long decline (MBLY, SPY March 2026) and the classic UTAD at the top of an uptrend; only the reaccumulation spring and the redistribution upthrust remain (D-009).",
+  "Shorting the upthrust: ChartSchool aggressive, safer at the LPSY; Fraser shorts the test with the stop above its high; UCT reads a leader's failed breakout as a coming squat buy; measured -0.13R overall. The card caps it at B and teaches it mostly as a warning for longs (D-001).",
+  "Targets: the school's P&F count against the app's twice the range height, which is in no source. The house trims win; the range top is the first resistance.",
+  "The app's pattern-engine scanner (member-visible through Compass): it cannot see a one-bar spring (the reclaim bar's volume ratio is exactly 1.0 and step 5 rejects it; proved on synthetic bars), buys the breakout, puts the stop 1.5% under the spring low (a median 14.3% from its entry in the replay), targets 2x the range height, barely gates on the 200-day, and its narrative claims Pruden published 65-75% hit rates and 50-200% winners that no source holds, plus No Demand and No Supply labels that read backwards. Fix or hide it before it coaches members (D-004).",
+  "The three Wyckoff engines disagree: the scanner finds only the two-bar shape, the screener's base catalog only the one-bar shape with no depth or volume rule, the member drawing both with no volume rule.",
+  "Liquidity window: the dossier's check used a 20-day average dollar volume; the glossary's shared window is 50 sessions.",
+  "Scan against the dossier's check: a flat expectancy either way (27.1% to 3R with a fixed stop; +0.03R to +0.15R under the house plan); the two-bar form measured better in the check (+0.15R) and no different in the scan (26.0% against 27.2%)."
+ ]
+}

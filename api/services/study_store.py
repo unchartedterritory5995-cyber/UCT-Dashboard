@@ -54,6 +54,14 @@ XP_PER_LEVEL = 500
 BADGE_STREAKS = (3, 7, 30)
 BADGE_LEVELS = (5, 10, 20)
 DAILY_GOAL_DEFAULT = 50
+# the computed games (docs/study/GAMES.md, owner 2026-11-08 "be creative and awesome"): XP for a finished run, capped so a
+# game is never a faster XP farm than the lessons; bank-backed answers earn through record_attempt instead
+GAME_KINDS = ("size", "ticket", "payoff", "greeks", "survive", "watchlist", "story", "tf", "match", "mistake",
+              "daily", "history", "sectors", "earnings")
+GAME_XP_PER_RIGHT = 2
+GAME_XP_PER_RUN = 30
+GAME_XP_PER_KIND_DAY = 150
+GAME_MAX_TOTAL = 200
 MASTERY_MIN_REPS = 8              # minimum attempts to leave Learning (§7.1)
 BAND_PRACTISED = 50.0
 BAND_PROFICIENT = 80.0
@@ -272,6 +280,19 @@ CREATE TABLE IF NOT EXISTS study_badges (
   earned_at TEXT NOT NULL,
   PRIMARY KEY (user_id, badge_id)
 );
+
+CREATE TABLE IF NOT EXISTS study_game_runs (
+  user_id    TEXT NOT NULL,
+  run_id     TEXT NOT NULL,
+  kind       TEXT NOT NULL,
+  day_et     TEXT NOT NULL,
+  right_n    INTEGER NOT NULL,
+  total_n    INTEGER NOT NULL,
+  xp         INTEGER NOT NULL,
+  created_at TEXT NOT NULL,
+  PRIMARY KEY (user_id, run_id)
+);
+CREATE INDEX IF NOT EXISTS idx_study_game_runs_day ON study_game_runs(user_id, kind, day_et);
 
 CREATE TABLE IF NOT EXISTS study_checkpoints (
   id                 INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -697,12 +718,21 @@ def reveal_for(item: dict) -> dict:
 
 
 def list_bank(*, status: str = STATUS_APPROVED, types: Optional[Iterable[str]] = None,
-              limit: int = 5000) -> list[dict]:
+              limit: int = 50000, skill_id: Optional[str] = None) -> list[dict]:
     """Lightweight candidate rows for the set composer: id, type, skill_id,
-    difficulty, has_chart. Never the key, never the ticker."""
+    difficulty, has_chart. Never the key, never the ticker. `skill_id` filters
+    IN THE QUERY: a skill session must never filter after the row cap, or once
+    the approved bank passes `limit` a random share of every skill's items
+    silently stops being drawn (found 2026-11-09 while the course bank grew).
+    The default cap was 5000 for the same reason the daily set and Spot the
+    Setup draw from the whole bank: it is 50000 now, far above any real bank,
+    so it guards memory without ever trimming the draw."""
     q = ("SELECT id, type, skill_id, difficulty, (bars_ref IS NOT NULL) AS has_chart "
          "FROM study_items WHERE review_status=?")
     args: list = [status]
+    if skill_id:
+        q += " AND skill_id=?"
+        args.append(skill_id)
     if types:
         ts = list(types)
         q += f" AND type IN ({','.join('?' for _ in ts)})"
@@ -714,6 +744,14 @@ def list_bank(*, status: str = STATUS_APPROVED, types: Optional[Iterable[str]] =
     return [{"id": r["id"], "type": r["type"], "skill_id": r["skill_id"],
              "difficulty": int(r["difficulty"] or 1), "has_chart": bool(r["has_chart"])}
             for r in rows]
+
+
+def get_skill_band(user_id: str, skill_id: str) -> str:
+    """The member's band on one skill ('learning' until they have a row): the unit composer leans its picks to it."""
+    with contextlib.closing(_connect()) as c:
+        row = c.execute("SELECT band FROM study_skill WHERE user_id=? AND skill_id=?", (user_id, skill_id)).fetchone()
+    band = row["band"] if row else "learning"
+    return band if band in BANDS else "learning"
 
 
 def list_walkthroughs(skill_id: str, *, status: str = STATUS_APPROVED) -> list[dict]:
@@ -842,6 +880,87 @@ def _ensure_profile(c: sqlite3.Connection, user_id: str, stamp: str) -> sqlite3.
                   (user_id, DAILY_GOAL_DEFAULT, stamp))
         row = c.execute("SELECT * FROM study_profile WHERE user_id=?", (user_id,)).fetchone()
     return row
+
+
+def record_game_run(user_id: str, kind: str, run_id: str, right: int, total: int, *,
+                    now: Optional[datetime] = None) -> dict:
+    """A finished run of a COMPUTED game (docs/study/GAMES.md §2): grant XP for it once. XP = GAME_XP_PER_RIGHT per right
+    answer, at most GAME_XP_PER_RUN per run and GAME_XP_PER_KIND_DAY per game kind per ET day; a resent `run_id` grants
+    nothing. Level trophies are granted here too (the streak is the daily set's, never a game's). Raises ValueError on a
+    bad kind or count. Returns {xp_gained, xp, level, weekly_xp, week_et, badges_new, duplicate, capped}."""
+    if kind not in GAME_KINDS:
+        raise ValueError(f"unknown game kind {kind!r}")
+    run_id = str(run_id or "").strip()
+    if not run_id or len(run_id) > 64:
+        raise ValueError("run_id must be 1-64 characters")
+    right, total = int(right), int(total)
+    if total < 0 or right < 0 or right > total or total > GAME_MAX_TOTAL:
+        raise ValueError("right/total out of range")
+    now = now or _now_utc()
+    stamp = _iso(now)
+    today = et_day_of(now)
+    week = week_of(today)
+    with _write() as c:
+        prof = _ensure_profile(c, user_id, stamp)
+        if c.execute("SELECT 1 FROM study_game_runs WHERE user_id=? AND run_id=?", (user_id, run_id)).fetchone():
+            wk = c.execute("SELECT xp FROM study_weekly_xp WHERE user_id=? AND week_et=?", (user_id, week)).fetchone()
+            return {"xp_gained": 0, "xp": int(prof["xp"] or 0), "level": int(prof["level"] or 1),
+                    "weekly_xp": int(wk["xp"]) if wk else 0, "week_et": week, "badges_new": [],
+                    "duplicate": True, "capped": False}
+        earned_today = int(c.execute("SELECT COALESCE(SUM(xp), 0) AS n FROM study_game_runs WHERE user_id=? AND kind=? "
+                                     "AND day_et=?", (user_id, kind, today)).fetchone()["n"])
+        want = min(right * GAME_XP_PER_RIGHT, GAME_XP_PER_RUN)
+        gained = max(0, min(want, GAME_XP_PER_KIND_DAY - earned_today))
+        c.execute("INSERT INTO study_game_runs (user_id, run_id, kind, day_et, right_n, total_n, xp, created_at) "
+                  "VALUES (?,?,?,?,?,?,?,?)", (user_id, run_id, kind, today, right, total, gained, stamp))
+        xp = int(prof["xp"] or 0) + gained
+        level = 1 + xp // XP_PER_LEVEL
+        c.execute("UPDATE study_profile SET xp=?, level=?, updated_at=? WHERE user_id=?", (xp, level, stamp, user_id))
+        new_badges = []
+        for n in BADGE_LEVELS:
+            if level >= n:
+                cur = c.execute("INSERT OR IGNORE INTO study_badges (user_id, badge_id, earned_at) VALUES (?,?,?)",
+                                (user_id, f"level_{n}", stamp))
+                if cur.rowcount:
+                    new_badges.append(f"level_{n}")
+        c.execute("INSERT INTO study_weekly_xp (user_id, week_et, xp) VALUES (?,?,?) "
+                  "ON CONFLICT(user_id, week_et) DO UPDATE SET xp = xp + excluded.xp", (user_id, week, gained))
+        wk = c.execute("SELECT xp FROM study_weekly_xp WHERE user_id=? AND week_et=?", (user_id, week)).fetchone()
+    return {"xp_gained": gained, "xp": xp, "level": level, "weekly_xp": int(wk["xp"]) if wk else gained,
+            "week_et": week, "badges_new": new_badges, "duplicate": False, "capped": gained < right * GAME_XP_PER_RIGHT}
+
+
+def game_pool(kind: str, size: int = 20) -> list[dict]:
+    """Approved material for a pool game (docs/study/GAMES.md §2). `tf`: true/false prompts (prompts only; the member
+    answers through POST /attempts, so the key never leaves the server before scoring). `match`: word + meaning pairs
+    from approved vocabulary items that ask what a word means ({id, term, meaning}); a word appears once."""
+    size = max(1, min(int(size or 20), 60))
+    with contextlib.closing(_connect()) as c:
+        if kind == "tf":
+            rows = c.execute("SELECT id FROM study_items WHERE review_status=? AND type='recall' "
+                             "AND json_extract(prompt_json, '$.kind')='tf' ORDER BY random() LIMIT ?",
+                             (STATUS_APPROVED, size)).fetchall()
+            ids = [r["id"] for r in rows]
+        elif kind == "match":
+            rows = c.execute("SELECT id, prompt_json, answer_json FROM study_items WHERE review_status=? "
+                             "AND type='recall' AND skill_id LIKE 'vocab.%' ORDER BY random() LIMIT ?",
+                             (STATUS_APPROVED, size * 6)).fetchall()
+            out, seen = [], set()
+            for r in rows:
+                p, a = _loads(r["prompt_json"], {}) or {}, _loads(r["answer_json"], {}) or {}
+                term, meaning = str(p.get("subject") or "").strip(), str(a.get("answer") or "").strip()
+                if not term or not meaning or term.casefold() == meaning.casefold() or len(meaning) > 60:
+                    continue
+                if "#" in term or term.casefold() in seen:   # a course item's subject is its unit#key, not a word
+                    continue
+                seen.add(term.casefold())
+                out.append({"id": r["id"], "term": term, "meaning": meaning})
+                if len(out) >= size:
+                    break
+            return out
+        else:
+            raise ValueError(f"unknown pool kind {kind!r}")
+    return [p for p in (get_item_prompt(i) for i in ids) if p]
 
 
 def get_profile(user_id: str, *, create: bool = True) -> Optional[dict]:

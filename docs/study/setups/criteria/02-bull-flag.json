@@ -1,0 +1,1766 @@
+{
+ "setup": "02-bull-flag",
+ "name": "Bull Flag",
+ "unit": "SET.08",
+ "direction": "long",
+ "timeframe": "daily",
+ "dossier": "docs/study/setups/research/02-bull-flag.md",
+ "as_of": "2026-11-09",
+ "card": {
+  "context": "A leader with RS 80 or more, above the 200-day and a rising 50-day, has just made a fast pole: 20% or more in 20 sessions or fewer, often on a catalyst. The first flag after a base breakout or a market correction is the best one. Green or Yellow market.",
+  "pattern": "A short rest of 3 to 15 sessions that drifts sideways or down, gives back at most half the pole and at most 15% from the pole top, on volume below the pole's, with every close holding the rising 21-day EMA.",
+  "trigger": "PREV DAY HIGH BREAK: a session trades above the prior day's high inside or at the top of the flag, bought at market, no more than 4% past it. A support reclaim inside the flag and the flag-top break are the other two triggers.",
+  "stop": "A few cents under the entry day's low or the prior day's low, usually within about 3% of the buy. The flag low is where the idea dies, not the stop.",
+  "failure_mode": "The break stalls and price rolls back through the entry day's low within days, or the flag deepens, turns loose and closes under the 21-day EMA without reclaiming it. Seven in ten fixed-stop entries come back to the stop before 3R; the small stop and the next trigger are the answer."
+ },
+ "entry_trigger": "PREV DAY HIGH BREAK",
+ "criteria": [
+  {
+   "id": "bf.above_200",
+   "field": "context",
+   "statement": "The close is above the 200-day simple moving average on every flag session and at the entry.",
+   "measure": {
+    "what": "close against the 200-day SMA",
+    "op": ">",
+    "value": "200-day SMA",
+    "timeframe": "daily"
+   },
+   "glossary": "above_200",
+   "basis": "house rule",
+   "sources": [
+    "S24"
+   ],
+   "house_rule": "B26",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 rule 1",
+   "evidence": "98.5% of the app's flag fires were already above the 200-day (4.6). The app's own guard only blocks a falling 200-day; the house rule blocks any long under it."
+  },
+  {
+   "id": "bf.rising_50",
+   "field": "context",
+   "statement": "The 50-day SMA is above the 200-day SMA and higher than it was 10 sessions ago, and the close is above the 50-day.",
+   "measure": {
+    "what": "50-day SMA today - 50-day SMA 10 sessions ago, with close > 50-day > 200-day",
+    "op": ">",
+    "value": 0,
+    "unit": "$",
+    "timeframe": "daily"
+   },
+   "glossary": "rising_average",
+   "basis": "my proposal",
+   "dossier_basis": "my proposal, from the app's judged textbook check (5.2)",
+   "sources": [
+    "S24"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 rule 1",
+   "evidence": "The 10-session window is the textbook check's; the glossary's rising_average uses the same window for the 50-day."
+  },
+  {
+   "id": "bf.leadership",
+   "field": "context",
+   "statement": "RS rating 80 or more, in one of the strongest groups.",
+   "measure": {
+    "what": "RS rating",
+    "op": ">=",
+    "value": 80,
+    "unit": "rating 1 to 99"
+   },
+   "glossary": "leader",
+   "basis": "house rule",
+   "sources": [
+    "S8",
+    "S10",
+    "S20"
+   ],
+   "house_rule": "C31",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 rule 2; 7",
+   "evidence": "Kullamagi scans the top 1% to 2% movers; Bonde ranks 65-day momentum; Bracco wants the first flag in the hottest theme. Not coded in the scan; every one of the ten examples was at or near a 6-month high at the pole top."
+  },
+  {
+   "id": "bf.liquidity",
+   "field": "context",
+   "statement": "Price $10 or more and $20 million or more traded a day on the 50-day average.",
+   "measure": {
+    "what": "close",
+    "op": ">=",
+    "value": 10,
+    "unit": "$",
+    "and": "50-day average dollar volume >= 20,000,000"
+   },
+   "glossary": "liquidity",
+   "basis": "house rule",
+   "sources": [
+    "S24"
+   ],
+   "house_rule": "B23",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 rule 10",
+   "evidence": "Only 35.9% of the app's flag fires pass the house floor; its own floor is $2 and $10,000 a day (5.7)."
+  },
+  {
+   "id": "bf.position_adv",
+   "field": "management",
+   "statement": "The position is at most 1% of average daily volume.",
+   "measure": {
+    "what": "shares / average daily volume",
+    "op": "<=",
+    "value": 1,
+    "unit": "%"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "D42",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 rule 10"
+  },
+  {
+   "id": "bf.which_flag",
+   "field": "context",
+   "statement": "The first flag after a base breakout or a market correction is the A+ case; the second is normal; the third or later flag in one run without a proper base is graded B- or passed.",
+   "measure": {
+    "what": "flags since the last base breakout or market correction, counting this one",
+    "op": "<=",
+    "value": 2,
+    "unit": "flags",
+    "timeframe": "daily"
+   },
+   "basis": "UCT",
+   "dossier_basis": "UCT (Bracco's first flag; the owner's FCEL third flag) + Edwards and Magee's two surges",
+   "sources": [
+    "S20",
+    "S1"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.5; 9 Which flag row; 6.3; 6.5",
+   "evidence": "Bracco: the first flag after the initial thrust was the best spot to get involved with size. The owner on FCEL: on its 3rd daily flag in the past 4 weeks, wait for a proper base. Edwards and Magee: after two surges, stand back. LLY 2024-08-30 (a later flag in a long run) is the failure chart for this line."
+  },
+  {
+   "id": "bf.market_reading",
+   "field": "context",
+   "statement": "Green market: full risk. Yellow: smaller and fewer. Orange: A+ only. Red: mostly cash and shorts.",
+   "glossary": "market_reading",
+   "basis": "house rule",
+   "sources": [
+    "S1"
+   ],
+   "house_rule": "F65",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.5; 8.7",
+   "evidence": "Edwards and Magee warn that flags appear most in the late, dynamic phase of a bull market. Not coded in the scan."
+  },
+  {
+   "id": "bf.not_after_burst",
+   "field": "context",
+   "statement": "A flag that forms right after a parabolic burst is treated as extended until the 10-day average catches up: no entry while the flag's closes sit more than 10% above the 10-day SMA.",
+   "measure": {
+    "what": "close / 10-day SMA - 1, on a flag whose pole ended in a parabolic burst",
+    "op": "<=",
+    "value": 10,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "glossary": "parabolic_burst",
+   "basis": "my proposal",
+   "dossier_basis": "my proposal (section 7, the parabolic paragraph); the burst is Bracco's definition in the rulebook",
+   "sources": [
+    "S21"
+   ],
+   "house_rule": "C29",
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "7, last paragraph; 13 QCOM failure",
+   "evidence": "QCOM 2019-05-10: a textbook five-day flag whose pole was a one-day gap rather than a trend; the trigger day was the high and the stock fell about 25% in four weeks. A parabolic pole is not a leader's pole."
+  },
+  {
+   "id": "bf.pole",
+   "field": "pattern",
+   "statement": "The pole: from the lowest low of the 20 sessions before the pole top to the pole top, a gain of at least 20%.",
+   "measure": {
+    "what": "pole top / lowest low of the 20 sessions before it - 1",
+    "op": ">=",
+    "value": 20,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "glossary": "prior_trend",
+   "basis": "my proposal",
+   "dossier_basis": "my proposal (20%, from the app's judged textbook check); originator Kullamagi for 30%; source consensus (Edwards and Magee, Murphy, Bulkowski, ChartSchool) gives no number, only steep or straight-line",
+   "sources": [
+    "S24",
+    "S8",
+    "S1",
+    "S2",
+    "S4",
+    "S3"
+   ],
+   "options": [
+    {
+     "value": 20,
+     "basis": "the app's textbook check, whose recognition passed blind judging (5.2)"
+    },
+    {
+     "value": 30,
+     "basis": "Kullamagi: 30% to 100%+, made over days to weeks, sometime in the past 1 to 3 months (3.6)"
+    },
+    {
+     "value": 0,
+     "basis": "no number: steep or straight-line (Edwards and Magee, Murphy, Bulkowski, ChartSchool)"
+    }
+   ],
+   "recommended": 20,
+   "status": "pending-owner",
+   "owner_question": "D-029",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 rule 3; 10 question 3",
+   "evidence": "Scan: a pole of 30% or more reached 3R 31.7% and 5R 22.4%, against 29.8% and 20.8% for 20% to 30%. The ten examples ran 29% to 99% in 4 to 20 sessions. The classical detector's 8% floor and the app's 40% are both out (5.7)."
+  },
+  {
+   "id": "bf.pole_strong",
+   "field": "pattern",
+   "statement": "A pole of 30% or more, made fast on a catalyst, an HVE or an earnings gap, is the A+ pole.",
+   "measure": {
+    "what": "pole top / lowest low of the 20 sessions before it - 1",
+    "op": ">=",
+    "value": 30,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "basis": "originator",
+   "dossier_basis": "originator (Kullamagi's 30% floor) + UCT (the owner's AAOI 65% in 7 sessions, PUMP's flag after the HVE)",
+   "sources": [
+    "S8",
+    "S20"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1 rule 3; 9 Pole row",
+   "evidence": "Five of the ten examples had a report inside the pole; the best poles are often earnings gaps (Bulkowski's earnings flag, the owner's NTRA)."
+  },
+  {
+   "id": "bf.pole_top",
+   "field": "pattern",
+   "statement": "The pole top is the highest high of the whole pattern and of the 20 sessions before it.",
+   "measure": {
+    "what": "sessions over which the pole top is the highest intraday high, counting the flag",
+    "op": ">=",
+    "value": 20,
+    "unit": "sessions",
+    "timeframe": "daily"
+   },
+   "glossary": "left_side_high",
+   "basis": "my proposal",
+   "dossier_basis": "my proposal (8.1 rule 3)",
+   "sources": [],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 rule 3; 13 scan rule",
+   "evidence": "A flag that makes a higher high than the pole is no longer a flag; it has broken out (the T3 trigger)."
+  },
+  {
+   "id": "bf.length",
+   "field": "pattern",
+   "statement": "The flag runs 3 to 15 sessions after the pole top.",
+   "measure": {
+    "what": "sessions from the pole top to the day before the trigger",
+    "op": "in",
+    "value": [
+     3,
+     15
+    ],
+    "unit": "sessions",
+    "timeframe": "daily"
+   },
+   "glossary": "base_length",
+   "basis": "source consensus",
+   "dossier_basis": "source consensus for the ceiling near 15 sessions (Bulkowski under 3 weeks, Murphy 1 to 3 weeks, Edwards and Magee 3 weeks with a 4-week maximum); my proposal for the 3-session floor",
+   "sources": [
+    "S4",
+    "S2",
+    "S1",
+    "S3",
+    "S8"
+   ],
+   "options": [
+    {
+     "value": 15,
+     "basis": "three of four classic sources cap it near 3 weeks; the owner's examples run 2 to 4 days to about 2 weeks"
+    },
+    {
+     "value": 20,
+     "basis": "Edwards and Magee's 4-week maximum"
+    },
+    {
+     "value": 40,
+     "basis": "Kullamagi: 2 weeks to 2 months (his breakout, setup 18)"
+    }
+   ],
+   "recommended": 15,
+   "status": "pending-owner",
+   "owner_question": "D-045",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 rule 4; 10 question 4",
+   "evidence": "The ten examples ran 4 to 8 sessions. Scan: the 16-to-20-session band (120 hits) reached 29.2% / 18.3%, a little under the 30.5% / 21.4% base rate."
+  },
+  {
+   "id": "bf.length_weak",
+   "field": "pattern",
+   "statement": "A flag of 16 to 20 sessions is B- at best. Past 20 sessions it is a base, judged as a flat base or a VCP.",
+   "measure": {
+    "what": "sessions from the pole top to the day before the trigger",
+    "op": "in",
+    "value": [
+     16,
+     20
+    ],
+    "unit": "sessions",
+    "timeframe": "daily"
+   },
+   "glossary": "base_length",
+   "basis": "my proposal",
+   "dossier_basis": "my proposal (the 16 to 20 band); Edwards and Magee: a pattern past three weeks should be watched with suspicion",
+   "sources": [
+    "S1"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1 rule 4; 9 Length row"
+  },
+  {
+   "id": "bf.depth_half_pole",
+   "field": "pattern",
+   "statement": "The flag's lowest low gives back at most half of the pole.",
+   "measure": {
+    "what": "(pole top - flag low) / (pole top - pole low)",
+    "op": "<=",
+    "value": 50,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "basis": "my proposal",
+   "dossier_basis": "my proposal for the half-pole cap; Edwards and Magee let the decline reach a 40% to 50% correction of the mast as the deepest of their buy points, not a maximum",
+   "sources": [
+    "S1",
+    "S25",
+    "S24"
+   ],
+   "options": [
+    {
+     "value": 50,
+     "basis": "half the pole: Edwards and Magee's deepest buy point; the app's judged check"
+    },
+    {
+     "value": 33,
+     "basis": "a third of the pole: the Model Book playbook's lower bound (not the owner's words)"
+    },
+    {
+     "value": 62,
+     "basis": "the app's uct_flag_htf detector (5.1); deeper than any source"
+    }
+   ],
+   "recommended": 50,
+   "status": "pending-owner",
+   "owner_question": "D-046",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 rule 5; 10 question 5",
+   "evidence": "The ten examples gave back 11% to 34% of the pole. The app's flag fires retraced a median 28.5% (4.6)."
+  },
+  {
+   "id": "bf.depth_from_top",
+   "field": "pattern",
+   "statement": "The flag's lowest low sits at most 15% below the pole top.",
+   "measure": {
+    "what": "(pole top - flag low) / pole top",
+    "op": "<=",
+    "value": 15,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "glossary": "base_depth",
+   "basis": "my proposal",
+   "dossier_basis": "my proposal (15%); the app's judged check uses 12%",
+   "sources": [
+    "S24"
+   ],
+   "options": [
+    {
+     "value": 15,
+     "basis": "the dossier's cap"
+    },
+    {
+     "value": 12,
+     "basis": "the app's textbook check (5.2)"
+    }
+   ],
+   "recommended": 15,
+   "status": "pending-owner",
+   "owner_question": "D-046",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 rule 5",
+   "evidence": "Scan: flags 10% to 15% deep did slightly better (36.6% / 26.5%, 1,330 hits) than 10% or shallower (29.7% / 20.7%). The examples ran 2.9% to 10.6% deep."
+  },
+  {
+   "id": "bf.depth_shallow",
+   "field": "pattern",
+   "statement": "A third of the pole or less, and 10% or less from the top, is the A+ depth.",
+   "measure": {
+    "what": "(pole top - flag low) / pole top",
+    "op": "<=",
+    "value": 10,
+    "unit": "%",
+    "timeframe": "daily",
+    "and": "(pole top - flag low) / (pole top - pole low) <= 33%"
+   },
+   "glossary": "base_depth",
+   "basis": "my proposal",
+   "dossier_basis": "my proposal; UCT: the owner's short and shallow flags (ARM, DELL)",
+   "sources": [
+    "S20"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1 rule 5; 9 Depth row",
+   "evidence": "The scan cuts against this cue: 10% to 15% deep did slightly better than 10% or shallower (36.6% / 26.5% against 29.7% / 20.7%). One scan is not enough to drop it; the owner should know (conflicts)."
+  },
+  {
+   "id": "bf.shape",
+   "field": "pattern",
+   "statement": "The flag drifts sideways or down: the least-squares slope of the flag's highs is at or below zero. Higher highs and higher lows through the pause is a wedge up, not a flag.",
+   "measure": {
+    "what": "least-squares slope of the flag sessions' highs",
+    "op": "<=",
+    "value": 0,
+    "unit": "$ per session",
+    "timeframe": "daily"
+   },
+   "basis": "source consensus",
+   "dossier_basis": "source consensus for down or sideways (Edwards and Magee, Murphy, ChartSchool, Bulkowski, Zanger) + UCT (the owner: not wedging up); stricter than Edwards and Magee, who allow a rare flag that slopes up a trifle",
+   "sources": [
+    "S1",
+    "S2",
+    "S3",
+    "S4",
+    "S15",
+    "S20"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 rule 6; 6.3",
+   "evidence": "The owner: would love one more little shakeout to confirm it is not wedging up. Bulkowski: the best performance comes from a flag that tilts down after an upward trend."
+  },
+  {
+   "id": "bf.tightness",
+   "field": "pattern",
+   "statement": "The flag's average daily range (high minus low, as a percent of the close) is smaller than the pole's.",
+   "measure": {
+    "what": "mean daily range of the flag sessions / mean daily range of the pole sessions",
+    "op": "<",
+    "value": 1,
+    "unit": "x",
+    "timeframe": "daily"
+   },
+   "basis": "my proposal",
+   "dossier_basis": "my proposal, from Bulkowski's tight versus loose and Kullamagi's tightening range",
+   "sources": [
+    "S4",
+    "S8"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 rule 7; 9 Tightness row",
+   "evidence": "Bulkowski: a loose flag meanders, pokes outside the trendline boundary, contains white space, or looks jagged. PANW 2020-12-03 held four sessions in a 2.9% range, the tightest of the ten."
+  },
+  {
+   "id": "bf.volume_dry",
+   "field": "pattern",
+   "statement": "Average volume during the flag is below the pole's average volume.",
+   "measure": {
+    "what": "mean volume of the flag sessions / mean volume of the pole sessions",
+    "op": "<",
+    "value": 1,
+    "unit": "x",
+    "timeframe": "daily"
+   },
+   "glossary": "dry_up",
+   "basis": "source consensus",
+   "dossier_basis": "source consensus for the direction (Edwards and Magee: shrinking markedly and constantly; Murphy: must dry up noticeably); Zanger and Bonde state a tendency; Bulkowski a frequency (74%); Kullamagi silent",
+   "sources": [
+    "S1",
+    "S2",
+    "S15",
+    "S11",
+    "S4",
+    "S8"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "required: flag volume below the pole's (Edwards and Magee, Murphy)"
+    },
+    {
+     "value": "b",
+     "basis": "a grading cue only (the owner is not a big volume guy; Kullamagi silent; the app's uct_flag_htf has no volume test)"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-006",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 rule 8; 10 question 6",
+   "evidence": "The glossary's dry_up measures against the 50-session average; this card measures against the pole, as the dossier and the app's textbook check do. The ten examples ran 0.28x to 0.85x the pole's volume."
+  },
+  {
+   "id": "bf.no_heavy_red",
+   "field": "pattern",
+   "statement": "No flag session closes red with volume of 1.5 times its 50-day average or more. One such day drops the grade; two end the flag.",
+   "measure": {
+    "what": "flag sessions closing below their open with volume >= 1.5 x the 50-day average volume",
+    "op": "==",
+    "value": 0,
+    "unit": "sessions",
+    "timeframe": "daily"
+   },
+   "basis": "my proposal",
+   "dossier_basis": "Edwards and Magee for the warning day (any day of notably increased volume, red or not); my proposal for the 1.5x and the red-close condition",
+   "sources": [
+    "S1"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 rule 8; 8.5",
+   "evidence": "Edwards and Magee: any increase of volume during the formation casts suspicion on the entire pattern, and high or irregular volume marks a reversal area, not a rest. The dossier's rule 8 forbids one heavy red day while 8.5 invalidates on two; the card keeps both as written (conflicts)."
+  },
+  {
+   "id": "bf.holds_21ema",
+   "field": "pattern",
+   "statement": "Every flag session closes at or above the rising 21-day EMA. An intraday undercut that closes back above is allowed and is often the buy. One close under it that is reclaimed the next session drops the grade to B-; two closes under it end the flag.",
+   "measure": {
+    "what": "flag closes below the 21-day EMA, with the EMA higher than 5 sessions ago",
+    "op": "<=",
+    "value": 1,
+    "unit": "closes, reclaimed the next session",
+    "timeframe": "daily"
+   },
+   "glossary": "fast_averages",
+   "basis": "UCT",
+   "dossier_basis": "UCT (the owner's 20 EMA holds and shakeouts) + the app's judged check (no close under it) + my proposal for the one-day grace",
+   "sources": [
+    "S20",
+    "S24"
+   ],
+   "options": [
+    {
+     "value": "yes",
+     "basis": "the disqualifier is a close under the 21-day EMA not reclaimed the next day; an undercut and reclaim is the buy"
+    },
+    {
+     "value": "no",
+     "basis": "any close under the 21-day EMA ends the flag (the app's textbook check)"
+    }
+   ],
+   "recommended": "yes",
+   "status": "pending-owner",
+   "owner_question": "D-047",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 rule 9; 8.5; 10 question 7",
+   "evidence": "The owner on XOM: a flag that held the 20EMA today, bought when we reclaimed the previous day's low. SHOP 2020-05-04 held the 21-day EMA on every close of an eight-day flag. The 21-day and the owner's 20 EMA are the same line for teaching (glossary fast_averages)."
+  },
+  {
+   "id": "bf.rides_fast_averages",
+   "field": "pattern",
+   "statement": "Riding the 9-day or 10-day average through the flag is the A+ version; tagging the 20-day or 21-day EMA and reclaiming it is the A or B version.",
+   "measure": {
+    "what": "flag closes at or above the 10-day EMA",
+    "op": "==",
+    "value": "all",
+    "timeframe": "daily"
+   },
+   "glossary": "fast_averages",
+   "basis": "UCT",
+   "dossier_basis": "UCT (the owner: short and shallow, a flag against the 5SMA; Kullamagi: surfs the rising 10 and 20-day)",
+   "sources": [
+    "S20",
+    "S8"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1 rule 9; 9 Averages row",
+   "evidence": "Seven of the ten examples rested on the 10-day average; the trigger came before the flag's high broke on BB and RARE."
+  },
+  {
+   "id": "bf.inside_day_before",
+   "field": "pattern",
+   "statement": "An inside day or a narrow-range day right before the trigger is the A+ tightness cue: it gives a nearer stop.",
+   "glossary": "inside_day",
+   "basis": "UCT",
+   "dossier_basis": "UCT (the owner's NTRA triple inside days, WULF, TER; Bracco: an inside day or one more higher low to trade against) + Bonde (day before breakout should be a narrow range day or negative day)",
+   "sources": [
+    "S20",
+    "S11"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "6.2; 9 Tightness row; 7 conflict 1",
+   "evidence": "Only about a fifth to a quarter of prior-day-high entries had a stop within 3% (4.6); the inside day, the higher low or an hourly base is how the stop gets tightened."
+  },
+  {
+   "id": "bf.trigger_prev_day_high",
+   "field": "trigger",
+   "statement": "T2, the card's trigger: a session trades above the prior day's high while the pattern rules still hold, ideally as price remounts the 9 and 20 EMAs. Buy at market as it trades through.",
+   "measure": {
+    "what": "intraday high against the prior day's high during regular hours",
+    "op": ">",
+    "value": "prior day's high"
+   },
+   "basis": "UCT",
+   "dossier_basis": "UCT (the owner's NTRA: as soon as this triggers a break of previous day's high, preferably lining up with a remount of the 9/20EMAs)",
+   "sources": [
+    "S20"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "T1 and T2 first (support reclaim, prior-day-high break), T3 allowed; the owner: focus less on confirmation triggers and more on reasonable support levels"
+    },
+    {
+     "value": "b",
+     "basis": "only the flag-top breakout (the classic trigger)"
+    },
+    {
+     "value": "c",
+     "basis": "any of the three, with the stop rule deciding"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-027",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 T2; 10 question 2",
+   "evidence": "The scan used T2: 11,190 hits, 30.5% to 3R and 21.4% to 5R. The T2-style entry had a nearer stop (median 4.8%) than the flag-top breakout with a day-low stop (6.8%) in the app's fires (4.6). BB and RARE triggered on T2 before the flag's high broke."
+  },
+  {
+   "id": "bf.trigger_support_reclaim",
+   "field": "trigger",
+   "statement": "T1, the preferred buy: inside the flag, price undercuts the prior day's low or tags the rising 9/10-day or 20/21-day average, then trades back above the prior day's low (or the average). Buy as it reclaims.",
+   "measure": {
+    "what": "after an undercut of the prior day's low or a tag of the 10-day or 21-day EMA, a trade back above that level the same session",
+    "op": "==",
+    "value": true,
+    "timeframe": "daily"
+   },
+   "basis": "UCT",
+   "dossier_basis": "UCT (XOM, TWLO, POWL, CLS, JOBY) + Edwards and Magee buy inside the flag",
+   "sources": [
+    "S20",
+    "S1"
+   ],
+   "status": "pending-owner",
+   "owner_question": "D-027",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.2 T1",
+   "evidence": "Not measured: daily bars cannot see the intraday reclaim. The owner on TWLO: a really nice opportunity on the undercut of the previous day and reclaim. This is the house PREV LOW RECLAIM trigger applied inside a flag."
+  },
+  {
+   "id": "bf.trigger_flag_top",
+   "field": "trigger",
+   "statement": "T3, allowed: price clears the flag's highest high since the pole top, ideally on rising volume, timed with the opening-range high.",
+   "measure": {
+    "what": "intraday high against the flag's highest high since the pole top",
+    "op": ">",
+    "value": "flag high",
+    "timeframe": "daily"
+   },
+   "glossary": "pivot",
+   "basis": "source consensus",
+   "dossier_basis": "source consensus (Murphy, Bulkowski, ChartSchool, Zanger: the breakout) + originator Kullamagi (the opening-range high)",
+   "sources": [
+    "S2",
+    "S4",
+    "S3",
+    "S15",
+    "S8"
+   ],
+   "status": "pending-owner",
+   "owner_question": "D-027",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.2 T3",
+   "evidence": "Scan: when the trigger day also cleared the flag's high (T3 on the same day as T2), 41.7% reached 3R and 30.9% reached 5R, against 26.1% and 17.6% when it did not. Waiting only for T3 risks the chop under it (the owner's JOBY)."
+  },
+  {
+   "id": "bf.other_signals",
+   "field": "trigger",
+   "statement": "An Oops Reversal, a Go Signal or an undercut and reclaim at the flag's support is a valid T1. In his method the flag is often the location and another signal is the trigger.",
+   "measure": {
+    "what": "the signal at the flag's support",
+    "op": "in",
+    "value": [
+     "Oops Reversal",
+     "Go Signal",
+     "undercut and reclaim"
+    ]
+   },
+   "basis": "UCT",
+   "dossier_basis": "UCT (the owner's verdicts on the Oops and the Go Signal, 6.8) + the earlier playbook text for the U&R (not confirmed as the owner's words)",
+   "sources": [
+    "S22",
+    "S25"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.2 last line; 6.8",
+   "evidence": "The owner on the Oops: I want it in a flag or as a double bottom. On the Go Signal: notable hourly flags that undercut a slight range and quickly go red to green."
+  },
+  {
+   "id": "bf.market_order",
+   "field": "trigger",
+   "statement": "A market order when the trigger level trades, regular hours only. Set the alert at the level the night before.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "E57",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2",
+   "evidence": "E58 keeps the buy inside regular hours; D39 has the entry, stop and size written before the open. The scan filled at the prior day's high plus a cent, or at the open when it gapped over."
+  },
+  {
+   "id": "bf.no_chase",
+   "field": "trigger",
+   "statement": "No buy more than 4% above the trigger level.",
+   "measure": {
+    "what": "fill / trigger level - 1",
+    "op": "<=",
+    "value": 4,
+    "unit": "%"
+   },
+   "glossary": "chase_limit",
+   "basis": "house rule",
+   "sources": [
+    "S20"
+   ],
+   "house_rule": "C28",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2; 8.8 mistake 1",
+   "evidence": "The owner: OUST here would be a total chase. ISRG 2005-11-10 gapped over the trigger and was still inside the 4%."
+  },
+  {
+   "id": "bf.not_stretched",
+   "field": "trigger",
+   "statement": "At entry, no more than 10% above the 10-day average.",
+   "measure": {
+    "what": "entry / 10-day SMA - 1",
+    "op": "<=",
+    "value": 10,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "glossary": "stretched",
+   "basis": "house rule",
+   "sources": [
+    "S20",
+    "S24"
+   ],
+   "house_rule": "C29",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 rule 11",
+   "evidence": "The owner on LXU: a nice tight flag that lets the MAs catch up; extended for now. 89.4% of the app's fires passed this line (4.6)."
+  },
+  {
+   "id": "bf.earnings_window",
+   "field": "trigger",
+   "statement": "No new buy in the 3 sessions before an earnings report. A post-earnings flag is fine.",
+   "measure": {
+    "what": "sessions until the next report",
+    "op": ">",
+    "value": 3,
+    "unit": "sessions"
+   },
+   "glossary": "earnings_blackout",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B22",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2; 7",
+   "evidence": "Applied to the examples: none was entered in the 3 sessions before a report and none of the trigger days was an earnings reaction day."
+  },
+  {
+   "id": "bf.earnings_flag",
+   "field": "trigger",
+   "statement": "A flag whose pole is an earnings gap is an A+ pole. Whether it is taught here or in the Power Earnings Gap lesson is his call.",
+   "glossary": "earnings_reaction_day",
+   "basis": "my proposal",
+   "dossier_basis": "Bulkowski's earnings flag (rank 1 of 6 event patterns, 34% average rise) + UCT's PEG and earnings-flag examples; the home is the owner's call",
+   "sources": [
+    "S6",
+    "S20",
+    "S13"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "part of this setup: five of the ten examples had a report inside the pole"
+    },
+    {
+     "value": "b",
+     "basis": "part of the Power Earnings Gap lesson (setup 21)"
+    }
+   ],
+   "status": "pending-owner",
+   "owner_question": "D-025",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "9 extra A+ cues; 10 question 11",
+   "evidence": "Bonde's warning stands: a post-earnings flag can form so late in the move that waiting for it misses the bulk of the returns. The owner: day 1 beats the flag when you can get it."
+  },
+  {
+   "id": "bf.breakout_volume",
+   "field": "trigger",
+   "statement": "Volume on the trigger day of 1.5 times the 50-day average or more raises the grade. Not a gate.",
+   "measure": {
+    "what": "trigger-day volume / 50-day average volume",
+    "op": ">=",
+    "value": 1.5,
+    "unit": "x",
+    "timeframe": "daily"
+   },
+   "glossary": "volume_surge",
+   "basis": "source consensus",
+   "dossier_basis": "source consensus for rising volume on the break (Murphy, ChartSchool, Zanger, Bonde); the 1.5x is the scan's cut; the classical detector's non-negotiable 1.5x has no source",
+   "sources": [
+    "S2",
+    "S3",
+    "S15",
+    "S11",
+    "S8"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "a gate: Murphy's heavier volume on the trendline break"
+    },
+    {
+     "value": "b",
+     "basis": "a grade cue only: Kullamagi silent; the owner is not a big volume guy"
+    }
+   ],
+   "recommended": "b",
+   "status": "pending-owner",
+   "owner_question": "D-006",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.2 T3; 13 base rate cuts",
+   "evidence": "Scan: trigger-day volume of 1.5 times average or more (only 582 hits) reached 47.3% / 36.9%, against 29.6% / 20.5% below it. The glossary's volume_surge line is 1.4x; this card reports the scan's 1.5x cut."
+  },
+  {
+   "id": "bf.hourly_flags",
+   "field": "trigger",
+   "statement": "Hourly flags: the same shape on clock-aligned 60-minute bars, used by the owner for entries. Taught in this lesson or with the Go Signal, his call.",
+   "measure": {
+    "what": "the flag's bars",
+    "op": "==",
+    "value": "clock-aligned 60-minute bars",
+    "timeframe": "hourly"
+   },
+   "glossary": "hourly_bar",
+   "basis": "UCT",
+   "dossier_basis": "UCT (the owner's XPEV, INOD and RIVN hourly entries)",
+   "sources": [
+    "S20"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "teach hourly flags in this lesson"
+    },
+    {
+     "value": "b",
+     "basis": "keep them with the Go Signal (setup 42)"
+    }
+   ],
+   "status": "pending-owner",
+   "owner_question": "D-012",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "6.2; 10 question 10"
+  },
+  {
+   "id": "bf.stop",
+   "field": "stop",
+   "statement": "A few cents under the low of the entry day, or under the prior day's low when that is the planned stop.",
+   "measure": {
+    "what": "stop",
+    "op": "==",
+    "value": "a few cents under the entry day's low or the prior day's low"
+   },
+   "glossary": "stop_margin",
+   "basis": "house rule",
+   "sources": [
+    "S8",
+    "S20"
+   ],
+   "house_rule": "A3",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.3",
+   "evidence": "F62 gives the few cents. The scan used 5 cents under the lower of the trigger day's and the prior day's lows. The examples' stops sat 1.4% to 2.8% under the fill. STZ 2013-03-04: a clean four-day flag that failed within days and hit the 1.8% stop, then ran to 50 without us; the stop did its job."
+  },
+  {
+   "id": "bf.stop_width",
+   "field": "stop",
+   "statement": "The stop should usually sit within about 3% of the entry. If the honest stop is wider than the stock's 20-session ADR or about 5%, skip or wait for a tighter spot: an inside day, a higher low, an hourly base.",
+   "measure": {
+    "what": "(entry - stop) / entry",
+    "op": "<=",
+    "value": 3,
+    "unit": "%",
+    "and": "never wider than the 20-session ADR or 5%"
+   },
+   "glossary": "stop_width",
+   "basis": "house rule",
+   "sources": [
+    "S8"
+   ],
+   "house_rule": "A13",
+   "options": [
+    {
+     "value": "a",
+     "basis": "a hard maximum of 5% or the stock's ADR, as the dossier proposes"
+    },
+    {
+     "value": "b",
+     "basis": "keep A13 as guidance; A5 shrinks the size"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-005",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.3; 10 question 8",
+   "evidence": "Scan: a stop within 3% reached 32.5% / 22.9% against 20.4% / 13.5% for a 3-to-5% stop. The 5% and the ADR cap are the dossier's proposal, from Kullamagi's stop no wider than the ADR."
+  },
+  {
+   "id": "bf.stop_not_flag_low",
+   "field": "stop",
+   "statement": "The flag's low is the idea's invalidation, not the default stop. It is almost never a 3% stop.",
+   "measure": {
+    "what": "stop placed at the flag low",
+    "op": "==",
+    "value": false
+   },
+   "basis": "my proposal",
+   "dossier_basis": "my proposal, from section 4.6; both app detectors stop at the flag low",
+   "sources": [
+    "S24"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.3; 4.6; 8.8 mistake 4",
+   "evidence": "The app's flag-low stop sat a median 9.7% from the entry (middle half 6.7% to 13.5%); within 3% in 1.9% of fires. Using it means sizing too big or skipping the A13 check."
+  },
+  {
+   "id": "bf.stop_broker",
+   "field": "stop",
+   "statement": "A real stop order with the broker. It only moves up.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "D41",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.3",
+   "evidence": "A4: the stop only moves up."
+  },
+  {
+   "id": "bf.stop_gap",
+   "field": "stop",
+   "statement": "A gap through the stop: the first 30-minute low is the new stop; out if that is past 2R.",
+   "measure": {
+    "what": "loss at the first 30-minute low of the gap-down day",
+    "op": "<=",
+    "value": 2,
+    "unit": "R",
+    "timeframe": "30-minute"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B20",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.3"
+  },
+  {
+   "id": "bf.breakeven",
+   "field": "management",
+   "statement": "Stop to breakeven between 2R and 5R, at the first trim by default.",
+   "measure": {
+    "what": "R at which the stop moves to the entry",
+    "op": "in",
+    "value": [
+     2,
+     5
+    ],
+    "unit": "R"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B19",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4"
+  },
+  {
+   "id": "bf.trim_1",
+   "field": "management",
+   "statement": "Sell a third at 3R.",
+   "measure": {
+    "what": "fraction sold at 3R",
+    "op": "==",
+    "value": 0.333,
+    "unit": "of the position"
+   },
+   "glossary": "trail",
+   "basis": "house rule",
+   "sources": [
+    "S8"
+   ],
+   "house_rule": "B19",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4",
+   "evidence": "Kullamagi's sell a third to a half after 3 to 5 days is not ours; the house trims win (7 conflict 2). Among the examples 3R came in 1 to 9 sessions."
+  },
+  {
+   "id": "bf.trim_2",
+   "field": "management",
+   "statement": "Sell a third at 5R.",
+   "measure": {
+    "what": "fraction sold at 5R",
+    "op": "==",
+    "value": 0.333,
+    "unit": "of the position"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "E51",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4"
+  },
+  {
+   "id": "bf.trim_gap_open",
+   "field": "management",
+   "statement": "If it opens above a trim level, take that trim at the open.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "F63",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4"
+  },
+  {
+   "id": "bf.trail",
+   "field": "management",
+   "statement": "Trail the last third: a close under the 10-day for a fast mover, under the 21-day for a steadier one. His own flags lean to the 20 EMA.",
+   "measure": {
+    "what": "close against the 10-day (fast) or 21-day (steadier) average",
+    "op": "<",
+    "value": "the average",
+    "timeframe": "daily"
+   },
+   "basis": "house rule",
+   "sources": [
+    "S20"
+   ],
+   "house_rule": "E52",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4; 6.4",
+   "evidence": "The owner on WULF: nothing to do but let 20EMA guide the position. On INTC: trail weekly 9EMA if in."
+  },
+  {
+   "id": "bf.climax",
+   "field": "management",
+   "statement": "A climax run (Bracco's parabolic burst): sell a big part into it.",
+   "glossary": "parabolic_burst",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "C34",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4"
+  },
+  {
+   "id": "bf.time_stop",
+   "field": "management",
+   "statement": "Time stop: still under 1R after 10 trading days, sell.",
+   "measure": {
+    "what": "open R after 10 trading days",
+    "op": "<",
+    "value": 1,
+    "unit": "R"
+   },
+   "glossary": "time_stop",
+   "basis": "house rule",
+   "sources": [
+    "S1",
+    "S20"
+   ],
+   "house_rule": "C33",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4; 7",
+   "evidence": "Sits well with Edwards and Magee's three-week limit: if the congestion continues or sags off for more than about three weeks, sell the stock. The owner: do not want a forever flag."
+  },
+  {
+   "id": "bf.measured_move",
+   "field": "management",
+   "statement": "The measured move (the pole's length added at the breakout point) is a reference only, never a sell rule.",
+   "measure": {
+    "what": "reference target",
+    "op": "==",
+    "value": "breakout point + pole length, on a semilog chart"
+   },
+   "basis": "source consensus",
+   "dossier_basis": "source consensus for the method (Edwards and Magee, Murphy); my proposal for the use",
+   "sources": [
+    "S1",
+    "S2",
+    "S4"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "teach it as a reference"
+    },
+    {
+     "value": "b",
+     "basis": "leave it out"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-013",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4; 10 question 9",
+   "evidence": "Bulkowski scales it to 46% of the swing added to the flag bottom; the app's classical detector adds the full pole to the pole-top close. The house trims in R win."
+  },
+  {
+   "id": "bf.no_adds",
+   "field": "management",
+   "statement": "The full size at one price with one stop. No starter, no adding to a flag trade, no averaging down.",
+   "basis": "house rule",
+   "sources": [
+    "S20"
+   ],
+   "house_rule": "A5",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.8 mistake 9; 6.9",
+   "evidence": "The owner's CRWV starter (only a 3% size, up it to standard later) is a pre-rulebook habit the rulebook now forbids."
+  },
+  {
+   "id": "bf.inv_length",
+   "field": "invalidation",
+   "statement": "Before entry: more than 20 sessions since the pole top. Not a flag; judge it as a base.",
+   "measure": {
+    "what": "sessions since the pole top",
+    "op": ">",
+    "value": 20,
+    "unit": "sessions",
+    "timeframe": "daily"
+   },
+   "glossary": "base_length",
+   "basis": "source consensus",
+   "dossier_basis": "source consensus (Edwards and Magee's 4-week maximum; Bulkowski: longer than 3 weeks is a rectangle or channel)",
+   "sources": [
+    "S1",
+    "S4"
+   ],
+   "status": "pending-owner",
+   "owner_question": "D-045",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5"
+  },
+  {
+   "id": "bf.inv_ema",
+   "field": "invalidation",
+   "statement": "Before entry: a close under the 21-day EMA that is not reclaimed the next session.",
+   "measure": {
+    "what": "consecutive closes under the 21-day EMA",
+    "op": ">=",
+    "value": 2,
+    "unit": "closes",
+    "timeframe": "daily"
+   },
+   "glossary": "fast_averages",
+   "basis": "UCT",
+   "dossier_basis": "UCT + my proposal for the one-day grace",
+   "sources": [
+    "S20",
+    "S26"
+   ],
+   "status": "pending-owner",
+   "owner_question": "D-047",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5; 5.7 item 11",
+   "evidence": "SET.08's lost the 20 EMA disqualifier needs this definition: the owner buys 20-EMA undercuts that close back above."
+  },
+  {
+   "id": "bf.inv_depth",
+   "field": "invalidation",
+   "statement": "Before entry: the depth passes half the pole or 15% from the pole top.",
+   "measure": {
+    "what": "(pole top - flag low) / pole top",
+    "op": ">",
+    "value": 15,
+    "unit": "%",
+    "timeframe": "daily",
+    "or": "(pole top - flag low) / (pole top - pole low) > 50%"
+   },
+   "glossary": "base_depth",
+   "basis": "my proposal",
+   "dossier_basis": "my proposal (8.1 rule 5)",
+   "sources": [],
+   "status": "pending-owner",
+   "owner_question": "D-046",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5"
+  },
+  {
+   "id": "bf.inv_heavy_red",
+   "field": "invalidation",
+   "statement": "Before entry: two or more heavy red days in the flag, each on 1.5 times average volume or more. Distribution, not a rest.",
+   "measure": {
+    "what": "flag sessions closing below their open with volume >= 1.5 x the 50-day average volume",
+    "op": ">=",
+    "value": 2,
+    "unit": "sessions",
+    "timeframe": "daily"
+   },
+   "basis": "my proposal",
+   "dossier_basis": "Edwards and Magee + my proposal for the count and the number",
+   "sources": [
+    "S1"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5; 8.8 mistake 3"
+  },
+  {
+   "id": "bf.inv_wedge_up",
+   "field": "invalidation",
+   "statement": "Before entry: the pause slopes up (higher highs and higher lows). A wedge up, not a flag.",
+   "measure": {
+    "what": "least-squares slope of the flag sessions' highs",
+    "op": ">",
+    "value": 0,
+    "unit": "$ per session",
+    "timeframe": "daily"
+   },
+   "basis": "UCT",
+   "dossier_basis": "UCT (the owner: not wedging up; an unsigned index note: slight wedging-up action)",
+   "sources": [
+    "S20"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5; 8.8 mistake 7"
+  },
+  {
+   "id": "bf.inv_third_flag",
+   "field": "invalidation",
+   "statement": "Before entry: the third flag in a short run without a proper base. Wait for the base.",
+   "measure": {
+    "what": "flags since the last base breakout or market correction, counting this one",
+    "op": ">=",
+    "value": 3,
+    "unit": "flags",
+    "timeframe": "daily"
+   },
+   "basis": "UCT",
+   "dossier_basis": "UCT (the owner's FCEL) + Edwards and Magee (two surges)",
+   "sources": [
+    "S20",
+    "S1"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5; 8.8 mistake 6",
+   "evidence": "LLY 2024-08-30: a five-day flag at all-time highs after a 30% pole, stop 2.25%, best 0.56R; a later flag in a long run already extended on the weekly chart."
+  },
+  {
+   "id": "bf.after_entry_stop",
+   "field": "invalidation",
+   "statement": "After the entry, the stop is the exit, with the time stop.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "A4",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5 After entry"
+  },
+  {
+   "id": "bf.inv_close_under_flag_low",
+   "field": "invalidation",
+   "statement": "After the entry, a close under the flag's low means the idea is dead; the stop has normally been hit well before it.",
+   "measure": {
+    "what": "close against the flag's lowest low",
+    "op": "<",
+    "value": "flag low",
+    "timeframe": "daily"
+   },
+   "basis": "my proposal",
+   "dossier_basis": "my proposal; both app detectors put their stop at or under the flag low",
+   "sources": [
+    "S24"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.5 After entry"
+  }
+ ],
+ "grading": {
+  "a_plus": [
+   "bf.pole_strong: 30% or more, fast, on a catalyst, an HVE or an earnings gap, heavy volume",
+   "bf.which_flag: the first flag after a base breakout or a market correction",
+   "bf.length: 3 to 10 sessions",
+   "bf.depth_shallow: a third of the pole or less, 10% or less (the scan says deeper did slightly better)",
+   "bf.rides_fast_averages: rides the 9/10-day, short and shallow",
+   "bf.volume_dry: dries to the flag's lowest in the last 2 to 3 days",
+   "bf.inside_day_before: an inside day or narrow-range day before the trigger",
+   "bf.stop_width: 3% or less",
+   "bf.breakout_volume: 1.5x average or more, closing near the high",
+   "bf.earnings_flag: a post-earnings pole, or a flag above a flat base (Bulkowski)",
+   "bf.leadership: RS 90 or more, the leading theme, a Green market"
+  ],
+  "b_minus": [
+   "bf.pole: under 20% or slow",
+   "bf.which_flag: the third or later flag",
+   "bf.length_weak: 16 to 20 sessions",
+   "bf.depth_half_pole: near half the pole, ragged",
+   "bf.holds_21ema: one close under the 21-day EMA, reclaimed the next day",
+   "bf.volume_dry: uneven volume",
+   "bf.tightness: loose, jagged",
+   "bf.stop_width: 4% to 5%",
+   "bf.market_reading: Yellow"
+  ],
+  "no_trade": [
+   "bf.pole: no pole",
+   "bf.inv_length: over 20 sessions",
+   "bf.inv_depth: over half the pole or 15% from the top",
+   "bf.inv_ema: closes under the 21-day EMA and stays",
+   "bf.inv_heavy_red: heavy red days in the flag",
+   "bf.inv_wedge_up: wedging up",
+   "bf.stop_width: wider than the ADR or 5%",
+   "bf.no_chase: more than 4% past the trigger",
+   "bf.not_stretched: more than 10% over the 10-day",
+   "bf.earnings_window: a report within 3 sessions",
+   "bf.above_200: under the 200-day",
+   "bf.liquidity: under $10 or under $20 million a day",
+   "bf.market_reading: Red, or Orange unless A+"
+  ]
+ },
+ "lookalikes": [
+  {
+   "setup": "03-high-tight-flag",
+   "tell": "Measure the pole. A bull flag follows a 20% to 30% run in 20 sessions or fewer; a high tight flag follows a near-double, 90% or more in 40 sessions or fewer, and rests 5 to 30 sessions.",
+   "criterion": "bf.pole"
+  },
+  {
+   "setup": "01-flat-base",
+   "tell": "Count the sessions since the pole top. A flag is done in 3 to 15 sessions and is a base past 20; a flat base rests at least 25 sessions in a box up to 15% deep with a flat ceiling tapped twice.",
+   "criterion": "bf.length"
+  },
+  {
+   "setup": "06-vcp",
+   "tell": "Look for shrinking pullbacks. A flag is one short drift on lighter volume; a VCP strings two to six pullbacks over 15 sessions or more, each smaller than the last, before its pivot.",
+   "criterion": "bf.inv_length"
+  },
+  {
+   "setup": "12-ma-pullbacks",
+   "tell": "Find the pole. A flag needs a 20% run in the 20 sessions before the rest; a pullback to the 10, 20 or 50-day with no pole is a moving-average pullback, setup 12.",
+   "criterion": "bf.pole"
+  },
+  {
+   "setup": "18-qullamaggie-kell",
+   "tell": "Count again. Kullamagi's breakout rests 2 weeks to 2 months (10 to 40 sessions) after a 30% move; a flag rests 3 to 15 sessions. Past 20 sessions the card sends it to the base lessons.",
+   "criterion": "bf.length_weak"
+  }
+ ],
+ "invalidations": [
+  "Before entry: more than 20 sessions since the pole top (bf.inv_length).",
+  "Before entry: a close under the 21-day EMA not reclaimed the next session (bf.inv_ema).",
+  "Before entry: the depth passes half the pole or 15% from the top (bf.inv_depth).",
+  "Before entry: two or more heavy red days on 1.5x volume (bf.inv_heavy_red).",
+  "Before entry: the pause wedges up (bf.inv_wedge_up).",
+  "Before entry: the third flag in a short run without a base (bf.inv_third_flag).",
+  "Before entry: a report within 3 sessions, wait (bf.earnings_window).",
+  "Before entry: the market reads Red, or Orange unless A+ (bf.market_reading).",
+  "After the entry: the stop is the exit, with the time stop (bf.after_entry_stop, bf.time_stop).",
+  "After the entry: a close under the flag's low means the idea is dead (bf.inv_close_under_flag_low)."
+ ],
+ "mistakes": [
+  "Buying the pole or chasing far above the trigger. The owner: OUST here would be a total chase.",
+  "Calling a deep, loose, jagged pullback a flag. Bulkowski: a loose flag meanders and looks jagged.",
+  "Ignoring volume: a flag on heavy, irregular volume is distribution, not a rest.",
+  "Using the flag low as the stop when it is 8% to 15% away, then sizing too big or skipping the stop-width check.",
+  "Waiting for a confirmation breakout and getting stopped in the chop below it (the owner's JOBY).",
+  "Buying the third or fourth flag late in a run (the owner's FCEL; Edwards and Magee's two surges).",
+  "Mistaking a wedge up for a flag.",
+  "Sitting in a forever flag with no trigger (the owner's AMZN note; the time stop).",
+  "Adding to a flag trade or averaging down.",
+  "Expecting the shape alone to pay. Measured, it does not: whatever edge there is comes from the leader, the catalyst, the market and the management.",
+  "Reading Brooks's bull flag (any pullback in a bull trend) as this setup. Ours needs a pole."
+ ],
+ "short_mirror": {
+  "exists": true,
+  "setup": "02-bull-flag",
+  "note": "The bear flag, mirrored line by line (dossier 8.6): below the 200-day only, a falling 50-day, RS 20 or less in the weakest groups, not hard to borrow; a sharp drop of at least 20% within 20 sessions, then a 3 to 15-session drift up on lighter volume that retraces at most half the drop and stays under the falling 21-day EMA; short at market on a break of the prior day's low or the flag's low; stop a few cents above the day's high or the prior day's high; trims and trail mirrored. No dossier of its own. UCT has used the idea (a low grind bear flag; ChartMaster's RDDT). The app's bear_flag detector is hidden as noise. Bulkowski's down breakouts fail 45% of the time with an 8% average decline. Whether to teach it now is D-001."
+ },
+ "best_conditions": "A Green market, with the indexes above a rising 20-day EMA (the dossier's proposal, not a rule), and best of all the first flags in the leading theme after a breakout or a market correction. The first flags after a correction are usually a bit uncomfortable and wheezy. Edwards and Magee's warning stands: flags cluster late in a bull market.",
+ "management": {
+  "trim_1": "a third at 3R (B19)",
+  "trim_2": "a third at 5R (E51)",
+  "trail": "a close under the 10-day for a fast mover, the 21-day for a steadier one (E52); his own flags lean to the 20 EMA",
+  "breakeven": "between 2R and 5R, at the first trim by default (B19)",
+  "time_stop": "under 1R after 10 trading days, sell (C33)",
+  "gap_open": "a trim level the day opens past is taken at the open (F63)",
+  "gap_against": "the first 30-minute low is the new stop; out if past 2R (B20)",
+  "climax": "sell a big part into a climax run (C34)",
+  "overrides": "none. The dossier (8.4) finds nothing setup-specific is needed. Not ours: the app's 2R and 3R targets, the classical detector's full-pole target and its scale out at 1R, Kullamagi's sell a third to a half after 3 to 5 days. The measured move is a reference only (D-013)."
+ },
+ "examples": {
+  "winners": 10,
+  "sheet_dir": "_study-resume/scratchpad/setups/02-bull-flag/final",
+  "base_rate": {
+   "hits": 11707,
+   "stock_hits": 11190,
+   "r3_pct": 30.5,
+   "r5_pct": 21.4,
+   "stopped_pct": 89,
+   "window": "60 sessions forward, fixed stop at the entry-day low, no trims, no breakeven, no trail, no time stop; 1996-02 to 2026-11; the T2 trigger (prior day's high) on flags of 3 to 15 sessions; one hit per flag"
+  },
+  "cuts": {
+   "stop_within_3_pct": {
+    "r3_pct": 32.5,
+    "r5_pct": 22.9,
+    "stop_3_to_5_pct": {
+     "r3_pct": 20.4,
+     "r5_pct": 13.5
+    }
+   },
+   "trigger_day_also_cleared_flag_high": {
+    "r3_pct": 41.7,
+    "r5_pct": 30.9,
+    "did_not": {
+     "r3_pct": 26.1,
+     "r5_pct": 17.6
+    }
+   },
+   "trigger_volume_1_5x_or_more": {
+    "hits": 582,
+    "r3_pct": 47.3,
+    "r5_pct": 36.9,
+    "below": {
+     "r3_pct": 29.6,
+     "r5_pct": 20.5
+    }
+   },
+   "pole_30_pct_or_more": {
+    "r3_pct": 31.7,
+    "r5_pct": 22.4,
+    "pole_20_to_30": {
+     "r3_pct": 29.8,
+     "r5_pct": 20.8
+    }
+   },
+   "flag_16_to_20_sessions": {
+    "hits": 120,
+    "r3_pct": 29.2,
+    "r5_pct": 18.3
+   },
+   "depth_10_to_15_pct": {
+    "hits": 1330,
+    "r3_pct": 36.6,
+    "r5_pct": 26.5,
+    "depth_10_or_less": {
+     "r3_pct": 29.7,
+     "r5_pct": 20.7
+    }
+   }
+  },
+  "winners_list": [
+   "UIS 1997-09-09",
+   "QCOM 1999-06-29",
+   "ISRG 2005-11-10",
+   "BB 2007-08-29",
+   "NUS 2013-07-18",
+   "RARE 2015-05-27",
+   "AMD 2018-08-21",
+   "SHOP 2020-05-04",
+   "PANW 2020-12-03",
+   "TSEM 2025-09-17"
+  ],
+  "failures": [
+   {
+    "ticker": "QCOM",
+    "date": "2019-05-10",
+    "criterion": "bf.not_after_burst",
+    "why": "a textbook-looking five-day flag (pole +62% in 14 days on an April 2019 gap, flag 8.9% deep on 0.44x the pole's volume, stop 1.8%); the trigger day was the high and the stock fell about 25% in four weeks. The pole was a one-day gap, not a trend, and the flag sat in the pole's third week."
+   },
+   {
+    "ticker": "STZ",
+    "date": "2013-03-04",
+    "criterion": "bf.stop",
+    "why": "a four-day flag 3.1% deep on a quarter of the pole's volume; it broke out, failed within days (best 0.85R), hit the 1.8% stop, then ran to 50 without us. A clean shape still loses about seven times in ten before 3R under a fixed stop; the answer is the small stop and the next trigger, not a wider stop."
+   },
+   {
+    "ticker": "LLY",
+    "date": "2024-08-30",
+    "criterion": "bf.inv_third_flag",
+    "why": "a five-day flag at all-time highs after a +30% pole, stop 2.25%, best 0.56R; the breakout failed the same week and the stock drifted under the 50-day for two months. A later flag in a long run, in a stock already extended on the weekly chart."
+   },
+   {
+    "ticker": "TSLA",
+    "date": "2023-07-12",
+    "criterion": "bf.stop_width",
+    "why": "A 5-day flag 6.7% deep (26% of a 36% pole) on 0.71x the pole's volume. The trigger day traded through the prior high and closed at the low of its range (271.99) on 0.69x volume; the stop was 1.78% under the fill against a 3.91% average daily range and the next session's low (270.60) took it."
+   }
+  ],
+  "limits": "No RS rating, group rank, market colour or flag count in the scan; the intraday T1 reclaim cannot be seen on daily bars; survivorship (the database leans to names that still trade); a fixed stop. Nothing here is a published statistic. Bulkowski's own flag counts are weak: 44% break-even failures, Not ranked.",
+  "near_misses": [
+   {
+    "ticker": "META",
+    "date": "2025-07-09",
+    "criterion": "bf.pole",
+    "why": "pole +18.2% in 20 sessions; the rule is 20% or more. A tidy 5-day, 4.7% pause on 0.75x volume, but the rise before it was 18.2% in 20 sessions. No pole, no flag: a pullback in an uptrend, judged under the moving-average pullback card (setup 12). Best 1.58R, stopped."
+   },
+   {
+    "ticker": "AXON",
+    "date": "2024-04-04",
+    "criterion": "bf.length",
+    "why": "flag of 21 sessions; the rule is 3 to 15 (16 to 20 B-), past 20 it is a base. A 30% pole and a 6.6%-deep pause on 0.81x volume that ran 21 sessions. Past 20 sessions it is a base, judged as a flat base (setup 01) or a Qullamaggie consolidation (setup 18). Best 0.0R, stopped."
+   },
+   {
+    "ticker": "DKNG",
+    "date": "2021-02-19",
+    "criterion": "bf.depth_half_pole",
+    "why": "flag low gives back 55% of the pole; the rule is half or less. A 7-day flag only 12.8% under the top on half the pole's volume, but the low gave back 55% of the pole. A pullback that retraced more than half the pole is a deeper retest, closer to a pullback to the 21 EMA or the 50-day (setup 12) than to a flag. Best 3.01R, stopped."
+   },
+   {
+    "ticker": "BA",
+    "date": "2020-12-01",
+    "criterion": "bf.shape",
+    "why": "flag highs rise +5.6% across the flag; the rule is a flat or falling line of highs. A 7-day pause 10.7% deep after a 58% pole, but its highs rose 5.6% across the pause. Higher highs and higher lows through the rest is a wedge up (bf.inv_wedge_up), not a flag. Best 0.0R, stopped."
+   }
+  ],
+  "sheets": {
+   "failures": "final/fail_1-4.png",
+   "near_misses": "final/near_1-4.png",
+   "pair": "final/pair_03-high-tight-flag.png"
+  }
+ },
+ "question_seeds": [
+  {
+   "kind": "recall",
+   "criterion": "bf.pole",
+   "seed": "How big must the pole be, and in how many sessions, before a rest can be called a bull flag?"
+  },
+  {
+   "kind": "recall",
+   "criterion": "bf.length",
+   "seed": "A flag runs how many sessions at most before it becomes a base?"
+  },
+  {
+   "kind": "recall",
+   "criterion": "bf.stop_not_flag_low",
+   "seed": "Where does the stop go on a flag entry, and why is it not the flag low?"
+  },
+  {
+   "kind": "spot",
+   "criterion": "bf.trigger_prev_day_high",
+   "seed": "Hidden ticker: tap the trigger bar, the first session that trades above the prior day's high inside this flag."
+  },
+  {
+   "kind": "spot",
+   "criterion": "bf.holds_21ema",
+   "seed": "Hidden ticker: did every close of this flag hold the 21-day EMA? Take it or pass."
+  },
+  {
+   "kind": "spot",
+   "criterion": "bf.inv_wedge_up",
+   "seed": "Hidden ticker: which of these four pauses is wedging up instead of flagging?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "bf.pole",
+   "seed": "Bull flag or high tight flag: the stock ran 95% in six weeks and paused eight sessions. Which is it?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "bf.length",
+   "seed": "Bull flag or flat base: the rest is in its sixth week and 9% deep with a flat top. Which is it?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "bf.inv_length",
+   "seed": "Bull flag or VCP: three pullbacks, each smaller, over 30 sessions. Which is it?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "bf.pole",
+   "seed": "Bull flag or 20 EMA pullback: a leader drifts to its 20-day EMA after a slow 8% rise. Which lesson?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "bf.no_chase",
+   "seed": "The prior day's high is 50.00 and the stock is trading 52.40 at 10:20. Buy, or pass?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "bf.inv_ema",
+   "seed": "Day 6 of the flag closes under the 21-day EMA. Is the flag over, or do you wait one more session?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "bf.inv_third_flag",
+   "seed": "The stock is on its third daily flag in four weeks with no base between. Buy the break, or wait?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "bf.earnings_window",
+   "seed": "The flag is perfect and the report is in 2 sessions. Buy the prior-day-high break today?"
+  },
+  {
+   "kind": "grade",
+   "criterion": "bf.which_flag",
+   "seed": "Same shape, two stocks: the first flag after a base breakout, and the third flag in a long run. Grade each."
+  },
+  {
+   "kind": "grade",
+   "criterion": "bf.breakout_volume",
+   "seed": "Two trigger days on the same flag: one on 0.7x volume closing mid-range, one on 2.1x closing at the high. Grade each."
+  },
+  {
+   "kind": "grade",
+   "criterion": "bf.stop_width",
+   "seed": "The entry day's low sits 4.6% under your fill and the stock's ADR is 4%. What grade, what size, or pass?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "bf.pole",
+   "seed": "The 20-session low was 40.00 and the pole top is 47.20. How big is the pole in percent, and does it qualify?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "bf.depth_half_pole",
+   "seed": "Pole low 40.00, pole top 50.00, flag low 44.50. What share of the pole did the flag give back, and is it inside the cap?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "bf.trim_1",
+   "seed": "Bought at 62.80 with the stop at 61.65. Where is 3R, and where is 5R?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "bf.stop_width",
+   "seed": "Fill 83.26, entry day's low 81.23, a few cents under it for the stop. Is the stop inside 3%?"
+  }
+ ],
+ "owner_decisions": [
+  "D-001",
+  "D-002",
+  "D-004",
+  "D-005",
+  "D-006",
+  "D-012",
+  "D-013",
+  "D-014",
+  "D-025",
+  "D-027",
+  "D-029",
+  "D-045",
+  "D-046",
+  "D-047"
+ ],
+ "conflicts": [
+  "Sources: this dossier's section 11 is a table without ids, so every S-id on this card is the row's position in reading order, as the validator reads it (S1 Edwards and Magee, S2 Murphy, S3 ChartSchool, S4 Bulkowski's flags page, S6 his earnings flag, S8 Kullamagi, S10 to S13 Bonde, S15 Zanger, S20 the UCT Substack, S21 the rulebook, S22 the owner's verdicts, S24 the scanners, S25 the app pages, S26 the study notes). The dossier's own basis tags are kept in dossier_basis where a line's basis is a translation of them.",
+  "Length, five answers: Bulkowski under 3 weeks; Murphy 1 to 3 weeks; Edwards and Magee 5 days to 3 weeks, 4 weeks at most; ChartSchool up to 12 weeks (ideally 1 to 4); Kullamagi 2 weeks to 2 months. The owner's own examples run 2 to 4 days to about 2 weeks. The card takes 3 to 15 sessions, 16 to 20 as B-, past 20 a base (D-045).",
+  "The pole: no classic source gives a number; Kullamagi 30% to 100%+; the app's detectors 8% (bull_flag), 20% (the textbook check) and 40% (uct_flag_htf). The card takes 20% in 20 sessions with 30% as the A+ cue (D-029).",
+  "Depth: Edwards and Magee's 40% to 50% correction is their deepest buy point, not a maximum; the Model Book playbook's one third to one half is not the owner's words; uct_flag_htf allows 62%; the textbook check 12% and half the pole. The card takes half the pole and 15% from the top (D-046). The scan found 10% to 15% deep slightly better than 10% or less, which cuts against the A+ cue bf.depth_shallow.",
+  "Slope: the classics want a drift against the trend; Kullamagi allows flat channels and triangles; Edwards and Magee allow a rare flag that slopes up a trifle. The card accepts flat or down and rejects up-sloping, stricter than Edwards and Magee.",
+  "Volume in the flag: a requirement (Edwards and Magee, Murphy) against a tendency (Zanger, Bonde, ChartSchool), a frequency (Bulkowski's 74%) and silence (Kullamagi); uct_flag_htf has no volume test at all. The card makes it a gate pending D-006. Rule 8 forbids one heavy red day while 8.5 invalidates on two; the card keeps both (one drops the grade, two end the flag).",
+  "The trigger: a trendline pierce (Murphy, Bulkowski) against the pattern's high (Bulkowski's earnings flag), the opening-range high (Kullamagi), buying inside the flag (Edwards and Magee, the owner) and buying the open in anticipation (Bonde). The card leads with the owner's support reclaim and prior-day-high break and allows the flag-top break (D-027).",
+  "The stop: the flag low (both app detectors, the Model Book playbook) is a median 9.7% away; the house stop is the day's low or the prior day's low within about 3% (A3, A13). The house wins; the flag low is the invalidation. Whether flags get a hard 5% or ADR cap is D-005.",
+  "Targets: Edwards and Magee and Murphy add the pole at the breakout; Bulkowski 46% of the swing from the flag bottom; the app's detectors 2R and 3R or the full pole; Kullamagi has none and sells a third to a half after 3 to 5 days. The house trims win; the measured move is a reference only (D-013).",
+  "Reliability: Edwards and Magee, Murphy, Zanger and the Model Book playbook call flags among the most reliable patterns with no count; Bulkowski's counts are weak (44% break-even failures, Not ranked) and the app's Flag tag is withheld after a negative outcome replay. The dossier's own scan found no crude edge in the shape; the examples and the base rate lean on selection and management.",
+  "The 21-day EMA: the textbook check allows no close under it; the owner buys undercuts that close back above. The card allows one close reclaimed the next session (D-047).",
+  "The 200-day and liquidity: uct_flag_htf only blocks a falling 200-day and uses a $2 and $10,000 floor; B26 and B23 win.",
+  "Names: the Model Book card Bull Flag, the journal tag Classic Flag/Pullback, the setup tag Flag, the classical bull_flag detector and the Pattern Vision rubric are five names for one idea, not aliased; the vocabulary file says Bull Flag and Classic Flag/Pullback are the same setup; pullbacks to an average with no pole go to setup 12 (D-002). Flags with a 90%+ pole go to setup 03 (D-002).",
+  "The classical bull_flag narrative makes claims with no source: Raschke's Holy Grail as the same setup, Kullamagi hunting daily flags inside weekly breakouts, Schabacker 1932, a non-negotiable 1.5x volume rule, scaling out at 1R. None is used on this card (D-010). The Model Book playbook text is not the owner's words (D-014 is not in this dossier's register rows; question 14 maps to D-010).",
+  "Brooks's bull flag is any minor pullback in a bull trend with no pole; taught only so members are not confused by the term.",
+  "The short mirror (8.6) has UCT usage but no source that teaches it as a short; the app's bear_flag detector is hidden as noise. D-001."
+ ]
+}

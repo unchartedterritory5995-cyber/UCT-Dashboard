@@ -16,7 +16,7 @@
 import UIcon from '../../components/ui/UIcon'
 import StudyMark from '../../components/study/StudyMark'
 import StudyButton from './ui/StudyButton'
-import { CHALLENGES } from './challenges/ChallengeSheet'
+import { CHALLENGES } from './challenges/registry'
 import { BLITZ_BEST_KEY } from './challenges/challengeBank'
 import { trackSummary, recommendUnit } from './studyMap'
 import { METHOD_ID, FOUNDATIONS_ID } from './studyLandingChart'
@@ -198,14 +198,18 @@ function CoinGrid({ tracks, byId, onOpenTrack, label }) {
   )
 }
 
-function GameCards({ onOpenChallenge }) {
+/** `group`: 'chart' (the chart challenges) or 'skill' (the games that drill orders, sizing, options, risk and words,
+ *  docs/study/GAMES.md); a game declares its own plate and accent in its GAME meta, the first five use the maps above. */
+function GameCards({ onOpenChallenge, group = 'chart', label = 'Challenges' }) {
   const blitzBest = readBlitzBest()
+  const games = CHALLENGES.filter((c) => (c.group || 'chart') === group)
+  if (!games.length) return null
   return (
-    <ul className={s.games} aria-label="Challenges">
-      {CHALLENGES.map((c, i) => (
+    <ul className={s.games} aria-label={label}>
+      {games.map((c, i) => (
         <li key={c.kind} className={s.gameItem} style={{ '--i': i }}>
-          <button type="button" className={`${s.game} ${s['acc_' + ACCENT[c.kind]]}`} onClick={() => onOpenChallenge(c.kind)} aria-label={`${c.title}: ${c.sub}`} data-testid={`game-${c.kind}`}>
-            <span className={s.gamePlate}>{PLATE[c.kind] || c.title}</span>
+          <button type="button" className={`${s.game} ${s['acc_' + (c.accent || ACCENT[c.kind] || 'gold')]}`} onClick={() => onOpenChallenge(c.kind)} aria-label={`${c.title}: ${c.sub}`} data-testid={`game-${c.kind}`}>
+            <span className={s.gamePlate}>{c.plate || PLATE[c.kind] || c.title}</span>
             <span className={s.gameIcon}><UIcon name={c.icon} size={26} gold={false} /></span>
             <span className={s.gameText}>
               <b>{c.title}</b>
@@ -286,6 +290,15 @@ export default function StudyLanding({ curricula = [], byId = {}, badges = [], p
                 <span className={s.deckSub}>Real charts from the UCT bank. Every answer counts toward your XP.</span>
               </div>
               <GameCards onOpenChallenge={onOpenChallenge} />
+            </div>
+          ) : null}
+          {onOpenChallenge && CHALLENGES.some((c) => c.group === 'skill') ? (
+            <div className={s.sideBlock}>
+              <div className={s.deckHead}>
+                <h3 className={s.deckTitle}>Skill games</h3>
+                <span className={s.deckSub}>Orders, sizing, options, earnings, risk and discipline, worked out on the spot. Every run earns XP.</span>
+              </div>
+              <GameCards onOpenChallenge={onOpenChallenge} group="skill" label="Skill games" />
             </div>
           ) : null}
           {foundations ? (

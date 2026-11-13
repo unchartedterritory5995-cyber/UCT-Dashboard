@@ -1,0 +1,4487 @@
+{
+ "unit": "SET.45",
+ "track": "SET",
+ "title": "Qullamaggie Breakout and the Kell Cycle",
+ "teaches": "The Qullamaggie breakout and Kell's cycle as we trade them: a leader rests 10 to 40 sessions in a tightening range with rising lows, surfing its rising averages, the buy is a market order as price trades over the base high, the stop sits a few cents under the breakout day's low and no wider than the ADR, a third comes off at 3R and 5R with the rest on the trail; Kell's cycle then says wait, buy, sell into strength or get out, and a loss at the stop is the system working.",
+ "skills": [
+  {
+   "id": "setup.qullamaggie_kell",
+   "title": "Qullamaggie Breakout and the Kell Cycle"
+  }
+ ],
+ "as_of": "2026-11-10",
+ "card": "docs/study/setups/criteria/18-qullamaggie-kell.json",
+ "sources": [
+  {
+   "id": "s1",
+   "tier": 2,
+   "publisher": "Kristjan Kullamagi (qullamaggie.com)",
+   "title": "3 TIMELESS setups that have made me TENS OF MILLIONS! (2021-01-08)",
+   "url": "https://qullamaggie.com/my-3-timeless-setups-that-have-made-me-tens-of-millions/",
+   "accessed": "2026-11-09",
+   "why_reliable": "The trader's own site, in his own words, with a public record widely covered in the trading press; his breakout is the closest published rule to how UCT trades. Reader comments were used only where he replied himself, and no income claim is used."
+  },
+  {
+   "id": "s2",
+   "tier": 2,
+   "publisher": "TraderLion (articles bylined Oliver Kell)",
+   "title": "Cycle Of Price Action (2024-09-10), Internet Archive capture",
+   "url": "https://web.archive.org/web/20250623154156/https://traderlion.com/technical-analysis/chart-patterns/cycle-of-price-action-by-oliver-kell/",
+   "accessed": "2026-11-09",
+   "why_reliable": "Bylined Oliver Kell on TraderLion, whose live pages refuse automated readers; the dossier read this Internet Archive capture. Credited to Kell and likely edited by staff, so it is used beside UCT's own card and never alone."
+  },
+  {
+   "id": "s3",
+   "tier": 2,
+   "publisher": "TraderLion (articles bylined Oliver Kell)",
+   "title": "Reversal Extension: How Stocks Bottom (2024-06-11), Internet Archive capture",
+   "url": "https://web.archive.org/web/20250820211726/https://traderlion.com/technical-analysis/chart-patterns/reversal-extension-how-stocks-bottom/",
+   "accessed": "2026-11-09",
+   "why_reliable": "Bylined Oliver Kell on TraderLion, whose live pages refuse automated readers; the dossier read this Internet Archive capture. Credited to Kell and likely edited by staff, so it is used beside UCT's own card and never alone."
+  },
+  {
+   "id": "s4",
+   "tier": 2,
+   "publisher": "TraderLion (articles bylined Oliver Kell)",
+   "title": "Wedge Pop: The Money Pattern (2024-09-11), Internet Archive capture",
+   "url": "https://web.archive.org/web/20250425064619/https://traderlion.com/technical-analysis/chart-patterns/wedge-pop-the-money-pattern/",
+   "accessed": "2026-11-09",
+   "why_reliable": "Bylined Oliver Kell on TraderLion, whose live pages refuse automated readers; the dossier read this Internet Archive capture. Credited to Kell and likely edited by staff, so it is used beside UCT's own card and never alone."
+  },
+  {
+   "id": "s5",
+   "tier": 2,
+   "publisher": "TraderLion (articles bylined Oliver Kell)",
+   "title": "How to Buy Stocks on Pullbacks with the EMA Crossback Strategy (2024-08-20), Internet Archive capture",
+   "url": "https://web.archive.org/web/20250122081846/https://traderlion.com/technical-analysis/chart-patterns/ema-crossback/",
+   "accessed": "2026-11-09",
+   "why_reliable": "Bylined Oliver Kell on TraderLion, whose live pages refuse automated readers; the dossier read this Internet Archive capture. Credited to Kell and likely edited by staff, so it is used beside UCT's own card and never alone."
+  },
+  {
+   "id": "s6",
+   "tier": 2,
+   "publisher": "TraderLion (articles bylined Oliver Kell)",
+   "title": "Base n' Break: How to Catch Breakouts (2024-05-11), Internet Archive capture",
+   "url": "https://web.archive.org/web/20250211122023/https://traderlion.com/technical-analysis/chart-patterns/base-n-break-how-to-catch-breakouts/",
+   "accessed": "2026-11-09",
+   "why_reliable": "Bylined Oliver Kell on TraderLion, whose live pages refuse automated readers; the dossier read this Internet Archive capture. Credited to Kell and likely edited by staff, so it is used beside UCT's own card and never alone."
+  },
+  {
+   "id": "s7",
+   "tier": 2,
+   "publisher": "TraderLion (articles bylined Oliver Kell)",
+   "title": "Understanding the Exhaustion Extension: How to Sell Into Strength (2024-08-11), Internet Archive capture",
+   "url": "https://web.archive.org/web/20250122070523/https://traderlion.com/technical-analysis/chart-patterns/exhaustion-extension-sell-into-strength/",
+   "accessed": "2026-11-09",
+   "why_reliable": "Bylined Oliver Kell on TraderLion, whose live pages refuse automated readers; the dossier read this Internet Archive capture. Credited to Kell and likely edited by staff, so it is used beside UCT's own card and never alone."
+  },
+  {
+   "id": "s8",
+   "tier": 2,
+   "publisher": "TraderLion (articles bylined Oliver Kell)",
+   "title": "Wedge Drop: How to Sell Short (2024-07-11), Internet Archive capture",
+   "url": "https://web.archive.org/web/20250122064336/https://traderlion.com/technical-analysis/chart-patterns/wedge-drop-how-to-sell-short/",
+   "accessed": "2026-11-09",
+   "why_reliable": "Bylined Oliver Kell on TraderLion, whose live pages refuse automated readers; the dossier read this Internet Archive capture. Credited to Kell and likely edited by staff, so it is used beside UCT's own card and never alone."
+  },
+  {
+   "id": "s9",
+   "tier": 2,
+   "publisher": "TraderLion (articles bylined Oliver Kell)",
+   "title": "Downside EMA Crossback: Sell Short into Resistance (2024-06-11), Internet Archive capture",
+   "url": "https://web.archive.org/web/20250211105612/https://traderlion.com/technical-analysis/chart-patterns/downside-ema-crossback-sell-short-into-resistance/",
+   "accessed": "2026-11-09",
+   "why_reliable": "Bylined Oliver Kell on TraderLion, whose live pages refuse automated readers; the dossier read this Internet Archive capture. Credited to Kell and likely edited by staff, so it is used beside UCT's own card and never alone."
+  },
+  {
+   "id": "s10",
+   "tier": 2,
+   "publisher": "Stockbsessed (Substack)",
+   "title": "Oliver Kell Interview: The Mind & System Behind a +941.10% Year (2023-04-01)",
+   "url": "https://stockbsessed.substack.com/p/oliver-kell-interview-the-mind-and",
+   "accessed": "2026-11-09",
+   "why_reliable": "An interview in question-and-answer form, so the quotes are Kell's own answers; the interviewer is a small newsletter. Used for one line, beside UCT's own card."
+  },
+  {
+   "id": "h1",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
+   "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
+   "accessed": "2026-11-10"
+  },
+  {
+   "id": "c1",
+   "tier": 3,
+   "publisher": "UCT setup criteria card",
+   "title": "Qullamaggie Breakout and the Kell Cycle criteria card (docs/study/setups/criteria/18-qullamaggie-kell.json, as of 2026-11-09)",
+   "url": "repo:docs/study/setups/criteria/18-qullamaggie-kell.json",
+   "accessed": "2026-11-10"
+  },
+  {
+   "id": "d1",
+   "tier": 3,
+   "publisher": "UCT setup research (examples read from our own daily bars)",
+   "title": "Qullamaggie and Kell dossier, sections 13 and 14: examples, failures and near-misses from our data",
+   "url": "repo:docs/study/setups/research/18-qullamaggie-kell.md#13-examples-from-our-data",
+   "accessed": "2026-11-10"
+  }
+ ],
+ "facts": [
+  {
+   "id": "K1",
+   "source": "s1",
+   "quote": "An orderly pullback and consolidation with higher lows and tightening range in the consolidation phase.",
+   "claim": "Kullamagi: an orderly consolidation with higher lows and a tightening range."
+  },
+  {
+   "id": "K2",
+   "source": "s1",
+   "quote": "During the consolidation the stock price “surfs” the rising 10- and 20-day.",
+   "claim": "Kullamagi: during the consolidation price surfs the rising 10- and 20-day."
+  },
+  {
+   "id": "K3",
+   "source": "s1",
+   "quote": "just look at the daily chart and enter when the stock is starting to break out.",
+   "claim": "Kullamagi: on the daily chart, enter when the stock starts to break out."
+  },
+  {
+   "id": "K4",
+   "source": "s1",
+   "quote": "This method can also be traded by anticipating the breakout but I don’t find it as effective and more skill and experience is needed.",
+   "claim": "Kullamagi: anticipating the breakout is less effective and needs more skill."
+  },
+  {
+   "id": "K5",
+   "source": "s1",
+   "quote": "Stop is always lows of the day and stop should not be wider than the ATR or ADR of the stock",
+   "claim": "Kullamagi: the stop is the low of the day and no wider than the stock's ATR or ADR."
+  },
+  {
+   "id": "K6",
+   "source": "s1",
+   "quote": "The rest of the position should be trailed with the 10- or the 20-day moving average.",
+   "claim": "Kullamagi: trail the rest with the 10- or 20-day average."
+  },
+  {
+   "id": "L1",
+   "source": "s2",
+   "quote": "10 and 20-day exponential moving averages guide us through the intermediate-term trend",
+   "claim": "Kell: the 10 and 20-day EMAs guide the intermediate-term trend."
+  },
+  {
+   "id": "L2",
+   "source": "s9",
+   "quote": "When the 10-day exponential moving average is below the 20-day, there is no reason to be long the stock.",
+   "claim": "Kell: with the 10-day EMA under the 20-day, there is no reason to be long."
+  },
+  {
+   "id": "L3",
+   "source": "s3",
+   "quote": "The Reversal Extension is not necessarily a playable setup but more of a change in mindset.",
+   "claim": "Kell: the Reversal Extension is not necessarily a playable setup."
+  },
+  {
+   "id": "L5",
+   "source": "s4",
+   "quote": "Many traders mistakenly believe the Wedge Pop is simply about crossing the moving averages.",
+   "claim": "Kell: a Wedge Pop is not simply a crossing of the averages."
+  },
+  {
+   "id": "L6",
+   "source": "s4",
+   "quote": "Enter on a strong price bar with increased volume when the stock breaks through the pivot.",
+   "claim": "Kell: enter on a strong bar with increased volume through the pivot."
+  },
+  {
+   "id": "L7",
+   "source": "s5",
+   "quote": "The EMA Crossback refers to the first time the stock price retests its moving averages after a strong upward move",
+   "claim": "Kell: the EMA Crossback is the first retest of the averages after a strong upward move."
+  },
+  {
+   "id": "L8",
+   "source": "s5",
+   "quote": "But always wait for confirmation that buyers are stepping in before making your trade.",
+   "claim": "Kell: wait for confirmation that buyers are stepping in."
+  },
+  {
+   "id": "L9",
+   "source": "s6",
+   "quote": "The Base n’ Break is another pullback into the moving averages after the EMA Crossback.",
+   "claim": "Kell: the Base n' Break is another pullback into the averages after the EMA Crossback."
+  },
+  {
+   "id": "L10",
+   "source": "s6",
+   "quote": "once you get two Base n’ Breaks, you should realize you are late in the intermediate-term cycle",
+   "claim": "Kell: after two Base n' Breaks you are late in the intermediate-term cycle."
+  },
+  {
+   "id": "L11",
+   "source": "s6",
+   "quote": "The proper buy area is through the pivot into new highs.",
+   "claim": "Kell: the buy area is through the pivot into new highs."
+  },
+  {
+   "id": "L12",
+   "source": "s7",
+   "quote": "The Exhaustion Extension is a euphoric blowoff price movement well above the 10-day moving average",
+   "claim": "Kell: the Exhaustion Extension is a blowoff well above the 10-day."
+  },
+  {
+   "id": "L13",
+   "source": "s7",
+   "quote": "Start to get defensive when there is “air” between the low of the day and the 10EMA.",
+   "claim": "Kell: get defensive when there is air between the day's low and the 10 EMA."
+  },
+  {
+   "id": "L15",
+   "source": "s8",
+   "quote": "The Wedge Drop happens when the market trades back below the moving averages after a strong rally, known as an Exhaustion Extension.",
+   "claim": "Kell: the Wedge Drop is a trade back below the averages after an Exhaustion Extension."
+  },
+  {
+   "id": "L16",
+   "source": "s10",
+   "quote": "It may only be 3-4% above the moving averages but that was too much.",
+   "claim": "Kell, on his losers: 3-4% above the averages was too much."
+  },
+  {
+   "id": "hA3",
+   "source": "h1",
+   "quote": "Stop first (by default a few cents under the day's low or the prior day's low, F62); the size comes from the stop; if the honest stop does not fit the risk, skip the trade.",
+   "claim": "A3: stop first; the size comes from the stop; skip if the honest stop does not fit."
+  },
+  {
+   "id": "hA4",
+   "source": "h1",
+   "quote": "The stop is the exit. It only moves up, never down or wider.",
+   "claim": "A4: the stop is the exit and only moves up."
+  },
+  {
+   "id": "hA13",
+   "source": "h1",
+   "quote": "the stop usually sits within about 3% of the buy (a loss on the position, not the account)",
+   "claim": "A13: the stop usually sits within about 3% of the buy."
+  },
+  {
+   "id": "hB19",
+   "source": "h1",
+   "quote": "Move the stop to breakeven at 2R to 5R, ideally. The first trim: the hard rule is a third at 3R",
+   "claim": "B19: breakeven at 2R to 5R; the hard rule for the first trim is a third at 3R."
+  },
+  {
+   "id": "hB21",
+   "source": "h1",
+   "quote": "After a stop-out, buy again only if the setup triggers again, as a new trade with its own stop and every rule.",
+   "claim": "B21: after a stop-out, buy again only on a new trigger, as a new trade."
+  },
+  {
+   "id": "hB22",
+   "source": "h1",
+   "quote": "No new buys in the 3 days before an earnings report; hold through a report only if the trade is up 5R.",
+   "claim": "B22: no new buys in the 3 days before earnings; hold through only if up 5R."
+  },
+  {
+   "id": "hB26",
+   "source": "h1",
+   "quote": "no longs below the 200-day simple moving average, unless it is a parabolic long",
+   "claim": "B26: no longs below the 200-day, unless it is a parabolic long."
+  },
+  {
+   "id": "hC28",
+   "source": "h1",
+   "quote": "No chasing: never buy more than 4% above the buy point.",
+   "claim": "C28: never buy more than 4% above the buy point."
+  },
+  {
+   "id": "hC31",
+   "source": "h1",
+   "quote": "Buy leaders: an RS rating of 80 or more, in one of the strongest groups",
+   "claim": "C31: buy leaders, an RS rating of 80 or more, in one of the strongest groups."
+  },
+  {
+   "id": "hE52",
+   "source": "h1",
+   "quote": "Default trail: the 10-day average for fast movers, the 21-day for steadier ones; sell on a close below it.",
+   "claim": "E52: trail under the 10-day for fast movers, the 21-day for steadier ones."
+  },
+  {
+   "id": "hE57",
+   "source": "h1",
+   "quote": "Entries are market orders.",
+   "claim": "E57: entries are market orders."
+  },
+  {
+   "id": "hF62",
+   "source": "h1",
+   "quote": "The stop sits a few cents under the day's low, not exactly on it.",
+   "claim": "F62: the stop sits a few cents under the day's low."
+  },
+  {
+   "id": "hF65",
+   "source": "h1",
+   "quote": "Green, full risk per grade and up to 10 positions; Yellow, smaller and fewer; Orange, only A+ setups; Red, mostly cash and shorts.",
+   "claim": "F65: Green full risk; Yellow smaller and fewer; Orange A+ only; Red mostly cash and shorts."
+  },
+  {
+   "id": "hE50",
+   "source": "h1",
+   "quote": "Grading a setup (A+, A, B, B-) is discretionary and hard to define",
+   "claim": "E50: grading a setup is discretionary and hard to define."
+  },
+  {
+   "id": "a1",
+   "source": "c1",
+   "quote": "RS rating 80 or more.",
+   "claim": "Card: RS rating 80 or more."
+  },
+  {
+   "id": "a2",
+   "source": "c1",
+   "quote": "On the breakout day the close is above the 50-day and the 200-day simple moving averages, with the 50-day above the 200-day.",
+   "claim": "Card: on the breakout day the close is above the 50-day and 200-day, with the 50 above the 200."
+  },
+  {
+   "id": "a4",
+   "source": "c1",
+   "quote": "Record the stock's ADR, the 20-day average of high over low minus 1. No minimum is set; the ADR caps the stop.",
+   "claim": "Card: ADR is the 20-day average of high over low minus 1; it caps the stop."
+  },
+  {
+   "id": "a5",
+   "source": "c1",
+   "quote": "Bull markets only: a Green market reading.",
+   "claim": "Card: bull markets only, a Green market reading."
+  },
+  {
+   "id": "a6",
+   "source": "c1",
+   "quote": "The first base after the move is the A+ case; the second base or later is graded down, by analogy with Kell's count.",
+   "claim": "Card: the first base after the move is the A+ case."
+  },
+  {
+   "id": "a7",
+   "source": "c1",
+   "quote": "A sideways consolidation after the move with at least two rising swing lows.",
+   "claim": "Card: a sideways consolidation with at least two rising swing lows."
+  },
+  {
+   "id": "a8",
+   "source": "c1",
+   "quote": "The range tightens: the average daily range of the last 5 sessions is below the average of the whole consolidation.",
+   "claim": "Card: the last 5 sessions' average range is below the whole base's average."
+  },
+  {
+   "id": "a9",
+   "source": "c1",
+   "quote": "The consolidation runs 10 to 40 sessions.",
+   "claim": "Card: the consolidation runs 10 to 40 sessions."
+  },
+  {
+   "id": "a10",
+   "source": "c1",
+   "quote": "Consolidation high to low 25% or less, and no more than half of the prior move.",
+   "claim": "Card: base depth 25% or less, and no more than half of the prior move."
+  },
+  {
+   "id": "a11",
+   "source": "c1",
+   "quote": "A consolidation 15% deep or less is the A+ depth.",
+   "claim": "Card: a base 15% deep or less is the A+ depth."
+  },
+  {
+   "id": "a12",
+   "source": "c1",
+   "quote": "Through the consolidation, closes hold above the rising 20-day EMA; a brief undercut of the 20-day or a touch of the 50-day SMA is allowed.",
+   "claim": "Card: closes hold above the rising 20-day EMA through the base."
+  },
+  {
+   "id": "a14",
+   "source": "c1",
+   "quote": "No volume rule. Lighter volume late in the base and heavier volume on the breakout raise the grade only.",
+   "claim": "Card: no volume rule; volume raises the grade only."
+  },
+  {
+   "id": "a15b",
+   "source": "c1",
+   "quote": "The daily-chart version: price trades above the consolidation high.",
+   "claim": "Card: the daily-chart version is a trade above the consolidation high."
+  },
+  {
+   "id": "a16",
+   "source": "c1",
+   "quote": "A market order when the level breaks, set up from an alert placed the night before; regular hours only.",
+   "claim": "Card: a market order when the level breaks, from an alert set the night before."
+  },
+  {
+   "id": "a17",
+   "source": "c1",
+   "quote": "No buy more than 4% above the trigger.",
+   "claim": "Card: no buy more than 4% above the trigger."
+  },
+  {
+   "id": "a19",
+   "source": "c1",
+   "quote": "No anticipation inside the base. He allows it but finds it less effective and says more skill and experience is needed.",
+   "claim": "Card: no anticipation inside the base."
+  },
+  {
+   "id": "a21",
+   "source": "c1",
+   "quote": "No new buy in the 3 sessions before an earnings report; hold through a report only if up 5R.",
+   "claim": "Card: no new buy in the 3 sessions before earnings."
+  },
+  {
+   "id": "a22",
+   "source": "c1",
+   "quote": "A few cents under the low of the breakout day. At the moment of an opening-range buy that is the day's low so far, usually the opening-range low.",
+   "claim": "Card: a few cents under the breakout day's low, the day's low so far at an opening-range buy."
+  },
+  {
+   "id": "a23",
+   "source": "c1",
+   "quote": "The stop must be no wider than the stock's ADR; if it is wider, skip.",
+   "claim": "Card: the stop must be no wider than the ADR; if wider, skip."
+  },
+  {
+   "id": "a26",
+   "source": "c1",
+   "quote": "Sell a third at 3R.",
+   "claim": "Card: sell a third at 3R."
+  },
+  {
+   "id": "a27",
+   "source": "c1",
+   "quote": "Trail the last third: a close under the 10-day for a fast mover, under the 21-day for a steadier one.",
+   "claim": "Card: trail the last third under the 10-day or 21-day, sold on a close."
+  },
+  {
+   "id": "a29",
+   "source": "c1",
+   "quote": "The full size at one price with one stop. The next flag in the same run is a new trade from flat, not an add.",
+   "claim": "Card: one price, one stop; the next flag in the same run is a new trade, not an add."
+  },
+  {
+   "id": "a30",
+   "source": "c1",
+   "quote": "Before the trigger: a close under the consolidation low, or a close under the 50-day SMA, or a lower low inside the base.",
+   "claim": "Card: before the trigger, a close under the base low or the 50-day, or a lower low, ends it."
+  },
+  {
+   "id": "a31",
+   "source": "c1",
+   "quote": "After the buy: a breakout that closes back inside the base in the lower third of its day's range is a failed breakout. Let the stop decide (the default) or sell on that close.",
+   "claim": "Card: a close back inside the base in the lower third of the day's range is a failed breakout; the stop decides."
+  },
+  {
+   "id": "a31b",
+   "source": "c1",
+   "quote": "a breakout that closes back inside the base in the lower third of its day's range is a failed breakout",
+   "claim": "Card: a close back inside the base in the lower third of the day's range is a failed breakout."
+  },
+  {
+   "id": "g1",
+   "source": "c1",
+   "quote": "breaks early through the opening-range high and holds",
+   "claim": "Card, A+ cue: breaks early through the opening-range high and holds."
+  },
+  {
+   "id": "g2",
+   "source": "c1",
+   "quote": "breaks late, closes off the high",
+   "claim": "Card, B- cue: breaks late, closes off the high."
+  },
+  {
+   "id": "g3",
+   "source": "c1",
+   "quote": "the day's low well inside the ADR and within 3%",
+   "claim": "Card, A+ cue: the day's low well inside the ADR and within 3%."
+  },
+  {
+   "id": "g4",
+   "source": "c1",
+   "quote": "RS 80 to 85, mid-pack in its group",
+   "claim": "Card, B- cue: RS 80 to 85, mid-pack in its group."
+  },
+  {
+   "id": "l1",
+   "source": "c1",
+   "quote": "A flat base holds one box 15% deep or less for 25 sessions or more under a flat ceiling; Kullamagi's breakout rests 10 to 40 sessions with two or more rising swing lows, tightening at the end",
+   "claim": "Card: a flat base is one flat-topped box; the breakout rests with rising swing lows, tightening at the end."
+  },
+  {
+   "id": "l2",
+   "source": "c1",
+   "quote": "A bull flag is a 3 to 15-session drift after a 20% pole; the Qullamaggie breakout is a 10 to 40-session consolidation. Under 10 sessions the rest is a flag",
+   "claim": "Card: under 10 sessions the rest is a bull flag; the breakout rests 10 to 40."
+  },
+  {
+   "id": "l3",
+   "source": "c1",
+   "quote": "A wedge pop comes from under the 10 and 20 EMAs after a decline (8 or more of 15 closes under the 20 EMA); the Qullamaggie breakout's base surfs above the rising 20-day EMA the whole way",
+   "claim": "Card: a wedge pop comes from under the averages; the breakout's base surfs above the rising 20-day."
+  },
+  {
+   "id": "l4",
+   "source": "c1",
+   "quote": "A crossback buys the first pullback into the rising 10 or 20 EMA after a pop, triggered over the prior day's high",
+   "claim": "Card: a crossback buys the first pullback into the rising 10 or 20 EMA after a pop."
+  },
+  {
+   "id": "l4b",
+   "source": "c1",
+   "quote": "One is a dip to a line, the other a new high.",
+   "claim": "Card: a crossback is a dip to a line, the breakout a new high."
+  },
+  {
+   "id": "ctx",
+   "source": "c1",
+   "quote": "where the stock sits against its 10 and 20-day EMAs decides whether to wait, buy, sell into strength or get out.",
+   "claim": "Card: where the stock sits against its 10 and 20-day EMAs decides whether to wait, buy, sell into strength or get out."
+  },
+  {
+   "id": "b1",
+   "source": "c1",
+   "quote": "Up cycle: the 10 EMA above the 20 EMA, both rising. Down cycle: the 10 below the 20, both falling. No longs in a down cycle.",
+   "claim": "Card: an up cycle is the 10 EMA over the 20, both rising; no longs in a down cycle."
+  },
+  {
+   "id": "b2",
+   "source": "c1",
+   "quote": "Air: the day's low is above the 10 EMA. Above both means a close above the 10 and the 20 EMA.",
+   "claim": "Card: air is the day's low above the 10 EMA."
+  },
+  {
+   "id": "b2b",
+   "source": "c1",
+   "quote": "Buying with air above the 10 EMA is a mistake; Kell found 3-4% above the averages too much.",
+   "claim": "Card: buying with air above the 10 EMA is a mistake."
+  },
+  {
+   "id": "b3",
+   "source": "c1",
+   "quote": "after a Reversal Extension or a correction of 15% or more, at least 3 sessions where price tightens under or against the 10/20 EMA and the two averages converge",
+   "claim": "Card: a Wedge Pop follows a Reversal Extension or a correction, with price and averages tightening."
+  },
+  {
+   "id": "b4",
+   "source": "c1",
+   "quote": "Wedge Pop trigger: price trades through the pivot (the high of the tight range) and the day closes above both the 10 and 20 EMA, on volume at least the 50-day average; a gap up raises the grade.",
+   "claim": "Card: a Wedge Pop trades through the pivot and closes above both averages on volume at least the 50-day average."
+  },
+  {
+   "id": "b4b",
+   "source": "c1",
+   "quote": "A cross alone is not a Wedge Pop.",
+   "claim": "Card: a cross alone is not a Wedge Pop."
+  },
+  {
+   "id": "b5",
+   "source": "c1",
+   "quote": "Wedge Pop stop: a few cents under the pop day's low, within the ADR and usually within about 3%; skip if it does not fit.",
+   "claim": "Card: the Wedge Pop stop is a few cents under the pop day's low, within the ADR."
+  },
+  {
+   "id": "b6",
+   "source": "c1",
+   "quote": "the first pullback after the Wedge Pop that reaches the rising 10 or 20 EMA (the day's low within 1% of either, or an undercut of the 20 EMA that closes back above it)",
+   "claim": "Card: the Crossback is the first pullback after the Wedge Pop that reaches the rising 10 or 20 EMA."
+  },
+  {
+   "id": "b6b",
+   "source": "c1",
+   "quote": "moving sideways or drifting down gently, on volume below the 50-day average. The first one is A+.",
+   "claim": "Card: the Crossback drifts on volume below the 50-day average; the first one is A+."
+  },
+  {
+   "id": "b7",
+   "source": "c1",
+   "quote": "EMA Crossback trigger: buyers show, price trades above the prior session's high.",
+   "claim": "Card: the Crossback trigger is a trade above the prior session's high."
+  },
+  {
+   "id": "b8",
+   "source": "c1",
+   "quote": "EMA Crossback stop: a few cents under the pullback's low.",
+   "claim": "Card: the Crossback stop is a few cents under the pullback's low."
+  },
+  {
+   "id": "b9",
+   "source": "c1",
+   "quote": "Base n' Break setting: in an up cycle, near the highs, a tight base of 5 to 15 sessions (1 to 3 weeks) whose lows hold the rising 10/20 EMA.",
+   "claim": "Card: a Base n' Break is a tight base of 5 to 15 sessions holding the rising 10/20 EMA."
+  },
+  {
+   "id": "b12",
+   "source": "c1",
+   "quote": "The first Base n' Break is normal. From the second on, the stock is late in its cycle: grade down, sell into strength sooner and watch for an Exhaustion Extension.",
+   "claim": "Card: from the second Base n' Break on, the stock is late in its cycle; grade down."
+  },
+  {
+   "id": "b14",
+   "source": "c1",
+   "quote": "for a stock, a close 10% or more above the 10-day",
+   "claim": "Card: for a stock, an Exhaustion Extension is a close 10% or more above the 10-day."
+  },
+  {
+   "id": "b14b",
+   "source": "c1",
+   "quote": "Exhaustion Extension: air (the day's low above the 10 EMA) and a close far above the 10 EMA",
+   "claim": "Card: an Exhaustion Extension is air and a close far above the 10 EMA."
+  },
+  {
+   "id": "b15",
+   "source": "c1",
+   "quote": "Count the extensions: after 3 to 4 of them, expect a longer base.",
+   "claim": "Card: after 3 to 4 extensions, expect a longer base."
+  },
+  {
+   "id": "b16",
+   "source": "c1",
+   "quote": "price trades tight into the averages and then closes below both the 10 and 20 EMA, on volume above the 50-day average",
+   "claim": "Card: a Wedge Drop trades tight into the averages and closes below both on volume above the 50-day average."
+  },
+  {
+   "id": "b17",
+   "source": "c1",
+   "quote": "For longs, the house trail already exits on a Wedge Drop: a close under the 10-day or 21-day. Holding through a Wedge Drop is a mistake.",
+   "claim": "Card: for longs, the trail already exits on a Wedge Drop; holding through it is a mistake."
+  },
+  {
+   "id": "b18",
+   "source": "c1",
+   "quote": "Fewer trades and lower exposure when the index is below its 20 EMA.",
+   "claim": "Card: fewer trades and lower exposure when the index is below its 20 EMA."
+  },
+  {
+   "id": "dCRSP",
+   "source": "d1",
+   "quote": "CRSP | 2019-11-12 | 47% | 10 sessions, 14% | 52.28 | 52.35 | 51.21 | 2.2% / 5.6% | 3.1x | 19.0R (3R in 1 day)",
+   "claim": "CRSP, breakout 2019-11-12: a 47% run, 10 sessions and 14% deep; high 52.28, entry 52.35, stop 51.21 (2.2% of a 5.6% ADR); 3.1x volume; 3R in 1 day."
+  },
+  {
+   "id": "dCRSPw",
+   "source": "d1",
+   "quote": "The shortest allowed base (10 sessions) after a 47% run that began on an earnings reaction (2019-10-28); 3.1x volume on the break and 3R the next day",
+   "claim": "CRSP: the shortest allowed base after a 47% run that began on an earnings reaction; 3R the next day."
+  },
+  {
+   "id": "dHWM",
+   "source": "d1",
+   "quote": "HWM | 2025-05-15 | 43% | 12 sessions, 17% | 161.58 | 161.59 | 158.95 | 1.6% / 2.9% | 1.5x | 12.0R (3R in 7 days)",
+   "claim": "HWM, breakout 2025-05-15: a 43% run, 12 sessions and 17% deep; high 161.58, entry 161.59, stop 158.95 (1.6% of a 2.9% ADR); 1.5x volume; 3R in 7 days."
+  },
+  {
+   "id": "dHWMw",
+   "source": "d1",
+   "quote": "A large, steady name (ADR 2.9%): earnings gap (2025-05-01), 12 tight sessions, 1.5x volume break, then a smooth ride up the 10-day.",
+   "claim": "HWM: a large, steady name; an earnings gap, 12 tight sessions, then a 1.5x volume break."
+  },
+  {
+   "id": "dCPRI",
+   "source": "d1",
+   "quote": "CPRI | 2020-12-03 | 59% | 11 sessions, 21% | 38.00 | 38.01 | 37.37 | 1.7% / 5.6% | 0.8x | 17.3R (3R in 5 days)",
+   "claim": "CPRI, breakout 2020-12-03: a 59% run, 11 sessions and 21% deep; high 38.00, entry 38.01, stop 37.37 (1.7% of a 5.6% ADR); 0.8x volume; 3R in 5 days."
+  },
+  {
+   "id": "dCPRIw",
+   "source": "d1",
+   "quote": "A 59% run in a month, an 11-session pause with higher lows, then the break on quiet volume; the 10/20-day never let go.",
+   "claim": "CPRI: a 59% run, an 11-session pause with higher lows, then a break on quiet volume."
+  },
+  {
+   "id": "dISRGw",
+   "source": "d1",
+   "quote": "A 13%-deep flag on light volume after a 40% run; the breakout came on 0.7x volume and still worked, which is why the dossier makes volume a grade, not a rule.",
+   "claim": "ISRG: a 13%-deep flag broke out on 0.7x volume and still worked."
+  },
+  {
+   "id": "dAMD",
+   "source": "d1",
+   "quote": "AMD | 2000-01-06 | 71% | 37 sessions, 22% | 15.97 | 15.98 | 15.20 | 4.9% / 5.4% | 1.9x | 19.2R (3R in 4 days)",
+   "claim": "AMD, breakout 2000-01-06: a 71% run, 37 sessions and 22% deep; entry 15.98, stop 15.20."
+  },
+  {
+   "id": "dMSTRw",
+   "source": "d1",
+   "quote": "Shows the 30-session rule: the next flag in December would be a new trade, not an add (A5).",
+   "claim": "MSTR: the next flag in the same run is a new trade, not an add."
+  },
+  {
+   "id": "dBase",
+   "source": "d1",
+   "quote": "5,038 hits on 1,969 of the 2,630 liquid names",
+   "claim": "Scan base rate: 5,038 hits."
+  },
+  {
+   "id": "dBase2",
+   "source": "d1",
+   "quote": "28.9% reached 3R and 20.0% reached 5R before the stop; 92% were eventually stopped within the 60 sessions.",
+   "claim": "Scan: 28.9% reached 3R and 20.0% reached 5R before the stop; 92% were eventually stopped."
+  },
+  {
+   "id": "dNVDA",
+   "source": "d1",
+   "quote": "NVDA | 2024-11-06 | 144.43 | 141.91 (1.7%) | day 7 (2024-11-15, low 140.08), best 2.12R",
+   "claim": "NVDA, 2024-11-06: buy 144.43, stop 141.91 (1.7%), stopped day 7, best 2.12R."
+  },
+  {
+   "id": "dNVDAw",
+   "source": "d1",
+   "quote": "The prior move was near the smallest the rule allows and the stock was far along its yearly advance: Kell's late-in-the-cycle case",
+   "claim": "NVDA 2024: a late base, far along the yearly advance: Kell's late-in-the-cycle case."
+  },
+  {
+   "id": "dAMZN",
+   "source": "d1",
+   "quote": "AMZN | 2020-04-30 | 123.06 | 119.75 (2.7%) | day 1 (2020-05-01, low 112.91), best 0.0R",
+   "claim": "AMZN, 2020-04-30: buy 123.06, stop 119.75 (2.7%), stopped day 1, best 0.0R."
+  },
+  {
+   "id": "dAMZNw",
+   "source": "d1",
+   "quote": "The report came that evening; the next day gapped down (low 112.91) through the 119.75 stop and the trade never traded above the entry.",
+   "claim": "AMZN: the report came that evening and the next day gapped down through the stop."
+  },
+  {
+   "id": "dQCOM",
+   "source": "d1",
+   "quote": "QCOM | 2021-12-13 | 188.78 | 183.06 (3.0%) | day 1 (2021-12-14, low 179.41), best 0.0R",
+   "claim": "QCOM, 2021-12-13: buy 188.78, stop 183.06 (3.0%), stopped day 1, best 0.0R."
+  },
+  {
+   "id": "dQCOMw",
+   "source": "d1",
+   "quote": "then closed at the low of its range (183.32), back inside the base.",
+   "claim": "QCOM: the breakout then closed at the low of its range, back inside the base."
+  },
+  {
+   "id": "dOXY",
+   "source": "d1",
+   "quote": "OXY | 2022-04-18 | 62.10 | 59.88 (3.6%) | day 1 (2022-04-19, low 59.83), best 0.0R",
+   "claim": "OXY, 2022-04-18: buy 62.10, stop 59.88 (3.6%), stopped day 1, best 0.0R."
+  },
+  {
+   "id": "dOXYw",
+   "source": "d1",
+   "quote": "A valid base that failed for no visible reason; the stop did its job.",
+   "claim": "OXY: a valid base that failed for no visible reason; the stop did its job."
+  },
+  {
+   "id": "dNear",
+   "source": "d1",
+   "quote": "Charts that look like a Qullamaggie breakout but fail exactly one gate of the card.",
+   "claim": "Near-misses look like the breakout but fail exactly one gate of the card."
+  },
+  {
+   "id": "dNVDAn",
+   "source": "d1",
+   "quote": "NVDA | 2024-03-21 | `qk.breakout_length` | 8 sessions sideways; the rule is 10 to 40 (under 10 it is a flag)",
+   "claim": "NVDA near-miss, 2024-03-21: 8 sessions sideways; the rule is 10 to 40."
+  },
+  {
+   "id": "dNVDAnw",
+   "source": "d1",
+   "quote": "Under 10 sessions the rest is a bull flag (setup 02).",
+   "claim": "NVDA near-miss: under 10 sessions the rest is a bull flag."
+  },
+  {
+   "id": "dBIDU",
+   "source": "d1",
+   "quote": "BIDU | 2007-12-27 | `qk.breakout_higher_lows`",
+   "claim": "BIDU near-miss, 2007-12-27: fails the rising swing lows rule."
+  },
+  {
+   "id": "dBIDUw",
+   "source": "d1",
+   "quote": "the last third's low (34.89) sat under the first third's (36.52): a lower low, not rising swing lows.",
+   "claim": "BIDU: the last third's low sat under the first third's, a lower low."
+  },
+  {
+   "id": "dCVNA",
+   "source": "d1",
+   "quote": "CVNA | 2024-06-24 | `qk.breakout_holds_20` | 58% of the base's closes near or above the 20 EMA; the rule is 80% or more",
+   "claim": "CVNA near-miss, 2024-06-24: only 58% of the base's closes held near or above the 20 EMA."
+  },
+  {
+   "id": "dCVNAw",
+   "source": "d1",
+   "quote": "A base that lost the 20-day and came back is a wedge pop or an EMA reclaim, not a consolidation surfing the averages.",
+   "claim": "CVNA: a base that lost the 20-day and came back is a wedge pop or an EMA reclaim."
+  },
+  {
+   "id": "K7",
+   "source": "s1",
+   "quote": "The consolidation phase is usually 2 weeks to 2 months.",
+   "claim": "Kullamagi: the consolidation phase usually lasts 2 weeks to 2 months."
+  },
+  {
+   "id": "hD45",
+   "source": "h1",
+   "quote": "Never raise risk past the rules after a run of winners.",
+   "claim": "D45: never raise risk past the rules after a run of winners."
+  },
+  {
+   "id": "hC29",
+   "source": "h1",
+   "quote": "Too stretched to buy: skip a long that is more than 10% above its 10-day average.",
+   "claim": "C29: skip a long more than 10% above its 10-day average."
+  },
+  {
+   "id": "g5",
+   "source": "c1",
+   "quote": "3-4% or more above the averages",
+   "claim": "Card, B- cue: 3-4% or more above the averages."
+  },
+  {
+   "id": "K8",
+   "source": "s1",
+   "quote": "Scan for the 1 or 2% of stocks that are up the most over these 3 timeframes",
+   "claim": "Kullamagi: scan for the 1 or 2% of stocks up the most over three timeframes."
+  },
+  {
+   "id": "K9",
+   "source": "s1",
+   "quote": "Sometimes I buy the retrace",
+   "claim": "Kullamagi, in a reply: sometimes he buys the retrace of a missed breakout."
+  },
+  {
+   "id": "hB23",
+   "source": "h1",
+   "quote": "Trade only stocks at $10 or more that trade at least $20 million a day.",
+   "claim": "B23: only stocks at $10 or more that trade at least $20 million a day."
+  },
+  {
+   "id": "hD42",
+   "source": "h1",
+   "quote": "Never own more than 1% of a stock's average daily volume; illiquid stocks are not even watched.",
+   "claim": "D42: never own more than 1% of average daily volume; illiquid stocks are not even watched."
+  },
+  {
+   "id": "hB20",
+   "source": "h1",
+   "quote": "A gap against the stop: the first 30 minutes of the gap-down day decide. The low of the first 30-minute bar is the new stop.",
+   "claim": "B20: after a gap against the stop, the low of the first 30-minute bar is the new stop."
+  },
+  {
+   "id": "hB20c",
+   "source": "h1",
+   "quote": "With a ceiling: if the first 30 minutes take the loss past 2R, get out.",
+   "claim": "B20: if the first 30 minutes take the loss past 2R, get out."
+  },
+  {
+   "id": "hD41",
+   "source": "h1",
+   "quote": "Every position has a real stop order with the broker, not a stop kept in your head.",
+   "claim": "D41: every position has a real stop order with the broker."
+  },
+  {
+   "id": "hE58",
+   "source": "h1",
+   "quote": "No new buys outside regular trading hours.",
+   "claim": "E58: no new buys outside regular trading hours."
+  },
+  {
+   "id": "hD39",
+   "source": "h1",
+   "quote": "Every planned buy has its entry, stop and size written down before the market opens.",
+   "claim": "D39: entry, stop and size are written down before the market opens."
+  },
+  {
+   "id": "hE51",
+   "source": "h1",
+   "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
+   "claim": "E51: after the first third at 3R, another third at 5R, then trail the last third."
+  },
+  {
+   "id": "hF63",
+   "source": "h1",
+   "quote": "If a stock opens above a trim level (3R, 5R), take that trim at the open.",
+   "claim": "F63: if a stock opens above a trim level, take that trim at the open."
+  },
+  {
+   "id": "hC33",
+   "source": "h1",
+   "quote": "Time stop: a trade still under 1R after 10 trading days is sold, freeing the money.",
+   "claim": "C33: a trade still under 1R after 10 trading days is sold."
+  },
+  {
+   "id": "hC34",
+   "source": "h1",
+   "quote": "A climax run on your own long (Bracco's parabolic burst): sell a big part into it, a judgment call.",
+   "claim": "C34: on a climax run in your own long, sell a big part into it; a judgment call."
+  },
+  {
+   "id": "hB26b",
+   "source": "h1",
+   "quote": "a 3-5 day final leg: three straight up days, two straight overnight gap ups, two of three days of range expansion, two days of rising volume, and a gap up on the climax day",
+   "claim": "B26: Bracco's parabolic burst is a 3-5 day final leg with gaps, wide ranges and rising volume."
+  },
+  {
+   "id": "hC30",
+   "source": "h1",
+   "quote": "No time-of-day rule.",
+   "claim": "C30: we have no time-of-day rule."
+  },
+  {
+   "id": "hA5",
+   "source": "h1",
+   "quote": "The full size at one price with one stop; no adding.",
+   "claim": "A5: full size at one price with one stop; no adding."
+  },
+  {
+   "id": "aTop",
+   "source": "c1",
+   "quote": "A+ when the stock is in the top 2% of liquid stocks by gain over 1, 3 or 6 months, or RS 90 or more.",
+   "claim": "Card: a top-2% gainer, or RS 90 or more, is an A+ cue."
+  },
+  {
+   "id": "aMA",
+   "source": "c1",
+   "quote": "On the breakout day the 10-day EMA is above the 20-day EMA and both are rising.",
+   "claim": "Card: on the breakout day the 10-day EMA is above the 20-day EMA, both rising."
+  },
+  {
+   "id": "aRet",
+   "source": "c1",
+   "quote": "A missed breakout that comes back to the breakout level may be bought as a new trade with its own trigger and stop.",
+   "claim": "Card: a missed breakout that returns to its level may be bought as a new trade."
+  },
+  {
+   "id": "aSG",
+   "source": "c1",
+   "quote": "A gap through the stop: the first 30-minute low is the new stop; out if that is past 2R.",
+   "claim": "Card: after a gap through the stop, the first 30-minute low is the new stop; out if past 2R."
+  },
+  {
+   "id": "aT2",
+   "source": "c1",
+   "quote": "Sell a third at 5R.",
+   "claim": "Card: sell a third at 5R."
+  },
+  {
+   "id": "aGap",
+   "source": "c1",
+   "quote": "If it opens above a trim level, take that trim at the open.",
+   "claim": "Card: if it opens above a trim level, take that trim at the open."
+  },
+  {
+   "id": "aTS",
+   "source": "c1",
+   "quote": "Time stop: still under 1R after 10 trading days, sell.",
+   "claim": "Card: time stop, still under 1R after 10 trading days, sell."
+  },
+  {
+   "id": "aCl",
+   "source": "c1",
+   "quote": "A climax run (Bracco's parabolic burst): sell a big part into it.",
+   "claim": "Card: on a climax run, sell a big part into it."
+  },
+  {
+   "id": "aADV",
+   "source": "c1",
+   "quote": "The position is at most 1% of average daily volume.",
+   "claim": "Card: the position is at most 1% of average daily volume."
+  },
+  {
+   "id": "aAfter",
+   "source": "c1",
+   "quote": "After the buy, the stop is the exit, with the time stop.",
+   "claim": "Card: after the buy, the stop is the exit, with the time stop."
+  },
+  {
+   "id": "bBnT",
+   "source": "c1",
+   "quote": "Base n' Break trigger: price trades through the pivot into new highs, at market.",
+   "claim": "Card: the Base n' Break trigger is a trade through the pivot into new highs, at market."
+  },
+  {
+   "id": "bBnS",
+   "source": "c1",
+   "quote": "Base n' Break stop: a few cents under the low of the pivot or of the breakout day, whichever is closer and honest.",
+   "claim": "Card: the Base n' Break stop is a few cents under the pivot's or the breakout day's low."
+  },
+  {
+   "id": "bBnN",
+   "source": "c1",
+   "quote": "Every Base n' Break and crossback is its own trade with its own stop and size, from flat, not an add.",
+   "claim": "Card: every Base n' Break and crossback is its own trade, from flat, not an add."
+  },
+  {
+   "id": "L17",
+   "source": "s10",
+   "quote": "If I am looking for a stock to support on the 20EMA I might take a 15% position with a 1-2% stop (risking 15-30bps).",
+   "claim": "Kell: a 15% position with a 1-2% stop on a support buy risks 15-30 bps."
+  },
+  {
+   "id": "L21",
+   "source": "s10",
+   "quote": "If buying off support, it is usually against the 10 or 20EMA and will use that low as my stop.",
+   "claim": "Kell: buying off support, he uses the low against the 10 or 20 EMA as his stop."
+  },
+  {
+   "id": "L18",
+   "source": "s6",
+   "quote": "If stops are placed below the low of the pivot or breakout bar, you can ride the moving averages higher.",
+   "claim": "Kell: stops below the low of the pivot or breakout bar let you ride the averages higher."
+  },
+  {
+   "id": "L19",
+   "source": "s10",
+   "quote": "I also do not trade the first 10-15 minutes unless a stock has a catalyst like earnings.",
+   "claim": "Kell: he does not trade the first 10-15 minutes unless there is a catalyst."
+  },
+  {
+   "id": "L20",
+   "source": "s6",
+   "quote": "The Base n' Break is best used as an addition to the leading stocks that make up your core portfolio.",
+   "claim": "Kell: the Base n' Break is best used as an addition to leading stocks."
+  },
+  {
+   "id": "aLiq",
+   "source": "c1",
+   "quote": "Price $10 or more and $20 million or more traded a day on the 50-day average.",
+   "claim": "Card: price $10 or more and $20 million or more traded a day on the 50-day average."
+  },
+  {
+   "id": "aBE",
+   "source": "c1",
+   "quote": "Stop to breakeven between 2R and 5R, at the first trim by default.",
+   "claim": "Card: stop to breakeven between 2R and 5R, at the first trim by default."
+  }
+ ],
+ "walkthroughs": [
+  {
+   "key": "w1",
+   "title": "CRSP, November 2019: the shortest base that counts",
+   "steps": [
+    "CRSP, 2019. A 47% run begins on an earnings reaction, then the stock rests 10 sessions in a 14% band.",
+    "The base checks out: 10 sessions is the shortest allowed, and 14% is inside the 25% depth cap.",
+    "2019-11-12: it clears 52.28 on 3.1x volume. Buy at market, 52.35. Stop a few cents under the day's low, 51.21.",
+    "The stop is 2.2%, inside the 5.6% ADR. Failure mode: a close back inside the base. Instead 3R came in 1 day."
+   ],
+   "facts": [
+    "dCRSP",
+    "dCRSPw",
+    "a9",
+    "a10",
+    "a23",
+    "hF62",
+    "a31b",
+    "hE57"
+   ]
+  },
+  {
+   "key": "w2",
+   "title": "HWM, May 2025: a steady name after an earnings gap",
+   "steps": [
+    "HWM, 2025. A large, steady name gaps on earnings, then rests 12 sessions in a 17% band after a 43% run.",
+    "The base checks out: 12 sessions is inside 10 to 40, and 17% is inside the 25% depth cap.",
+    "2025-05-15: it clears 161.58 on 1.5x volume. Buy at market, 161.59. Stop a few cents under the low, 158.95.",
+    "Stop 1.6%, inside the ADR and our 3%. Failure mode: a close back in the base. Instead 3R took 7 days."
+   ],
+   "facts": [
+    "dHWM",
+    "dHWMw",
+    "a9",
+    "a10",
+    "a23",
+    "hA13",
+    "hF62",
+    "a31b"
+   ]
+  },
+  {
+   "key": "w3",
+   "title": "CPRI, December 2020: quiet volume, still a breakout",
+   "steps": [
+    "CPRI, 2020. A 59% run in a month, then 11 sessions of rising lows. The 10 and 20-day never let go.",
+    "The base checks out: 11 sessions is inside 10 to 40, and 21% is inside the 25% depth cap.",
+    "2020-12-03: it clears 38.00 on 0.8x volume, which only grades. Buy at market, 38.01. Stop a few cents under the low, 37.37.",
+    "Stop 1.7%, inside the 5.6% ADR. Failure mode: a close back in the base. Instead 3R came in 5 days."
+   ],
+   "facts": [
+    "dCPRI",
+    "dCPRIw",
+    "a9",
+    "a10",
+    "a14",
+    "a23",
+    "hF62"
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "key": "q01",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 1,
+   "format": "mcq",
+   "criterion": "qk.breakout_higher_lows",
+   "q": "What shape does the base take before a Qullamaggie breakout?",
+   "choices": [
+    "Sideways, higher lows, tight range",
+    "A V-shaped drop and sharp snap back",
+    "Straight down on heavy volume daily",
+    "A vertical run with no rest at all"
+   ],
+   "answer": "Sideways, higher lows, tight range",
+   "why": "Sideways, with higher lows and a tightening range. Kullamagi calls it an orderly consolidation with higher lows.",
+   "lesson_line": "Rest, don't fall: higher lows and a tighter range into the break.",
+   "facts": [
+    "K1",
+    "a7"
+   ],
+   "wrong": {
+    "A V-shaped drop and sharp snap back": "A V is a reversal, not a rest. The base is an orderly sideways range.",
+    "Straight down on heavy volume daily": "A leader resting does not fall hard. The base is orderly, with higher lows.",
+    "A vertical run with no rest at all": "The base is the rest. A run with no pause has nothing to break out of."
+   },
+   "house": true
+  },
+  {
+   "key": "q02",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 1,
+   "format": "tf",
+   "criterion": "qk.breakout_leadership",
+   "q": "The breakout is for leaders: stocks with an RS rating of 80 or more.",
+   "answer": "True",
+   "why": "True. We buy leaders. An RS rating of 80 or more, in one of the strongest groups.",
+   "lesson_line": "Breakouts are for leaders. Check the RS rating first.",
+   "facts": [
+    "a1",
+    "hC31"
+   ],
+   "house": true
+  },
+  {
+   "key": "q03",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 1,
+   "format": "fill",
+   "criterion": "qk.breakout_above_200",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "On the breakout day the close is above the 50-day and the ___-day.",
+   "bank": [
+    "200",
+    "100",
+    "20",
+    "10",
+    "150"
+   ],
+   "answer": "200",
+   "why": "200. The close is above the 50-day and the 200-day, with the 50-day above the 200-day. No longs below the 200-day is a hard rule.",
+   "lesson_line": "Above the 50, above the 200, and the 50 over the 200.",
+   "facts": [
+    "a2",
+    "hB26"
+   ],
+   "house": true
+  },
+  {
+   "key": "q04",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 1,
+   "format": "mcq",
+   "criterion": "qk.breakout_trigger",
+   "q": "On the daily chart, how is the breakout bought?",
+   "choices": [
+    "With a limit order inside the base",
+    "At market as it clears the base high",
+    "At the close, a day after the break",
+    "At the base low, hoping for a bounce"
+   ],
+   "answer": "At market as it clears the base high",
+   "why": "At market as price trades over the base high. Kullamagi: on the daily chart, enter when the stock starts to break out.",
+   "lesson_line": "Price trades over the base high, and you buy at market.",
+   "facts": [
+    "a15b",
+    "a16",
+    "K3"
+   ],
+   "wrong": {
+    "With a limit order inside the base": "Buying inside the base is anticipating, and a limit may never fill.",
+    "At the close, a day after the break": "The buy is the trade through the level, not a close a day later.",
+    "At the base low, hoping for a bounce": "The base low is where the setup breaks, not where it is bought."
+   },
+   "house": true
+  },
+  {
+   "key": "q05",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 1,
+   "format": "tf",
+   "criterion": "qk.breakout_stop",
+   "q": "The stop sits a few cents under the breakout day's low.",
+   "answer": "True",
+   "why": "True. A few cents under the day's low, not exactly on it. Kullamagi: the stop is always the low of the day.",
+   "lesson_line": "Stop first: a few cents under the breakout day's low.",
+   "facts": [
+    "a22",
+    "hF62",
+    "K5"
+   ],
+   "house": true
+  },
+  {
+   "key": "q06",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 1,
+   "format": "tf",
+   "criterion": "qk.breakout_stop_adr",
+   "q": "The stop may be wider than the stock's ADR if the chart is clean.",
+   "answer": "False",
+   "why": "False. The stop must be no wider than the stock's ADR. If it is wider, skip the trade.",
+   "lesson_line": "A stop wider than the ADR is a skip, however clean the chart.",
+   "facts": [
+    "a23",
+    "K5",
+    "hA3"
+   ],
+   "house": true
+  },
+  {
+   "key": "q07",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 1,
+   "format": "mcq",
+   "criterion": "qk.breakout_holds_20",
+   "q": "During the base, which lines does the stock 'surf'?",
+   "choices": [
+    "The falling 50- and 200-day averages",
+    "The 100- and 150-day averages",
+    "The rising 10- and 20-day averages",
+    "None; the stock ignores averages"
+   ],
+   "answer": "The rising 10- and 20-day averages",
+   "why": "The rising 10- and 20-day averages. Kullamagi: during the consolidation the stock surfs the rising 10- and 20-day.",
+   "lesson_line": "A good base surfs the rising 10- and 20-day.",
+   "facts": [
+    "K2",
+    "a12"
+   ],
+   "wrong": {
+    "The falling 50- and 200-day averages": "Falling long averages mean a downtrend, not a leader resting.",
+    "The 100- and 150-day averages": "Those are not the lines he names. He names the rising 10- and 20-day.",
+    "None; the stock ignores averages": "Closes hold above the rising 20-day through the base."
+   },
+   "house": true
+  },
+  {
+   "key": "q08",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 2,
+   "format": "mcq",
+   "criterion": "qk.breakout_length",
+   "q": "How many sessions does the consolidation run?",
+   "choices": [
+    "3 to 5 sessions",
+    "60 to 100 sessions",
+    "1 to 2 sessions",
+    "10 to 40 sessions"
+   ],
+   "answer": "10 to 40 sessions",
+   "why": "10 to 40 sessions. Kullamagi says usually 2 weeks to 2 months.",
+   "lesson_line": "Ten to forty sessions of rest, not a few days and not a season.",
+   "facts": [
+    "a9",
+    "K1",
+    "K7"
+   ],
+   "wrong": {
+    "3 to 5 sessions": "That is a short flag, not this base.",
+    "60 to 100 sessions": "That is longer than the card allows.",
+    "1 to 2 sessions": "Two days is a pause, not a consolidation."
+   },
+   "house": true
+  },
+  {
+   "key": "q09",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 2,
+   "format": "mcq",
+   "criterion": "qk.breakout_depth",
+   "q": "How deep may the base be?",
+   "choices": [
+    "25% or less, half the move at most",
+    "10% or less, the tighter the better",
+    "40% if the lows are rising",
+    "No limit if the volume is quiet"
+   ],
+   "answer": "25% or less, half the move at most",
+   "why": "25% or less, and no more than half of the prior move. A base 15% deep or less is the A+ depth.",
+   "lesson_line": "Shallow bases are stronger. Past 25% deep it is no longer this base.",
+   "facts": [
+    "a10",
+    "a11"
+   ],
+   "wrong": {
+    "10% or less, the tighter the better": "10% is tighter than the card needs. The cap is 25% or less.",
+    "40% if the lows are rising": "Rising lows do not lift the cap. It is 25% or less.",
+    "No limit if the volume is quiet": "There is a limit. Volume does not lift the depth cap."
+   },
+   "house": true
+  },
+  {
+   "key": "q11",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 2,
+   "format": "mcq",
+   "criterion": "qk.breakout_market",
+   "q": "Which market reading do we want before we buy breakouts?",
+   "choices": [
+    "Red, for the biggest bounces",
+    "Green",
+    "Yellow, always",
+    "Any reading; the stock decides"
+   ],
+   "answer": "Green",
+   "why": "Green. The card says bull markets only, a Green market reading.",
+   "lesson_line": "Breakouts need a Green market. Check the reading first.",
+   "facts": [
+    "a5",
+    "hF65"
+   ],
+   "wrong": {
+    "Red, for the biggest bounces": "In a Red market we are mostly in cash, with shorts.",
+    "Yellow, always": "Yellow is smaller and fewer. The breakout card wants Green.",
+    "Any reading; the stock decides": "The market reading comes first. Breakouts are for bull markets."
+   },
+   "house": true
+  },
+  {
+   "key": "q12",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 2,
+   "format": "tf",
+   "criterion": "qk.breakout_volume_cue",
+   "q": "Our card sets a minimum volume on the breakout day.",
+   "answer": "False",
+   "why": "False. There is no volume rule. Lighter volume late in the base and heavier volume on the breakout raise the grade only.",
+   "lesson_line": "Volume raises the grade. It is not a gate.",
+   "facts": [
+    "a14"
+   ],
+   "house": true
+  },
+  {
+   "key": "q13",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 2,
+   "format": "mcq",
+   "criterion": "qk.breakout_first_base",
+   "q": "Which base after the big move is the A+ case?",
+   "choices": [
+    "The third base after the move",
+    "The longest base on the chart",
+    "The first base after the move",
+    "Any base, if the stock is new"
+   ],
+   "answer": "The first base after the move",
+   "why": "The first base after the move. The second base or later is graded down.",
+   "lesson_line": "First base after the move is the best one.",
+   "facts": [
+    "a6",
+    "L10"
+   ],
+   "wrong": {
+    "The third base after the move": "A second base or later is graded down.",
+    "The longest base on the chart": "Length does not make the A+ case. The first base does.",
+    "Any base, if the stock is new": "Newness is not the test. The count of bases is."
+   },
+   "house": true
+  },
+  {
+   "key": "q14",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 2,
+   "format": "fill",
+   "criterion": "qk.breakout_adr",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "ADR is the 20-day average of high over low, minus ___.",
+   "bank": [
+    "1",
+    "2",
+    "5",
+    "10"
+   ],
+   "answer": "1",
+   "why": "1. ADR is the 20-day average of high over low, minus 1. It caps the stop.",
+   "lesson_line": "ADR caps the stop. Know the stock's ADR before you buy.",
+   "facts": [
+    "a4"
+   ],
+   "house": true
+  },
+  {
+   "key": "q15",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 3,
+   "format": "numeric",
+   "criterion": "qk.breakout_trim_1",
+   "q": "Bought at 161.59 with the stop at 158.95. Where is 3R?",
+   "answer": 169.51,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "a + 3 * (a - b)",
+     "a": 161.59,
+     "b": 158.95
+    },
+    "round": 2
+   },
+   "why": "169.51. One R is the buy minus the stop. Add three of those to the buy. HWM got there in 7 days.",
+   "lesson_line": "Know your 3R before the open. The first third comes off there.",
+   "facts": [
+    "hB19",
+    "a26",
+    "dHWM"
+   ],
+   "house": true,
+   "prefix": "$"
+  },
+  {
+   "key": "q16",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 4,
+   "format": "numeric",
+   "criterion": "qk.breakout_depth",
+   "q": "The base high is 52.28 and the base low is 45.00. How deep is it, in percent of the high?",
+   "answer": 13.9,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(a - b) / a * 100",
+     "a": 52.28,
+     "b": 45.0
+    },
+    "round": 1
+   },
+   "why": "13.9. That is inside the 25% cap and inside the 15% A+ depth.",
+   "lesson_line": "Depth in percent of the base high. Under 15% is the A+ depth.",
+   "facts": [
+    "a10",
+    "a11"
+   ],
+   "house": true,
+   "suffix": "%"
+  },
+  {
+   "key": "q17",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 5,
+   "format": "mcq",
+   "criterion": "qk.breakout_stop",
+   "q": "On an opening-range buy, where does the stop go?",
+   "choices": [
+    "Under the 20-day moving average",
+    "A few cents under the base low",
+    "10% under the price you paid",
+    "A few cents under the day's low"
+   ],
+   "answer": "A few cents under the day's low",
+   "why": "A few cents under the day's low so far, usually the opening-range low.",
+   "lesson_line": "On the first buy, the day's low so far is the stop.",
+   "facts": [
+    "a22",
+    "K5"
+   ],
+   "wrong": {
+    "Under the 20-day moving average": "A stop under the average instead of the day's low is a listed mistake.",
+    "A few cents under the base low": "That is usually much wider than the day's low. The stop is the day's low.",
+    "10% under the price you paid": "A fixed percent ignores the chart and can break the ADR cap."
+   },
+   "house": true
+  },
+  {
+   "key": "q19",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 5,
+   "format": "mcq",
+   "criterion": "qk.breakout_earnings_window",
+   "q": "How close to an earnings report may we buy a breakout?",
+   "choices": [
+    "Not within the 3 sessions before",
+    "Any time; the chart decides",
+    "Not within 10 sessions before",
+    "Only on the morning of the report"
+   ],
+   "answer": "Not within the 3 sessions before",
+   "why": "Not within the 3 sessions before. Hold through a report only if the trade is up 5R.",
+   "lesson_line": "No new buy in the 3 sessions before a report.",
+   "facts": [
+    "a21",
+    "hB22"
+   ],
+   "wrong": {
+    "Any time; the chart decides": "A report inside the window can gap through the stop.",
+    "Not within 10 sessions before": "That is longer than the rule. The rule is the 3 sessions before.",
+    "Only on the morning of the report": "The day of the report is inside the window."
+   },
+   "house": true
+  },
+  {
+   "key": "q20",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 6,
+   "format": "mcq",
+   "criterion": "qk.breakout_tightening",
+   "q": "What does 'tightening' mean on our card?",
+   "choices": [
+    "The base gets shorter each week",
+    "Last 5 days tighter than the base",
+    "Volume dries up through the base",
+    "The stop tightens as the base ages"
+   ],
+   "answer": "Last 5 days tighter than the base",
+   "why": "The average daily range of the last 5 sessions is below the average of the whole consolidation.",
+   "lesson_line": "A tight finish: the last 5 sessions range less than the base average.",
+   "facts": [
+    "a8",
+    "K1"
+   ],
+   "wrong": {
+    "The base gets shorter each week": "Tightening is about daily range, not the base length.",
+    "Volume dries up through the base": "Volume is not part of the tightening test.",
+    "The stop tightens as the base ages": "The stop only moves up and never because of tightening."
+   },
+   "house": true
+  },
+  {
+   "key": "q81",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 5,
+   "format": "tf",
+   "criterion": "qk.breakout_no_chase",
+   "q": "A strong breakout is still fine to buy 6% past the trigger.",
+   "answer": "False",
+   "why": "False. No buy more than 4% above the trigger. Chasing costs size, not risk.",
+   "lesson_line": "More than 4% past the trigger is a chase. Skip it.",
+   "facts": [
+    "a17",
+    "hC28"
+   ],
+   "house": true
+  },
+  {
+   "key": "q82",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 4,
+   "format": "tf",
+   "criterion": "qk.breakout_trail",
+   "q": "Kullamagi trails the rest of the position with the 10- or 20-day average.",
+   "answer": "True",
+   "why": "True. He trails the rest with the 10- or the 20-day. Ours is nearly the same line: the 10-day for fast movers, the 21-day for steadier ones.",
+   "lesson_line": "Trail the last third under the 10-day or 21-day.",
+   "facts": [
+    "K6",
+    "a27",
+    "hE52"
+   ],
+   "house": true
+  },
+  {
+   "key": "q83",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 6,
+   "format": "tf",
+   "criterion": "qk.kell_cb_trigger",
+   "q": "The EMA Crossback is bought as price trades above the prior session's high.",
+   "answer": "True",
+   "why": "True. Buyers show: price trades above the prior session's high on the first pullback into the rising averages.",
+   "lesson_line": "Wait for buyers: the Crossback buys over the prior session's high.",
+   "facts": [
+    "b7",
+    "L8"
+   ],
+   "house": true
+  },
+  {
+   "key": "q21",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 4,
+   "format": "scenario",
+   "criterion": "qk.breakout_no_chase",
+   "q": "Buy at market, or pass?",
+   "choices": [
+    "Buy; this breakout is clearly real",
+    "Pass; it is over 4% above the high",
+    "Buy half now and half on a dip"
+   ],
+   "answer": "Pass; it is over 4% above the high",
+   "why": "Pass. 81.20 is more than 4% above the 77.67 high. Chasing costs size, not risk, so we skip it.",
+   "lesson_line": "More than 4% past the trigger, skip it.",
+   "facts": [
+    "a17",
+    "hC28"
+   ],
+   "wrong": {
+    "Buy; this breakout is clearly real": "A real breakout bought more than 4% past the trigger is a chase.",
+    "Buy half now and half on a dip": "No scaling. The price is past the limit and the plan skips it."
+   },
+   "house": true,
+   "story": "The base high is 77.67. At 10:05 the stock trades at 81.20, and the trigger has long passed."
+  },
+  {
+   "key": "q22",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 5,
+   "format": "numeric",
+   "criterion": "qk.breakout_depth",
+   "q": "Prior move 35.00 to 52.28. Base high 52.28, base low 45.00. What share of the move did it give back, in percent?",
+   "answer": 42.1,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(a - b) / (a - c) * 100",
+     "a": 52.28,
+     "b": 45.0,
+     "c": 35.0
+    },
+    "round": 1
+   },
+   "why": "42.1. That is under half of the move, so it passes that cap.",
+   "lesson_line": "Give-back as a share of the move. Half is the most.",
+   "facts": [
+    "a10"
+   ],
+   "house": true,
+   "suffix": "%"
+  },
+  {
+   "key": "q23",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "qk.breakout_earnings_window",
+   "q": "Buy the break?",
+   "choices": [
+    "Yes; the volume confirms it",
+    "Yes, with half size",
+    "No; a report is within 3 sessions"
+   ],
+   "answer": "No; a report is within 3 sessions",
+   "why": "No. No new buy in the 3 sessions before an earnings report. Check the report date before you buy.",
+   "lesson_line": "Check the report date first. A gap through the stop is not planned risk.",
+   "facts": [
+    "a21",
+    "hB22",
+    "dAMZNw"
+   ],
+   "wrong": {
+    "Yes; the volume confirms it": "Volume does not move the earnings rule. No new buy in the 3 sessions before.",
+    "Yes, with half size": "Half size does not fix a gap through the stop."
+   },
+   "house": true,
+   "story": "A 14-session flag after a 41% run breaks out on 1.5x volume. The company reports after today's close."
+  },
+  {
+   "key": "q24",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "qk.breakout_inv_failed_breakout",
+   "q": "What do you do with the stop?",
+   "choices": [
+    "Keep it; the stop decides",
+    "Lower it to give the trade room",
+    "Add more at the lower price"
+   ],
+   "answer": "Keep it; the stop decides",
+   "why": "Keep it. A close back inside the base in the lower third of its range is a failed breakout, and the stop decides.",
+   "lesson_line": "A failed close is a warning. The stop stays where it was.",
+   "facts": [
+    "a31",
+    "hA4"
+   ],
+   "wrong": {
+    "Lower it to give the trade room": "The stop only moves up, never down or wider.",
+    "Add more at the lower price": "No adds. One price, one stop."
+   },
+   "house": true,
+   "story": "You bought the breakout at 38.01 with the stop at 37.37. It closes at 37.60, back inside the base in the bottom third of its range."
+  },
+  {
+   "key": "q25",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 4,
+   "format": "tf",
+   "criterion": "qk.breakout_no_anticipation",
+   "q": "Buying inside the base, before it breaks, is the standard entry.",
+   "answer": "False",
+   "why": "False. No anticipation inside the base. Kullamagi finds it less effective and says it needs more skill and experience.",
+   "lesson_line": "Wait for the trade through the level. Anticipating is harder.",
+   "facts": [
+    "a19",
+    "K4"
+   ],
+   "house": true
+  },
+  {
+   "key": "q27",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 4,
+   "format": "tf",
+   "criterion": "qk.breakout_inv_base_broken",
+   "q": "A close under the 50-day inside the base ends the setup before the trigger.",
+   "answer": "True",
+   "why": "True. Before the trigger, a close under the consolidation low or the 50-day, or a lower low inside the base, ends it.",
+   "lesson_line": "A broken base is not a base. Skip it.",
+   "facts": [
+    "a30"
+   ],
+   "house": true
+  },
+  {
+   "key": "q28",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "qk.breakout_stop_adr",
+   "q": "Take the trade?",
+   "choices": [
+    "Yes, if you take a smaller size",
+    "No; the stop is beyond the ADR",
+    "Yes, if you move the stop to 4.0%"
+   ],
+   "answer": "No; the stop is beyond the ADR",
+   "why": "No. The stop must be no wider than the stock's ADR, and 5.5% is wider than 4.0%. If it is wider, skip.",
+   "lesson_line": "Stop wider than the ADR means no trade.",
+   "facts": [
+    "a23",
+    "K5"
+   ],
+   "wrong": {
+    "Yes, if you take a smaller size": "The stop may not be wider than the ADR. Over it, we skip.",
+    "Yes, if you move the stop to 4.0%": "The stop is the day's low. Moving it closer is not allowed."
+   },
+   "house": true,
+   "story": "A stock's ADR is 4.0%. The breakout day's low sits 5.5% under your buy."
+  },
+  {
+   "key": "q29",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "qk.breakout_higher_lows",
+   "q": "Flat Base or Qullamaggie breakout?",
+   "choices": [
+    "Flat Base; it rested near its high",
+    "Neither; 25 sessions is too long",
+    "Qullamaggie breakout; lows rising"
+   ],
+   "answer": "Qullamaggie breakout; lows rising",
+   "why": "Qullamaggie breakout. It rests 10 to 40 sessions with rising swing lows, tightening at the end. A flat base is one flat-topped box.",
+   "lesson_line": "Check the lows. Rising lows and a tight finish mean this breakout.",
+   "facts": [
+    "l1",
+    "a7",
+    "a9"
+   ],
+   "wrong": {
+    "Flat Base; it rested near its high": "A flat base is one box under a flat ceiling. Here the lows rise and the range tightens.",
+    "Neither; 25 sessions is too long": "Twenty-five sessions is inside the 10 to 40 range."
+   },
+   "house": true,
+   "story": "A leader rests 25 sessions after a big run. Its swing lows keep rising, and the range tightens at the end."
+  },
+  {
+   "key": "q30",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "qk.breakout_length",
+   "q": "Bull Flag or Qullamaggie breakout?",
+   "choices": [
+    "Bull Flag; five sessions, under 10",
+    "Qullamaggie breakout; it ran up 45%",
+    "Neither; the drift is too short"
+   ],
+   "answer": "Bull Flag; five sessions, under 10",
+   "why": "Bull Flag. Under 10 sessions the rest is a flag. The Qullamaggie breakout rests 10 to 40 sessions.",
+   "lesson_line": "Count the sessions. Under 10 is a flag.",
+   "facts": [
+    "l2",
+    "a9"
+   ],
+   "wrong": {
+    "Qullamaggie breakout; it ran up 45%": "The run alone does not decide it. Under 10 sessions the rest is a flag.",
+    "Neither; the drift is too short": "A short tight rest after a pole is a flag, a named setup of its own."
+   },
+   "house": true,
+   "story": "A stock runs 45%, then drifts sideways for five sessions."
+  },
+  {
+   "key": "q31",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "qk.breakout_holds_20",
+   "q": "Qullamaggie breakout or Wedge Pop?",
+   "choices": [
+    "Breakout; it cleared the range",
+    "Wedge Pop; the base sat under them",
+    "Base n' Break; it is near its high"
+   ],
+   "answer": "Wedge Pop; the base sat under them",
+   "why": "Wedge Pop. A wedge pop comes from under the averages. The breakout's base surfs above the rising 20-day.",
+   "lesson_line": "Check where the base sat against the averages. Under them means a wedge pop.",
+   "facts": [
+    "l3",
+    "a12"
+   ],
+   "wrong": {
+    "Breakout; it cleared the range": "The breakout's base surfs above the rising 20-day the whole way.",
+    "Base n' Break; it is near its high": "A Base n' Break needs lows holding the rising 10/20 EMA."
+   },
+   "house": true,
+   "story": "A stock spent 11 of its last 15 closes under its 20 EMA. Today it pushes through the top of its range."
+  },
+  {
+   "key": "q32",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "qk.kell_cb_setting",
+   "q": "Qullamaggie breakout or EMA Crossback?",
+   "choices": [
+    "Qullamaggie breakout; you bought a high",
+    "Base n' Break; it is a tight base",
+    "EMA Crossback; it is a dip to a line"
+   ],
+   "answer": "EMA Crossback; it is a dip to a line",
+   "why": "EMA Crossback. It buys the first pullback into the rising 10 or 20 EMA after a pop, over the prior day's high. One is a dip to a line, the other a new high.",
+   "lesson_line": "A dip to a line is a crossback. A new high out of a base is the breakout.",
+   "facts": [
+    "l4",
+    "l4b",
+    "L7"
+   ],
+   "wrong": {
+    "Qullamaggie breakout; you bought a high": "The breakout buys a new high out of a base. A crossback buys a dip to a line.",
+    "Base n' Break; it is a tight base": "A Base n' Break is a tight base near the highs, not a first dip."
+   },
+   "house": true,
+   "story": "A stock popped, then dipped to its rising 20 EMA for the first time and turned up. You buy over the prior day's high."
+  },
+  {
+   "key": "q34",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "qk.breakout_volume_cue",
+   "q": "What does the volume change?",
+   "choices": [
+    "Only the grade, not the rule",
+    "Whether the breakout is valid",
+    "How wide the stop can be"
+   ],
+   "answer": "Only the grade, not the rule",
+   "why": "Only the grade. There is no volume rule. Lighter volume late in the base and heavier volume on the breakout raise the grade only.",
+   "lesson_line": "Volume moves the grade, not the verdict.",
+   "facts": [
+    "a14",
+    "dISRGw"
+   ],
+   "wrong": {
+    "Whether the breakout is valid": "There is no volume rule, so neither is invalid for its volume.",
+    "How wide the stop can be": "The stop is the day's low and capped by ADR, not by volume."
+   },
+   "house": true,
+   "story": "Two breakouts of the same base: one on 0.7x volume, one on 3.1x."
+  },
+  {
+   "key": "q37",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "qk.breakout_trigger",
+   "q": "Which breakout day grades higher?",
+   "choices": [
+    "The late break; it waited for proof",
+    "The early break that holds",
+    "Neither; the day does not grade"
+   ],
+   "answer": "The early break that holds",
+   "why": "The early break that holds. Breaking early through the opening-range high and holding is an A+ cue. Breaking late and closing off the high is a B- cue.",
+   "lesson_line": "Early and holding grades well. Late and off the high does not.",
+   "facts": [
+    "g1",
+    "g2",
+    "hE50"
+   ],
+   "wrong": {
+    "The late break; it waited for proof": "Breaking late and closing off the high is a B- cue.",
+    "Neither; the day does not grade": "The card lists the breakout day among the grade cues."
+   },
+   "house": true,
+   "story": "Two breakouts of the same quality. One breaks early through the opening-range high and holds. The other breaks late and closes off the high."
+  },
+  {
+   "key": "q38",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "qk.breakout_stop_adr",
+   "q": "Does that stop help the grade?",
+   "choices": [
+    "No; a very tight stop is a weak sign",
+    "No; only the ADR matters",
+    "Yes; inside the ADR and within 3%"
+   ],
+   "answer": "Yes; inside the ADR and within 3%",
+   "why": "Yes. The day's low well inside the ADR and within 3% is an A+ cue. 1.6% fits both.",
+   "lesson_line": "A stop well inside the ADR and under 3% is a good sign.",
+   "facts": [
+    "g3",
+    "dHWM",
+    "hA13"
+   ],
+   "wrong": {
+    "No; a very tight stop is a weak sign": "A day's low well inside the ADR and within 3% is an A+ cue.",
+    "No; only the ADR matters": "The stop's size against both the ADR and the 3% line matters."
+   },
+   "house": true,
+   "story": "HWM, 2025. The stop sits 1.6% under the entry and the stock's ADR is 2.9%."
+  },
+  {
+   "key": "q39",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "qk.breakout_leadership",
+   "q": "How does that grade?",
+   "choices": [
+    "It passes, but grades lower",
+    "It fails the RS rule",
+    "It grades A+; 82 is above 80"
+   ],
+   "answer": "It passes, but grades lower",
+   "why": "It passes, but grades lower. RS 80 to 85, mid-pack in its group, is a B- cue.",
+   "lesson_line": "Pass the 80 line, but a mid-pack leader grades lower.",
+   "facts": [
+    "g4",
+    "a1"
+   ],
+   "wrong": {
+    "It fails the RS rule": "The rule is 80 or more, so it passes.",
+    "It grades A+; 82 is above 80": "RS 80 to 85, mid-pack in the group, is a B- cue."
+   },
+   "house": true,
+   "story": "A breakout candidate has an RS rating of 82 and is mid-pack in its group."
+  },
+  {
+   "key": "q40",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "qk.breakout_no_adds",
+   "q": "Is the second break an add or a new trade?",
+   "choices": [
+    "An add to the first trade",
+    "A new trade from flat, not an add",
+    "Skip it; you already own the stock"
+   ],
+   "answer": "A new trade from flat, not an add",
+   "why": "A new trade from flat, not an add. The next flag in the same run gets its own stop and size.",
+   "lesson_line": "Each flag is its own trade. Never an add.",
+   "facts": [
+    "a29",
+    "dMSTRw"
+   ],
+   "wrong": {
+    "An add to the first trade": "Adds are not allowed. One price, one stop.",
+    "Skip it; you already own the stock": "The next flag in the same run is its own trade."
+   },
+   "house": true,
+   "story": "A stock broke out, ran, and now rests in a new flag in the same run. It breaks out again. You still hold your first shares."
+  },
+  {
+   "key": "q43",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "qk.breakout_length",
+   "q": "Is a 10-session base long enough?",
+   "choices": [
+    "No; it needs at least 20 sessions",
+    "No; a 14% band is too deep for a base",
+    "Yes; 10 sessions is the minimum"
+   ],
+   "answer": "Yes; 10 sessions is the minimum",
+   "why": "Yes. The base runs 10 to 40 sessions and CRSP's 10 sessions is the shortest allowed. 3R came in 1 day.",
+   "lesson_line": "Ten sessions is the shortest base that counts.",
+   "facts": [
+    "dCRSPw",
+    "dCRSP",
+    "a9",
+    "a10"
+   ],
+   "wrong": {
+    "No; it needs at least 20 sessions": "The base runs 10 to 40 sessions. Ten is the shortest.",
+    "No; a 14% band is too deep for a base": "A base 25% deep or less qualifies, and 14% is inside it."
+   },
+   "house": true,
+   "story": "CRSP, 2019. After a 47% run, the stock rests 10 sessions in a 14% band, then breaks out on 3.1x volume."
+  },
+  {
+   "key": "q44",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "qk.breakout_depth",
+   "q": "Does the 22% depth pass the cap?",
+   "choices": [
+    "Yes; 22% is under the 25% cap",
+    "No; it must be under 15%",
+    "No; 37 sessions is too long"
+   ],
+   "answer": "Yes; 22% is under the 25% cap",
+   "why": "Yes. The depth cap is 25% or less, and 22% is under it. It is not the A+ depth of 15% or less.",
+   "lesson_line": "Under 25% passes. Under 15% is the A+ depth.",
+   "facts": [
+    "dAMD",
+    "a10",
+    "a11",
+    "a9"
+   ],
+   "wrong": {
+    "No; it must be under 15%": "Fifteen percent is the A+ depth, not the cap.",
+    "No; 37 sessions is too long": "The base runs 10 to 40 sessions, so 37 fits."
+   },
+   "house": true,
+   "story": "AMD, 2000. A 71% run, then a 37-session shelf 22% deep, surfing the rising 10- and 20-day. The stock breaks out on 1.9x volume."
+  },
+  {
+   "key": "q49",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "qk.breakout_first_base",
+   "q": "Was the loss a rule break?",
+   "choices": [
+    "Yes; you should have held through",
+    "No; late base, and the stop worked",
+    "Yes; the base was too long to trust"
+   ],
+   "answer": "No; late base, and the stop worked",
+   "why": "No. It was a late base, far along its yearly advance, and the stop did its job.",
+   "lesson_line": "A stop-out with the rules followed is a planned loss.",
+   "facts": [
+    "dNVDA",
+    "dNVDAw",
+    "a6",
+    "hA4",
+    "a9"
+   ],
+   "wrong": {
+    "Yes; you should have held through": "The stop is the exit. Holding through it breaks the rule.",
+    "Yes; the base was too long to trust": "Twenty-three sessions is inside 10 to 40."
+   },
+   "house": true,
+   "story": "NVDA, 2024. A 23-session base after a 32% run breaks out. You buy at 144.43 with the stop at 141.91. It reaches 2.12R, then is stopped on day 7."
+  },
+  {
+   "key": "q50",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "qk.breakout_earnings_window",
+   "q": "Which rule would have kept you out?",
+   "choices": [
+    "No buy over 4% above the trigger",
+    "Stop no wider than the stock's ADR",
+    "No buy 3 sessions before a report"
+   ],
+   "answer": "No buy 3 sessions before a report",
+   "why": "No new buy in the 3 sessions before a report. Check the report date before you buy.",
+   "lesson_line": "Check the report date first, then the chart.",
+   "facts": [
+    "dAMZN",
+    "dAMZNw",
+    "a21",
+    "hB22"
+   ],
+   "wrong": {
+    "No buy over 4% above the trigger": "The buy was at the trigger. The report date was the issue.",
+    "Stop no wider than the stock's ADR": "The stop fit. The report gapped through it."
+   },
+   "house": true,
+   "story": "AMZN, 2020 (prices split-adjusted). A 14-session flag breaks out. You buy at 123.06. The report comes that evening and the next day gaps below your 119.75 stop."
+  },
+  {
+   "key": "q51",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "qk.breakout_inv_failed_breakout",
+   "q": "What did the close tell you?",
+   "choices": [
+    "A failed breakout; the stop decides",
+    "A normal pause; add on the dip",
+    "A shakeout; move the stop lower"
+   ],
+   "answer": "A failed breakout; the stop decides",
+   "why": "A failed breakout. The close was at the low of its range, back inside the base, and the stop took it the next day.",
+   "lesson_line": "A close back inside the base at the low means the stop decides.",
+   "facts": [
+    "dQCOM",
+    "dQCOMw",
+    "a31b",
+    "hA4"
+   ],
+   "wrong": {
+    "A normal pause; add on the dip": "No adds. A close at the low back inside the base is a warning.",
+    "A shakeout; move the stop lower": "The stop only moves up, never down or wider."
+   },
+   "house": true,
+   "story": "QCOM, 2021. A 26-session base breaks out and you buy at 188.78. The day closes at the low of its range, back inside the base."
+  },
+  {
+   "key": "q52",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "qk.breakout_stop",
+   "q": "What do you do?",
+   "choices": [
+    "Move the stop lower, the base is sound",
+    "Take the stop; re-enter on new trigger",
+    "Buy again at once, same stop"
+   ],
+   "answer": "Take the stop; re-enter on new trigger",
+   "why": "Take the stop. The base was valid and the stock failed for no visible reason, which is what the stop is for.",
+   "lesson_line": "A valid base can still fail. The stop pays for that.",
+   "facts": [
+    "dOXY",
+    "dOXYw",
+    "hB21",
+    "hA4"
+   ],
+   "wrong": {
+    "Move the stop lower, the base is sound": "The stop only moves up. A stop moved down breaks the rule.",
+    "Buy again at once, same stop": "After a stop-out, buy again only on a new trigger, as a new trade."
+   },
+   "house": true,
+   "story": "OXY, 2022. A valid 16-session base after a 62% run breaks out. You buy at 62.10 with the stop at 59.88. The next day's low is 59.83."
+  },
+  {
+   "key": "q53",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "qk.breakout_length",
+   "q": "What does it really look like?",
+   "choices": [
+    "A Qullamaggie breakout, a short one",
+    "A Wedge Pop",
+    "A bull flag; under 10 sessions"
+   ],
+   "answer": "A bull flag; under 10 sessions",
+   "why": "A bull flag. Under 10 sessions the rest is a flag. It fails the 10 to 40 session length.",
+   "lesson_line": "Eight sessions is a flag, not this base.",
+   "facts": [
+    "dNVDAn",
+    "dNVDAnw",
+    "dNear",
+    "a9"
+   ],
+   "wrong": {
+    "A Qullamaggie breakout, a short one": "The breakout rests 10 to 40 sessions. Eight is under it.",
+    "A Wedge Pop": "A Wedge Pop comes from under the averages, not from a short rest."
+   },
+   "house": true,
+   "story": "NVDA, 2024. A 39% run, then the stock rests only 8 sessions sideways before it breaks out."
+  },
+  {
+   "key": "q54",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "qk.breakout_higher_lows",
+   "q": "Which check fails?",
+   "choices": [
+    "Rising lows; it made a lower low",
+    "The base length of 19 sessions",
+    "The size of the run before the base"
+   ],
+   "answer": "Rising lows; it made a lower low",
+   "why": "Rising swing lows. The last third's low sat under the first third's, a lower low, not rising lows.",
+   "lesson_line": "Check the lows. A lower low inside the box is not our base.",
+   "facts": [
+    "dBIDU",
+    "dBIDUw",
+    "dNear",
+    "a7",
+    "a9"
+   ],
+   "wrong": {
+    "The base length of 19 sessions": "Nineteen sessions is inside 10 to 40.",
+    "The size of the run before the base": "That check passes here. The lows are what fail."
+   },
+   "house": true,
+   "story": "BIDU, 2007. A 32% run and a 19-session box. The last third's low sits under the first third's low."
+  },
+  {
+   "key": "q55",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "qk.breakout_holds_20",
+   "q": "Which check fails?",
+   "choices": [
+    "The base length of 19 sessions",
+    "Closes above the rising 20-day",
+    "The depth cap of 25% or less"
+   ],
+   "answer": "Closes above the rising 20-day",
+   "why": "Closes holding above the rising 20-day. A base that lost the 20-day and came back is a wedge pop or an EMA reclaim. It is not a consolidation surfing the averages.",
+   "lesson_line": "Surf the 20-day all the way, or it is a different setup.",
+   "facts": [
+    "dCVNA",
+    "dCVNAw",
+    "dNear",
+    "a12",
+    "a9"
+   ],
+   "wrong": {
+    "The base length of 19 sessions": "Nineteen sessions is inside 10 to 40.",
+    "The depth cap of 25% or less": "That check passes here. The 20-day is what fails."
+   },
+   "house": true,
+   "story": "CVNA, 2024. A 46% run and a 19-session rest, but only 58% of the base's closes held near or above the 20 EMA."
+  },
+  {
+   "key": "q56",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 9,
+   "format": "mcq",
+   "criterion": "qk.breakout_higher_lows",
+   "q": "Hidden ticker, the day before a breakout. Is this a clean base to buy? Take it or pass.",
+   "choices": [
+    "Pass; the lows are falling",
+    "Pass; the base is too short",
+    "Take it; rising lows, tight finish"
+   ],
+   "answer": "Take it; rising lows, tight finish",
+   "why": "Take it. After an earnings gap and a 43% run, 12 tight sessions in a 17% band. It broke out on 1.5x volume and reached 3R in 7 days.",
+   "lesson_line": "Rising lows and a tight finish: that is the base.",
+   "facts": [
+    "dHWMw",
+    "dHWM",
+    "a7",
+    "a9"
+   ],
+   "wrong": {
+    "Pass; the lows are falling": "Look again: the lows inside the base rise toward the high.",
+    "Pass; the base is too short": "A 12-session base fits 10 to 40."
+   },
+   "house": true,
+   "chart": {
+    "sym": "HWM",
+    "asof": "2025-05-14",
+    "window": 120,
+    "forward": 20
+   }
+  },
+  {
+   "key": "q57",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 9,
+   "format": "mcq",
+   "criterion": "qk.breakout_higher_lows",
+   "q": "Hidden ticker, the day before a would-be breakout. Is this a clean base to buy? Take it or pass.",
+   "choices": [
+    "Pass; the box makes a lower low",
+    "Take it; the stock ran 32% first",
+    "Pass; the box is too short"
+   ],
+   "answer": "Pass; the box makes a lower low",
+   "why": "Pass. The last third's low, 34.89, sat under the first third's, 36.52: a lower low, not rising swing lows.",
+   "lesson_line": "A lower low inside the box means pass, however strong the run.",
+   "facts": [
+    "dBIDUw",
+    "dBIDU",
+    "dNear",
+    "a7",
+    "a9"
+   ],
+   "wrong": {
+    "Take it; the stock ran 32% first": "The run passes, but the lows fail. One failing check is enough.",
+    "Pass; the box is too short": "The box was long enough, inside 10 to 40 sessions."
+   },
+   "house": true,
+   "chart": {
+    "sym": "BIDU",
+    "asof": "2007-12-26",
+    "window": 120,
+    "forward": 20
+   }
+  },
+  {
+   "key": "q58",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 9,
+   "format": "mcq",
+   "criterion": "qk.breakout_trim_1",
+   "q": "In our test of 5,038 breakouts, how often did price reach 3R before the stop?",
+   "choices": [
+    "About 60% of the time",
+    "About 29% of the time",
+    "About 85% of the time"
+   ],
+   "answer": "About 29% of the time",
+   "why": "About 29% of the time. In the test 28.9% reached 3R and 20.0% reached 5R, and 92% were eventually stopped.",
+   "lesson_line": "Fewer than one in three reach 3R. Size by the stop and the rules, never by hope.",
+   "facts": [
+    "dBase2",
+    "dBase",
+    "hD45"
+   ],
+   "wrong": {
+    "About 60% of the time": "In the test only 28.9% reached 3R before the stop. That is not a high hit rate.",
+    "About 85% of the time": "That is nearer the 92% that were eventually stopped. Most breakouts do not reach 3R first."
+   },
+   "house": true
+  },
+  {
+   "key": "q59",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 1,
+   "format": "tf",
+   "criterion": "qk.kell_up_cycle",
+   "q": "In Kell's cycle, a 10-day EMA under the 20-day EMA means no new longs.",
+   "answer": "True",
+   "why": "True. In a down cycle the 10 is below the 20 and both are falling. Kell: there is no reason to be long.",
+   "lesson_line": "10 under 20 is a down cycle. No longs.",
+   "facts": [
+    "b1",
+    "L2"
+   ],
+   "house": true
+  },
+  {
+   "key": "q60",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 1,
+   "format": "mcq",
+   "criterion": "qk.kell_up_cycle",
+   "q": "In Kell's cycle, what does the stock's place against its 10 and 20-day EMAs tell you?",
+   "choices": [
+    "Only the day's high and low prices",
+    "Which earnings date to trade",
+    "How large the next gap will be",
+    "When to wait, buy, sell or exit"
+   ],
+   "answer": "When to wait, buy, sell or exit",
+   "why": "Whether to wait, buy, sell into strength or get out. Kell's 10 and 20-day EMAs guide the intermediate-term trend.",
+   "lesson_line": "The cycle tells you what to do at each phase.",
+   "facts": [
+    "ctx",
+    "L1"
+   ],
+   "wrong": {
+    "Only the day's high and low prices": "The place against the averages decides the action.",
+    "Which earnings date to trade": "Earnings dates are a separate rule, not part of the cycle.",
+    "How large the next gap will be": "The cycle does not forecast gaps. It tells you what to do."
+   },
+   "house": true
+  },
+  {
+   "key": "q61",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 2,
+   "format": "mcq",
+   "criterion": "qk.kell_up_cycle",
+   "q": "In Kell's cycle, how is an up cycle defined?",
+   "choices": [
+    "10 EMA above the 20 EMA, both rising",
+    "Price above the 200-day only",
+    "The 10 EMA below the 20 EMA",
+    "Any day the stock closes green"
+   ],
+   "answer": "10 EMA above the 20 EMA, both rising",
+   "why": "The 10 EMA is above the 20 EMA, and both are rising. In a down cycle the 10 is below the 20.",
+   "lesson_line": "Up cycle: the 10 over the 20, both rising.",
+   "facts": [
+    "b1",
+    "L1"
+   ],
+   "wrong": {
+    "Price above the 200-day only": "The cycle is read on the 10 and 20-day EMAs.",
+    "The 10 EMA below the 20 EMA": "That is a down cycle.",
+    "Any day the stock closes green": "One green close is not a cycle."
+   },
+   "house": true
+  },
+  {
+   "key": "q62",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 2,
+   "format": "mcq",
+   "criterion": "qk.kell_air",
+   "q": "What does 'air' mean in Kell's cycle?",
+   "choices": [
+    "The day's low is under the 20 EMA",
+    "The day's low is above the 10 EMA",
+    "Volume is under the 50-day average",
+    "A gap down at the open"
+   ],
+   "answer": "The day's low is above the 10 EMA",
+   "why": "The day's low is above the 10 EMA. Kell: start to get defensive when there is air between the day's low and the 10 EMA.",
+   "lesson_line": "Air means the low is above the 10 EMA. Get defensive.",
+   "facts": [
+    "b2",
+    "L13"
+   ],
+   "wrong": {
+    "The day's low is under the 20 EMA": "Air is above the 10 EMA, not under the 20.",
+    "Volume is under the 50-day average": "Air is about price against the 10 EMA, not volume.",
+    "A gap down at the open": "Air is the day's low above the 10 EMA."
+   },
+   "house": true
+  },
+  {
+   "key": "q63",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 2,
+   "format": "tf",
+   "criterion": "qk.kell_wp_trigger",
+   "q": "A Wedge Pop is simply the 10-day EMA crossing the 20-day EMA.",
+   "answer": "False",
+   "why": "False. A cross alone is not a Wedge Pop. Kell: many traders mistakenly think it is only about crossing the averages.",
+   "lesson_line": "Watch the price bar and volume, not just the cross.",
+   "facts": [
+    "b4b",
+    "L5"
+   ],
+   "house": true
+  },
+  {
+   "key": "q64",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 2,
+   "format": "fill",
+   "criterion": "qk.kell_cb_setting",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "The EMA Crossback is the first retest of the averages after a ___.",
+   "bank": [
+    "Wedge Pop",
+    "Wedge Drop",
+    "Base n' Break",
+    "Exhaustion Extension",
+    "Reversal Extension"
+   ],
+   "answer": "Wedge Pop",
+   "why": "Wedge Pop. The EMA Crossback is the first retest of the averages after a strong upward move, the Wedge Pop.",
+   "lesson_line": "Wedge Pop first, then the Crossback.",
+   "facts": [
+    "L7",
+    "b6"
+   ],
+   "house": true
+  },
+  {
+   "key": "q65",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 3,
+   "format": "mcq",
+   "criterion": "qk.kell_bnb_setting",
+   "q": "Which phase is a tight base of 5 to 15 sessions holding the rising 10/20 EMA?",
+   "choices": [
+    "Wedge Pop",
+    "Wedge Drop",
+    "Base n' Break",
+    "Exhaustion Extension"
+   ],
+   "answer": "Base n' Break",
+   "why": "Base n' Break. In an up cycle, near the highs, a tight base of 5 to 15 sessions whose lows hold the rising 10/20 EMA. Buy the break into new highs.",
+   "lesson_line": "A tight base on the averages near the highs is a Base n' Break.",
+   "facts": [
+    "b9",
+    "L9"
+   ],
+   "wrong": {
+    "Wedge Pop": "A Wedge Pop comes from under the averages, after a Reversal Extension or correction.",
+    "Wedge Drop": "A Wedge Drop closes below both averages.",
+    "Exhaustion Extension": "An extension is far above the 10 EMA, not a tight base."
+   },
+   "house": true
+  },
+  {
+   "key": "q66",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 3,
+   "format": "mcq",
+   "criterion": "qk.kell_wp_stop",
+   "q": "Where does the Wedge Pop stop go?",
+   "choices": [
+    "Under the 200-day moving average",
+    "At the 20 EMA, plus a wide cushion",
+    "At the 10% mark under your buy price",
+    "A few cents under the pop day's low"
+   ],
+   "answer": "A few cents under the pop day's low",
+   "why": "A few cents under the pop day's low, within the ADR and usually within about 3%. Skip if it does not fit.",
+   "lesson_line": "Wedge Pop stop: under the pop day's low.",
+   "facts": [
+    "b5",
+    "hF62"
+   ],
+   "wrong": {
+    "Under the 200-day moving average": "The stop is the pop day's low, not a distant average.",
+    "At the 20 EMA, plus a wide cushion": "One stop, a few cents under the pop day's low.",
+    "At the 10% mark under your buy price": "A fixed percent ignores the chart. Use the day's low."
+   },
+   "house": true
+  },
+  {
+   "key": "q68",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 3,
+   "format": "mcq",
+   "criterion": "qk.kell_ee_definition",
+   "q": "For a stock, how far above the 10-day marks an Exhaustion Extension?",
+   "choices": [
+    "A close 10% or more above",
+    "A close 1% above",
+    "A close 25% above",
+    "A touch of the 20 EMA"
+   ],
+   "answer": "A close 10% or more above",
+   "why": "A close 10% or more above the 10-day, with air under it. Kell calls it a blowoff well above the 10-day.",
+   "lesson_line": "Ten percent over the 10-day, and the low above it: extended.",
+   "facts": [
+    "b14",
+    "b14b",
+    "L12"
+   ],
+   "wrong": {
+    "A close 1% above": "One percent is a normal move, not a blowoff.",
+    "A close 25% above": "That is far more than the mark. It is 10% or more.",
+    "A touch of the 20 EMA": "An extension is far above the 10 EMA, not at the 20."
+   },
+   "house": true
+  },
+  {
+   "key": "q69",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 4,
+   "format": "numeric",
+   "criterion": "qk.kell_ee_definition",
+   "q": "A stock's 10-day EMA is 100.00. It closes at 111.50 with its low at 102.00. How far above the 10-day is the close, in percent?",
+   "answer": 11.5,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(a - b) / b * 100",
+     "a": 111.5,
+     "b": 100.0
+    },
+    "round": 1
+   },
+   "why": "11.5. That is 10% or more above the 10-day, and the low is above the line: an Exhaustion Extension.",
+   "lesson_line": "Measure the close against the 10-day. Ten percent or more with air is extended.",
+   "facts": [
+    "b14",
+    "b14b"
+   ],
+   "house": true,
+   "suffix": "%"
+  },
+  {
+   "key": "q70",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 3,
+   "format": "tf",
+   "criterion": "qk.kell_wd_exit",
+   "q": "For a long, a Wedge Drop is already an exit under our trail.",
+   "answer": "True",
+   "why": "True. Our trail already exits on a Wedge Drop: a close under the 10-day or 21-day. Holding through one is a mistake.",
+   "lesson_line": "A close under the 10-day or 21-day is your exit.",
+   "facts": [
+    "b17",
+    "hE52"
+   ],
+   "house": true
+  },
+  {
+   "key": "q71",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 4,
+   "format": "scenario",
+   "criterion": "qk.kell_wp_trigger",
+   "q": "Is today a Wedge Pop?",
+   "choices": [
+    "No; a cross alone is the buy signal",
+    "No; it needs a gap up on open",
+    "Yes; pivot, both averages, volume"
+   ],
+   "answer": "Yes; pivot, both averages, volume",
+   "why": "Yes. Price traded through the pivot, closed above both averages, on volume at least the 50-day average. A gap up would raise the grade.",
+   "lesson_line": "Through the pivot, above both averages, on volume: that is a Wedge Pop.",
+   "facts": [
+    "b4",
+    "b3",
+    "L6"
+   ],
+   "wrong": {
+    "No; a cross alone is the buy signal": "A cross is not the signal. The pivot break, the close and the volume are.",
+    "No; it needs a gap up on open": "A gap up raises the grade. It is not required."
+   },
+   "house": true,
+   "story": "After a 20% drop, a stock tightens under its 10 and 20 EMA for five sessions. Today it trades through the high of that range and closes above both, on 1.4 times its 50-day volume."
+  },
+  {
+   "key": "q73",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 4,
+   "format": "scenario",
+   "criterion": "qk.kell_cb_trigger",
+   "q": "Is the Crossback buy on?",
+   "choices": [
+    "Yes; it cleared the prior high",
+    "No; wait for a fresh high first",
+    "No; it should have fallen harder"
+   ],
+   "answer": "Yes; it cleared the prior high",
+   "why": "Yes. Buyers showed: price traded above the prior session's high, on the first pullback into the rising 20 EMA. The stop sits a few cents under the pullback's low.",
+   "lesson_line": "First dip, quiet volume, then over the prior high.",
+   "facts": [
+    "b6",
+    "b6b",
+    "b7",
+    "b8",
+    "L8"
+   ],
+   "wrong": {
+    "No; wait for a fresh high first": "That is the Base n' Break. A Crossback buys over the prior session's high.",
+    "No; it should have fallen harder": "A Crossback drifts sideways or down gently."
+   },
+   "house": true,
+   "story": "After a Wedge Pop, the stock dips to its rising 20 EMA for the first time on volume under the 50-day average. Today it trades above the prior session's high."
+  },
+  {
+   "key": "q74",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "qk.kell_bnb_late",
+   "q": "How does it grade, and why?",
+   "choices": [
+    "A+; second breaks are the best",
+    "Grade down; late in its cycle",
+    "No trade; only one break is allowed"
+   ],
+   "answer": "Grade down; late in its cycle",
+   "why": "Grade down. From the second Base n' Break on, the stock is late in its cycle. Sell into strength sooner and watch for an Exhaustion Extension.",
+   "lesson_line": "Two Base n' Breaks means late in the cycle.",
+   "facts": [
+    "b12",
+    "L10"
+   ],
+   "wrong": {
+    "A+; second breaks are the best": "From the second on, the stock is late in its cycle. Grade down.",
+    "No trade; only one break is allowed": "A second break may be traded, graded down, as its own trade."
+   },
+   "house": true,
+   "story": "A stock has just broken out of its second Base n' Break since the pop."
+  },
+  {
+   "key": "q75",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "qk.kell_air",
+   "q": "What does being 4% above the 10-day do to the buy?",
+   "choices": [
+    "It grades down; Kell found it too much",
+    "It grades up; the trend is very strong",
+    "Nothing; only the stop size matters"
+   ],
+   "answer": "It grades down; Kell found it too much",
+   "why": "It grades down. Kell found 3-4% above the averages too much, and our card lists it as a B- cue. Over 10% above the 10-day we skip the buy.",
+   "lesson_line": "Extended above the averages grades down. Past 10% over the 10-day, skip.",
+   "facts": [
+    "g5",
+    "b2b",
+    "L16",
+    "hC29"
+   ],
+   "wrong": {
+    "It grades up; the trend is very strong": "Kell found 3-4% above the averages too much on his losers. Our card lists it as a B- cue.",
+    "Nothing; only the stop size matters": "Distance above the averages counts. Past 10% above the 10-day we skip the buy."
+   },
+   "house": true,
+   "story": "A leader trades 4% above its 10-day average, with its day's low above the line. A fresh buy tempts you."
+  },
+  {
+   "key": "q76",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "qk.kell_wd_definition",
+   "q": "What do you do?",
+   "choices": [
+    "Exit; it is a Wedge Drop",
+    "Hold; one close proves nothing",
+    "Add; the dip is cheap"
+   ],
+   "answer": "Exit; it is a Wedge Drop",
+   "why": "Exit. Price traded tight into the averages and closed below both on volume above the 50-day average: a Wedge Drop. The trail already exits.",
+   "lesson_line": "A close under both averages on volume after an extension: out.",
+   "facts": [
+    "b16",
+    "b17",
+    "L15"
+   ],
+   "wrong": {
+    "Hold; one close proves nothing": "Holding through a Wedge Drop is a mistake. The trail exits.",
+    "Add; the dip is cheap": "No adds, and a Wedge Drop is an exit, not a buy."
+   },
+   "house": true,
+   "story": "After a blowoff far above its 10-day, a stock trades tight into the averages. Then it closes below both the 10 and 20 EMA on volume above the 50-day average. You hold a long."
+  },
+  {
+   "key": "q77",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "qk.kell_cb_setting",
+   "q": "Is this a Crossback or a Base n' Break?",
+   "choices": [
+    "EMA Crossback; it touched the 10 EMA",
+    "Base n' Break; a tight base near highs",
+    "Wedge Pop; it is above the averages"
+   ],
+   "answer": "Base n' Break; a tight base near highs",
+   "why": "Base n' Break. In an up cycle, near the highs, a tight base of 5 to 15 sessions whose lows hold the rising 10/20 EMA. The buy is through the pivot into new highs.",
+   "lesson_line": "A shelf near the highs on the averages is a Base n' Break.",
+   "facts": [
+    "b9",
+    "b6",
+    "L9",
+    "L11"
+   ],
+   "wrong": {
+    "EMA Crossback; it touched the 10 EMA": "A Crossback is the first pullback after the pop, not a shelf near the highs.",
+    "Wedge Pop; it is above the averages": "A Wedge Pop comes from under the averages."
+   },
+   "house": true,
+   "story": "A leader popped weeks ago and has already had its first pullback to the averages. Now it sits near its high, and for eight sessions its lows hold the rising 10 EMA in a tight shelf."
+  },
+  {
+   "key": "q78",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "qk.kell_market",
+   "q": "What does the card say?",
+   "choices": [
+    "Trade your normal count",
+    "Trade more; leaders outrun the index",
+    "Fewer trades and lower exposure"
+   ],
+   "answer": "Fewer trades and lower exposure",
+   "why": "Fewer trades and lower exposure when the index is below its 20 EMA.",
+   "lesson_line": "Below the index's 20 EMA, do less.",
+   "facts": [
+    "b18",
+    "hF65"
+   ],
+   "wrong": {
+    "Trade your normal count": "The card asks for fewer trades and lower exposure.",
+    "Trade more; leaders outrun the index": "Leaders that pop before the index are the best, but below the 20 EMA we do less."
+   },
+   "house": true,
+   "story": "Your leader looks perfect, but the index is below its 20 EMA."
+  },
+  {
+   "key": "q79",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "qk.kell_re_shape",
+   "q": "Per Kell, is that bar a clean buy?",
+   "choices": [
+    "Not necessarily; a change of mindset",
+    "Yes; it is the bottom for sure",
+    "Yes, with a wide stop"
+   ],
+   "answer": "Not necessarily; a change of mindset",
+   "why": "Not necessarily. Kell: the Reversal Extension is not necessarily a playable setup but more of a change in mindset.",
+   "lesson_line": "A Reversal Extension is a signal to watch, not a setup to chase.",
+   "facts": [
+    "L3",
+    "b2b"
+   ],
+   "wrong": {
+    "Yes; it is the bottom for sure": "You only know it was the low later. Kell calls it a change of mindset, not necessarily a setup.",
+    "Yes, with a wide stop": "A wide stop does not make it a setup."
+   },
+   "house": true,
+   "story": "The index prints a hard drop far under its 10 EMA on heavy volume, then snaps back."
+  },
+  {
+   "key": "q80",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "qk.kell_ee_count",
+   "q": "What should you expect next?",
+   "choices": [
+    "A straight run with no pause",
+    "A longer base before the next move",
+    "An immediate new high"
+   ],
+   "answer": "A longer base before the next move",
+   "why": "A longer base. After 3 to 4 extensions, expect a longer base.",
+   "lesson_line": "Three or four extensions in a run: expect a longer rest.",
+   "facts": [
+    "b15",
+    "L12"
+   ],
+   "wrong": {
+    "A straight run with no pause": "After 3 to 4 extensions, expect a longer base.",
+    "An immediate new high": "The count says the stock needs time to base."
+   },
+   "house": true,
+   "story": "A leader has just printed its third Exhaustion Extension in this advance."
+  },
+  {
+   "key": "q84",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 2,
+   "format": "mcq",
+   "criterion": "qk.breakout_top_movers",
+   "q": "Which stocks does Kullamagi scan for?",
+   "choices": [
+    "The 1 or 2% up most over 3 timeframes",
+    "Stocks that fell the most this quarter",
+    "The cheapest stocks in each big group"
+   ],
+   "answer": "The 1 or 2% up most over 3 timeframes",
+   "why": "The 1 or 2% of stocks up the most over 3 timeframes. Those leaders are the ones worth watching for a base.",
+   "lesson_line": "Start with the leaders: the top 1 or 2% by gain.",
+   "facts": [
+    "K8",
+    "aTop"
+   ],
+   "wrong": {
+    "Stocks that fell the most this quarter": "He buys strength. The scan is for the biggest gainers, not the biggest losers.",
+    "The cheapest stocks in each big group": "He ranks by how far a stock has risen, not by a low price."
+   },
+   "house": true
+  },
+  {
+   "key": "q85",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 3,
+   "format": "tf",
+   "criterion": "qk.breakout_top_movers",
+   "q": "Our card treats a top-2% gainer, or an RS rating of 90 or more, as an A+ cue.",
+   "answer": "True",
+   "why": "True. The card lifts the grade for the top 2% of liquid stocks by gain, or RS 90 or more. Grading stays a judgment call.",
+   "lesson_line": "Top 2% by gain, or RS 90 or more, helps the grade.",
+   "facts": [
+    "aTop",
+    "hE50"
+   ],
+   "house": true
+  },
+  {
+   "key": "q86",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 4,
+   "format": "numeric",
+   "criterion": "qk.breakout_liquidity",
+   "q": "A stock closes at $18 and averages 1,100,000 shares a day. What is its dollar volume a day, in millions?",
+   "answer": 19.8,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "a * b / 1000000",
+     "a": 1100000,
+     "b": 18
+    },
+    "round": 2
+   },
+   "why": "19.8 million. That is under the $20 million a day line, so it fails our liquidity rule even with the price over $10.",
+   "lesson_line": "Both tests: $10 or more, and $20 million a day.",
+   "facts": [
+    "hB23",
+    "aLiq"
+   ],
+   "house": true,
+   "prefix": "$",
+   "suffix": " million"
+  },
+  {
+   "key": "q87",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "qk.breakout_liquidity",
+   "q": "Does it pass our liquidity rule?",
+   "choices": [
+    "No; the price is under $10 a share",
+    "Yes; dollar volume clears $20 million",
+    "Only at half size, as the base is clean"
+   ],
+   "answer": "No; the price is under $10 a share",
+   "why": "No. Our rule wants a price of $10 or more and at least $20 million a day. At $9.40 this one fails the price test.",
+   "lesson_line": "Price at $10 or more, and $20 million a day. Both.",
+   "facts": [
+    "hB23",
+    "aLiq"
+   ],
+   "wrong": {
+    "Yes; dollar volume clears $20 million": "The dollar volume passes, but the price test fails. Both must pass.",
+    "Only at half size, as the base is clean": "A clean base does not waive the liquidity rule, at any size."
+   },
+   "house": true,
+   "story": "A leader trades at $9.40 on 4 million shares a day. Its 20-session base is clean and tight."
+  },
+  {
+   "key": "q88",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 6,
+   "format": "numeric",
+   "criterion": "qk.breakout_position_adv",
+   "q": "Your stop math says 12,000 shares. The stock averages 800,000 shares a day. How many shares may you buy?",
+   "answer": 8000,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "adv / 100",
+     "adv": 800000
+    },
+    "round": 0
+   },
+   "why": "8,000 shares. One percent of 800,000 is 8,000, which is under 12,000, so the volume cap sets the size.",
+   "lesson_line": "Never own more than 1% of average daily volume.",
+   "facts": [
+    "hD42",
+    "aADV"
+   ],
+   "house": true,
+   "suffix": " shares"
+  },
+  {
+   "key": "q89",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 2,
+   "format": "tf",
+   "criterion": "qk.breakout_position_adv",
+   "q": "Our size cap is 1% of today's volume, so a heavy day lifts it.",
+   "answer": "False",
+   "why": "False. The cap is 1% of average daily volume, so one heavy day does not lift it. Illiquid stocks are not even watched.",
+   "lesson_line": "Size to 1% of average volume, never today's.",
+   "facts": [
+    "hD42",
+    "aADV"
+   ],
+   "house": true
+  },
+  {
+   "key": "q90",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 2,
+   "format": "mcq",
+   "criterion": "qk.breakout_depth_a",
+   "q": "Our card calls which base depth the A+ depth?",
+   "choices": [
+    "15% deep or less",
+    "25% deep or less",
+    "Half the prior move or less"
+   ],
+   "answer": "15% deep or less",
+   "why": "15% deep or less. The 25% cap decides whether a base counts, and 15% or less is the A+ depth on our card.",
+   "lesson_line": "A base 15% deep or less is the A+ depth.",
+   "facts": [
+    "a10",
+    "a11"
+   ],
+   "wrong": {
+    "25% deep or less": "That is the cap every base must pass, not the A+ line.",
+    "Half the prior move or less": "That is the second depth cap. A base can pass it and still not be A+ depth."
+   },
+   "house": true
+  },
+  {
+   "key": "q91",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "qk.breakout_depth_a",
+   "q": "Which breakout has the better depth?",
+   "choices": [
+    "The 12% base; it is shallower",
+    "The 23% base; it has more room",
+    "Equal; any base under the cap is alike"
+   ],
+   "answer": "The 12% base; it is shallower",
+   "why": "The 12% base. Both pass the 25% cap, but only the 12% base is inside the 15% A+ depth. Grading is a judgment call.",
+   "lesson_line": "Shallow and tight earns the A+ depth.",
+   "facts": [
+    "a11",
+    "a10",
+    "hE50"
+   ],
+   "wrong": {
+    "The 23% base; it has more room": "Deeper is not better. It only has to stay under the 25% cap; 15% or less earns the A+ depth.",
+    "Equal; any base under the cap is alike": "Both pass the cap, but on our card 15% or less is the A+ depth."
+   },
+   "house": true,
+   "story": "Two leaders break out of 15-session bases after similar runs. One base is 12% deep and the other is 23% deep. Both pass the cap."
+  },
+  {
+   "key": "q92",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "qk.breakout_ma_order",
+   "q": "Does the breakout day pass our card?",
+   "choices": [
+    "No; the 10 must top the 20, both up",
+    "Yes; the base and volume are enough",
+    "Partly; flat averages show a tight base"
+   ],
+   "answer": "No; the 10 must top the 20, both up",
+   "why": "No. On our card the 10-day EMA sits above the 20-day EMA, with both rising. Kell sees no reason to be long with the 10 under the 20.",
+   "lesson_line": "Breakout day: the 10 over the 20, both rising.",
+   "facts": [
+    "aMA",
+    "L2"
+   ],
+   "wrong": {
+    "Yes; the base and volume are enough": "The card also asks for the 10-day EMA above the 20-day EMA, both rising.",
+    "Partly; flat averages show a tight base": "Flat averages fail the test. Both lines must be rising."
+   },
+   "house": true,
+   "story": "A leader breaks out of a 20-session base on good volume. Its 10-day EMA sits just under the 20-day EMA, and both are flat."
+  },
+  {
+   "key": "q93",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "qk.breakout_market_order",
+   "q": "What do you set up tonight?",
+   "choices": [
+    "An alert at the high; the plan written",
+    "A limit order resting at the base high",
+    "Nothing yet; you decide after the open"
+   ],
+   "answer": "An alert at the high; the plan written",
+   "why": "An alert at the base high and a written plan. The buy itself is a market order when the level breaks.",
+   "lesson_line": "Alert the night before, then a market order.",
+   "facts": [
+    "a16",
+    "hE57",
+    "hD39"
+   ],
+   "wrong": {
+    "A limit order resting at the base high": "Our entries are market orders, bought as the level breaks.",
+    "Nothing yet; you decide after the open": "The entry, stop and size are written before the market opens."
+   },
+   "house": true,
+   "story": "It is 6 pm. A leader sits just under its base high, and you plan to buy the break tomorrow."
+  },
+  {
+   "key": "q94",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 3,
+   "format": "tf",
+   "criterion": "qk.breakout_market_order",
+   "q": "If a leader breaks its level in pre-market, we buy it there with a market order.",
+   "answer": "False",
+   "why": "False. Entries are market orders, but no new buys go in outside regular trading hours.",
+   "lesson_line": "Market order, regular hours. Pre-market breaks wait.",
+   "facts": [
+    "hE58",
+    "hE57",
+    "a16"
+   ],
+   "house": true
+  },
+  {
+   "key": "q95",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 4,
+   "format": "numeric",
+   "criterion": "qk.breakout_not_stretched",
+   "q": "The 10-day average is 50.00. At what price does a long become too stretched to buy?",
+   "answer": 55,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "a * 1.1",
+     "a": 50.0
+    },
+    "round": 2
+   },
+   "why": "55.00. Ten percent above the 50.00 average is 55.00. Above that, we skip the long.",
+   "lesson_line": "Skip a long more than 10% above its 10-day.",
+   "facts": [
+    "hC29"
+   ],
+   "house": true,
+   "prefix": "$"
+  },
+  {
+   "key": "q96",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "qk.breakout_not_stretched",
+   "q": "Buy at market, or pass?",
+   "choices": [
+    "Pass; over 10% above its 10-day",
+    "Buy; it is inside 4% of the high",
+    "Half now and half on a dip"
+   ],
+   "answer": "Pass; over 10% above its 10-day",
+   "why": "Pass. It is within 4% of the base high, but 41.20 is more than 10% above the 36.00 average.",
+   "lesson_line": "Two checks: under 4% past the high, and under 10% stretched.",
+   "facts": [
+    "hC29",
+    "hC28"
+   ],
+   "wrong": {
+    "Buy; it is inside 4% of the high": "That test passes, but the stretch test fails. Both apply.",
+    "Half now and half on a dip": "No scaling. A stock this stretched is skipped."
+   },
+   "house": true,
+   "story": "The base high is 40.00. After a run, the stock opens at 41.20, just 3% over it. Its 10-day average is 36.00."
+  },
+  {
+   "key": "q97",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "qk.breakout_retrace_buy",
+   "q": "May you buy it?",
+   "choices": [
+    "Yes, as a new trade with its own stop",
+    "Yes, but only at half size",
+    "No; a missed breakout is gone for good"
+   ],
+   "answer": "Yes, as a new trade with its own stop",
+   "why": "Yes, as a new trade. On our card it needs its own trigger and stop, and the buy still stays within 4% of the level.",
+   "lesson_line": "A retrace buy is a new trade with its own stop.",
+   "facts": [
+    "aRet",
+    "K9",
+    "hC28"
+   ],
+   "wrong": {
+    "Yes, but only at half size": "Size comes from the stop and the risk rule. Missing the first move does not halve it.",
+    "No; a missed breakout is gone for good": "Kullamagi sometimes buys the retrace, so a miss is not final."
+   },
+   "house": true,
+   "story": "A leader broke out Monday and you missed it. By Thursday it dips back to the old base high and turns up through it."
+  },
+  {
+   "key": "q98",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 6,
+   "format": "numeric",
+   "criterion": "qk.breakout_stop_gap",
+   "q": "You bought at 50.00 with the stop at 48.00. A gap-down day's first 30-minute low is 45.80. What is the loss, in R?",
+   "answer": 2.1,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(a - c) / (a - b)",
+     "a": 50.0,
+     "b": 48.0,
+     "c": 45.8
+    },
+    "round": 1
+   },
+   "why": "2.1R. That is past the 2R ceiling, so you get out.",
+   "lesson_line": "First 30 minutes past 2R: get out.",
+   "facts": [
+    "hB20c",
+    "aSG"
+   ],
+   "house": true,
+   "suffix": "R"
+  },
+  {
+   "key": "q99",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "qk.breakout_stop_gap",
+   "q": "Where does your stop go now?",
+   "choices": [
+    "47.20, the first 30-minute low",
+    "48.00; the old stop still stands",
+    "Sell at the open, whatever the price"
+   ],
+   "answer": "47.20, the first 30-minute low",
+   "why": "47.20. The first 30 minutes of the gap day decide, and the low of that bar is the new stop. The loss stays under 2R.",
+   "lesson_line": "After a gap, the first 30-minute low is the stop.",
+   "facts": [
+    "hB20",
+    "hB20c",
+    "aSG"
+   ],
+   "wrong": {
+    "48.00; the old stop still stands": "The stop sits above the open, so it cannot hold. The first 30 minutes set the new one.",
+    "Sell at the open, whatever the price": "You get out only if the first 30 minutes take the loss past 2R. Here they do not."
+   },
+   "house": true,
+   "story": "You bought at 50.00 with the stop at 48.00. The stock gaps open at 47.60. The first 30-minute low is 47.20."
+  },
+  {
+   "key": "q100",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "qk.breakout_stop_broker",
+   "q": "Is that enough?",
+   "choices": [
+    "No; enter a real stop with the broker",
+    "Yes; you are watching the screen anyway",
+    "Partly; add a price alert as a backup"
+   ],
+   "answer": "No; enter a real stop with the broker",
+   "why": "No. Every position has a real stop order with the broker, not a stop kept in your head.",
+   "lesson_line": "A real stop order, placed with the broker.",
+   "facts": [
+    "hD41"
+   ],
+   "wrong": {
+    "Yes; you are watching the screen anyway": "A stop kept in your head is not a stop. Every position has a real order.",
+    "Partly; add a price alert as a backup": "An alert is not an order. The stop sits with the broker."
+   },
+   "house": true,
+   "story": "You will be at your screen all day. You plan to sell by hand if the stock falls to your stop."
+  },
+  {
+   "key": "q101",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 4,
+   "format": "tf",
+   "criterion": "qk.breakout_stop_broker",
+   "q": "After the buy, you may lower the stop a little to give the trade room.",
+   "answer": "False",
+   "why": "False. The stop only moves up, never down or wider. The one exception is the gap rule.",
+   "lesson_line": "A stop moves up. It does not widen.",
+   "facts": [
+    "hA4"
+   ],
+   "house": true
+  },
+  {
+   "key": "q102",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 3,
+   "format": "mcq",
+   "criterion": "qk.breakout_breakeven",
+   "q": "Where may the stop move up to breakeven on a winner?",
+   "choices": [
+    "Between 2R and 5R",
+    "Between 5R and 10R",
+    "Between 0R and 1R"
+   ],
+   "answer": "Between 2R and 5R",
+   "why": "Between 2R and 5R. On our rulebook that is the ideal window for moving the stop to breakeven.",
+   "lesson_line": "Breakeven comes between 2R and 5R.",
+   "facts": [
+    "hB19",
+    "aBE"
+   ],
+   "wrong": {
+    "Between 5R and 10R": "That is past the window. The ideal is 2R to 5R.",
+    "Between 0R and 1R": "That is too early. The window opens at 2R."
+   },
+   "house": true
+  },
+  {
+   "key": "q103",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 5,
+   "format": "numeric",
+   "criterion": "qk.breakout_breakeven",
+   "q": "Bought at 36.00 with the stop at 34.00. At what price does the breakeven window open, at 2R?",
+   "answer": 40,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "a + 2 * (a - b)",
+     "a": 36.0,
+     "b": 34.0
+    },
+    "round": 2
+   },
+   "why": "40.00. Add two times the risk to the buy. From there the stop may move up to the 36.00 entry.",
+   "lesson_line": "2R above the buy opens the breakeven window.",
+   "facts": [
+    "hB19",
+    "aBE"
+   ],
+   "house": true,
+   "prefix": "$"
+  },
+  {
+   "key": "q104",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 5,
+   "format": "numeric",
+   "criterion": "qk.breakout_trim_2",
+   "q": "Bought at 52.35 with the stop at 51.21. Where is 5R, the second trim?",
+   "answer": 58.05,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "a + 5 * (a - b)",
+     "a": 52.35,
+     "b": 51.21
+    },
+    "round": 2
+   },
+   "why": "58.05. Add five times the risk to the buy. Another third comes off there, after the first third at 3R.",
+   "lesson_line": "A third at 3R, a third at 5R, trail the rest.",
+   "facts": [
+    "hE51",
+    "aT2"
+   ],
+   "house": true,
+   "prefix": "$"
+  },
+  {
+   "key": "q105",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "qk.breakout_trim_2",
+   "q": "How many shares do you sell?",
+   "choices": [
+    "Another 300; trail the final 300",
+    "All 600 now, because 5R is plenty",
+    "Nothing; wait for 10R before trimming"
+   ],
+   "answer": "Another 300; trail the final 300",
+   "why": "Another 300. After the first third at 3R comes another third at 5R, then you trail the last third.",
+   "lesson_line": "At 5R, sell the second third.",
+   "facts": [
+    "hE51",
+    "aT2"
+   ],
+   "wrong": {
+    "All 600 now, because 5R is plenty": "Our plan sells a third at 5R and trails the rest, so winners can run.",
+    "Nothing; wait for 10R before trimming": "The second trim comes at 5R. Waiting longer skips it."
+   },
+   "house": true,
+   "story": "You bought 900 shares and sold a third at 3R. The stock now reaches 5R."
+  },
+  {
+   "key": "q106",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 2,
+   "format": "fill",
+   "criterion": "qk.breakout_trim_gap_open",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "If a stock opens above a trim level, take that trim at the ___.",
+   "bank": [
+    "open",
+    "close",
+    "high",
+    "pullback",
+    "next dip"
+   ],
+   "answer": "open",
+   "why": "Open. A stock that opens above 3R or 5R is already past the level, so you take that trim at the open.",
+   "lesson_line": "Gap above a trim level: take it at the open.",
+   "facts": [
+    "hF63",
+    "aGap"
+   ],
+   "house": true
+  },
+  {
+   "key": "q107",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "qk.breakout_trim_gap_open",
+   "q": "When do you take the first third?",
+   "choices": [
+    "At the open; the level is passed",
+    "Wait for a dip back down to 46.00",
+    "Hold until 5R, since it gapped up"
+   ],
+   "answer": "At the open; the level is passed",
+   "why": "At the open. The stock opened above the 46.00 trim level, so you take that trim at the open.",
+   "lesson_line": "Opens past the level: take the trim now.",
+   "facts": [
+    "hF63",
+    "hB19"
+   ],
+   "wrong": {
+    "Wait for a dip back down to 46.00": "Waiting risks giving the gain back. The level is already passed.",
+    "Hold until 5R, since it gapped up": "The first trim is a third at 3R, and the gap only means you take it sooner."
+   },
+   "house": true,
+   "story": "You bought at 40.00 with the stop at 38.00, so 3R is 46.00. The next morning the stock opens at 47.50."
+  },
+  {
+   "key": "q108",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "qk.breakout_time_stop",
+   "q": "What do you do?",
+   "choices": [
+    "Sell it now and free the money",
+    "Hold; the stop has not been hit",
+    "Move the stop to breakeven, wait"
+   ],
+   "answer": "Sell it now and free the money",
+   "why": "Sell it. A trade still under 1R after 10 trading days is sold, freeing the money.",
+   "lesson_line": "Under 1R after 10 trading days: sell.",
+   "facts": [
+    "hC33",
+    "aTS"
+   ],
+   "wrong": {
+    "Hold; the stop has not been hit": "The time stop is a second exit. A stalled trade does not wait for the stop.",
+    "Move the stop to breakeven, wait": "A stalled trade is sold. Breakeven is for a winner."
+   },
+   "house": true,
+   "story": "You bought a breakout 10 trading days ago. It has chopped sideways and is up 0.4R. The stop was never touched."
+  },
+  {
+   "key": "q109",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 3,
+   "format": "tf",
+   "criterion": "qk.breakout_time_stop",
+   "q": "A trade up 1.5R after ten trading days still has to be sold by the time stop.",
+   "answer": "False",
+   "why": "False. The time stop sells a trade still under 1R after 10 trading days. At 1.5R it is working, so it stays.",
+   "lesson_line": "The time stop is for trades stuck under 1R.",
+   "facts": [
+    "hC33",
+    "aTS"
+   ],
+   "house": true
+  },
+  {
+   "key": "q110",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "qk.breakout_climax",
+   "q": "What do you do with the position?",
+   "choices": [
+    "Sell a big part into the burst",
+    "Add; it is working best right now",
+    "Hold it all and wait for the 10-day"
+   ],
+   "answer": "Sell a big part into the burst",
+   "why": "Sell a big part into it. Three up days, two gap ups and rising volume are the signs of a parabolic burst. It is a judgment call.",
+   "lesson_line": "A climax run is a time to sell strength.",
+   "facts": [
+    "hC34",
+    "hB26b",
+    "aCl"
+   ],
+   "wrong": {
+    "Add; it is working best right now": "A climax is where you take profit, not where you add.",
+    "Hold it all and wait for the 10-day": "The rule says sell a big part into the burst. The trail comes after."
+   },
+   "house": true,
+   "story": "Your long has jumped three straight days with two overnight gaps up. Volume rose two days running, and today it gaps up again."
+  },
+  {
+   "key": "q111",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 3,
+   "format": "mcq",
+   "criterion": "qk.breakout_climax",
+   "q": "Which sign belongs to a parabolic burst?",
+   "choices": [
+    "Two straight overnight gap ups",
+    "Volume shrinking on each up day",
+    "Three tight inside days in a row",
+    "A first pullback to the 20-day"
+   ],
+   "answer": "Two straight overnight gap ups",
+   "why": "Two straight overnight gap ups. The burst is a 3-5 day final leg with gaps, wide ranges and rising volume.",
+   "lesson_line": "A burst: gaps, wide ranges, rising volume.",
+   "facts": [
+    "hB26b",
+    "hC34"
+   ],
+   "wrong": {
+    "Volume shrinking on each up day": "A burst runs on rising volume, not falling volume.",
+    "Three tight inside days in a row": "A burst widens its ranges. Tight inside days are the opposite.",
+    "A first pullback to the 20-day": "A burst is a final leg up, not a pullback."
+   },
+   "house": true
+  },
+  {
+   "key": "q112",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 3,
+   "format": "mcq",
+   "criterion": "qk.breakout_after_entry_stop",
+   "q": "After the buy, what ends a trade that is not working?",
+   "choices": [
+    "The stop, or the time stop",
+    "The news turning against the stock",
+    "A hunch that the market is weak"
+   ],
+   "answer": "The stop, or the time stop",
+   "why": "The stop, or the time stop. After the buy the stop is the exit, and a trade still under 1R after 10 trading days is sold.",
+   "lesson_line": "After the buy: the stop, or the time stop.",
+   "facts": [
+    "aAfter",
+    "hA4",
+    "hC33"
+   ],
+   "wrong": {
+    "The news turning against the stock": "News is not an exit. The stop is.",
+    "A hunch that the market is weak": "A hunch is not a rule. After the buy, the stop is the exit."
+   },
+   "house": true
+  },
+  {
+   "key": "q113",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "qk.breakout_after_entry_stop",
+   "q": "What exits this trade?",
+   "choices": [
+    "The stop or time stop, not news",
+    "Sell at the open; the news is bad",
+    "Lower the stop to ride out the dip"
+   ],
+   "answer": "The stop or time stop, not news",
+   "why": "The stop or the time stop. The stop is the exit, so a headline does not change the plan while the stop holds.",
+   "lesson_line": "The stop is the exit. News is not.",
+   "facts": [
+    "aAfter",
+    "hA4"
+   ],
+   "wrong": {
+    "Sell at the open; the news is bad": "The stop is the exit. A headline does not change the plan while the stop holds.",
+    "Lower the stop to ride out the dip": "The stop only moves up."
+   },
+   "house": true,
+   "story": "Day 6 after the buy. An analyst downgrade opens the stock down 2%. It is still above your stop and still in profit."
+  },
+  {
+   "key": "q114",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 4,
+   "format": "mcq",
+   "criterion": "qk.kell_wp_setting",
+   "q": "What sets up a Wedge Pop?",
+   "choices": [
+    "A drop, then price and EMAs tighten",
+    "A flat base riding above both the EMAs",
+    "A first dip into the rising 20 EMA",
+    "Three straight gap ups on volume"
+   ],
+   "answer": "A drop, then price and EMAs tighten",
+   "why": "A drop, then tightening. After a Reversal Extension or a correction, price tightens against the 10/20 EMA and the two averages converge.",
+   "lesson_line": "Fall, then tighten: that is the Wedge Pop setting.",
+   "facts": [
+    "b3",
+    "L5"
+   ],
+   "wrong": {
+    "A flat base riding above both the EMAs": "That is the base behind a Qullamaggie breakout, not a Wedge Pop.",
+    "A first dip into the rising 20 EMA": "That is the EMA Crossback, which comes after the pop.",
+    "Three straight gap ups on volume": "That is a burst, not a wedge."
+   },
+   "house": true
+  },
+  {
+   "key": "q115",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 4,
+   "format": "tf",
+   "criterion": "qk.kell_wp_time_of_day",
+   "q": "Kell skips the first 10 to 15 minutes of the session unless a stock has a catalyst like earnings.",
+   "answer": "True",
+   "why": "True. He does not trade the first 10-15 minutes without a catalyst. We have no time-of-day rule, so for us it is a grade cue.",
+   "lesson_line": "Kell waits 10-15 minutes. For us it is a cue.",
+   "facts": [
+    "L19",
+    "hC30"
+   ],
+   "house": true
+  },
+  {
+   "key": "q116",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "qk.kell_wp_time_of_day",
+   "q": "Does our rulebook stop you from buying?",
+   "choices": [
+    "No; we have no time-of-day rule",
+    "Yes; Kell's wait is our rule too",
+    "Only if there is news that day"
+   ],
+   "answer": "No; we have no time-of-day rule",
+   "why": "No. We have no time-of-day rule. Kell's wait of 10-15 minutes without a catalyst is a grade cue, not a ban.",
+   "lesson_line": "No time rule. Kell's wait only moves the grade.",
+   "facts": [
+    "hC30",
+    "L19"
+   ],
+   "wrong": {
+    "Yes; Kell's wait is our rule too": "Kell's wait is his habit. Our rulebook has no time-of-day rule.",
+    "Only if there is news that day": "We have no time-of-day rule, with or without news."
+   },
+   "house": true,
+   "story": "A leader trades through its pivot at 9:36, six minutes after the open, on no news. Kell would wait 10 to 15 minutes without a catalyst."
+  },
+  {
+   "key": "q117",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 3,
+   "format": "mcq",
+   "criterion": "qk.kell_cb_stop",
+   "q": "Where does the EMA Crossback stop go?",
+   "choices": [
+    "A few cents under the pullback's low",
+    "A few cents under the 200-day average",
+    "Two ATRs under the pullback's low",
+    "Just under the prior session's high"
+   ],
+   "answer": "A few cents under the pullback's low",
+   "why": "A few cents under the pullback's low. Kell uses the support low as his stop when he buys off the 10 or 20 EMA.",
+   "lesson_line": "Crossback stop: under the pullback's low.",
+   "facts": [
+    "b8",
+    "hF62",
+    "L21"
+   ],
+   "wrong": {
+    "A few cents under the 200-day average": "The 200-day sits far away. The stop belongs under the pullback's low.",
+    "Two ATRs under the pullback's low": "The stop is the low itself, a few cents under, not a volatility multiple.",
+    "Just under the prior session's high": "The prior high is the trigger, not the stop."
+   },
+   "house": true
+  },
+  {
+   "key": "q118",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 5,
+   "format": "numeric",
+   "criterion": "qk.kell_cb_stop",
+   "q": "Kell sizes a 15% position with a 2% stop. What share of the account does that risk, in percent?",
+   "answer": 0.3,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "a * b / 100",
+     "a": 15,
+     "b": 2
+    },
+    "round": 1
+   },
+   "why": "0.3%. A 15% position with a 2% stop risks 0.3% of the account, or 30 bps, the top of Kell's 15-30 bps.",
+   "lesson_line": "Position size times stop width is the risk.",
+   "facts": [
+    "L17"
+   ],
+   "house": true,
+   "suffix": "%"
+  },
+  {
+   "key": "q119",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "qk.kell_bnb_trigger",
+   "q": "What do you do?",
+   "choices": [
+    "Buy at market; it is past the pivot",
+    "Wait for a dip back to the 20 EMA",
+    "Buy tomorrow, after a close above it"
+   ],
+   "answer": "Buy at market; it is past the pivot",
+   "why": "Buy at market. The proper buy area is through the pivot into new highs, and our entries are market orders.",
+   "lesson_line": "Base n' Break: through the pivot, at market.",
+   "facts": [
+    "L11",
+    "bBnT",
+    "hE57"
+   ],
+   "wrong": {
+    "Wait for a dip back to the 20 EMA": "A dip to the 20 EMA is the Crossback, a different phase.",
+    "Buy tomorrow, after a close above it": "The buy area is through the pivot. Buying tomorrow adds distance."
+   },
+   "house": true,
+   "story": "A leader holds a tight 8-session shelf on its rising 10 EMA, near its highs. Today it trades through the shelf's high to a new high."
+  },
+  {
+   "key": "q120",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "qk.kell_bnb_stop",
+   "q": "Where does the stop go?",
+   "choices": [
+    "A few cents under 49.10 (closer low)",
+    "A few cents under 48.20, the pivot low",
+    "At 50.30, the buy price, at once"
+   ],
+   "answer": "A few cents under 49.10 (closer low)",
+   "why": "A few cents under 49.10. The stop goes under the pivot bar's low or the breakout day's low, whichever is closer and honest.",
+   "lesson_line": "Base n' Break stop: the closer honest low.",
+   "facts": [
+    "bBnS",
+    "L18"
+   ],
+   "wrong": {
+    "A few cents under 48.20, the pivot low": "Both lows are honest, so take the closer one. 48.20 only adds distance.",
+    "At 50.30, the buy price, at once": "A stop at the buy gives the trade no room. Breakeven comes later."
+   },
+   "house": true,
+   "story": "You buy a Base n' Break at 50.30. The pivot bar's low is 48.20 and the breakout day's low is 49.10. Both are honest levels."
+  },
+  {
+   "key": "q121",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "qk.kell_bnb_new_trade",
+   "q": "Do you add?",
+   "choices": [
+    "No; one price, one stop, no adding",
+    "Yes; Kell treats it as an addition",
+    "Partly; add half your first size"
+   ],
+   "answer": "No; one price, one stop, no adding",
+   "why": "No. Kell calls the Base n' Break an addition. Our rule is full size at one price with one stop, no adding.",
+   "lesson_line": "No adds. A later phase is a new trade from flat.",
+   "facts": [
+    "L20",
+    "hA5",
+    "bBnN"
+   ],
+   "wrong": {
+    "Yes; Kell treats it as an addition": "Kell calls the Base n' Break an addition. Our rule is full size at one price with one stop.",
+    "Partly; add half your first size": "We do not add. Each later phase is its own trade from flat."
+   },
+   "house": true,
+   "story": "You hold a leader bought at its Wedge Pop. It now breaks out of its first Base n' Break, and a friend says to add shares."
+  },
+  {
+   "key": "q122",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 3,
+   "format": "tf",
+   "criterion": "qk.kell_bnb_new_trade",
+   "q": "After a stop-out, a later Base n' Break that triggers is a new trade with its own stop and size.",
+   "answer": "True",
+   "why": "True. After a stop-out you buy again only on a new trigger, as a new trade with its own stop and every rule.",
+   "lesson_line": "A new trigger means a new trade.",
+   "facts": [
+    "hB21",
+    "bBnN"
+   ],
+   "house": true
+  }
+ ],
+ "conflicts": [
+  "Unit id and skill from the brief (SET.45, setup.qullamaggie_kell). UNITS-method has no row for this card (its unit is 'none'), so the id is provisional pending D-002, the setup map (dossier question 1: its own card under his name, or folded into Flat Base, Bull Flag and High Tight Flag). The unit follows the criteria card and dossier 18: Part A is the breakout, Part B the Kell steps where the card is settled or proposed.",
+  "Pending-owner criteria kept OUT of every key and wrong note (the course's current default, waiting on the owner): qk.breakout_prior_move, the size and window of the move before the base (D-029; no item states a percent, a session count or the 63-session window as a rule, the originator's '30-100%+' is not quoted, and the card's AMZN 2020-08-06 near-miss is not used because its one failing criterion is this one; the card's lookalike tell against the High Tight Flag also carries it, so that border is not asked). qk.breakout_stop_3_to_adr, what to do when the honest stop is wider than 3% but inside the ADR (D-005; the three walk-throughs are CRSP, HWM and CPRI, all inside 3%, q28 keys only a stop wider than the ADR, and PBF, POWL, MSTR and ISRG, whose stops sit over 3%, appear in no walk-through and no item; ISRG is cited only for its light-volume breakout, q34). qk.breakout_kullamagi_trim, his sell a third to a half after 3 to 5 days (D-013; not quoted; q82 keys his trail, which is nearly the house line, and no item quotes his trim). qk.kell_averages, 10/20 or the house 9/20 (D-021; the unit uses the 10 and 20-day EMAs as the proposed criteria state them). qk.kell_re_watch_only and qk.kell_re_trade_option, what to do with a Reversal Extension (D-081; q79 keys Kell's own words only, not whether we watch or trade it). qk.kell_wp_above_200, a Wedge Pop or crossback under the 200-day (D-009; no item, and no story places a pop under the 200-day). qk.kell_ee_action, how much to sell into an extension (D-013; q68 and q69 key the definition and q75 keys air, and no item says how much to sell). The Kell shorts, qk.kell_wd_short, qk.kell_down_crossback, qk.kell_down_bnb, qk.kell_down_gates (D-001, the short mirror; not taught here).",
+  "Averages: the card's proposed criteria read the 10 and 20-day EMAs; the house stack elsewhere is 9 and 20 and the trail is the 10-day or 21-day (E52). The unit says 10 and 20 EMA for Kell's phases and 10-day or 21-day for the trail, never asks the member to choose, and q07 keys Kullamagi's rising 10- and 20-day (he does not say EMA or SMA).",
+  "Part B has no real chart examples: the dossier charts the Kell buy phases in the Wedge Pop and EMA Crossback dossiers (14 and 15), so q59-q80 use constructed stories whose numbers are given in the story or computed (q69). No chart question is drawn for Part B.",
+  "Kell's wording comes from TraderLion articles bylined Oliver Kell, read from Internet Archive captures because TraderLion's live site refuses automated clients (dossier section 11). The quote checker may report them unreachable or may read the archive; the cold checker should confirm each quote with its own fetch (s2 to s9). The interview line (s10, L16) is Kell's answer in a Q&A.",
+  "The exact entry and stop prices in the examples (d1) are the research scan's: a market order one cent through the base high (or the open if it gapped over), the stop five cents under the breakout day's low, read off our own daily bars, not a public page or an owner ruling. The owner has not reviewed the examples (dossier section 13 limits: no RS rating, only the daily-chart trigger tested, the 25% depth cap applied as written). The walk-throughs and example stories depend on it. The intraday opening-range trigger (qk.breakout_trigger) is taught as the card states it; every example used the daily-chart version.",
+  "Depth: the owner's MRAM note (2026-05-24) came back about 34-42% from about $50, which a 25% cap would reject (dossier 8.1). The 25% cap is proposed on the card, so q09 keys it as the card states it; the owner should rule before the unit goes live.",
+  "The card says 'Bull markets only: a Green market reading' (settled) while its grading names Yellow as a B- cue and F65 lets Yellow trade smaller. q11 keys the card's Green and gives no item on Yellow.",
+  "Near-misses q53 to q55 rest on the dossier's statement that each fails exactly one gate of the card (dNear); the wrong choices that name the other checks say they pass for that reason. The CVNA 80% figure in the dossier is the scan's, not the card's, so q55 asks only that closes hold above the rising 20-day.",
+  "The chart questions (q56 HWM asof 2025-05-14, q57 BIDU asof 2007-12-26) show the member's own chart with their averages; the asof is the session before the breakout day. The keys rest on the dossier's reads (dHWMw, dHWM, dBIDUw, dBIDU). The importer resolves the bars from our own history. Both are daily-chart reads; neither depends on intraday bars.",
+  "Scanners (D-004), the Model Book and journal names (D-014), Adds (D-135) and Earnings size (D-137): the last two are settled (one price and one stop; B22 as written, Kell's reduced earnings size is not taught). Nothing in the unit teaches the app's scanner text.",
+  "Part B stories (q60 to q80) are constructed: they name no ticker or date and carry no price, so a member cannot mistake them for real charts; the real Kell examples live in the Wedge Pop and EMA Crossback cards (SET.15, SET.16). Part A stories that start with a ticker and year are real (CRSP, HWM, CPRI, AMD, NVDA, AMZN, QCOM, OXY, BIDU, CVNA); unnamed Part A stories (q21, q24, q28 to q32, q34, q37 to q40) are made up.",
+  "The 50-over-200 half of qk.breakout_above_200 (q03) is the card's rule, not B26, though the card marks it settled. Every 10/20 EMA item in Part B is pinned to 'Kell' (q59, q61, q62) because D-021 (10/20 or the house 9/20) is still open.",
+  "Cold check 2026-11-10: 70 pass (16 fixed), 0 fix, 2 cut. Look first at: (1) q09, the 25% depth cap is the dossier's number and the owner's own MRAM base was 34-42%; (2) q58, whose key 'the edge is the trims' had no source and is now D45, and q75, whose 'air is a mistake' key contradicted C29 and Part A and is now a grade effect; (3) the Part B 10/20 items wait on D-021. q23 and q24 cut as duplicates of q50 and q51."
+ ],
+ "verify": {
+  "q01": {
+   "status": "pass",
+   "notes": "K1 (found by the quote checker) and a7 (qk.breakout_higher_lows, proposed) verbatim. Key is sideways, higher lows, tightening. Wrong notes true. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q02": {
+   "status": "pass",
+   "notes": "C31/a1 (qk.breakout_leadership, settled) verbatim. True.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q03": {
+   "status": "pass",
+   "notes": "a2 and B26 verbatim. True. The 50-over-200 half is the card's rule (it says so itself), not B26; the question keys only the 200-day.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q04": {
+   "status": "pass",
+   "notes": "a15b/a16 and K3 verbatim (daily-chart trigger, market order, E57 settled). qk.breakout_trigger is proposed; the opening-range form is not asked. Wrong choices are real mistakes. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q05": {
+   "status": "pass",
+   "notes": "a22, F62 and K5 verbatim: a few cents under the breakout day's low. True.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q06": {
+   "status": "pass",
+   "notes": "a23/A3 (qk.breakout_stop_adr, settled) and K5 verbatim: a stop wider than the ADR is a skip. False is right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q07": {
+   "status": "pass",
+   "notes": "K2 verbatim (found). Kullamagi does not say EMA or SMA; the question says only 'rising 10- and 20-day averages'.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q08": {
+   "status": "pass",
+   "notes": "a9 (qk.breakout_length, proposed) verbatim: 10 to 40 sessions. The why's 'Kullamagi says usually 2 weeks to 2 months' had no fact behind it; K7 now carries the verbatim line (found on his page by the quote checker).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q09": {
+   "status": "pass",
+   "notes": "a10/a11 verbatim (qk.breakout_depth, proposed, 25% cap). The cap is the dossier's, not the originator's, and the owner's own MRAM base came back 34-42%; the wrong choice '40% if the lows are rising' is therefore not clearly wrong by the owner's own example. Passes as the card states it; the owner should rule on the cap before it goes live. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q11": {
+   "status": "pass",
+   "notes": "a5/F65 (qk.breakout_market, settled: Green only) verbatim. The card's grading also names Yellow as a B- cue and F65 lets Yellow trade smaller; 'Yellow, always' is wrong on 'always' either way.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q12": {
+   "status": "pass",
+   "notes": "a14 (qk.breakout_volume_cue, proposed) verbatim: no volume rule. False is right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q13": {
+   "status": "pass",
+   "notes": "a6 (qk.breakout_first_base, proposed, 'by analogy with Kell's count') and L10 verbatim. First base is the A+ case.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q14": {
+   "status": "pass",
+   "notes": "a4 verbatim: ADR is the 20-day average of high over low, minus 1. Bank is 1, 2, 5, 10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q15": {
+   "status": "pass",
+   "notes": "calc re-derived: 161.59 + 3 x (161.59 - 158.95) = 161.59 + 7.92 = 169.51. HWM row: entry 161.59, stop 158.95, 3R in 7 days. B19/a26 teach the third at 3R.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q16": {
+   "status": "pass",
+   "notes": "calc re-derived: (52.28 - 45.00) / 52.28 = 13.93%, rounds to 13.9. a10/a11 verbatim; 13.9 is inside the 25% cap and the 15% A+ depth. The 45.00 low is made up (consistent with CRSP's 14% band).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q17": {
+   "status": "pass",
+   "notes": "a22 and K5 verbatim: at an opening-range buy the stop is a few cents under the day's low so far. Wrong notes true. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q19": {
+   "status": "pass",
+   "notes": "a21/B22 (qk.breakout_earnings_window, settled) verbatim. Key is not within 3 sessions before. Wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q20": {
+   "status": "pass",
+   "notes": "a8 (qk.breakout_tightening, proposed) verbatim: the last 5 sessions' average range is below the base's average. Wrong notes true. variety rewrite checked 2026-11-10; edited: two wrong choices lost the word every (absolute-word tell).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q81": {
+   "status": "pass",
+   "notes": "a17/C28 (qk.breakout_no_chase, settled) verbatim: no buy more than 4% past the trigger. 6% is over. False.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q82": {
+   "status": "pass",
+   "notes": "K6 (found), a27 and E52 verbatim. True. Kullamagi's own trim (D-013, pending) is not quoted.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q83": {
+   "status": "pass",
+   "notes": "b7 (qk.kell_cb_trigger, proposed) and L8 verbatim: buyers show, price trades above the prior session's high. True.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q21": {
+   "status": "pass",
+   "notes": "calc re-derived: 81.20 / 77.67 = 1.0454, 4.5% over the high, past C28's 4%. The 77.67 high is POWL's, used in an unnamed story. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q22": {
+   "status": "pass",
+   "notes": "calc re-derived: (52.28 - 45.00) / (52.28 - 35.00) = 7.28 / 17.28 = 42.13%, rounds to 42.1; a10: no more than half the move. Made-up numbers, consistent with q16.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q23": {
+   "status": "cut",
+   "notes": "cut: the same fact the same way as q50 (no new buy in the 3 sessions before a report; a report after today's close is inside it). q50 is the real AMZN case and q19 the recall; both kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q24": {
+   "status": "cut",
+   "notes": "cut: the same fact the same way as q51 (a close back inside the base in the lower third of its range is a failed breakout and the stop decides, a31). q51 is the real QCOM case and is kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q25": {
+   "status": "pass",
+   "notes": "a19 and K4 verbatim (qk.breakout_no_anticipation, proposed). False is right: Kullamagi allows anticipation but finds it less effective.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q27": {
+   "status": "pass",
+   "notes": "a30 (qk.breakout_inv_base_broken, proposed) verbatim: a close under the 50-day ends it before the trigger. True.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q28": {
+   "status": "pass",
+   "notes": "a23/A3 (settled): ADR 4.0%, stop 5.5% under the buy, so skip. 'Yes, if the stop moves to 4.0%' is wrong: the stop is the day's low, only moves up (A4). variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q29": {
+   "status": "pass",
+   "notes": "l1/a7/a9 verbatim. The tell is the lows (rising swing lows and a tight finish against one flat-topped box); 25 sessions fits both, which the wrong notes say. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q30": {
+   "status": "pass",
+   "notes": "l2/a9 verbatim: under 10 sessions the rest is a bull flag; 45% is not a near-double (HTF), so no other card fits. Wrong notes true. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q31": {
+   "status": "pass",
+   "notes": "l3/a12 verbatim: 8 or more of 15 closes under the 20 EMA is a wedge pop; the story gives 11 of 15. The Wedge Pop's own gates (volume, close above both) are not asked.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q32": {
+   "status": "pass",
+   "notes": "l4/l4b/L7 verbatim: a dip to a line (first pullback after a pop) against a new high out of a base. Wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q34": {
+   "status": "pass",
+   "notes": "a14 verbatim; ISRG 2007-08-29 broke out on 0.7x volume and still worked (dISRGw). Volume moves the grade, not the verdict. Same fact as q12 in a story (kept).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q37": {
+   "status": "pass",
+   "notes": "g1/g2 verbatim (qk.breakout_trigger grade cues) and E50. Key is the early break that holds. The unit never asks the opening-range buy as a gate.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q38": {
+   "status": "pass",
+   "notes": "HWM row: stop 1.6%, ADR 2.9%; g3 verbatim ('well inside the ADR and within 3%' is an A+ cue). Wrong notes true. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q39": {
+   "status": "pass",
+   "notes": "g4/a1 verbatim: RS 80 to 85, mid-pack, is a B- cue; 82 passes the 80 rule. Per E50 grading is judgment; the wording is 'cue'.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q40": {
+   "status": "pass",
+   "notes": "a29/A5 (qk.breakout_no_adds, settled, D-135) and dMSTRw verbatim: the next flag in the same run is a new trade from flat. Wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q43": {
+   "status": "pass",
+   "notes": "CRSP 2019-11-12 row: 47% run, 10 sessions, 14%, 3.1x, 3R in 1 day. a9 verbatim: 10 is the shortest allowed. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q44": {
+   "status": "pass",
+   "notes": "AMD 2000-01-06 row: 71% run, 37 sessions, 22%, 1.9x, entry 15.98, stop 15.20 (the 'surfs the rising 10/20-day' phrase is in the dossier's why-it-is-textbook column). a10/a11 verbatim: 22% passes the 25% cap, misses the 15% A+ depth.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q49": {
+   "status": "pass",
+   "notes": "NVDA 2024-11-06 row: 23 sessions, 32% run, buy 144.43, stop 141.91 (1.7%), best 2.12R, stopped day 7. Loss framed as the plan working. a6 (late base) is the dossier's Kell reading; breakeven is not asked. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q50": {
+   "status": "pass",
+   "notes": "AMZN 2020-04-30 row: 14 sessions, 41% run, 1.47x, buy 123.06, stop 119.75, report that evening, next-day low 112.91, best 0.0R. a21/B22 verbatim. Prices are split-adjusted (20-for-1, 2022); the story now says so. flagged-question fix checked 2026-11-11",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q51": {
+   "status": "pass",
+   "notes": "QCOM 2021-12-13 row: 26 sessions, 38% run, buy 188.78, closed at the low of its range (183.32), back inside the base; next low 179.41 took the 183.06 stop. a31b verbatim. The stop-decides default is the card's recommendation (qk.breakout_inv_failed_breakout, proposed).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q52": {
+   "status": "pass",
+   "notes": "OXY 2022-04-18 row: 16 sessions, 62% run, buy 62.10, stop 59.88, next low 59.83, 'a valid base that failed for no visible reason'. B21/A4 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q53": {
+   "status": "pass",
+   "notes": "NVDA 2024-03-21 near-miss: a 39% run, 8 sessions sideways against 10 to 40. l2/a9 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q54": {
+   "status": "pass",
+   "notes": "BIDU 2007-12-27 near-miss: 32% run, 19 sessions, last third's low 34.89 under the first third's 36.52. a7 verbatim. The dossier says exactly one gate fails; the wrong choices (length, run) pass. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q55": {
+   "status": "pass",
+   "notes": "CVNA 2024-06-24 near-miss: 46% run, 19 sessions, 58% of closes near or above the 20 EMA (the 80% figure is the scan's, not the card's, so the question asks only that closes hold). a12 verbatim. A 23-word why sentence split. variety rewrite checked 2026-11-10.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q56": {
+   "status": "pass",
+   "notes": "Chart HWM asof 2025-05-14 (the day before the 2025-05-15 breakout), ticker not in the question. HWM row: 43% run, 12 sessions, 17%, 1.5x, 3R in 7 days. The question asked 'Do the lows rise and the range tighten?', naming the criteria it tests (rule 10); now 'Is this a clean base to buy?'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q57": {
+   "status": "pass",
+   "notes": "Chart BIDU asof 2007-12-26 (the day before the 2007-12-27 would-be breakout), ticker not in the question. Numbers 34.89 and 36.52 are the dossier's split-adjusted values. The question named the failing check ('Do the swing lows rise inside the box?'); now 'Is this a clean base to buy?'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q58": {
+   "status": "pass",
+   "notes": "The old key 'the edge is the trims' is not in the dossier: the scan used a fixed stop, no trims, and measured no expectancy; the 'friend says size up' frame also repeated SET.43 q67 (0.80 similar). Now a plain base-rate question: 5,038 hits, 28.9% to 3R, 20.0% to 5R, 92% eventually stopped (dBase, dBase2, verbatim), with D45 (settled) behind the lesson. Raw rates of a fixed-stop scan, labelled as the test's.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q59": {
+   "status": "pass",
+   "notes": "b1 (qk.kell_up_cycle, proposed) and L2 (Kell, found at the archive capture) verbatim. 10/20 is Kell's pair and D-021 (10/20 or the house 9/20) is pending, so the question is now pinned to 'In Kell's cycle' instead of 'we'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q60": {
+   "status": "pass",
+   "notes": "ctx (the card's Kell line) and L1 verbatim. Constructed Part B item, no story. 10 and 20-day are Kell's numbers (D-021 pending); the key does not turn on them. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q61": {
+   "status": "pass",
+   "notes": "b1 and L1 verbatim: the 10 EMA over the 20, both rising. Question said 'How do we define'; now 'In Kell's cycle' because D-021 (10/20 or 9/20) is pending.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q62": {
+   "status": "pass",
+   "notes": "b2 and L13 (Kell, found) verbatim: air is the day's low above the 10 EMA. Wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q63": {
+   "status": "pass",
+   "notes": "b4b and L5 verbatim: a cross alone is not a Wedge Pop. False.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q64": {
+   "status": "pass",
+   "notes": "L7 and b6 verbatim: the Crossback is the first retest of the averages after the Wedge Pop (Kell's cycle order). Bank has four wrong phases.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q65": {
+   "status": "pass",
+   "notes": "b9 (qk.kell_bnb_setting, proposed) and L9 verbatim: a tight base of 5 to 15 sessions holding the rising 10/20 EMA. The question gives the definition and asks the name; wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q66": {
+   "status": "pass",
+   "notes": "b5 (qk.kell_wp_stop, settled, A13) and F62 verbatim: a few cents under the pop day's low. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q68": {
+   "status": "pass",
+   "notes": "b14/b14b verbatim and L12: air and a close 10% or more above the 10-day. The 10% is the card's number (it borrows C29), not Kell's; the why credits Kell only for 'blowoff well above the 10-day'.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q69": {
+   "status": "pass",
+   "notes": "calc re-derived: (111.50 - 100.00) / 100.00 = 11.5%. The low 102.00 is above the 10-day 100.00, so there is air. b14/b14b verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q70": {
+   "status": "pass",
+   "notes": "b17/E52 (qk.kell_wd_exit, settled) verbatim: a Wedge Drop is already an exit under our trail. 'The house trail' is now 'Our trail'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q71": {
+   "status": "pass",
+   "notes": "b4 (qk.kell_wp_trigger, proposed) and L6 verbatim: through the pivot, close above both averages, volume at least the 50-day average (1.4x). The story gave no correction before the tightening, which b3 requires; it now starts 'After a 20% drop'. Constructed story, no ticker. variety rewrite checked 2026-11-10.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q73": {
+   "status": "pass",
+   "notes": "b6/b6b/b7/b8 verbatim: the first pullback after a Wedge Pop on volume under the 50-day average, buyers show over the prior high. Constructed story, no ticker. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q74": {
+   "status": "pass",
+   "notes": "b12 (qk.kell_bnb_late, proposed) and L10 verbatim: from the second Base n' Break on, late in the cycle, grade down. Constructed story, no ticker.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q75": {
+   "status": "pass",
+   "notes": "The old key 'No; buying with air is a mistake' overstated the card: qk.kell_air is a grade cue (gate false), the B- cue is '3-4% or more above the averages', and C29 (settled) only skips a buy more than 10% above the 10-day. A fresh breakout 4% over the 10-day with the low above it is allowed by Part A. Rewritten to the grade effect (g5, L16, hC29). variety rewrite checked 2026-11-10.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q76": {
+   "status": "pass",
+   "notes": "b16/b17/L15 verbatim: after an extension, a tight run into the averages and a close below both on volume over the 50-day average is a Wedge Drop, and our trail exits. Constructed story, no ticker. A 29-word story sentence split.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q77": {
+   "status": "pass",
+   "notes": "b9/b6/L9/L11 verbatim. The story did not say a Crossback had already happened, so a first pullback after the pop would have been a Crossback; it now says the first pullback is behind it. Constructed story.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q78": {
+   "status": "pass",
+   "notes": "b18 (qk.kell_market, proposed) verbatim: fewer trades and lower exposure when the index is below its 20 EMA. Constructed story.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q79": {
+   "status": "pass",
+   "notes": "L3 (Kell, found) verbatim: not necessarily a playable setup, more a change in mindset. Keys Kell's words only (D-081, watch-only or trade, is pending and not asked). Constructed story.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q80": {
+   "status": "pass",
+   "notes": "b15 verbatim: after 3 to 4 extensions, expect a longer base. The dossier credits it to the originator. Constructed story.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w1": {
+   "status": "pass",
+   "notes": "dCRSP/dCRSPw verbatim (CRSP 2019-11-12: 47% run, 10 sessions, 14%, 3.1x, entry 52.35, stop 51.21 = 2.2% of a 5.6% ADR, 3R in 1 day). 'Context and pattern check out' overclaimed (no RS or market reading in the scan); now 'The base checks out'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "dHWM/dHWMw verbatim (HWM 2025-05-15: 43% run, 12 sessions, 17%, 1.5x, entry 161.59, stop 158.95 = 1.6% of a 2.9% ADR, 3R in 7 days). Same overclaim fixed.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "dCPRI/dCPRIw verbatim (CPRI 2020-12-03: 59% run, 11 sessions, 21%, 0.8x, entry 38.01, stop 37.37 = 1.7% of a 5.6% ADR, 3R in 5 days). Same overclaim fixed.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q84": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; fixed: choice 'over 3 spans' reworded to Kullamagi's 'timeframes'; 'scan for first' dropped (the quote has no 'first'); a wrong note no longer says 'price is not his filter' (liquidity is)",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q85": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q86": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q87": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; fixed: right choice was the only 'No' among two 'Yes' (odd one out); third choice reworded; a wrong note said the dollar volume 'fails too'",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q88": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q89": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; fixed: the item restated a near-tautology ('too illiquid to trade are not watched'); now a False item on the 1% of average daily volume cap (q88 is the arithmetic)",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q90": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q91": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; fixed: the right choice carried the rule ('15% or less is A+') that the wrong ones lacked; choices now plain",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q92": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; fixed: right choice was the only 'No' (odd one out); third choice reworded",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q93": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q94": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q95": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q96": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; fixed: right choice was the only one not opening 'Buy'; third choice reworded",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q97": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; fixed: a wrong note spoke of 'Monday's stop' on a trade the story says you missed (no stop existed); that choice replaced",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q98": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q99": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q100": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; fixed: right choice was the only 'No' (odd one out); third choice reworded",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q101": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q102": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; fixed: removed 'often at the first trim' from the why (the key is the 2R to 5R window only)",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q103": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q104": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q105": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q106": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q107": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; fixed: right choice was the only one not opening 'Wait'; third choice reworded",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q108": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q109": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q110": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q111": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q112": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; fixed: right choice was the only one opening 'The' (both wrong began 'A'); one wrong choice reworded",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q113": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q114": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q115": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q116": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; fixed: right choice was the only 'No' (odd one out); third choice reworded; a wrong note claimed a 'news-day rule' no source states",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q117": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q118": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q119": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; fixed: right choice was the only one not opening 'Wait'; third choice reworded",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q120": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q121": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; fixed: why had a 23-word sentence (split); right choice was the only 'No' (odd one out); third choice reworded",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q122": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  }
+ }
+}

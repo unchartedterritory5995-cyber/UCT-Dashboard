@@ -1,0 +1,3666 @@
+{
+ "unit": "V.06",
+ "track": "V",
+ "title": "Risk words",
+ "teaches": "The words in the risk section of a trade plan: R, R-multiples and expectancy, win rate and risk/reward, position sizing and the 2% rule, the stops (initial, breakeven, trailing, ATR-based), gap risk, drawdown and maximum drawdown, risk of ruin, portfolio heat, open risk and concentration.",
+ "skills": [
+  {
+   "id": "vocab.risk_terms",
+   "title": "Risk words"
+  }
+ ],
+ "as_of": "2026-11-09",
+ "sources": [
+  {
+   "id": "s01",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Stop, Stop-Limit, and Trailing Stop Orders: Investor Bulletin (July 13, 2017, updated August 18, 2026)",
+   "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-stop-stop-limit-trailing-stop",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s02",
+   "tier": 1,
+   "publisher": "FINRA",
+   "title": "Stop Orders: Factors to Consider During Volatile Markets (March 26, 2025)",
+   "url": "https://www.finra.org/investors/insights/stop-orders-factors-consider-during-volatile-markets",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s03",
+   "tier": 1,
+   "publisher": "FINRA",
+   "title": "Concentrate on Concentration Risk (June 15, 2022)",
+   "url": "https://www.finra.org/investors/insights/concentration-risk",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s04",
+   "tier": 2,
+   "publisher": "Van Tharp Institute",
+   "title": "Tharp Think Trading Concepts (Risk and R-Multiples, Expectancy, Position Sizing)",
+   "url": "https://vantharpinstitute.com/tharp-think-trading-concepts/",
+   "accessed": "2026-11-09",
+   "why_reliable": "The Van Tharp Institute's own page of Van K. Tharp's core concepts. Tharp (PhD, trading coach) wrote Trade Your Way to Financial Freedom, which made R-multiples and expectancy standard terms; the units plan names him for this unit. Its worked numbers recompute ($50 - $40 = $10 = 1R; $60 / $5 = 12R; 25% under $60 is $45)."
+  },
+  {
+   "id": "s05",
+   "tier": 2,
+   "publisher": "Van Tharp Institute",
+   "title": "Glossary: R value",
+   "url": "https://vantharpinstitute.com/glossary/r-value",
+   "accessed": "2026-11-09",
+   "why_reliable": "The Van Tharp Institute's own glossary of Van K. Tharp's terms (Tharp, PhD, trading coach and author of Trade Your Way to Financial Freedom, the book that made R-multiples and expectancy standard trading terms). The contract's units plan names Van Tharp (published) as a source for this unit."
+  },
+  {
+   "id": "s06",
+   "tier": 2,
+   "publisher": "Van Tharp Institute",
+   "title": "Glossary: Initial Risk",
+   "url": "https://vantharpinstitute.com/glossary/initial-risk",
+   "accessed": "2026-11-09",
+   "why_reliable": "The Van Tharp Institute's own glossary of Van K. Tharp's terms (Tharp, PhD, trading coach and author of Trade Your Way to Financial Freedom, the book that made R-multiples and expectancy standard trading terms). The contract's units plan names Van Tharp (published) as a source for this unit."
+  },
+  {
+   "id": "s07",
+   "tier": 2,
+   "publisher": "Van Tharp Institute",
+   "title": "Glossary: R Multiple",
+   "url": "https://vantharpinstitute.com/glossary/r-multiple",
+   "accessed": "2026-11-09",
+   "why_reliable": "The Van Tharp Institute's own glossary of Van K. Tharp's terms (Tharp, PhD, trading coach and author of Trade Your Way to Financial Freedom, the book that made R-multiples and expectancy standard trading terms). The contract's units plan names Van Tharp (published) as a source for this unit."
+  },
+  {
+   "id": "s08",
+   "tier": 2,
+   "publisher": "Van Tharp Institute",
+   "title": "Glossary: Expectancy",
+   "url": "https://vantharpinstitute.com/glossary/expectancy",
+   "accessed": "2026-11-09",
+   "why_reliable": "The Van Tharp Institute's own glossary of Van K. Tharp's terms (Tharp, PhD, trading coach and author of Trade Your Way to Financial Freedom, the book that made R-multiples and expectancy standard trading terms). The contract's units plan names Van Tharp (published) as a source for this unit."
+  },
+  {
+   "id": "s09",
+   "tier": 2,
+   "publisher": "Van Tharp Institute",
+   "title": "Glossary: Win Rate",
+   "url": "https://vantharpinstitute.com/glossary/win-rate",
+   "accessed": "2026-11-09",
+   "why_reliable": "The Van Tharp Institute's own glossary of Van K. Tharp's terms (Tharp, PhD, trading coach and author of Trade Your Way to Financial Freedom, the book that made R-multiples and expectancy standard trading terms). The contract's units plan names Van Tharp (published) as a source for this unit."
+  },
+  {
+   "id": "s10",
+   "tier": 2,
+   "publisher": "Van Tharp Institute",
+   "title": "Glossary: Portfolio Heat",
+   "url": "https://vantharpinstitute.com/glossary/portfolio-heat",
+   "accessed": "2026-11-09",
+   "why_reliable": "The Van Tharp Institute's own glossary of Van K. Tharp's terms (Tharp, PhD, trading coach and author of Trade Your Way to Financial Freedom, the book that made R-multiples and expectancy standard trading terms). The contract's units plan names Van Tharp (published) as a source for this unit."
+  },
+  {
+   "id": "s11",
+   "tier": 2,
+   "publisher": "Van Tharp Institute",
+   "title": "Glossary: Open Risk",
+   "url": "https://vantharpinstitute.com/glossary/open-risk",
+   "accessed": "2026-11-09",
+   "why_reliable": "The Van Tharp Institute's own glossary of Van K. Tharp's terms (Tharp, PhD, trading coach and author of Trade Your Way to Financial Freedom, the book that made R-multiples and expectancy standard trading terms). The contract's units plan names Van Tharp (published) as a source for this unit."
+  },
+  {
+   "id": "s12",
+   "tier": 2,
+   "publisher": "Van Tharp Institute",
+   "title": "Glossary: Drawdown",
+   "url": "https://vantharpinstitute.com/glossary/drawdown",
+   "accessed": "2026-11-09",
+   "why_reliable": "The Van Tharp Institute's own glossary of Van K. Tharp's terms (Tharp, PhD, trading coach and author of Trade Your Way to Financial Freedom, the book that made R-multiples and expectancy standard trading terms). The contract's units plan names Van Tharp (published) as a source for this unit."
+  },
+  {
+   "id": "s13",
+   "tier": 2,
+   "publisher": "Van Tharp Institute",
+   "title": "Glossary: Peak-to-Trough Drawdown",
+   "url": "https://vantharpinstitute.com/glossary/peak-to-trough-drawdown",
+   "accessed": "2026-11-09",
+   "why_reliable": "The Van Tharp Institute's own glossary of Van K. Tharp's terms (Tharp, PhD, trading coach and author of Trade Your Way to Financial Freedom, the book that made R-multiples and expectancy standard trading terms). The contract's units plan names Van Tharp (published) as a source for this unit."
+  },
+  {
+   "id": "s14",
+   "tier": 2,
+   "publisher": "Van Tharp Institute",
+   "title": "Glossary: Ruin",
+   "url": "https://vantharpinstitute.com/glossary/ruin",
+   "accessed": "2026-11-09",
+   "why_reliable": "The Van Tharp Institute's own glossary of Van K. Tharp's terms (Tharp, PhD, trading coach and author of Trade Your Way to Financial Freedom, the book that made R-multiples and expectancy standard trading terms). The contract's units plan names Van Tharp (published) as a source for this unit."
+  },
+  {
+   "id": "s15",
+   "tier": 2,
+   "publisher": "Van Tharp Institute",
+   "title": "Glossary: Risk",
+   "url": "https://vantharpinstitute.com/glossary/risk",
+   "accessed": "2026-11-09",
+   "why_reliable": "The Van Tharp Institute's own glossary of Van K. Tharp's terms (Tharp, PhD, trading coach and author of Trade Your Way to Financial Freedom, the book that made R-multiples and expectancy standard trading terms). The contract's units plan names Van Tharp (published) as a source for this unit."
+  },
+  {
+   "id": "s16",
+   "tier": 2,
+   "publisher": "Van Tharp Institute",
+   "title": "Glossary: Trailing Stop",
+   "url": "https://vantharpinstitute.com/glossary/trailing-stop",
+   "accessed": "2026-11-09",
+   "why_reliable": "The Van Tharp Institute's own glossary of Van K. Tharp's terms (Tharp, PhD, trading coach and author of Trade Your Way to Financial Freedom, the book that made R-multiples and expectancy standard trading terms). The contract's units plan names Van Tharp (published) as a source for this unit."
+  },
+  {
+   "id": "s17",
+   "tier": 2,
+   "publisher": "Van Tharp Institute",
+   "title": "Glossary: Stop (Stop Loss, Stop Order)",
+   "url": "https://vantharpinstitute.com/glossary/stop-stop-loss-stop-order",
+   "accessed": "2026-11-09",
+   "why_reliable": "The Van Tharp Institute's own glossary of Van K. Tharp's terms (Tharp, PhD, trading coach and author of Trade Your Way to Financial Freedom, the book that made R-multiples and expectancy standard trading terms). The contract's units plan names Van Tharp (published) as a source for this unit."
+  },
+  {
+   "id": "s18",
+   "tier": 2,
+   "publisher": "Van Tharp Institute",
+   "title": "Glossary: Percent Volatility Model",
+   "url": "https://vantharpinstitute.com/glossary/percent-volatility-model",
+   "accessed": "2026-11-09",
+   "why_reliable": "The Van Tharp Institute's own glossary of Van K. Tharp's terms (Tharp, PhD, trading coach and author of Trade Your Way to Financial Freedom, the book that made R-multiples and expectancy standard trading terms). The contract's units plan names Van Tharp (published) as a source for this unit."
+  },
+  {
+   "id": "s19",
+   "tier": 2,
+   "publisher": "Van Tharp Institute",
+   "title": "Glossary: Negative Expectancy System",
+   "url": "https://vantharpinstitute.com/glossary/negative-expectancy-system",
+   "accessed": "2026-11-09",
+   "why_reliable": "The Van Tharp Institute's own glossary of Van K. Tharp's terms (Tharp, PhD, trading coach and author of Trade Your Way to Financial Freedom, the book that made R-multiples and expectancy standard trading terms). The contract's units plan names Van Tharp (published) as a source for this unit."
+  },
+  {
+   "id": "s20",
+   "tier": 2,
+   "publisher": "Van Tharp Institute",
+   "title": "Glossary: Positive Expectancy",
+   "url": "https://vantharpinstitute.com/glossary/positive-expectancy",
+   "accessed": "2026-11-09",
+   "why_reliable": "The Van Tharp Institute's own glossary of Van K. Tharp's terms (Tharp, PhD, trading coach and author of Trade Your Way to Financial Freedom, the book that made R-multiples and expectancy standard trading terms). The contract's units plan names Van Tharp (published) as a source for this unit."
+  },
+  {
+   "id": "s21",
+   "tier": 2,
+   "publisher": "Van Tharp Institute",
+   "title": "Glossary: Low-risk Idea",
+   "url": "https://vantharpinstitute.com/glossary/low-risk-idea",
+   "accessed": "2026-11-09",
+   "why_reliable": "The Van Tharp Institute's own glossary of Van K. Tharp's terms (Tharp, PhD, trading coach and author of Trade Your Way to Financial Freedom, the book that made R-multiples and expectancy standard trading terms). The contract's units plan names Van Tharp (published) as a source for this unit."
+  },
+  {
+   "id": "s22",
+   "tier": 2,
+   "publisher": "Technical Analysis of Stocks & Commodities (Traders.com)",
+   "title": "Developing Discipline With Daily Debriefing (Van K. Tharp, PhD; excerpt of S&C V.25:1, January 2007)",
+   "url": "https://www.traders.com/Documentation/FEEDbk_docs/2007/01/Abstracts_new/Tharp/tharp.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Technical Analysis of Stocks & Commodities, the trading magazine published by Technical Analysis, Inc. since 1982, printing Van Tharp's own article; an independent publisher from the Van Tharp Institute. Its numbers recompute ($25 less 10% is $22.50; $1,000 / $2.50 = 400 shares; 400 x $25 = $10,000)."
+  },
+  {
+   "id": "s23",
+   "tier": 2,
+   "publisher": "Technical Analysis of Stocks & Commodities (Traders.com)",
+   "title": "Determining Optimal Risk, by Ed Seykota and Dave Druz (S&C V.11:3, March 1993, pp. 122-124; the magazine's article page)",
+   "url": "https://store.traders.com/-v11-c03-determi-pdf.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "The magazine's own page for the 1993 article that named portfolio heat; it prints the article's opening. Ed Seykota is the trend follower profiled in Jack Schwager's Market Wizards. The 'If you risk too much' line is the magazine's introduction to the article and is credited to the magazine, not the authors."
+  },
+  {
+   "id": "s24",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Master Position Sizing: Minimize Risk and Boost Investment Returns (James Chen, updated July 1, 2026)",
+   "url": "https://www.investopedia.com/terms/p/positionsizing.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s25",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Risk of Ruin: What it Means, How it Works, Controlling it (Adam Hayes, updated April 17, 2026)",
+   "url": "https://www.investopedia.com/terms/r/risk-of-ruin.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s26",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Understanding Drawdowns: Definition, Risks, and Recovery Time (Katharine Paljug, updated April 8, 2026)",
+   "url": "https://www.investopedia.com/terms/d/drawdown.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s27",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Understanding Maximum Drawdown (MDD): Key Insights and Formula (Adam Hayes, updated September 21, 2026)",
+   "url": "https://www.investopedia.com/terms/m/maximum-drawdown-mdd.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s28",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Average True Range (ATR) Formula, What It Means, and How to Use It (Adam Hayes, updated February 18, 2026)",
+   "url": "https://www.investopedia.com/terms/a/atr.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s29",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Trailing Stops: What They Are, How to Use Them in Trading (Henry Hoenig, updated October 29, 2025)",
+   "url": "https://www.investopedia.com/terms/t/trailingstop.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s30",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Understanding the Risk/Reward Ratio: A Guide for Stock Investors (Adam Hayes, updated July 18, 2026)",
+   "url": "https://www.investopedia.com/terms/r/riskrewardratio.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s31",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Understanding Trading Win/Loss Ratio: Definition, Formula, and Examples (Will Kenton, updated February 25, 2026)",
+   "url": "https://www.investopedia.com/terms/w/win-loss-ratio.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s32",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Understanding Expected Value in Investments: Definition & Formula (Will Kenton, updated May 9, 2026)",
+   "url": "https://www.investopedia.com/terms/e/expected-value.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s33",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Understanding the 2% Rule in Investing: A Guide to Risk Management (James Chen, updated May 13, 2026)",
+   "url": "https://www.investopedia.com/terms/t/two-percent-rule.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s34",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "How Stop-Loss Orders Help Limit Investment Losses and Risk (Michael J. Kramer, updated July 17, 2026)",
+   "url": "https://www.investopedia.com/terms/s/stop-lossorder.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s35",
+   "tier": 2,
+   "publisher": "StockCharts.com",
+   "title": "ChartSchool: Average True Range (ATR)",
+   "url": "https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/technical-indicators/average-true-range-atr-and-average-true-range-percent-atrp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s36",
+   "tier": 2,
+   "publisher": "StockCharts.com",
+   "title": "ChartSchool: Chandelier Exit",
+   "url": "https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/technical-overlays/chandelier-exit",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s37",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "5 Elements of a Smart Trade Plan (October 23, 2024)",
+   "url": "https://www.schwab.com/learn/story/5-elements-smart-trade-plan",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s38",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "Help Protect Your Position Using Stop Orders (August 7, 2024)",
+   "url": "https://www.schwab.com/learn/story/help-protect-your-position-using-stop-orders",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s39",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "Trading Psychology: Recovering From Big Losses (Henry Hoenig, February 10, 2026)",
+   "url": "https://www.schwab.com/learn/story/trading-psychology-recovering-from-big-losses",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s40",
+   "tier": 2,
+   "publisher": "Fidelity Investments",
+   "title": "What Is A Drawdown? (Learning Center video; transcripts on the page)",
+   "url": "https://www.fidelity.com/learning-center/trading-investing/trading/what-is-drawdown-video",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s41",
+   "tier": 2,
+   "publisher": "Interactive Brokers",
+   "title": "Max Drawdown (IBKR Campus Traders' Glossary)",
+   "url": "https://www.interactivebrokers.com/campus/glossary-terms/max-drawdown/",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s42",
+   "tier": 2,
+   "publisher": "Incredible Charts",
+   "title": "Alexander Elder's 6 Percent Rule (Colin Twiggs)",
+   "url": "https://www.incrediblecharts.com/trading/6_percent_rule.php",
+   "accessed": "2026-11-09",
+   "why_reliable": "Explains the portfolio rule from Alexander Elder's Come Into My Trading Room (Elder is one of the trading authors the contract names). Written by Colin Twiggs, co-founder of Incredible Charts, a former investment banker with almost 40 years in markets (bio on the page). The same source F9.06 cites. Its 6% cap is never keyed."
+  },
+  {
+   "id": "s43",
+   "tier": 2,
+   "publisher": "TradeStation",
+   "title": "Breakeven Stop (Strategy), TradeStation 10 Help",
+   "url": "https://help.tradestation.com/10_00/eng/TradeStationHelp/elanalysis/signal/breakeven_stop_signal_.htm",
+   "accessed": "2026-11-09",
+   "why_reliable": "TradeStation, a US broker-dealer, documenting the breakeven stop built into its own platform (broker documentation, like the broker education centres the contract lists). Cited only for what a breakeven stop is and how the platform's order works, never for when to use one."
+  },
+  {
+   "id": "s44",
+   "tier": 2,
+   "publisher": "AAII",
+   "title": "Sell Rules to Build Your Stock Investing Performance (William J. O'Neil, AAII Journal, September 1999)",
+   "url": "https://www.aaii.com/journal/article/sell-rules-to-build-your-stock-investing-performance",
+   "accessed": "2026-11-09",
+   "why_reliable": "Written by William J. O'Neil, founder of Investor's Business Daily and author of How to Make Money in Stocks (a trading book the contract names), published by the American Association of Individual Investors. The same source F9.06 cites. Only his summary rule on not letting a profit turn into a loss is quoted."
+  },
+  {
+   "id": "s45",
+   "tier": 2,
+   "publisher": "Interactive Brokers",
+   "title": "Exiting Your Trades: What Works Best? (Dave Mabe, IBKR Campus, January 31, 2025)",
+   "url": "https://www.interactivebrokers.com/campus/ibkr-quant-news/exiting-your-trades-what-works-best/",
+   "accessed": "2026-11-09",
+   "why_reliable": "A post on Interactive Brokers' education site by Dave Mabe, a named systematic trader (MabeKit), reposted with permission. Cited only as one practitioner's view (stops from volatility, size from the stop, never a breakeven stop), never as a rule. The same source F9.06 cites."
+  },
+  {
+   "id": "s46",
+   "tier": 2,
+   "publisher": "Judgment and Decision Making (peer-reviewed journal)",
+   "title": "Downside financial risk is misunderstood (Philip W. S. Newall, Vol. 11, No. 5, September 2016, pp. 416-423)",
+   "url": "https://journal.sjdm.org/16/16222/jdm16222.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "A peer-reviewed paper in the journal of the Society for Judgment and Decision Making, read on the journal's own site. Its numbers recompute: 1 / (1 - 0.5) - 1 = 100%. The same source F9.04 cites."
+  },
+  {
+   "id": "s47",
+   "tier": 2,
+   "publisher": "Nationwide Investment Management Group (on ETF Database)",
+   "title": "Break-Even Math: How Much Gain Is Needed to Recover From a Loss Fully? (Mark Hackett, September 28, 2023)",
+   "url": "https://etfdb.com/retirement-income-content-hub/break-even-math/",
+   "accessed": "2026-11-09",
+   "why_reliable": "Investment research from Nationwide, a large US asset manager whose fund distributors are FINRA members (disclosure on the page), republished on VettaFi's ETF Database. Its 10% and 50% break-even figures recompute (1/0.9 - 1 = 11.1%; 1/0.5 - 1 = 100%). The same source F9.04 cites."
+  },
+  {
+   "id": "h1",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Study: the trade plan for every setup (the setup table)",
+   "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "h2",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The house sizing rule, section 2: Stop first (owner's answer)",
+   "url": "repo:docs/study/sizing_rule.md#2-stop-first",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "h3",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The house sizing rule, section 6: Management (owner quoted, Sunday Scans 2026-06-14)",
+   "url": "repo:docs/study/sizing_rule.md#6-management-so-the-sizing-drills-can-go-full-circle",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "h4",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
+   "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
+   "accessed": "2026-11-09"
+  }
+ ],
+ "facts": [
+  {
+   "id": "f01",
+   "source": "s01",
+   "quote": "A stop order, also referred to as a stop-loss order, is an order to buy or sell a stock once the price of the stock reaches a specified price, known as the stop price.",
+   "claim": "A stop-loss order is a stop order: it trades once the stock reaches the stop price."
+  },
+  {
+   "id": "f02",
+   "source": "s01",
+   "quote": "When the stop price is reached, a stop order becomes a market order.",
+   "claim": "At the stop price, a stop order turns into a market order."
+  },
+  {
+   "id": "f03",
+   "source": "s01",
+   "quote": "Investors generally use a sell stop order in an attempt to limit a loss or to protect a profit on a stock that they own.",
+   "claim": "A sell stop is used to try to limit a loss or protect a profit on stock you own."
+  },
+  {
+   "id": "f04",
+   "source": "s01",
+   "quote": "The stop price is not the guaranteed execution price for a stop order. The stop price is a trigger that causes the stop order to become a market order.",
+   "claim": "The stop price is a trigger, not a guaranteed fill price."
+  },
+  {
+   "id": "f05",
+   "source": "s01",
+   "quote": "The execution price an investor receives for this market order can deviate significantly from the stop price due to the prices of available liquidity when the market order executes.",
+   "claim": "The fill on a triggered stop can be far from the stop price."
+  },
+  {
+   "id": "f06",
+   "source": "s01",
+   "quote": "the stop price is either a defined percentage or dollar amount, above or below the current market price of the security",
+   "claim": "A trailing stop is set a percent or dollar amount away from the market price."
+  },
+  {
+   "id": "f07",
+   "source": "s01",
+   "quote": "As the price of the security moves in a favorable direction the trailing stop price adjusts or “trails” the market price of the security by the specified amount.",
+   "claim": "When price moves your way, a trailing stop follows it by the set amount."
+  },
+  {
+   "id": "f08",
+   "source": "s01",
+   "quote": "However, if the security’s price moves in an unfavorable direction the trailing stop price remains fixed, and the order will be triggered if the security’s price reaches the trailing stop price.",
+   "claim": "When price moves against you, a trailing stop stays where it is until price reaches it."
+  },
+  {
+   "id": "f145",
+   "source": "s01",
+   "quote": "As with all limit orders, a stop-limit order may not be executed if the stock’s price moves away from the specified limit price",
+   "claim": "A stop-limit order may not fill at all if price moves past its limit."
+  },
+  {
+   "id": "f09",
+   "source": "s02",
+   "quote": "A stop order becomes a market order once the stop price is reached. The price you receive upon execution, though, could be markedly different than your stop price.",
+   "claim": "A triggered stop is a market order and can fill well away from the stop price."
+  },
+  {
+   "id": "f10",
+   "source": "s02",
+   "quote": "Rapid price movement during a short period of time could trigger a stop order. Due to market volatility, the stock might later rebound and resume trading at its prior price level.",
+   "claim": "A quick drop can trigger a stop, and then the stock can bounce right back."
+  },
+  {
+   "id": "f11",
+   "source": "s03",
+   "quote": "the risk of amplified losses that may occur from having a large portion of your holdings in a particular investment, asset class or market segment relative to your overall portfolio.",
+   "claim": "Concentration risk is bigger losses from having too much of your money in one investment, asset class or segment."
+  },
+  {
+   "id": "f12",
+   "source": "s03",
+   "quote": "Investments within the same industry, geographic region or security type tend to be highly correlated, meaning that what happens to one investment is likely to happen to the others.",
+   "claim": "Holdings in the same industry tend to move together, so what hits one likely hits the others."
+  },
+  {
+   "id": "f13",
+   "source": "s03",
+   "quote": "Or you might have investments in individual technology companies but also own a technology fund and have technology stocks represented in an index fund you own.",
+   "claim": "Tech stocks plus a tech fund plus tech inside an index fund is FINRA's example of concentration."
+  },
+  {
+   "id": "f14",
+   "source": "s04",
+   "quote": "Van says that risk is the amount of money you are WILLING TO LOSE if you are wrong about the market.",
+   "claim": "Tharp's risk is the money you are willing to lose if you are wrong."
+  },
+  {
+   "id": "f15",
+   "source": "s04",
+   "quote": "This is called the initial Risk, or (R) for short.",
+   "claim": "That planned loss is called the initial risk, or R."
+  },
+  {
+   "id": "f16",
+   "source": "s04",
+   "quote": "You buy a stock at $50 and decide to sell it if it drops to $40. What’s your initial risk? Your initial risk is $10 per share, so in this case, 1R is equal to $10.",
+   "claim": "Buy at $50 with a $40 exit and 1R is $10 a share: entry minus stop."
+  },
+  {
+   "id": "f17",
+   "source": "s04",
+   "quote": "Keep in mind, though, that it isn’t your total risk in the position because you might have multiple units.",
+   "claim": "R per share is not your total risk when you hold many shares."
+  },
+  {
+   "id": "f18",
+   "source": "s04",
+   "quote": "However, you are only willing to risk $10 per share, so $10 multiplied by 100 shares = $1000 total risk for this position.",
+   "claim": "Total risk is risk per share times the number of shares."
+  },
+  {
+   "id": "f19",
+   "source": "s04",
+   "quote": "R can represent either your risk per unit, which, in the example, is $10 per share, or it can represent your total risk.",
+   "claim": "R can mean risk per share or total risk on the position."
+  },
+  {
+   "id": "f20",
+   "source": "s04",
+   "quote": "Perhaps the market gapped down against you. Losses bigger than 1R happen all the time. Your goal as a trader (or as an investor) is to keep your losses at 1R or less.",
+   "claim": "Gaps can make a loss bigger than 1R; the goal is to keep losses at 1R or less."
+  },
+  {
+   "id": "f21",
+   "source": "s04",
+   "quote": "You buy a stock at $40 with a planned exit at $35. You sell it at $50. What’s your profit as an R-multiple?",
+   "claim": "Tharp's drill: buy at $40, stop at $35, sell at $50."
+  },
+  {
+   "id": "f22",
+   "source": "s04",
+   "quote": "A 1R loss is $5. Your profit per share is $10, so you have a 2R profit.",
+   "claim": "A $10 gain on $5 of risk is a 2R profit: the gain divided by R."
+  },
+  {
+   "id": "f23",
+   "source": "s04",
+   "quote": "You buy a stock at $60 and plan to get out if it drops to $55. However, when it goes that low, you don’t sell.",
+   "claim": "Tharp's drill: a $55 stop under a $60 entry that you fail to honour."
+  },
+  {
+   "id": "f24",
+   "source": "s04",
+   "quote": "A 1R loss is $5. Your loss per share is $60, so you have a 12R loss.",
+   "claim": "Skipping a $5 stop and losing $60 a share is a 12R loss."
+  },
+  {
+   "id": "f25",
+   "source": "s04",
+   "quote": "A trading system can be characterized as a distribution of the R-multiples it generates. Expectancy is simply the mean, or average, R-multiple generated.",
+   "claim": "Expectancy is the average R-multiple of all your trades."
+  },
+  {
+   "id": "f26",
+   "source": "s04",
+   "quote": "Please note that you can only get a good idea of your system’s expectancy when you have a minimum of thirty trades to analyze.",
+   "claim": "You need at least thirty trades for a good idea of expectancy."
+  },
+  {
+   "id": "f27",
+   "source": "s04",
+   "quote": "In order to really get a clear picture of the system’s expectancy, you should actually have somewhere between 100 and 200.",
+   "claim": "A clear picture of expectancy takes 100 to 200 trades."
+  },
+  {
+   "id": "f28",
+   "source": "s04",
+   "quote": "For example, you could have 99 losing trades, each costing you a dollar, for a total loss of $99. However, if you had one winning trade of $500, you would have a net payoff of $401",
+   "claim": "With 99 one-dollar losers and one $500 winner, you still net $401."
+  },
+  {
+   "id": "f29",
+   "source": "s04",
+   "quote": "Position sizing is that part of your system that controls how much you trade. It determines how many shares of stock you should buy or “how much” you should invest in any given trade.",
+   "claim": "Position sizing decides how many shares you buy."
+  },
+  {
+   "id": "f30",
+   "source": "s04",
+   "quote": "This is the amount RISKED on the trading idea (trade) and should not be confused with the amount that you actually INVESTED in the trading idea (trade).",
+   "claim": "The amount you risk is not the amount you invest."
+  },
+  {
+   "id": "f31",
+   "source": "s04",
+   "quote": "Thus, you are purchasing $4,000 worth of stock, but you are only risking $1,000, or 1% of your portfolio.",
+   "claim": "Tharp's example puts $4,000 into the stock while risking only $1,000."
+  },
+  {
+   "id": "f32",
+   "source": "s04",
+   "quote": "Ask yourself, before you take a trade, “what’s the risk on this trade, and is the potential reward worth the potential risk?",
+   "claim": "Before every trade, weigh the potential reward against the risk."
+  },
+  {
+   "id": "f33",
+   "source": "s04",
+   "quote": "A stop is basically a preplanned exit.",
+   "claim": "A stop is a preplanned exit."
+  },
+  {
+   "id": "f34",
+   "source": "s04",
+   "quote": "Never open a position in the market without knowing exactly where you will exit that position, and cut your losses short and let your profits run.",
+   "claim": "Tharp's golden rule: know exactly where you'll exit before you open a position."
+  },
+  {
+   "id": "f35",
+   "source": "s04",
+   "quote": "A trailing stop basically adjusts that stop when the market moves in your favor, giving you a profit-taking exit as well.",
+   "claim": "A trailing stop moves up as the market moves your way, so it also takes profits."
+  },
+  {
+   "id": "f36",
+   "source": "s04",
+   "quote": "However, you must NEVER move it backward. Thus, if your stock moves down from $60 to $50, you would still keep your exit at $45, 25% away from the high of $60.",
+   "claim": "A 25% trailing stop under a $60 high sits at $45 and is never moved back down."
+  },
+  {
+   "id": "f37",
+   "source": "s04",
+   "quote": "In other words, you would get out of the trade if the stock turned and dropped to $45, but because you bought it at $30, you would have locked in half your profit, or $15.",
+   "claim": "Bought at $30, a trailing stop at $45 locks in $15 a share, half the gain."
+  },
+  {
+   "id": "f38",
+   "source": "s04",
+   "quote": "Once you’ve proven that you can consistently and profitably trade the strategy over a meaningful period of time (months, not days), you can begin to ramp up your position sizing strategies.",
+   "claim": "Size up only after months of proof, not days."
+  },
+  {
+   "id": "f39",
+   "source": "s05",
+   "quote": "A term used to express the initial risk taken in a given position, as defined by one’s initial stop loss.",
+   "claim": "R is the initial risk, set by your initial stop."
+  },
+  {
+   "id": "f40",
+   "source": "s06",
+   "quote": "The difference between your stop level and your entry price when you open a position in the market. It is usually referred to as R in this book.",
+   "claim": "Initial risk, called R, is the distance from entry to stop."
+  },
+  {
+   "id": "f41",
+   "source": "s07",
+   "quote": "A term used to express trading results in terms of the initial risk. All profits and losses can be expressed as a multiple of the initial risk (R) taken.",
+   "claim": "An R-multiple is a trade's profit or loss counted in units of initial risk."
+  },
+  {
+   "id": "f42",
+   "source": "s07",
+   "quote": "For example, a 10R multiple is a profit that is 10 times the initial risk. Thus, if your initial risk is $10, then a $100 profit would be a 10R-multiple profit.",
+   "claim": "A profit of 10 times your risk is a 10R multiple."
+  },
+  {
+   "id": "f43",
+   "source": "s08",
+   "quote": "How much you can expect to make on the average over many trades. Expectancy is best stated in terms of how much you can make per dollar you risk.",
+   "claim": "Expectancy is your average result over many trades, per dollar risked."
+  },
+  {
+   "id": "f44",
+   "source": "s08",
+   "quote": "Expectancy is the mean R of an R-multiple distribution generated by a trading system.",
+   "claim": "Expectancy is the mean R of your trades."
+  },
+  {
+   "id": "f45",
+   "source": "s09",
+   "quote": "The percentage of closed trades in which you make money.",
+   "claim": "Win rate is the percent of closed trades that make money."
+  },
+  {
+   "id": "f46",
+   "source": "s10",
+   "quote": "The total open risk in your portfolio at any given time.",
+   "claim": "Portfolio heat is your total open risk."
+  },
+  {
+   "id": "f47",
+   "source": "s11",
+   "quote": "The difference between the current price and the value of the stop for all positions that you have open in the market. It’s another word for portfolio heat.",
+   "claim": "Open risk runs from the current price to the stop, across all open positions."
+  },
+  {
+   "id": "f48",
+   "source": "s12",
+   "quote": "A decrease in the value of your account because of losing trades or because of “paper losses” that may occur simply because of a decline in value of open positions.",
+   "claim": "A drawdown is a fall in account value, from closed losses or open ones."
+  },
+  {
+   "id": "f49",
+   "source": "s13",
+   "quote": "A term that is used to describe one’s maximum drawdown from the highest equity peak to the lowest equity trough prior to reaching a new equity high.",
+   "claim": "Maximum drawdown runs from the highest peak to the lowest trough before a new high."
+  },
+  {
+   "id": "f50",
+   "source": "s14",
+   "quote": "The amount of drawdown in your account at which you would stop trading.",
+   "claim": "Tharp's ruin is the drawdown at which you'd stop trading."
+  },
+  {
+   "id": "f51",
+   "source": "s15",
+   "quote": "The difference in price between the entry point in a position and the worst-case loss that one is willing to take in that position.",
+   "claim": "Tharp's risk is the distance from entry to the worst loss you'll accept."
+  },
+  {
+   "id": "f52",
+   "source": "s15",
+   "quote": "Note that this definition is much different than the typical academic definition of risk as the variability of the market in which you are investing.",
+   "claim": "That is different from the academic idea of risk as variability."
+  },
+  {
+   "id": "f53",
+   "source": "s16",
+   "quote": "A stop-loss order that moves with the prevailing trend of the market. This is typically used as a way of exiting profitable trades. The stop is only moved when the market goes in your favor.",
+   "claim": "A trailing stop moves only when the market goes your way."
+  },
+  {
+   "id": "f54",
+   "source": "s17",
+   "quote": "It’s typically called a stop (or stop-loss order) because most traders use it to make sure they sell an open position before it gets away from them.",
+   "claim": "A stop-loss is there to get you out before a position gets away from you."
+  },
+  {
+   "id": "f55",
+   "source": "s18",
+   "quote": "A position-sizing model in which position sizing is determined by limiting the amount of volatility (which is usually defined by the average true range) in a position to a certain percentage of your equity.",
+   "claim": "Volatility-based sizing caps each position's ATR at a set percent of equity."
+  },
+  {
+   "id": "f56",
+   "source": "s19",
+   "quote": "Negative expectancy systems also include some highly reliable systems (that is, those with a high hit rate) that tend to have occasional large losses.",
+   "claim": "Some systems that win often still lose money because of occasional large losses."
+  },
+  {
+   "id": "f57",
+   "source": "s20",
+   "quote": "A system (or game) that will make money over the long term if played at a risk level that is sufficiently low.",
+   "claim": "A positive-expectancy method makes money over time only at a low enough risk level."
+  },
+  {
+   "id": "f58",
+   "source": "s21",
+   "quote": "An idea that has a positive expectancy and is traded at a risk level that allows for the worst possible situation in the short term so that one can realize the long-term expectancy.",
+   "claim": "A low-risk idea is sized to survive the worst short-term run."
+  },
+  {
+   "id": "f59",
+   "source": "s22",
+   "quote": "First, let's start thinking about your trading results in terms of multiples of your initial risk (R-multiples for short).",
+   "claim": "R-multiples are trading results counted in multiples of initial risk."
+  },
+  {
+   "id": "f60",
+   "source": "s22",
+   "quote": "A key of trading success is that you must have a predetermined exit before you enter into a trade that represents your worst-case risk.",
+   "claim": "Set the exit that defines your worst-case risk before you enter."
+  },
+  {
+   "id": "f61",
+   "source": "s22",
+   "quote": "You would be buying $10,000 worth of stocks (400 x $25), but your initial risk would only be $1,000.",
+   "claim": "In Tharp's example, $10,000 goes into the stock but only $1,000 is at risk."
+  },
+  {
+   "id": "f62",
+   "source": "s22",
+   "quote": "The average R-multiple produced by the system is what I call the expectancy of the system.",
+   "claim": "Expectancy is the average R-multiple."
+  },
+  {
+   "id": "f63",
+   "source": "s22",
+   "quote": "If your sample is large enough (and in our case 10 samples isn't), then your expectancy will tell you what you can expect per trade on the average over many trades.",
+   "claim": "Expectancy only means something once the sample of trades is large enough."
+  },
+  {
+   "id": "f64",
+   "source": "s23",
+   "quote": "In portfolio management, we call the distributed bet size the heat of the portfolio.",
+   "claim": "Seykota and Druz call the total bet across positions the heat of the portfolio."
+  },
+  {
+   "id": "f65",
+   "source": "s23",
+   "quote": "A diversified portfolio risking 2% on each of five instrument & has a total heat of 10%, as does a portfolio risking 5% on each of two instruments.",
+   "claim": "Heat adds up: 2% on each of five positions is 10% of heat."
+  },
+  {
+   "id": "f66",
+   "source": "s23",
+   "quote": "If you risk little, you win little. If you risk too much, you eventually run to ruin.",
+   "claim": "Risk too much per bet and you eventually run to ruin."
+  },
+  {
+   "id": "f67",
+   "source": "s24",
+   "quote": "Position sizing is the process of determining how many units an investor or trader will invest in a specific security while accounting for the account size and risk tolerance.",
+   "claim": "Position sizing is deciding how many shares to buy, given account size and risk tolerance."
+  },
+  {
+   "id": "f68",
+   "source": "s24",
+   "quote": "For stock trades, the trade risk is the dollar difference between the entry price and the stop-loss.",
+   "claim": "Trade risk is the dollar distance from entry to stop."
+  },
+  {
+   "id": "f69",
+   "source": "s24",
+   "quote": "To determine the correct position size from this information, the investor simply needs to divide the account risk ($500) by the trade risk ($20). This means 25 shares can be bought ($500 / $20).",
+   "claim": "Shares are the dollars you risk divided by the risk per share."
+  },
+  {
+   "id": "f70",
+   "source": "s24",
+   "quote": "For example, if an investor has a $25,000 account and sets their maximum account risk to 2%, they cannot risk more than $500 per trade (2% x $25,000).",
+   "claim": "Dollar risk is the account times the risk percent."
+  },
+  {
+   "id": "f71",
+   "source": "s24",
+   "quote": "Even with proper position sizing, investors can lose more than their intended risk amount if a security gaps beyond a stop-loss order.",
+   "claim": "A gap past your stop can cost more than the risk you planned."
+  },
+  {
+   "id": "f72",
+   "source": "s24",
+   "quote": "If expecting volatility, like before earnings reports, investors might halve their position size to cut gap risk.",
+   "claim": "Before earnings, some cut the position in half to reduce gap risk."
+  },
+  {
+   "id": "f73",
+   "source": "s25",
+   "quote": "Risk of ruin is the probability that an individual will incur financial losses from investing, trading, or gambling significant enough to make recovery from them impossible.",
+   "claim": "Risk of ruin is the chance of losses too big to recover from."
+  },
+  {
+   "id": "f74",
+   "source": "s25",
+   "quote": "In basic terms, the risk of ruin in gambling and investing is not so different as it depends on how many bets (investments) are placed and how much capital there is to cushion probable losses.",
+   "claim": "Risk of ruin depends on how many bets you make and how much capital cushions the losses."
+  },
+  {
+   "id": "f75",
+   "source": "s26",
+   "quote": "A drawdown is typically quoted as the percentage difference between the peak of an investment and its following trough.",
+   "claim": "A drawdown is the percent fall from a peak to the low after it."
+  },
+  {
+   "id": "f76",
+   "source": "s26",
+   "quote": "This also demonstrates that a drawdown isn't always the same as a loss.",
+   "claim": "A drawdown is not always a loss."
+  },
+  {
+   "id": "f77",
+   "source": "s26",
+   "quote": "The XYZ stock experienced a drawdown of 27.3%, but the trader's unrealized loss at the $80 trough was $20 because they had purchased the stock at $100 per share, rather than the peak price of $110.",
+   "claim": "Drawdown is measured from the peak, while a loss is measured from what you paid."
+  },
+  {
+   "id": "f78",
+   "source": "s26",
+   "quote": "A stock or market drawdown is different from a retirement drawdown. Retirement drawdowns are the process of withdrawing funds from a retirement account or pension.",
+   "claim": "A retirement drawdown means withdrawals; a market drawdown means a fall in value."
+  },
+  {
+   "id": "f79",
+   "source": "s27",
+   "quote": "Maximum drawdown (MDD) is the largest decline in an investment’s value from its peak to trough before a new peak is achieved.",
+   "claim": "Maximum drawdown is the largest peak-to-trough fall before a new peak."
+  },
+  {
+   "id": "f80",
+   "source": "s27",
+   "quote": "The initial peak of $750,000 is used in the MDD calculation. The interim peak of $600,000 is not used, since it does not represent a new high.",
+   "claim": "A bounce that isn't a new high is not a new peak for maximum drawdown."
+  },
+  {
+   "id": "f81",
+   "source": "s28",
+   "quote": "Average true range is a technical analysis indicator that demonstrates market volatility.",
+   "claim": "ATR measures volatility."
+  },
+  {
+   "id": "f82",
+   "source": "s28",
+   "quote": "the greatest of the following: The current high less the current low The absolute value of the current high less the previous close and The absolute value of the current low less the previous close",
+   "claim": "True range is the largest of high minus low, high to prior close, and low to prior close."
+  },
+  {
+   "id": "f83",
+   "source": "s28",
+   "quote": "The ATR is then a moving average of the true ranges, generally using 14 days.",
+   "claim": "ATR averages the true range, usually over 14 days."
+  },
+  {
+   "id": "f84",
+   "source": "s28",
+   "quote": "The indicator does not indicate the price direction. It is primarily used to measure volatility caused by gaps and limit up or down moves.",
+   "claim": "ATR shows no direction; it measures volatility, including gaps."
+  },
+  {
+   "id": "f85",
+   "source": "s28",
+   "quote": "One popular technique is known as the \"chandelier exit,\" developed by Chuck LeBeau. The chandelier exit places a trailing stop under the highest high the stock has reached since you entered the trade.",
+   "claim": "The chandelier exit is Chuck LeBeau's trailing stop under the highest high."
+  },
+  {
+   "id": "f86",
+   "source": "s28",
+   "quote": "The distance between the highest high and the stop level is defined as some multiple multiplied by the ATR.",
+   "claim": "Its distance from the high is a multiple of ATR."
+  },
+  {
+   "id": "f87",
+   "source": "s28",
+   "quote": "So, if the ATR for an asset is $1.18, its price has an average range of movement of $1.18 per trading day.",
+   "claim": "On a daily chart, ATR is the average daily range of movement in dollars."
+  },
+  {
+   "id": "f88",
+   "source": "s29",
+   "quote": "If you set the trailing stop too close to the current price, normal price swings that don't constitute a true reversal could stop you out, leaving money on the table.",
+   "claim": "A trail set too tight gets hit by normal swings."
+  },
+  {
+   "id": "f89",
+   "source": "s29",
+   "quote": "If the stop is too far away, a true reversal could end up chewing up more of your potential profit than necessary",
+   "claim": "A trail set too loose gives back more profit in a real reversal."
+  },
+  {
+   "id": "f90",
+   "source": "s29",
+   "quote": "A close above or below a specific moving average, such as the eight-, 20-, or 50-day trailing stops.",
+   "claim": "A close through a moving average is one common trailing stop."
+  },
+  {
+   "id": "f91",
+   "source": "s30",
+   "quote": "The risk/reward ratio measures the difference between a trade entry point to a stop-loss and a sell or take-profit order. Comparing these two provides the ratio of profit to loss, or reward to risk.",
+   "claim": "Risk/reward compares entry-to-stop with entry-to-target."
+  },
+  {
+   "id": "f92",
+   "source": "s30",
+   "quote": "The ideal risk/reward ratio can vary based on personal risk tolerance and investment goals, but a commonly favored benchmark is 1:3, meaning three units of reward for every unit of risk.",
+   "claim": "Investopedia writes three units of reward per unit of risk as 1:3."
+  },
+  {
+   "id": "f93",
+   "source": "s30",
+   "quote": "they would certainly reduce the size of the potential loss (assuming no change to the number of shares), but they will have increased the likelihood that the price action will trigger their stop loss order.",
+   "claim": "A tighter stop shrinks the loss but makes the stop more likely to be hit."
+  },
+  {
+   "id": "f94",
+   "source": "s30",
+   "quote": "So, although the investor may stand to make a proportionally larger gain (compared to the potential loss), they have a lower probability of receiving this outcome.",
+   "claim": "A better ratio from a tighter stop comes with a lower chance of reaching the target."
+  },
+  {
+   "id": "f95",
+   "source": "s31",
+   "quote": "The win/loss ratio is often used with the win rate, which is the number of trades that make money out of the total number of trades conducted.",
+   "claim": "Win rate is winning trades out of all trades."
+  },
+  {
+   "id": "f96",
+   "source": "s31",
+   "quote": "Sounds good, but if the losing trades have dollar losses three times as large as the dollar gains of the winning trades, the trader has a losing strategy.",
+   "claim": "More wins than losses can still lose money if the losses are much bigger."
+  },
+  {
+   "id": "f97",
+   "source": "s32",
+   "quote": "The EV is calculated in statistics and probability analysis by multiplying each of the possible outcomes by the likelihood that each outcome will occur and then summing all of those values.",
+   "claim": "Expected value multiplies each outcome by its chance and adds them up."
+  },
+  {
+   "id": "f98",
+   "source": "s32",
+   "quote": "The EV is essentially the long-term average value of the variable.",
+   "claim": "Expected value is a long-term average."
+  },
+  {
+   "id": "f99",
+   "source": "s33",
+   "quote": "The 2% rule is a strategy that limits an investor's risk on any single trade to no more than 2% of their total trading capital.",
+   "claim": "The 2% rule caps the risk on one trade at 2% of trading capital."
+  },
+  {
+   "id": "f100",
+   "source": "s33",
+   "quote": "In practice, traders must also consider slippage costs and gap risk. These can result in events that make the potential for loss significantly greater than 2%.",
+   "claim": "Slippage and gaps can push a loss well past the planned 2%."
+  },
+  {
+   "id": "f101",
+   "source": "s33",
+   "quote": "Investments with higher volatility may require smaller position sizes to account for the increased risk of price fluctuations.",
+   "claim": "More volatile stocks call for smaller positions."
+  },
+  {
+   "id": "f102",
+   "source": "s34",
+   "quote": "If a stock’s price gaps past the stop price, the order triggers, and the stock is sold (or bought) at the next available price, regardless of a sharp price move.",
+   "claim": "A gap through the stop still triggers it, and it fills at the next available price."
+  },
+  {
+   "id": "f103",
+   "source": "s35",
+   "quote": "Developed by J. Welles Wilder, the Average True Range (ATR) is an indicator that measures volatility.",
+   "claim": "Wilder's ATR measures volatility."
+  },
+  {
+   "id": "f104",
+   "source": "s35",
+   "quote": "A volatility formula based only on the high-low range would fail to capture volatility from gap or limit moves. Wilder created the Average True Range to capture this “missing” volatility.",
+   "claim": "True range exists to capture the volatility of gaps that the high-low range misses."
+  },
+  {
+   "id": "f105",
+   "source": "s35",
+   "quote": "It is important to remember that ATR doesn't indicate price direction, just volatility.",
+   "claim": "ATR measures volatility, not direction."
+  },
+  {
+   "id": "f106",
+   "source": "s35",
+   "quote": "In other words, ATR is not shown as a percentage of the current close. This means low-priced stocks will have lower ATR values than high-price stocks.",
+   "claim": "ATR is in dollars, so cheaper stocks show smaller ATRs."
+  },
+  {
+   "id": "f107",
+   "source": "s35",
+   "quote": "For example, a $20-30 security will have much lower ATR values than a $200-300 security. Because of this, ATR values are not comparable.",
+   "claim": "Raw ATRs can't be compared across stocks at different prices."
+  },
+  {
+   "id": "f108",
+   "source": "s35",
+   "quote": "Method 1. Current High less the current Low Method 2. Current High less the previous Close (absolute value) Method 3. Current Low less the previous Close (absolute value)",
+   "claim": "The three true range measures: high-low, high to prior close, low to prior close."
+  },
+  {
+   "id": "f109",
+   "source": "s35",
+   "quote": "Large ranges or True Ranges often accompany strong moves in either direction, which can be volatile.",
+   "claim": "Big ranges come with strong moves up or down."
+  },
+  {
+   "id": "f110",
+   "source": "s36",
+   "quote": "Developed by Charles Le Beau and featured in Alexander Elder's books, the Chandelier Exit sets a trailing stop-loss based on the Average True Range (ATR).",
+   "claim": "The Chandelier Exit is an ATR-based trailing stop."
+  },
+  {
+   "id": "f111",
+   "source": "s36",
+   "quote": "The long position exit hangs three ATR values below the 22-period high.",
+   "claim": "The long Chandelier Exit sits three ATRs under the 22-day high."
+  },
+  {
+   "id": "f112",
+   "source": "s36",
+   "quote": "Volatile stocks may require a higher multiplier to reduce whipsaws. Relatively dull stocks may need a lower multiplier to increase sensitivity.",
+   "claim": "Jumpier stocks need a bigger ATR multiplier; quiet ones a smaller one."
+  },
+  {
+   "id": "f113",
+   "source": "s36",
+   "quote": "Chartists should increase the ATR multiplier for more volatile stocks, such as techs.",
+   "claim": "Use a bigger ATR multiplier on more volatile stocks."
+  },
+  {
+   "id": "f114",
+   "source": "s36",
+   "quote": "Chandelier Exit (long) = 22-day High - ATR(22) x 3",
+   "claim": "Long Chandelier Exit = 22-day high minus three times the 22-day ATR."
+  },
+  {
+   "id": "f115",
+   "source": "s37",
+   "quote": "For a general rule, some traders may risk up to 1%–2% of their account on a single trade and allocate up to 5%–10% of their portfolio in any single position.",
+   "claim": "Risk per trade and position size are separate limits."
+  },
+  {
+   "id": "f116",
+   "source": "s37",
+   "quote": "track your trading history to calculate your theoretical trade expectancy, meaning your average gain (or loss) per trade.",
+   "claim": "Schwab's expectancy is your average gain or loss per trade."
+  },
+  {
+   "id": "f117",
+   "source": "s37",
+   "quote": "Before placing a trade, you also want to specify when and how you'll close it out.",
+   "claim": "Decide your exit before you place the trade."
+  },
+  {
+   "id": "f118",
+   "source": "s38",
+   "quote": "Once the stock begins to move lower, the stop price freezes at the highest level it reaches. In other words, the stop price can move higher indefinitely, but it can never move lower.",
+   "claim": "A trailing stop can rise but never fall."
+  },
+  {
+   "id": "f119",
+   "source": "s38",
+   "quote": "or when the stock gaps down in the morning (lower than the prior day's closing price), your execution price could be significantly lower than your stop price.",
+   "claim": "After a gap down, a stop can fill far below the stop price."
+  },
+  {
+   "id": "f120",
+   "source": "s38",
+   "quote": "Regardless of what methodology you use, be careful not to place the stop price too close to the current price, or the order might be triggered by regular daily price fluctuations.",
+   "claim": "A stop too close to price gets hit by normal daily swings."
+  },
+  {
+   "id": "f121",
+   "source": "s38",
+   "quote": "Similarly, you don't want to place the stop price too far from the current price, or you may sustain a sizable loss before you exit the position.",
+   "claim": "A stop too far away can cost a sizable loss before you're out."
+  },
+  {
+   "id": "f122",
+   "source": "s38",
+   "quote": "Clearly, if you're trading a highly volatile stock that has a history of fluctuating as much as 5% in price daily, placing a stop order 5% below your entry price is likely to result in an unfavorable outcome.",
+   "claim": "A stop inside a stock's normal daily swing is likely to be hit."
+  },
+  {
+   "id": "f123",
+   "source": "s39",
+   "quote": "They can also implement “circuit breakers” to prevent additional trading after a certain level of loss in a day.",
+   "claim": "A circuit breaker stops trading after a set loss in a day."
+  },
+  {
+   "id": "f124",
+   "source": "s39",
+   "quote": "which helps explain the downward spiral of “revenge trading” that fuels many catastrophic trading blowups.",
+   "claim": "Revenge trading fuels many blowups."
+  },
+  {
+   "id": "f125",
+   "source": "s40",
+   "quote": "A drawdown is the total change in price from one peak to the next valley.",
+   "claim": "A drawdown runs from a peak to the next valley."
+  },
+  {
+   "id": "f126",
+   "source": "s40",
+   "quote": "Other traders use a drawdown concept to set a daily loss limit. They establish a target maximum allowable loss, and if they reach that target during the day, they end their activities at that point.",
+   "claim": "A daily loss limit ends your trading for the day once the set loss is reached."
+  },
+  {
+   "id": "f127",
+   "source": "s40",
+   "quote": "How you set your drawdown limit is not relevant here, but once you do have it, you should have the discipline to observe it.",
+   "claim": "A loss limit only works if you obey it."
+  },
+  {
+   "id": "f128",
+   "source": "s41",
+   "quote": "The largest cumulative percentage decline in the Net Asset Value of your portfolio from the highest or peak value to the lowest or trough value after the peak.",
+   "claim": "Max drawdown is the largest percent fall from peak to trough."
+  },
+  {
+   "id": "f129",
+   "source": "s42",
+   "quote": "NEVER LOSE MORE THAN 6 PERCENT OF YOUR CAPITAL IN ANY ONE MONTH.",
+   "claim": "Elder's monthly rule caps losses at 6% a month."
+  },
+  {
+   "id": "f130",
+   "source": "s42",
+   "quote": "It requires traders to use stop losses to restrict the total risk on all open positions to just 6% of their capital",
+   "claim": "Elder adds up the risk on all open positions."
+  },
+  {
+   "id": "f131",
+   "source": "s42",
+   "quote": "Subtract your stop loss level for each stock from its closing price at the last month-end;",
+   "claim": "Open risk per share is the current price minus the stop."
+  },
+  {
+   "id": "f132",
+   "source": "s42",
+   "quote": "Multiply the risk margin by the number of shares held; and",
+   "claim": "Then multiply by the shares held."
+  },
+  {
+   "id": "f133",
+   "source": "s42",
+   "quote": "Sum the risk exposure for all stocks in your portfolio.",
+   "claim": "Then add it up across every position."
+  },
+  {
+   "id": "f134",
+   "source": "s42",
+   "quote": "In Come Into My Trading Room Alexander Elder suggests adding a second risk management rule, applied at the portfolio level, to be used in conjunction with the 2% rule which is used to manage risk on individual stocks or trades.",
+   "claim": "Elder's 2% rule manages the risk on each individual trade."
+  },
+  {
+   "id": "f135",
+   "source": "s43",
+   "quote": "When the profit (for the position or per contract/share) exceeds the breakeven profit floor, a stop exit order is generated at the average entry price of the position.",
+   "claim": "A breakeven stop is a stop at your entry price, placed once a set profit is reached."
+  },
+  {
+   "id": "f136",
+   "source": "s43",
+   "quote": "All stop orders are stop market orders. If the price falls back to the entry price a market order is generated and sent into the market.",
+   "claim": "A breakeven stop becomes a market order when price falls back to entry."
+  },
+  {
+   "id": "f137",
+   "source": "s43",
+   "quote": "The calculation for this strategy does not take commission or slippage into account.",
+   "claim": "Breakeven math leaves out commission and slippage."
+  },
+  {
+   "id": "f138",
+   "source": "s43",
+   "quote": "The BreakEven Stop strategy only takes effect once a certain level of profit is reached, so it is possible that in a given position, it may never take effect.",
+   "claim": "A breakeven stop only goes in after a set profit."
+  },
+  {
+   "id": "f139",
+   "source": "s44",
+   "quote": "If you do not take a worthwhile profit when you have it, do not let a stock fall back below your purchase price. One should sell and avoid the loss.",
+   "claim": "O'Neil: don't let a worthwhile profit turn into a loss."
+  },
+  {
+   "id": "f140",
+   "source": "s45",
+   "quote": "Your stop should be based on some measure of volatility rather than price or percentage. Do I move my stop to breakeven? Never.",
+   "claim": "One systematic trader sets stops from volatility and never moves them to breakeven."
+  },
+  {
+   "id": "f141",
+   "source": "s45",
+   "quote": "You should size your position based on the stop-loss distance.",
+   "claim": "Size the position from the stop distance."
+  },
+  {
+   "id": "f142",
+   "source": "s46",
+   "quote": "For example a 50% loss requires a subsequent 100% gain to break-even. A given percentage loss always requires a greater percentage gain to break-even.",
+   "claim": "A 50% loss needs a 100% gain; every loss needs a bigger gain to repair."
+  },
+  {
+   "id": "f143",
+   "source": "s46",
+   "quote": "Instead, many non-expert investors may assume for example that a 50% gain is sufficient to offset a 50% loss.",
+   "claim": "Many people wrongly think a 50% gain repairs a 50% loss."
+  },
+  {
+   "id": "f144",
+   "source": "s47",
+   "quote": "For instance, to recover from a 10% loss, an investor needs an 11% gain. To recover from a 50% loss, an investor needs a 100% gain.",
+   "claim": "Down 10% needs about 11%; down 50% needs 100%."
+  },
+  {
+   "id": "h01",
+   "source": "h4",
+   "quote": "The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
+   "claim": "Our first trim, the hard rule: a third of the position at 3R. In practice the owner often waits for 5R."
+  },
+  {
+   "id": "h02",
+   "source": "h1",
+   "quote": "under the 21-day and 50-day averages, a quarter of an ATR below the lower one",
+   "claim": "Our Launchpad stop sits under the 21-day and 50-day averages, a quarter ATR below the lower one."
+  },
+  {
+   "id": "h03",
+   "source": "h2",
+   "quote": "Default stop: the low of the day, or the prior day's low. (Owner's answer.)",
+   "claim": "Our default stop is the low of the day or the prior day's low."
+  },
+  {
+   "id": "h04",
+   "source": "h3",
+   "quote": "Hold your winners by selling partials into strength and trailing the rising moving averages.",
+   "claim": "In the owner's words: sell partials into strength and trail the rising moving averages."
+  },
+  {
+   "id": "h09",
+   "source": "h4",
+   "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
+   "claim": "After the first third at 3R, we sell another third at 5R and trail the last third."
+  }
+ ],
+ "walkthroughs": [
+  {
+   "key": "w1",
+   "title": "R: the unit of risk",
+   "steps": [
+    "Before you buy, find the price that proves you wrong. Entry minus that stop is R, your initial risk.",
+    "Count every result in R. Risk $10 and make $100, and that's a 10R multiple.",
+    "Average your R-multiples over many trades. That's your expectancy, what one trade is worth on average."
+   ],
+   "facts": [
+    "f40",
+    "f15",
+    "f42",
+    "f25",
+    "f62",
+    "f43"
+   ]
+  },
+  {
+   "key": "w2",
+   "title": "Drawdown and ruin",
+   "steps": [
+    "A drawdown is the fall from your account's high to the low after it, quoted as a percent.",
+    "Losses are harder to undo than they look. A 50% loss needs a 100% gain to get back.",
+    "Risk too much per trade and a normal losing streak can finish the account. Those odds are your risk of ruin."
+   ],
+   "facts": [
+    "f75",
+    "f125",
+    "f142",
+    "f73",
+    "f66",
+    "f74"
+   ]
+  },
+  {
+   "key": "w3",
+   "title": "Stops that follow the trend",
+   "steps": [
+    "Your first stop sets R. As the trade works, you can move the stop up, never down.",
+    "A trailing stop follows price by a set amount. The Chandelier Exit sets it three ATRs under the recent high by default.",
+    "Too tight and normal swings take you out. Too loose and a real reversal eats your profit."
+   ],
+   "facts": [
+    "f39",
+    "f53",
+    "f118",
+    "f06",
+    "f111",
+    "f88",
+    "f89",
+    "f112"
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "key": "q01",
+   "skill": "vocab.risk_terms",
+   "rung": 1,
+   "format": "mcq",
+   "term": "R",
+   "q": "What does R mean on a trade?",
+   "choices": [
+    "Your planned loss, entry to stop",
+    "The money you put into the trade",
+    "The stock's average daily range",
+    "The gain you expect at your target"
+   ],
+   "answer": "Your planned loss, entry to stop",
+   "why": "Your planned loss, entry to stop. Van Tharp calls it the initial risk, R for short: what you lose per share if you're wrong and get out at your stop.",
+   "lesson_line": "R is what being wrong costs you. Know it before you buy.",
+   "facts": [
+    "f40",
+    "f15",
+    "f14",
+    "f68",
+    "f30"
+   ],
+   "wrong": {
+    "The money you put into the trade": "That's your position size. Tharp is clear: the amount risked is not the amount invested.",
+    "The stock's average daily range": "That's ATR, a measure of how much the stock moves.",
+    "The gain you expect at your target": "That's the reward side of the trade. R is the risk side."
+   }
+  },
+  {
+   "key": "q02",
+   "skill": "vocab.risk_terms",
+   "rung": 2,
+   "format": "numeric",
+   "term": "R",
+   "q": "You buy at $50 with your stop at $46. What is your R per share?",
+   "answer": 4,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "entry - stop",
+     "entry": 50,
+     "stop": 46
+    }
+   },
+   "prefix": "$",
+   "why": "$4. R per share is your entry minus your stop: $50 less $46.",
+   "lesson_line": "Entry minus stop. That's 1R per share.",
+   "facts": [
+    "f40",
+    "f16",
+    "f68"
+   ]
+  },
+  {
+   "key": "q03",
+   "skill": "vocab.risk_terms",
+   "rung": 4,
+   "format": "tf",
+   "term": "R",
+   "q": "R is the amount of money you put into the trade.",
+   "answer": "False",
+   "why": "False. R is what you lose if the stop is hit, not what you invest. Tharp's example buys $4,000 of stock while risking only $1,000.",
+   "lesson_line": "Invested and risked are two different numbers. R is the risked one.",
+   "facts": [
+    "f30",
+    "f31",
+    "f61",
+    "f115"
+   ]
+  },
+  {
+   "key": "q04",
+   "skill": "vocab.risk_terms",
+   "rung": 5,
+   "format": "scenario",
+   "term": "Total risk",
+   "story": "You buy 200 shares at $30. Your stop is at $28.50.",
+   "q": "What is your total risk on the position?",
+   "choices": [
+    "$300",
+    "$1.50",
+    "$6,000",
+    "$5,700"
+   ],
+   "answer": "$300",
+   "why": "$300. That's the risk per share, $30 less $28.50, times 200 shares. R can mean per share or for the whole position.",
+   "lesson_line": "Risk per share times shares is your total risk. That's the number the account feels.",
+   "facts": [
+    "f18",
+    "f19",
+    "f17"
+   ],
+   "wrong": {
+    "$1.50": "That's the risk on one share. You hold 200 of them.",
+    "$6,000": "That's what the position costs. You'd only lose all of it if the stock went to zero.",
+    "$5,700": "That's what your shares are worth at the stop, not what you lose."
+   },
+   "calc": {
+    "fn": "risk_dollars",
+    "args": {
+     "shares": 200,
+     "entry": 30,
+     "stop": 28.5
+    }
+   }
+  },
+  {
+   "key": "q05",
+   "skill": "vocab.risk_terms",
+   "rung": 7,
+   "format": "tf",
+   "term": "Risk",
+   "q": "In Tharp's trading sense, the risk on a trade means how much the stock's price bounces around.",
+   "answer": "False",
+   "why": "False. Tharp defines risk as the gap between your entry and the worst loss you'll accept. He says that's very different from the academic idea of risk as variability.",
+   "lesson_line": "Your risk is a distance you choose: entry to stop. Volatility is why you choose it with care.",
+   "facts": [
+    "f51",
+    "f52",
+    "f68"
+   ]
+  },
+  {
+   "key": "q06",
+   "skill": "vocab.risk_terms",
+   "rung": 1,
+   "format": "mcq",
+   "term": "R-multiple",
+   "q": "What is an R-multiple?",
+   "choices": [
+    "A trade's result counted in R",
+    "Your stop distance in ATRs",
+    "Winning trades divided by losers",
+    "Your share count times R"
+   ],
+   "answer": "A trade's result counted in R",
+   "why": "A trade's result counted in R. Divide the profit or loss by your initial risk. A profit of 10 times your risk is a 10R multiple.",
+   "lesson_line": "Count every result in R and every trade speaks the same language.",
+   "facts": [
+    "f41",
+    "f42",
+    "f59"
+   ],
+   "wrong": {
+    "Your stop distance in ATRs": "That's how an ATR stop is measured. An R-multiple measures the result.",
+    "Winning trades divided by losers": "That counts trades. It ignores how big each win or loss was.",
+    "Your share count times R": "That's your total risk on the position."
+   }
+  },
+  {
+   "key": "q07",
+   "skill": "vocab.risk_terms",
+   "rung": 4,
+   "format": "numeric",
+   "term": "R-multiple",
+   "q": "You buy at $80 with a stop at $76. You sell at $92. What R-multiple did you make?",
+   "answer": 3,
+   "calc": {
+    "fn": "r_multiple",
+    "args": {
+     "entry": 80,
+     "stop": 76,
+     "exit": 92
+    }
+   },
+   "suffix": "R",
+   "why": "3R. Your gain per share is three times your risk per share, entry to stop.",
+   "lesson_line": "Divide what you made by what you risked. That's the R-multiple.",
+   "facts": [
+    "f41",
+    "f21",
+    "f22"
+   ]
+  },
+  {
+   "key": "q08",
+   "skill": "vocab.risk_terms",
+   "rung": 4,
+   "format": "tf",
+   "term": "R-multiple",
+   "q": "If the stock gaps down through your stop, the loss can be bigger than 1R.",
+   "answer": "True",
+   "why": "True. The stop turns into a market order, and the fill can be far from the stop price. Tharp: losses bigger than 1R happen all the time.",
+   "lesson_line": "1R is the plan, not a promise. Aim to keep every loss at 1R or less.",
+   "facts": [
+    "f20",
+    "f04",
+    "f05",
+    "f71",
+    "f09"
+   ]
+  },
+  {
+   "key": "q09",
+   "skill": "vocab.risk_terms",
+   "rung": 7,
+   "format": "scenario",
+   "term": "R-multiple",
+   "story": "You buy at $60 with a stop at $55. It hits $55 and you hold, hoping. You finally sell at $45.",
+   "q": "What R-multiple is that loss?",
+   "choices": [
+    "-3R",
+    "-1R",
+    "-15R",
+    "-0.33R"
+   ],
+   "answer": "-3R",
+   "why": "-3R. You lost three times what you planned to risk. Holding past the stop turned a 1R loss into 3R.",
+   "lesson_line": "The stop is the plan. Skipping it multiplies the loss.",
+   "facts": [
+    "f23",
+    "f24",
+    "f20",
+    "f41"
+   ],
+   "wrong": {
+    "-1R": "That's the loss you planned at $55. You held past it.",
+    "-15R": "That's the dollar drop per share read as R. Divide it by your risk per share.",
+    "-0.33R": "That's upside down: your risk divided by your loss."
+   },
+   "calc": {
+    "fn": "r_multiple",
+    "args": {
+     "entry": 60,
+     "stop": 55,
+     "exit": 45
+    }
+   }
+  },
+  {
+   "key": "q10",
+   "skill": "vocab.risk_terms",
+   "rung": 3,
+   "format": "mcq",
+   "term": "R-multiple",
+   "q": "Our plan sells in thirds. What happens to the last third?",
+   "choices": [
+    "It trails after the second trim",
+    "It sells with the second trim",
+    "It sells at a flat percent gain"
+   ],
+   "answer": "It trails after the second trim",
+   "why": "It trails after the second trim. A third comes off at 3R, another third at 5R, and the last third trails.",
+   "lesson_line": "A third at 3R, a third at 5R, then trail the last third.",
+   "facts": [
+    "h01",
+    "h09"
+   ],
+   "wrong": {
+    "It sells with the second trim": "The second third comes off at 5R. The last third stays on and trails.",
+    "It sells at a flat percent gain": "Our plan does not sell the last third at a flat percent. It trails."
+   },
+   "house": true
+  },
+  {
+   "key": "q11",
+   "skill": "vocab.risk_terms",
+   "rung": 1,
+   "format": "mcq",
+   "term": "Expectancy",
+   "q": "What does expectancy mean for a trading method?",
+   "choices": [
+    "Your average result per trade",
+    "The share of trades that win",
+    "Your biggest win so far",
+    "What you hope this trade makes"
+   ],
+   "answer": "Your average result per trade",
+   "why": "Your average result per trade. Tharp measures it as the average R-multiple over many trades. Schwab calls it your average gain or loss per trade.",
+   "lesson_line": "Expectancy is what one trade is worth, on average, over many trades.",
+   "facts": [
+    "f43",
+    "f44",
+    "f62",
+    "f116"
+   ],
+   "wrong": {
+    "The share of trades that win": "That's your win rate. It leaves out how big the wins and losses are.",
+    "Your biggest win so far": "One trade says nothing about the average.",
+    "What you hope this trade makes": "That's a target. Expectancy is an average over many trades."
+   }
+  },
+  {
+   "key": "q12",
+   "skill": "vocab.risk_terms",
+   "rung": 4,
+   "format": "numeric",
+   "term": "Expectancy",
+   "q": "You win 40% of your trades. Winners average 3R and losers 1R. What is your expectancy per trade?",
+   "answer": 0.6,
+   "calc": {
+    "fn": "expectancy_r",
+    "args": {
+     "win_rate_pct": 40,
+     "avg_win_r": 3,
+     "avg_loss_r": 1
+    }
+   },
+   "suffix": "R",
+   "why": "0.6R. Weight each result by how often it happens, then add: the winners at 3R, the losers at minus 1R.",
+   "lesson_line": "Expectancy needs both: how often you win, and how big the wins and losses are.",
+   "facts": [
+    "f97",
+    "f25",
+    "f44"
+   ]
+  },
+  {
+   "key": "q13",
+   "skill": "vocab.risk_terms",
+   "rung": 5,
+   "format": "tf",
+   "term": "Expectancy",
+   "q": "A positive expectancy tells you that your next trade will make money.",
+   "answer": "False",
+   "why": "False. Expectancy is an average over many trades. Any single trade can still lose, and losing runs happen inside a winning method.",
+   "lesson_line": "An edge shows up over many trades, not on the next one.",
+   "facts": [
+    "f43",
+    "f98",
+    "f58"
+   ]
+  },
+  {
+   "key": "q14",
+   "skill": "vocab.risk_terms",
+   "rung": 7,
+   "format": "scenario",
+   "term": "Expectancy",
+   "story": "Your new setup has 8 closed trades. They average +1.5R.",
+   "q": "What does that tell you about its expectancy?",
+   "choices": [
+    "Too few trades to trust yet",
+    "It earns 1.5R a trade",
+    "It's proven, so size up now"
+   ],
+   "answer": "Too few trades to trust yet",
+   "why": "Too few trades to trust yet. Tharp wants at least thirty trades for a good idea of expectancy, and 100 to 200 for a clear picture.",
+   "lesson_line": "Eight trades is a story, not a statistic. Keep logging them.",
+   "facts": [
+    "f26",
+    "f27",
+    "f63",
+    "f38"
+   ],
+   "wrong": {
+    "It earns 1.5R a trade": "That's what 8 trades did. A small sample can sit far from the true average.",
+    "It's proven, so size up now": "Tharp says start small and size up only after months of proof, not days."
+   }
+  },
+  {
+   "key": "q15",
+   "skill": "vocab.risk_terms",
+   "rung": 3,
+   "format": "fill",
+   "term": "Expectancy",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "Average the R-multiples of all your trades and you get your ___.",
+   "bank": [
+    "expectancy",
+    "win rate",
+    "drawdown",
+    "heat",
+    "stop"
+   ],
+   "answer": "expectancy",
+   "why": "Expectancy. Tharp: expectancy is simply the mean, or average, R-multiple a system generates.",
+   "lesson_line": "Log every trade in R. The average is your expectancy.",
+   "facts": [
+    "f25",
+    "f62",
+    "f116"
+   ]
+  },
+  {
+   "key": "q16",
+   "skill": "vocab.risk_terms",
+   "rung": 9,
+   "format": "scenario",
+   "term": "Expectancy",
+   "story": "Plan A wins 30% of the time, with +4R winners and -1R losers. Plan B wins 70%, with +0.5R winners and -2R losers.",
+   "q": "Which plan has the better expectancy?",
+   "choices": [
+    "A, at +0.5R a trade",
+    "B, at +0.35R a trade",
+    "B, because it wins more",
+    "A, at +1.2R a trade"
+   ],
+   "answer": "A, at +0.5R a trade",
+   "why": "A, at +0.5R a trade. Its 4R winners pay for many 1R losers. B wins 70% of the time, but every 2R loss wipes out four 0.5R wins, so B averages below zero.",
+   "lesson_line": "A high win rate can still lose money. Always weigh how often by how much.",
+   "facts": [
+    "f97",
+    "f25",
+    "f56",
+    "f96"
+   ],
+   "wrong": {
+    "B, at +0.35R a trade": "That counts B's wins and forgets its losses.",
+    "B, because it wins more": "Winning often isn't enough when each loss is four times a win.",
+    "A, at +1.2R a trade": "That's A's winners alone. Take off the losers."
+   },
+   "calc": {
+    "fn": "expectancy_r",
+    "args": {
+     "win_rate_pct": 30,
+     "avg_win_r": 4,
+     "avg_loss_r": 1
+    }
+   }
+  },
+  {
+   "key": "q17",
+   "skill": "vocab.risk_terms",
+   "rung": 2,
+   "format": "mcq",
+   "term": "Win rate",
+   "q": "Which term means the share of your closed trades that made money?",
+   "choices": [
+    "Win rate",
+    "Expectancy",
+    "R-multiple",
+    "Risk/reward ratio"
+   ],
+   "answer": "Win rate",
+   "why": "Win rate. Tharp defines it as the percentage of closed trades in which you make money.",
+   "lesson_line": "Win rate counts how often you win. It never says how much.",
+   "facts": [
+    "f45",
+    "f95"
+   ],
+   "wrong": {
+    "Expectancy": "That's your average result per trade, which weighs the size of wins and losses too.",
+    "R-multiple": "That's one trade's result counted in R.",
+    "Risk/reward ratio": "That compares the stop distance with the target distance on one trade."
+   }
+  },
+  {
+   "key": "q18",
+   "skill": "vocab.risk_terms",
+   "rung": 7,
+   "format": "scenario",
+   "term": "Win rate",
+   "story": "Over 100 trades, 99 lose $1 each. One trade makes $500.",
+   "q": "Your win rate is 1%. What is the net result?",
+   "choices": [
+    "A $401 profit",
+    "A $99 loss",
+    "A $500 profit"
+   ],
+   "answer": "A $401 profit",
+   "why": "A $401 profit. One $500 winner beats 99 losses of $1. That's Tharp's own example: a 1% win rate can still make money.",
+   "lesson_line": "A low win rate can pay and a high one can lose. Check the sizes.",
+   "facts": [
+    "f28",
+    "f45"
+   ],
+   "wrong": {
+    "A $99 loss": "That counts the losers and forgets the one big winner.",
+    "A $500 profit": "That forgets the 99 small losses."
+   },
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "win - losers * loss",
+     "win": 500,
+     "losers": 99,
+     "loss": 1
+    }
+   }
+  },
+  {
+   "key": "q19",
+   "skill": "vocab.risk_terms",
+   "rung": 2,
+   "format": "mcq",
+   "term": "Risk/reward ratio",
+   "q": "What does a trade's risk/reward ratio compare?",
+   "choices": [
+    "Loss at the stop vs gain at target",
+    "Your winning trades vs your losers",
+    "Your risk vs your account size",
+    "Today's range vs the average range"
+   ],
+   "answer": "Loss at the stop vs gain at target",
+   "why": "Loss at the stop vs gain at the target. Investopedia measures entry to stop against entry to the take-profit order. Tharp says to weigh it before every trade.",
+   "lesson_line": "Before you buy, know both distances: to the stop and to the target.",
+   "facts": [
+    "f91",
+    "f32",
+    "f99"
+   ],
+   "wrong": {
+    "Your winning trades vs your losers": "That's a count of wins and losses, not one trade's setup.",
+    "Your risk vs your account size": "That's your risk per trade, like the 2% rule.",
+    "Today's range vs the average range": "That's a volatility read, closer to ATR."
+   }
+  },
+  {
+   "key": "q20",
+   "skill": "vocab.risk_terms",
+   "rung": 4,
+   "format": "numeric",
+   "term": "Risk/reward ratio",
+   "q": "Entry $20, stop $19, target $23. How many dollars can you make for each dollar you risk?",
+   "answer": 3,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(target - entry) / (entry - stop)",
+     "target": 23,
+     "entry": 20,
+     "stop": 19
+    }
+   },
+   "prefix": "$",
+   "why": "$3. You risk $1 a share to make $3. Investopedia writes that as 1:3 risk/reward: three units of reward for every unit of risk.",
+   "lesson_line": "Divide the distance to the target by the distance to the stop.",
+   "facts": [
+    "f91",
+    "f92"
+   ]
+  },
+  {
+   "key": "q21",
+   "skill": "vocab.risk_terms",
+   "rung": 7,
+   "format": "scenario",
+   "term": "Risk/reward ratio",
+   "story": "You buy at $20 with a target of $30. To improve the ratio, you move your stop from $15 up to $18.",
+   "q": "What did the tighter stop cost you?",
+   "choices": [
+    "More chance the stop gets hit",
+    "Nothing, the trade got safer",
+    "Some of your upside to $30",
+    "Protection against a gap"
+   ],
+   "answer": "More chance the stop gets hit",
+   "why": "More chance the stop gets hit. The possible loss shrinks, but a stop closer to entry is more likely to be triggered. Investopedia walks through this exact trade.",
+   "lesson_line": "A tighter stop makes the ratio look better and the stop easier to hit.",
+   "facts": [
+    "f93",
+    "f94",
+    "f120",
+    "f102"
+   ],
+   "wrong": {
+    "Nothing, the trade got safer": "The loss per share shrank, but the odds of being stopped out went up.",
+    "Some of your upside to $30": "The target didn't move. Only the stop did.",
+    "Protection against a gap": "No stop protects against a gap, at $15 or at $18."
+   }
+  },
+  {
+   "key": "q22",
+   "skill": "vocab.risk_terms",
+   "rung": 1,
+   "format": "mcq",
+   "term": "Position sizing",
+   "q": "What does position sizing decide?",
+   "choices": [
+    "How many shares to buy",
+    "Where to put your stop",
+    "Which stock to buy",
+    "When to take profits"
+   ],
+   "answer": "How many shares to buy",
+   "why": "How many shares to buy. Investopedia: deciding how many units to invest, given your account size and risk tolerance. Tharp calls it the part of your system that says how much.",
+   "lesson_line": "The stop comes first. Position sizing turns it into a share count.",
+   "facts": [
+    "f67",
+    "f29",
+    "f141"
+   ],
+   "wrong": {
+    "Where to put your stop": "The stop comes first, from the chart. Sizing uses its distance.",
+    "Which stock to buy": "That's your setup and your watchlist.",
+    "When to take profits": "That's your exit plan."
+   }
+  },
+  {
+   "key": "q23",
+   "skill": "vocab.risk_terms",
+   "rung": 5,
+   "format": "numeric",
+   "term": "Position sizing",
+   "q": "Account $40,000, risking 1% a trade. Entry $25, stop $23.50. How many shares do you buy?",
+   "answer": 266,
+   "calc": {
+    "fn": "shares_from_risk",
+    "args": {
+     "account": 40000,
+     "risk_pct": 1,
+     "entry": 25,
+     "stop": 23.5
+    }
+   },
+   "suffix": "shares",
+   "why": "266 shares. Take 1% of $40,000, divide it by the distance from $25 to $23.50, and round down.",
+   "lesson_line": "Dollars at risk divided by risk per share. Round down, never up.",
+   "facts": [
+    "f69",
+    "f70",
+    "f141"
+   ]
+  },
+  {
+   "key": "q24",
+   "skill": "vocab.risk_terms",
+   "rung": 2,
+   "format": "mcq",
+   "term": "2% rule",
+   "q": "What does the 2% rule limit?",
+   "choices": [
+    "Your risk per trade to 2% of capital",
+    "Each position to 2% of the account",
+    "Your stop to 2% under your entry price",
+    "Your losses in any one month to 2%"
+   ],
+   "answer": "Your risk per trade to 2% of capital",
+   "why": "Your risk per trade to 2% of capital. It caps what you lose if the stop is hit, not how much you buy. Schwab keeps the two apart: risk up to 1% to 2%, positions up to 5% to 10%.",
+   "lesson_line": "The 2% rule caps risk, not position size.",
+   "facts": [
+    "f99",
+    "f115",
+    "f134",
+    "f129"
+   ],
+   "wrong": {
+    "Each position to 2% of the account": "That mixes up risk and size. A 2% risk can sit on a much bigger position.",
+    "Your stop to 2% under your entry price": "The rule caps the dollars you lose. The chart sets where the stop goes.",
+    "Your losses in any one month to 2%": "A monthly cap is a separate rule. Elder's monthly limit is 6%."
+   }
+  },
+  {
+   "key": "q25",
+   "skill": "vocab.risk_terms",
+   "rung": 2,
+   "format": "mcq",
+   "term": "Gap risk",
+   "q": "What is gap risk for a position with a stop?",
+   "choices": [
+    "Price opens past your stop",
+    "Your stop sits too far away",
+    "The stock drifts sideways",
+    "Your order fills in parts"
+   ],
+   "answer": "Price opens past your stop",
+   "why": "Price opens past your stop. The stop then sells at the next available price, so you lose more than you planned.",
+   "lesson_line": "A stop can't catch a gap. Size for it before big news.",
+   "facts": [
+    "f71",
+    "f102",
+    "f119",
+    "f05",
+    "f72"
+   ],
+   "wrong": {
+    "Your stop sits too far away": "That's a stop-placement choice. Gap risk is price jumping past the stop.",
+    "The stock drifts sideways": "That costs you time, not a gap.",
+    "Your order fills in parts": "That's a partial fill, an order issue."
+   }
+  },
+  {
+   "key": "q26",
+   "skill": "vocab.risk_terms",
+   "rung": 7,
+   "format": "scenario",
+   "term": "Gap risk",
+   "story": "You risk 2% of the account. Entry $170, stop $155. After earnings the stock opens at $140.",
+   "q": "Roughly how much of the account did you lose?",
+   "choices": [
+    "About 4%",
+    "2%, the stop capped it",
+    "None yet, the gap skipped the stop"
+   ],
+   "answer": "About 4%",
+   "why": "About 4%. The stop became a market order at the open. The gap was twice your stop distance, so the loss was about twice your planned 2%.",
+   "lesson_line": "Plan your size for the gap, not just for the stop.",
+   "facts": [
+    "f100",
+    "f102",
+    "f02",
+    "f05"
+   ],
+   "wrong": {
+    "2%, the stop capped it": "A stop can't fill at a price the stock never traded. It sold near the open.",
+    "None yet, the gap skipped the stop": "A gap through the stop still triggers it. It sells at the next available price."
+   },
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(entry - open) / (entry - stop) * risk_pct",
+     "entry": 170,
+     "open": 140,
+     "stop": 155,
+     "risk_pct": 2
+    }
+   }
+  },
+  {
+   "key": "q27",
+   "skill": "vocab.risk_terms",
+   "rung": 9,
+   "format": "scenario",
+   "term": "Gap risk",
+   "story": "You hold a full position into earnings tomorrow. Your stop is $2 under the price, risking 1% of the account. A $4 gap down is possible.",
+   "q": "What limits the damage from a gap?",
+   "choices": [
+    "Halve the size before the report",
+    "Move the stop to $1 under",
+    "Switch to a stop-limit order",
+    "Nothing, the stop covers it"
+   ],
+   "answer": "Halve the size before the report",
+   "why": "Halve the size before the report. Investopedia: investors might halve their position size to cut gap risk. Half the shares means half the loss in any gap.",
+   "lesson_line": "A stop can't stop a gap. A smaller size can.",
+   "facts": [
+    "f72",
+    "f71",
+    "f102",
+    "f145"
+   ],
+   "wrong": {
+    "Move the stop to $1 under": "A $4 gap opens below either stop. A tighter stop only adds shakeouts.",
+    "Switch to a stop-limit order": "In a gap it may not fill at all, and you'd still hold the stock.",
+    "Nothing, the stop covers it": "A gap fills at the next available price, past your stop."
+   }
+  },
+  {
+   "key": "q28",
+   "skill": "vocab.risk_terms",
+   "rung": 1,
+   "format": "mcq",
+   "term": "Stop-loss",
+   "q": "What job does the stop-loss do in your plan?",
+   "choices": [
+    "Sets your planned exit if wrong",
+    "Locks in your exit price",
+    "Picks your profit target",
+    "Sets how many shares to buy"
+   ],
+   "answer": "Sets your planned exit if wrong",
+   "why": "Sets your planned exit if wrong. Tharp calls a stop a preplanned exit. The SEC says investors use sell stops to try to limit a loss on stock they own.",
+   "lesson_line": "Decide where you're wrong before you buy. That's the stop.",
+   "facts": [
+    "f33",
+    "f03",
+    "f54",
+    "f04",
+    "f01"
+   ],
+   "wrong": {
+    "Locks in your exit price": "It promises an exit, not a price. Once hit, it sells at market.",
+    "Picks your profit target": "That's the other side of the plan, the reward.",
+    "Sets how many shares to buy": "Sizing comes after the stop and uses its distance."
+   }
+  },
+  {
+   "key": "q29",
+   "skill": "vocab.risk_terms",
+   "rung": 6,
+   "format": "tf",
+   "term": "Stop-loss",
+   "q": "It's fine to pick your stop after the trade is already open.",
+   "answer": "False",
+   "why": "False. Tharp's golden rule: never open a position without knowing exactly where you'll exit. Schwab also says to set the exit before you place the trade.",
+   "lesson_line": "No stop, no trade. The exit is part of the entry.",
+   "facts": [
+    "f34",
+    "f60",
+    "f117"
+   ]
+  },
+  {
+   "key": "q30",
+   "skill": "vocab.risk_terms",
+   "rung": 4,
+   "format": "tf",
+   "term": "Stop-loss",
+   "q": "Our default stop on a new long is a flat 8% under your entry.",
+   "answer": "False",
+   "why": "False. Our default stop is the low of the day, or the prior day's low. It comes from the chart, not a fixed percent.",
+   "lesson_line": "Our default stop: today's low, or yesterday's low.",
+   "facts": [
+    "h03"
+   ],
+   "house": true
+  },
+  {
+   "key": "q31",
+   "skill": "vocab.risk_terms",
+   "rung": 1,
+   "format": "mcq",
+   "term": "Drawdown",
+   "q": "What is a drawdown?",
+   "choices": [
+    "A drop from a peak to a low",
+    "A loss below what you paid",
+    "Money taken out of an account",
+    "The day's high-to-low range"
+   ],
+   "answer": "A drop from a peak to a low",
+   "why": "A drop from a peak to a low. Investopedia quotes it as the percent fall from a peak to the trough after it. Fidelity: from one peak to the next valley.",
+   "lesson_line": "Drawdown is measured from the high, not from where you started.",
+   "facts": [
+    "f75",
+    "f125",
+    "f48",
+    "f76",
+    "f78"
+   ],
+   "wrong": {
+    "A loss below what you paid": "A drawdown runs from the peak. You can be in a drawdown and still in profit.",
+    "Money taken out of an account": "That's a retirement drawdown, a withdrawal. In trading it means a fall in value.",
+    "The day's high-to-low range": "That's one day's range, a volatility number, not a fall in value."
+   }
+  },
+  {
+   "key": "q32",
+   "skill": "vocab.risk_terms",
+   "rung": 5,
+   "format": "scenario",
+   "term": "Drawdown",
+   "story": "You buy at $40. The stock runs to $60, then falls to $48.",
+   "q": "Which is true at $48?",
+   "choices": [
+    "A 20% drawdown, but still a profit",
+    "A 20% loss on the trade",
+    "No drawdown, you're still up",
+    "A 12% drawdown"
+   ],
+   "answer": "A 20% drawdown, but still a profit",
+   "why": "A 20% drawdown, but still a profit. The drawdown runs from the $60 peak. You paid $40, so you're still ahead.",
+   "lesson_line": "A drawdown can happen inside a winner. It measures what you gave back.",
+   "facts": [
+    "f75",
+    "f76",
+    "f77",
+    "f125"
+   ],
+   "wrong": {
+    "A 20% loss on the trade": "You paid $40. At $48 you're still up.",
+    "No drawdown, you're still up": "Drawdown is measured from the peak, not from your entry.",
+    "A 12% drawdown": "That's the $12 drop read as a percent. Divide it by the $60 peak."
+   },
+   "calc": {
+    "fn": "drawdown_pct",
+    "args": {
+     "peak": 60,
+     "trough": 48
+    }
+   }
+  },
+  {
+   "key": "q33",
+   "skill": "vocab.risk_terms",
+   "rung": 7,
+   "format": "tf",
+   "term": "Drawdown",
+   "q": "After a 50% drawdown, a 50% gain gets you back to the peak.",
+   "answer": "False",
+   "why": "False. A 50% loss needs a 100% gain to get back to even. A loss always needs a bigger percentage gain to repair it.",
+   "lesson_line": "Losses are harder to undo than they look. Keep them small.",
+   "facts": [
+    "f142",
+    "f143",
+    "f144"
+   ]
+  },
+  {
+   "key": "q34",
+   "skill": "vocab.risk_terms",
+   "rung": 5,
+   "format": "numeric",
+   "term": "Drawdown",
+   "q": "Your account is down 20% from its peak. What gain takes it back to the high?",
+   "answer": 25,
+   "calc": {
+    "fn": "gain_to_recover",
+    "args": {
+     "loss_pct": 20
+    }
+   },
+   "suffix": "%",
+   "why": "25%. You're climbing back on a smaller base, so the gain has to be bigger than the loss.",
+   "lesson_line": "Down 20% needs up 25%. The deeper the hole, the steeper the climb.",
+   "facts": [
+    "f142",
+    "f144"
+   ]
+  },
+  {
+   "key": "q35",
+   "skill": "vocab.risk_terms",
+   "rung": 3,
+   "format": "fill",
+   "term": "Drawdown",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "My account fell from its high of $50,000 to $44,000. That fall from the high is a ___.",
+   "bank": [
+    "drawdown",
+    "gap",
+    "breakout",
+    "trailing stop",
+    "multiple"
+   ],
+   "answer": "drawdown",
+   "why": "Drawdown. A fall in account value from a peak to a low, quoted as a percent of the peak.",
+   "lesson_line": "Track your drawdown from the account's high, not from where you started.",
+   "facts": [
+    "f75",
+    "f48",
+    "f125"
+   ]
+  },
+  {
+   "key": "q36",
+   "skill": "vocab.risk_terms",
+   "rung": 4,
+   "format": "fill",
+   "term": "Daily loss limit",
+   "q": "Tap the term that fits the blank.",
+   "sentence": "I lost my set amount for the day by 11 a.m., so I hit my ___ and stopped trading.",
+   "bank": [
+    "daily loss limit",
+    "trailing stop",
+    "profit target",
+    "position size"
+   ],
+   "answer": "daily loss limit",
+   "why": "Daily loss limit. Fidelity: traders set a maximum allowable loss for the day and end their activities when they reach it.",
+   "lesson_line": "Set the daily limit before the open, while you're calm.",
+   "facts": [
+    "f126",
+    "f123"
+   ]
+  },
+  {
+   "key": "q37",
+   "skill": "vocab.risk_terms",
+   "rung": 7,
+   "format": "scenario",
+   "term": "Daily loss limit",
+   "story": "Your rule is to stop for the day at a $1,000 loss. By noon you're down $1,050. At 1 p.m. a great setup appears.",
+   "q": "What do you do?",
+   "choices": [
+    "You're done for the day",
+    "Take it at half size",
+    "Take it to win the loss back",
+    "Raise today's limit to $2,000"
+   ],
+   "answer": "You're done for the day",
+   "why": "You're done for the day. A daily loss limit only works if you observe it. Schwab calls it a circuit breaker: no more trading after a set loss in a day.",
+   "lesson_line": "The limit only works as a wall, never as a suggestion.",
+   "facts": [
+    "f126",
+    "f127",
+    "f123",
+    "f124"
+   ],
+   "wrong": {
+    "Take it at half size": "Half size is still trading past the limit you set.",
+    "Take it to win the loss back": "That's revenge trading, which Schwab links to many big blowups.",
+    "Raise today's limit to $2,000": "A limit you move when it's hit isn't a limit."
+   }
+  },
+  {
+   "key": "q38",
+   "skill": "vocab.risk_terms",
+   "rung": 2,
+   "format": "mcq",
+   "term": "Maximum drawdown",
+   "q": "What is maximum drawdown?",
+   "choices": [
+    "The biggest peak-to-low drop",
+    "Your largest loss on one trade",
+    "The widest stop you've used",
+    "The average of all your drawdowns"
+   ],
+   "answer": "The biggest peak-to-low drop",
+   "why": "The biggest peak-to-low drop. Investopedia: the largest decline from a peak to a trough before a new peak. IBKR measures it as a percent of the peak value.",
+   "lesson_line": "Max drawdown is the worst stretch your account has lived through.",
+   "facts": [
+    "f79",
+    "f128",
+    "f49"
+   ],
+   "wrong": {
+    "Your largest loss on one trade": "That's one trade. Max drawdown measures the whole account, peak to low.",
+    "The widest stop you've used": "That's a stop setting, not a fall in value.",
+    "The average of all your drawdowns": "It's the single worst one, not an average."
+   }
+  },
+  {
+   "key": "q39",
+   "skill": "vocab.risk_terms",
+   "rung": 8,
+   "format": "scenario",
+   "term": "Maximum drawdown",
+   "story": "Your account climbs from $100,000 to $130,000 and falls to $104,000. It bounces to $120,000, drops to $91,000, then makes a new high.",
+   "q": "What was your maximum drawdown?",
+   "choices": [
+    "30%",
+    "20%",
+    "24.2%",
+    "9%"
+   ],
+   "answer": "30%",
+   "why": "30%. Measure from the $130,000 peak to the lowest point, $91,000, before the new high. The $120,000 bounce wasn't a new high, so it isn't the peak.",
+   "lesson_line": "Max drawdown runs from the highest peak to the lowest low before a new high.",
+   "facts": [
+    "f79",
+    "f80",
+    "f128"
+   ],
+   "wrong": {
+    "20%": "That's only the first drop. The account fell further before it made a new high.",
+    "24.2%": "That starts at the $120,000 bounce. It wasn't a new high, so it isn't the peak.",
+    "9%": "That measures from where you started. Drawdown runs from the peak."
+   },
+   "calc": {
+    "fn": "drawdown_pct",
+    "args": {
+     "peak": 130000,
+     "trough": 91000
+    }
+   }
+  },
+  {
+   "key": "q40",
+   "skill": "vocab.risk_terms",
+   "rung": 1,
+   "format": "mcq",
+   "term": "Risk of ruin",
+   "q": "What does risk of ruin measure?",
+   "choices": [
+    "Odds of losing too much to recover",
+    "Odds that the next trade loses",
+    "Your largest drawdown so far",
+    "How far price can gap at the open"
+   ],
+   "answer": "Odds of losing too much to recover",
+   "why": "Odds of losing too much to recover. Investopedia: the probability of losses big enough to make recovery impossible. Tharp sets ruin at the drawdown where you'd stop trading.",
+   "lesson_line": "Survival comes first. An edge is worthless once the account can't trade it.",
+   "facts": [
+    "f73",
+    "f50"
+   ],
+   "wrong": {
+    "Odds that the next trade loses": "That's one trade. Ruin is about the account surviving a run of them.",
+    "Your largest drawdown so far": "That's maximum drawdown, a look back. Risk of ruin looks at the odds ahead.",
+    "How far price can gap at the open": "That's gap risk on one position."
+   }
+  },
+  {
+   "key": "q41",
+   "skill": "vocab.risk_terms",
+   "rung": 5,
+   "format": "tf",
+   "term": "Risk of ruin",
+   "q": "Risking a smaller share of your account on each trade lowers your risk of ruin.",
+   "answer": "True",
+   "why": "True. Ruin depends on how much capital cushions your losses. Tharp: a positive-expectancy method makes money over time if played at a risk level that is low enough.",
+   "lesson_line": "Small risk per trade lets you outlast the losing runs every method has.",
+   "facts": [
+    "f74",
+    "f57",
+    "f66"
+   ]
+  },
+  {
+   "key": "q42",
+   "skill": "vocab.risk_terms",
+   "rung": 8,
+   "format": "scenario",
+   "term": "Risk of ruin",
+   "story": "Two traders run the same method, which has a positive expectancy. One risks 1% a trade. The other risks 25%.",
+   "q": "Which one faces the bigger risk of ruin?",
+   "choices": [
+    "The one risking 25%",
+    "Neither, the edge protects both",
+    "The one risking 1%"
+   ],
+   "answer": "The one risking 25%",
+   "why": "The one risking 25%. A few losses in a row at that size take most of the account. Tharp's low-risk idea is a risk level that survives the worst short-term run.",
+   "lesson_line": "An edge only pays if you're still around to collect it.",
+   "facts": [
+    "f58",
+    "f57",
+    "f66",
+    "f74"
+   ],
+   "wrong": {
+    "Neither, the edge protects both": "An edge is an average. Size decides whether you survive the losing runs on the way.",
+    "The one risking 1%": "Small risk is the cushion. It takes a very long losing run to hurt."
+   }
+  },
+  {
+   "key": "q43",
+   "skill": "vocab.risk_terms",
+   "rung": 2,
+   "format": "mcq",
+   "term": "Portfolio heat",
+   "q": "What is portfolio heat?",
+   "choices": [
+    "Total open risk across your trades",
+    "How fast your best stock is rising",
+    "Your single largest position",
+    "Your account's drawdown this month"
+   ],
+   "answer": "Total open risk across your trades",
+   "why": "Total open risk across your trades. Tharp: the total open risk in your portfolio at any time. Seykota and Druz call it the heat of the portfolio.",
+   "lesson_line": "Portfolio heat is what you lose if every stop hits at once.",
+   "facts": [
+    "f46",
+    "f64",
+    "f130"
+   ],
+   "wrong": {
+    "How fast your best stock is rising": "Heat here means risk, not momentum.",
+    "Your single largest position": "That's one position's size. Heat adds up the risk on all of them.",
+    "Your account's drawdown this month": "That's a loss already taken. Heat is risk still open."
+   }
+  },
+  {
+   "key": "q44",
+   "skill": "vocab.risk_terms",
+   "rung": 5,
+   "format": "numeric",
+   "term": "Portfolio heat",
+   "q": "You hold four trades. Each one risks 1.5% of the account to its stop. What is your portfolio heat?",
+   "answer": 6,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "trades * risk_each",
+     "trades": 4,
+     "risk_each": 1.5
+    }
+   },
+   "suffix": "%",
+   "why": "6%. Add up what every open trade loses if its stop is hit. Seykota and Druz: 2% on each of five positions is a total heat of 10%.",
+   "lesson_line": "Know your total heat before you add one more trade.",
+   "facts": [
+    "f65",
+    "f46",
+    "f133"
+   ]
+  },
+  {
+   "key": "q45",
+   "skill": "vocab.risk_terms",
+   "rung": 3,
+   "format": "mcq",
+   "term": "Concentration risk",
+   "q": "What is concentration risk?",
+   "choices": [
+    "Bigger losses from one crowded area",
+    "Risk from owning too many positions",
+    "Risk that your stop fills too late",
+    "Risk of a gap right past your stop"
+   ],
+   "answer": "Bigger losses from one crowded area",
+   "why": "Bigger losses from one crowded area. FINRA: amplified losses from holding a large share of your money in one investment, asset class or market segment.",
+   "lesson_line": "Count your exposure by theme, not by ticker.",
+   "facts": [
+    "f11",
+    "f12"
+   ],
+   "wrong": {
+    "Risk from owning too many positions": "That's the opposite problem: spreading too thin.",
+    "Risk that your stop fills too late": "That's slippage on a stop.",
+    "Risk of a gap right past your stop": "That's gap risk on one position."
+   }
+  },
+  {
+   "key": "q46",
+   "skill": "vocab.risk_terms",
+   "rung": 7,
+   "format": "scenario",
+   "term": "Concentration risk",
+   "story": "You hold five chip stocks. Each one risks 1% to its stop. They tend to move together.",
+   "q": "How should you think about that risk?",
+   "choices": [
+    "Close to one 5% bet",
+    "Five separate 1% bets",
+    "Just 1%, the worst single stop",
+    "Zero, they're diversified"
+   ],
+   "answer": "Close to one 5% bet",
+   "why": "Close to one 5% bet. FINRA: holdings in the same industry tend to be highly correlated, so what happens to one is likely to happen to the others.",
+   "lesson_line": "Five names in one theme can act like one big trade.",
+   "facts": [
+    "f12",
+    "f46",
+    "f65"
+   ],
+   "wrong": {
+    "Five separate 1% bets": "They'd be separate only if they moved on their own. These move together.",
+    "Just 1%, the worst single stop": "If one stop hits, the others may hit too. Add them up.",
+    "Zero, they're diversified": "Five stocks in one industry are concentrated, not diversified."
+   }
+  },
+  {
+   "key": "q47",
+   "skill": "vocab.risk_terms",
+   "rung": 7,
+   "format": "tf",
+   "term": "Concentration risk",
+   "q": "Owning tech stocks plus a tech fund spreads out your risk.",
+   "answer": "False",
+   "why": "False. FINRA's own example of concentration: tech companies, plus a tech fund, plus tech stocks inside an index fund. Different tickers, same bet.",
+   "lesson_line": "Look under the hood. Different tickers can carry the same risk.",
+   "facts": [
+    "f13",
+    "f12"
+   ]
+  },
+  {
+   "key": "q48",
+   "skill": "vocab.risk_terms",
+   "rung": 4,
+   "format": "mcq",
+   "term": "Open risk",
+   "q": "In Tharp's terms, what is open risk?",
+   "choices": [
+    "Price now to stop, all positions",
+    "Entry to stop on your newest trade",
+    "Money spent on your open positions",
+    "Profit you have not yet sold"
+   ],
+   "answer": "Price now to stop, all positions",
+   "why": "Price now to stop, across all positions. Tharp measures it from where price is now, not from your entry. Elder's rule, as Incredible Charts explains it, works the same way.",
+   "lesson_line": "As a winner runs, open risk grows unless your stop follows it.",
+   "facts": [
+    "f47",
+    "f131",
+    "f132"
+   ],
+   "wrong": {
+    "Entry to stop on your newest trade": "That's the initial risk, R, on one trade.",
+    "Money spent on your open positions": "That's what you invested, not what you can lose.",
+    "Profit you have not yet sold": "That's open profit, measured from your entry. Open risk runs from the current price down to the stop."
+   }
+  },
+  {
+   "key": "q49",
+   "skill": "vocab.risk_terms",
+   "rung": 6,
+   "format": "numeric",
+   "term": "Open risk",
+   "q": "You own 100 shares bought at $50. They now trade at $62, and your stop is $55. What is your open risk?",
+   "answer": 700,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(price - stop) * shares",
+     "price": 62,
+     "stop": 55,
+     "shares": 100
+    }
+   },
+   "prefix": "$",
+   "why": "$700. Open risk runs from today's $62 down to your $55 stop, on 100 shares. The stop protects a profit, but $700 of open gains is still at risk.",
+   "lesson_line": "Open profit above your stop is still at risk.",
+   "facts": [
+    "f47",
+    "f131",
+    "f132"
+   ]
+  },
+  {
+   "key": "q50",
+   "skill": "vocab.risk_terms",
+   "rung": 2,
+   "format": "mcq",
+   "term": "Breakeven stop",
+   "q": "What is a breakeven stop?",
+   "choices": [
+    "A stop moved up to your entry price",
+    "A stop that trails the session's high",
+    "A stop just under the day's low",
+    "A target set at 1R of profit"
+   ],
+   "answer": "A stop moved up to your entry price",
+   "why": "A stop moved up to your entry price. TradeStation's breakeven stop goes in at the average entry price once a set profit is reached.",
+   "lesson_line": "A breakeven stop aims to keep a winner from turning into a loser.",
+   "facts": [
+    "f135",
+    "f138",
+    "f139"
+   ],
+   "wrong": {
+    "A stop that trails the session's high": "That's a trailing stop. A breakeven stop sits at one price.",
+    "A stop just under the day's low": "That's a chart level. A breakeven stop uses your own entry price.",
+    "A target set at 1R of profit": "That's a profit level. Some traders move to breakeven once a set profit is reached."
+   }
+  },
+  {
+   "key": "q51",
+   "skill": "vocab.risk_terms",
+   "rung": 7,
+   "format": "tf",
+   "term": "Breakeven stop",
+   "q": "Once your stop is at breakeven, the trade can't lose money.",
+   "answer": "False",
+   "why": "False. A breakeven stop is a stop market order. A gap or a fast drop can fill it below your entry, and TradeStation notes its math ignores commission and slippage.",
+   "lesson_line": "Breakeven is a plan to exit at entry, not a promise of no loss.",
+   "facts": [
+    "f136",
+    "f137",
+    "f04",
+    "f119"
+   ]
+  },
+  {
+   "key": "q52",
+   "skill": "vocab.risk_terms",
+   "rung": 8,
+   "format": "scenario",
+   "term": "Breakeven stop",
+   "story": "Your breakout works, so you move the stop up to your entry. A normal pullback dips just under it and sells you out. Then the stock rallies hard.",
+   "q": "What cost did the breakeven stop carry?",
+   "choices": [
+    "Normal pullbacks can shake you out",
+    "None, it was free, safe protection",
+    "It capped your upside at your entry",
+    "It made the stop a limit order"
+   ],
+   "answer": "Normal pullbacks can shake you out",
+   "why": "Normal pullbacks can shake you out. FINRA notes a quick drop can trigger a stop and the stock can rebound. Some traders, like Dave Mabe, never move a stop to breakeven.",
+   "lesson_line": "Breakeven buys a smaller loss with more shakeouts. Choose it on purpose.",
+   "facts": [
+    "f10",
+    "f140",
+    "f120",
+    "f139",
+    "f136"
+   ],
+   "wrong": {
+    "None, it was free, safe protection": "The protection has a cost: a stop near the price gets hit by ordinary swings.",
+    "It capped your upside at your entry": "A stop limits the downside. Your upside was open until you were sold out.",
+    "It made the stop a limit order": "A breakeven stop is still a stop market order."
+   }
+  },
+  {
+   "key": "q53",
+   "skill": "vocab.risk_terms",
+   "rung": 2,
+   "format": "mcq",
+   "term": "Trailing stop",
+   "q": "Which stop rises as the price rises but never moves down?",
+   "choices": [
+    "Trailing stop",
+    "Breakeven stop",
+    "Initial stop",
+    "Stop-limit order"
+   ],
+   "answer": "Trailing stop",
+   "why": "Trailing stop. It follows a rising price by a set amount and stays fixed when the price falls. Schwab: it can move higher but never lower.",
+   "lesson_line": "A trailing stop moves one way: with your profit.",
+   "facts": [
+    "f07",
+    "f08",
+    "f118",
+    "f53"
+   ],
+   "wrong": {
+    "Breakeven stop": "That sits at your entry price and stays there.",
+    "Initial stop": "That's the first stop, the one that sets R.",
+    "Stop-limit order": "That's about the fill price once triggered, not about following the trend."
+   }
+  },
+  {
+   "key": "q54",
+   "skill": "vocab.risk_terms",
+   "rung": 5,
+   "format": "numeric",
+   "term": "Trailing stop",
+   "q": "You set a 20% trailing stop. The stock peaks at $85, then starts to fall. Where is your stop?",
+   "answer": 68,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "high * (100 - pct) / 100",
+     "high": 85,
+     "pct": 20
+    }
+   },
+   "prefix": "$",
+   "why": "$68. The stop trails 20% under the $85 high, and it stays there as the stock falls.",
+   "lesson_line": "A trailing stop measures from the high, not from your entry.",
+   "facts": [
+    "f36",
+    "f08",
+    "f06"
+   ]
+  },
+  {
+   "key": "q55",
+   "skill": "vocab.risk_terms",
+   "rung": 7,
+   "format": "scenario",
+   "term": "Trailing stop",
+   "story": "You bought at $30. The stock ran to $60, and your 25% trailing stop now sits at $45. Then the stock turns down.",
+   "q": "What does the stop lock in if it fills at $45?",
+   "choices": [
+    "$15 a share, half the gain",
+    "$30 a share, the whole gain",
+    "Nothing, you're back at entry"
+   ],
+   "answer": "$15 a share, half the gain",
+   "why": "$15 a share, half the gain. You paid $30 and sell near $45. That's Tharp's own example: the trailing stop moved your exit up as the price rose.",
+   "lesson_line": "A trailing stop gives some gain back so you can stay for the rest.",
+   "facts": [
+    "f37",
+    "f35",
+    "f08"
+   ],
+   "wrong": {
+    "$30 a share, the whole gain": "The stop sits 25% under the high, so part of the gain goes back.",
+    "Nothing, you're back at entry": "Your stop is $45, well above your $30 entry."
+   },
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "stop - entry",
+     "stop": 45,
+     "entry": 30
+    }
+   }
+  },
+  {
+   "key": "q56",
+   "skill": "vocab.risk_terms",
+   "rung": 7,
+   "format": "tf",
+   "term": "Trailing stop",
+   "q": "A wider trailing stop gives back more profit when the trend finally turns.",
+   "answer": "True",
+   "why": "True. Set too far away, a real reversal eats more of your profit. Set too close, normal swings take you out. Schwab warns about both sides.",
+   "lesson_line": "Set the trail by how much the stock normally swings.",
+   "facts": [
+    "f89",
+    "f88",
+    "f121",
+    "f120"
+   ]
+  },
+  {
+   "key": "q57",
+   "skill": "vocab.risk_terms",
+   "rung": 3,
+   "format": "fill",
+   "term": "Trailing stop",
+   "q": "Tap the word that fits our rule.",
+   "sentence": "Hold your winners by selling partials into strength and ___ the rising moving averages.",
+   "bank": [
+    "trailing",
+    "ignoring",
+    "shorting",
+    "chasing"
+   ],
+   "answer": "trailing",
+   "why": "Trailing. In the owner's words: hold your winners by selling partials into strength and trailing the rising moving averages.",
+   "lesson_line": "Sell some into strength. Trail the rest under the rising averages.",
+   "facts": [
+    "h04",
+    "f90"
+   ],
+   "house": true
+  },
+  {
+   "key": "q58",
+   "skill": "vocab.risk_terms",
+   "rung": 1,
+   "format": "mcq",
+   "term": "ATR",
+   "q": "What does ATR measure?",
+   "choices": [
+    "How much a stock typically moves",
+    "Which way the trend is heading next",
+    "Average daily volume over 14 days",
+    "Your average loss per trade"
+   ],
+   "answer": "How much a stock typically moves",
+   "why": "How much a stock typically moves. Wilder's average true range averages the true range, gaps included, usually over 14 days. It measures volatility.",
+   "lesson_line": "ATR tells you how far a stock normally moves in a day.",
+   "facts": [
+    "f81",
+    "f83",
+    "f87",
+    "f103"
+   ],
+   "wrong": {
+    "Which way the trend is heading next": "ATR has no direction. It only measures how big the moves are.",
+    "Average daily volume over 14 days": "That's a volume average. ATR uses price ranges.",
+    "Your average loss per trade": "That comes from your trade log, not the chart."
+   }
+  },
+  {
+   "key": "q59",
+   "skill": "vocab.risk_terms",
+   "rung": 4,
+   "format": "tf",
+   "term": "ATR",
+   "q": "A rising ATR tells you the stock is heading higher.",
+   "answer": "False",
+   "why": "False. ATR measures volatility, not direction. Big ranges come with strong moves either way, down as well as up.",
+   "lesson_line": "ATR says how big the moves are, never which way.",
+   "facts": [
+    "f105",
+    "f84",
+    "f109"
+   ]
+  },
+  {
+   "key": "q60",
+   "skill": "vocab.risk_terms",
+   "rung": 7,
+   "format": "scenario",
+   "term": "ATR",
+   "story": "Stock A trades at $300 with an ATR of $6. Stock B trades at $20 with an ATR of $1.50.",
+   "q": "Which one moves more for its price?",
+   "choices": [
+    "B, about 7.5% a day",
+    "A, its ATR is bigger",
+    "They're about the same"
+   ],
+   "answer": "B, about 7.5% a day",
+   "why": "B, about 7.5% a day. ATR is in dollars, so a high-priced stock shows a bigger number. B's $1.50 is 7.5% of $20, while A's $6 is a much smaller share of $300.",
+   "lesson_line": "Compare ATR as a percent of price. Dollars alone mislead.",
+   "facts": [
+    "f106",
+    "f107",
+    "f87"
+   ],
+   "wrong": {
+    "A, its ATR is bigger": "A $6 ATR on a $300 stock is a small move for its price.",
+    "They're about the same": "For its price, B moves several times as much as A."
+   },
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "atr / price * 100",
+     "atr": 1.5,
+     "price": 20
+    }
+   }
+  },
+  {
+   "key": "q61",
+   "skill": "vocab.risk_terms",
+   "rung": 5,
+   "format": "mcq",
+   "term": "ATR",
+   "q": "Where does our Launchpad stop sit?",
+   "choices": [
+    "A quarter ATR under the lower average",
+    "Exactly on the 50-day moving average",
+    "Three ATRs under the 22-day high price",
+    "A flat 10% under your entry"
+   ],
+   "answer": "A quarter ATR under the lower average",
+   "why": "A quarter ATR under the lower average. Our Launchpad stop goes under the 21-day and 50-day averages, a quarter of an ATR below the lower one.",
+   "lesson_line": "Our Launchpad stop: under both averages, plus a quarter ATR.",
+   "facts": [
+    "h02",
+    "f111"
+   ],
+   "wrong": {
+    "Exactly on the 50-day moving average": "It sits below both averages, with a quarter-ATR cushion under the lower one.",
+    "Three ATRs under the 22-day high price": "That's the Chandelier Exit, a trailing stop.",
+    "A flat 10% under your entry": "Our Launchpad stop comes from the averages and ATR, not a flat percent."
+   },
+   "house": true
+  },
+  {
+   "key": "q62",
+   "skill": "vocab.risk_terms",
+   "rung": 5,
+   "format": "scenario",
+   "term": "True range",
+   "story": "Yesterday the stock closed at $50. Today it gaps up: high $54, low $52.50.",
+   "q": "What is today's true range?",
+   "choices": [
+    "$4.00",
+    "$1.50",
+    "$2.50",
+    "$54.00"
+   ],
+   "answer": "$4.00",
+   "why": "$4.00. True range is the biggest of three: high to low, high to the prior close, or low to the prior close. After a gap up, high to prior close wins.",
+   "lesson_line": "True range counts the gap. The plain high-to-low range misses it.",
+   "facts": [
+    "f82",
+    "f108",
+    "f104"
+   ],
+   "wrong": {
+    "$1.50": "That's only today's high minus low. It misses the gap from yesterday's close.",
+    "$2.50": "That's low to the prior close. The high is farther from it.",
+    "$54.00": "That's the price, not a range."
+   },
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "high - prev_close",
+     "high": 54,
+     "prev_close": 50
+    }
+   }
+  },
+  {
+   "key": "q63",
+   "skill": "vocab.risk_terms",
+   "rung": 3,
+   "format": "mcq",
+   "term": "Chandelier Exit",
+   "q": "Which exit hangs a trailing stop a set number of ATRs below the recent high?",
+   "choices": [
+    "Chandelier Exit",
+    "Breakeven stop",
+    "Stop-limit order",
+    "Initial stop"
+   ],
+   "answer": "Chandelier Exit",
+   "why": "Chandelier Exit. Chuck LeBeau's exit hangs a trailing stop a multiple of ATR under the highest high. StockCharts' default is three ATRs under the 22-day high.",
+   "lesson_line": "The Chandelier Exit lets volatility set the trail.",
+   "facts": [
+    "f85",
+    "f86",
+    "f110",
+    "f111"
+   ],
+   "wrong": {
+    "Breakeven stop": "That sits at your entry price.",
+    "Stop-limit order": "That sets a worst fill price, not a trail.",
+    "Initial stop": "That's your first stop, set at entry."
+   }
+  },
+  {
+   "key": "q64",
+   "skill": "vocab.risk_terms",
+   "rung": 5,
+   "format": "numeric",
+   "term": "Chandelier Exit",
+   "q": "The 22-day high is $80 and the 22-day ATR is $2.50. Where is a long Chandelier Exit set 3 ATRs down?",
+   "answer": 72.5,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "high - mult * atr",
+     "high": 80,
+     "mult": 3,
+     "atr": 2.5
+    }
+   },
+   "prefix": "$",
+   "why": "$72.50. Take the $80 high and subtract three times the $2.50 ATR.",
+   "lesson_line": "Chandelier Exit: the 22-day high minus three ATRs, by default.",
+   "facts": [
+    "f114",
+    "f111",
+    "f86"
+   ]
+  },
+  {
+   "key": "q65",
+   "skill": "vocab.risk_terms",
+   "rung": 8,
+   "format": "scenario",
+   "term": "Chandelier Exit",
+   "story": "You trail a jumpy tech stock with a 3-ATR Chandelier Exit. Normal pullbacks keep stopping you out before the trend resumes.",
+   "q": "What change fits this stock better?",
+   "choices": [
+    "A higher ATR multiplier",
+    "A lower ATR multiplier",
+    "A flat 2% stop instead",
+    "No stop at all"
+   ],
+   "answer": "A higher ATR multiplier",
+   "why": "A higher ATR multiplier. StockCharts: volatile stocks may need a higher multiplier to reduce whipsaws. Then size down so the dollars at risk stay the same.",
+   "lesson_line": "Give a jumpy stock more room, and buy fewer shares to pay for it.",
+   "facts": [
+    "f112",
+    "f113",
+    "f122",
+    "f141"
+   ],
+   "wrong": {
+    "A lower ATR multiplier": "That tightens the stop. You'd get shaken out even more.",
+    "A flat 2% stop instead": "A flat percent ignores how much this stock swings.",
+    "No stop at all": "That swaps whipsaws for unlimited risk."
+   }
+  },
+  {
+   "key": "q66",
+   "skill": "vocab.risk_terms",
+   "rung": 6,
+   "format": "mcq",
+   "term": "Volatility-based sizing",
+   "q": "What does volatility-based position sizing do?",
+   "choices": [
+    "Smaller size for jumpier stocks",
+    "Bigger size for jumpier stocks",
+    "Same share count on every trade",
+    "Size set by your win rate"
+   ],
+   "answer": "Smaller size for jumpier stocks",
+   "why": "Smaller size for jumpier stocks. Tharp's version caps the ATR in each position at a set percent of equity. Investopedia: higher volatility may call for smaller positions.",
+   "lesson_line": "Let the stock's swing set the size, so each position moves the account about the same.",
+   "facts": [
+    "f55",
+    "f101"
+   ],
+   "wrong": {
+    "Bigger size for jumpier stocks": "Backwards. Bigger swings call for fewer shares.",
+    "Same share count on every trade": "That ignores both the stop and the swing.",
+    "Size set by your win rate": "Win rate doesn't measure how much a stock moves."
+   }
+  },
+  {
+   "key": "q67",
+   "skill": "vocab.risk_terms",
+   "rung": 2,
+   "format": "tf",
+   "term": "Trailing stop",
+   "q": "A trailing stop can be set a fixed percent or a dollar amount away from the price.",
+   "answer": "True",
+   "why": "True. The SEC says a trailing stop is set a defined percentage or dollar amount from the market price.",
+   "lesson_line": "A trailing stop sits a set percent or dollar amount from the price.",
+   "facts": [
+    "f06",
+    "f07"
+   ]
+  },
+  {
+   "key": "q68",
+   "skill": "vocab.risk_terms",
+   "rung": 3,
+   "format": "tf",
+   "term": "Drawdown",
+   "q": "After a 10% loss, you need an 11% gain to get back to even.",
+   "answer": "True",
+   "why": "True. Every loss needs a bigger gain to repair it. Down 10% needs 11%, and down 50% needs 100%.",
+   "lesson_line": "Losses are repaired by bigger gains. Down 10% needs 11%.",
+   "facts": [
+    "f144",
+    "f142"
+   ]
+  },
+  {
+   "key": "q69",
+   "skill": "vocab.risk_terms",
+   "rung": 4,
+   "format": "tf",
+   "term": "Win rate",
+   "q": "A trader can win most of their trades and still lose money overall.",
+   "answer": "True",
+   "why": "True. A high win rate still loses when the losers are much bigger than the winners. Occasional large losses can sink a system that wins often.",
+   "lesson_line": "Win rate alone proves nothing. The size of the losses matters too.",
+   "facts": [
+    "f96",
+    "f56"
+   ]
+  },
+  {
+   "key": "q70",
+   "skill": "vocab.risk_terms",
+   "rung": 5,
+   "format": "tf",
+   "term": "Breakeven stop",
+   "q": "TradeStation's breakeven stop only takes effect once the trade reaches a set profit.",
+   "answer": "True",
+   "why": "True. TradeStation's breakeven stop sits at your entry price, but only after the set profit is reached. It may never take effect.",
+   "lesson_line": "A breakeven stop waits for a set profit before it moves to entry.",
+   "facts": [
+    "f138",
+    "f135",
+    "f139"
+   ]
+  },
+  {
+   "key": "q71",
+   "skill": "vocab.risk_terms",
+   "rung": 6,
+   "format": "tf",
+   "term": "True range",
+   "q": "True range counts the gap from the prior close, which the day's high-to-low range misses.",
+   "answer": "True",
+   "why": "True. A high-low range alone fails to capture gap moves. True range adds the distance from the prior close.",
+   "lesson_line": "True range includes the gap from the prior close, so gaps count.",
+   "facts": [
+    "f104",
+    "f108",
+    "f82"
+   ]
+  }
+ ],
+ "conflicts": [
+  "Risk/reward naming. Investopedia (riskrewardratio.asp) writes the ratio risk first, as potential loss / potential gain, so 'a 1:2 risk/reward ratio' means risk $1 to make $2 and lower is better. Van Tharp's glossary entry 'Reward-to-Risk Ratio' means yearly return / maximum drawdown, or average win / average loss. Schwab's 5 Elements page says 'risk-to-reward ratio ... how many dollars do you expect to gain for each dollar you commit to the position', which mixes it up with return on capital. The file keys only what the ratio compares (entry to stop vs entry to target, q19) and the dollars made per dollar risked (q20), and names 1:3 as Investopedia's way of writing it.",
+  "Win/loss ratio. Investopedia defines it as winning trades / losing trades; Schwab's 5 Elements page calls 'the percentage of your trades that have been profitable' a win/loss ratio. Investopedia's own example also says a 12/18 = 0.67 ratio 'means that you are losing 67% of the time' while giving the win rate as 40% (the loss rate is 60%). Not keyed: the file teaches 'win rate' (Tharp and Investopedia agree: winning trades out of all closed trades) and never asks win/loss ratio.",
+  "Open risk vs heat base. Tharp's glossary measures open risk from the CURRENT price to the stop and calls it 'another word for portfolio heat'; Seykota and Druz describe heat as the bet size risked per instrument; F9.06 notes R is measured from the entry. The file measures open risk from the current price (q48, q49), keys heat only as the total of what every stop would lose (q43, q44, q46), and never keys which base heat uses.",
+  "Heat caps. Tharp's glossary says portfolio heat 'generally should not exceed 20%'; Elder's rule (Incredible Charts) caps open risk at 6%; docs/study/sizing_rule.md section 5 says 10% but marks it 'App cap', not an owner answer. No cap is keyed anywhere in this file.",
+  "Investopedia, Trailing Stops (Henry Hoenig): its NVDA example writes '$99 (110 - (11 x 0.10))' (the arithmetic is 110 - 110 x 0.10), and it says swing trading 'by definition is not about riding a trend'. Neither is cited; only its definitional lines on stops set too close or too far, and on moving-average trails, are used.",
+  "Investopedia, How Stop-Loss Orders Help Limit Investment Losses and Risk: its earnings example says the stop 'triggers at $90, limiting the loss' after a gap down, contradicting its own gap paragraph, the SEC and FINRA. Only the gap paragraph (f102) is cited.",
+  "Investopedia, Understanding the 2% Rule (James Chen): its AAPL example writes '$50,000 x 0.02%' (2% is meant) and '4% loss ($1,000 / $30)' (67 shares x $30 is about $2,010, which is about 4% of $50,000), and its 'Practical Example' treats 2% as an allocation cap, contradicting its own definition (risk per trade). Only the definition (f99), the gap/slippage line (f100) and the volatility-sizing line (f101) are cited; q26 builds its own gap example with a calc.",
+  "True range. Van Tharp's ATR glossary lists the third true-range term as 'today's low minus yesterday's close' without the absolute value; Investopedia and StockCharts use absolute values. True range (q62) is keyed on Investopedia and StockCharts only; Tharp's ATR entry is not cited.",
+  "ATR smoothing. Investopedia's key takeaway says ATR is 'typically derived from the 14-day simple moving average' of true range; StockCharts uses Wilder's smoothing ([prior ATR x 13 + current TR] / 14). The file says only that ATR averages the true range, usually over 14 days.",
+  "Breakeven stops. TradeStation defines the breakeven stop (a stop at the average entry price once a set profit is reached); O'Neil (AAII) says not to let a worthwhile profit fall back below the purchase price; Dave Mabe (IBKR Campus) never moves a stop to breakeven. The file keys the definition (q50) and both costs, gaps (q51) and shakeouts (q52), and never says when to move to breakeven or that you always should.",
+  "Risk of ruin. Investopedia defines it as the probability of losses too big to recover from; Tharp's glossary defines 'ruin' as the drawdown at which you would stop trading (a personal level, not necessarily zero). q40's key ('odds of losing too much to recover') fits both, and the why gives both.",
+  "Seykota and Druz (s23): the line 'If you risk too much, you eventually run to ruin' is the magazine's introduction to the article on its product page, not necessarily the authors' words; the file credits it to the magazine's page in the claim and never quotes it as Seykota's.",
+  "R-multiple by name. Only Van Tharp defines 'R-multiple' among the sources found: the Van Tharp Institute pages and his own January 2007 article in Stocks & Commodities (an independent publisher, Technical Analysis, Inc.). No Investopedia, Schwab, Fidelity, StockCharts or IBKR page defining the term was found. The definitional R and R-multiple questions also cite Investopedia's matching 'trade risk is the dollar difference between the entry price and the stop-loss'. Checker to judge whether Tharp in two publications meets the two-publisher rule; the computed R-multiple items (q07, q09) carry calcs.",
+  "Chandelier Exit creator: Investopedia spells him 'Chuck LeBeau', StockCharts 'Charles Le Beau'; the same person. The file uses 'Chuck LeBeau'.",
+  "Not used: the owner's drawdown ladder in docs/study/sizing_rule.md section 4 (quoted, but flagged there for the owner to confirm as house numbers; F9.04 covers it), the 0.25% to 2% risk range and 'flat-risk sizing' in section 1 (not marked as the owner's answer), and 'pilot', 'ceiling', 'flat risk' and 'structure stop' from the UNITS-foundations row (house words with no owner-ruled definition in the repo; the units_plan entry, which overrides the row, does not list them)."
+ ],
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "notes": "Steps match VTI R/initial-risk/R-multiple/expectancy glossary and Tharp's S&C article (read in context). Fixed step 2: 'Risk $10 a share and make $100' read as $100 total on $10 a share; now 'Risk $10 and make $100', as Tharp's glossary has it.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "Drawdown (Investopedia f75, Fidelity f125), 50% needs 100% (JDM f142, Nationwide f144) checked. Fixed step 3: risk of ruin is the odds (Investopedia f73), not the event; now 'Those odds are your risk of ruin'. Investopedia drawdown page (s26) read in context.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "Trailing stop moves only up (SEC f07-f08, Schwab f118, VTI f53); too tight/too loose (Investopedia f88-f89, Schwab f120-f121). Fixed step 2: three ATRs is StockCharts' default, not a fixed rule; now 'sets it three ATRs under the recent high by default' and cites f112.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q01": {
+   "status": "pass",
+   "notes": "VTI initial risk = entry to stop (f40, f15, read in context); Investopedia trade risk agrees. Wrong choices are position value, ATR and the reward side: all really wrong. Track auditor, 2026-11-09: the unit's first mention of Tharp now gives his full name, Van Tharp, as V.13 does; the rest of the unit says Tharp. No change to the fact or key.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q02": {
+   "status": "pass",
+   "notes": "$50 - $46 = $4 by hand; calc agrees. Method from VTI f40/f16 (read in context: $50 entry, $40 exit = $10 = 1R).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q03": {
+   "status": "pass",
+   "notes": "VTI f30-f31 in context: $100k account, 1% risk = $1,000 while buying about $4,000 of stock; S&C f61 agrees. Added Schwab f115 (risk per trade and position size are separate limits) as a second publisher.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q04": {
+   "status": "pass",
+   "notes": "($30 - $28.50) x 200 = $300 by hand; calc agrees. VTI f18 in context: $10 x 100 shares = $1,000 total risk. $6,000 = cost, $5,700 = value at stop, $1.50 = per share: all really wrong.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q05": {
+   "status": "pass",
+   "notes": "VTI risk glossary f51-f52 in context: entry to worst-case loss, 'much different' from the academic variability. Question names Tharp, so his definition is the key. Fixed lesson line: risk is a distance, not 'a price'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q06": {
+   "status": "pass",
+   "notes": "VTI R-multiple glossary f41-f42 and Tharp's S&C article f59 (two publishers, one author: the term is his; accepted for a definition). Wrong choices: ATR stop, win/loss count, total risk: all wrong.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q07": {
+   "status": "pass",
+   "notes": "($92 - $80) / ($80 - $76) = 12 / 4 = 3R by hand; calc agrees. Method from VTI f21-f22 in context ($40/$35/$50 = 2R).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q08": {
+   "status": "cut",
+   "notes": "duplicate of V.07#q10. Track audit 2026-11-09: both are true/false items on the same fact: a stop becomes a market order, so a gap or a fast market can fill it past the stop price (here keyed as a loss bigger than 1R). V.07 owns the order mechanics. This unit keeps the gap lesson in q25, q26 and q27, and q26 shows the loss landing at about twice the plan.",
+   "fixed": false,
+   "by": "track-auditor"
+  },
+  "q09": {
+   "status": "pass",
+   "notes": "($45 - $60) / ($60 - $55) = -15 / 5 = -3R by hand; calc agrees. -15R, -1R, -0.33R explanations correct. VTI f23-f24 in context is Tharp's own 'held past the stop' drill.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q10": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Checker 2026-11-09: h01 (B19) and h09 (E51) verbatim in section 9. Key 'At 3R and 5R' follows; the stem says 'in thirds' so it does not lead to the levels. Writer: rewritten 2026-11-09 to the account rulebook (sizing_rule.md section 9, B19, E51); awaiting cold check. Was 'At 2R and 3R' (two profit targets); now the thirds at 3R and 5R. Old house fact was TRADE_PLANS.md make_levels 'puts the targets at 2R and 3R' | flagged-question fix checked 2026-11-11"
+  },
+  "q11": {
+   "status": "pass",
+   "notes": "VTI expectancy glossary f43-f44, Tharp S&C f62 and Schwab f116 ('average gain (or loss) per trade', read in context) agree. Wrong choices: win rate, one trade, a target: all wrong.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q12": {
+   "status": "pass",
+   "notes": "0.4 x 3 - 0.6 x 1 = 1.2 - 0.6 = 0.6R by hand; calc agrees. Method: Tharp mean R (f25, f44) and Investopedia expected value (f97, read in context).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q13": {
+   "status": "pass",
+   "notes": "VTI f43 (average over many trades) and f58; Investopedia EV is a long-term average (f98, read in context). A positive average says nothing certain about the next trade.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q14": {
+   "status": "cut",
+   "notes": "duplicate of V.13#q35. Track audit 2026-11-09: both are scenarios where a new setup's handful of trades (8 here, 11 there) looks good, keyed 'too few trades' / 'a small sample'. V.13 owns sample size as a term. This unit keeps expectancy in q11, q12, q13, q15 and q16. Tharp's 'at least thirty trades' (this item's why) agrees with V.13 q35's 'even 10 trades isn't enough'.",
+   "fixed": false,
+   "by": "track-auditor"
+  },
+  "q15": {
+   "status": "pass",
+   "notes": "Expectancy = mean R-multiple (VTI f25, S&C f62). Added Schwab f116 (average gain or loss per trade) as a second publisher. Bank distractors are other unit terms; only 'expectancy' fits.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q16": {
+   "status": "pass",
+   "notes": "A: 0.3 x 4 - 0.7 x 1 = 0.5R (calc agrees). B: 0.7 x 0.5 - 0.3 x 2 = 0.35 - 0.6 = -0.25R, below zero as the why says; 0.35 = B's wins only, 1.2 = A's wins only; 2R / 0.5R = four wins. VTI f56 and Investopedia f96 back the lesson.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q17": {
+   "status": "pass",
+   "notes": "VTI win rate glossary f45 and Investopedia win/loss page f95 (read in context) agree: winning trades out of all trades. Wrong choices are the other unit terms, each correctly explained.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q18": {
+   "status": "pass",
+   "notes": "$500 - 99 x $1 = $401 by hand; calc agrees. VTI f28 in context: '$401 ($500 less $99)... 99% of your trades were losers'.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q19": {
+   "status": "pass",
+   "notes": "Investopedia f91 (entry to stop vs entry to take-profit) and VTI f32 (weigh reward against risk before each trade). Wrong choices: win/loss count, 2% risk, a range read: all wrong.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q20": {
+   "status": "pass",
+   "notes": "($23 - $20) / ($20 - $19) = 3 by hand; calc agrees. 1:3 = three units of reward per unit of risk is Investopedia's own wording (f92, in context); no benchmark is keyed.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q21": {
+   "status": "pass",
+   "notes": "Schwab f120 in context: a stop too close is triggered by regular fluctuations. Investopedia's example read in context: 100 shares at $20, stop $15, target $30, then the stop moved to $18 (f93-f94). Wrong choices really wrong.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q22": {
+   "status": "pass",
+   "notes": "Investopedia f67, VTI f29 (read in context) and IBKR f141 agree: sizing sets how many shares. Wrong choices are stop, stock pick and exit: all different decisions. Investopedia s24 quotes found by the quote check today; later fetches were refused (402/403, WebFetch blocked), so not re-read in context.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q23": {
+   "status": "pass",
+   "notes": "1% x $40,000 = $400; $25 - $23.50 = $1.50; 400 / 1.5 = 266.67, rounded down to 266 by hand; calc agrees. Method from Investopedia f69-f70 and IBKR f141. Investopedia s24 quotes found by the quote check today; later fetches were refused (402/403, WebFetch blocked), so not re-read in context.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q24": {
+   "status": "pass",
+   "notes": "Investopedia 2% rule f99 and Schwab f115 (both in context) and Elder f134 agree it caps risk per trade. Fixed the key from 'loss' to 'risk' per trade: a gap can push the real loss past 2% (f100, taught in q26). variety rewrite checked 2026-11-10.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q25": {
+   "status": "pass",
+   "notes": "Investopedia stop-loss page f102 read in context ('A downside to stop-loss orders is price gaps'); Schwab f119 and SEC f05 agree. Wrong choices: stop placement, sideways drift, partial fill: all different risks.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q26": {
+   "status": "pass",
+   "notes": "(170 - 140) / (170 - 155) x 2% = 30 / 15 x 2 = 4% by hand; calc agrees. SEC f02/f05 and Investopedia f102: the stop triggers at the gap and fills at the next price. Investopedia's own f100 context uses the same $170 / $15 stop / $140 open case. 'About' covers the fill near the open.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q27": {
+   "status": "pass",
+   "notes": "Investopedia f72 (halve size before earnings to cut gap risk); SEC f145 (stop-limit may not fill). Removed 'about 2% / about 1%' from the why (computed numbers with no calc); now 'Half the shares means half the loss in any gap'. Wrong note now 'A $4 gap opens below either stop'. Investopedia s24 quotes found by the quote check today; later fetches were refused (402/403, WebFetch blocked), so not re-read in context.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q28": {
+   "status": "pass",
+   "notes": "VTI f33 (stop = preplanned exit, in context) and SEC f03/f04 (sell stop limits a loss; stop price is not a guaranteed price). Wrong choices all really wrong.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q29": {
+   "status": "pass",
+   "notes": "VTI golden rule f34 (in context), Tharp S&C f60 and Schwab f117 ('Before placing a trade... specify when and how you'll close it out') agree.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q30": {
+   "status": "pass",
+   "notes": "House: sizing_rule.md section 2 item 1, 'Default stop: the low of the day, or the prior day's low. (Owner's answer.)' verbatim. A flat 8% stop is not our default.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q31": {
+   "status": "pass",
+   "notes": "Investopedia f75/f76/f78 and Fidelity f125 (in context: 'from one peak to the next valley') and VTI f48 agree. Wrong choices: a loss from cost, a retirement withdrawal, a day's range: all wrong, each explained. Investopedia drawdown page (s26) read in context.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q32": {
+   "status": "pass",
+   "notes": "($60 - $48) / $60 = 20% by hand; calc agrees; $48 > $40 entry so still a profit. Mirrors Investopedia's XYZ example f77 ($100 cost, $110 peak, $80 trough). Added Fidelity f125 as a second publisher. Investopedia drawdown page (s26) read in context.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q33": {
+   "status": "pass",
+   "notes": "JDM paper f142-f143 (in context) and Nationwide f144 agree: 50% loss needs 100%. Fixed the why to 'a bigger percentage gain' (in dollars the gain equals the loss).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q34": {
+   "status": "pass",
+   "notes": "1 / (1 - 0.20) - 1 = 25% by hand; calc agrees. JDM f142 and Nationwide f144 (in context) teach the method.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q35": {
+   "status": "pass",
+   "notes": "Drawdown from a high (Investopedia f75, VTI f48, Fidelity f125). Removed '12%' from the sentence: correct (6,000 / 50,000) but a computed number a fill question cannot carry a calc for. Investopedia drawdown page (s26) read in context.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q36": {
+   "status": "pass",
+   "notes": "Fidelity f126 in context: 'set a daily loss limit... end their activities at that point'; Schwab f123 circuit breakers. Bank distractors are real terms that do not fit.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q37": {
+   "status": "pass",
+   "notes": "Fidelity f126-f127 (in context: 'have the discipline to observe it') and Schwab f123-f124 (circuit breakers; revenge trading fuels blowups). Every wrong choice breaks the limit: sound risk habit.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q38": {
+   "status": "pass",
+   "notes": "Investopedia MDD f79 (in context), IBKR f128 and VTI f49 agree: the largest peak-to-trough fall. Wrong choices really wrong.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q39": {
+   "status": "pass",
+   "notes": "(130,000 - 91,000) / 130,000 = 30% (calc agrees); 26/130 = 20%; 29/120 = 24.17% -> 24.2%; 9/100 = 9%. Investopedia f80 in context: an interim peak that is not a new high is not used.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q40": {
+   "status": "pass",
+   "notes": "Investopedia f73 (probability of losses too big to recover from; read in context) and VTI ruin glossary f50. Wrong choices: next trade, max drawdown, gap: all wrong. Conflict on Tharp's 'ruin' noted in the file; the key fits both.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q41": {
+   "status": "pass",
+   "notes": "Investopedia f74 (capital to cushion losses, in context), VTI f57 (positive expectancy pays only at a low enough risk level, in context) and the S&C page f66. Smaller risk per trade lowers the odds of a ruinous run.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q42": {
+   "status": "pass",
+   "notes": "VTI low-risk idea f58 and positive expectancy f57 (in context); S&C f66. 25% a trade: three losses leave about 42% of the account, so 'a few losses take most of it' holds.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q43": {
+   "status": "pass",
+   "notes": "VTI portfolio heat f46 (in context; its 20% cap is not keyed), Seykota and Druz f64 (S&C page, in context) and Elder f130 agree. Matches the house use of heat as total open risk (sizing_rule.md section 5).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q44": {
+   "status": "pass",
+   "notes": "4 x 1.5% = 6% by hand; calc agrees. Seykota and Druz f65 in context: 2% on each of five = 10% heat. Elder f133 sums risk across positions.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q45": {
+   "status": "pass",
+   "notes": "FINRA f11-f12 (Tier 1, read in context). Wrong choices: over-diversifying, stop slippage, gap risk: all different risks. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q46": {
+   "status": "pass",
+   "notes": "FINRA f12 (Tier 1): same-industry holdings are highly correlated. 5 x 1% = 5% if the stops hit together. Wrong choices are real misconceptions, each explained.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q47": {
+   "status": "pass",
+   "notes": "FINRA f13 in context is this exact example: tech stocks plus a tech fund plus tech in an index fund, listed under 'Concentration due to correlated assets'.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q48": {
+   "status": "pass",
+   "notes": "VTI open risk glossary f47 (in context): current price to stop, all positions. Elder's rule f131-f132 (Incredible Charts, in context) measures from the month-end close. Wrong choices really wrong. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q49": {
+   "status": "pass",
+   "notes": "($62 - $55) x 100 = $700 by hand; calc agrees. Stop at $55 locks $5 of the $12 a share open gain; $7 a share is still at risk.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q50": {
+   "status": "pass",
+   "notes": "TradeStation f135 (in context: stop at the average entry price once the profit floor is exceeded) and O'Neil AAII f139. Definition only; never says when to use it. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q51": {
+   "status": "pass",
+   "notes": "TradeStation f136-f137 (stop market order; ignores slippage), SEC f04 and Schwab f119 (gap fills below the stop). Fixed the lesson line: 'protects you from most losses' was unsupported; now 'a plan to exit at entry, not a promise of no loss'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q52": {
+   "status": "pass",
+   "notes": "FINRA f10 (Tier 1, in context: quick drops trigger stops, then rebound), Schwab f120 and Dave Mabe f140 ('Do I move my stop to breakeven? Never.', in context). Balanced: the lesson says choose it on purpose. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q53": {
+   "status": "pass",
+   "notes": "SEC f07-f08 (Tier 1, in context), Schwab f118 and VTI f53 agree: rises with price, never moves lower. Wrong choices really wrong.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q54": {
+   "status": "pass",
+   "notes": "$85 x 0.80 = $68 by hand; calc agrees. VTI f36 in context: 25% under the $60 high = $45, never moved back.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q55": {
+   "status": "pass",
+   "notes": "$45 - $30 = $15 by hand (calc agrees); the gain at the $60 peak was $30, so half. VTI f37 in context is this exact example.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q56": {
+   "status": "pass",
+   "notes": "Investopedia trailing-stop f89 (read in context) and Schwab f121 (in context: too far, a sizable loss) agree; f88/f120 give the other side. True for two trails both still open at the turn.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q57": {
+   "status": "cut",
+   "notes": "duplicate of V.05#q11. Track audit 2026-11-09: both are fill-ins of the same owner sentence ('Hold your winners by selling partials into strength and trailing the rising moving averages', sizing_rule.md section 6), each blanking a different word. V.05, the setup-plan unit, keeps it. This unit keeps the trailing stop in q53 to q56.",
+   "fixed": false,
+   "by": "track-auditor"
+  },
+  "q58": {
+   "status": "pass",
+   "notes": "Investopedia ATR f81/f83/f87 and StockCharts f103 (both in context) agree: volatility, usually 14 days, average daily range. Wrong choices: direction, volume, trade log: all wrong. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q59": {
+   "status": "pass",
+   "notes": "StockCharts f105/f109 and Investopedia f84 (in context): ATR has no direction; big ranges come with strong moves either way.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q60": {
+   "status": "pass",
+   "notes": "1.50 / 20 = 7.5% (calc agrees); 6 / 300 = 2%; 7.5 / 2 = 3.75x, so 'several times'. StockCharts f106-f107 in context: dollar ATRs are not comparable across price levels.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q61": {
+   "status": "pass",
+   "notes": "House: TRADE_PLANS.md Launchpad row, verbatim 'under the 21-day and 50-day averages, a quarter of an ATR below the lower one'. Chandelier wrong choice matches StockCharts f111. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q62": {
+   "status": "pass",
+   "notes": "TR = max(54 - 52.50, |54 - 50|, |52.50 - 50|) = max(1.50, 4, 2.50) = $4 by hand; calc agrees. Investopedia f82 and StockCharts f108 (in context) give the three measures with absolute values.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q63": {
+   "status": "pass",
+   "notes": "Investopedia f85-f86 (LeBeau, highest high since entry, a multiple of ATR) and StockCharts f110-f111 (default three ATRs under the 22-day high), both in context.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q64": {
+   "status": "pass",
+   "notes": "$80 - 3 x $2.50 = $72.50 by hand; calc agrees. StockCharts formula f114 in context. Added Investopedia f86 (distance from the high is a multiple of ATR) as a second publisher.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q65": {
+   "status": "pass",
+   "notes": "StockCharts f112-f113 in context: volatile stocks may need a higher multiplier to reduce whipsaws; Schwab f122 and Mabe f141 (size from the stop) back sizing down. Sound risk habit.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q66": {
+   "status": "pass",
+   "notes": "VTI percent volatility model f55 and Investopedia 2% rule page f101 (in context: volatility-based position sizing). Wrong choices really wrong.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q67": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10 (SEC (Tier 1) quote f06 verbatim; True)",
+   "by": "checker"
+  },
+  "q68": {
+   "status": "cut",
+   "notes": "coverage question checked 2026-11-10: CUT. Same fact in the same true/false form as q33 (and q34): a loss needs a bigger gain to repair it. Only the numbers differ (10% to 11% against 50% to 100%), and the single quote for 10% to 11% is one Tier 2 publisher.",
+   "by": "checker"
+  },
+  "q69": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10 (why dropped 'three times as big is a losing strategy': it holds only at some win rates, not at every high one; the fact is backed by f56 (Van Tharp) and f96 (Investopedia, unreachable to the quote checker, also cited by the passed q16))",
+   "by": "checker"
+  },
+  "q70": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10 (the claim rests on TradeStation alone, so the question now names TradeStation instead of stating it as every breakeven stop)",
+   "by": "checker"
+  },
+  "q71": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10 (f104 and f108 (StockCharts) found; f82 (Investopedia) unreachable to the checker but cited by the passed q62)",
+   "by": "checker"
+  }
+ }
+}

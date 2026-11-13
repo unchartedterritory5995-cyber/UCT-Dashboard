@@ -201,3 +201,49 @@ def test_compose_today_never_selects_a_levels_or_plan_item_before_the_player_can
         assert ids[0] == "rec0"
     assert sel.UNPLAYABLE_TYPES == ("levels", "plan")
 
+
+
+# ── a unit climbs Learn, Practise, Prove, leaned to the member's band (2026-11-09, the course units) ────────────────
+
+def _graded_bank():
+    rows = []
+    for d in (1, 2, 3):
+        rows += [{"id": f"d{d}_{k}", "type": "recall", "skill_id": "basics.spread", "difficulty": d, "has_chart": False}
+                 for k in range(12)]
+    return rows
+
+
+def _unit(band, seed, n=9):
+    return sel.compose_unit("u1", "basics.spread", _graded_bank, walkthrough_query=lambda s: [{"id": "w1", "order": 1}],
+                            n=n, band=band, due_fn=lambda u, k: [], missed_fn=lambda u: set(),
+                            weak_fn=lambda u: set(), rng=random.Random(seed))
+
+
+def test_a_unit_plays_easy_to_hard_after_its_walkthroughs():
+    for seed in range(30):
+        ids = _unit("learning", seed)
+        assert ids[0] == "w1"
+        levels = [int(i[1]) for i in ids[1:]]
+        assert levels == sorted(levels), ids
+
+
+def test_a_unit_leans_to_the_members_band_but_never_gates_a_level():
+    def share(band):
+        c = Counter()
+        for seed in range(300):
+            c.update(int(i[1]) for i in _unit(band, seed)[1:])
+        total = sum(c.values())
+        return {d: c[d] / total for d in (1, 2, 3)}
+    learning, proficient = share("learning"), share("proficient")
+    assert learning[1] > learning[3] and proficient[3] > proficient[1]
+    assert min(learning.values()) > 0.05 and min(proficient.values()) > 0.05      # a lean, never a gate
+    assert set(sel.LEVEL_WEIGHTS) == {"learning", "practised", "proficient"}
+
+
+def test_no_band_keeps_the_old_unweighted_draw():
+    assert sel.compose_unit("u1", "basics.spread", _graded_bank, walkthrough_query=lambda s: [], n=6,
+                            due_fn=lambda u, k: [], missed_fn=lambda u: set(), weak_fn=lambda u: set(),
+                            rng=random.Random(5)) == \
+        sel.compose_unit("u1", "basics.spread", _graded_bank, walkthrough_query=lambda s: [], n=6, band=None,
+                         due_fn=lambda u, k: [], missed_fn=lambda u: set(), weak_fn=lambda u: set(),
+                         rng=random.Random(5))

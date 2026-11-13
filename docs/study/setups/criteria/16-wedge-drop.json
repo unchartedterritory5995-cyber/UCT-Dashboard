@@ -1,0 +1,1442 @@
+{
+ "setup": "16-wedge-drop",
+ "name": "Wedge Drop",
+ "unit": "SET.17",
+ "direction": "short",
+ "timeframe": "daily",
+ "dossier": "docs/study/setups/research/16-wedge-drop.md",
+ "as_of": "2026-11-09",
+ "card": {
+  "context": "A stock under its 200-day (B26) bounces inside a downtrend, the way a bear-market rally makes a lower high, and stalls for a few days on or just above its 10 and 20-day EMAs. The index is in its own down cycle. Above the 200-day the same event is only a sell signal for a long.",
+  "pattern": "A top (an extension, a lower high, or a failed push past the prior day's high), then a stall of 3 to 10 sessions hugging the 10-day EMA with quiet up days and no new high in the last 3. The averages catch up to price.",
+  "trigger": "OTHER: the first daily close under both the 10 and 20-day EMAs, under the stall low, in the lower 40% of the day's range. Short at market in the last 15 minutes or at the next open.",
+  "stop": "A few cents over the trigger day's high, or over the higher of the trigger day and the day before, within about 3%. Wider than that: skip or size down, never pull it in.",
+  "failure_mode": "The drop is reclaimed: a close back above both averages within a few sessions (38% of the app's events within 3). Early in a new bull market, or in a strong leader, the bounce keeps going and the stop over the day's high is taken at once."
+ },
+ "entry_trigger": "OTHER",
+ "criteria": [
+  {
+   "id": "wd.role",
+   "field": "context",
+   "statement": "Two jobs. Every long holder treats it as a sell signal. It is a short only in the narrow form below the 200-day, in a weak market.",
+   "measure": {
+    "what": "how the course uses the Wedge Drop",
+    "op": "in",
+    "value": [
+     "a sell signal for a long",
+     "a short below the 200-day"
+    ]
+   },
+   "basis": "house rule",
+   "sources": [
+    "S9",
+    "S11"
+   ],
+   "house_rule": "B26",
+   "options": [
+    {
+     "value": "a",
+     "basis": "only a sell or stay-out signal for longs"
+    },
+    {
+     "value": "b",
+     "basis": "only a short (the Model Book files it so)"
+    },
+    {
+     "value": "c",
+     "basis": "both, the short only under B26 (the dossier's recommendation)"
+    }
+   ],
+   "recommended": "c",
+   "status": "pending-owner",
+   "owner_question": "D-001",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8 intro; 10 question 1",
+   "evidence": "Kell uses it first as an exit: 'allow the wedge drop to protect you and take you out of the trade' (his March 2024 deck). 13 of the 15 source-marked examples sat above the 200-day, so most textbook cases are sell signals for us."
+  },
+  {
+   "id": "wd.below_200",
+   "field": "context",
+   "statement": "For the short, the trigger day's close is under the 200-day SMA. The sell signal for a long has no 200-day test.",
+   "measure": {
+    "what": "trigger-day close against the 200-day SMA",
+    "op": "<",
+    "value": "200-day SMA",
+    "timeframe": "daily"
+   },
+   "glossary": "above_200",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B26",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 item 1",
+   "evidence": "A hard rule ('200SMA is hardened rule yes'). 70% of the app's 99,695 Wedge Drops and 13 of 15 marked examples were above it. Test: above the 200-day -0.13R; below it -0.01R; below it with QQQ under its 50-day +0.29R."
+  },
+  {
+   "id": "wd.falling_200",
+   "field": "context",
+   "statement": "Prefer a falling 200-day: lower than it was 20 sessions ago.",
+   "measure": {
+    "what": "200-day SMA today - 200-day SMA 20 sessions ago",
+    "op": "<",
+    "value": 0,
+    "unit": "$",
+    "timeframe": "daily"
+   },
+   "basis": "my proposal",
+   "sources": [],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1 item 1; 9 A+",
+   "evidence": "The dossier says 'prefer a falling 200-day' and fixes no window; the 20 sessions mirror the pilot's rising test and are flagged for the owner. Scan: a falling 200-day on 437 of 618 hits, 26.5% to 3R against 24.3% overall. VALE 2026-09-14 was rejected for a rising 200-day."
+  },
+  {
+   "id": "wd.prior_bounce",
+   "field": "context",
+   "statement": "A prior up-move: at least 8 of the 10 closes before the trigger day were above the 20-day EMA.",
+   "measure": {
+    "what": "closes above the 20-day EMA in the 10 sessions before the trigger day",
+    "op": ">=",
+    "value": 8,
+    "unit": "sessions",
+    "timeframe": "daily"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S27",
+    "S3",
+    "S25"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 item 2",
+   "evidence": "The app's own threshold (v44_read.cycle_events). For the short this is a bounce inside a downtrend: Kell's 'faster rallies that would put in a lower high', the owner's 'decent pop back up and rejection coinciding with the 50SMA or 20EMA' (Sunday Scans 2026-11-01)."
+  },
+  {
+   "id": "wd.top",
+   "field": "pattern",
+   "statement": "The bounce made a top: an extension, a lower high, or a failed push past the prior day's high. At least one of the three.",
+   "measure": {
+    "what": "top type",
+    "op": "in",
+    "value": [
+     "extension",
+     "lower high",
+     "failed push past the prior day's high"
+    ],
+    "timeframe": "daily"
+   },
+   "basis": "originator",
+   "sources": [
+    "S11",
+    "S12",
+    "S3"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 item 3",
+   "evidence": "The three shapes are Kell's (the Exhaustion Extension; the bear-market lower high; 'If prices can't push past the previous day's highs, especially after several attempts'); the tests are the dossier's. Scan: lower-high tops 483 hits, 25.3% to 3R; failed-push-only 58, 25.9%; extension tops 120, 15.0%."
+  },
+  {
+   "id": "wd.top_extension",
+   "field": "pattern",
+   "statement": "An extension top: a close at least 2.5 ATR over the 20-day EMA in the last 20 sessions, or about 4% or more over the 10-day for an index.",
+   "measure": {
+    "what": "highest (close - 20-day EMA) / ATR(14) in the last 20 sessions",
+    "op": ">=",
+    "value": 2.5,
+    "unit": "ATR",
+    "timeframe": "daily",
+    "or": "an index close 4% or more over its 10-day EMA"
+   },
+   "glossary": "stretched",
+   "basis": "my proposal",
+   "sources": [
+    "S5",
+    "S12"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1 item 3",
+   "evidence": "The 4% is Kell's QQQ note ('4-5% above the Daily 10EMA'); the 2.5 ATR is the dossier's number. An extension that is itself a parabolic burst is the Parabolic Short's trade, taken on the climax day, not this one. Scan: extension tops did worst, 15.0% to 3R. CAT 2018-10-09 (a 3.9-ATR extension) is the one extension example."
+  },
+  {
+   "id": "wd.top_lower_high",
+   "field": "pattern",
+   "statement": "A lower-high top: the bounce peaks under the highest high of the 60 sessions before it. The A+ form, the owner's pop and rejection at the 50-day or 20-day.",
+   "measure": {
+    "what": "top high against the highest high of the 60 sessions before the top",
+    "op": "<",
+    "value": "60-session high",
+    "timeframe": "daily"
+   },
+   "basis": "originator",
+   "sources": [
+    "S3",
+    "S25"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1 item 3; 9 A+; 13 scan rule",
+   "evidence": "The 60 sessions is the scan's reading of 'the bounce peaks under the prior high'. Scan: 483 of 618 hits, 25.3% to 3R, the best of the three tops. Nine of the ten examples are lower highs (WHR, PCG, GS at the falling 50-day or 20-day EMA)."
+  },
+  {
+   "id": "wd.stall_length",
+   "field": "pattern",
+   "statement": "The stall: 3 to 10 sessions between the top and the trigger day.",
+   "measure": {
+    "what": "sessions from the top to the trigger day",
+    "op": "in",
+    "value": [
+     3,
+     10
+    ],
+    "unit": "sessions",
+    "timeframe": "daily"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S12",
+    "S11"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 item 4",
+   "evidence": "Kell: 'the price will trade tight into the moving averages as there are now fewer new buyers'; the count is the dossier's. The ten examples' stalls ran 3 to 7 days; Kell's own QQQ stall ran about 2 weeks."
+  },
+  {
+   "id": "wd.stall_tight",
+   "field": "pattern",
+   "statement": "Through the stall no close is more than 1 ATR from the 10-day EMA.",
+   "measure": {
+    "what": "largest |close - 10-day EMA| / ATR(14) over the stall",
+    "op": "<=",
+    "value": 1,
+    "unit": "ATR",
+    "timeframe": "daily"
+   },
+   "glossary": "tight",
+   "basis": "my proposal",
+   "sources": [
+    "S11"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 item 4",
+   "evidence": "Kell's 'tight range as moving averages catch up'. The ten examples' stalls were 2.7% to 7.1% wide (INCY the tightest at 2.7%); MELI 2026-02-03 (9.8%) and EOG 2019-09-24 (8.4%) were rejected as wide and loose."
+  },
+  {
+   "id": "wd.stall_no_new_high",
+   "field": "pattern",
+   "statement": "No new high in the last 3 sessions of the stall.",
+   "measure": {
+    "what": "highest high of the last 3 sessions against the top",
+    "op": "<",
+    "value": "the top",
+    "timeframe": "daily"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S11"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 item 4"
+  },
+  {
+   "id": "wd.stall_volume",
+   "field": "pattern",
+   "statement": "In the stall the up days come on lighter volume than the down days.",
+   "measure": {
+    "what": "average volume of the stall's up days / average volume of its down days",
+    "op": "<",
+    "value": 1,
+    "unit": "x",
+    "timeframe": "daily"
+   },
+   "glossary": "dry_up",
+   "basis": "my proposal",
+   "sources": [
+    "S11",
+    "S19"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 item 4; 8.9 Volume",
+   "evidence": "Kell's pages list 'Decreased buying volume (accumulation)' and 'Increased selling volume (distribution)'. The Model Book's 'volume dries up through the wedge' keeps only half of that; the heavy-selling half is the one that matters."
+  },
+  {
+   "id": "wd.wide_loose",
+   "field": "pattern",
+   "statement": "Wide, loose action before the drop is graded down, not excluded.",
+   "glossary": "wide_and_loose",
+   "basis": "my proposal",
+   "sources": [
+    "S11"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1 item 4; 9 B-",
+   "evidence": "TraderLion's NVDA 2023 chart labels 'Wide And Loose Price Action' and still marks a Wedge Drop out of it. DXCM 2022-04-18: an 8-day stall 9.6% wide, a 2.4% stop, stopped the next session, then the stock fell 37%."
+  },
+  {
+   "id": "wd.stall_on_averages",
+   "field": "pattern",
+   "statement": "The stall sits on or just above the averages. A bounce into the underside of falling averages is the next stage, the downside EMA Crossback, not this setup.",
+   "basis": "my proposal",
+   "sources": [
+    "S12",
+    "S11",
+    "S30",
+    "S32"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "Kell's: a stall on or above rising averages, then the first close under both"
+    },
+    {
+     "value": "b",
+     "basis": "the Model Book's: a rising wedge under the averages"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-002",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.9 Where the stall sits; 10 question 3",
+   "evidence": "Kell's drawings and TraderLion's META, AAPL and ANF charts stall on or just above rising averages. The Model Book's 'beneath the averages' is a machine mirror of the Wedge Pop text (commit 3aa9b1eeaf, 2026-06-17), not the owner's words; you cannot lose averages you are already under."
+  },
+  {
+   "id": "wd.liquidity",
+   "field": "context",
+   "statement": "Price $10 or more and $20 million or more traded a day on average.",
+   "measure": {
+    "what": "close",
+    "op": ">=",
+    "value": 10,
+    "unit": "$",
+    "and": "50-day average dollar volume >= 20,000,000"
+   },
+   "glossary": "liquidity",
+   "basis": "house rule",
+   "sources": [
+    "S20"
+   ],
+   "house_rule": "B23",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 item 5",
+   "evidence": "Kell's own long screen is stricter on price ($20, Deepvue). The scan used the house floor; 2,630 names ever qualified."
+  },
+  {
+   "id": "wd.borrow",
+   "field": "context",
+   "statement": "Easy to borrow at a fair fee.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "D48",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 item 5",
+   "evidence": "Not testable on our data; the test charged no borrow fees."
+  },
+  {
+   "id": "wd.averages",
+   "field": "trigger",
+   "statement": "The trigger averages are the 10 and 20-day EMAs, Kell's pair. The trail uses the house 10 and 21-day.",
+   "measure": {
+    "what": "trigger averages",
+    "op": "==",
+    "value": "10-day and 20-day EMA",
+    "timeframe": "daily"
+   },
+   "glossary": "fast_averages",
+   "basis": "originator",
+   "sources": [
+    "S12",
+    "S1"
+   ],
+   "options": [
+    {
+     "value": "10/20 EMA",
+     "basis": "Kell's own pair, on his cycle page and his posts"
+    },
+    {
+     "value": "9/20 EMA",
+     "basis": "the Model Book card"
+    },
+    {
+     "value": "9/21 EMA",
+     "basis": "the app's Chart IQ v3 rule"
+    },
+    {
+     "value": "10/21",
+     "basis": "the house trail, E52"
+    }
+   ],
+   "recommended": "10/20 EMA",
+   "status": "pending-owner",
+   "owner_question": "D-021",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.9 Averages; 10 question 4",
+   "evidence": "It is Kell's term, so the trigger should match his: '10 and 20-day exponential moving averages guide us through the intermediate-term trend'. The EMA Crossback dossier (14) reaches the same point; one ruling settles both."
+  },
+  {
+   "id": "wd.trigger_close",
+   "field": "trigger",
+   "statement": "The first daily close under both the 10 and 20-day EMAs after the stall.",
+   "measure": {
+    "what": "close against the 10-day EMA and the 20-day EMA, the day before not under both",
+    "op": "<",
+    "value": "both averages",
+    "timeframe": "daily"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S11",
+    "S12",
+    "S20",
+    "S3",
+    "S17"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "a close under the 10 counts (Kell's QQQ 2023-02-16/17 and AMD 2024-01-02 exit)"
+    },
+    {
+     "value": "b",
+     "basis": "both are required (TraderLion's ANF 'broke below both moving averages'; the app's rule)"
+    }
+   ],
+   "recommended": "b",
+   "status": "pending-owner",
+   "owner_question": "D-078",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.2 item 6",
+   "evidence": "Kell and Deepvue say 'below the moving averages'; 'both, on a daily close' is the dossier's stricter reading. Kell's own dated calls came on closes under the 10-day only, and his NVDA tweet was posted mid-session. The 10-only version was not measured. For the long holder's exit (a) is closer to what Kell did."
+  },
+  {
+   "id": "wd.ten_only_graded_down",
+   "field": "trigger",
+   "statement": "A close under the 10-day only is 'wedge drop ish': enough to sell a long, graded down as a short.",
+   "measure": {
+    "what": "averages lost on the close",
+    "op": "==",
+    "value": "the 10-day EMA only",
+    "timeframe": "daily"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S25",
+    "S3",
+    "S17"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "9 B-; 6.2 Sunday Scans 2025-11-09",
+   "evidence": "UCT on QQQ 2025-11-04: 'it was a wedge drop ish day with the gap down and sell on Tuesday!' (under the 10-day only). Kell acted on a 10-only loss twice."
+  },
+  {
+   "id": "wd.close_position",
+   "field": "trigger",
+   "statement": "The trigger day closes in the lower 40% of its range.",
+   "measure": {
+    "what": "(close - low) / (high - low)",
+    "op": "<=",
+    "value": 0.4,
+    "timeframe": "daily"
+   },
+   "glossary": "close_position",
+   "basis": "my proposal",
+   "sources": [
+    "S27"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.2 item 6",
+   "evidence": "The app's threshold. The A+ picture is a wide red bar or a gap down closing near its low (CAH 2009, TSM 2022, GEN 2025 all dropped on gaps)."
+  },
+  {
+   "id": "wd.under_stall_low",
+   "field": "trigger",
+   "statement": "The trigger day closes under the low of the stall (the pivot).",
+   "measure": {
+    "what": "close against the stall's lowest low",
+    "op": "<",
+    "value": "stall low",
+    "timeframe": "daily"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S2",
+    "S7",
+    "S15"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "the close under both averages only"
+    },
+    {
+     "value": "b",
+     "basis": "also under the stall low (the dossier's recommendation)"
+    },
+    {
+     "value": "c",
+     "basis": "an intraday break on the 65-minute chart"
+    }
+   ],
+   "recommended": "b",
+   "status": "pending-owner",
+   "owner_question": "D-003",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 item 6; 8.9 Trigger; 10 question 6",
+   "evidence": "Kell's own triggers were price levels ('officially triggered a wedge drop today through that 790 pivot area'; 'If lost 166.50 would trigger a wedge drop short sale'). Using the stall low mirrors the Wedge Pop's 'Consolidation sets the level to trade against'. The scan required it; the trigger level of each example is its stall low."
+  },
+  {
+   "id": "wd.trigger_volume",
+   "field": "trigger",
+   "statement": "Trigger-day volume at least the 50-day average; 1.5x or more, or a gap down, is the strong form. A grade cue, not a gate.",
+   "measure": {
+    "what": "trigger-day volume / 50-day average volume",
+    "op": ">=",
+    "value": 1.0,
+    "unit": "x",
+    "timeframe": "daily"
+   },
+   "glossary": "volume_surge",
+   "basis": "originator",
+   "sources": [
+    "S11",
+    "S12",
+    "S19"
+   ],
+   "options": [
+    {
+     "value": "1.0x gate",
+     "basis": "a hard gate at the 50-day average"
+    },
+    {
+     "value": "1.5x gate",
+     "basis": "a hard gate at 1.5x"
+    },
+    {
+     "value": "cue",
+     "basis": "a grading cue (the dossier's recommendation)"
+    }
+   ],
+   "recommended": "cue",
+   "status": "pending-owner",
+   "owner_question": "D-006",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.2 item 7",
+   "evidence": "Kell's pages: 'increased selling pressure', 'influx of sellers', ANF 'on increased volume'. Test: 1.5x or more raised the win rate (34% against 29%) but not the average R (-0.08R against -0.09R); scan: 1.5x on 39 hits, 25.6%, no better. DIS 2006-01-26 came on 3.3x and failed; GEN 2025-12-31 dropped on 0.4x and ran 18R."
+  },
+  {
+   "id": "wd.order",
+   "field": "trigger",
+   "statement": "A market order in the last 15 minutes once the close under both averages is clear, or at the next open.",
+   "measure": {
+    "what": "order time",
+    "op": "in",
+    "value": [
+     "the last 15 minutes of the trigger day",
+     "the next open"
+    ]
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "E57",
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 item 8",
+   "evidence": "E57 gives the market order; the timing is the dossier's. The test and the scan shorted the trigger day's close. E58 keeps it in regular hours."
+  },
+  {
+   "id": "wd.hourly_timing",
+   "field": "trigger",
+   "statement": "Advanced: an intraday break of the stall low on the 65-minute chart counts only once the daily close confirms it.",
+   "measure": {
+    "what": "intraday break of the stall low",
+    "op": "==",
+    "value": "confirmed by the daily close under both averages",
+    "timeframe": "65-minute"
+   },
+   "basis": "originator",
+   "sources": [
+    "S9",
+    "S12",
+    "S4"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.2 item 8",
+   "evidence": "Kell: 'Try to get In on the 65 minute' (his slide on long breakouts); 'Hourly and 15-minute charts are for timing entries.' His 65-minute QQQ read: 'We had the Wedge Drop, followed through down on 297/298'."
+  },
+  {
+   "id": "wd.no_chase",
+   "field": "trigger",
+   "statement": "No short more than 4% under the trigger level.",
+   "measure": {
+    "what": "trigger level / fill - 1",
+    "op": "<=",
+    "value": 4,
+    "unit": "%"
+   },
+   "glossary": "chase_limit",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "C28",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 item 9",
+   "evidence": "C28 mirrored through D47. The scan skipped hits more than 4% under the stall low."
+  },
+  {
+   "id": "wd.not_stretched",
+   "field": "trigger",
+   "statement": "Skip a short more than 10% under its 10-day average. Check it at the open on a gap down.",
+   "measure": {
+    "what": "10-day SMA / entry - 1",
+    "op": "<=",
+    "value": 10,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "C29",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 item 9; 7 C29 row",
+   "evidence": "C29 is written for longs; the dossier mirrors it through D47. A big gap down can open far under the 10-day."
+  },
+  {
+   "id": "wd.stop",
+   "field": "stop",
+   "statement": "A few cents over the trigger day's high, or over the higher of the trigger day and the day before.",
+   "measure": {
+    "what": "stop",
+    "op": "==",
+    "value": "a few cents over the trigger day's high, or over the 2-day high"
+   },
+   "glossary": "stop_margin",
+   "basis": "house rule",
+   "sources": [
+    "S11"
+   ],
+   "house_rule": "A3",
+   "options": [
+    {
+     "value": "the day's high",
+     "basis": "the house default, A3 and F62 mirrored; median 2.7% away"
+    },
+    {
+     "value": "the 2-day high",
+     "basis": "the house alternative (the prior day's low, mirrored); median 4.2% away"
+    },
+    {
+     "value": "the top of the stall",
+     "basis": "TraderLion's 'a stop just above the recent high'; the Model Book's wedge high; often outside 3%"
+    },
+    {
+     "value": "the day's high or the 2-day high, within 3%",
+     "basis": "the dossier's recommendation: either, so long as it fits A13"
+    }
+   ],
+   "recommended": "the day's high or the 2-day high, within 3%",
+   "status": "pending-owner",
+   "owner_question": "D-008",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.3 item 10",
+   "evidence": "The scan used $0.03 over the 2-day high, the day's high alone when that was more than 3% away, no trade past 3%. The wider stops did not improve results: in the best regime +0.29R with the day-high stop fell to -0.02R with the 2-day high. META 2022-01-05 shows the other side: stopped at -1R, then down 27% in 20 sessions."
+  },
+  {
+   "id": "wd.stop_width",
+   "field": "stop",
+   "statement": "If the stop is more than about 3% away, skip or take the smaller size the rules give. Never pull it in.",
+   "measure": {
+    "what": "(stop - entry) / entry",
+    "op": "<=",
+    "value": 3,
+    "unit": "%"
+   },
+   "glossary": "stop_width",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "A13",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.3 item 10; 7 A13 row",
+   "evidence": "56% of the app's events fit 3% with the day-high stop, 29% with the 2-day high. Gap-down and wide-range drops run wide: TSLA 2023-07-20 (a 4% gap) 6.9%, ANF 2024-03-08 (an 8% range day) 8.8%. DXCM 2026-03-05 sat right at 3.0%."
+  },
+  {
+   "id": "wd.stop_not_wide_level",
+   "field": "stop",
+   "statement": "Not the 15-bar high (the app's kell_cycle level) or the top of a wide stall, unless that fits 3%.",
+   "measure": {
+    "what": "(stop - entry) / entry, with the stop at the 15-bar high or the stall top",
+    "op": "<=",
+    "value": 3,
+    "unit": "%"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S28"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.3 item 10",
+   "evidence": "kell_cycle.py puts the stop 1% over the 15-bar high, often far wider than 3%."
+  },
+  {
+   "id": "wd.stop_gap",
+   "field": "stop",
+   "statement": "A gap up through the stop: the first 30-minute high is the new stop; out if the loss passes 2R.",
+   "measure": {
+    "what": "loss at the first 30-minute high of the gap-up day",
+    "op": "<=",
+    "value": 2,
+    "unit": "R",
+    "timeframe": "30-minute"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B20",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.3 item 11",
+   "evidence": "10.5% of the test's trades left through a gap over the stop; the worst was -12.8R. It matters more on shorts."
+  },
+  {
+   "id": "wd.breakeven",
+   "field": "management",
+   "statement": "Stop to breakeven between 2R and 5R, at the first cover by default.",
+   "measure": {
+    "what": "R at which the stop moves to the entry",
+    "op": "in",
+    "value": [
+     2,
+     5
+    ],
+    "unit": "R"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B19",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4 item 12"
+  },
+  {
+   "id": "wd.trim_1",
+   "field": "management",
+   "statement": "Cover a third at 3R.",
+   "measure": {
+    "what": "fraction covered at 3R",
+    "op": "==",
+    "value": 0.333,
+    "unit": "of the position"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B19",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4 item 12",
+   "evidence": "Among the ten examples 3R came in 3 to 21 sessions (EXP in 3, INCY in 21)."
+  },
+  {
+   "id": "wd.trim_2",
+   "field": "management",
+   "statement": "Cover a third at 5R.",
+   "measure": {
+    "what": "fraction covered at 5R",
+    "op": "==",
+    "value": 0.333,
+    "unit": "of the position"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "E51",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4 item 12"
+  },
+  {
+   "id": "wd.trim_gap_open",
+   "field": "management",
+   "statement": "If it opens past a cover level, take that cover at the open.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "F63",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4 item 12"
+  },
+  {
+   "id": "wd.trail",
+   "field": "management",
+   "statement": "Trail the last third: cover on a close back above the 10-day EMA for a fast mover, the 21-day for a steadier one.",
+   "measure": {
+    "what": "close against the 10-day (fast) or 21-day (steadier) average",
+    "op": ">",
+    "value": "the average",
+    "timeframe": "daily"
+   },
+   "glossary": "trail",
+   "basis": "house rule",
+   "sources": [
+    "S12"
+   ],
+   "house_rule": "E52",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4 item 12",
+   "evidence": "Kell gives no targets. He expects a rally into the falling averages (the downside EMA Crossback), then lower; covering on a close back over the 10-day fits that. The test trailed the rest after the first cover on a close above the 10-day EMA."
+  },
+  {
+   "id": "wd.time_stop",
+   "field": "management",
+   "statement": "Under 1R of profit after 10 sessions: cover.",
+   "measure": {
+    "what": "open R after 10 trading days",
+    "op": "<",
+    "value": 1,
+    "unit": "R"
+   },
+   "glossary": "time_stop",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "C33",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4 item 12; 8.5 item 16",
+   "evidence": "Applied in the test. INCY 2023-08-17 was the slowest example (3R on day 21): the grind down the 10-day EMA, taught as the case for patience inside the rule."
+  },
+  {
+   "id": "wd.crossback_hold",
+   "field": "management",
+   "statement": "What Kell expects next: a rally into the falling averages, the downside EMA Crossback. A rally that stalls under the falling 10 and 20-day is a place to hold, not to panic; the trail still covers on a close back above the 10 or 21-day.",
+   "measure": {
+    "what": "rally high against the falling 10-day and 20-day EMAs",
+    "op": "<",
+    "value": "both averages",
+    "timeframe": "daily"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S12",
+    "S13"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4 item 13",
+   "evidence": "Kell: 'an EMA Crossback to the downside will retest the moving averages but is now met with more resistance, pushing the stock lower.' The 'hold, not panic' is the dossier's."
+  },
+  {
+   "id": "wd.no_add",
+   "field": "management",
+   "statement": "Do not add at the crossback. That is a new trade with its own stop.",
+   "basis": "house rule",
+   "sources": [
+    "S13"
+   ],
+   "house_rule": "A5",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4 item 13; 7 A5 row",
+   "evidence": "Kell's Downside EMA Crossback page says to add there; A5 says one price, one stop, and B21 makes the crossback a new trade."
+  },
+  {
+   "id": "wd.inv_reclaim",
+   "field": "invalidation",
+   "statement": "A close back above both the 10 and 20-day EMAs: cover.",
+   "measure": {
+    "what": "close against the 10-day and 20-day EMAs",
+    "op": ">",
+    "value": "both averages",
+    "timeframe": "daily"
+   },
+   "basis": "originator",
+   "sources": [
+    "S11",
+    "S25"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5 item 14",
+   "evidence": "Kell: 'If the stock regains its moving averages and pushes higher, exit the short position.' UCT lets a Wedge Drop be 'invalidated' within days (QQQ 2025-08-29: 'unless immediately invalidated early next week'; back over both by 09-04). Test: 38% of the app's events did this within 3 sessions, 54.5% within 5; scan 37.9%."
+  },
+  {
+   "id": "wd.inv_stop",
+   "field": "invalidation",
+   "statement": "A close above the trigger day's high: the stop has already gone; the stop is the exit.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "A4",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5 item 15"
+  },
+  {
+   "id": "wd.inv_shakeout_long",
+   "field": "invalidation",
+   "statement": "For the long holder, the mirror: a Wedge Drop reclaimed within a few sessions was a shakeout. Buy again only on a new setup, as a new trade.",
+   "basis": "house rule",
+   "sources": [
+    "S18"
+   ],
+   "house_rule": "B21",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.5 item 17",
+   "evidence": "Kell re-bought MU at the next EMA Crossback ('A few days after the Wedge Drop took out the first trade, MU found support at the EMA Crossback level')."
+  },
+  {
+   "id": "wd.market",
+   "field": "context",
+   "statement": "For the short: the index in its own down cycle, QQQ under its 50-day SMA and its 20-day EMA; the market reading Orange or Red.",
+   "measure": {
+    "what": "QQQ close against its 50-day SMA and 20-day EMA on the trigger day",
+    "op": "<",
+    "value": "both",
+    "timeframe": "daily",
+    "and": "market reading in [Orange, Red]"
+   },
+   "glossary": "market_reading",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "D46",
+   "options": [
+    {
+     "value": "a",
+     "basis": "the house reading only (F65)"
+    },
+    {
+     "value": "b",
+     "basis": "also require QQQ under its 50-day (the dossier's recommendation, the only regime with a measured edge)"
+    }
+   ],
+   "recommended": "b",
+   "status": "pending-owner",
+   "owner_question": "D-023",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.7 item 19",
+   "evidence": "Test: under the 200-day with QQQ under its 50-day was the only regime with an edge (+0.29R on 9,197 trades; Wedge Drop stocks lagged the base rate by 1.4 points over 20 sessions there, +0.14% against +1.52%). The 20-day EMA half was not measured. The scan required QQQ under its 50-day on every hit, so its base rate says nothing about a strong market."
+  },
+  {
+   "id": "wd.weak_group",
+   "field": "context",
+   "statement": "RS rating 20 or less, in a weak group; the stock lags the market.",
+   "measure": {
+    "what": "RS rating",
+    "op": "<=",
+    "value": 20,
+    "unit": "rating 1 to 99"
+   },
+   "glossary": "leader",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "C31",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.7 item 20; 7 C31 row",
+   "evidence": "C31's short mirror. Textbook Wedge Drops happen in leaders (70% of the app's events had a positive 63-day return, 52% had beaten QQQ); the B26-compliant form is naturally lower RS. A leader with strong RS is a B- as a short. The scan cannot read an RS rating."
+  },
+  {
+   "id": "wd.not_new_bull",
+   "field": "context",
+   "statement": "Not early in a new bull market, not in a strongly uptrending stock, and not too late in the fall.",
+   "basis": "originator",
+   "sources": [
+    "S11",
+    "S13"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.7 item 21",
+   "evidence": "TraderLion under Kell's byline: 'avoid shorting early in new bull markets or strong uptrending stocks'; 'Be careful not to short too late in the downtrend, just like buying late in an uptrend.' GOOGL 2019-01-14: a textbook hit a few weeks after the December 2018 low with QQQ still under its 50-day; stopped the next session, +7.2% twenty sessions later."
+  },
+  {
+   "id": "wd.earnings",
+   "field": "trigger",
+   "statement": "No new short in the 3 sessions before a report. A Wedge Drop that is the earnings reaction itself is allowed, after the report.",
+   "measure": {
+    "what": "sessions until the next report",
+    "op": ">",
+    "value": 3,
+    "unit": "sessions"
+   },
+   "glossary": "earnings_blackout",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B22",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "7 B22 row; 13 notable failures",
+   "evidence": "AAPL 2023-08-04 and TSLA 2023-07-20 were earnings reactions. A report inside the first two weeks belongs in the checklist: DIS 2006-01-26 took the stop on its reaction day (2006-02-07); CAT 2018 reached 3R before its report added the gap."
+  },
+  {
+   "id": "wd.parabolic_exception",
+   "field": "context",
+   "statement": "The B26 parabolic exception never covers a Wedge Drop. A short above the 200-day after a blow-off is the Parabolic Short, on its climax day, with its own checklist.",
+   "measure": {
+    "what": "B26's parabolic exception applies to a Wedge Drop",
+    "op": "==",
+    "value": false
+   },
+   "glossary": "parabolic_burst",
+   "basis": "house rule",
+   "sources": [
+    "S24"
+   ],
+   "house_rule": "B26",
+   "options": [
+    {
+     "value": "a",
+     "basis": "never applies to a Wedge Drop (the dossier's recommendation; DECISIONS D-040's default)"
+    },
+    {
+     "value": "b",
+     "basis": "applies when the run before it met Bracco's parabolic-burst checklist"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-040",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "7 B26 row; 10 question 2",
+   "evidence": "Bracco's parabolic short is a climax-day trade that ends at the 9-day EMA; a Wedge Drop comes days or weeks later, back at the averages, where his trade is already over. DECISIONS D-040's default: a Wedge Drop never qualifies."
+  },
+  {
+   "id": "wd.index_signal",
+   "field": "context",
+   "statement": "Job 1: the index's own Wedge Drop (QQQ or SPY under both its EMAs) is a reason to cut long exposure, in any market.",
+   "basis": "originator",
+   "sources": [
+    "S11",
+    "S25"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.7 item 22",
+   "evidence": "Kell's page: 'when an index like the S&P 500 or Nasdaq forms a Wedge Drop, it's a warning that the market as a whole is weakening.' Bracco 2025-12-14: 'Nasdaq wedge dropped on Friday ... Looks like this is the start of another leg down/pullback'. SMH 2026-07-02 and RSP 2026-08-31 were UCT index calls.",
+   "measure": {
+    "what": "index close against its 10-day and 20-day EMAs",
+    "op": "<",
+    "value": "both averages",
+    "timeframe": "daily"
+   }
+  },
+  {
+   "id": "wd.sell_signal_exit",
+   "field": "management",
+   "statement": "For a long holder the Wedge Drop is the last exit: if the second extension did not take you out, this does.",
+   "basis": "originator",
+   "sources": [
+    "S9",
+    "S17"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.6 item 18; 8.8",
+   "evidence": "Kell's deck: 'If you don't sell the second extension or it doesn't materialize allow the wedge drop to protect you and take you out of the trade.' His AMD exit: 'A gap down through the moving averages is more than enough for Oliver to exit the trade.'"
+  }
+ ],
+ "grading": {
+  "a_plus": [
+   "wd.below_200: under a falling 200-day (wd.falling_200)",
+   "wd.top_lower_high: a bounce into the 50-day or 20-day that makes a lower high, the owner's pop and rejection",
+   "wd.market: QQQ under its 50-day; wd.weak_group: a weak group",
+   "wd.stall_length: a tight stall of 3 to 10 days hugging the 10-day EMA (wd.stall_tight) with quiet up days (wd.stall_volume)",
+   "wd.trigger_close: a wide red bar or a gap down closing near its low (wd.close_position), under both averages and under the stall low (wd.under_stall_low)",
+   "wd.trigger_volume: at least 1.5x the 50-day average",
+   "wd.stop_width: the stop over the day's high within 3%",
+   "wd.not_new_bull: not late in the fall"
+  ],
+  "b_minus": [
+   "wd.wide_loose: wide, loose action before the drop",
+   "wd.ten_only_graded_down: a close under the 10-day only, as a short (enough as an exit for a long)",
+   "wd.trigger_volume: a low-volume drop (RSP 2026-08-31, 0.76x)",
+   "wd.stop_width: a stop over 3%",
+   "wd.market: an index in an uptrend",
+   "wd.weak_group: a leader with strong RS",
+   "wd.not_new_bull: a stock already far below its averages, late in the fall",
+   "wd.top_extension: an extension top (15.0% to 3R in the scan)",
+   "wd.trigger_close: the 20-day lost a day after the 10, average volume, or the index only flat (an A or B)"
+  ],
+  "no_trade": [
+   "wd.below_200: above the 200-day, a sell signal for a long and not a short at all",
+   "wd.parabolic_exception: a blow-off top shorted above the 200-day is the Parabolic Short's trade, not this one",
+   "wd.stall_on_averages: the stall sits under the averages (a downside EMA Crossback, the next stage)",
+   "wd.no_chase: more than 4% under the trigger level",
+   "wd.not_stretched: more than 10% under the 10-day average",
+   "wd.stop_width: the honest stop does not fit 3%; never pull it in",
+   "wd.earnings: a report within 3 sessions",
+   "wd.liquidity: under $10 or under $20 million a day; wd.borrow: hard to borrow",
+   "wd.market: a Green or Yellow reading, or early in a new bull market (wd.not_new_bull)"
+  ]
+ },
+ "lookalikes": [
+  {
+   "setup": "15-wedge-pop",
+   "tell": "Look where price sits before the day and which way it closes through the averages. A Wedge Pop coils under the 10 and 20-day EMAs and closes up through both; a Wedge Drop stalls on or just above them and closes down through both.",
+   "criterion": "wd.trigger_close"
+  },
+  {
+   "setup": "39-parabolic-short",
+   "tell": "Measure the distance to the averages on the trigger day. A Parabolic Short is shorted on the climax day of a 3 to 5 day burst, 10% or more over the 9-day EMA; a Wedge Drop comes days later, after a stall within 1 ATR of the 10-day EMA.",
+   "criterion": "wd.stall_tight"
+  },
+  {
+   "setup": "14-ema-crossback",
+   "tell": "Ask which side of the averages the bounce came from. A downside EMA Crossback is a rally from under the falling averages that stalls at their underside; a Wedge Drop's stall sits on or above them, and the drop is the first close under both.",
+   "criterion": "wd.stall_on_averages"
+  },
+  {
+   "setup": "36-mean-reversion",
+   "tell": "Count the quiet days. The mean-reversion short sells the turn of a stretched rally (3 or more straight up days, a close 3 ATR over the 20-day) on the day it turns; a Wedge Drop needs 3 to 10 sessions stalled on the averages first, then the close through them.",
+   "criterion": "wd.stall_length"
+  }
+ ],
+ "invalidations": [
+  "Before the trigger: the stall makes a new high in its last 3 sessions, or a close sits more than 1 ATR from the 10-day EMA (wd.stall_no_new_high, wd.stall_tight).",
+  "Before the trigger: a close back above the 200-day (wd.below_200).",
+  "Before the trigger: a report within 3 sessions, wait (wd.earnings).",
+  "After the entry: a close back above both the 10 and 20-day EMAs, cover (wd.inv_reclaim).",
+  "After the entry: a close above the trigger day's high; the stop is the exit (wd.inv_stop).",
+  "After the entry: under 1R of profit after 10 sessions, cover (wd.time_stop).",
+  "For the long holder: a Wedge Drop reclaimed within a few sessions was a shakeout; buy again only on a new setup (wd.inv_shakeout_long)."
+ ],
+ "mistakes": [
+  "Shorting a leader at its highs because it lost the 10-day once. It breaks B26, and the sources warn against strong uptrends.",
+  "Shorting the blow-off itself. That is the Parabolic Short, a different setup with its own checklist.",
+  "Shorting inside the stall before the close confirms.",
+  "Treating a cross of the averages as the whole setup. Kell on the mirror: 'Many traders mistakenly believe the Wedge Pop is simply about crossing the moving averages.'",
+  "A stop too tight in a volatile name. META 2022-01-05 stopped out at -1R, then fell 27% within 20 sessions; DXCM 2022-04-18 the same, then down 37%. 'As stocks trend down, volatility increases.'",
+  "Late to the party: 'Be careful not to short too late in the downtrend'.",
+  "Holding a long through it. The drop is the last exit, not a reason to hope.",
+  "Adding at the crossback. A5 says no; the crossback can be a new trade (B21).",
+  "Shorting a few weeks after a market low with the index still under its 50-day (GOOGL 2019-01-14): the 'early in new bull markets' case.",
+  "Taking the app's kell_cycle levels or its quotes as Kell's. The detector fires on 100% of charts, has the wrong cycle order and the wrong book title."
+ ],
+ "short_mirror": {
+  "exists": true,
+  "setup": "15-wedge-pop",
+  "note": "The Wedge Drop is itself the short mirror of the Wedge Pop (Kell's own pairing; D47). Its own long side, read as an exit, is to sell the long on the Wedge Drop: 'allow the wedge drop to protect you and take you out of the trade.' Whether the short is taught is D-001."
+ },
+ "best_conditions": "For the short: the index in a down cycle (QQQ under its 50-day and 20-day EMA), the reading Orange or Red, the stock under a falling 200-day in a weak group, the bounce rejected at the 50-day or 20-day. Not early in a new bull market, not late in the fall. For the sell signal: any market; the index's own Wedge Drop is a reason to cut exposure.",
+ "management": {
+  "trim_1": "cover a third at 3R (B19)",
+  "trim_2": "cover a third at 5R (E51)",
+  "trail": "cover the last third on a close back above the 10-day EMA for a fast mover, the 21-day for a steadier one (E52)",
+  "breakeven": "between 2R and 5R, at the first cover by default (B19)",
+  "time_stop": "under 1R of profit after 10 sessions, cover (C33)",
+  "gap_open": "a cover level the day opens past is taken at the open (F63)",
+  "gap_against": "a gap up through the stop: the first 30-minute high is the new stop; out if past 2R (B20)",
+  "overrides": "none. The setup keeps the house defaults (8.4); a rally that stalls under the falling averages is a place to hold, not to add (A5, B21). Not ours: the Downside EMA Crossback page's add at the crossback, kell_cycle.py's entry 0.1% under the 15-bar low and stop 1% over the 15-bar high, and the classical rising-wedge measured move (ChartSchool says there is none)."
+ },
+ "examples": {
+  "winners": 10,
+  "sheet_dir": "_study-resume/scratchpad/setups/16-wedge-drop/final",
+  "base_rate": {
+   "hits": 618,
+   "r3_pct": 24.3,
+   "r5_pct": 14.7,
+   "stopped_pct": 87.7,
+   "back_above_both_within_3_pct": 37.9,
+   "mean_best_r": 2.3,
+   "window": "60 sessions forward, fixed stop, no trims, no breakeven, no trail, no time stop; 1999-04 to 2026-11; QQQ under its 50-day required on every hit; one hit per name per 20 sessions"
+  },
+  "cuts": {
+   "lower_high_tops": {
+    "hits": 483,
+    "r3_pct": 25.3
+   },
+   "extension_tops": {
+    "hits": 120,
+    "r3_pct": 15.0
+   },
+   "failed_push_only_tops": {
+    "hits": 58,
+    "r3_pct": 25.9
+   },
+   "trigger_volume_1_5x_or_more": {
+    "hits": 39,
+    "r3_pct": 25.6
+   },
+   "falling_200_day": {
+    "hits": 437,
+    "r3_pct": 26.5
+   },
+   "app_rule_test_2008_2026": {
+    "all_wedge_drops": {
+     "trades": 99562,
+     "mean_r": -0.09,
+     "win_pct": 29.0,
+     "reached_3r_pct": 17.9
+    },
+    "below_200_and_qqq_under_50": {
+     "trades": 9197,
+     "mean_r": 0.29,
+     "win_pct": 32.8,
+     "reached_3r_pct": 21.9
+    },
+    "same_with_2_day_high_stop": {
+     "trades": 9097,
+     "mean_r": -0.02
+    },
+    "note": "the app's own 'Wedge drop' events, house short, 2008 to 2026, survivors only"
+   }
+  },
+  "winners_list": [
+   "WHR 2002-08-29",
+   "PCG 2007-12-14",
+   "CAH 2009-02-17",
+   "GS 2011-08-02",
+   "EXP 2015-09-18",
+   "CAT 2018-10-09",
+   "TSM 2022-06-09",
+   "INCY 2023-08-17",
+   "GEN 2025-12-31",
+   "DXCM 2026-03-05"
+  ],
+  "failures": [
+   {
+    "ticker": "GOOGL",
+    "date": "2019-01-14",
+    "criterion": "wd.not_new_bull",
+    "why": "a lower-high top, a three-day stall 3.4% wide, a 2.1% stop; stopped the next session at 0R; twenty sessions later 7.2% above the entry. A few weeks after the December 2018 low with QQQ still under its 50-day: the early-in-a-new-bull-market case."
+   },
+   {
+    "ticker": "DXCM",
+    "date": "2022-04-18",
+    "criterion": "wd.wide_loose",
+    "why": "an extension-plus-failed-push top, an 8-day stall 9.6% wide, a 2.4% stop; stopped the next session at 0R, then the stock fell 37% within 20 sessions. A stop that fits 3% can be the wrong stop in a volatile name; the move you then miss is not evidence the entry was right."
+   },
+   {
+    "ticker": "DIS",
+    "date": "2006-01-26",
+    "criterion": "wd.trigger_volume",
+    "why": "a failed-push top, a three-day stall, trigger volume 3.3x the 50-day average (the strong form); never past 0.34R, stopped on day 8, its earnings reaction day, and 11.6% above the entry twenty sessions later. Heavy volume is a cue, not a gate, and a report inside the first two weeks belongs in the checklist."
+   },
+   {
+    "ticker": "META",
+    "date": "2022-01-05",
+    "criterion": "wd.stop",
+    "why": "B26-compliant (4% under the 200-day), a 3.6% stop; stopped at -1R, then down 27.3% within 20 sessions. The tight-stop risk in a volatile name."
+   },
+   {
+    "ticker": "TSLA",
+    "date": "2023-05-15",
+    "criterion": "wd.not_new_bull",
+    "why": "Kell's own short trigger ('If lost 166.50'), 19% under the 200-day, a 2.1% stop; lost 1R and the stock rose 55.5% over the next 20 sessions. He had flagged it 'a laggard name. Might just be an avoid'; a strong uptrending market and the stock's own 2023 recovery ran it over."
+   },
+   {
+    "ticker": "HPQ",
+    "date": "2008-06-11",
+    "criterion": "wd.inv_reclaim",
+    "why": "a lower high under the 200-day, a 3-day stall 3.2% wide, a 2.4% stop; stopped on day 2 at 0R when the close reclaimed both EMAs (a shakeout); the slide through the 5R level came in July without the trade."
+   }
+  ],
+  "limits": "The RS rating, the group, the market reading and the owner's grade are not in the scan. Survivors only, which biases every short result downward. Some same-day clusters (2011-08-02, 2022-06-08 to 06-10) are one market event counted many times. Best R is the deepest point before the stop, not a realised result. Nothing here is a published statistic.",
+  "near_misses": [
+   {
+    "ticker": "V",
+    "date": "2021-05-10",
+    "criterion": "wd.below_200",
+    "why": "the trigger close is 8.3% above the 200-day SMA: a sell signal for a long in an uptrend, not a short; 0.93R then stopped as the stock made new highs."
+   },
+   {
+    "ticker": "WFC",
+    "date": "2016-09-09",
+    "criterion": "wd.stall_tight",
+    "why": "a stall close sat 1.42 ATR from the 10-day EMA (rule: 1 ATR or less): an extension turn with no real stall, the mean-reversion short, not a Wedge Drop."
+   },
+   {
+    "ticker": "LOW",
+    "date": "2007-09-07",
+    "criterion": "wd.close_position",
+    "why": "the trigger day closed at 56% of its range (rule: the lower 40%): an undecided close under the averages; stopped at 0R."
+   },
+   {
+    "ticker": "VZ",
+    "date": "2010-06-30",
+    "criterion": "wd.stall_volume",
+    "why": "the stall's up days averaged 2.84x the volume of its down days (rule: under 1x): accumulation, not distribution; 0.54R then stopped."
+   }
+  ],
+  "sheets": {
+   "failures": "final/fail_1-4.png",
+   "near_misses": "final/near_1-4.png",
+   "pair": "final/pair_15-wedge-pop.png"
+  }
+ },
+ "question_seeds": [
+  {
+   "kind": "recall",
+   "criterion": "wd.trigger_close",
+   "seed": "Which two averages must the stock close under on the trigger day, and whose pair are they?"
+  },
+  {
+   "kind": "recall",
+   "criterion": "wd.below_200",
+   "seed": "Above the 200-day, what is a Wedge Drop for us: a short, or something else?"
+  },
+  {
+   "kind": "recall",
+   "criterion": "wd.stop",
+   "seed": "Where does the stop go on a Wedge Drop short, and how far away may it be?"
+  },
+  {
+   "kind": "spot",
+   "criterion": "wd.under_stall_low",
+   "seed": "Hidden ticker: tap the stall low, the level the trigger day must close under."
+  },
+  {
+   "kind": "spot",
+   "criterion": "wd.stall_tight",
+   "seed": "Hidden ticker: which of these four stalls hugs the 10-day EMA within 1 ATR for 3 to 10 days?"
+  },
+  {
+   "kind": "spot",
+   "criterion": "wd.top_lower_high",
+   "seed": "Hidden ticker: is this bounce a lower high under the falling 50-day, or a new high? Short candidate or pass."
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "wd.trigger_close",
+   "seed": "Wedge Drop or Wedge Pop: price just closed through both EMAs. Which side was it on before, and which way did it close?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "wd.stall_tight",
+   "seed": "Wedge Drop or Parabolic Short: the stock is 25% over its 9-day EMA on a gap-up day that closes red. Which is it?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "wd.stall_on_averages",
+   "seed": "Wedge Drop or downside EMA Crossback: the bounce came from under the falling averages and stalled at their underside. Which stage is this?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "wd.inv_reclaim",
+   "seed": "You shorted the close under both averages. Two days later it closes back above both, under your stop. What now?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "wd.not_stretched",
+   "seed": "The trigger day gaps down and opens 12% under its 10-day average. Short at the open, or pass?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "wd.market",
+   "seed": "A textbook stall breaks under both averages, but QQQ is above its 50-day and the reading is Green. Short, or sell signal only?"
+  },
+  {
+   "kind": "grade",
+   "criterion": "wd.trigger_volume",
+   "seed": "Same stall, two drops: one on 0.7x volume closing mid-range, one a gap down on 1.8x closing at the low. Grade each."
+  },
+  {
+   "kind": "grade",
+   "criterion": "wd.wide_loose",
+   "seed": "An 8-day stall 9.6% wide breaks down under both averages with a 2.4% stop. A+, B-, or pass?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "wd.stop_width",
+   "seed": "Short at 55.16 with the stop at 56.28. How far is the stop in percent, and does it fit the 3% rule?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "wd.trim_1",
+   "seed": "Shorted at 45.96 with the stop at 46.89. Where is 3R?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "wd.prior_bounce",
+   "seed": "Of the 10 closes before the trigger day, 7 were above the 20-day EMA. Does the prior bounce qualify?"
+  }
+ ],
+ "owner_decisions": [
+  "D-001",
+  "D-002",
+  "D-003",
+  "D-006",
+  "D-007",
+  "D-008",
+  "D-010",
+  "D-021",
+  "D-023",
+  "D-040",
+  "D-078"
+ ],
+ "conflicts": [
+  "Sources: the dossier's section 11 lists its sources by name and link with no numbers, so the card cites them by position in reading order (S1 the 2021-03-06 tweet ... S22 Bulkowski, S23 to S25 the UCT posts, S26 to S32 the repo files), the reader the validator uses for unnumbered dossiers.",
+  "Which averages: 10/20 EMA (Kell), 9/20 (the Model Book), 9/21 (Chart IQ v3), 10/21 (the house trail). The card takes 10/20 for the trigger and the house 10/21 for the trail (D-021; the EMA Crossback dossier asks the same).",
+  "One average or both: Kell called QQQ 2023-02-16/17 and exited AMD 2024-01-02 on a loss of the 10 only; TraderLion's ANF caption and the app require both. The card requires both for the short and grades a 10-only loss down (D-078). The 10-only version was not measured.",
+  "Where the stall sits: on or just above the averages (Kell's drawings, TraderLion's examples) against 'beneath the averages' (the Model Book card and playbook, a machine mirror of the Wedge Pop text, commit 3aa9b1eeaf). The card takes Kell's; the playbook's 'after a topping move or Reversal Extension' is a mirroring error (a Reversal Extension is Kell's bottom).",
+  "Trigger: a price level (Kell's tweets: '790 pivot', '166.50') against the averages (TraderLion, the app). The card takes both: a close under both averages and under the stall low (D-003).",
+  "Stop: the day's high (house) against 'just above the recent high' (TraderLion) and the wedge high (the Model Book). The card takes the day's high or the 2-day high within 3%; wider stops did not improve the test (D-008).",
+  "Role: Kell uses it first as an exit; the Model Book files it as a short. The card teaches both, the short only under B26 (D-001).",
+  "Volume: 'increased selling pressure' (TraderLion) against 'dries up' (the Model Book). The card: quiet up days in the stall, heavier volume on the drop; a cue, not a gate (D-006).",
+  "The 200-day: 70% of the app's Wedge Drops and 13 of 15 source-marked examples sit above it; B26 forbids those shorts. The measured edge lives only below the 200-day with QQQ under its 50-day (+0.29R), and even there it fell to -0.02R with the 2-day stop: thin, and dependent on the stop.",
+  "The parabolic exception: the dossier recommends it never covers a Wedge Drop; DECISIONS D-040 agrees. A Wedge Drop after a burst is graded as a Wedge Drop, not shorted above the 200-day.",
+  "App text not to teach: kell_cycle.py's Stage 4 levels, its invented Kell quotes ('size the Wedge Drop trade larger than your Wedge Pop ...') and its wrong book title ('Victorious Stock Operator'; Open Library lists Victory in Stock Trading); the Study F2 bank's 'RED LIGHT (Below 20 EMA): Stay in CASH' line shown as Kell's words (no source found); the v3 rule's 50-day condition, which excludes most of Kell's examples (D-010).",
+  "Course sourcing: SET.17 plans losing examples from failed classical rising wedges, a different months-long pattern (Bulkowski: 3 weeks minimum, five touches each line). The card's failures are failed Kell-style Wedge Drops from the scan instead.",
+  "The scan's 'falling 200-day' cut names no window; the card's wd.falling_200 borrows the pilot's 20 sessions and says so.",
+  "The exit rule on a reclaim (wd.inv_reclaim) is Kell's line (S11) and UCT's own 'invalidated' reading (QQQ 2025-08-29, S25); the card tags it originator."
+ ]
+}

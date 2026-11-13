@@ -1,0 +1,1694 @@
+{
+ "unit": "F6.12",
+ "track": "F6",
+ "title": "Debit and credit verticals",
+ "teaches": "The four vertical spreads (bull call and bear put for a debit, bull put and bear call for a credit): which legs build each one, how to work out max gain, max loss and break-even from the strikes and the debit or credit, and the assignment and expiry risks that can break the defined risk.",
+ "skills": [
+  {
+   "id": "options.verticals",
+   "title": "Debit and credit verticals"
+  }
+ ],
+ "as_of": "2026-11-09",
+ "sources": [
+  {
+   "id": "s1",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Bull Call Spread (Debit Call Spread)",
+   "url": "https://www.optionseducation.org/strategies/all-strategies/bull-call-spread-debit-call-spread",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s2",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Bear Put Spread",
+   "url": "https://www.optionseducation.org/strategies/all-strategies/bear-put-spread",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s3",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Bull Put Spread (Credit Put Spread)",
+   "url": "https://www.optionseducation.org/strategies/all-strategies/bull-put-spread-credit-put-spread",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s4",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Bear Call Spread (Credit Call Spread)",
+   "url": "https://www.optionseducation.org/strategies/all-strategies/bear-call-spread-credit-call-spread",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s5",
+   "tier": 1,
+   "publisher": "The Options Clearing Corporation and the US options exchanges",
+   "title": "Characteristics and Risks of Standardized Options (June 2024 edition)",
+   "url": "https://cdn.robinhood.com/assets/robinhood/legal/Characteristics%20and%20Risks%20of%20Standardized%20Options.pdf",
+   "accessed": "2026-11-09",
+   "why_reliable": "The official options disclosure document every options customer must receive (June 2024 edition, the version Cboe Regulatory Circular RC24-009 says replaces all prior ones). theocc.com refuses plain clients (403), so this cites the copy Robinhood distributes to its customers (cover: June 2024; copyright the exchanges and OCC), the same copy F6.03 cites."
+  },
+  {
+   "id": "s6",
+   "tier": 1,
+   "publisher": "FINRA",
+   "title": "Options (investor insights: assignment, dividend, expiration and pin risk)",
+   "url": "https://www.finra.org/investors/investing/investment-products/options",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s7",
+   "tier": 2,
+   "publisher": "Fidelity",
+   "title": "Options strategy guide: Bull call spread",
+   "url": "https://www.fidelity.com/learning-center/investment-products/options/options-strategy-guide/bull-call-spread",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s8",
+   "tier": 2,
+   "publisher": "Fidelity",
+   "title": "Options strategy guide: Bear put spread",
+   "url": "https://www.fidelity.com/learning-center/investment-products/options/options-strategy-guide/bear-put-spread",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s9",
+   "tier": 2,
+   "publisher": "Fidelity",
+   "title": "Options strategy guide: Bull put spread",
+   "url": "https://www.fidelity.com/learning-center/investment-products/options/options-strategy-guide/bull-put-spread",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s10",
+   "tier": 2,
+   "publisher": "Fidelity",
+   "title": "Options strategy guide: Bear call spread",
+   "url": "https://www.fidelity.com/learning-center/investment-products/options/options-strategy-guide/bear-call-spread",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s11",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "Bullish & Bearish Vertical Options Spreads (2023-08-31)",
+   "url": "https://www.schwab.com/learn/story/bullish-bearish-vertical-options-spreads",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s12",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Debit Spread Explained (Lucas Downey; reviewed by Samantha Silberstein, CFP; updated 2026-09-23)",
+   "url": "https://www.investopedia.com/terms/d/debitspread.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s13",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Bull Call Spread: How This Options Trading Strategy Works (Cedric Thompson; reviewed by Michael J Boyle; updated 2026-07-21)",
+   "url": "https://www.investopedia.com/terms/b/bullcallspread.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s14",
+   "tier": 2,
+   "publisher": "tastytrade",
+   "title": "Short Put Vertical Spread Options Strategy Explained (Jason Chiou; updated 2026-03-19)",
+   "url": "https://tastytrade.com/learn/trading-products/options/short-put-vertical-spread/",
+   "accessed": "2026-11-09",
+   "why_reliable": "The education centre of tastytrade, Inc., a FINRA-registered broker-dealer that clears and carries customer options accounts; named author and update date on the page. Used only for the expiration-risk mechanics (pin risk, auto-exercise of a partly in-the-money spread), where it agrees with OIC, FINRA and Fidelity."
+  }
+ ],
+ "facts": [
+  {
+   "id": "f1",
+   "source": "s1",
+   "quote": "A bull call spread is a type of vertical spread. It contains two calls with the same expiration but different strikes.",
+   "claim": "A bull call spread is a vertical spread: two calls, same expiry, different strikes."
+  },
+  {
+   "id": "f2",
+   "source": "s1",
+   "quote": "The strike price of the short call is higher than the strike of the long call, which means this strategy will always require an initial outlay (debit).",
+   "claim": "In a bull call spread the short call has the higher strike, so it always opens for a debit."
+  },
+  {
+   "id": "f3",
+   "source": "s1",
+   "quote": "The short call's main purpose is to help pay for the long call's upfront cost.",
+   "claim": "The short call in a bull call spread is there to help pay for the long call."
+  },
+  {
+   "id": "f4",
+   "source": "s1",
+   "quote": "the short call premium mitigates the overall cost of the strategy but also sets a ceiling on the profits.",
+   "claim": "The short call lowers the cost of a bull call spread and also caps its profit."
+  },
+  {
+   "id": "f5",
+   "source": "s1",
+   "quote": "The maximum profit is limited to the difference between the strike prices, less the debit paid to put on the position.",
+   "claim": "A bull call spread's maximum profit is the gap between the strikes minus the debit paid."
+  },
+  {
+   "id": "f6",
+   "source": "s1",
+   "quote": "In that case, both call options expire worthless, and the loss incurred is simply the initial outlay for the position (the net debit).",
+   "claim": "If both calls expire worthless, a bull call spread loses the debit paid, which is its maximum loss."
+  },
+  {
+   "id": "f7",
+   "source": "s1",
+   "quote": "Breakeven = long call strike + net debit paid",
+   "claim": "A bull call spread breaks even at expiry at the long call strike plus the debit."
+  },
+  {
+   "id": "f8",
+   "source": "s1",
+   "quote": "The benefit of a higher short call strike is a higher maximum to the strategy's potential profit. The disadvantage is that the premium received is smaller, the higher the short call's strike price.",
+   "claim": "Raising the short call strike raises the maximum profit but brings in less premium."
+  },
+  {
+   "id": "f9",
+   "source": "s1",
+   "quote": "The profit/loss payoff profiles are exactly the same, once adjusted for the net cost to carry. The chief difference is the timing of the cash flows.",
+   "claim": "A bull call spread and a bull put spread have the same profit and loss shape, once adjusted for the cost to carry; the cash flows come at different times."
+  },
+  {
+   "id": "f10",
+   "source": "s1",
+   "quote": "Slight, all other things being equal. Since the strategy involves being long one call and short another with the same expiration, the effects of volatility shifts on the two contracts may offset each other to a large degree.",
+   "claim": "A bull call spread's sensitivity to volatility is slight, because the two legs' volatility effects largely offset."
+  },
+  {
+   "id": "f11",
+   "source": "s1",
+   "quote": "Note, however, that the stock price can move in such a way that a volatility change would affect one price more than the other.",
+   "claim": "The offset is not perfect: the stock can move so that a volatility change hits one leg more than the other."
+  },
+  {
+   "id": "f12",
+   "source": "s1",
+   "quote": "The passage of time hurts the position, though not as much as it does a plain long call position.",
+   "claim": "Time passing hurts a bull call spread, though less than a plain long call."
+  },
+  {
+   "id": "f13",
+   "source": "s1",
+   "quote": "Assume that the long call is in-the-money and that the short call is roughly at-the-money. Exercise (stock purchase) is certain, but assignment (stock sale) isn't.",
+   "claim": "With the long call in the money and the short call near the money at expiry, exercise is certain but assignment is not."
+  },
+  {
+   "id": "f14",
+   "source": "s1",
+   "quote": "Two ways to prepare: close the spread out early or be prepared for either outcome on Monday.",
+   "claim": "To handle expiration risk, close the spread early or be ready for either outcome on Monday."
+  },
+  {
+   "id": "f15",
+   "source": "s1",
+   "quote": "The investor cannot know for sure until the following Monday whether or not the short call was assigned. The problem is most acute if the stock is trading just below, at or just above the short call strike.",
+   "claim": "You may not know until Monday whether the short call was assigned; the risk is worst with the stock near the short strike."
+  },
+  {
+   "id": "f16",
+   "source": "s2",
+   "quote": "It consists of buying one put in hopes of profiting from a decline in the underlying stock, and writing another put with the same expiration, but with a lower strike price, as a way to offset some of the cost.",
+   "claim": "A bear put spread buys one put and sells another, same expiry, at a lower strike, to offset some of the cost."
+  },
+  {
+   "id": "f17",
+   "source": "s2",
+   "quote": "In that case, both put options expire worthless, and the loss incurred is simply the initial outlay for the position (the debit).",
+   "claim": "If both puts expire worthless, a bear put spread loses its initial outlay, the debit."
+  },
+  {
+   "id": "f18",
+   "source": "s2",
+   "quote": "The worst that can happen at expiration is for the stock to be above the higher (long put) strike price.",
+   "claim": "A bear put spread's worst case at expiry is the stock above the higher (long put) strike."
+  },
+  {
+   "id": "f19",
+   "source": "s2",
+   "quote": "Breakeven = long put strike - net debit paid",
+   "claim": "A bear put spread breaks even at the long put strike minus the debit."
+  },
+  {
+   "id": "f20",
+   "source": "s3",
+   "quote": "Because of the relationship between the two strike prices, the investor will always receive a premium (credit) when initiating this position.",
+   "claim": "A bull put spread always opens for a credit."
+  },
+  {
+   "id": "f21",
+   "source": "s3",
+   "quote": "The best that can happen is for the stock to be above the higher strike price at expiration. In that case, both put options expire worthless, and the investor pockets the credit received when putting on the position.",
+   "claim": "A bull put spread's best case is the stock above the higher strike at expiry: both puts expire worthless and you keep the credit."
+  },
+  {
+   "id": "f22",
+   "source": "s3",
+   "quote": "The most this spread can earn is the net premium received at the outset, which is likeliest if the stock price stays steady or rises.",
+   "claim": "A bull put spread earns at most its credit, likeliest if the stock holds steady or rises."
+  },
+  {
+   "id": "f23",
+   "source": "s3",
+   "quote": "The maximum loss is the difference between the strikes, less the credit received when putting on the position.",
+   "claim": "A bull put spread's maximum loss is the gap between the strikes minus the credit received."
+  },
+  {
+   "id": "f24",
+   "source": "s3",
+   "quote": "Breakeven = short put strike - net credit received",
+   "claim": "A bull put spread breaks even at the short put strike minus the credit."
+  },
+  {
+   "id": "f25",
+   "source": "s3",
+   "quote": "The passage of time helps the position, though not quite as much as it does a plain short put position.",
+   "claim": "Time passing helps a bull put spread, though less than a plain short put."
+  },
+  {
+   "id": "f26",
+   "source": "s3",
+   "quote": "Profits at expiration start to erode if the stock is below the higher (short put) strike, and losses reach their maximum if the stock falls to, or beyond, the lower (long put) strike.",
+   "claim": "A bull put spread's profit starts to erode below the short put strike, and losses peak at or below the long put strike."
+  },
+  {
+   "id": "f27",
+   "source": "s3",
+   "quote": "Below the lower strike price, profits from exercising the long put completely offset further losses on the short put.",
+   "claim": "Below the lower strike, the long put offsets every further loss on the short put."
+  },
+  {
+   "id": "f28",
+   "source": "s3",
+   "quote": "Looking for a rise in the underlying stock's price during the options' term.",
+   "claim": "A bull put spread fits a rising stock price."
+  },
+  {
+   "id": "f29",
+   "source": "s4",
+   "quote": "The strike price of the short call is below the strike of the long call, which means this strategy will always generate a net cash inflow (net credit) at the outset.",
+   "claim": "In a bear call spread the short call has the lower strike, so it always opens for a credit."
+  },
+  {
+   "id": "f30",
+   "source": "s4",
+   "quote": "The short call's main purpose is to generate income, whereas the long call simply helps limit the upside risk.",
+   "claim": "In a bear call spread the short call brings in income and the long call limits the upside risk."
+  },
+  {
+   "id": "f31",
+   "source": "s4",
+   "quote": "The best that can happen at expiration is for the stock to be below both strike prices.",
+   "claim": "A bear call spread's best case is the stock below both strikes at expiry."
+  },
+  {
+   "id": "f32",
+   "source": "s4",
+   "quote": "Breakeven = short call strike + net credit received",
+   "claim": "A bear call spread breaks even at the short call strike plus the credit."
+  },
+  {
+   "id": "f33",
+   "source": "s4",
+   "quote": "Early assignment, while possible at any time, generally occurs when the stock goes ex-dividend.",
+   "claim": "Early assignment on a bear call spread's short call can happen any time but generally comes when the stock goes ex-dividend."
+  },
+  {
+   "id": "f34",
+   "source": "s4",
+   "quote": "The maximum loss is the difference between the two strikes, but it is reduced by the net credit received at the outset.",
+   "claim": "A bear call spread's maximum loss is the gap between the strikes, reduced by the credit."
+  },
+  {
+   "id": "f35",
+   "source": "s3",
+   "quote": "The maximum loss is capped by the long put.",
+   "claim": "A bull put spread's maximum loss is capped by the long put."
+  },
+  {
+   "id": "f36",
+   "source": "s3",
+   "quote": "The profit/loss payoff profiles are exactly the same, once adjusted for the net cost to carry. The chief difference is the timing of the cash flows and the potential for early assignment.",
+   "claim": "The bull put spread's payoff matches the bull call spread's once adjusted for carry; the cash timing and early assignment differ."
+  },
+  {
+   "id": "f37",
+   "source": "s3",
+   "quote": "The bull call spread requires a known initial outlay for an unknown eventual return; the bull put spread produces a known initial cash inflow in exchange for a possible outlay later on.",
+   "claim": "A bull call spread pays cash up front for a later return; a bull put spread takes cash up front and may pay out later."
+  },
+  {
+   "id": "f38",
+   "source": "s1",
+   "quote": "If the stock price is at or above the higher (short call) strike at expiration, in theory, the investor would exercise the long call component and presumably would be assigned on the short call.",
+   "claim": "At or above the higher strike at expiry, the long call is exercised and the short call is presumably assigned."
+  },
+  {
+   "id": "f39",
+   "source": "s5",
+   "quote": "A spread involves being both the buyer and writer of the same type of option (puts or calls) on the same underlying interest, with the options having different exercise prices and/or expiration dates.",
+   "claim": "A spread means buying one option and writing another of the same type on the same stock, with different strikes and/or expiries."
+  },
+  {
+   "id": "f40",
+   "source": "s5",
+   "quote": "the increased risk exposure that would result from the exercise or closing out of one side of the trade while the other side of the trade remains outstanding.",
+   "claim": "Exercising or closing one side of a combination while the other stays open raises your risk."
+  },
+  {
+   "id": "f41",
+   "source": "s5",
+   "quote": "For the writer of an uncovered call (other than a binary call), the potential loss is unlimited.",
+   "claim": "An uncovered short call has unlimited potential loss."
+  },
+  {
+   "id": "f42",
+   "source": "s5",
+   "quote": "the transaction costs of combination transactions can be especially significant, since separate costs are incurred on each component of the combination.",
+   "claim": "Each leg of a combination carries its own transaction costs, which can add up."
+  },
+  {
+   "id": "f43",
+   "source": "s5",
+   "quote": "such as a strong market rally or the announcement of a tender offer for an underlying stock at a price that is substantially above the prevailing market price, can cause large losses for an uncovered call writer.",
+   "claim": "A rally or a takeover bid can cause large losses for an uncovered call writer."
+  },
+  {
+   "id": "f44",
+   "source": "s6",
+   "quote": "Options investors can bound their potential losses (and potential gains) by executing strategies with multiple “legs,” or with multiple contracts on the same security, but doing so is complicated and comes with its own risks.",
+   "claim": "Multi-leg strategies can bound losses and gains, but they are complicated and carry their own risks."
+  },
+  {
+   "id": "f45",
+   "source": "s6",
+   "quote": "For the sellers of equity options, assignment can happen at any time.",
+   "claim": "Sellers of equity options can be assigned at any time."
+  },
+  {
+   "id": "f46",
+   "source": "s6",
+   "quote": "For sellers, there's a higher risk of assignment the day before a stock’s ex-dividend date",
+   "claim": "Option sellers face a higher risk of assignment the day before the ex-dividend date."
+  },
+  {
+   "id": "f47",
+   "source": "s6",
+   "quote": "In-the-money options contracts are generally automatically exercised at expiration.",
+   "claim": "In-the-money options are generally exercised automatically at expiry."
+  },
+  {
+   "id": "f48",
+   "source": "s6",
+   "quote": "If the contract is assigned, the seller of a put option must buy the underlying asset at the strike price.",
+   "claim": "An assigned put seller must buy the stock at the strike."
+  },
+  {
+   "id": "f49",
+   "source": "s6",
+   "quote": "Option sellers don't know if they'll be assigned, and if assigned, must fulfill the contract at the strike price but are left holding a stock position that might have moved unfavorably by the next day’s open",
+   "claim": "Near the strike at expiry, a seller doesn't know about assignment and may hold stock that moves against them by the next open."
+  },
+  {
+   "id": "f50",
+   "source": "s6",
+   "quote": "This risk occurs when a stock closes at or very near an option's strike price at expiration, creating uncertainty for both buyers and sellers.",
+   "claim": "Pin risk: the stock closes at or very near a strike at expiry, leaving both sides uncertain."
+  },
+  {
+   "id": "f51",
+   "source": "s6",
+   "quote": "Because one options contract is tied to 100 shares of stock, exercising a call can require substantial funds.",
+   "claim": "One contract is tied to 100 shares."
+  },
+  {
+   "id": "f52",
+   "source": "s6",
+   "quote": "If you exercise an equity option, you buy or sell shares of that underlying stock or ETF depending on whether you purchased a call or a put.",
+   "claim": "Exercising an equity option means buying or selling the actual shares."
+  },
+  {
+   "id": "f53",
+   "source": "s7",
+   "quote": "the difference between the strike prices is 5.00 (105.00 – 100.00 = 5.00), and the net cost of the spread is 1.80 (3.30 – 1.50 = 1.80). The maximum profit, therefore, is 3.20",
+   "claim": "Fidelity's example: strikes 5.00 apart, net cost 1.80 (3.30 - 1.50), so the maximum profit is 3.20."
+  },
+  {
+   "id": "f54",
+   "source": "s7",
+   "quote": "Buy 1 JKL 100 call at (3.30) Sell 1 JKL 105 call at 1.50 Net cost = (1.80)",
+   "claim": "Fidelity's example: buy the 100 call at 3.30, sell the 105 call at 1.50, net cost 1.80."
+  },
+  {
+   "id": "f55",
+   "source": "s7",
+   "quote": "Strike price of long call (lower strike) plus net premium paid In this example: 100.00 + 1.80 = 101.80",
+   "claim": "Fidelity's example break-even: 100 + 1.80 = 101.80, the long strike plus the debit."
+  },
+  {
+   "id": "f56",
+   "source": "s7",
+   "quote": "Bull call spreads have limited profit potential, but they cost less than buying only the lower strike call.",
+   "claim": "Bull call spreads cap profit but cost less than buying the lower strike call alone."
+  },
+  {
+   "id": "f57",
+   "source": "s7",
+   "quote": "A bull call spread is the strategy of choice when the forecast is for a gradual price rise to the strike price of the short call.",
+   "claim": "Fidelity: a bull call spread fits a forecast of a gradual rise to the short call strike."
+  },
+  {
+   "id": "f58",
+   "source": "s7",
+   "quote": "However, if the stock price is “close to” or above the strike price of the short call (higher strike price), then the price of the bull call spread increases with passing time (and makes money).",
+   "claim": "With the stock near or above the short strike, a bull call spread gains value as time passes."
+  },
+  {
+   "id": "f59",
+   "source": "s7",
+   "quote": "This happens because the short call is now closer to the money and decreases in value faster than the long call.",
+   "claim": "That's because the short call is now closer to the money and decays faster than the long call."
+  },
+  {
+   "id": "f60",
+   "source": "s7",
+   "quote": "Both calls will expire worthless if the stock price at expiration is below the strike price of the long call (lower strike).",
+   "claim": "Both calls expire worthless if the stock finishes below the long call strike."
+  },
+  {
+   "id": "f61",
+   "source": "s7",
+   "quote": "In-the-money calls whose time value is less than the dividend have a high likelihood of being assigned.",
+   "claim": "In-the-money calls with less time value than the dividend are very likely to be assigned."
+  },
+  {
+   "id": "f62",
+   "source": "s7",
+   "quote": "short calls that are assigned early are generally assigned on the day before the ex-dividend date.",
+   "claim": "Short calls assigned early are generally assigned the day before the ex-dividend date."
+  },
+  {
+   "id": "f63",
+   "source": "s7",
+   "quote": "While the long call in a bull call spread has no risk of early assignment, the short call does have such risk.",
+   "claim": "The long call in a spread can't be assigned; the short call can."
+  },
+  {
+   "id": "f64",
+   "source": "s7",
+   "quote": "Alternatively, the short call can be purchased to close and the long call can be kept open.",
+   "claim": "You can buy back the short call and keep the long call open."
+  },
+  {
+   "id": "f65",
+   "source": "s7",
+   "quote": "the price of a bull call spread changes very little when volatility changes.",
+   "claim": "A bull call spread's price changes very little when volatility changes."
+  },
+  {
+   "id": "f66",
+   "source": "s7",
+   "quote": "If the stock price is at or below the lower strike price, then both calls in a bull call spread expire worthless and no stock position is created.",
+   "claim": "At or below the lower strike at expiry, both calls expire worthless and no stock position is created."
+  },
+  {
+   "id": "f67",
+   "source": "s7",
+   "quote": "Stock options in the United States can be exercised on any business day, and the holder of a short stock option position has no control over when they will be required to fulfill the obligation.",
+   "claim": "US stock options can be exercised any business day, and the short side has no say in when."
+  },
+  {
+   "id": "f68",
+   "source": "s8",
+   "quote": "A bear put spread consists of one long put with a higher strike price and one short put with a lower strike price.",
+   "claim": "A bear put spread is long the higher strike put and short the lower strike put."
+  },
+  {
+   "id": "f69",
+   "source": "s9",
+   "quote": "this profit is realized if the stock price is at or above the strike price of the short put (higher strike) at expiration and both puts expire worthless.",
+   "claim": "A bull put spread's full profit comes with the stock at or above the short put strike at expiry."
+  },
+  {
+   "id": "f70",
+   "source": "s9",
+   "quote": "If the stock price is below the higher strike price but not below the lower strike price, then the short put is assigned and a long stock position is created.",
+   "claim": "With the stock between the strikes at expiry, the short put is assigned and you end up long the stock."
+  },
+  {
+   "id": "f71",
+   "source": "s9",
+   "quote": "Strike price of short put (higher strike) minus net premium received.",
+   "claim": "Bull put spread break-even: short put strike minus the credit."
+  },
+  {
+   "id": "f72",
+   "source": "s9",
+   "quote": "This maximum risk is realized if the stock price is at or below the strike price of the long put at expiration.",
+   "claim": "A bull put spread's maximum loss happens at or below the long put strike at expiry."
+  },
+  {
+   "id": "f73",
+   "source": "s10",
+   "quote": "A bear call spread earns the maximum profit when the price of the underlying stock is below the strike price of the short call (lower strike price) at expiration.",
+   "claim": "A bear call spread earns its maximum profit with the stock below the short call strike at expiry."
+  },
+  {
+   "id": "f74",
+   "source": "s10",
+   "quote": "A bear call spread consists of one short call with a lower strike price and one long call with a higher strike price.",
+   "claim": "A bear call spread is short the lower strike call and long the higher strike call."
+  },
+  {
+   "id": "f75",
+   "source": "s11",
+   "quote": "if a trader sells an XYZ 102/104 call vertical for $0.60, the risk is $140 per contract plus transaction costs and the maximum potential profit is $60 per contract minus transaction costs",
+   "claim": "Schwab's example: sell the 102/104 call vertical for 0.60; risk $140, maximum profit $60 per contract."
+  },
+  {
+   "id": "f76",
+   "source": "s11",
+   "quote": "Theoretical risk = $140, or ($2 – $0.60) x 100 + Transaction costs",
+   "claim": "Schwab's example risk: (2 - 0.60) x 100 = $140."
+  },
+  {
+   "id": "f77",
+   "source": "s11",
+   "quote": "Break-even level = $102.60, or $102 (the short strike) + $0.60 (credit received)",
+   "claim": "Schwab's example break-even: 102 + 0.60 = 102.60, the short strike plus the credit."
+  },
+  {
+   "id": "f78",
+   "source": "s11",
+   "quote": "An options position composed of either all calls or all puts, with long options and short options at two different strikes. The options are all on the same stock and of the same expiration",
+   "claim": "A vertical is all calls or all puts, long and short at two strikes, same stock, same expiry."
+  },
+  {
+   "id": "f79",
+   "source": "s11",
+   "quote": "A spread strategy that increases the account's cash balance when established. A bull spread with puts and a bear spread with calls are examples of credit spreads.",
+   "claim": "A credit spread adds cash when opened; bull put and bear call spreads are credit spreads."
+  },
+  {
+   "id": "f80",
+   "source": "s11",
+   "quote": "A spread strategy that decreases the account's cash balance when established. A bull spread with calls and a bear spread with puts are examples of debit spreads.",
+   "claim": "A debit spread costs cash when opened; bull call and bear put spreads are debit spreads."
+  },
+  {
+   "id": "f81",
+   "source": "s11",
+   "quote": "Risks can be much more if there is an unexpected exercise or assignment of the option which could become a long",
+   "claim": "Risk can be much bigger than the textbook figure if an unexpected exercise or assignment leaves you holding stock."
+  },
+  {
+   "id": "f82",
+   "source": "s11",
+   "quote": "The risk in a vertical credit spread is determined by the difference between its strikes minus the credit received, plus transaction costs.",
+   "claim": "A vertical credit spread's risk is the gap between the strikes minus the credit, plus costs."
+  },
+  {
+   "id": "f83",
+   "source": "s11",
+   "quote": "short options can be assigned at any time up through expiration.",
+   "claim": "Short options can be assigned any time up through expiry."
+  },
+  {
+   "id": "f84",
+   "source": "s11",
+   "quote": "The maximum potential profit for a vertical credit spread is the premium collected when selling the spread minus transaction costs.",
+   "claim": "A vertical credit spread's maximum profit is the premium collected, minus costs."
+  },
+  {
+   "id": "f85",
+   "source": "s11",
+   "quote": "Break-even level = $208.80, $210 (long strike) – $1.20 (the debit paid for the spread)",
+   "claim": "Schwab's put example break-even: 210 - 1.20 = 208.80, the long strike minus the debit."
+  },
+  {
+   "id": "f86",
+   "source": "s12",
+   "quote": "Maximum potential loss is the initial net debit paid, while profitability is achieved when the asset’s price moves favorably within the spread.",
+   "claim": "A debit spread's maximum loss is the net debit paid."
+  },
+  {
+   "id": "f87",
+   "source": "s12",
+   "quote": "For bearish (put) debit spreads, the breakeven point is calculated by taking the higher strike (purchased) and subtracting the net debit (total for the spread).",
+   "claim": "A put debit spread breaks even at the higher (bought) strike minus the debit."
+  },
+  {
+   "id": "f88",
+   "source": "s13",
+   "quote": "A bull call spread is cheaper than buying only an individual call option",
+   "claim": "A bull call spread costs less than buying a single call."
+  },
+  {
+   "id": "f89",
+   "source": "s13",
+   "quote": "if the stock price is near or above the strike price of the short call option—the call option with the higher strike price—then the price of the bull call spread increases with the passage of time",
+   "claim": "With the stock near or above the short strike, a bull call spread gains value as time passes."
+  },
+  {
+   "id": "f90",
+   "source": "s13",
+   "quote": "The investor forfeits any gains in the asset’s price above the strike of the sold call option",
+   "claim": "A bull call spread gives up any gains above the short call strike."
+  },
+  {
+   "id": "f91",
+   "source": "s13",
+   "quote": "In-the-money-calls whose time value is less than the dividend have a high likelihood of being assigned early.",
+   "claim": "In-the-money calls with less time value than the dividend are very likely to be assigned early."
+  },
+  {
+   "id": "f92",
+   "source": "s13",
+   "quote": "The wider the spread between the strike prices, the higher the potential profit and potential loss.",
+   "claim": "Wider strikes on a bull call spread mean more potential profit and more potential loss."
+  },
+  {
+   "id": "f93",
+   "source": "s14",
+   "quote": "A defined-risk vertical spread is no longer a defined risk position if one leg of the spread expires in the money, and the other does not.",
+   "claim": "A vertical stops being defined risk if one leg expires in the money and the other doesn't."
+  },
+  {
+   "id": "f94",
+   "source": "s14",
+   "quote": "a partially ITM spread will convert to 100 long shares through short put assignment, and the OTM long put option would not get auto-exercised to offset the long shares",
+   "claim": "A partly in-the-money short put spread turns into 100 long shares through assignment; the out-of-the-money long put isn't exercised."
+  },
+  {
+   "id": "f95",
+   "source": "s14",
+   "quote": "The only way to eliminate after-hours risk is by closing any short options positions before expiration.",
+   "claim": "Closing short options before expiry is the only way to remove after-hours risk."
+  },
+  {
+   "id": "f96",
+   "source": "s14",
+   "quote": "max loss (spread width minus credit)",
+   "claim": "A credit put spread's maximum loss is the spread width minus the credit."
+  },
+  {
+   "id": "f97",
+   "source": "s14",
+   "quote": "Spread Width: Short put strike – Long put strike = 40 – 35 = $5",
+   "claim": "Spread width is the short strike minus the long strike, for example 40 - 35 = 5."
+  },
+  {
+   "id": "f98",
+   "source": "s14",
+   "quote": "In other words, the trade does not need to be held to expiration.",
+   "claim": "A spread doesn't have to be held to expiry."
+  },
+  {
+   "id": "f99",
+   "source": "s9",
+   "quote": "if the stock price is “close to” or below the strike price of the long put (lower strike price), then the price of the bull put spread increases (and loses money) with passing time.",
+   "claim": "With the stock near or below the long put strike, time passing works against a bull put spread."
+  }
+ ],
+ "walkthroughs": [
+  {
+   "key": "w1",
+   "title": "Two legs, one expiry",
+   "steps": [
+    "A vertical spread is two calls or two puts on one stock, same expiry, different strikes. You buy one and sell one.",
+    "Pay more than you collect and it's a debit spread. Collect more than you pay and it's a credit spread.",
+    "On a debit spread, the option you sell pays for part of the one you buy, and it caps your gain.",
+    "On a credit spread, the option you buy is the one that caps your loss."
+   ],
+   "facts": [
+    "f1",
+    "f78",
+    "f79",
+    "f80",
+    "f3",
+    "f4",
+    "f30",
+    "f35"
+   ]
+  },
+  {
+   "key": "w2",
+   "title": "A debit spread, worked",
+   "steps": [
+    "Buy the 100 call at 3.30 and sell the 105 call at 1.50. You pay 1.80.",
+    "Below 100 at expiry, both calls expire worthless. You lose the 1.80.",
+    "At 105 or higher, you get the spread's full width, the 5.00 between the strikes. Less the 1.80, that's 3.20.",
+    "Break-even at expiry is 101.80: the long strike plus what you paid."
+   ],
+   "facts": [
+    "f54",
+    "f60",
+    "f53",
+    "f97",
+    "f38",
+    "f55"
+   ]
+  },
+  {
+   "key": "w3",
+   "title": "A credit spread, worked",
+   "steps": [
+    "Sell the 102/104 call spread for 0.60. That's $60 in your account per spread.",
+    "Below 102 at expiry, both calls expire worthless and you keep the $60.",
+    "Above 104, you lose the full 2.00 between the strikes, less the 0.60 credit. That's $140 a spread.",
+    "Break-even is 102.60: the short strike plus the credit."
+   ],
+   "facts": [
+    "f75",
+    "f79",
+    "f31",
+    "f76",
+    "f77",
+    "f32"
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "key": "q01",
+   "skill": "options.verticals",
+   "rung": 1,
+   "format": "mcq",
+   "q": "You buy one option and sell another on the same stock. What makes it a vertical spread?",
+   "choices": [
+    "Same type and expiry, different strikes",
+    "Same strike, different expiry dates",
+    "One call and one put, same strike",
+    "Different strikes and expiry dates"
+   ],
+   "answer": "Same type and expiry, different strikes",
+   "why": "Same type and expiry, different strikes. Two calls or two puts on one stock: you buy one and sell the other.",
+   "lesson_line": "Vertical means one expiry and two strikes. One leg bought, one leg sold.",
+   "facts": [
+    "f1",
+    "f78",
+    "f39"
+   ],
+   "wrong": {
+    "Same strike, different expiry dates": "That spread is built across dates. A vertical keeps one expiry and uses two strikes.",
+    "One call and one put, same strike": "Mixing a call and a put is a different kind of combination. A vertical uses two calls or two puts.",
+    "Different strikes and expiry dates": "Change the date too and it's a different spread. A vertical keeps both legs in one expiry."
+   }
+  },
+  {
+   "key": "q02",
+   "skill": "options.verticals",
+   "rung": 1,
+   "format": "tf",
+   "q": "If the stock finishes above both strikes at expiry, a bear put spread loses the whole debit you paid.",
+   "answer": "True",
+   "why": "True. Above the higher strike, both puts expire worthless, so you lose what you paid to open it. Fees aside.",
+   "lesson_line": "On a debit spread, the worst case is the debit. Know it before you buy.",
+   "facts": [
+    "f18",
+    "f17",
+    "f86",
+    "f42"
+   ]
+  },
+  {
+   "key": "q03",
+   "skill": "options.verticals",
+   "rung": 2,
+   "format": "fill",
+   "q": "Fill in the blank.",
+   "sentence": "A bear put spread buys the ___ strike put and sells a lower strike put.",
+   "bank": [
+    "higher",
+    "lower",
+    "same",
+    "cheaper"
+   ],
+   "answer": "higher",
+   "why": "Higher. You buy the higher strike put for the drop and sell a lower strike put to pay for part of it.",
+   "lesson_line": "Bear put spread: buy the higher put, sell the lower one. The sold put pays for part of the bought one.",
+   "facts": [
+    "f16",
+    "f68"
+   ]
+  },
+  {
+   "key": "q04",
+   "skill": "options.verticals",
+   "rung": 2,
+   "format": "mcq",
+   "q": "In a bull call spread, what is the short call there to do?",
+   "choices": [
+    "Help pay for the long call",
+    "Add to gains on a big rally",
+    "Make the trade free to open"
+   ],
+   "answer": "Help pay for the long call",
+   "why": "Help pay for the long call. Its premium cuts your cost, and in exchange it caps your profit.",
+   "lesson_line": "The short leg is how you pay less. It's also why the upside stops.",
+   "facts": [
+    "f3",
+    "f4",
+    "f2"
+   ],
+   "wrong": {
+    "Add to gains on a big rally": "It does the opposite. Above the short strike, it sets a ceiling on the profit.",
+    "Make the trade free to open": "A bull call spread always costs money to open. The short call covers only part of the long call's price."
+   }
+  },
+  {
+   "key": "q05",
+   "skill": "options.verticals",
+   "rung": 2,
+   "format": "mcq",
+   "q": "You're bullish and want to collect a credit when you open the trade. Which spread fits?",
+   "choices": [
+    "Bull put spread",
+    "Bull call spread",
+    "Bear call spread",
+    "Bear put spread"
+   ],
+   "answer": "Bull put spread",
+   "why": "Bull put spread. You sell the higher put and buy a lower one, so it always opens for a credit. It does best if the stock holds steady or rises.",
+   "lesson_line": "Bullish with a credit: sell a put spread. Bullish with a debit: buy a call spread.",
+   "facts": [
+    "f20",
+    "f22",
+    "f28",
+    "f79",
+    "f80",
+    "f2",
+    "f29"
+   ],
+   "wrong": {
+    "Bull call spread": "Right direction, wrong cash flow. A bull call spread always costs money to open.",
+    "Bear call spread": "It opens for a credit, but it's a bet the stock stays down. A rally hurts it.",
+    "Bear put spread": "That one is bearish and costs money to open. Wrong on both counts."
+   }
+  },
+  {
+   "key": "q06",
+   "skill": "options.verticals",
+   "rung": 3,
+   "format": "mcq",
+   "q": "You sold a bull put spread. Where does the stock need to finish at expiry for the full profit?",
+   "choices": [
+    "At or above the higher strike",
+    "Between the two strikes",
+    "Below the lower strike",
+    "Anywhere: the credit is already yours"
+   ],
+   "answer": "At or above the higher strike",
+   "why": "At or above the higher strike. Both puts expire worthless and you keep the whole credit.",
+   "lesson_line": "The credit is fully yours only if the stock finishes on the right side of the short strike.",
+   "facts": [
+    "f21",
+    "f69",
+    "f26"
+   ],
+   "wrong": {
+    "Between the two strikes": "There the short put is in the money, so you give back part of the credit, or all of it and more.",
+    "Below the lower strike": "That's the worst case. Losses peak at or below the lower strike.",
+    "Anywhere: the credit is already yours": "Below the short strike, profits start to erode. The credit is only safe if the puts expire worthless."
+   }
+  },
+  {
+   "key": "q07",
+   "skill": "options.verticals",
+   "rung": 3,
+   "format": "tf",
+   "q": "In general, time passing works for a credit spread and against a debit spread.",
+   "answer": "True",
+   "why": "True, as a rule of thumb. The clock hurts a bull call spread and helps a bull put spread. Where the stock sits against the strikes can flip that.",
+   "lesson_line": "Buy a spread and the clock usually costs you. Sell one and it usually pays you. Check where the stock sits.",
+   "facts": [
+    "f12",
+    "f25",
+    "f58",
+    "f99"
+   ]
+  },
+  {
+   "key": "q08",
+   "skill": "options.verticals",
+   "rung": 3,
+   "format": "mcq",
+   "q": "Why buy a bull call spread instead of the long call alone?",
+   "choices": [
+    "It costs less, but caps your gain",
+    "It makes more on a big rally",
+    "It can't lose money",
+    "Time decay can't touch it"
+   ],
+   "answer": "It costs less, but caps your gain",
+   "why": "It costs less, but caps your gain. The short call pays for part of the long call and sets a ceiling on the profit.",
+   "lesson_line": "A call spread is a cheaper call with a ceiling. It fits a move up to the short strike.",
+   "facts": [
+    "f4",
+    "f56",
+    "f88",
+    "f90",
+    "f57",
+    "f6",
+    "f12"
+   ],
+   "wrong": {
+    "It makes more on a big rally": "The reverse. Above the short strike the spread stops gaining, while a plain call keeps going.",
+    "It can't lose money": "It can lose the whole debit. Below the long strike at expiry, both calls expire worthless.",
+    "Time decay can't touch it": "It still has time decay. In general the clock hurts it, just less than a plain long call."
+   }
+  },
+  {
+   "key": "q09",
+   "skill": "options.verticals",
+   "rung": 3,
+   "format": "mcq",
+   "q": "Implied volatility jumps and nothing else changes. What happens to a bull call spread's price?",
+   "choices": [
+    "It moves only slightly",
+    "It jumps, like a long call",
+    "It drops, since you sold a call",
+    "Nothing, ever: the legs cancel"
+   ],
+   "answer": "It moves only slightly",
+   "why": "It moves only slightly. You're long one call and short another, so the volatility effects largely offset.",
+   "lesson_line": "A vertical barely reacts to volatility. Direction and time drive it.",
+   "facts": [
+    "f10",
+    "f11",
+    "f65"
+   ],
+   "wrong": {
+    "It jumps, like a long call": "A single long call gains a lot from higher volatility. Here the short call gains too and eats most of it.",
+    "It drops, since you sold a call": "The short call does get pricier, but so does the long call. They roughly offset.",
+    "Nothing, ever: the legs cancel": "They offset to a large degree, not fully. Depending on where the stock sits, one leg can move more."
+   }
+  },
+  {
+   "key": "q10",
+   "skill": "options.verticals",
+   "rung": 4,
+   "format": "numeric",
+   "q": "You buy the 60/65 call spread for 1.75. What's the most it can make at expiry, per spread, in dollars?",
+   "answer": 325,
+   "prefix": "$",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(high_strike - low_strike - debit) * multiplier",
+     "high_strike": 65,
+     "low_strike": 60,
+     "debit": 1.75,
+     "multiplier": 100
+    }
+   },
+   "why": "$325. The most a call spread pays is 65 minus 60. Take off the 1.75 you paid and multiply by 100.",
+   "lesson_line": "Debit spread max gain: the gap between the strikes, minus what you paid.",
+   "facts": [
+    "f5",
+    "f53"
+   ]
+  },
+  {
+   "key": "q11",
+   "skill": "options.verticals",
+   "rung": 4,
+   "format": "numeric",
+   "q": "You sell 2 of the 30/35 call spreads for 1.40 each. What's the most you can lose at expiry, in dollars?",
+   "answer": 720,
+   "prefix": "$",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(high_strike - low_strike - credit) * multiplier * contracts",
+     "high_strike": 35,
+     "low_strike": 30,
+     "credit": 1.4,
+     "multiplier": 100,
+     "contracts": 2
+    }
+   },
+   "why": "$720. Each spread can lose 35 minus 30, less the 1.40 credit, times 100. You sold 2.",
+   "lesson_line": "Credit spread max loss: the gap between the strikes, minus the credit. That's your real risk.",
+   "facts": [
+    "f34",
+    "f82"
+   ]
+  },
+  {
+   "key": "q12",
+   "skill": "options.verticals",
+   "rung": 4,
+   "format": "scenario",
+   "story": "XYZ trades at 80. It has stalled under 85 for weeks. You think it stays below 85 through expiry, and you want to collect a credit.",
+   "q": "Which spread fits that view?",
+   "choices": [
+    "Sell the 85 call, buy the 90 call",
+    "Buy the 85 call, sell the 90 call",
+    "Sell the 75 call, buy the 80 call",
+    "Sell the 85 put, buy the 80 put"
+   ],
+   "answer": "Sell the 85 call, buy the 90 call",
+   "why": "Sell the 85 call, buy the 90. That's a bear call spread, and it keeps the full credit if XYZ finishes below 85.",
+   "lesson_line": "Bear call spread: sell a call above the stock where you think it stops. Buy a higher one to cap the risk.",
+   "facts": [
+    "f29",
+    "f31",
+    "f73",
+    "f74",
+    "f30"
+   ],
+   "wrong": {
+    "Buy the 85 call, sell the 90 call": "That's a bull call spread. It costs money and needs XYZ above 85 to pay.",
+    "Sell the 75 call, buy the 80 call": "The 75 call is already in the money. If XYZ just sits at 80, this spread takes its full loss.",
+    "Sell the 85 put, buy the 80 put": "That's a bull put spread. It wants XYZ above 85, the opposite of your view."
+   }
+  },
+  {
+   "key": "q13",
+   "skill": "options.verticals",
+   "rung": 5,
+   "format": "numeric",
+   "q": "You buy the 80/75 put spread for 2.10. At expiry, what stock price is break-even?",
+   "answer": 77.9,
+   "prefix": "$",
+   "calc": {
+    "fn": "option_breakeven",
+    "args": {
+     "kind": "put",
+     "strike": 80,
+     "premium": 2.1
+    }
+   },
+   "why": "$77.90. Take the 2.10 debit off the long 80 put's strike.",
+   "lesson_line": "Debit put spread break-even: the long strike minus the debit.",
+   "facts": [
+    "f19",
+    "f87",
+    "f85"
+   ]
+  },
+  {
+   "key": "q14",
+   "skill": "options.verticals",
+   "rung": 5,
+   "format": "scenario",
+   "story": "You bought the 100/105 call spread for 1.80. Minutes before the close on expiry day, the stock is at 103. You close the spread at its intrinsic value.",
+   "q": "What did one spread make or lose?",
+   "choices": [
+    "Made $120",
+    "Made $320",
+    "Lost $180",
+    "Made $300"
+   ],
+   "answer": "Made $120",
+   "calc": {
+    "fn": "vertical_payoff",
+    "args": {
+     "kind": "call",
+     "long_strike": 100,
+     "short_strike": 105,
+     "net_debit": 1.8,
+     "underlying": 103
+    }
+   },
+   "why": "Made $120. The 100 call is worth 103 minus 100, and the 105 call is worth nothing. Take off the 1.80 you paid, times 100.",
+   "lesson_line": "At expiry, between the strikes, a call spread is worth the long call's intrinsic value. Profit is that minus the debit.",
+   "facts": [
+    "f54",
+    "f5",
+    "f7",
+    "f66"
+   ],
+   "wrong": {
+    "Made $320": "That's the max gain, and it needs the stock at 105 or higher. At 103 you get part of it.",
+    "Lost $180": "That happens at 100 or below, where both calls expire worthless. At 103 the 100 call is in the money.",
+    "Made $300": "That's what the spread is worth at 103. You paid 1.80 for it, so take that off."
+   }
+  },
+  {
+   "key": "q15",
+   "skill": "options.verticals",
+   "rung": 5,
+   "format": "mcq",
+   "q": "Your bull call spread is long the 60 call. You move the short call from 65 up to 70. What changes?",
+   "choices": [
+    "Higher max gain, higher cost",
+    "Higher max gain, lower cost",
+    "Lower max gain, lower cost",
+    "Nothing, only the strike moves"
+   ],
+   "answer": "Higher max gain, higher cost",
+   "why": "Higher max gain, higher cost. The 70 call pays you less than the 65 call would, so the debit goes up.",
+   "lesson_line": "Wider strikes on a debit spread: more upside, a bigger debit, a bigger loss if you're wrong.",
+   "facts": [
+    "f8",
+    "f5",
+    "f92"
+   ],
+   "wrong": {
+    "Higher max gain, lower cost": "The upside does grow, but the 70 call brings in less premium. Your debit goes up, not down.",
+    "Lower max gain, lower cost": "That's what moving the short call lower would do. Moving it up does the reverse.",
+    "Nothing, only the strike moves": "The short strike sets both the ceiling and the premium you collect. Move it and both change."
+   }
+  },
+  {
+   "key": "q16",
+   "skill": "options.verticals",
+   "rung": 6,
+   "format": "scenario",
+   "story": "XYZ trades at 51. You sell the 50/45 put spread for 1.50. Earnings miss, and XYZ gaps to 38 and stays there through expiry.",
+   "q": "What did one spread lose?",
+   "choices": [
+    "$350",
+    "$1,050",
+    "$500",
+    "$150"
+   ],
+   "answer": "$350",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(short_strike - long_strike - credit) * multiplier",
+     "short_strike": 50,
+     "long_strike": 45,
+     "credit": 1.5,
+     "multiplier": 100
+    }
+   },
+   "why": "$350, its max loss: 50 minus 45, less the 1.50 credit, times 100. Below 45, the long put covers every dollar the short put loses.",
+   "lesson_line": "A gap through both strikes costs the max loss, no more. That cap is why you pay for the long put.",
+   "facts": [
+    "f23",
+    "f27",
+    "f72",
+    "f35"
+   ],
+   "wrong": {
+    "$1,050": "That ignores the long 45 put. Below 45, it covers every dollar the short put loses.",
+    "$500": "That's the full gap between the strikes. You also keep the 1.50 credit, which cuts the loss.",
+    "$150": "That's the credit you took in, your max gain. The loss is bigger."
+   }
+  },
+  {
+   "key": "q17",
+   "skill": "options.verticals",
+   "rung": 6,
+   "format": "scenario",
+   "story": "XYZ trades at 72. You sell the 70/65 put spread for 1.60, both legs in the same expiry.",
+   "q": "At expiry, below what stock price do you start losing money?",
+   "choices": [
+    "$68.40",
+    "$63.40",
+    "$71.60",
+    "$66.60"
+   ],
+   "answer": "$68.40",
+   "calc": {
+    "fn": "option_breakeven",
+    "args": {
+     "kind": "put",
+     "strike": 70,
+     "premium": 1.6
+    }
+   },
+   "why": "$68.40. Take the 1.60 credit off the short 70 put's strike. Above that, you keep some of the credit.",
+   "lesson_line": "Credit put spread break-even: the short strike minus the credit.",
+   "facts": [
+    "f24",
+    "f71"
+   ],
+   "wrong": {
+    "$63.40": "That takes the credit off the long 65 strike. Break-even runs off the short strike.",
+    "$71.60": "That adds the credit. On a put spread you subtract it from the short strike.",
+    "$66.60": "That adds the credit to the long strike. Break-even is the short strike minus the credit."
+   }
+  },
+  {
+   "key": "q18",
+   "skill": "options.verticals",
+   "rung": 6,
+   "format": "numeric",
+   "q": "Your plan risks $750 on this trade. The 25/20 put spread sells for 1.25. How many spreads keep the worst case at $750?",
+   "answer": 2,
+   "suffix": "spreads",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "budget / ((short_strike - long_strike - credit) * multiplier)",
+     "budget": 750,
+     "short_strike": 25,
+     "long_strike": 20,
+     "credit": 1.25,
+     "multiplier": 100
+    }
+   },
+   "why": "2. Each spread can lose 25 minus 20, less the 1.25 credit, times 100. Two of those use up the $750.",
+   "lesson_line": "Size a credit spread from its max loss, never from the credit.",
+   "facts": [
+    "f23",
+    "f82",
+    "f96"
+   ]
+  },
+  {
+   "key": "q19",
+   "skill": "options.verticals",
+   "rung": 7,
+   "format": "scenario",
+   "story": "A stock trades at 100. You expect it near 110 by expiry, a month out. The 100/105 call spread costs 2.00, the 100/110 costs 3.20 and the 110/120 costs 0.85.",
+   "q": "The stock closes at 110 on expiry day. Which spread made the most?",
+   "choices": [
+    "100/110: up $680 a spread",
+    "100/105: up $300 a spread",
+    "110/120: up $915 a spread"
+   ],
+   "answer": "100/110: up $680 a spread",
+   "calc": {
+    "fn": "vertical_payoff",
+    "args": {
+     "kind": "call",
+     "long_strike": 100,
+     "short_strike": 110,
+     "net_debit": 3.2,
+     "underlying": 110
+    }
+   },
+   "why": "The 100/110. At 110 it pays the full 110 minus 100, less the 3.20 you paid. Its short strike sat right at your target.",
+   "lesson_line": "Put the short strike near your target. A cheap spread above it needs a bigger move just to pay.",
+   "facts": [
+    "f5",
+    "f6",
+    "f66",
+    "f57"
+   ],
+   "wrong": {
+    "100/105: up $300 a spread": "It did make $300, its most. It capped out at 105, while the 100/110 kept paying up to 110.",
+    "110/120: up $915 a spread": "That's its max gain, and it needs 120. At 110 both calls expire worthless and you lose the 0.85."
+   }
+  },
+  {
+   "key": "q20",
+   "skill": "options.verticals",
+   "rung": 7,
+   "format": "tf",
+   "q": "The stock is above your bull call spread's short strike. All else equal, time passing tends to lift the spread's value.",
+   "answer": "True",
+   "why": "True. Up there the short call is closer to the money and loses value faster than the long call. The clock now works for you.",
+   "lesson_line": "Once the stock clears your short strike, time is on your side. Near the long strike, it works against you.",
+   "facts": [
+    "f58",
+    "f59",
+    "f89"
+   ]
+  },
+  {
+   "key": "q21",
+   "skill": "options.verticals",
+   "rung": 7,
+   "format": "tf",
+   "q": "A bull call spread and a bull put spread on the same two strikes have the same payoff shape at expiry.",
+   "answer": "True",
+   "why": "True. The profit and loss shapes match once you allow for the cost to carry. What differs is when the cash moves.",
+   "lesson_line": "Same strikes, same shape. The call spread costs cash now. The put spread pays cash now and may cost later.",
+   "facts": [
+    "f9",
+    "f36",
+    "f37"
+   ]
+  },
+  {
+   "key": "q22",
+   "skill": "options.verticals",
+   "rung": 8,
+   "format": "scenario",
+   "story": "It's expiry Friday. You hold the 60/65 call spread, and the stock is trading at 65.10 into the close.",
+   "q": "Which move takes the weekend assignment risk off the table?",
+   "choices": [
+    "Close the spread before the bell",
+    "Hold it: max profit is locked in",
+    "Sell 100 shares now to cover",
+    "Sell only the long call"
+   ],
+   "answer": "Close the spread before the bell",
+   "why": "Close the spread. Exercise of your 60 call is certain, but assignment on the 65 call isn't. You may not know until Monday.",
+   "lesson_line": "Stock near the short strike on expiry day: close the spread. Don't guess on assignment.",
+   "facts": [
+    "f13",
+    "f14",
+    "f15",
+    "f95",
+    "f98",
+    "f50"
+   ],
+   "wrong": {
+    "Hold it: max profit is locked in": "Only if the 65 call is assigned. If it isn't, your exercised 60 call leaves you long 100 shares over the weekend.",
+    "Sell 100 shares now to cover": "That bets against assignment. If the 65 call is assigned anyway, you've sold the shares twice and you're short.",
+    "Sell only the long call": "That leaves the 65 call short and uncovered. If it's assigned, you're short 100 shares with nothing behind it."
+   }
+  },
+  {
+   "key": "q23",
+   "skill": "options.verticals",
+   "rung": 8,
+   "format": "scenario",
+   "story": "You hold the 50/55 bear call spread. The stock has run to 58. It goes ex-dividend tomorrow, paying 0.80. Your short 50 call has about 0.05 of time value left.",
+   "q": "What's the main risk tonight?",
+   "choices": [
+    "Early assignment on the 50 call",
+    "None: assignment waits for expiry",
+    "Assignment on your long 55 call"
+   ],
+   "answer": "Early assignment on the 50 call",
+   "why": "Early assignment on the 50 call. Short calls are most often assigned early the day before ex-dividend, and yours has less time value than the 0.80 dividend.",
+   "lesson_line": "Short call in the money before an ex-dividend date: if its time value is under the dividend, assignment is likely.",
+   "facts": [
+    "f61",
+    "f91",
+    "f62",
+    "f33",
+    "f46",
+    "f45",
+    "f67",
+    "f83",
+    "f63"
+   ],
+   "wrong": {
+    "None: assignment waits for expiry": "US stock options can be exercised any business day. A seller can be assigned at any time.",
+    "Assignment on your long 55 call": "You own that one. Only the short leg can be assigned."
+   }
+  },
+  {
+   "key": "q24",
+   "skill": "options.verticals",
+   "rung": 8,
+   "format": "tf",
+   "q": "Hold any vertical spread through expiry and you can never lose more than its max loss.",
+   "answer": "False",
+   "why": "False. If the stock finishes between the strikes or near the short strike, one leg can become a stock position. That stock can move against you before you can close it.",
+   "lesson_line": "The max loss assumes both legs finish the same way. Near a strike at expiry, close before the bell.",
+   "facts": [
+    "f93",
+    "f81",
+    "f15",
+    "f49",
+    "f44"
+   ]
+  },
+  {
+   "key": "q25",
+   "skill": "options.verticals",
+   "rung": 9,
+   "format": "scenario",
+   "story": "You hold the 50/55 bear call spread. The stock has fallen to 46 with two weeks left. The long 55 call bids 0.05, and you'd like that nickel.",
+   "q": "What does selling just the long call do to your risk?",
+   "choices": [
+    "Leaves the short call uncovered",
+    "Nothing, the calls are out of the money",
+    "Locks in your max profit",
+    "Cuts your max loss to zero"
+   ],
+   "answer": "Leaves the short call uncovered",
+   "why": "It leaves the short 50 call uncovered. The long call was what capped your risk, and an uncovered call's potential loss is unlimited.",
+   "lesson_line": "Close the short leg first, or both together. Never leave a short call open without its cap.",
+   "facts": [
+    "f41",
+    "f40",
+    "f30",
+    "f64",
+    "f43"
+   ],
+   "wrong": {
+    "Nothing, the calls are out of the money": "Out of the money today. A rally or a takeover bid could put the 50 call deep in the money, with no ceiling.",
+    "Locks in your max profit": "Max profit comes when both calls expire worthless. You still have a short call open.",
+    "Cuts your max loss to zero": "It does the opposite. Without the long call, the short call's loss has no cap."
+   }
+  },
+  {
+   "key": "q26",
+   "skill": "options.verticals",
+   "rung": 9,
+   "format": "numeric",
+   "q": "You sell the 55/50 put spread for 0.50. One max loss erases how many max wins?",
+   "answer": 9,
+   "suffix": "wins",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(short_strike - long_strike - credit) / credit",
+     "short_strike": 55,
+     "long_strike": 50,
+     "credit": 0.5
+    }
+   },
+   "why": "9. The most you can make is the 0.50 credit. The most you can lose is 55 minus 50, less 0.50. That's nine times bigger.",
+   "lesson_line": "A small credit on a wide spread risks a lot to make a little. Know the ratio before you sell.",
+   "facts": [
+    "f23",
+    "f21",
+    "f82",
+    "f84"
+   ]
+  },
+  {
+   "key": "q27",
+   "skill": "options.verticals",
+   "rung": 9,
+   "format": "scenario",
+   "story": "You sold the 40/35 put spread. On expiry Friday the stock closes at 37, and you hold through the bell.",
+   "q": "What are you most likely holding on Monday?",
+   "choices": [
+    "100 shares, bought at 40",
+    "Nothing: spreads settle in cash",
+    "Nothing: the long put covers it",
+    "Short 100 shares at 35"
+   ],
+   "answer": "100 shares, bought at 40",
+   "why": "100 shares, bought at 40. The 40 put finished in the money and is likely assigned. The 35 put finished out of the money and simply expires.",
+   "lesson_line": "Between the strikes, only one leg is in the money. Close before the bell, or be ready for the shares.",
+   "facts": [
+    "f70",
+    "f94",
+    "f47",
+    "f48",
+    "f52",
+    "f51"
+   ],
+   "wrong": {
+    "Nothing: spreads settle in cash": "Stock options settle in shares. An assigned short put means you buy 100 shares at its strike.",
+    "Nothing: the long put covers it": "The 35 put is out of the money at 37, so it isn't exercised. It covers nothing here.",
+    "Short 100 shares at 35": "That would need your 35 put exercised, and it's out of the money. You're on the buying side, at 40."
+   }
+  }
+ ],
+ "conflicts": [
+  "Time decay on a debit spread: OIC's bull call page says the passage of time 'hurts the position' and calls it 'somewhat of a negative' in general; Fidelity (s7) and Investopedia (s13) say it depends on where the stock sits, and that with the stock near or above the short strike the spread gains value as time passes. Both are true at different stock prices. q07 keys only the general direction ('In general', OIC for both a debit and a credit spread) and its why names the dependence; q20 keys the conditional case on the two Tier 2 publishers, which agree. Checker 2026-11-09: by put-call parity a call spread and a put spread on the same strikes decay alike, so the sign comes from where the stock sits, not from debit vs credit. q07's why now says position can flip it, citing Fidelity's bull put page (f99) for the credit side.",
+  "Early assignment of short PUTS: Fidelity's bull put and bear put pages tie early assignment of short puts to dividends ('generally assigned on the ex-dividend date'); OIC's put spread pages say early assignment of a put 'generally occurs only when a put option goes deep into-the-money'. The file asks nothing about early assignment of puts. q23 asks only about a short CALL before an ex-dividend date, where OIC, FINRA, Fidelity and Investopedia agree.",
+  "Investopedia's bull call spread page (s13) prints the maximum loss formula as '(Out of the Money Option Cost) - (In the Money Option Cost)', the negative of the net debit, and labels the 50 strike with the stock at 50 'at-the-money' in the text but 'In the Money' in its formulas. The file cites only its cost, cap, time-decay, width and dividend lines (each matches OIC or Fidelity) and takes every formula from OIC.",
+  "Investopedia's debit spread page (s12) has a garbled first example (a call sold at 'a higher strike price of $2.50' for a $0.15 debit). It is not cited. The file cites its $60/$70 example (break-even 66, recomputed: 60 + 6) and its general max-loss and put break-even lines.",
+  "tastytrade (s14) writes the short put vertical's max loss once as 'the initial credit received minus the spread width' (its own example gives -$300) and elsewhere as 'spread width minus credit'. The file cites the second wording only, and every max-loss key rests on OIC.",
+  "Schwab (s11) says a vertical can be used to take advantage of relatively high or low volatility levels; OIC and Fidelity say a vertical's sensitivity to volatility is slight. Not a contradiction (an out-of-the-money credit spread still has some net exposure), but q09 keys only OIC's 'slight, all other things being equal' with OIC's own caveat that one leg can move more, and no question asks which spread to pick for a given volatility level.",
+  "All dollar figures ignore commissions and fees. Fidelity and Schwab state their examples 'less commissions' / 'plus transaction costs', and the disclosure document (s5) says each leg of a combination carries its own costs; q02's why says 'Fees aside'.",
+  "Option prices in the authored questions (q10-q27) are not quotes from a real chain. They were checked for plausibility against a Black-Scholes model (for example, stock 100, 30 days, 35% volatility: 100/105 call spread about 1.98, 100/110 about 3.14, 110/120 about 0.86), and every key is computed from the stated prices with a calc."
+ ],
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "notes": "Read OIC s1/s3/s4 and Schwab s11 glossary in context: vertical = all calls or all puts, one expiry, two strikes; debit/credit by cash flow; on a debit spread the sold leg pays part and caps the gain, on a credit spread the bought leg caps the loss. Quotes on the pages today.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "Fidelity s7 example recomputed: 3.30 - 1.50 = 1.80 debit; 5.00 - 1.80 = 3.20 max; 100 + 1.80 = 101.80 break-even; below 100 both calls worthless (Fidelity P/L table). Quotes on the page.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "Schwab s11 102/104 for 0.60 recomputed: (2 - 0.60) x 100 = $140 risk, $60 max, 102 + 0.60 = 102.60 break-even; OIC s4 best case below both strikes. Schwab refused curl's default client but served the honest checker client; quotes confirmed on the fetched text.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q01": {
+   "status": "pass",
+   "notes": "Fixed: the old stem ('a two-option position') let the distractor 'Two calls, both bought' also meet the key (same type, same expiry, different strikes). Stem now says one bought, one sold; that distractor became 'Different strikes and expiry dates' (ODD f39: spreads differ by strikes and/or dates; Schwab f78: a vertical has one expiry). Re-checked against OIC f1, ODD f39, Schwab f78.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q02": {
+   "status": "pass",
+   "notes": "OIC s2 in context: above the higher (long put) strike both puts expire worthless and the loss is the debit; Investopedia f86 agrees (fetched today with the honest client, quote on page). Fixed: 'loses exactly the debit' became 'loses the whole debit' with 'at expiry', so fees cannot make True arguable; why keeps 'Fees aside'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q03": {
+   "status": "pass",
+   "notes": "OIC s2 f16 and Fidelity s8 f68: long the higher strike put, short the lower. One blank, bank distractors are real confusions.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q04": {
+   "status": "pass",
+   "notes": "OIC s1 verbatim: the short call's main purpose is to help pay for the long call; its premium caps the profit; the spread always opens for a debit. Both wrong choices really wrong.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q05": {
+   "status": "pass",
+   "notes": "OIC s3 f20/f22/f28 and Schwab f79: bull put = credit, does best steady or rising. Bull call is a debit (OIC f2), bear call is a bearish credit, bear put a bearish debit: each wrong note correct.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q06": {
+   "status": "pass",
+   "notes": "Fidelity s9: full profit at or above the short (higher) strike at expiry; OIC s3: profit erodes below the short strike, max loss at or below the long strike. Fixed lesson line 'stays' to 'finishes' (an expiry fact).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q07": {
+   "status": "pass",
+   "notes": "Fixed. 'In general' holds as a rule of thumb (OIC s1 time hurts a bull call, s3 helps a bull put), but Fidelity s7/s9 show the sign flips with the stock's position, and by parity same-strike call and put spreads decay alike. Old why said only 'how much' depends; now says position can flip it. Added f99 (Fidelity bull put, verified on page); lesson says 'usually'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q08": {
+   "status": "pass",
+   "notes": "Fidelity f56, Investopedia f88 and OIC f4 agree: cheaper, profit capped. Fixed the 'Time decay can't touch it' note: it said 'Time still hurts it', which q20 shows is not always so; now 'In general the clock hurts it' per OIC f12.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q09": {
+   "status": "pass",
+   "notes": "OIC s1 in context: volatility impact slight, all other things equal, with the caveat that one leg can move more (f11); Fidelity 'changes very little', Investopedia agrees. Key and the 'Nothing, ever' note match the caveat.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q10": {
+   "status": "pass",
+   "notes": "(65 - 60 - 1.75) x 100 = 325 by hand; OIC max gain = high strike - low strike - net premium paid; Fidelity example same method.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q11": {
+   "status": "pass",
+   "notes": "(35 - 30 - 1.40) x 100 x 2 = 720 by hand; OIC s4 max loss = width reduced by the credit; Schwab f82 same.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q12": {
+   "status": "pass",
+   "notes": "Bear call 85/90 keeps the credit below 85 (OIC s4, Fidelity s10). 75/80 at 80: short 75 worth 5, long 80 worth 0 = full width, full loss, checked. Bull call and bull put notes correct. Selling above a stalled level is standard placement.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q13": {
+   "status": "pass",
+   "notes": "80 - 2.10 = 77.90 by hand; OIC f19, Investopedia f87 (fetched today with the honest client, quote on page) and Schwab f85 agree.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q14": {
+   "status": "pass",
+   "notes": "(103 - 100) - 0 - 1.80 = 1.20, x 100 = $120; matches Fidelity s7's own P/L table row at 103 (+1.20). $300 = spread value, $320 = max at 105+, -$180 at or below 100: all checked.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q15": {
+   "status": "pass",
+   "notes": "OIC s1 f8 in context: a higher short strike raises max profit but brings in less premium, so the debit rises; Investopedia f92 wider strikes = more profit and more loss.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q16": {
+   "status": "pass",
+   "notes": "(50 - 45 - 1.50) x 100 = 350; OIC s3: below the lower strike the long put offsets every further loss. Fixed the $1,050 note: (50 - 38 - 1.50) x 100 checked, but it called 1.50 the lone short put's credit when it is the spread's net credit; now 'That ignores the long 45 put'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q17": {
+   "status": "pass",
+   "notes": "70 - 1.60 = 68.40 (OIC f24, Fidelity f71). 63.40, 71.60 and 66.60 are each a real slip; notes correct.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q18": {
+   "status": "pass",
+   "notes": "(25 - 20 - 1.25) x 100 = 375; 750 / 375 = 2 exactly. Sizing from the max loss, never the credit, is a sound risk habit.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q19": {
+   "status": "pass",
+   "notes": "At 110: 100/110 = (10 - 3.20) x 100 = 680; 100/105 = (5 - 2) x 100 = 300; 110/120 both calls worthless, loses 0.85 ($85), its 915 max needs 120. Fidelity f57: short strike at the target. Prices plausible: checker re-ran Black-Scholes (100, 30 days, 35% vol) and got 1.98, 3.14, 0.86.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q20": {
+   "status": "pass",
+   "notes": "Fidelity s7 and Investopedia s13 (two Tier 2 publishers) agree: near or above the short strike the spread gains as time passes; OIC's general 'hurts' is in conflicts. Fixed stem grammar only ('The stock is above your bull call spread's short strike').",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q21": {
+   "status": "pass",
+   "notes": "OIC s1 and s3: payoff profiles exactly the same once adjusted for carry; the timing of cash flows differs. Holds by put-call parity for the same strikes.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q22": {
+   "status": "pass",
+   "notes": "OIC s1 expiration risk in context: long call ITM, short roughly ATM, exercise certain, assignment not; guessing wrong leaves long stock or a double sale (the wrong notes match); close early. tastytrade f95 and FINRA pin risk agree. 65.10 vs the 65 strike is roughly at the money.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q23": {
+   "status": "cut",
+   "notes": "duplicate of F6.16#q16. Track audit 2026-11-09: Same fact and test (a short in-the-money call with less time value than the coming dividend is likely to be assigned the night before the ex-date). F6.16 is the assignment unit and works the time value. The checker had passed it (its note is kept under 'prior'); the question stays in the file as the record.",
+   "fixed": false,
+   "by": "auditor",
+   "prior": {
+    "status": "pass",
+    "notes": "Fidelity s7/s10 and Investopedia s13: ITM calls with time value under the dividend have a high likelihood of assignment, generally the day before ex-dividend; OIC s4 and FINRA agree. 0.05 < 0.80. Fixed lesson 'expect assignment' to 'assignment is likely' to match the sources' 'high likelihood'.",
+    "fixed": true,
+    "by": "checker"
+   }
+  },
+  "q24": {
+   "status": "pass",
+   "notes": "tastytrade f93, Schwab f81, OIC f15 and FINRA f49 support False. Fixed the lesson: 'Max loss holds only while both legs are options' overstated (an early-assigned short call with the long call still open stays capped); now 'assumes both legs finish the same way'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q25": {
+   "status": "pass",
+   "notes": "ODD s5 in context: uncovered call loss unlimited; a rally or tender offer can cause large losses (f43). Fidelity f64: buy back the short and keep the long. Teaches a sound risk habit; notes correct.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q26": {
+   "status": "pass",
+   "notes": "(55 - 50 - 0.50) / 0.50 = 9 by hand; OIC s3 max gain = credit, max loss = width less credit. No win-rate claim made.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q27": {
+   "status": "pass",
+   "notes": "Fidelity s9 in context: below the higher strike but not the lower, the short put is assigned and long stock is created; tastytrade f94: the OTM long put is not auto-exercised; FINRA f48: put seller buys at the strike. Fixed story to 'expiry Friday' so 'Monday' fits.",
+   "fixed": true,
+   "by": "checker"
+  }
+ }
+}

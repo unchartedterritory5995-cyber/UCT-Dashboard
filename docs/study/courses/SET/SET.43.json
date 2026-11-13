@@ -1,0 +1,3512 @@
+{
+ "unit": "SET.43",
+ "track": "SET",
+ "title": "Pullback to the Moving Averages",
+ "teaches": "The pullback to the moving averages as we trade it: a leader in a stacked, rising trend drifts quietly onto a rising 10-day or 50-day, a session closes at or above the line, the buy is a market order as price trades over that session's high, the stop sits a few cents under the pullback low, a third comes off at 3R and 5R with the rest on the trail, and a loss taken at the stop is the system working.",
+ "skills": [
+  {
+   "id": "setup.ma_pullbacks",
+   "title": "Pullback to the Moving Averages"
+  }
+ ],
+ "as_of": "2026-11-10",
+ "card": "docs/study/setups/criteria/12-ma-pullbacks.json",
+ "sources": [
+  {
+   "id": "s1",
+   "tier": 2,
+   "publisher": "Linda Bradford Raschke (AIQ Opening Bell, August 1997)",
+   "title": "Interview by David Vomund: the Holy Grail pattern, buy rules sidebar",
+   "url": "https://lindaraschke.net/wp-content/uploads/2026/01/august1997.pdf",
+   "accessed": "2026-11-09",
+   "why_reliable": "The originator of the Holy Grail pullback, in print in 1997 and hosted on her own site. The numbered buy rules are an AIQ sidebar printed with the interview; the PDF text layer drops some apostrophes, so the quotes avoid them."
+  },
+  {
+   "id": "s2",
+   "tier": 2,
+   "publisher": "Kristjan Kullamagi (qullamaggie.com)",
+   "title": "3 TIMELESS setups that have made me TENS OF MILLIONS! (2021-01-08)",
+   "url": "https://qullamaggie.com/my-3-timeless-setups-that-have-made-me-tens-of-millions/",
+   "accessed": "2026-11-09",
+   "why_reliable": "The trader's own site, in his own words, with a public record widely covered in the trading press; his breakout setup is the closest published rule to how UCT trades. Reader comments were not used."
+  },
+  {
+   "id": "s3",
+   "tier": 2,
+   "publisher": "Pradeep Bonde (Stockbee)",
+   "title": "How to develop pullback method (2010-11-04)",
+   "url": "https://stockbee.blogspot.com/2010/11/how-to-develop-pullback-method.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Pradeep Bonde, a named trader-educator with a long public record. He lists the common pullback approaches; he does not present them as his own setup."
+  },
+  {
+   "id": "s4",
+   "tier": 2,
+   "publisher": "Deepvue",
+   "title": "Oliver Kell: 5 Screens to Find Stocks Like a Champion (updated 2025-03-21)",
+   "url": "https://deepvue.com/screener/oliver-kell-screens/",
+   "accessed": "2026-11-09",
+   "why_reliable": "A screening vendor's education page about Kell's cycle, not Kell's own words; used only for the EMA Crossback definition, beside UCT's own card."
+  },
+  {
+   "id": "s5",
+   "tier": 2,
+   "publisher": "Deepvue",
+   "title": "The Mark Minervini Trend Template: How to Find Winning Stocks (updated 2023-11-20)",
+   "url": "https://deepvue.com/screener/minervini-trend-template/",
+   "accessed": "2026-11-09",
+   "why_reliable": "A screening vendor's summary of Minervini's trend template, not his own words; used only for the trend filter lines, beside UCT's own card."
+  },
+  {
+   "id": "s6",
+   "tier": 2,
+   "publisher": "StockCharts ChartSchool",
+   "title": "Moving Averages: Simple and Exponential",
+   "url": "https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/technical-overlays/moving-averages-simple-and-exponential",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s7",
+   "tier": 2,
+   "publisher": "StockCharts (David Keller, CMT)",
+   "title": "Pullback or Pitfall? Let the 21-Day EMA Be Your Guide (2025-09-05)",
+   "url": "https://articles.stockcharts.com/article/stock-market-pullback-or-pitfall-21-day-moving-average-guide/",
+   "accessed": "2026-11-09",
+   "why_reliable": "A named, certified market technician writing for an established education site; his opinion on the 21-day EMA as the first line, used beside UCT's rules."
+  },
+  {
+   "id": "h1",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
+   "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
+   "accessed": "2026-11-10"
+  },
+  {
+   "id": "c1",
+   "tier": 3,
+   "publisher": "UCT setup criteria card",
+   "title": "Pullback to the Moving Averages criteria card (docs/study/setups/criteria/12-ma-pullbacks.json, as of 2026-11-09)",
+   "url": "repo:docs/study/setups/criteria/12-ma-pullbacks.json",
+   "accessed": "2026-11-10"
+  },
+  {
+   "id": "d1",
+   "tier": 3,
+   "publisher": "UCT setup research (examples read from our own daily bars)",
+   "title": "Pullbacks to the moving averages dossier, sections 13 and 14: examples, failures and near-misses from our data",
+   "url": "repo:docs/study/setups/research/12-ma-pullbacks.md#13-examples-from-our-data",
+   "accessed": "2026-11-10"
+  }
+ ],
+ "facts": [
+  {
+   "id": "r3",
+   "source": "s1",
+   "quote": "Once filled, enter a protective sell stop at the newly formed swing low.",
+   "claim": "Raschke: the protective stop goes at the newly formed swing low."
+  },
+  {
+   "id": "k3",
+   "source": "s2",
+   "quote": "The rest of the position should be trailed with the 10- or the 20-day moving average.",
+   "claim": "Kullamagi: trail the rest with the 10- or 20-day average."
+  },
+  {
+   "id": "b1",
+   "source": "s3",
+   "quote": "Buy first pullback after a major breakout.",
+   "claim": "Bonde: a common method is to buy the first pullback after a major breakout."
+  },
+  {
+   "id": "kl1",
+   "source": "s4",
+   "quote": "After a Wedge Pop, the stock tests its moving averages, forming an EMA Crossback.",
+   "claim": "Kell, via Deepvue: after a Wedge Pop the test of the averages is an EMA Crossback."
+  },
+  {
+   "id": "m2",
+   "source": "s5",
+   "quote": "The stock’s price must be within 25% of its 52-week high.",
+   "claim": "Minervini template, via Deepvue: price within 25% of its 52-week high."
+  },
+  {
+   "id": "m3",
+   "source": "s5",
+   "quote": "Key signals include increased volume on breakouts, low volume during pullbacks, and sustained high-volume up days",
+   "claim": "Minervini template, via Deepvue: low volume during pullbacks."
+  },
+  {
+   "id": "cs3",
+   "source": "s6",
+   "quote": "Do not expect exact support and resistance levels from moving averages, especially longer moving averages.",
+   "claim": "ChartSchool: do not expect exact support or resistance from moving averages."
+  },
+  {
+   "id": "kk2",
+   "source": "s7",
+   "quote": "I think of the 21-day EMA as the first line of defense, an initial stop within an uptrend phase.",
+   "claim": "Keller: the 21-day EMA is the first line of defense."
+  },
+  {
+   "id": "hA3",
+   "source": "h1",
+   "quote": "Stop first (by default a few cents under the day's low or the prior day's low, F62); the size comes from the stop; if the honest stop does not fit the risk, skip the trade.",
+   "claim": "A3: stop first; the size comes from the stop; skip if the honest stop does not fit."
+  },
+  {
+   "id": "hA4",
+   "source": "h1",
+   "quote": "The stop is the exit. It only moves up, never down or wider.",
+   "claim": "A4: the stop is the exit and only moves up."
+  },
+  {
+   "id": "hA5",
+   "source": "h1",
+   "quote": "Shares = account × risk % ÷ (entry − stop), rounded down",
+   "claim": "A5: shares = account x risk % / (entry - stop), rounded down."
+  },
+  {
+   "id": "hC29",
+   "source": "h1",
+   "quote": "Too stretched to buy: skip a long that is more than 10% above its 10-day average.",
+   "claim": "C29: skip a long more than 10% above its 10-day average."
+  },
+  {
+   "id": "hA1",
+   "source": "h1",
+   "quote": "Risk 0.25% to 2% of the account on a trade, picked by setup quality, recent results, the market and your edge.",
+   "claim": "A1: risk 0.25% to 2% of the account on a trade."
+  },
+  {
+   "id": "hA5b",
+   "source": "h1",
+   "quote": "The full size at one price with one stop; no adding.",
+   "claim": "A5: full size at one price with one stop; no adding."
+  },
+  {
+   "id": "hA13",
+   "source": "h1",
+   "quote": "the stop usually sits within about 3% of the buy (a loss on the position, not the account)",
+   "claim": "A13: the stop usually sits within about 3% of the buy."
+  },
+  {
+   "id": "hB19",
+   "source": "h1",
+   "quote": "Move the stop to breakeven at 2R to 5R, ideally. The first trim: the hard rule is a third at 3R",
+   "claim": "B19: breakeven at 2R to 5R; the hard rule for the first trim is a third at 3R."
+  },
+  {
+   "id": "hB20",
+   "source": "h1",
+   "quote": "A gap against the stop: the first 30 minutes of the gap-down day decide. The low of the first 30-minute bar is the new stop.",
+   "claim": "B20: after a gap against the stop, the first 30-minute low is the new stop."
+  },
+  {
+   "id": "hB20b",
+   "source": "h1",
+   "quote": "if the first 30 minutes take the loss past 2R, get out.",
+   "claim": "B20: if the first 30 minutes take the loss past 2R, get out."
+  },
+  {
+   "id": "hB21",
+   "source": "h1",
+   "quote": "After a stop-out, buy again only if the setup triggers again, as a new trade with its own stop and every rule.",
+   "claim": "B21: after a stop-out, buy again only on a new trigger, as a new trade."
+  },
+  {
+   "id": "hB22",
+   "source": "h1",
+   "quote": "No new buys in the 3 days before an earnings report; hold through a report only if the trade is up 5R.",
+   "claim": "B22: no new buys in the 3 days before earnings; hold through only if up 5R."
+  },
+  {
+   "id": "hB23",
+   "source": "h1",
+   "quote": "Trade only stocks at $10 or more that trade at least $20 million a day.",
+   "claim": "B23: only stocks at $10 or more trading at least $20 million a day."
+  },
+  {
+   "id": "hB26",
+   "source": "h1",
+   "quote": "no longs below the 200-day simple moving average, unless it is a parabolic long",
+   "claim": "B26: no longs below the 200-day, unless it is a parabolic long."
+  },
+  {
+   "id": "hC28",
+   "source": "h1",
+   "quote": "No chasing: never buy more than 4% above the buy point.",
+   "claim": "C28: never buy more than 4% above the buy point."
+  },
+  {
+   "id": "hC31",
+   "source": "h1",
+   "quote": "Buy leaders: an RS rating of 80 or more, in one of the strongest groups",
+   "claim": "C31: buy leaders, an RS rating of 80 or more, in one of the strongest groups."
+  },
+  {
+   "id": "hC33",
+   "source": "h1",
+   "quote": "Time stop: a trade still under 1R after 10 trading days is sold, freeing the money.",
+   "claim": "C33: a trade still under 1R after 10 trading days is sold."
+  },
+  {
+   "id": "hD41",
+   "source": "h1",
+   "quote": "Every position has a real stop order with the broker, not a stop kept in your head.",
+   "claim": "D41: every position has a real stop order with the broker."
+  },
+  {
+   "id": "hE50",
+   "source": "h1",
+   "quote": "Grading a setup (A+, A, B, B-) is discretionary and hard to define",
+   "claim": "E50: grading a setup is discretionary and hard to define."
+  },
+  {
+   "id": "hE51",
+   "source": "h1",
+   "quote": "After the first third at 3R: another third at 5R, then trail the last third",
+   "claim": "E51: after the first third at 3R, another third at 5R, then trail the last third."
+  },
+  {
+   "id": "hE52",
+   "source": "h1",
+   "quote": "Default trail: the 10-day average for fast movers, the 21-day for steadier ones; sell on a close below it.",
+   "claim": "E52: trail under the 10-day for fast movers, the 21-day for steadier ones."
+  },
+  {
+   "id": "hE56",
+   "source": "h1",
+   "quote": "The same stock: at most 3 tries in a week and 6 in a month.",
+   "claim": "E56: at most 3 tries a week and 6 a month on the same stock."
+  },
+  {
+   "id": "hE57",
+   "source": "h1",
+   "quote": "Entries are market orders.",
+   "claim": "E57: entries are market orders."
+  },
+  {
+   "id": "hF62",
+   "source": "h1",
+   "quote": "The stop sits a few cents under the day's low, not exactly on it.",
+   "claim": "F62: the stop sits a few cents under the day's low."
+  },
+  {
+   "id": "hF65",
+   "source": "h1",
+   "quote": "Green, full risk per grade and up to 10 positions; Yellow, smaller and fewer; Orange, only A+ setups; Red, mostly cash and shorts.",
+   "claim": "F65: Green full risk; Yellow smaller and fewer; Orange A+ only; Red mostly cash and shorts."
+  },
+  {
+   "id": "c01",
+   "source": "c1",
+   "quote": "The close is above the 200-day SMA, and the 20 EMA is above the 50 SMA, which is above the 200 SMA.",
+   "claim": "Card: price over the 200-day, with the 20 EMA over the 50 over the 200."
+  },
+  {
+   "id": "c03",
+   "source": "c1",
+   "quote": "Price is within 25% of its 52-week high on the hold day.",
+   "claim": "Card: price within 25% of its 52-week high on the hold day."
+  },
+  {
+   "id": "c04",
+   "source": "c1",
+   "quote": "A breakout, an earnings gap or a new up-cycle within the last 3 months (63 sessions) came before the pullback.",
+   "claim": "Card: a breakout, earnings gap or new up-cycle in the last 3 months came first."
+  },
+  {
+   "id": "c05",
+   "source": "c1",
+   "quote": "The line must be rising: the 20 EMA above its value 10 sessions ago, and the 50 SMA above its value 10 sessions ago.",
+   "claim": "Card: the line must be rising, higher than 10 sessions ago."
+  },
+  {
+   "id": "c06",
+   "source": "c1",
+   "quote": "RS rating 80 or more, in a strong group.",
+   "claim": "Card: RS rating 80 or more, in a strong group."
+  },
+  {
+   "id": "c07",
+   "source": "c1",
+   "quote": "Price $10 or more and $20 million or more traded a day on average.",
+   "claim": "Card: price $10 or more and $20 million or more traded a day."
+  },
+  {
+   "id": "c08",
+   "source": "c1",
+   "quote": "Green market: full risk. Yellow: smaller and fewer. Orange: A+ only. Red: mostly cash and shorts.",
+   "claim": "Card: market reading sets the risk."
+  },
+  {
+   "id": "c09",
+   "source": "c1",
+   "quote": "Depth: the touch day's close is at least 1 ATR under the highest high of the last 11 sessions.",
+   "claim": "Card: the touch day's close is at least 1 ATR under the highest high of the last 11 sessions."
+  },
+  {
+   "id": "c10",
+   "source": "c1",
+   "quote": "The touch: the pullback low is within 1 ATR under to 0.25 ATR over the line.",
+   "claim": "Card: the pullback low is within 1 ATR under to 0.25 ATR over the line."
+  },
+  {
+   "id": "c11",
+   "source": "c1",
+   "quote": "The pullback lasts 2 to 8 sessions from the swing high to the touch day.",
+   "claim": "Card: the pullback lasts 2 to 8 sessions."
+  },
+  {
+   "id": "c12",
+   "source": "c1",
+   "quote": "Orderly: no single down day larger than 2 ATR in the pullback.",
+   "claim": "Card: no single down day larger than 2 ATR."
+  },
+  {
+   "id": "c13",
+   "source": "c1",
+   "quote": "Volume: the average volume over the pullback days is below the 50-day average volume, and the touch day is not above 1.5 times the 50-day average.",
+   "claim": "Card: pullback volume below the 50-day average; the touch day not above 1.5 times it."
+  },
+  {
+   "id": "c14",
+   "source": "c1",
+   "quote": "The hold day: the touch day closes at or above the line, or (the undercut and reclaim) the next day does.",
+   "claim": "Card: the hold day closes at or above the line."
+  },
+  {
+   "id": "c16",
+   "source": "c1",
+   "quote": "A market order the moment the trigger trades, in regular hours.",
+   "claim": "Card: a market order the moment the trigger trades, in regular hours."
+  },
+  {
+   "id": "c17",
+   "source": "c1",
+   "quote": "Skip if the fill would be more than 4% above the trigger price.",
+   "claim": "Card: skip if the fill would be more than 4% above the trigger price."
+  },
+  {
+   "id": "c18",
+   "source": "c1",
+   "quote": "At entry, no more than 10% above the 10-day average.",
+   "claim": "Card: at entry, no more than 10% above the 10-day average."
+  },
+  {
+   "id": "c19",
+   "source": "c1",
+   "quote": "No new buy in the 3 sessions before an earnings report; hold through a report only if the trade is up 5R.",
+   "claim": "Card: no new buy in the 3 sessions before earnings."
+  },
+  {
+   "id": "c20",
+   "source": "c1",
+   "quote": "One entry at one price with one stop; no adds, no second buy lower.",
+   "claim": "Card: one entry at one price with one stop; no adds."
+  },
+  {
+   "id": "c22",
+   "source": "c1",
+   "quote": "If that stop is more than about 3% under the entry, the size comes down so the account risk is unchanged; skip if even that does not fit. Never move the stop up to make it fit.",
+   "claim": "Card: a stop over about 3% means a smaller size, never a tighter stop."
+  },
+  {
+   "id": "c23",
+   "source": "c1",
+   "quote": "Stop to breakeven between 2R and 5R, at the first trim by default.",
+   "claim": "Card: stop to breakeven between 2R and 5R, at the first trim by default."
+  },
+  {
+   "id": "c24",
+   "source": "c1",
+   "quote": "Sell a third at 3R.",
+   "claim": "Card: sell a third at 3R."
+  },
+  {
+   "id": "c25",
+   "source": "c1",
+   "quote": "Sell a third at 5R.",
+   "claim": "Card: sell a third at 5R."
+  },
+  {
+   "id": "c26",
+   "source": "c1",
+   "quote": "Trail the last third under the 10-day (fast movers) or the 21-day (steadier) average, sold on a close below it.",
+   "claim": "Card: trail the last third under the 10-day or the 21-day, sold on a close below it."
+  },
+  {
+   "id": "c28",
+   "source": "c1",
+   "quote": "Before entry: the touch day closes under the line on more than 1.5 times the 50-day volume. That is distribution, not a pullback.",
+   "claim": "Card: a close under the line on more than 1.5 times the 50-day volume is distribution."
+  },
+  {
+   "id": "c29",
+   "source": "c1",
+   "quote": "Before entry: the line stops rising (the 20 EMA under its value 10 sessions ago), or the 20 EMA crosses under the 50 SMA.",
+   "claim": "Card: before entry, the line stops rising, or the 20 EMA crosses under the 50."
+  },
+  {
+   "id": "c30",
+   "source": "c1",
+   "quote": "Before entry: a third close under the line in the same pullback. Skip the name that keeps slicing the line.",
+   "claim": "Card: a third close under the line in the same pullback; skip the name that keeps slicing it."
+  },
+  {
+   "id": "c31",
+   "source": "c1",
+   "quote": "Before entry: the index loses its 20-day; stay patient until it is back above.",
+   "claim": "Card: if the index loses its 20-day, stay patient."
+  },
+  {
+   "id": "c32",
+   "source": "c1",
+   "quote": "A cue, not a gate: the index itself is above a rising 20-day.",
+   "claim": "Card: the index above a rising 20-day is a cue, not a gate."
+  },
+  {
+   "id": "c34",
+   "source": "c1",
+   "quote": "Setting the stop under the line minus a cushion, so the stop is far wider than 3%, then keeping full size.",
+   "claim": "Card mistake: a stop under the line minus a cushion, then full size."
+  },
+  {
+   "id": "c35",
+   "source": "c1",
+   "quote": "Picking a line after the fact: decide before the trade which line this stock respects",
+   "claim": "Card mistake: picking the line after the fact."
+  },
+  {
+   "id": "c36",
+   "source": "c1",
+   "quote": "Treating a broken leader's first touch of the 50 or 200-day as a pullback (it is a correction; TSLA 2024-01-08).",
+   "claim": "Card mistake: a broken leader's first touch of the 50 or 200-day is a correction."
+  },
+  {
+   "id": "c37",
+   "source": "c1",
+   "quote": "Buying a stock that is slicing back and forth through the line.",
+   "claim": "Card mistake: buying a stock slicing back and forth through the line."
+  },
+  {
+   "id": "c38",
+   "source": "c1",
+   "quote": "Buying the touch because it is the line, with no sign of buyers",
+   "claim": "Card mistake: buying the touch only because it is the line."
+  },
+  {
+   "id": "c39",
+   "source": "c1",
+   "quote": "Chasing the bounce day more than 4% past the trigger.",
+   "claim": "Card mistake: chasing the bounce day more than 4% past the trigger."
+  },
+  {
+   "id": "g2",
+   "source": "c1",
+   "quote": "pullback days at or under about 0.7x the 50-day average over 3 to 8 orderly sessions",
+   "claim": "Card, A+ cue: pullback days at or under about 0.7x the 50-day average."
+  },
+  {
+   "id": "g3",
+   "source": "c1",
+   "quote": "confluence, the line sits on another level (an HVE or HVC level, a gap top, a prior breakout pivot",
+   "claim": "Card, A+ cue: the line sits on another level."
+  },
+  {
+   "id": "g4",
+   "source": "c1",
+   "quote": "a tight reversal at the line (hammer, inside day, undercut and reclaim) so the stop is 3% or less",
+   "claim": "Card, A+ cue: a tight reversal at the line so the stop is 3% or less."
+  },
+  {
+   "id": "g5",
+   "source": "c1",
+   "quote": "a sharp 1 to 2 day drop into the line, or one outsized red day",
+   "claim": "Card, B- cue: a sharp 1 to 2 day drop into the line, or one outsized red day."
+  },
+  {
+   "id": "g6",
+   "source": "c1",
+   "quote": "volume rising on the pullback",
+   "claim": "Card, B- cue: volume rising on the pullback."
+  },
+  {
+   "id": "g7",
+   "source": "c1",
+   "quote": "a wide stop (over 3%) that forces a much smaller size",
+   "claim": "Card, B- cue: a wide stop that forces a much smaller size."
+  },
+  {
+   "id": "l1",
+   "source": "c1",
+   "quote": "A low that tags the 20 EMA and holds above the 50-day SMA is the 20 EMA Pullback card in full",
+   "claim": "Card: a low that tags the 20 EMA and holds above the 50-day is the 20 EMA Pullback card."
+  },
+  {
+   "id": "l1b",
+   "source": "c1",
+   "quote": "this card's own trades are the 10-day in a fast leader that has ridden its 10 EMA, and the 50-day when the low reaches it with the 200-day far below.",
+   "claim": "Card: this card's trades are the 10-day in a fast leader and the 50-day with the 200-day far below."
+  },
+  {
+   "id": "l2",
+   "source": "c1",
+   "quote": "A pullback allows at most two closes under the line, the second reclaimed at once",
+   "claim": "Card: a pullback allows at most two closes under the line, the second reclaimed at once."
+  },
+  {
+   "id": "l2b",
+   "source": "c1",
+   "quote": "five or more consecutive closes under the 50-day or 200-day, with at least one 0.5 ATR under it, is a Remount, a line lost and retaken.",
+   "claim": "Card: five or more consecutive closes under the line is a Remount."
+  },
+  {
+   "id": "l3",
+   "source": "c1",
+   "quote": "a low that broke under the line and a buy taken as price trades back above it is the MAU&R costume of the Undercut and Rally.",
+   "claim": "Card: a buy taken as price trades back above a broken line is the Undercut and Rally."
+  },
+  {
+   "id": "l4",
+   "source": "c1",
+   "quote": "a later touch of a line that has been rising for months, after a breakout or gap, is a pullback to the moving averages.",
+   "claim": "Card: a later touch of a line rising for months is a pullback."
+  },
+  {
+   "id": "l5",
+   "source": "c1",
+   "quote": "A bull flag needs a 20% or larger gain inside 20 sessions",
+   "claim": "Card: a bull flag needs a 20% or larger gain inside 20 sessions."
+  },
+  {
+   "id": "l5b",
+   "source": "c1",
+   "quote": "a pullback to the averages needs no pole, only a rising line in a stacked trend and a 1 ATR dip from the swing high to the line.",
+   "claim": "Card: a pullback needs no pole, only a rising line in a stacked trend and a 1 ATR dip."
+  },
+  {
+   "id": "fm",
+   "source": "c1",
+   "quote": "The line gives way: the hold day's low breaks the next session or the stock slices back and forth through the line.",
+   "claim": "Card: the failure mode is the line giving way."
+  },
+  {
+   "id": "dYELP",
+   "source": "d1",
+   "quote": "YELP | 2013-06-26 | 10 EMA | 4 days, 1.42 ATR, 5.7% off | 0.60x | 31.80 | 30.67 | 3.6% | 06-27 | 07-09",
+   "claim": "YELP, trigger 2013-06-26: 10 EMA, 4 days, 1.42 ATR, 5.7% off; buy 31.80, stop 30.67 (3.6%); 3R on 06-27, 5R on 07-09."
+  },
+  {
+   "id": "dYELPw",
+   "source": "d1",
+   "quote": "a stock that had ridden its 10 EMA since February; four quiet days to the line and 3R the next day.",
+   "claim": "YELP: a stock that rode its 10 EMA since February; four quiet days; 3R the next day."
+  },
+  {
+   "id": "dYELPs",
+   "source": "d1",
+   "quote": "The stop is the widest of the ten and above the house 3%, so size would come down (A5).",
+   "claim": "YELP: the stop was above the house 3%, so size would come down."
+  },
+  {
+   "id": "dCAT",
+   "source": "d1",
+   "quote": "CAT | 2025-09-03 | 50 SMA | 6 days, 2.36 ATR, 5.7% off | 0.79x | 418.13 | 410.47 | 1.8% | 09-17 | 09-18",
+   "claim": "CAT, trigger 2025-09-03: 50 SMA, 6 days, 2.36 ATR, 5.7% off; buy 418.13, stop 410.47 (1.8%); 3R on 09-17, 5R on 09-18."
+  },
+  {
+   "id": "dCATw",
+   "source": "d1",
+   "quote": "A mega cap's first test of the rising 50 SMA after a 4-month run; six days down on sub-average volume, a tight hold, then a two-week grind to 3R (the slowest of the ten, 10 sessions).",
+   "claim": "CAT: a mega cap's first test of the rising 50 SMA; six days down on quiet volume; 3R took 10 sessions."
+  },
+  {
+   "id": "dMOH",
+   "source": "d1",
+   "quote": "MOH | 2018-06-08 | 10 EMA | 6 days, 1.01 ATR, 7.8% off | 0.40x | 86.93 | 85.82 | 1.3% | 06-11 | 06-12",
+   "claim": "MOH, trigger 2018-06-08: 10 EMA, 6 days, 1.01 ATR, 7.8% off; buy 86.93, stop 85.82 (1.3%); 3R on 06-11, 5R on 06-12."
+  },
+  {
+   "id": "dMOHw",
+   "source": "d1",
+   "quote": "Six days sideways on the lowest volume on the chart (0.4x), the line rising underneath; 3R in one session.",
+   "claim": "MOH: six days sideways on the lowest volume on the chart, the line rising; 3R in one session."
+  },
+  {
+   "id": "dMOHd",
+   "source": "d1",
+   "quote": "It is the shallowest of the ten (1.01 ATR), right at the rule's edge",
+   "claim": "MOH: the shallowest of the ten at 1.01 ATR, right at the rule's edge."
+  },
+  {
+   "id": "dBFAM",
+   "source": "d1",
+   "quote": "BFAM | 2019-04-23 | 50 SMA | 3 days, 2.24 ATR, 2.8% off | 0.73x | 125.87 | 124.84 | 0.8% | 04-30 | 05-01",
+   "claim": "BFAM, trigger 2019-04-23: 50 SMA, 3 days, 2.24 ATR, 2.8% off; buy 125.87, stop 124.84 (0.8%)."
+  },
+  {
+   "id": "dBFAMw",
+   "source": "d1",
+   "quote": "A three-day drop onto the rising 50 SMA in a steady grinder; a sub-1% stop.",
+   "claim": "BFAM: a three-day drop onto the rising 50 SMA; a stop under 1%."
+  },
+  {
+   "id": "dBase",
+   "source": "d1",
+   "quote": "60,464 hits; 27.7% reached 3R before the stop; 17.5% reached 5R",
+   "claim": "Scan base rate: of 60,464 hits, 27.7% reached 3R and 17.5% reached 5R before the stop."
+  },
+  {
+   "id": "dBase2",
+   "source": "d1",
+   "quote": "84.1% eventually traded through the stop within the 60 days (a fixed stop with no trims, so most winners also end in that count).",
+   "claim": "Scan: 84.1% eventually traded through a fixed stop within 60 days."
+  },
+  {
+   "id": "dEdge",
+   "source": "d1",
+   "quote": "the setup's edge in this data is the roughly one-in-four chance of 3R and one-in-six chance of 5R, not a high hit rate.",
+   "claim": "Dossier: the edge is about one-in-four for 3R and one-in-six for 5R, not a high hit rate."
+  },
+  {
+   "id": "dNVDA",
+   "source": "d1",
+   "quote": "NVDA | 2024-04-03 | 20 EMA | 90.10 | 87.57 | 04-04, day 1, low 85.88",
+   "claim": "NVDA, trigger 2024-04-03: 20 EMA, buy 90.10, stop 87.57, stopped 04-04 on day 1."
+  },
+  {
+   "id": "dNVDAw",
+   "source": "d1",
+   "quote": "the index was topping into a multi-week correction that started the same week. This is why F65 (market reading) sits above the setup.",
+   "claim": "NVDA 2024: the index was topping into a correction the same week; the market reading sits above the setup."
+  },
+  {
+   "id": "dGILD",
+   "source": "d1",
+   "quote": "GILD | 2014-11-10 | 50 SMA | 109.07 | 106.28 | 11-12, day 2, low 105.70",
+   "claim": "GILD, trigger 2014-11-10: 50 SMA, buy 109.07, stop 106.28, stopped 11-12 on day 2."
+  },
+  {
+   "id": "dGILDw",
+   "source": "d1",
+   "quote": "The low broke the 50-day the same day; 20 sessions later (12-09) it closed at 105.91 and it never reached 3R inside the 60-session window.",
+   "claim": "GILD: the low broke the 50-day the same day and it never reached 3R in the window."
+  },
+  {
+   "id": "dPLTR",
+   "source": "d1",
+   "quote": "PLTR | 2025-05-20 | 10 EMA | 127.78 | 124.27 | 05-21, day 1, low 119.41",
+   "claim": "PLTR, trigger 2025-05-20: 10 EMA, buy 127.78, stop 124.27, stopped 05-21 on day 1."
+  },
+  {
+   "id": "dPLTRw",
+   "source": "d1",
+   "quote": "it reached 3R (138.31) on 06-11 and 5R (145.33) on 06-25 without us. A one-day shakeout.",
+   "claim": "PLTR: a one-day shakeout; it reached 3R and 5R weeks later without us."
+  },
+  {
+   "id": "dNear",
+   "source": "d1",
+   "quote": "keeping only the candidates that fail exactly one gate criterion of the card",
+   "claim": "Near-misses were kept only when exactly one gate criterion of the card fails."
+  },
+  {
+   "id": "dADI",
+   "source": "d1",
+   "quote": "ADI | 2023-04-17 / 04-18 | map.inv_third_close | 3 closes under the 20 EMA in the 8-session pullback (rule: a third close is a skip)",
+   "claim": "ADI near-miss: 3 closes under the 20 EMA in the 8-session pullback."
+  },
+  {
+   "id": "dADIw",
+   "source": "d1",
+   "quote": "a line sliced, not held. Fewer than 5 closes, so not a Remount either; nothing to buy.",
+   "claim": "ADI: a line sliced, not held; fewer than 5 closes, so not a Remount."
+  },
+  {
+   "id": "dMETA",
+   "source": "d1",
+   "quote": "META | 2026-10-08 / 10-09 | map.length | 10 sessions from the swing high to the touch day (rule: 2 to 8)",
+   "claim": "META near-miss: 10 sessions from the swing high to the touch day."
+  },
+  {
+   "id": "dMETAw",
+   "source": "d1",
+   "quote": "Longer than this card allows; on the 20 EMA a 10-session drift sits inside the 20 EMA Pullback card's 2 to 15 window, so judge it there.",
+   "claim": "META: longer than this card allows; judge a 10-session drift on the 20 EMA Pullback card."
+  },
+  {
+   "id": "dAMD",
+   "source": "d1",
+   "quote": "AMD | 2019-02-11 / 02-12 | map.near_high | 32.7% under the 52-week high 34.14 (rule: within 25%)",
+   "claim": "AMD near-miss: 32.7% under the 52-week high 34.14."
+  },
+  {
+   "id": "dAMDw",
+   "source": "d1",
+   "quote": "A recovering stock's 10-day, not a leader's pullback (common mistake 5).",
+   "claim": "AMD: a recovering stock's 10-day, not a leader's pullback."
+  },
+  {
+   "id": "dTSM",
+   "source": "d1",
+   "quote": "TSM 2025-02-05 (a close under the 50-day on 4.5x the 50-day volume, map.inv_heavy_close)",
+   "claim": "TSM 2025-02-05: a close under the 50-day on 4.5x the 50-day volume."
+  },
+  {
+   "id": "dTSLA",
+   "source": "d1",
+   "quote": "it was 20.6% off that high, the 50 SMA was flat, the 200 was rising into it, and the pullback was 3.6 ATR deep.",
+   "claim": "TSLA 2024-01-08: 20.6% off its high, a flat 50 SMA and a pullback 3.6 ATR deep."
+  },
+  {
+   "id": "dTSLAw",
+   "source": "d1",
+   "quote": "A broken leader's first touch of the 50 is a correction, not a pullback",
+   "claim": "Dossier: a broken leader's first touch of the 50 is a correction, not a pullback."
+  },
+  {
+   "id": "dMU",
+   "source": "d1",
+   "quote": "MU 2026-10-07 (20 EMA): a seven-day drift onto a rising 20 EMA with the 50 and 200 far below, but 16.7% off its high and with a 5.9% stop (above the house 3%).",
+   "claim": "MU 2026-10-07: 16.7% off its high with a 5.9% stop, above the house 3%."
+  },
+  {
+   "id": "hD45",
+   "source": "h1",
+   "quote": "Never raise risk past the rules after a run of winners.",
+   "claim": "D45: never raise risk past the rules after a run of winners."
+  },
+  {
+   "id": "m1",
+   "source": "s5",
+   "quote": "The 200-day SMA must have been rising for at least one month.",
+   "claim": "Minervini template, via Deepvue: the 200-day SMA must have been rising for at least one month."
+  },
+  {
+   "id": "c02",
+   "source": "c1",
+   "quote": "The 200-day SMA has been rising for at least 21 sessions: higher than its value 21 sessions ago.",
+   "claim": "Card: the 200-day SMA has been rising for at least 21 sessions."
+  },
+  {
+   "id": "c15",
+   "source": "c1",
+   "quote": "Named variants, not the default: an hourly Go Signal or red to green off the line; a 9 EMA remount; a reversal candle at the line (a hammer, an oops, a bullish engulfing).",
+   "claim": "Card: the named variants are an hourly Go Signal or red to green off the line, a 9 EMA remount and a reversal candle at the line."
+  },
+  {
+   "id": "c21",
+   "source": "c1",
+   "quote": "The position is at most 1% of average daily volume.",
+   "claim": "Card: the position is at most 1% of average daily volume."
+  },
+  {
+   "id": "hD42",
+   "source": "h1",
+   "quote": "Never own more than 1% of a stock's average daily volume; illiquid stocks are not even watched.",
+   "claim": "D42: never own more than 1% of a stock's average daily volume."
+  },
+  {
+   "id": "hF63",
+   "source": "h1",
+   "quote": "If a stock opens above a trim level (3R, 5R), take that trim at the open.",
+   "claim": "F63: if a stock opens above a trim level, take that trim at the open."
+  },
+  {
+   "id": "hC34",
+   "source": "h1",
+   "quote": "A climax run on your own long (Bracco's parabolic burst): sell a big part into it, a judgment call.",
+   "claim": "C34: on a climax run in your own long, sell a big part into it; how much is a judgment call."
+  }
+ ],
+ "walkthroughs": [
+  {
+   "key": "w1",
+   "title": "YELP, June 2013: the fast leader on its 10-day",
+   "steps": [
+    "YELP, June 2013. A leader that had ridden its 10 EMA since February drifts four quiet days onto the line.",
+    "The pattern checks out: a 1.42 ATR dip, 5.7% off the high, and a touch day on only 0.60x volume.",
+    "2013-06-26: it trades over the hold day's high. Buy at market, 31.80. Stop a few cents under the low, 30.67.",
+    "Stop 3.6% wide, over our 3%, so size comes down. Failure mode: the line gives way. Instead 3R came the next day."
+   ],
+   "facts": [
+    "dYELP",
+    "dYELPw",
+    "dYELPs",
+    "c10",
+    "c09",
+    "hA13",
+    "hF62",
+    "fm",
+    "hE57"
+   ]
+  },
+  {
+   "key": "w2",
+   "title": "CAT, September 2025: the 50-day on a mega cap",
+   "steps": [
+    "CAT, 2025. A mega cap's first test of the rising 50 SMA after a run: six days down on quiet volume.",
+    "The pattern checks out: 2.36 ATR deep, 5.7% off the high, and the touch day on 0.79x volume.",
+    "2025-09-03: it trades over the hold day's high. Buy at market, 418.13. Stop a few cents under the low, 410.47.",
+    "The stop is 1.8% wide, inside our 3%. Failure mode: the line gives way. Instead a two-week grind reached 3R."
+   ],
+   "facts": [
+    "dCAT",
+    "dCATw",
+    "c09",
+    "c11",
+    "hA13",
+    "hF62",
+    "fm",
+    "hE57"
+   ]
+  },
+  {
+   "key": "w3",
+   "title": "MOH, June 2018: six quiet days on the 10-day",
+   "steps": [
+    "MOH, 2018. Six days sideways on the lowest volume on the chart, with the 10 EMA rising underneath.",
+    "The shallowest dip of our ten examples: 1.01 ATR, 7.8% off the high. The rule is 1 ATR, so it just passes.",
+    "2018-06-08: it trades over the hold day's high. Buy at market, 86.93. Stop a few cents under the low, 85.82.",
+    "The stop is 1.3% wide. Failure mode: the line gives way. Instead 3R came in one session."
+   ],
+   "facts": [
+    "dMOH",
+    "dMOHw",
+    "dMOHd",
+    "c09",
+    "hF62",
+    "fm",
+    "hE57"
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "key": "q01",
+   "skill": "setup.ma_pullbacks",
+   "rung": 1,
+   "format": "mcq",
+   "criterion": "map.line_rising",
+   "q": "A pullback buy in this setup sits on which kind of line?",
+   "choices": [
+    "A rising line in an uptrend",
+    "A falling line, to buy the bounce",
+    "A flat line inside a range",
+    "Any line the stock touched"
+   ],
+   "answer": "A rising line in an uptrend",
+   "why": "A rising line in an uptrend. The 20 EMA and the 50-day must each be higher than 10 sessions ago.",
+   "lesson_line": "Buy the dip onto a line that is rising, never one that is flat or falling.",
+   "facts": [
+    "c05",
+    "kk2",
+    "c38"
+   ],
+   "wrong": {
+    "A falling line, to buy the bounce": "A falling line is a downtrend. The card wants the line higher than 10 sessions ago.",
+    "A flat line inside a range": "A flat line is a warning. The card says the line must be rising.",
+    "Any line the stock touched": "Any line is how we end up buying a random average. The line must be rising."
+   },
+   "house": true
+  },
+  {
+   "key": "q02",
+   "skill": "setup.ma_pullbacks",
+   "rung": 1,
+   "format": "tf",
+   "criterion": "map.above_200",
+   "q": "For a pullback buy, price is above the 200-day and the 20 EMA is above the 50 above the 200.",
+   "answer": "True",
+   "why": "True. Price over the 200-day, with the 20 EMA over the 50-day over the 200-day. No longs below the 200-day is a hard rule.",
+   "lesson_line": "Stacked averages first. Price, 20 EMA, 50-day, 200-day, in that order from the top.",
+   "facts": [
+    "c01",
+    "hB26"
+   ],
+   "house": true
+  },
+  {
+   "key": "q03",
+   "skill": "setup.ma_pullbacks",
+   "rung": 1,
+   "format": "fill",
+   "criterion": "map.stop",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "The stop sits a few ___ under the pullback low, not exactly on it.",
+   "bank": [
+    "cents",
+    "dollars",
+    "percent",
+    "points"
+   ],
+   "answer": "cents",
+   "why": "Cents. A few cents under the low, not exactly on it. Raschke put the protective stop at the newly formed swing low.",
+   "lesson_line": "Stop first: a few cents under the pullback low.",
+   "facts": [
+    "hF62",
+    "r3"
+   ],
+   "house": true
+  },
+  {
+   "key": "q04",
+   "skill": "setup.ma_pullbacks",
+   "rung": 1,
+   "format": "mcq",
+   "criterion": "map.market_order",
+   "q": "The hold day is done and price trades over its high. How do we buy?",
+   "choices": [
+    "A limit order well below the high",
+    "A market order, in regular hours",
+    "A stop-limit placed after the close",
+    "We wait for the next pullback"
+   ],
+   "answer": "A market order, in regular hours",
+   "why": "A market order, in regular hours. Entries are market orders the moment the trigger trades.",
+   "lesson_line": "The trigger trades, you buy at market, and the stop goes in right away.",
+   "facts": [
+    "c16",
+    "hE57"
+   ],
+   "wrong": {
+    "A limit order well below the high": "A limit far below can sit unfilled while the stock leaves without us.",
+    "A stop-limit placed after the close": "The rule is a market order the moment the trigger trades, in regular hours.",
+    "We wait for the next pullback": "The trigger has traded. Waiting for another dip is not the plan."
+   },
+   "house": true
+  },
+  {
+   "key": "q05",
+   "skill": "setup.ma_pullbacks",
+   "rung": 1,
+   "format": "tf",
+   "criterion": "map.leadership",
+   "q": "A pullback buy is for leaders: an RS rating of 80 or more, in a strong group.",
+   "answer": "True",
+   "why": "True. We buy leaders. An RS rating of 80 or more, in one of the strongest groups.",
+   "lesson_line": "Pullbacks are for leaders. A weak stock dipping to a line is not the same trade.",
+   "facts": [
+    "c06",
+    "hC31"
+   ],
+   "house": true
+  },
+  {
+   "key": "q06",
+   "skill": "setup.ma_pullbacks",
+   "rung": 1,
+   "format": "mcq",
+   "criterion": "map.one_price",
+   "q": "How many entries and stops does one pullback trade have?",
+   "choices": [
+    "One entry, then add on each dip",
+    "Two halves at two prices",
+    "One entry, one price, one stop",
+    "Three scale-ins under the line"
+   ],
+   "answer": "One entry, one price, one stop",
+   "why": "One entry at one price, one stop. No adds and no second buy lower.",
+   "lesson_line": "One price, one stop, full size. No adding to a pullback buy.",
+   "facts": [
+    "c20",
+    "hA5b"
+   ],
+   "wrong": {
+    "One entry, then add on each dip": "No adds. A second buy lower is ruled out.",
+    "Two halves at two prices": "The full size goes in at one price with one stop.",
+    "Three scale-ins under the line": "Scaling in is not ours. One price, one stop, no adding."
+   },
+   "house": true
+  },
+  {
+   "key": "q07",
+   "skill": "setup.ma_pullbacks",
+   "rung": 1,
+   "format": "mcq",
+   "criterion": "map.volume",
+   "q": "On the card, what does a healthy pullback look like on volume?",
+   "choices": [
+    "Heavy: above the 50-day average",
+    "Rising each day it falls",
+    "Volume does not matter at all",
+    "Quiet: below the 50-day average"
+   ],
+   "answer": "Quiet: below the 50-day average",
+   "why": "Quiet. The average volume over the pullback days sits below the 50-day average.",
+   "lesson_line": "Quiet volume on the dip is the picture. Heavy volume under the line is not.",
+   "facts": [
+    "c13",
+    "m3",
+    "g6"
+   ],
+   "wrong": {
+    "Heavy: above the 50-day average": "Heavy selling into the line is a warning, not a pullback.",
+    "Rising each day it falls": "Volume rising on the pullback is a B- cue on our card.",
+    "Volume does not matter at all": "It is a grade cue, and a heavy close under the line is an invalidation."
+   },
+   "house": true
+  },
+  {
+   "key": "q08",
+   "skill": "setup.ma_pullbacks",
+   "rung": 2,
+   "format": "tf",
+   "criterion": "map.touch",
+   "q": "A pullback low that dips 0.5 ATR under the line can still count as a touch.",
+   "answer": "True",
+   "why": "True. The touch is a low within 1 ATR under to 0.25 ATR over the line. So 0.5 ATR under is inside the range.",
+   "lesson_line": "The touch is a band around the line, not one exact price.",
+   "facts": [
+    "c10",
+    "cs3"
+   ],
+   "house": true
+  },
+  {
+   "key": "q09",
+   "skill": "setup.ma_pullbacks",
+   "rung": 2,
+   "format": "mcq",
+   "criterion": "map.depth",
+   "q": "How deep must the dip be to count as a pullback?",
+   "choices": [
+    "Close 1 ATR under the 11-day high",
+    "A close 1% under the 11-day high",
+    "Down 25% from the 52-week high",
+    "Any red day at all counts as a dip"
+   ],
+   "answer": "Close 1 ATR under the 11-day high",
+   "why": "A close at least 1 ATR under the highest high of the last 11 sessions.",
+   "lesson_line": "Measure the dip in ATR from the recent high. One ATR is the minimum.",
+   "facts": [
+    "c09",
+    "l5b",
+    "c03"
+   ],
+   "wrong": {
+    "A close 1% under the 11-day high": "A percent can be tiny on a quiet stock. The card measures in ATR.",
+    "Down 25% from the 52-week high": "That is far too deep. Within 25% of the high is the limit of the trend filter.",
+    "Any red day at all counts as a dip": "One red day is not a pullback. The card wants a 1 ATR dip."
+   },
+   "house": true
+  },
+  {
+   "key": "q10",
+   "skill": "setup.ma_pullbacks",
+   "rung": 2,
+   "format": "mcq",
+   "criterion": "map.length",
+   "q": "How long does the pullback last, swing high to touch day?",
+   "choices": [
+    "1 session",
+    "2 to 8 sessions",
+    "10 to 15 sessions",
+    "30 or more sessions"
+   ],
+   "answer": "2 to 8 sessions",
+   "why": "2 to 8 sessions from the swing high to the touch day.",
+   "lesson_line": "Two to eight sessions of drift. A single day is a drop, a month is a base.",
+   "facts": [
+    "c11",
+    "dMETAw"
+   ],
+   "wrong": {
+    "1 session": "One day down is a sharp drop, not a drift.",
+    "10 to 15 sessions": "That is longer than this card allows.",
+    "30 or more sessions": "A month of drifting is a different pattern, not this pullback."
+   },
+   "house": true
+  },
+  {
+   "key": "q11",
+   "skill": "setup.ma_pullbacks",
+   "rung": 2,
+   "format": "tf",
+   "criterion": "map.orderly",
+   "q": "A pullback can include one red day larger than 3 ATR and still be called orderly.",
+   "answer": "False",
+   "why": "False. Orderly means no single down day larger than 2 ATR in the pullback.",
+   "lesson_line": "Orderly means no single down day larger than 2 ATR.",
+   "facts": [
+    "c12",
+    "g5"
+   ],
+   "house": true
+  },
+  {
+   "key": "q12",
+   "skill": "setup.ma_pullbacks",
+   "rung": 2,
+   "format": "mcq",
+   "criterion": "map.hold_day",
+   "q": "What makes a session the hold day?",
+   "choices": [
+    "It trades the highest volume of the dip",
+    "It closes below the line by 1 ATR",
+    "Its close is at or above the line",
+    "It gaps down through the stop"
+   ],
+   "answer": "Its close is at or above the line",
+   "why": "The touch day closes at or above the line. That close is the hold.",
+   "lesson_line": "A hold is a close at or above the line. Then wait for the trigger.",
+   "facts": [
+    "c14",
+    "fm"
+   ],
+   "wrong": {
+    "It trades the highest volume of the dip": "Volume does not name the hold day. The close against the line does.",
+    "It closes below the line by 1 ATR": "A close that far under is the line giving way, not holding.",
+    "It gaps down through the stop": "That is a loss, not a hold."
+   },
+   "house": true
+  },
+  {
+   "key": "q13",
+   "skill": "setup.ma_pullbacks",
+   "rung": 2,
+   "format": "tf",
+   "criterion": "map.market_reading",
+   "q": "In an Orange market we take A+ setups only.",
+   "answer": "True",
+   "why": "True. Green is full risk, Yellow smaller and fewer, Orange A+ only, Red mostly cash and shorts.",
+   "lesson_line": "The market reading sets how much and which setups. Orange means A+ only.",
+   "facts": [
+    "c08",
+    "hF65"
+   ],
+   "house": true
+  },
+  {
+   "key": "q14",
+   "skill": "setup.ma_pullbacks",
+   "rung": 2,
+   "format": "mcq",
+   "criterion": "map.liquidity",
+   "q": "What is the minimum price and daily traded value?",
+   "choices": [
+    "$5 and $1 million a day",
+    "$20 and $100 million a day",
+    "No minimum if RS is 90",
+    "$10 and $20 million a day"
+   ],
+   "answer": "$10 and $20 million a day",
+   "why": "$10 and $20 million a day. Only stocks at $10 or more that trade at least $20 million a day.",
+   "lesson_line": "Price $10 or more and $20 million or more traded a day. Thin names are not watched.",
+   "facts": [
+    "c07",
+    "hB23"
+   ],
+   "wrong": {
+    "$5 and $1 million a day": "That lets in thin stocks we do not even watch.",
+    "$20 and $100 million a day": "That is stricter than the rule. The floor is $10 and $20 million a day.",
+    "No minimum if RS is 90": "Strong RS does not remove the liquidity floor."
+   },
+   "house": true
+  },
+  {
+   "key": "q15",
+   "skill": "setup.ma_pullbacks",
+   "rung": 2,
+   "format": "fill",
+   "criterion": "map.stop_gap",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "A gap against the stop: the first ___-minute low is the new stop.",
+   "bank": [
+    "30",
+    "5",
+    "15",
+    "60",
+    "90"
+   ],
+   "answer": "30",
+   "why": "30. After a gap against the stop, the low of the first 30-minute bar is the new stop.",
+   "lesson_line": "A gap through the stop: the first 30-minute low decides.",
+   "facts": [
+    "hB20"
+   ],
+   "house": true
+  },
+  {
+   "key": "q16",
+   "skill": "setup.ma_pullbacks",
+   "rung": 3,
+   "format": "numeric",
+   "criterion": "map.trim_1",
+   "q": "Bought at 31.80 with the stop at 30.67. Where is 3R?",
+   "answer": 35.19,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "a + 3 * (a - b)",
+     "a": 31.8,
+     "b": 30.67
+    },
+    "round": 2
+   },
+   "why": "35.19. One R is the buy minus the stop. Add three of those to the buy. YELP reached 3R the next day.",
+   "lesson_line": "Know your 3R before the open. The first third comes off there.",
+   "facts": [
+    "hB19",
+    "dYELP",
+    "c24"
+   ],
+   "house": true,
+   "prefix": "$"
+  },
+  {
+   "key": "q17",
+   "skill": "setup.ma_pullbacks",
+   "rung": 3,
+   "format": "scenario",
+   "criterion": "map.hold_day",
+   "q": "Is today the hold day?",
+   "choices": [
+    "No, the low must stay above the line",
+    "No, it needs a second close above",
+    "Yes, it closed at or above the line"
+   ],
+   "answer": "Yes, it closed at or above the line",
+   "why": "Yes. The touch day closed at or above the line, which makes it the hold day. Now wait for the trigger.",
+   "lesson_line": "One close at or above the line is the hold. The buy comes next, on the trigger.",
+   "facts": [
+    "c14",
+    "c10"
+   ],
+   "wrong": {
+    "No, the low must stay above the line": "The low may touch or dip a little. The close is what counts.",
+    "No, it needs a second close above": "One close at or above the line is the hold."
+   },
+   "house": true,
+   "story": "A leader drifts four quiet days onto its rising 10-day. Today the low touched the line and it closed above it."
+  },
+  {
+   "key": "q18",
+   "skill": "setup.ma_pullbacks",
+   "rung": 3,
+   "format": "numeric",
+   "criterion": "map.stop_width",
+   "q": "Bought at 31.80 with the stop at 30.67. How far under the buy is the stop, in percent?",
+   "answer": 3.6,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(a - b) / a * 100",
+     "a": 31.8,
+     "b": 30.67
+    },
+    "round": 1
+   },
+   "why": "3.6. The stop is well over our 3%, so size comes down.",
+   "lesson_line": "Measure the stop in percent. Over about 3% means a smaller size.",
+   "facts": [
+    "hA13",
+    "dYELP",
+    "c22"
+   ],
+   "house": true,
+   "suffix": "%"
+  },
+  {
+   "key": "q19",
+   "skill": "setup.ma_pullbacks",
+   "rung": 3,
+   "format": "tf",
+   "criterion": "map.near_high",
+   "q": "A stock 30% under its 52-week high still passes the trend filter for a pullback buy.",
+   "answer": "False",
+   "why": "False. Price must be within 25% of its 52-week high on the hold day, and 30% is outside it.",
+   "lesson_line": "Stay within 25% of the 52-week high. A deeper hole is a recovery.",
+   "facts": [
+    "c03",
+    "m2"
+   ],
+   "house": true
+  },
+  {
+   "key": "q20",
+   "skill": "setup.ma_pullbacks",
+   "rung": 3,
+   "format": "mcq",
+   "criterion": "map.recent_catalyst",
+   "q": "What usually comes before a pullback worth buying?",
+   "choices": [
+    "A long, flat sleep under the 200-day",
+    "A breakout, earnings gap, up-cycle",
+    "A month of falling on heavy volume",
+    "Nothing; any dip at all will work"
+   ],
+   "answer": "A breakout, earnings gap, up-cycle",
+   "why": "A breakout, an earnings gap or a new up-cycle within the last 3 months.",
+   "lesson_line": "A pullback needs something to pull back from: a breakout, a gap, a new up-cycle.",
+   "facts": [
+    "c04",
+    "b1"
+   ],
+   "wrong": {
+    "A long, flat sleep under the 200-day": "A stock asleep under the 200-day is not a leader in an uptrend.",
+    "A month of falling on heavy volume": "Heavy selling is distribution, not a leader's rest.",
+    "Nothing; any dip at all will work": "A dip needs a run to dip from. Bonde: buy the first pullback after a major breakout."
+   },
+   "house": true
+  },
+  {
+   "key": "q21",
+   "skill": "setup.ma_pullbacks",
+   "rung": 3,
+   "format": "mcq",
+   "criterion": "map.trim_1",
+   "q": "The trade reaches 3R. What does the plan do?",
+   "choices": [
+    "Sell everything and lock the gain",
+    "Add to the position on strength",
+    "Sell a third, stop to breakeven",
+    "Do nothing until it reaches 5R"
+   ],
+   "answer": "Sell a third, stop to breakeven",
+   "why": "Sell a third and move the stop to breakeven. The hard rule is a third at 3R, with breakeven between 2R and 5R.",
+   "lesson_line": "A third off at 3R, then the stop to breakeven.",
+   "facts": [
+    "hB19",
+    "c23",
+    "c24"
+   ],
+   "wrong": {
+    "Sell everything and lock the gain": "The plan sells a third at 3R and lets the rest work.",
+    "Add to the position on strength": "No adds. The plan trims here.",
+    "Do nothing until it reaches 5R": "The hard rule is a third at 3R."
+   },
+   "house": true
+  },
+  {
+   "key": "q22",
+   "skill": "setup.ma_pullbacks",
+   "rung": 3,
+   "format": "tf",
+   "criterion": "map.trail",
+   "q": "A fast mover's last third is trailed under the 10-day and sold on a close below it.",
+   "answer": "True",
+   "why": "True. Trail the last third under the 10-day for fast movers, the 21-day for steadier ones, and sell on a close below it.",
+   "lesson_line": "Fast mover, 10-day trail. Steadier, 21-day. Sell on a close below.",
+   "facts": [
+    "hE52",
+    "c26",
+    "k3"
+   ],
+   "house": true
+  },
+  {
+   "key": "q23",
+   "skill": "setup.ma_pullbacks",
+   "rung": 4,
+   "format": "scenario",
+   "criterion": "map.earnings_window",
+   "q": "Do we buy the break?",
+   "choices": [
+    "Yes, the chart looks very clean",
+    "Yes, but with half the size",
+    "No; a report is within 3 days"
+   ],
+   "answer": "No; a report is within 3 days",
+   "why": "No. No new buys in the 3 days before an earnings report. Hold through one only if the trade is already up 5R.",
+   "lesson_line": "Three days before a report, no new buy. Check the date first.",
+   "facts": [
+    "hB22",
+    "c19"
+   ],
+   "wrong": {
+    "Yes, the chart looks very clean": "A good chart does not move the rule. No new buys in the 3 days before a report.",
+    "Yes, but with half the size": "Half size does not fix it. The rule is no new buy inside the window."
+   },
+   "house": true,
+   "story": "The hold day just printed. The stock reports earnings in 2 sessions. Tomorrow it may trade over today's high."
+  },
+  {
+   "key": "q24",
+   "skill": "setup.ma_pullbacks",
+   "rung": 4,
+   "format": "numeric",
+   "criterion": "map.near_high",
+   "q": "The 52-week high is 300.00. The stock closed at 238.00 on the hold day. How far under the high, in percent?",
+   "answer": 20.7,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(a - b) / a * 100",
+     "a": 300.0,
+     "b": 238.0
+    },
+    "round": 1
+   },
+   "why": "20.7. That is inside the 25% limit, so the trend filter passes. It is one check of many, not a buy.",
+   "lesson_line": "Percent off the high is a quick filter. Under 25% passes it.",
+   "facts": [
+    "c03",
+    "m2"
+   ],
+   "house": true,
+   "suffix": "%"
+  },
+  {
+   "key": "q25",
+   "skill": "setup.ma_pullbacks",
+   "rung": 4,
+   "format": "scenario",
+   "criterion": "map.one_price",
+   "q": "Do you add at 186?",
+   "choices": [
+    "No, one entry, one stop",
+    "Yes, a lower price lowers your average",
+    "Yes, but only half the size"
+   ],
+   "answer": "No, one entry, one stop",
+   "why": "No. One entry at one price with one stop, no adds and no second buy lower. The first stop is the exit.",
+   "lesson_line": "Do not add on a dip. The first stop still decides.",
+   "facts": [
+    "c20",
+    "hA5b",
+    "hA4"
+   ],
+   "wrong": {
+    "Yes, a lower price lowers your average": "Averaging down is not ours. The stop is the exit.",
+    "Yes, but only half the size": "No adds at any size."
+   },
+   "house": true,
+   "story": "You bought the 50-day hold at 190. The stock dips to 186 and holds the line again."
+  },
+  {
+   "key": "q26",
+   "skill": "setup.ma_pullbacks",
+   "rung": 4,
+   "format": "numeric",
+   "criterion": "map.touch",
+   "q": "The 50-day is 410.00 and ATR is 9.00. The day's low was 402.50. How many ATR under the line did it dip?",
+   "answer": 0.83,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(a - b) / c",
+     "a": 410.0,
+     "b": 402.5,
+     "c": 9.0
+    },
+    "round": 2
+   },
+   "why": "0.83. The low is 0.83 ATR under the line, inside the 1 ATR band, so it counts as a touch.",
+   "lesson_line": "Divide the dip under the line by ATR. Within 1 ATR is a touch.",
+   "facts": [
+    "c10"
+   ],
+   "house": true,
+   "suffix": " ATR"
+  },
+  {
+   "key": "q27",
+   "skill": "setup.ma_pullbacks",
+   "rung": 4,
+   "format": "scenario",
+   "criterion": "map.inv_heavy_close",
+   "q": "Wait for tomorrow's reclaim, or drop it?",
+   "choices": [
+    "Wait; one close proves nothing",
+    "Drop it; that is distribution",
+    "Buy now to catch the low"
+   ],
+   "answer": "Drop it; that is distribution",
+   "why": "Drop it. A close under the line on more than 1.5 times the 50-day volume is distribution, not a pullback.",
+   "lesson_line": "Heavy volume under the line is selling. It is not a pullback to buy.",
+   "facts": [
+    "c28",
+    "g6"
+   ],
+   "wrong": {
+    "Wait; one close proves nothing": "A close under the line on more than 1.5 times the 50-day volume is distribution.",
+    "Buy now to catch the low": "Buying into heavy selling under the line is the mistake."
+   },
+   "house": true,
+   "story": "On day five of a pullback, the stock closes under its 10-day on 2.3 times its 50-day average volume."
+  },
+  {
+   "key": "q28",
+   "skill": "setup.ma_pullbacks",
+   "rung": 4,
+   "format": "tf",
+   "criterion": "map.stop_width",
+   "q": "If the honest stop is 3.6% wide, tighten it to 3% and keep the full size.",
+   "answer": "False",
+   "why": "False. Over about 3%, the size comes down so the account risk is unchanged. Never move the stop up to make it fit.",
+   "lesson_line": "A wide stop shrinks the size. It never gets tightened to fit.",
+   "facts": [
+    "c22",
+    "hA3",
+    "hA13"
+   ],
+   "house": true
+  },
+  {
+   "key": "q29",
+   "skill": "setup.ma_pullbacks",
+   "rung": 4,
+   "format": "mcq",
+   "criterion": "map.stop",
+   "q": "Which stop is the mistake on this setup?",
+   "choices": [
+    "A few cents under the pullback low",
+    "A stop order placed with the broker",
+    "Line minus a cushion, at full size",
+    "Size cut down to fit a wider stop"
+   ],
+   "answer": "Line minus a cushion, at full size",
+   "why": "The line minus a cushion, at full size. The stop gets far wider than 3% and the size stays the same.",
+   "lesson_line": "Stop under the pullback low. Not under the line minus a cushion.",
+   "facts": [
+    "c34",
+    "hA3",
+    "hD41"
+   ],
+   "wrong": {
+    "A few cents under the pullback low": "That is the plan. The stop sits a few cents under the low.",
+    "A stop order placed with the broker": "A real stop order with the broker is required.",
+    "Size cut down to fit a wider stop": "Cutting size to keep the same account risk is the plan."
+   },
+   "house": true
+  },
+  {
+   "key": "q30",
+   "skill": "setup.ma_pullbacks",
+   "rung": 4,
+   "format": "tf",
+   "criterion": "map.trim_2",
+   "q": "After the first third at 3R, the next third comes off at 5R.",
+   "answer": "True",
+   "why": "True. After the first third at 3R, another third at 5R, then trail the last third.",
+   "lesson_line": "A third at 3R, a third at 5R, and the last third rides the trail.",
+   "facts": [
+    "hE51",
+    "c25"
+   ],
+   "house": true
+  },
+  {
+   "key": "q31",
+   "skill": "setup.ma_pullbacks",
+   "rung": 4,
+   "format": "tf",
+   "criterion": "map.no_chase",
+   "q": "A pullback that gaps 5% over the trigger price is still fine to buy at the open.",
+   "answer": "False",
+   "why": "False. Skip if the fill would be more than 4% above the trigger price. Chasing costs size, not risk.",
+   "lesson_line": "More than 4% past the trigger, skip it. No chasing.",
+   "facts": [
+    "c17",
+    "hC28",
+    "c39"
+   ],
+   "house": true
+  },
+  {
+   "key": "q32",
+   "skill": "setup.ma_pullbacks",
+   "rung": 4,
+   "format": "numeric",
+   "criterion": "map.no_chase",
+   "q": "The trigger is 31.80. What is the highest fill we accept, with the 4% rule?",
+   "answer": 33.07,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "a * 1.04",
+     "a": 31.8
+    },
+    "round": 2
+   },
+   "why": "33.07. Four percent over 31.80. A fill above that is a chase and we skip it.",
+   "lesson_line": "Work out your chase ceiling before the open.",
+   "facts": [
+    "c17",
+    "hC28"
+   ],
+   "house": true,
+   "prefix": "$"
+  },
+  {
+   "key": "q69",
+   "skill": "setup.ma_pullbacks",
+   "rung": 5,
+   "format": "numeric",
+   "criterion": "map.stop_width",
+   "q": "Account 50,000, risk 1%. Buy 31.80, stop 30.67. How many shares, rounded down?",
+   "answer": 442.0,
+   "calc": {
+    "fn": "shares_from_risk",
+    "args": {
+     "account": 50000,
+     "risk_pct": 1,
+     "entry": 31.8,
+     "stop": 30.67
+    }
+   },
+   "why": "442. Shares are the account times the risk percent, divided by the stop distance, rounded down. The wider the stop, the fewer shares.",
+   "lesson_line": "The stop sets the size. Account times risk, divided by the stop distance.",
+   "facts": [
+    "hA5",
+    "hA3",
+    "hA1"
+   ],
+   "house": true
+  },
+  {
+   "key": "q70",
+   "skill": "setup.ma_pullbacks",
+   "rung": 6,
+   "format": "numeric",
+   "criterion": "map.volume",
+   "q": "The dip averaged 1.2 million shares a day. The 50-day average is 2.0 million. What is the ratio?",
+   "answer": 0.6,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "a / b",
+     "a": 1.2,
+     "b": 2.0
+    },
+    "round": 1
+   },
+   "why": "0.6. The pullback ran at 0.6 times the 50-day average, under the 0.7 cue, so volume was quiet.",
+   "lesson_line": "Compare dip volume to the 50-day average. Under 0.7 is quiet.",
+   "facts": [
+    "c13",
+    "g2"
+   ],
+   "house": true,
+   "suffix": "x"
+  },
+  {
+   "key": "q71",
+   "skill": "setup.ma_pullbacks",
+   "rung": 4,
+   "format": "numeric",
+   "criterion": "map.not_stretched",
+   "q": "Price is 53.00. The 10-day average is 48.00. How far above it, in percent?",
+   "answer": 10.4,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(a - b) / b * 100",
+     "a": 53.0,
+     "b": 48.0
+    },
+    "round": 1
+   },
+   "why": "10.4. That is more than 10% above the 10-day average, so we skip the long as too stretched.",
+   "lesson_line": "Over 10% above the 10-day is too stretched to buy.",
+   "facts": [
+    "hC29",
+    "c18"
+   ],
+   "house": true,
+   "suffix": "%"
+  },
+  {
+   "key": "q33",
+   "skill": "setup.ma_pullbacks",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "map.inv_third_close",
+   "q": "Pullback or Remount?",
+   "choices": [
+    "Remount; a line lost and retaken",
+    "Pullback; the 50-day held in the end",
+    "Pullback; big volume proves buyers"
+   ],
+   "answer": "Remount; a line lost and retaken",
+   "why": "Remount. A pullback allows at most two closes under the line, the second reclaimed at once. Five or more is a line lost and retaken.",
+   "lesson_line": "Count the closes under the line. Two at most is a pullback.",
+   "facts": [
+    "l2",
+    "l2b"
+   ],
+   "wrong": {
+    "Pullback; the 50-day held in the end": "A pullback allows at most two closes under the line. Seven is a lost line.",
+    "Pullback; big volume proves buyers": "Volume does not change the count of closes under the line."
+   },
+   "house": true,
+   "story": "The stock closed under its 50-day for seven sessions in a row, one close more than 0.5 ATR under it. Today it closed back above it on big volume."
+  },
+  {
+   "key": "q34",
+   "skill": "setup.ma_pullbacks",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "map.one_setup",
+   "q": "Which card does this belong to?",
+   "choices": [
+    "This card, the 10-day form",
+    "The 20 EMA Pullback card",
+    "The Remount card"
+   ],
+   "answer": "The 20 EMA Pullback card",
+   "why": "The 20 EMA Pullback card. A low that tags the 20 EMA and holds above the 50-day is that card in full.",
+   "lesson_line": "Name the line the low touched. The 20 EMA has its own card.",
+   "facts": [
+    "l1",
+    "l1b"
+   ],
+   "wrong": {
+    "This card, the 10-day form": "This card's trades are the 10-day in a fast leader and the 50-day. The 20 EMA has its own card.",
+    "The Remount card": "Nothing was lost. The stock holds above its lines."
+   },
+   "house": true,
+   "story": "A leader's low tags its 20 EMA and the stock holds above its 50-day. The 200-day sits far below."
+  },
+  {
+   "key": "q35",
+   "skill": "setup.ma_pullbacks",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "map.undercut",
+   "q": "Pullback or Undercut and Rally?",
+   "choices": [
+    "Pullback; the line held by the end",
+    "Neither; the line broke, so skip it",
+    "Undercut and Rally; buy the reclaim"
+   ],
+   "answer": "Undercut and Rally; buy the reclaim",
+   "why": "Undercut and Rally. A buy taken as price trades back above a broken line is the Undercut and Rally, not a pullback.",
+   "lesson_line": "The buy names the setup. Over the hold day's high is a pullback.",
+   "facts": [
+    "l3",
+    "c14"
+   ],
+   "wrong": {
+    "Pullback; the line held by the end": "A pullback buys over the hold day's high. This buy is the move back above a broken line.",
+    "Neither; the line broke, so skip it": "The break and reclaim is a named setup of its own, the Undercut and Rally."
+   },
+   "house": true,
+   "story": "At 10 am a leader's low breaks 1% under its 50-day. By noon price is back above the line, and you buy the move back through."
+  },
+  {
+   "key": "q36",
+   "skill": "setup.ma_pullbacks",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "map.which_touch",
+   "q": "Pullback or EMA Crossback?",
+   "choices": [
+    "EMA Crossback; first test, new up-cycle",
+    "Pullback; any touch of the lines is one",
+    "Remount; the stock lost its lines"
+   ],
+   "answer": "EMA Crossback; first test, new up-cycle",
+   "why": "EMA Crossback. After a Wedge Pop the test of the averages is the Crossback. A later touch of a line rising for months is the pullback.",
+   "lesson_line": "A test right after the new up-cycle is a Crossback. A later one is a pullback.",
+   "facts": [
+    "kl1",
+    "l4",
+    "l2b"
+   ],
+   "wrong": {
+    "Pullback; any touch of the lines is one": "A touch right after a new up-cycle is the Crossback. A later touch of a long-rising line is the pullback.",
+    "Remount; the stock lost its lines": "It closed back above them. A remount is a line lost for five or more closes."
+   },
+   "house": true,
+   "story": "Six sessions ago a stock closed back above its 9 and 20 EMA after a correction, a new up-cycle. Today it touches them for the first time."
+  },
+  {
+   "key": "q37",
+   "skill": "setup.ma_pullbacks",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "map.depth",
+   "q": "Pullback to the averages, or Bull Flag?",
+   "choices": [
+    "Pullback; it touched the 10 EMA",
+    "Bull Flag; the 28% pole decides",
+    "Pullback; four days is too short"
+   ],
+   "answer": "Bull Flag; the 28% pole decides",
+   "why": "Bull Flag. A bull flag needs a 20% or larger gain inside 20 sessions. A pullback needs no pole, only a rising line and a 1 ATR dip.",
+   "lesson_line": "A big, fast pole before a tight drift means a flag. No pole means a pullback.",
+   "facts": [
+    "l5",
+    "l5b"
+   ],
+   "wrong": {
+    "Pullback; it touched the 10 EMA": "A pullback needs no pole. A 28% gain in 9 sessions is a bull flag's pole.",
+    "Pullback; four days is too short": "Length is not what decides it. The pole is."
+   },
+   "house": true,
+   "story": "A stock gains 28% in 9 sessions, then drifts 4 tight days down onto its 10 EMA."
+  },
+  {
+   "key": "q38",
+   "skill": "setup.ma_pullbacks",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "map.line_rising",
+   "q": "Is this a pullback to buy?",
+   "choices": [
+    "Yes, any touch of the 50-day works",
+    "Yes, if volume is quiet",
+    "No, the line has stopped rising"
+   ],
+   "answer": "No, the line has stopped rising",
+   "why": "No. The line must be rising, higher than its value 10 sessions ago. A line that stops rising is out before entry.",
+   "lesson_line": "A flat or falling line is not support. Skip it.",
+   "facts": [
+    "c05",
+    "c29",
+    "c38"
+   ],
+   "wrong": {
+    "Yes, any touch of the 50-day works": "The line must be rising. Buying the touch just because it is the line is the mistake.",
+    "Yes, if volume is quiet": "Quiet volume does not fix a falling line."
+   },
+   "house": true,
+   "story": "A leader drifts down onto its 50-day. The 50-day is now lower than it was 10 sessions ago."
+  },
+  {
+   "key": "q39",
+   "skill": "setup.ma_pullbacks",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "map.inv_index",
+   "q": "Buy the break, or stay patient?",
+   "choices": [
+    "Stay patient until it is back above",
+    "Buy; the stock is what matters",
+    "Buy half size to be safe"
+   ],
+   "answer": "Stay patient until it is back above",
+   "why": "Stay patient. If the index loses its 20-day, wait until it is back above.",
+   "lesson_line": "A strong stock in a weak index still has to wait.",
+   "facts": [
+    "c31",
+    "c32"
+   ],
+   "wrong": {
+    "Buy; the stock is what matters": "The card says to stay patient while the index is under its 20-day.",
+    "Buy half size to be safe": "Half size is not in the plan. Patience is."
+   },
+   "house": true,
+   "story": "Your leader passes every check. The index just closed under its 20-day for the first time in weeks."
+  },
+  {
+   "key": "q41",
+   "skill": "setup.ma_pullbacks",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "map.orderly",
+   "q": "Which one is orderly?",
+   "choices": [
+    "The two red bars; fast is clean",
+    "The six quiet days",
+    "Both are orderly"
+   ],
+   "answer": "The six quiet days",
+   "why": "The six quiet days. Orderly means no single down day larger than 2 ATR. The 2.5 ATR bars fail it.",
+   "lesson_line": "A sharp drop is not an orderly pullback. Slow and quiet is.",
+   "facts": [
+    "c12",
+    "g5"
+   ],
+   "wrong": {
+    "The two red bars; fast is clean": "Orderly means no single down day larger than 2 ATR.",
+    "Both are orderly": "A 2.5 ATR red bar breaks the 2 ATR limit."
+   },
+   "house": true,
+   "story": "Two pullbacks reach a rising 50-day. One drifts six quiet days. The other drops on two days of 2.5 ATR red bars."
+  },
+  {
+   "key": "q42",
+   "skill": "setup.ma_pullbacks",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "map.stop_width",
+   "q": "What does that do to the grade and the size?",
+   "choices": [
+    "Nothing; the grade and size stay",
+    "Tighten the stop to 3%",
+    "It grades down and the size shrinks"
+   ],
+   "answer": "It grades down and the size shrinks",
+   "why": "It grades down and the size shrinks. A wide stop, over 3%, that forces a much smaller size is a B- cue.",
+   "lesson_line": "Wide stop, smaller size. Never a tighter stop to fit.",
+   "facts": [
+    "g7",
+    "c22",
+    "hA13"
+   ],
+   "wrong": {
+    "Nothing; the grade and size stay": "A wide stop forces a much smaller size and is a B- cue.",
+    "Tighten the stop to 3%": "Never tighten the stop to fit. Cut the size."
+   },
+   "house": true,
+   "story": "A fast leader holds its 10-day. The pullback low sits 3.6% under your fill."
+  },
+  {
+   "key": "q43",
+   "skill": "setup.ma_pullbacks",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "map.market_reading",
+   "q": "Do you take it?",
+   "choices": [
+    "No, Orange means A+ setups only",
+    "Yes, B setups are normal size",
+    "Yes, but with a tighter stop"
+   ],
+   "answer": "No, Orange means A+ setups only",
+   "why": "No. Orange allows only A+ setups, and this is a B.",
+   "lesson_line": "The market reading comes before the chart. Orange is A+ only.",
+   "facts": [
+    "c08",
+    "hF65"
+   ],
+   "wrong": {
+    "Yes, B setups are normal size": "In Orange only A+ setups are taken.",
+    "Yes, but with a tighter stop": "A tighter stop does not change the reading."
+   },
+   "house": true,
+   "story": "A clean B-grade pullback shows up while the market reading is Orange."
+  },
+  {
+   "key": "q45",
+   "skill": "setup.ma_pullbacks",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "map.volume",
+   "q": "Which one is the cleaner pullback?",
+   "choices": [
+    "The one with rising volume",
+    "The five days at 0.6x volume",
+    "They are equal"
+   ],
+   "answer": "The five days at 0.6x volume",
+   "why": "The five days at 0.6x. Pullback days at or under about 0.7x the 50-day average are an A+ cue. Rising volume is a B- cue.",
+   "lesson_line": "Quiet is better than rising volume on the way down.",
+   "facts": [
+    "g2",
+    "g6"
+   ],
+   "wrong": {
+    "The one with rising volume": "Volume rising on the pullback is a B- cue.",
+    "They are equal": "The card grades quiet volume higher than rising volume."
+   },
+   "house": true,
+   "story": "Two dips onto a rising 50-day. One runs five days at 0.6x the 50-day volume. The other has volume rising each day."
+  },
+  {
+   "key": "q46",
+   "skill": "setup.ma_pullbacks",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "map.hold_day",
+   "q": "Does the reversal help the grade?",
+   "choices": [
+    "No, only volume grades a setup",
+    "No, a hammer means the line is weak",
+    "Yes, a tight reversal at the line helps"
+   ],
+   "answer": "Yes, a tight reversal at the line helps",
+   "why": "Yes. A tight reversal at the line (hammer, inside day, undercut and reclaim) is an A+ cue. It keeps the stop at 3% or less.",
+   "lesson_line": "A tight reversal at the line keeps the stop small.",
+   "facts": [
+    "g4"
+   ],
+   "wrong": {
+    "No, only volume grades a setup": "The card names a tight reversal at the line as an A+ cue.",
+    "No, a hammer means the line is weak": "A hammer at the line counts as a tight reversal, which our card lists as an A+ cue."
+   },
+   "house": true,
+   "story": "A leader dips to its 10-day. The hold day is a tight reversal at the line, a hammer, and the stop is under 3%."
+  },
+  {
+   "key": "q47",
+   "skill": "setup.ma_pullbacks",
+   "rung": 6,
+   "format": "tf",
+   "criterion": "map.market_reading",
+   "q": "Grading a pullback is a fixed checklist: tick every box and it is an A+.",
+   "answer": "False",
+   "why": "False. Grading a setup is discretionary and hard to define. The cues help, but no checklist makes it an A+.",
+   "lesson_line": "Grades are judgment with cues, not a checklist.",
+   "facts": [
+    "hE50",
+    "g3"
+   ],
+   "house": true
+  },
+  {
+   "key": "q48",
+   "skill": "setup.ma_pullbacks",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "map.stop_width",
+   "q": "What do we do about the 3.6% stop?",
+   "choices": [
+    "Cut the size, keep the same risk",
+    "Move the stop up to 3% to fit",
+    "Skip it; the setup looks bad to me"
+   ],
+   "answer": "Cut the size, keep the same risk",
+   "why": "Cut the size so the account risk stays the same. The stop is above our 3%, so size comes down.",
+   "lesson_line": "Wide stop on a fast leader: smaller size, same risk.",
+   "facts": [
+    "dYELP",
+    "dYELPs",
+    "c22",
+    "hA13"
+   ],
+   "wrong": {
+    "Move the stop up to 3% to fit": "Never move the stop up to make it fit.",
+    "Skip it; the setup looks bad to me": "The setup is fine. Only the size changes."
+   },
+   "house": true,
+   "story": "YELP, 2013. A fast leader that rode its 10 EMA since February drifts four quiet days. You buy at 31.80 with the stop at 30.67."
+  },
+  {
+   "key": "q49",
+   "skill": "setup.ma_pullbacks",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "map.touch",
+   "q": "Which line was this pullback, and is it ours?",
+   "choices": [
+    "The 200-day; it is the base",
+    "The 50-day; yes, the deeper form",
+    "The 10-day; this is a fast leader"
+   ],
+   "answer": "The 50-day; yes, the deeper form",
+   "why": "The 50-day, the deeper form. A mega cap's first test of the rising 50 SMA, six days on quiet volume, reached 3R in 10 sessions.",
+   "lesson_line": "The deeper pullback goes to the rising 50-day, in a leader.",
+   "facts": [
+    "dCATw",
+    "l1b",
+    "dCAT"
+   ],
+   "wrong": {
+    "The 200-day; it is the base": "The 200-day is context, not the line this card buys.",
+    "The 10-day; this is a fast leader": "The stock tested the 50-day, the deeper form, not the 10-day."
+   },
+   "house": true,
+   "story": "CAT, 2025. A mega cap makes its first test of the rising 50 SMA after a long run. Six days down on quiet volume, then a tight hold."
+  },
+  {
+   "key": "q50",
+   "skill": "setup.ma_pullbacks",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "map.depth",
+   "q": "Does the dip pass the depth rule?",
+   "choices": [
+    "No, it must be 2 ATR or more",
+    "No, six days is too long",
+    "Yes, just: it is at least 1 ATR"
+   ],
+   "answer": "Yes, just: it is at least 1 ATR",
+   "why": "Yes, just. The close was at least 1 ATR under the 11-day high, and 1.01 ATR passes. The shallowest of the ten examples.",
+   "lesson_line": "One ATR is the line. MOH cleared it by a hair.",
+   "facts": [
+    "dMOHd",
+    "c09",
+    "c11"
+   ],
+   "wrong": {
+    "No, it must be 2 ATR or more": "The rule is at least 1 ATR, not 2.",
+    "No, six days is too long": "Two to eight sessions is the length rule, so six fits."
+   },
+   "house": true,
+   "story": "MOH, 2018. Six days sideways on the lowest volume on the chart. The dip is 1.01 ATR deep."
+  },
+  {
+   "key": "q51",
+   "skill": "setup.ma_pullbacks",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "map.length",
+   "q": "Does a three-day drop fit the length rule?",
+   "choices": [
+    "Yes, 2 to 8 sessions covers it",
+    "No, it needs at least 5 sessions",
+    "No, a drop is never a pullback"
+   ],
+   "answer": "Yes, 2 to 8 sessions covers it",
+   "why": "Yes. The pullback lasts 2 to 8 sessions, and three days fits. The stop was under 1%.",
+   "lesson_line": "Two to eight sessions, and three counts.",
+   "facts": [
+    "dBFAM",
+    "dBFAMw",
+    "c11",
+    "c12"
+   ],
+   "wrong": {
+    "No, it needs at least 5 sessions": "The rule is 2 to 8 sessions, so three fits.",
+    "No, a drop is never a pullback": "A short, orderly drop onto a rising line fits if no day is over 2 ATR."
+   },
+   "house": true,
+   "story": "BFAM, 2019. A three-day drop onto the rising 50 SMA in a steady grinder. The dip is 2.24 ATR deep."
+  },
+  {
+   "key": "q53",
+   "skill": "setup.ma_pullbacks",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "map.inv_third_close",
+   "q": "What does the third close under the line say?",
+   "choices": [
+    "Buy; it dipped and came back",
+    "Skip it; it slices the line",
+    "Call it a Remount"
+   ],
+   "answer": "Skip it; it slices the line",
+   "why": "Skip it. A third close under the line in the same pullback means the name keeps slicing the line. It is fewer than 5 closes, so not a Remount.",
+   "lesson_line": "Three closes under the line is a line sliced, not held.",
+   "facts": [
+    "dADI",
+    "dADIw",
+    "c30",
+    "c37"
+   ],
+   "wrong": {
+    "Buy; it dipped and came back": "A third close under the line in the same pullback is a skip.",
+    "Call it a Remount": "Fewer than 5 closes under, so it is not a Remount either."
+   },
+   "house": true,
+   "story": "ADI, 2023. In an 8-session pullback the stock closed under the moving average it was testing three times."
+  },
+  {
+   "key": "q54",
+   "skill": "setup.ma_pullbacks",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "map.length",
+   "q": "Which check fails on this card?",
+   "choices": [
+    "The line is rising",
+    "The distance from the high",
+    "The length: 2 to 8 sessions"
+   ],
+   "answer": "The length: 2 to 8 sessions",
+   "why": "The length. The card allows 2 to 8 sessions and this took 10. On the 20 EMA Pullback card, a 10-session drift sits inside its window.",
+   "lesson_line": "Ten sessions is too long for this card. Judge it on the 20 EMA card.",
+   "facts": [
+    "dMETA",
+    "dMETAw",
+    "dNear",
+    "c11"
+   ],
+   "wrong": {
+    "The line is rising": "That check passes here. Exactly one check fails, and it is the length.",
+    "The distance from the high": "That check passes here. The length is the one that fails."
+   },
+   "house": true,
+   "story": "META, 2026. A stock drifts 10 sessions from the swing high to its touch day. Every other check on the card passes."
+  },
+  {
+   "key": "q55",
+   "skill": "setup.ma_pullbacks",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "map.near_high",
+   "q": "Which check fails?",
+   "choices": [
+    "Near the 52-week high",
+    "The length of the dip",
+    "The 10-day line is rising"
+   ],
+   "answer": "Near the 52-week high",
+   "why": "Within 25% of the 52-week high. At 32.7% under it, this is a recovering stock's 10-day, not a leader's pullback.",
+   "lesson_line": "A stock far under its high is recovering, not leading.",
+   "facts": [
+    "dAMD",
+    "dAMDw",
+    "dNear",
+    "c03"
+   ],
+   "wrong": {
+    "The length of the dip": "That check passes here. Exactly one check fails, and it is the distance from the high.",
+    "The 10-day line is rising": "That check passes here. The distance from the 52-week high is what fails."
+   },
+   "house": true,
+   "story": "AMD, 2019. A dip touches its 10-day on the hold day. The 52-week high is 34.14 and the close is 32.7% under it."
+  },
+  {
+   "key": "q56",
+   "skill": "setup.ma_pullbacks",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "map.inv_heavy_close",
+   "q": "Is this a pullback to buy?",
+   "choices": [
+    "Yes, it is just testing the 50-day",
+    "No, a heavy close under the line",
+    "Yes, if it reclaims it tomorrow"
+   ],
+   "answer": "No, a heavy close under the line",
+   "why": "No. A close under the line on more than 1.5 times the 50-day volume is distribution, not a pullback. This was 4.5 times.",
+   "lesson_line": "A heavy close under the line is selling. Skip it.",
+   "facts": [
+    "dTSM",
+    "c28"
+   ],
+   "wrong": {
+    "Yes, it is just testing the 50-day": "A close under the line on more than 1.5 times the 50-day volume is distribution.",
+    "Yes, if it reclaims it tomorrow": "The card drops it before entry. Heavy selling is not a pullback."
+   },
+   "house": true,
+   "story": "TSM, 2025. A stock sits on its 50-day, then closes under it on 4.5 times its 50-day volume."
+  },
+  {
+   "key": "q57",
+   "skill": "setup.ma_pullbacks",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "map.after_entry_stop",
+   "q": "What do you do?",
+   "choices": [
+    "Move the stop down and wait it out",
+    "Buy again at once at the same price",
+    "Take it; re-enter on a new trigger"
+   ],
+   "answer": "Take it; re-enter on a new trigger",
+   "why": "Take the loss and buy again only on a new trigger. The rule cannot see the market: the index was topping the same week.",
+   "lesson_line": "A planned loss is the system working. Re-enter only on a new trigger.",
+   "facts": [
+    "dNVDA",
+    "dNVDAw",
+    "hA4",
+    "hB21"
+   ],
+   "wrong": {
+    "Move the stop down and wait it out": "The stop only moves up, never down or wider.",
+    "Buy again at once at the same price": "After a stop-out, buy again only if the setup triggers again, as a new trade."
+   },
+   "house": true,
+   "story": "NVDA, April 2024 (prices split-adjusted). A clean pullback with stacked, rising averages. You bought at 90.10 with the stop at 87.57. Next day the stop is hit."
+  },
+  {
+   "key": "q58",
+   "skill": "setup.ma_pullbacks",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "map.after_entry_stop",
+   "q": "Was the loss a rule break?",
+   "choices": [
+    "No, the rules were followed",
+    "Yes, we should have waited",
+    "Yes, the stop was too tight"
+   ],
+   "answer": "No, the rules were followed",
+   "why": "No. The setup was followed and the line gave way, the card's failure mode. It never reached 3R in the window.",
+   "lesson_line": "A stop-out with every rule followed is a normal cost.",
+   "facts": [
+    "dGILD",
+    "dGILDw",
+    "fm",
+    "hA4"
+   ],
+   "wrong": {
+    "Yes, we should have waited": "Every check passed. The line gave way, which the card names as the failure mode.",
+    "Yes, the stop was too tight": "The stop sits under the pullback low. It was where the plan put it."
+   },
+   "house": true,
+   "story": "GILD, 2014. A 50-day pullback bought at 109.07, stop 106.28. The low broke the 50-day the same day and the stop was hit on day 2."
+  },
+  {
+   "key": "q59",
+   "skill": "setup.ma_pullbacks",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "map.tries",
+   "q": "May you buy it back the next morning?",
+   "choices": [
+    "Yes, the shakeout proved the line",
+    "Only on a new trigger, as a new trade",
+    "No, never buy that name again"
+   ],
+   "answer": "Only on a new trigger, as a new trade",
+   "why": "Only on a new trigger, as a new trade with its own stop. At most 3 tries a week and 6 a month on one stock.",
+   "lesson_line": "A failed hold is answered with a new trigger, not a re-buy.",
+   "facts": [
+    "dPLTR",
+    "dPLTRw",
+    "hB21",
+    "hE56"
+   ],
+   "wrong": {
+    "Yes, the shakeout proved the line": "After a stop-out, buy again only if the setup triggers again.",
+    "No, never buy that name again": "A new trigger is a new trade. The stock is not banned."
+   },
+   "house": true,
+   "story": "PLTR, 2025. Bought at 127.78 on a 10-day pullback, stop 124.27, hit on day 1. It was a one-day shakeout and it climbed later without us."
+  },
+  {
+   "key": "q60",
+   "skill": "setup.ma_pullbacks",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "map.stop_gap",
+   "q": "What do you do?",
+   "choices": [
+    "Wait for a bounce back to the stop",
+    "Move the stop to the gap day's low",
+    "Get out; past 2R the plan exits it"
+   ],
+   "answer": "Get out; past 2R the plan exits it",
+   "why": "Get out. After a gap against the stop, the first 30-minute low is the new stop. If the first 30 minutes take the loss past 2R, get out.",
+   "lesson_line": "Gap through the stop: first 30 minutes decide, past 2R you are out.",
+   "facts": [
+    "hB20",
+    "hB20b"
+   ],
+   "wrong": {
+    "Wait for a bounce back to the stop": "The first 30 minutes decide, and past 2R we are out.",
+    "Move the stop to the gap day's low": "The new stop is the first 30-minute low, and past 2R we exit."
+   },
+   "house": true,
+   "story": "You hold a pullback buy. It gaps down through your stop. The first 30 minutes take the loss past 2R."
+  },
+  {
+   "key": "q61",
+   "skill": "setup.ma_pullbacks",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "map.line_rising",
+   "q": "Pullback to buy, or something else?",
+   "choices": [
+    "A correction; the 50-day is flat",
+    "A pullback; it is inside 25% of the high",
+    "A pullback; a first touch is best"
+   ],
+   "answer": "A correction; the 50-day is flat",
+   "why": "A correction. A broken leader's first touch of the 50-day is a correction, not a pullback. The 50 was flat.",
+   "lesson_line": "First touch of a flat 50-day on a broken leader is not a pullback.",
+   "facts": [
+    "dTSLA",
+    "dTSLAw",
+    "c36",
+    "c05"
+   ],
+   "wrong": {
+    "A pullback; it is inside 25% of the high": "Inside 25% is only one check. The 50-day is flat.",
+    "A pullback; a first touch is best": "A broken leader's first touch of the 50 is a correction."
+   },
+   "house": true,
+   "story": "TSLA, 2024. A former leader is 20.6% off its high, with a flat 50 SMA. The pullback is 3.6 ATR deep and it touches the 50-day for the first time."
+  },
+  {
+   "key": "q62",
+   "skill": "setup.ma_pullbacks",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "map.stop_width",
+   "q": "What does the 5.9% stop mean for the trade?",
+   "choices": [
+    "Nothing; the chart is clean",
+    "Size down a lot, or skip",
+    "Move the stop up to 3%"
+   ],
+   "answer": "Size down a lot, or skip",
+   "why": "Size down a lot, or skip. The stop is above our 3%. If even a smaller size does not fit, skip the trade.",
+   "lesson_line": "A very wide stop means a very small size, or no trade.",
+   "facts": [
+    "dMU",
+    "c22",
+    "hA3"
+   ],
+   "wrong": {
+    "Nothing; the chart is clean": "A stop over about 3% means a smaller size, or a skip if even that does not fit.",
+    "Move the stop up to 3%": "Never tighten the stop to fit."
+   },
+   "house": true,
+   "story": "MU, 2026. A seven-day drift onto a rising line, 16.7% off its high. The stop is 5.9% under the buy."
+  },
+  {
+   "key": "q63",
+   "skill": "setup.ma_pullbacks",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "map.time_stop",
+   "q": "What does the plan say?",
+   "choices": [
+    "Hold; the stop has not been hit",
+    "Add more; it is cheap",
+    "Sell it and free the money"
+   ],
+   "answer": "Sell it and free the money",
+   "why": "Sell it. A trade still under 1R after 10 trading days is sold, freeing the money.",
+   "lesson_line": "Ten trading days under 1R, and the money moves on.",
+   "facts": [
+    "hC33"
+   ],
+   "wrong": {
+    "Hold; the stop has not been hit": "A trade still under 1R after 10 trading days is sold.",
+    "Add more; it is cheap": "No adds. The time stop sells."
+   },
+   "house": true,
+   "story": "You bought a pullback 10 trading days ago. The trade is still under 1R. The line has not broken."
+  },
+  {
+   "key": "q64",
+   "skill": "setup.ma_pullbacks",
+   "rung": 9,
+   "format": "mcq",
+   "criterion": "map.hold_day",
+   "q": "Hidden ticker, the day before the buy trades. Is this a leader's pullback to a rising line? Take it or pass.",
+   "choices": [
+    "Take it; a calm dip held its line",
+    "Pass; the line is clearly falling",
+    "Pass; the dip is far too shallow"
+   ],
+   "answer": "Take it; a calm dip held its line",
+   "why": "Take it. A leader that had ridden its 10 EMA since February drifted four quiet days onto the line. 3R came the next day.",
+   "lesson_line": "Rising line, quiet dip, a hold. That is the picture.",
+   "facts": [
+    "dYELPw",
+    "dYELP",
+    "c10",
+    "c09"
+   ],
+   "wrong": {
+    "Pass; the line is clearly falling": "Look again: the line is rising and price has ridden it.",
+    "Pass; the dip is far too shallow": "The dip was 1.42 ATR, past the 1 ATR minimum."
+   },
+   "house": true,
+   "chart": {
+    "sym": "YELP",
+    "asof": "2013-06-25",
+    "window": 120,
+    "forward": 20
+   }
+  },
+  {
+   "key": "q65",
+   "skill": "setup.ma_pullbacks",
+   "rung": 9,
+   "format": "mcq",
+   "criterion": "map.near_high",
+   "q": "Hidden ticker, the day before a would-be buy. Is this a leader's pullback? Take it or pass.",
+   "choices": [
+    "Take it; the dip touched the 10-day",
+    "Pass; the stock sits far under its high",
+    "Pass; the dip is too short"
+   ],
+   "answer": "Pass; the stock sits far under its high",
+   "why": "Pass. It sat 32.7% under its 52-week high, outside the 25% limit. A recovering stock's 10-day, not a leader's pullback.",
+   "lesson_line": "A rising 10-day under a deep hole is a recovery, not a leader.",
+   "facts": [
+    "dAMD",
+    "dAMDw",
+    "dNear",
+    "c03"
+   ],
+   "wrong": {
+    "Take it; the dip touched the 10-day": "A touch of the line is not enough. The stock is too far from its 52-week high.",
+    "Pass; the dip is too short": "That check passes here. The distance from the high is what fails."
+   },
+   "house": true,
+   "chart": {
+    "sym": "AMD",
+    "asof": "2019-02-11",
+    "window": 260,
+    "forward": 20
+   }
+  },
+  {
+   "key": "q66",
+   "skill": "setup.ma_pullbacks",
+   "rung": 9,
+   "format": "tf",
+   "criterion": "map.touch",
+   "q": "Decide which line a stock respects before the trade, not after the low shows where it stopped.",
+   "answer": "True",
+   "why": "True. Picking the line after the fact is a listed mistake. Decide before the trade which line this stock respects.",
+   "lesson_line": "Pick the line before the trade. Never after the low shows where it stopped.",
+   "facts": [
+    "c35"
+   ],
+   "house": true
+  },
+  {
+   "key": "q67",
+   "skill": "setup.ma_pullbacks",
+   "rung": 9,
+   "format": "scenario",
+   "criterion": "map.trim_1",
+   "q": "How do you answer?",
+   "choices": [
+    "No; size by the stop, not a win rate",
+    "He is right; most pullbacks win",
+    "Skip the setup; 27.7% is too low"
+   ],
+   "answer": "No; size by the stop, not a win rate",
+   "why": "No. Size comes from the stop and the risk rule, never from a win rate or a streak. In the test about one in four reached 3R and one in six 5R.",
+   "lesson_line": "Never size up on a win-rate claim. Size comes from the stop and the rules.",
+   "facts": [
+    "dEdge",
+    "dBase",
+    "hD45"
+   ],
+   "wrong": {
+    "He is right; most pullbacks win": "In the test only about one in four reached 3R before the stop. It is not a high hit rate.",
+    "Skip the setup; 27.7% is too low": "A low hit rate alone is not a reason to skip. The test used a fixed stop with no trims, so it does not measure our plan."
+   },
+   "house": true,
+   "story": "A friend says this setup wins most of the time, so size up. Our test of 60,464 pullbacks found 27.7% reached 3R before the stop."
+  },
+  {
+   "key": "q68",
+   "skill": "setup.ma_pullbacks",
+   "rung": 9,
+   "format": "scenario",
+   "criterion": "map.trail",
+   "q": "What does the plan do with the last third?",
+   "choices": [
+    "Hold until the 50-day breaks down",
+    "Sell on a close below the 10-day",
+    "Add back the third sold at 5R"
+   ],
+   "answer": "Sell on a close below the 10-day",
+   "why": "Sell it. The last third is trailed under the 10-day for a fast mover and sold on a close below it.",
+   "lesson_line": "The last third rides the trail and leaves on a close below it.",
+   "facts": [
+    "hE51",
+    "hE52",
+    "c26"
+   ],
+   "wrong": {
+    "Hold until the 50-day breaks down": "For a fast mover the trail is the 10-day, sold on a close below it.",
+    "Add back the third sold at 5R": "No adds. The plan sells the last third."
+   },
+   "house": true,
+   "story": "A fast mover you bought has reached 5R. You sold a third at 3R and a third at 5R. Price then closes under the 10-day."
+  },
+  {
+   "key": "q72",
+   "skill": "setup.ma_pullbacks",
+   "rung": 2,
+   "format": "tf",
+   "criterion": "map.ma200_rising",
+   "q": "Our card wants the 200-day SMA rising for at least 21 sessions before a pullback buy.",
+   "answer": "True",
+   "why": "True. Minervini's template wants a 200-day rising at least one month. Our card turns that into 21 sessions, as a proposal.",
+   "lesson_line": "The 200-day should be higher than it was 21 sessions ago.",
+   "facts": [
+    "m1",
+    "c02"
+   ],
+   "house": true
+  },
+  {
+   "key": "q73",
+   "skill": "setup.ma_pullbacks",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "map.ma200_rising",
+   "q": "What does our card say about this pullback?",
+   "choices": [
+    "Pass; the 200-day is not rising",
+    "Pass; four days is too short a dip",
+    "Take it; price is above the 200-day"
+   ],
+   "answer": "Pass; the 200-day is not rising",
+   "why": "Pass. Our card wants the 200-day higher than it was 21 sessions ago, and this one is lower.",
+   "lesson_line": "Price over the 200-day is not enough. The 200-day itself should be rising.",
+   "facts": [
+    "c02",
+    "m1",
+    "c11"
+   ],
+   "wrong": {
+    "Pass; four days is too short a dip": "Four sessions fits the 2 to 8 session length. The 200-day is the problem.",
+    "Take it; price is above the 200-day": "Above the 200-day is the floor. Our card also wants it rising for at least 21 sessions."
+   },
+   "house": true,
+   "story": "A stock drifts four quiet days onto its 50 SMA. Price is above the 200-day, but the 200-day is lower than it was 21 sessions ago."
+  },
+  {
+   "key": "q74",
+   "skill": "setup.ma_pullbacks",
+   "rung": 4,
+   "format": "numeric",
+   "criterion": "map.position_adv",
+   "q": "A stock trades 2,000,000 shares a day on average. Under our 1% rule, what is the most shares you can own?",
+   "answer": 20000,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "a * 0.01",
+     "a": 2000000
+    },
+    "round": 0
+   },
+   "why": "20,000. One percent of the average daily volume is the most we own, whatever the stop says.",
+   "lesson_line": "Check the average daily volume first. Own no more than 1% of it.",
+   "facts": [
+    "hD42",
+    "c21"
+   ],
+   "house": true,
+   "suffix": " shares"
+  },
+  {
+   "key": "q75",
+   "skill": "setup.ma_pullbacks",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "map.position_adv",
+   "q": "How do you size the buy?",
+   "choices": [
+    "Buy 4,000, held to the 1% cap",
+    "Buy 6,000; the stop sets the size",
+    "Buy 5,000 and split the difference"
+   ],
+   "answer": "Buy 4,000, held to the 1% cap",
+   "why": "Buy 4,000. One percent of 400,000 shares is 4,000, and we never own more than that. The stop alone would allow 6,000.",
+   "lesson_line": "The stop sizes the trade and the volume cap limits it. Stay under both.",
+   "facts": [
+    "hD42",
+    "c21",
+    "hA5"
+   ],
+   "wrong": {
+    "Buy 6,000; the stop sets the size": "The stop gives 6,000, but that is over 1% of the average daily volume. The cap wins.",
+    "Buy 5,000 and split the difference": "5,000 is still over the cap. The limit is not something to average."
+   },
+   "house": true,
+   "story": "A thin leader averages 400,000 shares a day. Your stop and risk size work out to 6,000 shares.",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "a * 0.01",
+     "a": 400000
+    },
+    "round": 0
+   }
+  },
+  {
+   "key": "q76",
+   "skill": "setup.ma_pullbacks",
+   "rung": 3,
+   "format": "tf",
+   "criterion": "map.index_20",
+   "q": "Our card makes the index above a rising 20-day a gate: no gate, no pullback buy.",
+   "answer": "False",
+   "why": "False. The index above a rising 20-day is a cue, not a gate. Losing the 20-day is what makes us wait.",
+   "lesson_line": "A rising index 20-day helps the read. Losing it is the warning.",
+   "facts": [
+    "c32",
+    "c31"
+   ],
+   "house": true
+  },
+  {
+   "key": "q77",
+   "skill": "setup.ma_pullbacks",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "map.index_20",
+   "q": "Which week reads stronger for the pullback buy?",
+   "choices": [
+    "Week one, the index is rising",
+    "Week two, the index line is flat",
+    "Neither; the index plays no part"
+   ],
+   "answer": "Week one, the index is rising",
+   "why": "Week one. Our card reads an index above a rising 20-day as a plus. It is a cue, not a gate.",
+   "lesson_line": "A rising index 20-day is a plus for the read, not a requirement.",
+   "facts": [
+    "c32"
+   ],
+   "wrong": {
+    "Week two, the index line is flat": "A flat 20-day is not rising. The cue asks for a rising line.",
+    "Neither; the index plays no part": "It is a cue on our card. It does not gate the buy, but it helps the read."
+   },
+   "house": true,
+   "story": "The same pullback to the 50-day is seen in two different weeks. In week one the index sits above a rising 20-day. In week two it sits above its 20-day, but that line is flat."
+  },
+  {
+   "key": "q78",
+   "skill": "setup.ma_pullbacks",
+   "rung": 2,
+   "format": "mcq",
+   "criterion": "map.trigger_variants",
+   "q": "Which of these is a named variant of the entry on this card?",
+   "choices": [
+    "A reversal candle at the line",
+    "A gap through the 52-week high",
+    "A close under the 200-day",
+    "A third close under the line"
+   ],
+   "answer": "A reversal candle at the line",
+   "why": "A reversal candle at the line. Our card names it a variant, along with red to green and a 9 EMA remount.",
+   "lesson_line": "Know the variants: red to green, a 9 EMA remount, a reversal candle at the line.",
+   "facts": [
+    "c15",
+    "hB26",
+    "c30"
+   ],
+   "wrong": {
+    "A gap through the 52-week high": "That is a breakout buy, not a pullback entry.",
+    "A close under the 200-day": "That is a reason to stay out: no longs below the 200-day.",
+    "A third close under the line": "A third close under the line is a skip, not a buy."
+   },
+   "house": true
+  },
+  {
+   "key": "q79",
+   "skill": "setup.ma_pullbacks",
+   "rung": 3,
+   "format": "tf",
+   "criterion": "map.trigger_variants",
+   "q": "A 9 EMA remount is one of the entry variants named on this card.",
+   "answer": "True",
+   "why": "True. Our card names a 9 EMA remount beside red to green and a reversal candle at the line.",
+   "lesson_line": "A 9 EMA remount is a named variant, not the default entry.",
+   "facts": [
+    "c15"
+   ],
+   "house": true
+  },
+  {
+   "key": "q80",
+   "skill": "setup.ma_pullbacks",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "map.stop_broker",
+   "q": "What was missing from the plan?",
+   "choices": [
+    "A real stop order with the broker",
+    "A tighter stop, nearer the entry",
+    "A price alert on the phone at 30.67"
+   ],
+   "answer": "A real stop order with the broker",
+   "why": "A real stop order. Our rule is a live order with the broker, not a stop kept in your head or an alert.",
+   "lesson_line": "The stop is an order with the broker, not a number in your head.",
+   "facts": [
+    "hD41",
+    "hA4"
+   ],
+   "wrong": {
+    "A tighter stop, nearer the entry": "Distance was not the problem. Nothing was in place to sell at 30.67.",
+    "A price alert on the phone at 30.67": "An alert only tells you. It does not sell. The stop has to be an order."
+   },
+   "house": true,
+   "story": "You buy a pullback at 31.80 with the stop at 30.67, kept in your head. At 2 pm you are on a call and the stock trades 29.90."
+  },
+  {
+   "key": "q81",
+   "skill": "setup.ma_pullbacks",
+   "rung": 3,
+   "format": "tf",
+   "criterion": "map.stop_broker",
+   "q": "If a pullback needs more room, you can move the stop lower to keep the trade open.",
+   "answer": "False",
+   "why": "False. The stop is the exit. It only moves up, never down or wider.",
+   "lesson_line": "The stop only moves up. Never lower it to keep a trade alive.",
+   "facts": [
+    "hA4",
+    "hD41"
+   ],
+   "house": true
+  },
+  {
+   "key": "q82",
+   "skill": "setup.ma_pullbacks",
+   "rung": 3,
+   "format": "mcq",
+   "criterion": "map.breakeven",
+   "q": "By default, when does the stop move to breakeven?",
+   "choices": [
+    "When the first third comes off",
+    "Right after the fill, at the entry",
+    "As soon as the trade is up 1R",
+    "Once the last third starts to trail"
+   ],
+   "answer": "When the first third comes off",
+   "why": "With the first trim. Our rule moves the stop to breakeven between 2R and 5R, at the first trim by default.",
+   "lesson_line": "Breakeven comes between 2R and 5R, by default at the first trim.",
+   "facts": [
+    "hB19",
+    "c23",
+    "hE51"
+   ],
+   "wrong": {
+    "Right after the fill, at the entry": "That is not the rule. Breakeven comes between 2R and 5R.",
+    "As soon as the trade is up 1R": "1R is under the window. Breakeven comes between 2R and 5R.",
+    "Once the last third starts to trail": "That is after the 5R trim. The default is the first trim."
+   },
+   "house": true
+  },
+  {
+   "key": "q83",
+   "skill": "setup.ma_pullbacks",
+   "rung": 4,
+   "format": "numeric",
+   "criterion": "map.breakeven",
+   "q": "Bought at 50.00 with the stop at 48.00. At what price is 2R, where the breakeven window opens?",
+   "answer": 54.0,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "a + 2 * (a - b)",
+     "a": 50.0,
+     "b": 48.0
+    },
+    "round": 2
+   },
+   "why": "54. One R is the buy minus the stop, so 2R is the buy plus two of those. The window runs from 2R to 5R.",
+   "lesson_line": "Know your 2R before the open. The breakeven window starts there.",
+   "facts": [
+    "hB19",
+    "c23"
+   ],
+   "house": true,
+   "prefix": "$"
+  },
+  {
+   "key": "q84",
+   "skill": "setup.ma_pullbacks",
+   "rung": 2,
+   "format": "fill",
+   "criterion": "map.trim_gap_open",
+   "q": "Complete the trim rule.",
+   "sentence": "Price jumps past your 5R level overnight. You take that trim at the ___.",
+   "bank": [
+    "open",
+    "close",
+    "retest",
+    "pivot"
+   ],
+   "answer": "open",
+   "why": "Open. If a stock opens above a trim level, 3R or 5R, take that trim at the open.",
+   "lesson_line": "If it gaps over your trim level, take the trim at the open.",
+   "facts": [
+    "hF63",
+    "c24"
+   ],
+   "house": true
+  },
+  {
+   "key": "q85",
+   "skill": "setup.ma_pullbacks",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "map.trim_gap_open",
+   "q": "How do you handle the first trim?",
+   "choices": [
+    "Take the first third at the open",
+    "Wait for it to fall back to 35.19",
+    "Move the trim to 5R and hold all"
+   ],
+   "answer": "Take the first third at the open",
+   "why": "Take the first third at the open. If a stock opens above a trim level, we take that trim there.",
+   "lesson_line": "The open is above your level. Take the trim there.",
+   "facts": [
+    "hF63",
+    "hB19"
+   ],
+   "wrong": {
+    "Wait for it to fall back to 35.19": "The level is already passed. The rule takes the trim at the open.",
+    "Move the trim to 5R and hold all": "The plan does not skip a trim level. The first third comes off at 3R, here at the open."
+   },
+   "house": true,
+   "story": "Your first trim level is 3R at 35.19. The stock opens at 36.40, above the level."
+  },
+  {
+   "key": "q86",
+   "skill": "setup.ma_pullbacks",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "map.climax",
+   "q": "What fits our climax rule?",
+   "choices": [
+    "Sell a big part into the burst",
+    "Add at the gap; the leg is strong",
+    "Hold it all and trail the 21-day"
+   ],
+   "answer": "Sell a big part into the burst",
+   "why": "Sell a big part into the burst. On a climax run in your own long, how much to sell is a judgment call.",
+   "lesson_line": "Into a climax run, sell a big part. How much is your call.",
+   "facts": [
+    "hC34",
+    "hA5b"
+   ],
+   "wrong": {
+    "Add at the gap; the leg is strong": "No adds. A climax is where we sell, not where we buy more.",
+    "Hold it all and trail the 21-day": "The rule is to sell a big part into a climax, not to wait for the trail."
+   },
+   "house": true,
+   "story": "Your pullback buy has run four days. It gapped up twice on rising volume, and today it gaps up again on its widest range yet."
+  },
+  {
+   "key": "q87",
+   "skill": "setup.ma_pullbacks",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "map.inv_line_flat",
+   "q": "Do you buy the break of the hold day's high?",
+   "choices": [
+    "No; the 20 EMA is under the 50",
+    "No; five days is too long a drift",
+    "Yes; quiet volume is what matters"
+   ],
+   "answer": "No; the 20 EMA is under the 50",
+   "why": "No. Before entry, a 20 EMA that crosses under the 50 SMA takes the pullback off the list.",
+   "lesson_line": "If the 20 EMA slips under the 50, the pullback is off the list.",
+   "facts": [
+    "c29",
+    "c01",
+    "c11"
+   ],
+   "wrong": {
+    "No; five days is too long a drift": "Five sessions fits the 2 to 8 session length. The averages are the problem.",
+    "Yes; quiet volume is what matters": "Quiet volume does not fix the order of the averages. Our card wants the 20 EMA above the 50 SMA."
+   },
+   "house": true,
+   "story": "A leader pulls back five quiet days to its 50-day. The hold day closes on the line, but the 20 EMA has just crossed under the 50 SMA."
+  }
+ ],
+ "conflicts": [
+  "Unit id and skill from the brief (SET.43, setup.ma_pullbacks). UNITS-method has no row for this card (its unit is 'none'), so the id is provisional pending D-002, the setup map. The unit follows the criteria card and dossier 12.",
+  "Pending-owner criteria kept OUT of every key and wrong note (the course's current default, waiting on the owner): map.one_setup and map.which_numbers, which lines and which numbers (D-021; the unit keys only the lines that proposed or settled criteria already name, the 10-day in E52 and the grading cue, the 20 EMA and 50 SMA in map.line_rising and map.above_200, and never asks 20 against 21; q34 sends a 20 EMA tag to its own card by the card's tell, and q66 keys the mistake of picking the line after the fact). map.rs_timing (D-011; q05 keys C31 as written and never says when RS is read). map.not_200_long (D-009; no item, and the card's IBM 2010-08-16 near-miss is not used because its one failing criterion is pending; B26 appears only as no longs below the 200-day). map.which_touch (D-026; no item counts touches; q36 keys the EMA Crossback by the card's tell and Deepvue's wording and never by a session count, the 3 to 20 window in the card's tell stays out; q20 keys Bonde's first pullback beside the proposed map.recent_catalyst). map.undercut (D-002; q35 keys the card's lookalike tell, the buy names the setup, and no depth is taught). map.trigger (D-003; the buy is drawn as the trade over the hold day's high, the dossier's recommended default and the way every example was scanned; q04 and q16 key the market order and the R arithmetic; no item asks for the intraday turn). map.stop (D-008; the stop is keyed from A3 and F62, a few cents under the pullback low, and the card's 'lower of the hold day's low and the trigger day's low' is not keyed). map.weekly (D-012; no item).",
+  "Volume: the card's map.volume is proposed and the scan found touch-day volume under 0.7x against over 1.0x made almost no difference (18.0% against 16.5% at 5R). q07, q45 and q56 teach quiet volume as the card's cue and the heavy close under the line (map.inv_heavy_close, proposed) as the invalidation; nothing gates on a volume number except that one.",
+  "Bonde: pullback methods 'may not do well in bull markets or highly trending markets' and momentum stocks are 'best traded using breakout methods', against UCT's practice in strong uptrends. His view, not a measured result; it is not used as a key.",
+  "The dossier's example numbers (d1) are cited as a Tier 3 repo source: they were read off our own daily bars by the research scan (dossier sections 13 and 14), not from a public page or an owner ruling; the owner has not reviewed the examples. Used: YELP 2013-06-26 and MOH 2018-06-08 (10 EMA), CAT 2025-09-03, BFAM 2019-04-23 and ISRG 2007-06-27 (50 SMA); the failures NVDA 2024-04-03, GILD 2014-11-10, PLTR 2025-05-20; the near-misses ADI 2023-04-17, META 2026-10-08, AMD 2019-02-11; TSM 2025-02-05, TSLA 2024-01-08 and MU 2026-10-07 from the dossier's lists. The 20 EMA winners (QCOM, CME, TRGP, NVDA 2023, WING) are the 20 EMA Pullback card's territory (SET.14), so no walk-through uses them. The checker and the owner should confirm the names before the unit goes live.",
+  "Walk-through fills: the scan bought as price traded over the hold day's high (or at the open if it gapped over) and stopped 5 cents under the lowest low of the touch, hold and trigger days; a live market order fills a little differently. The scan allowed stops to 6%, so the walk-through for YELP (3.6%) shows the size-down rule.",
+  "Near-misses q54 and q55 rest on the dossier's statement that each candidate fails exactly one gate criterion of the card (dNear); their wrong choices say the other checks pass for that reason. The ADI and META stories name the 20 EMA because the dossier does; the failing criterion (a third close under the line, the length) is the same on any line.",
+  "The chart questions (q64 YELP asof 2013-06-25, q65 AMD asof 2019-02-11) show the member's own chart with their averages. YELP's asof is the session before the trigger day, AMD's is the near-miss's hold day; the keys rest on the dossier's reads (dYELPw, dYELP, dAMD, dAMDw). The importer resolves the bars from our own history.",
+  "The scanners (D-004), the journal tag and the name (D-016), the short mirror (D-001) and the weekly 10-week pullback (D-012) are not taught here. Adds (D-135) are settled: one entry only (q06, q25).",
+  "Deepvue's Kell page (s4) and Minervini page (s5) are vendor summaries, not the originators' words; they are used only for the EMA Crossback definition and the within-25%-of-the-high filter, each beside the card's own statement. The Raschke PDF (s1) and the Keller article (s7) may be unreachable to the quote checker; the checker should confirm them with its own fetch.",
+  "The 50-over-200 half of map.above_200 (q02, and the 'stacked' context in q64/q65) is the card's and the lab's rule, not B26, though the card marks it settled; B26 itself is only 'no longs below the 200-day'.",
+  "The trigger (map.trigger, D-003) and the stop's low (map.stop, D-008) are pending-owner; w1 to w3, q04, q12 and the chart items teach the trade over the hold day's high with the stop a few cents under the pullback low, the card's entry_trigger and the default every example was scanned with. The 200-day (D-009), one setup or three lines (D-021/D-016), the undercut (D-002) and the touch count (D-026) are not graded as numbers; q34, q35 and q36 key the card's lookalike tells, which move if the owner rules the other way.",
+  "Cold check 2026-11-10: 66 pass (17 fixed), 0 fix, 5 cut. Look first at: (1) q67, whose key 'the edge is the trims' had no source (the scan had no trims) and is now D45; (2) q34, q35, q36 key the card's lookalike tells while D-021, D-002 and D-026 are still open; (3) the trigger and stop low (D-003, D-008) taught in w1 to w3 are the defaults, not rulings. q17, q27, q42, q49, q62 cut as duplicates or leading; TSM (q56) is from the dossier's 'not charted' list."
+ ],
+ "verify": {
+  "q01": {
+   "status": "pass",
+   "notes": "c05 (map.line_rising, proposed) and c38 verbatim on the card; key is the rising line. Every wrong choice is a real misunderstanding. Numbers (10 sessions) match c05.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q02": {
+   "status": "pass",
+   "notes": "c01 (map.above_200, settled) and B26 verbatim. True. The 50-over-200 half is the card's and the lab's rule, not B26 (the card's own evidence says so); B26 is only 'no longs below the 200-day'.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q03": {
+   "status": "pass",
+   "notes": "F62 and r3 verbatim ('cents' is F62's word). The bank had 'ticks', which is a cent on a US stock and could also be read as right; removed, bank now 4 words. A3/F62 are settled; the question keys only 'a few cents', not which low (D-008).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q04": {
+   "status": "pass",
+   "notes": "c16/E57 (map.market_order, settled) verbatim. Key is the market order in regular hours; each wrong choice is a real order mistake. The premise (trade over the hold day's high) is the card's entry_trigger, pending D-003; not graded.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q05": {
+   "status": "pass",
+   "notes": "C31/c06 (map.leadership, settled) verbatim. True. The RS timing (map.rs_timing, D-011) is never asked.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q06": {
+   "status": "pass",
+   "notes": "c20/A5 (map.one_price, settled, D-135) verbatim. Key is one entry, one price, one stop. Wrong notes true. Recall twin of the scenario q25 (kept: one recalls the rule, one applies it). Shortened the unique longest wrong choice. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q07": {
+   "status": "pass",
+   "notes": "c13 (map.volume, proposed) and g6 verbatim; Minervini via Deepvue (m3) found by the quote checker. Key is quiet, below the 50-day average. The scan found quiet volume made almost no difference (conflicts); the question teaches the card's cue, not an edge.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q08": {
+   "status": "pass",
+   "notes": "c10 (map.touch, proposed) verbatim; 0.5 ATR under sits inside -1 to +0.25 ATR. True. A 23-word why sentence split in two.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q09": {
+   "status": "pass",
+   "notes": "c09 (map.depth, proposed) verbatim: close at least 1 ATR under the 11-session high. Wrong notes true. 'Close 1 ATR under' reads as the minimum because the why says 'at least'. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q10": {
+   "status": "pass",
+   "notes": "c11 (map.length, proposed) verbatim: 2 to 8 sessions. Dossier 11's 2 to 15 for the 20 EMA form is a different card and stays out of the key.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q11": {
+   "status": "pass",
+   "notes": "c12 (map.orderly, proposed) verbatim: no down day larger than 2 ATR. A 3 ATR red day is also over 2, so False is safe. Cross-format twin q41 kept (rule vs two-pullback comparison).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q12": {
+   "status": "pass",
+   "notes": "c14 (map.hold_day, proposed) verbatim: the touch day closes at or above the line. Wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q13": {
+   "status": "pass",
+   "notes": "c08/F65 (map.market_reading, settled) verbatim. True.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q14": {
+   "status": "pass",
+   "notes": "c07/B23 (map.liquidity, settled) verbatim: $10 and $20 million a day. The $20/$100 million choice is a real over-strict mistake.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q15": {
+   "status": "pass",
+   "notes": "B20 (map.stop_gap, settled) verbatim: first 30-minute low is the new stop. Bank holds 30 and four wrong numbers.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q16": {
+   "status": "pass",
+   "notes": "calc re-derived: 31.80 + 3 x (31.80 - 30.67) = 31.80 + 3.39 = 35.19. YELP row: buy 31.80, stop 30.67, 3R on 06-27 (the next session). B19/c24 teach the third at 3R.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q17": {
+   "status": "cut",
+   "notes": "cut: restates its own answer (the story says the low touched the line and it closed above it, which is the whole hold-day rule) and asks the same fact as q12 (c14: the hold day closes at or above the line). q12 kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q18": {
+   "status": "pass",
+   "notes": "calc re-derived: (31.80 - 30.67) / 31.80 = 1.13 / 31.80 = 3.553%, rounds to 3.6 (the dossier's 3.6%). A13/c22 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q19": {
+   "status": "pass",
+   "notes": "c03 (map.near_high, proposed) and Minervini via Deepvue (quote checker found it). 30% is outside 25% under every option the dossier floats (25, 15 or 10), so False is safe.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q20": {
+   "status": "pass",
+   "notes": "c04 (map.recent_catalyst, proposed) and Bonde (found by the quote checker) agree: a breakout, gap or new up-cycle comes first. Wrong notes true. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q21": {
+   "status": "pass",
+   "notes": "c23/c24/B19 verbatim: a third at 3R, breakeven at the first trim by default (2R to 5R allowed). The owner mostly waits for 5R in practice, but the hard rule he set is a third at 3R, which is what the plan teaches. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q22": {
+   "status": "pass",
+   "notes": "E52/c26/Kullamagi (found) verbatim. True. Same fact as q68 asked a second way (rule vs a story); both kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q23": {
+   "status": "pass",
+   "notes": "B22/c19 (map.earnings_window, settled) verbatim: no new buy in the 3 days before a report; a report in 2 sessions is inside. Wrong notes true. Shortened the unique longest wrong choice. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q24": {
+   "status": "pass",
+   "notes": "calc re-derived: (300 - 238) / 300 = 20.67%, rounds to 20.7. c03 verbatim. Why says it is one check, not a buy.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q25": {
+   "status": "pass",
+   "notes": "c20/A5/A4 (map.one_price, settled). Key is no adds. The story does not say the stop was hit, but the key holds either way. Applies the rule q06 recalls (kept).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q26": {
+   "status": "pass",
+   "notes": "calc re-derived: (410.00 - 402.50) / 9.00 = 0.833, rounds to 0.83. c10: within 1 ATR under counts as a touch.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q27": {
+   "status": "cut",
+   "notes": "cut: same fact the same way as q56 (a close under the line on heavy volume, more than 1.5x the 50-day, is distribution, c28). q56 uses the real TSM example from the dossier and is kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q28": {
+   "status": "pass",
+   "notes": "c22/A3/A13 verbatim (map.stop_width, settled): over about 3% the size comes down, never a tighter stop. False is right. Kept beside q48 (rule vs the YELP example).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q29": {
+   "status": "pass",
+   "notes": "c34 (card mistake) verbatim. The mistake is the wide stop at full size, which A13 and A5 (settled) rule out whichever low D-008 picks. Choices that are fine (stop with the broker, size cut to fit) are real parts of the plan. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q30": {
+   "status": "pass",
+   "notes": "E51/c25 (map.trim_2, settled) verbatim. True.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q31": {
+   "status": "pass",
+   "notes": "c17/C28 (map.no_chase, settled) verbatim: skip if the fill is more than 4% above the trigger. 5% is over. False is right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q32": {
+   "status": "pass",
+   "notes": "calc re-derived: 31.80 x 1.04 = 33.072, rounds to 33.07. C28 verbatim. Different arithmetic from q31 (the ceiling, not the yes/no).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q69": {
+   "status": "pass",
+   "notes": "calc re-derived: 50,000 x 1% = 500; 500 / (31.80 - 30.67) = 500 / 1.13 = 442.5, rounded down 442. 40% cap (A7): 442 x 31.80 = 14,056 = 28.1% of the account, under the cap, so the risk-based size stands. A5/A3/A1 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q70": {
+   "status": "pass",
+   "notes": "calc re-derived: 1.2 / 2.0 = 0.6. c13 and g2 (0.7x cue) verbatim. Why says under the 0.7 cue, so quiet.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q71": {
+   "status": "pass",
+   "notes": "calc re-derived: (53.00 - 48.00) / 48.00 = 10.42%, rounds to 10.4. C29/c18 (map.not_stretched, settled) verbatim: more than 10% above the 10-day is skipped.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q33": {
+   "status": "pass",
+   "notes": "l2/l2b verbatim (the Remount tell is on the card, setup 13). Seven closes under the 50-day then a reclaim is a Remount; the story now says one close was more than 0.5 ATR under, which the tell needs (it was missing). Key rests on the card's lookalike tell, not a pending number.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q34": {
+   "status": "pass",
+   "notes": "l1/l1b verbatim: a low that tags the 20 EMA and holds above the 50-day is the 20 EMA Pullback card in full. The tell is the card's, but map.one_setup (D-021/D-016) is pending-owner: if the owner folds the 20 EMA into this card the key flips. Same split SET.14 teaches. For the owner.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q35": {
+   "status": "pass",
+   "notes": "l3/c14 verbatim: a buy taken as price trades back above a broken line is the Undercut and Rally costume. Rests on the card's tell; map.undercut (D-002, default: a named variant of U&R) is pending-owner. A buy at noon, before any close, is not the pullback trigger under either option. For the owner. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q36": {
+   "status": "pass",
+   "notes": "Kell via Deepvue (kl1, found by the quote checker) and l4 verbatim. The key is the first test after a new up-cycle, with no session count (the card's 3 to 20 stays out). map.which_touch (D-026) is not asked. The card's own tell (14:3 default a) is not yet ruled.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q37": {
+   "status": "pass",
+   "notes": "l5/l5b verbatim: a bull flag needs a 20% or larger gain inside 20 sessions; a pullback needs no pole. 28% in 9 sessions is a pole. Tell is the card's; D-002 row 02:1 default agrees.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q38": {
+   "status": "pass",
+   "notes": "c05/c29 (map.line_rising / inv_line_flat, proposed) verbatim: 50-day lower than 10 sessions ago is not rising. Wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q39": {
+   "status": "pass",
+   "notes": "c31/c32 (map.inv_index, proposed; the dossier makes it a cue, not a gate) verbatim: stay patient while the index is under its 20-day. 'Half size' is a real wrong idea.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q41": {
+   "status": "pass",
+   "notes": "c12/g5 verbatim: no down day over 2 ATR; 2.5 ATR bars fail. Key is the six quiet days. Same rule as q11 in a comparison story (kept).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q42": {
+   "status": "cut",
+   "notes": "cut: the same fact the same way as q48 (a 3.6% stop is over our 3%, so the size comes down and the stop is never tightened; also q28). q48 is the YELP example and is kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q43": {
+   "status": "pass",
+   "notes": "c08/F65 verbatim: Orange is A+ only; the story gives the grade B. Different case from the TF q13 (the fact applied to a graded setup).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q45": {
+   "status": "pass",
+   "notes": "g2/g6 verbatim (grade cues, map.volume proposed): about 0.7x or less is an A+ cue, rising volume a B- cue. Per E50 grading is judgment, and the wording is 'cue'.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q46": {
+   "status": "pass",
+   "notes": "g4 verbatim (A+ cue). The wrong note said a hammer 'shows buyers stepping in', a candle prediction (README 4); now it says only that the card counts a hammer as a tight reversal. A 23-word why sentence split.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q47": {
+   "status": "pass",
+   "notes": "E50 verbatim: grading is discretionary and hard to define. False is right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q48": {
+   "status": "pass",
+   "notes": "A13/c22/YELP row: buy 31.80, stop 30.67, 3.6%, widest of the ten. Story said 'the scan buys'; now 'you buy'. 'The house 3%' is now 'our 3%'. variety rewrite checked 2026-11-10.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q49": {
+   "status": "cut",
+   "notes": "cut: the story names the line ('first test of the rising 50 SMA'), so the question restates its answer (rule 10), and the 200-day wrong note rests on map.not_200_long, pending D-009. CAT's example stays in walk-through w2.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q50": {
+   "status": "pass",
+   "notes": "MOH row: 1.01 ATR deep, the shallowest of the ten; c09 depth rule is at least 1 ATR. Wrong notes true (length 6 sessions fits 2 to 8).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q51": {
+   "status": "pass",
+   "notes": "BFAM row: 3 days, 2.24 ATR, 2.8% off, stop 0.8%. c11 length 2 to 8, so 3 fits. The twin of q10 in a real case (kept).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q53": {
+   "status": "pass",
+   "notes": "dADI/dADIw verbatim: 3 closes under the 20 EMA in an 8-session pullback, fewer than 5 so not a Remount. The story named the 20 EMA, which q34 says belongs to another card; it now says 'the moving average it was testing' (the failing rule is the same on any line, per the conflicts).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q54": {
+   "status": "pass",
+   "notes": "META row: 10 sessions from swing high to touch day against 2 to 8; the dossier says exactly one gate fails. Why mentions the 20 EMA Pullback card's window without a number.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q55": {
+   "status": "pass",
+   "notes": "AMD row: 32.7% under the 52-week high 34.14, hold 2019-02-11; 32.7% fails 25%, 15% and 10%. The wrong choice 'The market reading' was not tested in the scan (dossier: no market reading in the sandbox), so it is now 'The line is rising'. flagged-question fix checked 2026-11-11",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q56": {
+   "status": "pass",
+   "notes": "TSM 2025-02-05: close under the 50-day on 4.5x the 50-day volume, from the dossier's 'also found but not charted' list. c28 (proposed, 1.5x) verbatim; 4.5x is well over. Keep the TSM name for the owner to confirm. Shortened the unique longest wrong choice. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q57": {
+   "status": "pass",
+   "notes": "NVDA 2024-04-03: buy 90.10, stop 87.57 (2.8%), stopped 04-04, day 1. B21/A4 verbatim. Loss framed as the plan working. Prices are split-adjusted (10-for-1, June 2024); the story now says so. variety rewrite checked 2026-11-10.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q58": {
+   "status": "pass",
+   "notes": "GILD 2014-11-10: buy 109.07, stop 106.28, stopped 11-12 (day 2), low 105.70, lost the 50-day, never near 3R. No criterion failed; key 'rules followed' is right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q59": {
+   "status": "pass",
+   "notes": "PLTR 2025-05-20: buy 127.78, stop 124.27, stopped 05-21; 3R 06-11, 5R 06-25 without us. B21 and E56 verbatim. Key is a new trigger as a new trade.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q60": {
+   "status": "pass",
+   "notes": "B20 and the 2R ceiling (hB20b) verbatim. Key is out past 2R. A 27-word why sentence split. variety rewrite checked 2026-11-10.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q61": {
+   "status": "pass",
+   "notes": "TSLA 2024-01-08: 20.6% off its high, flat 50 SMA, 3.6 ATR deep; c36 verbatim. Story called it 'a leader' though the dossier calls it a broken leader; now 'a former leader'. A 24-word story sentence split.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q62": {
+   "status": "cut",
+   "notes": "cut: the same rule the same way as q48 (a stop over our 3% means a smaller size, or a skip if nothing fits); MU's 5.9% adds no new fact. The key 'size down a lot, or skip' is also a hedge. q48 kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q63": {
+   "status": "pass",
+   "notes": "C33 (map.time_stop, settled) verbatim: under 1R after 10 trading days, sell. Wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q64": {
+   "status": "pass",
+   "notes": "Chart YELP asof 2013-06-25 (the hold day, the session before the 2013-06-26 trigger); ticker not in the question. YELP row: 4 days, 1.42 ATR, 0.60x. Earnings 08-01, after 5R. The 'dip too shallow' wrong note uses 1.42 ATR from the dossier. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q65": {
+   "status": "pass",
+   "notes": "Chart AMD asof 2019-02-11 (the hold day, the would-be buy was 02-12); ticker not in the question. The question named the failing check ('How far is the stock from its 52-week high?'), so it led; now 'Is this a leader's pullback?'. Window 120 may not show the 34.14 high of August 2018; set to 260 so the 52-week high is on screen.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q66": {
+   "status": "pass",
+   "notes": "Rewritten as a true/false on the card's listed mistake c35 (pick the line before the trade). The old scenario's story gave away the 10-day and its key rested on map.one_setup / which_numbers (D-021, pending).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q67": {
+   "status": "pass",
+   "notes": "The old key 'the edge is the trims' is not in the dossier: the scan used a fixed stop with no trims and measured no expectancy (dBase caveats). Now the key is D45 (settled): size comes from the stop and the rules, never a win rate. 27.7% (60,464 hits) and 'one in four, one in six' verbatim from the dossier. 'The scan' wording replaced.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q68": {
+   "status": "pass",
+   "notes": "E51/E52/c26 verbatim. The story did not say the stock was a fast mover, so 10-day vs 21-day was undecided; it now says 'A fast mover'. flagged-question fix checked 2026-11-11",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w1": {
+   "status": "pass",
+   "notes": "dYELP/dYELPw/dYELPs verbatim (YELP 2013-06-26: 4 days, 1.42 ATR, 5.7% off, 0.60x, buy 31.80, stop 30.67, 3.6%, 3R 06-27). 'Context and pattern check out' overclaimed (RS, group and market were not in the scan); now 'The pattern checks out'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "dCAT verbatim (CAT 2025-09-03: 6 days, 2.36 ATR, 5.7% off, 0.79x, buy 418.13, stop 410.47, 1.8%, 3R 09-17 = 10 sessions). Same 'context' overclaim fixed.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "dMOH verbatim (MOH 2018-06-08: 6 days, 1.01 ATR, 7.8% off, 0.40x, buy 86.93, stop 85.82, 1.3%, 3R 06-11). 'The shallowest of the ten' now says 'of our ten examples'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q72": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q73": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; fixed: right choice was the odd one out in opening (Pass against two Take); replaced the half-size choice with a real length mistake",
+   "by": "checker",
+   "fixed": true
+  },
+  "q74": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q75": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; fixed: key was arguably wrong (3,000 also obeys the cap) and the right choice was the only one with no number; now keyed 4,000 with a calc; story no longer reuses '1% risk'",
+   "by": "checker",
+   "fixed": true
+  },
+  "q76": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q77": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; fixed: story put a 20 EMA pullback on this card; the card sends that to the 20 EMA Pullback card (q34), so the line is now the 50-day",
+   "by": "checker",
+   "fixed": true
+  },
+  "q78": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q79": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q80": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q81": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q82": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q83": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q84": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; fixed: sentence repeated 'opens' next to the blank (a word-match tell). flagged-question fix checked 2026-11-11",
+   "by": "checker",
+   "fixed": true
+  },
+  "q85": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q86": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q87": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; fixed: right choice was the only No; story put a 20 EMA pullback on this card (card sends it to the 20 EMA Pullback card), now the 50-day",
+   "by": "checker",
+   "fixed": true
+  }
+ }
+}

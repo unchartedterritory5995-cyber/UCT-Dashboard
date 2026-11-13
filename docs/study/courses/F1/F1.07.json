@@ -1,0 +1,1530 @@
+{
+ "unit": "F1.07",
+ "track": "F1",
+ "title": "Indexes and ETFs",
+ "teaches": "What an ETF holds and how it trades, what an index is, the 11 sectors and their Select Sector SPDR funds, and what 2x, 3x and inverse funds do when you hold them past one day, in a trend and in chop.",
+ "skills": [
+  {
+   "id": "basics.etfs",
+   "title": "Indexes and ETFs"
+  }
+ ],
+ "as_of": "2026-11-08",
+ "sources": [
+  {
+   "id": "s1",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Updated Investor Bulletin: Exchange-Traded Funds (ETFs) (Feb. 23, 2023)",
+   "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-exchange-traded-funds-etfs",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s2",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Updated Investor Bulletin: Leveraged and Inverse ETFs (Aug. 29, 2023)",
+   "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-alerts/sec",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s3",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Leveraged Investing Strategies: Know the Risks Before Using These Advanced Investment Tools",
+   "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins/leveraged-investing-strategies-know-risks-using-these-advanced-investment-tools",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s4",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Exchange-Traded Funds (ETFs)",
+   "url": "https://www.investor.gov/introduction-investing/investing-basics/investment-products/mutual-funds-and-exchange-traded-2",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s5",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Glossary: Market Indices",
+   "url": "https://www.investor.gov/introduction-investing/investing-basics/glossary/market-indices",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s6",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Glossary: Index Fund",
+   "url": "https://www.investor.gov/introduction-investing/investing-basics/glossary/index-fund",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s7",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Mutual Funds",
+   "url": "https://www.investor.gov/introduction-investing/investing-basics/investment-products/mutual-funds-and-exchange-traded-funds-etfs/mutual-funds",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s8",
+   "tier": 1,
+   "publisher": "FINRA",
+   "title": "Exchange-Traded Funds and Products",
+   "url": "https://www.finra.org/investors/investing/investment-products/exchange-traded-funds-and-products",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s9",
+   "tier": 1,
+   "publisher": "FINRA",
+   "title": "The Lowdown on Leveraged and Inverse Exchange-Traded Products (Investor Insights)",
+   "url": "https://www.finra.org/investors/insights/lowdown-leveraged-and-inverse-exchange-traded-products",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s10",
+   "tier": 1,
+   "publisher": "FINRA",
+   "title": "Regulatory Notice 09-31: Leveraged and Inverse Exchange-Traded Funds",
+   "url": "https://www.finra.org/rules-guidance/notices/09-31",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s11",
+   "tier": 1,
+   "publisher": "MSCI",
+   "title": "The Global Industry Classification Standard (GICS)",
+   "url": "https://www.msci.com/indexes/index-resources/gics",
+   "accessed": "2026-11-08",
+   "why_reliable": "MSCI co-developed and maintains GICS with S&P Dow Jones Indices: the index provider's own page on its standard."
+  },
+  {
+   "id": "s12",
+   "tier": 1,
+   "publisher": "MSCI and S&P Dow Jones Indices",
+   "title": "Consultation on Potential Changes to the GICS Structure (July 17, 2026)",
+   "url": "https://www.msci.com/downloads/documents/indexes/gics/annual-review-and-consultations/GICS%20Consultation%202026.pdf",
+   "accessed": "2026-11-08",
+   "why_reliable": "The two index providers that own GICS, in their own 2026 consultation paper."
+  },
+  {
+   "id": "s13",
+   "tier": 1,
+   "publisher": "State Street Investment Management",
+   "title": "Sector Investing & Sector ETFs",
+   "url": "https://www.ssga.com/us/en/individual/capabilities/equities/sector-investing/select-sector-etfs",
+   "accessed": "2026-11-08",
+   "why_reliable": "The fund sponsor's own page for its fund: the primary record of the fund's stated objective, the index it tracks and what that index holds. The SEC's ETF bulletin sends investors to the ETF's own website for these details; the fund's prospectus on SEC EDGAR refuses automated readers, so it cannot be quote-checked."
+  },
+  {
+   "id": "s14",
+   "tier": 1,
+   "publisher": "State Street Investment Management",
+   "title": "XLK: State Street Technology Select Sector SPDR ETF",
+   "url": "https://www.ssga.com/us/en/intermediary/etfs/state-street-technology-select-sector-spdr-etf-xlk",
+   "accessed": "2026-11-08",
+   "why_reliable": "The fund sponsor's own page for its fund: the primary record of the fund's stated objective, the index it tracks and what that index holds. The SEC's ETF bulletin sends investors to the ETF's own website for these details; the fund's prospectus on SEC EDGAR refuses automated readers, so it cannot be quote-checked."
+  },
+  {
+   "id": "s15",
+   "tier": 1,
+   "publisher": "State Street Investment Management",
+   "title": "XLF: State Street Financial Select Sector SPDR ETF",
+   "url": "https://www.ssga.com/us/en/intermediary/etfs/state-street-financial-select-sector-spdr-etf-xlf",
+   "accessed": "2026-11-08",
+   "why_reliable": "The fund sponsor's own page for its fund: the primary record of the fund's stated objective, the index it tracks and what that index holds. The SEC's ETF bulletin sends investors to the ETF's own website for these details; the fund's prospectus on SEC EDGAR refuses automated readers, so it cannot be quote-checked."
+  },
+  {
+   "id": "s16",
+   "tier": 1,
+   "publisher": "State Street Investment Management",
+   "title": "XLE: State Street Energy Select Sector SPDR ETF",
+   "url": "https://www.ssga.com/us/en/intermediary/etfs/state-street-energy-select-sector-spdr-etf-xle",
+   "accessed": "2026-11-08",
+   "why_reliable": "The fund sponsor's own page for its fund: the primary record of the fund's stated objective, the index it tracks and what that index holds. The SEC's ETF bulletin sends investors to the ETF's own website for these details; the fund's prospectus on SEC EDGAR refuses automated readers, so it cannot be quote-checked."
+  },
+  {
+   "id": "s17",
+   "tier": 1,
+   "publisher": "State Street Investment Management",
+   "title": "XLI: State Street Industrial Select Sector SPDR ETF",
+   "url": "https://www.ssga.com/us/en/intermediary/etfs/state-street-industrial-select-sector-spdr-etf-xli",
+   "accessed": "2026-11-08",
+   "why_reliable": "The fund sponsor's own page for its fund: the primary record of the fund's stated objective, the index it tracks and what that index holds. The SEC's ETF bulletin sends investors to the ETF's own website for these details; the fund's prospectus on SEC EDGAR refuses automated readers, so it cannot be quote-checked."
+  },
+  {
+   "id": "s18",
+   "tier": 1,
+   "publisher": "State Street Investment Management",
+   "title": "XLB: State Street Materials Select Sector SPDR ETF",
+   "url": "https://www.ssga.com/us/en/intermediary/etfs/state-street-materials-select-sector-spdr-etf-xlb",
+   "accessed": "2026-11-08",
+   "why_reliable": "The fund sponsor's own page for its fund: the primary record of the fund's stated objective, the index it tracks and what that index holds. The SEC's ETF bulletin sends investors to the ETF's own website for these details; the fund's prospectus on SEC EDGAR refuses automated readers, so it cannot be quote-checked."
+  },
+  {
+   "id": "s19",
+   "tier": 1,
+   "publisher": "State Street Investment Management",
+   "title": "XLC: State Street Communication Services Select Sector SPDR ETF",
+   "url": "https://www.ssga.com/us/en/intermediary/etfs/state-street-communication-services-select-sector-spdr-etf-xlc",
+   "accessed": "2026-11-08",
+   "why_reliable": "The fund sponsor's own page for its fund: the primary record of the fund's stated objective, the index it tracks and what that index holds. The SEC's ETF bulletin sends investors to the ETF's own website for these details; the fund's prospectus on SEC EDGAR refuses automated readers, so it cannot be quote-checked."
+  },
+  {
+   "id": "s20",
+   "tier": 1,
+   "publisher": "State Street Investment Management",
+   "title": "XLY: State Street Consumer Discretionary Select Sector SPDR ETF",
+   "url": "https://www.ssga.com/us/en/intermediary/etfs/state-street-consumer-discretionary-select-sector-spdr-etf-xly",
+   "accessed": "2026-11-08",
+   "why_reliable": "The fund sponsor's own page for its fund: the primary record of the fund's stated objective, the index it tracks and what that index holds. The SEC's ETF bulletin sends investors to the ETF's own website for these details; the fund's prospectus on SEC EDGAR refuses automated readers, so it cannot be quote-checked."
+  },
+  {
+   "id": "s21",
+   "tier": 1,
+   "publisher": "State Street Investment Management",
+   "title": "SPY: State Street SPDR S&P 500 ETF Trust",
+   "url": "https://www.ssga.com/us/en/intermediary/etfs/state-street-spdr-sp-500-etf-trust-spy",
+   "accessed": "2026-11-08",
+   "why_reliable": "The fund sponsor's own page for its fund: the primary record of the fund's stated objective, the index it tracks and what that index holds. The SEC's ETF bulletin sends investors to the ETF's own website for these details; the fund's prospectus on SEC EDGAR refuses automated readers, so it cannot be quote-checked."
+  },
+  {
+   "id": "s22",
+   "tier": 1,
+   "publisher": "ProShares",
+   "title": "TQQQ: UltraPro QQQ",
+   "url": "https://www.proshares.com/our-etfs/leveraged-and-inverse/tqqq",
+   "accessed": "2026-11-08",
+   "why_reliable": "The fund sponsor's own page for its fund: the primary record of the fund's stated objective, the index it tracks and what that index holds. The SEC's ETF bulletin sends investors to the ETF's own website for these details; the fund's prospectus on SEC EDGAR refuses automated readers, so it cannot be quote-checked."
+  },
+  {
+   "id": "s23",
+   "tier": 1,
+   "publisher": "Nasdaq",
+   "title": "Nasdaq-100 Index: Companies, Methodology & Data",
+   "url": "https://www.nasdaq.com/products/global-indexes/nasdaq-100",
+   "accessed": "2026-11-08",
+   "why_reliable": "Nasdaq is the exchange and the index provider that runs the Nasdaq-100."
+  },
+  {
+   "id": "s24",
+   "tier": 1,
+   "publisher": "FTSE Russell (LSEG)",
+   "title": "Russell US Indexes",
+   "url": "https://www.lseg.com/en/ftse-russell/indices/russell-us",
+   "accessed": "2026-11-08",
+   "why_reliable": "FTSE Russell is the index provider that runs the Russell 2000."
+  },
+  {
+   "id": "s25",
+   "tier": 1,
+   "publisher": "iShares by BlackRock",
+   "title": "IWM: iShares Russell 2000 ETF",
+   "url": "https://www.ishares.com/us/products/239710/ishares-russell-2000-etf",
+   "accessed": "2026-11-08",
+   "why_reliable": "The fund sponsor's own page for its fund: the primary record of the fund's stated objective, the index it tracks and what that index holds. The SEC's ETF bulletin sends investors to the ETF's own website for these details; the fund's prospectus on SEC EDGAR refuses automated readers, so it cannot be quote-checked."
+  },
+  {
+   "id": "s26",
+   "tier": 1,
+   "publisher": "Invesco",
+   "title": "Invesco QQQ ETF",
+   "url": "https://www.invesco.com/qqq-etf/en/home.html",
+   "accessed": "2026-11-08",
+   "why_reliable": "The fund sponsor's own page for its fund: the primary record of the fund's stated objective, the index it tracks and what that index holds. The SEC's ETF bulletin sends investors to the ETF's own website for these details; the fund's prospectus on SEC EDGAR refuses automated readers, so it cannot be quote-checked."
+  },
+  {
+   "id": "s27",
+   "tier": 2,
+   "publisher": "Fidelity Investments",
+   "title": "Leveraged ETFs (Fidelity Learning Center)",
+   "url": "https://www.fidelity.com/learning-center/investment-products/etf/types-of-etfs-leveraged-etfs",
+   "accessed": "2026-11-08"
+  }
+ ],
+ "facts": [
+  {
+   "id": "f1",
+   "source": "s1",
+   "quote": "ETFs offer investors a way to pool their money in a fund that makes investments in stocks, bonds, other assets, or some combination of these investments.",
+   "claim": "An ETF pools investors' money in a fund that owns stocks, bonds or other assets."
+  },
+  {
+   "id": "f2",
+   "source": "s1",
+   "quote": "each ETF share represents an investor’s proportionate ownership of the fund’s portfolio and the income the portfolio generates.",
+   "claim": "Each ETF share is a slice of everything the fund owns."
+  },
+  {
+   "id": "f3",
+   "source": "s1",
+   "quote": "For an indexed-based ETF, the adviser seeks to track an underlying securities index and achieve returns that closely correspond to the returns of that index.",
+   "claim": "An index ETF tries to track its index and return close to what the index returns."
+  },
+  {
+   "id": "f4",
+   "source": "s1",
+   "quote": "ETF shares are traded throughout the day on national stock exchanges and at market prices.",
+   "claim": "ETF shares trade all day on stock exchanges, at market prices."
+  },
+  {
+   "id": "f5",
+   "source": "s1",
+   "quote": "An ETF’s market price is generally kept close to the ETF’s end-of-day NAV per share because of the arbitrage function inherent to the structure of the ETF.",
+   "claim": "Arbitrage generally keeps an ETF's market price close to the value of what it holds."
+  },
+  {
+   "id": "f6",
+   "source": "s1",
+   "quote": "Visit the ETF’s website to learn more about the ETF, including information about its NAV, closing market price, closing premium or discounts, portfolio holdings",
+   "claim": "The SEC sends investors to the ETF's own website for its holdings and prices."
+  },
+  {
+   "id": "f7",
+   "source": "s2",
+   "quote": "Leveraged ETFs seek to deliver multiples of the daily performance of the index or benchmark they track.",
+   "claim": "A leveraged ETF aims for a multiple of its index's DAILY move."
+  },
+  {
+   "id": "f8",
+   "source": "s2",
+   "quote": "Inverse ETFs (also called “short” funds) seek to deliver the opposite of the daily performance of the index or benchmark they track.",
+   "claim": "An inverse ETF aims for the opposite of its index's daily move."
+  },
+  {
+   "id": "f9",
+   "source": "s2",
+   "quote": "Most leveraged and inverse ETFs “reset” daily, meaning that they are designed to achieve their stated objectives on a daily basis.",
+   "claim": "Most leveraged and inverse ETFs reset every day: their target is for one day."
+  },
+  {
+   "id": "f10",
+   "source": "s2",
+   "quote": "because most leveraged and inverse ETFs reset each day, their performance can quickly diverge from the performance of the underlying index or benchmark.",
+   "claim": "Because they reset daily, these funds can quickly drift away from their index's performance."
+  },
+  {
+   "id": "f11",
+   "source": "s2",
+   "quote": "it is possible that you could suffer significant losses even if the long-term performance of the index showed a gain.",
+   "claim": "You can lose a lot in a leveraged fund even when the index gained over the period."
+  },
+  {
+   "id": "f12",
+   "source": "s2",
+   "quote": "Over four months, a particular index gained 2 percent. However, a leveraged ETF seeking to deliver twice that index's daily return fell by 6 percent",
+   "claim": "Real case: the index rose 2% over four months while a 2x fund on it fell 6%."
+  },
+  {
+   "id": "f13",
+   "source": "s2",
+   "quote": "During that same period, an ETF seeking to deliver three times the daily return of a different index fell 53 percent, while the underlying index actually gained around 8 percent.",
+   "claim": "Real case: a 3x fund fell 53% while its index gained about 8%."
+  },
+  {
+   "id": "f14",
+   "source": "s2",
+   "quote": "To accomplish their objectives, leveraged and inverse ETFs pursue a range of investment strategies through the use of swaps, futures contracts, and other derivative instruments.",
+   "claim": "Leveraged and inverse ETFs use swaps, futures and other derivatives to hit their targets."
+  },
+  {
+   "id": "f15",
+   "source": "s2",
+   "quote": "Leveraged or inverse ETFs may be more costly than traditional ETFs.",
+   "claim": "Leveraged and inverse ETFs can cost more than ordinary ETFs."
+  },
+  {
+   "id": "f16",
+   "source": "s2",
+   "quote": "these are specialized products that generally are not suitable for buy-and-hold investors.",
+   "claim": "Leveraged and inverse ETFs are generally not for buying and holding."
+  },
+  {
+   "id": "f17",
+   "source": "s2",
+   "quote": "This effect can be magnified in volatile markets.",
+   "claim": "The drift from the stated multiple can grow in volatile markets."
+  },
+  {
+   "id": "f18",
+   "source": "s3",
+   "quote": "For example, a 2x leveraged S&P 500 ETF seeks to deliver twice the investment return of the S&P 500 Index. This also means that this ETF will lose 2% for every 1% loss in the index.",
+   "claim": "A 2x S&P 500 fund loses 2% for every 1% the index loses: the multiple works on losses too."
+  },
+  {
+   "id": "f19",
+   "source": "s4",
+   "quote": "ETF investors can trade their shares on the market at the market price whenever the market is open",
+   "claim": "You can trade ETF shares at the market price whenever the market is open."
+  },
+  {
+   "id": "f20",
+   "source": "s4",
+   "quote": "some ETFs are less diverse than others. They may have fewer investments or may even track the performance of a single stock",
+   "claim": "Some ETFs are less diversified than others; some even track a single stock."
+  },
+  {
+   "id": "f21",
+   "source": "s5",
+   "quote": "A market index tracks the performance of a specific \"basket\" of stocks that represent a particular market or economic sector.",
+   "claim": "A market index tracks a specific basket of stocks that stands for a market or a sector."
+  },
+  {
+   "id": "f22",
+   "source": "s6",
+   "quote": "These funds follow a passive investment strategy designed to achieve approximately the same return as a particular index before fees.",
+   "claim": "An index fund aims for about the same return as its index, before fees."
+  },
+  {
+   "id": "f23",
+   "source": "s7",
+   "quote": "The purchase price is the next calculated NAV, plus any fees charged at the time of purchase.",
+   "claim": "A mutual fund is bought at its next calculated value (NAV), not at a live market price."
+  },
+  {
+   "id": "f24",
+   "source": "s8",
+   "quote": "are investment vehicles that are listed on an exchange and can be bought and sold throughout the trading day like a stock.",
+   "claim": "ETFs and other exchange-traded products list on an exchange and trade all day like a stock."
+  },
+  {
+   "id": "f25",
+   "source": "s8",
+   "quote": "The intraday pricing of ETPs provides trading flexibility because you can monitor how the price is doing and don’t have to wait until the end of the day to know your purchase or sale price.",
+   "claim": "With an ETF you see your price during the day; you don't wait for the close."
+  },
+  {
+   "id": "f26",
+   "source": "s8",
+   "quote": "ETNs aren’t pooled vehicles and don’t buy or hold shares of stock or other underlying assets. They’re unsecured debt obligations that, similar to bonds, are typically issued by a bank or other financial institution.",
+   "claim": "An ETN is unsecured debt, typically issued by a bank, with no basket behind it: it is not a fund."
+  },
+  {
+   "id": "f27",
+   "source": "s8",
+   "quote": "Other ETPs track indexes that are more narrowly focused, such as those made up of companies in a specific industry sector or country",
+   "claim": "Some funds track narrow indexes, such as one industry sector."
+  },
+  {
+   "id": "f28",
+   "source": "s8",
+   "quote": "This geared exposure is usually for a specific period, like one day or one month, and such products are generally not designed to be held for periods that deviate from that.",
+   "claim": "Leveraged and inverse funds target a set period, like one day or one month, and are not built to be held for other periods."
+  },
+  {
+   "id": "f29",
+   "source": "s9",
+   "quote": "The vast majority of geared ETPs have a daily leveraged or inverse objective and reset their exposure factors each day.",
+   "claim": "Almost all leveraged and inverse funds have a daily target and reset each day."
+  },
+  {
+   "id": "f30",
+   "source": "s9",
+   "quote": "If the Nasdaq 100 closes up 1.5 percent, the inverse ETF would aim to return a loss of 1.5 percent. If the index closes down 2 percent, the ETF should return a gain of 2 percent.",
+   "claim": "An inverse (-1x) fund aims to lose 1.5% on a 1.5% up day and gain 2% on a 2% down day."
+  },
+  {
+   "id": "f31",
+   "source": "s9",
+   "quote": "If the FANG+ index falls 3 percent on a given day, investors in the ETF can expect gains equivalent to three times the index’s percentage loss, or 9 percent.",
+   "claim": "A -3x fund aims to gain 9% when its index falls 3% in a day."
+  },
+  {
+   "id": "f32",
+   "source": "s9",
+   "quote": "On the other hand, if the index gains 3 percent in a day, the ETF should return a loss of 9 percent.",
+   "claim": "A -3x fund aims to lose 9% when its index gains 3% in a day: three times the move, either way."
+  },
+  {
+   "id": "f33",
+   "source": "s9",
+   "quote": "For example, a higher degree of leverage and increased volatility of the index being tracked can lead to a greater divergence between the daily leverage factor and actual performance.",
+   "claim": "More leverage and more volatility mean a bigger gap between the daily multiple and what you actually get."
+  },
+  {
+   "id": "f34",
+   "source": "s9",
+   "quote": "At the close of trading on Tuesday, the index is down 10 percent to 90, resulting in a 20 percent loss for the ETP, bringing its value down to $80.",
+   "claim": "Index down 10% to 90: a 2x fund drops 20%, from $100 to $80."
+  },
+  {
+   "id": "f35",
+   "source": "s9",
+   "quote": "Then, on Wednesday, the index closes up 10 percent at 99, resulting in a gain of 20 percent for the ETP. However, 20 percent of $80 is just $16, meaning the ETP’s value is now at $96.",
+   "claim": "Index up 10% to 99: the 2x fund gains 20%, but only on $80, so it reaches just $96."
+  },
+  {
+   "id": "f36",
+   "source": "s9",
+   "quote": "But over the course of these days the index lost just 1 percent, while the 2x leveraged ETP lost 4 percent.",
+   "claim": "Over the two days the index lost 1% and the 2x fund lost 4%."
+  },
+  {
+   "id": "f37",
+   "source": "s9",
+   "quote": "This is not \"tracking error,\" however, since the ETP met its daily objective.",
+   "claim": "That gap is not tracking error: the fund did its daily job."
+  },
+  {
+   "id": "f38",
+   "source": "s9",
+   "quote": "You could suffer losses even if the longer-term performance of the underlying index is up for a leveraged ETP or down for an inverse ETP.",
+   "claim": "You can lose in an inverse fund even when the index ends lower, and in a leveraged fund even when it ends higher."
+  },
+  {
+   "id": "f39",
+   "source": "s10",
+   "quote": "between December 1, 2008, and April 30, 2009: The Dow Jones U.S. Oil & Gas Index gained 2 percent, while an ETF seeking to deliver twice the index's daily return fell 6 percent",
+   "claim": "Dec 2008 to Apr 2009: the oil and gas index rose 2% while the 2x fund on it fell 6%."
+  },
+  {
+   "id": "f40",
+   "source": "s10",
+   "quote": "An ETF seeking to deliver three times the daily return of the Russell 1000 Financial Services Index fell 53 percent while the index actually gained around 8 percent.",
+   "claim": "Same months: a financials index rose about 8% while the 3x fund on it fell 53%."
+  },
+  {
+   "id": "f41",
+   "source": "s10",
+   "quote": "Using a two-day example, if the index goes from 100 to close at 101 on the first day and back down to close at 100 on the next day",
+   "claim": "Calm path: the index goes 100, 101, 100."
+  },
+  {
+   "id": "f42",
+   "source": "s10",
+   "quote": "if the index had moved up to close at 110 the first day but then back down to close at 100 on the next day.",
+   "claim": "Volatile path: the index goes 100, 110, 100."
+  },
+  {
+   "id": "f43",
+   "source": "s10",
+   "quote": "In the first case with low volatility, the inverse ETF loses 0.02 percent; but in the more volatile scenario the inverse ETF loses 1.82 percent.",
+   "claim": "Same start and finish: the inverse fund loses 0.02% on the calm path and 1.82% on the volatile one."
+  },
+  {
+   "id": "f44",
+   "source": "s10",
+   "quote": "inverse and leveraged ETFs that are reset daily typically are unsuitable for retail investors who plan to hold them for longer than one trading session, particularly in volatile markets.",
+   "claim": "FINRA (2009): daily-reset leveraged and inverse ETFs are typically unsuitable for retail investors who plan to hold them past one session, especially in volatile markets."
+  },
+  {
+   "id": "f45",
+   "source": "s11",
+   "quote": "GICS® is a four-tiered, hierarchical industry classification system. The four tiers are: Sectors, Industry Groups, Industries and Sub-Industries.",
+   "claim": "GICS has four tiers: sectors, industry groups, industries and sub-industries."
+  },
+  {
+   "id": "f46",
+   "source": "s11",
+   "quote": "Covering Energy, Materials, Industrials, Consumer Discretionary, Consumer Staples, Health Care, Financials, Information Technology, Real Estate, Communication Services and Utilities Sector.",
+   "claim": "The GICS sectors are energy, materials, industrials, consumer discretionary, consumer staples, health care, financials, information technology, real estate, communication services and utilities."
+  },
+  {
+   "id": "f47",
+   "source": "s11",
+   "quote": "Each company is assigned a single GICS® classification in each of the four tiers, according to its principal business activity.",
+   "claim": "Each company gets one GICS sector (and one spot in each lower tier), by its main business."
+  },
+  {
+   "id": "f48",
+   "source": "s12",
+   "quote": "In 1999, MSCI and S&P Dow Jones Indices agreed to co-develop GICS",
+   "claim": "MSCI and S&P Dow Jones Indices built GICS together starting in 1999."
+  },
+  {
+   "id": "f49",
+   "source": "s12",
+   "quote": "Sectors 10 → 11 Industry Groups 23 → 25",
+   "claim": "Since 1999 GICS has grown from 10 sectors to 11, and from 23 industry groups to 25."
+  },
+  {
+   "id": "f50",
+   "source": "s12",
+   "quote": "The consultation may or may not result in changes.",
+   "claim": "The 2026 GICS consultation is a proposal; it may not change anything."
+  },
+  {
+   "id": "f51",
+   "source": "s13",
+   "quote": "The GICS structure consists of 11 sectors, 25 industry groups, 74 industries, and 163 sub-industries",
+   "claim": "GICS has 11 sectors, 25 industry groups, 74 industries and 163 sub-industries."
+  },
+  {
+   "id": "f52",
+   "source": "s13",
+   "quote": "State Street Investment Management offers 11 sector ETFs for broad exposure to each of the 11 GICS® sectors.",
+   "claim": "There are 11 Select Sector SPDR funds, one for each GICS sector."
+  },
+  {
+   "id": "f53",
+   "source": "s13",
+   "quote": "Communication Services (XLC), Consumer Discretionary (XLY), Consumer Staples (XLP), Energy (XLE), Financials (XLF), Health Care (XLV), Industrials (XLI), Materials (XLB), Real Estate (XLRE), Technology (XLK), and Utilities (XLU).",
+   "claim": "The tickers: XLC, XLY, XLP, XLE, XLF, XLV, XLI, XLB, XLRE, XLK and XLU, one per sector."
+  },
+  {
+   "id": "f54",
+   "source": "s13",
+   "quote": "sector ETFs are less diversified than broad market funds and may be more volatile",
+   "claim": "A sector ETF is less diversified than a broad market fund and may swing more."
+  },
+  {
+   "id": "f55",
+   "source": "s14",
+   "quote": "The eleven Select Sector Indexes (each a “Select Sector Index”) upon which the Select Sector SPDR Funds are based together comprise all of the companies in the S&P 500.",
+   "claim": "Put the 11 sector funds' indexes together and you have every company in the S&P 500."
+  },
+  {
+   "id": "f56",
+   "source": "s14",
+   "quote": "Seeks to provide precise exposure to companies from technology hardware, storage and peripherals; software; communications equipment; semiconductors and semiconductor equipment; IT services; and electronic equipment, instruments and components industries.",
+   "claim": "XLK holds tech hardware, software, semiconductors and chip equipment, IT services and electronic equipment."
+  },
+  {
+   "id": "f57",
+   "source": "s14",
+   "quote": "It is not possible to invest directly in an index.",
+   "claim": "You cannot invest in an index directly."
+  },
+  {
+   "id": "f58",
+   "source": "s14",
+   "quote": "Sector ETF products are also subject to sector risk and non-diversification risk, which generally result in greater price fluctuations than the overall market.",
+   "claim": "Sector ETFs carry one-sector risk and generally swing more than the overall market."
+  },
+  {
+   "id": "f59",
+   "source": "s15",
+   "quote": "Seeks to provide precise exposure to companies in the financial services; insurance; banks; capital markets; mortgage real estate investment trusts (\"REITs\"); and consumer finance.",
+   "claim": "XLF holds financial services, insurance, banks, capital markets, mortgage REITs and consumer finance."
+  },
+  {
+   "id": "f60",
+   "source": "s16",
+   "quote": "Seeks to provide precise exposure to companies in the oil, gas and consumable fuel, energy equipment and services industries.",
+   "claim": "XLE holds oil, gas and fuel companies and energy equipment and services."
+  },
+  {
+   "id": "f61",
+   "source": "s17",
+   "quote": "companies in the following industries: aerospace and defense; industrial conglomerates; marine transportation; transportation infrastructure; machinery; ground transportation; air freight and logistics; commercial services and supplies; professional services; electrical equipment; construction and engineering; trading companies and distributors; passenger airlines",
+   "claim": "XLI holds aerospace and defense, machinery, transport, airlines and other industrial companies."
+  },
+  {
+   "id": "f62",
+   "source": "s18",
+   "quote": "Seeks to provide precise exposure to companies in the chemical; metals and mining; paper and forest products; containers and packaging; and construction material industries.",
+   "claim": "XLB is materials: chemicals, metals and mining, paper, packaging and construction materials."
+  },
+  {
+   "id": "f63",
+   "source": "s19",
+   "quote": "Seeks to provide precise exposure to companies from telecommunication services, media, entertainment and interactive media & services.",
+   "claim": "XLC holds telecom, media, entertainment and interactive media."
+  },
+  {
+   "id": "f64",
+   "source": "s20",
+   "quote": "Seeks to provide precise exposure to companies in specialty retail; broadline retail; hotels, restaurants and leisure; textiles, apparel and luxury goods; household durables; automobiles; automobile components; distributors; leisure products; and diversified consumer services.",
+   "claim": "XLY holds retailers, hotels, restaurants, apparel, autos and other consumer discretionary companies."
+  },
+  {
+   "id": "f65",
+   "source": "s21",
+   "quote": "The S&P 500® Index is designed to measure the performance of the large-cap segment of the US equity market. It is float-adjusted market capitalization weighted.",
+   "claim": "The S&P 500 measures large US companies and is weighted by float-adjusted market cap."
+  },
+  {
+   "id": "f66",
+   "source": "s21",
+   "quote": "The S&P 500 Index is a diversified large cap U.S. index that holds companies across all eleven GICS sectors",
+   "claim": "The S&P 500, which SPY tracks, holds companies in all 11 sectors."
+  },
+  {
+   "id": "f67",
+   "source": "s22",
+   "quote": "TQQQ seeks daily investment results, before fees and expenses, that correspond to three times (3x) the daily performance of the Nasdaq-100 Index®.",
+   "claim": "TQQQ aims for 3x the Nasdaq-100's daily move, before fees."
+  },
+  {
+   "id": "f68",
+   "source": "s22",
+   "quote": "For any holding period other than a day, your return may be higher or lower than the Daily Target. These differences may be significant.",
+   "claim": "Held for more than a day, a 3x fund's return can be well above or below 3x."
+  },
+  {
+   "id": "f69",
+   "source": "s22",
+   "quote": "Smaller index gains/losses and higher index volatility contribute to returns worse than the Daily Target. Larger index gains/losses and lower index volatility contribute to returns better than the Daily Target.",
+   "claim": "Chop (small net moves, high volatility) hurts a 3x fund; a strong, steady trend helps it."
+  },
+  {
+   "id": "f70",
+   "source": "s23",
+   "quote": "A globally recognized index of 100 of the most innovative large cap companies listed on the Nasdaq Stock Market®.",
+   "claim": "The Nasdaq-100 holds 100 large companies listed on Nasdaq."
+  },
+  {
+   "id": "f71",
+   "source": "s23",
+   "quote": "Market Capitalization-Based Weighting Reflects the economic significance of larger companies within the index.",
+   "claim": "In a cap-weighted index the bigger companies carry more weight."
+  },
+  {
+   "id": "f72",
+   "source": "s23",
+   "quote": "Equal Weighted Option Offers alternative investment through the Nasdaq-100 Equal Weighted™ Index to reduce concentration risk.",
+   "claim": "An equal-weighted version exists as a separate index, to cut concentration in the biggest names."
+  },
+  {
+   "id": "f73",
+   "source": "s24",
+   "quote": "The Russell 2000® Index has been overwhelmingly embraced as the small cap index of choice for measuring the small cap market segment",
+   "claim": "The Russell 2000 is the standard small-cap index."
+  },
+  {
+   "id": "f74",
+   "source": "s25",
+   "quote": "The iShares Russell 2000 ETF seeks to track the Russell 2000 Index. The fund offers broad exposure to U.S. small-cap stocks.",
+   "claim": "IWM tracks the Russell 2000: US small caps."
+  },
+  {
+   "id": "f75",
+   "source": "s26",
+   "quote": "Invesco QQQ is passively managed and tracks the Nasdaq-100 index, which offers exposure to many industry-leading companies in a single investment.",
+   "claim": "QQQ tracks the Nasdaq-100."
+  },
+  {
+   "id": "f76",
+   "source": "s26",
+   "quote": "The Nasdaq-100® Index comprises the 100 largest non-financial companies traded on the Nasdaq. An investor cannot invest directly in an index.",
+   "claim": "The Nasdaq-100 is the 100 largest non-financial Nasdaq companies, and no one can invest in an index directly."
+  },
+  {
+   "id": "f77",
+   "source": "s27",
+   "quote": "If an index rises for several days in a row, the trending movement is very important, as that will translate into ETF growth at a faster pace as the value of the index is increasing.",
+   "claim": "When an index rises day after day, a leveraged ETF grows faster as the gains compound."
+  },
+  {
+   "id": "f78",
+   "source": "s27",
+   "quote": "The leverage is determined on a daily basis and the returns for any other period usually will not be double or triple the underlying index.",
+   "claim": "The multiple is set daily; over any other period the return usually is not double or triple the index."
+  },
+  {
+   "id": "f79",
+   "source": "s27",
+   "quote": "The market is up 10% and down 10% alternatively for 10 days straight. This gut-wrenching movement would exacerbate the drag on a leveraged long ETF position.",
+   "claim": "A market that swings up and down without going anywhere drags on a leveraged long fund."
+  },
+  {
+   "id": "f80",
+   "source": "s8",
+   "quote": "The vast majority of ETPs are designed to track the performance of a particular market index or benchmark and are similar to index mutual funds.",
+   "claim": "Many ETFs and other exchange-traded products are built to track an index, much like index mutual funds."
+  }
+ ],
+ "walkthroughs": [
+  {
+   "key": "w1",
+   "title": "What an ETF is",
+   "steps": [
+    "An ETF is a fund. It pools money into a basket of stocks, bonds or other assets.",
+    "Each share is a slice of that basket, and it trades on an exchange all day like a stock.",
+    "Many ETFs track an index. You can't buy the index itself, so you buy a fund that tracks it."
+   ],
+   "facts": [
+    "f1",
+    "f2",
+    "f4",
+    "f80",
+    "f3",
+    "f57"
+   ]
+  },
+  {
+   "key": "w2",
+   "title": "Eleven sectors, eleven funds",
+   "steps": [
+    "GICS sorts each company into one of 11 sectors by its main business.",
+    "Each sector has a Select Sector SPDR fund. XLK is tech, XLF financials, XLE energy.",
+    "Together, the 11 sector indexes cover every company in the S&P 500."
+   ],
+   "facts": [
+    "f47",
+    "f51",
+    "f52",
+    "f53",
+    "f55"
+   ]
+  },
+  {
+   "key": "w3",
+   "title": "What a 2x or 3x fund does",
+   "steps": [
+    "A 2x or 3x fund aims for two or three times the index's move for one day. Then it resets.",
+    "Take $100 in a 2x fund. The index drops 10%, so the fund drops 20%, to $80.",
+    "Next day the index rises 10%. The fund gains 20%, but only on $80, so it reaches $96.",
+    "Over the two days the index lost 1%. The 2x fund lost 4%. Chop works against these funds."
+   ],
+   "facts": [
+    "f7",
+    "f67",
+    "f9",
+    "f34",
+    "f35",
+    "f36",
+    "f69"
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "key": "q01",
+   "skill": "basics.etfs",
+   "rung": 1,
+   "format": "mcq",
+   "term": "ETF",
+   "q": "What is an ETF?",
+   "choices": [
+    "A fund that trades on an exchange",
+    "One company's shares",
+    "A fund you buy only at the close",
+    "A bank's IOU tied to an index"
+   ],
+   "answer": "A fund that trades on an exchange",
+   "why": "A fund that trades on an exchange. It pools money into a basket of stocks or other assets, and its shares trade all day like a stock.",
+   "lesson_line": "An ETF is a whole basket you can trade like one stock.",
+   "facts": [
+    "f1",
+    "f2",
+    "f4",
+    "f24",
+    "f23",
+    "f25",
+    "f26"
+   ],
+   "wrong": {
+    "One company's shares": "That's a single stock. An ETF is a fund, and each share is a slice of everything the fund owns.",
+    "A fund you buy only at the close": "That's closer to a mutual fund, bought at its next calculated price. ETF shares trade all day at market prices.",
+    "A bank's IOU tied to an index": "That's an ETN: debt issued by a bank, with no basket behind it. An ETF owns the assets."
+   }
+  },
+  {
+   "key": "q02",
+   "skill": "basics.etfs",
+   "rung": 1,
+   "format": "tf",
+   "q": "You can buy or sell ETF shares any time the market is open.",
+   "answer": "True",
+   "why": "True. ETF shares trade on stock exchanges at market prices, all through the trading day.",
+   "lesson_line": "It trades like a stock. You see your price as you trade, not after the close.",
+   "facts": [
+    "f19",
+    "f4",
+    "f25"
+   ]
+  },
+  {
+   "key": "q03",
+   "skill": "basics.etfs",
+   "rung": 2,
+   "format": "mcq",
+   "term": "market index",
+   "q": "What is a market index?",
+   "choices": [
+    "Tracks a specific basket of stocks",
+    "A fund you buy shares of",
+    "A list of the day's top movers"
+   ],
+   "answer": "Tracks a specific basket of stocks",
+   "why": "Tracks a specific basket of stocks. The S&P 500 tracks large US companies, for one. The index keeps score; it isn't something you buy.",
+   "lesson_line": "The index keeps score. A fund that tracks it is how you take part.",
+   "facts": [
+    "f21",
+    "f65",
+    "f57",
+    "f76"
+   ],
+   "wrong": {
+    "A fund you buy shares of": "That's an index fund or ETF. You can't invest in an index directly, so you buy a fund that tracks it.",
+    "A list of the day's top movers": "That's a scanner list. An index tracks a specific basket of stocks, not whoever moved most today."
+   }
+  },
+  {
+   "key": "q04",
+   "skill": "basics.etfs",
+   "rung": 2,
+   "format": "fill",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "An index ETF tries to ___ its index, before fees.",
+   "bank": [
+    "track",
+    "beat",
+    "short",
+    "time",
+    "hedge"
+   ],
+   "answer": "track",
+   "why": "Track. An index fund aims for about the same return as its index, before fees. It isn't trying to beat it.",
+   "lesson_line": "Buy an index fund and you get the index's move, less the fund's fees.",
+   "facts": [
+    "f3",
+    "f22"
+   ]
+  },
+  {
+   "key": "q05",
+   "skill": "basics.etfs",
+   "rung": 2,
+   "format": "mcq",
+   "term": "inverse ETF",
+   "q": "What does an inverse ETF aim to do?",
+   "choices": [
+    "Move opposite the index for the day",
+    "Gain over any stretch the index falls",
+    "Hold the index's weakest stocks"
+   ],
+   "answer": "Move opposite the index for the day",
+   "why": "Move opposite the index for the day. If the Nasdaq-100 closes up 1.5%, an inverse fund aims to lose 1.5%. If it closes down 2%, the fund aims to gain 2%.",
+   "lesson_line": "Inverse means opposite, one day at a time.",
+   "facts": [
+    "f8",
+    "f30",
+    "f38",
+    "f14"
+   ],
+   "wrong": {
+    "Gain over any stretch the index falls": "Only day by day. Hold it for weeks and it can lose even when the index ends lower.",
+    "Hold the index's weakest stocks": "It doesn't pick losers. It uses swaps, futures and other derivatives to aim for the opposite of the day's move."
+   }
+  },
+  {
+   "key": "q06",
+   "skill": "basics.etfs",
+   "rung": 3,
+   "format": "mcq",
+   "q": "How many sectors does the GICS system sort companies into?",
+   "choices": [
+    "11",
+    "10",
+    "25"
+   ],
+   "answer": "11",
+   "why": "11. Sectors are the top of GICS's four tiers. Industry groups, industries and sub-industries sit below them.",
+   "lesson_line": "11 sectors, one Select Sector SPDR for each. Learn the 11 and you can see which group leads.",
+   "facts": [
+    "f51",
+    "f45",
+    "f52",
+    "f46",
+    "f48",
+    "f49"
+   ],
+   "wrong": {
+    "10": "That was GICS when it began in 1999. It has 11 sectors today.",
+    "25": "That's the industry groups, one tier below sectors."
+   }
+  },
+  {
+   "key": "q07",
+   "skill": "basics.etfs",
+   "rung": 3,
+   "format": "tf",
+   "q": "A 3x ETF aims for three times the index's return over any holding period you choose.",
+   "answer": "False",
+   "why": "False. It aims for 3x the daily move, and most reset every day. Over weeks or months the result can land far from 3x.",
+   "lesson_line": "Read 3x as three times today's move, not three times your whole trade.",
+   "facts": [
+    "f7",
+    "f9",
+    "f10",
+    "f67",
+    "f68"
+   ]
+  },
+  {
+   "key": "q08",
+   "skill": "basics.etfs",
+   "rung": 3,
+   "format": "mcq",
+   "q": "You want the small-cap stocks in one trade. Which ETF tracks them?",
+   "choices": [
+    "IWM",
+    "QQQ",
+    "SPY"
+   ],
+   "answer": "IWM",
+   "why": "IWM. It tracks the Russell 2000, the standard small-cap index. SPY and QQQ track large companies.",
+   "lesson_line": "SPY is the S&P 500, QQQ the Nasdaq-100, IWM the small caps.",
+   "facts": [
+    "f74",
+    "f73",
+    "f65",
+    "f75",
+    "f70"
+   ],
+   "wrong": {
+    "QQQ": "QQQ tracks the Nasdaq-100: large companies listed on Nasdaq.",
+    "SPY": "SPY tracks the S&P 500, the large-cap part of the US market."
+   }
+  },
+  {
+   "key": "q09",
+   "skill": "basics.etfs",
+   "rung": 4,
+   "format": "mcq",
+   "q": "Bank stocks are leading the market. Which sector SPDR holds them?",
+   "choices": [
+    "XLF",
+    "XLB",
+    "XLE",
+    "XLK"
+   ],
+   "answer": "XLF",
+   "why": "XLF. The financial fund holds banks, insurers, capital markets firms and consumer finance.",
+   "lesson_line": "Banks, insurers and capital markets names all sit in XLF.",
+   "facts": [
+    "f59",
+    "f53",
+    "f62",
+    "f60",
+    "f56"
+   ],
+   "wrong": {
+    "XLB": "The B isn't for banks. XLB is materials: chemicals, metals and mining.",
+    "XLE": "XLE is energy: oil, gas and energy services.",
+    "XLK": "XLK is technology: software, hardware and chips."
+   }
+  },
+  {
+   "key": "q10",
+   "skill": "basics.etfs",
+   "rung": 4,
+   "format": "numeric",
+   "q": "The index falls 3% today. About how much should a 3x fund on that index lose today?",
+   "answer": 9,
+   "suffix": "%",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "lev * move",
+     "lev": 3,
+     "move": 3
+    }
+   },
+   "why": "About 9%. A 3x fund aims for three times the day's move, so a 3% drop becomes about 9%, before fees.",
+   "lesson_line": "Three times the move means three times the loss on a down day.",
+   "facts": [
+    "f7",
+    "f32",
+    "f31",
+    "f67",
+    "f18"
+   ]
+  },
+  {
+   "key": "q11",
+   "skill": "basics.etfs",
+   "rung": 4,
+   "format": "scenario",
+   "story": "XLK and SPY both have strong charts. You'll put the same dollars into one of them.",
+   "q": "Which one ties more of your money to one group's news?",
+   "choices": [
+    "XLK",
+    "SPY",
+    "About the same"
+   ],
+   "answer": "XLK",
+   "why": "XLK. It holds one sector, technology. SPY holds companies across all 11 sectors. Sector funds are less diversified and can swing harder than the whole market.",
+   "lesson_line": "A sector fund is one group's bet. Know that before you size it.",
+   "facts": [
+    "f56",
+    "f66",
+    "f51",
+    "f54",
+    "f58",
+    "f20"
+   ],
+   "wrong": {
+    "SPY": "SPY spreads your money across all 11 sectors, so one group's news moves it less.",
+    "About the same": "Not the same. XLK is one sector. SPY covers the whole S&P 500."
+   }
+  },
+  {
+   "key": "q12",
+   "skill": "basics.etfs",
+   "rung": 5,
+   "format": "scenario",
+   "story": "Chip stocks have led the market for two weeks. You want the sector fund they sit in.",
+   "q": "Which sector SPDR holds the semiconductor companies?",
+   "choices": [
+    "XLK",
+    "XLC",
+    "XLI"
+   ],
+   "answer": "XLK",
+   "why": "XLK. The technology fund holds semiconductors and chip equipment, along with software and hardware.",
+   "lesson_line": "Chips sit in tech. The sector fund to check is XLK.",
+   "facts": [
+    "f56",
+    "f63",
+    "f61"
+   ],
+   "wrong": {
+    "XLC": "XLC is communication services: telecom, media, entertainment and interactive media. Chip makers aren't in it.",
+    "XLI": "XLI is industrials: aerospace, machinery and transport. Chips sit in tech."
+   }
+  },
+  {
+   "key": "q13",
+   "skill": "basics.etfs",
+   "rung": 5,
+   "format": "scenario",
+   "story": "Airline stocks jump on a day oil prices fall. You want to know which sector fund holds them.",
+   "q": "Which sector SPDR holds the passenger airlines?",
+   "choices": [
+    "XLI",
+    "XLY",
+    "XLE"
+   ],
+   "answer": "XLI",
+   "why": "XLI. The industrial fund holds passenger airlines, along with aerospace, machinery and transport.",
+   "lesson_line": "Airlines are industrials. Check the fund's list; don't guess from the headline.",
+   "facts": [
+    "f61",
+    "f64",
+    "f60"
+   ],
+   "wrong": {
+    "XLY": "Travel feels like consumer spending, but XLY holds retail, autos, hotels and restaurants. Not airlines.",
+    "XLE": "The headline is about oil, but XLE holds oil, gas and energy services companies. Airlines aren't in it."
+   }
+  },
+  {
+   "key": "q14",
+   "skill": "basics.etfs",
+   "rung": 5,
+   "format": "numeric",
+   "q": "A 3x fund starts at $100. The index rises 10% one day and falls 10% the next. What is the fund worth, before fees?",
+   "answer": 91,
+   "prefix": "$",
+   "calc": {
+    "fn": "leveraged_path",
+    "args": {
+     "daily_pcts": [
+      10,
+      -10
+     ],
+     "leverage": 3,
+     "start": 100
+    }
+   },
+   "why": "$91. The fund triples each day's move. The drop lands on a bigger balance than the gain did, so the round trip leaves you down. The index itself lost only 1%.",
+   "lesson_line": "Up 10%, down 10% is a small loss. A 3x fund turns it into a big one.",
+   "facts": [
+    "f34",
+    "f35",
+    "f36",
+    "f7",
+    "f67"
+   ]
+  },
+  {
+   "key": "q15",
+   "skill": "basics.etfs",
+   "rung": 6,
+   "format": "numeric",
+   "q": "You'd normally buy $9,000 of an index fund. How much of a 3x fund on that index gives the same one-day dollar swing?",
+   "answer": 3000,
+   "prefix": "$",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "dollars / lev",
+     "dollars": 9000,
+     "lev": 3
+    }
+   },
+   "why": "$3,000. A 3x fund moves about three times the index each day, so a third of the dollars carries the same one-day swing.",
+   "lesson_line": "Size a 3x fund down. The same dollars carry three times the daily risk.",
+   "facts": [
+    "f18",
+    "f7",
+    "f67"
+   ]
+  },
+  {
+   "key": "q16",
+   "skill": "basics.etfs",
+   "rung": 6,
+   "format": "tf",
+   "q": "If the index chops up and down for weeks and ends flat, a 3x fund on it should end about flat too.",
+   "answer": "False",
+   "why": "False. In choppy markets the daily resets drag a 3x fund down, even when the index goes nowhere. The wilder the swings, the bigger the drag.",
+   "lesson_line": "Flat and choppy is the worst ground for a 3x fund.",
+   "facts": [
+    "f69",
+    "f33",
+    "f79",
+    "f9",
+    "f17"
+   ]
+  },
+  {
+   "key": "q17",
+   "skill": "basics.etfs",
+   "rung": 7,
+   "format": "scenario",
+   "story": "The S&P 500 closes up on the day. Most of its stocks closed down. A handful of its biggest companies rallied hard.",
+   "q": "How can the index rise while most of its stocks fall?",
+   "choices": [
+    "Big companies carry more weight",
+    "Each stock counts the same",
+    "Higher-priced shares count more"
+   ],
+   "answer": "Big companies carry more weight",
+   "why": "Big companies carry more weight. The S&P 500 is weighted by float-adjusted market cap, so a few giants can outweigh hundreds of smaller names.",
+   "lesson_line": "The index can hide a weak market. Check how many stocks are actually up.",
+   "facts": [
+    "f65",
+    "f71",
+    "f72"
+   ],
+   "wrong": {
+    "Each stock counts the same": "That's an equal-weight index, a separate index built to cut concentration. The S&P 500 weights by company size.",
+    "Higher-priced shares count more": "Share price isn't the weight. Company size is: the market value of its shares, not the price of one."
+   }
+  },
+  {
+   "key": "q18",
+   "skill": "basics.etfs",
+   "rung": 7,
+   "format": "scenario",
+   "story": "From December 2008 to April 2009, a US oil and gas index gained 2%. You held a fund built for twice its daily move the whole time.",
+   "q": "What did the 2x fund do over those months?",
+   "choices": [
+    "Fell about 6%",
+    "Rose about 4%",
+    "Rose about 2%"
+   ],
+   "answer": "Fell about 6%",
+   "why": "It fell about 6%. The index was up, but day-by-day compounding over those months pulled the 2x fund down.",
+   "lesson_line": "Right on the index, wrong on the fund. That's the risk of holding a 2x for months.",
+   "facts": [
+    "f39",
+    "f12",
+    "f10"
+   ],
+   "wrong": {
+    "Rose about 4%": "That's twice the index's gain. The fund doubles each day's move, not the whole period's.",
+    "Rose about 2%": "That's the index itself. The 2x fund went the other way."
+   }
+  },
+  {
+   "key": "q19",
+   "skill": "basics.etfs",
+   "rung": 8,
+   "format": "tf",
+   "q": "You're right that the index ends lower three months from now. An inverse fund held that whole time is sure to show a gain.",
+   "answer": "False",
+   "why": "False. An inverse fund aims for the opposite of each day's move. Held for months, it can lose even when the index ends lower.",
+   "lesson_line": "With a daily-reset fund, being right on direction isn't enough. The path counts too.",
+   "facts": [
+    "f38",
+    "f8",
+    "f9",
+    "f44"
+   ]
+  },
+  {
+   "key": "q20",
+   "skill": "basics.etfs",
+   "rung": 8,
+   "format": "scenario",
+   "story": "You think the market is near a bottom. A friend says to buy a 3x fund and hold it six months for 'three times the upside.'",
+   "q": "What's the flaw in that plan?",
+   "choices": [
+    "3x is per day, not per six months",
+    "Nothing, as long as the index rises",
+    "The fees will eat the 3x"
+   ],
+   "answer": "3x is per day, not per six months",
+   "why": "3x is per day. Held for months, the fund can land far from three times the index. From late 2008 into 2009, a financials index rose about 8% while a 3x fund on it fell 53%.",
+   "lesson_line": "A 3x fund rewards a clean trend and punishes chop. Treat it as a quick trade, not an investment.",
+   "facts": [
+    "f40",
+    "f39",
+    "f67",
+    "f68",
+    "f16",
+    "f44",
+    "f15"
+   ],
+   "wrong": {
+    "Nothing, as long as the index rises": "The index can rise and the fund still fall. A financials index rose about 8% while its 3x fund fell 53%.",
+    "The fees will eat the 3x": "These funds can cost more, but fees aren't the main risk. The daily reset is what bends the result over months."
+   }
+  },
+  {
+   "key": "q21",
+   "skill": "basics.etfs",
+   "rung": 8,
+   "format": "scenario",
+   "story": "The index rises 1% every day for five days straight, about 5.1% in total. You hold a 3x fund on it.",
+   "q": "About how much does the 3x fund gain over the five days, before fees?",
+   "choices": [
+    "About 15.9%, more than 3x",
+    "Exactly 15.3%, 3x the index",
+    "About 14.7%, less than 3x"
+   ],
+   "answer": "About 15.9%, more than 3x",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "((1 + lev * d / 100) ** days - 1) * 100",
+     "lev": 3,
+     "d": 1,
+     "days": 5
+    },
+    "round": 1
+   },
+   "why": "About 15.9%. In a steady trend each day's 3% gain lands on a bigger balance, so the fund beats three times the index's 5.1%.",
+   "lesson_line": "A clean trend compounds in a 3x fund's favor. Chop is what bleeds it.",
+   "facts": [
+    "f69",
+    "f77",
+    "f7"
+   ],
+   "wrong": {
+    "Exactly 15.3%, 3x the index": "3x holds one day at a time. Over a streak of up days, the daily gains compound past it.",
+    "About 14.7%, less than 3x": "Chop drags a 3x fund. A steady trend does the opposite."
+   }
+  },
+  {
+   "key": "q22",
+   "skill": "basics.etfs",
+   "rung": 9,
+   "format": "numeric",
+   "q": "An inverse fund aims for the opposite of each day's move. The index closes at 100, then 110, then 100 again. What percent did the fund lose?",
+   "answer": 1.82,
+   "suffix": "%",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(1 - (1 - (b - a) / a) * (1 - (c - b) / b)) * 100",
+     "a": 100,
+     "b": 110,
+     "c": 100
+    }
+   },
+   "why": "1.82%. The fund drops on the way up. The index's fall back to 100 is a smaller percent, and the fund's gain on it works on a smaller balance. On a calm 100, 101, 100 path it loses only 0.02%.",
+   "lesson_line": "Same start, same finish. The bigger the swings in between, the more a daily-reset fund loses.",
+   "facts": [
+    "f43",
+    "f41",
+    "f42",
+    "f8"
+   ]
+  },
+  {
+   "key": "q23",
+   "skill": "basics.etfs",
+   "rung": 9,
+   "format": "scenario",
+   "story": "Near a market low, the index whipsaws up and down for two weeks and ends flat. Your 3x fund matched 3x the index every single day. It's down.",
+   "q": "Why is the fund down?",
+   "choices": [
+    "Daily resets compound against it",
+    "Fees took most of it",
+    "It trades below its true value"
+   ],
+   "answer": "Daily resets compound against it",
+   "why": "Daily resets compound against it. In a choppy, flat market a 3x fund can lose even while hitting its daily target. That isn't tracking error. It's the math of the reset.",
+   "lesson_line": "At a choppy low a 3x fund bleeds while you wait. I'd wait for the trend to show, then use it.",
+   "facts": [
+    "f37",
+    "f33",
+    "f69",
+    "f79",
+    "f15",
+    "f5"
+   ],
+   "wrong": {
+    "Fees took most of it": "Fees are a real cost, but they don't explain this. A fund can hit 3x every day and still lose in chop, before any fee.",
+    "It trades below its true value": "Arbitrage generally keeps an ETF's price close to what it holds, and this fund matched its daily target. The loss is real, not a pricing gap."
+   }
+  }
+ ],
+ "conflicts": [
+  "The 2008-09 oil and gas case: FINRA Regulatory Notice 09-31 dates it December 1, 2008 to April 30, 2009 and says the 2x inverse fund fell 26 percent; the SEC's 2023 updated bulletin says 'over four months' and that the inverse fund 'fell by 25 percent'. q18 uses FINRA's dates and only the figures both agree on (index +2%, 2x fund -6%); no question uses the inverse figure.",
+  "Tier of the fund sponsors' own pages (State Street, ProShares, iShares, Invesco): filed as Tier 1 primary records of each fund's stated objective and index, with why_reliable. The funds' prospectuses on SEC EDGAR answer this checker's client with 'Your Request Originates from an Undeclared Automated Tool', so they cannot be quote-checked. If the checker files sponsor pages as Tier 2, the sector-mapping keys (q09, q11, q12, q13) and q08 rest on one publisher; MSCI (Tier 1) backs the sector names but not the tickers.",
+  "GICS 2026 consultation (MSCI and S&P DJI, open July 17 to October 30, 2026, changes to be announced November 2026 for 2027): restructure the Semiconductors sub-industry by business model inside Information Technology, move solar to Industrials, carve financial technology into a new Financials sub-industry. None changes the 11 sectors, the 25 industry groups, or where banks, chip makers and airlines sit. Re-check q06, q09, q12 and q13 when the 2027 structure is announced. The 163 sub-industry count may change, so no question keys on it.",
+  "Fund names: State Street now names the funds 'State Street Technology Select Sector SPDR ETF' and so on; older pages say 'The Technology Select Sector SPDR Fund'. Tickers are unchanged, and questions use tickers only.",
+  "Sector funds and volatility: State Street says sector ETFs 'may be more volatile' and 'generally' fluctuate more than the market. That is a tendency, not true of every sector at every time, so q11 keys on concentration (one sector against all 11), not on which fund swings more.",
+  "Fidelity's leveraged ETF page says a long leveraged fund 'will underperform its expected goals in a falling market', while its own ten-day falling example shows the 2x fund down 89% against the index's 65% (less than twice). Not used.",
+  "Every chop and trend example (q10, q14, q15, q21, q22) assumes the fund hits its daily target exactly and ignores fees and financing, as the calc does; each one says 'before fees' or 'about'.",
+  "Index vs active ETFs (checker, 2026-11-09): FINRA's ETP page (f80) says 'the vast majority of ETPs' track an index. By count that is out of date: Bloomberg Intelligence data put active funds at about 51% of the nearly 4,300 US-listed ETFs in June 2025 (InvestmentNews, 2025-06-16, https://www.investmentnews.com/etfs/active-etfs-now-outnumber-passive-funds-in-industry-watershed-moment/260939). Active funds held only about a tenth of ETF assets, per the same article. w1 now says 'Many ETFs track an index' and f80's claim says 'many'; no question keys on 'most'.",
+  "GICS 2027 (checker, 2026-11-09): searched for the consultation result (due November 2026); none published yet. Read the consultation PDF (s12): no proposal adds, drops or renames a sector. Some companies would change sector (solar components from IT to a new Industrials sub-industry; financial software from IT to a new Financials sub-industry); chip designers stay in IT, banks in Financials, airlines in Industrials. Re-check q06, q09, q12, q13 when the result lands."
+ ],
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "notes": "Sources read in context 2026-11-09: FINRA, State Street, ProShares, iShares, Invesco, FTSE Russell, Fidelity and the GICS PDF re-fetched fresh; MSCI via WebFetch; Investor.gov and nasdaq.com refuse WebFetch and curl, so read from the quote checker's own fetch (2026-11-08 23:22-23:50, HTTP 200, 80/80 found). f1, f2, f4 (SEC ETF bulletin), f3, f57 back steps 1-3. Step 3 said 'Most ETFs track an index' (f80, FINRA 'vast majority of ETPs'); by count active ETFs have outnumbered index ETFs since June 2025 (Bloomberg Intelligence, see conflicts), so it now says 'Many ETFs'. f80 and f57 claims softened to match their quotes.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "Quotes read in context (fresh where the site allows; see w1). f47 (MSCI), f51-f53 (State Street) confirmed. Step 3 said holding all 11 funds means holding every S&P 500 company; f55 says the 11 Select Sector INDEXES together comprise the S&P 500, so it now says that.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "Quotes read in context (fresh where the site allows; see w1). Title said 3x but the worked case is FINRA's 2x (f34-f36). Now titled 'What a 2x or 3x fund does', step 1 covers both (f7, f67, f9), and the 2x path is split into two steps with the $80 and $96 from f34, f35. Checked: 100 x 0.8 x 1.2 = 96; index 100 x 0.9 x 1.1 = 99. f69 backs the chop line.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q01": {
+   "status": "pass",
+   "notes": "Quotes read in context (fresh where the site allows; see w1). Key: f1, f4 (SEC), f24 (FINRA). ETN (f26) and mutual fund (f23) distractors are real confusions. The single-stock note said 'An ETF holds a basket', but f20 (SEC) says some ETFs track one stock; it now says each share is a slice of everything the fund owns (f2, added). Answer 33 chars fits Word Match.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q02": {
+   "status": "pass",
+   "notes": "Quotes read in context (fresh where the site allows; see w1). f19 (SEC: trade 'whenever the market is open'), f4, f25 (FINRA). True as written. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q03": {
+   "status": "cut",
+   "notes": "duplicate of F1.02#q05. Track audit 2026-11-09: the same question word for word ('What is a market index?') with the same term, so Word Match would show two tiles for one word. F1.02's answer ('A basket of stocks standing for a market') is a noun phrase that fits the tile, and F1.02 is where a member first meets an index. w1 still teaches that you buy a fund, not the index.",
+   "fixed": false,
+   "by": "track-auditor"
+  },
+  "q04": {
+   "status": "pass",
+   "notes": "Quotes read in context (fresh where the site allows; see w1). f3 (SEC ETF bulletin), f22 (SEC glossary: 'approximately the same return ... before fees'). Only 'track' fits; beat, short, hedge and time are real mix-ups. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q05": {
+   "status": "pass",
+   "notes": "Quotes read in context (fresh where the site allows; see w1). f8 (SEC), f30 (FINRA: the 1.5% and 2% in the why match), f38, f14. Answer 35 chars. Both wrong notes are right. No change. Track auditor, 2026-11-09: 'Nasdaq 100' in the why is now 'Nasdaq-100', the spelling every other F1 unit uses (f30 is FINRA's own wording, unchanged). The 1.5% and 2% still match f30.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q06": {
+   "status": "pass",
+   "notes": "Quotes read in context (fresh where the site allows; see w1). f51 (State Street), f46 (MSCI lists 11), f49 (GICS 2026 consultation: 10 to 11 sectors, 23 to 25 groups). Read the consultation: no proposal adds or drops a sector; no result published as of 2026-11-09. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q07": {
+   "status": "pass",
+   "notes": "Quotes read in context (fresh where the site allows; see w1). f7, f9, f10 (SEC), f67, f68 (ProShares TQQQ page). False is right, and 'most reset' keeps the hedge. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q08": {
+   "status": "cut",
+   "notes": "duplicate of F1.02#q08. Track audit 2026-11-09: the same pairing, IWM tracks the Russell 2000 small caps, is keyed in F1.02 q08 (and applied in F1.02 q09, where IWM's drop points to small caps). F1.02 is the SPY / QQQ / IWM unit, so the pairing lives there.",
+   "fixed": false,
+   "by": "track-auditor"
+  },
+  "q09": {
+   "status": "pass",
+   "notes": "Quotes read in context (fresh where the site allows; see w1). f59 (State Street XLF page lists banks), f62, f60, f56 for the wrong notes, all fresh. The GICS consultation leaves banks in Financials. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q10": {
+   "status": "pass",
+   "notes": "Quotes read in context (fresh where the site allows; see w1). Recomputed 3 x 3 = 9; calc agrees. f7 (SEC multiples of the daily move), f67 (TQQQ 3x daily), f18, and f31/f32 (FINRA: -3x on a 3% day is 9%). 'About' and 'before fees' are in the why. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q11": {
+   "status": "pass",
+   "notes": "Quotes read in context (fresh where the site allows; see w1). f56 (XLK one sector), f66 (SPY all eleven sectors), f54, f58 (State Street: less diversified, may swing more). Keyed on concentration, not volatility, as the conflicts note says. Trader-sound. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q12": {
+   "status": "pass",
+   "notes": "Quotes read in context (fresh where the site allows; see w1). f56 (XLK holds semiconductors and semiconductor equipment), f63 (XLC), f61 (XLI). The consultation keeps chip designers in IT. The story's 'which sector fund they move' was unclear; now 'You want the sector fund they sit in.'",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q13": {
+   "status": "pass",
+   "notes": "Quotes read in context (fresh where the site allows; see w1). f61 (State Street XLI lists passenger airlines), f64 (XLY list has none), f60 (XLE). Fresh fetch. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q14": {
+   "status": "pass",
+   "notes": "Quotes read in context (fresh where the site allows; see w1). Recomputed 100 x 1.30 x 0.70 = 91; leveraged_path agrees. Index 100 x 1.1 x 0.9 = 99, so 'lost only 1%' holds (f36 gives the same 1% on FINRA's mirror path). Says 'before fees'. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q15": {
+   "status": "pass",
+   "notes": "Quotes read in context (fresh where the site allows; see w1). Recomputed 9,000 / 3 = 3,000. f7, f67, f18. The question limits it to one day, so the key holds; sizing a 3x fund down is sound risk practice. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q16": {
+   "status": "pass",
+   "notes": "Quotes read in context (fresh where the site allows; see w1). f69 (ProShares: small net moves and high volatility give returns worse than the daily target), f33 (FINRA), f79 (Fidelity flat +10/-10 grid), f9, f17. With the index flat, a daily 3x path ends below its start. False is right. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q17": {
+   "status": "cut",
+   "notes": "duplicate of F1.02#q15. Track audit 2026-11-09: both teach that the S&P 500's size weighting lets a few giants move the index against most of its stocks (F1.02 q15's lesson line: 'A few giants can hide what most stocks are doing'). F1.02 q15 is a real, dated case (AP, July 11, 2024: the index fell 0.9% while three of every four of its stocks rose), so it stays. The why here now says 'float-adjusted market cap', the exact words of f65 (State Street), to match F1.02 f43 and F1.06 q21, which teach that a float-adjusted weight is not plain market cap.",
+   "fixed": false,
+   "by": "track-auditor"
+  },
+  "q18": {
+   "status": "pass",
+   "notes": "Quotes read in context (fresh where the site allows; see w1). f39 (FINRA RN 09-31: Dec 1 2008 to Apr 30 2009, oil and gas index +2%, 2x fund -6%), f12 (SEC, same case). Distractors 4% (2 x 2) and 2% are explained right. Inverse figure conflict noted, not used. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q19": {
+   "status": "pass",
+   "notes": "Quotes read in context (fresh where the site allows; see w1). f38 (FINRA: an inverse ETP can lose even if the index is down), f8, f9, f44. 'Sure to' makes False the safe key. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q20": {
+   "status": "pass",
+   "notes": "Quotes read in context (fresh where the site allows; see w1). f40 (FINRA RN 09-31: financials index about +8%, 3x fund -53%, Dec 2008 to Apr 2009), f67, f68, f16, f44, f15. The lesson line weighs trend against chop (f69). Trader-sound. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q21": {
+   "status": "pass",
+   "notes": "Quotes read in context (fresh where the site allows; see w1). Recomputed 1.03^5 = 1.1593, so 15.9%; index 1.01^5 = 1.0510, so 5.1%, and 3 x 5.10 = 15.3%. Calc agrees. f69 (ProShares: bigger moves and lower volatility beat the daily target), f77 (Fidelity), f7. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q22": {
+   "status": "pass",
+   "notes": "Quotes read in context (fresh where the site allows; see w1). Recomputed: 100 to 110 is +10% (fund to 90); 110 to 100 is -9.09% (fund +9.09%, to 98.18); loss 1.82%, as f43 (FINRA) says. The why blamed only the smaller balance; half the loss is the index's way back being a smaller percent, so it now names both.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q23": {
+   "status": "pass",
+   "notes": "Quotes read in context (fresh where the site allows; see w1). f37 (FINRA: not tracking error when the daily objective is met), f33, f69, f79, f15. The pricing note said arbitrage 'keeps' the price close; f5 (SEC) says 'generally' and FINRA (s8) warns prices can deviate, so it now says 'generally' and points to the story.",
+   "fixed": true,
+   "by": "checker"
+  }
+ }
+}

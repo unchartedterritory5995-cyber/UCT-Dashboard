@@ -123,7 +123,7 @@ export function FeedbackBar({ itemId, attemptId = null, reviewer = false, post =
 
 export default function RevealCard({
   correct, reveal, item, profile, onContinue, fire = true, className = '',
-  attemptId = null, reviewer = false, feedback = true, post = studyFetch, hideVerdict = false,
+  attemptId = null, reviewer = false, feedback = true, post = studyFetch, hideVerdict = false, picked = null,
 }) {
   const fired = useRef(false)
   useEffect(() => {
@@ -139,6 +139,9 @@ export default function RevealCard({
   const lesson = reveal?.lesson || reveal?.mini_lesson || ''
   const next = reveal?.what_happened_next || reveal?.outcome_text || reveal?.next || ''
   const prov = reveal?.provenance || {}
+  // a course question (docs/study/courses): its cited pages, and why the member's own wrong pick was wrong
+  const cites = (Array.isArray(reveal?.depth?.sources) ? reveal.depth.sources : []).filter((c) => c && c.name)
+  const wrongWhy = !correct && picked != null && reveal?.wrong ? reveal.wrong[String(picked)] : null
   const href = lessonHrefFor(reveal)
   const key = answerWord(reveal)
   const forwardCount = Array.isArray(reveal?.forward_bars) ? reveal.forward_bars.length : 0
@@ -165,6 +168,12 @@ export default function RevealCard({
           {ref && <span className={styles.ref} data-testid="item-ref">ref {ref}</span>}
         </p>
       )}
+      {wrongWhy && (
+        <p className={styles.wrongWhy} data-testid="wrong-why">
+          <span className={styles.whyLabel}>Why not {brandWords(String(picked))}</span>
+          {brandWords(wrongWhy)}
+        </p>
+      )}
       {parts ? (
         <dl className={styles.lessonParts} data-testid="lesson-parts">
           {parts.map((p) => (
@@ -181,7 +190,18 @@ export default function RevealCard({
       <details className={styles.why}>
         <summary className={styles.whySummary}>Why</summary>
         <div className={styles.whyBody}>
-          {(prov.source_kind || prov.source_ref) && (
+          {cites.length > 0 && (
+            <p className={styles.whyLine} data-testid="reveal-sources">
+              <span className={styles.whyLabel}>{cites.length > 1 ? 'Sources' : 'Source'}</span>
+              {cites.map((c, i) => (
+                <span key={`${c.url || c.name}-${i}`}>
+                  {i > 0 && <span aria-hidden="true"> · </span>}
+                  {c.url ? <a className={styles.lessonLink} href={c.url} target="_blank" rel="noopener noreferrer">{c.name}</a> : c.name}
+                </span>
+              ))}
+            </p>
+          )}
+          {cites.length === 0 && (prov.source_kind || prov.source_ref) && (
             <p className={styles.whyLine}>
               <span className={styles.whyLabel}>Source</span>
               {[prov.source_kind, prov.source_ref].filter(Boolean).join(' · ')}

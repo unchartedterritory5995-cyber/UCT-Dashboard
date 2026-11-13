@@ -1,0 +1,1376 @@
+{
+ "setup": "42-go-signal",
+ "name": "Go Signal",
+ "unit": "SET.34",
+ "direction": "long",
+ "timeframe": "hourly (clock-aligned 60-minute bars) on a daily context",
+ "dossier": "docs/study/setups/research/42-go-signal.md",
+ "as_of": "2026-11-09",
+ "card": {
+  "context": "A leader in an uptrend that has already moved: above the 200-day and 50-day with a rising 20-day EMA, RS 80 or more, pulled back to support after a tight hourly flag. Green market, ideally the index itself being bought at its 20-day line.",
+  "pattern": "Early in the session the stock trades under the prior day's close, often undercutting the flag low, the prior day's low or the 20-day EMA, and buyers push it back above the prior close in the first or second hourly candle.",
+  "trigger": "RED TO GREEN on the hourly chart: a market order at the close of the hourly candle that goes back above the prior day's close, by the end of the second candle (11:00). The cross itself is the aggressive version.",
+  "stop": "A few cents under the session's low at the time of entry; usually 1% to 2%. If it is more than about 3% away, size down or skip; never raise it to the reclaimed level.",
+  "failure_mode": "A turn that comes after the second hourly candle is a pivot, not a Go Signal. The reclaim that does not follow through gives it back within hours; a day that closes back under the prior close is the warning."
+ },
+ "entry_trigger": "RED TO GREEN",
+ "criteria": [
+  {
+   "id": "go.above_200",
+   "field": "context",
+   "statement": "Price is above the 200-day SMA.",
+   "measure": {
+    "what": "prior close and entry against the 200-day SMA",
+    "op": ">",
+    "value": "200-day SMA",
+    "timeframe": "daily"
+   },
+   "glossary": "above_200",
+   "basis": "house rule",
+   "sources": [
+    "S3",
+    "S2"
+   ],
+   "house_rule": "B26",
+   "status": "settled",
+   "owner_question": "D-009",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1.1; 7 B26 row",
+   "evidence": "His great MSFT 2022-11-17 ($241.68 against a 200-day near $268) and good MSFT 2022-11-22 and AAPL 2022-09-01 were below the 200-day; B26 is hard, so they leave the bank (D-009's default keeps them as reading drills marked not a buy for us; question 11)."
+  },
+  {
+   "id": "go.above_50",
+   "field": "context",
+   "statement": "Price is above the 50-day SMA.",
+   "measure": {
+    "what": "prior close against the 50-day SMA",
+    "op": ">",
+    "value": "50-day SMA",
+    "timeframe": "daily"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S2"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1.1",
+   "evidence": "His cuts of downtrend charts (META 2022-08-09, under every average)."
+  },
+  {
+   "id": "go.ema20_rising",
+   "field": "context",
+   "statement": "The 20-day EMA is higher than it was 5 sessions ago.",
+   "measure": {
+    "what": "20-day EMA today - 20-day EMA 5 sessions ago",
+    "op": ">",
+    "value": 0,
+    "unit": "$",
+    "timeframe": "daily"
+   },
+   "glossary": "rising_average",
+   "basis": "UCT",
+   "sources": [
+    "S6",
+    "S2"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1.1; 5.1 G0",
+   "evidence": "The scanner's G0 and his cuts. Its rising-EMA gate cut one of his good charts (AAPL 2022-09-01), which B26 also removes."
+  },
+  {
+   "id": "go.leadership",
+   "field": "context",
+   "statement": "RS rating 80 or more.",
+   "measure": {
+    "what": "RS rating on the entry day",
+    "op": ">=",
+    "value": 80,
+    "unit": "rating 1 to 99"
+   },
+   "glossary": "leader",
+   "basis": "house rule",
+   "sources": [
+    "S3",
+    "S2",
+    "S17"
+   ],
+   "house_rule": "C31",
+   "options": [
+    {
+     "value": "a",
+     "basis": "C31 as written, read on the entry day (D-011's default for the Go Signal)"
+    },
+    {
+     "value": "b",
+     "basis": "a grade factor: ZETA (58), BIDU (68), META (69) and ZS (77) were under 80 on our rough proxy when he called them"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-011",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1.1; 7 C31 row; 10 question 12",
+   "evidence": "The proxy is not IBD's rating. The examples scan required RS 80+ on its own proxy (a percentile of the weighted 3/6/9/12-month return among the scanned names)."
+  },
+  {
+   "id": "go.liquidity",
+   "field": "context",
+   "statement": "Price $10 or more and $20 million or more traded a day.",
+   "measure": {
+    "what": "close",
+    "op": ">=",
+    "value": 10,
+    "unit": "$",
+    "and": "50-day average dollar volume >= 20,000,000"
+   },
+   "glossary": "liquidity",
+   "basis": "house rule",
+   "sources": [
+    "S3",
+    "S2"
+   ],
+   "house_rule": "B23",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1.1; 7 B23 row",
+   "evidence": "VGZ 2026-09-28 (about $2.60 to $2.70) was kept as okay on 2026-11-01; GIC was cut as not a stock I would trade; the scanner's floor is $2. The rule wins."
+  },
+  {
+   "id": "go.position_adv",
+   "field": "management",
+   "statement": "The position is at most 1% of average daily volume.",
+   "measure": {
+    "what": "shares / average daily volume",
+    "op": "<=",
+    "value": 1,
+    "unit": "%"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "D42",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "7"
+  },
+  {
+   "id": "go.market_reading",
+   "field": "context",
+   "statement": "A Green market reading. Orange: A+ only. Red: mostly cash, plus shorts below the 200-day.",
+   "measure": {
+    "what": "the app's market reading on the trigger day",
+    "op": "in",
+    "value": [
+     "Green",
+     "Orange (A+ only)"
+    ]
+   },
+   "glossary": "market_reading",
+   "basis": "house rule",
+   "sources": [
+    "S3",
+    "S1"
+   ],
+   "house_rule": "F65",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.7; 7 B18 row",
+   "evidence": "His 22 Jun 2025 plan: the index gap down bought at the 20-day line is the signal to execute on the focus list. The market proxy split in the test was small."
+  },
+  {
+   "id": "go.index_version",
+   "field": "context",
+   "statement": "The index Go Signal (QQQ gapping down and being bought at its 20-day line) is taught as the market's buy day inside this lesson, not as a trade on its own.",
+   "basis": "UCT",
+   "sources": [
+    "S1"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "a market tell inside this lesson (D-018's default)"
+    },
+    {
+     "value": "b",
+     "basis": "its own lesson"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-018",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.7; 10 question 14",
+   "measure": {
+    "what": "QQQ low on a gap-down day against its 20-day EMA, bought back the same morning",
+    "op": "<=",
+    "value": "20-day EMA",
+    "timeframe": "daily",
+    "note": "a market tell, not a trade on its own"
+   }
+  },
+  {
+   "id": "go.already_moved",
+   "field": "context",
+   "statement": "It has already moved: within the last 20 sessions a gain of 13% or more over 5 sessions, or within the last 30 sessions a gap of 4% or more on 2x average volume, or a tight 10-day base above the 50-day.",
+   "measure": {
+    "what": "largest 5-session close-to-close gain in the last 20 sessions",
+    "op": ">=",
+    "value": 13,
+    "unit": "%",
+    "timeframe": "daily",
+    "or": "an open 4%+ above the prior close on 2x the 50-day average volume within the last 30 sessions, or a 10-bar range of 2.5 ATR or less with the prior close above the 50-day"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S6",
+    "S4",
+    "S17"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "the scanner's three tests (G1)"
+    },
+    {
+     "value": "b",
+     "basis": "simpler: a rising 20-day EMA and price above it for 10 sessions (D-132's default); or only a breakout, a catalyst gap or an HVC within the last 6 weeks (the dossier's option)"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-132",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1.2; 10 question 9",
+   "evidence": "KB row 10789's notable prior move, paraphrased. The tight-base option let in many weak prior moves in the examples scan (6,184 of the hits; 3R rate 26.5%, no better than the 13%-in-5-days hits at 25.9%)."
+  },
+  {
+   "id": "go.at_support",
+   "field": "context",
+   "statement": "It is at support: the session low reaches one of these, no more than about 3% under it: the rising 20-day EMA (first choice), the 9 EMA in a fast stock, the 50-day SMA, a bullish gap, an HVC, a base top or breakout level, or the prior day's low.",
+   "measure": {
+    "what": "(level - session low) / level",
+    "op": "<=",
+    "value": 3,
+    "unit": "%",
+    "timeframe": "daily",
+    "levels": [
+     "20-day EMA",
+     "9 or 10-day EMA",
+     "50-day SMA",
+     "bullish gap",
+     "HVC",
+     "base top or breakout level",
+     "prior day's low"
+    ]
+   },
+   "basis": "UCT",
+   "sources": [
+    "S1",
+    "S2",
+    "S17"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "the dossier's list, the 20-day EMA first: his 'It is my GO SIGNAL' post names the 20EMA; his examples use the 10-day EMA and the prior day's low too"
+    },
+    {
+     "value": "b",
+     "basis": "the 20-day EMA main; the 50-day, a bullish gap, an HVC and a base top also count; the 9 EMA and the prior day's low alone do not (D-130's default, the 30-minute pivot's level list)"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-130",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1.3; 10 question 7",
+   "evidence": "His words: 'I am mostly a 20EMA kind of guy'; 'upside reversal on individual names at the 20EMA. It is my GO SIGNAL.' The 3% is the dossier's. By level in the examples scan: 20-day EMA 27.3% to 3R, 10-day EMA 26.1%, prior day's low 24.7%, 50-day SMA 30.9% (only 81)."
+  },
+  {
+   "id": "go.hourly_flag",
+   "field": "context",
+   "statement": "A tight hourly flag before it: the 2 to 5 sessions before hold a range of 10% or less on the hourly chart, ideally with a higher low than the swing before the move.",
+   "measure": {
+    "what": "(highest high - lowest low) / lowest low over the 2 to 5 sessions before the signal day",
+    "op": "<=",
+    "value": 10,
+    "unit": "%",
+    "timeframe": "hourly"
+   },
+   "glossary": "tight",
+   "basis": "UCT",
+   "sources": [
+    "S2",
+    "S7"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "required, 10% or less, 2 to 5 sessions: the hourly finder's numbers from his 2026-10-27 ruling"
+    },
+    {
+     "value": "b",
+     "basis": "a plus for grading, not required (the dossier's interim position until he rules)"
+    },
+    {
+     "value": "c",
+     "basis": "required, within 5% (D-131's default)"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-131",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1.4; 10 question 8",
+   "evidence": "Owner ruling 2026-10-27 (VEON): 'GO SIGNALS are supposed to be notable hourly flags that undercut a slight range and quickly go red to green in the first hour'. The examples scan required a 3-session range of 10% or less; the ten examples had flags of 3.6% to 9.7%."
+  },
+  {
+   "id": "go.earnings_window",
+   "field": "context",
+   "statement": "No new buy in the 3 sessions before an earnings report. His hourly entries often come in the weeks after a report.",
+   "measure": {
+    "what": "sessions until the next report",
+    "op": ">",
+    "value": 3,
+    "unit": "sessions"
+   },
+   "glossary": "earnings_blackout",
+   "basis": "house rule",
+   "sources": [
+    "S3",
+    "S1"
+   ],
+   "house_rule": "B22",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2; 7 B22 row",
+   "evidence": "REGN, 8 Nov 2026: loved the earnings numbers. NVDA 2024-05-14 in the examples sat 6 sessions before its report."
+  },
+  {
+   "id": "go.red_to_green_line",
+   "field": "trigger",
+   "statement": "Red to green is measured against the prior day's close, not the hourly candle's own open and not a flag low.",
+   "glossary": "red_to_green",
+   "basis": "UCT",
+   "sources": [
+    "S2"
+   ],
+   "status": "settled",
+   "owner_question": "D-145",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1.5; 10 question 2",
+   "evidence": "Owner, 2026-11-01 (D-145): 'the first hourly candle should go green to red and take out previous day close, for the most part'. The hourly finder's red to green was the candle's own open and the flag low; the redo is pending. His AMD call of 12 Nov 2025 never traded below the prior close."
+  },
+  {
+   "id": "go.first_hour_under_pc",
+   "field": "pattern",
+   "statement": "The first hourly candle trades below the prior day's close.",
+   "measure": {
+    "what": "low of the first hourly candle against the prior day's close",
+    "op": "<",
+    "value": "prior close",
+    "timeframe": "hourly"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S2"
+   ],
+   "status": "settled",
+   "owner_question": "D-145",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1.5",
+   "evidence": "The same 2026-11-01 ruling. The undercut of the support in go.at_support happens in the same move. A gap up that never trades under the prior close is not a Go Signal."
+  },
+  {
+   "id": "go.open_shape",
+   "field": "pattern",
+   "statement": "Which open counts: any open, as long as the first hourly candle trades under the prior close. The green-to-red open (an open above the prior close that dips through it) is the A form; the gap down is the other shape.",
+   "measure": {
+    "what": "open against the prior close",
+    "op": "in",
+    "value": [
+     "above (green to red)",
+     "flat",
+     "below (gap down)"
+    ],
+    "timeframe": "daily"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S2",
+    "S1",
+    "S17"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "any open, as long as the first hour trades under the prior close (the dossier; D-128's default, with (b) as the A form)"
+    },
+    {
+     "value": "b",
+     "basis": "only an open above the prior close that dips through it: his 2026-11-01 'green to red'"
+    },
+    {
+     "value": "c",
+     "basis": "a gap down: his 22 Jun 2025 '0.7% or more' for the index"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-128",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1.5 Options for the open; 10 question 1",
+   "evidence": "His rulings and posts use both shapes; MSFT 2022-11-22 (good) and AAPL 2022-08-24 (okay) are the scanner's negative fixtures for opening above. In the test gap-down opens did slightly better (27.1% to 3R, 3,308) than opens at or above the prior close (25.0%, 4,978)."
+  },
+  {
+   "id": "go.bars",
+   "field": "trigger",
+   "statement": "The hourly candles are clock-aligned 60-minute bars: 9:30 to 10:00, then 10:00 to 11:00, so the second candle ends at 11:00.",
+   "measure": {
+    "what": "hourly bar alignment",
+    "op": "==",
+    "value": "clock-aligned, first bar 9:30 to 10:00 ET",
+    "timeframe": "hourly"
+   },
+   "glossary": "hourly_bar",
+   "basis": "my proposal",
+   "sources": [
+    "S7",
+    "S17"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "clock-aligned, the review screen's bars and most platforms' default (D-031's default)"
+    },
+    {
+     "value": "b",
+     "basis": "session-aligned (9:30 to 10:30)"
+    },
+    {
+     "value": "c",
+     "basis": "65-minute bars"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-031",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1.5 Bars; 10 question 3",
+   "evidence": "The bars he reviewed (go_signal_hourly_bars.json) are clock-aligned; the measurement bars were session-aligned, and the answer changes in one session in seven (section 4.4). The examples scan used Yahoo's 9:30-anchored bars, so its second candle ends at 11:30."
+  },
+  {
+   "id": "go.reclaim_window",
+   "field": "pattern",
+   "statement": "The reclaim comes by the end of the second hourly candle. A turn after that is a pivot (setup 41), not a Go Signal.",
+   "measure": {
+    "what": "hourly candle in which price is back above the prior close",
+    "op": "<=",
+    "value": 2,
+    "unit": "hourly candles",
+    "timeframe": "hourly"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S2"
+   ],
+   "status": "settled",
+   "owner_question": "D-145",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1.5; 8.5",
+   "evidence": "Owner, 2026-11-01: 'I need a go signal to go red to green in the first or second hourly candle essentially'; 2026-10-31: a 14:00 turn is a pivot. Scan: first-candle reclaims 25.9% to 3R (8,451), second-candle 26.4% (2,643)."
+  },
+  {
+   "id": "go.reclaim_close",
+   "field": "trigger",
+   "statement": "Close, not touch: an hourly candle closes back above the prior close. Trading back above it without a close is the aggressive version.",
+   "measure": {
+    "what": "close of the reclaiming hourly candle against the prior day's close",
+    "op": ">",
+    "value": "prior close",
+    "timeframe": "hourly"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S2",
+    "S1"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "an hourly close back above the prior close: what 'go red to green in the first or second hourly candle' most plainly means (the dossier)"
+    },
+    {
+     "value": "b",
+     "basis": "trading back above is the trigger, the hourly close is the confirmation grade (D-129's default)"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-129",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1.5 Close, not touch; 10 question 4",
+   "evidence": "His META example of 12 Sep 2025 traded above the prior close in the second hour and closed above it in the third: the two readings give different answers there."
+  },
+  {
+   "id": "go.reclaim_candle_green",
+   "field": "pattern",
+   "statement": "The reclaim candle is green: it closes above its own open.",
+   "measure": {
+    "what": "close of the reclaiming hourly candle against its open",
+    "op": ">",
+    "value": "its open",
+    "timeframe": "hourly"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S1"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1.6",
+   "evidence": "UCT: strong hourly candles forming after the first 30 min. The examples scan required it."
+  },
+  {
+   "id": "go.volume",
+   "field": "pattern",
+   "statement": "Volume is not a rule. More volume on the reclaim than on the flag's first hours is a plus for grading.",
+   "basis": "my proposal",
+   "sources": [
+    "S13",
+    "S7",
+    "S14"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1.7",
+   "evidence": "Morales: volume is not a factor for the U&R; Williams's Oops as tested has no volume rule; Wyckoff's school prefers a low-volume spring, so there is no consensus. The hourly finder's volume ratio is the measure."
+  },
+  {
+   "id": "go.entry",
+   "field": "trigger",
+   "statement": "A market order at the close of the hourly candle that goes back above the prior close. The aggressive version buys as price crosses back through the prior close.",
+   "measure": {
+    "what": "entry",
+    "op": "==",
+    "value": "the close of the reclaiming hourly candle (or the cross, aggressive)",
+    "timeframe": "hourly"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S2",
+    "S1",
+    "S6"
+   ],
+   "house_rule": "E57",
+   "options": [
+    {
+     "value": "a",
+     "basis": "the reclaiming hourly close: what his rulings describe, a clean yes or no on the chart (the dossier)"
+    },
+    {
+     "value": "b",
+     "basis": "as it crosses the prior close: the scanner's entry, his ALAB 'reclaim of red to green spot'; D-003's default (trade through the level, market order)"
+    },
+    {
+     "value": "c",
+     "basis": "over the first hour's high (the opening range)"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-003",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 Order; 10 question 5",
+   "evidence": "The test did not measure the cross entry, so this is a judgment, not a measured result. Market orders are E57. The examples scan bought the close of the reclaiming candle."
+  },
+  {
+   "id": "go.no_chase",
+   "field": "trigger",
+   "statement": "Not more than 4% above the prior close, the buy point.",
+   "measure": {
+    "what": "fill / prior close - 1",
+    "op": "<=",
+    "value": 4,
+    "unit": "%"
+   },
+   "glossary": "chase_limit",
+   "basis": "house rule",
+   "sources": [
+    "S3",
+    "S17"
+   ],
+   "house_rule": "C28",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2; 7 C28 row",
+   "evidence": "Only 2.2% of signals closed their reclaim candle more than 4% above the prior close."
+  },
+  {
+   "id": "go.not_stretched",
+   "field": "trigger",
+   "statement": "Not more than 10% above the 10-day average at the buy.",
+   "measure": {
+    "what": "fill / 10-day SMA - 1",
+    "op": "<=",
+    "value": 10,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "glossary": "stretched",
+   "basis": "house rule",
+   "sources": [
+    "S3",
+    "S17"
+   ],
+   "house_rule": "C29",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2; 7 C29 row",
+   "evidence": "11.3% of signals in context were over it; most are pullbacks, so few."
+  },
+  {
+   "id": "go.full_size",
+   "field": "trigger",
+   "statement": "Full size at once, one price, one stop.",
+   "basis": "house rule",
+   "sources": [
+    "S3",
+    "S1"
+   ],
+   "house_rule": "A5",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2",
+   "evidence": "His ALAB: immediate full size. The 40% cap (A7) binds often on the tightest stops: a 1% stop at 1% risk would be a 100% position."
+  },
+  {
+   "id": "go.regular_hours",
+   "field": "trigger",
+   "statement": "Regular hours only; the signal lives in the first two hourly candles by definition. C30 (no time-of-day rule) is an account rule; this is the setup's own clock.",
+   "basis": "house rule",
+   "sources": [
+    "S3"
+   ],
+   "house_rule": "E58",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "7 C30 row",
+   "measure": {
+    "what": "entry time",
+    "op": "in",
+    "value": [
+     "9:30 to 11:00 ET, the first two hourly candles"
+    ],
+    "timeframe": "hourly"
+   }
+  },
+  {
+   "id": "go.stop",
+   "field": "stop",
+   "statement": "A few cents under the session's low at the time of entry.",
+   "measure": {
+    "what": "stop",
+    "op": "==",
+    "value": "a few cents under the session low so far",
+    "timeframe": "hourly"
+   },
+   "glossary": "stop_margin",
+   "basis": "house rule",
+   "sources": [
+    "S3",
+    "S1",
+    "S15"
+   ],
+   "house_rule": "A3",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.3; 7 A3 row",
+   "evidence": "F62 gives the few cents. UCT: LOD stop; Kullamagi: stop is always lows of the day. Median risk 1.4% in the test; 1.25% in the examples scan."
+  },
+  {
+   "id": "go.stop_width",
+   "field": "stop",
+   "statement": "If the stop is more than about 3% from the entry, size down from the stop (A5) or skip it if it does not fit (A3).",
+   "measure": {
+    "what": "(entry - stop) / entry",
+    "op": "<=",
+    "value": 3,
+    "unit": "%"
+   },
+   "glossary": "stop_width",
+   "basis": "house rule",
+   "sources": [
+    "S3",
+    "S2",
+    "S17"
+   ],
+   "house_rule": "A13",
+   "options": [
+    {
+     "value": "a",
+     "basis": "skip over 3%"
+    },
+    {
+     "value": "b",
+     "basis": "size down from the stop, skip only if it does not fit (the dossier)"
+    },
+    {
+     "value": "c",
+     "basis": "up to one ADR, size down and grade lower; past one ADR skip (D-005's default)"
+    }
+   ],
+   "recommended": "b",
+   "status": "pending-owner",
+   "owner_question": "D-005",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.3; 10 question 6",
+   "evidence": "14% of signals had a stop over 3%; three of his own examples were 5% to 6% (MSTR, DOCN, ZETA). The examples scan required 3% or less; PLTR (2.86%) and VIAV (2.91%) sit at the ceiling."
+  },
+  {
+   "id": "go.stop_not_raised",
+   "field": "stop",
+   "statement": "Do not move the stop up to the reclaimed level to make it fit: the level is where the shake-out happens.",
+   "basis": "my proposal",
+   "sources": [],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.3"
+  },
+  {
+   "id": "go.stop_broker",
+   "field": "stop",
+   "statement": "A real stop order with the broker. It only moves up.",
+   "basis": "house rule",
+   "sources": [
+    "S3"
+   ],
+   "house_rule": "D41",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "7",
+   "evidence": "A4: the stop only moves up. The scanner puts its stop exactly on the low."
+  },
+  {
+   "id": "go.stop_gap",
+   "field": "stop",
+   "statement": "A gap through the stop: the first 30-minute low is the new stop; out if that is past 2R.",
+   "measure": {
+    "what": "loss at the first 30-minute low of the gap-down day",
+    "op": "<=",
+    "value": 2,
+    "unit": "R",
+    "timeframe": "30-minute"
+   },
+   "basis": "house rule",
+   "sources": [
+    "S3",
+    "S1"
+   ],
+   "house_rule": "B20",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4; 7 B20 row",
+   "evidence": "His own 22 Jun 2025 'GAP DOWN SELL STRATEGY' is the same rule."
+  },
+  {
+   "id": "go.breakeven",
+   "field": "management",
+   "statement": "Stop to breakeven between 2R and 5R.",
+   "measure": {
+    "what": "R at which the stop moves to the entry",
+    "op": "in",
+    "value": [
+     2,
+     5
+    ],
+    "unit": "R"
+   },
+   "basis": "house rule",
+   "sources": [
+    "S3"
+   ],
+   "house_rule": "B19",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4"
+  },
+  {
+   "id": "go.trim_1",
+   "field": "management",
+   "statement": "Sell a third at 3R.",
+   "measure": {
+    "what": "fraction sold at 3R",
+    "op": "==",
+    "value": 0.333,
+    "unit": "of the position"
+   },
+   "basis": "house rule",
+   "sources": [
+    "S3",
+    "S17"
+   ],
+   "house_rule": "B19",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4",
+   "evidence": "With a median risk of 1.25%, 3R is about 4% over the buy; in the examples it came in 1 to 6 days."
+  },
+  {
+   "id": "go.trim_2",
+   "field": "management",
+   "statement": "Sell a third at 5R.",
+   "measure": {
+    "what": "fraction sold at 5R",
+    "op": "==",
+    "value": 0.333,
+    "unit": "of the position"
+   },
+   "basis": "house rule",
+   "sources": [
+    "S3"
+   ],
+   "house_rule": "E51",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4"
+  },
+  {
+   "id": "go.trim_gap_open",
+   "field": "management",
+   "statement": "If it opens above a trim level, trim at the open.",
+   "basis": "house rule",
+   "sources": [
+    "S3"
+   ],
+   "house_rule": "F63",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4"
+  },
+  {
+   "id": "go.trail",
+   "field": "management",
+   "statement": "Trail the last third under the 10-day average for a fast stock, the 21-day for a steady one; sell on a close below it. His own trail is the 20-day EMA, which the 21-day matches.",
+   "measure": {
+    "what": "close against the 10-day (fast) or 21-day (steady) average",
+    "op": "<",
+    "value": "the average",
+    "timeframe": "daily"
+   },
+   "glossary": "trail",
+   "basis": "house rule",
+   "sources": [
+    "S3",
+    "S1"
+   ],
+   "house_rule": "E52",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4; 7 E52 row"
+  },
+  {
+   "id": "go.time_stop",
+   "field": "management",
+   "statement": "Under 1R after 10 trading days: sell. Fits his 3-to-7-day burst aim.",
+   "measure": {
+    "what": "open R after 10 trading days",
+    "op": "<",
+    "value": 1,
+    "unit": "R"
+   },
+   "glossary": "time_stop",
+   "basis": "house rule",
+   "sources": [
+    "S3",
+    "S1"
+   ],
+   "house_rule": "C33",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4; 7 C33 row"
+  },
+  {
+   "id": "go.climax",
+   "field": "management",
+   "statement": "A climax run on your own long: sell a big part into it.",
+   "basis": "house rule",
+   "sources": [
+    "S3"
+   ],
+   "house_rule": "C34",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "7"
+  },
+  {
+   "id": "go.inv_no_reclaim",
+   "field": "invalidation",
+   "statement": "Before the entry: no hourly close back above the prior close by the end of the second hourly candle. A later turn is a pivot (setup 41), not a Go Signal.",
+   "measure": {
+    "what": "hourly candle of the reclaim",
+    "op": ">",
+    "value": 2,
+    "unit": "hourly candles",
+    "timeframe": "hourly",
+    "note": "not a Go Signal when true"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S2"
+   ],
+   "status": "settled",
+   "owner_question": "D-145",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5 Before the entry",
+   "evidence": "Owner rulings 2026-10-31 and 2026-11-01. 13 of his 18 great or good daily footprints turn green after the second hourly candle (question 15, D-007)."
+  },
+  {
+   "id": "go.after_entry_stop",
+   "field": "invalidation",
+   "statement": "After the entry: a trade below the session low, the stop, is the exit.",
+   "basis": "house rule",
+   "sources": [
+    "S3",
+    "S1"
+   ],
+   "house_rule": "A4",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5 After the entry",
+   "evidence": "TSLA 2025-05-30: a real turn given back within three hours, the same-session stop that 23% of all hits took."
+  },
+  {
+   "id": "go.close_under_pc_warning",
+   "field": "invalidation",
+   "statement": "A day that closes back under the prior close is a warning, not an exit. Those trades averaged -0.47R, but selling them at the close did not improve the average.",
+   "measure": {
+    "what": "session close against the prior day's close",
+    "op": "<",
+    "value": "prior close",
+    "timeframe": "daily",
+    "note": "a warning; the stop is the exit"
+   },
+   "basis": "measured",
+   "sources": [
+    "S17",
+    "S5"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.5 After the entry",
+   "evidence": "The brain template says a close below the reclaimed level or the 20 EMA negates the Go Signal. NVDA 2024-05-08: a first-candle reclaim that drifted all day, closed under the prior close and was stopped the next day for -1R; NVDA 2024-06-28: a 2.3% first candle that was the high of the day, closed under the prior close, stopped the next morning."
+  },
+  {
+   "id": "go.context_break",
+   "field": "invalidation",
+   "statement": "Context breaks: a close under the 20-day EMA after entry is a warning; a close under the 50-day ends the pullback thesis.",
+   "measure": {
+    "what": "close against the 20-day EMA (warning) and the 50-day SMA (thesis over)",
+    "op": "<",
+    "value": "the average",
+    "timeframe": "daily"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S5"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.5 Context breaks",
+   "evidence": "The brain template names the 20 EMA. Under A4 the stop is still the exit."
+  },
+  {
+   "id": "go.retry_limit",
+   "field": "invalidation",
+   "statement": "A failed Go Signal that sets up again is a new trade (B21); at most 3 tries a week and 6 a month on one stock.",
+   "measure": {
+    "what": "tries on the same stock",
+    "op": "<=",
+    "value": 3,
+    "unit": "a week (6 a month)"
+   },
+   "basis": "house rule",
+   "sources": [
+    "S3"
+   ],
+   "house_rule": "E56",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "7 E56 row"
+  }
+ ],
+ "grading": {
+  "a_plus": [
+   "go.leadership: a true leader (RS 90+ on his rating) in a hot group, after a catalyst or a big move (go.already_moved); the market Green (go.market_reading); in Orange only if everything else grades A+ (F65)",
+   "go.at_support: a quiet, tight pullback into the rising 20-day EMA (or the 9 EMA in a fast leader); go.hourly_flag: a tight hourly flag with a higher low",
+   "go.open_shape: a gap down or a quick flush under the prior day's low or the flag low into the 20-day line, and a strong green hourly candle back above the prior close in the first candle (go.reclaim_window), on rising volume (go.volume)",
+   "go.stop_width: a stop of 2% or less under the day's low; the day closes in the top of its range; it moves within days (his minimum 3-7 day burst)"
+  ],
+  "b_minus": [
+   "go.ema20_rising: the 20-day EMA flat; go.at_support: price near the 50-day or the 200-day; go.already_moved: no prior move",
+   "go.hourly_flag: a choppy flag",
+   "go.reclaim_window: the turn only in the second candle, and weak",
+   "go.stop_width: a stop near or over 3%",
+   "go.market_reading: a Yellow market (smaller and fewer)",
+   "go.liquidity: a thin or cheap stock; the day closes weak (go.close_under_pc_warning)"
+  ],
+  "no_trade": [
+   "go.inv_no_reclaim: a turn after the second hourly candle (a pivot)",
+   "go.above_200 and go.above_50: a stock in a downtrend, under the 50-day or the 200-day",
+   "go.first_hour_under_pc: a gap up that never trades under the prior close",
+   "go.no_chase: more than 4% over the prior close; go.not_stretched: more than 10% over the 10-day",
+   "go.earnings_window: a report within 3 sessions",
+   "go.liquidity: under $10 or under $20 million a day (GIC, VGZ)",
+   "go.market_reading: Red; Orange below A+"
+  ]
+ },
+ "lookalikes": [
+  {
+   "setup": "41-30-minute-pivot",
+   "tell": "Read the clock. A Go Signal must be back above the prior day's close by the end of the second hourly candle (11:00); a turn later in the day, however clean, is a 30-minute pivot bought over the pivot candle's high.",
+   "criterion": "go.reclaim_window"
+  },
+  {
+   "setup": "43-red-to-green",
+   "tell": "Ask what the cross is riding on. A bare red to green is a trigger that happens in about a third of all liquid sessions; the Go Signal needs the setup around it: a leader that already moved, a tight hourly flag, and a dip into the 20-day line or a marked level before the turn.",
+   "criterion": "go.hourly_flag"
+  },
+  {
+   "setup": "30-oops-reversal",
+   "tell": "Name the line that was reclaimed. An Oops gaps below the prior day's LOW and closes back above it on the daily bar; the Go Signal's line is the prior day's CLOSE and the reclaim is read on the first two hourly candles, whatever the open did.",
+   "criterion": "go.red_to_green_line"
+  },
+  {
+   "setup": "29-undercut-rally",
+   "tell": "Count the sessions. A U&R undercuts a prominent prior swing low and must close back above it within 3 sessions on the daily chart; the Go Signal's undercut and reclaim happen inside the first two hours of one session and are measured against the prior close.",
+   "criterion": "go.first_hour_under_pc"
+  }
+ ],
+ "invalidations": [
+  "Before the entry: no hourly close back above the prior close by the end of the second hourly candle; a later turn is a pivot (go.inv_no_reclaim).",
+  "Before the entry: the first hourly candle never trades under the prior close, a gap up (go.first_hour_under_pc).",
+  "Before the entry: the stock is under the 50-day or 200-day (go.above_50, go.above_200), the fill is more than 4% over the prior close (go.no_chase) or 10% over the 10-day (go.not_stretched), a report is within 3 sessions (go.earnings_window).",
+  "After the entry: a trade below the session low, the stop (go.after_entry_stop); a gap through it follows B20 (go.stop_gap).",
+  "After the entry: a close back under the prior close is a warning, not an exit (go.close_under_pc_warning); a close under the 50-day ends the pullback thesis (go.context_break)."
+ ],
+ "mistakes": [
+  "Buying the open before the turn: the blind open buy that gets stopped at the low.",
+  "Calling a 14:00 turn a Go Signal: it is a pivot.",
+  "Taking it in a downtrend, under the 50-day or 200-day.",
+  "Taking it on a cheap or thin stock (GIC, VGZ).",
+  "A stop wider than about 3% with full size.",
+  "Grading from the daily chart: the daily footprint cannot show the turn.",
+  "Mixing it up with the Model Book card's pattern (a catalyst gap, a dip to the 9 EMA, an engulfing day), which is a different setup.",
+  "Ignoring the bar setting: the same session can pass on one chart and fail on another.",
+  "Treating the turn itself as the edge: it happens in about a third of all liquid sessions; the stock and the level are the edge.",
+  "Chasing past 4% or buying right before earnings."
+ ],
+ "short_mirror": {
+  "exists": true,
+  "setup": "43-red-to-green",
+  "note": "A downside go signal (green to red), D47 mirrored: below the 200-day SMA only (B26), RS 20 or less (C31 mirror), a stock that has fallen and bounced into resistance (a falling 20-day EMA, the 50-day, a bearish gap); the first hourly candle trades above the prior close and an hourly candle closes back under it by the second candle; short at market; stop a few cents over the session high. The journal already has a Green to Red tag. He was not interested ('Maybe a downside go signal but who cares'); the dossier recommends teaching it only as the mirror in one lesson or leaving it out, as he decides (D-001; question 13). Leveraged inverse ETFs (E54) are another way UCT expresses it (Bracco's SOXS). Never short a green to red in a leader above the 200-day: in his Go Signal that move is the shakeout before the long."
+ },
+ "best_conditions": "A Green market reading (B18, F65). The best Go Signals come when the index itself is pulling back to its 20-day line and gets bought: his 22 Jun 2025 plan makes the index gap down bought the signal to execute on the focus list. After a correction, start with a few (F68). In Orange, A+ only; in Red, mostly cash, plus shorts below the 200-day.",
+ "management": {
+  "trim_1": "a third at 3R (B19)",
+  "trim_2": "a third at 5R (E51)",
+  "trail": "a close under the 10-day for a fast stock, the 21-day for a steady one (E52); his own trail is the 20-day EMA, which the 21-day matches",
+  "breakeven": "between 2R and 5R (B19)",
+  "time_stop": "under 1R after 10 trading days, sell (C33); fits his 3-to-7-day burst",
+  "gap_open": "a trim level the day opens past is taken at the open (F63)",
+  "gap_against": "the first 30-minute low is the new stop; out if past 2R (B20; his 22 Jun 2025 gap-down sell strategy)",
+  "climax": "sell a big part into a climax run (C34)",
+  "overrides": "none. The dossier (8.4) finds nothing setup-specific is needed. Not ours: the scanner's 2R and 3R targets and its stop exactly on the low; the brain template's close-under-the-20-EMA exit (taught as a warning)."
+ },
+ "examples": {
+  "winners": 10,
+  "sheet_dir": "_study-resume/scratchpad/setups/42-go-signal/final",
+  "base_rate": {
+   "hits": 11094,
+   "r3_pct": 26.0,
+   "r5_pct": 17.5,
+   "stopped_same_session_pct": 23,
+   "median_stop_pct": 1.25,
+   "window": "the rest of the session on hourly bars, then up to 60 daily bars; fixed stop 3 cents under the session low so far (risk 3% or less), no trims, no breakeven; 2023-12-12 to 2026-11-06; 963 of the 1,000 most-traded names with hourly bars (679,518 sessions); Yahoo's 9:30-anchored hourly bars, so the second candle ends at 11:30"
+  },
+  "cuts": {
+   "gap_down_open": {
+    "hits": 3308,
+    "r3_pct": 27.1
+   },
+   "open_at_or_above_prior_close": {
+    "hits": 4978,
+    "r3_pct": 25.0
+   },
+   "first_candle_reclaim": {
+    "hits": 8451,
+    "r3_pct": 25.9
+   },
+   "second_candle_reclaim": {
+    "hits": 2643,
+    "r3_pct": 26.4
+   },
+   "level_20_day_ema": {
+    "r3_pct": 27.3
+   },
+   "level_10_day_ema": {
+    "r3_pct": 26.1
+   },
+   "level_prior_day_low": {
+    "r3_pct": 24.7
+   },
+   "level_50_day_sma": {
+    "hits": 81,
+    "r3_pct": 30.9
+   },
+   "tight_base_qualifier": {
+    "hits": 6184,
+    "r3_pct": 26.5,
+    "note": "no better than the 13%-in-5-days hits at 25.9%"
+   },
+   "mechanical_trigger_alone_section_4_3": {
+    "note": "no edge in the mechanical trigger by itself on about 3 years of hourly bars; a red-to-green turn happens in about 30% of all liquid sessions"
+   }
+  },
+  "winners_list": [
+   "META 2023-12-15",
+   "CEG 2024-03-19",
+   "NVDA 2024-05-14",
+   "PLTR 2024-10-02",
+   "BE 2025-07-18",
+   "WDC 2025-08-22",
+   "GOOGL 2025-09-09",
+   "VIAV 2026-02-19",
+   "DELL 2026-04-07",
+   "ILMN 2026-09-11"
+  ],
+  "failures": [
+   {
+    "ticker": "NVDA",
+    "date": "2024-06-28",
+    "criterion": "go.close_under_pc_warning",
+    "why": "everything qualified (10-day EMA, a 16% five-day move, a 7.4% flag, RS 98); it opened above the prior close (123.99), dipped to 123.42 and the first candle closed at 126.81, 2.3% up and already 2.7% from the stop; that reclaim was the high of the day, the session closed at 123.54 under the prior close, and the stop (123.39) was hit the next morning. A big first candle widens the risk and leaves nothing to buy against."
+   },
+   {
+    "ticker": "TSLA",
+    "date": "2025-05-30",
+    "criterion": "go.after_entry_stop",
+    "why": "a 26% five-day move, a dip under the prior day's low (353.82 against a prior close of 358.43), a first candle closing green at 361.86; the third hourly candle broke back under the prior close and the fourth fell through the stop (353.79); the session closed at 346.46, 4.3% below the entry. The turn was real and the stock gave it back within three hours: the same-session stop that 23% of all hits took."
+   },
+   {
+    "ticker": "NVDA",
+    "date": "2024-05-08",
+    "criterion": "go.close_under_pc_warning",
+    "why": "a gap-down open (-1.2%) that reclaimed the prior close in the first candle (90.98), then drifted between 89.5 and 90.5 all day, closed at 90.41 under the prior close (90.55), and was stopped the next day at 89.39 for -1R; best excursion 0.08R. A reclaim that does not follow through within the session is the warning in practice."
+   },
+   {
+    "ticker": "CRWD",
+    "date": "2023-12-29",
+    "criterion": "go.reclaim_close",
+    "why": "a gap-down open that reclaimed the prior close (64.03) by one cent at 64.04; the next candle fell through the stop (63.39, low 63.13) at 0.0R and the stock lost 6% in two sessions. A reclaim by a cent proves nothing."
+   },
+   {
+    "ticker": "GOOG",
+    "date": "2026-05-18",
+    "criterion": "go.close_under_pc_warning",
+    "why": "the first candle ran 392.12 to 404.44 (buy 402.05, 2.78% risk) and was the high of the day; the session closed 393.15 under the prior close 393.32 and the next open gapped through the stop (390.88). Best 0.04R."
+   }
+  ],
+  "limits": "A fixed stop with no trims or breakeven move; Yahoo's 9:30-anchored hourly bars, so some sessions pass or fail differently from a clock-aligned chart; the RS proxy is a rank among the scanned names, not IBD's rating; the tight-base qualifier let in many weak prior moves; about 3 years of hourly bars only, and the 1,000 most-traded names. The mechanical trigger alone showed no edge: the stock, the level and the market are what the examples were chosen on.",
+  "near_misses": [
+   {
+    "ticker": "AXON",
+    "date": "2024-09-11",
+    "criterion": "go.reclaim_window",
+    "why": "the close back above the prior close (359.35) came on the third hourly candle (361.39), after the two-candle window; everything else passes (a 25% five-day move, a 6.6% flag, RS 94, the 20-day EMA). A 30-minute pivot (setup 41), which went on to 47.8R."
+   },
+   {
+    "ticker": "SNOW",
+    "date": "2026-09-08",
+    "criterion": "go.hourly_flag",
+    "why": "the 3 sessions before span 26.5% (the rule needs 10% or less); a gap-down open reclaimed at the first candle at the 10-day EMA. A red to green inside a wild post-earnings range, no flag to buy against; 0.38R then the stop."
+   },
+   {
+    "ticker": "CF",
+    "date": "2026-03-19",
+    "criterion": "go.at_support",
+    "why": "the session low (126.55) sat 5.2% above the 10-day EMA, the nearest level (the rule allows 3% under to 1% over); a 23% five-day move, a 6.6% flag, RS 90. A red to green in mid-air; stopped the same session at 0.0R."
+   },
+   {
+    "ticker": "CRS",
+    "date": "2025-11-14",
+    "criterion": "go.stop_width",
+    "why": "after a 2.8% gap down the first candle ran 315.73 to 329.02, so the stop under its low is 4.96% from the entry (the rule says about 3%). A valid turn too big to buy at the candle close; size down (A5) or skip (A3)."
+   }
+  ],
+  "sheets": {
+   "failures": "final/fail_1-4.png",
+   "near_misses": "final/near_1-4.png",
+   "pair": "final/pair_41-30-minute-pivot.png"
+  }
+ },
+ "question_seeds": [
+  {
+   "kind": "recall",
+   "criterion": "go.red_to_green_line",
+   "seed": "Red to green is measured against which price: the prior day's close, the candle's open, or the flag low?"
+  },
+  {
+   "kind": "recall",
+   "criterion": "go.reclaim_window",
+   "seed": "By the end of which hourly candle must a Go Signal be back above the prior close, and what is a later turn called?"
+  },
+  {
+   "kind": "recall",
+   "criterion": "go.stop",
+   "seed": "Where does the Go Signal's stop go?"
+  },
+  {
+   "kind": "spot",
+   "criterion": "go.first_hour_under_pc",
+   "seed": "Hidden ticker, hourly chart: tap the prior day's close and say whether the first candle traded under it."
+  },
+  {
+   "kind": "spot",
+   "criterion": "go.at_support",
+   "seed": "Hidden ticker: which level did the morning dip tag, the 20-day EMA, the 50-day, or the prior day's low? Take it or pass."
+  },
+  {
+   "kind": "spot",
+   "criterion": "go.hourly_flag",
+   "seed": "Hidden ticker: which of these four hourly charts shows a tight 2-to-5-session flag before the dip?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "go.reclaim_window",
+   "seed": "Go Signal or 30-minute pivot: the stock reclaimed the prior close at 13:30 on a clean green candle at the 20-day line. Which is it?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "go.red_to_green_line",
+   "seed": "Go Signal or Oops: the stock gapped under yesterday's LOW and closed back above it, but never traded under yesterday's close. Which is it?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "go.hourly_flag",
+   "seed": "Go Signal or bare red to green: a laggard under its 50-day dips red and crosses green in the first hour. Which is it?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "go.close_under_pc_warning",
+   "seed": "You bought the first-candle reclaim at 90.69; at 15:50 the stock is at 90.41, under the prior close of 90.55 and above your stop. Sell the close, or hold?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "go.open_shape",
+   "seed": "The stock opens 0.4% above the prior close, dips through it to the 20-day EMA, and the first candle closes green above it. Is that a Go Signal, and which shape?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "go.earnings_window",
+   "seed": "A perfect first-hour reclaim at the 20-day line, two sessions before the report. Buy?"
+  },
+  {
+   "kind": "grade",
+   "criterion": "go.reclaim_window",
+   "seed": "Two Go Signals: one reclaims in the first candle on rising volume from a tight flag, one reclaims weakly in the second candle from a choppy flag. Grade each."
+  },
+  {
+   "kind": "grade",
+   "criterion": "go.stop_width",
+   "seed": "Same setup, one with a 1.4% stop and one with a 5.5% stop. What grade and what size for each?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "go.stop_width",
+   "seed": "Entry 37.18 at the first candle's close, session low 36.15, stop 3 cents under. What is the risk in percent, and does it fit?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "go.no_chase",
+   "seed": "Prior close 168.84, reclaim candle closes at 169.79. How far over the buy point is the fill?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "go.trim_1",
+   "seed": "Bought at 24.48 with the stop at 24.01. Where are 3R and 5R?"
+  }
+ ],
+ "owner_decisions": [
+  "D-001",
+  "D-003",
+  "D-005",
+  "D-007",
+  "D-009",
+  "D-011",
+  "D-014",
+  "D-018",
+  "D-031",
+  "D-128",
+  "D-129",
+  "D-130",
+  "D-131",
+  "D-132",
+  "D-145"
+ ],
+ "conflicts": [
+  "Sources are cited by the dossier's own numbering in section 11: S1 the UCT Substack, S2 the owner verdict log, S3 the rulebook, S4 the KB summaries, S5 the brain template, S6 the scanner and fixtures, S7 the Study finders and vendor bars, S8 other app definitions, S9 the Model Book and Study texts, S10 and S11 Larry Williams, S12 Deepvue, S13 Morales, S14 Wyckoff, S15 Kullamagi, S16 Unger Academy, S17 our own hourly test. S18 and S19 are not sources (not read; searches) and are not cited.",
+  "Two definitions carry the name: the Model Book card, the curriculum lesson (SET.34: a catalyst gap digests into the 9 EMA, then one wide candle engulfs the pullback and closes above the catalyst high) and the glossary items teach a pattern he never described. The card follows his rulings; D-014 retires the other (question 10).",
+  "The scanner reads the daily footprint only (it needs the close), demands an open below the prior close (his newest wording describes an open above it; his good MSFT 2022-11-22 and okay AAPL 2022-08-24 are its negative fixtures), has no 200-day gate (its positive MSFT 2022-11-17 was under it), fires without the turn (daily_proxy), uses a $2 floor, a stop exactly on the low and 2R/3R targets. Its 92% precision is recognition of daily footprints by AI judges, not results. D-004.",
+  "The hourly finder tests the 2026-10-27 flag reading (red to green as the candle's own colour over the flag low), not the 2026-11-01 prior-close key; the redo is pending.",
+  "Bars: the bars he reviewed are clock-aligned and the measurement bars session-aligned; the answer changes in one session in seven. The card recommends clock-aligned (D-031).",
+  "Close or touch: his META 12 Sep 2025 example traded above the prior close in the second hour and closed above it in the third; the dossier recommends the hourly close, D-129's default the touch with the close as a grade.",
+  "The entry: the dossier recommends the reclaiming hourly close; the scanner, his ALAB words and D-003's default buy the cross. The test did not measure the cross.",
+  "The 200-day: his great MSFT 2022-11-17 and good MSFT 2022-11-22 and AAPL 2022-09-01 were under it; B26 is hard and they leave the bank (D-009).",
+  "RS: ZETA, BIDU, META and ZS were under 80 on our rough proxy when he called them. D-011's default keeps C31 as written for the Go Signal; the card leaves it pending.",
+  "The bank: 13 of his 18 great or good daily footprints turn green after the second hourly candle; whether to re-grade them on hourly close-ups or start fresh from his public calls is D-007 (question 15).",
+  "Measured evidence: no edge in the mechanical trigger by itself on about 3 years of hourly bars; a red-to-green turn happens in about 30% of all liquid sessions. Unger Academy's Oops backtest is on DAX futures. The edge, if any, is the stock, the level and the market.",
+  "Volume: Morales says not a factor, Williams's Oops has no volume rule, Wyckoff's school prefers a low-volume spring; no consensus. A cue only.",
+  "The journal tag sits in the Swing group while the Model Book card says Intraday. One tag per unit (D-014).",
+  "The brain KB extract files (brain_kb_*.json) are tracked in this public repo although CLAUDE.md lists the brain DB as private; the card paraphrases nothing from them beyond the dossier's own paraphrase (KB row 10789)."
+ ]
+}

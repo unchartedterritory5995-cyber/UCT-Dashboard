@@ -1,0 +1,1520 @@
+{
+ "unit": "F6.18",
+ "track": "F6",
+ "title": "Flow and dealer positioning, last",
+ "teaches": "Read options flow honestly: volume versus open interest, what a big or aggressive print can and cannot tell you (a hedge, a close or a bet), why flow is a second opinion on the chart and never the signal, and the dealer-hedging theory behind gamma flip levels and strike pinning, with the evidence on both sides.",
+ "skills": [
+  {
+   "id": "options.flow",
+   "title": "Flow and dealer positioning"
+  }
+ ],
+ "as_of": "2026-11-09",
+ "sources": [
+  {
+   "id": "s1",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Options Glossary (O)",
+   "url": "https://www.optionseducation.org/referencelibrary/optionsglossary?filter=O",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s2",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Options Glossary (C)",
+   "url": "https://www.optionseducation.org/referencelibrary/optionsglossary?filter=C",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s3",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Options Glossary (P): Pin risk",
+   "url": "https://www.optionseducation.org/referencelibrary/optionsglossary?filter=P",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s4",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "FAQ: General Information (open interest, liquidity)",
+   "url": "https://www.optionseducation.org/referencelibrary/faq/general-information",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s5",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "FAQ: Trade Entry & Execution",
+   "url": "https://www.optionseducation.org/referencelibrary/faq/trade-entry-execution",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s6",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Open Interest: Why It Matters (October 2025)",
+   "url": "https://www.optionseducation.org/news/open-interest-why-it-matters",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s7",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Options Market Makers: The Hidden Machinery Behind Every Trade (September 2026)",
+   "url": "https://www.optionseducation.org/news/options-market-makers-the-hidden-machinery-behind-every-trade",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s8",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "July Office Hours FAQs: Implied Volatility, Position Greeks and Market Maker Order Flow (August 2026)",
+   "url": "https://www.optionseducation.org/news/july-office-hours-faqs-implied-volatility-position-greeks-and-market-maker-order-flow",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s9",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "May Office Hours FAQs: Implied Volatility, Greek Exposure, and Market Maker Activity (June 2026)",
+   "url": "https://www.optionseducation.org/news/may-office-hours-faqs",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s10",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "March Office Hours FAQs: Options Pricing, Greeks, and Market Dynamics (March 2026)",
+   "url": "https://www.optionseducation.org/news/march-office-hours-faqs-option-pricing-greeks-and-market-dynamics",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s11",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "April Office Hours FAQs: Options Strategy, Time Decay, and Market Mechanics (April 2026)",
+   "url": "https://www.optionseducation.org/news/april-office-hours-faqs-options-strategy-time-decay-and-market-mechanics",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s13",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Gamma",
+   "url": "https://www.optionseducation.org/advancedconcepts/gamma",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s14",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Delta",
+   "url": "https://www.optionseducation.org/advancedconcepts/delta",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s15",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Protective Put (Married Put)",
+   "url": "https://www.optionseducation.org/strategies/all-strategies/protective-put-married-put",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s16",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Covered Call (Buy/Write)",
+   "url": "https://www.optionseducation.org/strategies/all-strategies/covered-call-buy-write",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s17",
+   "tier": 1,
+   "publisher": "FINRA",
+   "title": "Options (investor page: pin risk, open interest)",
+   "url": "https://www.finra.org/investors/investing/investment-products/options",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s18",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Types of Orders",
+   "url": "https://www.investor.gov/introduction-investing/investing-basics/how-stock-markets-work/types-orders",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s19",
+   "tier": 2,
+   "publisher": "Montreal Exchange (Bourse de Montreal, TMX Group), on National Bank Direct Brokerage's Learning Centre",
+   "title": "Should you take advantage of unusual options activity? (October 18, 2022)",
+   "url": "https://www.nbc.ca/en/direct-brokerage/learning-centre/investment-strategies/advanced-options/unusual-options-activity.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Written by the Montreal Exchange, Canada's options exchange (byline and copyright Bourse de Montreal Inc.), and republished in the learning centre of National Bank Direct Brokerage, a regulated broker. An exchange's own options education, counted as Tier 2 like CME and Cboe education pages."
+  },
+  {
+   "id": "s20",
+   "tier": 2,
+   "publisher": "Cboe Global Markets",
+   "title": "Volatility Insights: Much Ado About 0DTEs (Mandy Xu, September 8, 2023)",
+   "url": "https://www.cboe.com/insights/posts/volatility-insights-evaluating-the-market-impact-of-spx-0-dte-options",
+   "accessed": "2026-11-09",
+   "why_reliable": "The exchange's own research post, by a named Cboe author, using Cboe's trade-level data on who bought and sold. Counted as Tier 2 (an exchange's insight page, not a rule page). Cboe lists SPX 0DTE options, so its view on their market impact is noted in conflicts."
+  },
+  {
+   "id": "s21",
+   "tier": 2,
+   "publisher": "Journal of Financial Economics (Ni, Pearson and Poteshman, 2005)",
+   "title": "Stock price clustering on option expiration dates (abstract, Hong Kong Baptist University research portal)",
+   "url": "https://scholars.hkbu.edu.hk/en/publications/stock-price-clustering-on-option-expiration-dates-3/",
+   "accessed": "2026-11-09",
+   "why_reliable": "A peer-reviewed paper in the Journal of Financial Economics, vol. 78 (2005), pp. 49-87. The abstract is quoted from the research portal of Hong Kong Baptist University, the first author's university."
+  },
+  {
+   "id": "s22",
+   "tier": 2,
+   "publisher": "Journal of Financial Economics (Golez and Jackwerth, 2012)",
+   "title": "Pinning in the S&P 500 futures (abstract, IDEAS/RePEc)",
+   "url": "https://ideas.repec.org/a/eee/jfinec/v106y2012i3p566-585.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "A peer-reviewed paper in the Journal of Financial Economics (2012) by Benjamin Golez and Jens Carsten Jackwerth, a different research team from s21. The abstract is quoted from its IDEAS/RePEc listing."
+  },
+  {
+   "id": "s23",
+   "tier": 2,
+   "publisher": "Quantitative Finance (Avellaneda and Lipkin, 2003)",
+   "title": "A market-induced mechanism for stock pinning (abstract, IDEAS/RePEc)",
+   "url": "https://ideas.repec.org/a/taf/quantf/v3y2003i6p417-425.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "A peer-reviewed paper in Quantitative Finance (2003) by Marco Avellaneda (NYU Courant Institute) and Michael Lipkin. It is a model, not a measurement, and the file uses it only as the theory. Abstract quoted from IDEAS/RePEc."
+  },
+  {
+   "id": "s24",
+   "tier": 2,
+   "publisher": "The Review of Financial Studies (Ni, Pearson, Poteshman and White, 2021)",
+   "title": "Does Option Trading Have a Pervasive Impact on Underlying Stock Prices? (abstract, IDEAS/RePEc)",
+   "url": "https://ideas.repec.org/a/oup/rfinst/v34y2021i4p1952-1986..html",
+   "accessed": "2026-11-09",
+   "why_reliable": "A peer-reviewed paper in The Review of Financial Studies, vol. 34 (2021). The abstract is quoted from its IDEAS/RePEc listing (which also lists the handling editor, Andrew Karolyi, among the names)."
+  },
+  {
+   "id": "s25",
+   "tier": 2,
+   "publisher": "The Review of Financial Studies (Pan and Poteshman, 2006)",
+   "title": "The Information in Option Volume for Future Stock Prices (abstract, IDEAS/RePEc)",
+   "url": "https://ideas.repec.org/a/oup/rfinst/v19y2006i3p871-908.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "A peer-reviewed paper in The Review of Financial Studies (2006) by Jun Pan (MIT) and Allen Poteshman (University of Illinois); also NBER working paper 10925. Abstract quoted from IDEAS/RePEc."
+  }
+ ],
+ "facts": [
+  {
+   "id": "f1",
+   "source": "s1",
+   "quote": "The total number of outstanding option contracts on a given series or for a given underlying stock.",
+   "claim": "Open interest is the number of option contracts outstanding, counted per series or per stock."
+  },
+  {
+   "id": "f2",
+   "source": "s1",
+   "quote": "An opening option transaction increases that option's open interest.",
+   "claim": "A trade that opens a position adds to open interest."
+  },
+  {
+   "id": "f3",
+   "source": "s2",
+   "quote": "A purchase transaction closes an existing short option position. This transaction reduces the open interest for the specific option involved.",
+   "claim": "A buy can close a short option position, and a closing trade lowers open interest."
+  },
+  {
+   "id": "f4",
+   "source": "s3",
+   "quote": "The risk to an investor (option writer) that the stock price will exactly equal the strike price at expiration (that option will be exactly at-the-money).",
+   "claim": "Pin risk is the option seller's risk that the stock finishes exactly at the strike at expiration."
+  },
+  {
+   "id": "f5",
+   "source": "s3",
+   "quote": "The investor will not know how many of their written(short) options will be assigned",
+   "claim": "With the stock on the strike, a seller can't know how many short options will be assigned."
+  },
+  {
+   "id": "f6",
+   "source": "s3",
+   "quote": "The risk is that on the following Monday the option writer might have an unexpected long (in the case of a written put) or short (in the case of a written call) stock position",
+   "claim": "Pin risk can leave a seller with a surprise stock position after expiration: long from a short put, short from a short call."
+  },
+  {
+   "id": "f7",
+   "source": "s4",
+   "quote": "Open interest only reflects the total number of open (long or short) option contracts for a given option series that have not yet been closed out. This indicates neither a bullish nor bearish outlook.",
+   "claim": "Open interest counts contracts not yet closed out and says nothing bullish or bearish on its own."
+  },
+  {
+   "id": "f8",
+   "source": "s4",
+   "quote": "That open interest reflects one call seller (bearish) and one call buyer (bullish).",
+   "claim": "Every open contract has a buyer and a seller behind it, so it carries both views at once."
+  },
+  {
+   "id": "f9",
+   "source": "s4",
+   "quote": "On a recent trading day, the volume of options traded on a specific contract was about 3,000, yet the next day open interest had only increased by approximately 1,800.",
+   "claim": "A contract can trade 3,000 in a day while open interest rises only 1,800 the next day."
+  },
+  {
+   "id": "f10",
+   "source": "s4",
+   "quote": "the open interest depends on whether the buyer and seller are opening or closing positions. OCC can only report new open interest after clearing and pairing opening and closing positions at the end of the day.",
+   "claim": "Open interest depends on whether each side opened or closed, and OCC reports the new figure only after the day ends."
+  },
+  {
+   "id": "f11",
+   "source": "s4",
+   "quote": "A common misconception is that volume and open interest equate with liquidity.",
+   "claim": "Volume and open interest are not the same thing as liquidity."
+  },
+  {
+   "id": "f12",
+   "source": "s4",
+   "quote": "By asking your broker for a two-sided market with size, you can find out how many contracts are bid or offered at any time during the trading day.",
+   "claim": "The live bid and offer, with their size, show how many contracts you can trade right now."
+  },
+  {
+   "id": "f13",
+   "source": "s4",
+   "quote": "Don't let the open interest or volume fool you into thinking that there is or is not liquidity in that specific contract.",
+   "claim": "Low or high open interest and volume can mislead you about whether a contract is liquid."
+  },
+  {
+   "id": "f14",
+   "source": "s5",
+   "quote": "It is unlikely that open interest will affect executions as much as the bid or ask side does.",
+   "claim": "Your fill depends more on the bid and ask than on open interest."
+  },
+  {
+   "id": "f15",
+   "source": "s5",
+   "quote": "If you enter a market sell order, you will be filled at the best available bid price.",
+   "claim": "A market sell in options fills at the best bid."
+  },
+  {
+   "id": "f16",
+   "source": "s6",
+   "quote": "volume captures activity within a session, whereas open interest reflects the cumulative number of contracts still “open” or pending.",
+   "claim": "Volume is one session's trading; open interest is the running total of contracts still open."
+  },
+  {
+   "id": "f17",
+   "source": "s6",
+   "quote": "The OCC is responsible for calculating open interest. This process involves consolidating trade reports from the exchanges, which detail all opening and closing transactions for the day.",
+   "claim": "OCC calculates open interest from the exchanges' reports of each day's opening and closing trades."
+  },
+  {
+   "id": "f18",
+   "source": "s6",
+   "quote": "If Trader A buys to open 10 call options and Trader B sells to open those same 10 contracts, open interest increases by 10.",
+   "claim": "When both sides open 10 contracts, open interest rises by 10, not 20."
+  },
+  {
+   "id": "f19",
+   "source": "s6",
+   "quote": "Both sides 'to open' → Open Interest increases.",
+   "claim": "Both sides opening raises open interest."
+  },
+  {
+   "id": "f20",
+   "source": "s6",
+   "quote": "Both sides 'to close' → Open Interest decreases.",
+   "claim": "Both sides closing lowers open interest."
+  },
+  {
+   "id": "f21",
+   "source": "s6",
+   "quote": "One side 'to open' & the other 'to close' → Open Interest remains unchanged.",
+   "claim": "One side opening and the other closing leaves open interest unchanged: the position changes hands."
+  },
+  {
+   "id": "f22",
+   "source": "s7",
+   "quote": "market makers are contractually obligated to provide continuous two-sided markets by simultaneously quoting bids and offers on a given contract",
+   "claim": "Market makers must keep quoting a bid and an offer."
+  },
+  {
+   "id": "f23",
+   "source": "s7",
+   "quote": "When corporations hedge real-world risk, investors speculate on price moves, or funds manage portfolio exposure, market makers often take the other side.",
+   "claim": "Market makers often take the other side of hedgers, speculators and funds."
+  },
+  {
+   "id": "f24",
+   "source": "s7",
+   "quote": "Market makers are continuously adjusting positions to keep the overall position Delta-neutral as the market moves.",
+   "claim": "Market makers keep adjusting to stay delta-neutral as prices move."
+  },
+  {
+   "id": "f25",
+   "source": "s7",
+   "quote": "this means buying and selling the underlying stock dozens or even hundreds of times a day, not because they have a view on its direction, but simply to offset the directional risk",
+   "claim": "Market makers trade the stock many times a day to offset risk, not because of a view on direction."
+  },
+  {
+   "id": "f26",
+   "source": "s8",
+   "quote": "often without knowing whether an order is institutional or retail, though size can be a clue.",
+   "claim": "Even market makers often can't tell if an order is institutional or retail; size is only a clue."
+  },
+  {
+   "id": "f27",
+   "source": "s8",
+   "quote": "A market maker's role is to post bids and offers across many strikes and names, take the opposite side of whatever the public wants to do, and hedge the resulting position to stay close to market-neutral.",
+   "claim": "Market makers take the other side of public orders and hedge to stay close to market-neutral."
+  },
+  {
+   "id": "f28",
+   "source": "s8",
+   "quote": "Do market makers trade based on news or a directional opinion? Generally, no.",
+   "claim": "Market makers generally don't trade on news or a view on direction."
+  },
+  {
+   "id": "f29",
+   "source": "s9",
+   "quote": "Public options data identifies the product, size, strike, and expiration of trades, but not whether the participant is retail or institutional.",
+   "claim": "Public options data shows the product, size, strike and expiration of a trade, not who made it."
+  },
+  {
+   "id": "f30",
+   "source": "s9",
+   "quote": "Gamma flip refers to the point at which a dealer's or market maker's aggregate Gamma exposure across strikes changes sign",
+   "claim": "The gamma flip is the point where dealers' total gamma across strikes changes sign."
+  },
+  {
+   "id": "f31",
+   "source": "s9",
+   "quote": "from long Gamma to short Gamma, or vice versa",
+   "claim": "At the flip, dealer gamma goes from long to short, or short to long."
+  },
+  {
+   "id": "f32",
+   "source": "s9",
+   "quote": "The term has gained attention alongside increased interest in measures of dealer positioning, particularly in short-dated options.",
+   "claim": "Gamma flip talk has grown with interest in measures of dealer positioning, mostly in short-dated options."
+  },
+  {
+   "id": "f33",
+   "source": "s9",
+   "quote": "Throughout the day, market makers continually project what their position will look like immediately after expiration so that the resulting Delta exposure can be hedged on the close.",
+   "claim": "On expiration day, market makers plan their post-expiry position and hedge its delta on the close."
+  },
+  {
+   "id": "f34",
+   "source": "s10",
+   "quote": "Large option trades can influence the underlying stock. When market makers hedge their exposure—often by buying or selling shares—this activity can contribute to price movement.",
+   "claim": "Big option trades can move the stock, because market makers' share hedging can add to price moves."
+  },
+  {
+   "id": "f35",
+   "source": "s10",
+   "quote": "High open interest at certain strikes can influence trading activity, especially near expiration.",
+   "claim": "Heavy open interest at a strike can shape trading near it, most of all close to expiration."
+  },
+  {
+   "id": "f36",
+   "source": "s10",
+   "quote": "Rather than taking directional views, they focus on managing risk and capturing small pricing differences while dynamically hedging their positions.",
+   "claim": "Market makers manage risk and hedge rather than take directional views."
+  },
+  {
+   "id": "f37",
+   "source": "s11",
+   "quote": "long Deltas are hedged by shorting stock, short Deltas by buying stock",
+   "claim": "To stay neutral, long delta is hedged by selling stock and short delta by buying stock."
+  },
+  {
+   "id": "f41",
+   "source": "s13",
+   "quote": "Positive Gamma means that the Delta of long calls will become more positive and move toward +1.00 when the stock price rises, and less positive and move toward 0 when the stock price falls.",
+   "claim": "With positive gamma, delta grows as the stock rises and shrinks as it falls."
+  },
+  {
+   "id": "f42",
+   "source": "s13",
+   "quote": "Long options, either calls or puts, always yield positive Gamma. Short calls and short puts will have negative Gamma.",
+   "claim": "Bought options are long gamma; sold options are short gamma."
+  },
+  {
+   "id": "f43",
+   "source": "s14",
+   "quote": "Remember long calls have positive Delta; conversely short calls have negative Delta.",
+   "claim": "A sold call carries negative delta."
+  },
+  {
+   "id": "f44",
+   "source": "s15",
+   "quote": "This strategy is a hedge against a temporary dip in the stock's value.",
+   "claim": "A put bought against stock you own is a hedge against a dip."
+  },
+  {
+   "id": "f45",
+   "source": "s15",
+   "quote": "This investor is bullish overall, but worries about a sharp temporary decline in the underlying stock's price.",
+   "claim": "The protective put buyer is bullish overall and buys the put for protection."
+  },
+  {
+   "id": "f46",
+   "source": "s16",
+   "quote": "The primary motive is to earn premium income.",
+   "claim": "Covered call writers sell calls mainly for the premium income."
+  },
+  {
+   "id": "f47",
+   "source": "s16",
+   "quote": "The covered call writer is looking for a steady or slightly rising stock price for at least the term of the option.",
+   "claim": "A covered call writer wants a steady or slightly rising stock, not a fall."
+  },
+  {
+   "id": "f48",
+   "source": "s17",
+   "quote": "This risk occurs when a stock closes at or very near an option's strike price at expiration, creating uncertainty for both buyers and sellers.",
+   "claim": "Pin risk is the uncertainty when a stock closes at or very near the strike at expiration."
+  },
+  {
+   "id": "f49",
+   "source": "s17",
+   "quote": "Option sellers don't know if they'll be assigned, and if assigned, must fulfill the contract at the strike price but are left holding a stock position that might have moved unfavorably by the next day’s open",
+   "claim": "A pinned seller doesn't know about assignment and may hold stock that moves against them by the next open."
+  },
+  {
+   "id": "f50",
+   "source": "s17",
+   "quote": "Open interest refers to the number of outstanding contracts in a particular options market or an options contract.",
+   "claim": "Open interest is the number of contracts outstanding."
+  },
+  {
+   "id": "f51",
+   "source": "s18",
+   "quote": "This type of order guarantees that the order will be executed, but does not guarantee the execution price.",
+   "claim": "A market order trades price for certainty: it fills, at whatever price is there."
+  },
+  {
+   "id": "f52",
+   "source": "s18",
+   "quote": "A market order generally will execute at or near the current bid (for a sell order) or ask (for a buy order) price.",
+   "claim": "A market buy fills at or near the ask; a market sell at or near the bid."
+  },
+  {
+   "id": "f53",
+   "source": "s19",
+   "quote": "many investors and traders use a simple definition of an options contract whose trading volume is five times higher compared to its average daily trading volume.",
+   "claim": "A common rule calls a contract's activity unusual at about five times its average daily volume."
+  },
+  {
+   "id": "f54",
+   "source": "s19",
+   "quote": "by default, unusual options activity does not translate to a bullish indicator. In fact, unusual volume could merely be consistent with a large investor using the options market to hedge a trade",
+   "claim": "Unusual volume isn't bullish by default; it can just be a large investor hedging."
+  },
+  {
+   "id": "f55",
+   "source": "s19",
+   "quote": "But each option trade consists of two separate sides: the buyer and the seller.",
+   "claim": "Every option trade has a buyer and a seller."
+  },
+  {
+   "id": "f56",
+   "source": "s19",
+   "quote": "A large seller of call options could be motivated by generating additional yield after they acquired the underlying shares at a very low price.",
+   "claim": "Heavy call activity can come from a shareholder selling calls for extra yield."
+  },
+  {
+   "id": "f57",
+   "source": "s19",
+   "quote": "It is worth repeating that unusual options activity by default is not a bullish nor bearish sign.",
+   "claim": "Unusual options activity is neither bullish nor bearish by default."
+  },
+  {
+   "id": "f58",
+   "source": "s19",
+   "quote": "this emphasizes the need to constantly dig deep and do additional due diligence. The objective is to evaluate if an unusual trade is part of a hedge or a speculative exposure strategy.",
+   "claim": "An unusual trade calls for more homework: is it a hedge or a speculative bet."
+  },
+  {
+   "id": "f59",
+   "source": "s19",
+   "quote": "That said, unusual options activity remains a preferred starting point for many traders",
+   "claim": "Unusual activity is a starting point for research."
+  },
+  {
+   "id": "f60",
+   "source": "s20",
+   "quote": "with estimates for market maker positioning ranging from “record short” to long $50bn gamma in SPX alone.",
+   "claim": "Outside estimates of market maker gamma in SPX have ranged from 'record short' to long $50bn."
+  },
+  {
+   "id": "f61",
+   "source": "s20",
+   "quote": "Being long gamma means that market makers would be hedging in the opposite direction of the market move",
+   "claim": "Long gamma market makers hedge against the direction of the move."
+  },
+  {
+   "id": "f62",
+   "source": "s20",
+   "quote": "if SPX index rallies, market makers have to sell futures, and if SPX index falls, market makers have to buy – and thus the hedging activity has the potential to dampen market moves.",
+   "claim": "Long gamma hedging sells rallies and buys dips, which can dampen moves."
+  },
+  {
+   "id": "f63",
+   "source": "s20",
+   "quote": "Being short gamma means market makers would be hedging in the same direction of the market move",
+   "claim": "Short gamma market makers hedge in the same direction as the move."
+  },
+  {
+   "id": "f64",
+   "source": "s20",
+   "quote": "it’s important to emphasize that volume doesn’t equate to risk.",
+   "claim": "Big option volume does not by itself mean big risk for market makers."
+  },
+  {
+   "id": "f65",
+   "source": "s20",
+   "quote": "What matters is the balance of the volume between buys vs. sells, not the total size of the volume.",
+   "claim": "What market makers must hedge depends on the buy-sell balance, not total volume."
+  },
+  {
+   "id": "f66",
+   "source": "s20",
+   "quote": "it’s important to point out those are just estimates based on assumptions.",
+   "claim": "Outside estimates of how balanced customer flow is are only estimates built on assumptions."
+  },
+  {
+   "id": "f67",
+   "source": "s20",
+   "quote": "most outside observers have very little visibility into the exact breakdown of the volume.",
+   "claim": "Outsiders can barely see who bought, who sold, and who opened or closed."
+  },
+  {
+   "id": "f68",
+   "source": "s20",
+   "quote": "we can see for every transaction whether it’s customer or market maker, buy or sell, opening or closing.",
+   "claim": "The exchange itself sees, trade by trade, customer or market maker, buy or sell, open or close."
+  },
+  {
+   "id": "f69",
+   "source": "s20",
+   "quote": "Much has been written about the 4440-strike put where over 100k contracts traded on that day – yet if you look at the net positioning, market makers were left short only about 3k contracts (52k buy vs. 55k sell)",
+   "claim": "On that day the SPX 4440 put traded over 100k contracts, yet market makers ended only about 3k short (52k bought, 55k sold)."
+  },
+  {
+   "id": "f70",
+   "source": "s20",
+   "quote": "Case Study: August 15, 2023",
+   "claim": "The 4440 put example is from August 15, 2023."
+  },
+  {
+   "id": "f71",
+   "source": "s20",
+   "quote": "There is also no discernible market impact from 0DTE option trading, with SPX index intraday volatility and price patterns in line with historical averages.",
+   "claim": "Cboe's data found no visible market impact from SPX 0DTE trading."
+  },
+  {
+   "id": "f72",
+   "source": "s20",
+   "quote": "Market makers may have offsetting positions in other expiries, or other equivalent products",
+   "claim": "A gamma count for one expiry can miss market makers' offsetting positions elsewhere."
+  },
+  {
+   "id": "f73",
+   "source": "s21",
+   "quote": "This paper presents striking evidence that option trading changes the prices of underlying stocks. In particular, we show that on expiration dates the closing prices of stocks with listed options cluster at option strike prices.",
+   "claim": "On expiration dates, closing prices of stocks with listed options cluster at strike prices."
+  },
+  {
+   "id": "f74",
+   "source": "s21",
+   "quote": "On each expiration date, the returns of optionable stocks are altered by an average of at least 16.5 basis points",
+   "claim": "The average effect on optionable stocks' returns was at least 16.5 basis points per expiration date."
+  },
+  {
+   "id": "f75",
+   "source": "s21",
+   "quote": "We provide evidence that hedge rebalancing by option market makers and stock price manipulation by firm proprietary traders contribute to the clustering.",
+   "claim": "Market maker hedge rebalancing, plus manipulation by proprietary traders, contribute to the clustering."
+  },
+  {
+   "id": "f76",
+   "source": "s22",
+   "quote": "We show that Standard & Poor's (S&P) 500 futures are pulled toward the at-the-money strike price on days when serial options on the S&P 500 futures expire (pinning)",
+   "claim": "S&P 500 futures are pulled toward the at-the-money strike on days their options expire."
+  },
+  {
+   "id": "f77",
+   "source": "s22",
+   "quote": "These effects are driven by the interplay of market makers' rebalancing of delta hedges due to the time decay of those hedges",
+   "claim": "The pinning comes from market makers rebalancing delta hedges."
+  },
+  {
+   "id": "f78",
+   "source": "s23",
+   "quote": "We argue that if the open interest on a particular contract is unusually large, delta-hedging in aggregate by floor market-makers can impact the stock price and drive it to the strike price of the option.",
+   "claim": "The theory: unusually large open interest plus market makers' delta hedging can drive a stock to the strike."
+  },
+  {
+   "id": "f79",
+   "source": "s23",
+   "quote": "According to this model, the stock price has a finite probability of pinning at a strike.",
+   "claim": "Even in the model, pinning is a probability, not a certainty."
+  },
+  {
+   "id": "f80",
+   "source": "s24",
+   "quote": "This paper provides evidence of a noninformational channel through which option market maker hedge rebalancing affects stock return volatility and the probability of large stock price moves.",
+   "claim": "Market maker hedge rebalancing affects how volatile stocks are and how likely big moves are."
+  },
+  {
+   "id": "f81",
+   "source": "s25",
+   "quote": "We present strong evidence that option trading volume contains information about future stock prices. Taking advantage of a unique data set, we construct put-call ratios from option volume initiated by buyers to open new positions.",
+   "claim": "Option volume carried information about future prices in a study built on a unique data set of opening buys."
+  },
+  {
+   "id": "f82",
+   "source": "s25",
+   "quote": "Stocks with low put-call ratios outperform stocks with high put-call ratios by more than 40 basis points on the next day and more than 1% over the next week.",
+   "claim": "Low put-call names beat high put-call names over the next day and week in that study."
+  },
+  {
+   "id": "f83",
+   "source": "s25",
+   "quote": "we find that the economic source of this predictability is nonpublic information possessed by option traders rather than market inefficiency.",
+   "claim": "The predictive power came from nonpublic information option traders had, not a market inefficiency."
+  },
+  {
+   "id": "f84",
+   "source": "s6",
+   "quote": "In addition, the OCC accounts for options that were exercised and resulted in assignment, since those contracts are “closed” and eliminated from open interest.",
+   "claim": "Exercised and assigned contracts are closed too, so they also come out of open interest."
+  }
+ ],
+ "walkthroughs": [
+  {
+   "key": "w1",
+   "title": "Volume, open interest, and what's new",
+   "steps": [
+    "Volume counts the contracts that traded today. Open interest counts the contracts still open.",
+    "A trade adds to open interest only when both sides open. One side opening and the other closing just changes hands.",
+    "The Options Clearing Corporation (OCC) counts open interest after the close. Today's flow shows up in it the next session."
+   ],
+   "facts": [
+    "f16",
+    "f19",
+    "f21",
+    "f10",
+    "f17"
+   ]
+  },
+  {
+   "key": "w2",
+   "title": "Every print has two sides",
+   "steps": [
+    "Every option trade has a buyer and a seller. Public data shows size, strike and expiry, not who traded.",
+    "A big put buy can be a bullish holder buying protection. A big call sale can be a covered call for income.",
+    "Many traders call activity unusual at about five times a contract's normal volume. Unusual means look closer, not buy."
+   ],
+   "facts": [
+    "f55",
+    "f29",
+    "f44",
+    "f45",
+    "f46",
+    "f53",
+    "f57",
+    "f59"
+   ]
+  },
+  {
+   "key": "w3",
+   "title": "The dealer gamma theory",
+   "steps": [
+    "Market makers, often called dealers, take the other side of public orders and hedge with stock to stay delta-neutral.",
+    "The theory: when they're long gamma, their hedging leans against moves. Short gamma, it chases them.",
+    "Studies find expiration-day closes cluster at strikes. But outsiders only estimate dealer positions, and the estimates have disagreed wildly."
+   ],
+   "facts": [
+    "f30",
+    "f27",
+    "f23",
+    "f24",
+    "f61",
+    "f62",
+    "f63",
+    "f73",
+    "f75",
+    "f78",
+    "f66",
+    "f60"
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "key": "q01",
+   "skill": "options.flow",
+   "rung": 1,
+   "format": "mcq",
+   "q": "On an options chain, what does open interest count?",
+   "choices": [
+    "Contracts still open",
+    "Contracts traded so far today",
+    "Orders waiting to be filled",
+    "Bullish bets minus bearish bets"
+   ],
+   "answer": "Contracts still open",
+   "term": "Open interest",
+   "why": "Contracts still open. Open interest is the number of contracts outstanding, the ones nobody has closed out yet.",
+   "lesson_line": "Volume is today's trading. Open interest is what's still open.",
+   "facts": [
+    "f1",
+    "f50",
+    "f16",
+    "f7"
+   ],
+   "wrong": {
+    "Contracts traded so far today": "That's volume. It counts one session's trading, while open interest is the running total still open.",
+    "Orders waiting to be filled": "Unfilled orders sit on the bid and ask. Open interest counts contracts that already traded and are still open.",
+    "Bullish bets minus bearish bets": "Every open contract has a buyer and a seller, so open interest can't split bulls from bears."
+   }
+  },
+  {
+   "key": "q02",
+   "skill": "options.flow",
+   "rung": 1,
+   "format": "tf",
+   "q": "Rising open interest in a stock's calls is a bullish sign.",
+   "answer": "False",
+   "why": "False. Every open contract has a buyer and a seller. One more call open is one more call buyer and one more call seller, so the count says nothing about direction.",
+   "lesson_line": "Open interest counts contracts, not opinions. Every contract has a buyer and a seller.",
+   "facts": [
+    "f7",
+    "f8"
+   ]
+  },
+  {
+   "key": "q03",
+   "skill": "options.flow",
+   "rung": 2,
+   "format": "mcq",
+   "q": "It's midday. When was the open interest on your options chain last updated?",
+   "choices": [
+    "After the prior session's close",
+    "With the last trade that printed",
+    "At the start of the trading week",
+    "At the last expiration"
+   ],
+   "answer": "After the prior session's close",
+   "why": "After the prior session's close. OCC can only report new open interest after it pairs the day's opening and closing trades at the end of the day.",
+   "lesson_line": "During the session, open interest is the prior day's count. Today's trades show up in it next session.",
+   "facts": [
+    "f10",
+    "f17"
+   ],
+   "wrong": {
+    "With the last trade that printed": "A trade can open or close a position, and OCC only sorts that out after the day ends. So it can't update trade by trade.",
+    "At the start of the trading week": "OCC reports it after each day's trades clear, not weekly.",
+    "At the last expiration": "It changes every day as traders open and close positions, not just at expiry."
+   }
+  },
+  {
+   "key": "q04",
+   "skill": "options.flow",
+   "rung": 2,
+   "format": "fill",
+   "q": "Fill in the blank.",
+   "sentence": "Pin risk is the seller's risk that the stock closes right at the option's ___ at expiration.",
+   "bank": [
+    "strike",
+    "stop",
+    "break-even",
+    "entry"
+   ],
+   "answer": "strike",
+   "why": "Strike. Close right on the strike and the seller can't know whether they'll be assigned, or where the stock opens next.",
+   "lesson_line": "Short an option into expiry with the stock sitting on the strike: that's pin risk.",
+   "facts": [
+    "f4",
+    "f5",
+    "f48",
+    "f49"
+   ]
+  },
+  {
+   "key": "q05",
+   "skill": "options.flow",
+   "rung": 2,
+   "format": "tf",
+   "q": "Public options data shows whether a trade came from a retail trader or an institution.",
+   "answer": "False",
+   "why": "False. Public data shows the product, size, strike and expiration of a trade, not who made it. Even market makers often can't tell, and size is only a clue.",
+   "lesson_line": "A big print tells you size. It doesn't tell you who, or why.",
+   "facts": [
+    "f29",
+    "f26"
+   ]
+  },
+  {
+   "key": "q06",
+   "skill": "options.flow",
+   "rung": 3,
+   "format": "tf",
+   "q": "Market makers trade the stock all day because they expect it to move their way.",
+   "answer": "False",
+   "why": "False. They trade the stock to stay delta-neutral, offsetting the risk from options they took on. It isn't a view on direction.",
+   "lesson_line": "A market maker's stock trades are hedges, not forecasts.",
+   "facts": [
+    "f24",
+    "f25",
+    "f28"
+   ]
+  },
+  {
+   "key": "q07",
+   "skill": "options.flow",
+   "rung": 3,
+   "format": "mcq",
+   "q": "A market maker sells calls to a customer. To stay delta-neutral, what does it usually do in the stock?",
+   "choices": [
+    "Buys shares",
+    "Sells shares short",
+    "Nothing, the premium covers it"
+   ],
+   "answer": "Buys shares",
+   "why": "Buys shares. Sold calls carry negative delta, and short delta is hedged by buying stock.",
+   "lesson_line": "Sold calls get hedged with bought stock. That's where the whole idea of dealer flow starts.",
+   "facts": [
+    "f43",
+    "f37",
+    "f24",
+    "f27"
+   ],
+   "wrong": {
+    "Sells shares short": "That adds to the short delta the sold calls already carry. It doubles the risk instead of offsetting it.",
+    "Nothing, the premium covers it": "Market makers hedge the position rather than carry its direction. Leaving it open would be a bet on the stock."
+   }
+  },
+  {
+   "key": "q08",
+   "skill": "options.flow",
+   "rung": 3,
+   "format": "tf",
+   "q": "Options are side bets on a stock, so options trading can't move the stock's price.",
+   "answer": "False",
+   "why": "False. When market makers hedge big option trades by buying or selling shares, that can add to price moves. Research finds option trading changes underlying prices.",
+   "lesson_line": "Options hedging spills into the stock. That's the idea behind every dealer positioning chart.",
+   "facts": [
+    "f34",
+    "f73",
+    "f80"
+   ]
+  },
+  {
+   "key": "q09",
+   "skill": "options.flow",
+   "rung": 4,
+   "format": "mcq",
+   "q": "One trader sells to close 10 calls. Another buys to open those same 10. What happens to open interest?",
+   "choices": [
+    "It stays the same",
+    "It rises by 10 contracts",
+    "It falls by 10",
+    "It rises by 20"
+   ],
+   "answer": "It stays the same",
+   "why": "It stays the same. One side opens and the other closes, so the contracts just change hands.",
+   "lesson_line": "Open interest moves only when both sides open, or both sides close.",
+   "facts": [
+    "f21",
+    "f19",
+    "f20",
+    "f18"
+   ],
+   "wrong": {
+    "It rises by 10 contracts": "That needs both sides opening. Here one side is closing.",
+    "It falls by 10": "That needs both sides closing. Here the buyer is opening.",
+    "It rises by 20": "Each contract has two sides but counts once. Even with both sides opening, 10 contracts add 10."
+   }
+  },
+  {
+   "key": "q10",
+   "skill": "options.flow",
+   "rung": 4,
+   "format": "scenario",
+   "story": "A call traded about 3,000 contracts on Monday. On Tuesday morning, its open interest is up only about 1,800.",
+   "q": "What best explains the gap?",
+   "choices": [
+    "Some trades closed old positions",
+    "Market maker trades aren't counted",
+    "Calls were netted against puts"
+   ],
+   "answer": "Some trades closed old positions",
+   "why": "Some trades closed old positions. Open interest grows only when both sides open. A trade with a closing side added nothing, or took contracts away.",
+   "lesson_line": "Volume says how much traded. Tomorrow's open interest says how much was new.",
+   "facts": [
+    "f9",
+    "f10",
+    "f19",
+    "f21",
+    "f1"
+   ],
+   "wrong": {
+    "Market maker trades aren't counted": "Open interest counts every outstanding contract, whoever holds it.",
+    "Calls were netted against puts": "Open interest is counted per option series. The call's count has nothing to do with the puts."
+   }
+  },
+  {
+   "key": "q11",
+   "skill": "options.flow",
+   "rung": 4,
+   "format": "mcq",
+   "q": "On a dealer positioning chart, what does the gamma flip mark?",
+   "choices": [
+    "Where dealer gamma changes sign",
+    "The strike with the most open interest",
+    "Where most options expire worthless",
+    "The day the options expire"
+   ],
+   "answer": "Where dealer gamma changes sign",
+   "term": "Gamma flip",
+   "why": "Where dealer gamma changes sign. On one side of it, the estimate has dealers long gamma; on the other, short gamma.",
+   "lesson_line": "The gamma flip is an estimated price where dealers' total gamma changes sign, long to short or back.",
+   "facts": [
+    "f30",
+    "f31",
+    "f32",
+    "f66",
+    "f35"
+   ],
+   "wrong": {
+    "The strike with the most open interest": "That's a different level. Heavy open interest can matter near expiry, but the flip is about the sign of dealers' total gamma.",
+    "Where most options expire worthless": "That's a different idea. The flip is where dealers' total gamma across strikes changes sign.",
+    "The day the options expire": "Expiration is a date. The flip is a price level."
+   }
+  },
+  {
+   "key": "q12",
+   "skill": "options.flow",
+   "rung": 5,
+   "format": "numeric",
+   "q": "Open interest is 6,000. Today's only activity: 1,000 contracts where both sides open, 800 where both close. What's the new open interest?",
+   "answer": 6200,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "oi + both_open - both_close",
+     "oi": 6000,
+     "both_open": 1000,
+     "both_close": 800
+    }
+   },
+   "why": "6,200. Both sides opening adds 1,000. Both sides closing takes away 800. Exercises would take contracts away too, but there were none.",
+   "lesson_line": "Both-open trades add to open interest. Both-close trades and exercises take away. Open-close trades just change hands.",
+   "facts": [
+    "f19",
+    "f20",
+    "f18",
+    "f84"
+   ]
+  },
+  {
+   "key": "q13",
+   "skill": "options.flow",
+   "rung": 5,
+   "format": "scenario",
+   "story": "A stock sits near its highs. Someone buys 5,000 puts on it in one print. Your chart still looks strong.",
+   "q": "Besides a bet on a drop, what could that put buy be?",
+   "choices": [
+    "A holder protecting their shares",
+    "Insiders who know bad news is coming",
+    "A market maker betting on a drop"
+   ],
+   "answer": "A holder protecting their shares",
+   "why": "A holder protecting their shares. A put bought against stock you own is a hedge, and that buyer is bullish overall. The print looks the same either way.",
+   "lesson_line": "A big put buy can come from a bull. The print shows size, not which way they lean.",
+   "facts": [
+    "f44",
+    "f45",
+    "f54",
+    "f29",
+    "f28",
+    "f27"
+   ],
+   "wrong": {
+    "Insiders who know bad news is coming": "That's still a bet on a drop, with a story added. A print shows size, not who traded or why.",
+    "A market maker betting on a drop": "Also a bet on a drop, and market makers generally don't trade on a view of direction. They take the other side and hedge."
+   }
+  },
+  {
+   "key": "q14",
+   "skill": "options.flow",
+   "rung": 5,
+   "format": "tf",
+   "q": "A trader who sells a big block of calls must be bearish on the stock.",
+   "answer": "False",
+   "why": "False. A covered call writer owns the shares, sells calls mainly for the premium, and wants a steady or slightly rising stock.",
+   "lesson_line": "Selling calls can be income on shares someone owns. Don't read every call sale as a bear.",
+   "facts": [
+    "f46",
+    "f47",
+    "f56"
+   ]
+  },
+  {
+   "key": "q15",
+   "skill": "options.flow",
+   "rung": 6,
+   "format": "scenario",
+   "story": "A 2,000-contract call trade prints at the ask. Your flow scanner tags it bullish.",
+   "q": "What does the trade price alone tell you?",
+   "choices": [
+    "A buyer paid the ask to get filled",
+    "A new bullish position was opened",
+    "The stock is set to rise from here"
+   ],
+   "answer": "A buyer paid the ask to get filled",
+   "why": "A buyer paid the ask to get filled. That's what a market buy does when the fill matters more than the price. But a buy can also close a short call, a seller getting out.",
+   "lesson_line": "At the ask means someone paid up to buy. It doesn't mean someone opened a bullish bet.",
+   "facts": [
+    "f52",
+    "f51",
+    "f3",
+    "f10"
+   ],
+   "wrong": {
+    "A new bullish position was opened": "A buy can also close an existing short call. The print alone can't show which it was.",
+    "The stock is set to rise from here": "One print can't tell you direction. It can be a hedge, a close or a bet."
+   }
+  },
+  {
+   "key": "q16",
+   "skill": "options.flow",
+   "rung": 6,
+   "format": "mcq",
+   "q": "A website charts dealers' gamma at each strike. Where do those dealer positions come from?",
+   "choices": [
+    "Estimates built on assumptions",
+    "Open interest, which shows their side",
+    "A live feed of dealer accounts"
+   ],
+   "answer": "Estimates built on assumptions",
+   "why": "Estimates built on assumptions. Public data shows size, strike and expiration, not who holds what. Cboe, which sees each trade's side, says outside estimates of customer flow are just estimates based on assumptions.",
+   "lesson_line": "A dealer gamma chart is a model's best guess. Read its levels as maybes.",
+   "facts": [
+    "f66",
+    "f67",
+    "f68",
+    "f29",
+    "f8",
+    "f60"
+   ],
+   "wrong": {
+    "Open interest, which shows their side": "Open interest is an input, but it counts contracts, not who holds them. Every contract has a buyer and a seller, so the chart has to assume dealers' side.",
+    "A live feed of dealer accounts": "Outside observers have very little view of who bought or sold. The exchange sees it; a public chart doesn't."
+   }
+  },
+  {
+   "key": "q17",
+   "skill": "options.flow",
+   "rung": 6,
+   "format": "scenario",
+   "story": "You want to buy 8 calls. The strike has low open interest and little volume so far today.",
+   "q": "What tells you if you can get a fair fill?",
+   "choices": [
+    "The bid, ask and size quoted now",
+    "The open interest at that strike",
+    "Today's volume so far on the strike"
+   ],
+   "answer": "The bid, ask and size quoted now",
+   "why": "The bid, ask and size quoted now. Open interest and volume aren't liquidity. The two-sided market shows how many contracts you can trade, and at what price.",
+   "lesson_line": "Low open interest isn't a deal breaker. The live quote and its size are what fill you.",
+   "facts": [
+    "f11",
+    "f12",
+    "f13",
+    "f14"
+   ],
+   "wrong": {
+    "The open interest at that strike": "That counts contracts still open, not how many someone will trade with you right now.",
+    "Today's volume so far on the strike": "Volume is what already traded. The quote is what's on offer right now."
+   }
+  },
+  {
+   "key": "q25",
+   "skill": "options.flow",
+   "rung": 6,
+   "format": "mcq",
+   "q": "A call's volume today is three times its open interest. What does that tell you for sure?",
+   "choices": [
+    "Trading was heavy next to what was open",
+    "Open interest will triple tomorrow",
+    "Buyers opened new bullish bets",
+    "A big move is coming"
+   ],
+   "answer": "Trading was heavy next to what was open",
+   "why": "Trading was heavy next to what was open. Volume is today's activity; open interest is what was already open. How much was new shows up only in the next count.",
+   "lesson_line": "A high volume to open interest ratio says look closer. The next open interest count shows what stuck.",
+   "facts": [
+    "f16",
+    "f10",
+    "f19",
+    "f21",
+    "f8",
+    "f57",
+    "f54"
+   ],
+   "wrong": {
+    "Open interest will triple tomorrow": "It rises only by trades where both sides open, less those where both close. Today's volume can't show that mix.",
+    "Buyers opened new bullish bets": "You can't see who opened or closed, and every contract has a seller on the other side.",
+    "A big move is coming": "Heavy volume says people traded it, not what the stock does next. It can be hedges, closes or bets."
+   }
+  },
+  {
+   "key": "q18",
+   "skill": "options.flow",
+   "rung": 7,
+   "format": "tf",
+   "q": "A market maker who is long gamma and stays hedged sells into rallies and buys into dips.",
+   "answer": "True",
+   "why": "True. Long gamma means delta grows as the stock rises, so staying neutral means selling. Delta shrinks as it falls, so they buy. In theory, that leans against moves.",
+   "lesson_line": "Long-gamma hedging leans against the move. Short-gamma hedging chases it.",
+   "facts": [
+    "f41",
+    "f37",
+    "f61",
+    "f62",
+    "f63"
+   ]
+  },
+  {
+   "key": "q19",
+   "skill": "options.flow",
+   "rung": 7,
+   "format": "scenario",
+   "story": "Your stock breaks below its base on heavy volume. An hour later, a large call buy prints at the ask.",
+   "q": "How much should that call print change your read?",
+   "choices": [
+    "Very little, its intent is unknown",
+    "It cancels out the breakdown signal",
+    "It's a reason to buy the dip"
+   ],
+   "answer": "Very little, its intent is unknown",
+   "why": "Very little. One print can be a hedge, a call seller buying back or a fresh bet, and nothing on the screen says which. I want flow to agree with the chart, never to overrule it.",
+   "lesson_line": "Flow is a second opinion on your chart. It never overrides one.",
+   "facts": [
+    "f57",
+    "f54",
+    "f58",
+    "f3",
+    "f29"
+   ],
+   "wrong": {
+    "It cancels out the breakdown signal": "You can't see why it was bought. The breakdown is on the chart for everyone to see.",
+    "It's a reason to buy the dip": "That makes an unreadable print your entry signal. An unusual trade calls for more homework, not a trade."
+   }
+  },
+  {
+   "key": "q20",
+   "skill": "options.flow",
+   "rung": 7,
+   "format": "mcq",
+   "q": "Research on option expiration days looked at where optionable stocks close. What did it find?",
+   "choices": [
+    "Closes cluster near strike prices",
+    "No link to strike prices at all",
+    "Every stock pins to its biggest strike"
+   ],
+   "answer": "Closes cluster near strike prices",
+   "why": "Closes cluster near strike prices. Researchers tied it to market makers rebalancing hedges, plus manipulation by proprietary traders. The average effect was at least 16.5 basis points of return per expiration.",
+   "lesson_line": "Strikes can act like magnets into expiry. A tendency, not a promise.",
+   "facts": [
+    "f73",
+    "f74",
+    "f75",
+    "f76",
+    "f77",
+    "f78",
+    "f79",
+    "f35"
+   ],
+   "wrong": {
+    "No link to strike prices at all": "The research found the opposite: closing prices of stocks with listed options cluster at strikes on expiration dates.",
+    "Every stock pins to its biggest strike": "It's a tendency across many stocks, not a rule for any one. Even the pinning model gives it only a probability."
+   }
+  },
+  {
+   "key": "q21",
+   "skill": "options.flow",
+   "rung": 8,
+   "format": "scenario",
+   "story": "One index put traded over 100,000 contracts in a day. By the close, market makers had bought about 52,000 and sold about 55,000.",
+   "q": "Roughly what net position did that leave market makers with?",
+   "choices": [
+    "Short about 3,000 contracts",
+    "Short over 100,000 contracts",
+    "Long about 52,000 contracts",
+    "Flat, buys and sells match"
+   ],
+   "answer": "Short about 3,000 contracts",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "sold - bought",
+     "sold": 55000,
+     "bought": 52000
+    }
+   },
+   "why": "Short about 3,000 contracts. That's Cboe's own count for the SPX 4440 put on August 15, 2023: huge volume, small leftover risk to hedge.",
+   "lesson_line": "Volume isn't exposure. Dealers hedge the gap between buys and sells, not the total.",
+   "facts": [
+    "f69",
+    "f70",
+    "f65",
+    "f64"
+   ],
+   "wrong": {
+    "Short over 100,000 contracts": "That's the gross volume. Most of it was buying and selling that offset.",
+    "Long about 52,000 contracts": "That counts only their buys. They sold about 55,000 too.",
+    "Flat, buys and sells match": "Close, but not zero. They sold about 3,000 more than they bought."
+   }
+  },
+  {
+   "key": "q22",
+   "skill": "options.flow",
+   "rung": 9,
+   "format": "mcq",
+   "q": "A study found option volume predicted next-week stock returns. What did its signal rely on?",
+   "choices": [
+    "Trades tagged as opening buys",
+    "Total daily call and put volume",
+    "Trades flagged as unusual",
+    "Estimates of dealer gamma"
+   ],
+   "answer": "Trades tagged as opening buys",
+   "why": "Trades tagged as opening buys. The researchers used a unique data set to isolate buyers opening new positions, and traced the edge to nonpublic information.",
+   "lesson_line": "In that research, the flow that predicted moves came from a unique data set and traders' nonpublic information.",
+   "facts": [
+    "f81",
+    "f82",
+    "f83",
+    "f67",
+    "f29"
+   ],
+   "wrong": {
+    "Total daily call and put volume": "They built the ratios only from buyers opening new positions, from a unique data set. Total volume mixes in closes and sells.",
+    "Trades flagged as unusual": "The study built put-call ratios from opening buys, not from unusual-activity flags.",
+    "Estimates of dealer gamma": "That's a different idea. The study looked at who was buying to open, not at dealer hedging."
+   }
+  },
+  {
+   "key": "q23",
+   "skill": "options.flow",
+   "rung": 8,
+   "format": "scenario",
+   "story": "It's expiration Friday. The 100 strike has unusually large open interest, and dealers are thought to be long those options. The stock is at 100.40.",
+   "q": "What does the pinning theory say dealer hedging tends to do here?",
+   "choices": [
+    "Pull the stock toward 100",
+    "Push the stock away from 100",
+    "Force a close at exactly 100"
+   ],
+   "answer": "Pull the stock toward 100",
+   "why": "Pull it toward 100. Long gamma hedging sells as the stock rises and buys as it falls, which leans the price toward the strike. It's a tendency, and 'thought to be long' is the weak link.",
+   "lesson_line": "Pinning needs dealers long gamma at the strike. Outside charts can only estimate that.",
+   "facts": [
+    "f78",
+    "f79",
+    "f61",
+    "f62",
+    "f63",
+    "f35",
+    "f73",
+    "f66"
+   ],
+   "wrong": {
+    "Push the stock away from 100": "That's the short gamma case, where hedging chases the move. In this story dealers are long the options.",
+    "Force a close at exactly 100": "Even the pinning model gives only a probability of pinning at a strike. Nothing forces an exact close."
+   }
+  },
+  {
+   "key": "q24",
+   "skill": "options.flow",
+   "rung": 9,
+   "format": "tf",
+   "q": "An estimated gamma flip level is a reliable place to buy or sell.",
+   "answer": "False",
+   "why": "False. The flip comes from estimates of dealer positions. Cboe noted outside estimates for SPX that ranged from 'record short' to long $50bn gamma. Treat it as context, never as the trade.",
+   "lesson_line": "A gamma level is a model's maybe. Your entry and stop come from your chart.",
+   "facts": [
+    "f30",
+    "f66",
+    "f60",
+    "f72",
+    "f71"
+   ]
+  }
+ ],
+ "conflicts": [
+  "Does dealer hedging move markets? OIC (f34, Tier 1) says market maker hedging 'can contribute to price movement', and peer-reviewed work finds it pins expiration closes (f73, f76) and affects single-stock volatility (f80). Cboe's own data (f71) found no discernible market impact from SPX 0DTE trading and small market maker gamma. Cboe lists those options, so it is not a neutral party. The file teaches dealer hedging as a theory that can move prices, keys nothing on how big the effect is, and keys q24 only on the fact that outside dealer positions are estimates.",
+  "What causes strike pinning: Ni, Pearson and Poteshman (f75) credit market maker hedge rebalancing AND manipulation by proprietary traders; Golez and Jackwerth (f76, f77) credit market makers' hedge rebalancing, and their abstract also reports the opposite effect (S&P 500 futures pushed away from the strike just before S&P 500 index options expire, 'anti-cross-pinning'), which the file does not teach. q20 keys only the clustering finding and says 'tendency, not a promise'.",
+  "What counts as 'unusual' options activity has no official definition. The Montreal Exchange (f53) gives the common five-times-average-daily-volume rule; scanners also flag volume above open interest. The file teaches the rule only in an unscored walk-through, as what 'many traders' use, and keys no question on a threshold.",
+  "The Montreal Exchange (s19) calls heavy call selling by a low-cost shareholder 'far from a bullish sign'; OIC (f47) calls the covered call writer neutral to moderately bullish. They agree the call sale is not a bearish bet; q14 keys on OIC (Tier 1).",
+  "OIC's 'Open Interest: Why It Matters' (s6) has a slip in its third example (Trader C buys to open, then the text says the interest 'is transferred to Trader B'). The file quotes only the article's summary lines (f19-f21) and the clean first example (f18).",
+  "Cboe's 4440 put example (f69) gives '52k buy vs. 55k sell' next to 'market makers were left short only about 3k contracts', so the buy and sell figures are the market makers' own; q21's story says so and its key (short about 3,000) matches Cboe's stated result."
+ ],
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "notes": "All 24 sources re-fetched 2026-11-09 with plain curl (all 200; 81/81 quotes found) and read in context; s4, s6, s9, s19, s20 also opened with WebFetch. f16, f19, f21 (OIC article, Oct 2025), f10 (OIC FAQ), f17 read in context. Fixed: 'shows up in it tomorrow' -> 'the next session' (wrong after a Friday or holiday). Track audit 2026-11-09: step 3 names the Options Clearing Corporation the first time the unit says OCC.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09, quotes found and read in context. f55, f53, f57, f59 (Montreal Exchange, 2022), f29 (OIC, June 2026), f44-f46 (OIC strategy pages) say exactly this; 'many traders' matches the source's hedge on the 5x rule.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09, quotes found and read in context. f27 (OIC), f61-f63 (Cboe), f73 (JFE abstract), f66, f60 (Cboe) read in context. Fixed: step 1 now ties 'dealers' (used in q11, q16, q23, q24) to market makers, per f30's 'a dealer's or market maker's'; f30 added.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q01": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09, quotes found and read in context. f1 (OIC glossary), f50 (FINRA), f16 (OIC) define open interest as contracts outstanding; f7 says it is neither bullish nor bearish. Each wrong choice is a real confusion (volume, resting orders, a sentiment count).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q02": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09, quotes found and read in context. OIC FAQ (f7): open interest 'indicates neither a bullish nor bearish outlook'; f8: one buyer and one seller behind each contract. Key False is Tier 1.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q03": {"status": "pass", "notes": "Sources re-fetched 2026-11-09, quotes found and read in context. f10: OCC reports new open interest only after end-of-day pairing; f17. Fixed: key 'After yesterday's close' -> 'After the prior session's close' (false on a Monday or after a holiday); why and lesson_line to match. variety rewrite checked 2026-11-10", "fixed": true, "by": "checker"},
+  "q04": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09, quotes found and read in context. OIC glossary pin risk (f4-f5: stock exactly at strike, seller can't know assignment) and FINRA (f48-f49: 'at or very near', next-day open risk) read in context. Bank words are real mix-ups. Track audit 2026-11-09: spelling only: 'breakeven' -> 'break-even', one spelling across F6 (OIC's and F6.03's).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q05": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09, quotes found and read in context. f29 (OIC, June 2026): public data shows product, size, strike, expiration, not retail vs institutional; f26 (OIC, Aug 2026): market makers often can't tell, size a clue. False is Tier 1.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q06": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09, quotes found and read in context. f24-f25 (OIC, Sept 2026): stock trades offset directional risk, 'not because they have a view'; f28: 'Generally, no' to directional trading. Key False.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q07": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09, quotes found and read in context. f43 (OIC Delta: short calls negative delta), f37 (OIC: short deltas hedged by buying stock). 'Usually' in the stem covers hedging with other options. Wrong-choice notes correct.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q08": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09, quotes found and read in context. f34 (OIC, March 2026, Tier 1): market maker share hedging 'can contribute to price movement'; f73, f80 peer-reviewed abstracts agree. 'Can't' is the overclaim, so False holds.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q09": {"status": "pass", "notes": "Sources re-fetched 2026-11-09, quotes found and read in context. f21 (OIC): one side open, other close = unchanged; f18: both open 10 -> +10, not 20. Source's own Trader A/C example (slip noted in conflicts) gives the same result. variety rewrite checked 2026-11-10", "fixed": false, "by": "checker"},
+  "q10": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09, quotes found and read in context. f9 is the OIC FAQ's own 3,000 vs 1,800 example; f10 + OIC table: only both-open trades add, closing sides add nothing or subtract. Wrong notes: OI counts every holder (f1), per series (f1).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q11": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09, quotes found and read in context. f30-f31 (OIC, June 2026): flip = where aggregate dealer gamma changes sign, 'or vice versa', as the underlying moves through strikes. Fixed lesson_line: 'turns from long to short' -> 'changes sign, long to short or back'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q12": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09, quotes found and read in context. Recomputed 6,000 + 1,000 - 800 = 6,200 (calc matches). Fixed: OIC article also says exercised/assigned contracts leave open interest, so the stem now says 'Today's only activity'; added f84 (same OIC page, quote verified); why and lesson_line name exercises.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q13": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09, quotes found and read in context. f44-f45 (OIC protective put: bullish holder hedging a dip), f54 (Montreal Exchange: hedging), f29. Fixed: both wrong choices are themselves bets on a drop, notes now say so; the market-maker note relied on f28/f27, which are now cited.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q14": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09, quotes found and read in context. f46-f47 (OIC covered call: premium income, steady or slightly rising stock). Montreal Exchange's 'far from a bullish sign' is about liquidation intent, not a bearish bet (see conflicts). 'Must be' is the trap; False holds.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q15": {"status": "pass", "notes": "Sources re-fetched 2026-11-09, quotes found and read in context. f52, f51 (Investor.gov: market buy fills at or near the ask), f3 (OIC: a purchase can close a short). Fixed the 'new bullish position' note: next-day open interest is a net count for the series and can't label one print. variety rewrite checked 2026-11-10", "fixed": true, "by": "checker"},
+  "q16": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09, quotes found and read in context. f66-f68 (Cboe: outside estimates of flow balance are 'just estimates based on assumptions'; outsiders have little visibility; Cboe sees each side), f29, f8. Fixed why to say exactly what Cboe called estimates.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q17": {"status": "pass", "notes": "Sources re-fetched 2026-11-09, quotes found and read in context. OIC FAQ (f11-f13) answers this very case (an eight-contract order): volume/OI aren't liquidity, ask for a two-sided market with size; f14 (OIC): bid/ask matters more than OI for fills. Matches trading practice. variety rewrite checked 2026-11-10", "fixed": false, "by": "checker"},
+  "q25": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09, quotes found and read in context. f16, f10, f19, f21 (OIC) support the key; volume 3x OI says nothing certain about the next count or direction. Fixed: 'A big move is coming' note answered direction, not size; OI note now says net of both-open less both-close; f54 cited; 'tomorrow' -> 'next count'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q18": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09, quotes found and read in context. f61-f62 (Cboe: long gamma hedges against the move, sells rallies, buys dips), f41 (OIC Gamma), f37 (OIC). Mechanically true for a delta-hedged long-gamma book; why says 'in theory'.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q19": {"status": "pass", "notes": "Sources re-fetched 2026-11-09, quotes found and read in context. f57, f54, f58 (Montreal Exchange: unusual activity not bullish or bearish by default, may be a hedge, needs homework), f3 (OIC: a buy can close a short), f29. Price action over one unreadable print is sound practice. variety rewrite checked 2026-11-10", "fixed": false, "by": "checker"},
+  "q20": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09, quotes found and read in context. f73-f75: Ni, Pearson, Poteshman (JFE 2005) abstract, read in full: closes cluster at strikes, at least 16.5 bp, market maker rebalancing plus manipulation by proprietary traders; f76-f77 (Golez-Jackwerth) and f79 agree it is a tendency. Fixed why to name the proprietary traders as the abstract does.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q21": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09, quotes found and read in context. f69-f70 (Cboe, Sept 2023): 4440 put on Aug 15 2023, over 100k traded, market makers left short about 3k (52k buy vs 55k sell). 52k + 55k = 107k matches 'over 100k', so the figures are the market makers' own; 55,000 - 52,000 = 3,000 recomputed.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q22": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09, quotes found and read in context. f81-f83: Pan and Poteshman (RFS 2006) abstract, read in full: put-call ratios from 'volume initiated by buyers to open new positions', unique data set, nonpublic information. The abstract is the primary record for what the study did. Fixed lesson_line to the abstract's terms (unique data set, traders' nonpublic information).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q23": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09, quotes found and read in context. f78-f79 (Avellaneda-Lipkin model: large OI + delta hedging can drive price to strike, finite probability), f61-f63 (Cboe long vs short gamma), f73, f35 (OIC). Checked by hand: long calls or puts at 100 with stock at 100.40 are hedged by selling into rises and buying dips, so toward 100.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q24": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09, quotes found and read in context. f30, f60, f66, f72 (Cboe: estimates ranged from 'record short' to long $50bn; outside estimates rest on assumptions; offsetting positions elsewhere). Fixed why: the range was what commentators estimated (Cboe, 2023), now in past tense, not a standing fact.",
+   "fixed": true,
+   "by": "checker"
+  }
+ }
+}

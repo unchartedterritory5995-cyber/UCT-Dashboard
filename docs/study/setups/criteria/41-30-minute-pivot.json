@@ -1,0 +1,1231 @@
+{
+ "setup": "41-30-minute-pivot",
+ "name": "30-Minute Pivot",
+ "unit": "SET.33",
+ "direction": "long",
+ "timeframe": "30-minute",
+ "dossier": "docs/study/setups/research/41-30-minute-pivot.md",
+ "as_of": "2026-11-09",
+ "card": {
+  "context": "An entry timer on the 30-minute chart for a daily long setup at a level: a leader (RS 80 or more) above the 50-day and the 200-day with a rising 20-day EMA, pulling back 1 to 5 days into the rising 10 or 20-day EMA, the 50-day, gap support, an HVC or a breakout level.",
+  "pattern": "A string of at least 2 red 30-minute candles into the level, then the pivot candle: the first green 30-minute candle there, best when its low is the low of the pullback and it closes in its upper half.",
+  "trigger": "OTHER: a later 30-minute candle the same session trades one cent above the pivot candle's high, bought at market, no more than 4% past it.",
+  "stop": "A few cents under the pivot candle's low (the day's low is the wider option); 3% or less and no wider than the stock's average daily range. Stops of 1% to 2% are normal.",
+  "failure_mode": "A candle trades under the pivot candle's low before or after the trigger and the tight stop goes; a pivot in the last hour has no session left; a pivot floating in mid-range with no daily level under it is just a green candle."
+ },
+ "entry_trigger": "OTHER",
+ "criteria": [
+  {
+   "id": "pvt.role",
+   "field": "context",
+   "statement": "Not a stand-alone setup: an entry timer on the 30-minute chart for a daily long setup at a level (EMA pullback, gap support, remount, undercut and rally, flag base).",
+   "measure": {
+    "what": "chart on which the timer is read",
+    "op": "==",
+    "value": "30-minute",
+    "timeframe": "30-minute"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S6",
+    "S27",
+    "S29"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "1ChartMaster's turn candle at support: his posts (sources 1 to 8), the owner's five public examples; D-002's note"
+    },
+    {
+     "value": "b",
+     "basis": "the first half hour's high: the Model Book card, the course script, the chart-builder note (that is setup 40)"
+    },
+    {
+     "value": "c",
+     "basis": "both, under two names"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-002",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Not a stand-alone setup; 10 questions 1, 7, 8",
+   "evidence": "The owner's KB 12595 note and AtTheAsk's KB 12968; the originator calls it 'a tactical entry method'. D-002's note settles the name: ORB = the first trade through the first half-hour's high; 30-Minute Pivot = 1ChartMaster's turn candle at support, an entry timer for the daily setups; the hourly higher low is the same idea on a slower clock. The card's own version (first half-hour high, stop under its low) lost money in the replay: -0.11R a trade, the whole interval below zero."
+  },
+  {
+   "id": "pvt.above_200",
+   "field": "context",
+   "statement": "The prior day's close is above the 200-day simple moving average.",
+   "measure": {
+    "what": "prior close against the 200-day SMA",
+    "op": ">",
+    "value": "200-day SMA",
+    "timeframe": "daily"
+   },
+   "glossary": "above_200",
+   "basis": "house rule",
+   "sources": [
+    "S12",
+    "S13",
+    "S14"
+   ],
+   "house_rule": "B26",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Prior trend",
+   "evidence": "All five of the owner's named examples (DELL, LITE, TEAM, HOOD, TQQQ) were above the 200-day."
+  },
+  {
+   "id": "pvt.stack_50",
+   "field": "context",
+   "statement": "The prior close is above the 50-day SMA and the 50-day is above the 200-day.",
+   "measure": {
+    "what": "prior close > 50-day SMA > 200-day SMA",
+    "op": "==",
+    "value": true,
+    "timeframe": "daily"
+   },
+   "glossary": "ma_stack",
+   "basis": "my proposal",
+   "sources": [
+    "S3",
+    "S4"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Prior trend",
+   "evidence": "The sources agree on 'strong uptrend' (the originator's 'leading names', 'RS names'); the exact test is the dossier's. The replay and the scan both used it."
+  },
+  {
+   "id": "pvt.ema20_rising",
+   "field": "context",
+   "statement": "The 20-day EMA is rising: above its value 5 sessions earlier.",
+   "measure": {
+    "what": "20-day EMA today - 20-day EMA 5 sessions ago",
+    "op": ">",
+    "value": 0,
+    "unit": "$",
+    "timeframe": "daily"
+   },
+   "glossary": "rising_average",
+   "basis": "my proposal",
+   "sources": [],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Prior trend",
+   "evidence": "The 5-session window is the glossary's; the scan used it. INTC 2026-09-29 to 10-07: three stabs on a name that had stopped trending, all stopped."
+  },
+  {
+   "id": "pvt.leader",
+   "field": "context",
+   "statement": "RS rating 80 or more.",
+   "measure": {
+    "what": "RS rating",
+    "op": ">=",
+    "value": 80,
+    "unit": "rating 1 to 99"
+   },
+   "glossary": "leader",
+   "basis": "house rule",
+   "sources": [
+    "S3",
+    "S4"
+   ],
+   "house_rule": "C31",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Leader",
+   "evidence": "The originator: 'RS names', 'leading names' (sources 3 and 4). The scan's stand-in was the top 20% of the 1,000 names by 126-session return; the examples' stand-ins ran to 98 (MRVL)."
+  },
+  {
+   "id": "pvt.level",
+   "field": "pattern",
+   "statement": "The pivot candle's low is at or under a daily level and its close is back above it. Levels: the rising 10 or 20-day EMA (the 8, 9 and 21 are fine), the 50-day SMA, gap support, an HVC or a prior breakout level. At means the low within 1% above the level, or undercutting it.",
+   "measure": {
+    "what": "(pivot candle's low - level) / level",
+    "op": "<=",
+    "value": 1,
+    "unit": "%",
+    "timeframe": "30-minute",
+    "and": "the pivot candle closes above the level"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S6",
+    "S11",
+    "S13",
+    "S14",
+    "S29"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "the 9/20 EMA, the 50-day, gap support, an HVC, a prior breakout level, a range low, an AVWAP: D-125's default, from the owner's 2026-05-18 note"
+    },
+    {
+     "value": "b",
+     "basis": "no level required: the replay's not-near-an-average pivots did a little better (+0.09R)"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-125",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Location (daily)",
+   "evidence": "The owner's examples: DELL and LITE at the 20-day EMA ('the 20EMA shake and 30 Minute Pivot'), GLW 'off the 20EMA'; the originator: 'often near ... the 8 EMA'. The 1% is the dossier's. Replay: at an average +0.02R, not near an average +0.09R; the owner's shakes were deeper than the 1% filter selects. Scan: the three levels came out alike (10-day EMA 27.0% to 3R, 21-day 27.6%, 50-day 26.8%)."
+  },
+  {
+   "id": "pvt.red_string",
+   "field": "pattern",
+   "statement": "At least 2 red 30-minute candles in a row (close under open) before the pivot; the string may start the day before.",
+   "measure": {
+    "what": "consecutive 30-minute candles closing under their open before the pivot candle",
+    "op": ">=",
+    "value": 2,
+    "unit": "candles",
+    "timeframe": "30-minute"
+   },
+   "basis": "originator",
+   "sources": [
+    "S3",
+    "S20"
+   ],
+   "options": [
+    {
+     "value": 2,
+     "basis": "the dossier's minimum; the Pivot Party's 'two or more' (source 20)"
+    },
+    {
+     "value": 3,
+     "basis": "the TenAM Trader script's default (source 21a); the replay favoured 3 or more; D-126's default"
+    },
+    {
+     "value": "no count",
+     "basis": "just 'a pullback on the 30-minute chart'"
+    }
+   ],
+   "recommended": 2,
+   "status": "pending-owner",
+   "owner_question": "D-126",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Structure (30-minute)",
+   "evidence": "The originator: 'a string of red' (source 3). Scan: 2 reds (695 trades) 25.5% to 3R and 17.6% to 5R; 5 or more (221) 32.1% and 24.0%. Replay: 3 or more +0.12R against about zero for all. DECISIONS.md's default is 3; the card keeps the dossier's 2 as the gate and 3 as the cue."
+  },
+  {
+   "id": "pvt.red_string_three",
+   "field": "pattern",
+   "statement": "A clean red string of 3 or more candles is the A+ version.",
+   "measure": {
+    "what": "consecutive red 30-minute candles before the pivot candle",
+    "op": ">=",
+    "value": 3,
+    "unit": "candles",
+    "timeframe": "30-minute"
+   },
+   "basis": "my proposal",
+   "sources": [],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Structure; 9 A+",
+   "evidence": "Replay: 3 or more reds +0.12R (interval +0.03 to +0.22), 5 or more +0.26R; about twenty cuts were tested, so part of this can be chance. Scan: the 9:30 candle as the pivot after an overnight string (169 trades) was the weakest and widest-stopped cut (24.9%, median risk 1.86%)."
+  },
+  {
+   "id": "pvt.pivot_candle",
+   "field": "pattern",
+   "statement": "The pivot candle is the first green 30-minute candle (close above open) after the red string, at the level.",
+   "measure": {
+    "what": "pivot candle",
+    "op": "==",
+    "value": "the first 30-minute candle closing above its open after the red string",
+    "timeframe": "30-minute"
+   },
+   "basis": "originator",
+   "sources": [
+    "S7",
+    "S20"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 The pivot candle",
+   "evidence": "The originator's HOOD chart (source 7): entry 'My price 102.99' just over the first green candle's high, stop 4 cents under its low. Nine of the ten scan examples triggered on the very next candle (the DELL and HOOD way)."
+  },
+  {
+   "id": "pvt.pivot_quality",
+   "field": "pattern",
+   "statement": "Best when the pivot candle's low is the low of the pullback and it closes in the upper half of its range.",
+   "measure": {
+    "what": "(close - low) / (high - low) of the pivot candle",
+    "op": ">=",
+    "value": 0.5,
+    "timeframe": "30-minute",
+    "and": "the pivot candle's low is the lowest low of the red string"
+   },
+   "glossary": "close_position",
+   "basis": "my proposal",
+   "sources": [
+    "S7",
+    "S14"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1 The pivot candle; 9 A+",
+   "evidence": "The 'upper half' is the dossier's. DK, DOCU and SN closed at their highs; the owner's TEAM 'undercuts this range slightly closing with a strong lower wick'. Scan: a pivot that was the day's low did no better than one that was not (26.7% against 27.4%)."
+  },
+  {
+   "id": "pvt.pullback_length",
+   "field": "pattern",
+   "statement": "No fixed depth. The daily pullback is usually 1 to 5 sessions into the average; no number is taught.",
+   "measure": {
+    "what": "sessions from the swing high to the pivot day",
+    "op": "in",
+    "value": [
+     1,
+     5
+    ],
+    "unit": "sessions",
+    "timeframe": "daily"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S13",
+    "S14"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Depth and length",
+   "evidence": "From the owner's examples. GRAL's two-week drift to the 50-day is the long end; FTNT's one-day shake the short end."
+  },
+  {
+   "id": "pvt.volume",
+   "field": "pattern",
+   "statement": "No volume rule. A quieter red string and a pivot or trigger candle with rising volume are grading cues only.",
+   "basis": "my proposal",
+   "sources": [
+    "S27"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "drop 'with volume' from the card: no source gives a number"
+    },
+    {
+     "value": "b",
+     "basis": "define one"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-006",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Volume; 10 question 9",
+   "evidence": "The Model Book card says 'break with volume'; no source gives a rule. D-006's default: volume is a cue, not a gate."
+  },
+  {
+   "id": "pvt.liquidity",
+   "field": "context",
+   "statement": "Price $10 or more and $20 million or more traded a day on average. Thin names make 30-minute candles noisy.",
+   "measure": {
+    "what": "close",
+    "op": ">=",
+    "value": 10,
+    "unit": "$",
+    "and": "50-day average dollar volume >= 20,000,000"
+   },
+   "glossary": "liquidity",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B23",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Liquidity"
+  },
+  {
+   "id": "pvt.position_adv",
+   "field": "management",
+   "statement": "The position is at most 1% of average daily volume.",
+   "measure": {
+    "what": "shares / average daily volume",
+    "op": "<=",
+    "value": 1,
+    "unit": "%"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "D42",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "7 B23 and D42 row"
+  },
+  {
+   "id": "pvt.not_stretched",
+   "field": "trigger",
+   "statement": "Not more than 10% above the 10-day average at the buy. Automatic at the average.",
+   "measure": {
+    "what": "fill / 10-day SMA - 1",
+    "op": "<=",
+    "value": 10,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "glossary": "stretched",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "C29",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Extension"
+  },
+  {
+   "id": "pvt.trigger",
+   "field": "trigger",
+   "statement": "A later 30-minute candle trades one cent above the pivot candle's high, in the same session.",
+   "measure": {
+    "what": "high of a later 30-minute candle against the pivot candle's high",
+    "op": ">=",
+    "value": "pivot candle's high + $0.01",
+    "timeframe": "30-minute"
+   },
+   "basis": "originator",
+   "sources": [
+    "S7",
+    "S20"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "the same session only: the dossier; D-127's default, with the next morning as a lesser grade"
+    },
+    {
+     "value": "b",
+     "basis": "the next morning's break of the pivot high also counts"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-127",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.2 Trigger; 8.5 No trigger by the close",
+   "evidence": "The originator's HOOD chart (source 7) and the Pivot Party (source 20) break the pivot candle's high; the 'same session' is the dossier's. AAPL 2026-10-16 and 10-26: a 15:00 pivot bought at 15:30 has no session left; 156 of the 1,477 scan trades were such late triggers."
+  },
+  {
+   "id": "pvt.entry_strict_vs_early",
+   "field": "trigger",
+   "statement": "Strict: over the pivot candle's high. The early variant, buying the reclaim of an intraday level inside the turn (the owner's DELL fill at 527 against a pivot high of 530.43), is named only if the owner uses it.",
+   "measure": {
+    "what": "entry against the pivot candle's high",
+    "op": "in",
+    "value": [
+     "over the pivot high (strict)",
+     "the reclaim inside the turn (early)"
+    ],
+    "timeframe": "30-minute"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S7",
+    "S13"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "strict, over the pivot candle's high: the originator's HOOD; measurable"
+    },
+    {
+     "value": "b",
+     "basis": "early, the reclaim inside the turn: the owner's DELL fill"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-003",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.2 Options for the owner; 10 question 6",
+   "evidence": "DELL 2026-10-01: 'at 527 and a 520 stop'; the stop sat 18 cents under the low of the 10:00 candle, which made the day's low after an undercut of the 20-day EMA; 5R by the next morning."
+  },
+  {
+   "id": "pvt.order",
+   "field": "trigger",
+   "statement": "A market order when it trades, or a buy-stop one cent over the pivot high that becomes a market order. Regular hours only.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "E57",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 Order",
+   "evidence": "E58: only regular-hours candles count."
+  },
+  {
+   "id": "pvt.not_before_close",
+   "field": "trigger",
+   "statement": "No buying while the red string is still falling; the green candle must close first.",
+   "basis": "originator",
+   "sources": [
+    "S6"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 Not before the green candle closes",
+   "evidence": "The originator (source 6): 'Rather than buying as the stock is falling, the trader waits for a \"pivot\"'."
+  },
+  {
+   "id": "pvt.no_chase",
+   "field": "trigger",
+   "statement": "Skip if the fill would be more than 4% over the pivot candle's high.",
+   "measure": {
+    "what": "fill / pivot candle's high - 1",
+    "op": "<=",
+    "value": 4,
+    "unit": "%"
+   },
+   "glossary": "chase_limit",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "C28",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 No chase",
+   "evidence": "Rare here: the buy point is the pivot high and the next candle usually takes it. The scan filled at the high plus a cent or the candle's open if it gapped over."
+  },
+  {
+   "id": "pvt.stop",
+   "field": "stop",
+   "statement": "A few cents under the pivot candle's low. Under the day's low when that is lower is the wider option.",
+   "measure": {
+    "what": "stop",
+    "op": "==",
+    "value": "a few cents under the pivot candle's low",
+    "timeframe": "30-minute"
+   },
+   "glossary": "stop_margin",
+   "basis": "UCT",
+   "sources": [
+    "S7",
+    "S20",
+    "S29"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "a few cents under the pivot candle's low: the originator (HOOD, 4 cents under; 'just below the recent 30 minute low'), the Pivot Party, both TradingView rules; D-008 allows it where tighter"
+    },
+    {
+     "value": "b",
+     "basis": "under the day's low: A3; the owner's KB 12976 note allows both"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-008",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.3 Default; 8.3 Option; 10 question 2",
+   "evidence": "Not a corner case: on four of the owner's five named examples (HOOD, LITE, TEAM, TQQQ) the pivot candle's low sat 0.25% to 0.55% above the day's low; only DELL's pivot candle made the day's low. The scan used 3 cents under the pivot candle's low; a pivot that was the day's low did no better (26.7% against 27.4%)."
+  },
+  {
+   "id": "pvt.stop_width",
+   "field": "stop",
+   "statement": "Skip if the stop is more than 3% away or wider than the stock's average daily range. A risk over 3% is a sign the pivot candle is too wide.",
+   "measure": {
+    "what": "(fill - stop) / fill",
+    "op": "<=",
+    "value": 3,
+    "unit": "%",
+    "and": "no wider than the 20-session average daily range"
+   },
+   "glossary": "stop_width",
+   "basis": "house rule",
+   "sources": [
+    "S22"
+   ],
+   "house_rule": "A13",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.3 Skip",
+   "evidence": "The ADR test is the dossier's, after Kullamagi's 'should not be wider than the ATR or ADR' (source 22). The owner's examples 1.2% to 2.1%; the scan's ten 0.76% to 2.48%, median 0.84%; the replay's median 0.6%. The other end: MSFT 2026-09-01 and NVDA 2026-10-09 with 0.42% stops were inside the noise of a slow mega-cap and stopped at once; the originator built it for volatile names."
+  },
+  {
+   "id": "pvt.stop_only_up",
+   "field": "stop",
+   "statement": "A real stop order with the broker. It only moves up; never down to give it room after the pivot low breaks.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "A4",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.3 The stop only moves up; 8.8.6",
+   "evidence": "D41: the stop sits with the broker."
+  },
+  {
+   "id": "pvt.stop_gap",
+   "field": "stop",
+   "statement": "A gap through the stop on a later day: the first 30-minute low is the new stop; out if that is past 2R. A different 30-minute rule; the course must not mix the two.",
+   "measure": {
+    "what": "loss at the first 30-minute low of the gap-down day",
+    "op": "<=",
+    "value": 2,
+    "unit": "R",
+    "timeframe": "30-minute"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B20",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "7 B20 row",
+   "evidence": "On a pivot the stop is usually close, so a gap down through it is likely."
+  },
+  {
+   "id": "pvt.size_cap",
+   "field": "management",
+   "statement": "The position is at most 40% of the account. Very tight stops make the risk-based size huge; the cap binds on almost every pivot, and a gap can jump a 1% stop.",
+   "measure": {
+    "what": "position / account",
+    "op": "<=",
+    "value": 40,
+    "unit": "%"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "A7",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "7 A5 / A7 row; 8.8.5",
+   "evidence": "At 1% account risk and a 0.6% stop the formula asks for 167% of the account (A5); A7 caps it at 40%."
+  },
+  {
+   "id": "pvt.breakeven",
+   "field": "management",
+   "statement": "Stop to breakeven between 2R and 5R, at the first trim by default.",
+   "measure": {
+    "what": "R at which the stop moves to the entry",
+    "op": "in",
+    "value": [
+     2,
+     5
+    ],
+    "unit": "R"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B19",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4"
+  },
+  {
+   "id": "pvt.trim_1",
+   "field": "management",
+   "statement": "Sell a third at 3R.",
+   "measure": {
+    "what": "fraction sold at 3R",
+    "op": "==",
+    "value": 0.333,
+    "unit": "of the position"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B19",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4",
+   "evidence": "With a tight stop 3R and 5R come fast: DELL 3R the same afternoon and 5R the next morning; DK 3R in 6 bars. 90% of the scan's trades touched the fixed stop at some point in 20 sessions, usually after the targets: the trims are what keep the result."
+  },
+  {
+   "id": "pvt.trim_2",
+   "field": "management",
+   "statement": "Sell a third at 5R.",
+   "measure": {
+    "what": "fraction sold at 5R",
+    "op": "==",
+    "value": 0.333,
+    "unit": "of the position"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "E51",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4"
+  },
+  {
+   "id": "pvt.trim_gap_open",
+   "field": "management",
+   "statement": "If the stock opens over a trim level, trim at the open.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "F63",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4",
+   "evidence": "Common here: DELL, LITE and HOOD all gapped through 3R or 5R."
+  },
+  {
+   "id": "pvt.trail",
+   "field": "management",
+   "statement": "Trail the last third under the 10-day for a fast mover, the 21-day for a steadier one, selling on a close below it.",
+   "measure": {
+    "what": "close against the 10-day (fast) or 21-day (steadier) average",
+    "op": "<",
+    "value": "the average",
+    "timeframe": "daily"
+   },
+   "glossary": "trail",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "E52",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4",
+   "evidence": "The owner's and the originator's winners ran 5R to 20R over days; selling the whole position at 1R to 2R as a day trade is mistake 8."
+  },
+  {
+   "id": "pvt.time_stop",
+   "field": "management",
+   "statement": "Time stop: still under 1R after 10 trading days, sell. A pivot that has not worked in 10 days is dead.",
+   "measure": {
+    "what": "open R after 10 trading days",
+    "op": "<",
+    "value": 1,
+    "unit": "R"
+   },
+   "glossary": "time_stop",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "C33",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4"
+  },
+  {
+   "id": "pvt.inv_pivot_low",
+   "field": "invalidation",
+   "statement": "Before the trigger: any 30-minute candle trades under the pivot candle's low. Wait for a new red string and a new pivot.",
+   "measure": {
+    "what": "low of any candle after the pivot candle, before the trigger",
+    "op": ">=",
+    "value": "the pivot candle's low",
+    "timeframe": "30-minute"
+   },
+   "basis": "my proposal",
+   "sources": [],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5",
+   "evidence": "Follows from the stop. The scan required the trigger before any candle traded under the pivot low."
+  },
+  {
+   "id": "pvt.inv_no_trigger",
+   "field": "invalidation",
+   "statement": "No trigger by the close: the setup resets; tomorrow needs a new pivot.",
+   "basis": "my proposal",
+   "sources": [],
+   "status": "pending-owner",
+   "owner_question": "D-127",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5; 10 question 5",
+   "evidence": "D-127's default: same session, the next morning as a lesser grade."
+  },
+  {
+   "id": "pvt.inv_context",
+   "field": "invalidation",
+   "statement": "The daily context breaks: a close under the level the pivot was meant to hold, for example under the 50-day SMA when the pivot was at the 50.",
+   "measure": {
+    "what": "daily close against the level under the pivot",
+    "op": ">=",
+    "value": "the level",
+    "timeframe": "daily"
+   },
+   "basis": "my proposal",
+   "sources": [],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5",
+   "evidence": "INTC 2026-09-29, 10-06 and 10-07: pivots at the 10 and 21-day on a name that had stopped trending, all stopped with no follow-through."
+  },
+  {
+   "id": "pvt.earnings_window",
+   "field": "trigger",
+   "statement": "No new buy in the 3 sessions before an earnings report.",
+   "measure": {
+    "what": "sessions until the next report",
+    "op": ">",
+    "value": 3,
+    "unit": "sessions"
+   },
+   "glossary": "earnings_blackout",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B22",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5",
+   "evidence": "None of the ten scan examples had a report within 3 sessions."
+  },
+  {
+   "id": "pvt.tries",
+   "field": "management",
+   "statement": "At most 3 tries in a week and 6 in a month on the same stock. Pivots fail and re-form; a re-entry needs a new pivot.",
+   "measure": {
+    "what": "tries on the same stock",
+    "op": "<=",
+    "value": 3,
+    "unit": "a week",
+    "and": "6 a month"
+   },
+   "basis": "house rule",
+   "sources": [
+    "S13",
+    "S29"
+   ],
+   "house_rule": "E56",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5; 7 B21 / E56 row",
+   "evidence": "The owner's DELL re-entry was a new pivot after a breakeven exit (B21); his INTC note (KB 12976) expects a few stabs. INTC's three stabs in six sessions is where E56 would have stopped it."
+  },
+  {
+   "id": "pvt.market_reading",
+   "field": "context",
+   "statement": "Green: full use. Yellow: fewer, A and B grades. Orange: A+ only. Red: mostly cash, plus shorts below the 200-day.",
+   "measure": {
+    "what": "the app's market reading on the trigger day",
+    "op": "in",
+    "value": [
+     "Green",
+     "Yellow",
+     "Orange (A+ only)"
+    ]
+   },
+   "glossary": "market_reading",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "F65",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.7; 8.5 Red market",
+   "evidence": "D46 for Red. The scan fired in clusters on market pullback days (2026-10-08: 52 trades; 09-28: 45; 09-29: 39), so the trades are not independent."
+  },
+  {
+   "id": "pvt.volatile_tape",
+   "field": "context",
+   "statement": "A cue: the originator built it for volatile tapes, when holding a daily-stop position is hard.",
+   "basis": "originator",
+   "sources": [
+    "S1"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.7; 1 Why 30 minutes and not 5",
+   "evidence": "1ChartMaster, 2025-03-11 (source 1): 'during periods of volatility it can pretty hard to hold a position. That's why I developed my 30 min pivot strategy.' No one has tested 30 against other bar lengths for this setup."
+  },
+  {
+   "id": "pvt.short_mirror",
+   "field": "context",
+   "statement": "The bear pivot: a stock under its 200-day SMA with falling 10 and 20-day EMAs and RS 20 or less; a string of at least 2 green 30-minute candles rallies into a falling daily average or a broken level; the first red 30-minute candle there is the pivot. Short a cent under its low, stop a few cents over its high, the same trims.",
+   "measure": {
+    "what": "consecutive green 30-minute candles before the first red candle at the level",
+    "op": ">=",
+    "value": 2,
+    "unit": "candles",
+    "timeframe": "30-minute",
+    "and": "prior close < 200-day SMA; RS rating <= 20"
+   },
+   "basis": "house rule",
+   "sources": [
+    "S29"
+   ],
+   "house_rule": "D47",
+   "options": [
+    {
+     "value": "a",
+     "basis": "teach it as one mirror card, no drills, until the owner shows an example: the dossier"
+    },
+    {
+     "value": "b",
+     "basis": "leave it out"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-001",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.6; 10 question 10",
+   "evidence": "No UCT example of a bear 30-minute pivot was found. The owner quizzed members on MU's 30-minute chart into a declining 20 EMA (KB 13501), the idea but no trade. B26 and C31's mirror give the context."
+  }
+ ],
+ "grading": {
+  "a_plus": [
+   "pvt.leader: a true leader (RS 90+) in a leading group; the first or second pullback after a breakout, an EP or an HVE",
+   "pvt.level: the pivot sits on a rising 10 or 20-day EMA or the 50-day SMA, ideally with confluence (a gap fill, an AVWAP, a prior breakout level)",
+   "pvt.pivot_quality: a shake: the low undercuts the average or a prior low and the candle closes back above it (the owner's 20EMA shake)",
+   "pvt.red_string_three: a clean red string of 3 or more into the level, then a green candle that is the low of the pullback and closes near its high",
+   "pvt.stop_width: risk 1% to 2%",
+   "pvt.trigger: the trigger comes within one or two candles",
+   "pvt.market_reading: Green; in Orange only if everything else grades A+ (F65)"
+  ],
+  "b_minus": [
+   "pvt.level: the pivot floats in mid-range with no daily level under it",
+   "pvt.stack_50: a flat or falling average, or the stock under the 50-day",
+   "pvt.leader: RS under 80",
+   "pvt.pivot_quality: a tiny midday doji after two small red candles (noise, a stop of a few tenths of a percent)",
+   "pvt.stop_width: risk near 3%, or a pivot candle wider than the stock's average daily range",
+   "pvt.trigger: the trigger comes late in the day",
+   "pvt.earnings_window: earnings are close",
+   "pvt.pullback_length: the fourth or later pullback to the same average",
+   "pvt.market_reading: Yellow (smaller and fewer)"
+  ],
+  "no_trade": [
+   "pvt.role: no daily setup and no level under the pivot (a random green candle)",
+   "pvt.above_200: under the 200-day",
+   "pvt.not_before_close: the red string is still falling",
+   "pvt.inv_pivot_low: a candle traded under the pivot candle's low before the trigger",
+   "pvt.stop_width: the stop over 3% or wider than the ADR",
+   "pvt.no_chase: more than 4% past the pivot high",
+   "pvt.earnings_window: a report within 3 sessions",
+   "pvt.liquidity: under $10 or under $20 million a day",
+   "pvt.tries: the fourth try in a week",
+   "pvt.market_reading: Red; Orange below A+"
+  ]
+ },
+ "lookalikes": [
+  {
+   "setup": "40-opening-range-breakout",
+   "tell": "Find the buy level. An ORB buys the first trade through the 9:30 to 10:00 high. A pivot buys the high of the first green candle after a string of red ones at a daily level, usually well below the morning high. DELL: the first half hour's high was 543.15; the owner bought at 527.",
+   "criterion": "pvt.pivot_candle"
+  },
+  {
+   "setup": "42-go-signal",
+   "tell": "Check the clock and the line. A Go Signal is an hourly close back above the prior day's close by the end of the second hourly candle, from an undercut of a tight hourly flag. A pivot can form at any 30-minute candle and its line is the pivot candle's high, not the prior close. A 14:00 turn is a pivot, not a Go Signal.",
+   "criterion": "pvt.trigger"
+  },
+  {
+   "setup": "11-ema20-pullback",
+   "tell": "Name the parent. The pullback to the rising 20-day EMA is the daily setup; the 30-minute pivot is the timer inside it that puts the stop under one candle instead of under the day. If no daily level sits under the pivot candle, it is not this trade.",
+   "criterion": "pvt.level"
+  },
+  {
+   "setup": "43-red-to-green",
+   "tell": "Mark the line being bought. A red to green buys the first trade through yesterday's close. A pivot buys the pivot candle's high, which can sit under yesterday's close; the same morning can show the pivot first and the red to green later and higher.",
+   "criterion": "pvt.trigger"
+  }
+ ],
+ "invalidations": [
+  "Before the trigger: any 30-minute candle trades under the pivot candle's low; wait for a new red string and a new pivot (pvt.inv_pivot_low).",
+  "Before the trigger: no trigger by the close; the setup resets and tomorrow needs a new pivot (pvt.inv_no_trigger).",
+  "Before the trigger: a close under the level the pivot was meant to hold (pvt.inv_context).",
+  "Before the trigger: earnings within 3 sessions (pvt.earnings_window); a Red market (pvt.market_reading).",
+  "Before the trigger: the fourth try in a week or the seventh in a month on the same stock (pvt.tries).",
+  "After the entry: the stop is the exit; it only moves up (pvt.stop_only_up)."
+ ],
+ "mistakes": [
+  "Calling any green candle a pivot. No level, no setup. The owner: real pivot points, not random candles.",
+  "Buying the falling red string before the green candle closes.",
+  "Confusing it with the first half hour's high, the opening-range break. Our own card, course script and chart-builder note make this mistake.",
+  "Using it on laggards. The originator: RS names.",
+  "Sizing up because the stop is tight. The 40% cap still applies, and a gap can jump a 1% stop.",
+  "Moving the stop down to give it room after the pivot low breaks.",
+  "Endless stabs at the same name (INTC: three in six sessions).",
+  "Treating it as a day trade and selling the whole position at 1R to 2R. The owner's and the originator's winners ran 5R to 20R over days.",
+  "Buying a pivot in the last hour: no session left to work (AAPL's 15:00 pivots).",
+  "A half-percent stop on a slow mega-cap: inside the noise, a coin flip (MSFT, NVDA)."
+ ],
+ "short_mirror": {
+  "exists": true,
+  "setup": "41-30-minute-pivot",
+  "note": "The bear pivot is in this dossier (8.6): under the 200-day with falling 10 and 20-day EMAs and RS 20 or less, a string of at least 2 green 30-minute candles into a falling average or a broken level, the first red candle is the pivot, short a cent under its low, stop over its high, the same trims mirrored. No UCT example found; the dossier recommends one mirror card and no drills until the owner shows one (D-001, question 10)."
+ },
+ "best_conditions": "A Green market, ideally a pullback day where leaders dip into their rising 10 or 20-day EMA and turn (the scan fired in clusters on such days). The originator built it for volatile tapes, when a daily-low stop is hard to hold.",
+ "management": {
+  "trim_1": "a third at 3R (B19)",
+  "trim_2": "a third at 5R (E51)",
+  "trail": "a close under the 10-day for a fast mover, the 21-day for a steadier one (E52)",
+  "breakeven": "between 2R and 5R, at the first trim by default (B19)",
+  "time_stop": "under 1R after 10 trading days, sell (C33)",
+  "gap_open": "a trim level the day opens past is taken at the open (F63); common here, DELL, LITE and HOOD all gapped through 3R or 5R",
+  "gap_against": "the first 30-minute low is the new stop; out if past 2R (B20); a different 30-minute rule, do not mix them",
+  "size": "the 40% position cap (A7) binds on almost every pivot",
+  "overrides": "none. The dossier (8.4) finds no pivot-specific rule. The originator's 2025 'short but sweet' exits are an option, not ours. The one setup-specific choice is the stop under the pivot candle's low rather than the day's low (pvt.stop, D-008)."
+ },
+ "examples": {
+  "winners": 10,
+  "sheet_dir": "_study-resume/scratchpad/setups/41-30-minute-pivot/final",
+  "base_rate": {
+   "hits": 1477,
+   "names": 306,
+   "r3_pct": 27.1,
+   "r5_pct": 19.7,
+   "stopped_pct": 90,
+   "median_stop_pct": 0.84,
+   "still_open": 69,
+   "window": "20 sessions forward on 30-minute bars, fixed stop 3 cents under the pivot candle's low, no trims, no breakeven; 2026-08-17 to 2026-11-06 (988 of the 1,000 most-traded names with enough daily history); the section-8 rule: over the 50-day, 50 over 200, rising 20-day EMA, RS stand-in top 20%, at least 2 reds, pivot low within 1% of or under the prior day's 10-day EMA, 21-day EMA or 50-day SMA and closing over it, same-session trigger before any trade under the pivot low, risk within 3%, no earnings within 3 sessions either side"
+  },
+  "cuts": {
+   "red_string_5_or_more": {
+    "hits": 221,
+    "r3_pct": 32.1,
+    "r5_pct": 24.0
+   },
+   "red_string_2": {
+    "hits": 695,
+    "r3_pct": 25.5,
+    "r5_pct": 17.6
+   },
+   "level_10_day_ema": {
+    "r3_pct": 27.0
+   },
+   "level_21_day_ema": {
+    "r3_pct": 27.6
+   },
+   "level_50_day_sma": {
+    "r3_pct": 26.8
+   },
+   "pivot_is_days_low": {
+    "r3_pct": 26.7,
+    "not": 27.4
+   },
+   "pivot_is_the_9_30_candle": {
+    "hits": 169,
+    "r3_pct": 24.9,
+    "median_risk_pct": 1.86,
+    "note": "the weakest and widest-stopped cut"
+   },
+   "replay_section_4_4": {
+    "at_an_average_managed_mean_r": 0.02,
+    "not_near_an_average_managed_mean_r": 0.09,
+    "three_or_more_reds_managed_mean_r": 0.12,
+    "five_or_more_reds_managed_mean_r": 0.26,
+    "cards_first_half_hour_version_managed_mean_r": -0.11,
+    "note": "49 sessions, house-style management: breakeven at 2R, thirds at 3R and 5R, out at the stop or after 10 sessions"
+   }
+  },
+  "winners_list": [
+   "DK 2026-08-24",
+   "PSX 2026-08-27",
+   "GRAL 2026-09-14",
+   "HALO 2026-09-16",
+   "FTNT 2026-09-18",
+   "MRVL 2026-09-28",
+   "DOCU 2026-10-06",
+   "VEEV 2026-10-08",
+   "NOW 2026-10-16",
+   "SN 2026-10-27"
+  ],
+  "failures": [
+   {
+    "ticker": "AAPL",
+    "date": "2026-10-16",
+    "criterion": "pvt.trigger",
+    "why": "5 reds into the 10-day, pivot 15:00, bought 343.15 at 15:30, stop 341.10; went nowhere and was stopped. The same on 2026-10-26 (pivot 15:00, bought 344.07). A pivot in the last hour has no session left to work; 156 of the 1,477 trades were such late triggers."
+   },
+   {
+    "ticker": "MSFT",
+    "date": "2026-09-01",
+    "criterion": "pvt.stop_width",
+    "why": "4 reds into the 10-day, bought 501.07, stop 498.97 (0.42% risk); reached 0.5R and was stopped. NVDA 2026-10-09 (2 reds into the 21-day, 0.42%) was stopped at once; MSFT's 10-14, 10-21 and 10-22 pivots failed the same way. On a slow mega-cap a 2-dollar stop is inside the noise; the originator built it for volatile names."
+   },
+   {
+    "ticker": "INTC",
+    "date": "2026-09-29",
+    "criterion": "pvt.inv_context",
+    "why": "pivots at the 10 and 21-day on 09-29, 10-06 and 10-07 (risk 0.8% to 2.8%) all stopped with no follow-through: three stabs in six sessions on a name that had stopped trending, which E56 would have cut off after the third try in a week. The entry and stop rules were met; the daily picture and the clock were the difference."
+   },
+   {
+    "ticker": "AXON",
+    "date": "2026-08-24",
+    "criterion": "pvt.stop",
+    "why": "6 reds into the 21-day EMA (589.90), pivot 13:00 the day's low 595.11, bought 601.49 at 13:30, stop 595.08 (1.07%): 0.35R, then the next morning's first candle traded through the pivot low. The A+ shape with nothing missing; the pivot low broke and the stop was the exit."
+   },
+   {
+    "ticker": "INTC",
+    "date": "2026-10-06",
+    "criterion": "pvt.inv_context",
+    "why": "3 reds into the 21-day EMA (112.63), pivot 12:30, bought 114.94 at 14:00, stop 112.96 (1.72%): 0.00R, stopped at 15:30. The second of three stabs in six sessions on a name whose trend had turned (pvt.tries)."
+   }
+  ],
+  "limits": "One 12-week window in one market phase (the only window with 30-minute bars); no different years possible. Yahoo bars, no slippage or commissions, which matter with stops this tight; today's liquid names only; the RS stand-in is a 126-session return rank, not the app's rating. The trades cluster on pullback days, so the true uncertainty is wider than the counts suggest. Nothing here is a published statistic; the originator's own rules from his workshops were not available (no transcript).",
+  "near_misses": [
+   {
+    "ticker": "URI",
+    "date": "2026-11-03",
+    "criterion": "pvt.level",
+    "why": "pivot low 1167.55 sits 2.4% above the prior day's 10-day EMA 1139.86 (rule within 1%); a green candle floating in mid-range with no level under it; 0.28R then stopped the next morning."
+   },
+   {
+    "ticker": "CRWD",
+    "date": "2026-09-10",
+    "criterion": "pvt.red_string",
+    "why": "only 1 red candle before the pivot (rule 2 or more); a one-candle dip to the 10-day EMA, not a pullback string; 1.42R then stopped at 13:30 the same day."
+   },
+   {
+    "ticker": "MRNA",
+    "date": "2026-09-15",
+    "criterion": "pvt.inv_pivot_low",
+    "why": "the 11:30 candle traded under the pivot low 142.41 before the 12:00 trigger; a void pivot that needs a new string and a new pivot; 0.00R, stopped on the trigger candle."
+   },
+   {
+    "ticker": "IQV",
+    "date": "2026-10-14",
+    "criterion": "pvt.ema20_rising",
+    "why": "20-day EMA 262.69 under its value 5 sessions earlier 264.36 (rule rising); 3 reds into the 10-day in a stock turning down, no daily setup under the timer; 0.00R, stopped at 13:00."
+   }
+  ],
+  "sheets": {
+   "failures": "final/fail_1-4.png",
+   "near_misses": "final/near_1-4.png",
+   "pair": "final/pair_40-opening-range-breakout.png"
+  }
+ },
+ "question_seeds": [
+  {
+   "kind": "recall",
+   "criterion": "pvt.pivot_candle",
+   "seed": "What is the pivot candle on a 30-minute pivot, and what must come before it?"
+  },
+  {
+   "kind": "recall",
+   "criterion": "pvt.stop",
+   "seed": "Where does the stop go on a 30-minute pivot, and how does it differ from the house day's-low stop?"
+  },
+  {
+   "kind": "recall",
+   "criterion": "pvt.role",
+   "seed": "Is the 30-minute pivot a setup or an entry timer? Name two daily setups it times."
+  },
+  {
+   "kind": "spot",
+   "criterion": "pvt.pivot_candle",
+   "seed": "Hidden ticker, 30-minute chart: tap the pivot candle after the red string."
+  },
+  {
+   "kind": "spot",
+   "criterion": "pvt.level",
+   "seed": "Hidden ticker, daily and 30-minute side by side: which daily line is the pivot sitting on? Tap it, or say none."
+  },
+  {
+   "kind": "spot",
+   "criterion": "pvt.trigger",
+   "seed": "Hidden ticker, 30-minute chart: tap the candle that triggered the buy over the pivot high."
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "pvt.pivot_candle",
+   "seed": "30-minute pivot or ORB: the buy was over the first half hour's high. Which is it?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "pvt.trigger",
+   "seed": "Pivot or Go Signal: the turn came at 14:00 and reclaimed nothing on the daily. Which is it?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "pvt.level",
+   "seed": "Pivot or random green candle: four reds, a green candle, no daily average or level within 3%. Take it or pass?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "pvt.inv_pivot_low",
+   "seed": "The pivot candle closed at 11:00. The 11:30 candle trades 2 cents under its low, then rallies. Is the pivot still live?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "pvt.not_before_close",
+   "seed": "Three red candles into the 20-day EMA and the fourth is green so far at 11:20. Buy now?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "pvt.size_cap",
+   "seed": "Account risk 1%, the stop is 0.6% away. The formula says 167% of the account. What do you buy, and why?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "pvt.tries",
+   "seed": "Stopped on Monday's pivot, Tuesday's pivot, Wednesday's pivot. Thursday prints a fourth. Buy?"
+  },
+  {
+   "kind": "grade",
+   "criterion": "pvt.red_string_three",
+   "seed": "Two pivots at the 10-day EMA: one after 2 small reds, one after 6 reds that undercut the line and closed back over it. Grade each."
+  },
+  {
+   "kind": "grade",
+   "criterion": "pvt.trigger",
+   "seed": "Same pivot shape, one triggers at 10:30, one at 15:30. What grade and what size?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "pvt.stop_width",
+   "seed": "Pivot candle low 66.08, trigger fill 66.83, the stop 3 cents under the low. What is the risk in percent, and is it inside 3%?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "pvt.trim_1",
+   "seed": "Bought 238.91 with the stop at 237.09. Where are 3R and 5R?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "pvt.level",
+   "seed": "The 10-day EMA is 236.78 and the pivot candle's low is 237.12. Is the low within 1% of the level?"
+  }
+ ],
+ "owner_decisions": [
+  "D-001",
+  "D-002",
+  "D-003",
+  "D-006",
+  "D-008",
+  "D-015",
+  "D-125",
+  "D-126",
+  "D-127"
+ ],
+ "conflicts": [
+  "Two setups under one name: the originator, the owner's five public trades and the TradingView scripts describe a turn candle at support; the Model Book card, the course script, the chart-builder note and definitions.json describe the first half hour's high with price consolidating under it, which is the ORB (setup 40). On DELL the first half hour's high was 543.15 and the owner bought at 527. D-002 separates them.",
+  "The stop: the originator's few cents under the pivot candle's low against A3's day's low. They differ on four of the owner's five public examples (HOOD, LITE, TEAM, TQQQ); only DELL's pivot candle made the day's low. The pivot-candle stop is tighter by 0.25% to 0.55%. D-008 allows the pivot candle's low where it is tighter; the owner's KB 12976 note allows both.",
+  "The red string: the dossier recommends 2 as the minimum with 3 or more graded higher; the Pivot Party says two or more; the TenAM Trader script defaults to 3; the replay and the scan favoured 3 or more; DECISIONS.md's default is 3. The card keeps 2 as the gate and 3 as the A+ cue (D-126).",
+  "The level: the owner's 2026-05-18 note says a pivot must be at a daily level; the replay's at-an-average pivots (+0.02R) did a little worse than those away from any average (+0.09R), and the three levels came out alike in the scan. Either the 1% test is not what the owner means by a level (his shakes were deeper) or the level matters less than believed. D-125.",
+  "The entry: the originator buys over the pivot candle's high (HOOD); the owner's DELL fill at 527 was a reclaim inside the turn against a pivot high of 530.43. The card teaches the strict version; the early one waits on D-003.",
+  "Trigger window: the dossier proposes the same session only; D-127's default allows the next morning as a lesser grade. The card follows the dossier and names the option.",
+  "Volume: the Model Book card says 'break with volume'; no source gives a number; the dossier proposes dropping it (D-006).",
+  "Hourly higher low: whether it is the same setup on a slower clock is question 8; D-002's note says it is the same idea on a slower clock.",
+  "Measured edge: no published statistics exist; the replay found the bare mechanics at about zero after house management and the first-half-hour version at -0.11R. The value, if any, sits in the judgment UCT's people describe (leaders, real levels, a shake), which only a labelled set of the owner's trades can measure.",
+  "Workshop rules: the 'one-candle selectivity rule' and 'invalidation rules' named in the chapter notes exist only in two member videos with no transcript. Whether to ask 1ChartMaster (he is on the UCT team) is D-015."
+ ]
+}

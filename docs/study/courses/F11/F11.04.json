@@ -1,0 +1,1332 @@
+{
+ "unit": "F11.04",
+ "track": "F11",
+ "title": "Pick your lane",
+ "teaches": "Pick a style and a few setups that fit your time, money and temperament, go deep on them, judge them on a real sample of logged trades, and don't hop to a new setup after a short losing run.",
+ "skills": [
+  {
+   "id": "styles.lane",
+   "title": "Pick your lane"
+  }
+ ],
+ "as_of": "2026-11-09",
+ "sources": [
+  {
+   "id": "s1",
+   "tier": 1,
+   "publisher": "SEC",
+   "title": "Day Trading: Your Dollars at Risk (investor publication, April 19, 2005)",
+   "url": "https://www.sec.gov/about/reports-publications/investorpubsdaytipshtm",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s2",
+   "tier": 1,
+   "publisher": "FINRA",
+   "title": "Frequent Intraday Trading: Understanding the Basics (June 04, 2026)",
+   "url": "https://www.finra.org/investors/insights/frequent-intraday-trading",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s3",
+   "tier": 2,
+   "publisher": "Brett Steenbarger, TraderFeed",
+   "title": "What Kind of Trader Are You? (daily entries 2025-03-11 to 2025-03-16)",
+   "url": "https://traderfeed.blogspot.com/2025/03/what-kind-of-trader-are-you.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Brett N. Steenbarger, Ph.D.: clinical psychologist and performance coach to portfolio managers and traders, author of The Psychology of Trading, Enhancing Trader Performance and The Daily Trading Coach (Wiley); the contract's Tier 2 list and this unit's plan both name him. TraderFeed is his own blog; every post is signed and dated, with his bio on the page. Used only for his own views, named as his."
+  },
+  {
+   "id": "s4",
+   "tier": 2,
+   "publisher": "Brett Steenbarger, TraderFeed",
+   "title": "Finding Your Performance Niche (2006-10-31; excerpt from Enhancing Trader Performance, Wiley, 2006)",
+   "url": "https://traderfeed.blogspot.com/2006/10/finding-your-performance-niche.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Brett N. Steenbarger, Ph.D.: clinical psychologist and performance coach to portfolio managers and traders, author of The Psychology of Trading, Enhancing Trader Performance and The Daily Trading Coach (Wiley); the contract's Tier 2 list and this unit's plan both name him. TraderFeed is his own blog; every post is signed and dated, with his bio on the page. Used only for his own views, named as his."
+  },
+  {
+   "id": "s5",
+   "tier": 2,
+   "publisher": "Brett Steenbarger, TraderFeed",
+   "title": "Finding Your Niche in Life and Trading (2010-02-25)",
+   "url": "https://traderfeed.blogspot.com/2010/02/finding-your-niche-in-life-and-trading.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Brett N. Steenbarger, Ph.D.: clinical psychologist and performance coach to portfolio managers and traders, author of The Psychology of Trading, Enhancing Trader Performance and The Daily Trading Coach (Wiley); the contract's Tier 2 list and this unit's plan both name him. TraderFeed is his own blog; every post is signed and dated, with his bio on the page. Used only for his own views, named as his."
+  },
+  {
+   "id": "s6",
+   "tier": 2,
+   "publisher": "Brett Steenbarger, TraderFeed",
+   "title": "Six Pieces of Advice for New Traders (2006-10-22)",
+   "url": "https://traderfeed.blogspot.com/2006/10/six-pieces-of-advice-for-new-traders.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Brett N. Steenbarger, Ph.D.: clinical psychologist and performance coach to portfolio managers and traders, author of The Psychology of Trading, Enhancing Trader Performance and The Daily Trading Coach (Wiley); the contract's Tier 2 list and this unit's plan both name him. TraderFeed is his own blog; every post is signed and dated, with his bio on the page. Used only for his own views, named as his."
+  },
+  {
+   "id": "s7",
+   "tier": 2,
+   "publisher": "Brett Steenbarger, TraderFeed",
+   "title": "Becoming Better By Building Routines...And By Shattering Them (2015-06-06)",
+   "url": "https://traderfeed.blogspot.com/2015/06/becoming-better-by-building-routinesand.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Brett N. Steenbarger, Ph.D.: clinical psychologist and performance coach to portfolio managers and traders, author of The Psychology of Trading, Enhancing Trader Performance and The Daily Trading Coach (Wiley); the contract's Tier 2 list and this unit's plan both name him. TraderFeed is his own blog; every post is signed and dated, with his bio on the page. Used only for his own views, named as his."
+  },
+  {
+   "id": "s8",
+   "tier": 2,
+   "publisher": "Brett Steenbarger, TraderFeed",
+   "title": "Mastering the Positive Psychology of Trading (March 2024)",
+   "url": "https://traderfeed.blogspot.com/2024/03/mastering-positive-psychology-of-trading.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Brett N. Steenbarger, Ph.D.: clinical psychologist and performance coach to portfolio managers and traders, author of The Psychology of Trading, Enhancing Trader Performance and The Daily Trading Coach (Wiley); the contract's Tier 2 list and this unit's plan both name him. TraderFeed is his own blog; every post is signed and dated, with his bio on the page. Used only for his own views, named as his."
+  },
+  {
+   "id": "s9",
+   "tier": 2,
+   "publisher": "Brett Steenbarger, TraderFeed",
+   "title": "What Traders Most Need (2006-10-30)",
+   "url": "https://traderfeed.blogspot.com/2006/10/what-traders-most-need.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Brett N. Steenbarger, Ph.D.: clinical psychologist and performance coach to portfolio managers and traders, author of The Psychology of Trading, Enhancing Trader Performance and The Daily Trading Coach (Wiley); the contract's Tier 2 list and this unit's plan both name him. TraderFeed is his own blog; every post is signed and dated, with his bio on the page. Used only for his own views, named as his."
+  },
+  {
+   "id": "s10",
+   "tier": 2,
+   "publisher": "Mike Bellafiore, SMB Capital (SMB Training blog)",
+   "title": "How to answer the burning question every trader must ask to succeed (2020-01-30)",
+   "url": "https://www.smbtraining.com/blog/?p=49552",
+   "accessed": "2026-11-09",
+   "why_reliable": "Mike Bellafiore, co-founder of SMB Capital (a proprietary trading firm in New York) and author of One Good Trade and The PlayBook, the books this unit's plan names. SMB's own author page for 'Bella's blog' (smbtraining.com/blog/bellas-blog) identifies him; the post is signed 'Bella' and dated. Used only for his own and his desk's views, named as theirs."
+  },
+  {
+   "id": "s11",
+   "tier": 2,
+   "publisher": "Mike Bellafiore, SMB Capital (SMB Training blog)",
+   "title": "8 lessons from the prop desk (The 2017 TradersExpo NYC) (2017-03-03)",
+   "url": "https://www.smbtraining.com/blog/?p=45072",
+   "accessed": "2026-11-09",
+   "why_reliable": "Mike Bellafiore, co-founder of SMB Capital (a proprietary trading firm in New York) and author of One Good Trade and The PlayBook, the books this unit's plan names. SMB's own author page for 'Bella's blog' (smbtraining.com/blog/bellas-blog) identifies him; the post is signed 'Bella' and dated. Used only for his own and his desk's views, named as theirs."
+  },
+  {
+   "id": "s12",
+   "tier": 2,
+   "publisher": "Mike Bellafiore, SMB Capital (SMB Training blog)",
+   "title": "Gain exposure to multiple setups with edge (2018-11-26)",
+   "url": "https://www.smbtraining.com/blog/gain-exposure-to-multiple-setups-with-edge",
+   "accessed": "2026-11-09",
+   "why_reliable": "Mike Bellafiore, co-founder of SMB Capital (a proprietary trading firm in New York) and author of One Good Trade and The PlayBook, the books this unit's plan names. SMB's own author page for 'Bella's blog' (smbtraining.com/blog/bellas-blog) identifies him; the post is signed 'Bella' and dated. Used only for his own and his desk's views, named as theirs."
+  },
+  {
+   "id": "s13",
+   "tier": 2,
+   "publisher": "Mike Bellafiore, SMB Capital (SMB Training blog)",
+   "title": "How a Professional Stock Trader Reviews His Trading Results (video transcript, 2019-12-16)",
+   "url": "https://www.smbtraining.com/blog/how-a-professional-stock-trader-reviews-his-trading-results-be-professional",
+   "accessed": "2026-11-09",
+   "why_reliable": "SMB Capital's own blog page for one of its daily videos: Mike Bellafiore (named on the page as SMB's co-founder and the author of One Good Trade and The PlayBook) introduces a trader from the desk, and the page carries the transcript. Quoted only for that trader's own account of his review, named as such."
+  },
+  {
+   "id": "s14",
+   "tier": 2,
+   "publisher": "Van Tharp Institute",
+   "title": "Tharp Think Trading Concepts (2024 page)",
+   "url": "https://vantharp.com/tharp-think-trading-concepts/",
+   "accessed": "2026-11-09",
+   "why_reliable": "The Van Tharp Institute's own page of Dr. Van K. Tharp's core concepts. Tharp (Ph.D. in psychology) was a trading coach for decades, wrote Trade Your Way to Financial Freedom and The Definitive Guide to Position Sizing, and is interviewed in Jack Schwager's Market Wizards. Units F9.01 and F9.03 cite the same page."
+  },
+  {
+   "id": "s15",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Understanding Sample Size Neglect: Cognitive Bias Explained (Jason Fernando, updated 2026-01-30)",
+   "url": "https://www.investopedia.com/terms/s/sample-size-neglect.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s16",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Unlock Trading Success: 20 Essential Rules for Professionals (Alan Farley, updated 2026-08-19)",
+   "url": "https://www.investopedia.com/articles/active-trading/022715/20-rules-followed-professional-traders.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s17",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Compound Probability: Overview and Formulas (Julia Kagan, page dated 2020-11-25; Internet Archive copy of 2025-08-29)",
+   "url": "https://web.archive.org/web/20250829031646/https://www.investopedia.com/terms/c/compound-probability.asp",
+   "accessed": "2026-11-09",
+   "why_reliable": "Investopedia's own page as kept by the Internet Archive. The live page (rewritten 2026-04-23) refuses every client the checker may use (HTTP 402/403, WebFetch blocked), so its text could not be confirmed; the archived copy can be, and the rule it states (independent chances multiply) does not change. Unit F9.03 cites the same copy."
+  },
+  {
+   "id": "s18",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Swing Trading (Adam Hayes, updated 2026-07-24)",
+   "url": "https://www.investopedia.com/terms/s/swingtrading.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s19",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "Breaking Bad Trade Behaviors (Kevin Horner, 2025-10-01)",
+   "url": "https://www.schwab.com/learn/story/breaking-bad-trade-behaviors",
+   "accessed": "2026-11-09"
+  }
+ ],
+ "facts": [
+  {
+   "id": "f1",
+   "source": "s1",
+   "quote": "Most individual investors do not have the wealth, the time, or the temperament to make money and to sustain the devastating losses that day trading can bring.",
+   "claim": "The SEC says most individual investors lack the wealth, the time or the temperament to make money day trading and survive its losses."
+  },
+  {
+   "id": "f2",
+   "source": "s1",
+   "quote": "Day traders must watch the market continuously during the day at their computer terminals.",
+   "claim": "Day trading means watching the market all day long."
+  },
+  {
+   "id": "f3",
+   "source": "s1",
+   "quote": "Day trading is an extremely stressful and expensive full-time job",
+   "claim": "The SEC calls day trading an extremely stressful, expensive full-time job."
+  },
+  {
+   "id": "f4",
+   "source": "s1",
+   "quote": "Day traders typically suffer severe financial losses in their first months of trading, and many never graduate to profit-making status.",
+   "claim": "New day traders typically lose heavily in their first months, and many never become profitable."
+  },
+  {
+   "id": "f5",
+   "source": "s1",
+   "quote": "day traders should only risk money they can afford to lose.",
+   "claim": "Only trade money you can afford to lose."
+  },
+  {
+   "id": "f6",
+   "source": "s1",
+   "quote": "Don't believe advertising claims that promise quick and sure profits from day trading.",
+   "claim": "Don't believe ads that promise quick, sure day-trading profits."
+  },
+  {
+   "id": "f7",
+   "source": "s1",
+   "quote": "Remember that \"educational\" seminars, classes, and books about day trading may not be objective",
+   "claim": "Day-trading seminars, classes and books may not be objective: the seller may profit if you start."
+  },
+  {
+   "id": "f8",
+   "source": "s2",
+   "quote": "trading throughout the day is time-intensive and requires that you pay continuous attention to your holdings and the market as a whole.",
+   "claim": "FINRA says intraday trading takes a lot of time and continuous attention to your positions and the market."
+  },
+  {
+   "id": "f9",
+   "source": "s2",
+   "quote": "Strategies that involve frequent trading on margin generally are not appropriate for investors with: limited financial resources; limited investment or trading experience; or low risk tolerance.",
+   "claim": "FINRA says frequent margin trading generally doesn't suit people with limited money, limited experience or low risk tolerance."
+  },
+  {
+   "id": "f11",
+   "source": "s2",
+   "quote": "Given the significant risks, you should never fund this type of trading with essential assets.",
+   "claim": "Never fund frequent intraday trading with money you need."
+  },
+  {
+   "id": "f12",
+   "source": "s3",
+   "quote": "Our job is to find the ways of trading that best play to our personality strengths.",
+   "claim": "Steenbarger: your job is to find the ways of trading that play to your personality's strengths."
+  },
+  {
+   "id": "f13",
+   "source": "s3",
+   "quote": "A great way to see how your personality contributes to your trading success is to study your best trades and how you succeeded.",
+   "claim": "Study your best trades, and how you won them, to see what you do well."
+  },
+  {
+   "id": "f14",
+   "source": "s3",
+   "quote": "Are you a generalist in your trading, trading multiple markets and strategies, or are you a specialist, who does one or two things really well?",
+   "claim": "Steenbarger describes a specialist as a trader who does one or two things really well."
+  },
+  {
+   "id": "f15",
+   "source": "s3",
+   "quote": "we experience emotional disruptions in our trading, not because we lack discipline or are overcome with greed or frustration, but because we are trying to trade in a way that doesn't leverage who we actually are",
+   "claim": "Steenbarger: emotional upsets in trading often come from trading in a way that doesn't fit who you are, not only from weak discipline."
+  },
+  {
+   "id": "f16",
+   "source": "s3",
+   "quote": "This fast trader excels in pattern recognition and also excels in the ability to maintain high levels of focus and flexibility of perception within and across trading days.",
+   "claim": "Steenbarger's fast, short-term trader is strong at pattern recognition and at holding focus for long stretches."
+  },
+  {
+   "id": "f18",
+   "source": "s3",
+   "quote": "When the fast trader attempts to trade longer time frames, the near-term pattern recognition (a strength) can actually pose distractions.",
+   "claim": "A fast trader's quick pattern reading can become a distraction on longer time frames."
+  },
+  {
+   "id": "f19",
+   "source": "s3",
+   "quote": "problems with our trading may not occur due to our weaknesses, but because of a misapplication of our strengths",
+   "claim": "Trading problems can come from using your strengths in the wrong place, not only from weaknesses."
+  },
+  {
+   "id": "f20",
+   "source": "s4",
+   "quote": "Many, many times, traders do not live up to their potential simply because they are trading markets and methods that do not draw upon their strengths.",
+   "claim": "Traders often fall short because their markets and methods don't use their strengths."
+  },
+  {
+   "id": "f21",
+   "source": "s4",
+   "quote": "Without that fit, they are not absorbed in what they do; frustration replaces focus and learning suffers.",
+   "claim": "Without fit, frustration replaces focus and learning suffers."
+  },
+  {
+   "id": "f22",
+   "source": "s4",
+   "quote": "success will not be found in better indicators, improved self-help techniques, or any of the endless parade of chart patterns, wave formations, numerology schemes, or moving average arrays.",
+   "claim": "Steenbarger: success won't come from better indicators or another chart pattern; it comes from fit."
+  },
+  {
+   "id": "f23",
+   "source": "s5",
+   "quote": "A niche is a domain of endeavor that not only captures our talents and skills, but also our deepest values and interests.",
+   "claim": "A niche is work that uses your talents and skills and also your deepest values and interests."
+  },
+  {
+   "id": "f24",
+   "source": "s5",
+   "quote": "traders experience a high failure rate, not just because of the difficulty of the work, but because they place their capital at risk before they find a true niche within the trading world.",
+   "claim": "Steenbarger: many traders fail partly because they risk capital before they find their niche."
+  },
+  {
+   "id": "f25",
+   "source": "s6",
+   "quote": "Trade in simulation mode before you put money at risk, trade one lots before you trade larger size. Make your mistakes when your exposure is lowest.",
+   "claim": "Practise in simulation, then at the smallest size, before you trade bigger."
+  },
+  {
+   "id": "f26",
+   "source": "s6",
+   "quote": "Markets change, and their patterns change.  Few traders make as much in range bound markets and non-volatile markets as in trending, volatile ones.",
+   "claim": "Markets and their patterns change; most traders make less in quiet, range-bound markets than in trending ones."
+  },
+  {
+   "id": "f27",
+   "source": "s7",
+   "quote": "It's the reworking of old trading processes and the addition of new ones that enable traders to stay profitable when markets go from trending and non-volatile to volatile and choppy.",
+   "claim": "When markets turn choppy, reworking old processes and adding new ones keeps traders profitable."
+  },
+  {
+   "id": "f28",
+   "source": "s8",
+   "quote": "You cannot play to your strengths if you aren't intimately familiar with what those strengths are.  Working on correcting weaknesses only gets you so far.",
+   "claim": "Know your strengths well; fixing weaknesses only gets you so far."
+  },
+  {
+   "id": "f29",
+   "source": "s9",
+   "quote": "Traders don't need education.  What traders most need is training.",
+   "claim": "Steenbarger: traders need training (learning by doing) more than more education."
+  },
+  {
+   "id": "f30",
+   "source": "s10",
+   "quote": "Trading the wrong product, time frame, or trading style would be like asking NBA star Steph Curry (a great point guard) to play the center position.",
+   "claim": "Bellafiore: trading the wrong style or time frame is like making a great point guard play center."
+  },
+  {
+   "id": "f31",
+   "source": "s10",
+   "quote": "Consider how you have been successful in the past and find setups that accentuate those strengths.",
+   "claim": "Bellafiore: look at how you've succeeded and pick setups that build on those strengths."
+  },
+  {
+   "id": "f32",
+   "source": "s10",
+   "quote": "Tag and Measure your trades (keep score!)",
+   "claim": "Bellafiore: tag and measure your trades; keep score."
+  },
+  {
+   "id": "f33",
+   "source": "s10",
+   "quote": "Increase risk on setups that measure well in real-time (sizing).",
+   "claim": "Bellafiore: size up on the setups that measure well in live trading."
+  },
+  {
+   "id": "f34",
+   "source": "s11",
+   "quote": "Find a trading niche that has edge and leverages your personality and cognitive strengths.",
+   "claim": "Bellafiore: find a niche that has edge and plays to your personality and the way you think."
+  },
+  {
+   "id": "f35",
+   "source": "s11",
+   "quote": "His ability to process information quickly is distinct.  Sticking to scalping, with now large size as he has grown as a trader, allows him to play to his strengths",
+   "claim": "SMB's scalper processes information fast, and sticking to scalping plays to that strength."
+  },
+  {
+   "id": "f36",
+   "source": "s11",
+   "quote": "Frequent Flyer data dumped on our conference room table irrefutable evidence for a capital bump, in the way of his trading stats for this trade.",
+   "claim": "An SMB trader earned more buying power on his favourite setup by showing his stats for it."
+  },
+  {
+   "id": "f37",
+   "source": "s12",
+   "quote": "Linda Raschke, trader and trading educator, stresses learning one setup well and then and only then moving to another.",
+   "claim": "Linda Raschke teaches learning one setup well before moving to another."
+  },
+  {
+   "id": "f38",
+   "source": "s12",
+   "quote": "We expose new traders to the different trading strategies working for our top traders, let them experiment, and then choose the setups best for them.",
+   "claim": "SMB has new traders try several working strategies, then choose the setups that suit them."
+  },
+  {
+   "id": "f39",
+   "source": "s12",
+   "quote": "I really like for the new trader to gain exposure to setups with edge, experimenting with them on a demo, finding your niche, and then building your PlayBook.",
+   "claim": "Bellafiore: try setups with edge on a demo, find your niche, then build your playbook."
+  },
+  {
+   "id": "f40",
+   "source": "s12",
+   "quote": "Focus most of your energy trading, measuring and reviewing your PlayBook trades.  Leave some time to expand your PlayBook, with new trades.",
+   "claim": "Put most of your energy into your playbook trades, and leave some time to add new ones."
+  },
+  {
+   "id": "f41",
+   "source": "s13",
+   "quote": "one of my worst trades is a second day play and it has a large tag count so it means I've taken it many times",
+   "claim": "An SMB trader's tags showed one of his worst setups was one he had taken many times."
+  },
+  {
+   "id": "f42",
+   "source": "s13",
+   "quote": "the sample set is very big and that tells me that I shouldn't be taking that trade anymore",
+   "claim": "With a big sample of a losing setup, he decided to stop taking it."
+  },
+  {
+   "id": "f43",
+   "source": "s14",
+   "quote": "There are hundreds, if not thousands, of trading systems that work, but after purchasing one, the typical trader will not follow it or trade it exactly as it was intended.",
+   "claim": "Tharp: many systems work, but the typical buyer doesn't trade one as intended."
+  },
+  {
+   "id": "f44",
+   "source": "s14",
+   "quote": "Why not? Because the system didn't fit them and their style of trading.",
+   "claim": "Tharp: buyers don't follow working systems because the systems don't fit them."
+  },
+  {
+   "id": "f45",
+   "source": "s14",
+   "quote": "if your trading system doesn't match your beliefs about the markets, you will eventually find a way to sabotage your trading.",
+   "claim": "A system that clashes with what you believe about markets is one you'll end up sabotaging."
+  },
+  {
+   "id": "f46",
+   "source": "s14",
+   "quote": "Please note that you can only get a good idea of your system's expectancy when you have a minimum of thirty trades to analyze.",
+   "claim": "Tharp: you need at least thirty trades to get a good idea of a system's expectancy."
+  },
+  {
+   "id": "f47",
+   "source": "s14",
+   "quote": "In order to really get a clear picture of the system's expectancy, you should actually have somewhere between 100 and 200.",
+   "claim": "Tharp: for a clear picture of expectancy, have 100 to 200 trades."
+  },
+  {
+   "id": "f48",
+   "source": "s14",
+   "quote": "It's best to start small (very small) and minimize the \"tuition paid\" to learn the new strategy.",
+   "claim": "Start a new strategy very small so learning it costs little."
+  },
+  {
+   "id": "f49",
+   "source": "s14",
+   "quote": "Once you've proven that you can consistently and profitably trade the strategy over a meaningful period of time (months, not days), you can begin to ramp up your position sizing strategies.",
+   "claim": "Size up only after months, not days, of consistent, profitable trading of that strategy."
+  },
+  {
+   "id": "f50",
+   "source": "s14",
+   "quote": "Systems must be evaluated and revised to adapt to changing market conditions.",
+   "claim": "Systems need checking and revising as markets change."
+  },
+  {
+   "id": "f51",
+   "source": "s14",
+   "quote": "Expectancy is simply the mean, or average, R-multiple generated.",
+   "claim": "Expectancy is the average R per trade."
+  },
+  {
+   "id": "f52",
+   "source": "s14",
+   "quote": "despite the fact that only one of your trades was a winner and 99% of your trades were losers.",
+   "claim": "Tharp's example makes money even though 99% of its trades lose: the one winner is big."
+  },
+  {
+   "id": "f53",
+   "source": "s14",
+   "quote": "after a losing streak, the next bet has a better chance of being a winner. If that's your belief, you'll be tempted to increase your position size when you shouldn't.",
+   "claim": "Believing a win is due after a losing streak (the gambler's fallacy) tempts you to size up when you shouldn't."
+  },
+  {
+   "id": "f54",
+   "source": "s14",
+   "quote": "When traders take the time to write down all their beliefs (about themselves, the markets, money, etc.), then they can establish a much better idea of what they want to trade, how they want to trade",
+   "claim": "Writing down your beliefs about yourself and markets clarifies what and how you want to trade."
+  },
+  {
+   "id": "f55",
+   "source": "s14",
+   "quote": "Many professional traders have multiple systems that operate in multiple time frames over many markets",
+   "claim": "Tharp notes many professionals run several systems across time frames and markets."
+  },
+  {
+   "id": "f56",
+   "source": "s15",
+   "quote": "Smaller sample sizes have more volatile and less reliable statistical results.",
+   "claim": "Small samples give jumpy, unreliable results."
+  },
+  {
+   "id": "f57",
+   "source": "s15",
+   "quote": "When a sample size is too small, accurate and trustworthy conclusions cannot be drawn.",
+   "claim": "From too small a sample you can't draw a trustworthy conclusion."
+  },
+  {
+   "id": "f58",
+   "source": "s16",
+   "quote": "once a trader has confidence in their trading plan, they must have the discipline to stay the course, even when there are the inevitable losing streaks.",
+   "claim": "Losing streaks are inevitable; a plan you trust needs the discipline to stay the course through them."
+  },
+  {
+   "id": "f59",
+   "source": "s16",
+   "quote": "Learn what you can from others, then back off and establish your own market identity, based on your unique skills and risk tolerance.",
+   "claim": "Learn from others, then build your own trading identity on your skills and risk tolerance."
+  },
+  {
+   "id": "f60",
+   "source": "s16",
+   "quote": "It's natural for traders to emulate their financial heroes, but it's also a perfect way to lose money.",
+   "claim": "Copying your trading heroes is a good way to lose money."
+  },
+  {
+   "id": "f61",
+   "source": "s16",
+   "quote": "Many traders can profit in certain markets like a strong uptrend, but they fail over time because their strategies don't adapt to changing conditions.",
+   "claim": "Strategies that don't adapt to changing markets fail over time."
+  },
+  {
+   "id": "f62",
+   "source": "s16",
+   "quote": "Some traders try to make up for insufficient skills with expensive software",
+   "claim": "Expensive software doesn't make up for weak skills."
+  },
+  {
+   "id": "f63",
+   "source": "s17",
+   "quote": "Compound probability is equal to the probability of the first event multiplied by the probability of the second event.",
+   "claim": "The chance of two independent events both happening is their two chances multiplied."
+  },
+  {
+   "id": "f64",
+   "source": "s17",
+   "quote": "If the probability of getting heads is 50 percent, then the chances of getting heads twice in a row would be (.50 X .50), or .25 (25 percent).",
+   "claim": "Two heads in a row at 50% each is 0.50 x 0.50 = 25%."
+  },
+  {
+   "id": "f65",
+   "source": "s18",
+   "quote": "The time commitment for swing trading isn't as intensive as day trading, since positions are held for a few days to several weeks.",
+   "claim": "Swing trading takes less time than day trading because positions are held for days to weeks."
+  },
+  {
+   "id": "f66",
+   "source": "s18",
+   "quote": "While offering flexibility, swing trading carries the risk of overnight and weekend market exposures.",
+   "claim": "Swing trading is flexible but carries overnight and weekend risk."
+  },
+  {
+   "id": "f67",
+   "source": "s19",
+   "quote": "Losing streaks can happen to the best of us, but sometimes a bout of bad luck can actually reflect a problem with our trading strategy.",
+   "claim": "Losing streaks happen to good traders, but sometimes one points to a real problem with the strategy."
+  },
+  {
+   "id": "f68",
+   "source": "s19",
+   "quote": "To begin, traders should look at whether they're losing or making money on a net basis, then look for patterns in their wins and losses.",
+   "claim": "After a streak, check whether you're net up or down, then look for patterns in your wins and losses."
+  },
+  {
+   "id": "f69",
+   "source": "s19",
+   "quote": "As a trader works to figure out what needs fixing, there's no harm in reducing the size of your trades.",
+   "claim": "While you work out what needs fixing, trading smaller does no harm."
+  },
+  {
+   "id": "f70",
+   "source": "s14",
+   "quote": "One of the biggest secrets of successful trading is finding a trading system that fits you personally.",
+   "claim": "Tharp: finding a trading system that fits you personally is one of the biggest secrets of successful trading."
+  },
+  {
+   "id": "f71",
+   "source": "s19",
+   "quote": "if winning trades employ fundamental analysis and losing trades are based on technical analysis, a trader might want to focus more on fundamentals for a while.",
+   "claim": "Schwab: if your winners come from one approach and your losers from another, lean on the one that wins for a while."
+  },
+  {
+   "id": "f72",
+   "source": "s1",
+   "quote": "They should never use money they will need for daily living expenses, retirement, take out a second mortgage, or use their student loan money for day trading.",
+   "claim": "Never day trade with money you need to live on, retirement money, a second mortgage or student loans."
+  },
+  {
+   "id": "f73",
+   "source": "s13",
+   "quote": "I've been taking second day trades for about a year now and I've tried to work on them",
+   "claim": "Before he stopped, the SMB trader had taken that setup for about a year and tried to fix it."
+  }
+ ],
+ "walkthroughs": [
+  {
+   "key": "w1",
+   "title": "Fit comes first",
+   "steps": [
+    "Every style asks something of you. Day trading wants your eyes on the market all day.",
+    "The SEC says most investors lack the wealth, the time or the temperament for it. Swing trading takes less screen time.",
+    "Coach Brett Steenbarger sees traders fall short when their methods don't use their strengths.",
+    "So pick the style that fits your clock, your money and your nerves."
+   ],
+   "facts": [
+    "f2",
+    "f8",
+    "f1",
+    "f65",
+    "f20",
+    "f12"
+   ]
+  },
+  {
+   "key": "w2",
+   "title": "Go deep on a few",
+   "steps": [
+    "Coaches differ on the start. Linda Raschke: learn one setup well first. Trading firm SMB: sample several setups with edge.",
+    "SMB's beginners then build a playbook of the setups that suit them. Steenbarger's specialist does one or two things really well.",
+    "Most of your energy goes into trading, measuring and reviewing those. New ideas get tested on the side, small."
+   ],
+   "facts": [
+    "f37",
+    "f38",
+    "f39",
+    "f14",
+    "f40",
+    "f48"
+   ]
+  },
+  {
+   "key": "w3",
+   "title": "Write your lane down",
+   "steps": [
+    "Write down your style, the few setups you'll trade, and why they fit you.",
+    "Tag every trade by setup and keep score. That's how you find out what you trade well.",
+    "Judge a setup on a real sample. Van Tharp wanted at least thirty trades, and 100 to 200 for a clear picture.",
+    "Losing streaks will come. Size up only after months of proven, logged results."
+   ],
+   "facts": [
+    "f54",
+    "f31",
+    "f32",
+    "f41",
+    "f46",
+    "f47",
+    "f58",
+    "f49"
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "key": "q01",
+   "skill": "styles.lane",
+   "rung": 1,
+   "format": "fill",
+   "q": "Tap the word the SEC used.",
+   "sentence": "Most investors lack the wealth, the time or the ___ to make money day trading, the SEC warns.",
+   "bank": [
+    "temperament",
+    "software",
+    "license",
+    "education",
+    "data feed"
+   ],
+   "answer": "temperament",
+   "why": "Temperament. The SEC's page on day trading names three things most investors lack: the wealth, the time and the temperament. Money and hours aren't enough without the nerves for it.",
+   "lesson_line": "Pick a style that fits your money, your hours and your nerves.",
+   "facts": [
+    "f1"
+   ]
+  },
+  {
+   "key": "q02",
+   "skill": "styles.lane",
+   "rung": 1,
+   "format": "tf",
+   "q": "Frustration in trading can come from a style that doesn't fit you, not only from weak discipline.",
+   "answer": "True",
+   "why": "True. Steenbarger: emotional upsets in trading often come from trading in a way that doesn't fit who you are. Without that fit, frustration replaces focus. Tharp adds that a system that clashes with your beliefs gets sabotaged.",
+   "lesson_line": "If trading always feels like a fight, check the fit before you blame your willpower.",
+   "facts": [
+    "f15",
+    "f21",
+    "f45"
+   ]
+  },
+  {
+   "key": "q03",
+   "skill": "styles.lane",
+   "rung": 2,
+   "format": "tf",
+   "q": "Day trading fits around a full-time job if you check prices at lunch.",
+   "answer": "False",
+   "why": "False. FINRA says intraday trading is time-intensive and needs continuous attention. The SEC calls day trading a stressful full-time job that means watching the market all day.",
+   "lesson_line": "Day trading needs your eyes all day. With a day job, pick trades that don't.",
+   "facts": [
+    "f8",
+    "f2",
+    "f3",
+    "f65"
+   ]
+  },
+  {
+   "key": "q04",
+   "skill": "styles.lane",
+   "rung": 2,
+   "format": "mcq",
+   "term": "niche",
+   "q": "Coach Brett Steenbarger and SMB's Mike Bellafiore both say find your niche. What do they mean by a niche?",
+   "choices": [
+    "Edge that fits your strengths",
+    "The setup with the best win rate",
+    "Whatever top traders are using",
+    "A corner of little-known stocks"
+   ],
+   "answer": "Edge that fits your strengths",
+   "why": "Edge that fits your strengths. Bellafiore: find a niche that has edge and plays to your personality and the way you think. Steenbarger: a niche uses your talents, skills and interests.",
+   "lesson_line": "Your niche is where real edge meets the way you think.",
+   "facts": [
+    "f34",
+    "f23",
+    "f70",
+    "f52",
+    "f60"
+   ],
+   "wrong": {
+    "The setup with the best win rate": "Win rate alone isn't edge. Van Tharp's example makes money with 99% losing trades because the one winner is big. And a setup can work without suiting you.",
+    "Whatever top traders are using": "Their lane fits them. Investopedia's rules warn that copying your heroes is a perfect way to lose money.",
+    "A corner of little-known stocks": "Niche here isn't an obscure market. It's trading that uses your talents, skills and interests."
+   }
+  },
+  {
+   "key": "q05",
+   "skill": "styles.lane",
+   "rung": 2,
+   "format": "fill",
+   "q": "Tap the word that completes the advice.",
+   "sentence": "To find your strengths, Steenbarger says study your ___ trades.",
+   "bank": [
+    "best",
+    "worst",
+    "newest",
+    "riskiest",
+    "missed"
+   ],
+   "answer": "best",
+   "why": "Best. Steenbarger: study your best trades and how you succeeded to see what you do well. Bellafiore says the same: look at how you've succeeded and pick setups that build on it.",
+   "lesson_line": "Your winners show you your lane. Study them as hard as your losers.",
+   "facts": [
+    "f13",
+    "f31",
+    "f71"
+   ]
+  },
+  {
+   "key": "q06",
+   "skill": "styles.lane",
+   "rung": 3,
+   "format": "tf",
+   "q": "Specializing means you trade one setup and never add another.",
+   "answer": "False",
+   "why": "False. Steenbarger's specialist does one or two things really well. Bellafiore says put most of your energy into your playbook and leave some time to add new trades.",
+   "lesson_line": "Go deep on a few setups. Add new ones slowly, on the side.",
+   "facts": [
+    "f14",
+    "f40",
+    "f55"
+   ]
+  },
+  {
+   "key": "q07",
+   "skill": "styles.lane",
+   "rung": 3,
+   "format": "mcq",
+   "q": "Van Tharp says hundreds of trading systems work. Why does the typical buyer still fail with one?",
+   "choices": [
+    "It doesn't fit, so it isn't followed",
+    "The seller hid some of the real rules",
+    "Markets change too fast for systems",
+    "They traded it far too small"
+   ],
+   "answer": "It doesn't fit, so it isn't followed",
+   "why": "It doesn't fit, so they don't follow it. Tharp: the typical buyer won't trade a working system as intended because it doesn't fit them and their style. Steenbarger sees the same: methods that don't use your strengths hold you back.",
+   "lesson_line": "A system you won't follow is worth nothing to you. Fit comes first.",
+   "facts": [
+    "f43",
+    "f44",
+    "f20",
+    "f50",
+    "f48"
+   ],
+   "wrong": {
+    "The seller hid some of the real rules": "Tharp doesn't blame the seller: hundreds, if not thousands, of systems work. The gap is the fit with the trader.",
+    "Markets change too fast for systems": "Systems do need revising as markets change. But Tharp's reason here is the misfit: buyers don't follow what they bought.",
+    "They traded it far too small": "Size can't fix a system you won't follow. Tharp says start any new strategy very small."
+   }
+  },
+  {
+   "key": "q08",
+   "skill": "styles.lane",
+   "rung": 3,
+   "format": "mcq",
+   "q": "Steenbarger says many traders fail because they put capital at risk too soon. Before they find what?",
+   "choices": [
+    "Their niche",
+    "The right software",
+    "Enough trading books",
+    "A strong bull market"
+   ],
+   "answer": "Their niche",
+   "why": "Their niche. Steenbarger: traders often risk capital before they find a true niche. Bellafiore's order is the same: try setups with edge on a demo, find your niche, then build your playbook.",
+   "lesson_line": "Find your lane on paper and at small size first. Then put real money behind it.",
+   "facts": [
+    "f24",
+    "f39",
+    "f25",
+    "f48",
+    "f62",
+    "f22",
+    "f29",
+    "f23"
+   ],
+   "wrong": {
+    "The right software": "Software can't make up for weak skills, and Steenbarger says success won't come from better indicators.",
+    "Enough trading books": "Reading isn't the gap. Steenbarger says traders need training, learning by doing, more than education.",
+    "A strong bull market": "Timing the market isn't his point. He means finding the trading that fits your talents, skills and interests."
+   }
+  },
+  {
+   "key": "q09",
+   "skill": "styles.lane",
+   "rung": 4,
+   "format": "scenario",
+   "story": "You love fast trades and quick decisions. But you work 9 to 5, with no screen during market hours. Your evenings are free.",
+   "q": "Which lane fits your life right now?",
+   "choices": [
+    "Swing trades planned at night",
+    "Day trading the open from work",
+    "Quit your job to day trade",
+    "Whatever made money last month"
+   ],
+   "answer": "Swing trades planned at night",
+   "why": "Swing trades planned at night. Your clock decides before your taste does. Intraday trading needs continuous attention you can't give at work, while swing holds of days to weeks take less screen time. The trade-off is overnight and weekend risk.",
+   "lesson_line": "Your schedule picks the lane before your taste does.",
+   "facts": [
+    "f65",
+    "f8",
+    "f2",
+    "f66",
+    "f4",
+    "f72"
+   ],
+   "wrong": {
+    "Day trading the open from work": "The open needs your full attention, and you're at work then. FINRA says intraday trading needs continuous attention.",
+    "Quit your job to day trade": "Don't bet your living on it. The SEC says new day traders typically lose heavily in their first months. It also says never day trade with money you need to live on.",
+    "Whatever made money last month": "Someone's last month says nothing about your hours. Start from your schedule."
+   }
+  },
+  {
+   "key": "q10",
+   "skill": "styles.lane",
+   "rung": 4,
+   "format": "scenario",
+   "story": "Sam can watch the market all day. He reads charts fast, loves quick decisions and stays sharp for hours. Waiting days for a trade bores him.",
+   "q": "Which lane plays to Sam's strengths?",
+   "choices": [
+    "Fast, short-term trades",
+    "Multi-week position trades",
+    "Long-term buy and hold",
+    "Whatever his mentor trades"
+   ],
+   "answer": "Fast, short-term trades",
+   "why": "Fast, short-term trades. Steenbarger's fast trader is strong at pattern recognition and at holding focus. SMB's scalper plays to his strength, fast processing, by sticking to scalping. Fit isn't everything, though: day trading still needs the time and the money.",
+   "lesson_line": "Match the clock to the person. Then make sure your time and money can carry it.",
+   "facts": [
+    "f16",
+    "f35",
+    "f18",
+    "f59",
+    "f1"
+   ],
+   "wrong": {
+    "Multi-week position trades": "Long holds waste his speed. Steenbarger says a fast trader's quick pattern reading can turn into a distraction on longer time frames.",
+    "Long-term buy and hold": "That asks Sam to sit still for years. It ignores the speed he's good at.",
+    "Whatever his mentor trades": "His mentor's lane fits his mentor. Learn from others, then build your own identity."
+   }
+  },
+  {
+   "key": "q11",
+   "skill": "styles.lane",
+   "rung": 5,
+   "format": "scenario",
+   "story": "Over 200 logged trades, a pattern shows. Your multi-day swings on strong themes make money. Your quick scalps at the open lose it.",
+   "q": "What's your next move?",
+   "choices": [
+    "Narrow to the multi-day swings",
+    "Drill scalps until they work",
+    "Split time evenly between both",
+    "Add a third style to compare"
+   ],
+   "answer": "Narrow to the multi-day swings",
+   "why": "Narrow to the multi-day swings. Your record shows where you're strong. Steenbarger says study your best trades. Bellafiore says pick setups that build on how you've succeeded. Schwab suggests leaning on what wins for a while.",
+   "lesson_line": "Let your own record pick the lane. Then put most of your energy there.",
+   "facts": [
+    "f13",
+    "f31",
+    "f71",
+    "f68",
+    "f28",
+    "f40"
+   ],
+   "wrong": {
+    "Drill scalps until they work": "Fixing weaknesses only gets you so far, Steenbarger says. Your record already shows a strength to build on.",
+    "Split time evenly between both": "Half your energy would go to what your record says you do worst. Most of it belongs on what works.",
+    "Add a third style to compare": "More styles spread you thinner. Your 200 trades already point to a lane."
+   }
+  },
+  {
+   "key": "q12",
+   "skill": "styles.lane",
+   "rung": 5,
+   "format": "numeric",
+   "q": "A setup wins 40% of trades. Treat trades as independent. What's the chance the next six all lose? Nearest whole percent.",
+   "answer": 5,
+   "suffix": "%",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "loss_rate ** n * 100",
+     "loss_rate": 0.6,
+     "n": 6
+    },
+    "round": 0
+   },
+   "why": "5%. Each trade loses 60% of the time, so six losses in a row is 0.6 multiplied by itself six times. Unlikely in any one stretch, but you'll trade many stretches.",
+   "lesson_line": "Losing streaks come with any edge. Expect them before they show up.",
+   "facts": [
+    "f63",
+    "f64",
+    "f58",
+    "f67"
+   ]
+  },
+  {
+   "key": "q13",
+   "skill": "styles.lane",
+   "rung": 6,
+   "format": "numeric",
+   "q": "Over 150 logged breakout trades, 40% won, averaging 2.5R. The losers lost 1R on average. What's the average R per trade?",
+   "answer": 0.4,
+   "suffix": "R",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "win_rate * avg_win - loss_rate * avg_loss",
+     "win_rate": 0.4,
+     "avg_win": 2.5,
+     "loss_rate": 0.6,
+     "avg_loss": 1
+    }
+   },
+   "why": "0.4R. Expectancy is the average R per trade: 40% of trades make 2.5R and 60% lose 1R. You lose more trades than you win and still average 0.4R a trade.",
+   "lesson_line": "Judge a setup by its average R over many trades, not by its win rate or its last streak.",
+   "facts": [
+    "f51",
+    "f52",
+    "f47"
+   ]
+  },
+  {
+   "key": "q14",
+   "skill": "styles.lane",
+   "rung": 6,
+   "format": "scenario",
+   "story": "Your new breakout setup tested well on past charts. Live, you've taken six trades by the plan. All six lost.",
+   "q": "What's your next step?",
+   "choices": [
+    "Review them, keep going smaller",
+    "Drop it and start a new setup",
+    "Double size to win it back",
+    "Keep going full size, no review"
+   ],
+   "answer": "Review them, keep going smaller",
+   "why": "Review them, keep going smaller. Six trades is far too few to judge. Tharp wanted at least thirty for a good read on a system. Streaks happen, but check the six for a real problem, and trade smaller while you do.",
+   "lesson_line": "Six trades is a streak, not a verdict. Log more before you judge.",
+   "facts": [
+    "f46",
+    "f56",
+    "f57",
+    "f67",
+    "f68",
+    "f69",
+    "f53"
+   ],
+   "wrong": {
+    "Drop it and start a new setup": "Small samples give jumpy, unreliable results. Hop now and you start from zero with another tiny sample.",
+    "Double size to win it back": "That's the gambler's fallacy: a losing streak doesn't make a win due. Size goes down while you check, not up.",
+    "Keep going full size, no review": "Streaks happen to good traders, but sometimes they point to a real problem. Look at the six first, and trade smaller meanwhile."
+   }
+  },
+  {
+   "key": "q15",
+   "skill": "styles.lane",
+   "rung": 6,
+   "format": "mcq",
+   "q": "When has a setup earned a bigger size from you?",
+   "choices": [
+    "After months of your logged results",
+    "After two or three big wins in a row",
+    "When you feel really sure about it",
+    "When a mentor you trust swears by it"
+   ],
+   "answer": "After months of your logged results",
+   "why": "After months of proven, logged results. Tharp: ramp up size only once you've traded it consistently and profitably for months, not days. Bellafiore sizes up on setups that measure well.",
+   "lesson_line": "Size follows proof. Your own logged numbers, over months, earn the bigger size.",
+   "facts": [
+    "f49",
+    "f33",
+    "f36",
+    "f56",
+    "f59"
+   ],
+   "wrong": {
+    "After two or three big wins in a row": "Two or three trades is a tiny sample, and small samples give unreliable results.",
+    "When you feel really sure about it": "A feeling isn't a record. An SMB trader won more buying power by showing his stats, not his confidence.",
+    "When a mentor you trust swears by it": "His record isn't yours. Learn from others, then build your own record."
+   }
+  },
+  {
+   "key": "q16",
+   "skill": "styles.lane",
+   "rung": 7,
+   "format": "scenario",
+   "story": "A year of trades, each tagged by setup. Setup A: 120 trades, net down every quarter. Setup B: 150 trades, steady gains.",
+   "q": "What does your record tell you to do?",
+   "choices": [
+    "Drop setup A",
+    "Keep both, A will turn",
+    "Size up setup A",
+    "Add a new setup C"
+   ],
+   "answer": "Drop setup A",
+   "why": "Drop setup A. At 120 trades the sample is big, and it says no. A trader on SMB's desk made the same call. After a year of working on his worst setup, its big sample told him to stop. Put that energy into setup B.",
+   "lesson_line": "A small sample can fool you. A big one deserves a hearing.",
+   "facts": [
+    "f42",
+    "f41",
+    "f47",
+    "f56",
+    "f33",
+    "f40",
+    "f73"
+   ],
+   "wrong": {
+    "Keep both, A will turn": "Hope isn't a sample. Tharp puts a clear picture at 100 to 200 trades, and these 120 say no, in every quarter.",
+    "Size up setup A": "Bellafiore sizes up on setups that measure well. A measures badly.",
+    "Add a new setup C": "You already have a setup that works. Put most of your energy into B before adding more."
+   }
+  },
+  {
+   "key": "q17",
+   "skill": "styles.lane",
+   "rung": 7,
+   "format": "scenario",
+   "story": "Your pullback setup is solidly positive over 150 logged trades. A friend's new setup made him 30% last month. You're tempted to switch.",
+   "q": "What do you do?",
+   "choices": [
+    "Paper trade his on the side",
+    "Switch to his setup this week",
+    "Run both at full size now",
+    "Never look at a new setup"
+   ],
+   "answer": "Paper trade his on the side",
+   "why": "Paper trade his setup on the side. One month of someone else's results is a tiny sample. Investopedia's rules say learn from others, then build your own identity. Your lane has the record.",
+   "lesson_line": "Keep your lane. Test new ideas on the side, small, until they earn a place.",
+   "facts": [
+    "f59",
+    "f56",
+    "f39",
+    "f48",
+    "f40",
+    "f27"
+   ],
+   "wrong": {
+    "Switch to his setup this week": "You'd swap 150 trades of your own proof for one month of his. Small samples give unreliable results.",
+    "Run both at full size now": "Tharp says start a new strategy very small, so learning it costs little.",
+    "Never look at a new setup": "Too rigid. Bellafiore leaves some time to add new trades, and Steenbarger says adding new processes keeps traders profitable as markets change."
+   }
+  },
+  {
+   "key": "q18",
+   "skill": "styles.lane",
+   "rung": 8,
+   "format": "tf",
+   "q": "A trader who's great at fast pattern reading will do just as well holding for weeks.",
+   "answer": "False",
+   "why": "False. Steenbarger: a fast trader's quick pattern reading can become a distraction on longer time frames. Bellafiore compares the wrong style to asking a great point guard to play center.",
+   "lesson_line": "A strength in one style can trip you up in another. Trade where your strength fits.",
+   "facts": [
+    "f18",
+    "f19",
+    "f30"
+   ]
+  },
+  {
+   "key": "q19",
+   "skill": "styles.lane",
+   "rung": 9,
+   "format": "scenario",
+   "story": "Your breakout setup paid for two years. The market turned choppy, and over the last 60 trades it has lost steadily, rules followed.",
+   "q": "What's the move?",
+   "choices": [
+    "Cut size and study what changed",
+    "Keep full size and wait it out",
+    "Jump to whatever's working now"
+   ],
+   "answer": "Cut size and study what changed",
+   "why": "Cut size and study what changed. Sixty trades is a real sample, but the market changed under a proven setup. Steenbarger: reworking old processes is what lets traders stay profitable when markets turn choppy. Trade smaller meanwhile.",
+   "lesson_line": "A lane can drift with the market. Shrink, study, adapt. Don't hop.",
+   "facts": [
+    "f50",
+    "f61",
+    "f27",
+    "f26",
+    "f69",
+    "f46"
+   ],
+   "wrong": {
+    "Keep full size and wait it out": "Strategies that don't adapt to changing markets fail over time. Waiting at full size makes the lesson expensive.",
+    "Jump to whatever's working now": "That's setup hopping. You'd give up two years of knowing this setup for one you have no record with."
+   }
+  },
+  {
+   "key": "q20",
+   "skill": "styles.lane",
+   "rung": 9,
+   "format": "scenario",
+   "story": "You're new, with a full-time job and $8,000 you can't afford to lose. A course says day trading is the fastest way to get rich.",
+   "q": "What's the honest call?",
+   "choices": [
+    "Pass: it fits neither time nor money",
+    "Sign up and day trade the $8,000",
+    "Day trade only on lunch breaks",
+    "Day trade on margin to grow it faster"
+   ],
+   "answer": "Pass: it fits neither time nor money",
+   "why": "Pass. The SEC says only risk money you can afford to lose. It calls day trading a full-time job and warns that day-trading courses may not be objective. Later, swing trades planned at night may fit your hours, with money you can afford to lose. This doesn't.",
+   "lesson_line": "Pick a lane your money and your hours can survive. Ignore anyone selling speed.",
+   "facts": [
+    "f5",
+    "f3",
+    "f7",
+    "f6",
+    "f4",
+    "f8",
+    "f9",
+    "f11",
+    "f65"
+   ],
+   "wrong": {
+    "Sign up and day trade the $8,000": "That's money you can't afford to lose. The SEC says new day traders typically lose heavily in their first months.",
+    "Day trade only on lunch breaks": "Intraday trading needs continuous attention. A lunch break isn't that.",
+    "Day trade on margin to grow it faster": "Borrowing adds risk. FINRA says frequent margin trading generally doesn't suit people with limited money or experience. Never fund it with money you need."
+   }
+  }
+ ],
+ "conflicts": [
+  "One setup or a few: Steenbarger's specialist 'does one or two things really well' and Bellafiore keeps most energy on the playbook while leaving time to add trades; Van Tharp writes that many professionals run multiple systems across time frames and markets (f55). The unit teaches 'a few setups, deep' and never 'one setup forever' (q06 is keyed False on exactly that).",
+  "How a beginner starts: Bellafiore reports that Linda Raschke teaches one setup well before the next, while SMB has new traders sample several setups with edge (a week each, on a demo) and then choose. He says 'I am not suggesting we have the right answer here.' Shown as a difference between coaches in w2; never asked as a fact.",
+  "Publisher independence: Steenbarger (TraderFeed) and Bellafiore (SMB) are different publishers, but linked: SMB's techniques appear in Steenbarger's The Daily Trading Coach and Bellafiore's posts credit him. Keys that rest on both also cite Tharp, Investopedia, Schwab or a Tier 1 page wherever such a page says the same thing (q04, q06, q07, q02, q11, q08). q05 (study your best trades) now also cites Schwab (f71). Two keys rest on the two of them plus no third publisher: q10 (a fast thinker fits fast trades) and q18 (fast pattern reading does not carry over to week-long holds).",
+  "The SEC alert 'Day Trading: Your Dollars at Risk' dates from April 2005. Its lines on time, temperament and affording losses match FINRA's current page (June 04, 2026); its lines on commissions and firm costs are dated and are not used.",
+  "Van Tharp's 'a minimum of thirty trades' and '100 to 200' are his rule of thumb for judging expectancy (one publisher). They appear only in why / walk-through text, attributed to him; no question is keyed on either number.",
+  "The SMB trader in s13 is quoted from a video transcript (spoken words, no punctuation); only his own account is used, as his.",
+  "q12 assumes independent trades, as the question says. Real trades can cluster with market conditions, which makes long losing runs more likely, not less; no number in the file depends on that.",
+  "Track audit 2026-11-09: q12 and q13 are cut as duplicates of F9.03 q18 and q19 (the six-loss streak calc and the 40% / 2.5R expectancy calc), and q03 is kept over F11.01 q06. The note above about q12's independence assumption stays as the record."
+ ],
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "notes": "f1, f2 (SEC page, April 2005, still live, no archive label) and f8 (FINRA, dated June 04, 2026) read in context with WebFetch; f65 (Investopedia swing trading, updated 2026-07-24) and f20 (Steenbarger 2006) confirmed in context. Changed: 'most people lack' to 'most investors lack' (the SEC says 'most individual investors').",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "f37, f38, f39, f40 re-read live with WebFetch on SMB's 2018-11-26 post: Raschke vs SMB is shown as a difference between coaches, which matches Bellafiore's own 'This depends upon who you ask' and 'I am not suggesting we have the right answer'. f14 (Steenbarger 3/13/2025) and f48 (Tharp, start very small) confirmed in context.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "f46, f47, f49 re-read live with WebFetch on the Van Tharp Institute page: 'a minimum of thirty trades' and '100 and 200' are attributed to Tharp, not stated as law; 'months, not days' matches. f32 (SMB, keep score), f41 (SMB transcript), f54, f58 confirmed in context.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q01": {
+   "status": "pass",
+   "notes": "f1 is on the live SEC page (WebFetch) word for word: wealth, time, temperament. Bank distractors are plausible, none is in the SEC sentence. Changed: 'The SEC's day-trading alert' to 'The SEC's page on day trading' (it is an investor publication, not an alert).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q02": {
+   "status": "pass",
+   "notes": "f15 (Steenbarger 3/11/2025, reporting a talk with an experienced trader), f21 (s4) and f45 (Tharp: a system that clashes with your beliefs gets sabotaged) read in context; two publishers agree. The statement is hedged ('can come', 'not only'), so True is right and does not dismiss discipline.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q03": {
+   "status": "pass",
+   "notes": "Tier 1 support: FINRA f8 (current page, June 04, 2026, 'continuous attention', WebFetch) and SEC f2/f3. Checking prices at lunch is plainly not continuous attention. FINRA's page no longer mentions the pattern day trader rule; the question does not touch it. Track audit 2026-11-09: kept over F11.01 q06 (cut as its duplicate): both are true/false on day trading's time cost, and this one names the real habit, checking prices at lunch. s2 now cites FINRA's page at its current address (the old one redirects there, checked with curl); same page, same date, same text.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q04": {
+   "status": "pass",
+   "notes": "f34 (Bellafiore: niche 'that has edge and leverages your personality and cognitive strengths') and f23 (Steenbarger, re-read live: talents, skills, values, interests) agree; both authors use 'find your niche'. Key is 29 characters (term rule). Wrong notes: Tharp's 99-losers example (f52) and Investopedia's heroes line (f60) confirmed in context.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q05": {
+   "status": "pass",
+   "notes": "f13 is in Steenbarger's 3/14/2025 entry ('study your best trades and how you succeeded'); f31 (Bellafiore) links to Steenbarger, so the two are not independent. Added Schwab's f71 (focus on what your winning trades do) as a third publisher. 'To find your strengths' makes 'worst' really wrong; the lesson line keeps losers in the review.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q06": {
+   "status": "pass",
+   "notes": "Three publishers agree it is False: f14 (specialist does 'one or two things really well'), f40 (Bellafiore: 'Leave some time to expand your PlayBook'), f55 (Tharp: professionals run multiple systems). Even Raschke (f37) moves on to another setup after the first.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q07": {
+   "status": "pass",
+   "notes": "f43, f44 re-read live with WebFetch on the Tharp page: the typical buyer does not follow a working system 'Because the system didn't fit them and their style'. Steenbarger f20 agrees. 'Markets change' is fairly handled in its wrong note (f50 confirmed in context: systems need revising). variety rewrite checked 2026-11-10; edited: wrong note: Tharp does not blame the seller, hundreds of systems work (f43).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q08": {
+   "status": "pass",
+   "notes": "f24 re-read live with WebFetch (Steenbarger 2010-02-25): failure 'not just because of the difficulty of the work, but because they place their capital at risk before they find a true niche'; the question's paraphrase is fair. f39 (Bellafiore: demo, niche, then playbook) agrees. Distractor notes match f62, f22, f29 in context.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q09": {
+   "status": "pass",
+   "notes": "Tier 1 key support: FINRA f8 and SEC f2; f65 and f66 (Investopedia swing trading, updated 2026-07-24) confirmed in context, and the why names the overnight and weekend trade-off. Changed: 'you're at your desk then' to 'you're at work then'; split a 23-word wrong note in two (f4, f72 confirmed).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q10": {
+   "status": "pass",
+   "notes": "f16, f18 (Steenbarger 3/11/2025) and f35 (SMB's scalper, s11 2017-03-03) confirmed in context; the two authors are linked (noted in conflicts) but SMB's scalper is its own desk's evidence. The why already adds that time and money still apply (f1). Changed: lesson line said 'A fast mind gets distracted on slow holds' (Steenbarger says 'can', and it restated q18), now the time-and-money check.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q11": {
+   "status": "pass",
+   "notes": "f13, f31, f71, f68, f28, f40 confirmed in context. Changed the story: 'your best trades are swings, your worst are scalps' could be single outliers, and Schwab (f68) says check net results first; now the swings make money and the scalps lose it. Why split into short sentences (one ran 26 words) and Schwab's line hedged to 'suggests'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q12": {
+   "status": "cut",
+   "notes": "duplicate of F9.03#q18. Track audit 2026-11-09: the same question with a different loss rate: independent trades, the chance the next six all lose, rounded (F9.03: 55% losses, 2.8%; here 60% losses, 5%). F9.03 is the unit on streaks and the marble game and also asks the gambler's-fallacy and run-length versions (q21, q23), so it keeps the calc. This unit still teaches that streaks come with any edge in q14, q19 and w3. This item was right as written (0.6^6 = 4.67%, rechecked). The checker's earlier note: Recomputed: 0.6^6 = 0.046656 = 4.67%, nearest whole percent 5; the calc matches and independence is stated in the question. s17's live page refuses every allowed client (WebFetch blocked, curl 402/403), so s17 now cites the Internet Archive copy of 2025-08-29 (as F9.03 does); f63 takes that copy's wording ('two independent events'), f64 confirmed there too.",
+   "fixed": false,
+   "by": "track-auditor"
+  },
+  "q13": {
+   "status": "cut",
+   "notes": "duplicate of F9.03#q19. Track audit 2026-11-09: the same numbers and the same key: 40% winners at 2.5R, 60% losers at 1R, expectancy +0.4R a trade (F9.03 q19, System B; F9.03 q11 and q28 compute expectancy as numerics too). F9.03 is the expectancy unit, so it keeps it. This unit still judges setups on a logged sample in q14, q15, q16 and w3. This item was right as written (0.4 x 2.5 - 0.6 x 1 = 0.4, rechecked). The checker's earlier note: Recomputed: 0.4 x 2.5 - 0.6 x 1 = 1.0 - 0.6 = 0.4R; calc matches. f51 (expectancy = mean R) and f52 confirmed in context on the Tharp page. 150 trades sits inside Tharp's 100 to 200 (f47). Changed 'still earn 0.4R a trade' to 'still average 0.4R a trade' (an average, not a per-trade promise).",
+   "fixed": false,
+   "by": "track-auditor"
+  },
+  "q14": {
+   "status": "pass",
+   "notes": "Matches the plan row ('switch after six losses'). f46 (Tharp minimum thirty), f56/f57 (Investopedia sample size, updated 2026-01-30), f67/f68/f69 (Schwab 2025-10-01: a streak may point to a real problem, check it, trading smaller does no harm) and f53 (gambler's fallacy) confirmed in context. An experienced trader would review the six and cut size, as keyed. Track audit 2026-11-09: kept: it is this unit's planned Prove scenario ('you want to switch after six losses') and its key adds the review step (Schwab f67: a streak can point to a real problem). Near-duplicates in other tracks are left for the owner: F12.05 q15 (a new setup, four losses, 'too few trades to judge it yet') and F9.03 q25 (a proven setup, six losses, 'little, six trades is a tiny sample').",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q15": {
+   "status": "pass",
+   "notes": "f49 (Tharp: 'months, not days', re-read live) and f33 (Bellafiore: increase risk on setups that measure well) agree; f36 (Frequent Flyer's stats won the capital bump) confirmed in context. Each distractor is a real sizing mistake and its note is sourced. variety rewrite checked 2026-11-10; edited: right choice lengthened to mid-length (was the shortest); wrong note matches two-or-three wins.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q16": {
+   "status": "pass",
+   "notes": "f41, f42 read in the full SMB transcript: asked whether to stop or trade the setup better, the trader says he had worked on it for about a year first. Added that as f73 and put it in the why ('After a year of working on his worst setup'), which also split a long sentence. 120 trades net down every quarter is a big, consistent sample; dropping A is sound.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q17": {
+   "status": "pass",
+   "notes": "f56, f39, f48, f40, f27 confirmed in context. Changed: the why said Investopedia warns 'copying other traders' loses money, but f60 is about emulating 'financial heroes', not a friend; now uses f59 ('Learn what you can from others, then ... establish your own market identity'), and the long sentence is split. | flagged-question fix checked 2026-11-11",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q18": {
+   "status": "pass",
+   "notes": "f18, f19 (Steenbarger 3/11/2025: strengths 'can actually pose distractions' on longer time frames) and f30 (Bellafiore's point-guard-at-center analogy) confirmed in context. The statement claims a sure transfer ('will do just as well'), so False is right without overstating the hedged source.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q19": {
+   "status": "pass",
+   "notes": "f50, f61, f27, f26, f69, f46 confirmed in context; cutting size and studying the change when breakouts stop working in chop is what an experienced trader does. Changed 'reworking your processes keeps you profitable' (a promise) to Steenbarger's own claim: reworking old processes 'is what lets traders stay profitable'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q20": {
+   "status": "pass",
+   "notes": "Tier 1 support: SEC f5, f3, f7, f6, f4 (live page) and FINRA f8, f9, f11 (current page). Changed: the why said 'Swing trades planned at night may fit', which clashed with the story's money you can't afford to lose; now 'Later, ... with money you can afford to lose'. Split a 26-word sentence. No pattern day trader numbers are used.",
+   "fixed": true,
+   "by": "checker"
+  }
+ }
+}

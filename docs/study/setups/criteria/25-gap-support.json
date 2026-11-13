@@ -1,0 +1,1469 @@
+{
+ "setup": "25-gap-support",
+ "name": "Gap Support",
+ "unit": "SET.22",
+ "direction": "long",
+ "timeframe": "daily",
+ "dossier": "docs/study/setups/research/25-gap-support.md",
+ "as_of": "2026-11-09",
+ "card": {
+  "context": "A leader not in a downtrend: the gap day closes above a flat or rising 50-day, and the test day closes above the 200-day. Usually an earnings gap, in a Green or Yellow market.",
+  "pattern": "A true gap up of 4% or more on 2x volume that stays open; days or weeks later price pulls back at least 1 ATR off the post-gap high to the gap-up day's low, holds it or breaches it slightly, and closes back at or above it in the upper half of the day.",
+  "trigger": "OTHER: a market order at the test day's close, once the close is clearly back at or above the gap-up low. The owner may prefer a trade through the test day's high instead.",
+  "stop": "A few cents under the test day's low, usually about 2% away. Not under the gap-fill spot (a median 6% away) and not a fixed porosity under the gap-up low.",
+  "failure_mode": "The test day keeps falling into its close, or a later close sits under the gap-up low with no reclaim: a failed gap. A close at or under the gap-fill spot means the gap filled and the setup is dead."
+ },
+ "entry_trigger": "OTHER",
+ "criteria": [
+  {
+   "id": "gs.above_200",
+   "field": "context",
+   "statement": "The test day closes above the 200-day SMA.",
+   "measure": {
+    "what": "test-day close against the 200-day SMA",
+    "op": ">",
+    "value": "200-day SMA",
+    "timeframe": "daily"
+   },
+   "glossary": "above_200",
+   "basis": "house rule",
+   "sources": [
+    "S32",
+    "S40"
+   ],
+   "house_rule": "B26",
+   "status": "settled",
+   "owner_question": "D-009",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Prior trend; 7 B26 row",
+   "evidence": "His 'great' DOCS 2023-01-06 tested below the 200-day, and QBTS, UAL and UBER (okay) too. In the replay the below-200 tests did worse on the main entry and stop only. D-009's default keeps B26 as written and keeps such charts as reading drills marked not a buy for us; whether DOCS stays is question 6."
+  },
+  {
+   "id": "gs.not_downtrend",
+   "field": "context",
+   "statement": "No downtrend gaps: the gap day closes above a flat or rising 50-day SMA, its value today at least its value 10 sessions earlier.",
+   "measure": {
+    "what": "gap-day close against the 50-day SMA, and the 50-day today against 10 sessions ago",
+    "op": ">=",
+    "value": "50-day SMA, with the average not lower than 10 sessions ago",
+    "timeframe": "daily"
+   },
+   "glossary": "rising_average",
+   "basis": "UCT",
+   "sources": [
+    "S32",
+    "S36",
+    "S3"
+   ],
+   "status": "settled",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Prior trend; 6.5",
+   "evidence": "Owner, 2026-10-27 (owner_verdicts.jsonl, Gap Support lines 182 to 227): 'Don't want to do downtrend gaps but will do bear gaps off the highs'. The 50-day test is the finder's way of measuring it (the log's note: above or reclaiming the 50 SMA); his QBTS, out of a long downtrend under the 50-day, got 'Eh B-'. Kacher and Morales: not while a stock is in a downtrend."
+  },
+  {
+   "id": "gs.liquidity",
+   "field": "context",
+   "statement": "Price $10 or more and $20 million or more traded a day.",
+   "measure": {
+    "what": "close",
+    "op": ">=",
+    "value": 10,
+    "unit": "$",
+    "and": "50-day average dollar volume >= 20,000,000"
+   },
+   "glossary": "liquidity",
+   "basis": "house rule",
+   "sources": [
+    "S35",
+    "S36"
+   ],
+   "house_rule": "B23",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Liquidity; 7 B23 row",
+   "evidence": "Not in the scanner ($2 and $10,000 a day); in the finder. The examples scan used the house floor."
+  },
+  {
+   "id": "gs.position_adv",
+   "field": "management",
+   "statement": "The position is at most 1% of average daily volume.",
+   "measure": {
+    "what": "shares / average daily volume",
+    "op": "<=",
+    "value": 1,
+    "unit": "%"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "D42",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "7"
+  },
+  {
+   "id": "gs.leadership",
+   "field": "context",
+   "statement": "RS rating 80 or more, in a strong group.",
+   "measure": {
+    "what": "RS rating",
+    "op": ">=",
+    "value": 80,
+    "unit": "rating 1 to 99"
+   },
+   "glossary": "leader",
+   "basis": "house rule",
+   "sources": [
+    "S3",
+    "S14"
+   ],
+   "house_rule": "C31",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Leaders; 7 C31 row",
+   "evidence": "Kacher and Morales teach the buyable gap-up on leading stocks; Morpheus limits these trades to stocks with strong earnings and revenue growth. Not in the scanner; not tested in the examples scan."
+  },
+  {
+   "id": "gs.fundamentals",
+   "field": "context",
+   "statement": "Growing sales and earnings preferred; the chart comes first.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "D40",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "9 A+ cues"
+  },
+  {
+   "id": "gs.market_reading",
+   "field": "context",
+   "statement": "Green market: full risk. Yellow: smaller and fewer. Orange: A+ only. Red: mostly cash and shorts.",
+   "glossary": "market_reading",
+   "basis": "house rule",
+   "sources": [
+    "S3",
+    "S40"
+   ],
+   "house_rule": "F65",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.7",
+   "evidence": "Kacher and Morales: performance is highly dependent on the health of the general market. AMD's 2020-09-17 test failed inside the September 2020 pullback: the scan ignores the reading, which is the missing filter there."
+  },
+  {
+   "id": "gs.catalyst",
+   "field": "context",
+   "statement": "Earnings or major news behind the gap is preferred, not required. The report day itself belongs to the PEG lesson; the later test of that gap belongs here.",
+   "glossary": "earnings_reaction_day",
+   "basis": "UCT",
+   "sources": [
+    "S31"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "earnings and non-earnings gaps both count; the test is this lesson whatever caused the gap (D-025's default)"
+    },
+    {
+     "value": "b",
+     "basis": "earnings gaps only"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-025",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Catalyst; 10 question 8",
+   "evidence": "His PEG framing: recent ER gappers are some of the best opportunities. Two of the ten examples (ONC, LLY) are news gaps by our dates. D-025's default: the report day is EP or PEG; a gap-support test of an earnings gap is graded here."
+  },
+  {
+   "id": "gs.line_is_gap_up_low",
+   "field": "pattern",
+   "statement": "The line is the gap-up day's low, not the gap-fill spot (the prior day's high).",
+   "basis": "UCT",
+   "sources": [
+    "S32",
+    "S31",
+    "S35"
+   ],
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "6.5; 5.2 item 1",
+   "evidence": "Owner, 2026-10-26: 'I want the gap up low to hold or be slightly breached instead of the gap fill spot btw'. 20 of 25 prices UCT named as gap support sit within 1.5% of a gap-up day's low (17 of his 22). The scanner, the plan and course V.05 call the prior day's high the 'gap top'; it is the bottom of the gap."
+  },
+  {
+   "id": "gs.gap_size",
+   "field": "pattern",
+   "statement": "The gap day opens at least 4% over the prior close.",
+   "measure": {
+    "what": "open / prior close - 1",
+    "op": ">=",
+    "value": 4,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "glossary": "gap",
+   "basis": "UCT",
+   "sources": [
+    "S35",
+    "S31",
+    "S40"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "keep 4% and 2x: the scanner's numbers carried into the bank's wording"
+    },
+    {
+     "value": "b",
+     "basis": "any true gap the stock holds, graded higher when it is big and heavy (D-096's default; his MU post was a 3.0% gap on 1.1x, TSLA 2.3% on 1.4x)"
+    },
+    {
+     "value": "c",
+     "basis": "another number"
+    }
+   ],
+   "recommended": "b",
+   "status": "pending-owner",
+   "owner_question": "D-096",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 The gap, Gap size; 10 question 13",
+   "evidence": "He has not stated a number. Five of the 20 matched UCT lines were small gaps (2.2% to 3.0%). In the replay, gaps of 8% to 15% did best; gaps opening under 8% reached 3R 30% of the time against 26% for 15% or more."
+  },
+  {
+   "id": "gs.true_gap",
+   "field": "pattern",
+   "statement": "A true gap: the whole gap day trades above the prior day's high (its low is above that high).",
+   "measure": {
+    "what": "gap-day low against the prior day's high",
+    "op": ">",
+    "value": "prior day's high",
+    "timeframe": "daily"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S35"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 The gap; 5.1",
+   "evidence": "The scanner's test. A same-day-failed gap (BE's 200.23 line) is not an open gap."
+  },
+  {
+   "id": "gs.gap_volume",
+   "field": "pattern",
+   "statement": "Gap-day volume at least 2x the 50-day average.",
+   "measure": {
+    "what": "gap-day volume / 50-day average volume",
+    "op": ">=",
+    "value": 2,
+    "unit": "x",
+    "timeframe": "daily"
+   },
+   "glossary": "average_volume",
+   "basis": "UCT",
+   "sources": [
+    "S35",
+    "S3",
+    "S14",
+    "S16",
+    "S40"
+   ],
+   "status": "pending-owner",
+   "owner_question": "D-096",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 The gap; 10 question 13",
+   "evidence": "The scanner's number. Sources differ: Kacher and Morales 1.5x, Wagner 3x, Morpheus 2021 2x to 3x. In the replay 3x to 5x did best and 10x or more did worst."
+  },
+  {
+   "id": "gs.gap_day_close",
+   "field": "pattern",
+   "statement": "The gap day closes above the prior day's high.",
+   "measure": {
+    "what": "gap-day close against the prior day's high",
+    "op": ">",
+    "value": "prior day's high",
+    "timeframe": "daily"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S35"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 The gap; 5.1"
+  },
+  {
+   "id": "gs.gap_not_huge",
+   "field": "pattern",
+   "statement": "A gap over 30% is a lower grade, not a ban.",
+   "measure": {
+    "what": "gap-day close / prior close - 1",
+    "op": "<=",
+    "value": 30,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S14",
+    "S20",
+    "S40"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Gap size; 9 B- cues",
+   "evidence": "Wagner: over 30% is a bit too much; Stockbee: over 20% pull back most of the time. Replay: gaps over 30% did worst; AVGO's clean test of a 16% gap failed with no gain."
+  },
+  {
+   "id": "gs.gap_still_open",
+   "field": "pattern",
+   "statement": "The gap is still open: no close at or under the gap-fill spot (the prior day's high) since the gap day. Closes inside the gap are allowed.",
+   "measure": {
+    "what": "lowest close since the gap day against the prior day's high",
+    "op": ">",
+    "value": "prior day's high",
+    "timeframe": "daily"
+   },
+   "glossary": "gap_fill",
+   "basis": "source consensus",
+   "sources": [
+    "S1",
+    "S14",
+    "S35"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 The gap is still open",
+   "evidence": "Kacher and Morales: buyable gap-ups do not close their gaps; Wagner: as long as the gap was not filled; the scanner's 'unfilled' test. For this card the fill spot is the prior day's high (the window), not the prior close."
+  },
+  {
+   "id": "gs.pullback_depth",
+   "field": "pattern",
+   "statement": "The pullback: the close before the test sits at least 1 ATR under the post-gap high.",
+   "measure": {
+    "what": "(post-gap high - prior close) / ATR(14)",
+    "op": ">=",
+    "value": 1,
+    "unit": "ATR",
+    "timeframe": "daily"
+   },
+   "glossary": "atr",
+   "basis": "UCT",
+   "sources": [
+    "S35"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 The pullback; 5.1 T1",
+   "evidence": "The scanner's T1. The ten examples ran 1.9 to 6.4 ATR off the post-gap high."
+  },
+  {
+   "id": "gs.timing",
+   "field": "pattern",
+   "statement": "The test comes 2 to 60 sessions after the gap day.",
+   "measure": {
+    "what": "sessions from the gap day to the test day",
+    "op": "in",
+    "value": [
+     2,
+     60
+    ],
+    "unit": "sessions",
+    "timeframe": "daily"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S35",
+    "S32",
+    "S3",
+    "S40"
+   ],
+   "options": [
+    {
+     "value": "keep",
+     "basis": "2 to 60 sessions: the scanner; his DOCS and KKR tests came 37 and 38 sessions later and he rated them great and good"
+    },
+    {
+     "value": "cap",
+     "basis": "a shorter window: Kacher and Morales tighten after day 5"
+    }
+   ],
+   "recommended": "keep",
+   "status": "pending-owner",
+   "owner_question": "D-095",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Timing; 10 question 12",
+   "evidence": "Timing did not change the replay much: tests 2 to 5 sessions after reached 3R 28% (1,589), 6 to 20 sessions 30% (779), 21 to 60 sessions 29% (415). Second-session tests alone were the largest and weakest group (810, 27%): MSFT 2025-08-04 and the mega-cap failures."
+  },
+  {
+   "id": "gs.test_count",
+   "field": "pattern",
+   "statement": "The first test is the A; a second test of the same gap is a B; the third and later are not this setup until a new high resets the count.",
+   "measure": {
+    "what": "tests of this gap-up low before this one",
+    "op": "<=",
+    "value": 1,
+    "unit": "tests",
+    "timeframe": "daily"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S38",
+    "S35"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "first test only: the Model Book card"
+    },
+    {
+     "value": "b",
+     "basis": "first and second, the second as a B (D-026's default)"
+    },
+    {
+     "value": "c",
+     "basis": "any test while the gap holds: the scanner"
+    }
+   ],
+   "recommended": "b",
+   "status": "pending-owner",
+   "owner_question": "D-026",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Timing; 5.5; 10 question 7",
+   "evidence": "His rulings never say 'first'. The sources agree the first test is the best. The examples scan took only the first qualifying test per gap."
+  },
+  {
+   "id": "gs.test_low",
+   "field": "pattern",
+   "statement": "The test day's low reaches the gap-up low (within 0.25 ATR above it) or undercuts it by up to 5%.",
+   "measure": {
+    "what": "(gap-up low - test-day low) / gap-up low",
+    "op": "<=",
+    "value": 5,
+    "unit": "%",
+    "timeframe": "daily",
+    "and": "test-day low <= gap-up low + 0.25 ATR(14)"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S32",
+    "S36",
+    "S3",
+    "S1",
+    "S40"
+   ],
+   "options": [
+    {
+     "value": 2,
+     "basis": "Kacher and Morales's porosity, 1% to 2%"
+    },
+    {
+     "value": 3,
+     "basis": "their 2013 book's 2% to 3%"
+    },
+    {
+     "value": 5,
+     "basis": "the finder's slight breach; keeps AFRM, MU and EDU"
+    },
+    {
+     "value": 7.5,
+     "basis": "his outer edge: META 6.9%, TWLO 7.5%"
+    }
+   ],
+   "recommended": 5,
+   "status": "pending-owner",
+   "owner_question": "D-094",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 The test day; 10 question 1",
+   "evidence": "His ruling: hold or be slightly breached. The replay found no difference between held, slight breach and failed tests judged by eye; the close of the test day and the gap's volume mattered more. Examples: ILMN undercut 1.1%, VIAV 1.8%; ADSK and MA held above the line."
+  },
+  {
+   "id": "gs.test_close",
+   "field": "pattern",
+   "statement": "The test day closes at or above the gap-up low, or within 1% under it.",
+   "measure": {
+    "what": "(gap-up low - test-day close) / gap-up low",
+    "op": "<=",
+    "value": 1,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S32",
+    "S40"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "closes back above the line the same day"
+    },
+    {
+     "value": "b",
+     "basis": "within 1% under is fine: keeps his great AFRM (-0.7%) and MU (-0.9%) and EDU"
+    },
+    {
+     "value": "c",
+     "basis": "a reclaim by the next session's close counts (META -5.4%, TWLO -2.8%, TER -2.0% as lesser examples)"
+    }
+   ],
+   "recommended": "b",
+   "status": "pending-owner",
+   "owner_question": "D-094",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 The test day; 10 question 2",
+   "evidence": "The 1% is the dossier's proposal from his examples; on the bars the tests that closed under the line did no worse than the ones that held. D-094's default: breach up to 5%, close within 1%; deeper closes count after a reclaim as lesser examples."
+  },
+  {
+   "id": "gs.test_close_position",
+   "field": "pattern",
+   "statement": "The test day closes in the upper half of its range: a lower wick or a hammer.",
+   "measure": {
+    "what": "(close - low) / (high - low) on the test day",
+    "op": ">=",
+    "value": 0.5,
+    "unit": "ratio 0 to 1",
+    "timeframe": "daily"
+   },
+   "glossary": "close_position",
+   "basis": "my proposal",
+   "sources": [
+    "S31",
+    "S40"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 The test day closes in the upper half",
+   "evidence": "His words: lower wick, strong hammer close, quick reclaim (UMAC, AAON). Replay: tests closing in the top quarter reached the post-gap high about three times as often as tests closing in the bottom half; in the examples scan 29.7% to 3R against 28.1% for the third quarter."
+  },
+  {
+   "id": "gs.fill_reclaim_lesser",
+   "field": "pattern",
+   "statement": "A fill to the gap-fill spot that reclaims the gap-up low is allowed but graded B- at best. Ranking: held, then a slight breach, then a fill that reclaims.",
+   "basis": "UCT",
+   "sources": [
+    "S32",
+    "S35"
+   ],
+   "status": "settled",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1; 6.5",
+   "evidence": "Owner, 2026-10-27: 'Prefer holding open gap vs filling gap btw'; UBER's fill-and-reclaim got 'okay'. The scanner scores a touch of the fill spot as a plus, backwards."
+  },
+  {
+   "id": "gs.not_gap_day",
+   "field": "pattern",
+   "statement": "The gap day itself is a PEG, not Gap Support, and a gap that is never revisited is nothing. The setup is the later test.",
+   "basis": "UCT",
+   "sources": [
+    "S32"
+   ],
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "1 What it is not; 6.5",
+   "evidence": "Owner, 2026-10-26: 'Just a PEG' and 'Never really tested gap support'; ARGX: correct but there are better examples (it never came back to the gap)."
+  },
+  {
+   "id": "gs.entry",
+   "field": "trigger",
+   "statement": "Buy the test day's close with a market order in the last minutes, once the close is clearly back at or above the gap-up low and in the upper half of the day's range.",
+   "measure": {
+    "what": "entry",
+    "op": "==",
+    "value": "the test day's close"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S35",
+    "S38",
+    "S14",
+    "S40"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "the test day's close: the scanner's entry, the tightest stop (median 2.0%, 69% within 3%), a market order (E57)"
+    },
+    {
+     "value": "b",
+     "basis": "the next session's open"
+    },
+    {
+     "value": "c",
+     "basis": "a buy-stop a cent over the test day's high, next session only: the Model Book card and Wagner; D-003's default reads the Kicker ruling (trade through the prior day's high) as the entry for every daily setup"
+    },
+    {
+     "value": "d",
+     "basis": "intraday on the test day: the undercut and reclaim, a red to green, an hourly higher low (what UCT's posts describe)"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-003",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2; 10 question 3",
+   "evidence": "All five entry and stop variants landed between +0.07R and +0.11R a trade under house management, within each other's error. Entry C costs about 1.5 points of risk (median 3.5%, 40% within 3%) and half the setups never trigger. The owner's own trades are entry D with the day's low as the stop."
+  },
+  {
+   "id": "gs.order",
+   "field": "trigger",
+   "statement": "Market orders. The close entry is a market order near the close; the next-day entry a market order at the open or a buy-stop that becomes one.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "E57",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "7 E57 row"
+  },
+  {
+   "id": "gs.no_chase",
+   "field": "trigger",
+   "statement": "No buy more than 4% over the buy point: the test day's close for the close entry, the test day's high for a trade over the high.",
+   "measure": {
+    "what": "fill / buy point - 1",
+    "op": "<=",
+    "value": 4,
+    "unit": "%"
+   },
+   "glossary": "chase_limit",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "C28",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2; 7 C28 row",
+   "evidence": "A market order at the close cannot breach it."
+  },
+  {
+   "id": "gs.not_stretched",
+   "field": "trigger",
+   "statement": "At entry, no more than 10% above the 10-day average. Rarely binds at a test (median 0.7% over), but 7% of owner-version tests were over it.",
+   "measure": {
+    "what": "entry / 10-day SMA - 1",
+    "op": "<=",
+    "value": 10,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "glossary": "stretched",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "C29",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "7 C29 row"
+  },
+  {
+   "id": "gs.earnings_window",
+   "field": "trigger",
+   "statement": "No new buy in the 3 sessions before an earnings report. A test 60 sessions after an earnings gap is near the next report.",
+   "measure": {
+    "what": "sessions until the next report",
+    "op": ">",
+    "value": 3,
+    "unit": "sessions"
+   },
+   "glossary": "earnings_blackout",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B22",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "7 B22 row"
+  },
+  {
+   "id": "gs.intraday_version",
+   "field": "trigger",
+   "statement": "The discretionary version, what the owner does live: an undercut and reclaim of the gap-up low, a red to green, or an hourly higher low on the test day, with the same stop. Timed on the 30-minute chart (setup 41).",
+   "measure": {
+    "what": "intraday trigger on the test day",
+    "op": "in",
+    "value": [
+     "undercut and reclaim of the gap-up low",
+     "red to green through the prior close",
+     "hourly higher low"
+    ],
+    "timeframe": "intraday"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S31"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.2 (entry D)",
+   "evidence": "His AAON and UMAC posts: a strong hammer close, risk to the day's low. Not measurable from daily bars."
+  },
+  {
+   "id": "gs.stop",
+   "field": "stop",
+   "statement": "A few cents under the test day's low.",
+   "measure": {
+    "what": "stop",
+    "op": "==",
+    "value": "a few cents under the test day's low"
+   },
+   "glossary": "stop_margin",
+   "basis": "house rule",
+   "sources": [
+    "S31",
+    "S3",
+    "S40"
+   ],
+   "house_rule": "A3",
+   "status": "settled",
+   "owner_question": "D-008",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.3; 10 question 4",
+   "evidence": "F62 gives the few cents. Every stop UCT names at gap support is that low: 'risk to low of day' (owner), 'LOD stop' (Index & ETF), 'Stop being the low of the day' (The Wiz). Median risk 2.0% on the owner version, 69% within 3%; examples scan median 2.1%, 76% within 3%. D-008's default is the entry day's low for every setup."
+  },
+  {
+   "id": "gs.stop_not_fill_spot",
+   "field": "stop",
+   "statement": "Not under the gap-fill spot: a median 6% away, only 12% within 3%, and it wins less often per R.",
+   "measure": {
+    "what": "stop placed under the gap-fill spot (the prior day's high)",
+    "op": "==",
+    "value": false
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S35",
+    "S40"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.3; 5.2 item 7",
+   "evidence": "The scanner's stop when the test low held: the lower of the prior day's high and the day's low."
+  },
+  {
+   "id": "gs.stop_not_porosity",
+   "field": "stop",
+   "statement": "Not a fixed 1% to 3% under the gap-up low: his slight breaches are often deeper than that, so the stop would sit above the test day's low.",
+   "measure": {
+    "what": "stop placed a fixed percent under the gap-up low",
+    "op": "==",
+    "value": false
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S3",
+    "S1",
+    "S39"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.3",
+   "evidence": "Kacher and Morales's porosity (1% to 2% in 2010, 2% to 3% in 2013). The brain template's 8% maximum stop also conflicts with A13."
+  },
+  {
+   "id": "gs.stop_width",
+   "field": "stop",
+   "statement": "If the honest stop is more than about 3% away, size down (A5) or skip (A3). Never pull it in.",
+   "measure": {
+    "what": "(entry - stop) / entry",
+    "op": "<=",
+    "value": 3,
+    "unit": "%"
+   },
+   "glossary": "stop_width",
+   "basis": "house rule",
+   "sources": [
+    "S40"
+   ],
+   "house_rule": "A13",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.3",
+   "evidence": "The examples scan skipped stops over 5%; VIAV's 3.0% sits right at the limit."
+  },
+  {
+   "id": "gs.stop_broker",
+   "field": "stop",
+   "statement": "A real stop order with the broker. It only moves up.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "D41",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "7",
+   "evidence": "A4: the stop only moves up."
+  },
+  {
+   "id": "gs.stop_gap",
+   "field": "stop",
+   "statement": "A gap through the stop: the first 30-minute low is the new stop; out if that is past 2R. A test near earnings season can gap.",
+   "measure": {
+    "what": "loss at the first 30-minute low of the gap-down day",
+    "op": "<=",
+    "value": 2,
+    "unit": "R",
+    "timeframe": "30-minute"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B20",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "7 B20 row"
+  },
+  {
+   "id": "gs.one_entry",
+   "field": "management",
+   "statement": "Full size at one price with one stop; a gap test is a new trade, not an add.",
+   "basis": "house rule",
+   "sources": [
+    "S31"
+   ],
+   "house_rule": "A5",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "7 A5 row",
+   "evidence": "His own BE post describes an add at the gap hold; the course teaches no adds."
+  },
+  {
+   "id": "gs.breakeven",
+   "field": "management",
+   "statement": "Stop to breakeven between 2R and 5R, at the first trim by default.",
+   "measure": {
+    "what": "R at which the stop moves to the entry",
+    "op": "in",
+    "value": [
+     2,
+     5
+    ],
+    "unit": "R"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B19",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4"
+  },
+  {
+   "id": "gs.trim_1",
+   "field": "management",
+   "statement": "Sell a third at 3R.",
+   "measure": {
+    "what": "fraction sold at 3R",
+    "op": "==",
+    "value": 0.333,
+    "unit": "of the position"
+   },
+   "basis": "house rule",
+   "sources": [
+    "S40"
+   ],
+   "house_rule": "B19",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4",
+   "evidence": "21% of all hits in the examples scan reached 3R within ten sessions."
+  },
+  {
+   "id": "gs.post_gap_high_trim",
+   "field": "management",
+   "statement": "The post-gap high is the first place to take some off: the first third is sold there when it comes before 3R, else at 3R. The 5R third and the trail are unchanged.",
+   "measure": {
+    "what": "price at which the first third is sold",
+    "op": "==",
+    "value": "the lower of the post-gap high and 3R, when the post-gap high is reached first"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S32",
+    "S34",
+    "S40"
+   ],
+   "status": "pending-owner",
+   "owner_question": "D-013",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4 First trim; 6.5; 10 question 5",
+   "evidence": "Owner, 2026-11-09 (owner_verdicts.jsonl line 534): 'yes add those stops too, keep going', on Trade Story stopping at the post-gap high; TRADE_PLANS.md: 'the post-gap high is the first place to take some off'. The dossier notes the trim wording is the detector's and reads the verdict as approving the game stop only; D-013's default reads a named spot as a cue to take the 3R third early. The post-gap high sits under 3R in about 41% of trades (median 3.7R). The dossier's own recommendation was a third at the higher of the two. Status corrected 2026-11-10: the card's 'settled' rested on the owner's 2026-11-09 'yes add those stops too', which the dossier reads as a Trade Story stop only; the adopted provisional default (D-013) is B19's third at 3R with the post-gap high a cue to take that third early."
+  },
+  {
+   "id": "gs.trim_2",
+   "field": "management",
+   "statement": "Sell a third at 5R.",
+   "measure": {
+    "what": "fraction sold at 5R",
+    "op": "==",
+    "value": 0.333,
+    "unit": "of the position"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "E51",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4"
+  },
+  {
+   "id": "gs.trim_gap_open",
+   "field": "management",
+   "statement": "If it opens above a trim level, take that trim at the open.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "F63",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4"
+  },
+  {
+   "id": "gs.trail",
+   "field": "management",
+   "statement": "Trail the last third: a close under the 10-day for a fast mover, under the 21-day for a steadier one.",
+   "measure": {
+    "what": "close against the 10-day (fast) or 21-day (steadier) average",
+    "op": "<",
+    "value": "the average",
+    "timeframe": "daily"
+   },
+   "glossary": "trail",
+   "basis": "house rule",
+   "sources": [
+    "S3",
+    "S34"
+   ],
+   "house_rule": "E52",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4",
+   "evidence": "Kacher and Morales's version: the 10-day only after seven weeks without a violation, else the 50-day. The plan's 'tighter stop just under the gap top if it drifts sideways' is a no-op whenever the test low held above the fill spot."
+  },
+  {
+   "id": "gs.time_stop",
+   "field": "management",
+   "statement": "Time stop: still under 1R after 10 trading days, sell.",
+   "measure": {
+    "what": "open R after 10 trading days",
+    "op": "<",
+    "value": 1,
+    "unit": "R"
+   },
+   "glossary": "time_stop",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "C33",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4"
+  },
+  {
+   "id": "gs.climax",
+   "field": "management",
+   "statement": "A climax run on your own long: sell a big part into it.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "C34",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "7"
+  },
+  {
+   "id": "gs.inv_fill",
+   "field": "invalidation",
+   "statement": "Before entry: a close at or under the gap-fill spot (the prior day's high) means the gap filled; the setup is dead.",
+   "measure": {
+    "what": "close against the prior day's high",
+    "op": "<=",
+    "value": "prior day's high",
+    "timeframe": "daily"
+   },
+   "glossary": "gap_fill",
+   "basis": "source consensus",
+   "sources": [
+    "S1",
+    "S14",
+    "S35"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5",
+   "evidence": "Kacher and Morales, Wagner, the scanner's 'unfilled'. The scanner's narrative has the fill backwards ('a full fill of the gap down to the gap day's low')."
+  },
+  {
+   "id": "gs.inv_failed_gap",
+   "field": "invalidation",
+   "statement": "A close under the gap-up low that is not reclaimed (by the same close, or by the next session's close if he allows it) is a failed gap: out.",
+   "measure": {
+    "what": "test-day close against the gap-up low",
+    "op": "<",
+    "value": "gap-up low less the allowed 1%",
+    "timeframe": "daily",
+    "note": "a reclaim window is D-094 option c"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S32"
+   ],
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5; 6.5",
+   "evidence": "The log's ranking from his 2026-10-27 ruling: held, slight breach, fill that reclaims; a breach that does not reclaim is out. Bank v2, 2026-11-06: 'I do not want to fire the failed events'. The scanner fires on such tests (39% of its fires)."
+  },
+  {
+   "id": "gs.inv_still_falling",
+   "field": "invalidation",
+   "statement": "Before entry: the test day is still falling into the close, no hold and no reclaim. Not the setup.",
+   "basis": "UCT",
+   "sources": [
+    "S32"
+   ],
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5",
+   "evidence": "AXP cut: a test that is still falling on the cutoff bar (no hold, no reclaim) is not the setup (the log's note)."
+  },
+  {
+   "id": "gs.inv_under_200",
+   "field": "invalidation",
+   "statement": "Before entry: the test day closes under the 200-day.",
+   "measure": {
+    "what": "test-day close against the 200-day SMA",
+    "op": "<",
+    "value": "200-day SMA",
+    "timeframe": "daily"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B26",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5"
+  },
+  {
+   "id": "gs.after_entry_stop",
+   "field": "invalidation",
+   "statement": "After entry: the stop is the exit, or the open gaps through it (B20).",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "A4",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5",
+   "measure": {
+    "what": "price against the stop",
+    "op": "<=",
+    "value": "stop",
+    "note": "the exit; a gap through it follows B20"
+   }
+  },
+  {
+   "id": "gs.heavy_selling_warning",
+   "field": "invalidation",
+   "statement": "Heavy-volume selling into the line is a warning, not a rule; a quiet pullback on lighter volume is the version traders like best.",
+   "basis": "my proposal",
+   "sources": [
+    "S31",
+    "S14",
+    "S35"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.5; 9 A+ cues",
+   "evidence": "His MRVL note is the healthy version: 'Light volume selling. Selling stalled at bull gap support.' Wagner: lighter volume; his CGNX consolidating on low volume. The scanner's confidence rewards heavy volume on the test day, backwards."
+  },
+  {
+   "id": "gs.retry_limit",
+   "field": "invalidation",
+   "statement": "After a stop-out, buy again only on a new trigger (B21); at most 3 tries a week and 6 a month on the same line.",
+   "measure": {
+    "what": "tries on the same stock",
+    "op": "<=",
+    "value": 3,
+    "unit": "a week (6 a month)"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "E56",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.8 mistake 10"
+  }
+ ],
+ "grading": {
+  "a_plus": [
+   "gs.leadership: a leader (RS 80+, strong group) with growing sales and earnings (gs.fundamentals)",
+   "gs.gap_size: an earnings gap of roughly 8% to 15% on about 3x to 5x volume (gs.gap_volume), closing near the high, out of a base or a constructive uptrend",
+   "gs.test_count: the first test, days to a few weeks later (gs.timing), on a quiet pullback with lighter volume (gs.heavy_selling_warning)",
+   "gs.not_downtrend: above a rising 50-day and 200-day",
+   "gs.test_low: the gap-up low holds to the tick or a small undercut, and the day closes back above it near its high with a lower wick or hammer (gs.test_close, gs.test_close_position)",
+   "the 20-day EMA or 50-day arriving at the same line: a tiebreak, not a requirement (DOCS, JAZZ, HOOD, CAVA)",
+   "gs.stop_width: tight risk under 3% in a Green market (gs.market_reading); in Orange only if everything else grades A+ (F65)"
+  ],
+  "b_minus": [
+   "gs.not_downtrend: the gap came out of a downtrend or under the 50-day (QBTS 'Eh B-', FTAI 'okay')",
+   "gs.fill_reclaim_lesser: a fill to the gap-fill spot that reclaims (UBER 'okay')",
+   "weeks of chop sitting on the line before the test (TTD 2023, cut); a long drift back to the line is not a minus by itself (DOCS, great, 37 sessions)",
+   "gs.gap_not_huge: a very large gap (over 30%), or gs.test_count: a later test of an already-tested line, or heavy selling volume into the line",
+   "gs.test_close_position: a close in the lower part of the test day's range",
+   "gs.market_reading: Yellow (smaller and fewer)"
+  ],
+  "no_trade": [
+   "gs.not_gap_day: the gap day itself (a PEG), or a gap never tested",
+   "gs.inv_fill: a close at or under the gap-fill spot",
+   "gs.inv_failed_gap: a close under the gap-up low with no reclaim",
+   "gs.inv_still_falling: a test still falling into its close",
+   "gs.inv_under_200: under the 200-day; gs.not_downtrend: a downtrend gap",
+   "gs.stop_width: the honest stop does not fit; never pull it in",
+   "gs.earnings_window: a report within 3 sessions",
+   "gs.liquidity: under $10 or under $20 million a day",
+   "gs.market_reading: Red; Orange below A+"
+  ]
+ },
+ "lookalikes": [
+  {
+   "setup": "21-power-earnings-gap",
+   "tell": "Count the sessions since the gap. A PEG is bought on the gap day or its first pause with the gap-day low as the outer stop; Gap Support waits 2 to 60 sessions for price to come back to the gap-up day's low and defend it, with the test day's low as the stop.",
+   "criterion": "gs.not_gap_day"
+  },
+  {
+   "setup": "24-high-volume-edge",
+   "tell": "Find the line being defended. Gap Support's line is the gap-up day's LOW and the gap must still be open; the HVE's line is the record-volume day's CLOSE, which price may trade under without harm.",
+   "criterion": "gs.line_is_gap_up_low"
+  },
+  {
+   "setup": "27-bear-gap",
+   "tell": "Check which way the gap opened and where the averages are. Gap Support is a gap UP above a flat or rising 50-day whose low holds; a bear gap is a gap DOWN off the highs whose high must cap price, and it is never a long.",
+   "criterion": "gs.not_downtrend"
+  },
+  {
+   "setup": "29-undercut-rally",
+   "tell": "Name the low that was undercut. A U&R reclaims a prominent prior swing low on the daily chart within 3 sessions; Gap Support's undercut is of a gap-up day's low (up to 5%) with the gap still open above the prior day's high, and the close is back on the line the same day.",
+   "criterion": "gs.test_low"
+  }
+ ],
+ "invalidations": [
+  "Before entry: a close at or under the gap-fill spot, the gap filled (gs.inv_fill).",
+  "Before entry: a close under the gap-up low that is not reclaimed, a failed gap (gs.inv_failed_gap).",
+  "Before entry: the test day is still falling into the close (gs.inv_still_falling).",
+  "Before entry: the test day closes under the 200-day (gs.inv_under_200), or the gap came out of a downtrend (gs.not_downtrend).",
+  "Before entry: a report within 3 sessions, wait (gs.earnings_window).",
+  "After entry: the stop is the exit (gs.after_entry_stop); a gap through it follows B20 (gs.stop_gap).",
+  "Heavy-volume selling into the line is a warning, not an exit (gs.heavy_selling_warning)."
+ ],
+ "mistakes": [
+  "Buying the gap day and calling it Gap Support: that is a PEG.",
+  "Buying a gap that was never tested.",
+  "Using the gap-fill spot as the line, or putting the stop under it (a median 6% away).",
+  "Buying a test that is still falling into the close.",
+  "Buying gaps in a downtrend or under the 200-day.",
+  "Expecting every gap to fill and waiting for the fill: buyable gap-ups do not close their gaps.",
+  "Treating any gap as strong support: Bulkowski found gaps in an uptrend show support 20% of the time.",
+  "Very large gaps (over 30%) and blow-off gaps at the end of a parabolic run.",
+  "Adding at the gap hold.",
+  "Re-buying the same failed line again and again."
+ ],
+ "short_mirror": {
+  "exists": true,
+  "setup": "27-bear-gap",
+  "note": "Gap resistance, D47 mirrored: a stock below its 200-day gaps DOWN at least 4% on 2x volume and closes below the prior day's low; days or weeks later it rallies back to the gap-down day's HIGH and fails there; short with a stop a few cents over the test day's high. Kacher and Morales define the gap-day version ('The intraday high then becomes a covering guide'). The owner's Bear gap lesson marks the gap day, not the retest, and he said 'Don't want to do downtrend gaps' for the longs. No detector exists. Whether to build the retest short is D-001; the dossier's recommendation is to leave shorts to the Bear gap lesson until he rules."
+ },
+ "best_conditions": "A Green market reading (B18, F65); Kacher and Morales: performance is highly dependent on the health of the general market. Earnings season and the weeks after a correction, when earnings gappers lead ('recent ER gappers are some of the best opportunities when the market comes out of a correction'). The group's ETF holding its own gap or 50-day is the brain template's regime rule.",
+ "management": {
+  "trim_1": "a third at 3R (B19), taken early at the post-gap high when that comes first (gs.post_gap_high_trim, his 2026-11-09 verdict)",
+  "trim_2": "a third at 5R (E51)",
+  "trail": "a close under the 10-day for a fast mover, the 21-day for a steadier one (E52)",
+  "breakeven": "between 2R and 5R, at the first trim by default (B19)",
+  "time_stop": "under 1R after 10 trading days, sell (C33)",
+  "gap_open": "a trim level the day opens past is taken at the open (F63)",
+  "gap_against": "the first 30-minute low is the new stop; out if past 2R (B20)",
+  "climax": "sell a big part into a climax run (C34)",
+  "overrides": "the post-gap high as the first place to take some off (TRADE_PLANS.md, the detector's plan; Trade Story stops there with his OK of 2026-11-09). Not ours: the detector's 2R and 3R targets, the plan's 'tighter stop just under the gap top' (a no-op when the test low held), Kacher and Morales's seven-week rule and their sell-half on a trade under the gap-up low, the brain template's 8% maximum stop and 50-SMA trail."
+ },
+ "examples": {
+  "winners": 10,
+  "sheet_dir": "_study-resume/scratchpad/setups/25-gap-support/final",
+  "base_rate": {
+   "hits": 2783,
+   "r3_pct": 28.9,
+   "r5_pct": 20.4,
+   "stopped_pct": 85,
+   "median_stop_pct": 2.1,
+   "stops_within_3_pct": 76,
+   "r3_within_10_sessions_pct": 21,
+   "window": "60 sessions forward from the day after the test-day close entry, fixed stop a few cents under the test day's low (skipped over 5%), no trims, no breakeven, no trail; tests 1996-06-04 to 2026-11-09; 2,630 liquid names; the first qualifying test per gap"
+  },
+  "cuts": {
+   "test_2_to_5_sessions_after": {
+    "hits": 1589,
+    "r3_pct": 28
+   },
+   "test_6_to_20_sessions_after": {
+    "hits": 779,
+    "r3_pct": 30
+   },
+   "test_21_to_60_sessions_after": {
+    "hits": 415,
+    "r3_pct": 29
+   },
+   "second_session_tests": {
+    "hits": 810,
+    "r3_pct": 27
+   },
+   "gap_under_8_pct": {
+    "hits": 1749,
+    "r3_pct": 30
+   },
+   "gap_15_pct_or_more": {
+    "hits": 218,
+    "r3_pct": 26
+   },
+   "test_close_top_quarter": {
+    "r3_pct": 29.7,
+    "third_quarter": {
+     "r3_pct": 28.1
+    }
+   },
+   "owner_version_replay_section_4_7": {
+    "mean_r_house_plan": 0.09,
+    "generic_pullback_day": 0.02,
+    "note": "3,228 stocks from 2010; no difference between held, slight breach and failed tests; the post-gap high median 3.7R, under 3R in 41% of trades"
+   }
+  },
+  "winners_list": [
+   "ADSK 2004-03-17",
+   "AKAM 2006-02-14",
+   "MA 2009-08-19",
+   "ILMN 2010-11-02",
+   "GPN 2013-10-09",
+   "XYZ 2017-03-22",
+   "ONC 2020-07-30",
+   "LLY 2021-07-01",
+   "AXON 2022-12-30",
+   "VIAV 2025-11-21"
+  ],
+  "failures": [
+   {
+    "ticker": "MSFT",
+    "date": "2025-08-04",
+    "criterion": "gs.timing",
+    "why": "an 8.2% earnings gap on 2.8x volume tested only two sessions later; the low 0.7% under the gap-up low, the close at 74% of the range, 1.5% risk; the stop traded before any gain (0.0R). Second-session tests are the largest group of hits (810) and the weakest (27% to 3R)."
+   },
+   {
+    "ticker": "AVGO",
+    "date": "2025-09-24",
+    "criterion": "gs.gap_not_huge",
+    "why": "a 16.2% earnings gap on 4.3x volume, tested 13 sessions later with a near perfect hold (low 0.7% above the line, close at 88% of the range, 1.7% risk), yet the stop traded without any gain. A clean test day is not enough when the gap was very large: gaps of 15% or more reached 3R 26% of the time against 30% for gaps under 8%."
+   },
+   {
+    "ticker": "AMD",
+    "date": "2020-09-17",
+    "criterion": "gs.market_reading",
+    "why": "an 11.7% earnings gap on 2.2x volume tested 35 sessions later with a close at 97% of the range and 3.2% risk; the stop traded with no gain. The stock had already fallen hard from its post-gap high and the broad market was in its September 2020 pullback: the scan ignores the reading, which is the missing filter here."
+   },
+   {
+    "ticker": "AEHR",
+    "date": "2023-08-14",
+    "criterion": "gs.inv_fill",
+    "why": "a 7.5% earnings gap on 6.6x volume (2023-07-14) tested 21 sessions later with a hammer close at 0.93 of the range on the line; the stop traded the next session, the gap filled on a close two sessions later (08-17) and the stock halved by 10-30."
+   },
+   {
+    "ticker": "DKS",
+    "date": "2021-06-16",
+    "criterion": "gs.after_entry_stop",
+    "why": "a 10.5% earnings gap on 8.1x volume (2021-05-26) tested 14 sessions later (close 0.68, 1.9% risk); the stop traded the next session on a 2.4% undercut that closed back on the line (91.46), then the stock ran to 147.39 by 09-07. The stop is the exit; a re-entry needs a new trigger (B21)."
+   }
+  ],
+  "limits": "No RS rating, group strength or market reading in the scan: the base rate is for the chart pattern alone. First qualifying test per gap, daily bars only, so the owner's intraday entries are not measured; the 5% undercut and 1% close allowances make some hits looser than his 'slight breach'. Earnings classification from Yahoo and SEC 8-K dates, complete from about 2005. Survivors only.",
+  "near_misses": [
+   {
+    "ticker": "AMD",
+    "date": "2023-06-01",
+    "criterion": "gs.gap_volume",
+    "why": "gap 2023-05-25 opened +8.3% on only 1.6x the 50-day volume (the rule needs 2x); the test 4 sessions later held (low 0.7% above the line, close 0.61). A gap on ordinary volume; taken anyway, 0.73R then the stop."
+   },
+   {
+    "ticker": "DE",
+    "date": "2026-02-25",
+    "criterion": "gs.test_close_position",
+    "why": "gap 2026-02-19 opened +6.8% on 4.4x; the test 4 sessions later closed at 0.01 of its range, 0.8% under the line (the rule needs the upper half). Still falling into the close (gs.inv_still_falling); 0.0R if taken."
+   },
+   {
+    "ticker": "DOCU",
+    "date": "2025-03-31",
+    "criterion": "gs.not_downtrend",
+    "why": "gap 2025-03-14 opened +9.1% on 5.4x but closed 2.6% under a falling 50-day (3.2% lower than 10 sessions earlier); the test 11 sessions later looked fine (close 0.75, 0.8% undercut). A bounce in a downtrend; 0.0R if taken."
+   },
+   {
+    "ticker": "EVR",
+    "date": "2019-02-07",
+    "criterion": "gs.above_200",
+    "why": "gap 2019-01-30 opened +11.3% on 4.1x above a rising 50-day; the test 6 sessions later closed 6.9% under the 200-day (the rule needs a close above it). A downtrend bounce; 0.0R if taken."
+   }
+  ],
+  "sheets": {
+   "failures": "final/fail_1-4.png",
+   "near_misses": "final/near_1-4.png",
+   "pair": "final/pair_21-power-earnings-gap.png"
+  }
+ },
+ "question_seeds": [
+  {
+   "kind": "recall",
+   "criterion": "gs.line_is_gap_up_low",
+   "seed": "Which line is Gap Support about: the gap-up day's low, or the prior day's high?"
+  },
+  {
+   "kind": "recall",
+   "criterion": "gs.stop",
+   "seed": "Where does the stop go on a Gap Support buy?"
+  },
+  {
+   "kind": "recall",
+   "criterion": "gs.timing",
+   "seed": "How soon after the gap, and how late, may the test come?"
+  },
+  {
+   "kind": "spot",
+   "criterion": "gs.line_is_gap_up_low",
+   "seed": "Hidden ticker: tap the gap-up low this pullback must hold, then tap the gap-fill spot."
+  },
+  {
+   "kind": "spot",
+   "criterion": "gs.test_close_position",
+   "seed": "Hidden ticker: which of these four test days closed back above the line in the upper half of its range?"
+  },
+  {
+   "kind": "spot",
+   "criterion": "gs.gap_still_open",
+   "seed": "Hidden ticker: is this gap still open, or did a close already fill it? Take it or pass."
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "gs.not_gap_day",
+   "seed": "Gap Support or PEG: the stock gapped 9% on earnings this morning and is holding. Which lesson owns today's buy?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "gs.line_is_gap_up_low",
+   "seed": "Gap Support or HVE: price is dipping to a marked line; is it the gap-up day's low or the record day's close, and which one must hold?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "gs.not_downtrend",
+   "seed": "Gap Support or bear gap: the gap opened down off the highs and price is rallying back to it. Long, short, or neither?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "gs.inv_failed_gap",
+   "seed": "The test day undercut the gap-up low by 4% and closed 3% under it. Buy the close, wait for tomorrow, or drop it?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "gs.post_gap_high_trim",
+   "seed": "Bought the test at 27.15 with a 26.89 stop; the post-gap high is 28.71 and 3R is 27.93. Where does the first third go?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "gs.inv_still_falling",
+   "seed": "At 3:55 the stock sits on the gap-up low but is still making new lows for the day. Buy the close?"
+  },
+  {
+   "kind": "grade",
+   "criterion": "gs.fill_reclaim_lesser",
+   "seed": "Two tests: one holds the gap-up low to the tick with a hammer, one fills to the prior day's high and reclaims by the close. Grade each."
+  },
+  {
+   "kind": "grade",
+   "criterion": "gs.gap_not_huge",
+   "seed": "Same clean test day on a 10% gap and on a 35% gap. Which grades higher, and why?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "gs.test_low",
+   "seed": "Gap-up low 53.03, test-day low 52.45. How deep is the breach in percent, and is it still slight?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "gs.stop_width",
+   "seed": "Fill 15.96 at the close, test-day low 15.50, a few cents under it for the stop. Is the risk inside 3%?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "gs.gap_size",
+   "seed": "Prior close 12.90, open 13.48 on 2.4x volume. Does the gap qualify on the 4% and 2x rule?"
+  }
+ ],
+ "owner_decisions": [
+  "D-001",
+  "D-003",
+  "D-004",
+  "D-008",
+  "D-009",
+  "D-013",
+  "D-014",
+  "D-025",
+  "D-026",
+  "D-094",
+  "D-095",
+  "D-096"
+ ],
+ "conflicts": [
+  "Sources are cited by the dossier's own numbering in section 11: S1 the Kacher-Morales 2013 book, S2 the Morales glossary, S3 the Kacher-Morales FAQ, S5 to S9 Bulkowski, S10 to S12 ChartSchool, S13 Bowley, S14 and S15 Wagner, S16 and S17 Morpheus, S18 Kullamagi, S19 to S21 Stockbee, S22 and S23 Stewie, S25 Grimes, S31 the UCT Substack, S32 the owner verdict log, S33 the rulebook, S34 the trade plans, S35 the scanner, S36 the finder, S38 the Model Book, S39 the brain template, S40 the local bars.",
+  "The 4% and 2x: the scanner's numbers (2026-10-16), carried into the bank's wording of his definition; he has not stated a number, and his own posts call 2% to 3% gaps on ordinary volume 'gap support'. D-096's default takes any true gap the stock holds, graded higher when big and heavy; the card keeps the numbers as the measure pending his word.",
+  "The trim at the post-gap high: TRADE_PLANS.md names it the first place to take some off (the detector's plan wording); his 2026-11-09 OK was to Trade Story stopping there; the dossier reads that as approving the game stop, not a trim rule over B19; D-013's default reads a named spot as a cue to take the 3R third early. The post-gap high sits under 3R in 41% of trades. The card marks it settled on the verdict and names the caveat (gs.post_gap_high_trim).",
+  "The entry: the scanner and the plan buy the close; the Model Book card buys over the test candle's high; Wagner the same at the 10-day; the owner's own trades are intraday; D-003's default applies the Kicker ruling (trade through the prior day's high) to every daily setup. The replay found all five variants within each other's error; the card recommends the close for the tightest stop and leaves it to D-003.",
+  "The 200-day: his great DOCS and okay QBTS, UAL and UBER tested below it; B26 is hard. D-009's default keeps them as reading drills marked not a buy for us.",
+  "The scanner (D-004): calls the prior day's high the 'gap top', fires on tests that close under the gap-up low (39% of its fires), scores a fill as a plus, counts a midpoint touch, has no 50-day, 200-day or B23 filter, puts the stop at the fill spot (median 6%), rewards heavy test-day volume, and has a narrative with the fill backwards. Its member tag is withheld after a blind review. The card is the rule to rebuild it to.",
+  "Measured evidence is thin and not flattering: Bulkowski's test of the Kacher-Morales rules (557 stocks, 2001 to 2010) had a win/loss ratio of 28% to 32% and he does not recommend the setup; gaps in an uptrend show support 20% of the time; ChartSchool says gaps have little influence weeks later. Our replay found +0.09R a trade under house management against +0.02R for a generic pullback day. The card teaches the stock, the level and the market as the edge.",
+  "Held, slight breach or fill: he ranks them by eye; the replay found no difference between them, while the test day's close and the gap's volume mattered more. The cue stays as his ranking.",
+  "The stop: the scanner (the fill spot), Kacher and Morales (1% to 3% porosity under the gap-up low) and the brain template (8% maximum) all sit wider than A13; every in-house example uses the test day's low. The card: the test day's low (D-008).",
+  "Later tests: the Model Book card says first pullback; the scanner allows any; his DOCS and KKR tests came 37 and 38 sessions after the gap. D-026's default: the first and second count, the third does not.",
+  "No journal tag for Gap Support; a member must tag it as PEG, News Gapper, EP or HVC. D-014's default adds one tag per unit.",
+  "The brain template 'Open Bull Gap Support' adds a crossback, an inside day above the gap and a 50-SMA trail for larger names; none is adopted here."
+ ]
+}

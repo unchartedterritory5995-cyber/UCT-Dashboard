@@ -1,0 +1,1719 @@
+{
+ "unit": "F7.04",
+ "track": "F7",
+ "title": "2022 and how bottoms form",
+ "teaches": "The 2022 rate bear in real numbers, and the signposts of a market bottom (capitulation, a fear spike, a breadth washout, bad news that stops working, a follow-through day, new leaders), taught as clues to confirm, never as guarantees.",
+ "skills": [
+  {
+   "id": "history.bottoms",
+   "title": "2022 and how bottoms form"
+  }
+ ],
+ "as_of": "2026-11-09",
+ "sources": [
+  {
+   "id": "s1",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Glossary: Bear Market",
+   "url": "https://www.investor.gov/introduction-investing/investing-basics/glossary/bear-market",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s2",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Glossary: Bull Market",
+   "url": "https://www.investor.gov/introduction-investing/investing-basics/glossary/bull-market",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s3",
+   "tier": 1,
+   "publisher": "Federal Reserve Bank of St. Louis, FRED (data: S&P Dow Jones Indices)",
+   "title": "S&P 500 (SP500), daily close, table data",
+   "url": "https://fred.stlouisfed.org/data/SP500",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s4",
+   "tier": 1,
+   "publisher": "Federal Reserve Bank of St. Louis, FRED (data: Nasdaq)",
+   "title": "NASDAQ Composite Index (NASDAQCOM), daily close, table data",
+   "url": "https://fred.stlouisfed.org/data/NASDAQCOM",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s5",
+   "tier": 1,
+   "publisher": "Federal Reserve Bank of St. Louis, FRED (data: Cboe)",
+   "title": "CBOE Volatility Index: VIX (VIXCLS), daily close, table data",
+   "url": "https://fred.stlouisfed.org/data/VIXCLS",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s6",
+   "tier": 1,
+   "publisher": "Federal Reserve Bank of St. Louis, FRED (data: Cboe)",
+   "title": "CBOE Volatility Index: VIX (VIXCLS), series notes",
+   "url": "https://fred.stlouisfed.org/series/VIXCLS",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s7",
+   "tier": 1,
+   "publisher": "Federal Reserve Board",
+   "title": "Open Market Operations (FOMC target rate changes by year)",
+   "url": "https://www.federalreserve.gov/monetarypolicy/openmarket.htm",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s8",
+   "tier": 1,
+   "publisher": "Federal Reserve Board",
+   "title": "FOMC statement, March 16, 2022",
+   "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20220316a.htm",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s9",
+   "tier": 1,
+   "publisher": "Federal Reserve Board",
+   "title": "FOMC statement, December 14, 2022",
+   "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20221214a.htm",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s10",
+   "tier": 1,
+   "publisher": "U.S. Bureau of Labor Statistics",
+   "title": "Consumer Price Index news release, June 2022 (released July 13, 2022)",
+   "url": "https://www.bls.gov/news.release/archives/cpi_07132022.htm",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s11",
+   "tier": 2,
+   "publisher": "Associated Press",
+   "title": "After rocky morning, stocks mount biggest comeback in years (Oct 13, 2022, as published by PBS NewsHour)",
+   "url": "https://www.pbs.org/newshour/economy/after-rocky-morning-stocks-mount-biggest-comeback-in-years",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s12",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Bear Market: Definition, Phases, and Examples",
+   "url": "https://www.investopedia.com/terms/b/bearmarket.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s13",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "What Is a Bear Market Rally?",
+   "url": "https://www.investopedia.com/terms/b/bear-market-rally.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s14",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Capitulation Explained (James Chen, CMT)",
+   "url": "https://www.investopedia.com/terms/c/capitulation.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s15",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "CBOE Volatility Index (VIX)",
+   "url": "https://www.investopedia.com/terms/v/vix.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s16",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Market Breadth (Cory Mitchell, CMT)",
+   "url": "https://www.investopedia.com/terms/m/market_breadth.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s17",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Breadth Thrust Indicator",
+   "url": "https://www.investopedia.com/terms/b/breadth-thrust-indicator.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s18",
+   "tier": 2,
+   "publisher": "StockCharts.com",
+   "title": "ChartSchool: Volatility Indices",
+   "url": "https://chartschool.stockcharts.com/table-of-contents/market-indicators/volatility-indices",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s19",
+   "tier": 2,
+   "publisher": "StockCharts.com",
+   "title": "ChartSchool: Percent Above Moving Average",
+   "url": "https://chartschool.stockcharts.com/table-of-contents/market-indicators/percent-above-moving-average",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s20",
+   "tier": 2,
+   "publisher": "StockCharts.com",
+   "title": "ChartSchool: The Wyckoff Method, a tutorial",
+   "url": "https://chartschool.stockcharts.com/table-of-contents/market-analysis/wyckoff-analysis-articles/the-wyckoff-method-a-tutorial",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s21",
+   "tier": 2,
+   "publisher": "StockCharts.com",
+   "title": "A Proven Technique That's Identified Every Market Bottom (Mary Ellen McGonagle, April 3, 2026)",
+   "url": "https://articles.stockcharts.com/article/a-proven-technique-that-identifies-every-market-bottom/",
+   "accessed": "2026-11-09",
+   "why_reliable": "A StockCharts.com editorial article (not ChartSchool). The author bio on the page says she spent years working under William O'Neil, whose method the follow-through day is. Filed under the same publisher as ChartSchool, so the two never count as two publishers."
+  },
+  {
+   "id": "s22",
+   "tier": 2,
+   "publisher": "CMT Association",
+   "title": "Spotting a Market Bottom (Market Mosaic Daily, Scott Brown, CMT, May 1, 2026)",
+   "url": "https://content.cmtassociation.org/a/spotting-a-market-bottom",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s23",
+   "tier": 2,
+   "publisher": "Investor's Business Daily",
+   "title": "What Is A Follow-Through Day? (David Saito-Chung; open lead only)",
+   "url": "https://www.investors.com/how-to-invest/investors-corner/what-is-a-follow-through-day/",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s24",
+   "tier": 2,
+   "publisher": "Investor's Business Daily",
+   "title": "How To Spot A Stock Market Bottom: This Signal Marks All Major Lows (Kimberley Koenig, May 21, 2024; open lead only)",
+   "url": "https://www.investors.com/how-to-invest/investors-corner/how-to-spot-a-stock-market-bottom-this-signal-marks-all-major-lows/",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s25",
+   "tier": 2,
+   "publisher": "Investor's Business Daily",
+   "title": "Choppy Action After Follow-Through Day? Be Defensive (Ken Shreve, Feb 2, 2016; open lead only)",
+   "url": "https://www.investors.com/how-to-invest/investors-corner/follow-through-days-often-work-but-some-fail/",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s26",
+   "tier": 2,
+   "publisher": "Investor's Business Daily",
+   "title": "IBD University, CAN SLIM: Market Direction",
+   "url": "https://www.investors.com/ibd-university/can-slim/market-direction/",
+   "accessed": "2026-11-09"
+  }
+ ],
+ "facts": [
+  {
+   "id": "f01",
+   "source": "s1",
+   "quote": "Generally, a bear market occurs when a broad market index falls by 20% or more over at least a two-month period.",
+   "claim": "A bear market generally means a broad index down 20% or more, over at least two months."
+  },
+  {
+   "id": "f02",
+   "source": "s2",
+   "quote": "Generally, a bull market occurs when there is a rise of 20% or more in a broad market index over at least a two-month period.",
+   "claim": "A bull market generally means a broad index up 20% or more, over at least two months."
+  },
+  {
+   "id": "f03",
+   "source": "s12",
+   "quote": "But 20% is an arbitrary number, just as a 10% decline is an arbitrary benchmark for a correction.",
+   "claim": "The 20% bear line is a convention, not a law; 10% is the usual line for a correction."
+  },
+  {
+   "id": "f04",
+   "source": "s12",
+   "quote": "For example, changes in the tax rate or the federal funds rate can lead to a bear market.",
+   "claim": "A change in the federal funds rate can help bring on a bear market."
+  },
+  {
+   "id": "f06",
+   "source": "s3",
+   "quote": "The observations for the S&P 500 represent the daily index value at market close.",
+   "claim": "FRED's S&P 500 numbers are daily closing values."
+  },
+  {
+   "id": "f07",
+   "source": "s3",
+   "quote": "2022-01-03|4796.56",
+   "claim": "The S&P 500 closed at 4,796.56 on Jan. 3, 2022, the highest 2022 close in FRED's table."
+  },
+  {
+   "id": "f08",
+   "source": "s3",
+   "quote": "2022-10-12|3577.03",
+   "claim": "The S&P 500 closed at 3,577.03 on Oct. 12, 2022, the lowest 2022 close in FRED's table."
+  },
+  {
+   "id": "f09",
+   "source": "s3",
+   "quote": "2022-06-16|3666.77",
+   "claim": "The S&P 500 closed at 3,666.77 on June 16, 2022, its lowest close of that June."
+  },
+  {
+   "id": "f10",
+   "source": "s3",
+   "quote": "2022-08-16|4305.20",
+   "claim": "The S&P 500 closed at 4,305.20 on Aug. 16, 2022."
+  },
+  {
+   "id": "f11",
+   "source": "s3",
+   "quote": "2022-09-30|3585.62",
+   "claim": "The S&P 500 closed at 3,585.62 on Sept. 30, 2022, its lowest 2022 close up to that day in FRED's table."
+  },
+  {
+   "id": "f12",
+   "source": "s3",
+   "quote": "2022-10-04|3790.93",
+   "claim": "Two sessions later, on Oct. 4, 2022, the S&P 500 closed at 3,790.93."
+  },
+  {
+   "id": "f13",
+   "source": "s3",
+   "quote": "2022-10-14|3583.07",
+   "claim": "On Oct. 14, 2022, the S&P 500 closed at 3,583.07, back near its Oct. 12 low close."
+  },
+  {
+   "id": "f14",
+   "source": "s3",
+   "quote": "2022-12-28|3783.22",
+   "claim": "On Dec. 28, 2022, the S&P 500 closed at 3,783.22, well above its Oct. 12 close."
+  },
+  {
+   "id": "f15",
+   "source": "s3",
+   "quote": "2023-06-08|4293.93",
+   "claim": "On June 8, 2023, the S&P 500 closed at 4,293.93, 20% above its Oct. 12, 2022 low close; the first close that high in FRED's table."
+  },
+  {
+   "id": "f17",
+   "source": "s4",
+   "quote": "2022-03-14|12581.220",
+   "claim": "The Nasdaq Composite closed at 12,581.22 on March 14, 2022."
+  },
+  {
+   "id": "f18",
+   "source": "s4",
+   "quote": "2022-03-29|14619.640",
+   "claim": "The Nasdaq Composite closed at 14,619.64 on March 29, 2022."
+  },
+  {
+   "id": "f19",
+   "source": "s4",
+   "quote": "2022-10-12|10417.100",
+   "claim": "The Nasdaq Composite closed at 10,417.10 on Oct. 12, 2022."
+  },
+  {
+   "id": "f20",
+   "source": "s4",
+   "quote": "2022-12-28|10213.290",
+   "claim": "The Nasdaq Composite closed at 10,213.29 on Dec. 28, 2022, below its Oct. 12 close."
+  },
+  {
+   "id": "f21",
+   "source": "s6",
+   "quote": "VIX measures market expectation of near term volatility conveyed by stock index option prices.",
+   "claim": "The VIX measures the market's expected near-term volatility, read from index option prices."
+  },
+  {
+   "id": "f22",
+   "source": "s5",
+   "quote": "2022-03-07|36.45",
+   "claim": "The VIX closed at 36.45 on March 7, 2022."
+  },
+  {
+   "id": "f23",
+   "source": "s5",
+   "quote": "2022-10-12|33.57",
+   "claim": "The VIX closed at 33.57 on Oct. 12, 2022, the day of the S&P 500's lowest 2022 close."
+  },
+  {
+   "id": "f24",
+   "source": "s7",
+   "quote": "FOMC's target federal funds rate or range, change (basis points) and level",
+   "claim": "The Fed's table lists each change in its target rate range, in basis points, and the new level."
+  },
+  {
+   "id": "f25",
+   "source": "s7",
+   "quote": "2022 Date Increase Decrease Level (%) December 15 50 0 4.25-4.50 November 3 75 0 3.75-4.00 September 22 75 0 3.00-3.25",
+   "claim": "Late 2022: +75 basis points (September), +75 (November), +50 (December), ending at 4.25% to 4.50%."
+  },
+  {
+   "id": "f26",
+   "source": "s7",
+   "quote": "July 28 75 0 2.25-2.50 June 16 75 0 1.50-1.75 May 5 50 0 0.75-1.00 March 17 25 0 0.25-0.50",
+   "claim": "Early 2022: +25 basis points (March), +50 (May), +75 (June), +75 (July)."
+  },
+  {
+   "id": "f27",
+   "source": "s7",
+   "quote": "2020 Date Increase Decrease Level (%) March 16 0 100 0-0.25",
+   "claim": "In March 2020 the Fed cut its range to 0 to 0.25%; the table shows no change after that until March 2022."
+  },
+  {
+   "id": "f28",
+   "source": "s8",
+   "quote": "the Committee decided to raise the target range for the federal funds rate to 1/4 to 1/2 percent and anticipates that ongoing increases in the target range will be appropriate.",
+   "claim": "In March 2022 the Fed made its first hike, to 0.25%-0.50%, and said more hikes were coming."
+  },
+  {
+   "id": "f29",
+   "source": "s9",
+   "quote": "the Committee decided to raise the target range for the federal funds rate to 4-1/4 to 4-1/2 percent.",
+   "claim": "In December 2022 the Fed raised its range to 4.25% to 4.50%."
+  },
+  {
+   "id": "f30",
+   "source": "s9",
+   "quote": "Inflation remains elevated, reflecting supply and demand imbalances related to the pandemic, higher food and energy prices, and broader price pressures.",
+   "claim": "At the end of 2022 the Fed still called inflation elevated."
+  },
+  {
+   "id": "f31",
+   "source": "s10",
+   "quote": "The all items index increased 9.1 percent for the 12 months ending June, the largest 12-month increase since the period ending November 1981.",
+   "claim": "Consumer prices rose 9.1% in the year to June 2022, the biggest 12-month rise since 1981."
+  },
+  {
+   "id": "f32",
+   "source": "s11",
+   "quote": "Wall Street staged its biggest comeback in years Thursday, as stocks roared back from steep morning losses caused by a worse-than-expected report on inflation.",
+   "claim": "On Oct. 13, 2022, stocks fell hard on a worse-than-expected inflation report, then roared back."
+  },
+  {
+   "id": "f33",
+   "source": "s11",
+   "quote": "The S&P 500 jumped to a gain of 2.6 percent, a stunning reversal after earlier being down as much as 2.4 percent and touching its lowest level in nearly two years.",
+   "claim": "That day the S&P 500 was down as much as 2.4%, touched a near two-year low, and closed up 2.6%."
+  },
+  {
+   "id": "f34",
+   "source": "s11",
+   "quote": "Other markets around the world likewise veered sharply from losses to gains, while analysts offered possible reasons for the reversal but little that was concrete.",
+   "claim": "Analysts offered possible reasons for the reversal, but little that was concrete."
+  },
+  {
+   "id": "f35",
+   "source": "s11",
+   "quote": "The federal funds rate started this year at virtually zero.",
+   "claim": "The fed funds rate began 2022 at virtually zero."
+  },
+  {
+   "id": "f36",
+   "source": "s11",
+   "quote": "Most investors came into the morning already expecting the Fed to hike its key overnight interest rate by three-quarters of a percentage point next month, which would be its fourth straight hike that was triple the usual size.",
+   "claim": "The November 2022 hike of three-quarters of a point was expected to be the fourth straight hike of that size."
+  },
+  {
+   "id": "f97",
+   "source": "s11",
+   "quote": "markets, which have been swinging sharply due to all the uncertainties about economies around the world and how badly higher interest rates will hurt them.",
+   "claim": "In 2022 markets swung sharply on worry about how badly higher interest rates would hurt economies."
+  },
+  {
+   "id": "f98",
+   "source": "s11",
+   "quote": "The gains ended a six-day losing streak for the S&P 500 and Nasdaq.",
+   "claim": "Oct. 13, 2022 was the S&P 500's first up day after six straight losing days."
+  },
+  {
+   "id": "f37",
+   "source": "s13",
+   "quote": "Bear market rally refers to a sharp, short-term rebound in share prices amid a longer-term bear market decline.",
+   "claim": "A bear market rally is a sharp, short rebound inside a longer decline."
+  },
+  {
+   "id": "f38",
+   "source": "s13",
+   "quote": "Bear market rallies are treacherous for investors who mistakenly come to believe they mark the end of an extended downturn.",
+   "claim": "Bear rallies trap people who think the decline is over."
+  },
+  {
+   "id": "f39",
+   "source": "s13",
+   "quote": "There is no sure way to identify a bear market rally as such until it unwinds.",
+   "claim": "You can't be sure a rally is a bear rally until it fails."
+  },
+  {
+   "id": "f40",
+   "source": "s13",
+   "quote": "In mid-March, with the Nasdaq already down 22% from the prior year's high, it staged a two-week bear-market rally, gaining 16% over that span.",
+   "claim": "In mid-March 2022 the Nasdaq, already down 22%, rallied 16% in two weeks."
+  },
+  {
+   "id": "f41",
+   "source": "s13",
+   "quote": "The Nasdaq set new lows four weeks later.",
+   "claim": "Four weeks after that rally, the Nasdaq made new lows."
+  },
+  {
+   "id": "f42",
+   "source": "s14",
+   "quote": "Capitulation, in the markets, is panic selling in response to a market downturn, which accelerates the decline in prices.",
+   "claim": "Capitulation is panic selling that speeds up a decline."
+  },
+  {
+   "id": "f43",
+   "source": "s14",
+   "quote": "Traders look for unusually high trading volume accompanying sharp price declines to signal capitulation.",
+   "claim": "Capitulation shows up as sharp drops on unusually high volume."
+  },
+  {
+   "id": "f44",
+   "source": "s14",
+   "quote": "Investors can only identify capitulations with certainty after they have occurred and the price has rebounded.",
+   "claim": "Capitulation is only certain in hindsight, after the rebound."
+  },
+  {
+   "id": "f45",
+   "source": "s14",
+   "quote": "Bear markets can feature repeat high-volume plunges in price and premature calls of capitulation.",
+   "claim": "Bear markets often have several high-volume plunges and early, wrong calls of capitulation."
+  },
+  {
+   "id": "f46",
+   "source": "s15",
+   "quote": "The CBOE Volatility Index (VIX) measures the market's expectation of 30-day volatility for the S&P 500.",
+   "claim": "The VIX is the market's expected 30-day volatility for the S&P 500."
+  },
+  {
+   "id": "f47",
+   "source": "s15",
+   "quote": "The price action of the S&P 500 and the VIX often shows inverse price action: when the S&P falls sharply, the VIX rises",
+   "claim": "The VIX usually rises when the S&P 500 falls sharply."
+  },
+  {
+   "id": "f48",
+   "source": "s18",
+   "quote": "Typically, the VIX and other volatility indices have an inverse relationship to the stock market.",
+   "claim": "The VIX typically moves opposite to the stock market."
+  },
+  {
+   "id": "f49",
+   "source": "s18",
+   "quote": "Even though the VIX peaked in late 2008, the S&P 500 did not bottom until early March 2009.",
+   "claim": "In 2008-09 the VIX peaked months before the S&P 500's low."
+  },
+  {
+   "id": "f50",
+   "source": "s18",
+   "quote": "Sharp stock market declines often produce exaggerated spikes in volatility indices as panic grips the market.",
+   "claim": "Sharp declines bring VIX spikes as panic hits."
+  },
+  {
+   "id": "f51",
+   "source": "s18",
+   "quote": "They are not really predictive indicators; instead, they identify sentiment extremes",
+   "claim": "Volatility indices show sentiment extremes; they don't predict."
+  },
+  {
+   "id": "f94",
+   "source": "s15",
+   "quote": "The CBOE Volatility Index (VIX), also known as the Fear Index, measures expected market volatility using a portfolio of options on the S&P 500.",
+   "claim": "The VIX, also called the Fear Index, measures expected volatility from S&P 500 options."
+  },
+  {
+   "id": "f52",
+   "source": "s16",
+   "quote": "Market breadth refers to how many stocks are participating in a given move in an index or on a stock exchange.",
+   "claim": "Breadth is how many stocks take part in a move."
+  },
+  {
+   "id": "f53",
+   "source": "s16",
+   "quote": "This is because price moves on larger volume are considered to be more significant than price moves on lower volume.",
+   "claim": "Moves on bigger volume count for more than moves on light volume."
+  },
+  {
+   "id": "f54",
+   "source": "s16",
+   "quote": "An index may be rising yet more than half the stocks in the index are falling because a small number of stocks have such large gains that they drag the whole index higher.",
+   "claim": "A few big winners can lift an index while most of its stocks fall."
+  },
+  {
+   "id": "f55",
+   "source": "s19",
+   "quote": "This indicator measures the degree of participation.",
+   "claim": "The percent of stocks above a moving average measures participation."
+  },
+  {
+   "id": "f56",
+   "source": "s19",
+   "quote": "A bullish divergence occurs when the underlying index moves to a new low and the indicator remains above its prior low.",
+   "claim": "Bullish divergence: the index makes a new low, the breadth reading does not."
+  },
+  {
+   "id": "f95",
+   "source": "s19",
+   "quote": "Relative strength in the indicator can sometimes foreshadow a bullish reversal in the index.",
+   "claim": "A bullish breadth divergence can sometimes foreshadow a turn up in the index."
+  },
+  {
+   "id": "f58",
+   "source": "s19",
+   "quote": "In general, readings above 70% are deemed overbought and readings below 30% are deemed oversold.",
+   "claim": "For the percent of stocks above their 50-day, above 70% is generally deemed overbought and below 30% oversold."
+  },
+  {
+   "id": "f59",
+   "source": "s17",
+   "quote": "The breadth thrust indicator signals the start of a potential new bull market when it moves from a level of below 40% (indicating an oversold market) to a level above 61.5% within any 10-day period.",
+   "claim": "Zweig's breadth thrust: the indicator swings from below 40% to above 61.5% within 10 days."
+  },
+  {
+   "id": "f60",
+   "source": "s17",
+   "quote": "The thrust, which indicates that an oversold market is rapidly showing strength, is a rare occurrence",
+   "claim": "A breadth thrust is an oversold market turning strong fast, and it is rare."
+  },
+  {
+   "id": "f61",
+   "source": "s20",
+   "quote": "the point at which widening spread and selling pressure usually climaxes and heavy or panicky selling by the public is being absorbed by larger professional interests at or near a bottom.",
+   "claim": "Wyckoff's selling climax: panicky public selling is absorbed by big professional buyers at or near a bottom."
+  },
+  {
+   "id": "f62",
+   "source": "s20",
+   "quote": "Often price will close well off the low in a SC, reflecting the buying by these large interests.",
+   "claim": "On a selling climax day, price often closes well off the low."
+  },
+  {
+   "id": "f63",
+   "source": "s20",
+   "quote": "These events are often very obvious on bar charts, where widening spread and heavy volume depict the transfer of huge numbers of shares from the public to large professional interests.",
+   "claim": "A selling climax shows wide price ranges and heavy volume on the chart."
+  },
+  {
+   "id": "f64",
+   "source": "s20",
+   "quote": "If a bottom is to be confirmed, volume and price spread should be significantly diminished as the market approaches support in the area of the SC.",
+   "claim": "A retest that confirms a bottom comes on much lower volume and narrower ranges."
+  },
+  {
+   "id": "f96",
+   "source": "s20",
+   "quote": "which occurs because intense selling pressure has greatly diminished. A wave of buying easily pushes prices up; this is further fueled by short covering.",
+   "claim": "After a selling climax, an automatic rally comes because the heavy selling has eased a lot."
+  },
+  {
+   "id": "f65",
+   "source": "s20",
+   "quote": "It is common to have multiple STs after a SC.",
+   "claim": "Several retests after a selling climax are common."
+  },
+  {
+   "id": "f66",
+   "source": "s21",
+   "quote": "According to William O’Neil, founder of Investor's Business Daily, you should focus on identifying when a new uptrend has already begun, rather than trying to call a bottom.",
+   "claim": "O'Neil's approach: confirm a new uptrend has begun instead of calling the bottom."
+  },
+  {
+   "id": "f67",
+   "source": "s21",
+   "quote": "A Follow-Through Day typically occurs several days after a market low, once an initial rally attempt is underway. It’s marked by a strong advance in a major index, together with higher trading volume.",
+   "claim": "A follow-through day: several days into a rally attempt, a major index rises strongly on higher volume."
+  },
+  {
+   "id": "f68",
+   "source": "s21",
+   "quote": "That combination is critical because it signals that institutional investors, the real drivers of market trends, are beginning to step back in.",
+   "claim": "Price plus volume together suggest big institutions are buying again."
+  },
+  {
+   "id": "f69",
+   "source": "s21",
+   "quote": "Without that sponsorship, rallies tend to fade; with it, the odds begin to shift.",
+   "claim": "Without institutional buying rallies fade; with it, the odds shift."
+  },
+  {
+   "id": "f70",
+   "source": "s21",
+   "quote": "Historical studies of past market cycles show that about half to two-thirds of Follow-Through Days ultimately lead to sustained uptrends.",
+   "claim": "A StockCharts article says studies of past cycles find about half to two-thirds of follow-through days lead to lasting uptrends."
+  },
+  {
+   "id": "f71",
+   "source": "s21",
+   "quote": "Even after the market appears to stabilize, early rallies often fail and pull investors back into the decline.",
+   "claim": "Early rallies off a low often fail."
+  },
+  {
+   "id": "f72",
+   "source": "s21",
+   "quote": "These don’t occur in moments of clarity. Instead, they form in environments dominated by fear, negative headlines, and persistent selling pressure.",
+   "claim": "Turns from correction to recovery form amid fear and bad headlines, not clarity."
+  },
+  {
+   "id": "f73",
+   "source": "s21",
+   "quote": "This is where leadership becomes critical, as the strongest stocks are usually the first to emerge.",
+   "claim": "The strongest stocks are usually the first to emerge from a low."
+  },
+  {
+   "id": "f74",
+   "source": "s21",
+   "quote": "O’Neil’s research showed that the biggest winners are typically purchased not at their lowest point, but as they begin moving higher out of well-formed bases.",
+   "claim": "Big winners are bought as they rise out of bases, not at their lows."
+  },
+  {
+   "id": "f75",
+   "source": "s22",
+   "quote": "The first step in a market bottom is a washout. That’s the panic, extreme fear, and capitulation that come with a large downward thrust in the market.",
+   "claim": "A bottom starts with a washout: panic, extreme fear and capitulation on a big drop."
+  },
+  {
+   "id": "f76",
+   "source": "s22",
+   "quote": "Less than 15% of stocks above their 50-DMA",
+   "claim": "One washout sign: under 15% of stocks above their 50-day moving average."
+  },
+  {
+   "id": "f77",
+   "source": "s22",
+   "quote": "Importantly, this is where the bottoming process begins, but it is rarely where the index price low is found.",
+   "claim": "The washout starts the bottoming process but is rarely the index's low."
+  },
+  {
+   "id": "f78",
+   "source": "s22",
+   "quote": "if market internals are worse than the prior index low, it’s a good signal the bottom isn’t in yet.",
+   "claim": "A new low with worse internals than the last low says the bottom isn't in."
+  },
+  {
+   "id": "f79",
+   "source": "s22",
+   "quote": "That was the case in June 2022, when the index made a new low and had a multi-year high in the percent of stocks at a 3-month low.",
+   "claim": "In June 2022 the index made a new low with a multi-year high in stocks at 3-month lows."
+  },
+  {
+   "id": "f80",
+   "source": "s22",
+   "quote": "The index saw a big bounce higher, but rolled over and made a new low in October.",
+   "claim": "After June 2022 the index bounced hard, then made a new low in October."
+  },
+  {
+   "id": "f81",
+   "source": "s22",
+   "quote": "But, while SPX undercut its summer lows, the majority of stocks didn’t. Fewer stocks made a new low in October (what technicians call a bullish divergence)",
+   "claim": "In October 2022 the S&P 500 undercut its summer low but fewer stocks made new lows: a bullish divergence."
+  },
+  {
+   "id": "f82",
+   "source": "s22",
+   "quote": "once the index moved back above the June lows, the divergence was confirmed.",
+   "claim": "The divergence was confirmed when the index got back above its June lows."
+  },
+  {
+   "id": "f83",
+   "source": "s22",
+   "quote": "While bear market rallies can see huge headline gains, the tell under the surface is often weak breadth.",
+   "claim": "Bear rallies can post big gains on weak breadth."
+  },
+  {
+   "id": "f84",
+   "source": "s22",
+   "quote": "Once the low is in, multiple breadth thrusts (or signs of aggressive, broad-based buying) are common.",
+   "claim": "After a real low, several bursts of broad buying are common."
+  },
+  {
+   "id": "f85",
+   "source": "s22",
+   "quote": "while you might get one or two in a bear market rally, a collection of them are rarely seen until the ultimate low is in.",
+   "claim": "One or two thrusts can show up in a bear rally; a run of them rarely comes before the real low."
+  },
+  {
+   "id": "f87",
+   "source": "s22",
+   "quote": "Once you’ve seen all three steps, that’s the buy signal.",
+   "claim": "This checklist waits for all three steps (washout, divergence, thrusts) before calling a buy."
+  },
+  {
+   "id": "f88",
+   "source": "s23",
+   "quote": "The start of a major stock market uptrend is difficult to identify if you are relying on headlines and news.",
+   "claim": "Headlines and news are a poor guide to the start of a new uptrend."
+  },
+  {
+   "id": "f89",
+   "source": "s24",
+   "quote": "It is a critical point in the market cycle to help identify the likely start of a new uptrend for the main indexes.",
+   "claim": "IBD uses the follow-through day to identify the likely start of a new uptrend."
+  },
+  {
+   "id": "f90",
+   "source": "s25",
+   "quote": "Not all follow-through signals are foolproof, but they're always important to recognize.",
+   "claim": "IBD says follow-through days are not foolproof."
+  },
+  {
+   "id": "f91",
+   "source": "s26",
+   "quote": "You'll find that year after year, winning stocks launch their big advances at the start of a new market uptrend and begin to come back down as that market uptrend starts to fade.",
+   "claim": "Winning stocks launch their big moves at the start of a new market uptrend."
+  },
+  {
+   "id": "f92",
+   "source": "s26",
+   "quote": "Use this time to look for stocks to add to your watch list so you'll be ready to take action when the market starts a new uptrend.",
+   "claim": "In a correction, build your watch list so you're ready when the new uptrend starts."
+  },
+  {
+   "id": "f93",
+   "source": "s26",
+   "quote": "Be sure to keep a close eye on your portfolio to make sure you're protecting your gains and cutting losses quickly.",
+   "claim": "In a correction, protect gains and cut losses quickly."
+  },
+  {
+   "id": "f99",
+   "source": "s26",
+   "quote": "This is a good time to buy fundamentally strong stocks coming out of proper chart bases.",
+   "claim": "In a confirmed uptrend, IBD says it is a good time to buy strong stocks coming out of proper chart bases."
+  }
+ ],
+ "walkthroughs": [
+  {
+   "key": "w1",
+   "title": "2022: the rate bear",
+   "steps": [
+    "Inflation ran hot. Prices rose 9.1% in the year to June 2022, the most since 1981.",
+    "The Fed started 2022 near zero. It hiked seven times and ended the year at 4.25% to 4.50%.",
+    "The S&P 500 went from 4,796.56 on Jan. 3 to 3,577.03 on Oct. 12. That's about a quarter of its value gone."
+   ],
+   "facts": [
+    "f31",
+    "f30",
+    "f35",
+    "f27",
+    "f25",
+    "f26",
+    "f07",
+    "f08",
+    "f06",
+    "f97"
+   ]
+  },
+  {
+   "key": "w2",
+   "title": "How a bottom forms",
+   "steps": [
+    "A bottom is a process, not a day. It forms in fear and bad headlines.",
+    "First the panic: capitulation, a spike in the VIX, a breadth washout where almost nothing holds up.",
+    "Then the turn: bad news stops working, a follow-through day fires, and new leaders break out.",
+    "No one signpost is proof. You want to see several line up."
+   ],
+   "facts": [
+    "f77",
+    "f72",
+    "f42",
+    "f50",
+    "f75",
+    "f76",
+    "f33",
+    "f67",
+    "f73",
+    "f87"
+   ]
+  },
+  {
+   "key": "w3",
+   "title": "Confirm, don't predict",
+   "steps": [
+    "O'Neil's advice: don't try to call the bottom. Wait until a new uptrend has begun.",
+    "The tell is a follow-through day: several days into a rally attempt, a major index rises strongly on higher volume.",
+    "It works often, not always. One StockCharts writer cites studies putting it at about half to two-thirds.",
+    "When it fires, look at the strongest stocks first. They're usually the first to emerge."
+   ],
+   "facts": [
+    "f66",
+    "f67",
+    "f70",
+    "f90",
+    "f73"
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "key": "q01",
+   "skill": "history.bottoms",
+   "rung": 1,
+   "format": "mcq",
+   "term": "bear market",
+   "q": "By the usual rule of thumb, what makes a bear market?",
+   "choices": [
+    "A drop of 20% or more from a high",
+    "A drop of 10% from a recent high",
+    "Three lower weekly closes in a row",
+    "The Fed raising interest rates"
+   ],
+   "answer": "A drop of 20% or more from a high",
+   "why": "A drop of 20% or more from a high. The SEC's investor site puts it at a broad index down 20% or more over at least two months. It's a convention, not a law.",
+   "lesson_line": "Down 20% from the high is the usual bear line. It's a label, not a signal.",
+   "facts": [
+    "f01",
+    "f03",
+    "f04"
+   ],
+   "wrong": {
+    "A drop of 10% from a recent high": "That's the usual line for a correction. A bear is the bigger drop, 20% or more.",
+    "Three lower weekly closes in a row": "Losing streaks happen in bull markets too. The label is about how far prices fell from the high.",
+    "The Fed raising interest rates": "Rate changes can help bring on a bear. The label itself is about how far prices fall."
+   }
+  },
+  {
+   "key": "q02",
+   "skill": "history.bottoms",
+   "rung": 1,
+   "format": "mcq",
+   "term": "capitulation",
+   "q": "What does capitulation mean in a falling market?",
+   "choices": [
+    "Panic selling that speeds up the fall",
+    "Big buyers stepping in at the low",
+    "A slow drift lower on light volume",
+    "The first big up day off the market low"
+   ],
+   "answer": "Panic selling that speeds up the fall",
+   "why": "Panic selling that speeds up the fall. Holders give up together and the drop accelerates. It's often part of the washout that starts a bottoming process.",
+   "lesson_line": "Capitulation is the crowd giving up. Fast, loud, heavy volume.",
+   "facts": [
+    "f42",
+    "f75",
+    "f77",
+    "f43",
+    "f61"
+   ],
+   "wrong": {
+    "Big buyers stepping in at the low": "That's the other side of the trade. In a selling climax big buyers absorb the panic, but the panic itself is the capitulation.",
+    "A slow drift lower on light volume": "That's the opposite. Capitulation is sharp drops on unusually high volume.",
+    "The first big up day off the market low": "That's the bounce that can come after. Capitulation is the selling before it."
+   }
+  },
+  {
+   "key": "q03",
+   "skill": "history.bottoms",
+   "rung": 2,
+   "format": "tf",
+   "q": "The VIX usually rises when stocks fall.",
+   "answer": "True",
+   "why": "True. The VIX reads expected volatility from S&P 500 options. It usually moves opposite the market, and it spikes when panic hits.",
+   "lesson_line": "Stocks down, VIX up. That's why it gets called the fear index.",
+   "facts": [
+    "f21",
+    "f94",
+    "f46",
+    "f47",
+    "f48",
+    "f50"
+   ]
+  },
+  {
+   "key": "q04",
+   "skill": "history.bottoms",
+   "rung": 2,
+   "format": "fill",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "The index makes a new low, but fewer stocks hit new lows than last time. That's a bullish ___.",
+   "bank": [
+    "divergence",
+    "thrust",
+    "washout",
+    "breakout",
+    "climax"
+   ],
+   "answer": "divergence",
+   "why": "Divergence. The index says new low, but fewer stocks agree than last time. Breadth gauges how many stocks take part, and fewer joined the selling.",
+   "lesson_line": "Check the crowd, not just the index. A new low most stocks skip is a divergence.",
+   "facts": [
+    "f56",
+    "f81",
+    "f52",
+    "f55"
+   ]
+  },
+  {
+   "key": "q05",
+   "skill": "history.bottoms",
+   "rung": 2,
+   "format": "fill",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "Capitulation shows up as a sharp drop on unusually heavy ___.",
+   "bank": [
+    "volume",
+    "earnings",
+    "dividends",
+    "buybacks",
+    "debt"
+   ],
+   "answer": "volume",
+   "why": "Volume. Traders look for unusually high volume on sharp drops. Wyckoff's selling climax shows the same heavy volume and wide ranges.",
+   "lesson_line": "Big drop, huge volume, a close well off the low. That's the look of a washout.",
+   "facts": [
+    "f43",
+    "f63",
+    "f62"
+   ]
+  },
+  {
+   "key": "q06",
+   "skill": "history.bottoms",
+   "rung": 3,
+   "format": "mcq",
+   "q": "In IBD's method, what is a follow-through day for?",
+   "choices": [
+    "Spotting a likely new uptrend",
+    "Calling the exact bottom day",
+    "Telling you to short the bounce",
+    "Marking the top of a rally"
+   ],
+   "answer": "Spotting a likely new uptrend",
+   "why": "Spotting a likely new uptrend. IBD calls it a critical point for identifying the likely start of a new uptrend. O'Neil's idea: confirm the turn, don't guess the bottom.",
+   "lesson_line": "Don't guess the bottom. Wait for the market to prove a new uptrend has started.",
+   "facts": [
+    "f89",
+    "f66",
+    "f67",
+    "f68"
+   ],
+   "wrong": {
+    "Calling the exact bottom day": "It typically comes several days after the low, not on it. The point is to wait for proof instead of guessing the bottom.",
+    "Telling you to short the bounce": "It's a buy-side signal. It suggests big buyers are starting to step back in.",
+    "Marking the top of a rally": "It shows up early in a new uptrend, several days after a low, not at a top."
+   }
+  },
+  {
+   "key": "q07",
+   "skill": "history.bottoms",
+   "rung": 3,
+   "format": "tf",
+   "q": "Every follow-through day leads to a lasting uptrend.",
+   "answer": "False",
+   "why": "False. IBD itself says follow-through signals aren't foolproof. A StockCharts article cites studies putting the success rate at about half to two-thirds.",
+   "lesson_line": "A follow-through day shifts the odds. It doesn't promise anything.",
+   "facts": [
+    "f90",
+    "f70",
+    "f69"
+   ]
+  },
+  {
+   "key": "q08",
+   "skill": "history.bottoms",
+   "rung": 3,
+   "format": "tf",
+   "q": "You can confirm capitulation on the day it happens.",
+   "answer": "False",
+   "why": "False. You only know for sure after the price has rebounded. Bear markets bring repeated high-volume plunges and plenty of early calls of capitulation.",
+   "lesson_line": "Capitulation gets named in hindsight. The washout starts the bottoming process. It's rarely the low itself.",
+   "facts": [
+    "f44",
+    "f45",
+    "f77"
+   ]
+  },
+  {
+   "key": "q09",
+   "skill": "history.bottoms",
+   "rung": 4,
+   "format": "numeric",
+   "q": "The S&P 500 closed at 4,796.56 on Jan. 3, 2022 and 3,577.03 on Oct. 12, 2022. How far did it fall, in percent? One decimal.",
+   "answer": 25.4,
+   "calc": {
+    "fn": "drawdown_pct",
+    "args": {
+     "peak": 4796.56,
+     "trough": 3577.03
+    },
+    "round": 1
+   },
+   "suffix": "%",
+   "why": "25.4%. Peak minus low, divided by the peak: 4,796.56 less 3,577.03, over 4,796.56. Well past the 20% line, so a bear market.",
+   "lesson_line": "Measure a drawdown from the peak close. Peak to low, 2022 took about a quarter off the S&P 500.",
+   "facts": [
+    "f07",
+    "f08",
+    "f06",
+    "f01"
+   ]
+  },
+  {
+   "key": "q10",
+   "skill": "history.bottoms",
+   "rung": 4,
+   "format": "mcq",
+   "q": "Where did the Fed take its target rate range during 2022?",
+   "choices": [
+    "From near zero to 4.25%-4.50%",
+    "From 4.25%-4.50% down to near zero",
+    "It held near zero all year",
+    "Up to 9.1%, to match inflation"
+   ],
+   "answer": "From near zero to 4.25%-4.50%",
+   "why": "From near zero to 4.25%-4.50%. The range was 0 to 0.25% coming into 2022. The Fed hiked at seven meetings, the last one in December.",
+   "lesson_line": "2022 was a rate bear. The Fed went from near zero to over 4% in one year.",
+   "facts": [
+    "f25",
+    "f26",
+    "f27",
+    "f35",
+    "f28",
+    "f29",
+    "f31",
+    "f04",
+    "f97"
+   ],
+   "wrong": {
+    "From 4.25%-4.50% down to near zero": "That's backwards. Near zero is where 2022 started. 4.25% to 4.50% is where it ended.",
+    "It held near zero all year": "It started near zero, then rose fast. Seven hikes in one year.",
+    "Up to 9.1%, to match inflation": "9.1% was inflation, the 12 months to June. The Fed's range ended 2022 at 4.25% to 4.50%."
+   }
+  },
+  {
+   "key": "q11",
+   "skill": "history.bottoms",
+   "rung": 4,
+   "format": "tf",
+   "q": "In 2022 the Fed raised rates by 0.75 percentage point at four meetings in a row.",
+   "answer": "True",
+   "why": "True. June, July, September and November each brought a 75 basis point hike, three-quarters of a point. Before it came, AP called the expected November hike the fourth straight one triple the usual size.",
+   "lesson_line": "Four jumbo hikes in a row. That's the pace behind the 2022 bear.",
+   "facts": [
+    "f24",
+    "f25",
+    "f26",
+    "f36",
+    "f04",
+    "f97"
+   ]
+  },
+  {
+   "key": "q12",
+   "skill": "history.bottoms",
+   "rung": 5,
+   "format": "numeric",
+   "q": "In March 2022 the Nasdaq closed at 12,581.22 on the 14th and 14,619.64 on the 29th. How much did it rally, in percent? One decimal.",
+   "answer": 16.2,
+   "calc": {
+    "fn": "pct_change",
+    "args": {
+     "start": 12581.22,
+     "end": 14619.64
+    },
+    "round": 1
+   },
+   "suffix": "%",
+   "why": "16.2%. Then it rolled over and set new lows four weeks later. That was a bear market rally.",
+   "lesson_line": "A bear rally can run 16% in two weeks and still fail. Size alone proves nothing.",
+   "facts": [
+    "f17",
+    "f18",
+    "f40",
+    "f41",
+    "f37"
+   ]
+  },
+  {
+   "key": "q13",
+   "skill": "history.bottoms",
+   "rung": 5,
+   "format": "mcq",
+   "q": "You're watching for a breadth washout. Which reading fits?",
+   "choices": [
+    "Under 15% of stocks above their 50-day",
+    "Over 70% of stocks above their 50-day",
+    "The index at a new high, VIX near lows",
+    "Volume drying up for a week"
+   ],
+   "answer": "Under 15% of stocks above their 50-day",
+   "why": "Under 15% of stocks above their 50-day. A market technician writing for the CMT Association lists it as one washout sign. ChartSchool generally treats under 30% as oversold.",
+   "lesson_line": "A washout means almost nothing is holding up. It starts the bottoming process. It's rarely the low.",
+   "facts": [
+    "f76",
+    "f75",
+    "f58",
+    "f77"
+   ],
+   "wrong": {
+    "Over 70% of stocks above their 50-day": "That's the overbought end. ChartSchool generally treats above 70% as overbought.",
+    "The index at a new high, VIX near lows": "That's calm, not panic. A washout comes with extreme fear.",
+    "Volume drying up for a week": "Quiet volume isn't panic. A washout is a big, fearful drop."
+   }
+  },
+  {
+   "key": "q14",
+   "skill": "history.bottoms",
+   "rung": 5,
+   "format": "mcq",
+   "term": "breadth thrust",
+   "q": "What is a breadth thrust?",
+   "choices": [
+    "A burst of broad buying off a low",
+    "A few giant stocks lifting the index",
+    "A spike in stocks at new lows",
+    "A slow grind up on light volume"
+   ],
+   "answer": "A burst of broad buying off a low",
+   "why": "A burst of broad buying off a low. In Zweig's version, the indicator swings from below 40% to above 61.5% within 10 days. It's rare.",
+   "lesson_line": "A thrust is a lot of stocks turning up at once. One alone can still show up in a bear rally.",
+   "facts": [
+    "f84",
+    "f59",
+    "f60",
+    "f54",
+    "f75",
+    "f53",
+    "f85"
+   ],
+   "wrong": {
+    "A few giant stocks lifting the index": "That's narrow breadth, the opposite. An index can rise while most of its stocks fall.",
+    "A spike in stocks at new lows": "That's the washout side, the panic before the turn.",
+    "A slow grind up on light volume": "A thrust is fast and broad. Moves on light volume carry less weight."
+   }
+  },
+  {
+   "key": "q15",
+   "skill": "history.bottoms",
+   "rung": 6,
+   "format": "scenario",
+   "story": "Six sessions into a bounce off a new low, the Nasdaq gains 1.9%. Volume is lighter than the day before and below average.",
+   "q": "Is this a follow-through day?",
+   "choices": [
+    "No. Volume didn't come in higher",
+    "Yes. The gain is big enough",
+    "Yes. Any up day after a low counts",
+    "No. It's too late in the bounce"
+   ],
+   "answer": "No. Volume didn't come in higher",
+   "why": "No. A follow-through day needs a strong gain on higher volume. The volume is what suggests big buyers are stepping back in.",
+   "lesson_line": "Price and volume both have to show up. Half a signal isn't the signal.",
+   "facts": [
+    "f67",
+    "f68",
+    "f53",
+    "f71"
+   ],
+   "wrong": {
+    "Yes. The gain is big enough": "Price alone doesn't do it. The day also needs higher volume.",
+    "Yes. Any up day after a low counts": "An up day alone isn't the signal. Early rallies often fail.",
+    "No. It's too late in the bounce": "The timing is fine. A follow-through day comes several days after the low, once a rally attempt is underway."
+   }
+  },
+  {
+   "key": "q16",
+   "skill": "history.bottoms",
+   "rung": 6,
+   "format": "scenario",
+   "story": "After a huge-volume washout, the index bounced. Now it's back near the washout low. Volume is far lighter and the daily ranges are narrow.",
+   "q": "How do you read this retest?",
+   "choices": [
+    "Constructive. Sellers look spent",
+    "Bearish. Light volume means no buyers",
+    "Meaningless. Only price matters",
+    "Sell. Every retest breaks the low"
+   ],
+   "answer": "Constructive. Sellers look spent",
+   "why": "Constructive. In Wyckoff's terms, a retest that confirms a bottom comes on much lower volume and narrower ranges than the climax. Same price, far less selling. It's still only a test.",
+   "lesson_line": "A good retest is quiet. Same price, much less selling.",
+   "facts": [
+    "f64",
+    "f63",
+    "f78",
+    "f65",
+    "f96"
+   ],
+   "wrong": {
+    "Bearish. Light volume means no buyers": "On a retest, light volume means few sellers. The worry is heavy selling or worse internals at the low.",
+    "Meaningless. Only price matters": "Volume is the tell on a retest. It shows whether sellers are still pressing.",
+    "Sell. Every retest breaks the low": "Not so. Several tests after a climax are common, and a quiet one is what a confirming test looks like."
+   }
+  },
+  {
+   "key": "q17",
+   "skill": "history.bottoms",
+   "rung": 7,
+   "format": "numeric",
+   "q": "The S&P 500's 2022 low close was 3,577.03. By the 20% rule, what close marks a new bull market? Round to a whole point.",
+   "answer": 4292,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "low * 1.2",
+     "low": 3577.03
+    },
+    "round": 0
+   },
+   "why": "4,292: the low times 1.2, rounded. The S&P 500 didn't close that high until June 8, 2023, at 4,293.93, months after the low.",
+   "lesson_line": "The 20% rule makes a bull official late. By then the low is months old.",
+   "facts": [
+    "f02",
+    "f08",
+    "f15"
+   ]
+  },
+  {
+   "key": "q18",
+   "skill": "history.bottoms",
+   "rung": 7,
+   "format": "scenario",
+   "story": "A hotter-than-expected inflation report hits. The index drops as much as 2.4% to its lowest level in nearly two years. It closes up 2.6%.",
+   "q": "What's your read on this close?",
+   "choices": [
+    "Bad news failed. A clue, not proof",
+    "Follow-through day. Buy in size",
+    "Capitulation confirmed. Bottom's in",
+    "A one-day fluke. Ignore it"
+   ],
+   "answer": "Bad news failed. A clue, not proof",
+   "chart": {
+    "sym": "SPY",
+    "asof": "2022-10-13",
+    "window": 120,
+    "forward": 40
+   },
+   "why": "Bad news failed. A worse-than-expected inflation report sank it early, and it closed up 2.6% anyway. Analysts offered little that was concrete to explain it. That's a clue to watch, not a signal to buy.",
+   "lesson_line": "Watch how price reacts to bad news. When it stops falling on bad news, pay attention.",
+   "facts": [
+    "f32",
+    "f33",
+    "f34",
+    "f67",
+    "f44",
+    "f13",
+    "f72",
+    "f88",
+    "f98"
+   ],
+   "wrong": {
+    "Follow-through day. Buy in size": "Too early. It's the first up day off the low. A follow-through day comes several days into a rally attempt, on higher volume.",
+    "Capitulation confirmed. Bottom's in": "Only hindsight confirms that. The next day the S&P 500 closed at 3,583.07, right back near its low.",
+    "A one-day fluke. Ignore it": "Don't ignore it. Turns form while the headlines are still bad, and a big reversal on bad news is worth noting."
+   }
+  },
+  {
+   "key": "q19",
+   "skill": "history.bottoms",
+   "rung": 7,
+   "format": "scenario",
+   "story": "The index closes at a new low of 3,585.62 after a long slide. Two sessions later it's at 3,790.93.",
+   "q": "Is the low in?",
+   "choices": [
+    "Not proven yet. Early pops often fail",
+    "Yes. Two days that strong confirm it",
+    "Yes. Sellers are clearly exhausted"
+   ],
+   "answer": "Not proven yet. Early pops often fail",
+   "why": "Not proven yet. Early rallies often fail and pull buyers back into the decline. This was the S&P 500, Sept. 30 to Oct. 4, 2022. It closed at a new low of 3,577.03 on Oct. 12.",
+   "lesson_line": "The first pop off a low proves little. I wait for the market to prove it.",
+   "facts": [
+    "f71",
+    "f11",
+    "f12",
+    "f08",
+    "f67",
+    "f44",
+    "f06"
+   ],
+   "wrong": {
+    "Yes. Two days that strong confirm it": "Two days in is too early. A follow-through day comes several days into the attempt, on higher volume.",
+    "Yes. Sellers are clearly exhausted": "That's only clear in hindsight. On Oct. 12 it closed at a new low of 3,577.03."
+   }
+  },
+  {
+   "key": "q20",
+   "skill": "history.bottoms",
+   "rung": 8,
+   "format": "scenario",
+   "story": "This index fell more than 20% from its high. Then it rallied for two months off its low.",
+   "q": "Is the bear market over?",
+   "choices": [
+    "Not proven. It may be a bear rally",
+    "Yes. A rally this big ends a bear",
+    "Yes. That low won't be broken now",
+    "No. It's sure to make new lows"
+   ],
+   "answer": "Not proven. It may be a bear rally",
+   "chart": {
+    "sym": "SPY",
+    "asof": "2022-08-16",
+    "window": 160,
+    "forward": 60
+   },
+   "why": "Not proven. There's no sure way to spot a bear rally until it unwinds. This was the S&P 500, from 3,666.77 on June 16 to 4,305.20 on Aug. 16, 2022, short of the 20% bull line. It closed at 3,577.03 on Oct. 12, below the June low.",
+   "lesson_line": "A big rally inside a bear proves nothing. I wait for the market to confirm the turn.",
+   "facts": [
+    "f39",
+    "f38",
+    "f02",
+    "f07",
+    "f09",
+    "f10",
+    "f08",
+    "f80",
+    "f40",
+    "f41",
+    "f83",
+    "f06"
+   ],
+   "wrong": {
+    "Yes. A rally this big ends a bear": "Bear rallies can be huge, often on weak breadth. The Nasdaq ran 16% in two weeks that March and still made new lows.",
+    "Yes. That low won't be broken now": "Nothing guarantees that. Here the index undercut the June low in October.",
+    "No. It's sure to make new lows": "You can't be sure either way. No one can tell a bear rally until it unwinds."
+   }
+  },
+  {
+   "key": "q21",
+   "skill": "history.bottoms",
+   "rung": 8,
+   "format": "mcq",
+   "q": "In 2022 the VIX closed at 36.45 on March 7 and 33.57 on Oct. 12, the S&P 500's low close. What does that tell you?",
+   "choices": [
+    "Peak fear can come before the low",
+    "The VIX called the exact bottom day",
+    "VIX over 30 is a clear buy signal",
+    "The VIX doesn't track fear"
+   ],
+   "answer": "Peak fear can come before the low",
+   "why": "Peak fear can come before the low. The March reading was higher than the reading at the October low. Same in 2008: the VIX peaked in late 2008, the S&P 500 bottomed in March 2009.",
+   "lesson_line": "A fear spike is one signpost. On its own it rarely marks the low.",
+   "facts": [
+    "f22",
+    "f23",
+    "f08",
+    "f49",
+    "f51",
+    "f21",
+    "f48"
+   ],
+   "wrong": {
+    "The VIX called the exact bottom day": "It didn't. It was lower at the October low than in March.",
+    "VIX over 30 is a clear buy signal": "It was over 30 in March, and the S&P 500 didn't make its low close until Oct. 12. Spikes show extremes. They don't predict.",
+    "The VIX doesn't track fear": "It does. It measures expected volatility from option prices, and it usually rises when stocks fall."
+   }
+  },
+  {
+   "key": "q22",
+   "skill": "history.bottoms",
+   "rung": 8,
+   "format": "mcq",
+   "q": "In Oct. 2022 the S&P 500 closed below its June low, but fewer stocks made new lows than in June. How do you read it?",
+   "choices": [
+    "Bullish divergence. Watch for a turn",
+    "Bearish. The new low confirms the trend",
+    "Noise. Only the index matters",
+    "A washout. Panic is peaking"
+   ],
+   "answer": "Bullish divergence. Watch for a turn",
+   "why": "Bullish divergence. In June the new low came with a multi-year high in stocks at 3-month lows. In October most stocks didn't follow the index down. It was confirmed once the index got back above its June lows.",
+   "lesson_line": "Index at a new low, most stocks not. That divergence can foreshadow a turn.",
+   "facts": [
+    "f81",
+    "f82",
+    "f79",
+    "f56",
+    "f95",
+    "f75",
+    "f54",
+    "f08",
+    "f09",
+    "f06"
+   ],
+   "wrong": {
+    "Bearish. The new low confirms the trend": "The index made a new low, but breadth didn't confirm it. Most stocks stayed above their summer lows.",
+    "Noise. Only the index matters": "Breadth is the point here. A few big stocks can drag an index while most stocks tell a different story.",
+    "A washout. Panic is peaking": "A washout is when nearly everything gets crushed. Here fewer stocks were breaking down, not more."
+   }
+  },
+  {
+   "key": "q23",
+   "skill": "history.bottoms",
+   "rung": 8,
+   "format": "tf",
+   "q": "Every major index makes its lowest bear market close on the same day.",
+   "answer": "False",
+   "why": "False. The S&P 500's lowest 2022 close came Oct. 12. The Nasdaq closed lower still on Dec. 28, at 10,213.29, below its Oct. 12 close of 10,417.10. The S&P 500 was well above its low that day.",
+   "lesson_line": "Bottoms are a process. Different indexes can bottom weeks apart.",
+   "facts": [
+    "f08",
+    "f14",
+    "f19",
+    "f20",
+    "f06"
+   ]
+  },
+  {
+   "key": "q24",
+   "skill": "history.bottoms",
+   "rung": 9,
+   "format": "scenario",
+   "story": "A follow-through day fires after a long decline. You built a watch list during the correction. Some names held near their highs. Others fell hard.",
+   "q": "Where do you look first?",
+   "choices": [
+    "Strong names breaking out of bases",
+    "The stocks that fell the most",
+    "Old leaders still far off highs",
+    "Nothing yet. Wait for a 20% rally"
+   ],
+   "answer": "Strong names breaking out of bases",
+   "why": "Strong names breaking out of bases. The strongest stocks are usually the first to emerge, and winners launch their big moves at the start of a new uptrend.",
+   "lesson_line": "New uptrends are led by the strongest stocks. Build the list in the correction, then start with them.",
+   "facts": [
+    "f73",
+    "f74",
+    "f91",
+    "f92",
+    "f02",
+    "f15",
+    "f08",
+    "f99"
+   ],
+   "wrong": {
+    "The stocks that fell the most": "Big winners get bought as they move up out of bases, not at their lowest point.",
+    "Old leaders still far off highs": "Leaders show up as the strongest stocks right now. A name still far off its highs isn't acting like one.",
+    "Nothing yet. Wait for a 20% rally": "That waits too long. By the 20% rule the new bull wasn't official until June 2023, and winners launch at the start of the uptrend."
+   }
+  },
+  {
+   "key": "q25",
+   "skill": "history.bottoms",
+   "rung": 9,
+   "format": "scenario",
+   "story": "You bought two leaders after a follow-through day. A week later the index undercuts its low, and more stocks hit new lows than last time.",
+   "q": "What's the read?",
+   "choices": [
+    "Bottom isn't in. Cut back and protect",
+    "Add more. It's a cheaper entry",
+    "Hold. The follow-through day said buy",
+    "Short everything. The bear is back"
+   ],
+   "answer": "Bottom isn't in. Cut back and protect",
+   "why": "Bottom isn't in. A new low with worse internals than the last one says the bottom isn't in yet. Follow-through days fail too, so protect the account first.",
+   "lesson_line": "When the signal fails, I cut back fast and rebuild the watch list for the next one.",
+   "facts": [
+    "f78",
+    "f90",
+    "f70",
+    "f93",
+    "f92"
+   ],
+   "wrong": {
+    "Add more. It's a cheaper entry": "That's adding to a loser in a failing market. In a correction, cut losses quickly.",
+    "Hold. The follow-through day said buy": "The signal can fail, and this one is failing. Follow-through days aren't foolproof.",
+    "Short everything. The bear is back": "Don't swing to the other extreme. Protect capital and get your list ready for the next real uptrend."
+   }
+  }
+ ],
+ "conflicts": [
+  "Follow-through day mechanics: IBD's own pages are paywalled past the lead, so the definition (a strong gain in a major index on higher volume, several days into a rally attempt) is cited from the StockCharts article by Mary Ellen McGonagle (who worked under O'Neil), and IBD's open leads back the purpose (spotting the likely start of a new uptrend) and the caveat (not foolproof). IBD's minimum percent gain has changed over the years and is not on any page I could read in full, so no question asks for a threshold. q15's 1.9% gain is never called big enough; its key rests only on the volume test.",
+  "Where the 2022 low was: FRED's closes put the S&P 500's lowest 2022 close on Oct. 12 (3,577.03); AP says the index touched its lowest level in nearly two years intraday on Oct. 13. The file uses closes throughout and says 'low close' where it matters.",
+  "The S&P 500 and the Nasdaq bottomed on different days: the Nasdaq's Dec. 28, 2022 close (10,213.29) is below its Oct. 12 close, while the S&P 500 held above its Oct. 12 close. q23 teaches exactly this, from FRED.",
+  "The 2022 bear-market rally in the Nasdaq: Investopedia says 'gaining 16%'; FRED's closes (March 14 to March 29) give 16.2%. Same move, rounding only.",
+  "Bear and bull lines: Investor.gov says 20% 'over at least a two-month period'; Investopedia calls 20% 'an arbitrary number'. The file teaches 20% as a convention and never as a trading signal. Days in a bear are never counted.",
+  "The IBD lead for s25 lists a 'Sept. 1, 1990' follow-through day; that date was a Saturday, so no IBD follow-through date is used anywhere in the file.",
+  "Breadth numbers: the unit plan row points at our own breadth database and bottomsCatalog; neither is an allowed source, so every 2022 breadth statement (the June washout, the October bullish divergence) comes from the CMT Association article, and no breadth number for 2022 is stated.",
+  "s10 (BLS) refused curl with a 403 on 2026-11-09 but served the quote checker, which found f31. The f31 quote was also confirmed with WebFetch the same day, in two pieces ('The all items index increased 9.1 percent for the 12 months ending June, the largest 12-month increase since the period' + '...ending November 1981').",
+  "Checker, 2026-11-09: f05 (Investopedia, 'The Nasdaq Composite most recently entered a bear market in March 2022') was removed. The page (updated Sept. 29, 2026) is stale on 'most recently': FRED's NASDAQCOM table has the Nasdaq closing 22.7% below its Dec. 16, 2024 close (20,173.89) on April 4, 2025 (15,587.79). Members see each cited quote, so a stale quote cannot stay; q10 did not need it.",
+  "Checker, 2026-11-09: the follow-through day success rate ('about half to two-thirds') comes from one StockCharts article citing unnamed studies; no IBD or other Tier 1/2 figure could be read in full. It is now attributed in w3 and q07, never stated as a flat fact, and no question keys on the figure.",
+  "Checker, 2026-11-09: q23 is about closes. On closes the S&P 500 bottomed Oct. 12, 2022 and the Nasdaq Dec. 28, 2022 (FRED). Intraday lows can fall on other days (AP has the S&P 500 touching its lowest level in nearly two years on Oct. 13, a day after its low close), and the Nasdaq's intraday low date could not be confirmed from a Tier 1/2 page, so the statement now says 'lowest bear market close' to keep the key on FRED's closes.",
+  "Checker, 2026-11-09: the follow-through day volume rule rests on the StockCharts article (McGonagle: 'together with higher trading volume'); IBD's own definition pages are paywalled past the lead. q15's story now says volume was lighter than the day before AND below average, so the key holds whichever comparison a reader assumes.",
+  "Track audit 2026-11-09: q20 cut as a duplicate of F7.01#q22 (same 'is the bear over after this rally?' judgment); it also used F7.08 q16's exact chart, and its reveal gave that History Detective item's key away. 'Confirm' for the 20% rule is now 'official' (q17, q24), the word F7.01 uses, so it no longer collides with F7.03 q14, which keys a 20% gain as not confirming a turn."
+ ],
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "notes": "f31 (BLS) confirmed with WebFetch (curl gets a 403; the quote checker reads it). Fed table f25-f27 read on the live page: seven 2022 hikes, 0-0.25% since March 2020, no 2021 rows, ends at 4.25-4.50. FRED re-parsed: Jan. 3 is the highest 2022 close, Oct. 12 the lowest; 25.4% is about a quarter. Added f97 (AP: markets swinging on how badly higher rates will hurt) to back the 'rate bear' title.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "f75-f77 (CMT), f72, f67, f73 (StockCharts), f42 (Investopedia), f50 (ChartSchool) and f33 (AP) read in context on fresh pages. 'Bad news stops working' rests on the AP Oct. 13, 2022 example and is taught as one clue; step 4 says no one signpost is proof (f87). No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "f66, f67, f73 confirmed on the live StockCharts article (April 3, 2026); f90 on the IBD lead. Step 3 stated 'Studies put it at about half to two-thirds' as a flat fact; it is one StockCharts writer citing unnamed studies, with no second publisher, so it is now attributed.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q01": {
+   "status": "pass",
+   "notes": "f01 (Investor.gov, Tier 1) confirmed; f03 read in context (Investopedia: 'One definition... 20% is an arbitrary number'). The 10% correction, a losing streak and a Fed hike are real beginner confusions. Term answer is 33 characters. No change. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q02": {
+   "status": "pass",
+   "notes": "f42, f43 (Investopedia) and f75, f77 (CMT) confirmed: two publishers. The why said capitulation 'is the washout that starts the bottoming process', but Investopedia (f45) warns of repeat plunges and premature calls, so it now says 'often part of the washout that starts a bottoming process'. variety rewrite checked 2026-11-10.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q03": {
+   "status": "pass",
+   "notes": "Investopedia f47 ('when the S&P falls sharply, the VIX rises') and ChartSchool f48 ('Typically ... inverse relationship') agree; FRED's series note f21 confirmed. 'Usually' matches the hedges. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q04": {
+   "status": "pass",
+   "notes": "ChartSchool f56 and CMT f81 ('Fewer stocks made a new low in October (what technicians call a bullish divergence)') agree. Only 'divergence' fits the blank. q22 applies the same idea to the real 2022 case at rung 8; this one is the recall step. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q05": {
+   "status": "pass",
+   "notes": "f43 (Investopedia) and f63 (ChartSchool Wyckoff) agree on heavy volume. The bank word 'interest' could be read as 'selling interest', a defensible second answer, so it is now 'debt'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q06": {
+   "status": "pass",
+   "notes": "f89 (IBD lead) and f66-f68 (StockCharts) confirmed. Wrong note for 'Calling the exact bottom day' said 'never on it' while the source says 'typically occurs several days after a market low'; now 'typically comes several days after the low, not on it'. The short-the-bounce note now follows f68's wording ('suggests ... starting to step back in').",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q07": {
+   "status": "pass",
+   "notes": "Key False is solid: IBD f90 ('Not all follow-through signals are foolproof') and StockCharts f70. The half-to-two-thirds figure is one article citing unnamed studies (no IBD figure readable in full), so the why now attributes it to 'a StockCharts article' and f70's claim says so too.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q08": {
+   "status": "pass",
+   "notes": "f44 and f45 read in context on the live Investopedia page ('can be diagnosed conclusively only in hindsight if the price rebounds'); CMT f77 agrees that the washout is rarely the low. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q09": {
+   "status": "pass",
+   "notes": "Recomputed by hand: (4,796.56 - 3,577.03) / 4,796.56 = 1,219.53 / 4,796.56 = 25.43%, so 25.4; the calc agrees. FRED table re-parsed: Jan. 3 is the highest 2022 close and Oct. 12 the lowest, over two months apart, so the Tier 1 bear line applies. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q10": {
+   "status": "pass",
+   "notes": "Fed table confirmed on the live page: seven hikes, from 0-0.25% to 4.25-4.50. Removed f05: Investopedia's 'most recently entered a bear market in March 2022' is stale (FRED: the Nasdaq closed 22.7% below its Dec. 16, 2024 close on April 4, 2025) and members see each quote; q10 did not need it. Added f97 (AP) for the 'rate bear' line.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q11": {
+   "status": "pass",
+   "notes": "Fed table: June 16, July 28, Sept. 22 and Nov. 3 each +75, Dec. 15 +50, so four in a row is True. '0.75 point' is now '0.75 percentage point'; the why adds 'three-quarters of a point' and says AP called the 'expected' November hike the fourth straight one (AP wrote before it). Added f97.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q12": {
+   "status": "pass",
+   "notes": "Recomputed: 14,619.64 / 12,581.22 - 1 = 16.20%, so 16.2; the calc agrees. FRED: March 14 is March's lowest close and March 29 the rally's high; the first close below March 14 was April 26, four weeks after March 29, as f41 says. Investopedia's '16%' is the same move rounded. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q13": {
+   "status": "pass",
+   "notes": "f76 is one of the CMT article's listed washout examples (confirmed in context). ChartSchool f58 says 'In general ... deemed oversold'; the why said it 'calls anything under 30% oversold', now 'generally treats under 30% as oversold'; the 70% wrong note and f58's claim get the same hedge.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q14": {
+   "status": "pass",
+   "notes": "Investopedia f59, f60 (Zweig: below 40% to above 61.5% within any 10-day period, a rare occurrence) and CMT f84, f85 agree. Answer is 33 characters. Wrong choices are real mix-ups (narrow breadth, washout, light-volume grind). No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q15": {
+   "status": "pass",
+   "notes": "Key rests on StockCharts f67, f68 ('together with higher trading volume') plus Investopedia f53; IBD's own rule pages are paywalled. The open sources never say higher than WHAT, so the story now says volume was lighter than the day before AND below average: the key holds either way. The note 'Most up days off a low are just bounces' had no source; now 'An up day alone isn't the signal. Early rallies often fail' (f71).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q16": {
+   "status": "pass",
+   "notes": "Wyckoff f64, f63, f65, f96 confirmed in context on ChartSchool. The source gives a necessary condition ('If a bottom is to be confirmed, volume and price spread should be significantly diminished'), but a wrong note said a quiet retest 'is how a bottom gets confirmed'; now 'what a confirming test looks like'. The why already says it's still only a test.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q17": {
+   "status": "pass",
+   "notes": "Recomputed: 3,577.03 x 1.2 = 4,292.44, rounded 4,292; the calc agrees. FRED: the first close at or above it after Oct. 12 is June 8, 2023 at 4,293.93 (June 2: 4,282.37; June 7: 4,267.52). 'Almost eight months' was a number no fact or calc gives; the why now says it 'didn't close that high until June 8, 2023 ... months after the low', and f15's claim says it is the first such close. Track audit 2026-11-09: lesson line 'The 20% rule confirms a bull late' is now 'makes a bull official late'. F7.03 q14 keys 'A 20% gain off the low' as not confirming a turn, and F7.01 calls the 20% lines labels that become official; 'confirm' in this unit now means price evidence (the follow-through day, a quiet retest).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q18": {
+   "status": "pass",
+   "notes": "AP via PBS (Oct. 13, 2022) read in full: down as much as 2.4% to a near two-year low, closed up 2.6%; FRED Oct. 14 close 3,583.07. The why said analysts 'had no concrete reason'; AP says they offered possible reasons 'but little that was concrete', so it now matches (f34 claim too). Added f98 (AP: the gain ended a six-day losing streak) to source 'the first up day off the low'. The note 'the reaction to bad news is a tell' had no source; now 'a big reversal on bad news is worth noting'. Chart asof is the last visible day, so the reversal bar shows.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q19": {
+   "status": "pass",
+   "notes": "FRED: Sept. 30 3,585.62 was the lowest 2022 close to that day; Oct. 4 3,790.93 two sessions later; Oct. 12 3,577.03. A wrong note's 'Six sessions later' was an uncited count; now 'On Oct. 12'. f71 confirmed. Three choices, all real reads.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q20": {
+   "status": "cut",
+   "notes": "duplicate of F7.01#q22. Track audit 2026-11-09: Both are scenarios after a 20%-plus fall where the index rallies hard, asking whether it means the bear is over, keyed 'not proven yet' with 'the bear is over / the low is in' as the trap (F7.01 q22: 'Not much yet. Bear rallies run hard.'). This one also uses the exact chart F7.08 q16 uses (SPY to 2022-08-16, window 160, forward 60), and its reveal (a new low of 3,577.03 on Oct. 12) is F7.08 q16's key, so a member would meet the History Detective chart already solved. q19 in this unit still asks the same 'is the low in?' judgment on the 2022 data, and q12 keeps the March 2022 Nasdaq bear rally.",
+   "fixed": false,
+   "by": "track-auditor",
+   "prior": {
+    "status": "pass",
+    "notes": "FRED: June 16 3,666.77 (June's low close, 23.6% under Jan. 3), Aug. 16 4,305.20 (the summer high close), a 17.4% rally so short of 20%; Oct. 12 undercut the June low. Investopedia f38, f39 and CMT f80, f83 confirmed. The text names no ticker or date. No change.",
+    "fixed": false,
+    "by": "checker"
+   }
+  },
+  "q21": {
+   "status": "pass",
+   "notes": "FRED VIX re-parsed: March 7, 2022's 36.45 is the highest 2022 close; Oct. 12 was 33.57. ChartSchool f49 (2008 peak before the March 2009 low) and f51 ('not really predictive') confirmed. Wrong choices each contradicted by a fact. No change. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q22": {
+   "status": "pass",
+   "notes": "CMT f79-f82 read in context (June 2022 multi-year high in stocks at 3-month lows; October undercut with fewer new lows; confirmed back above the June lows). FRED: Oct. 12 3,577.03 is below June 16 3,666.77. Two publishers with ChartSchool f56. Same idea as q04, but this is the real 2022 case. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q23": {
+   "status": "pass",
+   "notes": "FRED: the S&P 500's lowest close is Oct. 12, 2022 (none lower since); the Nasdaq's Dec. 28, 2022 close 10,213.29 is below its Oct. 12 10,417.10 and is its lowest close through 2024, while the S&P closed 3,783.22 that day. Intraday lows can fall on other days (AP has the S&P touching its low on Oct. 13), so the statement now says 'lowest bear market close'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q24": {
+   "status": "pass",
+   "notes": "The story ended 'A few names already sit near highs, out of tight bases', which mirrored the key; now 'Some names held near their highs. Others fell hard.' Added f99 (IBD University: in a confirmed uptrend, 'a good time to buy fundamentally strong stocks coming out of proper chart bases'), so StockCharts f73, f74 and IBD f91, f99 back the key. Track audit 2026-11-09: wrong note 'the 2022 low wasn't confirmed until June 2023' is now 'the new bull wasn't official until June 2023' (f15), the track's word for the 20% label (F7.01 q04, q21).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q25": {
+   "status": "pass",
+   "notes": "CMT f78 and IBD f90, f92, f93 confirmed in context. Cutting back when the index undercuts its low on worse internals is sound risk practice; the wrong choices are real mistakes (adding to a loser, holding a failed signal, flipping to all-out short). No change.",
+   "fixed": false,
+   "by": "checker"
+  }
+ }
+}

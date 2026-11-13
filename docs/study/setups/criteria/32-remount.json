@@ -1,0 +1,1417 @@
+{
+ "setup": "32-remount",
+ "name": "Remount",
+ "unit": "SET.28",
+ "direction": "long",
+ "timeframe": "daily",
+ "dossier": "docs/study/setups/research/32-remount.md",
+ "as_of": "2026-11-09",
+ "card": {
+  "context": "A leader (RS 80 or more) above a 200-day that is higher than 20 sessions ago, which lost its 50-day, its 200-day, or a level that had held it up, during a shakeout and lived under it for a week or more. Green or Yellow market; best as the index remounts its own lines.",
+  "pattern": "Five to 30 straight closes under the line, at least one 0.5 ATR or more under it; a level must have held before (10 of 15 closes) and not be a chop line (2 crossings or fewer in 60). Then a green remount day closing 0.25 to 2 ATR over the line, upper half, on 1.2x volume.",
+  "trigger": "PREV DAY HIGH BREAK: within 5 sessions after the remount day, all closing above the line, the first quiet day (an inside day or a range of 1 ATR or less) arms it; buy at market as price trades over that day's high.",
+  "stop": "A few cents under the quiet day's low (Entry B), or under the remount day's low (Entry A, used only when that stop is about 3% or less).",
+  "failure_mode": "Most tries lose small: the line is retaken, lost again, and the stop takes it within days; four in five hit the first stop within 60 sessions in the replay, half never reach 1R. The few runners pay for them, so the runner is not cut early."
+ },
+ "entry_trigger": "PREV DAY HIGH BREAK",
+ "criteria": [
+  {
+   "id": "rm.one_setup",
+   "field": "context",
+   "statement": "One setup, Remount (the owner's word), with two kinds of line on the card: the MA remount (the 50-day or 200-day, setup 13's detail) and the level remount (a price level the stock had held).",
+   "measure": {
+    "what": "how the setup is taught",
+    "op": "in",
+    "value": [
+     "one Remount with two kinds of line",
+     "MA Reclaim and Remount kept separate",
+     "Remount for moving averages only, the level version a U&R variant"
+    ]
+   },
+   "glossary": "remount",
+   "basis": "UCT",
+   "sources": [
+    "S19",
+    "S23"
+   ],
+   "options": [
+    {
+     "value": "A",
+     "basis": "one Remount with two kinds of line: the dossier's recommendation and the register's default (D-002: one unit, with the moving-average form (13) and the level form (32))"
+    },
+    {
+     "value": "B",
+     "basis": "keep MA Reclaim (setup 13) and Remount separate"
+    },
+    {
+     "value": "C",
+     "basis": "Remount for moving averages only; the level version taught as a U&R variant"
+    }
+   ],
+   "recommended": "A",
+   "status": "pending-owner",
+   "owner_question": "D-002",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Name; 10 question 1",
+   "evidence": "The word appears in 90 sentences on the public Substack; about three quarters name a moving average (the 200-day most), at least nine a price level (remount the $100 level, remount that $245 level, remount the ATH from Jan). Remount as a setup name was found only at UCT; as a verb it is wider usage (Kunal Desai, 2025). The 20 EMA Pullback card's remount of the 9 EMA stays a plain verb (D-016)."
+  },
+  {
+   "id": "rm.line",
+   "field": "context",
+   "statement": "The line is one of: the 50-day SMA; the 200-day SMA; a horizontal level that held the stock up (a breakout pivot, the low of a base, an old high, a round number the stock had respected); or the 20 EMA only when the same close is also above a rising 50-day. A 20 EMA remount with the 50-day lost too is an MA remount of the 50-day.",
+   "measure": {
+    "what": "the line",
+    "op": "in",
+    "value": [
+     "50-day SMA",
+     "200-day SMA",
+     "a horizontal level that held",
+     "20 EMA, only above a rising 50-day"
+    ]
+   },
+   "basis": "UCT",
+   "sources": [
+    "S19",
+    "S1",
+    "S5",
+    "S9",
+    "S22"
+   ],
+   "options": [
+    {
+     "value": "A",
+     "basis": "the 50-day, the 200-day and levels, plus the 20 EMA only above a rising 50-day: the dossier's recommendation and the register's default (D-073)"
+    },
+    {
+     "value": "B",
+     "basis": "add the 20 EMA on its own, as remount.py does"
+    },
+    {
+     "value": "C",
+     "basis": "add AVWAPs (setup 19 covers them)"
+    }
+   ],
+   "recommended": "A",
+   "status": "pending-owner",
+   "owner_question": "D-073",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 The line; 10 question 2",
+   "evidence": "The owner's most common remounts are the 200-day and the 50-day; Morales and Kacher's U&R takes a prior low (price point); Wyckoff's spring takes the range low; Livermore via Bonde the bottom of a long range. The 20 EMA rule is the Chart IQ event's (holding the 50SMA and remounted the 9/20EMA, WOLF). Replay by line: 20 EMA +0.066R, 50 SMA +0.105R, prior pivot +0.079R."
+  },
+  {
+   "id": "rm.above_200",
+   "field": "context",
+   "statement": "Location (hard): the remount close is above the 200-day SMA. A 200-day remount is the cross itself.",
+   "measure": {
+    "what": "remount-day close against the 200-day SMA",
+    "op": ">",
+    "value": "200-day SMA",
+    "timeframe": "daily"
+   },
+   "glossary": "above_200",
+   "basis": "house rule",
+   "sources": [
+    "S24",
+    "S22"
+   ],
+   "house_rule": "B26",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Location",
+   "evidence": "remount.py fires under a falling 200-day (its hostile gate needs Stage 4, stacked-bearish and falling RS all at once); 39% of its days closed under the 200-day and averaged +0.01R against +0.11R above it. Only the drawing and the Chart IQ event respect B26."
+  },
+  {
+   "id": "rm.ma200_rising",
+   "field": "context",
+   "statement": "The 200-day is higher than it was 20 sessions ago (the drawing's gate: a flat or falling 200-day is rejected). For a 200-day remount, the line must be flat or rising.",
+   "measure": {
+    "what": "200-day SMA today - 200-day SMA 20 sessions ago",
+    "op": ">",
+    "value": 0,
+    "unit": "$",
+    "timeframe": "daily"
+   },
+   "glossary": "rising_average",
+   "basis": "UCT",
+   "sources": [
+    "S22",
+    "S24"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Location",
+   "evidence": "The drawing's setup_gate (s <= s0 is rejected as falling_200d). Replay: above a rising 200-day +0.110R (44,755 trades). BA 2019-06-18: 29 closes under the 200-day after the 737 MAX gap, a 2.7x-volume remount; a 200-day that is flat (it just passed the test) after a news-driven break is the weakest version. Setup 13's dossier asks the owner about 200-day remounts whose line still curls lower."
+  },
+  {
+   "id": "rm.leadership",
+   "field": "context",
+   "statement": "RS rating 80 or more, in a strong group, by default.",
+   "measure": {
+    "what": "RS rating",
+    "op": ">=",
+    "value": 80,
+    "unit": "rating 1 to 99"
+   },
+   "glossary": "leader",
+   "basis": "house rule",
+   "sources": [
+    "S1",
+    "S19"
+   ],
+   "house_rule": "C31",
+   "options": [
+    {
+     "value": "A",
+     "basis": "strict: the dossier's recommendation for the course; the register lists the 200-day Remount among the mean-reversion class with an RS line that held up as the cue (D-011)"
+    },
+    {
+     "value": "B",
+     "basis": "waived, like mean reversion"
+    },
+    {
+     "value": "C",
+     "basis": "a lower bar (RS 70 or a rising RS line) for 200-day remounts of beaten-down names only"
+    }
+   ],
+   "recommended": "A",
+   "status": "pending-owner",
+   "owner_question": "D-011",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Leadership; 10 question 6",
+   "evidence": "Morales and Kacher's MAU&R is for a leading stock. The owner also remounts beaten-down names (setup 13); TAN, a major laggard, is the B- case. The replay had no RS rank."
+  },
+  {
+   "id": "rm.liquidity",
+   "field": "context",
+   "statement": "Price $10 or more and $20 million or more traded a day on average.",
+   "measure": {
+    "what": "close",
+    "op": ">=",
+    "value": 10,
+    "unit": "$",
+    "and": "50-day average dollar volume >= 20,000,000"
+   },
+   "glossary": "liquidity",
+   "basis": "house rule",
+   "sources": [
+    "S22"
+   ],
+   "house_rule": "B23",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Liquidity",
+   "evidence": "remount.py has no floor of its own; the scanning universe decides. The replay dropped 28,858 crossing days whose stop was under 0.5% of price, mostly back-adjusted inverse ETFs."
+  },
+  {
+   "id": "rm.position_adv",
+   "field": "management",
+   "statement": "The position is at most 1% of average daily volume.",
+   "measure": {
+    "what": "shares / average daily volume",
+    "op": "<=",
+    "value": 1,
+    "unit": "%"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "D42",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Liquidity"
+  },
+  {
+   "id": "rm.market_reading",
+   "field": "context",
+   "statement": "Market reading Green, or Yellow at smaller size; Orange only an A+ remount; Red, no new longs.",
+   "measure": {
+    "what": "the app's market reading on the trigger day",
+    "op": "in",
+    "value": [
+     "Green",
+     "Yellow",
+     "Orange (A+ only)"
+    ]
+   },
+   "glossary": "market_reading",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "F65",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.7"
+  },
+  {
+   "id": "rm.index_remounting",
+   "field": "context",
+   "statement": "Best after a correction, as the indexes remount their own lines and leaders remount first. Weak with the index under its own 200-day.",
+   "measure": {
+    "what": "the index (SPY) close against its 200-day SMA",
+    "op": ">",
+    "value": "200-day SMA",
+    "timeframe": "daily"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S19",
+    "S24"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.7",
+   "evidence": "UCT: wait for a remount of MAs, and wait for leaders to show leadership (2025-11-19); the panic sets in and selling accelerates just leads to quick remounts; below the 200SMA is danger (2026-11-08). Replay: with SPY under its 200-day the stops were wider (median 3.66%) and the plan made +0.04R against +0.08R. PYPL 2018-10-23 and AMZN 2021-10-20 were right pictures in the wrong market."
+  },
+  {
+   "id": "rm.earnings_window",
+   "field": "trigger",
+   "statement": "No new buy in the 3 sessions before a report. A remount on the earnings gap itself is after the report and allowed.",
+   "measure": {
+    "what": "sessions until the next report",
+    "op": ">",
+    "value": 3,
+    "unit": "sessions"
+   },
+   "glossary": "earnings_blackout",
+   "basis": "house rule",
+   "sources": [
+    "S25"
+   ],
+   "house_rule": "B22",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 Earnings",
+   "evidence": "AMD 2023-11-01: the remount day is the earnings reaction day (report 2023-10-31 after the close), a 2.6x-volume remount of the 50 after 11 closes below. BFLY in setup 13 is the same case."
+  },
+  {
+   "id": "rm.time_under",
+   "field": "pattern",
+   "statement": "It lost the line for real: at least 5 consecutive closes under it right before the remount day, and at most 30. Fewer than 5 is a U&R, an Oops or a pullback; more than 30 is a new base.",
+   "measure": {
+    "what": "consecutive closes under the line right before the remount day",
+    "op": "in",
+    "value": [
+     5,
+     30
+    ],
+    "unit": "closes",
+    "timeframe": "daily"
+   },
+   "glossary": "remount",
+   "basis": "UCT",
+   "sources": [
+    "S22",
+    "S24"
+   ],
+   "options": [
+    {
+     "value": "A",
+     "basis": "5 to 30 straight closes: remount.py and the drawing; the dossier's recommendation and the register's default (D-074), the cleanest border with U&R, Oops and the pullbacks"
+    },
+    {
+     "value": "B",
+     "basis": "any number: the starter scan's one day"
+    },
+    {
+     "value": "C",
+     "basis": "3 of the last 20: uct_ma_reclaim"
+    }
+   ],
+   "recommended": "A",
+   "status": "pending-owner",
+   "owner_question": "D-074",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 It lost the line for real; 10 question 3",
+   "evidence": "A rule that tells the setups apart, not one that adds return: the replay found no edge difference between 1 and 30 closes (27% to 3R either way), and 2 to 4 closes did at least as well. The best single cut was the 50-day after 10 to 20 closes under, above a rising 200-day (+0.21R); a hint, not a rule. The ten examples ran 5 to 30 closes."
+  },
+  {
+   "id": "rm.break_left_line",
+   "field": "pattern",
+   "statement": "The break left the line: at least one of those closes was 0.5 ATR or more under it.",
+   "measure": {
+    "what": "(line - deepest close under it) / ATR(14)",
+    "op": ">=",
+    "value": 0.5,
+    "unit": "ATR",
+    "timeframe": "daily"
+   },
+   "glossary": "atr",
+   "basis": "UCT",
+   "sources": [
+    "S22"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 The break left the line",
+   "evidence": "The drawing's RM_DEPTH_ATR; the judges' failure brief losses. The ten examples broke 0.7 to 4.2 ATR under."
+  },
+  {
+   "id": "rm.level_held",
+   "field": "pattern",
+   "statement": "A level must be a real level (level remounts only): it held before it broke, at least 10 of the 15 closes before the break at or above it.",
+   "measure": {
+    "what": "closes at or above the level in the 15 sessions before the break",
+    "op": ">=",
+    "value": 10,
+    "unit": "closes",
+    "timeframe": "daily"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S22"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 A level must be a real level",
+   "evidence": "The drawing's rule. Replay: the drawing's textbook level tests together gave +0.013R (16,501 trades) against +0.084R without; they define the picture, not the edge."
+  },
+  {
+   "id": "rm.not_chop_line",
+   "field": "pattern",
+   "statement": "Not a chop line: the close crossed the level 2 times or fewer in the 60 sessions before the break.",
+   "measure": {
+    "what": "close crossings of the level in the 60 sessions before the break",
+    "op": "<=",
+    "value": 2,
+    "unit": "crossings",
+    "timeframe": "daily"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S22",
+    "S15"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 A level must be a real level",
+   "evidence": "The drawing's RM_MAX_CROSS; the judges' failure chop lines; ChartSchool: in sideways markets crossover signals are more uncertain and less reliable. Three or more crossings is a B- (section 9)."
+  },
+  {
+   "id": "rm.remount_day_margin",
+   "field": "pattern",
+   "statement": "The remount day closes above the line by 0.25 ATR or more (not a marginal poke) and 2 ATR or less (not a chase).",
+   "measure": {
+    "what": "(remount-day close - line) / ATR(14)",
+    "op": "in",
+    "value": [
+     0.25,
+     2
+    ],
+    "unit": "ATR",
+    "timeframe": "daily"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S22",
+    "S23"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 The remount day",
+   "evidence": "The drawing and the vision rubric (the reclaim looks decisive, not a marginal poke). Replay: a close 0 to 0.25 ATR over +0.052R, 0.25 to 1 ATR +0.061R, 1 to 2 ATR +0.113R, over 2 ATR +0.094R with a median risk of 5.49%. SLAB 2021-10-19 closed the smallest allowed (+0.27 ATR) and ran 43R on a 1.0% stop. With authority in numbers is this line plus the volume line; SET.28 promised them."
+  },
+  {
+   "id": "rm.remount_day_candle",
+   "field": "pattern",
+   "statement": "The remount day is a green candle with the close in the upper half of the day's range.",
+   "measure": {
+    "what": "(close - low) / (high - low) of the remount day",
+    "op": ">=",
+    "value": 0.5,
+    "unit": "of the range",
+    "timeframe": "daily",
+    "and": "close > open"
+   },
+   "glossary": "close_position",
+   "basis": "my proposal",
+   "sources": [
+    "S22",
+    "S19"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 The remount day",
+   "evidence": "The drawing (an up close) and remount.py's scoring (the upper half); the owner's a strong close. The candle is the dossier's. Replay: upper half +0.068R, lower half +0.090R; it defines a clean picture and did not change the mechanical result."
+  },
+  {
+   "id": "rm.volume",
+   "field": "pattern",
+   "statement": "Remount-day volume at least 1.2x the 20-day average; 1.5x or more is an A-grade cue. Skip it when the break came on heavy volume and the remount on light volume.",
+   "measure": {
+    "what": "remount-day volume / 20-day average volume",
+    "op": ">=",
+    "value": 1.2,
+    "unit": "x",
+    "timeframe": "daily"
+   },
+   "glossary": "volume_surge",
+   "basis": "UCT",
+   "sources": [
+    "S22",
+    "S19",
+    "S3",
+    "S4",
+    "S2"
+   ],
+   "options": [
+    {
+     "value": "A",
+     "basis": "1.2x the 20-day average as the floor, 1.5x as the A+ cue: the code; the dossier's recommendation; the register's default makes volume a cue for every setup with 1.5x the 50-day as the A+ cue (D-006)"
+    },
+    {
+     "value": "B",
+     "basis": "the 50-day average: setup 13's tag check"
+    },
+    {
+     "value": "C",
+     "basis": "no rule"
+    }
+   ],
+   "recommended": "A",
+   "status": "pending-owner",
+   "owner_question": "D-006",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Volume; 10 question 8",
+   "evidence": "Every source that names volume wants it: the owner (like the big green volume bars on it), IBD (stocks often need a large boost of buying power; a weak low-volume rise after a high-volume decline is your chance to sell), Morales (a wedging rally on declining volume is the short). Replay: 1.2 to 1.5x +0.067R, 1.5 to 2x +0.078R, 2x or more +0.070R; scan: 1.5x or more against under 1.5x, 30.1% against 29.4% to 3R. Kept as a picture rule. The glossary's canonical surge is 1.4x the 50-session average (conflicts)."
+  },
+  {
+   "id": "rm.entry_pause",
+   "field": "trigger",
+   "statement": "Entry B, the pause (the default): after the remount day, wait up to 5 sessions, every one closing above the line. The first quiet day (an inside day, or a range of 1 ATR or less) arms the buy: buy at market as price trades over that day's high the next session.",
+   "measure": {
+    "what": "sessions after the remount day before a quiet day arms the buy, every close above the line",
+    "op": "<=",
+    "value": 5,
+    "unit": "sessions",
+    "timeframe": "daily",
+    "and": "the quiet day is an inside day or has a range <= 1 ATR; the buy is over its high"
+   },
+   "glossary": "inside_day",
+   "basis": "UCT",
+   "sources": [
+    "S19",
+    "S5",
+    "S15",
+    "S24"
+   ],
+   "house_rule": "E57",
+   "options": [
+    {
+     "value": "A",
+     "basis": "the remount-day close"
+    },
+    {
+     "value": "B",
+     "basis": "the pause, then over the quiet day's high"
+    },
+    {
+     "value": "C",
+     "basis": "B by default and A only when its stop is 3% or less: the dossier's recommendation; the register's default makes the trade-through of the prior day's high the entry for every daily setup (D-003)"
+    }
+   ],
+   "recommended": "C",
+   "status": "pending-owner",
+   "owner_question": "D-003",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 Entry B; 10 question 4",
+   "evidence": "The owner: any sideways action or inside day can be looked at as opportunity; now I want an inside day or red to green on a gap down; Wyckoff's test makes a higher low on lesser volume; ChartSchool's breakout above the crossover candle. Replay (above a rising 200-day): 24,881 of 44,755 triggered, median stop 1.99%, 78% within 3%, +0.091R; filled a median 3 sessions after the remount day and 3.2% above the line; it missed 44% of remounts. Scan: Entry B 3,869 hits, 29.6% to 3R, 21.1% to 5R."
+  },
+  {
+   "id": "rm.entry_remount_day",
+   "field": "trigger",
+   "statement": "Entry A, the remount day: a market order late in the remount session, when the close will clearly be above the line. Use it only when its stop is about 3% or less.",
+   "measure": {
+    "what": "(remount-day close - a few cents under the remount-day low) / close",
+    "op": "<=",
+    "value": 3,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S19",
+    "S1",
+    "S24"
+   ],
+   "house_rule": "E57",
+   "status": "pending-owner",
+   "owner_question": "D-003",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.2 Entry A",
+   "evidence": "The owner: Friday was an entry opportunity (INCY); should be in on the 200SMA remount near $11.5 (setup 13); MAU&R: a move back above the moving average can provide a long entry point. Replay: 53% of remount days had a stop within 3%; Entry A +0.071R over all days. Scan: Entry A 4,821 hits, 29.8% to 3R, 19.7% to 5R."
+  },
+  {
+   "id": "rm.entry_red_to_green",
+   "field": "trigger",
+   "statement": "Variant: on a gap down after the remount that stays above the line, buy as price turns positive on the day; stop under that day's low.",
+   "glossary": "red_to_green",
+   "basis": "UCT",
+   "sources": [
+    "S19"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.2 Red to green",
+   "evidence": "The owner on INCY: now I want an inside day or red to green on a gap down. The house Red to Green setup's line is the prior close."
+  },
+  {
+   "id": "rm.entry_hourly",
+   "field": "trigger",
+   "statement": "Advanced: the owner often times it on the hourly, a higher low or a flag. Taught as a variant because daily drills cannot show it.",
+   "basis": "UCT",
+   "sources": [
+    "S19"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.2 Hourly",
+   "evidence": "PLAB: a little hourly tightness and higher low would allow for clean entry and risk management."
+  },
+  {
+   "id": "rm.no_chase",
+   "field": "trigger",
+   "statement": "No chasing: skip a fill more than 4% above the buy point, the line for Entry A and the quiet day's high for Entry B.",
+   "measure": {
+    "what": "fill / buy point - 1",
+    "op": "<=",
+    "value": 4,
+    "unit": "%"
+   },
+   "glossary": "chase_limit",
+   "basis": "house rule",
+   "sources": [
+    "S24"
+   ],
+   "house_rule": "C28",
+   "options": [
+    {
+     "value": "A",
+     "basis": "the line as the buy point for both entries"
+    },
+    {
+     "value": "B",
+     "basis": "the trigger: the remount close for A, the quiet day's high for B; the register's default (D-022: the trigger level, never the structure's far edge)"
+    },
+    {
+     "value": "C",
+     "basis": "the line for Entry A and the quiet day's high for Entry B: the dossier's recommendation"
+    }
+   ],
+   "recommended": "C",
+   "status": "pending-owner",
+   "owner_question": "D-022",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 No chasing; 10 question 7",
+   "evidence": "Replay: the remount close sat a median 1.45% over the line; 16% of closes were more than 4% over it; with the line as the buy point, 39% of pause fills were more than 4% over it. The scan skipped Entry B fills more than 4% over the quiet day's high."
+  },
+  {
+   "id": "rm.not_stretched",
+   "field": "trigger",
+   "statement": "Skip a stock more than 10% over its 10-day average. Rare on a remount: 9.4% of remount.py days, with a median stop of 7.24%.",
+   "measure": {
+    "what": "entry / 10-day SMA - 1",
+    "op": "<=",
+    "value": 10,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "glossary": "stretched",
+   "basis": "house rule",
+   "sources": [
+    "S24"
+   ],
+   "house_rule": "C29",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 No chasing; 7 C29 row"
+  },
+  {
+   "id": "rm.one_price",
+   "field": "trigger",
+   "statement": "One entry per trade. The owner sometimes adds on a later hold; the course teaches one entry.",
+   "basis": "house rule",
+   "sources": [
+    "S19"
+   ],
+   "house_rule": "A5",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 preamble; 7 A5 row"
+  },
+  {
+   "id": "rm.stop",
+   "field": "stop",
+   "statement": "Entry B: a few cents under the quiet day's low. Entry A: a few cents under the remount-day low, which crossed the line, so it usually sits under the line.",
+   "measure": {
+    "what": "stop",
+    "op": "==",
+    "value": "a few cents under the quiet day's low (Entry B) or the remount-day low (Entry A)"
+   },
+   "glossary": "stop_margin",
+   "basis": "house rule",
+   "sources": [
+    "S10",
+    "S24",
+    "S22"
+   ],
+   "house_rule": "A3",
+   "options": [
+    {
+     "value": "A",
+     "basis": "a few cents under the day's low (remount day or quiet day): the house default, the dossier's recommendation and the register's default (D-008)"
+    },
+    {
+     "value": "B",
+     "basis": "the line itself, on a close: the owner's RDDT and TMDX notes; MAU&R's 1-2% under the line"
+    },
+    {
+     "value": "C",
+     "basis": "the code's 1.5% under the lowest low of the last 5 breakdown bars"
+    }
+   ],
+   "recommended": "A",
+   "status": "pending-owner",
+   "owner_question": "D-008",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.3; 10 question 5",
+   "evidence": "Bonde: for momentum entries, stop at low of entry day. Replay: A, median 2.85%, 53% within 3%, 26% to 3R, +0.071R; the code's stop, median 8.3%, never within 3%, 11% to 3R, +0.038R; the pause entry, median 1.99%, 78% within 3%. Scan: stops of 2% or less reached 5R a little more often (21.9% against 18.5%) because the R unit is smaller. AMZN 2021-10-20: a 1% stop on a mega-cap leaves no room."
+  },
+  {
+   "id": "rm.stop_width",
+   "field": "stop",
+   "statement": "If that stop is more than about 3% away: use Entry B, or size down so the account risk is unchanged, or skip. Never tighten a stop to fit.",
+   "measure": {
+    "what": "(entry - stop) / entry",
+    "op": "<=",
+    "value": 3,
+    "unit": "%"
+   },
+   "glossary": "stop_width",
+   "basis": "house rule",
+   "sources": [
+    "S24"
+   ],
+   "house_rule": "A13",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.3",
+   "evidence": "Replay above a rising 200-day: a stop of 3% or less +0.127R, over 3% +0.085R. A wide remount day is why the pause entry is the default."
+  },
+  {
+   "id": "rm.stop_line_variant",
+   "field": "stop",
+   "statement": "Named variant, not the default: the line itself, on a close. The owner on RDDT: ideally we use the 50SMA as a stop; MAU&R: 1-2% below the line.",
+   "measure": {
+    "what": "stop reference, variant",
+    "op": "==",
+    "value": "a close under the line, or 1-2% under it"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S19",
+    "S1"
+   ],
+   "status": "pending-owner",
+   "owner_question": "D-008",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.3 Named variant",
+   "evidence": "A close-based stop cannot sit with the broker as an order (D41); the house default does."
+  },
+  {
+   "id": "rm.stop_gap",
+   "field": "stop",
+   "statement": "A gap through the stop: the first 30-minute low is the new stop; out past 2R.",
+   "measure": {
+    "what": "loss at the first 30-minute low of the gap-down day",
+    "op": "<=",
+    "value": 2,
+    "unit": "R",
+    "timeframe": "30-minute"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B20",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.3",
+   "evidence": "PLTR 2024-05-06 (a 5.3x-volume remount of the 50) gapped through the stop the next session; the replay filled such gaps at the open."
+  },
+  {
+   "id": "rm.breakeven",
+   "field": "management",
+   "statement": "Stop to breakeven between 2R and 5R, at the first trim by default.",
+   "measure": {
+    "what": "R at which the stop moves to the entry",
+    "op": "in",
+    "value": [
+     2,
+     5
+    ],
+    "unit": "R"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B19",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4"
+  },
+  {
+   "id": "rm.trim_1",
+   "field": "management",
+   "statement": "Sell a third at 3R.",
+   "measure": {
+    "what": "fraction sold at 3R",
+    "op": "==",
+    "value": 0.333,
+    "unit": "of the position"
+   },
+   "basis": "house rule",
+   "sources": [
+    "S19"
+   ],
+   "house_rule": "B19",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4",
+   "evidence": "The owner on ALAB: peel of a partial position and trail the remaining up the 9ema and 20ema on the daily. Eight of the ten examples reached 3R within 3 days of the buy."
+  },
+  {
+   "id": "rm.trim_2",
+   "field": "management",
+   "statement": "Sell a third at 5R.",
+   "measure": {
+    "what": "fraction sold at 5R",
+    "op": "==",
+    "value": 0.333,
+    "unit": "of the position"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "E51",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4",
+   "evidence": "Replay: about one in six trades reached 5R; the result comes from a few big runners."
+  },
+  {
+   "id": "rm.trim_gap_open",
+   "field": "management",
+   "statement": "Take a trim at the open if it gaps past the level.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "F63",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4"
+  },
+  {
+   "id": "rm.trail",
+   "field": "management",
+   "statement": "Trail the last third: sold on a close under the 21-day (an MA remount, steadier) or the 10-day (a fast mover).",
+   "measure": {
+    "what": "close against the 21-day (steadier) or 10-day (fast) average",
+    "op": "<",
+    "value": "the average",
+    "timeframe": "daily"
+   },
+   "glossary": "trail",
+   "basis": "house rule",
+   "sources": [
+    "S24"
+   ],
+   "house_rule": "E52",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4",
+   "evidence": "The replay trailed under the 21-day EMA once the 3R trim was done. BABA 2025-01-24: the move ended in April, which the 21-day trail would have caught. remount.py's prior high + 7.5% target is not house."
+  },
+  {
+   "id": "rm.time_stop",
+   "field": "management",
+   "statement": "Time stop: still under 1R after 10 trading days, sell. Chop is this setup's main failure, and the rule frees the money.",
+   "measure": {
+    "what": "open R after 10 trading days",
+    "op": "<",
+    "value": 1,
+    "unit": "R"
+   },
+   "glossary": "time_stop",
+   "basis": "house rule",
+   "sources": [
+    "S24"
+   ],
+   "house_rule": "C33",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4",
+   "evidence": "In the replay half the trades never reached 1R; in the scan 49% of Entry B trades did not."
+  },
+  {
+   "id": "rm.expect_losses",
+   "field": "management",
+   "statement": "Expect most trades to lose: about 4 in 5 hit the first stop within 60 sessions in the replay. The few runners pay for them, so do not cut the runner early.",
+   "measure": {
+    "what": "share of trades that touch the first stop within 60 sessions",
+    "op": "==",
+    "value": 81,
+    "unit": "%",
+    "timeframe": "60 sessions"
+   },
+   "basis": "measured",
+   "sources": [
+    "S24"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4; 4.4",
+   "evidence": "The dossier's replay of remount.py on 89,665 liquid remount days, 2005 to 2026: 81% touched the original, never-moved stop within 60 sessions (some after a run), 50% reached 1R first, 26% 3R, 16% 5R; the house plan made about +0.07R a trade before costs (+0.11R above a rising 200-day), with 34% winners, which is not clearly better than a one-day cross of the same averages (+0.075R). Not a published statistic; survivorship bias; no costs."
+  },
+  {
+   "id": "rm.inv_close_back_before_trigger",
+   "field": "invalidation",
+   "statement": "Before the buy: a close back under the line before the trigger. No trade.",
+   "basis": "UCT",
+   "sources": [
+    "S22"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5 Before the buy",
+   "evidence": "The drawing's rm_lost_level; every close since the remount must hold the line. The scan required every session in the pause to close above the line."
+  },
+  {
+   "id": "rm.failed_first_try",
+   "field": "invalidation",
+   "statement": "A failed first try: a second try is a new trade with its own trigger and stop, at most 3 tries a week and 6 a month on one stock.",
+   "measure": {
+    "what": "tries on one stock",
+    "op": "<=",
+    "value": 3,
+    "unit": "a week",
+    "and": "at most 6 a month"
+   },
+   "basis": "house rule",
+   "sources": [
+    "S19"
+   ],
+   "house_rule": "B21",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5 A failed first try",
+   "evidence": "E56 caps the tries. The owner's DELL note (only to see them fail and would have resulted in stops) and the BTC note (first failed attempt at remounting short term levels). BA 2019 retook and lost its 200-day twice more that summer."
+  },
+  {
+   "id": "rm.after_entry_stop",
+   "field": "invalidation",
+   "statement": "After the buy: the stop is the exit.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "A4",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5 After the buy"
+  },
+  {
+   "id": "rm.close_back_under_after_buy",
+   "field": "invalidation",
+   "statement": "After the buy, whether a close back under the line before the stop is also an exit is the owner's call. The dossier recommends no extra exit; C33 handles the chop.",
+   "basis": "house rule",
+   "sources": [
+    "S20"
+   ],
+   "house_rule": "A4",
+   "options": [
+    {
+     "value": "a",
+     "basis": "no extra exit, the stop decides: the dossier's recommendation; the owner's verdict on rule 15 already settles it for setup 13's 200-day remount (D-136: slips back under the line but stays above the stop: hold)"
+    },
+    {
+     "value": "b",
+     "basis": "also an exit, on the close back under the line"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-008",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.5 After the buy; 10 question 5",
+   "evidence": "The owner: my stop is my stop most of the time.",
+   "measure": {
+    "what": "exits before the stop",
+    "op": "==",
+    "value": "none by default (the owner's call)"
+   }
+  },
+  {
+   "id": "rm.all_mas",
+   "field": "context",
+   "statement": "A+ cue: the remount clears all the averages at once (remounted all MAs), above a rising 200-day.",
+   "glossary": "ma_stack",
+   "basis": "UCT",
+   "sources": [
+    "S19",
+    "S20"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "9 A+",
+   "evidence": "GEV: strong close on Friday remounting all moving averages; RDDT: notably remounted all MAs; the Launchpad ruling I want it above the MAs. A remount that leaves other lines overhead and falling (over the 20 EMA but under a falling 50-day) is the B- version.",
+   "measure": {
+    "what": "averages (20 EMA, 50-day, 200-day) still above price after the remount day",
+    "op": "==",
+    "value": 0,
+    "unit": "averages",
+    "timeframe": "daily"
+   }
+  },
+  {
+   "id": "rm.line_plus_level",
+   "field": "context",
+   "statement": "A+ cue: the line matters to many people, the 50-day or 200-day, or a level the owner would name (a round number, an old high, a base low), and best when an average and a level sit together.",
+   "measure": {
+    "what": "lines taken back on the remount day (an average and a level together)",
+    "op": ">=",
+    "value": 2,
+    "unit": "lines"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S19"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "9 A+",
+   "evidence": "INCY: the $100 psych level; RBRK: the 50SMA and $100; IWM: $245 and the 2021 and 2024 highs. The scan found 439 remount days that retook the 50 and the 200 on the same day."
+  },
+  {
+   "id": "rm.leader_before_index",
+   "field": "context",
+   "statement": "A+ cue: a leader that lost the line during a market shakeout and remounted before the index did.",
+   "basis": "UCT",
+   "sources": [
+    "S19"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "9 A+",
+   "evidence": "BE: did nothing wrong while market corrected. Shakeout while the market bottomed and quick remount."
+  },
+  {
+   "id": "rm.first_try_after_decline",
+   "field": "context",
+   "statement": "B- cue: a first attempt after a long decline, or a line still curling lower.",
+   "basis": "UCT",
+   "sources": [
+    "S19"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "9 B-",
+   "evidence": "BTC: first failed attempt at remounting short term levels; RDDT: the 200SMA remount was attractive out of this mini base here but it is still curling lower."
+  },
+  {
+   "id": "rm.report_soon",
+   "field": "context",
+   "statement": "B- cue: a report within about two weeks (10 sessions).",
+   "measure": {
+    "what": "sessions until the next report",
+    "op": "<",
+    "value": 10,
+    "unit": "sessions"
+   },
+   "basis": "my proposal",
+   "sources": [],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "9 B-",
+   "evidence": "The two weeks is the dossier's; B22 forbids only the 3 sessions before."
+  }
+ ],
+ "grading": {
+  "a_plus": [
+   "rm.leader_before_index: a leader (RS 80 or more, a strong group) that lost the line in a market shakeout and remounted before the index did",
+   "rm.line_plus_level: the 50-day or 200-day, or a level the owner would name, best when an average and a level sit together",
+   "rm.all_mas: the remount clears all the averages at once, above a rising 200-day (rm.ma200_rising)",
+   "rm.time_under: a clear stay under the line, about 10 to 20 sessions; rm.break_left_line: a clean break away (0.5 ATR or more); rm.not_chop_line: a line that held well before",
+   "rm.remount_day_margin and rm.remount_day_candle: a wide green remount candle closing in the top third; rm.volume: 1.5x or more the 20-day volume",
+   "rm.entry_pause: then a quiet day above the line (inside day or narrow range) that gives a stop of 3% or less (rm.stop_width)",
+   "rm.market_reading: Green; rm.index_remounting: the index above or remounting its own lines"
+  ],
+  "b_minus": [
+   "rm.above_200 and rm.ma200_rising: a remount under a falling 200-day, or of a line still curling lower",
+   "rm.not_chop_line: a level the stock chopped through (3 or more crossings in 60 sessions); rm.time_under: a stay under the line of only a day or two",
+   "rm.remount_day_margin: a marginal close (under 0.25 ATR over the line); rm.remount_day_candle: a red or upper-wick candle; rm.volume: volume under the 20-day average",
+   "rm.all_mas: a remount that leaves other lines overhead and falling (over the 20 EMA but still under a falling 50-day)",
+   "rm.leadership: a laggard group or a beaten-down name with no RS",
+   "rm.stop_width: a stop wider than 3% that forces a much smaller size; rm.report_soon: a report within about two weeks",
+   "rm.first_try_after_decline: a first attempt after a long decline"
+  ],
+  "no_trade": [
+   "rm.above_200: the remount close under the 200-day, or the 200-day falling (rm.ma200_rising)",
+   "rm.time_under: fewer than 5 closes under (a U&R, an Oops or a pullback) or more than 30 (a base)",
+   "rm.level_held and rm.not_chop_line: a level that never held, or a chop line",
+   "rm.volume: a light-volume drift back over a line lost on heavy volume",
+   "rm.inv_close_back_before_trigger: a close back under the line before the trigger",
+   "rm.no_chase: a fill more than 4% over the buy point; rm.not_stretched: more than 10% over the 10-day",
+   "rm.earnings_window: a report within 3 sessions",
+   "rm.liquidity: under $10 or under $20 million a day",
+   "rm.market_reading: Red"
+  ]
+ },
+ "lookalikes": [
+  {
+   "setup": "29-undercut-rally",
+   "tell": "Count the closes under the line. A U&R dips under a prior low and closes back above it within 3 sessions; a Remount has lost its line for 5 to 30 straight closes. Fewer than 5 is a U&R, an Oops or a pullback, not a Remount.",
+   "criterion": "rm.time_under"
+  },
+  {
+   "setup": "11-ema20-pullback",
+   "tell": "Ask whether the line was really lost. A 20 EMA pullback holds its line: the touch closes at or near the 20 EMA (a one-day shakeout at most) and the buy is the turn. A Remount lost the 50-day or 200-day for a week or more and is buying it back.",
+   "criterion": "rm.line"
+  },
+  {
+   "setup": "13-ma-reclaim",
+   "tell": "The same move with one line: MA Reclaim is the moving-average form of the Remount (the 50-day above the 200-day, or the 200-day itself); this card adds the level form (a breakout pivot, a base low, an old high, a round number). One unit, two kinds of line.",
+   "criterion": "rm.one_setup"
+  },
+  {
+   "setup": "19-avwap-reclaim",
+   "tell": "Name the line. If it starts at one event day and bends with volume, it is the AVWAP reclaim; a Remount's line is a moving average or a flat price level the stock held before it broke.",
+   "criterion": "rm.line"
+  },
+  {
+   "setup": "30-oops-reversal",
+   "tell": "Count the sessions. An Oops is one session that opens under the prior close, trades under the prior day's low and closes back over the prior close; a Remount needs 5 closes under its line before the remount day.",
+   "criterion": "rm.time_under"
+  }
+ ],
+ "invalidations": [
+  "Before the buy: a close back under the line before the trigger (rm.inv_close_back_before_trigger).",
+  "Before the buy: the 200-day still falling or above price (rm.above_200, rm.ma200_rising).",
+  "Before the buy: light remount volume after a heavy-volume break (rm.volume).",
+  "Before the buy: a report within 3 sessions (rm.earnings_window); a Red market (rm.market_reading).",
+  "A failed first try: a second try is a new trade with its own trigger and stop, at most 3 a week (rm.failed_first_try).",
+  "After the buy: the stop is the exit (rm.after_entry_stop); whether a close back under the line is also an exit is the owner's call (rm.close_back_under_after_buy).",
+  "After the buy: still under 1R after 10 trading days, sell (rm.time_stop)."
+ ],
+ "mistakes": [
+  "Buying a remount under a falling 200-day (B26; the replay's weakest group).",
+  "Calling a 1 to 4 day dip under the line a remount. It is a U&R or a pullback.",
+  "Buying before the close is above the line, or on a marginal poke a few cents over it.",
+  "Buying a level the stock chopped through for weeks (the judges' chop lines).",
+  "Buying a light-volume drift back over a line the stock lost on heavy volume (IBD: a sell).",
+  "Using the code's stop under an older low (median 8.3%) at full size.",
+  "Chasing a remount day that closed far above the line (over 2 ATR, or more than 4% over the buy point).",
+  "Treating the first remount after a long fall as safe; first tries can fail (the DELL and BTC notes).",
+  "Cutting the runner early. Most trades lose small; the few big ones carry the setup.",
+  "Re-buying every failed remount the same week (E56: at most 3 tries a week).",
+  "Ignoring the market: remounts while the index is under its own 200-day.",
+  "Teaching remount.py's narrative: the Bonde attribution, the Shannon and Raschke claims and the numbers (1.5:1+ RR with high frequency, 10-20% further declines, 15-30% extensions) have no source."
+ ],
+ "short_mirror": {
+  "exists": true,
+  "setup": "32-remount",
+  "note": "The failed breakout back under a lost line (dossier 8.6): a stock under a falling 200-day (B26) that had gotten back above a key line (the 50-day, or a breakdown level) for 5 to 30 closes, then closes back under it on volume, in the lower half of its range. Short as price trades under that day's low (or under a quiet day's low after it); stop a few cents over the day's high, about 3% or less; skip if hard to borrow (D48). Sources: Livermore via Bonde (a stock breaks out of range and then fails and goes down 3 point then it is short), Morales (the 50-day failure on volume, that's your shorting point), the Wyckoff tutorial (a breakdown often tested with a rally that fails at or near support); the owner: I will gladly short stage 4 downtrends as they reject the 200SMA from below (2026-11-08). The 5 to 30 closes and the candle are the dossier's mirror. Not replayed. The dossier recommends teaching it later, with the other shorts (D-001)."
+ },
+ "best_conditions": "Market reading Green, or Yellow at smaller size; Orange only an A+ remount (F65). Best after a correction, as the indexes remount their own lines and leaders remount first; panics that end fast are fertile (the panic sets in and selling accelerates just leads to quick remounts). Weak with the index under its own 200-day: in the replay those remounts had wider stops (median 3.66%) and half the result (+0.04R against +0.08R).",
+ "management": {
+  "trim_1": "a third at 3R (B19)",
+  "trim_2": "a third at 5R (E51)",
+  "trail": "a close under the 21-day for an MA remount (steadier), the 10-day for a fast mover (E52)",
+  "breakeven": "between 2R and 5R, at the first trim by default (B19)",
+  "time_stop": "under 1R after 10 trading days, sell (C33); half the replay's trades never reached 1R",
+  "gap_open": "a trim level the day opens past is taken at the open (F63)",
+  "gap_against": "the first 30-minute low is the new stop; out if past 2R (B20)",
+  "overrides": "none. The dossier (8.4) keeps the house defaults; the 21-day is named first because an MA remount is the steadier case. Not ours: remount.py's entry (line + 1 ATR), its stop (1.5% under an older low) and its target (prior high + 7.5%); MAU&R's line as the selling guide; the owner's occasional add on a later hold (A5)."
+ },
+ "examples": {
+  "winners": 10,
+  "sheet_dir": "_study-resume/scratchpad/setups/32-remount/final",
+  "base_rate": {
+   "hits": 8690,
+   "entry_b_hits": 3869,
+   "entry_a_hits": 4821,
+   "r3_pct": 29.7,
+   "r5_pct": 20.3,
+   "stopped_pct": 80.8,
+   "never_1r_pct": 49,
+   "median_best_r": 1.06,
+   "window": "60 sessions forward, fixed stop, no trims, no breakeven, no trail; 2000 to 2026; the 2,630 names that ever met the house liquidity rule; the MA remount only (the 50-day or 200-day line) plus the house rules; one remount per 10 sessions per line; both entries counted; never_1r is Entry B's"
+  },
+  "cuts": {
+   "entry_b_pause": {
+    "hits": 3869,
+    "r3_pct": 29.6,
+    "r5_pct": 21.1,
+    "stopped_pct": 81.9
+   },
+   "entry_a_remount_day": {
+    "hits": 4821,
+    "r3_pct": 29.8,
+    "r5_pct": 19.7,
+    "stopped_pct": 79.9
+   },
+   "line_50_day": {
+    "hits": 6162,
+    "r3_pct": 30.3,
+    "r5_pct": 21.0
+   },
+   "line_200_day": {
+    "hits": 2528,
+    "r3_pct": 28.3,
+    "r5_pct": 18.6
+   },
+   "remount_volume_1_5x_or_more": {
+    "r3_pct": 30.1,
+    "below": {
+     "r3_pct": 29.4
+    }
+   },
+   "inside_quiet_day": {
+    "r5_pct": 22.0,
+    "one_atr_quiet_day": {
+     "r5_pct": 20.7
+    }
+   },
+   "stop_2_pct_or_less": {
+    "r5_pct": 21.9,
+    "wider": {
+     "r5_pct": 18.5
+    }
+   },
+   "replay_section_4_4": {
+    "note": "remount.py's own rule on 89,665 liquid remount days, 2005 to 2026, the house plan: +0.071R a trade (34% winners); above a rising 200-day +0.110R; below the 200-day +0.007R; the baseline one-day cross of the same averages above a rising 200-day +0.075R; the pause entry +0.091R with a median 1.99% stop; the code's stop +0.038R; the best cut, the 50-day after 10 to 20 closes under above a rising 200-day, +0.207R"
+   }
+  },
+  "winners_list": [
+   "MAR 2010-03-09",
+   "MGM 2013-12-13",
+   "STLD 2016-10-26",
+   "WB 2017-04-25",
+   "NKE 2020-08-07",
+   "UTHR 2020-10-15",
+   "SLAB 2021-10-21",
+   "AMD 2023-11-03",
+   "SCCO 2024-03-11",
+   "BABA 2025-01-24"
+  ],
+  "failures": [
+   {
+    "ticker": "AMZN",
+    "date": "2021-10-20",
+    "criterion": "rm.index_remounting",
+    "why": "a textbook-looking remount of both the 50 and the 200 on the same day (2021-10-15) on 1.8x volume after 14 closes below, stop 1.0% under a tight quiet day. Stopped within days with nothing gained, and the stock rolled over into its 2022 decline. The picture was right; the market and the group were not, and a 1% stop on a mega-cap leaves no room."
+   },
+   {
+    "ticker": "PYPL",
+    "date": "2018-10-23",
+    "criterion": "rm.index_remounting",
+    "why": "a 200-day remount on 2.98x volume (the earnings reaction, 2018-10-18 after the close) in the middle of the October 2018 correction, stop 3.2%. Stopped at once as the index made new lows; the stock chopped around its 200-day for months. The heavy-volume remount did not help with the index under its own 200-day."
+   },
+   {
+    "ticker": "BA",
+    "date": "2019-06-21",
+    "criterion": "rm.ma200_rising",
+    "why": "29 closes under the 200-day after the 737 MAX gap, then a 2.7x-volume remount day (2019-06-18). Stopped in a week; the line was retaken and lost again twice more that summer. A 200-day that is flat (it just passed the 20-session test) after a news-driven break is the weakest version of the setup."
+   },
+   {
+    "ticker": "DOCU",
+    "date": "2024-03-14",
+    "criterion": "rm.after_entry_stop",
+    "why": "remount 2024-03-11 of the 50-day after 24 closes under (a 3.74 ATR break) on 2.0x volume, close +0.97 ATR; an inside quiet day, buy 59.54, stop 58.44 (1.8%); a gap under the stop the morning after the buy. It then held the 50-day for 20 sessions and traded up to 61.47 (+1.75R) inside the window without reaching 3R. The level was right; the trigger did not run."
+   }
+  ],
+  "limits": "The MA remount only: level remounts, 20 EMA remounts, the hourly and red-to-green variants and the short mirror were not scanned. RS 80+, the market reading and the earnings blackout are not in the scan (the examples were checked by hand against the earnings table). Fixed stop, so stopped includes trades that ran to 2R and came back. Prices are split-adjusted, so the $10 rule is approximate for older years. ETFs are in the base rate but not the examples. No delisted names. Nothing here is a published statistic; the course should not state a win rate for this setup.",
+  "near_misses": [
+   {
+    "ticker": "ENOV",
+    "date": "2019-10-15",
+    "criterion": "rm.time_under",
+    "why": "only 3 closes under the 50-day before the remount day; the rule wants 5 to 30. A three-day dip and straight back: a pullback or a U&R (setup 29), the line was never really lost. It reached 20.7R on the trend."
+   },
+   {
+    "ticker": "EOG",
+    "date": "2011-07-25",
+    "criterion": "rm.volume",
+    "why": "remount-day volume 0.81x the 20-day average; the rule wants 1.2x or more. A line taken back after 28 closes under with nobody showing up; stopped at 0R ahead of a two-month slide."
+   },
+   {
+    "ticker": "ESS",
+    "date": "2014-10-22",
+    "criterion": "rm.remount_day_margin",
+    "why": "the remount day closed only +0.08 ATR over the 50-day; the rule wants 0.25 to 2 ATR. A marginal poke inside the noise; the next sessions remounted it clearly and it reached 14.9R. Wait for the clear close."
+   },
+   {
+    "ticker": "EHC",
+    "date": "2019-09-10",
+    "criterion": "rm.ma200_rising",
+    "why": "the 200-day SMA was 0.83 lower than 20 sessions ago; the rule wants it higher. A 50-day remount under a falling 200-day, which the drawing rejects; it reached 0.9R and stopped."
+   }
+  ],
+  "sheets": {
+   "failures": "final/fail_1-4.png",
+   "near_misses": "final/near_1-4.png",
+   "pair": "final/pair_29-undercut-rally.png"
+  }
+ },
+ "question_seeds": [
+  {
+   "kind": "recall",
+   "criterion": "rm.time_under",
+   "seed": "How many straight closes under the line make a lost line a Remount, and what is the most it can have before it is a base?"
+  },
+  {
+   "kind": "recall",
+   "criterion": "rm.line",
+   "seed": "Name the lines a Remount can take back, and the one condition under which the 20 EMA counts."
+  },
+  {
+   "kind": "recall",
+   "criterion": "rm.entry_pause",
+   "seed": "What is the quiet day that arms the default Remount entry, and where does the buy fire?"
+  },
+  {
+   "kind": "spot",
+   "criterion": "rm.remount_day_margin",
+   "seed": "Hidden ticker: tap the remount day, the green candle that closed clearly back over the 50-day."
+  },
+  {
+   "kind": "spot",
+   "criterion": "rm.entry_pause",
+   "seed": "Hidden ticker: tap the quiet day after the remount, then the bar where the buy fires over its high."
+  },
+  {
+   "kind": "spot",
+   "criterion": "rm.not_chop_line",
+   "seed": "Hidden ticker, two levels drawn: which one held before it broke, and which is a chop line? Take it or pass."
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "rm.time_under",
+   "seed": "Remount or U&R: the stock closed under its base low on Tuesday and closed back over it on Thursday. Which is it?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "rm.line",
+   "seed": "Remount or 20 EMA pullback: the stock closed under its 20 EMA for two sessions while the 50-day held, then turned up. Which is it?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "rm.line",
+   "seed": "Remount or AVWAP reclaim: the line price just closed over starts at the stock's August high and bends with volume. Which is it?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "rm.entry_remount_day",
+   "seed": "The remount day closed 1.4 ATR over the 50-day on 2.6x volume; its low sits 5.1% under the close. Buy the close, or wait for the pause?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "rm.close_back_under_after_buy",
+   "seed": "You bought over the quiet day's high at 26.36 with the stop at 25.93. Two days later it closes at 26.05, back under the 50-day but above the stop. Sell, or hold to the stop?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "rm.failed_first_try",
+   "seed": "Your first Remount stopped out. Four sessions later the stock closes back over the 200-day on 1.5x volume. Buy again?"
+  },
+  {
+   "kind": "grade",
+   "criterion": "rm.volume",
+   "seed": "Two remount days of the 50-day: one on 0.9x volume closing in the lower half, one on 1.7x closing in the top third. Grade each."
+  },
+  {
+   "kind": "grade",
+   "criterion": "rm.all_mas",
+   "seed": "The remount clears the 20 EMA but the 50-day sits 4% overhead and falling. A+, B, or B-?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "rm.remount_day_margin",
+   "seed": "The 50-day is 80.07, ATR 1.95, and the remount day closes 82.20. How many ATR over the line, and is it inside 0.25 to 2?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "rm.stop",
+   "seed": "Quiet day's high 101.18, low 99.98; you buy over the high at 101.19 with the stop a few cents under the low. What is the risk in percent, and where is 3R?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "rm.time_under",
+   "seed": "The stock closed under its 200-day on 27 of the last 27 sessions, then closed over it. Does the stay under the line qualify, and what would 31 closes make it?"
+  }
+ ],
+ "owner_decisions": [
+  "D-001",
+  "D-002",
+  "D-003",
+  "D-004",
+  "D-006",
+  "D-008",
+  "D-011",
+  "D-016",
+  "D-022",
+  "D-073",
+  "D-074"
+ ],
+ "conflicts": [
+  "Sources: the dossier's section 11 numbers its rows 1 to 25, read as S1 to S25 (S1 Morales and Kacher's MAU&R, S2 Morales 2000, S3 and S4 IBD, S5 the Wyckoff tutorial, S9 and S10 Bonde, S15 ChartSchool's crossover page, S19 the UCT Substack, S20 the verdict log, S22 the code, S23 the Model Book and Study docs, S24 the dossier's own replay, S25 the sibling dossiers).",
+  "Five app rules under one name: remount.py (20 EMA, 50 SMA or a prior pivot; 5 to 30 closes; 1.2x volume; no 200-day test; entry line + 1 ATR; stop 1.5% under an older low; target prior high + 7.5%), the withdrawn member drawing (horizontal pivots only, the held-before, chop and depth tests, a rising 200-day gate), uct_ma_reclaim (3 of the last 20 closes), the one-line starter scan (one day under the 50) and the Chart IQ MA remount event (4 of the last 6 closes under the 20, a rising 50 and the 200). The card follows the drawing's picture rules plus B26 and the house trade; which rule the app shows members is the scanner question (D-004).",
+  "remount.py's attributions: Pradeep Bonde / Stockbee swing system, popularized by Pradeep Bonde, Bonde teaches that remount breakouts frequently outperform original breakouts, Shannon's highest-edge swing triggers, Raschke's Turtle Soup within 1-3 sessions, and its numbers (1.5:1+ RR, 10-20% further declines, 15-30% extensions): no source found for any; the Stockbee blog has no post with the word. The replay does not support the outperform claim.",
+  "Which line: any MA (Morales and Kacher, ChartSchool); the 50-day (IBD, Morales 2000); the 10 and 20 EMAs (Kell); the bottom of a range or pattern (Wyckoff, Bulkowski, Livermore via Bonde); AVWAP (Shannon); the owner uses all of them, the 200-day most. D-073.",
+  "How long below: nobody outside gives a number; Wyckoff's spring and Morales's undercut are short; Bulkowski allows a fall of up to 10%; the code demands 5 to 30. The replay found no edge difference; the rule is the border with U&R. D-074.",
+  "How strong the retake must be: just back above (MAU&R, ChartSchool, the detector); a close above the whole pattern (Bulkowski's bust, a later and higher signal); up 3 points (Livermore via Bonde); with heavy volume (IBD, the owner). The card takes 0.25 to 2 ATR and 1.2x volume as picture rules.",
+  "Volume: wanted by IBD and the owner, gated at 1.2x by the code, silent in MAU&R; Wyckoff wants the spring itself quiet and the advance heavier. The replay and the scan found it neutral; kept because every source that names it wants it (D-006). The glossary's canonical surge is 1.4x the 50-session average; the card keeps the code's 1.2x the 20-day.",
+  "Entry: on the retake (Morales and Kacher, the scanner, ChartSchool's first choice); over the retake candle (ChartSchool's second choice; Bulkowski's buy stop); after a test or higher low (Wyckoff; the owner's inside day or hourly higher low). The pause entry gave the tightest stop for the same result but missed 44% of remounts. D-003.",
+  "Stop: 1-2% under the line (Morales and Kacher); slightly under the SMA or the swing low (ChartSchool); under the line (Bonde's trend-follower example); the remount day's low (house A3); 1.5% under an older low (the code, worst in the replay). D-008.",
+  "Who: a leading stock (Morales and Kacher; C31) versus any stock (the code); the owner trades both leaders and beaten-down names. D-011.",
+  "C28's buy point: the line for Entry A and the quiet day's high for Entry B (the dossier) against the trigger in both (the register, D-022). With the line as the buy point, 39% of pause entries in the replay filled more than 4% over it.",
+  "The entry type: the curriculum maps a Remount as PREV LOW RECLAIM; the card's default entry (Entry B, over the quiet day's high) is a PREV DAY HIGH BREAK, and Entry A (the remount close) is a reclaim of the line. The card says PREV DAY HIGH BREAK for the taught default.",
+  "The Morning Wire's private Remount list runs a rule not reviewed in this public file; bringing it in line is the owner's call (dossier question 11, folded into D-004).",
+  "SET.28 promises a wide-range candle on volume in numbers; no app rule tested range. The card's numbers are the remount-day margin (0.25 to 2 ATR), the candle (green, upper half) and the volume (1.2x, 1.5x for A).",
+  "The 200-day slope: this card follows the drawing's gate (higher than 20 sessions ago); setup 13's dossier found 11 of the owner's 16 named reclaim days fail it and proposes not falling fast instead (D-075 there). One ruling should settle both."
+ ]
+}

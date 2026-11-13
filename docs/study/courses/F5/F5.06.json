@@ -1,0 +1,1456 @@
+{
+ "unit": "F5.06",
+ "track": "F5",
+ "title": "The Earnings Decision",
+ "teaches": "Before a report you hold it all, trim some or step aside, judged by your size (what a gap costs) and your gain so far (your cushion), because a stop cannot catch an earnings gap.",
+ "skills": [
+  {
+   "id": "fund.earnings_decision",
+   "title": "The Earnings Decision"
+  }
+ ],
+ "as_of": "2026-11-09",
+ "sources": [
+  {
+   "id": "s1",
+   "tier": 1,
+   "publisher": "FINRA",
+   "title": "What Is Earnings Season? (Investor Insights, July 23, 2024)",
+   "url": "https://www.finra.org/investors/insights/earnings-season",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s2",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Stop, Stop-Limit, and Trailing Stop Orders: Investor Bulletin",
+   "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-stop-stop-limit-trailing-stop",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s3",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Investor Bulletin: Understanding Order Types",
+   "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-understanding-order-types",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s4",
+   "tier": 1,
+   "publisher": "SEC",
+   "title": "Extended-Hours Trading: Investor Bulletin",
+   "url": "https://www.sec.gov/oiea/investor-alerts-and-bulletins/extended-hours-trading-investor-bulletin",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s5",
+   "tier": 1,
+   "publisher": "FINRA",
+   "title": "Stop Orders: Factors to Consider During Volatile Markets (March 26, 2025)",
+   "url": "https://www.finra.org/investors/insights/stop-orders-factors-consider-during-volatile-markets",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s6",
+   "tier": 1,
+   "publisher": "FINRA",
+   "title": "Order Types",
+   "url": "https://www.finra.org/investors/investing/investment-products/stocks/order-types",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s7",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "3 Order Types: Market, Limit, and Stop Orders",
+   "url": "https://www.schwab.com/learn/story/3-order-types-market-limit-and-stop-orders",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s8",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "Stop Orders: Mastering Order Types",
+   "url": "https://www.schwab.com/learn/story/stop-orders-mastering-order-types",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s9",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "Earnings Season: 3 Things You Should Look For (February 26, 2024)",
+   "url": "https://www.schwab.com/learn/story/earnings-season-what-to-look",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s10",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "Tools for Trading Options Around Earnings (January 20, 2026)",
+   "url": "https://www.schwab.com/learn/story/trading-options-around-earnings-announcements",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s11",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "Price Movement Indicator: Market Maker Move",
+   "url": "https://www.schwab.com/learn/story/price-movement-indicator-market-maker-move",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s12",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "Why Stocks Sometimes Ignore Good (or Bad) News (Will Daniel, June 2, 2026)",
+   "url": "https://www.schwab.com/learn/story/why-stocks-sometimes-ignore-good-or-bad-news",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s13",
+   "tier": 2,
+   "publisher": "Fidelity Investments",
+   "title": "Exit Strategies (Learning Center)",
+   "url": "https://www.fidelity.com/learning-center/trading-investing/trading/exit-strategies",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s14",
+   "tier": 2,
+   "publisher": "Cboe",
+   "title": "Why Trade Options Around Earnings Season (Cboe Insights)",
+   "url": "https://www.cboe.com/insights/posts/why-trade-options-around-earnings-season",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s15",
+   "tier": 2,
+   "publisher": "StockCharts.com",
+   "title": "How to Avoid Getting Slaughtered (ChartWatchers, John Hopkins, August 15, 2015)",
+   "url": "https://articles.stockcharts.com/article/articles-chartwatchers-2015-08-how-to-avoid-getting-slaughtered/",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s16",
+   "tier": 2,
+   "publisher": "StockCharts.com",
+   "title": "Buying Is Easy, When Should I Sell? Part 4 (Final) (Trading Places, Tom Bowley, April 3, 2015)",
+   "url": "https://articles.stockcharts.com/article/articles-tradingplaces-2015-04-buying-is-easy-when-should-i-sell--part-4-final/",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s17",
+   "tier": 2,
+   "publisher": "StockCharts.com",
+   "title": "How to Profit from Strong Earnings Reports While Reducing Risk (ChartWatchers, John Hopkins, September 3, 2021)",
+   "url": "https://articles.stockcharts.com/article/articles-chartwatchers-2021-09-how-to-profit-from-strong-earn-50/",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s18",
+   "tier": 2,
+   "publisher": "Cabot Wealth Network",
+   "title": "5 Rules for Trading Earnings Season (Mike Cintolo, August 14, 2026)",
+   "url": "https://www.cabotwealth.com/daily/how-to-invest/rules-handling-earnings-season/",
+   "accessed": "2026-11-08",
+   "why_reliable": "Named author with a long public record: Mike Cintolo, Chief Investment Strategist of Cabot Wealth Network and Chief Analyst of Cabot Growth Investor, with Cabot since 1999 (author bio on this page). Cabot Wealth Network has published research since 1970 (its About Us page, https://www.cabotwealth.com/about-us). Used only next to a Tier 1 fact or a second publisher; none of his own numbers (half size, a quarter to a third) is keyed."
+  },
+  {
+   "id": "s19",
+   "tier": 2,
+   "publisher": "Thomas Bulkowski, ThePatternSite.com",
+   "title": "Quarterly Earnings (study of 4,822 reports in 471 stocks, 2006 to 2015)",
+   "url": "https://www.thepatternsite.com/QtrEarnings.html",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s20",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The trade plan for every setup (trim defined)",
+   "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s21",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The house sizing rule, section 6: Management (owner quoted, 2026-06-14)",
+   "url": "repo:docs/study/sizing_rule.md#6-management-so-the-sizing-drills-can-go-full-circle",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s22",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The house sizing rule, section 2: Stop first (owner's answer)",
+   "url": "repo:docs/study/sizing_rule.md#2-stop-first",
+   "accessed": "2026-11-08"
+  }
+ ],
+ "facts": [
+  {
+   "id": "f1",
+   "source": "s1",
+   "quote": "Companies usually release their earnings reports and accompanying press releases before the market opens or after it closes.",
+   "claim": "Most companies put out earnings before the open or after the close, not during the session."
+  },
+  {
+   "id": "f2",
+   "source": "s1",
+   "quote": "But companies are free to announce their results before they officially file the required forms, and most do so, resulting in earnings season commencing well before the deadline.",
+   "claim": "Most companies announce results before their 10-Q or 10-K is due."
+  },
+  {
+   "id": "f3",
+   "source": "s1",
+   "quote": "A company’s shares might jump or tumble after investors compare the actual results to estimates.",
+   "claim": "A stock can jump or tumble once the results are compared with estimates."
+  },
+  {
+   "id": "f4",
+   "source": "s1",
+   "quote": "But simply beating or missing estimates isn’t always what moves a company’s stock price. Sometimes a company might beat estimates but provide a dour outlook for the future, leading the share price to drop.",
+   "claim": "A beat does not promise a rise: a company can beat and still drop on a weak outlook."
+  },
+  {
+   "id": "f5",
+   "source": "s1",
+   "quote": "Other times a stock that rallied ahead of its earnings release and met expectations by reporting great numbers simply doesn’t have enough new buyers to bid the shares higher, causing share prices to hold steady or perhaps fall.",
+   "claim": "A stock that ran up into a great report can still stall or fall for lack of new buyers."
+  },
+  {
+   "id": "f6",
+   "source": "s2",
+   "quote": "The stop price is a trigger that causes the stop order to become a market order.",
+   "claim": "A stop price only triggers the order; it then becomes a market order."
+  },
+  {
+   "id": "f7",
+   "source": "s2",
+   "quote": "The execution price an investor receives for this market order can deviate significantly from the stop price due to the prices of available liquidity when the market order executes.",
+   "claim": "A triggered stop can fill far from the stop price, at whatever prices are available."
+  },
+  {
+   "id": "f8",
+   "source": "s3",
+   "quote": "As with all limit orders, a stop-limit order may not be executed if the stock’s price moves away from the specified limit price.",
+   "claim": "If the price jumps past your limit, a stop-limit order may not fill at all."
+  },
+  {
+   "id": "f9",
+   "source": "s3",
+   "quote": "The stop price is not the guaranteed execution price for a stop order.",
+   "claim": "A stop order has no guaranteed fill price."
+  },
+  {
+   "id": "f10",
+   "source": "s4",
+   "quote": "Companies may announce important news or financial information outside of regular trading hours. These announcements, combined with other extended-hours trading risks, may lead to significant price changes in these companies’ stocks during extended hours trading.",
+   "claim": "News released outside regular hours can move a stock sharply in extended-hours trading."
+  },
+  {
+   "id": "f11",
+   "source": "s4",
+   "quote": "With respect to extended-hours trading, many brokerage firms currently accept only limit orders in order to protect investors from unexpectedly bad prices.",
+   "claim": "Many brokers accept only limit orders in extended-hours trading."
+  },
+  {
+   "id": "f12",
+   "source": "s4",
+   "quote": "during extended-hours trading there generally is less trading interest and therefore less price competition for most stocks, which may raise trading costs, increase uncertainty with respect to prevailing prices, or make it more difficult to execute trades.",
+   "claim": "After hours there is less trading interest, so prices are less certain and trades are harder to execute."
+  },
+  {
+   "id": "f13",
+   "source": "s5",
+   "quote": "However, if markets are volatile and stock prices are changing rapidly, your stop order may be executed at a price that’s significantly different from your stop price.",
+   "claim": "In a fast market a stop order can fill well away from the stop price."
+  },
+  {
+   "id": "f14",
+   "source": "s6",
+   "quote": "Also, if you place your order before or after normal trading hours, consider the possibility that news events or other factors might significantly impact the price of the security when the market opens again.",
+   "claim": "News that lands while the market is shut can move the price sharply by the next open."
+  },
+  {
+   "id": "f15",
+   "source": "s7",
+   "quote": "A price gap occurs when a stock's price makes a sharp move up or down with no trading occurring in between.",
+   "claim": "A gap is a sharp move up or down with no trades in between."
+  },
+  {
+   "id": "f16",
+   "source": "s7",
+   "quote": "It can happen because of factors like earnings announcements, a change in an analyst's outlook, or a news release.",
+   "claim": "Earnings announcements are one cause of gaps."
+  },
+  {
+   "id": "f17",
+   "source": "s7",
+   "quote": "The chart below shows a stock that \"gapped down\" from more than $34 to around $32 between a previous closing price and the next opening price.",
+   "claim": "Schwab's example: a stock gapped from over $34 at the close to about $32 at the next open."
+  },
+  {
+   "id": "f18",
+   "source": "s7",
+   "quote": "which would trigger at the market's open because the stock's price fell below the stop price and, as a market order, executes at $32",
+   "claim": "In that example a $34 sell stop triggers at the open and fills at $32."
+  },
+  {
+   "id": "f19",
+   "source": "s7",
+   "quote": "Between market sessions, numerous factors can impact a stock's price, such as the release of earnings, company news or economic data",
+   "claim": "The release of earnings between sessions can move a stock's price."
+  },
+  {
+   "id": "f20",
+   "source": "s8",
+   "quote": "Stop orders are vulnerable to pricing gaps, which can sometimes occur between trading sessions or during pauses in trading, such as trading halts.",
+   "claim": "Gaps between sessions are a known weakness of stop orders."
+  },
+  {
+   "id": "f21",
+   "source": "s9",
+   "quote": "Be aware that companies can report results when markets aren't even open, which can cause their stocks to \"gap\" or make a sharp move up or down with no trading occurring in between.",
+   "claim": "Results released while the market is shut can make a stock gap."
+  },
+  {
+   "id": "f22",
+   "source": "s9",
+   "quote": "if a stock starts the trading day sharply lower from the day before and the trailing stop is triggered, the stock will be sold at the current market price, which may be considerably below the stop price.",
+   "claim": "When a stock opens sharply lower, a triggered stop sells at the market, possibly well below the stop."
+  },
+  {
+   "id": "f23",
+   "source": "s10",
+   "quote": "For some traders, it may be wise to stay away from the ebbs and flows of earnings season and wait until the dust settles.",
+   "claim": "Staying out until after the report is a sound choice for some traders."
+  },
+  {
+   "id": "f24",
+   "source": "s10",
+   "quote": "At the end of an earnings period, traders can sort through the numbers, guidance, and conference call transcripts and then decide if they still want to trade or own the stock.",
+   "claim": "After the report you can study the results and decide fresh whether to own the stock."
+  },
+  {
+   "id": "f25",
+   "source": "s10",
+   "quote": "On the other hand, being patient and waiting out earnings season isn't necessarily always the right approach.",
+   "claim": "Waiting out every report is not always right either: stepping aside has a cost."
+  },
+  {
+   "id": "f26",
+   "source": "s10",
+   "quote": "The MMM tells traders the one-day expected move in the underlying stock due to an upcoming event like earnings.",
+   "claim": "The options market prices a one-day expected move for an event like earnings."
+  },
+  {
+   "id": "f27",
+   "source": "s11",
+   "quote": "Note that the MMM value does not guarantee a stock will move by a certain magnitude, nor does it indicate in which direction a move might occur.",
+   "claim": "The expected move is not a promise of size and says nothing about direction."
+  },
+  {
+   "id": "f28",
+   "source": "s11",
+   "quote": "Checking the MMM on an existing position ahead of earnings might be a good way to decide if it's worth the risk to hold through the event.",
+   "claim": "Checking the expected move on a position you own helps you decide whether to hold through the report."
+  },
+  {
+   "id": "f29",
+   "source": "s11",
+   "quote": "Whether or not to hold in this situation depends on the trader's overall risk tolerance.",
+   "claim": "Whether to hold depends on how much risk you can take."
+  },
+  {
+   "id": "f30",
+   "source": "s12",
+   "quote": "On February 25, 2026, for example, Nvidia (NVDA) reported record fourth-quarter profits and revenues, but the shares dropped roughly 9% over the following two days.",
+   "claim": "NVDA reported record results on February 25, 2026 and fell roughly 9% over the next two days."
+  },
+  {
+   "id": "f31",
+   "source": "s12",
+   "quote": "A company can report standout earnings, but if guidance disappoints, investors may anticipate weaker future earnings, leading the stock to fall.",
+   "claim": "Great earnings with weak guidance can still send a stock lower."
+  },
+  {
+   "id": "f32",
+   "source": "s13",
+   "quote": "Beware: Stop orders will not protect you from sudden price drops, known as gaps.",
+   "claim": "Stop orders do not protect you from gaps."
+  },
+  {
+   "id": "f33",
+   "source": "s13",
+   "quote": "Trailing stop orders are held on a separate, internal order file, placed on a \"not held\" basis, and only monitored between 9:30 AM and 4:00 PM Eastern.",
+   "claim": "At Fidelity, trailing stops are watched only in the regular session, 9:30 to 4:00 Eastern."
+  },
+  {
+   "id": "f34",
+   "source": "s14",
+   "quote": "Holding stock into earnings is straightforward but blunt. There is no way to limit downside without exiting the position.",
+   "claim": "With shares alone, the only way to cut your downside into a report is to sell."
+  },
+  {
+   "id": "f35",
+   "source": "s14",
+   "quote": "For traders holding stock, that means binary outcomes with full exposure to a potential move in either direction.",
+   "claim": "Shares held into a report carry the full move, either way."
+  },
+  {
+   "id": "f36",
+   "source": "s14",
+   "quote": "The market prices in an expected move, and traders can choose to buy that move, sell it, or implement a range-bound strategy, all whilst staying within clearly defined parameters.",
+   "claim": "The options market prices in an expected move for the report."
+  },
+  {
+   "id": "f37",
+   "source": "s15",
+   "quote": "There are differing opinions on whether or not it makes sense to hold stocks into earnings reports.",
+   "claim": "Experienced traders disagree on holding through reports."
+  },
+  {
+   "id": "f38",
+   "source": "s15",
+   "quote": "Another camp - the one I'm in - says it's way too risky because you can never predict how the market will respond to an earnings report.",
+   "claim": "One camp sells before reports because nobody can predict the reaction."
+  },
+  {
+   "id": "f39",
+   "source": "s15",
+   "quote": "while no one likes to see an \"opportunity\" lost, it's much, much worse taking an actual loss.",
+   "claim": "A missed gain hurts less than a real loss."
+  },
+  {
+   "id": "f40",
+   "source": "s16",
+   "quote": "I always sell before earnings.",
+   "claim": "Tom Bowley's rule is to sell before every report."
+  },
+  {
+   "id": "f41",
+   "source": "s16",
+   "quote": "I know many of you like the potential huge scores that come with holding stocks into their earnings reports.",
+   "claim": "Holding through can bring a big gain, which is why many traders do it."
+  },
+  {
+   "id": "f42",
+   "source": "s17",
+   "quote": "The primary reason I opt to wait until numbers are reported is that I have no way of knowing how the market will react once earnings are released.",
+   "claim": "Nobody knows how the market will react to the numbers."
+  },
+  {
+   "id": "f43",
+   "source": "s17",
+   "quote": "For example, a company could beat both top- and bottom-line results, guide higher and still move lower.",
+   "claim": "A company can beat on sales and earnings, raise guidance and still fall."
+  },
+  {
+   "id": "f44",
+   "source": "s17",
+   "quote": "AMBA comes to mind, as it climbed almost 35% within two days of its recent report",
+   "claim": "AMBA climbed almost 35% within two days of a report."
+  },
+  {
+   "id": "f45",
+   "source": "s17",
+   "quote": "ZM got clobbered when it reported its earnings this past Monday, with the stock losing almost 17% the following day.",
+   "claim": "ZM lost almost 17% the day after a report."
+  },
+  {
+   "id": "f46",
+   "source": "s17",
+   "quote": "Instead, I waited for the report to be announced, watched the initial market reaction, and felt comfortable buying some shares on the knee jerk selling.",
+   "claim": "You can wait for the report, watch the reaction and then buy."
+  },
+  {
+   "id": "f47",
+   "source": "s18",
+   "quote": "Have a plan AHEAD OF TIME and follow that plan for ALL of your stocks.",
+   "claim": "Set your earnings plan ahead of time and apply it to every stock."
+  },
+  {
+   "id": "f48",
+   "source": "s18",
+   "quote": "Your plan could simply be to hold all of your stocks through earnings season or sell some shares ahead of earnings, or something in between.",
+   "claim": "The plan can be to hold everything, to sell some shares before the report, or something in between."
+  },
+  {
+   "id": "f49",
+   "source": "s18",
+   "quote": "sell some shares (maybe one-quarter to one-third of your shares) in any stock that you don’t have a profit in",
+   "claim": "Where you have no profit yet, sell some shares before the report."
+  },
+  {
+   "id": "f50",
+   "source": "s18",
+   "quote": "Otherwise you could easily find yourself selling the ones that gap up and holding the ones that sink.",
+   "claim": "Guessing stock by stock tends to sell the winners and keep the losers."
+  },
+  {
+   "id": "f51",
+   "source": "s18",
+   "quote": "be sure to buy a smaller-than-normal amount (about half your normal size, dollar-wise) if earnings are due out within two weeks.",
+   "claim": "With a report close, buy a smaller position than normal."
+  },
+  {
+   "id": "f52",
+   "source": "s18",
+   "quote": "if a stock does gap down in a big way below your stop, you should get out—don’t simply hold and hope for a bounce.",
+   "claim": "If a report gaps the stock well below your stop, get out; don't hold and hope."
+  },
+  {
+   "id": "f53",
+   "source": "s18",
+   "quote": "We don’t predict earnings because a stock’s reaction is mostly a roll of the dice.",
+   "claim": "The reaction to a report is close to a coin flip, so don't try to predict it."
+  },
+  {
+   "id": "f54",
+   "source": "s19",
+   "quote": "Q: Should you hold onto a stock through quarterly earnings? A: The choice is yours.",
+   "claim": "Bulkowski treats holding through a report as your own choice."
+  },
+  {
+   "id": "f55",
+   "source": "s19",
+   "quote": "Be sure to check the day's news before the market opens, and know when a company will announce earnings.",
+   "claim": "Know when each of your companies reports."
+  },
+  {
+   "id": "f56",
+   "source": "s19",
+   "quote": "If you own the stock and see price falling during the session when the earnings announcement moves the stock, should you sell immediately? A: Yes, if you can catch it intraday.",
+   "claim": "If a bad report is knocking the stock down that session, Bulkowski says sell right away."
+  },
+  {
+   "id": "f57",
+   "source": "s19",
+   "quote": "the stock continues to drop for an average of 10% (8% median) and it takes an average of 13 days (7 days median) to bottom.",
+   "claim": "In Bulkowski's study of bad earnings surprises, the drop kept going: a median 8% below the last close before the report, bottoming in a median of 7 days."
+  },
+  {
+   "id": "f58",
+   "source": "s19",
+   "quote": "Q: Should you buy a stock after surprisingly bad earnings? A: No.",
+   "claim": "Don't buy a stock right after a bad earnings surprise."
+  },
+  {
+   "id": "f59",
+   "source": "s19",
+   "quote": "The coming days will likely see the stock drop more.",
+   "claim": "On the day a bad report knocks a stock down, Bulkowski expects more downside in the days after."
+  },
+  {
+   "id": "f60",
+   "source": "s12",
+   "quote": "Record revenues and profits were already effectively \"priced in,\" meaning the company had to produce something special for its stock to respond positively to the earnings report.",
+   "claim": "When record results are already expected, the stock needs something special to rise."
+  },
+  {
+   "id": "f61",
+   "source": "s8",
+   "quote": "Stop orders will only trigger during the standard market session, 9:30 a.m. to 4 p.m. ET. Stop orders will not execute during extended-hours sessions, such as pre-market or after-hours sessions",
+   "claim": "At Schwab, stop orders trigger only in the regular session, 9:30 a.m. to 4 p.m. ET, never after hours."
+  },
+  {
+   "id": "f62",
+   "source": "s7",
+   "quote": "First, only limit orders are accepted in extended orders; market and stop orders are not.",
+   "claim": "At Schwab, extended-hours sessions take only limit orders; market and stop orders are not accepted."
+  },
+  {
+   "id": "h1",
+   "source": "s20",
+   "quote": "Trim is where to take some off",
+   "claim": "In our words, a trim takes some shares off and keeps the rest."
+  },
+  {
+   "id": "h2",
+   "source": "s21",
+   "quote": "Hold your winners by selling partials into strength and trailing the rising moving averages.",
+   "claim": "The owner sells partials and holds the rest of a winner."
+  },
+  {
+   "id": "h3",
+   "source": "s22",
+   "quote": "Default stop: the low of the day, or the prior day's low. (Owner's answer.)",
+   "claim": "Our default stop is the low of the day or the prior day's low."
+  }
+ ],
+ "walkthroughs": [
+  {
+   "key": "w1",
+   "title": "Why a report is different",
+   "steps": [
+    "Most companies report before the open or after the close. The regular session reacts at the next open.",
+    "That reaction can be a gap: a sharp move with no trades in between.",
+    "Your stop can't trade inside a gap. It becomes a market order and fills at the next price.",
+    "Schwab's example: stop at $34, the stock gaps from over $34 to about $32, and the stop fills at $32."
+   ],
+   "facts": [
+    "f1",
+    "f15",
+    "f21",
+    "f6",
+    "f7",
+    "f17",
+    "f18",
+    "f32",
+    "f14"
+   ]
+  },
+  {
+   "key": "w2",
+   "title": "Three answers before the numbers",
+   "steps": [
+    "You have three answers: hold it all, trim some, or step aside before the report.",
+    "Nobody knows the reaction. A company can beat and still drop.",
+    "ZM lost almost 17% the day after a report. AMBA climbed almost 35% within two days of one.",
+    "Step aside and you can still buy after the numbers, once you've seen the reaction."
+   ],
+   "facts": [
+    "f48",
+    "f23",
+    "f40",
+    "f4",
+    "f42",
+    "f45",
+    "f44",
+    "f24",
+    "f46"
+   ]
+  },
+  {
+   "key": "w3",
+   "title": "Size and the gain decide",
+   "steps": [
+    "The gap hits every share you hold. The bigger the position, the bigger the hit.",
+    "Your gain so far is your cushion. A big gain can absorb a gap. A fresh entry has no cushion.",
+    "The options market prices an expected move. It's a size, not a direction, and it's no cap.",
+    "Plan it the night before. Act in the last regular session before the numbers."
+   ],
+   "facts": [
+    "f35",
+    "f34",
+    "f49",
+    "f26",
+    "f27",
+    "f28",
+    "f1",
+    "f12",
+    "f47"
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "key": "q01",
+   "skill": "fund.earnings_decision",
+   "rung": 1,
+   "format": "mcq",
+   "q": "When do most companies put out their earnings reports?",
+   "choices": [
+    "Before the open or after the close",
+    "In the middle of the trading day",
+    "On the day their 10-Q is due"
+   ],
+   "answer": "Before the open or after the close",
+   "why": "Before the open or after the close. FINRA says that's when companies usually release their reports, so the regular session reacts at the next open.",
+   "lesson_line": "Earnings land while the market is shut. Plan for the open after.",
+   "facts": [
+    "f1",
+    "f2",
+    "f14"
+   ],
+   "wrong": {
+    "In the middle of the trading day": "Reports usually come out while the market is shut, not in the middle of the session.",
+    "On the day their 10-Q is due": "Companies can announce before they file, and most do. The report usually lands well before that deadline."
+   }
+  },
+  {
+   "key": "q02",
+   "skill": "fund.earnings_decision",
+   "rung": 1,
+   "format": "fill",
+   "term": "gap",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "A sharp move up or down with no trading in between is a ___.",
+   "bank": [
+    "gap",
+    "spread",
+    "breakout",
+    "pullback",
+    "halt"
+   ],
+   "answer": "gap",
+   "why": "Gap. Earnings are one cause, because companies can report when the market isn't open.",
+   "lesson_line": "A report can open the stock somewhere you never got a chance to trade.",
+   "facts": [
+    "f15",
+    "f16",
+    "f21",
+    "f32"
+   ]
+  },
+  {
+   "key": "q03",
+   "skill": "fund.earnings_decision",
+   "rung": 2,
+   "format": "tf",
+   "q": "If a report gaps a stock below your stop, the stop still sells you at your stop price.",
+   "answer": "False",
+   "why": "False. The stop price is only a trigger. Once the stock opens below it, the order becomes a market order and fills at the next price, below your stop.",
+   "lesson_line": "A stop can't trade inside a gap. It fills where the stock opens.",
+   "facts": [
+    "f6",
+    "f7",
+    "f9",
+    "f18",
+    "f32"
+   ]
+  },
+  {
+   "key": "q04",
+   "skill": "fund.earnings_decision",
+   "rung": 2,
+   "format": "mcq",
+   "q": "You sell every share before the report and plan to look at the stock again after it. Which of the three answers is that?",
+   "choices": [
+    "Step aside",
+    "Trim",
+    "Hold through"
+   ],
+   "answer": "Step aside",
+   "why": "Step aside. You're out before the numbers and can decide fresh once you've seen them.",
+   "lesson_line": "Stepping aside isn't quitting the stock. It's skipping the coin flip and looking again after.",
+   "facts": [
+    "f23",
+    "f24",
+    "f40",
+    "f53"
+   ],
+   "wrong": {
+    "Trim": "A trim sells only part and keeps the rest through the report.",
+    "Hold through": "Holding keeps every share through the report and takes the full gap, either way."
+   }
+  },
+  {
+   "key": "q05",
+   "skill": "fund.earnings_decision",
+   "rung": 2,
+   "format": "tf",
+   "q": "When a company beats estimates, its stock is sure to rise.",
+   "answer": "False",
+   "why": "False. A company can beat and still drop on a weak outlook. A stock that ran up into great numbers can also stall or fall for lack of new buyers.",
+   "lesson_line": "Good numbers don't promise a good reaction. That's why I never bet the account on a report.",
+   "facts": [
+    "f4",
+    "f5",
+    "f43",
+    "f31"
+   ]
+  },
+  {
+   "key": "q06",
+   "skill": "fund.earnings_decision",
+   "rung": 3,
+   "format": "mcq",
+   "term": "expected move",
+   "q": "Before a report, what does the options market's expected move tell you?",
+   "choices": [
+    "How big a move is priced in",
+    "Which way the stock will gap",
+    "The most the stock can move"
+   ],
+   "answer": "How big a move is priced in",
+   "why": "How big a move is priced in. It's the move the options market expects from the report. It doesn't promise that size and says nothing about direction.",
+   "lesson_line": "The expected move is a size, not a direction. Use it to check your risk before the report.",
+   "facts": [
+    "f26",
+    "f27",
+    "f36"
+   ],
+   "wrong": {
+    "Which way the stock will gap": "It gives no direction. The same number covers a gap up or a gap down.",
+    "The most the stock can move": "It's no cap. The move isn't guaranteed to stay that size, and it can be bigger."
+   }
+  },
+  {
+   "key": "q07",
+   "skill": "fund.earnings_decision",
+   "rung": 3,
+   "format": "tf",
+   "q": "A standard stop order will trigger in after-hours trading if the stock drops on the news.",
+   "answer": "False",
+   "why": "False. Many brokers accept only limit orders after hours. At Schwab, stop orders trigger only in the regular session, 9:30 a.m. to 4 p.m. ET. Check your broker's rules.",
+   "lesson_line": "Don't assume your stop is awake after the close. Usually it waits for the open.",
+   "facts": [
+    "f11",
+    "f61",
+    "f62",
+    "f33",
+    "f14"
+   ]
+  },
+  {
+   "key": "q08",
+   "skill": "fund.earnings_decision",
+   "rung": 3,
+   "format": "fill",
+   "house": true,
+   "term": "trim",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "Selling some of your shares and keeping the rest is a ___.",
+   "bank": [
+    "trim",
+    "hedge",
+    "stop",
+    "chase",
+    "add"
+   ],
+   "answer": "trim",
+   "why": "Trim. You take some off and hold the rest. Before a report, it's the middle answer between holding it all and stepping aside.",
+   "lesson_line": "A trim lowers what a gap can cost and keeps you in if the news is good.",
+   "facts": [
+    "h1",
+    "h2",
+    "f48"
+   ]
+  },
+  {
+   "key": "q09",
+   "skill": "fund.earnings_decision",
+   "rung": 4,
+   "format": "numeric",
+   "q": "Your position is 20% of the account. A report gaps it down 15% at the open. What share of the account did you lose?",
+   "answer": 3,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "position_pct * gap_pct / 100",
+     "position_pct": 20,
+     "gap_pct": 15
+    }
+   },
+   "suffix": "%",
+   "why": "3%. The gap hits every share you hold: 15% off a position worth 20% of the account. Your stop doesn't change that.",
+   "lesson_line": "Position size times the gap is the hit. Size decides how much a report can hurt.",
+   "facts": [
+    "f35",
+    "f17",
+    "f32"
+   ]
+  },
+  {
+   "key": "q10",
+   "skill": "fund.earnings_decision",
+   "rung": 4,
+   "format": "scenario",
+   "story": "You own a stock that reports before the open on Thursday. You want out before the numbers. You don't trade after hours.",
+   "q": "When is your last chance to sell in the regular session?",
+   "choices": [
+    "Wednesday's close",
+    "Thursday's open",
+    "Thursday's close"
+   ],
+   "answer": "Wednesday's close",
+   "why": "Wednesday's close. The numbers come out before Thursday's open, so the gap prints at the open. The decision gets made in Wednesday's session.",
+   "lesson_line": "Check when it reports. A before-the-open report means you act the session before.",
+   "facts": [
+    "f1",
+    "f14",
+    "f10",
+    "f55"
+   ],
+   "wrong": {
+    "Thursday's open": "The numbers are already out by then. The open is where the gap prints.",
+    "Thursday's close": "That's a full session after the news. You've already taken the reaction."
+   }
+  },
+  {
+   "key": "q11",
+   "skill": "fund.earnings_decision",
+   "rung": 4,
+   "format": "mcq",
+   "q": "The report is a week away and you like the setup. Why buy a smaller position than usual?",
+   "choices": [
+    "A gap would hit fewer shares",
+    "Your stop will fill nearer plan",
+    "Reports tend to push stocks down"
+   ],
+   "answer": "A gap would hit fewer shares",
+   "why": "A gap would hit fewer shares. Your stop can't protect you from a gap, so the size you carry into the report is what you control.",
+   "lesson_line": "With a report close, I buy smaller. The stop can't save me from a gap. The size can.",
+   "facts": [
+    "f51",
+    "f32",
+    "f20",
+    "f53"
+   ],
+   "wrong": {
+    "Your stop will fill nearer plan": "Size doesn't change the fill. A gap fills your stop at the open either way.",
+    "Reports tend to push stocks down": "No direction is known. The reaction is close to a coin flip. The risk is the size of the move."
+   }
+  },
+  {
+   "key": "q12",
+   "skill": "fund.earnings_decision",
+   "rung": 5,
+   "format": "numeric",
+   "q": "Your position is 20% of the account. You sell half before the report. It gaps down 15%. What share of the account did you lose?",
+   "answer": 1.5,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "position_pct * keep_fraction * gap_pct / 100",
+     "position_pct": 20,
+     "keep_fraction": 0.5,
+     "gap_pct": 15
+    }
+   },
+   "suffix": "%",
+   "why": "1.5%. You carried half the shares into the gap, so you took half the hit. That's 15% off half of a 20% position.",
+   "lesson_line": "Trimming half cuts the gap's damage in half and keeps you in if it goes your way.",
+   "facts": [
+    "f48",
+    "f34",
+    "f35"
+   ]
+  },
+  {
+   "key": "q13",
+   "skill": "fund.earnings_decision",
+   "rung": 5,
+   "format": "numeric",
+   "q": "You're up 2% on a stock. A report gaps it down 15%. How far below your entry price are you now, in percent?",
+   "answer": 13.3,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(1 - (1 + gain_pct / 100) * (1 - gap_pct / 100)) * 100",
+     "gain_pct": 2,
+     "gap_pct": 15
+    }
+   },
+   "suffix": "%",
+   "why": "13.3%. Your 2% gain was gone in the first sliver of the gap, and the rest came out of your capital.",
+   "lesson_line": "A small gain is no cushion. A gap goes straight through it and into your money.",
+   "facts": [
+    "f49",
+    "f17",
+    "f32"
+   ]
+  },
+  {
+   "key": "q14",
+   "skill": "fund.earnings_decision",
+   "rung": 5,
+   "format": "scenario",
+   "story": "You bought two days ago and you're up 2%. Your stop is 6% under your entry. It reports tonight, and options price a move of about 10%.",
+   "q": "What's the real risk if you hold every share through?",
+   "choices": [
+    "A loss past your stop",
+    "A loss no bigger than 6%",
+    "Little, since you're in profit"
+   ],
+   "answer": "A loss past your stop",
+   "why": "A loss past your stop. A gap that size would open below your stop, and the order fills at the next price. The move can be bigger than priced, too.",
+   "lesson_line": "No cushion and a big expected move: I'd trim hard or step aside.",
+   "facts": [
+    "f7",
+    "f13",
+    "f32",
+    "f27",
+    "f49"
+   ],
+   "wrong": {
+    "A loss no bigger than 6%": "Your stop can't fill inside a gap. If the stock opens about 10% lower, that's about where you sell.",
+    "Little, since you're in profit": "A 2% gain covers a 2% drop. Against a gap of about 10%, it barely helps."
+   }
+  },
+  {
+   "key": "q15",
+   "skill": "fund.earnings_decision",
+   "rung": 6,
+   "format": "scenario",
+   "story": "A stock is 25% of your account. It reports after the close, and options price a move of about 8%. You normally risk 1% of the account on a trade.",
+   "q": "If it gaps down the full expected move, how does the hit compare with your normal risk?",
+   "choices": [
+    "About 2x your normal risk",
+    "About the same as normal",
+    "About 8x your normal risk"
+   ],
+   "answer": "About 2x your normal risk",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "position_pct * move_pct / 100 / normal_risk_pct",
+     "position_pct": 25,
+     "move_pct": 8,
+     "normal_risk_pct": 1
+    },
+    "round": 0
+   },
+   "why": "About 2x. 8% off a position worth 25% of the account is 2% of the account, double your normal risk. And the move isn't capped at the expected size.",
+   "lesson_line": "Check the expected move against your size. If one gap costs double your normal risk, cut the size first.",
+   "facts": [
+    "f28",
+    "f29",
+    "f27",
+    "f35"
+   ],
+   "wrong": {
+    "About the same as normal": "Your stop doesn't set the loss here. The gap does, and 8% of a 25% position is 2% of the account.",
+    "About 8x your normal risk": "That's the stock's move. The account feels it only on the 25% you hold."
+   }
+  },
+  {
+   "key": "q16",
+   "skill": "fund.earnings_decision",
+   "rung": 6,
+   "format": "tf",
+   "q": "After an evening report, you can count on a good fill when you sell in after-hours trading.",
+   "answer": "False",
+   "why": "False. After hours there's less trading interest, so prices are less certain and orders are harder to fill. News can also move the stock sharply in that session.",
+   "lesson_line": "After hours is a thin market. If you must sell there, use a limit order. Many brokers take nothing else.",
+   "facts": [
+    "f12",
+    "f10",
+    "f11",
+    "f62"
+   ]
+  },
+  {
+   "key": "q17",
+   "skill": "fund.earnings_decision",
+   "rung": 6,
+   "format": "tf",
+   "q": "Stepping aside before a report costs you nothing.",
+   "answer": "False",
+   "why": "False. You can miss the gap up. AMBA climbed almost 35% within two days of its report. Waiting out every report isn't always the right call.",
+   "lesson_line": "Stepping aside trades a possible big gain for safety. Know that's the price you're paying.",
+   "facts": [
+    "f44",
+    "f41",
+    "f25"
+   ]
+  },
+  {
+   "key": "q18",
+   "skill": "fund.earnings_decision",
+   "rung": 7,
+   "format": "numeric",
+   "q": "You own 500 shares, sell stop at $34. A report gaps the stock to $32 and your stop fills there. How much more did you lose than planned?",
+   "answer": 1000,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(stop - fill) * shares",
+     "stop": 34,
+     "fill": 32,
+     "shares": 500
+    }
+   },
+   "prefix": "$",
+   "why": "$1,000. You planned on $34 and got $32 on each of your 500 shares. That's Schwab's own gap example: the stop triggers at the open and fills at $32.",
+   "lesson_line": "Plan the earnings loss from the gap, not from the stop.",
+   "facts": [
+    "f17",
+    "f18",
+    "f7"
+   ]
+  },
+  {
+   "key": "q19",
+   "skill": "fund.earnings_decision",
+   "rung": 7,
+   "format": "scenario",
+   "story": "You sold everything before the report. Next morning the stock gaps up 8% on strong numbers and holds near its high into midday.",
+   "q": "What's your next step with this stock?",
+   "choices": [
+    "Judge it fresh, like a new trade",
+    "Leave it. That move is gone",
+    "Buy it back now at any price"
+   ],
+   "answer": "Judge it fresh, like a new trade",
+   "why": "Judge it fresh. Once the numbers are out, you can study them, watch the reaction and decide if you still want to own it.",
+   "lesson_line": "Stepping aside isn't goodbye. After the report it's a new trade, with a new entry and a new stop.",
+   "facts": [
+    "f24",
+    "f46",
+    "h3"
+   ],
+   "wrong": {
+    "Leave it. That move is gone": "Not necessarily. After the report you can decide fresh if you still want it.",
+    "Buy it back now at any price": "Chasing at any price skips the plan. Set the stop first. Our default stop is the low of the day or the prior day's low."
+   }
+  },
+  {
+   "key": "q20",
+   "skill": "fund.earnings_decision",
+   "rung": 7,
+   "format": "tf",
+   "q": "A sound earnings plan is to guess which of your stocks will beat and hold only those.",
+   "answer": "False",
+   "why": "False. A beat doesn't decide the reaction, and nobody knows how the market will respond. Guess stock by stock and you can sell the ones that gap up and keep the ones that sink.",
+   "lesson_line": "Set your rules ahead of time and run every stock through them. Don't guess the reaction.",
+   "facts": [
+    "f4",
+    "f42",
+    "f53",
+    "f50",
+    "f47"
+   ]
+  },
+  {
+   "key": "q21",
+   "skill": "fund.earnings_decision",
+   "rung": 8,
+   "format": "scenario",
+   "story": "You hold a stock with a stop-limit to sell: stop $50, limit $49.50. It reports after the close and opens at $44 the next morning.",
+   "q": "What happens to your order?",
+   "choices": [
+    "It sells nothing; you keep it",
+    "It sells at about $49.50",
+    "It sells at exactly $50 a share"
+   ],
+   "answer": "It sells nothing; you keep it",
+   "why": "It doesn't fill. A stop-limit becomes a limit order, and with the stock at $44 no buyer pays $49.50. Unless it climbs back to $49.50, you still hold a stock that just gapped down.",
+   "lesson_line": "A stop-limit can't catch a gap either. It can leave you holding the bag.",
+   "facts": [
+    "f8",
+    "f9"
+   ],
+   "wrong": {
+    "It sells at about $49.50": "The limit is the worst price you'll take. The market is far below it, so nothing fills.",
+    "It sells at exactly $50 a share": "The stop price only triggers the order. It's never a promised fill."
+   }
+  },
+  {
+   "key": "q22",
+   "skill": "fund.earnings_decision",
+   "rung": 8,
+   "format": "scenario",
+   "story": "Your stock reports after the close. Next morning it opens 14% lower, far under your stop. You use a mental stop, so nothing sold. It's 9:45 am.",
+   "q": "What do you do?",
+   "choices": [
+    "Sell. Your plan says you're out",
+    "Wait for a bounce to sell",
+    "Buy more while it's cheap"
+   ],
+   "answer": "Sell. Your plan says you're out",
+   "why": "Sell. The stock gapped well below your stop, so the trade is over. For a bad report you catch that same session, Bulkowski's answer is to sell right away.",
+   "lesson_line": "When a report blows through your stop, take the loss that day. Don't turn it into a hope trade.",
+   "facts": [
+    "f52",
+    "f56",
+    "f59",
+    "f57",
+    "f58"
+   ],
+   "wrong": {
+    "Wait for a bounce to sell": "Hoping for a bounce isn't a plan. On the day of the drop, Bulkowski expects the coming days to bring more downside.",
+    "Buy more while it's cheap": "That's adding to a loser right after a bad report. Bulkowski's answer to buying after bad earnings is no."
+   }
+  },
+  {
+   "key": "q23",
+   "skill": "fund.earnings_decision",
+   "rung": 8,
+   "format": "scenario",
+   "story": "Three of your stocks report this week. A is 8% of the account, up 35%. B is 25%, up 1%. C is 5%, up 12%.",
+   "q": "A 10% gap down hits all three. Which one costs the account the most?",
+   "choices": [
+    "Stock A",
+    "Stock B",
+    "Stock C"
+   ],
+   "answer": "Stock B",
+   "why": "Stock B. At 25% of the account it's the biggest position, so a 10% gap costs the account the most. With only a 1% gain, it ends below your entry too.",
+   "lesson_line": "Biggest size and no cushion: that's the one I'd trim first.",
+   "facts": [
+    "f35",
+    "f49",
+    "f28"
+   ],
+   "wrong": {
+    "Stock A": "A has the biggest gain, but at 8% of the account it's a small position. The same gap costs the account less, and A stays in profit.",
+    "Stock C": "C is the smallest position, at 5% of the account, so the same gap costs the account the least."
+   }
+  },
+  {
+   "key": "q24",
+   "skill": "fund.earnings_decision",
+   "rung": 9,
+   "format": "scenario",
+   "story": "You're up 40% in a leader you've held for months, a normal-size position. It reports after the close. Options price a move of about 9%.",
+   "q": "You decide to hold through. Which reason holds up?",
+   "choices": [
+    "Still up about 27% after a 9% gap",
+    "My stop will cap the loss",
+    "Leaders don't gap down on reports"
+   ],
+   "answer": "Still up about 27% after a 9% gap",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "((1 + gain_pct / 100) * (1 - move_pct / 100) - 1) * 100",
+     "gain_pct": 40,
+     "move_pct": 9
+    },
+    "round": 0
+   },
+   "why": "Still up about 27%. A full 9% gap down from here leaves you well above your entry. The gain is the cushion. The stop isn't.",
+   "lesson_line": "A big gain can carry a position through a report. Just remember the move can be bigger than priced.",
+   "facts": [
+    "f49",
+    "f28",
+    "f27",
+    "f5",
+    "f32"
+   ],
+   "wrong": {
+    "My stop will cap the loss": "A stop can't fill inside a gap. If it opens far below your stop, that's where you sell.",
+    "Leaders don't gap down on reports": "Any stock can tumble on its numbers, even one that ran up into a great report."
+   }
+  },
+  {
+   "key": "q25",
+   "skill": "fund.earnings_decision",
+   "rung": 9,
+   "format": "scenario",
+   "story": "NVDA reports on February 25, 2026. You hold it at full size, up 3%. Expectations for the quarter run high.",
+   "q": "What's the call before the report?",
+   "choices": [
+    "Trim it or step aside",
+    "Hold it all. The quarter looks great",
+    "Add more before the numbers"
+   ],
+   "answer": "Trim it or step aside",
+   "why": "Trim it or step aside. A 3% gain is a thin cushion for a full position, and great numbers don't promise a rise. NVDA posted record results and still dropped roughly 9% over the next two days.",
+   "lesson_line": "Full size, thin cushion, high hopes: that's the setup I lighten before the numbers.",
+   "facts": [
+    "f30",
+    "f60",
+    "f4",
+    "f49",
+    "f40",
+    "f23",
+    "f51",
+    "f53"
+   ],
+   "wrong": {
+    "Hold it all. The quarter looks great": "A great quarter can still drop when the good news is already in the price. That's what happened here.",
+    "Add more before the numbers": "Buying size right before a report is a coin flip. With a report close, buy smaller, not bigger."
+   }
+  },
+  {
+   "key": "q26",
+   "skill": "fund.earnings_decision",
+   "rung": 9,
+   "format": "tf",
+   "q": "If you hold only shares, selling some or all before the report is the one sure way to cut your gap risk.",
+   "answer": "True",
+   "why": "True. With shares alone there's no way to limit the downside without selling. A stop can't catch a gap, so only the shares you no longer hold are safe.",
+   "lesson_line": "With shares, risk into a report is cut one way: by holding fewer of them.",
+   "facts": [
+    "f34",
+    "f32",
+    "f7"
+   ]
+  }
+ ],
+ "conflicts": [
+  "Unit row: hold through, trim and step aside as our three answers (C4), 'covers: course M12 Earnings Decision'. M12 lives under docs/curriculum, which is never a source. sizing_rule.md, TRADE_PLANS.md and OWNER_PRINCIPLES.md record no owner rule on earnings. So the three answers are taught as the choices any holder has (Cabot f48, Schwab f23, StockCharts f40, Bulkowski f54), not as our rule, and no question asks 'our earnings rule'. If the owner gives his own rule (for example a cushion size that lets him hold), it can be added as a house question.",
+  "Hold vs sell: the StockCharts authors (Hopkins f38, Bowley f40) sell before every report; Cabot (f48) allows holding all, selling some or in between; Bulkowski (f54) says 'the choice is yours'; Schwab (f25) says waiting out every report is not always right. No question keys 'hold' or 'step aside' as the general answer. Keys are the mechanics (gap vs stop), the arithmetic (size x gap, gain after a gap), or the one case every source points the same way: full size, no cushion (q14, q25 key 'trim or step aside', q24 keys only that a 40% gain absorbs a 9% gap).",
+  "Stop-limit: Schwab's 'Earnings Season: 3 Things' suggests a stop-limit to guard against a slide; the SEC (f8) says a stop-limit may not fill if the price moves away from the limit, so on a gap through the limit you keep the shares. q21 teaches the SEC version; the Schwab suggestion is not cited.",
+  "After a bad report: Bulkowski says sell 'if you can catch it intraday' on the reaction day (f56, f59). For someone who learns of it a day or more later he suggests a swing trader may hold for the bounce, and his study found the bounce got holders back to the pre-report close about half the time. Cabot (f52) says get out when it gaps well below your stop. q22 is set on the reaction day (9:45 am), where both agree; no question keys what to do a day or more later (that is F5.07's ground).",
+  "Cabot's own numbers (about half normal size within two weeks of a report; sell a quarter to a third where there is no profit) are one author's rules of thumb. They are quoted as facts but no question keys those fractions.",
+  "Expected move: Schwab's quotes name its thinkorswim measure (MMM); Cboe (f36) describes the same priced-in move. Questions say 'expected move' and never a platform name. F5.04/F5.05/F6.08 teach how it is computed; this unit only uses it as a yardstick.",
+  "Sources not used: Investopedia's robots.txt disallows Claude agents and its terms forbid AI retrieval; investors.com (IBD) disallows all unlisted agents; CNBC, AP and Reuters likewise. IBD's 'profit cushion' guidance is therefore not quoted. Real cases come from Schwab (NVDA, February 2026) and StockCharts (ZM, AMBA, 2021).",
+  "The row's '20 scenarios from archive calls with a print inside the hold' are private archive material and cannot go in this public file. The real-number cases here are public (Schwab, StockCharts); the rest are worked arithmetic.",
+  "Checker, 2026-11-09, extended hours: Fidelity's 9:30-4:00 line (f33) covers trailing stops only, so q07 now rests on the SEC (f11, bulletin dated June 6, 2022: many brokers take only limit orders) and Schwab's current pages (f61 stop orders trigger only in the standard session; f62 extended sessions take only limit orders). The SEC says order types accepted differ by broker and venue, so q07 keys only that a stop 'will trigger' after hours is not something to count on, and the why says to check your broker.",
+  "Checker, 2026-11-09, Bulkowski (s19): thepatternsite.com's robots.txt blocks ClaudeBot, Claude-Web and anthropic-ai, and the page footer says the site 'shall not be used to train artificial intelligence (AI) systems'. That is the test under which Investopedia was left out, and docs/study/TRAINING_CORPUS.md lists the Study banks as brain training material. The contract lists Bulkowski as Tier 2 and nine other units cite him, so his facts stay here (q10 also rests on FINRA f1; q22 on Cabot f52 beside him). Owner's call whether to keep the site anywhere in Study.",
+  "Checker, 2026-11-09, Bulkowski's study (f54-f59) covers bull-market 'bad earnings surprises' with a median reaction-day drop of 3%; his advice changes by trader type (position traders hold, or wait for the bounce if they missed the drop day, and the median bounce got back to the pre-report close). q22 is set on the reaction day, with a stop already broken, where his intraday answer and Cabot's agree; no question keys the bounce."
+ ],
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "notes": "f1 (FINRA), f15/f17/f18 (Schwab), f6/f7 (SEC), f21, f32 (Fidelity) re-read live in context. Changed 'The market reacts at the next open' to 'The regular session reacts' (after-hours trading reacts first, f10) and 'is often a gap' to 'can be a gap' (sources say can, not often); added f14.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "f48 (Cabot), f23 (Schwab), f40 (StockCharts), f4 (FINRA), f42, f44, f45, f24, f46 confirmed live in context. ZM 'almost 17%' and AMBA 'almost 35%' are Hopkins' own words (StockCharts, September 3, 2021).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "f35/f34 (Cboe), f26/f27/f28 (Schwab), f49, f1, f12 confirmed live. 'A fresh entry can't [take a gap]' read as absolute; now 'A big gain can absorb a gap. A fresh entry has no cushion.' (q13, q24 arithmetic). Added f47 (Cabot: plan ahead of time) for the last step.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q01": {
+   "status": "cut",
+   "notes": "duplicate of F5.04#q03. Track audit 2026-11-09: Same question (when do most companies release earnings), same key, same main distractor. Report timing is F5.04's topic, so F5.04#q03 is kept (its lesson line now carries this item's checker fix: the regular session takes the news at the next open). The question stays in the file as the record. Checker's earlier note (pass): f1 FINRA 'usually ... before the market opens or after it closes' and f2 (most announce before the 10-Q deadline) confirmed live. why said 'most' and 'the reaction shows up at the next open'; now 'usually' and 'the regular session reacts'. Removed 'That's rare' from a wrong note (not in a cited quote).",
+   "fixed": false,
+   "by": "track auditor"
+  },
+  "q02": {
+   "status": "pass",
+   "notes": "f15/f16 (Schwab) and f32 (Fidelity) confirmed live: two Tier 2 publishers. Bank distractors (spread, breakout, pullback, halt) are real terms that do not fit 'a sharp move with no trading in between'.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q03": {
+   "status": "pass",
+   "notes": "f6, f7, f9 (SEC, Tier 1) confirmed live: the stop price is a trigger, not a guaranteed price, and the fill can deviate significantly. Schwab f18 shows the $34 stop filling at $32. Key False is right for a plain stop order, which is what the statement says.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q04": {
+   "status": "pass",
+   "notes": "f23/f24 (Schwab), f40 (StockCharts) confirmed. Question now says 'Which of the three answers' so it reads on its own. Added f53 (Cabot 'roll of the dice') because the lesson line calls the report a coin flip.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q05": {
+   "status": "cut",
+   "notes": "duplicate of F5.01#q22. Track audit 2026-11-09: Near-identical true/false statement ('beats estimates, its stock is sure to rise'). F5.01#q22 is kept: it carries a real, dated case. The question stays in the file as the record. Checker's earlier note (pass): f4/f5 (FINRA, Tier 1) confirmed live. Removed the NVDA example from the why: it gave away q25's real outcome before q25 is asked. Why now teaches FINRA's two reasons only; f31 (Schwab, weak guidance) added, f30/f60 left to q25.",
+   "fixed": false,
+   "by": "track auditor"
+  },
+  "q06": {
+   "status": "cut",
+   "notes": "duplicate of F5.05#q01. Track audit 2026-11-09: Same 'what does the move priced by options tell you' definition, same format, and a second Word Match tile ('expected move') for the number F5.04 and F5.05 teach as the implied move. F5.05#q01 is kept; the w3 of F5.04 and the w1 of F5.05 now say the two names mean the same thing, and F5.06's w3 still uses the expected move as a yardstick. The question stays in the file as the record. Checker's earlier note (pass): f26/f27 (Schwab) and f36 (Cboe) confirmed: two publishers. Wrong choices really wrong (no direction, no cap: Schwab says the move can be greater or less). Why no longer says 'one-day' (that is Schwab's MMM only); lesson said 'not a forecast', now 'not a direction'.",
+   "fixed": false,
+   "by": "track auditor"
+  },
+  "q07": {
+   "status": "pass",
+   "notes": "Old why leaned on Fidelity f33, which covers trailing stops only. Now cites SEC f11 (many brokers take only limit orders after hours) and new Schwab facts f61 (stop orders trigger only in the standard session, 9:30 a.m. to 4 p.m. ET) and f62 (extended sessions take limit orders only), both read live 2026-11-09. Rules vary by broker, so 'will trigger' is false as stated and the why says check your broker.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q08": {
+   "status": "pass",
+   "notes": "House item. h1 (TRADE_PLANS.md 'Trim is where to take some off') and h2 (owner, sizing_rule.md §6, selling partials) read in the repo; f48 (Cabot) confirms 'sell some ... or something in between' as the middle answer. Bank distractors are real order and trade words.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q09": {
+   "status": "pass",
+   "notes": "Recomputed: 20% x 15% = 3% of the account. f35 (Cboe full exposure), f32 (Fidelity) confirmed. 'Your stop doesn't change that' holds whether the stop sits above or below the open.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q10": {
+   "status": "pass",
+   "notes": "f1 (FINRA) confirmed: reports come before the open or after the close. A before-the-open Thursday report leaves Wednesday's session as the last regular-session chance. Wrong choices are real timing mistakes.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q11": {
+   "status": "pass",
+   "notes": "Stem said 'about half your usual size', Cabot's own number (f51), which the conflicts note promises is never keyed; now 'a smaller position than usual'. f32 (Fidelity), f20 (Schwab) confirm stops do not protect against gaps, so size is the lever. Wrong choices are real misconceptions.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q12": {
+   "status": "pass",
+   "notes": "Recomputed: 20% x 0.5 x 15% = 1.5%. f48 (Cabot), f34/f35 (Cboe) confirmed. Split a 26-word sentence in the why (22-word cap) into two.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q13": {
+   "status": "pass",
+   "notes": "Recomputed: 1.02 x 0.85 = 0.867, so 13.3% below entry. f17 (Schwab), f32 (Fidelity) confirmed. The lesson (a small gain is no cushion) follows from the arithmetic.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q14": {
+   "status": "pass",
+   "notes": "Recomputed: up 2% with a 6% stop puts the stop 7.8% under the price; a 10% gap opens below it, about 8% under entry. 'Well past your stop' overstated a 2-point miss; now 'A loss past your stop'. Wrong note 'does nothing' now 'barely helps' (a 2% gain covers 2%). f7 SEC, f13 FINRA confirmed.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q15": {
+   "status": "pass",
+   "notes": "Recomputed: 25% x 8% = 2% of the account, 2x a 1% normal risk. f28/f29 (Schwab: check the expected move on a position before holding), f27, f35 (Cboe) confirmed. The 8x distractor is a real mistake (stock move read as account move).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q16": {
+   "status": "pass",
+   "notes": "f12, f10, f11 (SEC, Tier 1) confirmed live in context; the bulletin is dated June 6, 2022 and still posted. Added f62 (Schwab, current: extended sessions take only limit orders) behind the lesson's 'Many brokers take nothing else'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q17": {
+   "status": "pass",
+   "notes": "f25 (Schwab: waiting out earnings season isn't always right), f44 and f41 (StockCharts) confirmed live. Opportunity cost is a real cost, so False is right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q18": {
+   "status": "pass",
+   "notes": "Recomputed: ($34 - $32) x 500 = $1,000. f17/f18 (Schwab's own gap example: the $34 stop triggers at the open and executes at $32) and f7 (SEC) confirmed live.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q19": {
+   "status": "pass",
+   "notes": "f24 (Schwab) and f46 (StockCharts) confirmed: study the numbers, watch the reaction, decide fresh. Wrong note quoted only half the house stop rule; now 'the low of the day or the prior day's low', as h3 (sizing_rule.md §2, owner's answer) states.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q20": {
+   "status": "pass",
+   "notes": "f4 (FINRA), f42 (StockCharts), f50/f53/f47 (Cabot) confirmed. Lesson said 'apply one plan to every stock', which clashes with this unit's size-and-gain logic; now 'set your rules ahead of time and run every stock through them', which is Cabot's meaning in context.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q21": {
+   "status": "pass",
+   "notes": "f8/f9 (SEC 'Understanding Order Types') confirmed live: a stop-limit may not execute if price moves away from the limit. Why said flatly it doesn't fill; now notes it could still fill if the stock climbs back to $49.50. Lesson 'just leaves' now 'can leave'. | right choice reworded to open like the others ('It sells ...'). flagged-question fix checked 2026-11-11",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q22": {
+   "status": "pass",
+   "notes": "f52 (Cabot: gap well below your stop, get out, don't hold and hope) and f56/f59 (Bulkowski: sell if you can catch it intraday) confirmed live; two Tier 2 publishers agree on the reaction day. Read in context: Bulkowski's hold-for-the-bounce advice applies to position traders or a day later, not here (noted in conflicts). f58: buying after bad earnings, 'No'.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q23": {
+   "status": "pass",
+   "notes": "Choices showed each stock's account cost, so the key was just the biggest number shown (leading). Now 'Stock A/B/C' with no calc; why uses only the story's numbers. Checked: A 8% x 10% = 0.8%, B 25% x 10% = 2.5%, C 0.5%; B at 1.01 x 0.9 ends below entry, A stays in profit.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q24": {
+   "status": "pass",
+   "notes": "Recomputed: 1.40 x 0.91 = 1.274, still up about 27%. f27 (Schwab: the move can be bigger), f5 (FINRA: a stock that ran up can still fall), f32 (Fidelity) confirmed. Asks which reason holds up, not whether holding is right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q25": {
+   "status": "pass",
+   "notes": "f30/f60 (Schwab, June 2, 2026: NVDA record results February 25, 2026, down roughly 9% over two days) confirmed live. Key backed by f40 (StockCharts) and f23 (Schwab) for stepping aside, f51 (Cabot) against adding. 'No cushion' now 'a thin cushion' (3% is a small profit); trimmed 'before it' from the key; q05 no longer reveals this outcome first.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q26": {
+   "status": "pass",
+   "notes": "f34 (Cboe: 'no way to limit downside without exiting the position'), f32 (Fidelity), f7 (SEC) confirmed live. Reworded the dangling 'Holding shares only, selling ...' to 'If you hold only shares, selling ...'. True holds: options hedges are excluded by the premise.",
+   "fixed": true,
+   "by": "checker"
+  }
+ }
+}

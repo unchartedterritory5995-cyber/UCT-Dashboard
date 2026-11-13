@@ -1,0 +1,3405 @@
+{
+ "unit": "SET.07",
+ "track": "SET",
+ "title": "Flat Base Breakout",
+ "teaches": "The flat base breakout as we trade it: a leader rests in a box near its highs above the 50-day and 200-day, the pivot is the base's highest high, the buy is the trade through it at market in regular hours, the stop sits a few cents under the breakout day's low, a third comes off at 3R and 5R with the rest on the trail, and a loss taken at the stop is the system working.",
+ "skills": [
+  {
+   "id": "setup.flat_base",
+   "title": "Flat Base Breakout"
+  }
+ ],
+ "as_of": "2026-11-10",
+ "card": "docs/study/setups/criteria/01-flat-base.json",
+ "sources": [
+  {
+   "id": "s1",
+   "tier": 2,
+   "publisher": "Investor's Business Daily (syndicated on Yahoo Finance)",
+   "title": "Flat Base Is A Simple Pattern, But It Does Have Fine Details (2013-06-25)",
+   "url": "https://finance.yahoo.com/news/flat-simple-pattern-does-fine-205400421.html",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s2",
+   "tier": 2,
+   "publisher": "Investor's Business Daily (syndicated on Yahoo Finance)",
+   "title": "Learn To Spot A Bullish Flat Base On Stock Charts (2012-10-12)",
+   "url": "https://finance.yahoo.com/news/learn-spot-bullish-flat-stock-215000316.html",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s3",
+   "tier": 2,
+   "publisher": "Investor's Business Daily (syndicated on Yahoo Finance)",
+   "title": "Early Buy Point In A Flat Base Can Give Investors Jump-Start (2014-08-12)",
+   "url": "https://finance.yahoo.com/news/early-buy-point-flat-investors-220500783.html",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s4",
+   "tier": 2,
+   "publisher": "Investor's Business Daily (syndicated on Yahoo Finance)",
+   "title": "Looking At A Great Chart Base? Make Sure To Count The Weeks (2015-03-11)",
+   "url": "https://finance.yahoo.com/news/looking-great-chart-sure-count-203400677.html",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s5",
+   "tier": 2,
+   "publisher": "Investor's Business Daily (syndicated on Yahoo Finance)",
+   "title": "Correctly Shaped Bases Create Winning Breakouts (2013-02-04)",
+   "url": "https://finance.yahoo.com/news/correctly-shaped-bases-create-winning-215900488.html",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s6",
+   "tier": 2,
+   "publisher": "Investor's Business Daily (syndicated on Yahoo Finance)",
+   "title": "Flat Base Can Be Springboard To Big Stock Market Winners (2015-03-31)",
+   "url": "https://finance.yahoo.com/news/flat-springboard-big-stock-market-213500613.html",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s7",
+   "tier": 2,
+   "publisher": "Investor's Business Daily (syndicated on Yahoo Finance)",
+   "title": "Why Late-Stage Base Patterns Often Lead To A Timely Exit (2015-06-16)",
+   "url": "https://finance.yahoo.com/news/why-stage-patterns-often-lead-215800864.html",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s8",
+   "tier": 2,
+   "publisher": "Investor's Business Daily (syndicated on Yahoo Finance)",
+   "title": "Sit Tight: Tips For Dealing With A Pullback After The Breakout (2013-02-28)",
+   "url": "https://sg.finance.yahoo.com/news/sit-tight-tips-dealing-pullback-222700526.html",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s11",
+   "tier": 2,
+   "publisher": "MarketSmith (O'Neil's data firm)",
+   "title": "Flat Base (MarketSmith Hong Kong)",
+   "url": "https://www.marketsmith.hk/flat-base/?lang=en",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s12",
+   "tier": 2,
+   "publisher": "MarketSmith (O'Neil's data firm)",
+   "title": "MarketSmith Pattern Recognition Users Manual (copy on silo.tips, undated)",
+   "url": "https://silo.tips/download/marketsmith-pattern-recognition",
+   "accessed": "2026-11-09",
+   "why_reliable": "The vendor's own pattern-recognition manual (it carries marketsmith.com's address), held as a third-party copy; the dossier's cold check read it word for word. Same publisher as the MarketSmith Hong Kong page, so it never counts as a second publisher; it adds the stage, left-side-high and buy-range rules that page omits."
+  },
+  {
+   "id": "s13",
+   "tier": 2,
+   "publisher": "Stockbee (Pradeep Bonde)",
+   "title": "William O'Neil Setups (2011-12-13)",
+   "url": "https://stockbee.blogspot.com/2011/12/william-oneil-setups.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Pradeep Bonde, a named trader-educator with a long public record; UCT's Sunday Scans run his Market Monitor. Here he restates O'Neil's flat base rule; used only beside IBD's own columns."
+  },
+  {
+   "id": "s17",
+   "tier": 2,
+   "publisher": "TraderLion (Nick Schmidt)",
+   "title": "Master the Flat Base Pattern for Maximum Profits (2023-03-12, modified 2024-10-27)",
+   "url": "https://traderlion.com/technical-analysis/the-flat-base-pattern/",
+   "accessed": "2026-11-09",
+   "why_reliable": "A named author (Nick Schmidt) at an established trading-education publisher; UCT interviewed him on its Substack (2025-06-12). The live site refused the checker's client, so the dossier read the Internet Archive capture of 2025-05-13. Its O'Neil quotes name no book, so they support, never key."
+  },
+  {
+   "id": "s18",
+   "tier": 2,
+   "publisher": "Kristjan Kullamagi (qullamaggie.com)",
+   "title": "3 TIMELESS setups that have made me TENS OF MILLIONS! (2021-01-08, updated 2021-04-28)",
+   "url": "https://qullamaggie.com/my-3-timeless-setups-that-have-made-me-tens-of-millions/",
+   "accessed": "2026-11-09",
+   "why_reliable": "The trader's own site, in his own words, with a public audited-style record widely covered in the trading press; his breakout setup is the closest published rule to how UCT trades. Reader comments on the page were not used."
+  },
+  {
+   "id": "s24",
+   "tier": 2,
+   "publisher": "Thomas Bulkowski, thepatternsite.com",
+   "title": "Rectangle Tops",
+   "url": "https://thepatternsite.com/recttops.html",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "h1",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
+   "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
+   "accessed": "2026-11-10"
+  },
+  {
+   "id": "c1",
+   "tier": 3,
+   "publisher": "UCT setup criteria card",
+   "title": "Flat Base Breakout criteria card (docs/study/setups/criteria/01-flat-base.json, as of 2026-11-09)",
+   "url": "repo:docs/study/setups/criteria/01-flat-base.json",
+   "accessed": "2026-11-10"
+  },
+  {
+   "id": "d1",
+   "tier": 3,
+   "publisher": "UCT setup research (examples read from our own daily bars)",
+   "title": "Flat Base dossier, sections 12 and 13: examples, failures and near-misses from our data",
+   "url": "repo:docs/study/setups/research/01-flat-base.md#12-examples-from-our-data",
+   "accessed": "2026-11-10"
+  }
+ ],
+ "facts": [
+  {
+   "id": "i04",
+   "source": "s4",
+   "quote": "One, two or three weeks do not get the job done.",
+   "claim": "IBD: one, two or three weeks do not make a base."
+  },
+  {
+   "id": "i05",
+   "source": "s1",
+   "quote": "The stock's price declines no more than 15% from its intraday peak to intraday trough.",
+   "claim": "IBD: a flat base declines no more than 15% from its intraday peak to its intraday trough."
+  },
+  {
+   "id": "i06",
+   "source": "s3",
+   "quote": "The correction within a flat base should be no more than 15% from its intraday high to the bottom of the pattern.",
+   "claim": "IBD: the correction inside a flat base is no more than 15%."
+  },
+  {
+   "id": "i08",
+   "source": "s6",
+   "quote": "It should look like a rectangular box with a correction from high to low of no more than 15%.",
+   "claim": "IBD: a flat base looks like a rectangular box."
+  },
+  {
+   "id": "i09",
+   "source": "s1",
+   "quote": "the \"flat\" base has kind of a \"U\" shape and doesn't look so flat.",
+   "claim": "IBD allows a flat base with a slight U shape."
+  },
+  {
+   "id": "i10",
+   "source": "s5",
+   "quote": "Flat bases should show tight trading.",
+   "claim": "IBD: flat bases should show tight trading."
+  },
+  {
+   "id": "i12",
+   "source": "s3",
+   "quote": "These shallow patterns often start forming as a stock takes a breather after an earlier advance.",
+   "claim": "IBD: a flat base forms as a stock rests after an earlier advance."
+  },
+  {
+   "id": "i13",
+   "source": "s4",
+   "quote": "In a weekly chart, look for periods of sideways movement or mild declines following a prior uptrend of at least 30% in price.",
+   "claim": "IBD: look for sideways movement after a prior uptrend of at least 30% (stated for any base)."
+  },
+  {
+   "id": "i16",
+   "source": "s2",
+   "quote": "The typical buy point is the price high made before the decline, plus 10 cents.",
+   "claim": "IBD's buy point is the high before the decline plus 10 cents."
+  },
+  {
+   "id": "i17",
+   "source": "s3",
+   "quote": "To get the proper buy point, add 10 cents to the highest price in the pattern, which is usually the start of the base.",
+   "claim": "IBD's buy point is 10 cents above the highest price in the pattern, usually the start of the base."
+  },
+  {
+   "id": "i18",
+   "source": "s6",
+   "quote": "The buy point in a flat base is 10 cents above the left-side high.",
+   "claim": "IBD: the flat base buy point is 10 cents above the left-side high."
+  },
+  {
+   "id": "i19",
+   "source": "s3",
+   "quote": "Sometimes you can draw a trend line connecting at least three points along the top of the base and find the lowest potential entry.",
+   "claim": "IBD draws a line across at least three points along the top of the base."
+  },
+  {
+   "id": "i20",
+   "source": "s6",
+   "quote": "you want to see volume bulge at least 40%-50% above average when a stock breaks out of the flat base.",
+   "claim": "IBD wants breakout volume at least 40% to 50% above average."
+  },
+  {
+   "id": "i22",
+   "source": "s7",
+   "quote": "A breakout needs to produce a gain of at least 20% in order to be counted as one stage.",
+   "claim": "IBD: a breakout counts as a stage only if it gained at least 20%."
+  },
+  {
+   "id": "i23",
+   "source": "s7",
+   "quote": "Breakouts from late-stage bases will often blow up.",
+   "claim": "IBD: breakouts from late-stage bases often blow up."
+  },
+  {
+   "id": "i24",
+   "source": "s7",
+   "quote": "It's usually best to buy when a stock breaks out from a first-stage or second-stage base.",
+   "claim": "IBD: it is usually best to buy a first-stage or second-stage base."
+  },
+  {
+   "id": "i25",
+   "source": "s8",
+   "quote": "One guideline is the 7%-8% sell rule.",
+   "claim": "IBD's general loss limit is the 7% to 8% sell rule."
+  },
+  {
+   "id": "m01",
+   "source": "s11",
+   "quote": "Flat bases form over a 5 to 65 week range. The minimum depth is 0% with a maximum of 15%.",
+   "claim": "MarketSmith: a flat base is 5 to 65 weeks long and 0% to 15% deep."
+  },
+  {
+   "id": "m02",
+   "source": "s11",
+   "quote": "Flat bases often occur after a stock runs up after breaking out of one of the other chart patterns.",
+   "claim": "MarketSmith: flat bases often follow a run-up out of another pattern."
+  },
+  {
+   "id": "m03",
+   "source": "s12",
+   "quote": "In the case of a Cup, Flat Base, Consolidation or IPO Base, the Pivot corresponds to the Left Side High that began the base.",
+   "claim": "MarketSmith: a flat base's pivot is the left-side high that began the base."
+  },
+  {
+   "id": "m04",
+   "source": "s12",
+   "quote": "In most cases, it is the highest intra-day price over the last 100 days (or 20 weeks)",
+   "claim": "MarketSmith: the left-side high is usually the highest intraday price of the last 100 days."
+  },
+  {
+   "id": "m05",
+   "source": "s12",
+   "quote": "The percent decline from the start of the base (left side high) to the bottom (intraday low) of the base.",
+   "claim": "MarketSmith measures depth from the left-side high to the base's intraday low."
+  },
+  {
+   "id": "m07",
+   "source": "s12",
+   "quote": "Stocks emerging from third, fourth or later stage bases are late in their moves and may be more likely to fail.",
+   "claim": "MarketSmith: third, fourth or later stage bases are late and more likely to fail."
+  },
+  {
+   "id": "m08",
+   "source": "s12",
+   "quote": "The Base Stage and Count are always reset to 1 once an intraday low price undercuts the low of the previous base.",
+   "claim": "MarketSmith: the base count resets to 1 when price undercuts the prior base's low."
+  },
+  {
+   "id": "m09",
+   "source": "s12",
+   "quote": "The Pivot Range is 0% to 5% above the pivot point",
+   "claim": "MarketSmith's buy range is 0% to 5% above the pivot."
+  },
+  {
+   "id": "t01",
+   "source": "s17",
+   "quote": "A prior uptrend of 30% or more: This is the initial strong move that leads into the consolidation phase.",
+   "claim": "TraderLion: a prior uptrend of 30% or more leads into the base."
+  },
+  {
+   "id": "t02",
+   "source": "s17",
+   "quote": "the stock's price should not fall more than 15% from its highest point within the base.",
+   "claim": "TraderLion: no more than 15% off the base's high."
+  },
+  {
+   "id": "t04",
+   "source": "s17",
+   "quote": "the trading volume should be at least 40% higher than its average volume (1.4 times the relative volume).",
+   "claim": "TraderLion: breakout volume at least 40% above average."
+  },
+  {
+   "id": "t05",
+   "source": "s17",
+   "quote": "A well-formed flat base should have tight and orderly price action",
+   "claim": "TraderLion: a well-formed flat base is tight and orderly."
+  },
+  {
+   "id": "t06",
+   "source": "s17",
+   "quote": "Flat base breakouts are more likely to succeed in a strong, bullish market.",
+   "claim": "TraderLion: flat base breakouts do better in a strong, bullish market."
+  },
+  {
+   "id": "t07",
+   "source": "s17",
+   "quote": "In almost all cases, one-, two-, and three-week bases are risky. They should be avoided.",
+   "claim": "TraderLion, quoting O'Neil: one-, two- and three-week bases are risky."
+  },
+  {
+   "id": "t08",
+   "source": "s17",
+   "quote": "Wide and loose bases are a big sign of real danger.",
+   "claim": "TraderLion: wide and loose bases are a sign of danger."
+  },
+  {
+   "id": "p02",
+   "source": "s13",
+   "quote": "This is nothing but Darvas box setup.",
+   "claim": "Bonde: the flat base is a Darvas box."
+  },
+  {
+   "id": "k01",
+   "source": "s18",
+   "quote": "A big move higher sometime in the past 1-3 months. This move can be anywhere from 30-100%+ and usually lasts a few days to a few weeks.",
+   "claim": "Kullamagi: a big move of 30% to 100% or more in the past 1 to 3 months comes first."
+  },
+  {
+   "id": "k02",
+   "source": "s18",
+   "quote": "During the consolidation the stock price \"surfs\" the rising 10- and 20-day. and sometimes toe 50-day moving average.",
+   "claim": "Kullamagi: in the consolidation price surfs the rising 10- and 20-day and sometimes toes the 50-day."
+  },
+  {
+   "id": "k03",
+   "source": "s18",
+   "quote": "Stop is always lows of the day and stop should not be wider than the ATR or ADR of the stock",
+   "claim": "Kullamagi: the stop is the low of the day and no wider than the stock's ATR or ADR."
+  },
+  {
+   "id": "k05",
+   "source": "s18",
+   "quote": "This method can also be traded by anticipating the breakout but I don't find it as effective",
+   "claim": "Kullamagi finds anticipating the breakout less effective."
+  },
+  {
+   "id": "k06",
+   "source": "s18",
+   "quote": "If a beginner stick to the 10-day. You wait for the first CLOSE below the 10- day.",
+   "claim": "Kullamagi trails on the 10-day and sells on the first close below it."
+  },
+  {
+   "id": "b01",
+   "source": "s24",
+   "quote": "Price should touch one trendline at least three times and twice on the other trendline, using distinct peaks and valleys",
+   "claim": "Bulkowski's rectangle touches one line at least three times and the other twice."
+  },
+  {
+   "id": "b03",
+   "source": "s24",
+   "quote": "Trends downward 70% of the time.",
+   "claim": "Bulkowski: volume inside a rectangle top trends down 70% of the time."
+  },
+  {
+   "id": "h01",
+   "source": "h1",
+   "quote": "Stop first (by default a few cents under the day's low or the prior day's low, F62); the size comes from the stop; if the honest stop does not fit the risk, skip the trade.",
+   "claim": "A3: stop first, a few cents under the day's low; the size comes from the stop; if the honest stop does not fit, skip."
+  },
+  {
+   "id": "h02",
+   "source": "h1",
+   "quote": "The stop is the exit. It only moves up, never down or wider. The one exception is the gap rule (B20).",
+   "claim": "A4: the stop is the exit; it only moves up, never wider; the gap rule is the one exception."
+  },
+  {
+   "id": "h03",
+   "source": "h1",
+   "quote": "Shares = account × risk % ÷ (entry − stop), rounded down, then capped: the size is the SMALLER of the risk-based size and the position cap",
+   "claim": "A5: shares are account times risk percent, divided by entry minus stop, rounded down, then capped."
+  },
+  {
+   "id": "h04",
+   "source": "h1",
+   "quote": "\"I almost never take a loss greater than 3%\": the stop usually sits within about 3% of the buy (a loss on the position, not the account).",
+   "claim": "A13: the stop usually sits within about 3% of the buy."
+  },
+  {
+   "id": "h05",
+   "source": "h1",
+   "quote": "Move the stop to breakeven at 2R to 5R, ideally. The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
+   "claim": "B19: breakeven between 2R and 5R; the hard rule for the first trim is a third at 3R."
+  },
+  {
+   "id": "h06",
+   "source": "h1",
+   "quote": "A gap against the stop: the first 30 minutes of the gap-down day decide. The low of the first 30-minute bar is the new stop.",
+   "claim": "B20: on a gap through the stop, the first 30-minute low is the new stop."
+  },
+  {
+   "id": "h07",
+   "source": "h1",
+   "quote": "With a ceiling: if the first 30 minutes take the loss past 2R, get out.",
+   "claim": "B20's ceiling: if the first 30 minutes take the loss past 2R, get out."
+  },
+  {
+   "id": "h08",
+   "source": "h1",
+   "quote": "No new buys in the 3 days before an earnings report; hold through a report only if the trade is up 5R.",
+   "claim": "B22: no new buys in the 3 days before a report; hold through one only if up 5R."
+  },
+  {
+   "id": "h09",
+   "source": "h1",
+   "quote": "Trade only stocks at $10 or more that trade at least $20 million a day.",
+   "claim": "B23: only stocks at $10 or more trading at least $20 million a day."
+  },
+  {
+   "id": "h10",
+   "source": "h1",
+   "quote": "The 200-day line: no longs below the 200-day simple moving average, unless it is a parabolic long; shorts only below the 200-day, never above it unless it is a parabolic short.",
+   "claim": "B26: no longs below the 200-day simple moving average, except a parabolic long."
+  },
+  {
+   "id": "h11",
+   "source": "h1",
+   "quote": "No chasing: never buy more than 4% above the buy point.",
+   "claim": "C28: never buy more than 4% above the buy point."
+  },
+  {
+   "id": "h12",
+   "source": "h1",
+   "quote": "Chasing costs size, not risk: the stop stays under the buy point, so the distance grows and the shares shrink (A5).",
+   "claim": "C28: chasing costs size, because the stop stays put and the distance grows."
+  },
+  {
+   "id": "h13",
+   "source": "h1",
+   "quote": "Too stretched to buy: skip a long that is more than 10% above its 10-day average.",
+   "claim": "C29: skip a long more than 10% above its 10-day average."
+  },
+  {
+   "id": "h14",
+   "source": "h1",
+   "quote": "Buy leaders: an RS rating of 80 or more, in one of the strongest groups, except parabolic and mean-reversion trades.",
+   "claim": "C31: buy leaders, an RS rating of 80 or more in a strong group."
+  },
+  {
+   "id": "h15",
+   "source": "h1",
+   "quote": "Time stop: a trade still under 1R after 10 trading days is sold, freeing the money.",
+   "claim": "C33: a trade still under 1R after 10 trading days is sold."
+  },
+  {
+   "id": "h17",
+   "source": "h1",
+   "quote": "Prefer stocks with growing sales and earnings; the chart comes first.",
+   "claim": "D40: growing sales and earnings preferred; the chart comes first."
+  },
+  {
+   "id": "h18",
+   "source": "h1",
+   "quote": "Every position has a real stop order with the broker, not a stop kept in your head.",
+   "claim": "D41: a real stop order with the broker."
+  },
+  {
+   "id": "h19",
+   "source": "h1",
+   "quote": "Never own more than 1% of a stock's average daily volume; illiquid stocks are not even watched.",
+   "claim": "D42: never own more than 1% of a stock's average daily volume."
+  },
+  {
+   "id": "h20",
+   "source": "h1",
+   "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
+   "claim": "E51: another third at 5R, then trail the last third."
+  },
+  {
+   "id": "h21",
+   "source": "h1",
+   "quote": "Default trail: the 10-day average for fast movers, the 21-day for steadier ones; sell on a close below it.",
+   "claim": "E52: trail the 10-day for fast movers, the 21-day for steadier ones; sell on a close below it."
+  },
+  {
+   "id": "h22",
+   "source": "h1",
+   "quote": "Entries are market orders.",
+   "claim": "E57: entries are market orders."
+  },
+  {
+   "id": "h23",
+   "source": "h1",
+   "quote": "No new buys outside regular trading hours.",
+   "claim": "E58: no new buys outside regular hours."
+  },
+  {
+   "id": "h24",
+   "source": "h1",
+   "quote": "The stop sits a few cents under the day's low, not exactly on it.",
+   "claim": "F62: the stop sits a few cents under the day's low."
+  },
+  {
+   "id": "h25",
+   "source": "h1",
+   "quote": "If a stock opens above a trim level (3R, 5R), take that trim at the open.",
+   "claim": "F63: a trim level the day opens past is taken at the open."
+  },
+  {
+   "id": "h26",
+   "source": "h1",
+   "quote": "The market reading as a guide (A10): Green, full risk per grade and up to 10 positions; Yellow, smaller and fewer; Orange, only A+ setups; Red, mostly cash and shorts.",
+   "claim": "F65: Green full risk; Yellow smaller and fewer; Orange only A+; Red mostly cash and shorts."
+  },
+  {
+   "id": "h27",
+   "source": "h1",
+   "quote": "After a market correction, when the reading turns Green again, start with a few positions and add more only as the first ones work",
+   "claim": "F68: after a correction, start with a few positions and add as they work."
+  },
+  {
+   "id": "h28",
+   "source": "h1",
+   "quote": "After a stop-out, buy again only if the setup triggers again, as a new trade with its own stop and every rule.",
+   "claim": "B21: after a stop-out, buy again only on a new trigger, as a new trade."
+  },
+  {
+   "id": "h29",
+   "source": "h1",
+   "quote": "The same stock: at most 3 tries in a week and 6 in a month.",
+   "claim": "E56: at most 3 tries in a week and 6 in a month on one stock."
+  },
+  {
+   "id": "c01",
+   "source": "c1",
+   "quote": "The pivot is the highest intraday high of the base. IBD adds 10 cents; with market orders the 10 cents does not matter.",
+   "claim": "The pivot is the base's highest intraday high; IBD's 10 cents does not matter with a market order."
+  },
+  {
+   "id": "c02",
+   "source": "c1",
+   "quote": "Price trades above the pivot during regular hours. Buy with a market order. Set the alert at the pivot.",
+   "claim": "The trigger: price trades above the pivot in regular hours; buy at market; alert at the pivot."
+  },
+  {
+   "id": "c03",
+   "source": "c1",
+   "quote": "The ceiling: two or more separate touches of the top within 0.5 ATR, the first at least 10 sessions back.",
+   "claim": "The ceiling needs two or more separate touches, the first at least 10 sessions back."
+  },
+  {
+   "id": "c04",
+   "source": "c1",
+   "quote": "Tight at the end: the last 10 sessions' high-to-low range is at most half the base's depth, or the last 3 sessions include an inside day.",
+   "claim": "Tight at the end: the last 10 sessions span at most half the depth, or an inside day in the last 3."
+  },
+  {
+   "id": "c05",
+   "source": "c1",
+   "quote": "On the breakout day price is above the 50-day and the 200-day, and the 50-day is above the 200-day.",
+   "claim": "On the breakout day price is above the 50-day and the 200-day, with the 50 above the 200."
+  },
+  {
+   "id": "c06",
+   "source": "c1",
+   "quote": "In the base, at least 80% of the closes are at or above the 50-day. A brief shakeout under the 50-day is allowed.",
+   "claim": "At least 80% of the base's closes hold the 50-day; a brief shakeout is allowed."
+  },
+  {
+   "id": "c07",
+   "source": "c1",
+   "quote": "A few cents under the breakout day's low.",
+   "claim": "The stop: a few cents under the breakout day's low."
+  },
+  {
+   "id": "c08",
+   "source": "c1",
+   "quote": "The base low is not the stop. It can be up to 15% away (the base's depth) and then breaks A13.",
+   "claim": "The base low is not the stop; it can be the whole depth away."
+  },
+  {
+   "id": "c09",
+   "source": "c1",
+   "quote": "After the entry, a close back inside the base under the pivot is a warning, not an exit by itself.",
+   "claim": "A close back inside the base is a warning, not an exit."
+  },
+  {
+   "id": "c10",
+   "source": "c1",
+   "quote": "Before the trigger: the base low is undercut. The flat base is off. If price reclaims the low within 3 sessions, it is a U&R setup instead.",
+   "claim": "An undercut of the base low ends the flat base; a reclaim within 3 sessions is a U&R."
+  },
+  {
+   "id": "c11",
+   "source": "c1",
+   "quote": "Before the trigger: the base turns wide and loose. The average daily range of the last 10 sessions is larger than that of the base's first 10 sessions.",
+   "claim": "Wide and loose: the last 10 sessions range wider than the first 10; the base is off."
+  },
+  {
+   "id": "c12",
+   "source": "c1",
+   "quote": "Before the trigger: a close under the 200-day.",
+   "claim": "A close under the 200-day before the trigger invalidates the base."
+  },
+  {
+   "id": "c13",
+   "source": "c1",
+   "quote": "First or second base since the last stage reset. A breakout that gained less than 20% before this base does not count as a new stage; the count resets to 1 when price undercuts the prior base's low.",
+   "claim": "First or second base since the last stage reset."
+  },
+  {
+   "id": "c14",
+   "source": "c1",
+   "quote": "Flat: the least-squares line through the base's closes moves no more than 10% of the base's average close from start to end. A U shape inside that drift is allowed.",
+   "claim": "Flat: the trend line through the closes drifts no more than 10% of the average close."
+  },
+  {
+   "id": "c15",
+   "source": "c1",
+   "quote": "The breakout day closes back inside the base, often at its low, and the next session takes the stop.",
+   "claim": "The failure mode: the breakout day closes back inside the base and the next session takes the stop."
+  },
+  {
+   "id": "c16",
+   "source": "c1",
+   "quote": "A flat base holds one range about 15% deep or less with a flat top; a VCP's pullbacks shrink one after another, from as deep as 40% down to under 10%.",
+   "claim": "A flat base holds one range; a VCP's pullbacks shrink one after another."
+  },
+  {
+   "id": "c17",
+   "source": "c1",
+   "quote": "A flat base falls 15% or less and stays boxy; a cup falls 12% to 33% in a rounded U and then dips again for a handle before the buy.",
+   "claim": "A cup falls 12% to 33% in a rounded U and dips for a handle; a flat base stays boxy."
+  },
+  {
+   "id": "c18",
+   "source": "c1",
+   "quote": "A high tight flag nearly doubles (90% or more in 8 weeks or less) and pauses 5 to 30 sessions; a flat base follows a 30% run and rests at least 25 sessions.",
+   "claim": "A high tight flag nearly doubles and pauses a few weeks; a flat base is a longer rest after a smaller run."
+  },
+  {
+   "id": "c19",
+   "source": "c1",
+   "quote": "If price broke under it and came back within 3 sessions, the flat base is off and the trade is the reclaim, not the breakout.",
+   "claim": "After an undercut and a reclaim within 3 sessions the trade is the reclaim, not the breakout."
+  },
+  {
+   "id": "c20",
+   "source": "c1",
+   "quote": "Putting the stop at the base low (too wide), or pulling it tighter to fit the size.",
+   "claim": "A named mistake: the stop at the base low, or pulled tighter to fit the size."
+  },
+  {
+   "id": "c21",
+   "source": "c1",
+   "quote": "Two in three uptrend-rectangle breakouts come back to the breakout price within 30 days. The day's-low stop will be tested often. That is normal, not a reason to widen it.",
+   "claim": "Two in three rectangle breakouts come back to the breakout price within 30 days; the stop is not widened for that."
+  },
+  {
+   "id": "c22",
+   "source": "c1",
+   "quote": "Volume in the base: the second half of the base averages less volume than the first half. A grade cue, not a gate.",
+   "claim": "Volume drying up in the second half of the base is a grade cue, not a gate."
+  },
+  {
+   "id": "c23",
+   "source": "c1",
+   "quote": "Before the trigger: the depth grows past 15%. No longer a flat base; it may become a cup or a double bottom.",
+   "claim": "Past 15% deep it is no longer a flat base."
+  },
+  {
+   "id": "c24",
+   "source": "c1",
+   "quote": "fb.breakout_volume: 1.4x the 50-day volume or more, closes near the high",
+   "claim": "The A+ breakout day: heavy volume and a close near the high."
+  },
+  {
+   "id": "c25",
+   "source": "c1",
+   "quote": "fb.breakout_volume: light volume, closes mid-range",
+   "claim": "The B- breakout day: light volume and a close mid-range."
+  },
+  {
+   "id": "c26",
+   "source": "c1",
+   "quote": "A cue, not a rule: the setup is best when many leaders are basing sideways after a pullback. Bracco steps back when there is a lack of clean, tight bases.",
+   "claim": "The setup is best when many leaders are basing sideways after a pullback."
+  },
+  {
+   "id": "c27",
+   "source": "c1",
+   "quote": "The base starts at the left-side high: the highest intraday high of the last 100 sessions.",
+   "claim": "The base starts at the left-side high, the highest intraday high of the last 100 sessions."
+  },
+  {
+   "id": "c28",
+   "source": "c1",
+   "quote": "Anticipating inside the base with no trigger.",
+   "claim": "A named mistake: anticipating inside the base with no trigger."
+  },
+  {
+   "id": "d01",
+   "source": "d1",
+   "quote": "NUS | 2013-09-09 | 6.0 wk / 10.3% / 3 / +82% | 1.85x | 90.01 | 88.22 (2.0%) | 23.5R (1)",
+   "claim": "NUS, trigger 2013-09-09: a 6-week, 10.3% base with 3 taps after an 82% run; buy 90.01, stop 88.22 (2.0%); 23.5R, 3R on day 1."
+  },
+  {
+   "id": "d02",
+   "source": "d1",
+   "quote": "A six-week shelf riding the rising 10- and 21-day after the stock nearly doubled; three clean taps of 90; broke out on 1.9x volume and reached 3R the next session.",
+   "claim": "NUS: a six-week shelf on the rising 10- and 21-day after nearly doubling; three taps of 90; 1.9x volume; 3R the next session."
+  },
+  {
+   "id": "d03",
+   "source": "d1",
+   "quote": "ALLY | 2019-06-27 | 11.2 wk / 5.5% / 4 / +31% | 1.80x | 30.28 | 29.79 (1.6%) | 8.1R (10)",
+   "claim": "ALLY, trigger 2019-06-27: an 11.2-week, 5.5% base with 4 taps; buy 30.28, stop 29.79 (1.6%); 8.1R, 3R on day 10."
+  },
+  {
+   "id": "d04",
+   "source": "d1",
+   "quote": "The shallowest base of the ten (5.5%), four taps of 30 and inside days into the breakout: the \"tight at the end\" rule in one picture. Slower, 3R on day 10.",
+   "claim": "ALLY: the shallowest base, four taps of 30, inside days into the breakout; 3R on day 10."
+  },
+  {
+   "id": "d05",
+   "source": "d1",
+   "quote": "WSM | 2023-09-25 | 8.0 wk / 14.6% / 4 / +30% | 4.99x | 73.16 | 72.24 (1.2%) | 10.0R (1)",
+   "claim": "WSM, trigger 2023-09-25: an 8-week, 14.6% base with 4 taps; buy 73.16, stop 72.24 (1.2%); 10.0R, 3R on day 1."
+  },
+  {
+   "id": "d06",
+   "source": "d1",
+   "quote": "5R by day 10, then a throwback to 71.56 in late October, through the pivot and the original stop, after both trims were due: Bulkowski's two-in-three throwback in person, before the run to 99.",
+   "claim": "WSM: 5x volume; 5R by day 10; then a throwback to 71.56 through the pivot and the original stop after both trims were due; then a run to 99."
+  },
+  {
+   "id": "d07",
+   "source": "d1",
+   "quote": "LII | 2016-07-01 | 12.6 wk / 7.9% / 4 / +33% | 0.82x | 143.20 | 141.89 (0.9%) | 15.9R (4)",
+   "claim": "LII, trigger 2016-07-01: a 12.6-week, 7.9% base; 0.82x volume; buy 143.20, stop 141.89; 15.9R, 3R on day 4."
+  },
+  {
+   "id": "d08",
+   "source": "d1",
+   "quote": "A long, shallow shelf; the breakout came on light volume (0.82x) and still ran to 15.9R, the case for volume as a grade cue, not a gate. The stop was tested to the cent (low 141.90) before it went.",
+   "claim": "LII: a light-volume breakout (0.82x) still ran to 15.9R; the stop was tested to the cent."
+  },
+  {
+   "id": "d09",
+   "source": "d1",
+   "quote": "APH | 2026-01-12 | 10.8 wk / 13.2% / 4 / +49% | 1.30x | 72.20 | 70.70 (2.1%) | 7.6R (3)",
+   "claim": "APH, trigger 2026-01-12: a 10.8-week, 13.2% base; buy 72.20, stop 70.70 (2.1%); 7.6R, 3R on day 3."
+  },
+  {
+   "id": "d10",
+   "source": "d1",
+   "quote": "3R on day 3 and 5R by day 10, then a failure back through the base (low 63.10 within 30 sessions): the trims and the trail are what keep this a win.",
+   "claim": "APH: 3R on day 3 and 5R by day 10, then a failure back through the base; the trims and the trail kept it a win."
+  },
+  {
+   "id": "d11",
+   "source": "d1",
+   "quote": "BAC | 2017-02-14 | 9.8 wk / 10.7% / 5 / +57% | 1.33x | 23.56 | 23.12 (1.9%) | 5.1R (5)",
+   "claim": "BAC, trigger 2017-02-14: a 9.8-week, 10.7% base with 5 taps; buy 23.56, stop 23.12; 5.1R."
+  },
+  {
+   "id": "d12",
+   "source": "d1",
+   "quote": "5R in about three weeks, then it fell back into the base (low 22.16 within 30 sessions). The case for taking the 3R and 5R trims (B19) and trailing the rest.",
+   "claim": "BAC: 5R in about three weeks, then back into the base; the case for the 3R and 5R trims and the trail."
+  },
+  {
+   "id": "d13",
+   "source": "d1",
+   "quote": "LNG | 2014-05-29 | 8.6 wk / 14.3% / 4 / +47% | 3.34x | 59.40 | 57.96 (2.4%) | 11.8R (1)",
+   "claim": "LNG, trigger 2014-05-29: an 8.6-week, 14.3% base; buy 59.40, stop 57.96 (2.4%); 11.8R."
+  },
+  {
+   "id": "d15",
+   "source": "d1",
+   "quote": "The breakout day closed at 178.15, the low of its range, back inside the base, on 0.72x volume. The next session's low (176.75) took the 178.10 stop.",
+   "claim": "AMZN: the breakout day closed at its low, back inside the base, on 0.72x volume; the next session took the stop."
+  },
+  {
+   "id": "d16",
+   "source": "d1",
+   "quote": "META | 2020-06-23 | 241.28 | 236.86 (1.83%) | day 1 (2020-06-24, low 232.68), best 0.0R",
+   "claim": "META, trigger 2020-06-23: buy 241.28, stop 236.86; stopped on day 1."
+  },
+  {
+   "id": "d17",
+   "source": "d1",
+   "quote": "two sessions later it closed at 216.08, 10% under the fill. The stop did its job: the alternative, \"give it room\", was a 14% hole in three sessions.",
+   "claim": "META: two sessions after the stop it closed 10% under the fill; giving it room would have been a 14% hole."
+  },
+  {
+   "id": "d18",
+   "source": "d1",
+   "quote": "XOM | 2026-03-20 | 160.46 | 159.05 (0.88%) | day 1 (2026-03-23, low 155.02), best 0.0R",
+   "claim": "XOM, trigger 2026-03-20: buy 160.46, stop 159.05 (0.88%); stopped on day 1 at a low of 155.02."
+  },
+  {
+   "id": "d19",
+   "source": "d1",
+   "quote": "A stop set inside the stock's normal daily range gets shaken out by noise",
+   "claim": "XOM: a stop inside the stock's normal daily range gets shaken out by noise."
+  },
+  {
+   "id": "d20",
+   "source": "d1",
+   "quote": "BHC | 2015-04-09 | 206.85 | 203.95 (1.4%) | day 6 (2015-04-17, low 203.46), best 1.63R",
+   "claim": "BHC, trigger 2015-04-09: buy 206.85, stop 203.95; best 1.63R, stopped on day 6."
+  },
+  {
+   "id": "d21",
+   "source": "d1",
+   "quote": "The breakout came on 0.5x volume and closed low in its range at 205.72; it reached 1.63R and was stopped on day 6 (low 203.46).",
+   "claim": "BHC: the breakout came on 0.5x volume and closed low in its range; it reached 1.63R and was stopped on day 6."
+  },
+  {
+   "id": "d22",
+   "source": "d1",
+   "quote": "A 27-session rest after a 51% run with three taps, but 18.5% deep. Past 15% it is not a flat base; it is a cup-shaped base (04-cup-handle territory). Best 1.1R, stopped.",
+   "claim": "AMZN 2020-05-19 near-miss: 18.5% deep, a cup-shaped base, not a flat base; best 1.1R, stopped."
+  },
+  {
+   "id": "d23",
+   "source": "d1",
+   "quote": "A base built in a recovery out of a downtrend, not a leader resting above a settled 50 over 200 order. It worked (best 6.3R) but it is not ours.",
+   "claim": "BBY 2026-07-09 near-miss: the 50-day under the 200-day; it worked (6.3R) but it is not ours."
+  },
+  {
+   "id": "d24",
+   "source": "d1",
+   "quote": "close +14.3% against the 200-day, 50-day -1.6% against it; the rule is close > 50-day > 200-day",
+   "claim": "BBY: the close was 14.3% above the 200-day but the 50-day sat 1.6% under it."
+  },
+  {
+   "id": "r1",
+   "source": "c1",
+   "quote": "Volume on the trigger day: on pace for at least 1.4 times the 50-day average volume. Required for an A or A+ grade, not to take the trade.",
+   "claim": "The card: breakout volume is needed for an A or A+ grade, not to take the trade."
+  },
+  {
+   "id": "c29",
+   "source": "c1",
+   "quote": "The base's first week reaches within 3% of the left-side high.",
+   "claim": "Our card: the base's first week reaches within 3% of the left-side high."
+  },
+  {
+   "id": "c30",
+   "source": "c1",
+   "quote": "At most 65 weeks (325 sessions) from the left-side high to the day before the breakout.",
+   "claim": "Our card: at most 65 weeks (325 sessions) from the left-side high to the day before the breakout."
+  },
+  {
+   "id": "c31",
+   "source": "c1",
+   "quote": "Three or more clean taps of one flat level is the A+ version of the ceiling.",
+   "claim": "Our card: three or more clean taps of one flat level is the A+ version of the ceiling."
+  },
+  {
+   "id": "c32",
+   "source": "c1",
+   "quote": "The 200-day is not lower than it was 20 sessions ago.",
+   "claim": "Our card: the 200-day is not lower than it was 20 sessions ago."
+  },
+  {
+   "id": "h30",
+   "source": "h1",
+   "quote": "A climax run on your own long (Bracco's parabolic burst): sell a big part into it, a judgment call.",
+   "claim": "C34: into a climax run on your own long, sell a big part; a judgment call."
+  }
+ ],
+ "walkthroughs": [
+  {
+   "key": "w1",
+   "title": "NUS, September 2013: the textbook shelf",
+   "steps": [
+    "NUS, September 2013. The stock nearly doubled, then shelves six weeks, riding the rising 10 and 21-day. Three taps of 90.",
+    "Context and pattern check out: above its 50-day and 200-day, shallow at 10.3%, tight, a flat ceiling. The pivot is 90.",
+    "2013-09-09: it trades through 90 on 1.9x volume. Buy at market, 90.01. Stop a few cents under the day's low, 88.22.",
+    "Failure mode: a close back inside the base, stop taken next day. Instead it reaches 3R the next session. Trim a third."
+   ],
+   "facts": [
+    "d01",
+    "d02",
+    "c05",
+    "c01",
+    "c02",
+    "h22",
+    "h24",
+    "c15",
+    "h05"
+   ]
+  },
+  {
+   "key": "w2",
+   "title": "ALLY, June 2019: tight at the end",
+   "steps": [
+    "ALLY, 2019. A leader rests 11.2 weeks after a 31% run, only 5.5% deep: the shallowest base of the ten.",
+    "Four taps of 30, and inside days into the breakout. That is tight at the end, the rule in one picture.",
+    "2019-06-27: it clears 30 on 1.80x volume. Buy at market, 30.28. Stop a few cents under the day's low, 29.79.",
+    "Failure mode: a close at the low, back in the base. Instead it grinds to 3R on day 10. Slow still pays."
+   ],
+   "facts": [
+    "d03",
+    "d04",
+    "c04",
+    "c02",
+    "h22",
+    "h24",
+    "c15",
+    "h05"
+   ]
+  },
+  {
+   "key": "w3",
+   "title": "WSM, September 2023: the throwback and the trims",
+   "steps": [
+    "WSM, 2023. An 8-week shelf, 14.6% deep, four taps, after a 30% run. On 2023-09-25 it breaks out on 4.99x volume.",
+    "Buy at market, 73.16. Stop under the day's low, 72.24. 3R the next day: a third off, stop to breakeven.",
+    "5R by day 10: another third off. Then a throwback to 71.56, through the pivot and the original stop.",
+    "Failure mode: a close back inside the base. It came after both trims were due; the trail rode the run to 99."
+   ],
+   "facts": [
+    "d05",
+    "d06",
+    "h22",
+    "h24",
+    "h05",
+    "h20",
+    "c15",
+    "c21"
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "key": "q01",
+   "skill": "setup.flat_base",
+   "rung": 1,
+   "format": "mcq",
+   "criterion": "fb.above_mas",
+   "q": "In one line, what is a flat base?",
+   "choices": [
+    "A boxy rest near highs after a run",
+    "A V-shaped bottom after a hard crash",
+    "A pole that doubles in a few weeks",
+    "A drift under the falling 200-day"
+   ],
+   "answer": "A boxy rest near highs after a run",
+   "why": "A boxy rest near the highs after a run. IBD: it should look like a rectangular box, forming as a stock takes a breather after an earlier advance.",
+   "lesson_line": "A flat base is a leader catching its breath in a box near the highs.",
+   "facts": [
+    "i08",
+    "i12",
+    "m02",
+    "p02"
+   ],
+   "wrong": {
+    "A V-shaped bottom after a hard crash": "That is a bottoming pattern after a drop. A flat base rests near the highs after an advance.",
+    "A pole that doubles in a few weeks": "That is the high tight flag's pole. A flat base is the rest, not the run.",
+    "A drift under the falling 200-day": "Below the 200-day we do not buy. A flat base sits above its rising averages."
+   }
+  },
+  {
+   "key": "q02",
+   "skill": "setup.flat_base",
+   "rung": 1,
+   "format": "mcq",
+   "criterion": "fb.pivot",
+   "q": "On a flat base, where is the pivot, the level a breakout has to trade through?",
+   "choices": [
+    "The base's highest intraday high",
+    "The base's lowest intraday low",
+    "The rising 50-day moving average",
+    "The midpoint of the base's range"
+   ],
+   "answer": "The base's highest intraday high",
+   "why": "The highest intraday high of the base. IBD adds 10 cents to it; with a market order the 10 cents does not matter.",
+   "lesson_line": "The pivot is the top of the box. Mark it before the open.",
+   "facts": [
+    "c01",
+    "m03",
+    "i18"
+   ],
+   "wrong": {
+    "The base's lowest intraday low": "That is the base low, the floor. The breakout goes through the ceiling.",
+    "The rising 50-day moving average": "The 50-day is support inside the base, not the trigger.",
+    "The midpoint of the base's range": "Halfway up the box is still inside the box. Nothing has broken out."
+   },
+   "house": true
+  },
+  {
+   "key": "q03",
+   "skill": "setup.flat_base",
+   "rung": 1,
+   "format": "tf",
+   "criterion": "fb.stop",
+   "q": "On a flat base breakout the stop goes a few cents under the base low.",
+   "answer": "False",
+   "why": "False. The stop goes a few cents under the breakout day's low. The base low is not the stop.",
+   "lesson_line": "Stop first: a few cents under the breakout day's low.",
+   "facts": [
+    "c07",
+    "h24",
+    "h01",
+    "k03",
+    "c08"
+   ],
+   "house": true
+  },
+  {
+   "key": "q04",
+   "skill": "setup.flat_base",
+   "rung": 1,
+   "format": "fill",
+   "criterion": "fb.above_mas",
+   "q": "Tap the number that fits the blank.",
+   "sentence": "On the breakout day price is above the 50-day and the ___-day, and the 50 sits above it.",
+   "bank": [
+    "200",
+    "100",
+    "20",
+    "10",
+    "150"
+   ],
+   "answer": "200",
+   "why": "200. Price above the 50-day and the 200-day, the 50 above the 200. No longs below the 200-day is a hard rule.",
+   "lesson_line": "Above the 50, above the 200, and the 50 over the 200. Then look at the box.",
+   "facts": [
+    "c05",
+    "h10"
+   ],
+   "house": true
+  },
+  {
+   "key": "q05",
+   "skill": "setup.flat_base",
+   "rung": 1,
+   "format": "mcq",
+   "criterion": "fb.trigger",
+   "q": "A flat base pivot is 60.00. When do you buy?",
+   "choices": [
+    "Trade through 60.00, regular hours",
+    "At the first daily close above 60.00",
+    "In premarket, if it gaps over 60.00",
+    "Inside the base, just under 60.00"
+   ],
+   "answer": "Trade through 60.00, regular hours",
+   "why": "As it trades through 60.00, regular hours, bought at market. Set the alert at the pivot and let the trade come to you.",
+   "lesson_line": "The trigger is the trade through the pivot. Alert at the pivot, market order, regular hours.",
+   "facts": [
+    "c02",
+    "h22",
+    "h23",
+    "k05"
+   ],
+   "wrong": {
+    "At the first daily close above 60.00": "Waiting for the close can cost a day's move. The trigger is the trade through, in regular hours.",
+    "In premarket, if it gaps over 60.00": "No new buys outside regular trading hours.",
+    "Inside the base, just under 60.00": "That is anticipating with no trigger. Kullamagi finds it less effective; we wait."
+   },
+   "house": true
+  },
+  {
+   "key": "q06",
+   "skill": "setup.flat_base",
+   "rung": 1,
+   "format": "tf",
+   "criterion": "fb.base_volume_dry",
+   "q": "Volume drying up in the second half of the base is a grade cue, not a gate.",
+   "answer": "True",
+   "why": "True. Drying volume on the right side grades the base up; it is not a gate. Bulkowski's rectangles see volume trend down 70% of the time.",
+   "lesson_line": "Quiet volume into the right side is a plus, not a must.",
+   "facts": [
+    "c22",
+    "b03"
+   ],
+   "house": true
+  },
+  {
+   "key": "q07",
+   "skill": "setup.flat_base",
+   "rung": 1,
+   "format": "tf",
+   "criterion": "fb.base_count",
+   "q": "Our card wants a flat base to be the first or second base since the last stage reset.",
+   "answer": "True",
+   "why": "True. First or second base. IBD: it is usually best to buy a first-stage or second-stage breakout; later bases are late in their moves.",
+   "lesson_line": "Count the bases. The first two are the ones we want.",
+   "facts": [
+    "c13",
+    "i24",
+    "m07"
+   ],
+   "house": true
+  },
+  {
+   "key": "q08",
+   "skill": "setup.flat_base",
+   "rung": 2,
+   "format": "tf",
+   "criterion": "fb.fundamentals",
+   "q": "Growing sales and earnings are preferred, but the chart comes first.",
+   "answer": "True",
+   "why": "True. Prefer stocks with growing sales and earnings; the chart comes first.",
+   "lesson_line": "Numbers help. The chart decides.",
+   "facts": [
+    "h17"
+   ],
+   "house": true
+  },
+  {
+   "key": "q09",
+   "skill": "setup.flat_base",
+   "rung": 2,
+   "format": "mcq",
+   "criterion": "fb.left_side_high",
+   "q": "Where does a flat base start?",
+   "choices": [
+    "At the left-side high",
+    "At the lowest low of the base",
+    "At the first close over the 50-day",
+    "On the breakout day"
+   ],
+   "answer": "At the left-side high",
+   "why": "At the left-side high, the highest intraday high of the last 100 sessions. Length, depth and the pivot all measure from there.",
+   "lesson_line": "Find the left-side high first. Everything else is measured from it.",
+   "facts": [
+    "c27",
+    "m04",
+    "i17"
+   ],
+   "wrong": {
+    "At the lowest low of the base": "The low is the bottom of the box, found later. The base starts at its first high.",
+    "At the first close over the 50-day": "The 50-day is a line inside the base, not its start.",
+    "On the breakout day": "That is where the base ends, not where it starts."
+   },
+   "house": true
+  },
+  {
+   "key": "q10",
+   "skill": "setup.flat_base",
+   "rung": 2,
+   "format": "mcq",
+   "criterion": "fb.tight_end",
+   "q": "Over the last ten sessions a base spans under half its depth, and the last three include an inside day. Our card's name for that?",
+   "choices": [
+    "Tight at the end",
+    "Wide and loose",
+    "A late-stage base",
+    "A climax run"
+   ],
+   "answer": "Tight at the end",
+   "why": "Tight at the end. IBD: flat bases should show tight trading. Our test: the last 10 sessions inside half the depth, or an inside day in the last 3.",
+   "lesson_line": "Tight at the end is the tell. Inside days into the pivot are the picture.",
+   "facts": [
+    "c04",
+    "i10",
+    "t05"
+   ],
+   "wrong": {
+    "Wide and loose": "The opposite. Wide and loose is bars growing, not shrinking.",
+    "A late-stage base": "Stage is about how many bases came before, not how tight this one is.",
+    "A climax run": "A climax is a vertical burst with gaps and volume, nothing like a quiet inside day."
+   },
+   "house": true
+  },
+  {
+   "key": "q11",
+   "skill": "setup.flat_base",
+   "rung": 2,
+   "format": "scenario",
+   "criterion": "fb.ceiling_touches",
+   "q": "Does the top count as a flat ceiling?",
+   "choices": [
+    "Yes, three separate taps",
+    "No, it needs five taps",
+    "No, the taps are too far apart"
+   ],
+   "answer": "Yes, three separate taps",
+   "why": "Yes. Two or more separate touches of the top make the ceiling, the first at least 10 sessions back. Three clean taps is the A+ cue on our card.",
+   "lesson_line": "A ceiling is touched, not guessed. Two taps make it; three make it clean.",
+   "facts": [
+    "c03",
+    "b01",
+    "i19"
+   ],
+   "wrong": {
+    "No, it needs five taps": "Two or more separate touches is the rule. Five is a wish.",
+    "No, the taps are too far apart": "Spacing is the point: separate swings, the first well back. Far apart is good."
+   },
+   "house": true,
+   "story": "A stock rests nine weeks under 48. It tapped 48 three times, each tap a separate swing, the first one six weeks ago. The floor holds near 43."
+  },
+  {
+   "key": "q12",
+   "skill": "setup.flat_base",
+   "rung": 2,
+   "format": "tf",
+   "criterion": "fb.inv_200",
+   "q": "Before the trigger, a close under the 200-day is only a warning. The setup stays alive.",
+   "answer": "False",
+   "why": "False. A close under the 200-day before the trigger invalidates the setup. A brief shakeout under the 50-day is allowed.",
+   "lesson_line": "Under the 200-day, there is no flat base to buy.",
+   "facts": [
+    "c12",
+    "h10",
+    "c06"
+   ],
+   "house": true
+  },
+  {
+   "key": "q13",
+   "skill": "setup.flat_base",
+   "rung": 2,
+   "format": "mcq",
+   "criterion": "fb.not_stretched",
+   "q": "At the breakout the stock is 12% above its 10-day average. Our rule?",
+   "choices": [
+    "Skip it, too stretched",
+    "Buy, the pivot is what matters",
+    "Buy half size",
+    "Wait for the close"
+   ],
+   "answer": "Skip it, too stretched",
+   "why": "Skip it. A long more than 10% above its 10-day average is too stretched to buy.",
+   "lesson_line": "A breakout that is already stretched is a chase with a different name.",
+   "facts": [
+    "h13"
+   ],
+   "wrong": {
+    "Buy, the pivot is what matters": "The pivot is the trigger, not the whole rule. The stretch rule still applies at the fill.",
+    "Buy half size": "Size does not fix a stretched entry. The rule is skip.",
+    "Wait for the close": "The close does not matter here. Distance from the 10-day does."
+   },
+   "house": true
+  },
+  {
+   "key": "q14",
+   "skill": "setup.flat_base",
+   "rung": 2,
+   "format": "fill",
+   "criterion": "fb.no_chase",
+   "q": "Tap the number that fits the blank.",
+   "sentence": "Never buy a flat base breakout more than ___% above the pivot.",
+   "bank": [
+    "4",
+    "2",
+    "5",
+    "8",
+    "10"
+   ],
+   "answer": "4",
+   "why": "4%. MarketSmith's buy range runs 0% to 5% above the pivot; our line is 4%. Past it, the stop is too far away.",
+   "lesson_line": "Four percent over the pivot and I am done. I would rather miss it than chase it.",
+   "facts": [
+    "h11",
+    "m09"
+   ],
+   "house": true
+  },
+  {
+   "key": "q15",
+   "skill": "setup.flat_base",
+   "rung": 2,
+   "format": "tf",
+   "criterion": "fb.stop_broker",
+   "q": "The flat base stop can be a level you watch in your head, as long as you act on it.",
+   "answer": "False",
+   "why": "False. Every position has a real stop order with the broker, not a stop kept in your head.",
+   "lesson_line": "A stop in your head is a debate. A stop with the broker is an appointment.",
+   "facts": [
+    "h18"
+   ],
+   "house": true
+  },
+  {
+   "key": "q16",
+   "skill": "setup.flat_base",
+   "rung": 3,
+   "format": "mcq",
+   "criterion": "fb.flat",
+   "q": "A nine-week base: a flat top tapped three times, the same floor each time, one range held throughout. Flat base or VCP?",
+   "choices": [
+    "A flat base",
+    "A VCP",
+    "A cup with handle"
+   ],
+   "answer": "A flat base",
+   "why": "A flat base. It holds one range with a flat top; a VCP's pullbacks shrink one after another. IBD: a rectangular box.",
+   "lesson_line": "One range, one ceiling, the same floor: that is the box. Shrinking swings are the other setup.",
+   "facts": [
+    "c16",
+    "i08",
+    "b01"
+   ],
+   "wrong": {
+    "A VCP": "A VCP tightens pullback by pullback. These swings hold one range.",
+    "A cup with handle": "A cup is a rounded fall and recovery, then a handle. This is a box."
+   },
+   "house": true
+  },
+  {
+   "key": "q17",
+   "skill": "setup.flat_base",
+   "rung": 3,
+   "format": "tf",
+   "criterion": "fb.pivot",
+   "q": "IBD's buy point is the base's high plus 10 cents; our market order at the trade-through makes the 10 cents moot.",
+   "answer": "True",
+   "why": "True. IBD adds 10 cents to the left-side high. We buy at market as price trades through the high, so the 10 cents does not matter.",
+   "lesson_line": "Same level, no 10 cents. The pivot is the high; the trigger is the trade through it.",
+   "facts": [
+    "i18",
+    "i16",
+    "c01"
+   ],
+   "house": true
+  },
+  {
+   "key": "q18",
+   "skill": "setup.flat_base",
+   "rung": 3,
+   "format": "scenario",
+   "criterion": "fb.earnings_window",
+   "q": "Buy the breakout today?",
+   "choices": [
+    "No, earnings are within 3 days",
+    "Yes, the trigger fired today",
+    "Yes, but at half the usual size",
+    "Yes, if volume is heavy enough"
+   ],
+   "answer": "No, earnings are within 3 days",
+   "why": "No. No new buys in the 3 days before an earnings report. If it is still a setup after the report, it can trigger again.",
+   "lesson_line": "A breakout two days before earnings is a coin flip with a story. Wait.",
+   "facts": [
+    "h08"
+   ],
+   "wrong": {
+    "Yes, the trigger fired today": "The trigger fired, and the calendar still says no. The earnings rule is a hard line.",
+    "Yes, but at half the usual size": "Size does not fix a report risk. Smaller is still in.",
+    "Yes, if volume is heavy enough": "Volume grades the day. It does not override the earnings rule."
+   },
+   "house": true,
+   "story": "The base is clean and tight. The pivot is 112.00 and it trades through this morning. Earnings come after the close in two sessions."
+  },
+  {
+   "key": "q19",
+   "skill": "setup.flat_base",
+   "rung": 3,
+   "format": "mcq",
+   "criterion": "fb.trim_1",
+   "q": "Where does the first trim come on a flat base winner, by our hard rule?",
+   "choices": [
+    "A third at 3R",
+    "Half at 2R",
+    "All of it at 5R",
+    "A third at 1R"
+   ],
+   "answer": "A third at 3R",
+   "why": "A third at 3R. That is the hard rule; in practice we mostly wait for 5R. The next third comes at 5R.",
+   "lesson_line": "A third at 3R, a third at 5R, trail the rest.",
+   "facts": [
+    "h05",
+    "h20"
+   ],
+   "wrong": {
+    "Half at 2R": "Too early and too much. Breakeven can move at 2R; the trim waits for 3R.",
+    "All of it at 5R": "5R is the second third, not the exit. The last third rides the trail.",
+    "A third at 1R": "1R is where the time stop looks, not where we sell winners."
+   },
+   "house": true
+  },
+  {
+   "key": "q20",
+   "skill": "setup.flat_base",
+   "rung": 3,
+   "format": "numeric",
+   "criterion": "fb.trim_1",
+   "q": "Bought at 90.01 with the stop at 88.22. Where is 3R?",
+   "answer": 95.38,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "a + 3 * (a - b)",
+     "a": 90.01,
+     "b": 88.22
+    },
+    "round": 2
+   },
+   "why": "95.38. One R is the fill minus the stop. Add three of those to the fill. NUS reached it the next session.",
+   "lesson_line": "Know your 3R before the open. The first third comes off there.",
+   "facts": [
+    "h05",
+    "d01",
+    "d02"
+   ],
+   "house": true,
+   "prefix": "$"
+  },
+  {
+   "key": "q21",
+   "skill": "setup.flat_base",
+   "rung": 3,
+   "format": "tf",
+   "criterion": "fb.leadership",
+   "q": "We buy flat base breakouts in leaders: an RS rating of 80 or more, in any group.",
+   "answer": "False",
+   "why": "False. Buy leaders: an RS rating of 80 or more, in one of the strongest groups, not any group.",
+   "lesson_line": "A flat base in a laggard is a box going nowhere. Buy the leaders.",
+   "facts": [
+    "h14"
+   ],
+   "house": true
+  },
+  {
+   "key": "q22",
+   "skill": "setup.flat_base",
+   "rung": 3,
+   "format": "mcq",
+   "criterion": "fb.market_reading",
+   "q": "The market reading is Orange. Which flat bases may you buy?",
+   "choices": [
+    "Only A+ setups",
+    "Any setup at full size",
+    "None, Orange means cash",
+    "Any setup at half size"
+   ],
+   "answer": "Only A+ setups",
+   "why": "Only A+ setups. Green is full risk; Yellow smaller and fewer; Orange only A+; Red mostly cash and shorts. TraderLion: the setup does better in a strong market.",
+   "lesson_line": "Read the market before the box. Orange buys A+ and nothing else.",
+   "facts": [
+    "h26",
+    "t06"
+   ],
+   "wrong": {
+    "Any setup at full size": "That is Green. Orange narrows you to A+.",
+    "None, Orange means cash": "Red is mostly cash. Orange still allows the best setups.",
+    "Any setup at half size": "Orange is about grade, not size. A B setup stays on the bench."
+   },
+   "house": true
+  },
+  {
+   "key": "q23",
+   "skill": "setup.flat_base",
+   "rung": 3,
+   "format": "scenario",
+   "criterion": "fb.inv_undercut",
+   "q": "What is the trade now?",
+   "choices": [
+    "A U&R on the reclaim",
+    "A flat base breakout at the old pivot",
+    "Nothing, the stock is broken",
+    "A short under 71"
+   ],
+   "answer": "A U&R on the reclaim",
+   "why": "A U&R. Once the base low is undercut, the flat base is off. A reclaim within 3 sessions is an undercut-and-reclaim setup, traded as the reclaim.",
+   "lesson_line": "Lose the floor and the box is gone. The reclaim is its own trade.",
+   "facts": [
+    "c10",
+    "c19"
+   ],
+   "wrong": {
+    "A flat base breakout at the old pivot": "The undercut ended the flat base. The old pivot is no longer this setup's trigger.",
+    "Nothing, the stock is broken": "A quick reclaim is a shakeout, not a break. It is a different setup, not no setup.",
+    "A short under 71": "It reclaimed within two sessions. Shorting a quick reclaim is fighting strength."
+   },
+   "house": true,
+   "story": "A nine-week flat base holds a floor at 71. Tuesday the low prints 70.40, under the floor. By Thursday the stock closes back above 71."
+  },
+  {
+   "key": "q24",
+   "skill": "setup.flat_base",
+   "rung": 3,
+   "format": "fill",
+   "criterion": "fb.stop_not_base_low",
+   "q": "Tap the words that fit the blank.",
+   "sentence": "The ___ is not the stop; it can sit a whole base's depth away.",
+   "bank": [
+    "base low",
+    "day's low",
+    "pivot",
+    "50-day",
+    "prior close"
+   ],
+   "answer": "base low",
+   "why": "The base low. It can be up to 15% away, the base's depth, and the stop usually sits within about 3% of the buy.",
+   "lesson_line": "The stop is the breakout day's low, not the bottom of the box.",
+   "facts": [
+    "c08",
+    "h04"
+   ],
+   "house": true
+  },
+  {
+   "key": "q25",
+   "skill": "setup.flat_base",
+   "rung": 4,
+   "format": "numeric",
+   "criterion": "fb.prior_trend",
+   "q": "The lowest low before the base was 40.00 and the left-side high is 50.00. The prior advance, in percent?",
+   "answer": 25.0,
+   "calc": {
+    "fn": "pct_change",
+    "args": {
+     "start": 40.0,
+     "end": 50.0
+    },
+    "round": 1
+   },
+   "why": "25%. The left-side high over the lowest low before it, minus one. IBD looks for a prior uptrend of at least 30% before any base; TraderLion and Kullamagi say the same.",
+   "lesson_line": "Measure the run before the rest. A box with no run in front of it is just a box.",
+   "facts": [
+    "i13",
+    "t01",
+    "k01"
+   ],
+   "suffix": "%"
+  },
+  {
+   "key": "q26",
+   "skill": "setup.flat_base",
+   "rung": 4,
+   "format": "numeric",
+   "criterion": "fb.depth",
+   "q": "Left-side high 100.00, the base's lowest intraday low 86.50. How deep is the base, in percent?",
+   "answer": 13.5,
+   "calc": {
+    "fn": "drawdown_pct",
+    "args": {
+     "peak": 100.0,
+     "trough": 86.5
+    },
+    "round": 1
+   },
+   "why": "13.5%. The left-side high minus the lowest intraday low, divided by the high. IBD's flat base declines no more than 15% measured that way.",
+   "lesson_line": "Depth is high to low, divided by the high. Measure it; do not eyeball it.",
+   "facts": [
+    "m05",
+    "i05",
+    "t02"
+   ],
+   "suffix": "%"
+  },
+  {
+   "key": "q27",
+   "skill": "setup.flat_base",
+   "rung": 4,
+   "format": "numeric",
+   "criterion": "fb.stop_width",
+   "q": "Fill 72.20. The breakout day's low is 70.75 and the stop sits five cents under it. How far below the fill is the stop, in percent?",
+   "answer": 2.08,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(a - (b - 0.05)) / a * 100",
+     "a": 72.2,
+     "b": 70.75
+    },
+    "round": 2
+   },
+   "why": "2.08%. A few cents under the day's low, and inside the 3% the stop usually sits within. That was APH's stop, 70.70.",
+   "lesson_line": "Stop first, distance second, size last.",
+   "facts": [
+    "h24",
+    "h04",
+    "d09"
+   ],
+   "house": true,
+   "suffix": "%"
+  },
+  {
+   "key": "q28",
+   "skill": "setup.flat_base",
+   "rung": 4,
+   "format": "numeric",
+   "criterion": "fb.trim_2",
+   "q": "Bought at 30.28, stop 29.79. The stock trades to 32.73. How many R is that?",
+   "answer": 5.0,
+   "calc": {
+    "fn": "r_multiple",
+    "args": {
+     "entry": 30.28,
+     "stop": 29.79,
+     "exit": 32.73
+    },
+    "round": 1
+   },
+   "why": "5R. Each R is the fill minus the stop. That is where the second third comes off; ALLY got there slowly.",
+   "lesson_line": "Count in R, not dollars. 5R is the second trim.",
+   "facts": [
+    "h20",
+    "d03"
+   ],
+   "house": true,
+   "suffix": "R"
+  },
+  {
+   "key": "q29",
+   "skill": "setup.flat_base",
+   "rung": 4,
+   "format": "scenario",
+   "criterion": "fb.close_back_in_base",
+   "q": "What now?",
+   "choices": [
+    "Hold; the stop is still the exit",
+    "Sell at the close, it failed",
+    "Widen the stop under the base low",
+    "Add, it is cheaper now"
+   ],
+   "answer": "Hold; the stop is still the exit",
+   "why": "Hold it. A close back inside the base is a warning, not an exit by itself; the stop is the exit. Here the next session's low took the 178.10 stop. A planned loss.",
+   "lesson_line": "A weak close is a warning. The stop is the decision, and it was made before the open.",
+   "facts": [
+    "c09",
+    "h02",
+    "d15"
+   ],
+   "wrong": {
+    "Sell at the close, it failed": "We dropped that rule. The stop is the exit; a weak close is a warning.",
+    "Widen the stop under the base low": "The stop only moves up, never wider.",
+    "Add, it is cheaper now": "Full size at one price with one stop; no adding."
+   },
+   "house": true,
+   "story": "You bought the breakout at 180.15 with the stop at 178.10. The day closes at 178.15, its low, back inside the base, above your stop."
+  },
+  {
+   "key": "q30",
+   "skill": "setup.flat_base",
+   "rung": 4,
+   "format": "scenario",
+   "criterion": "fb.no_chase",
+   "q": "Buy or pass?",
+   "choices": [
+    "Pass, over 4% past the pivot",
+    "Buy, the breakout is confirmed",
+    "Buy half size to cut the risk",
+    "Buy, but widen the stop to fit"
+   ],
+   "answer": "Pass, over 4% past the pivot",
+   "why": "Pass. 94.50 is more than 4% over 90.00. Chasing costs size, not risk: the stop stays under the buy point, so the shares shrink.",
+   "lesson_line": "I would rather miss it than chase it. Four percent and done.",
+   "facts": [
+    "h11",
+    "h12"
+   ],
+   "wrong": {
+    "Buy, the breakout is confirmed": "Confirmed and too far away are both true. The chase line is 4%.",
+    "Buy half size to cut the risk": "Half of a bad entry is still a bad entry.",
+    "Buy, but widen the stop to fit": "A wider stop to fit a late entry is the mistake, not the fix."
+   },
+   "house": true,
+   "story": "The pivot is 90.00. You missed the open. At 10:15 the stock trades 94.50."
+  },
+  {
+   "key": "q31",
+   "skill": "setup.flat_base",
+   "rung": 4,
+   "format": "scenario",
+   "criterion": "fb.stop_gap",
+   "q": "Where is the stop now?",
+   "choices": [
+    "50.30, the first 30-minute low",
+    "Sell at the open, 50.60",
+    "No stop until it reclaims 51.00",
+    "Get out, the gap is past 2R"
+   ],
+   "answer": "50.30, the first 30-minute low",
+   "why": "50.30. A gap through the stop hands it to the first 30-minute low. That low is inside the 2R ceiling, so it is the new stop.",
+   "lesson_line": "A gap through the stop is the one exception. The first 30 minutes decide.",
+   "facts": [
+    "h06",
+    "h07"
+   ],
+   "wrong": {
+    "Sell at the open, 50.60": "The gap rule gives it the first 30 minutes. The open is not the decision; the 30-minute low is.",
+    "No stop until it reclaims 51.00": "There is always a stop. The new one is the 30-minute low.",
+    "Get out, the gap is past 2R": "The 30-minute low is inside 2R here. The ceiling has not been hit."
+   },
+   "house": true,
+   "story": "You bought at 52.00 with the stop at 51.00. It gaps open at 50.60, under your stop. The first 30-minute bar's low is 50.30."
+  },
+  {
+   "key": "q32",
+   "skill": "setup.flat_base",
+   "rung": 4,
+   "format": "fill",
+   "criterion": "fb.trigger",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "Set the alert at the ___ and buy as price trades through it in regular hours.",
+   "bank": [
+    "pivot",
+    "base low",
+    "50-day",
+    "prior close",
+    "midpoint"
+   ],
+   "answer": "pivot",
+   "why": "The pivot. Alert at the pivot, market order as it trades through, regular hours only.",
+   "lesson_line": "Alert at the pivot. Then the market comes to you.",
+   "facts": [
+    "c02",
+    "h23"
+   ],
+   "house": true
+  },
+  {
+   "key": "q33",
+   "skill": "setup.flat_base",
+   "rung": 4,
+   "format": "scenario",
+   "criterion": "fb.trigger",
+   "q": "Buy now?",
+   "choices": [
+    "No; wait for a move through 44.00",
+    "Yes; buy the inside day at 43.20",
+    "Yes; a buy stop in the box at 43.50"
+   ],
+   "answer": "No; wait for a move through 44.00",
+   "why": "No. The trigger is the trade through the pivot in regular hours. Anticipating inside the base with no trigger is a named mistake; Kullamagi finds it less effective.",
+   "lesson_line": "Feeling it coming is not a trigger. The pivot is.",
+   "facts": [
+    "c02",
+    "c28",
+    "k05"
+   ],
+   "wrong": {
+    "Yes; buy the inside day at 43.20": "An inside day is the tell that it is tight, not the buy. The buy is the trade through 44.00.",
+    "Yes; a buy stop in the box at 43.50": "A stop under the pivot fires inside the base. No trigger has happened at 43.50."
+   },
+   "house": true,
+   "story": "The base is tight and the pivot is 44.00. Thursday the stock sits at 43.20, an inside day. You feel it coming."
+  },
+  {
+   "key": "q34",
+   "skill": "setup.flat_base",
+   "rung": 4,
+   "format": "tf",
+   "criterion": "fb.after_entry_stop",
+   "q": "After the entry, a flat base trade that trades down to the stop is sold at the stop, no second thoughts.",
+   "answer": "True",
+   "why": "True. The stop is the exit. It only moves up, never down or wider.",
+   "lesson_line": "My stop is my stop. That is the whole rule.",
+   "facts": [
+    "h02"
+   ],
+   "house": true
+  },
+  {
+   "key": "q35",
+   "skill": "setup.flat_base",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "fb.throwback",
+   "q": "What do you do?",
+   "choices": [
+    "Hold; the stop stays where it is",
+    "Widen the stop to give it room",
+    "Sell; the breakout failed",
+    "Move the stop to breakeven"
+   ],
+   "answer": "Hold; the stop stays where it is",
+   "why": "Hold it. The stop only moves up, never wider. Tests of the pivot are normal: two in three rectangle breakouts come back to the breakout price within 30 days.",
+   "lesson_line": "The retest is normal. The stop pays for it; you do not widen it.",
+   "facts": [
+    "h02",
+    "c21",
+    "d06",
+    "h05"
+   ],
+   "wrong": {
+    "Widen the stop to give it room": "Never wider. The rule has one exception and this is not it.",
+    "Sell; the breakout failed": "A pullback to the pivot is not a failure. The stop decides, not the retest.",
+    "Move the stop to breakeven": "Breakeven comes between 2R and 5R, not on day three at the pivot."
+   },
+   "house": true,
+   "story": "Three days after the breakout at 73.16, price slides back to the pivot, 73.00. Your stop is 72.24."
+  },
+  {
+   "key": "q36",
+   "skill": "setup.flat_base",
+   "rung": 5,
+   "format": "mcq",
+   "criterion": "fb.breakeven",
+   "q": "When does the stop move to breakeven on a flat base winner?",
+   "choices": [
+    "2R to 5R, often at the trim",
+    "The first higher close",
+    "Never; it stays where it is",
+    "At 1R, as soon as it arrives"
+   ],
+   "answer": "2R to 5R, often at the trim",
+   "why": "Between 2R and 5R, ideally. The first trim at 3R is the natural moment.",
+   "lesson_line": "Breakeven between 2R and 5R. Earlier is noise; later is giving it back.",
+   "facts": [
+    "h05"
+   ],
+   "wrong": {
+    "The first higher close": "One up day is inside the noise. A normal pullback would hit the stop.",
+    "Never; it stays where it is": "The stop only moves up. Moving it up to breakeven is allowed.",
+    "At 1R, as soon as it arrives": "Too soon. The card puts breakeven at 2R to 5R, ideally."
+   },
+   "house": true
+  },
+  {
+   "key": "q37",
+   "skill": "setup.flat_base",
+   "rung": 5,
+   "format": "tf",
+   "criterion": "fb.time_stop",
+   "q": "A flat base breakout still under 1R after 10 trading days is held until the stop is hit.",
+   "answer": "False",
+   "why": "False. Time stop: a trade still under 1R after 10 trading days is sold, freeing the money. Every example in our set was past 1R by day ten.",
+   "lesson_line": "Ten days and nothing. The money has somewhere better to be.",
+   "facts": [
+    "h15"
+   ],
+   "house": true
+  },
+  {
+   "key": "q38",
+   "skill": "setup.flat_base",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "fb.trim_gap_open",
+   "q": "What do you do at the open?",
+   "choices": [
+    "Sell a third at the open",
+    "Wait for the close",
+    "Sell everything",
+    "Move the stop up and hold"
+   ],
+   "answer": "Sell a third at the open",
+   "why": "Sell a third at the open. If a stock opens above a trim level, take that trim at the open. The 3R third comes off right there.",
+   "lesson_line": "A gap through a trim level is the trim. Take it at the open.",
+   "facts": [
+    "h25",
+    "h05"
+   ],
+   "wrong": {
+    "Wait for the close": "The level is already passed. Waiting gives the gap a chance to fill.",
+    "Sell everything": "A third at 3R. The rest waits for 5R and the trail.",
+    "Move the stop up and hold": "The stop moves up too, but the trim is the rule at the open."
+   },
+   "house": true,
+   "story": "Your flat base long sits at 2.6R at Thursday's close. Friday it gaps open to 3.4R."
+  },
+  {
+   "key": "q39",
+   "skill": "setup.flat_base",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "fb.stop_width",
+   "q": "Which is the one thing you never do?",
+   "choices": [
+    "Pull the stop in to 3% to fit size",
+    "Skip it when the stop will not fit",
+    "Wait a day for a tighter entry"
+   ],
+   "answer": "Pull the stop in to 3% to fit size",
+   "why": "Never pull the stop in to fit. Stop first; the size comes from the stop; if the honest stop does not fit the risk, skip the trade.",
+   "lesson_line": "You never pick a size and back-fit a stop inside the noise.",
+   "facts": [
+    "h01",
+    "h04",
+    "c20"
+   ],
+   "wrong": {
+    "Skip it when the stop will not fit": "Skipping is allowed. A3 says so when the honest stop does not fit.",
+    "Wait a day for a tighter entry": "Waiting is fine. The mistake is moving the stop, not the entry."
+   },
+   "house": true,
+   "story": "The breakout fills at 48.60. The day's low sits at 46.40, about 4.5% under your fill."
+  },
+  {
+   "key": "q40",
+   "skill": "setup.flat_base",
+   "rung": 5,
+   "format": "mcq",
+   "criterion": "fb.base_count",
+   "q": "This is the stock's fourth base since the stage reset. The shape is clean. Your call?",
+   "choices": [
+    "Pass; it is a late-stage base",
+    "A+, a clean and tight shape",
+    "B, normal size; the box is clean"
+   ],
+   "answer": "Pass; it is a late-stage base",
+   "why": "Pass. IBD: breakouts from late-stage bases will often blow up. Our card wants the first or second base; MarketSmith says later bases are more likely to fail.",
+   "lesson_line": "A clean box on the fourth floor is still the fourth floor.",
+   "facts": [
+    "i23",
+    "m07",
+    "c13"
+   ],
+   "wrong": {
+    "A+, a clean and tight shape": "Shape is one row of the grade. Stage is another, and the fourth base fails it.",
+    "B, normal size; the box is clean": "A late-stage base is not a size question. It is a pass."
+   },
+   "house": true
+  },
+  {
+   "key": "q41",
+   "skill": "setup.flat_base",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "fb.stop",
+   "q": "What did the stop do?",
+   "choices": [
+    "Its job: a small planned loss",
+    "Cost you the trade; it needed room",
+    "Nothing; the close was the exit"
+   ],
+   "answer": "Its job: a small planned loss",
+   "why": "Its job. The stop is the exit. Giving it room would have been a 14% hole in three sessions. Stopped out, and that is the cost of being there for the ones that work.",
+   "lesson_line": "A loss taken at plan is the system working.",
+   "facts": [
+    "h02",
+    "d16",
+    "d17"
+   ],
+   "wrong": {
+    "Cost you the trade; it needed room": "Room was a 14% hole in three sessions. The stop saved most of it.",
+    "Nothing; the close was the exit": "A mid-range close is not an exit. The stop is."
+   },
+   "house": true,
+   "story": "You bought the gap open at 241.28, above the pivot. It closes mid-range on average volume. Next day the low hits your stop at 236.86. Two sessions later it closes 10% under your fill."
+  },
+  {
+   "key": "q42",
+   "skill": "setup.flat_base",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "fb.breakout_volume",
+   "q": "Which gets the higher grade?",
+   "choices": [
+    "The 1.9x day closing at the high",
+    "The 0.8x day; quiet is better",
+    "Equal; only the pivot matters"
+   ],
+   "answer": "The 1.9x day closing at the high",
+   "why": "The 1.9x day closing at the high. IBD wants breakout volume at least 40% to 50% above average, and a close near the high is the A+ row. Both grade the day.",
+   "lesson_line": "Heavy volume and a strong close grade the day up. Light volume and a mid-range close grade it down.",
+   "facts": [
+    "i20",
+    "t04",
+    "c24",
+    "c25"
+   ],
+   "wrong": {
+    "The 0.8x day; quiet is better": "Quiet is for inside the base. The breakout wants a crowd.",
+    "Equal; only the pivot matters": "The pivot is the trigger. The day's volume and close are the grade."
+   },
+   "house": true,
+   "story": "Same base, two breakout days. One trades through on 0.8x its average volume and closes mid-range. The other on 1.9x and closes at the day's high."
+  },
+  {
+   "key": "q43",
+   "skill": "setup.flat_base",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "fb.inv_loose",
+   "q": "What is the read?",
+   "choices": [
+    "Wide and loose; the base is off",
+    "Still a flat base; the top holds",
+    "Tighter is coming; wait"
+   ],
+   "answer": "Wide and loose; the base is off",
+   "why": "Wide and loose, so the base is off. The last 10 sessions range wider than the first 10. TraderLion: wide and loose bases are a big sign of real danger.",
+   "lesson_line": "A box that gets louder as it goes is not resting. It is unwinding.",
+   "facts": [
+    "c11",
+    "t08"
+   ],
+   "wrong": {
+    "Still a flat base; the top holds": "A flat top over widening bars is a ragged box. The ranges are the tell.",
+    "Tighter is coming; wait": "Hope is not a setup. If it tightens again, that is a new base to judge."
+   },
+   "house": true,
+   "story": "Six weeks into a base, the daily bars have grown. The last ten sessions swing wider every day than the first ten did. The top is still flat."
+  },
+  {
+   "key": "q44",
+   "skill": "setup.flat_base",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "fb.holds_50",
+   "q": "Does the base still hold the 50-day by our card?",
+   "choices": [
+    "Yes; a brief shakeout is allowed",
+    "No; one close under kills it",
+    "No; it must never touch the 50-day"
+   ],
+   "answer": "Yes; a brief shakeout is allowed",
+   "why": "Yes. At least 80% of the base's closes at or above the 50-day, and a brief shakeout under it is allowed. Kullamagi: sometimes it toes the 50-day.",
+   "lesson_line": "Holds the 50-day means most closes, not every close.",
+   "facts": [
+    "c06",
+    "k02"
+   ],
+   "wrong": {
+    "No; one close under kills it": "Two days under out of forty is well inside the 80% line.",
+    "No; it must never touch the 50-day": "Touching the 50-day is normal in a rest. Living under it is the problem."
+   },
+   "house": true,
+   "story": "In an eight-week base the stock closed under its 50-day on two days, a quick shakeout. Then it sat back above it for the rest."
+  },
+  {
+   "key": "q45",
+   "skill": "setup.flat_base",
+   "rung": 6,
+   "format": "numeric",
+   "criterion": "fb.stop",
+   "q": "Account 50,000. Risk 0.5%. Fill 59.40, stop 57.96. How many shares?",
+   "answer": 173,
+   "calc": {
+    "fn": "shares_from_risk",
+    "args": {
+     "account": 50000,
+     "risk_pct": 0.5,
+     "entry": 59.4,
+     "stop": 57.96
+    },
+    "round": 0
+   },
+   "why": "173. Account times risk percent, divided by the fill minus the stop, rounded down. The stop sets the size, never the other way round.",
+   "lesson_line": "Stop first, distance second, size last.",
+   "facts": [
+    "h03",
+    "h01",
+    "d13"
+   ],
+   "house": true,
+   "suffix": " shares"
+  },
+  {
+   "key": "q46",
+   "skill": "setup.flat_base",
+   "rung": 6,
+   "format": "tf",
+   "criterion": "fb.trail",
+   "q": "The last third of a flat base winner trails the 10-day or the 21-day. It is sold on the first touch of the line.",
+   "answer": "False",
+   "why": "False. Sell on a close below the line, not a touch. Kullamagi waits for the first close below the 10-day.",
+   "lesson_line": "Trail the rising average. Sell the close below it, not the touch.",
+   "facts": [
+    "h21",
+    "k06"
+   ],
+   "house": true
+  },
+  {
+   "key": "q47",
+   "skill": "setup.flat_base",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "fb.liquidity",
+   "q": "Take the breakout?",
+   "choices": [
+    "No; it fails our liquidity floor",
+    "Yes; the base is clean enough",
+    "Yes, but at half our normal size"
+   ],
+   "answer": "No; it fails our liquidity floor",
+   "why": "No. We trade only stocks at $10 or more that trade at least $20 million a day.",
+   "lesson_line": "A clean box in a thin stock is still a thin stock.",
+   "facts": [
+    "h09"
+   ],
+   "wrong": {
+    "Yes; the base is clean enough": "The base is fine and the stock is not ours. The liquidity rule comes before the chart.",
+    "Yes, but at half our normal size": "Size does not make a thin stock liquid."
+   },
+   "house": true,
+   "story": "A clean flat base on a $7 stock that trades about $4 million a day."
+  },
+  {
+   "key": "q48",
+   "skill": "setup.flat_base",
+   "rung": 6,
+   "format": "mcq",
+   "criterion": "fb.position_adv",
+   "q": "The stock trades 2,000,000 shares a day on average. Our ceiling on the position?",
+   "choices": [
+    "20,000 shares, 1% of the daily volume",
+    "200,000 shares",
+    "No ceiling if the stop is tight",
+    "2,000 shares"
+   ],
+   "answer": "20,000 shares, 1% of the daily volume",
+   "why": "20,000 shares. Never own more than 1% of a stock's average daily volume.",
+   "lesson_line": "One percent of the daily volume, and not a share more.",
+   "facts": [
+    "h19"
+   ],
+   "wrong": {
+    "200,000 shares": "That is a tenth of the day's volume. You could not get out without moving it.",
+    "No ceiling if the stop is tight": "A tight stop cannot catch an overnight gap. The ceiling stands.",
+    "2,000 shares": "That is a tenth of the line. The ceiling is 1%."
+   },
+   "house": true,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "adv * 0.01",
+     "adv": 2000000
+    },
+    "round": 0
+   }
+  },
+  {
+   "key": "q49",
+   "skill": "setup.flat_base",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "fb.depth",
+   "q": "What is it?",
+   "choices": [
+    "A cup with handle",
+    "A flat base",
+    "A high tight flag",
+    "A late-stage base"
+   ],
+   "answer": "A cup with handle",
+   "why": "A cup with handle. A flat base stays boxy within 15% of its high. A rounded fall of 24% with a dip before the buy is a cup. IBD and MarketSmith both cap the flat base at 15%.",
+   "lesson_line": "Measure the depth. Past the box, it is a cup, with its own rules.",
+   "facts": [
+    "c17",
+    "i06",
+    "m01"
+   ],
+   "wrong": {
+    "A flat base": "24% is past every flat base line. The U shape says cup as well.",
+    "A high tight flag": "A flag needs a pole that nearly doubles and a short pause. This is a long rounded fall.",
+    "A late-stage base": "Stage is about the count of bases, not the shape. The shape here is a cup."
+   },
+   "house": true,
+   "story": "The stock ran 60% into a high, then fell 24% over ten weeks in a rounded U. It climbed back near the high. Now it dips a few percent just under the high."
+  },
+  {
+   "key": "q50",
+   "skill": "setup.flat_base",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "fb.length_min",
+   "q": "What is it?",
+   "choices": [
+    "A high tight flag",
+    "A flat base",
+    "A cup with handle"
+   ],
+   "answer": "A high tight flag",
+   "why": "A high tight flag: a pole that nearly doubles, then a pause of a few weeks. A flat base is a longer rest after a smaller run. IBD: one, two or three weeks do not get the job done.",
+   "lesson_line": "Doubled and paused is a flag. Ran and rested for weeks is a box.",
+   "facts": [
+    "c18",
+    "i04",
+    "t07"
+   ],
+   "wrong": {
+    "A flat base": "The doubling pole names the setup. A flat base follows a smaller run and rests longer.",
+    "A cup with handle": "No rounded fall here. A tight shelf on top of a pole is the flag."
+   },
+   "house": true,
+   "story": "The stock doubled in six weeks on news, then paused twelve sessions in a tight range near the top. The pause is 8% deep."
+  },
+  {
+   "key": "q51",
+   "skill": "setup.flat_base",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "fb.inv_depth",
+   "q": "Is it a flat base?",
+   "choices": [
+    "No; too deep, a cup-shaped base",
+    "Yes; three taps make it",
+    "Yes; the run before it qualifies"
+   ],
+   "answer": "No; too deep, a cup-shaped base",
+   "why": "No. Past 15% deep it is no longer a flat base; IBD and MarketSmith both stop at 15%. This one was cup-shaped: best 1.1R, stopped.",
+   "lesson_line": "Three taps do not fix a deep base. Depth is a gate.",
+   "facts": [
+    "c23",
+    "i05",
+    "m01",
+    "d22"
+   ],
+   "wrong": {
+    "Yes; three taps make it": "The ceiling is one gate; depth is another. This fails depth.",
+    "Yes; the run before it qualifies": "The run is the context. The pattern still has to be shallow."
+   },
+   "house": true,
+   "story": "A 27-session rest after a 51% run, three taps of the top, but the low sits 18.5% under the left-side high."
+  },
+  {
+   "key": "q52",
+   "skill": "setup.flat_base",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "fb.above_mas",
+   "q": "Take it as a flat base?",
+   "choices": [
+    "No; the 50-day is under the 200-day",
+    "Yes; price is above both",
+    "Yes; the 50 is close enough"
+   ],
+   "answer": "No; the 50-day is under the 200-day",
+   "why": "No. Our card wants the close above the 50-day and the 200-day with the 50 above the 200. A base built in a recovery out of a downtrend is not a leader resting. It worked, and it is still not ours.",
+   "lesson_line": "Price above both lines is half the check. The 50 over the 200 is the other half.",
+   "facts": [
+    "c05",
+    "h10",
+    "d23",
+    "d24"
+   ],
+   "wrong": {
+    "Yes; price is above both": "Price above both with the 50 under the 200 is a recovery, not a leader's rest.",
+    "Yes; the 50 is close enough": "Close enough is under. The order of the lines is the rule."
+   },
+   "house": true,
+   "story": "A 28-session base after a 42% rebound out of a downtrend. On the breakout day the close is 14% above the 200-day, but the 50-day still sits 1.6% under the 200-day."
+  },
+  {
+   "key": "q53",
+   "skill": "setup.flat_base",
+   "rung": 7,
+   "format": "tf",
+   "criterion": "fb.flat",
+   "q": "Closes drifting up 4% of their average from start to end, under a flat top, still count as flat on our card.",
+   "answer": "True",
+   "why": "True. Flat means the line through the closes drifts no more than 10% of the base's average close. A slight U inside that is allowed, as IBD allows.",
+   "lesson_line": "Flat is a ceiling and a small drift, not a ruler.",
+   "facts": [
+    "c14",
+    "i09"
+   ],
+   "house": true
+  },
+  {
+   "key": "q54",
+   "skill": "setup.flat_base",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "fb.stop_width",
+   "q": "What was the lesson?",
+   "choices": [
+    "A stop inside the noise gets shaken out",
+    "Never buy on heavy volume",
+    "Widen the next stop to the base low",
+    "Skip breakouts that gap down"
+   ],
+   "answer": "A stop inside the noise gets shaken out",
+   "why": "A stop inside the stock's normal daily range gets shaken out by noise. You never pull a stop in to fit; and the re-entry on the reclaim is a new trade with its own stop.",
+   "lesson_line": "A stop that sits inside a normal day is not a stop. It is a coin flip.",
+   "facts": [
+    "d18",
+    "d19",
+    "h28",
+    "k03"
+   ],
+   "wrong": {
+    "Never buy on heavy volume": "Volume was not the problem. The stop's distance was.",
+    "Widen the next stop to the base low": "The base low is too far the other way. The honest stop is the day's low, judged against the range.",
+    "Skip breakouts that gap down": "The gap came after the buy. The lesson is about where the stop sat."
+   },
+   "house": true,
+   "story": "Breakout on heavy volume, but it closes near the day's low. Your stop sits 0.88% under the fill while the stock's average daily range is 2.5%. Next morning a 2% gap down takes the stop; then it reclaims the pivot and runs."
+  },
+  {
+   "key": "q55",
+   "skill": "setup.flat_base",
+   "rung": 7,
+   "format": "numeric",
+   "criterion": "fb.trim_2",
+   "q": "Bought at 73.16, stop 72.24. Where is 5R?",
+   "answer": 77.76,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "a + 5 * (a - b)",
+     "a": 73.16,
+     "b": 72.24
+    },
+    "round": 2
+   },
+   "why": "77.76. One R is the fill minus the stop; five of those above the fill. WSM got there by day 10, then threw back through the pivot.",
+   "lesson_line": "Know 5R before the open too. The second third comes off there.",
+   "facts": [
+    "h20",
+    "d05",
+    "d06"
+   ],
+   "house": true,
+   "prefix": "$"
+  },
+  {
+   "key": "q56",
+   "skill": "setup.flat_base",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "fb.trail",
+   "q": "What happens to the last third?",
+   "choices": [
+    "Sold on that close under the 21-day",
+    "Held; the stop is at breakeven",
+    "Sold only if it closes under the base",
+    "Added to, on the dip"
+   ],
+   "answer": "Sold on that close under the 21-day",
+   "why": "Sold. The last third trails the 10-day for a fast mover or the 21-day for a steadier one, out on a close below. APH failed back through the base after that; the trims and the trail kept it a win.",
+   "lesson_line": "Two thirds banked, the last third on the trail. The close below the line is the exit.",
+   "facts": [
+    "h21",
+    "d09",
+    "d10"
+   ],
+   "wrong": {
+    "Held; the stop is at breakeven": "Breakeven is the floor, not the plan. The trail is the exit for the last third.",
+    "Sold only if it closes under the base": "That gives back most of the move. The trail line is closer.",
+    "Added to, on the dip": "Full size at one price; no adding. A dip under the trail is an exit, not an add."
+   },
+   "house": true,
+   "story": "You bought at 72.20, stop 70.70. It hits 3R on day three and 5R by day ten; you trimmed a third at each. Then it rolls over and closes under the 21-day."
+  },
+  {
+   "key": "q57",
+   "skill": "setup.flat_base",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "fb.breakout_volume",
+   "q": "Was that loss a mistake?",
+   "choices": [
+    "No; a planned loss on a weak day",
+    "Yes; you should have sold at 1.63R",
+    "Yes; the stop was too tight",
+    "Yes; light volume meant skip it"
+   ],
+   "answer": "No; a planned loss on a weak day",
+   "why": "No. The stop is the exit, and a loss taken at the stop is the system working. By our current default, light volume lowers the grade. It does not cancel a buy made before the day's volume is known.",
+   "lesson_line": "Light volume lowers the grade, not the rule. A loss at the stop is the plan working.",
+   "facts": [
+    "h02",
+    "h22",
+    "d20",
+    "d21",
+    "r1",
+    "h05"
+   ],
+   "wrong": {
+    "Yes; you should have sold at 1.63R": "The first trim is a third at 3R. Selling at 1.63R is fear, not a rule.",
+    "Yes; the stop was too tight": "A few cents under the day's low is the rule. It held for six days.",
+    "Yes; light volume meant skip it": "By our current default, volume is a grading cue, not a gate. And you buy at market before the day's volume is known."
+   },
+   "house": true,
+   "story": "A clean six-week shelf, four taps, volume drying up. You buy at market as price trades through the pivot at 206.85, stop 203.95. By the close, volume is only 0.5x and it sits low in its range. It reaches 1.63R, then the stop is hit on day six."
+  },
+  {
+   "key": "q58",
+   "skill": "setup.flat_base",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "fb.trim_1",
+   "q": "By our rules, what came off on the way up?",
+   "choices": [
+    "A third at 3R and a third at 5R",
+    "Nothing; it had not reached 10R",
+    "All of it at 5R"
+   ],
+   "answer": "A third at 3R and a third at 5R",
+   "why": "Two thirds banked. A third at 3R, a third at 5R, stop at breakeven, the last third on the trail. BAC fell back into the base; the trims are what made it a win.",
+   "lesson_line": "Sell partials into strength. The trims are what you keep when the box pulls it back.",
+   "facts": [
+    "h05",
+    "h20",
+    "d11",
+    "d12"
+   ],
+   "wrong": {
+    "Nothing; it had not reached 10R": "Waiting for 10R with nothing banked is how a 5R trade becomes a scratch.",
+    "All of it at 5R": "The last third rides the trail. 5R is the second trim, not the exit."
+   },
+   "house": true,
+   "story": "Five taps of a 23.5 ceiling after a vertical run. You bought at 23.56, stop 23.12. It reaches 5R in about three weeks, then sinks back into the base."
+  },
+  {
+   "key": "q59",
+   "skill": "setup.flat_base",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "fb.after_entry_stop",
+   "q": "Buy again?",
+   "choices": [
+    "Yes, as a new trade with its own stop",
+    "No; one try per base",
+    "Yes, with a wider stop this time",
+    "No; wait for a new base"
+   ],
+   "answer": "Yes, as a new trade with its own stop",
+   "why": "Yes. After a stop-out, buy again only if the setup triggers again, as a new trade with its own stop and every rule. At most 3 tries in a week.",
+   "lesson_line": "A stop-out is not a verdict on the setup. The next trigger is a new trade.",
+   "facts": [
+    "h28",
+    "h29"
+   ],
+   "wrong": {
+    "No; one try per base": "The limit is 3 tries in a week and 6 in a month, not one.",
+    "Yes, with a wider stop this time": "The stop is the day's low again. A wider stop to avoid a repeat is the mistake.",
+    "No; wait for a new base": "The base is still there and it triggered again. That is the re-entry."
+   },
+   "house": true,
+   "story": "Stopped out of a flat base breakout on Tuesday. Thursday it trades back through the pivot."
+  },
+  {
+   "key": "q60",
+   "skill": "setup.flat_base",
+   "rung": 8,
+   "format": "numeric",
+   "criterion": "fb.trim_1",
+   "q": "Bought at 143.20, stop 141.89. You sell a third at 147.13. How many R did that third bank?",
+   "answer": 3.0,
+   "calc": {
+    "fn": "r_multiple",
+    "args": {
+     "entry": 143.2,
+     "stop": 141.89,
+     "exit": 147.13
+    },
+    "round": 1
+   },
+   "why": "3R. The gain divided by the fill minus the stop. LII broke out on light volume and still ran; the stop was tested to the cent first.",
+   "lesson_line": "Count every exit in R. The first third is 3R.",
+   "facts": [
+    "h05",
+    "d07",
+    "d08"
+   ],
+   "house": true,
+   "suffix": "R"
+  },
+  {
+   "key": "q61",
+   "skill": "setup.flat_base",
+   "rung": 8,
+   "format": "tf",
+   "criterion": "fb.stop_not_base_low",
+   "q": "Our flat base stop is IBD's 7% to 8% loss limit, not the breakout day's low.",
+   "answer": "False",
+   "why": "False. IBD's general guideline is the 7%-8% sell rule. Ours is a few cents under the breakout day's low, usually within about 3% of the buy.",
+   "lesson_line": "Our loss is the day's range, not a percent of the price.",
+   "facts": [
+    "i25",
+    "h24",
+    "h04"
+   ],
+   "house": true
+  },
+  {
+   "key": "q62",
+   "skill": "setup.flat_base",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "fb.market_reading",
+   "q": "What do you do?",
+   "choices": [
+    "Nothing long; Red is cash and shorts",
+    "Buy it; A+ setups trade in any market",
+    "Buy half size"
+   ],
+   "answer": "Nothing long; Red is cash and shorts",
+   "why": "Nothing long. Red is mostly cash and shorts. TraderLion: flat base breakouts are more likely to succeed in a strong, bullish market.",
+   "lesson_line": "The best box in a Red market is a box. Sit on your hands.",
+   "facts": [
+    "h26",
+    "t06"
+   ],
+   "wrong": {
+    "Buy it; A+ setups trade in any market": "Orange allows A+. Red allows mostly cash and shorts.",
+    "Buy half size": "Half size in a Red market is half a mistake."
+   },
+   "house": true,
+   "story": "The reading is Red. A leader shows a textbook flat base and trades through the pivot on heavy volume."
+  },
+  {
+   "key": "q63",
+   "skill": "setup.flat_base",
+   "rung": 9,
+   "format": "scenario",
+   "criterion": "fb.leaders_basing",
+   "q": "How many do you take on day one?",
+   "choices": [
+    "A few; add more as they work",
+    "All eight; Green is full risk",
+    "None; wait a week to be sure"
+   ],
+   "answer": "A few; add more as they work",
+   "why": "A few. After a correction, when the reading turns Green again, start with a few positions. Add more only as the first ones work. Many leaders basing sideways is the best setting for the setup.",
+   "lesson_line": "Green after a correction: a few positions first. Let the winners earn the next ones.",
+   "facts": [
+    "h27",
+    "c26"
+   ],
+   "wrong": {
+    "All eight; Green is full risk": "Full risk per grade is the ceiling, not the first day's order. Earn it.",
+    "None; wait a week to be sure": "Waiting a week after the turn is how you miss the first leg. A few is the rule."
+   },
+   "house": true,
+   "story": "After a correction the reading just turned Green. Your list shows eight flat bases sitting at their pivots."
+  },
+  {
+   "key": "q64",
+   "skill": "setup.flat_base",
+   "rung": 9,
+   "format": "scenario",
+   "criterion": "fb.trigger",
+   "q": "Write the plan: entry, stop, first trim.",
+   "choices": [
+    "Market 90.01; stop 88.22; third at 3R",
+    "Limit 89.50; stop 85.00; out at 2R",
+    "Market at close; stop base low; hold"
+   ],
+   "answer": "Market 90.01; stop 88.22; third at 3R",
+   "why": "Market at 90.01, stop 88.22, a third at 3R. Market order as it trades through, a few cents under the day's low, the first third at 3R. NUS reached 3R the next session.",
+   "lesson_line": "Entry, stop, trim, trail. Write it before the open; execute it without a debate.",
+   "facts": [
+    "h22",
+    "h24",
+    "h05",
+    "d01",
+    "d02"
+   ],
+   "wrong": {
+    "Limit 89.50; stop 85.00; out at 2R": "A limit under the pivot never fills on the breakout, and a stop down at 85.00 is nowhere near the day's low.",
+    "Market at close; stop base low; hold": "The trigger is the trade through, not the close. The base low is not the stop."
+   },
+   "house": true,
+   "story": "NUS, September 2013: six weeks flat, three taps of 90, above a rising 50 and 200-day. It trades through 90 on 1.9x volume."
+  },
+  {
+   "key": "q65",
+   "skill": "setup.flat_base",
+   "rung": 9,
+   "format": "scenario",
+   "criterion": "fb.earnings_window",
+   "q": "Hold through the report?",
+   "choices": [
+    "No; only a 5R winner holds",
+    "Yes; the trend is still up",
+    "Yes, after trimming half"
+   ],
+   "answer": "No; only a 5R winner holds",
+   "why": "No. We hold through a report only if the trade is up 5R. At 2R the gap risk is bigger than the cushion.",
+   "lesson_line": "Earnings is a gap you cannot stop. Five R buys the ticket; 2R does not.",
+   "facts": [
+    "h08"
+   ],
+   "wrong": {
+    "Yes; the trend is still up": "The trend does not report earnings. The gap does.",
+    "Yes, after trimming half": "Half of a 2R cushion is still under the 5R line."
+   },
+   "house": true,
+   "story": "Your flat base long is up 2R and earnings are tomorrow after the close."
+  },
+  {
+   "key": "q66",
+   "skill": "setup.flat_base",
+   "rung": 9,
+   "format": "mcq",
+   "criterion": "fb.above_mas",
+   "q": "Hidden ticker, the day before a breakout. Is this base above the 200-day with the 50-day over it? Take it or pass.",
+   "choices": [
+    "Take it; the lines are stacked",
+    "Pass; the 50-day is under the 200",
+    "Pass; price is under the 200-day"
+   ],
+   "answer": "Take it; the lines are stacked",
+   "why": "Take it. Price above the 50-day and the 200-day with the 50 over the 200. A six-week shelf riding the rising 10- and 21-day after the stock nearly doubled. It broke out the next day on 1.9x volume.",
+   "lesson_line": "Check the lines before the box. Stacked, rising, price on top: that is context.",
+   "facts": [
+    "c05",
+    "h10",
+    "d02"
+   ],
+   "wrong": {
+    "Pass; the 50-day is under the 200": "Look again: the 50-day runs above the 200-day here.",
+    "Pass; price is under the 200-day": "Price sits well above the 200-day, resting on its shorter averages."
+   },
+   "house": true,
+   "chart": {
+    "sym": "NUS",
+    "asof": "2013-09-06",
+    "window": 120,
+    "forward": 20
+   }
+  },
+  {
+   "key": "q67",
+   "skill": "setup.flat_base",
+   "rung": 9,
+   "format": "mcq",
+   "criterion": "fb.above_mas",
+   "q": "Hidden ticker, the day before it trades through a flat top. Is the 50-day above the 200-day? Take it or pass.",
+   "choices": [
+    "Pass; the 50-day is under the 200",
+    "Take it; price is above the 200-day",
+    "Take it; the top is flat"
+   ],
+   "answer": "Pass; the 50-day is under the 200",
+   "why": "Pass. The close was 14.3% above the 200-day but the 50-day sat 1.6% under it. A base built in a recovery out of a downtrend, not a leader resting. It worked, and it is still not ours.",
+   "lesson_line": "A base that works is not always our base. The lines decide before the box does.",
+   "facts": [
+    "c05",
+    "d23",
+    "d24"
+   ],
+   "wrong": {
+    "Take it; price is above the 200-day": "Price above the 200 is one line of the check. The 50 under the 200 fails the other.",
+    "Take it; the top is flat": "The top is flat and the averages are out of order. Context first, pattern second."
+   },
+   "house": true,
+   "chart": {
+    "sym": "BBY",
+    "asof": "2026-07-08",
+    "window": 120,
+    "forward": 20
+   }
+  },
+  {
+   "key": "q68",
+   "skill": "setup.flat_base",
+   "rung": 9,
+   "format": "tf",
+   "criterion": "fb.base_count",
+   "q": "IBD counts a breakout as a new stage only when it gained at least 20% before the next base.",
+   "answer": "True",
+   "why": "True. A breakout needs to produce a gain of at least 20% to be counted as one stage. MarketSmith resets the count to 1 when price undercuts the prior base's low.",
+   "lesson_line": "Count stages by the gains between bases, and start over after an undercut.",
+   "facts": [
+    "i22",
+    "m08",
+    "c13"
+   ],
+   "house": true
+  },
+  {
+   "key": "q69",
+   "skill": "setup.flat_base",
+   "rung": 4,
+   "format": "numeric",
+   "criterion": "fb.first_week",
+   "q": "Left-side high 100.00. The base's first week tops out at 97.50. How far under the high is that, in percent?",
+   "answer": 2.5,
+   "calc": {
+    "fn": "drawdown_pct",
+    "args": {
+     "peak": 100.0,
+     "trough": 97.5
+    },
+    "round": 1
+   },
+   "why": "2.5%. The left-side high minus the first week's high, over the left-side high. Our card wants it within 3%, so this passes.",
+   "lesson_line": "The first week stays close to the high. Measure the gap in percent.",
+   "facts": [
+    "c29",
+    "c27"
+   ],
+   "house": true,
+   "suffix": "%"
+  },
+  {
+   "key": "q70",
+   "skill": "setup.flat_base",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "fb.first_week",
+   "q": "Does a flat base start from that high?",
+   "story": "A stock tops at 100.00. Over the next five sessions its highest high is 93.00, which is 7% under the top. Then it builds a neat box between 91 and 93.",
+   "choices": [
+    "No; week one fell too far below it",
+    "Yes, the box is neat and orderly",
+    "Yes, if volume dries up in the box",
+    "No; a flat base needs a handle"
+   ],
+   "answer": "No; week one fell too far below it",
+   "why": "No. Our card wants the first week to reach within 3% of the left-side high. This one sits 7% under it.",
+   "lesson_line": "A flat base stays near its high from week one. A quick drop is a different pattern.",
+   "facts": [
+    "c29",
+    "c27",
+    "c17"
+   ],
+   "wrong": {
+    "Yes, the box is neat and orderly": "A neat box later does not fix week one. The first week must stay near the high.",
+    "Yes, if volume dries up in the box": "Quiet volume is a grade cue. It cannot make up for a first week that fell away.",
+    "No; a flat base needs a handle": "Handles belong to the cup. A flat base is a box and needs none."
+   },
+   "house": true
+  },
+  {
+   "key": "q71",
+   "skill": "setup.flat_base",
+   "rung": 3,
+   "format": "numeric",
+   "criterion": "fb.length_max",
+   "q": "Our card caps a flat base at 325 sessions. A trading week has 5 sessions. How many weeks is that?",
+   "answer": 65,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "a / b",
+     "a": 325,
+     "b": 5
+    },
+    "round": 0
+   },
+   "why": "65 weeks. Our card allows at most 65 weeks (325 sessions) from the left-side high to the day before the breakout.",
+   "lesson_line": "There is a ceiling on length too: 65 weeks, which is 325 sessions.",
+   "facts": [
+    "c30",
+    "m01"
+   ],
+   "house": true,
+   "suffix": "weeks"
+  },
+  {
+   "key": "q72",
+   "skill": "setup.flat_base",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "fb.length_max",
+   "q": "Is it a flat base breakout?",
+   "story": "A leader has gone sideways for 80 weeks since its left-side high, tapping the same top again and again. Today it trades through that top.",
+   "choices": [
+    "No; it ran past the 65-week cap",
+    "Yes, a longer base is stronger",
+    "Yes, as long as the top is flat",
+    "No; it needs a handle first"
+   ],
+   "answer": "No; it ran past the 65-week cap",
+   "why": "No. Our card caps a flat base at 65 weeks from the left-side high to the day before the breakout.",
+   "lesson_line": "A base that drags on past 65 weeks is no longer a flat base.",
+   "facts": [
+    "c30",
+    "m01",
+    "c17"
+   ],
+   "wrong": {
+    "Yes, a longer base is stronger": "Length has a cap. Past 65 weeks it is no longer a flat base.",
+    "Yes, as long as the top is flat": "A flat top is needed, but not enough. The base must also be 65 weeks or less.",
+    "No; it needs a handle first": "A handle belongs to the cup. The flat base fails here on length."
+   },
+   "house": true
+  },
+  {
+   "key": "q73",
+   "skill": "setup.flat_base",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "fb.ceiling_three_taps",
+   "q": "Which ceiling is the cleaner version on our card?",
+   "story": "Two stocks rest under a flat top. Stock A made two clean taps of it. Stock B made four, each a separate swing.",
+   "choices": [
+    "Stock B, three or more taps",
+    "Stock A, fewer taps mean less supply",
+    "Both are identical on our card",
+    "Neither; a ceiling needs five taps"
+   ],
+   "answer": "Stock B, three or more taps",
+   "why": "Stock B. Two taps make a ceiling, but three or more clean taps is the A+ version on our card. It is a grade cue, not a gate.",
+   "lesson_line": "Two taps make a ceiling. Three or more make it the A+ version.",
+   "facts": [
+    "c31",
+    "c03"
+   ],
+   "wrong": {
+    "Stock A, fewer taps mean less supply": "More clean taps of one level make the cleaner ceiling on our card, not fewer.",
+    "Both are identical on our card": "Both pass as ceilings, but three or more taps is the A+ version.",
+    "Neither; a ceiling needs five taps": "Two or more separate touches make a ceiling. Five is not a rule."
+   },
+   "house": true
+  },
+  {
+   "key": "q74",
+   "skill": "setup.flat_base",
+   "rung": 3,
+   "format": "tf",
+   "criterion": "fb.ma200_rising",
+   "q": "Our card wants the 200-day to be no lower than it was 20 sessions ago.",
+   "answer": "True",
+   "why": "True. On our card the 200-day must be no lower than it was 20 sessions ago.",
+   "lesson_line": "Check the slope of the 200-day. It must not be falling.",
+   "facts": [
+    "c32"
+   ],
+   "house": true
+  },
+  {
+   "key": "q75",
+   "skill": "setup.flat_base",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "fb.ma200_rising",
+   "q": "Does the context pass our card?",
+   "story": "A leader rests in a box above its 50-day and 200-day, with the 50-day over the 200-day. The 200-day is 41.80 today and was 42.30 twenty sessions ago.",
+   "choices": [
+    "No; the 200-day has turned down",
+    "Yes, price is above both averages",
+    "Yes, the 50-day is over the 200-day",
+    "No; it needs a rising 10-day"
+   ],
+   "answer": "No; the 200-day has turned down",
+   "why": "No. The 200-day is lower than it was 20 sessions ago. Our card wants it not lower, even with the averages stacked.",
+   "lesson_line": "Stacked averages are not enough. The 200-day must not be falling.",
+   "facts": [
+    "c32",
+    "c05"
+   ],
+   "wrong": {
+    "Yes, price is above both averages": "That is one check. The 200-day must also not be lower than 20 sessions ago.",
+    "Yes, the 50-day is over the 200-day": "That is one check. A falling 200-day still fails the context.",
+    "No; it needs a rising 10-day": "The card asks about the 200-day slope, not the 10-day."
+   },
+   "house": true
+  },
+  {
+   "key": "q76",
+   "skill": "setup.flat_base",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "fb.climax",
+   "q": "The stock goes vertical. What fits our rule?",
+   "story": "You bought the breakout at 90.01. Two weeks on, it has jumped on gaps three days running, each bar bigger than the last, far over its rising 10-day.",
+   "choices": [
+    "Sell a big part into the surge",
+    "Buy more to ride the move",
+    "Sit tight until the 21-day breaks",
+    "Sell it all at the next gap up"
+   ],
+   "answer": "Sell a big part into the surge",
+   "why": "Sell a big part. Into a climax run on your own long we sell a big part. It is a judgment call.",
+   "lesson_line": "When a winner goes parabolic, sell a big part into it.",
+   "facts": [
+    "h30"
+   ],
+   "wrong": {
+    "Buy more to ride the move": "A burst is a time to sell into strength, not to add.",
+    "Sit tight until the 21-day breaks": "The rule sells a big part into the burst. It does not wait for the trail.",
+    "Sell it all at the next gap up": "The rule says a big part, as a judgment call, not everything."
+   },
+   "house": true
+  },
+  {
+   "key": "q77",
+   "skill": "setup.flat_base",
+   "rung": 2,
+   "format": "tf",
+   "criterion": "fb.climax",
+   "q": "A climax run on a winner is the moment to add to the position.",
+   "answer": "False",
+   "why": "False. Into a climax run on your own long, sell a big part, not add.",
+   "lesson_line": "Climax run: sell into strength. Do not add.",
+   "facts": [
+    "h30"
+   ],
+   "house": true
+  }
+ ],
+ "conflicts": [
+  "Pending-owner criteria kept OUT of every key (the course's current default, waiting on the owner): fb.prior_trend 30% over 65 sessions (D-029; q25 computes a percent only and quotes IBD's 30% as IBD's); fb.length_min 25 sessions / 5 weeks (D-042; no key recalls it, q50 keys the high tight flag on its doubling pole, IBD's five weeks appears only in quotes); fb.depth 15% (D-043; q26 computes depth only; q49 and q51 use 24% and 18.5%, deeper than every option on the card, 15, 12 and 10); fb.breakout_volume 1.4x the 50-day (D-006; never a gate here, a grade cue in q42 and q57, the number never keyed); fb.stop_width what to do when the honest stop is wider than about 3% or the ADR (D-005; q39 keys only 'never pull the stop in', A3/A4, and q54 the XOM lesson); fb.earnings_gap_trigger (D-025; no item); fb.other_entries, the early pivot, the U&R inside the base and the retest (D-027; no item, IBD's early buy point is not keyed).",
+  "Base count: the card's gate says first or second base (fb.base_count, proposed) while its B- row says 'third or later'; IBD S1 says flat bases 'tend to form as a second or third base' and S6 'usually not a first-stage structure'. q40 keys a FOURTH base as a pass (IBD S7: late-stage bases often blow up; MarketSmith: third, fourth or later more likely to fail) and never asks about a third base. The owner may want the third base as B- rather than a pass.",
+  "Where the base starts: IBD counts from the first down week on a weekly chart (S1, S3); MarketSmith and our card count from the left-side high (S12). q09 keys the left-side high and keeps 'the first down week' out of the choices so IBD's way is never marked wrong.",
+  "Anticipating: Bonde anticipates a flat base with a buy stop (S14); Kullamagi finds anticipating less effective (S18); the card lists anticipating with no trigger as a mistake. q05 and q33 key the trade-through; Bonde's view is not quoted.",
+  "UNITS-method SET.07 and the Model Book card describe a VCP (shrinking swings, the stop under the final contraction low), not a flat base (D-002). This unit follows the criteria card: a box with a flat ceiling, the stop under the breakout day's low. q16 teaches the difference.",
+  "Throwbacks: the card's 'two in three come back within 30 days' is Bulkowski's rectangle-top throwback rate (66%), a statistic on his page, not a verbatim quote in the dossier's section 3; q35 cites the card's own statement (c21) and Bulkowski's verbatim 'Throwbacks hurt post breakout performance' is not used as a key.",
+  "Volume: IBD requires 40% to 50% above average (S1, S6) and TraderLion 1.4x (S17); Kullamagi is silent; Bulkowski's volume study found heavy-volume breakouts failed more; the owner is 'not a big volume guy'; our scan sided with IBD (39.2% / 30.1% to 3R / 5R against 26.0% / 17.3%). The unit grades on volume and never gates on it; LII (0.82x, 15.9R) is the case for the cue.",
+  "Shallow is better: the card's A+ depth of 10% or less (fb.depth_shallow, D-044) is unmeasured and our scan found 10% or less was NOT better; Bulkowski: 'Tall patterns perform better than short ones.' Not taught here.",
+  "Three or more taps as the A+ ceiling (fb.ceiling_three_taps): the scan found no difference. q11 says 'three clean taps is the better version' as the card's cue. Until the 2026-11-10 coverage pass it was never a key; q73 now keys it only as the card's A+ cue, a grade cue and not a gate, and does not cite the scan.",
+  "The dossier's example numbers (d1) are cited as a Tier 3 repo source: they were read off our own daily bars by the research scan (dossier section 12 and 13), not from a public page or an owner ruling; the scan has no delisted names and the owner has not yet reviewed the examples (dossier question 15). The walk-throughs and the example stories depend on it; the checker and the owner should confirm the ten names before the unit goes live.",
+  "The criteria card (c1) is cited as a Tier 3 repo source for its proposed criteria (the ceiling, tight at the end, holds the 50-day, flat drift, the undercut rule, the lookalike tells). Those statements are the dossier's proposals built on the sources it names, not owner rulings; every question keyed on them carries house: true and the owner's review is the gate.",
+  "Walk-through fills: the scan filled at the pivot plus a cent (NUS 90.01, ALLY 30.28, WSM 73.16) or at the open when it gapped over the pivot, and stopped 5 cents under the lower of the trigger day's low and the prior day's low; a live market order fills a little differently.",
+  "The chart questions (q66 NUS asof 2013-09-06, q67 BBY asof 2026-07-08) show the member's own chart with their averages; the keys rest on the dossier's reads (c05, d02, d23, d24). If the member's chart settings do not draw the 50-day and 200-day, the question still reads; the importer resolves the bars from our own history.",
+  "IBD's 7% to 8% sell rule (S8) is a general loss limit for any purchase, not a flat base rule; q61 contrasts it with our day's-low stop and never teaches it as ours.",
+  "Sector ETFs (XLI, IYT) were called flat bases on the Substack; whether they count and whether RS 80 applies is D-018. No ETF appears in this unit.",
+  "The short mirror (dossier 8.8) is not taught here (D-001).",
+  "Cold check 2026-11-10: q32, q52, q55, q60 cut as duplicates (q05, q67, q20, q28 kept); q54 cut (the XOM 'stop inside the noise' lesson has no card or rulebook rule behind it and its gap-down story contradicts B20); q57 held as fix on D-006. Numbers corrected: q27 (APH stop five cents under 70.75 = 70.70, 2.08%), q41 (the 'give it room' hole was 14%, not 10%), q64 (85.00 is not NUS's base low). The 50-over-200 half of fb.above_mas (q04, q66, q67) is the lab's rule, not B26, though the card marks it settled.",
+  "Keyed on the adopted default of D-006 (provisional, 2026-11-10): breakout volume is a grading cue, not a gate, so q57 keys a loss on a 0.5x-volume breakout as a planned loss. If the owner picks the gate option, a 0.5x breakout is not bought and q57 is re-keyed."
+ ],
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "notes": "d01/d02 verbatim in dossier section 12 (NUS 2013-09-09: 6.0 wk, 10.3%, 3 taps, 1.85x, buy 90.01, stop 88.22, 3R on day 1); c01/c02/c05/c15 verbatim on the card; h05/h22/h24 verbatim in sizing_rule.md section 9. Steps 22 words or fewer per sentence. The fill is the scan's pivot plus a cent (conflicts).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "d03/d04 verbatim (ALLY 2019-06-27: 11.2 wk, 5.5%, 4 taps, 1.80x, buy 30.28, stop 29.79, 3R on day 10). Step 3 said 'it trades through 30 ... Buy at market, 30.28': a trade-through of 30 fills near 30.01, and 30.28 is the scan's open-above-the-pivot fill; now 'it clears 30', and the stop wording matches F62 ('a few cents under').",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "d05/d06 verbatim (WSM 2023-09-25: 8.0 wk, 14.6%, 4 taps, 4.99x, buy 73.16, stop 72.24, 3R on day 1, 5R by day 10, throwback to 71.56, run to 99). Step 3 put 'stop at breakeven' at the 5R trim; the card's fb.breakeven default is 'at the first trim' (B19), so breakeven moved to the 3R step and 'the original stop' in step 3 now reads right.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q01": {
+   "status": "pass",
+   "notes": "i08 (IBD S6), i12 (IBD S3), m02 (MarketSmith), p02 (Bonde) verbatim in dossier section 3; two Tier 2 publishers agree. Key and every wrong note true; choices 40 characters or fewer. Shortened one wrong choice so it is not the unique longest. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q02": {
+   "status": "pass",
+   "notes": "c01 verbatim on the card (fb.pivot, proposed), m03 (MarketSmith manual) and i18 (IBD S6) verbatim in section 3. The 10-cent difference is explained, not keyed. Wrong notes true. Shortened one wrong choice (it was the unique longest). variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q03": {
+   "status": "cut",
+   "notes": "fb.stop is settled (A3, F62): c07, h24, h01 verbatim; k03 verbatim in section 3.5. True as written. CUT: turned False it asks that the stop is not the base low, the fact q24 (fill, base low) already asks. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q04": {
+   "status": "pass",
+   "notes": "c05 (fb.above_mas, settled on the card under B26) and h10 verbatim. Bank distractors wrong. Note for the owner: B26 itself is only 'no longs below the 200-day'; the 50-over-200 half is the lab's rule the card marks settled (see also q66, q67).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q05": {
+   "status": "pass",
+   "notes": "c02 (fb.trigger, settled, E57/E58), h22, h23 verbatim; k05 verbatim in 3.5. Key is the trade-through in regular hours at market; every wrong choice is a real mistake (close, premarket, anticipating). Bonde's buy-stop anticipation is in conflicts, not quoted. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q06": {
+   "status": "pass",
+   "notes": "c22 (grade cue, not a gate) and b03 (Bulkowski, 'Trends downward 70% of the time') verbatim. The statement read 'a grade cue, not a reason to pass', which made no sense for a plus; now 'a grade cue, not a gate', the card's own words.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q07": {
+   "status": "pass",
+   "notes": "c13 (fb.base_count, proposed gate), i24 (IBD S7), m07 (MarketSmith) verbatim. Keyed as 'our card wants', which is true. Owner should see: IBD S1/S6 say flat bases usually form as a second or third base, and the card's own B- row says 'third or later' (conflicts).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q08": {
+   "status": "pass",
+   "notes": "h17 (D40) verbatim. True as written.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q09": {
+   "status": "pass",
+   "notes": "c27, m04 (MarketSmith: highest intraday price of the last 100 days), i17 verbatim. The wrong note for 'On the breakout day' claimed 'MarketSmith counts to the day before the breakout', a line not among the cited quotes; cut to 'That is where the base ends, not where it starts.'",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q10": {
+   "status": "pass",
+   "notes": "c04 (fb.tight_end, proposed), i10, t05 verbatim (t05 confirmed in dossier 3.3; traderlion.com refuses the script's client, the dossier read the 2025-05-13 archive capture). The question restates the card's test and asks its name; wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q11": {
+   "status": "pass",
+   "notes": "c03 (two or more separate touches, the first at least 10 sessions back), b01, i19 verbatim. Story: three taps, the first six weeks back, a 10% box; key true. The why said 'three clean taps is the better version'; the card's own evidence says the scan found no difference, so it now reads 'the A+ cue on our card'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q12": {
+   "status": "pass",
+   "notes": "c12 (fb.inv_200, settled, B26) and h10 verbatim. True. Rewritten: the old False (one close under the 50-day ends it) duplicated q44; now tests c12, the 200-day close, still False. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q13": {
+   "status": "pass",
+   "notes": "h13 (C29, settled) verbatim. 12% over the 10-day is past the 10% line; key and wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q14": {
+   "status": "pass",
+   "notes": "h11 (C28, 'make it 4%') and m09 (MarketSmith 0% to 5%) verbatim. The bank's 5 is IBD's data firm's number and a real miss.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q15": {
+   "status": "pass",
+   "notes": "h18 (D41) verbatim. False as written.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q16": {
+   "status": "pass",
+   "notes": "c16 (the VCP lookalike tell), i08, b01 verbatim. The question described 'swings that never shrink', which collides with the card's tight-at-the-end gate (q10); now 'one range held throughout', which is the tell the card names.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q17": {
+   "status": "pass",
+   "notes": "i18, i16 (IBD: plus 10 cents) and c01 verbatim. Not a duplicate of q02 (q02 asks where the pivot is; this asks whether IBD's 10 cents matters with a market order).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q18": {
+   "status": "pass",
+   "notes": "h08 (B22, settled) verbatim. A report in two sessions is inside the 3-day window; key true; wrong notes true. Lengthened the 14-character wrong choice and shortened the longest. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q19": {
+   "status": "pass",
+   "notes": "h05 (B19) and h20 (E51) verbatim (h05 drops the markdown bold around 'a third at 3R'; the words are verbatim). The why said 'the owner often waits for 5R'; a member does not know 'the owner', so it now says 'we mostly wait for 5R', h05's own words.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q20": {
+   "status": "pass",
+   "notes": "calc re-derived: 90.01 + 3 x (90.01 - 88.22) = 90.01 + 5.37 = 95.38. d01/d02: NUS reached 3R the next session. h05 teaches the trim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q21": {
+   "status": "pass",
+   "notes": "h14 (C31, settled) verbatim. True. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q22": {
+   "status": "pass",
+   "notes": "h26 (F65) verbatim; t06 verbatim in 3.3. Orange = only A+ setups; every wrong choice is a different reading's rule.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q23": {
+   "status": "pass",
+   "notes": "c10/c19 (fb.inv_undercut, proposed) verbatim. Story: floor 71, low 70.40 Tuesday, close back above 71 Thursday = a reclaim within 2 sessions. The why had a 25-word sentence (split), and the wrong note said 'reclaimed within sessions' (now 'within two sessions') and used 'fighting the tape' (untaught house word; now 'fighting strength').",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q24": {
+   "status": "pass",
+   "notes": "c08 (fb.stop_not_base_low, settled, A13) and h04 verbatim. The 15% in the why is the card's statement of the depth, not a key.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q25": {
+   "status": "pass",
+   "notes": "calc re-derived: (50 - 40) / 40 = 25.0%. The key is the percent only; the 30% gate is pending (D-029) and is stated as IBD's, TraderLion's and Kullamagi's (i13, t01, k01 verbatim), never as ours. The question said 'the 65 sessions before the base', the dossier's own proposed window inside D-029; now 'the lowest low before the base'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q26": {
+   "status": "pass",
+   "notes": "calc re-derived: (100 - 86.5) / 100 = 13.5%. m05, i05, t02 verbatim. The 15% in the why is IBD's and attributed; the depth gate itself (D-043) is not keyed.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q27": {
+   "status": "pass",
+   "notes": "APH's dossier stop is 70.70 (d09: fill 72.20, stop 70.70, 2.1%), which is five cents under the 70.75 low; the question said three cents (70.72, 2.05%), so its numbers did not match the example it cites. Now five cents: (72.20 - 70.70) / 72.20 = 2.0776 = 2.08%, which rounds to d09's 2.1%. The key is the distance only; what to do when it is wider (D-005) is not asked.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q28": {
+   "status": "pass",
+   "notes": "calc re-derived: (32.73 - 30.28) / (30.28 - 29.79) = 2.45 / 0.49 = 5.0R. d03: ALLY buy 30.28, stop 29.79. h20 teaches the 5R trim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q29": {
+   "status": "pass",
+   "notes": "c09 (settled: a close back inside the base is a warning, not an exit), h02, d15 verbatim; story numbers 180.15 / 178.10 / 178.15 are section 13's AMZN row. The wrong note said 'The owner struck that rule' (a member does not know 'the owner'); now 'We dropped that rule.'",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q30": {
+   "status": "pass",
+   "notes": "h11, h12 (C28) verbatim. 94.50 / 90.00 = 5% over the pivot, past 4%; key and wrong notes true. Shortened two wrong choices so the right one is not the shortest by a margin. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q31": {
+   "status": "pass",
+   "notes": "h06, h07 (B20) verbatim. Re-derived: R = 1.00; the 30-minute low 50.30 is a 1.70R loss, inside the 2R ceiling, so it is the new stop. The wrong note for selling the open was garbled ('the one case we do not sell the open'); reworded.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q32": {
+   "status": "cut",
+   "notes": "duplicate of q05: the same fact (the trigger is the trade through the pivot in regular hours) asked a second way, and the fill sentence gives its answer away ('buy as price trades through it' can only be the pivot; rule 10). The alert-at-the-pivot line is already in q05's why.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q33": {
+   "status": "pass",
+   "notes": "c02, c28 (anticipating with no trigger is a named mistake), k05 verbatim. A buy stop at 43.50 under a 44.00 pivot fires inside the base; key true. D-027 (the early entries) could add a named variant later, but not an inside-day buy with no level. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q34": {
+   "status": "pass",
+   "notes": "h02 (A4) verbatim. True. Not a duplicate of q15 (the broker order) or q03 (where the stop goes).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q35": {
+   "status": "pass",
+   "notes": "h02, c21 (the card's throwback statement: two in three within 30 days, Bulkowski's rectangle-top rate), d06 (WSM's throwback), h05 verbatim. Story: 73.16 fill, 72.24 stop, back to 73.00 on day three; hold is right, widening breaks A4, breakeven is 2R to 5R.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q36": {
+   "status": "pass",
+   "notes": "h05 (B19: breakeven at 2R to 5R, ideally) verbatim. Key true; 'often at the trim' is the card's default. Shortened the wrong choices (right was the shortest); the 1R note now cites h05 instead of an unsourced claim. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q37": {
+   "status": "pass",
+   "notes": "h15 (C33) verbatim. True. 'Every example in our set was past 1R by day ten' is dossier section 12's statement about the ten examples. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q38": {
+   "status": "pass",
+   "notes": "h25 (F63) and h05 verbatim. 2.6R to a 3.4R open passes the 3R trim level; a third at the open. Wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q39": {
+   "status": "pass",
+   "notes": "Key (never pull the stop in to fit the size) is settled: A3, A4 and c20 verbatim; h04 for the 3%. The choice 'Size smaller from the honest stop' with the note 'sizing from the real stop is the rule' took a side on D-005 (the card's recommended option is skip or wait when the stop is past 3% or the ADR), so that choice is removed; 'skip' and 'wait for a tighter entry' are allowed under every D-005 option. Story re-derived: (48.60 - 46.40) / 48.60 = 4.5%. flagged-question fix checked 2026-11-11",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q40": {
+   "status": "pass",
+   "notes": "i23 (IBD S7), m07 (MarketSmith), c13 verbatim. A fourth base fails the card's gate (first or second) and both sources call it late. Owner should see: the card's B- row says 'third or later', so a THIRD base is unsettled; this question asks only about a fourth. Shortened one wrong choice (right was the shortest). variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q41": {
+   "status": "pass",
+   "notes": "h02, d16, d17 verbatim (META 2020-06-23: buy 241.28, stop 236.86, stopped day 1, closed 10% under the fill two sessions later). The why said 'a 10% hole in three sessions'; d17 says the 10% is the close two sessions later and the 'give it room' alternative was a 14% hole in three sessions. Fixed to 14%.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q42": {
+   "status": "pass",
+   "notes": "i20 (IBD S6), t04 (TraderLion) verbatim; c24/c25 are the card's A+ and B- breakout-day rows. The key (the 1.9x day closing at the high grades higher) holds under every D-006 option, since the close at the high grades too; the 1.4x number is never keyed. The why's 'it does not take it off the table' and the lesson line's 'light volume still trades' asserted D-006's pending answer (cue, not gate); both now say only that volume and the close grade the day.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q43": {
+   "status": "pass",
+   "notes": "c11 (fb.inv_loose, proposed) and t08 (TraderLion) verbatim. Story matches the card's test (the last 10 sessions' ranges wider than the first 10); a 23-word story sentence split.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q44": {
+   "status": "pass",
+   "notes": "c06 (80% of closes at or above the 50-day, a brief shakeout allowed) and k02 verbatim. Two closes under in eight weeks is 95% held; key true. A 24-word story sentence split.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q45": {
+   "status": "pass",
+   "notes": "calc re-derived: 50,000 x 1% = 500; 500 / (59.40 - 57.96 = 1.44) = 347.2, rounded down = 347. h03 (A5), h01 verbatim; d13 (LNG fill 59.40, stop 57.96). | 2026-11-10 follow-up: 1% gave 347 shares, 41.2% of the account, over the 40% position cap (A7); risk now 0.5%, 173 shares, 20.6%.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q46": {
+   "status": "pass",
+   "notes": "h21 (E52) and k06 verbatim. True. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q47": {
+   "status": "pass",
+   "notes": "h09 (B23) verbatim. A $7 stock trading $4 million a day fails both halves; key and wrong notes true. flagged-question fix checked 2026-11-11",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q48": {
+   "status": "pass",
+   "notes": "h19 (D42) verbatim; calc re-derived: 2,000,000 x 1% = 20,000 shares. Wrong notes true (200,000 is 10%; 2,000 is 0.1%).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q49": {
+   "status": "pass",
+   "notes": "c17 (the cup lookalike tell), i06, m01 verbatim. 24% is past every depth option on the card (15, 12, 10), so the key does not rest on D-043. A 23-word story sentence and a 24-word why sentence split.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q50": {
+   "status": "pass",
+   "notes": "c18, i04, t07 verbatim. A doubling pole with a short pause is the high tight flag by the card's tell whatever the minimum length (D-042). The wrong note 'Twelve sessions is a pause, not a base' asserted a length under the pending minimum (12 sessions qualifies under Kullamagi's 2-week option); now keyed on the pole. A 23-word why sentence split.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q51": {
+   "status": "pass",
+   "notes": "c23, i05, m01, d22 verbatim (AMZN 2020-05-19 near-miss, 18.5% deep, best 1.1R). 18.5% is past every depth option on the card, so the key does not rest on D-043.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q52": {
+   "status": "cut",
+   "notes": "near-duplicate of q67: the same fact (BBY 2026-07-09, the 50-day 1.6% under the 200-day with the close 14.3% above it, d23/d24) asked a second time as a story; q67 asks it on the member's own chart, which is the format the owner wants. The story version adds nothing the chart does not.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q53": {
+   "status": "pass",
+   "notes": "c14 (fb.flat, proposed: drift at most 10% of the average close, a U allowed) and i09 verbatim. 4% drift is inside 10%; true. A 27-word why sentence split.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q54": {
+   "status": "cut",
+   "notes": "the key ('a stop inside the noise gets shaken out') is the dossier author's read of XOM 2026-03-20 (d19), not a rule on the card or in the rulebook: the stop WAS the rule's stop (a few cents under the day's low), fb.stop_width (D-005) speaks only to a stop that is too wide, and the story has 'a 2% gap down takes the stop', which contradicts the house gap rule B20 taught in q31 (the first 30-minute low decides). A member would be graded on a lesson with no rule behind it; not fixable in one edit.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q55": {
+   "status": "cut",
+   "notes": "duplicate method of q20: the price at nR from the fill and the stop (q20 asks 3R on NUS; this asks 5R on WSM). The contract says no two questions test the same fact the same way; q20 keeps the owner's own seed and q28 covers the 5R trim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q56": {
+   "status": "pass",
+   "notes": "h21 (E52), d09, d10 verbatim (APH: 3R on day 3, 5R by day 10, then failed back through the base). Sold on the close under the trail line; wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q57": {
+   "status": "pass",
+   "notes": "Re-keyed on the adopted default of D-006 (volume a grade cue, not a gate). The story now says the buy was a market order as price traded through the pivot, before the day's volume was known (E57). Dropped the c25 B- cite (it says closes mid-range; the story's day closed low) and the unsupported 'size it small' lesson; added the card's own line that volume is needed for the grade, not to take the trade. Replaced the weak 'never buy a dry base' choice with the gate view as a real wrong choice. Numbers unchanged and verbatim in d20/d21.",
+   "fixed": true,
+   "by": "resolver"
+  },
+  "q58": {
+   "status": "pass",
+   "notes": "d11/d12 verbatim (BAC 2017-02-14: buy 23.56, stop 23.12, 5R in about three weeks, then back into the base), h05, h20. The question stated its own answer ('You took a third at 3R and a third at 5R. Where does that leave you?' = 'Two thirds banked'; rule 10) and two wrong choices contradicted the premise; rewritten to ask what came off on the way up by our rules, with the trims as the key.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q59": {
+   "status": "pass",
+   "notes": "h28 (B21), h29 (E56) verbatim. A new trigger after a stop-out is a new trade with its own stop; wrong notes true (3 tries a week, 6 a month).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q60": {
+   "status": "cut",
+   "notes": "duplicate method of q28: the R multiple of an exit from the fill and the stop (q28 asks 5R on ALLY; this asks 3R on LII). Same fact the same way; q28 kept. LII's light-volume lesson stays in d07/d08 and the conflicts.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q61": {
+   "status": "pass",
+   "notes": "i25 (IBD S8: the 7%-8% sell rule, a general loss limit), h24, h04 verbatim. True; the contrast is taught as IBD's rule, never ours. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q62": {
+   "status": "pass",
+   "notes": "h26 (F65: Red, mostly cash and shorts) and t06 verbatim. 'Nothing long' is the plain reading of 'mostly cash and shorts' for a new long; wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q63": {
+   "status": "pass",
+   "notes": "h27 (F68) and c26 verbatim. Key is F68 (settled); the criterion tag fb.leaders_basing is the card's cue. A 23-word why sentence split. flagged-question fix checked 2026-11-11",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q64": {
+   "status": "pass",
+   "notes": "h22, h24, h05, d01, d02 verbatim (NUS: market 90.01, stop 88.22, 3R next session). The wrong note called 85.00 'the base low'; NUS's base was 10.3% deep from 90, so the base low was near 80.7, not 85. Reworded without the claim.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q65": {
+   "status": "pass",
+   "notes": "h08 (B22: hold through a report only if up 5R) verbatim. At 2R the trade is sold before the report; wrong notes true. flagged-question fix checked 2026-11-11",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q66": {
+   "status": "pass",
+   "notes": "chart NUS asof 2013-09-06 (the Friday before the 2013-09-09 trigger), ticker not in the question. c05, h10, d02 verbatim. The why's 23-word sentence split; the wrong note claimed both averages 'rising', which no cited fact states, so it now says only that the 50-day runs above the 200-day. Owner: the 50-over-200 half of c05 is the lab's rule, not B26 (see q04).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q67": {
+   "status": "pass",
+   "notes": "chart BBY asof 2026-07-08 (the day before the 2026-07-09 trigger), ticker not in the question. c05, d23, d24 verbatim (close +14.3% over the 200-day, the 50-day -1.6% under it). A 28-word why sentence split. Same owner note as q04 and q66.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q68": {
+   "status": "pass",
+   "notes": "i22 (IBD S7: a 20% gain counts as one stage), m08 (MarketSmith reset), c13 verbatim. True; a 30-word why sentence split.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q69": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q70": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q71": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q72": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q73": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; story now says the taps are clean (the card's wording); reads as A+ on our card, a grade cue, not a gate; conflicts line updated",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q74": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; why was a bare restatement; now says it is our card's line",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q75": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q76": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; dropped an unsourced claim ('hands back much of the burst') from a wrong note",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q77": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  }
+ }
+}

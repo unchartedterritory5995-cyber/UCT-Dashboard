@@ -1,0 +1,3486 @@
+{
+ "unit": "V.03",
+ "track": "V",
+ "title": "Candle words",
+ "teaches": "The words for a candle's parts and the common candle names: body, shadow (wick, tail), hollow and filled, doji and its kinds, spinning top, marubozu, hammer and hanging man, shooting star and inverted hammer, engulfing, harami, inside and outside days, stars, soldiers, crows and three methods, and why a name is a clue that needs confirmation, never a forecast.",
+ "skills": [
+  {
+   "id": "vocab.candle_terms",
+   "title": "Candle words"
+  }
+ ],
+ "as_of": "2026-11-09",
+ "sources": [
+  {
+   "id": "s1",
+   "tier": 2,
+   "publisher": "StockCharts.com",
+   "title": "ChartSchool: Introduction to Candlesticks",
+   "url": "https://chartschool.stockcharts.com/table-of-contents/chart-analysis/candlestick-charts/introduction-to-candlesticks",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s2",
+   "tier": 2,
+   "publisher": "StockCharts.com",
+   "title": "ChartSchool: Candlestick Pattern Dictionary",
+   "url": "https://chartschool.stockcharts.com/table-of-contents/chart-analysis/candlestick-charts/candlestick-pattern-dictionary",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s3",
+   "tier": 2,
+   "publisher": "StockCharts.com",
+   "title": "ChartSchool: Candlestick Bullish Reversal Patterns",
+   "url": "https://chartschool.stockcharts.com/table-of-contents/chart-analysis/candlestick-charts/candlestick-bullish-reversal-patterns",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s4",
+   "tier": 2,
+   "publisher": "StockCharts.com",
+   "title": "ChartSchool: Candlestick Bearish Reversal Patterns",
+   "url": "https://chartschool.stockcharts.com/table-of-contents/chart-analysis/candlestick-charts/candlestick-bearish-reversal-patterns",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s5",
+   "tier": 2,
+   "publisher": "StockCharts.com",
+   "title": "ChartSchool: Glossary - O (outside day, outside reversal day)",
+   "url": "https://chartschool.stockcharts.com/table-of-contents/glossary/glossary-o",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s6",
+   "tier": 2,
+   "publisher": "StockCharts.com",
+   "title": "StockCharts Support Center: Published Scans (inside day)",
+   "url": "https://help.stockcharts.com/scanning-and-alerts/advanced-scan-library/published-scans",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s7",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Real Body: What It Is and How It Works",
+   "url": "https://www.investopedia.com/terms/r/realbody.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s8",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Candlestick Chart",
+   "url": "https://www.investopedia.com/terms/c/candlestick.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s9",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "What Is a Doji Candle Pattern, and What Does It Tell You?",
+   "url": "https://www.investopedia.com/terms/d/doji.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s10",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Doji Dragonfly Candlestick: What It Is, What It Means, Examples",
+   "url": "https://www.investopedia.com/terms/d/dragonfly-doji.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s11",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Gravestone Doji: Bearish Reversal Pattern Explained With Trading Tips",
+   "url": "https://www.investopedia.com/terms/g/gravestone-doji.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s12",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Long-Legged Doji",
+   "url": "https://www.investopedia.com/terms/l/long-legged-doji.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s13",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Spinning Top Candlestick",
+   "url": "https://www.investopedia.com/terms/s/spinning-top.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s14",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Marubozu",
+   "url": "https://www.investopedia.com/terms/m/marubozo.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s15",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Hammer Candlestick",
+   "url": "https://www.investopedia.com/terms/h/hammer.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s16",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Hanging Man Candlestick",
+   "url": "https://www.investopedia.com/terms/h/hangingman.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s17",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Shooting Star: What It Means in Stock Trading, With an Example",
+   "url": "https://www.investopedia.com/terms/s/shootingstar.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s18",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Bullish Engulfing Pattern",
+   "url": "https://www.investopedia.com/terms/b/bullishengulfingpattern.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s19",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Bearish Engulfing Pattern",
+   "url": "https://www.investopedia.com/terms/b/bearishengulfingp.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s20",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Bearish Harami",
+   "url": "https://www.investopedia.com/terms/b/bearishharami.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s21",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Harami Cross",
+   "url": "https://www.investopedia.com/terms/h/haramicross.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s22",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Inside Days",
+   "url": "https://www.investopedia.com/terms/i/inside-days.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s23",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Outside Reversal",
+   "url": "https://www.investopedia.com/terms/o/outsidereversal.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s24",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Morning Star (Candlestick Pattern)",
+   "url": "https://www.investopedia.com/terms/m/morningstar.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s25",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Evening Star",
+   "url": "https://www.investopedia.com/terms/e/eveningstar.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s26",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Star (candlestick)",
+   "url": "https://www.investopedia.com/terms/s/star.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s27",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Dark Cloud Cover",
+   "url": "https://www.investopedia.com/terms/d/darkcloud.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s28",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Three White Soldiers",
+   "url": "https://www.investopedia.com/terms/t/three_white_soldiers.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s29",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Rising Three Methods",
+   "url": "https://www.investopedia.com/terms/r/rising-three-methods.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s30",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "How to Read Stock Charts and Trading Patterns",
+   "url": "https://www.schwab.com/learn/story/how-to-read-stock-charts-and-trading-patterns",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s31",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "4 Ways Traders Spot a Rally's Potential End",
+   "url": "https://www.schwab.com/learn/story/ways-traders-spot-rallys-potential-end",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s32",
+   "tier": 2,
+   "publisher": "Fidelity Investments",
+   "title": "How to read a crypto chart (Learning Center)",
+   "url": "https://www.fidelity.com/learning-center/trading-investing/crypto/how-to-read-a-crypto-chart",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s33",
+   "tier": 2,
+   "publisher": "Fidelity Investments",
+   "title": "Identifying Chart Patterns (technical analysis webinar slides; cites Kirkpatrick and Dahlquist, the CMT textbook)",
+   "url": "https://www.fidelity.com/bin-public/060_www_fidelity_com/documents/learning-center/Idenitfying-Chart-Patterns.pdf",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s34",
+   "tier": 2,
+   "publisher": "CME Group (education)",
+   "title": "Chart Types: candlestick, line, bar",
+   "url": "https://www.cmegroup.com/education/courses/technical-analysis/chart-types-candlestick-line-bar",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s35",
+   "tier": 2,
+   "publisher": "CME Group (education)",
+   "title": "Technical Analysis",
+   "url": "https://www.cmegroup.com/education/courses/trading-and-analysis/technical-analysis.html",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s36",
+   "tier": 2,
+   "publisher": "StockCharts.com",
+   "title": "StockCharts Support Center: SharpCharts FAQs (candlestick colors)",
+   "url": "https://help.stockcharts.com/charts-and-tools/sharpcharts/sharpcharts-faqs",
+   "accessed": "2026-11-09"
+  }
+ ],
+ "facts": [
+  {
+   "id": "f1",
+   "source": "s1",
+   "quote": "The hollow or filled portion of the candlestick is called “the body” (also referred to as “the real body”).",
+   "claim": "The thick part of a candle is the body, also called the real body."
+  },
+  {
+   "id": "f2",
+   "source": "s1",
+   "quote": "The long thin lines above and below the body represent the high/low range and are called “shadows” (also referred to as “wicks” and “tails”).",
+   "claim": "The thin lines above and below the body are shadows, also called wicks or tails, and they show the high-low range."
+  },
+  {
+   "id": "f3",
+   "source": "s1",
+   "quote": "The high is marked by the top of the upper shadow and the low by the bottom of the lower shadow.",
+   "claim": "The top of the upper shadow is the high; the bottom of the lower shadow is the low."
+  },
+  {
+   "id": "f4",
+   "source": "s1",
+   "quote": "If the stock closes higher than its opening price, a hollow candlestick is drawn with the bottom of the body representing the opening price and the top of the body representing the closing price.",
+   "claim": "Close above open draws a hollow candle: open at the bottom of the body, close at the top."
+  },
+  {
+   "id": "f5",
+   "source": "s1",
+   "quote": "If the stock closes lower than its opening price, a filled candlestick is drawn with the top of the body representing the opening price and the bottom of the body representing the closing price.",
+   "claim": "Close below open draws a filled candle: open at the top of the body, close at the bottom."
+  },
+  {
+   "id": "f6",
+   "source": "s1",
+   "quote": "To create a candlestick chart, you must have a data set that contains open, high, low and close values for each time period you want to display.",
+   "claim": "A candlestick needs the open, high, low and close for each period."
+  },
+  {
+   "id": "f7",
+   "source": "s1",
+   "quote": "a trader can instantly compare the relationship between the open and close and the high and low.",
+   "claim": "A candle lets you see the open-close relationship and the high-low at a glance."
+  },
+  {
+   "id": "f8",
+   "source": "s1",
+   "quote": "The longer the white candlestick is, the further the close is above the open.",
+   "claim": "A longer white body means the close finished further above the open."
+  },
+  {
+   "id": "f9",
+   "source": "s1",
+   "quote": "Long white candlesticks show strong buying pressure.",
+   "claim": "Long white candles show strong buying pressure."
+  },
+  {
+   "id": "f10",
+   "source": "s1",
+   "quote": "Conversely, short candlesticks indicate little price movement and represent consolidation.",
+   "claim": "Short candles show little price movement."
+  },
+  {
+   "id": "f11",
+   "source": "s1",
+   "quote": "Candlesticks with a long upper shadow and short lower shadow indicate that buyers dominated during the session, bidding prices higher, but sellers ultimately forced prices down from their highs.",
+   "claim": "A long upper shadow means buyers pushed price up during the session but sellers forced it back down from the high."
+  },
+  {
+   "id": "f12",
+   "source": "s1",
+   "quote": "Conversely, candlesticks with long lower shadows and short upper shadows indicate that sellers dominated during the session and drove prices lower.",
+   "claim": "A long lower shadow means sellers drove price lower during the session."
+  },
+  {
+   "id": "f13",
+   "source": "s1",
+   "quote": "However, buyers later resurfaced to bid prices higher by the end of the session; the strong close created a long lower shadow.",
+   "claim": "Buyers then bid price back up by the close, which leaves the long lower shadow."
+  },
+  {
+   "id": "f14",
+   "source": "s1",
+   "quote": "A candlestick depicts the battle between bulls (buyers) and bears (sellers) over a given period.",
+   "claim": "Each candle shows the contest between buyers and sellers over one period."
+  },
+  {
+   "id": "f15",
+   "source": "s1",
+   "quote": "The high and the low are obvious and indisputable, but candlesticks (and bar charts) cannot tell us which came first.",
+   "claim": "A candle shows the high and the low but not which one came first."
+  },
+  {
+   "id": "f16",
+   "source": "s1",
+   "quote": "Greg Morris notes that, for a pattern to qualify as a reversal pattern, there should be a prior trend to reverse.",
+   "claim": "A reversal pattern needs a prior trend to reverse."
+  },
+  {
+   "id": "f17",
+   "source": "s1",
+   "quote": "Doji form when a security's open and close are virtually equal.",
+   "claim": "A doji forms when the open and close are virtually equal."
+  },
+  {
+   "id": "f18",
+   "source": "s1",
+   "quote": "The length of the upper and lower shadows can vary, with the resulting candlestick looking like a cross, inverted cross, or plus sign.",
+   "claim": "A doji's shadows can be any length, so it looks like a cross, an inverted cross or a plus sign."
+  },
+  {
+   "id": "f19",
+   "source": "s1",
+   "quote": "Ideally, but not necessarily, the open and close should be equal.",
+   "claim": "An exactly equal open and close is ideal but not required for a doji."
+  },
+  {
+   "id": "f20",
+   "source": "s1",
+   "quote": "A $20 stock could form a doji with a 0.125 point difference between open and close, while a $200 stock might form one with a 1.25 point difference.",
+   "claim": "How close the open and close must be depends on the price: a $20 stock can form a doji with a 0.125 point difference."
+  },
+  {
+   "id": "f21",
+   "source": "s1",
+   "quote": "Relative to previous candlesticks, the doji should have a very small body that appears as a thin line",
+   "claim": "A doji's body should look like a thin line next to the candles before it."
+  },
+  {
+   "id": "f22",
+   "source": "s1",
+   "quote": "Steven Nison notes that a doji that forms among other candlesticks with small real bodies would not be considered important. However, a doji that forms among candlesticks with long real bodies would be deemed significant.",
+   "claim": "Nison: a doji among small-bodied candles is not important; a doji among long-bodied candles is significant."
+  },
+  {
+   "id": "f23",
+   "source": "s1",
+   "quote": "On their own, doji are not enough to mark a reversal. You'll need further confirmation.",
+   "claim": "A doji alone is not enough to mark a reversal; it needs confirmation."
+  },
+  {
+   "id": "f24",
+   "source": "s1",
+   "quote": "Doji convey a sense of indecision or tug-of-war between buyers and sellers.",
+   "claim": "A doji shows indecision between buyers and sellers."
+  },
+  {
+   "id": "f25",
+   "source": "s1",
+   "quote": "After an advance, or long white candlestick, a doji signals that the buying pressure is starting to weaken.",
+   "claim": "After an advance or a long white candle, a doji says buying pressure is starting to weaken."
+  },
+  {
+   "id": "f26",
+   "source": "s1",
+   "quote": "Long-legged doji have long upper and lower shadows almost equal in length.",
+   "claim": "A long-legged doji has long upper and lower shadows of about equal length."
+  },
+  {
+   "id": "f27",
+   "source": "s1",
+   "quote": "Long-legged doji indicate that prices traded well above and below the session's opening level but closed virtually even with the open.",
+   "claim": "Price traded well above and below the open but closed about even with it."
+  },
+  {
+   "id": "f28",
+   "source": "s1",
+   "quote": "Dragonfly doji form when the open, high, and close are equal, and the low creates a long lower shadow. The resulting candlestick looks like a “T” due to the lack of an upper shadow.",
+   "claim": "A dragonfly doji has open, high and close equal and a long lower shadow, so it looks like a T."
+  },
+  {
+   "id": "f29",
+   "source": "s1",
+   "quote": "Dragonfly doji indicate that sellers dominated trading and drove prices lower during the session. By the end of the session, buyers resurfaced and pushed prices back to the opening level and the session high.",
+   "claim": "In a dragonfly, sellers drove price down and buyers pushed it back to the open and the high by the close."
+  },
+  {
+   "id": "f30",
+   "source": "s1",
+   "quote": "Gravestone doji form when the open, low, and close are equal, and the high creates a long upper shadow. The resulting candlestick looks like an upside-down “T” due to the lack of a lower shadow.",
+   "claim": "A gravestone doji has open, low and close equal and a long upper shadow, so it looks like an upside-down T."
+  },
+  {
+   "id": "f31",
+   "source": "s1",
+   "quote": "As with the dragonfly doji and other candlesticks, the reversal implications of gravestone doji depend on previous price action and future confirmation.",
+   "claim": "What a gravestone doji means depends on the trend before it and confirmation after it."
+  },
+  {
+   "id": "f32",
+   "source": "s1",
+   "quote": "Candlesticks with a long upper shadow, long lower shadow, and small real body are called spinning tops",
+   "claim": "A spinning top has a small real body with long upper and lower shadows."
+  },
+  {
+   "id": "f33",
+   "source": "s1",
+   "quote": "The small real body (whether hollow or filled) shows little movement from open to close, and the shadows indicate that bulls and bears were active during the session.",
+   "claim": "A spinning top's small body can be hollow or filled; the shadows show both sides were active."
+  },
+  {
+   "id": "f34",
+   "source": "s1",
+   "quote": "Spinning tops represent indecision.",
+   "claim": "Spinning tops show indecision."
+  },
+  {
+   "id": "f35",
+   "source": "s1",
+   "quote": "After a long advance or long white candlestick, a spinning top indicates weakness among the bulls and a potential change or interruption in trend.",
+   "claim": "After a long advance or long white candle, a spinning top shows the buyers weakening."
+  },
+  {
+   "id": "f36",
+   "source": "s1",
+   "quote": "Marubozu bars don't have upper or lower shadows and the high and low are represented by the open or close",
+   "claim": "A marubozu has no shadows; the open and close are the high and low."
+  },
+  {
+   "id": "f37",
+   "source": "s1",
+   "quote": "A white Marubozu forms when the open equals the low and the close equals the high.",
+   "claim": "A white marubozu opens at the low and closes at the high."
+  },
+  {
+   "id": "f38",
+   "source": "s1",
+   "quote": "This indicates that buyers controlled the price action from the first trade to the last trade.",
+   "claim": "In a white marubozu, buyers controlled the session from the first trade to the last."
+  },
+  {
+   "id": "f39",
+   "source": "s1",
+   "quote": "Black Marubozu form when the open equals the high and the close equals the low.",
+   "claim": "A black marubozu opens at the high and closes at the low."
+  },
+  {
+   "id": "f40",
+   "source": "s1",
+   "quote": "Generally, the long shadow should be at least twice the length of the real body, which can be black or white.",
+   "claim": "In these candles the long shadow should be at least twice the real body, which can be black or white."
+  },
+  {
+   "id": "f41",
+   "source": "s1",
+   "quote": "The Hammer and Hanging Man look identical but have different implications based on the preceding price action.",
+   "claim": "The hammer and hanging man look the same; the price action before them tells them apart."
+  },
+  {
+   "id": "f42",
+   "source": "s1",
+   "quote": "Both have small real bodies (black or white), long lower shadows, and short or non-existent upper shadows.",
+   "claim": "Hammer and hanging man: small body, long lower shadow, short or no upper shadow."
+  },
+  {
+   "id": "f43",
+   "source": "s1",
+   "quote": "The Hammer is a bullish reversal pattern that forms after a decline.",
+   "claim": "The hammer forms after a decline."
+  },
+  {
+   "id": "f44",
+   "source": "s1",
+   "quote": "Forming after an advance, a Hanging Man signals that selling pressure is starting to increase.",
+   "claim": "The hanging man forms after an advance."
+  },
+  {
+   "id": "f45",
+   "source": "s1",
+   "quote": "As with the Hammer, a Hanging Man requires bearish confirmation before action.",
+   "claim": "A hanging man needs bearish confirmation before you act on it."
+  },
+  {
+   "id": "f46",
+   "source": "s1",
+   "quote": "The Inverted Hammer and Shooting Star look identical but have different implications based on previous price action.",
+   "claim": "The inverted hammer and shooting star look the same; the price action before them tells them apart."
+  },
+  {
+   "id": "f47",
+   "source": "s1",
+   "quote": "Both candlesticks have small real bodies (black or white), long upper shadows and small or nonexistent lower shadows.",
+   "claim": "Inverted hammer and shooting star: small body, long upper shadow, small or no lower shadow."
+  },
+  {
+   "id": "f48",
+   "source": "s1",
+   "quote": "The Inverted Hammer looks exactly like a Shooting Star, but forms after a decline or downtrend.",
+   "claim": "The inverted hammer is the shooting star's shape after a decline."
+  },
+  {
+   "id": "f49",
+   "source": "s1",
+   "quote": "While this may seem like enough to act on, hammers require further bullish confirmation. The low of the hammer shows that plenty of sellers remain.",
+   "claim": "A hammer needs bullish confirmation; its low shows sellers are still there."
+  },
+  {
+   "id": "f50",
+   "source": "s1",
+   "quote": "A candlestick that gaps away from the previous candlestick is said to be in star position.",
+   "claim": "A candle that gaps away from the one before it is in star position."
+  },
+  {
+   "id": "f51",
+   "source": "s1",
+   "quote": "The first candlestick usually has a large real body, but not always, and the second candlestick in the star position has a small real body.",
+   "claim": "The candle in star position has a small real body."
+  },
+  {
+   "id": "f52",
+   "source": "s1",
+   "quote": "Doji hammers shooting stars, and spinning tops have small, real bodies and can form in the star position.",
+   "claim": "Doji, hammers, shooting stars and spinning tops can all sit in star position."
+  },
+  {
+   "id": "f53",
+   "source": "s1",
+   "quote": "Harami means pregnant in Japanese; appropriately, the second candlestick is nestled inside the first.",
+   "claim": "Harami means pregnant in Japanese: the second candle sits inside the first."
+  },
+  {
+   "id": "f54",
+   "source": "s1",
+   "quote": "The second candlestick's shadows (high/low) do not have to be contained within the first, though it is preferable if they are.",
+   "claim": "In a harami, the second candle's shadows do not have to fit inside the first."
+  },
+  {
+   "id": "f55",
+   "source": "s2",
+   "quote": "Candlestick lines that have small bodies with upper and lower shadows that exceed the length of the body.",
+   "claim": "A spinning top has a small body with shadows longer than the body."
+  },
+  {
+   "id": "f56",
+   "source": "s2",
+   "quote": "A two-day pattern that's similar to the Harami. The difference is that the last day is a Doji.",
+   "claim": "A harami cross is a harami whose second day is a doji."
+  },
+  {
+   "id": "f57",
+   "source": "s2",
+   "quote": "This pattern is similar to the outside reversal chart pattern, but does not require the entire range (high and low) to be engulfed, just the open and close.",
+   "claim": "Engulfing needs only the open and close (the body) engulfed, not the whole high-low range."
+  },
+  {
+   "id": "f58",
+   "source": "s2",
+   "quote": "consisting of three consecutive long white bodies. Each should open within the previous body, and the close should be near the high of the day.",
+   "claim": "Three white soldiers: three long white bodies in a row, each opening inside the prior body and closing near its high."
+  },
+  {
+   "id": "f59",
+   "source": "s2",
+   "quote": "A bearish reversal pattern consists of three consecutive long black bodies where each day closes at or near its low and opens within the body of the previous day.",
+   "claim": "Three black crows: three long black bodies in a row, each closing at or near its low and opening inside the prior body."
+  },
+  {
+   "id": "f60",
+   "source": "s2",
+   "quote": "A bullish continuation pattern in which a long white body is followed by three small body days, each fully contained within the range of the high and low of the first day. The fifth day closes at a new high.",
+   "claim": "Rising three methods: a long white body, three small days inside its range, then a fifth day closing at a new high."
+  },
+  {
+   "id": "f61",
+   "source": "s2",
+   "quote": "a short middle candle that gapped down on the open, and a long-bodied white candle that gapped up on the open and closed above the midpoint of the body of the first day",
+   "claim": "In a morning star the short middle candle gaps down and the long white third candle closes above the midpoint of the first body."
+  },
+  {
+   "id": "f62",
+   "source": "s2",
+   "quote": "The first day is in a downtrend with a long black body. The next day opens lower with a Doji with a small trading range. The last day closes above the midpoint of the first day.",
+   "claim": "Morning doji star: long black body, a doji that opens lower, then a close above the first day's midpoint."
+  },
+  {
+   "id": "f63",
+   "source": "s2",
+   "quote": "A large price move from open to close, i.e., the length of the candle body is long.",
+   "claim": "A long body is a large move from open to close."
+  },
+  {
+   "id": "f64",
+   "source": "s2",
+   "quote": "A short day represents a small price move from open to close, where the length of the candle body is short.",
+   "claim": "A short body is a small move from open to close."
+  },
+  {
+   "id": "f65",
+   "source": "s2",
+   "quote": "A candlestick with no shadow extending from the body at the open, close, or both. The name means close-cropped or close-cut in Japanese",
+   "claim": "A marubozu has no shadow at the open, the close or both; the name means close-cropped in Japanese."
+  },
+  {
+   "id": "f66",
+   "source": "s2",
+   "quote": "If this candlestick forms during an advance, it is called a Hanging Man.",
+   "claim": "The hammer shape during an advance is called a hanging man."
+  },
+  {
+   "id": "f67",
+   "source": "s2",
+   "quote": "Depending on the previous candlestick, the star position candlestick gaps up or down and appears isolated from the previous price action.",
+   "claim": "A star gaps up or down and looks isolated from the price action before it."
+  },
+  {
+   "id": "f68",
+   "source": "s3",
+   "quote": "Patterns can form with one or more candlesticks; most require bullish confirmation.",
+   "claim": "Most bullish candle patterns need confirmation."
+  },
+  {
+   "id": "f69",
+   "source": "s3",
+   "quote": "Bullish confirmation means further upside follow through and can come as a gap up, long white candlestick or high volume advance.",
+   "claim": "Bullish confirmation is more upside follow-through: a gap up, a long white candle or a high-volume advance."
+  },
+  {
+   "id": "f70",
+   "source": "s3",
+   "quote": "Bullish reversal patterns should form within a downtrend.",
+   "claim": "Bullish reversal patterns should form in a downtrend."
+  },
+  {
+   "id": "f71",
+   "source": "s3",
+   "quote": "A bullish engulfing at new highs can hardly be considered a bullish reversal pattern. Such formations would indicate continued buying pressure and could be considered a continuation pattern.",
+   "claim": "A bullish engulfing at new highs is not really a reversal; it shows continued buying."
+  },
+  {
+   "id": "f72",
+   "source": "s3",
+   "quote": "The white body must totally engulf the body of the first black candlestick. Ideally, though not necessarily, the white body would engulf the shadows as well.",
+   "claim": "In a bullish engulfing the white body must cover the black body; covering the shadows too is ideal, not required."
+  },
+  {
+   "id": "f73",
+   "source": "s3",
+   "quote": "Further strength is required to provide bullish confirmation of this reversal pattern.",
+   "claim": "A bullish reversal pattern needs further strength to be confirmed."
+  },
+  {
+   "id": "f74",
+   "source": "s3",
+   "quote": "The first has a large body, while the second has a small body encompassed by the first.",
+   "claim": "In a harami the first candle has a large body and the second a small body inside it."
+  },
+  {
+   "id": "f75",
+   "source": "s3",
+   "quote": "The small candlestick afterward indicates consolidation.",
+   "claim": "The small second candle of a harami shows consolidation."
+  },
+  {
+   "id": "f76",
+   "source": "s3",
+   "quote": "The size of the lower shadow should be at least twice the length of the body and the high/low range should be large relative to range over the last 10-20 days.",
+   "claim": "A hammer's lower shadow should be at least twice the body."
+  },
+  {
+   "id": "f77",
+   "source": "s3",
+   "quote": "To increase robustness, look for bullish reversals at support levels.",
+   "claim": "Bullish reversals carry more weight at support levels."
+  },
+  {
+   "id": "f78",
+   "source": "s3",
+   "quote": "A small white or black candlestick that gaps below the close of the previous candlestick. This candlestick can also be a doji, in which case the pattern would be a morning doji star.",
+   "claim": "A morning star's middle candle is small, white or black, and gaps down; if it is a doji the pattern is a morning doji star."
+  },
+  {
+   "id": "f79",
+   "source": "s3",
+   "quote": "The third long white candlestick provides bullish confirmation of the reversal.",
+   "claim": "The third, long white candle of a morning star is the confirmation."
+  },
+  {
+   "id": "f80",
+   "source": "s4",
+   "quote": "Bearish reversal patterns can form with one or more candlesticks; most require bearish confirmation.",
+   "claim": "Most bearish candle patterns need confirmation."
+  },
+  {
+   "id": "f81",
+   "source": "s4",
+   "quote": "To be considered a bearish reversal, there should be an existing uptrend to reverse.",
+   "claim": "A bearish reversal needs an uptrend to reverse."
+  },
+  {
+   "id": "f82",
+   "source": "s4",
+   "quote": "The black body must totally engulf the body of the first white candlestick.",
+   "claim": "In a bearish engulfing the black body must cover the white body."
+  },
+  {
+   "id": "f83",
+   "source": "s4",
+   "quote": "By the end of the session, selling becomes so intense that prices move below the previous open.",
+   "claim": "In a bearish engulfing, price closes below the prior candle's open."
+  },
+  {
+   "id": "f84",
+   "source": "s4",
+   "quote": "The black candlestick must open above the previous close and close below the midpoint of the white candlestick's body.",
+   "claim": "Dark cloud cover: the black candle opens above the prior close and closes below the midpoint of the white body."
+  },
+  {
+   "id": "f85",
+   "source": "s4",
+   "quote": "A close above the midpoint might qualify as a reversal, but would not be considered as bearish.",
+   "claim": "A close above the midpoint is not counted as a bearish dark cloud."
+  },
+  {
+   "id": "f86",
+   "source": "s4",
+   "quote": "The bearish harami is made up of two candlesticks. The first has a large body, and the second a small body encompassed by the first.",
+   "claim": "A bearish harami is a large body followed by a small body inside it."
+  },
+  {
+   "id": "f87",
+   "source": "s4",
+   "quote": "Harami are considered potential bearish reversals after an advance and potential bullish reversals after a decline.",
+   "claim": "A harami after an advance is the bearish kind; after a decline, the bullish kind."
+  },
+  {
+   "id": "f88",
+   "source": "s4",
+   "quote": "A small white or black candlestick that gaps above the close (body) of the previous candlestick.",
+   "claim": "An evening star's middle candle is small and gaps above the first candle's body."
+  },
+  {
+   "id": "f89",
+   "source": "s4",
+   "quote": "However, the advance ceases or slows significantly after the gap, and a small candlestick forms, indicating indecision and a possible trend reversal.",
+   "claim": "The evening star's small middle candle shows the advance stalling."
+  },
+  {
+   "id": "f90",
+   "source": "s4",
+   "quote": "The shooting star is made up of one candlestick (white or black) with a small body, long upper shadow, and small or nonexistent lower shadow.",
+   "claim": "A shooting star is one candle: small body, long upper shadow, little or no lower shadow."
+  },
+  {
+   "id": "f91",
+   "source": "s4",
+   "quote": "The size of the upper shadow should be at least twice the length of the body, and the high/low range should be relatively large.",
+   "claim": "A shooting star's upper shadow should be at least twice the body."
+  },
+  {
+   "id": "f92",
+   "source": "s1",
+   "quote": "Bearish confirmation is required after the Shooting Star and can be a gap down or a long black candlestick on heavy volume.",
+   "claim": "A shooting star needs bearish confirmation, like a gap down or a long black candle on heavy volume."
+  },
+  {
+   "id": "f93",
+   "source": "s5",
+   "quote": "A chart pattern where the high is above the previous day's high and the low is below the previous day's low.",
+   "claim": "An outside day has a high above the prior high and a low below the prior low."
+  },
+  {
+   "id": "f94",
+   "source": "s5",
+   "quote": "Like with outside days, the second day's high must be above the previous day's high, while the low must be below the previous day's low. In addition, the second day must close in the opposite direction of the previous trend",
+   "claim": "An outside reversal day is an outside day that closes against the prior trend."
+  },
+  {
+   "id": "f95",
+   "source": "s5",
+   "quote": "This pattern is similar to the engulfing candlestick pattern, but requires the entire range (high and low) to be engulfed, not just the open and close.",
+   "claim": "An outside reversal needs the whole range engulfed; engulfing needs only the open and close."
+  },
+  {
+   "id": "f96",
+   "source": "s6",
+   "quote": "a day whose range is completely within the previous day's range.",
+   "claim": "An inside day's range sits completely within the prior day's range."
+  },
+  {
+   "id": "f97",
+   "source": "s7",
+   "quote": "The real body, in candlestick charting, is the wide part of a candle that represents the range between the opening and the closing prices over a specific time period.",
+   "claim": "The real body is the wide part of the candle, from open to close."
+  },
+  {
+   "id": "f98",
+   "source": "s7",
+   "quote": "When the real body of a candle is black or shaded red, it means the close was lower than the open. If the real body is empty (white) or colored green, it means the close was higher than the open.",
+   "claim": "Black or red means close below open; white or green means close above open."
+  },
+  {
+   "id": "f99",
+   "source": "s7",
+   "quote": "Candlesticks also have shadows; thin lines extending above and below the real body that indicate the high price and low price for the period.",
+   "claim": "Shadows are the thin lines above and below the body, showing the high and low."
+  },
+  {
+   "id": "f100",
+   "source": "s7",
+   "quote": "Each candle represents a period of time, such as one day, one week, or one minute.",
+   "claim": "A candle can stand for any period: a minute, a day, a week."
+  },
+  {
+   "id": "f101",
+   "source": "s8",
+   "quote": "Each candlestick shows a security’s opening and closing prices, as well as its highest and lowest prices during a specific period.",
+   "claim": "A candle shows the open, close, high and low for its period."
+  },
+  {
+   "id": "f102",
+   "source": "s8",
+   "quote": "The color of the wide part of the candlestick indicates whether the stock closed higher or lower than the previous period.",
+   "claim": "Investopedia's candlestick page describes color as close versus the previous period (a conflicting description; see conflicts)."
+  },
+  {
+   "id": "f103",
+   "source": "s8",
+   "quote": "The second candlestick gaps up and has a narrow body.",
+   "claim": "In an evening star the second candle gaps up and has a narrow body."
+  },
+  {
+   "id": "f104",
+   "source": "s9",
+   "quote": "A doji is a single candlestick pattern in which the open and close prices of the security or market are the same or very close to it.",
+   "claim": "A doji's open and close are the same or very close."
+  },
+  {
+   "id": "f105",
+   "source": "s9",
+   "quote": "From an auction theory perspective, a doji represents indecision on the part of both buyers and sellers.",
+   "claim": "A doji represents indecision on both sides."
+  },
+  {
+   "id": "f106",
+   "source": "s10",
+   "quote": "It's formed when the asset's high, open, and close prices are the same.",
+   "claim": "A dragonfly doji forms when the high, open and close are the same."
+  },
+  {
+   "id": "f107",
+   "source": "s10",
+   "quote": "The long lower shadow suggests that there was aggressive selling during the period of the candle, but since the price closed near the open it shows that buyers were able to absorb the selling and push the price back up.",
+   "claim": "The dragonfly's long lower shadow shows heavy selling that buyers absorbed and reversed by the close."
+  },
+  {
+   "id": "f108",
+   "source": "s10",
+   "quote": "Dragonfly dojis are very rare, because it is uncommon for the open, high, and close all to be exactly the same. There are usually slight discrepancies between these three prices.",
+   "claim": "The prices in a doji are rarely exactly equal; small differences are normal."
+  },
+  {
+   "id": "f109",
+   "source": "s11",
+   "quote": "It looks like an inverted T with a high, upper shadow. The open, low, and closing prices can be equal or almost equal for the pattern to be valid.",
+   "claim": "A gravestone doji looks like an inverted T: open, low and close equal or almost equal."
+  },
+  {
+   "id": "f110",
+   "source": "s11",
+   "quote": "There should also be a relatively small tail or else the pattern could be classified as an inverted hammer, shooting star, or a spinning top.",
+   "claim": "If the gravestone's tail is not small, the candle is an inverted hammer, shooting star or spinning top instead."
+  },
+  {
+   "id": "f111",
+   "source": "s11",
+   "quote": "Traders usually wait for the next candle to confirm a reversal before acting on a gravestone doji.",
+   "claim": "Traders usually wait for the next candle before acting on a gravestone doji."
+  },
+  {
+   "id": "f112",
+   "source": "s12",
+   "quote": "The long-legged doji is a candlestick that consists of long upper and lower shadows and has approximately the same opening and closing price.",
+   "claim": "A long-legged doji has long upper and lower shadows and about the same open and close."
+  },
+  {
+   "id": "f113",
+   "source": "s12",
+   "quote": "The pattern shows indecision and is most significant when it occurs after a strong advance or decline.",
+   "claim": "A long-legged doji shows indecision and matters most after a strong advance or decline."
+  },
+  {
+   "id": "f114",
+   "source": "s12",
+   "quote": "The long-legged doji is more likely to give a valid signal if it appears near a major support or resistance level.",
+   "claim": "A long-legged doji is more likely to mean something near major support or resistance."
+  },
+  {
+   "id": "f115",
+   "source": "s13",
+   "quote": "A spinning top is a candlestick pattern with a short real body that's vertically centered between long upper and lower shadows.",
+   "claim": "A spinning top has a short body centered between long upper and lower shadows."
+  },
+  {
+   "id": "f116",
+   "source": "s13",
+   "quote": "This indecision can signal more sideways movement, especially if the spinning top occurs within an established range.",
+   "claim": "Inside an established range, a spinning top can just mean more sideways movement."
+  },
+  {
+   "id": "f117",
+   "source": "s14",
+   "quote": "A Marubozu is a candlestick chart pattern characterized by a long body with no shadows",
+   "claim": "A marubozu is a long body with no shadows."
+  },
+  {
+   "id": "f118",
+   "source": "s14",
+   "quote": "On an up day, the opening price is equal to the day's low, and the closing price is equal to the day's high.",
+   "claim": "On an up-day marubozu the open is the low and the close is the high."
+  },
+  {
+   "id": "f119",
+   "source": "s14",
+   "quote": "a bearish Marubozu found in a downtrend (open equals high, low equals close)",
+   "claim": "A bearish marubozu opens at the high and closes at the low."
+  },
+  {
+   "id": "f120",
+   "source": "s15",
+   "quote": "The hammer is a single bullish candlestick with a small real body near the top, a long lower shadow at least twice the body's length, and minimal or no upper shadow.",
+   "claim": "A hammer has a small body near the top, a lower shadow at least twice the body and little or no upper shadow."
+  },
+  {
+   "id": "f121",
+   "source": "s15",
+   "quote": "Hammers are most reliable after a significant downtrend, especially if they occur at an area of established support, whether via previous price action or major moving averages.",
+   "claim": "Hammers carry the most weight after a real downtrend and at established support."
+  },
+  {
+   "id": "f122",
+   "source": "s16",
+   "quote": "The candle must have a small real body and a long lower shadow that is at least twice the size as the real body.",
+   "claim": "A hanging man has a small body and a lower shadow at least twice the body."
+  },
+  {
+   "id": "f123",
+   "source": "s16",
+   "quote": "The hanging man and the hammer candlesticks look identical. The only difference is the context.",
+   "claim": "The hanging man and hammer look the same; only the context differs."
+  },
+  {
+   "id": "f124",
+   "source": "s16",
+   "quote": "The hammer is a bottoming pattern that forms after a price decline.",
+   "claim": "The hammer forms after a price decline."
+  },
+  {
+   "id": "f125",
+   "source": "s16",
+   "quote": "A hanging man is a bearish reversal candlestick pattern that occurs after a price advance.",
+   "claim": "The hanging man occurs after a price advance."
+  },
+  {
+   "id": "f126",
+   "source": "s16",
+   "quote": "The price must move lower on the next candle in order for the hanging man to be a valid reversal pattern. This is called confirmation.",
+   "claim": "A hanging man needs a lower move on the next candle; that is confirmation."
+  },
+  {
+   "id": "f127",
+   "source": "s17",
+   "quote": "It is characterized by a small real body near the lower end of the candlestick, an upper shadow that is at least twice the size of the body, and little or no lower shadow.",
+   "claim": "A shooting star has a small body near the low, an upper shadow at least twice the body and little or no lower shadow."
+  },
+  {
+   "id": "f128",
+   "source": "s17",
+   "quote": "The upper tail, or shadow, is at least twice as long as the body",
+   "claim": "Investopedia calls the upper shadow the upper tail."
+  },
+  {
+   "id": "f129",
+   "source": "s17",
+   "quote": "The shooting star and inverted hammer look alike but serve opposite functions in different market contexts.",
+   "claim": "The shooting star and inverted hammer look alike; the context differs."
+  },
+  {
+   "id": "f130",
+   "source": "s17",
+   "quote": "Inverted Hammer Appears after a downtrend",
+   "claim": "The inverted hammer appears after a downtrend."
+  },
+  {
+   "id": "f131",
+   "source": "s17",
+   "quote": "Note that the existence of a shooting star candlestick doesn’t guarantee a reversal.",
+   "claim": "A shooting star does not guarantee a reversal."
+  },
+  {
+   "id": "f132",
+   "source": "s18",
+   "quote": "A bullish engulfing pattern is characterized by a larger white candlestick that fully engulfs the body of the previous day’s black candlestick.",
+   "claim": "In a bullish engulfing, a larger white body fully covers the prior black body."
+  },
+  {
+   "id": "f133",
+   "source": "s18",
+   "quote": "The second candle completely ‘engulfs’ the real body of the first one, without regard to the length of the tail shadows.",
+   "claim": "Engulfing is judged on the real bodies, not the shadows."
+  },
+  {
+   "id": "f134",
+   "source": "s18",
+   "quote": "Traders might consider entering a long position when the price surpasses the high of the engulfing candle, confirming a reversal.",
+   "claim": "A move above the engulfing candle's high is what confirms it."
+  },
+  {
+   "id": "f135",
+   "source": "s19",
+   "quote": "The candle body, which represents the difference between the opening and closing price, is what matters for this pattern, not the changes in the “wicks.”",
+   "claim": "For engulfing, the body matters, not the wicks."
+  },
+  {
+   "id": "f136",
+   "source": "s19",
+   "quote": "A bearish engulfing pattern can occur anytime, but it is more significant if it occurs after a price advance.",
+   "claim": "A bearish engulfing matters more after a price advance."
+  },
+  {
+   "id": "f137",
+   "source": "s19",
+   "quote": "The body of the down candle must engulf the up candle: the high must be higher and the low must be lower than the previous one.",
+   "claim": "Investopedia's bearish engulfing page also mentions a higher high and lower low (a conflicting description; see conflicts)."
+  },
+  {
+   "id": "f138",
+   "source": "s20",
+   "quote": "The first candle is a long white one followed by a smaller black candle, enhancing reversal signal.",
+   "claim": "A bearish harami is a long white candle followed by a smaller black one."
+  },
+  {
+   "id": "f139",
+   "source": "s21",
+   "quote": "A bullish harami cross is a large down candle followed by a doji.",
+   "claim": "A bullish harami cross is a large down candle followed by a doji."
+  },
+  {
+   "id": "f140",
+   "source": "s21",
+   "quote": "The doji must be completely contained with the real body of the previous candle.",
+   "claim": "In a harami cross the doji sits completely inside the prior real body."
+  },
+  {
+   "id": "f141",
+   "source": "s22",
+   "quote": "An inside day is a candlestick pattern showing that a day's high and low prices fall within the previous day's price range.",
+   "claim": "An inside day's high and low fall within the prior day's range."
+  },
+  {
+   "id": "f142",
+   "source": "s22",
+   "quote": "It indicates reduced price volatility and price consolidation.",
+   "claim": "An inside day shows lower volatility and consolidation."
+  },
+  {
+   "id": "f143",
+   "source": "s22",
+   "quote": "A series of inside days may signal an imminent trend reversal, but the breakout direction can't be predicted from this pattern alone.",
+   "claim": "The breakout direction can't be predicted from inside days alone."
+  },
+  {
+   "id": "f144",
+   "source": "s22",
+   "quote": "In bullish markets, a price breakout above the inside day's high is critical, while in bearish markets, breaking below the low indicates continuation.",
+   "claim": "Traders watch a break above the inside day's high or below its low."
+  },
+  {
+   "id": "f145",
+   "source": "s23",
+   "quote": "An outside reversal is a two-day chart pattern that can signal a potential trend change, where the current session's high and low both move beyond the prior session's range.",
+   "claim": "An outside reversal's high and low both move beyond the prior session's range."
+  },
+  {
+   "id": "f146",
+   "source": "s23",
+   "quote": "Technical analysts often use outside reversals with other signals, like volume or support levels, for increased reliability.",
+   "claim": "Outside reversals are used with volume or support levels for more reliability."
+  },
+  {
+   "id": "f147",
+   "source": "s24",
+   "quote": "The morning star pattern consists of three candles: a tall black candlestick, a smaller candle indicating market indecision, and a tall white candlestick confirming the reversal.",
+   "claim": "A morning star is a tall black candle, a smaller candle, then a tall white candle."
+  },
+  {
+   "id": "f148",
+   "source": "s24",
+   "quote": "The important thing to note about the morning star is that the middle candle can be black or white (or red or green) as the buyers and sellers start to balance out over the session.",
+   "claim": "A morning star's middle candle can be black or white."
+  },
+  {
+   "id": "f149",
+   "source": "s24",
+   "quote": "When the middle candlestick is flat, it forms a doji.",
+   "claim": "When the morning star's middle candle is flat, it is a doji."
+  },
+  {
+   "id": "f150",
+   "source": "s25",
+   "quote": "It’s a bearish candlestick pattern that consists of three candles: a large white candlestick, a small-bodied candle, and a red candle.",
+   "claim": "An evening star is a large white candle, a small-bodied candle, then a red candle."
+  },
+  {
+   "id": "f151",
+   "source": "s25",
+   "quote": "Short candlesticks are indicative of little price movement.",
+   "claim": "Short candles show little price movement."
+  },
+  {
+   "id": "f152",
+   "source": "s26",
+   "quote": "A star is a candlestick pattern traders watch for possible trend shifts, formed when a small-bodied candle appears above the prior candle's range, often after a gap.",
+   "claim": "Investopedia: a star is a small-bodied candle set apart from the prior candle's range, often after a gap."
+  },
+  {
+   "id": "f153",
+   "source": "s27",
+   "quote": "The pattern is composed of a bearish candle that opens above but then closes below the midpoint of the prior bullish candle.",
+   "claim": "Dark cloud cover: a bearish candle opens above and closes below the midpoint of the prior bullish candle."
+  },
+  {
+   "id": "f154",
+   "source": "s28",
+   "quote": "The pattern consists of three consecutive long-bodied candlesticks that open within the previous candle’s real body and a close that exceeds the previous candle’s high.",
+   "claim": "Three white soldiers are three long-bodied up candles in a row, each opening inside the prior body."
+  },
+  {
+   "id": "f155",
+   "source": "s29",
+   "quote": "It consists of a strong bullish candlestick, followed by a few small bearish or neutral candles that show prices staying within the first candle's price range, and ends with another bullish candlestick that breaks higher.",
+   "claim": "Rising three methods: a strong up candle, small candles inside its range, then an up candle that breaks higher."
+  },
+  {
+   "id": "f156",
+   "source": "s30",
+   "quote": "The body represents the range between the opening and closing prices of the time intervals; the high and low prices are called the wick or shadow",
+   "claim": "The body spans open to close; the high and low are the wick or shadow."
+  },
+  {
+   "id": "f157",
+   "source": "s30",
+   "quote": "displaying distinctive \"bodies\" that are green or red, depending on whether the stock closes higher or lower than the open.",
+   "claim": "Bodies are green or red depending on whether the close is above or below the open."
+  },
+  {
+   "id": "f158",
+   "source": "s31",
+   "quote": "The first is bullish and continues the uptrend, followed by a second bearish candle whose body completely engulfs the first, signaling a potential downward trend.",
+   "claim": "Bearish engulfing: an up candle in an uptrend, then a down candle whose body fully covers it."
+  },
+  {
+   "id": "f159",
+   "source": "s31",
+   "quote": "a large bullish candle representing strong buying pressure during an uptrend, followed by a bearish candle that opens above the previous high but closes below the midpoint of the first candle's body.",
+   "claim": "Dark cloud cover: a big up candle, then a down candle that opens above the prior high and closes below the midpoint of the first body."
+  },
+  {
+   "id": "f160",
+   "source": "s31",
+   "quote": "This signal consists of three consecutive long-bodied bearish candlesticks that close progressively lower, suggesting selling pressure is increasing and buyers are weakening.",
+   "claim": "Three black crows: three long down candles in a row, each closing lower."
+  },
+  {
+   "id": "f161",
+   "source": "s31",
+   "quote": "This pattern forms when the price opens and rallies significantly higher during the session; however, sellers push it back down to close near the opening price, indicating that buyers tried but failed to push the stock higher.",
+   "claim": "Shooting star: price rallies hard, then sellers push it back to close near the open."
+  },
+  {
+   "id": "f162",
+   "source": "s31",
+   "quote": "Signs that a rally may be coming to an end usually amount to yellow flags, not red ones, so it's important for traders to look for confirming patterns.",
+   "claim": "Reversal signs are yellow flags, not red ones; look for confirmation."
+  },
+  {
+   "id": "f163",
+   "source": "s32",
+   "quote": "Each candle represents a timeframe.",
+   "claim": "Each candle stands for one timeframe."
+  },
+  {
+   "id": "f164",
+   "source": "s32",
+   "quote": "If you are on a 5 minute chart, each candle represents 5 minutes of price movement.",
+   "claim": "On a 5-minute chart each candle is 5 minutes."
+  },
+  {
+   "id": "f165",
+   "source": "s32",
+   "quote": "The candles visualize where price is at the candle's open and close, as well as its high and low during that timeframe.",
+   "claim": "A candle shows the open, close, high and low for its timeframe."
+  },
+  {
+   "id": "f166",
+   "source": "s32",
+   "quote": "Bar charts mark the opening, high, low, and closing price with simple lines. Conceptually, they're similar to candlestick charts, but don't use boxes to create candlestick bodies.",
+   "claim": "Bar charts show the same open, high, low and close; they just don't draw bodies."
+  },
+  {
+   "id": "f167",
+   "source": "s32",
+   "quote": "It connects the closing prices over a specified time frame.",
+   "claim": "A line chart connects closing prices."
+  },
+  {
+   "id": "f168",
+   "source": "s32",
+   "quote": "Most commonly, a green or white body indicates the price has gone up, and a red or black body indicates that it has gone down.",
+   "claim": "Most commonly, green or white means up and red or black means down: a convention, not a rule."
+  },
+  {
+   "id": "f169",
+   "source": "s33",
+   "quote": "Be careful not to act on a perceived candle pattern until the pattern has formed and is activated by a breakout in a certain direction",
+   "claim": "Don't act on a candle pattern until it has formed and a breakout activates it."
+  },
+  {
+   "id": "f170",
+   "source": "s33",
+   "quote": "A one-candle pattern formed when the open and close are the same price",
+   "claim": "Fidelity's slides define a doji as open and close at the same price."
+  },
+  {
+   "id": "f171",
+   "source": "s33",
+   "quote": "When this second bar’s range is contained within the range of its preceding bar, it is called an “inside bar.”",
+   "claim": "A bar whose range fits inside the prior bar's range is an inside bar."
+  },
+  {
+   "id": "f172",
+   "source": "s33",
+   "quote": "If a bar is followed by a bar with less range, volatility is declining",
+   "claim": "A bar with less range than the one before shows volatility declining."
+  },
+  {
+   "id": "f173",
+   "source": "s33",
+   "quote": "Buy next bar at opening above inside bar close Sell next bar at opening below inside bar close",
+   "claim": "The inside-bar plan in the slides has an entry in both directions."
+  },
+  {
+   "id": "f174",
+   "source": "s33",
+   "quote": "A two-bar pattern in which the second bar body completely engulfs the first bar body",
+   "claim": "Engulfing: the second body completely covers the first body."
+  },
+  {
+   "id": "f175",
+   "source": "s33",
+   "quote": "The second body is completely within the body of the large body",
+   "claim": "In a harami the second body sits completely inside the large first body."
+  },
+  {
+   "id": "f176",
+   "source": "s33",
+   "quote": "Although common belief is that the harami is a reversal pattern, many report that is has the potential of breaking either way",
+   "claim": "The harami is commonly called a reversal pattern, but many report it can break either way."
+  },
+  {
+   "id": "f177",
+   "source": "s33",
+   "quote": "One-candle patterns differentiated by the color of the body.",
+   "claim": "Fidelity's slides say the hammer and hanging man differ by body color (a conflicting description; see conflicts)."
+  },
+  {
+   "id": "f178",
+   "source": "s34",
+   "quote": "The wick, illustrated by a thin line at the top and bottom of the body, shows the highest and lowest prices traded over the time frame.",
+   "claim": "The wick, the thin line above and below the body, shows the high and low."
+  },
+  {
+   "id": "f179",
+   "source": "s34",
+   "quote": "The body of the candle, the thicker middle portion, shows the open and closing prices during the time frame.",
+   "claim": "The body is the thick middle part, showing the open and close."
+  },
+  {
+   "id": "f180",
+   "source": "s34",
+   "quote": "If the open is lower than the close, then the color of the bar will generally be green, depending on the color settings of your software.",
+   "claim": "Close above open is generally green, depending on your software's color settings."
+  },
+  {
+   "id": "f181",
+   "source": "s34",
+   "quote": "If the closing price is lower than the opening price, then the bar will generally be red, depending on the color settings of your software.",
+   "claim": "Close below open is generally red, depending on your software's color settings."
+  },
+  {
+   "id": "f182",
+   "source": "s34",
+   "quote": "The longer the body, the more price moved over the time period of that candlestick. A short body means that the opening and closing prices were very similar",
+   "claim": "A longer body means a bigger move; a short body means the open and close were very similar."
+  },
+  {
+   "id": "f183",
+   "source": "s34",
+   "quote": "If you have a small body near the top of the bar, it means that buyers took control from sellers at the end of the time period.",
+   "claim": "A small body near the top of the bar means buyers took control by the end."
+  },
+  {
+   "id": "f184",
+   "source": "s34",
+   "quote": "If you have a small body near the low of bar, it means that at the end of the bar sellers had taken control from the buyers who were strong at the open of the bar.",
+   "claim": "A small body near the low means sellers took control by the end."
+  },
+  {
+   "id": "f185",
+   "source": "s34",
+   "quote": "Like a candlestick chart, a bar chart provides four pieces of data for each time period: the open, high, low and close.",
+   "claim": "A bar chart holds the same four prices as a candle: open, high, low, close."
+  },
+  {
+   "id": "f186",
+   "source": "s34",
+   "quote": "A line chart represents where price has been in the past and shows the closing price for a certain period of time.",
+   "claim": "A line chart shows only the closing price for each period."
+  },
+  {
+   "id": "f187",
+   "source": "s35",
+   "quote": "Candlestick charts take the same information as a bar chart",
+   "claim": "Candlestick charts use the same information as bar charts."
+  },
+  {
+   "id": "f188",
+   "source": "s1",
+   "quote": "Because of this failure, bullish confirmation is required before action.",
+   "claim": "An inverted hammer needs bullish confirmation before you act on it."
+  },
+  {
+   "id": "f189",
+   "source": "s36",
+   "quote": "If the previous day's closing value is less than or equal to the closing value for the current day, draw the current day's candlestick in black.",
+   "claim": "StockCharts' default colors a candle black when it closes at or above the prior day's close."
+  },
+  {
+   "id": "f190",
+   "source": "s36",
+   "quote": "If the close was less than the open, you would get a filled candlestick; if the close was higher than the open, you would get a hollow candlestick.",
+   "claim": "Filled or hollow compares the close with the same candle's open."
+  },
+  {
+   "id": "f191",
+   "source": "s36",
+   "quote": "candles that are colored bullishly, but filled bearishly (a filled black candlestick)",
+   "claim": "On StockCharts' default a candle can be black (up from the prior close) and still filled (below its open)."
+  }
+ ],
+ "walkthroughs": [
+  {
+   "key": "w1",
+   "title": "Four prices in one candle",
+   "steps": [
+    "Every candle holds four prices: the open, the high, the low and the close.",
+    "The body runs open to close. On most charts, hollow or green closed above the open; filled or red, below it.",
+    "The thin lines are shadows, also called wicks or tails. The top one reaches the high, the bottom one the low."
+   ],
+   "facts": [
+    "f6",
+    "f1",
+    "f4",
+    "f5",
+    "f98",
+    "f2",
+    "f3",
+    "f178",
+    "f168",
+    "f180",
+    "f190"
+   ]
+  },
+  {
+   "key": "w2",
+   "title": "Same shape, different name",
+   "steps": [
+    "Small body, long lower shadow: after a decline it's a hammer. After a rise, it's a hanging man.",
+    "Flip it over, long shadow on top. After a decline that's an inverted hammer. After a rise, a shooting star.",
+    "Either way, the textbook wants the long shadow at least twice the length of the body."
+   ],
+   "facts": [
+    "f41",
+    "f43",
+    "f44",
+    "f123",
+    "f46",
+    "f48",
+    "f129",
+    "f40"
+   ]
+  },
+  {
+   "key": "w3",
+   "title": "A clue, not a call",
+   "steps": [
+    "A candle shows buyers against sellers over one period. It can't tell you whether the high or low came first.",
+    "Most patterns need the next candles to agree. That's called confirmation.",
+    "A pattern at a real level, like a prior low, counts for more than one in the middle of a range."
+   ],
+   "facts": [
+    "f14",
+    "f15",
+    "f68",
+    "f80",
+    "f162",
+    "f77",
+    "f121"
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "key": "q01",
+   "skill": "vocab.candle_terms",
+   "rung": 1,
+   "format": "mcq",
+   "term": "real body",
+   "q": "On a candlestick, what does the real body show?",
+   "choices": [
+    "The range from open to close",
+    "The range from high to low",
+    "The change from yesterday's close",
+    "How many shares traded"
+   ],
+   "answer": "The range from open to close",
+   "why": "The range from open to close. The body is the thick part of the candle, and its two ends are the open and the close.",
+   "lesson_line": "Body is open to close. Shadows reach out to the high and the low.",
+   "facts": [
+    "f1",
+    "f97",
+    "f179",
+    "f156",
+    "f6"
+   ],
+   "wrong": {
+    "The range from high to low": "That's the whole candle, shadows included. The body covers only the open-to-close part.",
+    "The change from yesterday's close": "A candle is about its own period. The body compares that period's close with its own open.",
+    "How many shares traded": "A candle holds four prices: open, high, low and close. Volume isn't one of them."
+   }
+  },
+  {
+   "key": "q02",
+   "skill": "vocab.candle_terms",
+   "rung": 1,
+   "format": "fill",
+   "term": "shadows",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "The thin lines above and below a candle's body are its ___. Their tips mark the high and the low.",
+   "bank": [
+    "shadows",
+    "bodies",
+    "gaps",
+    "stars",
+    "ranges"
+   ],
+   "answer": "shadows",
+   "why": "Shadows. The top of the upper shadow is the high, and the bottom of the lower shadow is the low.",
+   "lesson_line": "Shadows show how far price traveled past the open and the close.",
+   "facts": [
+    "f2",
+    "f3",
+    "f178",
+    "f156",
+    "f99"
+   ]
+  },
+  {
+   "key": "q03",
+   "skill": "vocab.candle_terms",
+   "rung": 1,
+   "format": "tf",
+   "term": "wick",
+   "q": "Wick, shadow and tail are three names for the same part of a candle.",
+   "answer": "True",
+   "why": "True. ChartSchool calls the thin lines shadows, also known as wicks and tails. Schwab uses wick and shadow for the same lines.",
+   "lesson_line": "Shadow, wick, tail: one part, three names. Each one points at the high or the low.",
+   "facts": [
+    "f2",
+    "f156",
+    "f128"
+   ]
+  },
+  {
+   "key": "q04",
+   "skill": "vocab.candle_terms",
+   "rung": 1,
+   "format": "mcq",
+   "term": "candlestick",
+   "q": "Which prices does a single candlestick show?",
+   "choices": [
+    "Open, high, low and close",
+    "Open, close and volume",
+    "Bid, ask and last trade",
+    "Close and the day's change"
+   ],
+   "answer": "Open, high, low and close",
+   "why": "Open, high, low and close. The body marks the open and the close, and the shadows reach the high and the low.",
+   "lesson_line": "One candle, four prices. Learn to read all four at a glance.",
+   "facts": [
+    "f6",
+    "f165",
+    "f101",
+    "f186",
+    "f167"
+   ],
+   "wrong": {
+    "Open, close and volume": "Volume isn't part of the candle. You'd also lose the high and the low, which the shadows show.",
+    "Bid, ask and last trade": "Those are live quote prices. A candle records what already traded during its period.",
+    "Close and the day's change": "That's closer to a line chart, which plots only closes. A candle adds the open, high and low."
+   }
+  },
+  {
+   "key": "q05",
+   "skill": "vocab.candle_terms",
+   "rung": 2,
+   "format": "tf",
+   "term": "candle timeframe",
+   "q": "One candle can stand for one minute, one day or one week, depending on the chart.",
+   "answer": "True",
+   "why": "True. Each candle covers one period of the chart. On a daily chart that's a day. On a 5 minute chart, each candle is 5 minutes.",
+   "lesson_line": "Name the timeframe with the candle. A daily candle covers a session; a 5 minute candle covers 5 minutes.",
+   "facts": [
+    "f100",
+    "f163",
+    "f164"
+   ]
+  },
+  {
+   "key": "q06",
+   "skill": "vocab.candle_terms",
+   "rung": 2,
+   "format": "mcq",
+   "term": "hollow candle",
+   "q": "On a standard candlestick chart, what does a hollow (or green) body tell you?",
+   "choices": [
+    "It closed above its open",
+    "It closed above yesterday's close",
+    "It traded heavy volume",
+    "It made a new high"
+   ],
+   "answer": "It closed above its open",
+   "why": "It closed above its open. The body runs from the open at the bottom to the close at the top. A filled or red body means the close was below the open.",
+   "lesson_line": "Color compares the close with the same candle's open. That's the first thing a candle tells you.",
+   "facts": [
+    "f4",
+    "f5",
+    "f98",
+    "f180",
+    "f157",
+    "f190"
+   ],
+   "wrong": {
+    "It closed above yesterday's close": "The body compares the close with its own open, not with the day before. A stock can be up on the day and still print a filled candle.",
+    "It traded heavy volume": "Color says nothing about volume. Check the volume bars for that.",
+    "It made a new high": "A hollow body only means the close beat the open. It can sit anywhere on the chart."
+   }
+  },
+  {
+   "key": "q07",
+   "skill": "vocab.candle_terms",
+   "rung": 2,
+   "format": "mcq",
+   "term": "long white candle",
+   "q": "What does a long white (green) body tell you about the session?",
+   "choices": [
+    "It closed far above its open",
+    "It swung widely and closed flat",
+    "It gapped above the prior high",
+    "It traded far more shares"
+   ],
+   "answer": "It closed far above its open",
+   "why": "It closed far above its open. The longer the white body, the further the close is above the open. Long white candles show strong buying pressure.",
+   "lesson_line": "Long body, big move from open to close. Short body, little change.",
+   "facts": [
+    "f8",
+    "f9",
+    "f182",
+    "f63"
+   ],
+   "wrong": {
+    "It swung widely and closed flat": "That's long shadows with a small body, like a spinning top.",
+    "It gapped above the prior high": "A gap is about where it opened versus the day before. Body length is open to close.",
+    "It traded far more shares": "Body length measures price, not volume."
+   }
+  },
+  {
+   "key": "q08",
+   "skill": "vocab.candle_terms",
+   "rung": 2,
+   "format": "mcq",
+   "term": "short body",
+   "q": "What does a short real body tell you about the session?",
+   "choices": [
+    "Little change from open to close",
+    "Little change from high to low",
+    "Very light volume",
+    "No trades after the open"
+   ],
+   "answer": "Little change from open to close",
+   "why": "Little change from open to close. CME puts it plainly: a short body means the open and close were very similar.",
+   "lesson_line": "A short body says the close landed near the open. Read the shadows next to see what happened in between.",
+   "facts": [
+    "f10",
+    "f64",
+    "f182"
+   ],
+   "wrong": {
+    "Little change from high to low": "That's a narrow range. A short body can still have long shadows, like a spinning top.",
+    "Very light volume": "The body says nothing about volume. Read the volume bars for that.",
+    "No trades after the open": "Price can travel a long way during the session. A short body only means it closed near where it opened."
+   }
+  },
+  {
+   "key": "q09",
+   "skill": "vocab.candle_terms",
+   "rung": 1,
+   "format": "mcq",
+   "term": "doji",
+   "q": "In candle terms, what is a doji?",
+   "choices": [
+    "Open and close about equal",
+    "High and low about equal",
+    "Open at the low, close at the high",
+    "A small body inside the prior body"
+   ],
+   "answer": "Open and close about equal",
+   "why": "Open and close about equal. The body shrinks to a thin line, so the candle looks like a cross or a plus sign.",
+   "lesson_line": "A doji means the session ended about where it started. Nobody won.",
+   "facts": [
+    "f17",
+    "f18",
+    "f170",
+    "f104",
+    "f24",
+    "f37",
+    "f74"
+   ],
+   "wrong": {
+    "High and low about equal": "That would be a day with almost no range. A doji can have long shadows; only the open and close match.",
+    "Open at the low, close at the high": "That's a white marubozu, all body and no shadows.",
+    "A small body inside the prior body": "That's a harami, and it takes two candles."
+   }
+  },
+  {
+   "key": "q10",
+   "skill": "vocab.candle_terms",
+   "rung": 3,
+   "format": "tf",
+   "term": "doji",
+   "q": "A candle only counts as a doji when the open and close are exactly the same price.",
+   "answer": "False",
+   "why": "False. Exact is ideal, not required. The open and close only need to be virtually equal for that stock. ChartSchool's example: a $20 stock can form a doji with a 0.125 point difference.",
+   "lesson_line": "Judge a doji by its body next to the candles around it, not by the last penny.",
+   "facts": [
+    "f19",
+    "f20",
+    "f21",
+    "f104",
+    "f108"
+   ]
+  },
+  {
+   "key": "q11",
+   "skill": "vocab.candle_terms",
+   "rung": 4,
+   "format": "mcq",
+   "term": "dragonfly doji",
+   "q": "Open, high and close at one price, with a long lower shadow and no upper shadow. Which word is this?",
+   "choices": [
+    "Dragonfly doji",
+    "Gravestone doji",
+    "Long-legged doji",
+    "Hanging man"
+   ],
+   "answer": "Dragonfly doji",
+   "why": "Dragonfly doji. Sellers pushed price down during the session, and buyers brought it all the way back to the open. It looks like a T.",
+   "lesson_line": "Dragonfly: a T, long shadow below. Gravestone: an upside-down T, long shadow above.",
+   "facts": [
+    "f28",
+    "f29",
+    "f106",
+    "f107",
+    "f30",
+    "f26",
+    "f122",
+    "f125"
+   ],
+   "wrong": {
+    "Gravestone doji": "That's the flip: open, low and close together, with the long shadow above.",
+    "Long-legged doji": "That has long shadows on both sides. This one has nothing above the open.",
+    "Hanging man": "A hanging man needs a small real body and a prior advance. Here the open and close match, and no trend is given."
+   }
+  },
+  {
+   "key": "q12",
+   "skill": "vocab.candle_terms",
+   "rung": 7,
+   "format": "scenario",
+   "term": "gravestone doji",
+   "story": "A stock opens at $20.00 and rallies to $21.50 by midday. Sellers push it all the way back. It closes at $20.00, which is also the day's low.",
+   "q": "Name that candle.",
+   "choices": [
+    "Gravestone doji",
+    "Dragonfly doji",
+    "Shooting star",
+    "Spinning top"
+   ],
+   "answer": "Gravestone doji",
+   "why": "Gravestone doji. The open, low and close all sit at $20.00, and the rally left a long upper shadow. It looks like an upside-down T.",
+   "lesson_line": "A gravestone is a rally that buyers couldn't keep. It's a warning to watch, not a sell signal by itself.",
+   "facts": [
+    "f30",
+    "f31",
+    "f109",
+    "f110",
+    "f111",
+    "f90"
+   ],
+   "wrong": {
+    "Dragonfly doji": "A dragonfly's long shadow is below. This one's long shadow is above.",
+    "Shooting star": "A shooting star has a small real body. Here the open and close are both $20.00, so there's no body.",
+    "Spinning top": "A spinning top has shadows on both sides of a small body. This candle has no lower shadow at all."
+   }
+  },
+  {
+   "key": "q13",
+   "skill": "vocab.candle_terms",
+   "rung": 3,
+   "format": "fill",
+   "term": "long-legged doji",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "A doji with long upper and lower shadows of about equal length is called a ___.",
+   "bank": [
+    "long-legged doji",
+    "dragonfly doji",
+    "gravestone doji",
+    "harami",
+    "marubozu"
+   ],
+   "answer": "long-legged doji",
+   "why": "Long-legged doji. Price traveled well above and below the open, then closed right back near it.",
+   "lesson_line": "A long-legged doji is a big fight with no winner. Where it prints tells you how much it matters.",
+   "facts": [
+    "f26",
+    "f27",
+    "f112",
+    "f114",
+    "f113"
+   ]
+  },
+  {
+   "key": "q14",
+   "skill": "vocab.candle_terms",
+   "rung": 7,
+   "format": "scenario",
+   "term": "doji",
+   "story": "A stock has run for two weeks on a string of long white candles. Today it prints a doji.",
+   "q": "What does that doji tell you on its own?",
+   "choices": [
+    "Buyers and sellers ended about even",
+    "The top is in, so sell now",
+    "The run is confirmed to continue"
+   ],
+   "answer": "Buyers and sellers ended about even",
+   "why": "Buyers and sellers ended about even. After long white candles, a doji says the buying may be tiring, and among long bodies it carries real weight. On its own it isn't enough to call a reversal.",
+   "lesson_line": "A doji after a run is a yellow flag, not a sell signal. Let the next candle decide.",
+   "facts": [
+    "f24",
+    "f25",
+    "f22",
+    "f23",
+    "f105",
+    "f113",
+    "f162"
+   ],
+   "wrong": {
+    "The top is in, so sell now": "Too early. ChartSchool says a doji alone isn't enough to mark a reversal; you need confirmation.",
+    "The run is confirmed to continue": "A doji confirms nothing. It's a standoff, and after a run it hints the buying is tiring."
+   }
+  },
+  {
+   "key": "q15",
+   "skill": "vocab.candle_terms",
+   "rung": 7,
+   "format": "tf",
+   "term": "candle color",
+   "q": "On most charting platforms, a candle's color compares today's close with yesterday's close.",
+   "answer": "False",
+   "why": "False. Most platforms color the body by its own open: green above it, red below it. StockCharts is one exception: by default it colors by the prior close and fills by the open.",
+   "lesson_line": "Know what your colors mean. Most charts compare the close with the open, but check your settings.",
+   "facts": [
+    "f4",
+    "f5",
+    "f98",
+    "f180",
+    "f181",
+    "f168",
+    "f189",
+    "f190"
+   ]
+  },
+  {
+   "key": "q16",
+   "skill": "vocab.candle_terms",
+   "rung": 2,
+   "format": "mcq",
+   "term": "spinning top",
+   "q": "What does a spinning top look like?",
+   "choices": [
+    "Small body, shadows longer than it",
+    "Long body with no shadows",
+    "No body, one long lower shadow",
+    "Small body inside the prior body"
+   ],
+   "answer": "Small body, shadows longer than it",
+   "why": "Small body, shadows longer than it. Price moved a lot both ways but closed near the open. Neither side won the session.",
+   "lesson_line": "A spinning top is indecision with a little body. A doji is indecision with almost none.",
+   "facts": [
+    "f55",
+    "f32",
+    "f33",
+    "f34",
+    "f115",
+    "f36",
+    "f28",
+    "f74"
+   ],
+   "wrong": {
+    "Long body with no shadows": "That's a marubozu, the opposite of indecision.",
+    "No body, one long lower shadow": "That's a dragonfly doji.",
+    "Small body inside the prior body": "That's a harami, which takes two candles."
+   }
+  },
+  {
+   "key": "q17",
+   "skill": "vocab.candle_terms",
+   "rung": 7,
+   "format": "scenario",
+   "term": "spinning top",
+   "story": "Yesterday was a long white candle. Today opens at $80.00, trades up to $83.60 and down to $77.70, then closes at $81.20.",
+   "q": "How would you name today's candle?",
+   "choices": [
+    "Spinning top",
+    "Doji",
+    "Marubozu",
+    "Hammer"
+   ],
+   "answer": "Spinning top",
+   "why": "Spinning top. The body runs only from $80.00 to $81.20, and both shadows are longer than it. After a long white candle, a spinning top says the buyers are losing their grip.",
+   "lesson_line": "Small body, long shadows both ways: a spinning top. After a strong candle, it's a pause worth noticing.",
+   "facts": [
+    "f55",
+    "f32",
+    "f35",
+    "f115",
+    "f21",
+    "f42",
+    "f36"
+   ],
+   "wrong": {
+    "Doji": "Close, but the close sits a clear distance above the open, so there's a real body. A doji's body is a thin line.",
+    "Marubozu": "A marubozu has no shadows. This candle has long ones on both ends.",
+    "Hammer": "A hammer has little or no upper shadow. This one has a long shadow above the body too."
+   }
+  },
+  {
+   "key": "q18",
+   "skill": "vocab.candle_terms",
+   "rung": 9,
+   "format": "scenario",
+   "term": "spinning top",
+   "story": "A stock has moved sideways in a range for a month. In the middle of that range, far from its highs and lows, it prints a spinning top.",
+   "q": "How much weight do you give that candle?",
+   "choices": [
+    "Little: indecision inside a range",
+    "A lot: a reversal is coming",
+    "A lot: a breakout is coming"
+   ],
+   "answer": "Little: indecision inside a range",
+   "why": "Little. A spinning top is indecision, and inside a sideways range indecision is normal. Investopedia notes it can just mean more sideways movement.",
+   "lesson_line": "Candles count at levels. A spinning top in the middle of nowhere is just a bar.",
+   "facts": [
+    "f34",
+    "f116",
+    "f16",
+    "f77",
+    "f114"
+   ],
+   "wrong": {
+    "A lot: a reversal is coming": "There's no trend to reverse in a sideways range. A reversal pattern needs a prior trend.",
+    "A lot: a breakout is coming": "One small candle in the middle of the range says nothing about when or which way it breaks. Investopedia says it can just mean more sideways movement."
+   }
+  },
+  {
+   "key": "q19",
+   "skill": "vocab.candle_terms",
+   "rung": 1,
+   "format": "mcq",
+   "term": "marubozu",
+   "q": "In candle terms, what is a marubozu?",
+   "choices": [
+    "A body with no shadows",
+    "Shadows with no body",
+    "A small body with long shadows",
+    "A body inside the prior body"
+   ],
+   "answer": "A body with no shadows",
+   "why": "A body with no shadows. The open and close are the session's high and low, so nothing sticks out. The name means close-cropped in Japanese.",
+   "lesson_line": "No shadows means one side ran the whole session, from the first trade to the last.",
+   "facts": [
+    "f36",
+    "f65",
+    "f117",
+    "f38"
+   ],
+   "wrong": {
+    "Shadows with no body": "That's a doji with long shadows. A marubozu is the opposite: all body.",
+    "A small body with long shadows": "That's a spinning top, the indecision candle.",
+    "A body inside the prior body": "That's a harami, which takes two candles."
+   }
+  },
+  {
+   "key": "q20",
+   "skill": "vocab.candle_terms",
+   "rung": 5,
+   "format": "scenario",
+   "term": "white marubozu",
+   "story": "A stock opens at $45.00, and that turns out to be the low of the day. It climbs all session and closes at $47.80, the high of the day.",
+   "q": "Which word fits that candle?",
+   "choices": [
+    "White marubozu",
+    "Black marubozu",
+    "Hammer",
+    "Spinning top"
+   ],
+   "answer": "White marubozu",
+   "why": "White marubozu. Opening at the low and closing at the high leaves no shadows at all. Buyers controlled it from the first trade to the last.",
+   "lesson_line": "Open at the low, close at the high: a white marubozu. Buyers ran it from the first trade to the last.",
+   "facts": [
+    "f37",
+    "f38",
+    "f118",
+    "f36"
+   ],
+   "wrong": {
+    "Black marubozu": "That's the reverse: open at the high, close at the low.",
+    "Hammer": "A hammer has a long lower shadow. This one opened at its low, so there's no lower shadow.",
+    "Spinning top": "A spinning top has a small body and long shadows. This one is all body."
+   }
+  },
+  {
+   "key": "q21",
+   "skill": "vocab.candle_terms",
+   "rung": 3,
+   "format": "mcq",
+   "term": "black marubozu",
+   "q": "It opens at the day's high, closes at the day's low and has no shadows. Which word is this?",
+   "choices": [
+    "Black marubozu",
+    "White marubozu",
+    "Gravestone doji",
+    "Shooting star"
+   ],
+   "answer": "Black marubozu",
+   "why": "Black marubozu. Open at the high and close at the low leaves a long black body with nothing sticking out either end.",
+   "lesson_line": "White marubozu: open low, close high. Black marubozu: open high, close low.",
+   "facts": [
+    "f39",
+    "f119",
+    "f65"
+   ],
+   "wrong": {
+    "White marubozu": "That opens at the low and closes at the high.",
+    "Gravestone doji": "A gravestone has almost no body and a long upper shadow. This is all body, no shadows.",
+    "Shooting star": "A shooting star has a small body and a long upper shadow. This one has no shadows."
+   }
+  },
+  {
+   "key": "q22",
+   "skill": "vocab.candle_terms",
+   "rung": 2,
+   "format": "mcq",
+   "term": "hammer",
+   "q": "What makes a candle a hammer?",
+   "choices": [
+    "Long lower shadow after a decline",
+    "Long lower shadow after a rally",
+    "Long upper shadow after a decline",
+    "Long upper shadow after a rally"
+   ],
+   "answer": "Long lower shadow after a decline",
+   "why": "Long lower shadow after a decline. A hammer has a small body near the top and a lower shadow at least twice the body. The trend before it gives it the name.",
+   "lesson_line": "Shape plus the trend before it makes the name. Read the trend first.",
+   "facts": [
+    "f40",
+    "f41",
+    "f42",
+    "f43",
+    "f124",
+    "f120",
+    "f48",
+    "f66"
+   ],
+   "wrong": {
+    "Long lower shadow after a rally": "Same shape, but after a rally it's called a hanging man.",
+    "Long upper shadow after a decline": "That's an inverted hammer.",
+    "Long upper shadow after a rally": "That's a shooting star."
+   }
+  },
+  {
+   "key": "q23",
+   "skill": "vocab.candle_terms",
+   "rung": 4,
+   "format": "tf",
+   "term": "inverted hammer",
+   "q": "An inverted hammer and a shooting star have the same shape. Only the trend before them differs.",
+   "answer": "True",
+   "why": "True. Both have a small body, a long upper shadow and little or no lower shadow. After a decline it's an inverted hammer. After an advance, a shooting star.",
+   "lesson_line": "Long shadow on top: inverted hammer after a fall, shooting star after a rise.",
+   "facts": [
+    "f46",
+    "f47",
+    "f48",
+    "f129",
+    "f130"
+   ]
+  },
+  {
+   "key": "q24",
+   "skill": "vocab.candle_terms",
+   "rung": 6,
+   "format": "scenario",
+   "term": "shooting star",
+   "story": "A stock has run for three weeks. Today it opens at $64.00, spikes to $68.10, then sells off to close at $63.20. The low is $63.00.",
+   "q": "What do you call today's candle?",
+   "choices": [
+    "Shooting star",
+    "Inverted hammer",
+    "Hanging man",
+    "Bearish engulfing"
+   ],
+   "answer": "Shooting star",
+   "why": "Shooting star. Small body near the low, an upper shadow many times the body, almost no lower shadow, and it came after an advance. Buyers pushed it up and sellers took it all back.",
+   "lesson_line": "A shooting star is a failed rally in one candle. I want the next candle to agree before I act on it.",
+   "facts": [
+    "f90",
+    "f91",
+    "f127",
+    "f161",
+    "f92",
+    "f48",
+    "f42",
+    "f82"
+   ],
+   "wrong": {
+    "Inverted hammer": "Same shape, but an inverted hammer forms after a decline. This one came after a three-week run.",
+    "Hanging man": "A hanging man's long shadow is below the body. This one's is above.",
+    "Bearish engulfing": "That takes two candles, with a black body swallowing the prior body. This is one candle."
+   }
+  },
+  {
+   "key": "q25",
+   "skill": "vocab.candle_terms",
+   "rung": 5,
+   "format": "numeric",
+   "term": "hammer",
+   "q": "Open $50.00, high $50.50, low $49.00, close $50.40. How many times the body is the lower shadow?",
+   "answer": 2.5,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(open - low) / (close - open)",
+     "open": 50.0,
+     "low": 49.0,
+     "close": 50.4
+    }
+   },
+   "suffix": "x",
+   "why": "2.5x. The lower shadow runs from the open at $50.00 down to $49.00. The body runs from $50.00 to $50.40. That clears the textbook line of at least twice the body.",
+   "lesson_line": "Measure the shadow against the body. Under twice the body, I don't call it a hammer.",
+   "facts": [
+    "f40",
+    "f76",
+    "f120",
+    "f122",
+    "f4"
+   ]
+  },
+  {
+   "key": "q26",
+   "skill": "vocab.candle_terms",
+   "rung": 8,
+   "format": "scenario",
+   "term": "hammer",
+   "story": "Two stocks print the same clean hammer after a pullback. One sits right on a prior low where buyers stepped in before. The other is in the middle of its range.",
+   "q": "Which hammer deserves more of your attention?",
+   "choices": [
+    "The one at the prior low",
+    "The one in the middle of its range",
+    "Both the same: same shape"
+   ],
+   "answer": "The one at the prior low",
+   "why": "The one at the prior low. A hammer at support has a level behind it. Investopedia notes hammers are most reliable at established support.",
+   "lesson_line": "A hammer at a level is a clue. A hammer in the middle of nowhere is just a bar.",
+   "facts": [
+    "f77",
+    "f121",
+    "f114"
+   ],
+   "wrong": {
+    "The one in the middle of its range": "In the middle of the range there's no level behind it. ChartSchool says to look for reversals at support.",
+    "Both the same: same shape": "Same shape, different location. Where a candle prints matters as much as how it looks."
+   }
+  },
+  {
+   "key": "q27",
+   "skill": "vocab.candle_terms",
+   "rung": 8,
+   "format": "scenario",
+   "term": "hanging man",
+   "story": "A stock is up eight days in a row. Today it opens at $70.00, drops to $68.00, then recovers to close at $70.70. The high is $70.85.",
+   "q": "Which word fits today's candle?",
+   "choices": [
+    "Hanging man",
+    "Hammer",
+    "Shooting star",
+    "Spinning top"
+   ],
+   "answer": "Hanging man",
+   "why": "Hanging man. Small body near the top, a long lower shadow, almost no upper shadow, and it came after an advance. The same candle after a decline would be a hammer.",
+   "lesson_line": "A hanging man shows sellers got in for part of the day. It needs a lower move next to mean anything.",
+   "facts": [
+    "f41",
+    "f42",
+    "f44",
+    "f45",
+    "f122",
+    "f123",
+    "f125",
+    "f126"
+   ],
+   "wrong": {
+    "Hammer": "Same shape, but a hammer forms after a decline. This one came after eight up days.",
+    "Shooting star": "A shooting star has its long shadow on top. This one's long shadow is below.",
+    "Spinning top": "A spinning top has long shadows on both sides. This one has almost nothing above the body."
+   }
+  },
+  {
+   "key": "q28",
+   "skill": "vocab.candle_terms",
+   "rung": 2,
+   "format": "mcq",
+   "term": "bullish engulfing",
+   "q": "What makes a bullish engulfing pattern?",
+   "choices": [
+    "Up body swallows the prior down body",
+    "Small body inside the prior big body",
+    "Range covers the prior day's range",
+    "Three white candles in a row"
+   ],
+   "answer": "Up body swallows the prior down body",
+   "why": "Up body swallows the prior down body. In a downtrend, a black candle is followed by a white one whose body totally covers the black body.",
+   "lesson_line": "Engulfing is about bodies. The second body has to cover the first one completely.",
+   "facts": [
+    "f72",
+    "f70",
+    "f132",
+    "f174"
+   ],
+   "wrong": {
+    "Small body inside the prior big body": "That's a harami, the opposite: the second body sits inside the first.",
+    "Range covers the prior day's range": "That's an outside day. Engulfing only needs the body covered, not the whole range.",
+    "Three white candles in a row": "That's three white soldiers."
+   }
+  },
+  {
+   "key": "q29",
+   "skill": "vocab.candle_terms",
+   "rung": 6,
+   "format": "tf",
+   "term": "engulfing",
+   "q": "Every bullish engulfing pattern is also an outside day.",
+   "answer": "False",
+   "why": "False. Engulfing only needs the second body to cover the first body. An outside day needs a higher high and a lower low, so the shadows decide it.",
+   "lesson_line": "Engulfing: body covers body. Outside day: range covers range. One can happen without the other.",
+   "facts": [
+    "f57",
+    "f95",
+    "f93",
+    "f133",
+    "f135"
+   ]
+  },
+  {
+   "key": "q30",
+   "skill": "vocab.candle_terms",
+   "rung": 7,
+   "format": "scenario",
+   "term": "bearish engulfing",
+   "story": "A stock has rallied for two weeks. Day 1 opens at $40.00 and closes at $41.00. Day 2 opens at $41.40 and closes at $39.60.",
+   "q": "What pattern do the two days make?",
+   "choices": [
+    "Bearish engulfing",
+    "Dark cloud cover",
+    "Bearish harami",
+    "Evening star"
+   ],
+   "answer": "Bearish engulfing",
+   "why": "Bearish engulfing. Day 2's black body runs from $41.40 down to $39.60, which covers Day 1's whole body from $40.00 to $41.00. Sellers took it below the prior open.",
+   "lesson_line": "If the second body closes below the first candle's open, it's engulfing, not a dark cloud.",
+   "facts": [
+    "f82",
+    "f83",
+    "f158",
+    "f135",
+    "f136",
+    "f84"
+   ],
+   "wrong": {
+    "Dark cloud cover": "A dark cloud closes inside the first body, below its midpoint. Day 2 closed below the whole first body.",
+    "Bearish harami": "A harami's second body sits inside the first. Here the second body is the bigger one.",
+    "Evening star": "An evening star takes three candles, with a small one in the middle."
+   }
+  },
+  {
+   "key": "q31",
+   "skill": "vocab.candle_terms",
+   "rung": 8,
+   "format": "scenario",
+   "term": "dark cloud cover",
+   "story": "After a rally, Day 1 opens at $40.00 and closes at $42.00, with a high of $42.20. Day 2 opens at $42.50 and closes at $40.70.",
+   "q": "Which word fits the two days?",
+   "choices": [
+    "Dark cloud cover",
+    "Bearish engulfing",
+    "Bearish harami",
+    "Shooting star"
+   ],
+   "answer": "Dark cloud cover",
+   "why": "Dark cloud cover. Day 2 opened above Day 1's close and high, then closed below the middle of Day 1's body. It didn't get below Day 1's $40.00 open, so it isn't an engulfing.",
+   "lesson_line": "Dark cloud: closes below the first body's midpoint. Engulfing: closes below its open.",
+   "facts": [
+    "f84",
+    "f159",
+    "f153",
+    "f83"
+   ],
+   "wrong": {
+    "Bearish engulfing": "Close, but Day 2 closed at $40.70, above Day 1's $40.00 open. Its body didn't swallow the whole first body.",
+    "Bearish harami": "A harami's second body sits inside the first. Day 2 opened above Day 1's close.",
+    "Shooting star": "That's one candle with a long upper shadow. This is a two-candle pattern."
+   }
+  },
+  {
+   "key": "q32",
+   "skill": "vocab.candle_terms",
+   "rung": 6,
+   "format": "numeric",
+   "term": "dark cloud cover",
+   "q": "A long white candle opens at $30.00 and closes at $34.00. Below what price must the next black candle close for a dark cloud cover?",
+   "answer": 32,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(open + close) / 2",
+     "open": 30.0,
+     "close": 34.0
+    }
+   },
+   "prefix": "$",
+   "why": "$32.00. That's the midpoint of the white body, halfway between $30.00 and $34.00. A black candle that opens above the white close and closes below $32.00 makes the dark cloud.",
+   "lesson_line": "Find the first body's midpoint before you name a dark cloud. A close above it doesn't count.",
+   "facts": [
+    "f84",
+    "f85",
+    "f159"
+   ]
+  },
+  {
+   "key": "q33",
+   "skill": "vocab.candle_terms",
+   "rung": 2,
+   "format": "mcq",
+   "term": "harami",
+   "q": "In candle terms, what is a harami?",
+   "choices": [
+    "A small body inside the prior big body",
+    "A big body that swallows the prior body",
+    "A whole range inside the prior range",
+    "A small body that gaps away"
+   ],
+   "answer": "A small body inside the prior big body",
+   "why": "A small body inside the prior big body. Harami means pregnant in Japanese: the second candle is tucked inside the first. Its shadows don't have to fit inside.",
+   "lesson_line": "Harami is body inside body. The small second candle shows the big move paused.",
+   "facts": [
+    "f74",
+    "f75",
+    "f86",
+    "f175",
+    "f53",
+    "f54"
+   ],
+   "wrong": {
+    "A big body that swallows the prior body": "That's engulfing, the opposite shape.",
+    "A whole range inside the prior range": "That's an inside day. A harami only needs the body inside the body.",
+    "A small body that gaps away": "That's a star."
+   }
+  },
+  {
+   "key": "q34",
+   "skill": "vocab.candle_terms",
+   "rung": 4,
+   "format": "mcq",
+   "term": "harami cross",
+   "q": "A long candle, then a doji whose body sits inside the long candle's body. Which word is this?",
+   "choices": [
+    "Harami cross",
+    "Morning doji star",
+    "Bullish engulfing"
+   ],
+   "answer": "Harami cross",
+   "why": "Harami cross. It's a harami whose second candle is a doji, tucked inside the first candle's real body.",
+   "lesson_line": "A doji inside a long body is a harami cross. A doji that gaps away is a doji star.",
+   "facts": [
+    "f56",
+    "f139",
+    "f140",
+    "f78"
+   ],
+   "wrong": {
+    "Morning doji star": "In a doji star the doji gaps away from the first candle. Here it sits inside the first body.",
+    "Bullish engulfing": "Engulfing needs a big second body covering the first. A doji has almost no body."
+   }
+  },
+  {
+   "key": "q35",
+   "skill": "vocab.candle_terms",
+   "rung": 6,
+   "format": "scenario",
+   "term": "bearish harami",
+   "story": "A stock has rallied for two weeks. Day 1 is a long white candle from $40.00 to $44.00. Day 2 opens at $43.20 and closes at $42.80.",
+   "q": "The two days make which pattern?",
+   "choices": [
+    "Bearish harami",
+    "Bearish engulfing",
+    "Dark cloud cover"
+   ],
+   "answer": "Bearish harami",
+   "why": "Bearish harami. Day 2's small black body sits inside Day 1's long white body, and it came after an advance.",
+   "lesson_line": "The same two candles after a decline would be a bullish harami. The trend before it names it.",
+   "facts": [
+    "f86",
+    "f87",
+    "f138",
+    "f175",
+    "f84"
+   ],
+   "wrong": {
+    "Bearish engulfing": "Engulfing needs the second body to swallow the first. Day 2's body is the smaller one.",
+    "Dark cloud cover": "A dark cloud opens above Day 1's close. Day 2 opened at $43.20, below Day 1's $44.00 close."
+   }
+  },
+  {
+   "key": "q36",
+   "skill": "vocab.candle_terms",
+   "rung": 8,
+   "format": "tf",
+   "term": "harami",
+   "q": "A bearish harami after a rally means the stock will turn down.",
+   "answer": "False",
+   "why": "False. The textbook calls it a potential reversal, and most patterns need confirmation. Fidelity's slides note that many report the harami can break either way.",
+   "lesson_line": "A harami is a pause. The break that follows tells you which way.",
+   "facts": [
+    "f87",
+    "f80",
+    "f176",
+    "f169"
+   ]
+  },
+  {
+   "key": "q37",
+   "skill": "vocab.candle_terms",
+   "rung": 2,
+   "format": "mcq",
+   "term": "inside day",
+   "q": "What is an inside day?",
+   "choices": [
+    "High and low inside the prior range",
+    "Body inside the prior day's body",
+    "Higher high and lower low than prior",
+    "Open and close about equal"
+   ],
+   "answer": "High and low inside the prior range",
+   "why": "High and low inside the prior range. The whole day, shadows included, fits within the day before. It's a quieter day than the one before it.",
+   "lesson_line": "Inside day is range inside range. It shows the stock tightening up.",
+   "facts": [
+    "f96",
+    "f171",
+    "f141",
+    "f142",
+    "f172"
+   ],
+   "wrong": {
+    "Body inside the prior day's body": "That's a harami. An inside day looks at the high and low, not just the body.",
+    "Higher high and lower low than prior": "That's an outside day, the opposite.",
+    "Open and close about equal": "That's a doji."
+   }
+  },
+  {
+   "key": "q38",
+   "skill": "vocab.candle_terms",
+   "rung": 8,
+   "format": "scenario",
+   "term": "inside day",
+   "story": "Monday: open $49.00, high $52.00, low $48.00, close $49.40. Tuesday: open $50.50, high $51.20, low $48.90, close $50.80.",
+   "q": "Tuesday is best called what?",
+   "choices": [
+    "Inside day",
+    "Harami",
+    "Outside day",
+    "Bullish engulfing"
+   ],
+   "answer": "Inside day",
+   "why": "Inside day. Tuesday's high and low, $51.20 and $48.90, sit inside Monday's $52.00 to $48.00 range. Its body sits above Monday's small body, so it isn't a harami.",
+   "lesson_line": "Check the range for an inside day and the body for a harami. They're different tests.",
+   "facts": [
+    "f96",
+    "f171",
+    "f141",
+    "f74",
+    "f175"
+   ],
+   "wrong": {
+    "Harami": "A harami's body sits inside the prior body. Tuesday's body, $50.50 to $50.80, is above Monday's $49.00 to $49.40 body.",
+    "Outside day": "An outside day breaks both the prior high and the prior low. Tuesday did neither.",
+    "Bullish engulfing": "Engulfing needs Tuesday's body to cover Monday's. The two bodies don't even overlap."
+   }
+  },
+  {
+   "key": "q39",
+   "skill": "vocab.candle_terms",
+   "rung": 7,
+   "format": "tf",
+   "term": "inside day",
+   "q": "An inside day tells you which way the stock will break out.",
+   "answer": "False",
+   "why": "False. An inside day shows the range narrowing, nothing more. Investopedia says the breakout direction can't be predicted from the pattern alone.",
+   "lesson_line": "An inside day gives you levels, not direction. Its high and low are the lines to watch.",
+   "facts": [
+    "f143",
+    "f144",
+    "f173"
+   ]
+  },
+  {
+   "key": "q40",
+   "skill": "vocab.candle_terms",
+   "rung": 4,
+   "format": "mcq",
+   "term": "outside day",
+   "q": "What is an outside day?",
+   "choices": [
+    "Higher high and lower low than prior",
+    "High and low inside the prior range",
+    "Body swallows the prior day's body",
+    "Gaps above the prior day's high"
+   ],
+   "answer": "Higher high and lower low than prior",
+   "why": "Higher high and lower low than the prior day. Its range covers the whole day before, shadows included.",
+   "lesson_line": "Outside day: range covers range, at both ends.",
+   "facts": [
+    "f93",
+    "f145",
+    "f95"
+   ],
+   "wrong": {
+    "High and low inside the prior range": "That's an inside day, the opposite.",
+    "Body swallows the prior day's body": "That's engulfing, which only needs the bodies. An outside day needs the whole range.",
+    "Gaps above the prior day's high": "A gap up leaves the prior range behind. An outside day trades both above and below it."
+   }
+  },
+  {
+   "key": "q41",
+   "skill": "vocab.candle_terms",
+   "rung": 8,
+   "format": "scenario",
+   "term": "outside reversal day",
+   "story": "A stock has rallied for three weeks. Today it trades above yesterday's high, then falls below yesterday's low. It closes down near the low.",
+   "q": "Today is best described as what?",
+   "choices": [
+    "Outside reversal day",
+    "Inside day pattern",
+    "Bearish harami cross",
+    "Morning star pattern"
+   ],
+   "answer": "Outside reversal day",
+   "why": "Outside reversal day. It's an outside day, a higher high and a lower low, that closes against the prior trend. In an uptrend, that means a down close.",
+   "lesson_line": "An outside day that closes against the trend is an outside reversal. Volume and the level it hits add weight.",
+   "facts": [
+    "f94",
+    "f145",
+    "f146"
+   ],
+   "wrong": {
+    "Inside day pattern": "An inside day stays within yesterday's range. Today broke out of both ends.",
+    "Bearish harami cross": "A harami cross needs a doji tucked inside the prior body. Today's range swallowed yesterday's.",
+    "Morning star pattern": "A morning star is a three-candle turn after a decline. This is one day, after a rally."
+   }
+  },
+  {
+   "key": "q42",
+   "skill": "vocab.candle_terms",
+   "rung": 5,
+   "format": "mcq",
+   "term": "star",
+   "q": "When does a candle sit in star position?",
+   "choices": [
+    "Its small body gaps away from the prior",
+    "Its body sits inside the prior body",
+    "It has no shadows at all",
+    "It closes at the session high"
+   ],
+   "answer": "Its small body gaps away from the prior",
+   "why": "When its small body gaps away from the prior candle. It looks isolated from the price action before it. Doji, hammers, shooting stars and spinning tops can all sit in star position.",
+   "lesson_line": "A star is a small body standing apart after a gap. It's the middle of the morning and evening star.",
+   "facts": [
+    "f50",
+    "f51",
+    "f52",
+    "f67",
+    "f152",
+    "f103"
+   ],
+   "wrong": {
+    "Its body sits inside the prior body": "That's the harami position, the opposite of a star.",
+    "It has no shadows at all": "That's a marubozu.",
+    "It closes at the session high": "Where it closes in its own range doesn't make a star. The gap does."
+   }
+  },
+  {
+   "key": "q43",
+   "skill": "vocab.candle_terms",
+   "rung": 4,
+   "format": "mcq",
+   "term": "morning star",
+   "q": "A long black candle, a small candle that gaps down, then a long white candle closing past the black's midpoint. Which word?",
+   "choices": [
+    "Morning star",
+    "Evening star",
+    "Three white soldiers",
+    "Bullish harami"
+   ],
+   "answer": "Morning star",
+   "why": "Morning star. Selling, then a small candle of indecision, then buyers taking back more than half of the first candle's body.",
+   "lesson_line": "Morning star: down, pause, up. The third candle is the one that does the work.",
+   "facts": [
+    "f61",
+    "f78",
+    "f79",
+    "f147"
+   ],
+   "wrong": {
+    "Evening star": "That's the mirror image at a top: long white, small candle, long black.",
+    "Three white soldiers": "That's three long white candles in a row. The first candle here is black.",
+    "Bullish harami": "A harami is two candles, with the second inside the first. This takes three, and the middle one gaps away."
+   }
+  },
+  {
+   "key": "q44",
+   "skill": "vocab.candle_terms",
+   "rung": 5,
+   "format": "mcq",
+   "term": "evening star",
+   "q": "What is an evening star?",
+   "choices": [
+    "Up candle, small gap-up, down candle",
+    "Down candle, small gap-down, up candle",
+    "Three down candles in a row",
+    "Up candle, then a doji inside it"
+   ],
+   "answer": "Up candle, small gap-up, down candle",
+   "why": "Up candle, small gap-up, down candle. A long white candle, a small one that gaps above it, then a long black candle. The small middle candle shows the advance stalled.",
+   "lesson_line": "Evening star: up, pause, down. The small middle candle is the pause.",
+   "facts": [
+    "f88",
+    "f89",
+    "f150",
+    "f103",
+    "f59",
+    "f56"
+   ],
+   "wrong": {
+    "Down candle, small gap-down, up candle": "That's the morning star, the mirror image after a decline.",
+    "Three down candles in a row": "That's three black crows.",
+    "Up candle, then a doji inside it": "That's a harami cross. A star's middle candle gaps away from the first."
+   }
+  },
+  {
+   "key": "q45",
+   "skill": "vocab.candle_terms",
+   "rung": 5,
+   "format": "tf",
+   "term": "morning star",
+   "q": "In a morning star, the small middle candle can be either white or black.",
+   "answer": "True",
+   "why": "True. Its color doesn't matter. What matters is that its body is small and it gaps below the first candle.",
+   "lesson_line": "In a star pattern, the middle candle's size and gap matter. Its color doesn't.",
+   "facts": [
+    "f78",
+    "f148"
+   ]
+  },
+  {
+   "key": "q46",
+   "skill": "vocab.candle_terms",
+   "rung": 7,
+   "format": "scenario",
+   "term": "morning doji star",
+   "story": "Day 1 is a long black candle from $50.00 down to $45.00. Day 2 gaps lower and opens and closes at $44.20. Day 3 opens at $45.20 and closes at $48.50.",
+   "q": "Name the three-day pattern.",
+   "choices": [
+    "Morning doji star",
+    "Evening doji star",
+    "Harami cross",
+    "Three white soldiers"
+   ],
+   "answer": "Morning doji star",
+   "why": "Morning doji star. A long black candle, a doji that gaps below it, then a long white candle closing above the first body's middle. It's a morning star whose middle candle is a doji.",
+   "lesson_line": "When the small middle candle is a doji, the morning star becomes a morning doji star.",
+   "facts": [
+    "f78",
+    "f62",
+    "f149",
+    "f61"
+   ],
+   "wrong": {
+    "Evening doji star": "That's the top version: long white, doji, long black.",
+    "Harami cross": "In a harami cross the doji sits inside the first body. Here the doji gapped below it.",
+    "Three white soldiers": "That needs three long white candles. Day 1 is black and Day 2 is a doji."
+   }
+  },
+  {
+   "key": "q47",
+   "skill": "vocab.candle_terms",
+   "rung": 3,
+   "format": "mcq",
+   "term": "three white soldiers",
+   "q": "What are three white soldiers?",
+   "choices": [
+    "Three long white candles in a row",
+    "Three small candles inside a big one",
+    "Three long black candles in a row"
+   ],
+   "answer": "Three long white candles in a row",
+   "why": "Three long white candles in a row. Each opens inside the prior body and closes near its high.",
+   "lesson_line": "Soldiers march up, crows fly down. Both are three long bodies in a row.",
+   "facts": [
+    "f58",
+    "f154"
+   ],
+   "wrong": {
+    "Three small candles inside a big one": "That's the middle of a rising three methods.",
+    "Three long black candles in a row": "That's three black crows."
+   }
+  },
+  {
+   "key": "q48",
+   "skill": "vocab.candle_terms",
+   "rung": 4,
+   "format": "fill",
+   "term": "three black crows",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "Three long black candles in a row, each closing near its low, are called ___.",
+   "bank": [
+    "three black crows",
+    "three white soldiers",
+    "an evening star",
+    "rising three methods",
+    "a doji"
+   ],
+   "answer": "three black crows",
+   "why": "Three black crows. Three long black bodies, each opening inside the prior body and closing at or near its low.",
+   "lesson_line": "Three black crows show sellers in charge three sessions running.",
+   "facts": [
+    "f59",
+    "f160"
+   ]
+  },
+  {
+   "key": "q49",
+   "skill": "vocab.candle_terms",
+   "rung": 5,
+   "format": "mcq",
+   "term": "rising three methods",
+   "q": "A long white candle, three small candles inside its range, then a white candle closing at a new high. Which word?",
+   "choices": [
+    "Rising three methods",
+    "Three white soldiers",
+    "Bullish harami",
+    "Morning star"
+   ],
+   "answer": "Rising three methods",
+   "why": "Rising three methods. The small candles in the middle stay within the first candle's high and low. Then a fifth candle closes at a new high.",
+   "lesson_line": "Rising three methods is a rest inside a big up candle, then a push to a new high.",
+   "facts": [
+    "f60",
+    "f155"
+   ],
+   "wrong": {
+    "Three white soldiers": "That's three long white candles back to back, with no small ones resting between.",
+    "Bullish harami": "A harami is two candles. This pattern takes five.",
+    "Morning star": "A morning star starts with a long black candle after a decline. This starts with a long white one."
+   }
+  },
+  {
+   "key": "q50",
+   "skill": "vocab.candle_terms",
+   "rung": 3,
+   "format": "tf",
+   "term": "confirmation",
+   "q": "Most candle patterns need the next candles to agree before they count as a signal.",
+   "answer": "True",
+   "why": "True. ChartSchool says most reversal patterns need confirmation, like a gap or a long candle in the new direction. Schwab calls the signs of a rally ending yellow flags, not red ones.",
+   "lesson_line": "A candle pattern asks a question. The next candle answers it.",
+   "facts": [
+    "f68",
+    "f69",
+    "f80",
+    "f162",
+    "f169",
+    "f126"
+   ]
+  },
+  {
+   "key": "q51",
+   "skill": "vocab.candle_terms",
+   "rung": 9,
+   "format": "scenario",
+   "term": "bullish engulfing",
+   "story": "After a two-week slide, a stock prints a bullish engulfing. The next day it gaps down and closes below the engulfing candle's low.",
+   "q": "What's your read on the pattern now?",
+   "choices": [
+    "Unconfirmed: the next day disagreed",
+    "Confirmed: the shape was textbook",
+    "Confirmed: a gap down is a dip to buy"
+   ],
+   "answer": "Unconfirmed: the next day disagreed",
+   "why": "Unconfirmed. Confirmation means more strength after the pattern, like a gap up or a long white candle. A gap down and a close below the low is the opposite.",
+   "lesson_line": "The pattern asked a question and the next day said no. I'd rather wait than argue with it.",
+   "facts": [
+    "f69",
+    "f73",
+    "f134",
+    "f169"
+   ],
+   "wrong": {
+    "Confirmed: the shape was textbook": "Shape alone never confirms. ChartSchool wants further strength after the pattern.",
+    "Confirmed: a gap down is a dip to buy": "A gap down is the opposite of confirmation. The buyers who made the pattern got run over."
+   }
+  },
+  {
+   "key": "q52",
+   "skill": "vocab.candle_terms",
+   "rung": 7,
+   "format": "tf",
+   "term": "reversal pattern",
+   "q": "A bullish engulfing pattern that prints at a new high is still a bullish reversal pattern.",
+   "answer": "False",
+   "why": "False. A reversal needs a trend to reverse. ChartSchool says a bullish engulfing at new highs can hardly be called a reversal; it shows continued buying.",
+   "lesson_line": "Check the trend before you name the pattern. No prior trend, no reversal.",
+   "facts": [
+    "f71",
+    "f16",
+    "f81",
+    "f136"
+   ]
+  },
+  {
+   "key": "q53",
+   "skill": "vocab.candle_terms",
+   "rung": 5,
+   "format": "scenario",
+   "term": "filled candle",
+   "story": "Yesterday a stock closed at $50.00. Today it gaps up, opens at $53.00, drifts lower and closes at $52.00.",
+   "q": "Is today's candle hollow or filled?",
+   "choices": [
+    "Filled: it closed below its open",
+    "Hollow: it's up on the day",
+    "Neither: it's a doji"
+   ],
+   "answer": "Filled: it closed below its open",
+   "why": "Filled. The fill compares today's $52.00 close with today's $53.00 open, not with yesterday. Most platforms color it red; StockCharts colors it black, since it closed above yesterday's close.",
+   "lesson_line": "A filled candle can still be up on the day. The fill compares the close with its own open.",
+   "facts": [
+    "f5",
+    "f98",
+    "f181",
+    "f157",
+    "f190",
+    "f189",
+    "f191",
+    "f180"
+   ],
+   "wrong": {
+    "Hollow: it's up on the day": "The day's change doesn't decide the fill. A close below the open makes it filled.",
+    "Neither: it's a doji": "A doji needs the open and close about equal. $53.00 down to $52.00 is a real body."
+   }
+  },
+  {
+   "key": "q54",
+   "skill": "vocab.candle_terms",
+   "rung": 3,
+   "format": "tf",
+   "term": "candlestick",
+   "q": "A candlestick and a regular price bar show the same four prices.",
+   "answer": "True",
+   "why": "True. Both show the open, high, low and close. The candle just draws the open-to-close part as a colored body.",
+   "lesson_line": "Bars and candles hold the same data. Candles make the open-close story easier to see.",
+   "facts": [
+    "f185",
+    "f187",
+    "f166",
+    "f7"
+   ]
+  },
+  {
+   "key": "q55",
+   "skill": "vocab.candle_terms",
+   "rung": 5,
+   "format": "scenario",
+   "term": "lower shadow",
+   "story": "A stock opens at $30.00 and sells off to $27.50 by midday. Buyers step in, and it closes at $30.40, near the high.",
+   "q": "What does the long lower shadow tell you?",
+   "choices": [
+    "Buyers took back a deep drop",
+    "Sellers controlled the close",
+    "It will go higher tomorrow"
+   ],
+   "answer": "Buyers took back a deep drop",
+   "why": "Buyers took back a deep drop. Sellers drove it down to $27.50, then buyers pushed it back above the open by the close. The lower shadow is the ground sellers couldn't keep.",
+   "lesson_line": "A long lower shadow shows where buyers showed up. It describes today; it doesn't promise tomorrow.",
+   "facts": [
+    "f12",
+    "f13",
+    "f183",
+    "f131",
+    "f169"
+   ],
+   "wrong": {
+    "Sellers controlled the close": "The close was near the high. CME reads a small body near the top as buyers taking control by the end.",
+    "It will go higher tomorrow": "A candle describes one session. Patterns need confirmation, and none of them guarantee the next move."
+   }
+  },
+  {
+   "key": "q56",
+   "skill": "vocab.candle_terms",
+   "rung": 8,
+   "format": "scenario",
+   "term": "upper shadow",
+   "story": "A stock at new highs spikes 6% in the first hour. By the close it has given almost all of it back and finishes near its open.",
+   "q": "What does the long upper shadow tell you?",
+   "choices": [
+    "Sellers pushed back the rally",
+    "Buyers held the day's gains",
+    "Buyers won: it made a new high"
+   ],
+   "answer": "Sellers pushed back the rally",
+   "why": "Sellers pushed back the rally. Buyers bid it up early, but sellers forced it back down from the high before the close.",
+   "lesson_line": "A long upper shadow is a rally that didn't hold. The close tells you who won the day.",
+   "facts": [
+    "f11",
+    "f184",
+    "f161"
+   ],
+   "wrong": {
+    "Buyers held the day's gains": "They didn't. It finished near the open after spiking 6%.",
+    "Buyers won: it made a new high": "It touched a new high but couldn't hold it. The close near the open says sellers won the back half."
+   }
+  },
+  {
+   "key": "q57",
+   "skill": "vocab.candle_terms",
+   "rung": 4,
+   "format": "numeric",
+   "term": "real body",
+   "q": "Open $40.00, high $41.50, low $39.60, close $41.20. How big is the real body, in dollars?",
+   "answer": 1.2,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "close - open",
+     "open": 40.0,
+     "close": 41.2
+    }
+   },
+   "prefix": "$",
+   "why": "$1.20. The body runs from the open at $40.00 to the close at $41.20. The shadows don't count.",
+   "lesson_line": "Body is close minus open. Leave the high and the low out of it.",
+   "facts": [
+    "f4",
+    "f97",
+    "f179"
+   ]
+  },
+  {
+   "key": "q58",
+   "skill": "vocab.candle_terms",
+   "rung": 4,
+   "format": "numeric",
+   "term": "upper shadow",
+   "q": "Open $25.00, high $27.40, low $24.80, close $25.30. How long is the upper shadow, in dollars?",
+   "answer": 2.1,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "high - close",
+     "high": 27.4,
+     "close": 25.3
+    }
+   },
+   "prefix": "$",
+   "why": "$2.10. It closed above its open, so the top of the body is the close at $25.30. The upper shadow runs from there to the high at $27.40.",
+   "lesson_line": "Upper shadow is the high minus the top of the body. On a hollow candle, the top is the close.",
+   "facts": [
+    "f3",
+    "f4",
+    "f99",
+    "f178"
+   ]
+  },
+  {
+   "key": "q59",
+   "skill": "vocab.candle_terms",
+   "rung": 5,
+   "format": "numeric",
+   "term": "lower shadow",
+   "q": "Open $60.00, high $60.10, low $57.00, close $59.40. How long is the lower shadow, in dollars?",
+   "answer": 2.4,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "close - low",
+     "close": 59.4,
+     "low": 57.0
+    }
+   },
+   "prefix": "$",
+   "why": "$2.40. It closed below its open, so it's a filled candle and the bottom of the body is the close at $59.40. The lower shadow runs down to the low at $57.00.",
+   "lesson_line": "On a filled candle the bottom of the body is the close. Measure the lower shadow from there.",
+   "facts": [
+    "f3",
+    "f5",
+    "f99",
+    "f178"
+   ]
+  },
+  {
+   "key": "q60",
+   "skill": "vocab.candle_terms",
+   "rung": 7,
+   "format": "scenario",
+   "term": "inverted hammer",
+   "story": "A stock has slid for a month. Today it opens at $22.00, rallies to $24.10, and fades to close at $22.50. The low is $21.90.",
+   "q": "Which word fits today's candle?",
+   "choices": [
+    "Inverted hammer",
+    "Shooting star",
+    "Hammer",
+    "Gravestone doji"
+   ],
+   "answer": "Inverted hammer",
+   "why": "Inverted hammer. Small body near the low, a long upper shadow, almost no lower shadow, and it came after a decline. The same candle after a rally would be a shooting star.",
+   "lesson_line": "After a decline, a long upper shadow shows buyers tried. They still need the next candle to prove it.",
+   "facts": [
+    "f47",
+    "f48",
+    "f130",
+    "f129",
+    "f110",
+    "f49",
+    "f188"
+   ],
+   "wrong": {
+    "Shooting star": "Same shape, but a shooting star forms after an advance. This one came after a month-long slide.",
+    "Hammer": "A hammer's long shadow is below the body. This one's is above.",
+    "Gravestone doji": "A gravestone has open, low and close together, with no real body. This one closed at $22.50 against a $22.00 open, so it has a real body."
+   }
+  }
+ ],
+ "conflicts": [
+  "Hammer vs hanging man: ChartSchool (Introduction to Candlesticks) and Investopedia (Hanging Man) say the two look identical and are named by the trend before them; the body can be black or white. Fidelity's webinar slides (citing Kirkpatrick and Dahlquist) say they are 'differentiated by the color of the body' and that hammers have white bodies and shooting stars black ones. The unit follows ChartSchool and Investopedia (q22, q27, w2) and asks no question about the color of a hammer, hanging man, inverted hammer or shooting star.",
+  "Harami colors: ChartSchool's Pattern Dictionary and Glossary H, and Investopedia's Candlestick page, say the second candle is the opposite color. ChartSchool's reversal-pattern pages (citing Nison's Beyond Candlesticks) and Fidelity's slides say any color combination counts. No question asks a harami's colors (q33, q35, q38 rest only on body inside body).",
+  "Engulfing and the shadows: ChartSchool (Dictionary, bullish and bearish pages), Investopedia's Bullish Engulfing page and Fidelity's slides judge engulfing on the bodies only. Investopedia's Bearish Engulfing page says the body is what matters 'not the changes in the wicks', but its next takeaway also says 'the high must be higher and the low must be lower'. q28, q29 and q30 key the body-only definition the sources share; q29 asks whether every engulfing is an outside day (False), which holds under the majority definition. Checker, 2026-11-09: Investopedia's Bullish Engulfing page has the same split: it says the body is judged 'without regard to the length of the tail shadows', then describes the second day opening 'lower than the previous low' and closing 'higher than the previous high'. ChartSchool states outright that engulfing 'does not require the entire range (high and low) to be engulfed', so q29 stands.",
+  "Doji strictness: Fidelity's slides say a doji's open and close are 'the same price'. ChartSchool ('virtually equal', 'Ideally, but not necessarily') and Investopedia ('the same or very close to it'; dragonfly page: 'slight discrepancies') allow a small difference. q10 keys the looser rule, held by two publishers.",
+  "Candle color: ChartSchool, Investopedia (Real Body), CME and Schwab say the color compares the close with the same candle's open; CME adds 'depending on the color settings of your software' and Fidelity says 'most commonly'. Investopedia's Candlestick page (Bottom Line) says the color shows the close against 'the previous period'. Checker, 2026-11-09: StockCharts' own SharpCharts FAQ (s36) says its default draws a candle black or red by the prior day's close and hollow or filled by the open, so a gap up that fades but closes above the prior close is a filled black candle there. The fill rule is the same everywhere: q53 now keys the fill only (it said 'Filled (red)'), q15 asks the convention ('most charting platforms') and names the StockCharts exception, and w1 says 'most charts'.",
+  "Dark cloud cover open: ChartSchool says the black candle opens above the previous close; Schwab says above the previous high; Investopedia lists a gap up. q31's story opens above both the prior close and the prior high, so it qualifies under all three; q32 asks only for the midpoint, which all three agree on.",
+  "Shooting star gap: ChartSchool reports Greg Morris wants a gap up while Nison shows one without, and concludes 'the essence of the reversal should not be lost without the gap'. q24's story does not mention a gap and its key does not rest on one.",
+  "Star: Investopedia's Star page describes the small body appearing 'above the prior candle's range' (the evening-star case). ChartSchool says a star gaps up or down. q42 keys 'gaps away', which covers both, and cites both pages.",
+  "Bar vs candle: Schwab says the candlestick chart 'offers traders more information' than a bar chart. CME ('a bar chart provides four pieces of data ... the open, high, low and close'; 'Candlestick charts take the same information as a bar chart') and Fidelity agree the two carry the same four prices; Schwab's 'more' reads as the visual body and color. q54 keys the same-four-prices fact.",
+  "Three white soldiers: ChartSchool says each close should be near the high of the day; Investopedia says each close exceeds the previous candle's high. q47 keys only what both say: three long white candles in a row, each opening inside the prior body.",
+  "Marubozu: ChartSchool's Introduction and Investopedia define the full marubozu, with no upper or lower shadow. ChartSchool's Pattern Dictionary also counts a candle with no shadow at only one end (the open or the close). q19, q20 and q21 use the full version, which both publishers share.",
+  "Sources left out on purpose: Thomas Bulkowski's ThePatternSite.com states the site 'shall not be used to train artificial intelligence (AI) systems', and docs/study/TRAINING_CORPUS.md makes the whole Study module training material for UCT's own analysis system. To stay clear of that notice this unit cites no thepatternsite.com page; every key stands on ChartSchool, Investopedia, Schwab, Fidelity and CME. The owner may decide whether Bulkowski can be cited.",
+  "Investopedia and the quote checker: investopedia.com refuses the checker's Python client on some pages and not others, and the refused set changed between runs on 2026-11-09; WebFetch is blocked on the site. Every Investopedia quote in this file was confirmed on 2026-11-09 against the page text fetched with the checker's own user agent (Python client where the page loaded, plain curl otherwise). No key rests on Investopedia alone: every question also cites ChartSchool, Schwab, Fidelity or CME, whose pages the checker reads. Checker, 2026-11-09: the quote checker still reported 33 Investopedia quotes unreachable; plain curl got HTTP 402 and WebFetch is blocked on the site. I re-fetched all 13 of those pages with the checker's own client and user agent (Python urllib, 'UCT-Study-SourceCheck/1.0'); the site refused some requests at random, and every page loaded after one to three tries. All 33 quotes were found verbatim and read in context."
+ ],
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "notes": "f1-f6, f98, f178 confirmed on fresh ChartSchool, Investopedia and CME pages. StockCharts' own FAQ (s36) colors candles red or black by the prior close, so 'Filled or red: below it' was not true on every chart. Step 2 now says 'On most charts' and cites f168, f180, f190.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "f40-f48 (ChartSchool) and f123, f129 (Investopedia) read in context: same shapes, named by the trend before them; 'Generally' at least twice the body, said as 'the textbook wants'. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "f14, f15, f68, f80, f77, f121 and f162 (Schwab) confirmed. Step 1 said a candle shows 'who won one session'; f14 says the battle over 'a given period' and candles can be any timeframe, so it now says 'buyers against sellers over one period'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q01": {
+   "status": "pass",
+   "notes": "f1, f97, f179, f156 confirmed (ChartSchool, Investopedia, CME, Schwab). Body = open to close everywhere. Wrong choices are real mix-ups (range, prior close, volume). No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q02": {
+   "status": "pass",
+   "notes": "f2, f3 (ChartSchool), f178 (CME), f99 (Investopedia) confirmed. Only 'shadows' fits the blank; the other bank words are real candle words. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q03": {
+   "status": "pass",
+   "notes": "f2: ChartSchool says shadows are 'also referred to as wicks and tails'; Schwab (f156) and Investopedia (f128, 'upper tail, or shadow') agree. True is right. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q04": {
+   "status": "pass",
+   "notes": "f6, f165 (Fidelity), f101 (Investopedia) confirmed; line chart = closes only (f186 CME, f167 Fidelity). Distractors fair. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q05": {
+   "status": "pass",
+   "notes": "f100 (Investopedia: 'one day, one week, or one minute') and f163, f164 (Fidelity, 5-minute example) confirmed. True. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q06": {
+   "status": "pass",
+   "notes": "Key 'It closed above its open' holds for hollow everywhere (ChartSchool f4, StockCharts FAQ f190) and green on most platforms (CME f180). The wrong note said red means close below open 'on a standard chart'; StockCharts' default colors by the prior close, so the note now speaks of the body and a filled candle.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q07": {
+   "status": "pass",
+   "notes": "f8, f9 (ChartSchool: longer white body = close further above open, strong buying), f182, f63 confirmed. Distractors are real confusions with shadows, gaps and volume. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q08": {
+   "status": "pass",
+   "notes": "Key holds on f10 (ChartSchool), f64 (ChartSchool dictionary) and f182 (CME). Dropped f151: in context Investopedia's evening star page calls candle length a function of the high-low range, so it does not support a body claim.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q09": {
+   "status": "pass",
+   "notes": "f17, f18 (ChartSchool 'virtually equal'), f104 (Investopedia 'same or very close') confirmed; Fidelity's 'same price' is in conflicts. Wrong notes match f37 (marubozu) and f74 (harami). No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q10": {
+   "status": "pass",
+   "notes": "f19 'Ideally, but not necessarily', f20 ($20 stock, 0.125 point) and f21 read in context on ChartSchool; f104, f108 Investopedia agree. False is right; 0.125 is quoted. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q11": {
+   "status": "pass",
+   "notes": "f28, f106: open, high and close equal with a long lower shadow is a dragonfly. The 'Hanging man' note now also says a hanging man needs a prior advance and none is given (f125), which keeps that distractor fairly wrong.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q12": {
+   "status": "pass",
+   "notes": "f30, f109 confirmed; open = low = close = $20.00 with a $21.50 high is a gravestone. Investopedia's shooting star page says its body is 'very short but not nonexistent', so the note is right; added f90 (shooting star has a small body) to back it. variety rewrite checked 2026-11-10",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q13": {
+   "status": "pass",
+   "notes": "f26, f112 confirmed; only 'long-legged doji' fits. The lesson line said where it prints 'matters more than its shape', which no source says; now 'Where it prints tells you how much it matters' (f113, f114, both added/cited).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q14": {
+   "status": "pass",
+   "notes": "f22-f25 read in context (ChartSchool: doji alone not enough to mark a reversal, confirmation needed); f162 Schwab 'yellow flags'. Key is the neutral read; no prediction keyed. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q15": {
+   "status": "pass",
+   "notes": "StockCharts' FAQ (new s36, f189, f190) says its default colors candles by the prior close, so 'standard chart ... False' was not true everywhere. Rewritten as the convention: 'On most charting platforms' (CME 'generally', Fidelity 'most commonly'); the why names the StockCharts exception. Still False.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q16": {
+   "status": "pass",
+   "notes": "f55 (ChartSchool dictionary: shadows 'exceed the length of the body'), f32-f34, f115 confirmed. Distractors are marubozu, dragonfly, harami. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q17": {
+   "status": "pass",
+   "notes": "Recomputed: body $1.20, upper shadow $2.40, lower $2.30, range $5.90; body 20% of range, well above ChartSchool's doji scale (f20). Spinning top is right. Added f36 to back the marubozu note. No other change. variety rewrite checked 2026-11-10",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q18": {
+   "status": "pass",
+   "notes": "f116 (Investopedia: can signal more sideways movement within an established range), f16 (prior trend needed), f34 confirmed. Key is sound trading sense. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q19": {
+   "status": "pass",
+   "notes": "f36, f117 (no shadows), f65 (close-cropped) confirmed. Partial marubozu noted in conflicts; the key is still the best choice. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q20": {
+   "status": "pass",
+   "notes": "f37, f118: open = low, close = high is a white marubozu. The lesson line 'a session with no fight in it' could read as weak; now 'Buyers ran it from the first trade to the last' (f38).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q21": {
+   "status": "pass",
+   "notes": "f39, f119 confirmed (open = high, close = low). Distractor notes right. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q22": {
+   "status": "pass",
+   "notes": "f41-f43, f124, f120 (lower shadow at least twice the body), f48, f66 confirmed. All four choices are shape-plus-trend pairs, each named correctly in the notes. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q23": {
+   "status": "pass",
+   "notes": "f46-f48 (ChartSchool 'look identical', 'looks exactly like'), f129, f130 (Investopedia) confirmed. Fidelity's color split is in conflicts. True. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q24": {
+   "status": "pass",
+   "notes": "Recomputed: body $0.80, upper shadow $4.10 (about 5x), lower shadow $0.20; after a three-week run. Shooting star is right; no gap needed (conflicts, Nison). Added f48, f42, f82 to back the wrong notes. variety rewrite checked 2026-11-10",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q25": {
+   "status": "pass",
+   "notes": "Recomputed by hand: lower shadow 50.00 - 49.00 = 1.00, body 50.40 - 50.00 = 0.40, ratio 2.5; calc agrees. 'At least twice' from f40, f76, f120, f122. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q26": {
+   "status": "pass",
+   "notes": "f77 (ChartSchool: look for bullish reversals at support), f121 (Investopedia: hammers most reliable at established support) confirmed. Key is sound. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q27": {
+   "status": "pass",
+   "notes": "Recomputed: body $0.70, lower shadow $2.00 (2.9x), upper $0.15, after eight up days. Hanging man per f41-f44, f122-f126. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q28": {
+   "status": "pass",
+   "notes": "f72, f132, f174 confirmed: white body must engulf the black body. Distractors are harami, outside day, three white soldiers. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q29": {
+   "status": "pass",
+   "notes": "f57, f95 (ChartSchool: engulfing 'does not require the entire range') and f133 confirmed. Investopedia's bullish and bearish engulfing pages also mention higher high and lower low; added that to conflicts. False stands. No change to the item.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q30": {
+   "status": "pass",
+   "notes": "Recomputed: Day 2 body $41.40 to $39.60 covers Day 1 $40.00 to $41.00 and closes below its open (f82, f83). Not a dark cloud (that closes inside the body). No change. variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q31": {
+   "status": "pass",
+   "notes": "Recomputed: midpoint $41.00; Day 2 opens $42.50 (above close and high) and closes $40.70 (below midpoint, above the $40.00 open). Dark cloud under ChartSchool, Schwab and Investopedia. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q32": {
+   "status": "pass",
+   "notes": "Recomputed: (30 + 34) / 2 = 32; calc agrees. f84, f85, f159 confirmed. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q33": {
+   "status": "pass",
+   "notes": "f74, f86, f175, f53, f54 confirmed (body inside body; shadows need not fit). Colors left out per conflicts. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q34": {
+   "status": "pass",
+   "notes": "f56 (ChartSchool), f139, f140 (Investopedia) confirmed; doji inside the long body is a harami cross. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q35": {
+   "status": "pass",
+   "notes": "Recomputed: Day 2 body $43.20 to $42.80 inside $40.00 to $44.00, after a rally. Bearish harami (f86, f87). Dark cloud note right: opened below the $44.00 close. No change. variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q36": {
+   "status": "pass",
+   "notes": "f87 ('potential' reversals), f80, f176 (Fidelity: can break either way), f169 confirmed. False keeps prediction out. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q37": {
+   "status": "pass",
+   "notes": "f96 (StockCharts), f141 (Investopedia), f171 (Fidelity) confirmed; range inside range. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q38": {
+   "status": "pass",
+   "notes": "Recomputed: Tuesday $48.90-$51.20 inside Monday $48.00-$52.00; bodies $50.50-$50.80 vs $49.00-$49.40 do not overlap, so not a harami or engulfing. No change. variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q39": {
+   "status": "pass",
+   "notes": "f143 (Investopedia: direction can't be predicted from this pattern alone), f144, f173 confirmed. False. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q40": {
+   "status": "pass",
+   "notes": "f93 (ChartSchool glossary), f145 (Investopedia) confirmed. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q41": {
+   "status": "pass",
+   "notes": "f94: outside day that closes against the prior trend ('in an uptrend, the second day must close down'). Story fits. No change. variety rewrite checked 2026-11-10 flagged-question fix checked 2026-11-11",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q42": {
+   "status": "pass",
+   "notes": "f50, f51, f67 (ChartSchool), f152 (Investopedia) confirmed; gaps up or down per conflicts note. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q43": {
+   "status": "pass",
+   "notes": "f61 (ChartSchool dictionary), f78, f79, f147 confirmed. Distractors fair. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q44": {
+   "status": "pass",
+   "notes": "f88, f89 (ChartSchool), f103 (Investopedia: second candle gaps up, narrow body), f150 confirmed. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q45": {
+   "status": "pass",
+   "notes": "f78 (ChartSchool: 'small white or black'), f148 (Investopedia) confirmed. True. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q46": {
+   "status": "pass",
+   "notes": "Recomputed: Day 1 midpoint $47.50; Day 3 closes $48.50 above it; doji at $44.20 below the $45.00 close. Key right (f62, f78). One why sentence was 23 words; shortened to 21, same meaning. variety rewrite checked 2026-11-10",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q47": {
+   "status": "pass",
+   "notes": "f58 (ChartSchool) and f154 (Investopedia) agree on three long white candles, each opening inside the prior body. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q48": {
+   "status": "pass",
+   "notes": "f59 (ChartSchool) and f160 (Schwab) confirmed; only 'three black crows' fits. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q49": {
+   "status": "pass",
+   "notes": "f60 (ChartSchool dictionary) and f155 (Investopedia) confirmed. Distractors fair. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q50": {
+   "status": "pass",
+   "notes": "f68, f80 (ChartSchool 'most require ... confirmation'), f169 (Fidelity) confirmed. The why said Schwab calls 'lone patterns' yellow flags; Schwab (f162) says signs a rally may be ending are yellow flags, so the sentence now says that.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q51": {
+   "status": "pass",
+   "notes": "f69 (confirmation = upside follow-through), f73, f134 confirmed. A gap down below the low is the opposite. Key and lesson line are good risk habits. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q52": {
+   "status": "pass",
+   "notes": "f71 read in context (ChartSchool: a bullish engulfing at new highs 'can hardly be considered a bullish reversal pattern'), f16, f81. False is right. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q53": {
+   "status": "pass",
+   "notes": "StockCharts' FAQ (f189, f191) says a gap up that fades but closes above the prior close is a filled BLACK candle there, so the key 'Filled (red)' was platform-dependent. Now asks 'hollow or filled?', keys 'Filled: it closed below its open' (f5, f190), and the why says most platforms color it red, StockCharts black.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q54": {
+   "status": "pass",
+   "notes": "f185, f187 (CME: same four prices), f166 (Fidelity) confirmed; Schwab's 'more information' is in conflicts. True. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q55": {
+   "status": "pass",
+   "notes": "f12, f13 (ChartSchool), f183 (CME small body near the top) confirmed; close $30.40 above the $30.00 open. No prediction keyed. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q56": {
+   "status": "pass",
+   "notes": "f11 (ChartSchool long upper shadow: sellers forced prices down from the highs), f161, f184 confirmed. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q57": {
+   "status": "pass",
+   "notes": "Recomputed: 41.20 - 40.00 = 1.20; calc agrees. f4, f97, f179. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q58": {
+   "status": "pass",
+   "notes": "Recomputed: close above open, so top of body is $25.30; 27.40 - 25.30 = 2.10; calc agrees. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q59": {
+   "status": "pass",
+   "notes": "Recomputed: close below open, so bottom of body is $59.40; 59.40 - 57.00 = 2.40; calc agrees. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q60": {
+   "status": "pass",
+   "notes": "Recomputed: body $0.50, upper shadow $1.60 (3.2x), lower $0.10, after a month-long slide. Inverted hammer is right. The lesson line's 'need the next candle' was backed only by a hammer fact; added f188 (ChartSchool: inverted hammer 'bullish confirmation is required before action').",
+   "fixed": true,
+   "by": "checker"
+  }
+ }
+}

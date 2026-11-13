@@ -1,9 +1,16 @@
 """THE TRADE PLAN for a setup chart (the owner, 2026-11-08, on entry, stop, trim and trail: "Those answers are out there.
 Either in the app, somewhere, or on the internet and available!"). They are in the app: every UCT setup detector
 (api/services/pattern_engine/detectors/uct/) returns its own trigger and stop for the candle it fires on, the shared
-`make_levels` turns them into targets at 2R and 3R, and each detector's narrative names how to trail. This reads those,
-for the setup that fired on a chart's last candle, so a lesson can review the trade with real numbers. The full table,
-with sources, is docs/study/TRADE_PLANS.md.
+`make_levels` floors the stop, and each detector's narrative names how to trail. This reads those, for the setup that
+fired on a chart's last candle, so a lesson can review the trade with real numbers. The full table, with sources, is
+docs/study/TRADE_PLANS.md.
+
+THE TRIMS ARE THE HOUSE'S, not the detectors' (the account rulebook, docs/study/sizing_rule.md section 9, the owner
+2026-11-09): sell a third at 3R (B19, the hard rule), a third at 5R (E51), trail the last third (E52, or the detector's
+own trail where it names one); the stop on what is left moves up to breakeven at the first trim (B19: "breakeven stop
+at 2-5R ideally"; the first trim is the taught default inside that window); a trim level the day opens past is taken at
+the open (F63). The scanners' own 2R / 3R targets (`make_levels`, used app-wide) are not changed here: Study's plan
+computes its own levels from the same entry and stop.
 
 The owner's own words outrank a detector where he has ruled (2026-11-02, the Kicker): entry over the previous day's
 high (the red day's high, on the Kicker day; his example JBI 2023-12-14, "11.05 over THE previous day high", the red
@@ -55,7 +62,7 @@ PLANS = {
     },
     "setup.family3.hve": {
         "entry": "the high-volume close",
-        "stop": "the edge bar's low",
+        "stop": "the edge bar's low (its high on a down close)",
         "trail": None,
         "trim": "the first return to the high-volume close, often weeks later, is the cleanest decision point",
         "source": "uct_hve.py",
@@ -70,41 +77,48 @@ PLANS = {
 }
 
 
+TRIM_R = (3.0, 5.0)          # the house trims: a third at 3R, a third at 5R (sizing_rule.md section 9, B19 and E51)
+TRIM_FRACTION = "a third"
+BREAKEVEN_AT = "t1"          # the stop on what is left moves to breakeven at the first trim (B19, inside his 2R-5R window)
+
+
 def replay_checks(skill: str) -> list:
     """THE REPLAY STOPS AND ASKS (N033; the owner: pause in the replay "and ask about trimming, trailing, sell rules").
-    Two questions the run-on holds on, answered from the plan's own words and nothing else (docs/study/TRADE_PLANS.md:
-    "Trim is where to take some off: the detectors put the targets at 2R and 3R. They do not say how much to sell at
-    each, so the course names the levels and does not invent a fraction"). At the first target: what the plan does
-    there. At the second, only when the detector names a trail: what happens to the stop on what is left. The wrong
-    choices are plainly not the plan; no other setup's trail is offered (most share "under each higher low", so one
-    would be as right as another). Not scored: the member answers, reads why, and the replay runs on."""
+    Two questions the run-on holds on, answered from the house rules and the plan's own words and nothing else. At 3R,
+    the first trim: sell a third and move the stop on the rest to breakeven (the account rulebook, B19). At 5R, the
+    second trim, only when the detector names a trail: sell another third and trail the last third the way this
+    setup's plan says (E51; the detector's trail). The wrong choices are plainly not the plan; no other setup's trail
+    is offered (most share "under each higher low", so one would be as right as another). Not scored: the member
+    answers, reads why, and the replay runs on."""
     words = PLANS.get(skill) or {}
     out = [{
         "at": "t1",
-        "q": "2R just traded. What does the plan do here?",
-        "choices": ["Take some off: 2R is the first target", "Sell it all: the trade is done",
-                    "Buy more: it is working", "Nothing: 2R is not part of the plan"],
+        "q": "3R just traded. What does the plan do here?",
+        "choices": ["Sell a third, stop to breakeven: 3R is the first trim", "Sell it all: the trade is done",
+                    "Buy more: it is working", "Nothing: 3R is not part of the plan"],
         "answer": 0,
-        "why": "The plan's targets are 2R and 3R, the places to take some off. It names the levels, not how much to sell; "
-               "what is left rides on the stop.",
+        "why": "Our first trim is a third at 3R, and the stop on the rest moves up to breakeven. The other two thirds "
+               "stay on: the next third comes off at 5R.",
     }]
     trail = words.get("trail")
     if trail:
         out.append({
             "at": "t2",
-            "q": "3R reached. What happens to the stop on what is left?",
-            # "It trails under each higher low"; the Gap Support's own words read as a tightening, so they say that
-            "choices": [f"It trails {trail}" if trail.startswith("under") else f"It tightens: {trail}",
-                        "It stays where it started", "It comes off: the rest needs no stop", "It moves up to 3R"],
+            "q": "5R reached. What does the plan do with what is left?",
+            # "trails under each higher low"; the Gap Support's own words read as a tightening, so they say that
+            "choices": [f"Sell another third; the last third trails {trail}" if trail.startswith("under")
+                        else f"Sell another third; the last third tightens: {trail}",
+                        "Sell it all here: 5R is the finish line", "Hold all of it on the breakeven stop",
+                        "Move the stop up to 5R and hold"],
             "answer": 0,
-            "why": f"This setup's plan for the stop on what is left: {trail}.",
+            "why": f"Our second trim is a third at 5R. The last third trails: {trail}.",
         })
     return out
 
 
 def plan(skill: str, raw_bars: list) -> Optional[dict]:
-    """The trade on the chart's last candle when `skill` fires there: entry, stop, the 2R and 3R targets, the direction,
-    the words for each, and the trail. None when the setup does not fire on the last bar or a rule cannot run."""
+    """The trade on the chart's last candle when `skill` fires there: entry, stop, the trims at 3R and 5R (t1, t2), the
+    direction, the words for each, and the trail. None when the setup does not fire on the last bar or a rule cannot run."""
     words = PLANS.get(skill)
     rules = study_hard.SETUP_RULES.get(skill)
     if not words or not rules:
@@ -150,9 +164,12 @@ def plan(skill: str, raw_bars: list) -> Optional[dict]:
         stop = max(stop, entry * (1 - KICKER_MAX_STOP))
     lv = U.make_levels(float(entry), float(stop), direction, entry_condition=words["entry"], stop_basis=words["stop"])
     risk = abs(lv["entry"] - lv["stop"])
+    sign = 1.0 if direction == "bullish" else -1.0
+    t1, t2 = (round(lv["entry"] + sign * m * risk, 2) for m in TRIM_R)
     return {
         "skill": skill, "direction": direction,
-        "entry": lv["entry"], "stop": lv["stop"], "t1": lv["target_primary"], "t2": lv["target_secondary"],
+        "entry": lv["entry"], "stop": lv["stop"], "t1": t1, "t2": t2,
+        "trim_r": list(TRIM_R), "trim_fraction": TRIM_FRACTION, "breakeven_at": BREAKEVEN_AT,
         "risk_pct": round(risk / lv["entry"] * 100, 2) if lv["entry"] else None,
         # the Kicker trades through its trigger during the day; every other long setup here enters on the close
         "enters_intraday": skill in (KICKER, "setup.family4.oops"),

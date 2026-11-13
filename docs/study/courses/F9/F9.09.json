@@ -1,0 +1,1498 @@
+{
+ "unit": "F9.09",
+ "track": "F9",
+ "title": "Our account rules: the market and the trade",
+ "teaches": "Our rules for when and what the account trades: the market reading (Green, Yellow, Orange, Red) decides whether and how much we trade, the 200-day line is a hard rule with one parabolic exception, we buy leaders within 4% of the buy point, skip buys in the 3 days before earnings, sell a trade still under 1R after 10 trading days, hand a gap through the stop to the first 30-minute low with a 2R ceiling, enter with market orders in regular hours behind a real broker stop, write the plan before the open, and journal and review the numbers.",
+ "skills": [
+  {
+   "id": "risk.trade_rules",
+   "title": "Our account rules: the market and the trade"
+  }
+ ],
+ "as_of": "2026-11-09",
+ "sources": [
+  {
+   "id": "h1",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
+   "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "b1",
+   "tier": 3,
+   "publisher": "UCT (Bracco), Uncharted Territory Substack",
+   "title": "The Parabolic Short (Bracco, 2025-06-13)",
+   "url": "https://unchartedterritoryy.substack.com/p/the-parabolic-short",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s1",
+   "tier": 1,
+   "publisher": "FINRA",
+   "title": "Stop Orders: Factors to Consider During Volatile Markets",
+   "url": "https://www.finra.org/investors/insights/stop-orders-factors-consider-during-volatile-markets",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s2",
+   "tier": 1,
+   "publisher": "FINRA",
+   "title": "Extended-Hours Trading: What to Know Before You Trade",
+   "url": "https://www.finra.org/investors/insights/extended-hours-trading",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s3",
+   "tier": 1,
+   "publisher": "NYSE",
+   "title": "Holidays & Trading Hours (Core Trading Session)",
+   "url": "https://www.nyse.com/markets/hours-calendars",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s4",
+   "tier": 1,
+   "publisher": "FINRA",
+   "title": "Earnings Season: What to Know",
+   "url": "https://www.finra.org/investors/insights/earnings-season",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s5",
+   "tier": 2,
+   "publisher": "StockCharts.com",
+   "title": "ChartSchool: Moving Averages - Simple and Exponential",
+   "url": "https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/technical-overlays/moving-averages-simple-and-exponential",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s6",
+   "tier": 2,
+   "publisher": "StockCharts.com",
+   "title": "ChartSchool: Gaps and Gap Analysis",
+   "url": "https://chartschool.stockcharts.com/table-of-contents/chart-analysis/gaps-and-gap-analysis",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s7",
+   "tier": 2,
+   "publisher": "StockCharts.com",
+   "title": "ChartSchool: Price Relative / Relative Strength",
+   "url": "https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/technical-indicators/price-relative-relative-strength",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s8",
+   "tier": 2,
+   "publisher": "Fidelity Investments",
+   "title": "Technical Indicator Guide: Relative Strength Comparison",
+   "url": "https://www.fidelity.com/learning-center/trading-investing/technical-analysis/technical-indicator-guide/relative-strength-comparison",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s9",
+   "tier": 2,
+   "publisher": "Fidelity Investments",
+   "title": "What you need to know about exit strategies (January 20, 2026)",
+   "url": "https://www.fidelity.com/learning-center/trading-investing/trading/exit-strategies",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s10",
+   "tier": 2,
+   "publisher": "Fidelity Investments",
+   "title": "Managing positions: When to cut and run, when to take profits (Jeffrey A. Hirsch, editor-in-chief of the Stock Trader's Almanac)",
+   "url": "https://www.fidelity.com/learning-center/trading-investing/trading/managing-positions",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s11",
+   "tier": 2,
+   "publisher": "Van Tharp Institute",
+   "title": "Glossary: Expectancy",
+   "url": "https://vantharpinstitute.com/glossary/expectancy",
+   "accessed": "2026-11-09",
+   "why_reliable": "The Van Tharp Institute's own glossary of Dr. Van K. Tharp's terms (R multiples, expectancy), the author of The Definitive Guide to Position Sizing and a Market Wizards interviewee; the same source F9.03 and F12.05 use for expectancy. Never carries a key alone here; it supports a house rule."
+  },
+  {
+   "id": "s12",
+   "tier": 2,
+   "publisher": "Brett Steenbarger, TraderFeed",
+   "title": "The Power of Trading Journals (April 24, 2014)",
+   "url": "https://traderfeed.blogspot.com/2014/04/the-power-of-trading-journals.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Brett Steenbarger, Ph.D., clinical psychologist, author of The Psychology of Trading and Trading Psychology 2.0, writing under his own name on his long-running blog; the contract names Steenbarger among the well-known trading authors, and F12.03 and F12.05 cite the same post. Supports a house rule; never a key alone."
+  },
+  {
+   "id": "s13",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Market Order (glossary)",
+   "url": "https://www.investor.gov/introduction-investing/investing-basics/glossary/market-order",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s14",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Swing Trading: Definition and the Pros and Cons for Investors",
+   "url": "https://www.investopedia.com/terms/s/swingtrading.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s15",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "Swing Trading Strategies for Active Traders",
+   "url": "https://www.schwab.com/learn/story/swing-trading-strategies",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s16",
+   "tier": 2,
+   "publisher": "Investor's Business Daily",
+   "title": "Why You Should Pay Close Attention To The 5% Buy Zone After A Breakout (Nancy Gondo, updated 2022-11-21)",
+   "url": "https://www.investors.com/how-to-invest/investors-corner/buy-zone-gives-investors-chance-to-buy-top-stocks-beyond-breakout/",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s17",
+   "tier": 2,
+   "publisher": "Investor's Business Daily",
+   "title": "IBD University, How to Buy: Market Direction",
+   "url": "https://www.investors.com/ibd-university/how-to-buy/market-direction/",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s18",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Understanding Trading Win/Loss Ratio: Definition, Formula, and Examples (Will Kenton, updated 2026-02-25)",
+   "url": "https://www.investopedia.com/terms/w/win-loss-ratio.asp",
+   "accessed": "2026-11-09"
+  }
+ ],
+ "facts": [
+  {
+   "id": "h01",
+   "source": "h1",
+   "quote": "A market filter decides when the account trades: the app's market reading (Green, Yellow, Orange, Red).",
+   "claim": "Our market reading, Green, Yellow, Orange or Red, decides when the account trades."
+  },
+  {
+   "id": "h02",
+   "source": "h1",
+   "quote": "Green, full risk per grade and up to 10 positions; Yellow, smaller and fewer; Orange, only A+ setups; Red, mostly cash and shorts.",
+   "claim": "Green: full risk per grade, up to 10 positions. Yellow: smaller and fewer. Orange: only A+ setups. Red: mostly cash and shorts."
+  },
+  {
+   "id": "h03",
+   "source": "h1",
+   "quote": "Total open risk and position size by market condition are guides that vary, not hard caps.",
+   "claim": "What the market reading changes about risk and size is a guide, not a hard cap."
+  },
+  {
+   "id": "h04",
+   "source": "h1",
+   "quote": "In a Red market: mostly cash, plus shorts below the 200-day.",
+   "claim": "In a Red market we sit mostly in cash, with shorts below the 200-day."
+  },
+  {
+   "id": "h05",
+   "source": "h1",
+   "quote": "The 200-day line: no longs below the 200-day simple moving average, unless it is a parabolic long; shorts only below the 200-day, never above it unless it is a parabolic short.",
+   "claim": "No longs below the 200-day simple moving average and shorts only below it; the one exception each way is a parabolic move."
+  },
+  {
+   "id": "h06",
+   "source": "h1",
+   "quote": "SHort I will only do if below the 200SMA. No longs below 200SMA (unless parabolic long) no shorts above 200SMA unless parabolic short.",
+   "claim": "The rule as first written: shorts only below the 200-day, no longs below it, unless the trade is a parabolic one."
+  },
+  {
+   "id": "h07",
+   "source": "h1",
+   "quote": "200SMA is hardened rule yes",
+   "claim": "The 200-day rule is a hard rule, not a guide."
+  },
+  {
+   "id": "h08",
+   "source": "h1",
+   "quote": "the \"parabolic burst\", a 3-5 day final leg: three straight up days, two straight overnight gap ups, two of three days of range expansion, two days of rising volume, and a gap up on the climax day",
+   "claim": "A parabolic burst is a 3 to 5 day final leg: three straight up days, two overnight gap ups, range expansion, rising volume and a gap up on the climax day."
+  },
+  {
+   "id": "h09",
+   "source": "h1",
+   "quote": "The post has no parabolic long; the long is the mirror image, a burst down (confirmed: \"1, yes.\").",
+   "claim": "A parabolic long is the mirror image: a burst down."
+  },
+  {
+   "id": "h10",
+   "source": "h1",
+   "quote": "No chasing: never buy more than 4% above the buy point. (\"28, make it 4%.\")",
+   "claim": "Our chase line: never buy more than 4% above the buy point."
+  },
+  {
+   "id": "h11",
+   "source": "h1",
+   "quote": "Chasing costs size, not risk: the stop stays under the buy point, so the distance grows and the shares shrink (A5).",
+   "claim": "Chasing costs size: the stop stays under the buy point, the distance grows and the shares shrink."
+  },
+  {
+   "id": "h12",
+   "source": "h1",
+   "quote": "Too stretched to buy: skip a long that is more than 10% above its 10-day average. (\"29, yes.\")",
+   "claim": "Skip a long that is more than 10% above its 10-day average."
+  },
+  {
+   "id": "h13",
+   "source": "h1",
+   "quote": "Buy leaders: an RS rating of 80 or more, in one of the strongest groups, except parabolic and mean-reversion trades. (\"31, yes unless parabolic or mean reversion.\")",
+   "claim": "We buy leaders, an RS rating of 80 or more in one of the strongest groups, except for parabolic and mean-reversion trades."
+  },
+  {
+   "id": "h14",
+   "source": "h1",
+   "quote": "Shorts are the mirror (D47): the weakest stocks, an RS rating of 20 or less, in the weakest groups.",
+   "claim": "Shorts are the mirror: the weakest stocks, an RS rating of 20 or less, in the weakest groups."
+  },
+  {
+   "id": "h15",
+   "source": "h1",
+   "quote": "No new buys in the 3 days before an earnings report; hold through a report only if the trade is up 5R. (\"22 change it to 3 days and only hold if up 5R.\")",
+   "claim": "No new buys in the 3 days before an earnings report, and we hold through a report only if the trade is up 5R."
+  },
+  {
+   "id": "h16",
+   "source": "h1",
+   "quote": "Time stop: a trade still under 1R after 10 trading days is sold, freeing the money.",
+   "claim": "Our time stop: a trade still under 1R after 10 trading days is sold."
+  },
+  {
+   "id": "h17",
+   "source": "h1",
+   "quote": "We swing trade: days to a few weeks; a winner can be held longer while it keeps working. (\"35, yes.\")",
+   "claim": "We swing trade, days to a few weeks, and a winner can be held longer while it keeps working."
+  },
+  {
+   "id": "h18",
+   "source": "h1",
+   "quote": "A gap against the stop: the first 30 minutes of the gap-down day decide. The low of the first 30-minute bar is the new stop.",
+   "claim": "When a stock gaps through the stop, the low of the first 30-minute bar becomes the new stop."
+  },
+  {
+   "id": "h19",
+   "source": "h1",
+   "quote": "With a ceiling: if the first 30 minutes take the loss past 2R, get out. (G70, \"70 yes\")",
+   "claim": "The gap rule has a ceiling: if the first 30 minutes take the loss past 2R, get out."
+  },
+  {
+   "id": "h20",
+   "source": "h1",
+   "quote": "The stop is the exit. It only moves up, never down or wider. The one exception is the gap rule (B20).",
+   "claim": "The stop only moves up, never down or wider; the gap rule is the one exception."
+  },
+  {
+   "id": "h21",
+   "source": "h1",
+   "quote": "After a stop-out, buy again only if the setup triggers again, as a new trade with its own stop and every rule. (\"21, yes.\")",
+   "claim": "After a stop-out, buy again only if the setup triggers again, as a new trade with its own stop."
+  },
+  {
+   "id": "h22",
+   "source": "h1",
+   "quote": "Every position has a real stop order with the broker, not a stop kept in your head. (\"41, yes.\")",
+   "claim": "Every position has a real stop order with the broker."
+  },
+  {
+   "id": "h23",
+   "source": "h1",
+   "quote": "Entries are market orders. (\"57, No i market order everything.\") The stop still sits with the broker (D41).",
+   "claim": "Our entries are market orders, and the stop still sits with the broker."
+  },
+  {
+   "id": "h24",
+   "source": "h1",
+   "quote": "No new buys outside regular trading hours. (\"58, that is fine.\")",
+   "claim": "No new buys outside regular trading hours."
+  },
+  {
+   "id": "h25",
+   "source": "h1",
+   "quote": "Every planned buy has its entry, stop and size written down before the market opens. (\"39 yes\")",
+   "claim": "Every planned buy has its entry, stop and size written down before the open."
+  },
+  {
+   "id": "h26",
+   "source": "h1",
+   "quote": "Each day, a focus list of the 5 to 10 best setups; the rest are ignored. (\"64 yes.\")",
+   "claim": "Each day we keep a focus list of the 5 to 10 best setups and ignore the rest."
+  },
+  {
+   "id": "h27",
+   "source": "h1",
+   "quote": "No setup, no trade: never force a trade to have something on; cash is a position. (\"44. yes.\")",
+   "claim": "No setup, no trade. Cash is a position."
+  },
+  {
+   "id": "h28",
+   "source": "h1",
+   "quote": "Never raise risk past the rules after a run of winners. (\"45. yes.\")",
+   "claim": "Never raise risk past the rules after a run of winners."
+  },
+  {
+   "id": "h29",
+   "source": "h1",
+   "quote": "Never take a trade from an alert, a post or a video without your own entry, stop and size by these rules.",
+   "claim": "Never take a trade from an alert, a post or a video without your own entry, stop and size."
+  },
+  {
+   "id": "h30",
+   "source": "h1",
+   "quote": "Tired, sick, angry or distracted: no new trades that day.",
+   "claim": "Tired, sick, angry or distracted: no new trades that day."
+  },
+  {
+   "id": "h31",
+   "source": "h1",
+   "quote": "After a market correction, when the reading turns Green again, start with a few positions and add more only as the first ones work",
+   "claim": "After a correction, when the reading turns Green, start with a few positions and add more only as the first ones work."
+  },
+  {
+   "id": "h32",
+   "source": "h1",
+   "quote": "Journal every trade the same day and review the week every weekend, ideally. (\"27, ideally yes..\")",
+   "claim": "Journal every trade the same day and review the week every weekend."
+  },
+  {
+   "id": "h33",
+   "source": "h1",
+   "quote": "Each month, review the numbers: win rate, average win and loss in R, expectancy, and other statistics. (\"59 yes and other statistics.\")",
+   "claim": "Each month, review win rate, average win and loss in R, expectancy and other statistics."
+  },
+  {
+   "id": "h34",
+   "source": "h1",
+   "quote": "No time-of-day rule. (\"30, no\")",
+   "claim": "We have no time-of-day rule."
+  },
+  {
+   "id": "h35",
+   "source": "h1",
+   "quote": "No news-day rule: Fed and CPI days are traded like any other day.",
+   "claim": "We have no news-day rule; Fed and CPI days are traded like any other day."
+  },
+  {
+   "id": "b01",
+   "source": "b1",
+   "quote": "This parabolic burst is a 3-5 day move that marks the final leg of a parabolic move.",
+   "claim": "Bracco's parabolic burst is a 3 to 5 day move, the final leg of a parabolic run."
+  },
+  {
+   "id": "b02",
+   "source": "b1",
+   "quote": "Three straight days of gains. The more consecutive up days, the better the setup.",
+   "claim": "The burst starts with three straight up days; more is better."
+  },
+  {
+   "id": "b03",
+   "source": "b1",
+   "quote": "Two consecutive overnight gap ups. This can include the exhaustion gap on the climax day.",
+   "claim": "Two overnight gap ups in a row, the climax-day gap included."
+  },
+  {
+   "id": "b04",
+   "source": "b1",
+   "quote": "A gap-up on the climax day. You never know exactly when the climax day will hit, but I won't short without that gap-up.",
+   "claim": "Bracco will not short a parabolic without the gap up on the climax day."
+  },
+  {
+   "id": "b05",
+   "source": "b1",
+   "quote": "While not every criteria needs to be fully satisfied, the more boxes checked, the stronger the setup.",
+   "claim": "Not every box must be checked, but the more that are, the stronger the parabolic setup."
+  },
+  {
+   "id": "b06",
+   "source": "b1",
+   "quote": "Being too early to a Parabolic Short is a recipe for disaster.",
+   "claim": "Shorting a parabolic move too early is a recipe for disaster."
+  },
+  {
+   "id": "f01",
+   "source": "s1",
+   "quote": "A stop order becomes a market order once the stop price is reached.",
+   "claim": "Once the stop price is reached, a stop order becomes a market order."
+  },
+  {
+   "id": "f02",
+   "source": "s1",
+   "quote": "The price you receive upon execution, though, could be markedly different than your stop price.",
+   "claim": "A triggered stop can fill at a price far from the stop price."
+  },
+  {
+   "id": "f03",
+   "source": "s2",
+   "quote": "Regular trading hours for listed stocks, as defined by the Securities and Exchange Commission (SEC), are from 9:30 a.m. to 4 p.m. ET.",
+   "claim": "Regular trading hours for listed stocks are 9:30 a.m. to 4 p.m. ET."
+  },
+  {
+   "id": "f04",
+   "source": "s2",
+   "quote": "Any activity that takes place outside of regular trading hours, whether in the pre-market, after-hours or overnight periods, is generally referred to as extended-hours trading.",
+   "claim": "Trading outside regular hours, pre-market, after-hours or overnight, is extended-hours trading."
+  },
+  {
+   "id": "f05",
+   "source": "s2",
+   "quote": "The next day’s opening prices are generated based on supply and demand for the securities at or around the time markets open.",
+   "claim": "The next day's opening price is set by supply and demand at the open, not by the after-hours session."
+  },
+  {
+   "id": "f06",
+   "source": "s3",
+   "quote": "Core Trading Session: 9:30 a.m. to 4:00 p.m. ET",
+   "claim": "The NYSE core trading session runs 9:30 a.m. to 4:00 p.m. ET."
+  },
+  {
+   "id": "f07",
+   "source": "s4",
+   "quote": "Companies usually release their earnings reports and accompanying press releases before the market opens or after it closes.",
+   "claim": "Earnings reports usually come out before the open or after the close, while the market is shut."
+  },
+  {
+   "id": "f08",
+   "source": "s4",
+   "quote": "A company's shares might jump or tumble after investors compare the actual results to estimates.",
+   "claim": "Shares can jump or tumble on an earnings report."
+  },
+  {
+   "id": "f09",
+   "source": "s5",
+   "quote": "A simple moving average is formed by computing the average price of a security over a specific number of periods.",
+   "claim": "A simple moving average is the average price over a set number of periods."
+  },
+  {
+   "id": "f10",
+   "source": "s5",
+   "quote": "The 200-day moving average is perhaps the most popular. Because of its length, this is clearly a long-term moving average.",
+   "claim": "The 200-day moving average is the most watched long-term average."
+  },
+  {
+   "id": "f11",
+   "source": "s5",
+   "quote": "A 10-day moving average will hug prices quite closely and turn shortly after prices turn.",
+   "claim": "A 10-day moving average hugs price closely."
+  },
+  {
+   "id": "f12",
+   "source": "s6",
+   "quote": "Price charts often have blank spaces known as gaps, representing times when no shares were traded within a particular price range. Usually this occurs between the market close and the next trading day's open.",
+   "claim": "A gap is a blank space on the chart where no shares traded, usually between one close and the next open."
+  },
+  {
+   "id": "f13",
+   "source": "s6",
+   "quote": "Gaps result from extraordinary buying or selling interests often developing while the market is closed.",
+   "claim": "Gaps come from heavy buying or selling interest that builds while the market is closed."
+  },
+  {
+   "id": "f14",
+   "source": "s7",
+   "quote": "The Price Relative rises when a stock shows relative strength and outperforms its benchmark.",
+   "claim": "Relative strength: the stock is outperforming its benchmark."
+  },
+  {
+   "id": "f15",
+   "source": "s8",
+   "quote": "Relative Strength Comparison compares a security's price change with that of a \"base\" security or index.",
+   "claim": "A relative strength comparison measures a stock's price change against an index."
+  },
+  {
+   "id": "f16",
+   "source": "s9",
+   "quote": "Beware: Stop orders will not protect you from sudden price drops, known as gaps.",
+   "claim": "A stop order cannot protect you from a gap."
+  },
+  {
+   "id": "f17",
+   "source": "s9",
+   "quote": "Defines the maximum amount of time you plan on being exposed to a particular investment.",
+   "claim": "A time exit sets the longest you will stay in a position."
+  },
+  {
+   "id": "f18",
+   "source": "s9",
+   "quote": "Time exit strategies can work when the security is moving sideways for an extended period of time, when prices are moving against you but not enough to trigger a stop-loss",
+   "claim": "A time exit helps when a stock drifts sideways for a long time without hitting the stop."
+  },
+  {
+   "id": "f19",
+   "source": "s10",
+   "quote": "When the investor's economic and market outlook is strongly bearish (or turns negative), a more defensive posture could be instituted by limiting new buys, selling losers faster, tightening up stops and/or implementing some downside protection.",
+   "claim": "When the market outlook turns negative, play defense: fewer new buys, faster exits, tighter stops."
+  },
+  {
+   "id": "f20",
+   "source": "s11",
+   "quote": "Expectancy is best stated in terms of how much you can make per dollar you risk. Expectancy is the mean R of an R-multiple distribution generated by a trading system.",
+   "claim": "Expectancy is what a system makes per dollar risked, on average: the mean R of its trades."
+  },
+  {
+   "id": "f21",
+   "source": "s12",
+   "quote": "They are a way of focusing on process, rather than anchoring our moods and self-esteem to the ups and downs of P/L.",
+   "claim": "A journal keeps you focused on process instead of the ups and downs of P/L."
+  },
+  {
+   "id": "f22",
+   "source": "s13",
+   "quote": "The advantage of a market order is that as long as there are willing buyers and sellers, you are almost always guaranteed your order will be executed.",
+   "claim": "A market order is almost always filled."
+  },
+  {
+   "id": "f23",
+   "source": "s13",
+   "quote": "The disadvantage is the price you pay when your order is executed may not be the price you expected.",
+   "claim": "A market order's fill price may not be the price you expected."
+  },
+  {
+   "id": "f24",
+   "source": "s14",
+   "quote": "Swing trading aims to profit from short- to medium-term price moves, typically lasting days to weeks.",
+   "claim": "Swing trades last days to weeks."
+  },
+  {
+   "id": "f25",
+   "source": "s15",
+   "quote": "Swing traders seek to capitalize on price swings over a period of days or weeks, typically using technical analysis to identify price patterns and entry and exit points.",
+   "claim": "Swing traders work price swings over days or weeks, using charts for entries and exits."
+  },
+  {
+   "id": "f26",
+   "source": "s15",
+   "quote": "Swing traders, on the other hand, hold their positions for days or weeks. This exposes them to the risk of potential gaps at the market open due to news that occurred during non-trading hours.",
+   "claim": "Holding for days or weeks exposes a swing trader to gaps at the open on overnight news."
+  },
+  {
+   "id": "f27",
+   "source": "s16",
+   "quote": "That depends on how far past the buy point you get in. The further beyond the buy point, the greater the risk of getting shaken out of a stock.",
+   "claim": "The further past the buy point you buy, the likelier you are shaken out."
+  },
+  {
+   "id": "f28",
+   "source": "s16",
+   "quote": "Why You Should Pay Close Attention To The 5% Buy Zone After A Breakout",
+   "claim": "IBD teaches a buy zone that runs 5% above the buy point."
+  },
+  {
+   "id": "f29",
+   "source": "s17",
+   "quote": "That's because 3 of 4 stocks move in the same direction as the general market, either up or down.",
+   "claim": "IBD: 3 of 4 stocks move with the general market."
+  },
+  {
+   "id": "f30",
+   "source": "s17",
+   "quote": "Making new buys in a correction is riskier, since most stocks will follow the market's downward trend.",
+   "claim": "New buys in a correction are riskier because most stocks follow the market down."
+  },
+  {
+   "id": "f31",
+   "source": "s18",
+   "quote": "The win/loss ratio is often used with the win rate, which is the number of trades that make money out of the total number of trades conducted.",
+   "claim": "Win rate is the number of winning trades out of all trades."
+  }
+ ],
+ "walkthroughs": [
+  {
+   "key": "w1",
+   "title": "The market comes first",
+   "steps": [
+    "Our market reading is Green, Yellow, Orange or Red. It decides when the account trades, before you look at any stock.",
+    "Green: full risk per grade, up to 10 positions. Yellow: smaller and fewer. Orange: only A+ setups.",
+    "Red: mostly cash, plus shorts below the 200-day. IBD says 3 of 4 stocks move with the general market.",
+    "What the reading changes is a guide, not a hard cap. The hard rule is the next one."
+   ],
+   "facts": [
+    "h01",
+    "h02",
+    "h04",
+    "f29",
+    "h03"
+   ]
+  },
+  {
+   "key": "w2",
+   "title": "The 200-day line, and the chase",
+   "steps": [
+    "A simple moving average is the average price over a set number of days. The 200-day is the long one.",
+    "Our hard rule: no longs below the 200-day, shorts only below it. The one exception is a parabolic move.",
+    "Bracco's parabolic burst: three straight up days, two overnight gap ups, range and volume expanding, a gap up on the climax day.",
+    "Above the line, don't chase: never more than 4% over the buy point, never more than 10% over the 10-day."
+   ],
+   "facts": [
+    "f09",
+    "f10",
+    "h05",
+    "h07",
+    "h08",
+    "b01",
+    "h10",
+    "h12",
+    "f11"
+   ]
+  },
+  {
+   "key": "w3",
+   "title": "Before the open, after the close",
+   "steps": [
+    "Before the open: entry, stop and size written for every buy, and a focus list of the 5 to 10 best setups.",
+    "Entries are market orders, in regular hours only. The stop is a real order with the broker.",
+    "No new buys in the 3 days before earnings; hold through only if up 5R. Under 1R after 10 trading days: sold.",
+    "After the close: journal every trade the same day, and review the week each weekend."
+   ],
+   "facts": [
+    "h25",
+    "h26",
+    "h23",
+    "h24",
+    "h22",
+    "h15",
+    "h16",
+    "h32"
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "key": "q01",
+   "skill": "risk.trade_rules",
+   "rung": 1,
+   "format": "mcq",
+   "house": true,
+   "q": "What does our market reading, Green, Yellow, Orange or Red, decide?",
+   "choices": [
+    "When, and how much, we trade",
+    "Which stocks to buy",
+    "Where each stop goes",
+    "The letter grade of a setup"
+   ],
+   "answer": "When, and how much, we trade",
+   "why": "When, and how much, we trade. Read it before any stock. IBD found 3 of 4 stocks move with the general market, so the market comes first.",
+   "lesson_line": "Read the market before the stock. The reading decides whether, and how much, the account trades today.",
+   "facts": [
+    "h01",
+    "h02",
+    "f29"
+   ],
+   "wrong": {
+    "Which stocks to buy": "The reading says how much to trade, not what. The setups and the leaders list pick the stocks.",
+    "Where each stop goes": "The stop comes from the chart, a few cents under a low. The reading never moves a stop.",
+    "The letter grade of a setup": "A setup's grade is about the setup. The reading says which grades you may take and at what size."
+   }
+  },
+  {
+   "key": "q02",
+   "skill": "risk.trade_rules",
+   "rung": 1,
+   "format": "tf",
+   "house": true,
+   "q": "Our 200-day rule is a hard rule: no longs below the 200-day simple moving average.",
+   "answer": "True",
+   "why": "True. No longs below the 200-day, and shorts only below it. What the market reading changes is a guide; this line is a hard rule.",
+   "lesson_line": "No longs below the 200-day. Shorts only below it. That one is hard.",
+   "facts": [
+    "h05",
+    "h07",
+    "f10"
+   ]
+  },
+  {
+   "key": "q03",
+   "skill": "risk.trade_rules",
+   "rung": 1,
+   "format": "fill",
+   "house": true,
+   "q": "Fill in our chase line.",
+   "sentence": "Never buy more than ___ above the buy point.",
+   "bank": [
+    "4%",
+    "2%",
+    "5%",
+    "10%",
+    "1%"
+   ],
+   "answer": "4%",
+   "why": "4%. Past that you're chasing. The stop stays under the buy point, so the distance grows and the shares shrink.",
+   "lesson_line": "Our chase line is 4% over the buy point. Past it, wait for the next setup.",
+   "facts": [
+    "h10",
+    "h11"
+   ]
+  },
+  {
+   "key": "q04",
+   "skill": "risk.trade_rules",
+   "rung": 2,
+   "format": "mcq",
+   "house": true,
+   "q": "Under our rules, where do shorts belong?",
+   "choices": [
+    "Below the 200-day only",
+    "Above the 200-day only",
+    "Either side, if the setup is right",
+    "Only when the reading is Green"
+   ],
+   "answer": "Below the 200-day only",
+   "why": "Below the 200-day only. Shorts are the mirror of our long rule: longs above the line, shorts below it. The one exception is a parabolic short.",
+   "lesson_line": "Longs above the 200-day, shorts below it. A parabolic move is the only exception.",
+   "facts": [
+    "h05",
+    "h06",
+    "h04"
+   ],
+   "wrong": {
+    "Above the 200-day only": "That's backwards. Above the 200-day the stock is in a long-term uptrend; that's where our longs live.",
+    "Either side, if the setup is right": "No. The one short above the 200-day we take is a parabolic short. Every other short waits for the stock to be below the line.",
+    "Only when the reading is Green": "Green is for longs. Shorts come in when the market is Red: mostly cash, plus shorts below the 200-day."
+   }
+  },
+  {
+   "key": "q05",
+   "skill": "risk.trade_rules",
+   "rung": 2,
+   "format": "tf",
+   "house": true,
+   "q": "We hold a trade through its earnings report only if it is up 5R.",
+   "answer": "True",
+   "why": "True. A report lands while the market is shut and shares can jump or tumble on it, past any stop. A trade needs a 5R cushion to stay in.",
+   "lesson_line": "Hold through earnings only with a 5R cushion. Anything less gets sold before the report.",
+   "facts": [
+    "h15",
+    "f07",
+    "f08",
+    "f16"
+   ]
+  },
+  {
+   "key": "q06",
+   "skill": "risk.trade_rules",
+   "rung": 2,
+   "format": "tf",
+   "q": "A real stop order with your broker guarantees you get out at your stop price.",
+   "answer": "False",
+   "why": "False. Once the stop price is reached, the stop becomes a market order, and the fill can be far from your stop. A stop cannot protect you from a gap.",
+   "lesson_line": "A stop is an order, not a promise. A gap can open far past it.",
+   "facts": [
+    "f01",
+    "f02",
+    "f16"
+   ]
+  },
+  {
+   "key": "q07",
+   "skill": "risk.trade_rules",
+   "rung": 2,
+   "format": "tf",
+   "house": true,
+   "q": "Our entries are market orders, and the stop is a real stop order with the broker.",
+   "answer": "True",
+   "why": "True. A market order is almost always filled, though the price may not be the one you expected. The stop sits with the broker, never in your head.",
+   "lesson_line": "Market order in. Real stop order with the broker. Nothing lives in your head.",
+   "facts": [
+    "h23",
+    "h22",
+    "f22",
+    "f23"
+   ]
+  },
+  {
+   "key": "q08",
+   "skill": "risk.trade_rules",
+   "rung": 3,
+   "format": "numeric",
+   "house": true,
+   "q": "The buy point is $50. Under our 4% chase line, what's the highest price you may pay?",
+   "answer": 52,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "pivot * (1 + pct / 100)",
+     "pivot": 50,
+     "pct": 4
+    }
+   },
+   "prefix": "$",
+   "why": "$52. That's 4% above the $50 buy point. Above it the stop still sits under the buy point, so the distance grows and the shares shrink.",
+   "lesson_line": "Know the chase line in dollars before the open: the buy point plus 4%.",
+   "facts": [
+    "h10",
+    "h11"
+   ]
+  },
+  {
+   "key": "q09",
+   "skill": "risk.trade_rules",
+   "rung": 3,
+   "format": "mcq",
+   "house": true,
+   "q": "Which trade may skip our RS rating of 80 rule?",
+   "choices": [
+    "A parabolic or mean-reversion trade",
+    "An A+ setup in a Green market",
+    "A stock in the strongest group",
+    "A long that just cleared its 200-day"
+   ],
+   "answer": "A parabolic or mean-reversion trade",
+   "why": "A parabolic or mean-reversion trade. Those two trade a snap back, not leadership. Everything else we buy is a leader: an RS rating of 80 or more, in one of the strongest groups.",
+   "lesson_line": "Buy leaders, RS 80 or more in a strong group. Parabolics and mean reversion are the exceptions.",
+   "facts": [
+    "h13",
+    "h14",
+    "f14",
+    "f15"
+   ],
+   "wrong": {
+    "An A+ setup in a Green market": "The grade and the reading say how much to risk. The leader rule still decides whether the stock qualifies.",
+    "A stock in the strongest group": "A strong group is half the rule. The stock itself still needs an RS rating of 80 or more.",
+    "A long that just cleared its 200-day": "Clearing the 200-day makes a long allowed. It doesn't make the stock a leader."
+   }
+  },
+  {
+   "key": "q10",
+   "skill": "risk.trade_rules",
+   "rung": 7,
+   "format": "tf",
+   "house": true,
+   "q": "Our rules bar new buys on Fed and CPI days.",
+   "answer": "False",
+   "why": "False. We have no news-day rule and no time-of-day rule. Fed and CPI days are traded like any other day; the market reading and the setup decide.",
+   "lesson_line": "No news-day rule, no time-of-day rule. The reading and the setup decide, not the calendar.",
+   "facts": [
+    "h35",
+    "h34"
+   ]
+  },
+  {
+   "key": "q11",
+   "skill": "risk.trade_rules",
+   "rung": 3,
+   "format": "fill",
+   "house": true,
+   "q": "Fill in our time stop.",
+   "sentence": "A trade still under ___ after 10 trading days is sold.",
+   "bank": [
+    "1R",
+    "2R",
+    "3R",
+    "5R",
+    "0R"
+   ],
+   "answer": "1R",
+   "why": "1R. Ten trading days and still under 1R means the trade has done nothing. Sell it and free the money for one that works.",
+   "lesson_line": "Under 1R after 10 trading days: sell it. Dead money is a cost too.",
+   "facts": [
+    "h16",
+    "f17",
+    "f18"
+   ]
+  },
+  {
+   "key": "q12",
+   "skill": "risk.trade_rules",
+   "rung": 4,
+   "format": "scenario",
+   "house": true,
+   "story": "A leader clears its $80 buy point on big volume while you're away from the screen. When you look, it's at $84.80, 6% past the buy point.",
+   "q": "What do you do?",
+   "choices": [
+    "Skip it. It's past our 4% line",
+    "Buy it. The stop can go under $80",
+    "Buy half size to catch up"
+   ],
+   "answer": "Skip it. It's past our 4% line",
+   "why": "Skip it. 6% past the buy point is beyond our 4% chase line. The stop would still sit under $80, so the distance grows and the shares shrink. Wait for the next setup.",
+   "lesson_line": "I'd rather miss it than chase it. Past 4%, the next setup is the trade.",
+   "facts": [
+    "h10",
+    "h11",
+    "f27"
+   ],
+   "wrong": {
+    "Buy it. The stop can go under $80": "That's the problem. The stop stays under the buy point, so a wider distance means fewer shares, and the further past the buy point you get in, the likelier you're shaken out.",
+    "Buy half size to catch up": "Chasing at half size is still chasing. Our line is a price, not a size."
+   }
+  },
+  {
+   "key": "q13",
+   "skill": "risk.trade_rules",
+   "rung": 4,
+   "format": "scenario",
+   "house": true,
+   "story": "A clean breakout setup forms in a stock trading under its 200-day simple moving average. The decline has been a steady stair-step, nothing parabolic about it.",
+   "q": "Do you take the long?",
+   "choices": [
+    "No. No longs below the 200-day",
+    "Yes. The setup is clean",
+    "Yes, at half size to be safe"
+   ],
+   "answer": "No. No longs below the 200-day",
+   "why": "No. No longs below the 200-day, and that one is a hard rule. The one exception is a parabolic long, a burst down, and a steady stair-step isn't one.",
+   "lesson_line": "Below the 200-day the answer to a long is no, however clean the pattern.",
+   "facts": [
+    "h05",
+    "h07",
+    "h09",
+    "f10"
+   ],
+   "wrong": {
+    "Yes. The setup is clean": "A clean pattern doesn't bend a hard rule. Below the 200-day the stock is in a long-term downtrend, and we don't buy those.",
+    "Yes, at half size to be safe": "Size doesn't bend a hard rule either. Below the 200-day it's no at any size."
+   }
+  },
+  {
+   "key": "q14",
+   "skill": "risk.trade_rules",
+   "rung": 4,
+   "format": "scenario",
+   "house": true,
+   "story": "The market reading is Orange. A B setup triggers in a strong group, with an RS rating of 85.",
+   "q": "Do we take it?",
+   "choices": [
+    "Pass. Orange means A+ setups only",
+    "Take it. The RS is over 80, a leader",
+    "Take it at half size, as a B"
+   ],
+   "answer": "Pass. Orange means A+ setups only",
+   "why": "Pass. In Orange we take only A+ setups. A B setup in a strong group is still a B. The reading is a guide, and the guide says wait for an A+.",
+   "lesson_line": "Orange: only A+ setups. A good stock in a B setup waits for a better market.",
+   "facts": [
+    "h02",
+    "h03",
+    "h13"
+   ],
+   "wrong": {
+    "Take it. The RS is over 80, a leader": "The RS rule picks which stocks qualify as leaders. It doesn't change what the market reading allows.",
+    "Take it at half size, as a B": "Orange allows only A+ setups, so a B setup waits, at any size."
+   }
+  },
+  {
+   "key": "q15",
+   "skill": "risk.trade_rules",
+   "rung": 5,
+   "format": "numeric",
+   "house": true,
+   "q": "You bought at $40 with a $38 stop. Earnings are tomorrow and the stock is at $48. How many R are you up?",
+   "answer": 4,
+   "calc": {
+    "fn": "r_multiple",
+    "args": {
+     "entry": 40,
+     "stop": 38,
+     "exit": 48
+    }
+   },
+   "suffix": "R",
+   "why": "4R. The move from $40 to $48 is four times the risk from $40 to $38. Our line to hold through a report is 5R, so this one gets sold before the report.",
+   "lesson_line": "Count the R before the report. Under 5R, sell before it; a gap won't wait for your stop.",
+   "facts": [
+    "h15",
+    "f08",
+    "f16"
+   ]
+  },
+  {
+   "key": "q16",
+   "skill": "risk.trade_rules",
+   "rung": 5,
+   "format": "tf",
+   "house": true,
+   "q": "Once a position is on, the stop may be moved down once if the chart gives a good reason.",
+   "answer": "False",
+   "why": "False. The stop only moves up, never down or wider. The one exception is the gap rule, where the low of the first 30-minute bar becomes the new stop.",
+   "lesson_line": "Stops move one way: up. Only a gap through the stop rewrites it, by rule.",
+   "facts": [
+    "h20",
+    "h18"
+   ]
+  },
+  {
+   "key": "q17",
+   "skill": "risk.trade_rules",
+   "rung": 5,
+   "format": "scenario",
+   "house": true,
+   "story": "You hold a long with a $46 stop. Overnight news hits. The stock opens at $43, through your stop, and the first 30-minute bar's low is $42.50.",
+   "q": "Under our gap rule, where is your stop now?",
+   "choices": [
+    "$42.50, the first 30-minute low",
+    "$46, where it was",
+    "$43, the opening print",
+    "There is no stop; it's gone"
+   ],
+   "answer": "$42.50, the first 30-minute low",
+   "why": "$42.50. A gap through the stop triggers our 30-minute rule: the low of the first 30-minute bar is the new stop. If those first 30 minutes take the loss past 2R, you're out regardless.",
+   "lesson_line": "Gap through the stop: the first 30-minute low is the new stop, unless the loss is already past 2R.",
+   "facts": [
+    "h18",
+    "h19",
+    "f01",
+    "f02",
+    "f12",
+    "f13"
+   ],
+   "wrong": {
+    "$46, where it was": "Price is already below it. A stop the stock has gapped through can't do its job; the rule gives you a new one.",
+    "$43, the opening print": "The open isn't the level. The rule waits for the first 30-minute bar and uses its low.",
+    "There is no stop; it's gone": "A gap doesn't leave you without a stop. The first 30-minute low is the new one, and a loss past 2R ends the trade."
+   }
+  },
+  {
+   "key": "q18",
+   "skill": "risk.trade_rules",
+   "rung": 5,
+   "format": "numeric",
+   "house": true,
+   "q": "Entry $60, stop $57. The stock gaps down. Below what price does the first 30 minutes' loss pass 2R, our gap-rule ceiling?",
+   "answer": 54,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "entry - 2 * (entry - stop)",
+     "entry": 60,
+     "stop": 57
+    }
+   },
+   "prefix": "$",
+   "why": "$54. One R is the distance from $60 to $57, so 2R below the entry is $54. If the first 30 minutes take the stock under $54, you don't wait for the 30-minute low. You're out.",
+   "lesson_line": "Know your 2R price before a gap day. Past it, the gap rule stops waiting.",
+   "facts": [
+    "h19",
+    "h18"
+   ]
+  },
+  {
+   "key": "q19",
+   "skill": "risk.trade_rules",
+   "rung": 6,
+   "format": "scenario",
+   "house": true,
+   "story": "You bought a stock 11 trading days ago. It never hit the stop and never got going. It's up 0.4R.",
+   "q": "What does our time stop say?",
+   "choices": [
+    "Sell it and free the money",
+    "Hold. The stop hasn't hit",
+    "Move the stop to breakeven and wait"
+   ],
+   "answer": "Sell it and free the money",
+   "why": "Sell it. Still under 1R after 10 trading days means the trade has done nothing. A time exit is for exactly this, a stock drifting sideways without hitting the stop.",
+   "lesson_line": "Ten trading days and under 1R: out. The money belongs in a setup that's working.",
+   "facts": [
+    "h16",
+    "f17",
+    "f18"
+   ],
+   "wrong": {
+    "Hold. The stop hasn't hit": "The price stop is one exit. The time stop is another, and this one has triggered.",
+    "Move the stop to breakeven and wait": "That keeps dead money tied up. The rule is a sale, not a tighter stop."
+   }
+  },
+  {
+   "key": "q20",
+   "skill": "risk.trade_rules",
+   "rung": 6,
+   "format": "scenario",
+   "house": true,
+   "story": "A Discord alert says a stock is breaking out right now. You haven't looked at the chart. You have no entry, stop or size for it.",
+   "q": "What do you do?",
+   "choices": [
+    "Pass until you have your own plan",
+    "Buy a starter, plan after",
+    "Buy. The alert came from a good trader"
+   ],
+   "answer": "Pass until you have your own plan",
+   "why": "Pass until you have your own plan. Never take a trade from an alert, a post or a video without your own entry, stop and size by these rules. If you miss it, you miss it.",
+   "lesson_line": "An alert is a reason to look, never a reason to buy. Your plan or no trade.",
+   "facts": [
+    "h29",
+    "h25",
+    "h27"
+   ],
+   "wrong": {
+    "Buy a starter, plan after": "A starter with no stop and no size is a position with no plan. Every planned buy has its entry, stop and size written before the open.",
+    "Buy. The alert came from a good trader": "Their plan isn't yours. You don't know their stop, their size or their account."
+   }
+  },
+  {
+   "key": "q21",
+   "skill": "risk.trade_rules",
+   "rung": 7,
+   "format": "tf",
+   "house": true,
+   "q": "After a string of winners, you may raise your risk per trade above the rules while you're hot.",
+   "answer": "False",
+   "why": "False. Never raise risk past the rules after a run of winners. The rules set the risk. A streak doesn't.",
+   "lesson_line": "A hot streak earns nothing above the rules. Risk comes from the plan, not the mood.",
+   "facts": [
+    "h28"
+   ]
+  },
+  {
+   "key": "q22",
+   "skill": "risk.trade_rules",
+   "rung": 7,
+   "format": "scenario",
+   "house": true,
+   "story": "A stock is up three straight days with two overnight gap ups, each day's range and volume bigger than the last. Today it gapped up again. It's far above its 200-day.",
+   "q": "Under our rules, can this be shorted?",
+   "choices": [
+    "Yes. A parabolic short is allowed",
+    "No. Shorts only below the 200-day",
+    "No. Its RS rating is over 80"
+   ],
+   "answer": "Yes. A parabolic short is allowed",
+   "why": "Yes. That's Bracco's parabolic burst: three straight up days, two overnight gap ups, range and volume expanding, a gap up on the climax day. It's the one short we take above the 200-day, and the RS rule skips parabolics. Allowed isn't the same as now: he waits for the intraday turn, and too early is a recipe for disaster.",
+   "lesson_line": "A parabolic burst is the one short above the 200-day. Three up days, two gaps, a climax gap.",
+   "facts": [
+    "h05",
+    "h08",
+    "b01",
+    "b02",
+    "b03",
+    "b04",
+    "b05",
+    "h13",
+    "b06"
+   ],
+   "wrong": {
+    "No. Shorts only below the 200-day": "The 200-day rule has one exception, a parabolic short, and this one checks every box on Bracco's list.",
+    "No. Its RS rating is over 80": "The leader rule excepts parabolic and mean-reversion trades. A parabolic short is shorting strength on purpose."
+   }
+  },
+  {
+   "key": "q23",
+   "skill": "risk.trade_rules",
+   "rung": 7,
+   "format": "mcq",
+   "house": true,
+   "q": "A long setup triggers at 4:35 p.m. ET in after-hours trading. What does our rule say?",
+   "choices": [
+    "No new buys outside regular hours",
+    "Buy. A trigger is a trigger",
+    "Buy, but with a limit order only",
+    "Buy half now, half at the open"
+   ],
+   "answer": "No new buys outside regular hours",
+   "why": "No new buys outside regular hours, and regular hours are 9:30 a.m. to 4 p.m. ET. The next day's open is set by supply and demand at the open, so the after-hours price may not hold.",
+   "lesson_line": "New buys only between 9:30 and 4. After hours, you watch.",
+   "facts": [
+    "h24",
+    "f03",
+    "f04",
+    "f05",
+    "f06"
+   ],
+   "wrong": {
+    "Buy. A trigger is a trigger": "A trigger after hours is in extended-hours trading, and the next day's open can land somewhere else. The rule waits for regular hours.",
+    "Buy, but with a limit order only": "The order type doesn't change the rule. It's the session that matters, not the order.",
+    "Buy half now, half at the open": "Half a buy after hours is still a buy after hours."
+   }
+  },
+  {
+   "key": "q24",
+   "skill": "risk.trade_rules",
+   "rung": 8,
+   "format": "scenario",
+   "house": true,
+   "story": "A correction ends and the reading turns Green. Your focus list has eight setups, and you have cash for ten positions.",
+   "q": "How do you start?",
+   "choices": [
+    "A few positions, add as they work",
+    "All eight at once, at full size",
+    "Ten. Green allows up to 10 positions"
+   ],
+   "answer": "A few positions, add as they work",
+   "why": "A few positions, and add more only as the first ones work. Green allows up to 10 positions, but after a correction the first trades tell you whether the turn is real.",
+   "lesson_line": "After a correction, ease back in. Let the first few positions earn the next ones.",
+   "facts": [
+    "h31",
+    "h02",
+    "h26"
+   ],
+   "wrong": {
+    "All eight at once, at full size": "That's full exposure on day one of a new uptrend. If the turn fails, eight stops hit together.",
+    "Ten. Green allows up to 10 positions": "Up to 10 is the ceiling in a healthy Green market, not the opening move after a correction."
+   }
+  },
+  {
+   "key": "q25",
+   "skill": "risk.trade_rules",
+   "rung": 8,
+   "format": "scenario",
+   "house": true,
+   "story": "You've had three winners this week. Today you're tired and still angry after an argument at home. An A setup is triggering.",
+   "q": "What do you do?",
+   "choices": [
+    "No new trades today",
+    "Take it. The setup is an A",
+    "Take it at double size. You're hot"
+   ],
+   "answer": "No new trades today",
+   "why": "No new trades today. Tired, sick, angry or distracted means no new trades. The setup doesn't care how you feel, but your execution does. Cash is a position.",
+   "lesson_line": "Tired, sick, angry or distracted: sit on hands. The setup will have cousins.",
+   "facts": [
+    "h30",
+    "h28",
+    "h27"
+   ],
+   "wrong": {
+    "Take it. The setup is an A": "An A setup run by a distracted trader is a coin flip on execution. No setup, no trade; and no clear head, no trade either.",
+    "Take it at double size. You're hot": "Never raise risk past the rules after a run of winners. Three winners don't change the next trade's odds."
+   }
+  },
+  {
+   "key": "q26",
+   "skill": "risk.trade_rules",
+   "rung": 9,
+   "format": "mcq",
+   "house": true,
+   "q": "Which of these breaks a hard rule, not a guide?",
+   "choices": [
+    "A long below the 200-day, no burst",
+    "Six positions in Yellow, half size",
+    "A B setup at normal size in Green",
+    "A short below the 200-day in Red"
+   ],
+   "answer": "A long below the 200-day, no burst",
+   "why": "The long under the 200-day. That's our hard rule. What the market reading changes, how many positions and which grades, is a guide that varies. The 200-day line is not.",
+   "lesson_line": "Guides bend with the market. The 200-day line does not.",
+   "facts": [
+    "h05",
+    "h07",
+    "h03",
+    "h02",
+    "h04"
+   ],
+   "wrong": {
+    "Six positions in Yellow, half size": "Yellow means smaller and fewer, a guide. Six positions can fit it.",
+    "A B setup at normal size in Green": "Green allows full risk per grade, and a B setup gets normal size. Nothing broken.",
+    "A short below the 200-day in Red": "That's exactly where our shorts belong: below the 200-day, in a Red market."
+   }
+  },
+  {
+   "key": "q27",
+   "skill": "risk.trade_rules",
+   "rung": 9,
+   "format": "scenario",
+   "house": true,
+   "story": "You were stopped out of a stock on Monday. On Wednesday it sets up again: a fresh pivot and a clean low to risk against.",
+   "q": "Can you trade it again, and how?",
+   "choices": [
+    "Take it as a new trade, own stop",
+    "Skip it. It already stopped you out",
+    "Buy without a stop; it keeps shaking you"
+   ],
+   "answer": "Take it as a new trade, own stop",
+   "why": "Take it as a new trade. After a stop-out, buy again only if the setup triggers again, with its own stop and every rule. The last trade's loss has nothing to do with this one.",
+   "lesson_line": "A stop-out closes a trade, not a stock. A fresh trigger is a fresh trade.",
+   "facts": [
+    "h21",
+    "h20",
+    "h22"
+   ],
+   "wrong": {
+    "Skip it. It already stopped you out": "The stock didn't do anything to you. If the setup triggers again, it's a new trade by the same rules.",
+    "Buy without a stop; it keeps shaking you": "Every position has a real stop order with the broker. A shake-out is the cost of the stop, not a reason to drop it."
+   }
+  },
+  {
+   "key": "q28",
+   "skill": "risk.trade_rules",
+   "rung": 9,
+   "format": "mcq",
+   "house": true,
+   "q": "Which set of numbers belongs in our monthly review?",
+   "choices": [
+    "Win rate, average R, expectancy",
+    "Dollar profit for the month only",
+    "Number of trades and biggest winner",
+    "The index's return that month"
+   ],
+   "answer": "Win rate, average R, expectancy",
+   "why": "Win rate, average win and loss in R, and expectancy. Expectancy is what you make per dollar risked, on average: the mean R of your trades. Dollars alone can't tell you whether the process is working.",
+   "lesson_line": "Each month: win rate, average win and loss in R, expectancy. Process numbers, not just dollars.",
+   "facts": [
+    "h33",
+    "f20",
+    "f31",
+    "f21"
+   ],
+   "wrong": {
+    "Dollar profit for the month only": "A good month in dollars can hide a bad process. A journal keeps you on process, not P/L.",
+    "Number of trades and biggest winner": "One big winner says nothing about the average trade. Expectancy does.",
+    "The index's return that month": "Useful context, but it doesn't measure your trading. The review is about your numbers."
+   }
+  }
+ ],
+ "conflicts": [
+  "Chase zone: IBD teaches a 5% buy zone above the buy point (s16, the article's title and f27). Our rule is 4% (C28, 'make it 4%'). The unit keys 4% as ours (q03, q08, q12) and cites IBD only for why chasing hurts (the further past the buy point, the greater the risk of being shaken out), never for the number.",
+  "Time of day: many teachers avoid the first 15 or 30 minutes of the session. We have no time-of-day rule (C30, 'no'), so no question keys one; q10 says so. News days: common teaching avoids new buys on Fed and CPI days. We have no news-day rule (C32); q10 keys that as False.",
+  "Tension inside the rulebook for the owner: D41 wants a real stop order with the broker, and B20 wants the first 30-minute low of a gap-down day to define the new stop. A resting broker stop becomes a market order once the stop price is reached (FINRA, f01) and so would fill at or near the open on a gap through it, before any 30-minute bar exists. Applying B20 therefore needs either a pre-market read of the gap and the broker stop pulled before the open, or a stop the broker will not fire at the open. q17 asks only what the rule says the new stop is; q18 asks the 2R ceiling price. The owner should say how he handles the broker stop on a gap morning before this unit goes live.",
+  "Parabolic: the owner pointed to Bracco's post for the definition (B26). The post is a PUBLIC Substack article (Tier 3, UCT) and is quoted in short pieces (b01-b06). The post has no parabolic long; the rulebook records the long as the mirror image, a burst down (h09), so q13 uses 'a burst down' and no question keys a parabolic long's own criteria. Bracco's criteria say 'two out of three days of range expansion' and 'two days of volume expansion'; the rulebook's summary (h08) matches. q22's story checks every box on purpose so the key is not a judgment call; Bracco himself says not every box needs to be checked (b05).",
+  "RS rating: the rule (C31) uses IBD's term 'RS rating' and the number 80. IBD's own page defining the Relative Strength Rating (1 to 99 scale) was not read by this writer (investors.com refused the WebFetch), so the unit does not define the rating's scale anywhere and no question keys it. Relative strength as an idea (a stock's price change against a benchmark) is supported by StockCharts (f14) and Fidelity (f15), both fetched 2026-11-09. The cold checker could add IBD's definition if it can reach the page.",
+  "Fetching, 2026-11-09: this writer's WebFetch tool was refused by Investopedia, investors.com, Investor.gov and Schwab (and the Internet Archive route was refused too), so the quotes from s13 (Investor.gov market order, f22-f23), s14 (Investopedia swing trading, f24), s15 (Schwab swing trading, f25-f26), s16 (IBD buy zone, f27-f28), s17 (IBD market direction, f29-f30) and s18 (Investopedia win rate, f31) were copied verbatim from facts a checker already passed in sister units (F10.01, F11.01, F11.04, F12.07, F8.02, F1.02, F9.03). The repo's own quote checker (python -m scripts.study.check_course_quotes, its plain client) then reached every page and reported all 31 outside quotes found, 0 missing, 0 unreachable, on 2026-11-09. Those six sources support house keys only, never a key alone. Fetched and read in context by the writer today: s1-s4 (FINRA, NYSE), s5-s7 (StockCharts), s8-s10 (Fidelity), s11 (Van Tharp), s12 (Steenbarger), b1 (Bracco). The cold checker still opens every page.",
+  "FINRA's extended-hours page (s2): WebFetch confirmed the content of f03, f04 and f05 but returned the long sentences in pieces; the exact wording is the one F1.05 and F12.02 carry, which their checkers confirmed. Fidelity's managing-positions page (s10): f19's content confirmed today, wording as F9.01 f28 (checker confirmed). Fidelity's exit-strategies page (s9): f18's first clause confirmed today, full wording as F12.01 f41.",
+  "F65 says 'Red, mostly cash and shorts' and D46 adds 'below the 200-day'; the unit always says shorts below the 200-day (h04). A10 and B18 both say the reading's effects are guides, not hard caps; q14 and q26 keep that distinction (Orange = A+ only is a guide we follow; the 200-day line is the hard rule). The owner may want Orange's 'only A+ setups' treated as firm; q14 keys 'pass' either way.",
+  "Not taught here, on purpose: E56 (3 tries a week, 6 a month on one stock) is another unit's; q27 keys B21 only. A5's 'no adding' is referenced in F68's wording but no question here asks about adding to a position. B19/E51 trims and E52 trails are F9.06's. D47's parabolic-short stop (above the day's high) and 9-day target are not quizzed; Bracco's 9EMA target line was fetched but is not needed for any key.",
+  "Voice: 'the owner' is never named in a member-facing field (F12.01's checker ruling); house facts' claims say 'our rule' or 'in his words'. 'Regime' is never used; the reading is Green, Yellow, Orange, Red throughout.",
+  "Cold check 2026-11-09: 35 section-9 quotes checked by script, one not verbatim (h16 closed the parenthesis early; trimmed to the rule sentence); b01-b06 confirmed on the live Substack page and the saved copy; all 31 outside quotes found by the quote checker. Changes: q02 why no longer says 'most of our rules are guides'; q10 now asks about the rule, not our behaviour; q22 why adds Bracco's timing caution; q04's Green note softened; h06 claim no longer says 'in his words'. Left fix: q17 (B20 vs a resting broker stop, the owner's call)."
+ ],
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "h01-h04 verbatim (B18, F65, A10, D46); IBD f29 confirmed by the quote checker. Steps 22 words or fewer. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, B18, F65, A10, D46); awaiting cold check"
+  },
+  "w2": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "h05, h07, h08, h10, h12 verbatim (B26, C28, C29); b01 verbatim on Bracco's live page (opened today); StockCharts f09-f11 confirmed. The burst summary matches Bracco's five criteria. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, B26, C28, C29); awaiting cold check"
+  },
+  "w3": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "All eight house quotes verbatim (D39, F64, E57, E58, D41, B22, C33, B27). h16's quote closed its parenthesis early ('(\"33, yes.\")' where section 9 reads '(\"33, yes.\"; ...'), so it was not verbatim; cut back to the rule sentence itself, which is. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, D39, F64, E57, E58, D41, B22, C33, B27); awaiting cold check"
+  },
+  "q01": {"status": "pass", "by": "checker", "fixed": false, "notes": "house quote verbatim in sizing_rule.md section 9 (checked by script, 40 words or fewer), claim matches, key follows, every wrong choice is really wrong, voice limits hold. B18 and F65; IBD's 3 of 4 (f29) confirmed. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, B18, F65); awaiting cold check variety rewrite checked 2026-11-10: shortened one wrong choice: the wrong choice was the unique longest on 8 of the 9 edited questions (inverted tell). Note: yes/no choices put the right answer alone in its polarity, inherent to the ask."},
+  "q02": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Key true on B26 ('200SMA is hardened rule yes'). The why said 'Most of our rules are guides', which overstates A10 (only the market-reading effects and total open risk are guides); now 'What the market reading changes is a guide; this line is a hard rule.' Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, B26); awaiting cold check"
+  },
+  "q03": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "house quote verbatim in sizing_rule.md section 9 (checked by script, 40 words or fewer), claim matches, key follows, every wrong choice is really wrong, voice limits hold. C28 'make it 4%'; IBD's 5% is in the bank as a real miss (conflicts). Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, C28); awaiting cold check"
+  },
+  "q04": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "B26 and D46 verbatim. The 'Green only' note said shorts are 'the Red-market tool', a touch strong since a short below the 200-day is allowed in any reading; now 'Green is for longs. Shorts come in when the market is Red'. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, B26, D46); awaiting cold check"
+  },
+  "q05": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "house quote verbatim in sizing_rule.md section 9 (checked by script, 40 words or fewer), claim matches, key follows, every wrong choice is really wrong, voice limits hold. B22 'only hold if up 5R'; FINRA earnings lines (f07, f08) and Fidelity's gap line (f16) confirmed. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, B22); awaiting cold check"
+  },
+  "q06": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "General item: FINRA f01/f02 (Tier 1) and Fidelity f16 confirmed; a stop is a market order once reached. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, outside facts only, FINRA and Fidelity); awaiting cold check"
+  },
+  "q07": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "house quote verbatim in sizing_rule.md section 9 (checked by script, 40 words or fewer), claim matches, key follows, every wrong choice is really wrong, voice limits hold. E57 and D41; Investor.gov market-order lines (f22, f23) confirmed. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, E57, D41); awaiting cold check"
+  },
+  "q08": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "50 x 1.04 = 52 (calc); C28. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, C28); awaiting cold check"
+  },
+  "q09": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "house quote verbatim in sizing_rule.md section 9 (checked by script, 40 words or fewer), claim matches, key follows, every wrong choice is really wrong, voice limits hold. C31's own exception clause; StockCharts/Fidelity RS lines confirmed. The rating's scale is not defined here and no key needs it. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, C31); awaiting cold check"
+  },
+  "q10": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "C32 and C30 verbatim. The statement was 'We avoid new buys on Fed and CPI days', a claim about behaviour keyed False on a rule he declined with 'generally'; it now asks about the rule itself ('Our rules bar new buys on Fed and CPI days'), which is False without qualification. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, C30, C32); awaiting cold check"
+  },
+  "q11": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "C33 verbatim (h16 quote trimmed, see w3); Fidelity time-exit lines (f17, f18) confirmed. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, C33); awaiting cold check"
+  },
+  "q12": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "6% is past C28's 4% (the story states both prices and the 6%); IBD f27 confirmed. Three real choices. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, C28); awaiting cold check"
+  },
+  "q13": {"status": "pass", "by": "checker", "fixed": false, "notes": "B26 hard rule; the parabolic-long exception rests on the rulebook's own confirmed line (h09, '1, yes.') and the story rules it out ('steady stair-step', which Bracco's post calls linear progression, the opposite of parabolic). The key is No under either description of a parabolic long. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, B26); awaiting cold check variety rewrite checked 2026-11-10: shortened one wrong choice (inverted-tell fix)."},
+  "q14": {"status": "pass", "by": "checker", "fixed": false, "notes": "F65 'Orange, only A+ setups' keyed as 'Pass'; the why says the reading is a guide (A10) and we follow it. Asked as 'What does our rule say?', so the key holds whether the owner later calls Orange firm or a guide. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, F65, A10, C31); awaiting cold check variety rewrite checked 2026-11-10: wrong note no longer claims what Orange does to size (the rule is silent on it)."},
+  "q15": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "(48 - 40) / (40 - 38) = 4R (calc r_multiple); under B22's 5R, so sold before the report. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, B22); awaiting cold check"
+  },
+  "q16": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "house quote verbatim in sizing_rule.md section 9 (checked by script, 40 words or fewer), claim matches, key follows, every wrong choice is really wrong, voice limits hold. A4 with B20 as the one exception. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, A4, B20); awaiting cold check"
+  },
+  "q17": {
+   "status": "fix",
+   "by": "checker",
+   "fixed": false,
+   "notes": "The rule (B20) is quoted verbatim and the arithmetic of the choices is right, but the item cannot be taught as written: D41 puts a real stop order with the broker, and FINRA (f01, f02) says a stop becomes a market order once reached, so on a $43 open through a $46 stop the member is filled near the open, before a 30-minute bar exists. The 'wrong' choice '$43, the opening print' is what actually happens to a member who follows D41. Owner: how do you run B20 with a broker stop on a gap morning (pull it pre-market, a stop-limit, or no broker stop on gap days)? Then rewrite the story to say so. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, B20); awaiting cold check"
+  },
+  "q18": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "60 - 2 x 3 = 54 (calc); G70's 2R ceiling verbatim in B20. Pure arithmetic on the rule, so it stands whatever the owner decides about the broker stop in q17. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, B20); awaiting cold check"
+  },
+  "q19": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "house quote verbatim in sizing_rule.md section 9 (checked by script, 40 words or fewer), claim matches, key follows, every wrong choice is really wrong, voice limits hold. C33; 11 trading days and 0.4R are in the story; Fidelity f17/f18 confirmed. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, C33); awaiting cold check"
+  },
+  "q20": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "house quote verbatim in sizing_rule.md section 9 (checked by script, 40 words or fewer), claim matches, key follows, every wrong choice is really wrong, voice limits hold. F66, D39, D44 verbatim. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, F66, D39, D44); awaiting cold check"
+  },
+  "q21": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "house quote verbatim in sizing_rule.md section 9 (checked by script, 40 words or fewer), claim matches, key follows, every wrong choice is really wrong, voice limits hold. D45 verbatim. F9.08 q25 tests the same rule as a scenario; course_dups finds no pair at 0.8. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, D45); awaiting cold check"
+  },
+  "q22": {"status": "pass", "by": "checker", "fixed": true, "notes": "B26's parabolic-short exception and C31's; b01-b06 verbatim on Bracco's live page (opened today) and in the saved copy. The story checks every box so the key is not a grading call. Added one sentence to the why so 'can be shorted' is not read as 'short it now': Bracco waits for the intraday turn (b06, too early is a recipe for disaster). Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, B26); awaiting cold check variety rewrite checked 2026-11-10: dropped the hedge word 'surely' from a wrong choice."},
+  "q23": {"status": "pass", "by": "checker", "fixed": false, "notes": "house quote verbatim in sizing_rule.md section 9 (checked by script, 40 words or fewer), claim matches, key follows, every wrong choice is really wrong, voice limits hold. E58; FINRA hours (f03-f05) and NYSE f06 confirmed. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, E58); awaiting cold check variety rewrite checked 2026-11-10: shortened one wrong choice (inverted-tell fix)."},
+  "q24": {"status": "pass", "by": "checker", "fixed": false, "notes": "house quote verbatim in sizing_rule.md section 9 (checked by script, 40 words or fewer), claim matches, key follows, every wrong choice is really wrong, voice limits hold. F68 verbatim, with F65's 'up to 10' as the ceiling. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, F68, F65, F64); awaiting cold check variety rewrite checked 2026-11-10"},
+  "q25": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "house quote verbatim in sizing_rule.md section 9 (checked by script, 40 words or fewer), claim matches, key follows, every wrong choice is really wrong, voice limits hold. F67, D45, D44 verbatim. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, F67, D45, D44); awaiting cold check"
+  },
+  "q26": {"status": "pass", "by": "checker", "fixed": false, "notes": "B26 is the one hard rule among the four choices (A10 makes the reading's effects guides). Correct as asked; the question does not claim the 200-day is our only hard rule. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, B26, A10, F65, D46); awaiting cold check variety rewrite checked 2026-11-10"},
+  "q27": {"status": "pass", "by": "checker", "fixed": false, "notes": "house quote verbatim in sizing_rule.md section 9 (checked by script, 40 words or fewer), claim matches, key follows, every wrong choice is really wrong, voice limits hold. B21 verbatim; a second try in the week is inside E56. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, B21, A4, D41); awaiting cold check variety rewrite checked 2026-11-10"},
+  "q28": {"status": "pass", "by": "checker", "fixed": false, "notes": "house quote verbatim in sizing_rule.md section 9 (checked by script, 40 words or fewer), claim matches, key follows, every wrong choice is really wrong, voice limits hold. E59; Van Tharp expectancy (f20), Investopedia win rate (f31) and Steenbarger (f21) confirmed. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, E59, B27); awaiting cold check variety rewrite checked 2026-11-10"}
+ }
+}

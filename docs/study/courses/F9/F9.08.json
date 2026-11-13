@@ -1,0 +1,1202 @@
+{
+ "unit": "F9.08",
+ "track": "F9",
+ "title": "Our account rules: size, caps and grades",
+ "teaches": "Our sizing rules as one list: shares come from the account, the risk percent and the stop, rounded down, then the smaller of that and the 40% cap, bought at one price with one stop; the setup's grade picks the risk (A+ 1% to 1.5%, A and B 0.5% to 1%, B- or lower 0.25% to 0.5%, new traders 0.25%); we trade stocks at $10 or more doing $20 million a day, never over 1% of a stock's volume; the book runs to 100% of the account, or 200% on margin only when our market reading is Green; 2x and 3x ETFs are preferred; the same stock gets 3 tries a week and 6 a month; and the account is recalculated weekly or monthly.",
+ "skills": [
+  {
+   "id": "risk.our_rules",
+   "title": "Our account rules: size, caps and grades"
+  }
+ ],
+ "as_of": "2026-11-09",
+ "sources": [
+  {
+   "id": "h1",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
+   "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s1",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Margin Account (Investor.gov glossary)",
+   "url": "https://www.investor.gov/introduction-investing/investing-basics/glossary/margin-account",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s2",
+   "tier": 1,
+   "publisher": "FINRA",
+   "title": "Stop Orders: Factors to Consider During Volatile Markets",
+   "url": "https://www.finra.org/investors/insights/stop-orders-factors-consider-during-volatile-markets",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s3",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Liquidity (or Marketability) (Investor.gov glossary)",
+   "url": "https://www.investor.gov/introduction-investing/investing-basics/glossary/liquidity-or-marketability",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s4",
+   "tier": 2,
+   "publisher": "Fidelity Investments",
+   "title": "ETF trading tips (Fidelity Viewpoints, as of May 4, 2026)",
+   "url": "https://www.fidelity.com/viewpoints/active-investor/etf-trading-tips",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s5",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Updated Investor Bulletin: Leveraged and Inverse ETFs",
+   "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-alerts/sec",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s6",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Leveraged Investing Strategies: Know the Risks Before Using These Advanced Investment Tools (Investor Bulletin)",
+   "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins/leveraged-investing-strategies-know-risks-using-these-advanced-investment-tools",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s7",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Master Position Sizing: Minimize Risk and Boost Investment Returns (James Chen, updated 2026-07-01)",
+   "url": "https://www.investopedia.com/terms/p/positionsizing.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s8",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "5 Elements of a Smart Trade Plan (2024-10-23)",
+   "url": "https://www.schwab.com/learn/story/5-elements-smart-trade-plan",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s9",
+   "tier": 2,
+   "publisher": "Van Tharp Institute",
+   "title": "Tharp Think Trading Concepts: The Gifts of Dr. Van K Tharp (2024)",
+   "url": "https://vantharp.com/tharp-think-trading-concepts/",
+   "accessed": "2026-11-09",
+   "why_reliable": "The Van Tharp Institute's own page setting out Dr. Van K. Tharp's position-sizing teaching (Ph.D. in psychology, decades as a trading coach, author of The Definitive Guide to Position Sizing, interviewed in Schwager's Market Wizards). F9.01 files it under the contract's 'named author with a known record' clause; used here only for 'start small' and 'size from the growing account', never for a key on its own."
+  }
+ ],
+ "facts": [
+  {
+   "id": "h01",
+   "source": "h1",
+   "quote": "Shares = account × risk % ÷ (entry − stop), rounded down, then capped: the size is the SMALLER of the risk-based size and the position cap (A7, or the ladder's cap in a drawdown, A8).",
+   "claim": "Our rule: shares are the account times the risk percent, divided by entry minus stop, rounded down, then the smaller of that and the position cap."
+  },
+  {
+   "id": "h02",
+   "source": "h1",
+   "quote": "The full size at one price with one stop; no adding.",
+   "claim": "Our rule: buy the full position at one price with one stop; never scale in or add."
+  },
+  {
+   "id": "h03",
+   "source": "h1",
+   "quote": "A7. Max position 40% of the account (raised from 20-25% on 2026-11-09: \"RAISE THE CAP TO 40% ACTUALLY. ESPECIALLY WITH EARLY TRIMS AT 3-5R THAT IS FINE.\").",
+   "claim": "Our max position is 40% of the account, raised on 2026-11-09 from the old 20% to 25%."
+  },
+  {
+   "id": "h04",
+   "source": "h1",
+   "quote": "A tight stop never justifies a bigger position than that: a gap can jump the stop.",
+   "claim": "A tight stop never earns a position above the cap, because a gap can jump the stop."
+  },
+  {
+   "id": "h05",
+   "source": "h1",
+   "quote": "All positions together: up to 200% of the account in a Green market (margin, B24, F60), up to 100% otherwise; so a full book of 10 averages about 20% a position.",
+   "claim": "The whole book can reach 200% of the account in a Green market on margin, 100% otherwise, so ten full positions average about 20% each."
+  },
+  {
+   "id": "h06",
+   "source": "h1",
+   "quote": "\"I almost never take a loss greater than 3%\": the stop usually sits within about 3% of the buy (a loss on the position, not the account).",
+   "claim": "Our stop usually sits within about 3% of the buy price; that 3% is a loss on the position, not the account."
+  },
+  {
+   "id": "h07",
+   "source": "h1",
+   "quote": "Setup grades set the size: A and B setups at normal size; A+ sized up; B- or lower sized down.",
+   "claim": "The setup's grade sets the size: A and B normal, A+ bigger, B- or lower smaller."
+  },
+  {
+   "id": "h08",
+   "source": "h1",
+   "quote": "Risk by grade: A+ 1% to 1.5%; A and B 0.5% to 1%; B- or lower 0.25% to 0.5%.",
+   "claim": "Risk by grade: A+ 1% to 1.5% of the account, A and B 0.5% to 1%, B- or lower 0.25% to 0.5%."
+  },
+  {
+   "id": "h09",
+   "source": "h1",
+   "quote": "Grading a setup (A+, A, B, B-) is discretionary and hard to define; no fixed checklist is taught as ours.",
+   "claim": "Grading a setup is a judgment call; we teach no fixed checklist."
+  },
+  {
+   "id": "h10",
+   "source": "h1",
+   "quote": "New traders start at 0.25% risk per trade until 50 journaled trades followed the rules, then size up.",
+   "claim": "New traders risk 0.25% a trade until 50 journaled trades have followed the rules."
+  },
+  {
+   "id": "h11",
+   "source": "h1",
+   "quote": "Trade only stocks at $10 or more that trade at least $20 million a day.",
+   "claim": "We trade only stocks priced $10 or more that trade at least $20 million a day."
+  },
+  {
+   "id": "h12",
+   "source": "h1",
+   "quote": "Never own more than 1% of a stock's average daily volume; illiquid stocks are not even watched.",
+   "claim": "Never own more than 1% of a stock's average daily volume; illiquid stocks are not watched at all."
+  },
+  {
+   "id": "h13",
+   "source": "h1",
+   "quote": "Margin: total long positions up to 200% of the account. Risk per trade is still a percent of the account.",
+   "claim": "On margin the long book can reach 200% of the account, but risk per trade is still a percent of the account."
+  },
+  {
+   "id": "h14",
+   "source": "h1",
+   "quote": "Margin (up to 200%, B24) is used only in a Green market.",
+   "claim": "Margin is used only when our market reading is Green."
+  },
+  {
+   "id": "h15",
+   "source": "h1",
+   "quote": "Leveraged ETFs are preferred; no extra rules.",
+   "claim": "2x and 3x ETFs are preferred under our rules, with no extra rules for them."
+  },
+  {
+   "id": "h16",
+   "source": "h1",
+   "quote": "The same stock: at most 3 tries in a week and 6 in a month.",
+   "claim": "The same stock gets at most 3 tries in a week and 6 in a month."
+  },
+  {
+   "id": "h17",
+   "source": "h1",
+   "quote": "Recalculate the account value weekly or monthly and size every trade from it.",
+   "claim": "Recalculate the account value weekly or monthly and size every trade from that number."
+  },
+  {
+   "id": "h18",
+   "source": "h1",
+   "quote": "Risking the same percent on every trade is also fine: pick one way and write it in the plan.",
+   "claim": "A flat risk percent on every trade is also fine; pick one way and write it in your plan."
+  },
+  {
+   "id": "h19",
+   "source": "h1",
+   "quote": "Under 1% is normal; 1.5% is the most any grade uses (E49); 2% is the absolute ceiling.",
+   "claim": "Under 1% risk is normal, 1.5% is the most any grade uses, and 2% is the absolute ceiling."
+  },
+  {
+   "id": "h20",
+   "source": "h1",
+   "quote": "Never raise risk past the rules after a run of winners.",
+   "claim": "A run of winners never raises your risk past the rules."
+  },
+  {
+   "id": "h21",
+   "source": "h1",
+   "quote": "Stop first (by default a few cents under the day's low or the prior day's low, F62); the size comes from the stop; if the honest stop does not fit the risk, skip the trade.",
+   "claim": "Stop first, a few cents under the day's low or the prior day's low; size comes from the stop; if the honest stop does not fit the risk, skip."
+  },
+  {
+   "id": "h22",
+   "source": "h1",
+   "quote": "A market filter decides when the account trades: the app's market reading (Green, Yellow, Orange, Red).",
+   "claim": "The app's market reading (Green, Yellow, Orange, Red) is our market filter."
+  },
+  {
+   "id": "f01",
+   "source": "s1",
+   "quote": "A “margin account” is a type of brokerage account in which the broker-dealer lends the investor cash, using the account as collateral, to purchase securities.",
+   "claim": "In a margin account the broker lends you cash against the account to buy securities."
+  },
+  {
+   "id": "f02",
+   "source": "s1",
+   "quote": "Margin increases investors’ purchasing power, but also exposes investors to the potential for larger losses.",
+   "claim": "Margin raises your buying power and your possible losses."
+  },
+  {
+   "id": "f03",
+   "source": "s2",
+   "quote": "A stop order becomes a market order once the stop price is reached. The price you receive upon execution, though, could be markedly different than your stop price.",
+   "claim": "Once triggered, a stop is a market order and can fill far from the stop price."
+  },
+  {
+   "id": "f04",
+   "source": "s3",
+   "quote": "A stock’s liquidity generally refers to how rapidly shares of a stock can be bought or sold without substantially impacting the stock price.",
+   "claim": "A stock's liquidity is how fast its shares can be bought or sold without moving the price much."
+  },
+  {
+   "id": "f05",
+   "source": "s3",
+   "quote": "Stocks with low liquidity may be difficult to sell and may cause you to take a bigger loss if you cannot sell the shares when you want to.",
+   "claim": "A stock with low liquidity can be hard to sell and can hand you a bigger loss."
+  },
+  {
+   "id": "f06",
+   "source": "s4",
+   "quote": "Limit orders are a particularly valuable tool for trading thinly traded securities, where even small orders have the potential to represent a high percentage of an ETF's average daily volume and, as a result, impact the prevailing market price.",
+   "claim": "In a thinly traded security, even a small order can be a large share of average daily volume and move the price."
+  },
+  {
+   "id": "f07",
+   "source": "s5",
+   "quote": "Leveraged ETFs seek to deliver multiples of the daily performance of the index or benchmark they track.",
+   "claim": "A 2x or 3x ETF aims for a multiple of its index's daily move."
+  },
+  {
+   "id": "f08",
+   "source": "s6",
+   "quote": "For example, a 2x leveraged S&P 500 ETF seeks to deliver twice the investment return of the S&P 500 Index. This also means that this ETF will lose 2% for every 1% loss in the index.",
+   "claim": "A 2x S&P 500 ETF loses 2% for every 1% the index loses."
+  },
+  {
+   "id": "f09",
+   "source": "s7",
+   "quote": "To determine the correct position size from this information, the investor simply needs to divide the account risk ($500) by the trade risk ($20). This means 25 shares can be bought ($500 / $20).",
+   "claim": "Shares come from dividing the dollars you will risk by the risk per share: $500 over $20 is 25 shares."
+  },
+  {
+   "id": "f10",
+   "source": "s8",
+   "quote": "For a general rule, some traders may risk up to 1%–2% of their account on a single trade and allocate up to 5%–10% of their portfolio in any single position.",
+   "claim": "Schwab's general rule: risk 1% to 2% a trade and put 5% to 10% of the portfolio in one position."
+  },
+  {
+   "id": "f11",
+   "source": "s9",
+   "quote": "It’s best to start small (very small) and minimize the “tuition paid” to learn the new strategy.",
+   "claim": "Start very small to keep the cost of learning low."
+  },
+  {
+   "id": "f12",
+   "source": "s9",
+   "quote": "You can risk more as your portfolio gets bigger, but you only risk 1% of your total portfolio on any one idea.",
+   "claim": "With a fixed percent, dollar risk grows with the account while the percent stays the same."
+  }
+ ],
+ "walkthroughs": [
+  {
+   "key": "w1",
+   "title": "Size from the stop, then cap it",
+   "steps": [
+    "Stop first. Then shares = account × risk % ÷ (entry − stop), rounded down.",
+    "Then the cap. The size is the SMALLER of that and 40% of the account.",
+    "A tight stop never earns more than the cap. A gap can jump any stop.",
+    "Buy the full size at one price with one stop. No scaling in, no adding."
+   ],
+   "facts": [
+    "h21",
+    "h01",
+    "h03",
+    "h04",
+    "h02",
+    "f09",
+    "f03"
+   ]
+  },
+  {
+   "key": "w2",
+   "title": "The grade sets the risk",
+   "steps": [
+    "Grade the setup first: A+, A, B, B- or lower. That's a judgment call. We teach no checklist for it.",
+    "A+ risks 1% to 1.5% of the account. A and B, 0.5% to 1%. B- or lower, 0.25% to 0.5%.",
+    "2% is the absolute ceiling. New traders start at 0.25% a trade until 50 journaled trades followed the rules.",
+    "Risking the same percent every trade is fine too. Pick one way and write it in your plan."
+   ],
+   "facts": [
+    "h09",
+    "h07",
+    "h08",
+    "h19",
+    "h10",
+    "h18",
+    "f11"
+   ]
+  },
+  {
+   "key": "w3",
+   "title": "What we trade, and how much of it",
+   "steps": [
+    "Stocks at $10 or more, trading at least $20 million a day. Never more than 1% of a stock's average daily volume.",
+    "The book: 100% of the account, or 200% on margin in a Green market. At 200%, ten positions average about 20% each.",
+    "2x and 3x ETFs are preferred, no extra rules. The same stock gets 3 tries a week, 6 a month.",
+    "Recalculate the account weekly or monthly and size every trade from it."
+   ],
+   "facts": [
+    "h11",
+    "h12",
+    "h05",
+    "h13",
+    "h14",
+    "h22",
+    "h15",
+    "h16",
+    "h17",
+    "f04",
+    "f01",
+    "f08"
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "key": "q01",
+   "skill": "risk.our_rules",
+   "rung": 1,
+   "format": "mcq",
+   "house": true,
+   "q": "Under our rule, what sets how many shares you buy?",
+   "choices": [
+    "Account × risk % ÷ (entry − stop)",
+    "A fixed share count every trade",
+    "How much you like the setup",
+    "The stock's price alone"
+   ],
+   "answer": "Account × risk % ÷ (entry − stop)",
+   "why": "Account times risk percent, divided by entry minus stop. Round down. Then check it against the cap and take the smaller size.",
+   "lesson_line": "Stop first, then the math: account × risk % ÷ (entry − stop), rounded down, then the cap.",
+   "facts": [
+    "h01",
+    "h21",
+    "f09"
+   ],
+   "wrong": {
+    "A fixed share count every trade": "Same shares every trade means a different risk every trade. The stop distance has to set the count.",
+    "How much you like the setup": "Liking it picks the grade, and the grade picks the risk percent. The share count still comes from the stop.",
+    "The stock's price alone": "Price tells you what a share costs, not what you lose if the stop hits. Entry minus stop does that."
+   }
+  },
+  {
+   "key": "q02",
+   "skill": "risk.our_rules",
+   "rung": 1,
+   "format": "tf",
+   "house": true,
+   "q": "Our max position in one stock is 40% of the account.",
+   "answer": "True",
+   "why": "True. 40% of the account is our max position. It was 20% to 25% until 2026-11-09, when we raised it: early trims at 3R to 5R make 40% fine.",
+   "lesson_line": "One stock, 40% of the account at most. That's the cap, whatever the stop.",
+   "facts": [
+    "h03",
+    "h04"
+   ]
+  },
+  {
+   "key": "q03",
+   "skill": "risk.our_rules",
+   "rung": 2,
+   "format": "fill",
+   "house": true,
+   "q": "Fill in our rule.",
+   "sentence": "Under our rules, an A+ setup risks 1% to ___ of the account.",
+   "bank": [
+    "1.5%",
+    "2%",
+    "3%",
+    "0.5%",
+    "1%"
+   ],
+   "answer": "1.5%",
+   "why": "1.5%. An A+ setup risks 1% to 1.5%. That's the most any grade uses; 2% is the absolute ceiling, not a target.",
+   "lesson_line": "A+ gets 1% to 1.5%. No grade uses more than 1.5%.",
+   "facts": [
+    "h08",
+    "h19"
+   ]
+  },
+  {
+   "key": "q04",
+   "skill": "risk.our_rules",
+   "rung": 2,
+   "format": "mcq",
+   "house": true,
+   "q": "A setup grades B- or lower. What's our risk range for it?",
+   "choices": [
+    "0.25% to 0.5%",
+    "0.5% to 1%",
+    "1% to 1.5%",
+    "No range, we skip B- setups"
+   ],
+   "answer": "0.25% to 0.5%",
+   "why": "0.25% to 0.5%. B- or lower is sized down. A and B are normal size at 0.5% to 1%, and A+ is sized up to 1% to 1.5%.",
+   "lesson_line": "Lower grade, smaller risk. B- or lower gets 0.25% to 0.5%.",
+   "facts": [
+    "h08",
+    "h07"
+   ],
+   "wrong": {
+    "0.5% to 1%": "That's the A and B range, normal size. B- or lower is sized down from there.",
+    "1% to 1.5%": "That's the A+ range, sized up. A B- setup gets the smallest risk, not the biggest.",
+    "No range, we skip B- setups": "B- or lower is sized down, not banned. It gets 0.25% to 0.5%."
+   }
+  },
+  {
+   "key": "q05",
+   "skill": "risk.our_rules",
+   "rung": 2,
+   "format": "tf",
+   "house": true,
+   "q": "A tight stop lets you take a position bigger than our 40% cap.",
+   "answer": "False",
+   "why": "False. A tight stop never justifies a bigger position than the cap. A gap can jump the stop, and a triggered stop is a market order that can fill far from your price.",
+   "lesson_line": "A tight stop changes the share count, never the cap. A gap can jump any stop.",
+   "facts": [
+    "h04",
+    "h03",
+    "f03"
+   ]
+  },
+  {
+   "key": "q06",
+   "skill": "risk.our_rules",
+   "rung": 3,
+   "format": "mcq",
+   "house": true,
+   "q": "We trade stocks at $10 or more. How much do they have to trade each day?",
+   "choices": [
+    "At least $20 million a day",
+    "At least $2 million a day",
+    "At least $200 million a day",
+    "No minimum, the price is enough"
+   ],
+   "answer": "At least $20 million a day",
+   "why": "At least $20 million a day. Price alone isn't enough; a stock has to be easy to get in and out of without moving it.",
+   "lesson_line": "$10 or more, $20 million a day or more. Thin stocks aren't on our list.",
+   "facts": [
+    "h11",
+    "h12",
+    "f04"
+   ],
+   "wrong": {
+    "At least $2 million a day": "Too thin. Our floor is $20 million a day.",
+    "At least $200 million a day": "That's ten times our floor and would cut out plenty of good names. $20 million a day is the rule.",
+    "No minimum, the price is enough": "Price and volume are two tests. A $10 stock that barely trades isn't even watched."
+   }
+  },
+  {
+   "key": "q07",
+   "skill": "risk.our_rules",
+   "rung": 3,
+   "format": "tf",
+   "house": true,
+   "q": "Under our rules, a new trader risks 0.25% a trade until 50 journaled trades have followed the rules.",
+   "answer": "True",
+   "why": "True. New traders start at 0.25% and size up after 50 journaled trades that followed the rules. Start very small and keep the tuition cheap.",
+   "lesson_line": "New trader: 0.25% a trade until 50 journaled trades followed the rules.",
+   "facts": [
+    "h10",
+    "f11"
+   ]
+  },
+  {
+   "key": "q08",
+   "skill": "risk.our_rules",
+   "rung": 3,
+   "format": "mcq",
+   "house": true,
+   "q": "How do we grade a setup A+, A, B or B-?",
+   "choices": [
+    "A judgment call, no set checklist",
+    "A points checklist that adds it up",
+    "By how tight the stop distance is",
+    "By the share price"
+   ],
+   "answer": "A judgment call, no set checklist",
+   "why": "A judgment call, no set checklist. Grading is discretionary and hard to define. The grade then sets the size: A and B normal, A+ up, B- or lower down.",
+   "lesson_line": "Grading is a judgment call. The grade picks the risk; the stop picks the shares.",
+   "facts": [
+    "h09",
+    "h07",
+    "h11"
+   ],
+   "wrong": {
+    "A points checklist that adds it up": "We teach no fixed checklist. The grade is discretionary.",
+    "By how tight the stop distance is": "The stop sets the share count, not the grade. A tight stop doesn't make a setup A+.",
+    "By the share price": "Price decides whether a stock is tradable ($10 or more), not how good the setup is."
+   }
+  },
+  {
+   "key": "q09",
+   "skill": "risk.our_rules",
+   "rung": 4,
+   "format": "numeric",
+   "house": true,
+   "q": "Account $50,000, risk 1%. Entry $40, stop $38. Under our rule, how many shares?",
+   "answer": 250,
+   "calc": {
+    "fn": "shares_from_risk",
+    "args": {
+     "account": 50000,
+     "risk_pct": 1,
+     "entry": 40,
+     "stop": 38
+    }
+   },
+   "suffix": " shares",
+   "why": "250 shares. Take 1% of $50,000 as the dollars at risk and divide by the distance from $40 to $38. Rounded down. That position is well under the 40% cap, so the risk math stands.",
+   "lesson_line": "Dollars at risk divided by the stop distance. Round down. Then check the cap.",
+   "facts": [
+    "h01",
+    "f09",
+    "h03"
+   ]
+  },
+  {
+   "key": "q10",
+   "skill": "risk.our_rules",
+   "rung": 4,
+   "format": "numeric",
+   "house": true,
+   "q": "Account $50,000, risk 1%. Entry $50, stop $49.50. Under our rules, how many shares do you buy?",
+   "answer": 400,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "account * cap / 100 / entry",
+     "account": 50000,
+     "cap": 40,
+     "entry": 50
+    }
+   },
+   "suffix": " shares",
+   "why": "400 shares. The risk math alone would put 100% of the account in one stock. The cap wins: 40% of $50,000, divided by the $50 entry, is 400 shares. You end up risking less than 1%.",
+   "lesson_line": "Risk math, then the cap. The smaller number is your size.",
+   "facts": [
+    "h01",
+    "h03",
+    "h04",
+    "h05"
+   ]
+  },
+  {
+   "key": "q11",
+   "skill": "risk.our_rules",
+   "rung": 4,
+   "format": "numeric",
+   "house": true,
+   "q": "Account $80,000. The setup is an A and you use the top of its range. How many dollars are at risk?",
+   "answer": 800,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "account * pct / 100",
+     "account": 80000,
+     "pct": 1
+    }
+   },
+   "prefix": "$",
+   "why": "$800. An A setup risks 0.5% to 1%, and 1% of $80,000 is $800.",
+   "lesson_line": "The grade picks the percent, the percent picks the dollars.",
+   "facts": [
+    "h08",
+    "f12"
+   ]
+  },
+  {
+   "key": "q12",
+   "skill": "risk.our_rules",
+   "rung": 5,
+   "format": "numeric",
+   "house": true,
+   "q": "A stock trades 4 million shares a day on average. Under our rule, what's the most shares you may own?",
+   "answer": 40000,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "adv * pct / 100",
+     "adv": 4000000,
+     "pct": 1
+    }
+   },
+   "suffix": " shares",
+   "why": "40,000 shares. Never more than 1% of a stock's average daily volume. Own more and your own orders move the price, going in and coming out.",
+   "lesson_line": "Never more than 1% of a stock's average daily volume. Your exit has to fit too.",
+   "facts": [
+    "h12",
+    "f06",
+    "f04"
+   ]
+  },
+  {
+   "key": "q13",
+   "skill": "risk.our_rules",
+   "rung": 5,
+   "format": "scenario",
+   "house": true,
+   "story": "Account $100,000. An A+ setup, so you pick 1.5% risk. Entry $20, stop $19.70, a 1.5% stop. The risk math says $100,000 in the stock.",
+   "q": "How big is the position?",
+   "choices": [
+    "$40,000",
+    "$100,000",
+    "$60,000",
+    "$1,500"
+   ],
+   "answer": "$40,000",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "account * cap / 100",
+     "account": 100000,
+     "cap": 40
+    }
+   },
+   "why": "$40,000. The risk math says 100% of the account; the cap says 40%. The smaller number wins, so you end up risking less than the 1.5% you planned. That's fine.",
+   "lesson_line": "The cap binds before the grade. Size from the stop, then take the smaller number.",
+   "facts": [
+    "h01",
+    "h03",
+    "h04",
+    "h08"
+   ],
+   "wrong": {
+    "$100,000": "That's the risk math with no cap. 100% of the account in one stock is one gap away from a disaster.",
+    "$60,000": "No such rung. The cap is 40% of the account, and nothing above it.",
+    "$1,500": "That's the dollars at risk, 1.5% of $100,000, not the size of the position."
+   }
+  },
+  {
+   "key": "q14",
+   "skill": "risk.our_rules",
+   "rung": 5,
+   "format": "tf",
+   "house": true,
+   "q": "On margin, your risk per trade becomes a percent of your buying power instead of your account.",
+   "answer": "False",
+   "why": "False. Margin lets the whole book reach 200% of the account, but risk per trade is still a percent of the account. Margin raises buying power and the size of possible losses, so the risk rule doesn't move.",
+   "lesson_line": "Margin changes what the book can hold, never what one trade may lose.",
+   "facts": [
+    "h13",
+    "f01",
+    "f02"
+   ]
+  },
+  {
+   "key": "q15",
+   "skill": "risk.our_rules",
+   "rung": 5,
+   "format": "scenario",
+   "house": true,
+   "story": "A friend shows you a B- setup, nothing special. He's risking 1.5% on it, his A+ rate, because he wants a big month.",
+   "q": "What do our rules say about his risk?",
+   "choices": [
+    "Cut it to 0.25% to 0.5%",
+    "1.5% is fine, risk is risk",
+    "Skip it, B- is no trade",
+    "Raise it to 2%, the ceiling"
+   ],
+   "answer": "Cut it to 0.25% to 0.5%",
+   "why": "Cut it to 0.25% to 0.5%. A B- setup is sized down. The 1% to 1.5% range is for A+ setups, and wanting a big month doesn't raise a grade.",
+   "lesson_line": "The grade picks the risk, not the mood. B- gets 0.25% to 0.5%.",
+   "facts": [
+    "h08",
+    "h07",
+    "h19"
+   ],
+   "wrong": {
+    "1.5% is fine, risk is risk": "1.5% is the A+ range. A B- setup at an A+ rate is our grade ladder upside down.",
+    "Skip it, B- is no trade": "B- or lower is sized down, not banned. Small is the answer, not zero.",
+    "Raise it to 2%, the ceiling": "2% is the absolute ceiling, and no grade uses it. 1.5% is the most any grade gets, and only A+."
+   }
+  },
+  {
+   "key": "q16",
+   "skill": "risk.our_rules",
+   "rung": 6,
+   "format": "numeric",
+   "house": true,
+   "q": "Account $60,000. Our market reading is Green, so margin is allowed. What's the most all your positions together can be worth?",
+   "answer": 120000,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "account * pct / 100",
+     "account": 60000,
+     "pct": 200
+    }
+   },
+   "prefix": "$",
+   "why": "$120,000. In a Green market the book can run to 200% of the account on margin. In any other market the limit is 100%, the account itself.",
+   "lesson_line": "Green market: the book can reach 200% on margin. Otherwise 100%.",
+   "facts": [
+    "h05",
+    "h13",
+    "h14",
+    "f01"
+   ]
+  },
+  {
+   "key": "q17",
+   "skill": "risk.our_rules",
+   "rung": 6,
+   "format": "mcq",
+   "house": true,
+   "q": "A full book of 10 positions at 200% of the account. About how big is the average position?",
+   "choices": [
+    "About 20% of the account",
+    "About 10% of the account",
+    "About 40% of the account",
+    "About 2% of the account"
+   ],
+   "answer": "About 20% of the account",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "book / n",
+     "book": 200,
+     "n": 10
+    }
+   },
+   "why": "About 20% of the account. 200% spread over 10 names averages 20% each, well under the 40% cap on any one of them.",
+   "lesson_line": "Ten positions at a 200% book average about 20% each. The 40% cap is for one.",
+   "facts": [
+    "h05",
+    "h03"
+   ],
+   "wrong": {
+    "About 10% of the account": "That's 100% over 10 names, the book without margin. In a Green market on margin it's 200%.",
+    "About 40% of the account": "40% is the cap on one position. Ten of those would be twice what the book allows.",
+    "About 2% of the account": "2% is the risk ceiling, a different number. Position size is how much you own, not how much you can lose."
+   }
+  },
+  {
+   "key": "q18",
+   "skill": "risk.our_rules",
+   "rung": 7,
+   "format": "scenario",
+   "house": true,
+   "story": "You've been stopped out of the same stock three times this week. On Thursday it sets up again, cleaner than ever.",
+   "q": "Do you take the trade?",
+   "choices": [
+    "Pass. Three tries a week, done",
+    "Take it, the setup is cleaner now",
+    "Take it at half size",
+    "Take it with a wider stop to fit"
+   ],
+   "answer": "Pass. Three tries a week, done",
+   "why": "Pass. The same stock gets at most 3 tries in a week and 6 in a month. You've used the week's three. If it's still setting up next week, it's a new trade with its own stop.",
+   "lesson_line": "Same stock: 3 tries a week, 6 a month. The fourth try waits.",
+   "facts": [
+    "h16"
+   ],
+   "wrong": {
+    "Take it, the setup is cleaner now": "It looked clean the first three times too. The limit exists for exactly this moment.",
+    "Take it at half size": "Half size is still a fourth try. The rule counts tries, not shares.",
+    "Take it with a wider stop to fit": "A wider stop changes the share count, not the count of tries. And the stop sits where the setup fails, not where it's comfortable."
+   }
+  },
+  {
+   "key": "q19",
+   "skill": "risk.our_rules",
+   "rung": 7,
+   "format": "scenario",
+   "house": true,
+   "story": "A small stock looks perfect: a tight base and a clean pivot. It trades at $14 and about $8 million a day.",
+   "q": "Is it a trade by our rules?",
+   "choices": [
+    "No, it doesn't trade enough",
+    "Yes, the price clears $10",
+    "Yes, at a much smaller size",
+    "Yes, if you use a limit order"
+   ],
+   "answer": "No, it doesn't trade enough",
+   "why": "No. We trade stocks that do at least $20 million a day. At $8 million it isn't even on the watchlist, and clearing $10 doesn't save it. A thin stock can be hard to sell and hand you a bigger loss.",
+   "lesson_line": "Both tests, every time: $10 or more, and $20 million a day or more.",
+   "facts": [
+    "h11",
+    "h12",
+    "f05",
+    "f04"
+   ],
+   "wrong": {
+    "Yes, the price clears $10": "Price is one test. Volume is the other, and $8 million a day fails it.",
+    "Yes, at a much smaller size": "Size doesn't fix thin trading. Under $20 million a day, the stock isn't watched at all.",
+    "Yes, if you use a limit order": "A limit order helps in a thin stock, but our rule keeps thin stocks off the list entirely."
+   }
+  },
+  {
+   "key": "q20",
+   "skill": "risk.our_rules",
+   "rung": 7,
+   "format": "tf",
+   "house": true,
+   "q": "2x and 3x ETFs are off limits under our rules.",
+   "answer": "False",
+   "why": "False. They're preferred under our rules, with no extra rules. Know what they are: a 2x fund aims for twice the index's daily move, so it loses 2% for every 1% the index loses. Same stop, same math.",
+   "lesson_line": "2x and 3x ETFs are preferred here. The move doubles or triples, so size them like anything else.",
+   "facts": [
+    "h15",
+    "f07",
+    "f08"
+   ]
+  },
+  {
+   "key": "q21",
+   "skill": "risk.our_rules",
+   "rung": 8,
+   "format": "tf",
+   "house": true,
+   "q": "By our rules, a stop usually sits within about 3% of the buy price.",
+   "answer": "True",
+   "why": "True. \"I almost never take a loss greater than 3%.\" The stop goes a few cents under the day's low or the prior day's low. Buying close to that low keeps it within about 3%. That 3% is a loss on the position, not the account.",
+   "lesson_line": "Buy near the low, so the honest stop sits within about 3%. If it doesn't fit, skip.",
+   "facts": [
+    "h06",
+    "h21"
+   ]
+  },
+  {
+   "key": "q22",
+   "skill": "risk.our_rules",
+   "rung": 8,
+   "format": "mcq",
+   "house": true,
+   "q": "Our line: \"I almost never take a loss greater than 3%.\" 3% of what?",
+   "choices": [
+    "The position's value",
+    "The account's total value",
+    "The day's range",
+    "The buying power"
+   ],
+   "answer": "The position's value",
+   "why": "The position's value. The stop usually sits within about 3% of the buy, a loss on the stock, not on the account. What the account loses is set by your risk percent, 0.25% to 1.5% by grade.",
+   "lesson_line": "3% is the stop's distance on the stock. The account's loss is your risk percent.",
+   "facts": [
+    "h06",
+    "h08",
+    "h19"
+   ],
+   "wrong": {
+    "The account's total value": "A 3% loss on the account would be above our 2% ceiling. The 3% is on the position.",
+    "The day's range": "The stop sits a few cents under the day's low, but the 3% is measured from your buy price.",
+    "The buying power": "Margin changes buying power, not where the stop sits. The 3% is on the stock you bought."
+   }
+  },
+  {
+   "key": "q23",
+   "skill": "risk.our_rules",
+   "rung": 8,
+   "format": "scenario",
+   "house": true,
+   "story": "You set your sizes in January from a $50,000 account. It's June, the account is $62,000, and you still size from $50,000.",
+   "q": "What does our rule say?",
+   "choices": [
+    "Recalculate weekly or monthly",
+    "Keep $50,000, it's conservative",
+    "Recalculate only after a drawdown",
+    "Recalculate before every trade"
+   ],
+   "answer": "Recalculate weekly or monthly",
+   "why": "Recalculate weekly or monthly, and size every trade from that number. Five months on a stale account is too long. Your dollar risk grows with the account while the percent stays the same.",
+   "lesson_line": "Size from the account as it is, recalculated weekly or monthly.",
+   "facts": [
+    "h17",
+    "f12"
+   ],
+   "wrong": {
+    "Keep $50,000, it's conservative": "Sizing small is fine, but it has to be a choice from the real number, not an old one.",
+    "Recalculate only after a drawdown": "The account changes both ways. Our rule is a schedule, weekly or monthly, not a trigger.",
+    "Recalculate before every trade": "More often than the rule asks. Weekly or monthly, either one, and size from it."
+   }
+  },
+  {
+   "key": "q24",
+   "skill": "risk.our_rules",
+   "rung": 9,
+   "format": "scenario",
+   "house": true,
+   "story": "An A setup triggers. Your plan says 400 shares. You buy 200 now and plan to add the other 200 if it keeps working.",
+   "q": "What does our rule say?",
+   "choices": [
+    "Buy all 400 at one price, one stop",
+    "Scaling in is fine if it works",
+    "Add the rest once it starts paying",
+    "Buy 200 now, 200 on a dip lower"
+   ],
+   "answer": "Buy all 400 at one price, one stop",
+   "why": "Buy all 400 at one price with one stop. We don't scale in and we don't add. If the full size doesn't fit the stop and the cap, the trade is smaller or it's a pass.",
+   "lesson_line": "Full size at one price with one stop. No pilot, no adds.",
+   "facts": [
+    "h02",
+    "h01",
+    "h21"
+   ],
+   "wrong": {
+    "Scaling in is fine if it works": "Not under our rules. The full size goes on at one price with one stop.",
+    "Add the rest once it starts paying": "That's a pilot-then-add plan, and it isn't ours. Full size at one spot with one stop.",
+    "Buy 200 now, 200 on a dip lower": "Adding below your buy is adding to a trade that's going against you. One price, one stop."
+   }
+  },
+  {
+   "key": "q25",
+   "skill": "risk.our_rules",
+   "rung": 9,
+   "format": "scenario",
+   "house": true,
+   "story": "Five winners in a row. You feel sharp. The next setup is a B, and you want to risk 2% on it.",
+   "q": "What do our rules let you risk?",
+   "choices": [
+    "0.5% to 1%, the B range",
+    "2%, the absolute ceiling",
+    "1.5%, you've earned it",
+    "3%, you're on a hot streak"
+   ],
+   "answer": "0.5% to 1%, the B range",
+   "why": "0.5% to 1%. A B setup is normal size, and a run of winners never raises risk past the rules. The grade sets the risk; your streak doesn't.",
+   "lesson_line": "Winners don't raise the risk. The grade does, and a B is 0.5% to 1%.",
+   "facts": [
+    "h08",
+    "h20",
+    "h19"
+   ],
+   "wrong": {
+    "2%, the absolute ceiling": "2% is the absolute ceiling, and no grade uses it. A B setup sits at 0.5% to 1%.",
+    "1.5%, you've earned it": "1.5% is the top of the A+ range. A streak doesn't turn a B into an A+.",
+    "3%, you're on a hot streak": "Above our 2% ceiling, and sizing up on a hot streak is exactly what the rule forbids."
+   }
+  },
+  {
+   "key": "q26",
+   "skill": "risk.our_rules",
+   "rung": 9,
+   "format": "mcq",
+   "house": true,
+   "q": "Four traders each describe one of their rules. Which one breaks ours?",
+   "choices": [
+    "A 50% position when the stop is tight",
+    "0.5% risk on every trade",
+    "1.5% risk on an A+ setup",
+    "200% long when the market is Green"
+   ],
+   "answer": "A 50% position when the stop is tight",
+   "why": "A 50% position when the stop is tight. Our cap is 40% of the account, and a tight stop never justifies more. The other three sit inside our rules.",
+   "lesson_line": "Flat risk, grade risk, a 200% Green book: all ours. A position past 40%: never.",
+   "facts": [
+    "h03",
+    "h04",
+    "h18",
+    "h08",
+    "h05",
+    "h14"
+   ],
+   "wrong": {
+    "0.5% risk on every trade": "Flat risk, the same percent every trade, is fine under our rules. Pick one way and write it down.",
+    "1.5% risk on an A+ setup": "That's the top of the A+ range. Inside the rules.",
+    "200% long when the market is Green": "That's our margin rule: the book can reach 200% of the account, and only in a Green market."
+   }
+  }
+ ],
+ "conflicts": [
+  "Textbook vs ours, risk per trade: Schwab (f10) and Investopedia's 2% rule (F9.01) teach a flat 1% to 2% of the account on every trade. Our rule grades the setup first and risks by grade (E49: A+ 1% to 1.5%, A and B 0.5% to 1%, B- or lower 0.25% to 0.5%), with a flat percent allowed as the alternative (A2). The questions ask the grade ladder as ours and never key the textbook's 1% to 2% as wrong; q15 and q25 key only that a B or B- setup does not get the A+ rate.",
+  "Textbook vs ours, position cap: Schwab's general rule (f10) allocates 5% to 10% of the portfolio to one position. Our cap is 40% of the account (A7), raised from 20% to 25% on 2026-11-09 in the owner's words: 'RAISE THE CAP TO 40% ACTUALLY. ESPECIALLY WITH EARLY TRIMS AT 3-5R THAT IS FINE.' F9.04's ladder questions still say the old 20% was 'the max before the ladder kicks in' in two wrong-choice notes; that unit was patched the same day to name the 40% cap. The cap is asked only as ours (house: true), never as a general truth.",
+  "sizing_rule.md section 4's cap table (GREEN A+ 25 / A 20 / B 10 ...) and section 5's 10% heat cap are superseded by section 9 (A7, A10): the 40% cap is a hard rule, the by-market and heat numbers are guides. This unit keys only the 40% cap and the 200% / 100% book limits; nothing from the section 4 table.",
+  "Leveraged ETFs: the SEC (f07, f08) and FINRA (F1.07) warn that daily-reset leveraged ETFs are generally not for buy-and-hold investors. Our rule E54 says they are preferred with no extra rules. The two do not clash for a swing trade of days to a few weeks with a stop (C35), but q20 states the SEC's mechanics (a multiple of the daily move, so the loss multiplies too) alongside the house rule so the member hears both. The word 'leveraged' is the importer's banned 'leverage' as a substring, so the member-facing text says '2x and 3x ETFs'; the quotes keep the word.",
+  "Margin: the SEC glossary (f01, f02) defines a margin account and warns of larger losses. Our rules B24 and F60 use margin up to 200% of the account only in a Green market, and A7 says the book is 100% otherwise. 'Green' is the app's market reading (B18, h22), named in the questions as 'our market reading is Green' because F1.01 (the house words) is not built yet.",
+  "The 1%-of-volume rule (D42): the owner's words are 'Never own more than 1% of a stock's average daily volume'. q12 reads that as 1% of the average daily SHARE volume (4 million shares a day -> 40,000 shares). Owner to confirm that reading; the dollar-volume floor (B23, $20 million a day) is a separate test and q19 keeps them apart.",
+  "A13, 'I almost never take a loss greater than 3%', is taught as where the owner's stop usually sits (a loss on the position), per section 9's own gloss and sizing_rule.md section 8 item 3 ('a taught guideline, not a rule'). q21 and q22 key it as 'usually' / 'about 3%' and as a position loss, never as a hard rule and never as account risk.",
+  "Investopedia (s7) could not be fetched from this machine (HTTP 403 to the plain client and the fetch tool); f09 is the same quote F9.04's checker confirmed live on 2026-11-09 (its f40). It backs only the method in w1, q01 and the numerics, each of which also carries a calc or a house fact. The checker should confirm it in a browser.",
+  "Boundary readings: 'at least $20 million a day' and '$10 or more' are inclusive, as written. The E56 limit is read as the fourth try in a week being out (q18). The rounding-down in A5 is applied in every share count (q09, q10 by the calc floor; q13 in dollars).",
+  "Skill id: F9.07 already owns risk.account_rules, so this unit's skill is risk.our_rules (main session, 2026-11-09).",
+  "Cold check 2026-11-09: all 22 section-9 quotes verbatim (script check), all 11 outside quotes found by the quote checker except Investopedia (s7, 403 to every client here; f09 is the quote F9.04's checker confirmed live today as f40, and it backs only the division method, never a key alone). Changes: q10 no longer says 'Our 40% cap applies' (it led); h03 claim, h06 claim, q02 why and q24's 'add after it pays' note no longer name the owner or misread 'raised from 20-25%'; w3 step 2 ties 'about 20% each' to the 200% book. q12's share-volume reading is passed as the plain meaning of 'average daily volume'; owner to confirm."
+ ],
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "h21, h01, h03, h04, h02 verbatim in section 9 (A3, A5, A7); FINRA f03 confirmed by the quote checker; Investopedia f09 is the quote F9.04's checker confirmed live today (f40) and backs only the division method. Steps 22 words or fewer. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, A3, A5, A7); awaiting cold check"
+  },
+  "w2": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "h09, h07, h08, h19, h10, h18 verbatim (E50, D38, E49, A1, C37, A2); Van Tharp f11 confirmed. The grade ladder and the 2% ceiling read exactly as A1 and E49. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, A1, A2, C37, D38, E49, E50); awaiting cold check"
+  },
+  "w3": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "All nine house quotes verbatim (B23, D42, A7, B24, F60, B18, E54, E56, D43). Step 2 said 'Ten positions average about 20% each' right after naming both 100% and 200%; at 100% they average 10%, so it now reads 'At 200%, ten positions average about 20% each' (A7's own arithmetic). Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, A7, B18, B23, B24, D42, D43, E54, E56, F60); awaiting cold check"
+  },
+  "q01": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "house quote verbatim in sizing_rule.md section 9 (checked by script, 40 words or fewer), claim matches, key follows, every wrong choice is really wrong, voice limits hold. A5's formula is the key; each wrong choice is a named sizing mistake. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, A3, A5); awaiting cold check"
+  },
+  "q02": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Key true on A7. The why named the owner ('when the owner raised it'); now 'when we raised it'. The h03 claim also misread 'raised from 20-25%' as 'from 20% to 25%'; corrected to 'from the old 20% to 25%'. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, A7); awaiting cold check variety rewrite checked 2026-11-10."
+  },
+  "q03": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "house quote verbatim in sizing_rule.md section 9 (checked by script, 40 words or fewer), claim matches, key follows, every wrong choice is really wrong, voice limits hold. E49 A+ 1% to 1.5%; A1 says 1.5% is the most any grade uses. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, A1, E49); awaiting cold check"
+  },
+  "q04": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "house quote verbatim in sizing_rule.md section 9 (checked by script, 40 words or fewer), claim matches, key follows, every wrong choice is really wrong, voice limits hold. E49 and D38; 'skip B- setups' is really wrong (sized down, not banned). Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, D38, E49); awaiting cold check"
+  },
+  "q05": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "house quote verbatim in sizing_rule.md section 9 (checked by script, 40 words or fewer), claim matches, key follows, every wrong choice is really wrong, voice limits hold. A7's gap sentence plus FINRA's stop-becomes-market-order line (f03, confirmed). Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, A7); awaiting cold check"
+  },
+  "q06": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "house quote verbatim in sizing_rule.md section 9 (checked by script, 40 words or fewer), claim matches, key follows, every wrong choice is really wrong, voice limits hold. B23 '$10 or more' and 'at least $20 million a day'; Investor.gov liquidity (f04) confirmed. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, B23, D42); awaiting cold check"
+  },
+  "q07": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "house quote verbatim in sizing_rule.md section 9 (checked by script, 40 words or fewer), claim matches, key follows, every wrong choice is really wrong, voice limits hold. C37 word for word; Van Tharp 'start small' confirmed. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, C37); awaiting cold check"
+  },
+  "q08": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "house quote verbatim in sizing_rule.md section 9 (checked by script, 40 words or fewer), claim matches, key follows, every wrong choice is really wrong, voice limits hold. E50: discretionary, no checklist taught. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, D38, E50); awaiting cold check variety rewrite checked 2026-11-10."
+  },
+  "q09": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "500 / 2 = 250 shares (calc shares_from_risk); $10,000 is 20% of the account, under the 40% cap, so the risk size stands. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, A5, A7); awaiting cold check"
+  },
+  "q10": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "The question said 'Our 40% cap applies', which told the member the cap binds (rule 10, a question never leads); it now says 'Under our rules'. Key: risk math 500 / 0.50 = 1,000 shares = 100% of the account; cap 40% x 50,000 / 50 = 400 (calc). 400 x 0.50 = $200 = 0.4%, so 'less than 1%' holds. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, A5, A7); awaiting cold check"
+  },
+  "q11": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "1% of 80,000 = 800 (calc); the top of the A range is 1% (E49). Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, E49); awaiting cold check"
+  },
+  "q12": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "D42 verbatim. 'Average daily volume' is share volume in every broker and exchange usage (dollar volume is named as such, and B23's $20 million test is the dollar one), so 1% of 4 million shares = 40,000 shares (calc) is the right reading; Fidelity f06 (confirmed) explains why. The conflicts line already asks the owner to confirm. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, D42); awaiting cold check"
+  },
+  "q13": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "1.5% of 100,000 = 1,500 at risk; 1,500 / 0.30 = 5,000 shares = $100,000; cap 40% = $40,000 (calc). Each wrong choice is a real misreading ($1,500 is the risk, $100,000 the uncapped math). Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, A5, A7, E49); awaiting cold check variety rewrite checked 2026-11-10."
+  },
+  "q14": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "house quote verbatim in sizing_rule.md section 9 (checked by script, 40 words or fewer), claim matches, key follows, every wrong choice is really wrong, voice limits hold. B24's second sentence is the key; Investor.gov margin lines (f01, f02) confirmed. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, B24); awaiting cold check"
+  },
+  "q15": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "house quote verbatim in sizing_rule.md section 9 (checked by script, 40 words or fewer), claim matches, key follows, every wrong choice is really wrong, voice limits hold. E49 and D38; 'skip it' is wrong because B- is sized down, not banned. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, D38, E49, A1); awaiting cold check"
+  },
+  "q16": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "60,000 x 200% = 120,000 (calc); A7, B24 and F60 verbatim; margin only in Green. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, A7, B24, F60); awaiting cold check"
+  },
+  "q17": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "200 / 10 = 20 (calc), A7's own 'about 20% a position'. The 10% note correctly ties to the 100% book. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, A7); awaiting cold check"
+  },
+  "q18": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "house quote verbatim in sizing_rule.md section 9 (checked by script, 40 words or fewer), claim matches, key follows, every wrong choice is really wrong, voice limits hold. E56: three tries in a week used, the fourth waits; the story names three stop-outs this week. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, E56); awaiting cold check variety rewrite checked 2026-11-10."
+  },
+  "q19": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "house quote verbatim in sizing_rule.md section 9 (checked by script, 40 words or fewer), claim matches, key follows, every wrong choice is really wrong, voice limits hold. $8 million fails B23's $20 million floor; Investor.gov f05 confirmed. The limit-order note is general (Fidelity f06) and ends on the house answer. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, B23, D42); awaiting cold check variety rewrite checked 2026-11-10."
+  },
+  "q20": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "E54 verbatim ('preferred; no extra rules'). The SEC's daily-multiple mechanics (f07, f08, both confirmed) sit beside it as what the member must know, not as a contradiction: a swing trade of days to weeks with a stop (C35) is not the buy-and-hold the SEC warns about. Member text says '2x and 3x ETFs' because 'leverage' is banned as a substring. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, E54); awaiting cold check"
+  },
+  "q21": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "A13 and A3 verbatim; keyed as 'usually' / 'about 3%', a position loss, never a hard rule. The h06 claim said 'The owner's stop'; now 'Our stop' (member-facing summary text never names him). Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, A3, A13); awaiting cold check Edited: why split so no sentence is over 22 words. variety rewrite checked 2026-11-10."
+  },
+  "q22": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "house quote verbatim in sizing_rule.md section 9 (checked by script, 40 words or fewer), claim matches, key follows, every wrong choice is really wrong, voice limits hold. A13's own gloss: a loss on the position, not the account; the 'account' note is right that 3% would exceed the 2% ceiling. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, A13, E49); awaiting cold check variety rewrite checked 2026-11-10."
+  },
+  "q23": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "house quote verbatim in sizing_rule.md section 9 (checked by script, 40 words or fewer), claim matches, key follows, every wrong choice is really wrong, voice limits hold. D43 'weekly or monthly'; the 'before every trade' note says only that the rule asks less often. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, D43); awaiting cold check"
+  },
+  "q24": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "A5 verbatim ('full size at one price with one stop; no adding'). The 'add after it pays' note named the owner ('The owner struck it: he buys full'); now 'it isn't ours. Full size at one spot with one stop.' Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, A3, A5); awaiting cold check variety rewrite checked 2026-11-10."
+  },
+  "q25": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "house quote verbatim in sizing_rule.md section 9 (checked by script, 40 words or fewer), claim matches, key follows, every wrong choice is really wrong, voice limits hold. D45 and E49; 1.5% and 2% notes match A1. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, A1, D45, E49); awaiting cold check variety rewrite checked 2026-11-10."
+  },
+  "q26": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "house quote verbatim in sizing_rule.md section 9 (checked by script, 40 words or fewer), claim matches, key follows, every wrong choice is really wrong, voice limits hold. The 50% position breaks A7; flat risk (A2), 1.5% on A+ (E49) and 200% in Green (B24, F60) are all ours. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, A2, A7, B24, E49, F60); awaiting cold check"
+  }
+ }
+}

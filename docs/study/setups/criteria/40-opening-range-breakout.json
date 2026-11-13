@@ -1,0 +1,1393 @@
+{
+ "setup": "40-opening-range-breakout",
+ "name": "Opening Range Breakout",
+ "unit": "SET.32",
+ "direction": "long",
+ "timeframe": "30-minute",
+ "dossier": "docs/study/setups/research/40-opening-range-breakout.md",
+ "as_of": "2026-11-09",
+ "card": {
+  "context": "An entry timer, not a setup of its own. A leader (RS 80 or more) above the 200-day and the 50-day, already on the focus list with a daily setup: a Kicker, an EP or PEG, a base or IPO-high breakout. Green or Yellow market.",
+  "pattern": "The first 30 minutes of regular trading, 9:30 to 10:00 ET, set a high and a low. Heavy opening volume, at least 1.5 times normal for that half hour. Best when the high sits at or above the prior day's high.",
+  "trigger": "OTHER: price trades one cent above the 30-minute high after 10:00 ET, bought at market, no more than 4% past it. On a Kicker it is the second of the two entries, after the prior-day-high break.",
+  "stop": "A few cents under the low of the day at the fill, normally the 30-minute low; 3% or less from the fill, 3.5% on a Kicker. Wider than that, skip.",
+  "failure_mode": "The break prints, the stock reverses back into the range on big volume and the day's low takes the stop, often the same session. On big gap days the range is too wide for the stop to fit."
+ },
+ "entry_trigger": "OTHER",
+ "criteria": [
+  {
+   "id": "orb.parent_setup",
+   "field": "context",
+   "statement": "The ORB is an entry trigger for a daily setup already on the focus list: a Kicker, an EP or PEG, a base or IPO-high breakout, a pullback setup. It is not traded alone.",
+   "basis": "UCT",
+   "sources": [
+    "S16",
+    "S20",
+    "S33",
+    "S34"
+   ],
+   "status": "pending-owner",
+   "owner_question": "D-002",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1.1 Role",
+   "evidence": "The owner's Kicker ruling (2026-11-02: 'on day 1 kciker ORB on the 30 minute'); UCT's posts on earnings gappers, IPO highs, base breakouts and leveraged ETFs. Bysshe (dossier source 16) and Kullamagi (source 20) use it the same way. The bare 30-minute ORB had no edge in the dossier's own count: -0.05R at the close, positive after 5 sessions 26% of the time. D-002 also settles the ORB against the 30-Minute Pivot (question 3)."
+  },
+  {
+   "id": "orb.window",
+   "field": "pattern",
+   "statement": "The opening range is the high and low of the first 30 minutes of regular trading, 9:30 to 10:00 ET, the first 30-minute candle.",
+   "measure": {
+    "what": "minutes of regular trading that set the opening range",
+    "op": "==",
+    "value": 30,
+    "unit": "minutes",
+    "timeframe": "30-minute"
+   },
+   "glossary": "opening_range",
+   "basis": "UCT",
+   "sources": [
+    "S16",
+    "S20",
+    "S27",
+    "S34",
+    "S35"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "30 minutes always: the Kicker ruling, B20, Bysshe (source 16), Trade-Ideas ORU30 (source 27), Kullamagi's first 60-minute candle (source 20)"
+    },
+    {
+     "value": "b",
+     "basis": "30 by default, 5 or 15 minutes allowed on big catalyst days: Bracco's ASTS 15-minute ORB; Zarattini found 5 minutes best as a day trade (source 21)"
+    },
+    {
+     "value": "c",
+     "basis": "the member chooses"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-031",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1.2 The opening range",
+   "evidence": "Crabel's original window was 30 seconds to 5 minutes (sources 1 to 8); Raschke used 45 to 120 minutes (source 15). Nobody has shown one window is best for a swing entry. The dossier's count: 54.9% of first long breaks came by 10:30. The scan used the six 5-minute bars 9:30 to 9:55."
+  },
+  {
+   "id": "orb.above_200",
+   "field": "context",
+   "statement": "The prior close is above the 200-day simple moving average.",
+   "measure": {
+    "what": "prior close against the 200-day SMA",
+    "op": ">",
+    "value": "200-day SMA",
+    "timeframe": "daily"
+   },
+   "glossary": "above_200",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B26",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1.3 Prior trend; 8.1.8 Location",
+   "evidence": "The app's detector has no 200-day gate (5.3.6). A 50/200-day trend filter did not help in the dossier's unfiltered count (-0.07R at the close); the scan's strict rule used it."
+  },
+  {
+   "id": "orb.leader",
+   "field": "context",
+   "statement": "RS rating 80 or more, in a strong group.",
+   "measure": {
+    "what": "RS rating",
+    "op": ">=",
+    "value": 80,
+    "unit": "rating 1 to 99"
+   },
+   "glossary": "leader",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "C31",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1.3 Prior trend",
+   "evidence": "The scan cannot read an RS rating; its proxy is the IBD-style weighted 3/6/9/12-month price change ranked 1 to 99 within the 1,000 scanned names. The ten examples ran 81 to 94 (longs) and 8 to 17 (shorts)."
+  },
+  {
+   "id": "orb.above_50",
+   "field": "context",
+   "statement": "The prior close is also above the 50-day simple moving average.",
+   "measure": {
+    "what": "prior close against the 50-day SMA",
+    "op": ">",
+    "value": "50-day SMA",
+    "timeframe": "daily"
+   },
+   "glossary": "ma_stack",
+   "basis": "my proposal",
+   "sources": [
+    "S16"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1.3 Prior trend; 8.1.8 Location",
+   "evidence": "The nearest source is Bysshe (source 16): the 20 and 50-day rising and the stock above the 20-day. The 50-day is the dossier's proposal. Examples: FFIV 2% over the 50-day, OVV 1% over it."
+  },
+  {
+   "id": "orb.range_defined",
+   "field": "pattern",
+   "statement": "A grade cue: the opening-range high is well defined, tested more than once before the break, or a tight consolidation sits just under it.",
+   "measure": {
+    "what": "separate tests of the opening-range high before the trigger, on 5-minute bars",
+    "op": ">=",
+    "value": 2,
+    "unit": "touches",
+    "timeframe": "5-minute"
+   },
+   "basis": "originator",
+   "sources": [
+    "S16"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1.4 Structure",
+   "evidence": "Bysshe (source 16): 'If the OR is sloppy, that is, if there isn't any well-defined support or resistance, don't waste your time watching it.' The two-touch count is the card's way to make it countable; no source gives a number. OVV: a tight hold just under the OR high before the 10:30 trigger."
+  },
+  {
+   "id": "orb.valid_all_session",
+   "field": "trigger",
+   "statement": "The trigger stays valid for the rest of that session; the 30-minute window is part of the trigger's definition, not a time-of-day rule. Later triggers grade lower.",
+   "measure": {
+    "what": "time of the trigger, ET",
+    "op": "in",
+    "value": [
+     "10:00",
+     "16:00"
+    ],
+    "unit": "clock time",
+    "timeframe": "5-minute"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "C30",
+   "status": "settled",
+   "owner_question": "D-143",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1.5 Length",
+   "evidence": "D-143 settles 40:2. The dossier's count: median trigger 10:20. The scan: triggers by 10:30 (200 hits) 22.5% to 3R, after 10:30 (84 hits) 34.5%, the opposite of the section 9 grading in this one 12-week window. QLYS triggered at 10:50 and reached 5R in three sessions."
+  },
+  {
+   "id": "orb.stop_width",
+   "field": "stop",
+   "statement": "The distance from the fill to a few cents under the day's low is 3% or less; on a Kicker up to 3.5%. If it is wider, skip the ORB.",
+   "measure": {
+    "what": "(fill - stop) / fill",
+    "op": "<=",
+    "value": 3,
+    "unit": "%",
+    "timeframe": "30-minute",
+    "note": "3.5% on a Kicker"
+   },
+   "glossary": "stop_width",
+   "basis": "house rule",
+   "sources": [
+    "S16",
+    "S34",
+    "S41"
+   ],
+   "house_rule": "A13",
+   "options": [
+    {
+     "value": "a",
+     "basis": "skip: A3, A13; the dossier"
+    },
+    {
+     "value": "b",
+     "basis": "use 3.5% as on the Kicker: the owner's Kicker ruling"
+    },
+    {
+     "value": "c",
+     "basis": "a tighter intraday swing low: Bysshe (source 16)"
+    },
+    {
+     "value": "d",
+     "basis": "prefer the previous-day-high trigger: the dossier"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-005",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1.6 Depth (risk); 8.3.2",
+   "evidence": "The dossier's count: the natural stop was a median 1.6% from the entry and fit inside 3% on 85% of ordinary days; on days that gapped up 3% or more the median was 3.3% and only 42% fit. JBI 2023-12-14: the ORB entry's stop was 3.7% away. The scan's strict hits: median risk 1.9%; the ten examples 1.03% to 2.48%."
+  },
+  {
+   "id": "orb.opening_volume",
+   "field": "pattern",
+   "statement": "The first 30 minutes trade at least 1.5 times their 20-day average volume for the same window.",
+   "measure": {
+    "what": "volume 9:30 to 10:00 / 20-day average volume of the same window",
+    "op": ">=",
+    "value": 1.5,
+    "unit": "x",
+    "timeframe": "30-minute"
+   },
+   "glossary": "average_volume",
+   "basis": "my proposal",
+   "sources": [
+    "S20",
+    "S21",
+    "S33"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "no number, judgment: the owner's 'Relative volume in the first 15 min' (TMDX, 2026-02-24)"
+    },
+    {
+     "value": 1.5,
+     "basis": "the dossier's proposal; the scan's gate"
+    },
+    {
+     "value": 2,
+     "basis": "a higher floor"
+    },
+    {
+     "value": "d",
+     "basis": "the stock trades its average daily volume in the first 15 to 30 minutes as the A+ mark: Kullamagi (source 20), the owner's GRRR note"
+    }
+   ],
+   "recommended": 1.5,
+   "status": "pending-owner",
+   "owner_question": "D-006",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1.7 Volume",
+   "evidence": "Zarattini, Barbon and Aziz (source 21): below 100% relative volume the 5-minute ORB averaged -0.02R, 0.08R above it, 0.38R above 30 times normal. Scan: opening volume 2x or more (124 hits) 21.0% / 7.3%, no better than 1.5x; the strict hits' median was 1.9x. 168 of 1,871 hits fell on 2026-09-18, the September expiration, where rebalance volume read as a signal: the volume rule needs a calendar check. The app compares the break bar with the opening bars instead, which removed 78% of early closes above the range."
+  },
+  {
+   "id": "orb.not_stretched",
+   "field": "trigger",
+   "statement": "At the trigger, no more than 10% above the 10-day average.",
+   "measure": {
+    "what": "fill / 10-day SMA - 1",
+    "op": "<=",
+    "value": 10,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "glossary": "stretched",
+   "basis": "house rule",
+   "sources": [
+    "S33"
+   ],
+   "house_rule": "C29",
+   "status": "pending-owner",
+   "owner_question": "D-017",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1.8 Location",
+   "evidence": "Many earnings and EP gap days open more than 10% above the 10-day (the owner's GRRR: 'Gapping up 15% in after hours'). Question 9 asks whether gap-day ORBs get an exemption like parabolics get from B26. The scan kept the rule: only 3 of 284 strict hits were earnings-reaction days."
+  },
+  {
+   "id": "orb.liquidity",
+   "field": "context",
+   "statement": "Price $10 or more and $20 million or more traded a day on average.",
+   "measure": {
+    "what": "close",
+    "op": ">=",
+    "value": 10,
+    "unit": "$",
+    "and": "50-day average dollar volume >= 20,000,000"
+   },
+   "glossary": "liquidity",
+   "basis": "house rule",
+   "sources": [
+    "S33"
+   ],
+   "house_rule": "B23",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1.9 Liquidity",
+   "evidence": "APPS ($7.11 at the owner's 2025-11-05 plan) would now be out."
+  },
+  {
+   "id": "orb.position_adv",
+   "field": "management",
+   "statement": "The position is at most 1% of average daily volume.",
+   "measure": {
+    "what": "shares / average daily volume",
+    "op": "<=",
+    "value": 1,
+    "unit": "%"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "D42",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1.9 Liquidity"
+  },
+  {
+   "id": "orb.trigger",
+   "field": "trigger",
+   "statement": "Price trades at least one cent above the 30-minute high after 10:00 ET. A trade through, not a close.",
+   "measure": {
+    "what": "intraday high after 10:00 ET against the opening-range high",
+    "op": ">=",
+    "value": "opening-range high + $0.01",
+    "timeframe": "5-minute"
+   },
+   "glossary": "opening_range",
+   "basis": "source consensus",
+   "sources": [
+    "S1",
+    "S15",
+    "S20",
+    "S21",
+    "S27",
+    "S33",
+    "S34"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2.1 Trigger",
+   "evidence": "The owner's JBI ruling (11.05 over an 11.04 high) and 'Breaking opening highs' (TMDX). Every outside source acts on the trade through: Crabel's and Raschke's stop orders, Trade-Ideas, Kullamagi, Zarattini (sources 1, 15, 27, 20, 21). Only the app's scanner waits for a 5-minute close, on 1.5x the opening bars' volume, inside a 0.3% to 2.5% width band; none of those numbers has a source (5.3)."
+  },
+  {
+   "id": "orb.order",
+   "field": "trigger",
+   "statement": "A market order the moment it trades through. A resting buy-stop one cent over the high, which becomes a market order when hit, is the question.",
+   "measure": {
+    "what": "order type at the trigger",
+    "op": "in",
+    "value": [
+     "market order on the trade through",
+     "buy-stop one cent over the 30-minute high"
+    ]
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "E57",
+   "options": [
+    {
+     "value": "a",
+     "basis": "watch and market-order on the trade through: E57 as written"
+    },
+    {
+     "value": "b",
+     "basis": "a resting buy-stop a cent over the ORH: how every source executes; removes the chase"
+    }
+   ],
+   "recommended": "b",
+   "status": "pending-owner",
+   "owner_question": "D-038",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2.2 Order",
+   "evidence": "The scan filled at the OR high plus a cent, or the bar's open when it gapped over."
+  },
+  {
+   "id": "orb.no_chase",
+   "field": "trigger",
+   "statement": "No fill more than 4% above the 30-minute high. If missed, wait for a pullback to the ORH that holds, or the owner's alternative: a VWAP retest or undercut-and-hold mid morning.",
+   "measure": {
+    "what": "fill / opening-range high - 1",
+    "op": "<=",
+    "value": 4,
+    "unit": "%"
+   },
+   "glossary": "chase_limit",
+   "basis": "house rule",
+   "sources": [
+    "S12",
+    "S16",
+    "S33"
+   ],
+   "house_rule": "C28",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2.3 Chasing",
+   "evidence": "The owner on TMDX: 'If unable or unwilling to try ORB at open. Look for a retest or an undercut and hold of VWAP mid morning.' Bysshe's tactic 2 (buy the retracement) and Steenbarger's first pullback (sources 16, 12) say the same."
+  },
+  {
+   "id": "orb.kicker_order",
+   "field": "trigger",
+   "statement": "On a Kicker: if the stock opens below the previous day's high, the previous-day-high order comes first and is cheaper; the ORB is the confirmation entry. If it opens above the previous day's high, the ORB is the patient entry.",
+   "measure": {
+    "what": "open against the previous day's high",
+    "op": "in",
+    "value": [
+     "below: previous-day-high trigger first, ORB second",
+     "above: the ORB is the patient entry"
+    ],
+    "timeframe": "daily"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S34",
+    "S40"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.2.4 Order of triggers on a Kicker; 4.9",
+   "evidence": "JBI 2023-12-14: the previous-day-high entry at 11.05 (stop 10.80, 2.3%) filled inside the first 30 minutes and was up about 2.3R at the close; the ORB entry at 11.21 (3.7% to the same stop) was up about 1.0R."
+  },
+  {
+   "id": "orb.plan_rule",
+   "field": "trigger",
+   "statement": "Before the open, write the plan as a rule, not a price: buy a cent over the 30-minute high, stop a few cents under the day's low, size from that distance, skip if the stop is over 3%.",
+   "measure": {
+    "what": "entry rule, stop rule and size rule written before the open",
+    "op": "==",
+    "value": true
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "D39",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2.5 Plan before the open",
+   "evidence": "D39 asks for the entry, stop and size before the open; the ORH and the stop are unknown until 10:00, so the plan is the rule."
+  },
+  {
+   "id": "orb.stop",
+   "field": "stop",
+   "statement": "A few cents under the low of the day at the moment of the fill, normally the 30-minute low.",
+   "measure": {
+    "what": "stop",
+    "op": "==",
+    "value": "a few cents under the day's low at the fill",
+    "timeframe": "30-minute"
+   },
+   "glossary": "stop_margin",
+   "basis": "house rule",
+   "sources": [
+    "S20",
+    "S33",
+    "S36"
+   ],
+   "house_rule": "A3",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.3.1",
+   "evidence": "F62 gives the few cents. Kullamagi: 'Stop is always lows of the day' (source 20); the owner: 'Stop LOD.' The app's stop is the OR low minus 0.2%, which differs only when price dipped below the OR low after 10:00. The scan used 5 cents under the day's low."
+  },
+  {
+   "id": "orb.stop_kicker_cap",
+   "field": "stop",
+   "statement": "On a Kicker the stop is the Kicker low or 3.5% under the entry, whichever is closer.",
+   "measure": {
+    "what": "(entry - stop) / entry on a Kicker",
+    "op": "<=",
+    "value": 3.5,
+    "unit": "%",
+    "timeframe": "30-minute"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S34"
+   ],
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.3.2",
+   "evidence": "The owner's ruling, 2026-11-02: 'Under the kicker candle low or entry with a 3.5% stop but we should get these with smaller than 3.5% stop usually.' JBI with the cap: 11.21 x 0.965 = 10.82, the Kicker low itself."
+  },
+  {
+   "id": "orb.stop_broker",
+   "field": "stop",
+   "statement": "A real stop order with the broker, placed at once. It only moves up.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "D41",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.3.3",
+   "evidence": "A4: the stop only moves up."
+  },
+  {
+   "id": "orb.stop_gap",
+   "field": "stop",
+   "statement": "A gap below the stop on a later day: the first 30-minute low becomes the stop; out if that is past 2R.",
+   "measure": {
+    "what": "loss at the first 30-minute low of the gap-down day",
+    "op": "<=",
+    "value": 2,
+    "unit": "R",
+    "timeframe": "30-minute"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B20",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.3.4",
+   "evidence": "The same 30-minute idea, used for exits. SNX: the earnings report of 2026-09-24 gapped it through the stop three sessions after the trade."
+  },
+  {
+   "id": "orb.breakeven",
+   "field": "management",
+   "statement": "Stop to breakeven between 2R and 5R, at the first trim by default.",
+   "measure": {
+    "what": "R at which the stop moves to the entry",
+    "op": "in",
+    "value": [
+     2,
+     5
+    ],
+    "unit": "R"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B19",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4.1"
+  },
+  {
+   "id": "orb.trim_1",
+   "field": "management",
+   "statement": "Sell a third at 3R.",
+   "measure": {
+    "what": "fraction sold at 3R",
+    "op": "==",
+    "value": 0.333,
+    "unit": "of the position"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B19",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4.2",
+   "evidence": "Four of the ten examples (OVV, QLYS, SNX, TJX) reached 5R and then traded back to the original stop within 20 sessions; the fixed-stop count calls them stopped. The trims are what keep the result."
+  },
+  {
+   "id": "orb.trim_2",
+   "field": "management",
+   "statement": "Sell a third at 5R.",
+   "measure": {
+    "what": "fraction sold at 5R",
+    "op": "==",
+    "value": 0.333,
+    "unit": "of the position"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "E51",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4.2"
+  },
+  {
+   "id": "orb.trim_gap_open",
+   "field": "management",
+   "statement": "If a later day opens above a trim level, take that trim at the open.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "F63",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4.2"
+  },
+  {
+   "id": "orb.trail",
+   "field": "management",
+   "statement": "Trail the last third: a close under the 10-day for a fast mover, under the 21-day for a steadier one.",
+   "measure": {
+    "what": "close against the 10-day (fast) or 21-day (steadier) average",
+    "op": "<",
+    "value": "the average",
+    "timeframe": "daily"
+   },
+   "glossary": "trail",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "E52",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4.3"
+  },
+  {
+   "id": "orb.time_stop",
+   "field": "management",
+   "statement": "Time stop: still under 1R after 10 trading days, sell.",
+   "measure": {
+    "what": "open R after 10 trading days",
+    "op": "<",
+    "value": 1,
+    "unit": "R"
+   },
+   "glossary": "time_stop",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "C33",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4.4"
+  },
+  {
+   "id": "orb.not_ours",
+   "field": "management",
+   "statement": "Not ours: the app's target of twice the range, Crabel's exit at the close, and Kullamagi's sale of a third to a half after 3 to 5 days.",
+   "measure": {
+    "what": "target or exit taught as ours",
+    "op": "!=",
+    "value": "2x the opening range, the same day's close, or a timed sale after 3 to 5 days"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S5",
+    "S20",
+    "S36"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4.5",
+   "evidence": "The 2x-range target has no source (5.5); in the dossier's count +2R came first the same day on about 3% of first breaks. Crabel's tests exited at the close (source 5); Kullamagi sells a third to a half after 3 to 5 days (source 20), taught only when a question names him."
+  },
+  {
+   "id": "orb.inv_range_low_first",
+   "field": "invalidation",
+   "statement": "Before the fill: if the 30-minute low trades before the 30-minute high, the plain ORB long is off for the day. A reclaim after that undercut is a different entry (Oops, red to green, VWAP remount) with its own rules.",
+   "measure": {
+    "what": "first side of the opening range to trade after 10:00 ET",
+    "op": "==",
+    "value": "the high",
+    "timeframe": "5-minute"
+   },
+   "basis": "originator",
+   "sources": [
+    "S1",
+    "S39"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "off for the day once the low trades first: Crabel's ORBP cancel rule (source 1); the dossier; D-124's default"
+    },
+    {
+     "value": "b",
+     "basis": "a later ORH break the same day may still be bought"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-124",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5.1",
+   "evidence": "The scan used it: the first bar after 10:00 to trade a cent over the OR high before any bar traded under the OR low. The owner's KB 12555 note: day-1 earnings gappers that fail the ORB and then remount are bought on the ORB-low undercut or the VWAP remount, not as an ORB."
+  },
+  {
+   "id": "orb.inv_parent_broken",
+   "field": "invalidation",
+   "statement": "Before the fill: the parent setup is broken. On a Kicker, a trade under the red day's low before the open.",
+   "basis": "my proposal",
+   "sources": [],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5.2",
+   "evidence": "Follows from orb.parent_setup: no daily setup, no ORB."
+  },
+  {
+   "id": "orb.earnings_window",
+   "field": "trigger",
+   "statement": "No new buy in the 3 sessions before an earnings report. An ORB on the day after the report (TMDX, APPS, GRRR) is allowed.",
+   "measure": {
+    "what": "sessions until the next report",
+    "op": ">",
+    "value": 3,
+    "unit": "sessions"
+   },
+   "glossary": "earnings_blackout",
+   "basis": "house rule",
+   "sources": [
+    "S33"
+   ],
+   "house_rule": "B22",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "7 B22 row",
+   "evidence": "SNX 2026-09-21 reported three sessions later and gapped through the stop: the lesson is the thirds sold at 3R and 5R and no earnings hold without a plan (B22: hold through only if up 5R)."
+  },
+  {
+   "id": "orb.reversal_warning",
+   "field": "invalidation",
+   "statement": "After the fill: the stop decides. A big-volume reversal back into the range is the classic failure; it is a warning to watch, not a second exit rule.",
+   "basis": "house rule",
+   "sources": [
+    "S16",
+    "S35"
+   ],
+   "house_rule": "A4",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.5.5",
+   "evidence": "Bysshe (source 16): 'This pattern of a big-volume reversal at the top of the OR usually leads to a failed breakout and a selloff.' The owner: 'my stop is my stop' (sizing_rule.md section 6). CMCSA 2026-09-18 and DE 2026-11-02 reversed back into the range within the hour and took the stop the same day."
+  },
+  {
+   "id": "orb.reentry",
+   "field": "management",
+   "statement": "After a stop-out, a retake of the day's high is a new trigger with a new stop; it is allowed and counts against the 3 tries a week and 6 a month.",
+   "measure": {
+    "what": "tries on the same stock",
+    "op": "<=",
+    "value": 3,
+    "unit": "a week",
+    "and": "6 a month"
+   },
+   "basis": "house rule",
+   "sources": [
+    "S39"
+   ],
+   "house_rule": "B21",
+   "status": "settled",
+   "owner_question": "D-142",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "7 B21 row; 10 question 11",
+   "evidence": "D-142 settles 40:11: the owner's RVMD plan (KB 12544: buy the ORB, stop out if it breaks the lows, buy again on a retake of the day's high) is allowed under B21 and counted by E56."
+  },
+  {
+   "id": "orb.market_reading",
+   "field": "context",
+   "statement": "Green market: full risk. Yellow: smaller and fewer. Orange: A+ only. Red: mostly cash, plus shorts below the 200-day.",
+   "measure": {
+    "what": "the app's market reading on the trigger day",
+    "op": "in",
+    "value": [
+     "Green",
+     "Yellow",
+     "Orange (A+ only)"
+    ]
+   },
+   "glossary": "market_reading",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "F65",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.7.1; 8.5.3"
+  },
+  {
+   "id": "orb.index_orb",
+   "field": "context",
+   "statement": "A cue: the indexes themselves are taking out their opening ranges, or forming strong hourly candles after the first 30 minutes.",
+   "measure": {
+    "what": "index high after 10:00 ET against the index's 30-minute high",
+    "op": ">",
+    "value": "the index's opening-range high",
+    "timeframe": "30-minute"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S33"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.7.2",
+   "evidence": "The owner, Sunday Scans 2025-06-22: 'If we see buying activity and opening ranges being taken out or strong hourly candles forming after the first 30 min then we can execute on our focus list.'"
+  },
+  {
+   "id": "orb.in_play",
+   "field": "context",
+   "statement": "A cue: the stock is in play, with a catalyst and heavy opening volume.",
+   "basis": "measured",
+   "sources": [
+    "S20",
+    "S21",
+    "S33"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.7.3",
+   "evidence": "Zarattini, Barbon and Aziz (source 21): the 5-minute ORB on all stocks earned 3.2% a year (Sharpe 0.48); on the 20 stocks in play with the highest opening relative volume 41.6% a year (Sharpe 2.81). Their 30-minute version on the same stocks made 2.3% a year (Sharpe 0.21). Kullamagi (source 20): the best EPs trade their average daily volume in the first 15 to 30 minutes."
+  },
+  {
+   "id": "orb.contraction_before",
+   "field": "context",
+   "statement": "A cue: contraction the day before, an inside day, an NR4 or NR7 day, or a tight base.",
+   "measure": {
+    "what": "the prior session's range against the prior 4 or 7 sessions",
+    "op": "<=",
+    "value": "the narrowest of the last 4 (NR4) or 7 (NR7), or an inside day",
+    "timeframe": "daily"
+   },
+   "glossary": "inside_day",
+   "basis": "originator",
+   "sources": [
+    "S4",
+    "S5",
+    "S6",
+    "S15"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.7.4",
+   "evidence": "Crabel (sources 4 to 6): inside days, NR4 and ID/NR4 'have proven to be reliable predecessors of trending action'; his averages 64% after NR7 or NR4 against 57% on any day, futures, same-day exits. Raschke (source 15) lists NR7, a cluster of small ranges, a wedge point and a hook day. Not coded in the scan."
+  },
+  {
+   "id": "orb.orh_vs_pdh",
+   "field": "pattern",
+   "statement": "The opening-range high sits at or above the prior day's high, or at a key daily level. Graded higher, not required.",
+   "measure": {
+    "what": "opening-range high against the prior day's high",
+    "op": ">=",
+    "value": "prior day's high",
+    "timeframe": "daily"
+   },
+   "basis": "originator",
+   "sources": [
+    "S16",
+    "S33",
+    "S39"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "required"
+    },
+    {
+     "value": "b",
+     "basis": "graded higher: Bysshe (source 16); the owner's CEP (KB 10111) and TMDX plans; D-123's default"
+    },
+    {
+     "value": "c",
+     "basis": "ignored"
+    }
+   ],
+   "recommended": "b",
+   "status": "pending-owner",
+   "owner_question": "D-123",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.7.5",
+   "evidence": "Bysshe: an OR high at or just above the prior day's high makes the break 'even more significant'. The owner on TMDX: 'Over $150 at least.' The scan used it as the parent-setup proxy for its strict rule (284 hits, 26.1% / 12.7%); all ten examples pass it. DE 2026-11-02: the OR high only a fraction above the prior day's high on a red open, 0.15R and stopped the same day."
+  },
+  {
+   "id": "orb.day_one",
+   "field": "context",
+   "statement": "The Kicker gap day is day 1 everywhere in the course; some app files call it day 2.",
+   "measure": {
+    "what": "day number of the Kicker gap day",
+    "op": "==",
+    "value": 1,
+    "unit": "day"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S34"
+   ],
+   "status": "pending-owner",
+   "owner_question": "D-016",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "10 question 13",
+   "evidence": "The owner's rulings say 'DAY 1' (2026-11-02, lines 323 and 344). D-016's note: Day 1 everywhere."
+  },
+  {
+   "id": "orb.short_trigger",
+   "field": "trigger",
+   "statement": "The short mirror, the opening range breakdown: a trade at least one cent below the 30-minute low after 10:00 ET, market order.",
+   "measure": {
+    "what": "intraday low after 10:00 ET against the opening-range low",
+    "op": "<=",
+    "value": "opening-range low - $0.01",
+    "timeframe": "5-minute"
+   },
+   "glossary": "opening_range",
+   "basis": "house rule",
+   "sources": [
+    "S33",
+    "S41"
+   ],
+   "house_rule": "D47",
+   "options": [
+    {
+     "value": "a",
+     "basis": "teach the breakdown as a short below the 200-day: the D47 mirror; the scan's 185 short hits"
+    },
+    {
+     "value": "b",
+     "basis": "only Bracco's parabolic versions"
+    },
+    {
+     "value": "c",
+     "basis": "both"
+    }
+   ],
+   "recommended": "c",
+   "status": "pending-owner",
+   "owner_question": "D-001",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.6.1; 10 question 10",
+   "evidence": "Bracco (Sunday Scans 2025-12-28): 'I wait for signs of weakness such as a breakdown through VWAP, opening range lows, and/or lows of the day.' Scan: shorts 185 hits, 27.0% to 3R and 12.4% to 5R; the dossier's count found the breakdown on 3%+ gap-down days the only positive cell (+0.24R same day, +0.48R over five sessions, 1,052 cases). Four of the ten examples are shorts (POOL, CRH, TJX, PEG)."
+  },
+  {
+   "id": "orb.short_context",
+   "field": "context",
+   "statement": "The short: only below the 200-day, RS 20 or less, in a weak group, with a borrow available at a normal fee.",
+   "measure": {
+    "what": "prior close against the 200-day SMA",
+    "op": "<",
+    "value": "200-day SMA",
+    "timeframe": "daily",
+    "and": "RS rating <= 20; not hard to borrow"
+   },
+   "glossary": "above_200",
+   "basis": "house rule",
+   "sources": [
+    "S36",
+    "S41"
+   ],
+   "house_rule": "B26",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.6.2",
+   "evidence": "C31's mirror and D48. The app's breakdown detector can fire in a Stage 2 uptrend (minus 5 points only) and above the 200-day (5.3.6). LII 2026-10-27: an up-open breakdown in a weak stock (RS 6) was the weak cell; the shorts worked best when the stock opened down and under the prior day's low."
+  },
+  {
+   "id": "orb.short_stop",
+   "field": "stop",
+   "statement": "The short's stop: a few cents above the day's high at the fill; 3% or less. Trims and trail mirrored: cover a third at 3R and 5R, trail above the 10 or 21-day.",
+   "measure": {
+    "what": "(stop - fill) / fill",
+    "op": "<=",
+    "value": 3,
+    "unit": "%",
+    "timeframe": "30-minute"
+   },
+   "glossary": "stop_width",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "D47",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.6.3; 8.6.4",
+   "evidence": "The dossier's count: on 3%+ gap-down days the short's stop fit inside 3% only 36% of the time. The scan's short examples ran 1.03% to 1.68%."
+  },
+  {
+   "id": "orb.short_parabolic",
+   "field": "context",
+   "statement": "The parabolic exception: on a parabolic climax above the 200-day, Bracco's rules apply. Prefer the U-Turn (a gap up and ORB, then the VWAP break and the day's-low break); treat the Quick Opening Range Breakdown with caution, especially on day 1 or 2 of the burst; stop above the day's high; target the 9-day average.",
+   "measure": {
+    "what": "day of the parabolic burst on which the quick breakdown is taken",
+    "op": ">",
+    "value": 2,
+    "unit": "day",
+    "timeframe": "daily"
+   },
+   "glossary": "parabolic_burst",
+   "basis": "UCT",
+   "sources": [
+    "S33"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.6.5",
+   "evidence": "Bracco, The Parabolic Short (2025-06-13): the Quick Opening Range Breakdown 'occurs at market open when the day's high is set on the first 5-minute candle', he is 'not particularly fond' of it; his U-Turn 'begins with a gap-up and an opening range breakout'. B26 allows the parabolic short above the 200-day; D47 gives the stop and the 9-day target."
+  }
+ ],
+ "grading": {
+  "a_plus": [
+   "orb.parent_setup: a real daily setup in a leader, RS 80 or more, a top group",
+   "orb.above_50: above a rising 50-day and the 200-day",
+   "orb.in_play: a catalyst, the first 15 to 30 minutes on several times normal volume; the best trade their average daily volume in that time",
+   "orb.range_defined: a tight, well-defined range with price holding near the ORH",
+   "orb.orh_vs_pdh: the ORH at or above the prior day's high and a key daily level",
+   "orb.stop_width: stop 2% or less",
+   "orb.reversal_warning: a quick, clean break that holds above the ORH for about 15 minutes (Bysshe's half-the-range-time rule)",
+   "orb.market_reading: Green, with the indexes also taking out their opening ranges (orb.index_orb); in Orange only if everything else grades A+ (F65)",
+   "orb.contraction_before: an inside day, NR7 or tight base the day before",
+   "orb.valid_all_session: an early trigger, by about 10:30 (the scan's one window said the opposite; see conflicts)"
+  ],
+  "b_minus": [
+   "orb.stop_width: stop over 3% (skip under A13 unless the owner approves an exception)",
+   "orb.inv_range_low_first: the range low broke first",
+   "orb.range_defined: a sloppy range with no clear high",
+   "orb.opening_volume: below-normal opening volume",
+   "orb.contraction_before: an expansion day before",
+   "orb.above_50: a counter-trend break",
+   "orb.reversal_warning: a big-volume reversal at the ORH already printed",
+   "orb.orh_vs_pdh: the ORH below the prior day's high or into nearby resistance",
+   "orb.valid_all_session: a trigger late in the day",
+   "orb.market_reading: Yellow (smaller and fewer)"
+  ],
+  "no_trade": [
+   "orb.parent_setup: no daily setup behind it",
+   "orb.above_200: under the 200-day (the short side only)",
+   "orb.leader: RS under 80",
+   "orb.stop_width: the honest stop does not fit; never pull it in",
+   "orb.no_chase: more than 4% past the ORH",
+   "orb.not_stretched: more than 10% over the 10-day, unless the owner exempts gap days",
+   "orb.earnings_window: a report within 3 sessions",
+   "orb.liquidity: under $10 or under $20 million a day",
+   "orb.inv_range_low_first: the 30-minute low traded first",
+   "orb.market_reading: Red; Orange below A+"
+  ]
+ },
+ "lookalikes": [
+  {
+   "setup": "41-30-minute-pivot",
+   "tell": "Find the buy level. The ORB buys the first trade through the 9:30 to 10:00 high. A 30-minute pivot buys the high of the first green 30-minute candle after a string of red ones at a daily level, which usually sits well below the morning high (DELL: morning high 543.15, pivot buy 527).",
+   "criterion": "orb.trigger"
+  },
+  {
+   "setup": "44-opening-drive",
+   "tell": "Check the clock and the low. A drive sets the day's low in the first 5-minute bar and is bought over that bar's high by about 9:40. An ORB waits for the full 30-minute range and buys after 10:00.",
+   "criterion": "orb.window"
+  },
+  {
+   "setup": "26-kicker",
+   "tell": "Look at yesterday. A Kicker needs a real red day before the gap, and the ORB is only its second entry after the prior-day-high break. A gap with a doji or a green day before it is a plain gap ORB, and without a daily setup it is not ours.",
+   "criterion": "orb.parent_setup"
+  },
+  {
+   "setup": "20-episodic-pivot",
+   "tell": "Measure the gap. An EP opens 10% or more above the prior close on a named catalyst, and its 30-minute range is usually too wide for a 3% stop. An ORB on an ordinary day gaps under 3% and keeps the stop inside 3%.",
+   "criterion": "orb.stop_width"
+  }
+ ],
+ "invalidations": [
+  "Before the fill: the 30-minute low trades before the 30-minute high; the plain ORB long is off for the day (orb.inv_range_low_first).",
+  "Before the fill: the parent setup is broken, on a Kicker a trade under the red day's low before the open (orb.inv_parent_broken).",
+  "Before the fill: the market reading is Red (orb.market_reading).",
+  "Before the fill: the stop would be more than 3% away, 3.5% on a Kicker (orb.stop_width).",
+  "Before the fill: a report within 3 sessions (orb.earnings_window).",
+  "After the fill: the stop is the exit; a big-volume reversal back into the range is a warning, not a second exit rule (orb.reversal_warning)."
+ ],
+ "mistakes": [
+  "Trading the ORB without a daily setup. The bare ORB had no edge in the dossier's count.",
+  "Buying a break on ordinary volume.",
+  "Taking an ORB whose stop is over 3% because the stock gapped.",
+  "Chasing a spike far above the ORH.",
+  "Buying a sloppy range with no clear high.",
+  "Waiting for a 5-minute close: late fills, wider risk.",
+  "Treating the opening minutes as the trade, buying before 10:00 because it is running. The ORB waits for the range.",
+  "Ignoring the daily chart. Bysshe's NTES against SOHU: same news, different daily trends, different results.",
+  "Taking the ORB after an expansion day.",
+  "Repeating failed ORBs on the same stock past 3 tries a week.",
+  "Day-1 earnings gappers that fail the ORB: switch to the ORB-low undercut or the VWAP remount, as the owner noted.",
+  "Trusting the app's scanner: it waits for a close, rejects ranges over 2.5% wide (73% of 3%-plus gap days, JBI included) and quotes statistics nobody can find."
+ ],
+ "short_mirror": {
+  "exists": true,
+  "setup": "40-opening-range-breakout",
+  "note": "The opening range breakdown is in this dossier (8.6): a trade a cent under the 30-minute low, market order, only below the 200-day with RS 20 or less and a normal borrow, stop a few cents over the day's high within 3%, trims and trail mirrored. Bracco's parabolic versions (the U-Turn and the Quick Opening Range Breakdown) are the exception above the 200-day. The scan found 185 short hits (27.0% / 12.4%) and four of the ten examples are shorts. Whether to teach it, and which version, is D-001 (question 10)."
+ },
+ "best_conditions": "A Green market with the indexes themselves taking out their opening ranges after the first 30 minutes. A stock in play: a catalyst, heavy opening volume, an ORH at or above the prior day's high, and contraction the day before (an inside day, NR7 or a tight base).",
+ "management": {
+  "trim_1": "a third at 3R (B19)",
+  "trim_2": "a third at 5R (E51)",
+  "trail": "a close under the 10-day for a fast mover, the 21-day for a steadier one (E52)",
+  "breakeven": "between 2R and 5R, at the first trim by default (B19)",
+  "time_stop": "under 1R after 10 trading days, sell (C33)",
+  "gap_open": "a trim level the day opens past is taken at the open (F63)",
+  "gap_against": "the first 30-minute low is the new stop; out if past 2R (B20)",
+  "reentry": "a retake of the day's high after a stop-out is a new trade; at most 3 tries a week, 6 a month (B21, E56, D-142)",
+  "overrides": "none. The dossier (8.4) finds no ORB-specific rule anywhere. Not ours: the app's target of twice the range, Crabel's exit at the close, Kullamagi's third to a half after 3 to 5 days. The Kicker's 3.5% stop cap is the one setup-specific stop rule (orb.stop_kicker_cap)."
+ },
+ "examples": {
+  "winners": 10,
+  "sheet_dir": "_study-resume/scratchpad/setups/40-opening-range-breakout/final",
+  "base_rate": {
+   "hits": 284,
+   "long_hits": 99,
+   "short_hits": 185,
+   "r3_pct": 26.1,
+   "r5_pct": 12.7,
+   "stopped_pct": 86.3,
+   "stopped_same_day_pct": 20.1,
+   "median_risk_pct": 1.9,
+   "median_range_width_pct": 1.7,
+   "median_opening_volume_x": 1.9,
+   "window": "20 sessions forward on 5-minute bars, fixed stop, no trims, no breakeven, no trail; 2026-08-17 to 2026-11-06 (59 sessions, the 1,000 most-traded names, ETFs removed); the full section-8 rule: RS 80+ (20- for shorts), opening volume 1.5x the window's 10-20 session mean, the OR edge at or beyond the prior day's extreme, first trade through the high before any trade through the low, stop within 3%"
+  },
+  "cuts": {
+   "before_rs_and_prior_day_extreme_filters": {
+    "hits": 1703,
+    "r3_pct": 23.2,
+    "r5_pct": 13.0,
+    "stopped_pct": 79.8
+   },
+   "longs": {
+    "hits": 99,
+    "r3_pct": 24.2,
+    "r5_pct": 13.1
+   },
+   "shorts": {
+    "hits": 185,
+    "r3_pct": 27.0,
+    "r5_pct": 12.4
+   },
+   "trigger_by_10_30": {
+    "hits": 200,
+    "r3_pct": 22.5,
+    "r5_pct": 10.0
+   },
+   "trigger_after_10_30": {
+    "hits": 84,
+    "r3_pct": 34.5,
+    "r5_pct": 19.0,
+    "note": "the opposite of the section 9 grading, one 12-week window"
+   },
+   "opening_volume_2x_or_more": {
+    "hits": 124,
+    "r3_pct": 21.0,
+    "r5_pct": 7.3,
+    "note": "no better than 1.5x"
+   },
+   "earnings_reaction_triggers": {
+    "hits": 3,
+    "note": "the stop or the 10-day limit removes almost every earnings gapper"
+   },
+   "unfiltered_30_minute_orb_own_count": {
+    "stock_days": 56302,
+    "same_day_close_mean_r": -0.05,
+    "five_session_positive_pct": 26.2,
+    "median_stop_pct": 1.59,
+    "note": "section 4.8: the bare ORB, no setup, no volume filter"
+   }
+  },
+  "winners_list": [
+   "FFIV 2026-09-15 long",
+   "ANF 2026-10-12 long",
+   "EXEL 2026-10-14 long",
+   "OVV 2026-10-09 long",
+   "QLYS 2026-10-22 long",
+   "SNX 2026-09-21 long",
+   "POOL 2026-09-10 short",
+   "CRH 2026-08-31 short",
+   "TJX 2026-09-08 short",
+   "PEG 2026-09-14 short"
+  ],
+  "failures": [
+   {
+    "ticker": "CMCSA",
+    "date": "2026-09-18",
+    "criterion": "orb.opening_volume",
+    "why": "short at 10:00 on 5.2x opening volume, gap -1.1%, RS 17, risk 1.85%: the break of the OR low ran 0.24R and reversed back into the range the same morning; stopped the same day. The date is the September quarterly expiration: the volume was rebalance volume, not a seller. 168 hits fell on that day."
+   },
+   {
+    "ticker": "DE",
+    "date": "2026-11-02",
+    "criterion": "orb.parent_setup",
+    "why": "long at 10:00 on 3.7x opening volume, RS 81, risk 2.05%, but the stock had gapped down 0.9% and the OR high was only a fraction above the prior day's high; 0.15R and failed within the hour, stopped the same day. A break on a red open with no gap of its own is the bare ORB of 8.8.1."
+   },
+   {
+    "ticker": "LII",
+    "date": "2026-10-27",
+    "criterion": "orb.short_context",
+    "why": "short at 10:00 on 3.4x opening volume, gap +0.4% (an up-open in a weak stock, RS 6), risk 2.2%: 0.26R and stopped the same day. The short worked best when the stock opened down and under the prior day's low; an up-open breakdown was the weak cell."
+   },
+   {
+    "ticker": "OVV",
+    "date": "2026-10-09",
+    "criterion": "orb.trim_1",
+    "why": "5R in session 7, then back to the fixed stop in session 18. QLYS, SNX, TJX and FORM (12.3R) did the same within 20 sessions: the count says stopped, the trims at 3R and 5R and the breakeven move say otherwise. Teach the exit as part of the setup."
+   },
+   {
+    "ticker": "APA",
+    "date": "2026-09-14",
+    "criterion": "orb.reversal_warning",
+    "why": "long at 10:00 on a 2.3% gap over the prior day's high, 1.7x opening volume, RS 90, fill 46.37, stop 45.51 (1.85%): 0.26R, back through the OR high by 10:30, lost VWAP, stopped at 12:45 the same day; closed under the range at 45.05. The card's failure mode in one chart."
+   }
+  ],
+  "limits": "One 12-week window in one market phase (the only window with 5-minute bars); no different years possible. The parent setup was a proxy (RS 80+ and the OR edge beyond the prior day's extreme), not a hand check for a Kicker, EP or base. RS is a proxy rank, not the app's rating. No slippage, no commissions. Nothing here is a published statistic.",
+  "near_misses": [
+   {
+    "ticker": "IQV",
+    "date": "2026-09-15",
+    "criterion": "orb.opening_volume",
+    "why": "opening volume 1.03x the 20-day mean for 9:30 to 10:00 (rule 1.5x or more); a quiet 10:00 range break with no opening interest; 1.29R then stopped 2026-09-28."
+   },
+   {
+    "ticker": "GKOS",
+    "date": "2026-10-27",
+    "criterion": "orb.stop_width",
+    "why": "30-minute range 4.55% wide, stop 4.58% under the fill (rule 3% or less); skip or size down by the stop; 0.33R then stopped 2026-10-28."
+   },
+   {
+    "ticker": "MANH",
+    "date": "2026-09-14",
+    "criterion": "orb.inv_range_low_first",
+    "why": "the OR low 206.18 traded at 10:00 before the OR high 207.88 traded at 10:30; a reclaim after an undercut is an Oops, red-to-green or VWAP remount entry, not the plain ORB; 1.71R then stopped 2026-09-15."
+   },
+   {
+    "ticker": "DHR",
+    "date": "2026-09-24",
+    "criterion": "orb.leader",
+    "why": "RS 64 (rule 80 or more); a clean 10:00 break on 2.1x opening volume in a non-leader with no parent setup; 0.58R then stopped 2026-09-29."
+   }
+  ],
+  "sheets": {
+   "failures": "final/fail_1-4.png",
+   "near_misses": "final/near_1-4.png",
+   "pair": "final/pair_41-30-minute-pivot.png"
+  }
+ },
+ "question_seeds": [
+  {
+   "kind": "recall",
+   "criterion": "orb.window",
+   "seed": "Which minutes of the session set the opening range we teach, and on which chart?"
+  },
+  {
+   "kind": "recall",
+   "criterion": "orb.parent_setup",
+   "seed": "Is the ORB a setup or an entry trigger? Name two daily setups it times."
+  },
+  {
+   "kind": "recall",
+   "criterion": "orb.stop",
+   "seed": "Where does the stop go on an ORB entry, and what is it normally on a first break?"
+  },
+  {
+   "kind": "spot",
+   "criterion": "orb.trigger",
+   "seed": "Hidden ticker, 30-minute chart: tap the candle where the ORB triggered."
+  },
+  {
+   "kind": "spot",
+   "criterion": "orb.inv_range_low_first",
+   "seed": "Hidden ticker, 5-minute chart: did the range high or the range low trade first after 10:00? Take it or pass."
+  },
+  {
+   "kind": "spot",
+   "criterion": "orb.orh_vs_pdh",
+   "seed": "Hidden ticker: is the opening-range high above yesterday's high? Grade the range."
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "orb.trigger",
+   "seed": "ORB or 30-minute pivot: the buy was at the high of the first green candle after four red ones, well under the morning high. Which is it?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "orb.window",
+   "seed": "ORB or opening drive: the stock was bought at 9:36 over the first 5-minute bar's high. Which is it?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "orb.parent_setup",
+   "seed": "Kicker ORB or plain gap ORB: the day before the gap was a doji. Which is it, and does it qualify?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "orb.stop_width",
+   "seed": "The stock gapped 6% and the 30-minute range is 3.4% wide. The ORB triggers at 10:05. Buy, or pass?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "orb.kicker_order",
+   "seed": "A Kicker opens below the red day's high of 11.04 and trades through it at 9:41. The 30-minute high is 11.20. Which order fills first, and where is each stop?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "orb.reversal_warning",
+   "seed": "You bought the break at 10:00. By 10:20 it is back inside the range on heavy volume, above your stop. What now?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "orb.reentry",
+   "seed": "Stopped out at 10:40. At 11:15 the stock retakes the day's high. Can you buy again, and what does it count against?"
+  },
+  {
+   "kind": "grade",
+   "criterion": "orb.opening_volume",
+   "seed": "Two breaks at 10:00: one on 0.9x normal opening volume, one on 2.6x with the ORH above yesterday's high. Grade each."
+  },
+  {
+   "kind": "grade",
+   "criterion": "orb.valid_all_session",
+   "seed": "Same stock, the break comes at 10:50 instead of 10:00, everything else equal. What grade?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "orb.stop_width",
+   "seed": "The 30-minute high is 418.45 and the low 412.06. You fill at 418.46 with the stop at 412.01. What is the risk in percent, and does it fit?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "orb.stop_kicker_cap",
+   "seed": "A Kicker ORB fills at 11.21; the Kicker low is 10.82. Where is the stop under the 3.5% cap?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "orb.trim_1",
+   "seed": "Fill 146.91, stop 143.86. Where are 3R and 5R?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "orb.no_chase",
+   "seed": "The ORH is 60.91 and the stock is 63.60 when you look. Is that inside the 4% chase limit?"
+  }
+ ],
+ "owner_decisions": [
+  "D-001",
+  "D-002",
+  "D-005",
+  "D-006",
+  "D-010",
+  "D-016",
+  "D-017",
+  "D-031",
+  "D-038",
+  "D-123",
+  "D-124",
+  "D-142",
+  "D-143"
+ ],
+ "conflicts": [
+  "The window: Crabel 30 seconds to 5 minutes (sources 1 to 8); Zarattini's best 5 minutes (source 21); Trade-Ideas' most popular 15; Bysshe, the owner's Kicker ruling, Trade-Ideas ORU30 and Kullamagi's first 60-minute candle 30; Raschke and Market Profile 45 to 120 minutes or the first hour. The card takes 30 minutes (D-031).",
+  "Trade-through or close: every source acts on the trade through; only the app's scanner waits for a 5-minute close. The card takes the trade through.",
+  "The stop: the opposite side of the range (Crabel, Raschke, Bysshe's maximum, the app); the low of the day (Kullamagi, the owner); the last swing low (Bysshe's preference); 10% of ATR (Zarattini); a loss of VWAP (Bear Bull slides). The house wins: the day's low (A3). On a first break after 10:00 the first two usually agree.",
+  "The hold: same day (Crabel's tests, Zarattini); overnight or the next open (Raschke); days to weeks (Kullamagi, Bysshe for swings, the owner). The card is a swing trade (C35), a deliberate change from the originator.",
+  "Volume: none (Crabel, Raschke); the opening range against its own history (Zarattini, Bysshe, the owner, Kullamagi for EPs); the break bar against the opening bars (the app only). The card takes the window against its own 20-day average; the number is D-006.",
+  "Range width: no source sets a band; the app's 0.3% to 2.5% gate has no source and rejected 73% of 3%-plus gap-up days, JBI included. The card has no width gate; the stop width (A13) does the job.",
+  "Timing of the trigger: section 9 grades an early trigger (by 10:30) higher, resting on Zarattini's 5-minute result and the dossier's count (55% of first breaks by 10:30). The scan's one window found later triggers did better (34.5% / 19.0% after 10:30 against 22.5% / 10.0% by 10:30). The cue is kept with the caveat.",
+  "Does it still work: Steenbarger (2007) found index ORBs often better faded; Zarattini (2024) weak unfiltered, strong on stocks in play; the dossier's own count (2026) no edge unfiltered. The card rests the edge on the parent setup and the volume.",
+  "C30 (no time-of-day rule) against a trigger defined by the clock: D-143 reads the 30 minutes as the trigger's definition, not a clock rule.",
+  "C29 on gap days: many earnings and EP gap-day ORBs open more than 10% above the 10-day. Whether they get an exemption is D-017.",
+  "A13 on gap days: the stop fits inside 3% on 85% of ordinary days and 42% of 3%-plus gap days. Skip, 3.5%, a tighter swing low or the prior-day-high trigger is D-005.",
+  "The app's narratives attribute a 30-minute window, a width filter, a 2x target, failure rates by Weinstein stage and a 2:1 threshold to Crabel, and ORB statistics and timing tiers to Lance Breitstein (whose firm was Trillium, not SMB). None was found; some are certainly wrong. Removing them is D-010 (question 12). The same unverified Breitstein language is in lance_opening_drive.py (setup 44).",
+  "The Model Book's sibling card '30-Minute Pivot' describes a consolidation under the first half-hour high, which is this setup, not 1ChartMaster's pivot (dossier 41). D-002 separates them: ORB = the first trade through the first half-hour's high; 30-Minute Pivot = the turn candle at support.",
+  "The Episodic Pivot playbook says Kullamagi waits 30 minutes and holds overnight only on a close in the top 25% of the range; his page says 1, 5 or 60-minute candle and a stop at the low of the day. The EP dossier writes his windows as 1, 5 or 30-minute; his words are 1, 5 or 60-minute with the first 60-minute candle lasting 30 minutes.",
+  "The repo's earlier notes ('Nothing published names a 30-minute opening range') are out of date: Bysshe, Trade-Ideas and Kullamagi's own note name it."
+ ]
+}

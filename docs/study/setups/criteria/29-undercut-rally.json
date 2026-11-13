@@ -1,0 +1,1257 @@
+{
+ "setup": "29-undercut-rally",
+ "name": "Undercut & Rally (U&R)",
+ "unit": "SET.26",
+ "direction": "long",
+ "timeframe": "daily",
+ "dossier": "docs/study/setups/research/29-undercut-rally.md",
+ "as_of": "2026-11-10",
+ "card": {
+  "context": "A leader, RS 80 or more, above its 200-day and above a 50-day that is not falling. Best right after a correction as the market turns up, especially when the index itself undercuts and reclaims a big support. Green or Yellow.",
+  "pattern": "A level everyone can see (a bounced swing low, the 10-session range low, a rising 20 EMA or 50-day, a prior high or round number) is undercut by at most 6% after a close above it, then taken back within 3 sessions.",
+  "trigger": "PREV LOW RECLAIM: a market order as price trades back above the level, confirmed intraday by an opening-range break, a VWAP reclaim, a 30-minute pivot or red to green; or near the close of a reclaim day that closes in its top half.",
+  "stop": "A few cents under the undercut low, the lowest low while price was under the level. More than 3% away: size down or skip. The intraday entry near the level is what keeps it small.",
+  "failure_mode": "The reclaim does not hold: a close back under the level, then the undercut low breaks, usually as the index breaks down. Most hits are stopped; the edge is the R of the few that run."
+ },
+ "entry_trigger": "PREV LOW RECLAIM",
+ "criteria": [
+  {
+   "id": "ur.liquidity",
+   "field": "context",
+   "statement": "Price $10 or more and at least $20 million traded a day (the dossier uses a 20-day average; the glossary's shared window is 50).",
+   "measure": {
+    "what": "close",
+    "op": ">=",
+    "value": 10,
+    "unit": "$",
+    "and": "average dollar volume >= 20,000,000 a day"
+   },
+   "glossary": "liquidity",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B23",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 item 1",
+   "evidence": "TE ($3) and OPEN (about $6.50), two owner-praised U&Rs, fail it and stay out of the lessons. The public scanner has no floor; the internal one uses $2 and $10,000."
+  },
+  {
+   "id": "ur.position_adv",
+   "field": "management",
+   "statement": "The position is under 1% of average daily volume.",
+   "measure": {
+    "what": "shares / average daily volume",
+    "op": "<=",
+    "value": 1,
+    "unit": "%"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "D42",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 item 1"
+  },
+  {
+   "id": "ur.above_200",
+   "field": "context",
+   "statement": "The buy-day close is above the 200-day SMA.",
+   "measure": {
+    "what": "buy-day close against the 200-day SMA",
+    "op": ">",
+    "value": "200-day SMA",
+    "timeframe": "daily"
+   },
+   "glossary": "above_200",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B26",
+   "options": [
+    {
+     "value": "a",
+     "basis": "B26 as it stands: no buy under the 200-day (the dossier's rule line)"
+    },
+    {
+     "value": "b",
+     "basis": "allow a reclaim that closes back above the 200-day the same day"
+    },
+    {
+     "value": "c",
+     "basis": "a washout U&R under the 200-day as a parabolic long (a burst down) under B26's exception"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-009",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 item 2; 10 question 3",
+   "evidence": "Morales's best U&Rs come at market turns, often near the 200-day, and Bracco's leaders reclaimed near their 200-day moving averages. The test: below the 200-day did about as well as above it (26% to 3R either way). A recent IPO has no 200-day at all (FIGR). The register's default: B26 as written, the washout cases stay as reading drills."
+  },
+  {
+   "id": "ur.trend_not_falling",
+   "field": "context",
+   "statement": "The 50-day SMA today is at or above its value 10 sessions ago, and the buy-day close is above the 50-day SMA (a MAU&R of the 50-day reclaims it by definition).",
+   "measure": {
+    "what": "50-day SMA today - 50-day SMA 10 sessions ago",
+    "op": ">=",
+    "value": 0,
+    "unit": "$",
+    "and": "buy-day close > 50-day SMA",
+    "timeframe": "daily"
+   },
+   "glossary": "rising_average",
+   "basis": "UCT",
+   "sources": [
+    "S18"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 item 3",
+   "evidence": "The owner's RBRK pass (I did not like the declining moving averages) and his note that an undercut below the MAs is just not something I generally do. The 10-session test and the 50-day as the line are the dossier's proposal; the 50-day is also the internal scanner's gate."
+  },
+  {
+   "id": "ur.leader",
+   "field": "context",
+   "statement": "RS rating 80 or more, in one of the strongest groups.",
+   "measure": {
+    "what": "RS rating",
+    "op": ">=",
+    "value": 80,
+    "unit": "rating 1 to 99"
+   },
+   "glossary": "leader",
+   "basis": "house rule",
+   "sources": [
+    "S18"
+   ],
+   "house_rule": "C31",
+   "options": [
+    {
+     "value": "a",
+     "basis": "a leader setup, RS 80 or more always (the dossier's rule line; the owner's RS names and liquid leaders)"
+    },
+    {
+     "value": "b",
+     "basis": "two kinds: the leader U&R (RS 80 or more, house trims) and the washout U&R (no RS rule, quick exit): Bracco's mean reversion play"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-011",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 item 4; 10 question 4",
+   "evidence": "The owner trades U&Rs on RS names and liquid leaders. Bracco calls his washout U&Rs a mean reversion play, which C31 exempts. The register's default puts the washout U&R in the exempt class with an RS line that held up as the cue. The test had no RS series; the 50-day and 200-day tests stood in."
+  },
+  {
+   "id": "ur.earnings_window",
+   "field": "context",
+   "statement": "No earnings report in the next 3 sessions and no pending buyout or deal.",
+   "measure": {
+    "what": "sessions until the next report",
+    "op": ">",
+    "value": 3,
+    "unit": "sessions",
+    "and": "no pending buyout or deal news"
+   },
+   "glossary": "earnings_blackout",
+   "basis": "house rule",
+   "sources": [
+    "S18"
+   ],
+   "house_rule": "B22",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 item 11",
+   "evidence": "The owner on U (2026-11-08): held off due to earnings; my hard rule, as soon as there is buyout stuff I take it off my list. An earnings-reaction U&R (ZS) is after the report, so it is allowed."
+  },
+  {
+   "id": "ur.market_reading",
+   "field": "context",
+   "statement": "A Green or Yellow market reading; Orange only for A+; Red: mostly cash, plus shorts below the 200-day.",
+   "measure": {
+    "what": "the app's market reading on the trigger day",
+    "op": "in",
+    "value": [
+     "Green",
+     "Yellow",
+     "Orange (A+ only)"
+    ]
+   },
+   "glossary": "market_reading",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "F65",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.7"
+  },
+  {
+   "id": "ur.market_turn",
+   "field": "context",
+   "statement": "Best right after a correction, as the market turns up, and especially when the index itself undercuts and reclaims a big support.",
+   "basis": "originator",
+   "sources": [
+    "S1",
+    "S18"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.7; 9 Market row",
+   "evidence": "Morales: in conjunction with a market turn to the upside after a period of correcting. Bracco: the RS names that briefly undercut those previous lows and reclaimed in April 2025. Measured: slightly better with SPY under its 50-day (+0.10R against +0.04R), within about one standard error. Failures LULU 2020-02-24 and NVDA 2024-04-05 were correct-looking U&Rs as the index broke down."
+  },
+  {
+   "id": "ur.level",
+   "field": "pattern",
+   "statement": "The level L is one of: a swing low (under the 3 lows before it, not above the 3 after it) that price then bounced at least 5% off, 5 to 60 sessions before the undercut; the lowest low of at least the prior 10 sessions; a rising 20-day EMA or 50-day SMA the stock closed above the session before; a prior high, a breakout level, the gap-up day's low, or a round number at one of these.",
+   "measure": {
+    "what": "the level L",
+    "op": "in",
+    "value": [
+     "a 3-bar swing low bounced 5% or more, 5 to 60 sessions old",
+     "the lowest low of the prior 10 sessions or more",
+     "a rising 20-day EMA or 50-day SMA closed above the session before",
+     "a prior high, breakout level, gap-up day's low or round number at one of these"
+    ],
+    "timeframe": "daily"
+   },
+   "basis": "originator",
+   "sources": [
+    "S1",
+    "S2",
+    "S3",
+    "S18",
+    "S23"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "only prior lows and base lows (Morales, S1, S2)"
+    },
+    {
+     "value": "b",
+     "basis": "those plus rising moving averages, the MAU&R (S2); the register's default, plus gap lows"
+    },
+    {
+     "value": "c",
+     "basis": "any obvious level, including prior highs, round numbers, gap lows and VWAP (the owner's PLTR $170, IREN $50, NBIS $141, MXL); the dossier's rule line"
+    }
+   ],
+   "recommended": "c",
+   "status": "pending-owner",
+   "owner_question": "D-103",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 item 5; 10 question 2",
+   "evidence": "Measured (the internal one-day rule, E2): the 10-session range low was the only variant that beat its baseline (+0.13R against +0.03R); a held 21 EMA +0.06R, a held 50-day +0.05R. The swing-low numbers (3 bars, 5%, 5 to 60 sessions) are the dossier's proposal from Morales's prior low in the pattern and EdgeRater's 5% category. The owner's words: $160 flat, quick shakeout below the base."
+  },
+  {
+   "id": "ur.not_prior_day_low",
+   "field": "pattern",
+   "statement": "The prior day's low alone is not a level. A dip under only yesterday's low is an Oops, not a U&R.",
+   "measure": {
+    "what": "the level L is only the prior session's low",
+    "op": "==",
+    "value": false,
+    "timeframe": "daily"
+   },
+   "basis": "measured",
+   "sources": [
+    "S23",
+    "S21"
+   ],
+   "status": "pending-owner",
+   "owner_question": "D-103",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 item 5, not enough on its own; 10 question 2",
+   "evidence": "Measured: the prior-day-low variant of the internal rule (78,055 events, most of its fires) was flat against its baseline (+0.00R). The owner on a tiny undercut: a little subtle and hidden. The register's default: the prior day's low alone does not count; the Oops already owns it."
+  },
+  {
+   "id": "ur.fresh_undercut",
+   "field": "pattern",
+   "statement": "A fresh, visible undercut: the session before the undercut closed above L; the low then trades under L.",
+   "measure": {
+    "what": "close of the session before the undercut",
+    "op": ">",
+    "value": "L",
+    "and": "undercut-day low < L",
+    "timeframe": "daily"
+   },
+   "basis": "source consensus",
+   "sources": [
+    "S1",
+    "S7",
+    "S9"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 item 6",
+   "evidence": "Wyckoff, Morales and Turtle Soup all describe a break that fools the crowd; a level already lost days ago traps nobody. The scan required it."
+  },
+  {
+   "id": "ur.depth",
+   "field": "pattern",
+   "statement": "Shallow: the undercut low is no more than 3% under L for an A grade and no more than 6% at all. Deeper is not this setup.",
+   "measure": {
+    "what": "(L - undercut low) / L",
+    "op": "<=",
+    "value": 6,
+    "unit": "%",
+    "note": "3% or less for an A grade",
+    "timeframe": "daily"
+   },
+   "basis": "measured",
+   "sources": [
+    "S23",
+    "S1"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "no number, judgment only (Morales refuses one)"
+    },
+    {
+     "value": "b",
+     "basis": "3% for an A grade, 6% at most, back above within 3 sessions (the dossier)"
+    },
+    {
+     "value": "c",
+     "basis": "an ATR limit, for example 1 ATR (the register's default for an A: within about 1 ATR, back above the same day; up to 6% and 3 sessions as a B)"
+    }
+   ],
+   "recommended": "b",
+   "status": "pending-owner",
+   "owner_question": "D-036",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 item 7; 10 question 5",
+   "evidence": "Measured (E1): undercuts 6% or deeper had the worst results (-0.09R, 16% to 3R) and 10.6% stops; 3% to 6% +0.01R; 0% to 1% +0.08R with 1.6% stops. Scan (rescanned 2026-11-10 with fills at the reclaim; the earlier figures used the open): an undercut of 3% or less reached 3R 51.1% of the time and 5R 40.5%, against 37.8% and 22.3% for one deeper than 3% (up to 6%); was 35.5% against 36.9% to 3R and 24.9% against 21.4% to 5R, so the earlier 'no difference' is gone. Median undercut in the scan 0.67%."
+  },
+  {
+   "id": "ur.reclaim_window",
+   "field": "pattern",
+   "statement": "Brief: price closes back above L the same session or within the next 3; no more than 3 closes under L. Longer is a Remount.",
+   "measure": {
+    "what": "closes under L from the undercut to the reclaim",
+    "op": "<=",
+    "value": 3,
+    "unit": "closes",
+    "timeframe": "daily"
+   },
+   "glossary": "reclaim_window",
+   "basis": "source consensus",
+   "sources": [
+    "S7",
+    "S9",
+    "S10",
+    "S20"
+   ],
+   "status": "pending-owner",
+   "owner_question": "D-036",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 item 8; 10 question 5",
+   "evidence": "Wyckoff quickly reverses; Turtle Soup same day, Plus One the next day; Deepvue's bars same day; the journal template a day or two. The 3 is the dossier's. Scan (rescanned 2026-11-10 with fills at the reclaim; the earlier figures used the open): a same-day reclaim reached 3R 53.8% of the time against 43.2% for one that took 1 to 3 sessions (was 31.3% against 43.2%); the same-day median stop is 0.58% against 1.87%, so most of the gap is the tight stop; measured: one session later did no worse, so same day is a preference, not an edge. 71% of first undercuts of a bounced swing low closed back above within 3 sessions. The glossary closes the gap: the U&R family runs to 4 closes, the Remount starts at 5."
+  },
+  {
+   "id": "ur.volume_not_required",
+   "field": "pattern",
+   "statement": "Volume is not required. Light volume on the undercut (under the 50-day average) is a grade-up.",
+   "measure": {
+    "what": "undercut-day volume / 50-day average volume",
+    "op": "<",
+    "value": 1,
+    "unit": "x",
+    "note": "a grade-up only",
+    "timeframe": "daily"
+   },
+   "glossary": "dry_up",
+   "basis": "originator",
+   "sources": [
+    "S1",
+    "S7",
+    "S23"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "required on the reclaim: the journal template's rising volume"
+    },
+    {
+     "value": "b",
+     "basis": "not required: Morales (Volume is generally not a factor), Wyckoff's quiet spring as a grade-up, and the test"
+    }
+   ],
+   "recommended": "b",
+   "status": "pending-owner",
+   "owner_question": "D-006",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1 item 9; 10 question 10",
+   "evidence": "Measured: reclaim-day RVOL 1.5 or more did slightly worse (+0.01R against +0.07R under 1.0); a reclaim on more volume than the undercut was only a hair better (+0.11R against +0.06R). Three of the ten examples broke on 0.61x to 0.73x volume."
+  },
+  {
+   "id": "ur.trigger_intraday",
+   "field": "trigger",
+   "statement": "Option A, the owner's way: a market order as price trades back above L during the session, confirmed by an intraday turn: an opening-range-high break, a VWAP reclaim, a 30-minute pivot, or red to green.",
+   "measure": {
+    "what": "intraday price after the undercut",
+    "op": ">",
+    "value": "L",
+    "and": "an intraday turn: opening-range break, VWAP reclaim, 30-minute pivot, or red to green"
+   },
+   "glossary": "opening_range",
+   "basis": "UCT",
+   "sources": [
+    "S18"
+   ],
+   "house_rule": "E57",
+   "options": [
+    {
+     "value": "a",
+     "basis": "the intraday reclaim with an opening-range, VWAP or 30-minute confirmation (the owner's practice: ARM very tight risk, TEAM clean 30 min pivot, QQQ opening ranges)"
+    },
+    {
+     "value": "b",
+     "basis": "the close of a strong reclaim day"
+    },
+    {
+     "value": "c",
+     "basis": "both, with (a) as the default (the dossier's recommendation)"
+    }
+   ],
+   "recommended": "c",
+   "status": "pending-owner",
+   "owner_question": "D-003",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 Option A; 10 question 6",
+   "evidence": "Measured, Table C (a buy a cent over the level, an upper bound): every R number rose (+0.30R against +0.07R at the close; stop within 3% +0.60R). None of the 13 owner-named examples had a stop within 3% when bought at the close; FIGR was 1.6% from Bracco's fill. Scan (rescanned 2026-11-10 with fills at the reclaim; the earlier figures used the open): the fill at L plus a cent gave 50.2% to 3R and 39.2% to 5R on 66,020 hits (was 35.6% and 24.7%); with a stop of 0.5% or more, 47.1% and 33.8%."
+  },
+  {
+   "id": "ur.trigger_close",
+   "field": "trigger",
+   "statement": "Option B, for someone who cannot watch: buy near the close of a reclaim day that closes in the top half of its range (DCR 0.5 or more).",
+   "measure": {
+    "what": "(close - low) / (high - low) of the reclaim day",
+    "op": ">=",
+    "value": 0.5,
+    "timeframe": "daily"
+   },
+   "glossary": "close_position",
+   "basis": "measured",
+   "sources": [
+    "S23",
+    "S22"
+   ],
+   "status": "pending-owner",
+   "owner_question": "D-003",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.2 Option B",
+   "evidence": "Measured: top-half closes followed through 68% of the time against 43% for bottom-half closes. Scan (rescanned 2026-11-10 with fills at the reclaim; the earlier figures used the open): a reclaim day closing in its top half reached 3R 54.7% against 39.5% (was 42.4% against 17.7%). The knowledge-base template's strong close on reclaim day."
+  },
+  {
+   "id": "ur.trigger_confirmation",
+   "field": "trigger",
+   "statement": "Option C, IBD style: buy only when price clears a set distance over the old low (the shakeout-plus-three). A later, higher entry with a wider stop; not the default.",
+   "basis": "originator",
+   "sources": [
+    "S5"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.2 Option C",
+   "evidence": "IBD's buy is three points over the old low. The dossier does not recommend it as the default."
+  },
+  {
+   "id": "ur.never_buy_undercut",
+   "field": "trigger",
+   "statement": "Never buy the undercut itself before the level is back.",
+   "basis": "source consensus",
+   "sources": [
+    "S1",
+    "S5",
+    "S9",
+    "S20"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 Never buy the undercut; 8.8 mistake 1",
+   "evidence": "Morales (rallies back above it), Turtle Soup (a buy-stop slightly above the previous 20-day low), IBD's shakeout-plus-three, the journal template (Enter on the reclaim, never on the undercut). One school differs: Wyckoff's tutorial allows a partial long on a low-volume spring itself."
+  },
+  {
+   "id": "ur.no_chase",
+   "field": "trigger",
+   "statement": "At the buy, price is no more than 4% over L.",
+   "measure": {
+    "what": "fill / L - 1",
+    "op": "<=",
+    "value": 4,
+    "unit": "%"
+   },
+   "glossary": "chase_limit",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "C28",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 item 10",
+   "evidence": "The buy point is the level. After a big reclaim day the close can be well over 4% from L (DELL 2026-08-07, HOOD 2025-04-07). WYNN 2013-11-21 gapped back above L and filled at the open 0.4% over it; STLD 2022-02-24 opened 0.4% over L, dipped under and came back the same day, so its fill is L plus a cent, not the open (rescanned 2026-11-10)."
+  },
+  {
+   "id": "ur.not_stretched",
+   "field": "trigger",
+   "statement": "At the buy, price is no more than 10% over its 10-day average.",
+   "measure": {
+    "what": "fill / 10-day SMA - 1",
+    "op": "<=",
+    "value": 10,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "glossary": "stretched",
+   "basis": "house rule",
+   "sources": [
+    "S18"
+   ],
+   "house_rule": "C29",
+   "options": [
+    {
+     "value": "a",
+     "basis": "C29 wins (the rule as written)"
+    },
+    {
+     "value": "b",
+     "basis": "exempt U&Rs of an earnings-day low in the first week after the gap"
+    },
+    {
+     "value": "c",
+     "basis": "measure the stretch from the level instead of the 10-day average for this setup"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-017",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 item 10; 10 question 9",
+   "evidence": "Rarely binds: 20 of 25,310 E1 events. The conflict is the post-earnings U&R: the owner's MXL (day three undercut of earnings day low at $50) was 40.9% over its 10-day. The dossier states no lean; the register's default measures a catalyst-day entry against the 10-day as of the prior close for days 1 and 2 and applies C29 from day 3."
+  },
+  {
+   "id": "ur.plan_before_open",
+   "field": "trigger",
+   "statement": "Write L, the stop and the size before the open.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "D39",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.2",
+   "evidence": "The owner's plans name the level ahead (QBTS $15, RDDT $141.30, HPE $59); the buy waits for the reclaim."
+  },
+  {
+   "id": "ur.stop",
+   "field": "stop",
+   "statement": "A few cents under the undercut low, the lowest low while price was under L.",
+   "measure": {
+    "what": "stop",
+    "op": "==",
+    "value": "a few cents under the lowest low while price was under L"
+   },
+   "glossary": "stop_margin",
+   "basis": "house rule",
+   "sources": [
+    "S9",
+    "S18"
+   ],
+   "house_rule": "F62",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.3",
+   "evidence": "Turtle Soup: just below today's low; the owner: Stop at LOD, a stop at the new established support. Not the public scanner's 1.5% under the low, not the internal scanner's exact low, and not VoSI's 1 to 2% below the line for the MAU&R: the undercut low is the price that proves the trap wrong."
+  },
+  {
+   "id": "ur.stop_width",
+   "field": "stop",
+   "statement": "If that stop is more than about 3% from the entry, size down (A5 does it) or skip. Never move the stop up to make it fit.",
+   "measure": {
+    "what": "(entry - stop) / entry",
+    "op": "<=",
+    "value": 3,
+    "unit": "%"
+   },
+   "glossary": "stop_width",
+   "basis": "house rule",
+   "sources": [
+    "S23"
+   ],
+   "house_rule": "A13",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.3; 7 A13 row",
+   "evidence": "On a close entry the median stop was 2.6% (E1) and 1.7% (E2), but none of the 13 owner-named examples was within 3% from the close; they fit A13 only with the intraday entry near the level. Scan (rescanned 2026-11-10 with fills at the reclaim; the earlier figures used the open): a stop within 3% beat a wider one (51.5% against 37.3% to 3R; was 37.6% against 27.1%); median stop 0.88% (was 1.73%). LULU 2020-02-24: a 2.70% stop from a buy at L plus a cent (3.97% from the open in the earlier scan, over the line)."
+  },
+  {
+   "id": "ur.stop_broker",
+   "field": "stop",
+   "statement": "A real stop order with the broker. It only moves up.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "D41",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "7 D41 row"
+  },
+  {
+   "id": "ur.stop_gap",
+   "field": "stop",
+   "statement": "A gap through the stop: the first 30-minute low is the new stop; out if past 2R.",
+   "measure": {
+    "what": "loss at the first 30-minute low of the gap-down day",
+    "op": "<=",
+    "value": 2,
+    "unit": "R",
+    "timeframe": "30-minute"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B20",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.3"
+  },
+  {
+   "id": "ur.breakeven",
+   "field": "management",
+   "statement": "Stop to breakeven once the trade has made 2R to 5R, at the first trim by default.",
+   "measure": {
+    "what": "R at which the stop moves to the entry",
+    "op": "in",
+    "value": [
+     2,
+     5
+    ],
+    "unit": "R"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B19",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4"
+  },
+  {
+   "id": "ur.trim_1",
+   "field": "management",
+   "statement": "A third off at 3R.",
+   "measure": {
+    "what": "fraction sold at 3R",
+    "op": "==",
+    "value": 0.333,
+    "unit": "of the position"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B19",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4",
+   "evidence": "Eight of the ten examples reached 3R within 2 days; WYNN took 8. The journal template's first piece into the prior high is not the house rule."
+  },
+  {
+   "id": "ur.trim_2",
+   "field": "management",
+   "statement": "A third at 5R.",
+   "measure": {
+    "what": "fraction sold at 5R",
+    "op": "==",
+    "value": 0.333,
+    "unit": "of the position"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "E51",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4"
+  },
+  {
+   "id": "ur.trim_gap_open",
+   "field": "management",
+   "statement": "At the open if it gaps past a trim level.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "F63",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4"
+  },
+  {
+   "id": "ur.trail",
+   "field": "management",
+   "statement": "Trail the last third: a close under the 10-day average for fast movers, the 21-day for steadier ones.",
+   "measure": {
+    "what": "close against the 10-day (fast) or 21-day (steadier) average",
+    "op": "<",
+    "value": "the average",
+    "timeframe": "daily"
+   },
+   "glossary": "trail",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "E52",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4",
+   "evidence": "The owner's older habit (June 2025): trail the rest with a stop below the 9 and 20 period moving averages. The rulebook of 2026-11-09 governs."
+  },
+  {
+   "id": "ur.time_stop",
+   "field": "management",
+   "statement": "Under 1R after 10 sessions: out.",
+   "measure": {
+    "what": "open R after 10 trading days",
+    "op": "<",
+    "value": 1,
+    "unit": "R"
+   },
+   "glossary": "time_stop",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "C33",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4",
+   "evidence": "In the replay the median house result was -1R in every group but one: most trades are stopped, and the mean comes from about one trade in ten that makes 3R or more."
+  },
+  {
+   "id": "ur.washout_plan",
+   "field": "management",
+   "statement": "The washout (mean-reversion) U&R: Bracco holds these 1 to 3 days and covers some on the bounce. A separate plan for it needs a ruling; the house defaults apply until then.",
+   "measure": {
+    "what": "holding period of Bracco's washout U&R",
+    "op": "in",
+    "value": [
+     1,
+     3
+    ],
+    "unit": "days"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S18"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "house defaults (3R and 5R, trail the 10 or 21-day) for all U&Rs (the dossier's rule line; the register's default for every swing setup)"
+    },
+    {
+     "value": "b",
+     "basis": "a quicker exit for the mean-reversion kind (Bracco: short lived trades and not meant to be held longer than 1-3 days)"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-013",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4 Mean-reversion version; 10 question 7",
+   "evidence": "Bracco on UAMY: these are short lived trades and not meant to be held longer than 1-3 days; FIGR: covered some on the bounce."
+  },
+  {
+   "id": "ur.inv_no_reclaim",
+   "field": "invalidation",
+   "statement": "No close back above L within 3 sessions: a breakdown, not a U&R. No trade.",
+   "measure": {
+    "what": "sessions from the undercut without a close back above L",
+    "op": ">",
+    "value": 3,
+    "unit": "sessions",
+    "timeframe": "daily"
+   },
+   "glossary": "reclaim_window",
+   "basis": "source consensus",
+   "sources": [
+    "S7",
+    "S9"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5",
+   "evidence": "The number is the dossier's; the vision rubric's disqualifier: a sustained breakdown, not a shakeout. Five or more closes under the line is a Remount."
+  },
+  {
+   "id": "ur.after_entry_stop",
+   "field": "invalidation",
+   "statement": "After the buy, a trade under the undercut low is the exit.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "A4",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5",
+   "evidence": "NVDA 2024-04-05: a 2.05% stop, reached 0.67R and was stopped two sessions later at 83.02 as the April 2024 correction began; a top-half-close reclaim like this one fails to reach 3R about 45% of the time (54.7% reach it, rescanned 2026-11-10)."
+  },
+  {
+   "id": "ur.close_back_under",
+   "field": "invalidation",
+   "statement": "A close back under L after the buy is the early warning (the trap failed). Hold to the stop and do not add.",
+   "basis": "house rule",
+   "sources": [
+    "S20"
+   ],
+   "house_rule": "A4",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.5; 10 question 8",
+   "evidence": "The journal template: It reclaims the level, then closes back below it. The trap failed, and the sellers were right. The dossier's options were sell at that close or hold to the stop; it recommended hold (A4), and the register's D-136 settles 29:8 the same way."
+  },
+  {
+   "id": "ur.retry",
+   "field": "invalidation",
+   "statement": "A new try only on a new trigger, at most 3 a week and 6 a month on one stock.",
+   "measure": {
+    "what": "tries on one stock",
+    "op": "<=",
+    "value": 3,
+    "unit": "a week",
+    "and": "at most 6 a month"
+   },
+   "basis": "house rule",
+   "sources": [
+    "S18"
+   ],
+   "house_rule": "E56",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5; 8.8 mistake 8",
+   "evidence": "The owner retries (ARM, NBIS) and knows the limit: NBIS just got shaken out too many times in the one $150 to $140 zone. AMD 2021-09-14: the stop did its job; a new try needs a new trigger, not a hold through the loss."
+  }
+ ],
+ "grading": {
+  "a_plus": [
+   "ur.leader: a leader, RS 90 or more, in a top group",
+   "ur.trend_not_falling: above a rising 50-day and 200-day, averages stacked",
+   "ur.level: the low of a multi-week base, a prior breakout level or prior high, or a rising 20/50-day that has held before",
+   "ur.depth: visible but shallow, 3% or less, back above within 1 to 2 sessions (ur.reclaim_window)",
+   "ur.trigger_close: the reclaim day closes in the top half or better, clearly back over L",
+   "ur.volume_not_required: light volume on the undercut",
+   "ur.market_turn: turning up after a correction, or the index doing its own U&R; Green (ur.market_reading); in Orange only if everything else grades A+ (F65)",
+   "ur.stop_width: 3% or less from the entry",
+   "ur.earnings_window: no report for weeks"
+  ],
+  "b_minus": [
+   "ur.leader: RS 80 borderline, a middling group",
+   "ur.trend_not_falling: the 50-day falling or price under its averages (normally a pass: RBRK)",
+   "ur.not_prior_day_low: only the prior day's low, or a level price has crossed many times (a chop line)",
+   "ur.depth: 3% to 6% deep, or a full 3 sessions under (ur.reclaim_window)",
+   "ur.trigger_close: the reclaim day closes in its bottom half (follow-through 43%)",
+   "ur.volume_not_required: heavy selling that keeps coming",
+   "ur.market_reading: Yellow (smaller and fewer), or the index breaking down",
+   "ur.stop_width: over 3% (size down)",
+   "ur.earnings_window: a report within a week"
+  ],
+  "no_trade": [
+   "ur.market_reading: Red (mostly cash, plus shorts below the 200-day); Orange below A+",
+   "ur.above_200: under the 200-day",
+   "ur.inv_no_reclaim: no close back above L within 3 sessions",
+   "ur.never_buy_undercut: the undercut itself, before the level is back",
+   "ur.depth: deeper than 6%",
+   "ur.no_chase: more than 4% over L",
+   "ur.not_stretched: more than 10% over the 10-day average",
+   "ur.earnings_window: a report within 3 sessions, or buyout news",
+   "ur.liquidity: under $10 or under $20 million a day",
+   "ur.retry: a fourth try in a week on the same stock"
+  ]
+ },
+ "lookalikes": [
+  {
+   "setup": "28-2b-reversal",
+   "tell": "Name the level. If it is one swing low at least 5 sessions old that price rallied 1 ATR off, on its first break, it is the 2B; if it is a rising 20 EMA or 50-day, a prior high, a round number or the 10-session range low, it is a U&R.",
+   "criterion": "ur.level"
+  },
+  {
+   "setup": "30-oops-reversal",
+   "tell": "Look at the open and the level. An Oops opens under the prior close, trades under yesterday's low and reclaims the prior close the same day; a U&R needs a level that matters more than yesterday's low, and the reclaim may take up to 3 sessions.",
+   "criterion": "ur.not_prior_day_low"
+  },
+  {
+   "setup": "35-wyckoff-spring-upthrust",
+   "tell": "Look left for a flat range. A spring undercuts the floor of a sideways range of 15 sessions or more that was touched at least twice, and closes back inside the same day or the next; a U&R's level can be one low, an average or a prior high, and it may take 3 sessions to close back above.",
+   "criterion": "ur.reclaim_window"
+  },
+  {
+   "setup": "32-remount",
+   "tell": "Count the closes under the level. Up to 3 closes under and then back above is a U&R; 5 or more closes under the line is a Remount, bought on the retake with the stop under the remount day's low.",
+   "criterion": "ur.reclaim_window"
+  },
+  {
+   "setup": "13-ma-reclaim",
+   "tell": "For a moving average: a U&R of the 20 EMA or 50-day closed above the line the session before the undercut and is back above it within 3 sessions; a Remount of the 50 or 200-day has lost the line for at least 5 closes, one of them 0.5 ATR or more under it.",
+   "criterion": "ur.fresh_undercut"
+  },
+  {
+   "setup": "25-gap-support",
+   "tell": "Name the level. If it is the gap-up day's low of a still-open 4% gap on 2x volume, it is Gap Support, the same mechanics at that one line with its own card; any other level is a U&R.",
+   "criterion": "ur.level"
+  },
+  {
+   "setup": "34-capitulation",
+   "tell": "Measure the undercut and the averages. A U&R goes at most 6% under its level in a stock above its 50-day and 200-day; a capitulation is a 2 ATR flush on 2x volume under the 5, 9 and 20-day with the burst boxes checked.",
+   "criterion": "ur.depth"
+  }
+ ],
+ "invalidations": [
+  "Before the trigger: no close back above L within 3 sessions, a breakdown (ur.inv_no_reclaim).",
+  "Before the trigger: the undercut is deeper than 6% (ur.depth).",
+  "Before the trigger: the 50-day is falling or price is under its averages (ur.trend_not_falling); under the 200-day (ur.above_200).",
+  "Before the trigger: earnings within 3 sessions or buyout news (ur.earnings_window).",
+  "Before the trigger: more than 4% over L or 10% over the 10-day (ur.no_chase, ur.not_stretched).",
+  "After the buy: a trade under the undercut low is the exit (ur.after_entry_stop).",
+  "After the buy: a close back under L is the warning; hold to the stop, do not add (ur.close_back_under).",
+  "A new try only on a new trigger, at most 3 a week and 6 a month (ur.retry)."
+ ],
+ "mistakes": [
+  "Buying the undercut before the reclaim.",
+  "Calling every dip under yesterday's low a U&R (that variant was flat; the owner: a little subtle and hidden).",
+  "Buying undercuts under declining averages (RBRK).",
+  "Undercuts deeper than about 6%.",
+  "Buying the close of a huge reclaim day and thinking the risk is tight (DELL: 8.3% from the close).",
+  "Chasing more than 4% over the level.",
+  "Ignoring an earnings date or buyout news (U).",
+  "Endless retries in one zone (NBIS: shaken out too many times).",
+  "Cheap or thin stocks (TE, OPEN).",
+  "Waiting for a volume surge that the setup does not need.",
+  "Mixing it up with its cousins: the Remount (a long stay under a line), Gap Support (the gap-up low), the Oops (a gap open under the prior low), the Go Signal (hourly), the 2B (any failed extreme)."
+ ],
+ "short_mirror": {
+  "exists": true,
+  "setup": "35-wyckoff-spring-upthrust",
+  "note": "The failed breakout, or upthrust (dossier 8.6): price trades above an obvious high (a prior swing high, a base high, a falling 20-day or 50-day) and closes back under it. Short as it trades back under the level; stop a few cents over the high of the poke; only below the 200-day SMA (B26), in a weak stock (RS 20 or less, C31) that is easy to borrow (D48). Wyckoff: a UT is the opposite of a spring; Turtle Soup: SELLs are reversed. Morales covers his shorts at undercuts of prior lows, so a short sitting in a stock undercutting an obvious low is exactly who this setup traps. Whether to teach it here or leave it to the Wyckoff (35) and 2B (28) lessons is D-001 (29:14)."
+ },
+ "best_conditions": "A Green or Yellow market reading (F65). Best of all right after a correction, as the market turns up, and especially when the index itself undercuts and reclaims a big support (Morales's market turn; Bracco's April 2025 leaders). Measured: slightly better with SPY under its 50-day, not by much more than the noise.",
+ "management": {
+  "trim_1": "a third at 3R (B19)",
+  "trim_2": "a third at 5R (E51)",
+  "trail": "a close under the 10-day for a fast mover, the 21-day for a steadier one (E52)",
+  "breakeven": "between 2R and 5R, at the first trim by default (B19)",
+  "time_stop": "under 1R after 10 trading days, sell (C33)",
+  "gap_open": "a trim level the day opens past is taken at the open (F63)",
+  "gap_against": "the first 30-minute low is the new stop; out if past 2R (B20)",
+  "overrides": "none by default. Pending D-013: whether the washout (mean-reversion) U&R gets Bracco's 1 to 3 day hold with a trim on the bounce. Not ours: the scanners' 2R and 3R targets, the journal template's first piece into the prior high and raise the stop to the reclaimed level after a day."
+ },
+ "examples": {
+  "winners": 10,
+  "sheet_dir": "_study-resume/scratchpad/setups/29-undercut-rally/final",
+  "base_rate": {
+   "hits": 66020,
+   "r3_pct": 50.2,
+   "r5_pct": 39.2,
+   "stopped_pct": 84.6,
+   "median_undercut_pct": 0.67,
+   "median_stop_pct": 0.88,
+   "window": "60 sessions forward, fixed stop 5 cents under the undercut low, no trims, no breakeven, no trail; 1984 to 2026; the level is the lowest low of the prior 10 sessions; the fill at L plus a cent on the reclaim day (also when the day opened over L before the undercut), or the open on a gap back above after a day under; one hit per level with a 5-session gap",
+   "rescanned": "2026-11-10 with fills at the reclaim; the earlier figures used the open",
+   "was": {
+    "hits": 62966,
+    "r3_pct": 35.6,
+    "r5_pct": 24.7,
+    "stopped_pct": 84.4,
+    "median_stop_pct": 1.73
+   }
+  },
+  "cuts": {
+   "reclaim_1_to_3_sessions": {
+    "r3_pct": 43.2,
+    "same_day_r3_pct": 53.8,
+    "was": {
+     "r3_pct": 43.2,
+     "same_day_r3_pct": 31.3
+    }
+   },
+   "reclaim_day_closed_in_top_half": {
+    "r3_pct": 54.7,
+    "bottom_half_r3_pct": 39.5,
+    "was": {
+     "r3_pct": 42.4,
+     "bottom_half_r3_pct": 17.7
+    }
+   },
+   "stop_within_3_pct": {
+    "r3_pct": 51.5,
+    "wider_r3_pct": 37.3,
+    "was": {
+     "r3_pct": 37.6,
+     "wider_r3_pct": 27.1
+    }
+   },
+   "undercut_3_pct_or_less": {
+    "r3_pct": 51.1,
+    "r5_pct": 40.5,
+    "deeper_to_6_pct": {
+     "r3_pct": 37.8,
+     "r5_pct": 22.3
+    },
+    "note": "a deeper undercut did worse at both 3R and 5R",
+    "was": {
+     "r3_pct": 35.5,
+     "r5_pct": 24.9,
+     "deeper_to_6_pct": {
+      "r3_pct": 36.9,
+      "r5_pct": 21.4
+     },
+     "note": "no difference to 3R; the deeper ones reached 5R less often"
+    }
+   },
+   "bounce_size_off_L": {
+    "note": "no difference (49.7% to 3R under a 5% bounce, 50.8% at 5% or more)"
+   },
+   "dossier_check_section_4_3": {
+    "e1_events": 57225,
+    "e1_house_plan_mean_r": 0.06,
+    "baseline_house_plan_mean_r": 0.03,
+    "e2_range_low_variant_mean_r": 0.13,
+    "e2_prior_day_low_variant_mean_r": 0.0,
+    "intraday_entry_upper_bound_mean_r": 0.3,
+    "note": "entry at the close is not an edge by itself; the entry near the level and the context are"
+   }
+  },
+  "winners_list": [
+   "NTAP 2004-10-27",
+   "OII 2007-05-25",
+   "WHR 2009-08-18",
+   "SWKS 2010-11-17",
+   "WYNN 2013-11-21",
+   "INCY 2016-11-04",
+   "ZS 2019-04-18",
+   "QCOM 2020-09-21",
+   "STLD 2022-02-24",
+   "AMD 2024-01-04"
+  ],
+  "uct_named": [
+   "AFRM 2025-09-12 ($80, the 20 EMA)",
+   "RDDT 2025-07-18 ($141.30)",
+   "AAOI 2025-09-12 (the inside-day low, his own trade)",
+   "ZS 2025-09-03 (the base low, earnings day)",
+   "PLTR 2025-10-22 ($170)",
+   "IREN 2025-10-22 ($50, the September highs)",
+   "FIGR 2026-01-12 ($50, Bracco's trade, no 200-day)",
+   "MXL 2026-04-28 ($50, 40.9% over its 10-day)",
+   "NBIS 2026-04-29 ($141)",
+   "DELL 2026-08-07 (the 20 EMA)",
+   "TEAM 2026-09-29 (the range low)",
+   "U 2026-11-03 ($40, skipped for earnings and buyout news)",
+   "HOOD 2025-04-07 (prior lows near the 200-day, a 16.4% stop from the close)"
+  ],
+  "failures": [
+   {
+    "ticker": "LULU",
+    "date": "2020-02-24",
+    "criterion": "ur.market_turn",
+    "why": "L 242.17, undercut 2.68% the same day (the day opened at 245.39, before the dip), buy L plus a cent 242.18, stop 235.64 (2.70% from the buy; rescanned 2026-11-10 with fills at the reclaim, the earlier figures used the open: 3.97%, over the A13 line, and 0.52R); made 1.26R and was stopped three sessions later as the market broke down; 20 sessions later the stock was 172. A correct-looking U&R means nothing when the index is breaking."
+   },
+   {
+    "ticker": "AMD",
+    "date": "2021-09-14",
+    "criterion": "ur.retry",
+    "why": "L 105.52, undercut 2.74%, two closes under, buy 105.52, stop 102.58 (2.79%); reached 0.42R, stopped four sessions later at 99.51 in the September 2021 pullback, back at 105 twenty sessions after that. The stop did its job; a new try needs a new trigger."
+   },
+   {
+    "ticker": "NVDA",
+    "date": "2024-04-05",
+    "criterion": "ur.after_entry_stop",
+    "why": "L 87.62, undercut 1.99%, one close under, buy 87.63, stop 85.83 (2.05%); reached 0.67R and was stopped two sessions later at 83.02 as the April 2024 correction began. The reclaim day closed in its top half; a top-half-close reclaim still fails to reach 3R about 45% of the time (rescanned 2026-11-10)."
+   },
+   {
+    "ticker": "TRIP",
+    "date": "2014-07-09",
+    "criterion": "ur.after_entry_stop",
+    "why": "L 102.17 (06-23), undercut 1.53% on 07-08, one close under, reclaimed the next day; buy 102.18, stop 100.56; the day after dipped to 100.44 through the stop and closed 103.35, then the stock fell to 91.78 by 08-01. The stop is the exit, not a hold."
+   },
+   {
+    "ticker": "ADBE",
+    "date": "2018-03-26",
+    "criterion": "ur.market_turn",
+    "why": "L 217.19 (03-09), undercut 1.11% on 03-23, one close under, reclaimed the next day; the open fill 218.83, stop 214.73; the next day opened 229.90 and closed 213.80 through the stop; SPY made a lower low on 04-02. The index had not turned."
+   }
+  ],
+  "limits": "No RS rating or group (the 50-day and 200-day tests stood in), no market reading, daily bars only (the order of moves inside a day is unknown, and the owner enters intraday), survivors only, no costs. The same-day fill at L plus a cent assumes you were watching and bought the first trade back through the level. Nothing here is a published statistic.",
+  "near_misses": [
+   {
+    "ticker": "MSFT",
+    "date": "2020-03-02",
+    "criterion": "ur.depth",
+    "why": "the undercut went 6.88% under L 163.23 (to 152.00), 2 closes under, reclaim on day 2; the rule is 6% at most, 3% for an A. The stop would be 8.08%. Not this setup."
+   },
+   {
+    "ticker": "FDX",
+    "date": "2024-05-10",
+    "criterion": "ur.reclaim_window",
+    "why": "8 closes under L 211.18 before the first close back above; the rule is 3 at most. A Remount (32-remount), bought on the retake of the line."
+   },
+   {
+    "ticker": "SBUX",
+    "date": "2025-03-07",
+    "criterion": "ur.not_prior_day_low",
+    "why": "the 10-session low is only yesterday's low (104.91); a one-day dip under it and a close back over it is an Oops (30-oops-reversal), judged on one candle, not a U&R."
+   },
+   {
+    "ticker": "MSFT",
+    "date": "2026-06-08",
+    "criterion": "ur.above_200",
+    "why": "a same-day undercut (0.25%) and reclaim of L 409.58 with the close 9.7% under a falling 200-day SMA; the rule is a close above it. Watch only under B26."
+   }
+  ],
+  "sheets": {
+   "failures": "final/fail_1-4.png",
+   "near_misses": "final/near_1-4.png",
+   "pair": "final/pair_28-2b-reversal.png"
+  }
+ },
+ "question_seeds": [
+  {
+   "kind": "recall",
+   "criterion": "ur.reclaim_window",
+   "seed": "Within how many sessions must price close back above the level for a U&R, and how many closes under it turn the move into a Remount?"
+  },
+  {
+   "kind": "recall",
+   "criterion": "ur.stop",
+   "seed": "Where does the stop go on a U&R: under the level, or under the undercut low?"
+  },
+  {
+   "kind": "recall",
+   "criterion": "ur.volume_not_required",
+   "seed": "Does a U&R need a volume surge on the reclaim? What did Morales say, and what did the test find?"
+  },
+  {
+   "kind": "spot",
+   "criterion": "ur.level",
+   "seed": "Hidden ticker: tap the level this stock undercut and reclaimed, and name what kind of level it is."
+  },
+  {
+   "kind": "spot",
+   "criterion": "ur.trigger_close",
+   "seed": "Hidden ticker: four reclaim days; tap the one that closed in the bottom half of its range and say why it grades lower."
+  },
+  {
+   "kind": "spot",
+   "criterion": "ur.trend_not_falling",
+   "seed": "Hidden ticker: the undercut and reclaim is clean, but is the 50-day rising or falling? Take it or pass."
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "ur.not_prior_day_low",
+   "seed": "U&R or Oops: the only level the stock undercut was yesterday's low, and it closed back over yesterday's close. Which is it?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "ur.reclaim_window",
+   "seed": "U&R or Remount: the stock closed under its 50-day for seven sessions, then closed back above it. Which card applies?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "ur.level",
+   "seed": "U&R or Gap Support: the level undercut was the gap-up day's low of a 6% earnings gap still open. Which lesson owns it?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "ur.never_buy_undercut",
+   "seed": "The stock is 2% under the $170 level at 10:05 and has not come back through it. Buy now, or wait for what?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "ur.close_back_under",
+   "seed": "You bought the reclaim of $141 at 141.20. The day closes at 139.80, back under the level, above your stop. What now?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "ur.earnings_window",
+   "seed": "A perfect U&R of the $40 level, earnings in two sessions and a buyout headline this morning. Buy?"
+  },
+  {
+   "kind": "grade",
+   "criterion": "ur.depth",
+   "seed": "Two U&Rs of a base low: one 1% under and back above the next day, one 5% under and back above on the third session. Grade each."
+  },
+  {
+   "kind": "grade",
+   "criterion": "ur.stop_width",
+   "seed": "You could buy the reclaim at the level with a 1.8% stop, or the close of the day with a 6.9% stop. Grade each entry and size it."
+  },
+  {
+   "kind": "numeric",
+   "criterion": "ur.depth",
+   "seed": "The level is 59.95 and the undercut low is 59.04. How deep is the undercut, and is it inside the 3% A line?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "ur.stop_width",
+   "seed": "Fill 60.18, stop 58.99. What is the stop in percent, and does it fit A13?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "ur.trim_1",
+   "seed": "Bought at 135.38 with the stop at 133.69. Where is 3R?"
+  }
+ ],
+ "owner_decisions": [
+  "D-001",
+  "D-002",
+  "D-003",
+  "D-006",
+  "D-007",
+  "D-009",
+  "D-010",
+  "D-011",
+  "D-013",
+  "D-015",
+  "D-017",
+  "D-036",
+  "D-103",
+  "D-136"
+ ],
+ "conflicts": [
+  "One setup or three: Undercut & Rally (multi-day, a prior low), the app's one-day Undercut & Reclaim (any level), and the MAU&R. The dossier leans to one lesson with the MAU&R as a named variant; the register folds the Wyckoff spring in too (D-002).",
+  "Which level: Morales's prior low in the pattern against the owner's any obvious level (prior highs, round numbers, gap lows, VWAP). The card lists the owner's levels; the register's default is (b) plus gap lows; the prior day's low alone is out either way (D-103).",
+  "Depth and time: Morales refuses a number; the dossier proposes 3% for an A, 6% at most, 3 sessions; the register's default is about 1 ATR and the same day for an A, 6% and 3 sessions as a B (D-036). The glossary closes the 4-close gap with the Remount: the U&R family runs to 4 closes, the Remount starts at 5.",
+  "The 200-day: Morales's best U&Rs come at market turns, often under or near the 200-day; B26 is hard. FIGR has no 200-day at all; the glossary's stand-in is the 50-day until 200 sessions exist (D-009).",
+  "Leader or mean reversion: the owner's leader U&R (RS 80 or more) against Bracco's washout mean reversion play, which C31 exempts; the register's default splits them by name (D-011). Whether the washout kind gets a 1 to 3 day plan is D-013.",
+  "The entry: the owner's intraday reclaim with confirmation against a close entry. The test shows why: at the close the pattern is not an edge (+0.06R against a +0.03R baseline); near the level every R number rises, but that row is biased upward because daily bars cannot see failed intraday reclaims (D-003).",
+  "C29 on post-earnings U&Rs: the owner's MXL was 40.9% over its 10-day (D-017).",
+  "Volume: the journal template's rising volume against Morales's generally not a factor; the test agrees with Morales (D-006).",
+  "The public scanner u_and_r.py credits Brian Shannon (the name is Morales and Kacher's), tells members U&Rs deliver 2:1+ RR in 70%+ of cases with no source, quotes Shannon and DeMark without a source, buys over the consolidation high (not the reclaim), stops 1.5% under the low, has no liquidity floor or 200-day rule, and gives sizing advice; the internal scanner uses $2 and $10,000, no 200-day rule, the stop exactly at the low, and fires on a third of eligible sessions. None of that reaches a member through this card (D-004, D-010).",
+  "The Study plan's counter-trend size smallest and tightest stop in the book are not the owner's practice (he trades U&Rs in leaders above their averages, once planned 30%+ of his account on one); size comes from E49 by grade.",
+  "Liquidity window: the dossier measures the $20 million on a 20-day average; the glossary's shared window is 50 sessions. The card says so on ur.liquidity.",
+  "The scan against the dossier's check: 50.2% to 3R with the fill at L plus a cent (same day, assumes you were watching) against 26% with a close entry (rescanned 2026-11-10 with fills at the reclaim; the earlier figures used the open); the earlier figure was 35.6%. The earlier scan also found the 1 to 3 session reclaim better than the same-day one; with fills at the reclaim the same-day reclaim is better (53.8% against 43.2%), mostly because its stop is tight (median 0.58%), while the check found them equal; the card quotes both."
+ ]
+}

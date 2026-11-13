@@ -1,5 +1,6 @@
-"""THE TRADE PLAN (api/services/study_trade.py): entry, stop and the 2R / 3R targets come from the setup's own detector
-(its trigger and stop, the shared make_levels), the Kicker on the owner's rulings (a cent over the red day's high, the
+"""THE TRADE PLAN (api/services/study_trade.py): entry and stop come from the setup's own detector (its trigger and stop,
+the shared make_levels floors the stop); the trims are the house's, a third at 3R and a third at 5R (sizing_rule.md
+section 9, B19 and E51), the stop to breakeven at the first; the Kicker on the owner's rulings (a cent over the red day's high, the
 Kicker's low or 3.5% under the entry, the closer); no invented trade for the Bear gap. Fake rules stand in for the
 detectors so each branch is reachable on a small chart."""
 from __future__ import annotations
@@ -34,8 +35,9 @@ def test_the_kicker_enters_a_cent_over_the_red_days_high_and_stops_at_the_closer
     assert p["stop"] == 10.5                         # the Kicker's low, closer than 3.5% under the entry (10.34)
     assert p["direction"] == "bullish"
     risk = p["entry"] - p["stop"]
-    assert p["t1"] == pytest.approx(round(p["entry"] + 2 * risk, 2), abs=0.011)
-    assert p["t2"] == pytest.approx(round(p["entry"] + 3 * risk, 2), abs=0.011)
+    assert p["t1"] == pytest.approx(round(p["entry"] + 3 * risk, 2), abs=0.011)
+    assert p["t2"] == pytest.approx(round(p["entry"] + 5 * risk, 2), abs=0.011)
+    assert p["trim_r"] == [3.0, 5.0] and p["trim_fraction"] == "a third" and p["breakeven_at"] == "t1"
     assert p["enters_intraday"] is True and "red day's high" in p["entry_note"]
 
 
@@ -59,7 +61,7 @@ def test_the_replay_asks_only_what_the_plan_says(rules):
     levels and does not invent a fraction), and the trail question exists only when the detector names a trail."""
     for skill, words in T.PLANS.items():
         checks = T.replay_checks(skill)
-        assert checks[0]["at"] == "t1" and checks[0]["answer"] == 0 and "2R" in checks[0]["choices"][0]
+        assert checks[0]["at"] == "t1" and checks[0]["answer"] == 0 and "3R" in checks[0]["choices"][0] and "third" in checks[0]["choices"][0]
         assert not any(ch.isdigit() and ch not in "23" for ch in "".join(checks[0]["choices"]))   # no invented fraction
         if words.get("trail"):
             assert checks[1]["at"] == "t2" and words["trail"] in checks[1]["choices"][checks[1]["answer"]]

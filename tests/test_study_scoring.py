@@ -223,3 +223,27 @@ def test_a_choice_with_record_keys_beside_it_scores_on_the_choice_alone(extra):
     assert sc.score("spot", {"answer": "no", **extra}, {"answer": "no"}).correct
     # a dict with neither key is still the answer as posted (a levels / match shape is not a choice)
     assert not sc.score("spot", {"picked_setup": "Kicker"}, {"answer": "yes"}).correct
+
+
+# ── typed numbers (course fill_numeric items, 2026-11-09) ─────────────────────────────────────────────────────────
+
+@pytest.mark.parametrize("typed,ok", [
+    ("0.05", True), (".05", True), ("0.050", True), (" 0.05 ", True),
+    ("0.1", False), ("0.04", False), ("5", False), ("", False), ("0.05%", False), ("abc", False),
+])
+def test_a_typed_number_scores_by_value_never_by_rounding(typed, ok):
+    from api.services.study_scoring import score
+    assert score("recall", {"choice": typed}, {"answer": 0.05, "accept": ["0.05"]}).correct is ok
+
+
+def test_thousands_commas_and_whole_numbers_are_one_value():
+    from api.services.study_scoring import score
+    assert score("recall", {"choice": "1,000"}, {"answer": 1000}).correct
+    assert score("recall", {"choice": "1000.0"}, {"answer": 1000}).correct
+    assert not score("recall", {"choice": "100"}, {"answer": 1000}).correct
+
+
+def test_a_choice_with_words_never_matches_by_number():
+    from api.services.study_scoring import score
+    assert not score("recall", {"choice": "2.4"}, {"answer": "2.4% of the account"}).correct
+    assert score("recall", {"choice": "2.4% of the account"}, {"answer": "2.4% of the account"}).correct

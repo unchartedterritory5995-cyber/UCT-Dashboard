@@ -1,0 +1,1481 @@
+{
+ "setup": "26-kicker",
+ "name": "Kicker Candle",
+ "unit": "SET.23",
+ "direction": "long",
+ "timeframe": "daily",
+ "dossier": "docs/study/setups/research/26-kicker.md",
+ "as_of": "2026-11-09",
+ "card": {
+  "context": "A leader already set up: a base or an orderly pullback above the 200-day with a flat or rising 50-day, in a Green or Yellow market. Rarely an earnings day; it is about short-term positioning.",
+  "pattern": "Two candles on top of the base. The red day is a real drop that closes weak near its low at support, like a failed breakdown. The Kicker day gaps up at least 1.5%, trades through the red day's high, never trades back to the red close, and closes strong.",
+  "trigger": "PREV DAY HIGH BREAK: a buy-stop one cent over the red day's high on the Kicker day only, filled at the open if it gaps over it; or the day-1 30-minute opening-range break.",
+  "stop": "A few cents under the Kicker day's low, or 3.5% under the entry if that is closer (his ruling). A fill at the open starts with the 3.5% and is raised to the 30-minute low at 10:00.",
+  "failure_mode": "The gap fills: the Kicker day trades back to the red day's close, or the next morning gaps down through the Kicker's low. A shock-day red bar or a bounce in a Red market looks like a Kicker and is not."
+ },
+ "entry_trigger": "PREV DAY HIGH BREAK",
+ "criteria": [
+  {
+   "id": "kk.market_reading",
+   "field": "context",
+   "statement": "Green or Yellow reading; Orange only for an A+. Red: mostly cash, plus shorts below the 200-day.",
+   "measure": {
+    "what": "the app's market reading on the trigger day",
+    "op": "in",
+    "value": [
+     "Green",
+     "Yellow",
+     "Orange (A+ only)"
+    ]
+   },
+   "glossary": "market_reading",
+   "basis": "house rule",
+   "sources": [
+    "S20"
+   ],
+   "house_rule": "F65",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Market; 8.7",
+   "evidence": "The 40 scan hits in the shock months (August 2011, October 2018, March 2020, October 2025) reached 3R 15% of the time and half were stopped under 0.5R: D46 in numbers. Bracco's June 2026 read: a Green market after a few days of weakness that made people bearish."
+  },
+  {
+   "id": "kk.liquidity",
+   "field": "context",
+   "statement": "Price at least $10 and at least $20 million traded a day.",
+   "measure": {
+    "what": "close",
+    "op": ">=",
+    "value": 10,
+    "unit": "$",
+    "and": "50-day average dollar volume >= 20,000,000"
+   },
+   "glossary": "liquidity",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B23",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Liquidity; 7 B23 row",
+   "evidence": "JBI traded near $11; PSN averaged $21.0M a day. The detector's floor is $2 and $10,000 a day."
+  },
+  {
+   "id": "kk.position_adv",
+   "field": "management",
+   "statement": "Never more than 1% of the average daily volume.",
+   "measure": {
+    "what": "shares / average daily volume",
+    "op": "<=",
+    "value": 1,
+    "unit": "%"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "D42",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Liquidity",
+   "evidence": "His 2024 desk note on a thinly traded Kicker (KB 9953)."
+  },
+  {
+   "id": "kk.leadership",
+   "field": "context",
+   "statement": "RS rating 80 or more.",
+   "measure": {
+    "what": "RS rating",
+    "op": ">=",
+    "value": 80,
+    "unit": "rating 1 to 99"
+   },
+   "glossary": "leader",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "C31",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Leader; 7 C31 row",
+   "evidence": "Not stored for any kept example; measure before teaching."
+  },
+  {
+   "id": "kk.fundamentals",
+   "field": "context",
+   "statement": "Growing sales and earnings preferred; the chart comes first.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "D40",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Leader"
+  },
+  {
+   "id": "kk.etfs",
+   "field": "context",
+   "statement": "Index and leveraged ETFs count if he allows them; UCT's canonical public Kicker is ARKK and he kept SMH as C-, but the bank's drafting code excludes ETFs.",
+   "basis": "UCT",
+   "sources": [],
+   "options": [
+    {
+     "value": "a",
+     "basis": "allow index and leveraged ETFs (E54; ARKK; D-018's default)"
+    },
+    {
+     "value": "b",
+     "basis": "stocks only (the bank's drafting code)"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-018",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "7 E54 row; 10 question 8",
+   "evidence": "92 of the 622 scan hits were ETFs (ARKK, GDX, QQQ, SMH, XOP and the spot-bitcoin funds); the base rate on stocks only was the same (48.1% to 3R)."
+  },
+  {
+   "id": "kk.above_200",
+   "field": "context",
+   "statement": "Above the 200-day SMA: the price at entry is above it, and the red day's close should already be above it.",
+   "measure": {
+    "what": "red day's close and the fill against the 200-day SMA",
+    "op": ">",
+    "value": "200-day SMA",
+    "timeframe": "daily"
+   },
+   "glossary": "above_200",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B26",
+   "options": [
+    {
+     "value": "a",
+     "basis": "a Kicker whose gap opens back above the 200-day counts: price is above it at entry (D-020's default)"
+    },
+    {
+     "value": "b",
+     "basis": "the red day must already be above it (the dossier's reading)"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-020",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Prior trend; 7 B26 row; 10 question 9",
+   "evidence": "Two kept examples (VOD, B-; LHX, good) had a red day that closed under the 200-day by the stored facts; his 2025 desk log hesitated on a Kicker near the 200-day. D-020's default keeps VOD and LHX if they pass the entry-price test."
+  },
+  {
+   "id": "kk.ma50_not_falling",
+   "field": "context",
+   "statement": "The 50-day SMA is flat or rising: on the red day it is at least 99.5% of its value 20 sessions earlier.",
+   "measure": {
+    "what": "50-day SMA on the red day / 50-day SMA 20 sessions earlier",
+    "op": ">=",
+    "value": 0.995,
+    "unit": "ratio",
+    "timeframe": "daily"
+   },
+   "glossary": "rising_average",
+   "basis": "my proposal",
+   "sources": [],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Prior trend",
+   "evidence": "His SMH ruling: a gap against an intermediate downtrend, C-. The 20-session window and the 99.5% are the finders' numbers; the glossary's canonical window for the 50-day is 10 sessions, so this line is a card override to flag."
+  },
+  {
+   "id": "kk.structure",
+   "field": "context",
+   "statement": "A base or an orderly pullback before the red day: the last 20 closes span 15% or less of price.",
+   "measure": {
+    "what": "(highest close - lowest close) / lowest close over the 20 sessions ending on the red day",
+    "op": "<=",
+    "value": 15,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S20"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Structure",
+   "evidence": "The finders' full-score band; every kept example with the field was at 14.6% or less. The ten scan examples spanned 6.2% to 14.5%. A red day down 5% or more (34 hits) reached 3R 38% of the time with 29% stopped under 0.5R: the shock bar is not an orderly pullback."
+  },
+  {
+   "id": "kk.not_messy",
+   "field": "context",
+   "statement": "No wild, overlapping bars in the base. Not yet measurable: no house file sets a number for messy.",
+   "basis": "UCT",
+   "sources": [],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Structure; 8.8 mistake 5",
+   "evidence": "His HDB cut: too messy and sloppy. The HDB note only suggests comparing bar ranges with the ATR."
+  },
+  {
+   "id": "kk.location",
+   "field": "pattern",
+   "statement": "The red day ends at support: its close within 1.5 ATR of the 21-day EMA or the 50-day SMA, or at or under the lowest low of the prior 5 sessions plus 1%.",
+   "measure": {
+    "what": "distance of the red day's close from the 21-day EMA or the 50-day SMA",
+    "op": "<=",
+    "value": 1.5,
+    "unit": "ATR(14)",
+    "timeframe": "daily",
+    "or": "red day's close <= lowest low of the prior 5 sessions x 1.01"
+   },
+   "glossary": "atr",
+   "basis": "UCT",
+   "sources": [
+    "S13"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Location",
+   "evidence": "His words: into a support level, in this case the 20 ema; an almost failed breakdown. The numbers are the finders'. Dahlquist and Bauer found gaps below the 10-day average did better than gaps above it (small effect)."
+  },
+  {
+   "id": "kk.red_day_red",
+   "field": "pattern",
+   "statement": "The red day closes below its open and looks like a breakdown that traps sellers; a baby red candle or a doji is not it.",
+   "basis": "UCT",
+   "sources": [],
+   "status": "settled",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 The red day; 1",
+   "evidence": "Owner, verdict log (UAL, Kicker pass 3): 'Sellers need to be trapped, so there needs to be like an almost failed breakdown vs just a little baby red candle.' He cut TSM, CVS and GWW for doji-like red days. The detector lets the prior day be green (MSFT's was)."
+  },
+  {
+   "id": "kk.red_day_size",
+   "field": "pattern",
+   "statement": "A real drop: a body of at least 1% of price, or a close at least 1% below the prior close. No cap.",
+   "measure": {
+    "what": "(open - close) / close on the red day",
+    "op": ">=",
+    "value": 1,
+    "unit": "%",
+    "timeframe": "daily",
+    "or": "prior close / red close - 1 >= 1%"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S20"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "a body of at least 1% or a 1% drop on the day, no cap: keeps GS (very good, body 0.48%, down 1.86%); D-097's default"
+    },
+    {
+     "value": "b",
+     "basis": "a body of at least 1% only: GS and RCUS become lesser examples"
+    },
+    {
+     "value": "c",
+     "basis": "also cap the body near 5% and the range at 2.5 or 3 ATR"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-097",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 The red day; 10 question 5",
+   "evidence": "The 1% body floor is the pass-3 measurement of his verdicts, an assistant's finding, not his words. Even with the 'or', RCUS (good, body 0.78%, up 0.79% on the day) and ISRG (lesser) fail. The 1% to 5% body and the 9%-bar-too-dramatic notes are an assistant's."
+  },
+  {
+   "id": "kk.red_day_close",
+   "field": "pattern",
+   "statement": "The red day closes in the lowest 35% of its range.",
+   "measure": {
+    "what": "(close - low) / (high - low) on the red day",
+    "op": "<=",
+    "value": 0.35,
+    "unit": "ratio 0 to 1",
+    "timeframe": "daily"
+   },
+   "glossary": "close_position",
+   "basis": "UCT",
+   "sources": [
+    "S20"
+   ],
+   "status": "pending-owner",
+   "owner_question": "D-097",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 The red day; 9",
+   "evidence": "His words: 'generally want a bit of a weaker close visually the previous day'. His eight greats closed at 3% to 31% of the range; the 35% fails RCUS (49%), IMAX (41%) and ISRG (37%), which matches his weaker-close complaints on RCUS and ISRG. The detector's weak-close test is 35% any colour or 60% if red."
+  },
+  {
+   "id": "kk.red_day_range",
+   "field": "pattern",
+   "statement": "The red day's range is no more than 3 ATR. A shock bar is not an orderly pullback.",
+   "measure": {
+    "what": "red day's range / ATR(14)",
+    "op": "<=",
+    "value": 3,
+    "unit": "x",
+    "timeframe": "daily"
+   },
+   "glossary": "atr",
+   "basis": "my proposal",
+   "sources": [
+    "S20"
+   ],
+   "status": "pending-owner",
+   "owner_question": "D-097",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1 The red day; 10 question 5 (c)",
+   "evidence": "The pass-4 finder's cap, not his ruling. The cap did not catch AVGO and TSM 2025-10-13 (red days of -5.9% and -6.4%) because the ATR inflates with the shock day; a red day down 5% or more is the better tell."
+  },
+  {
+   "id": "kk.gap_open",
+   "field": "pattern",
+   "statement": "The Kicker day opens at least 1.5% above the red day's close.",
+   "measure": {
+    "what": "open / red day's close - 1",
+    "op": ">=",
+    "value": 1.5,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "glossary": "gap",
+   "basis": "my proposal",
+   "sources": [
+    "S20"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 The Kicker day, at the open",
+   "evidence": "The kept minimum was 1.71% (LHX); the finders use 1.5%; he called a 1.75% gap (GS) very good, so no 3% floor. The detector fires on a gap of a tenth of the prior range. Scan median gap 2.4%."
+  },
+  {
+   "id": "kk.open_above_red_open",
+   "field": "pattern",
+   "statement": "Opening above the red day's open (Bigalow's rule, the member tag's rule) is a grade factor, not a requirement: his picture-perfect JBI opened inside the red body.",
+   "basis": "UCT",
+   "sources": [
+    "S6",
+    "S4",
+    "S20"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "a grade factor only (D-097's default)"
+    },
+    {
+     "value": "b",
+     "basis": "required: Bigalow, TA-Lib's kicking, the textbook_v5 tag"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-097",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1; 10 question 4; 3",
+   "evidence": "None of his 16 kept Kickers would pass the strict Japanese kicking pattern (two shadowless candles with a gap between the bodies)."
+  },
+  {
+   "id": "kk.trades_over_red_high",
+   "field": "trigger",
+   "statement": "The Kicker day trades above the red day's high. That is the trigger.",
+   "measure": {
+    "what": "Kicker day's high against the red day's high",
+    "op": ">",
+    "value": "red day's high",
+    "timeframe": "daily"
+   },
+   "basis": "UCT",
+   "sources": [],
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 The Kicker day, through the day; 8.2",
+   "evidence": "His ruling of 2026-11-02 and UCT's first public definition (Sunday Scans, 2025-06-08: break previous days high). The detector's K3."
+  },
+  {
+   "id": "kk.gap_holds",
+   "field": "pattern",
+   "statement": "The gap holds: the Kicker day never trades back down to the red day's close.",
+   "measure": {
+    "what": "Kicker day's low against the red day's close",
+    "op": ">",
+    "value": "red day's close",
+    "timeframe": "daily"
+   },
+   "glossary": "gap_fill",
+   "basis": "my proposal",
+   "sources": [],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1; 8.5",
+   "evidence": "Held in 16 of 16 kept. UCT: 'As long as the bullish open gap from Friday holds'."
+  },
+  {
+   "id": "kk.close_above_red_high",
+   "field": "pattern",
+   "statement": "The finished Kicker closes above the red day's high, in the top 20% of its range. Unknown at the moment of entry; it is how the chart is read afterward and graded.",
+   "measure": {
+    "what": "(close - low) / (high - low) on the Kicker day",
+    "op": ">=",
+    "value": 0.8,
+    "unit": "ratio 0 to 1",
+    "timeframe": "daily",
+    "and": "close > red day's high"
+   },
+   "glossary": "close_position",
+   "basis": "UCT",
+   "sources": [
+    "S20"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1 The Kicker day, through the day",
+   "evidence": "The close above the red high is the bank and Model Book wording, not his words, met by all 16 kept; the top 20% is the pass-4 finder's (kept range 81% to 100%). The detector requires no close: two of its own positive fixtures (MSFT and GOOGL 2022-07-18) closed red under the prior close."
+  },
+  {
+   "id": "kk.volume",
+   "field": "pattern",
+   "statement": "Kicker-day volume at least 1.5 times the 50-day average, judged by the run rate before the trigger. A grade cue by the house default, not a gate.",
+   "measure": {
+    "what": "Kicker-day volume / 50-day average volume",
+    "op": ">=",
+    "value": 1.5,
+    "unit": "x",
+    "timeframe": "daily"
+   },
+   "glossary": "volume_surge",
+   "basis": "my proposal",
+   "sources": [
+    "S13",
+    "S20"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "a hard floor of 1.5x the 50-day (the finders)"
+    },
+    {
+     "value": "b",
+     "basis": "a grade factor only (D-006's default: volume is a cue for every setup; the A+ cue 1.5x)"
+    },
+    {
+     "value": "c",
+     "basis": "another number"
+    }
+   ],
+   "recommended": "b",
+   "status": "pending-owner",
+   "owner_question": "D-006",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Volume; 10 question 6",
+   "evidence": "His desk logs name relative volume as the key (KB 10303); Dahlquist and Bauer found above-average volume helped a little. Scan: 2x or more (213 hits) 55% to 3R against 43% for 1.5x to 2x. Volume did not separate his greats from his okays (okays 1.51x to 3.8x)."
+  },
+  {
+   "id": "kk.two_candles",
+   "field": "pattern",
+   "statement": "Length and depth: two daily candles on top of the base. The red day's body is typically 1% to 5.5% (kept range 0.07% to 5.27%).",
+   "measure": {
+    "what": "red day's body / close",
+    "op": "in",
+    "value": [
+     1,
+     5.5
+    ],
+    "unit": "% (typical)",
+    "timeframe": "daily"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S20"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Length and depth; 4.5",
+   "evidence": "Measured on the kept examples: 1.01% (IMAX) to 5.27% (JBI) without ISRG, GS and RCUS. GFI 2005-11-16 (red body 6.8%) was left out of the examples for sitting outside it."
+  },
+  {
+   "id": "kk.not_earnings",
+   "field": "context",
+   "statement": "Rarely earnings: neither the red day nor the Kicker day is an earnings reaction day. An earnings-day gap is an earnings gapper (a PEG), graded there.",
+   "glossary": "earnings_reaction_day",
+   "basis": "UCT",
+   "sources": [
+    "S17"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "the report day belongs to EP or PEG; the same chart from the next day on is a Kicker if it fits (D-025's default; his 2024 RSI note 'kicker candle after earnings gap up')"
+    },
+    {
+     "value": "b",
+     "basis": "an outright ban on either day (the bank's drafting rule)"
+    },
+    {
+     "value": "c",
+     "basis": "earnings days allowed when the chart fits (he kept VTRS and IMAX, both earnings days)"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-025",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Not earnings; 10 questions 12 and 13",
+   "evidence": "His verdicts: 'Sometimes earnings gappers can be kickers but mostly they are just earnings gappers'; 'I want them to be rarely earnings'; GRMN, TSN and eight more cut as earnings gappers. Headline gaps that are not earnings (JOBY, DXYZ, his ultimate elite AMD 2023-12-07 on AI-chip news) are Kickers if the chart fits, by the same decision."
+  },
+  {
+   "id": "kk.entry_a",
+   "field": "trigger",
+   "statement": "Entry A: a buy-stop (market) one cent over the red day's high, on the Kicker day only. If it opens above that price, it fills at the open.",
+   "measure": {
+    "what": "fill",
+    "op": "==",
+    "value": "red day's high + $0.01, or the open if higher",
+    "timeframe": "intraday on the Kicker day"
+   },
+   "basis": "UCT",
+   "sources": [],
+   "house_rule": "E57",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 A; 7 E57 row",
+   "evidence": "Owner, 2026-11-02 (D-144, TRADE_PLANS.md): his JBI example, '11.05 over THE previous day high', the red day's high 11.04. The buy stop becomes a market order when hit (E57). The detector enters at the prior high, not a cent over; study_trade.py adds the cent."
+  },
+  {
+   "id": "kk.entry_b",
+   "field": "trigger",
+   "statement": "Entry B: the day-1 opening-range break, a buy-stop one cent over the high of the first 30-minute bar of the Kicker day.",
+   "measure": {
+    "what": "fill",
+    "op": "==",
+    "value": "high of the first 30-minute bar + $0.01",
+    "timeframe": "30-minute"
+   },
+   "glossary": "opening_range",
+   "basis": "UCT",
+   "sources": [
+    "S12"
+   ],
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 B",
+   "evidence": "His ruling (TRADE_PLANS.md: 'or the day-1 30-minute opening-range break'). Kullamagi's first 60-minute candle is the same 9:30 to 10:00 window. Public UCT opening-range Kicker entries: TEM, JOBY."
+  },
+  {
+   "id": "kk.orb_window",
+   "field": "trigger",
+   "statement": "Which 30 minutes: the first regular 30-minute bar, 9:30 to 10:00 ET.",
+   "measure": {
+    "what": "opening-range bar",
+    "op": "==",
+    "value": "9:30 to 10:00 ET",
+    "timeframe": "30-minute"
+   },
+   "glossary": "opening_range",
+   "basis": "my proposal",
+   "sources": [
+    "S12"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "9:30 to 10:00 ET: the workbench's bars, Kullamagi's first candle, B20's bar; D-031's default"
+    },
+    {
+     "value": "b",
+     "basis": "9:45 to 10:00: the in-house template"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-031",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "10 question 2"
+  },
+  {
+   "id": "kk.not_close_entry",
+   "field": "trigger",
+   "statement": "Never at the close of the Kicker day.",
+   "basis": "UCT",
+   "sources": [],
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2; 8.8 mistake 6",
+   "evidence": "Owner, 2026-11-02: 'The entry is supposed to trigger OVER previous day high not at mkt close!' The deep-history replay agrees: close entries reached 3R before the stop 21% of the time against 48%."
+  },
+  {
+   "id": "kk.chase_limit",
+   "field": "trigger",
+   "statement": "If the Kicker opens more than 4% above the red day's high, skip entry A and use the 30-minute break; if that fill would be more than 4% over its own buy point, skip.",
+   "measure": {
+    "what": "open / red day's high - 1",
+    "op": "<=",
+    "value": 4,
+    "unit": "%",
+    "note": "over it, the buy point moves to the opening-range high"
+   },
+   "glossary": "chase_limit",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "C28",
+   "options": [
+    {
+     "value": "a",
+     "basis": "skip"
+    },
+    {
+     "value": "b",
+     "basis": "use the 30-minute opening-range high as the buy point (the dossier's switch; D-022's default)"
+    },
+    {
+     "value": "c",
+     "basis": "the Kicker is an exception to C28"
+    }
+   ],
+   "recommended": "b",
+   "status": "pending-owner",
+   "owner_question": "D-022",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 Chase limit; 10 question 3",
+   "evidence": "VOD opened 4.84% over the red high. The scan skipped fills more than 4% over the red high; those would need the 30-minute entry, which daily bars cannot test."
+  },
+  {
+   "id": "kk.not_stretched",
+   "field": "trigger",
+   "statement": "Skip if the fill would be more than 10% above the 10-day average. The red-high entry is usually close to the 10-day; check it on the opening-range entry after a big gap.",
+   "measure": {
+    "what": "fill / 10-day SMA - 1",
+    "op": "<=",
+    "value": 10,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "glossary": "stretched",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "C29",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 Stretch; 7 C29 row"
+  },
+  {
+   "id": "kk.plan_before_open",
+   "field": "trigger",
+   "statement": "The entry, stop and size are written before the open; the stop goes in with the broker.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "D39",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2",
+   "evidence": "D41: a real stop order with the broker."
+  },
+  {
+   "id": "kk.regular_hours",
+   "field": "trigger",
+   "statement": "No buys outside regular trading hours.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "E58",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "7"
+  },
+  {
+   "id": "kk.earnings_window",
+   "field": "trigger",
+   "statement": "No new buy in the 3 sessions before a report, separate from the rarely-earnings rule for the Kicker day itself.",
+   "measure": {
+    "what": "sessions until the next report",
+    "op": ">",
+    "value": 3,
+    "unit": "sessions"
+   },
+   "glossary": "earnings_blackout",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B22",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "7 B22 row; 12",
+   "evidence": "GOOGL 2020-02-03 and AVGO 2024-03-07 had their report after the Kicker's own close and gapped down to 0R the next morning; SMTC 2024-03-26 (a 29R replay) is out for the same reason."
+  },
+  {
+   "id": "kk.one_entry",
+   "field": "trigger",
+   "statement": "One entry at one price with one stop; no adds on the next push.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "A5",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "7 A5 row; 8.8 mistake 9",
+   "evidence": "UCT posts add (Bracco's next add spot; the owner's RIVN hourly flag); the course teaches no adds."
+  },
+  {
+   "id": "kk.second_chance",
+   "field": "trigger",
+   "statement": "Second chances for someone who missed day one: a next-day hourly flag breakout (his RIVN) or a tight pause above the Kicker, as a new trade with its own stop (B21), if he rules it in.",
+   "basis": "UCT",
+   "sources": [],
+   "options": [
+    {
+     "value": "a",
+     "basis": "taught as the second-chance entry, its own trade (D-026's default)"
+    },
+    {
+     "value": "b",
+     "basis": "not taught"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-026",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "10 question 11; 7 A5 row",
+   "measure": {
+    "what": "second-chance entry after a missed day one",
+    "op": "in",
+    "value": [
+     "next-day hourly flag breakout",
+     "tight pause above the Kicker"
+    ],
+    "note": "a new trade with its own stop (B21)"
+   }
+  },
+  {
+   "id": "kk.stop",
+   "field": "stop",
+   "statement": "A few cents under the Kicker day's low, or 3.5% under the entry if that is closer.",
+   "measure": {
+    "what": "stop",
+    "op": "==",
+    "value": "the higher of (Kicker day's low - a few cents) and (entry x 0.965)"
+   },
+   "glossary": "stop_margin",
+   "basis": "UCT",
+   "sources": [],
+   "house_rule": "F62",
+   "status": "settled",
+   "owner_question": "D-144",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.3 The rule",
+   "evidence": "Owner, 2026-11-02 (D-144): 'Under the kicker candle low or entry with a 3.5% stop but we should get these with smaller than 3.5% stop usually.' Applies to both entries. F62 gives the few cents; the detector puts the stop exactly on the final low."
+  },
+  {
+   "id": "kk.stop_cap",
+   "field": "stop",
+   "statement": "The Kicker keeps its 3.5% cap, not A13's about 3%. If the honest stop is more than 3.5% away it is not a clean Kicker.",
+   "measure": {
+    "what": "(entry - stop) / entry",
+    "op": "<=",
+    "value": 3.5,
+    "unit": "%"
+   },
+   "glossary": "stop_width",
+   "basis": "UCT",
+   "sources": [
+    "S20"
+   ],
+   "house_rule": "A13",
+   "status": "settled",
+   "owner_question": "D-144",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.3; 7 A13 row; 10 question 7",
+   "evidence": "15 of 16 kept natural stops were within 3%; HOOD (4.16%) needed the cap. His two top-rated, JBI (2.08%) and AMD (2.67%), were both over 2%. D-144 settles 26:7: the Kicker keeps 3.5%."
+  },
+  {
+   "id": "kk.stop_low_so_far",
+   "field": "stop",
+   "statement": "At entry the low means the low so far: the 30-minute bar's low with entry B; the day's low at the moment of the fill with entry A after an open below the red high.",
+   "measure": {
+    "what": "reference low",
+    "op": "==",
+    "value": "the session low at the moment of the fill",
+    "timeframe": "intraday"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S20"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.3",
+   "evidence": "His stop is defined on the finished daily candle, which you do not have when you buy. The scan's in-day group used the day's final low and is flattered by it: 58 stock hits with a stop under 1% reached 3R 86% of the time."
+  },
+  {
+   "id": "kk.stop_open_fill",
+   "field": "stop",
+   "statement": "When entry A fills at the open there is no low yet: start with the stop 3.5% under the fill; at 10:00 raise it to a few cents under the 30-minute low if that is higher.",
+   "measure": {
+    "what": "first stop on an open fill",
+    "op": "==",
+    "value": "fill x 0.965, raised at 10:00 to the 30-minute low less a few cents if higher",
+    "timeframe": "30-minute"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S20"
+   ],
+   "status": "settled",
+   "owner_question": "D-144",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.3; 10 question 1",
+   "evidence": "The register's reading of his 2026-11-02 ruling (D-144, 26:1); it mirrors B20's 30-minute logic. Scan: fills at the open with the 3.5% stop (237) reached 3R 40.1% of the time; in-day triggers 54.6%."
+  },
+  {
+   "id": "kk.size_from_stop",
+   "field": "stop",
+   "statement": "Size from that stop; if 3.5% does not fit the risk budget, skip.",
+   "measure": {
+    "what": "shares",
+    "op": "==",
+    "value": "account x risk % / (entry - stop), capped by A7"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "A3",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.3",
+   "evidence": "A5 gives the formula."
+  },
+  {
+   "id": "kk.stop_broker",
+   "field": "stop",
+   "statement": "A real stop order with the broker. It only moves up: start at the cap, raise it to the 30-minute low once known.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "A4",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "7 A4 row",
+   "evidence": "D41: the stop sits with the broker.",
+   "measure": {
+    "what": "stop order placed with the broker",
+    "op": "==",
+    "value": true,
+    "note": "raised to the 30-minute low at 10:00 when higher; never lowered"
+   }
+  },
+  {
+   "id": "kk.stop_gap",
+   "field": "stop",
+   "statement": "A next-day gap down through the Kicker's low: the first 30-minute low is the new stop; out if past 2R. This covers Bigalow's gap-back case only when it goes through the stop.",
+   "measure": {
+    "what": "loss at the first 30-minute low of the gap-down day",
+    "op": "<=",
+    "value": 2,
+    "unit": "R",
+    "timeframe": "30-minute"
+   },
+   "basis": "house rule",
+   "sources": [
+    "S6"
+   ],
+   "house_rule": "B20",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "7 B20 row"
+  },
+  {
+   "id": "kk.breakeven",
+   "field": "management",
+   "statement": "Stop to breakeven between 2R and 5R.",
+   "measure": {
+    "what": "R at which the stop moves to the entry",
+    "op": "in",
+    "value": [
+     2,
+     5
+    ],
+    "unit": "R"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B19",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4"
+  },
+  {
+   "id": "kk.trim_1",
+   "field": "management",
+   "statement": "Sell a third at 3R.",
+   "measure": {
+    "what": "fraction sold at 3R",
+    "op": "==",
+    "value": 0.333,
+    "unit": "of the position"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B19",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4",
+   "evidence": "Scan: the median hit reached 3R in 3 sessions; three in four touched the first stop within 60 sessions, most after a win. ATRO 2026-06-11 made 13.8R in two weeks, gave most back and hit the stop: the case for the trims."
+  },
+  {
+   "id": "kk.trim_2",
+   "field": "management",
+   "statement": "Sell a third at 5R.",
+   "measure": {
+    "what": "fraction sold at 5R",
+    "op": "==",
+    "value": 0.333,
+    "unit": "of the position"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "E51",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4"
+  },
+  {
+   "id": "kk.trim_gap_open",
+   "field": "management",
+   "statement": "If it opens above a trim level, trim at the open.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "F63",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4"
+  },
+  {
+   "id": "kk.trail",
+   "field": "management",
+   "statement": "Trail the last third under the 10-day average, out on a close below it: Kickers are fast movers.",
+   "measure": {
+    "what": "close against the 10-day average",
+    "op": "<",
+    "value": "the average",
+    "timeframe": "daily"
+   },
+   "glossary": "trail",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "E52",
+   "options": [
+    {
+     "value": "a",
+     "basis": "the 10-day for all Kickers (fast movers): the dossier; UCT's ARKK 'has not closed below the 9EMA since' its Kicker; D-024's default is E52 as written"
+    },
+    {
+     "value": "b",
+     "basis": "the 21-day for steadier, larger names"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-024",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4; 10 question 16",
+   "evidence": "TRADE_PLANS.md and the playbook say under each higher low or the 10-day; the rulebook's close under the average replaces them."
+  },
+  {
+   "id": "kk.time_stop",
+   "field": "management",
+   "statement": "Under 1R after 10 trading days, sell. Kickers are meant to go quickly.",
+   "measure": {
+    "what": "open R after 10 trading days",
+    "op": "<",
+    "value": 1,
+    "unit": "R"
+   },
+   "glossary": "time_stop",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "C33",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4"
+  },
+  {
+   "id": "kk.climax",
+   "field": "management",
+   "statement": "Into a parabolic burst, sell a big part.",
+   "glossary": "parabolic_burst",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "C34",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4"
+  },
+  {
+   "id": "kk.inv_gap_fills",
+   "field": "invalidation",
+   "statement": "Before entry: the Kicker day trades back to the red day's close before it triggers (the gap filled), or it never trades over the red high. No trade.",
+   "measure": {
+    "what": "Kicker day's low before the trigger against the red day's close",
+    "op": "<=",
+    "value": "red day's close",
+    "timeframe": "intraday on the Kicker day"
+   },
+   "glossary": "gap_fill",
+   "basis": "my proposal",
+   "sources": [],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5 Before entry; 8.8 mistake 12",
+   "evidence": "The gap held in 16 of 16 kept. The raw detector fires on red, gap-filling days."
+  },
+  {
+   "id": "kk.after_entry_stop",
+   "field": "invalidation",
+   "statement": "After entry the stop is the only exit. No early exit on Bigalow's next-day gap back, on a bearish engulfing candle (UCT's ARKK), or on a close back under the red day's high.",
+   "basis": "house rule",
+   "sources": [
+    "S6"
+   ],
+   "house_rule": "A4",
+   "status": "settled",
+   "owner_question": "D-136",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5 After entry; 10 question 10",
+   "evidence": "D-136 (26:10): no early Kicker exits; his words on 2026-11-09, 'my stop is my stop most of the time'. A gap down that goes through the stop follows B20."
+  },
+  {
+   "id": "kk.close_under_red_high_warning",
+   "field": "invalidation",
+   "statement": "A close back under the red day's high on the Kicker day says the trap did not hold: a warning for the grade, not an exit.",
+   "measure": {
+    "what": "Kicker day's close against the red day's high",
+    "op": "<",
+    "value": "red day's high",
+    "timeframe": "daily",
+    "note": "a warning; the stop is the exit"
+   },
+   "basis": "UCT",
+   "sources": [],
+   "status": "settled",
+   "owner_question": "D-136",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.5 Warning, not an exit",
+   "evidence": "Model Book playbook wording. Under D-136 it is not an exit unless the stop is hit."
+  },
+  {
+   "id": "kk.retry_limit",
+   "field": "invalidation",
+   "statement": "After a stop-out, buy again only on a new trigger (B21); at most 3 tries a week and 6 a month on the same stock.",
+   "measure": {
+    "what": "tries on the same stock",
+    "op": "<=",
+    "value": 3,
+    "unit": "a week (6 a month)"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "E56",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "7"
+  }
+ ],
+ "grading": {
+  "a_plus": [
+   "kk.structure: already set up, a fresh uptrend or a base above a rising 50-day (kk.ma50_not_falling) and the 200-day (kk.above_200); the 8, 21 and 50-day within 1.6% to 8.1% of each other on his eight greats",
+   "kk.red_day_size: a real red bar (body 1.26% to 5.27%, except GS at 0.48% with a 1.86% drop) that closes in the lower third of its range (kk.red_day_close: 3% to 31%; HOOD, BMRN, AMD and PSN in the bottom 10%) at the base lows or the 20/21-day (kk.location): it looks like a breakdown",
+   "kk.gap_open: a gap of 1.75% to 5.92%; kk.close_above_red_high: the Kicker closes in the top 15% of its range (86% to 100%) and usually clears the 20-day high",
+   "kk.volume: 1.54x to 6.94x the 50-day average (4 of 8 greats at 2x or more)",
+   "kk.stop_cap: the natural stop under 3% on 7 of 8 greats (0.41% to 2.67%); JBI 2.08% and AMD 2.67%",
+   "kk.not_earnings: not an earnings day; a stock he would trade (kk.liquidity, kk.leadership)",
+   "kk.market_reading: Green, after a few days of weakness that made people bearish; in Orange only if everything else grades A+ (F65)"
+  ],
+  "b_minus": [
+   "kk.not_earnings: an earnings day that also looks like a Kicker (IMAX)",
+   "kk.red_day_close: a red day closing mid-range (ISRG 37%, RCUS 49%)",
+   "kk.ma50_not_falling: a gap against an intermediate downtrend (SMH, C-); kk.above_200: a red day under the 200-day (VOD, B-)",
+   "kk.gap_open: a modest gap with the weakest Kicker close of the set (ENS 1.71%, close at 81% of its range)",
+   "kk.volume and gap size did not separate his greats from his okays (okays: gaps 1.71% to 6.63%, volume 1.51x to 3.8x)",
+   "kk.market_reading: Yellow (smaller and fewer)"
+  ],
+  "no_trade": [
+   "kk.not_earnings: an earnings-day gap (GRMN, TSN and eight more cut)",
+   "kk.red_day_red: a baby red candle or a doji (TSM, CVS, GWW, UAL): just a breakout",
+   "kk.not_messy: a messy base (HDB); kk.structure: a shock-day red bar (AVGO and TSM 2025-10-13)",
+   "kk.above_200: under the 200-day; kk.ma50_not_falling: a falling 50-day",
+   "kk.not_close_entry: the close is never the entry",
+   "kk.chase_limit: an open more than 4% over the red high with no opening-range entry",
+   "kk.stop_cap: the honest stop over 3.5%",
+   "kk.inv_gap_fills: the gap filled before the trigger",
+   "kk.earnings_window: a report within 3 sessions",
+   "kk.liquidity: under $10 or under $20 million a day",
+   "kk.market_reading: Red (the shock-month hits reached 3R 15% of the time); Orange below A+ (F65)"
+  ]
+ },
+ "lookalikes": [
+  {
+   "setup": "21-power-earnings-gap",
+   "tell": "Check the calendar. If the gap day is the first session after a report it is an earnings gapper, graded as a PEG whatever the red day looked like; a Kicker is positioning, rarely earnings, and the gap comes with no report.",
+   "criterion": "kk.not_earnings"
+  },
+  {
+   "setup": "43-red-to-green",
+   "tell": "Find the line the buy crosses. A red-to-green entry needs the stock to trade UNDER the prior close first and then back over it; a Kicker gaps up, never trades back to the red day's close, and the trigger is the red day's HIGH.",
+   "criterion": "kk.gap_holds"
+  },
+  {
+   "setup": "07-launchpad",
+   "tell": "Look at the day before the big green bar. A launch bar closes above all four averages out of a tight bundle with no gap (the launch opens no more than 6% up, usually under 3%); a Kicker needs a real red day that closed weak at support yesterday and a gap of 1.5% or more today.",
+   "criterion": "kk.red_day_close"
+  },
+  {
+   "setup": "20-episodic-pivot",
+   "tell": "Measure the gap and ask who owned the stock. An EP gaps 10% or more on huge volume in a neglected name on a named surprise; a Kicker's gap is 1.5% to 6% on top of a base in a stock already set up, on ordinary or 2x volume.",
+   "criterion": "kk.gap_open"
+  }
+ ],
+ "invalidations": [
+  "Before entry: the Kicker day trades back to the red day's close before it triggers, or never trades over the red high (kk.inv_gap_fills).",
+  "Before entry: an earnings reaction day on either candle (kk.not_earnings), a report within 3 sessions (kk.earnings_window), a Red market (kk.market_reading).",
+  "Before entry: an open more than 4% over the red high with no opening-range entry (kk.chase_limit); the honest stop over 3.5% (kk.stop_cap).",
+  "After entry: the stop is the only exit (kk.after_entry_stop); a next-day gap through it follows B20 (kk.stop_gap).",
+  "After entry: a close back under the red day's high is a warning, not an exit (kk.close_under_red_high_warning)."
+ ],
+ "mistakes": [
+  "Calling an earnings-day gap a Kicker (GRMN, TSN and eight more cut).",
+  "A baby red candle or a doji before the gap: that is just a breakout (TSM, CVS, GWW, UAL).",
+  "A red day that closes mid-range: a regular gap up (ISRG).",
+  "A gap against an intermediate downtrend, or any long under the 200-day (SMH C-; B26).",
+  "A messy base (HDB).",
+  "Buying the close instead of the trigger: not at mkt close!",
+  "Chasing a big opening gap past 4% (C28).",
+  "Setting the stop on the day's final low, exactly on it, after the fact.",
+  "Adding on the next push; we buy once (A5).",
+  "Thin or cheap stocks (B23, D42).",
+  "Trusting the app's raw detector: it fires on red, gap-filling days.",
+  "Holding on after the gap fills on the Kicker day itself."
+ ],
+ "short_mirror": {
+  "exists": true,
+  "setup": "27-bear-gap",
+  "note": "The bearish Kicker, D47 mirrored: below the 200-day SMA (B26) with RS 20 or less, in a downtrend or a base under a falling 50-day; a green day with a body of at least 1% (or a 1% gain) that closes in the top 35% of its range into resistance (within 1.5 ATR under the 21-day EMA or 50-day SMA, or at or over the highest high of the prior 5 sessions less 1%), an almost-failed breakout; the next day opens at least 1.5% under that close, trades under the green day's low and closes under it in the bottom 20% of its range. Short a cent under the green day's low or under the 30-minute opening-range low; stop a few cents over the Kicker's high, or 3.5% over the entry if closer; trims at 3R and 5R; cover the rest on a close over the 10-day. Skip hard-to-borrow names (D48). UCT has used 'bearish kicker' only as an index caution signal (QQQ, ARKK), never as a written short plan; Bulkowski's strict bearish candle was near random (54%). D-001's default: recognition only until he shows examples; question 14."
+ },
+ "best_conditions": "A Green market after a few days of weakness that made people bearish (Bracco's June 2026 read). The stock pulled into its rising 20/21-day or 50-day, or to its base lows, so the gap is from a low spot, not an extended one. Leaders and leading groups; leveraged ETFs and index ETFs if he allows them. Avoid an index flashing a bearish Kicker, the days before a report, and Red markets.",
+ "management": {
+  "trim_1": "a third at 3R (B19)",
+  "trim_2": "a third at 5R (E51)",
+  "trail": "a close under the 10-day average, Kickers being fast movers (E52; D-024)",
+  "breakeven": "between 2R and 5R (B19)",
+  "time_stop": "under 1R after 10 trading days, sell (C33)",
+  "gap_open": "a trim level the day opens past is taken at the open (F63)",
+  "gap_against": "the first 30-minute low is the new stop; out if past 2R (B20)",
+  "climax": "sell a big part into a parabolic burst (C34)",
+  "overrides": "the stop: under the Kicker's low or 3.5% under the entry, whichever is closer (his ruling of 2026-11-02, D-144); the 3.5% stays against A13's about 3%. Not ours: the detector's 2R and 3R targets and 'under each higher low' trail, Bigalow's gap-back exit, Duncan-style early exits."
+ },
+ "examples": {
+  "winners": 10,
+  "sheet_dir": "_study-resume/scratchpad/setups/26-kicker/final",
+  "base_rate": {
+   "hits": 622,
+   "stock_hits": 530,
+   "r3_pct": 48.2,
+   "r5_pct": 32.5,
+   "stocks_only_r3_pct": 48.1,
+   "stocks_only_r5_pct": 32.8,
+   "stopped_pct": 77.8,
+   "median_gap_pct": 2.4,
+   "median_kicker_day_gain_pct": 5.8,
+   "median_volume_x50": 1.9,
+   "median_stop_pct": 3.5,
+   "window": "60 sessions forward, fixed stop (3.5% under an open fill; 5 cents under the Kicker's final low or 3.5%, whichever is closer, on an in-day trigger), no trims, no breakeven, no trail; 1984 to 2026; 2,630 liquid names; B22 applied with the sandbox's earnings dates (complete from about 2005)"
+  },
+  "cuts": {
+   "fill_at_open_3_5_pct_stop": {
+    "hits": 237,
+    "r3_pct": 40.1,
+    "r5_pct": 24.1
+   },
+   "trigger_during_the_day": {
+    "hits": 293,
+    "r3_pct": 54.6,
+    "r5_pct": 39.9,
+    "note": "flattered by the final-low stop: 58 stock hits with a stop under 1% reached 3R 86% of the time"
+   },
+   "kicker_day_up_8_pct_or_more": {
+    "hits": 130,
+    "r3_pct": 72,
+    "r5_pct": 53
+   },
+   "volume_2x_or_more": {
+    "hits": 213,
+    "r3_pct": 55,
+    "r5_pct": 38
+   },
+   "red_day_down_5_pct_or_more": {
+    "hits": 34,
+    "r3_pct": 38,
+    "r5_pct": 24,
+    "note": "29% stopped under 0.5R"
+   },
+   "shock_months": {
+    "hits": 40,
+    "r3_pct": 15,
+    "note": "August 2011, October 2018, March 2020, October 2025; half stopped under 0.5R"
+   },
+   "deep_history_150_instances_section_4_4": {
+    "r3_pct": 48,
+    "note": "the owner's entry and stop on instances not filtered for outcome or earnings; close entries 21%"
+   }
+  },
+  "winners_list": [
+   "MS 1997-07-01",
+   "UNH 2003-11-19",
+   "AXON 2004-11-04",
+   "BBY 2013-07-01",
+   "SWKS 2014-06-03",
+   "BOOT 2020-12-28",
+   "BEN 2021-03-10",
+   "AMD 2023-12-07",
+   "COHR 2024-01-16",
+   "ATRO 2026-06-11"
+  ],
+  "owner_graded": [
+   "JBI 2023-12-14",
+   "AMD 2023-12-07",
+   "RBRK 2026-09-14",
+   "HOOD 2024-05-17",
+   "PSN 2023-07-28",
+   "GS 2026-05-20",
+   "JBTM 2025-12-10",
+   "BMRN 2023-01-04",
+   "RCUS 2026-06-22",
+   "LHX 2022-02-24"
+  ],
+  "failures": [
+   {
+    "ticker": "AVGO",
+    "date": "2025-10-13",
+    "criterion": "kk.structure",
+    "why": "a shock-day reversal: the red day (2025-10-10) fell 5.9%; AVGO opened 8.7% above the red close (1% over the red high, a fill at the open with the 3.5% stop) and closed +9.9% on 2x volume; the next day's low was under the stop, 0R. TSM did the same (-6.4%, +7.9%). A giant red bar from a one-day market shock is not an orderly pullback, and the 3 ATR cap did not catch it (kk.red_day_range)."
+   },
+   {
+    "ticker": "LLY",
+    "date": "2020-03-13",
+    "criterion": "kk.market_reading",
+    "why": "a bounce day in a breaking market: a red day of -7% to -10.6%, then a textbook-looking Kicker (+10.6% on a 5.5% gap) stopped at 0R. EFX and SBAC 2020-03-10, MA 2011-08-09, CSCO and MA 2018-10-12 are the same picture. Under the rulebook none is a trade in a Red market (D46)."
+   },
+   {
+    "ticker": "GOOGL",
+    "date": "2020-02-03",
+    "criterion": "kk.earnings_window",
+    "why": "the report came after the Kicker's own close; it gapped down the next morning to 0R. AVGO 2024-03-07 did the same. B22 (no new buys in the 3 sessions before a report) removes both, and SMTC 2024-03-26 (a 29R replay) and FORM 2025-10-29 with them."
+   },
+   {
+    "ticker": "CDNS",
+    "date": "2021-12-02",
+    "criterion": "kk.after_entry_stop",
+    "why": "a textbook picture (an 8.1% base, a red day closing on its low, a 1.7% gap, +5.5% on 1.6x; buy 181.81, stop 177.50, 2.4%) whose next day fell through the stop at 0.0R; the Kicker's whole gain was given back in one day."
+   },
+   {
+    "ticker": "PGR",
+    "date": "2023-03-16",
+    "criterion": "kk.close_under_red_high_warning",
+    "why": "a -4.8% red day at the base lows, a 2.7% gap and +5.8% on 2.0x (buy 141.14, stop 137.35, 2.7%); day 2 opened 142.16 and closed 136.32 under the red high, and the stop traded that day at 0.0R."
+   }
+  ],
+  "limits": "RS 80+, the market reading, position size, the 30-minute stop raise at 10:00 and B20 are not in the scan. In-day triggers use the day's final low, which a live trader does not know. 128 of 530 stock hits (before 2005, or names with no dates) could not be checked for a report; CSCO 1999-11-10 was one and is excluded. The rulebook's 2R breakeven and 3R/5R trims would change the numbers.",
+  "near_misses": [
+   {
+    "ticker": "LUV",
+    "date": "2026-01-29",
+    "criterion": "kk.not_earnings",
+    "why": "the gap day is the earnings reaction day (report 2026-01-28 after the close); red day -1.2%, gap 6.2%, +18.7% on 3.8x. An earnings gapper, graded as a PEG (setup 21)."
+   },
+   {
+    "ticker": "CEG",
+    "date": "2024-06-10",
+    "criterion": "kk.gap_open",
+    "why": "opened 0.8% over the red close (the rule needs 1.5%); red day -2.3% closing at 7% of its range, +8.4% on 2.0x. A plain breakout day with no gap."
+   },
+   {
+    "ticker": "GWW",
+    "date": "2024-10-11",
+    "criterion": "kk.red_day_size",
+    "why": "the red body is 0.04% and the drop 0.4% (the rule needs 1%); gap 2.2%, +5.8% on 2.5x out of a 4.8% base. A baby red candle (kk.red_day_red): nobody was trapped."
+   },
+   {
+    "ticker": "IDCC",
+    "date": "2011-08-03",
+    "criterion": "kk.structure",
+    "why": "the prior 20 closes span 44.1% (the rule needs 15% or less); red day -5.8%, gap 5.7%, +13.8% on 2.7x. No base, a stock mid-run; stopped the next session at 0.0R."
+   }
+  ],
+  "sheets": {
+   "failures": "final/fail_1-4.png",
+   "near_misses": "final/near_1-4.png",
+   "pair": "final/pair_21-power-earnings-gap.png"
+  }
+ },
+ "question_seeds": [
+  {
+   "kind": "recall",
+   "criterion": "kk.stop",
+   "seed": "Where does the Kicker's stop go, and what is the cap in percent?"
+  },
+  {
+   "kind": "recall",
+   "criterion": "kk.entry_a",
+   "seed": "At what price does the Kicker buy trigger, and on which day?"
+  },
+  {
+   "kind": "recall",
+   "criterion": "kk.not_earnings",
+   "seed": "Is an earnings-day gap a Kicker? What does the owner call it?"
+  },
+  {
+   "kind": "spot",
+   "criterion": "kk.red_day_close",
+   "seed": "Hidden ticker: which of these four red days closed weak enough to trap sellers?"
+  },
+  {
+   "kind": "spot",
+   "criterion": "kk.trades_over_red_high",
+   "seed": "Hidden ticker: tap the red day's high, the price a cent over which the buy-stop sits."
+  },
+  {
+   "kind": "spot",
+   "criterion": "kk.location",
+   "seed": "Hidden ticker: does the red day end at the 21-day EMA, the 50-day, or the 5-day low? Take it or pass."
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "kk.not_earnings",
+   "seed": "Kicker or PEG: a weak red day, then a 7% gap on the morning after the report. Which is it?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "kk.gap_holds",
+   "seed": "Kicker or red to green: the stock opened up 2% and dipped under yesterday's close before rallying. Which is it?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "kk.red_day_red",
+   "seed": "Kicker or plain breakout: yesterday was a doji inside the base, today gapped through the base top. Which is it?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "kk.chase_limit",
+   "seed": "The red day's high is 50.00 and the Kicker opens at 52.60. Buy the open, use the 30-minute break, or pass?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "kk.stop_open_fill",
+   "seed": "Filled at the open at 41.50 with no low yet. Where is the first stop, and what happens at 10:00?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "kk.after_entry_stop",
+   "seed": "You bought the Kicker; by the close it sits back under the red day's high, above your stop. Sell at the close, or hold?"
+  },
+  {
+   "kind": "grade",
+   "criterion": "kk.red_day_size",
+   "seed": "Two red days before a gap: one a 0.5% body down 1.9% on the day, one a 0.1% body up on the day. Grade each setup."
+  },
+  {
+   "kind": "grade",
+   "criterion": "kk.structure",
+   "seed": "Same two candles, one on a 10% six-week shelf and one after a 6% market-shock day. A+, B, or pass?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "kk.stop_cap",
+   "seed": "Fill 27.98, Kicker day's low so far 26.90. Which stop applies, the low or 3.5%, and where is it?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "kk.gap_open",
+   "seed": "Red day's close 44.10, Kicker open 44.75. Is the gap at least 1.5%?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "kk.trim_1",
+   "seed": "Bought at 22.17 with the stop at 21.76. Where is 3R?"
+  }
+ ],
+ "owner_decisions": [
+  "D-001",
+  "D-004",
+  "D-006",
+  "D-018",
+  "D-020",
+  "D-022",
+  "D-024",
+  "D-025",
+  "D-026",
+  "D-031",
+  "D-097",
+  "D-136",
+  "D-144"
+ ],
+ "conflicts": [
+  "Sources: the dossier's section 11 opens with an unnumbered table of outside sources followed by paragraphs for the UCT Substack and the house files; the validator reads S1 to S22 from the numbered 'Removed in checking' list inside the same section. The card cites the table rows by position (S1 Bulkowski bullish kicking, S4 TA-Lib, S5 Schwab, S6 and S7 Bigalow, S10 Kell, S12 Kullamagi, S13 Dahlquist and Bauer, S17 TraderLion's Kell AMD, S20 the Yahoo bars) and cites the owner's verdicts and UCT's posts with basis UCT and no id, since they have none.",
+  "Textbook or owner: the tested Japanese kicking pattern (Bulkowski, TA-Lib, Schwab) needs two shadowless candles of opposite colour with a gap between the bodies; none of his 16 kept Kickers passes it. His version is Bigalow's looser Kicker Signal plus a context filter, and matches UCT's 2025-06-08 definition. The card teaches his.",
+  "The red day's size and close: the 1% body floor, the 35% close, the 1% to 5% body and the 9%-bar note are an assistant's findings, not his words; a 1% body alone cuts GS (very good) and the 35% close cuts RCUS (good). The card takes body or drop of 1% with no cap and 35%, pending D-097.",
+  "The stop: his 3.5% against A13's about 3% (D-144 settles it for the Kicker); his stop is defined on the finished candle, so the card makes it usable live (the low so far; 3.5% then the 30-minute low on an open fill, the register's reading of the ruling).",
+  "Earnings: his ruling is rarely earnings (he kept VTRS and IMAX, both earnings days); the bank's drafting code bans either day outright; his ultimate elite AMD was a news day. D-025's default: the report day is EP or PEG, the next day on may be a Kicker.",
+  "The app disagrees with him: the detector fires on a green prior day, a gap of a fraction of a percent, no close requirement (two of its own positive fixtures closed red), no 50 or 200-day gate, no earnings test, a $2 floor, the stop exactly on the final low, 2R and 3R targets, and keeps firing for 3 sessions; the Model Book glyph draws no gap; UNITS-method SET.23 calls it a catalyst gap and the cleanest RED TO GREEN entry with the stop under the gap, none of which is his. D-004 and D-014.",
+  "Volume: the finders use 1.5x as a floor; his desk logs call relative volume the key; volume did not separate his greats from his okays. D-006's default makes it a cue.",
+  "The 200-day: VOD and LHX had red days under it. D-020's default reads B26 at the entry price.",
+  "C28: VOD opened 4.84% over the red high. D-022's default sends a gap of more than 4% past the buy point to the 30-minute ORB.",
+  "ETFs: UCT's canonical Kicker is ARKK and E54 prefers leveraged ETFs; the bank's drafting code excludes ETFs with no ruling found. D-018.",
+  "Measured evidence is thin: Bulkowski's strict candle 53% ('near random'); Dahlquist and Bauer's 20,611 gap-ups found the ingredients help a little; the house replays on kept charts are flattered by selection; the unfiltered deep history and the examples scan both land near 48% to 3R before the stop.",
+  "The KB extract mis-dates and mis-attributes several Substack passages (RIVN, CRCL, ARKK, AMD/TWLO, ASML); treat KB summaries as leads, not quotes.",
+  "The 50-day slope window: the card's 20 sessions (the finders') differs from the glossary's canonical 10 for the 50-day; flagged on kk.ma50_not_falling."
+ ]
+}

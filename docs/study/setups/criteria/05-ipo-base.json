@@ -1,0 +1,1662 @@
+{
+ "setup": "05-ipo-base",
+ "name": "IPO Base",
+ "unit": "SET.10",
+ "direction": "long",
+ "timeframe": "daily",
+ "dossier": "docs/study/setups/research/05-ipo-base.md",
+ "as_of": "2026-11-09",
+ "card": {
+  "context": "A newly listed stock (an IPO, a spin-off or an uplisting) inside its first year, holding above its IPO price and its IPO anchored VWAP, in a leading group or a hot theme, with growing sales. Green market, best as the market turns up after a correction.",
+  "pattern": "The first sideways rest under the highest high since listing: 10 sessions or more, at most 35% deep, the low above the IPO price, light volume on the pullbacks and heavy on the up days, the right side back in the top half of the range and tightening.",
+  "trigger": "BASE BREAKOUT: price trades through the IPO high during regular hours on volume at least 1.4 times the base's average, bought at market, no more than 4% past it. Never on the listing day or in the listing week.",
+  "stop": "A few cents under the breakout day's low (or the prior day's); skip if that is more than 8% below the entry, and most good ones give far less.",
+  "failure_mode": "New issues are sold first when the tape weakens: the breakout fades within days and the stop is hit even on a textbook base (MA 2007 at 0R), or a deep V straight into the pivot fails. 36 of the 57 scan hits were stopped before 3R."
+ },
+ "entry_trigger": "BASE BREAKOUT",
+ "criteria": [
+  {
+   "id": "ipo.listing_date",
+   "field": "context",
+   "statement": "The stock's first trading day is known from the app's first_trade_date (or list_date), not from the first stored bar.",
+   "basis": "my proposal",
+   "sources": [
+    "S34"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Listing",
+   "evidence": "The experimental detector takes the first stored bar as the listing, which the round-3 drawing had to guard against with a backfill test. The scan inferred the listing from a first-day volume signature instead."
+  },
+  {
+   "id": "ipo.listing_kind",
+   "field": "context",
+   "statement": "Traditional IPOs, spin-offs and exchange uplistings count. De-SPACs are the owner's call.",
+   "measure": {
+    "what": "kind of listing",
+    "op": "in",
+    "value": [
+     "IPO",
+     "spin-off",
+     "uplisting"
+    ]
+   },
+   "basis": "UCT",
+   "sources": [
+    "S32",
+    "S22",
+    "S11",
+    "S28"
+   ],
+   "options": [
+    {
+     "value": "spin-offs yes, uplistings no, de-SPACs no",
+     "basis": "D-054's default: the IPO base needs a true first price history"
+    },
+    {
+     "value": "spin-offs yes, uplistings yes, de-SPACs no",
+     "basis": "the owner's AMRZ, SOLS and SNDK notes (S32); Kedia on demerged stocks (S22); Stockbee on spin-offs (S11); Ritter's de-SPAC returns are poor (S28)"
+    }
+   ],
+   "recommended": "spin-offs yes, uplistings yes, de-SPACs no",
+   "status": "pending-owner",
+   "owner_question": "D-054",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Which listings count; 10 question 2",
+   "evidence": "The owner on AMRZ: Another IPO base. A spin off actually. Spin offs have been very successful (S32). FWONA in the examples is a spin-off; LSPD a cross-listing. Ritter: 625 de-SPACs averaged -51.2% in their first year (S28)."
+  },
+  {
+   "id": "ipo.window",
+   "field": "context",
+   "statement": "The base forms within the first 252 sessions (about a year) after listing. A left-side high within the first 25 sessions is the A+ form.",
+   "measure": {
+    "what": "sessions from the listing day to the trigger",
+    "op": "<=",
+    "value": 252,
+    "unit": "sessions",
+    "timeframe": "daily"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S32",
+    "S1",
+    "S6",
+    "S34"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "the left-side high within the first 25 trading days: IBD (S1), MarketSmith India (S6)"
+    },
+    {
+     "value": "b",
+     "basis": "the base within the first 252 sessions: the owner's first year or so (S32); the detector's 252 and 320 (S34); the dossier's recommendation with (a) as A+"
+    }
+   ],
+   "recommended": "b",
+   "status": "pending-owner",
+   "owner_question": "D-002",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Window; 10 question 1",
+   "evidence": "The owner: A trade IPO bases within the first year or so (S32). IBD's own CBRE base began about eight weeks after listing (S3). The examples broke out on day 37 (LULU) to day 231 (SABR); VIK (day 40, 2 weeks, 9% deep) is the A+ form."
+  },
+  {
+   "id": "ipo.first_base",
+   "field": "context",
+   "statement": "No earlier base since listing: no earlier stretch of 15 or more sessions that pulled back 10% or more from a high and then took that high out. A later base is graded lower, not banned.",
+   "measure": {
+    "what": "earlier bases since listing (a 15+ session pullback of 10%+ later taken out)",
+    "op": "==",
+    "value": 0,
+    "unit": "bases",
+    "timeframe": "daily"
+   },
+   "glossary": "base_count",
+   "basis": "my proposal",
+   "sources": [
+    "S34",
+    "S22"
+   ],
+   "status": "pending-owner",
+   "owner_question": "D-002",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1 First base; 10 question 1",
+   "evidence": "The test is the round-3 drawing's (S34). Kedia counts later bases in the IPO base family (S22). Scan: 48 of the 57 hits were a ticker's first base; MRVI (a third base) and ZIM (a second) were set aside from the ten."
+  },
+  {
+   "id": "ipo.liquidity",
+   "field": "context",
+   "statement": "Price at least $10 and average dollar volume at least $20 million over the base's sessions, leaving out the first three sessions after listing.",
+   "measure": {
+    "what": "close",
+    "op": ">=",
+    "value": 10,
+    "unit": "$",
+    "and": "average dollar volume over the base's sessions, the first 3 sessions after listing left out, >= 20,000,000"
+   },
+   "glossary": "liquidity",
+   "basis": "house rule",
+   "sources": [
+    "S6",
+    "S38"
+   ],
+   "house_rule": "B23",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Liquidity",
+   "evidence": "MarketSmith India: the first two or three days' volume should not be set as a benchmark (S6); IBD's Inphi column left the IPO week out (S38). The detector's $2 and $10,000 floor is far below B23. Donnelly's screen wants $100 million a day (S19), the A+ reading."
+  },
+  {
+   "id": "ipo.position_adv",
+   "field": "management",
+   "statement": "The position is at most 1% of average daily volume.",
+   "measure": {
+    "what": "shares / average daily volume",
+    "op": "<=",
+    "value": 1,
+    "unit": "%"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "D42",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "7 D42 row"
+  },
+  {
+   "id": "ipo.rs",
+   "field": "context",
+   "statement": "RS rating 80 or more once the rating exists (63 or more sessions); before that, performance since listing against the Nasdaq.",
+   "measure": {
+    "what": "RS rating (or, under 63 sessions, return since listing against the Nasdaq)",
+    "op": ">=",
+    "value": 80,
+    "unit": "rating 1 to 99"
+   },
+   "glossary": "leader",
+   "basis": "house rule",
+   "sources": [
+    "S34",
+    "S19"
+   ],
+   "house_rule": "C31",
+   "options": [
+    {
+     "value": "a",
+     "basis": "waive RS until it exists"
+    },
+    {
+     "value": "b",
+     "basis": "performance since listing against the S&P 500 or Nasdaq: D-034's default"
+    },
+    {
+     "value": "c",
+     "basis": "skip until it exists"
+    }
+   ],
+   "recommended": "b",
+   "status": "pending-owner",
+   "owner_question": "D-034",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Strength; 10 question 4",
+   "evidence": "Our RS needs 63 bars (rs_weighted_return.py, S34), so an IPO base in its first three months has no rating. Deepvue's tip: an RS rating above 85 (S19). Not coded in the scan (no benchmark series in the sandbox)."
+  },
+  {
+   "id": "ipo.above_200",
+   "field": "context",
+   "statement": "B26 cannot be checked under 200 sessions. Until the 200-day exists the long must be above the 50-day SMA and the IPO-day low, with the IPO AVWAP as the cue.",
+   "measure": {
+    "what": "close against the 50-day SMA and the listing-day low while no 200-day SMA exists",
+    "op": ">",
+    "value": "both",
+    "timeframe": "daily"
+   },
+   "glossary": "above_200",
+   "basis": "house rule",
+   "sources": [
+    "S32"
+   ],
+   "house_rule": "B26",
+   "options": [
+    {
+     "value": "a",
+     "basis": "not applicable until the 200-day exists; the IPO AVWAP and the IPO price instead: the dossier's lean; D-034's default adds the 50-day and the IPO-day low"
+    },
+    {
+     "value": "b",
+     "basis": "skip until 200 sessions (removes nearly every classic IPO base)"
+    },
+    {
+     "value": "c",
+     "basis": "another proxy the owner prefers"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-034",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "7 B26 row; 10 question 3",
+   "evidence": "The classic IPO base breaks out in its first weeks, before a 200-day exists. The scan required the trigger-day close above the 10 and 21-day EMAs, the 50-day where it existed, and the IPO AVWAP."
+  },
+  {
+   "id": "ipo.fundamentals",
+   "field": "context",
+   "statement": "Growing sales and earnings preferred: the latest reported quarter's sales and EPS up year over year; a miss lowers the grade, the chart comes first.",
+   "measure": {
+    "what": "latest quarter's sales and EPS against the same quarter a year earlier",
+    "op": ">",
+    "value": 0,
+    "unit": "% change"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S11",
+    "S4",
+    "S19"
+   ],
+   "house_rule": "D40",
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Fundamentals and theme",
+   "evidence": "D40 is a preference. Stockbee: good earnings or sales growth is the number one criteria (S11); IBD 2007: outstanding earnings and sales (S4); Boboch's screen 35% quarter-over-quarter (S19). The year-over-year test is the dossier's way to make it countable."
+  },
+  {
+   "id": "ipo.group",
+   "field": "context",
+   "statement": "In a leading group or a hot theme: the group in the top quarter of the app's group ranking.",
+   "measure": {
+    "what": "group rank in the app's ranking",
+    "op": "<=",
+    "value": 25,
+    "unit": "percentile from the top"
+   },
+   "glossary": "leader",
+   "basis": "my proposal",
+   "sources": [
+    "S6",
+    "S12",
+    "S22",
+    "S32"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Fundamentals and theme",
+   "evidence": "MarketSmith India's top 40 of 164 groups is about the top quarter (S6); Stockbee's top 20 sector (S12); Kedia's trending themes (S22); Bracco: IPO breakouts can lead to massive moves, especially if tied to a big theme (S32). KRMN broke out in the defence theme."
+  },
+  {
+   "id": "ipo.market_reading",
+   "field": "context",
+   "statement": "Green market: full risk, margin only in Green. Yellow: smaller and fewer. Orange: A+ only. Red: mostly cash and shorts.",
+   "glossary": "market_reading",
+   "basis": "house rule",
+   "sources": [
+    "S4"
+   ],
+   "house_rule": "F65",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.6",
+   "evidence": "IBD 2007: when the market stumbles into a correction, it is often the new issues that pull back the hardest (S4). APTV's two clean-looking failures in a flat 2012 market are the missing filter in the scan."
+  },
+  {
+   "id": "ipo.market_turning",
+   "field": "context",
+   "statement": "A cue, not a rule: best when the market is turning up after a correction; be careful when the IPO calendar is crowded late in a long advance.",
+   "basis": "UCT",
+   "sources": [
+    "S32",
+    "S12",
+    "S18"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.6",
+   "evidence": "Bracco: IPOs have historically made some of the cleanest and biggest moves following market corrections (S32); the owner: the best stocks coming off the lows are when the market is coming off the lows (S32); Stockbee: IPOs do well at the start of a new bull move (S12); TraderLion on crowded calendars (S18). STX broke out at the start of the 2003 bull market."
+  },
+  {
+   "id": "ipo.structure",
+   "field": "pattern",
+   "statement": "A sideways rest whose top is the highest high since listing (the IPO high), with no close above that high since it formed.",
+   "measure": {
+    "what": "closes above the IPO high since it formed",
+    "op": "==",
+    "value": 0,
+    "unit": "closes",
+    "timeframe": "daily"
+   },
+   "glossary": "left_side_high",
+   "basis": "originator",
+   "sources": [
+    "S1",
+    "S6",
+    "S32",
+    "S34"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Structure",
+   "evidence": "IBD: the buy point is 10 cents above the high on the left side of the base (S1); MSI: the highest point on the left side (S6); the owner's IPO highs (S32); the detector's top is the highest high since listing (S34). NET's IPO high was a May 2020 high, nine months in, not the first-day high."
+  },
+  {
+   "id": "ipo.length_min",
+   "field": "pattern",
+   "statement": "At least 10 sessions from the left-side high to the trigger.",
+   "measure": {
+    "what": "sessions from the left-side high to the trigger",
+    "op": ">=",
+    "value": 10,
+    "unit": "sessions",
+    "timeframe": "daily"
+   },
+   "glossary": "base_length",
+   "basis": "originator",
+   "sources": [
+    "S37",
+    "S1",
+    "S9",
+    "S34"
+   ],
+   "options": [
+    {
+     "value": 7,
+     "basis": "IBD's rare case: as short as seven days (S1)"
+    },
+    {
+     "value": 10,
+     "basis": "Minervini's 10 days (S9); IBD: as short at nine or 10 days (S37); the dossier's recommendation; D-056's default"
+    },
+    {
+     "value": 15,
+     "basis": "our detector's three weeks (S34)"
+    }
+   ],
+   "recommended": 10,
+   "status": "pending-owner",
+   "owner_question": "D-056",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Length; 10 question 6",
+   "evidence": "The detector's 15 excludes IBD's own Concho (13 sessions), Inphi (11) and Fitbit (5). The scan used 10; the examples ran 2.0 weeks (VIK, STX) to 17.8 weeks (BSY)."
+  },
+  {
+   "id": "ipo.length_typical",
+   "field": "pattern",
+   "statement": "2 to 5 weeks is typical; no upper limit inside the 252-session window.",
+   "measure": {
+    "what": "sessions from the left-side high to the trigger",
+    "op": "in",
+    "value": [
+     10,
+     25
+    ],
+    "unit": "sessions",
+    "timeframe": "daily"
+   },
+   "glossary": "base_length",
+   "basis": "source consensus",
+   "sources": [
+    "S1",
+    "S5",
+    "S39",
+    "S22"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Length; 9 Length row",
+   "evidence": "IBD: they usually run two to five weeks (S1); IBD and MSI 2018: often less than five weeks (S39, S5); Kedia: up to five weeks, sometimes six to nine months (S22). Six of the ten examples were inside 2 to 5 weeks; BSY at 17.8 weeks still worked because its right side was orderly."
+  },
+  {
+   "id": "ipo.depth",
+   "field": "pattern",
+   "statement": "Depth from the left-side high to the base's lowest low: at most 35%. Over 35% is not an IPO base in this course.",
+   "measure": {
+    "what": "(IPO high - lowest low of the base) / IPO high",
+    "op": "<=",
+    "value": 35,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "glossary": "base_depth",
+   "basis": "my proposal",
+   "sources": [
+    "S34",
+    "S22",
+    "S1",
+    "S6"
+   ],
+   "options": [
+    {
+     "value": 20,
+     "basis": "IBD's usual: most of the time they tend to correct less than 20% (S1)"
+    },
+    {
+     "value": 35,
+     "basis": "the detector's cap (S34); Kedia's deep class 30% to 35% (S22); the dossier's recommendation; D-055's default"
+    },
+    {
+     "value": 50,
+     "basis": "IBD's and MSI's volatile-market ceiling (S1, S6)"
+    }
+   ],
+   "recommended": 35,
+   "status": "pending-owner",
+   "owner_question": "D-055",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Depth; 10 question 5",
+   "evidence": "The scan used 35%. The examples ran 6% (FWONA) to 29% (BSY). The card says often shallow; the AI-written playbook says 25% to 50%; IBD says usually under 20%."
+  },
+  {
+   "id": "ipo.depth_a_plus",
+   "field": "pattern",
+   "statement": "A depth under 20% is the A+ version; 30% to 35% is B-.",
+   "measure": {
+    "what": "(IPO high - lowest low of the base) / IPO high",
+    "op": "<",
+    "value": 20,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "glossary": "base_depth",
+   "basis": "originator",
+   "sources": [
+    "S1",
+    "S6"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Depth; 9 Depth row",
+   "evidence": "IBD and MSI: usually under 20% (S1, S6). Seven of the ten examples were under 20% deep."
+  },
+  {
+   "id": "ipo.above_ipo_price",
+   "field": "pattern",
+   "statement": "The base's low stays above the IPO price: the offer price, or, where only bars exist, the IPO open.",
+   "measure": {
+    "what": "lowest low of the base against the IPO price",
+    "op": ">",
+    "value": "IPO price (the offer price, else the IPO open)",
+    "timeframe": "daily"
+   },
+   "basis": "originator",
+   "sources": [
+    "S6",
+    "S39",
+    "S9",
+    "S40"
+   ],
+   "options": [
+    {
+     "value": "the offer price",
+     "basis": "MSI 2019 (S6), IBD 2018 (S39), Minervini (S9); needs a data source"
+    },
+    {
+     "value": "the IPO open",
+     "basis": "in our bars; the owner's own usage on TTAN ($100 against a $71 offer, S40); D-057's default"
+    },
+    {
+     "value": "the listing-day close",
+     "basis": "Stockbee's 35% rule anchors there (S11)"
+    }
+   ],
+   "recommended": "the IPO open",
+   "status": "pending-owner",
+   "owner_question": "D-057",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 The IPO price; 10 question 12",
+   "evidence": "Kedia dissents for listings below the issue price (S22). The scan used the listing-day low as the stand-in and recorded whether the base also held the IPO open: all ten examples held it."
+  },
+  {
+   "id": "ipo.ipo_price_undercut",
+   "field": "pattern",
+   "statement": "A brief undercut of the IPO price that closes back above it within 1 to 3 sessions is a U&R of the IPO open, graded B.",
+   "measure": {
+    "what": "sessions from the undercut to a close back above the IPO price",
+    "op": "<=",
+    "value": 3,
+    "unit": "sessions",
+    "timeframe": "daily"
+   },
+   "glossary": "reclaim_window",
+   "basis": "my proposal",
+   "sources": [
+    "S6",
+    "S32"
+   ],
+   "status": "pending-owner",
+   "owner_question": "D-057",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1 The IPO price; 10 question 12",
+   "evidence": "MSI: the stock price should not undercut the IPO price (S6). The owner on SPCX: Watching $160 flat for UnR spot; $150 IPO open has turned into support (S32)."
+  },
+  {
+   "id": "ipo.right_side_top_half",
+   "field": "pattern",
+   "statement": "The last close of the base sits in the top half of the base's range.",
+   "measure": {
+    "what": "(last close - base low) / (IPO high - base low)",
+    "op": ">=",
+    "value": 0.5,
+    "timeframe": "daily"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S34"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Right side",
+   "evidence": "The round-1 drawing's IPO_RIGHT_SHARE rule (S34). The scan required it."
+  },
+  {
+   "id": "ipo.right_side_orderly",
+   "field": "pattern",
+   "statement": "The last 5 sessions hold no two days of 4% or more in either direction.",
+   "measure": {
+    "what": "sessions among the last 5 that closed 4% or more up or down",
+    "op": "<=",
+    "value": 1,
+    "unit": "sessions",
+    "timeframe": "daily"
+   },
+   "glossary": "tight",
+   "basis": "my proposal",
+   "sources": [
+    "S12"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Right side",
+   "evidence": "Stockbee's rule for the 5 days before an IPO breakout (S12), applied to the base's last 5 sessions. The glossary's default tightness is a 0.85 range ratio; this card keeps the fixed two-4%-days test. The scan required it; loosening it would raise the hit count and lower the rate."
+  },
+  {
+   "id": "ipo.volume_in_base",
+   "field": "pattern",
+   "statement": "On the right half of the base, total volume on up-close days exceeds total volume on down-close days.",
+   "measure": {
+    "what": "right-half up-close volume / right-half down-close volume",
+    "op": ">",
+    "value": 1,
+    "unit": "x",
+    "timeframe": "daily"
+   },
+   "glossary": "dry_up",
+   "basis": "source consensus",
+   "sources": [
+    "S2",
+    "S37",
+    "S6",
+    "S32"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Volume in the base",
+   "evidence": "IBD: quiet action during declines and heavy volume on the upside (S2); light during pullbacks, heavy on the upside (S37); MSI: accumulation on the right side (S6); Dark Oblivion on NAVN: low sell volume and high buy volume (S32). The scan required it."
+  },
+  {
+   "id": "ipo.location_averages",
+   "field": "pattern",
+   "statement": "The close is above the rising 10-day and 21-day averages, and above the 50-day once it exists.",
+   "measure": {
+    "what": "close against the 10-day EMA, the 21-day EMA and the 50-day SMA (where it exists)",
+    "op": ">",
+    "value": "all three",
+    "timeframe": "daily"
+   },
+   "glossary": "ma_stack",
+   "basis": "my proposal",
+   "sources": [
+    "S19"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Location",
+   "evidence": "Krull's screen: stocks above their 21-day EMA (S19). No house rule asks for it (C29 is a stretch limit, E52 a trail). The scan required the trigger-day close above the 10 and 21-day EMAs and the 50-day where it existed."
+  },
+  {
+   "id": "ipo.above_avwap",
+   "field": "pattern",
+   "statement": "The close is above the AVWAP anchored at the listing day (the IPO AVWAP).",
+   "measure": {
+    "what": "close against the IPO AVWAP",
+    "op": ">",
+    "value": "IPO AVWAP",
+    "timeframe": "daily"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S32",
+    "S20",
+    "S21"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Location",
+   "evidence": "Bracco on FLY: Clean above the IPO anchored VWAP now which is big for me to get involved; the owner on HNGE: Huge move after getting above the IPO AVWAP (S32). Shannon's notes say VWAP without naming the anchor (S20); Optuma paraphrases his book on the AVWAP from the IPO date (S21). The scan required it."
+  },
+  {
+   "id": "ipo.tight_right_side",
+   "field": "pattern",
+   "statement": "A grade cue: inside days on very low volume and weekly ranges under 10% on the right side; a fast V into the pivot is B-.",
+   "measure": {
+    "what": "weekly high-to-low range on the right side",
+    "op": "<",
+    "value": 10,
+    "unit": "%",
+    "timeframe": "weekly"
+   },
+   "glossary": "tight",
+   "basis": "source consensus",
+   "sources": [
+    "S3",
+    "S9",
+    "S32",
+    "S22"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "9 Right side row",
+   "evidence": "IBD on CBRE: tight trading, with weekly ranges of less than 10% (S3); Minervini: some inside days on very low volume (S9); the owner on AMTM and SPCX: inside days (S32); Kedia's time-compression failures (S22)."
+  },
+  {
+   "id": "ipo.pivot",
+   "field": "trigger",
+   "statement": "The pivot is the left-side high (the IPO high). IBD sets the buy point 10 cents above it; with market orders the 10 cents does not matter.",
+   "measure": {
+    "what": "pivot",
+    "op": "==",
+    "value": "the highest high since listing",
+    "timeframe": "daily"
+   },
+   "glossary": "pivot",
+   "basis": "originator",
+   "sources": [
+    "S1",
+    "S6",
+    "S39"
+   ],
+   "house_rule": "E57",
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 Trigger",
+   "evidence": "IBD (S1, S39) adds 10 cents; MSI's copy dropped it (S5, S6). The scan bought 10 cents over the IPO high, or the open on a gap."
+  },
+  {
+   "id": "ipo.trigger",
+   "field": "trigger",
+   "statement": "Price trades above the IPO high during regular hours. Buy with a market order.",
+   "measure": {
+    "what": "intraday high during regular hours",
+    "op": ">",
+    "value": "IPO high"
+   },
+   "basis": "house rule",
+   "sources": [
+    "S32"
+   ],
+   "house_rule": "E58",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 Order",
+   "evidence": "Market orders are E57. The owner on AMTM: a notable breakout over $24 and $25; Bracco on YSS: if this takes those IPO highs out on volume (S32)."
+  },
+  {
+   "id": "ipo.breakout_volume",
+   "field": "trigger",
+   "statement": "Breakout-day volume at least 1.4 times the average of the base's sessions, the listing week left out. If the trigger fires early in the day, judge it by the pace at the time of the buy.",
+   "measure": {
+    "what": "trigger-day volume (on pace) / average volume of the base's sessions, listing week left out",
+    "op": ">=",
+    "value": 1.4,
+    "unit": "x",
+    "timeframe": "daily"
+   },
+   "glossary": "volume_surge",
+   "basis": "originator",
+   "sources": [
+    "S1",
+    "S38"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.2 Volume",
+   "evidence": "IBD's 40%, with its advice to compare with recent sessions when no 50-day average exists (S1) and to leave the IPO week out (S38); measuring against the base's own sessions is the dossier's adaptation. The examples ran 1.6x (SABR) to 3.0x (NET). D-006's default makes trigger-day volume a cue everywhere; the dossier kept it as a line of the rule and section 10 does not ask about it."
+  },
+  {
+   "id": "ipo.breakout_volume_a_plus",
+   "field": "trigger",
+   "statement": "A+ volume: 2 times or more the 10-day average, or the highest volume of any session after the listing day.",
+   "measure": {
+    "what": "trigger-day volume / 10-day average volume",
+    "op": ">=",
+    "value": 2,
+    "unit": "x",
+    "timeframe": "daily",
+    "or": "the highest volume of any session since the listing day"
+   },
+   "glossary": "volume_surge",
+   "basis": "source consensus",
+   "sources": [
+    "S12",
+    "S19"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.2 Volume; 9 Volume row",
+   "evidence": "Stockbee: 2 to 3 times the 10-day average, or the highest or second-highest volume since listing for young IPOs (S12); Deepvue's tip: the highest volume since IPO may signal a breakout (S19)."
+  },
+  {
+   "id": "ipo.no_chase",
+   "field": "trigger",
+   "statement": "No buy more than 4% above the buy point.",
+   "measure": {
+    "what": "fill / IPO high - 1",
+    "op": "<=",
+    "value": 4,
+    "unit": "%"
+   },
+   "glossary": "chase_limit",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "C28",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 No chasing",
+   "evidence": "IBD and our detector use a 5% zone; the house 4% wins."
+  },
+  {
+   "id": "ipo.not_stretched",
+   "field": "trigger",
+   "statement": "At entry, no more than 10% above the 10-day average. A gap-and-go breakout (FIGR closed up over 21%) can break it.",
+   "measure": {
+    "what": "entry / 10-day SMA - 1",
+    "op": "<=",
+    "value": 10,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "glossary": "stretched",
+   "basis": "house rule",
+   "sources": [
+    "S32"
+   ],
+   "house_rule": "C29",
+   "options": [
+    {
+     "value": "a",
+     "basis": "C29 as written for every base entry: D-017's default"
+    },
+    {
+     "value": "b",
+     "basis": "allow a day-1 30-minute ORB entry while the stock is still within 10%"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-017",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 No chasing; 10 question 9",
+   "evidence": "Bracco on FIGR: a strong gap-and-go move right out of a clean IPO base, closing up over 21% (S32). The scan skipped fills more than 10% above the 10-day average."
+  },
+  {
+   "id": "ipo.never_listing_week",
+   "field": "trigger",
+   "statement": "Never buy on the listing day or in the listing week.",
+   "measure": {
+    "what": "sessions since the listing day",
+    "op": ">",
+    "value": 5,
+    "unit": "sessions"
+   },
+   "basis": "originator",
+   "sources": [
+    "S6",
+    "S4",
+    "S1",
+    "S17",
+    "S13"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 Never on the listing day",
+   "evidence": "MSI: not on the day or during the week of its listing (S6); IBD: wait for the first base (S4, S1); Donnelly: 91% of IPOs will undercut their Day 1 low (S17); Stockbee: let the flipping phase be over (S13)."
+  },
+  {
+   "id": "ipo.earnings_window",
+   "field": "trigger",
+   "statement": "No new buy in the 3 sessions before an earnings report; hold through a report only if the trade is up 5R. A new issue's first report can come soon after listing: check the date.",
+   "measure": {
+    "what": "sessions until the next report",
+    "op": ">",
+    "value": 3,
+    "unit": "sessions"
+   },
+   "glossary": "earnings_blackout",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B22",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5; 7 B22 row",
+   "evidence": "Not applied in the scan."
+  },
+  {
+   "id": "ipo.early_entries",
+   "field": "trigger",
+   "statement": "Earlier entries, if taught: the prior-day-high break or the 30-minute opening-range break out of a tight handle under the IPO high (recommended with the pivot); a U&R of a flat level or the IPO open, and the first higher low above the IPO AVWAP, belong to the U&R and AVWAP lessons.",
+   "measure": {
+    "what": "earlier entry",
+    "op": "in",
+    "value": [
+     "PDH or 30-minute ORB out of a tight handle under the IPO high",
+     "U&R of a level or the IPO open",
+     "first higher low above the IPO AVWAP"
+    ]
+   },
+   "basis": "UCT",
+   "sources": [
+    "S32",
+    "S22",
+    "S20"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "only the IPO-high break"
+    },
+    {
+     "value": "b",
+     "basis": "also the PDH or ORB out of a tight handle: the owner's hourly flag and ORB notes (S32); Kedia (S22); the dossier's recommendation with (a)"
+    },
+    {
+     "value": "c",
+     "basis": "also a U&R of a level or the IPO open: the owner on SPCX (S32)"
+    },
+    {
+     "value": "d",
+     "basis": "the first higher low above the IPO AVWAP: Shannon (S20); Bracco (S32)"
+    }
+   ],
+   "recommended": "b",
+   "status": "pending-owner",
+   "owner_question": "D-027",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.2 Earlier entries; 10 question 7",
+   "evidence": "The owner on CRCL: an hourly handle or flag form here under IPO highs; on FLY: the higher low hold at the 20EMA, long from $22.30 with a stop at Friday's low (S32). D-027's default: the pivot defines the setup, the early entries are one advanced lesson."
+  },
+  {
+   "id": "ipo.stop",
+   "field": "stop",
+   "statement": "A few cents under the breakout day's low; the prior day's low is the house's other default.",
+   "measure": {
+    "what": "stop",
+    "op": "==",
+    "value": "a few cents under the breakout day's low or the prior day's low"
+   },
+   "glossary": "stop_margin",
+   "basis": "house rule",
+   "sources": [
+    "S32"
+   ],
+   "house_rule": "A3",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.3",
+   "evidence": "F62 gives the few cents. The owner on FPS: a buy with LOD stop; on FLY: a stop at Friday's low (S32). The scan used the lower of the two lows, or the breakout day's low alone when that was more than 8% away."
+  },
+  {
+   "id": "ipo.stop_width",
+   "field": "stop",
+   "statement": "Skip the trade if the honest stop is more than 8% below the entry; most good IPO breakouts give far less. If it does not fit the risk, skip; never move the stop up to fit.",
+   "measure": {
+    "what": "(entry - stop) / entry",
+    "op": "<=",
+    "value": 8,
+    "unit": "%"
+   },
+   "glossary": "stop_width",
+   "basis": "my proposal",
+   "sources": [
+    "S6",
+    "S22"
+   ],
+   "house_rule": "A3",
+   "options": [
+    {
+     "value": "a",
+     "basis": "the house guideline, about 3% (A13)"
+    },
+    {
+     "value": "b",
+     "basis": "8%: MarketSmith India's maximum loss (S6); the dossier's recommendation"
+    },
+    {
+     "value": "c",
+     "basis": "no ceiling; size down by A5"
+    }
+   ],
+   "recommended": "b",
+   "status": "pending-owner",
+   "owner_question": "D-005",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.3 Ceiling; 10 question 8",
+   "evidence": "IPOs are volatile (IBD). The examples' stops ran 2.3% (VIK) to 7.3% (LULU, STX); Kedia's example 4.5% (S22). MDB 2018-07-24 (6.7% stop) reached 0.6R and was out: a wide honest stop on a volatile new issue is the risk the ceiling warns about. D-005's default: up to one ADR, sized down and graded a notch lower."
+  },
+  {
+   "id": "ipo.stop_broker",
+   "field": "stop",
+   "statement": "A real stop order with the broker. It only moves up.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "D41",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.3",
+   "evidence": "A4: the stop only moves up."
+  },
+  {
+   "id": "ipo.stop_gap",
+   "field": "stop",
+   "statement": "A gap through the stop: the first 30-minute low is the new stop; out if that is past 2R.",
+   "measure": {
+    "what": "loss at the first 30-minute low of the gap-down day",
+    "op": "<=",
+    "value": 2,
+    "unit": "R",
+    "timeframe": "30-minute"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B20",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.3"
+  },
+  {
+   "id": "ipo.breakeven",
+   "field": "management",
+   "statement": "Stop to breakeven between 2R and 5R, at the first trim by default.",
+   "measure": {
+    "what": "R at which the stop moves to the entry",
+    "op": "in",
+    "value": [
+     2,
+     5
+    ],
+    "unit": "R"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B19",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4"
+  },
+  {
+   "id": "ipo.trim_1",
+   "field": "management",
+   "statement": "Sell a third at 3R.",
+   "measure": {
+    "what": "fraction sold at 3R",
+    "op": "==",
+    "value": 0.333,
+    "unit": "of the position"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B19",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4",
+   "evidence": "KRMN and LSPD reached 3R the next day; AXTA took 56 sessions."
+  },
+  {
+   "id": "ipo.trim_2",
+   "field": "management",
+   "statement": "Sell a third at 5R.",
+   "measure": {
+    "what": "fraction sold at 5R",
+    "op": "==",
+    "value": 0.333,
+    "unit": "of the position"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "E51",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4",
+   "evidence": "VIK reached 5R, then rolled over: the trail matters. AXTA and SABR never saw 5R."
+  },
+  {
+   "id": "ipo.trim_gap_open",
+   "field": "management",
+   "statement": "If it opens above a trim level, take that trim at the open.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "F63",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4"
+  },
+  {
+   "id": "ipo.trail",
+   "field": "management",
+   "statement": "Trail the last third under the 10-day average, sold on a close below it; the 21-day if the stock trends steadily. IPOs are usually fast movers, so the 10-day is the default.",
+   "measure": {
+    "what": "close against the 10-day (default) or 21-day (steadier) average",
+    "op": "<",
+    "value": "the average",
+    "timeframe": "daily"
+   },
+   "glossary": "trail",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "E52",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4",
+   "evidence": "The 10-day default is the dossier's reading of E52 for a fast mover. SABR, a steady mover late in its first year, fits the 21-day."
+  },
+  {
+   "id": "ipo.eight_week_hold",
+   "field": "management",
+   "statement": "O'Neil's 8-week hold (a 20% gain in under 3 weeks) is not a house rule; teach it only as the source's idea.",
+   "measure": {
+    "what": "gain within 3 weeks of the breakout that triggers IBD's 8-week hold",
+    "op": ">=",
+    "value": 20,
+    "unit": "%",
+    "note": "reference only, not ours"
+   },
+   "basis": "originator",
+   "sources": [
+    "S23",
+    "S35"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "leave it out, house trims only: D-013's default (a reference, not a rule)"
+    },
+    {
+     "value": "b",
+     "basis": "an exception for IPO breakouts that gain 20% in under 3 weeks"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-013",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4; 10 question 10",
+   "evidence": "TraderLion's summary of the rule (S23). The AI-written playbook's 20% to 25% trim and 8-week hold are O'Neil's, not the house's (S35)."
+  },
+  {
+   "id": "ipo.climax",
+   "field": "management",
+   "statement": "A climax run (Bracco's parabolic burst): sell a big part into it.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "C34",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4",
+   "evidence": "Bracco: CRWV ran 400% in 7 weeks, then CRCL 5x in 3 weeks (S32)."
+  },
+  {
+   "id": "ipo.time_stop",
+   "field": "management",
+   "statement": "Time stop: still under 1R after 10 trading days, sell.",
+   "measure": {
+    "what": "open R after 10 trading days",
+    "op": "<",
+    "value": 1,
+    "unit": "R"
+   },
+   "glossary": "time_stop",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "C33",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.5 After the buy",
+   "evidence": "Not applied in the scan; AXTA (3R in 56 days) and SABR (39 days) would have been sold under it."
+  },
+  {
+   "id": "ipo.no_special_size",
+   "field": "management",
+   "statement": "No setup-level change for new issues: no IPO size cut, no waiting period as an account rule; lockups are context only.",
+   "basis": "house rule",
+   "sources": [
+    "S30",
+    "S31",
+    "S32",
+    "S35"
+   ],
+   "house_rule": "E53",
+   "options": [
+    {
+     "value": "a",
+     "basis": "no setup-level changes; lockups as context: the dossier's reading of E53; D-034's default"
+    },
+    {
+     "value": "b",
+     "basis": "the course plan's smaller position size and mandatory lock-up check (S35)"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-034",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "7 E53 row; 10 question 11",
+   "evidence": "Field and Hanka: a 40% volume rise and a -1.5% three-day return at lockup expiry (S30); most lockups run 180 days (S31). Bracco read SPCX's lockup expiry as a contrarian setup (S32). Size comes from the grade (D38, E49)."
+  },
+  {
+   "id": "ipo.inv_ipo_price",
+   "field": "invalidation",
+   "statement": "Before the trigger: the low undercuts the IPO price and does not close back above it within 3 sessions.",
+   "measure": {
+    "what": "sessions under the IPO price without a close back above it",
+    "op": ">",
+    "value": 3,
+    "unit": "sessions",
+    "timeframe": "daily"
+   },
+   "glossary": "reclaim_window",
+   "basis": "originator",
+   "sources": [
+    "S6"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5",
+   "evidence": "MSI 2019 (S6); the 3 sessions are the dossier's. VRSK 2009-11-12, a base whose low had undercut the listing-day open, was stopped near 0R."
+  },
+  {
+   "id": "ipo.inv_depth",
+   "field": "invalidation",
+   "statement": "Before the trigger: the depth goes past 35%.",
+   "measure": {
+    "what": "(IPO high - lowest low) / IPO high",
+    "op": ">",
+    "value": 35,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "glossary": "base_depth",
+   "basis": "my proposal",
+   "sources": [
+    "S34",
+    "S22"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5"
+  },
+  {
+   "id": "ipo.inv_window",
+   "field": "invalidation",
+   "statement": "Before the trigger: 252 sessions pass since listing without a trigger; the stock is then a regular base candidate.",
+   "measure": {
+    "what": "sessions since the listing day without a trigger",
+    "op": ">",
+    "value": 252,
+    "unit": "sessions",
+    "timeframe": "daily"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S32",
+    "S34"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5"
+  },
+  {
+   "id": "ipo.inv_v_shape",
+   "field": "invalidation",
+   "statement": "Before the trigger: a V shape, the right side going from the base low back to within 5% of the pivot in 5 sessions or fewer with no pause.",
+   "measure": {
+    "what": "sessions from the base low to within 5% of the pivot",
+    "op": "<=",
+    "value": 5,
+    "unit": "sessions",
+    "timeframe": "daily",
+    "note": "with no pause on the way"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S22"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5",
+   "evidence": "Kedia: a deep base that approaches its left-side high with time compression has a very high failure rate; his example was three bars from the bottom (S22). The numbers are the dossier's."
+  },
+  {
+   "id": "ipo.inv_market_red",
+   "field": "invalidation",
+   "statement": "Before the trigger: the market reading is Red.",
+   "glossary": "market_reading",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "D46",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5"
+  },
+  {
+   "id": "ipo.after_entry_stop",
+   "field": "invalidation",
+   "statement": "After the buy, the stop is the exit. A breach of the pivot back into the base is a warning, not an exit; IBD's round-trip sell signal (a breakout that gives back a 10% gain) is not a house rule.",
+   "measure": {
+    "what": "IBD's round-trip signal: a gain given back",
+    "op": "==",
+    "value": 10,
+    "unit": "%",
+    "note": "reference only, not ours"
+   },
+   "basis": "house rule",
+   "sources": [
+    "S6",
+    "S38"
+   ],
+   "house_rule": "A4",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5 After the buy",
+   "evidence": "The owner struck the cut-half rule: my stop is my stop most of the time (2026-11-09). MSI would not like to see a stock breach the pivot price (S6); IBD's Habit Restaurants round trip from a 40.35 buy point (S38). MA 2007-01-17: the textbook stock, the textbook base, and still a stop at 0R before a years-long advance."
+  }
+ ],
+ "grading": {
+  "a_plus": [
+   "ipo.window: the left-side high in the first 25 sessions; the first base",
+   "ipo.depth_a_plus: under 20%",
+   "ipo.length_typical: 2 to 5 weeks, tightening",
+   "ipo.above_ipo_price: never undercut",
+   "ipo.tight_right_side: inside days on very low volume; weekly ranges under 10%",
+   "ipo.volume_in_base: up-volume clearly above down-volume",
+   "ipo.breakout_volume_a_plus: breakout 2x the 10-day or the highest since listing, closing near the high",
+   "ipo.above_avwap: above the IPO AVWAP and the rising 10-day and 21-day",
+   "ipo.liquidity: $100 million or more a day (Donnelly's screen)",
+   "ipo.fundamentals: 100% EPS or sales growth (Stockbee), 35% quarter over quarter (Boboch)",
+   "ipo.group: a leading group or a hot theme",
+   "ipo.market_turning: Green, turning up after a correction",
+   "ipo.stop_width: 3% to 5% from the entry"
+  ],
+  "b_minus": [
+   "ipo.first_base: a later base, months after listing",
+   "ipo.depth: 30% to 35%",
+   "ipo.length_min: under 10 sessions, or a loose base",
+   "ipo.ipo_price_undercut: a brief undercut and reclaim",
+   "ipo.inv_v_shape: a fast V into the pivot",
+   "ipo.breakout_volume: only modestly above the base's average",
+   "ipo.tight_right_side: closes mid-range on the breakout day",
+   "ipo.above_avwap: at or under the IPO AVWAP",
+   "ipo.liquidity: near the $20 million house floor",
+   "ipo.fundamentals: modest growth",
+   "ipo.group: no group support",
+   "ipo.market_reading: Yellow",
+   "ipo.stop_width: 6% to 8%"
+  ],
+  "no_trade": [
+   "ipo.never_listing_week: the listing day or the listing week",
+   "ipo.inv_ipo_price: under the IPO price for more than 3 sessions",
+   "ipo.inv_depth: deeper than 35%",
+   "ipo.inv_window: more than 252 sessions since listing (a regular base)",
+   "ipo.no_chase: more than 4% past the IPO high",
+   "ipo.not_stretched: more than 10% over the 10-day",
+   "ipo.stop_width: the honest stop more than 8% away; never pull it in",
+   "ipo.earnings_window: a report within 3 sessions",
+   "ipo.liquidity: under $10 or under $20 million a day",
+   "ipo.inv_market_red: Red"
+  ]
+ },
+ "lookalikes": [
+  {
+   "setup": "04-cup-handle",
+   "tell": "Check the age. An IPO base is a young stock's first rest under its post-listing high inside its first year, often only 2 to 5 weeks; a cup needs a stock with a trading history, a 30% run, at least 7 weeks and a handle. Many IPO bases are cups in shape, so the listing date decides.",
+   "criterion": "ipo.window"
+  },
+  {
+   "setup": "01-flat-base",
+   "tell": "Count the sessions and measure the depth. An IPO base can be 10 sessions long and up to 35% deep; a flat base needs 25 sessions, 15% or less, and a 30% prior run on a stock that is not new.",
+   "criterion": "ipo.length_min"
+  },
+  {
+   "setup": "06-vcp",
+   "tell": "Look for the trend template. A VCP needs two or more shrinking pullbacks on a stock above its 150 and 200-day with a rising 200-day; a young listing has no 200-day and one rest. VCP ish tightening inside an IPO base is a grade cue, not a VCP.",
+   "criterion": "ipo.above_200"
+  },
+  {
+   "setup": "29-undercut-rally",
+   "tell": "Look at the IPO price. If the base low broke under the IPO open and closed back above it within 3 sessions, the trade is the U&R of that level, graded B, not the IPO-high breakout.",
+   "criterion": "ipo.ipo_price_undercut"
+  }
+ ],
+ "invalidations": [
+  "Before the trigger: the low undercuts the IPO price and does not close back above within 3 sessions (ipo.inv_ipo_price).",
+  "Before the trigger: the depth goes past 35% (ipo.inv_depth).",
+  "Before the trigger: 252 sessions pass since listing without a trigger (ipo.inv_window).",
+  "Before the trigger: a V from the base low to within 5% of the pivot in 5 sessions with no pause (ipo.inv_v_shape).",
+  "Before the trigger: the market reading is Red (ipo.inv_market_red).",
+  "Before the trigger: a report within 3 sessions, wait (ipo.earnings_window).",
+  "After the buy: the stop is the exit; a breach of the pivot is a warning (ipo.after_entry_stop).",
+  "After the buy: under 1R after 10 trading days, sell (ipo.time_stop)."
+ ],
+ "mistakes": [
+  "Buying the listing day or the first heated days.",
+  "Buying a stock that already made a massive run with no base.",
+  "Using the first two or three days' volume as the volume yardstick.",
+  "Buying a deep V straight into the pivot.",
+  "Chasing a gap breakout past 4% or 10% over the 10-day.",
+  "Widening the stop to sit through the base's depth.",
+  "Trading thin, low-priced new issues.",
+  "Treating a later base as the first, or forcing the label on an old stock (the detector's backfill trap).",
+  "Ignoring the IPO AVWAP and the IPO open as levels.",
+  "Buying in a weak market, where new issues fall hardest."
+ ],
+ "short_mirror": {
+  "exists": false,
+  "setup": "05-ipo-base",
+  "note": "No short mirror in this course for now (dossier 8.8): a young IPO has no 200-day, so a short cannot satisfy B26; D48 skips hard-to-borrow names and Stockbee flags thin trading on the short side; no source defines a failed-IPO-base short with rules (Stockbee's IPO shorts are Concept IPOs fading after the hype). The parabolic short, which B26 exempts, is the mirror that exists in our library. If the owner wants one later: a close below the base low and the IPO price, on volume, after a failed breakout, once the 200-day exists (D-001, 05:13)."
+ },
+ "best_conditions": "A Green reading, margin only in Green (F60, F65). Best when the market is turning up after a correction (Bracco, the owner, Stockbee), in a hot theme (Bracco, Kedia). Be careful when the IPO calendar is crowded late in a long advance (TraderLion on the Lifecycle team).",
+ "management": {
+  "trim_1": "a third at 3R (B19)",
+  "trim_2": "a third at 5R (E51)",
+  "trail": "a close under the 10-day by default (IPOs are fast movers), the 21-day for a steady one (E52)",
+  "breakeven": "between 2R and 5R, at the first trim by default (B19)",
+  "time_stop": "under 1R after 10 trading days, sell (C33)",
+  "gap_open": "a trim level the day opens past is taken at the open (F63)",
+  "gap_against": "the first 30-minute low is the new stop; out if past 2R (B20)",
+  "climax": "sell a big part into a climax run (C34)",
+  "earnings": "hold through a report only if up 5R (B22)",
+  "overrides": "none settled. The stop ceiling of 8% (MSI) instead of A13's 3% is the dossier's recommendation (D-005); the 10-day trail as the default is the dossier's reading of E52. Not ours: the AI-written playbook's 20% to 25% trim, O'Neil's 8-week hold (D-013), a smaller IPO share count and a mandatory lockup check (E53, D-034)."
+ },
+ "examples": {
+  "winners": 10,
+  "sheet_dir": "_study-resume/scratchpad/setups/05-ipo-base/final",
+  "base_rate": {
+   "hits": 57,
+   "r3_pct": 26.3,
+   "r5_pct": 17.5,
+   "first_base_hits": 48,
+   "first_base_r3_count": 12,
+   "first_base_r5_count": 8,
+   "stopped_before_3r_count": 36,
+   "window": "60 sessions forward, fixed stop, no trims, no breakeven, no trail; triggers 1999 to 2026 (most in 2013, 2020, 2021 and 2024); 2,630 liquid names since 2002, one hit per 46 liquid names ever"
+  },
+  "winners_list": [
+   "LULU 2007-09-19",
+   "KRMN 2025-09-05",
+   "VIK 2024-06-28",
+   "LSPD 2020-12-22",
+   "NET 2020-06-15",
+   "STX 2003-05-28",
+   "FWONA 2013-04-30",
+   "BSY 2021-05-24",
+   "AXTA 2015-02-23",
+   "SABR 2015-03-19"
+  ],
+  "failures": [
+   {
+    "ticker": "MA",
+    "date": "2007-01-17",
+    "criterion": "ipo.after_entry_stop",
+    "why": "listed 2006-05-25, day 161: a 6.6-week, 17% base at the IPO high, breakout on 1.6 times the base's volume, a 5% stop; stopped in the next sessions at 0R before the stock went on to a years-long advance. The textbook stock, the textbook base, and still a stop: the rule is a probability, not a promise.",
+    "stopped": "stopped 1 session after the buy, 2007-01-18, low 10.18"
+   },
+   {
+    "ticker": "APTV",
+    "date": "2012-11-02",
+    "criterion": "ipo.market_reading",
+    "why": "listed 2011-11-17, day 240: a 5.6-week, 10% base, breakout on 2.8 times the base's volume with a tight 2.3% stop, stopped at 0R; the first APTV base in February 2012 had also stopped (0.99R). Two clean-looking failures in a flat 2012 market: the market reading is the missing line in the scan.",
+    "stopped": "stopped 1 session after the buy, 2012-11-05, low 26.92"
+   },
+   {
+    "ticker": "MDB",
+    "date": "2018-07-24",
+    "criterion": "ipo.stop_width",
+    "why": "listed 2017-10-19, day 190: a 5.4-week, 20% base, 1.8 times volume, a 6.7% stop, 0.6R and out. The stop was near the 8% ceiling, which is the risk 8.3 warns about: a wide honest stop on a volatile new issue.",
+    "stopped": "stopped 4 sessions after the buy, 2018-07-30, low 53.81"
+   },
+   {
+    "ticker": "VRSK",
+    "date": "2009-11-12",
+    "criterion": "ipo.inv_ipo_price",
+    "why": "a base inside the first 26 sessions whose low had undercut the listing-day open; stopped at or near 0R. NAVN 2026-08-27 and BIRK 2024-02-21 (0.76R) also stopped at or near 0R."
+   },
+   {
+    "ticker": "NAVN",
+    "date": "2026-08-27",
+    "criterion": "ipo.after_entry_stop",
+    "why": "Listed 2025-10-30; a 2-week, 7% shelf at the IPO high on day 206 broke out on 2.1x volume and closed near its high, then fell through the 4.6% stop the next session. Best 0.0R.",
+    "stopped": "stopped 1 session after the buy, 2026-08-28, low 28.43"
+   }
+  ],
+  "limits": "The listing day is inferred from the bars (a first-day volume signature), not from the app's listing date, so a stock whose first stored bar is a later data start is excluded by the signature rather than by knowledge of its listing. The offer price is not in the data, so the listing-day low stands in for it. RS, the market reading, earnings dates near the trigger, fundamentals and the 200-day rule were not applied. A full-day volume figure is used where a live trade would judge the pace. Nothing here is a published statistic.",
+  "near_misses": [
+   {
+    "ticker": "SPOT",
+    "date": "2018-05-02",
+    "criterion": "ipo.above_ipo_price",
+    "why": "base low 135.51 under the IPO open 165.90. A direct listing (2018-04-03) whose first base undercut the IPO open by 18%; the breakout on day 21 reached 0.0R."
+   },
+   {
+    "ticker": "CAVA",
+    "date": "2024-09-20",
+    "criterion": "ipo.window",
+    "why": "breakout on session 318 after listing; the rule needs 252 or fewer. A clean 3.6-week, 14% shelf on 2.2x volume, but 318 sessions after listing: a regular base on a stock past its first year (a flat base or cup, judged by its own rules)."
+   },
+   {
+    "ticker": "NWSA",
+    "date": "2013-10-24",
+    "criterion": "ipo.breakout_volume",
+    "why": "breakout volume 0.75x the base's average; the rule needs 1.4x. A spin-off listing (2013-06-19); a 6-week, 10% base at the high, but the breakout came on 0.75x the base's volume: no demand on the day."
+   },
+   {
+    "ticker": "CRWD",
+    "date": "2019-08-09",
+    "criterion": "ipo.length_min",
+    "why": "8 sessions from the IPO high to the trigger; the rule needs 10. Listed 2019-06-12; the high was taken only 8 sessions after it was set: a pause, not a base."
+   }
+  ],
+  "sheets": {
+   "failures": "final/fail_1-4.png",
+   "near_misses": "final/near_1-4.png",
+   "pair": "final/pair_04-cup-handle.png"
+  }
+ },
+ "question_seeds": [
+  {
+   "kind": "recall",
+   "criterion": "ipo.length_min",
+   "seed": "How many sessions must an IPO base rest under its high before the name applies?"
+  },
+  {
+   "kind": "recall",
+   "criterion": "ipo.depth",
+   "seed": "An IPO base falls no more than what percent from the IPO high in this course?"
+  },
+  {
+   "kind": "recall",
+   "criterion": "ipo.never_listing_week",
+   "seed": "When is the earliest an IPO can be bought under this card?"
+  },
+  {
+   "kind": "spot",
+   "criterion": "ipo.pivot",
+   "seed": "Hidden ticker: tap the IPO high, the pivot this new issue must trade through."
+  },
+  {
+   "kind": "spot",
+   "criterion": "ipo.above_avwap",
+   "seed": "Hidden ticker: is this base sitting above or below its IPO anchored VWAP? Take it or pass."
+  },
+  {
+   "kind": "spot",
+   "criterion": "ipo.volume_in_base",
+   "seed": "Hidden ticker: on the right side of this base, is the volume heavier on the up days or the down days?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "ipo.window",
+   "seed": "IPO base or cup with handle: a 4-week rounded rest under the high on a stock listed 6 weeks ago. Which card applies?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "ipo.length_min",
+   "seed": "IPO base or flat base: a 12-session, 22%-deep rest on a stock listed 3 months ago. Which is it?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "ipo.ipo_price_undercut",
+   "seed": "The base low broke under the IPO open and closed back above it two sessions later. IPO base breakout or U&R?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "ipo.inv_window",
+   "seed": "A stock listed 14 months ago builds a 6-week base at its highs. IPO base or a regular base?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "ipo.no_chase",
+   "seed": "The IPO high is 57.32 and the stock is trading 60.10 at 10:20 on heavy volume. Buy, or pass?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "ipo.not_stretched",
+   "seed": "The stock gaps through the IPO high and closes up 21%, 18% over its 10-day. Was the breakout buyable under C29, and what would you have done?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "ipo.earnings_window",
+   "seed": "The base is tight under the IPO high and the first quarterly report is in 2 sessions. Buy the breakout today?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "ipo.after_entry_stop",
+   "seed": "You bought the IPO-high break at 19.53. Two days later it closes back inside the base, above your stop. What now?"
+  },
+  {
+   "kind": "grade",
+   "criterion": "ipo.depth_a_plus",
+   "seed": "Two IPO bases: one 9% deep over 2 weeks, one 29% deep over 18 weeks with an orderly right side. Grade each."
+  },
+  {
+   "kind": "grade",
+   "criterion": "ipo.breakout_volume_a_plus",
+   "seed": "Same base, two breakout days: one on 1.6x the base's volume closing mid-range, one on the highest volume since listing closing at the high. Grade each."
+  },
+  {
+   "kind": "grade",
+   "criterion": "ipo.first_base",
+   "seed": "This is the stock's third base since it listed 9 months ago. A+, B, or pass?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "ipo.depth",
+   "seed": "IPO high 54.62, base low 38.63. How deep is the base, and is it still an IPO base?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "ipo.stop_width",
+   "seed": "Fill 19.53, breakout day's low 18.15, a few cents under it for the stop. How wide is the stop, and is it inside 8%?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "ipo.breakout_volume",
+   "seed": "The base's sessions averaged 1.2 million shares a day (listing week left out). By 11:00 the breakout day has traded 900,000. Is it on pace for 1.4x?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "ipo.trim_1",
+   "seed": "Bought at 57.42 with the stop at 56.05. Where is 3R?"
+  }
+ ],
+ "owner_decisions": [
+  "D-001",
+  "D-002",
+  "D-005",
+  "D-007",
+  "D-013",
+  "D-014",
+  "D-017",
+  "D-027",
+  "D-034",
+  "D-054",
+  "D-055",
+  "D-056",
+  "D-057"
+ ],
+ "conflicts": [
+  "How soon after listing: IBD and MarketSmith India want the left-side high within the first 25 trading days (yet IBD's own CBRE base began about eight weeks after listing); Kedia the first five weeks with later bases in the family; Stockbee within a year; the owner the first year or so; the detector 252 bars; the Lifecycle team's best breakout comes months or years later. The card takes the year with the 25-session form as A+ (D-002).",
+  "Minimum length: IBD does not agree with itself (two to five weeks; seven days in rare cases; nine or 10 days; three weeks; Fitbit five days; Inphi 11); Minervini 10 days; Stockbee 5 to 10, then 10 to 20; the detector 15. The card takes 10 (D-056).",
+  "Depth: IBD and MSI usually under 20%, up to 50% in volatile markets; Kedia 20% to 30%, up to 50%; the detector 35%; the AI-written playbook 25% to 50%; Stockbee measures 35% below the listing-day close instead. The card takes 35% with under 20% as A+ (D-055). The Model Book card (often shallow) and its playbook (25% to 50%) contradict each other.",
+  "The IPO price: MSI and Minervini want the base above it; IBD 2018 says generally; Kedia calls listings below the issue price an opportunity; Stockbee anchors on the listing-day close; the owner's TTAN note used IPO price for the first trade. The offer price is not in our bars; the card takes the IPO open (D-057).",
+  "Volume on the breakout: IBD's 40% over the 50-day average, or against recent sessions when no 50-day exists, leaving out the IPO week; Stockbee 2 to 3 times the 10-day; MSI ignores days 1 to 3; the detector has no volume test. The card measures 1.4x against the base's own sessions (the dossier's adaptation) and keeps it as a line of the rule, while D-006's default makes trigger-day volume a cue for every setup; the owner may make it a cue here too.",
+  "The stop: MSI 8% maximum; Kedia a tight area (4.5% in one example); Shannon under recent lows; the playbook the breakout-day low or the last tight area; the owner the low of the day. The card keeps the day's-low stop and recommends 8% as the skip line against A13's about 3% (D-005); D-005's default is one ADR.",
+  "B26 and C31 cannot be checked on a young listing (no 200-day, no 63-bar RS). The glossary's stand-in is the 50-day SMA; D-034's default adds the IPO-day low and measures RS since listing against the Nasdaq. The card follows D-034 pending the owner.",
+  "Selling: the playbook trims into 20% to 25% and uses O'Neil's 8-week hold; TraderLion takes profits quickly in the first phase; IBD's Habit case shows a round-trip sell signal; the house thirds at 3R and 5R win (D-013).",
+  "Lockups and size: the course plan makes a lockup check mandatory and cuts size; the playbook wants a smaller share count; the owner's E53 says no rule for new listings and D38 and E49 size by grade. The card follows E53 (D-034).",
+  "Tightness: the glossary's default is a 0.85 range ratio; this card keeps Stockbee's two-4%-days test on the last 5 sessions and IBD's weekly ranges under 10% as the cue, listed as overrides under tight.",
+  "Liquidity: the detector's $2 and $10,000 floor (round 3: $1,000,000 median) and the live IPO scan's $1 and $1 million are far below B23; the card measures B23 over the base's sessions with the first three sessions left out (the glossary lists this as 05's override).",
+  "Buy zone: IBD and the detector allow 5% over the buy point; the house 4% wins (C28).",
+  "The playbook's 3 to 12 months has no source; IBD and MSI say 25 days, the owner the first year. The playbook, the Model Book card and the 4 draft recall items built on it are rewritten from this card after the owner rules (D-014).",
+  "Measured evidence: no published success rate for IPO-base breakouts exists; Ritter's long-run IPO returns are poor on average (the base rate the filters fight), the Lifecycle team's 20% doubled and 91% undercut day one could not be checked against the book, and MSI's highest success rate claim has no numbers. Only our own scan (57 hits) is quoted.",
+  "Unsourced claims in other detectors (a Mark Ritchie II post-IPO playbook in rounded_base.py and accumulation_distribution.py) and a mis-cite of Stockbee's 35% rule in the research catalogue stay out of the lesson (D-010)."
+ ]
+}

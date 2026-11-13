@@ -1,0 +1,1442 @@
+{
+ "setup": "09-trendline-break",
+ "name": "Trendline Break",
+ "unit": "none",
+ "direction": "long",
+ "timeframe": "daily",
+ "dossier": "docs/study/setups/research/09-trendline-break.md",
+ "as_of": "2026-11-09",
+ "card": {
+  "context": "A leader (RS 80 or more) above a flat or rising 200-day, pulling back or resting inside a structure that already says buy: a flag, a wedge pop, a double bottom, a cup handle, a launchpad. Green market, best when the index breaks its own downtrend line.",
+  "pattern": "A falling line drawn over the daily highs from the pullback's highest high, touched by 2 swing highs (3 for an A), at least 15 sessions old, falling no faster than 0.15 ATR a session, never closed through. Price tight under it, not wedging up.",
+  "trigger": "OTHER: during regular hours price trades above the line's value for the day and above the prior day's high (so it is also a PREV DAY HIGH BREAK), volume on pace for 1.2x, at market, no more than 4% or 1.5 ATR past the line.",
+  "stop": "A few cents under the trigger day's low as it stands at entry (median about 1% from the intraday trigger); the prior day's low is the wider choice. Never the lowest low under the line as the default.",
+  "failure_mode": "A weak-volume break that barely clears the line closes back under it the next day and the stop goes; or three flat closes with no higher high and the time stop. On its own the break is a warning, not a reversal."
+ },
+ "entry_trigger": "OTHER",
+ "criteria": [
+  {
+   "id": "tl.above_200",
+   "field": "context",
+   "statement": "The trigger day closes above the 200-day SMA.",
+   "measure": {
+    "what": "close against the 200-day SMA",
+    "op": ">",
+    "value": "200-day SMA",
+    "timeframe": "daily"
+   },
+   "glossary": "above_200",
+   "basis": "house rule",
+   "sources": [
+    "S31",
+    "S33"
+   ],
+   "house_rule": "B26",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 item 1",
+   "evidence": "B26 is hard. 7 of the 23 judged fires closed below the 200-day (one 34.8% below); the scanner has no 200-day gate. Classic reversal breaks (Sperandeo, Bulkowski's trend change, bottom fishing) often happen below it and are not our trade."
+  },
+  {
+   "id": "tl.ma200_rising",
+   "field": "context",
+   "statement": "The 200-day is flat or rising: higher than 20 sessions earlier.",
+   "measure": {
+    "what": "200-day SMA today - 200-day SMA 20 sessions ago",
+    "op": ">=",
+    "value": 0,
+    "unit": "$",
+    "timeframe": "daily"
+   },
+   "glossary": "rising_average",
+   "basis": "my proposal",
+   "sources": [
+    "S33",
+    "S5"
+   ],
+   "options": [
+    {
+     "value": "required",
+     "basis": "the dossier's proposal; the scan required it"
+    },
+    {
+     "value": "flat enough",
+     "basis": "B26 is stated on price only"
+    },
+    {
+     "value": "cue",
+     "basis": "D-020's default: the slope of the 200-day is a grade cue, not a gate"
+    }
+   ],
+   "recommended": "required",
+   "status": "pending-owner",
+   "owner_question": "D-020",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 item 1; 10 question 2",
+   "evidence": "14 of 23 judged charts had a rising 200-day. Kell's COIN: the 200-day began to support the price. The grading table puts a rising 50 and 200-day at the A+ end."
+  },
+  {
+   "id": "tl.leadership",
+   "field": "context",
+   "statement": "RS rating 80 or more, in one of the strongest groups.",
+   "measure": {
+    "what": "RS rating",
+    "op": ">=",
+    "value": 80,
+    "unit": "rating 1 to 99"
+   },
+   "glossary": "leader",
+   "basis": "house rule",
+   "sources": [
+    "S31"
+   ],
+   "house_rule": "C31",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 item 2",
+   "evidence": "The exception for mean reversion could be argued for a bottoming break, but B26 blocks it below the 200-day anyway. Not in the scan (the sandbox has no RS data)."
+  },
+  {
+   "id": "tl.liquidity",
+   "field": "context",
+   "statement": "Price $10 or more; at least $20 million traded a day.",
+   "measure": {
+    "what": "close",
+    "op": ">=",
+    "value": 10,
+    "unit": "$",
+    "and": "average dollar volume >= 20,000,000 a day"
+   },
+   "glossary": "liquidity",
+   "basis": "house rule",
+   "sources": [
+    "S31",
+    "S30"
+   ],
+   "house_rule": "B23",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 item 3",
+   "evidence": "The scanner's floor is $2 and $10,000. HLF 2008 (example 4) passes the $10 rule only in split-adjusted prices; a note for the owner."
+  },
+  {
+   "id": "tl.line_drawn",
+   "field": "pattern",
+   "statement": "The line is drawn over the daily highs (wicks included) of the pullback or base, starting at its highest high (the left-side high), on a log chart.",
+   "glossary": "left_side_high",
+   "basis": "source consensus",
+   "sources": [
+    "S11",
+    "S16",
+    "S20",
+    "S1",
+    "S26",
+    "S14"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 item 4",
+   "evidence": "Over the whole day's range: Murphy (trendlines on bar charts should be drawn over or under the entire day's price range), Bulkowski (drawn above the peaks, not cutting through price), ChartSchool. Starting at the highest high: Sperandeo's line via Bulkowski, and UCT's trendline from highs. Log scale: ChartSchool (points line up better) and Bulkowski (a break signals sooner); the scanner uses arithmetic prices. The IBD excerpt once cited here could not be confirmed and was removed in checking."
+  },
+  {
+   "id": "tl.touches",
+   "field": "pattern",
+   "statement": "At least 2 swing highs on the line to draw it; 3 or more for an A grade. A touch is a swing high within about 0.25 ATR of the line.",
+   "measure": {
+    "what": "swing highs within 0.25 ATR(14) of the line",
+    "op": ">=",
+    "value": 2,
+    "unit": "touches",
+    "timeframe": "daily"
+   },
+   "glossary": "ceiling",
+   "basis": "source consensus",
+   "sources": [
+    "S10",
+    "S11",
+    "S20",
+    "S21",
+    "S30"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "2 is enough: the scanner"
+    },
+    {
+     "value": "b",
+     "basis": "3 required: Murphy, ChartSchool, the Insider, Edwards and Magee; the app's own judged r7 line"
+    },
+    {
+     "value": "c",
+     "basis": "2 to trade, 3 for an A: the dossier's recommendation; D-068's default"
+    }
+   ],
+   "recommended": "c",
+   "status": "pending-owner",
+   "owner_question": "D-068",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 item 5; 10 question 4",
+   "evidence": "Two points to draw it, a third to confirm (Murphy, ChartSchool, the Insider, Edwards and Magee). The 0.25 ATR tolerance is the scanner's own, reused; the glossary lists it as this setup's override of the 0.5 ATR flat-level rule. Scan: lines with 3 or more touches (4,507) reached 3R 54.6% against 53.8% for 2 touches, so the third touch adds little to the hit rate. The ten examples had 4 to 8 touches."
+  },
+  {
+   "id": "tl.first_break",
+   "field": "pattern",
+   "statement": "A clean, first break: no daily close above the line between the first anchor and the trigger day. A wick through is allowed.",
+   "measure": {
+    "what": "daily closes above the line's value between the first anchor and the trigger day",
+    "op": "==",
+    "value": 0,
+    "unit": "closes",
+    "timeframe": "daily"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S14",
+    "S16",
+    "S30"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 item 6",
+   "evidence": "Bulkowski: the breakout is the first place where price closes above the trendline; his tutorial draws the line not cutting through price. The strict zero is the dossier's proposal; the scanner allows a close 11 or more sessions earlier, and the judges' main complaint was lines already closed through inside their own span. The scan's line let no close and no wick cross before the trigger."
+  },
+  {
+   "id": "tl.spacing",
+   "field": "pattern",
+   "statement": "The anchors are at least 5 sessions apart.",
+   "measure": {
+    "what": "sessions between the two anchor swing highs",
+    "op": ">=",
+    "value": 5,
+    "unit": "sessions",
+    "timeframe": "daily"
+   },
+   "glossary": "ceiling",
+   "basis": "my proposal",
+   "sources": [
+    "S10",
+    "S21"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 item 7",
+   "evidence": "Edwards and Magee: anchors less than a week apart make a line that is subject to error; it may be too steep or (more often) too flat. The Insider: points too close are nothing more than noise. The scanner accepts anchors 3 sessions apart."
+  },
+  {
+   "id": "tl.line_age",
+   "field": "pattern",
+   "statement": "The trigger day is at least 15 sessions after the first anchor; best between about 20 and 120 sessions.",
+   "measure": {
+    "what": "sessions from the first anchor to the trigger day",
+    "op": ">=",
+    "value": 15,
+    "unit": "sessions",
+    "timeframe": "daily"
+   },
+   "glossary": "base_length",
+   "basis": "my proposal",
+   "sources": [
+    "S33",
+    "S14",
+    "S10"
+   ],
+   "options": [
+    {
+     "value": 15,
+     "basis": "the dossier's proposal, supported by the replay (better-judged spans were longer)"
+    },
+    {
+     "value": 40,
+     "basis": "the A+ end: a long line of 40 or more sessions; the app's judged r7 layer's minimum"
+    }
+   ],
+   "recommended": 15,
+   "status": "pending-owner",
+   "owner_question": "D-069",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 item 7; 10 question 5",
+   "evidence": "Replay of the 23 judged charts: spans median 65 sessions on the better-judged charts against 22 on the worse. Bulkowski: longer lines are more significant (a small effect, 52% against 50%). Scan: spans of 40 or more reached 3R 53.5% against 54.7% for shorter, so length adds little to the hit rate; the examples ran 39 to 120 sessions. D-069's default accepts the age."
+  },
+  {
+   "id": "tl.slope",
+   "field": "pattern",
+   "statement": "The line falls no faster than 0.15 ATR per session; 0.10 or less for an A grade. A flat line (slope 0) is a horizontal resistance break, not this setup.",
+   "measure": {
+    "what": "the line's fall per session / ATR(14)",
+    "op": "<=",
+    "value": 0.15,
+    "unit": "ATR per session",
+    "timeframe": "daily"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S14",
+    "S10",
+    "S20",
+    "S33",
+    "S22"
+   ],
+   "options": [
+    {
+     "value": 0.15,
+     "basis": "the dossier's proposal from the replay"
+    },
+    {
+     "value": 0.1,
+     "basis": "the A grade"
+    }
+   ],
+   "recommended": 0.15,
+   "status": "pending-owner",
+   "owner_question": "D-069",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 item 8; 10 question 5",
+   "evidence": "Flatter is better: Edwards and Magee (the flatter, more nearly horizontal the trendline, the more important it is), ChartSchool (steeper means less valid), Bulkowski (shallow lines averaged 56% against 46%). Replay: better-judged lines sloped 0.065 ATR a session against 0.209. The CMT tutorial is the exception: steep short lines are its entry triggers. Scan: slope 0.10 or less 53.7% to 3R against 56.4% for steeper, within noise. Flat lines (CAT, HRI, EPC) were rejected on sight as resistance breaks."
+  },
+  {
+   "id": "tl.depth",
+   "field": "pattern",
+   "statement": "The lowest low under the line is no more than 35% below the first anchor high.",
+   "measure": {
+    "what": "(first anchor high - lowest low under the line) / first anchor high",
+    "op": "<=",
+    "value": 35,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "glossary": "base_depth",
+   "basis": "my proposal",
+   "sources": [
+    "S33"
+   ],
+   "status": "pending-owner",
+   "owner_question": "D-069",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 item 9; 10 question 5",
+   "evidence": "The dossier's number; the glossary lists it as this setup's depth. The ten examples ran 11% to 26% deep. D-069's default accepts it."
+  },
+  {
+   "id": "tl.tight_under",
+   "field": "pattern",
+   "statement": "Tight under the line: in the 5 sessions before the trigger the closes sit within about 5% under the line and the average daily range is smaller than the 20-session average.",
+   "measure": {
+    "what": "(line value - close) / line value over the last 5 sessions",
+    "op": "<=",
+    "value": 5,
+    "unit": "%",
+    "timeframe": "daily",
+    "and": "average daily range of the last 5 sessions < the 20-session average daily range"
+   },
+   "glossary": "tight",
+   "basis": "my proposal",
+   "sources": [
+    "S26",
+    "S3",
+    "S4"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 item 10",
+   "evidence": "The idea is UCT's (tightness below this trendline, ASTS; tighten up below the trendline, MDB; getting tight below trendline, ARKQ) and Kell's (when price and moving averages tighten, a pivot forms). The numbers are the dossier's; the glossary lists them as this setup's own form of tight. BDX and MSFT (examples 2 and 5) drifted tightly under their lines into the break."
+  },
+  {
+   "id": "tl.not_wedging_up",
+   "field": "pattern",
+   "statement": "Not wedging up: rising lows into the line on shrinking volume is not the tight drift down this setup wants.",
+   "basis": "UCT",
+   "sources": [
+    "S26",
+    "S3"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 item 10; 8.5",
+   "evidence": "His CRWV note: a wee bit of wedging up action; it would be very actionable to see a shakeout down towards the MAs before making an easy uptrend move. Kell: it is best to avoid a downtrend when the moving averages act as resistance. EHC (example 9) had eight weeks of higher lows rising under the line and still broke cleanly, so this is a grade matter the owner may soften."
+  },
+  {
+   "id": "tl.above_fast_emas",
+   "field": "trigger",
+   "statement": "The trigger day closes above the 10-day and 21-day EMAs (reclaimed or held). Above the 50-day SMA is a grade item.",
+   "measure": {
+    "what": "close against the 10-day EMA and the 21-day EMA",
+    "op": ">",
+    "value": "both EMAs",
+    "timeframe": "daily"
+   },
+   "glossary": "fast_averages",
+   "basis": "originator",
+   "sources": [
+    "S3",
+    "S4",
+    "S5"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 item 11",
+   "evidence": "Kell: a break above short-term resistance and a reclaiming of the moving averages offers a clear entry point with well-defined risk; COIN was entered above all the converge moving averages. Which fast pair the course names (9/20 or 10/21) is D-021, not this card's question. NEM and COR (examples 7 and 8) broke the line the same day they reclaimed the 50-day."
+  },
+  {
+   "id": "tl.volume",
+   "field": "trigger",
+   "statement": "Trigger-day volume at least 1.2 times its 50-day average; 1.5 times or more for an A grade. Judged on pace during the session.",
+   "measure": {
+    "what": "trigger-day volume / 50-day average volume",
+    "op": ">=",
+    "value": 1.2,
+    "unit": "x",
+    "timeframe": "daily"
+   },
+   "glossary": "volume_surge",
+   "basis": "source consensus",
+   "sources": [
+    "S10",
+    "S21",
+    "S3",
+    "S6",
+    "S32",
+    "S33",
+    "S14"
+   ],
+   "options": [
+    {
+     "value": 1.2,
+     "basis": "a gate: the dossier's proposal; better-judged breaks had a median 1.58x"
+    },
+    {
+     "value": 1.5,
+     "basis": "the A grade"
+    },
+    {
+     "value": "cue",
+     "basis": "D-069's default: volume is a cue (the volume decision, D-006); Bulkowski found the volume trend inside the pattern made almost no difference"
+    }
+   ],
+   "recommended": 1.2,
+   "status": "pending-owner",
+   "owner_question": "D-069",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 item 12; 10 question 5",
+   "evidence": "Increased volume on the break: Edwards and Magee (an increase in volume may be regarded as confirmation of a decisive penetration), the Insider, Kell (enter on a strong price bar with increased volume), Brandt, Manrav (low-volume trendline breakouts tend to fail, a KB summary). The numbers are the dossier's. Replay: better-judged breaks 1.58x against 0.94x. Scan: 1.5x or more reached 3R 57.2% against 54.2% overall. Failure LBTYA 2014-09-19 broke on 1.25x and closed 0.39% over the line."
+  },
+  {
+   "id": "tl.not_stretched",
+   "field": "trigger",
+   "statement": "Not more than 10% above the 10-day average on the trigger day.",
+   "measure": {
+    "what": "entry / 10-day SMA - 1",
+    "op": "<=",
+    "value": 10,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "glossary": "stretched",
+   "basis": "house rule",
+   "sources": [
+    "S31",
+    "S33"
+   ],
+   "house_rule": "C29",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 item 13",
+   "evidence": "Rarely binding: 2 of 23 judged charts. The scan applied it."
+  },
+  {
+   "id": "tl.earnings_window",
+   "field": "trigger",
+   "statement": "No report due in the next 3 sessions.",
+   "measure": {
+    "what": "sessions until the next report",
+    "op": ">",
+    "value": 3,
+    "unit": "sessions"
+   },
+   "glossary": "earnings_blackout",
+   "basis": "house rule",
+   "sources": [
+    "S31",
+    "S30"
+   ],
+   "house_rule": "B22",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 item 14",
+   "evidence": "The scanner does not check it; the scan did."
+  },
+  {
+   "id": "tl.trigger",
+   "field": "trigger",
+   "statement": "The buy: during regular hours price trades above the line's value for the day AND above the prior day's high, with volume on pace for at least 1.2x. Buy the full position with a market order.",
+   "measure": {
+    "what": "intraday high during regular hours",
+    "op": ">",
+    "value": "max(the line's value today, the prior day's high)",
+    "timeframe": "daily"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S26",
+    "S5",
+    "S30",
+    "S11",
+    "S14",
+    "S33"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "intraday through the line and over the prior day's high: the owner (a buyer on strength through), Kell (on strength through a trendline), the scanner's prior-day-high rule; the dossier's recommendation"
+    },
+    {
+     "value": "b",
+     "basis": "the close of the first day that closes above the line and the prior day's high, in the upper part of its range: Bulkowski's breakout, the scanner; for members who cannot watch the open"
+    },
+    {
+     "value": "c",
+     "basis": "the day after, over the break day's high"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-003",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2; 10 question 3",
+   "evidence": "Replay on the 23 judged charts: with the entry at the highest of the line, the prior day's high and the day's open, the day's-low stop was a median 1.11% away (2 of 23 over 3%); at the close it was 3.1% (14 of 23 over 3%). The cost is more false starts that never close above the line (Murphy: a close beyond the trendline is more significant than just an intraday penetration); the day's-low stop keeps that cost small. D-003's default: buy as price trades through the pivot or the prior day's high, market order. The scan priced its entries at the intraday trigger but counted only days that also closed above the line."
+  },
+  {
+   "id": "tl.no_chase",
+   "field": "trigger",
+   "statement": "Do not buy more than 4% above the line's value that day, or more than 1.5 ATR above it, whichever is smaller. A gap open more than 4% above the line is no trade.",
+   "measure": {
+    "what": "fill / line value for the day - 1",
+    "op": "<=",
+    "value": 4,
+    "unit": "%",
+    "and": "fill - line value <= 1.5 ATR(14)"
+   },
+   "glossary": "chase_limit",
+   "basis": "house rule",
+   "sources": [
+    "S31",
+    "S30",
+    "S33"
+   ],
+   "house_rule": "C28",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 Chase limit; Gaps",
+   "evidence": "The 1.5 ATR cap is the scanner's; the glossary carries it as this setup's addition beside the 4%, a cap not a second gate. 4 of 23 judged charts closed more than 4% above the line. Scan: 2,306 of 9,961 triggers were gap opens above the trigger within the 4% limit; they read 70% to 3R, helped by tiny stops."
+  },
+  {
+   "id": "tl.no_3pct_filter",
+   "field": "trigger",
+   "statement": "Do not wait for a close 3% past the line. That filter is for long-term lines and would use up most of the 4% chase limit and widen the stop.",
+   "measure": {
+    "what": "required close margin past the line before buying",
+    "op": "==",
+    "value": 0,
+    "unit": "%"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S10",
+    "S11",
+    "S6"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.2 Not a 3% close filter",
+   "evidence": "Edwards and Magee: to be decisive, prices must not only push through the line but also close beyond it by a margin equal to about 3% of the stock's price (2% for the averages); Murphy uses it mainly for longer-term lines and says perhaps a 1% criterion would serve better for short-term trading, warning that a big filter means much of the initial move will be missed. Brandt applies the 3% to weekly gold."
+  },
+  {
+   "id": "tl.stop",
+   "field": "stop",
+   "statement": "A few cents under the trigger day's low as it stands at entry; the prior day's low is the wider choice.",
+   "measure": {
+    "what": "stop",
+    "op": "==",
+    "value": "a few cents under the trigger day's low at the time of entry"
+   },
+   "glossary": "stop_margin",
+   "basis": "house rule",
+   "sources": [
+    "S31",
+    "S30",
+    "S33"
+   ],
+   "house_rule": "A3",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.3",
+   "evidence": "A3 and F62. The scanner stops exactly at the session low with no buffer. The scan used 5 cents under the trigger day's low; the examples' stops ran 0.9% to 3.4%. On a real intraday entry the low may still be printing."
+  },
+  {
+   "id": "tl.stop_structure",
+   "field": "stop",
+   "statement": "The structural alternative, for the owner to choose: a few cents under the lowest low under the line (Bulkowski's point A, the low before the break). Wider, so a smaller size.",
+   "measure": {
+    "what": "which low the stop sits under",
+    "op": "in",
+    "value": [
+     "the trigger day's low",
+     "the lowest low under the line"
+    ]
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S1",
+    "S26",
+    "S27"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "under the break day's low: the house default (A3); D-008's default, with the pattern low as the outer limit"
+    },
+    {
+     "value": "b",
+     "basis": "under the lowest low under the line: the structure; UCT's BROS (invalidated under $61.50 or $58.65) and Manrav's CRWV 65 stop"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-008",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.3 Structural alternative; 10 question 7",
+   "evidence": "Corrected in checking: Sperandeo's point 2 is the retest after the break, so the structural stop sits under point A, not point 2. UCT's own invalidations are swing lows or a level under the structure."
+  },
+  {
+   "id": "tl.stop_width",
+   "field": "stop",
+   "statement": "Size from the stop. If the honest stop is more than about 3%, take the smaller size the formula gives or skip; the scan skipped stops over 5%. Never tighten it.",
+   "measure": {
+    "what": "(entry - stop) / entry",
+    "op": "<=",
+    "value": 3,
+    "unit": "%",
+    "note": "over 3%: size down (A5) or skip (A3); the scan skipped over 5%"
+   },
+   "glossary": "stop_width",
+   "basis": "house rule",
+   "sources": [
+    "S31",
+    "S33"
+   ],
+   "house_rule": "A13",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.3; 10 question 7",
+   "evidence": "From a close entry the day's-low stop is often over 3% (replay median 3.1%, 14 of 23); from the intraday trigger it is near 1% (median 1.11%, 2 of 23 over 3%). Scan: the stop was tiny (median 1.17%), so 3R is often a 3% to 4% move; the 5,790 triggers with a stop of 1% or more reached 3R 44.4% of the time, the honest figure for a member who buys during the day. Only COST and HLF among the ten examples were over 3%."
+  },
+  {
+   "id": "tl.stop_broker",
+   "field": "stop",
+   "statement": "The stop sits with the broker and only moves up.",
+   "basis": "house rule",
+   "sources": [
+    "S31"
+   ],
+   "house_rule": "D41",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.3",
+   "evidence": "A4: the stop only moves up."
+  },
+  {
+   "id": "tl.stop_gap",
+   "field": "stop",
+   "statement": "A gap through the stop: the first 30-minute low is the new stop; out if that is past 2R.",
+   "measure": {
+    "what": "loss at the first 30-minute low of the gap-down day",
+    "op": "<=",
+    "value": 2,
+    "unit": "R",
+    "timeframe": "30-minute"
+   },
+   "basis": "house rule",
+   "sources": [
+    "S31"
+   ],
+   "house_rule": "B20",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.3"
+  },
+  {
+   "id": "tl.breakeven",
+   "field": "management",
+   "statement": "Stop to breakeven at 2R to 5R.",
+   "measure": {
+    "what": "R at which the stop moves to the entry",
+    "op": "in",
+    "value": [
+     2,
+     5
+    ],
+    "unit": "R"
+   },
+   "basis": "house rule",
+   "sources": [
+    "S31"
+   ],
+   "house_rule": "B19",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4"
+  },
+  {
+   "id": "tl.trim_1",
+   "field": "management",
+   "statement": "A third off at 3R.",
+   "measure": {
+    "what": "fraction sold at 3R",
+    "op": "==",
+    "value": 0.333,
+    "unit": "of the position"
+   },
+   "basis": "house rule",
+   "sources": [
+    "S31"
+   ],
+   "house_rule": "B19",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4",
+   "evidence": "Replaces the scanner's 2R and 3R targets. Among the ten examples 3R came in 1 to 12 sessions."
+  },
+  {
+   "id": "tl.trim_2",
+   "field": "management",
+   "statement": "A third at 5R.",
+   "measure": {
+    "what": "fraction sold at 5R",
+    "op": "==",
+    "value": 0.333,
+    "unit": "of the position"
+   },
+   "basis": "house rule",
+   "sources": [
+    "S31"
+   ],
+   "house_rule": "E51",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4",
+   "evidence": "COST and HLF reached 5R and 7R and were then stopped by the fixed stop inside the window, which is why the house trims and trails."
+  },
+  {
+   "id": "tl.trim_gap_open",
+   "field": "management",
+   "statement": "A gap over a trim level: trim at the open.",
+   "basis": "house rule",
+   "sources": [
+    "S31"
+   ],
+   "house_rule": "F63",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4"
+  },
+  {
+   "id": "tl.trail",
+   "field": "management",
+   "statement": "Trail the last third under the 10-day (fast movers) or 21-day (steadier), selling on a close below it.",
+   "measure": {
+    "what": "close against the 10-day (fast) or 21-day (steadier) average",
+    "op": "<",
+    "value": "the average",
+    "timeframe": "daily"
+   },
+   "glossary": "trail",
+   "basis": "house rule",
+   "sources": [
+    "S31",
+    "S5"
+   ],
+   "house_rule": "E52",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4",
+   "evidence": "Kell's COIN trade was stopped when it cut through the 10-day exponential moving average. BDX (example 2) trended up its 10-day after the break."
+  },
+  {
+   "id": "tl.time_stop",
+   "field": "management",
+   "statement": "Time stop: still under 1R after 10 sessions, sell. No follow-through within a few sessions is itself the signal.",
+   "measure": {
+    "what": "open R after 10 trading days",
+    "op": "<",
+    "value": 1,
+    "unit": "R"
+   },
+   "glossary": "time_stop",
+   "basis": "house rule",
+   "sources": [
+    "S31"
+   ],
+   "house_rule": "C33",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4",
+   "evidence": "Failed breaks often go sideways. TMUS 2014-03-21 closed 2% over the line, then three flat closes and a drop through the stop on day 4 without a higher high."
+  },
+  {
+   "id": "tl.climax",
+   "field": "management",
+   "statement": "A climax burst on the way up: sell a big part into it.",
+   "basis": "house rule",
+   "sources": [
+    "S31"
+   ],
+   "house_rule": "C34",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4"
+  },
+  {
+   "id": "tl.overhead_supply",
+   "field": "management",
+   "statement": "Context, not a rule: the first anchor high is overhead supply. Bulkowski found price reached the start of the line 77% of the time; no pattern target replaces the R-based trims.",
+   "measure": {
+    "what": "share of upward breaks that reached the start (top) of the line, Bulkowski's down-sloping trendlines",
+    "op": "==",
+    "value": 77,
+    "unit": "%"
+   },
+   "basis": "measured",
+   "sources": [
+    "S14",
+    "S6",
+    "S11"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.4 Context; 8.8 mistake 10",
+   "evidence": "Bulkowski, 3,274 bull-market lines, best-case exits with no stop. Brandt: the violation of a trendline does not carry with it a price target. Murphy's measuring rule (the distance on the other side of the line) is not used. UCT's ALAB: a flag out of the trendline and below a key level. IFF 2020-08-10 failed at the anchor high and the 50-day just above the break."
+  },
+  {
+   "id": "tl.throwback",
+   "field": "management",
+   "statement": "A throwback to the line came 59% of the time in Bulkowski's data. A hold of the broken line on the throwback is a pullback entry (setup 12's rules), cross-linked, not a second break.",
+   "measure": {
+    "what": "share of upward trendline breaks that came back to the line, Bulkowski",
+    "op": "==",
+    "value": 59,
+    "unit": "%"
+   },
+   "basis": "measured",
+   "sources": [
+    "S14",
+    "S11"
+   ],
+   "status": "pending-owner",
+   "owner_question": "D-002",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4 Context; 10 question 9",
+   "evidence": "Bulkowski: after the throwback, price rose 81% of the time (an average 5% rise over 9 days, then back, finishing in 14 days). Murphy: very often a down trendline will become a support line once it's been broken on the upside. D-002's row for 09:9: a pullback entry, cross-linked."
+  },
+  {
+   "id": "tl.inv_falling_mas",
+   "field": "invalidation",
+   "statement": "Before the entry: the stock is under falling averages acting as resistance. Not this setup.",
+   "measure": {
+    "what": "close against the 10-day and 21-day EMAs, and their slope",
+    "op": "<",
+    "value": "both EMAs, with both falling",
+    "timeframe": "daily"
+   },
+   "basis": "originator",
+   "sources": [
+    "S3"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5 Before entry",
+   "evidence": "Kell: it is best to avoid a downtrend when the moving averages act as resistance, guiding the stock lower. The measurable form rests on tl.above_fast_emas."
+  },
+  {
+   "id": "tl.close_back_under_line",
+   "field": "invalidation",
+   "statement": "After the entry, a close back under the line is a warning, not an exit. The stop is the exit and only moves up.",
+   "measure": {
+    "what": "a close under the line after the entry treated as an exit",
+    "op": "==",
+    "value": false,
+    "timeframe": "daily"
+   },
+   "basis": "house rule",
+   "sources": [
+    "S31",
+    "S30",
+    "S3"
+   ],
+   "house_rule": "A4",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5 After entry; 10 question 8",
+   "evidence": "D-136 (settled): A4 and his words, my stop is my stop most of the time. The scanner's own text says a close back under the line undoes the break, and Kell says we shouldn't own the stock if we fail here; under the rulebook neither is an exit unless the stop trades. LBTYA closed back under its line the next day and the stop traded on day 4."
+  },
+  {
+   "id": "tl.market_reading",
+   "field": "context",
+   "statement": "Green market: full. Yellow: smaller and fewer. Orange: A+ only, so a B- is a pass. Red: mostly cash.",
+   "glossary": "market_reading",
+   "basis": "house rule",
+   "sources": [
+    "S31",
+    "S14"
+   ],
+   "house_rule": "F65",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.7",
+   "evidence": "Bulkowski's numbers are all from bull markets. COR 2022 (example 8) broke out in a bear market while holding its rising 200-day; HLF 2008 while the general market was weak. Not in the scan."
+  },
+  {
+   "id": "tl.index_break",
+   "field": "context",
+   "statement": "A cue: the index itself breaking its own downtrend line or making a wedge pop.",
+   "basis": "originator",
+   "sources": [
+    "S3",
+    "S26"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.7",
+   "evidence": "Kell: as the index forms a Wedge Pop, the strongest stocks will break out from their bases and make new highs. UCT tracked the S&P 500 taking out the downtrend line in July 2026."
+  },
+  {
+   "id": "tl.structure",
+   "field": "context",
+   "statement": "The line break is the trigger; the structure is the setup. It is a buy only inside a structure that already says buy (a leader's flag, wedge pop, double bottom, cup handle or launchpad above the 200-day). On its own a break is a warning.",
+   "measure": {
+    "what": "a named structure behind the line (flag, wedge pop, double bottom, cup handle, launchpad) above the 200-day SMA",
+    "op": "==",
+    "value": true,
+    "timeframe": "daily"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S26",
+    "S27",
+    "S20",
+    "S22",
+    "S6",
+    "S1"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "a standalone setup with its own Model Book card and journal tag"
+    },
+    {
+     "value": "b",
+     "basis": "an entry trigger taught inside the flag, wedge pop, double bottom, cup-handle and launchpad lessons"
+    },
+    {
+     "value": "c",
+     "basis": "both, with the card saying the line break is the trigger, the structure is the setup: the dossier's lean; D-002's row for 09:1"
+    }
+   ],
+   "recommended": "c",
+   "status": "pending-owner",
+   "owner_question": "D-002",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "3.14 item 1; 10 question 1",
+   "evidence": "ChartSchool (trend line breaks should serve merely as a warning), the CMT tutorial (trendlines do not offer standalone trading opportunities; a broken uptrend turns neutral), Brandt (the penetration of a trendline does not convert a bear market into a bull market), Sperandeo (step 1 of 3) all say the break alone is a warning. UCT's breaks sit inside a double bottom (BROS), a flag (ALAB, XLC, EME), a launchpad or inside day (SERV, ON), an earnings gap (RELY, APPN), the 200-day defended (HUT), a crossback (FJET)."
+  },
+  {
+   "id": "tl.timeframe",
+   "field": "context",
+   "statement": "Daily lines are the definition. Weekly lines (BROS, TWLO, OXY, ARM) are context and a grade cue, not a second definition.",
+   "basis": "UCT",
+   "sources": [
+    "S26",
+    "S27",
+    "S6"
+   ],
+   "status": "pending-owner",
+   "owner_question": "D-012",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "6.7 item 1; 10 question 6",
+   "evidence": "His BROS (a double bottom on weekly and a break of trendline) and TWLO (set to breakout of this trendline from 2025 highs); Jersace's ARM weekly and monthly line. Brandt's 30% figure is for weekly charts. D-012's default: one daily definition, the weekly a grade cue. The grading table puts a weekly structure at the A+ end."
+  },
+  {
+   "id": "tl.bottom_fishing",
+   "field": "context",
+   "statement": "A break while the stock is still acting weak below the 200-day (bottom fishing) is not this setup. Above the 200-day it may be; whether it is a mean-reversion trade with its own rules is his call.",
+   "measure": {
+    "what": "close against the 200-day SMA on the trigger day",
+    "op": ">",
+    "value": "200-day SMA",
+    "timeframe": "daily"
+   },
+   "glossary": "above_200",
+   "basis": "UCT",
+   "sources": [
+    "S27",
+    "S31"
+   ],
+   "status": "pending-owner",
+   "owner_question": "D-009",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "6.4; 6.7 item 7; 10 question 11",
+   "evidence": "Manrav's CRWV: bottom fishing/snap back trade idea; still acting weak but like the lower wicks; a break above the trendline and this can see 85 quick. D-009's default: B26 as written, no new exception; below-200 cases stay as reading drills marked not a buy."
+  },
+  {
+   "id": "tl.no_add",
+   "field": "management",
+   "statement": "A break is a first entry, never an add. Full size once, one stop.",
+   "basis": "house rule",
+   "sources": [
+    "S31",
+    "S32"
+   ],
+   "house_rule": "A5",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "7 A5 row; 8.8 mistake 12",
+   "evidence": "Manrav's GEV note (inside day and trendline break add with a 50 SMA stop, a KB summary) and Kell use breaks to add; A5 says no adds."
+  },
+  {
+   "id": "tl.retry_limit",
+   "field": "management",
+   "statement": "After a stop-out, only a new trigger. Do not redraw the same line to get back in. At most 3 tries a week and 6 a month on one stock.",
+   "measure": {
+    "what": "tries on one stock",
+    "op": "<=",
+    "value": 3,
+    "unit": "a week",
+    "and": "<= 6 a month"
+   },
+   "basis": "house rule",
+   "sources": [
+    "S31",
+    "S22"
+   ],
+   "house_rule": "B21",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "7 B21 and E56 rows; 8.8 mistake 8",
+   "evidence": "E56 caps the tries. The CMT tutorial: trendlines evolve; initial projected trendlines are consistently inconsistent. Trendline breaks invite repeated tries; this caps them."
+  }
+ ],
+ "grading": {
+  "a_plus": [
+   "tl.leadership: a leader (RS 90 or more) in a leading group, above a rising 50 and 200-day (tl.ma200_rising), in a Green market; in Orange only if everything else grades A+ (F65)",
+   "tl.line_age: a long line (40 or more sessions); tl.slope: shallow, 0.10 ATR a session or less; tl.touches: 3 or more clean touches spaced out (tl.spacing)",
+   "tl.tight_under: price tight under the line for several days on drying volume, the 10 and 21-day EMAs converging under it",
+   "tl.volume: the break on 1.5x volume or more, closing in the top of its range",
+   "tl.stop_width: the stop 3% or less",
+   "tl.overhead_supply: room to the first anchor high",
+   "tl.timeframe: a weekly structure as well (a weekly higher low, BROS), or a market wedge pop (tl.index_break)"
+  ],
+  "b_minus": [
+   "tl.touches: two touches only",
+   "tl.above_fast_emas: below the 50-day",
+   "tl.stop_width: a wide stop (3% to 5% is a B; wider is a B-)",
+   "tl.overhead_supply: a key level just above (ALAB's below a key level)",
+   "tl.line_age: a short line (15 to 25 sessions) or tl.slope: steeper (0.10 to 0.15 ATR) is a B; tl.volume about average is a B",
+   "tl.market_reading: Yellow is a B (smaller and fewer)",
+   "a short-side mirror (short_mirror) is graded no higher than B"
+  ],
+  "no_trade": [
+   "tl.above_200: below the 200-day (tl.bottom_fishing)",
+   "tl.first_break: the line already closed through",
+   "tl.no_chase: a gap more than 4% over the line",
+   "tl.earnings_window: a report within 3 sessions",
+   "tl.not_wedging_up: wedging up into the line on fading volume",
+   "tl.inv_falling_mas: under falling averages acting as resistance",
+   "tl.market_reading: Red; Orange below A+ is a pass"
+  ]
+ },
+ "lookalikes": [
+  {
+   "setup": "02-bull-flag",
+   "tell": "Look for the pole. A bull flag needs a 20% pole in the 20 sessions before and a pause of 3 to 15 sessions; a trendline break needs no pole, only a line of 2 or 3 lower swing highs at least 15 sessions old. When the line is the top of a flag, the flag is the setup and the line is its trigger.",
+   "criterion": "tl.line_age"
+  },
+  {
+   "setup": "15-wedge-pop",
+   "tell": "Check where the averages are. A wedge pop comes after a decline with at least 8 of the last 15 closes under the 20 EMA, out of a 3-day or longer tight range, and the pop reclaims the 10 and 20 EMAs; a trendline break sits above the 200-day with a line at least 15 sessions long and the fast EMAs already reclaimed or held on the trigger day.",
+   "criterion": "tl.above_fast_emas"
+  },
+  {
+   "setup": "01-flat-base",
+   "tell": "Measure the slope of the top. A flat base's ceiling is one level touched twice within 0.5 ATR and the buy is the base's highest high; a trendline falls, at least a little, from lower swing highs. A line with no slope is a horizontal resistance break, not this setup (the scan rejected CAT, HRI and EPC for that).",
+   "criterion": "tl.slope"
+  },
+  {
+   "setup": "07-launchpad",
+   "tell": "Ask what defines the buy. A launchpad is the 8, 21 and 50-day pinched within 3% of each other near the 200-day after a 15% correction, and the launch is the close above all four; a trendline break is defined by the line over the highs, with only the 10 and 21-day EMAs required. A launch day that also breaks a line is taught as the launchpad.",
+   "criterion": "tl.line_drawn"
+  },
+  {
+   "setup": "11-ema20-pullback",
+   "tell": "Watch what the throwback holds. A 20 EMA pullback buys the turn at a rising 20 EMA from above with the 20 above the 50; if the first break is missed and price comes back to hold the broken line, that hold is a pullback entry (setup 12's rules), not a second trendline break.",
+   "criterion": "tl.throwback"
+  }
+ ],
+ "invalidations": [
+  "Before the entry: the line was already closed through earlier; not a first break (tl.first_break).",
+  "Before the entry: the line is too steep or too short (tl.slope, tl.line_age).",
+  "Before the entry: the stock is below the 200-day (tl.above_200, tl.bottom_fishing) or under falling averages acting as resistance (tl.inv_falling_mas).",
+  "Before the entry: price is wedging up into the line on fading volume (tl.not_wedging_up).",
+  "Before the entry: a gap of more than 4% over the line, or a stock more than 10% over its 10-day (tl.no_chase, tl.not_stretched).",
+  "Before the entry: earnings within 3 sessions (tl.earnings_window); a Red market (tl.market_reading).",
+  "After the entry: the stop trades (tl.stop_broker); the time stop (tl.time_stop).",
+  "After the entry: a close back under the line is a warning, not an exit (tl.close_back_under_line)."
+ ],
+ "mistakes": [
+  "Forcing a line through the right points. The CMT tutorial: should never be forced; ChartSchool: best not to force the issue.",
+  "Buying breaks of steep lines.",
+  "Two touches a few days apart. The Insider: nothing more than noise.",
+  "Treating any break as a reversal. ChartSchool, the CMT tutorial, Brandt and Sperandeo's step 1 of 3 all call it a warning.",
+  "Buying a low-volume break (the Insider; Kell; Manrav's QQQ note).",
+  "Buying a beaten-down stock's first break below the 200-day.",
+  "Chasing a gap far over the line.",
+  "Redrawing the line after it fails to get back in.",
+  "Buying a wedge up into the line instead of a tight drift down.",
+  "Ignoring the overhead: the old high where the line starts, or a key level just above (ALAB).",
+  "Using the flag's trendline break on a high tight flag. Bulkowski: they fail too often that way; buy the pattern's highest high instead.",
+  "Using a break to add to a position."
+ ],
+ "short_mirror": {
+  "exists": true,
+  "setup": "09-trendline-break",
+  "note": "The mirror (dossier 8.6), D47 reversed: a close down through a rising trendline drawn under at least 2 swing lows, below the 200-day SMA (B26; a falling 200-day is the dossier's proposal, not B26), RS 20 or less in a weak group, borrow available (D48); sell short on weakness through the line and under the prior day's low; stop a few cents over the trigger day's high; the same trims. The evidence is weaker: Bulkowski's up-sloping breaks averaged a 13% to 14% drop and half fell no more than 10%; the 1-2-3 worked 43% of the time in uptrends against 73% in downtrends. UCT's one written short-side example is CEG (sitting at a precarious uptrend line). The dossier recommends a recognised mirror graded no higher than B, not a featured short; D-001."
+ },
+ "best_conditions": "A Green market reading (B18, F65), best when the index itself is breaking its own downtrend line or making a wedge pop: Kell says the strongest stocks break out from their bases as the index forms a Wedge Pop, and UCT tracked the S&P 500 taking out the downtrend line in July 2026. Bulkowski's numbers are all from bull markets.",
+ "management": {
+  "trim_1": "a third at 3R (B19)",
+  "trim_2": "a third at 5R (E51)",
+  "trail": "a close under the 10-day for a fast mover, the 21-day for a steadier one (E52)",
+  "breakeven": "between 2R and 5R, at the first trim by default (B19)",
+  "time_stop": "under 1R after 10 trading days, sell; no follow-through within a few sessions is the signal (C33)",
+  "gap_open": "a trim level the day opens past is taken at the open (F63)",
+  "gap_against": "the first 30-minute low is the new stop; out if past 2R (B20)",
+  "climax": "sell a big part into a climax burst (C34)",
+  "overrides": "none. Context only: the first anchor high is overhead supply (Bulkowski: price reached the start of the line 77% of the time), and a throwback to the line comes 59% of the time; no pattern target replaces the R-based trims (Brandt: a break does not carry with it a price target). Not ours: the scanner's 2R and 3R targets, Murphy's measuring rule, Bulkowski's 56% measure rule, Weinstein's sell-half-on-the-break."
+ },
+ "examples": {
+  "winners": 10,
+  "sheet_dir": "_study-resume/scratchpad/setups/09-trendline-break/final",
+  "base_rate": {
+   "hits": 9961,
+   "r3_pct": 54.2,
+   "r5_pct": 41.5,
+   "stopped_pct": 78.8,
+   "median_best_r": 3.6,
+   "median_stop_pct": 1.17,
+   "window": "60 sessions forward, fixed stop 5 cents under the trigger day's low, no trims, no breakeven, no trail; 2000-01-03 to 2026-11-04; 2,630 liquid names; the line on a log chart over the daily highs, span 15 to 120, slope at most 0.15 ATR a session, depth at most 35%, 2 touches within 0.25 ATR, tight under the line; the trigger day trades above the line and the prior day's high, closes above the line in its upper half, above the 10 and 21-day EMAs and a rising 200-day, on 1.2x volume, within 10% of the 10-day; entry at the higher of the line and the prior day's high within 4% or 1.5 ATR of the line; stops over 5% skipped; one trigger per name per 20 sessions; no RS or market filter"
+  },
+  "cuts": {
+   "stop_under_1_pct": {
+    "hits": 4171,
+    "r3_pct": 67.7
+   },
+   "stop_1_pct_or_more": {
+    "hits": 5790,
+    "r3_pct": 44.4,
+    "r5_pct": 30.2,
+    "note": "the more honest figure for a member who buys during the day"
+   },
+   "gap_opens_above_the_trigger_within_4_pct": {
+    "hits": 2306,
+    "r3_pct": 70,
+    "note": "helped by tiny stops"
+   },
+   "three_or_more_touches": {
+    "hits": 4507,
+    "r3_pct": 54.6,
+    "r5_pct": 42.3,
+    "two_touches": {
+     "r3_pct": 53.8,
+     "r5_pct": 40.8
+    }
+   },
+   "slope_0_10_atr_or_less": {
+    "r3_pct": 53.7,
+    "r5_pct": 41.0,
+    "steeper": {
+     "r3_pct": 56.4,
+     "r5_pct": 43.9
+    }
+   },
+   "volume_1_5x_or_more": {
+    "r3_pct": 57.2,
+    "r5_pct": 44.8
+   },
+   "span_40_or_more": {
+    "r3_pct": 53.5,
+    "r5_pct": 40.5,
+    "shorter": {
+     "r3_pct": 54.7,
+     "r5_pct": 42.3
+    }
+   }
+  },
+  "winners_list": [
+   "COST 2001-05-31",
+   "BDX 2003-11-21",
+   "NUE 2006-10-05",
+   "HLF 2008-02-19",
+   "MSFT 2012-01-04",
+   "BHC 2013-12-16",
+   "NEM 2019-12-03",
+   "COR 2022-10-21",
+   "EHC 2024-01-05",
+   "MCK 2025-02-25"
+  ],
+  "failures": [
+   {
+    "ticker": "LBTYA",
+    "date": "2014-09-19",
+    "criterion": "tl.volume",
+    "why": "the best-looking line of the failures, 8 touches over 83 sessions, slope 0.022, but the break came on only 1.25x volume and closed just 0.39% above the line; the next day closed back under it and the stop (1.35%) traded on day 4. A weak-volume break that barely clears the line is Murphy's intraday penetration dressed as a close."
+   },
+   {
+    "ticker": "TMUS",
+    "date": "2014-03-21",
+    "criterion": "tl.time_stop",
+    "why": "6 touches over 51 sessions, closed a full 2% above the line, then three flat closes and a drop through the 0.9% stop on day 4 without ever making a higher high. No follow-through within 3 sessions is itself the signal; the time stop exists for this."
+   },
+   {
+    "ticker": "IFF",
+    "date": "2020-08-10",
+    "criterion": "tl.overhead_supply",
+    "why": "5 touches, 62 sessions, slope 0.077, a 1.4% close over the line on 1.36x volume; one more up day, then a reversal to the stop (1.7%) on day 2 and a further 4% slide. The overhead supply at anchor 1 and the 50-day just above the break are the places a learner should expect a fight."
+   },
+   {
+    "ticker": "EL",
+    "date": "2018-12-03",
+    "criterion": "tl.stop_broker",
+    "why": "4 touches over 110 sessions, slope 0.011; a +7.0% trigger bar on 2.33x volume that closed 4.74% over the line with the entry at the line (145.75) and a 1.08% stop. The next session opened at 152.00 and fell to 144.06, through the stop, then 10% more. One bar was the whole break; the stop was the exit."
+   },
+   {
+    "ticker": "SCHW",
+    "date": "2020-02-20",
+    "criterion": "tl.market_reading",
+    "why": "3 touches over 46 sessions, a clean break on 1.81x volume closing 0.98% over the line, stop 1.8%; stopped the next session (low 45.93) as the February 2020 market break began, and the stock fell to 34.45 within 10 sessions. A valid line in a Red market is a pass."
+   },
+   {
+    "ticker": "DHR",
+    "date": "2021-01-05",
+    "criterion": "tl.stop_structure",
+    "why": "3 touches over 33 sessions, closed 2.03% over the line on 1.44x volume, stop 1.33% under the trigger-day low; the next session's low was 197.22, 19 cents under the stop, and the close 209.53; the stock reached 217 within a week. The trigger-day stop was inside the noise; the structural stop (under the low under the line) would have held. The owner's choice in tl.stop_structure decides this case."
+   }
+  ],
+  "near_misses": [
+   {
+    "ticker": "GOOGL",
+    "date": "2025-06-06",
+    "criterion": "tl.volume",
+    "why": "3 touches over 85 sessions, a clean trade through the line and the prior day's high, but on 0.86x its 50-day average volume; the rule is 1.2x or more. A quiet break is a watch, not a buy."
+   },
+   {
+    "ticker": "DIS",
+    "date": "2021-06-14",
+    "criterion": "tl.slope",
+    "why": "the line over 3 highs falls 0.198 ATR a session; the rule is 0.15 or less. A steep line is a drop, not the tight drift down this setup wants; it stopped the next session."
+   },
+   {
+    "ticker": "AMGN",
+    "date": "2005-11-03",
+    "criterion": "tl.line_age",
+    "why": "3 highs touch the line but the trigger day is only 11 sessions after the first anchor; the rule needs 15 or more. Too young a line to mean anything."
+   },
+   {
+    "ticker": "CAT",
+    "date": "2021-10-28",
+    "criterion": "tl.above_200",
+    "why": "4 touches over 102 sessions and a 1.32x-volume break, but the trigger day closes 4.9% under the 200-day SMA; the rule needs a close above it. Bottom fishing (tl.bottom_fishing), not this setup."
+   }
+  ],
+  "sheets": {
+   "failures": "final/fail_1-4.png",
+   "near_misses": "final/near_1-4.png",
+   "pair": "final/pair_02-bull-flag.png"
+  },
+  "limits": "RS 80 and the market reading were not tested. The scan used the close-above-the-line version of the trigger to pick textbook days with the entry priced at the intraday trigger, so the base rate counts only days that also closed above the line; the real intraday trigger would add false starts that never closed above it. The stops are tiny (median 1.17%), so 3R is often a 3% to 4% move. Survivors only. The 23 judged charts in the app's fixtures carry no symbols. No published study measures this entry with a stop and an exit the way we trade."
+ },
+ "question_seeds": [
+  {
+   "kind": "recall",
+   "criterion": "tl.touches",
+   "seed": "How many swing highs does a trendline need to be drawn, and how many for an A grade?"
+  },
+  {
+   "kind": "recall",
+   "criterion": "tl.line_drawn",
+   "seed": "Is the line drawn over the closes or over the highs, and where does it start?"
+  },
+  {
+   "kind": "recall",
+   "criterion": "tl.stop",
+   "seed": "Where does the stop go on a trendline break bought during the day?"
+  },
+  {
+   "kind": "spot",
+   "criterion": "tl.line_drawn",
+   "seed": "Hidden ticker: tap the two swing highs that fix the falling line, starting at the pullback's highest high."
+  },
+  {
+   "kind": "spot",
+   "criterion": "tl.first_break",
+   "seed": "Hidden ticker: has this line already been closed through inside its span? First break or not."
+  },
+  {
+   "kind": "spot",
+   "criterion": "tl.tight_under",
+   "seed": "Hidden ticker: which of these four charts is tight under its line, and which is wedging up into it?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "tl.slope",
+   "seed": "Trendline break or flat-base breakout: the three highs sit at the same price to the cent. Which is it?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "tl.line_age",
+   "seed": "Trendline break or bull flag: a 25% pole, then 8 sessions of drift under a falling line of two highs. Which name, and which is the setup?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "tl.above_fast_emas",
+   "seed": "Trendline break or wedge pop: 12 of the last 15 closes sat under the 20 EMA and today's bar clears a 4-day range and both fast EMAs. Which is it?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "tl.throwback",
+   "seed": "The line broke last week and price has come back to sit on it. A second trendline break, or a pullback entry?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "tl.no_chase",
+   "seed": "The line sits at 50.00 today and the stock opens at 52.40 on news. Buy, or pass?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "tl.close_back_under_line",
+   "seed": "You bought through the line at 37.98. Two days later it closes at 37.60, back under the line, above your 36.70 stop. What now?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "tl.retry_limit",
+   "seed": "Your trendline break was stopped. Can you redraw the line through the new high and buy the next break tomorrow?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "tl.bottom_fishing",
+   "seed": "A beaten-down stock 20% under its 200-day breaks a 60-session line on 2x volume. Is this our trendline break?"
+  },
+  {
+   "kind": "grade",
+   "criterion": "tl.volume",
+   "seed": "Two breaks of the same line: one on 0.9x volume closing 0.4% over the line, one on 1.8x closing in the top of its range. Grade each."
+  },
+  {
+   "kind": "grade",
+   "criterion": "tl.touches",
+   "seed": "A 70-session line with two touches, shallow, price tight under it. A, B, or B-?"
+  },
+  {
+   "kind": "grade",
+   "criterion": "tl.structure",
+   "seed": "A clean line break with no flag, base or double bottom behind it, in a leader above the 200. What grade, and what is the setup?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "tl.slope",
+   "seed": "The line fell from 60.30 to 50.47 over 106 sessions and the ATR is 2.10. How steep is it in ATR per session, and is it shallow enough?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "tl.depth",
+   "seed": "The first anchor high is 44.25 and the lowest low under the line 33.20. How deep is the pullback, and does it pass the 35% line?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "tl.stop_width",
+   "seed": "Bought at 26.97 as the line broke, with the day's low at 26.75. How far is the stop in percent, and where is 3R?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "tl.no_chase",
+   "seed": "The line's value today is 100.00, the ATR is 3.50 and the stock is trading 104.50. Inside the chase limit or not?"
+  }
+ ],
+ "owner_decisions": [
+  "D-001",
+  "D-002",
+  "D-003",
+  "D-004",
+  "D-008",
+  "D-009",
+  "D-012",
+  "D-015",
+  "D-020",
+  "D-068",
+  "D-069",
+  "D-136"
+ ],
+ "conflicts": [
+  "Is the break a buy signal: ChartSchool, the StockCharts Insider, the CMT tutorial, Brandt and Weinstein's reader all say no, a warning or a reason to sell; Bulkowski measures it as a buy, Kell buys it, IBD calls it an early entry, UCT writers trade it. The card reconciles them: the break is a buy only inside a structure that already says buy (D-002).",
+  "How the break is confirmed: on strength through (Kell, the owner), the first close above (Bulkowski, the scanner), a close about 3% past the line (Edwards and Magee, Murphy for long-term lines, Brandt), 1% for short-term trading (Murphy), two closes (Murphy), a later close above the last bounce high (Sperandeo). The card takes the intraday trigger with a prior-day-high condition (D-003) and rejects the 3% filter, which would use most of C28's 4%.",
+  "How many touches: two to draw, three to call it valid (Murphy, ChartSchool, the Insider, Edwards and Magee); the scanner accepts two anchors; the app's own judged r7 layer demands three. The card: 2 to trade, 3 for an A (D-068); the scan found the third touch adds little.",
+  "Slope: flatter is better (Edwards and Magee, ChartSchool, Bulkowski's data, the replay); the CMT tutorial's steep short lines are its entry triggers; Murphy's 45 degrees depends on scale and cannot be measured. The card caps the slope at 0.15 ATR a session (D-069); the scan found steeper lines did no worse in hit rate.",
+  "Volume: most sources and UCT's writers want it; Bulkowski found the volume trend inside the pattern made almost no difference; Edwards and Magee let volume stand in for part of the 3% margin. The card keeps 1.2x as a gate pending D-069, whose default makes it a cue; the scan sides with volume (1.5x or more 57.2% against 54.2%).",
+  "Drawing: over the whole day's range on a log scale (Murphy, Bulkowski, ChartSchool) against never forced and lines evolve (CMT); the scanner's learned top-1 line uses arithmetic prices and two anchors 3 sessions apart. The card takes the highs, the left-side high and the log chart.",
+  "Prior trend: Sperandeo's rule and Bulkowski's trend-change study are reversals out of a downtrend; Kell wants the bottom in and the averages turning; UCT's examples are mostly pullbacks in leaders. B26 settles it: no long below the 200-day (D-009).",
+  "Target: Murphy's measuring rule, Bulkowski's 56% rule and the start of the line, against Brandt's view that a break carries no target. The house manages by R.",
+  "Flags: UCT's lesson plan enters bull flags on the trendline break; Bulkowski's newer research says high and tight flags fail too often when using a flag trendline break and should be bought above the pattern's highest high. The card carries it as a mistake for the HTF only.",
+  "The stop width: from a close entry the day's-low stop is a median 3.1% (14 of 23 over 3%); from the intraday trigger about 1%. The scan's tiny median stop (1.17%) flatters the base rate; the honest figure for a 1% or wider stop is 44.4% to 3R.",
+  "The app: the scanner has no 200-day gate, no volume gate, no minimum touches, no slope cap, a 10-session first-break window, a stop exactly at the low, 2R and 3R targets, a $2 floor, a confidence floor that never bites, and fires on about 8% of ticker-days; the member tag failed textbook judging and is withheld. The outcome record of its fires is outside this public repo (D-015); the rebuild is D-004.",
+  "Sources: this dossier's section 11 is a bulleted list with no explicit S-ids, so the card cites each source by its position in that list as the validator reads it (S1 Bulkowski's 1-2-3 page, S3 to S5 the Kell pages, S6 Brandt, S10 Edwards and Magee, S11 Murphy's book, S14 Bulkowski's down-sloping trendlines, S20 ChartSchool, S21 the Insider, S22 the CMT tutorial, S26 and S27 UCT, S30 the scanner, S31 the house rulebook and texts, S33 the judged fixtures)."
+ ]
+}

@@ -1,0 +1,3244 @@
+{
+ "unit": "SET.20",
+ "track": "SET",
+ "title": "News Gapper",
+ "teaches": "The News Gapper as we trade it: a fresh named catalyst, most often an earnings report, gaps a liquid stock up on at least three times its average volume; the gap holds and the day closes green in the upper half; the buy is the first pullback and reclaim, a market order as price trades over the prior day's high after two down days or an inside day that hold the gap-day low, or day one over the opening-range high for an A+; the stop sits a few cents under the pullback low, a third comes off at 3R and 5R with the rest on the 10-day or 21-day trail, and a loss taken at the stop is the system working.",
+ "skills": [
+  {
+   "id": "setup.news_gapper",
+   "title": "News Gapper"
+  }
+ ],
+ "as_of": "2026-11-10",
+ "card": "docs/study/setups/criteria/22-news-gapper.json",
+ "sources": [
+  {
+   "id": "s1",
+   "tier": 2,
+   "publisher": "Stockbee (Pradeep Bonde)",
+   "title": "Episodic Pivots and Idea Pickle (2007-02-26)",
+   "url": "https://stockbee.blogspot.com/2007/02/episodic-pivots-and-idea-pickle.html",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s5",
+   "tier": 2,
+   "publisher": "Stockbee (Pradeep Bonde)",
+   "title": "My process flow for Episodic Pivots (EP) (2014-07-30)",
+   "url": "https://stockbee.blogspot.com/2014/07/my-process-flow-for-episodic-pivots-ep.html",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s6",
+   "tier": 2,
+   "publisher": "Kristjan Kullamagi (qullamaggie.com)",
+   "title": "How to master a setup: Episodic Pivots (2021-11-02)",
+   "url": "https://qullamaggie.com/how-to-master-a-setup-episodic-pivots/",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s8",
+   "tier": 2,
+   "publisher": "Virtue of Selfish Investing (Gil Morales and Chris Kacher)",
+   "title": "FAQ: stocks that undercut the low of the gap-up (2010-10-24)",
+   "url": "https://www.virtueofselfishinvesting.com/faqs/answer/stocks-that-undercut-the-low-of-the-gap-up",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s12",
+   "tier": 2,
+   "publisher": "StockCharts ChartSchool",
+   "title": "Gaps and Gap Analysis",
+   "url": "https://chartschool.stockcharts.com/table-of-contents/chart-analysis/gaps-and-gap-analysis",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "u1",
+   "tier": 3,
+   "publisher": "UCT (the owner's published Sunday Scans)",
+   "title": "Sunday Scans, 2025-11-09 (the owner's section)",
+   "url": "https://unchartedterritoryy.substack.com/p/sunday-scans-720",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "u4",
+   "tier": 3,
+   "publisher": "UCT (the owner's published Market Update)",
+   "title": "Market Update and Watchlist, 2025-06-20 (GRRR)",
+   "url": "https://unchartedterritoryy.substack.com/p/market-update-and-watchlist",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "u3",
+   "tier": 3,
+   "publisher": "UCT (the owner's published Sunday Scans)",
+   "title": "Sunday Scans, 2025-11-23 (calendar section, no byline)",
+   "url": "https://unchartedterritoryy.substack.com/p/sunday-scans-56d",
+   "accessed": "2026-11-10"
+  },
+  {
+   "id": "c1",
+   "tier": 3,
+   "publisher": "UCT setup criteria card",
+   "title": "News/Earnings Gapper criteria card (docs/study/setups/criteria/22-news-gapper.json, as of 2026-11-09)",
+   "url": "repo:docs/study/setups/criteria/22-news-gapper.json",
+   "accessed": "2026-11-10"
+  },
+  {
+   "id": "d1",
+   "tier": 3,
+   "publisher": "UCT setup research (examples read from our own daily bars)",
+   "title": "News/Earnings Gapper dossier, sections 12 and 13: examples, failures and near-misses from our data",
+   "url": "repo:docs/study/setups/research/22-news-gapper.md#12-examples-from-our-data",
+   "accessed": "2026-11-10"
+  },
+  {
+   "id": "h1",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
+   "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
+   "accessed": "2026-11-10"
+  }
+ ],
+ "facts": [
+  {
+   "id": "h01",
+   "source": "h1",
+   "quote": "Stop first (by default a few cents under the day's low or the prior day's low, F62); the size comes from the stop; if the honest stop does not fit the risk, skip the trade.",
+   "claim": "A3: stop first, a few cents under the day's low; the size comes from the stop; if the honest stop does not fit, skip."
+  },
+  {
+   "id": "h02",
+   "source": "h1",
+   "quote": "The stop is the exit. It only moves up, never down or wider. The one exception is the gap rule (B20).",
+   "claim": "A4: the stop is the exit; it only moves up, never wider; the gap rule is the one exception."
+  },
+  {
+   "id": "h03",
+   "source": "h1",
+   "quote": "Shares = account × risk % ÷ (entry − stop), rounded down, then capped: the size is the SMALLER of the risk-based size and the position cap",
+   "claim": "A5: shares are account times risk percent, divided by entry minus stop, rounded down, then capped."
+  },
+  {
+   "id": "h04",
+   "source": "h1",
+   "quote": "\"I almost never take a loss greater than 3%\": the stop usually sits within about 3% of the buy (a loss on the position, not the account).",
+   "claim": "A13: the stop usually sits within about 3% of the buy."
+  },
+  {
+   "id": "h05",
+   "source": "h1",
+   "quote": "Move the stop to breakeven at 2R to 5R, ideally. The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
+   "claim": "B19: breakeven between 2R and 5R; the hard rule for the first trim is a third at 3R."
+  },
+  {
+   "id": "h08",
+   "source": "h1",
+   "quote": "No new buys in the 3 days before an earnings report; hold through a report only if the trade is up 5R.",
+   "claim": "B22: no new buys in the 3 days before a report; hold through one only if up 5R."
+  },
+  {
+   "id": "h09",
+   "source": "h1",
+   "quote": "Trade only stocks at $10 or more that trade at least $20 million a day.",
+   "claim": "B23: only stocks at $10 or more trading at least $20 million a day."
+  },
+  {
+   "id": "h17",
+   "source": "h1",
+   "quote": "Prefer stocks with growing sales and earnings; the chart comes first.",
+   "claim": "D40: growing sales and earnings preferred; the chart comes first."
+  },
+  {
+   "id": "h11",
+   "source": "h1",
+   "quote": "No chasing: never buy more than 4% above the buy point.",
+   "claim": "C28: never buy more than 4% above the buy point."
+  },
+  {
+   "id": "h12",
+   "source": "h1",
+   "quote": "Chasing costs size, not risk: the stop stays under the buy point, so the distance grows and the shares shrink (A5).",
+   "claim": "C28: chasing costs size, because the stop stays put and the distance grows."
+  },
+  {
+   "id": "h15",
+   "source": "h1",
+   "quote": "Time stop: a trade still under 1R after 10 trading days is sold, freeing the money.",
+   "claim": "C33: a trade still under 1R after 10 trading days is sold."
+  },
+  {
+   "id": "h16",
+   "source": "h1",
+   "quote": "A climax run on your own long (Bracco's parabolic burst): sell a big part into it, a judgment call.",
+   "claim": "C34: sell a big part into a climax run on your own long."
+  },
+  {
+   "id": "h19",
+   "source": "h1",
+   "quote": "Never own more than 1% of a stock's average daily volume; illiquid stocks are not even watched.",
+   "claim": "D42: never own more than 1% of a stock's average daily volume."
+  },
+  {
+   "id": "h20",
+   "source": "h1",
+   "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
+   "claim": "E51: another third at 5R, then trail the last third."
+  },
+  {
+   "id": "h21",
+   "source": "h1",
+   "quote": "Default trail: the 10-day average for fast movers, the 21-day for steadier ones; sell on a close below it.",
+   "claim": "E52: trail the 10-day for fast movers, the 21-day for steadier ones; sell on a close below it."
+  },
+  {
+   "id": "h22",
+   "source": "h1",
+   "quote": "Entries are market orders.",
+   "claim": "E57: entries are market orders."
+  },
+  {
+   "id": "h23",
+   "source": "h1",
+   "quote": "No new buys outside regular trading hours.",
+   "claim": "E58: no new buys outside regular hours."
+  },
+  {
+   "id": "h24",
+   "source": "h1",
+   "quote": "The stop sits a few cents under the day's low, not exactly on it.",
+   "claim": "F62: the stop sits a few cents under the day's low."
+  },
+  {
+   "id": "h25",
+   "source": "h1",
+   "quote": "If a stock opens above a trim level (3R, 5R), take that trim at the open.",
+   "claim": "F63: a trim level the day opens past is taken at the open."
+  },
+  {
+   "id": "h26",
+   "source": "h1",
+   "quote": "The market reading as a guide (A10): Green, full risk per grade and up to 10 positions; Yellow, smaller and fewer; Orange, only A+ setups; Red, mostly cash and shorts.",
+   "claim": "F65: Green full risk; Yellow smaller and fewer; Orange only A+; Red mostly cash and shorts."
+  },
+  {
+   "id": "h28",
+   "source": "h1",
+   "quote": "After a stop-out, buy again only if the setup triggers again, as a new trade with its own stop and every rule.",
+   "claim": "B21: after a stop-out, buy again only on a new trigger, as a new trade."
+  },
+  {
+   "id": "h29",
+   "source": "h1",
+   "quote": "The same stock: at most 3 tries in a week and 6 in a month.",
+   "claim": "E56: at most 3 tries in a week and 6 in a month on one stock."
+  },
+  {
+   "id": "h30",
+   "source": "h1",
+   "quote": "Setup grades set the size: A and B setups at normal size; A+ sized up; B- or lower sized down.",
+   "claim": "D38: A and B at normal size; A+ sized up; B- or lower sized down."
+  },
+  {
+   "id": "h31",
+   "source": "h1",
+   "quote": "The full size at one price with one stop; no adding.",
+   "claim": "A5: the full size at one price with one stop; no adding."
+  },
+  {
+   "id": "b01",
+   "source": "s1",
+   "quote": "Earnings, new product, analyst earnings change, increased earnings guidance, sector moves etc have high probability to trigger multi month rallies.",
+   "claim": "Bonde: earnings, new products and raised guidance have a high probability of starting a multi-month rally."
+  },
+  {
+   "id": "b02",
+   "source": "s1",
+   "quote": "James Crammer, Barron's, WSJ, and other publication mentions, analyst upgrade etc. have a low probability of follow through.",
+   "claim": "Bonde: media mentions and analyst upgrades have a low probability of follow-through."
+  },
+  {
+   "id": "b06",
+   "source": "s5",
+   "quote": "Most EP where I made big money I bought in pre market.",
+   "claim": "Bonde made most of his big EP money buying pre-market."
+  },
+  {
+   "id": "k01",
+   "source": "s6",
+   "quote": "Volume is the #1 thing to focus on.",
+   "claim": "Kullamagi: volume is the number one thing to focus on."
+  },
+  {
+   "id": "k02",
+   "source": "s6",
+   "quote": "I rarely trade in extended hours but prefer to wait for the opening range highs",
+   "claim": "Kullamagi rarely trades extended hours and waits for the opening-range highs."
+  },
+  {
+   "id": "k04",
+   "source": "s6",
+   "quote": "There has to be massive volume near the open, ideally the stock should trade the average daily volume the first 15-20 minutes or even quicker.",
+   "claim": "Kullamagi: massive volume near the open, ideally the average daily volume in the first 15 to 20 minutes."
+  },
+  {
+   "id": "m01",
+   "source": "s8",
+   "quote": "A 1-2% undercut can be permitted in some cases.",
+   "claim": "Morales and Kacher allow a 1 to 2% undercut of the gap-up low in some cases."
+  },
+  {
+   "id": "sc1",
+   "source": "s12",
+   "quote": "For an up gap to form, the low price after the market closes must be higher than the high price of the previous day.",
+   "claim": "ChartSchool: for an up gap, the low must be higher than the previous day's high."
+  },
+  {
+   "id": "u01",
+   "source": "u1",
+   "quote": "I love trading earnings gappers on day one.",
+   "claim": "UCT's Sunday Scans: I love trading earnings gappers on day one."
+  },
+  {
+   "id": "u04",
+   "source": "u4",
+   "quote": "Can enter there and place a stop at LOD and see how far it goes.",
+   "claim": "UCT's Sunday Scans on the GRRR gap: enter there, stop at the low of the day."
+  },
+  {
+   "id": "u05",
+   "source": "u3",
+   "quote": "often coming out of corrections it is the recent ER gappers that have stellar performance on the other side.",
+   "claim": "UCT's Sunday Scans: after a correction, the recent earnings gappers often lead."
+  },
+  {
+   "id": "c01",
+   "source": "c1",
+   "quote": "A fresh, named catalyst released outside market hours, most often a report, on a liquid stock",
+   "claim": "The catalyst is fresh and named, released outside market hours, most often a report."
+  },
+  {
+   "id": "c02",
+   "source": "c1",
+   "quote": "The gap holds: the day never trades back to the prior close, closes green and in the upper half of its range.",
+   "claim": "The gap holds: no trade back to the prior close, a green close in the upper half of the range."
+  },
+  {
+   "id": "c03",
+   "source": "c1",
+   "quote": "A close in the lower half is a B-; a red close is not this setup.",
+   "claim": "A lower-half close is a B-; a red close is not this setup."
+  },
+  {
+   "id": "c04",
+   "source": "c1",
+   "quote": "At least 3 times the 50-day average volume by the close, and on pace for it by the opening-range buy.",
+   "claim": "Volume is at least 3 times the 50-day average by the close, and on pace by the opening-range buy."
+  },
+  {
+   "id": "c05",
+   "source": "c1",
+   "quote": "The A+ gap: 10% or more, and a true gap, the day's low staying above the prior day's high.",
+   "claim": "The A+ gap is 10% or more and a true gap: the day's low stays above the prior day's high."
+  },
+  {
+   "id": "c06",
+   "source": "c1",
+   "quote": "A+ when it is the highest volume in a year or ever (a High Volume Edge day), or the average daily volume trades in the first 15 to 20 minutes.",
+   "claim": "A+ volume: the highest in a year or ever, or the average daily volume in the first 15 to 20 minutes."
+  },
+  {
+   "id": "c08",
+   "source": "c1",
+   "quote": "Not late: not up more than about 30% in the 3 months (65 sessions) before the gap, and not the 3rd to 5th day of a straight-up burst.",
+   "claim": "Not late: not up more than about 30% in the 65 sessions before the gap, and not day 3 to 5 of a burst."
+  },
+  {
+   "id": "c09",
+   "source": "c1",
+   "quote": "Earnings gaps: growing sales and earnings, ideally accelerating, with a beat and raised guidance. A grade cue.",
+   "claim": "For earnings gaps, growing sales and earnings, a beat and raised guidance are a grade cue."
+  },
+  {
+   "id": "c10",
+   "source": "c1",
+   "quote": "within about 2 to 10 sessions, at least two down days (or an inside day, or a shake under the prior low) that keep every close above the gap-day low;",
+   "claim": "The pullback comes within about 2 to 10 sessions: two down days, an inside day or a shake, every close above the gap-day low."
+  },
+  {
+   "id": "c11",
+   "source": "c1",
+   "quote": "buy with a market order when price trades above the prior day's high. The stricter version waits for a close above the gap day's high.",
+   "claim": "Buy with a market order as price trades above the prior day's high; the stricter version waits for a close above the gap-day high."
+  },
+  {
+   "id": "c12",
+   "source": "c1",
+   "quote": "after a pullback of two down days or an inside day whose closes all hold the gap-day low, a market buy as price trades over the prior day's high. Day one over the opening-range high is the A+ form.",
+   "claim": "Trigger: after two down days or an inside day that hold the gap-day low, a market buy over the prior day's high; day one over the opening-range high is the A+ form."
+  },
+  {
+   "id": "c13",
+   "source": "c1",
+   "quote": "Buy 1, day one: a market order when price trades above the opening-range high (the first 5 or 30-minute high) with volume running hot",
+   "claim": "Day one: a market order when price trades above the opening-range high with volume running hot."
+  },
+  {
+   "id": "c14",
+   "source": "c1",
+   "quote": "A few cents under the pullback low; on day one, under the day's low at the buy, usually the opening-range low.",
+   "claim": "Stop: a few cents under the pullback low; on day one, under the day's low at the buy."
+  },
+  {
+   "id": "c15",
+   "source": "c1",
+   "quote": "Buy 2: a few cents under the pullback low.",
+   "claim": "On the pullback buy the stop is a few cents under the pullback low."
+  },
+  {
+   "id": "c16",
+   "source": "c1",
+   "quote": "No porosity. Morales and Kacher allow a little under the gap-day low; here the stop is the exit and it only moves up.",
+   "claim": "No porosity: the stop is the exit and it only moves up."
+  },
+  {
+   "id": "c17",
+   "source": "c1",
+   "quote": "Not in the 3 sessions before a scheduled report: a news gapper with earnings due waits.",
+   "claim": "A news gapper with a report due within 3 sessions waits."
+  },
+  {
+   "id": "c18",
+   "source": "c1",
+   "quote": "No pre-market or after-hours buys.",
+   "claim": "No pre-market or after-hours buys."
+  },
+  {
+   "id": "c20",
+   "source": "c1",
+   "quote": "Stop to breakeven between 2R and 5R, at the first trim by default.",
+   "claim": "Breakeven between 2R and 5R, at the first trim by default."
+  },
+  {
+   "id": "c21",
+   "source": "c1",
+   "quote": "If it gaps past a trim level, trim at the open. Gappers often gap again.",
+   "claim": "If it gaps past a trim level, trim at the open."
+  },
+  {
+   "id": "c22",
+   "source": "c1",
+   "quote": "Trail the last third on a close under the 10-day for a fast mover or the 21-day for a steadier one.",
+   "claim": "Trail the last third on a close under the 10-day (fast) or the 21-day (steadier)."
+  },
+  {
+   "id": "c23",
+   "source": "c1",
+   "quote": "Under 1R after 10 sessions: sell.",
+   "claim": "Time stop: under 1R after 10 sessions, sell."
+  },
+  {
+   "id": "c24",
+   "source": "c1",
+   "quote": "Into the next report, about 60 sessions later: hold only if up 5R.",
+   "claim": "Hold into the next report only if up 5R."
+  },
+  {
+   "id": "c25",
+   "source": "c1",
+   "quote": "A climax run, three to five straight up days with gaps and range expansion: sell a big part.",
+   "claim": "A climax run, three to five straight up days with gaps and range expansion: sell a big part."
+  },
+  {
+   "id": "c26",
+   "source": "c1",
+   "quote": "Day one closes red, or trades back to the prior close (the gap fills). A red close after good news is the News Failure.",
+   "claim": "Day one closes red or trades back to the prior close: a red close after good news is the News Failure."
+  },
+  {
+   "id": "c27",
+   "source": "c1",
+   "quote": "A close under the gap-day low in the first 10 sessions.",
+   "claim": "A close under the gap-day low in the first 10 sessions invalidates it."
+  },
+  {
+   "id": "c28",
+   "source": "c1",
+   "quote": "The pullback breaks the gap-day low before any reclaim: no Buy 2.",
+   "claim": "If the pullback breaks the gap-day low before any reclaim, there is no Buy 2."
+  },
+  {
+   "id": "c29",
+   "source": "c1",
+   "quote": "A Green or Yellow market reading. Orange only for an A+. Red: mostly cash and shorts.",
+   "claim": "Green or Yellow; Orange only for an A+; Red mostly cash and shorts."
+  },
+  {
+   "id": "c30",
+   "source": "c1",
+   "quote": "Earnings season, when the gaps cluster in 3 to 4 weeks each quarter.",
+   "claim": "The gaps cluster in 3 to 4 weeks of earnings season each quarter."
+  },
+  {
+   "id": "c31",
+   "source": "c1",
+   "quote": "Coming out of a correction, the recent ER gappers often have the stellar performance on the other side.",
+   "claim": "Coming out of a correction, the recent earnings gappers often lead."
+  },
+  {
+   "id": "c32",
+   "source": "c1",
+   "quote": "Buying a gap with no catalyst, or a weak one: an upgrade, a media mention.",
+   "claim": "A mistake: buying a gap with no catalyst, or a weak one such as an upgrade or a media mention."
+  },
+  {
+   "id": "c33",
+   "source": "c1",
+   "quote": "Buying the open before the opening range forms, with no stop to lean on.",
+   "claim": "A mistake: buying the open before the opening range forms."
+  },
+  {
+   "id": "c34",
+   "source": "c1",
+   "quote": "Calling every big gap earnings without checking: a quarter are not.",
+   "claim": "A mistake: calling every big gap earnings without checking; a quarter are not."
+  },
+  {
+   "id": "c35",
+   "source": "c1",
+   "quote": "Buying the third gap of a parabolic burst",
+   "claim": "A mistake: buying the third gap of a parabolic burst."
+  },
+  {
+   "id": "c37",
+   "source": "c1",
+   "quote": "Holding through the next report without a 5R cushion.",
+   "claim": "A mistake: holding through the next report without a 5R cushion."
+  },
+  {
+   "id": "c38",
+   "source": "c1",
+   "quote": "earnings with triple-digit or accelerating growth, a beat and a raise; or a business-changing deal",
+   "claim": "A+ catalyst: earnings with triple-digit or accelerating growth, a beat and a raise; or a business-changing deal."
+  },
+  {
+   "id": "c39",
+   "source": "c1",
+   "quote": "an upgrade, a media mention, a vague press release",
+   "claim": "B- catalyst: an upgrade, a media mention, a vague press release."
+  },
+  {
+   "id": "c40",
+   "source": "c1",
+   "quote": "a close in the top quarter of the range",
+   "claim": "A+ close: in the top quarter of the range."
+  },
+  {
+   "id": "c41",
+   "source": "c1",
+   "quote": "quiet before the gap, not up more than about 15% in 3 months",
+   "claim": "A+ cue: quiet before the gap, not up more than about 15% in 3 months."
+  },
+  {
+   "id": "c42",
+   "source": "c1",
+   "quote": "up 30% or more already; a second or third gap",
+   "claim": "B- cue: up 30% or more already, or a second or third gap."
+  },
+  {
+   "id": "c43",
+   "source": "c1",
+   "quote": "the first pullback holds the upper half of the gap day",
+   "claim": "A+ cue: the first pullback holds the upper half of the gap day."
+  },
+  {
+   "id": "c44",
+   "source": "c1",
+   "quote": "the pullback dips under the gap-day midpoint",
+   "claim": "B- cue: the pullback dips under the gap-day midpoint."
+  },
+  {
+   "id": "c45",
+   "source": "c1",
+   "quote": "opens above a base of 4 weeks or more, or out of a 3 to 6 month quiet range; above a rising 200-day",
+   "claim": "A+ cue: opens above a base of 4 weeks or more, or out of a 3 to 6 month quiet range, above a rising 200-day."
+  },
+  {
+   "id": "c46",
+   "source": "c1",
+   "quote": "the first in six months, on a neglected name.",
+   "claim": "An EP is the first in six months, on a neglected name."
+  },
+  {
+   "id": "c47",
+   "source": "c1",
+   "quote": "If the gap day is a report's reaction day on an established leader clearing its base, it is the PEG; a gap on any other headline, or the first-pullback entry on either, is taught here.",
+   "claim": "A report reaction day on an established leader clearing its base is the PEG; the first-pullback entry on either is taught here."
+  },
+  {
+   "id": "c48",
+   "source": "c1",
+   "quote": "A Kicker needs a weak red close and then a gap of only 1.5% or more on positioning, rarely a headline",
+   "claim": "A Kicker needs a weak red close and then a small gap on positioning, rarely a headline."
+  },
+  {
+   "id": "c49",
+   "source": "c1",
+   "quote": "A gapper holds its gap and closes green in the upper half; a News Failure gaps up on good news and closes red, under the prior close. Same headline, opposite trade.",
+   "claim": "A gapper holds its gap and closes green in the upper half; a News Failure closes red, under the prior close. Same headline, opposite trade."
+  },
+  {
+   "id": "c50",
+   "source": "c1",
+   "quote": "Gap Support is the later test of the gap-up low itself, 2 to 60 sessions on, bought as that low is defended.",
+   "claim": "Gap Support is the later test of the gap-up low itself, bought as that low is defended."
+  },
+  {
+   "id": "c51",
+   "source": "c1",
+   "quote": "The pullback buy fails most when the reclaim comes early after a very wide day-one bar on a stock already extended.",
+   "claim": "The pullback buy fails most when the reclaim comes early after a very wide day-one bar on an extended stock."
+  },
+  {
+   "id": "c52",
+   "source": "c1",
+   "quote": "The gap fills or closes red (a News Failure), or the stock closes under the gap-day low in the first ten sessions.",
+   "claim": "Failure: the gap fills or closes red, or the stock closes under the gap-day low in the first ten sessions."
+  },
+  {
+   "id": "d01",
+   "source": "d1",
+   "quote": "ULTA | 2016-03-11 (report 2016-03-10) | earnings | +14.2%, 4.8x (1-year high), 94%",
+   "claim": "ULTA: report 2016-03-10, gap day 2016-03-11, a 14.2% gap on 4.8x volume (a 1-year high), close at 94% of range."
+  },
+  {
+   "id": "d02",
+   "source": "d1",
+   "quote": "pullback day 6, over the prior high at 190.69 | 186.55 (2.2%) | 12.1R",
+   "claim": "ULTA: pullback buy on day 6 over the prior high at 190.69, stop 186.55 (2.2%), best 12.1R."
+  },
+  {
+   "id": "d03",
+   "source": "d1",
+   "quote": "A big gap out of a correction (down 11% over 65 sessions) that closed at the top of its range; a 4-session pullback 2.8% deep held the gap-day low, then a clean reclaim",
+   "claim": "ULTA: a big gap out of a correction; a 4-session pullback 2.8% deep held the gap-day low, then a clean reclaim."
+  },
+  {
+   "id": "d04",
+   "source": "d1",
+   "quote": "TWLO | 2018-02-14 (report 2018-02-13) | earnings | +10.0%, 8.3x, 62%",
+   "claim": "TWLO: report 2018-02-13, gap day 2018-02-14, a 10.0% gap on 8.3x volume, close at 62% of range."
+  },
+  {
+   "id": "d05",
+   "source": "d1",
+   "quote": "pullback day 8 at 33.55 | 32.59 (2.9%) | 24.1R",
+   "claim": "TWLO: pullback buy on day 8 at 33.55, stop 32.59 (2.9%), best 24.1R."
+  },
+  {
+   "id": "d06",
+   "source": "d1",
+   "quote": "A gap out of a 3-month bottom straight through the 200-day; the first 6-session pullback held the gap-day low and the reclaim ran to 3R in 4 sessions",
+   "claim": "TWLO: a gap out of a 3-month bottom through the 200-day; the 6-session pullback held the gap-day low and the reclaim ran to 3R in 4 sessions."
+  },
+  {
+   "id": "d07",
+   "source": "d1",
+   "quote": "NFLX | 2024-10-18 (report 2024-10-17) | earnings | +7.3%, 5.6x, 92%",
+   "claim": "NFLX: report 2024-10-17, gap day 2024-10-18, a 7.3% gap on 5.6x volume, close at 92% of range."
+  },
+  {
+   "id": "d08",
+   "source": "d1",
+   "quote": "pullback day 6 at 75.62 | 74.38 (1.6%) | 19.6R",
+   "claim": "NFLX: pullback buy on day 6 at 75.62, stop 74.38 (1.6%), best 19.6R."
+  },
+  {
+   "id": "d09",
+   "source": "d1",
+   "quote": "A gap to new highs from a tight base, a 4-session pullback 2.9% deep, a stop 1.6% away and a two-month run",
+   "claim": "NFLX: a gap to new highs from a tight base, a 4-session pullback 2.9% deep, then a two-month run."
+  },
+  {
+   "id": "d10",
+   "source": "d1",
+   "quote": "TGT | 2019-08-21 (report 2019-08-21, pre-open) | earnings | +16.8%, 9.0x (1-year high), 93%",
+   "claim": "TGT: pre-open report 2019-08-21, so the gap day is the report day; a 16.8% gap on 9.0x volume, close at 93% of range."
+  },
+  {
+   "id": "d11",
+   "source": "d1",
+   "quote": "pullback day 6 at 105.11 | 103.20 (1.8%) | 12.0R",
+   "claim": "TGT: pullback buy on day 6 at 105.11, stop 103.20 (1.8%), best 12.0R."
+  },
+  {
+   "id": "d12",
+   "source": "d1",
+   "quote": "PANW | 2021-08-24 (report 2021-08-23) | earnings | +13.7%, 11.6x (1-year high), 82%",
+   "claim": "PANW: report 2021-08-23, gap day 2021-08-24, a 13.7% gap on 11.6x volume, close at 82% of range."
+  },
+  {
+   "id": "d13",
+   "source": "d1",
+   "quote": "pullback day 8 at 77.06 | 75.92 (1.5%) | 14.2R",
+   "claim": "PANW: pullback buy on day 8 at 77.06, stop 75.92 (1.5%), best 14.2R."
+  },
+  {
+   "id": "d14",
+   "source": "d1",
+   "quote": "gap 2024-03-05, +15.3% on 15.8x volume, closing at 79% of its range;",
+   "claim": "AVAV: a 15.3% gap on 15.8x volume closing at 79% of its range."
+  },
+  {
+   "id": "d15",
+   "source": "d1",
+   "quote": "the 8-session pullback and reclaim was bought at 162.59 and went straight to the stop (158.43) without a single higher high.",
+   "claim": "AVAV: the 8-session pullback and reclaim was bought at 162.59 and went straight to the stop at 158.43."
+  },
+  {
+   "id": "d16",
+   "source": "d1",
+   "quote": "A big-volume gap does not protect a late Buy 2.",
+   "claim": "AVAV: a big-volume gap does not protect a late Buy 2."
+  },
+  {
+   "id": "d17",
+   "source": "d1",
+   "quote": "gap 2019-05-07, +15.0% on 11.4x; the day-4 reclaim at 51.76 failed the next session, best 0.0R; the whole gap was given back within weeks.",
+   "claim": "SEDG: a 15.0% gap on 11.4x; the day-4 reclaim at 51.76 failed the next session and the whole gap was given back within weeks."
+  },
+  {
+   "id": "d18",
+   "source": "d1",
+   "quote": "gap 2026-01-15, +11.1% on 18.2x, a 1-year volume high; the stock was already up 23.8% over 65 sessions",
+   "claim": "PEN: an 11.1% gap on 18.2x volume, already up 23.8% over 65 sessions."
+  },
+  {
+   "id": "d19",
+   "source": "d1",
+   "quote": "the day-4 reclaim at 357.70 reached 0.45R before the stop.",
+   "claim": "PEN: the day-4 reclaim at 357.70 reached 0.45R before the stop."
+  },
+  {
+   "id": "d21",
+   "source": "d1",
+   "quote": "gap 2015-04-10, +5.4% on 10.0x volume (a 1-year high), a news gap (not a report day), closing at 90% of its range",
+   "claim": "GE: a 5.4% gap on 10.0x volume, a news gap (not a report day), closing at 90% of its range."
+  },
+  {
+   "id": "d23",
+   "source": "d1",
+   "quote": "report 2022-01-27; a +4.1% gap on 1.7x the 50-day volume, closing at its high; the rule is 3x or more.",
+   "claim": "AAPL: a 4.1% gap on 1.7x the 50-day volume, closing at its high; the rule is 3x or more."
+  },
+  {
+   "id": "d24",
+   "source": "d1",
+   "quote": "report 2018-10-16; a +9.2% gap on 3.3x that closed at 35% of its range",
+   "claim": "NFLX 2018: a 9.2% gap on 3.3x that closed at 35% of its range."
+  },
+  {
+   "id": "d25",
+   "source": "d1",
+   "quote": "The gap held (low 35.65 above the prior close 34.64) but the day faded",
+   "claim": "NFLX 2018: the gap held (low 35.65 above the prior close 34.64) but the day faded."
+  },
+  {
+   "id": "d26",
+   "source": "d1",
+   "quote": "not a gapper, and not a News Failure either (it closed green).",
+   "claim": "NFLX 2018: not a News Failure either, because it closed green."
+  },
+  {
+   "id": "d27",
+   "source": "d1",
+   "quote": "report 2024-01-24; a +5.5% gap on 4.0x, close at 89%, on a stock up 42% over the prior 65 sessions",
+   "claim": "URI: a 5.5% gap on 4.0x, close at 89%, on a stock up 42% over the prior 65 sessions."
+  },
+  {
+   "id": "d28",
+   "source": "d1",
+   "quote": "A late gap in a stock already run up: the climax risk",
+   "claim": "URI: a late gap in a stock already run up carries the climax risk."
+  },
+  {
+   "id": "d29",
+   "source": "d1",
+   "quote": "29.5% reached 3R and 19.5% reached 5R before the stop",
+   "claim": "Base rate over 1,491 hits: 29.5% reached 3R and 19.5% reached 5R before the stop."
+  },
+  {
+   "id": "d30",
+   "source": "d1",
+   "quote": "the pullback buy fails most often when the reclaim comes early (day 4) after a very wide day-one range",
+   "claim": "Losers: the pullback buy fails most often when the reclaim comes early (day 4) after a very wide day-one range."
+  },
+  {
+   "id": "d31",
+   "source": "d1",
+   "quote": "Three of the four reclaims came on day 4, the earliest the rule allows after a two-session pullback",
+   "claim": "Three of the four losing reclaims came on day 4, the earliest after a two-session pullback."
+  },
+  {
+   "id": "h32",
+   "source": "h1",
+   "quote": "A gap against the stop: the first 30 minutes of the gap-down day decide. The low of the first 30-minute bar is the new stop.",
+   "claim": "B20: after a gap against the stop, the low of the first 30-minute bar is the new stop."
+  },
+  {
+   "id": "h33",
+   "source": "h1",
+   "quote": "With a ceiling: if the first 30 minutes take the loss past 2R, get out.",
+   "claim": "B20: if the first 30 minutes take the loss past 2R, get out."
+  },
+  {
+   "id": "c53",
+   "source": "c1",
+   "quote": "A gap through the stop: the first 30-minute low is the new stop; out if that is past 2R. News stocks gap again on follow-up news.",
+   "claim": "Card: after a gap through the stop, the first 30-minute low is the new stop; out if past 2R; news stocks gap again."
+  },
+  {
+   "id": "c54",
+   "source": "c1",
+   "quote": "Prefer a gap out of a base: an open above the top of a base of 4 weeks or more, or out of a quiet range where the prior 60 sessions' high is no more than 35% above their low.",
+   "claim": "Card: prefer a gap out of a base or a quiet range, the prior 60 sessions' high no more than 35% above their low."
+  }
+ ],
+ "walkthroughs": [
+  {
+   "key": "w1",
+   "title": "ULTA, March 2016: a big gap and a shallow pullback",
+   "steps": [
+    "ULTA, 2016. Report on 2016-03-10; the gap day is 2016-03-11, up 14.2% on 4.8x volume. It closes at 94% of its range.",
+    "A big gap out of a correction. Then a 4-session pullback, 2.8% deep, that holds the gap-day low.",
+    "Day 6: buy at market over the prior day's high, 190.69. Stop a few cents under the pullback low, 186.55.",
+    "Failure mode: a close under the gap-day low. Instead it ran to 12.1R. Trim at 3R and 5R, trail the rest."
+   ],
+   "facts": [
+    "d01",
+    "d02",
+    "d03",
+    "c11",
+    "c15",
+    "c27",
+    "h05",
+    "h20",
+    "h21",
+    "h22",
+    "h24"
+   ]
+  },
+  {
+   "key": "w2",
+   "title": "TWLO, February 2018: a gap through the 200-day",
+   "steps": [
+    "TWLO, 2018. Report on 2018-02-13; the gap day is 2018-02-14, up 10.0% on 8.3x volume. It closes at 62% of its range.",
+    "It gaps out of a 3-month bottom, through the 200-day. Then a 6-session pullback holds the gap-day low.",
+    "Day 8: buy at market over the prior day's high, 33.55. Stop a few cents under the pullback low, 32.59, 2.9% away.",
+    "Failure mode: the pullback closes under the gap-day low. Instead 3R came in 4 sessions. Trim a third, trail the rest."
+   ],
+   "facts": [
+    "d04",
+    "d05",
+    "d06",
+    "c11",
+    "c15",
+    "c27",
+    "h05",
+    "h21",
+    "h22",
+    "h24"
+   ]
+  },
+  {
+   "key": "w3",
+   "title": "NFLX, October 2024: new highs from a tight base",
+   "steps": [
+    "NFLX, 2024. Report on 2024-10-17; the gap day is 2024-10-18, up 7.3% on 5.6x volume. It closes at 92% of its range.",
+    "A gap to new highs from a tight base. The pullback runs 4 sessions, 2.9% deep, and holds the gap-day low.",
+    "Day 6: buy at market over the prior day's high, 75.62. Stop a few cents under the pullback low, 74.38, 1.6% away.",
+    "Failure mode: the gap fills, or it closes red. Instead a two-month run: trim at 3R and 5R, trail the rest."
+   ],
+   "facts": [
+    "d07",
+    "d08",
+    "d09",
+    "c11",
+    "c15",
+    "c26",
+    "h05",
+    "h20",
+    "h21",
+    "h22",
+    "h24"
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "key": "q01",
+   "skill": "setup.news_gapper",
+   "rung": 1,
+   "format": "mcq",
+   "criterion": "ng.gap_holds",
+   "q": "In one line, what is a News Gapper?",
+   "choices": [
+    "A catalyst gap that holds its range",
+    "A gap on rumors that fills by lunch",
+    "A gap with no named news behind it",
+    "A slow drift over several weeks"
+   ],
+   "answer": "A catalyst gap that holds its range",
+   "why": "A catalyst gap that holds its range. A fresh, named catalyst gaps a liquid stock up, and the day holds the gap instead of giving it back.",
+   "lesson_line": "A News Gapper is a named catalyst gap that holds.",
+   "facts": [
+    "c01",
+    "c02"
+   ],
+   "wrong": {
+    "A gap on rumors that fills by lunch": "A gap that fills is the opposite: that is a failed gap.",
+    "A gap with no named news behind it": "Without a catalyst there is no News Gapper.",
+    "A slow drift over several weeks": "A News Gapper is a gap day, not a drift."
+   },
+   "house": true
+  },
+  {
+   "key": "q02",
+   "skill": "setup.news_gapper",
+   "rung": 1,
+   "format": "tf",
+   "criterion": "ng.catalyst",
+   "q": "A News Gapper needs a fresh, named catalyst; a big gap on no news is not one.",
+   "answer": "True",
+   "why": "True. The catalyst is fresh and named, most often a report. Buying a gap with no catalyst, or a weak one, is a mistake.",
+   "lesson_line": "No named catalyst, no News Gapper.",
+   "facts": [
+    "c01",
+    "c32"
+   ],
+   "house": true
+  },
+  {
+   "key": "q03",
+   "skill": "setup.news_gapper",
+   "rung": 1,
+   "format": "mcq",
+   "criterion": "ng.gap_holds",
+   "q": "What must the gap day do for the gap to count as holding?",
+   "choices": [
+    "Hold the gap, close in upper half",
+    "Close at the exact high of the day",
+    "Trade back to the prior close first",
+    "Close below the open"
+   ],
+   "answer": "Hold the gap, close in upper half",
+   "why": "Stay above the prior close and close in the upper half of its range. The day never trades back to the prior close and closes green.",
+   "lesson_line": "A held gap never revisits the prior close.",
+   "facts": [
+    "c02",
+    "c03"
+   ],
+   "wrong": {
+    "Close at the exact high of the day": "The close does not have to be the exact high; the upper half is the test.",
+    "Trade back to the prior close first": "A trade back to the prior close means the gap filled.",
+    "Close below the open": "A close below the open is a faded day."
+   },
+   "house": true
+  },
+  {
+   "key": "q04",
+   "skill": "setup.news_gapper",
+   "rung": 1,
+   "format": "fill",
+   "criterion": "ng.stop_pullback",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "On the pullback buy, the stop goes a few cents under the pullback ___.",
+   "bank": [
+    "low",
+    "high",
+    "close",
+    "open",
+    "average"
+   ],
+   "answer": "low",
+   "why": "Low. On the pullback buy the stop goes a few cents under the pullback low.",
+   "lesson_line": "Stop first: a few cents under the pullback low.",
+   "facts": [
+    "c15",
+    "h24"
+   ],
+   "house": true
+  },
+  {
+   "key": "q05",
+   "skill": "setup.news_gapper",
+   "rung": 1,
+   "format": "tf",
+   "criterion": "ng.regular_hours",
+   "q": "Bonde made most of his big EP money buying pre-market, and we buy news gappers pre-market too.",
+   "answer": "False",
+   "why": "False. We buy at market in regular hours only. Bonde bought pre-market; we do not.",
+   "lesson_line": "No pre-market buys, even when Bonde made money there.",
+   "facts": [
+    "b06",
+    "c18",
+    "h23"
+   ],
+   "house": true
+  },
+  {
+   "key": "q06",
+   "skill": "setup.news_gapper",
+   "rung": 1,
+   "format": "mcq",
+   "criterion": "ng.market_reading",
+   "q": "News gappers work best in which market readings?",
+   "choices": [
+    "Green or Yellow",
+    "Orange or Red",
+    "Red only",
+    "Any; headlines ignore the market"
+   ],
+   "answer": "Green or Yellow",
+   "why": "Green or Yellow. Orange allows A+ setups only, and Red is mostly cash and shorts.",
+   "lesson_line": "Read the market first: Green or Yellow for gappers.",
+   "facts": [
+    "c29",
+    "h26"
+   ],
+   "wrong": {
+    "Orange or Red": "Orange is for A+ setups only, and Red is mostly cash.",
+    "Red only": "Red means mostly cash and shorts, not new longs.",
+    "Any; headlines ignore the market": "A good headline does not switch the market reading off."
+   },
+   "house": true
+  },
+  {
+   "key": "q07",
+   "skill": "setup.news_gapper",
+   "rung": 1,
+   "format": "tf",
+   "criterion": "ng.earnings_season",
+   "q": "News and earnings gaps cluster in a few weeks of each earnings season.",
+   "answer": "True",
+   "why": "True. The gaps cluster in 3 to 4 weeks of earnings season each quarter, so those are the weeks to watch.",
+   "lesson_line": "Gaps cluster in earnings season. Watch those weeks.",
+   "facts": [
+    "c30"
+   ],
+   "house": true
+  },
+  {
+   "key": "q08",
+   "skill": "setup.news_gapper",
+   "rung": 2,
+   "format": "mcq",
+   "criterion": "ng.volume",
+   "q": "How much volume does a News Gapper need by the close?",
+   "choices": [
+    "At least 3 times the 50-day average",
+    "Any volume if the gap is big",
+    "Just above the 50-day average",
+    "Less than the 50-day average"
+   ],
+   "answer": "At least 3 times the 50-day average",
+   "why": "At least 3 times the 50-day average, and on pace for it by the opening-range buy. Kullamagi: volume is the number one thing to focus on.",
+   "lesson_line": "Three times average volume is the line.",
+   "facts": [
+    "c04",
+    "k01"
+   ],
+   "wrong": {
+    "Any volume if the gap is big": "A big gap on thin volume is the trap; volume is the line.",
+    "Just above the 50-day average": "Just above average is the B- zone, below the line.",
+    "Less than the 50-day average": "Below average volume is the opposite of a news gap."
+   },
+   "house": true
+  },
+  {
+   "key": "q09",
+   "skill": "setup.news_gapper",
+   "rung": 2,
+   "format": "tf",
+   "criterion": "ng.entry_pullback",
+   "q": "The pullback buy waits for two down days or an inside day whose closes all hold the gap-day low.",
+   "answer": "True",
+   "why": "True. After two down days or an inside day that keep every close above the gap-day low, the buy is a market order over the prior day's high.",
+   "lesson_line": "The pullback must hold the gap-day low on every close.",
+   "facts": [
+    "c12",
+    "c10"
+   ],
+   "house": true
+  },
+  {
+   "key": "q10",
+   "skill": "setup.news_gapper",
+   "rung": 2,
+   "format": "mcq",
+   "criterion": "ng.inv_close_under_low",
+   "q": "In the first ten sessions, which event ends the setup?",
+   "choices": [
+    "A close under the gap-day low",
+    "An inside day",
+    "Two down days that hold the low",
+    "A quiet day on lighter volume"
+   ],
+   "answer": "A close under the gap-day low",
+   "why": "A close under the gap-day low. The gap fills or the stock closes under the gap-day low in the first ten sessions.",
+   "lesson_line": "A close under the gap-day low ends it.",
+   "facts": [
+    "c27",
+    "c52"
+   ],
+   "wrong": {
+    "An inside day": "An inside day is a pullback pattern we want.",
+    "Two down days that hold the low": "Two down days that hold the gap-day low are the pullback itself.",
+    "A quiet day on lighter volume": "A quiet day on lighter volume is part of a healthy pullback."
+   },
+   "house": true
+  },
+  {
+   "key": "q11",
+   "skill": "setup.news_gapper",
+   "rung": 2,
+   "format": "tf",
+   "criterion": "ng.inv_red_close",
+   "q": "A gap on good news that closes red is a News Failure, not a News Gapper.",
+   "answer": "True",
+   "why": "True. A red close after good news is the News Failure. Same headline, opposite trade.",
+   "lesson_line": "Same headline, red close: a different trade.",
+   "facts": [
+    "c26",
+    "c49"
+   ],
+   "house": true
+  },
+  {
+   "key": "q12",
+   "skill": "setup.news_gapper",
+   "rung": 2,
+   "format": "mcq",
+   "criterion": "ng.catalyst",
+   "q": "Which headline is the strongest catalyst?",
+   "choices": [
+    "A beat with a raised outlook",
+    "A mention on a morning TV show",
+    "One analyst upgrade to a buy",
+    "A vague press release about plans"
+   ],
+   "answer": "A beat with a raised outlook",
+   "why": "An earnings beat with a raised outlook. Bonde: earnings, new products and raised guidance have a high probability of a multi-month rally. Mentions and upgrades do not.",
+   "lesson_line": "Earnings with a raise beats a mention or an upgrade.",
+   "facts": [
+    "c38",
+    "c39",
+    "b01",
+    "b02"
+   ],
+   "wrong": {
+    "A mention on a morning TV show": "A media mention has a low probability of follow-through.",
+    "One analyst upgrade to a buy": "An upgrade alone is a B- catalyst.",
+    "A vague press release about plans": "A vague press release is a B- catalyst."
+   },
+   "house": true
+  },
+  {
+   "key": "q13",
+   "skill": "setup.news_gapper",
+   "rung": 2,
+   "format": "mcq",
+   "criterion": "ng.earnings_window",
+   "q": "When do we skip a news gapper's pullback buy?",
+   "choices": [
+    "A report is due within 3 sessions",
+    "The stock is up on the day",
+    "Volume is above average",
+    "The market is Green"
+   ],
+   "answer": "A report is due within 3 sessions",
+   "why": "A report is due within 3 sessions. We take no new buys in the 3 days before an earnings report.",
+   "lesson_line": "No new buys in the 3 days before a report.",
+   "facts": [
+    "c17",
+    "h08"
+   ],
+   "wrong": {
+    "The stock is up on the day": "Being up on the day is how a reclaim looks.",
+    "Volume is above average": "Above-average volume is a plus for a gapper.",
+    "The market is Green": "Green is the reading we want."
+   },
+   "house": true
+  },
+  {
+   "key": "q14",
+   "skill": "setup.news_gapper",
+   "rung": 2,
+   "format": "tf",
+   "criterion": "ng.fundamentals",
+   "q": "For an earnings gap, the fundamentals decide the grade before the chart is looked at.",
+   "answer": "False",
+   "why": "False. Growing sales and earnings, ideally accelerating, with a beat and raised guidance, are a grade cue. The chart comes first.",
+   "lesson_line": "Fundamentals are a cue. The chart decides.",
+   "facts": [
+    "c09",
+    "h17"
+   ],
+   "house": true
+  },
+  {
+   "key": "q15",
+   "skill": "setup.news_gapper",
+   "rung": 2,
+   "format": "tf",
+   "criterion": "rule.A5",
+   "q": "On a news gapper you may add shares when volume surges after the buy.",
+   "answer": "False",
+   "why": "False. The full size goes in at one price with one stop. No adding.",
+   "lesson_line": "One buy, one price, one stop.",
+   "facts": [
+    "h31"
+   ],
+   "house": true
+  },
+  {
+   "key": "q16",
+   "skill": "setup.news_gapper",
+   "rung": 3,
+   "format": "numeric",
+   "criterion": "ng.trim_1",
+   "q": "Bought at 105.11 with the stop at 103.20. Where is 3R?",
+   "answer": 110.84,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "a + 3 * (a - b)",
+     "a": 105.11,
+     "b": 103.2
+    },
+    "round": 2
+   },
+   "why": "110.84. One R is the fill minus the stop. Add three of those to the fill. TGT ran to 12.0R from these levels.",
+   "lesson_line": "Know your 3R before the open. The first third comes off there.",
+   "facts": [
+    "h05",
+    "d11"
+   ],
+   "house": true,
+   "prefix": "$"
+  },
+  {
+   "key": "q17",
+   "skill": "setup.news_gapper",
+   "rung": 3,
+   "format": "numeric",
+   "criterion": "ng.gap_holds",
+   "q": "Gap day: low 100.00, high 110.00, close 107.00. Where in the range did it close, from 0 to 1?",
+   "answer": 0.7,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(c - l) / (h - l)",
+     "c": 107,
+     "l": 100,
+     "h": 110
+    },
+    "round": 2
+   },
+   "why": "0.7. The close minus the low, divided by the high minus the low. That is the upper half of the range, so the gap holds.",
+   "lesson_line": "Close minus low, over the range. Upper half holds the gap.",
+   "facts": [
+    "c02",
+    "c40"
+   ],
+   "house": true
+  },
+  {
+   "key": "q18",
+   "skill": "setup.news_gapper",
+   "rung": 3,
+   "format": "mcq",
+   "criterion": "ng.stop_pullback",
+   "q": "Where does the stop go on the pullback buy?",
+   "choices": [
+    "A few cents under the pullback low",
+    "Under the gap-day low, however far",
+    "At the prior close, the gap-fill price",
+    "1% under the pullback low for room"
+   ],
+   "answer": "A few cents under the pullback low",
+   "why": "A few cents under the pullback low. The gap-day low is the line that must hold, not the stop.",
+   "lesson_line": "The stop sits under the pullback low.",
+   "facts": [
+    "c15",
+    "c14",
+    "h24"
+   ],
+   "wrong": {
+    "Under the gap-day low, however far": "The gap-day low is the line that must hold, not the stop.",
+    "At the prior close, the gap-fill price": "The prior close is the gap fill; a stop there is far too wide.",
+    "1% under the pullback low for room": "No porosity: the stop is a few cents under, not a cushion."
+   },
+   "house": true
+  },
+  {
+   "key": "q19",
+   "skill": "setup.news_gapper",
+   "rung": 3,
+   "format": "tf",
+   "criterion": "ng.trail",
+   "q": "The last third trails a close under the 21-day for a fast mover or the 10-day for a steadier one.",
+   "answer": "False",
+   "why": "False. It is the other way round. Sell on a close under the 10-day for a fast mover or the 21-day for a steadier one.",
+   "lesson_line": "Trail the last third under the 10- or 21-day.",
+   "facts": [
+    "c22",
+    "h21"
+   ],
+   "house": true
+  },
+  {
+   "key": "q20",
+   "skill": "setup.news_gapper",
+   "rung": 3,
+   "format": "fill",
+   "criterion": "ng.trim_2",
+   "q": "Tap the number that fits the blank.",
+   "sentence": "After the third at 3R, another third comes off at ___R.",
+   "bank": [
+    "5",
+    "4",
+    "6",
+    "8",
+    "10"
+   ],
+   "answer": "5",
+   "why": "5. After the first third at 3R, another third comes off at 5R, then the last third trails.",
+   "lesson_line": "A third at 3R, a third at 5R.",
+   "facts": [
+    "h20",
+    "h05"
+   ],
+   "house": true
+  },
+  {
+   "key": "q21",
+   "skill": "setup.news_gapper",
+   "rung": 3,
+   "format": "mcq",
+   "criterion": "ng.gap_a_plus",
+   "q": "Which gap is an A+ gap?",
+   "choices": [
+    "10% or more, and a true gap",
+    "Any gap that fills partly by noon",
+    "A gap on average daily volume",
+    "A gap that closes red"
+   ],
+   "answer": "10% or more, and a true gap",
+   "why": "10% or more, and a true gap. The day's low stays above the prior day's high.",
+   "lesson_line": "A+ gap: ten percent or more, and a true gap.",
+   "facts": [
+    "c05",
+    "sc1"
+   ],
+   "wrong": {
+    "Any gap that fills partly by noon": "A gap that fills is not holding.",
+    "A gap on average daily volume": "Average volume is not the A+ cue.",
+    "A gap that closes red": "A red close is a News Failure."
+   },
+   "house": true
+  },
+  {
+   "key": "q22",
+   "skill": "setup.news_gapper",
+   "rung": 3,
+   "format": "tf",
+   "criterion": "ng.gap_a_plus",
+   "q": "A true gap means the day's low stays above the prior day's high.",
+   "answer": "True",
+   "why": "True. For an up gap, the low must be higher than the previous day's high.",
+   "lesson_line": "A true gap leaves a hole above yesterday's high.",
+   "facts": [
+    "sc1",
+    "c05"
+   ],
+   "house": true
+  },
+  {
+   "key": "q23",
+   "skill": "setup.news_gapper",
+   "rung": 3,
+   "format": "numeric",
+   "criterion": "ng.volume",
+   "q": "The 50-day average volume is 4 million shares. The gap day trades 13 million. What is the multiple?",
+   "answer": 3.25,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "a / b",
+     "a": 13,
+     "b": 4
+    },
+    "round": 2
+   },
+   "why": "3.25. Gap-day volume divided by the 50-day average. That clears the line of at least 3 times.",
+   "lesson_line": "Volume multiple is today over the 50-day average.",
+   "facts": [
+    "c04",
+    "k04"
+   ],
+   "house": true,
+   "suffix": "x"
+  },
+  {
+   "key": "q24",
+   "skill": "setup.news_gapper",
+   "rung": 4,
+   "format": "scenario",
+   "criterion": "ng.entry_pullback",
+   "q": "What do you do?",
+   "story": "A stock gapped 12% on a contract headline and closed strong. Two down days followed, both closing above the gap-day low. This morning it trades over yesterday's high.",
+   "choices": [
+    "Buy at market; stop under pullback low",
+    "Pass; day one was the only entry",
+    "Wait for the next report",
+    "Buy at the gap-day low with a limit"
+   ],
+   "answer": "Buy at market; stop under pullback low",
+   "why": "Buy at market. After two down days that hold the gap-day low, the trigger is a market buy over the prior day's high. The stop goes a few cents under the pullback low.",
+   "lesson_line": "Buy as price trades over the prior day's high.",
+   "facts": [
+    "c12",
+    "c15"
+   ],
+   "wrong": {
+    "Pass; day one was the only entry": "The pullback buy is the entry here; day one is not the only one.",
+    "Wait for the next report": "Waiting for a report adds risk and drops the trigger.",
+    "Buy at the gap-day low with a limit": "A limit down at the gap-day low misses the trigger and the line."
+   },
+   "house": true
+  },
+  {
+   "key": "q25",
+   "skill": "setup.news_gapper",
+   "rung": 4,
+   "format": "scenario",
+   "criterion": "ng.inv_pullback_breaks_low",
+   "q": "Is there a buy?",
+   "story": "The pullback closes under the gap-day low on day 3. On day 4 the stock rallies and trades over the prior day's high.",
+   "choices": [
+    "No; the gap-day low broke first",
+    "Yes; the reclaim is the trigger",
+    "Yes, at half size",
+    "Yes, with a stop at the gap fill"
+   ],
+   "answer": "No; the gap-day low broke first",
+   "why": "No. The pullback broke the gap-day low on a close before any reclaim, so there is no Buy 2.",
+   "lesson_line": "A pullback that breaks the gap-day low has no buy.",
+   "facts": [
+    "c28",
+    "c27"
+   ],
+   "wrong": {
+    "Yes; the reclaim is the trigger": "The reclaim only counts if the pullback held the gap-day low.",
+    "Yes, at half size": "Half size on a broken setup is still a broken setup.",
+    "Yes, with a stop at the gap fill": "A stop at the gap fill is far wider than the rules allow."
+   },
+   "house": true
+  },
+  {
+   "key": "q26",
+   "skill": "setup.news_gapper",
+   "rung": 4,
+   "format": "scenario",
+   "criterion": "ng.no_chase",
+   "q": "Buy or pass?",
+   "story": "The reclaim level is 40.00. You were away from your desk, and at 10:30 the stock trades 41.80.",
+   "choices": [
+    "Pass, over 4% above the trigger",
+    "Buy, the reclaim is confirmed",
+    "Buy half size to cut the risk",
+    "Buy with a wider stop to fit it"
+   ],
+   "answer": "Pass, over 4% above the trigger",
+   "why": "Pass. 41.80 is more than 4% over the 40.00 reclaim level. Chasing costs size, not risk: the stop stays put and the shares shrink.",
+   "lesson_line": "Miss it rather than chase it. Four percent and done.",
+   "facts": [
+    "h11",
+    "h12"
+   ],
+   "wrong": {
+    "Buy, the reclaim is confirmed": "Confirmed and too far away are both true. The chase line is 4%.",
+    "Buy half size to cut the risk": "Half of a bad entry is still a bad entry.",
+    "Buy with a wider stop to fit it": "A wider stop to fit a late entry is the mistake, not the fix."
+   },
+   "house": true
+  },
+  {
+   "key": "q27",
+   "skill": "setup.news_gapper",
+   "rung": 4,
+   "format": "scenario",
+   "criterion": "ng.regular_hours",
+   "q": "What do you do?",
+   "story": "A contract headline hits at 7:30 am. The stock is up 11% pre-market on big volume.",
+   "choices": [
+    "Wait for the opening range, then decide",
+    "Buy now with a market order",
+    "Buy half now, half at the open",
+    "Place a stop-limit just under the gap"
+   ],
+   "answer": "Wait for the opening range, then decide",
+   "why": "Wait. We never buy before the open. The opening range forms first, and the day-one buy, if any, comes over its high in regular hours.",
+   "lesson_line": "No pre-market buys. Let the opening range form.",
+   "facts": [
+    "c18",
+    "c33",
+    "h23",
+    "k02"
+   ],
+   "wrong": {
+    "Buy now with a market order": "Entries are market orders in regular hours, not pre-market.",
+    "Buy half now, half at the open": "Half a pre-market buy is still a pre-market buy.",
+    "Place a stop-limit just under the gap": "A stop-limit under the gap is not an entry plan."
+   },
+   "house": true
+  },
+  {
+   "key": "q28",
+   "skill": "setup.news_gapper",
+   "rung": 4,
+   "format": "scenario",
+   "criterion": "ng.climax",
+   "q": "What do you do?",
+   "story": "Your news gapper is up 7R after four straight up days. Two of them were gap ups, and each day's range was wider than the last.",
+   "choices": [
+    "Sell a big part into it",
+    "Hold; the trail is the only exit",
+    "Add; momentum is strongest here",
+    "Sell everything at the open tomorrow"
+   ],
+   "answer": "Sell a big part into it",
+   "why": "Sell a big part into it. Three to five straight up days with gaps and range expansion is a climax run, and you sell a big part.",
+   "lesson_line": "A climax run is the time to sell a big part.",
+   "facts": [
+    "c25",
+    "h16"
+   ],
+   "wrong": {
+    "Hold; the trail is the only exit": "A climax run is a judgment call to sell a big part.",
+    "Add; momentum is strongest here": "Adding to a climax run is how gains are given back.",
+    "Sell everything at the open tomorrow": "Selling everything at once is not the plan; sell a big part."
+   },
+   "house": true
+  },
+  {
+   "key": "q29",
+   "skill": "setup.news_gapper",
+   "rung": 4,
+   "format": "scenario",
+   "criterion": "ng.trim_gap_open",
+   "q": "What do you do with the second third?",
+   "story": "You bought at 50.00 with the stop at 48.00, so 3R is 56.00 and 5R is 60.00. After the first third at 3R, the stock opens at 60.80.",
+   "choices": [
+    "Sell it at the open, 60.80",
+    "Sell it at 60.00 with a limit",
+    "Hold it to the close",
+    "Hold it to 10R"
+   ],
+   "answer": "Sell it at the open, 60.80",
+   "why": "Sell it at the open. If the stock gaps past a trim level, we trim at the open. Gappers often gap again.",
+   "lesson_line": "Opened past a trim level: take it at the open.",
+   "facts": [
+    "c21",
+    "h25",
+    "h20"
+   ],
+   "wrong": {
+    "Sell it at 60.00 with a limit": "The stock is already past 60.00; a limit there sits under the market.",
+    "Hold it to the close": "Waiting hands back what the open gave you.",
+    "Hold it to 10R": "The second third comes off at 5R, and the price is already past it."
+   },
+   "house": true
+  },
+  {
+   "key": "q30",
+   "skill": "setup.news_gapper",
+   "rung": 4,
+   "format": "tf",
+   "criterion": "ng.breakeven",
+   "q": "On a news gapper the stop moves to breakeven at the first trim by default.",
+   "answer": "True",
+   "why": "True. The stop moves to breakeven between 2R and 5R, and by default at the first trim.",
+   "lesson_line": "First trim, then the stop to breakeven.",
+   "facts": [
+    "c20",
+    "h05"
+   ],
+   "house": true
+  },
+  {
+   "key": "q31",
+   "skill": "setup.news_gapper",
+   "rung": 4,
+   "format": "scenario",
+   "criterion": "ng.entry_day1",
+   "q": "Buy, or wait for the pullback?",
+   "story": "The stock gapped 9% on a report. At 9:50 it trades over the 5-minute high, still above its open, with the day's average volume already traded. The day's low is 2% under the price.",
+   "choices": [
+    "Buy at market; stop under the day's low",
+    "Wait; the pullback is the only entry",
+    "Buy half now, half at the close",
+    "Buy at tomorrow's open"
+   ],
+   "answer": "Buy at market; stop under the day's low",
+   "why": "Buy at market. By our current default, day one over the opening-range high is the A+ form, and the pullback is the other way in. The stop goes a few cents under the day's low, 2% away.",
+   "lesson_line": "Day one over the opening-range high is the A+ form.",
+   "facts": [
+    "c12",
+    "c13",
+    "c14",
+    "u01",
+    "u04"
+   ],
+   "wrong": {
+    "Wait; the pullback is the only entry": "By our current default we teach both. Day one over the opening-range high is the A+ form; the pullback is the other way in.",
+    "Buy half now, half at the close": "Half now and half later is two prices, not one buy.",
+    "Buy at tomorrow's open": "Waiting for tomorrow's open gives up the trigger."
+   },
+   "house": true
+  },
+  {
+   "key": "q32",
+   "skill": "setup.news_gapper",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "ng.catalyst",
+   "q": "Which lesson owns the day, and which the pullback buy?",
+   "story": "The gap day is a report's reaction day on an established leader clearing a four-month base.",
+   "choices": [
+    "PEG owns the day; we teach the buy",
+    "This lesson owns both",
+    "Gap Support owns the first pullback",
+    "The Episodic Pivot owns the gap day"
+   ],
+   "answer": "PEG owns the day; we teach the buy",
+   "why": "The PEG owns the day; the pullback buy is taught here. A report's reaction day on an established leader clearing its base is the PEG. The first-pullback entry on either is taught here.",
+   "lesson_line": "A report day on a leader is a PEG. The pullback entry is taught here.",
+   "facts": [
+    "c47",
+    "d10"
+   ],
+   "wrong": {
+    "This lesson owns both": "The PEG lesson owns a report reaction day on a leader.",
+    "Gap Support owns the first pullback": "Gap Support is the later test of the gap-up low, not the first pullback.",
+    "The Episodic Pivot owns the gap day": "An Episodic Pivot is a neglected name, not a leader clearing a base."
+   },
+   "house": true
+  },
+  {
+   "key": "q33",
+   "skill": "setup.news_gapper",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "ng.inv_red_close",
+   "q": "News Gapper or News Failure?",
+   "story": "A contract headline gaps a stock up 8% at the open. By the close it is 2% under the prior close.",
+   "choices": [
+    "A News Failure; the opposite trade",
+    "A News Gapper; the headline was good",
+    "A News Gapper; buy the pullback",
+    "A Kicker; the close was weak"
+   ],
+   "answer": "A News Failure; the opposite trade",
+   "why": "A News Failure. A gapper holds its gap and closes green in the upper half. A gap on good news that closes under the prior close is a News Failure: same headline, opposite trade.",
+   "lesson_line": "Same headline, red close: the opposite trade.",
+   "facts": [
+    "c49",
+    "c26"
+   ],
+   "wrong": {
+    "A News Gapper; the headline was good": "Good news does not make a gap hold. The close decides.",
+    "A News Gapper; buy the pullback": "A close under the prior close is not a gap that held.",
+    "A Kicker; the close was weak": "A Kicker needs a weak red close the day before the gap."
+   },
+   "house": true
+  },
+  {
+   "key": "q34",
+   "skill": "setup.news_gapper",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "ng.volume",
+   "q": "News Gapper or Kicker?",
+   "story": "Monday ends with a weak red close. Tuesday opens 2% higher on 1.6x volume with no headline.",
+   "choices": [
+    "A Kicker; weak red close, small gap",
+    "A News Gapper; any gap counts",
+    "A PEG; the stock gapped up",
+    "An Episodic Pivot; the close was weak"
+   ],
+   "answer": "A Kicker; weak red close, small gap",
+   "why": "A Kicker. It needs a weak red close and then a small gap on positioning, rarely a headline. A News Gapper has a named catalyst and at least 3 times volume.",
+   "lesson_line": "A weak red close and a small gap with no news is a Kicker.",
+   "facts": [
+    "c48",
+    "c04"
+   ],
+   "wrong": {
+    "A News Gapper; any gap counts": "A News Gapper needs a named catalyst and at least 3 times volume.",
+    "A PEG; the stock gapped up": "A PEG is a report's reaction day, and there was none.",
+    "An Episodic Pivot; the close was weak": "An Episodic Pivot needs a named surprise on a neglected name."
+   },
+   "house": true
+  },
+  {
+   "key": "q35",
+   "skill": "setup.news_gapper",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "ng.entry_pullback",
+   "q": "News Gapper or Gap Support?",
+   "story": "Five weeks after a report gap, the stock dips to the gap-up low, undercuts it slightly, and closes back over it.",
+   "choices": [
+    "Gap Support, the later test",
+    "A News Gapper pullback buy",
+    "A News Failure; the gap broke",
+    "A PEG; it is an earnings stock"
+   ],
+   "answer": "Gap Support, the later test",
+   "why": "Gap Support. The gapper's pullback stays above the gap-day low and reclaims within about ten sessions. Gap Support is the later test of the gap-up low itself, bought as that low is defended.",
+   "lesson_line": "A test of the gap-up low weeks later is Gap Support.",
+   "facts": [
+    "c50",
+    "c10"
+   ],
+   "wrong": {
+    "A News Gapper pullback buy": "The News Gapper pullback comes within about ten sessions and stays above the gap-day low.",
+    "A News Failure; the gap broke": "A News Failure is a red close on day one, not a test weeks later.",
+    "A PEG; it is an earnings stock": "A PEG is the report's reaction day, not a test five weeks on."
+   },
+   "house": true
+  },
+  {
+   "key": "q36",
+   "skill": "setup.news_gapper",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "ng.catalyst",
+   "q": "News Gapper or Episodic Pivot?",
+   "story": "A stock nobody follows has been flat for six months. A contract headline gaps it 18% on 9x volume, the first gap in a year.",
+   "choices": [
+    "An Episodic Pivot; a neglected name",
+    "A News Gapper; any headline gap is one",
+    "A PEG; it gapped on volume",
+    "A Kicker; the stock was quiet"
+   ],
+   "answer": "An Episodic Pivot; a neglected name",
+   "why": "An Episodic Pivot. An EP is the first big gap in six months on a neglected name. A gapper can come from a stock that was not neglected.",
+   "lesson_line": "A first gap in six months on a forgotten name is an EP.",
+   "facts": [
+    "c46",
+    "c01"
+   ],
+   "wrong": {
+    "A News Gapper; any headline gap is one": "The six months before the gap and the first gap in a year make it an EP.",
+    "A PEG; it gapped on volume": "A PEG is a report reaction day on an established leader.",
+    "A Kicker; the stock was quiet": "A Kicker needs a weak red close and a small gap on positioning."
+   },
+   "house": true
+  },
+  {
+   "key": "q37",
+   "skill": "setup.news_gapper",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "ng.not_late",
+   "q": "Grade each as a Buy 2.",
+   "story": "Two 11% gaps on record volume. One is on a stock flat for three months. The other is on a stock up 42% in three months.",
+   "choices": [
+    "First stronger; second a B-",
+    "Both A+; both have record volume",
+    "Second stronger; it has momentum",
+    "Both B-; 11% is small"
+   ],
+   "answer": "First stronger; second a B-",
+   "why": "First stronger, second a B-. Quiet before the gap is an A+ cue. Up 30% or more already is a B- cue.",
+   "lesson_line": "Quiet before the gap is an A+ cue. A late gap is a B-.",
+   "facts": [
+    "c41",
+    "c42",
+    "c08",
+    "c05"
+   ],
+   "wrong": {
+    "Both A+; both have record volume": "Record volume is the same, but the months before the gap differ.",
+    "Second stronger; it has momentum": "A big run into the gap is the late-gap warning, not a plus.",
+    "Both B-; 11% is small": "A gap of 10% or more is an A+ cue, not a small one."
+   },
+   "house": true
+  },
+  {
+   "key": "q38",
+   "skill": "setup.news_gapper",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "ng.gap_holds",
+   "q": "Grade each close.",
+   "story": "Same gap, same volume, two stocks. One closes at 93% of its range. The other closes at 60% of its range.",
+   "choices": [
+    "First an A+ cue; second a plain gapper",
+    "Both the same; the gap decides",
+    "First a B-; too close to the high",
+    "Both A+; both closed green"
+   ],
+   "answer": "First an A+ cue; second a plain gapper",
+   "why": "First an A+ cue, second a plain gapper. A close in the top quarter of the range is an A+ cue. A close in the upper half holds the gap but earns no extra.",
+   "lesson_line": "Top-quarter close is an A+ cue. Upper half just holds the gap.",
+   "facts": [
+    "c40",
+    "c02"
+   ],
+   "wrong": {
+    "Both the same; the gap decides": "The close is half the story, and these two differ.",
+    "First a B-; too close to the high": "A close near the high is the best close, not a flaw.",
+    "Both A+; both closed green": "Only a top-quarter close is the A+ cue; 60% is not."
+   },
+   "house": true
+  },
+  {
+   "key": "q39",
+   "skill": "setup.news_gapper",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "ng.catalyst",
+   "q": "Grade the catalyst of each.",
+   "story": "Two stocks gap 12% on 4x volume. One gaps on a government contract. The other gaps on an analyst upgrade.",
+   "choices": [
+    "Contract stronger; an upgrade is a B-",
+    "Both A+; the gap and volume match",
+    "Upgrade stronger; analysts move stocks",
+    "Same grade; a gap is a gap"
+   ],
+   "answer": "Contract stronger; an upgrade is a B-",
+   "why": "The contract is stronger; an upgrade is a B- catalyst. A business-changing deal is an A+ catalyst. Bonde: upgrades have a low probability of follow-through.",
+   "lesson_line": "A business-changing deal beats an analyst upgrade.",
+   "facts": [
+    "c38",
+    "c39",
+    "b02"
+   ],
+   "wrong": {
+    "Both A+; the gap and volume match": "The catalyst is what differs, and it is part of the grade.",
+    "Upgrade stronger; analysts move stocks": "An upgrade alone has a low probability of follow-through.",
+    "Same grade; a gap is a gap": "Both gaps have the same size; the catalyst decides the grade."
+   },
+   "house": true
+  },
+  {
+   "key": "q40",
+   "skill": "setup.news_gapper",
+   "rung": 6,
+   "format": "numeric",
+   "criterion": "ng.stop_pullback",
+   "q": "Account 40,000. Risk 0.5%. Fill 105.11, stop 103.20. How many shares?",
+   "answer": 104,
+   "calc": {
+    "fn": "shares_from_risk",
+    "args": {
+     "account": 40000,
+     "risk_pct": 0.5,
+     "entry": 105.11,
+     "stop": 103.2
+    },
+    "round": 0
+   },
+   "why": "104. Account times risk percent, divided by the fill minus the stop, rounded down. The stop sets the size.",
+   "lesson_line": "Stop first, distance second, size last.",
+   "facts": [
+    "h03",
+    "h01",
+    "d11"
+   ],
+   "house": true,
+   "suffix": " shares"
+  },
+  {
+   "key": "q41",
+   "skill": "setup.news_gapper",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "ng.earnings_window",
+   "q": "Buy the reclaim?",
+   "story": "A news gap on Monday, a clean pullback, and a reclaim that triggers on Thursday. The company reports Friday after the close.",
+   "choices": [
+    "No; a report is within 3 sessions",
+    "Yes; the reclaim is perfect",
+    "Yes, at half size",
+    "Yes, and hold it through the report"
+   ],
+   "answer": "No; a report is within 3 sessions",
+   "why": "No. A news gapper with a report due within 3 sessions waits. We take no new buys in the 3 days before a report.",
+   "lesson_line": "With a report in the next 3 sessions, no new buy.",
+   "facts": [
+    "c17",
+    "h08"
+   ],
+   "wrong": {
+    "Yes; the reclaim is perfect": "A perfect chart does not remove the report risk.",
+    "Yes, at half size": "Half size is still a new buy in the report window.",
+    "Yes, and hold it through the report": "Holding through a report needs 5R, not a new position."
+   },
+   "house": true
+  },
+  {
+   "key": "q42",
+   "skill": "setup.news_gapper",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "ng.inv_close_under_low",
+   "q": "What now?",
+   "story": "Seven sessions after the gap, the stock closes under the gap-day low. You have not bought yet.",
+   "choices": [
+    "Off; no Buy 2",
+    "Keep waiting for a deeper pullback",
+    "Buy at the close; it is cheap",
+    "On; only a gap fill ends it"
+   ],
+   "answer": "Off; no Buy 2",
+   "why": "Off. A close under the gap-day low in the first ten sessions invalidates the setup. There is nothing to buy.",
+   "lesson_line": "A close under the gap-day low ends it.",
+   "facts": [
+    "c27",
+    "c28"
+   ],
+   "wrong": {
+    "Keep waiting for a deeper pullback": "The gap-day low gave way on a close. Waiting does not undo that.",
+    "Buy at the close; it is cheap": "Buying cheaper is not the test; the line has to hold.",
+    "On; only a gap fill ends it": "A close under the gap-day low also ends it."
+   },
+   "house": true
+  },
+  {
+   "key": "q43",
+   "skill": "setup.news_gapper",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "ng.no_porosity",
+   "q": "Where does the stop go?",
+   "story": "A friend quotes Morales and Kacher and says to allow a little room: put the stop 2% under the pullback low.",
+   "choices": [
+    "Just under the pullback low",
+    "2% under the pullback low",
+    "Under the gap day's own low",
+    "At the prior day's close"
+   ],
+   "answer": "Just under the pullback low",
+   "why": "A few cents under the pullback low. No porosity: Morales and Kacher allow a 1 to 2% undercut. Here the stop is the exit and it only moves up.",
+   "lesson_line": "No porosity. The stop is the exit.",
+   "facts": [
+    "c16",
+    "m01",
+    "c15"
+   ],
+   "wrong": {
+    "2% under the pullback low": "That is porosity. Our stop is a few cents under a real low.",
+    "Under the gap day's own low": "The gap-day low is the line to hold, not our stop.",
+    "At the prior day's close": "The prior close is far too wide for a stop."
+   },
+   "house": true
+  },
+  {
+   "key": "q44",
+   "skill": "setup.news_gapper",
+   "rung": 6,
+   "format": "tf",
+   "criterion": "ng.correction_end",
+   "q": "Coming out of a correction, the recent earnings gappers often lead on the other side.",
+   "answer": "True",
+   "why": "True. Coming out of corrections it is the recent earnings gappers that often have stellar performance on the other side.",
+   "lesson_line": "After a correction, watch the recent earnings gappers.",
+   "facts": [
+    "c31",
+    "u05"
+   ],
+   "house": true
+  },
+  {
+   "key": "q45",
+   "skill": "setup.news_gapper",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "ng.liquidity",
+   "q": "Take the reclaim?",
+   "story": "An $8 stock that trades about $6 million a day gaps 20% on a contract. It holds the gap and sets up a clean pullback.",
+   "choices": [
+    "No; under $10 and $20 million a day",
+    "Yes; the gap day's volume is huge",
+    "Yes, at half size",
+    "Yes; an $8 stock is cheap to size"
+   ],
+   "answer": "No; under $10 and $20 million a day",
+   "why": "No. The stock is under $10 and trades under $20 million a day. A great gap does not change the liquidity rule.",
+   "lesson_line": "Ten dollars and twenty million a day, or we skip.",
+   "facts": [
+    "h09",
+    "h19"
+   ],
+   "wrong": {
+    "Yes; the gap day's volume is huge": "The rule is about the usual dollar volume, not one big day.",
+    "Yes, at half size": "Half size does not fix a liquidity failure.",
+    "Yes; an $8 stock is cheap to size": "Both the price and the dollar volume fail."
+   },
+   "house": true
+  },
+  {
+   "key": "q46",
+   "skill": "setup.news_gapper",
+   "rung": 6,
+   "format": "numeric",
+   "criterion": "ng.stop_pullback",
+   "q": "Fill 33.55, stop 32.59. How far is the stop from the fill, in percent?",
+   "answer": 2.9,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(a - b) / a * 100",
+     "a": 33.55,
+     "b": 32.59
+    },
+    "round": 1
+   },
+   "why": "2.9. The fill minus the stop, divided by the fill. That sits inside the usual 3%.",
+   "lesson_line": "Stop distance is the fill minus the stop, over the fill.",
+   "facts": [
+    "h04",
+    "d05"
+   ],
+   "house": true,
+   "suffix": "%"
+  },
+  {
+   "key": "q47",
+   "skill": "setup.news_gapper",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "ng.next_earnings",
+   "q": "Hold or sell?",
+   "story": "You are up 4R on a news gapper and took the first third at 3R. The next report is tomorrow after the close.",
+   "choices": [
+    "Sell before the report; not up 5R",
+    "Hold; the news was a winner last time",
+    "Hold half, sell half",
+    "Hold; the stop protects you"
+   ],
+   "answer": "Sell before the report; not up 5R",
+   "why": "Sell before the report. Hold through the next report only if up 5R. Up 4R is not enough.",
+   "lesson_line": "Under 5R going into a report, sell first.",
+   "facts": [
+    "c24",
+    "c37",
+    "h08"
+   ],
+   "wrong": {
+    "Hold; the news was a winner last time": "The last news says nothing about the next report.",
+    "Hold half, sell half": "Half a position under 5R still carries the report risk.",
+    "Hold; the stop protects you": "A stop does not protect against a gap through it."
+   },
+   "house": true
+  },
+  {
+   "key": "q48",
+   "skill": "setup.news_gapper",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "ng.entry_pullback",
+   "q": "What was that loss?",
+   "story": "AVAV, 2024. A 15.3% gap on 15.8x volume closed at 79% of its range. You bought the 8-session pullback and reclaim at 162.59. It went straight to the stop at 158.43.",
+   "choices": [
+    "A planned loss on a late reclaim",
+    "A mistake; the gap was too big",
+    "A mistake; the volume was too high",
+    "A broken rule; the stop was too tight"
+   ],
+   "answer": "A planned loss on a late reclaim",
+   "why": "A planned loss on a late reclaim. A big-volume gap does not protect a late Buy 2, and the stop did its job.",
+   "lesson_line": "A big-volume gap does not protect a late pullback buy.",
+   "facts": [
+    "d14",
+    "d15",
+    "d16",
+    "h01"
+   ],
+   "wrong": {
+    "A mistake; the gap was too big": "A big gap on huge volume is a plus, not a flaw.",
+    "A mistake; the volume was too high": "Heavy volume is part of the setup.",
+    "A broken rule; the stop was too tight": "The stop sat under the pullback low as the rules say."
+   },
+   "house": true
+  },
+  {
+   "key": "q49",
+   "skill": "setup.news_gapper",
+   "rung": 7,
+   "format": "mcq",
+   "criterion": "ng.entry_pullback",
+   "q": "Where does the pullback buy fail most often?",
+   "choices": [
+    "Early reclaim after a wide day-one bar",
+    "A reclaim after a quiet 4-day pullback",
+    "A reclaim on a clean inside day",
+    "A reclaim that holds the upper half"
+   ],
+   "answer": "Early reclaim after a wide day-one bar",
+   "why": "An early reclaim after a very wide day-one bar. Three of the four losing reclaims came on day 4, the earliest after a two-session pullback.",
+   "lesson_line": "Beware the early reclaim after a very wide first day.",
+   "facts": [
+    "c51",
+    "d30",
+    "d31"
+   ],
+   "wrong": {
+    "A reclaim after a quiet 4-day pullback": "A quiet pullback that holds the low is the good version.",
+    "A reclaim on a clean inside day": "An inside day that holds the gap-day low is a good pullback.",
+    "A reclaim that holds the upper half": "Holding the upper half of the gap day is an A+ cue."
+   },
+   "house": true
+  },
+  {
+   "key": "q50",
+   "skill": "setup.news_gapper",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "ng.time_stop",
+   "q": "What does the plan do on day ten?",
+   "story": "PEN, 2026. An 11.1% gap on 18.2x volume, in a stock already up 23.8% over 65 sessions. You bought the day-4 reclaim at 357.70, and it has drifted under 1R since.",
+   "choices": [
+    "Sells it; under 1R at ten sessions",
+    "Holds it; the stop has not been hit",
+    "Adds to it; it is coiling",
+    "Moves the stop to the gap-day low"
+   ],
+   "answer": "Sells it; under 1R at ten sessions",
+   "why": "It sells the trade. Time stop: under 1R after 10 sessions, sell. The reclaim reached only 0.45R and drifted for ten sessions before the stop.",
+   "lesson_line": "Under 1R after ten sessions, the trade is sold.",
+   "facts": [
+    "c23",
+    "d18",
+    "d19",
+    "h15"
+   ],
+   "wrong": {
+    "Holds it; the stop has not been hit": "The time stop exists for exactly this trade.",
+    "Adds to it; it is coiling": "Adding breaks one buy, one price, one stop.",
+    "Moves the stop to the gap-day low": "The stop only moves up, never to the gap-day low."
+   },
+   "house": true
+  },
+  {
+   "key": "q51",
+   "skill": "setup.news_gapper",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "ng.catalyst",
+   "q": "Is it an earnings gapper?",
+   "story": "GE, 2015. A 5.4% gap on 10.0x volume closes at 90% of its range. The earnings calendar shows no report that day.",
+   "choices": [
+    "Not earnings; find the headline first",
+    "An earnings gapper; volume says so",
+    "An earnings gapper; the close says so",
+    "No setup; it was not earnings"
+   ],
+   "answer": "Not earnings; find the headline first",
+   "why": "Not earnings. The calendar shows no report that day, so this is a news gap and you need the headline. Calling every big gap earnings without checking is a mistake: a quarter are not.",
+   "lesson_line": "Check the calendar. A quarter of big gaps are not earnings.",
+   "facts": [
+    "c34",
+    "d21"
+   ],
+   "wrong": {
+    "An earnings gapper; volume says so": "Volume does not tell you the catalyst. The calendar does.",
+    "An earnings gapper; the close says so": "A strong close shows strength, not the catalyst. The calendar does.",
+    "No setup; it was not earnings": "A gap with no report is not thrown out. It needs a named headline."
+   },
+   "house": true
+  },
+  {
+   "key": "q52",
+   "skill": "setup.news_gapper",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "ng.volume",
+   "q": "Is it a News Gapper?",
+   "story": "AAPL, 2022. The report was the day before. The stock gaps up 4.1% on 1.7x its 50-day volume and closes at its high.",
+   "choices": [
+    "No; volume is under 3 times",
+    "Yes; it closed at the high",
+    "Yes; earnings gaps need less volume",
+    "No; the gap was too small"
+   ],
+   "answer": "No; volume is under 3 times",
+   "why": "No. The volume was 1.7x the 50-day average, under the line of at least 3 times. The close at the high does not fix thin volume.",
+   "lesson_line": "Under three times average volume is not a News Gapper.",
+   "facts": [
+    "d23",
+    "c04"
+   ],
+   "wrong": {
+    "Yes; it closed at the high": "A strong close does not replace the volume line.",
+    "Yes; earnings gaps need less volume": "The line is at least 3 times, earnings or not.",
+    "No; the gap was too small": "Volume is the failing test here, not the size of the gap."
+   },
+   "house": true
+  },
+  {
+   "key": "q53",
+   "skill": "setup.news_gapper",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "ng.inv_red_close",
+   "q": "Is it a News Failure?",
+   "story": "NFLX, 2018. A 9.2% gap on 3.3x volume. The low of the day is 35.65, above the prior close of 34.64, and it closes at 35% of its range.",
+   "choices": [
+    "No; it closed green and held the gap",
+    "Yes; any fade is a failure",
+    "Yes; it closed in the lower half",
+    "Yes; the high was never held"
+   ],
+   "answer": "No; it closed green and held the gap",
+   "why": "No. The gap held, since the low stayed above the prior close of 34.64. The day closed green, so it is not a News Failure. It is a weak, faded close, not a red one.",
+   "lesson_line": "A fade that closes green is weak, not a News Failure.",
+   "facts": [
+    "d24",
+    "d25",
+    "d26",
+    "c03"
+   ],
+   "wrong": {
+    "Yes; any fade is a failure": "A News Failure closes red or trades back to the prior close.",
+    "Yes; it closed in the lower half": "A weak close is not the failure. A red close or a filled gap is.",
+    "Yes; the high was never held": "Not holding the high is a fade, not a failure."
+   },
+   "house": true
+  },
+  {
+   "key": "q54",
+   "skill": "setup.news_gapper",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "ng.not_late",
+   "q": "How does it grade?",
+   "story": "URI, 2024. A gap on earnings on 4.0x volume, close at 89% of its range, on a stock up 42% over the prior 65 sessions.",
+   "choices": [
+    "Late in a run; a B- at best",
+    "A+; 4.0x volume and a high close",
+    "Fine; the close is near the high",
+    "A+; strength begets strength"
+   ],
+   "answer": "Late in a run; a B- at best",
+   "why": "Late in a run, a B- at best. The stock was up 42% in the prior 65 sessions, past the line of about 30%. A late gap carries the climax risk.",
+   "lesson_line": "A gap on a stock already up 42% is late.",
+   "facts": [
+    "d27",
+    "d28",
+    "c08",
+    "c42"
+   ],
+   "wrong": {
+    "A+; 4.0x volume and a high close": "Volume and the close are good; the run into the gap is the problem.",
+    "Fine; the close is near the high": "A strong day does not erase a 42% run into it.",
+    "A+; strength begets strength": "A big run into the gap is the late-gap warning, not a plus."
+   },
+   "house": true
+  },
+  {
+   "key": "q55",
+   "skill": "setup.news_gapper",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "ng.trim_1",
+   "q": "Write the plan: entry, stop, first trim.",
+   "story": "PANW, 2021. An 11.6x volume gap held its low through a 6-session pullback. On day 8 the stock trades over the prior day's high at 77.06. The stop goes at 75.92.",
+   "choices": [
+    "Market 77.06; stop 75.92; third at 80.48",
+    "Limit 74.00; stop 70.00; hold",
+    "Market at close; stop 77.06; 2R",
+    "Market 77.06; no stop; third at 10R"
+   ],
+   "answer": "Market 77.06; stop 75.92; third at 80.48",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "a + 3 * (a - b)",
+     "a": 77.06,
+     "b": 75.92
+    },
+    "round": 2
+   },
+   "why": "Market 77.06, stop 75.92, a third at 80.48. One R is the fill minus the stop; three of those above the fill is 80.48. PANW reached 14.2R.",
+   "lesson_line": "Entry, stop and first trim, written before the open.",
+   "facts": [
+    "d12",
+    "d13",
+    "h05",
+    "h22"
+   ],
+   "wrong": {
+    "Limit 74.00; stop 70.00; hold": "A limit far below never fills, and a stop that wide breaks the size rule.",
+    "Market at close; stop 77.06; 2R": "A stop at the entry is no stop, and the first trim is 3R.",
+    "Market 77.06; no stop; third at 10R": "A real stop goes in with the broker, and the first third is at 3R."
+   },
+   "house": true
+  },
+  {
+   "key": "q56",
+   "skill": "setup.news_gapper",
+   "rung": 8,
+   "format": "tf",
+   "criterion": "ng.entry_pullback",
+   "q": "A pullback that dips under the gap-day midpoint is graded down.",
+   "answer": "True",
+   "why": "True. A first pullback that holds the upper half of the gap day is an A+ cue. One that dips under the gap-day midpoint is a B- cue.",
+   "lesson_line": "Holding the upper half is A+. Under the midpoint is a B-.",
+   "facts": [
+    "c43",
+    "c44"
+   ],
+   "house": true
+  },
+  {
+   "key": "q57",
+   "skill": "setup.news_gapper",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "ng.entry_pullback",
+   "q": "Grade each pullback.",
+   "story": "Two stocks gap on reports and close strong. The first one's pullback never leaves the upper half of the gap day. The second one's pullback dips under the gap-day midpoint but holds the low.",
+   "choices": [
+    "First an A+ cue; second a B-",
+    "Both the same; both hold the low",
+    "First a B-; shallow means weak",
+    "Both A; any pullback is fine"
+   ],
+   "answer": "First an A+ cue; second a B-",
+   "why": "First an A+ cue, second a B-. The first pullback holds the upper half of the gap day. The second dips under the gap-day midpoint.",
+   "lesson_line": "A shallow pullback grades above a deep one.",
+   "facts": [
+    "c43",
+    "c44"
+   ],
+   "wrong": {
+    "Both the same; both hold the low": "Both hold the low, but the depth still grades.",
+    "First a B-; shallow means weak": "A shallow pullback shows strength, not weakness.",
+    "Both A; any pullback is fine": "The depth of the pullback is part of the grade."
+   },
+   "house": true
+  },
+  {
+   "key": "q58",
+   "skill": "setup.news_gapper",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "ng.not_late",
+   "q": "What do you do?",
+   "story": "A stock has gapped up two days in a row, each on wider ranges. Today a news headline gaps it a third time on 4x volume.",
+   "choices": [
+    "Pass; a third gap in a burst is late",
+    "Buy day one; the volume is strong there",
+    "Buy the pullback tomorrow morning",
+    "Short it; it looks exhausted now"
+   ],
+   "answer": "Pass; a third gap in a burst is late",
+   "why": "Pass. The setup is not the 3rd to 5th day of a straight-up burst. Buying the third gap of a parabolic burst is a mistake.",
+   "lesson_line": "The third gap of a burst is late. Pass.",
+   "facts": [
+    "c08",
+    "c35"
+   ],
+   "wrong": {
+    "Buy day one; the volume is strong there": "Good volume does not fix a third gap in a burst.",
+    "Buy the pullback tomorrow morning": "A pullback buy still needs a setup that is not late.",
+    "Short it; it looks exhausted now": "A late gap is a reason to pass, not to short."
+   },
+   "house": true
+  },
+  {
+   "key": "q59",
+   "skill": "setup.news_gapper",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "ng.volume_a_plus",
+   "q": "How does the volume grade?",
+   "story": "A stock gaps on a report. By 9:50, twenty minutes after the open, it has already traded its full average daily volume.",
+   "choices": [
+    "An A+ cue",
+    "A B- cue; too early to tell",
+    "No cue; only the close counts",
+    "A disqualifier; too much too fast"
+   ],
+   "answer": "An A+ cue",
+   "why": "An A+ cue. The average daily volume trading in the first 15 to 20 minutes is an A+ volume cue. Kullamagi: ideally the stock trades its average daily volume the first 15 to 20 minutes or quicker.",
+   "lesson_line": "A day's average volume in 20 minutes is an A+ cue.",
+   "facts": [
+    "c06",
+    "k04"
+   ],
+   "wrong": {
+    "A B- cue; too early to tell": "Twenty minutes is the window, and the cue is already met.",
+    "No cue; only the close counts": "Volume early in the day is the point of the cue.",
+    "A disqualifier; too much too fast": "Heavy early volume is the cue, not a flaw."
+   },
+   "house": true
+  },
+  {
+   "key": "q60",
+   "skill": "setup.news_gapper",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "rule.E56",
+   "q": "May you take the reclaim?",
+   "story": "You have been stopped out of the same stock three times this week on three clean reclaims. A fourth reclaim triggers on Friday.",
+   "choices": [
+    "No; three tries a week are used",
+    "Yes; a new trigger is a new trade",
+    "Yes, at double size",
+    "Yes, with a wider stop"
+   ],
+   "answer": "No; three tries a week are used",
+   "why": "No. At most 3 tries a week and 6 in a month on one stock. After a stop-out, buy again only on a new trigger, as a new trade.",
+   "lesson_line": "Three tries a week on one stock, then stop.",
+   "facts": [
+    "h29",
+    "h28"
+   ],
+   "wrong": {
+    "Yes; a new trigger is a new trade": "A new trigger is a new trade, but the tries per week are capped.",
+    "Yes, at double size": "Doubling size to win it back breaks the sizing rule.",
+    "Yes, with a wider stop": "A wider stop breaks the stop rule."
+   },
+   "house": true
+  },
+  {
+   "key": "q61",
+   "skill": "setup.news_gapper",
+   "rung": 8,
+   "format": "numeric",
+   "criterion": "rule.A5",
+   "q": "The risk formula says 666 shares. The stock's average daily volume is 40,000 shares. How many shares may you buy?",
+   "answer": 400,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "a / 100",
+     "a": 40000
+    },
+    "round": 0
+   },
+   "why": "400. The size is the smaller of the risk-based size and the position cap. We never own more than 1% of a stock's average daily volume.",
+   "lesson_line": "Size is the smaller of the risk formula and the cap.",
+   "facts": [
+    "h03",
+    "h19"
+   ],
+   "house": true,
+   "suffix": " shares"
+  },
+  {
+   "key": "q62",
+   "skill": "setup.news_gapper",
+   "rung": 9,
+   "format": "mcq",
+   "criterion": "ng.entry_pullback",
+   "q": "Hidden ticker, five sessions after a gap on a report. Did the pullback hold the gap-day low? Take the reclaim or pass.",
+   "choices": [
+    "Take it; the pullback held the low",
+    "Pass; the gap-day low gave way",
+    "Pass; the gap has filled"
+   ],
+   "answer": "Take it; the pullback held the low",
+   "why": "Take it. A 14.2% gap on 4.8x volume closed at 94% of its range. A 4-session pullback, 2.8% deep, held the gap-day low, then reclaimed the prior high.",
+   "lesson_line": "A held gap-day low and a clean reclaim is the setup.",
+   "facts": [
+    "d01",
+    "d02",
+    "d03",
+    "c12"
+   ],
+   "wrong": {
+    "Pass; the gap-day low gave way": "No close in the pullback sat under the gap-day low.",
+    "Pass; the gap has filled": "Price never traded back to the prior close."
+   },
+   "house": true,
+   "chart": {
+    "sym": "ULTA",
+    "asof": "2016-03-18",
+    "window": 120,
+    "forward": 20
+   }
+  },
+  {
+   "key": "q63",
+   "skill": "setup.news_gapper",
+   "rung": 9,
+   "format": "mcq",
+   "criterion": "ng.not_late",
+   "q": "Hidden ticker, an earnings gap day is the last bar. Was the stock quiet or already run up before it? Take it or pass.",
+   "choices": [
+    "Pass; it was already up too much",
+    "Take it; the gap day closed strong",
+    "Take it; the volume was heavy"
+   ],
+   "answer": "Pass; it was already up too much",
+   "why": "Pass. The stock was up 42% over the prior 65 sessions, past the line of about 30%. A late gap in a stock already run up carries the climax risk.",
+   "lesson_line": "A big run into the gap is the warning. Pass.",
+   "facts": [
+    "d27",
+    "d28",
+    "c08"
+   ],
+   "wrong": {
+    "Take it; the gap day closed strong": "A strong close does not erase a big run into the gap.",
+    "Take it; the volume was heavy": "Heavy volume does not make a late gap early."
+   },
+   "house": true,
+   "chart": {
+    "sym": "URI",
+    "asof": "2024-01-25",
+    "window": 120,
+    "forward": 20
+   }
+  },
+  {
+   "key": "q64",
+   "skill": "setup.news_gapper",
+   "rung": 9,
+   "format": "scenario",
+   "criterion": "ng.catalyst",
+   "q": "Grade this one.",
+   "story": "Report beats with a raise. A 12% true gap on the highest volume in a year, closing in the top quarter. It comes out of a 4-month quiet range above a rising 200-day. Green market.",
+   "choices": [
+    "A+; the cues line up",
+    "B-; a pullback is not day one",
+    "No trade; it needs an earnings date",
+    "A; a gap is only A+ at 15%"
+   ],
+   "answer": "A+; the cues line up",
+   "why": "A+. A beat and a raise, a true gap of 10% or more and the year's top volume all line up. So do a top-quarter close and a quiet range above a rising 200-day.",
+   "lesson_line": "When every cue lines up, size up. That is an A+.",
+   "facts": [
+    "c38",
+    "c05",
+    "c06",
+    "c40",
+    "c45",
+    "h30"
+   ],
+   "wrong": {
+    "B-; a pullback is not day one": "The grade is about the cues, not whether you buy day one or the pullback.",
+    "No trade; it needs an earnings date": "The report is the catalyst; it already has a date.",
+    "A; a gap is only A+ at 15%": "The A+ gap cue is 10% or more."
+   },
+   "house": true
+  },
+  {
+   "key": "q65",
+   "skill": "setup.news_gapper",
+   "rung": 9,
+   "format": "tf",
+   "criterion": "ng.trail",
+   "q": "Day-one buys and pullback buys share the same trims, trail, breakeven and time stop.",
+   "answer": "True",
+   "why": "True. A third at 3R, a third at 5R, the stop to breakeven at the first trim, the trail under the 10- or 21-day, and the time stop under 1R after 10 sessions apply to both.",
+   "lesson_line": "The exit plan is the same for both ways in.",
+   "facts": [
+    "c20",
+    "c22",
+    "c23",
+    "h05",
+    "h20"
+   ],
+   "house": true
+  },
+  {
+   "key": "q66",
+   "skill": "setup.news_gapper",
+   "rung": 9,
+   "format": "scenario",
+   "criterion": "ng.inv_close_under_low",
+   "q": "What is the lesson?",
+   "story": "SEDG, 2019. A 15.0% gap on 11.4x volume. You bought the day-4 reclaim at 51.76, with the stop under the pullback low. It failed the next session.",
+   "choices": [
+    "A planned loss; the stop worked",
+    "The gap was too big to be trusted",
+    "You should have bought the open",
+    "The stop should have been wider"
+   ],
+   "answer": "A planned loss; the stop worked",
+   "why": "A planned loss; the stop worked. The day-4 reclaim failed the next session and the whole gap was given back within weeks. The stop kept the loss small.",
+   "lesson_line": "A reclaim that fails costs the stop and no more.",
+   "facts": [
+    "d17",
+    "h01",
+    "h02"
+   ],
+   "wrong": {
+    "The gap was too big to be trusted": "Size is not the flaw; a failed reclaim is part of the plan.",
+    "You should have bought the open": "We do not buy the open before the range forms.",
+    "The stop should have been wider": "The stop only moves up; widening it turns a small loss into a big one."
+   },
+   "house": true
+  },
+  {
+   "key": "q67",
+   "skill": "setup.news_gapper",
+   "rung": 9,
+   "format": "scenario",
+   "criterion": "ng.trim_2",
+   "q": "What keeps the plan alive?",
+   "story": "In our scan of news gappers, roughly three in ten reach 3R before the stop. The rest do not.",
+   "choices": [
+    "Small stops and trims at 3R and 5R",
+    "A wider stop that rarely gets hit",
+    "Adding more when volume climbs fast",
+    "Skipping every pullback buy"
+   ],
+   "answer": "Small stops and trims at 3R and 5R",
+   "why": "Small stops and trims at 3R and 5R. In our scan about three in ten reached 3R before the stop, so most buys never get there. The stop sets the size, so each loss is small, and the winners are trimmed.",
+   "lesson_line": "Most buys never reach 3R. Small losses and trims pay for them.",
+   "facts": [
+    "d29",
+    "h01",
+    "h05",
+    "h20"
+   ],
+   "wrong": {
+    "A wider stop that rarely gets hit": "A wider stop turns a small loss into a big one.",
+    "Adding more when volume climbs fast": "One buy, one price, one stop: no adding.",
+    "Skipping every pullback buy": "The pullback buy is part of the plan, not the problem."
+   },
+   "house": true
+  },
+  {
+   "key": "q68",
+   "skill": "setup.news_gapper",
+   "rung": 5,
+   "format": "numeric",
+   "criterion": "ng.base_before",
+   "q": "In the 60 sessions before a gap, the high was 58.00 and the low was 46.00. How far is the high above the low, in percent?",
+   "answer": 26.1,
+   "calc": {
+    "fn": "pct_change",
+    "args": {
+     "start": 46.0,
+     "end": 58.0
+    },
+    "round": 1
+   },
+   "why": "26.1%. That is under the 35% line, so the 60 sessions were a quiet range, the setting our card prefers.",
+   "lesson_line": "Quiet means the 60-session high is within 35% of the low.",
+   "facts": [
+    "c54",
+    "c45"
+   ],
+   "house": true,
+   "suffix": "%"
+  },
+  {
+   "key": "q69",
+   "skill": "setup.news_gapper",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "ng.base_before",
+   "q": "Which gap has the better setting?",
+   "choices": [
+    "The flat base; it was quiet first",
+    "The swinger; it already has momentum",
+    "Equal; only the catalyst matters here"
+   ],
+   "answer": "The flat base; it was quiet first",
+   "why": "The flat base. On our card a gap out of a base or a quiet range is preferred. The 20.00 to 31.00 swing is wider than the 35% line.",
+   "lesson_line": "Prefer a gap out of a base or a quiet range.",
+   "facts": [
+    "c54",
+    "c45"
+   ],
+   "wrong": {
+    "The swinger; it already has momentum": "Our card prefers a quiet range first. A wide swing is not quiet.",
+    "Equal; only the catalyst matters here": "The catalyst comes first, but the setting still moves the grade."
+   },
+   "house": true,
+   "story": "Two stocks gap 12% on the same kind of news. One opens above a flat 5-month base. The other has swung between 20.00 and 31.00 over the last 60 sessions."
+  },
+  {
+   "key": "q70",
+   "skill": "setup.news_gapper",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "ng.position_adv",
+   "q": "How many shares may you own?",
+   "choices": [
+    "3,000; 1% of the average volume",
+    "20,000, since today is heavy volume",
+    "60,000, 1% of today's volume"
+   ],
+   "answer": "3,000; 1% of the average volume",
+   "why": "3,000. The cap is 1% of average daily volume, not of today's surge. That is under the 20,000 from the stop math.",
+   "lesson_line": "Cap the size at 1% of average daily volume.",
+   "facts": [
+    "h19",
+    "h03"
+   ],
+   "wrong": {
+    "20,000, since today is heavy volume": "A one-day surge does not lift the cap. It uses the average.",
+    "60,000, 1% of today's volume": "The cap is 1% of the average daily volume, not of today's."
+   },
+   "house": true,
+   "story": "A news gapper averages 300,000 shares a day but trades 6 million today. Your stop math says 20,000 shares."
+  },
+  {
+   "key": "q71",
+   "skill": "setup.news_gapper",
+   "rung": 2,
+   "format": "tf",
+   "criterion": "ng.position_adv",
+   "q": "We never own more than 1% of a stock's average daily volume.",
+   "answer": "True",
+   "why": "True. Our size cap is 1% of average daily volume, and illiquid stocks are not even watched.",
+   "lesson_line": "One percent of average volume is the most we own.",
+   "facts": [
+    "h19"
+   ],
+   "house": true
+  },
+  {
+   "key": "q72",
+   "skill": "setup.news_gapper",
+   "rung": 5,
+   "format": "numeric",
+   "criterion": "ng.stop_gap",
+   "q": "You bought at 80.00 with the stop at 77.00. A gap-down day's first 30-minute low is 71.00. What is the loss, in R?",
+   "answer": 3,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(a - c) / (a - b)",
+     "a": 80.0,
+     "b": 77.0,
+     "c": 71.0
+    },
+    "round": 1
+   },
+   "why": "3R. That is past the 2R ceiling, so you get out.",
+   "lesson_line": "First 30 minutes past 2R: get out.",
+   "facts": [
+    "h33",
+    "c53"
+   ],
+   "house": true,
+   "suffix": "R"
+  },
+  {
+   "key": "q73",
+   "skill": "setup.news_gapper",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "ng.stop_gap",
+   "q": "What do you do?",
+   "choices": [
+    "Make 75.50 the stop and stay in",
+    "Sell at once; news gappers gap again",
+    "Drop the stop to 74.00 to give it room"
+   ],
+   "answer": "Make 75.50 the stop and stay in",
+   "why": "Make 75.50 the stop and stay in. The first 30 minutes decide, and the loss at that low is under the 2R ceiling.",
+   "lesson_line": "News stocks gap again. The first 30 minutes decide.",
+   "facts": [
+    "h32",
+    "h33",
+    "c53",
+    "h02"
+   ],
+   "wrong": {
+    "Sell at once; news gappers gap again": "You get out only if the first 30 minutes take the loss past 2R. Here they do not.",
+    "Drop the stop to 74.00 to give it room": "The stop moves only by the gap rule: the first 30-minute low, 75.50, not a level picked for room."
+   },
+   "house": true,
+   "story": "You bought at 80.00 with the stop at 77.00. Follow-up news gaps the stock open at 75.80. The first 30-minute low is 75.50, a loss of 1.5R."
+  }
+ ],
+ "conflicts": [
+  "Pending-owner criteria kept OUT of every key (the course's current default, waiting on the owner): ng.scope (D-002; whether this is the family lesson for any catalyst gap with EP and PEG as named versions; q32 follows the card's own lookalike tell and the UNITS-method row, the PEG owns the report reaction day on a leader and the first-pullback entry on either is taught here); ng.delayed_reaction (D-002; no item); ng.catalyst, the list of allowed catalyst types and where upgrades, index additions and sympathy moves sit (D-032; q12 and q39 key only that earnings with a raise and a business-changing deal are the strongest and that an upgrade, a media mention or a vague press release is a B- catalyst at best, which holds under both options, and q02 keys 'no named catalyst' only); ng.gap_floor 4% (D-033; no key recalls it, the BA 2023 near-miss that fails only the gap floor is not used, q21 and q37 key only the proposed 10% A+ gap and the proposed 30% not-late line); ng.above_200 (D-020; no item, B26 is quoted only in the facts); ng.liquidity (D-030; q45 uses an $8 stock trading $6 million a day, which fails B23 at the prior close and at the entry); ng.rs (D-011; no item); ng.entry_day1 (D-086; q31 keys the day-one buy on the card's trigger, the owner's published words 'I love trading earnings gappers on day one' and 'place a stop at LOD', E57 and F62; if the owner picks 'never the open, always the reclaim', q31 is cut); ng.no_chase's reference level (D-022; q26 uses the reclaim level, the register's default, with C28's 4%; the base-pivot option would cut it); ng.not_stretched (D-017; no item asks whether C29 applies on the gap day); ng.stop_day1's 1.5 ATR and 3% (D-005; q31 keys only 'a few cents under the day's low at the buy', F62, and the HAL example, which sits at 3.3%, is not used); ng.stop_reference (D-008; the day's low is the card's and the rulebook's F62 default, OKTA's 50-day note is not asked).",
+  "The gap-holds line against the near-miss labels: the card says a close in the lower half is a B- and only a red close is not this setup (ng.gap_holds), while the dossier's NFLX 2018 near-miss (close at 35% of the range) calls the day 'not a gapper'. q38 and q53 follow the card (a B- cue, not a News Failure); the dossier row is quoted only for the gap holding and the green close.",
+  "Scope against its neighbours: the unit title follows the brief, News Gapper; the card and the UNITS-method row call it News/Earnings Gapper. The plan's row for SET.20 exists (a headline gap that holds its range, entered off the first controlled pullback and reclaim, never the emotional open); the card's day-one A+ form is the owner's own habit and the pending D-086.",
+  "Two examples are 'news' by our classification (INTC 2014, CCJ 2025): the data shows a catalyst-size gap on a day that was not a report reaction day but not what the headline was, so neither is used as a news model. GE 2015 (q51) is used only to teach checking the calendar, never to name a catalyst.",
+  "The volume line: 3 times is the dossier's proposal (Bonde 2014, Wagner); the PEG card gates at 1.5 times (pending, D-006); the AAPL 2022 near-miss clears the PEG floor, so q52 keys only that 1.7x is under this setup's line and does not call it a PEG.",
+  "The 'within about 2 to 10 sessions' window is part of the proposed ng.entry_pullback and is quoted (c10, q35, q49); the window numbers are not asked. The ten-session limit appears in the proposed invalidation (a close under the gap-day low in the first 10 sessions).",
+  "Base rate (d29): 29.5% reached 3R and 19.5% reached 5R before the stop in the scan (fixed stop, no trims, 60 sessions, 2005 on, our own bars, survivor-biased). It is quoted as a fact; only q67 leans on it, as 'roughly three in ten'; the real first-hour buys (36.6% to 3R, 41 trades from 2023-12) are not used because D-086 is open.",
+  "Bulkowski's site states it must not be used to train AI systems; no Bulkowski quote is used in this unit. Bonde's quotes come from his blog posts; the checker should confirm them against the pages (the 2014 post's reply text).",
+  "The dossier's example numbers (d1) are a Tier 3 repo source: read off our own daily bars by the research scan (dossier sections 12 and 13), split-adjusted, no delisted names, not yet reviewed by the owner. The pullback-buy levels are the scan's trigger (a cent over the prior day's high) and stop, not a live fill. The criteria card (c1) is cited for its proposed criteria (volume, the gap holds, not late, the pullback entry, the invalidations, the lookalike tells, the grading rows); every question keyed on them carries house: true and the owner's review is the gate.",
+  "The chart questions (q62 ULTA asof 2016-03-18, the fifth session after the gap; q63 URI asof 2024-01-25, the gap day) show the member's own chart; the keys rest on the dossier's reads (d01, d02, d03, d27, d28). The importer resolves the bars from our own history.",
+  "The short mirror (the earnings breakdown, dossier 8.6) is not taught here (D-001). The owner's words quoted (u01, u04, u05) are from his published Sunday Scans, with the Substack links as given in the dossier.",
+  "Cold check 2026-11-10: 54 pass (14 fixed), 3 fix, 13 cut. Cut as duplicates: q04, q08, q09, q10, q11, q13, q22, q27, q42, q54 (the URI story; the chart q63 kept), q55 (repeats q16's 3R arithmetic), q56, q65. Held as fix: q31 (D-086, day one), q49 (a 'fails most often' claim from four losers), q51 (D-025, a no-report news gap on a major name). Numbers corrected: q40 sized 209 shares at 1% risk, 54.9% of the account, over the 40% cap (A7); now 0.5% risk, 104 shares, 27.3%. q38 and q53: the card does say a lower-half close is a B- (ng.gap_holds), but the same line and the pattern line also gate on the upper half and the dossier's NFLX near-miss calls a 35% close 'not a gapper', so q38 now uses a 60% close and q53 keys only 'not a News Failure'. q24 and q39 gap sizes moved to 12% so no key touches the pending gap floor; q47 and q58 stories fixed; q67 'most buys end at the stop' softened. Quotes removed: none. Look at first: (1) D-086, day one against the reclaim (q31, and the day-one stop); (2) D-025, who owns a no-report news gap on a major name (q51 here, q32 in SET.19); (3) the card's gap-holds line, which says both 'upper half' and 'lower half is a B-' (ng.gap_holds).",
+  "Keyed on the adopted default of D-086 (provisional, 2026-11-10): the course teaches both entries, with day one over the opening-range high as the A+ form and the pullback and reclaim as the other way in (q31). If the owner picks 'never the open', q31 is cut.",
+  "q51 (GE 2015, no report that day) asks only whether the gap is an earnings gap, which holds under every D-025 option. Whether a major company's news gap is a PEG (D-025's adopted default, provisional, 2026-11-10) or a News Gapper is deliberately not keyed here. q49 cut 2026-11-10 (the early-reclaim claim rests on four hand-picked losers)."
+ ],
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "notes": "d01-d03 verbatim (ULTA 2016-03-11: 14.2%, 4.8x, 94%, four-session pullback 2.8% deep, buy 190.69, stop 186.55, 12.1R); bars db agrees (gap 14.2%, 4.8x, close 0.94, stop 5 cents under the 03-16 low). c11, c15, c27, h05, h20-h24 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "d04-d06 verbatim (TWLO 2018-02-14: 10.0%, 8.3x, 62%, buy 33.55, stop 32.59, 2.9%, 3R in 4 sessions). Re-derived (33.55 - 32.59) / 33.55 = 2.86%. c11, c15, c27, h05, h21, h22, h24 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "d07-d09 verbatim (NFLX 2024-10-18: 7.3%, 5.6x, 92%, four-session pullback 2.9% deep, 75.62, 74.38, 1.6%). Re-derived 1.24 / 75.62 = 1.6%. c26, h20, h21 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q04": {
+   "status": "cut",
+   "notes": "duplicate of q18: the stop is a few cents under the pullback low, asked as a fill whose sentence gives the answer away (rule 10); q18 adds the wrong-stop traps.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q08": {
+   "status": "cut",
+   "notes": "duplicate of q52 and q23: the 3-times-average volume line, asked as a recall; q52 tests it on AAPL 2022 and q23 computes the multiple.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q09": {
+   "status": "cut",
+   "notes": "duplicate of q24: the pullback entry (two down days or an inside day that hold the gap-day low, then a market buy over the prior high) as a plain true/false; q24 applies it.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q10": {
+   "status": "cut",
+   "notes": "duplicate of q25: a close under the gap-day low ends the setup; q25 adds the reclaim trap.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q11": {
+   "status": "cut",
+   "notes": "duplicate of q33: a gap that closes red is a News Failure, not a News Gapper; q33 asks it as a scenario.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q13": {
+   "status": "cut",
+   "notes": "duplicate of q41: no new buy with a report within 3 sessions; q41 keeps the Monday-to-Friday case.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q22": {
+   "status": "cut",
+   "notes": "duplicate of q21: what a true gap is (the day's low stays above the prior day's high); q21 asks the A+ gap with the same definition.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q27": {
+   "status": "cut",
+   "notes": "duplicate of q05: no pre-market buy, asked a second way; q05 keeps the Bonde contrast.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q42": {
+   "status": "cut",
+   "notes": "duplicate of q25: a close under the gap-day low in the first ten sessions with no buy yet; q25 keeps the version with a later reclaim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q54": {
+   "status": "cut",
+   "notes": "duplicate of q63: URI 2024, up 42% in the 65 sessions before the gap, asked as a story and again on the member's own chart. The chart version is kept (SET.07 precedent for q52 and q67).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q55": {
+   "status": "cut",
+   "notes": "duplicate arithmetic of q16: the price 3R above the fill from the fill and the stop (q16 on TGT, this on PANW). Same method, same fact.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q56": {
+   "status": "cut",
+   "notes": "duplicate of q57: a pullback under the gap-day midpoint grades down (c43, c44); q57 asks the same pair as a scenario.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q65": {
+   "status": "cut",
+   "notes": "duplicate of q19, q20, q30 and q50: the exit plan restated in one true/false whose why runs 35 words; each piece is asked on its own.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q31": {
+   "status": "pass",
+   "notes": "Keyed on D-086's adopted default (teach both, day one as the A+ form). Story now gives the day's low 2% under the price so the day-one stop is inside every D-005 option; why says 'By our current default' and the 'pullback is the only entry' distractor is explained as the other way in, not as a rule. The unit's earlier note that q31 is cut if the owner picks 'never the open' still applies.",
+   "fixed": true,
+   "by": "resolver"
+  },
+  "q49": {
+   "status": "cut",
+   "notes": "Cut: the key 'fails most often after an early reclaim on a very wide day-one bar' comes from four hand-picked losers (AVAV, SEDG, PEN, GE); the dossier has no failure rate for early reclaims against the 1,200 pullback buys, and its near-miss scan finds only the late window separates. Asking the card's sentence instead would teach the same n = 4 claim as ours. No honest rewrite onto a source.",
+   "fixed": false,
+   "by": "resolver"
+  },
+  "q51": {
+   "status": "pass",
+   "notes": "Rewritten so the key holds under every D-025 option: it asks only whether the GE gap is an earnings gap (no report that day, so no), not whether a no-report news gap on a major name is a PEG or a News Gapper. The 'a PEG is a report reaction day' wrong note and the PEG choice are gone. The 5.4% gap size is not keyed, so the pending gap floor (D-033) does not touch it.",
+   "fixed": true,
+   "by": "resolver"
+  },
+  "q01": {
+   "status": "pass",
+   "notes": "c01, c02 verbatim; matches the card's pattern line. Wrong notes true. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q02": {
+   "status": "pass",
+   "notes": "c01, c32 verbatim. Both pending ng.catalyst options require a named catalyst, so the key holds.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q03": {
+   "status": "pass",
+   "notes": "c02, c03 verbatim: the day never trades back to the prior close and closes green in the upper half.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q05": {
+   "status": "pass",
+   "notes": "b06 (Bonde's page found by check_course_quotes), c18, h23 verbatim. Regular hours only (E58, settled).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q06": {
+   "status": "pass",
+   "notes": "c29, h26 verbatim (settled ng.market_reading).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q07": {
+   "status": "pass",
+   "notes": "c30 verbatim (proposed earnings_season).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q12": {
+   "status": "pass",
+   "notes": "c38, c39, b01, b02 verbatim (Bonde's pages found). Holds under both pending ng.catalyst options (D-032): earnings with a raise outranks a mention, an upgrade or a vague release. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q14": {
+   "status": "pass",
+   "notes": "c09, h17 verbatim: a grade cue (settled D40). variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q15": {
+   "status": "pass",
+   "notes": "h31 verbatim: one buy, one price, one stop.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q16": {
+   "status": "pass",
+   "notes": "Re-derived 105.11 + 3 x 1.91 = 110.84. h05, d11 verbatim; (105.11 - 103.20) / 105.11 = 1.8% matches the table.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q17": {
+   "status": "pass",
+   "notes": "Re-derived (107 - 100) / (110 - 100) = 0.70, upper half. c02, c40 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q18": {
+   "status": "pass",
+   "notes": "c15, c14, h24 verbatim. Key is the settled ng.stop_pullback (A3, F62); wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q19": {
+   "status": "pass",
+   "notes": "c22, h21 verbatim (E52, settled). Edited: why split so no sentence is over 22 words. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q20": {
+   "status": "pass",
+   "notes": "h20, h05 verbatim: a third at 3R, another at 5R (E51).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q21": {
+   "status": "pass",
+   "notes": "c05 and sc1 (ChartSchool, found by check_course_quotes) verbatim. 10% or more and a true gap is the proposed A+ cue; the pending 4/8/10% floor is not asked. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q23": {
+   "status": "pass",
+   "notes": "Re-derived 13 / 4 = 3.25. c04, k04 verbatim. The 3-times line is proposed (gate).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q24": {
+   "status": "pass",
+   "notes": "c12, c15 verbatim. The story's 9% gap is now 12% so the key does not touch the pending gap-floor options (4, 8, 10% or 0.75 ATR); the why had a 33-word sentence, split.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q25": {
+   "status": "pass",
+   "notes": "c28, c27 verbatim (proposed ng.inv_pullback_breaks_low).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q26": {
+   "status": "pass",
+   "notes": "Re-derived 41.80 / 40.00 = +4.5%, over the 4% chase line (C28, settled). The reference is the reclaim level (the D-022 default); the base-pivot option would only make it a bigger chase, so the key holds. h11, h12 verbatim. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q28": {
+   "status": "pass",
+   "notes": "c25, h16 verbatim (settled ng.climax, C34: a judgment call, 'sell a big part'). Four straight up days, two gaps and widening ranges match the card's description.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q29": {
+   "status": "pass",
+   "notes": "Re-derived: R = 2.00, 3R = 56.00, 5R = 60.00; the 60.80 open is past 5R. c21, h25, h20 verbatim (F63).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q30": {
+   "status": "pass",
+   "notes": "c20, h05 verbatim (B19, settled).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q32": {
+   "status": "pass",
+   "notes": "c47, d10 verbatim. Follows the card's lookalike tell and SET.19's PEG line. Holds under ng.scope options b and c, and under a the PEG is a named version, so 'the PEG owns the day' still reads right. The why had a 23-word sentence, split. variety rewrite checked 2026-11-10.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q33": {
+   "status": "pass",
+   "notes": "c49, c26 verbatim. The 8% gap does not matter here: a close under the prior close is the failure at any gap size.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q34": {
+   "status": "pass",
+   "notes": "c48, c04 verbatim. Consistent with SET.18 q42 and the Kicker card (weak red close, small gap, rarely a headline).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q35": {
+   "status": "pass",
+   "notes": "c50, c10 verbatim. Consistent with the PEG unit's Gap Support line (settled undercut rule). Story shortened (24 words).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q36": {
+   "status": "pass",
+   "notes": "c46, c01 verbatim. Same neglect tell SET.18 teaches for an EP; an 18% gap clears the EP's 10%.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q37": {
+   "status": "pass",
+   "notes": "c41, c42, c08, c05 verbatim: quiet three months is the A+ cue, up 42% is past the 30% not-late line (both proposed); 11% clears the 10% A+ gap. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q38": {
+   "status": "pass",
+   "notes": "FIXED. The card says both things: ng.gap_holds (proposed) reads 'closes in the upper half' as a gate and 'a close in the lower half is a B-' in the same line, and its pattern line says the day closes in the upper half; the dossier's NFLX 2018 near-miss (35%) calls such a day 'not a gapper'. The B- half of the key was unsettled, so the second stock now closes at 60% (upper half, no A+ cue) and the key rests on c40 and c02 only.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q39": {
+   "status": "pass",
+   "notes": "c38, c39, b02 verbatim (Bonde's page found). The story's 6% gap is now 12%: with 6% the wrong choice 'Neither; 6% is too small' became right under the pending 8% and 10% gap floors, so it is replaced.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q40": {
+   "status": "pass",
+   "notes": "CAP FIX. At 1% risk the answer 209 shares cost 21,968 dollars, 54.9% of a 40,000 account, over the 40% cap (A7: the size is the smaller of the risk size and the cap). Risk is now 0.5%: 200 / 1.91 = 104.7, rounded down 104, about 10,930 dollars, 27.3% of the account. h03, h01, d11 verbatim.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q41": {
+   "status": "pass",
+   "notes": "c17, h08 verbatim. Monday gap, Thursday trigger, Friday after-close report: the buy is inside the 3 sessions before the report (B22, settled). variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q43": {
+   "status": "pass",
+   "notes": "c16, m01 (Virtue of Selfish Investing page found), c15 verbatim. Why had a 23-word sentence, split. flagged-question fix checked 2026-11-11",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q44": {
+   "status": "pass",
+   "notes": "c31, u05 (Sunday Scans page found) verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q45": {
+   "status": "pass",
+   "notes": "h09, h19 verbatim; an $8 stock at $6 million a day fails B23 on both counts. Story split (24 words).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q46": {
+   "status": "pass",
+   "notes": "Re-derived (33.55 - 32.59) / 33.55 = 2.86%, 2.9. h04, d05 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q47": {
+   "status": "pass",
+   "notes": "c24, c37, h08 verbatim. The story said 'up 4R, no trims taken yet', which contradicts the third at 3R; now 'took the first third at 3R'. Sell before the report below 5R (B22).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q48": {
+   "status": "pass",
+   "notes": "d14-d16 verbatim (AVAV 2024-03-05; dossier 13: buy 162.59, stop 158.43, 2.6%, best 0.0R). A loss at the stop on a setup that passed the gates is framed as the plan working.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q50": {
+   "status": "pass",
+   "notes": "d18, d19, c23, h15 verbatim. Dossier 13: PEN stopped on day 10 at best 0.45R, the time-stop case. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q52": {
+   "status": "pass",
+   "notes": "d23, c04 verbatim (AAPL 2022-01-28: 4.1%, 1.7x, close at the high). Names no PEG answer.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q53": {
+   "status": "pass",
+   "notes": "d24-d26 verbatim; bars db: NFLX 2018-10-17 gap 9.2%, 3.3x, close 0.35, low over the prior close. Key (not a News Failure) holds under both readings of ng.gap_holds. The why and one wrong note called a 35% close 'a B- cue', which the dossier calls 'not a gapper'; both now say only 'a weak, faded close'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q57": {
+   "status": "pass",
+   "notes": "c43, c44 verbatim (proposed ng.entry_pullback cues).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q58": {
+   "status": "pass",
+   "notes": "c08, c35 verbatim. The story said 'gapped up three days in a row' and then 'again' today, a fourth gap, against a key about the third; now two days then a third gap. variety rewrite checked 2026-11-10.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q59": {
+   "status": "pass",
+   "notes": "c06, k04 (Kullamagi's page found) verbatim. 9:30 to 9:50 is the 20-minute window.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q60": {
+   "status": "pass",
+   "notes": "h29, h28 verbatim (E56, B21, settled). Wrong note on doubling size no longer says 'the revenge trade the rules forbid'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q61": {
+   "status": "pass",
+   "notes": "Re-derived 40,000 / 100 = 400. h03, h19 verbatim (D42).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q62": {
+   "status": "pass",
+   "notes": "Chart ULTA asof 2016-03-18: 2,114 daily bars on or before it (120 needed), as-of bar present, 2,677 after. Bars db: gap 14.2%, 4.8x, close 0.94; 03-18 is the day-6 trigger bar (03-17 high 190.68). d01-d03, c12 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q63": {
+   "status": "pass",
+   "notes": "Chart URI asof 2024-01-25: 6,567 bars on or before it, as-of bar present, 701 after. Bars db: gap 5.5%, 4.0x, close 0.89; the 65-session run is 45% by the simple low-to-prior-close count against the dossier's 42%, both far past 30%. d27, d28, c08 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q64": {
+   "status": "pass",
+   "notes": "c38, c05, c06, c40, c45, h30 verbatim (all proposed A+ cues line up). Story and why had 26- and 34-word sentences, split.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q66": {
+   "status": "pass",
+   "notes": "d17, h01, h02 verbatim (SEDG 2019: buy 51.76 on day 4, stop 50.50, best 0.0R). Loss framed as the plan working. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q67": {
+   "status": "pass",
+   "notes": "d29 verbatim (29.5% to 3R, 19.5% to 5R, fixed stop, 60 sessions, 1,491 hits). The story said 'most buys end at the stop', a figure the news-gapper dossier does not give (the 80.7% stopped is the PEG's); now 'the rest do not' reach 3R, and the lesson line follows. variety rewrite checked 2026-11-10.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q68": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; fixed: why said the gap 'came out of a base'; a quiet range is the card's other option, so it now says quiet range",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q69": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q70": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q71": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; fixed: the old statement ('too illiquid to trade are not watched') was close to circular; now states the 1% of average daily volume cap, with the not-watched half in the why",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q72": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q73": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; fixed: 'Widen the stop' was close to what the right answer does (75.50 is below 77.00); now a stop picked for room (74.00)",
+   "fixed": true,
+   "by": "checker"
+  }
+ }
+}

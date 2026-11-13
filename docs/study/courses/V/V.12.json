@@ -1,0 +1,3110 @@
+{
+ "unit": "V.12",
+ "track": "V",
+ "title": "Psychology words",
+ "teaches": "The words for the mental traps in trading, what each one means and how to spot it in your own trades: FOMO, tilt, revenge trading, overtrading, overconfidence and self-attribution, loss aversion and the disposition effect, confirmation bias, anchoring, recency and hindsight bias, herding, the house money and break-even effects, the gambler's fallacy and outcome bias.",
+ "skills": [
+  {
+   "id": "vocab.psych_terms",
+   "title": "Psychology words"
+  }
+ ],
+ "as_of": "2026-11-09",
+ "sources": [
+  {
+   "id": "s1",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Investor Bulletin: Behavioral Patterns of U.S. Investors (June 16, 2014)",
+   "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins-72",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s2",
+   "tier": 1,
+   "publisher": "SEC (Library of Congress report for the SEC)",
+   "title": "Behavioral Patterns and Pitfalls of U.S. Investors (Federal Research Division, Library of Congress, under an Interagency Agreement with the SEC, August 2010)",
+   "url": "https://www.sec.gov/investor/locinvestorbehaviorreport.pdf",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s3",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Say “NO GO to FOMO” (Director's Take, Lori Schock, former Director of the SEC's Office of Investor Education and Assistance)",
+   "url": "https://www.investor.gov/additional-resources/spotlight/formerdirectorlorischock-directors-take/say-no-go-fomo",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s4",
+   "tier": 1,
+   "publisher": "FINRA",
+   "title": "Following the Crowd: Investing and Social Media (Investor Insights, October 14, 2026)",
+   "url": "https://www.finra.org/investors/insights/following-crowd-investing-and-social-media",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s5",
+   "tier": 1,
+   "publisher": "FINRA",
+   "title": "Avoiding Pump-and-Dump Scams (Investor Insights, September 9, 2026)",
+   "url": "https://www.finra.org/investors/insights/pump-and-dump-scams",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s6",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "Quiz: Test Your Trading Smarts (June 5, 2026)",
+   "url": "https://www.schwab.com/learn/story/quiz-test-your-trading-smarts",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s7",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "When Portfolio Changes Do—and Don't—Make Sense (Kasey McCurdy, July 23, 2026)",
+   "url": "https://www.schwab.com/learn/story/when-portfolio-changes-do-and-dont-make-sense",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s8",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "6 Biases That Can Disrupt Retirement (October 29, 2026)",
+   "url": "https://www.schwab.com/learn/story/3-investing-biases-to-avoid-now",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s9",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "Social Media and Your Money: Follow with Caution (Cindy Scott, October 9, 2026)",
+   "url": "https://www.schwab.com/learn/story/social-media-and-your-money-follow-with-caution",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s10",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "4 Common Biases that Affect Financial Decisions (Schwab Center for Financial Research, March 1, 2024)",
+   "url": "https://www.schwab.com/learn/story/emotional-biases-and-money",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s11",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "Breaking Bad Trade Behaviors (Kevin Horner, October 1, 2025)",
+   "url": "https://www.schwab.com/learn/story/breaking-bad-trade-behaviors",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s12",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "Trading Psychology: Recovering From Big Losses (Henry Hoenig, February 10, 2026)",
+   "url": "https://www.schwab.com/learn/story/trading-psychology-recovering-from-big-losses",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s13",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "Common Trading Mistakes to Avoid (February 15, 2024)",
+   "url": "https://www.schwab.com/learn/story/common-trading-mistakes-to-avoid",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s14",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "The effects of loss aversion bias in investing (Schwab investing-bias page)",
+   "url": "https://www.schwab.com/investing-bias/loss-aversion",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s15",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "5 Investing Mistakes You Might Be Making (June 11, 2025)",
+   "url": "https://www.schwab.com/learn/story/5-investing-mistakes-you-might-not-know-youre-making",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s16",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "What Is Confirmation Bias in Finance? (Gordon Scott, updated March 5, 2026)",
+   "url": "https://www.investopedia.com/terms/c/confirmation-bias.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s20",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "The House Money Effect (Gordon Scott, updated February 24, 2026)",
+   "url": "https://www.investopedia.com/terms/h/house-money-effect.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s21",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Overtrading (James Chen, updated July 1, 2026)",
+   "url": "https://www.investopedia.com/terms/o/overtrading.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s22",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Loss Aversion (Daniel Liberto, updated April 23, 2026)",
+   "url": "https://www.investopedia.com/terms/l/loss-psychology.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s23",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Behavioral Finance (Adam Hayes, updated September 23, 2026)",
+   "url": "https://www.investopedia.com/terms/b/behavioralfinance.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s24",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Rules Followed by Professional Traders (Alan Farley, updated August 19, 2026)",
+   "url": "https://www.investopedia.com/articles/active-trading/022715/20-rules-followed-professional-traders.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s25",
+   "tier": 2,
+   "publisher": "Fidelity Investments",
+   "title": "How to stay invested in volatile markets (Fidelity Wealth Management, March 2, 2026)",
+   "url": "https://www.fidelity.com/learning-center/wealth-management-insights/investing-biases",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s26",
+   "tier": 2,
+   "publisher": "Ontario Securities Commission (GetSmarterAboutMoney.ca)",
+   "title": "Behavioural insights: key concepts, applications, and regulatory considerations (summary of OSC Staff Notice 11-778, last updated October 3, 2023)",
+   "url": "https://www.getsmarteraboutmoney.ca/learning-path/research-reports/behavioural-insights-key-concepts-applications-and-regulatory-considerations-2/",
+   "accessed": "2026-11-09",
+   "why_reliable": "GetSmarterAboutMoney.ca is the investor education site of the Ontario Securities Commission, a government securities regulator; this page summarizes the OSC Investor Office's own research report."
+  },
+  {
+   "id": "s27",
+   "tier": 2,
+   "publisher": "Ontario Securities Commission (GetSmarterAboutMoney.ca)",
+   "title": "Anchoring effect: How meaningless information can affect your financial decisions (last updated October 20, 2023)",
+   "url": "https://www.getsmarteraboutmoney.ca/learning-path/psychology-of-investing/the-powerful-impact-anchoring-has-on-your-decisions/",
+   "accessed": "2026-11-09",
+   "why_reliable": "Investor education from the Ontario Securities Commission, a government securities regulator."
+  },
+  {
+   "id": "s28",
+   "tier": 2,
+   "publisher": "Ontario Securities Commission (GetSmarterAboutMoney.ca)",
+   "title": "Herd behaviour: When following the crowd isn't in your best interest (last updated November 29, 2024)",
+   "url": "https://www.getsmarteraboutmoney.ca/learning-path/psychology-of-investing/herd-behaviour-things-to-think-about/",
+   "accessed": "2026-11-09",
+   "why_reliable": "Investor education from the Ontario Securities Commission, a government securities regulator."
+  },
+  {
+   "id": "s29",
+   "tier": 2,
+   "publisher": "Ontario Securities Commission (GetSmarterAboutMoney.ca)",
+   "title": "Loss aversion: Why people are so afraid of losing money (last updated April 15, 2025)",
+   "url": "https://www.getsmarteraboutmoney.ca/learning-path/psychology-of-investing/how-a-fear-of-losing-can-affect-your-financial-decisions/",
+   "accessed": "2026-11-09",
+   "why_reliable": "Investor education from the Ontario Securities Commission, a government securities regulator."
+  },
+  {
+   "id": "s30",
+   "tier": 2,
+   "publisher": "Ontario Securities Commission (GetSmarterAboutMoney.ca)",
+   "title": "Mental accounting: How thinking about money affects the way you spend (last updated September 13, 2024)",
+   "url": "https://www.getsmarteraboutmoney.ca/learning-path/psychology-of-investing/mental-accounting/",
+   "accessed": "2026-11-09",
+   "why_reliable": "Investor education from the Ontario Securities Commission, a government securities regulator."
+  },
+  {
+   "id": "s31",
+   "tier": 2,
+   "publisher": "NobelPrize.org (Nobel Prize Outreach)",
+   "title": "The Prize in Economic Sciences 2002: Popular information (Daniel Kahneman, Vernon L. Smith)",
+   "url": "https://www.nobelprize.org/prizes/economic-sciences/2002/popular-information/",
+   "accessed": "2026-11-09",
+   "why_reliable": "The Nobel Prize organisation's own summary of the work for which Daniel Kahneman shared the 2002 economics prize."
+  },
+  {
+   "id": "s32",
+   "tier": 2,
+   "publisher": "The Journal of Finance",
+   "title": "Odean, 'Are Investors Reluctant to Realize Their Losses?', vol. 53, no. 5 (1998), author's copy at UC Berkeley Haas",
+   "url": "https://faculty.haas.berkeley.edu/odean/papers%20current%20versions/areinvestorsreluctant.pdf",
+   "accessed": "2026-11-09",
+   "why_reliable": "Peer-reviewed paper in The Journal of Finance by Terrance Odean, a leading behavioral finance researcher; the PDF is on his faculty page."
+  },
+  {
+   "id": "s33",
+   "tier": 2,
+   "publisher": "Jared Tendler (author's site)",
+   "title": "Surprising Facts About Tilt (May 8, 2023)",
+   "url": "https://jaredtendler.com/surprising-facts-about-tilt/",
+   "accessed": "2026-11-09",
+   "why_reliable": "Jared Tendler, a mental game coach for traders and poker players, wrote The Mental Game of Poker and The Mental Game of Trading (2021); this is his own site."
+  },
+  {
+   "id": "s34",
+   "tier": 2,
+   "publisher": "International Gambling Studies (Taylor & Francis)",
+   "title": "Palomäki, Laakasuo and Salmela, ''This is just so unfair!': A qualitative analysis of loss-induced emotions and tilting in on-line poker', vol. 13, no. 2 (2013), abstract on IDEAS/RePEc",
+   "url": "https://ideas.repec.org/a/taf/intgms/v13y2013i2p255-270.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Peer-reviewed study of tilt in poker players; the abstract is indexed on IDEAS/RePEc (Federal Reserve Bank of St. Louis)."
+  },
+  {
+   "id": "s35",
+   "tier": 2,
+   "publisher": "Management Science (INFORMS)",
+   "title": "Thaler and Johnson, 'Gambling with the House Money and Trying to Break Even: The Effects of Prior Outcomes on Risky Choice', vol. 36, no. 6 (1990), abstract on IDEAS/RePEc",
+   "url": "https://ideas.repec.org/a/inm/ormnsc/v36y1990i6p643-660.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Peer-reviewed paper by Richard Thaler (2017 Nobel laureate in economics) and Eric Johnson; the abstract is indexed on IDEAS/RePEc."
+  },
+  {
+   "id": "s36",
+   "tier": 2,
+   "publisher": "The Journal of Finance",
+   "title": "Coval and Shumway, 'Do Behavioral Biases Affect Prices?', vol. 60, no. 1 (2005), abstract on IDEAS/RePEc",
+   "url": "https://ideas.repec.org/a/bla/jfinan/v60y2005i1p1-34.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Peer-reviewed study of Chicago Board of Trade proprietary traders in The Journal of Finance."
+  },
+  {
+   "id": "s37",
+   "tier": 2,
+   "publisher": "The Review of Financial Studies",
+   "title": "Gervais and Odean, 'Learning to be Overconfident', vol. 14, no. 1 (2001), abstract on IDEAS/RePEc",
+   "url": "https://ideas.repec.org/a/oup/rfinst/v14y2001i1p1-27.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Peer-reviewed paper in The Review of Financial Studies (Society for Financial Studies)."
+  },
+  {
+   "id": "s38",
+   "tier": 2,
+   "publisher": "The Journal of Finance",
+   "title": "Barber and Odean, 'Trading Is Hazardous to Your Wealth: The Common Stock Investment Performance of Individual Investors', vol. 55, no. 2 (2000), abstract on IDEAS/RePEc",
+   "url": "https://ideas.repec.org/a/bla/jfinan/v55y2000i2p773-806.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Peer-reviewed study of 66,465 brokerage households in The Journal of Finance; the SEC's Library of Congress report cites it."
+  },
+  {
+   "id": "s39",
+   "tier": 2,
+   "publisher": "CIBC Investor's Edge",
+   "title": "Rebound trades: The risks of revenge trading and doubling down (February 3, 2025)",
+   "url": "https://www.investorsedge.cibc.com/en/learn/investing/portfolio-strategies/rebound-trades.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "The investor education centre of CIBC Investor's Edge, the self-directed brokerage of the Canadian Imperial Bank of Commerce."
+  },
+  {
+   "id": "s40",
+   "tier": 2,
+   "publisher": "Morningstar",
+   "title": "Is Recency Bias Swaying Your Investing Decisions? (Samantha Lamas, April 27, 2020)",
+   "url": "https://www.morningstar.com/personal-finance/is-recency-bias-swaying-your-investing-decisions",
+   "accessed": "2026-11-09",
+   "why_reliable": "Morningstar is a long-established investment research firm; the author is its senior behavioral insights researcher (named on the page)."
+  },
+  {
+   "id": "s41",
+   "tier": 2,
+   "publisher": "Association for Psychological Science",
+   "title": "‘I Knew It All Along…Didn't I?’ – Understanding Hindsight Bias (news release on Roese and Vohs, Perspectives on Psychological Science, September 6, 2012)",
+   "url": "https://www.psychologicalscience.org/news/releases/i-knew-it-all-along-didnt-i-understanding-hindsight-bias.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "The Association for Psychological Science publishes the peer-reviewed journal Perspectives on Psychological Science; this release summarizes the Roese and Vohs (2012) review in it."
+  },
+  {
+   "id": "s42",
+   "tier": 2,
+   "publisher": "Journal of Risk and Uncertainty (Springer)",
+   "title": "Croson and Sundali, 'The Gambler's Fallacy and the Hot Hand: Empirical Data from Casinos', vol. 30, no. 3 (2005), copy on a UC Berkeley Statistics course page",
+   "url": "https://www.stat.berkeley.edu/~aldous/157/Papers/croson.pdf",
+   "accessed": "2026-11-09",
+   "why_reliable": "Peer-reviewed paper (Journal of Risk and Uncertainty, 2005); the PDF is the published article as hosted on a UC Berkeley Statistics course page."
+  },
+  {
+   "id": "s43",
+   "tier": 2,
+   "publisher": "Journal of Personality and Social Psychology (American Psychological Association)",
+   "title": "Baron and Hershey, 'Outcome Bias in Decision Evaluation', vol. 54, no. 4 (1988), author's copy at the University of Pennsylvania",
+   "url": "https://www.sas.upenn.edu/~baron/papers/outcomebias.pdf",
+   "accessed": "2026-11-09",
+   "why_reliable": "The peer-reviewed paper that named outcome bias, on the first author's University of Pennsylvania page."
+  },
+  {
+   "id": "s44",
+   "tier": 2,
+   "publisher": "Knowledge at Wharton (The Wharton School)",
+   "title": "Making Good Decisions: A Toolkit (Katy Milkman with Annie Duke, October 13, 2020)",
+   "url": "https://knowledge.wharton.upenn.edu/article/making-good-decisions-a-toolkit/",
+   "accessed": "2026-11-09",
+   "why_reliable": "The Wharton School's own publication; an edited interview of Annie Duke (author of Thinking in Bets) by Wharton professor Katy Milkman."
+  },
+  {
+   "id": "s45",
+   "tier": 2,
+   "publisher": "Brett Steenbarger, TraderFeed",
+   "title": "Cognitive Behavioral Techniques for Changing Your Trading Psychology - Part Two: Overcoming FOMO (May 14, 2018)",
+   "url": "https://traderfeed.blogspot.com/2018/05/cognitive-behavioral-techniques-for_14.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Brett N. Steenbarger, PhD, trading psychologist and author of The Psychology of Trading; named in the Tier 2 author list."
+  },
+  {
+   "id": "s46",
+   "tier": 2,
+   "publisher": "Brett Steenbarger, TraderFeed",
+   "title": "Best Practices in Trading: Conducting Video Reviews (March 24, 2015)",
+   "url": "https://traderfeed.blogspot.com/2015/03/best-practices-in-trading-conducting_24.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Brett N. Steenbarger, PhD, trading psychologist and author of The Psychology of Trading; named in the Tier 2 author list."
+  },
+  {
+   "id": "s47",
+   "tier": 2,
+   "publisher": "Kellogg School of Management, Northwestern University",
+   "title": "Roese and Vohs, 'Hindsight Bias', Perspectives on Psychological Science, vol. 7, no. 5 (2012), abstract on the Kellogg faculty research page",
+   "url": "https://www.kellogg.northwestern.edu/academics-research/research/detail/2012/hindsight-bias/",
+   "accessed": "2026-11-09",
+   "why_reliable": "The abstract of a peer-reviewed review article, posted by the first author's own school (Neal Roese, Kellogg School of Management). It is the same review the APS release (s41) summarizes."
+  },
+  {
+   "id": "s48",
+   "tier": 2,
+   "publisher": "The Quarterly Journal of Economics (Oxford University Press)",
+   "title": "Chen, Moskowitz and Shue, 'Decision Making under the Gambler's Fallacy: Evidence from Asylum Judges, Loan Officers, and Baseball Umpires', vol. 131, no. 3 (2016), open-access article PDF on the first author's NBER page",
+   "url": "https://users.nber.org/~dlchen/papers/Decision_Making_under_the_Gamblers_Fallacy_QJE.pdf",
+   "accessed": "2026-11-09",
+   "why_reliable": "Peer-reviewed paper in The Quarterly Journal of Economics, published open access (CC BY-NC); the PDF is the published version on the first author's NBER page."
+  }
+ ],
+ "facts": [
+  {
+   "id": "f01",
+   "source": "s1",
+   "quote": "The disposition effect is the tendency of an investor to hold on to losing investments too long and sell winning investments too soon.",
+   "claim": "The disposition effect is holding losers too long and selling winners too soon."
+  },
+  {
+   "id": "f02",
+   "source": "s1",
+   "quote": "In the months following the sale of winning investments, these investments often continue to outperform the losing investments still held in the investor’s portfolio.",
+   "claim": "Winners sold early often keep outperforming the losers still held."
+  },
+  {
+   "id": "f03",
+   "source": "s1",
+   "quote": "Familiarity bias refers to the tendency of an investor to favor investments from the investor’s own country, region, state or company.",
+   "claim": "Familiarity bias is favoring investments close to home: your country, region, state or company."
+  },
+  {
+   "id": "f04",
+   "source": "s1",
+   "quote": "Familiarity bias also includes an investor’s preference for “glamour investments;” that is, well-known and/or popular investments.",
+   "claim": "Familiarity bias also covers a taste for well-known, popular 'glamour' investments."
+  },
+  {
+   "id": "f05",
+   "source": "s1",
+   "quote": "Familiarity bias may cause an investor’s portfolio to be inadequately diversified, which can increase the portfolio’s risk exposure.",
+   "claim": "Familiarity bias can leave a portfolio under-diversified and riskier."
+  },
+  {
+   "id": "f06",
+   "source": "s1",
+   "quote": "Financial “mania” or a “bubble” is the rapid rise in the price of an investment, reflecting a high degree of collective enthusiasm or exuberance regarding the investment’s prospects.",
+   "claim": "A mania, or bubble, is a fast price rise driven by collective enthusiasm."
+  },
+  {
+   "id": "f07",
+   "source": "s1",
+   "quote": "This rapid rise is usually followed by a contraction in the investment’s price. The contraction, or “panic” occurs when there is wide-scale selling of the investment that causes a sharp decline in the investment’s price.",
+   "claim": "A mania is usually followed by a panic: wide-scale selling and a sharp drop."
+  },
+  {
+   "id": "f08",
+   "source": "s1",
+   "quote": "The Report concludes that active trading generally results in the underperformance of an investor’s portfolio.",
+   "claim": "The SEC-commissioned report found active trading generally leads to underperformance."
+  },
+  {
+   "id": "f09",
+   "source": "s2",
+   "quote": "Behavioral finance holds that investors tend to fall into predictable patterns of destructive behavior. In other words, they make the same mistakes repeatedly.",
+   "claim": "Investors fall into predictable patterns and repeat the same mistakes."
+  },
+  {
+   "id": "f10",
+   "source": "s2",
+   "quote": "many investors damage their portfolios by underdiversifying; trading frequently; following the herd;",
+   "claim": "Trading frequently and following the herd are among the ways investors damage their portfolios."
+  },
+  {
+   "id": "f11",
+   "source": "s2",
+   "quote": "selling winning positions and holding onto losing positions (disposition effect); and succumbing to optimism, short-term thinking, and overconfidence (self-attribution bias).",
+   "claim": "The report lists the disposition effect and overconfidence, which it ties to self-attribution bias, among repeated mistakes."
+  },
+  {
+   "id": "f12",
+   "source": "s2",
+   "quote": "One of the foundations of behavioral finance is prospect theory, developed by Princeton psychology professor Daniel Kahneman, a Nobel Prize laureate, and the late psychologist Amos Tversky",
+   "claim": "Prospect theory, from Kahneman and Tversky, is a foundation of behavioral finance."
+  },
+  {
+   "id": "f13",
+   "source": "s2",
+   "quote": "Excessive risk aversion leads them to attach more importance to avoiding losses than to achieving gains.",
+   "claim": "Under prospect theory, investors care more about avoiding losses than about making gains."
+  },
+  {
+   "id": "f14",
+   "source": "s2",
+   "quote": "According to their study, active traders underperform the market. Active trading correlates with overconfidence.",
+   "claim": "Active traders underperform the market, and active trading goes with overconfidence."
+  },
+  {
+   "id": "f15",
+   "source": "s2",
+   "quote": "Loss-averse investors sell high-performing investments hoping to recoup their losses on poor performers but, in fact, achieve the reverse.",
+   "claim": "Selling winners to wait out losers tends to backfire."
+  },
+  {
+   "id": "f16",
+   "source": "s3",
+   "quote": "everyone has experienced some kind of fear of missing out on something.",
+   "claim": "FOMO is the fear of missing out, and everyone has felt it."
+  },
+  {
+   "id": "f17",
+   "source": "s3",
+   "quote": "stick with your long-term plan and don’t make investment decisions based on a fear of missing out.",
+   "claim": "The SEC's advice: stick with your plan and don't decide out of FOMO."
+  },
+  {
+   "id": "f18",
+   "source": "s3",
+   "quote": "And, just because others around you might be buying into these kinds of opportunities, it doesn’t mean you have to.",
+   "claim": "Others buying something is not a reason for you to buy it."
+  },
+  {
+   "id": "f19",
+   "source": "s4",
+   "quote": "If you find yourself getting swept up in excitement or fear of missing out (FOMO) due to investment-related social media content, it’s best to pause and evaluate.",
+   "claim": "When excitement or FOMO takes hold, pause and evaluate before acting."
+  },
+  {
+   "id": "f20",
+   "source": "s4",
+   "quote": "FINRA Foundation research shows that social media users are more likely than non-users to exhibit overconfidence in their level of investment knowledge.",
+   "claim": "FINRA Foundation research found social media users more likely to be overconfident about their investing knowledge."
+  },
+  {
+   "id": "f21",
+   "source": "s5",
+   "quote": "Pump-and-dump operators rely on the fear of missing out (FOMO), which they recognize as a powerful motivator for many investors.",
+   "claim": "Pump-and-dump scammers rely on FOMO."
+  },
+  {
+   "id": "f22",
+   "source": "s5",
+   "quote": "The fraudsters generally include a time component to their pitch, stressing that if you don’t act immediately, you’ll never get another chance.",
+   "claim": "Scammers press you to act immediately or 'never get another chance'."
+  },
+  {
+   "id": "f23",
+   "source": "s6",
+   "quote": "The tendency to favor information that supports our existing beliefs while ignoring contradictory evidence is known as confirmation bias.",
+   "claim": "Confirmation bias is favoring information that supports what you believe and ignoring what contradicts it."
+  },
+  {
+   "id": "f24",
+   "source": "s6",
+   "quote": "by seeking out reputable views that contradict their own. If they cannot make a data-backed rebuttal to the opposing view, they're likely being blinded by bias",
+   "claim": "The fix for confirmation bias is to seek strong opposing views and test whether you can rebut them with data."
+  },
+  {
+   "id": "f25",
+   "source": "s6",
+   "quote": "Having purchased a stock based on extensive research, a trader then ignores negative news, refusing to sell even as the stock trends lower.",
+   "claim": "Schwab's example of confirmation bias: ignoring bad news and refusing to sell as the stock trends lower."
+  },
+  {
+   "id": "f26",
+   "source": "s6",
+   "quote": "Scaling in, or buying stock positions in portions at different price intervals, is another popular strategy for managing trades.",
+   "claim": "Scaling in means buying a position in planned portions at different prices."
+  },
+  {
+   "id": "f27",
+   "source": "s7",
+   "quote": "Recency bias is the tendency to over-emphasize experiences that are top of mind",
+   "claim": "Recency bias is over-weighting whatever is top of mind."
+  },
+  {
+   "id": "f28",
+   "source": "s7",
+   "quote": "if the stock market recently plunged, you may be tempted to rip up your allocation in favor of a more conservative arrangement.",
+   "claim": "After a recent plunge, recency bias tempts you to abandon your plan."
+  },
+  {
+   "id": "f29",
+   "source": "s7",
+   "quote": "loss aversion can also cause us to take on extra risk when we're down.",
+   "claim": "Loss aversion can push you to take extra risk when you're down."
+  },
+  {
+   "id": "f30",
+   "source": "s7",
+   "quote": "The idea here is that our fear of locking losses could drive us to make even riskier decisions than we normally would in the hope of bouncing out of a hole.",
+   "claim": "Fear of locking in a loss can drive riskier decisions to get out of the hole."
+  },
+  {
+   "id": "f31",
+   "source": "s7",
+   "quote": "Loss aversion makes us overly sensitive to potential losses relative to opportunities for gains.",
+   "claim": "Loss aversion makes losses loom larger than equal gains."
+  },
+  {
+   "id": "f32",
+   "source": "s7",
+   "quote": "because friends or family are doing it and you don't want to miss out on quick, easy gains, you may be experiencing herd mentality bias.",
+   "claim": "Piling in because others are and you don't want to miss out is herd mentality."
+  },
+  {
+   "id": "f33",
+   "source": "s7",
+   "quote": "experienced investors can be tempted to overestimate their abilities when it comes to money matters, tricking their brains into making risky bets.",
+   "claim": "Overconfidence is overestimating your abilities, which leads to risky bets."
+  },
+  {
+   "id": "f145",
+   "source": "s7",
+   "quote": "The problem is that aggressively chasing trends just means outsourcing your due diligence to the crowds",
+   "claim": "Chasing what the crowd is buying hands your homework to the crowd."
+  },
+  {
+   "id": "f34",
+   "source": "s8",
+   "quote": "Overconfidence is perhaps a familiar idea and applies when someone overestimates their knowledge and abilities.",
+   "claim": "Overconfidence is overestimating your knowledge and abilities."
+  },
+  {
+   "id": "f35",
+   "source": "s8",
+   "quote": "Anchoring is when we fixate on the first data point we receive when making decisions, regardless of whether that point is relevant to our needs.",
+   "claim": "Anchoring is fixating on the first data point, relevant or not."
+  },
+  {
+   "id": "f36",
+   "source": "s8",
+   "quote": "Any time you start benchmarking financial decisions against what friends or family are doing, it's time to be on guard against herd mentality.",
+   "claim": "Measuring your decisions against what others do is the warning sign of herd mentality."
+  },
+  {
+   "id": "f37",
+   "source": "s8",
+   "quote": "The availability heuristic is a mental shortcut in which information that happens to be top of mind overly influences our decisions.",
+   "claim": "The availability heuristic lets whatever is top of mind sway decisions too much."
+  },
+  {
+   "id": "f38",
+   "source": "s9",
+   "quote": "That's an example of confirmation bias, the tendency to seek information that supports what we already believe.",
+   "claim": "Seeking out sources that agree with you is confirmation bias."
+  },
+  {
+   "id": "f39",
+   "source": "s9",
+   "quote": "You see something on TikTok or Reddit that you agree with, so you look for more from that person or from other influencers who think like you do.",
+   "claim": "Following only the voices that agree with you is Schwab's example of confirmation bias."
+  },
+  {
+   "id": "f40",
+   "source": "s10",
+   "quote": "Anchoring happens when investors focus too much on a single piece of information they received early on, such as a company's historical stock price.",
+   "claim": "Anchoring is focusing too much on early information, like a stock's past price."
+  },
+  {
+   "id": "f41",
+   "source": "s10",
+   "quote": "If you believe your company's stock price will return to a previous high, it can be tempting to cling to the stock",
+   "claim": "Expecting a stock to return to an old high is anchoring."
+  },
+  {
+   "id": "f42",
+   "source": "s11",
+   "quote": "Once an investor sees shares fall below the purchase price, they become reluctant to sell it because doing so would mean taking a loss.",
+   "claim": "Below your purchase price, selling feels like taking a loss, so you hesitate."
+  },
+  {
+   "id": "f43",
+   "source": "s11",
+   "quote": "This reluctance could ultimately make losses worse if the stock continues to decline.",
+   "claim": "That reluctance can make the loss worse."
+  },
+  {
+   "id": "f44",
+   "source": "s11",
+   "quote": "Attributing successes to our own skills but failures to uncontrollable outside forces is known as self-attribution bias.",
+   "claim": "Self-attribution bias: wins are my skill, losses are outside forces."
+  },
+  {
+   "id": "f45",
+   "source": "s11",
+   "quote": "Would you buy the stock at its current price if you didn't already own it? If the answer is no, it might be time to sell.",
+   "claim": "Ask whether you'd buy it today; if not, consider selling."
+  },
+  {
+   "id": "f150",
+   "source": "s11",
+   "quote": "Losing streaks can happen to the best of us, but sometimes a bout of bad luck can actually reflect a problem with our trading strategy.",
+   "claim": "A losing streak can be bad luck, or a sign of a real problem in the strategy."
+  },
+  {
+   "id": "f151",
+   "source": "s11",
+   "quote": "As a trader works to figure out what needs fixing, there's no harm in reducing the size of your trades.",
+   "claim": "While you look for the problem after a losing run, trading smaller does no harm."
+  },
+  {
+   "id": "f46",
+   "source": "s12",
+   "quote": "this can impair decision-making and self-control, which helps explain the downward spiral of \"revenge trading\" that fuels many catastrophic trading blowups.",
+   "claim": "After a big loss, impaired self-control feeds the spiral of revenge trading."
+  },
+  {
+   "id": "f47",
+   "source": "s12",
+   "quote": "The first thing to do is step away from the market. This can be hard. Many traders feel a strong urge to jump right back in and start to regain their footing.",
+   "claim": "After a big loss, step away first, even though the urge is to jump back in."
+  },
+  {
+   "id": "f48",
+   "source": "s12",
+   "quote": "For example, they could pledge to step away for the day if they lose a certain amount of money or take 15 minutes if they feel an urge to break a trading rule.",
+   "claim": "Pledge to stop for the day after a set loss."
+  },
+  {
+   "id": "f49",
+   "source": "s12",
+   "quote": "traders can potentially learn to take a loss while executing their trading plan without doubling down on the next trade in a misguided effort to make up for the loss.",
+   "claim": "Doubling down on the next trade to make up a loss is a mistake."
+  },
+  {
+   "id": "f50",
+   "source": "s12",
+   "quote": "to prevent additional trading after a certain level of loss in a day.",
+   "claim": "A daily loss 'circuit breaker' stops trading after a set loss."
+  },
+  {
+   "id": "f51",
+   "source": "s13",
+   "quote": "when it comes to missing out on a move, traders might make the mistake of trying to jump on a move after it's already happened—perhaps at the point when it's ready to reverse.",
+   "claim": "Jumping on a move after it already happened is a common mistake, and the late entry can come just as it's ready to reverse."
+  },
+  {
+   "id": "f52",
+   "source": "s13",
+   "quote": "a stop is often an unconscious attempt to avoid admitting you were wrong.",
+   "claim": "Pulling a stop is often a way to avoid admitting you were wrong."
+  },
+  {
+   "id": "f53",
+   "source": "s13",
+   "quote": "opening short positions on the same stock, thinking it's a way to get even with the market.",
+   "claim": "Shorting the same stock to get even with the market is emotional trading."
+  },
+  {
+   "id": "f54",
+   "source": "s14",
+   "quote": "Loss aversion is the reluctance to realize a loss because the emotional jolt of said loss is about twice as powerful as the joy from a gain.",
+   "claim": "Loss aversion: a loss stings more than a same-size gain pleases."
+  },
+  {
+   "id": "f55",
+   "source": "s15",
+   "quote": "recency bias, in which investors focus too much on the latest market moves or other developments.",
+   "claim": "Recency bias is focusing too much on the latest moves."
+  },
+  {
+   "id": "f56",
+   "source": "s16",
+   "quote": "Confirmation bias is a cognitive process where individuals favor information that reinforces their existing beliefs or theories.",
+   "claim": "Confirmation bias is favoring information that backs your existing beliefs."
+  },
+  {
+   "id": "f57",
+   "source": "s16",
+   "quote": "Once an investor has gathered information that supports their opinions and beliefs about a particular investment, they should seek alternative ideas that challenge their point of view.",
+   "claim": "Counter confirmation bias by seeking ideas that challenge your view."
+  },
+  {
+   "id": "f58",
+   "source": "s16",
+   "quote": "The syndrome is a source of investor overconfidence and helps explain why the bulls tend to remain bullish, and the bears tend to remain bearish regardless of what is happening in the market.",
+   "claim": "Confirmation bias keeps bulls bullish and bears bearish whatever the market does."
+  },
+  {
+   "id": "f146",
+   "source": "s16",
+   "quote": "The stock market's bubble phenomena can be attributed to herd behavior, where individuals follow popular trends without independent analysis.",
+   "claim": "Herding is following popular trends without your own analysis, and it helps explain bubbles."
+  },
+  {
+   "id": "f69",
+   "source": "s20",
+   "quote": "The house money effect describes investors' tendency to take on more risk with profits from investments than with earned income.",
+   "claim": "The house money effect is risking profits more freely than earned money."
+  },
+  {
+   "id": "f70",
+   "source": "s20",
+   "quote": "This behavior arises from mental accounting, where investment income is perceived as separate from other earnings.",
+   "claim": "The house money effect comes from mental accounting."
+  },
+  {
+   "id": "f71",
+   "source": "s20",
+   "quote": "The house money effect suggests, for example, that individuals tend to buy higher-risk stocks or other assets after profitable trades.",
+   "claim": "After profitable trades, people tend to take riskier positions."
+  },
+  {
+   "id": "f72",
+   "source": "s21",
+   "quote": "Overtrading is the excessive buying and selling of stocks, leading to increased costs and reduced performance.",
+   "claim": "Overtrading is excessive buying and selling that raises costs and hurts results."
+  },
+  {
+   "id": "f73",
+   "source": "s21",
+   "quote": "To recoup their capital, or to seek “revenge” on the market after a string of losing trades, they may try to make up profits wherever they can, usually by increasing the size and frequency of their trades.",
+   "claim": "Revenge on the market usually means bigger and more frequent trades."
+  },
+  {
+   "id": "f74",
+   "source": "s21",
+   "quote": "Individual traders usually overtrade after suffering a significant loss or a series of smaller losses in a long losing streak.",
+   "claim": "Traders usually overtrade after a big loss or a losing streak."
+  },
+  {
+   "id": "f75",
+   "source": "s21",
+   "quote": "Take a break: Overtrading may be caused by investors feeling as though they have to make a trade. This often leads to suboptimal trades that end in a loss.",
+   "claim": "Taking a break counters the urge to force trades."
+  },
+  {
+   "id": "f76",
+   "source": "s22",
+   "quote": "Loss aversion in behavioral economics refers to a phenomenon where a real or potential loss is considered more severe than an equivalent gain.",
+   "claim": "Loss aversion: a loss feels more severe than an equal gain."
+  },
+  {
+   "id": "f77",
+   "source": "s22",
+   "quote": "Some studies suggest losing hurts about twice as much as winning feels good. However, some studies question whether loss aversion exists or affects people practically.",
+   "claim": "The 'about twice' figure is common, but some studies question it."
+  },
+  {
+   "id": "f78",
+   "source": "s22",
+   "quote": "Risk aversion, however, can be rational since both losses and gains at any level of risk taking would be viewed symmetrically.",
+   "claim": "Risk aversion is different from loss aversion and can be rational."
+  },
+  {
+   "id": "f79",
+   "source": "s23",
+   "quote": "investors’ memory of recent events makes them biased or leads them to believe that the event is far more likely to occur again. For this reason, it is also known as recency bias",
+   "claim": "Recency bias makes a recent event seem far more likely to happen again."
+  },
+  {
+   "id": "f80",
+   "source": "s23",
+   "quote": "For example, the financial crisis in 2008 and 2009 led many investors to exit the stock market.",
+   "claim": "The 2008-09 crisis led many investors to exit stocks."
+  },
+  {
+   "id": "f81",
+   "source": "s23",
+   "quote": "In reality, the economy recovered, and the market bounced back in the years to follow.",
+   "claim": "The market bounced back in the years after."
+  },
+  {
+   "id": "f82",
+   "source": "s23",
+   "quote": "However, when an investment is losing money, they’ll hold onto it because they want to get back to even or their initial price.",
+   "claim": "Investors hold losers hoping to get back to even."
+  },
+  {
+   "id": "f83",
+   "source": "s23",
+   "quote": "investors gauge the performance of their investment based on their individual entry price, disregarding the fundamentals or attributes of the investment that may have changed.",
+   "claim": "Investors judge a holding by their own entry price instead of what has changed."
+  },
+  {
+   "id": "f84",
+   "source": "s23",
+   "quote": "Herd behavior states that people tend to mimic the financial behaviors of the majority of the herd.",
+   "claim": "Herd behavior is mimicking what the majority does."
+  },
+  {
+   "id": "f147",
+   "source": "s23",
+   "quote": "Herding is notorious in the stock market as the cause behind dramatic rallies and sell-offs.",
+   "claim": "Herding is blamed for dramatic rallies and sell-offs."
+  },
+  {
+   "id": "f85",
+   "source": "s24",
+   "quote": "Don’t try to make up for a losing trade by trading more. Revenge trading is a recipe for disaster.",
+   "claim": "Don't trade more to make up a loss; revenge trading is a recipe for disaster."
+  },
+  {
+   "id": "f86",
+   "source": "s25",
+   "quote": "studies exploring a phenomenon called \"loss aversion\" demonstrate that losses hurt more than equivalent gains make you feel good.",
+   "claim": "Losses hurt more than equal gains feel good."
+  },
+  {
+   "id": "f87",
+   "source": "s25",
+   "quote": "Loss aversion has also been used to help explain the \"disposition effect,\" which describes a tendency for investors to hold onto investments that have lost money and sell those that have increased in value.",
+   "claim": "Loss aversion helps explain the disposition effect."
+  },
+  {
+   "id": "f88",
+   "source": "s26",
+   "quote": "Anchoring refers to people’s initial exposure to a piece of information (such as a number) that becomes an unintended reference point which influences subsequent value judgements.",
+   "claim": "Anchoring: a first number becomes an unintended reference point for later judgments."
+  },
+  {
+   "id": "f89",
+   "source": "s26",
+   "quote": "It is our tendency to focus on information that supports our preconceptions.",
+   "claim": "Confirmation bias is focusing on information that supports what you already think."
+  },
+  {
+   "id": "f90",
+   "source": "s26",
+   "quote": "What’s more, the pain of losing can also increase risk-taking with other securities.",
+   "claim": "The pain of losing can raise risk-taking."
+  },
+  {
+   "id": "f91",
+   "source": "s26",
+   "quote": "Many people are overconfident in their own abilities or situation.",
+   "claim": "Many people are overconfident in their own abilities."
+  },
+  {
+   "id": "f92",
+   "source": "s26",
+   "quote": "People assess risks and often make decisions on the basis of readily available information.",
+   "claim": "Availability bias: judging by what comes to mind easily."
+  },
+  {
+   "id": "f93",
+   "source": "s26",
+   "quote": "The more dramatic the recent event, the more of an impact it has.",
+   "claim": "The more dramatic the recent event, the more it sways you."
+  },
+  {
+   "id": "f94",
+   "source": "s27",
+   "quote": "Anchoring is the tendency for people to rely too heavily on the first piece of information they are offered about a situation, topic, or decision.",
+   "claim": "Anchoring is relying too heavily on the first piece of information."
+  },
+  {
+   "id": "f95",
+   "source": "s27",
+   "quote": "Surprisingly, an anchor can still influence your decisions even if it is completely irrelevant to the situation at hand.",
+   "claim": "An anchor can sway you even when it's irrelevant."
+  },
+  {
+   "id": "f96",
+   "source": "s27",
+   "quote": "People anchor to the crossed out higher price, which makes them feel like they are saving money with the discounted price",
+   "claim": "A crossed-out higher price works as an anchor."
+  },
+  {
+   "id": "f152",
+   "source": "s27",
+   "quote": "many people are unwilling to sell their stock if the price is lower than what they bought it for, even if it is a smart decision to sell.",
+   "claim": "Many people won't sell a stock below what they paid, even when selling is the smart move."
+  },
+  {
+   "id": "f153",
+   "source": "s27",
+   "quote": "This is caused by both loss aversion and the original price acting as an anchor.",
+   "claim": "Refusing to sell below your cost comes from loss aversion and from the purchase price acting as an anchor."
+  },
+  {
+   "id": "f97",
+   "source": "s28",
+   "quote": "Herding is when many people do the same thing because others are doing it.",
+   "claim": "Herding is doing something because others are doing it."
+  },
+  {
+   "id": "f98",
+   "source": "s28",
+   "quote": "Our strong desire to follow others can push us to buy or sell investments out of panic, particularly during times of uncertainty.",
+   "claim": "Herding can drive panic buying and selling."
+  },
+  {
+   "id": "f99",
+   "source": "s29",
+   "quote": "Loss aversion is a common behavioural bias in which the psychological pain of losing something is twice as powerful as the pleasure of gaining it.",
+   "claim": "Loss aversion: losing hurts more than gaining pleases."
+  },
+  {
+   "id": "f100",
+   "source": "s29",
+   "quote": "To avoid losses, many people will refuse to sell stocks or other assets for less than what they bought them for",
+   "claim": "To avoid a loss, many people refuse to sell below what they paid."
+  },
+  {
+   "id": "f101",
+   "source": "s30",
+   "quote": "People tend to treat money differently based on how they obtain it or what they intend to spend it on.",
+   "claim": "Mental accounting is treating money differently by where it came from or what it's for."
+  },
+  {
+   "id": "f102",
+   "source": "s31",
+   "quote": "Moreover, most individuals seem to be more averse to losses, relative to a reference level, than partial to gains of the same size.",
+   "claim": "Kahneman found people more averse to losses than drawn to equal gains."
+  },
+  {
+   "id": "f103",
+   "source": "s31",
+   "quote": "Kahneman and Tversky also developed an alternative, known as prospect theory, intended to provide explanations for empirical observations.",
+   "claim": "Kahneman and Tversky developed prospect theory."
+  },
+  {
+   "id": "f104",
+   "source": "s31",
+   "quote": "an investor who recognizes that a fund manager beats the index two years in a row may conclude that the manager is systematically more competent than the average investor, whereas the true statistical implication is much weaker.",
+   "claim": "Two good years prove far less about skill than they seem to."
+  },
+  {
+   "id": "f105",
+   "source": "s31",
+   "quote": "People thus seem to adhere to a law of small numbers, without due consideration of the law of large numbers in probability theory.",
+   "claim": "People follow a 'law of small numbers', trusting small samples too much."
+  },
+  {
+   "id": "f106",
+   "source": "s32",
+   "quote": "I test the disposition effect, the tendency of investors to hold losing investments too long and sell winning investments too soon",
+   "claim": "Odean defines the disposition effect as holding losers too long and selling winners too soon."
+  },
+  {
+   "id": "f107",
+   "source": "s32",
+   "quote": "An analysis of these records shows that, overall, investors realize their gains more readily than their losses.",
+   "claim": "In 10,000 brokerage accounts, investors took gains more readily than losses."
+  },
+  {
+   "id": "f108",
+   "source": "s33",
+   "quote": "Tilt is essentially a more fun way of saying you have a problem with anger in performance.",
+   "claim": "Tilt is anger hurting your performance."
+  },
+  {
+   "id": "f109",
+   "source": "s33",
+   "quote": "Anger blinds you from reason, and you feel justified in taking overly aggressive lines vs. an opponent who is constantly re-raising you, or jumping back into a position after getting stopped out for the second time.",
+   "claim": "On tilt you jump back into a position after a second stop-out."
+  },
+  {
+   "id": "f110",
+   "source": "s33",
+   "quote": "No one gets angry about winning. Anger comes after the winning stops, but this problem is caused by overconfidence or fear, not anger.",
+   "claim": "'Winner's tilt' isn't tilt; that's overconfidence or fear."
+  },
+  {
+   "id": "f111",
+   "source": "s33",
+   "quote": "the anger you feel when in a drawdown or downswing is a consequence of a large amount of Tilt-inducing triggers happening in such a short amount of time that your mind can’t recover.",
+   "claim": "Drawdowns stack up tilt triggers faster than you can recover."
+  },
+  {
+   "id": "f112",
+   "source": "s33",
+   "quote": "You can’t correct what you can’t see.",
+   "claim": "You have to see a mental-game problem to fix it."
+  },
+  {
+   "id": "f113",
+   "source": "s34",
+   "quote": "Detrimental out-of-control poker decision-making due to negative emotions is known as tilting.",
+   "claim": "Tilting is out-of-control decision-making driven by negative emotions."
+  },
+  {
+   "id": "f114",
+   "source": "s34",
+   "quote": "Tilting, in the narratives, was often instigated by dissociative feelings ('unreality', disbelief) following a significant monetary loss.",
+   "claim": "Tilt was often set off by a significant loss."
+  },
+  {
+   "id": "f115",
+   "source": "s34",
+   "quote": "Thereafter, moral indignation was experienced, followed by chasing behaviour, in an attempt to restore a 'fair balance' between wins and losses.",
+   "claim": "On tilt, players chased losses to restore a 'fair balance'."
+  },
+  {
+   "id": "f116",
+   "source": "s35",
+   "quote": "a \"house money effect\" (increased risk seeking in the presence of a prior gain)",
+   "claim": "The house money effect is taking more risk after a gain."
+  },
+  {
+   "id": "f117",
+   "source": "s35",
+   "quote": "\"break-even effects\" (in the presence of prior losses, outcomes which offer a chance to break even are especially attractive)",
+   "claim": "The break-even effect: after losses, a chance to get back to even is extra attractive."
+  },
+  {
+   "id": "f118",
+   "source": "s36",
+   "quote": "This paper documents strong evidence for behavioral biases among Chicago Board of Trade proprietary traders",
+   "claim": "The study looked at professional Chicago Board of Trade traders."
+  },
+  {
+   "id": "f119",
+   "source": "s36",
+   "quote": "Our traders appear highly loss-averse, regularly assuming above-average afternoon risk to recover from morning losses.",
+   "claim": "Pros who lost in the morning took above-average risk in the afternoon to recover."
+  },
+  {
+   "id": "f120",
+   "source": "s37",
+   "quote": "In assessing his ability the trader takes too much credit for his successes. This leads him to become overconfident.",
+   "claim": "Taking too much credit for wins makes a trader overconfident."
+  },
+  {
+   "id": "f121",
+   "source": "s38",
+   "quote": "Of 66,465 households with accounts at a large discount broker during 1991 to 1996, those that trade most earn an annual return of 11.4 percent, while the market returns 17.9 percent.",
+   "claim": "The heaviest-trading households earned 11.4% a year against the market's 17.9%."
+  },
+  {
+   "id": "f122",
+   "source": "s38",
+   "quote": "Overconfidence can explain high trading levels and the resulting poor performance of individual investors.",
+   "claim": "Overconfidence explains heavy trading and poor results."
+  },
+  {
+   "id": "f123",
+   "source": "s39",
+   "quote": "Revenge trading: Instead of reflecting on the loss and building a strong investment plan, the investor is motivated to take action for a quick gain.",
+   "claim": "Revenge trading is chasing a quick gain after a loss instead of reflecting."
+  },
+  {
+   "id": "f124",
+   "source": "s39",
+   "quote": "In some cases, the second loss can be even larger than the first.",
+   "claim": "The revenge trade's loss can be bigger than the first."
+  },
+  {
+   "id": "f125",
+   "source": "s40",
+   "quote": "Recency bias can prompt us to place undue importance on recent events. When we see our portfolio drop 10%, recency bias convinces us that it will just keep on dropping.",
+   "claim": "Recency bias gives recent events undue weight and says a drop will keep dropping."
+  },
+  {
+   "id": "f126",
+   "source": "s40",
+   "quote": "During the 2008 financial crisis, many investors seemed to fall into the trap of recency bias.",
+   "claim": "Many investors fell into recency bias in 2008."
+  },
+  {
+   "id": "f127",
+   "source": "s41",
+   "quote": "we hear ourselves say it over and over again: “I knew it all along.” The problem is that too often we actually didn’t know it all along, we only feel as though we did.",
+   "claim": "Hindsight bias is feeling you knew it all along when you didn't."
+  },
+  {
+   "id": "f128",
+   "source": "s41",
+   "quote": "Ultimately, hindsight bias matters because it gets in the way of learning from our experiences.",
+   "claim": "Hindsight bias gets in the way of learning."
+  },
+  {
+   "id": "f129",
+   "source": "s41",
+   "quote": "If you feel like you knew it all along, it means you won’t stop to examine why something really happened",
+   "claim": "If you think you knew it, you don't examine why it happened."
+  },
+  {
+   "id": "f130",
+   "source": "s41",
+   "quote": "Hindsight bias can also make us overconfident in how certain we are about our own judgments.",
+   "claim": "Hindsight bias can make us overconfident."
+  },
+  {
+   "id": "f144",
+   "source": "s41",
+   "quote": "The first level of hindsight bias, memory distortion, involves misremembering an earlier opinion or judgment (“I said it would happen”).",
+   "claim": "Hindsight bias starts with misremembering what you thought before."
+  },
+  {
+   "id": "f131",
+   "source": "s42",
+   "quote": "The gambler’s fallacy is a belief in negative autocorrelation of a non-autocorrelated random sequence.",
+   "claim": "The gambler's fallacy expects a random run to reverse."
+  },
+  {
+   "id": "f132",
+   "source": "s42",
+   "quote": "If he believes in the gambler’s fallacy, then after observing three heads his subjective probability of seeing another head is less than 50%. Thus he believes a tail is “due,”",
+   "claim": "After three heads, the believer thinks a fourth is less than 50% likely: a tail feels 'due'."
+  },
+  {
+   "id": "f141",
+   "source": "s42",
+   "quote": "In contrast, the hot hand is a belief in positive autocorrelation of a non-autocorrelated random sequence.",
+   "claim": "The hot hand is the opposite belief: that a random run will continue."
+  },
+  {
+   "id": "f133",
+   "source": "s43",
+   "quote": "At issue here is whether there is an outcome bias, in which people take outcomes into account in a way that is irrelevant to the true quality of the decision.",
+   "claim": "Outcome bias is letting the result color your view of the decision's quality."
+  },
+  {
+   "id": "f134",
+   "source": "s43",
+   "quote": "Since good decisions can lead to bad outcomes (and vice versa) decision makers cannot infallibly be graded by their results.",
+   "claim": "Good decisions can turn out badly and bad ones well, so results alone can't grade a decision."
+  },
+  {
+   "id": "f135",
+   "source": "s44",
+   "quote": "In poker you can win with the worst hand. You can lose with the best hand.",
+   "claim": "In poker you can win with the worst hand and lose with the best."
+  },
+  {
+   "id": "f136",
+   "source": "s44",
+   "quote": "So if all I know is that Taylor and Morgan played poker for an hour and Taylor won, I know very little about the quality of the underlying decisions.",
+   "claim": "One win tells you little about the quality of the decisions."
+  },
+  {
+   "id": "f137",
+   "source": "s45",
+   "quote": "That FOMO leads to overtrading, as the fear of missing leads to the taking of marginal trades.",
+   "claim": "FOMO leads to overtrading through marginal trades."
+  },
+  {
+   "id": "f138",
+   "source": "s45",
+   "quote": "No matter how many opportunities I miss, ones always end up appearing later in the day or the next day.",
+   "claim": "Missed opportunities are always followed by new ones."
+  },
+  {
+   "id": "f139",
+   "source": "s45",
+   "quote": "The goal is not to trade every possible opportunity, but to identify the best opportunities and trade those as well as possible.",
+   "claim": "Trade the best opportunities, not every one."
+  },
+  {
+   "id": "f140",
+   "source": "s46",
+   "quote": "Our memories are biased by our emotions, as well as hindsight and the factors that most stick out in our mind.",
+   "claim": "Memory of our trades is biased by emotion and hindsight."
+  },
+  {
+   "id": "f142",
+   "source": "s47",
+   "quote": "Hindsight bias occurs when people feel that they “knew it all along,” that is, when they believe that an event is more predictable after it becomes known than it was before it became known.",
+   "claim": "Hindsight bias is feeling you knew it all along: the event seems more predictable after it happens."
+  },
+  {
+   "id": "f143",
+   "source": "s47",
+   "quote": "Consequences of hindsight bias include myopic attention to a single causal understanding of the past (to the neglect of other reasonable explanations) as well as general overconfidence in the certainty of one’s judgments.",
+   "claim": "Hindsight bias narrows how you explain the past and makes you overconfident in your judgments."
+  },
+  {
+   "id": "f148",
+   "source": "s48",
+   "quote": "The evidence is most consistent with the law of small numbers and the gambler’s fallacy—people underestimating the likelihood of sequential streaks occurring by chance",
+   "claim": "The gambler's fallacy and the law of small numbers: people underestimate how often streaks happen by chance."
+  }
+ ],
+ "walkthroughs": [
+  {
+   "key": "w1",
+   "title": "Name it to catch it",
+   "steps": [
+    "A research report done for the SEC says investors fall into predictable patterns. They make the same mistakes repeatedly.",
+    "Those patterns have names: FOMO, tilt, loss aversion, overconfidence and more. This unit teaches the names.",
+    "Mental game coach Jared Tendler puts it simply: you can't correct what you can't see. A name lets you see it."
+   ],
+   "facts": [
+    "f09",
+    "f112"
+   ]
+  },
+  {
+   "key": "w2",
+   "title": "After a loss",
+   "steps": [
+    "A loss stings more than an equal win feels good. That's loss aversion.",
+    "Anger can follow. Tendler calls that tilt: anger hurting your decisions.",
+    "Tilt can turn into revenge trading: bigger size and more trades, trying to win it back fast.",
+    "The fix is plain. Step away from the screen, cool off, then come back to your plan."
+   ],
+   "facts": [
+    "f86",
+    "f102",
+    "f108",
+    "f73",
+    "f115",
+    "f47"
+   ]
+  },
+  {
+   "key": "w3",
+   "title": "After a win",
+   "steps": [
+    "Wins set traps too. A trader who takes too much credit for wins grows overconfident.",
+    "Profits can feel like house money, so risk creeps up after a gain.",
+    "A short streak proves less than it feels. Keep your size tied to your rule, not your mood."
+   ],
+   "facts": [
+    "f120",
+    "f116",
+    "f69",
+    "f104"
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "key": "q01",
+   "skill": "vocab.psych_terms",
+   "rung": 1,
+   "format": "mcq",
+   "term": "FOMO",
+   "q": "In trading talk, what does FOMO stand for?",
+   "choices": [
+    "Fear of missing out",
+    "Fear of losing money",
+    "Following the crowd's trades"
+   ],
+   "answer": "Fear of missing out",
+   "why": "Fear of missing out. FINRA's advice when FOMO grabs you: pause and evaluate before you act.",
+   "lesson_line": "FOMO is a feeling, not a setup. Feel it, then check your plan.",
+   "facts": [
+    "f16",
+    "f19",
+    "f21",
+    "f32"
+   ],
+   "wrong": {
+    "Fear of losing money": "That's closer to loss aversion. FOMO is the fear of being left out of a move.",
+    "Following the crowd's trades": "That's herding. FOMO often drives it, but FOMO names the fear itself."
+   }
+  },
+  {
+   "key": "q02",
+   "skill": "vocab.psych_terms",
+   "rung": 2,
+   "format": "fill",
+   "term": "FOMO",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "The SEC's advice: stick with your long-term ___ and don't decide on a fear of missing out.",
+   "bank": [
+    "plan",
+    "winners",
+    "hunch",
+    "watchlist"
+   ],
+   "answer": "plan",
+   "why": "Plan. The SEC's line is to stick with your long-term plan and not make decisions on a fear of missing out.",
+   "lesson_line": "The plan is the antidote. FOMO wants you to skip it.",
+   "facts": [
+    "f17",
+    "f18"
+   ]
+  },
+  {
+   "key": "q03",
+   "skill": "vocab.psych_terms",
+   "rung": 5,
+   "format": "scenario",
+   "term": "FOMO",
+   "q": "Which word names what you're feeling?",
+   "story": "A stock you watched broke out yesterday without you. Today it's up another 9%. Your chat is full of gains and you want in at any price.",
+   "choices": [
+    "FOMO",
+    "Tilt",
+    "Anchoring",
+    "Loss aversion"
+   ],
+   "answer": "FOMO",
+   "why": "FOMO. FINRA's advice when excitement or FOMO takes hold is to pause and evaluate. Schwab warns that jumping on a move after it happened is a common mistake.",
+   "lesson_line": "If you missed the entry, you missed it. Wait for the next setup.",
+   "facts": [
+    "f19",
+    "f51",
+    "f139"
+   ],
+   "wrong": {
+    "Tilt": "Tilt is anger, usually after losses. This is the itch of being left out.",
+    "Anchoring": "Anchoring is leaning on a first number, like an old price. Nothing here hangs on a reference price.",
+    "Loss aversion": "Loss aversion is the sting of losing. You haven't lost anything here; you're afraid of missing out."
+   }
+  },
+  {
+   "key": "q04",
+   "skill": "vocab.psych_terms",
+   "rung": 7,
+   "format": "tf",
+   "term": "FOMO",
+   "q": "Pump-and-dump scammers count on your FOMO to get you to buy fast.",
+   "answer": "True",
+   "why": "True. FINRA says pump-and-dump operators rely on FOMO, and they press you to act immediately or 'never get another chance'.",
+   "lesson_line": "A tip that says buy now or never is a red flag, not a setup.",
+   "facts": [
+    "f21",
+    "f22"
+   ]
+  },
+  {
+   "key": "q05",
+   "skill": "vocab.psych_terms",
+   "rung": 9,
+   "format": "scenario",
+   "term": "FOMO",
+   "q": "What's your move?",
+   "story": "A stock on your list breaks out on big volume while you're away. Two days later it's far past your entry. A friend says it's not too late.",
+   "choices": [
+    "Let it go and wait for a new setup",
+    "Buy now at double size to catch up",
+    "Buy now, strong stocks keep going"
+   ],
+   "answer": "Let it go and wait for a new setup",
+   "why": "Let it go and wait for a new setup. The SEC says to stick with your plan and not decide on a fear of missing out. Steenbarger: the goal is the best opportunities, not every one.",
+   "lesson_line": "There's always another setup. Wait for one you can plan.",
+   "facts": [
+    "f17",
+    "f138",
+    "f139",
+    "f51"
+   ],
+   "wrong": {
+    "Buy now at double size to catch up": "That's FOMO setting your size. Being late doesn't change your sizing rule.",
+    "Buy now, strong stocks keep going": "Some do. But your plan's entry is gone, and Schwab warns a late entry can come right before a reversal."
+   }
+  },
+  {
+   "key": "q06",
+   "skill": "vocab.psych_terms",
+   "rung": 1,
+   "format": "mcq",
+   "term": "Tilt",
+   "q": "In trading, what does it mean to be on tilt?",
+   "choices": [
+    "Making bad decisions out of anger",
+    "Feeling too sure after a few wins",
+    "Holding a losing trade too long"
+   ],
+   "answer": "Making bad decisions out of anger",
+   "why": "Making bad decisions out of anger. Tendler calls tilt a problem with anger in performance. A poker study defines it as out-of-control decisions driven by negative emotions.",
+   "lesson_line": "Tilt is anger placing your trades. Spot it early and step away.",
+   "facts": [
+    "f108",
+    "f113",
+    "f110",
+    "f01"
+   ],
+   "wrong": {
+    "Feeling too sure after a few wins": "That's overconfidence. Tendler says no one gets angry about winning.",
+    "Holding a losing trade too long": "That's the disposition effect. Tilt is about anger driving your decisions."
+   }
+  },
+  {
+   "key": "q07",
+   "skill": "vocab.psych_terms",
+   "rung": 3,
+   "format": "tf",
+   "term": "Tilt",
+   "q": "Tilt is often set off by a big loss.",
+   "answer": "True",
+   "why": "True. A study of poker players' own stories found tilt was often set off by a significant loss. Tendler ties drawdown anger to triggers piling up faster than you can recover.",
+   "lesson_line": "After a big loss, check your temper before the next click.",
+   "facts": [
+    "f114",
+    "f111"
+   ]
+  },
+  {
+   "key": "q08",
+   "skill": "vocab.psych_terms",
+   "rung": 5,
+   "format": "scenario",
+   "term": "Tilt",
+   "q": "Which word names the state you're in?",
+   "story": "You get stopped out twice before noon. You're furious at the market. You jump straight back in with no setup.",
+   "choices": [
+    "Tilt",
+    "FOMO",
+    "Anchoring",
+    "Hindsight bias"
+   ],
+   "answer": "Tilt",
+   "why": "Tilt. Anger is driving the trade. Tendler's own example is jumping back into a position after getting stopped out for the second time.",
+   "lesson_line": "Two stop-outs and a hot temper is the moment to stop, not to press.",
+   "facts": [
+    "f109",
+    "f108",
+    "f113"
+   ],
+   "wrong": {
+    "FOMO": "FOMO is the fear of missing a move. Here it's anger at the losses pushing you.",
+    "Anchoring": "Anchoring is fixing on a first number. Nothing here hangs on a reference price.",
+    "Hindsight bias": "Hindsight bias is 'I knew it all along' after the fact. This is anger in the moment."
+   }
+  },
+  {
+   "key": "q09",
+   "skill": "vocab.psych_terms",
+   "rung": 6,
+   "format": "tf",
+   "term": "Tilt",
+   "q": "By Tendler's definition, feeling unbeatable after a run of winners is a form of tilt.",
+   "answer": "False",
+   "why": "False. Tilt is anger. Tendler says no one gets angry about winning, and calls that problem overconfidence or fear. The poker research ties tilt to negative emotions.",
+   "lesson_line": "Name it right to fix it. Anger after losses is tilt; swagger after wins is overconfidence.",
+   "facts": [
+    "f110",
+    "f108",
+    "f113"
+   ]
+  },
+  {
+   "key": "q10",
+   "skill": "vocab.psych_terms",
+   "rung": 1,
+   "format": "mcq",
+   "term": "Revenge trading",
+   "q": "What is revenge trading?",
+   "choices": [
+    "Trading to win back a loss fast",
+    "Re-entering after a stop-out",
+    "Selling a stock that let you down"
+   ],
+   "answer": "Trading to win back a loss fast",
+   "why": "Trading to win back a loss fast. CIBC describes acting for a quick gain instead of reflecting on the loss. Investopedia: seeking revenge on the market with bigger, more frequent trades.",
+   "lesson_line": "A loss is a cost of doing business. Chasing it back today can turn it into two.",
+   "facts": [
+    "f123",
+    "f73",
+    "f124"
+   ],
+   "wrong": {
+    "Re-entering after a stop-out": "Re-entering on a fresh, planned setup is normal. Revenge is about getting the money back.",
+    "Selling a stock that let you down": "Selling a loser can be the right move. Revenge trading is the next trade, made to win the money back."
+   }
+  },
+  {
+   "key": "q11",
+   "skill": "vocab.psych_terms",
+   "rung": 3,
+   "format": "fill",
+   "term": "Revenge trading",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "Alan Farley's rule: don't make up for a losing trade by trading more. ___ trading is a recipe for disaster.",
+   "bank": [
+    "Revenge",
+    "Swing",
+    "Paper",
+    "Position"
+   ],
+   "answer": "Revenge",
+   "why": "Revenge. Investopedia's list of professional rules says so plainly, and Schwab ties revenge trading to many trading blowups.",
+   "lesson_line": "Trading more to make up a loss is the trap. Fewer, better trades get you back.",
+   "facts": [
+    "f85",
+    "f46",
+    "f123"
+   ]
+  },
+  {
+   "key": "q12",
+   "skill": "vocab.psych_terms",
+   "rung": 4,
+   "format": "tf",
+   "term": "Revenge trading",
+   "q": "Revenge trading usually shows up as smaller size and fewer trades.",
+   "answer": "False",
+   "why": "False. Investopedia says traders out for revenge usually increase the size and frequency of their trades. Schwab names doubling down on the next trade to make up the loss.",
+   "lesson_line": "If your size jumps right after a loss, that's revenge, not conviction.",
+   "facts": [
+    "f73",
+    "f49",
+    "f74"
+   ]
+  },
+  {
+   "key": "q13",
+   "skill": "vocab.psych_terms",
+   "rung": 8,
+   "format": "scenario",
+   "term": "Revenge trading",
+   "q": "What's the better move?",
+   "story": "It's 11 a.m. You're down 3R on three stop-outs. A so-so setup shows up, and you feel the urge to go double size and make it all back.",
+   "choices": [
+    "Step away and cool off",
+    "Take it at double size",
+    "Take it and skip the stop",
+    "Short it to get even"
+   ],
+   "answer": "Step away and cool off",
+   "why": "Step away and cool off. Schwab says the first thing to do after a big loss is step away, and suggests a pledge to stop for the day after a set loss.",
+   "lesson_line": "Set a daily loss limit before the open. When it hits, you're done for the day.",
+   "facts": [
+    "f47",
+    "f48",
+    "f50",
+    "f75",
+    "f73",
+    "f124",
+    "f52",
+    "f53"
+   ],
+   "wrong": {
+    "Take it at double size": "That's revenge trading: bigger size right after losses. CIBC warns the second loss can be bigger than the first.",
+    "Take it and skip the stop": "Pulling a stop is often a way to avoid admitting you were wrong. It turns a planned loss into an open one.",
+    "Short it to get even": "Schwab lists trading against a stock 'to get even with the market' as an emotional mistake."
+   }
+  },
+  {
+   "key": "q14",
+   "skill": "vocab.psych_terms",
+   "rung": 4,
+   "format": "mcq",
+   "term": "Overtrading",
+   "q": "You take a dozen trades a day, most of them marginal, and costs pile up. Which word fits?",
+   "choices": [
+    "Overtrading",
+    "Scaling in",
+    "Diversifying"
+   ],
+   "answer": "Overtrading",
+   "why": "Overtrading. Investopedia defines it as excessive buying and selling that raises costs and hurts results. Steenbarger ties it to taking marginal trades.",
+   "lesson_line": "Every trade should earn its place. If it's a maybe, it's a no.",
+   "facts": [
+    "f72",
+    "f137",
+    "f26"
+   ],
+   "wrong": {
+    "Scaling in": "Scaling in is building one position in planned portions. It isn't a pile of marginal trades.",
+    "Diversifying": "Diversifying spreads risk across holdings on purpose. Overtrading is excess activity."
+   }
+  },
+  {
+   "key": "q15",
+   "skill": "vocab.psych_terms",
+   "rung": 5,
+   "format": "numeric",
+   "term": "Overtrading",
+   "q": "Barber and Odean: the heaviest traders earned 11.4% a year and the market 17.9%. How many points a year did they trail by?",
+   "answer": 6.5,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "market - heavy",
+     "market": 17.9,
+     "heavy": 11.4
+    },
+    "round": 1
+   },
+   "suffix": "points",
+   "why": "6.5 points. That's 17.9 minus 11.4. Barber and Odean say overconfidence can explain the heavy trading and the poor results.",
+   "lesson_line": "Activity isn't edge. The busiest traders in that study trailed the market.",
+   "facts": [
+    "f121",
+    "f122",
+    "f14"
+   ]
+  },
+  {
+   "key": "q16",
+   "skill": "vocab.psych_terms",
+   "rung": 1,
+   "format": "mcq",
+   "term": "Overconfidence",
+   "q": "What is overconfidence bias?",
+   "choices": [
+    "Overrating your skill and knowledge",
+    "Being sure you saw the outcome coming",
+    "Following the crowd into a hot name"
+   ],
+   "answer": "Overrating your skill and knowledge",
+   "why": "Overrating your own skill and knowledge. Schwab defines it as overestimating your knowledge and abilities, which tricks you into risky bets.",
+   "lesson_line": "Let your record, not your mood, tell you how good you are.",
+   "facts": [
+    "f34",
+    "f33",
+    "f91",
+    "f14",
+    "f130",
+    "f97"
+   ],
+   "wrong": {
+    "Being sure you saw the outcome coming": "That's hindsight bias, though it can feed overconfidence.",
+    "Following the crowd into a hot name": "That's herding. Overconfidence is about how you rate yourself."
+   }
+  },
+  {
+   "key": "q17",
+   "skill": "vocab.psych_terms",
+   "rung": 5,
+   "format": "tf",
+   "term": "Overconfidence",
+   "q": "Research ties overconfidence to trading too often.",
+   "answer": "True",
+   "why": "True. A Library of Congress report done for the SEC says active trading correlates with overconfidence. Barber and Odean say overconfidence can explain high trading levels.",
+   "lesson_line": "When you start trading more because you feel sharp, slow down.",
+   "facts": [
+    "f14",
+    "f122",
+    "f08"
+   ]
+  },
+  {
+   "key": "q18",
+   "skill": "vocab.psych_terms",
+   "rung": 7,
+   "format": "scenario",
+   "term": "Overconfidence",
+   "q": "Which word fits best?",
+   "story": "You've hit five winners in a row. You decide you've figured this market out. You triple your normal size on the next trade.",
+   "choices": [
+    "Overconfidence",
+    "Loss aversion",
+    "Anchoring",
+    "Familiarity bias"
+   ],
+   "answer": "Overconfidence",
+   "why": "Overconfidence. Gervais and Odean show a trader who takes too much credit for wins becomes overconfident. A short run proves much less than it feels.",
+   "lesson_line": "Keep size tied to your risk rule, not to your streak.",
+   "facts": [
+    "f120",
+    "f33",
+    "f104"
+   ],
+   "wrong": {
+    "Loss aversion": "Loss aversion is fear of losses. Here you're ignoring risk, not fearing it.",
+    "Anchoring": "Anchoring is leaning on a first number. Nothing here hangs on a reference price.",
+    "Familiarity bias": "Familiarity bias favors names you know. This is about how you rate your own skill."
+   }
+  },
+  {
+   "key": "q19",
+   "skill": "vocab.psych_terms",
+   "rung": 7,
+   "format": "tf",
+   "term": "Overconfidence",
+   "q": "FINRA Foundation research found social media users less often overrate their investing knowledge.",
+   "answer": "False",
+   "why": "False. FINRA says social media users are more likely than non-users to show overconfidence in their investment knowledge.",
+   "lesson_line": "A feed full of winners makes everyone feel smart. Check your own numbers.",
+   "facts": [
+    "f20"
+   ]
+  },
+  {
+   "key": "q20",
+   "skill": "vocab.psych_terms",
+   "rung": 2,
+   "format": "mcq",
+   "term": "Self-attribution bias",
+   "q": "Which word is this: wins are my skill, losses are bad luck?",
+   "choices": [
+    "Self-attribution bias",
+    "Hindsight bias",
+    "Confirmation bias",
+    "Outcome bias"
+   ],
+   "answer": "Self-attribution bias",
+   "why": "Self-attribution bias. Schwab defines it as crediting wins to your skill and blaming losses on outside forces. The SEC's report links it to overconfidence.",
+   "lesson_line": "Grade wins as hard as losses. Luck shows up on both sides.",
+   "facts": [
+    "f44",
+    "f11",
+    "f23",
+    "f133",
+    "f142"
+   ],
+   "wrong": {
+    "Hindsight bias": "Hindsight bias is believing an outcome was predictable after it happened.",
+    "Confirmation bias": "Confirmation bias is favoring information that backs what you already think.",
+    "Outcome bias": "Outcome bias is judging a decision by its result. Self-attribution is about who gets the credit."
+   }
+  },
+  {
+   "key": "q21",
+   "skill": "vocab.psych_terms",
+   "rung": 6,
+   "format": "scenario",
+   "term": "Self-attribution bias",
+   "q": "Where does this habit tend to lead?",
+   "story": "You review your journal. Every winner is tagged 'great read.' Every loser is tagged 'bad luck' or 'market was rigged.'",
+   "choices": [
+    "Overconfidence, then bigger bets",
+    "More careful position sizing",
+    "A truer read of your edge"
+   ],
+   "answer": "Overconfidence, then bigger bets",
+   "why": "Overconfidence, then bigger bets. Gervais and Odean show a trader who takes too much credit for wins becomes overconfident. Schwab names this habit self-attribution bias.",
+   "lesson_line": "Tag the real cause of every loss. 'Bad luck' is a tag you earn, not a default.",
+   "facts": [
+    "f120",
+    "f44",
+    "f33"
+   ],
+   "wrong": {
+    "More careful position sizing": "The opposite. Taking credit for every win makes you feel safer than you are.",
+    "A truer read of your edge": "It hides your edge. Blaming luck for losses keeps you from fixing them."
+   }
+  },
+  {
+   "key": "q22",
+   "skill": "vocab.psych_terms",
+   "rung": 1,
+   "format": "mcq",
+   "term": "Loss aversion",
+   "q": "What is loss aversion?",
+   "choices": [
+    "A loss hurts more than an equal gain",
+    "Avoiding risk to protect your capital",
+    "Selling your winners far too early"
+   ],
+   "answer": "A loss hurts more than an equal gain",
+   "why": "A loss stings more than a same-size gain. The Nobel summary of Kahneman's work: most people are more averse to losses than partial to gains of the same size.",
+   "lesson_line": "Expect a loss to hurt more than a win feels good. Plan your exit before that feeling shows up.",
+   "facts": [
+    "f102",
+    "f76",
+    "f86",
+    "f31",
+    "f54",
+    "f99",
+    "f78",
+    "f87"
+   ],
+   "wrong": {
+    "Avoiding risk to protect your capital": "That's risk aversion, which can be rational. Loss aversion is the lopsided feeling about losses and gains.",
+    "Selling your winners far too early": "That's half of the disposition effect, which loss aversion helps explain."
+   }
+  },
+  {
+   "key": "q23",
+   "skill": "vocab.psych_terms",
+   "rung": 3,
+   "format": "fill",
+   "term": "Prospect theory",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "Kahneman and Tversky's ___ theory says people weigh losses more heavily than equal gains.",
+   "bank": [
+    "prospect",
+    "Dow",
+    "random walk",
+    "chaos"
+   ],
+   "answer": "prospect",
+   "why": "Prospect. A Library of Congress report done for the SEC calls prospect theory one of the foundations of behavioral finance.",
+   "lesson_line": "Prospect theory is the science behind 'losses hurt more.'",
+   "facts": [
+    "f12",
+    "f13",
+    "f103",
+    "f102"
+   ]
+  },
+  {
+   "key": "q24",
+   "skill": "vocab.psych_terms",
+   "rung": 4,
+   "format": "tf",
+   "term": "Loss aversion",
+   "q": "Loss aversion only ever makes people more careful.",
+   "answer": "False",
+   "why": "False. Schwab says loss aversion can also push you to take extra risk when you're down. The OSC says the pain of losing can increase risk-taking.",
+   "lesson_line": "Down money, you may want to swing bigger. That's the bias talking.",
+   "facts": [
+    "f29",
+    "f30",
+    "f90"
+   ]
+  },
+  {
+   "key": "q25",
+   "skill": "vocab.psych_terms",
+   "rung": 7,
+   "format": "scenario",
+   "term": "Loss aversion",
+   "q": "Which bias is at work?",
+   "story": "Your stock falls through your stop. Selling would make the loss real, so you cancel the stop and wait to get back to even.",
+   "choices": [
+    "Loss aversion",
+    "FOMO",
+    "Herd mentality",
+    "Recency bias"
+   ],
+   "answer": "Loss aversion",
+   "why": "Loss aversion. Schwab says once shares fall below your cost, selling means taking a loss, so you hold, and that can make the loss worse.",
+   "lesson_line": "You set the stop when you were calm. Trust that version of you.",
+   "facts": [
+    "f42",
+    "f43",
+    "f100",
+    "f52"
+   ],
+   "wrong": {
+    "FOMO": "FOMO is about missing a move. This is about refusing to take a loss.",
+    "Herd mentality": "Herding is copying others. Nobody else is in this decision.",
+    "Recency bias": "Recency bias overweights what just happened. The pull here is the pain of booking a loss."
+   }
+  },
+  {
+   "key": "q26",
+   "skill": "vocab.psych_terms",
+   "rung": 2,
+   "format": "mcq",
+   "term": "Disposition effect",
+   "q": "What is the disposition effect?",
+   "choices": [
+    "Selling winners early, holding losers",
+    "Adding to a stock that keeps falling",
+    "Selling everything in a panic"
+   ],
+   "answer": "Selling winners early, holding losers",
+   "why": "Selling winners early, holding losers. The SEC calls it holding losing investments too long and selling winning investments too soon.",
+   "lesson_line": "Cut losers fast and let winners work. The bias pulls you the other way.",
+   "facts": [
+    "f01",
+    "f106",
+    "f87",
+    "f98"
+   ],
+   "wrong": {
+    "Adding to a stock that keeps falling": "That's adding to a loser. Related habit, but the disposition effect is about which positions you sell.",
+    "Selling everything in a panic": "That's panic selling. The disposition effect is quieter: you cut winners and keep losers."
+   }
+  },
+  {
+   "key": "q27",
+   "skill": "vocab.psych_terms",
+   "rung": 5,
+   "format": "tf",
+   "term": "Disposition effect",
+   "q": "Per the SEC, winners people sell too soon often go on to trail the losers they keep.",
+   "answer": "False",
+   "why": "False. The SEC bulletin says the winners sold often keep outperforming the losers still held. The report behind it says the habit achieves the reverse of what investors hope.",
+   "lesson_line": "Let the chart and the plan decide what you sell, not where you bought it.",
+   "facts": [
+    "f02",
+    "f15"
+   ]
+  },
+  {
+   "key": "q28",
+   "skill": "vocab.psych_terms",
+   "rung": 8,
+   "format": "scenario",
+   "term": "Disposition effect",
+   "q": "Which word fits?",
+   "story": "You need cash. Stock A is up 18% and acting well. Stock B is down 12% and below its stop. You sell A and keep B until it comes back.",
+   "choices": [
+    "Disposition effect",
+    "House money effect",
+    "Familiarity bias",
+    "Hindsight bias"
+   ],
+   "answer": "Disposition effect",
+   "why": "Disposition effect. Selling the winner and keeping the loser is exactly the pattern the SEC describes. Schwab's test: if you wouldn't buy B today, it may be time to sell.",
+   "lesson_line": "When you need cash, sell what's broken first. B broke your stop.",
+   "facts": [
+    "f01",
+    "f107",
+    "f45",
+    "f69",
+    "f03"
+   ],
+   "wrong": {
+    "House money effect": "House money is taking more risk with recent profits. This is about which position you sell.",
+    "Familiarity bias": "Familiarity bias favors names you know. Both of these are names you know.",
+    "Hindsight bias": "Hindsight bias is 'I knew it' after the fact. This is a choice you're making now."
+   }
+  },
+  {
+   "key": "q29",
+   "skill": "vocab.psych_terms",
+   "rung": 1,
+   "format": "mcq",
+   "term": "Confirmation bias",
+   "q": "What is confirmation bias?",
+   "choices": [
+    "Favoring info that backs what you think",
+    "Waiting for price to confirm a breakout",
+    "Believing you knew it all along"
+   ],
+   "answer": "Favoring info that backs what you think",
+   "why": "Favoring info that backs what you think. Schwab defines it as favoring information that supports your beliefs while ignoring contradictory evidence.",
+   "lesson_line": "Before you buy, write the bear case. If you can't, you haven't looked.",
+   "facts": [
+    "f23",
+    "f89",
+    "f56",
+    "f142"
+   ],
+   "wrong": {
+    "Waiting for price to confirm a breakout": "That's price confirmation, a chart habit. The bias is about filtering information to fit your view.",
+    "Believing you knew it all along": "That's hindsight bias."
+   }
+  },
+  {
+   "key": "q30",
+   "skill": "vocab.psych_terms",
+   "rung": 4,
+   "format": "fill",
+   "term": "Confirmation bias",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "Schwab's fix for confirmation bias: seek out reputable views that ___ your own.",
+   "bank": [
+    "contradict",
+    "confirm",
+    "copy",
+    "flatter"
+   ],
+   "answer": "contradict",
+   "why": "Contradict. Schwab says if you can't rebut the opposing view with data, bias may be blinding you. Investopedia says to seek ideas that challenge your view.",
+   "lesson_line": "Read the best case against your trade. If you can't answer it, you're not ready.",
+   "facts": [
+    "f24",
+    "f57"
+   ]
+  },
+  {
+   "key": "q31",
+   "skill": "vocab.psych_terms",
+   "rung": 5,
+   "format": "scenario",
+   "term": "Confirmation bias",
+   "q": "Which word names this?",
+   "story": "You own a stock. You follow five accounts that love it. You mute the one account that keeps posting the bear case.",
+   "choices": [
+    "Confirmation bias",
+    "Herd mentality",
+    "Anchoring",
+    "Gambler's fallacy"
+   ],
+   "answer": "Confirmation bias",
+   "why": "Confirmation bias. Schwab's own example is seeking more from the voices that agree with you, the tendency to seek information that supports what you already believe.",
+   "lesson_line": "Keep one smart bear in your feed. Muting them doesn't make the risk go away.",
+   "facts": [
+    "f38",
+    "f39",
+    "f89"
+   ],
+   "wrong": {
+    "Herd mentality": "Herding is copying what others do. Here you're choosing which opinions you hear.",
+    "Anchoring": "Anchoring is leaning on a first number. This is about filtering opinions.",
+    "Gambler's fallacy": "The gambler's fallacy expects a streak to reverse. Nothing here is about a streak."
+   }
+  },
+  {
+   "key": "q32",
+   "skill": "vocab.psych_terms",
+   "rung": 7,
+   "format": "tf",
+   "term": "Confirmation bias",
+   "q": "Confirmation bias can keep you in a losing view after the evidence turns.",
+   "answer": "True",
+   "why": "True. Schwab's example is a trader who ignores negative news and refuses to sell as the stock trends lower. Investopedia says it keeps bulls bullish whatever the market does.",
+   "lesson_line": "Your thesis can be wrong. Let your stop, not your reading list, decide.",
+   "facts": [
+    "f25",
+    "f23",
+    "f58"
+   ]
+  },
+  {
+   "key": "q33",
+   "skill": "vocab.psych_terms",
+   "rung": 1,
+   "format": "mcq",
+   "term": "Anchoring",
+   "q": "What is anchoring?",
+   "choices": [
+    "Leaning on the first number you saw",
+    "Holding a stock for the long run",
+    "Following a mentor into every trade"
+   ],
+   "answer": "Leaning on the first number you saw",
+   "why": "Over-relying on the first number you saw. The OSC defines anchoring as relying too heavily on the first piece of information you're offered.",
+   "lesson_line": "Ask what the stock is doing now, not what it used to cost.",
+   "facts": [
+    "f94",
+    "f88",
+    "f35",
+    "f97"
+   ],
+   "wrong": {
+    "Holding a stock for the long run": "That's a holding period. Anchoring is a reference number steering your judgment.",
+    "Following a mentor into every trade": "That's closer to herding. Anchoring is about a number in your head."
+   }
+  },
+  {
+   "key": "q34",
+   "skill": "vocab.psych_terms",
+   "rung": 4,
+   "format": "fill",
+   "term": "Anchoring",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "You bought at $50. It's $42 and below your stop, but you won't sell under $50. That $50 is acting as an ___.",
+   "bank": [
+    "anchor",
+    "edge",
+    "average",
+    "alert"
+   ],
+   "answer": "anchor",
+   "why": "Anchor. The OSC says refusing to sell below what you paid comes from loss aversion and the original price acting as an anchor: a first number that becomes an unintended reference point.",
+   "lesson_line": "Your entry price means nothing to the stock. Judge it as it is now.",
+   "facts": [
+    "f153",
+    "f152",
+    "f88",
+    "f94",
+    "f83"
+   ]
+  },
+  {
+   "key": "q35",
+   "skill": "vocab.psych_terms",
+   "rung": 6,
+   "format": "scenario",
+   "term": "Anchoring",
+   "q": "Which word fits?",
+   "story": "A stock fell from $200 to $120 over a year. You buy it because it used to be $200, so it must be cheap. The trend is still down.",
+   "choices": [
+    "Anchoring",
+    "FOMO",
+    "Herd mentality",
+    "Hindsight bias"
+   ],
+   "answer": "Anchoring",
+   "why": "Anchoring. Schwab's example is fixing on a stock's historical price. The OSC compares it to a crossed-out price tag that makes the sale price feel cheap.",
+   "lesson_line": "An old high is history, not a target.",
+   "facts": [
+    "f40",
+    "f41",
+    "f96"
+   ],
+   "wrong": {
+    "FOMO": "FOMO is fear of missing a move. Nothing here is moving away from you.",
+    "Herd mentality": "Herding is copying others. This is your own reference price at work.",
+    "Hindsight bias": "Hindsight bias is 'I knew it all along' after the fact. This is about a past price."
+   }
+  },
+  {
+   "key": "q36",
+   "skill": "vocab.psych_terms",
+   "rung": 8,
+   "format": "tf",
+   "term": "Anchoring",
+   "q": "A number can sway your judgment even when it has nothing to do with the trade.",
+   "answer": "True",
+   "why": "True. The OSC says an anchor can still influence you when it's completely irrelevant. Schwab says we fixate on the first data point whether it's relevant or not.",
+   "lesson_line": "Notice the first number you saw. Then ask if it should matter at all.",
+   "facts": [
+    "f95",
+    "f35"
+   ]
+  },
+  {
+   "key": "q37",
+   "skill": "vocab.psych_terms",
+   "rung": 2,
+   "format": "mcq",
+   "term": "Recency bias",
+   "q": "What is recency bias?",
+   "choices": [
+    "Overweighting what just happened",
+    "Believing a streak must end soon",
+    "Judging a trade by its result"
+   ],
+   "answer": "Overweighting what just happened",
+   "why": "Overweighting what just happened. Schwab calls it over-emphasizing what's top of mind. Morningstar says it gives recent events undue importance.",
+   "lesson_line": "One rough month is one month. Judge setups on the full record.",
+   "facts": [
+    "f27",
+    "f125",
+    "f79",
+    "f55",
+    "f133",
+    "f131"
+   ],
+   "wrong": {
+    "Believing a streak must end soon": "That's the gambler's fallacy.",
+    "Judging a trade by its result": "That's outcome bias."
+   }
+  },
+  {
+   "key": "q38",
+   "skill": "vocab.psych_terms",
+   "rung": 5,
+   "format": "scenario",
+   "term": "Recency bias",
+   "q": "Which bias may be steering you?",
+   "story": "The market dropped hard last month. Now every bounce looks like a trap to you. A strong new leader breaks out and you pass without even looking.",
+   "choices": [
+    "Recency bias",
+    "FOMO",
+    "House money effect",
+    "Familiarity bias"
+   ],
+   "answer": "Recency bias",
+   "why": "Recency bias. Morningstar says that after a drop, recency bias convinces us it will keep on dropping. Schwab gives the same case after a recent plunge.",
+   "lesson_line": "Judge each setup on its own chart, not on how last month felt.",
+   "facts": [
+    "f125",
+    "f28",
+    "f79",
+    "f69"
+   ],
+   "wrong": {
+    "FOMO": "FOMO would push you in. This is the opposite: fear from the last drop keeping you out.",
+    "House money effect": "House money is taking more risk after gains. You're taking less after losses.",
+    "Familiarity bias": "Familiarity bias favors names you know. This is about the last month's memory."
+   }
+  },
+  {
+   "key": "q39",
+   "skill": "vocab.psych_terms",
+   "rung": 7,
+   "format": "tf",
+   "term": "Recency bias",
+   "q": "In the 2008 crisis, recency bias led many investors out of stocks before the recovery.",
+   "answer": "True",
+   "why": "True. Investopedia says the 2008 and 2009 crisis led many investors to exit stocks, and the market bounced back in the years after. Morningstar ties that era to recency bias.",
+   "lesson_line": "The last crash feels like the next one. Let price, not memory, bring you back.",
+   "facts": [
+    "f80",
+    "f81",
+    "f126"
+   ]
+  },
+  {
+   "key": "q40",
+   "skill": "vocab.psych_terms",
+   "rung": 4,
+   "format": "mcq",
+   "term": "Availability bias",
+   "q": "One stock's 30% earnings gap-down is all over the news. Now every earnings report feels like a disaster. Which bias?",
+   "choices": [
+    "Availability bias",
+    "Anchoring",
+    "Confirmation bias",
+    "House money effect"
+   ],
+   "answer": "Availability bias",
+   "why": "Availability bias. The OSC says we judge by readily available information, and the more dramatic the recent event, the more it sways us. Schwab calls it the availability heuristic.",
+   "lesson_line": "One vivid story isn't the odds. Check how often it really happens.",
+   "facts": [
+    "f92",
+    "f93",
+    "f37",
+    "f79",
+    "f69"
+   ],
+   "wrong": {
+    "Anchoring": "Anchoring is leaning on a first number. Here a vivid story is setting your odds.",
+    "Confirmation bias": "Confirmation bias is filtering for what you already believe. This is one dramatic event looming large.",
+    "House money effect": "House money is taking more risk with profits. Nothing here is about gains."
+   }
+  },
+  {
+   "key": "q41",
+   "skill": "vocab.psych_terms",
+   "rung": 1,
+   "format": "mcq",
+   "term": "Hindsight bias",
+   "q": "What is hindsight bias?",
+   "choices": [
+    "Feeling you knew it all along",
+    "Studying your past trades",
+    "Seeing a pattern in a random run"
+   ],
+   "answer": "Feeling you knew it all along",
+   "why": "Feeling you knew it all along. Roese and Vohs describe it as believing an event was more predictable after it happened than before.",
+   "lesson_line": "If you really knew it, it would be in your plan from before.",
+   "facts": [
+    "f127",
+    "f142",
+    "f140",
+    "f105"
+   ],
+   "wrong": {
+    "Studying your past trades": "Reviewing trades is a good habit. Hindsight bias is what distorts the review.",
+    "Seeing a pattern in a random run": "That's trusting a small sample, the 'law of small numbers'. Hindsight bias is the past looking predictable."
+   }
+  },
+  {
+   "key": "q42",
+   "skill": "vocab.psych_terms",
+   "rung": 6,
+   "format": "tf",
+   "term": "Hindsight bias",
+   "q": "Hindsight bias makes it harder to learn from your trades.",
+   "answer": "True",
+   "why": "True. The APS says hindsight bias gets in the way of learning: if you feel you knew it all along, you won't examine why it happened. Steenbarger adds that hindsight bends our memory of trades.",
+   "lesson_line": "Write the plan before the trade. Then the review has something honest to check.",
+   "facts": [
+    "f128",
+    "f129",
+    "f143",
+    "f140"
+   ]
+  },
+  {
+   "key": "q43",
+   "skill": "vocab.psych_terms",
+   "rung": 7,
+   "format": "tf",
+   "term": "Hindsight bias",
+   "q": "Hindsight bias can feed overconfidence.",
+   "answer": "True",
+   "why": "True. The APS says it can make us overconfident about our own judgments. Roese and Vohs list general overconfidence among its consequences.",
+   "lesson_line": "'I saw that coming' builds false confidence. Your written record keeps you honest.",
+   "facts": [
+    "f130",
+    "f143"
+   ]
+  },
+  {
+   "key": "q44",
+   "skill": "vocab.psych_terms",
+   "rung": 8,
+   "format": "scenario",
+   "term": "Hindsight bias",
+   "q": "What best protects you from this?",
+   "story": "You passed on a stock last month. It has since run 60%. Now you tell everyone the move was obvious and you saw it coming.",
+   "choices": [
+    "Write down your read at the time",
+    "Buy it now to make up for the miss",
+    "Forget it and move on quickly"
+   ],
+   "answer": "Write down your read at the time",
+   "why": "Write down your read at the time. Roese and Vohs say hindsight bias starts with misremembering what you thought before. Steenbarger notes that memory is biased by emotion and hindsight.",
+   "lesson_line": "Memory edits itself. A note written at the time doesn't.",
+   "facts": [
+    "f140",
+    "f127",
+    "f144"
+   ],
+   "wrong": {
+    "Buy it now to make up for the miss": "That's FOMO and regret steering you. Missing the move doesn't make it a setup now.",
+    "Forget it and move on quickly": "Moving on is fine, but the illusion repeats. A written record shows what you really thought."
+   }
+  },
+  {
+   "key": "q45",
+   "skill": "vocab.psych_terms",
+   "rung": 2,
+   "format": "mcq",
+   "term": "Herd mentality",
+   "q": "What is herd mentality?",
+   "choices": [
+    "Copying others over your own research",
+    "Investing in a company everyone knows",
+    "Trusting a stock's old high price"
+   ],
+   "answer": "Copying others over your own research",
+   "why": "Copying others instead of your own work. The OSC says herding is doing the same thing because others are doing it. Schwab says chasing trends outsources your due diligence to the crowd.",
+   "lesson_line": "A crowded trade can still be a good trade. Just make sure it's your trade.",
+   "facts": [
+    "f97",
+    "f10",
+    "f32",
+    "f04",
+    "f145",
+    "f146",
+    "f40"
+   ],
+   "wrong": {
+    "Investing in a company everyone knows": "Favoring well-known names is familiarity bias.",
+    "Trusting a stock's old high price": "That's anchoring. Herding is copying the crowd instead of doing your own work."
+   }
+  },
+  {
+   "key": "q46",
+   "skill": "vocab.psych_terms",
+   "rung": 4,
+   "format": "tf",
+   "term": "Herd mentality",
+   "q": "Herding can help feed bubbles and crashes.",
+   "answer": "True",
+   "why": "True. Investopedia ties bubbles to herd behavior and calls herding a cause of dramatic rallies and sell-offs. The OSC says following others can push us to buy or sell out of panic.",
+   "lesson_line": "In a stampede, stick to your stops and your size.",
+   "facts": [
+    "f98",
+    "f84",
+    "f146",
+    "f147"
+   ]
+  },
+  {
+   "key": "q47",
+   "skill": "vocab.psych_terms",
+   "rung": 9,
+   "format": "tf",
+   "term": "Herd mentality",
+   "q": "Buying a popular stock on your own plan, with your stop set, is herding just because others own it.",
+   "answer": "False",
+   "why": "False. Herding is doing something because others are doing it, instead of relying on your own analysis. Owning what others own isn't the bias; skipping your own work is.",
+   "lesson_line": "Popular isn't the problem. Not knowing why you're in is.",
+   "facts": [
+    "f97",
+    "f36",
+    "f146",
+    "f145"
+   ]
+  },
+  {
+   "key": "q48",
+   "skill": "vocab.psych_terms",
+   "rung": 3,
+   "format": "mcq",
+   "term": "House money effect",
+   "q": "What is the house money effect?",
+   "choices": [
+    "Risking more after recent profits",
+    "Trading with someone else's capital",
+    "Keeping recent profits in cash"
+   ],
+   "answer": "Risking more after recent profits",
+   "why": "Taking more risk with recent profits. Thaler and Johnson found more risk seeking after a prior gain. Investopedia calls it risking profits more freely than earned money.",
+   "lesson_line": "Profit is your money once it's booked. Risk it by the same rule.",
+   "facts": [
+    "f116",
+    "f69"
+   ],
+   "wrong": {
+    "Trading with someone else's capital": "That's trading other people's money. The effect is about how you treat your own recent gains.",
+    "Keeping recent profits in cash": "That's the opposite: locking gains away rather than risking them."
+   }
+  },
+  {
+   "key": "q49",
+   "skill": "vocab.psych_terms",
+   "rung": 6,
+   "format": "scenario",
+   "term": "House money effect",
+   "q": "Which word fits?",
+   "story": "You're up big on the month. You tell yourself it's not really your money yet. You take your next trade at three times your normal risk.",
+   "choices": [
+    "House money effect",
+    "Loss aversion",
+    "Disposition effect",
+    "Anchoring"
+   ],
+   "answer": "House money effect",
+   "why": "House money effect. Investopedia says people take more risk with profits than with earned money, and it comes from mental accounting. Thaler and Johnson found the same after a prior gain.",
+   "lesson_line": "Keep risk per trade tied to your account, not to how the month is going.",
+   "facts": [
+    "f69",
+    "f70",
+    "f71",
+    "f116",
+    "f01"
+   ],
+   "wrong": {
+    "Loss aversion": "Loss aversion makes losses loom large. Here a gain is making risk feel small.",
+    "Disposition effect": "The disposition effect is selling winners and keeping losers. This is about sizing up after gains.",
+    "Anchoring": "Anchoring is leaning on a first number. This is about treating profit as free money."
+   }
+  },
+  {
+   "key": "q50",
+   "skill": "vocab.psych_terms",
+   "rung": 4,
+   "format": "mcq",
+   "term": "Break-even effect",
+   "q": "Down on the day, you take a long-shot trade because it could get you back to even. Which word is this?",
+   "choices": [
+    "Break-even effect",
+    "House money effect",
+    "Disposition effect"
+   ],
+   "answer": "Break-even effect",
+   "why": "Break-even effect. Thaler and Johnson found that after losses, a chance to break even looks especially attractive. Schwab says fear of locking in a loss can drive riskier decisions.",
+   "lesson_line": "Getting back to even is not a setup. Grade the trade as if you were flat.",
+   "facts": [
+    "f117",
+    "f30",
+    "f119",
+    "f82",
+    "f116"
+   ],
+   "wrong": {
+    "House money effect": "That's the flip side: more risk after a gain.",
+    "Disposition effect": "That's selling winners and holding losers. This is reaching for a long shot to get even."
+   }
+  },
+  {
+   "key": "q51",
+   "skill": "vocab.psych_terms",
+   "rung": 8,
+   "format": "tf",
+   "term": "Break-even effect",
+   "q": "Chicago Board of Trade pros who lost in the morning tended to cut their risk in the afternoon.",
+   "answer": "False",
+   "why": "False. Coval and Shumway found Chicago Board of Trade pros who lost in the morning took above-average risk in the afternoon to recover.",
+   "lesson_line": "Pros feel it too. A daily loss limit protects you from your afternoon self.",
+   "facts": [
+    "f119",
+    "f118",
+    "f117",
+    "f50"
+   ]
+  },
+  {
+   "key": "q52",
+   "skill": "vocab.psych_terms",
+   "rung": 2,
+   "format": "mcq",
+   "term": "Gambler's fallacy",
+   "q": "What is the gambler's fallacy?",
+   "choices": [
+    "Thinking a streak is 'due' to end",
+    "Believing a hot streak will continue",
+    "Betting big when you have an edge"
+   ],
+   "answer": "Thinking a streak is 'due' to end",
+   "why": "Thinking a streak is 'due' to end. Croson and Sundali define it as expecting a random run to reverse, so the other outcome feels 'due'.",
+   "lesson_line": "The next trade doesn't know about the last few.",
+   "facts": [
+    "f131",
+    "f141",
+    "f132",
+    "f148"
+   ],
+   "wrong": {
+    "Believing a hot streak will continue": "That's the opposite belief, called the hot hand.",
+    "Betting big when you have an edge": "That's a sizing choice, not this fallacy. The fallacy is about expecting a run to reverse."
+   }
+  },
+  {
+   "key": "q53",
+   "skill": "vocab.psych_terms",
+   "rung": 7,
+   "format": "scenario",
+   "term": "Gambler's fallacy",
+   "q": "Which word fits that reasoning?",
+   "story": "Your tested setup has lost five times in a row. You double your size on the next one because a win is due.",
+   "choices": [
+    "Gambler's fallacy",
+    "Hindsight bias",
+    "Anchoring",
+    "Familiarity bias"
+   ],
+   "answer": "Gambler's fallacy",
+   "why": "Gambler's fallacy. Croson and Sundali define it as expecting a random run to reverse, so a win feels 'due'. Schwab adds that a losing streak can flag a real problem.",
+   "lesson_line": "Never size up because a win feels due. After a losing run, check for a problem and trade smaller.",
+   "facts": [
+    "f131",
+    "f132",
+    "f148",
+    "f150",
+    "f151"
+   ],
+   "wrong": {
+    "Hindsight bias": "Hindsight bias is 'I knew it' after the fact. This is a prediction about the next trade.",
+    "Anchoring": "Anchoring is leaning on a first number. This is about expecting a streak to flip.",
+    "Familiarity bias": "Familiarity bias favors names you know. This is about streaks and odds."
+   }
+  },
+  {
+   "key": "q54",
+   "skill": "vocab.psych_terms",
+   "rung": 2,
+   "format": "mcq",
+   "term": "Outcome bias",
+   "q": "What is outcome bias?",
+   "choices": [
+    "Judging a decision by how it turned out",
+    "Crediting wins to skill, losses to luck",
+    "Expecting a trend to keep going"
+   ],
+   "answer": "Judging a decision by how it turned out",
+   "why": "Judging a decision by how it turned out. Baron and Hershey describe letting outcomes count in a way that's irrelevant to the decision's true quality.",
+   "lesson_line": "Grade the decision and the result separately. They're two different grades.",
+   "facts": [
+    "f133",
+    "f136",
+    "f44"
+   ],
+   "wrong": {
+    "Expecting a trend to keep going": "That's a view on the market. Outcome bias is about how you grade decisions.",
+    "Crediting wins to skill, losses to luck": "That's self-attribution bias. Outcome bias is grading the decision by its result."
+   }
+  },
+  {
+   "key": "q55",
+   "skill": "vocab.psych_terms",
+   "rung": 9,
+   "format": "scenario",
+   "term": "Outcome bias",
+   "q": "How should you grade that trade?",
+   "story": "You chased a gap with no stop and no plan. It ran, and you made 4R on the trade.",
+   "choices": [
+    "Bad decision, lucky result",
+    "Great trade, do it again",
+    "Good decision, since it paid"
+   ],
+   "answer": "Bad decision, lucky result",
+   "why": "Bad decision, lucky result. Good decisions can lead to bad outcomes and the reverse, so results alone can't grade a decision. Annie Duke: in poker you can win with the worst hand.",
+   "lesson_line": "A win that broke your rules is still a mistake. Tag it, or you'll repeat it.",
+   "facts": [
+    "f134",
+    "f135",
+    "f133"
+   ],
+   "wrong": {
+    "Great trade, do it again": "That's outcome bias. Repeat it and one day the missing stop costs you.",
+    "Good decision, since it paid": "The payout doesn't make the decision good. Baron and Hershey call that outcome bias."
+   }
+  },
+  {
+   "key": "q56",
+   "skill": "vocab.psych_terms",
+   "rung": 3,
+   "format": "mcq",
+   "term": "Familiarity bias",
+   "q": "What is familiarity bias?",
+   "choices": [
+    "Favoring familiar, well-known names",
+    "Trading only setups you've tested",
+    "Copying what others are buying"
+   ],
+   "answer": "Favoring familiar, well-known names",
+   "why": "Favoring familiar, well-known names. The SEC says it covers your own country or company and popular 'glamour' investments, and it can leave you under-diversified.",
+   "lesson_line": "Knowing the product isn't knowing the stock.",
+   "facts": [
+    "f03",
+    "f04",
+    "f05",
+    "f97"
+   ],
+   "wrong": {
+    "Trading only setups you've tested": "That's discipline, not a bias. The bias is about which names feel safe because they're familiar.",
+    "Copying what others are buying": "That's herding."
+   }
+  },
+  {
+   "key": "q57",
+   "skill": "vocab.psych_terms",
+   "rung": 3,
+   "format": "mcq",
+   "term": "Mental accounting",
+   "q": "What is mental accounting?",
+   "choices": [
+    "Treating money by where it came from",
+    "Tracking every trade in a journal",
+    "Doing quick trade math in your head"
+   ],
+   "answer": "Treating money by where it came from",
+   "why": "Treating money by where it came from. The OSC says people treat money differently by how they got it or plan to spend it. Investopedia says it's behind the house money effect.",
+   "lesson_line": "A dollar of profit is a dollar. Risk it by the same rule as the rest.",
+   "facts": [
+    "f101",
+    "f70"
+   ],
+   "wrong": {
+    "Tracking every trade in a journal": "That's record keeping, a good habit.",
+    "Doing quick trade math in your head": "That's mental math. Mental accounting is about how you label money."
+   }
+  },
+  {
+   "key": "q58",
+   "skill": "vocab.psych_terms",
+   "rung": 7,
+   "format": "tf",
+   "term": "Law of small numbers",
+   "q": "Five winners in your first six trades proves a new setup has an edge.",
+   "answer": "False",
+   "why": "False. Six trades is a tiny sample. Kahneman's work describes a 'law of small numbers': people treat small samples as if they told the whole story.",
+   "lesson_line": "Keep size small until the sample is big. A few trades can't tell skill from luck.",
+   "facts": [
+    "f105",
+    "f104",
+    "f148"
+   ]
+  },
+  {
+   "key": "q59",
+   "skill": "vocab.psych_terms",
+   "rung": 9,
+   "format": "scenario",
+   "term": "Law of small numbers",
+   "q": "What's wrong with that conclusion?",
+   "story": "A newsletter's picks beat the index two years in a row. A friend says that proves the editor is a genius.",
+   "choices": [
+    "Two years is too small a sample",
+    "Beating the index is easy",
+    "Newsletters can't pick stocks"
+   ],
+   "answer": "Two years is too small a sample",
+   "why": "Two years is too small a sample. The Nobel summary of Kahneman's work uses nearly this case, a fund manager beating the index two years running: the evidence is much weaker than it feels.",
+   "lesson_line": "Small samples flatter. Judge a guru, or a setup, on many trades.",
+   "facts": [
+    "f104",
+    "f105",
+    "f148",
+    "f136"
+   ],
+   "wrong": {
+    "Beating the index is easy": "It isn't. The point is that two years can't separate skill from luck.",
+    "Newsletters can't pick stocks": "Some may. You just can't tell from two years."
+   }
+  },
+  {
+   "key": "q60",
+   "skill": "vocab.psych_terms",
+   "rung": 3,
+   "format": "mcq",
+   "term": "Mania",
+   "q": "In market terms, what is a mania?",
+   "choices": [
+    "A fast rise on crowd enthusiasm",
+    "A long, steady uptrend",
+    "A stock up on strong earnings"
+   ],
+   "answer": "A fast rise on crowd enthusiasm",
+   "why": "A fast rise on crowd enthusiasm. The SEC calls a mania, or bubble, a rapid rise driven by collective exuberance, usually followed by a panic of wide-scale selling.",
+   "lesson_line": "Manias usually end in panics. Keep your stop in place on the way up.",
+   "facts": [
+    "f06",
+    "f07"
+   ],
+   "wrong": {
+    "A long, steady uptrend": "A steady trend isn't a mania by itself. The SEC's word is about a rapid rise on collective enthusiasm.",
+    "A stock up on strong earnings": "That's a move on results. A mania is driven by crowd excitement."
+   }
+  }
+ ],
+ "conflicts": [
+  "Loss aversion size: Schwab and the OSC say a loss feels about twice (OSC: twice) as strong as an equal gain; Investopedia says some studies suggest about twice but others question whether loss aversion exists or matters in practice (f77). No question keys a multiple; every key says only that losses weigh more than equal gains, which the SEC report, Nobel summary, Fidelity and Investopedia all state.",
+  "Self-attribution bias: Schwab defines it as crediting wins to skill and losses to outside forces (f44), and Gervais and Odean describe a trader taking too much credit for successes (f120); Investopedia's behavioral finance page defines self-attribution as choices based on overconfidence in one's own skill. The SEC report pairs the two ('overconfidence (self-attribution bias)'). Questions use the Schwab definition, which the paper supports.",
+  "Recency vs availability: Investopedia treats them as one bias ('also known as recency bias or availability bias', f79); Schwab and the OSC describe availability as its own shortcut. q37-q39 key recency bias and q40 keys availability bias; no question lists both as choices.",
+  "Tilt: poker players use the word loosely. Tendler (f108, f110) restricts it to anger and says 'winner's tilt' is overconfidence or fear; the poker study (f113) says negative emotions. Questions follow that narrow meaning.",
+  "The same behavior has several names: holding a loser below the stop is described as loss aversion (Schwab f42), the disposition effect (SEC f01), the original price acting as an anchor (OSC f153, which names loss aversion and the anchor together; Investopedia f83 files judging by the entry price under disposition bias) and the break-even effect (Thaler and Johnson f117). Each question's choices include only one of these, so only one key fits.",
+  "Not used: the SEC's Library of Congress report quotes Mohacsy and Lefer calling momentum investing a manifestation of magical thinking and herd behavior. That is one cited opinion about a widely studied strategy, so no question says trend or momentum trading is herding; q47 teaches herding as copying others instead of doing your own work.",
+  "Gambler's fallacy: the formal definition (f131, f148) is about independent random events. Trade outcomes are not perfectly independent, so q53 keys only the reasoning 'a win is due after a losing run', which no source supports, and never claims trade outcomes are random."
+ ],
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "notes": "f09 (Library of Congress report for the SEC, PDF) and f112 (Tendler; the checker's client got 502, confirmed by WebFetch and a plain curl copy) read in context. Step 1 said 'The SEC's research report'; it is a Library of Congress report done for the SEC, and now says so. Step 3 now introduces Jared Tendler as a mental game coach.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "f86 (Fidelity), f102 (Nobel), f108 (Tendler), f73 (Investopedia), f115 (poker study), f47 (Schwab) read in context. Each step matches its fact. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "f120 (Gervais and Odean), f116 (Thaler and Johnson), f69 (Investopedia), f104 (Nobel) confirmed. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q01": {
+   "status": "pass",
+   "notes": "f16 (SEC), f19, f21 (FINRA) confirmed. The herding wrong note cited f65 on an Investopedia page that refuses both the checker and WebFetch; it now cites Schwab f32 (herd mentality = piling in so you don't miss out).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q02": {
+   "status": "pass",
+   "notes": "f17, f18 confirmed on investor.gov (former director's Director's Take; the page says it is no longer updated, but this advice is not time-sensitive). Only 'plan' completes the quoted line. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q03": {
+   "status": "pass",
+   "notes": "f19 (FINRA), f51 (Schwab), f139 (Steenbarger) confirmed in context. Herding, which the chat detail could suggest, is not a choice, so only FOMO fits. 9% is a given. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q04": {
+   "status": "pass",
+   "notes": "f21, f22 confirmed on FINRA's pump-and-dump page (September 9, 2026). Tier 1. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q05": {
+   "status": "pass",
+   "notes": "f17, f138, f139 (Steenbarger), f51 (Schwab) confirmed. 'What's the disciplined move?' hinted at the cautious key; now 'What's your move?'. The strong-stocks distractor's note is hedged ('Some do'), as a momentum trader would put it.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q06": {
+   "status": "pass",
+   "notes": "f108, f110 (Tendler, read in full) and f113 (poker study abstract) confirmed. Key fits both. No change. Tendler quotes (s33) show unreachable in the quote check (502); all five confirmed word for word by WebFetch and a plain curl copy. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q07": {
+   "status": "pass",
+   "notes": "f114 (tilt often set off by a significant loss) and f111 (Tendler: drawdown anger) confirmed. 'Often' matches the sources. No change. Tendler quotes (s33) show unreachable in the quote check (502); all five confirmed word for word by WebFetch and a plain curl copy. variety rewrite checked 2026-11-10; edited: restored to True: the False version duplicated q09 (tilt is not a win state); f114 supports the True.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q08": {
+   "status": "pass",
+   "notes": "f109 is Tendler's own example (jumping back in after a second stop-out). Revenge trading, which also fits, is not a choice. No change. Tendler quotes (s33) show unreachable in the quote check (502); all five confirmed word for word by WebFetch and a plain curl copy.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q09": {
+   "status": "pass",
+   "notes": "f110 confirmed: 'No one gets angry about winning... overconfidence or fear, not anger.' Scoped to Tendler's definition; the conflicts note records the looser poker usage. No change. Tendler quotes (s33) show unreachable in the quote check (502); all five confirmed word for word by WebFetch and a plain curl copy.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q10": {
+   "status": "pass",
+   "notes": "f123, f124 (CIBC) and f73 (Investopedia) confirmed; two Tier 2 publishers agree. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q11": {
+   "status": "pass",
+   "notes": "f85 confirmed on Alan Farley's Investopedia rules page; f46 (Schwab). Only 'Revenge' completes the quote. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q12": {
+   "status": "pass",
+   "notes": "f73 ('usually by increasing the size and frequency of their trades') and f49 confirmed. No change. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q13": {
+   "status": "pass",
+   "notes": "f47, f48, f50 (Schwab), f73, f124, f52, f53 confirmed. Why said 'some traders pledge'; Schwab says traders 'could pledge', so it now says Schwab suggests the pledge. 11 a.m. and 3R are givens.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q14": {
+   "status": "pass",
+   "notes": "f72 (Investopedia), f137 (Steenbarger), f26 (Schwab, scaling in) confirmed. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q15": {
+   "status": "pass",
+   "notes": "Recomputed by hand: 17.9 - 11.4 = 6.5 points; calc agrees. Both figures are verbatim in the Barber and Odean abstract (f121). No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q16": {
+   "status": "pass",
+   "notes": "f34, f33 (Schwab), f91 (OSC) confirmed. The herding wrong note cited unconfirmable Investopedia f63; now OSC f97. variety rewrite checked 2026-11-10.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q17": {
+   "status": "pass",
+   "notes": "f14 (LoC report for the SEC) and f122 (Barber and Odean) confirmed. Why called it 'the SEC's Library of Congress report'; now 'a Library of Congress report done for the SEC'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q18": {
+   "status": "pass",
+   "notes": "f120, f33, f104 confirmed. House money, which also fits sizing up after wins, is not a choice. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q19": {
+   "status": "pass",
+   "notes": "f20 confirmed on FINRA's October 14, 2026 page. Tier 1. No change. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q20": {
+   "status": "pass",
+   "notes": "f44 (Schwab) and f11 (LoC) confirmed. The hindsight wrong note cited unconfirmable Investopedia f59; now Roese and Vohs f142.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q21": {
+   "status": "pass",
+   "notes": "f120 (Gervais and Odean), f44, f33 confirmed; 'bigger bets' matches Schwab's 'risky bets'. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q22": {
+   "status": "pass",
+   "notes": "Why quoted the LoC line whose source text calls it 'excessive risk aversion', which clashes with the risk-aversion wrong note. Why now uses the Nobel summary (f102) and f13 is dropped from this item. f76, f86, f31, f78, f87 confirmed. No multiple is keyed. variety rewrite checked 2026-11-10.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q23": {
+   "status": "pass",
+   "notes": "f12, f13 (LoC), f102, f103 (Nobel) confirmed. 'Dow', 'random walk' and 'chaos' are real theories, so not silly. Why now names the report correctly.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q24": {
+   "status": "pass",
+   "notes": "f29, f30 (Schwab) and f90 (OSC) confirmed. Lesson line said 'you'll want to'; now 'you may want to', matching the sources' 'can'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q25": {
+   "status": "pass",
+   "notes": "f42, f43 (Schwab calls exactly this loss aversion), f100 (OSC), f52 confirmed. Disposition, anchoring and break-even also describe it; none is a choice. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q26": {
+   "status": "pass",
+   "notes": "f01 (SEC), f106 (Odean), f87, f98 confirmed. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q27": {
+   "status": "pass",
+   "notes": "f02 (SEC bulletin) and f15 (LoC) confirmed in context. No change. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q28": {
+   "status": "pass",
+   "notes": "f01, f107, f45, f69, f03 confirmed. 18% and 12% are givens. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q29": {
+   "status": "pass",
+   "notes": "f23, f89, f56 confirmed. The hindsight wrong note now cites Roese and Vohs f142 instead of unconfirmable f59.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q30": {
+   "status": "pass",
+   "notes": "f24 (Schwab quiz) and f57 (Investopedia) confirmed. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q31": {
+   "status": "pass",
+   "notes": "f38, f39 (Schwab) and f89 (OSC) confirmed. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q32": {
+   "status": "pass",
+   "notes": "f25 is Schwab's own quiz item keyed to confirmation bias; f58 confirmed. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q33": {
+   "status": "pass",
+   "notes": "f94, f88 (OSC) and f35 (Schwab) confirmed. The herding wrong note now cites OSC f97 instead of unconfirmable f63. variety rewrite checked 2026-11-10.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q34": {
+   "status": "pass",
+   "notes": "The why leaned on Investopedia f83, which that page files under disposition bias, not anchoring. Added OSC f152, f153 from the anchoring page ('both loss aversion and the original price acting as an anchor') and rewrote the why from them. All bank words take 'an', so grammar gives nothing away.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q35": {
+   "status": "pass",
+   "notes": "f40, f41 (Schwab) and f96 (OSC) confirmed. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q36": {
+   "status": "pass",
+   "notes": "f95 (OSC) and f35 (Schwab) confirmed. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q37": {
+   "status": "pass",
+   "notes": "f27, f125, f79, f55 confirmed. The gambler's fallacy wrong note now cites Croson and Sundali f131 instead of unconfirmable f67.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q38": {
+   "status": "pass",
+   "notes": "f125 (Morningstar) and f28 (Schwab) confirmed. Schwab's other page uses the same plunge example for the availability heuristic (f37); availability is not a choice. 'May be steering' keeps it a judgment. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q39": {
+   "status": "pass",
+   "notes": "f80, f81 (Investopedia ties the 2008-09 exit to recency bias) and f126 (Morningstar) confirmed. 'After the 2008 crisis' is now 'In the 2008 crisis', matching both sources.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q40": {
+   "status": "pass",
+   "notes": "f92, f93 (OSC) and f37 (Schwab) confirmed. Recency, which also fits, is not a choice. 30% is a given. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q41": {
+   "status": "pass",
+   "notes": "The key's definition cited Investopedia f59, whose page refuses both the checker (403) and WebFetch, so it could not be confirmed. Now Roese and Vohs's abstract f142 (Kellogg page, confirmed), APS f127 and Steenbarger f140. APS and Kellogg report the same review. The random-run wrong note now names the law of small numbers (Nobel f105).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q42": {
+   "status": "pass",
+   "notes": "f128, f129 (APS) confirmed. Dropped unconfirmable Investopedia f61 and its sentence; added Roese and Vohs f143 and Steenbarger f140.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q43": {
+   "status": "pass",
+   "notes": "f130 (APS) confirmed. Unconfirmable Investopedia f62 replaced with Roese and Vohs f143 ('general overconfidence in the certainty of one's judgments').",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q44": {
+   "status": "pass",
+   "notes": "Key cited Investopedia f60 (journal), which could not be confirmed. Now APS f144 (hindsight starts as misremembering an earlier opinion) and Steenbarger f140. The story has you passing, not trading, so the key is now 'Write down your read at the time'. A wrong note asserted the move 'isn't a setup now'; now 'Missing the move doesn't make it a setup now'. Lesson line now says \"written at the time\" to match. variety rewrite checked 2026-11-10.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q45": {
+   "status": "pass",
+   "notes": "Key cited unconfirmable f63. Now OSC f97, Schwab f145 ('outsourcing your due diligence to the crowds') and Investopedia f146, all confirmed. The weak distractor 'Selling when your stop is hit' is now anchoring, 'Trusting a stock's old high price' (Schwab f40). variety rewrite checked 2026-11-10.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q46": {
+   "status": "pass",
+   "notes": "Key cited unconfirmable f64. Now Investopedia f146 (bubbles attributed to herd behavior) and f147 (herding behind dramatic rallies and sell-offs), both on confirmed pages, plus OSC f98.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q47": {
+   "status": "pass",
+   "notes": "f97 (OSC) and f36 confirmed; unconfirmable f63 replaced with f146 ('without independent analysis') and f145. Owning what others own is not the bias, matching the conflicts note on momentum. No wording change.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q48": {
+   "status": "pass",
+   "notes": "f116 (Thaler and Johnson) and f69 confirmed. No change. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q49": {
+   "status": "pass",
+   "notes": "f69, f70, f71, f116 confirmed. Overconfidence, which also fits, is not a choice. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q50": {
+   "status": "pass",
+   "notes": "f117 (Thaler and Johnson) and f30 confirmed. Loss aversion is not a choice. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q51": {
+   "status": "pass",
+   "notes": "f118, f119 (Coval and Shumway abstract) confirmed. 'Pro futures traders' was not in the quote; now 'Chicago Board of Trade pros', the abstract's own words.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q52": {
+   "status": "pass",
+   "notes": "Key cited Investopedia f66, f67, which could not be confirmed. Now Croson and Sundali f131 and f132 (extended to 'Thus he believes a tail is “due,”') and Chen, Moskowitz and Shue f148 (QJE). Hot-hand note matches f141. Lesson line said \"the last five\", a number this item never sets up; now \"the last few\".",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q53": {
+   "status": "pass",
+   "notes": "f131, f132 confirmed; f67 replaced with f148. The lesson said 'Keep size the same through streaks', but Schwab (f150, f151) says a losing streak can reflect a real problem and trading smaller while you look does no harm. Now: never size up because a win feels due; check for a problem and trade smaller.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q54": {
+   "status": "pass",
+   "notes": "f133 (Baron and Hershey) and f136 confirmed. The distractor 'Planning your exit before you enter' was obviously not a bias; now self-attribution, 'Crediting wins to skill, losses to luck' (Schwab f44).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q55": {
+   "status": "cut",
+   "notes": "duplicate of V.13#q30. Track audit 2026-11-09: both are scenarios where a chase with no stop and no plan paid off, keyed on the decision being bad even though it paid (here 'bad decision, lucky result', there 'Trade A', the planned loss). V.13 q30 sets both halves side by side. This unit keeps outcome bias as a term in q54.",
+   "fixed": false,
+   "by": "track-auditor"
+  },
+  "q56": {
+   "status": "pass",
+   "notes": "f03, f04, f05 (SEC) confirmed. The herding wrong note now cites OSC f97 instead of unconfirmable f63.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q57": {
+   "status": "pass",
+   "notes": "f101 (OSC) and f70 (Investopedia) confirmed. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q58": {
+   "status": "pass",
+   "notes": "f105, f104 (Nobel) confirmed. Unconfirmable f68 replaced with Chen et al. f148 (people underestimate streaks occurring by chance), a second publisher.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q59": {
+   "status": "pass",
+   "notes": "f104 is the Nobel summary's own fund-manager case. Unconfirmable f68 replaced with f148 and Annie Duke f136.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q60": {
+   "status": "pass",
+   "notes": "f06, f07 (SEC bulletin) confirmed. Tier 1. No change.",
+   "fixed": false,
+   "by": "checker"
+  }
+ }
+}

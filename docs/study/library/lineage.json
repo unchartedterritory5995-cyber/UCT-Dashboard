@@ -1,0 +1,217 @@
+{
+ "SET.07": {
+  "as_of": "2026-11-10",
+  "card": "docs/study/setups/criteria/01-flat-base.json",
+  "card_sha": "e6473ff16822"
+ },
+ "SET.08": {
+  "as_of": "2026-11-10",
+  "card": "docs/study/setups/criteria/02-bull-flag.json",
+  "card_sha": "c82b7aa89229"
+ },
+ "SET.09": {
+  "as_of": "2026-11-10",
+  "card": "docs/study/setups/criteria/04-cup-handle.json",
+  "card_sha": "d9c125afb8a3"
+ },
+ "SET.10": {
+  "as_of": "2026-11-10",
+  "card": "docs/study/setups/criteria/05-ipo-base.json",
+  "card_sha": "d81751b96a2d"
+ },
+ "SET.11": {
+  "as_of": "2026-11-10",
+  "card": "docs/study/setups/criteria/07-launchpad.json",
+  "card_sha": "3364d235d3ff"
+ },
+ "SET.12": {
+  "as_of": "2026-11-10",
+  "card": "docs/study/setups/criteria/06-vcp.json",
+  "card_sha": "7ba69cce4028"
+ },
+ "SET.13": {
+  "as_of": "2026-11-10",
+  "card": "docs/study/setups/criteria/03-high-tight-flag.json",
+  "card_sha": "dd2ad141a042"
+ },
+ "SET.14": {
+  "as_of": "2026-11-10",
+  "card": "docs/study/setups/criteria/11-ema20-pullback.json",
+  "card_sha": "a743fc6756b3"
+ },
+ "SET.15": {
+  "as_of": "2026-11-10",
+  "card": "docs/study/setups/criteria/14-ema-crossback.json",
+  "card_sha": "3188f705f25f"
+ },
+ "SET.16": {
+  "as_of": "2026-11-10",
+  "card": "docs/study/setups/criteria/15-wedge-pop.json",
+  "card_sha": "b1312bddd97e"
+ },
+ "SET.17": {
+  "as_of": "2026-11-10",
+  "card": "docs/study/setups/criteria/16-wedge-drop.json",
+  "card_sha": "b4db4a372b2d"
+ },
+ "SET.18": {
+  "as_of": "2026-11-10",
+  "card": "docs/study/setups/criteria/20-episodic-pivot.json",
+  "card_sha": "14fa51ee5270"
+ },
+ "SET.19": {
+  "as_of": "2026-11-10",
+  "card": "docs/study/setups/criteria/21-power-earnings-gap.json",
+  "card_sha": "cb1cd200b9f3"
+ },
+ "SET.20": {
+  "as_of": "2026-11-10",
+  "card": "docs/study/setups/criteria/22-news-gapper.json",
+  "card_sha": "25abd5c86250"
+ },
+ "SET.21": {
+  "as_of": "2026-11-10",
+  "card": "docs/study/setups/criteria/24-high-volume-edge.json",
+  "card_sha": "69554e233b97"
+ },
+ "SET.22": {
+  "as_of": "2026-11-10",
+  "card": "docs/study/setups/criteria/25-gap-support.json",
+  "card_sha": "185f1b8d96e3"
+ },
+ "SET.23": {
+  "as_of": "2026-11-10",
+  "card": "docs/study/setups/criteria/26-kicker.json",
+  "card_sha": "bba3fc1d4f7b"
+ },
+ "SET.24": {
+  "as_of": "2026-11-10",
+  "card": "docs/study/setups/criteria/28-2b-reversal.json",
+  "card_sha": "e99232a21d78"
+ },
+ "SET.25": {
+  "as_of": "2026-11-10",
+  "card": "docs/study/setups/criteria/30-oops-reversal.json",
+  "card_sha": "6fa64c217178"
+ },
+ "SET.26": {
+  "as_of": "2026-11-10",
+  "card": "docs/study/setups/criteria/29-undercut-rally.json",
+  "card_sha": "2cfe5a04d10e"
+ },
+ "SET.27": {
+  "as_of": "2026-11-10",
+  "card": "docs/study/setups/criteria/31-slingshot.json",
+  "card_sha": "f60a880ad5e8"
+ },
+ "SET.28": {
+  "as_of": "2026-11-10",
+  "card": "docs/study/setups/criteria/32-remount.json",
+  "card_sha": "0a1fb794c2b1"
+ },
+ "SET.29": {
+  "as_of": "2026-11-10",
+  "card": "docs/study/setups/criteria/33-failed-hs-rounded-top.json",
+  "card_sha": "702ad0643c18"
+ },
+ "SET.30": {
+  "as_of": "2026-11-10",
+  "card": "docs/study/setups/criteria/38-parabolic-long.json",
+  "card_sha": "25214d990e43"
+ },
+ "SET.31": {
+  "as_of": "2026-11-10",
+  "card": "docs/study/setups/criteria/39-parabolic-short.json",
+  "card_sha": "597ecd6be4d3"
+ },
+ "SET.32": {
+  "as_of": "2026-11-10",
+  "card": "docs/study/setups/criteria/40-opening-range-breakout.json",
+  "card_sha": "d31cdb9d9c8a"
+ },
+ "SET.33": {
+  "as_of": "2026-11-10",
+  "card": "docs/study/setups/criteria/41-30-minute-pivot.json",
+  "card_sha": "92f3f4f43284"
+ },
+ "SET.34": {
+  "as_of": "2026-11-10",
+  "card": "docs/study/setups/criteria/42-go-signal.json",
+  "card_sha": "1dfa7a760fd4"
+ },
+ "SET.40": {
+  "as_of": "2026-11-10",
+  "card": "docs/study/setups/criteria/08-inside-day.json",
+  "card_sha": "11313f54a239"
+ },
+ "SET.41": {
+  "as_of": "2026-11-10",
+  "card": "docs/study/setups/criteria/09-trendline-break.json",
+  "card_sha": "ae781cc166c5"
+ },
+ "SET.42": {
+  "as_of": "2026-11-10",
+  "card": "docs/study/setups/criteria/10-weinstein-4b.json",
+  "card_sha": "3823b2adf7b2"
+ },
+ "SET.43": {
+  "as_of": "2026-11-10",
+  "card": "docs/study/setups/criteria/12-ma-pullbacks.json",
+  "card_sha": "ec4b769c7b43"
+ },
+ "SET.44": {
+  "as_of": "2026-11-10",
+  "card": "docs/study/setups/criteria/17-holy-grail.json",
+  "card_sha": "0880eae43e3e"
+ },
+ "SET.45": {
+  "as_of": "2026-11-10",
+  "card": "docs/study/setups/criteria/18-qullamaggie-kell.json",
+  "card_sha": "fe8a8b23d993"
+ },
+ "SET.46": {
+  "as_of": "2026-11-10",
+  "card": "docs/study/setups/criteria/19-avwap-reclaim.json",
+  "card_sha": "353d4e5c0aad"
+ },
+ "SET.47": {
+  "as_of": "2026-11-10",
+  "card": "docs/study/setups/criteria/23-news-failure.json",
+  "card_sha": "e1500f0f3b29"
+ },
+ "SET.48": {
+  "as_of": "2026-11-10",
+  "card": "docs/study/setups/criteria/27-bear-gap.json",
+  "card_sha": "3a7d18f1dc6c"
+ },
+ "SET.49": {
+  "as_of": "2026-11-10",
+  "card": "docs/study/setups/criteria/34-capitulation.json",
+  "card_sha": "78222b233f70"
+ },
+ "SET.50": {
+  "as_of": "2026-11-10",
+  "card": "docs/study/setups/criteria/35-wyckoff-spring-upthrust.json",
+  "card_sha": "0ea34e3903a6"
+ },
+ "SET.51": {
+  "as_of": "2026-11-10",
+  "card": "docs/study/setups/criteria/36-mean-reversion.json",
+  "card_sha": "0f18211862a3"
+ },
+ "SET.52": {
+  "as_of": "2026-11-10",
+  "card": "docs/study/setups/criteria/37-wick-play.json",
+  "card_sha": "ba82e5792134"
+ },
+ "SET.53": {
+  "as_of": "2026-11-10",
+  "card": "docs/study/setups/criteria/43-red-to-green.json",
+  "card_sha": "223e900ba526"
+ },
+ "SET.54": {
+  "as_of": "2026-11-10",
+  "card": "docs/study/setups/criteria/44-opening-drive.json",
+  "card_sha": "ce3a482acab1"
+ }
+}

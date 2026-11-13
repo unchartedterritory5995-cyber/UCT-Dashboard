@@ -1,0 +1,1554 @@
+{
+ "setup": "03-high-tight-flag",
+ "name": "High Tight Flag",
+ "unit": "SET.13",
+ "direction": "long",
+ "timeframe": "daily",
+ "dossier": "docs/study/setups/research/03-high-tight-flag.md",
+ "as_of": "2026-11-10",
+ "card": {
+  "context": "A liquid stock that was quiet, then nearly doubled: 90% or more in 40 sessions or fewer, usually on a real change (earnings, a product, a contract). Not a V off a crash and not a third leg after a huge run. Above the 200-day and 50-day, RS 80 or more, Green market.",
+  "pattern": "A pause of 5 to 30 sessions a little under the pole high, giving back at most 25% of price, with the last five closes within 10% of each other, flag volume below the pole's, no close under the 21-day EMA.",
+  "trigger": "BASE BREAKOUT: price trades above the highest high of the whole pattern, bought at market as it trades through, never a trendline drawn inside the flag, no more than 4% past the high.",
+  "stop": "A few cents under the entry day's low or the prior day's low; skip if that is wider than one ADR. The flag low is the line that kills the idea, not the stop.",
+  "failure_mode": "A breakout nobody buys: the trigger day prints light volume, the next session takes the stop, and two in three winners come back to the breakout price within a month. When it fails after a run it can unwind as fast as the pole went up."
+ },
+ "entry_trigger": "BASE BREAKOUT",
+ "criteria": [
+  {
+   "id": "htf.pole_size",
+   "field": "pattern",
+   "statement": "The pole: the stock rises at least 90% from the pole's starting low to the pole high.",
+   "measure": {
+    "what": "pole high / lowest low of the 40 sessions ending at the pole high - 1",
+    "op": ">=",
+    "value": 90,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "glossary": "prior_trend",
+   "basis": "source consensus",
+   "dossier_basis": "source consensus that a pole just under a double qualifies (Bulkowski's 90% floor; IBD's own 98% Taser pole; Kuhn's less in some cases); IBD and Minervini quote 100%",
+   "sources": [
+    "S15",
+    "S2",
+    "S24",
+    "S1",
+    "S11"
+   ],
+   "options": [
+    {
+     "value": 90,
+     "basis": "Bulkowski; the main scanner, the flag rule's HTF label and Chart IQ"
+    },
+    {
+     "value": 100,
+     "basis": "IBD, Minervini, TraderLion, Deepvue; both base-catalog structures"
+    }
+   ],
+   "recommended": 90,
+   "status": "pending-owner",
+   "owner_question": "D-048",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8 rule 1; 10 question 2",
+   "evidence": "Scan: only 54 liquid hits in 30 years at 90% and the house floor; the pattern is rare. The ten examples ran 91% to 144%. No upper limit: IBD's JDSU ran 136% and Taser's second flag followed a 150%+ rise."
+  },
+  {
+   "id": "htf.pole_a_grade",
+   "field": "pattern",
+   "statement": "A pole of 100% or more is the A grade; 90% to 99% is B-.",
+   "measure": {
+    "what": "pole high / lowest low of the 40 sessions ending at the pole high - 1",
+    "op": ">=",
+    "value": 100,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "basis": "my proposal",
+   "dossier_basis": "my proposal, from IBD's and Minervini's 100%",
+   "sources": [
+    "S1",
+    "S11"
+   ],
+   "status": "pending-owner",
+   "owner_question": "D-048",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8 rule 1; 9"
+  },
+  {
+   "id": "htf.pole_time",
+   "field": "pattern",
+   "statement": "The rise takes 40 sessions (8 weeks) or less, measured from the lowest low of the 40 sessions ending at the pole high.",
+   "measure": {
+    "what": "sessions from the pole's lowest low to the pole high",
+    "op": "<=",
+    "value": 40,
+    "unit": "sessions",
+    "timeframe": "daily"
+   },
+   "basis": "source consensus",
+   "dossier_basis": "source consensus (IBD and Kuhn four to eight weeks; Bulkowski 2 months or less, lowest low to highest high, at most 42 trading days)",
+   "sources": [
+    "S1",
+    "S24",
+    "S15",
+    "S23"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8 rule 2",
+   "evidence": "Bulkowski's automated study: a median 102% rise taking 36 calendar days on average. The ten examples took 14 to 40 sessions."
+  },
+  {
+   "id": "htf.pole_not_v",
+   "field": "context",
+   "statement": "Not a V: in the 40 sessions before the pole began, the stock did not fall more than 30% from high to low.",
+   "measure": {
+    "what": "(highest high - lowest low) / highest high over the 40 sessions before the pole's starting low",
+    "op": "<=",
+    "value": 30,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "basis": "my proposal",
+   "dossier_basis": "my proposal, from Bulkowski's V-shape and steep-downtrend findings, Kuhn's well-contained base formation and Minervini's quiet in Stage 1 (unverified)",
+   "sources": [
+    "S16",
+    "S17",
+    "S24",
+    "S11"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8 rule 3; 9 B-",
+   "evidence": "Bulkowski: avoid V-shaped patterns; the steep-downtrend group averaged 22%; a flat base leading to the pole is a good thing. In 2008 he saw dozens after very strong downtrends and the rise, if any, was meager."
+  },
+  {
+   "id": "htf.not_late",
+   "field": "context",
+   "statement": "Not late: the pole is the first or second big leg. The stock was not already up more than 200% in the 6 months before the pole began.",
+   "measure": {
+    "what": "close at the pole's start / close 126 sessions earlier - 1",
+    "op": "<=",
+    "value": 200,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "glossary": "base_count",
+   "basis": "my proposal",
+   "dossier_basis": "my proposal, from Minervini's late-stage warning (unverified) and Bonde's if a tight flag appears late in the move, it will break down",
+   "sources": [
+    "S11",
+    "S6"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8 rule 4; 9",
+   "evidence": "Minervini (per the repo's unverified reading): stocks that have already made a huge gain coming off a late-stage base usually do not qualify. Bonde: one needs to take the earnings rate and whether it is first base."
+  },
+  {
+   "id": "htf.catalyst",
+   "field": "context",
+   "statement": "A real change behind the pole (earnings, a product, a contract) with heavy volume is the A+ context; a news-only story with no earnings is B-.",
+   "basis": "my proposal",
+   "dossier_basis": "Kuhn (some important news event usually emerges); IBD's examples are earnings stories; Minervini will buy without fundamentals (unverified)",
+   "sources": [
+    "S24",
+    "S2",
+    "S11",
+    "S31"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "9 A+; 7 principle 7 row",
+   "evidence": "Seven of the ten examples had a report inside the pole. Owner principle 7 asks for liquid, known, not news-driven examples, while many HTF poles are news-driven (question 12, D-007)."
+  },
+  {
+   "id": "htf.above_200",
+   "field": "context",
+   "statement": "The close is above the 200-day simple moving average at the trigger.",
+   "measure": {
+    "what": "close against the 200-day SMA",
+    "op": ">",
+    "value": "200-day SMA",
+    "timeframe": "daily"
+   },
+   "glossary": "above_200",
+   "basis": "house rule",
+   "sources": [
+    "S17",
+    "S34"
+   ],
+   "house_rule": "B26",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8 rule 9; 7",
+   "evidence": "Most HTFs are far above it. The exception is a doubling off a crash low, which Bulkowski says does worst; B26 removes it. 3 of the 86 bank drafts sat below the 200-day."
+  },
+  {
+   "id": "htf.above_50",
+   "field": "context",
+   "statement": "The close is above the 50-day simple moving average at the trigger.",
+   "measure": {
+    "what": "close against the 50-day SMA",
+    "op": ">",
+    "value": "50-day SMA",
+    "timeframe": "daily"
+   },
+   "glossary": "ma_stack",
+   "basis": "my proposal",
+   "dossier_basis": "my proposal (8 rule 9)",
+   "sources": [],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8 rule 9"
+  },
+  {
+   "id": "htf.holds_fast_averages",
+   "field": "pattern",
+   "statement": "At the trigger, price is above a rising 10-day and a rising 21-day EMA, and no close in the flag was below the 21-day EMA.",
+   "measure": {
+    "what": "flag closes below the 21-day EMA, with the 10-day and 21-day EMAs higher than 5 sessions ago at the trigger",
+    "op": "==",
+    "value": 0,
+    "unit": "closes",
+    "timeframe": "daily"
+   },
+   "glossary": "fast_averages",
+   "basis": "my proposal",
+   "dossier_basis": "my proposal, from Qullamaggie's broader breakout (surfs the rising 10 and 20-day), the app's uct_flag_htf rule and its textbook flag check; no outside HTF source asks for it, and the owner once preferred a 20 ema shakeout (CLS)",
+   "sources": [
+    "S13",
+    "S34",
+    "S28"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8 rule 9; 9 A+",
+   "evidence": "The scan applied it as written and it rejects many flags a human would still call an HTF, so the 54 hits are a strict count. The owner may prefer to allow an undercut (the 20 ema shakeout he wrote of on CLS)."
+  },
+  {
+   "id": "htf.flag_depth",
+   "field": "pattern",
+   "statement": "Flag depth: from the pattern's highest high to the flag's lowest low, at most 25% of price.",
+   "measure": {
+    "what": "(pattern high - flag low) / pattern high",
+    "op": "<=",
+    "value": 25,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "glossary": "base_depth",
+   "basis": "source consensus",
+   "dossier_basis": "source consensus for 25% (IBD 2014 and 2015, Deepvue, TraderLion); Minervini 20%; measured on price as nearly every source does, Kuhn alone on the pole",
+   "sources": [
+    "S1",
+    "S2",
+    "S25",
+    "S26",
+    "S11",
+    "S24"
+   ],
+   "options": [
+    {
+     "value": 25,
+     "basis": "IBD 2015 (10% to 25%), Deepvue, TraderLion"
+    },
+    {
+     "value": 20,
+     "basis": "Minervini (25% for lower-priced stocks, undefined); IBD 2007 (no more than 10% to 20%)"
+    }
+   ],
+   "recommended": 25,
+   "status": "pending-owner",
+   "owner_question": "D-050",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8 rule 5; 10 question 4",
+   "evidence": "The main scanner measures depth on the pole's height (25% of the height is 11.8% to 16.7% of price), so it rejects IBD's own Taser (24%) and JDSU (23%). The ten examples ran 7.0% to 16.2% deep."
+  },
+  {
+   "id": "htf.flag_depth_a",
+   "field": "pattern",
+   "statement": "A flag 10% to 20% deep is the A-grade zone. Shallower flags qualify but grade lower; 20% to 25% is B-.",
+   "measure": {
+    "what": "(pattern high - flag low) / pattern high",
+    "op": "in",
+    "value": [
+     10,
+     20
+    ],
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "glossary": "base_depth",
+   "basis": "my proposal",
+   "dossier_basis": "my proposal: IBD and TraderLion set a 10% minimum, Minervini's 10% waiver accepts shallower flags, Bulkowski's shallowest flags (0% to 5%) did worst",
+   "sources": [
+    "S1",
+    "S26",
+    "S11",
+    "S16"
+   ],
+   "status": "pending-owner",
+   "owner_question": "D-050",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8 rule 5; 9",
+   "evidence": "Bulkowski: flags that retrace 10% to 34% show the most promise; flags that dropped only 0% to 5% averaged 17% (105 samples). NET 2020-11-27 (18.7% deep, weak demand, a 1.2% stop) is the deeper-than-ideal failure."
+  },
+  {
+   "id": "htf.flag_length",
+   "field": "pattern",
+   "statement": "The flag runs 5 to 30 sessions after the pole high. Over 30 sessions it is a different base; grade it as that base.",
+   "measure": {
+    "what": "sessions from the pattern high to the day before the trigger",
+    "op": "in",
+    "value": [
+     5,
+     30
+    ],
+    "unit": "sessions",
+    "timeframe": "daily"
+   },
+   "glossary": "base_length",
+   "basis": "my proposal",
+   "dossier_basis": "my proposal: 5 from Deepvue and the owner's min of 3-4 days; 30 from Minervini's 6 weeks and Bulkowski's over 5 weeks",
+   "sources": [
+    "S25",
+    "S28",
+    "S11",
+    "S17",
+    "S16"
+   ],
+   "options": [
+    {
+     "value": 3,
+     "basis": "the owner's DAVE note: a min of 3-4 days HTF"
+    },
+    {
+     "value": 5,
+     "basis": "Deepvue's five trading sessions; the dossier's floor"
+    },
+    {
+     "value": 10,
+     "basis": "Minervini's 10 to 12 days"
+    },
+    {
+     "value": 15,
+     "basis": "IBD's three weeks"
+    }
+   ],
+   "recommended": 5,
+   "status": "pending-owner",
+   "owner_question": "D-049",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8 rule 6; 10 question 3",
+   "evidence": "Bulkowski: 488 flags 0 to 5 days wide averaged 18% against 29% to 37% for 5 to 14 days; flags 10 to 29 calendar days wide perform well. The ten examples ran 5 to 14 sessions. TMDX 2024-05-14 is the shortest allowed (5) and the slowest to 3R (23 sessions)."
+  },
+  {
+   "id": "htf.flag_length_ideal",
+   "field": "pattern",
+   "statement": "A flag of 10 to 25 sessions is ideal; 3 to 5 sessions or past 5 weeks is B-.",
+   "measure": {
+    "what": "sessions from the pattern high to the day before the trigger",
+    "op": "in",
+    "value": [
+     10,
+     25
+    ],
+    "unit": "sessions",
+    "timeframe": "daily"
+   },
+   "glossary": "base_length",
+   "basis": "my proposal",
+   "dossier_basis": "my proposal, from IBD's 3 to 5 weeks, Minervini's 3 to 6 weeks and Bulkowski's best 10 to 29 calendar days",
+   "sources": [
+    "S1",
+    "S11",
+    "S16"
+   ],
+   "status": "pending-owner",
+   "owner_question": "D-049",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8 rule 6; 9"
+  },
+  {
+   "id": "htf.tightness",
+   "field": "pattern",
+   "statement": "Tight closes: in the last 5 sessions before the trigger, the highest close is no more than 10% above the lowest close.",
+   "measure": {
+    "what": "highest close / lowest close - 1, over the 5 sessions before the trigger",
+    "op": "<=",
+    "value": 10,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "basis": "my proposal",
+   "dossier_basis": "my proposal; the sources agree tight is better but give no number; IBD lets the daily ranges be loose if the closes are tight, so the test is on closes",
+   "sources": [
+    "S1",
+    "S15"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8 rule 7",
+   "evidence": "IBD on JDSU: weekly trading ranges were a little wild and wooly, but the closes were relatively tight. Bulkowski: trade tight flags, not loose ones. BIDU 2021-02-05 sat at the limit of this rule. The glossary's tight (a 5-against-10 range ratio) is a different test; this card keeps the dossier's close-based one."
+  },
+  {
+   "id": "htf.flag_volume",
+   "field": "pattern",
+   "statement": "Flag average daily volume is below the pole's average.",
+   "measure": {
+    "what": "mean volume of the flag sessions / mean volume of the pole sessions",
+    "op": "<",
+    "value": 1,
+    "unit": "x",
+    "timeframe": "daily"
+   },
+   "glossary": "dry_up",
+   "basis": "source consensus",
+   "dossier_basis": "source consensus on direction (IBD: volume generally dries up; Bulkowski: recedes for best performance; Minervini's digestion of supply, unverified; Deepvue)",
+   "sources": [
+    "S1",
+    "S15",
+    "S11",
+    "S25"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8 rule 8",
+   "evidence": "The glossary's dry_up measures against the 50-session average; this card measures against the pole, as the dossier and the scanner do. The ten examples ran 0.33x to 0.95x; CRNC at 0.95x is a B on this line."
+  },
+  {
+   "id": "htf.flag_volume_a",
+   "field": "pattern",
+   "statement": "Flag volume at most 60% of the pole's is the A grade.",
+   "measure": {
+    "what": "mean volume of the flag sessions / mean volume of the pole sessions",
+    "op": "<=",
+    "value": 0.6,
+    "unit": "x",
+    "timeframe": "daily"
+   },
+   "glossary": "dry_up",
+   "basis": "UCT",
+   "dossier_basis": "UCT: 60% is the main scanner's number, not a source's",
+   "sources": [
+    "S34"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8 rule 8; 9 A+"
+  },
+  {
+   "id": "htf.flag_slope",
+   "field": "pattern",
+   "statement": "A down-sloping or flat top on the flag is the A+ shape.",
+   "measure": {
+    "what": "least-squares slope of the flag sessions' highs",
+    "op": "<=",
+    "value": 0,
+    "unit": "$ per session",
+    "timeframe": "daily"
+   },
+   "basis": "source consensus",
+   "dossier_basis": "Bulkowski (flags with a down-sloping top trendline tend to outperform); TraderLion (no statistic given)",
+   "sources": [
+    "S15",
+    "S26"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "9 A+"
+  },
+  {
+   "id": "htf.weekly_closes_tight",
+   "field": "pattern",
+   "statement": "Tight weekly closes through the flag are the A+ tightness cue.",
+   "basis": "originator",
+   "dossier_basis": "IBD's JDSU (the closes were relatively tight); Minervini's tight weekly closes over three to six weeks (unverified)",
+   "sources": [
+    "S1",
+    "S11"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "9 A+; 3.1"
+  },
+  {
+   "id": "htf.liquidity",
+   "field": "context",
+   "statement": "Price $10 or more and $20 million or more traded a day on the 50-day average.",
+   "measure": {
+    "what": "close",
+    "op": ">=",
+    "value": 10,
+    "unit": "$",
+    "and": "50-day average dollar volume >= 20,000,000"
+   },
+   "glossary": "liquidity",
+   "basis": "house rule",
+   "sources": [
+    "S16",
+    "S28"
+   ],
+   "house_rule": "B23",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8 rule 10; 7",
+   "evidence": "Bulkowski's sample median start price was $6.11; the main scanner's floor is $2; the owner's LAC (under $6.01) would be excluded today. Before 2020 the rule found only 12 liquid hits in 36 years."
+  },
+  {
+   "id": "htf.position_adv",
+   "field": "management",
+   "statement": "The position is at most 1% of average daily volume.",
+   "measure": {
+    "what": "shares / average daily volume",
+    "op": "<=",
+    "value": 1,
+    "unit": "%"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "D42",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8 rule 10",
+   "evidence": "Thin, fast names limit size."
+  },
+  {
+   "id": "htf.leadership",
+   "field": "context",
+   "statement": "RS rating 80 or more; 90 or more with a rising group is the A+ cue.",
+   "measure": {
+    "what": "RS rating",
+    "op": ">=",
+    "value": 80,
+    "unit": "rating 1 to 99"
+   },
+   "glossary": "leader",
+   "basis": "house rule",
+   "sources": [
+    "S2",
+    "S17"
+   ],
+   "house_rule": "C31",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8 rule 11; 9",
+   "evidence": "Almost automatic after a doubling: Taser showed a 98 RS at the breakout. Bulkowski: check other stocks in the same industry; if they are moving up, you stand a better chance."
+  },
+  {
+   "id": "htf.fundamentals",
+   "field": "context",
+   "statement": "Growing sales and earnings, or a real catalyst, preferred but not required; the chart comes first.",
+   "basis": "house rule",
+   "sources": [
+    "S6",
+    "S11"
+   ],
+   "house_rule": "D40",
+   "status": "settled",
+   "owner_question": "D-140",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8 rule 11; 10 question 9",
+   "evidence": "Bonde wants earnings and a first base (Taser and Syntex had 500% plus EPS and sales growth); Minervini will enter even with a dearth of fundamentals (unverified). Settled by D-140: preferred, not required."
+  },
+  {
+   "id": "htf.market_reading",
+   "field": "context",
+   "statement": "Green market: full risk. Yellow: smaller and fewer. Orange: A+ only. Red: mostly cash and shorts. Avoid them in a falling market.",
+   "glossary": "market_reading",
+   "basis": "house rule",
+   "sources": [
+    "S17",
+    "S2"
+   ],
+   "house_rule": "F65",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8 rule 28",
+   "evidence": "Bulkowski: predict the market direction; if the market looks about to drop, avoid the trade; his 2008 bear-market HTFs rose meagerly if at all. IBD: one or two of those in a bull market."
+  },
+  {
+   "id": "htf.trigger",
+   "field": "trigger",
+   "statement": "Price trades above the highest high of the whole pattern (usually the pole top; if the flag made a higher high, that one). Never a break of a trendline drawn inside the flag.",
+   "measure": {
+    "what": "intraday high during regular hours against the pattern's highest high",
+    "op": ">",
+    "value": "pattern high",
+    "timeframe": "daily"
+   },
+   "glossary": "pivot",
+   "basis": "originator",
+   "dossier_basis": "originator (IBD: clears the peak of the flagpole; Bulkowski: a buy stop above the highest high, and high and tight flags fail too often when using a flag trendline break)",
+   "sources": [
+    "S1",
+    "S15",
+    "S17"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "a market order on the trade above the pattern high (default)"
+    },
+    {
+     "value": "b",
+     "basis": "also an earlier entry inside a very tight flag: the opening-range high (Qullamaggie) or the open after a tight day (Bonde's KOD)"
+    },
+    {
+     "value": "c",
+     "basis": "the 30-minute opening-range break, as on the Kicker"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-027",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8 rule 12; 10 question 5",
+   "evidence": "IBD's 10 cents above the peak is not used with market orders. Deepvue's trendline cheat is what Bulkowski says fails too often. The scan filled a cent over the pattern high, or the open when it gapped over (SOFI, AMD)."
+  },
+  {
+   "id": "htf.early_entry",
+   "field": "trigger",
+   "statement": "An advanced option, if he uses it: inside a very tight flag, buy the opening-range high or the open after a tight day, with the same day's-low stop.",
+   "measure": {
+    "what": "intraday high against the first 5-minute or 30-minute bar's high, inside the flag",
+    "op": ">",
+    "value": "opening-range high",
+    "timeframe": "intraday"
+   },
+   "glossary": "opening_range",
+   "basis": "my proposal",
+   "dossier_basis": "Qullamaggie (enter on the opening range highs, for his broader breakout); Bonde's KOD (a market-on-open order, a 40-cent stop, 0.62% risk)",
+   "sources": [
+    "S13",
+    "S10",
+    "S28"
+   ],
+   "status": "pending-owner",
+   "owner_question": "D-027",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8 rule 13; 10 question 5 (b)",
+   "evidence": "Not measured: 5-minute bars exist only for the last 60 trading days. The owner's TER note (considered adding on the HTF) and Bracco's XNDU (bought on the ORB highs) are the house precedents."
+  },
+  {
+   "id": "htf.market_order",
+   "field": "trigger",
+   "statement": "A market order as it trades through, at least a cent over the high, regular hours only. A real stop goes in at once.",
+   "basis": "house rule",
+   "sources": [
+    "S33",
+    "S34"
+   ],
+   "house_rule": "E57",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8 rule 13",
+   "evidence": "The owner on the Kicker: the entry is supposed to trigger OVER previous day high not at mkt close. The main scanner waits for a daily close above the entry on 2x volume, which conflicts with this."
+  },
+  {
+   "id": "htf.no_chase",
+   "field": "trigger",
+   "statement": "No buy more than 4% above the pattern high. A gap over it by more than 4% is skipped.",
+   "measure": {
+    "what": "fill / pattern high - 1",
+    "op": "<=",
+    "value": 4,
+    "unit": "%"
+   },
+   "glossary": "chase_limit",
+   "basis": "house rule",
+   "sources": [
+    "S28"
+   ],
+   "house_rule": "C28",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8 rule 13; 7",
+   "evidence": "SOFI 2024-11-20 gapped 1.5% past the high and was bought at the open, inside the limit. Two writers named the cost of not chasing (CLS; SNDK at 230); the house rule decides it now."
+  },
+  {
+   "id": "htf.not_stretched",
+   "field": "trigger",
+   "statement": "At entry, no more than 10% above the 10-day average; about 5% over it is the A+ zone, 8% to 10% is B-.",
+   "measure": {
+    "what": "entry / 10-day SMA - 1",
+    "op": "<=",
+    "value": 10,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "glossary": "stretched",
+   "basis": "house rule",
+   "sources": [
+    "S28"
+   ],
+   "house_rule": "C29",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8 rule 13; 7; 9",
+   "evidence": "A short or deep flag after a fast pole can leave the pivot far above the 10-day (a 10-day flag 20% deep puts it about 11% over). In effect C29 demands a flag long or tight enough for the 10-day to catch up, which matches the owner's LXU note."
+  },
+  {
+   "id": "htf.earnings_window",
+   "field": "trigger",
+   "statement": "No new buy in the 3 sessions before an earnings report. Check the date every time: HTF poles often follow a report and the next one can land inside the flag.",
+   "measure": {
+    "what": "sessions until the next report",
+    "op": ">",
+    "value": 3,
+    "unit": "sessions"
+   },
+   "glossary": "earnings_blackout",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B22",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8 rule 13; 7"
+  },
+  {
+   "id": "htf.breakout_volume",
+   "field": "trigger",
+   "statement": "The breakout day should end with volume at least 40% above its 50-day average. A grade, not a gate, and never a reason to exit.",
+   "measure": {
+    "what": "trigger-day volume / 50-day average volume",
+    "op": ">=",
+    "value": 1.4,
+    "unit": "x",
+    "timeframe": "daily"
+   },
+   "glossary": "volume_surge",
+   "basis": "originator",
+   "dossier_basis": "originator (IBD: daily volume at least 40% above average; the column names no window, the 50-day is the dossier's); my proposal to grade, not gate",
+   "sources": [
+    "S1",
+    "S15"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "a gate: no buy unless on pace for 40% above average (IBD)"
+    },
+    {
+     "value": "b",
+     "basis": "a grade (the dossier's recommendation; Bulkowski has no volume rule)"
+    }
+   ],
+   "recommended": "b",
+   "status": "pending-owner",
+   "owner_question": "D-006",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8 rule 14; 10 question 7",
+   "evidence": "SRRK 2020-12-22: the biggest pole in the scan (+291%) broke out on a tenth of its 50-day average and was stopped the next session with 0R; a breakout nobody buys is not a breakout. CVNA (0.73x) and SOFI (0.86x) still ran, the case for a grade. The main scanner's 2x the 20-day has no source."
+  },
+  {
+   "id": "htf.strong_close",
+   "field": "trigger",
+   "statement": "A strong close on the breakout day raises the grade; a wicky breakout bar that closes off its high is B-.",
+   "measure": {
+    "what": "(close - low) / (high - low) on the trigger day",
+    "op": ">=",
+    "value": 0.5,
+    "timeframe": "daily"
+   },
+   "glossary": "close_position",
+   "basis": "UCT",
+   "dossier_basis": "UCT (the owner on APLD: a little wicky, need that strong closing candle)",
+   "sources": [
+    "S28"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "9 A+; 6",
+   "evidence": "The 0.5 line is the glossary's strong close; the dossier gives no number."
+  },
+  {
+   "id": "htf.stop",
+   "field": "stop",
+   "statement": "A few cents under the entry day's low, or under the prior day's low.",
+   "measure": {
+    "what": "stop",
+    "op": "==",
+    "value": "a few cents under the entry day's low or the prior day's low"
+   },
+   "glossary": "stop_margin",
+   "basis": "house rule",
+   "sources": [
+    "S28",
+    "S15"
+   ],
+   "house_rule": "A3",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8 rule 15",
+   "evidence": "F62 gives the few cents. Manrav on CLPT: low of the day as your stop. The scan used 5 cents under the lower of the entry day's and the prior day's lows. Every outside source stops at the flag bottom (Bulkowski) or 8% (IBD); the house stop wins."
+  },
+  {
+   "id": "htf.stop_width",
+   "field": "stop",
+   "statement": "If the honest stop is more than one average daily range (ADR, the 20-day average) below the entry, skip the trade. Between 3% and one ADR, take it with the size the stop allows.",
+   "measure": {
+    "what": "(entry - stop) / entry",
+    "op": "<=",
+    "value": "20-day ADR",
+    "unit": "%",
+    "and": "within about 3% for full confidence"
+   },
+   "glossary": "stop_width",
+   "basis": "house rule",
+   "sources": [
+    "S13"
+   ],
+   "house_rule": "A13",
+   "options": [
+    {
+     "value": "a",
+     "basis": "skip above one ADR (Qullamaggie: the stop should not be wider than the ATR or ADR; A3)"
+    },
+    {
+     "value": "b",
+     "basis": "take it with a smaller size between 3% and one ADR (A5 shrinks the shares)"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-005",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8 rule 15; 10 question 6",
+   "evidence": "The dossier recommends (a) above one ADR and (b) between 3% and one ADR. The ten examples' stops ran 1.1% to 7.2%; MRNA's 7.2% was within one ADR of a very volatile stock. Fast HTF stocks often have daily ranges wider than 3%."
+  },
+  {
+   "id": "htf.stop_not_flag_low",
+   "field": "stop",
+   "statement": "The flag low is the line that kills the idea, not the stop.",
+   "measure": {
+    "what": "stop placed at the flag low",
+    "op": "==",
+    "value": false
+   },
+   "basis": "my proposal",
+   "dossier_basis": "my proposal; Bulkowski's flag-low stop averaged a 26% loss",
+   "sources": [
+    "S16",
+    "S34"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8 rule 16; 4.3",
+   "evidence": "Bulkowski's automated study: using a penny below the flag low as a stop price meant taking an average 26% loss. The main scanner's flag low minus 1.5% sits 9% to 14% under the entry for a 100% pole whose flag gives back 15% to 25% of it."
+  },
+  {
+   "id": "htf.stop_gap",
+   "field": "stop",
+   "statement": "A gap through the stop: the first 30-minute low is the new stop; out if that is past 2R.",
+   "measure": {
+    "what": "loss at the first 30-minute low of the gap-down day",
+    "op": "<=",
+    "value": 2,
+    "unit": "R",
+    "timeframe": "30-minute"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B20",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8 rule 17",
+   "evidence": "These stocks gap."
+  },
+  {
+   "id": "htf.stop_broker",
+   "field": "stop",
+   "statement": "A real stop order with the broker, placed at once. It only moves up.",
+   "basis": "house rule",
+   "sources": [
+    "S15"
+   ],
+   "house_rule": "D41",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8 rule 13",
+   "evidence": "A4: the stop only moves up. Bulkowski's 67% throwback rate means a tight stop is tested often; an expected cost, not a reason to widen it."
+  },
+  {
+   "id": "htf.trim_1",
+   "field": "management",
+   "statement": "Sell a third at 3R.",
+   "measure": {
+    "what": "fraction sold at 3R",
+    "op": "==",
+    "value": 0.333,
+    "unit": "of the position"
+   },
+   "glossary": "trail",
+   "basis": "house rule",
+   "sources": [
+    "S17",
+    "S28"
+   ],
+   "house_rule": "B19",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8 rule 18",
+   "evidence": "Bulkowski (be conservative and look at a 50% move up) and Bracco (sell aggressively into a big multi-day burst) both favour taking money early. Seven of the ten examples reached 3R within 5 sessions."
+  },
+  {
+   "id": "htf.trim_2",
+   "field": "management",
+   "statement": "Sell a third at 5R.",
+   "measure": {
+    "what": "fraction sold at 5R",
+    "op": "==",
+    "value": 0.333,
+    "unit": "of the position"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "E51",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8 rule 18"
+  },
+  {
+   "id": "htf.breakeven",
+   "field": "management",
+   "statement": "Stop to breakeven between 2R and 5R, at the first trim by default.",
+   "measure": {
+    "what": "R at which the stop moves to the entry",
+    "op": "in",
+    "value": [
+     2,
+     5
+    ],
+    "unit": "R"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B19",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8 rule 18",
+   "evidence": "MRVL 2026-05-13 reached 2.35R and was then stopped at the original stop in the scan; under the house plan the stop would already have been at breakeven, so that loss is a scratch in practice."
+  },
+  {
+   "id": "htf.trim_gap_open",
+   "field": "management",
+   "statement": "If it opens above a trim level, take that trim at the open.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "F63",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8 rule 18"
+  },
+  {
+   "id": "htf.trail",
+   "field": "management",
+   "statement": "Trail the last third: sell on a close below the 10-day average. An HTF is a fast mover by definition.",
+   "measure": {
+    "what": "close against the 10-day average",
+    "op": "<",
+    "value": "10-day average",
+    "timeframe": "daily"
+   },
+   "basis": "house rule",
+   "sources": [
+    "S28"
+   ],
+   "house_rule": "E52",
+   "options": [
+    {
+     "value": "10-day",
+     "basis": "E52's line for fast movers; the dossier's default"
+    },
+    {
+     "value": "20 EMA",
+     "basis": "the owner trailed WULF with the 20-day EMA"
+    }
+   ],
+   "recommended": "10-day",
+   "status": "pending-owner",
+   "owner_question": "D-024",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8 rule 19; 10 question 8",
+   "evidence": "BIDU 2021-02-05 went to about 354 within three weeks, then collapsed under the flag low by late March: the 10-day trail is what gets a learner out."
+  },
+  {
+   "id": "htf.climax",
+   "field": "management",
+   "statement": "A climax run (Bracco's parabolic burst): sell a big part into it. HTF breakouts often go vertical.",
+   "glossary": "parabolic_burst",
+   "basis": "house rule",
+   "sources": [
+    "S28"
+   ],
+   "house_rule": "C34",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8 rule 20",
+   "evidence": "Bracco on XNDU: would be willing to sell aggressively into a big multi-day burst."
+  },
+  {
+   "id": "htf.time_stop",
+   "field": "management",
+   "statement": "Time stop: still under 1R after 10 trading days, sell.",
+   "measure": {
+    "what": "open R after 10 trading days",
+    "op": "<",
+    "value": 1,
+    "unit": "R"
+   },
+   "glossary": "time_stop",
+   "basis": "house rule",
+   "sources": [
+    "S18"
+   ],
+   "house_rule": "C33",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8 rule 21",
+   "evidence": "Bulkowski: when it works you will likely see price climb 10% to 15% and then die. TMDX took 23 sessions to 3R but was above 1R by day 10."
+  },
+  {
+   "id": "htf.no_target",
+   "field": "management",
+   "statement": "No price target. For reference only: Bulkowski's measure rule (half the pole, added to the flag low) was met by 82% of his perfect trades.",
+   "measure": {
+    "what": "reference level",
+    "op": "==",
+    "value": "flag low + half the pole's height"
+   },
+   "basis": "originator",
+   "dossier_basis": "originator, as a guide (Bulkowski)",
+   "sources": [
+    "S15",
+    "S16"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8 rule 22",
+   "evidence": "The main scanner projects the full pole from the top, more than twice as far, with no source. Kuhn's another 100% or more and IBD's 200% or more are claims about winners, not targets; only 6% doubled in Bulkowski's study."
+  },
+  {
+   "id": "htf.no_adds",
+   "field": "management",
+   "statement": "The full size at one price with one stop. Never widen the stop to the flag low without cutting size; never add.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "A5",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8 rule 29"
+  },
+  {
+   "id": "htf.inv_depth",
+   "field": "invalidation",
+   "statement": "Before entry: the flag goes deeper than 25% of price.",
+   "measure": {
+    "what": "(pattern high - flag low) / pattern high",
+    "op": ">",
+    "value": 25,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "glossary": "base_depth",
+   "basis": "source consensus",
+   "dossier_basis": "source consensus (8 rule 5)",
+   "sources": [
+    "S1",
+    "S2",
+    "S25",
+    "S26"
+   ],
+   "status": "pending-owner",
+   "owner_question": "D-050",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8 rule 23"
+  },
+  {
+   "id": "htf.inv_length",
+   "field": "invalidation",
+   "statement": "Before entry: the flag runs longer than 30 sessions. A different base; grade it as that base.",
+   "measure": {
+    "what": "sessions since the pattern high",
+    "op": ">",
+    "value": 30,
+    "unit": "sessions",
+    "timeframe": "daily"
+   },
+   "glossary": "base_length",
+   "basis": "my proposal",
+   "dossier_basis": "my proposal (8 rule 6)",
+   "sources": [
+    "S11",
+    "S17"
+   ],
+   "status": "pending-owner",
+   "owner_question": "D-049",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8 rule 23"
+  },
+  {
+   "id": "htf.inv_close_under_flag_low",
+   "field": "invalidation",
+   "statement": "Before entry: a close below the flag's low.",
+   "measure": {
+    "what": "close against the flag's lowest low",
+    "op": "<",
+    "value": "flag low",
+    "timeframe": "daily"
+   },
+   "basis": "my proposal",
+   "dossier_basis": "Bulkowski (the flag bottom is the stop, and a close below the flag low ended his study's search); the main scanner's failure line",
+   "sources": [
+    "S16",
+    "S20",
+    "S34"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8 rule 24"
+  },
+  {
+   "id": "htf.inv_volume_rising",
+   "field": "invalidation",
+   "statement": "Before entry: volume in the flag runs above the pole's average. Supply is coming in, not drying up.",
+   "measure": {
+    "what": "mean volume of the flag sessions / mean volume of the pole sessions",
+    "op": ">",
+    "value": 1,
+    "unit": "x",
+    "timeframe": "daily"
+   },
+   "glossary": "dry_up",
+   "basis": "source consensus",
+   "dossier_basis": "IBD (volume generally dries up); Bulkowski (recedes for best performance); Deepvue; Minervini's digestion of supply (unverified)",
+   "sources": [
+    "S1",
+    "S15",
+    "S25",
+    "S11"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8 rule 25"
+  },
+  {
+   "id": "htf.inv_parabolic_top",
+   "field": "invalidation",
+   "statement": "Before entry: the pole ended in a parabolic burst (three straight up days, two overnight gap ups, range and volume expansion, a gap up on the climax day) and the climax day closed below its open. A possible parabolic short top, not a flag.",
+   "measure": {
+    "what": "the pole's last leg meets the burst checklist and the climax day's close is below its open",
+    "op": "==",
+    "value": true,
+    "timeframe": "daily"
+   },
+   "glossary": "parabolic_burst",
+   "basis": "my proposal",
+   "dossier_basis": "my proposal; the burst checklist is Bracco's (The Parabolic Short, as written into B26); the close-below-open test is the dossier's",
+   "sources": [
+    "S29",
+    "S15"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8 rule 26",
+   "evidence": "Bulkowski prefers a pole of about 45 degrees to one that goes nearly vertical into the flag. The scan applied this test as written."
+  },
+  {
+   "id": "htf.after_entry_stop",
+   "field": "invalidation",
+   "statement": "After the entry, the stop is the exit, with the time stop and the trail.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "A4",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8 rule 14; 7",
+   "evidence": "Light breakout volume grades the trade; it is not a reason to exit, because the stop is the exit."
+  }
+ ],
+ "grading": {
+  "a_plus": [
+   "htf.pole_a_grade: 100% or more in 8 weeks or less, off a quiet, flat base",
+   "htf.catalyst: a real change (earnings, product, contract) with heavy volume",
+   "htf.not_late: the first or second base of the move",
+   "htf.flag_depth_a: 10% to 20% deep, 2 to 5 weeks, closes tight week to week, a down-sloping or flat top",
+   "htf.flag_volume_a: flag volume 60% of the pole's or less",
+   "htf.holds_fast_averages: riding a rising 10-day and 21-day; not more than about 5% over the 10-day at the pivot",
+   "htf.leadership: RS 90 or more, the group rising, a Green market",
+   "htf.breakout_volume: 40% or more above average, closing strong",
+   "htf.stop_width: a day's-low stop within about 3%"
+  ],
+  "b_minus": [
+   "htf.pole_size: only 90% to 99%, or a near-vertical spike in a few days, or a V off a crash",
+   "htf.not_late: a third flag late in a long run",
+   "htf.flag_depth: 20% to 25% deep, loose and jagged",
+   "htf.flag_length_ideal: only 3 to 5 sessions, or past 5 weeks",
+   "htf.flag_volume: volume not drying up",
+   "htf.not_stretched: the pivot 8% to 10% over the 10-day",
+   "htf.market_reading: a Yellow market, a weak group, a news-only story with no earnings",
+   "htf.breakout_volume: a breakout on light volume, or a day's-low stop wider than 3%"
+  ],
+  "no_trade": [
+   "htf.pole_size: under 90%, or more than 40 sessions in the making",
+   "htf.inv_depth: deeper than 25%",
+   "htf.inv_length: longer than 30 sessions",
+   "htf.inv_close_under_flag_low: a close under the flag low",
+   "htf.inv_parabolic_top: a parabolic top with the climax day closing below its open",
+   "htf.above_200: under the 200-day",
+   "htf.liquidity: under $10 or under $20 million a day",
+   "htf.no_chase: more than 4% past the pattern high",
+   "htf.not_stretched: more than 10% over the 10-day",
+   "htf.earnings_window: a report within 3 sessions",
+   "htf.stop_width: the honest stop wider than one ADR",
+   "htf.market_reading: Red, or Orange unless A+"
+  ]
+ },
+ "lookalikes": [
+  {
+   "setup": "02-bull-flag",
+   "tell": "Measure the pole. A high tight flag follows a near-double (90% or more in 40 sessions or fewer); a bull flag follows a 20% to 30% run. A tight flag in a leader that never doubled is a bull flag, however tight.",
+   "criterion": "htf.pole_size"
+  },
+  {
+   "setup": "01-flat-base",
+   "tell": "Count the rest. An HTF pauses 5 to 30 sessions after the double; a flat base rests at least 25 sessions after a 30% run in a box 15% deep or less. Past 30 sessions the HTF becomes that base.",
+   "criterion": "htf.flag_length"
+  },
+  {
+   "setup": "06-vcp",
+   "tell": "Look for shrinking pullbacks. A VCP strings two to six contractions over 15 sessions or more after a 30% advance; an HTF is one shelf a little under the high of a 90% pole.",
+   "criterion": "htf.pole_size"
+  },
+  {
+   "setup": "39-parabolic-short",
+   "tell": "Look at the last leg of the pole. If it was a burst (three straight up days, gap ups, expanding range and volume) and the climax day closed below its open, the chart is a parabolic top to be shorted or left alone, not a flag to be bought.",
+   "criterion": "htf.inv_parabolic_top"
+  },
+  {
+   "setup": "18-qullamaggie-kell",
+   "tell": "Kullamagi's breakout needs only a 30% move in the past 1 to 3 months and rests 2 weeks to 2 months; the HTF needs the double in 8 weeks or less. Same buy, same stop, a different and much rarer pole.",
+   "criterion": "htf.pole_size"
+  }
+ ],
+ "invalidations": [
+  "Before entry: the flag goes deeper than 25% (htf.inv_depth).",
+  "Before entry: the flag runs longer than 30 sessions (htf.inv_length).",
+  "Before entry: a close below the flag's low (htf.inv_close_under_flag_low).",
+  "Before entry: flag volume runs above the pole's average (htf.inv_volume_rising).",
+  "Before entry: the pole ended in a parabolic burst with the climax day closing below its open (htf.inv_parabolic_top).",
+  "Before entry: a report within 3 sessions, wait (htf.earnings_window).",
+  "Before entry: under the 200-day, under $10, under $20 million a day (htf.above_200, htf.liquidity).",
+  "After the entry: the stop is the exit, with the time stop and the trail (htf.after_entry_stop)."
+ ],
+ "mistakes": [
+  "Buying the break of a trendline drawn inside the flag (Bulkowski: too many of these fail even after a trendline break).",
+  "Chasing an extended breakout: more than 4% past the high or more than 10% over the 10-day.",
+  "Calling any tight pause an HTF. Bonde: if you are finding too many high tight flags, there is something wrong with your interpretation.",
+  "Trading a V-shaped pole off a crash, or a flag in a falling market.",
+  "Trading a late flag after a long run (Bonde, Minervini).",
+  "Trading thin, cheap stocks (Bonde; the house floor).",
+  "Widening the stop to the flag low without cutting size.",
+  "Expecting a double: only 6% doubled in Bulkowski's study, and a third failed.",
+  "Reading the 85% success rate on vendor sites as a win rate; it is 100 minus a 15% break-even failure rate on perfect trades with no stop.",
+  "Using the app's scanner text as a source: its target, its stop and its history claims are unsourced or wrong."
+ ],
+ "short_mirror": {
+  "exists": false,
+  "note": "None taught for now (dossier 8 rule 27, question 10, D-001). No source defines a mirror; a stock cannot fall 100%, so the doubling has no clean inverse, and shorting a vertical run is already Bracco's parabolic short (D47). If the owner wants one, the dossier's untested draft: down 50% or more in 40 sessions, below a falling 200-day, a 5 to 30-session bear flag retracing at most 25% up, short below the flag low with the stop above the day's high."
+ },
+ "best_conditions": "A Green market with the stock's group also rising. Bulkowski: predict the market direction and check the industry; avoid them in a falling market, where his 2008 HTFs rose meagerly if at all. IBD: if you are lucky, one or two of these in a bull market. 42 of the scan's 54 liquid hits came from 2020 on.",
+ "management": {
+  "trim_1": "a third at 3R (B19)",
+  "trim_2": "a third at 5R (E51)",
+  "trail": "a close under the 10-day average: an HTF is a fast mover (E52); the 20-day EMA as he used on WULF is the option (D-024)",
+  "breakeven": "between 2R and 5R, at the first trim by default (B19)",
+  "time_stop": "under 1R after 10 trading days, sell (C33)",
+  "gap_open": "a trim level the day opens past is taken at the open (F63)",
+  "gap_against": "the first 30-minute low is the new stop; out if past 2R (B20)",
+  "climax": "sell a big part into a climax burst (C34; Bracco on XNDU)",
+  "overrides": "the trail defaults to the 10-day rather than the choice between 10-day and 21-day, because the setup is a fast mover by definition (dossier 8 rule 19). No price target: Bulkowski's half-pole measure rule is a reference only. Not ours: the main scanner's full-pole targets, its flag-low stop and its close-based entry; the 2R and 3R targets of the flag rule; Kullamagi's sell a third to a half after 3 to 5 days."
+ },
+ "examples": {
+  "winners": 10,
+  "sheet_dir": "_study-resume/scratchpad/setups/03-high-tight-flag/final",
+  "base_rate": {
+   "hits": 54,
+   "r3_pct": 29.6,
+   "r5_pct": 22.2,
+   "window": "60 sessions forward from the day after entry, fixed stop under the lower of the entry day's and the prior day's lows (the entry day's low alone if that is wider than one 20-day ADR), no trims, no breakeven, no trail; 1984 to 2026 over the 2,630 names that ever met the house liquidity rule; one hit per name per 30 sessions; 42 of 54 hits from 2020 on"
+  },
+  "cuts": {
+   "note": "too few hits for cuts; the dossier reports the base rate only. Before 2020 the rule found 12 liquid hits in 36 years."
+  },
+  "winners_list": [
+   "SAP 2000-01-25",
+   "SRPT 2015-06-10",
+   "IOVA 2019-06-28",
+   "CVNA 2019-04-01",
+   "MRNA 2020-04-15",
+   "CRNC 2020-12-16",
+   "BIDU 2021-02-05",
+   "TMDX 2024-05-14",
+   "SOFI 2024-11-20",
+   "AMD 2026-05-22"
+  ],
+  "failures": [
+   {
+    "ticker": "SRRK",
+    "date": "2020-12-22",
+    "criterion": "htf.breakout_volume",
+    "why": "the biggest pole in the scan (+291% in 34 sessions) and a 6-day, 15.5% flag, but flag volume was 13% of the pole's and the breakout day traded a tenth of its 50-day average; stopped the next session with 0R. A breakout that nobody buys is not a breakout, even on a perfect geometry."
+   },
+   {
+    "ticker": "NET",
+    "date": "2020-11-27",
+    "criterion": "htf.flag_depth_a",
+    "why": "+113% in 40 sessions, a 14-day flag 18.7% deep, then a trigger on 0.86x volume with a 1.2% stop under the prior day's low; stopped the next session for 0R. A deeper-than-ideal flag plus weak demand plus a stop tighter than one ordinary day's range is the usual way an HTF entry dies."
+   },
+   {
+    "ticker": "MRVL",
+    "date": "2026-05-13",
+    "criterion": "htf.breakeven",
+    "why": "+107% in 33 sessions, a tight 5-day flag, breakout volume 1.21x; it reached 2.35R and was then stopped at the original stop. Under the house plan the stop would already have been at breakeven, so this fixed-stop loss is a scratch in practice; the scan's 29.6% understates the plan for this reason."
+   },
+   {
+    "ticker": "FSLR",
+    "date": "2022-08-26",
+    "criterion": "htf.strong_close",
+    "why": "A 101% pole in 40 sessions, a 9-day flag 8.8% deep on 0.74x the pole's volume. The breakout day gapped open at 125.50 over the 121.91 buy point on 1.47x volume, then closed at the low of its range (121.75), back under the buy point; the next session's low (118.13) took the stop."
+   },
+   {
+    "ticker": "MDB",
+    "date": "2023-06-28",
+    "criterion": "htf.stop",
+    "why": "A 101% pole in 39 sessions, a 15-day flag 8.5% deep on 0.92x the pole's volume, breakout on 1.48x volume closing mid-range. It reached 1.66R, stalled, and was stopped on day 7 (low 376.49). A valid flag that simply failed."
+   }
+  ],
+  "limits": "A strict, tiny sample: 54 hits in 42 years at the house floor, so no cuts. No RS rating, group, market reading or trims in the scan; survivorship (the sandbox holds today's tickers); one hit was a leveraged ETF (LABU, a failure); the 10% close tightness and the no-close-under-the-21-EMA test reject flags a human would still call an HTF. MGA 2014-02-28 scored 18.5R on a data gap and was thrown out. Bulkowski's numbers are the only published statistics and they got worse over time.",
+  "near_misses": [
+   {
+    "ticker": "TSLA",
+    "date": "2023-07-14",
+    "criterion": "htf.pole_size",
+    "why": "pole +78% in 40 sessions; the rule is 90% or more. A tight 8-day, 6.7% flag on 0.78x volume, but the pole was 78% in 40 sessions. A tight flag in a leader that never doubled is a bull flag (setup 02), however tight. Best 1.88R, stopped."
+   },
+   {
+    "ticker": "PDD",
+    "date": "2020-12-08",
+    "criterion": "htf.flag_volume",
+    "why": "flag volume 1.27x the pole's; the rule is below 1x. A 123% pole and a 16-day, 17.2% flag, but flag volume ran 1.27x the pole's. Supply was coming in during the rest (htf.inv_volume_rising), not drying up. Best 0.0R, stopped."
+   },
+   {
+    "ticker": "SE",
+    "date": "2019-04-26",
+    "criterion": "htf.holds_fast_averages",
+    "why": "5 flag close(s) under the 21-day EMA; the rule is none. A 99% pole and a 24-day, 12.7% flag on 0.69x volume, but five flag closes sat under the 21-day EMA. A base that lost the fast averages is a flat base or a cup, not a high tight flag. Best 1.65R, stopped."
+   },
+   {
+    "ticker": "TVTX",
+    "date": "2025-10-24",
+    "criterion": "htf.flag_length",
+    "why": "flag of 32 sessions; the rule is 5 to 30. A 91% pole in 27 sessions and a tight, 23.1%-deep rest that ran 32 sessions. Past 30 sessions it is a different base and is graded as that base (htf.inv_length). It worked (best 18.92R) as the base it was."
+   }
+  ],
+  "sheets": {
+   "failures": "final/fail_1-4.png",
+   "near_misses": "final/near_1-4.png",
+   "pair": "final/pair_02-bull-flag.png"
+  }
+ },
+ "question_seeds": [
+  {
+   "kind": "recall",
+   "criterion": "htf.pole_size",
+   "seed": "How much must a stock rise, and in how many weeks, before its pause can be called a high tight flag?"
+  },
+  {
+   "kind": "recall",
+   "criterion": "htf.flag_depth",
+   "seed": "The flag of a high tight flag gives back at most what percent of price?"
+  },
+  {
+   "kind": "recall",
+   "criterion": "htf.trigger",
+   "seed": "Where is the buy on a high tight flag, and why is the trendline inside the flag never it?"
+  },
+  {
+   "kind": "spot",
+   "criterion": "htf.trigger",
+   "seed": "Hidden ticker: tap the pattern high, the level this stock must trade through."
+  },
+  {
+   "kind": "spot",
+   "criterion": "htf.tightness",
+   "seed": "Hidden ticker: which of these four flags has its last five closes within 10% of each other?"
+  },
+  {
+   "kind": "spot",
+   "criterion": "htf.pole_not_v",
+   "seed": "Hidden ticker: did this pole start from a quiet base or from a crash? Take it or pass."
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "htf.pole_size",
+   "seed": "High tight flag or bull flag: the stock ran 45% in three weeks and paused six sessions. Which is it?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "htf.flag_length",
+   "seed": "High tight flag or flat base: the stock doubled, then rested 38 sessions in a 9% box. Which lesson?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "htf.inv_parabolic_top",
+   "seed": "High tight flag or parabolic top: the last three days of the pole gapped up each morning and the climax day closed below its open. Buy the pause, or not?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "htf.pole_size",
+   "seed": "High tight flag or Qullamaggie breakout: a 35% move in six weeks, then a four-week tightening range. Which card?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "htf.no_chase",
+   "seed": "The pattern high is 60.00 and the stock opens at 63.30. Buy the open, or pass?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "htf.breakout_volume",
+   "seed": "The stock trades through the pattern high at 11:00 on pace for half its average volume. You are in at market. What does the light volume change: the stop, the grade, or nothing?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "htf.earnings_window",
+   "seed": "The flag is 12 sessions old and tight; the report is in 2 sessions. Buy the break today?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "htf.stop_broker",
+   "seed": "Four days after the breakout price comes back to the pattern high, as two in three winners do. Widen the stop, hold it, or sell?"
+  },
+  {
+   "kind": "grade",
+   "criterion": "htf.flag_depth_a",
+   "seed": "Two flags after a double: one 4% deep for four sessions, one 15% deep for three weeks with tight weekly closes. Grade each."
+  },
+  {
+   "kind": "grade",
+   "criterion": "htf.not_late",
+   "seed": "The stock was already up 250% in the six months before this pole. A+, B-, or pass?"
+  },
+  {
+   "kind": "grade",
+   "criterion": "htf.stop_width",
+   "seed": "The entry day's low sits 5% under your fill and the stock's ADR is 7%. What grade, what size, or pass?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "htf.pole_size",
+   "seed": "The 40-session low was 12.40 and the pole high is 23.90. How big is the pole in percent, and does it qualify?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "htf.flag_depth",
+   "seed": "Pattern high 100.00, flag low 78.50. How deep is the flag, and is it still a high tight flag?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "htf.trim_1",
+   "seed": "Bought at 27.50 with the stop at 26.59. Where is 3R, and where is 5R?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "htf.no_target",
+   "seed": "Pole low 10.00, pole high 20.00, flag low 17.00. Where is Bulkowski's reference level, and is it a sell rule?"
+  }
+ ],
+ "owner_decisions": [
+  "D-001",
+  "D-002",
+  "D-004",
+  "D-005",
+  "D-006",
+  "D-007",
+  "D-024",
+  "D-027",
+  "D-048",
+  "D-049",
+  "D-050",
+  "D-140"
+ ],
+ "conflicts": [
+  "Sources: this dossier's section 11 is a set of tables without ids, so every S-id on this card is the row's position in reading order, as the validator reads it (S1 IBD 2014, S2 IBD 2015, S5 IBD 2007 via Bonde, S6 Bonde's Patterns and context, S10 Bonde's KOD, S11 Minervini 2017 unverified, S13 Kullamagi, S15 Bulkowski's htf page, S16 his study, S17 his example page, S18 his quiz, S20 his stop page, S23 his 2009 article, S24 Kuhn, S25 Deepvue, S26 TraderLion, S28 the UCT Substack, S29 Bracco's Parabolic Short, S31 the owner principles, S33 the owner's verdicts, S34 the app code). S14 is the Bulkowski table's header row, which the reader counts; nothing cites it. The dossier's own basis tags are kept in dossier_basis where a line's basis is a translation of them.",
+  "Minervini's 2017 wording is UNVERIFIED (the dossier read it from a repo file that text-extracted a third-party PDF). It is cited here only as supporting a line another source also gives, and is not to be quoted in a lesson as his until checked against the book.",
+  "Pole size: 90% (Bulkowski; the main scanner, the flag rule's HTF label, Chart IQ) against 100% (IBD, Minervini, TraderLion, Deepvue, both base-catalog structures). IBD's own Taser pole was 98% and Kuhn allows less in some cases. The card takes 90% to qualify and 100%+ as the A grade (D-048). IBD's 100% to 120% is typical, not a cap: JDSU ran 136%.",
+  "Flag depth: 10% to 20% (IBD 2007), sometimes 25% (IBD 2014), 10% to 25% (IBD 2015, TraderLion), 20% or 25% for lower-priced stocks (Minervini), no limit with 10% to 34% best (Bulkowski). Kuhn alone measures on the pole, as the main scanner does (25% of the height is 11.8% to 16.7% of price), which rejects IBD's own examples. The card measures on price: 25% to qualify, 10% to 20% as the A zone (D-050).",
+  "Flag length: 3 to 5 weeks (IBD), 3 to 6 weeks (Kuhn, Minervini), 10 to 12 days at the short end (Minervini), 5 sessions to 3 weeks (Deepvue), 3 to 4 days (the owner's DAVE note). The card takes 5 to 30 sessions with 10 to 25 ideal (D-049).",
+  "Tight or not: Bulkowski and Minervini ask for a tight flag; IBD 2014 says the flag can be wide and loose and only looks tight next to the pole, with the weekly closes tight. The card tests the closes (the last five within 10%) and keeps tight weekly closes as the A+ cue.",
+  "Buy point: IBD 2007, Stockbee's O'Neil notes and TraderLion add 10 cents; IBD 2014 says only clears the peak; Bulkowski uses a buy stop above the highest high and confirms on a close; Deepvue allows an earlier trendline break, which Bulkowski says fails too often. The card buys the trade through the pattern high at market (D-027 for the earlier entries).",
+  "Breakout volume: IBD at least 40% above average (no window named); Bulkowski no rule; the main scanner's 2x the 20-day has no source. The card grades on 40% above the 50-day (D-006).",
+  "The stop: the flag bottom (Bulkowski, an average 26% loss in his study), the 8% rule (IBD's example), the day's low no wider than ADR (Qullamaggie), a 40-cent stop at the open (Bonde's KOD). The house stop wins; whether to skip above 3% or above one ADR is D-005.",
+  "Target: half the pole from the flag bottom (Bulkowski) against none (IBD, Minervini); the main scanner projects the full pole from the top. The house trims win; the measure rule is a reference only.",
+  "How good it is: O'Neil calls it the strongest of patterns; IBD itself says many fail; Bulkowski's book called it the best (69%, none of 307 failed) and his later study found a 33% combined failure rate, a 27% average rise and a rank of 30 of 39, 38, or 43 of 56 depending on the page. The scanner's lesson text's 100%+ in 8 to 12 weeks is unsupported (D-010).",
+  "UCT uses HTF two ways: the textbook pattern after a huge move (ENVX, WGS, CIEN, CLPT, XNDU) and any tight flag near highs in a leader, ETFs included (TAN, XLV, XHB, IGV). D-002 settles it: HTF is the 90%+ pole pattern; every other tight flag is a Bull Flag.",
+  "Fundamentals: Bonde and IBD want earnings and a first base; Minervini will buy without. D-140 settles it as preferred, not required.",
+  "The 21-day EMA line (no flag close under it; above a rising 10-day and 21-day at the trigger) is the dossier's own proposal from the app's checks; no outside HTF source asks for it, and the owner once preferred a 20 ema shakeout. The scan shows it rejects many flags a human would call an HTF.",
+  "The app: five engines that disagree (two matched 0 symbols in common); the main scanner's already-broken check can never fire, its depth is on the pole, its entry is a close, its stop is the flag low minus 1.5%, its floor is $2, and its lesson text credits Bonde with popularizing and refining the pattern, which the dossier could not support (D-004, D-010).",
+  "Examples: the 86 Chart IQ bank drafts lean old (36 from 1997 to 2005) with split-adjusted prices, so the $10 test needs the price as it traded then; owner principle 7 wants liquid, known, not news-driven stocks while many HTF poles are news-driven (D-007)."
+ ]
+}

@@ -1,0 +1,1736 @@
+{
+ "unit": "F7.09",
+ "track": "F7",
+ "title": "Sector leadership",
+ "teaches": "Know the 11 GICS sectors and their sector funds, read a sector's relative strength against the S&P 500, tell defensive from cyclical groups, and see from 2020 to 2023 how leadership rotates, so you hunt for leaders inside the leading group.",
+ "skills": [
+  {
+   "id": "history.sectors",
+   "title": "Sector leadership"
+  }
+ ],
+ "as_of": "2026-11-09",
+ "sources": [
+  {
+   "id": "s01",
+   "tier": 1,
+   "publisher": "MSCI (GICS is maintained jointly by MSCI and S&P Dow Jones Indices)",
+   "title": "Global Industry Classification Standard (GICS) Methodology, April 2026 (PDF)",
+   "url": "https://www.msci.com/index/methodology/latest/GICS",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s02",
+   "tier": 1,
+   "publisher": "MSCI",
+   "title": "The Global Industry Classification Standard (GICS)",
+   "url": "https://www.msci.com/indexes/index-resources/gics",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s03",
+   "tier": 1,
+   "publisher": "SEC EDGAR (Select Sector SPDR Trust, Form 485BPOS)",
+   "title": "Prospectus, January 2026: fund summaries, returns for periods ending 12/31/25",
+   "url": "https://www.sec.gov/Archives/edgar/data/1064641/000119312526027312/d15107d485bpos.htm",
+   "accessed": "2026-11-09",
+   "why_reliable": "A fund prospectus filed with the SEC (EDGAR). Each fund summary's table gives the one-year return of the fund's own Select Sector Index and of the S&P 500 for the calendar year just ended. The Select Sector indexes hold the S&P 500 stocks of one GICS sector, with capped single-stock weights, so a figure can differ from S&P's own sector index (see conflicts)."
+  },
+  {
+   "id": "s04",
+   "tier": 1,
+   "publisher": "SEC EDGAR (Select Sector SPDR Trust, Form 485BPOS)",
+   "title": "Prospectus, January 2021: returns for periods ending 12/31/20 (calendar 2020)",
+   "url": "https://www.sec.gov/Archives/edgar/data/1064641/000119312521020549/d70582d485bpos.htm",
+   "accessed": "2026-11-09",
+   "why_reliable": "A fund prospectus filed with the SEC (EDGAR). Each fund summary's table gives the one-year return of the fund's own Select Sector Index and of the S&P 500 for the calendar year just ended. The Select Sector indexes hold the S&P 500 stocks of one GICS sector, with capped single-stock weights, so a figure can differ from S&P's own sector index (see conflicts)."
+  },
+  {
+   "id": "s05",
+   "tier": 1,
+   "publisher": "SEC EDGAR (Select Sector SPDR Trust, Form 485BPOS)",
+   "title": "Prospectus, January 2022: returns for periods ending 12/31/21 (calendar 2021)",
+   "url": "https://www.sec.gov/Archives/edgar/data/1064641/000119312522019531/d262382d485bpos.htm",
+   "accessed": "2026-11-09",
+   "why_reliable": "A fund prospectus filed with the SEC (EDGAR). Each fund summary's table gives the one-year return of the fund's own Select Sector Index and of the S&P 500 for the calendar year just ended. The Select Sector indexes hold the S&P 500 stocks of one GICS sector, with capped single-stock weights, so a figure can differ from S&P's own sector index (see conflicts)."
+  },
+  {
+   "id": "s06",
+   "tier": 1,
+   "publisher": "SEC EDGAR (Select Sector SPDR Trust, Form 485BPOS)",
+   "title": "Prospectus, January 2023: returns for periods ending 12/31/22 (calendar 2022)",
+   "url": "https://www.sec.gov/Archives/edgar/data/1064641/000119312523016290/d435817d485bpos.htm",
+   "accessed": "2026-11-09",
+   "why_reliable": "A fund prospectus filed with the SEC (EDGAR). Each fund summary's table gives the one-year return of the fund's own Select Sector Index and of the S&P 500 for the calendar year just ended. The Select Sector indexes hold the S&P 500 stocks of one GICS sector, with capped single-stock weights, so a figure can differ from S&P's own sector index (see conflicts)."
+  },
+  {
+   "id": "s07",
+   "tier": 1,
+   "publisher": "SEC EDGAR (Select Sector SPDR Trust, Form 485BPOS)",
+   "title": "Prospectus, January 2024: returns for periods ending 12/31/23 (calendar 2023)",
+   "url": "https://www.sec.gov/Archives/edgar/data/1064641/000119312524016779/d89797d485bpos.htm",
+   "accessed": "2026-11-09",
+   "why_reliable": "A fund prospectus filed with the SEC (EDGAR). Each fund summary's table gives the one-year return of the fund's own Select Sector Index and of the S&P 500 for the calendar year just ended. The Select Sector indexes hold the S&P 500 stocks of one GICS sector, with capped single-stock weights, so a figure can differ from S&P's own sector index (see conflicts)."
+  },
+  {
+   "id": "s08",
+   "tier": 1,
+   "publisher": "State Street Global Advisors (sponsor of the Select Sector SPDR funds)",
+   "title": "Sector Investing and Sector ETFs: the Select Sector SPDR lineup",
+   "url": "https://www.ssga.com/us/en/individual/capabilities/equities/sector-investing/select-sector-etfs",
+   "accessed": "2026-11-09",
+   "why_reliable": "State Street Global Advisors is the sponsor of the Select Sector SPDR funds; units_plan names these pages as Tier 1. Used only for which ticker covers which sector, the funds' own risk statement, and what the eleven indexes cover."
+  },
+  {
+   "id": "s09",
+   "tier": 1,
+   "publisher": "State Street Global Advisors (sponsor of the Select Sector SPDR funds)",
+   "title": "State Street Energy Select Sector SPDR ETF (XLE): fund page",
+   "url": "https://www.ssga.com/us/en/individual/etfs/state-street-energy-select-sector-spdr-etf-xle",
+   "accessed": "2026-11-09",
+   "why_reliable": "State Street Global Advisors is the sponsor of the Select Sector SPDR funds; units_plan names these pages as Tier 1. Used only for which ticker covers which sector, the funds' own risk statement, and what the eleven indexes cover."
+  },
+  {
+   "id": "s10",
+   "tier": 1,
+   "publisher": "Federal Reserve Board",
+   "title": "Monetary Policy Report, June 2020, Part 1: Recent Economic and Financial Developments",
+   "url": "https://www.federalreserve.gov/monetarypolicy/2020-06-mpr-part1.htm",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s11",
+   "tier": 1,
+   "publisher": "Federal Reserve Board",
+   "title": "Monetary Policy Report, July 2021, Part 1: Recent Economic and Financial Developments",
+   "url": "https://www.federalreserve.gov/monetarypolicy/2021-07-mpr-part1.htm",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s12",
+   "tier": 1,
+   "publisher": "Federal Reserve Board",
+   "title": "Monetary Policy Report, June 2023, Part 1: Recent Economic and Financial Developments",
+   "url": "https://www.federalreserve.gov/monetarypolicy/2023-06-mpr-part1.htm",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s13",
+   "tier": 1,
+   "publisher": "SEC EDGAR",
+   "title": "Company filings page: Devon Energy Corp (CIK 0001090012), with its SEC industry code",
+   "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001090012&type=10-K&dateb=&owner=include&count=10",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s14",
+   "tier": 2,
+   "publisher": "CNBC",
+   "title": "Dow rises nearly 200 points, hits record high to wrap up wild 2020 (Fred Imbert and Jesse Pound, December 31, 2020)",
+   "url": "https://www.cnbc.com/2020/12/30/stock-market-futures-open-to-close-news.html",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s15",
+   "tier": 2,
+   "publisher": "CNBC",
+   "title": "S&P 500 ends 2021 with a nearly 27% gain, but dips in final trading day (Hannah Miao and Tanaya Macheel, December 31, 2021)",
+   "url": "https://www.cnbc.com/2021/12/30/stock-market-futures-open-to-close-news.html",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s16",
+   "tier": 2,
+   "publisher": "CNBC",
+   "title": "Stocks fall to end Wall Street's worst year since 2008, S&P 500 finishes 2022 down nearly 20% (Jesse Pound and Samantha Subin, December 30, 2022)",
+   "url": "https://www.cnbc.com/2022/12/29/stock-market-futures-open-to-close-news.html",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s17",
+   "tier": 2,
+   "publisher": "CNBC",
+   "title": "S&P 500 falls slightly Friday, but rides 9-week win streak to end 2023 with 24% gain: Live updates (Samantha Subin and Jesse Pound; sector entry by Lisa Kailai Han and Christopher Hayes, December 29, 2023)",
+   "url": "https://www.cnbc.com/2023/12/28/stock-market-today-live-updates.html",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s18",
+   "tier": 2,
+   "publisher": "StockCharts.com ChartSchool",
+   "title": "Sector Rotation Analysis",
+   "url": "https://chartschool.stockcharts.com/table-of-contents/market-analysis/sector-rotation-analysis",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s19",
+   "tier": 2,
+   "publisher": "StockCharts.com ChartSchool",
+   "title": "Wyckoff Stock Analysis",
+   "url": "https://chartschool.stockcharts.com/table-of-contents/market-analysis/wyckoff-analysis-articles/wyckoff-stock-analysis",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s20",
+   "tier": 2,
+   "publisher": "StockCharts.com ChartSchool",
+   "title": "Price Relative/Relative Strength",
+   "url": "https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/technical-indicators/price-relative-relative-strength",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s21",
+   "tier": 2,
+   "publisher": "Fidelity Investments",
+   "title": "The global industry classification standard (GICS): An objective language for sectors (Learning Center)",
+   "url": "https://www.fidelity.com/learning-center/trading-investing/markets-sectors/global-industry-classification-standard",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s22",
+   "tier": 2,
+   "publisher": "Fidelity Investments",
+   "title": "How to invest using the business cycle (Fidelity Viewpoints, April 16, 2025)",
+   "url": "https://www.fidelity.com/viewpoints/investing-ideas/sector-investing-business-cycle",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s23",
+   "tier": 2,
+   "publisher": "Fidelity Investments",
+   "title": "Relative Strength Comparison (Technical Indicator Guide)",
+   "url": "https://www.fidelity.com/learning-center/trading-investing/technical-analysis/technical-indicator-guide/relative-strength-comparison",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s24",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "Stock Sectors: What Are They? How Are They Used? (Schwab Center for Financial Research, March 6, 2026)",
+   "url": "https://www.schwab.com/learn/story/what-are-stock-sectors",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s25",
+   "tier": 2,
+   "publisher": "Investor's Business Daily",
+   "title": "Use IBD Industry Groups To Reveal Potential Leaders (Alan R. Elliott, February 5, 2016)",
+   "url": "https://www.investors.com/ibd-university/find-evaluate-stocks/industry-groups/",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s26",
+   "tier": 1,
+   "publisher": "SEC EDGAR (Select Sector SPDR Trust, Form N-CSR)",
+   "title": "Annual report for the year ended September 30, 2025: schedules of investments",
+   "url": "https://www.sec.gov/Archives/edgar/data/1064641/000119312525308890/d66357dncsr.htm",
+   "accessed": "2026-11-09",
+   "why_reliable": "The funds' annual report filed with the SEC (EDGAR). Each fund's schedule of investments lists its holdings under GICS industry headings, so it shows which GICS industry, and through the fund, which sector, a company sits in."
+  },
+  {
+   "id": "s27",
+   "tier": 2,
+   "publisher": "Associated Press",
+   "title": "S&P 500 closes out dismal year with worst loss since 2008 (Damian J. Troise and Alex Veiga, December 30, 2022)",
+   "url": "https://www.ksl.com/article/50548249/sp-500-closes-out-dismal-year-with-worst-loss-since-2008",
+   "accessed": "2026-11-09",
+   "why_reliable": "An Associated Press wire story (AP byline on the page) as republished in full by KSL.com, a Deseret Media news site; F7.06 cites the same page as its s27. Used only for AP's line that the S&P 500's 2022 loss was 19.4%, or 18.1% including dividends."
+  }
+ ],
+ "facts": [
+  {
+   "id": "f01",
+   "source": "s01",
+   "quote": "the GICS is designed with four levels of classifications that includes 11 Sectors, 25 Industry Groups, 74 Industries, and 163 Sub-Industries.",
+   "claim": "GICS has four levels: 11 sectors, 25 industry groups, 74 industries and 163 sub-industries (April 2026)."
+  },
+  {
+   "id": "f02",
+   "source": "s01",
+   "quote": "the creation of a new Sector for Real Estate that was carved out from the Financials Sector and transformation of the Telecommunication Services Sector as the Communication Services Sector.",
+   "claim": "Real Estate was carved out of Financials as a new sector, and Telecommunication Services was turned into Communication Services."
+  },
+  {
+   "id": "f03",
+   "source": "s01",
+   "quote": "A company is initially classified into the GICS Sub-Industry whose definition most accurately reflects the business activity that generates more than 60% of the company’s total revenues.",
+   "claim": "A company is first placed by the business that brings in more than 60% of its revenue."
+  },
+  {
+   "id": "f04",
+   "source": "s01",
+   "quote": "The GICS is strictly hierarchical and thus a company can only belong to one grouping at each of the four levels.",
+   "claim": "A company belongs to only one grouping at each GICS level."
+  },
+  {
+   "id": "f05",
+   "source": "s01",
+   "quote": "25503030 Broadline Retail Retailers offering a wide range of consumer discretionary merchandise. This Sub-Industry includes general and discount merchandise retailers, department stores and on-line retailers and marketplaces selling mostly consumer discretionary merchandise.",
+   "claim": "GICS's Broadline Retail sub-industry (code 25503030, in Consumer Discretionary) covers online retailers and marketplaces selling mostly discretionary goods."
+  },
+  {
+   "id": "f06",
+   "source": "s01",
+   "quote": "This Sub-Industry includes search engines, social media & networking platforms, online classifieds, online review companies and Internet TV companies.",
+   "claim": "GICS's Interactive Media & Services sub-industry includes search engines and social media platforms."
+  },
+  {
+   "id": "f07",
+   "source": "s02",
+   "quote": "Each company is assigned a single GICS® classification in each of the four tiers, according to its principal business activity.",
+   "claim": "Each company gets one GICS classification at each level, by its main business."
+  },
+  {
+   "id": "f08",
+   "source": "s02",
+   "quote": "Revenues is a key factor in determining a firm’s principal business activity.",
+   "claim": "Revenue is a key factor in deciding a company's main business; earnings and market perception also count."
+  },
+  {
+   "id": "f09",
+   "source": "s03",
+   "quote": "identified as Communication Services companies by the Global Industry Classification Standard (GICS®), including securities of companies from the following industries: diversified telecommunication services; wireless telecommunication services; media; entertainment; and interactive media & services.",
+   "claim": "The Communication Services sector includes telecom, media, entertainment and interactive media & services."
+  },
+  {
+   "id": "f10",
+   "source": "s03",
+   "quote": "identified as Consumer Discretionary companies by the Global Industry Classification Standard (GICS®), including securities of companies from the following industries: specialty retail; broadline retail;",
+   "claim": "The Consumer Discretionary sector includes specialty retail and broadline retail."
+  },
+  {
+   "id": "f11",
+   "source": "s03",
+   "quote": "The Index is one of eleven Select Sector Indexes developed and maintained in accordance with the following criteria: (1) each of the component securities in the Index is a constituent of the S&P 500 Index;",
+   "claim": "Each sector fund tracks one of eleven Select Sector indexes, built only from S&P 500 stocks."
+  },
+  {
+   "id": "f12",
+   "source": "s03",
+   "quote": "The value of regulated utility equity securities may tend to have an inverse relationship to the movement of interest rates.",
+   "claim": "Regulated utility stocks tend to move opposite to interest rates."
+  },
+  {
+   "id": "f13",
+   "source": "s03",
+   "quote": "Highest Quarterly Return 38.97% Q1 2022 Lowest Quarterly Return -50.72% Q1 2020",
+   "claim": "XLE, the energy fund, fell 50.72% in Q1 2020 and gained 38.97% in Q1 2022 (its worst and best quarters, 2016-2025)."
+  },
+  {
+   "id": "f14",
+   "source": "s03",
+   "quote": "Highest Quarterly Return 12.77% Q4 2021 Lowest Quarterly Return -12.99% Q1 2020",
+   "claim": "XLP, the consumer staples fund, fell 12.99% in Q1 2020, its worst quarter of 2016-2025."
+  },
+  {
+   "id": "f15",
+   "source": "s03",
+   "quote": "Highest Quarterly Return 23.15% Q4 2020 Lowest Quarterly Return -31.94% Q1 2020",
+   "claim": "XLF, the financials fund, fell 31.94% in Q1 2020, its worst quarter of 2016-2025."
+  },
+  {
+   "id": "f16",
+   "source": "s03",
+   "quote": "Highest Quarterly Return 14.46% Q3 2018 Lowest Quarterly Return -12.69% Q1 2020",
+   "claim": "XLV, the health care fund, fell 12.69% in Q1 2020, its worst quarter of 2016-2025."
+  },
+  {
+   "id": "f17",
+   "source": "s03",
+   "quote": "Highest Quarterly Return 19.29% Q3 2024 Lowest Quarterly Return -13.53% Q1 2020",
+   "claim": "XLU, the utilities fund, fell 13.53% in Q1 2020, its worst quarter of 2016-2025."
+  },
+  {
+   "id": "f18",
+   "source": "s04",
+   "quote": "Technology Select Sector Index (reflects no deduction for fees, expenses or taxes) 43.89%",
+   "claim": "In 2020 the technology sector index returned 43.89%."
+  },
+  {
+   "id": "f19",
+   "source": "s04",
+   "quote": "Energy Select Sector Index (reflects no deduction for fees, expenses or taxes) -32.84%",
+   "claim": "In 2020 the energy sector index returned -32.84%."
+  },
+  {
+   "id": "f20",
+   "source": "s04",
+   "quote": "S&P 500 Index (reflects no deduction for fees, expenses or taxes) 18.40%",
+   "claim": "In 2020 the S&P 500 returned 18.40%."
+  },
+  {
+   "id": "f21",
+   "source": "s05",
+   "quote": "Energy Select Sector Index (reflects no deduction for fees, expenses or taxes) 53.43%",
+   "claim": "In 2021 the energy sector index returned 53.43%."
+  },
+  {
+   "id": "f22",
+   "source": "s05",
+   "quote": "Real Estate Select Sector Index (reflects no deduction for fees, expenses or taxes) 46.19%",
+   "claim": "In 2021 the real estate sector index returned 46.19%, behind energy."
+  },
+  {
+   "id": "f23",
+   "source": "s05",
+   "quote": "S&P 500 Index (reflects no deduction for fees, expenses or taxes) 28.71%",
+   "claim": "In 2021 the S&P 500 returned 28.71%."
+  },
+  {
+   "id": "f24",
+   "source": "s06",
+   "quote": "Energy Select Sector Index (reflects no deduction for fees, expenses or taxes) 64.56%",
+   "claim": "In 2022 the energy sector index returned 64.56%, the best of the eleven."
+  },
+  {
+   "id": "f25",
+   "source": "s06",
+   "quote": "Utilities Select Sector Index (reflects no deduction for fees, expenses or taxes) 1.57%",
+   "claim": "In 2022 the utilities sector index returned 1.57%, second of the eleven."
+  },
+  {
+   "id": "f26",
+   "source": "s06",
+   "quote": "Consumer Staples Select Sector Index (reflects no deduction for fees, expenses or taxes) -0.70%",
+   "claim": "In 2022 the consumer staples sector index returned -0.70%."
+  },
+  {
+   "id": "f27",
+   "source": "s06",
+   "quote": "Health Care Select Sector Index (reflects no deduction for fees, expenses or taxes) -1.95%",
+   "claim": "In 2022 the health care sector index returned -1.95%."
+  },
+  {
+   "id": "f28",
+   "source": "s06",
+   "quote": "Industrial Select Sector Index (reflects no deduction for fees, expenses or taxes) -5.48%",
+   "claim": "In 2022 the industrials sector index returned -5.48%."
+  },
+  {
+   "id": "f29",
+   "source": "s06",
+   "quote": "Financial Select Sector Index (reflects no deduction for fees, expenses or taxes) -10.53%",
+   "claim": "In 2022 the financials sector index returned -10.53%."
+  },
+  {
+   "id": "f30",
+   "source": "s06",
+   "quote": "Materials Select Sector Index (reflects no deduction for fees, expenses or taxes) -12.27%",
+   "claim": "In 2022 the materials sector index returned -12.27%."
+  },
+  {
+   "id": "f31",
+   "source": "s06",
+   "quote": "Real Estate Select Sector Index (reflects no deduction for fees, expenses or taxes) -26.13%",
+   "claim": "In 2022 the real estate sector index returned -26.13%."
+  },
+  {
+   "id": "f32",
+   "source": "s06",
+   "quote": "Technology Select Sector Index (reflects no deduction for fees, expenses or taxes) -27.64%",
+   "claim": "In 2022 the technology sector index returned -27.64%."
+  },
+  {
+   "id": "f33",
+   "source": "s06",
+   "quote": "Consumer Discretionary Select Sector Index (reflects no deduction for fees, expenses or taxes) -36.23%",
+   "claim": "In 2022 the consumer discretionary sector index returned -36.23%."
+  },
+  {
+   "id": "f34",
+   "source": "s06",
+   "quote": "Communication Services Select Sector Index (reflects no deduction for fees, expenses or taxes) -37.66%",
+   "claim": "In 2022 the communication services sector index returned -37.66%, the worst of the eleven."
+  },
+  {
+   "id": "f35",
+   "source": "s06",
+   "quote": "S&P 500 Index (reflects no deduction for fees, expenses or taxes) -18.11%",
+   "claim": "In 2022 the S&P 500 returned -18.11%."
+  },
+  {
+   "id": "f36",
+   "source": "s07",
+   "quote": "Technology Select Sector Index (reflects no deduction for fees, expenses or taxes) 56.13%",
+   "claim": "In 2023 the technology sector index returned 56.13%."
+  },
+  {
+   "id": "f37",
+   "source": "s07",
+   "quote": "Utilities Select Sector Index (reflects no deduction for fees, expenses or taxes) -7.08%",
+   "claim": "In 2023 the utilities sector index returned -7.08%."
+  },
+  {
+   "id": "f38",
+   "source": "s07",
+   "quote": "Energy Select Sector Index (reflects no deduction for fees, expenses or taxes) -0.59%",
+   "claim": "In 2023 the energy sector index returned -0.59%."
+  },
+  {
+   "id": "f39",
+   "source": "s07",
+   "quote": "S&P 500 Index (reflects no deduction for fees, expenses or taxes) 26.29%",
+   "claim": "In 2023 the S&P 500 returned 26.29%."
+  },
+  {
+   "id": "f40",
+   "source": "s08",
+   "quote": "XLY Consumer Discretionary State Street® Consumer Discretionary Select Sector SPDR® ETF XLP Consumer Staples State Street® Consumer Staples Select Sector SPDR® ETF XLE Energy State Street® Energy Select Sector SPDR® ETF",
+   "claim": "XLY is the consumer discretionary fund, XLP the consumer staples fund and XLE the energy fund."
+  },
+  {
+   "id": "f41",
+   "source": "s08",
+   "quote": "XLF Financials State Street® Financial Select Sector SPDR® ETF",
+   "claim": "XLF is the financials sector fund."
+  },
+  {
+   "id": "f42",
+   "source": "s08",
+   "quote": "XLV Health Care State Street® Health Care Select Sector SPDR® ETF",
+   "claim": "XLV is the health care sector fund."
+  },
+  {
+   "id": "f43",
+   "source": "s08",
+   "quote": "XLK Technology State Street® Technology Select Sector SPDR® ETF XLU Utilities State Street® Utilities Select Sector SPDR® ETF",
+   "claim": "XLK is the technology sector fund and XLU the utilities fund."
+  },
+  {
+   "id": "f44",
+   "source": "s09",
+   "quote": "Sector ETF products are also subject to sector risk and non-diversification risk, which generally result in greater price fluctuations than the overall market.",
+   "claim": "The sponsor warns that sector funds generally fluctuate more than the overall market."
+  },
+  {
+   "id": "f45",
+   "source": "s09",
+   "quote": "The eleven Select Sector Indexes (each a “Select Sector Index”) upon which the Select Sector SPDR Funds are based together comprise all of the companies in the S&P 500.",
+   "claim": "The eleven sector funds' indexes together hold every S&P 500 company."
+  },
+  {
+   "id": "f46",
+   "source": "s10",
+   "quote": "The decline in stock prices was widespread across all sectors, with the largest declines in the energy and banking sectors.",
+   "claim": "In the early-2020 crash every sector fell, and energy and banking fell the most."
+  },
+  {
+   "id": "f47",
+   "source": "s11",
+   "quote": "Prices of cyclical stocks, including those associated with companies in the basic materials, energy, and industrial sectors, outperformed broad equity price indexes.",
+   "claim": "In the first half of 2021, cyclical stocks (materials, energy, industrials) beat the broad stock indexes."
+  },
+  {
+   "id": "f48",
+   "source": "s12",
+   "quote": "Equity prices of financial firms and banks plummeted as the banking sector came under stress and remained depressed relative to the beginning of the year.",
+   "claim": "In 2023's banking stress, bank and financial stocks plummeted and were still below their January levels by mid-year."
+  },
+  {
+   "id": "f49",
+   "source": "s12",
+   "quote": "Despite the official sector's intervention to support the banking system, broad bank equity prices fell sharply,",
+   "claim": "Even after officials stepped in to support the banks in 2023, bank stocks fell sharply."
+  },
+  {
+   "id": "f50",
+   "source": "s13",
+   "quote": "DEVON ENERGY CORP/DE CIK #: 0001090012 (see all company filings) SIC : 1311 - CRUDE PETROLEUM & NATURAL GAS",
+   "claim": "The SEC files Devon Energy under crude petroleum and natural gas: an oil and gas producer."
+  },
+  {
+   "id": "f51",
+   "source": "s14",
+   "quote": "Tech was by far the dominant sector in 2020, surging more than 42% for the year, as the pandemic forced more people to work from home.",
+   "claim": "Tech was by far the top sector of 2020."
+  },
+  {
+   "id": "f52",
+   "source": "s15",
+   "quote": "Energy and real estate were the best-performing sectors in the S&P 500 this year, surging more than 40% each.",
+   "claim": "Energy and real estate were the S&P 500's best sectors in 2021."
+  },
+  {
+   "id": "f53",
+   "source": "s15",
+   "quote": "Devon Energy was the top-performing stock on the S&P 500 this year with a 178.6% gain.",
+   "claim": "Devon Energy was the S&P 500's best stock of 2021, up 178.6%."
+  },
+  {
+   "id": "f54",
+   "source": "s15",
+   "quote": "S&P 500 ends 2021 with a nearly 27% gain, but dips in final trading day",
+   "claim": "CNBC's year-end headline for 2021: the S&P 500 gained nearly 27% (price)."
+  },
+  {
+   "id": "f55",
+   "source": "s16",
+   "quote": "Sticky inflation and aggressive rate hikes from the Federal Reserve battered growth and technology stocks and weighed on investor sentiment throughout the year.",
+   "claim": "In 2022, inflation and fast Fed rate hikes battered growth and tech stocks."
+  },
+  {
+   "id": "f56",
+   "source": "s16",
+   "quote": "Stocks fall to end Wall Street's worst year since 2008, S&P 500 finishes 2022 down nearly 20%",
+   "claim": "CNBC's year-end headline for 2022: the S&P 500 fell nearly 20% (price), its worst year since 2008."
+  },
+  {
+   "id": "f57",
+   "source": "s17",
+   "quote": "Technology leads year-to-date gains, while utilities lags",
+   "claim": "At the end of 2023, tech led the year's sector gains and utilities lagged."
+  },
+  {
+   "id": "f58",
+   "source": "s17",
+   "quote": "Interest rates lingering at elevated prices have plagued the traditionally rate-sensitive sector.",
+   "claim": "In 2023, rates that stayed high plagued utilities, the traditionally rate-sensitive sector."
+  },
+  {
+   "id": "f59",
+   "source": "s17",
+   "quote": "S&P 500 falls slightly Friday, but rides 9-week win streak to end 2023 with 24% gain",
+   "claim": "CNBC's year-end headline for 2023: the S&P 500 gained 24% (price)."
+  },
+  {
+   "id": "f60",
+   "source": "s18",
+   "quote": "Sector Rotation Analysis attempts to link current strengths and weaknesses in the stock market with the general business cycle based on the relative performance of the eleven S&P Sector SPDR ETFs.",
+   "claim": "Sector rotation analysis compares the eleven sector funds' relative performance and links it to the business cycle."
+  },
+  {
+   "id": "f61",
+   "source": "s18",
+   "quote": "The technology sector is the first to turn up in anticipation of a bottom in the economy. Consumer discretionary stocks are not far behind.",
+   "claim": "In the textbook model, tech turns up first ahead of an economic bottom, with consumer discretionary close behind."
+  },
+  {
+   "id": "f62",
+   "source": "s18",
+   "quote": "These two groups are the big leaders at the beginning of a bull run in the stock market.",
+   "claim": "In the textbook model, tech and consumer discretionary lead at the start of a bull market."
+  },
+  {
+   "id": "f63",
+   "source": "s18",
+   "quote": "The top of the market cycle is marked by relative strength in materials and energy.",
+   "claim": "In the textbook model, materials and energy show relative strength near the market's top."
+  },
+  {
+   "id": "f64",
+   "source": "s18",
+   "quote": "The tipping point for the market comes when leadership shifts from energy to consumer staples.",
+   "claim": "In the textbook model, leadership moving from energy to staples marks the market's tipping point."
+  },
+  {
+   "id": "f65",
+   "source": "s18",
+   "quote": "Keep in mind that this is the ideal business cycle in an inflationary environment.",
+   "claim": "StockCharts describes its business cycle as the ideal one for an inflationary environment."
+  },
+  {
+   "id": "f66",
+   "source": "s18",
+   "quote": "Stocks in the consumer discretionary sector represent products that are optional.",
+   "claim": "Consumer discretionary companies sell things people can choose not to buy."
+  },
+  {
+   "id": "f67",
+   "source": "s18",
+   "quote": "Stocks in the consumer staples sector represent products that are necessary, such as soap, toothpaste, groceries, beverages, and medicine.",
+   "claim": "Consumer staples companies sell necessities like soap, toothpaste and groceries."
+  },
+  {
+   "id": "f68",
+   "source": "s18",
+   "quote": "Chartists can also compare the performance of the consumer discretionary sector to the consumer staples sector for clues on the economy.",
+   "claim": "Comparing consumer discretionary with consumer staples gives clues about the economy."
+  },
+  {
+   "id": "f69",
+   "source": "s18",
+   "quote": "The two sector PerfCharts below show relative performance for the (at that time, nine) sector SPDRs near the 2007 peak and after the 2003 bottom.",
+   "claim": "Around 2007 there were nine sector SPDR funds."
+  },
+  {
+   "id": "f70",
+   "source": "s19",
+   "quote": "First, single out a particular group or sector within the broader market that shows relative strength. Second, look for stocks within this group that are showing relative strength.",
+   "claim": "Wyckoff's method: first find a group with relative strength, then the strong stocks inside it."
+  },
+  {
+   "id": "f71",
+   "source": "s19",
+   "quote": "Even though the broad market governs the general trend for all stocks, Wyckoff understood that certain groups lead the market and certain groups lag the market.",
+   "claim": "Some groups lead the market and some lag it, even though the market sets the overall trend."
+  },
+  {
+   "id": "f72",
+   "source": "s19",
+   "quote": "Groups that hold up when the market moves lower show relative strength. Groups that fail to rally when the market advances show relative weakness.",
+   "claim": "A group that holds up while the market falls shows relative strength; one that can't rally with the market shows weakness."
+  },
+  {
+   "id": "f73",
+   "source": "s19",
+   "quote": "This means buying stocks showing relative strength and avoiding stocks showing relative weakness.",
+   "claim": "Buy relative strength and avoid relative weakness."
+  },
+  {
+   "id": "f74",
+   "source": "s20",
+   "quote": "the Price Relative indicator uses a ratio chart to compare the performance of one security to another.",
+   "claim": "The price relative is a ratio chart that compares one security with another."
+  },
+  {
+   "id": "f75",
+   "source": "s20",
+   "quote": "Chartists could also view sector performance relative to the S&P 500 (XLY:$SPX).",
+   "claim": "You can chart a sector fund against the S&P 500 as a ratio, for example XLY:$SPX."
+  },
+  {
+   "id": "f76",
+   "source": "s20",
+   "quote": "This ratio increases when Starbucks advances more than the S&P 500 or declines less than the S&P 500.",
+   "claim": "The ratio rises when the stock gains more than the S&P 500 or falls less than it."
+  },
+  {
+   "id": "f77",
+   "source": "s20",
+   "quote": "Stocks that hold up the best during a decline are often the leaders when the market turns around.",
+   "claim": "Names that hold up best in a decline are often the leaders when the market turns."
+  },
+  {
+   "id": "f78",
+   "source": "s21",
+   "quote": "While each company may be unique, many business and economic factors could impact similar companies in the same way.",
+   "claim": "Similar companies tend to be hit by the same business and economic forces."
+  },
+  {
+   "id": "f79",
+   "source": "s21",
+   "quote": "GICS divides the consumer economy into \"consumer discretionary\" and \"consumer staples.\" Each of these can accommodate goods and services, but in this case, analysts can distinguish companies based on their expected response to changes in business cycles.",
+   "claim": "GICS splits consumer companies into discretionary and staples by how they respond to the business cycle."
+  },
+  {
+   "id": "f80",
+   "source": "s22",
+   "quote": "Historically, different investments have taken turns delivering the highest returns as the economy has moved from one stage of the cycle to the next.",
+   "claim": "Different investments have taken turns leading as the economy moves through the cycle."
+  },
+  {
+   "id": "f81",
+   "source": "s22",
+   "quote": "Due to structural shifts in the economy, technological innovation, regulatory changes, and other factors, no investment has behaved uniformly during every cycle.",
+   "claim": "No investment has behaved the same way in every cycle."
+  },
+  {
+   "id": "f82",
+   "source": "s22",
+   "quote": "Consumer discretionary stocks have beaten the broader market in every early cycle since 1962.",
+   "claim": "Consumer discretionary beat the market in every early cycle since 1962 (Fidelity)."
+  },
+  {
+   "id": "f83",
+   "source": "s22",
+   "quote": "Stocks that typically benefit most from low interest rates—such as those of companies in the consumer discretionary, financials, and real estate industries—have outperformed.",
+   "claim": "Early in the cycle, rate-sensitive groups like consumer discretionary have outperformed."
+  },
+  {
+   "id": "f84",
+   "source": "s22",
+   "quote": "Energy and utility stocks have done well as inflation rises and demand continues.",
+   "claim": "Late in the cycle, energy and utility stocks have done well as inflation rises."
+  },
+  {
+   "id": "f85",
+   "source": "s22",
+   "quote": "As growth contracts, stocks that are sensitive to the health of the economy lose favor, and defensive ones perform better.",
+   "claim": "When growth contracts, economically sensitive stocks lose favor and defensive ones do better."
+  },
+  {
+   "id": "f86",
+   "source": "s22",
+   "quote": "These include stocks of companies that produce items such as toothpaste, electricity, and prescription drugs, which consumers are less likely to cut back on during a recession.",
+   "claim": "Defensive companies make things like toothpaste, electricity and prescription drugs that people keep buying in a recession."
+  },
+  {
+   "id": "f87",
+   "source": "s22",
+   "quote": "In a contracting economy, these companies’ profits are likely to be more stable than those of others.",
+   "claim": "In a downturn, defensive companies' profits tend to be steadier."
+  },
+  {
+   "id": "f88",
+   "source": "s22",
+   "quote": "High dividends paid by utility and health care companies have helped their stocks during recessions.",
+   "claim": "Utility and health care dividends have helped those stocks in recessions."
+  },
+  {
+   "id": "f89",
+   "source": "s22",
+   "quote": "Bear in mind, though, that the length of each phase has varied widely.",
+   "claim": "Cycle phases have varied widely in length."
+  },
+  {
+   "id": "f90",
+   "source": "s23",
+   "quote": "Relative Strength Comparison compares two securities, or a security and an index, to show relative performance to each other.",
+   "claim": "Relative strength compares a security with an index to show which is doing better."
+  },
+  {
+   "id": "f91",
+   "source": "s23",
+   "quote": "When the Relative Strength Comparison indicator is moving up, it shows that the security’s price is performing better than the base security/index in relative terms.",
+   "claim": "A rising relative strength line means the security is beating the index."
+  },
+  {
+   "id": "f92",
+   "source": "s23",
+   "quote": "The Relative Strength Comparison indicator is calculated by dividing one security's price by a second security's price (the \"base\" security).",
+   "claim": "Relative strength is one price divided by the other."
+  },
+  {
+   "id": "f93",
+   "source": "s24",
+   "quote": "Communication Services is a relatively new sector, launched in September 2018 as a reclassification of what used to be called the Telecommunications sector.",
+   "claim": "Communication Services was launched in September 2018 out of the old Telecommunications sector."
+  },
+  {
+   "id": "f94",
+   "source": "s24",
+   "quote": "It also added interactive media and services, including large search-engine and social media companies like Alphabet (parent company of Google) and Meta (parent company of Facebook)",
+   "claim": "The 2018 change put Alphabet (Google) and Meta (Facebook) in Communication Services."
+  },
+  {
+   "id": "f95",
+   "source": "s24",
+   "quote": "Top 10 stocks in the Consumer Discretionary sector by market capitalization: Amazon (AMZN) Tesla (TSLA) Home Depot (HD)",
+   "claim": "Amazon, Tesla and Home Depot are the largest consumer discretionary stocks (FactSet, February 20, 2026)."
+  },
+  {
+   "id": "f96",
+   "source": "s24",
+   "quote": "It includes companies that make and sell products that consumers typically buy with discretionary income, such as cars, motorcycles and consumer electronics",
+   "claim": "Consumer discretionary covers things bought with spare income, like cars and consumer electronics."
+  },
+  {
+   "id": "f97",
+   "source": "s24",
+   "quote": "Consumer Discretionary stocks historically are \"cyclical,\" meaning highly sensitive to economic cycles; they tend to perform well when consumers feel financially secure but may struggle when economic growth slows and unemployment rises.",
+   "claim": "Consumer discretionary is cyclical: strong when consumers feel secure, weak when growth slows."
+  },
+  {
+   "id": "f98",
+   "source": "s24",
+   "quote": "The Consumer Staples sector is in many ways the flip side of the Consumer Discretionary sector, filled with companies whose products tend to be needed even when the economy is weak",
+   "claim": "Consumer staples sell things people need even in a weak economy."
+  },
+  {
+   "id": "f99",
+   "source": "s24",
+   "quote": "The Energy sector historically is very sensitive to oil prices; higher prices usually support earnings growth and vice versa.",
+   "claim": "Energy stocks move with oil prices."
+  },
+  {
+   "id": "g01",
+   "source": "s24",
+   "quote": "Utilities is considered a defensive sector, because even during recessions consumers generally cut other spending before they stop paying their utility bills.",
+   "claim": "Utilities are defensive: people cut other spending before they stop paying utility bills."
+  },
+  {
+   "id": "g02",
+   "source": "s24",
+   "quote": "They also have to spend heavily to maintain and upgrade their infrastructure; many borrow to do so, which makes them vulnerable to rising interest rates.",
+   "claim": "Many utilities borrow heavily to maintain their networks, which leaves them exposed to rising rates."
+  },
+  {
+   "id": "g03",
+   "source": "s24",
+   "quote": "The Health Care sector historically has been considered \"defensive,\" as people usually pay for needed medical care even during recessions (although elective procedures often decline).",
+   "claim": "Health care is considered defensive because people pay for needed care even in recessions."
+  },
+  {
+   "id": "g04",
+   "source": "s24",
+   "quote": "Becoming too concentrated in one sector can leave your portfolio vulnerable to a downturn that affects only a small part of the market.",
+   "claim": "Too much in one sector leaves you exposed to a downturn in that one part of the market."
+  },
+  {
+   "id": "g05",
+   "source": "s24",
+   "quote": "However, it's worth noting that it's fairly easy to identify a cycle after it's over—it's a lot harder to predict the end of a current cycle or the beginning of the next one.",
+   "claim": "A cycle is easy to identify after it ends and hard to call while it's happening."
+  },
+  {
+   "id": "g06",
+   "source": "s24",
+   "quote": "For example, during the expansion phase, job growth and improving consumer confidence have tended to benefit the Consumer Discretionary sector.",
+   "claim": "In an expansion, job growth and consumer confidence have tended to help consumer discretionary."
+  },
+  {
+   "id": "g07",
+   "source": "s24",
+   "quote": "During a contraction, less-sensitive stock sectors like Consumer Staples and Health Care may outperform.",
+   "claim": "In a contraction, staples and health care may outperform."
+  },
+  {
+   "id": "g09",
+   "source": "s12",
+   "quote": "As stress in the banking sector materialized in March 2023, financial market volatility increased, and there were sharp declines in the equity prices of some banks that experienced sizable outflows of uninsured deposits.",
+   "claim": "Banking stress hit in March 2023, and some bank stocks fell sharply."
+  },
+  {
+   "id": "g08",
+   "source": "s25",
+   "quote": "Learning to track industry group acceleration is one good way to turn up solid stock candidates — sometimes ones that are off the beaten path — for your watch list.",
+   "claim": "Tracking which industry groups are accelerating is a good way to find stock candidates (IBD)."
+  },
+  {
+   "id": "g10",
+   "source": "s26",
+   "quote": "BROADLINE RETAIL — 22.2% Amazon.com, Inc. (a)",
+   "claim": "The consumer discretionary fund's schedule (September 30, 2025) lists Amazon under Broadline Retail, a Consumer Discretionary industry."
+  },
+  {
+   "id": "g11",
+   "source": "s26",
+   "quote": "INTERACTIVE MEDIA & SERVICES — 31.4% Alphabet, Inc. Class A 9,584,840 2,330,074,604 Alphabet, Inc. Class C 7,694,618 1,874,024,214 Match Group, Inc. 11,100,453 392,068,000 Meta Platforms, Inc. Class A",
+   "claim": "The communication services fund's schedule (September 30, 2025) lists Alphabet and Meta under Interactive Media & Services."
+  },
+  {
+   "id": "g12",
+   "source": "s09",
+   "quote": "The Index includes companies from the following industries: oil, gas and consumable fuels; and energy equipment and services.",
+   "claim": "XLE's index holds oil, gas and consumable fuels companies and energy equipment and services companies."
+  },
+  {
+   "id": "g13",
+   "source": "s03",
+   "quote": "Highest Quarterly Return 30.43% Q2 2020 Lowest Quarterly Return -19.70% Q2 2022",
+   "claim": "XLK, the technology fund, had its worst quarter of 2016-2025 in Q2 2022, down 19.70%."
+  },
+  {
+   "id": "g14",
+   "source": "s03",
+   "quote": "Highest Quarterly Return 30.61% Q2 2020 Lowest Quarterly Return -25.51% Q2 2022",
+   "claim": "XLY, the consumer discretionary fund, had its worst quarter of 2016-2025 in Q2 2022, down 25.51%."
+  },
+  {
+   "id": "g15",
+   "source": "s27",
+   "quote": "The benchmark index finished with a loss of 19.4% for 2022, or 18.1%, including dividends.",
+   "claim": "AP: the S&P 500 lost 19.4% in 2022, or 18.1% with dividends."
+  },
+  {
+   "id": "g16",
+   "source": "s06",
+   "quote": "Average Annual Total Returns (for periods ending 12/31/22)",
+   "claim": "The prospectus table gives total returns for calendar 2022."
+  }
+ ],
+ "walkthroughs": [
+  {
+   "key": "w1",
+   "title": "Eleven sectors, one market",
+   "steps": [
+    "GICS puts each company in one of 11 sectors, by its main business. Revenue is the first test.",
+    "Every S&P 500 stock sits in one sector index, and each sector has a fund. XLK is tech, XLE energy, XLU utilities.",
+    "Some labels surprise people. Amazon is consumer discretionary. Alphabet and Meta are communication services.",
+    "A sector fund is a concentrated bet. It generally swings more than the overall market."
+   ],
+   "facts": [
+    "f01",
+    "f07",
+    "f03",
+    "f08",
+    "f45",
+    "f11",
+    "f40",
+    "f43",
+    "f95",
+    "g10",
+    "f94",
+    "g11",
+    "f44"
+   ]
+  },
+  {
+   "key": "w2",
+   "title": "Leadership rotates",
+   "steps": [
+    "2020: tech is by far the top sector, its index up 43.89%. Energy's index loses 32.84%.",
+    "2021: energy and real estate lead. 2022, with dividends: the S&P 500 loses 18.11%, energy gains 64.56%.",
+    "2023: tech leads again, up 56.13%. Energy slips 0.59%.",
+    "Same market, changing leaders. Energy led two years running, then slipped. Watch who leads now."
+   ],
+   "facts": [
+    "f51",
+    "f18",
+    "f19",
+    "f52",
+    "f21",
+    "f22",
+    "f54",
+    "f56",
+    "f35",
+    "f24",
+    "f57",
+    "f59",
+    "f36",
+    "f38",
+    "f80",
+    "g15",
+    "g16"
+   ]
+  },
+  {
+   "key": "w3",
+   "title": "Group first, then the stock",
+   "steps": [
+    "Some groups lead the market and some lag it. Find the leading group first.",
+    "Then look for the strongest stocks inside it. Leave the laggards alone.",
+    "A group that holds up while the market drops is showing relative strength. Write it down.",
+    "2021: energy leads. The S&P 500's top stock is Devon Energy, an oil and gas producer, up 178.6%."
+   ],
+   "facts": [
+    "f71",
+    "f70",
+    "f73",
+    "f72",
+    "f52",
+    "f53",
+    "f54",
+    "f50",
+    "f21",
+    "g12"
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "key": "q01",
+   "skill": "history.sectors",
+   "rung": 1,
+   "format": "mcq",
+   "q": "GICS sorts stocks into sectors. How many sectors does it have?",
+   "choices": [
+    "11",
+    "9",
+    "25",
+    "163"
+   ],
+   "answer": "11",
+   "why": "11. GICS has four levels: 11 sectors, then 25 industry groups, 74 industries and 163 sub-industries.",
+   "lesson_line": "Eleven sectors on top. Every S&P 500 stock sits in exactly one of them.",
+   "facts": [
+    "f01",
+    "f07",
+    "f45",
+    "f11",
+    "f69",
+    "f02"
+   ],
+   "wrong": {
+    "9": "Nine was the number of sector SPDR funds around 2007. Today there are 11 sectors and a fund for each.",
+    "25": "That's the industry groups, the level just below the sectors.",
+    "163": "That's the sub-industries, the most detailed level."
+   }
+  },
+  {
+   "key": "q02",
+   "skill": "history.sectors",
+   "rung": 1,
+   "format": "tf",
+   "q": "A company can sit in two GICS sectors at once if it runs two big businesses.",
+   "answer": "False",
+   "why": "False. GICS gives each company one spot at each level, set by its main business. The first test is the activity that brings in more than 60% of revenue.",
+   "lesson_line": "One company, one sector, set mainly by where its revenue comes from.",
+   "facts": [
+    "f07",
+    "f04",
+    "f03",
+    "f08"
+   ]
+  },
+  {
+   "key": "q03",
+   "skill": "history.sectors",
+   "rung": 2,
+   "format": "mcq",
+   "term": "Defensive sector",
+   "q": "What makes a sector 'defensive'?",
+   "choices": [
+    "Demand holds up when the economy slows",
+    "It rises whenever the market falls",
+    "Its companies carry little debt"
+   ],
+   "answer": "Demand holds up when the economy slows",
+   "why": "Demand holds up when the economy slows. People are less likely to cut back on toothpaste, electricity and prescription drugs in a recession, so those profits tend to be steadier.",
+   "lesson_line": "Defensive means steady demand. It doesn't mean the stock goes up in a selloff.",
+   "facts": [
+    "f86",
+    "f87",
+    "f85",
+    "f67",
+    "f98",
+    "g01",
+    "f26",
+    "f35",
+    "f56",
+    "g02"
+   ],
+   "wrong": {
+    "It rises whenever the market falls": "No. Defensive means it holds up better, not that it rises. Staples still lost 0.70% in 2022, the year the S&P 500 lost 18.11%.",
+    "Its companies carry little debt": "That's not the test. Utilities are defensive, yet many borrow heavily to maintain and upgrade their networks."
+   }
+  },
+  {
+   "key": "q04",
+   "skill": "history.sectors",
+   "rung": 2,
+   "format": "fill",
+   "q": "Fill in the blank.",
+   "sentence": "Divide a sector fund by the S&P 500 and chart it. A rising line shows relative ___.",
+   "bank": [
+    "strength",
+    "weakness",
+    "volume",
+    "value"
+   ],
+   "answer": "strength",
+   "why": "Strength. The ratio rises when the sector gains more than the S&P 500, or falls less. That's relative strength.",
+   "lesson_line": "Sector divided by the market. A rising line means the sector is leading.",
+   "facts": [
+    "f74",
+    "f75",
+    "f76",
+    "f90",
+    "f91",
+    "f92"
+   ]
+  },
+  {
+   "key": "q05",
+   "skill": "history.sectors",
+   "rung": 3,
+   "format": "mcq",
+   "q": "XLY and XLP are both consumer sector funds. Which one holds the consumer staples?",
+   "choices": [
+    "XLP",
+    "XLY",
+    "XLV"
+   ],
+   "answer": "XLP",
+   "why": "XLP. XLP is consumer staples and XLY is consumer discretionary. XLV is health care.",
+   "lesson_line": "XLP is staples, XLY is discretionary. Comparing the two gives you clues about the economy.",
+   "facts": [
+    "f40",
+    "f42",
+    "f68",
+    "f79",
+    "f66",
+    "f96",
+    "g03"
+   ],
+   "wrong": {
+    "XLY": "XLY is consumer discretionary: optional buys like cars and consumer electronics.",
+    "XLV": "XLV is health care. It's another defensive group, but it isn't staples."
+   }
+  },
+  {
+   "key": "q06",
+   "skill": "history.sectors",
+   "rung": 3,
+   "format": "tf",
+   "q": "Under GICS, Amazon is classed as a technology stock.",
+   "answer": "False",
+   "why": "False. Amazon is consumer discretionary. That sector includes broadline retail: online retailers and marketplaces selling mostly discretionary goods.",
+   "lesson_line": "Don't guess a sector from a company's image. Amazon is consumer discretionary.",
+   "facts": [
+    "f95",
+    "g10",
+    "f05",
+    "f10"
+   ]
+  },
+  {
+   "key": "q07",
+   "skill": "history.sectors",
+   "rung": 3,
+   "format": "mcq",
+   "q": "Alphabet (Google's parent) and Meta (Facebook's parent) sit in which GICS sector?",
+   "choices": [
+    "Communication Services",
+    "Information Technology",
+    "Consumer Discretionary"
+   ],
+   "answer": "Communication Services",
+   "why": "Communication Services. Its 2018 makeover added interactive media, the home of search engines and social media.",
+   "lesson_line": "Google's and Facebook's parents are communication services. Know where the giants sit before you read a sector chart.",
+   "facts": [
+    "f93",
+    "f94",
+    "g11",
+    "f09",
+    "f06",
+    "f02"
+   ],
+   "wrong": {
+    "Information Technology": "No. The 2018 change put search and social media companies in Communication Services.",
+    "Consumer Discretionary": "That's Amazon's sector. Search engines and social media are interactive media, in Communication Services."
+   }
+  },
+  {
+   "key": "q08",
+   "skill": "history.sectors",
+   "rung": 4,
+   "format": "mcq",
+   "q": "In 2022 the S&P 500 lost 18.11% with dividends. Which sector index did best?",
+   "choices": [
+    "Energy",
+    "Utilities",
+    "Technology",
+    "Consumer Staples"
+   ],
+   "answer": "Energy",
+   "why": "Energy, by a mile. With dividends, the energy index gained 64.56%. The next best, utilities, gained 1.57%.",
+   "lesson_line": "Even in a bad year, some group leads. In 2022 it was energy.",
+   "facts": [
+    "f24",
+    "f25",
+    "f26",
+    "f27",
+    "f28",
+    "f29",
+    "f30",
+    "f31",
+    "f32",
+    "f33",
+    "f34",
+    "f35",
+    "f55",
+    "g15",
+    "g16"
+   ],
+   "wrong": {
+    "Utilities": "Utilities came second, up 1.57%. Energy gained 64.56%.",
+    "Technology": "Tech's index lost 27.64%, as fast rate hikes battered growth and tech stocks.",
+    "Consumer Staples": "Staples held up, down only 0.70%. Energy was up 64.56%."
+   }
+  },
+  {
+   "key": "q09",
+   "skill": "history.sectors",
+   "rung": 4,
+   "format": "tf",
+   "q": "In 2022 the S&P 500 lost 18.11%. The utilities, staples and health care indexes each finished within 3% of flat.",
+   "answer": "True",
+   "why": "True. Utilities gained 1.57%, staples lost 0.70% and health care lost 1.95%. The defensive groups held up while the market fell.",
+   "lesson_line": "When the market falls, note which groups hold up. In 2022, energy and the defensive groups did.",
+   "facts": [
+    "f25",
+    "f26",
+    "f27",
+    "f35",
+    "g01",
+    "g03",
+    "f98",
+    "f24"
+   ]
+  },
+  {
+   "key": "q10",
+   "skill": "history.sectors",
+   "rung": 4,
+   "format": "mcq",
+   "q": "In the textbook rotation model, which sector tends to lead as the economy comes out of a recession?",
+   "choices": [
+    "Consumer Discretionary",
+    "Consumer Staples",
+    "Utilities",
+    "Energy"
+   ],
+   "answer": "Consumer Discretionary",
+   "why": "Consumer discretionary. Fidelity finds it beat the market in every early cycle since 1962. Low rates and rising consumer confidence have tended to help it.",
+   "lesson_line": "Out of a recession, the textbook favors consumer discretionary. Then check that it's really leading.",
+   "facts": [
+    "f82",
+    "f83",
+    "g06",
+    "f61",
+    "f62",
+    "f85",
+    "g07",
+    "f88",
+    "f63",
+    "f84",
+    "f64"
+   ],
+   "wrong": {
+    "Consumer Staples": "Staples tend to hold up when growth contracts. In the model, leadership moving to staples is a late-cycle warning.",
+    "Utilities": "Utilities are defensive. Their dividends have helped in recessions, but they aren't the textbook leader out of one.",
+    "Energy": "In the model, energy shows strength late, near the top of the cycle."
+   }
+  },
+  {
+   "key": "q11",
+   "skill": "history.sectors",
+   "rung": 5,
+   "format": "numeric",
+   "q": "In 2022 the energy index returned 64.56% and the S&P 500 returned -18.11%. By how many points did energy beat it?",
+   "answer": 82.67,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "energy - spx",
+     "energy": 64.56,
+     "spx": -18.11
+    },
+    "round": 2
+   },
+   "suffix": "points",
+   "why": "82.67 points. Energy gained 64.56% while the market lost 18.11%, so you add the two. That gap is energy's performance relative to the market.",
+   "lesson_line": "Judge a group against the market, not on its own. Measure the gap.",
+   "facts": [
+    "f24",
+    "f35",
+    "f90"
+   ]
+  },
+  {
+   "key": "q12",
+   "skill": "history.sectors",
+   "rung": 5,
+   "format": "scenario",
+   "story": "2020: the energy index loses 32.84% while the S&P 500 gains 18.40%. A friend says energy is finished and you should ignore it in 2021.",
+   "q": "How did energy do in 2021?",
+   "choices": [
+    "It was the best sector that year",
+    "It fell again and kept lagging",
+    "It roughly matched the S&P 500"
+   ],
+   "answer": "It was the best sector that year",
+   "why": "It was the best sector that year. The energy index gained 53.43% against 28.71% for the S&P 500. Real estate came next at 46.19%.",
+   "lesson_line": "Last year's ranking isn't this year's. Judge a group by what it's doing now.",
+   "facts": [
+    "f19",
+    "f20",
+    "f21",
+    "f22",
+    "f23",
+    "f52",
+    "f47",
+    "f80"
+   ],
+   "wrong": {
+    "It fell again and kept lagging": "The opposite. Cyclical stocks, energy among them, beat the broad indexes in early 2021, and energy finished the year up 53.43%.",
+    "It roughly matched the S&P 500": "It beat it by far: 53.43% against 28.71%."
+   }
+  },
+  {
+   "key": "q13",
+   "skill": "history.sectors",
+   "rung": 5,
+   "format": "mcq",
+   "q": "This week the market and a sector fund both fall. The sector's ratio line against the S&P 500 rises. What does that tell you?",
+   "choices": [
+    "It's falling less than the market",
+    "It's falling more than the market",
+    "Nothing, both are down"
+   ],
+   "answer": "It's falling less than the market",
+   "why": "It's falling less than the market. The ratio rises when the sector gains more or falls less than the S&P 500. Names that hold up best in a decline are often the leaders when the market turns.",
+   "lesson_line": "In a selloff, the groups that fall least are showing strength. Put them on your list.",
+   "facts": [
+    "f76",
+    "f75",
+    "f72",
+    "f91",
+    "f77"
+   ],
+   "wrong": {
+    "It's falling more than the market": "Then the ratio would fall. A rising ratio means it's doing better than the market.",
+    "Nothing, both are down": "Direction isn't the point. Holding up while the market falls is relative strength, and that's worth knowing."
+   }
+  },
+  {
+   "key": "q14",
+   "skill": "history.sectors",
+   "rung": 6,
+   "format": "scenario",
+   "story": "The S&P 500 is in an uptrend. You have two setups that look the same on the chart. One stock's group is beating the S&P 500. The other's group is lagging it.",
+   "q": "Which one do you look at first?",
+   "choices": [
+    "The one in the leading group",
+    "The one in the lagging group",
+    "The one with the lower share price"
+   ],
+   "answer": "The one in the leading group",
+   "why": "The one in the leading group. Find the group with relative strength first, then the strongest stocks in it. Similar companies tend to get pushed by the same forces.",
+   "lesson_line": "Group first, then the stock. A good chart in a lagging group is swimming upstream.",
+   "facts": [
+    "f70",
+    "f71",
+    "g08",
+    "f78",
+    "f73"
+   ],
+   "wrong": {
+    "The one in the lagging group": "Waiting for a laggard to catch up is a hope, not a plan. Buy relative strength, avoid relative weakness.",
+    "The one with the lower share price": "Share price says nothing about strength. Start with the group that's leading."
+   }
+  },
+  {
+   "key": "q15",
+   "skill": "history.sectors",
+   "rung": 6,
+   "format": "mcq",
+   "q": "Utilities are defensive. In 2023 their index lost 7.08% while the S&P 500 gained 26.29%. What weighed on them?",
+   "choices": [
+    "High interest rates",
+    "Falling oil prices",
+    "Weak consumer spending"
+   ],
+   "answer": "High interest rates",
+   "why": "High interest rates. Many utilities borrow heavily, and their stocks tend to move opposite to rates. CNBC said rates that stayed high plagued the traditionally rate-sensitive sector.",
+   "lesson_line": "Defensive isn't rate-proof. When rates stay high, utilities can lag even in a strong market.",
+   "facts": [
+    "f37",
+    "f39",
+    "f57",
+    "f58",
+    "f12",
+    "g02",
+    "f38",
+    "f99",
+    "g01",
+    "f97"
+   ],
+   "wrong": {
+    "Falling oil prices": "Oil drives energy stocks, not utilities. Energy's own index was down just 0.59% that year.",
+    "Weak consumer spending": "That hits consumer discretionary. People pay their utility bills even when they cut other spending."
+   }
+  },
+  {
+   "key": "q16",
+   "skill": "history.sectors",
+   "rung": 7,
+   "format": "scenario",
+   "story": "Q1 2020. COVID hits and stocks fall across every sector. You check the sector funds to see where the damage is worst.",
+   "q": "Which groups fell the most?",
+   "choices": [
+    "Energy and banks",
+    "Staples and utilities",
+    "Tech and consumer discretionary"
+   ],
+   "answer": "Energy and banks",
+   "why": "Energy and banks. The Fed said every sector fell, with the largest declines in energy and banking. That quarter XLE fell 50.72%, and the financials fund XLF 31.94%.",
+   "lesson_line": "A crash hits every group, but not equally. Note who breaks and who holds up.",
+   "facts": [
+    "f46",
+    "f13",
+    "f15",
+    "f14",
+    "f17",
+    "g13",
+    "g14",
+    "f40",
+    "f41",
+    "f43"
+   ],
+   "wrong": {
+    "Staples and utilities": "Those held up far better. XLP fell 12.99% that quarter and XLU 13.53%.",
+    "Tech and consumer discretionary": "They fell less. XLK's and XLY's worst quarters of the decade both came in 2022, and were smaller drops than XLF's 31.94%."
+   }
+  },
+  {
+   "key": "q17",
+   "skill": "history.sectors",
+   "rung": 7,
+   "format": "tf",
+   "q": "XLE, the energy sector fund, tends to swing about as much as the S&P 500.",
+   "answer": "False",
+   "why": "False. XLE fell 50.72% in Q1 2020 and gained 38.97% in Q1 2022. Its sponsor warns that sector funds generally fluctuate more than the overall market.",
+   "lesson_line": "XLE is a concentrated bet on one sector. Size it for the swings it really has.",
+   "facts": [
+    "f13",
+    "f44",
+    "f40",
+    "g04",
+    "f99"
+   ]
+  },
+  {
+   "key": "q18",
+   "skill": "history.sectors",
+   "rung": 8,
+   "format": "scenario",
+   "story": "A friend reads that energy tends to do well late in the business cycle. He thinks we're late in the cycle. Energy is still lagging the S&P 500.",
+   "q": "What's the better move?",
+   "choices": [
+    "Wait for energy to show strength first",
+    "Buy energy now, the cycle says so",
+    "Drop sectors and trade the stock alone"
+   ],
+   "answer": "Wait for energy to show strength first",
+   "why": "Wait for energy to show strength first. The cycle model is a guide, not a timer. No investment has behaved the same in every cycle, and a cycle is easier to spot after it's over.",
+   "lesson_line": "The cycle model tells you where to look. Relative strength tells you when.",
+   "facts": [
+    "f84",
+    "f63",
+    "f60",
+    "f81",
+    "g05",
+    "f65",
+    "f89",
+    "f70",
+    "f71"
+   ],
+   "wrong": {
+    "Buy energy now, the cycle says so": "The model is an ideal cycle. Phases have varied widely in length, and calling one in real time is hard.",
+    "Drop sectors and trade the stock alone": "Groups still lead and lag the market. Use the model for where to look, then let strength confirm."
+   }
+  },
+  {
+   "key": "q19",
+   "skill": "history.sectors",
+   "rung": 8,
+   "format": "scenario",
+   "story": "2021. Energy and real estate are the S&P 500's best sectors. The index's top stock is Devon Energy, an oil and gas producer, up 178.6%.",
+   "q": "What's the lesson for finding big winners?",
+   "choices": [
+    "Look for leaders inside leading groups",
+    "The group doesn't matter, only the chart",
+    "Spread buys evenly across all sectors"
+   ],
+   "answer": "Look for leaders inside leading groups",
+   "why": "Look for leaders inside leading groups. Energy's index gained 53.43% that year, and the top stock came from it. Find the strong group first, then its strongest stocks.",
+   "lesson_line": "Hunt for leaders where the strength already is: inside the leading group.",
+   "facts": [
+    "f53",
+    "f52",
+    "f50",
+    "f21",
+    "f70",
+    "g08",
+    "f71",
+    "f78",
+    "g12"
+   ],
+   "wrong": {
+    "The group doesn't matter, only the chart": "It does. Some groups lead and some lag, and similar companies can get hit by the same forces. A great chart in a lagging group fights the tide.",
+    "Spread buys evenly across all sectors": "That spreads risk, but it's not how you find leaders. The top stock came from the leading group."
+   }
+  },
+  {
+   "key": "q20",
+   "skill": "history.sectors",
+   "rung": 9,
+   "format": "scenario",
+   "story": "March 2023. Bank stocks are plunging as the banking sector comes under stress. A bank on your watchlist is down hard and looks cheap.",
+   "q": "What do you do?",
+   "choices": [
+    "Pass while the group is under stress",
+    "Buy it, cheap stocks bounce back",
+    "Buy it, the Fed will rescue banks"
+   ],
+   "answer": "Pass while the group is under stress",
+   "why": "Pass while the group is under stress. The Fed says bank stocks plummeted and were still below their January levels months later. Cheap can get cheaper.",
+   "lesson_line": "Don't fight a group that's breaking. A cheap stock in a weak group can stay cheap.",
+   "facts": [
+    "g09",
+    "f48",
+    "f49",
+    "f73",
+    "f78",
+    "f72"
+   ],
+   "wrong": {
+    "Buy it, cheap stocks bounce back": "Not on your schedule. Bank stocks stayed depressed for months.",
+    "Buy it, the Fed will rescue banks": "Officials did step in to support the banks, and bank stocks still fell sharply."
+   }
+  },
+  {
+   "key": "q21",
+   "skill": "history.sectors",
+   "rung": 9,
+   "format": "scenario",
+   "story": "Energy is leading the market. You own five energy stocks, each with its own stop, and you feel well diversified.",
+   "q": "What's the real risk?",
+   "choices": [
+    "One sector hit can drop all five",
+    "None, each one has its own stop",
+    "Five stocks is too few to profit"
+   ],
+   "answer": "One sector hit can drop all five",
+   "why": "One sector hit can drop all five. Similar companies can get hit by the same forces, and energy stocks are very sensitive to oil prices. Five names in one sector is a concentrated bet.",
+   "lesson_line": "Ride the leading group, but count five names in one sector as one big bet.",
+   "facts": [
+    "f78",
+    "f99",
+    "g04",
+    "f44"
+   ],
+   "wrong": {
+    "None, each one has its own stop": "Five stops can all trigger on the same bad day for the group. Stops don't make it diversified.",
+    "Five stocks is too few to profit": "The count isn't the problem. All five sit in one sector."
+   }
+  }
+ ],
+ "conflicts": [
+  "2022, was energy the only sector up? CNBC (s16; not used as a fact) wrote 'Energy was the only sector to rise, climbing 59%'. The fund prospectus (s06) shows the Utilities Select Sector Index at +1.57% and Energy at +64.56%. The likely reason is price change (CNBC) versus a return that includes dividends (the prospectus figure for the S&P 500, -18.11%, is about 1.3 points better than CNBC's -19.4% price drop), and the track audit (2026-11-09) found the label: the prospectus table is headed 'Average Annual Total Returns (for periods ending 12/31/22)' (g16), and AP gives the S&P 500's 2022 loss as '19.4% ... or 18.1%, including dividends' (g15), matching the table's -18.11%. w2 and q08 now say 'with dividends' for 2022; F7.06 q19 now gives both AP figures and no longer calls energy the only sector up. The file keys 'energy did best' from the full eleven-row Tier 1 table (f24-f34) and never keys 'the only sector up'. q08 says utilities came second, up 1.57%.",
+  "Select Sector index vs S&P's own sector index: the prospectus (s03) says the Select Sector indexes use a 'modified market capitalization' method that can change the weights of single-stock concentrations. That can make a fund's index differ a lot from the S&P 500 GICS sector index: the Technology Select Sector Index returned 21.74% in 2024 (January 2025 prospectus, read but not cited), below the S&P 500 in that same table (25.02%) in a year big tech stocks led. S&P's own tech sector index is weighted differently, and its 2024 return was not checked on a cited page. The file therefore never uses tech's 2024 number and always calls the figures 'the energy index' etc., tied to the fund's own index. Rankings used (energy first in 2021 and 2022, tech first in 2023, utilities near the bottom in 2023) agree with CNBC's year-end wording.",
+  "CNBC's year-end percents are price changes, some written before the final close (the 2023 sector entry was posted at 1:13 PM on December 29, 2023: tech 'up 56.83%', utilities 'down 10.12%'). The prospectus index figures differ (tech 56.13%, utilities -7.08%). Questions use only the Tier 1 prospectus numbers; CNBC is quoted only for words (leads, laggard, rate-sensitive, best sectors) and for headlines. CNBC's 2020 consumer discretionary figure (32.1%) vs the Select Sector index (29.75%) is the same issue; neither number is used.",
+  "Where tech sits in the rotation model: ChartSchool (s18) says tech is 'the first to turn up' before an economic bottom; Fidelity (s22) has information technology as the best mid-cycle performer; Schwab (s24) has tech benefiting 'as the economy continues toward a peak'. The file never keys tech's place in the cycle. It keys only what the three agree on: consumer discretionary early (f82, f61/f62, g06), staples and health care holding up in a contraction (f85, g07), and energy strong late (f84, f63).",
+  "Schwab's top-10 list for Information Technology (s24, FactSet as of February 20, 2026) includes Visa and Mastercard, while GICS (s01) puts 'Transaction & Payment Processing Services' in Financials (code 40201060) and the XLF prospectus lists 'financial services' among its industries. Not resolved here; the file names neither company.",
+  "Nine vs eleven: ChartSchool (s18) shows '(at that time, nine) sector SPDRs' around 2007. That was the number of funds, not of GICS sectors (GICS then also had a telecom sector, which had no SPDR fund). q01 uses nine only as the old fund count. ChartSchool's 'S&P 500 Sector and Industry Groups' page says 'twelve different sectors' (outdated); not used. ChartSchool's Wyckoff page (s19) describes XLF 'showing relative strength' in an example that actually shows relative weakness; that sentence is not quoted.",
+  "Devon Energy's sector: s13 is the SEC's own industry code (SIC 1311, crude petroleum and natural gas), not GICS. It is used only to say Devon is an oil and gas producer; the question never states Devon's GICS code."
+ ],
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "notes": "Fresh fetches: f01, f03, f07, f08 (MSCI GICS methodology April 2026 and GICS page), f40, f43 (SSGA lineup), f44, f45 (SSGA XLE page), f94, f95 (Schwab). Step 1 said revenue is 'the key test'; MSCI calls revenue 'a key factor' and the first (60%) test, so it now reads 'Revenue is the first test', and 'every company' became 'each company' (GICS skips shells and funds). Added Tier 1 g10, g11 (the funds' Sept 30, 2025 N-CSR schedules: Amazon under Broadline Retail, Alphabet and Meta under Interactive Media & Services) so step 3 no longer rests on one Tier 2 page.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "Every number re-read with its sign from the four SEC prospectuses: 2020 tech 43.89%, energy -32.84%; 2021 energy 53.43% first, real estate 46.19% second; 2022 S&P 500 -18.11%, energy 64.56%; 2023 tech 56.13% first, energy -0.59%. Step 4 said 'Don't marry last year's winner', which its own data contradicts (energy led 2021 and again 2022), so it now says energy led two years running, then slipped. Added f21, f22. Track audit 2026-11-09: F7.06 (AP) says the S&P 500 fell 19.4% in 2022 and energy stocks rose 59%; this step's 18.11% and 64.56% are the prospectus's total returns. Step 2 now says 'with dividends', from the table's own heading 'Average Annual Total Returns' (g16, s06, found in a fresh SEC fetch 2026-11-09) and AP's '19.4% for 2022, or 18.1%, including dividends' (g15, new source s27, read on KSL 2026-11-09), which matches the table's -18.11%. Same numbers, now labeled.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "f70-f73 read in context on the ChartSchool Wyckoff page (group with relative strength first, then the strong stocks in it; buy strength, avoid weakness). f52, f53 (CNBC, Dec 31, 2021) and f50 (EDGAR SIC 1311) confirmed. Added Tier 1 g12 (SSGA: the energy index holds oil, gas and consumable fuels companies) to tie Devon to the energy group; Devon is also listed in XLE's Sept 30, 2021 schedule (N-CSR filed Dec 2021). Steps unchanged.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q01": {
+   "status": "pass",
+   "notes": "f01 on the April 2026 MSCI methodology: 11 sectors, 25 industry groups, 74 industries, 163 sub-industries. Distractors are the real lower levels and the old nine-fund count (f69, read in context: nine funds around 2007). The question called GICS 'the standard system'; it is one of several, so it now reads 'GICS sorts stocks into sectors.'",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q02": {
+   "status": "pass",
+   "notes": "f04 ('strictly hierarchical... only one grouping at each of the four levels') and f03 read in context on the MSCI PDF. A company with two businesses is placed by the largest share, still in one sector, so False holds. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q03": {
+   "status": "pass",
+   "notes": "f86, f87 (Fidelity) and f98, g01 (Schwab) agree, two Tier 2 publishers. Wrong notes check out: staples -0.70% in 2022 against the S&P 500's -18.11% (January 2023 prospectus); many utilities borrow heavily (g02). The 38-character answer fits a Word Match tile. Not leading. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q04": {
+   "status": "pass",
+   "notes": "f74-f76 (ChartSchool price relative) and f90-f92 (Fidelity) confirmed: the ratio rises when the security gains more or falls less than the index. Only 'strength' fits; the bank words are real mix-ups. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q05": {
+   "status": "pass",
+   "notes": "f40, f42 confirmed on the SSGA lineup page (XLY discretionary, XLP staples, XLV health care). f68 (ChartSchool, compare discretionary with staples) supports the lesson line. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q06": {
+   "status": "pass",
+   "notes": "Key False is right. Schwab lists Amazon first among consumer discretionary stocks (FactSet, Feb 20, 2026), and GICS puts online retailers and marketplaces in Broadline Retail (f05). Added Tier 1 g10 (XLY's Sept 30, 2025 schedule lists Amazon under Broadline Retail); SSGA's live XLY page also shows Amazon as its top holding (Nov 6, 2026).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q07": {
+   "status": "pass",
+   "notes": "Schwab f93, f94 and GICS f06, f09 confirmed. Added Tier 1 g11 (XLC's Sept 30, 2025 schedule lists Alphabet and Meta under Interactive Media & Services); SSGA's live XLC page shows Meta and Alphabet as its top holdings. Wrong notes are fair and match f94 (the 2018 change added search and social media to Communication Services) and f95 (Amazon is discretionary).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q08": {
+   "status": "pass",
+   "notes": "The whole 2022 table re-read with signs (January 2023 prospectus): energy +64.56%, utilities +1.57%, staples -0.70%, health care -1.95%, down to communication services -37.66%; S&P 500 -18.11%. Energy first, utilities second. f55 (CNBC) confirmed for the tech note. No change. Track audit 2026-11-09: F7.06 q19 (AP, price changes) says the S&P 500 fell 19.4% and energy stocks rose 59% in 2022. This item's figures are total returns, so the question and why now say 'with dividends' (g16: the prospectus table is 'Average Annual Total Returns'; g15: AP's '18.1%, including dividends' matches the table's -18.11%). That is also why utilities show +1.57% here while AP and CNBC called energy the only sector up on price. Key unchanged.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q09": {
+   "status": "pass",
+   "notes": "Numbers right: utilities +1.57%, staples -0.70%, health care -1.95%. A 2% line left health care a hair inside the cut, a precision trap, so the bar is now 3% (still True). The lesson line credited only the defensive groups; energy rose 64.56%, so it now names energy too (f24 added).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q10": {
+   "status": "pass",
+   "notes": "f82, f83 (Fidelity early cycle), g06 (Schwab expansion) and f61, f62 (ChartSchool) read in context; all put consumer discretionary early. Tech is rightly not a choice, since the sources place it differently (conflicts). Wrong notes match f63, f64, f84, f85, f88. The lesson line asks the member to confirm real leadership, which is sound. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q11": {
+   "status": "pass",
+   "notes": "Recomputed by hand: 64.56 - (-18.11) = 82.67 points, both inputs from the January 2023 prospectus with signs checked. The calc matches. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q12": {
+   "status": "pass",
+   "notes": "Confirmed: energy 53.43% vs S&P 500 28.71% (January 2022 prospectus), ahead of real estate's 46.19%; CNBC (f52) agrees energy and real estate were best. f47 (Fed July 2021 report) read in context. The key was the only choice with a number, a giveaway, so it now reads 'It was the best sector that year' and the why carries the numbers.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q13": {
+   "status": "pass",
+   "notes": "f76 (the ratio rises when the stock gains more or declines less), f91 (Fidelity) and f77 ('often the leaders', hedge kept) confirmed in context. Different angle from q04 (both falling). No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q14": {
+   "status": "pass",
+   "notes": "f70, f71, f73 (ChartSchool Wyckoff), f78 (Fidelity) and g08 (IBD) confirmed; two Tier 2 publishers agree on group first. The story sets an uptrend, which matches Wyckoff's long-side condition. An experienced trader would agree. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q15": {
+   "status": "pass",
+   "notes": "Utilities -7.08% and S&P 500 +26.29% (January 2024 prospectus). f58 confirmed in CNBC's 2023 sector entry (Han and Hayes, Dec 29, 2023, 1:13 PM ET per the page data); the rate link is backed by the XLU prospectus risk text (f12, Tier 1) and Schwab (g02). Energy -0.59% checked. Distractors are real alternatives. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q16": {
+   "status": "pass",
+   "notes": "Fed June 2020 report (f46) read in context: a March drop across all sectors, worst in energy and banking. Every quarterly line in the January 2026 prospectus was matched to its fund by the page headers: XLE -50.72% and XLF -31.94% are the two worst in Q1 2020. Both distractors were defensive pairs, which made the key easy to spot, so 'Health care and staples' became 'Tech and consumer discretionary' (g13, g14: their worst quarters, -19.70% and -25.51% in Q2 2022, were still smaller drops than XLF's).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q17": {
+   "status": "pass",
+   "notes": "f13 matched to XLE in the prospectus (worst Q1 2020 -50.72%, best Q1 2022 +38.97%). f44 is on XLE's own fund page: sector ETFs 'generally result in greater price fluctuations than the overall market'. The sizing lesson line is sound risk advice. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q18": {
+   "status": "pass",
+   "notes": "f84, f81, f89 (Fidelity), g05 (Schwab), f63 and f65 (ChartSchool) read in context. Waiting for relative strength before acting on a cycle call is what a profitable trader does. Question text unchanged; cited fact f65's claim said 'not a schedule', which its quote does not say, so the claim now matches the quote (the ideal cycle in an inflationary environment).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q19": {
+   "status": "pass",
+   "notes": "f52, f53 (CNBC, Dec 31, 2021) confirmed: energy and real estate best, Devon +178.6% the top S&P 500 stock. Added Tier 1 g12 (the energy index holds oil and gas companies) so 'the top stock came from it' rests on Tier 1 with f50 (SEC SIC 1311); Devon is also in XLE's Sept 30, 2021 holdings. A wrong note said similar companies 'get hit by the same forces'; now 'can get hit', matching Fidelity's 'could impact'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q20": {
+   "status": "pass",
+   "notes": "Fed June 2023 report (g09, f48, f49) read in context: bank stocks fell sharply despite the official support and stayed depressed relative to the start of the year. Passing on a cheap name in a breaking group is sound risk sense. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q21": {
+   "status": "pass",
+   "notes": "f78 (Fidelity), g04 and f99 (Schwab) confirmed. The why said energy stocks 'move with oil prices' and similar companies 'get hit by the same forces'; now 'are very sensitive to oil prices' and 'can get hit', matching the sources. Key and wrong notes are sound risk advice.",
+   "fixed": true,
+   "by": "checker"
+  }
+ }
+}

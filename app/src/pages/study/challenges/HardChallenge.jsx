@@ -27,7 +27,7 @@ import { alignTicks, developing, dueCheck, fetchIntraday, keyDays, replayChecks,
 import { yesNo } from './SpotSetupChallenge'
 import {
   HARD_CHART, HARD_TOTAL, NOTHING, RUN_ON_MS, SHORT_SETUPS, culmination, culminationLabel, hardAnswer, hardChoices, hardRight,
-  idSeed, replayView, runLength, setupFired, tradeOf, withArticle,
+  idSeed, replayView, runLength, setupFired, tradeOf, trimLabels, withArticle,
 } from './hardMode'
 import { endFeedback, feedbackPrefs, revealFeedback, tapFeedback } from '../studyFeedback'
 import { studyFetch } from '../useStudySession'
@@ -50,10 +50,10 @@ import { calloutLook, hardCallouts } from '../ui/callout'
 import s from '../ui/study.module.css'
 
 // The trade drawn on the chart as it runs on (round 23, the owner's rule 3: "they can see it all by looking at the chart
-// the why and the what and where"). For a setup with its plan (the detector's own entry and stop, targets at 2R and 3R):
-// dashed rays from the signal candle for ENTRY, STOP, 2R and 3R, each with its price, and the action items on the bars
-// where they happened: BOUGHT (or SHORTED), 2R HIT, 3R HIT, STOPPED OUT. Without a plan, the line a close must not
-// break. Chips sit a few sessions apart so two never overlap.
+// the why and the what and where"). For a setup with its plan (the detector's own entry and stop, the house trims at 3R
+// and 5R, sizing_rule.md §9): dashed rays from the signal candle for ENTRY, STOP, 3R and 5R, each with its price, and the
+// action items on the bars where they happened: BOUGHT (or SHORTED), 3R, 5R, STOPPED. Without a plan, the line a close
+// must not break. The levels' names come from the plan's trim_r (tradeMarks.js); nothing here hardcodes one.
 // The chart's gold label at the move's best point: with a plan, the advance from the entry at the trade's own best bar,
 // so the chart and the lesson say the same number; otherwise the culmination measured from the signal close.
 function peakOf(trade, culm, n, k) {
@@ -97,7 +97,8 @@ function Q({ idx, item, total, results, prefs, fetcher, onDone }) {
   // the replay within the day: each forward day grows through its real 30-minute closes; slow on the trade's key days
   const ticks = useMemo(() => alignTicks(fwd, intraday), [fwd, intraday])
   const keys = useMemo(() => (ticks ? keyDays(trade, culm) : null), [ticks, trade, culm])
-  // the replay stops and asks at 2R and 3R (N033; the plan's own questions, api/services/study_trade.replay_checks)
+  // the replay stops and asks at the trims, 3R and 5R (N033; the server's own questions and answers, from the house rules
+  // and the plan's words: api/services/study_trade.replay_checks)
   const [answered, setAnswered] = useState(() => new Set())
   const checks = useMemo(() => (state === 'ask' ? [] : replayChecks(trade)), [state, trade])
   const holdAt = useMemo(() => new Set(checks.filter((c) => !answered.has(c.at)).map((c) => c.session)), [checks, answered])
@@ -182,7 +183,7 @@ function Q({ idx, item, total, results, prefs, fetcher, onDone }) {
           frameEnd={state === 'ask' ? null : all?.[all.length - 1]?.t} />
         <ReplayClock clock={clock} tfMin={intraday?.tf || 30} testId="hard-clock" />
       </div>
-      {due ? <ReplayPause key={due.at} check={due} onDone={() => { setAnswered((a) => new Set([...a, due.at])); showChart(chartBox.current) }} testId="hard-pause" /> : null}
+      {due ? <ReplayPause key={due.at} check={due} labels={trimLabels(trade)} onDone={() => { setAnswered((a) => new Set([...a, due.at])); showChart(chartBox.current) }} testId="hard-pause" /> : null}
       {state !== 'ask' && trade ? <ChartKey trade={trade} testId="hard-key" /> : null}
       <AnswerLessonApp choices={choices} pick={pick} state={state} answer={answerLabel} step={idx} total={total} busy={busy} hotkey={!takeover && !due}
         onPick={(i) => { if (state === 'ask') { setPick(i); tapFeedback(prefs) } }} onCheck={check}
@@ -239,7 +240,7 @@ export default function HardChallenge({ profile = null, fetcher = studyFetch, on
           howTo={<HowItPlays mode="hard" testId="hard-howto" steps={[
             { icon: 'lock', title: 'Read the chart', body: 'A real chart from the UCT bank with the ticker hidden. The last candle is ringed.' },
             { icon: 'eye', title: 'Name what fired', body: 'Pick the setup that fired on that candle, or Nothing fired. One try each.' },
-            { icon: 'play', title: 'Watch the trade', body: 'The chart runs on with the trade drawn: entry, stop, targets, and a key that says why each level sits there.' },
+            { icon: 'play', title: 'Watch the trade', body: 'The chart runs on with the trade drawn: entry, stop, the trims at 3R and 5R, and a key that says why each level sits there.' },
           ]} />} />
       </div>
     )

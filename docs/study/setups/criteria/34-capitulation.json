@@ -1,0 +1,1455 @@
+{
+ "setup": "34-capitulation",
+ "name": "Capitulation",
+ "unit": "none",
+ "direction": "long",
+ "timeframe": "daily",
+ "dossier": "docs/study/setups/research/34-capitulation.md",
+ "as_of": "2026-11-09",
+ "card": {
+  "context": "Two settings: (A) a leader, usually above its 200-day, collapsing for 1 to 3 days on forced selling; (B) an index or sector washout traded through an index or leveraged ETF, with fear high (VIX toward 30, breadth washed out), often a Monday. Below the 200-day only if the parabolic-long gate passes (B26).",
+  "pattern": "A burst down with at least 3 of the 5 mirrored boxes, a flush day whose low sits 2 ATR or more under the prior close on 2x volume, 15% or more off the 10-session high, into a level that matters, under the 5-day, 9 EMA and 20 EMA.",
+  "trigger": "PREV LOW RECLAIM: within 3 sessions of the flush, a session trades under the flush low and back above it; buy the reclaim of the flush low at market. For those who can watch: the intraday turn (VWAP reclaim, opening-range high, a higher low).",
+  "stop": "A few cents under the low of the session you bought in (the undercut low); if that is more than about 3% away, cut the shares or skip.",
+  "failure_mode": "The bounce stalls on the first day and closes in its lower third, or the next session takes the stop as the panic has one more leg. Nearly half of flush closes are undercut the next day; buying the knife, not the turn, is how it loses."
+ },
+ "entry_trigger": "PREV LOW RECLAIM",
+ "criteria": [
+  {
+   "id": "cap.setting",
+   "field": "context",
+   "statement": "One setup with two settings: (A) the leader flush, a strong leader collapsing for 1 to 3 days; (B) the index or sector washout, traded through an index or leveraged ETF. The deep-downtrend climax the scanner finds today (C) is watch, do not buy, unless it also passes the parabolic-long gate.",
+   "measure": {
+    "what": "setting",
+    "op": "in",
+    "value": [
+     "A leader flush",
+     "B index or sector washout"
+    ]
+   },
+   "basis": "UCT",
+   "sources": [
+    "S17",
+    "S20"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "the leader flush and the index washout (the dossier's recommendation)"
+    },
+    {
+     "value": "b",
+     "basis": "also the deep-downtrend climax the scanner finds now"
+    },
+    {
+     "value": "c",
+     "basis": "the index washout only"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-111",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8 preamble; 10 question 2",
+   "evidence": "Bracco's winners (FIGR, SNDK, SOXL, KORU) were short, violent flushes in leaders far above the 200-day; his index ideas (QQQ 2025-04-07, TQQQ) were below it. The app's fires are 72% below the 200-day (4.5) and it fired on none of UCT's single-stock examples (5.3). INTC 2024-08-02, a 5-star app fire 44% under its 200-day, never recovered the flush close in 10 sessions."
+  },
+  {
+   "id": "cap.above_200",
+   "field": "context",
+   "statement": "The leader flush is above the 200-day SMA. Below it, a capitulation is a long only if it passes the parabolic-long gate (cap.burst), B26's one exception.",
+   "measure": {
+    "what": "close against the 200-day SMA at the reclaim",
+    "op": "in",
+    "value": [
+     "above (setting A)",
+     "below (only through the parabolic-long gate)"
+    ],
+    "timeframe": "daily"
+   },
+   "glossary": "above_200",
+   "basis": "house rule",
+   "sources": [
+    "S12",
+    "S21"
+   ],
+   "house_rule": "B26",
+   "options": [
+    {
+     "value": "a",
+     "basis": "one setup, Capitulation (Parabolic Long), gated by the mirrored burst, so the B26 exception applies (the dossier's recommendation; the register's default)"
+    },
+    {
+     "value": "b",
+     "basis": "separate: Capitulation allowed only above the 200-day"
+    },
+    {
+     "value": "c",
+     "basis": "separate, with its own written exception to B26"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-002",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "7 B26 row; 8 preamble; 10 question 1",
+   "evidence": "Bulkowski's own Stage 4 buys: 24.4% profitable, the measured reason behind B26 (4.2). Scan (12): 410 hits with the reclaim close above the 200-day reached 3R 57.8% and 5R 48.8%; 1,810 hits below it, 51.0% and 41.8%. All 10 examples are above it."
+  },
+  {
+   "id": "cap.burst",
+   "field": "pattern",
+   "statement": "The burst, the gate: at least 3 of these 5, the house parabolic-long mirror: (1) 3 or more straight lower closes; (2) 2 consecutive opening gaps down; (3) on 2 of the last 3 days a bigger percent loss than the day before; (4) volume higher on each of the last 2 days; (5) a gap down on the climax day or the next morning.",
+   "measure": {
+    "what": "boxes ticked of the five mirrored criteria",
+    "op": ">=",
+    "value": 3,
+    "unit": "boxes",
+    "timeframe": "daily"
+   },
+   "glossary": "parabolic_burst",
+   "basis": "house rule",
+   "sources": [
+    "S18"
+   ],
+   "house_rule": "B26",
+   "options": [
+    {
+     "value": "3 of 5, the gap allowed the next morning",
+     "basis": "this dossier (8.1); Bracco: \"not every criteria needs to be fully satisfied\""
+    },
+    {
+     "value": "the climax gap required plus 3 of the other 4",
+     "basis": "dossiers 38 and 39 and the glossary's reading of B26"
+    }
+   ],
+   "recommended": "3 of 5, the gap allowed the next morning",
+   "status": "pending-owner",
+   "owner_question": "D-002",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 The burst",
+   "evidence": "The rulebook's words: \"the more boxes checked, the stronger.\" The scan used 3 of 5; the ten examples ticked 3 or 4 boxes. The glossary flags the count as a conflict to settle (34's 3 of 5 against 39's 3 of 4 plus the gap)."
+  },
+  {
+   "id": "cap.flush_day",
+   "field": "pattern",
+   "statement": "The flush day: the day's low at least 2 ATR(14) under the prior close, or a range of at least 2 ATR.",
+   "measure": {
+    "what": "(prior close - the day's low) / ATR(14) of the prior day",
+    "op": ">=",
+    "value": 2,
+    "unit": "ATR",
+    "timeframe": "daily",
+    "or": "the day's range >= 2 ATR"
+   },
+   "glossary": "atr",
+   "basis": "UCT",
+   "sources": [
+    "S17",
+    "S20",
+    "S21"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 The flush day",
+   "evidence": "Bracco's \"% ATR move\" (FIGR 244%, SNDK over 200%); the dossier's reading of his metric gives 2.7 and 1.8 on Yahoo bars, close but not exact. The range test is the app's C2. The ten examples ran 2.06 to 4.38 ATR under the prior close."
+  },
+  {
+   "id": "cap.volume",
+   "field": "pattern",
+   "statement": "Flush-day volume at least 2 times the 50-day average.",
+   "measure": {
+    "what": "flush-day volume / 50-day average volume",
+    "op": ">=",
+    "value": 2,
+    "unit": "x",
+    "timeframe": "daily"
+   },
+   "glossary": "volume_surge",
+   "basis": "my proposal",
+   "sources": [
+    "S20",
+    "S21"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Volume",
+   "evidence": "The app's soft rule (2x the 50-day, rising across three down days). The ten examples ran 2.25x to 4.96x. CAR 2026-04-23 had 7.0x and still fell 25% more: volume alone is not the turn."
+  },
+  {
+   "id": "cap.volume_record",
+   "field": "pattern",
+   "statement": "Ideally the highest volume of the decline or of the year.",
+   "basis": "UCT",
+   "sources": [
+    "S17",
+    "S20"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Volume",
+   "evidence": "Bracco on IGV: \"highest volume in its 26-year history\"; ETHU \"its highest volume ever\". The app's C4 hard test is a record over the prior 252 sessions. ICE 2009-07-08: 4.96x, the biggest bar on the chart."
+  },
+  {
+   "id": "cap.volume_falling_veto",
+   "field": "pattern",
+   "statement": "A decline on falling volume does not qualify.",
+   "basis": "UCT",
+   "sources": [
+    "S10",
+    "S20"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Volume",
+   "evidence": "The app's veto (a falling 5-session volume slope blocks a fire unless the volume is a record). Stockbee: \"Low intensity selling is more in line with correction after a big up move.\""
+  },
+  {
+   "id": "cap.stretch_stock",
+   "field": "pattern",
+   "statement": "The stretch, stocks and 3x ETFs: a fall of at least 15% (stocks) or 30% (3x ETFs) from the highest close of the last 10 sessions.",
+   "measure": {
+    "what": "(highest close of the prior 10 sessions - the flush low) / that high",
+    "op": ">=",
+    "value": 15,
+    "unit": "%",
+    "timeframe": "daily",
+    "note": "30% for a 3x ETF"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S5",
+    "S17",
+    "S21"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 The stretch (A)",
+   "evidence": "From UCT's examples: SOXL -36% in 2 days (Bracco's figure; -35% close to close on Yahoo bars), KORU -50% (-49%), IGV -19% from its highest close of the prior 15 sessions but only -14% from the prior 10, so a sector ETF may need the longer window. Kullamägi's 50-60% is for small caps after a parabolic run. The ten examples ran 15.5% to 40.3%."
+  },
+  {
+   "id": "cap.stretch_index",
+   "field": "pattern",
+   "statement": "The stretch, an index: a close at least 3 ATR under the 50-day SMA.",
+   "measure": {
+    "what": "(50-day SMA - close) / ATR",
+    "op": ">=",
+    "value": 3,
+    "unit": "ATR",
+    "timeframe": "daily"
+   },
+   "glossary": "stretched",
+   "basis": "UCT",
+   "sources": [
+    "S17"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 The stretch (B)",
+   "evidence": "Bracco (2026-03-22): intermediate corrections \"find a tradable bottom around an average of -3 ATR's below the 50-day\"; crashes \"-5 or lower\". Dossier 38 reads his ATR as a 20-day ATR; the glossary's default is 14."
+  },
+  {
+   "id": "cap.location",
+   "field": "pattern",
+   "statement": "Into a level that matters: a prior all-time high or breakout level, a round number, the 200-day or 50-week average, an anchored VWAP from a major low, or an old gap.",
+   "measure": {
+    "what": "the level the flush low reaches",
+    "op": "in",
+    "value": [
+     "prior all-time high or breakout level",
+     "round number",
+     "200-day SMA or 50-week average",
+     "anchored VWAP from a major low",
+     "old gap"
+    ],
+    "timeframe": "daily"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S4",
+    "S17"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Location",
+   "evidence": "FIGR: \"Retesting the prior all-time high\" and \"$50 psychological level\"; SNDK held S3; IGV neared \"a huge 2+ year support area\". Kell: \"Extensions on a daily chart should see support on a weekly chart\". Not modelled in the scan; LYV 2022-03-07 (the round number 100 and the 200-day) is the cleanest example."
+  },
+  {
+   "id": "cap.below_short_averages",
+   "field": "pattern",
+   "statement": "Price below the 5-day SMA, the 9 EMA and the 20 EMA.",
+   "measure": {
+    "what": "close against the 5-day SMA, 9-day EMA and 20-day EMA",
+    "op": "<",
+    "value": "all three",
+    "timeframe": "daily"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S17"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Averages",
+   "evidence": "The owner on TQQQ: \"Extended below 5SMA, 9EMA, 20EMA, 50SMA.\" The scan required all three."
+  },
+  {
+   "id": "cap.lower_band",
+   "field": "pattern",
+   "statement": "A close below the lower Bollinger band is supporting evidence only, never the trigger.",
+   "measure": {
+    "what": "close against the lower Bollinger band (20, 2)",
+    "op": "<",
+    "value": "the lower band",
+    "timeframe": "daily"
+   },
+   "basis": "originator",
+   "sources": [
+    "S6",
+    "S17"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Averages",
+   "evidence": "Bollinger's rule 6 (\"A tag of the lower Bollinger Band is NOT in-and-of-itself a buy signal\") and rule 8 (closes outside the bands are \"initially continuation signals\"). The owner and Bracco use the breach as evidence of stretch; the app requires a close more than 1 ATR under the band, which is why it misses fast leader flushes (5.3)."
+  },
+  {
+   "id": "cap.not_one_day_shock",
+   "field": "pattern",
+   "statement": "Not a one-day shock out of nowhere: at least 2 lower closes before the flush day.",
+   "measure": {
+    "what": "straight lower closes before the flush day",
+    "op": ">=",
+    "value": 2,
+    "unit": "closes",
+    "timeframe": "daily"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S17",
+    "S20"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Not a one-day shock",
+   "evidence": "The app's C7 cascade (the three sessions before fell at least 1.5 ATR); its code note says blind judges rejected \"one-day shocks out of nowhere\". Bracco skipped a \"second day down\" breakdown (2026-11-01). ALNY 2017-09-07 was dropped from the examples as a single-day shock out of a flat base."
+  },
+  {
+   "id": "cap.liquidity",
+   "field": "context",
+   "statement": "Price at least $10 and at least $20 million traded a day.",
+   "measure": {
+    "what": "close",
+    "op": ">=",
+    "value": 10,
+    "unit": "$",
+    "and": "50-day average dollar volume >= 20,000,000"
+   },
+   "glossary": "liquidity",
+   "basis": "house rule",
+   "sources": [
+    "S20"
+   ],
+   "house_rule": "B23",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Liquidity",
+   "evidence": "Some UCT examples fail it (ABAT at $4.85, a teaching example only). The app's floor is $2 and $10,000 a day (question 9, D-004)."
+  },
+  {
+   "id": "cap.position_adv",
+   "field": "management",
+   "statement": "Never more than 1% of average daily volume.",
+   "measure": {
+    "what": "shares / average daily volume",
+    "op": "<=",
+    "value": 1,
+    "unit": "%"
+   },
+   "basis": "house rule",
+   "sources": [
+    "S17"
+   ],
+   "house_rule": "D42",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Liquidity",
+   "evidence": "Bracco on KORU: \"Not the best liquidity there and spreads can be awful sometimes\". ACMR 2020-09-08 ($39M a day) is a size-capped example."
+  },
+  {
+   "id": "cap.rs_exempt",
+   "field": "context",
+   "statement": "No RS requirement: mean-reversion and parabolic trades are exempt from the leader rule. Bracco prefers leaders anyway.",
+   "glossary": "leader",
+   "basis": "house rule",
+   "sources": [
+    "S17"
+   ],
+   "house_rule": "C31",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "7 C31 row",
+   "evidence": "\"31, yes unless parabolic or mean reversion.\" Bracco: \"the ATR mean-reversion long setup I use to get exposure to powerful, trending leaders\"."
+  },
+  {
+   "id": "cap.no_knife",
+   "field": "trigger",
+   "statement": "Do not buy the falling price or the flush close.",
+   "basis": "source consensus",
+   "sources": [
+    "S3",
+    "S4",
+    "S5",
+    "S7",
+    "S9",
+    "S17"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 Do not buy the falling price",
+   "evidence": "Every source that trades it waits for a turn (Breitstein's right side of the V, Kullamägi, Bracco, Mitchum, Kell, the CMT's \"MUST BE SUCCESSFULLY TESTED\"). The dossier's check: 49% of the app's climax closes were undercut the next session (Entry A, +0.10R, median -1R); Bulkowski: 46% of collapses make a lower low the next day. CAR 2026-04-23: Bracco said wait 1 to 2 weeks; it fell 25% more."
+  },
+  {
+   "id": "cap.trigger_intraday",
+   "field": "trigger",
+   "statement": "The intraday trigger, for members who can watch: after the flush low is in, buy the first of a reclaim of VWAP, a break of the opening range high, or a break of the prior 5-minute bar's high once a higher low has formed; market order.",
+   "measure": {
+    "what": "the first of: 5-minute close back above VWAP; a trade over the opening-range high; a trade over the prior 5-minute bar's high after a higher low",
+    "op": "==",
+    "value": "the turn",
+    "timeframe": "5-minute"
+   },
+   "basis": "originator",
+   "sources": [
+    "S5",
+    "S7",
+    "S17"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "the undercut and reclaim on the daily, plus the intraday turn for those who can watch (the dossier's recommendation)"
+    },
+    {
+     "value": "b",
+     "basis": "the intraday turn only"
+    },
+    {
+     "value": "c",
+     "basis": "the close, as the app does now"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-003",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.2 Trigger, intraday; 10 question 3",
+   "evidence": "Kullamägi: \"opening range highs or the first green 5-minute candle or any range break to the upside\". Bracco's FIGR entry: \"after it washed out the $50 psych level and previous ATH peak on the highest volume of the day\". Market orders are E57. The glossary reads an unqualified opening range as the 30-minute bar; the dossier names no window."
+  },
+  {
+   "id": "cap.trigger_daily",
+   "field": "trigger",
+   "statement": "The daily trigger, the taught default: the undercut and reclaim. Within 3 sessions after the flush day, a session trades below the flush low and then back above it. Buy at the reclaim of the flush low. If the flush day itself undercuts a big level and closes back above it, the same day counts.",
+   "measure": {
+    "what": "sessions after the flush in which a session trades under the flush low and back above it",
+    "op": "<=",
+    "value": 3,
+    "unit": "sessions",
+    "timeframe": "daily",
+    "note": "the buy is the reclaim of the flush low, a market order (E57)"
+   },
+   "glossary": "reclaim_window",
+   "basis": "my proposal",
+   "sources": [
+    "S1",
+    "S17",
+    "S21"
+   ],
+   "status": "pending-owner",
+   "owner_question": "D-003",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 Trigger, daily; 10 question 3",
+   "evidence": "From Bracco's \"undercut and rally\" and \"max pain\" undercut, the house Oops Reversal and Wyckoff's spring. The dossier's check: Entry C, 67 cases, +0.35R, 2R before the stop in 39%, a small and biased sample the checker calls optimistic. Scan (12): 2,220 hits, 52.3% to 3R and 43.1% to 5R; a same-session undercut and reclaim (240 hits) did a little better than a reclaim 2 or 3 sessions later (59.6% against 55.3%)."
+  },
+  {
+   "id": "cap.no_chase",
+   "field": "trigger",
+   "statement": "No buy more than 4% above the trigger price.",
+   "measure": {
+    "what": "fill / trigger price - 1",
+    "op": "<=",
+    "value": 4,
+    "unit": "%"
+   },
+   "glossary": "chase_limit",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "C28",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 No chasing",
+   "evidence": "After a reclaim, price can run 5% to 10% in minutes. All 10 examples undercut and reclaimed inside one session, so the reclaim price was there to be bought."
+  },
+  {
+   "id": "cap.earnings_window",
+   "field": "trigger",
+   "statement": "No new buy in the 3 sessions before an earnings report.",
+   "measure": {
+    "what": "sessions until the next report",
+    "op": ">",
+    "value": 3,
+    "unit": "sessions"
+   },
+   "glossary": "earnings_blackout",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B22",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "7 B22 row",
+   "evidence": "A capitulation after a report is fine; buying into one is not."
+  },
+  {
+   "id": "cap.not_earnings_reaction",
+   "field": "context",
+   "statement": "An earnings reaction is not a panic flush: keep the two apart. A flush whose window holds the stock's own report is an earnings gap, taught under the catalyst setups.",
+   "glossary": "earnings_reaction_day",
+   "basis": "my proposal",
+   "sources": [
+    "S15",
+    "S21"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "12 Base rate",
+   "evidence": "Scan: of the 346 above-200-day hits with earnings dates, 150 (43%) had a report inside the flush window; TSLA 2014-05-08 and TTWO 2018-02-08 were dropped for that reason. Llorente et al.: returns from speculative (informed) trades \"tend to continue themselves\"."
+  },
+  {
+   "id": "cap.stop",
+   "field": "stop",
+   "statement": "A few cents under the low of the session you bought in: the undercut low for the daily trigger.",
+   "measure": {
+    "what": "stop",
+    "op": "==",
+    "value": "a few cents under the entry session's low"
+   },
+   "glossary": "stop_margin",
+   "basis": "house rule",
+   "sources": [
+    "S4",
+    "S17"
+   ],
+   "house_rule": "A3",
+   "options": [
+    {
+     "value": "a",
+     "basis": "under the entry session's low (the dossier's recommendation; Kell \"just below the low\"; F62)"
+    },
+    {
+     "value": "b",
+     "basis": "under the flush low"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-008",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.3; 10 question 4",
+   "evidence": "Bracco's FIGR: entry 49.81, stop 49 (under a 49.10 low). The scan used 5 cents under the undercut low; the ten examples' stops ran 0.6% to 2.6%."
+  },
+  {
+   "id": "cap.stop_width",
+   "field": "stop",
+   "statement": "If the stop is more than about 3% away, cut the shares so the risk stays the same, or skip. Whether a 3x ETF trade may use a wider stop at reduced size is the owner's call.",
+   "measure": {
+    "what": "(entry - stop) / entry",
+    "op": "<=",
+    "value": 3,
+    "unit": "%"
+   },
+   "glossary": "stop_width",
+   "basis": "house rule",
+   "sources": [
+    "S21"
+   ],
+   "house_rule": "A13",
+   "options": [
+    {
+     "value": "size down or skip",
+     "basis": "A3 and A13 as written"
+    },
+    {
+     "value": "a wider stop for a 3x ETF at reduced size",
+     "basis": "question 4 (c): SOXL, KORU and TQQQ run wider"
+    }
+   ],
+   "recommended": "size down or skip",
+   "status": "pending-owner",
+   "owner_question": "D-008",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.3; 10 question 4",
+   "evidence": "The dossier's check: a close entry 1.3% median but half hit the next day; the undercut and reclaim 3.4% median, 42% within 3%; a break of the climax high 7.4%. Scan: above the 200-day with a stop of 3% or less, 315 hits, 63.5% to 3R and 54.6% to 5R; stops wider than 5% were dropped. DLTR 2022-05-19: a 1.8% stop under a 5.7-ATR bar was whipsawed and then the stock closed 25% higher ten sessions later."
+  },
+  {
+   "id": "cap.stop_gap",
+   "field": "stop",
+   "statement": "A gap through the stop: the first 30-minute low is the new stop; out if the loss passes 2R.",
+   "measure": {
+    "what": "loss at the first 30-minute low of the gap-down day",
+    "op": "<=",
+    "value": 2,
+    "unit": "R",
+    "timeframe": "30-minute"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B20",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.3",
+   "evidence": "Volatility after a climax makes gaps likely. IGV 2026-02-03 gapped under the flush low the next day."
+  },
+  {
+   "id": "cap.trim_1",
+   "field": "management",
+   "statement": "First trim: a third at 3R. With the reclaim entry this is near the 9 EMA, the first mean-reversion target.",
+   "measure": {
+    "what": "fraction sold at 3R",
+    "op": "==",
+    "value": 0.333,
+    "unit": "of the position"
+   },
+   "basis": "house rule",
+   "sources": [
+    "S18",
+    "S21"
+   ],
+   "house_rule": "B19",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4 First trim",
+   "evidence": "Bracco's parabolic-short target (the 9 EMA) mirrored; the dossier's check: with the reclaim entry the 9 EMA sat a median 2.7R away, with the close entry 8.6R. Eight of the ten examples reached 3R on day 1."
+  },
+  {
+   "id": "cap.trim_2",
+   "field": "management",
+   "statement": "Second trim: a third at 5R, near the 20 EMA.",
+   "measure": {
+    "what": "fraction sold at 5R",
+    "op": "==",
+    "value": 0.333,
+    "unit": "of the position"
+   },
+   "basis": "house rule",
+   "sources": [
+    "S4",
+    "S5",
+    "S21"
+   ],
+   "house_rule": "E51",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4 Second trim",
+   "evidence": "Kell's first target is the retest of the 20 EMA; Kullamägi's short targets the 10 and 20-day, mirrored. The 20 EMA sat a median 4.0R from the reclaim entry. ALB 2010-05-07 teaches the tiny-stop case: 5R was only 3% above the buy."
+  },
+  {
+   "id": "cap.trim_at_averages",
+   "field": "management",
+   "statement": "Whether the trims are the house 3R and 5R or a sale into the 9 EMA and the 20 EMA regardless of R.",
+   "measure": {
+    "what": "the trim trigger",
+    "op": "in",
+    "value": [
+     "3R and 5R",
+     "the 9 EMA and the 20 EMA"
+    ]
+   },
+   "glossary": "trail",
+   "basis": "my proposal",
+   "sources": [
+    "S4",
+    "S18",
+    "S21"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "the house 3R and 5R, which land near the 9 and 20 EMAs with the reclaim entry (the dossier's recommendation)"
+    },
+    {
+     "value": "b",
+     "basis": "sell into the 9 EMA and the 20 EMA regardless of R (Kell, Bracco's short mirrored)"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-013",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4; 10 question 5"
+  },
+  {
+   "id": "cap.breakeven",
+   "field": "management",
+   "statement": "Stop to breakeven at 2R, the low end of the house window, because these bounces fade.",
+   "measure": {
+    "what": "R at which the stop moves to the entry",
+    "op": "==",
+    "value": 2,
+    "unit": "R"
+   },
+   "basis": "house rule",
+   "sources": [
+    "S11"
+   ],
+   "house_rule": "B19",
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4 Breakeven",
+   "evidence": "Bulkowski's dead-cat bounce: once the bounce completes, price resumes declining, averaging 30% from the bounce high in 49 days."
+  },
+  {
+   "id": "cap.trail",
+   "field": "management",
+   "statement": "Trail the rest under each higher daily low until price closes back above the 10-day; after that, sell on a close below the 10-day.",
+   "measure": {
+    "what": "the trail line",
+    "op": "==",
+    "value": "each higher daily low, then the 10-day average once price closes above it",
+    "timeframe": "daily"
+   },
+   "glossary": "trail",
+   "basis": "my proposal",
+   "sources": [
+    "S17"
+   ],
+   "house_rule": "E52",
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4 Trail the rest; 7 E52 row",
+   "evidence": "E52 adapted: at entry the 10-day is far above the price and falling, so until price closes back above it the trail has to be the higher daily lows. Bracco moved his SOXL stop \"in profit to last weeks low\"."
+  },
+  {
+   "id": "cap.time_stop",
+   "field": "management",
+   "statement": "Time stop: if 1R is not reached within 3 sessions, sell.",
+   "measure": {
+    "what": "open R at the close of the third session",
+    "op": "<",
+    "value": 1,
+    "unit": "R"
+   },
+   "glossary": "time_stop",
+   "basis": "my proposal",
+   "sources": [
+    "S17"
+   ],
+   "options": [
+    {
+     "value": 3,
+     "basis": "Bracco's \"1-3 days\", the owner's \"2-3 day bounce\" (the dossier's recommendation)"
+    },
+    {
+     "value": 10,
+     "basis": "C33 as written, the fallback if one rule serves all setups"
+    }
+   ],
+   "recommended": 3,
+   "status": "pending-owner",
+   "owner_question": "D-019",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4 Time stop; 10 question 6",
+   "evidence": "The glossary records 34, 36, 38 and 39's 3 sessions as one pending override of C33. ALGM 2023-04-28 took until day 3 for 3R, the slowest of the ten examples."
+  },
+  {
+   "id": "cap.trim_gap_open",
+   "field": "management",
+   "statement": "A gap up past a trim level: take the trim at the open.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "F63",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "7 and TRADE_PLANS.md"
+  },
+  {
+   "id": "cap.no_add",
+   "field": "management",
+   "statement": "Never average down; the full size at one price with one stop.",
+   "basis": "house rule",
+   "sources": [
+    "S17"
+   ],
+   "house_rule": "A5",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.8 Averaging down",
+   "evidence": "Bracco: \"I never add when I am down\"."
+  },
+  {
+   "id": "cap.retries",
+   "field": "management",
+   "statement": "A new try only on a new trigger; at most 3 tries in a week and 6 in a month on one name.",
+   "measure": {
+    "what": "tries on one name",
+    "op": "<=",
+    "value": 3,
+    "unit": "a week",
+    "and": "6 a month"
+   },
+   "basis": "house rule",
+   "sources": [
+    "S17"
+   ],
+   "house_rule": "E56",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "7 B21, E56 row; 8.8",
+   "evidence": "Bracco was \"in and out of SOXL KORU SNDK multiple times on Wednesday, just to get whipped around\" (2026-08-02)."
+  },
+  {
+   "id": "cap.risk_size",
+   "field": "management",
+   "statement": "Risk: B- risk (0.25% to 0.5%) by default; 1% to 1.5% only for a 5-star.",
+   "measure": {
+    "what": "account risk on the trade",
+    "op": "<=",
+    "value": 0.5,
+    "unit": "% of the account",
+    "note": "1% to 1.5% only for a 5-star"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S4",
+    "S17"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "B- risk by default, 1% to 1.5% only for a 5-star (the dossier's option; Bracco takes size only on a 5-star; Kell: size for volatility)"
+    },
+    {
+     "value": "b",
+     "basis": "the normal grade table (D38, E49; the register's default: the grade already carries the risk)"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-041",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "10 question 8; 7 D38, E49 row",
+   "evidence": "The dossier lists the options without a lean; the card records (a) as the question's first option and notes the register's default is (b)."
+  },
+  {
+   "id": "cap.inv_stop",
+   "field": "invalidation",
+   "statement": "After the entry: a trade below the low of the entry session is the stop and the exit.",
+   "basis": "house rule",
+   "sources": [
+    "S1",
+    "S4",
+    "S20"
+   ],
+   "house_rule": "A4",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5",
+   "evidence": "Kell: \"Stops are placed just below the low of the Reversal Extension bar\". The Wyckoff school: a test below the climax low means \"new lows or prolonged consolidation\". The owner: \"my stop is my stop most of the time\"."
+  },
+  {
+   "id": "cap.inv_stall",
+   "field": "invalidation",
+   "statement": "The bounce stalls on the first day and closes in its lower third: the early warning.",
+   "measure": {
+    "what": "close position of the first bounce day, (close - low) / (high - low)",
+    "op": "<=",
+    "value": 0.33,
+    "timeframe": "daily"
+   },
+   "glossary": "close_position",
+   "basis": "UCT",
+   "sources": [
+    "S20",
+    "S21"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.5",
+   "evidence": "The app's narrative: \"A bounce that stalls immediately and closes weak is the early warning\". WDC 2024-07-29: the reclaim session opened 4% up and closed two cents over the flush low; stopped the next day, then -20%."
+  },
+  {
+   "id": "cap.inv_index_new_low",
+   "field": "invalidation",
+   "statement": "The index makes a new low on rising volume while you hold.",
+   "basis": "my proposal",
+   "sources": [
+    "S21"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.5",
+   "evidence": "COP 2022-06-22: a reclaim on the second session (the market was closed on 2022-06-20, Juneteenth) with the energy sector still breaking; the next session took the stop and the stock fell 16% under the buy within 30 sessions (corrected 2026-11-10 against the bars): the earlier text called the reclaim late (session 3)."
+  },
+  {
+   "id": "cap.inv_no_burst",
+   "field": "invalidation",
+   "statement": "No burst: a slow grind or a controlled mark down is not a capitulation.",
+   "basis": "UCT",
+   "sources": [
+    "S10",
+    "S17"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5; 8.7",
+   "evidence": "Bracco (2026-03-08): \"no fear/panic in the tape, just a very choppy, controlled mark down\"; the S&P \"not nearly stretched down enough for a high quality reversal trade\"."
+  },
+  {
+   "id": "cap.inv_business_break",
+   "field": "invalidation",
+   "statement": "A real business break (fraud, a guidance collapse) where the selling is informed: not this setup.",
+   "basis": "my proposal",
+   "sources": [
+    "S15"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5",
+   "evidence": "Llorente, Michaely, Saar and Wang: returns from speculative (informed) trades \"tend to continue themselves\" while risk-sharing trades reverse."
+  },
+  {
+   "id": "cap.vix",
+   "field": "context",
+   "statement": "Fear is high and rising fast: a VIX spike toward 30 or more.",
+   "measure": {
+    "what": "VIX",
+    "op": ">=",
+    "value": 30,
+    "unit": "index points",
+    "note": "a fast move up into it"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S16",
+    "S17"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.7",
+   "evidence": "Bracco (2026-03-08): \"Anytime we get a fast move up into 30 it is usually a good time to start paying attention for a mean reversion opportunity.\" Nagel: reversal returns rise with the VIX."
+  },
+  {
+   "id": "cap.breadth",
+   "field": "context",
+   "statement": "Breadth washed out: T2108 (the percent of stocks above their 40-day average) near or under 15% to 20%.",
+   "measure": {
+    "what": "T2108",
+    "op": "<=",
+    "value": 20,
+    "unit": "%",
+    "note": "near or under the 15% floor is the extreme"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S10",
+    "S17"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.7",
+   "evidence": "Bracco's \"15% floor\" and a 16.74% close (2026-03-22). Stockbee reads seller capitulation from his own count (stocks up 25% in 65 days under 200), not T2108."
+  },
+  {
+   "id": "cap.monday",
+   "field": "context",
+   "statement": "Several straight down days into a Friday, then a gap down on Monday: Bracco's Monday Effect.",
+   "measure": {
+    "what": "weekday of the flush or reclaim day after consecutive down days into the weekend",
+    "op": "==",
+    "value": "Monday",
+    "timeframe": "daily"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S17"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.7; 10 question 12",
+   "evidence": "His list: March 23 2020, August 5 2024, April 7 2025 are Mondays; \"March 24 2022\" was a Thursday (the January 2022 low was Monday the 24th), to be confirmed before it is taught (D-015). OKTA 2025-04-07 and AEM 2026-02-02 are Monday reclaims in the examples."
+  },
+  {
+   "id": "cap.index_for_leader_flush",
+   "field": "context",
+   "statement": "For the leader flush: the index holding up or itself stretched, not breaking down.",
+   "basis": "UCT",
+   "sources": [
+    "S17"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.7",
+   "evidence": "Bracco (2025-10-26): leaders flushing while \"the Nasdaq contracting and building higher lows\". COP 2022-06-22 failed with its sector still breaking."
+  },
+  {
+   "id": "cap.market_reading",
+   "field": "context",
+   "statement": "Capitulations happen in Orange and Red markets by nature, where the rulebook says Orange, only A+ setups; Red, mostly cash and shorts.",
+   "glossary": "market_reading",
+   "basis": "house rule",
+   "sources": [
+    "S17"
+   ],
+   "house_rule": "F65",
+   "options": [
+    {
+     "value": "a",
+     "basis": "allow A+ capitulations in Orange and Red as an explicit exception"
+    },
+    {
+     "value": "b",
+     "basis": "Orange only, A+ only (F65 as written)"
+    },
+    {
+     "value": "c",
+     "basis": "never in Red"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-023",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "7 B18, F65, D46 row; 10 question 7",
+   "evidence": "The dossier lists the options without a lean; the card records (a) as the question's first option. The glossary lists 34, 36 and 38 as one pending override of F65, decided once for the family."
+  }
+ ],
+ "grading": {
+  "a_plus": [
+   "cap.burst: all 5 boxes, at least 3 straight down days and a gap down on the day",
+   "cap.volume_record: record or decline-high volume; 5-minute volume many times normal (FIGR: 600% above average)",
+   "cap.flush_day: a low 2 ATR or more under the prior close",
+   "cap.location: into a big level, ideally two (a prior high plus a round number)",
+   "cap.rs_exempt: a real leader with a story",
+   "cap.vix: market-wide fear at the same time: a VIX spike, breadth washed out, a Monday gap",
+   "cap.trigger_daily: a clean undercut and reclaim with the stop near 3%"
+  ],
+  "b_minus": [
+   "cap.not_one_day_shock: only 1 or 2 down days, or a one-day shock with no cascade",
+   "cap.volume: volume only modestly heavy, or falling",
+   "cap.location: no level under it",
+   "cap.inv_no_burst: a slow, controlled decline",
+   "cap.above_200: deep in Stage 4 below a falling 200-day with no burst",
+   "cap.stop_width: a stop that must be wider than 5% to make sense",
+   "cap.burst: 3 or 4 boxes, heavy but not record volume, a level nearby, the index neutral is an A or B"
+  ],
+  "no_trade": [
+   "cap.no_knife: the falling price or the flush close",
+   "cap.burst: fewer than 3 of the 5 boxes",
+   "cap.above_200: below the 200-day without the parabolic-long gate",
+   "cap.inv_no_burst: no burst, a controlled mark down",
+   "cap.inv_business_break: a real business break",
+   "cap.not_earnings_reaction: the stock's own report inside the flush window",
+   "cap.liquidity: under $10 or under $20 million a day",
+   "cap.earnings_window: a report within 3 sessions",
+   "cap.no_chase: more than 4% past the reclaim"
+  ]
+ },
+ "lookalikes": [
+  {
+   "setup": "38-parabolic-long",
+   "tell": "Find the climax gap and count the boxes. A parabolic long needs the gap down on the climax day itself plus 3 of the other 4 boxes and is bought that day on the VWAP reclaim; a capitulation accepts 3 of 5 with the gap the next morning and is bought on the undercut and reclaim of the flush low within 3 sessions. Under D-002 they may be one unit; the tell separates the forms.",
+   "criterion": "cap.burst"
+  },
+  {
+   "setup": "36-mean-reversion",
+   "tell": "Measure the drop and the days. A mean-reversion leader flush needs two of five stretch marks in a leader above its 200-day and 50-day, often one day's drop into a level; a capitulation needs 3 of 5 burst boxes, a 2 ATR flush on 2x volume and 15% or more off the 10-session high.",
+   "criterion": "cap.stretch_stock"
+  },
+  {
+   "setup": "29-undercut-rally",
+   "tell": "Look at what was undercut and what the averages are doing. A U&R undercuts a visible level in a stock whose 50-day is not falling, after an ordinary dip, and needs no volume; a capitulation reclaims its own flush low after a 2 ATR flush on 2x volume, under the 5, 9 and 20-day.",
+   "criterion": "cap.trigger_daily"
+  },
+  {
+   "setup": "30-oops-reversal",
+   "tell": "Measure the day. An Oops gaps under the prior day's low in an orderly pullback 3% to 12% off the high, with the Oops-day range under 3 ATR; a capitulation flush is 2 ATR or more on 2x volume at the end of a 15% fall, and the reclaim may come 1 to 3 sessions later.",
+   "criterion": "cap.flush_day"
+  },
+  {
+   "setup": "35-wyckoff-spring-upthrust",
+   "tell": "Look for the range. A spring needs a flat 20-session range with a floor touched twice and an undercut of 0.1 to 1 ATR; over 2 ATR is a breakdown for a spring. A capitulation has no range behind it, it is a straight fall, and the 2 ATR flush is the setup.",
+   "criterion": "cap.not_one_day_shock"
+  },
+  {
+   "setup": "12-ma-pullbacks",
+   "tell": "Check the volume and the lines. Bracco's MAU&R \"rubber band long\" is a 2 to 8 session pullback to a rising 20 or 50-day on light volume; a capitulation falls through the 5, 9 and 20-day on 2x volume with a 2 ATR flush bar.",
+   "criterion": "cap.below_short_averages"
+  }
+ ],
+ "invalidations": [
+  "Before the trigger: fewer than 3 of the 5 burst boxes, a slow grind or a controlled mark down (cap.burst, cap.inv_no_burst).",
+  "Before the trigger: a one-day shock with no lower closes before it (cap.not_one_day_shock).",
+  "Before the trigger: the stock's own report inside the flush window, or a real business break (cap.not_earnings_reaction, cap.inv_business_break).",
+  "Before the trigger: no undercut and reclaim within 3 sessions of the flush (cap.trigger_daily).",
+  "Before the trigger: a report within 3 sessions (cap.earnings_window).",
+  "After the entry: a trade below the low of the entry session is the stop (cap.inv_stop).",
+  "After the entry: the bounce stalls on the first day and closes in its lower third, the early warning (cap.inv_stall).",
+  "After the entry: the index makes a new low on rising volume (cap.inv_index_new_low).",
+  "After the entry: under 1R after 3 sessions, out (cap.time_stop, pending D-019)."
+ ],
+ "mistakes": [
+  "Buying the knife before the turn.",
+  "Averaging down. Bracco: \"I never add when I am down\".",
+  "Calling a slow decline a capitulation.",
+  "Buying the first day of a breakdown (Bracco, 2026-11-01).",
+  "Holding a bounce as if it were a new uptrend. Bulkowski: most dead-cat bounces fall to new lows; Bracco: \"1-3 days\".",
+  "Too big: the stop is wide in dollars and gaps happen.",
+  "Whipsaw re-entries in one day (Bracco, 2026-08-02).",
+  "Treating a close outside the lower band as a buy signal (Bollinger).",
+  "Breaking B26: a below-200 capitulation that does not pass the burst gate.",
+  "Buying the climax close with the stop at its low, as the scanner does: half are undercut the next session, and a 7-cent stop is a coin toss (the app's AAPL fixture)."
+ ],
+ "short_mirror": {
+  "exists": true,
+  "setup": "39-parabolic-short",
+  "note": "The mirror is the Parabolic Short, already a house setup (Bracco's post; D47 and B26). No new short setup is needed. Both live on the wrong side of the 200-day rule and are covered by the parabolic exceptions."
+ },
+ "best_conditions": "Fear high and rising fast: a VIX spike toward 30 or more, breadth washed out (T2108 near or under 15% to 20%), several straight down days into a Friday and a gap down on Monday. For the leader flush, the index holding up or itself stretched. Not a calm, orderly decline; not the first day of a breakdown.",
+ "management": {
+  "trim_1": "a third at 3R, near the 9 EMA with the reclaim entry (B19)",
+  "trim_2": "a third at 5R, near the 20 EMA (E51)",
+  "trail": "under each higher daily low until price closes back above the 10-day, then a close below the 10-day (E52 adapted; the 21-day for a steadier one)",
+  "breakeven": "at 2R, the low end of B19's window, because these bounces fade",
+  "time_stop": "1R not reached within 3 sessions, sell (the dossier's number, pending D-019; C33's 10 days is the fallback)",
+  "gap_open": "a trim level the day opens past is taken at the open (F63)",
+  "gap_against": "the first 30-minute low is the new stop; out if past 2R (B20)",
+  "overrides": "The trail (higher daily lows until the 10-day is regained) and the 3-session time stop are the dossier's adaptations (8.4). Whether the trims are 3R and 5R or a sale into the 9 and 20 EMAs is D-013. Not ours: the scanner's 2R and 3R targets from a stop a fraction of an ATR wide."
+ },
+ "examples": {
+  "winners": 10,
+  "sheet_dir": "_study-resume/scratchpad/setups/34-capitulation/final",
+  "base_rate": {
+   "hits": 2220,
+   "r3_pct": 52.3,
+   "r5_pct": 43.1,
+   "stopped_pct": 81,
+   "median_stop_pct": 1.7,
+   "window": "60 sessions forward, fixed stop 5 cents under the undercut low, no trims, no breakeven, no trail; 2000-01-05 to 2026-11-06; 2,630 liquid names; one trade per flush, no re-entry for 10 sessions; stops wider than 5% dropped"
+  },
+  "cuts": {
+   "reclaim_above_200_day": {
+    "hits": 410,
+    "r3_pct": 57.8,
+    "r5_pct": 48.8,
+    "median_best_r": 4.8
+   },
+   "reclaim_below_200_day": {
+    "hits": 1810,
+    "r3_pct": 51.0,
+    "r5_pct": 41.8
+   },
+   "above_200_stop_3_pct_or_less": {
+    "hits": 315,
+    "r3_pct": 63.5,
+    "r5_pct": 54.6
+   },
+   "same_session_undercut_and_reclaim": {
+    "hits": 240,
+    "r3_pct": 59.6,
+    "later_reclaim": {
+     "hits": 170,
+     "r3_pct": 55.3
+    }
+   },
+   "earnings_inside_the_flush_window": {
+    "hits": 150,
+    "of": 346,
+    "note": "earnings reactions, not panic selling; kept apart (cap.not_earnings_reaction)"
+   },
+   "app_detector_check_4_5": {
+    "fires": 208,
+    "below_200_pct": 72,
+    "entry_a_close": {
+     "cases": 197,
+     "undercut_next_session_pct": 49,
+     "avg_r": 0.1
+    },
+    "entry_c_undercut_reclaim": {
+     "cases": 67,
+     "median_stop_pct": 3.4,
+     "avg_r": 0.35
+    }
+   }
+  },
+  "winners_list": [
+   "ICE 2009-07-10",
+   "ALB 2010-05-07",
+   "SBUX 2011-08-09",
+   "ROKU 2019-03-14",
+   "ACMR 2020-09-09",
+   "LYV 2022-03-08",
+   "ALGM 2023-04-28",
+   "HIMS 2024-10-31",
+   "OKTA 2025-04-07",
+   "AEM 2026-02-02"
+  ],
+  "failures": [
+   {
+    "ticker": "COP",
+    "date": "2022-06-22",
+    "criterion": "cap.inv_index_new_low",
+    "why": "a 24% flush on 2022-06-17 (2.0 ATR, 3.3x volume, burst 3/5), reclaimed on the second session (2022-06-22; the market was closed on 2022-06-20) at 92.82 with the stop at 91.41; the next session traded through the stop and the stock fell to 78.30 inside 30 sessions. The sector was still breaking and the first bounce day closed in its lower tenth; the stop did its job (corrected 2026-11-10 against the bars): the earlier text counted the reclaim as the third session."
+   },
+   {
+    "ticker": "WDC",
+    "date": "2024-07-29",
+    "criterion": "cap.inv_stall",
+    "why": "a 16% flush on 2024-07-25 (burst 4/5), reclaimed on the second session at 50.20 with a 0.65% stop; stopped the next day, then 39.89 inside 30 sessions. The reclaim session opened 4% up and closed two cents over the flush low: the stall-and-weak-close warning."
+   },
+   {
+    "ticker": "DLTR",
+    "date": "2022-05-19",
+    "criterion": "cap.stop_width",
+    "why": "a 23% flush with the low 5.7 ATR under the prior close on 4.1x volume (burst 4/5), reclaimed the next day at 128.03 with a 1.8% stop; the following session traded both under the stop and up to 136.19, and the stock closed 25% above the buy ten sessions later. A 1.8% stop under a 5.7-ATR bar is the cut-the-shares-or-skip case; the intraday turn is the entry that would have survived it."
+   },
+   {
+    "ticker": "CAR",
+    "date": "2026-04-23",
+    "criterion": "cap.no_knife",
+    "why": "down 77% in 3 days on 7.0x volume; Bracco said wait 1 to 2 weeks; the low broke the next day and the stock traded 25% under it within 5 sessions."
+   },
+   {
+    "ticker": "INTC",
+    "date": "2024-08-02",
+    "criterion": "cap.setting",
+    "why": "the app's 5-star fixture, 44% under its 200-day with a 7.3 ATR flush on 6.2x volume: gapped under the low the next day and never traded above the flush close in 10 sessions. The deep-downtrend climax (C) the course does not buy."
+   },
+   {
+    "ticker": "BN",
+    "date": "2020-03-10",
+    "criterion": "cap.inv_index_new_low",
+    "why": "a 16.5% flush on 2020-03-09 (3.29 ATR, 3.03x volume, burst 5/5), reclaimed the next day at 19.57 with a 0.89% stop; stopped on day 1 as the index made a new low the same week; 11.55 inside 30 sessions. The crash had one more leg."
+   },
+   {
+    "ticker": "VOYA",
+    "date": "2023-03-15",
+    "criterion": "cap.stop",
+    "why": "the bank-panic flush (2.31 ATR, 2.57x volume, burst 5/5) reclaimed at 64.66 with a 1.41% stop; day 1 traded 23 cents under the stop and closed near its high, 70.12 ten sessions later. A whipsaw: the stop was right by the rule and the trade still lost."
+   },
+   {
+    "ticker": "MP",
+    "date": "2025-04-07",
+    "criterion": "cap.trim_gap_open",
+    "why": "the tariff-crash Monday reclaim at 22.13 with a 1.85% stop; day 1 opened 26.00, above the 5R line (24.18), then closed 21.94 in its lower tenth through the stop. Under the house rule the two trims are taken at the open; the fixed-stop scan counts a loss."
+   }
+  ],
+  "limits": "The location rule, the intraday trigger, the 3-session time stop, the market reading and the 1%-of-volume cap are not in the scan. The median stop is 1.7%, so 3R is about a 5% bounce; the rate measures the first bounce, not a trend trade. No delisted names. Nothing here is a published statistic.",
+  "near_misses": [
+   {
+    "ticker": "MS",
+    "date": "2025-03-06",
+    "criterion": "cap.burst",
+    "why": "2 of 5 burst boxes (a bigger loss on 2 of 3 days, the gap); the rule needs 3. A 2.61 ATR drop on 2.02x volume, 15.3% off the 10-day high into the 200-day, but a controlled three-week mark down, no burst. Stopped the next day."
+   },
+   {
+    "ticker": "AMZN",
+    "date": "2018-03-29",
+    "criterion": "cap.stretch_stock",
+    "why": "the flush low 12.9% under the 10-day high close; the rule needs 15%. A 2.95 ATR flush on 2.23x volume with burst 3/5, but only a pullback to the rising 50-day in a leader. Stopped the next day."
+   },
+   {
+    "ticker": "LLY",
+    "date": "2024-07-29",
+    "criterion": "cap.volume",
+    "why": "flush-day volume 1.96x the 50-day average; the rule needs 2x. Everything else holds (2.13 ATR, 15.2% off the high, burst 3/5, above the 200-day). Stopped the next day."
+   },
+   {
+    "ticker": "UBER",
+    "date": "2024-12-16",
+    "criterion": "cap.above_200",
+    "why": "the reclaim closed 15.9% under the 200-day SMA (71.67) and burst 3/5 does not pass the parabolic-long gate: setting (C), the deep-downtrend climax, watch only (B26). Stopped the next day."
+   }
+  ],
+  "sheets": {
+   "failures": "final/fail_1-4.png",
+   "near_misses": "final/near_1-4.png",
+   "pair": "final/pair_38-parabolic-long.png"
+  }
+ },
+ "question_seeds": [
+  {
+   "kind": "recall",
+   "criterion": "cap.burst",
+   "seed": "How many of the five burst boxes does a capitulation need, and where may the gap come?"
+  },
+  {
+   "kind": "recall",
+   "criterion": "cap.trigger_daily",
+   "seed": "What is the taught daily trigger for a capitulation, and how many sessions does it have to happen in?"
+  },
+  {
+   "kind": "recall",
+   "criterion": "cap.stop",
+   "seed": "Where does the stop go after an undercut-and-reclaim entry?"
+  },
+  {
+   "kind": "spot",
+   "criterion": "cap.flush_day",
+   "seed": "Hidden ticker: tap the flush day, the bar whose low sits 2 ATR or more under the prior close."
+  },
+  {
+   "kind": "spot",
+   "criterion": "cap.trigger_daily",
+   "seed": "Hidden ticker: tap the reclaim day, the session that traded under the flush low and closed back above it."
+  },
+  {
+   "kind": "spot",
+   "criterion": "cap.inv_stall",
+   "seed": "Hidden ticker: which of these four first bounce days is the stall, closing in its lower third?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "cap.stretch_stock",
+   "seed": "Capitulation or mean reversion: a leader drops 9% in one day into its 50-day on 2x volume, 7% off its high. Which is it?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "cap.burst",
+   "seed": "Capitulation or parabolic long: four down days, two gap downs, no gap on the climax day, a gap down the next morning. Which card's gate does it pass?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "cap.not_one_day_shock",
+   "seed": "Capitulation or Wyckoff spring: a stock in a flat 30-session range dips 0.5 ATR under the floor and closes back inside. Which is it?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "cap.below_short_averages",
+   "seed": "Capitulation or MA pullback: a leader drifts six sessions on light volume to its rising 20 EMA. Which is it?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "cap.no_knife",
+   "seed": "The flush day closes at its low on record volume, 4 ATR under yesterday's close. Buy the close, or wait?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "cap.time_stop",
+   "seed": "You bought the reclaim three sessions ago and the trade is at 0.6R. What does the card say?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "cap.market_reading",
+   "seed": "The reading is Red, the VIX just spiked to 34 and the index gapped down on Monday under its flush low. Is a capitulation long allowed, and at what grade?"
+  },
+  {
+   "kind": "grade",
+   "criterion": "cap.location",
+   "seed": "Two flushes, same depth: one undercuts the prior all-time high and the round number 50, one stops in the middle of nowhere. Grade each."
+  },
+  {
+   "kind": "grade",
+   "criterion": "cap.stop_width",
+   "seed": "The undercut low sits 4.2% under the reclaim price on a 3x ETF. What grade, what size?"
+  },
+  {
+   "kind": "grade",
+   "criterion": "cap.volume",
+   "seed": "Flush day A: 1.3x volume, the third red day. Flush day B: the highest volume in a year, the fifth red day. Grade each."
+  },
+  {
+   "kind": "numeric",
+   "criterion": "cap.flush_day",
+   "seed": "Prior close 80.00, ATR(14) 2.50, today's low 74.60. How many ATR under the prior close is the low, and does it qualify?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "cap.stretch_stock",
+   "seed": "The highest close of the last 10 sessions was 120.00 and the flush low is 100.00. What is the drop, and does a stock qualify?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "cap.stop_width",
+   "seed": "Reclaim at 38.49, undercut low 38.31, stop 5 cents under it. What is the stop distance in percent, and where is 5R?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "cap.stretch_index",
+   "seed": "QQQ's 50-day is 500, its ATR 8, and it closes at 472. How many ATR under the 50-day is it, and is that a correction or a crash reading?"
+  }
+ ],
+ "owner_decisions": [
+  "D-002",
+  "D-003",
+  "D-004",
+  "D-007",
+  "D-008",
+  "D-013",
+  "D-014",
+  "D-015",
+  "D-019",
+  "D-023",
+  "D-028",
+  "D-041",
+  "D-111"
+ ],
+ "conflicts": [
+  "Sources on this card are cited by the row number of the dossier's section 11 table (S1 the Wyckoff tutorial, S3 the CMT, S4 Kell, S5 Kullamägi, S6 Bollinger, S10 Stockbee, S11 and S12 Bulkowski, S15 Llorente et al., S16 Nagel, S17 the Sunday Scans, S18 The Parabolic Short, S20 the app code, S21 the Yahoo bars), as the validator reads a numbered table.",
+  "Is Capitulation the Parabolic Long: this dossier recommends one setup gated by the mirrored burst (3 of 5, the gap allowed the next morning); dossier 38 requires the climax-day gap plus 3 of 4 and sends Bracco's one-day leader flush to Mean Reversion; dossier 36 keeps the parabolics separate from its own leader flush. The register's default is one unit (D-002). The cards are written so the forms stay separable: this card's taught trigger is the undercut and reclaim; 38's is the same-day VWAP reclaim.",
+  "What comes before it: Wyckoff, the CMT and the app want a long or multi-day decline; Bracco's best trades were short, violent flushes in leaders far above the 200-day. The app's scanner lives below the 200-day (72% of fires) and fired on none of UCT's single-stock examples; its C1 test (a close more than 1 ATR under the band) is what misses them (D-004).",
+  "Buy the climax or wait: Wyckoff buys at the spring or test, the CMT demands a successful test, Kell says the daily Reversal Extension is often best avoided; Kullamägi, Breitstein and Bracco buy an intraday turn; the app buys the climax close. The card takes the undercut and reclaim on the daily and the intraday turn for those who can watch (D-003).",
+  "The lower band: Bollinger says a close outside it is initially a continuation signal; Bracco reads a breach as a coming snap back; the app requires it. The card makes it evidence, never the trigger.",
+  "The first target: Kell the 20 EMA retest, Kullamägi the 10 and 20-day, Bracco (mirrored) the 9 EMA, Wyckoff the automatic rally high. The house trims land near the 9 and 20 EMAs with the reclaim entry; whether to sell into the averages regardless of R is D-013.",
+  "How long to hold: Bracco 1-3 days, the owner a 2-3 day bounce, Kullamägi a few days; Bracco's SOXL ran six sessions and more. The card proposes a 3-session time stop against C33's 10 (D-019).",
+  "The stop: Kell just below the Reversal Extension bar's low; Bracco under the day's low; the app the climax low measured from the close, often a fraction of a percent (the AAPL fixture: a 7-cent stop). The card takes the entry session's low (D-008).",
+  "The market reading: capitulations happen in Orange and Red markets, where F65 says Orange only A+ and Red mostly cash and shorts (D-023).",
+  "Which volume: Wyckoff and the CMT climactic; Bracco rising on each leg and heavy 5-minute volume; the app a record over about a year (199 bars in production) or 2x rising across three down days. The card takes 2x the 50-day as the gate and the record as the cue.",
+  "Liquidity: the app's floor is $2 and $10,000 a day; B23 is $10 and $20 million; ABAT fails it. The house wins (D-004).",
+  "Names: three names for one thing in the app (\"Capitulation\" tag, \"VOLUME CLIMAX\" Study chip, \"Parabolic Long\" journal tag and Model Book card, whose text describes the opposite trade). D-014.",
+  "Bracco's Monday list: \"March 24 2022\" was a Thursday; the January 2022 low was Monday January 24. Confirm with Bracco before the list is taught (D-015).",
+  "The private archive: whether the brain's summaries of Bracco's Discord posts (KB 11061, 10873, 11993) may go into the public course, or only his Substack and chat words already in the repo (D-028).",
+  "The model examples in 8.9 and the scan's ten in section 12 wait on the owner's approval (D-007). CAR, IGV, INTC and ETHU are the counter-examples."
+ ]
+}

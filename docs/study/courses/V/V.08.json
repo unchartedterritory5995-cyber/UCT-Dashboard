@@ -1,0 +1,3987 @@
+{
+ "unit": "V.08",
+ "track": "V",
+ "title": "Options words",
+ "teaches": "The words on an option chain and a strategy row: calls and puts, strike, expiration and premium; in, at and out of the money; intrinsic and time value; the Greeks; implied volatility; open interest and volume; exercise and assignment; and the common strategy names, from covered calls to iron condors.",
+ "skills": [
+  {
+   "id": "vocab.options_terms",
+   "title": "Options words"
+  }
+ ],
+ "as_of": "2026-11-09",
+ "sources": [
+  {
+   "id": "s1",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Options Glossary (A)",
+   "url": "https://www.optionseducation.org/referencelibrary/optionsglossary?filter=A",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s2",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Options Glossary (B)",
+   "url": "https://www.optionseducation.org/referencelibrary/optionsglossary?filter=B",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s3",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Options Glossary (C)",
+   "url": "https://www.optionseducation.org/referencelibrary/optionsglossary?filter=C",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s4",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Options Glossary (D)",
+   "url": "https://www.optionseducation.org/referencelibrary/optionsglossary?filter=D",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s5",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Options Glossary (E)",
+   "url": "https://www.optionseducation.org/referencelibrary/optionsglossary?filter=E",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s6",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Options Glossary (G)",
+   "url": "https://www.optionseducation.org/referencelibrary/optionsglossary?filter=G",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s7",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Options Glossary (H)",
+   "url": "https://www.optionseducation.org/referencelibrary/optionsglossary?filter=H",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s8",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Options Glossary (I)",
+   "url": "https://www.optionseducation.org/referencelibrary/optionsglossary?filter=I",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s9",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Options Glossary (L)",
+   "url": "https://www.optionseducation.org/referencelibrary/optionsglossary?filter=L",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s10",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Options Glossary (M)",
+   "url": "https://www.optionseducation.org/referencelibrary/optionsglossary?filter=M",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s11",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Options Glossary (O)",
+   "url": "https://www.optionseducation.org/referencelibrary/optionsglossary?filter=O",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s12",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Options Glossary (P)",
+   "url": "https://www.optionseducation.org/referencelibrary/optionsglossary?filter=P",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s13",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Options Glossary (R)",
+   "url": "https://www.optionseducation.org/referencelibrary/optionsglossary?filter=R",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s14",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Options Glossary (S)",
+   "url": "https://www.optionseducation.org/referencelibrary/optionsglossary?filter=S",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s15",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Options Glossary (T)",
+   "url": "https://www.optionseducation.org/referencelibrary/optionsglossary?filter=T",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s16",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Options Glossary (U)",
+   "url": "https://www.optionseducation.org/referencelibrary/optionsglossary?filter=U",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s17",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Options Glossary (V)",
+   "url": "https://www.optionseducation.org/referencelibrary/optionsglossary?filter=V",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s18",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Options Glossary (W)",
+   "url": "https://www.optionseducation.org/referencelibrary/optionsglossary?filter=W",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s19",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "What is an Option?",
+   "url": "https://www.optionseducation.org/optionsoverview/what-is-an-option",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s20",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Options Basics",
+   "url": "https://www.optionseducation.org/optionsoverview/options-basics",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s21",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Options Pricing",
+   "url": "https://www.optionseducation.org/optionsoverview/options-pricing",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s22",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Exercising Options",
+   "url": "https://www.optionseducation.org/optionsoverview/exercising-options",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s23",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "FAQ: Options Exercise",
+   "url": "https://www.optionseducation.org/referencelibrary/faq/options-exercise",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s24",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "FAQ: Options Assignment",
+   "url": "https://www.optionseducation.org/referencelibrary/faq/options-assignment",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s25",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "FAQ: General Information (open interest, opening and closing transactions)",
+   "url": "https://www.optionseducation.org/referencelibrary/faq/general-information",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s26",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "FAQ: Basics",
+   "url": "https://www.optionseducation.org/referencelibrary/faq/basics",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s27",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "FAQ: Option Price Behavior",
+   "url": "https://www.optionseducation.org/referencelibrary/faq/option-price-behavior",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s28",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Options Delta",
+   "url": "https://www.optionseducation.org/advancedconcepts/delta",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s29",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Gamma",
+   "url": "https://www.optionseducation.org/advancedconcepts/gamma",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s30",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Theta",
+   "url": "https://www.optionseducation.org/advancedconcepts/theta",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s31",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Vega",
+   "url": "https://www.optionseducation.org/advancedconcepts/vega",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s32",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Volatility & the Greeks",
+   "url": "https://www.optionseducation.org/advancedconcepts/volatility-the-greeks",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s33",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Rho",
+   "url": "https://www.optionseducation.org/advancedconcepts/rho",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s34",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Understanding Options Greeks",
+   "url": "https://www.optionseducation.org/advancedconcepts/understanding-options-greeks",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s35",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Long Call (strategy page)",
+   "url": "https://www.optionseducation.org/strategies/all-strategies/long-call",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s36",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Long Put (strategy page)",
+   "url": "https://www.optionseducation.org/strategies/all-strategies/long-put",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s37",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Covered Call (Buy/Write) (strategy page)",
+   "url": "https://www.optionseducation.org/strategies/all-strategies/covered-call-buy-write",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s38",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Cash-Secured Put (strategy page)",
+   "url": "https://www.optionseducation.org/strategies/all-strategies/cash-secured-put",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s39",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Protective Put (Married Put) (strategy page)",
+   "url": "https://www.optionseducation.org/strategies/all-strategies/protective-put-married-put",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s40",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Collar (Protective Collar) (strategy page)",
+   "url": "https://www.optionseducation.org/strategies/all-strategies/collar-protective-collar",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s41",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Bull Call Spread (Debit Call Spread) (strategy page)",
+   "url": "https://www.optionseducation.org/strategies/all-strategies/bull-call-spread-debit-call-spread",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s42",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Bull Put Spread (Credit Put Spread) (strategy page)",
+   "url": "https://www.optionseducation.org/strategies/all-strategies/bull-put-spread-credit-put-spread",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s43",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Bear Call Spread (Credit Call Spread) (strategy page)",
+   "url": "https://www.optionseducation.org/strategies/all-strategies/bear-call-spread-credit-call-spread",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s44",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Long Straddle (strategy page)",
+   "url": "https://www.optionseducation.org/strategies/all-strategies/long-straddle",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s45",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Long Strangle (Long Combination) (strategy page)",
+   "url": "https://www.optionseducation.org/strategies/all-strategies/long-strangle-long-combination",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s46",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Short Condor (Iron Condor) (strategy page)",
+   "url": "https://www.optionseducation.org/strategies/all-strategies/short-condor",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s47",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Short Iron Butterfly (strategy page)",
+   "url": "https://www.optionseducation.org/strategies/all-strategies/short-iron-butterfly",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s48",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Long Call Butterfly (strategy page)",
+   "url": "https://www.optionseducation.org/strategies/all-strategies/long-call-butterfly",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s49",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Naked Call (Uncovered Call, Short Call) (strategy page)",
+   "url": "https://www.optionseducation.org/strategies/all-strategies/naked-call-uncovered-call-short-call",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s50",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Naked Put (Uncovered Put, Short Put) (strategy page)",
+   "url": "https://www.optionseducation.org/strategies/all-strategies/naked-put-uncovered-put-short-put",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s51",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Open Interest: Why It Matters (October 2025)",
+   "url": "https://www.optionseducation.org/news/open-interest-why-it-matters",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s52",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "0DTE Options Primer: What Investors Should Know About Expiration-Day Positions (June 2023)",
+   "url": "https://www.optionseducation.org/news/0dte-options-primer-what-investors-should-know-about-expiration-day-positions",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s53",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "May Key Takeaways: The Rule of 16 and the 0DTE Risk Profile (June 2026)",
+   "url": "https://www.optionseducation.org/news/may-keytakeaways",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s54",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Understanding the Bid and Ask Prices for Options (August 2024)",
+   "url": "https://www.optionseducation.org/news/understanding-the-bid-and-ask-prices-for-options",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s55",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "An Introduction to Options, Investor Bulletin (March 18, 2015, updated July 16, 2026)",
+   "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins-63",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s56",
+   "tier": 1,
+   "publisher": "FINRA",
+   "title": "Trading Options: Understanding Assignment (Investor Insights, December 14, 2020)",
+   "url": "https://www.finra.org/investors/insights/trading-options-understanding-assignment",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s57",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Guide to Options Chains: Essential Reading and Analysis Techniques (Peter Gratton; updated July 22, 2026)",
+   "url": "https://www.investopedia.com/terms/o/optionchain.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s58",
+   "tier": 2,
+   "publisher": "Interactive Brokers",
+   "title": "Option Chain (IBKR Campus glossary)",
+   "url": "https://www.interactivebrokers.com/campus/glossary-terms/option-chain/",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s59",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "Price Movement Indicator: Market Maker Move (August 5, 2025)",
+   "url": "https://www.schwab.com/learn/story/price-movement-indicator-market-maker-move",
+   "accessed": "2026-11-09"
+  }
+ ],
+ "facts": [
+  {
+   "id": "f1",
+   "source": "s1",
+   "quote": "An option that can be exercised at any time prior to its expiration date.",
+   "claim": "An American-style option can be exercised at any time before it expires."
+  },
+  {
+   "id": "f2",
+   "source": "s1",
+   "quote": "Notification by OCC to a clearing member that an owner of an option has exercised their rights. For equity and index options, OCC makes assignments on a random basis.",
+   "claim": "Assignment is OCC's notice that an option owner exercised; OCC hands out assignments at random."
+  },
+  {
+   "id": "f3",
+   "source": "s1",
+   "quote": "A term that describes an option with a strike price that is equal to the current market price of the underlying stock.",
+   "claim": "At the money means the strike equals the stock's current price."
+  },
+  {
+   "id": "f4",
+   "source": "s1",
+   "quote": "Buying more of a stock or an option at a lower price than the original purchase to reduce the average cost.",
+   "claim": "Averaging down is buying more at a lower price to cut your average cost."
+  },
+  {
+   "id": "f5",
+   "source": "s2",
+   "quote": "The stock price(s) at which an option strategy results in neither a profit nor a loss.",
+   "claim": "Breakeven is the stock price where an options trade neither makes nor loses money."
+  },
+  {
+   "id": "f6",
+   "source": "s2",
+   "quote": "The simultaneous writing of one put option with a higher strike price and the purchase of another put option with a lower strike price.",
+   "claim": "A bull put spread writes the higher-strike put and buys the lower-strike put."
+  },
+  {
+   "id": "f7",
+   "source": "s2",
+   "quote": "The simultaneous purchase of one put option with a higher strike price and the writing of another put option with a lower strike price.",
+   "claim": "A bear put spread buys the higher-strike put and writes the lower-strike put."
+  },
+  {
+   "id": "f8",
+   "source": "s2",
+   "quote": "Establish a long call butterfly by buying one call at the lowest strike price, writing two calls at the middle strike price and buying one call at the highest strike price.",
+   "claim": "A long call butterfly buys one low-strike call, writes two middle-strike calls and buys one high-strike call."
+  },
+  {
+   "id": "f9",
+   "source": "s3",
+   "quote": "An option contract that gives the owner the right but not the obligation to buy the underlying security at a specified price (its strike price) for a certain, fixed period (until its expiration).",
+   "claim": "A call gives its owner the right, not the duty, to buy the stock at the strike until expiration."
+  },
+  {
+   "id": "f10",
+   "source": "s3",
+   "quote": "For the writer of a call option, the contract represents an obligation to sell the underlying product if the option is assigned.",
+   "claim": "The writer of a call must sell the stock if assigned."
+  },
+  {
+   "id": "f11",
+   "source": "s3",
+   "quote": "An option strategy that generally involves the purchase of a longer-termed option(s) (call or put) and the writing of an equal number of nearer-termed option(s) of the same type and strike price.",
+   "claim": "A calendar spread buys a longer-dated option and writes a nearer-dated one of the same type and strike."
+  },
+  {
+   "id": "f12",
+   "source": "s3",
+   "quote": "A protective strategy in which a written call and a long put are taken against a previously owned long stock position.",
+   "claim": "A collar writes a call and buys a put against stock you already own."
+  },
+  {
+   "id": "f13",
+   "source": "s3",
+   "quote": "This is 100 shares for 1 equity option unless adjusted for a special event.",
+   "claim": "One equity option covers 100 shares unless a special event adjusts it."
+  },
+  {
+   "id": "f14",
+   "source": "s3",
+   "quote": "An option strategy in which a call option is written against an equivalent amount of long stock.",
+   "claim": "A covered call is a call written against an equal amount of stock you own."
+  },
+  {
+   "id": "f15",
+   "source": "s3",
+   "quote": "A spread strategy that increases the account's cash balance when established. A bull spread with puts and a bear spread with calls are examples of credit spreads.",
+   "claim": "A credit spread pays you when you open it; bull put spreads and bear call spreads are credit spreads."
+  },
+  {
+   "id": "f16",
+   "source": "s3",
+   "quote": "A selling transaction closes an existing long option position. A purchase transaction closes an existing short option position.",
+   "claim": "You close a long option by selling it and a short option by buying it."
+  },
+  {
+   "id": "f17",
+   "source": "s4",
+   "quote": "A spread strategy that decreases the account's cash balance when established. A bull spread with calls and a bear spread with puts are examples of debit spreads.",
+   "claim": "A debit spread costs money to open; bull call spreads and bear put spreads are debit spreads."
+  },
+  {
+   "id": "f18",
+   "source": "s4",
+   "quote": "A measure of the rate of change in an option's theoretical value for a one-unit change in the price of the underlying stock.",
+   "claim": "Delta measures how much the option's value changes for a one-point move in the stock."
+  },
+  {
+   "id": "f19",
+   "source": "s4",
+   "quote": "In the case of a short equity call, the writer must deliver stock and in return receives cash for the stock sold.",
+   "claim": "An assigned equity call writer delivers shares and receives cash."
+  },
+  {
+   "id": "f20",
+   "source": "s4",
+   "quote": "A strategy involving the simultaneous purchase and writing of two options of the same type that have different strike prices and different expiration dates.",
+   "claim": "A diagonal spread buys and writes two options of the same type with different strikes and different expirations."
+  },
+  {
+   "id": "f21",
+   "source": "s5",
+   "quote": "An option that can be exercised only during a specified period just prior to expiration.",
+   "claim": "A European-style option can be exercised only just before expiration."
+  },
+  {
+   "id": "f22",
+   "source": "s5",
+   "quote": "To invoke the rights granted to the owner of an option contract. In the case of a call, the option owner buys the underlying stock. In the case of a put, the option owner sells the underlying stock.",
+   "claim": "To exercise is to use the option's right: a call holder buys the stock, a put holder sells it."
+  },
+  {
+   "id": "f23",
+   "source": "s5",
+   "quote": "The price that the owner of an option can purchase (call) or sell (put) the underlying stock. Used interchangeably with strike or strike price.",
+   "claim": "Exercise price and strike price mean the same thing."
+  },
+  {
+   "id": "f24",
+   "source": "s5",
+   "quote": "The date that an option and the right to exercise it cease to exist.",
+   "claim": "On the expiration date the option and its right to exercise stop existing."
+  },
+  {
+   "id": "f25",
+   "source": "s5",
+   "quote": "Expiration Friday The last business day prior to the option's expiration date during which purchases and sales of options can be made. For equity options, this is generally the third Friday of the expiration month.",
+   "claim": "For standard equity options, the last trading day is generally the third Friday of the expiration month."
+  },
+  {
+   "id": "f26",
+   "source": "s5",
+   "quote": "If the third Friday of the month is an exchange holiday, the last trading day is the Thursday immediately preceding the third Friday.",
+   "claim": "If that third Friday is an exchange holiday, the last trading day moves to the Thursday before."
+  },
+  {
+   "id": "f27",
+   "source": "s6",
+   "quote": "A measure of the rate of change in an option's Delta for a one-unit change in the price of the underlying stock.",
+   "claim": "Gamma measures how much delta changes for a one-point move in the stock."
+  },
+  {
+   "id": "f28",
+   "source": "s7",
+   "quote": "Historic volatility A measure of actual stock price changes over a specific period.",
+   "claim": "Historical volatility measures how much the stock actually moved over a past period."
+  },
+  {
+   "id": "f29",
+   "source": "s7",
+   "quote": "Holder Any person who has made an opening purchase transaction, call or put, and has that position in a brokerage account.",
+   "claim": "The holder is the person who bought the option to open the position."
+  },
+  {
+   "id": "f30",
+   "source": "s7",
+   "quote": "For example, an owner of common stock may buy a put option to hedge against a possible stock price decline.",
+   "claim": "A stock owner can buy a put to hedge against a drop."
+  },
+  {
+   "id": "f31",
+   "source": "s8",
+   "quote": "For standard options, a call option is in-the-money if the stock price is above the strike price. A put option is in-the-money if the stock price is below the strike price.",
+   "claim": "A call is in the money with the stock above the strike; a put is in the money with the stock below it."
+  },
+  {
+   "id": "f32",
+   "source": "s8",
+   "quote": "Intrinsic value The in-the-money portion of an option's premium.",
+   "claim": "Intrinsic value is the in-the-money part of the premium."
+  },
+  {
+   "id": "f33",
+   "source": "s8",
+   "quote": "An option whose underlying interest is an index. Generally, index options are cash-settled.",
+   "claim": "Index options are generally settled in cash."
+  },
+  {
+   "id": "f34",
+   "source": "s9",
+   "quote": "Long-dated options Calls and puts with an expiration of over nine months when listed.",
+   "claim": "LEAPS are long-dated calls and puts with more than nine months to expiration when listed."
+  },
+  {
+   "id": "f35",
+   "source": "s9",
+   "quote": "Leg A term describing one side of a position with two or more sides.",
+   "claim": "A leg is one side of a position that has two or more sides."
+  },
+  {
+   "id": "f36",
+   "source": "s9",
+   "quote": "When a trader legs into a spread, they establish one side first, hoping for a favorable price movement",
+   "claim": "Legging in means opening one side of a spread first and hoping for a better price on the other."
+  },
+  {
+   "id": "f37",
+   "source": "s9",
+   "quote": "This is a higher-risk method of establishing a spread position.",
+   "claim": "Legging into a spread is the riskier way to open it."
+  },
+  {
+   "id": "f38",
+   "source": "s9",
+   "quote": "Trading environments characterized by high trading volume, a narrow spread between the bid and ask prices, and the ability to trade larger sized orders without significant price changes.",
+   "claim": "A liquid market has high volume, a narrow bid-ask spread and room to trade size without moving the price."
+  },
+  {
+   "id": "f39",
+   "source": "s10",
+   "quote": "Married put strategy The simultaneous purchase of stock and put options representing an equivalent number of shares.",
+   "claim": "A married put buys the stock and the puts at the same time, share for share."
+  },
+  {
+   "id": "f40",
+   "source": "s10",
+   "quote": "An exchange member on the trading floor who buys and sells options for their own account and who has the responsibility of making bids and offers",
+   "claim": "A market maker is an exchange member who trades for its own account and must make bids and offers."
+  },
+  {
+   "id": "f41",
+   "source": "s11",
+   "quote": "Open interest The total number of outstanding option contracts on a given series or for a given underlying stock.",
+   "claim": "Open interest is the total number of option contracts still outstanding."
+  },
+  {
+   "id": "f42",
+   "source": "s11",
+   "quote": "A term used to describe an option that has no intrinsic value. The option's premium consists entirely of time value. For standard contracts, a call option is out-of-the-money if the stock price is below its strike price.",
+   "claim": "An out-of-the-money option has no intrinsic value, so its premium is all time value; a call is out of the money below its strike."
+  },
+  {
+   "id": "f43",
+   "source": "s11",
+   "quote": "Option writer The seller of an option contract who is obligated to meet the terms of delivery if the option owner exercises his or her right.",
+   "claim": "The option writer is the seller who must deliver if the owner exercises."
+  },
+  {
+   "id": "f44",
+   "source": "s11",
+   "quote": "An opening purchase transaction adds long options to an investor's total position, and an opening sale transaction adds short options.",
+   "claim": "Buying to open adds long options; selling to open adds short options."
+  },
+  {
+   "id": "f45",
+   "source": "s12",
+   "quote": "The risk to an investor (option writer) that the stock price will exactly equal the strike price at expiration (that option will be exactly at-the-money).",
+   "claim": "Pin risk is the writer's risk that the stock closes exactly at the strike at expiration."
+  },
+  {
+   "id": "f46",
+   "source": "s12",
+   "quote": "The investor will not know how many of their written(short) options will be assigned or whether a last second move in the underlying will leave any long options in- or out-of-the-money.",
+   "claim": "With pin risk, the writer can't know how many short options will be assigned."
+  },
+  {
+   "id": "f47",
+   "source": "s12",
+   "quote": "The risk is that on the following Monday the option writer might have an unexpected long (in the case of a written put) or short (in the case of a written call) stock position",
+   "claim": "A pinned call writer may find an unexpected short stock position on Monday."
+  },
+  {
+   "id": "f48",
+   "source": "s12",
+   "quote": "Total price of an option: intrinsic value plus time value.",
+   "claim": "Premium is the option's total price: intrinsic value plus time value."
+  },
+  {
+   "id": "f49",
+   "source": "s12",
+   "quote": "An option contract that gives the owner the right to sell the underlying stock at a specified price (its strike price) for a certain, fixed period (until its expiration).",
+   "claim": "A put gives its owner the right to sell the stock at the strike until expiration."
+  },
+  {
+   "id": "f50",
+   "source": "s12",
+   "quote": "An option is said to be “trading for parity” when an option is trading for only its intrinsic value.",
+   "claim": "An option trading for parity trades for its intrinsic value only, with no time value."
+  },
+  {
+   "id": "f51",
+   "source": "s13",
+   "quote": "Rho A measure of the expected change in an option's theoretical value for a 1% change in interest rates.",
+   "claim": "Rho measures how much an option's value changes for a 1% change in interest rates."
+  },
+  {
+   "id": "f52",
+   "source": "s13",
+   "quote": "A trading action in which the trader simultaneously closes an open option position and creates a new option position at a different strike price, different expiration, or both.",
+   "claim": "Rolling closes an option and opens a new one at a different strike, expiration or both, at the same time."
+  },
+  {
+   "id": "f53",
+   "source": "s14",
+   "quote": "An option strategy in which a put option is written against a sufficient amount of cash (or Treasury bills) to pay for the stock purchase if the short option is assigned.",
+   "claim": "A cash-secured put is written with enough cash set aside to buy the stock if assigned."
+  },
+  {
+   "id": "f54",
+   "source": "s14",
+   "quote": "A trading position involving puts and calls on a one-to-one basis in which the puts and calls have the same strike price, expiration and underlying stock.",
+   "claim": "A straddle pairs calls and puts one for one, same strike, same expiration, same stock."
+  },
+  {
+   "id": "f55",
+   "source": "s14",
+   "quote": "When both options are owned, the position is called a long straddle. When both options are written, it is a short straddle.",
+   "claim": "Buying both legs is a long straddle; writing both is a short straddle."
+  },
+  {
+   "id": "f56",
+   "source": "s14",
+   "quote": "The price at which the owner of an option can purchase (call) or sell (put) the underlying stock.",
+   "claim": "The strike is the price at which the owner can buy (call) or sell (put) the stock."
+  },
+  {
+   "id": "f57",
+   "source": "s14",
+   "quote": "It is initiated by borrowing stock from a broker-dealer and selling it in the open market.",
+   "claim": "A short stock position starts by borrowing shares and selling them."
+  },
+  {
+   "id": "f58",
+   "source": "s15",
+   "quote": "A measure of the rate of change in an option's theoretical value for a one-unit change in time to the option's expiration date.",
+   "claim": "Theta measures how much the option's value changes as time to expiration passes."
+  },
+  {
+   "id": "f59",
+   "source": "s15",
+   "quote": "A term used to describe how the theoretical value of an option erodes or reduces with the passage of time. Time decay is specifically quantified by Theta.",
+   "claim": "Time decay is the option's value wearing away as time passes, and theta measures it."
+  },
+  {
+   "id": "f60",
+   "source": "s15",
+   "quote": "The part of an option's total price that exceeds its intrinsic value . The premium of an out-of-the-money option consists entirely of time value.",
+   "claim": "Time value is the part of the price above intrinsic value; an out-of-the-money option is all time value."
+  },
+  {
+   "id": "f61",
+   "source": "s15",
+   "quote": "Also known as calendar spread or horizontal spread.",
+   "claim": "A time spread is also called a calendar spread or a horizontal spread."
+  },
+  {
+   "id": "f62",
+   "source": "s16",
+   "quote": "A short call option position in which the writer does not own an equivalent position in the underlying security represented by his or her option contracts.",
+   "claim": "An uncovered (naked) call is a short call without the stock to back it."
+  },
+  {
+   "id": "f63",
+   "source": "s16",
+   "quote": "Underlying security The security subject to being purchased or sold upon exercise of the option contract.",
+   "claim": "The underlying is the security bought or sold when the option is exercised."
+  },
+  {
+   "id": "f64",
+   "source": "s17",
+   "quote": "A measure of the rate of change in an option's theoretical value for a one-unit change in the volatility assumption.",
+   "claim": "Vega measures how much the option's value changes for a one-point change in volatility."
+  },
+  {
+   "id": "f65",
+   "source": "s17",
+   "quote": "Most commonly used to describe the purchase of one option and writing of another where both are of the same type and of same expiration month, but have different strike prices.",
+   "claim": "A vertical spread buys one option and writes another of the same type and expiration at a different strike."
+  },
+  {
+   "id": "f66",
+   "source": "s18",
+   "quote": "An investor who so sells an option is called the writer, regardless of whether the option is covered or uncovered.",
+   "claim": "Whoever sells an option to open is the writer, covered or not."
+  },
+  {
+   "id": "f67",
+   "source": "s19",
+   "quote": "When an option expires, it no longer exists.",
+   "claim": "After expiration an option no longer exists."
+  },
+  {
+   "id": "f68",
+   "source": "s19",
+   "quote": "When you buy an option, the purchase price is called the premium . If you sell, the premium is the amount you receive.",
+   "claim": "The premium is what the buyer pays and the seller receives."
+  },
+  {
+   "id": "f69",
+   "source": "s19",
+   "quote": "If you do make money on a transaction, you must subtract the cost of the premium from any income to find net profit.",
+   "claim": "Your profit is what's left after subtracting the premium you paid."
+  },
+  {
+   "id": "f70",
+   "source": "s19",
+   "quote": "To offset a short option position, you would enter a buy to close transaction.",
+   "claim": "You close a short option with a buy to close order."
+  },
+  {
+   "id": "f71",
+   "source": "s19",
+   "quote": "An option is a contract to buy or sell a specific financial product known as the option's underlying instrument or underlying security.",
+   "claim": "An option is a contract on a specific product called its underlying."
+  },
+  {
+   "id": "f72",
+   "source": "s20",
+   "quote": "Equity option contracts usually represent 100 shares of the underlying stock.",
+   "claim": "One equity option contract usually covers 100 shares."
+  },
+  {
+   "id": "f73",
+   "source": "s20",
+   "quote": "An option's price is called the premium and is priced at a per share basis.",
+   "claim": "The premium is quoted per share."
+  },
+  {
+   "id": "f74",
+   "source": "s20",
+   "quote": "The option holder's potential loss is limited to the initial premium paid for the contract. Alternately, the writer collects the premium and has theoretically unlimited loss potential for a call option and substantial loss potential for a put option.",
+   "claim": "A buyer can lose only the premium; a call writer's loss is theoretically unlimited and a put writer's is substantial."
+  },
+  {
+   "id": "f75",
+   "source": "s20",
+   "quote": "The opposite of a call option is a put option, which gives its holder the right to sell 100 shares of the underlying security at the strike price, anytime before the option's expiration date.",
+   "claim": "A put gives its holder the right to sell 100 shares at the strike any time before expiration."
+  },
+  {
+   "id": "f76",
+   "source": "s20",
+   "quote": "Equity option holders do not enjoy the rights due stockholders (e.g., voting rights, regular cash or special dividends).",
+   "claim": "Option holders get no votes or dividends; those belong to stockholders."
+  },
+  {
+   "id": "f77",
+   "source": "s20",
+   "quote": "Most equity options that expire in a given month usually expire on the third Friday of the month.",
+   "claim": "Monthly equity options usually expire on the third Friday."
+  },
+  {
+   "id": "f78",
+   "source": "s20",
+   "quote": "Many products now offer short-term options with weekly expirations, so investors should know the exact contract terms, including expiration dates, for all contracts they trade.",
+   "claim": "Many products have weekly expirations, so check each contract's exact expiration."
+  },
+  {
+   "id": "f79",
+   "source": "s21",
+   "quote": "Time value is any premium in excess of intrinsic value before expiration.",
+   "claim": "Time value is any premium above intrinsic value before expiration."
+  },
+  {
+   "id": "f80",
+   "source": "s21",
+   "quote": "Only in-the-money options have intrinsic value.",
+   "claim": "Only in-the-money options have intrinsic value."
+  },
+  {
+   "id": "f81",
+   "source": "s21",
+   "quote": "The longer the amount of time available for market conditions to work to an investor's benefit, the greater the time value.",
+   "claim": "More time to expiration means more time value."
+  },
+  {
+   "id": "f82",
+   "source": "s21",
+   "quote": "Higher volatility estimates indicate greater expected fluctuations (in either direction) in underlying price levels. This expectation generally results in higher option premiums for puts and calls alike.",
+   "claim": "When bigger moves in either direction are expected, calls and puts both tend to cost more."
+  },
+  {
+   "id": "f83",
+   "source": "s21",
+   "quote": "Dividends and risk-free interest rate have a lesser effect.",
+   "claim": "Interest rates and dividends move option prices less than the other inputs."
+  },
+  {
+   "id": "f84",
+   "source": "s22",
+   "quote": "an option writer may be assigned an exercise notice on a short option position at any time before expiration.",
+   "claim": "A writer of an American-style option can be assigned any time before expiration."
+  },
+  {
+   "id": "f85",
+   "source": "s22",
+   "quote": "To avoid assignment on a written option contract on a given day, the position must be closed out before that day's market close.",
+   "claim": "To avoid assignment on a given day, close the short option before that day's close."
+  },
+  {
+   "id": "f86",
+   "source": "s22",
+   "quote": "There is generally no exercise or assignment activity on options that expire out-of-the-money. Owners usually let them expire with no value.",
+   "claim": "Out-of-the-money options usually just expire worthless."
+  },
+  {
+   "id": "f87",
+   "source": "s23",
+   "quote": "Even though there is only one day to exercise your contract, you can always close out your option position in the market on any day prior to expiration.",
+   "claim": "Even with a European-style option you can close the position in the market any day before expiration."
+  },
+  {
+   "id": "f88",
+   "source": "s23",
+   "quote": "All standardized equity options use American-style exercise.",
+   "claim": "Standardized equity options are all American-style."
+  },
+  {
+   "id": "f89",
+   "source": "s23",
+   "quote": "When an option holder exercises an option early, they forfeit any time value priced into the option.",
+   "claim": "Exercising early throws away the option's remaining time value."
+  },
+  {
+   "id": "f90",
+   "source": "s23",
+   "quote": "By exercising the option, the investor forfeits the option's time value of $0.80.",
+   "claim": "In OIC's example, exercising instead of selling gives up the option's time value."
+  },
+  {
+   "id": "f91",
+   "source": "s23",
+   "quote": "OCC uses the $.01 threshold for the positions of its clearing members as an administrative convenience, but your firm may have a different threshold.",
+   "claim": "OCC's exercise threshold is a penny in the money, but your broker may use a different one."
+  },
+  {
+   "id": "f92",
+   "source": "s23",
+   "quote": "TO MINIMIZE THE POTENTIAL FOR ERROR CUSTOMERS SHOULD COMMUNICATE TO THEIR BROKER OR CLEARING MEMBER EXPLICIT INSTRUCTIONS TO EXERCISE, OR NOT EXERCISE, ANY EXPIRING OPTION CONTRACT.",
+   "claim": "Give your broker explicit instructions to exercise or not exercise any expiring option."
+  },
+  {
+   "id": "f93",
+   "source": "s24",
+   "quote": "At expiration, OCC exercises all equity options that are in-the-money by $.01 or more unless the option holder instructs their broker not to exercise or the stock has been removed from OCC's exercise-by-exception processing.",
+   "claim": "At expiration OCC exercises equity options a penny or more in the money unless told not to."
+  },
+  {
+   "id": "f94",
+   "source": "s24",
+   "quote": "Assignment risk increases as the option becomes deeper in-the-money and as expiration approaches",
+   "claim": "Assignment gets more likely as the option goes deeper in the money and expiration nears."
+  },
+  {
+   "id": "f95",
+   "source": "s24",
+   "quote": "Some investors use the saying, “when in doubt, close them out.” This means that if they buy back any short contracts, they are no longer at risk of assignment.",
+   "claim": "Buying back a short option removes the assignment risk."
+  },
+  {
+   "id": "f96",
+   "source": "s25",
+   "quote": "only reflects the total number of open (long or short) option contracts for a given option series that have not yet been closed out. This indicates neither a bullish nor bearish outlook.",
+   "claim": "Open interest counts contracts not yet closed and is neither bullish nor bearish."
+  },
+  {
+   "id": "f97",
+   "source": "s25",
+   "quote": "That open interest reflects one call seller (bearish) and one call buyer (bullish).",
+   "claim": "Every open contract has a seller and a buyer."
+  },
+  {
+   "id": "f98",
+   "source": "s25",
+   "quote": "A closing sale is a transaction in which the seller's intention is to reduce or eliminate a long position in a given series of options.",
+   "claim": "A closing sale reduces or ends a long option position."
+  },
+  {
+   "id": "f99",
+   "source": "s26",
+   "quote": "An option holder may exercise an American-style option any time on or before expiration. An option holder may exercise a European-style option only on its expiration date.",
+   "claim": "American-style can be exercised any time up to expiration; European-style only at expiration."
+  },
+  {
+   "id": "f100",
+   "source": "s26",
+   "quote": "All exchange-traded equity options are American-style. Most index options are European-style.",
+   "claim": "Exchange-traded equity options are American-style; most index options are European-style."
+  },
+  {
+   "id": "f101",
+   "source": "s27",
+   "quote": "Sometimes, the market bids up the implied volatility in anticipation of a market-moving event such as earnings release or a major speech by an important person.",
+   "claim": "Implied volatility is sometimes bid up ahead of events like earnings."
+  },
+  {
+   "id": "f102",
+   "source": "s27",
+   "quote": "After the event, the implied volatility often drops sharply, especially if the event failed to have the expected impact.",
+   "claim": "After the event, implied volatility often drops sharply."
+  },
+  {
+   "id": "f103",
+   "source": "s27",
+   "quote": "Normally, if the stock price goes up and the other factors remain the same, then a call option goes higher. Therefore, if the call option has gone down, then one of the other factors must have changed.",
+   "claim": "If a call falls while the stock rises, another pricing factor such as volatility changed."
+  },
+  {
+   "id": "f104",
+   "source": "s28",
+   "quote": "Delta is a theoretical estimate of how much an option's premium may change given a $1 move in the underlying.",
+   "claim": "Delta estimates how much the premium changes for a $1 move in the stock."
+  },
+  {
+   "id": "f105",
+   "source": "s28",
+   "quote": "Some traders view Delta as a percentage probability an option will wind up in-the-money at expiration.",
+   "claim": "Some traders read delta as a rough probability of finishing in the money."
+  },
+  {
+   "id": "f106",
+   "source": "s28",
+   "quote": "An option with less than a .10 Delta (or less than 10% probability of being in-the-money) is not viewed as very likely to be in-the-money at any point",
+   "claim": "An option under about a .10 delta is not seen as likely to finish in the money."
+  },
+  {
+   "id": "f107",
+   "source": "s28",
+   "quote": "will need a strong move from the underlying to have value at expiration.",
+   "claim": "A very low-delta option needs a strong move to be worth anything at expiration."
+  },
+  {
+   "id": "f108",
+   "source": "s28",
+   "quote": "Delta is constantly changing during market hours and will typically not accurately predict the exact change in an option's premium.",
+   "claim": "Delta keeps changing and won't predict the premium's change exactly."
+  },
+  {
+   "id": "f109",
+   "source": "s28",
+   "quote": "Call Deltas range from 0.00 to 1.00 while put Delta ranges from 0.00 to -1.00.",
+   "claim": "Call deltas run from 0 to 1; put deltas from 0 to -1."
+  },
+  {
+   "id": "f110",
+   "source": "s29",
+   "quote": "How Delta is expected to change given a $1 move in the underlying is called",
+   "claim": "Gamma is how delta is expected to change for a $1 move in the stock."
+  },
+  {
+   "id": "f111",
+   "source": "s29",
+   "quote": "Gamma is higher for options that are at-the-money and closer to expiration.",
+   "claim": "Gamma is highest for at-the-money options near expiration."
+  },
+  {
+   "id": "f112",
+   "source": "s30",
+   "quote": "Theta represents, in theory, how much an option's premium may decay per day with all other pricing factors remaining the same.",
+   "claim": "Theta is the premium's expected daily decay with everything else unchanged."
+  },
+  {
+   "id": "f113",
+   "source": "s30",
+   "quote": "Theta is represented in an actual dollar or premium amount.",
+   "claim": "Theta is quoted in dollars of premium."
+  },
+  {
+   "id": "f114",
+   "source": "s30",
+   "quote": "If stock was trading for $50 and a $50 strike call as trading at $3 with a Theta of .05, an investor would anticipate that option to lose about $.05 per day, all things being equal.",
+   "claim": "A theta of .05 means about $.05 a day of decay per share, all else equal."
+  },
+  {
+   "id": "f115",
+   "source": "s30",
+   "quote": "The theoretical rate of decay will tend to increase as time to expiration decreases.",
+   "claim": "Time decay tends to speed up as expiration gets closer."
+  },
+  {
+   "id": "f116",
+   "source": "s30",
+   "quote": "Upon expiration, an option has no time value and is worth its intrinsic value only.",
+   "claim": "At expiration an option has no time value left, only intrinsic value."
+  },
+  {
+   "id": "f117",
+   "source": "s31",
+   "quote": "Vega measures the amount of increase or decrease in premium based on a 1% (100 basis points) change in the implied volatility assumption.",
+   "claim": "Vega is the premium's change for a 1% change in implied volatility."
+  },
+  {
+   "id": "f118",
+   "source": "s31",
+   "quote": "Longer-term options tend to have higher Vega than near-term options.",
+   "claim": "Longer-dated options tend to carry more vega."
+  },
+  {
+   "id": "f119",
+   "source": "s32",
+   "quote": "Implied Volatility is a measure of how much the marketplace expects the asset price to move based on the price of the option.",
+   "claim": "Implied volatility is how much the market expects the stock to move, read from the option's price."
+  },
+  {
+   "id": "f120",
+   "source": "s32",
+   "quote": "Statistical (Historical) Volatility is a measure of actual asset price changes over a specific period.",
+   "claim": "Historical volatility measures actual price changes over a past period."
+  },
+  {
+   "id": "f121",
+   "source": "s32",
+   "quote": "As the price of the stock changes by $2.00, the price of the options changes by $.50 for every $1.00. Therefore the price of the options changes by (.50 x 2) = $1.00.",
+   "claim": "With a .50 delta, a $2 stock move moves the option about $1: delta times the move."
+  },
+  {
+   "id": "f122",
+   "source": "s32",
+   "quote": "For example, a Theta of -.250 indicates the option's theoretical value changes by -.250.",
+   "claim": "Theta is often shown as a negative number: the value lost per day."
+  },
+  {
+   "id": "f123",
+   "source": "s33",
+   "quote": "interest rate changes impact longer-term options much more than near-term ones",
+   "claim": "Interest rates matter much more for longer-term options than near-term ones."
+  },
+  {
+   "id": "f124",
+   "source": "s33",
+   "quote": "Rho is the measure of an option's sensitivity to interest rate changes.",
+   "claim": "Rho measures sensitivity to interest rate changes."
+  },
+  {
+   "id": "f125",
+   "source": "s34",
+   "quote": "Greeks are not a guarantee of exact option premium changes, but rather a theoretical guidepost",
+   "claim": "The Greeks are estimates, not guarantees."
+  },
+  {
+   "id": "f126",
+   "source": "s35",
+   "quote": "At expiration, the strategy breaks even if the stock price is equal to the strike price plus the initial cost of the call option.",
+   "claim": "A long call breaks even at expiration at the strike plus the premium paid."
+  },
+  {
+   "id": "f127",
+   "source": "s35",
+   "quote": "An option holder cannot lose more than the initial price paid for the option.",
+   "claim": "An option buyer can't lose more than the price paid."
+  },
+  {
+   "id": "f128",
+   "source": "s35",
+   "quote": "The maximum loss is limited and occurs if the investor still holds the call at expiration and the stock is below the strike price.",
+   "claim": "A long call's worst case is holding it to expiration with the stock below the strike."
+  },
+  {
+   "id": "f129",
+   "source": "s35",
+   "quote": "By the same logic, a decline in volatility has a tendency to lower the long call strategy's value, regardless of the overall stock price trend.",
+   "claim": "A drop in volatility tends to lower a long call's value whatever the stock does."
+  },
+  {
+   "id": "f130",
+   "source": "s36",
+   "quote": "This strategy consists of buying puts as a means to profit if the stock price moves lower.",
+   "claim": "A long put is buying puts to profit from a drop."
+  },
+  {
+   "id": "f131",
+   "source": "s36",
+   "quote": "A put buyer has the opportunity to profit from a fall in the stock's price, without risking an unlimited amount of capital, as a short stock seller does.",
+   "claim": "A put buyer profits from a fall without the unlimited risk of shorting stock."
+  },
+  {
+   "id": "f132",
+   "source": "s36",
+   "quote": "The profit potential is significant, and the losses are limited to the premium paid.",
+   "claim": "A long put's loss is limited to the premium paid."
+  },
+  {
+   "id": "f133",
+   "source": "s37",
+   "quote": "For as long as the short call position is open, the investor forfeits much of the stock's profit potential.",
+   "claim": "While the short call is open you give up much of the stock's upside."
+  },
+  {
+   "id": "f134",
+   "source": "s37",
+   "quote": "If the stock price rallies above the call's strike price, the stock is increasingly likely to be called away.",
+   "claim": "If the stock rallies past the strike, the shares are likely to be called away."
+  },
+  {
+   "id": "f135",
+   "source": "s37",
+   "quote": "Stock owners that would be reluctant to part with the shares, especially mid-rally, are not usually candidates for this strategy.",
+   "claim": "If you don't want to part with the shares in a rally, covered calls usually don't fit."
+  },
+  {
+   "id": "f136",
+   "source": "s37",
+   "quote": "The short call option does not increase that downside risk.",
+   "claim": "Writing the covered call doesn't add downside risk to the stock."
+  },
+  {
+   "id": "f137",
+   "source": "s37",
+   "quote": "The premium received adds to the investor's bottom line regardless of outcome.",
+   "claim": "The covered call writer keeps the premium whatever happens."
+  },
+  {
+   "id": "f138",
+   "source": "s38",
+   "quote": "The cash-secured put involves writing an at-the-money or out-of-the-money put option and simultaneously setting aside enough cash to buy the stock.",
+   "claim": "A cash-secured put writes a put and sets aside the cash to buy the stock."
+  },
+  {
+   "id": "f139",
+   "source": "s38",
+   "quote": "The goal is to be assigned and acquire the stock below today's market price.",
+   "claim": "The aim of a cash-secured put is to be assigned and buy the stock below today's price."
+  },
+  {
+   "id": "f140",
+   "source": "s38",
+   "quote": "The investor must be comfortable with the strike price as an acceptable long-term acquisition price, no matter how low the market goes.",
+   "claim": "Only sell the put at a strike you'd accept as your buying price, however far the stock falls."
+  },
+  {
+   "id": "f141",
+   "source": "s39",
+   "quote": "This strategy consists of adding a long put position to a long stock position.",
+   "claim": "A protective put adds a long put to stock you own."
+  },
+  {
+   "id": "f142",
+   "source": "s39",
+   "quote": "The protective put involves buying a put to hedge a stock already in the portfolio. If the put is bought at the same time as the stock, the strategy is called a married put.",
+   "claim": "A protective put hedges stock you already own; bought together with the stock, it's a married put."
+  },
+  {
+   "id": "f143",
+   "source": "s39",
+   "quote": "The protective put establishes a 'floor' price under which investor's stock value cannot fall.",
+   "claim": "A protective put sets a floor price under the stock."
+  },
+  {
+   "id": "f144",
+   "source": "s39",
+   "quote": "A protective put is analogous to homeowner's insurance.",
+   "claim": "A protective put works like insurance."
+  },
+  {
+   "id": "f145",
+   "source": "s40",
+   "quote": "An investor writes a call option and buys a put option with the same expiration as a means to hedge a long position in the underlying stock.",
+   "claim": "A collar writes a call and buys a put, same expiration, to hedge stock you own."
+  },
+  {
+   "id": "f146",
+   "source": "s40",
+   "quote": "The put strike establishes a minimum exit price, should the investor need to liquidate in a downturn.",
+   "claim": "The collar's put strike is your minimum exit price."
+  },
+  {
+   "id": "f147",
+   "source": "s40",
+   "quote": "The call strike sets an upper limit on stock gains.",
+   "claim": "The collar's call strike caps your gains."
+  },
+  {
+   "id": "f148",
+   "source": "s40",
+   "quote": "The premium income from the short call helps pay for the put, but simultaneously sets a limit to the upside profit potential.",
+   "claim": "The call premium helps pay for the put but limits your upside."
+  },
+  {
+   "id": "f149",
+   "source": "s41",
+   "quote": "A bull call spread is a type of vertical spread. It contains two calls with the same expiration but different strikes.",
+   "claim": "A bull call spread is a vertical spread: two calls, same expiration, different strikes."
+  },
+  {
+   "id": "f150",
+   "source": "s41",
+   "quote": "The strike price of the short call is higher than the strike of the long call , which means this strategy will always require an initial outlay (debit).",
+   "claim": "A bull call spread always costs a debit to open."
+  },
+  {
+   "id": "f151",
+   "source": "s41",
+   "quote": "the net premium paid at the outset establishes the maximum risk",
+   "claim": "On a bull call spread, the net premium paid is the most you can lose."
+  },
+  {
+   "id": "f152",
+   "source": "s42",
+   "quote": "Because of the relationship between the two strike prices, the investor will always receive a premium (credit) when initiating this position.",
+   "claim": "A bull put spread always pays a credit to open."
+  },
+  {
+   "id": "f153",
+   "source": "s42",
+   "quote": "This spread generally profits if the stock price holds steady or rises.",
+   "claim": "A bull put spread profits if the stock holds steady or rises."
+  },
+  {
+   "id": "f154",
+   "source": "s43",
+   "quote": "As the strategy's name suggests, it does best if the stock stays below the lower strike price for the duration of the options.",
+   "claim": "A bear call spread does best with the stock below the lower strike."
+  },
+  {
+   "id": "f155",
+   "source": "s43",
+   "quote": "The maximum loss is the difference between the two strikes, but it is reduced by the net credit received at the outset.",
+   "claim": "A bear call spread's max loss is the strike width less the credit."
+  },
+  {
+   "id": "f156",
+   "source": "s43",
+   "quote": "The worst that can happen at expiration is for the stock price to be above the higher strike.",
+   "claim": "A bear call spread's worst case is the stock above the higher strike at expiration."
+  },
+  {
+   "id": "f157",
+   "source": "s44",
+   "quote": "A long straddle is a combination of buying a call and buying a put, both with the same strike price and expiration.",
+   "claim": "A long straddle buys a call and a put with the same strike and expiration."
+  },
+  {
+   "id": "f158",
+   "source": "s44",
+   "quote": "Together, they produce a position that should profit if the stock makes a big move either up or down.",
+   "claim": "A long straddle profits from a big move either way."
+  },
+  {
+   "id": "f159",
+   "source": "s44",
+   "quote": "Because the straddle requires premiums to be paid on two types of options instead of one, the combined expense sets a relatively high hurdle for the strategy to break even.",
+   "claim": "Paying two premiums sets a high bar for a straddle to break even."
+  },
+  {
+   "id": "f160",
+   "source": "s45",
+   "quote": "This strategy typically involves buying an out-of-the money call option and an out-of-the-money put option with the same expiration date.",
+   "claim": "A long strangle buys an out-of-the-money call and an out-of-the-money put with the same expiration."
+  },
+  {
+   "id": "f161",
+   "source": "s45",
+   "quote": "Strangles are less expensive than straddles, but a larger move in the underlying stock is generally required to reach breakeven.",
+   "claim": "Strangles cost less than straddles but need a bigger move to break even."
+  },
+  {
+   "id": "f162",
+   "source": "s46",
+   "quote": "To construct a short condor, the investor sells one call while buying another call with a higher strike and sells one put while buying another put with a lower strike.",
+   "claim": "An iron condor sells a call and buys a higher one, and sells a put and buys a lower one."
+  },
+  {
+   "id": "f163",
+   "source": "s46",
+   "quote": "It could also be considered as a bear call spread and a bull put spread .",
+   "claim": "An iron condor is a bear call spread plus a bull put spread."
+  },
+  {
+   "id": "f164",
+   "source": "s46",
+   "quote": "The investor is hoping for underlying stock to trade in narrow range during the life of the options.",
+   "claim": "An iron condor wants the stock to stay in a narrow range."
+  },
+  {
+   "id": "f165",
+   "source": "s46",
+   "quote": "The loss would be the difference between either the call strikes or the put strikes (whichever are in-the-money), less the premium received for initiating the position.",
+   "claim": "An iron condor's max loss is the width of the losing side less the credit received."
+  },
+  {
+   "id": "f166",
+   "source": "s46",
+   "quote": "In that case all the options would expire worthless, and the premium received to initiate the position could be pocketed.",
+   "claim": "If the stock stays between the short strikes, everything expires worthless and you keep the credit."
+  },
+  {
+   "id": "f167",
+   "source": "s46",
+   "quote": "Instead of a body and two wings, the body has been split into two different strikes",
+   "claim": "A condor splits the butterfly's single middle strike into two strikes."
+  },
+  {
+   "id": "f168",
+   "source": "s47",
+   "quote": "A short iron butterfly consists of being long a call at an upper strike, short a call and short a put at a middle strike, and long a put at a lower strike.",
+   "claim": "An iron butterfly sells a call and a put at one middle strike and buys a call above and a put below."
+  },
+  {
+   "id": "f169",
+   "source": "s47",
+   "quote": "the short iron butterfly differs in that a positive cash flow occurs up front",
+   "claim": "A short iron butterfly takes in cash when you open it."
+  },
+  {
+   "id": "f170",
+   "source": "s47",
+   "quote": "The loss would be the difference between the body and either wing, less the premium received for initiating the position.",
+   "claim": "An iron butterfly's max loss is the distance from body to wing less the credit."
+  },
+  {
+   "id": "f171",
+   "source": "s48",
+   "quote": "This strategy generally profits if the underlying stock is at the body of the butterfly at expiration.",
+   "claim": "A long butterfly does best with the stock at the middle strike at expiration."
+  },
+  {
+   "id": "f172",
+   "source": "s48",
+   "quote": "In either case the premium paid to initiate the position would be lost.",
+   "claim": "A long butterfly's worst case is losing the premium paid."
+  },
+  {
+   "id": "f173",
+   "source": "s49",
+   "quote": "The maximum loss is unlimited. The worst that can happen is for the stock to rise to infinity",
+   "claim": "A naked call's possible loss has no limit."
+  },
+  {
+   "id": "f174",
+   "source": "s49",
+   "quote": "This strategy consists of writing an uncovered call option.",
+   "claim": "A naked call is writing a call without owning the stock."
+  },
+  {
+   "id": "f175",
+   "source": "s49",
+   "quote": "The best that can happen is for expiration to arrive with the stock price below the strike price. In that case, the option expires worthless and the investor pockets the premium received for selling the call option.",
+   "claim": "A naked call's best case is keeping the premium."
+  },
+  {
+   "id": "f176",
+   "source": "s50",
+   "quote": "A naked put involves writing a put option without the reserved cash on hand to purchase the underlying stock.",
+   "claim": "A naked put is writing a put without cash set aside to buy the stock."
+  },
+  {
+   "id": "f177",
+   "source": "s50",
+   "quote": "The investor is expecting a steady or rising stock price during life of option",
+   "claim": "A naked put writer wants a steady or rising stock."
+  },
+  {
+   "id": "f178",
+   "source": "s50",
+   "quote": "The worst that can happen is for the stock price to fall to zero, in which case the investor would be obligated to buy a worthless stock at the strike price.",
+   "claim": "A naked put's worst case is buying a worthless stock at the strike."
+  },
+  {
+   "id": "f179",
+   "source": "s51",
+   "quote": "volume captures activity within a session, whereas open interest reflects the cumulative number of contracts still “open” or pending.",
+   "claim": "Volume is one session's trading; open interest is the contracts still open."
+  },
+  {
+   "id": "f180",
+   "source": "s51",
+   "quote": "One side 'to open' & the other 'to close' → Open Interest remains unchanged.",
+   "claim": "If one side opens and the other closes, open interest doesn't change."
+  },
+  {
+   "id": "f181",
+   "source": "s51",
+   "quote": "Both sides 'to open' → Open Interest increases.",
+   "claim": "If both sides open, open interest rises."
+  },
+  {
+   "id": "f182",
+   "source": "s51",
+   "quote": "Both sides 'to close' → Open Interest decreases.",
+   "claim": "If both sides close, open interest falls."
+  },
+  {
+   "id": "f183",
+   "source": "s51",
+   "quote": "These designations produce four specific types of option orders: buy to open , buy to close , sell to open , and sell to close .",
+   "claim": "There are four option order actions: buy to open, buy to close, sell to open, sell to close."
+  },
+  {
+   "id": "f184",
+   "source": "s52",
+   "quote": "0DTE options are simply listed options that have reached their expiration date",
+   "claim": "0DTE options are ordinary listed options on their expiration day."
+  },
+  {
+   "id": "f185",
+   "source": "s52",
+   "quote": "Despite what the moniker may suggest, 0DTE options are rarely listed on the morning of expiration.",
+   "claim": "0DTE options are rarely listed the morning they expire."
+  },
+  {
+   "id": "f186",
+   "source": "s52",
+   "quote": "In essence, every option will become a 0DTE option on its last day",
+   "claim": "Every option becomes a 0DTE option on its last day."
+  },
+  {
+   "id": "f187",
+   "source": "s53",
+   "quote": "The result describes magnitude of expected movement, not direction.",
+   "claim": "An expected move from implied volatility gives size, not direction."
+  },
+  {
+   "id": "f188",
+   "source": "s53",
+   "quote": "Implied volatility describes magnitude, not direction, and is dynamically linked to option price",
+   "claim": "Implied volatility describes the size of expected moves, not their direction, and moves with option prices."
+  },
+  {
+   "id": "f189",
+   "source": "s54",
+   "quote": "When viewing an option chain, the bid is the highest price an investor is willing to pay, and the ask is the best price at which an investor is willing to sell.",
+   "claim": "On an option chain, the bid is the best price buyers will pay and the ask the best price sellers will take."
+  },
+  {
+   "id": "f190",
+   "source": "s54",
+   "quote": "The order then flows from the brokerage firm’s platform to an exchange.",
+   "claim": "Your order goes from your broker's platform to an exchange."
+  },
+  {
+   "id": "f191",
+   "source": "s55",
+   "quote": "In this case, a premium of $2.20 represents a payment of $220 per option contract ($2.20 x 100 shares).",
+   "claim": "A $2.20 premium costs $220 per contract: the quote times 100 shares."
+  },
+  {
+   "id": "f192",
+   "source": "s55",
+   "quote": "A buyer of an options contract can also be referred to as a “holder” of that options contract.  A seller of an options contract can also be referred to as the “writer” of that options contract.",
+   "claim": "The buyer is the holder and the seller is the writer."
+  },
+  {
+   "id": "f193",
+   "source": "s55",
+   "quote": "When a buyer exercises his or her right under an option contract, the seller of the option contract receives a notice called an assignment",
+   "claim": "When a buyer exercises, the seller gets a notice called an assignment."
+  },
+  {
+   "id": "f194",
+   "source": "s55",
+   "quote": "When a buyer invokes his or her right to buy or sell the underlying security it’s called \"exercising\" the right.",
+   "claim": "Using the option's right to buy or sell is called exercising."
+  },
+  {
+   "id": "f195",
+   "source": "s55",
+   "quote": "Options are derivatives (they derive their value from their underlying assets).",
+   "claim": "Options get their value from their underlying."
+  },
+  {
+   "id": "f196",
+   "source": "s55",
+   "quote": "Since the strike price of the call option is $70, the stock must rise above $70 before the call option is “in-the-money.”",
+   "claim": "A 70 call is in the money only above $70."
+  },
+  {
+   "id": "f197",
+   "source": "s55",
+   "quote": "Additionally, since the contract premium is $2.20 per share, the price of ABC would need to rise to $72.20",
+   "claim": "With a $2.20 premium, that 70 call breaks even only at $72.20."
+  },
+  {
+   "id": "f198",
+   "source": "s56",
+   "quote": "as long as a short options position remains open, the seller may be subject to \"assignment\" on any day equity markets are open.",
+   "claim": "While a short option is open, you can be assigned on any trading day."
+  },
+  {
+   "id": "f199",
+   "source": "s56",
+   "quote": "Once a firm receives an assignment, it then assigns this notice to one of its customers who has a short option contract of the same series.",
+   "claim": "The brokerage firm passes an assignment to one of its customers who is short that series."
+  },
+  {
+   "id": "f200",
+   "source": "s56",
+   "quote": "Options trading carries risk and requires specific approval from an investor's brokerage firm.",
+   "claim": "Your broker must approve you to trade options."
+  },
+  {
+   "id": "f201",
+   "source": "s57",
+   "quote": "An options chain lists all available option contracts for a security, organized by expiration date and strike price.",
+   "claim": "An option chain lists every available contract on a security by expiration and strike."
+  },
+  {
+   "id": "f202",
+   "source": "s57",
+   "quote": "Options chains provide essential data like bid-ask prices, volume, open interest, and implied volatility for informed trading decisions.",
+   "claim": "An option chain shows bid and ask, volume, open interest and implied volatility."
+  },
+  {
+   "id": "f203",
+   "source": "s57",
+   "quote": "Volume : The number of contracts traded during the current session.",
+   "claim": "On a chain, volume is the number of contracts traded in the current session."
+  },
+  {
+   "id": "f204",
+   "source": "s58",
+   "quote": "An option chain is a structured listing of all available option contracts for a specific underlying asset, typically organized by expiration date and strike price.",
+   "claim": "An option chain is a listing of all available contracts on one underlying, by expiration and strike."
+  },
+  {
+   "id": "f205",
+   "source": "s58",
+   "quote": "It presents essential data such as the bid and ask prices, volume, open interest, implied volatility, and Greeks (like Delta and Theta) for each option.",
+   "claim": "A chain shows bid, ask, volume, open interest, implied volatility and the Greeks for each option."
+  },
+  {
+   "id": "f206",
+   "source": "s59",
+   "quote": "Note that the MMM value does not guarantee a stock will move by a certain magnitude, nor does it indicate in which direction a move might occur.",
+   "claim": "An expected-move figure guarantees no size and gives no direction."
+  },
+  {
+   "id": "f207",
+   "source": "s59",
+   "quote": "This tells the trader the options market has priced in a $10 move, whether as low as $90 or as high as $110, due to an upcoming event like earnings.",
+   "claim": "An expected move of $10 on a $100 stock means a move either way is priced in."
+  },
+  {
+   "id": "f208",
+   "source": "s59",
+   "quote": "Checking the MMM on an existing position ahead of earnings might be a good way to decide if it's worth the risk to hold through the event.",
+   "claim": "The expected move can help you decide whether to hold a position through earnings."
+  }
+ ],
+ "walkthroughs": [
+  {
+   "key": "w1",
+   "title": "Rights and obligations",
+   "steps": [
+    "A call is the right to buy the stock at the strike until expiration. A put is the right to sell it.",
+    "One equity contract usually covers 100 shares. The price you pay for it is the premium.",
+    "As the buyer, the most you can lose is that premium.",
+    "The seller, called the writer, collects the premium and takes on the obligation. If a holder exercises, a writer gets assigned."
+   ],
+   "facts": [
+    "f9",
+    "f49",
+    "f72",
+    "f68",
+    "f74",
+    "f66",
+    "f193"
+   ]
+  },
+  {
+   "key": "w2",
+   "title": "What the premium is made of",
+   "steps": [
+    "Every premium splits into two parts: intrinsic value and time value.",
+    "Intrinsic value is how far the option is in the money. Out of the money, it's zero.",
+    "Time value is the rest. All else equal, it melts as expiration nears. At expiration it's gone.",
+    "Implied volatility is the market's guess at the size of the move. When it rises, calls and puts tend to cost more."
+   ],
+   "facts": [
+    "f48",
+    "f32",
+    "f42",
+    "f60",
+    "f115",
+    "f116",
+    "f119",
+    "f82"
+   ]
+  },
+  {
+   "key": "w3",
+   "title": "The Greeks in one pass",
+   "steps": [
+    "Delta: about how much the option moves for a $1 move in the stock.",
+    "Gamma: how fast delta itself changes. Theta: what one day of time costs you.",
+    "Vega: how much the premium moves for a 1-point change in implied volatility.",
+    "They're estimates, not promises. They shift as the stock, the clock and volatility change."
+   ],
+   "facts": [
+    "f104",
+    "f27",
+    "f112",
+    "f117",
+    "f125",
+    "f108"
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "key": "q01",
+   "skill": "vocab.options_terms",
+   "rung": 1,
+   "format": "mcq",
+   "term": "Call option",
+   "q": "What does buying a call give you?",
+   "choices": [
+    "The right to buy at the strike",
+    "The right to sell at the strike",
+    "The duty to buy at the strike",
+    "A share of the company's profits"
+   ],
+   "answer": "The right to buy at the strike",
+   "why": "The right to buy at the strike. You hold that right until expiration, but you never have to use it.",
+   "lesson_line": "A call is a right to buy, never a duty.",
+   "facts": [
+    "f9",
+    "f10",
+    "f76",
+    "f49"
+   ],
+   "wrong": {
+    "The right to sell at the strike": "That's a put. A call is the right to buy.",
+    "The duty to buy at the strike": "Duties sit with the seller. A call writer must sell the stock if assigned; the buyer only holds a right.",
+    "A share of the company's profits": "That's what stockholders get. Option holders get no dividends or votes, just the contract's right."
+   }
+  },
+  {
+   "key": "q02",
+   "skill": "vocab.options_terms",
+   "rung": 1,
+   "format": "mcq",
+   "term": "Put",
+   "q": "Which word is this: the right to sell 100 shares at a set price until a set date?",
+   "choices": [
+    "Put",
+    "Call",
+    "Covered call",
+    "Short sale"
+   ],
+   "answer": "Put",
+   "why": "Put. It gives its holder the right to sell 100 shares at the strike any time before expiration.",
+   "lesson_line": "Calls are the right to buy. Puts are the right to sell.",
+   "facts": [
+    "f75",
+    "f49",
+    "f9",
+    "f14",
+    "f57"
+   ],
+   "wrong": {
+    "Call": "A call is the right to buy at the strike, not to sell.",
+    "Covered call": "That's a call you write against stock you own. It's an obligation to sell, not a right.",
+    "Short sale": "A short sale borrows shares and sells them now. There's no strike and no expiration date."
+   }
+  },
+  {
+   "key": "q03",
+   "skill": "vocab.options_terms",
+   "rung": 1,
+   "format": "mcq",
+   "term": "Strike price",
+   "q": "On an option, what does the strike price mean?",
+   "choices": [
+    "The price you can buy or sell at",
+    "The price you paid for the option",
+    "The stock's price at expiration",
+    "The option's last trade price"
+   ],
+   "answer": "The price you can buy or sell at",
+   "why": "The price you can buy or sell at. A call buys the stock at the strike and a put sells it there. It's also called the exercise price.",
+   "lesson_line": "The strike is the contract's price for the stock. The premium is the price of the contract.",
+   "facts": [
+    "f56",
+    "f23",
+    "f68",
+    "f9"
+   ],
+   "wrong": {
+    "The price you paid for the option": "That's the premium, the price of the contract itself.",
+    "The stock's price at expiration": "That moves with the market. The strike is set in the contract.",
+    "The option's last trade price": "That's the option's own last price. The strike is the stock price written into the contract."
+   }
+  },
+  {
+   "key": "q04",
+   "skill": "vocab.options_terms",
+   "rung": 1,
+   "format": "mcq",
+   "term": "Premium",
+   "q": "What does premium mean on an option?",
+   "choices": [
+    "The price of the option contract",
+    "The profit if held to expiration",
+    "The fee your broker charges you",
+    "The gap from stock price to strike"
+   ],
+   "answer": "The price of the option contract",
+   "why": "The price of the option contract. The buyer pays it and the seller receives it. It's intrinsic value plus time value.",
+   "lesson_line": "Premium is what the option costs. On a quote it's per share.",
+   "facts": [
+    "f68",
+    "f48",
+    "f73",
+    "f69",
+    "f32"
+   ],
+   "wrong": {
+    "The profit if held to expiration": "Profit is what's left after the premium. You subtract what you paid from what you made.",
+    "The fee your broker charges you": "Commissions are separate. The premium goes to whoever sold you the option.",
+    "The gap from stock price to strike": "That gap, when it's in your favor, is intrinsic value. It's only one part of the premium."
+   }
+  },
+  {
+   "key": "q05",
+   "skill": "vocab.options_terms",
+   "rung": 2,
+   "format": "numeric",
+   "q": "A call is quoted at $3.45. One contract covers 100 shares. What does one contract cost, before fees?",
+   "answer": 345,
+   "prefix": "$",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "premium * shares",
+     "premium": 3.45,
+     "shares": 100
+    }
+   },
+   "why": "$345. Option prices are quoted per share, and one equity contract usually covers 100 shares: $3.45 times 100.",
+   "lesson_line": "Multiply the quote by 100. That's what one contract really costs.",
+   "facts": [
+    "f72",
+    "f13",
+    "f73",
+    "f191"
+   ]
+  },
+  {
+   "key": "q06",
+   "skill": "vocab.options_terms",
+   "rung": 2,
+   "format": "mcq",
+   "q": "What happens to an option after its expiration date?",
+   "choices": [
+    "It no longer exists",
+    "It rolls to next month",
+    "It trades until exercised",
+    "It keeps its time value"
+   ],
+   "answer": "It no longer exists",
+   "why": "It no longer exists. The option and the right to exercise it both end at expiration.",
+   "lesson_line": "Every option has a date on it. After that date, it's gone.",
+   "facts": [
+    "f24",
+    "f67",
+    "f52",
+    "f116"
+   ],
+   "wrong": {
+    "It rolls to next month": "Rolling is a trade you choose: close one option and open another. Nothing rolls on its own.",
+    "It trades until exercised": "Trading and exercise both end at expiration. After the date there's nothing left.",
+    "It keeps its time value": "Time value is gone at expiration. Only intrinsic value is left at the end."
+   }
+  },
+  {
+   "key": "q07",
+   "skill": "vocab.options_terms",
+   "rung": 2,
+   "format": "mcq",
+   "term": "Writer",
+   "q": "Name this role: the seller who opened a short option and must fulfill it if assigned.",
+   "choices": [
+    "Writer",
+    "Holder",
+    "Market maker",
+    "Underlying"
+   ],
+   "answer": "Writer",
+   "why": "Writer. Whoever sells an option to open is the writer, covered or not. The obligation is theirs.",
+   "lesson_line": "Holders have rights. Writers have obligations.",
+   "facts": [
+    "f43",
+    "f66",
+    "f192",
+    "f29",
+    "f40",
+    "f63"
+   ],
+   "wrong": {
+    "Holder": "The holder bought the option. The holder has the right, not the obligation.",
+    "Market maker": "A market maker is an exchange member who must post bids and offers. Anyone who sells to open is a writer.",
+    "Underlying": "The underlying is the stock the option is on, not a person."
+   }
+  },
+  {
+   "key": "q08",
+   "skill": "vocab.options_terms",
+   "rung": 2,
+   "format": "fill",
+   "term": "underlying",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "The stock an option lets you buy or sell is its ___.",
+   "bank": [
+    "underlying",
+    "strike",
+    "premium",
+    "series",
+    "writer"
+   ],
+   "answer": "underlying",
+   "why": "Underlying. It's the security bought or sold when the option is exercised.",
+   "lesson_line": "An option gets its value from its underlying. Read that chart first.",
+   "facts": [
+    "f63",
+    "f71",
+    "f195"
+   ]
+  },
+  {
+   "key": "q09",
+   "skill": "vocab.options_terms",
+   "rung": 1,
+   "format": "mcq",
+   "term": "In the money (call)",
+   "q": "What does in the money mean for a call?",
+   "choices": [
+    "The stock is above the strike",
+    "The stock is below the strike",
+    "The trade is showing a profit",
+    "The stock is right at the strike"
+   ],
+   "answer": "The stock is above the strike",
+   "why": "The stock is above the strike. For a put it flips: in the money means the stock is below the strike.",
+   "lesson_line": "In the money describes the option, not whether your trade is making money.",
+   "facts": [
+    "f31",
+    "f196",
+    "f197",
+    "f3",
+    "f80"
+   ],
+   "wrong": {
+    "The stock is below the strike": "That's out of the money for a call. Below the strike is in the money for a put.",
+    "The trade is showing a profit": "Not the same thing. In the SEC's example, a 70 call is in the money above $70 but breaks even only at $72.20.",
+    "The stock is right at the strike": "That's at the money. There's no intrinsic value there."
+   }
+  },
+  {
+   "key": "q10",
+   "skill": "vocab.options_terms",
+   "rung": 2,
+   "format": "mcq",
+   "term": "Intrinsic value",
+   "q": "What does intrinsic value mean on an option?",
+   "choices": [
+    "The in-the-money part of its price",
+    "The whole price you pay for it",
+    "What the company is really worth",
+    "The value of the time that is left"
+   ],
+   "answer": "The in-the-money part of its price",
+   "why": "The in-the-money part of its price. Out of the money, intrinsic value is zero.",
+   "lesson_line": "Intrinsic value is the in-the-money amount. Everything above it is time value.",
+   "facts": [
+    "f32",
+    "f80",
+    "f42",
+    "f48",
+    "f60"
+   ],
+   "wrong": {
+    "The whole price you pay for it": "That's the premium: intrinsic value plus time value.",
+    "What the company is really worth": "That's the stock investor's meaning of the phrase. On an option it's the in-the-money amount.",
+    "The value of the time that is left": "That's time value, the other part of the premium."
+   }
+  },
+  {
+   "key": "q11",
+   "skill": "vocab.options_terms",
+   "rung": 2,
+   "format": "mcq",
+   "term": "Time value",
+   "q": "Which word is this: the part of an option's price above its intrinsic value?",
+   "choices": [
+    "Time value",
+    "Intrinsic value",
+    "Theta",
+    "Parity"
+   ],
+   "answer": "Time value",
+   "why": "Time value. It's whatever the premium is above intrinsic value, and it's gone by expiration.",
+   "lesson_line": "Time value is the part the clock takes. At expiration it's zero.",
+   "facts": [
+    "f60",
+    "f79",
+    "f116",
+    "f32",
+    "f112",
+    "f50"
+   ],
+   "wrong": {
+    "Intrinsic value": "Intrinsic value is the in-the-money part. Time value sits on top of it.",
+    "Theta": "Theta is how fast time value decays each day. Time value is the amount itself.",
+    "Parity": "Parity is an option trading for its intrinsic value only, with no time value at all."
+   }
+  },
+  {
+   "key": "q12",
+   "skill": "vocab.options_terms",
+   "rung": 1,
+   "format": "mcq",
+   "term": "Delta",
+   "q": "What does delta tell you about an option?",
+   "choices": [
+    "Its move per $1 move in the stock",
+    "Its loss per day from time passing",
+    "How fast delta itself changes",
+    "Its move per point of volatility"
+   ],
+   "answer": "Its move per $1 move in the stock",
+   "why": "Its move per $1 move in the stock, all else equal. Delta shifts as the stock moves, so treat it as an estimate.",
+   "lesson_line": "Delta is the option's speed against the stock. It's an estimate that keeps changing.",
+   "facts": [
+    "f104",
+    "f18",
+    "f108",
+    "f112",
+    "f27",
+    "f117"
+   ],
+   "wrong": {
+    "Its loss per day from time passing": "That's theta, the daily cost of time passing.",
+    "How fast delta itself changes": "That's gamma.",
+    "Its move per point of volatility": "That's vega, the sensitivity to implied volatility."
+   }
+  },
+  {
+   "key": "q13",
+   "skill": "vocab.options_terms",
+   "rung": 1,
+   "format": "mcq",
+   "term": "Theta",
+   "q": "Which Greek is this: how much an option's price may lose per day, all else equal?",
+   "choices": [
+    "Theta",
+    "Delta",
+    "Vega",
+    "Gamma"
+   ],
+   "answer": "Theta",
+   "why": "Theta. It estimates the premium's daily decay if nothing else changes.",
+   "lesson_line": "Theta is the daily rent on an option you own. It's charged whether the stock moves or not.",
+   "facts": [
+    "f112",
+    "f58",
+    "f59",
+    "f104",
+    "f117",
+    "f27"
+   ],
+   "wrong": {
+    "Delta": "Delta is the move per $1 in the stock, not the cost of time.",
+    "Vega": "Vega is the sensitivity to implied volatility.",
+    "Gamma": "Gamma is how fast delta changes."
+   }
+  },
+  {
+   "key": "q14",
+   "skill": "vocab.options_terms",
+   "rung": 2,
+   "format": "mcq",
+   "term": "Gamma",
+   "q": "What does gamma measure?",
+   "choices": [
+    "How fast delta changes",
+    "How fast time value decays",
+    "Sensitivity to interest rates",
+    "The option's move per $1"
+   ],
+   "answer": "How fast delta changes",
+   "why": "How fast delta changes. It's the expected change in delta for a $1 move in the stock.",
+   "lesson_line": "Gamma runs highest at the money and close to expiration.",
+   "facts": [
+    "f27",
+    "f110",
+    "f111",
+    "f112",
+    "f51",
+    "f104"
+   ],
+   "wrong": {
+    "How fast time value decays": "That's theta.",
+    "Sensitivity to interest rates": "That's rho.",
+    "The option's move per $1": "That's delta. Gamma is the change in delta."
+   }
+  },
+  {
+   "key": "q15",
+   "skill": "vocab.options_terms",
+   "rung": 2,
+   "format": "mcq",
+   "term": "Vega",
+   "q": "Which Greek is this: the premium's change for a 1-point change in implied volatility?",
+   "choices": [
+    "Vega",
+    "Theta",
+    "Rho",
+    "Delta"
+   ],
+   "answer": "Vega",
+   "why": "Vega. It measures how much the premium rises or falls for a 1-point change in implied volatility.",
+   "lesson_line": "Vega is your exposure to the market's guess about movement. Longer-dated options tend to carry more of it.",
+   "facts": [
+    "f117",
+    "f64",
+    "f118",
+    "f112",
+    "f51",
+    "f104"
+   ],
+   "wrong": {
+    "Theta": "Theta is the decay from time passing.",
+    "Rho": "Rho is the sensitivity to interest rates.",
+    "Delta": "Delta is the sensitivity to the stock's price."
+   }
+  },
+  {
+   "key": "q16",
+   "skill": "vocab.options_terms",
+   "rung": 3,
+   "format": "tf",
+   "q": "Rho measures how an option's price responds to a change in interest rates.",
+   "answer": "True",
+   "why": "True. Rho estimates the change in an option's value for a 1% change in interest rates. Rates move premiums less than price, time and volatility do.",
+   "lesson_line": "Rho is the interest rate Greek. On short-dated trades it's the quietest one.",
+   "facts": [
+    "f51",
+    "f124",
+    "f83",
+    "f123"
+   ]
+  },
+  {
+   "key": "q17",
+   "skill": "vocab.options_terms",
+   "rung": 3,
+   "format": "mcq",
+   "term": "Open interest",
+   "q": "On an option chain, what does open interest count?",
+   "choices": [
+    "Contracts open, not yet closed out",
+    "Contracts traded so far in the day",
+    "Shares of the stock sold short",
+    "Buy orders still waiting to be filled"
+   ],
+   "answer": "Contracts open, not yet closed out",
+   "why": "Contracts open, not yet closed out. It's the total of outstanding contracts in that series.",
+   "lesson_line": "Volume is today's trading. Open interest is what's still open.",
+   "facts": [
+    "f41",
+    "f96",
+    "f179",
+    "f189"
+   ],
+   "wrong": {
+    "Contracts traded so far in the day": "That's volume, which counts one session's trading.",
+    "Shares of the stock sold short": "Open interest counts option contracts, not shares of stock.",
+    "Buy orders still waiting to be filled": "Waiting buy orders show up as the bid. Open interest counts positions already opened."
+   }
+  },
+  {
+   "key": "q18",
+   "skill": "vocab.options_terms",
+   "rung": 3,
+   "format": "mcq",
+   "term": "Assignment",
+   "q": "What is assignment on an option?",
+   "choices": [
+    "Notice a writer must now fulfill",
+    "The holder using their right to act",
+    "Buying back a short option early",
+    "Your broker's options approval"
+   ],
+   "answer": "Notice a writer must now fulfill",
+   "why": "Notice a writer must now fulfill. When a holder exercises, OCC assigns it at random to a broker. The broker passes it to a customer who is short that option.",
+   "lesson_line": "Exercise is the holder's move. Assignment is what lands on the writer.",
+   "facts": [
+    "f2",
+    "f199",
+    "f193",
+    "f198",
+    "f22",
+    "f16",
+    "f200"
+   ],
+   "wrong": {
+    "The holder using their right to act": "That's exercise. Assignment is the other side of it.",
+    "Buying back a short option early": "That's a closing purchase. It ends the short option so it can't be assigned.",
+    "Your broker's options approval": "Brokers do have to approve you for options, but that isn't assignment."
+   }
+  },
+  {
+   "key": "q19",
+   "skill": "vocab.options_terms",
+   "rung": 1,
+   "format": "mcq",
+   "term": "Exercise",
+   "q": "Pick the word for this: the holder uses the option's right to buy or sell at the strike.",
+   "choices": [
+    "Exercise",
+    "Assignment",
+    "Expiration",
+    "Rolling"
+   ],
+   "answer": "Exercise",
+   "why": "Exercise. A call holder who exercises buys the stock at the strike; a put holder sells it there.",
+   "lesson_line": "Exercising early throws away any time value left. Selling the option keeps it.",
+   "facts": [
+    "f22",
+    "f194",
+    "f89",
+    "f90",
+    "f193",
+    "f24",
+    "f52"
+   ],
+   "wrong": {
+    "Assignment": "Assignment is the notice that lands on the writer after a holder exercises.",
+    "Expiration": "Expiration is the date the option ends. Using the right is exercise.",
+    "Rolling": "Rolling closes one option and opens another. Nothing is bought or sold at the strike."
+   }
+  },
+  {
+   "key": "q20",
+   "skill": "vocab.options_terms",
+   "rung": 3,
+   "format": "mcq",
+   "term": "American-style option",
+   "q": "What does American-style mean on an option?",
+   "choices": [
+    "Exercisable any day before expiry",
+    "Exercisable only at expiration",
+    "Listed on a US exchange",
+    "Settled in cash, not shares"
+   ],
+   "answer": "Exercisable any day before expiry",
+   "why": "Exercisable any day before expiry. Standardized equity options are all American-style.",
+   "lesson_line": "The style is about when you can exercise, not where the option trades.",
+   "facts": [
+    "f1",
+    "f99",
+    "f88",
+    "f100",
+    "f21",
+    "f33",
+    "f19"
+   ],
+   "wrong": {
+    "Exercisable only at expiration": "That's European-style.",
+    "Listed on a US exchange": "It's about when you can exercise, not where it trades. Most index options are European-style.",
+    "Settled in cash, not shares": "That's a separate term. An assigned equity call delivers shares, while index options generally settle in cash."
+   }
+  },
+  {
+   "key": "q21",
+   "skill": "vocab.options_terms",
+   "rung": 3,
+   "format": "mcq",
+   "term": "Implied volatility",
+   "q": "What does implied volatility mean?",
+   "choices": [
+    "The move the option price implies",
+    "How much the stock moved lately",
+    "The chance the option pays off",
+    "The option's daily time decay"
+   ],
+   "answer": "The move the option price implies",
+   "why": "The move the option price implies. It's how much the market expects the stock to move, worked back from the premium.",
+   "lesson_line": "Implied volatility is the market's forecast of movement. Historical volatility is what already happened.",
+   "facts": [
+    "f119",
+    "f188",
+    "f120",
+    "f28",
+    "f105",
+    "f112"
+   ],
+   "wrong": {
+    "How much the stock moved lately": "That's historical volatility: actual price changes over a past period.",
+    "The chance the option pays off": "Some traders read delta that way. Implied volatility measures the size of expected moves.",
+    "The option's daily time decay": "That's theta."
+   }
+  },
+  {
+   "key": "q22",
+   "skill": "vocab.options_terms",
+   "rung": 2,
+   "format": "mcq",
+   "term": "Long put",
+   "q": "Which word is this: buying a put on its own to profit if the stock falls?",
+   "choices": [
+    "Long put",
+    "Protective put",
+    "Naked put",
+    "Covered call"
+   ],
+   "answer": "Long put",
+   "why": "Long put. You profit from a drop without the unlimited risk of shorting the stock. Your loss is limited to the premium paid.",
+   "lesson_line": "A long put is a defined-risk bet on a drop. The premium is your whole risk.",
+   "facts": [
+    "f130",
+    "f131",
+    "f132",
+    "f141",
+    "f176",
+    "f177",
+    "f14"
+   ],
+   "wrong": {
+    "Protective put": "A protective put is bought against stock you own, as a hedge. Here there's no stock.",
+    "Naked put": "A naked put is sold, not bought. It profits if the stock holds up.",
+    "Covered call": "A covered call writes a call against owned stock. It's not a bet on a drop."
+   }
+  },
+  {
+   "key": "q23",
+   "skill": "vocab.options_terms",
+   "rung": 4,
+   "format": "tf",
+   "q": "High implied volatility tells you the market expects the stock to go up.",
+   "answer": "False",
+   "why": "False. Implied volatility describes the size of the expected move, not its direction. High implied volatility makes calls and puts both pricier.",
+   "lesson_line": "High implied volatility means expensive options, not a bullish market.",
+   "facts": [
+    "f188",
+    "f187",
+    "f82"
+   ]
+  },
+  {
+   "key": "q24",
+   "skill": "vocab.options_terms",
+   "rung": 4,
+   "format": "scenario",
+   "term": "In the money",
+   "story": "The stock trades at $47. You own the 50-strike put.",
+   "q": "Which word describes your put right now?",
+   "choices": [
+    "In the money",
+    "Out of the money",
+    "At the money"
+   ],
+   "answer": "In the money",
+   "why": "In the money. A put is in the money when the stock is below the strike, and $47 is below $50.",
+   "lesson_line": "Puts flip the rule. Below the strike is in the money.",
+   "facts": [
+    "f31",
+    "f3"
+   ],
+   "wrong": {
+    "Out of the money": "That would be a 50-strike call with the stock at $47. The put is the opposite.",
+    "At the money": "At the money needs the stock right at the $50 strike."
+   }
+  },
+  {
+   "key": "q25",
+   "skill": "vocab.options_terms",
+   "rung": 5,
+   "format": "numeric",
+   "q": "The stock is at $95. The 100-strike call trades at $1.20. How much intrinsic value does it have?",
+   "answer": 0,
+   "prefix": "$",
+   "calc": {
+    "fn": "intrinsic",
+    "args": {
+     "kind": "call",
+     "strike": 100,
+     "underlying": 95
+    }
+   },
+   "why": "$0. The call is out of the money, so all of its $1.20 is time value.",
+   "lesson_line": "Out of the money, you're paying only for time and the chance of a move.",
+   "facts": [
+    "f42",
+    "f80",
+    "f60"
+   ]
+  },
+  {
+   "key": "q26",
+   "skill": "vocab.options_terms",
+   "rung": 4,
+   "format": "numeric",
+   "q": "The stock is at $64. The 60-strike call trades at $5.10. How much of that is time value?",
+   "answer": 1.1,
+   "prefix": "$",
+   "calc": {
+    "fn": "extrinsic",
+    "args": {
+     "kind": "call",
+     "strike": 60,
+     "underlying": 64,
+     "premium": 5.1
+    }
+   },
+   "why": "$1.10. Intrinsic value is $64 minus $60. The rest of the $5.10 is time value.",
+   "lesson_line": "Split every premium: intrinsic value first, then time value.",
+   "facts": [
+    "f32",
+    "f60",
+    "f79",
+    "f31"
+   ]
+  },
+  {
+   "key": "q27",
+   "skill": "vocab.options_terms",
+   "rung": 4,
+   "format": "numeric",
+   "q": "You buy the 60-strike call for $2.50. At expiration, what stock price breaks even, before fees?",
+   "answer": 62.5,
+   "prefix": "$",
+   "calc": {
+    "fn": "option_breakeven",
+    "args": {
+     "kind": "call",
+     "strike": 60,
+     "premium": 2.5
+    }
+   },
+   "why": "$62.50. A call buyer breaks even at the strike plus the premium paid: $60 plus $2.50.",
+   "lesson_line": "A long call needs the stock above strike plus premium to make money at expiration.",
+   "facts": [
+    "f5",
+    "f126"
+   ]
+  },
+  {
+   "key": "q28",
+   "skill": "vocab.options_terms",
+   "rung": 5,
+   "format": "numeric",
+   "q": "Your call has a delta of 0.40. The stock rises $2, all else equal. About how much does the option gain per share?",
+   "answer": 0.8,
+   "prefix": "$",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "delta * move",
+     "delta": 0.4,
+     "move": 2
+    }
+   },
+   "why": "About $0.80. Delta times the move: 0.40 times $2. It's an estimate, because delta shifts as the stock moves.",
+   "lesson_line": "Delta gives you a rough dollar move. Gamma tells you how fast that estimate drifts.",
+   "facts": [
+    "f104",
+    "f121",
+    "f108",
+    "f110"
+   ]
+  },
+  {
+   "key": "q29",
+   "skill": "vocab.options_terms",
+   "rung": 5,
+   "format": "numeric",
+   "q": "Your option's theta is -0.06. If nothing else changes, about how much does one contract lose in a day?",
+   "answer": 6,
+   "prefix": "$",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "theta * shares",
+     "theta": 0.06,
+     "shares": 100
+    }
+   },
+   "why": "About $6. Theta is per share per day: 0.06 times the 100 shares one contract covers.",
+   "lesson_line": "Theta is quoted per share. Multiply by 100 to see what a quiet day costs you.",
+   "facts": [
+    "f112",
+    "f114",
+    "f122",
+    "f72"
+   ]
+  },
+  {
+   "key": "q30",
+   "skill": "vocab.options_terms",
+   "rung": 4,
+   "format": "scenario",
+   "term": "Sell to close",
+   "story": "You bought 5 calls last week. They're up and you want out of the trade.",
+   "q": "Which order action closes them?",
+   "choices": [
+    "Sell to close",
+    "Sell to open",
+    "Buy to close",
+    "Exercise them"
+   ],
+   "answer": "Sell to close",
+   "why": "Sell to close. A closing sale reduces or ends a long option position.",
+   "lesson_line": "Buy to open, sell to close. Sell to open, buy to close.",
+   "facts": [
+    "f98",
+    "f16",
+    "f183",
+    "f44",
+    "f70",
+    "f22",
+    "f89"
+   ],
+   "wrong": {
+    "Sell to open": "That writes new calls and opens a short position. It doesn't close the ones you own.",
+    "Buy to close": "That closes a short option. You're long these calls.",
+    "Exercise them": "That buys the stock at the strike and throws away any time value left."
+   }
+  },
+  {
+   "key": "q31",
+   "skill": "vocab.options_terms",
+   "rung": 4,
+   "format": "tf",
+   "q": "A covered call is a call you write against stock you already own.",
+   "answer": "True",
+   "why": "True. You write the call against an equal amount of stock, and one contract usually covers 100 shares.",
+   "lesson_line": "Covered means the shares are there to deliver if you're assigned.",
+   "facts": [
+    "f14",
+    "f72"
+   ]
+  },
+  {
+   "key": "q32",
+   "skill": "vocab.options_terms",
+   "rung": 5,
+   "format": "scenario",
+   "term": "Cash-secured put",
+   "story": "You'd like to own XYZ, now $52, but at $50. You sell the 50-strike put and set aside the cash to buy 100 shares.",
+   "q": "What's this strategy called?",
+   "choices": [
+    "Cash-secured put",
+    "Protective put",
+    "Covered call",
+    "Naked put"
+   ],
+   "answer": "Cash-secured put",
+   "why": "Cash-secured put. You write the put and hold enough cash to buy the stock if assigned. Here, assignment is the goal.",
+   "lesson_line": "Only sell a put at a price where you'd be happy to own the stock.",
+   "facts": [
+    "f53",
+    "f138",
+    "f139",
+    "f140",
+    "f141",
+    "f14",
+    "f176"
+   ],
+   "wrong": {
+    "Protective put": "A protective put is bought to hedge stock you own. You sold a put.",
+    "Covered call": "A covered call writes a call against stock you own.",
+    "Naked put": "A naked put has no cash set aside to buy the stock. Yours does."
+   }
+  },
+  {
+   "key": "q33",
+   "skill": "vocab.options_terms",
+   "rung": 4,
+   "format": "mcq",
+   "term": "Protective put",
+   "q": "What is a protective put?",
+   "choices": [
+    "A put bought to hedge stock you own",
+    "A put sold to collect premium",
+    "A call sold against your stock",
+    "A put bought to bet on a drop"
+   ],
+   "answer": "A put bought to hedge stock you own",
+   "why": "A put bought to hedge stock you own. The strike sets a floor where you can sell. Buy the stock and the put together and it's called a married put.",
+   "lesson_line": "A protective put is insurance. You pay the premium and hope you never need it.",
+   "facts": [
+    "f141",
+    "f142",
+    "f143",
+    "f144",
+    "f30",
+    "f176",
+    "f14",
+    "f133",
+    "f130",
+    "f136"
+   ],
+   "wrong": {
+    "A put sold to collect premium": "That's a short put. Selling a put takes on the duty to buy. It doesn't protect your shares.",
+    "A call sold against your stock": "That's a covered call. It caps your upside and puts no floor under the stock.",
+    "A put bought to bet on a drop": "That's a long put on its own, with no stock to protect."
+   }
+  },
+  {
+   "key": "q34",
+   "skill": "vocab.options_terms",
+   "rung": 6,
+   "format": "scenario",
+   "term": "Collar",
+   "story": "You own 100 shares bought at $80. They're now $98. You buy the 95-strike put and sell the 105-strike call, same expiry.",
+   "q": "What is this position called?",
+   "choices": [
+    "Collar",
+    "Covered call",
+    "Long strangle",
+    "Bull call spread"
+   ],
+   "answer": "Collar",
+   "why": "Collar. The put sets a floor at $95 and the call caps you at $105 until expiry. The call's premium helps pay for the put.",
+   "lesson_line": "A collar trades the upside past the call for a floor under the stock.",
+   "facts": [
+    "f12",
+    "f145",
+    "f146",
+    "f147",
+    "f148",
+    "f14",
+    "f160",
+    "f149"
+   ],
+   "wrong": {
+    "Covered call": "A covered call has no put, so no floor under the stock.",
+    "Long strangle": "A long strangle buys a call and a put, with no stock. You sold the call.",
+    "Bull call spread": "That's two calls, one bought and one sold. You hold stock and a put."
+   }
+  },
+  {
+   "key": "q35",
+   "skill": "vocab.options_terms",
+   "rung": 4,
+   "format": "mcq",
+   "term": "Vertical spread",
+   "q": "What do you call buying one option and writing another, same type and expiry, at a different strike?",
+   "choices": [
+    "Vertical spread",
+    "Calendar spread",
+    "Diagonal spread",
+    "Straddle"
+   ],
+   "answer": "Vertical spread",
+   "why": "Vertical spread. Same type, same expiry, different strikes. A bull call spread is one.",
+   "lesson_line": "Vertical means different strikes. Calendar means different dates.",
+   "facts": [
+    "f65",
+    "f149",
+    "f11",
+    "f20",
+    "f54"
+   ],
+   "wrong": {
+    "Calendar spread": "A calendar keeps the strike and uses two expirations.",
+    "Diagonal spread": "A diagonal changes both the strike and the expiration.",
+    "Straddle": "A straddle pairs a call and a put at the same strike."
+   }
+  },
+  {
+   "key": "q36",
+   "skill": "vocab.options_terms",
+   "rung": 5,
+   "format": "scenario",
+   "term": "Bull put spread",
+   "story": "Your journal row reads Put Credit Spread. The legs: sell the 45-strike put, buy the 40-strike put, same expiry.",
+   "q": "What's the textbook name for this trade?",
+   "choices": [
+    "Bull put spread",
+    "Bear put spread",
+    "Protective put",
+    "Long strangle"
+   ],
+   "answer": "Bull put spread",
+   "why": "Bull put spread. You write the higher-strike put, buy the lower one and collect a credit to open. It does best if the stock holds or rises.",
+   "lesson_line": "A put credit spread is a bull put spread. Same trade, two names.",
+   "facts": [
+    "f6",
+    "f15",
+    "f152",
+    "f153",
+    "f7",
+    "f17",
+    "f141",
+    "f160"
+   ],
+   "wrong": {
+    "Bear put spread": "That buys the higher-strike put and writes the lower one, for a debit. It's the bearish version.",
+    "Protective put": "That's a put bought against stock you own. There's no stock here.",
+    "Long strangle": "That buys a call and a put. Here you sold one put and bought another."
+   }
+  },
+  {
+   "key": "q37",
+   "skill": "vocab.options_terms",
+   "rung": 5,
+   "format": "mcq",
+   "term": "Debit spread",
+   "q": "What does debit spread mean?",
+   "choices": [
+    "A spread that costs money to open",
+    "A spread that pays you to open",
+    "A spread with two expiry dates",
+    "A spread with unlimited risk"
+   ],
+   "answer": "A spread that costs money to open",
+   "why": "A spread that costs money to open. It lowers your cash balance when you put it on. A bull call spread is one.",
+   "lesson_line": "On a debit spread you pay to open. On a credit spread you're paid to open.",
+   "facts": [
+    "f17",
+    "f15",
+    "f150",
+    "f11",
+    "f20",
+    "f151"
+   ],
+   "wrong": {
+    "A spread that pays you to open": "That's a credit spread.",
+    "A spread with two expiry dates": "That's a calendar or a diagonal. Debit or credit is about cash, not dates.",
+    "A spread with unlimited risk": "Debit or credit is about cash at the open, not the size of the risk. On a bull call spread, the net premium paid is the max risk."
+   }
+  },
+  {
+   "key": "q38",
+   "skill": "vocab.options_terms",
+   "rung": 4,
+   "format": "mcq",
+   "term": "Long straddle",
+   "q": "What is a long straddle?",
+   "choices": [
+    "Buy a call and a put, same strike",
+    "Buy a call and a put, two strikes",
+    "Sell a call and a put, same strike",
+    "Buy the stock and buy a put"
+   ],
+   "answer": "Buy a call and a put, same strike",
+   "why": "Buy a call and a put, same strike. Same expiry too. It pays if the stock makes a big move either way.",
+   "lesson_line": "A straddle bets on the size of the move, not the direction. You pay two premiums for it.",
+   "facts": [
+    "f157",
+    "f54",
+    "f55",
+    "f158",
+    "f159",
+    "f160",
+    "f39"
+   ],
+   "wrong": {
+    "Buy a call and a put, two strikes": "Different strikes make it a strangle.",
+    "Sell a call and a put, same strike": "Writing both is a short straddle.",
+    "Buy the stock and buy a put": "That's a married put."
+   }
+  },
+  {
+   "key": "q39",
+   "skill": "vocab.options_terms",
+   "rung": 6,
+   "format": "scenario",
+   "term": "Long strangle",
+   "story": "Earnings are tonight. The stock is at $100. You buy the 110-strike call and the 90-strike put, same expiry.",
+   "q": "What is this position called?",
+   "choices": [
+    "Long strangle",
+    "Long straddle",
+    "Iron condor",
+    "Collar"
+   ],
+   "answer": "Long strangle",
+   "why": "Long strangle. You bought an out-of-the-money call and an out-of-the-money put. It's cheaper than a straddle but needs a bigger move to break even.",
+   "lesson_line": "Strangles cost less than straddles, but they need a bigger move to pay.",
+   "facts": [
+    "f160",
+    "f161",
+    "f157",
+    "f162",
+    "f12"
+   ],
+   "wrong": {
+    "Long straddle": "A straddle uses one strike for both. Yours are at $110 and $90.",
+    "Iron condor": "An iron condor sells options near the stock and buys others further out. You only bought.",
+    "Collar": "A collar needs stock you own, plus a call you sold."
+   }
+  },
+  {
+   "key": "q40",
+   "skill": "vocab.options_terms",
+   "rung": 5,
+   "format": "mcq",
+   "term": "Calendar spread",
+   "q": "Which word is this: write a near-term option and buy a longer-term one, same type and strike?",
+   "choices": [
+    "Calendar spread",
+    "Diagonal spread",
+    "Vertical spread",
+    "Butterfly spread"
+   ],
+   "answer": "Calendar spread",
+   "why": "Calendar spread. Same strike, different expirations. It's also called a time spread or a horizontal spread.",
+   "lesson_line": "Calendars trade time: one strike, two expiration dates.",
+   "facts": [
+    "f11",
+    "f61",
+    "f20",
+    "f65",
+    "f8"
+   ],
+   "wrong": {
+    "Diagonal spread": "A diagonal changes the strike too.",
+    "Vertical spread": "A vertical keeps one expiration and uses two strikes.",
+    "Butterfly spread": "A butterfly uses three strikes."
+   }
+  },
+  {
+   "key": "q41",
+   "skill": "vocab.options_terms",
+   "rung": 6,
+   "format": "tf",
+   "q": "A diagonal spread uses two options of the same type with different strikes and different expirations.",
+   "answer": "True",
+   "why": "True. Change only the expiry and it's a calendar. Change only the strike and it's a vertical. Change both and it's a diagonal.",
+   "lesson_line": "A diagonal is a calendar and a vertical in one: new strike, new date.",
+   "facts": [
+    "f20",
+    "f11",
+    "f65"
+   ]
+  },
+  {
+   "key": "q42",
+   "skill": "vocab.options_terms",
+   "rung": 6,
+   "format": "mcq",
+   "term": "Iron condor",
+   "q": "An iron condor sold for a credit can be seen as two spreads put together. Which two?",
+   "choices": [
+    "Bear call spread plus bull put spread",
+    "Bull call spread plus bull put spread",
+    "Long straddle plus long strangle",
+    "Covered call plus protective put"
+   ],
+   "answer": "Bear call spread plus bull put spread",
+   "why": "Bear call spread plus bull put spread. You sell a call and a put near the stock and buy further-out ones to cap the risk. It wants a quiet stock.",
+   "lesson_line": "An iron condor is two credit spreads around the price. It earns if the stock stays in range.",
+   "facts": [
+    "f162",
+    "f163",
+    "f164",
+    "f165",
+    "f166",
+    "f153",
+    "f12"
+   ],
+   "wrong": {
+    "Bull call spread plus bull put spread": "Both of those are bullish. A condor pairs a bearish call spread with a bullish put spread, so it earns in a range.",
+    "Long straddle plus long strangle": "Those both buy options. An iron condor sells the inside call and put.",
+    "Covered call plus protective put": "That's a collar on stock you own. An iron condor uses no stock."
+   }
+  },
+  {
+   "key": "q43",
+   "skill": "vocab.options_terms",
+   "rung": 6,
+   "format": "mcq",
+   "term": "Iron butterfly",
+   "q": "What makes an iron butterfly different from an iron condor?",
+   "choices": [
+    "Short call and put at one strike",
+    "It is built only from long calls",
+    "It costs a net debit to open it",
+    "Its loss has no limit on either side"
+   ],
+   "answer": "Short call and put at one strike",
+   "why": "Short call and put share one strike. The iron butterfly sells both at the middle strike. The condor splits that body into two strikes.",
+   "lesson_line": "Butterfly: one body strike. Condor: two.",
+   "facts": [
+    "f168",
+    "f167",
+    "f8",
+    "f169",
+    "f166",
+    "f170"
+   ],
+   "wrong": {
+    "It is built only from long calls": "That's a call butterfly. The iron version mixes calls and puts.",
+    "It costs a net debit to open it": "Debit or credit doesn't separate them. Sold the usual way, both take in cash up front.",
+    "Its loss has no limit on either side": "Its long wings cap the loss: body to wing, less the credit."
+   }
+  },
+  {
+   "key": "q44",
+   "skill": "vocab.options_terms",
+   "rung": 5,
+   "format": "tf",
+   "q": "A long call butterfly buys one low-strike call, writes two middle-strike calls and buys one high-strike call.",
+   "answer": "True",
+   "why": "True. One, two, one. It does best with the stock at the middle strike at expiration.",
+   "lesson_line": "A butterfly bets on a price target, and the most you can lose is what you paid.",
+   "facts": [
+    "f8",
+    "f171",
+    "f172"
+   ]
+  },
+  {
+   "key": "q45",
+   "skill": "vocab.options_terms",
+   "rung": 6,
+   "format": "fill",
+   "term": "LEAPS",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "Calls and puts with over nine months to expiration when listed are called ___.",
+   "bank": [
+    "LEAPS",
+    "Weeklys",
+    "0DTE options",
+    "Quarterlys"
+   ],
+   "answer": "LEAPS",
+   "why": "LEAPS. That's the name for long-dated options, more than nine months out when they're listed.",
+   "lesson_line": "LEAPS buy time, and time costs more premium.",
+   "facts": [
+    "f34",
+    "f81"
+   ]
+  },
+  {
+   "key": "q46",
+   "skill": "vocab.options_terms",
+   "rung": 5,
+   "format": "mcq",
+   "term": "Rolling",
+   "q": "What does it mean to roll an option position?",
+   "choices": [
+    "Close it, open a new strike or date",
+    "Exercise it early for the shares",
+    "Add contracts at a lower price",
+    "Let it expire, then wait"
+   ],
+   "answer": "Close it, open a new strike or date",
+   "why": "Close it, open a new strike or date. You close the old option and open a new one at a different strike, expiration or both, at the same time.",
+   "lesson_line": "A roll is two trades at once: a close and a new open.",
+   "facts": [
+    "f52",
+    "f22",
+    "f4",
+    "f24"
+   ],
+   "wrong": {
+    "Exercise it early for the shares": "Exercise turns the option into a stock trade at the strike.",
+    "Add contracts at a lower price": "That's averaging down.",
+    "Let it expire, then wait": "Letting it expire ends the position. Nothing new is opened."
+   }
+  },
+  {
+   "key": "q47",
+   "skill": "vocab.options_terms",
+   "rung": 4,
+   "format": "fill",
+   "term": "leg",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "My iron condor has four options. Each one is a ___ of the trade.",
+   "bank": [
+    "leg",
+    "spread",
+    "strike",
+    "premium"
+   ],
+   "answer": "leg",
+   "why": "Leg. Each side of a position with two or more parts is a leg. This condor has four: two calls and two puts.",
+   "lesson_line": "Enter a spread as one order. Legging in one side at a time is the riskier way.",
+   "facts": [
+    "f35",
+    "f36",
+    "f37",
+    "f162"
+   ]
+  },
+  {
+   "key": "q48",
+   "skill": "vocab.options_terms",
+   "rung": 5,
+   "format": "mcq",
+   "term": "Option chain",
+   "q": "What is an option chain?",
+   "choices": [
+    "Contracts listed by strike, expiry",
+    "A chart of the option's past prices",
+    "A string of rolls on one position",
+    "The route your order takes to market"
+   ],
+   "answer": "Contracts listed by strike, expiry",
+   "why": "A list of contracts by strike and expiry. It shows the calls and puts available on one underlying, with bid, ask, volume and open interest.",
+   "lesson_line": "Read the chain before you trade: the bid, the ask, the volume and the open interest.",
+   "facts": [
+    "f201",
+    "f204",
+    "f202",
+    "f205",
+    "f52",
+    "f190"
+   ],
+   "wrong": {
+    "A chart of the option's past prices": "That's a price chart. The chain is a table of the contracts listed now.",
+    "A string of rolls on one position": "Rolling closes one option and opens another. A chain is the list of contracts.",
+    "The route your order takes to market": "Your order flows from your broker to an exchange. The chain is the quote table you pick from."
+   }
+  },
+  {
+   "key": "q49",
+   "skill": "vocab.options_terms",
+   "rung": 6,
+   "format": "scenario",
+   "term": "Bear call spread",
+   "story": "Your journal row reads Call Credit Spread: sell the 60-strike call, buy the 65-strike call, same expiry.",
+   "q": "Where does this trade do best?",
+   "choices": [
+    "Stock stays below $60",
+    "Stock rallies above $65",
+    "Stock sits right at $65",
+    "Stock makes a big move either way"
+   ],
+   "answer": "Stock stays below $60",
+   "why": "Stock stays below $60. That's a bear call spread: if both calls expire worthless, you keep the whole credit.",
+   "lesson_line": "A call credit spread is a bear call spread. It wants the stock under the short strike.",
+   "facts": [
+    "f154",
+    "f15",
+    "f155",
+    "f156",
+    "f158"
+   ],
+   "wrong": {
+    "Stock rallies above $65": "Above $65 is the worst case: the strike width less the credit.",
+    "Stock sits right at $65": "At $65 the short call is in the money by the full width. That's already the max loss.",
+    "Stock makes a big move either way": "That's what a long straddle wants. This trade wants the stock to stay down."
+   }
+  },
+  {
+   "key": "q50",
+   "skill": "vocab.options_terms",
+   "rung": 7,
+   "format": "numeric",
+   "q": "Iron condor: sell the 65 call, buy the 70 call, sell the 55 put, buy the 50 put, for a $1.50 credit. Max loss per contract?",
+   "answer": 350,
+   "prefix": "$",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(long_call - short_call - credit) * shares",
+     "long_call": 70,
+     "short_call": 65,
+     "credit": 1.5,
+     "shares": 100
+    }
+   },
+   "why": "$350. The width between the call strikes, $70 less $65, minus the $1.50 credit, times 100 shares.",
+   "lesson_line": "Know the max loss before you sell premium. On a condor it's the wing width minus the credit.",
+   "facts": [
+    "f165",
+    "f13"
+   ]
+  },
+  {
+   "key": "q51",
+   "skill": "vocab.options_terms",
+   "rung": 7,
+   "format": "scenario",
+   "term": "Naked call",
+   "story": "You sell a call on a stock you don't own. You have no other position in it.",
+   "q": "What's the most you could lose?",
+   "choices": [
+    "No limit",
+    "The premium you took in",
+    "The strike price",
+    "Strike minus the premium"
+   ],
+   "answer": "No limit",
+   "why": "No limit. That's an uncovered call. If the stock keeps rising, you'd have to buy shares at any price to deliver at the strike.",
+   "lesson_line": "A naked call caps your gain at the premium and leaves your loss open.",
+   "facts": [
+    "f62",
+    "f174",
+    "f173",
+    "f175",
+    "f74",
+    "f178"
+   ],
+   "wrong": {
+    "The premium you took in": "That's the most you can make, not lose.",
+    "The strike price": "A short put's loss stops when the stock hits zero. A short call's loss doesn't stop.",
+    "Strike minus the premium": "That's a naked put's worst case. A short call's loss has no such cap."
+   }
+  },
+  {
+   "key": "q52",
+   "skill": "vocab.options_terms",
+   "rung": 7,
+   "format": "tf",
+   "q": "If you write a naked put, the most you can lose is the premium you collected.",
+   "answer": "False",
+   "why": "False. The premium is your best case. If the stock goes to zero, you still have to buy it at the strike, less the premium you took in.",
+   "lesson_line": "Selling a put means agreeing to buy the stock at the strike. Plan for owning it.",
+   "facts": [
+    "f176",
+    "f178",
+    "f74"
+   ]
+  },
+  {
+   "key": "q53",
+   "skill": "vocab.options_terms",
+   "rung": 7,
+   "format": "scenario",
+   "term": "Assignment",
+   "story": "You sold a covered call on 100 shares. The stock rallied through the strike. Now your shares are gone, with cash at the strike in their place.",
+   "q": "Which word names what happened?",
+   "choices": [
+    "Assignment",
+    "Exercise",
+    "Expiration",
+    "Rolling"
+   ],
+   "answer": "Assignment",
+   "why": "Assignment. A holder exercised, and the notice landed on your short call. Your shares were called away at the strike.",
+   "lesson_line": "Write covered calls only on shares you're willing to sell at the strike.",
+   "facts": [
+    "f193",
+    "f2",
+    "f134",
+    "f135",
+    "f19",
+    "f24",
+    "f52"
+   ],
+   "wrong": {
+    "Exercise": "Exercise was the holder's move. What happened to you, the writer, is assignment.",
+    "Expiration": "Expiration is just the end date. Your shares moved because a holder exercised.",
+    "Rolling": "Rolling is your own trade: close the call and open another. Your shares would still be there."
+   }
+  },
+  {
+   "key": "q54",
+   "skill": "vocab.options_terms",
+   "rung": 7,
+   "format": "tf",
+   "q": "If you're short an American-style option, you can be assigned on any trading day before expiration.",
+   "answer": "True",
+   "why": "True. The holder can exercise any day, so the writer can be assigned any day. It gets more likely as the option goes deeper in the money and expiry nears.",
+   "lesson_line": "Short an option and you're on call every trading day. Close it before the bell to avoid assignment that day.",
+   "facts": [
+    "f84",
+    "f198",
+    "f1",
+    "f94",
+    "f85"
+   ]
+  },
+  {
+   "key": "q55",
+   "skill": "vocab.options_terms",
+   "rung": 8,
+   "format": "tf",
+   "q": "You can't get out of a European-style option before its expiration day.",
+   "answer": "False",
+   "why": "False. You can exercise it only at or just before expiration, but you can sell it in the market any day before then.",
+   "lesson_line": "Exercise style limits exercising, not trading. You can always close in the market.",
+   "facts": [
+    "f21",
+    "f99",
+    "f87"
+   ]
+  },
+  {
+   "key": "q56",
+   "skill": "vocab.options_terms",
+   "rung": 8,
+   "format": "scenario",
+   "term": "Exercise by exception",
+   "story": "Your call expires today, $0.03 in the money at the close. You gave your broker no instructions.",
+   "q": "Under OCC's standard procedure, what usually happens?",
+   "choices": [
+    "It's exercised for you",
+    "It expires worthless",
+    "It's sold at the close",
+    "It rolls to next month"
+   ],
+   "answer": "It's exercised for you",
+   "why": "It's exercised for you. OCC exercises expiring equity options a penny or more in the money unless told not to. Your broker may use a different threshold.",
+   "lesson_line": "Never leave an expiring option to chance. Tell your broker: exercise, or don't.",
+   "facts": [
+    "f93",
+    "f91",
+    "f92",
+    "f86",
+    "f52"
+   ],
+   "wrong": {
+    "It expires worthless": "That's what usually happens to an out-of-the-money option. Yours is in the money.",
+    "It's sold at the close": "A sale takes an order. Under OCC's procedure, a penny in the money means exercise.",
+    "It rolls to next month": "Rolling is a trade you choose. Nothing rolls on its own."
+   }
+  },
+  {
+   "key": "q57",
+   "skill": "vocab.options_terms",
+   "rung": 8,
+   "format": "scenario",
+   "term": "Pin risk",
+   "story": "You're short the 50-strike call. At Friday's expiration close, the stock sits at exactly $50.00.",
+   "q": "Which risk does that leave you with over the weekend?",
+   "choices": [
+    "Pin risk",
+    "Time decay",
+    "Liquidity risk",
+    "Interest rate risk"
+   ],
+   "answer": "Pin risk",
+   "why": "Pin risk. With the stock right at the strike, you can't know if you'll be assigned. On Monday you could find yourself short stock you didn't plan on.",
+   "lesson_line": "When in doubt, close them out. A short option bought back can't be assigned.",
+   "facts": [
+    "f45",
+    "f46",
+    "f47",
+    "f95",
+    "f116",
+    "f38",
+    "f51"
+   ],
+   "wrong": {
+    "Time decay": "There's no time value left to decay at expiration.",
+    "Liquidity risk": "Liquidity is about trading easily. The market's closed; the open question is assignment.",
+    "Interest rate risk": "That's rho, a pricing input. It doesn't decide whether you're assigned."
+   }
+  },
+  {
+   "key": "q58",
+   "skill": "vocab.options_terms",
+   "rung": 7,
+   "format": "tf",
+   "q": "Rising open interest in a stock's calls means traders are bullish on it.",
+   "answer": "False",
+   "why": "False. Every open contract has a buyer and a seller. Open interest counts contracts still open, not which side is right.",
+   "lesson_line": "Open interest counts positions, not opinions.",
+   "facts": [
+    "f96",
+    "f97"
+   ]
+  },
+  {
+   "key": "q59",
+   "skill": "vocab.options_terms",
+   "rung": 8,
+   "format": "scenario",
+   "term": "Volume",
+   "story": "A call series has open interest of 1,200. Today one trader buys 300 to open. The seller was closing 300 calls she owned.",
+   "q": "What happened to volume and open interest?",
+   "choices": [
+    "Volume 300; open interest stays 1,200",
+    "Volume 300; open interest rises to 1,500",
+    "Volume 600; open interest up to 1,500",
+    "No volume; open interest 900"
+   ],
+   "answer": "Volume 300; open interest stays 1,200",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "oi + opened - closed",
+     "oi": 1200,
+     "opened": 300,
+     "closed": 300
+    }
+   },
+   "why": "Volume 300; open interest stays 1,200. One side opened and the other closed, so the count didn't change. Volume counts the contracts traded today.",
+   "lesson_line": "Volume is today's trading. Open interest only grows when both sides open.",
+   "facts": [
+    "f180",
+    "f179",
+    "f203",
+    "f181",
+    "f182"
+   ],
+   "wrong": {
+    "Volume 300; open interest rises to 1,500": "Open interest rises only when both sides open. The seller was closing.",
+    "Volume 600; open interest up to 1,500": "Volume counts contracts traded, and 300 changed hands. Open interest didn't rise either.",
+    "No volume; open interest 900": "There was a trade, so there's volume. Open interest falls only when both sides close."
+   }
+  },
+  {
+   "key": "q60",
+   "skill": "vocab.options_terms",
+   "rung": 8,
+   "format": "scenario",
+   "term": "Implied volatility",
+   "story": "You buy calls the day before earnings. The report is good and the stock opens up 2%. Your calls open lower than you paid.",
+   "q": "What most likely hurt your calls?",
+   "choices": [
+    "Implied volatility fell after the report",
+    "Delta flipped negative on the gap",
+    "Your calls were assigned overnight",
+    "Open interest dropped overnight"
+   ],
+   "answer": "Implied volatility fell after the report",
+   "why": "Implied volatility fell after the report. It can be bid up before earnings and often drops sharply once the news is out. That can outweigh a small move your way.",
+   "lesson_line": "Before earnings you pay for the expected move. If the stock moves less, the premium shrinks.",
+   "facts": [
+    "f101",
+    "f102",
+    "f103",
+    "f129",
+    "f109",
+    "f193",
+    "f41"
+   ],
+   "wrong": {
+    "Delta flipped negative on the gap": "A call's delta stays between 0 and 1. It doesn't turn negative.",
+    "Your calls were assigned overnight": "Only writers get assigned. You own the calls.",
+    "Open interest dropped overnight": "Open interest doesn't set the price. It counts open contracts."
+   }
+  },
+  {
+   "key": "q61",
+   "skill": "vocab.options_terms",
+   "rung": 9,
+   "format": "scenario",
+   "term": "Expected move",
+   "story": "Before earnings, your platform shows an expected move of $8 on a $100 stock.",
+   "q": "What does that $8 tell you?",
+   "choices": [
+    "The size of move priced in, either way",
+    "It will close between $92 and $108",
+    "The stock is expected to rise $8",
+    "Your max loss if you hold the stock"
+   ],
+   "answer": "The size of move priced in, either way",
+   "why": "The size of move priced in, either way. It's an estimate of magnitude from option prices, with no direction and no guarantee.",
+   "lesson_line": "Use the expected move to size your risk into earnings, not to pick a side.",
+   "facts": [
+    "f187",
+    "f206",
+    "f207",
+    "f208"
+   ],
+   "wrong": {
+    "It will close between $92 and $108": "It's not a promise. The stock can move more or less than what's priced in.",
+    "The stock is expected to rise $8": "An expected move has no direction. It covers a move up or down.",
+    "Your max loss if you hold the stock": "The stock can move past it. The expected move doesn't cap your loss on shares."
+   }
+  },
+  {
+   "key": "q62",
+   "skill": "vocab.options_terms",
+   "rung": 7,
+   "format": "tf",
+   "q": "A 0DTE option is a special contract the exchange lists on the morning it expires.",
+   "answer": "False",
+   "why": "False. 0DTE just means zero days to expiration. It's a listed option that has reached its last day, and it's rarely listed that morning.",
+   "lesson_line": "Every option is 0DTE on its last day. Time decay is fastest at the end.",
+   "facts": [
+    "f184",
+    "f185",
+    "f186",
+    "f115"
+   ]
+  },
+  {
+   "key": "q63",
+   "skill": "vocab.options_terms",
+   "rung": 9,
+   "format": "scenario",
+   "term": "Delta",
+   "story": "You're scanning calls for a cheap swing trade. The 0.10-delta call costs $0.15 and looks like a bargain.",
+   "q": "Read as a rough probability, what does that delta suggest?",
+   "choices": [
+    "About a 10% chance it ends in the money",
+    "It gains $10 for each $1 the stock rises",
+    "It loses 10% of its value each day",
+    "It is 10% out of the money"
+   ],
+   "answer": "About a 10% chance it ends in the money",
+   "why": "About a 10% chance it ends in the money. Some traders read delta that way. It's cheap because it needs a strong move to be worth anything at expiry.",
+   "lesson_line": "A low-delta option is cheap because it probably won't pay. Price the odds, not the ticket.",
+   "facts": [
+    "f105",
+    "f106",
+    "f107",
+    "f104",
+    "f113"
+   ],
+   "wrong": {
+    "It gains $10 for each $1 the stock rises": "Delta is per dollar of stock. A 0.10 delta means about a dime per $1, not $10.",
+    "It loses 10% of its value each day": "That's theta's job, and theta is quoted in dollars, not percent.",
+    "It is 10% out of the money": "Delta isn't the distance to the strike. It's price sensitivity, read here as rough odds."
+   }
+  },
+  {
+   "key": "q64",
+   "skill": "vocab.options_terms",
+   "rung": 9,
+   "format": "scenario",
+   "term": "Covered call",
+   "story": "You own 100 shares of a leading stock you expect to run for months. A friend says to sell covered calls for income.",
+   "q": "What's the catch for your plan?",
+   "choices": [
+    "Your upside is capped at the strike",
+    "Your downside risk becomes unlimited",
+    "You must buy 100 more shares",
+    "You lose the premium if it falls"
+   ],
+   "answer": "Your upside is capped at the strike",
+   "why": "Your upside is capped at the strike. While the call is open, you give up most of the gains above it. A rally can get your shares called away.",
+   "lesson_line": "Don't sell calls on a stock you want to hold for the big move.",
+   "facts": [
+    "f133",
+    "f134",
+    "f135",
+    "f136",
+    "f14",
+    "f137"
+   ],
+   "wrong": {
+    "Your downside risk becomes unlimited": "The short call doesn't add downside risk. The stock's own risk is what it was.",
+    "You must buy 100 more shares": "Your 100 shares already cover one call. There's nothing more to buy.",
+    "You lose the premium if it falls": "You keep the premium whatever the stock does. The buyer paid it to you."
+   }
+  },
+  {
+   "key": "q65",
+   "skill": "vocab.options_terms",
+   "rung": 7,
+   "format": "tf",
+   "q": "When you buy a call, you can lose more than the premium you paid.",
+   "answer": "False",
+   "why": "False. An option buyer can't lose more than the price paid. The worst case is holding to expiration with the stock below the strike.",
+   "lesson_line": "Buying options caps the loss at the premium. Size that premium as your full risk, because all of it can go.",
+   "facts": [
+    "f127",
+    "f128",
+    "f74"
+   ]
+  },
+  {
+   "key": "q66",
+   "skill": "vocab.options_terms",
+   "rung": 7,
+   "format": "tf",
+   "q": "Standard monthly equity options generally have their last trading day on the third Friday of the month.",
+   "answer": "True",
+   "why": "True. If that Friday is an exchange holiday, it moves to the Thursday before. Many products also have weekly expirations, so check each contract.",
+   "lesson_line": "Read the expiration date on every contract. Not every option expires on the third Friday.",
+   "facts": [
+    "f25",
+    "f77",
+    "f26",
+    "f78"
+   ]
+  }
+ ],
+ "conflicts": [
+  "Expiration day: the SEC's options bulletin (updated July 16, 2026) still says the expiration date is 'generally the Saturday after the third Friday'. OIC's current glossary (Expiration Friday) and Options Basics say standard equity options generally have their last trading day, and usually expire, on the third Friday. q66 follows OIC and is phrased as the last trading day; no question uses the SEC's Saturday line.",
+  "European-style wording differs: OIC's glossary and FINRA say 'only during a specified period just prior to expiration'; OIC's FAQ: Basics says 'only on its expiration date'; OIC's FAQ: Options Exercise says the last trading day. q20 and q55 say 'only at expiration' / 'at or just before expiration', which all three support, and q55 keys on OIC's line that a European-style position can still be closed in the market any day.",
+  "Exercise statistics disagree across OIC's own FAQs ('more than 72%' closed before expiration, 'about 70%' sold to close, 'about 7%' exercised; FINRA also says about 7%). No question keys any percentage; q19's lesson avoids 'most holders sell'.",
+  "Exercise by exception: OCC's threshold is $.01 in the money (OIC FAQs), but OIC says 'your firm may have a different threshold', and some brokers act on expiring positions under their own risk rules. q56 asks only what happens 'under OCC's standard procedure' and its why and lesson tell the member to give the broker instructions.",
+  "Delta as probability is a trader's convention, not a definition: OIC says 'Some traders view Delta as a percentage probability'. q63 asks it as 'read as a rough probability'; q21 lists it as how some traders read delta.",
+  "Expected move: no single official definition. OIC (Rule of 16 takeaways) says an implied-volatility move 'describes magnitude of expected movement, not direction'; Schwab's Market Maker Move page says the figure guarantees no size and no direction. q61 keys only on those shared points and uses the generic phrase 'expected move', not a platform's indicator name.",
+  "Iron condor naming: OIC files the credit iron condor as 'Short Condor (Iron Condor)' and calls the iron butterfly the 'Short Iron Butterfly'. Questions use the common names (iron condor, iron butterfly) for the credit versions, matching the Journal's labels, and cite the OIC pages for the structure and the max loss.",
+  "Journal labels vs textbook names: the Journal's 'Put Credit Spread' and 'Call Credit Spread' are OIC's bull put spread and bear call spread (OIC's own page titles carry both names, and its glossary lists both as credit spreads). q36 and q49 teach that mapping.",
+  "Seen and NOT used: OIC's glossary entry on strike price intervals gives old standard increments while saying many stocks are exempt; OIC's FAQ gives an exercise cut-off of 4:30 p.m. CT for exchanges (time-sensitive, broker cut-offs are earlier); FINRA's assignment page says SPX options are 'tied to S&P 500 futures contracts' (SPX options are on the index); OIC's open interest article has a typo in its third example (Trader A's position 'transferred to Trader B' where it means C). No fact or question relies on these; q59 uses only the article's summary rules.",
+  "Investopedia's options-chain page says higher volume and open interest mean options 'are more easily traded and have tighter bid-ask spreads'; OIC's FAQ calls equating volume and open interest with liquidity 'a common misconception' and points to the quoted market and its size. q17 and q58 stay on what open interest counts; q48 cites the Investopedia page only for what a chain lists.",
+  "Taxes: OIC's General Information FAQ mentions the wash-sale rule. Out of scope by the owner's ruling (ask a tax professional); nothing here touches it."
+ ],
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. f9, f49 (OIC glossary call/put), f72, f74 (Options Basics: 100 shares, buyer's loss limited to the premium), f68, f66, f193 (SEC: exercise brings an assignment notice) support every step.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. f48, f32, f42, f60, f115, f116, f119, f82 support the steps. Fixed: step 3 now says 'All else equal' (time value can rise with implied volatility, as step 4 says) and step 4 says calls and puts 'tend to' cost more (OIC: 'generally results in higher option premiums'); step 4 shortened to 22 words for the importer. f82 and f115 claims now keep the source's hedge.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. f104, f27, f112, f117, f125, f108 (OIC Greeks pages) support each line; 'estimates, not promises' is OIC's 'not a guarantee ... theoretical guidepost'. Track auditor, 2026-11-09: the Vega line said 'a 1% change'; it now says 'a 1-point change', as f117 puts it ('1% (100 basis points)', OIC Vega page re-read today) and as q15 asks it.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q01": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. Key is f9 (OIC glossary: right but not the obligation to buy at the strike). Wrong choices are real confusions: put (f49), the writer's duty (f10), stockholder rights (f76, Options Basics). Word Match pair 'Call option' / 'The right to buy at the strike' is correct.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q02": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. Key is f75 (Options Basics: right to sell 100 shares at the strike before expiration) and f49. Distractors explained by f9, f14, f57. Fixed: term was 'Put option' while the answer is 'Put', so Word Match would have paired 'Put option' with 'Put'; term now equals the answer, as the contract asks for a which-word item.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q03": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. Key is f56 (OIC glossary strike) and f23 (exercise price is the same thing). Wrong choices: premium (f68), a market price, the option's own last price; all really wrong.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q04": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. Key is f68 (What is an Option?: premium is what the buyer pays and the seller receives) and f48; per-share quote is f73. Commission and intrinsic distractors correctly explained. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q05": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. calc 3.45 x 100 = 345 checked by hand. f72, f13 (100 shares), f73 (priced per share) and the SEC's own $2.20 = $220 example (f191). 'Before fees' keeps it exact. Removed term: Word Match pairs a vocab recall item's term with its answer, so this would have shown the word paired with '345'. ",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q06": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. Key is f24 (glossary: option and right to exercise cease to exist) and f67. Rolling (f52) and time value (f116) distractors correct. Removed term: Word Match pairs a vocab recall item's term with its answer, so this would have shown the word paired with 'It no longer exists'. That is not a definition of 'expiration date'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q07": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. Key is f43, f66 (glossary: writer, covered or not) and the SEC holder/writer line (f192). Holder (f29), market maker (f40), underlying (f63) are really wrong and explained. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q08": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. Key is f63 (glossary underlying security) with f71 and the SEC 'derivatives' line (f195). No other bank word fits the sentence. Term equals the answer, so Word Match skips it.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q09": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. Key is f31 (glossary: call in the money above the strike, put below). 'Showing a profit' wrong is the SEC's own 70 call / $72.20 breakeven example (f196, f197). Fixed: term changed to 'In the money (call)' so the Word Match tile 'The stock is above the strike' is not shown as true for puts.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q10": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. Key is f32 (glossary intrinsic value) and f80 (Options Pricing). Distractors: premium (f48), the stock investor's sense, time value (f60). Answer 34 chars fits a tile. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q11": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. Key is f60 (glossary) and f79 (Options Pricing); gone at expiration is f116. Parity wrong choice matches f50 exactly. Theta wrong choice is fair: theta measures the decay rate, not the amount.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q12": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. Key is f104 (OIC Delta page) and f18 (glossary); why keeps OIC's hedge that delta keeps changing (f108). Theta, gamma, vega distractors each match their OIC definitions.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q13": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. Key is f112 (OIC Theta: decay per day, all else the same), f58, f59. Distractors defined by f104, f117, f27.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q14": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. Key is f27 (glossary) and f110 (OIC Gamma page). Lesson line is f111 (higher at the money and closer to expiration). Rho wrong is f51.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q15": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. Key is f117 (OIC Vega: 1% = 100 bp change in implied volatility) and f64; the question's '1-point' and the why's '1%' are the same unit. Fixed: lesson line now 'tend to carry more' as f118 says ('tend to have higher Vega'); f118 claim hedged the same way. Track auditor, 2026-11-09: the why said 'a 1% change'; it now says 'a 1-point change', matching the question, f117 ('a 1% (100 basis points) change', re-read today on OIC's Vega page) and f64 ('one-unit change', OIC glossary, re-read today). V.10 q61 teaches that a bare '1%' on a rate can be misread.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q16": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. True per f51 (glossary) and f124 (OIC Rho). 'Rates move premiums less' is f83 (Options Pricing: lesser effect); 'quietest on short-dated trades' rests on f83 + f123 (rates matter much more for longer-term options). Removed term: Word Match pairs a vocab recall item's term with its answer, so this would have shown the word paired with 'True'. ",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q17": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. Key is f41 (glossary) and f96 (OIC FAQ: open contracts not yet closed out); volume contrast is f179. Bid distractor explained by f189. All wrong choices really wrong. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q18": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. Key is f2 (glossary: OCC notification, random assignment), f193 (SEC) and f199 (FINRA: firm passes it to a customer short that series). Distractors: exercise (f22), closing purchase (f16), broker approval (f200). Fixed: the 23-word why sentence split in two. variety rewrite checked 2026-11-10.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q19": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. Key is f22 (glossary exercise) and f194 (SEC). Lesson line is f89 (OIC FAQ: early exercise forfeits time value) with OIC's worked example f90. Read in context: OIC says selling the option can be the more profitable choice. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q20": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. Key is f1 (glossary: any time prior to expiration) and f99; f88/f100 say all standard equity options are American-style. Index options mostly European (f100) and cash-settled (f33) make the two other distractors correctly wrong.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q21": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. Key is f119 (OIC Volatility & the Greeks) and f188 (OIC June 2026: magnitude, not direction). Historical volatility (f120, f28), delta-as-odds (f105, worded 'some traders' as OIC does) and theta are really wrong.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q22": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. Key is f130 (OIC Long Put page); why is f131 and f132. Protective put (f141), naked put (f176, f177), covered call (f14) correctly wrong.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q23": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. False per f188, f187 (OIC: implied volatility describes magnitude, not direction) and f82 (higher premiums for puts and calls alike). Removed term: Word Match pairs a vocab recall item's term with its answer, so this would have shown the word paired with 'False'. ",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q24": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. In the money per f31: put strike $50 above the $47 stock. Out of / at the money explanations correct (f3). Numbers only from the story.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q25": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. calc intrinsic(call, 100, 95) = 0 checked by hand. f42, f80, f60: out of the money, all $1.20 is time value. Removed term: Word Match pairs a vocab recall item's term with its answer, so this would have shown the word paired with '0'. ",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q26": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. calc 5.10 - (64 - 60) = 1.10 checked by hand. f32, f60, f79, f31. Removed term: Word Match pairs a vocab recall item's term with its answer, so this would have shown the word paired with '1.1'. ",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q27": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. calc 60 + 2.50 = 62.50 checked by hand; f126 (OIC Long Call: breakeven = strike + premium) and f5. Removed term: Word Match pairs a vocab recall item's term with its answer, so this would have shown the word paired with '62.5'. ",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q28": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. calc 0.40 x 2 = 0.80 checked by hand; same method as OIC's own .50 x 2 = $1.00 example (f121). Why keeps the estimate hedge (f108). Removed term: Word Match pairs a vocab recall item's term with its answer, so this would have shown the word paired with '0.8'. ",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q29": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. calc 0.06 x 100 = 6 checked by hand; f112, f114 (OIC: theta .05 = about $.05 a day per share), f72. f122 claim now says theta is 'often' shown negative (OIC gives one example). Removed term: Word Match pairs a vocab recall item's term with its answer, so this would have shown the word paired with '6'. ",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q30": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. Key is f98 (OIC FAQ closing sale) and f16; order names are f183. Sell to open (f44), buy to close (f70), exercise forfeiting time value (f89) are correctly wrong.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q31": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. True per f14 (glossary covered call) and f72. Read in context: OIC's covered call page also notes the buy-write variation, which is still a covered call. Rung 4 is generous for a definition; left for the owner. Removed term: Word Match pairs a vocab recall item's term with its answer, so this would have shown the word paired with 'True'. ",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q32": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. Key is f53 (glossary) and f138, f139 (OIC: write an at- or out-of-the-money put, set aside the cash, goal is to be assigned); $50 put on a $52 stock is out of the money as OIC describes. Lesson line is f140. Distractors correct.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q33": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. Key is f141, f142 (OIC: put bought to hedge stock already owned; bought together = married put), f143, f144. Fixed two wrong-choice notes: 'it doesn't hedge anything' became 'It doesn't protect your shares'; the covered call note said it 'caps your upside instead of protecting the downside', but OIC says it gives a small cushion, so it now says it 'puts no floor under the stock' (f136 added).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q34": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. Key is f12, f145 (collar: written call + long put on owned stock, same expiration); floor and cap are f146, f147; call pays for the put is f148. Strangle (f160) and bull call spread (f149) correctly wrong.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q35": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. Key is f65 (glossary vertical spread) and f149. Calendar (f11), diagonal (f20), straddle (f54) distractors correct. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q36": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. Key is f6 (glossary bull put spread = write higher put, buy lower); credit is f15, f152; outlook f153. Checked the product: prettyStrategyType in app/src/pages/journal-2-0/lib/optionCalcs.js maps vertical_credit_put to 'Put Credit Spread'. Bear put spread (f7, f17) correctly wrong.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q37": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. Key is f17 (glossary debit spread); credit spread f15; calendar/diagonal f11, f20; bull call spread max risk = net premium (f151). All wrong choices really wrong.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q38": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. Key is f157 (OIC Long Straddle) and f54, f55. Strangle (f160), short straddle (f55), married put (f39) correctly wrong. Lesson line is f158, f159.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q39": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. Key is f160 (OIC Long Strangle: OTM call + OTM put, same expiry): $110 call and $90 put on a $100 stock. Fixed: lesson line said strangles cost less 'because' they need more movement; OIC states it as a trade-off (f161), so it now reads 'but they need a bigger move to pay'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q40": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. Key is f11 (glossary calendar spread) and f61 (time spread = calendar = horizontal). Diagonal (f20), vertical (f65), butterfly three strikes (glossary butterfly) correct.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q41": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. True per f20 (glossary diagonal); calendar f11 and vertical f65 support the why. Removed term: Word Match pairs a vocab recall item's term with its answer, so this would have shown the word paired with 'True'. ",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q42": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. Key is f163 (OIC short condor page: 'a bear call spread and a bull put spread'); structure f162, range f164, outcomes f165, f166. Distractors really wrong. Conflict note covers OIC's 'short condor' naming.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q43": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. Key is f168 (OIC short iron butterfly: short call and short put at one middle strike) vs f167 (condor splits the body). f169 (credit up front) and f166 make 'debit' wrong; f170 makes 'no limit' wrong. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q44": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. True per f8 (glossary butterfly) word for word; f171 (profits at the body) and f172 (worst case = premium paid) support the why and lesson. Removed term: Word Match pairs a vocab recall item's term with its answer, so this would have shown the word paired with 'True'. ",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q45": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. Key is f34 (glossary: LEAPS, over nine months when listed). f81 supports 'time costs more premium'. Other bank words are real products that do not fit. Term equals answer, Word Match skips it.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q46": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. Key is f52 (glossary rolling). Exercise (f22), averaging down (f4), expiration (f24) correctly wrong.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q47": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. Key is f35 (glossary leg); four legs of the condor is f162. Lesson line is f36, f37 (legging in is the higher-risk way). Term equals answer.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q48": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. Investopedia (s57) refused the plain client (HTTP 402) and WebFetch on my fresh pass; its quotes were confirmed in context in the checker's own same-day HTTP 200 copy (2026-11-09 02:54). Two Tier 2 publishers agree on the key: f201 (Investopedia) and f204 (IBKR, fetched fresh 200). Chain contents f202, f205. Order-route wrong choice uses f190 (OIC). Investopedia's liquidity line conflicts with OIC's FAQ; recorded in conflicts and not used here. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q49": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. Key is f154 (OIC bear call spread: does best below the lower strike). At $65 the short 60 call is $5 in the money and the long 65 call worthless: full width, so max loss (f155) checked by hand; above $65 is the worst case (f156). Product label 'Call Credit Spread' confirmed in prettyStrategyType.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q50": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. calc (70 - 65 - 1.50) x 100 = 350 checked by hand; f165 (OIC: width of the in-the-money side less the premium) and f13. Strikes match OIC's own 70/65/55/50 example; equal wings, so either side gives 350. Removed term: Word Match pairs a vocab recall item's term with its answer, so this would have shown the word paired with '350'. ",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q51": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. Key is f173 (OIC naked call: maximum loss unlimited), f62, f174; best case f175; naked put worst case f178. Fixed the 'Strike minus the premium' note: 'A call has no such floor' read backwards; it now says 'A short call's loss has no such cap'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q52": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. False per f178 (OIC naked put: worst case is buying a worthless stock at the strike) and f74 (put writer's loss is substantial). Lesson line is sound risk sense. Removed term: Word Match pairs a vocab recall item's term with its answer, so this would have shown the word paired with 'False'. ",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q53": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. Key is f193 (SEC) and f2; called away in a rally is f134; delivery for cash at the strike is f19. Lesson line is f135. Exercise, expiration and rolling explanations correct.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q54": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. True per f84 (OIC Exercising Options) and f198 (FINRA: any day equity markets are open). Why is f94; lesson line is f85, and OIC's Assignment FAQ (opened with WebFetch) confirms a short closed before that day's close cannot be assigned. Removed term: Word Match pairs a vocab recall item's term with its answer, so this would have shown the word paired with 'True'. ",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q55": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. False per f87 (OIC Exercise FAQ, read with WebFetch: you can always close in the market any day before expiration) with f21, f99. European exercise windows differ by page; covered in conflicts. Removed term: Word Match pairs a vocab recall item's term with its answer, so this would have shown the word paired with 'False'. ",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q56": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. Key is f93 (OIC Assignment FAQ: OCC exercises equity options $.01 or more in the money unless told not to), read again with WebFetch today; f91 (firm may use another threshold) and f92 (give explicit instructions) are in the why and lesson. 'Usually' and 'standard procedure' match OIC's point that this is not strictly automatic.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q57": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. Key is f45, f46, f47 (glossary pin risk: stock exactly at the strike at expiration; writer can't know about assignment; unexpected short stock Monday for a call writer). Lesson line is f95. Time decay (f116), liquidity (f38), rho (f51) correctly wrong.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q58": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. False per f96 (OIC FAQ: open interest indicates neither a bullish nor bearish outlook) and f97 (each contract has a call buyer and a call seller). Removed term: Word Match pairs a vocab recall item's term with its answer, so this would have shown the word paired with 'False'. ",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q59": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. Key is f180 (OIC open interest article: one side to open, the other to close, unchanged) and f179; calc 1200 + 300 - 300 = 1200 checked by hand; volume of 300 contracts traded. f181, f182 make the other choices wrong. Investopedia (s57) refused the plain client (HTTP 402) and WebFetch on my fresh pass; its quotes were confirmed in context in the checker's own same-day HTTP 200 copy (2026-11-09 02:54). variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q60": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. Key is f101, f102 (OIC FAQ: implied volatility can be bid up before earnings and often drops sharply after), f103, f129. Fixed: why said it is 'often' bid up; OIC says 'Sometimes', so it now says 'can be'; f101 claim hedged the same way. Delta range f109 (long call 0 to 1), assignment only on writers (f193), open interest not a price input: all correctly wrong.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q61": {
+   "status": "cut",
+   "notes": "duplicate of V.09#q54. Track audit 2026-11-09: both ask what an expected (implied) move means and key the size of move the options are pricing in, either way; V.09 q55 also keys 'no direction, no promise'. V.09, the earnings unit, owns the expected move (q54 to q57). This unit keeps implied volatility in q21, q23 and q60.",
+   "fixed": false,
+   "by": "track-auditor"
+  },
+  "q62": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. False per f184, f185, f186 (OIC 0DTE primer: ordinary listed options on their last day, rarely listed that morning); OIC's June 2026 takeaways say the same. Lesson line f115. Removed term: Word Match pairs a vocab recall item's term with its answer, so this would have shown the word paired with 'False'. ",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q63": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. Key is f105, f106 (OIC Delta: some traders read delta as a probability; under .10 is not seen as likely to finish in the money) and f107. Fixed: why said 'Many traders'; OIC says 'Some traders', now matched. 0.10 x $1 = a dime checked; theta in dollars is f113.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q64": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. Key is f133 (OIC covered call: forfeits much of the stock's profit potential), f134, f135; downside unchanged f136; premium kept f137. Lesson line is good trading sense for a leader. Fixed: the 23-word why sentence split in two.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q65": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. False per f127 (OIC Long Call: holder cannot lose more than the price paid), f128, f74. Lesson line treats the premium as full risk, a sound habit. Removed term: Word Match pairs a vocab recall item's term with its answer, so this would have shown the word paired with 'False'. ",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q66": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's plain client into an empty cache (205/208 found, 0 missing) and each cited quote read in context. True per f25 (glossary: last trading day generally the third Friday) and f77 (Options Basics, re-read with WebFetch today: third Friday, Thursday before on a holiday, weeklies exist); f26, f78 support the why. The SEC bulletin's old Saturday line is in conflicts and not used. Removed term: Word Match pairs a vocab recall item's term with its answer, so this would have shown the word paired with 'True'. ",
+   "fixed": true,
+   "by": "checker"
+  }
+ }
+}

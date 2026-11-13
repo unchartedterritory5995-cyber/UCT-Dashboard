@@ -1,0 +1,1570 @@
+{
+ "unit": "F8.07",
+ "track": "F8",
+ "title": "The daily mental routine",
+ "teaches": "Run the trading day in three parts: a warm-up before the open (game plan, levels, your own state, if-then rules), breaks and check-ins during the session, and a written cool-down after the close that picks one thing to improve tomorrow.",
+ "skills": [
+  {
+   "id": "psych.routine",
+   "title": "The daily mental routine"
+  }
+ ],
+ "as_of": "2026-11-09",
+ "sources": [
+  {
+   "id": "s1",
+   "tier": 2,
+   "publisher": "Brett Steenbarger, TraderFeed",
+   "title": "How Do You Warm Up For Trading? (2017-06-04)",
+   "url": "https://traderfeed.blogspot.com/2017/06/how-do-you-warm-up-for-trading.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Brett N. Steenbarger, Ph.D.: clinical psychologist and performance coach to portfolio managers and traders, author of four Wiley trading-psychology books (the contract's Tier 2 list names Steenbarger). TraderFeed is his own blog; every post is signed and dated, with his author bio on the page."
+  },
+  {
+   "id": "s2",
+   "tier": 2,
+   "publisher": "Brett Steenbarger, TraderFeed",
+   "title": "Rigorously Reviewing Your Trading (2018-11-30)",
+   "url": "https://traderfeed.blogspot.com/2018/11/rigorously-reviewing-your-trading.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Brett N. Steenbarger, Ph.D.: clinical psychologist and performance coach to portfolio managers and traders, author of four Wiley trading-psychology books (the contract's Tier 2 list names Steenbarger). TraderFeed is his own blog; every post is signed and dated, with his author bio on the page."
+  },
+  {
+   "id": "s3",
+   "tier": 2,
+   "publisher": "Brett Steenbarger, TraderFeed",
+   "title": "FIGS: Focused, Intensive Goal Setting (2021-06-25)",
+   "url": "https://traderfeed.blogspot.com/2021/06/figs-focused-intensive-goal-setting.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Brett N. Steenbarger, Ph.D.: clinical psychologist and performance coach to portfolio managers and traders, author of four Wiley trading-psychology books (the contract's Tier 2 list names Steenbarger). TraderFeed is his own blog; every post is signed and dated, with his author bio on the page."
+  },
+  {
+   "id": "s4",
+   "tier": 2,
+   "publisher": "Brett Steenbarger, TraderFeed",
+   "title": "The Power of Trading Journals (2014-04-24)",
+   "url": "https://traderfeed.blogspot.com/2014/04/the-power-of-trading-journals.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Brett N. Steenbarger, Ph.D.: clinical psychologist and performance coach to portfolio managers and traders, author of four Wiley trading-psychology books (the contract's Tier 2 list names Steenbarger). TraderFeed is his own blog; every post is signed and dated, with his author bio on the page."
+  },
+  {
+   "id": "s5",
+   "tier": 2,
+   "publisher": "Brett Steenbarger, TraderFeed",
+   "title": "Best Practices in Trading: Organizing Your Trading Morning (2015-03-02)",
+   "url": "https://traderfeed.blogspot.com/2015/03/best-practices-in-trading-organizing_2.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Brett N. Steenbarger, Ph.D.: clinical psychologist and performance coach to portfolio managers and traders, author of four Wiley trading-psychology books (the contract's Tier 2 list names Steenbarger). TraderFeed is his own blog; every post is signed and dated, with his author bio on the page."
+  },
+  {
+   "id": "s6",
+   "tier": 2,
+   "publisher": "Brett Steenbarger, TraderFeed",
+   "title": "Small Steps, Large Changes (2014-03-20)",
+   "url": "https://traderfeed.blogspot.com/2014/03/small-steps-large-changes.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Brett N. Steenbarger, Ph.D.: clinical psychologist and performance coach to portfolio managers and traders, author of four Wiley trading-psychology books (the contract's Tier 2 list names Steenbarger). TraderFeed is his own blog; every post is signed and dated, with his author bio on the page."
+  },
+  {
+   "id": "s7",
+   "tier": 2,
+   "publisher": "Brett Steenbarger, TraderFeed",
+   "title": "Sleep and Performance: The Quality of Our Nights Affects the Quality of Our Days (2015-04-16)",
+   "url": "https://traderfeed.blogspot.com/2015/04/sleep-and-performance-quality-of-our.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Brett N. Steenbarger, Ph.D.: clinical psychologist and performance coach to portfolio managers and traders, author of four Wiley trading-psychology books (the contract's Tier 2 list names Steenbarger). TraderFeed is his own blog; every post is signed and dated, with his author bio on the page."
+  },
+  {
+   "id": "s8",
+   "tier": 2,
+   "publisher": "Brett Steenbarger, TraderFeed",
+   "title": "Mental and Emotional Preparation for Trading (2016-01-31)",
+   "url": "https://traderfeed.blogspot.com/2016/01/mental-and-emotional-preparation-for.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Brett N. Steenbarger, Ph.D.: clinical psychologist and performance coach to portfolio managers and traders, author of four Wiley trading-psychology books (the contract's Tier 2 list names Steenbarger). TraderFeed is his own blog; every post is signed and dated, with his author bio on the page."
+  },
+  {
+   "id": "s9",
+   "tier": 2,
+   "publisher": "Brett Steenbarger, TraderFeed",
+   "title": "Best Practices For Coaching Our Own Trading (2026-02-13, entries to 2026-02-19)",
+   "url": "https://traderfeed.blogspot.com/2026/02/best-practices-for-coaching-our-own.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Brett N. Steenbarger, Ph.D.: clinical psychologist and performance coach to portfolio managers and traders, author of four Wiley trading-psychology books (the contract's Tier 2 list names Steenbarger). TraderFeed is his own blog; every post is signed and dated, with his author bio on the page."
+  },
+  {
+   "id": "s10",
+   "tier": 2,
+   "publisher": "Brett Steenbarger, TraderFeed",
+   "title": "Becoming Better By Building Routines...And By Shattering Them (2015-06-06)",
+   "url": "https://traderfeed.blogspot.com/2015/06/becoming-better-by-building-routinesand.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Brett N. Steenbarger, Ph.D.: clinical psychologist and performance coach to portfolio managers and traders, author of four Wiley trading-psychology books (the contract's Tier 2 list names Steenbarger). TraderFeed is his own blog; every post is signed and dated, with his author bio on the page."
+  },
+  {
+   "id": "s11",
+   "tier": 2,
+   "publisher": "Brett Steenbarger, TraderFeed",
+   "title": "How Goal Setting Helps Performance (2014-10-12)",
+   "url": "https://traderfeed.blogspot.com/2014/10/how-goal-setting-helps-performance.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Brett N. Steenbarger, Ph.D.: clinical psychologist and performance coach to portfolio managers and traders, author of four Wiley trading-psychology books (the contract's Tier 2 list names Steenbarger). TraderFeed is his own blog; every post is signed and dated, with his author bio on the page."
+  },
+  {
+   "id": "s12",
+   "tier": 2,
+   "publisher": "Brett Steenbarger, TraderFeed",
+   "title": "Formulating an Initial Game Plan for the Day (2010-01-06)",
+   "url": "https://traderfeed.blogspot.com/2010/01/formulating-initial-game-plan-for-day.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Brett N. Steenbarger, Ph.D.: clinical psychologist and performance coach to portfolio managers and traders, author of four Wiley trading-psychology books (the contract's Tier 2 list names Steenbarger). TraderFeed is his own blog; every post is signed and dated, with his author bio on the page."
+  },
+  {
+   "id": "s13",
+   "tier": 2,
+   "publisher": "Brett Steenbarger, TraderFeed",
+   "title": "What is Your Recovery Plan After Trading? (2016-12-06)",
+   "url": "https://traderfeed.blogspot.com/2016/12/what-is-your-recovery-plan-after-trading.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Brett N. Steenbarger, Ph.D.: clinical psychologist and performance coach to portfolio managers and traders, author of four Wiley trading-psychology books (the contract's Tier 2 list names Steenbarger). TraderFeed is his own blog; every post is signed and dated, with his author bio on the page."
+  },
+  {
+   "id": "s14",
+   "tier": 2,
+   "publisher": "Brett Steenbarger, TraderFeed",
+   "title": "Why Don't I Trade My Plan When I Plan My Trade? (2014-03-30)",
+   "url": "https://traderfeed.blogspot.com/2014/03/why-dont-i-trade-my-plan-when-i-plan-my.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Brett N. Steenbarger, Ph.D.: clinical psychologist and performance coach to portfolio managers and traders, author of four Wiley trading-psychology books (the contract's Tier 2 list names Steenbarger). TraderFeed is his own blog; every post is signed and dated, with his author bio on the page."
+  },
+  {
+   "id": "s15",
+   "tier": 2,
+   "publisher": "Brett Steenbarger, TraderFeed",
+   "title": "Why Is Process So Important To Trading? (2020-07-06)",
+   "url": "https://traderfeed.blogspot.com/2020/07/why-is-process-so-important-to-trading.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Brett N. Steenbarger, Ph.D.: clinical psychologist and performance coach to portfolio managers and traders, author of four Wiley trading-psychology books (the contract's Tier 2 list names Steenbarger). TraderFeed is his own blog; every post is signed and dated, with his author bio on the page."
+  },
+  {
+   "id": "s16",
+   "tier": 2,
+   "publisher": "Brett Steenbarger, TraderFeed",
+   "title": "Best Practices in Trading: Organizing Your Daily Routines (2015-03-17)",
+   "url": "https://traderfeed.blogspot.com/2015/03/best-practices-in-trading-organizing.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Brett N. Steenbarger, Ph.D.: clinical psychologist and performance coach to portfolio managers and traders, author of four Wiley trading-psychology books (the contract's Tier 2 list names Steenbarger). TraderFeed is his own blog; every post is signed and dated, with his author bio on the page."
+  },
+  {
+   "id": "s17",
+   "tier": 2,
+   "publisher": "Brett Steenbarger, TraderFeed",
+   "title": "Creating Big Gains Through Small Wins (2014-07-07)",
+   "url": "https://traderfeed.blogspot.com/2014/07/creating-big-gains-through-small-wins.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Brett N. Steenbarger, Ph.D.: clinical psychologist and performance coach to portfolio managers and traders, author of four Wiley trading-psychology books (the contract's Tier 2 list names Steenbarger). TraderFeed is his own blog; every post is signed and dated, with his author bio on the page."
+  },
+  {
+   "id": "s20",
+   "tier": 2,
+   "publisher": "Jared Tendler",
+   "title": "Building a Winning Routine (2023-06-05)",
+   "url": "https://jaredtendler.com/building-a-winning-routine/",
+   "accessed": "2026-11-09",
+   "why_reliable": "Jared Tendler, MS, LMHC: licensed mental health counselor and mental game coach to institutional and independent traders and poker players, author of The Mental Game of Trading (the unit plan names him). Signed, dated posts on his own site."
+  },
+  {
+   "id": "s21",
+   "tier": 2,
+   "publisher": "Jared Tendler",
+   "title": "Effective Journaling (2025-08-11)",
+   "url": "https://jaredtendler.com/effective-journaling/",
+   "accessed": "2026-11-09",
+   "why_reliable": "Jared Tendler, MS, LMHC: licensed mental health counselor and mental game coach to institutional and independent traders and poker players, author of The Mental Game of Trading (the unit plan names him). Signed, dated posts on his own site."
+  },
+  {
+   "id": "s22",
+   "tier": 2,
+   "publisher": "Jared Tendler",
+   "title": "Getting Paid to Rest (2024-07-08)",
+   "url": "https://jaredtendler.com/getting-paid-to-rest/",
+   "accessed": "2026-11-09",
+   "why_reliable": "Jared Tendler, MS, LMHC: licensed mental health counselor and mental game coach to institutional and independent traders and poker players, author of The Mental Game of Trading (the unit plan names him). Signed, dated posts on his own site."
+  },
+  {
+   "id": "s30",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "Trading Psychology: Recovering From Big Losses (Henry Hoenig, 2026-02-10)",
+   "url": "https://www.schwab.com/learn/story/trading-psychology-recovering-from-big-losses",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s31",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "Breaking Bad Trade Behaviors (Kevin Horner, 2025-10-01)",
+   "url": "https://www.schwab.com/learn/story/breaking-bad-trade-behaviors",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s32",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "Trading Near the Bells (Kevin Horner, 2024-11-26)",
+   "url": "https://www.schwab.com/learn/story/trading-near-bells",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s33",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Beginner's Guide: Key Day-Trading Rules You Need to Know (Prableen Bajpai, updated 2026-08-12)",
+   "url": "https://www.investopedia.com/articles/active-trading/071414/day-trading-rules-rookies-dont-play-it-ear.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s34",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Unlock Trading Success: 20 Essential Rules for Professionals (Alan Farley, updated 2026-08-19)",
+   "url": "https://www.investopedia.com/articles/active-trading/022715/20-rules-followed-professional-traders.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s35",
+   "tier": 2,
+   "publisher": "NBER",
+   "title": "Fear and Greed in Financial Markets: A Clinical Study of Day-Traders (Lo, Repin and Steenbarger, Working Paper 11243, 2005; published in the American Economic Review, 2005)",
+   "url": "https://www.nber.org/papers/w11243",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s36",
+   "tier": 2,
+   "publisher": "Fidelity",
+   "title": "Psychological Challenges of Trading (Brett N. Steenbarger and Adrienne Toghraie, 2011; reprinted and adapted from Steenbarger's Enhancing Trader Performance and Toghraie's Trading on Target, Wiley, with permission)",
+   "url": "https://www.fidelity.com/learning-center/trading-investing/trading/psychological-challenges-trading",
+   "accessed": "2026-11-09",
+   "why_reliable": "Two named authors' Wiley books (Steenbarger, Enhancing Trader Performance; Toghraie, Trading on Target) as published by a Tier 2 broker education centre (the contract's 'as published or as quoted by a Tier 1 or Tier 2 page'). The page does not say which author wrote which line, so the file credits its lines to both. Steenbarger is also the TraderFeed author, so no key rests on this page plus TraderFeed alone."
+  },
+  {
+   "id": "s40",
+   "tier": 1,
+   "publisher": "NYSE",
+   "title": "Hours & Calendars",
+   "url": "https://www.nyse.com/markets/hours-calendars",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s41",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Thinking of Day Trading? Know the Risks. (Director's Take, Lori Schock, former Director of the SEC's Office of Investor Education and Assistance)",
+   "url": "https://www.investor.gov/additional-resources/spotlight/formerdirectorlorischock-directors-take/thinking-day-trading-know-risks",
+   "accessed": "2026-11-09"
+  }
+ ],
+ "facts": [
+  {
+   "id": "fa1",
+   "source": "s1",
+   "quote": "Notice how in most performance activities, top performers engage in warm up exercises. Singers, musicians, athletes--all have their warm up routines.",
+   "claim": "In most performance fields, top performers warm up before they perform."
+  },
+  {
+   "id": "fa2",
+   "source": "s1",
+   "quote": "Your trading warm up should put you in the mental, physical, and emotional state you need to be in to do your best trading.",
+   "claim": "A trading warm-up readies your mind, body and emotions, not just your charts."
+  },
+  {
+   "id": "fa3",
+   "source": "s1",
+   "quote": "Many, many trading problems occur simply because the right functions were never warmed up.",
+   "claim": "Many trading problems start because the trader never warmed up."
+  },
+  {
+   "id": "fa4",
+   "source": "s1",
+   "quote": "I love to mentally rehearse different market scenarios as we approach the open. The scenarios include how I would respond to early weakness or strength",
+   "claim": "Before the open, Steenbarger rehearses how he would respond to early weakness or strength."
+  },
+  {
+   "id": "fa7",
+   "source": "s1",
+   "quote": "Warm ups practice the functions we most want to employ.",
+   "claim": "A warm-up practises the skills you are about to use."
+  },
+  {
+   "id": "fa8",
+   "source": "s1",
+   "quote": "Contemplating many market possibilities helps ensure I don't get locked into any one.",
+   "claim": "Rehearsing several scenarios keeps you from getting locked into one view."
+  },
+  {
+   "id": "fb1",
+   "source": "s2",
+   "quote": "Review before trading starts to ensure that the rules are being followed in generating ideas, with special emphasis on the rules relevant to the prior day's trading;",
+   "claim": "Steenbarger reviews his written rules before trading starts."
+  },
+  {
+   "id": "fb2",
+   "source": "s2",
+   "quote": "Review at the end of trading to assess whether rules were followed and especially to look at how a following of the rules could have improved the day's trading;",
+   "claim": "At the end of the trading day he checks whether he followed his rules."
+  },
+  {
+   "id": "fb3",
+   "source": "s2",
+   "quote": "Targeting one or more rules to focus on for the coming session to improve trading.",
+   "claim": "He then picks a rule or two to focus on in the next session."
+  },
+  {
+   "id": "fc1",
+   "source": "s3",
+   "quote": "What if, at any given time, we worked on one goal and one goal only. Suppose we worked on it every single day and made it the focus on each day's efforts.",
+   "claim": "Steenbarger suggests working on one goal at a time, every day."
+  },
+  {
+   "id": "fc2",
+   "source": "s3",
+   "quote": "By setting a large number of goals, traders have difficulties prioritizing the changes they want to make, and they find it difficult to give each of the goals proper attention.",
+   "claim": "With too many goals, none of them gets proper attention."
+  },
+  {
+   "id": "fc3",
+   "source": "s3",
+   "quote": "A vague goal is only a good intention; it's not likely to energize or shape performance. My experience is that vague goals get the least follow-through.",
+   "claim": "Vague goals get the least follow-through."
+  },
+  {
+   "id": "fd1",
+   "source": "s4",
+   "quote": "Elite performers--in music, theater, professional sports, chess--spend more time practicing and preparing than actually performing in competition.",
+   "claim": "Elite performers spend more time practising and preparing than performing."
+  },
+  {
+   "id": "fd3",
+   "source": "s4",
+   "quote": "Trading without review is like playing a football game without huddles; like preparing for a baseball or basketball game without practices or review of game film.",
+   "claim": "Trading without review is like playing sport without practice or game film."
+  },
+  {
+   "id": "fe2",
+   "source": "s5",
+   "quote": "Ideas must include entries/stops/targets/risk amount",
+   "claim": "In an SMB trader's morning routine that Steenbarger published, every idea needs an entry, stop, target and risk amount."
+  },
+  {
+   "id": "ff1",
+   "source": "s6",
+   "quote": "If you're not working on change daily, you're not working on change. And if you try to accomplish massive changes in one day, you run the risk of activating competing motivations and derailing your efforts.",
+   "claim": "Change is a daily job, and trying to change everything at once tends to derail it."
+  },
+  {
+   "id": "ff2",
+   "source": "s6",
+   "quote": "But most of us are far from ideal and need to change one action at a time.",
+   "claim": "Steenbarger passes on a point he calls excellent: most of us need to change one action at a time."
+  },
+  {
+   "id": "ff4",
+   "source": "s6",
+   "quote": "The key to remaking yourself is to find the small steps that add to big changes without setting off alarms.",
+   "claim": "Small steps add up to big changes."
+  },
+  {
+   "id": "fg1",
+   "source": "s7",
+   "quote": "I find that a surprising proportion of what sets traders up for success during the day is what has happened the previous night.",
+   "claim": "Much of what sets up a good trading day happens the night before."
+  },
+  {
+   "id": "fg2",
+   "source": "s7",
+   "quote": "One study found that financial decision making was meaningfully impaired when subjects were sleepy due to poorer judgment about the task being undertaken.",
+   "claim": "Steenbarger cites a study in which sleepy people made worse financial decisions."
+  },
+  {
+   "id": "fh1",
+   "source": "s8",
+   "quote": "If we make decisions in cognitive, emotional, and physical states that are different from the ones we occupied during our preparation, we're likely to find that the decisions we plan won't always be the ones we act upon.",
+   "claim": "A plan made in one state won't always be the one you act on in a different state."
+  },
+  {
+   "id": "fh3",
+   "source": "s8",
+   "quote": "Preparation puts emotion into perspective; we gain control, not by staying Zen, but by anticipating situations that are likely to take us out of calm focus and preparing our responses to those.",
+   "claim": "You gain control by planning your response to the situations that throw you off."
+  },
+  {
+   "id": "fh4",
+   "source": "s8",
+   "quote": "We cannot--and should not--eliminate emotion from trading, but that is also not necessary.",
+   "claim": "The goal is not to have no emotion while trading."
+  },
+  {
+   "id": "fi1",
+   "source": "s9",
+   "quote": "At the end of the day, week, and month, you can track what you did well and what needs improvement.",
+   "claim": "Review at the end of each day, week and month: what went well and what needs work."
+  },
+  {
+   "id": "fi2",
+   "source": "s9",
+   "quote": "Both provide opportunities for goal setting, as you have goals to repeat and expand what you did well and goals to correct what you didn't do well.",
+   "claim": "What you did well becomes a goal to repeat; what you did badly becomes a goal to correct."
+  },
+  {
+   "id": "fi3",
+   "source": "s9",
+   "quote": "Note how in every performance activity--acting, music, sports, dancing--there are active practice sessions that accomplish two purposes: they keep the performer in shape, and they rehearse the challenges that are likely to be faced during live performance.",
+   "claim": "Every performance field has practice sessions that keep the performer in shape and rehearse live challenges."
+  },
+  {
+   "id": "fj1",
+   "source": "s10",
+   "quote": "The routines of trading are what enable us to process market information efficiently and stick to what we do best.",
+   "claim": "Routines let you process the market efficiently and stick to what you do best."
+  },
+  {
+   "id": "fj2",
+   "source": "s10",
+   "quote": "If you identify a best practice in your trading, the best thing you can do is transform it into a robust habit pattern. A definition of good trading could be: doing automatically what you would ideally do by choice.",
+   "claim": "Turn your best practices into habits, so you do the right thing automatically."
+  },
+  {
+   "id": "fj3",
+   "source": "s10",
+   "quote": "Routine is the friend of efficiency and the enemy of change.",
+   "claim": "Routines make you efficient but can stop you from changing."
+  },
+  {
+   "id": "fj4",
+   "source": "s10",
+   "quote": "There is a world of difference between the person with five years of experience and the person who repeats a year's experience five times.",
+   "claim": "Repeating the same year is not the same as growing for five years."
+  },
+  {
+   "id": "fj5",
+   "source": "s10",
+   "quote": "It's the reworking of old trading processes and the addition of new ones that enable traders to stay profitable when markets go from trending and non-volatile to volatile and choppy.",
+   "claim": "Reworking your processes is what keeps you profitable when markets turn choppy."
+  },
+  {
+   "id": "fl4",
+   "source": "s11",
+   "quote": "We act as if experience itself will teach us all we need to know, when it is guided experience--experience informed by goals and feedback--that gets us where we want to go.",
+   "claim": "Experience teaches best when it is guided by goals and feedback."
+  },
+  {
+   "id": "fm1",
+   "source": "s12",
+   "quote": "My trading day begins early in the morning with an assessment of overseas markets, an advance look at economic reports due for the day, a review of the prior day's market indicators",
+   "claim": "Steenbarger's trading day starts with overseas markets, the day's scheduled economic reports and yesterday's indicators."
+  },
+  {
+   "id": "fn1",
+   "source": "s13",
+   "quote": "We become fatigued, and in the fatigued state we're more likely to make mistakes and fall into old habit patterns that cost us money.",
+   "claim": "When you're fatigued, mistakes and old bad habits become more likely."
+  },
+  {
+   "id": "fo2",
+   "source": "s14",
+   "quote": "Either you battle test your plans in rehearsal mode or they will be tested in actual battle.",
+   "claim": "Rehearse your plan before the session, or the market will test it for you."
+  },
+  {
+   "id": "fp1",
+   "source": "s16",
+   "quote": "When we establish a routine--and then make it routine--we take our strengths and make them automatic.",
+   "claim": "A routine you keep turns your strengths into automatic habits."
+  },
+  {
+   "id": "fq1",
+   "source": "s17",
+   "quote": "If you are focused on small wins and the processes that generate profits over time, however, the coming week can always be a successful one.",
+   "claim": "Judge yourself on the process that makes money over time, not on one day's result."
+  },
+  {
+   "id": "fr1",
+   "source": "s15",
+   "quote": "When we study our successes and figure out how we are making use of our strengths at those times, we become able to define our best practices.",
+   "claim": "Studying your successes is how you find your best practices."
+  },
+  {
+   "id": "ta1",
+   "source": "s20",
+   "quote": "When it comes to your Mental Game, I typically focus on four major areas for winning routines: Daily Overall Routine Pre-Session Warm Up In-Session/Tournament Routine Post-Session Cool Down",
+   "claim": "Tendler's routine has four parts: the daily basics, a warm-up before, a routine during, and a cool-down after the session."
+  },
+  {
+   "id": "ta2",
+   "source": "s20",
+   "quote": "If your routines need improvement, start small. Look for just one thing you can add that can make a slight improvement.",
+   "claim": "Improve a routine one small addition at a time."
+  },
+  {
+   "id": "ta3",
+   "source": "s20",
+   "quote": "Your daily routine covers the basics: what and when you eat, exercise, recharge, and sleep.",
+   "claim": "The daily routine covers food, exercise, recharging and sleep."
+  },
+  {
+   "id": "ta4a",
+   "source": "s20",
+   "quote": "Before you begin trading or playing poker, you need to get your mind ready – much like an athlete readies their body to compete.",
+   "claim": "Get your mind ready before you trade, the way an athlete readies the body."
+  },
+  {
+   "id": "ta4b",
+   "source": "s20",
+   "quote": "Without this, you won't be sharp when you start and are at risk of mistakes or missing opportunities.",
+   "claim": "Skip the warm-up and you start dull, at risk of mistakes and missed chances."
+  },
+  {
+   "id": "ta5",
+   "source": "s20",
+   "quote": "For traders, that sometimes means reviewing overnight sessions, looking at stock screeners or TA levels, and gauging what symbols you are looking for that day.",
+   "claim": "The strategic part of the warm-up: overnight action, screens, levels and today's names."
+  },
+  {
+   "id": "ta6",
+   "source": "s20",
+   "quote": "Both traders and poker players should also include a mental game plan to address the problems that are most likely to affect you – such as tilt, boredom, focus",
+   "claim": "The warm-up includes a plan for the mental problems most likely to hit you."
+  },
+  {
+   "id": "ta7",
+   "source": "s20",
+   "quote": "My best advice here is to not wait until you need it. Find your trend, or key on early warning signs, so you can take a break before your energy nosedives.",
+   "claim": "Take a break before your energy drops, not after."
+  },
+  {
+   "id": "ta8",
+   "source": "s20",
+   "quote": "But fatigue decreases your ability to control your emotions and emotional volatility increases your chances of making a mistake.",
+   "claim": "Fatigue weakens emotional control, and that raises the odds of a mistake."
+  },
+  {
+   "id": "ta9",
+   "source": "s20",
+   "quote": "What you do after the session or event is all about tomorrow.",
+   "claim": "The cool-down is preparation for tomorrow."
+  },
+  {
+   "id": "ta10",
+   "source": "s20",
+   "quote": "Sometimes we rely too much on our memory. As soon as you walk away, details start to disappear.",
+   "claim": "Details fade as soon as you walk away, so write them down."
+  },
+  {
+   "id": "ta11",
+   "source": "s20",
+   "quote": "On days where there was some significant emotion, the goal is to reduce the chance of that emotion carrying over to the following day.",
+   "claim": "After an emotional day, the cool-down aims to stop the emotion carrying into tomorrow."
+  },
+  {
+   "id": "ta12",
+   "source": "s20",
+   "quote": "At a minimum, do a brain dump, writing out everything in your mind, what happened, what the emotion was, what the trigger was",
+   "claim": "At minimum, write out what happened, what you felt and what triggered it."
+  },
+  {
+   "id": "ta13",
+   "source": "s20",
+   "quote": "While they don't guarantee that you will perform at your best, they do make it more likely.",
+   "claim": "Routines don't guarantee your best performance; they make it more likely."
+  },
+  {
+   "id": "ta14",
+   "source": "s20",
+   "quote": "Obviously there are no guarantees that winning routines will translate into winning results, but they definitely increase the probability",
+   "claim": "Good routines raise the odds of good results, with no guarantee."
+  },
+  {
+   "id": "ta18",
+   "source": "s20",
+   "quote": "If you don't, the chance you will make the same mistake again goes up and nothing is more frustrating than making the same mistake over and over.",
+   "claim": "Skip the cool-down and you are more likely to repeat the same mistake."
+  },
+  {
+   "id": "tb1",
+   "source": "s21",
+   "quote": "What did you do well in general and/or improve on the things you've been working on? What mistakes did you make? How can you improve on them and/or be better next time?",
+   "claim": "Tendler's three cool-down questions: what went well, what mistakes you made, how to improve next time."
+  },
+  {
+   "id": "tb3",
+   "source": "s21",
+   "quote": "You need to get the emotion out and the best time to do it is soon after you're done.",
+   "claim": "The best time to process a session's emotion is soon after it ends."
+  },
+  {
+   "id": "tb4",
+   "source": "s21",
+   "quote": "To create your bubble, write for up to 15 minutes, one hour before you start to play/trade.",
+   "claim": "Before trading, write out what's on your mind for up to 15 minutes."
+  },
+  {
+   "id": "tb5",
+   "source": "s21",
+   "quote": "This gives you an opportunity to get some of the emotion out and/or make a list of tasks, with the intent of being able to put them away for now.",
+   "claim": "Writing it out lets you put outside worries away for the session."
+  },
+  {
+   "id": "tb6",
+   "source": "s21",
+   "quote": "you go through waves where you do it regularly, only to fall off during periods when you're doing quite well, evidence of some subtle overconfidence weakening your process.",
+   "claim": "Dropping the journal when things go well is a sign of subtle overconfidence."
+  },
+  {
+   "id": "tb9",
+   "source": "s21",
+   "quote": "the idea is to eventually reach the point where it's so ingrained as part of your daily routine that you can't not do it.",
+   "claim": "The aim is a habit so ingrained you do it without forcing it."
+  },
+  {
+   "id": "td2",
+   "source": "s22",
+   "quote": "when you're tired, or burnt out, your emotions get bigger while your ability to deal with them is more limited.",
+   "claim": "Tired, your emotions grow and your ability to handle them shrinks."
+  },
+  {
+   "id": "wa1",
+   "source": "s30",
+   "quote": "Traders should at least have written \"if, then\" plans to help limit emotion-based actions and prevent additional big losses and should consciously commit to these plans before every trading session.",
+   "claim": "Write if-then plans and commit to them before every session."
+  },
+  {
+   "id": "wa2",
+   "source": "s30",
+   "quote": "For example, they could pledge to step away for the day if they lose a certain amount of money or take 15 minutes if they feel an urge to break a trading rule.",
+   "claim": "Examples: stop for the day after a set loss, or take 15 minutes when you feel the urge to break a rule."
+  },
+  {
+   "id": "wa3",
+   "source": "s30",
+   "quote": "Writing about worries before a high-pressure event frees up working memory, allowing more capacity to focus on the task at hand.",
+   "claim": "Writing out worries before a high-pressure event frees attention for the task."
+  },
+  {
+   "id": "wa4",
+   "source": "s30",
+   "quote": "If a trader mentally practices the ideal response to certain situations, it should help them execute when those situations arise for real.",
+   "claim": "Mentally practising your response helps you carry it out for real."
+  },
+  {
+   "id": "wa5",
+   "source": "s30",
+   "quote": "Studies have consistently linked intense emotional reactions to poor trading performance.",
+   "claim": "Intense emotional reactions go with poor trading performance."
+  },
+  {
+   "id": "wa7",
+   "source": "s30",
+   "quote": "Psychological studies suggest that when athletes write about performance failures, it can reduce the mental impact and help them reframe the event as a set of lessons instead.",
+   "claim": "Writing about a failure can soften its impact and turn it into lessons."
+  },
+  {
+   "id": "wa9",
+   "source": "s30",
+   "quote": "Whatever the reason for the blowup, traders can get past it, but positive thinking alone won't do the trick.",
+   "claim": "Positive thinking alone does not fix a trading problem."
+  },
+  {
+   "id": "wb1",
+   "source": "s31",
+   "quote": "If a trader has trouble distancing their emotions from their trading decisions, it's never a bad idea to slow down or even take a break. Cooler heads usually prevail, and trading is no exception.",
+   "claim": "When emotion creeps into decisions, slow down or take a break."
+  },
+  {
+   "id": "wc1",
+   "source": "s32",
+   "quote": "Even seasoned traders can find buying and selling near the opening and closing bells a bit like surfing when waves are biggest—if they misread the conditions, they might get hurt.",
+   "claim": "Trading near the open is hard even for experienced traders."
+  },
+  {
+   "id": "wc2",
+   "source": "s32",
+   "quote": "But when news breaks outside of trading hours, an imbalance between buy and sell orders may cause a stock to open dramatically higher or lower than its price at the previous close.",
+   "claim": "News outside trading hours can make a stock open far from its prior close."
+  },
+  {
+   "id": "wc3",
+   "source": "s32",
+   "quote": "Trading in the market is about probabilities, not certainties.",
+   "claim": "Trading is about probabilities, not certainties."
+  },
+  {
+   "id": "ia1",
+   "source": "s33",
+   "quote": "Don't play it by ear—you must have some pre-fixed levels in your mind for every stock you plan to trade.",
+   "claim": "Set your levels in advance for every stock you plan to trade."
+  },
+  {
+   "id": "ia2",
+   "source": "s33",
+   "quote": "But as a novice, it is better to just read the market without making any moves for the first 15–20 minutes.",
+   "claim": "Investopedia suggests novices watch the open for the first 15 to 20 minutes before acting."
+  },
+  {
+   "id": "ia4",
+   "source": "s33",
+   "quote": "knowing the latest in the stock markets, keeping track of events that affect stocks",
+   "claim": "Keep track of the events that move stocks."
+  },
+  {
+   "id": "ib1",
+   "source": "s34",
+   "quote": "Update your trading plan weekly or monthly to include new ideas and eliminate bad ones.",
+   "claim": "Revise your plan regularly: add what works, drop what doesn't."
+  },
+  {
+   "id": "ib2",
+   "source": "s34",
+   "quote": "Don't try to make up for a losing trade by trading more. Revenge trading is a recipe for disaster.",
+   "claim": "Don't trade more to win back a loss."
+  },
+  {
+   "id": "ib4",
+   "source": "s34",
+   "quote": "Stay away from stock boards and chat rooms, where people are less than serious and many of them have ulterior motives.",
+   "claim": "Stay away from stock boards and chat rooms."
+  },
+  {
+   "id": "ib5",
+   "source": "s34",
+   "quote": "Discipline can't be taught in a seminar or found in expensive trading software.",
+   "claim": "Discipline doesn't come from software or seminars."
+  },
+  {
+   "id": "ib6",
+   "source": "s34",
+   "quote": "The only way to achieve long-term success is with hard work and discipline.",
+   "claim": "Long-term success comes from hard work and discipline."
+  },
+  {
+   "id": "na1",
+   "source": "s35",
+   "quote": "We find that subjects whose emotional reaction to monetary gains and losses was more intense on both the positive and negative side exhibited significantly worse trading performance.",
+   "claim": "Traders with stronger emotional reactions to both gains and losses traded significantly worse."
+  },
+  {
+   "id": "na2",
+   "source": "s35",
+   "quote": "We investigate several possible links between psychological factors and trading performance in a sample of 80 anonymous day-traders.",
+   "claim": "The study followed 80 day traders."
+  },
+  {
+   "id": "fz1",
+   "source": "s36",
+   "quote": "If trading is indeed a performance field, there is no reason to believe that elite performance will be found in better indicators, faster or more comprehensive software, newsletter tips, or coaching advice.",
+   "claim": "If trading is a performance field, elite performance won't come from better tools or tips."
+  },
+  {
+   "id": "fz2",
+   "source": "s36",
+   "quote": "Only a directed developmental process will allow you to internalize market patterns and act upon these with confidence.",
+   "claim": "Only directed development lets you learn market patterns and act on them with confidence."
+  },
+  {
+   "id": "fz3",
+   "source": "s36",
+   "quote": "In sum, my best advice is to truly treat trading as a profession if it is to be your career.",
+   "claim": "Steenbarger and Toghraie's advice: treat trading as a profession."
+  },
+  {
+   "id": "fz4",
+   "source": "s36",
+   "quote": "Better golf clubs will not turn a duffer into a pro; the finest wrenches will not make one a master mechanic.",
+   "claim": "Better tools don't make a professional."
+  },
+  {
+   "id": "ny1",
+   "source": "s40",
+   "quote": "Core Trading Session: 9:30 a.m. to 4:00 p.m. ET",
+   "claim": "The NYSE core session runs from 9:30 a.m. to 4:00 p.m. ET."
+  },
+  {
+   "id": "ig1",
+   "source": "s41",
+   "quote": "Take your time and don't ever invest in anything you haven't thoroughly and independently researched.",
+   "claim": "Never buy anything you haven't researched yourself."
+  }
+ ],
+ "walkthroughs": [
+  {
+   "key": "w1",
+   "title": "Trading is a performance",
+   "steps": [
+    "Singers, musicians and athletes all warm up before they perform. Coach Brett Steenbarger wants you to do the same.",
+    "Treat trading as a profession. Elite performers spend more time preparing than performing.",
+    "So your trading day has three parts: warm up, trade, cool down."
+   ],
+   "facts": [
+    "fa1",
+    "fz3",
+    "fd1",
+    "ta1"
+   ]
+  },
+  {
+   "key": "w2",
+   "title": "Before the open",
+   "steps": [
+    "Start with the game plan: today's names, the levels, and an entry and stop for each.",
+    "Then check the trader. How you slept, what's on your mind, which mistake is most likely today.",
+    "Write an if-then rule for that mistake, like stepping away after a set loss. Commit to it before the bell."
+   ],
+   "facts": [
+    "ta5",
+    "fe2",
+    "fg1",
+    "ta6",
+    "wa1",
+    "wa2",
+    "tb4"
+   ]
+  },
+  {
+   "key": "w3",
+   "title": "During and after",
+   "steps": [
+    "During the session, trade the plan. Take short breaks before you're drained, not after.",
+    "After the close, write it up while it's fresh: what went well, what went wrong, what to do better.",
+    "Then pick one thing to work on tomorrow. One thing, and specific. Small daily steps add up."
+   ],
+   "facts": [
+    "ta7",
+    "tb1",
+    "ta10",
+    "fc1",
+    "ta2",
+    "ff1",
+    "ff4",
+    "fc3",
+    "fb3"
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "key": "q01",
+   "skill": "psych.routine",
+   "rung": 1,
+   "format": "mcq",
+   "q": "Top singers, musicians and athletes share one habit before they perform. Steenbarger wants traders to copy it. What is it?",
+   "choices": [
+    "They warm up first",
+    "They start cold and find a rhythm",
+    "They follow a lucky ritual"
+   ],
+   "answer": "They warm up first",
+   "why": "They warm up first. Steenbarger points out that singers, musicians and athletes all have warm-up routines. Tendler says the same for trading: get your mind ready the way an athlete readies the body.",
+   "lesson_line": "Nobody serious performs cold. Warm up before the open.",
+   "facts": [
+    "fa1",
+    "fa7",
+    "ta4a",
+    "ta4b"
+   ],
+   "wrong": {
+    "They start cold and find a rhythm": "That makes your first trades the warm-up. Tendler: without one, you're not sharp at the start and you risk mistakes.",
+    "They follow a lucky ritual": "A ritual for luck has no job to do. Steenbarger's warm-up practises the exact skills you're about to use."
+   }
+  },
+  {
+   "key": "q02",
+   "skill": "psych.routine",
+   "rung": 1,
+   "format": "mcq",
+   "q": "Tendler and Steenbarger both build the trading day in the same order. Which order is it?",
+   "choices": [
+    "Warm up, trade, cool down",
+    "Trade first, warm up as you go",
+    "Warm up, trade, then log off"
+   ],
+   "answer": "Warm up, trade, cool down",
+   "why": "Warm up, trade, cool down. Tendler's routine has a warm-up before the session and a cool-down after it. Steenbarger reviews his rules before trading starts and again at the end of the day.",
+   "lesson_line": "Three parts, every day: before the open, during the session, after the close.",
+   "facts": [
+    "ta1",
+    "fb1",
+    "fb2",
+    "ta9"
+   ],
+   "wrong": {
+    "Trade first, warm up as you go": "Then the market is your warm-up, and it charges for it. The warm-up comes before your first order.",
+    "Warm up, trade, then log off": "That skips the review. Tendler says what you do after the session is all about tomorrow."
+   }
+  },
+  {
+   "key": "q03",
+   "skill": "psych.routine",
+   "rung": 1,
+   "format": "tf",
+   "q": "A good warm-up is all charts and levels. Your own head can wait until the bell.",
+   "answer": "False",
+   "why": "False. Steenbarger's warm-up should put you in the mental, physical and emotional state to do your best trading. Tendler adds a plan for the problems most likely to hit you, like tilt or losing focus.",
+   "lesson_line": "Warm up the trader, not just the watchlist.",
+   "facts": [
+    "fa2",
+    "ta6"
+   ]
+  },
+  {
+   "key": "q04",
+   "skill": "psych.routine",
+   "rung": 2,
+   "format": "mcq",
+   "q": "Which job belongs in your warm-up before the open?",
+   "choices": [
+    "Levels, entry and stop per name",
+    "Scan chat rooms for the hot tips",
+    "Wait and decide once it opens"
+   ],
+   "answer": "Levels, entry and stop per name",
+   "why": "Levels, entry and stop per name. Tendler's warm-up covers the levels and the names you're watching that day. An SMB trader's morning plan, shared by Steenbarger, needs an entry, stop, target and risk amount for every idea.",
+   "lesson_line": "Every name on today's list gets its levels before the bell.",
+   "facts": [
+    "ta5",
+    "fe2",
+    "ia1",
+    "ib4"
+   ],
+   "wrong": {
+    "Scan chat rooms for the hot tips": "Hot tips are someone else's idea, not your plan. Investopedia warns that on stock boards and chat rooms, many have ulterior motives.",
+    "Wait and decide once it opens": "That's playing it by ear. Investopedia's rule: have set levels in mind for every stock you plan to trade."
+   }
+  },
+  {
+   "key": "q05",
+   "skill": "psych.routine",
+   "rung": 2,
+   "format": "tf",
+   "q": "Your trading routine starts the night before, with how you sleep.",
+   "answer": "True",
+   "why": "True. Steenbarger finds a surprising share of what sets up a good trading day happens the night before. Tendler's daily routine covers the basics: food, exercise, recharging and sleep.",
+   "lesson_line": "Tomorrow's warm-up starts with tonight's sleep.",
+   "facts": [
+    "fg1",
+    "fg2",
+    "ta3"
+   ]
+  },
+  {
+   "key": "q06",
+   "skill": "psych.routine",
+   "rung": 2,
+   "format": "mcq",
+   "q": "Steenbarger treats trading as a performance field, like sport or music. In that view, what builds top performance?",
+   "choices": [
+    "Directed practice and review",
+    "A sharper set of chart indicators",
+    "Newsletter tips and alerts"
+   ],
+   "answer": "Directed practice and review",
+   "why": "Directed practice and review. Steenbarger notes that every performance field uses practice sessions to rehearse the challenges of live performance. In a Fidelity piece, he and Adrienne Toghraie add that elite performance won't come from better indicators, software or tips.",
+   "lesson_line": "Train like an athlete: prepare, perform, review. Better tools don't replace the reps.",
+   "facts": [
+    "fi3",
+    "fz1",
+    "fz2",
+    "fz4",
+    "fd1",
+    "fd3",
+    "ib5",
+    "ib6"
+   ],
+   "wrong": {
+    "A sharper set of chart indicators": "Steenbarger and Toghraie: better golf clubs won't turn a duffer into a pro. Tools help, but practice builds the skill.",
+    "Newsletter tips and alerts": "Tips are someone else's thinking. Steenbarger and Toghraie list them among the things that won't create elite performance."
+   }
+  },
+  {
+   "key": "q07",
+   "skill": "psych.routine",
+   "rung": 3,
+   "format": "fill",
+   "q": "Finish the line.",
+   "sentence": "When your routine needs work, add ___ new thing at a time.",
+   "bank": [
+    "one",
+    "three",
+    "five",
+    "ten"
+   ],
+   "answer": "one",
+   "why": "One. Tendler: when your routines need work, start small and look for just one thing to add. Steenbarger's version: work on one goal at a time, every day.",
+   "lesson_line": "One small change you keep beats a big overhaul you drop.",
+   "facts": [
+    "ta2",
+    "ff2",
+    "fc1"
+   ]
+  },
+  {
+   "key": "q08",
+   "skill": "psych.routine",
+   "rung": 3,
+   "format": "mcq",
+   "q": "Steenbarger has a one-line definition of good trading that explains why routines matter. Which is it?",
+   "choices": [
+    "Doing the ideal thing automatically",
+    "Never feeling any fear or any greed",
+    "Taking every setup the market gives you"
+   ],
+   "answer": "Doing the ideal thing automatically",
+   "why": "Doing the ideal thing automatically. Steenbarger: good trading could be 'doing automatically what you would ideally do by choice'. Tendler wants the same from a habit: so ingrained you can't not do it.",
+   "lesson_line": "Repeat the right steps until you no longer need the checklist.",
+   "facts": [
+    "fj2",
+    "fp1",
+    "tb9",
+    "fh4"
+   ],
+   "wrong": {
+    "Never feeling any fear or any greed": "Steenbarger says we can't, and shouldn't, remove emotion from trading. The routine works with it.",
+    "Taking every setup the market gives you": "That's overtrading. A routine narrows the day to the setups you planned."
+   }
+  },
+  {
+   "key": "q09",
+   "skill": "psych.routine",
+   "rung": 4,
+   "format": "mcq",
+   "q": "Your names, levels and stops are set. What else do you check before the open?",
+   "choices": [
+    "News and reports due today",
+    "Nothing, levels are enough",
+    "Where the market will close"
+   ],
+   "answer": "News and reports due today",
+   "why": "News and reports due today. Steenbarger's morning includes an advance look at the economic reports due that day. Investopedia's rules include keeping track of the events that affect stocks.",
+   "lesson_line": "Know what's on the calendar before the bell, not when it hits.",
+   "facts": [
+    "fm1",
+    "ia4",
+    "wc2"
+   ],
+   "wrong": {
+    "Nothing, levels are enough": "News that breaks outside trading hours can make a stock open far above or below its last close. Know what's coming.",
+    "Where the market will close": "Nobody knows that. The warm-up covers what's scheduled and how you'll respond, not a forecast."
+   }
+  },
+  {
+   "key": "q10",
+   "skill": "psych.routine",
+   "rung": 4,
+   "format": "scenario",
+   "story": "You know your pattern. After a losing trade, you rush into the next one. Today's charts and levels are ready.",
+   "q": "What should your warm-up add?",
+   "choices": [
+    "An if-then rule for after a loss",
+    "Nothing, the charts are all set",
+    "A reminder to stay positive today"
+   ],
+   "answer": "An if-then rule for after a loss",
+   "why": "An if-then rule for after a loss. Tendler's warm-up includes a plan for the problems most likely to hit you. Schwab suggests written if-then plans, committed to before every session. One example: take 15 minutes when you feel an urge to break a rule.",
+   "lesson_line": "Know your pattern. Write the rule for it before the bell, not after the damage.",
+   "facts": [
+    "ta6",
+    "wa1",
+    "wa2",
+    "fh3",
+    "wa9"
+   ],
+   "wrong": {
+    "Nothing, the charts are all set": "The charts are set. The trader isn't. A pattern you already know needs a plan too.",
+    "A reminder to stay positive today": "Schwab: positive thinking alone won't do the trick. You need a specific response, decided in advance."
+   }
+  },
+  {
+   "key": "q11",
+   "skill": "psych.routine",
+   "rung": 4,
+   "format": "mcq",
+   "q": "Before the open, Steenbarger rehearses how he'd respond to early strength or weakness. What's the point of rehearsing?",
+   "choices": [
+    "To follow your plan when it gets real",
+    "To forecast where the market will open",
+    "To find more reasons to take trades"
+   ],
+   "answer": "To follow your plan when it gets real",
+   "why": "To follow your plan when it gets real. Steenbarger: decisions you plan in one state won't always be the ones you act on in another. Schwab says practising the ideal response helps you carry it out for real.",
+   "lesson_line": "Rehearse the response before the bell, so the market isn't your first test.",
+   "facts": [
+    "fa4",
+    "fh1",
+    "fo2",
+    "wa4",
+    "fa8"
+   ],
+   "wrong": {
+    "To forecast where the market will open": "Rehearsal isn't a forecast. Steenbarger runs through many scenarios so he doesn't get locked into any one.",
+    "To find more reasons to take trades": "Rehearsal is about how you respond, not how often you trade."
+   }
+  },
+  {
+   "key": "q12",
+   "skill": "psych.routine",
+   "rung": 5,
+   "format": "fill",
+   "q": "Finish Tendler's three cool-down questions.",
+   "sentence": "What did I do well? What mistakes did I make? How can I ___ next time?",
+   "bank": [
+    "improve",
+    "win",
+    "profit",
+    "relax"
+   ],
+   "answer": "improve",
+   "why": "Improve. Tendler's three questions: what you did well, what mistakes you made, and how to improve on them next time. Steenbarger's review tracks what you did well and what needs improvement.",
+   "lesson_line": "Three questions after every session: what worked, what didn't, what changes tomorrow.",
+   "facts": [
+    "tb1",
+    "fi1"
+   ]
+  },
+  {
+   "key": "q13",
+   "skill": "psych.routine",
+   "rung": 5,
+   "format": "tf",
+   "q": "Getting very excited after wins is harmless. Only the sting after losses hurts your trading.",
+   "answer": "False",
+   "why": "False. In a study of 80 day traders, those with more intense emotional reactions to gains and to losses traded significantly worse. Schwab notes studies consistently link intense emotion to poor trading.",
+   "lesson_line": "Check in after wins too. A big high is a warning sign, just like a big low.",
+   "facts": [
+    "na1",
+    "na2",
+    "wa5"
+   ]
+  },
+  {
+   "key": "q14",
+   "skill": "psych.routine",
+   "rung": 5,
+   "format": "scenario",
+   "story": "A fight with your landlord is still on your mind. The open is an hour away.",
+   "q": "What does Tendler suggest before you trade?",
+   "choices": [
+    "Write it out, then set it aside",
+    "Push it down and focus on charts",
+    "Trade to take your mind off it"
+   ],
+   "answer": "Write it out, then set it aside",
+   "why": "Write it out, then set it aside. Tendler suggests writing for up to 15 minutes before you trade, to get it out and put it away for now. Schwab notes that writing about worries before a big moment frees up working memory.",
+   "lesson_line": "Get it on paper, then draw a line under it. It waits until after the close.",
+   "facts": [
+    "tb4",
+    "tb5",
+    "wa3"
+   ],
+   "wrong": {
+    "Push it down and focus on charts": "Pushed down, it keeps pulling at your attention. Writing it out frees that attention for the market.",
+    "Trade to take your mind off it": "That puts money on a distracted mind. A trade is not a way to stop thinking about something else."
+   }
+  },
+  {
+   "key": "q15",
+   "skill": "psych.routine",
+   "rung": 6,
+   "format": "scenario",
+   "story": "It's 11:30 a.m. You were sharp all morning. Now you're rereading the same chart and snapping at small things.",
+   "q": "What does a good in-session routine say?",
+   "choices": [
+    "Take a short break now",
+    "Push through to the close",
+    "Trade more to get your edge back"
+   ],
+   "answer": "Take a short break now",
+   "why": "Take a short break now. Tendler says don't wait until you need one: fatigue cuts your control over emotions and raises your odds of a mistake. Schwab agrees: slow down or even take a break.",
+   "lesson_line": "Breaks are part of the plan. Take one before you're running on empty.",
+   "facts": [
+    "ta7",
+    "ta8",
+    "wb1",
+    "fn1"
+   ],
+   "wrong": {
+    "Push through to the close": "Steenbarger: in a fatigued state you're more likely to make mistakes and slip into old habits that cost money.",
+    "Trade more to get your edge back": "More trades from a tired mind means more chances for the mistakes fatigue brings."
+   }
+  },
+  {
+   "key": "q16",
+   "skill": "psych.routine",
+   "rung": 6,
+   "format": "tf",
+   "q": "Writing up today's trades on the weekend works as well as writing them up right after the close.",
+   "answer": "False",
+   "why": "False. Tendler: as soon as you walk away, details start to disappear. The best time to get the emotion out is soon after you're done. Steenbarger reviews at the end of each trading day.",
+   "lesson_line": "Write it while it's fresh. By the weekend, many details are gone.",
+   "facts": [
+    "ta10",
+    "tb3",
+    "fb2"
+   ]
+  },
+  {
+   "key": "q17",
+   "skill": "psych.routine",
+   "rung": 7,
+   "format": "scenario",
+   "story": "You overslept. It's 9:25 a.m. ET, and the open is at 9:30. No warm-up, no levels, and a stock you've never studied is ripping premarket.",
+   "q": "What's the move?",
+   "choices": [
+    "Hold off until your prep is done",
+    "Buy the runner before it gets away",
+    "Trade your normal size, prep later"
+   ],
+   "answer": "Hold off until your prep is done",
+   "why": "Hold off until your prep is done. Without a warm-up, Tendler says you're not sharp and you risk mistakes. Investor.gov's advice fits too: don't ever invest in anything you haven't researched.",
+   "lesson_line": "No prep, no trade yet. Let the open go and get your plan back first.",
+   "facts": [
+    "ta4b",
+    "fa3",
+    "ig1",
+    "ia1",
+    "ia2",
+    "wc1",
+    "ny1"
+   ],
+   "wrong": {
+    "Buy the runner before it gets away": "No levels, no stop, no research. Schwab notes even seasoned traders can get hurt trading near the opening bell.",
+    "Trade your normal size, prep later": "Prep later means trading unprepared now. Steenbarger: many trading problems start because the right skills were never warmed up."
+   }
+  },
+  {
+   "key": "q18",
+   "skill": "psych.routine",
+   "rung": 7,
+   "format": "scenario",
+   "story": "Ugly day. You moved your stop, took a big loss, and you're angry. It's 4:10 p.m. and you want to shut the laptop.",
+   "q": "What's your cool-down tonight?",
+   "choices": [
+    "Write out what happened and why",
+    "Shut it, forget it, start fresh",
+    "Trade after hours to win it back"
+   ],
+   "answer": "Write out what happened and why",
+   "why": "Write out what happened and why. On an emotional day, Tendler's goal is to keep the emotion from carrying over to tomorrow. At minimum, a brain dump: what happened, what you felt, what set it off.",
+   "lesson_line": "Bad days need the cool-down most. Get it on paper before you sleep.",
+   "facts": [
+    "ta11",
+    "ta12",
+    "wa7",
+    "ta18",
+    "ib2"
+   ],
+   "wrong": {
+    "Shut it, forget it, start fresh": "Tendler: skip the cool-down and the odds of making the same mistake again go up.",
+    "Trade after hours to win it back": "That's revenge trading. Investopedia's rules call it a recipe for disaster."
+   }
+  },
+  {
+   "key": "q19",
+   "skill": "psych.routine",
+   "rung": 7,
+   "format": "scenario",
+   "story": "Your review lists six fixes: entries, stops, size, sleep, focus and patience. You want all six fixed by tomorrow.",
+   "q": "What goal do you set for tomorrow?",
+   "choices": [
+    "One fix, stated specifically",
+    "Work on all six fixes at once",
+    "Just be more disciplined",
+    "No goal, trade and see"
+   ],
+   "answer": "One fix, stated specifically",
+   "why": "One fix, stated specifically. Steenbarger finds too many goals scatter your attention, and vague goals get the least follow-through. Tendler says the same: start small, one thing at a time.",
+   "lesson_line": "One goal, specific enough to check tonight. Then the next one.",
+   "facts": [
+    "fc1",
+    "fc2",
+    "fc3",
+    "ta2",
+    "fl4"
+   ],
+   "wrong": {
+    "Work on all six fixes at once": "Too many goals, and none gets proper attention. Steenbarger works one goal at a time, every day.",
+    "Just be more disciplined": "That's a good intention, not a goal. You can't check it at the close.",
+    "No goal, trade and see": "Experience alone teaches slowly. Steenbarger: guided experience, with goals and feedback, is what gets you there."
+   }
+  },
+  {
+   "key": "q20",
+   "skill": "psych.routine",
+   "rung": 8,
+   "format": "tf",
+   "q": "You ran your routine perfectly and still lost money today. That means the routine is broken.",
+   "answer": "False",
+   "why": "False. Tendler: routines don't guarantee results, they raise the odds. Schwab: trading is about probabilities, not certainties. Judge the routine by the process over time, not by one day.",
+   "lesson_line": "One red day says little about a good routine. Judge it over weeks.",
+   "facts": [
+    "ta14",
+    "ta13",
+    "wc3",
+    "fq1"
+   ]
+  },
+  {
+   "key": "q21",
+   "skill": "psych.routine",
+   "rung": 8,
+   "format": "scenario",
+   "story": "Best week of your year. Friday afternoon you skip the review. Things are clearly working.",
+   "q": "Is skipping it a problem?",
+   "choices": [
+    "Yes, good weeks hold lessons to repeat",
+    "No, reviews are for losing weeks",
+    "No, but raise your size next week"
+   ],
+   "answer": "Yes, good weeks hold lessons to repeat",
+   "why": "Yes. Good weeks hold lessons to repeat. Steenbarger turns what you did well into goals to repeat and expand. Tendler warns that dropping the journal when things go well is a sign of subtle overconfidence.",
+   "lesson_line": "Review the great weeks too. That's where you learn what to repeat.",
+   "facts": [
+    "fi2",
+    "fr1",
+    "tb6"
+   ],
+   "wrong": {
+    "No, reviews are for losing weeks": "Steenbarger: studying your successes is how you define your best practices.",
+    "No, but raise your size next week": "That's the overconfidence Tendler warns about. A hot streak is when the process quietly slips."
+   }
+  },
+  {
+   "key": "q22",
+   "skill": "psych.routine",
+   "rung": 9,
+   "format": "scenario",
+   "story": "You slept badly and skipped your warm-up. Ten minutes after the open, your first trade is a loss. You want right back in.",
+   "q": "What's the right call?",
+   "choices": [
+    "Step away and do the warm-up now",
+    "Jump back in to make it back",
+    "Keep trading, tighten every stop"
+   ],
+   "answer": "Step away and do the warm-up now",
+   "why": "Step away and do the warm-up now. Tendler: when you're tired, your emotions get bigger and you have less to handle them with. Schwab's if-then plans include taking 15 minutes when you feel an urge to break a rule.",
+   "lesson_line": "When the day starts wrong, reset first. The next setup can wait for you.",
+   "facts": [
+    "td2",
+    "wa2",
+    "ib2",
+    "ta4b"
+   ],
+   "wrong": {
+    "Jump back in to make it back": "That's revenge trading. Investopedia: don't try to make up for a losing trade by trading more.",
+    "Keep trading, tighten every stop": "A tighter stop doesn't fix a tired, rattled mind. The problem is the trader, not the stop."
+   }
+  },
+  {
+   "key": "q23",
+   "skill": "psych.routine",
+   "rung": 9,
+   "format": "scenario",
+   "story": "Same routine for two years. The market has gone from smooth trends to choppy swings. Your results have gone flat.",
+   "q": "What does Steenbarger suggest?",
+   "choices": [
+    "Rework the routine, keep what works",
+    "Stick with it, since it worked before",
+    "Drop routines and trade on feel"
+   ],
+   "answer": "Rework the routine, keep what works",
+   "why": "Rework the routine, keep what works. Steenbarger: routine is the friend of efficiency and the enemy of change. Reworking old processes is what keeps traders profitable when markets turn choppy.",
+   "lesson_line": "Keep the routine, but review it. When the market changes, your prep changes too.",
+   "facts": [
+    "fj3",
+    "fj5",
+    "fj4",
+    "fj1",
+    "ib1"
+   ],
+   "wrong": {
+    "Stick with it, since it worked before": "Steenbarger: there's a world of difference between five years of experience and one year repeated five times.",
+    "Drop routines and trade on feel": "That throws out what works with what doesn't. Routines are what let you process the market efficiently."
+   }
+  }
+ ],
+ "conflicts": [
+  "Tier 1 is thin for this topic: no SEC, FINRA or exchange page describes a trader's daily mental routine. The file rests on two independent named authors (Steenbarger's TraderFeed, Tendler's own site) plus Schwab, Investopedia and NBER. Every key has at least two of those publishers, or a Tier 1 fact (q17: Investor.gov, NYSE).",
+  "Steenbarger appears through three publishers: TraderFeed (his blog), Fidelity (a 2011 piece he co-wrote with Adrienne Toghraie, adapted from both their Wiley books) and NBER (a study he co-wrote). No key rests only on Steenbarger sources: every Steenbarger-led key also cites Tendler, Schwab or Investopedia (q06 pairs TraderFeed and the Fidelity piece with Investopedia's 'discipline can't be ... found in expensive trading software'; q13 pairs NBER with Schwab). Checker 2026-11-09: the Fidelity page does not say which author wrote which line, so q06 and w1 no longer credit its lines to Steenbarger alone.",
+  "Investor.gov 'Thinking of Day Trading? Know the Risks.' (s41) is a former Director's Take, marked on the page as no longer being updated. It is cited only for the timeless line 'don't ever invest in anything you haven't thoroughly and independently researched' (q17), next to Tendler and Investopedia.",
+  "Steenbarger's 2016 recovery post (s13) says willpower 'runs out of power'. Willpower depletion ('ego depletion') is a contested finding in psychology. The file cites only the post's fatigue line (fatigue makes mistakes and old habits more likely, which Tendler also says) and never keys willpower depletion.",
+  "Steenbarger's 2014 post 'Priming as Performance Preparation' builds on behavioural priming, another finding with replication problems. Not used.",
+  "Tendler's 'Building a Winning Routine' mentions 'around eight hours of sleep'. Sleep amounts are a health claim outside this unit; the file teaches only that sleep is part of the routine (Steenbarger + Tendler), with no number.",
+  "Investopedia (s33) suggests a novice 'read the market without making any moves for the first 15-20 minutes'. That is a day-trading tip for beginners, cited in q17 only as support that holding off at the open is legitimate; it is never keyed as a rule.",
+  "NBER w11243 (s35) is one study of 80 day traders and is correlational. q13 says 'in a study of 80 day traders' and keys only what the abstract states (more intense reactions on both sides went with significantly worse performance), alongside Schwab's 'studies have consistently linked intense emotional reactions to poor trading performance'.",
+  "The SMB trader's morning list (s5, fact fe2) is one trader's own routine as published by Steenbarger. q04 uses it as an example ('an SMB trader's morning plan'), with Tendler and Investopedia for the key.",
+  "The unit plan's 'covers' column points to uct-intelligence/prompts/06_psychology.txt S5 and 'examples needed' to app/src/constants/quotes.json. Neither is a source the contract allows (not a public page, not one of the three house files), so neither is cited. The repo's house files (sizing_rule.md, TRADE_PLANS.md, OWNER_PRINCIPLES.md) say nothing about a daily routine, so the unit has no house question.",
+  "TraderLion's 'Building a Winning Routine' (a repost of Tendler) refused both the plain client and WebFetch (403). The file cites Tendler's own page instead.",
+  "Quote check, 2026-11-09: jaredtendler.com answers HTTP 502 to the checker's client name (UCT-Study-SourceCheck) but 200 to plain curl, so its 23 facts (s20, s21, s22) show 'unreachable'. All 23 quotes were confirmed on the live pages with plain curl (same word-matching as the checker) and again with WebFetch, which also confirmed the author and dates (2023-06-05, 2025-08-11, 2024-07-08). Every other fact was 'found' by the checker.",
+  "Checker 2026-11-09: Steenbarger's 2015 routines post (s10) also says that real change means to 'shatter routine', 'not just tweak small changes around the edges', while his 2014 post (s6) and Tendler (s20) say to change one small step at a time. The file keys 'one at a time' only for improving a routine or setting goals (q07, q19: Tendler's routine advice and Steenbarger's FIGS), and q23 keys reworking the routine when the market changes. No key rests on the 'shatter' line.",
+  "Checker 2026-11-09: fact ff2 ('most of us ... need to change one action at a time') is a rabbi's point that Steenbarger relays and calls excellent. q07 now credits Steenbarger only with his own FIGS line (fc1).",
+  "For the owner: Investopedia's rules (s34) say to 'stay away from stock boards and chat rooms', and the Fidelity piece (s36) lists 'newsletter tips' and 'coaching advice' among things that won't create elite performance. UCT runs a community, a newsletter and alerts. The file uses these only to say hot tips are not your plan (q04) and that tools and tips don't replace practice (q06); it never keys 'avoid chat rooms' as a rule. Owner may want a different line.",
+  "Checker 2026-11-09: jaredtendler.com still answers HTTP 502 to the quote checker's Python client but 200 to plain curl. All 23 Tendler quotes (s20, s21, s22) were word-matched on the curl copies and confirmed with WebFetch, which also confirmed the author and dates (June 5, 2023; August 11, 2025; July 8, 2024). On s21 the three cool-down questions are separate bullets under 'Here are three basic questions you can use in reflecting afterward'.",
+  "Track audit (2026-11-09, all seven F8 units read together): q18 cut as a duplicate of F8.06 q12 (same Tendler brain-dump quote, same scenario); q19 is kept over F8.01 q15, which is cut as its duplicate (a vague goal turned into one specific step). w1 now introduces 'Coach Brett Steenbarger' by name, as F8.02 does. All 23 jaredtendler.com quotes were word-matched again on fresh plain-curl copies (HTTP 200): none missing. q16 (write it up the same day, not at the weekend) is kept beside F8.01 q03 (write a mistake down the same day): same habit, different reason (here memory fades; there hindsight bends what you remember)."
+ ],
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "fixed": true,
+   "by": "checker",
+   "notes": "fa1 confirmed in context on the live TraderFeed post (2017-06-04), fd1 on the 2014 journals post, ta1 on Tendler's page (curl + WebFetch). Changed step 2 'His advice is to treat trading as a profession': fz3 is from a Fidelity piece co-written by Steenbarger and Adrienne Toghraie that does not say who wrote which line, so the step no longer credits it to Steenbarger alone. 'Three parts' matches Tendler's warm-up / in-session / cool-down (his fourth area is the daily basics, taught in q05). Track audit 2026-11-09: step 1 now names him on first use, 'Coach Brett Steenbarger', as F8.02 q16 does and as F8.06 w1 names 'Coach Jared Tendler'; the TraderFeed bio on the s1 page reads 'As a performance coach for portfolio managers and traders' (read 2026-11-09)."
+  },
+  "w2": {
+   "status": "pass",
+   "fixed": true,
+   "by": "checker",
+   "notes": "ta5, ta6 (Tendler), fe2 (SMB trader Steve Spencer's list on TraderFeed), fg1 (Steenbarger), wa1, wa2 (Schwab, Hoenig, 2026-02-10) all confirmed in context. Added tb4 to the cited facts, since step 2's 'what's on your mind' rests on Tendler's pre-session writing. No wording change."
+  },
+  "w3": {
+   "status": "pass",
+   "fixed": true,
+   "by": "checker",
+   "notes": "ta7, ta10 (Tendler), tb1 (Tendler's three questions 'for reflecting afterward'), fc1, ff1, ff4 (Steenbarger) confirmed in context. Added fc3 (vague goals) for 'and specific' and fb3 (Steenbarger targets rules for the coming session) to the cited facts. No wording change."
+  },
+  "q01": {
+   "status": "pass",
+   "fixed": false,
+   "by": "checker",
+   "notes": "fa1, fa7 confirmed on the live 2017 warm-up post; ta4a, ta4b on Tendler's 'Building a Winning Routine' (2023-06-05). Two publishers agree. 'Start cold and find a rhythm' is a real habit, not silly; 'lucky ritual' is a believable confusion of warm-up with superstition. Both wrong notes match their sources."
+  },
+  "q02": {
+   "status": "pass",
+   "fixed": false,
+   "by": "checker",
+   "notes": "ta1, ta9 (Tendler: pre-session warm-up, in-session, post-session cool-down) and fb1, fb2 (Steenbarger reviews his own written rules before trading starts and at the end of trading; the post says 'my own trading') confirmed in context. 'Log off' is wrong only because it drops the review, which the note says plainly."
+  },
+  "q03": {
+   "status": "pass",
+   "fixed": false,
+   "by": "checker",
+   "notes": "fa2 (warm-up puts you in the mental, physical and emotional state) and ta6 (a mental game plan for tilt, boredom, focus) confirmed in context. Two publishers. Statement is clearly false as written."
+  },
+  "q04": {
+   "status": "pass",
+   "fixed": true,
+   "by": "checker",
+   "notes": "ta5 (TA levels, symbols for the day), fe2 (SMB trader: 'Ideas must include entries/stops/targets/risk amount'), ia1 (Investopedia, Bajpai, updated 2026-08-12: pre-fixed levels for every stock) confirmed live. Changed the chat-room note from the blanket 'stay away from stock boards and chat rooms' to the hot-tip point with the source's reason (ulterior motives), since UCT runs its own community; flagged for the owner in conflicts."
+  },
+  "q05": {
+   "status": "pass",
+   "fixed": false,
+   "by": "checker",
+   "notes": "fg1 ('a surprising proportion of what sets traders up for success during the day is what has happened the previous night') and fg2 confirmed on the 2015 sleep post; ta3 (daily routine covers sleep) on Tendler's page. Two publishers. No sleep number is taught (Tendler's 'around eight hours' left out, as conflicts says)."
+  },
+  "q06": {
+   "status": "pass",
+   "fixed": true,
+   "by": "checker",
+   "notes": "fz1, fz2, fz4 confirmed on the live Fidelity page, but it is co-written by Steenbarger and Adrienne Toghraie (adapted from both their Wiley books) and never says who wrote which line. Changed: why and both wrong notes now credit 'Steenbarger and Toghraie'; added fi3 (Steenbarger's own 2026 line: every performance field uses practice sessions to rehearse live challenges) so the 'Steenbarger' premise rests on his own words; 'what builds a trader's edge' became 'what builds top performance' (practice builds skill, not a setup's statistical edge); lesson 'Tools never replace' softened to 'Better tools don't replace'. ib5, ib6 (Investopedia) confirmed live."
+  },
+  "q07": {
+   "status": "pass",
+   "fixed": true,
+   "by": "checker",
+   "notes": "ta2 ('start small. Look for just one thing you can add') confirmed on Tendler's page; fc1 (FIGS, one goal at a time, every day) on TraderFeed. Changed the why's second line: 'most of us need to change one action at a time' (ff2) is a rabbi's point Steenbarger relays, so the why now quotes his own FIGS line. Bank distractors are fine for a fill."
+  },
+  "q08": {
+   "status": "pass",
+   "fixed": true,
+   "by": "checker",
+   "notes": "fj2 confirmed on the 2015 routines post ('A definition of good trading could be: doing automatically what you would ideally do by choice'); tb9 (Tendler) and fh4 confirmed. Changed the key from 'Doing automatically what you'd choose', which dropped 'ideally' and so changed the meaning, to 'Doing the ideal thing automatically' (fits 40 characters). Wrong choices are real misreadings; fh4 backs the fear/greed note."
+  },
+  "q09": {
+   "status": "pass",
+   "fixed": false,
+   "by": "checker",
+   "notes": "fm1 (Steenbarger's morning: an advance look at economic reports due that day), ia4 (Investopedia: keep track of events that affect stocks) and wc2 (Schwab, Horner, 2024-11-26: news outside hours can gap a stock) confirmed in context. Two Tier 2 publishers plus Steenbarger. 'Where the market will close' is a real forecasting habit; the note says so."
+  },
+  "q10": {
+   "status": "pass",
+   "fixed": false,
+   "by": "checker",
+   "notes": "ta6 (Tendler: mental game plan for the problems most likely to affect you), wa1, wa2 (Schwab: written if-then plans committed before every session; 15 minutes when you feel an urge to break a rule), wa9 and fh3 confirmed in context. The 15 is in wa2's quote. Good trading sense."
+  },
+  "q11": {
+   "status": "pass",
+   "fixed": true,
+   "by": "checker",
+   "notes": "fa4, fa8 (rehearsing early strength or weakness, not locked into one), fh1, fo2 (Steenbarger) and wa4 (Schwab) confirmed in context. Changed the key 'A calm plan can fail once you're live' to 'To follow your plan when it gets real': the old key was a problem statement next to two 'To ...' purposes, so its shape gave it away. Why changed 'often aren't the ones you act on' to 'won't always be', which is what fh1 says; fh1's claim fixed the same way."
+  },
+  "q12": {
+   "status": "pass",
+   "fixed": false,
+   "by": "checker",
+   "notes": "tb1 confirmed on Tendler's 'Effective Journaling' (2025-08-11) via curl and WebFetch: the three questions are bullets under 'three basic questions you can use in reflecting afterward', the third reads 'How can you improve on them and/or be better next time?'. fi1 (Steenbarger, 2026-02-18 entry) confirmed. 'Win' and 'profit' are tempting outcome words, a fair trap."
+  },
+  "q13": {
+   "status": "pass",
+   "fixed": false,
+   "by": "checker",
+   "notes": "na1, na2 confirmed on the NBER w11243 abstract (80 day-traders; more intense reactions on both the positive and negative side, significantly worse performance; published AER 2005 per the page). wa5 confirmed on Schwab. The why says 'in a study of 80 day traders', not a law. 80 is in na2's quote."
+  },
+  "q14": {
+   "status": "pass",
+   "fixed": false,
+   "by": "checker",
+   "notes": "tb4 ('write for up to 15 minutes, one hour before you start to play/trade'), tb5 confirmed on Tendler's journaling post; wa3 (Schwab: writing about worries frees up working memory) confirmed. The story's 'an hour away' matches Tendler. Wrong notes match tb4's context (worries swirl and impair focus)."
+  },
+  "q15": {
+   "status": "pass",
+   "fixed": false,
+   "by": "checker",
+   "notes": "ta7, ta8 (Tendler: break before energy nosedives; key on early warning signs; fatigue reduces emotional control) confirmed; wb1 (Schwab, Horner, 2025-10-01: slow down or take a break when emotions mix into decisions) and fn1 (Steenbarger: fatigue, mistakes, old habits) confirmed. The story's signs are the 'early warning signs' Tendler names."
+  },
+  "q16": {
+   "status": "pass",
+   "fixed": true,
+   "by": "checker",
+   "notes": "ta10 ('As soon as you walk away, details start to disappear'), tb3 ('the best time to do it is soon after you're done') and fb2 confirmed in context. Changed the lesson line 'By the weekend, the details are gone' to 'many details are gone': the source says details start to disappear, not that all are lost. A weekly review is still good (Steenbarger, fi1); the statement is about replacing the daily write-up."
+  },
+  "q17": {
+   "status": "pass",
+   "fixed": true,
+   "by": "checker",
+   "notes": "ig1 confirmed on Investor.gov (Tier 1; a former Director's Take marked 'no longer being updated', the line is timeless); ny1 confirmed on NYSE Hours & Calendars today (core session 9:30 a.m. to 4:00 p.m. ET); ta4b, fa3, ia1, ia2, wc1 confirmed. Changed 'Investor.gov's rule' to 'Investor.gov's advice', since it is guidance, not a rule. Holding off is good trading sense for a swing trader."
+  },
+  "q18": {
+   "status": "cut",
+   "fixed": false,
+   "by": "auditor",
+   "notes": "duplicate of F8.06#q12. Track audit 2026-11-09: both are a scenario after an angry day of broken rules, keyed on Tendler's 'At a minimum, do a brain dump' of what happened, the emotion and the trigger (same post, same quote: F8.06 r02, here ta12). F8.06#q12 is kept: its four choices are all real temptations ('review it fresh tomorrow' is the main one), while 'Trade after hours to win it back' here is close to silly, and it names the source of the advice. This unit still teaches the cool-down in w3, q12, q16 and q21. Checker's earlier note follows. ta11, ta12, ta18 (Tendler: on emotional days stop the emotion carrying over; at minimum a brain dump of what happened, the emotion, the trigger; skip it and the same mistake is likelier) confirmed; wa7 (Schwab: writing about failures reduces their impact) and ib2 (Investopedia, Farley, updated 2026-08-19: revenge trading) confirmed. Two publishers."
+  },
+  "q19": {
+   "status": "pass",
+   "fixed": false,
+   "by": "checker",
+   "notes": "fc1, fc2, fc3 confirmed on the FIGS post (2021-06-25), including 'A trader may set a goal of trading with greater discipline' as its example of a vague goal, which is exactly the 'Just be more disciplined' choice. ta2 (Tendler) and fl4 confirmed. Four choices, all real habits."
+  },
+  "q20": {
+   "status": "pass",
+   "fixed": false,
+   "by": "checker",
+   "notes": "ta13, ta14 (Tendler: no guarantees, routines increase the probability), wc3 (Schwab: probabilities, not certainties) and fq1 (Steenbarger: focus on the processes that generate profits over time) confirmed. Keeps the no-guarantee framing the contract wants."
+  },
+  "q21": {
+   "status": "pass",
+   "fixed": false,
+   "by": "checker",
+   "notes": "fi2 (goals to repeat and expand what you did well), fr1 (study your successes to define best practices) and tb6 (Tendler: falling off the journal when doing well is subtle overconfidence) confirmed in context. 'Raise your size next week' is a real hot-streak mistake; the note ties it to tb6."
+  },
+  "q22": {
+   "status": "pass",
+   "fixed": true,
+   "by": "checker",
+   "notes": "td2 (Tendler, 'Getting Paid to Rest', 2024-07-08: tired, emotions get bigger), wa2 (Schwab: take 15 minutes on an urge to break a rule), ib2 (Investopedia: revenge trading) and ta4b confirmed. Changed the 'tighten every stop' note: 'Stops belong where the chart says' was a stop-placement rule with no cited fact in this unit; it now reads 'The problem is the trader, not the stop.'"
+  },
+  "q23": {
+   "status": "pass",
+   "fixed": false,
+   "by": "checker",
+   "notes": "fj5 ('the reworking of old trading processes and the addition of new ones ... when markets go from trending and non-volatile to volatile and choppy'), fj3, fj4, fj1 confirmed on the 2015 routines post; ib1 (Investopedia: update the plan, add new ideas, eliminate bad ones) confirmed. The same post's 'shatter routine' line is noted in conflicts; the key 'rework, keep what works' matches fj5 plus the post's own McDonald's example."
+  }
+ }
+}

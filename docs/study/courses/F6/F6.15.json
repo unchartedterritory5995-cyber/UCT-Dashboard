@@ -1,0 +1,1739 @@
+{
+ "unit": "F6.15",
+ "track": "F6",
+ "title": "Iron condors and butterflies",
+ "teaches": "How an iron condor (a put credit spread below the price plus a call credit spread above it), an iron butterfly (both short strikes at one price) and a long call butterfly (buy one, sell two, buy one) are built, and how to quote their max gain, max loss (the wider side's width minus the credit, times 100, times contracts), breakevens, and the assignment risks that formula leaves out.",
+ "skills": [
+  {
+   "id": "options.condors_flies",
+   "title": "Iron condors and butterflies"
+  }
+ ],
+ "as_of": "2026-11-09",
+ "sources": [
+  {
+   "id": "s1",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Short Condor (Iron Condor)",
+   "url": "https://www.optionseducation.org/strategies/all-strategies/short-condor",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s2",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Short Iron Butterfly",
+   "url": "https://www.optionseducation.org/strategies/all-strategies/short-iron-butterfly",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s3",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Long Call Butterfly",
+   "url": "https://www.optionseducation.org/strategies/all-strategies/long-call-butterfly",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s4",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Long Condor",
+   "url": "https://www.optionseducation.org/strategies/all-strategies/long-iron-condor",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s5",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Short Call Butterfly",
+   "url": "https://www.optionseducation.org/strategies/all-strategies/short-call-butterfly",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s6",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "August Webinar Key Takeaways: From Straddles to Butterflies, a Volatility Toolkit (September 2026, OIC instructor Ken Keating)",
+   "url": "https://www.optionseducation.org/news/august-webinar-key-takeaways-from-straddles-to-butterflies,-a-volatility-toolkit",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s7",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "October Webinar Key Takeaways: Iron Butterfly & Iron Condor Strategies (November 2025, OIC instructor Ken Keating)",
+   "url": "https://www.optionseducation.org/news/october-webinar-key-takeaways",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s8",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Exercising Options",
+   "url": "https://www.optionseducation.org/optionsoverview/exercising-options",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s9",
+   "tier": 1,
+   "publisher": "The Options Clearing Corporation and the US options exchanges",
+   "title": "Characteristics and Risks of Standardized Options (June 2024 edition)",
+   "url": "https://cdn.robinhood.com/assets/robinhood/legal/Characteristics%20and%20Risks%20of%20Standardized%20Options.pdf",
+   "accessed": "2026-11-09",
+   "why_reliable": "The official options disclosure document every options customer must receive (June 2024 edition, the version Cboe Regulatory Circular RC24-009 says replaces all prior ones). theocc.com refuses plain clients (403), so this cites the copy Robinhood distributes to its customers (cover: June 2024; copyright the exchanges and OCC). The same copy is cited by F6.01-F6.11."
+  },
+  {
+   "id": "s10",
+   "tier": 1,
+   "publisher": "Cboe Global Markets",
+   "title": "S&P 500 Index (SPX) Options",
+   "url": "https://www.cboe.com/tradable_products/sp_500/spx_options/",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s11",
+   "tier": 2,
+   "publisher": "Fidelity",
+   "title": "Short iron condor spread (Options Strategy Guide)",
+   "url": "https://www.fidelity.com/learning-center/investment-products/options/options-strategy-guide/short-iron-condor-spread",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s12",
+   "tier": 2,
+   "publisher": "Fidelity",
+   "title": "Short iron butterfly spread (Options Strategy Guide)",
+   "url": "https://www.fidelity.com/learning-center/investment-products/options/options-strategy-guide/short-iron-butterfly-spread",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s13",
+   "tier": 2,
+   "publisher": "Fidelity",
+   "title": "Long butterfly spread with calls (Options Strategy Guide)",
+   "url": "https://www.fidelity.com/learning-center/investment-products/options/options-strategy-guide/long-butterfly-spread-calls",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s14",
+   "tier": 2,
+   "publisher": "Fidelity",
+   "title": "Selling Iron Condors and Butterflies (Fidelity Trading Strategy Desk webinar deck, 2016)",
+   "url": "https://www.fidelity.com/bin-public/060_www_fidelity_com/documents/IronCondorButterflies_Webinar.pdf",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s15",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "Iron Condors: What They Are and How to Use Them (Will Daniel, April 9, 2026)",
+   "url": "https://www.schwab.com/learn/story/iron-condors-what-they-are-and-how-to-use-them",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s16",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Understanding Iron Condor Options: Strategy and Examples (Cedric Thompson, updated July 21, 2026)",
+   "url": "https://www.investopedia.com/terms/i/ironcondor.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s17",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Mastering Butterfly Spreads (Cedric Thompson, updated July 20, 2026)",
+   "url": "https://www.investopedia.com/terms/b/butterflyspread.asp",
+   "accessed": "2026-11-09"
+  }
+ ],
+ "facts": [
+  {
+   "id": "f01",
+   "source": "s1",
+   "quote": "To construct a short condor, the investor sells one call while buying another call with a higher strike and sells one put while buying another put with a lower strike.",
+   "claim": "An iron condor sells a call and buys a higher call, and sells a put and buys a lower put."
+  },
+  {
+   "id": "f02",
+   "source": "s1",
+   "quote": "It could also be considered as a bear call spread and a bull put spread.",
+   "claim": "An iron condor is a bear call spread plus a bull put spread."
+  },
+  {
+   "id": "f03",
+   "source": "s1",
+   "quote": "All the options must be of the same expiration.",
+   "claim": "All four options in an iron condor expire on the same date."
+  },
+  {
+   "id": "f04",
+   "source": "s1",
+   "quote": "Typically, the call strikes are above and the put strikes below the current level of underlying stock, and the distance between the call strikes equals the distance between the put strikes.",
+   "claim": "Usually the calls sit above the stock, the puts below it, and both sides are the same width."
+  },
+  {
+   "id": "f05",
+   "source": "s1",
+   "quote": "Long 1 XYZ 70 call Short 1 XYZ 65 call Short 1 XYZ 55 put Long 1 XYZ 50 put",
+   "claim": "OIC's example iron condor: long the 70 call, short the 65 call, short the 55 put, long the 50 put."
+  },
+  {
+   "id": "f06",
+   "source": "s1",
+   "quote": "The maximum gain would occur should the underlying stock be between the lower call strike and upper put strike at expiration.",
+   "claim": "The max gain comes when the stock finishes between the two short strikes."
+  },
+  {
+   "id": "f07",
+   "source": "s1",
+   "quote": "In that case all the options would expire worthless, and the premium received to initiate the position could be pocketed.",
+   "claim": "Between the short strikes at expiry, all four options expire worthless and you keep the credit."
+  },
+  {
+   "id": "f08",
+   "source": "s1",
+   "quote": "In that case either both calls or both puts would be in-the-money. The loss would be the difference between either the call strikes or the put strikes (whichever are in-the-money), less the premium received for initiating the position.",
+   "claim": "At max loss only one side is in the money, and the loss is that side's width minus the credit."
+  },
+  {
+   "id": "f09",
+   "source": "s1",
+   "quote": "Upside breakeven = lower call strike + premiums received Downside breakeven = upper put strike - premiums received",
+   "claim": "The break-evens are the short call strike plus the credit and the short put strike minus the credit."
+  },
+  {
+   "id": "f10",
+   "source": "s1",
+   "quote": "An increase in implied volatility, all other things equal, would have a negative impact on this strategy.",
+   "claim": "Rising implied volatility hurts a short iron condor."
+  },
+  {
+   "id": "f11",
+   "source": "s1",
+   "quote": "The passage of time, all other things equal, will have a positive effect on this strategy.",
+   "claim": "Time passing helps a short iron condor, all else equal."
+  },
+  {
+   "id": "f12",
+   "source": "s1",
+   "quote": "If an early exercise occurs at either shoulder, the investor can choose whether to close out the resulting position in the market or to exercise the appropriate wingtip.",
+   "claim": "After an early assignment on a short leg, you can close the resulting stock position in the market or exercise your long option."
+  },
+  {
+   "id": "f13",
+   "source": "s1",
+   "quote": "In addition, the other half of the position would remain, with the potential to go against the investor and create still further losses.",
+   "claim": "After one side is exercised, the other half of the condor stays open and can lose more."
+  },
+  {
+   "id": "f14",
+   "source": "s1",
+   "quote": "Should the exercise activity be other than expected, the investor could be unexpectedly long or short the stock on the Monday following expiration and hence subject to an adverse move over the weekend.",
+   "claim": "A surprise at expiry can leave you long or short stock over the weekend."
+  },
+  {
+   "id": "f15",
+   "source": "s1",
+   "quote": "If at expiration the stock is trading near either shoulder the investor would face uncertainty as to whether or not they would be assigned.",
+   "claim": "With the stock near a short strike at expiry, you can't be sure whether you'll be assigned."
+  },
+  {
+   "id": "f20",
+   "source": "s2",
+   "quote": "A short iron butterfly consists of being long a call at an upper strike, short a call and short a put at a middle strike, and long a put at a lower strike.",
+   "claim": "An iron butterfly sells a call and a put at one middle strike and buys a call above and a put below."
+  },
+  {
+   "id": "f21",
+   "source": "s2",
+   "quote": "An alternative way to think about this strategy is a short straddle surrounded by a long strangle.",
+   "claim": "An iron butterfly is a short straddle with a long strangle around it."
+  },
+  {
+   "id": "f22",
+   "source": "s2",
+   "quote": "The strategy breaks even if at expiration the underlying stock is either above or below the body of the butterfly by the amount of premium received to initiate the position.",
+   "claim": "An iron butterfly breaks even at the body plus or minus the credit."
+  },
+  {
+   "id": "f23",
+   "source": "s2",
+   "quote": "The loss would be the difference between the body and either wing, less the premium received for initiating the position.",
+   "claim": "An iron butterfly's max loss is the body-to-wing distance minus the credit."
+  },
+  {
+   "id": "f30",
+   "source": "s3",
+   "quote": "Combining two short calls at a middle strike, and one long call each at a lower and upper strike creates a long call butterfly.",
+   "claim": "A long call butterfly buys one low call, sells two middle calls and buys one high call."
+  },
+  {
+   "id": "f31",
+   "source": "s3",
+   "quote": "The upper and lower strikes (wings) must both be equidistant from the middle strike (body), and all the options must have the same expiration date.",
+   "claim": "On a butterfly the middle strike is the body and the outer strikes are the wings, the same distance away."
+  },
+  {
+   "id": "f32",
+   "source": "s3",
+   "quote": "MAXIMUM GAIN High strike - middle strike - net premium paid MAXIMUM LOSS Net premium paid",
+   "claim": "A long call butterfly's max gain is the wing width minus the debit; its max loss is the debit."
+  },
+  {
+   "id": "f33",
+   "source": "s3",
+   "quote": "If the stock were below the lower strike all the options would expire worthless; if above the upper strike all the options would be exercised and offset each other for a zero profit.",
+   "claim": "Outside the wings at expiry, a long call butterfly is worth zero."
+  },
+  {
+   "id": "f34",
+   "source": "s3",
+   "quote": "In either case the premium paid to initiate the position would be lost.",
+   "claim": "Outside the wings, the long butterfly loses the debit paid."
+  },
+  {
+   "id": "f35",
+   "source": "s3",
+   "quote": "The strategy breaks even if at expiration the underlying stock is above the lower strike or below the upper strike by the amount of premium paid to initiate the position.",
+   "claim": "A long butterfly breaks even at the low strike plus the debit and the high strike minus the debit."
+  },
+  {
+   "id": "f36",
+   "source": "s3",
+   "quote": "This strategy has an extremely high expiration risk.",
+   "claim": "OIC rates a long butterfly's expiration risk as extremely high."
+  },
+  {
+   "id": "f40",
+   "source": "s4",
+   "quote": "It could also be considered as a bull call spread and a bear put spread.",
+   "claim": "OIC's long condor is a bull call spread plus a bear put spread."
+  },
+  {
+   "id": "f41",
+   "source": "s4",
+   "quote": "The long condor investor is looking for a sharp move either up or down in the underlying stock during the life of the options.",
+   "claim": "A long condor wants a sharp move either way."
+  },
+  {
+   "id": "f42",
+   "source": "s4",
+   "quote": "MAXIMUM GAIN (High call strike - low call strike) OR (High put strike - low put strike) - net premium paid MAXIMUM LOSS Net premium paid",
+   "claim": "A long condor is opened for a debit, and the debit is its max loss."
+  },
+  {
+   "id": "f45",
+   "source": "s5",
+   "quote": "A short call butterfly consists of two long calls at a middle strike and short one call each at a lower and upper strike.",
+   "claim": "A short call butterfly buys two middle calls and sells one call on each side."
+  },
+  {
+   "id": "f46",
+   "source": "s5",
+   "quote": "The strategy is hoping to capture a movement to outside of the wings at the expiration of the options.",
+   "claim": "A short call butterfly wants the stock outside the wings at expiry."
+  },
+  {
+   "id": "f50",
+   "source": "s6",
+   "quote": "The position costs a net debit, and maximum profit occurs only if the stock closes exactly at the middle strike, an outcome that's possible but statistically unlikely.",
+   "claim": "A long butterfly's full profit needs a close exactly at the middle strike, which is possible but unlikely."
+  },
+  {
+   "id": "f51",
+   "source": "s6",
+   "quote": "Condors and butterflies, whether the debit or credit version, are typically Theta positive as long as the stock stays near the short strikes, meaning time decay works in the trader's favor.",
+   "claim": "Time decay helps condors and butterflies while the stock stays near the short strikes."
+  },
+  {
+   "id": "f52",
+   "source": "s6",
+   "quote": "That flips once the stock pushes toward the outer wings, where time decay starts working against the position.",
+   "claim": "Once the stock pushes toward a wing, time decay works against the position."
+  },
+  {
+   "id": "f53",
+   "source": "s6",
+   "quote": "All four of these defined-risk structures carry a slightly negative Vega, so falling implied volatility helps them while rising volatility works against them",
+   "claim": "Condors and butterflies are hurt by rising implied volatility and helped by falling volatility."
+  },
+  {
+   "id": "f54",
+   "source": "s6",
+   "quote": "An iron condor reaches a similar payoff by combining a put credit spread with a call credit spread, producing a net credit instead of a debit.",
+   "claim": "An iron condor is a put credit spread plus a call credit spread, opened for a net credit."
+  },
+  {
+   "id": "f55",
+   "source": "s6",
+   "quote": "a long condor tends to suit lower implied-volatility environments, while an iron condor lets a trader sell elevated premium when volatility is higher, with the wings still capping the risk.",
+   "claim": "An iron condor sells rich premium when volatility is high, and its wings cap the risk."
+  },
+  {
+   "id": "f56",
+   "source": "s6",
+   "quote": "Because the position profits from a large move in either direction, the trader doesn't need to predict which way the stock will go",
+   "claim": "A long straddle profits from a large move either way."
+  },
+  {
+   "id": "f60",
+   "source": "s7",
+   "quote": "The Iron Condor provides a wider range for the underlying asset to move compared to the Iron Butterfly, offering lower profit potential but with more flexibility and lower risk.",
+   "claim": "Compared with an iron butterfly, an iron condor gives the stock a wider range but has lower profit potential."
+  },
+  {
+   "id": "f61",
+   "source": "s7",
+   "quote": "The maximum profit for an Iron Condor is the net premium received, while the maximum loss is the difference in call (or put) strike prices minus the premium received.",
+   "claim": "An iron condor's max profit is the credit; its max loss is one side's width minus the credit."
+  },
+  {
+   "id": "f62",
+   "source": "s7",
+   "quote": "The strategy combines a bear call credit spread and a bull put credit spread, with both spreads sharing the same short strike",
+   "claim": "An iron butterfly's two credit spreads share the same short strike."
+  },
+  {
+   "id": "f65",
+   "source": "s8",
+   "quote": "Therefore, an option writer may be assigned an exercise notice on a short option position at any time before expiration.",
+   "claim": "A short American-style option can be assigned any time before expiry."
+  },
+  {
+   "id": "f66",
+   "source": "s8",
+   "quote": "If an option writer is short an option that expires in-the-money, they should expect assignment on that contract, though assignment is not guaranteed as some long in-the-money option holders may elect not to exercise in-the-money options.",
+   "claim": "A short option that expires in the money should be expected to be assigned, though it's not guaranteed."
+  },
+  {
+   "id": "f67",
+   "source": "s8",
+   "quote": "In fact, some option writers are assigned on short contracts when they expire exactly at-the-money or even out-of-the money. This occurrence is usually not predictable.",
+   "claim": "Short options can even be assigned when they expire at or out of the money, and you can't predict it."
+  },
+  {
+   "id": "f68",
+   "source": "s8",
+   "quote": "To avoid assignment on a written option contract on a given day, the position must be closed out before that day's market close.",
+   "claim": "The only way to avoid assignment on a day is to close the short option before that day's close."
+  },
+  {
+   "id": "f69",
+   "source": "s8",
+   "quote": "When puts become deep in-the-money, most professional option traders exercise before expiration.",
+   "claim": "Deep in-the-money puts are often exercised early."
+  },
+  {
+   "id": "f70",
+   "source": "s9",
+   "quote": "the increased risk exposure that would result from the exercise or closing out of one side of the trade while the other side of the trade remains outstanding",
+   "claim": "When one side of a combination is exercised or closed and the other stays open, your risk goes up."
+  },
+  {
+   "id": "f71",
+   "source": "s9",
+   "quote": "the transaction costs of combination transactions can be especially significant, since separate costs are incurred on each component of the combination.",
+   "claim": "Multi-leg trades pay costs on every leg, so transaction costs weigh heavily."
+  },
+  {
+   "id": "f72",
+   "source": "s9",
+   "quote": "closing transactions may provide an opportunity for an option holder to realize the remaining time value (described below) of the option that would be lost in an exercise.",
+   "claim": "Selling an option keeps its remaining time value; exercising it gives that time value up."
+  },
+  {
+   "id": "f74",
+   "source": "s9",
+   "quote": "For the writer of an uncovered call (other than a binary call), the potential loss is unlimited.",
+   "claim": "A naked short call has unlimited potential loss."
+  },
+  {
+   "id": "f73",
+   "source": "s9",
+   "quote": "A straddle consists of purchasing or writing both a put and a call on the same underlying interest, with the options having the same exercise price and expiration date.",
+   "claim": "A straddle is a put and a call at the same strike and expiry."
+  },
+  {
+   "id": "f75",
+   "source": "s10",
+   "quote": "Options can only be exercised at expiration, providing certainty and eliminating early assignment risk.",
+   "claim": "SPX options are European-style: exercised only at expiration, so there is no early assignment."
+  },
+  {
+   "id": "f76",
+   "source": "s10",
+   "quote": "Positions settle directly to cash at expiration without the need to deliver or receive unwanted shares",
+   "claim": "SPX options settle in cash, so no shares change hands."
+  },
+  {
+   "id": "f77",
+   "source": "s10",
+   "quote": "SPX = Index level x $100",
+   "claim": "One SPX option is worth the index level times $100."
+  },
+  {
+   "id": "f80",
+   "source": "s11",
+   "quote": "A short iron condor spread is a four-part strategy consisting of a bull put spread and a bear call spread in which the strike price of the short put is lower than the strike price of the short call.",
+   "claim": "Fidelity: a short iron condor is a bull put spread plus a bear call spread, short put below short call."
+  },
+  {
+   "id": "f81",
+   "source": "s11",
+   "quote": "All options have the same expiration date.",
+   "claim": "Fidelity: all four options share one expiration date."
+  },
+  {
+   "id": "f82",
+   "source": "s11",
+   "quote": "In the example below, one 95 Put is purchased, one 100 put is sold, one 105 Call is sold and one 110 Call is purchased, so the four strike prices are equidistant.",
+   "claim": "Fidelity's example: buy the 95 put, sell the 100 put, sell the 105 call, buy the 110 call."
+  },
+  {
+   "id": "f83",
+   "source": "s11",
+   "quote": "In the example above, the difference between the strike prices of the bull put spread (and also the bear call spread) is 5.00, and the net credit received is 2.80, not including commissions.",
+   "claim": "In Fidelity's example each side is 5.00 wide and the credit is 2.80."
+  },
+  {
+   "id": "f84",
+   "source": "s11",
+   "quote": "The maximum risk, therefore, is 2.20 not including commissions.",
+   "claim": "Fidelity's example: the max risk is 2.20 a share, before commissions."
+  },
+  {
+   "id": "f85",
+   "source": "s11",
+   "quote": "The maximum profit potential is equal to the net credit received less commissions, and this profit is realized if the stock price is equal to or between the strike prices of the short options at expiration.",
+   "claim": "Max profit is the credit, kept if the stock finishes at or between the short strikes."
+  },
+  {
+   "id": "f86",
+   "source": "s11",
+   "quote": "The upper breakeven point is the stock price equal to the strike price of the short call plus the net credit received.",
+   "claim": "The upper break-even is the short call strike plus the credit."
+  },
+  {
+   "id": "f87",
+   "source": "s11",
+   "quote": "Given that there are four options and four strike prices, there are multiple commissions in addition to four bid-ask spreads when opening the position and again when closing it.",
+   "claim": "An iron condor pays four bid-ask spreads to open and four more to close, plus commissions."
+  },
+  {
+   "id": "f88",
+   "source": "s11",
+   "quote": "However, unlike a short strangle, the potential risk of a short iron condor spread is limited.",
+   "claim": "Unlike a short strangle, an iron condor's risk is capped."
+  },
+  {
+   "id": "f89",
+   "source": "s11",
+   "quote": "Short iron condor spreads have a negative vega. This means that the net credit for establishing a short iron condor spread rises when volatility rises (and the spread loses money).",
+   "claim": "When volatility rises, the condor costs more to buy back, so the seller loses money."
+  },
+  {
+   "id": "f90",
+   "source": "s11",
+   "quote": "If the stock price moves outside the range of maximum profit, however, the theta becomes negative and the position loses money as expiration approaches.",
+   "claim": "Outside the short strikes, time decay turns against the condor."
+  },
+  {
+   "id": "f91",
+   "source": "s11",
+   "quote": "requires that the stock price stay between the lower and upper breakeven prices of the iron condor. If the stock price rises or falls too much, then a loss will be incurred.",
+   "claim": "A condor sold before earnings needs the stock to stay inside the break-evens; too big a move is a loss."
+  },
+  {
+   "id": "f92",
+   "source": "s11",
+   "quote": "Since the volatility in option prices tends to fall sharply after earnings reports, some traders will open a short iron condor spread immediately before the report.",
+   "claim": "Option volatility tends to drop after earnings, so some traders sell condors just before the report."
+  },
+  {
+   "id": "f93",
+   "source": "s11",
+   "quote": "Trading discipline is required, because, as expiration approaches, “small” changes in stock price can have a high percentage impact on the price of an iron condor spread.",
+   "claim": "Near expiry, small stock moves swing a condor's price a lot."
+  },
+  {
+   "id": "f94",
+   "source": "s11",
+   "quote": "Traders must, therefore, be disciplined in taking partial profits if possible and also in taking “small” losses before the losses become “big.”",
+   "claim": "Take partial profits when you can, and take small losses before they become big."
+  },
+  {
+   "id": "f95",
+   "source": "s11",
+   "quote": "the typical potential dollar profit of one iron condor spread is “low.”",
+   "claim": "One iron condor's dollar profit is usually small."
+  },
+  {
+   "id": "f96",
+   "source": "s11",
+   "quote": "If the stock price is above the strike price of the short call but not above the strike price of the long call, then the long call (highest strike) and both puts expire worthless, but the short call is assigned.",
+   "claim": "If the stock ends between the short call and the long call, only the short call is assigned."
+  },
+  {
+   "id": "f97",
+   "source": "s11",
+   "quote": "The result is that 100 shares of stock are sold short and a stock position of short 100 shares is created.",
+   "claim": "That assignment leaves you short 100 shares."
+  },
+  {
+   "id": "f98",
+   "source": "s11",
+   "quote": "If the short put is assigned, then 100 shares of stock are purchased and the long put and both calls remain open.",
+   "claim": "An assigned short put buys you 100 shares, and the other three legs stay open."
+  },
+  {
+   "id": "f99",
+   "source": "s11",
+   "quote": "Therefore, it is generally preferable to sell shares to close the long stock position and then sell the long put. This two-part action recovers the time value of the long put.",
+   "claim": "After a put assignment, selling the shares and then the long put usually beats exercising, because it keeps the put's time value."
+  },
+  {
+   "id": "f100",
+   "source": "s11",
+   "quote": "could lead the trader to pay the dividend due to the short shares (this could potentially result in a loss that is greater than the maximum loss).",
+   "claim": "An early call assignment around a dividend can push the loss past the stated max loss."
+  },
+  {
+   "id": "f101",
+   "source": "s11",
+   "quote": "Early assignment of stock options is generally related to dividends.",
+   "claim": "Early assignment on stock options usually has to do with dividends."
+  },
+  {
+   "id": "f102",
+   "source": "s11",
+   "quote": "There is considerable disagreement among experienced traders on how the terms “long,” “short,” “buy” and “sell” apply to iron condor spreads.",
+   "claim": "Traders disagree on whether to call the credit iron condor long or short."
+  },
+  {
+   "id": "f105",
+   "source": "s12",
+   "quote": "A short iron butterfly spread is a four-part strategy consisting of a bull put spread and a bear call spread in which the short put and short call have the same strike price.",
+   "claim": "Fidelity: an iron butterfly's short put and short call share one strike."
+  },
+  {
+   "id": "f106",
+   "source": "s12",
+   "quote": "The lower breakeven point is the stock price equal to the center strike price minus the net credit received. The upper breakeven point is the stock price equal to the center strike price plus the net credit received.",
+   "claim": "Iron butterfly break-evens are the center strike minus and plus the credit."
+  },
+  {
+   "id": "f110",
+   "source": "s13",
+   "quote": "In the example below, one 95 Call is purchased, two 100 Calls are sold and one 105 Call is purchased.",
+   "claim": "Fidelity's example: buy one 95 call, sell two 100 calls, buy one 105 call."
+  },
+  {
+   "id": "f111",
+   "source": "s13",
+   "quote": "In the example above, the difference between the lowest and middle strike prices is 5.00, and the net cost of the strategy is 1.25, not including commissions. The maximum profit, therefore, is 3.75 less commissions.",
+   "claim": "In Fidelity's example the wing is 5.00, the cost 1.25, and the max profit 3.75."
+  },
+  {
+   "id": "f112",
+   "source": "s13",
+   "quote": "The maximum risk is the net cost of the strategy including commissions and is realized if the stock price is above the highest strike price or below the lowest strike price at expiration.",
+   "claim": "A long call butterfly's max risk is its cost, lost outside the wings at expiry."
+  },
+  {
+   "id": "f113",
+   "source": "s13",
+   "quote": "A long butterfly spread with calls can also be described as the combination of a bull call spread and a bear call spread.",
+   "claim": "A long call butterfly is a bull call spread plus a bear call spread."
+  },
+  {
+   "id": "f114",
+   "source": "s13",
+   "quote": "long butterfly spreads with calls do not rise in value and, therefore, do not show much of a profit, until it is very close to expiration and the stock price is close to the center strike price.",
+   "claim": "A long butterfly shows little profit until close to expiry, and only with the stock near the center strike."
+  },
+  {
+   "id": "f115",
+   "source": "s14",
+   "quote": "Iron Condor Less premium received, higher max loss Higher probability trade Further out break evens",
+   "claim": "For the same wings, an iron condor takes in less premium and has break-evens further out than an iron butterfly."
+  },
+  {
+   "id": "f116",
+   "source": "s14",
+   "quote": "Iron Butterfly More premium received, lower max loss Lower probability trade Closer in break evens",
+   "claim": "An iron butterfly takes in more premium with break-evens closer in."
+  },
+  {
+   "id": "f120",
+   "source": "s15",
+   "quote": "Iron condors are four-leg options strategies made up of one bullish and one bearish spread.",
+   "claim": "An iron condor is one bullish spread and one bearish spread."
+  },
+  {
+   "id": "f121",
+   "source": "s15",
+   "quote": "This structure enables a trader to potentially generate income from the short options if the underlying security stays within a defined price range, while the long options cap potential losses.",
+   "claim": "The short options bring in the credit; the long options cap the loss."
+  },
+  {
+   "id": "f122",
+   "source": "s15",
+   "quote": "The maximum loss for a short iron condor is the width of the widest spread minus the net credit. This loss occurs if the underlying security's price is at or beyond one of the long strike prices at expiration.",
+   "claim": "Max loss is the widest side's width minus the credit, reached at or beyond a long strike at expiry."
+  },
+  {
+   "id": "f123",
+   "source": "s15",
+   "quote": "When it is not, it's called an unbalanced or skewed iron condor. By skewing an iron condor, the strategy takes on a directional bias (either bullish or bearish), changing its risk/return profile.",
+   "claim": "A condor with sides of different widths is unbalanced and leans bullish or bearish."
+  },
+  {
+   "id": "f124",
+   "source": "s15",
+   "quote": "Just because these are considered defined-risk trades does not mean they are safe or risk-free.",
+   "claim": "Defined risk does not mean safe."
+  },
+  {
+   "id": "f125",
+   "source": "s15",
+   "quote": "If the underlying security's price closes at or very near one of the short strikes in an iron condor at expiration, it can create uncertainty about whether the option will be assigned.",
+   "claim": "A close at or near a short strike on expiry day leaves assignment uncertain."
+  },
+  {
+   "id": "f126",
+   "source": "s15",
+   "quote": "This is called pin risk, and it can leave a trader with an unexpected long or unhedged short position in the underlying security.",
+   "claim": "Pin risk can leave you with surprise long or short stock."
+  },
+  {
+   "id": "f127",
+   "source": "s15",
+   "quote": "most traders who use them on individual stocks tend to avoid earnings cycles or special events that could lead to outsized, unexpected moves.",
+   "claim": "Most traders who sell condors on single stocks avoid earnings."
+  },
+  {
+   "id": "f128",
+   "source": "s15",
+   "quote": "By executing a short iron condor before an earnings announcement, traders can potentially collect higher premiums, then profit if a post-earnings IV crush comes without significant movement in the underlying security.",
+   "claim": "A condor sold before earnings profits only if IV drops without a big move in the stock."
+  },
+  {
+   "id": "f129",
+   "source": "s15",
+   "quote": "With SPX at roughly 6,560, the trader executes a bear call spread and a bull put spread, both expiring on May 15, 2026.",
+   "claim": "Schwab's example: SPX near 6,560, both spreads expiring May 15, 2026."
+  },
+  {
+   "id": "f130",
+   "source": "s15",
+   "quote": "Sell 1 SPX 6,960-strike call Buy 1 SPX 7,060-strike call Bull put spread: Sell 1 SPX 6,160-strike put Buy 1 SPX 6,060-strike put",
+   "claim": "Schwab's legs: sell the 6,960 call, buy the 7,060 call, sell the 6,160 put, buy the 6,060 put."
+  },
+  {
+   "id": "f131",
+   "source": "s15",
+   "quote": "this trade's maximum profit is $2,915, while the maximum loss is $7,085.",
+   "claim": "Schwab's SPX condor: max profit $2,915, max loss $7,085."
+  },
+  {
+   "id": "f132",
+   "source": "s15",
+   "quote": "Iron condors are not \"set-it-and-forget-it\" trades. They are typically actively monitored and managed, particularly when the price of the underlying security or IV are moving sharply.",
+   "claim": "Iron condors need active management, especially when price or IV moves fast."
+  },
+  {
+   "id": "f133",
+   "source": "s15",
+   "quote": "SPX options are cash-settled and European-style.",
+   "claim": "SPX options are cash-settled and European-style."
+  },
+  {
+   "id": "f135",
+   "source": "s15",
+   "quote": "On April 7, 2026, they decide they'll do this by executing a short iron condor on SPX",
+   "claim": "Schwab's example condor is opened on April 7, 2026, on SPX."
+  },
+  {
+   "id": "f134",
+   "source": "s15",
+   "quote": "A long iron condor, sometimes called a reverse iron condor, combines a bull call spread and a bear put spread.",
+   "claim": "At Schwab, a long iron condor is a bull call spread plus a bear put spread."
+  },
+  {
+   "id": "f140",
+   "source": "s16",
+   "quote": "Since options control 100 shares per contract, the max profit per contract is $200.",
+   "claim": "Each option contract covers 100 shares, so dollar profit is the per-share credit times 100."
+  },
+  {
+   "id": "f141",
+   "source": "s16",
+   "quote": "Next, the trader would pull the trigger, executing all four legs of the strategy in a single iron condor order.",
+   "claim": "All four legs go in as one iron condor order."
+  },
+  {
+   "id": "f142",
+   "source": "s16",
+   "quote": "The price breaches the short put strike but stays above long put strike The put spread incurs a loss while the call spread expires worthless",
+   "claim": "Between the short and long put, the put spread loses while the call spread expires worthless."
+  },
+  {
+   "id": "f145",
+   "source": "s17",
+   "quote": "The best-case scenario happens only if the underlying asset closes exactly at the middle strike at expiration.",
+   "claim": "A butterfly's best case needs a close exactly at the middle strike."
+  },
+  {
+   "id": "f146",
+   "source": "s17",
+   "quote": "With the execution of four options, the commissions and fees add up quickly, which can erode profits.",
+   "claim": "Four options means commissions and fees add up fast."
+  }
+ ],
+ "walkthroughs": [
+  {
+   "key": "w1",
+   "title": "Two credit spreads, one range",
+   "steps": [
+    "An iron condor is two credit spreads on one stock: a put spread below the price and a call spread above it.",
+    "The Options Industry Council's example: short 65 call, long 70 call, short 55 put, long 50 put. All four expire together.",
+    "The long options sit further out. They're the wings, and they cap the loss on each side.",
+    "Move both short strikes to one price and the same trade becomes an iron butterfly."
+   ],
+   "facts": [
+    "f02",
+    "f05",
+    "f03",
+    "f121",
+    "f55",
+    "f20"
+   ]
+  },
+  {
+   "key": "w2",
+   "title": "What it can make and lose",
+   "steps": [
+    "Fidelity's example: buy the 95 put, sell the 100 put, sell the 105 call, buy the 110 call. You take in 2.80.",
+    "The most it makes is that 2.80, kept if the stock finishes between 100 and 105.",
+    "The most it loses is one side's width, 5.00, minus the credit. That's 2.20 a share.",
+    "Only one side can lose at expiry. The stock can't be below 100 and above 105 at the same time."
+   ],
+   "facts": [
+    "f82",
+    "f83",
+    "f84",
+    "f85",
+    "f08"
+   ]
+  },
+  {
+   "key": "w3",
+   "title": "The butterfly",
+   "steps": [
+    "A long call butterfly is one, two, one: buy a low call, sell two middle calls, buy a high call.",
+    "Fidelity's example: buy the 95, sell two 100s, buy the 105, for 1.25.",
+    "Pinned right at 100 at expiry, it makes 3.75. Outside the wings, you lose the 1.25.",
+    "That perfect pin is possible but rare. The Options Industry Council calls it statistically unlikely."
+   ],
+   "facts": [
+    "f30",
+    "f110",
+    "f111",
+    "f112",
+    "f50"
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "key": "q01",
+   "skill": "options.condors_flies",
+   "rung": 1,
+   "format": "mcq",
+   "q": "Which pair of positions makes an iron condor?",
+   "choices": [
+    "A bull put spread and a bear call spread",
+    "A bull call spread and a bear put spread",
+    "A short call and a short put alone",
+    "A short straddle and a long strangle"
+   ],
+   "answer": "A bull put spread and a bear call spread",
+   "why": "A bull put spread and a bear call spread. You sell a put spread below the stock and a call spread above it, one expiry, for a credit.",
+   "lesson_line": "An iron condor is a put credit spread below the price and a call credit spread above it.",
+   "facts": [
+    "f02",
+    "f54",
+    "f80",
+    "f40",
+    "f41",
+    "f42",
+    "f88",
+    "f21",
+    "f134",
+    "f74"
+   ],
+   "wrong": {
+    "A bull call spread and a bear put spread": "That's the reverse trade, the long iron condor. You pay a debit and need a sharp move.",
+    "A short call and a short put alone": "That's a short strangle or straddle. With no long options, nothing caps the loss.",
+    "A short straddle and a long strangle": "That's the iron butterfly. Its short call and short put share one strike."
+   }
+  },
+  {
+   "key": "q02",
+   "skill": "options.condors_flies",
+   "rung": 1,
+   "format": "tf",
+   "q": "All four options in an iron condor share the same expiration date.",
+   "answer": "True",
+   "why": "True. All four legs share one expiration date. That's part of the definition.",
+   "lesson_line": "One stock, one expiry, four strikes. That's an iron condor.",
+   "facts": [
+    "f03",
+    "f81"
+   ]
+  },
+  {
+   "key": "q03",
+   "skill": "options.condors_flies",
+   "rung": 1,
+   "format": "fill",
+   "q": "Fill in the blank.",
+   "sentence": "On a butterfly, the middle strike is called the ___.",
+   "bank": [
+    "body",
+    "wing",
+    "shoulder",
+    "tail",
+    "spread"
+   ],
+   "answer": "body",
+   "why": "Body. The middle strike is the body, and the two outer strikes, the same distance away, are the wings.",
+   "lesson_line": "Body in the middle, wings on the outside, the same distance away.",
+   "facts": [
+    "f31"
+   ]
+  },
+  {
+   "key": "q04",
+   "skill": "options.condors_flies",
+   "rung": 2,
+   "format": "mcq",
+   "q": "You want a long call butterfly, strikes evenly spaced. Which legs build it?",
+   "choices": [
+    "Buy 1 low, sell 2 middle, buy 1 high",
+    "Sell 1 low, buy 2 middle, sell 1 high",
+    "Buy 1 low call, sell 1 high call",
+    "Buy a call and a put at one strike"
+   ],
+   "answer": "Buy 1 low, sell 2 middle, buy 1 high",
+   "why": "Buy 1 low, sell 2 middle, buy 1 high. The two short calls are the body, and one long call on each side makes the wings.",
+   "lesson_line": "Long call butterfly: one, two, one. Buy the outsides, sell two in the middle.",
+   "facts": [
+    "f30",
+    "f31",
+    "f45",
+    "f46",
+    "f113",
+    "f73",
+    "f56"
+   ],
+   "wrong": {
+    "Sell 1 low, buy 2 middle, sell 1 high": "That's the short call butterfly, the opposite trade. It wants the stock outside the wings at expiry.",
+    "Buy 1 low call, sell 1 high call": "That's only a bull call spread, two legs. A butterfly adds a bear call spread that shares the middle strike.",
+    "Buy a call and a put at one strike": "That's a long straddle. It wants a big move, the opposite of a butterfly."
+   }
+  },
+  {
+   "key": "q05",
+   "skill": "options.condors_flies",
+   "rung": 2,
+   "format": "mcq",
+   "q": "You sold an iron condor. Where must the stock finish at expiry for you to keep the whole credit?",
+   "choices": [
+    "Anywhere between the two short strikes",
+    "Only at the exact middle of the range",
+    "Beyond either long strike",
+    "Between a short and a long strike"
+   ],
+   "answer": "Anywhere between the two short strikes",
+   "why": "Anywhere between the two short strikes. There, all four options expire worthless and the credit is yours.",
+   "lesson_line": "Between the short strikes at expiry, every leg expires worthless and you keep the full credit.",
+   "facts": [
+    "f06",
+    "f07",
+    "f85",
+    "f142",
+    "f50"
+   ],
+   "wrong": {
+    "Only at the exact middle of the range": "That's where a butterfly peaks. A condor pays in full anywhere between its short strikes.",
+    "Beyond either long strike": "That's where the max loss is. One whole side finishes in the money.",
+    "Between a short and a long strike": "There one short option is in the money, so you give back part of the credit or more."
+   }
+  },
+  {
+   "key": "q06",
+   "skill": "options.condors_flies",
+   "rung": 2,
+   "format": "tf",
+   "q": "At expiry, the most a long call butterfly can lose is the debit you paid.",
+   "answer": "True",
+   "why": "True. Below the low strike, every call expires worthless. Above the high strike, the calls offset to zero. Either way you lose the debit.",
+   "lesson_line": "A long butterfly's worst case at expiry is the price you paid for it.",
+   "facts": [
+    "f32",
+    "f33",
+    "f34",
+    "f112"
+   ]
+  },
+  {
+   "key": "q07",
+   "skill": "options.condors_flies",
+   "rung": 3,
+   "format": "tf",
+   "q": "At expiry, an iron condor can finish with both its put spread and its call spread in the money.",
+   "answer": "False",
+   "why": "False. The stock can't be below the puts and above the calls at once, so only one side can lose at the bell. Before expiry, a jump in implied volatility can still show a paper loss on the whole trade.",
+   "lesson_line": "At expiry only one side of a condor can lose. That's why the risk is one side's width.",
+   "facts": [
+    "f08",
+    "f122",
+    "f53",
+    "f10",
+    "f89"
+   ]
+  },
+  {
+   "key": "q08",
+   "skill": "options.condors_flies",
+   "rung": 3,
+   "format": "mcq",
+   "q": "Same stock, same expiry, same wing width. How does an iron condor usually compare with an iron butterfly?",
+   "choices": [
+    "Less credit, a wider range to profit in",
+    "More credit, a wider range to profit in",
+    "More credit, a narrower range",
+    "Same credit, same range"
+   ],
+   "answer": "Less credit, a wider range to profit in",
+   "why": "Less credit, a wider range. Splitting the short strikes apart gives the stock more room, and you collect less for it.",
+   "lesson_line": "The iron butterfly pays more but needs the stock pinned close. The condor pays less and gives it room.",
+   "facts": [
+    "f60",
+    "f115",
+    "f116"
+   ],
+   "wrong": {
+    "More credit, a wider range to profit in": "You don't get both. More room for the stock means less premium collected.",
+    "More credit, a narrower range": "That describes the iron butterfly, which sells both options at one strike.",
+    "Same credit, same range": "Moving the short strikes apart changes both. The condor's shorts sit further out, so they bring in less."
+   }
+  },
+  {
+   "key": "q09",
+   "skill": "options.condors_flies",
+   "rung": 4,
+   "format": "numeric",
+   "q": "You sell 2 iron condors for a 1.40 credit each. What is your maximum profit, in dollars?",
+   "answer": 280,
+   "prefix": "$",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "credit * 100 * contracts",
+     "credit": 1.4,
+     "contracts": 2
+    }
+   },
+   "why": "$280. The max profit is the credit: 1.40 times 100 shares per contract, times 2 contracts.",
+   "lesson_line": "Max profit on a short condor is the credit, times 100, times your contracts.",
+   "facts": [
+    "f61",
+    "f140"
+   ]
+  },
+  {
+   "key": "q10",
+   "skill": "options.condors_flies",
+   "rung": 4,
+   "format": "numeric",
+   "q": "Buy the 45 put, sell the 50 put, sell the 60 call, buy the 65 call. Credit 1.60. What's the max loss per share?",
+   "answer": 3.4,
+   "prefix": "$",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(long_call - short_call) - credit",
+     "long_call": 65,
+     "short_call": 60,
+     "credit": 1.6
+    }
+   },
+   "why": "$3.40. If the stock runs past a long strike, you lose one side's width, 65 minus 60, less the 1.60 credit.",
+   "lesson_line": "Short condor max loss: one side's width minus the credit, per share.",
+   "facts": [
+    "f08",
+    "f61",
+    "f83",
+    "f84"
+   ]
+  },
+  {
+   "key": "q11",
+   "skill": "options.condors_flies",
+   "rung": 4,
+   "format": "mcq",
+   "q": "A condor's profit is small in dollars. Which trading cost hits it every time you open and close?",
+   "choices": [
+    "Bid-ask spreads on four legs, twice",
+    "Time decay on the two short options",
+    "The cost of the two long wings"
+   ],
+   "answer": "Bid-ask spreads on four legs, twice",
+   "why": "Bid-ask spreads on four legs, twice. You cross four spreads to open and four more to close, plus a commission on each leg.",
+   "lesson_line": "Four legs means four spreads each way. Trade liquid options and work your price.",
+   "facts": [
+    "f87",
+    "f71",
+    "f146",
+    "f141"
+   ],
+   "wrong": {
+    "Time decay on the two short options": "Decay works for you here. The short options lose value as expiry nears, which is how a short condor makes money.",
+    "The cost of the two long wings": "The wings are part of the position, not a trading cost. The credit you see is already net of them."
+   }
+  },
+  {
+   "key": "q12",
+   "skill": "options.condors_flies",
+   "rung": 5,
+   "format": "numeric",
+   "q": "You sell the 80 put and the 90 call, with wings at 75 and 95, for a 1.85 credit. What's the upper break-even at expiry?",
+   "answer": 91.85,
+   "prefix": "$",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "short_call + credit",
+     "short_call": 90,
+     "credit": 1.85
+    }
+   },
+   "why": "$91.85. The upper break-even is the short call strike plus the credit: 90 plus 1.85.",
+   "lesson_line": "Condor break-evens: short call plus the credit above, short put minus the credit below.",
+   "facts": [
+    "f09",
+    "f86"
+   ]
+  },
+  {
+   "key": "q13",
+   "skill": "options.condors_flies",
+   "rung": 5,
+   "format": "scenario",
+   "story": "A stock trades at 50. You sell the 50 call and the 50 put, and buy the 45 put and the 55 call. You collect 3.20.",
+   "q": "Where are your two break-evens at expiry?",
+   "choices": [
+    "46.80 and 53.20",
+    "45 and 55",
+    "41.80 and 58.20",
+    "48.40 and 51.60"
+   ],
+   "answer": "46.80 and 53.20",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "body + credit",
+     "body": 50,
+     "credit": 3.2
+    }
+   },
+   "why": "46.80 and 53.20. An iron butterfly breaks even at the body plus or minus the credit: 50 plus or minus 3.20.",
+   "lesson_line": "Iron butterfly break-evens sit the credit's distance either side of the body.",
+   "facts": [
+    "f22",
+    "f106",
+    "f20"
+   ],
+   "wrong": {
+    "45 and 55": "Those are the wings, where the max loss starts. The break-evens sit inside them.",
+    "41.80 and 58.20": "That measures the credit from the wings. Break-evens are measured from the body, the 50 strike.",
+    "48.40 and 51.60": "That splits the credit in half. The whole 3.20 cushions each direction."
+   }
+  },
+  {
+   "key": "q14",
+   "skill": "options.condors_flies",
+   "rung": 5,
+   "format": "numeric",
+   "q": "You buy one 40 call, sell two 45 calls and buy one 50 call, for 1.10. What's the max profit per share at expiry?",
+   "answer": 3.9,
+   "prefix": "$",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(mid - low) - debit",
+     "mid": 45,
+     "low": 40,
+     "debit": 1.1
+    }
+   },
+   "why": "$3.90. At exactly 45, the 40 call is worth 45 minus 40 and the other calls expire worthless. Take off the 1.10 you paid.",
+   "lesson_line": "Long butterfly max profit: the wing width minus the debit, and only right at the body.",
+   "facts": [
+    "f32",
+    "f111"
+   ]
+  },
+  {
+   "key": "q15",
+   "skill": "options.condors_flies",
+   "rung": 6,
+   "format": "numeric",
+   "q": "3 iron condors: buy the 95 put, sell the 100 put, sell the 110 call, buy the 120 call. Credit 2.50 each. Max loss in dollars?",
+   "answer": 2250,
+   "prefix": "$",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "((long_call - short_call) - credit) * 100 * contracts",
+     "long_call": 120,
+     "short_call": 110,
+     "credit": 2.5,
+     "contracts": 3
+    }
+   },
+   "why": "$2,250. Use the wider side, 110 to 120 on the calls. That width minus the 2.50 credit, times 100, times 3.",
+   "lesson_line": "When the sides differ in width, the wider side sets the max loss.",
+   "facts": [
+    "f122",
+    "f123",
+    "f08"
+   ]
+  },
+  {
+   "key": "q16",
+   "skill": "options.condors_flies",
+   "rung": 6,
+   "format": "scenario",
+   "story": "You sold an iron condor for 1.50 with a month to go. The next day the stock hasn't moved, but implied volatility jumps.",
+   "q": "What happens to your position, all else equal?",
+   "choices": [
+    "It shows a loss on paper",
+    "It shows a gain on paper",
+    "Nothing until the stock moves",
+    "Your max loss gets bigger"
+   ],
+   "answer": "It shows a loss on paper",
+   "why": "It shows a loss on paper. A short condor has negative vega, so higher volatility raises the price to buy it back.",
+   "lesson_line": "Short condors want volatility to fall. A jump in implied volatility costs you, even with the stock flat.",
+   "facts": [
+    "f10",
+    "f89",
+    "f53",
+    "f08"
+   ],
+   "wrong": {
+    "It shows a gain on paper": "That's the buyer's side. You're short the options, and higher volatility makes them pricier.",
+    "Nothing until the stock moves": "Option prices move with implied volatility too, not just with the stock.",
+    "Your max loss gets bigger": "The strikes and the credit set the max loss. Volatility only moves the price inside that range."
+   }
+  },
+  {
+   "key": "q17",
+   "skill": "options.condors_flies",
+   "rung": 6,
+   "format": "tf",
+   "q": "Time decay helps a short iron condor no matter where the stock trades.",
+   "answer": "False",
+   "why": "False. Time works for you while the stock stays between the short strikes. Once it pushes out toward a wing, time works against you.",
+   "lesson_line": "A condor earns from time only while the stock stays inside the short strikes.",
+   "facts": [
+    "f51",
+    "f52",
+    "f90"
+   ]
+  },
+  {
+   "key": "q18",
+   "skill": "options.condors_flies",
+   "rung": 7,
+   "format": "scenario",
+   "story": "Schwab's example from April 7, 2026: SPX near 6,560. Sell the 6,960 call, buy the 7,060 call. Sell the 6,160 put, buy the 6,060 put. Max profit is $2,915.",
+   "q": "What is the max loss on this one condor?",
+   "choices": [
+    "$7,085",
+    "$10,000",
+    "$14,170",
+    "$2,915"
+   ],
+   "answer": "$7,085",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(call_long - call_short) * 100 - max_profit",
+     "call_long": 7060,
+     "call_short": 6960,
+     "max_profit": 2915
+    }
+   },
+   "why": "$7,085. Each side is 100 points wide, and SPX pays $100 a point, so $10,000. Take off the $2,915 credit. Only one side can lose.",
+   "lesson_line": "Index size, same math: one side's width times the multiplier, minus the credit.",
+   "facts": [
+    "f135",
+    "f129",
+    "f130",
+    "f131",
+    "f122",
+    "f77",
+    "f08"
+   ],
+   "wrong": {
+    "$10,000": "That's one side's full width. You keep the $2,915 credit, so the loss is smaller.",
+    "$14,170": "That counts both sides losing. At expiry SPX can't be above 7,060 and below 6,060 at once.",
+    "$2,915": "That's the max profit, the credit you take in."
+   }
+  },
+  {
+   "key": "q19",
+   "skill": "options.condors_flies",
+   "rung": 7,
+   "format": "numeric",
+   "q": "Your iron condor's sides are each 5 points wide, and you collect 1.25. One max loss wipes out how many max wins?",
+   "answer": 3,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(width - credit) / credit",
+     "width": 5,
+     "credit": 1.25
+    }
+   },
+   "why": "3. You risk 5 minus 1.25 to make 1.25. One full loss erases three full wins.",
+   "lesson_line": "Before you sell a condor, know how many winners one max loss erases.",
+   "facts": [
+    "f61",
+    "f95",
+    "f94"
+   ]
+  },
+  {
+   "key": "q20",
+   "skill": "options.condors_flies",
+   "rung": 7,
+   "format": "scenario",
+   "story": "You hold an iron condor: long 45 put, short 50 put, short 60 call, long 65 call. On expiration day the stock closes at 61.50.",
+   "q": "If you do nothing, what do you likely hold on Monday?",
+   "choices": [
+    "Short 100 shares",
+    "Nothing, every leg expired",
+    "Long 100 shares",
+    "Short 200 shares"
+   ],
+   "answer": "Short 100 shares",
+   "why": "Short 100 shares. The 60 call finished in the money, so expect assignment. The 65 call expired worthless, so nothing covers the short shares over the weekend.",
+   "lesson_line": "If the stock sits near a short strike on expiry day, I close the condor before the bell.",
+   "facts": [
+    "f96",
+    "f97",
+    "f66",
+    "f68",
+    "f126"
+   ],
+   "wrong": {
+    "Nothing, every leg expired": "Only the out-of-the-money legs expire. An in-the-money short call should be expected to be assigned.",
+    "Long 100 shares": "That's what an assigned short put gives you. Here the call side finished in the money.",
+    "Short 200 shares": "Only one short option is in the money, the 60 call. One condor means one assignment of 100 shares."
+   }
+  },
+  {
+   "key": "q21",
+   "skill": "options.condors_flies",
+   "rung": 7,
+   "format": "tf",
+   "q": "Hold a long butterfly to expiry and it usually pays its full max profit.",
+   "answer": "False",
+   "why": "False. Full profit needs a close exactly at the middle strike at expiry. The Options Industry Council calls that possible but statistically unlikely.",
+   "lesson_line": "Buy a butterfly for its small, defined risk, not for the max profit on the diagram.",
+   "facts": [
+    "f50",
+    "f145",
+    "f114"
+   ]
+  },
+  {
+   "key": "q22",
+   "skill": "options.condors_flies",
+   "rung": 8,
+   "format": "scenario",
+   "story": "A stock reports earnings tonight. Its options are expensive because implied volatility is high. You think about selling an iron condor this afternoon.",
+   "q": "What has to happen for the trade to work?",
+   "choices": [
+    "IV drops and the stock stays in range",
+    "IV drops, whatever the stock does",
+    "The stock gaps big in either direction",
+    "IV keeps rising after the report"
+   ],
+   "answer": "IV drops and the stock stays in range",
+   "why": "IV drops and the stock stays in range. The IV crush only pays if the move is small enough to stay inside your break-evens.",
+   "lesson_line": "IV crush pays only if the stock stays inside your break-evens. Schwab says most single-stock condor sellers avoid earnings.",
+   "facts": [
+    "f128",
+    "f127",
+    "f91",
+    "f92",
+    "f10",
+    "f56"
+   ],
+   "wrong": {
+    "IV drops, whatever the stock does": "A gap past your break-evens beats the IV drop. A move that's too big up or down is a loss.",
+    "The stock gaps big in either direction": "That's what a long straddle buyer wants. You sold the range, so a big gap is your loss.",
+    "IV keeps rising after the report": "Rising IV hurts a short condor, and option volatility tends to fall after the report."
+   }
+  },
+  {
+   "key": "q23",
+   "skill": "options.condors_flies",
+   "rung": 8,
+   "format": "scenario",
+   "story": "Ten days before expiry, the stock has dropped hard. Your iron condor's short put is now deep in the money. You get an assignment notice.",
+   "q": "What do you hold now?",
+   "choices": [
+    "Long 100 shares plus three legs",
+    "Nothing, the condor is closed",
+    "Short 100 shares plus three legs",
+    "Max loss, booked automatically"
+   ],
+   "answer": "Long 100 shares plus three legs",
+   "why": "Long 100 shares plus three legs. You bought 100 shares at the put strike, and the long put and both calls are still open.",
+   "lesson_line": "Assignment breaks the condor into pieces. Deal with the shares and the leftover legs the same day.",
+   "facts": [
+    "f98",
+    "f69",
+    "f65",
+    "f70",
+    "f12"
+   ],
+   "wrong": {
+    "Nothing, the condor is closed": "Assignment fills one leg only. The other three stay open until you act.",
+    "Short 100 shares plus three legs": "An assigned short call does that. An assigned put makes you buy the shares.",
+    "Max loss, booked automatically": "Nothing is booked for you. You now own shares, and only your long put still limits the downside."
+   }
+  },
+  {
+   "key": "q24",
+   "skill": "options.condors_flies",
+   "rung": 8,
+   "format": "mcq",
+   "q": "You want to sell iron condors with no early assignment risk at all. Which options give you that?",
+   "choices": [
+    "European-style index options, like SPX",
+    "American-style options on a stock",
+    "Stock options that pay no dividend"
+   ],
+   "answer": "European-style index options, like SPX",
+   "why": "European-style index options, like SPX. Cboe says they can only be exercised at expiration, so nobody can assign you early. They settle in cash, not shares.",
+   "lesson_line": "European-style options can't be assigned before expiry. American-style ones can, any day.",
+   "facts": [
+    "f75",
+    "f76",
+    "f133",
+    "f65",
+    "f69",
+    "f101"
+   ],
+   "wrong": {
+    "American-style options on a stock": "Those can be exercised any day before expiry, so your short legs can be assigned early.",
+    "Stock options that pay no dividend": "No dividend lowers the odds, but American-style options can still be assigned early. Deep in-the-money puts often are."
+   }
+  },
+  {
+   "key": "q25",
+   "skill": "options.condors_flies",
+   "rung": 9,
+   "format": "scenario",
+   "story": "Your condor's short 50 put was assigned, so you now own 100 shares. The stock is at 44. Your long 45 put still has time value.",
+   "q": "What's usually the better way out?",
+   "choices": [
+    "Sell the shares, then sell the long put",
+    "Exercise the long put right away",
+    "Hold the shares and wait for a bounce"
+   ],
+   "answer": "Sell the shares, then sell the long put",
+   "why": "Sell the shares, then sell the long put. Exercising the put gives up the time value left in it; selling it collects that time value. Fees aside.",
+   "lesson_line": "After an assignment, sell the leftover long option rather than exercise it. Selling keeps its time value.",
+   "facts": [
+    "f99",
+    "f72",
+    "f12"
+   ],
+   "wrong": {
+    "Exercise the long put right away": "That closes the shares, but it throws away the put's time value. Selling both recovers it.",
+    "Hold the shares and wait for a bounce": "That turns a range trade into a stock trade you never planned. Close what the assignment handed you."
+   }
+  },
+  {
+   "key": "q26",
+   "skill": "options.condors_flies",
+   "rung": 9,
+   "format": "tf",
+   "q": "An iron condor's loss can never go past its stated max loss.",
+   "answer": "False",
+   "why": "False. The max loss assumes the four legs settle together. An early assignment before a dividend, or a pin at expiry, can leave you holding stock that moves against you.",
+   "lesson_line": "Defined risk holds only while all four legs stay together. Watch assignment and the closing bell.",
+   "facts": [
+    "f100",
+    "f14",
+    "f13",
+    "f124",
+    "f70"
+   ]
+  },
+  {
+   "key": "q27",
+   "skill": "options.condors_flies",
+   "rung": 9,
+   "format": "scenario",
+   "story": "Your iron condor is up most of its credit with a week to expiry. The stock is drifting up toward your short call.",
+   "q": "What's the sound move?",
+   "choices": [
+    "Close it and keep most of the credit",
+    "Hold to expiry for the last few cents",
+    "Sell the long call to pocket its value"
+   ],
+   "answer": "Close it and keep most of the credit",
+   "why": "Close it and keep most of the credit. Near expiry, small stock moves swing a condor's price hard, and a close near the short call brings assignment risk.",
+   "lesson_line": "When most of the credit is in hand and expiry is close, I take it and move on.",
+   "facts": [
+    "f93",
+    "f94",
+    "f132",
+    "f15",
+    "f88",
+    "f74"
+   ],
+   "wrong": {
+    "Hold to expiry for the last few cents": "That risks most of what you've made for a little more. Near expiry, small moves hit a condor hard.",
+    "Sell the long call to pocket its value": "That leaves a naked short call, with no cap on the loss, right as the stock heads toward it."
+   }
+  }
+ ],
+ "conflicts": [
+  "Naming: Fidelity says experienced traders disagree on whether the credit iron condor (and iron butterfly) is 'long' or 'short'; some call the credit trade a 'long iron condor'. OIC ('Short Condor (Iron Condor)', 'Short Iron Butterfly') and Schwab call the credit trade short and the debit trade long. The file says 'iron condor' or 'short iron condor' for the credit trade and never quizzes the long/short label.",
+  "OIC's August 2026 webinar uses 'a traditional long condor' for a four-call or four-put debit condor that profits between the inner strikes; OIC's own 'Long Condor' strategy page (and Schwab's 'long iron condor') is the debit trade that profits OUTSIDE the range. Checker: q01's wrong note now names the bull call + bear put pair 'the long iron condor' (Schwab f134) instead of 'OIC calls it a long condor', so the two OIC meanings never clash in front of a member.",
+  "Iron condor vs iron butterfly 'risk': OIC's October 2025 takeaways say the condor offers 'more flexibility and lower risk'; Fidelity's webinar deck says the condor has 'Less premium received, higher max loss'. Both hold in different senses (more room makes a loss less likely; less credit on the same wing width makes the max loss bigger). q08 keys only on credit and range, where both agree.",
+  "Unequal wings: OIC's formula assumes equal wings; Schwab says the max loss is the width of the widest spread minus the credit, which matches the Journal's compute_max_risk (wider wing x 100 x min qty + net entry). q15 keys Schwab (f122) with OIC's 'whichever are in-the-money' logic (f08) and a calc.",
+  "Earnings: Fidelity says some traders open condors immediately before earnings; Schwab says most traders who sell condors on single stocks avoid earnings. q22 keys only what both say (IV must fall AND the stock must stay inside the breakevens) and reports Schwab's 'most avoid' as Schwab's statement.",
+  "Where time decay flips: OIC (August 2026) says theta is positive while the stock stays 'near the short strikes' and flips toward the outer wings; Fidelity says theta turns negative once the stock moves 'outside the range of maximum profit' (past a short strike). q17's key (False) holds under both readings."
+ ],
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "notes": "Quotes re-fetched live 2026-11-09 (cache purged; 102 found, 0 missing) and read in context. f02, f03, f05 (OIC short condor), f55 (OIC: wings cap the risk), f121 (Schwab), f20 (OIC iron butterfly). Legs match OIC's example. Track audit 2026-11-09: step 2 names the Options Industry Council instead of 'OIC'. The legs are written without \"the\" (short 65 call ...) to keep the step under 22 words.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "Quotes re-fetched live 2026-11-09 (cache purged; 102 found, 0 missing) and read in context. Fidelity example re-read: 95/100/105/110, credit 2.80, width 5.00, max risk 5.00 - 2.80 = 2.20. Step 4 said 'under 95 and over 110'; the real reason only one side can lose is the short strikes, so it now says 'below 100 and above 105'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "Quotes re-fetched live 2026-11-09 (cache purged; 102 found, 0 missing) and read in context. Fidelity: 95 / two 100s / 105 for 1.25, max profit 5.00 - 1.25 = 3.75, max risk 1.25 outside the wings; OIC Aug 2026 webinar 'statistically unlikely'. Track audit 2026-11-09: step 4 names the Options Industry Council instead of 'OIC'.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q01": {
+   "status": "pass",
+   "notes": "Quotes re-fetched live 2026-11-09 (cache purged; 102 found, 0 missing) and read in context. Key: OIC f02, Fidelity f80, OIC f54. Wrong note B said 'OIC calls it a long condor', but OIC's own Aug 2026 webinar uses 'long condor' for a debit condor that profits IN range; now 'the long iron condor' (Schwab f134 added), sharp move per OIC f41. Note C: a short call plus short put can be a strangle or a straddle; now says both, f74 added for the uncapped loss.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q02": {
+   "status": "pass",
+   "notes": "Quotes re-fetched live 2026-11-09 (cache purged; 102 found, 0 missing) and read in context. OIC f03 ('must be'), Fidelity f81. Why said 'so the whole position settles at once', which q26 rightly contradicts (early assignment splits it); now 'That's part of the definition.'",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q03": {
+   "status": "pass",
+   "notes": "Quotes re-fetched live 2026-11-09 (cache purged; 102 found, 0 missing) and read in context. OIC f31: middle strike = body, wings equidistant. Distractors checked: OIC uses 'shoulder' only for a condor's split body, never a butterfly's middle strike.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q04": {
+   "status": "pass",
+   "notes": "Quotes re-fetched live 2026-11-09 (cache purged; 102 found, 0 missing) and read in context. OIC f30 key; f45/f46 short call butterfly; ODD f73 and OIC f56 straddle. Note C said 'add a bear call spread above it'; Fidelity says the bear call spread shares the middle strike, so the note now says that.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q05": {
+   "status": "pass",
+   "notes": "Quotes re-fetched live 2026-11-09 (cache purged; 102 found, 0 missing) and read in context. Investopedia now answers 402 to curl and WebFetch; its quotes were read in context in the quote checker's 200 fetch of the same page earlier today (updated July 2026). OIC f06/f07, Fidelity f85 ('equal to or between'). Distractor 'Exactly at the middle of the range' also keeps the whole credit, so it was not really wrong; now 'Only at the exact middle of the range'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q06": {
+   "status": "pass",
+   "notes": "Quotes re-fetched live 2026-11-09 (cache purged; 102 found, 0 missing) and read in context. OIC f32-f34, Fidelity f112: max loss = the debit at expiry. The bare 'most you can lose' clashed with q26 (assignment can break defined risk; OIC rates the fly's expiration risk extremely high); now 'At expiry, the most ... can lose', lesson line too.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q07": {
+   "status": "pass",
+   "notes": "Quotes re-fetched live 2026-11-09 (cache purged; 102 found, 0 missing) and read in context. OIC f08 'either both calls or both puts', Schwab f122. The extra line 'both sides can show paper losses when volatility jumps' was in no cited quote; now 'a jump in implied volatility can still show a paper loss on the whole trade' (OIC f10, Fidelity f89 added).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q08": {
+   "status": "pass",
+   "notes": "Quotes re-fetched live 2026-11-09 (cache purged; 102 found, 0 missing) and read in context. OIC Oct 2025 f60 (wider range, lower profit potential) and Fidelity deck f115/f116 (less premium, further-out breakevens) agree on credit and range; q says 'usually'. The max-loss/'risk' disagreement is in conflicts and not keyed.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q09": {
+   "status": "pass",
+   "notes": "Quotes re-fetched live 2026-11-09 (cache purged; 102 found, 0 missing) and read in context. Investopedia now answers 402 to curl and WebFetch; its quotes were read in context in the quote checker's 200 fetch of the same page earlier today (updated July 2026). 1.40 x 100 x 2 = 280, calc agrees. OIC f61: max profit = the credit; x100 per contract from Investopedia f140 and taught in F6.02.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q10": {
+   "status": "pass",
+   "notes": "Quotes re-fetched live 2026-11-09 (cache purged; 102 found, 0 missing) and read in context. Both sides 5 wide: (65 - 60) - 1.60 = 3.40 by hand, calc agrees. OIC f08/f61, Fidelity f83/f84 same formula.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q11": {
+   "status": "pass",
+   "notes": "Quotes re-fetched live 2026-11-09 (cache purged; 102 found, 0 missing) and read in context. Investopedia now answers 402 to curl and WebFetch; its quotes were read in context in the quote checker's 200 fetch of the same page earlier today (updated July 2026). Fidelity f87 four bid-ask spreads to open and again to close; ODD f71 costs on every leg; Investopedia f146. Distractors really wrong: decay helps a short condor (OIC f11); the wings are inside the net credit.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q12": {
+   "status": "pass",
+   "notes": "Quotes re-fetched live 2026-11-09 (cache purged; 102 found, 0 missing) and read in context. 90 + 1.85 = 91.85 by hand, calc agrees. OIC f09 and Fidelity f86 both: short call strike plus the credit. Track audit 2026-11-09: spelling only: 'breakeven' -> 'break-even', one spelling across F6 (OIC's and F6.03's).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q13": {
+   "status": "pass",
+   "notes": "Quotes re-fetched live 2026-11-09 (cache purged; 102 found, 0 missing) and read in context. Iron butterfly 45/50/55, credit 3.20: 50 - 3.20 = 46.80 and 50 + 3.20 = 53.20 by hand (calc checks the upper). OIC f22, Fidelity f106. Distractors recomputed: 41.80/58.20 = wings -/+ 3.20; 48.40/51.60 = half the credit each way. Track audit 2026-11-09: spelling only: 'breakeven' -> 'break-even', one spelling across F6 (OIC's and F6.03's).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q14": {
+   "status": "pass",
+   "notes": "Quotes re-fetched live 2026-11-09 (cache purged; 102 found, 0 missing) and read in context. (45 - 40) - 1.10 = 3.90 by hand, calc agrees. OIC f32 formula; Fidelity f111 same method (5.00 - 1.25 = 3.75).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q15": {
+   "status": "pass",
+   "notes": "Quotes re-fetched live 2026-11-09 (cache purged; 102 found, 0 missing) and read in context. Unbalanced: puts 5 wide, calls 10 wide. (10 - 2.50) x 100 x 3 = 2,250 by hand, calc agrees. Schwab f122 'width of the widest spread minus the net credit', f123 skewed; same rule as compute_max_risk.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q16": {
+   "status": "pass",
+   "notes": "Quotes re-fetched live 2026-11-09 (cache purged; 102 found, 0 missing) and read in context. OIC f10 (rising IV hurts), Fidelity f89 (negative vega: credit rises, spread loses), OIC f53. Max loss is set by strikes and credit (f08), so D is really wrong.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q17": {
+   "status": "pass",
+   "notes": "Quotes re-fetched live 2026-11-09 (cache purged; 102 found, 0 missing) and read in context. Fidelity f90 (theta turns negative outside the max-profit range), OIC Aug 2026 f51/f52 (flips toward the wings). 'No matter where the stock trades' is false under both readings (conflicts).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q18": {
+   "status": "pass",
+   "notes": "Quotes re-fetched live 2026-11-09 (cache purged; 102 found, 0 missing) and read in context. Schwab example re-read: April 7, 2026, SPX ~6,560, 6,960/7,060 calls, 6,160/6,060 puts, max profit $2,915, max loss $7,085. 100 points x $100 (Cboe f77) = $10,000 - $2,915 = $7,085, calc agrees; $14,170 = both sides, impossible at expiry.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q19": {
+   "status": "cut",
+   "notes": "duplicate of F6.12#q26. Track audit 2026-11-09: Same calc and lesson (how many maximum wins one maximum loss erases: (width - credit) / credit). The checker had passed it (its note is kept under 'prior'); the question stays in the file as the record.",
+   "fixed": false,
+   "by": "auditor",
+   "prior": {
+    "status": "pass",
+    "notes": "Quotes re-fetched live 2026-11-09 (cache purged; 102 found, 0 missing) and read in context. (5 - 1.25) / 1.25 = 3 by hand, calc agrees. Lesson line said 'Condors win small and lose bigger' as a rule, but Fidelity's own example has credit 2.80 vs max risk 2.20; now 'Before you sell a condor, know how many winners one max loss erases.'",
+    "fixed": true,
+    "by": "checker"
+   }
+  },
+  "q20": {
+   "status": "pass",
+   "notes": "Quotes re-fetched live 2026-11-09 (cache purged; 102 found, 0 missing) and read in context. Fidelity f96/f97: stock between the short and long call at expiry, short call assigned, short 100 shares; 61.50 is above 60, below 65. OIC f66 'should expect assignment' and the q says 'likely'. Close-before-the-bell from OIC f68.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q21": {
+   "status": "pass",
+   "notes": "Quotes re-fetched live 2026-11-09 (cache purged; 102 found, 0 missing) and read in context. Investopedia now answers 402 to curl and WebFetch; its quotes were read in context in the quote checker's 200 fetch of the same page earlier today (updated July 2026). OIC Aug 2026 f50 'possible but statistically unlikely', Investopedia f145 'only if ... exactly at the middle strike'. 'Pick the right body and ...' could read as 'if the stock ends at your body' (then True); now 'Hold a long butterfly to expiry and it usually pays its full max profit.' Track audit 2026-11-09: why names the Options Industry Council instead of 'OIC'. Quote re-check on the audit run: 102 found, 0 missing; Investopedia (f145) refused both curl and WebFetch (402), as the checker recorded earlier today after reading it in a 200 fetch; the key rests on OIC f50.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q22": {
+   "status": "pass",
+   "notes": "Quotes re-fetched live 2026-11-09 (cache purged; 102 found, 0 missing) and read in context. Fidelity f91/f92 and Schwab f128 agree: IV must fall AND the stock must stay inside the breakevens. Lesson line stated Schwab's 'most ... avoid earnings' as bare fact while Fidelity says some sell right before; now 'Schwab says ...'. Track audit 2026-11-09: spelling only: 'breakeven' -> 'break-even', one spelling across F6 (OIC's and F6.03's).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q23": {
+   "status": "cut",
+   "notes": "duplicate of F6.16#q18. Track audit 2026-11-09: Same fact and test (an early assignment on the short put of a multi-leg position leaves you long 100 shares with the other legs still open). The checker had passed it (its note is kept under 'prior'); the question stays in the file as the record.",
+   "fixed": false,
+   "by": "auditor",
+   "prior": {
+    "status": "pass",
+    "notes": "Quotes re-fetched live 2026-11-09 (cache purged; 102 found, 0 missing) and read in context. Fidelity f98: an assigned short put buys 100 shares and the long put and both calls stay open; OIC f69 deep ITM puts are exercised early. Key '100 shares plus three option legs' sat next to 'Short 100 shares plus three legs'; now 'Long 100 shares plus three legs' so the pair is parallel.",
+    "fixed": true,
+    "by": "checker"
+   }
+  },
+  "q24": {
+   "status": "pass",
+   "notes": "Quotes re-fetched live 2026-11-09 (cache purged; 102 found, 0 missing) and read in context. Cboe SPX page (current): 'can only be exercised at expiration ... eliminating early assignment risk', cash-settled; Schwab f133 agrees. Distractors: OIC f65 American any time; f69 deep ITM puts go early even with no dividend.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q25": {
+   "status": "pass",
+   "notes": "Quotes re-fetched live 2026-11-09 (cache purged; 102 found, 0 missing) and read in context. Fidelity f99: sell the shares, then the long put, recovers its time value, with a commissions caveat ('Fees aside', 'usually'); ODD f72 same principle. Holding is not a way out.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q26": {
+   "status": "cut",
+   "notes": "duplicate of F6.12#q24. Track audit 2026-11-09: Same true/false trap (a defined-risk spread can lose more than its stated maximum once a leg is assigned or pinned). The checker had passed it (its note is kept under 'prior'); the question stays in the file as the record.",
+   "fixed": false,
+   "by": "auditor",
+   "prior": {
+    "status": "pass",
+    "notes": "Quotes re-fetched live 2026-11-09 (cache purged; 102 found, 0 missing) and read in context. Fidelity f100 (dividend owed after an early call assignment can exceed the max loss), OIC f13/f14, Schwab f124, ODD f70 read in context; the ODD also warns a loss can come on both sides of a combination.",
+    "fixed": false,
+    "by": "checker"
+   }
+  },
+  "q27": {
+   "status": "cut",
+   "notes": "duplicate of F6.07#q14. Track audit 2026-11-09: Same judgment and choices (most of the credit in hand with days to expiry: close it rather than hold short gamma for the last few cents). The checker had passed it (its note is kept under 'prior'); the question stays in the file as the record.",
+   "fixed": false,
+   "by": "auditor",
+   "prior": {
+    "status": "pass",
+    "notes": "Quotes re-fetched live 2026-11-09 (cache purged; 102 found, 0 missing) and read in context. Fidelity f93/f94, Schwab f132 active management, OIC f15 pin uncertainty, ODD f74 naked call unlimited. Taking most of the credit near expiry as price nears a short strike is sound practice. Story 'has kept most of its credit' was unclear; now 'is up most of its credit'.",
+    "fixed": true,
+    "by": "checker"
+   }
+  }
+ }
+}

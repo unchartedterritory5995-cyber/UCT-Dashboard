@@ -1,0 +1,1380 @@
+{
+ "setup": "21-power-earnings-gap",
+ "name": "Power Earnings Gap",
+ "unit": "SET.19",
+ "direction": "long",
+ "timeframe": "daily",
+ "dossier": "docs/study/setups/research/21-power-earnings-gap.md",
+ "as_of": "2026-11-09",
+ "card": {
+  "context": "An established name, in a base or a quiet uptrend over a rising 50-day and above the 200-day, reports a quarter the market did not expect. Liquid, growing sales and earnings. Earnings season, Green or Yellow market.",
+  "pattern": "The first regular session after the report opens 4% or more and at least three quarters of an ATR over the prior close, on 1.5 times volume or more, and closes green, over the prior day's high, in the top half of its range.",
+  "trigger": "PREV DAY HIGH BREAK: after a pause of 2 to 10 sessions that holds the gap-day low, a market buy as price trades over the pause high. Day one over the opening-range high for an A+ only.",
+  "stop": "A few cents under the trigger day's low or the pause low, never wider than under the gap-day low; on day one, under the gap day's low so far. If that is past about 3%, size down or skip.",
+  "failure_mode": "The gap fills or the gap-day low gives way on a close, or the pause drifts into lower highs and lows and the breakout fails. A mega-cap popping 4% to 5% on 2x volume gives the thinnest follow-through."
+ },
+ "entry_trigger": "PREV DAY HIGH BREAK",
+ "criteria": [
+  {
+   "id": "peg.catalyst",
+   "field": "context",
+   "statement": "A quarterly earnings report, with or without guidance. The PEG day is the first regular session after it: the report day for a pre-open report, the next session for an after-close one. Check the report time before calling a gap a PEG.",
+   "measure": {
+    "what": "the gap day against the earnings database's reaction day",
+    "op": "==",
+    "value": "the report's reaction day"
+   },
+   "glossary": "earnings_reaction_day",
+   "basis": "source consensus",
+   "sources": [
+    "S1",
+    "S10",
+    "S8",
+    "S13",
+    "S19"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1.1 Catalyst",
+   "evidence": "The scan counted only cached report reaction days from 2005 on. The cache's time of day can be wrong: it put PANW's 2020-11-16 report before the open, which would make a market-wide gap its PEG day; PANW's own reaction bar is 17 Nov, so that hit was dropped."
+  },
+  {
+   "id": "peg.news_gap",
+   "field": "context",
+   "statement": "A gap on other news is an EP or a News Gapper, not a PEG, unless the owner rules otherwise. He treated INTC's news gap like a classic PEG.",
+   "measure": {
+    "what": "catalyst",
+    "op": "==",
+    "value": "a quarterly report"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S20"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "earnings only (the dossier)"
+    },
+    {
+     "value": "b",
+     "basis": "earnings or major company news (the owner's INTC note)"
+    },
+    {
+     "value": "c",
+     "basis": "news gaps go to EP or News Gapper"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-025",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1.1 Catalyst; 10 question 2",
+   "evidence": "The register's default (D-025) says a major company news gap is a PEG; the card waits for his word."
+  },
+  {
+   "id": "peg.one_setup",
+   "field": "context",
+   "statement": "PEG, earnings gapper and ER gapper are one setup, named Power Earnings Gap.",
+   "basis": "UCT",
+   "sources": [
+    "S23",
+    "S19"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "one setup, Power Earnings Gap (the dossier)"
+    },
+    {
+     "value": "b",
+     "basis": "PEG is the strong-close, high-volume subset of earnings gappers"
+    },
+    {
+     "value": "c",
+     "basis": "keep the Model Book's separate News/Earnings Gapper card for non-earnings gaps"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-002",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "10 question 1",
+   "evidence": "The register's default: EP and PEG are the two traded units; News Gapper is the family lesson. Also open: Power or Post Earnings Gap."
+  },
+  {
+   "id": "peg.gap_floor",
+   "field": "pattern",
+   "statement": "The PEG day opens at least 4% over the prior close and at least 0.75 times the 40-day ATR over it.",
+   "measure": {
+    "what": "open / prior close - 1",
+    "op": ">=",
+    "value": 4,
+    "unit": "%",
+    "timeframe": "daily",
+    "and": "open - prior close >= 0.75 x ATR(40)"
+   },
+   "glossary": "gap",
+   "basis": "my proposal",
+   "sources": [
+    "S8",
+    "S6",
+    "S9",
+    "S18"
+   ],
+   "options": [
+    {
+     "value": "4% + 0.75 ATR",
+     "basis": "keeps every owner example in 6.7 including ASML 6.2% and CAT 6.4%; the ATR floor never binds on the ten examples (2.9 to 6.6 ATRs)"
+    },
+    {
+     "value": "8%",
+     "basis": "the scanner today; drops ASML, ORCL, CAT"
+    },
+    {
+     "value": "10%",
+     "basis": "Kullamägi's EP; the best measured P(3R), 41%, but drops ASML, ORCL, GM and CAT"
+    },
+    {
+     "value": "no number",
+     "basis": "eyeball"
+    }
+   ],
+   "recommended": "4% + 0.75 ATR",
+   "status": "pending-owner",
+   "owner_question": "D-033",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1.2 Gap; 10 question 3",
+   "evidence": "Scan at this floor: 1,516 hits, 31.0% / 20.0%. Gaps of 10% or more (122) 34.4% / 23.0%, a little better. GM 2020-11-05 gapped 4.7%, just over the floor, and ran 14.8R; COCO 2026-04-29 gapped 17.4%."
+  },
+  {
+   "id": "peg.gap_a_cue",
+   "field": "pattern",
+   "statement": "A gap of 10% or more is an A-grade cue.",
+   "measure": {
+    "what": "open / prior close - 1",
+    "op": ">=",
+    "value": 10,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "glossary": "gap",
+   "basis": "originator",
+   "sources": [
+    "S9",
+    "S18"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1.2 Gap; 9 A+",
+   "evidence": "Scan: gaps of 10% or more (122 hits) 34.4% / 23.0% against 31.0% / 20.0% for all. LOGI 2023-10-24 (+10.4%) ran 18.9R."
+  },
+  {
+   "id": "peg.volume",
+   "field": "pattern",
+   "statement": "PEG-day volume at least 1.5 times the 50-day average; 3 times or more for an A.",
+   "measure": {
+    "what": "PEG-day volume / 50-day average volume",
+    "op": ">=",
+    "value": 1.5,
+    "unit": "x",
+    "timeframe": "daily"
+   },
+   "glossary": "volume_surge",
+   "basis": "originator",
+   "sources": [
+    "S6",
+    "S8",
+    "S11",
+    "S10"
+   ],
+   "options": [
+    {
+     "value": 1.5,
+     "basis": "Morales and Kacher; 3x for an A (the dossier)"
+    },
+    {
+     "value": 2,
+     "basis": "the house catalyst-gap number"
+    },
+    {
+     "value": 3,
+     "basis": "Bonde, Wagner, Tramondo"
+    }
+   ],
+   "recommended": 1.5,
+   "status": "pending-owner",
+   "owner_question": "D-006",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1.3 Volume; 10 question 4",
+   "evidence": "Scan: volume 3x or more (899 hits) 30.7% / 19.9%, no better than all hits. The ten examples traded 2.4x (GM) to 7.7x (DOCU). The register's default makes volume a cue everywhere (D-006)."
+  },
+  {
+   "id": "peg.not_hve",
+   "field": "pattern",
+   "statement": "An earnings spike on an established name stays a PEG even at a one-year volume record. The High Volume Edge is volume that dwarfs everything before it, often on a lesser-known name.",
+   "basis": "UCT",
+   "sources": [
+    "S20",
+    "S26"
+   ],
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.1.3 Volume",
+   "evidence": "The owner's rulings: ASML 2024-01-24, 7.6x the 50-day and 2.7x its biggest day of the prior year, 'Again, just a PEG'; FSLY at 27x, '100% A+' as an HVE."
+  },
+  {
+   "id": "peg.close",
+   "field": "pattern",
+   "statement": "The PEG day closes green (at or over the open), over the prior day's high so the gap is still open, and in the top half of its range.",
+   "measure": {
+    "what": "(close - low) / (high - low) of the PEG day",
+    "op": ">=",
+    "value": 0.5,
+    "unit": "of the range",
+    "timeframe": "daily",
+    "and": "close >= open and close > the prior day's high"
+   },
+   "glossary": "close_position",
+   "basis": "originator",
+   "sources": [
+    "S2",
+    "S1",
+    "S9",
+    "S10",
+    "S11"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "top half and over the prior high (the dossier)"
+    },
+    {
+     "value": "b",
+     "basis": "top quarter"
+    },
+    {
+     "value": "c",
+     "basis": "green only"
+    },
+    {
+     "value": "d",
+     "basis": "none"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-039",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1.4 Close; 10 question 5",
+   "evidence": "Coded in the scan. LULU closed at 0.59 of its range, the weakest of the ten, and ran 19.1R. CELH 2023-05-10 closed at 0.61 and then needed seven days to trigger; it failed."
+  },
+  {
+   "id": "peg.close_a",
+   "field": "pattern",
+   "statement": "A close in the top quarter of the range is the A grade.",
+   "measure": {
+    "what": "(close - low) / (high - low) of the PEG day",
+    "op": ">=",
+    "value": 0.75,
+    "unit": "of the range",
+    "timeframe": "daily"
+   },
+   "glossary": "close_position",
+   "basis": "my proposal",
+   "sources": [],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1.4 Close; 9 A+",
+   "evidence": "Seven of the ten examples closed at 0.80 or higher."
+  },
+  {
+   "id": "peg.faded_day",
+   "field": "pattern",
+   "statement": "A faded PEG day is not a PEG. It can become a delayed-reaction watch.",
+   "basis": "UCT",
+   "sources": [
+    "S20"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1.4 Close",
+   "evidence": "The owner's ESTC note. The register files the delayed reaction as a named variant inside the gap family (D-002)."
+  },
+  {
+   "id": "peg.above_200",
+   "field": "context",
+   "statement": "The PEG-day close is over the 200-day simple average.",
+   "measure": {
+    "what": "PEG-day close against the 200-day SMA",
+    "op": ">",
+    "value": "200-day SMA",
+    "timeframe": "daily"
+   },
+   "glossary": "above_200",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B26",
+   "options": [
+    {
+     "value": "a",
+     "basis": "allowed if the PEG day closes over the 200-day (DELL 2026-02-27, PLTR 2026-08-04)"
+    },
+    {
+     "value": "b",
+     "basis": "only if the prior close was over it"
+    },
+    {
+     "value": "c",
+     "basis": "only over a rising 200-day"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-020",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1.5 Location; 10 question 9",
+   "evidence": "38% of the base earnings gaps started under the 200-day; about a third of those closed back over it on the gap day. VSAT 2019-02-13 was cut from the examples: its gap launched from under a falling 200-day."
+  },
+  {
+   "id": "peg.above_50",
+   "field": "context",
+   "statement": "Preferred: the PEG day closes over a rising 50-day average, out of an uptrend or a constructive base.",
+   "measure": {
+    "what": "PEG-day close against the 50-day SMA",
+    "op": ">",
+    "value": "50-day SMA, rising",
+    "timeframe": "daily"
+   },
+   "basis": "originator",
+   "sources": [
+    "S6"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1.5 Location",
+   "evidence": "BURL gapped off a pullback to the 50-day; DOCU gapped through the 50-day out of a four-month correction."
+  },
+  {
+   "id": "peg.not_extended",
+   "field": "context",
+   "statement": "For an A: not up more than 30% in the 65 sessions before the gap.",
+   "measure": {
+    "what": "prior close / lowest close of the prior 65 sessions - 1",
+    "op": "<=",
+    "value": 30,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "glossary": "prior_trend",
+   "basis": "my proposal",
+   "sources": [
+    "S8",
+    "S9",
+    "S18"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1.5 Location; 9 B-",
+   "evidence": "Scan: not up more than 30% (1,446 hits) 31.3% / 20.2%, no move. GM was up 34% before its gap (a B) and still ran 14.8R; NVDA 2024-02-22 was up 36% and failed."
+  },
+  {
+   "id": "peg.liquidity",
+   "field": "context",
+   "statement": "Price $10 or more and $20 million traded a day before the gap.",
+   "measure": {
+    "what": "prior close",
+    "op": ">=",
+    "value": 10,
+    "unit": "$",
+    "and": "50-day average dollar volume before the gap >= 20,000,000"
+   },
+   "glossary": "liquidity",
+   "basis": "house rule",
+   "sources": [
+    "S22"
+   ],
+   "house_rule": "B23",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1.6 Liquidity",
+   "evidence": "Our scanner's floor is $2 and $10,000 (D-004). LOGI, the least liquid of the ten, traded $30 million a day."
+  },
+  {
+   "id": "peg.position_adv",
+   "field": "management",
+   "statement": "The position is at most 1% of the stock's average daily volume.",
+   "measure": {
+    "what": "shares / average daily volume",
+    "op": "<=",
+    "value": 1,
+    "unit": "%"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "D42",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "7"
+  },
+  {
+   "id": "peg.fundamentals",
+   "field": "context",
+   "statement": "Growing sales and earnings, a beat, and ideally a raise. A grade cue, not a gate; the app cannot check it.",
+   "basis": "house rule",
+   "sources": [
+    "S9",
+    "S8"
+   ],
+   "house_rule": "D40",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1.7 Fundamentals"
+  },
+  {
+   "id": "peg.rs",
+   "field": "context",
+   "statement": "RS rating 80 or more, measured on the PEG day's close.",
+   "measure": {
+    "what": "RS rating at the PEG-day close",
+    "op": ">=",
+    "value": 80,
+    "unit": "rating 1 to 99"
+   },
+   "glossary": "leader",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "C31",
+   "options": [
+    {
+     "value": "a",
+     "basis": "on the PEG day's close"
+    },
+    {
+     "value": "b",
+     "basis": "before the gap"
+    },
+    {
+     "value": "c",
+     "basis": "not required for PEGs"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-011",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "7 C31 row; 10 question 10",
+   "evidence": "Fits the leader PEG; a neglected EP may have a low RS before the gap and a high one after. The scan cannot read an RS rating."
+  },
+  {
+   "id": "peg.entry_pause",
+   "field": "trigger",
+   "statement": "The pause buy, the default: after the PEG day, wait 2 to 10 sessions for an orderly pause (a flag, an inside day, a tight range, or a pullback to the 9 EMA or 10-day) that holds the PEG-day low; the A grade holds the PEG-day close. Buy at market when price trades over the pause high, or on the Slingshot trigger.",
+   "measure": {
+    "what": "sessions between the PEG day and the trigger",
+    "op": "in",
+    "value": [
+     2,
+     10
+    ],
+    "unit": "sessions",
+    "timeframe": "daily",
+    "and": "every close of the pause above the PEG-day low; trigger = a trade over the pause high"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S19",
+    "S5",
+    "S13",
+    "S11",
+    "S18"
+   ],
+   "house_rule": "E57",
+   "options": [
+    {
+     "value": "a",
+     "basis": "the pause buy as default plus day one for A+ only, with the pause high as the trigger (the dossier and the register's default)"
+    },
+    {
+     "value": "b",
+     "basis": "pause only: Slingshot, flag, inside day"
+    },
+    {
+     "value": "c",
+     "basis": "day one only, over the opening-range high"
+    },
+    {
+     "value": "d",
+     "basis": "all named variants, the member's choice"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-085",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.2 A; 10 question 6",
+   "evidence": "Scan: pause buys (1,086 hits) 30.9% / 20.7%; the median winner took 10 sessions to reach 3R. All ten examples are pause buys, 2 to 6 sessions long, 0.3% to 5.1% deep. The owner: 'Meant to be used to enter PEGS mostly' (the Slingshot)."
+  },
+  {
+   "id": "peg.entry_day1",
+   "field": "trigger",
+   "statement": "The day-one buy, for an A+ only: a market order over the 5-minute or 30-minute opening-range high on the PEG day, only when the day's low gives a stop within about 3% and the price is not more than 10% over the 10-day.",
+   "measure": {
+    "what": "price against the opening-range high (5-minute or 30-minute)",
+    "op": ">",
+    "value": "opening-range high",
+    "timeframe": "5-minute or 30-minute",
+    "and": "(entry - low of day so far) / entry <= 3%; entry / 10-day SMA - 1 <= 10%"
+   },
+   "glossary": "opening_range",
+   "basis": "UCT",
+   "sources": [
+    "S9",
+    "S8",
+    "S12",
+    "S19"
+   ],
+   "house_rule": "E57",
+   "status": "pending-owner",
+   "owner_question": "D-085",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.2 B; 10 question 6",
+   "evidence": "Daily bars cannot see it; the scan proxied it with the PEG-day close when the stop under the PEG-day low was within 3% and the close within 10% of the 10-day (430 hits) 31.2% / 18.1%. None of the ten examples uses it."
+  },
+  {
+   "id": "peg.not_stretched",
+   "field": "trigger",
+   "statement": "At the buy, no more than 10% over the 10-day average. On the PEG day most big gaps break this, so there is no day-one buy then; the pause buy is usually allowed.",
+   "measure": {
+    "what": "entry / 10-day SMA - 1",
+    "op": "<=",
+    "value": 10,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "glossary": "stretched",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "C29",
+   "options": [
+    {
+     "value": "a",
+     "basis": "applies: no day-one buy then (the dossier)"
+    },
+    {
+     "value": "b",
+     "basis": "the PEG day exempt, like parabolic trades"
+    },
+    {
+     "value": "c",
+     "basis": "measure against the 10-day before the gap"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-017",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "7 C29 row; 10 question 7",
+   "evidence": "At the gap-day close 33% of earnings gaps, 55% of strong-close ones and 68% to 69% of 8%+ gaps are over the line; every owner example from TWLO to OKTA was. The register's default measures a catalyst day against the 10-day as of the prior close (D-017)."
+  },
+  {
+   "id": "peg.no_chase",
+   "field": "trigger",
+   "statement": "No buy more than 4% over the trigger: the pause high, or the opening-range high on day one. Never the base pivot.",
+   "measure": {
+    "what": "fill / trigger level - 1",
+    "op": "<=",
+    "value": 4,
+    "unit": "%"
+   },
+   "glossary": "chase_limit",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "C28",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 Order and chase; 7 C28 row",
+   "evidence": "The open was 4% or more over the prior 50-day high in 26% to 54% of gaps, so the base pivot cannot be the buy point."
+  },
+  {
+   "id": "peg.regular_hours",
+   "field": "trigger",
+   "statement": "Never before the open: no pre-market or after-hours buys, unlike Bonde and Stewie's gap-and-go.",
+   "basis": "house rule",
+   "sources": [
+    "S8",
+    "S1"
+   ],
+   "house_rule": "E58",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 B; 7 E58 row"
+  },
+  {
+   "id": "peg.no_adding",
+   "field": "management",
+   "statement": "One buy at one price with one stop. No adding when volume comes in, no starter position.",
+   "basis": "house rule",
+   "sources": [
+    "S8",
+    "S1"
+   ],
+   "house_rule": "A5",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "7 A5 row; 8.7 item 6",
+   "evidence": "Stockbee adds when volume comes in; Stewie starts small; the house brain says baby position, add on strength. The house rule wins."
+  },
+  {
+   "id": "peg.stop_pause",
+   "field": "stop",
+   "statement": "Pause buy: a few cents under the low of the trigger day or the pause, whichever the plan names; never wider than under the PEG-day low.",
+   "measure": {
+    "what": "stop",
+    "op": "==",
+    "value": "a few cents under the trigger day's low or the pause low; the PEG-day low is the outer limit"
+   },
+   "glossary": "stop_margin",
+   "basis": "house rule",
+   "sources": [
+    "S8"
+   ],
+   "house_rule": "A3",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.3",
+   "evidence": "The scan used 5 cents under the lower of the trigger day's and prior day's lows. The ten examples' stops sat 1.2% to 2.9% under the buy. NVDA 2024-03-04: a 0.5% stop under the trigger day's low on a stock that moves 3% a day is not a stop."
+  },
+  {
+   "id": "peg.stop_day1",
+   "field": "stop",
+   "statement": "Day-one buy: a few cents under the PEG day's low so far.",
+   "measure": {
+    "what": "stop",
+    "op": "==",
+    "value": "a few cents under the PEG day's low so far"
+   },
+   "glossary": "stop_margin",
+   "basis": "house rule",
+   "sources": [
+    "S9",
+    "S8"
+   ],
+   "house_rule": "F62",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.3"
+  },
+  {
+   "id": "peg.stop_width",
+   "field": "stop",
+   "statement": "If the stop is more than about 3% from the buy, size down by the formula or skip. No porosity, no widening.",
+   "measure": {
+    "what": "(entry - stop) / entry",
+    "op": "<=",
+    "value": 3,
+    "unit": "%"
+   },
+   "glossary": "stop_width",
+   "basis": "house rule",
+   "sources": [
+    "S18",
+    "S6"
+   ],
+   "house_rule": "A13",
+   "options": [
+    {
+     "value": "a",
+     "basis": "size down by A5, skip if the position gets too small (the dossier)"
+    },
+    {
+     "value": "b",
+     "basis": "skip any PEG with a stop over 3%"
+    },
+    {
+     "value": "c",
+     "basis": "Morales's 2% to 3% slack under the low (breaks A4)"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-005",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.3; 10 question 8",
+   "evidence": "Gap-day-low stops were wider than 3% in 45% of the base earnings gaps and 85% to 88% of the strong-close ones; the pause entry sits closer to its own low. The scan skipped stops wider than 3%. Not the scanner's gap-low minus 1.5%."
+  },
+  {
+   "id": "peg.stop_only_up",
+   "field": "stop",
+   "statement": "The stop only moves up. Not widened to the gap low after buying the pause.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "A4",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.3; 8.7 item 6"
+  },
+  {
+   "id": "peg.stop_gap",
+   "field": "stop",
+   "statement": "A gap down through the stop: the first 30-minute low is the new stop; out if that is past 2R.",
+   "measure": {
+    "what": "loss at the first 30-minute low of the gap-down day",
+    "op": "<=",
+    "value": 2,
+    "unit": "R",
+    "timeframe": "30-minute"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B20",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "7 B20 row"
+  },
+  {
+   "id": "peg.breakeven",
+   "field": "management",
+   "statement": "Stop to breakeven between 2R and 5R, at the first trim by default.",
+   "measure": {
+    "what": "R at which the stop moves to the entry",
+    "op": "in",
+    "value": [
+     2,
+     5
+    ],
+    "unit": "R"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B19",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4"
+  },
+  {
+   "id": "peg.trim_1",
+   "field": "management",
+   "statement": "Sell a third at 3R.",
+   "measure": {
+    "what": "fraction sold at 3R",
+    "op": "==",
+    "value": 0.333,
+    "unit": "of the position"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B19",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4",
+   "evidence": "The measured edge comes from the few big runs, so do not trim earlier than the rule. The median winner took 10 sessions to reach 3R."
+  },
+  {
+   "id": "peg.trim_2",
+   "field": "management",
+   "statement": "Sell a third at 5R.",
+   "measure": {
+    "what": "fraction sold at 5R",
+    "op": "==",
+    "value": 0.333,
+    "unit": "of the position"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "E51",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4"
+  },
+  {
+   "id": "peg.trim_gap_open",
+   "field": "management",
+   "statement": "If it opens above a trim level, take that trim at the open.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "F63",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4"
+  },
+  {
+   "id": "peg.trail",
+   "field": "management",
+   "statement": "Trail the last third under the 10-day average (most PEGs are fast movers) or the 21-day, sold on a close below. The owner's own habit is the 20 EMA; the course can name it as his.",
+   "measure": {
+    "what": "close against the 10-day (fast) or 21-day (steadier) average",
+    "op": "<",
+    "value": "the average",
+    "timeframe": "daily"
+   },
+   "glossary": "trail",
+   "basis": "house rule",
+   "sources": [
+    "S9",
+    "S6",
+    "S19"
+   ],
+   "house_rule": "E52",
+   "options": [
+    {
+     "value": "a",
+     "basis": "the 10-day for fast PEGs, the 21-day otherwise (E52; the dossier)"
+    },
+    {
+     "value": "b",
+     "basis": "the owner's 20 EMA"
+    },
+    {
+     "value": "c",
+     "basis": "Morales's 7-week rule: the 10-day after seven weeks without a violation, else the 50-day"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-024",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4; 10 question 12",
+   "evidence": "GLW never lost the 10-day on its run; COCO's late-June shakeout under the buy point shows why the rest trails under the 10-day after 5R."
+  },
+  {
+   "id": "peg.next_earnings",
+   "field": "management",
+   "statement": "Sell before the next report unless the trade is up 5R.",
+   "measure": {
+    "what": "open R at the next report",
+    "op": ">=",
+    "value": 5,
+    "unit": "R"
+   },
+   "glossary": "earnings_blackout",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B22",
+   "status": "settled",
+   "owner_question": "D-137",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4; 10 question 11",
+   "evidence": "Settled (D-137). The scan's 60-session window can run into the next report: Genpact 2024-08-15 took its 15R from the next earnings gap on day 60, so it was cut from the examples. The app's PEG starter scan lists names up to 7 days before a report, which B22 forbids (D-004)."
+  },
+  {
+   "id": "peg.time_stop",
+   "field": "management",
+   "statement": "Time stop: under 1R after 10 sessions, sell.",
+   "measure": {
+    "what": "open R after 10 trading days",
+    "op": "<",
+    "value": 1,
+    "unit": "R"
+   },
+   "glossary": "time_stop",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "C33",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4",
+   "evidence": "A day-one buy that bases for 2 to 3 weeks gets sold here; the owner prefers letting them build out for a few days or weeks. Another reason to buy the pause."
+  },
+  {
+   "id": "peg.inv_gap_fill",
+   "field": "invalidation",
+   "statement": "Before a buy: the gap fills, a trade at or under the prior close.",
+   "measure": {
+    "what": "intraday low against the prior close",
+    "op": "<=",
+    "value": "prior close",
+    "timeframe": "daily"
+   },
+   "glossary": "gap_fill",
+   "basis": "source consensus",
+   "sources": [
+    "S11",
+    "S13"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5",
+   "evidence": "Coded in the scan: a pause that traded back to the prior close was not bought."
+  },
+  {
+   "id": "peg.inv_close_under_low",
+   "field": "invalidation",
+   "statement": "Before a buy: a daily close under the PEG-day low.",
+   "measure": {
+    "what": "close against the PEG-day low",
+    "op": "<",
+    "value": "PEG-day low",
+    "timeframe": "daily"
+   },
+   "basis": "source consensus",
+   "sources": [
+    "S13",
+    "S6",
+    "S19"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5"
+  },
+  {
+   "id": "peg.inv_drift",
+   "field": "invalidation",
+   "statement": "Before a buy: the pause turns into a drift of lower highs and lower lows for 5 sessions or more.",
+   "measure": {
+    "what": "sessions of lower highs and lower lows in the pause",
+    "op": ">=",
+    "value": 5,
+    "unit": "sessions",
+    "timeframe": "daily"
+   },
+   "basis": "my proposal",
+   "sources": [],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5",
+   "evidence": "CELH 2023-05-18: a seven-day pause that was already a drift by the time it broke out; straight down to the stop."
+  },
+  {
+   "id": "peg.undercut_is_gap_support",
+   "field": "invalidation",
+   "statement": "A slight undercut of the PEG-day low that closes back over it is not an invalidation. It is the owner's Gap Support setup.",
+   "basis": "UCT",
+   "sources": [
+    "S20"
+   ],
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.5",
+   "evidence": "The owner's Gap Support rulings; MXL's day-three undercut."
+  },
+  {
+   "id": "peg.market_reading",
+   "field": "context",
+   "statement": "A Green or Yellow market reading, especially the first earnings season after a correction. Orange only for an A+. Red: mostly cash and shorts.",
+   "glossary": "market_reading",
+   "basis": "house rule",
+   "sources": [
+    "S19",
+    "S13"
+   ],
+   "house_rule": "F65",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.6",
+   "evidence": "UCT: coming out of corrections it is the recent ER gappers that have stellar performance. Bulkowski: bull markets. Not coded in the scan."
+  },
+  {
+   "id": "peg.earnings_season",
+   "field": "context",
+   "statement": "Earnings season itself: the setup comes in four windows a year. Keep a PEG list each quarter.",
+   "measure": {
+    "what": "earnings-season windows a year",
+    "op": "==",
+    "value": 4,
+    "unit": "windows"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S19",
+    "S8"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.6"
+  }
+ ],
+ "grading": {
+  "a_plus": [
+   "peg.fundamentals: blowout numbers, triple-digit or high double-digit growth, a big beat and a raise",
+   "peg.gap_a_cue: a gap of 10% or more that holds all day",
+   "peg.volume: 3x to 5x or more, most of it early",
+   "peg.close_a: a close at or near the high (0.75 or more of the range), over the prior high, a new 52-week or all-time high, out of a base of a month or more",
+   "peg.not_extended: not extended into the report, flat or quiet for 3 to 6 months, or a first gap after a base",
+   "peg.rs: first of its group to move, a leading or emerging theme",
+   "peg.entry_pause: a tight pause on lighter volume that holds the PEG-day close, with a stop within about 3%",
+   "peg.market_reading: Green; in Orange only if everything else grades A+ (F65)"
+  ],
+  "b_minus": [
+   "peg.gap_floor: a gap of 4% to 6% on 1.5x to 2x volume",
+   "peg.close: a close mid-range",
+   "peg.catalyst: a mega-cap with many analysts (Bonde: covered stocks do not do as well)",
+   "peg.not_extended: a late gap after a 30% run, or a second or third gap in a row",
+   "peg.inv_drift: a loose, deep pause that undercuts the PEG-day low",
+   "peg.stop_width: a wide stop and a small size",
+   "peg.above_50: under a falling 50-day or near the 200-day",
+   "peg.market_reading: Yellow (smaller and fewer)"
+  ],
+  "no_trade": [
+   "peg.faded_day: a faded or red PEG day",
+   "peg.inv_gap_fill: the gap filled",
+   "peg.inv_close_under_low: a close under the PEG-day low before the buy",
+   "peg.above_200: under the 200-day",
+   "peg.not_stretched: more than 10% over the 10-day at the buy",
+   "peg.no_chase: more than 4% over the trigger",
+   "peg.regular_hours: a pre-market buy",
+   "peg.liquidity: under $10 or under $20 million a day",
+   "peg.next_earnings: the next report within 3 sessions, or holding through it under 5R",
+   "peg.market_reading: Red; Orange below A+"
+  ]
+ },
+ "lookalikes": [
+  {
+   "setup": "20-episodic-pivot",
+   "tell": "Look at the stock before the report. A PEG is an established leader in a base or a quiet uptrend over its 50-day; an EP is a neglected name, flat or down for six months, often under its averages, and needs a 10% gap. The PEG floor is 4%.",
+   "criterion": "peg.above_50"
+  },
+  {
+   "setup": "22-news-gapper",
+   "tell": "Check the earnings database. A PEG day is a report's reaction day; a News Gapper's gap comes on a headline that is not a report. Same shape, different catalyst, and the gapper lesson teaches the first pullback and reclaim for both.",
+   "criterion": "peg.catalyst"
+  },
+  {
+   "setup": "24-high-volume-edge",
+   "tell": "Compare the volume to the stock's whole history. A PEG trades 1.5x to 5x its average on a known name; an HVE is a record that dwarfs every prior day, usually on a lesser-known name. ASML at 7.6x was still just a PEG.",
+   "criterion": "peg.not_hve"
+  },
+  {
+   "setup": "25-gap-support",
+   "tell": "Count the days since the gap. The PEG is the gap day and its first pause within 10 sessions; Gap Support is the later test of the gap-up low, days or weeks on. The gap day itself is just a PEG, never Gap Support.",
+   "criterion": "peg.undercut_is_gap_support"
+  },
+  {
+   "setup": "26-kicker",
+   "tell": "Look at the day before and the catalyst. A Kicker needs a weak red close and a gap of 1.5% or more on positioning, rarely earnings; a PEG is an earnings reaction day gapping 4% or more, and the prior day can be any color.",
+   "criterion": "peg.catalyst"
+  }
+ ],
+ "invalidations": [
+  "Before a buy: the gap fills, a trade at or under the prior close (peg.inv_gap_fill).",
+  "Before a buy: a daily close under the PEG-day low (peg.inv_close_under_low).",
+  "Before a buy: the pause drifts into lower highs and lower lows for 5 sessions or more (peg.inv_drift).",
+  "Before a buy: the pause window has passed; after 10 sessions the chart is its own base or flag setup (peg.entry_pause).",
+  "Not an invalidation: a slight undercut of the PEG-day low that closes back over it; that is Gap Support (peg.undercut_is_gap_support).",
+  "After entry: the stop is the exit; it only moves up, never to the gap low (peg.stop_only_up).",
+  "After entry: under 1R after 10 sessions, sell (peg.time_stop)."
+ ],
+ "mistakes": [
+  "Calling any earnings pop a PEG: a fade into the close, a red close, or light volume is not one (MSFT 2025-07-31).",
+  "Chasing day one far over the 10-day or the opening range, with a stop too wide for the size.",
+  "Holding through the next report under 5R, or buying in the 3 days before a report (the app's starter scan lists names up to 7 days before one).",
+  "Treating an exhaustion gap after a huge run as a PEG. Bonde: it is an exhaustion gap; Kullamägi: later EPs fail more.",
+  "Buying a gap in a downtrend under the 200-day.",
+  "Adding to it, or widening the stop to the gap low after buying the pause.",
+  "Mixing it up with the Kicker (rarely earnings), the HVE (record volume) and Gap Support (the later test)."
+ ],
+ "short_mirror": {
+  "exists": false,
+  "setup": "21-power-earnings-gap",
+  "note": "No PEG short taught for now (dossier 8.8). The owner calls a one-day earnings collapse off the top 'just an earnings breakdown', not his Bear Gap; 59% of earnings gap-downs start above the 200-day, where B26 forbids shorts; the sample's median 20-day return after them was +0.8%. Option for the owner (D-001): a power earnings gap down short only below the 200-day with the stop over the gap-day high (Morales's shortable gap-down), or Stewie's version, shorting the weak low-volume bounce after a bearish earnings gap."
+ },
+ "best_conditions": "A Green or Yellow market reading, especially the first earnings season after a correction, when the recent ER gappers lead. Earnings season itself: four windows a year, with a PEG list kept each quarter.",
+ "management": {
+  "trim_1": "a third at 3R (B19)",
+  "trim_2": "a third at 5R (E51)",
+  "trail": "a close under the 10-day for a fast PEG, the 21-day for a steadier one (E52); the owner's own habit is the 20 EMA (D-024)",
+  "breakeven": "between 2R and 5R, at the first trim by default (B19)",
+  "time_stop": "under 1R after 10 trading days, sell (C33)",
+  "gap_open": "a trim level the day opens past is taken at the open (F63)",
+  "gap_against": "the first 30-minute low is the new stop; out if past 2R (B20)",
+  "next_report": "sell before the next report unless up 5R (B22, D-137)",
+  "overrides": "none. The dossier finds nothing setup-specific is needed; the measured edge comes from the few big runs, so the trims are not pulled earlier. Not ours: Morales's 2% to 3% porosity, the scanner's gap-low minus 1.5%, Stewie's gap-and-go limit orders, adding on strength."
+ },
+ "examples": {
+  "winners": 10,
+  "sheet_dir": "_study-resume/scratchpad/setups/21-power-earnings-gap/final",
+  "base_rate": {
+   "hits": 1516,
+   "r3_pct": 31.0,
+   "r5_pct": 20.0,
+   "stopped_pct": 80.7,
+   "median_best_r": 1.1,
+   "median_sessions_to_3r": 10,
+   "window": "60 sessions forward from the day after the buy, fixed stop, no trims, no breakeven, no trail, no time stop; a same-day stop-and-target tie goes to the stop; 2005-01-01 to 2026; 2,630 liquid names; pause buys and day-one close proxies"
+  },
+  "cuts": {
+   "pause_buys": {
+    "hits": 1086,
+    "r3_pct": 30.9,
+    "r5_pct": 20.7
+   },
+   "day1_close_proxy": {
+    "hits": 430,
+    "r3_pct": 31.2,
+    "r5_pct": 18.1
+   },
+   "gap_10_pct_or_more": {
+    "hits": 122,
+    "r3_pct": 34.4,
+    "r5_pct": 23.0
+   },
+   "volume_3x_or_more": {
+    "hits": 899,
+    "r3_pct": 30.7,
+    "r5_pct": 19.9
+   },
+   "not_up_30_pct_in_65_sessions": {
+    "hits": 1446,
+    "r3_pct": 31.3,
+    "r5_pct": 20.2
+   }
+  },
+  "winners_list": [
+   "BIDU 2010-02-10",
+   "ILMN 2013-04-23",
+   "BURL 2016-05-26",
+   "AMZN 2017-10-27",
+   "LULU 2018-03-28",
+   "GM 2020-11-05",
+   "DOCU 2021-06-04",
+   "LOGI 2023-10-24",
+   "GLW 2025-07-29",
+   "COCO 2026-04-29"
+  ],
+  "failures": [
+   {
+    "ticker": "NVDA",
+    "date": "2024-03-04",
+    "criterion": "peg.stop_pause",
+    "why": "PEG day 2024-02-22, +11.2% gap, 1.9x volume, close at 0.99 of range, up 36% in the prior 65 sessions; bought over the pause high at 84.13 on a gap open with a stop only 0.5% away; the stock stalled and the stop went that week, 0.0R. A 0.5% stop under the trigger day's low on a stock that moves 3% a day is not a stop, and the 36% run was past the A-grade cue."
+   },
+   {
+    "ticker": "CELH",
+    "date": "2023-05-18",
+    "criterion": "peg.inv_drift",
+    "why": "PEG day 2023-05-10, +10.6% gap, 7.5x volume, close at 0.61; a seven-day pause, buy over 45.07 with a 2.9% stop, straight down to the stop, 0.0R. A big-volume gap that closed only just inside the top half and then needed seven days to trigger; the pause was already a drift."
+   },
+   {
+    "ticker": "ELF",
+    "date": "2023-06-06",
+    "criterion": "peg.entry_pause",
+    "why": "PEG day 2023-05-25, +10.7% gap, 4.6x volume, close at 0.98, up 18% in 65 sessions; bought the eighth-day break at 107.16, stop 2.6% away, stopped without reaching 1R. Textbook gap, textbook pause, still lost: about seven in ten stop at a fixed stop, which is why the plan sizes by the stop, not a sign the rule is wrong."
+   },
+   {
+    "ticker": "AAPL",
+    "date": "2018-08-06",
+    "criterion": "peg.gap_floor",
+    "why": "one of the mega-caps (also AAPL 2022-02-02, MSFT 2015-04-29, NFLX 2023-01-25, ZM 2025-12-02) gapping 4% to 5% on 2x to 3x volume that gave the thinnest follow-through in the sample; the B- cue for a small gap on a widely covered name."
+   },
+   {
+    "ticker": "MSFT",
+    "date": "2015-04-29",
+    "criterion": "peg.entry_pause",
+    "why": "PEG day 2015-04-24 (report 2015-04-23), +5.4% gap (3.2x ATR40), 3.8x volume, close at 0.89; a two-session pause, the shortest the rule allows, bought over 49.21 with a 1.6% stop and back into the PEG bar in two sessions, best 0.42R. No gate fails: the base rate, seven in ten stopped."
+   }
+  ],
+  "limits": "A survivor-biased universe on daily bars; the day-one buy is a close proxy; the report-date cache's time of day can be wrong; the fundamentals, the RS rating and the market reading are not in the scan. Prices are split-adjusted (AMZN 2017 at $56). Nothing here is a published statistic.",
+  "near_misses": [
+   {
+    "ticker": "BA",
+    "date": "2025-12-02",
+    "criterion": "peg.catalyst",
+    "why": "a +6.3% gap (2.4x ATR40) on 2.7x volume, close at 0.96, on a day that is not a report reaction day (the last was 2025-10-29); every other gate passes. A News Gapper (22), not a PEG. The would-be pause buy at 205.86 on 2025-12-08 was stopped, 0.0R."
+   },
+   {
+    "ticker": "AAPL",
+    "date": "2023-05-05",
+    "criterion": "peg.gap_floor",
+    "why": "report 2023-05-04; the open was 3.1% over the prior close on 1.9x volume, close at 0.79; the rule is 4% or more. An ordinary earnings up-day, not a gap setup. The would-be day-one close buy at 173.57 reached 0.36R and was stopped."
+   },
+   {
+    "ticker": "AMD",
+    "date": "2022-02-02",
+    "criterion": "peg.close",
+    "why": "report 2022-02-01; an 11.2% gap on 2.7x that closed at 0.23 of its range with the gap still open (low 120.64 above the prior close 116.78); the rule is the top half. A faded PEG day: a delayed-reaction watch, not a buy. The would-be close buy at 122.76 was stopped, 0.0R."
+   },
+   {
+    "ticker": "META",
+    "date": "2022-04-28",
+    "criterion": "peg.above_200",
+    "why": "report 2022-04-27; a +16.0% gap on 3.1x, close at 0.82, after a 42% fall over 65 sessions; the PEG-day close 205.73 was under the 200-day (302.98); the rule is a close over the 200-day. A bear-market relief gap: no long. The would-be pause buy at 212.49 was stopped, 0.0R."
+   }
+  ],
+  "sheets": {
+   "failures": "final/fail_1-4.png",
+   "near_misses": "final/near_1-4.png",
+   "pair": "final/pair_20-episodic-pivot.png"
+  }
+ },
+ "question_seeds": [
+  {
+   "kind": "recall",
+   "criterion": "peg.gap_floor",
+   "seed": "What two tests must the opening gap pass to count as a PEG day?"
+  },
+  {
+   "kind": "recall",
+   "criterion": "peg.close",
+   "seed": "Name the three things the PEG day's close must do."
+  },
+  {
+   "kind": "recall",
+   "criterion": "peg.catalyst",
+   "seed": "The report came out after the close on Tuesday. Which session is the PEG day?"
+  },
+  {
+   "kind": "spot",
+   "criterion": "peg.entry_pause",
+   "seed": "Hidden ticker, six sessions after an earnings gap: tap the pause high that triggers the buy and the low the stop sits under."
+  },
+  {
+   "kind": "spot",
+   "criterion": "peg.close",
+   "seed": "Hidden ticker: four earnings reaction days. Which one closed green, over the prior high and in the top half?"
+  },
+  {
+   "kind": "spot",
+   "criterion": "peg.above_200",
+   "seed": "Hidden ticker: the gap opened under the 200-day. Did it close over it? Take it or pass."
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "peg.catalyst",
+   "seed": "PEG or News Gapper: the earnings database shows no report that day, but a 9% gap on 5x volume. Which lesson owns it?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "peg.not_hve",
+   "seed": "PEG or High Volume Edge: a well-known name gaps 8% on earnings and trades its biggest volume in a year, 7x average. Which is it?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "peg.undercut_is_gap_support",
+   "seed": "PEG or Gap Support: three weeks after the gap, price dips under the gap-day low and closes back over it. Which trade is this?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "peg.above_50",
+   "seed": "PEG or Episodic Pivot: a stock nobody followed, down 20% over six months, gaps 15% on earnings. Which is it?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "peg.not_stretched",
+   "seed": "The PEG day closes 18% over its 10-day on 4x volume at the high. Buy the close, buy day one tomorrow, or wait for the pause?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "peg.stop_width",
+   "seed": "The pause high is 61.00 and the pause low 57.90. The honest stop is 5.2% away. Size down, skip, or put the stop at 59.50?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "peg.inv_close_under_low",
+   "seed": "Four days after the gap the stock closes under the gap-day low. What is the setup now?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "peg.next_earnings",
+   "seed": "You are up 3.5R and the next report is in two sessions. Hold or sell?"
+  },
+  {
+   "kind": "grade",
+   "criterion": "peg.not_extended",
+   "seed": "Two 10% earnings gaps, both closing at the high on 4x volume: one out of a five-month base, one after a 45% run. Grade each."
+  },
+  {
+   "kind": "grade",
+   "criterion": "peg.gap_floor",
+   "seed": "A mega-cap gaps 4.5% on 2x volume and closes mid-range. A+, A, B or B-?"
+  },
+  {
+   "kind": "grade",
+   "criterion": "peg.entry_pause",
+   "seed": "Two pauses after the same gap: one of three tight days holding the PEG-day close, one of seven loose days dipping to the gap-day low. Grade each."
+  },
+  {
+   "kind": "numeric",
+   "criterion": "peg.gap_floor",
+   "seed": "Prior close 50.00, open 52.40, the 40-day ATR 2.00. Does the gap pass both tests?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "peg.close",
+   "seed": "The PEG day's low is 70.00, high 76.00, close 74.80. Where in the range did it close, and is that the A grade?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "peg.trim_1",
+   "seed": "Bought at 48.93 with the stop at 48.20. Where is 3R, and where is 5R?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "peg.stop_width",
+   "seed": "Fill 90.25, pause low 88.19 and a few cents under it for the stop. Is the stop inside 3%?"
+  }
+ ],
+ "owner_decisions": [
+  "D-001",
+  "D-002",
+  "D-004",
+  "D-005",
+  "D-006",
+  "D-007",
+  "D-011",
+  "D-017",
+  "D-020",
+  "D-024",
+  "D-025",
+  "D-033",
+  "D-039",
+  "D-085",
+  "D-137"
+ ],
+ "conflicts": [
+  "Sources are cited by the validator's positional numbering of the dossier's section 11 (S1 is the first source in reading order, counting table body rows and top-level bullets); the dossier itself prints no ids.",
+  "One setup or two: PEG, earnings gapper and ER gapper. The dossier says one, named Power Earnings Gap; the Model Book keeps a separate News/Earnings Gapper card; the register's default makes the gapper the family lesson (D-002). Also open: Power or Post.",
+  "News gaps: the owner treated INTC's news gap like a classic PEG; the dossier keeps non-earnings news out of the PEG; the register's default (D-025) files a major company news gap as a PEG. The card waits.",
+  "The gap floor: Bonde 4% close over close, the scanner 8%, Kullamägi 10%, Morales and Kacher 0.75 ATR. The card takes 4% plus 0.75 ATR with 10% as the A cue (D-033).",
+  "Volume: Morales and Kacher 1.5x; Bonde, Wagner and Tramondo 3x; the scan found no edge in 3x over 1.5x. The card gates at 1.5x with 3x for an A, and the register's default makes volume a cue everywhere (D-006). Where a PEG becomes an HVE is the owner's ruling (ASML just a PEG at a one-year record; FSLY an A+ HVE at 27x).",
+  "C29 on the PEG day: most big PEGs close more than 10% over the 10-day (TWLO, DELL, OKTA, META). The card applies C29 as written, so the day-one buy is rare and the pause buy is the default (D-017).",
+  "A13 against the PEG-day low: wider than 3% in about half of earnings gaps. The card sizes down by A5 or skips; Morales's 2% to 3% porosity and the scanner's gap-low minus 1.5% are rejected (D-005).",
+  "The entry: Stewie's gap-and-go starts in after-hours with limit orders; Bonde buys pre or post market; the house buys at market in regular hours only (E57, E58). The pause buy is the default and day one is A+ only (D-085).",
+  "Adding: Stockbee adds when volume comes in, Stewie starts small, the house brain says baby position, add on strength; A5 wins.",
+  "The 200-day: 38% of base earnings gaps start under it and about a third of those close over it (DELL, PLTR). The card allows a PEG day that closes over it (D-020).",
+  "The trail: E52's 10-day and 21-day, the owner's 20 EMA, Morales's 7-week rule. The card takes E52 and names the 20 EMA as his (D-024).",
+  "Post-earnings drift: Martineau (2022) finds the academic drift gone for large stocks since 2006 and only recently for microcaps; the trader version (buy the price reaction, not the surprise number) is not what either paper tested. The card does not lean on PEAD.",
+  "The app: the scanner's $2 and $10,000 floor, its 1.5% stop under the gap low, no earnings check, no close test, no 200-day gate; the starter scan lists stocks before a report; the Model Book glyph draws no gap; a Compass test answer credits Minervini, whom the dossier could not tie to the PEG (D-004).",
+  "The short mirror: Stewie's bearish PEG shorts the weak low-volume bounce after a bad gap, not the gap day; 59% of earnings gap-downs start above the 200-day and the sample's median 20-day return after them was positive. The card teaches no PEG short (D-001)."
+ ]
+}

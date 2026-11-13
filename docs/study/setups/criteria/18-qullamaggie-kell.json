@@ -1,0 +1,1971 @@
+{
+ "setup": "18-qullamaggie-kell",
+ "name": "Qullamaggie Breakout and the Kell Cycle",
+ "unit": "none",
+ "direction": "long",
+ "timeframe": "daily",
+ "dossier": "docs/study/setups/research/18-qullamaggie-kell.md",
+ "as_of": "2026-11-10",
+ "card": {
+  "context": "Part A, the Qullamaggie Breakout: a leader in the top movers, RS 80 or more, above the 50-day and 200-day, that rose 30% or more in 3 to 20 sessions inside the last 63. Part B, Kell's cycle: where the stock sits against its 10 and 20-day EMAs decides whether to wait, buy, sell into strength or get out.",
+  "pattern": "A sideways consolidation of 10 to 40 sessions with at least two rising swing lows, tightening at the end, 25% deep or less and no more than half the prior move, closes surfing the rising 20-day EMA with the 10 above it on the breakout day.",
+  "trigger": "BASE BREAKOUT: the day price trades above the consolidation high, bought at market above the opening-range high of the first 5-minute bar, no more than 4% past the high. The Kell phases each carry their own trigger below.",
+  "stop": "A few cents under the breakout day's low, the day's low so far at an opening-range buy; never wider than the stock's ADR, and over 3% only with a smaller size.",
+  "failure_mode": "The breakout closes back inside the base in the lower third of its range, or never gets going and sits under 1R for ten days; a late base after a long advance or a breakout bought the day of a report is how the leader fails. The stop is the answer, not a wider one."
+ },
+ "entry_trigger": "BASE BREAKOUT",
+ "criteria": [
+  {
+   "id": "qk.breakout_prior_move",
+   "field": "context",
+   "statement": "The prior move: a rise of 30% or more from a low to a later high, both inside the last 63 sessions, made in 3 to 20 sessions.",
+   "measure": {
+    "what": "highest high / the lowest low before it - 1, both inside the last 63 sessions, with the rise taking 3 to 20 sessions",
+    "op": ">=",
+    "value": 30,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "glossary": "prior_trend",
+   "basis": "originator",
+   "sources": [
+    "S1",
+    "S25"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "a hard gate: Kullamagi's step 1 (a big move higher sometime in the past 1-3 months, 30-100%+, lasting a few days to a few weeks)"
+    },
+    {
+     "value": "b",
+     "basis": "a grade cue: the dossier's data did not show it helping, but the sample is biased"
+    }
+   ],
+   "status": "pending-owner",
+   "owner_question": "D-029",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Prior move; 10 question 2",
+   "evidence": "The 63 sessions and the 3 to 20 sessions are the dossier's numbers for his words. The app's scanner never tests it: only 44% of its fires had the move (5.1). The ten examples ran 40% to 71%. NVDA 2024-11-06 failed with a 32% run, near the smallest the rule allows, late in its yearly advance."
+  },
+  {
+   "id": "qk.breakout_leadership",
+   "field": "context",
+   "statement": "RS rating 80 or more.",
+   "measure": {
+    "what": "RS rating",
+    "op": ">=",
+    "value": 80,
+    "unit": "rating 1 to 99"
+   },
+   "glossary": "leader",
+   "basis": "house rule",
+   "sources": [
+    "S1"
+   ],
+   "house_rule": "C31",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Leadership; 7",
+   "evidence": "Kullamagi's universe is stricter: the 1 or 2% of stocks that are up the most over 1, 3 and 6 months. No RS rating exists in the sandbox; the 30% prior move stood in for it in the scan."
+  },
+  {
+   "id": "qk.breakout_top_movers",
+   "field": "context",
+   "statement": "A+ when the stock is in the top 2% of liquid stocks by gain over 1, 3 or 6 months, or RS 90 or more.",
+   "measure": {
+    "what": "percentile rank of the stock's gain over 21, 63 or 126 sessions among liquid stocks",
+    "op": ">=",
+    "value": 98,
+    "unit": "percentile",
+    "timeframe": "daily"
+   },
+   "glossary": "leader",
+   "basis": "originator",
+   "sources": [
+    "S1"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Leadership; 9",
+   "evidence": "Kullamagi: scan for the 1 or 2% of stocks that are up the most over these 3 timeframes. Momentum is his number one factor; volume and earnings tied for last of six."
+  },
+  {
+   "id": "qk.breakout_above_200",
+   "field": "context",
+   "statement": "On the breakout day the close is above the 50-day and the 200-day simple moving averages, with the 50-day above the 200-day.",
+   "measure": {
+    "what": "close > 50-day SMA > 200-day SMA on the breakout day",
+    "op": "==",
+    "value": true,
+    "timeframe": "daily"
+   },
+   "glossary": "ma_stack",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B26",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Moving averages",
+   "evidence": "B26 is the 200-day; the 50 over 200 is the scan's reading of a leader's stack."
+  },
+  {
+   "id": "qk.breakout_liquidity",
+   "field": "context",
+   "statement": "Price $10 or more and $20 million or more traded a day on the 50-day average.",
+   "measure": {
+    "what": "close",
+    "op": ">=",
+    "value": 10,
+    "unit": "$",
+    "and": "50-day average dollar volume >= 20,000,000"
+   },
+   "glossary": "liquidity",
+   "basis": "house rule",
+   "sources": [
+    "S1",
+    "S16"
+   ],
+   "house_rule": "B23",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Liquidity; 7",
+   "evidence": "Kullamagi ranks liquidity first (yes dollar volume); Deepvue's Kell screen uses $20 and 500,000 shares. The app's scanner has no price or dollar-volume floor of its own (5.1)."
+  },
+  {
+   "id": "qk.breakout_position_adv",
+   "field": "management",
+   "statement": "The position is at most 1% of average daily volume.",
+   "measure": {
+    "what": "shares / average daily volume",
+    "op": "<=",
+    "value": 1,
+    "unit": "%"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "D42",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Liquidity"
+  },
+  {
+   "id": "qk.breakout_adr",
+   "field": "context",
+   "statement": "Record the stock's ADR, the 20-day average of high over low minus 1. No minimum is set; the ADR caps the stop.",
+   "measure": {
+    "what": "20-day average of (high / low - 1)",
+    "op": ">=",
+    "value": 0,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "glossary": "adr",
+   "basis": "originator",
+   "sources": [
+    "S1"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Liquidity",
+   "evidence": "Kullamagi gives no minimum ADR for the breakout; his stop should not be wider than the ATR or ADR of the stock. The examples' ADRs ran 2.9% (HWM) to 8.5% (PBF)."
+  },
+  {
+   "id": "qk.breakout_market",
+   "field": "context",
+   "statement": "Bull markets only: a Green market reading. A Nasdaq with its 10 and 20-day rising and the 10 above the 20 is a UCT grade cue, attributed to Kullamagi without a verified source.",
+   "measure": {
+    "what": "the Nasdaq's 10-day EMA against its 20-day EMA, both against 5 sessions ago",
+    "op": ">",
+    "value": "20-day EMA, both rising",
+    "timeframe": "daily"
+   },
+   "glossary": "market_reading",
+   "basis": "house rule",
+   "sources": [
+    "S1",
+    "S21"
+   ],
+   "house_rule": "F65",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.7; 9 Market row",
+   "evidence": "Kullamagi: in bullish markets yes. The Nasdaq test is UCT's wording (6.6), unverified as his, so a cue and not a rule."
+  },
+  {
+   "id": "qk.breakout_first_base",
+   "field": "context",
+   "statement": "The first base after the move is the A+ case; the second base or later is graded down, by analogy with Kell's count.",
+   "measure": {
+    "what": "consolidations since the prior move, counting this one",
+    "op": "==",
+    "value": 1,
+    "unit": "bases",
+    "timeframe": "daily"
+   },
+   "glossary": "base_count",
+   "basis": "my proposal",
+   "sources": [
+    "S10",
+    "S25"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "9 Cycle position row",
+   "evidence": "By analogy with Kell: once you get two Base n' Breaks, you should realize you are late in the intermediate-term cycle. NVDA 2024-11-06 was already far along its yearly advance and failed; MSTR's December flag would be a new trade, not an add (A5)."
+  },
+  {
+   "id": "qk.breakout_higher_lows",
+   "field": "pattern",
+   "statement": "A sideways consolidation after the move with at least two rising swing lows.",
+   "measure": {
+    "what": "swing lows inside the consolidation, each higher than the one before",
+    "op": ">=",
+    "value": 2,
+    "unit": "swing lows",
+    "timeframe": "daily"
+   },
+   "glossary": "swing_low",
+   "basis": "originator",
+   "sources": [
+    "S1"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Structure",
+   "evidence": "Kullamagi: an orderly pullback and consolidation with higher lows and tightening range. The scan read it as the base's last third's low above its first third's, the middle not below the first."
+  },
+  {
+   "id": "qk.breakout_tightening",
+   "field": "pattern",
+   "statement": "The range tightens: the average daily range of the last 5 sessions is below the average of the whole consolidation.",
+   "measure": {
+    "what": "mean daily range of the last 5 sessions / mean daily range of the consolidation",
+    "op": "<",
+    "value": 1,
+    "unit": "x",
+    "timeframe": "daily"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S1"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Structure",
+   "evidence": "The dossier's measure for his tightening range. The glossary's tight (the last 5 against the 10 before, 0.85) is a different ratio; this card keeps the dossier's. The app's scanner tests the opposite, a 5-bar thrust 1.5x the box's range, which fights the setup (5.1)."
+  },
+  {
+   "id": "qk.breakout_length",
+   "field": "pattern",
+   "statement": "The consolidation runs 10 to 40 sessions.",
+   "measure": {
+    "what": "sessions from the consolidation's first high to the day before the breakout",
+    "op": "in",
+    "value": [
+     10,
+     40
+    ],
+    "unit": "sessions",
+    "timeframe": "daily"
+   },
+   "glossary": "base_length",
+   "basis": "originator",
+   "sources": [
+    "S1"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Length",
+   "evidence": "Kullamagi: the consolidation phase is usually 2 weeks to 2 months; the session count is the dossier's. The ten examples ran 10 to 37 sessions; 2 to 6 weeks is the A+ band in section 9. Shorter rests are Bull Flags (setup 02)."
+  },
+  {
+   "id": "qk.breakout_depth",
+   "field": "pattern",
+   "statement": "Consolidation high to low 25% or less, and no more than half of the prior move.",
+   "measure": {
+    "what": "(consolidation high - consolidation low) / consolidation high",
+    "op": "<=",
+    "value": 25,
+    "unit": "%",
+    "timeframe": "daily",
+    "and": "(consolidation high - low) / the prior move's height <= 50%"
+   },
+   "glossary": "base_depth",
+   "basis": "my proposal",
+   "sources": [
+    "S1",
+    "S24",
+    "S21"
+   ],
+   "options": [
+    {
+     "value": 25,
+     "basis": "the dossier's cap; the originator gives no number"
+    },
+    {
+     "value": 15,
+     "basis": "the app's scanner (5.1)"
+    },
+    {
+     "value": 42,
+     "basis": "the owner's textbook 5 star MRAM (2026-05-24) had come back roughly 34% to 42% from about 50 to 29-33; a 25% cap would reject it"
+    }
+   ],
+   "recommended": 25,
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Depth; 13 limits",
+   "evidence": "The MRAM caution was found in checking: the owner should rule on the number before it is taught, and no register row maps it, so the line stays proposed. The ten examples ran 13% to 24% deep."
+  },
+  {
+   "id": "qk.breakout_depth_a",
+   "field": "pattern",
+   "statement": "A consolidation 15% deep or less is the A+ depth.",
+   "measure": {
+    "what": "(consolidation high - consolidation low) / consolidation high",
+    "op": "<=",
+    "value": 15,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "glossary": "base_depth",
+   "basis": "my proposal",
+   "sources": [],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Depth"
+  },
+  {
+   "id": "qk.breakout_holds_20",
+   "field": "pattern",
+   "statement": "Through the consolidation, closes hold above the rising 20-day EMA; a brief undercut of the 20-day or a touch of the 50-day SMA is allowed.",
+   "measure": {
+    "what": "share of consolidation closes at or within 2% of the 20-day EMA or above it, with no low more than 2% under the 50-day SMA",
+    "op": ">=",
+    "value": 80,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "glossary": "fast_averages",
+   "basis": "originator",
+   "sources": [
+    "S1",
+    "S25"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Moving averages",
+   "evidence": "Kullamagi: during the consolidation the stock price surfs the rising 10- and 20-day and sometimes toe 50-day moving average. The EMA kind, the 80% and the 2% are the scan's readings of his words."
+  },
+  {
+   "id": "qk.breakout_ma_order",
+   "field": "pattern",
+   "statement": "On the breakout day the 10-day EMA is above the 20-day EMA and both are rising.",
+   "measure": {
+    "what": "10-day EMA - 20-day EMA, each higher than 5 sessions ago",
+    "op": ">",
+    "value": 0,
+    "unit": "$",
+    "timeframe": "daily"
+   },
+   "glossary": "ma_stack",
+   "basis": "my proposal",
+   "sources": [
+    "S1"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Moving averages",
+   "evidence": "From the same surfs the rising 10- and 20-day line."
+  },
+  {
+   "id": "qk.breakout_volume_cue",
+   "field": "pattern",
+   "statement": "No volume rule. Lighter volume late in the base and heavier volume on the breakout raise the grade only.",
+   "glossary": "volume_surge",
+   "basis": "originator",
+   "sources": [
+    "S1"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Volume",
+   "evidence": "Kullamagi ranked volume last of six factors, tied with earnings. ISRG 2007-08-29 broke out on 0.7x volume and ran 16.5R; CRSP 2019-11-12 on 3.1x reached 3R the next day. The app's 1.5x breakout-volume gate is not his (5.1)."
+  },
+  {
+   "id": "qk.breakout_trigger",
+   "field": "trigger",
+   "statement": "On the day price breaks above the consolidation high, it trades above the opening-range high of the first 5-minute bar (1-minute or 60-minute also allowed). The daily-chart version: price trades above the consolidation high.",
+   "measure": {
+    "what": "intraday high during regular hours against the consolidation high, and against the first 5-minute bar's high on that day",
+    "op": ">",
+    "value": "consolidation high",
+    "timeframe": "daily, with a 5-minute opening range"
+   },
+   "glossary": "opening_range",
+   "basis": "originator",
+   "sources": [
+    "S1"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 Trigger",
+   "evidence": "Kullamagi: enter on the opening range highs; just look at the daily chart. The 5-minute ORH is a named variant of the house 30-minute opening range (glossary). Not tested intraday (5-minute bars exist only for the last 60 trading days); every example uses the daily trigger. The app's scanner fires on a daily close level, and 76% of its fires had already closed above it."
+  },
+  {
+   "id": "qk.breakout_market_order",
+   "field": "trigger",
+   "statement": "A market order when the level breaks, set up from an alert placed the night before; regular hours only.",
+   "basis": "house rule",
+   "sources": [
+    "S3"
+   ],
+   "house_rule": "E57",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 Order",
+   "evidence": "D39 has the entry, stop and size written before the open; E58 keeps it inside regular hours. Kullamagi uses market stops."
+  },
+  {
+   "id": "qk.breakout_no_chase",
+   "field": "trigger",
+   "statement": "No buy more than 4% above the trigger.",
+   "measure": {
+    "what": "fill / consolidation high - 1",
+    "op": "<=",
+    "value": 4,
+    "unit": "%"
+   },
+   "glossary": "chase_limit",
+   "basis": "house rule",
+   "sources": [
+    "S24"
+   ],
+   "house_rule": "C28",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2; 7",
+   "evidence": "45% of the app's scanner's triggered buys were more than 4% over its entry. The scanner's never chase more than 2-3% has no source."
+  },
+  {
+   "id": "qk.breakout_not_stretched",
+   "field": "trigger",
+   "statement": "At entry, no more than 10% above the 10-day average.",
+   "measure": {
+    "what": "entry / 10-day SMA - 1",
+    "op": "<=",
+    "value": 10,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "glossary": "stretched",
+   "basis": "house rule",
+   "sources": [
+    "S9",
+    "S24"
+   ],
+   "house_rule": "C29",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2; 7",
+   "evidence": "Fits Kell's warning about air between price and the 10-day EMA; 31% of the app's scanner's buys broke C29."
+  },
+  {
+   "id": "qk.breakout_no_anticipation",
+   "field": "trigger",
+   "statement": "No anticipation inside the base. He allows it but finds it less effective and says more skill and experience is needed.",
+   "basis": "my proposal",
+   "sources": [
+    "S1"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 No anticipation; 8.8 mistake 4",
+   "evidence": "Retagged in checking: he does not forbid it, so the ban is the dossier's."
+  },
+  {
+   "id": "qk.breakout_retrace_buy",
+   "field": "trigger",
+   "statement": "A missed breakout that comes back to the breakout level may be bought as a new trade with its own trigger and stop.",
+   "measure": {
+    "what": "a trade back through the consolidation high after a pullback to it, as a new trigger",
+    "op": "==",
+    "value": true,
+    "timeframe": "daily"
+   },
+   "basis": "originator",
+   "sources": [
+    "S1"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.2",
+   "evidence": "Kullamagi: sometimes I buy the retrace. The trigger and stop are the dossier's; A3 and C28 still apply."
+  },
+  {
+   "id": "qk.breakout_earnings_window",
+   "field": "trigger",
+   "statement": "No new buy in the 3 sessions before an earnings report; hold through a report only if up 5R. Kell's reduced earnings size is not taught.",
+   "measure": {
+    "what": "sessions until the next report",
+    "op": ">",
+    "value": 3,
+    "unit": "sessions"
+   },
+   "glossary": "earnings_blackout",
+   "basis": "house rule",
+   "sources": [
+    "S10",
+    "S25"
+   ],
+   "house_rule": "B22",
+   "status": "settled",
+   "owner_question": "D-137",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "7 B22 row; 10 question 14",
+   "evidence": "AMZN 2020-04-30: a 14-session flag after a 41% run broke out on 1.5x volume on the day of its report after the close, gapped down and never traded above the entry. Settled by D-137: B22 stands."
+  },
+  {
+   "id": "qk.breakout_stop",
+   "field": "stop",
+   "statement": "A few cents under the low of the breakout day. At the moment of an opening-range buy that is the day's low so far, usually the opening-range low.",
+   "measure": {
+    "what": "stop",
+    "op": "==",
+    "value": "a few cents under the breakout day's low, or the day's low so far at an opening-range buy"
+   },
+   "glossary": "stop_margin",
+   "basis": "originator",
+   "sources": [
+    "S1",
+    "S24"
+   ],
+   "house_rule": "F62",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.3",
+   "evidence": "Kullamagi: stop is always lows of the day. The app's scanner stops at the 20 EMA and calls it his standard institutional stop; it was wider than ADR 85% of the time (4.4). AMD 2024-02-15: a textbook flag whose breakout was stopped at once with 0.0R; the leader simply failed, which is what the stop is for."
+  },
+  {
+   "id": "qk.breakout_stop_adr",
+   "field": "stop",
+   "statement": "The stop must be no wider than the stock's ADR; if it is wider, skip.",
+   "measure": {
+    "what": "(entry - stop) / entry",
+    "op": "<=",
+    "value": "20-day ADR",
+    "unit": "%"
+   },
+   "glossary": "stop_width",
+   "basis": "originator",
+   "sources": [
+    "S1"
+   ],
+   "house_rule": "A3",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.3",
+   "evidence": "Kullamagi: stop should not be wider than the ATR or ADR of the stock; if the ADR is 5%, your stop shouldn't be wider than 5%. A3: if the honest stop does not fit the risk, skip. The scan skipped stops wider than the ADR or 8%."
+  },
+  {
+   "id": "qk.breakout_stop_3_to_adr",
+   "field": "stop",
+   "statement": "Where the stop is wider than 3% but within the ADR: take it with the size the stop allows.",
+   "measure": {
+    "what": "(entry - stop) / entry",
+    "op": "in",
+    "value": [
+     3,
+     "20-day ADR"
+    ],
+    "unit": "%"
+   },
+   "glossary": "stop_width",
+   "basis": "house rule",
+   "sources": [
+    "S1",
+    "S9"
+   ],
+   "house_rule": "A13",
+   "options": [
+    {
+     "value": "a",
+     "basis": "skip (strict A13)"
+    },
+    {
+     "value": "b",
+     "basis": "take it with the size the stop allows; A5 makes the position smaller (the dossier's recommendation: A13 says usually, and the ADR cap already bounds the risk)"
+    },
+    {
+     "value": "c",
+     "basis": "take it only for A+"
+    }
+   ],
+   "recommended": "b",
+   "status": "pending-owner",
+   "owner_question": "D-005",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.3 Options; 10 question 3",
+   "evidence": "AMD 2000-01-06 (4.9% stop inside a 5.4% ADR) and PBF 2022-04-04 (3.9% inside 8.5%) are the option (b) cases; HWM's 1.6% fits A13 with room. Kell's support buys use a 1-2% stop; a reporter says his max is about 3%."
+  },
+  {
+   "id": "qk.breakout_stop_gap",
+   "field": "stop",
+   "statement": "A gap through the stop: the first 30-minute low is the new stop; out if that is past 2R.",
+   "measure": {
+    "what": "loss at the first 30-minute low of the gap-down day",
+    "op": "<=",
+    "value": 2,
+    "unit": "R",
+    "timeframe": "30-minute"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B20",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "7 B20 row"
+  },
+  {
+   "id": "qk.breakout_stop_broker",
+   "field": "stop",
+   "statement": "A real stop order with the broker. It only moves up.",
+   "basis": "house rule",
+   "sources": [
+    "S3"
+   ],
+   "house_rule": "D41",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "7",
+   "evidence": "A4: the stop only moves up. Kullamagi: I always use market stops, never limit stops."
+  },
+  {
+   "id": "qk.breakout_breakeven",
+   "field": "management",
+   "statement": "Stop to breakeven between 2R and 5R, at the first trim by default.",
+   "measure": {
+    "what": "R at which the stop moves to the entry",
+    "op": "in",
+    "value": [
+     2,
+     5
+    ],
+    "unit": "R"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B19",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4"
+  },
+  {
+   "id": "qk.breakout_trim_1",
+   "field": "management",
+   "statement": "Sell a third at 3R.",
+   "measure": {
+    "what": "fraction sold at 3R",
+    "op": "==",
+    "value": 0.333,
+    "unit": "of the position"
+   },
+   "glossary": "trail",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B19",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4",
+   "evidence": "Eight of the ten examples reached 3R within 9 sessions; ISRG took 23."
+  },
+  {
+   "id": "qk.breakout_kullamagi_trim",
+   "field": "management",
+   "statement": "His own version, taught as his by name: sell a third to a half after 3 to 5 days and move the stop to breakeven. Whether members may choose it is his call.",
+   "measure": {
+    "what": "fraction sold after 3 to 5 sessions",
+    "op": "in",
+    "value": [
+     0.333,
+     0.5
+    ],
+    "unit": "of the position"
+   },
+   "basis": "originator",
+   "sources": [
+    "S1"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "the house: a third at 3R (already ruled)"
+    },
+    {
+     "value": "b",
+     "basis": "also teach Kullamagi's 3-5 day trim as an alternative a member may choose"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-013",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4 Option; 10 question 4",
+   "evidence": "Kullamagi: you should sell 1/3 to 1/2 of the position after 3-5 days, and then move the stop to break even. The house rule wins; the dossier teaches his version as his."
+  },
+  {
+   "id": "qk.breakout_trim_2",
+   "field": "management",
+   "statement": "Sell a third at 5R.",
+   "measure": {
+    "what": "fraction sold at 5R",
+    "op": "==",
+    "value": 0.333,
+    "unit": "of the position"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "E51",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4"
+  },
+  {
+   "id": "qk.breakout_trim_gap_open",
+   "field": "management",
+   "statement": "If it opens above a trim level, take that trim at the open.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "F63",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4"
+  },
+  {
+   "id": "qk.breakout_trail",
+   "field": "management",
+   "statement": "Trail the last third: a close under the 10-day for a fast mover, under the 21-day for a steadier one. His own trail is nearly the same line: the first close below the 10 or 20-day.",
+   "measure": {
+    "what": "close against the 10-day (fast) or 21-day (steadier) average",
+    "op": "<",
+    "value": "the average",
+    "timeframe": "daily"
+   },
+   "basis": "house rule",
+   "sources": [
+    "S1"
+   ],
+   "house_rule": "E52",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4; 7",
+   "evidence": "Kullamagi: the rest of the position should be trailed with the 10- or the 20-day moving average; if a beginner stick to the 10-day. He says 20-day, the house says 21-day; the same line for teaching."
+  },
+  {
+   "id": "qk.breakout_time_stop",
+   "field": "management",
+   "statement": "Time stop: still under 1R after 10 trading days, sell.",
+   "measure": {
+    "what": "open R after 10 trading days",
+    "op": "<",
+    "value": 1,
+    "unit": "R"
+   },
+   "glossary": "time_stop",
+   "basis": "house rule",
+   "sources": [
+    "S1",
+    "S9"
+   ],
+   "house_rule": "C33",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4; 7",
+   "evidence": "Fits the spirit of Kullamagi's sale after 3-5 days and Kell's if buying a breakout and it doesn't go I will just sell it."
+  },
+  {
+   "id": "qk.breakout_climax",
+   "field": "management",
+   "statement": "A climax run (Bracco's parabolic burst): sell a big part into it.",
+   "glossary": "parabolic_burst",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "C34",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "7 C34 row"
+  },
+  {
+   "id": "qk.breakout_no_adds",
+   "field": "management",
+   "statement": "The full size at one price with one stop. The next flag in the same run is a new trade from flat, not an add.",
+   "basis": "house rule",
+   "sources": [
+    "S1",
+    "S10"
+   ],
+   "house_rule": "A5",
+   "status": "settled",
+   "owner_question": "D-135",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "7 A5 row; 10 question 9",
+   "evidence": "Kell adds at the crossback and Base n' Break; Kullamagi adds on the 5-minute high in an EP. Settled by D-135: each later phase is a separate trade only from flat. MSTR's December flag after the 2023-11-08 breakout is the picture of it."
+  },
+  {
+   "id": "qk.breakout_inv_base_broken",
+   "field": "invalidation",
+   "statement": "Before the trigger: a close under the consolidation low, or a close under the 50-day SMA, or a lower low inside the base.",
+   "measure": {
+    "what": "close against the consolidation low and the 50-day SMA; a swing low below the one before",
+    "op": "<",
+    "value": "consolidation low or 50-day SMA",
+    "timeframe": "daily"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S1"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5",
+   "evidence": "From his higher lows and sometimes toe 50-day."
+  },
+  {
+   "id": "qk.breakout_inv_failed_breakout",
+   "field": "invalidation",
+   "statement": "After the buy: a breakout that closes back inside the base in the lower third of its day's range is a failed breakout. Let the stop decide (the default) or sell on that close.",
+   "measure": {
+    "what": "(close - low) / (high - low) on a day that closes back under the consolidation high",
+    "op": "<=",
+    "value": 0.33,
+    "timeframe": "daily"
+   },
+   "glossary": "close_position",
+   "basis": "my proposal",
+   "sources": [
+    "S9",
+    "S23"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "let the stop decide (the dossier's recommendation: the owner said my stop is my stop most of the time)"
+    },
+    {
+     "value": "b",
+     "basis": "sell on that close (Kell sells a breakout that doesn't go at once)"
+    }
+   ],
+   "recommended": "a",
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.5",
+   "evidence": "No register row maps this question, so it stays proposed with the dossier's recommendation."
+  },
+  {
+   "id": "qk.breakout_after_entry_stop",
+   "field": "invalidation",
+   "statement": "After the buy, the stop is the exit, with the time stop.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "A4",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5"
+  },
+  {
+   "id": "qk.kell_averages",
+   "field": "context",
+   "statement": "Kell's phases read price against the 10-day and 20-day EMAs for the trend, the 50 and 200-day SMAs for the longer trend. The house 9/20 pair is the option.",
+   "measure": {
+    "what": "the fast pair the Kell phases are read on",
+    "op": "==",
+    "value": "10-day and 20-day EMA",
+    "timeframe": "daily"
+   },
+   "glossary": "fast_averages",
+   "basis": "originator",
+   "sources": [
+    "S7",
+    "S10"
+   ],
+   "options": [
+    {
+     "value": "10/20",
+     "basis": "Kell's pair: the dossier recommends it for Kell lessons so the definitions are his, saying once that the house watches the 9 EMA"
+    },
+    {
+     "value": "9/20",
+     "basis": "the house pair everywhere, if the owner prefers one stack"
+    }
+   ],
+   "recommended": "10/20",
+   "status": "pending-owner",
+   "owner_question": "D-021",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.10 Averages; 10 question 6",
+   "evidence": "The Model Book's EMA Crossback card uses 9/20 (5.4). The 9EMA>20EMA>50SMA>200SMA line is in an unsigned UCT intro, not the owner's words (reworded in checking)."
+  },
+  {
+   "id": "qk.kell_up_cycle",
+   "field": "context",
+   "statement": "Up cycle: the 10 EMA above the 20 EMA, both rising. Down cycle: the 10 below the 20, both falling. No longs in a down cycle.",
+   "measure": {
+    "what": "10-day EMA - 20-day EMA, each against 5 sessions ago",
+    "op": ">",
+    "value": 0,
+    "unit": "$",
+    "timeframe": "daily"
+   },
+   "glossary": "rising_average",
+   "basis": "my proposal",
+   "sources": [
+    "S10",
+    "S9"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.10 Up cycle",
+   "evidence": "From Kell: when the 10-day exponential moving average is below the 20-day, there is no reason to be long."
+  },
+  {
+   "id": "qk.kell_air",
+   "field": "context",
+   "statement": "Air: the day's low is above the 10 EMA. Above both means a close above the 10 and the 20 EMA. Buying with air above the 10 EMA is a mistake; Kell found 3-4% above the averages too much.",
+   "measure": {
+    "what": "day's low - 10-day EMA",
+    "op": ">",
+    "value": 0,
+    "unit": "$",
+    "timeframe": "daily"
+   },
+   "basis": "originator",
+   "sources": [
+    "S10",
+    "S9"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.10; 8.18 mistakes; 9 Extension row",
+   "evidence": "In the pocket at the averages is A+; 3-4% or more above them is B-."
+  },
+  {
+   "id": "qk.kell_re_shape",
+   "field": "context",
+   "statement": "A Reversal Extension: after a down cycle of at least 15 sessions, a session whose low is at least 2 ATR under the 10 EMA, with the 10 and 20 EMA spread apart, on volume at least 1.5 times the 50-day average, then a close back toward or into the averages. Best on the index first.",
+   "measure": {
+    "what": "(10-day EMA - day's low) / ATR(20), after at least 15 sessions of down cycle, with volume >= 1.5 x the 50-day average",
+    "op": ">=",
+    "value": 2,
+    "unit": "ATR",
+    "timeframe": "daily"
+   },
+   "glossary": "atr",
+   "basis": "my proposal",
+   "sources": [
+    "S10",
+    "S7"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.11; 12 still not measurable",
+   "evidence": "Kell gives the shape and heavy volume; the numbers are the dossier's. Two parts stayed unmeasured in checking: the 10 and 20 EMA spread apart and a close back toward or into the averages. The glossary's ATR is 14 sessions; the dossier wrote ATR(20). The app's detector labels a 7% drop after a rise a Reversal Extension half the time (5.2)."
+  },
+  {
+   "id": "qk.kell_re_watch_only",
+   "field": "trigger",
+   "statement": "The Reversal Extension is watch only: start the watchlist of the stocks holding up best. You only know it was the low after a Wedge Pop.",
+   "basis": "originator",
+   "sources": [
+    "S10",
+    "S21"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "watch-only in the course (the dossier's recommendation; the owner's own words say he tries them primarily to stay in tune)"
+    },
+    {
+     "value": "b",
+     "basis": "a trade, only as a parabolic long under Bracco's mirror definition"
+    },
+    {
+     "value": "c",
+     "basis": "a trade on the index only"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-081",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.11 Action; 10 question 8",
+   "evidence": "Kell: often, trading the daily Reversal Extension is best avoided. UCT: between the extension and the wedge pop is the hardest spot to trade. The owner (2026-11-08): he tries them on 1-3 day trades, primarily to stay in tune."
+  },
+  {
+   "id": "qk.kell_re_trade_option",
+   "field": "stop",
+   "statement": "If the owner allows the trade: stop under the Reversal Extension bar's low, first target the 20 EMA retest, and only as a parabolic long (Bracco's mirror, a burst down) because of the 200-day rule.",
+   "measure": {
+    "what": "stop",
+    "op": "==",
+    "value": "a few cents under the Reversal Extension bar's low",
+    "timeframe": "daily"
+   },
+   "glossary": "parabolic_burst",
+   "basis": "originator",
+   "sources": [
+    "S10"
+   ],
+   "house_rule": "B26",
+   "status": "pending-owner",
+   "owner_question": "D-081",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.11 If the owner allows a trade",
+   "evidence": "A Reversal Extension is a bottom, usually below the 200-day; B26 allows it only as a parabolic long. Reversal Extensions are mean reversion, so C31 does not apply."
+  },
+  {
+   "id": "qk.kell_wp_setting",
+   "field": "pattern",
+   "statement": "Wedge Pop setting: after a Reversal Extension or a correction of 15% or more, at least 3 sessions where price tightens under or against the 10/20 EMA and the two averages converge, their gap narrower than 5 sessions earlier. The full card is setup 15.",
+   "measure": {
+    "what": "sessions of tightening under or against the averages, with |10 EMA - 20 EMA| smaller than 5 sessions earlier, after a fall of 15% or more",
+    "op": ">=",
+    "value": 3,
+    "unit": "sessions",
+    "timeframe": "daily"
+   },
+   "glossary": "tight",
+   "basis": "my proposal",
+   "sources": [
+    "S10"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.12 Setting",
+   "evidence": "The 15% and the 3 sessions are the dossier's measures for Kell's price and moving averages tighten. Setup 15's card uses 8 of 15 closes under the 20 EMA for the same idea; the two should be reconciled when the owner rules (conflicts)."
+  },
+  {
+   "id": "qk.kell_wp_trigger",
+   "field": "trigger",
+   "statement": "Wedge Pop trigger: price trades through the pivot (the high of the tight range) and the day closes above both the 10 and 20 EMA, on volume at least the 50-day average; a gap up raises the grade. A cross alone is not a Wedge Pop.",
+   "measure": {
+    "what": "intraday high against the pivot, with the close above both EMAs and volume / 50-day average volume",
+    "op": ">=",
+    "value": 1,
+    "unit": "x",
+    "timeframe": "daily"
+   },
+   "glossary": "pivot",
+   "basis": "originator",
+   "sources": [
+    "S10"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.12 Trigger",
+   "evidence": "Kell: breaks through the pivot, reclaims the moving averages, increased accumulation volume; most Wedge Pops that lead to new, powerful trends start with gaps. The close above both and the 50-day volume floor are the dossier's. Setup 15's card gates volume on the base days and the prior day instead (conflicts)."
+  },
+  {
+   "id": "qk.kell_wp_above_200",
+   "field": "context",
+   "statement": "A Wedge Pop or crossback below the 200-day SMA is skipped. Kell's own TSLA 2023-03-21 buy signal would be skipped.",
+   "measure": {
+    "what": "close against the 200-day SMA on the pop day",
+    "op": ">",
+    "value": "200-day SMA",
+    "timeframe": "daily"
+   },
+   "glossary": "above_200",
+   "basis": "house rule",
+   "sources": [
+    "S8",
+    "S10"
+   ],
+   "house_rule": "B26",
+   "options": [
+    {
+     "value": "a",
+     "basis": "keep B26 (the dossier's recommendation; it is a hard rule)"
+    },
+    {
+     "value": "b",
+     "basis": "an exception when the index has made its own Wedge Pop"
+    },
+    {
+     "value": "c",
+     "basis": "an exception when the stock reclaims the 200-day on the pop (Kell's AMD 2023-11-01)"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-009",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.12 Location; 10 question 7",
+   "evidence": "Kell's TSLA 2023-03-21 signal was below the 200-day (4.5); his AMD 2023-11-01 pop reclaimed it the same day."
+  },
+  {
+   "id": "qk.kell_wp_stop",
+   "field": "stop",
+   "statement": "Wedge Pop stop: a few cents under the pop day's low, within the ADR and usually within about 3%; skip if it does not fit. Kell's staggered stops under the 10 and 20 EMA are not used: one stop.",
+   "measure": {
+    "what": "(entry - stop) / entry, with the stop a few cents under the pop day's low",
+    "op": "<=",
+    "value": 3,
+    "unit": "%",
+    "and": "never wider than the 20-day ADR"
+   },
+   "glossary": "stop_width",
+   "basis": "house rule",
+   "sources": [
+    "S10",
+    "S25"
+   ],
+   "house_rule": "A13",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.12 Stop; 7 A13 row",
+   "evidence": "A Wedge Pop on an earnings day can be far wider: AMD 2023-11-01 had a 9.7% day-low stop from the close (4.5). The dossier's question 3 (D-005) covers the over-3%-but-within-ADR case for the breakout; the same answer applies here."
+  },
+  {
+   "id": "qk.kell_wp_time_of_day",
+   "field": "trigger",
+   "statement": "Kell avoids the first 10 to 15 minutes unless there is a catalyst. The house has no time rule, so this is a grade cue only.",
+   "measure": {
+    "what": "minutes after the open at the fill",
+    "op": ">=",
+    "value": 15,
+    "unit": "minutes",
+    "timeframe": "intraday"
+   },
+   "basis": "originator",
+   "sources": [
+    "S9"
+   ],
+   "house_rule": "C30",
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.12 Order"
+  },
+  {
+   "id": "qk.kell_cb_setting",
+   "field": "pattern",
+   "statement": "EMA Crossback setting: the first pullback after the Wedge Pop that reaches the rising 10 or 20 EMA (the day's low within 1% of either, or an undercut of the 20 EMA that closes back above it), moving sideways or drifting down gently, on volume below the 50-day average. The first one is A+. The full card is setup 14.",
+   "measure": {
+    "what": "day's low against the 10 or 20-day EMA, on the first pullback since the pop, with volume below the 50-day average",
+    "op": "<=",
+    "value": 1,
+    "unit": "% above either average, or an undercut of the 20 EMA closing back above it",
+    "timeframe": "daily"
+   },
+   "glossary": "touch",
+   "basis": "originator",
+   "sources": [
+    "S10",
+    "S8"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.13 Setting",
+   "evidence": "Kell gives the shape; the 1% and the volume line are the dossier's. Drifting down gently stayed unmeasured in checking. The Model Book's crossback after an extension puts it in the wrong stage (5.4)."
+  },
+  {
+   "id": "qk.kell_cb_trigger",
+   "field": "trigger",
+   "statement": "EMA Crossback trigger: buyers show, price trades above the prior session's high.",
+   "measure": {
+    "what": "intraday high against the prior session's high",
+    "op": ">",
+    "value": "prior session's high",
+    "timeframe": "daily"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S10"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.13 Trigger",
+   "evidence": "The dossier's measure of Kell's wait for confirmation that buyers are stepping in; the house PREV DAY HIGH BREAK trigger."
+  },
+  {
+   "id": "qk.kell_cb_stop",
+   "field": "stop",
+   "statement": "EMA Crossback stop: a few cents under the pullback's low. Kell's support buys run a 1-2% stop.",
+   "measure": {
+    "what": "(entry - stop) / entry, with the stop a few cents under the pullback low",
+    "op": "<=",
+    "value": 2,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "glossary": "stop_margin",
+   "basis": "originator",
+   "sources": [
+    "S10",
+    "S9"
+   ],
+   "house_rule": "F62",
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.13 Stop",
+   "evidence": "Kell: below the pivot or price bars; if buying off support, it is usually against the 10 or 20EMA and will use that low as my stop."
+  },
+  {
+   "id": "qk.kell_bnb_setting",
+   "field": "pattern",
+   "statement": "Base n' Break setting: in an up cycle, near the highs, a tight base of 5 to 15 sessions (1 to 3 weeks) whose lows hold the rising 10/20 EMA.",
+   "measure": {
+    "what": "sessions in the base, with every low at or above the 20-day EMA",
+    "op": "in",
+    "value": [
+     5,
+     15
+    ],
+    "unit": "sessions",
+    "timeframe": "daily"
+   },
+   "glossary": "base_length",
+   "basis": "originator",
+   "sources": [
+    "S10"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.14 Setting",
+   "evidence": "Kell gives 1-3 weeks and support at the averages; the session count is the dossier's."
+  },
+  {
+   "id": "qk.kell_bnb_trigger",
+   "field": "trigger",
+   "statement": "Base n' Break trigger: price trades through the pivot into new highs, at market.",
+   "measure": {
+    "what": "intraday high against the base's high and the prior highs",
+    "op": ">",
+    "value": "base high, a new high",
+    "timeframe": "daily"
+   },
+   "glossary": "pivot",
+   "basis": "originator",
+   "sources": [
+    "S10"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.14 Trigger"
+  },
+  {
+   "id": "qk.kell_bnb_stop",
+   "field": "stop",
+   "statement": "Base n' Break stop: a few cents under the low of the pivot or of the breakout day, whichever is closer and honest.",
+   "measure": {
+    "what": "stop",
+    "op": "==",
+    "value": "a few cents under the pivot bar's low or the breakout day's low, whichever is closer and honest"
+   },
+   "glossary": "stop_margin",
+   "basis": "originator",
+   "sources": [
+    "S10"
+   ],
+   "house_rule": "F62",
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.14 Stop"
+  },
+  {
+   "id": "qk.kell_bnb_late",
+   "field": "context",
+   "statement": "The first Base n' Break is normal. From the second on, the stock is late in its cycle: grade down, sell into strength sooner and watch for an Exhaustion Extension.",
+   "measure": {
+    "what": "Base n' Breaks since the Wedge Pop, counting this one",
+    "op": "<=",
+    "value": 1,
+    "unit": "bases",
+    "timeframe": "daily"
+   },
+   "glossary": "base_count",
+   "basis": "originator",
+   "sources": [
+    "S10"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.14 Late cycle; 9 Phase row",
+   "evidence": "Kell: once you get two Base n' Breaks, you should realize you are late in the intermediate-term cycle; as you see multiple Base n' Breaks, take a quicker swing trade and sell into strength. The count was corrected in checking (from the second on, not the third)."
+  },
+  {
+   "id": "qk.kell_bnb_new_trade",
+   "field": "management",
+   "statement": "Every Base n' Break and crossback is its own trade with its own stop and size, from flat, not an add.",
+   "basis": "house rule",
+   "sources": [
+    "S10"
+   ],
+   "house_rule": "A5",
+   "status": "settled",
+   "owner_question": "D-135",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.14 Under A5; 10 question 9",
+   "evidence": "Settled by D-135: Kell's adds at the crossback and Base n' Break are not taught; a later phase is a new trade only from flat (B21)."
+  },
+  {
+   "id": "qk.kell_ee_definition",
+   "field": "management",
+   "statement": "Exhaustion Extension: air (the day's low above the 10 EMA) and a close far above the 10 EMA, confirmed by the weekly being extended from the 10-week line. For an index, 4-5% above the daily 10 EMA; for a stock, a close 10% or more above the 10-day.",
+   "measure": {
+    "what": "close / 10-day EMA - 1, with the day's low above the 10 EMA",
+    "op": ">=",
+    "value": 10,
+    "unit": "% for a stock; 4 to 5% for an index",
+    "timeframe": "daily"
+   },
+   "glossary": "stretched",
+   "basis": "originator",
+   "sources": [
+    "S10",
+    "S8"
+   ],
+   "house_rule": "C29",
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.15 What it is",
+   "evidence": "The index number is Kell's (his newsletter); the stock's 10% is the dossier's, borrowed from C29 so the course uses one number. Not the same test as Bracco's parabolic burst: Kell's extension is distance above the 10 EMA, with or without a burst."
+  },
+  {
+   "id": "qk.kell_ee_action",
+   "field": "management",
+   "statement": "In an Exhaustion Extension: no new buys; sell part into the strength. How much (a third, half, or judgment) and whether the climax rule covers an extension that is not a burst are his calls.",
+   "measure": {
+    "what": "fraction sold into the extension",
+    "op": "in",
+    "value": [
+     0.333,
+     0.5,
+     "judgment"
+    ],
+    "unit": "of the position"
+   },
+   "glossary": "parabolic_burst",
+   "basis": "my proposal",
+   "sources": [
+    "S10"
+   ],
+   "house_rule": "C34",
+   "options": [
+    {
+     "value": "a",
+     "basis": "a third"
+    },
+    {
+     "value": "b",
+     "basis": "half"
+    },
+    {
+     "value": "c",
+     "basis": "leave to judgment (C34 as written: sell a big part into it, a judgment call)"
+    }
+   ],
+   "status": "pending-owner",
+   "owner_question": "D-013",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.15 Action; 10 question 11",
+   "evidence": "Kell: gradually sell off positions when volatility spikes. C34 is written for Bracco's parabolic burst; applying it to Kell's extension is the dossier's proposal (retagged in checking). No new buys follows from C29."
+  },
+  {
+   "id": "qk.kell_ee_count",
+   "field": "management",
+   "statement": "Count the extensions: after 3 to 4 of them, expect a longer base.",
+   "measure": {
+    "what": "Exhaustion Extensions since the Wedge Pop",
+    "op": ">=",
+    "value": 3,
+    "unit": "extensions",
+    "timeframe": "daily"
+   },
+   "basis": "originator",
+   "sources": [
+    "S10"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.15"
+  },
+  {
+   "id": "qk.kell_wd_definition",
+   "field": "invalidation",
+   "statement": "Wedge Drop: after an Exhaustion Extension or a stall (10 or more sessions without a new closing high), price trades tight into the averages and then closes below both the 10 and 20 EMA, on volume above the 50-day average.",
+   "measure": {
+    "what": "close against the 10 and 20-day EMAs after a tight move into them, with volume / 50-day average volume",
+    "op": ">",
+    "value": 1,
+    "unit": "x, with the close below both averages",
+    "timeframe": "daily"
+   },
+   "basis": "originator",
+   "sources": [
+    "S10",
+    "S7"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.16 What it is",
+   "evidence": "Kell gives the shape and the selling; the volume number and the stall measure (given in checking) are the dossier's. The Model Book's Wedge Drop text is internally inconsistent (price cannot drop through averages it is already beneath), question 13."
+  },
+  {
+   "id": "qk.kell_wd_exit",
+   "field": "management",
+   "statement": "For longs, the house trail already exits on a Wedge Drop: a close under the 10-day or 21-day. Holding through a Wedge Drop is a mistake.",
+   "measure": {
+    "what": "close against the 10-day (fast) or 21-day (steadier) average",
+    "op": "<",
+    "value": "the average",
+    "timeframe": "daily"
+   },
+   "glossary": "trail",
+   "basis": "house rule",
+   "sources": [
+    "S10"
+   ],
+   "house_rule": "E52",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.16 Longs; 8.18 mistakes"
+  },
+  {
+   "id": "qk.kell_wd_short",
+   "field": "invalidation",
+   "statement": "The Wedge Drop as a short: only below the 200-day SMA. A first Wedge Drop at a top is almost always above it, so in our course it is usually an exit, not a short. Where allowed: short through the day's low, stop a few cents over the recent high.",
+   "measure": {
+    "what": "close against the 200-day SMA on the Wedge Drop day",
+    "op": "<",
+    "value": "200-day SMA",
+    "timeframe": "daily"
+   },
+   "glossary": "above_200",
+   "basis": "house rule",
+   "sources": [
+    "S10"
+   ],
+   "house_rule": "B26",
+   "options": [
+    {
+     "value": "a",
+     "basis": "confirm: the course shorts only Kell's downside steps below the 200-day and treats the Wedge Drop at a top as an exit"
+    },
+    {
+     "value": "b",
+     "basis": "teach the Wedge Drop short above the 200-day as Kell does (against B26)"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-001",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.16 Short; 10 question 10",
+   "evidence": "Kell's Wedge Drop short usually happens above the 200-day at a top (7). The short entry through the day's low is the dossier's; the stop over the recent high is Kell's and D47's."
+  },
+  {
+   "id": "qk.kell_down_crossback",
+   "field": "trigger",
+   "statement": "Downside EMA Crossback: in a down cycle, the first rally into the declining 10/20 EMA that fails; short when price breaks the pivot low; stop a few cents above the high of the rally or above the averages.",
+   "measure": {
+    "what": "intraday low against the rally's pivot low, in a down cycle, on the first rally into the falling averages",
+    "op": "<",
+    "value": "pivot low",
+    "timeframe": "daily"
+   },
+   "basis": "originator",
+   "sources": [
+    "S10"
+   ],
+   "house_rule": "D47",
+   "status": "pending-owner",
+   "owner_question": "D-001",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.17 Downside crossback",
+   "evidence": "Kell publishes the downside steps himself; this one carries his entry and stop. Dossier 14 carries the full short mirror."
+  },
+  {
+   "id": "qk.kell_down_bnb",
+   "field": "trigger",
+   "statement": "Downside Base n' Break: a brief tight base under the declining averages; short the break of its low; stop a few cents above its high.",
+   "measure": {
+    "what": "intraday low against the base's low, under falling 10 and 20-day EMAs",
+    "op": "<",
+    "value": "base low",
+    "timeframe": "daily"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S10"
+   ],
+   "house_rule": "D47",
+   "status": "pending-owner",
+   "owner_question": "D-001",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.17 Downside Base n' Break",
+   "evidence": "Kell's article gives no entry or stop for this one (retagged in checking); the lines mirror his upside Base n' Break stop under D47."
+  },
+  {
+   "id": "qk.kell_down_gates",
+   "field": "context",
+   "statement": "Both downside shorts: below the 200-day only, RS 20 or less, not hard to borrow, not too late in the decline, and only in weak markets: Kell shorts in more severe market conditions and confirmed downtrends; the house's Red market allows shorts below the 200-day.",
+   "measure": {
+    "what": "RS rating on the short's trigger day, with the close under the 200-day SMA and the market reading Red",
+    "op": "<=",
+    "value": 20,
+    "unit": "rating 1 to 99"
+   },
+   "glossary": "leader",
+   "basis": "house rule",
+   "sources": [
+    "S10"
+   ],
+   "house_rule": "D46",
+   "status": "pending-owner",
+   "owner_question": "D-001",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.17 Both",
+   "evidence": "B26, C31's mirror, D48, D46 and F65. Kell: limit shorting to confirmed downtrends; be careful not to short too late in the downtrend."
+  },
+  {
+   "id": "qk.kell_market",
+   "field": "context",
+   "statement": "Longs when the index is in its own up cycle or has just made a Wedge Pop; leaders that pop before the index are the best. Fewer trades and lower exposure when the index is below its 20 EMA.",
+   "measure": {
+    "what": "the index's close against its 20-day EMA",
+    "op": ">",
+    "value": "20-day EMA",
+    "timeframe": "daily"
+   },
+   "glossary": "market_reading",
+   "basis": "originator",
+   "sources": [
+    "S10",
+    "S9",
+    "S21"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.18 Best market conditions; 9 Market row",
+   "evidence": "Kell: in a poor environment, I will only trade 1-2 stocks and cap my exposure at 30%; trades less during index corrections below the 20EMA. UCT (unsigned): you will always wish you traded less when the indexes are below the 20EMA."
+  }
+ ],
+ "grading": {
+  "a_plus": [
+   "qk.breakout_top_movers: top 1-2% over 1, 3 or 6 months; RS 90 or more",
+   "qk.breakout_prior_move: 50% to 100% or more in a few weeks, on a story (an EP, a theme)",
+   "qk.breakout_length: 2 to 6 weeks, higher lows, each pullback smaller, closes riding the 10-day",
+   "qk.breakout_depth_a: 15% deep or less",
+   "qk.breakout_stop_adr: the day's low well inside the ADR and within 3%",
+   "qk.breakout_trigger: breaks early through the opening-range high and holds",
+   "qk.breakout_market: Green, the Nasdaq's 10 over its 20 and both rising",
+   "qk.breakout_first_base: the first base after the move",
+   "qk.kell_bnb_late: the phase is a Wedge Pop or the first EMA Crossback",
+   "qk.kell_wp_trigger: the pop gaps up on clearly rising volume",
+   "qk.kell_cb_stop: several tight sessions, the averages converged, a stop of 1-2%",
+   "qk.kell_market: pops before the index, or holds while the index falls; the index in its own up cycle",
+   "qk.kell_air: in the pocket at the averages"
+  ],
+  "b_minus": [
+   "qk.breakout_leadership: RS 80 to 85, mid-pack in its group",
+   "qk.breakout_prior_move: about 30%, slow",
+   "qk.breakout_holds_20: loose, wide, a lower low, under the 20-day for days",
+   "qk.breakout_stop_3_to_adr: near the ADR cap, over 3%",
+   "qk.breakout_trigger: breaks late, closes off the high",
+   "qk.breakout_market: Yellow",
+   "qk.breakout_first_base: the second base or later",
+   "qk.kell_bnb_late: the second Base n' Break or later",
+   "qk.kell_wp_trigger: no volume, a slow cross",
+   "qk.kell_wp_stop: wide, sloppy, a stop over 3%",
+   "qk.kell_market: pops only with the index; the index below its 20 EMA",
+   "qk.kell_air: 3-4% or more above the averages"
+  ],
+  "no_trade": [
+   "qk.breakout_prior_move: no prior big move (the app's scanner did this 56% of the time)",
+   "qk.breakout_stop_adr: a stop wider than the ADR",
+   "qk.breakout_no_chase: more than 4% past the trigger",
+   "qk.breakout_not_stretched: more than 10% over the 10-day",
+   "qk.breakout_above_200: under the 200-day or the 50-day",
+   "qk.breakout_earnings_window: a report within 3 sessions",
+   "qk.breakout_liquidity: under $10 or under $20 million a day",
+   "qk.breakout_inv_base_broken: a close under the base low or the 50-day, or a lower low inside the base",
+   "qk.kell_up_cycle: a down cycle, the 10 under the 20",
+   "qk.kell_re_watch_only: the Reversal Extension itself, and the window between it and the Wedge Pop",
+   "qk.kell_wp_above_200: a pop or crossback under the 200-day",
+   "qk.breakout_market: Red, or Orange unless A+"
+  ]
+ },
+ "lookalikes": [
+  {
+   "setup": "01-flat-base",
+   "tell": "Look at the lows. A flat base holds one box 15% deep or less for 25 sessions or more under a flat ceiling; Kullamagi's breakout rests 10 to 40 sessions with two or more rising swing lows, tightening at the end, after a 30% move inside the last three months.",
+   "criterion": "qk.breakout_higher_lows"
+  },
+  {
+   "setup": "02-bull-flag",
+   "tell": "Count the sessions. A bull flag is a 3 to 15-session drift after a 20% pole; the Qullamaggie breakout is a 10 to 40-session consolidation. Under 10 sessions the rest is a flag; past 20 the flag card sends it here or to the base lessons.",
+   "criterion": "qk.breakout_length"
+  },
+  {
+   "setup": "03-high-tight-flag",
+   "tell": "Measure the move. A high tight flag needs a near-double, 90% or more in 40 sessions or fewer; Kullamagi's breakout needs 30% or more in 3 to 20 sessions inside the last 63. Same buy, same stop, a different and much rarer pole.",
+   "criterion": "qk.breakout_prior_move"
+  },
+  {
+   "setup": "15-wedge-pop",
+   "tell": "Look at where the base sits against the averages. A wedge pop comes from under the 10 and 20 EMAs after a decline (8 or more of 15 closes under the 20 EMA); the Qullamaggie breakout's base surfs above the rising 20-day EMA the whole way.",
+   "criterion": "qk.breakout_holds_20"
+  },
+  {
+   "setup": "14-ema-crossback",
+   "tell": "A crossback buys the first pullback into the rising 10 or 20 EMA after a pop, triggered over the prior day's high; the breakout buys a trade through a 10 to 40-session base's high. One is a dip to a line, the other a new high.",
+   "criterion": "qk.kell_cb_setting"
+  }
+ ],
+ "invalidations": [
+  "Before the trigger: a close under the consolidation low, or under the 50-day, or a lower low inside the base (qk.breakout_inv_base_broken).",
+  "Before the trigger: a report within 3 sessions, wait (qk.breakout_earnings_window).",
+  "Before the trigger: the honest stop is wider than the ADR (qk.breakout_stop_adr).",
+  "Before the trigger: a down cycle, the 10 EMA under the 20 (qk.kell_up_cycle); a pop or crossback under the 200-day (qk.kell_wp_above_200).",
+  "After the buy: the stop is the exit, with the time stop (qk.breakout_after_entry_stop); a close back inside the base in the lower third of its range is a failed breakout, the stop decides (qk.breakout_inv_failed_breakout).",
+  "After the buy: a Wedge Drop, a close below both averages on volume, is the trail's exit (qk.kell_wd_definition, qk.kell_wd_exit)."
+ ],
+ "mistakes": [
+  "Buying without the prior big move; the app's scanner did this 56% of the time.",
+  "A stop under the 20-day average instead of the day's low; a stop wider than the ADR.",
+  "Anticipating inside the base before you have the skill; he finds it less effective and harder.",
+  "Chasing far past the trigger. Kell: 3-4% above the moving averages was too much.",
+  "Illiquid names. Kullamagi: yes dollar volume.",
+  "Trading breakouts in a weak market.",
+  "Copying a star's trades without the study. The owner: just like many try buying Qullamaggie breakouts only to lose money.",
+  "Treating the cross of the averages itself as the signal; buying the Reversal Extension; buying with air above the 10 EMA.",
+  "Buying a second or later Base n' Break as if it were early; holding through a Wedge Drop.",
+  "Shorting a strong uptrend; shorting late in a downtrend.",
+  "Trading the period between the Reversal Extension and the Wedge Pop, the hardest period to trade.",
+  "Trusting the app's scanner text: its track record, its never chase more than 2-3% and its 5R target are invented or mislabeled, and its Kell detector teaches the wrong cycle with invented quotes."
+ ],
+ "short_mirror": {
+  "exists": true,
+  "setup": "16-wedge-drop",
+  "note": "Kell publishes the downside steps himself: the Wedge Drop (setup 16, usually an exit in our course because a top sits above the 200-day), the downside EMA Crossback (dossier 14's short mirror) and the downside Base n' Break, all below the 200-day, RS 20 or less, not hard to borrow, in a Red market (B26, C31, D48, D46). Kullamagi publishes no breakdown short; his short is the parabolic (setup 39). A house mirror of his breakout under D47 would be the dossier's draft (8.6): a 30%+ fall in 1-3 months, a sideways bounce with lower highs under the falling 10/20-day EMAs, short the opening-range low on the breakdown day, stop a few cents over that day's high. Untested. Whether to teach the shorts now is D-001."
+ },
+ "best_conditions": "Bull markets, a Green reading: the index in its own up cycle or just off its own Wedge Pop, with the leaders that popped before it the best. Fewer trades and lower exposure when the index is below its 20 EMA (Kell caps exposure at 30% and trades 1-2 stocks in a poor environment). The UCT momentum-market test (the Nasdaq's 10 and 20-day rising, the 10 above the 20) is a cue, not a rule.",
+ "management": {
+  "trim_1": "a third at 3R (B19); Kullamagi's sell a third to a half after 3 to 5 days is taught as his, by name (D-013)",
+  "trim_2": "a third at 5R (E51)",
+  "trail": "a close under the 10-day for a fast mover, the 21-day for a steadier one (E52); Kullamagi's 10 or 20-day first close below is nearly the same line; Kell trails the 10/20 EMA",
+  "breakeven": "between 2R and 5R, at the first trim by default (B19)",
+  "time_stop": "under 1R after 10 trading days, sell (C33)",
+  "gap_open": "a trim level the day opens past is taken at the open (F63)",
+  "gap_against": "the first 30-minute low is the new stop; out if past 2R (B20)",
+  "climax": "sell a big part into a climax run (C34); whether that covers Kell's Exhaustion Extension without a burst, and how much to sell, is D-013",
+  "overrides": "none for the breakout: the dossier (8.4) keeps the house default and teaches Kullamagi's 3-5 day trim as his. The Kell phases add two exits the house trail already contains: the Exhaustion Extension (sell part into strength, C34 by the dossier's proposal) and the Wedge Drop (the E52 close under the averages). Not ours: the app's 20-EMA stop and its 5-ATR target mislabeled as 5R; Kell's adds at each phase (A5, D-135); his reduced earnings size (B22, D-137)."
+ },
+ "examples": {
+  "winners": 10,
+  "sheet_dir": "_study-resume/scratchpad/setups/18-qullamaggie-kell/final",
+  "base_rate": {
+   "hits": 5038,
+   "r3_pct": 28.9,
+   "r5_pct": 20.0,
+   "stopped_pct": 92,
+   "window": "60 sessions after the entry day, fixed stop 5 cents under the breakout day's low, no trims, no breakeven, no trail; breakouts 2000-01-03 to 2026-11-05 on 1,969 of the 2,630 liquid names (the 420-second budget ran out there); one hit per name per 30 sessions; stops wider than the 20-day ADR or 8% skipped; the daily-chart trigger, not the opening-range high; Part A only"
+  },
+  "cuts": {
+   "note": "no cuts reported; many hits had a stop tighter than 2%, which inflates both the R multiples and the stop-out count. The ten examples were chosen with stops of 1.6% to 4.9%."
+  },
+  "winners_list": [
+   "AMD 2000-01-06",
+   "BB 2004-01-12",
+   "ISRG 2007-08-29",
+   "BKNG 2010-09-08",
+   "CRSP 2019-11-12",
+   "CPRI 2020-12-03",
+   "PBF 2022-04-04",
+   "MSTR 2023-11-08",
+   "POWL 2024-10-03",
+   "HWM 2025-05-15"
+  ],
+  "failures": [
+   {
+    "ticker": "NVDA",
+    "date": "2024-11-06",
+    "criterion": "qk.breakout_first_base",
+    "why": "a 23-session, 16%-deep base after a 32% run broke out on 0.9x volume, reached 2.1R and was stopped; the prior move was near the smallest the rule allows and the stock was already far along its yearly advance, Kell's late in the cycle case."
+   },
+   {
+    "ticker": "AMZN",
+    "date": "2020-04-30",
+    "criterion": "qk.breakout_earnings_window",
+    "why": "a 14-session flag after a 41% run broke out on 1.5x volume on the day of its earnings report after the close, gapped down and never traded above the entry (best 0.0R); check the report date before buying a breakout."
+   },
+   {
+    "ticker": "AMD",
+    "date": "2024-02-15",
+    "criterion": "qk.breakout_stop",
+    "why": "a 9.7%-deep, 13-session flag after a 34% run broke out on 0.7x volume and was stopped at once with 0.0R; the pattern was textbook, the leader simply failed, which is what the stop is for."
+   },
+   {
+    "ticker": "QCOM",
+    "date": "2021-12-13",
+    "criterion": "qk.breakout_inv_failed_breakout",
+    "why": "A 26-session, 18.8%-deep base after a 38% run, broke out on 1.49x volume and then closed at the low of its range (183.32), back inside the base. The next session's low (179.41) took the stop."
+   },
+   {
+    "ticker": "OXY",
+    "date": "2022-04-18",
+    "criterion": "qk.breakout_stop",
+    "why": "A 16-session, 12.2%-deep base after a 62% run, broke out on 0.82x volume and closed mid-range. The next session's low (59.83) took the 59.88 stop by five cents. A valid base that failed for no visible reason; the stop did its job."
+   }
+  ],
+  "limits": "Part A only: the Kell phases are context and exits, and their buy phases are charted in dossiers 14 and 15. The scan covers 1,969 of 2,630 names and breakouts from 2000 on; the opening-range trigger was not tested (5-minute bars exist only for the last 60 trading days); no RS rating in the sandbox; the 25% depth cap was applied as written while the owner's MRAM caution is still open; QQQ 2020-05-21 was a hit, so ETF hits should be ignored when reading the base rate for stocks; survivorship. Nothing here is a published statistic. Kullamagi's own FAQ gives a 25% win rate for 2019.",
+  "near_misses": [
+   {
+    "ticker": "AMZN",
+    "date": "2020-08-06",
+    "criterion": "qk.breakout_prior_move",
+    "why": "+23% into the base; the rule is 30% or more in 3 to 20 sessions. A 12-session, 11% shelf surfing the 20 EMA, but the rise into it was 23%, not 30% in 3 to 20 sessions. A rest on a steady large cap with no explosive move in front of it: a flat-base-style shelf, judged under setup 01 or the moving-average pullback cards. Best 0.0R, stopped."
+   },
+   {
+    "ticker": "NVDA",
+    "date": "2024-03-21",
+    "criterion": "qk.breakout_length",
+    "why": "8 sessions sideways; the rule is 10 to 40 (under 10 it is a flag). A 39% run and an 8.9%-deep rest, but only 8 sessions sideways. Under 10 sessions the rest is a bull flag (setup 02). Best 2.11R, stopped."
+   },
+   {
+    "ticker": "BIDU",
+    "date": "2007-12-27",
+    "criterion": "qk.breakout_higher_lows",
+    "why": "last third's low 34.89 under the first third's 36.52; the rule is rising lows. A 32% run and a 19-session, 14.7% box, but the last third's low (34.89) sat under the first third's (36.52): a lower low, not rising swing lows. A loose box at a top, a flat base candidate at best. Best 0.0R, stopped."
+   },
+   {
+    "ticker": "CVNA",
+    "date": "2024-06-24",
+    "criterion": "qk.breakout_holds_20",
+    "why": "58% of the base's closes near or above the 20 EMA; the rule is 80% or more. A 46% run and a 19-session, 15.2% rest, but only 58% of its closes held near or above the 20 EMA. A base that lost the 20-day and came back is a wedge pop or an EMA reclaim, not a consolidation surfing the averages. It worked (best 14.05R) under another card."
+   }
+  ],
+  "sheets": {
+   "failures": "final/fail_1-4.png",
+   "near_misses": "final/near_1-4.png",
+   "pair": "final/pair_01-flat-base.png"
+  }
+ },
+ "question_seeds": [
+  {
+   "kind": "recall",
+   "criterion": "qk.breakout_prior_move",
+   "seed": "What must a stock have done in the last three months before Kullamagi's breakout applies?"
+  },
+  {
+   "kind": "recall",
+   "criterion": "qk.breakout_stop_adr",
+   "seed": "What caps the stop on a Qullamaggie breakout, and what happens when the day's low sits beyond it?"
+  },
+  {
+   "kind": "recall",
+   "criterion": "qk.kell_averages",
+   "seed": "Name Kell's six phases in order, and the two averages they are read on."
+  },
+  {
+   "kind": "spot",
+   "criterion": "qk.breakout_higher_lows",
+   "seed": "Hidden ticker: tap the two rising swing lows inside this consolidation."
+  },
+  {
+   "kind": "spot",
+   "criterion": "qk.breakout_trigger",
+   "seed": "Hidden ticker: tap the breakout day, the first session that trades above the consolidation high."
+  },
+  {
+   "kind": "spot",
+   "criterion": "qk.kell_bnb_late",
+   "seed": "Hidden ticker: which phase of the cycle is this stock in today? Wedge Pop, crossback, second Base n' Break, or Exhaustion Extension?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "qk.breakout_length",
+   "seed": "Qullamaggie breakout or bull flag: a 45% run, then a five-session drift. Which card?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "qk.breakout_holds_20",
+   "seed": "Qullamaggie breakout or wedge pop: the base spent 11 of the last 15 closes under the 20 EMA before today's push through its high. Which is it?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "qk.breakout_prior_move",
+   "seed": "Qullamaggie breakout or high tight flag: the stock rose 110% in six weeks and rested three weeks. Which card?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "qk.kell_cb_setting",
+   "seed": "EMA crossback or Base n' Break: the first dip to the rising 20 EMA since the pop, or a two-week shelf at the highs holding the 10 EMA? Name each."
+  },
+  {
+   "kind": "scenario",
+   "criterion": "qk.breakout_no_chase",
+   "seed": "The consolidation high is 77.67 and the stock is trading 81.20 at 10:05. Buy, or pass?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "qk.breakout_inv_failed_breakout",
+   "seed": "You bought the breakout at 38.01. It closes at 37.60, back inside the base in the bottom third of its range, above your 37.37 stop. What now?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "qk.breakout_earnings_window",
+   "seed": "A 14-session flag after a 41% run breaks out on 1.5x volume, and the company reports after today's close. Buy the break?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "qk.kell_ee_action",
+   "seed": "Your long closes 12% above its 10-day EMA with its low above the line. New buy, hold, or sell part?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "qk.kell_re_watch_only",
+   "seed": "The index just printed a capitulation bar 2 ATR under its 10 EMA on heavy volume. What do you do today, and when will you know it was the low?"
+  },
+  {
+   "kind": "grade",
+   "criterion": "qk.breakout_stop_3_to_adr",
+   "seed": "The breakout day's low sits 3.9% under your fill and the stock's ADR is 8.5%. What grade, and what size?"
+  },
+  {
+   "kind": "grade",
+   "criterion": "qk.breakout_volume_cue",
+   "seed": "Two breakouts of the same base: one on 0.7x volume, one on 3.1x. Grade each, and say which rule the volume changes."
+  },
+  {
+   "kind": "grade",
+   "criterion": "qk.kell_bnb_late",
+   "seed": "Same stock, two bases on the rising 10/20 EMA: the first after the pop, and the third. Grade each."
+  },
+  {
+   "kind": "numeric",
+   "criterion": "qk.breakout_prior_move",
+   "seed": "The low 40 sessions ago was 23.00 and the high 25 sessions ago was 30.20. How big was the move, and does it qualify?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "qk.breakout_depth",
+   "seed": "Consolidation high 52.28, low 45.00, prior move 35.00 to 52.28. How deep is the base in percent of price and in share of the move, and is it inside both caps?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "qk.breakout_trim_1",
+   "seed": "Bought at 47.50 with the stop at 45.80. Where is 3R, and where is 5R?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "qk.kell_ee_definition",
+   "seed": "The 10-day EMA is 100.00 and the stock closes at 111.50 with its low at 102.00. How far extended is it, and is that an Exhaustion Extension?"
+  }
+ ],
+ "owner_decisions": [
+  "D-001",
+  "D-002",
+  "D-004",
+  "D-005",
+  "D-009",
+  "D-013",
+  "D-014",
+  "D-021",
+  "D-029",
+  "D-033",
+  "D-081",
+  "D-135",
+  "D-137"
+ ],
+ "conflicts": [
+  "Sources: this dossier's section 11 is a set of tables without ids, so every S-id on this card is the row's position in reading order, as the validator reads it (S1 Kullamagi's 3 setups post, S2 his EP post, S3 his FAQ and About, S5 and S6 Bonde's EP posts, S7 kelltrading.com, S8 The Weeklies Watch, S9 the Stockbsessed interview, S10 the eleven TraderLion Kell articles, S16 Deepvue's Kell screens, S21 the UCT Substack, S22 the brain file, S23 the rulebook and verdicts, S24 the app code, S25 the dossier's own measurement).",
+  "Name and home: D-002 folds the Qullamaggie Breakout into the breakout unit (his three setups are one lesson inside it), so this card's unit is none and its Part A lines are the lesson's rules; the Kell phases that are buys have their own cards (14, 15) and this card carries them in brief, with a prefix that keeps the two frameworks apart.",
+  "Two readings of the Wedge Pop setting: this dossier's 8.12 (a correction of 15% or more, 3 sessions of tightening with the averages converging, volume at least the 50-day average) against dossier 15's 8.1 (8 of 15 closes under the 20 EMA, the 0.85 range test, volume above the prior day and the base days). Setup 15's card is the full one; this card's qk.kell_wp_* lines should be reconciled to it when the owner rules on D-006 and D-077.",
+  "Averages: Kell's 10/20 EMA against the house 9/20 (the Model Book cards, UCT's writers). The card recommends Kell's pair for Kell lessons (D-021).",
+  "The prior move as a gate: Kullamagi's step 1; the dossier's data did not show it helping, but the sample is biased and the app's scanner never tests it (D-029).",
+  "Depth: the originator gives no number; the dossier proposes 25% and the app uses 15%; the owner's own textbook 5 star MRAM had come back roughly 34% to 42%, which a 25% cap would reject. No register row maps this; the owner should rule before it is taught.",
+  "The stop: Kullamagi's day's low capped by ADR (often over 3% on his high-ADR leaders) against A13's usual 3%; Kell's support buys use 1-2%; the app's 20-EMA stop was wider than ADR 85% of the time and is not his. The card takes the day's low within ADR and recommends a smaller size between 3% and the ADR (D-005).",
+  "Trims: Kullamagi's third to a half after 3-5 days and Kell's selling into 10-EMA extensions against B19 and E51. The house wins; his version is taught as his (D-013). Whether C34, written for Bracco's burst, covers Kell's extension without a burst, and how much to sell, is also D-013.",
+  "The 200-day: Kell's Wedge Pops after corrections start below it (TSLA 2023-03-21), his Reversal Extension is a bottom, EPs gap from below it, and his Wedge Drop short happens above it at a top. B26 is hard; the card keeps it and lists the exceptions for the owner (D-009); the Reversal Extension trades only as a parabolic long (D-081).",
+  "Adds: Kell adds at the crossback and Base n' Break; Kullamagi adds on the 5-minute high in an EP. D-135 settles it: each later phase is a new trade from flat.",
+  "Earnings: Kell holds through at a reduced earnings size; B22 allows holding only when up 5R. D-137 settles it.",
+  "C31 and the Reversal Extension: Reversal Extensions are mean reversion, so C31 does not apply; EPs on neglected stocks can have low RS before the gap (dossier 20's question).",
+  "The app's qullamaggie_setup.py: a 20-EMA stop called his, no prior-move test, a 52-week-high gate and 1.5x volume gate that are not his, a 5-ATR target mislabeled as 5R, an entry on a daily close level, invented track-record claims (100,000x; a 60-70% follow-through rate; never chase more than 2-3%). The Kell detector: the wrong cycle, no EMA in any phase, a Wedge Pop stage that can never fire, invented Kell quotes, the wrong book title (Victory in Stock Trading). None of it reaches this card; the fixes are D-004 and D-014.",
+  "The Model Book: the Wedge Drop text is internally inconsistent, the Parabolic Long card contradicts Kullamagi and the owner's ruling (a burst down), the EMA Crossback card uses 9/20 and puts the crossback after an extension; the journal has no tag for EMA Crossback, Base n Break, Reversal Extension or Exhaustion Extension (D-014).",
+  "The UCT momentum-market test (the Nasdaq's 10 and 20-day rising, the 10 above the 20) is attributed to Kullamagi without a verified source; a UCT cue, not a rule. The owner's stack line sits in an unsigned intro.",
+  "Still not measurable as written (left for the owner, not invented here): the Reversal Extension's averages spread apart and a close back toward the averages; the crossback's drifting down gently; how much to sell into an Exhaustion Extension."
+ ]
+}

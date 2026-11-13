@@ -1,0 +1,3052 @@
+{
+ "unit": "V.07",
+ "track": "V",
+ "title": "Order words",
+ "teaches": "The words on an order ticket and an order screen: market, limit, stop, stop-limit and trailing orders, brackets and OCO, time in force, fills, partial fills and slippage, and the short-selling words: locate, borrow, cover and squeeze.",
+ "skills": [
+  {
+   "id": "vocab.order_terms",
+   "title": "Order words"
+  }
+ ],
+ "as_of": "2026-11-09",
+ "sources": [
+  {
+   "id": "s1",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Understanding Order Types: Investor Bulletin (July 12, 2017, updated August 18, 2026)",
+   "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-understanding-order-types",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s2",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Stop, Stop-Limit, and Trailing Stop Orders: Investor Bulletin (July 13, 2017, updated August 18, 2026)",
+   "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-stop-stop-limit-trailing-stop",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s3",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Glossary: Market Order",
+   "url": "https://www.investor.gov/introduction-investing/investing-basics/glossary/market-order",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s4",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Executing an Order",
+   "url": "https://www.investor.gov/introduction-investing/investing-basics/how-stock-markets-work/executing-order",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s5",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Stock Purchases and Sales: Long and Short",
+   "url": "https://www.investor.gov/introduction-investing/investing-basics/how-stock-markets-work/stock-purchases-and-sales-long-and",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s6",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Investor Bulletin: An Introduction to Short Sales (Oct. 29, 2015, updated September 9, 2026)",
+   "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins-51",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s7",
+   "tier": 1,
+   "publisher": "SEC",
+   "title": "Key Points About Regulation SHO",
+   "url": "https://www.sec.gov/investor/pubs/regsho.htm",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s8",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Types of Orders",
+   "url": "https://www.investor.gov/introduction-investing/investing-basics/how-stock-markets-work/types-orders",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s9",
+   "tier": 1,
+   "publisher": "SEC rule text, eCFR (17 CFR 242.203)",
+   "title": "Rule 203 of Regulation SHO, Borrowing and delivery requirements (current text)",
+   "url": "https://www.ecfr.gov/current/title-17/chapter-II/part-242/section-242.203",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s10",
+   "tier": 1,
+   "publisher": "SEC rule text, eCFR (17 CFR 242.600)",
+   "title": "Rule 600 of Regulation NMS, definitions: Marketable limit order",
+   "url": "https://www.ecfr.gov/current/title-17/chapter-II/part-242/subject-group-ECFR3dd95cf4d3f6730/section-242.600",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s11",
+   "tier": 1,
+   "publisher": "FINRA",
+   "title": "Order Types",
+   "url": "https://www.finra.org/investors/investing/investment-products/stocks/order-types",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s12",
+   "tier": 1,
+   "publisher": "FINRA",
+   "title": "Stop Orders: Factors to Consider During Volatile Markets (Investor Insights, March 26, 2025)",
+   "url": "https://www.finra.org/investors/insights/stop-orders-factors-consider-during-volatile-markets",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s13",
+   "tier": 1,
+   "publisher": "FINRA",
+   "title": "Short Interest: What It Is, What It Is Not (Investor Insights, January 25, 2023)",
+   "url": "https://www.finra.org/investors/insights/short-interest",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s14",
+   "tier": 1,
+   "publisher": "Nasdaq",
+   "title": "Glossary: Fill",
+   "url": "https://www.nasdaq.com/glossary/f/fill",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s15",
+   "tier": 1,
+   "publisher": "Nasdaq",
+   "title": "Glossary: Slippage",
+   "url": "https://www.nasdaq.com/glossary/s/slippage",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s16",
+   "tier": 1,
+   "publisher": "Nasdaq",
+   "title": "Glossary: Short covering",
+   "url": "https://www.nasdaq.com/glossary/s/short-covering",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s17",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "How to Use Advanced Stock Order Types (May 21, 2025)",
+   "url": "https://www.schwab.com/learn/story/how-to-use-advanced-stock-order-types",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s18",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "Order Types (thinkorswim Learning Center, thinkManual)",
+   "url": "https://toslc.thinkorswim.com/center/howToTos/thinkManual/Trade/Order-Entry-Tools/Order-Types.html",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s19",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "What to Know About Short Selling (June 1, 2026)",
+   "url": "https://www.schwab.com/learn/story/ins-and-outs-short-selling",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s20",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "What's a Short Squeeze and Why Does It Happen? (August 29, 2025)",
+   "url": "https://www.schwab.com/learn/story/whats-short-squeeze-and-why-does-it-happen",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s21",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "Trade execution glossary",
+   "url": "https://www.schwab.com/execution-quality/glossary",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s22",
+   "tier": 2,
+   "publisher": "Fidelity Investments",
+   "title": "What Is a Conditional Order? (Fidelity Learning Center)",
+   "url": "https://www.fidelity.com/learning-center/trading-investing/trading/conditional-order-types",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s23",
+   "tier": 2,
+   "publisher": "Fidelity Investments",
+   "title": "Trading FAQs: Order Types",
+   "url": "https://www.fidelity.com/trading/faqs-order-types",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s24",
+   "tier": 2,
+   "publisher": "Interactive Brokers",
+   "title": "Order Types and Algos (Bracket, All-or-None, Good-Til-Canceled)",
+   "url": "https://www.interactivebrokers.com/en/trading/ordertypes.php",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s25",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Understanding Slippage in Finance (Adam Hayes, updated July 1, 2026)",
+   "url": "https://www.investopedia.com/terms/s/slippage.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s26",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Master the One-Cancels-the-Other (OCO) Trading Strategy (James Chen, CMT; updated May 13, 2026)",
+   "url": "https://www.investopedia.com/terms/o/oco.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s27",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Hard-to-Borrow List: Impact on Short Selling Strategies (updated May 18, 2026)",
+   "url": "https://www.investopedia.com/terms/h/hardtoborrowlist.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s28",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Short Squeeze: Definition, Causes, and Examples (updated June 22, 2024)",
+   "url": "https://www.investopedia.com/terms/s/shortsqueeze.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s29",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Good 'Til Canceled (GTC) Orders (James Chen, CMT; updated July 18, 2026)",
+   "url": "https://www.investopedia.com/terms/g/gtc.asp",
+   "accessed": "2026-11-09"
+  }
+ ],
+ "facts": [
+  {
+   "id": "f1",
+   "source": "s1",
+   "quote": "A market order is an order to buy or sell a stock at the best available price.  Generally, a market order will be executed immediately.",
+   "claim": "A market order buys or sells at the best price available and generally fills right away."
+  },
+  {
+   "id": "f2",
+   "source": "s1",
+   "quote": "However, the price at which a market order will be executed is not guaranteed.",
+   "claim": "A market order's price is not guaranteed."
+  },
+  {
+   "id": "f3",
+   "source": "s1",
+   "quote": "parts of a large market order may execute at different prices due to lack of liquidity at a price at the time of execution.",
+   "claim": "One large order can fill in parts, at several prices, when one price lacks enough shares."
+  },
+  {
+   "id": "f4",
+   "source": "s1",
+   "quote": "A limit order is an order to buy or sell a stock at a specific price or better.",
+   "claim": "A limit order trades only at your price or better."
+  },
+  {
+   "id": "f5",
+   "source": "s1",
+   "quote": "A buy limit order can only be executed at the limit price or lower, and a sell limit order can only be executed at the limit price or higher.",
+   "claim": "A buy limit fills at the limit or lower; a sell limit fills at the limit or higher."
+  },
+  {
+   "id": "f6",
+   "source": "s1",
+   "quote": "A limit order is not guaranteed to execute.  A limit order can only be filled if the stock’s market price reaches the limit price.",
+   "claim": "A limit order may never fill."
+  },
+  {
+   "id": "f7",
+   "source": "s1",
+   "quote": "A stop order, also referred to as a stop-loss order, is an order to buy or sell a stock once the price of the stock reaches a specified price, known as the stop price.",
+   "claim": "A stop order, also called a stop-loss order, acts once price reaches the stop price."
+  },
+  {
+   "id": "f8",
+   "source": "s1",
+   "quote": "When the stop price is reached, a stop order becomes a market order.",
+   "claim": "At the stop price, a stop order turns into a market order."
+  },
+  {
+   "id": "f9",
+   "source": "s1",
+   "quote": "buy stop order is entered at a stop price above the current market price. Investors generally use a buy stop order to limit a loss or to protect a profit on a stock that they have sold short.",
+   "claim": "A buy stop sits above the current price; investors generally use it to limit a loss or protect a profit on a short."
+  },
+  {
+   "id": "f10",
+   "source": "s1",
+   "quote": "sell stop order is entered at a stop price below the current market price. Investors generally use a sell stop order to limit a loss or to protect a profit on a stock that they own.",
+   "claim": "A sell stop sits below the current price; it limits a loss or protects a profit on shares you own."
+  },
+  {
+   "id": "f11",
+   "source": "s1",
+   "quote": "The stop price is not the guaranteed execution price for a stop order.  The stop price is a trigger that causes the stop order to become a market order.",
+   "claim": "The stop price is a trigger, not a promised fill price."
+  },
+  {
+   "id": "f12",
+   "source": "s1",
+   "quote": "Investors should carefully select the stop price they use for a stop order since short-term market fluctuations in a stock’s price can activate a stop order.",
+   "claim": "Short-term swings can set off a stop, so choose the stop price with care."
+  },
+  {
+   "id": "f13",
+   "source": "s1",
+   "quote": "Once the stop price is reached, a stop-limit order becomes a limit order that will be executed at a specified price (or better).",
+   "claim": "At the stop price, a stop-limit turns into a limit order."
+  },
+  {
+   "id": "f14",
+   "source": "s1",
+   "quote": "As with all limit orders, a stop-limit order may not be executed if the stock’s price moves away from the specified limit price.",
+   "claim": "A stop-limit may not fill if price moves past its limit."
+  },
+  {
+   "id": "f15",
+   "source": "s1",
+   "quote": "The stop price and the limit price for a stop-limit order do not have to be the same price.",
+   "claim": "A stop-limit's stop price and limit price can be different."
+  },
+  {
+   "id": "f16",
+   "source": "s1",
+   "quote": "A trailing stop order is a stop or stop limit order in which the stop price is not a specific price.",
+   "claim": "A trailing stop's stop price is not a fixed number."
+  },
+  {
+   "id": "f17",
+   "source": "s1",
+   "quote": "Instead, the stop price is either a defined percentage or dollar amount, above or below the current market price of the security",
+   "claim": "The trail is a set percent or dollar amount away from the market price."
+  },
+  {
+   "id": "f18",
+   "source": "s1",
+   "quote": "As the price of the security moves in a favorable direction the trailing stop price adjusts or “trails” the market price of the security by the specified amount.",
+   "claim": "When price moves your way, the trailing stop follows it by the set amount."
+  },
+  {
+   "id": "f19",
+   "source": "s1",
+   "quote": "However, if the security’s price moves in an unfavorable direction the trailing stop price remains fixed, and the order will be triggered if the security’s price reaches the trailing stop price.",
+   "claim": "When price moves against you, the trailing stop stays put and triggers if price reaches it."
+  },
+  {
+   "id": "f20",
+   "source": "s1",
+   "quote": "The price of XYZ peaks at $24 then starts to drop (not in your favor).  Your trailing stop price will remain at $23.",
+   "claim": "In the SEC's example, a $1 trail under a $24 peak holds at $23 on the drop."
+  },
+  {
+   "id": "f21",
+   "source": "s1",
+   "quote": "Investors should carefully select the trailing stop price they use for a trailing stop order since short-term market fluctuations in a stock’s price can activate a trailing stop order.",
+   "claim": "Short-term swings can set off a trailing stop."
+  },
+  {
+   "id": "f22",
+   "source": "s1",
+   "quote": "Unless an investor specifies a time frame for the expiration of an order, orders to buy and sell a stock are “Day” orders, meaning they are good only during the trading day that the order is entered.",
+   "claim": "Unless you pick a time frame, an order is a Day order, good only for the day you enter it."
+  },
+  {
+   "id": "f23",
+   "source": "s1",
+   "quote": "Day orders, if not executed, generally cancel at the end of regular trading hours of the trading day that they are entered and will not carry over to the extended hours session or the next trading day.",
+   "claim": "An unfilled Day order cancels at the close and does not carry into after-hours or the next day."
+  },
+  {
+   "id": "f24",
+   "source": "s1",
+   "quote": "A GTC order is an order to buy or sell a stock that lasts until it is executed in full or it is canceled.",
+   "claim": "A GTC order lasts until it fills in full or is canceled."
+  },
+  {
+   "id": "f25",
+   "source": "s1",
+   "quote": "the time limit that an investor can leave a GTC order open may vary based on the brokerage firm.",
+   "claim": "How long a GTC order can stay open varies by broker."
+  },
+  {
+   "id": "f26",
+   "source": "s1",
+   "quote": "An IOC order is an order to buy or sell a stock that must be executed immediately.  Any portion of the order that cannot be filled immediately will be canceled.",
+   "claim": "IOC: fill what can fill right away and cancel the rest."
+  },
+  {
+   "id": "f27",
+   "source": "s1",
+   "quote": "An FOK order is an order to buy or sell a stock that must be executed immediately in its entirety; otherwise, the entire order will be canceled",
+   "claim": "FOK: the whole order fills right away, or the whole order cancels."
+  },
+  {
+   "id": "f28",
+   "source": "s1",
+   "quote": "(i.e., no partial execution of the order is allowed)",
+   "claim": "A fill-or-kill order never takes a partial fill."
+  },
+  {
+   "id": "f29",
+   "source": "s1",
+   "quote": "An AON order is an order to buy or sell a stock that must be executed in its entirety, or not executed at all.",
+   "claim": "AON: the whole order or nothing."
+  },
+  {
+   "id": "f30",
+   "source": "s1",
+   "quote": "However, unlike the FOK order, an AON order that is not executed immediately will remain active until it is executed or it is canceled.",
+   "claim": "Unlike FOK, an AON order that can't fill right away stays active."
+  },
+  {
+   "id": "f31",
+   "source": "s1",
+   "quote": "A market or limit order that must be executed at the closing price. Any balance not executed as part of the closing trade is canceled.",
+   "claim": "An on-close order fills at the closing price; any part that misses the closing trade cancels."
+  },
+  {
+   "id": "f32",
+   "source": "s2",
+   "quote": "A stop order may be triggered by a short-term, intraday price move that results in an execution price for the stop order that is substantially worse than the stock’s closing price for the day.",
+   "claim": "A quick intraday move can set off a stop and fill it far worse than the day's close."
+  },
+  {
+   "id": "f33",
+   "source": "s2",
+   "quote": "The execution price an investor receives for this market order can deviate significantly from the stop price due to the prices of available liquidity when the market order executes.",
+   "claim": "A triggered stop can fill far from the stop price."
+  },
+  {
+   "id": "f34",
+   "source": "s3",
+   "quote": "Unless you specify otherwise, your broker will enter your order as a market order.",
+   "claim": "If you don't say otherwise, your broker enters a market order."
+  },
+  {
+   "id": "f35",
+   "source": "s4",
+   "quote": "“Price improvement” is the opportunity, but not the guarantee, for an order to be executed at a better price than the current quote.",
+   "claim": "A fill can come in better than the quote, but that is never promised."
+  },
+  {
+   "id": "f36",
+   "source": "s5",
+   "quote": "A short sale is the sale of a stock that an investor does not own or a sale which is consummated by the delivery of a stock borrowed by, or for the account of, the investor.",
+   "claim": "A short sale sells stock you don't own, delivered with borrowed shares."
+  },
+  {
+   "id": "f37",
+   "source": "s5",
+   "quote": "The investor later closes out the position by returning the borrowed security to the stock lender, typically by purchasing securities on the open market.",
+   "claim": "You close a short by buying the shares back and returning them to the lender."
+  },
+  {
+   "id": "f38",
+   "source": "s6",
+   "quote": "Typically, when you sell short, your brokerage firm loans you the stock.",
+   "claim": "When you sell short, your broker usually lends you the shares."
+  },
+  {
+   "id": "f39",
+   "source": "s6",
+   "quote": "your brokerage firm will charge you interest on the loan, and you are subject to the margin rules.",
+   "claim": "Borrowed shares cost interest, and the short is under the margin rules."
+  },
+  {
+   "id": "f40",
+   "source": "s6",
+   "quote": "shorting a stock leaves an investor open to the possibility of unlimited losses, since a stock can theoretically keep rising indefinitely",
+   "claim": "A short's loss has no ceiling, because price can keep rising."
+  },
+  {
+   "id": "f41",
+   "source": "s7",
+   "quote": "Regulation SHO requires a broker-dealer to have reasonable grounds to believe that the security can be borrowed so that it can be delivered on the date delivery is due before effecting a short sale order in any equity security.",
+   "claim": "Before a short sale, Regulation SHO requires reasonable grounds that the shares can be borrowed and delivered."
+  },
+  {
+   "id": "f42",
+   "source": "s7",
+   "quote": "This “locate” must be made and documented prior to effecting the short sale.",
+   "claim": "The locate is made and documented before the short sale, not after."
+  },
+  {
+   "id": "f43",
+   "source": "s7",
+   "quote": "The term “short squeeze” refers to the pressure on short sellers to cover their positions as a result of sharp price increases or difficulty in borrowing the security the sellers are short.",
+   "claim": "A short squeeze is pressure on shorts to cover, from a sharp rise or a hard borrow."
+  },
+  {
+   "id": "f44",
+   "source": "s7",
+   "quote": "The rush by short sellers to cover produces additional upward pressure on the price of the stock, which then can cause an even greater squeeze.",
+   "claim": "Shorts rushing to cover push the price up more, which can squeeze harder."
+  },
+  {
+   "id": "f45",
+   "source": "s7",
+   "quote": "Short interest is the aggregate number of open short sale positions.",
+   "claim": "Short interest is the total of open short positions."
+  },
+  {
+   "id": "f46",
+   "source": "s7",
+   "quote": "claiming that there will be an imminent short squeeze, in which the alleged “naked” short sellers will be forced to cover open short positions at increasing prices. These claims in fact may be false.",
+   "claim": "Claims that a squeeze is about to happen may be false."
+  },
+  {
+   "id": "f47",
+   "source": "s8",
+   "quote": "A market order generally will execute at or near the current bid (for a sell order) or ask (for a buy order) price.",
+   "claim": "A market buy generally fills at or near the ask; a market sell at or near the bid."
+  },
+  {
+   "id": "f48",
+   "source": "s9",
+   "quote": "A broker or dealer may not accept a short sale order in an equity security from another person, or effect a short sale in an equity security for its own account, unless the broker or dealer has:",
+   "claim": "Under Rule 203, a broker may not take or make a short sale until a borrowing condition is met."
+  },
+  {
+   "id": "f49",
+   "source": "s9",
+   "quote": "Reasonable grounds to believe that the security can be borrowed so that it can be delivered on the date delivery is due; and",
+   "claim": "One condition: reasonable grounds that the shares can be borrowed and delivered when delivery is due."
+  },
+  {
+   "id": "f50",
+   "source": "s10",
+   "quote": "any buy order with a limit price equal to or greater than the national best offer at the time of order receipt, or any sell order with a limit price equal to or less than the national best bid",
+   "claim": "A marketable limit order is a buy limit at or above the best ask, or a sell limit at or below the best bid."
+  },
+  {
+   "id": "f51",
+   "source": "s11",
+   "quote": "brokerage firms typically enter your order as a market order unless you specify otherwise.",
+   "claim": "Unless you say otherwise, brokers typically enter a market order."
+  },
+  {
+   "id": "f52",
+   "source": "s11",
+   "quote": "This type of order provides the most certainty that your order will be executed because it's not tied to any restrictions.",
+   "claim": "A market order is the surest way to get a fill."
+  },
+  {
+   "id": "f53",
+   "source": "s11",
+   "quote": "This is an order to buy or sell a security at or better than a specified price (a \"limit price\").",
+   "claim": "A limit order sets a limit price: that price or better."
+  },
+  {
+   "id": "f54",
+   "source": "s11",
+   "quote": "This means you're guaranteed to get your limit price or a better price if your order is executed.",
+   "claim": "If a limit order fills, it fills at the limit price or better."
+  },
+  {
+   "id": "f55",
+   "source": "s11",
+   "quote": "If you have a short position, you can generally use stop-buy orders to limit losses in the event the stock’s price increases.",
+   "claim": "On a short, a buy stop limits the loss if price rises."
+  },
+  {
+   "id": "f56",
+   "source": "s11",
+   "quote": "With a buy stop order, you set a target price, and a market order to buy shares is automatically placed when the stock price hits your threshold.",
+   "claim": "A buy stop places a market buy when price rises to your level."
+  },
+  {
+   "id": "f57",
+   "source": "s11",
+   "quote": "good ‘til canceled orders, which remain in effect until they’re executed by the brokerage firm or canceled by the customer",
+   "claim": "A GTC order stays in effect until it is executed or you cancel it."
+  },
+  {
+   "id": "f58",
+   "source": "s11",
+   "quote": "market-on-open and market-on-close orders, which are executed as close as possible to the beginning or end of regular trading hours or canceled.",
+   "claim": "Market-on-close orders trade as close as possible to the end of regular hours, or cancel."
+  },
+  {
+   "id": "f59",
+   "source": "s11",
+   "quote": "Market, limit and stop orders can include time mandates and other conditions.",
+   "claim": "Orders can carry time limits and other conditions."
+  },
+  {
+   "id": "f60",
+   "source": "s12",
+   "quote": "the “stop price,” also known as a “trigger” price.",
+   "claim": "FINRA calls the stop price the trigger price."
+  },
+  {
+   "id": "f61",
+   "source": "s12",
+   "quote": "if markets are volatile and stock prices are changing rapidly, your stop order may be executed at a price that’s significantly different from your stop price.",
+   "claim": "In a fast market a stop can fill far from the stop price."
+  },
+  {
+   "id": "f62",
+   "source": "s12",
+   "quote": "Rapid price movement during a short period of time could trigger a stop order.",
+   "claim": "A brief, sharp move can set off a stop."
+  },
+  {
+   "id": "f63",
+   "source": "s12",
+   "quote": "With this type of order, your shares will only be bought or sold once the stop price is reached if your brokerage firm can obtain the specified limit price or better.",
+   "claim": "A stop-limit trades only if the limit price or better is available after the stop is hit."
+  },
+  {
+   "id": "f64",
+   "source": "s12",
+   "quote": "Consider using a stop limit order, rather than a stop order, if your primary goal is achieving a desired target price rather than getting an immediate execution irrespective of the price.",
+   "claim": "A stop-limit suits a price goal; a plain stop suits getting out whatever the price."
+  },
+  {
+   "id": "f65",
+   "source": "s13",
+   "quote": "Because the investor does not own the shares, the brokerage firm will look to “locate” shares prior to executing the short sale.",
+   "claim": "The broker locates shares before it executes a short sale."
+  },
+  {
+   "id": "f66",
+   "source": "s13",
+   "quote": "“Short interest” is a snapshot of the total open short positions existing on the books and records of brokerage firms for all equity securities on a given settlement date.",
+   "claim": "Short interest is a snapshot of open short positions on a set date."
+  },
+  {
+   "id": "f67",
+   "source": "s13",
+   "quote": "short sale volume data is not the equivalent of short interest position data.",
+   "claim": "Short sale volume is not the same thing as short interest."
+  },
+  {
+   "id": "f68",
+   "source": "s14",
+   "quote": "An executed order. Also, the price at which an order is executed.",
+   "claim": "A fill is an executed order, or the price it executed at."
+  },
+  {
+   "id": "f69",
+   "source": "s15",
+   "quote": "The difference between estimated transactions costs and actual transactions costs. The difference usually represents revisions to price difference or spread and commission costs.",
+   "claim": "Slippage is the gap between the cost you expected and the cost you got, usually from changes in price, spread or commission."
+  },
+  {
+   "id": "f70",
+   "source": "s16",
+   "quote": "Actual purchase of securities by a short seller to replace those borrowed at the time of a short sale.",
+   "claim": "Short covering is a short seller buying shares to replace the borrowed ones."
+  },
+  {
+   "id": "f71",
+   "source": "s17",
+   "quote": "(OCO) order is a conditional order in which two orders are placed and one order is canceled if the other order is filled.",
+   "claim": "An OCO is two orders where one filling cancels the other."
+  },
+  {
+   "id": "f72",
+   "source": "s17",
+   "quote": "bracket order immediately places an OCO \"take profit\" and a stop order after a position is opened.",
+   "claim": "A bracket places a linked take-profit and stop as soon as the position opens."
+  },
+  {
+   "id": "f73",
+   "source": "s17",
+   "quote": "If a trader enters a long position, a bracket order immediately places an OCO sell limit (take profit) and sell stop.",
+   "claim": "On a long, a bracket's exits are a sell limit above and a sell stop below, linked as an OCO."
+  },
+  {
+   "id": "f74",
+   "source": "s17",
+   "quote": "Durational means an order must take place within a specific time frame, or \"time in force.\"",
+   "claim": "Time in force is the time frame an order must happen within."
+  },
+  {
+   "id": "f75",
+   "source": "s17",
+   "quote": "A day order is canceled at the end of the day, while a GTC order remains active beyond the end of a trading day.",
+   "claim": "A day order cancels at the close; a GTC order stays active past it."
+  },
+  {
+   "id": "f76",
+   "source": "s17",
+   "quote": "however long the broker will allow it to remain active (typically no more than 90 days) with a GTC order.",
+   "claim": "Schwab says brokers typically allow a GTC order no more than 90 days."
+  },
+  {
+   "id": "f77",
+   "source": "s17",
+   "quote": "With a stop-limit order, a trader risks missing the market altogether.",
+   "claim": "A stop-limit can miss the market entirely."
+  },
+  {
+   "id": "f78",
+   "source": "s17",
+   "quote": "Note that the trailing stop price for long positions doesn't adjust lower if the stock price drops.",
+   "claim": "On a long, a trailing stop never moves down."
+  },
+  {
+   "id": "f79",
+   "source": "s17",
+   "quote": "the sell stop will immediately be canceled, removing the risk of inadvertently opening a short position should the stock decline to $36 or below.",
+   "claim": "Linking the exits as an OCO cancels the stop once the target fills, so it can't open a short by accident."
+  },
+  {
+   "id": "f80",
+   "source": "s18",
+   "quote": "Two orders are placed simultaneously; if one order is executed, the other is canceled.",
+   "claim": "OCO: two orders live at once; one fills, the other cancels."
+  },
+  {
+   "id": "f81",
+   "source": "s18",
+   "quote": "Once the stop (activation) price is reached, the trailing order becomes a market order, or the trailing stop limit order becomes a limit order.",
+   "claim": "A triggered trailing stop becomes a market order; a trailing stop-limit becomes a limit order."
+  },
+  {
+   "id": "f82",
+   "source": "s19",
+   "quote": "Short selling involves borrowing a security whose price you think is going to fall and then selling it on the open market.",
+   "claim": "Short selling means borrowing shares and selling them, betting the price falls."
+  },
+  {
+   "id": "f83",
+   "source": "s19",
+   "quote": "You may be able to short the most liquid shares for nothing, while the least liquid shares could come with an annualized interest rate of more than 100% of the value of your position.",
+   "claim": "Borrow costs run from nothing on liquid shares to very high yearly rates on scarce ones."
+  },
+  {
+   "id": "f84",
+   "source": "s19",
+   "quote": "the cost to borrow a stock can change frequently in response to supply and demand conditions.",
+   "claim": "The cost to borrow can change often with supply and demand."
+  },
+  {
+   "id": "f85",
+   "source": "s19",
+   "quote": "trigger a market order to buy back the shares at the next available price if the stock price rises to or above the stop price.",
+   "claim": "On a short, a buy stop sends a market buy if price rises to the stop."
+  },
+  {
+   "id": "f86",
+   "source": "s19",
+   "quote": "specify a stop price that follows, or \"trails,\" the lowest price of a stock by a percentage or dollar amount that you set.",
+   "claim": "A trailing buy stop follows the stock's lowest price by your set amount."
+  },
+  {
+   "id": "f87",
+   "source": "s19",
+   "quote": "If the stock rises above its lowest price by the trail or more, it triggers a buy market order. If the price drops, the stop resets at a lower price.",
+   "claim": "A trailing buy stop triggers when price rises the trail amount off its low, and resets lower as price falls."
+  },
+  {
+   "id": "f88",
+   "source": "s19",
+   "quote": "the stop order could lock in significant losses if the price gaps up.",
+   "claim": "A gap can carry a stop's fill far past the stop price."
+  },
+  {
+   "id": "f89",
+   "source": "s19",
+   "quote": "Losses for short-sellers can be particularly heavy during a short-squeeze, which is when a heavily shorted stock unexpectedly rises in value, triggering a cascade of further price increases",
+   "claim": "Short losses can be heavy in a squeeze, when a heavily shorted stock jumps and keeps rising."
+  },
+  {
+   "id": "f90",
+   "source": "s19",
+   "quote": "your broker may require you to deposit more cash or securities to cover the shortfall immediately.",
+   "claim": "A margin call asks you to deposit more cash or securities right away."
+  },
+  {
+   "id": "f91",
+   "source": "s20",
+   "quote": "As the shorts scramble to buy back and cover their losses, upward momentum can build on itself, causing the stock to move sharply higher.",
+   "claim": "Shorts buying back to cover can drive the stock sharply higher."
+  },
+  {
+   "id": "f92",
+   "source": "s20",
+   "quote": "Locating the shares can sometimes be difficult for your clearing firm because of high demand or a small number of outstanding shares.",
+   "claim": "Shares to borrow can be hard to find when demand is high or few shares exist."
+  },
+  {
+   "id": "f93",
+   "source": "s20",
+   "quote": "The higher that percentage, the greater the bearish sentiment may be around that stock.",
+   "claim": "The higher short interest runs as a share of the float, the more bearish the crowd may be on the stock."
+  },
+  {
+   "id": "f94",
+   "source": "s20",
+   "quote": "Decide how much money you would be comfortable losing in any trade ahead of time.",
+   "claim": "Decide your maximum loss before the trade."
+  },
+  {
+   "id": "f95",
+   "source": "s21",
+   "quote": "marketable limit order is an order to buy (or sell) in which the limit price is at or above (or below) the current market.",
+   "claim": "A marketable limit is priced at or through the current market."
+  },
+  {
+   "id": "f96",
+   "source": "s22",
+   "quote": "With a one-cancels-the-other order (OCO), 2 orders are live so that if either executes, the other is automatically triggered to cancel.",
+   "claim": "OCO: two live orders; when either executes, the other cancels."
+  },
+  {
+   "id": "f97",
+   "source": "s22",
+   "quote": "They give you the ability to place both a protective stop loss order to minimize your losses and a limit order to maximize your gains.",
+   "claim": "An OCO lets a protective stop and a profit-taking limit sit on the same shares."
+  },
+  {
+   "id": "f98",
+   "source": "s22",
+   "quote": "A one-triggers-the-other order actually creates both a primary and a secondary order. If the primary order executes, the secondary order automatically triggers.",
+   "claim": "OTO: when the first order executes, it triggers the second."
+  },
+  {
+   "id": "f99",
+   "source": "s22",
+   "quote": "In a one-triggers-a-one-cancels-the-other order, you place a primary order which, if executed, triggers 2 secondary orders. If either of these secondary orders executes, the other is automatically canceled.",
+   "claim": "Fidelity's name for a bracket: the entry triggers two exits, and one filling cancels the other."
+  },
+  {
+   "id": "f100",
+   "source": "s23",
+   "quote": "Limit orders for more than 100 shares or for multiple round lots (200, 300, 400, etc.) may be filled completely or in part until completed.",
+   "claim": "A limit order can fill in parts until it is complete."
+  },
+  {
+   "id": "f101",
+   "source": "s23",
+   "quote": "Like any limit order, a stop limit order may be filled in whole, in part, or not at all, depending on the number of shares available for sale or purchase at the time.",
+   "claim": "A stop-limit can fill in whole, in part, or not at all."
+  },
+  {
+   "id": "f102",
+   "source": "s23",
+   "quote": "Fidelity customers with a margin agreement in place may enter short sale and buy-to-cover orders for any U.S. stock using our online trading platform.",
+   "claim": "Short sale and buy to cover are the order actions that open and close a short."
+  },
+  {
+   "id": "f103",
+   "source": "s23",
+   "quote": "Seller enters a buy to cover order at price B. If the price is above the price at which it was originally sold short (B1), the short seller generally realizes a loss.",
+   "claim": "Covering above the price you shorted at is a loss."
+  },
+  {
+   "id": "f104",
+   "source": "s23",
+   "quote": "All short sale orders are subject to the availability of the stock being sold, which must be confirmed by our stock loan department prior to the order being entered.",
+   "claim": "A short needs available shares, confirmed before the order goes in."
+  },
+  {
+   "id": "f105",
+   "source": "s23",
+   "quote": "you may be charged a short interest fee on the securities that you have borrowed to sell short and those fees may change, sometimes significantly without warning.",
+   "claim": "The fee on borrowed shares can change, sometimes a lot and without warning."
+  },
+  {
+   "id": "f106",
+   "source": "s23",
+   "quote": "All open GTC orders will expire 180 calendar days after they are placed.",
+   "claim": "At Fidelity, open GTC orders expire after 180 calendar days."
+  },
+  {
+   "id": "f107",
+   "source": "s23",
+   "quote": "Immediate or cancel (fill the whole order or any part immediately, and cancel any unfilled balance).",
+   "claim": "IOC fills all or any part at once and cancels the rest."
+  },
+  {
+   "id": "f108",
+   "source": "s23",
+   "quote": "This limitation requires that the order is immediately completed in its entirety or canceled.",
+   "claim": "FOK: completed in full right away, or canceled."
+  },
+  {
+   "id": "f109",
+   "source": "s23",
+   "quote": "You place a time limitation on a stock trade order by selecting one of the following time-in-force types",
+   "claim": "The time-in-force choice sets an order's time limit."
+  },
+  {
+   "id": "f110",
+   "source": "s23",
+   "quote": "They can also be used to establish a position in a security if it reaches a certain price threshold or to close a short position.",
+   "claim": "Stop orders can open a position when price reaches a level, or close a short."
+  },
+  {
+   "id": "f111",
+   "source": "s23",
+   "quote": "Buy stop loss and buy stop limit orders must be entered at a price which is above the current market price.",
+   "claim": "Buy stops must be entered above the current price."
+  },
+  {
+   "id": "f112",
+   "source": "s24",
+   "quote": "Bracket orders are designed to help limit your loss and lock in a profit by \"bracketing\" an order with two opposite-side orders.",
+   "claim": "A bracket wraps an order with two opposite-side exits, one for loss and one for profit."
+  },
+  {
+   "id": "f113",
+   "source": "s24",
+   "quote": "A BUY order is bracketed by a high-side sell limit order and a low-side sell stop order.",
+   "claim": "A buy's bracket is a sell limit above and a sell stop below."
+  },
+  {
+   "id": "f114",
+   "source": "s24",
+   "quote": "In order to prevent a partial fill, the client uses an All-or-None order type, which can also be used for stock orders.",
+   "claim": "All-or-none is used to avoid a partial fill."
+  },
+  {
+   "id": "f115",
+   "source": "s24",
+   "quote": "An order that uses the Good-Til-Canceled (GTC) time in force will continue to work until the order fills or is canceled",
+   "claim": "A GTC order keeps working until it fills or is canceled."
+  },
+  {
+   "id": "f116",
+   "source": "s24",
+   "quote": "select a desirable time-in-force from the TIF dropdown menu.",
+   "claim": "Time in force (TIF) is a setting you pick on the ticket."
+  },
+  {
+   "id": "f117",
+   "source": "s25",
+   "quote": "Slippage refers to the difference between the expected price of a trade and the price at which the trade is executed.",
+   "claim": "Slippage is the gap between the price you expected and the price you got."
+  },
+  {
+   "id": "f118",
+   "source": "s25",
+   "quote": "Slippage can be positive, negative, or neutral, depending on the execution price.",
+   "claim": "Slippage can go for you, against you, or be zero."
+  },
+  {
+   "id": "f119",
+   "source": "s25",
+   "quote": "It is most common in volatile or low-liquidity markets where prices can change rapidly.",
+   "claim": "Slippage is most common in fast or thin markets."
+  },
+  {
+   "id": "f120",
+   "source": "s25",
+   "quote": "Investors can reduce the risk of negative slippage by using limit orders and avoiding highly volatile trading periods.",
+   "claim": "Limit orders and calmer periods reduce bad slippage."
+  },
+  {
+   "id": "f121",
+   "source": "s25",
+   "quote": "Positive slippage means the investor gets a better price than expected, while negative slippage means the opposite.",
+   "claim": "Positive slippage is a better price than expected."
+  },
+  {
+   "id": "f122",
+   "source": "s26",
+   "quote": "A one-cancels-the-other (OCO) order is a pair of conditional orders stipulating that if one order executes, then the other order is automatically canceled.",
+   "claim": "An OCO pairs two orders so one executing cancels the other."
+  },
+  {
+   "id": "f123",
+   "source": "s26",
+   "quote": "OCO orders are commonly used in retracement- and breakout-based trading strategies, which let traders prepare for different market moves.",
+   "claim": "OCO orders are common in pullback and breakout trading, to be ready for either move."
+  },
+  {
+   "id": "f124",
+   "source": "s27",
+   "quote": "A hard-to-borrow list identifies stocks that are hard to obtain for short sales.",
+   "claim": "Hard-to-borrow stocks are hard to get for short sales."
+  },
+  {
+   "id": "f125",
+   "source": "s27",
+   "quote": "Stocks on this list might have higher loan fees due to limited availability.",
+   "claim": "Hard-to-borrow stocks can carry higher loan fees."
+  },
+  {
+   "id": "f126",
+   "source": "s27",
+   "quote": "This alerts account holders that if they attempt to sell that security short, their trade order may be refused.",
+   "claim": "A short order in a hard-to-borrow stock may be refused."
+  },
+  {
+   "id": "f127",
+   "source": "s27",
+   "quote": "Brokerage firms update their hard-to-borrow lists daily.",
+   "claim": "Brokers update their hard-to-borrow lists every day."
+  },
+  {
+   "id": "f128",
+   "source": "s28",
+   "quote": "A heavy short interest does not mean that the price will rise. It means that many people believe it will fall.",
+   "claim": "Heavy short interest means many expect a fall; it does not mean a rise."
+  },
+  {
+   "id": "f129",
+   "source": "s28",
+   "quote": "Anyone who buys in hopes of a short squeeze should have other (and better) reasons to think that the price of the stock will go higher.",
+   "claim": "Buying for a hoped-for squeeze needs a better reason than the squeeze."
+  },
+  {
+   "id": "f130",
+   "source": "s28",
+   "quote": "Because short sellers exit their positions with buy orders, the coincidental exit of these short sellers pushes prices higher.",
+   "claim": "Shorts exit by buying, so many exiting at once pushes price up."
+  },
+  {
+   "id": "f131",
+   "source": "s29",
+   "quote": "Most brokers set GTC orders to expire 30 to 90 days after investors place them to avoid a long-forgotten order suddenly being filled.",
+   "claim": "Investopedia says most brokers expire GTC orders after 30 to 90 days."
+  }
+ ],
+ "walkthroughs": [
+  {
+   "key": "w1",
+   "title": "Market, limit, stop",
+   "steps": [
+    "A market order says: fill me now at the best price available. The fill is close to sure. The price isn't.",
+    "A limit order says: my price or better. You control the price, but it may never fill.",
+    "A stop order waits. When price reaches the stop price, it becomes a market order.",
+    "A stop-limit becomes a limit order instead. Your price is protected, but the fill isn't."
+   ],
+   "facts": [
+    "f1",
+    "f2",
+    "f52",
+    "f4",
+    "f6",
+    "f7",
+    "f8",
+    "f13",
+    "f14"
+   ]
+  },
+  {
+   "key": "w2",
+   "title": "How long it lives, how much fills",
+   "steps": [
+    "Every order has a time in force. Pick nothing and it's usually a day order.",
+    "A day order that doesn't fill generally cancels at the close. It won't carry into after-hours or tomorrow.",
+    "Good 'til canceled stays live until it fills or you cancel, within your broker's time limit.",
+    "IOC takes what fills now and cancels the rest. FOK is all of it now, or nothing."
+   ],
+   "facts": [
+    "f74",
+    "f22",
+    "f23",
+    "f24",
+    "f25",
+    "f26",
+    "f27"
+   ]
+  },
+  {
+   "key": "w3",
+   "title": "Short words",
+   "steps": [
+    "A short sale sells shares you don't own. Your broker usually lends them to you, and the loan can carry a fee.",
+    "Before the short, the broker needs a locate: good reason to believe the shares can be borrowed.",
+    "To close a short you buy the shares back. That's covering, entered as buy to cover.",
+    "When many shorts cover at once, their buying pushes price higher. That's a short squeeze."
+   ],
+   "facts": [
+    "f36",
+    "f38",
+    "f39",
+    "f83",
+    "f41",
+    "f49",
+    "f42",
+    "f37",
+    "f70",
+    "f102",
+    "f43",
+    "f44"
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "key": "q01",
+   "skill": "vocab.order_terms",
+   "rung": 1,
+   "format": "mcq",
+   "term": "Market order",
+   "q": "What does a market order tell your broker?",
+   "choices": [
+    "Trade now at the best price available",
+    "Trade only at my limit price or better",
+    "Trade once the price hits my trigger",
+    "Trade at the day's closing price"
+   ],
+   "answer": "Trade now at the best price available",
+   "why": "Trade now at the best price available. It generally fills right away, but the price you get isn't guaranteed.",
+   "lesson_line": "A market order buys you a fill, not a price.",
+   "facts": [
+    "f1",
+    "f2",
+    "f52",
+    "f4",
+    "f8",
+    "f31"
+   ],
+   "wrong": {
+    "Trade only at my limit price or better": "That's a limit order. It protects your price and may never fill.",
+    "Trade once the price hits my trigger": "That's a stop order. It waits for the stop price, then becomes a market order.",
+    "Trade at the day's closing price": "That's an on-close order, a separate instruction you have to choose."
+   }
+  },
+  {
+   "key": "q02",
+   "skill": "vocab.order_terms",
+   "rung": 3,
+   "format": "tf",
+   "term": "Market order",
+   "q": "Unless you choose otherwise, brokers typically enter an order as a market order.",
+   "answer": "True",
+   "why": "True. FINRA and the SEC both say the default is a market order unless you specify otherwise. Check what your own ticket is set to.",
+   "lesson_line": "Read the order type before you send. A market order sets no price limit.",
+   "facts": [
+    "f51",
+    "f34",
+    "f2"
+   ]
+  },
+  {
+   "key": "q03",
+   "skill": "vocab.order_terms",
+   "rung": 4,
+   "format": "fill",
+   "term": "limit",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "I'll pay $25.40 and not a cent more, so I'm using a ___ order.",
+   "bank": [
+    "limit",
+    "market",
+    "stop",
+    "trailing stop",
+    "market-on-close"
+   ],
+   "answer": "limit",
+   "why": "Limit. A buy limit can only fill at your limit price or lower, so $25.40 is the most you'll pay.",
+   "lesson_line": "Name your price with a limit. The trade-off is that it may never fill.",
+   "facts": [
+    "f5",
+    "f6",
+    "f54"
+   ]
+  },
+  {
+   "key": "q04",
+   "skill": "vocab.order_terms",
+   "rung": 4,
+   "format": "tf",
+   "term": "Sell limit",
+   "q": "A sell limit order at $30.00 can fill at $29.90.",
+   "answer": "False",
+   "why": "False. A sell limit only fills at your limit price or higher. $29.90 is below it.",
+   "lesson_line": "Buy limit: your price or lower. Sell limit: your price or higher.",
+   "facts": [
+    "f5",
+    "f54"
+   ]
+  },
+  {
+   "key": "q05",
+   "skill": "vocab.order_terms",
+   "rung": 2,
+   "format": "mcq",
+   "term": "Limit price",
+   "q": "On a limit order, what is the limit price?",
+   "choices": [
+    "The worst price you'll accept",
+    "The price that triggers the order",
+    "The price you're sure to get",
+    "The last trade before you sent it"
+   ],
+   "answer": "The worst price you'll accept",
+   "why": "The worst price you'll accept. If the order fills, you get your limit price or better, never worse.",
+   "lesson_line": "The limit is your line in the sand. Better can happen. Worse can't.",
+   "facts": [
+    "f53",
+    "f54",
+    "f6",
+    "f60"
+   ],
+   "wrong": {
+    "The price that triggers the order": "That's the stop price on a stop or stop-limit order.",
+    "The price you're sure to get": "Nothing is sure. A limit order may not fill at all, and it can fill better.",
+    "The last trade before you sent it": "That's the last price. It sets nothing on your order."
+   }
+  },
+  {
+   "key": "q06",
+   "skill": "vocab.order_terms",
+   "rung": 6,
+   "format": "scenario",
+   "term": "Marketable limit order",
+   "q": "What kind of limit order is that?",
+   "story": "The quote is $10.00 bid, $10.05 ask. You send a buy limit order at $10.10.",
+   "choices": [
+    "Marketable: it can fill right away",
+    "Non-marketable: it waits for a seller",
+    "A stop-limit waiting on a trigger"
+   ],
+   "answer": "Marketable: it can fill right away",
+   "why": "Marketable. Your buy limit is at or above the best ask, so it can trade right away, and never above $10.10.",
+   "lesson_line": "A buy limit at or above the ask is marketable. It acts fast and still caps your price.",
+   "facts": [
+    "f50",
+    "f95",
+    "f5"
+   ],
+   "wrong": {
+    "Non-marketable: it waits for a seller": "That would be a buy limit below the ask, at the bid for example. Yours already reaches the sellers.",
+    "A stop-limit waiting on a trigger": "There's no stop price here. It's a plain limit order, live as soon as you send it."
+   }
+  },
+  {
+   "key": "q07",
+   "skill": "vocab.order_terms",
+   "rung": 1,
+   "format": "mcq",
+   "term": "Stop order",
+   "q": "What does a stop order do?",
+   "choices": [
+    "Becomes a market order at a trigger",
+    "Fills only at your price or better",
+    "Cancels unless it is filled right away",
+    "Sells at exactly the stop price shown"
+   ],
+   "answer": "Becomes a market order at a trigger",
+   "why": "Becomes a market order at a set price. When the stop price is reached, the stop turns into a market order.",
+   "lesson_line": "A stop is a trigger. Once it fires, you get the market.",
+   "facts": [
+    "f7",
+    "f8",
+    "f11",
+    "f4",
+    "f26"
+   ],
+   "wrong": {
+    "Fills only at your price or better": "That's a limit order.",
+    "Cancels unless it is filled right away": "That's immediate-or-cancel, a timing instruction.",
+    "Sells at exactly the stop price shown": "The stop price is a trigger, not a promised fill. The fill can come in worse."
+   }
+  },
+  {
+   "key": "q08",
+   "skill": "vocab.order_terms",
+   "rung": 2,
+   "format": "fill",
+   "term": "stop-loss",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "Another name for a stop order is a ___ order.",
+   "bank": [
+    "stop-loss",
+    "stop-limit",
+    "trailing",
+    "bracket",
+    "market"
+   ],
+   "answer": "stop-loss",
+   "why": "Stop-loss. The SEC says a stop order is also called a stop-loss order. Same order, two names.",
+   "lesson_line": "Stop and stop-loss name the same order.",
+   "facts": [
+    "f7"
+   ]
+  },
+  {
+   "key": "q09",
+   "skill": "vocab.order_terms",
+   "rung": 2,
+   "format": "mcq",
+   "term": "Stop price",
+   "q": "On a stop order, what is the stop price?",
+   "choices": [
+    "The price that sets the order off",
+    "The price your shares will sell at",
+    "The worst price you'll accept",
+    "Your average cost on the trade"
+   ],
+   "answer": "The price that sets the order off",
+   "why": "The price that sets the order off. FINRA calls it the trigger price. Once it's reached, the order goes to market.",
+   "lesson_line": "Stop price means trigger. It is not the price you get.",
+   "facts": [
+    "f60",
+    "f11",
+    "f8",
+    "f54"
+   ],
+   "wrong": {
+    "The price your shares will sell at": "Not promised. The stop turns into a market order, and the fill can be worse.",
+    "The worst price you'll accept": "That's a limit price. A plain stop has no limit.",
+    "Your average cost on the trade": "That's your cost. A stop price sits wherever you choose to put it."
+   }
+  },
+  {
+   "key": "q10",
+   "skill": "vocab.order_terms",
+   "rung": 7,
+   "format": "tf",
+   "term": "Stop-loss order",
+   "q": "A stop-loss order ends your loss right at the stop price.",
+   "answer": "False",
+   "why": "False. A stop-loss is a stop order. At the stop price it becomes a market order. In a fast market or a gap, the fill can be far worse.",
+   "lesson_line": "The name sounds like a promise. It's a trigger, and gaps and fast markets go right through it.",
+   "facts": [
+    "f7",
+    "f11",
+    "f33",
+    "f61",
+    "f88"
+   ]
+  },
+  {
+   "key": "q11",
+   "skill": "vocab.order_terms",
+   "rung": 2,
+   "format": "mcq",
+   "term": "Buy stop",
+   "q": "Which order sits above the current price and buys at market once price rises to it?",
+   "choices": [
+    "Buy stop",
+    "Buy limit",
+    "Sell stop",
+    "Sell limit"
+   ],
+   "answer": "Buy stop",
+   "why": "Buy stop. It's entered above the current price, and when price reaches it, it becomes a market order to buy.",
+   "lesson_line": "Buy stops sit above the price. Use them to buy strength or to protect a short.",
+   "facts": [
+    "f9",
+    "f8",
+    "f56",
+    "f110",
+    "f5",
+    "f50",
+    "f10"
+   ],
+   "wrong": {
+    "Buy limit": "A buy limit fills at your price or lower. Placed above the price, it can fill right away instead of waiting.",
+    "Sell stop": "A sell stop sits below the price, to sell shares you own.",
+    "Sell limit": "A sell limit above the price sells into strength. It doesn't buy."
+   }
+  },
+  {
+   "key": "q12",
+   "skill": "vocab.order_terms",
+   "rung": 4,
+   "format": "scenario",
+   "term": "Buy stop",
+   "q": "Which order does that?",
+   "story": "You sold a stock short at $30. You want out automatically if it rises to $32.",
+   "choices": [
+    "A buy stop at $32",
+    "A sell stop at $32",
+    "A buy limit at $32"
+   ],
+   "answer": "A buy stop at $32",
+   "why": "A buy stop at $32. It sits above the price and turns into a market buy if the stock rises to it, closing the short.",
+   "lesson_line": "Short a stock and your stop is a buy stop above. Set it when you enter.",
+   "facts": [
+    "f9",
+    "f55",
+    "f85",
+    "f5",
+    "f50"
+   ],
+   "wrong": {
+    "A sell stop at $32": "A sell stop sells. You're short, so getting out means buying.",
+    "A buy limit at $32": "A buy limit at $32 sits above the price, so it can buy right away instead of waiting for $32."
+   }
+  },
+  {
+   "key": "q13",
+   "skill": "vocab.order_terms",
+   "rung": 7,
+   "format": "scenario",
+   "term": "Sell stop",
+   "q": "What happened to your shares?",
+   "story": "Your sell stop sits at $45. At 10 a.m. the stock trades down to $44.80 for a few minutes, then rallies. It closes at $47.",
+   "choices": [
+    "The stop sold them on the dip",
+    "Nothing, stops only count at the close",
+    "They sold at the $47 close"
+   ],
+   "answer": "The stop sold them on the dip",
+   "why": "The stop sold them on the dip. A short intraday move can set off a stop, even when the stock closes well above it.",
+   "lesson_line": "A stop doesn't wait for the close. Put it where the trade is wrong, not inside normal noise.",
+   "facts": [
+    "f32",
+    "f62",
+    "f12",
+    "f8"
+   ],
+   "wrong": {
+    "Nothing, stops only count at the close": "A stop triggers when price reaches it during the day. It doesn't wait for the close.",
+    "They sold at the $47 close": "Once the dip set it off, the stop became a market order and sold then, not at the close."
+   }
+  },
+  {
+   "key": "q14",
+   "skill": "vocab.order_terms",
+   "rung": 2,
+   "format": "mcq",
+   "term": "Stop-limit order",
+   "q": "What is a stop-limit order?",
+   "choices": [
+    "A stop that becomes a limit order",
+    "A limit order with no time limit",
+    "A stop that follows the price up",
+    "A stop that fills all or none of it"
+   ],
+   "answer": "A stop that becomes a limit order",
+   "why": "A stop that becomes a limit order. Once the stop price is reached, it can only fill at your limit price or better.",
+   "lesson_line": "Stop-limit: the stop says when, the limit says how bad a price you'll take.",
+   "facts": [
+    "f13",
+    "f63",
+    "f24",
+    "f18",
+    "f29"
+   ],
+   "wrong": {
+    "A limit order with no time limit": "That's a limit order marked good 'til canceled (GTC).",
+    "A stop that follows the price up": "That's a trailing stop.",
+    "A stop that fills all or none of it": "All-or-none is a size condition, not a stop-limit."
+   }
+  },
+  {
+   "key": "q15",
+   "skill": "vocab.order_terms",
+   "rung": 5,
+   "format": "scenario",
+   "term": "Stop-limit order",
+   "q": "Which order says exactly that?",
+   "story": "You own 300 shares, trading at $42. You want out if it falls to $40, but you won't sell below $39.50, even if that means no sale.",
+   "choices": [
+    "Sell stop-limit: stop $40, limit $39.50",
+    "Sell a plain stop at $40, no limit",
+    "Sell limit at $39.50, as a day order",
+    "Sell trailing stop with a $0.50 trail"
+   ],
+   "answer": "Sell stop-limit: stop $40, limit $39.50",
+   "why": "Sell stop-limit, stop $40, limit $39.50. At $40 it becomes a limit order, and it can only sell at $39.50 or better.",
+   "lesson_line": "A stop-limit protects your price. The cost is that it may not sell at all.",
+   "facts": [
+    "f13",
+    "f15",
+    "f14",
+    "f63",
+    "f8",
+    "f5",
+    "f17"
+   ],
+   "wrong": {
+    "Sell a plain stop at $40, no limit": "A plain stop becomes a market order at $40 and can sell below $39.50 in a fast drop.",
+    "Sell limit at $39.50, as a day order": "That's below the price, so it can sell right away. It doesn't wait for $40.",
+    "Sell trailing stop with a $0.50 trail": "That stop follows price up and sits only $0.50 under it. It isn't the $40 trigger you asked for."
+   }
+  },
+  {
+   "key": "q16",
+   "skill": "vocab.order_terms",
+   "rung": 7,
+   "format": "tf",
+   "term": "Stop-limit order",
+   "q": "In a fast drop straight through both prices, a sell stop-limit can leave you still holding the stock.",
+   "answer": "True",
+   "why": "True. Once triggered it's a limit order. If price falls past your limit before it fills, it just sits there unfilled.",
+   "lesson_line": "If getting out matters most, a stop-limit can fail you. Know which you need before the drop.",
+   "facts": [
+    "f14",
+    "f77",
+    "f64",
+    "f101"
+   ]
+  },
+  {
+   "key": "q17",
+   "skill": "vocab.order_terms",
+   "rung": 1,
+   "format": "mcq",
+   "term": "Trailing stop",
+   "q": "What is a trailing stop?",
+   "choices": [
+    "A stop that follows price by a gap",
+    "A stop parked at your entry price",
+    "A stop that only counts at the close",
+    "A stop that turns into a limit order"
+   ],
+   "answer": "A stop that follows price by a gap",
+   "why": "A stop that follows price by a set gap. The gap is a percent or a dollar amount. It moves when price moves your way and holds still when it doesn't.",
+   "lesson_line": "A trailing stop moves one way only: in your favor.",
+   "facts": [
+    "f16",
+    "f17",
+    "f18",
+    "f19",
+    "f13",
+    "f81"
+   ],
+   "wrong": {
+    "A stop parked at your entry price": "A stop at your entry is a fixed level. A trailing stop keeps adjusting.",
+    "A stop that only counts at the close": "Stops trigger when price reaches them during the day.",
+    "A stop that turns into a limit order": "That's a stop-limit. A plain trailing stop becomes a market order. What makes it trailing is that its stop price follows the market."
+   }
+  },
+  {
+   "key": "q18",
+   "skill": "vocab.order_terms",
+   "rung": 4,
+   "format": "numeric",
+   "term": "Trailing stop",
+   "q": "You buy at $30 and set a sell trailing stop $2 below the price. It climbs to $37.40, then dips to $36. Where is your stop now?",
+   "answer": 35.4,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "high - trail",
+     "high": 37.4,
+     "trail": 2
+    }
+   },
+   "prefix": "$",
+   "why": "$35.40. The stop trails the high by $2: $37.40 less $2. On the dip to $36 it holds at $35.40.",
+   "lesson_line": "A trailing stop tracks the high, not your entry.",
+   "facts": [
+    "f18",
+    "f19",
+    "f20"
+   ]
+  },
+  {
+   "key": "q19",
+   "skill": "vocab.order_terms",
+   "rung": 5,
+   "format": "tf",
+   "term": "Trailing stop",
+   "q": "When the stock drops, a sell trailing stop moves down with it.",
+   "answer": "False",
+   "why": "False. It only moves when price moves your way. On a drop it stays fixed, and it triggers if price reaches it.",
+   "lesson_line": "Up, it follows. Down, it waits for you at the line.",
+   "facts": [
+    "f19",
+    "f78"
+   ]
+  },
+  {
+   "key": "q20",
+   "skill": "vocab.order_terms",
+   "rung": 7,
+   "format": "scenario",
+   "term": "Trailing stop",
+   "q": "What's the likely problem?",
+   "story": "You set a sell trailing stop $0.25 below the price. The stock normally swings about $2 in a day. Your plan is to hold for weeks.",
+   "choices": [
+    "Normal swings will stop you out",
+    "It will never trigger on a drop",
+    "It turns into a limit order",
+    "It moves down on red days"
+   ],
+   "answer": "Normal swings will stop you out",
+   "why": "Normal swings will stop you out. Short-term moves can set off a trailing stop, and a trail that tight sits inside the stock's ordinary daily range.",
+   "lesson_line": "Set the trail wider than the stock's normal noise, or noise will take you out.",
+   "facts": [
+    "f21",
+    "f12",
+    "f19",
+    "f81"
+   ],
+   "wrong": {
+    "It will never trigger on a drop": "It triggers when price falls to it. With a trail that tight, that's almost any dip.",
+    "It turns into a limit order": "A plain trailing stop becomes a market order when it triggers.",
+    "It moves down on red days": "It never moves down. On a drop it holds still."
+   }
+  },
+  {
+   "key": "q21",
+   "skill": "vocab.order_terms",
+   "rung": 8,
+   "format": "scenario",
+   "term": "Trailing buy stop",
+   "q": "Where does your buy stop trigger?",
+   "story": "You're short at $40 with a $3 trailing buy stop. The stock falls to a low of $31, then bounces.",
+   "choices": [
+    "At $34",
+    "At $43",
+    "At $37"
+   ],
+   "answer": "At $34",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "low + trail",
+     "low": 31,
+     "trail": 3
+    }
+   },
+   "why": "At $34. A trailing buy stop follows the lowest price down, $3 above it. From the $31 low, that's $34.",
+   "lesson_line": "On a short the trail follows the lows. Every new low pulls your stop down.",
+   "facts": [
+    "f86",
+    "f87",
+    "f17"
+   ],
+   "wrong": {
+    "At $43": "That's $3 above your entry, where it started. It moved down as the stock fell.",
+    "At $37": "That's your entry minus the trail. On a short the stop sits above the price, and it trails the low."
+   }
+  },
+  {
+   "key": "q22",
+   "skill": "vocab.order_terms",
+   "rung": 2,
+   "format": "mcq",
+   "term": "Bracket order",
+   "q": "What is a bracket order?",
+   "choices": [
+    "An entry with linked stop and target",
+    "Two orders where one cancels the other",
+    "A stop that follows the price up",
+    "An order to buy within a price range"
+   ],
+   "answer": "An entry with linked stop and target",
+   "why": "An entry with a stop and target attached. When the entry fills, a take-profit and a stop go in, linked so one filling cancels the other.",
+   "lesson_line": "A bracket puts the whole plan on the ticket: entry, stop, target.",
+   "facts": [
+    "f72",
+    "f73",
+    "f112",
+    "f113",
+    "f71",
+    "f18"
+   ],
+   "wrong": {
+    "Two orders where one cancels the other": "That's an OCO. A bracket uses an OCO for its exits, but it starts with the entry.",
+    "A stop that follows the price up": "That's a trailing stop.",
+    "An order to buy within a price range": "The name sounds like a range, but it isn't one. A bracket is one entry plus a linked stop and target."
+   }
+  },
+  {
+   "key": "q23",
+   "skill": "vocab.order_terms",
+   "rung": 5,
+   "format": "scenario",
+   "term": "Bracket order",
+   "q": "What kind of order did you send?",
+   "story": "You send one ticket: buy 200 shares at $25.40. When it fills, a sell limit at $28.00 and a sell stop at $24.20 go in, linked.",
+   "choices": [
+    "Bracket order",
+    "Trailing stop",
+    "Stop-limit order",
+    "Fill-or-kill"
+   ],
+   "answer": "Bracket order",
+   "why": "Bracket order. The entry fills first, then a take-profit and a stop go in together as an OCO pair.",
+   "lesson_line": "With a bracket, the stop is in the moment you're filled.",
+   "facts": [
+    "f72",
+    "f73",
+    "f113",
+    "f99",
+    "f18",
+    "f13",
+    "f27"
+   ],
+   "wrong": {
+    "Trailing stop": "A trailing stop is one exit that moves with price. This ticket has an entry and two fixed exits.",
+    "Stop-limit order": "A stop-limit is one order with two prices. This is three linked orders.",
+    "Fill-or-kill": "Fill-or-kill is a size and timing condition: all of it now, or cancel."
+   }
+  },
+  {
+   "key": "q24",
+   "skill": "vocab.order_terms",
+   "rung": 1,
+   "format": "mcq",
+   "term": "OCO",
+   "q": "What does an OCO order do?",
+   "choices": [
+    "Two orders: one fills, other cancels",
+    "One order: all of it or none",
+    "One order fills, then triggers a second",
+    "Cancels if not filled right away"
+   ],
+   "answer": "Two orders: one fills, other cancels",
+   "why": "Two orders: one fills, the other cancels. Pair a target and a stop as an OCO and the first to fill kills the other.",
+   "lesson_line": "OCO keeps your two exits from both firing.",
+   "facts": [
+    "f71",
+    "f80",
+    "f96",
+    "f122",
+    "f29",
+    "f98",
+    "f26"
+   ],
+   "wrong": {
+    "One order: all of it or none": "That's all-or-none, a size condition.",
+    "One order fills, then triggers a second": "That's one-triggers-the-other (OTO). Nothing gets canceled.",
+    "Cancels if not filled right away": "That's immediate-or-cancel (IOC)."
+   }
+  },
+  {
+   "key": "q25",
+   "skill": "vocab.order_terms",
+   "rung": 5,
+   "format": "fill",
+   "term": "OCO",
+   "q": "Tap the order link that fits the blank.",
+   "sentence": "My target and my stop cover the same 300 shares, linked as an ___ so one fill kills the other.",
+   "bank": [
+    "OCO",
+    "AON",
+    "IOC",
+    "FOK",
+    "GTC"
+   ],
+   "answer": "OCO",
+   "why": "OCO, one-cancels-the-other. When the target fills, the stop is canceled, so it can't sell shares you no longer own.",
+   "lesson_line": "Two exits on one position: link them as an OCO.",
+   "facts": [
+    "f96",
+    "f97",
+    "f79"
+   ]
+  },
+  {
+   "key": "q26",
+   "skill": "vocab.order_terms",
+   "rung": 9,
+   "format": "scenario",
+   "term": "OCO",
+   "q": "How do you set up the two entries?",
+   "story": "A stock trades at $21. You'll buy a pullback at $20 or a breakout over $22.50, whichever comes first. You want only one position.",
+   "choices": [
+    "OCO of buy limit $20, stop $22.50",
+    "Buy limit $20 and buy stop $22.50",
+    "A bracket order on the $20 buy limit",
+    "One buy stop-limit, $20 to $22.50"
+   ],
+   "answer": "OCO of buy limit $20, stop $22.50",
+   "why": "An OCO with a buy limit at $20 and a buy stop at $22.50. Whichever fills first cancels the other, so you can't end up with both.",
+   "lesson_line": "Two ways in, one position: link the entries as an OCO.",
+   "facts": [
+    "f122",
+    "f123",
+    "f96",
+    "f5",
+    "f9",
+    "f111",
+    "f72"
+   ],
+   "wrong": {
+    "Buy limit $20 and buy stop $22.50": "Separate orders can both fill. A pop to $22.50 and then a drop to $20 doubles your position.",
+    "A bracket order on the $20 buy limit": "A bracket attaches exits to one entry. It doesn't cancel your breakout entry.",
+    "One buy stop-limit, $20 to $22.50": "Buy stops must sit above the price, and $20 is below it. One order can't be both entries."
+   }
+  },
+  {
+   "key": "q27",
+   "skill": "vocab.order_terms",
+   "rung": 3,
+   "format": "mcq",
+   "term": "Time in force",
+   "q": "On an order ticket, what does the time in force set?",
+   "choices": [
+    "How long the order stays live",
+    "The price that triggers it",
+    "How many shares can fill",
+    "When the trade settles"
+   ],
+   "answer": "How long the order stays live",
+   "why": "How long the order stays live. Day and good 'til canceled are the common time-in-force choices.",
+   "lesson_line": "Every order has a clock. Check it before you send.",
+   "facts": [
+    "f74",
+    "f109",
+    "f116",
+    "f59",
+    "f60",
+    "f29"
+   ],
+   "wrong": {
+    "The price that triggers it": "That's a stop price.",
+    "How many shares can fill": "That's the quantity, plus size conditions like all-or-none.",
+    "When the trade settles": "Settlement is a separate clock that runs after the trade."
+   }
+  },
+  {
+   "key": "q28",
+   "skill": "vocab.order_terms",
+   "rung": 1,
+   "format": "tf",
+   "term": "Day order",
+   "q": "If you don't set a time limit, your order is usually a day order.",
+   "answer": "True",
+   "why": "True. Unless you pick a time frame, an order is good only for the trading day you enter it.",
+   "lesson_line": "No time limit chosen means today only.",
+   "facts": [
+    "f22",
+    "f75"
+   ]
+  },
+  {
+   "key": "q29",
+   "skill": "vocab.order_terms",
+   "rung": 7,
+   "format": "scenario",
+   "term": "Day order",
+   "q": "What happens to your order?",
+   "story": "At 2 p.m. you place a day order to buy at a $30.00 limit. It doesn't fill by the close. After hours, the stock trades at $29.80.",
+   "choices": [
+    "Nothing, it expired at the close",
+    "It fills after hours near $29.80",
+    "It waits for tomorrow's open"
+   ],
+   "answer": "Nothing, it expired at the close",
+   "why": "Nothing, it expired at the close. An unfilled day order generally cancels at the end of regular hours. It doesn't carry into after-hours or the next day.",
+   "lesson_line": "A day order dies at the close. If you still want it, enter it again.",
+   "facts": [
+    "f23",
+    "f75"
+   ],
+   "wrong": {
+    "It fills after hours near $29.80": "A day order doesn't carry into the extended-hours session. It was gone at the close.",
+    "It waits for tomorrow's open": "That's what a GTC order would do. A day order doesn't carry to the next day."
+   }
+  },
+  {
+   "key": "q30",
+   "skill": "vocab.order_terms",
+   "rung": 2,
+   "format": "mcq",
+   "term": "GTC",
+   "q": "What does good 'til canceled (GTC) mean on an order?",
+   "choices": [
+    "Live until filled or you cancel",
+    "Live only for today's session",
+    "Fill now or cancel at once",
+    "Live for this week only"
+   ],
+   "answer": "Live until filled or you cancel",
+   "why": "Live until it fills or you cancel. A GTC order carries past today, within your broker's time limit.",
+   "lesson_line": "GTC outlives the day. Keep track of what you've left working.",
+   "facts": [
+    "f24",
+    "f57",
+    "f115",
+    "f75",
+    "f25",
+    "f27",
+    "f26"
+   ],
+   "wrong": {
+    "Live only for today's session": "That's a day order.",
+    "Fill now or cancel at once": "That's fill-or-kill or immediate-or-cancel.",
+    "Live for this week only": "GTC isn't a set week. It runs until it fills or you cancel, within your broker's limit."
+   }
+  },
+  {
+   "key": "q31",
+   "skill": "vocab.order_terms",
+   "rung": 7,
+   "format": "tf",
+   "term": "GTC",
+   "q": "Good 'til canceled works the same at every broker, with the same time limit.",
+   "answer": "False",
+   "why": "False. How long a GTC order can stay open varies by broker. Check your broker's limit before you count on an old order.",
+   "lesson_line": "Good 'til canceled isn't forever. Know your broker's limit.",
+   "facts": [
+    "f25",
+    "f106",
+    "f76",
+    "f131"
+   ]
+  },
+  {
+   "key": "q32",
+   "skill": "vocab.order_terms",
+   "rung": 5,
+   "format": "numeric",
+   "term": "IOC",
+   "q": "You send an immediate-or-cancel (IOC) order to buy 800 shares. Only 300 can fill right away. How many shares get canceled?",
+   "answer": 500,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "ordered - filled_now",
+     "ordered": 800,
+     "filled_now": 300
+    },
+    "round": 0
+   },
+   "why": "500. IOC fills what it can at once and cancels the rest: 800 less 300.",
+   "lesson_line": "IOC takes what's there now and walks away from the rest.",
+   "facts": [
+    "f26",
+    "f107"
+   ]
+  },
+  {
+   "key": "q33",
+   "skill": "vocab.order_terms",
+   "rung": 4,
+   "format": "scenario",
+   "term": "Fill-or-kill",
+   "q": "Which instruction fits?",
+   "story": "You want 5,000 shares. You'll take them only if all 5,000 fill right now. Otherwise, forget it.",
+   "choices": [
+    "Fill-or-kill (FOK)",
+    "Immediate-or-cancel (IOC)",
+    "All-or-none (AON)",
+    "Good 'til canceled (GTC)"
+   ],
+   "answer": "Fill-or-kill (FOK)",
+   "why": "Fill-or-kill. It must fill right away and in full, or the whole order cancels. No partial fill is allowed.",
+   "lesson_line": "FOK: all of it, right now, or nothing.",
+   "facts": [
+    "f27",
+    "f28",
+    "f108",
+    "f26",
+    "f30",
+    "f24"
+   ],
+   "wrong": {
+    "Immediate-or-cancel (IOC)": "IOC keeps whatever part fills right away. You could end up with a partial.",
+    "All-or-none (AON)": "AON wants all of it too, but it can sit and wait. You said now or never.",
+    "Good 'til canceled (GTC)": "GTC is about how long the order lives. It says nothing about filling all at once."
+   }
+  },
+  {
+   "key": "q34",
+   "skill": "vocab.order_terms",
+   "rung": 7,
+   "format": "scenario",
+   "term": "All-or-none",
+   "q": "What happens to each?",
+   "story": "Two orders to buy 1,000 shares. Only 400 are offered at your price right now. Order A is fill-or-kill. Order B is all-or-none.",
+   "choices": [
+    "A cancels; B waits for all 1,000",
+    "Both buy 400 and cancel the rest",
+    "A buys 400; B cancels",
+    "Both wait for all 1,000"
+   ],
+   "answer": "A cancels; B waits for all 1,000",
+   "why": "A cancels, B waits. Fill-or-kill needs everything right now or it's gone. All-or-none also needs everything, but it stays active until it fills or you cancel.",
+   "lesson_line": "FOK and AON both refuse a partial. Only FOK refuses to wait.",
+   "facts": [
+    "f27",
+    "f28",
+    "f29",
+    "f30",
+    "f26"
+   ],
+   "wrong": {
+    "Both buy 400 and cancel the rest": "That's immediate-or-cancel. Neither order here accepts a partial fill.",
+    "A buys 400; B cancels": "Backwards. Fill-or-kill never takes a partial, and all-or-none can wait.",
+    "Both wait for all 1,000": "Fill-or-kill can't wait. It cancels at once if it can't fill in full."
+   }
+  },
+  {
+   "key": "q35",
+   "skill": "vocab.order_terms",
+   "rung": 4,
+   "format": "fill",
+   "term": "market-on-close",
+   "q": "Tap the order that fits the blank.",
+   "sentence": "I want to buy right at today's closing price, so I'll send a ___ order.",
+   "bank": [
+    "market-on-close",
+    "market-on-open",
+    "stop-limit",
+    "trailing stop",
+    "fill-or-kill"
+   ],
+   "answer": "market-on-close",
+   "why": "Market-on-close. It's meant to fill at the closing price, and any part that misses the closing trade is canceled.",
+   "lesson_line": "On-close orders trade the closing price, or not at all.",
+   "facts": [
+    "f31",
+    "f58"
+   ]
+  },
+  {
+   "key": "q36",
+   "skill": "vocab.order_terms",
+   "rung": 1,
+   "format": "mcq",
+   "term": "Fill",
+   "q": "On your order screen, what does a fill mean?",
+   "choices": [
+    "An executed order, or its price",
+    "An order still waiting to trade",
+    "Shares left after a cancel",
+    "The total shares traded today"
+   ],
+   "answer": "An executed order, or its price",
+   "why": "An executed order, or the price it executed at. Filled means it traded.",
+   "lesson_line": "A fill is a done trade. Until then, it's just an order.",
+   "facts": [
+    "f68"
+   ],
+   "wrong": {
+    "An order still waiting to trade": "That's a working order. Nothing has traded yet.",
+    "Shares left after a cancel": "Those didn't fill. A fill is what did trade.",
+    "The total shares traded today": "That's the day's volume, for everyone. A fill is your own order."
+   }
+  },
+  {
+   "key": "q37",
+   "skill": "vocab.order_terms",
+   "rung": 3,
+   "format": "tf",
+   "term": "Fill",
+   "q": "One order can fill at more than one price.",
+   "answer": "True",
+   "why": "True. Part of a large order can fill at one price and the rest at others, when one price doesn't hold enough shares.",
+   "lesson_line": "Big order, thin price: expect several fills and check the average.",
+   "facts": [
+    "f3",
+    "f100"
+   ]
+  },
+  {
+   "key": "q38",
+   "skill": "vocab.order_terms",
+   "rung": 2,
+   "format": "mcq",
+   "term": "Partial fill",
+   "q": "What is a partial fill?",
+   "choices": [
+    "Only part of your order executed",
+    "Your order filled at a worse price",
+    "Your broker refused the order",
+    "Your order filled after the close"
+   ],
+   "answer": "Only part of your order executed",
+   "why": "Only part of your order executed. The rest is canceled or keeps working, depending on the order's instructions.",
+   "lesson_line": "Check the filled shares, not just the order. A partial can leave you half in.",
+   "facts": [
+    "f26",
+    "f100",
+    "f114",
+    "f101",
+    "f117",
+    "f126"
+   ],
+   "wrong": {
+    "Your order filled at a worse price": "That's slippage. An order can fill in full and still fill worse.",
+    "Your broker refused the order": "That's a rejected order. Nothing filled.",
+    "Your order filled after the close": "That's an after-hours fill. It says nothing about how much filled."
+   }
+  },
+  {
+   "key": "q39",
+   "skill": "vocab.order_terms",
+   "rung": 7,
+   "format": "scenario",
+   "term": "Partial fill",
+   "q": "Which word names what happened?",
+   "story": "A trader says after the open: \"Only got 300 of my 1,000 before it ran from my limit.\" Nothing else filled.",
+   "choices": [
+    "Partial fill",
+    "Slippage",
+    "Rejected order",
+    "Fill-or-kill"
+   ],
+   "answer": "Partial fill",
+   "why": "Partial fill. Only part of the order executed at the limit before price moved away. The rest never filled.",
+   "lesson_line": "A limit protects your price, so on a runner you may get only part.",
+   "facts": [
+    "f100",
+    "f6",
+    "f117",
+    "f126",
+    "f28"
+   ],
+   "wrong": {
+    "Slippage": "Slippage is a worse price than expected. Here the price was fine. The size fell short.",
+    "Rejected order": "A rejected order fills nothing. This one got 300 shares.",
+    "Fill-or-kill": "A fill-or-kill order would have canceled. It never takes part of an order."
+   }
+  },
+  {
+   "key": "q40",
+   "skill": "vocab.order_terms",
+   "rung": 7,
+   "format": "scenario",
+   "term": "GTC",
+   "q": "Where do you stand?",
+   "story": "Your GTC limit order to buy 2,000 shares has 600 filled. The stock then moved up and away from your limit.",
+   "choices": [
+    "You own 600; 1,400 are still working",
+    "The order is done; 1,400 were canceled",
+    "You own 2,000 at an average price",
+    "Nothing counts until all 2,000 fill"
+   ],
+   "answer": "You own 600; 1,400 are still working",
+   "why": "You own 600, and 1,400 are still working. A GTC order lasts until it fills in full or is canceled, so the rest waits at your limit.",
+   "lesson_line": "After a partial, decide: leave the rest working or cancel it. Don't forget it's there.",
+   "facts": [
+    "f24",
+    "f100",
+    "f115",
+    "f23",
+    "f26",
+    "f29"
+   ],
+   "wrong": {
+    "The order is done; 1,400 were canceled": "That's how a day order ends at the close, or an IOC right away. A GTC keeps working.",
+    "You own 2,000 at an average price": "Only 600 traded. You don't own shares that never filled.",
+    "Nothing counts until all 2,000 fill": "That's all-or-none. A plain limit order can fill in parts."
+   }
+  },
+  {
+   "key": "q41",
+   "skill": "vocab.order_terms",
+   "rung": 1,
+   "format": "mcq",
+   "term": "Slippage",
+   "q": "What is slippage on a trade?",
+   "choices": [
+    "Your fill vs. the price you expected",
+    "The gap between the bid and the ask",
+    "The day's high minus the day's low",
+    "A price gap between two trading days"
+   ],
+   "answer": "Your fill vs. the price you expected",
+   "why": "Your fill vs. the price you expected. It's the difference between the price you planned on and the price you got.",
+   "lesson_line": "Slippage is the cost of getting filled in a moving market. Plan for it.",
+   "facts": [
+    "f117",
+    "f69",
+    "f88"
+   ],
+   "wrong": {
+    "The gap between the bid and the ask": "That's the spread. Slippage is the gap between your expected price and your fill.",
+    "The day's high minus the day's low": "That's the day's range. It isn't about your order at all.",
+    "A price gap between two trading days": "That's a gap on the chart. A gap can cause slippage on a stop, but it isn't slippage."
+   }
+  },
+  {
+   "key": "q42",
+   "skill": "vocab.order_terms",
+   "rung": 5,
+   "format": "numeric",
+   "term": "Slippage",
+   "q": "You send a market buy for 1,000 shares with the ask at $15.20. They fill at an average of $15.29. What did slippage cost you?",
+   "answer": 90,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(avg_fill - expected) * shares",
+     "avg_fill": 15.29,
+     "expected": 15.2,
+     "shares": 1000
+    }
+   },
+   "prefix": "$",
+   "why": "$90. A market buy generally fills at or near the ask, so $15.20 was the price you expected. You paid an average of $15.29 across 1,000 shares.",
+   "lesson_line": "Size into a thin offer and you pay up. Use a limit when the price matters.",
+   "facts": [
+    "f117",
+    "f47",
+    "f3",
+    "f120"
+   ]
+  },
+  {
+   "key": "q43",
+   "skill": "vocab.order_terms",
+   "rung": 7,
+   "format": "tf",
+   "term": "Slippage",
+   "q": "Slippage can work in your favor.",
+   "answer": "True",
+   "why": "True. Slippage is any difference from the price you expected, and a fill can come in better. It just isn't promised.",
+   "lesson_line": "Hope for better fills. Plan for worse ones.",
+   "facts": [
+    "f118",
+    "f121",
+    "f35"
+   ]
+  },
+  {
+   "key": "q44",
+   "skill": "vocab.order_terms",
+   "rung": 8,
+   "format": "scenario",
+   "term": "Slippage",
+   "q": "Where is slippage on your stop most likely to be worst?",
+   "story": "You hold four stocks, the same size in each. Each has a sell stop the same distance below its price.",
+   "choices": [
+    "A thinly traded stock on big news",
+    "A heavily traded stock on big news",
+    "A thinly traded stock on a quiet day",
+    "A heavily traded stock on a quiet day"
+   ],
+   "answer": "A thinly traded stock on big news",
+   "why": "A thinly traded stock on big news. Slippage is most common when prices move fast and few buyers and sellers are around.",
+   "lesson_line": "Thin and fast is where stops fill worst. Expect it there.",
+   "facts": [
+    "f119",
+    "f61",
+    "f33",
+    "f120"
+   ],
+   "wrong": {
+    "A heavily traded stock on big news": "Fast, but deep. Plenty of orders to fill against, so the fill usually lands nearer the stop than in a thin name.",
+    "A thinly traded stock on a quiet day": "Thin, but calm. With little movement, price has less room to run past your stop.",
+    "A heavily traded stock on a quiet day": "Deep and calm. That's where fills land closest to the stop."
+   }
+  },
+  {
+   "key": "q45",
+   "skill": "vocab.order_terms",
+   "rung": 1,
+   "format": "mcq",
+   "term": "Short sale",
+   "q": "What is a short sale?",
+   "choices": [
+    "Selling borrowed shares, rebuy later",
+    "Selling shares on the day you buy them",
+    "Selling at a loss to cut risk",
+    "Selling part of a winning position"
+   ],
+   "answer": "Selling borrowed shares, rebuy later",
+   "why": "Selling borrowed shares and buying them back later. You profit if the price falls and lose if it rises.",
+   "lesson_line": "Short means you sold first. You still owe the shares back.",
+   "facts": [
+    "f36",
+    "f37",
+    "f82",
+    "f38",
+    "f103"
+   ],
+   "wrong": {
+    "Selling shares on the day you buy them": "That's a day trade. You owned the shares first.",
+    "Selling at a loss to cut risk": "That's taking a loss on shares you own.",
+    "Selling part of a winning position": "That's selling partials, trimming shares you own."
+   }
+  },
+  {
+   "key": "q46",
+   "skill": "vocab.order_terms",
+   "rung": 3,
+   "format": "mcq",
+   "term": "Locate",
+   "q": "Before a short sale, the broker must have reasonable grounds the shares can be borrowed. What's that called?",
+   "choices": [
+    "Locate",
+    "Margin call",
+    "Short interest",
+    "Buy to cover"
+   ],
+   "answer": "Locate",
+   "why": "Locate. Regulation SHO requires it before the short sale, and it has to be documented.",
+   "lesson_line": "No locate, no short. That's the rule, not a broker courtesy.",
+   "facts": [
+    "f41",
+    "f42",
+    "f48",
+    "f49",
+    "f65",
+    "f90",
+    "f45",
+    "f102"
+   ],
+   "wrong": {
+    "Margin call": "A margin call asks you to add cash or securities when your account falls short.",
+    "Short interest": "Short interest is the total of open short positions in a stock.",
+    "Buy to cover": "That's the order that closes a short."
+   }
+  },
+  {
+   "key": "q47",
+   "skill": "vocab.order_terms",
+   "rung": 4,
+   "format": "tf",
+   "term": "Locate",
+   "q": "Your broker can get the locate after your short sale goes through, as long as it's the same day.",
+   "answer": "False",
+   "why": "False. The locate must be made and documented before the short sale, not after.",
+   "lesson_line": "The locate comes first. Then the short.",
+   "facts": [
+    "f42",
+    "f41",
+    "f48",
+    "f65"
+   ]
+  },
+  {
+   "key": "q48",
+   "skill": "vocab.order_terms",
+   "rung": 2,
+   "format": "fill",
+   "term": "borrow",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "You can't sell what you don't have, so a short seller has to ___ the shares first.",
+   "bank": [
+    "borrow",
+    "cover",
+    "own",
+    "buy"
+   ],
+   "answer": "borrow",
+   "why": "Borrow. When you sell short, your broker usually lends you the shares. The loan can carry a fee, from nothing on the most liquid names to a lot on scarce ones.",
+   "lesson_line": "A short starts with a loan of shares. Check what the borrow costs.",
+   "facts": [
+    "f38",
+    "f39",
+    "f82",
+    "f83"
+   ]
+  },
+  {
+   "key": "q49",
+   "skill": "vocab.order_terms",
+   "rung": 4,
+   "format": "mcq",
+   "term": "Hard to borrow",
+   "q": "Your platform flags a stock as hard to borrow. What does that tell you?",
+   "choices": [
+    "Few shares to lend; fees can be high",
+    "Shorting it is banned by federal law",
+    "It can't trade until the next open",
+    "It's too expensive to buy outright"
+   ],
+   "answer": "Few shares to lend; fees can be high",
+   "why": "Few shares to lend, and fees can be high. Hard-to-borrow stocks are scarce for short sales, and a short order may even be refused.",
+   "lesson_line": "Hard to borrow means expensive to short, or impossible. Price it in first.",
+   "facts": [
+    "f124",
+    "f125",
+    "f83",
+    "f126"
+   ],
+   "wrong": {
+    "Shorting it is banned by federal law": "It's about the broker's supply of shares, not a law. You may still short it, at a cost.",
+    "It can't trade until the next open": "Borrow has nothing to do with trading hours.",
+    "It's too expensive to buy outright": "Buying doesn't need a borrow. The flag is about shorting."
+   }
+  },
+  {
+   "key": "q50",
+   "skill": "vocab.order_terms",
+   "rung": 7,
+   "format": "scenario",
+   "term": "Hard to borrow",
+   "q": "Which word most likely explains it?",
+   "story": "You try to short a small, heavily shorted stock. Your broker rejects the order. Yesterday the same order went through.",
+   "choices": [
+    "Hard to borrow",
+    "Partial fill",
+    "Slippage",
+    "Day order"
+   ],
+   "answer": "Hard to borrow",
+   "why": "Hard to borrow. In heavily shorted names the shares to lend can run out, and then the broker can refuse the short.",
+   "lesson_line": "On a crowded short, the borrow can vanish from one day to the next. Check it before you plan the trade.",
+   "facts": [
+    "f126",
+    "f124",
+    "f92",
+    "f104",
+    "f127",
+    "f117",
+    "f23"
+   ],
+   "wrong": {
+    "Partial fill": "Nothing filled. The order was refused.",
+    "Slippage": "Slippage needs a fill. Yours never traded.",
+    "Day order": "A day order is a time limit. It wouldn't block the short."
+   }
+  },
+  {
+   "key": "q51",
+   "skill": "vocab.order_terms",
+   "rung": 5,
+   "format": "tf",
+   "term": "Borrow fee",
+   "q": "Once you're short, the fee to borrow the shares stays fixed until you cover.",
+   "answer": "False",
+   "why": "False. The cost to borrow can change, sometimes sharply and without warning, as supply and demand for the shares shift.",
+   "lesson_line": "Check the borrow rate while you hold a short, not just when you enter.",
+   "facts": [
+    "f84",
+    "f105",
+    "f83"
+   ]
+  },
+  {
+   "key": "q52",
+   "skill": "vocab.order_terms",
+   "rung": 4,
+   "format": "mcq",
+   "term": "Buy to cover",
+   "q": "You're short 200 shares. Which order action closes the position?",
+   "choices": [
+    "Buy to cover",
+    "Sell",
+    "Sell short"
+   ],
+   "answer": "Buy to cover",
+   "why": "Buy to cover. You close a short by buying the shares back and returning them to the lender.",
+   "lesson_line": "Sell short to open. Buy to cover to close.",
+   "facts": [
+    "f102",
+    "f37",
+    "f70"
+   ],
+   "wrong": {
+    "Sell": "Sell is for shares you own. You own none here. You owe 200.",
+    "Sell short": "That sells more borrowed shares and makes the short bigger."
+   }
+  },
+  {
+   "key": "q53",
+   "skill": "vocab.order_terms",
+   "rung": 5,
+   "format": "fill",
+   "term": "cover",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "It ran against my short, so I bought the shares back to ___ at a loss.",
+   "bank": [
+    "cover",
+    "average",
+    "locate",
+    "scale",
+    "hedge"
+   ],
+   "answer": "cover",
+   "why": "Cover. Buying back shares to close a short is covering. Above your short price, that's a loss.",
+   "lesson_line": "Covering is the buy that ends a short.",
+   "facts": [
+    "f70",
+    "f103",
+    "f37"
+   ]
+  },
+  {
+   "key": "q54",
+   "skill": "vocab.order_terms",
+   "rung": 6,
+   "format": "numeric",
+   "term": "Cover",
+   "q": "You short 200 shares at $18.00. A squeeze hits and you buy to cover at $27.40. How much did you lose, before costs?",
+   "answer": 1880,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(cover - short_price) * shares",
+     "cover": 27.4,
+     "short_price": 18,
+     "shares": 200
+    }
+   },
+   "prefix": "$",
+   "why": "$1,880. On a short you lose what the price rose: $27.40 less $18.00, on 200 shares.",
+   "lesson_line": "A short loses as price rises, and price can keep rising. Have your buy stop in.",
+   "facts": [
+    "f103",
+    "f40",
+    "f55"
+   ]
+  },
+  {
+   "key": "q55",
+   "skill": "vocab.order_terms",
+   "rung": 3,
+   "format": "mcq",
+   "term": "Short squeeze",
+   "q": "What is a short squeeze?",
+   "choices": [
+    "Short covering lifts the price fast",
+    "Sellers dumping shares sink the price",
+    "A stock stuck in a tight price range",
+    "A broker forcing longs to sell shares"
+   ],
+   "answer": "Short covering lifts the price fast",
+   "why": "Shorts rushing to cover lift the price. A sharp rise pressures short sellers to buy back, and their buying pushes the price up even more.",
+   "lesson_line": "In a squeeze, the shorts become the buyers.",
+   "facts": [
+    "f43",
+    "f44",
+    "f130",
+    "f91",
+    "f90"
+   ],
+   "wrong": {
+    "Sellers dumping shares sink the price": "That's a selloff, the opposite direction.",
+    "A stock stuck in a tight price range": "That's a tight range. Nobody is being forced to buy.",
+    "A broker forcing longs to sell shares": "That's closer to a margin call. A squeeze is about shorts buying back."
+   }
+  },
+  {
+   "key": "q56",
+   "skill": "vocab.order_terms",
+   "rung": 8,
+   "format": "tf",
+   "term": "Short squeeze",
+   "q": "Heavy short interest means a short squeeze is coming.",
+   "answer": "False",
+   "why": "False. Heavy short interest means many people think the price will fall. It doesn't mean it will rise, and claims that a squeeze is coming can be false.",
+   "lesson_line": "Short interest is a crowd, not a catalyst. I'd want a real reason to own it.",
+   "facts": [
+    "f128",
+    "f93",
+    "f46",
+    "f129"
+   ]
+  },
+  {
+   "key": "q57",
+   "skill": "vocab.order_terms",
+   "rung": 9,
+   "format": "scenario",
+   "term": "Short squeeze",
+   "q": "What's the move?",
+   "story": "You're short a heavily shorted stock. It gaps up on news and keeps climbing as shorts buy back. It's nearing your buy stop.",
+   "choices": [
+    "Let the buy stop take you out",
+    "Cancel the stop and wait it out",
+    "Short more at the higher price",
+    "Wait for the close to decide"
+   ],
+   "answer": "Let the buy stop take you out",
+   "why": "Let the buy stop take you out. In a squeeze, shorts' buying feeds the rise, and a short's loss has no ceiling. The stop is there for exactly this.",
+   "lesson_line": "On a short, honor the buy stop. A squeeze can keep running, and the loss has no ceiling.",
+   "facts": [
+    "f40",
+    "f89",
+    "f44",
+    "f55",
+    "f94",
+    "f32"
+   ],
+   "wrong": {
+    "Cancel the stop and wait it out": "That removes your only exit while the loss has no limit.",
+    "Short more at the higher price": "Adding to a short while shorts are being squeezed makes a losing trade bigger.",
+    "Wait for the close to decide": "A stop doesn't wait for the close, and neither does a squeeze."
+   }
+  },
+  {
+   "key": "q58",
+   "skill": "vocab.order_terms",
+   "rung": 4,
+   "format": "mcq",
+   "term": "Short interest",
+   "q": "What does short interest measure?",
+   "choices": [
+    "Total open short positions in a stock",
+    "Shares sold short in a single day",
+    "The yearly fee to borrow a stock",
+    "Shares the company itself bought back"
+   ],
+   "answer": "Total open short positions in a stock",
+   "why": "Total open short positions in a stock. It's a snapshot on a set date, not today's short selling.",
+   "lesson_line": "Short interest counts positions still open. Daily short volume is a different number.",
+   "facts": [
+    "f45",
+    "f66",
+    "f67",
+    "f105"
+   ],
+   "wrong": {
+    "Shares sold short in a single day": "That's short sale volume. FINRA says it is not the same as short interest.",
+    "The yearly fee to borrow a stock": "That's the borrow fee, usually quoted as a yearly rate.",
+    "Shares the company itself bought back": "That's a buyback. It has nothing to do with shorts."
+   }
+  },
+  {
+   "key": "q59",
+   "skill": "vocab.order_terms",
+   "rung": 7,
+   "format": "scenario",
+   "term": "Stop order",
+   "q": "Next week XYZ trades down to $47.50. What happens?",
+   "story": "Your order screen shows: Sell 200 XYZ, type Stop, stop price $47.50, time in force GTC. XYZ closes today at $49.",
+   "choices": [
+    "It turns into a market sell order",
+    "Nothing, it expired at today's close",
+    "It sells exactly at $47.50 a share",
+    "It becomes a limit order at $47.50"
+   ],
+   "answer": "It turns into a market sell order",
+   "why": "It turns into a market order to sell. GTC kept it live past today, and at the stop price a stop becomes a market order. The fill can come in below $47.50.",
+   "lesson_line": "Read the order type and the time in force together. They decide what happens, and when.",
+   "facts": [
+    "f8",
+    "f24",
+    "f11",
+    "f7",
+    "f23",
+    "f13"
+   ],
+   "wrong": {
+    "Nothing, it expired at today's close": "That's what a day order would do. This one is GTC.",
+    "It sells exactly at $47.50 a share": "The stop price is a trigger, not a promised price.",
+    "It becomes a limit order at $47.50": "That's a stop-limit. The type here is a plain stop."
+   }
+  },
+  {
+   "key": "q60",
+   "skill": "vocab.order_terms",
+   "rung": 8,
+   "format": "scenario",
+   "term": "Buy to cover",
+   "q": "What is this order for?",
+   "story": "Your order screen shows: Buy to cover 100 ABC, type Stop, stop price $31.00. ABC trades at $28.50.",
+   "choices": [
+    "Protecting a short from a rise",
+    "Buying a breakout above $31",
+    "Covering the short right now",
+    "Selling 100 shares at $31"
+   ],
+   "answer": "Protecting a short from a rise",
+   "why": "Protecting a short from a rise. Buy to cover closes a short, and a buy stop above the price only triggers if the stock rises to it.",
+   "lesson_line": "Buy to cover with a stop above the price: that's a short's protective stop.",
+   "facts": [
+    "f102",
+    "f9",
+    "f55",
+    "f37",
+    "f8"
+   ],
+   "wrong": {
+    "Buying a breakout above $31": "A breakout entry would be a plain buy. Buy to cover only closes a short.",
+    "Covering the short right now": "It's a stop. It waits, and only buys if ABC rises to $31.",
+    "Selling 100 shares at $31": "It's a buy, not a sell."
+   }
+  }
+ ],
+ "conflicts": [
+  "GTC time limits differ by broker and by source: the SEC bulletin says the limit 'may vary based on the brokerage firm'; Fidelity's FAQ says open GTC orders expire after 180 calendar days; Schwab says brokers typically allow no more than 90 days; Investopedia says most brokers use 30 to 90 days. No question keys a number. q30's why and w2 say 'within your broker's time limit', and q31 keys only that the limit varies.",
+  "Default order type: FINRA's Order Types page and the SEC's Market Order glossary both say brokers typically enter a market order unless you specify otherwise. Individual platforms' ticket presets were not surveyed, so q02 is keyed on the official wording ('typically') and its why tells the member to check their own ticket.",
+  "Slippage has two published definitions. Nasdaq's glossary (Tier 1): the difference between estimated and actual transaction costs, 'usually' from price difference or spread and commission revisions. Investopedia (Tier 2): expected price vs executed price. Every slippage key uses the price sense, which Nasdaq's 'price difference' covers; the commission is never offered as a wrong answer for what slippage is, so neither definition is contradicted.",
+  "Bracket naming: Schwab and Interactive Brokers call entry-plus-linked-exits a 'bracket'; Fidelity calls the same structure one-triggers-a-one-cancels-the-other (OTOCO). Questions use 'bracket' and cite Fidelity's OTOCO text as the same structure (q23).",
+  "Trailing stop wording: the SEC bulletin defines a trailing stop as 'a stop or stop limit order'; Schwab's advanced-orders article says trailing stops 'are not orders per se' but a way to move stops. The file follows the SEC definition; q17's distractor 'A stop that turns into a limit order' is explained as the stop-limit definition, since what makes a stop trailing is the moving price (a trailing stop-limit exists, per the SEC and thinkorswim pages).",
+  "Outdated lines seen and NOT used: Fidelity's FAQ short-sale example says 'Three trading days later, on settlement date' and Nasdaq's 'Execution' glossary says stocks settle in three days (US settlement has been T+1 since May 2024); the SEC Key Points page says the locate is 'usually done two days before settlement' (written for T+2); Investopedia's squeeze page speaks of short positions' 'expiration date' (a stock short has none). No fact or question relies on them.",
+  "Stop triggers: the SEC says some firms trigger stops on last-sale prices and others on quotes. q13's story has the stock trade at $44.80 for a few minutes, through a $45 sell stop, so the key holds under either standard; no question asks which standard a broker uses.",
+  "Locate sources: the SEC's 'Key Points About Regulation SHO' page (last modified 2022) explains the locate in plain words; the current rule text (eCFR, 17 CFR 242.203(b)(1)) is cited beside it so the rule is checked as it stands today. Both say the same thing: the borrow condition comes before the short sale.",
+  "Rejected short (q50): a broker can also refuse a short order for reasons the unit does not teach (for example the Rule 201 short-sale price test, or an account without margin). None of those is a choice, and among the four words offered only hard to borrow can block a short, so the question asks which word 'most likely' explains it.",
+  "Slippage judgment (q44): the sources name two drivers, fast markets (FINRA, SEC, Investopedia) and thin liquidity (Investopedia, SEC 'prices of available liquidity'). No source ranks them, so the key is the only choice with both; each wrong choice carries one driver or neither, and its note says which."
+ ],
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "notes": "Each step checked against the SEC order-types bulletin (f1, f2, f4, f6, f7, f8, f13, f14) and FINRA f52; quotes read in context.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "Day default, close cancel, GTC broker limit, IOC and FOK match the SEC bulletin (f22-f27) and Schwab f74.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "Short sale, broker loan and fee, locate (SEC Reg SHO page via WebFetch; current eCFR 242.203(b)(1)), cover and squeeze match the cited text.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q01": {
+   "status": "pass",
+   "notes": "Key = SEC market order definition (f1, f2). Each wrong choice is the SEC's own definition of limit, stop, on-close. | variety rewrite checked 2026-11-10: lengthened two wrong choices so the right one is not the longest",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q02": {
+   "status": "pass",
+   "notes": "FINRA Order Types and the Investor.gov glossary (both current) state the market-order default. Hedged 'typically'; why tells the member to check their own ticket.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q03": {
+   "status": "pass",
+   "notes": "SEC f5: a buy limit fills at the limit or lower. Only 'limit' fits the bank.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q04": {
+   "status": "pass",
+   "notes": "SEC f5: a sell limit fills at the limit or higher; $29.90 is below $30.00.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q05": {
+   "status": "pass",
+   "notes": "FINRA f53/f54: that price or better, so the limit is the worst price accepted. Wrong choices checked (stop price, not guaranteed, last price).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q06": {
+   "status": "pass",
+   "notes": "Reg NMS Rule 600 (current eCFR) and Schwab glossary: a buy limit at or above the best offer is marketable; $10.10 >= $10.05 ask.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q07": {
+   "status": "pass",
+   "notes": "SEC f7/f8: a stop becomes a market order at the stop price. Wrong choices = limit, IOC, and the stop-price myth (f11). | variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q08": {
+   "status": "pass",
+   "notes": "SEC f7: a stop order is 'also referred to as a stop-loss order'.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q09": {
+   "status": "pass",
+   "notes": "FINRA f60 ('trigger' price) and SEC f11 (not a guaranteed execution price).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q10": {
+   "status": "pass",
+   "notes": "Key matches SEC f11/f33, FINRA f61, Schwab f88 (gap). Split a 23-word why sentence in two.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q11": {
+   "status": "pass",
+   "notes": "SEC f9 buy stop above price, f8 becomes market. A buy limit above the price is marketable (f50), so its wrong note holds.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q12": {
+   "status": "pass",
+   "notes": "SEC f9 and FINRA f55: a buy stop above the price limits a short's loss. Story implies price below $32.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q13": {
+   "status": "pass",
+   "notes": "SEC f32, FINRA f62. A trade at $44.80 puts both last sale and bid at or under $45, so the key holds under either trigger standard the SEC describes.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q14": {
+   "status": "pass",
+   "notes": "SEC f13, FINRA f63. Distractors are GTC, trailing stop and AON definitions. | variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q15": {
+   "status": "pass",
+   "notes": "Mirrors the SEC example (stop $3.00, limit $2.50). A sell limit at $39.50 under a $42 price is marketable and sells at once; notes correct. | variety rewrite checked 2026-11-10: restored the Sell prefix on the right choice, which was the only one without it",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q16": {
+   "status": "pass",
+   "notes": "SEC f14, Schwab f77 ('risks missing the market altogether'), Fidelity f101.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q17": {
+   "status": "pass",
+   "notes": "Key = SEC f16-f19. SEC allows a trailing stop-limit, so the 'turns into a limit order' note now says a PLAIN trailing stop becomes a market order (thinkorswim f81 added). | variety rewrite checked 2026-11-10",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q18": {
+   "status": "pass",
+   "notes": "Recomputed 37.40 - 2 = 35.40; the $36 dip stays above it, no trigger. Matches the SEC f20 example and Fidelity's $2-trail example.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q19": {
+   "status": "pass",
+   "notes": "SEC f19, Schwab f78: the trailing stop holds on a drop.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q20": {
+   "status": "pass",
+   "notes": "SEC f21: short-term moves trigger trailing stops. Sound practice (trail inside the normal range gets hit). Notes checked vs f19, f81.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q21": {
+   "status": "pass",
+   "notes": "Schwab f86/f87: a trailing buy stop trails the low. Recomputed 31 + 3 = 34; $43 (start) and $37 (wrong side) checked.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q22": {
+   "status": "pass",
+   "notes": "Schwab f72/f73 and IBKR f112/f113 agree: an entry plus linked opposite-side exits. The OCO distractor is another term's definition. | variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q23": {
+   "status": "pass",
+   "notes": "Story matches IBKR f113, Schwab f73 and Fidelity OTOCO f99. Distractors clearly different orders.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q24": {
+   "status": "pass",
+   "notes": "Four sources agree (Schwab f71, thinkorswim f80, Fidelity f96, Investopedia f122). OTO, AON, IOC distractors from their own definitions.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q25": {
+   "status": "pass",
+   "notes": "Fidelity f96/f97, Schwab f79 (stop canceled so it can't open a short).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q26": {
+   "status": "pass",
+   "notes": "Key follows from the OCO definition (f122, f96); Investopedia shows OCO entries for retracements and breakouts. Fixed f123's claim, which said more than its quote. | variety rewrite checked 2026-11-10",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q27": {
+   "status": "pass",
+   "notes": "Schwab f74, Fidelity f109, IBKR f116. Settlement distractor makes no dated claim. | variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q28": {
+   "status": "pass",
+   "notes": "SEC f22: unless a time frame is specified, orders are Day orders.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q29": {
+   "status": "pass",
+   "notes": "SEC f23: an unfilled day order cancels at the regular close, no carry into extended hours or the next day.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q30": {
+   "status": "pass",
+   "notes": "SEC f24, FINRA f57, IBKR f115; broker time limit per SEC f25. | variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q31": {
+   "status": "pass",
+   "notes": "SEC f25: the limit varies by broker. Fidelity 180 days vs Schwab 'typically no more than 90' shows it. No number keyed.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q32": {
+   "status": "pass",
+   "notes": "SEC f26, Fidelity f107. Recomputed 800 - 300 = 500.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q33": {
+   "status": "pass",
+   "notes": "SEC f27/f28/f30, Fidelity f108. IOC and AON notes correct.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q34": {
+   "status": "pass",
+   "notes": "SEC f27-f30: FOK cancels at once with no partial; AON stays active until executed or canceled.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q35": {
+   "status": "pass",
+   "notes": "SEC f31 (On Close), FINRA f58.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q36": {
+   "status": "pass",
+   "notes": "Nasdaq glossary f68. Reworded a circular wrong note to 'a working order'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q37": {
+   "status": "pass",
+   "notes": "SEC f3 (parts of a large order at different prices), Fidelity f100.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q38": {
+   "status": "pass",
+   "notes": "SEC f26, Fidelity f100/f101, IBKR f114. Slippage, rejected, after-hours notes correct.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q39": {
+   "status": "pass",
+   "notes": "Fidelity f100, SEC f6. Slippage and FOK notes correct.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q40": {
+   "status": "pass",
+   "notes": "SEC f24: GTC lasts until executed in full or canceled; a plain limit fills in parts (f100).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q41": {
+   "status": "pass",
+   "notes": "Investopedia f117 (price sense) and Nasdaq f69 (Tier 1, 'price difference'). Split recorded in conflicts; no other broker page found. Fixed f69's claim ('mostly from price') to match its quote. | variety rewrite checked 2026-11-10",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q42": {
+   "status": "pass",
+   "notes": "Recomputed (15.29 - 15.20) x 1,000 = 90; SEC f47 makes the ask the expected price. Why said 'on every one of 1,000 shares' for an average fill; reworded.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q43": {
+   "status": "pass",
+   "notes": "Investopedia f118/f121; SEC price improvement f35.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q44": {
+   "status": "pass",
+   "notes": "Investopedia f119 (volatile or low-liquidity), FINRA f61, SEC f33. 'Most likely' hedge; judgment sound.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q45": {
+   "status": "pass",
+   "notes": "SEC f36/f37, Schwab f82. Added f103 (cover above the short price is a loss) to back the why. | variety rewrite checked 2026-11-10",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q46": {
+   "status": "pass",
+   "notes": "SEC Reg SHO page (WebFetch; sec.gov refuses curl) and current eCFR 242.203(b)(1).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q47": {
+   "status": "pass",
+   "notes": "SEC f42: the locate is made and documented prior to the short sale.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q48": {
+   "status": "pass",
+   "notes": "Schwab f82 ('borrowing ... and then selling'), SEC f38, borrow cost f83.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q49": {
+   "status": "pass",
+   "notes": "Investopedia f124-f126, Schwab f83. The 'banned by law' note hedges with 'may'. | variety rewrite checked 2026-11-10: restored 'can be high' to match the sources (higher fees, not always high)",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q50": {
+   "status": "pass",
+   "notes": "Investopedia f126/f127, Schwab f92. Other refusal causes (Rule 201, no margin) are not choices; 'most likely' hedge. Distractors weak but wrong.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q51": {
+   "status": "pass",
+   "notes": "Schwab f84, Fidelity f105: the fee can change, sometimes sharply.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q52": {
+   "status": "pass",
+   "notes": "Fidelity f102, SEC f37.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q53": {
+   "status": "pass",
+   "notes": "Nasdaq f70, Fidelity f103.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q54": {
+   "status": "pass",
+   "notes": "Recomputed (27.40 - 18.00) x 200 = 1,880. Fidelity f103.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q55": {
+   "status": "pass",
+   "notes": "SEC Reg SHO FAQ 7 (f43/f44), Investopedia f130. Tight-range note catches the other 'squeeze'. | variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q56": {
+   "status": "pass",
+   "notes": "Investopedia f128/f129, SEC f46 (in context: promoters' squeeze claims may be false).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q57": {
+   "status": "pass",
+   "notes": "SEC f40 (unlimited loss), Schwab f89, FINRA f55. Honoring the stop is sound risk practice.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q58": {
+   "status": "pass",
+   "notes": "SEC f45, FINRA f66/f67 (short volume is not short interest). | variety rewrite checked 2026-11-10: 'per day' contradicted the sources' yearly rates",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q59": {
+   "status": "pass",
+   "notes": "SEC f8, f24: GTC keeps it live past today; at the stop price it goes to market. | variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q60": {
+   "status": "pass",
+   "notes": "Old key 'Capping the loss' held only if the short was entered below $31; SEC f9 says buy stops also protect a short's profit, so the 'taking profit' distractor could be right. Rekeyed to 'Protecting a short from a rise'; replaced that distractor with 'Covering the short right now'; f9's claim now keeps 'or protect a profit'. | variety rewrite checked 2026-11-10",
+   "fixed": true,
+   "by": "checker"
+  }
+ }
+}

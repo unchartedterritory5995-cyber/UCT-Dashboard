@@ -1,0 +1,3341 @@
+{
+ "unit": "SET.15",
+ "track": "SET",
+ "title": "EMA Crossback",
+ "teaches": "The EMA Crossback as we trade it: the first pullback into the rising short averages after a stock has turned up out of a decline (a Wedge Pop) or broken out, a hold day that reaches the zone and closes at or above the 20 EMA in the upper half of its range, the buy is the trade a few cents over the hold day's high within three sessions, the stop sits a few cents under the hold day's low, a third comes off at 3R and 5R with the rest on the trail, and a loss at the stop is the system working.",
+ "skills": [
+  {
+   "id": "setup.ema_crossback",
+   "title": "EMA Crossback"
+  }
+ ],
+ "as_of": "2026-11-10",
+ "card": "docs/study/setups/criteria/14-ema-crossback.json",
+ "sources": [
+  {
+   "id": "k1",
+   "tier": 2,
+   "publisher": "TraderLion",
+   "title": "How to Buy Stocks on Pullbacks with the EMA Crossback Strategy (Oliver Kell, 2024-08-20)",
+   "url": "https://web.archive.org/web/20250122081846/https://traderlion.com/technical-analysis/chart-patterns/ema-crossback/",
+   "accessed": "2026-11-09",
+   "why_reliable": "Oliver Kell, who named and defined the pattern, under his own byline on an established trading-education site; cited by its Internet Archive capture because the live page refuses automated clients. It may be staff-edited."
+  },
+  {
+   "id": "k2",
+   "tier": 2,
+   "publisher": "TraderLion",
+   "title": "Cycle Of Price Action (Oliver Kell, 2024-09-10)",
+   "url": "https://web.archive.org/web/20250623154156/https://traderlion.com/technical-analysis/chart-patterns/cycle-of-price-action-by-oliver-kell/",
+   "accessed": "2026-11-09",
+   "why_reliable": "Oliver Kell under his own byline, cited by its Internet Archive capture because the live page refuses automated clients."
+  },
+  {
+   "id": "k3",
+   "tier": 2,
+   "publisher": "TraderLion",
+   "title": "Downside EMA Crossback: Sell Short into Resistance (Oliver Kell, 2024-06-11)",
+   "url": "https://web.archive.org/web/20241004135245/https://traderlion.com/technical-analysis/chart-patterns/downside-ema-crossback-sell-short-into-resistance/",
+   "accessed": "2026-11-09",
+   "why_reliable": "Oliver Kell under his own byline, cited by its Internet Archive capture. It is the short mirror, and it holds the one rule that also defines the long side."
+  },
+  {
+   "id": "k4",
+   "tier": 2,
+   "publisher": "TraderLion",
+   "title": "Wedge Pop: The Money Pattern (Oliver Kell, 2024-09-11)",
+   "url": "https://web.archive.org/web/20241006111805/https://traderlion.com/technical-analysis/chart-patterns/wedge-pop-the-money-pattern/",
+   "accessed": "2026-11-09",
+   "why_reliable": "Oliver Kell under his own byline, cited by its Internet Archive capture."
+  },
+  {
+   "id": "k5",
+   "tier": 2,
+   "publisher": "TraderLion",
+   "title": "Base n' Break (Oliver Kell, 2024-05-11)",
+   "url": "https://web.archive.org/web/20241006112034/https://traderlion.com/technical-analysis/chart-patterns/base-n-break-how-to-catch-breakouts/",
+   "accessed": "2026-11-09",
+   "why_reliable": "Oliver Kell under his own byline, cited by its Internet Archive capture."
+  },
+  {
+   "id": "k6",
+   "tier": 2,
+   "publisher": "Oliver Kell (The Weeklies Watch)",
+   "title": "Healthy rest/consolidation (2023-04-03)",
+   "url": "https://weeklieswatch.substack.com/p/healthy-restconsolidation",
+   "accessed": "2026-11-09",
+   "why_reliable": "Kell's own newsletter in his unedited words, the best evidence of how he applies the term."
+  },
+  {
+   "id": "k7",
+   "tier": 2,
+   "publisher": "Stockbsessed (Oliver Kell interview)",
+   "title": "Oliver Kell Interview: The Mind & System Behind a +941.10% Year (2023-04-01)",
+   "url": "https://stockbsessed.substack.com/p/oliver-kell-interview-the-mind-and",
+   "accessed": "2026-11-09",
+   "why_reliable": "Kell's written answers in the first person; the interviewer only wrote the introduction."
+  },
+  {
+   "id": "k8",
+   "tier": 2,
+   "publisher": "TraderLion",
+   "title": "Oliver Kell's EMA Crossback Uncovers Low-Risk Entries (TraderLion staff, 2025-05-22)",
+   "url": "https://web.archive.org/web/20250702020000/https://traderlion.com/technical-analysis/trading-the-ema-crossback/",
+   "accessed": "2026-11-09",
+   "why_reliable": "TraderLion staff describing Kell's method (not Kell's own words), cited by its Internet Archive capture. It supports and never keys alone."
+  },
+  {
+   "id": "c1",
+   "tier": 3,
+   "publisher": "UCT setup criteria card",
+   "title": "EMA Crossback criteria card (docs/study/setups/criteria/14-ema-crossback.json, as of 2026-11-09)",
+   "url": "repo:docs/study/setups/criteria/14-ema-crossback.json",
+   "accessed": "2026-11-10"
+  },
+  {
+   "id": "d1",
+   "tier": 3,
+   "publisher": "UCT setup research (examples read from our own daily bars)",
+   "title": "EMA Crossback dossier, sections 13 and 14: examples, failures and near-misses from our data",
+   "url": "repo:docs/study/setups/research/14-ema-crossback.md#13-examples-from-our-data",
+   "accessed": "2026-11-10"
+  },
+  {
+   "id": "h1",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
+   "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
+   "accessed": "2026-11-10"
+  }
+ ],
+ "facts": [
+  {
+   "id": "h01",
+   "source": "h1",
+   "quote": "Stop first (by default a few cents under the day's low or the prior day's low, F62); the size comes from the stop; if the honest stop does not fit the risk, skip the trade.",
+   "claim": "A3: stop first, a few cents under the day's low; the size comes from the stop; if the honest stop does not fit, skip."
+  },
+  {
+   "id": "h02",
+   "source": "h1",
+   "quote": "The stop is the exit. It only moves up, never down or wider. The one exception is the gap rule (B20).",
+   "claim": "A4: the stop is the exit; it only moves up, never wider; the gap rule is the one exception."
+  },
+  {
+   "id": "h03",
+   "source": "h1",
+   "quote": "Shares = account × risk % ÷ (entry − stop), rounded down, then capped: the size is the SMALLER of the risk-based size and the position cap",
+   "claim": "A5: shares are account times risk percent, divided by entry minus stop, rounded down, then capped."
+  },
+  {
+   "id": "h03b",
+   "source": "h1",
+   "quote": "The full size at one price with one stop; no adding.",
+   "claim": "A5: the full size at one price with one stop; no adding."
+  },
+  {
+   "id": "h04",
+   "source": "h1",
+   "quote": "\"I almost never take a loss greater than 3%\": the stop usually sits within about 3% of the buy (a loss on the position, not the account).",
+   "claim": "A13: the stop usually sits within about 3% of the buy."
+  },
+  {
+   "id": "h05",
+   "source": "h1",
+   "quote": "Move the stop to breakeven at 2R to 5R, ideally. The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
+   "claim": "B19: breakeven between 2R and 5R; the hard rule for the first trim is a third at 3R."
+  },
+  {
+   "id": "h06",
+   "source": "h1",
+   "quote": "A gap against the stop: the first 30 minutes of the gap-down day decide. The low of the first 30-minute bar is the new stop.",
+   "claim": "B20: on a gap through the stop, the first 30-minute low is the new stop."
+  },
+  {
+   "id": "h07",
+   "source": "h1",
+   "quote": "With a ceiling: if the first 30 minutes take the loss past 2R, get out.",
+   "claim": "B20's ceiling: if the first 30 minutes take the loss past 2R, get out."
+  },
+  {
+   "id": "h08",
+   "source": "h1",
+   "quote": "No new buys in the 3 days before an earnings report; hold through a report only if the trade is up 5R.",
+   "claim": "B22: no new buys in the 3 days before a report; hold through one only if up 5R."
+  },
+  {
+   "id": "h09",
+   "source": "h1",
+   "quote": "Trade only stocks at $10 or more that trade at least $20 million a day.",
+   "claim": "B23: only stocks at $10 or more trading at least $20 million a day."
+  },
+  {
+   "id": "h10",
+   "source": "h1",
+   "quote": "The 200-day line: no longs below the 200-day simple moving average, unless it is a parabolic long; shorts only below the 200-day, never above it unless it is a parabolic short.",
+   "claim": "B26: no longs below the 200-day simple moving average, except a parabolic long."
+  },
+  {
+   "id": "h11",
+   "source": "h1",
+   "quote": "No chasing: never buy more than 4% above the buy point.",
+   "claim": "C28: never buy more than 4% above the buy point."
+  },
+  {
+   "id": "h14",
+   "source": "h1",
+   "quote": "Buy leaders: an RS rating of 80 or more, in one of the strongest groups, except parabolic and mean-reversion trades.",
+   "claim": "C31: buy leaders, an RS rating of 80 or more in a strong group."
+  },
+  {
+   "id": "h15",
+   "source": "h1",
+   "quote": "Time stop: a trade still under 1R after 10 trading days is sold, freeing the money.",
+   "claim": "C33: a trade still under 1R after 10 trading days is sold."
+  },
+  {
+   "id": "h21",
+   "source": "h1",
+   "quote": "Default trail: the 10-day average for fast movers, the 21-day for steadier ones; sell on a close below it.",
+   "claim": "E52: trail the 10-day for fast movers, the 21-day for steadier ones; sell on a close below it."
+  },
+  {
+   "id": "h22",
+   "source": "h1",
+   "quote": "Entries are market orders.",
+   "claim": "E57: entries are market orders."
+  },
+  {
+   "id": "h24",
+   "source": "h1",
+   "quote": "The stop sits a few cents under the day's low, not exactly on it.",
+   "claim": "F62: the stop sits a few cents under the day's low."
+  },
+  {
+   "id": "h25",
+   "source": "h1",
+   "quote": "If a stock opens above a trim level (3R, 5R), take that trim at the open.",
+   "claim": "F63: a trim level the day opens past is taken at the open."
+  },
+  {
+   "id": "h26",
+   "source": "h1",
+   "quote": "The market reading as a guide (A10): Green, full risk per grade and up to 10 positions; Yellow, smaller and fewer; Orange, only A+ setups; Red, mostly cash and shorts.",
+   "claim": "F65: Green full risk; Yellow smaller and fewer; Orange only A+; Red mostly cash and shorts."
+  },
+  {
+   "id": "h28",
+   "source": "h1",
+   "quote": "After a stop-out, buy again only if the setup triggers again, as a new trade with its own stop and every rule.",
+   "claim": "B21: after a stop-out, buy again only on a new trigger, as a new trade."
+  },
+  {
+   "id": "h29",
+   "source": "h1",
+   "quote": "The same stock: at most 3 tries in a week and 6 in a month.",
+   "claim": "E56: at most 3 tries in a week and 6 in a month on one stock."
+  },
+  {
+   "id": "h30",
+   "source": "h1",
+   "quote": "In a Red market: mostly cash, plus shorts below the 200-day.",
+   "claim": "D46: in a Red market, mostly cash."
+  },
+  {
+   "id": "h36",
+   "source": "h1",
+   "quote": "Never take a trade from an alert, a post or a video without your own entry, stop and size by these rules.",
+   "claim": "F66: never take a trade from an alert, a post or a video without your own entry, stop and size."
+  },
+  {
+   "id": "h39",
+   "source": "h1",
+   "quote": "Every planned buy has its entry, stop and size written down before the market opens.",
+   "claim": "D39: entry, stop and size written down before the open."
+  },
+  {
+   "id": "e01",
+   "source": "k1",
+   "quote": "The EMA Crossback refers to the first time the stock price retests its moving averages after a strong upward move, called a “Wedge Pop.”",
+   "claim": "Kell: the crossback is the first retest of the averages after a Wedge Pop."
+  },
+  {
+   "id": "e02",
+   "source": "k1",
+   "quote": "The EMA Crossback works best when the price gently moves sideways, allowing the moving averages to rise to the price.",
+   "claim": "Kell: it works best when price drifts sideways and the averages rise to meet it."
+  },
+  {
+   "id": "e03",
+   "source": "k1",
+   "quote": "But always wait for confirmation that buyers are stepping in before making your trade.",
+   "claim": "Kell: wait for confirmation that buyers are stepping in."
+  },
+  {
+   "id": "e04",
+   "source": "k1",
+   "quote": "The EMA Crossback happens after an initial pop off the lows and marks the first pullback in the cycle.",
+   "claim": "Kell: the crossback marks the first pullback in the cycle."
+  },
+  {
+   "id": "e05",
+   "source": "k2",
+   "quote": "After the Wedge Pop, the stock often tests its moving averages again, known as the EMA Crossback",
+   "claim": "Kell: after the Wedge Pop the stock tests its averages again, the EMA Crossback."
+  },
+  {
+   "id": "e06",
+   "source": "k2",
+   "quote": "The Wedge Pop is the first point where a stock rallies back through its moving averages after a Reversal Extension.",
+   "claim": "Kell: the Wedge Pop is the first rally back through the averages after a Reversal Extension."
+  },
+  {
+   "id": "e07",
+   "source": "k3",
+   "quote": "When the 10-day exponential moving average is below the 20-day, there is no reason to be long the stock.",
+   "claim": "Kell: with the fast average under the 20-day there is no reason to be long."
+  },
+  {
+   "id": "e08",
+   "source": "k4",
+   "quote": "Many traders mistakenly believe the Wedge Pop is simply about crossing the moving averages. Instead, focus on price bars and volume.",
+   "claim": "Kell: a Wedge Pop is not just a cross of the averages; focus on price bars and volume."
+  },
+  {
+   "id": "e09",
+   "source": "k5",
+   "quote": "The Base n’ Break is another pullback into the moving averages after the EMA Crossback.",
+   "claim": "Kell: the Base n' Break is another pullback after the EMA Crossback."
+  },
+  {
+   "id": "e10",
+   "source": "k6",
+   "quote": "DKNG-Pulling back to the Crossback after a nice breakout.",
+   "claim": "Kell: a crossback can come after a breakout."
+  },
+  {
+   "id": "e11",
+   "source": "k7",
+   "quote": "It may only be 3-4% above the moving averages but that was too much.",
+   "claim": "Kell: 3-4% above the averages was too much."
+  },
+  {
+   "id": "e12",
+   "source": "k7",
+   "quote": "Buying in pieces, not trading or reducing size during index corrections (below 20EMA), and being aware of the overall environment are the key elements to keep me out of trouble.",
+   "claim": "Kell: size down or stand aside during index corrections below the 20EMA."
+  },
+  {
+   "id": "e13",
+   "source": "k8",
+   "quote": "The cleaner and shallower the pullback, the better",
+   "claim": "TraderLion on Kell: the cleaner and shallower the pullback, the better."
+  },
+  {
+   "id": "e14",
+   "source": "k8",
+   "quote": "A slow drift into the EMAs is ideal.",
+   "claim": "TraderLion on Kell: a slow drift into the averages is ideal."
+  },
+  {
+   "id": "x01",
+   "source": "c1",
+   "quote": "the Crossback is the pullback after it that holds the averages with the 9 still above the 20.",
+   "claim": "The Crossback is the pullback after the pop that holds the averages with the 9 still above the 20."
+  },
+  {
+   "id": "x02",
+   "source": "c1",
+   "quote": "Mixing it up with the Wedge Pop: one close back over the 20 EMA is a pop setting up, not a crossback",
+   "claim": "A named mistake: one close back over the 20 EMA is a pop setting up, not a crossback."
+  },
+  {
+   "id": "x03",
+   "source": "c1",
+   "quote": "The hold day: the first session of the pullback whose low reaches the 9/20 zone and which closes at or above the 20-day EMA in the upper half of its range.",
+   "claim": "The hold day reaches the 9/20 zone and closes at or above the 20 EMA in the upper half of its range."
+  },
+  {
+   "id": "x04",
+   "source": "c1",
+   "quote": "Depth: the hold day's low trades into the zone between the 9-day EMA and about 1% under the 20-day EMA, and the close is at or above the 20-day EMA.",
+   "claim": "Depth: the hold day's low trades into the zone, down to about 1% under the 20 EMA."
+  },
+  {
+   "id": "x05",
+   "source": "c1",
+   "quote": "a sideways or slow drift",
+   "claim": "The pullback is a sideways or slow drift into the averages."
+  },
+  {
+   "id": "x06",
+   "source": "c1",
+   "quote": "buy at market when price trades a few cents above the hold day's high",
+   "claim": "The buy: at market once price trades a few cents above the hold day's high."
+  },
+  {
+   "id": "x07",
+   "source": "c1",
+   "quote": "Before the trigger: the hold day's low breaks. The setup is off until a new hold day forms.",
+   "claim": "The hold day's low breaking before the trigger turns the setup off until a new hold day forms."
+  },
+  {
+   "id": "x08",
+   "source": "c1",
+   "quote": "Before the trigger: no trigger within 3 sessions of the hold day. The setup is stale.",
+   "claim": "No trigger within 3 sessions of the hold day makes the setup stale."
+  },
+  {
+   "id": "x09",
+   "source": "c1",
+   "quote": "Before the trigger: a close under the 20-day EMA on above-average volume.",
+   "claim": "A close under the 20 EMA on above-average volume ends it before the trigger."
+  },
+  {
+   "id": "x10",
+   "source": "c1",
+   "quote": "The 9-day EMA crosses under the 20-day EMA. Kell: there is no reason to be long the stock.",
+   "claim": "If the 9 EMA crosses under the 20 EMA, there is no reason to be long."
+  },
+  {
+   "id": "x11",
+   "source": "c1",
+   "quote": "It is not the first test (a Base n' Break, graded lower), or it comes after an Exhaustion Extension (then the next stage in Kell's cycle is a Wedge Drop, not a crossback).",
+   "claim": "Not the first test is a Base n' Break; after an Exhaustion Extension the next stage is a Wedge Drop."
+  },
+  {
+   "id": "x12",
+   "source": "c1",
+   "quote": "The hold day closes above the 200-day SMA. A crossback is not a parabolic long, so B26 has no exception here.",
+   "claim": "The hold day closes above the 200-day; B26 has no exception for a crossback."
+  },
+  {
+   "id": "x13",
+   "source": "c1",
+   "quote": "A leader: RS rating 80 or more, in a strong group.",
+   "claim": "A leader: RS rating 80 or more, in a strong group."
+  },
+  {
+   "id": "x14",
+   "source": "c1",
+   "quote": "A few cents under the hold day's low.",
+   "claim": "The stop: a few cents under the hold day's low."
+  },
+  {
+   "id": "x15",
+   "source": "c1",
+   "quote": "Skip if the fill is more than 4% above the trigger.",
+   "claim": "Skip if the fill is more than 4% above the trigger."
+  },
+  {
+   "id": "x16",
+   "source": "c1",
+   "quote": "No new buy if a report is due within 3 sessions; hold through a report only if the trade is up 5R.",
+   "claim": "No new buy if a report is due within 3 sessions."
+  },
+  {
+   "id": "x17",
+   "source": "c1",
+   "quote": "A full new entry at one price with one stop. No pilot, no add on follow-through, no staggered stops under the 10 and 20 EMA.",
+   "claim": "One price, one stop: no pilot, no add on follow-through, no staggered stops."
+  },
+  {
+   "id": "x18",
+   "source": "c1",
+   "quote": "Green market: full risk. Yellow: smaller and fewer. Orange: A+ only. Red: mostly cash and shorts.",
+   "claim": "Green full risk; Yellow smaller and fewer; Orange A+ only; Red mostly cash and shorts."
+  },
+  {
+   "id": "x19",
+   "source": "c1",
+   "quote": "A cue, not a gate: the Nasdaq is not below its 20-day EMA, or a market Wedge Pop has just happened.",
+   "claim": "A cue, not a gate: the Nasdaq is not below its 20-day EMA."
+  },
+  {
+   "id": "x20",
+   "source": "c1",
+   "quote": "Allowed in place of the pop: a breakout over a base's pivot or a key level",
+   "claim": "A breakout over a base's pivot may stand in for the pop."
+  },
+  {
+   "id": "x21",
+   "source": "c1",
+   "quote": "The advanced version: an intraday trigger on the hold day itself (a 30 or 65-minute breakout, or red to green over the prior close), with the same stop, the day's low.",
+   "claim": "The advanced version: an intraday trigger on the hold day itself, with the same stop."
+  },
+  {
+   "id": "x22",
+   "source": "c1",
+   "quote": "Late crossbacks (long after the pop, or after an Exhaustion Extension) and crossbacks taken with the Nasdaq under its 20 EMA fail most.",
+   "claim": "Late crossbacks and crossbacks taken with the Nasdaq under its 20 EMA fail most."
+  },
+  {
+   "id": "x23",
+   "source": "c1",
+   "quote": "a tap of a 20 EMA that has been rising for weeks",
+   "claim": "A tap of a 20 EMA that has been rising for weeks is the 20 EMA Pullback."
+  },
+  {
+   "id": "x24",
+   "source": "c1",
+   "quote": "Kell's Base n' Break is the second or later rest",
+   "claim": "Kell's Base n' Break is the second or later rest."
+  },
+  {
+   "id": "x25",
+   "source": "c1",
+   "quote": "the Crossback is the first rest, bought a few cents over the hold day's high at the averages.",
+   "claim": "The Crossback is the first rest, bought a few cents over the hold day's high."
+  },
+  {
+   "id": "x26",
+   "source": "c1",
+   "quote": "A Crossback holds the rising 9 and 20 EMA with no run of closes under them",
+   "claim": "A Crossback holds the rising 9 and 20 EMA with no run of closes under them."
+  },
+  {
+   "id": "x27",
+   "source": "c1",
+   "quote": "the Crossback's drift must reach the 9/20 zone, needs no pole",
+   "claim": "The Crossback's drift must reach the 9/20 zone and needs no pole."
+  },
+  {
+   "id": "x28",
+   "source": "c1",
+   "quote": "Buying the touch before buyers show (no hold day, no trigger).",
+   "claim": "A named mistake: buying the touch before buyers show."
+  },
+  {
+   "id": "x30",
+   "source": "c1",
+   "quote": "Adding or scaling in (A5).",
+   "claim": "A named mistake: adding or scaling in."
+  },
+  {
+   "id": "x31",
+   "source": "c1",
+   "quote": "Not when many crossbacks are triggering and failing on low volume (Bracco).",
+   "claim": "Not when many crossbacks are triggering and failing on low volume."
+  },
+  {
+   "id": "x32",
+   "source": "c1",
+   "quote": "The stock's own history: repeated failed crossbacks on its chart, or many crossbacks triggering and failing on low volume across the market (weak risk appetite).",
+   "claim": "A cue: a stock whose crossbacks keep failing is graded lower."
+  },
+  {
+   "id": "x33",
+   "source": "c1",
+   "quote": "Prefer the 200-day rising: higher than 20 sessions ago. A grade cue.",
+   "claim": "A grade cue: prefer the 200-day rising."
+  },
+  {
+   "id": "x34",
+   "source": "c1",
+   "quote": "A few cents under the hold day's low, usually 1 to 3% away; size down past 3%",
+   "claim": "The stop is a few cents under the hold day's low, usually 1 to 3% away; size down past 3%."
+  },
+  {
+   "id": "x35",
+   "source": "c1",
+   "quote": "Price $10 or more and at least $20 million traded a day on the 50-day average.",
+   "claim": "Price $10 or more and at least $20 million traded a day."
+  },
+  {
+   "id": "d01",
+   "source": "d1",
+   "quote": "UAA | 2015-06-16 | 06-05 (1.5x) | 6 | 2 | +0.7% | 0.66 | 0.41x | 40.82 | 40.82 | 40.17 (1.6%) | 15.5R, 3R in 5 d",
+   "claim": "UAA, entry 2015-06-16: pop 06-05 on 1.5x volume, a 2-session drift; buy 40.82, stop 40.17 (1.6%); 3R in 5 days."
+  },
+  {
+   "id": "d02",
+   "source": "d1",
+   "quote": "A leader in a clean stair-step; the pullback took two quiet sessions (0.41x volume) and the trigger came the next day",
+   "claim": "UAA: a leader in a clean stair-step; two quiet sessions of pullback, then the trigger the next day."
+  },
+  {
+   "id": "d03",
+   "source": "d1",
+   "quote": "CLS | 2024-10-03 | 09-19 (1.1x) | 9 | 4 | -0.6% | 0.84 | 0.57x | 50.64 | 50.64 | 48.94 (3.4%) | 29.3R, 3R in 3 d",
+   "claim": "CLS, entry 2024-10-03: pop 09-19; buy 50.64, stop 48.94 (3.4%); 3R in 3 days."
+  },
+  {
+   "id": "d04",
+   "source": "d1",
+   "quote": "a quiet 4-day drift that undercut the 20 EMA by 0.6% and closed back over it; the best run in the set. Stop over 3%: size down",
+   "claim": "CLS: a quiet 4-day drift that undercut the 20 EMA by 0.6% and closed back over it; stop over 3%, size down."
+  },
+  {
+   "id": "d05",
+   "source": "d1",
+   "quote": "HOOD | 2025-09-16 | 09-08 (2.1x) | 5 | 3 | +2.0% | 0.59 | 0.85x | 116.55 | 116.55 | 112.39 (3.6%) | 9.0R, 3R in 6 d",
+   "claim": "HOOD, entry 2025-09-16: pop 09-08 on 2.1x volume; buy 116.55, stop 112.39 (3.6%); 3R in 6 days."
+  },
+  {
+   "id": "d06",
+   "source": "d1",
+   "quote": "ALGN | 2017-02-10 | 02-01 (3.7x) | 6 | 6 | -0.0% | 0.78 | 1.02x | 96.51 | 96.51 | 94.17 (2.4%) | 20.8R, 3R in 11 d",
+   "claim": "ALGN, entry 2017-02-10: pop 02-01 on 3.7x volume, a 6-session drift, low on the 20 EMA; buy 96.51, stop 94.17 (2.4%)."
+  },
+  {
+   "id": "d07",
+   "source": "d1",
+   "quote": "six sessions of drift back to the 20 EMA, the low exactly on it, a strong close",
+   "claim": "ALGN: six sessions of drift back to the 20 EMA, the low exactly on it, a strong close."
+  },
+  {
+   "id": "d09",
+   "source": "d1",
+   "quote": "MU | 2025-08-19 (08-08, 08-18) | 123.70 | 120.63 | 08-20, day 1, low 113.46",
+   "claim": "MU, entry 2025-08-19: buy 123.70, stop 120.63; stopped on 08-20, day 1, low 113.46."
+  },
+  {
+   "id": "d10",
+   "source": "d1",
+   "quote": "A clean-looking crossback that simply failed: the stop did its job.",
+   "claim": "MU: a clean-looking crossback that simply failed; the stop did its job."
+  },
+  {
+   "id": "d11",
+   "source": "d1",
+   "quote": "it reached 3R (132.91) on 09-09 and 5R (139.05) on 09-10 without us. A shakeout.",
+   "claim": "MU: it reached 3R (132.91) and 5R (139.05) a month later, without us; a shakeout."
+  },
+  {
+   "id": "d12",
+   "source": "d1",
+   "quote": "LLY | 2024-09-03 (08-08, 08-30) | 961.02 | 940.48 | 09-04, day 1, low 938.01",
+   "claim": "LLY, entry 2024-09-03: buy 961.02, stop 940.48; stopped on 09-04, day 1, low 938.01."
+  },
+  {
+   "id": "d13",
+   "source": "d1",
+   "quote": "Sixteen sessions after the pop, late in the stock's own advance.",
+   "claim": "LLY: sixteen sessions after the pop, late in the stock's own advance."
+  },
+  {
+   "id": "d14",
+   "source": "d1",
+   "quote": "NFLX | 2023-04-11 (03-23, 04-06) | 34.34 | 33.23 | 04-12, day 1, low 33.00",
+   "claim": "NFLX, entry 2023-04-11: buy 34.34, stop 33.23; stopped on 04-12, day 1, low 33.00."
+  },
+  {
+   "id": "d15",
+   "source": "d1",
+   "quote": "The report's reaction day was 04-19, five sessions after the entry; it reached 3R (37.67) on 05-26 and 5R (39.89) on 05-30 without us.",
+   "claim": "NFLX: the report's reaction day was five sessions after the entry; it reached 3R and 5R weeks later, without us."
+  },
+  {
+   "id": "d17",
+   "source": "d1",
+   "quote": "The Nasdaq 100 (QQQ) had closed under its own 20-day EMA the day before the entry and regained it only that day, inside the January 2022 correction",
+   "claim": "AAPL: the Nasdaq 100 had closed under its own 20-day EMA the day before the entry, inside the January 2022 correction."
+  },
+  {
+   "id": "d18",
+   "source": "d1",
+   "quote": "AMZN | 2023-11-21 / 11-22 | xbk.first_test | the second pullback into the 9/20 zone since the pop of 10-30",
+   "claim": "AMZN, 2023-11-22: the second pullback into the 9/20 zone since the pop of 10-30."
+  },
+  {
+   "id": "d19",
+   "source": "d1",
+   "quote": "The second rest: Kell's Base n' Break (setup 18) or a 20 EMA pullback, graded lower here. It worked (best 9.94R), but the entry is not this card's.",
+   "claim": "AMZN: the second rest, a Base n' Break or a 20 EMA pullback; it worked (best 9.94R) but the entry is not this card's."
+  },
+  {
+   "id": "d20",
+   "source": "d1",
+   "quote": "AMAT | 2023-08-25 / 08-28 | xbk.depth | the hold day's low 2.1% under the 20 EMA (rule: at most 1%)",
+   "claim": "AMAT, 2023-08-28: the hold day's low sat 2.1% under the 20 EMA; the rule is at most 1%."
+  },
+  {
+   "id": "d21",
+   "source": "d1",
+   "quote": "A deeper undercut of the line, the MAU&R shape of the Undercut and Rally (setup 29) if anything. Best 2.27R, stopped.",
+   "claim": "AMAT: a deeper undercut of the line, the MAU&R shape if anything; best 2.27R, stopped."
+  },
+  {
+   "id": "d22",
+   "source": "d1",
+   "quote": "GE | 2025-12-31 / 2026-01-02 | xbk.hold_day | the hold day closed in the lower 3% of its range (rule: the upper half)",
+   "claim": "GE, 2026-01-02: the hold day closed in the lower 3% of its range; the rule is the upper half."
+  },
+  {
+   "id": "d23",
+   "source": "d1",
+   "quote": "A weak hold day: the low reached the zone but the close gave it back. It still triggered and reached 3R (best 3.5R) before the stop, which is luck, not the setup.",
+   "claim": "GE: a weak hold day; it still reached 3R, which is luck, not the setup."
+  },
+  {
+   "id": "d25",
+   "source": "d1",
+   "quote": "pop 08-08 on 1.3x volume, a 3-day drift, hold day 08-18, entry 123.70 with a 2.5% stop",
+   "claim": "MU: a pop on 1.3x volume, a 3-day drift, a hold day on 08-18, entry 123.70 with a 2.5% stop."
+  },
+  {
+   "id": "d24",
+   "source": "d1",
+   "quote": "28.9% reached 3R and 17.6% reached 5R before the stop; 82.6% hit the stop at some point in the 60 sessions",
+   "claim": "Our scan: 28.9% reached 3R and 17.6% reached 5R before the stop; 82.6% hit the stop at some point."
+  },
+  {
+   "id": "h13",
+   "source": "h1",
+   "quote": "Too stretched to buy: skip a long that is more than 10% above its 10-day average.",
+   "claim": "C29: skip a long more than 10% above its 10-day average."
+  },
+  {
+   "id": "h16",
+   "source": "h1",
+   "quote": "A climax run on your own long (Bracco's parabolic burst): sell a big part into it, a judgment call.",
+   "claim": "C34: sell a big part into a climax run on your own long."
+  },
+  {
+   "id": "h17",
+   "source": "h1",
+   "quote": "Prefer stocks with growing sales and earnings; the chart comes first.",
+   "claim": "D40: growing sales and earnings preferred; the chart comes first."
+  },
+  {
+   "id": "h18",
+   "source": "h1",
+   "quote": "Every position has a real stop order with the broker, not a stop kept in your head.",
+   "claim": "D41: every position has a real stop order with the broker, not a stop kept in your head."
+  },
+  {
+   "id": "h19",
+   "source": "h1",
+   "quote": "Never own more than 1% of a stock's average daily volume; illiquid stocks are not even watched.",
+   "claim": "D42: never own more than 1% of a stock's average daily volume."
+  },
+  {
+   "id": "h20",
+   "source": "h1",
+   "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
+   "claim": "E51: another third at 5R, then trail the last third."
+  },
+  {
+   "id": "h23",
+   "source": "h1",
+   "quote": "No new buys outside regular trading hours.",
+   "claim": "E58: no new buys outside regular hours."
+  },
+  {
+   "id": "x36",
+   "source": "c1",
+   "quote": "A climax run (Bracco's parabolic burst) or an Exhaustion Extension far above the 10-day EMA: sell a big part into it.",
+   "claim": "Our card: sell a big part into a climax run or an Exhaustion Extension far above the 10-day EMA."
+  },
+  {
+   "id": "x37",
+   "source": "c1",
+   "quote": "A market order the moment the trigger trades, in regular hours.",
+   "claim": "The crossback buy is a market order the moment the trigger trades, in regular hours."
+  },
+  {
+   "id": "x38",
+   "source": "c1",
+   "quote": "At entry, no more than 10% above the 10-day average.",
+   "claim": "At entry, the crossback buy is no more than 10% above the 10-day average."
+  },
+  {
+   "id": "x39",
+   "source": "c1",
+   "quote": "Breakeven once the trade reaches 2R; the rule allows 2R to 5R, at the first trim by default.",
+   "claim": "Breakeven from 2R; the rule allows 2R to 5R, at the first trim by default."
+  },
+  {
+   "id": "x40",
+   "source": "c1",
+   "quote": "Growing sales and earnings preferred; the chart comes first.",
+   "claim": "Our card prefers growing sales and earnings; the chart comes first."
+  }
+ ],
+ "walkthroughs": [
+  {
+   "key": "w1",
+   "title": "UAA, June 2015: the clean stair-step",
+   "steps": [
+    "UAA, 2015. A leader pops on 1.5x volume on 06-05, then drifts back to its averages in just 2 quiet sessions.",
+    "The hold day reaches the zone and closes above the 20 EMA, 9 still above 20. Nothing is bought yet.",
+    "2015-06-16: it trades over the hold day's high. Buy at market, 40.82. Stop a few cents under the hold day's low, 40.17.",
+    "Failure mode: the hold day's low breaks. Instead it reaches 3R in 5 days. Trim a third."
+   ],
+   "facts": [
+    "d01",
+    "d02",
+    "x01",
+    "x03",
+    "x06",
+    "h22",
+    "h24",
+    "h05"
+   ]
+  },
+  {
+   "key": "w2",
+   "title": "CLS, October 2024: the undercut that held",
+   "steps": [
+    "CLS, 2024. A pop on 1.1x volume on 09-19, then a quiet 4-day drift down to the averages.",
+    "The hold day undercuts the 20 EMA by 0.6% and closes back over it. That sits inside the zone.",
+    "2024-10-03: it trades over the hold day's high. Buy at market, 50.64. Stop 48.94, 3.4% away. A wider stop means fewer shares.",
+    "Failure mode: stopped within days. Instead 3R comes in 3 days. Trim a third."
+   ],
+   "facts": [
+    "d03",
+    "d04",
+    "x04",
+    "h01",
+    "h03",
+    "h05",
+    "h04"
+   ]
+  },
+  {
+   "key": "w3",
+   "title": "MU, August 2025: the clean crossback that failed",
+   "steps": [
+    "MU, 2025. A pop on 08-08 on 1.3x volume, a 3-day drift, a hold day on 08-18. It looks clean.",
+    "2025-08-19: buy 123.70, stop 120.63. The size came from that stop, so the loss is already planned.",
+    "On 08-20 it trades down to 113.46 and takes the stop. We take the loss.",
+    "It reached 3R and 5R weeks later without us. A new buy needs a new hold day and a new trigger."
+   ],
+   "facts": [
+    "d09",
+    "d10",
+    "d11",
+    "d25",
+    "h01",
+    "h28"
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "key": "q01",
+   "skill": "setup.ema_crossback",
+   "rung": 1,
+   "format": "mcq",
+   "criterion": "xbk.definition",
+   "q": "What is the EMA Crossback?",
+   "choices": [
+    "Any pullback in a long uptrend",
+    "A cross of the 9 under the 20 EMA",
+    "The first retest after a Wedge Pop",
+    "A gap down through the 200-day line"
+   ],
+   "answer": "The first retest after a Wedge Pop",
+   "why": "The first retest after a Wedge Pop. Kell: it is the first time the stock retests its moving averages after a strong upward move.",
+   "lesson_line": "The crossback is the first pullback to the averages after the pop.",
+   "facts": [
+    "e01",
+    "e04",
+    "x01"
+   ],
+   "wrong": {
+    "A cross of the 9 under the 20 EMA": "That is the opposite. With the 9 under the 20 there is no reason to be long.",
+    "Any pullback in a long uptrend": "Later pullbacks are other setups. The crossback is the first one after the pop.",
+    "A gap down through the 200-day line": "A stock under the 200-day is not a long for us."
+   },
+   "house": true
+  },
+  {
+   "key": "q02",
+   "skill": "setup.ema_crossback",
+   "rung": 1,
+   "format": "tf",
+   "criterion": "xbk.inv_cross",
+   "q": "A crossback holds the averages while the 9 EMA is still above the 20 EMA.",
+   "answer": "True",
+   "why": "True. The crossback is the pullback after the pop that holds the averages with the 9 still above the 20.",
+   "lesson_line": "Hold the averages with the 9 still over the 20.",
+   "facts": [
+    "x01",
+    "x10"
+   ],
+   "house": true
+  },
+  {
+   "key": "q03",
+   "skill": "setup.ema_crossback",
+   "rung": 1,
+   "format": "fill",
+   "criterion": "xbk.trigger",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "We buy once price trades a few cents above the hold day's ___.",
+   "bank": [
+    "high",
+    "low",
+    "close",
+    "open"
+   ],
+   "answer": "high",
+   "why": "High. The buy is at market once price trades a few cents above the hold day's high.",
+   "lesson_line": "Buy the trade over the hold day's high, not the touch.",
+   "facts": [
+    "x06",
+    "h22"
+   ],
+   "house": true
+  },
+  {
+   "key": "q04",
+   "skill": "setup.ema_crossback",
+   "rung": 1,
+   "format": "tf",
+   "criterion": "xbk.hold_day",
+   "q": "We buy the moment price touches the averages, before buyers show up.",
+   "answer": "False",
+   "why": "False. Buying the touch before buyers show is a named mistake. Kell says always wait for confirmation that buyers are stepping in.",
+   "lesson_line": "No hold day, no trigger, no buy. Wait for buyers.",
+   "facts": [
+    "x28",
+    "e03"
+   ],
+   "house": true
+  },
+  {
+   "key": "q05",
+   "skill": "setup.ema_crossback",
+   "rung": 1,
+   "format": "mcq",
+   "criterion": "xbk.stop",
+   "q": "Where does the stop go on a crossback?",
+   "choices": [
+    "Under the 200-day moving average",
+    "A few cents under the hold day's low",
+    "At the high made after the pop",
+    "Exactly on the hold day's low"
+   ],
+   "answer": "A few cents under the hold day's low",
+   "why": "A few cents under the hold day's low. The stop comes first and the size comes from it.",
+   "lesson_line": "Stop first: a few cents under the hold day's low.",
+   "facts": [
+    "x14",
+    "h01",
+    "h24"
+   ],
+   "wrong": {
+    "Under the 200-day moving average": "That is far away and ignores the hold day's low.",
+    "Exactly on the hold day's low": "A stop exactly on the low is hit by the first wiggle.",
+    "At the high made after the pop": "That is above the buy. It would stop us out at once."
+   },
+   "house": true
+  },
+  {
+   "key": "q06",
+   "skill": "setup.ema_crossback",
+   "rung": 1,
+   "format": "tf",
+   "criterion": "xbk.inv_cross",
+   "q": "With the 9 EMA under the 20 EMA, there is no reason to be long the stock.",
+   "answer": "True",
+   "why": "True. If the 9 EMA crosses under the 20 EMA, there is no reason to be long. Kell says the same of his 10 and 20-day lines.",
+   "lesson_line": "Fast average under the slow one: no long.",
+   "facts": [
+    "x10",
+    "e07"
+   ],
+   "house": true
+  },
+  {
+   "key": "q07",
+   "skill": "setup.ema_crossback",
+   "rung": 1,
+   "format": "mcq",
+   "criterion": "xbk.definition",
+   "q": "In Kell's cycle, which stage comes right before the EMA Crossback?",
+   "choices": [
+    "The Base n' Break",
+    "The Wedge Pop",
+    "The Exhaustion Extension"
+   ],
+   "answer": "The Wedge Pop",
+   "why": "The Wedge Pop. After the Wedge Pop, the stock often tests its moving averages again, known as the EMA Crossback.",
+   "lesson_line": "Pop first, crossback second.",
+   "facts": [
+    "e05",
+    "e06",
+    "x01"
+   ],
+   "wrong": {
+    "The Exhaustion Extension": "That comes late in the cycle, and a Wedge Drop follows it, not a crossback.",
+    "The Base n' Break": "That is another pullback after the crossback, so it comes later."
+   },
+   "house": true
+  },
+  {
+   "key": "q08",
+   "skill": "setup.ema_crossback",
+   "rung": 2,
+   "format": "mcq",
+   "criterion": "xbk.wedge_pop_first",
+   "q": "What does a Wedge Pop need besides crossing the averages?",
+   "choices": [
+    "A strong price bar and volume",
+    "A gap down on light volume",
+    "Only a close above the 50-day"
+   ],
+   "answer": "A strong price bar and volume",
+   "why": "A strong price bar and volume. Kell warns that the Wedge Pop is not simply about crossing the moving averages.",
+   "lesson_line": "A pop is price bars and volume, not just a cross.",
+   "facts": [
+    "e08",
+    "x02"
+   ],
+   "wrong": {
+    "Only a close above the 50-day": "The pop is about the short averages, price bars and volume.",
+    "A gap down on light volume": "That is weakness, not a pop."
+   },
+   "house": true
+  },
+  {
+   "key": "q09",
+   "skill": "setup.ema_crossback",
+   "rung": 2,
+   "format": "tf",
+   "criterion": "xbk.wedge_pop_first",
+   "q": "One close back over the 20 EMA is already a crossback.",
+   "answer": "False",
+   "why": "False. One close back over the 20 EMA is a pop setting up, not a crossback. The crossback is the pullback after the pop.",
+   "lesson_line": "A pop first. The crossback is the pullback that follows.",
+   "facts": [
+    "x02",
+    "e05"
+   ],
+   "house": true
+  },
+  {
+   "key": "q10",
+   "skill": "setup.ema_crossback",
+   "rung": 2,
+   "format": "mcq",
+   "criterion": "xbk.hold_day",
+   "q": "What is the hold day?",
+   "choices": [
+    "Reaches the zone, closes over the 20",
+    "The day of the pop",
+    "The day price first closes under the 20"
+   ],
+   "answer": "Reaches the zone, closes over the 20",
+   "why": "A hold day reaches the zone. It closes at or above the 20 EMA in the upper half of its range.",
+   "lesson_line": "A hold day touches the zone and closes strong.",
+   "facts": [
+    "x03"
+   ],
+   "wrong": {
+    "The day price first closes under the 20": "That is a warning, not a hold.",
+    "The day of the pop": "The pop comes first. The hold day is in the pullback."
+   },
+   "house": true
+  },
+  {
+   "key": "q11",
+   "skill": "setup.ema_crossback",
+   "rung": 2,
+   "format": "fill",
+   "criterion": "xbk.hold_day",
+   "q": "Tap the number that fits the blank.",
+   "sentence": "The hold day closes at or above the ___ EMA.",
+   "bank": [
+    "20",
+    "9",
+    "50",
+    "200",
+    "10"
+   ],
+   "answer": "20",
+   "why": "20. The hold day closes at or above the 20-day EMA, in the upper half of its range.",
+   "lesson_line": "The hold day closes at or above the 20 EMA.",
+   "facts": [
+    "x03"
+   ],
+   "house": true
+  },
+  {
+   "key": "q12",
+   "skill": "setup.ema_crossback",
+   "rung": 2,
+   "format": "tf",
+   "criterion": "xbk.breakout_first",
+   "q": "A crossback can also follow a breakout, not only a Wedge Pop.",
+   "answer": "True",
+   "why": "True. A breakout over a base's pivot may stand in for the pop. Kell wrote of pulling back to the crossback after a nice breakout.",
+   "lesson_line": "Pop or breakout, then the first pullback.",
+   "facts": [
+    "x20",
+    "e10"
+   ],
+   "house": true
+  },
+  {
+   "key": "q13",
+   "skill": "setup.ema_crossback",
+   "rung": 2,
+   "format": "tf",
+   "criterion": "xbk.above_200",
+   "q": "A clean crossback under the 200-day average is fine for us.",
+   "answer": "False",
+   "why": "False. The hold day closes above the 200-day, and a crossback gets no exception from the 200-day rule.",
+   "lesson_line": "No longs under the 200-day, crossback or not.",
+   "facts": [
+    "x12",
+    "h10"
+   ],
+   "house": true
+  },
+  {
+   "key": "q14",
+   "skill": "setup.ema_crossback",
+   "rung": 2,
+   "format": "mcq",
+   "criterion": "xbk.leadership",
+   "q": "What RS rating do we want on a crossback leader?",
+   "choices": [
+    "50, the middle of the market",
+    "80 or more",
+    "70, a decent stock"
+   ],
+   "answer": "80 or more",
+   "why": "80 or more, in a strong group. A crossback is for leaders.",
+   "lesson_line": "Buy leaders: RS 80 or more in a strong group.",
+   "facts": [
+    "x13",
+    "h14"
+   ],
+   "wrong": {
+    "50, the middle of the market": "A middling stock is not a leader.",
+    "70, a decent stock": "Our rule asks for more."
+   },
+   "house": true
+  },
+  {
+   "key": "q15",
+   "skill": "setup.ema_crossback",
+   "rung": 3,
+   "format": "numeric",
+   "criterion": "xbk.trim_1",
+   "q": "Bought at 116.55 with the stop at 112.39. Where is 3R?",
+   "answer": 129.03,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "a + 3 * (a - b)",
+     "a": 116.55,
+     "b": 112.39
+    },
+    "round": 2
+   },
+   "why": "129.03. One R is the fill minus the stop. Add three of those to the fill.",
+   "lesson_line": "Know your 3R before the open. The first third comes off there.",
+   "facts": [
+    "h05",
+    "d05"
+   ],
+   "house": true,
+   "prefix": "$"
+  },
+  {
+   "key": "q16",
+   "skill": "setup.ema_crossback",
+   "rung": 3,
+   "format": "numeric",
+   "criterion": "xbk.stop_width",
+   "q": "Fill 116.55, stop 112.39. How far under the fill is the stop, in percent?",
+   "answer": 3.6,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(a - b) / a * 100",
+     "a": 116.55,
+     "b": 112.39
+    },
+    "round": 1
+   },
+   "why": "3.6. The stop sits 3.6% under the fill. Our stops usually sit within about 3%, so this one is wider.",
+   "lesson_line": "Measure the stop in percent before you size the trade.",
+   "facts": [
+    "h04",
+    "x34",
+    "d05"
+   ],
+   "house": true,
+   "suffix": "%"
+  },
+  {
+   "key": "q17",
+   "skill": "setup.ema_crossback",
+   "rung": 3,
+   "format": "numeric",
+   "criterion": "xbk.stop",
+   "q": "Account 100,000, risk 0.5%, buy 116.55, stop 112.39. How many shares?",
+   "answer": 120.0,
+   "calc": {
+    "fn": "shares_from_risk",
+    "args": {
+     "account": 100000,
+     "risk_pct": 0.5,
+     "entry": 116.55,
+     "stop": 112.39
+    },
+    "round": 0
+   },
+   "why": "120. Divide the dollars at risk by the risk per share and round down. The shares come from the stop.",
+   "lesson_line": "Shares come from the stop: dollars at risk divided by risk per share.",
+   "facts": [
+    "h03",
+    "h01",
+    "d05"
+   ],
+   "house": true
+  },
+  {
+   "key": "q18",
+   "skill": "setup.ema_crossback",
+   "rung": 3,
+   "format": "numeric",
+   "criterion": "xbk.hold_day",
+   "q": "A hold day's high is 64.00, its low 61.00 and its close 63.40. Where did it close in its range, in percent?",
+   "answer": 80.0,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(c - l) / (h - l) * 100",
+     "h": 64.0,
+     "l": 61.0,
+     "c": 63.4
+    },
+    "round": 0
+   },
+   "why": "80. The close sits 80% of the way up the range, so it is in the upper half.",
+   "lesson_line": "A strong hold day closes in the upper half of its range.",
+   "facts": [
+    "x03"
+   ],
+   "house": true,
+   "suffix": "%"
+  },
+  {
+   "key": "q19",
+   "skill": "setup.ema_crossback",
+   "rung": 3,
+   "format": "numeric",
+   "criterion": "xbk.depth",
+   "q": "The 20 EMA is 100.00 and the hold day's low is 99.20. How far under the 20 EMA is the low, in percent?",
+   "answer": 0.8,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(a - b) / a * 100",
+     "a": 100.0,
+     "b": 99.2
+    },
+    "round": 1
+   },
+   "why": "0.8. The low sits 0.8% under the 20 EMA, inside the zone that runs down to about 1% under it.",
+   "lesson_line": "The zone reaches about 1% under the 20 EMA. Measure it.",
+   "facts": [
+    "x04"
+   ],
+   "house": true,
+   "suffix": "%"
+  },
+  {
+   "key": "q20",
+   "skill": "setup.ema_crossback",
+   "rung": 3,
+   "format": "scenario",
+   "criterion": "xbk.inv_stale",
+   "q": "Keep the alert, or drop it?",
+   "choices": [
+    "Lower the alert to Monday's close",
+    "Drop it; the setup is stale",
+    "Keep it; the high may still break"
+   ],
+   "answer": "Drop it; the setup is stale",
+   "why": "Drop it. With no trigger within 3 sessions of the hold day, the setup is stale. Wait for a new hold day.",
+   "lesson_line": "Three sessions to trigger. After that, start over.",
+   "facts": [
+    "x08"
+   ],
+   "wrong": {
+    "Keep it; the high may still break": "The window has closed. A late break is a new decision.",
+    "Lower the alert to Monday's close": "The trigger is the high, not the close."
+   },
+   "house": true,
+   "story": "The hold day printed on Monday. By Thursday's close the stock has not traded over Monday's high."
+  },
+  {
+   "key": "q21",
+   "skill": "setup.ema_crossback",
+   "rung": 3,
+   "format": "scenario",
+   "criterion": "xbk.earnings_window",
+   "q": "Buy tomorrow's break of the high?",
+   "choices": [
+    "Yes; the hold day is clean",
+    "Yes, but only at half size",
+    "No; a report is too close"
+   ],
+   "answer": "No; a report is too close",
+   "why": "No. No new buy if a report is due within 3 sessions. A clean hold day does not lift the rule.",
+   "lesson_line": "Check the report date before every buy.",
+   "facts": [
+    "x16",
+    "h08"
+   ],
+   "wrong": {
+    "Yes; the hold day is clean": "A report is a gap risk the chart cannot see.",
+    "Yes, but only at half size": "The rule bars the new buy, not a size."
+   },
+   "house": true,
+   "story": "The hold day closed today. The company reports in 3 sessions."
+  },
+  {
+   "key": "q22",
+   "skill": "setup.ema_crossback",
+   "rung": 4,
+   "format": "scenario",
+   "criterion": "xbk.definition",
+   "q": "Which name fits?",
+   "choices": [
+    "EMA Crossback; the first retest",
+    "20 EMA Pullback; a tap of the 20",
+    "Wedge Pop; first close back over"
+   ],
+   "answer": "EMA Crossback; the first retest",
+   "why": "EMA Crossback. It is the first test of the averages after the stock closed back over them. A tap of a 20 EMA that has been rising for weeks is the 20 EMA Pullback.",
+   "lesson_line": "First test after the pop is the crossback. Later taps are pullbacks.",
+   "facts": [
+    "e01",
+    "x23",
+    "x25"
+   ],
+   "wrong": {
+    "20 EMA Pullback; a tap of the 20": "That is a tap of a 20 EMA that has been rising for weeks.",
+    "Wedge Pop; first close back over": "The pop was eight sessions ago. This is the first pullback after it."
+   },
+   "house": true,
+   "story": "The stock spent weeks under its averages, then closed back over the 9 and 20 EMA eight sessions ago. Now it tests those averages for the first time."
+  },
+  {
+   "key": "q23",
+   "skill": "setup.ema_crossback",
+   "rung": 4,
+   "format": "scenario",
+   "criterion": "xbk.wedge_pop_first",
+   "q": "Crossback or Wedge Pop?",
+   "choices": [
+    "An EMA Crossback, after a dip",
+    "A Wedge Pop setting up today",
+    "A Base n' Break, a later rest"
+   ],
+   "answer": "A Wedge Pop setting up today",
+   "why": "A Wedge Pop. One close back over the averages is a pop setting up, not a crossback. The crossback is the pullback after it.",
+   "lesson_line": "A first reclaim is the pop. The pullback after it is the crossback.",
+   "facts": [
+    "x02",
+    "e08"
+   ],
+   "wrong": {
+    "An EMA Crossback, after a dip": "There has been no pullback yet. This is the reclaim itself.",
+    "A Base n' Break, a later rest": "That is a later rest in the cycle."
+   },
+   "house": true,
+   "story": "After weeks under its averages, a stock closes above both out of a tight range on 1.6x volume."
+  },
+  {
+   "key": "q24",
+   "skill": "setup.ema_crossback",
+   "rung": 4,
+   "format": "scenario",
+   "criterion": "xbk.inv_late_cycle",
+   "q": "Crossback or Base n' Break?",
+   "choices": [
+    "EMA Crossback; the first rest",
+    "Base n' Break; a later rest",
+    "Wedge Pop; the move before"
+   ],
+   "answer": "Base n' Break; a later rest",
+   "why": "Base n' Break. The crossback is the first rest after the pop. Kell's name for a later rest is the Base n' Break.",
+   "lesson_line": "First rest is the crossback. Later rests are Base n' Breaks.",
+   "facts": [
+    "e09",
+    "x24",
+    "x25"
+   ],
+   "wrong": {
+    "EMA Crossback; the first rest": "The crossback is the first rest. This is the second.",
+    "Wedge Pop; the move before": "The pop was the move before the first rest."
+   },
+   "house": true,
+   "story": "A stock popped, pulled into its averages once, and made a new high. Now it rests at the averages again."
+  },
+  {
+   "key": "q25",
+   "skill": "setup.ema_crossback",
+   "rung": 4,
+   "format": "tf",
+   "criterion": "xbk.inv_heavy_close_under",
+   "q": "A close under the 20 EMA on above-average volume ends the setup before the trigger.",
+   "answer": "True",
+   "why": "True. A close under the 20 EMA on above-average volume ends it before the trigger.",
+   "lesson_line": "A heavy close under the 20 EMA ends the idea.",
+   "facts": [
+    "x09",
+    "x03"
+   ],
+   "house": true
+  },
+  {
+   "key": "q26",
+   "skill": "setup.ema_crossback",
+   "rung": 4,
+   "format": "scenario",
+   "criterion": "xbk.inv_cross",
+   "q": "Is this a crossback buy?",
+   "choices": [
+    "No; the 9 is still under the 20",
+    "Yes, with a tighter stop",
+    "Yes; it is back over the 50-day"
+   ],
+   "answer": "No; the 9 is still under the 20",
+   "why": "No. With the 9 EMA under the 20, there is no reason to be long. A crossback holds the rising 9 and 20 EMA with no run of closes under them.",
+   "lesson_line": "A stock that lost its averages is not a crossback.",
+   "facts": [
+    "x10",
+    "x26",
+    "e07"
+   ],
+   "wrong": {
+    "Yes; it is back over the 50-day": "Retaking the 50-day does not fix the short averages.",
+    "Yes, with a tighter stop": "The stop does not repair a failed context."
+   },
+   "house": true,
+   "story": "A stock closed under its 50-day for nine sessions. Today it closed back above it, but the 9 EMA is still under the 20."
+  },
+  {
+   "key": "q27",
+   "skill": "setup.ema_crossback",
+   "rung": 4,
+   "format": "scenario",
+   "criterion": "xbk.depth",
+   "q": "Crossback or bull flag?",
+   "choices": [
+    "A bull flag",
+    "An EMA Crossback",
+    "A Wedge Pop"
+   ],
+   "answer": "A bull flag",
+   "why": "A bull flag. The crossback's drift must reach the 9/20 zone and needs no pole. This drift never touched the averages.",
+   "lesson_line": "A crossback drift reaches the averages. A flag drift stays above them.",
+   "facts": [
+    "x27",
+    "x03"
+   ],
+   "wrong": {
+    "An EMA Crossback": "The drift never reached the zone.",
+    "A Wedge Pop": "A pop reclaims the averages after weeks under them."
+   },
+   "house": true,
+   "story": "A stock jumps 32% in 12 sessions. Then it drifts tight for six sessions, well above the 9 and 20 EMA."
+  },
+  {
+   "key": "q28",
+   "skill": "setup.ema_crossback",
+   "rung": 4,
+   "format": "scenario",
+   "criterion": "xbk.inv_low_break",
+   "q": "What happens to the setup?",
+   "choices": [
+    "Move the stop lower and wait",
+    "Buy anyway on the old trigger",
+    "Off until a new hold day forms"
+   ],
+   "answer": "Off until a new hold day forms",
+   "why": "It is off. The hold day's low breaking before the trigger turns the setup off until a new hold day forms.",
+   "lesson_line": "Hold day's low breaks, setup off. Wait for a new hold day.",
+   "facts": [
+    "x07"
+   ],
+   "wrong": {
+    "Buy anyway on the old trigger": "The structure broke. The old trigger is gone.",
+    "Move the stop lower and wait": "The stop never moves down or wider."
+   },
+   "house": true,
+   "story": "Yesterday was the hold day. This morning, before any trigger, the stock trades under the hold day's low."
+  },
+  {
+   "key": "q29",
+   "skill": "setup.ema_crossback",
+   "rung": 4,
+   "format": "scenario",
+   "criterion": "xbk.inv_heavy_close_under",
+   "q": "What now?",
+   "choices": [
+    "Buy the next day's high anyway",
+    "Wait one more day for the trigger",
+    "The setup is off"
+   ],
+   "answer": "The setup is off",
+   "why": "The setup is off. A close under the 20 EMA on above-average volume ends it before the trigger.",
+   "lesson_line": "A heavy close under the 20 EMA ends the idea.",
+   "facts": [
+    "x09"
+   ],
+   "wrong": {
+    "Buy the next day's high anyway": "The setup ended before any trigger.",
+    "Wait one more day for the trigger": "The close under the 20 EMA on volume ends it."
+   },
+   "house": true,
+   "story": "The hold day looked good. Then the stock closes under its 20 EMA on above-average volume."
+  },
+  {
+   "key": "q30",
+   "skill": "setup.ema_crossback",
+   "rung": 5,
+   "format": "tf",
+   "criterion": "xbk.one_price",
+   "q": "Kell's way of adding a second piece at the crossback is part of our plan.",
+   "answer": "False",
+   "why": "False. Our plan is one price with one stop: no pilot, no add on follow-through, no staggered stops. Adding or scaling in is a named mistake.",
+   "lesson_line": "We buy once at one price. Kell may add; we do not.",
+   "facts": [
+    "x17",
+    "x30"
+   ],
+   "house": true
+  },
+  {
+   "key": "q31",
+   "skill": "setup.ema_crossback",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "xbk.one_price",
+   "q": "What does our plan say?",
+   "choices": [
+    "Add a second piece on the clear",
+    "Move the stop under the new low",
+    "No add; one price, one stop"
+   ],
+   "answer": "No add; one price, one stop",
+   "why": "No add. A full new entry at one price with one stop: no pilot, no add on follow-through, no staggered stops. Adding or scaling in is a named mistake.",
+   "lesson_line": "One price, one stop. Kell may add; we do not.",
+   "facts": [
+    "x17",
+    "x30",
+    "h03b"
+   ],
+   "wrong": {
+    "Add a second piece on the clear": "That is Kell's way, not our plan.",
+    "Move the stop under the new low": "The stop only moves up on the plan's own steps."
+   },
+   "house": true,
+   "story": "You bought the crossback over the hold day's high at 50.64. Two days later it clears the pop high."
+  },
+  {
+   "key": "q32",
+   "skill": "setup.ema_crossback",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "xbk.inv_late_cycle",
+   "q": "Is it a crossback?",
+   "choices": [
+    "No; a Wedge Drop is next",
+    "Yes, buy the touch",
+    "Yes, it is the first pullback"
+   ],
+   "answer": "No; a Wedge Drop is next",
+   "why": "No. After an Exhaustion Extension the next stage in Kell's cycle is a Wedge Drop, not a crossback.",
+   "lesson_line": "After a climax, the next stage is a drop, not a crossback.",
+   "facts": [
+    "x11",
+    "x22"
+   ],
+   "wrong": {
+    "Yes, it is the first pullback": "The climax came first. The cycle is turning down.",
+    "Yes, buy the touch": "Buying the touch is a named mistake."
+   },
+   "house": true,
+   "story": "A stock ran far above its 10-day average in a climax and then rolled over. It now pulls back into its averages."
+  },
+  {
+   "key": "q33",
+   "skill": "setup.ema_crossback",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "xbk.above_200",
+   "q": "Buy?",
+   "choices": [
+    "No; it is under the 200-day",
+    "Yes, at half size with a stop",
+    "Yes; it is a textbook crossback"
+   ],
+   "answer": "No; it is under the 200-day",
+   "why": "No. The hold day must close above the 200-day, and a crossback gets no exception from the rule.",
+   "lesson_line": "A textbook shape under the 200-day is still a pass.",
+   "facts": [
+    "x12",
+    "h10"
+   ],
+   "wrong": {
+    "Yes; it is a textbook crossback": "Shape does not lift the 200-day rule.",
+    "Yes, at half size with a stop": "Size does not fix a failed gate."
+   },
+   "house": true,
+   "story": "A textbook first crossback follows a gap-up Wedge Pop. The stock is still 6% under its 200-day."
+  },
+  {
+   "key": "q34",
+   "skill": "setup.ema_crossback",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "xbk.index_20ema",
+   "q": "How does the market cue grade it?",
+   "choices": [
+    "Higher; the stock is a leader",
+    "Lower; these fail most",
+    "The same; the index never matters"
+   ],
+   "answer": "Lower; these fail most",
+   "why": "Lower. Crossbacks taken with the Nasdaq under its 20 EMA fail most. The index cue lowers the grade, and the stop is still the exit.",
+   "lesson_line": "Watch the index. Crossbacks fail most with the Nasdaq under its 20 EMA.",
+   "facts": [
+    "x22",
+    "x19",
+    "d17",
+    "e12"
+   ],
+   "wrong": {
+    "Higher; the stock is a leader": "A leader does not cancel a weak index.",
+    "The same; the index never matters": "Kell trades smaller or stands aside during index corrections."
+   },
+   "house": true,
+   "story": "AAPL had a clean crossback. The Nasdaq 100 had closed under its own 20-day EMA the day before the entry."
+  },
+  {
+   "key": "q35",
+   "skill": "setup.ema_crossback",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "xbk.market_reading",
+   "q": "Take it?",
+   "choices": [
+    "Take it at full size anyway",
+    "Pass; Orange buys A+ only",
+    "Take it at half size instead"
+   ],
+   "answer": "Pass; Orange buys A+ only",
+   "why": "Pass. Orange buys A+ only, and this one grades B.",
+   "lesson_line": "Orange: A+ only. A B grade waits.",
+   "facts": [
+    "x18",
+    "h26"
+   ],
+   "wrong": {
+    "Take it at full size anyway": "Orange is not Green.",
+    "Take it at half size instead": "Orange allows A+ only, at any size."
+   },
+   "house": true,
+   "story": "The market reading is Orange. A leader makes a clean crossback that you grade B."
+  },
+  {
+   "key": "q36",
+   "skill": "setup.ema_crossback",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "xbk.hold_day",
+   "q": "Is it a valid hold day?",
+   "choices": [
+    "No; a weak close",
+    "Yes; the low reached the zone",
+    "Yes; it later reached 3R"
+   ],
+   "answer": "No; a weak close",
+   "why": "No. The hold day closed in the lower 3% of its range, not the upper half. The low reached the zone but the close gave it back.",
+   "lesson_line": "A hold day needs a strong close, not just a touch.",
+   "facts": [
+    "d22",
+    "d23",
+    "x03"
+   ],
+   "wrong": {
+    "Yes; the low reached the zone": "The close matters as much as the low.",
+    "Yes; it later reached 3R": "That was luck, not the setup."
+   },
+   "house": true,
+   "story": "GE touched the zone, but the hold day closed in the lower 3% of its range."
+  },
+  {
+   "key": "q37",
+   "skill": "setup.ema_crossback",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "xbk.depth",
+   "q": "Which gate fails?",
+   "choices": [
+    "The close was too weak to hold",
+    "The low went too far under the 20 EMA",
+    "The 9 EMA crossed under the 20 EMA"
+   ],
+   "answer": "The low went too far under the 20 EMA",
+   "why": "The depth. The hold day's low sat 2.1% under the 20 EMA, and the zone runs down to about 1% under it. A deeper undercut is a different shape.",
+   "lesson_line": "The zone ends about 1% under the 20 EMA.",
+   "facts": [
+    "d20",
+    "d21",
+    "x04"
+   ],
+   "wrong": {
+    "The close was too weak to hold": "The close was fine. The low went too deep.",
+    "The 9 EMA crossed under the 20 EMA": "Nothing in the story says the averages crossed."
+   },
+   "house": true,
+   "story": "AMAT's hold day closed back over the 20 EMA, but its low sat 2.1% under the line."
+  },
+  {
+   "key": "q38",
+   "skill": "setup.ema_crossback",
+   "rung": 5,
+   "format": "tf",
+   "criterion": "xbk.after_entry_stop",
+   "q": "Most crossbacks in our scan reached 3R before the stop.",
+   "answer": "False",
+   "why": "False. 28.9% reached 3R before the stop, and 82.6% hit the stop at some point. It is a probability trade.",
+   "lesson_line": "Most crossbacks stop out first. Size from the stop.",
+   "facts": [
+    "d24"
+   ],
+   "house": true
+  },
+  {
+   "key": "q39",
+   "skill": "setup.ema_crossback",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "xbk.stop_width",
+   "q": "How do you handle the size?",
+   "choices": [
+    "Pull the stop in to 3% to fit",
+    "Use the 200-day line as the stop",
+    "Fewer shares; stop stays honest"
+   ],
+   "answer": "Fewer shares; stop stays honest",
+   "why": "Fewer shares. The size comes from the stop, so a wider stop means fewer shares. Never tighten the stop to fit.",
+   "lesson_line": "A wide stop gets a smaller size, never a tighter stop.",
+   "facts": [
+    "d03",
+    "x34",
+    "h01",
+    "h03"
+   ],
+   "wrong": {
+    "Pull the stop in to 3% to fit": "Pulling the stop in to fit the size is a trap.",
+    "Use the 200-day line as the stop": "That is far away and ignores the hold day's low."
+   },
+   "house": true,
+   "story": "CLS: fill 50.64, honest stop 48.94, which is 3.4% away. Your risk budget is fixed."
+  },
+  {
+   "key": "q40",
+   "skill": "setup.ema_crossback",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "xbk.after_entry_stop",
+   "q": "How do you respond?",
+   "choices": [
+    "Take the loss; wait for a new trigger",
+    "Buy again at once; it looked so clean",
+    "Move the stop lower and give it room"
+   ],
+   "answer": "Take the loss; wait for a new trigger",
+   "why": "Take the loss. After a stop-out, buy again only on a new trigger as a new trade. MU later reached 3R and 5R without us, and the stop was still right.",
+   "lesson_line": "A clean setup can lose. Re-buy only on a new hold day and trigger.",
+   "facts": [
+    "d09",
+    "d10",
+    "d11",
+    "h28"
+   ],
+   "wrong": {
+    "Buy again at once; it looked so clean": "A re-buy needs a new hold day, a new trigger and every rule.",
+    "Move the stop lower and give it room": "The stop never moves down or wider."
+   },
+   "house": true,
+   "story": "MU looked clean: a pop, a 3-day drift, a hold day. The next session it fell through the stop."
+  },
+  {
+   "key": "q41",
+   "skill": "setup.ema_crossback",
+   "rung": 6,
+   "format": "tf",
+   "criterion": "xbk.tries",
+   "q": "On one stock we take at most 3 tries in a week and 6 in a month.",
+   "answer": "True",
+   "why": "True. At most 3 tries in a week and 6 in a month on one stock. Each new try needs a new trigger.",
+   "lesson_line": "Cap the tries. A new try needs a new trigger.",
+   "facts": [
+    "h29",
+    "h28"
+   ],
+   "house": true
+  },
+  {
+   "key": "q42",
+   "skill": "setup.ema_crossback",
+   "rung": 6,
+   "format": "mcq",
+   "criterion": "xbk.trail",
+   "q": "Which average is the default trail for a fast-moving crossback?",
+   "choices": [
+    "The 10-day",
+    "The 50-day",
+    "The 200-day"
+   ],
+   "answer": "The 10-day",
+   "why": "The 10-day for a fast mover, sold on a close below it. A steadier stock can use the 21-day.",
+   "lesson_line": "Fast mover: trail the 10-day. Steadier: trail the 21-day.",
+   "facts": [
+    "h21"
+   ],
+   "wrong": {
+    "The 50-day": "Too slow for a fast mover.",
+    "The 200-day": "Far too slow to trail."
+   },
+   "house": true
+  },
+  {
+   "key": "q43",
+   "skill": "setup.ema_crossback",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "xbk.time_stop",
+   "q": "What is the plan?",
+   "choices": [
+    "Add more while it is quiet",
+    "Sell it and free the money",
+    "Hold; the hold day was clean"
+   ],
+   "answer": "Sell it and free the money",
+   "why": "Sell it. A trade still under 1R after 10 trading days is sold, freeing the money.",
+   "lesson_line": "A trade that does nothing for 10 days is sold.",
+   "facts": [
+    "h15"
+   ],
+   "wrong": {
+    "Hold; the hold day was clean": "The time stop does not care about the hold day.",
+    "Add more while it is quiet": "We never add."
+   },
+   "house": true,
+   "story": "You bought a crossback 10 trading days ago. It has drifted sideways and is up only 0.6R."
+  },
+  {
+   "key": "q44",
+   "skill": "setup.ema_crossback",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "xbk.trim_gap_open",
+   "q": "When do you take the first third?",
+   "choices": [
+    "Sell the whole position",
+    "Wait for a higher price",
+    "At the open"
+   ],
+   "answer": "At the open",
+   "why": "At the open. If a stock opens above a trim level, take that trim at the open.",
+   "lesson_line": "A gap past your trim level means trim at the open.",
+   "facts": [
+    "h25",
+    "h05"
+   ],
+   "wrong": {
+    "Wait for a higher price": "The rule says take it at the open.",
+    "Sell the whole position": "We trim a third and trail the rest."
+   },
+   "house": true,
+   "story": "You bought at 116.55 with the stop at 112.39. Next morning the stock opens at 130.00, above 3R at 129.03."
+  },
+  {
+   "key": "q45",
+   "skill": "setup.ema_crossback",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "xbk.stop_gap",
+   "q": "What governs the exit?",
+   "choices": [
+    "First 30-minute low; out past 2R",
+    "Hold; wait for it to recover fully",
+    "Keep the old stop at 120.63"
+   ],
+   "answer": "First 30-minute low; out past 2R",
+   "why": "The first 30-minute low is the new stop, and past 2R we get out. Here the loss is far past 2R.",
+   "lesson_line": "A gap through the stop gets the 30-minute rule. Past 2R, get out.",
+   "facts": [
+    "h06",
+    "h07",
+    "d09"
+   ],
+   "wrong": {
+    "Hold; wait for it to recover fully": "The gap rule does not wait.",
+    "Keep the old stop at 120.63": "The stock is already through it."
+   },
+   "house": true,
+   "story": "You bought at 123.70 with the stop at 120.63, so 1R is 3.07. The stock gaps down and the first 30-minute low is 113.46."
+  },
+  {
+   "key": "q46",
+   "skill": "setup.ema_crossback",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "xbk.trigger",
+   "q": "How do you play this one?",
+   "choices": [
+    "Skip it; two sessions is too short",
+    "Buy at market, stop under hold low",
+    "Wait for a close over the hold high"
+   ],
+   "answer": "Buy at market, stop under hold low",
+   "why": "Buy at market, 40.82, with the stop a few cents under the hold day's low, 40.17. It reached 3R in 5 days.",
+   "lesson_line": "Hold day, then the trade over its high, then the stop under its low.",
+   "facts": [
+    "d01",
+    "d02",
+    "x06",
+    "x14"
+   ],
+   "wrong": {
+    "Wait for a close over the hold high": "We buy the trade through, at market.",
+    "Skip it; two sessions is too short": "A quiet two-session pullback was the clean case."
+   },
+   "house": true,
+   "story": "A leader popped on 1.5x volume. After two quiet sessions of pullback, the hold day closes above the 20 EMA. Next day it trades over the hold day's high."
+  },
+  {
+   "key": "q47",
+   "skill": "setup.ema_crossback",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "xbk.depth",
+   "q": "Is it a valid hold day?",
+   "choices": [
+    "No; any low under the 20 EMA fails",
+    "No; the stop would be too wide",
+    "Yes; the undercut closed back over"
+   ],
+   "answer": "Yes; the undercut closed back over",
+   "why": "Yes. The low undercut the 20 EMA by 0.6%, inside the zone, and the close came back over it.",
+   "lesson_line": "A small undercut that closes back over the 20 EMA still holds.",
+   "facts": [
+    "d03",
+    "d04",
+    "x04"
+   ],
+   "wrong": {
+    "No; any low under the 20 EMA fails": "The zone runs down to about 1% under the line.",
+    "No; the stop would be too wide": "A wider stop means fewer shares. It does not void the setup."
+   },
+   "house": true,
+   "story": "CLS drifted four quiet sessions. The hold day's low sat 0.6% under the 20 EMA, and it closed back over the line."
+  },
+  {
+   "key": "q48",
+   "skill": "setup.ema_crossback",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "xbk.depth",
+   "q": "Does a low exactly on the 20 EMA count?",
+   "choices": [
+    "No; it needs a gap down",
+    "Yes; the low reached the zone",
+    "No; it must dip under the line"
+   ],
+   "answer": "Yes; the low reached the zone",
+   "why": "Yes. The low only has to reach the zone, and the close is a strong one. ALGN drifted six sessions with its low exactly on the 20 EMA.",
+   "lesson_line": "The low reaching the 20 EMA is enough. The close does the rest.",
+   "facts": [
+    "d06",
+    "d07",
+    "x04"
+   ],
+   "wrong": {
+    "No; it must dip under the line": "The zone is a range. Reaching the line is enough.",
+    "No; it needs a gap down": "A drift is the best case, not a gap."
+   },
+   "house": true,
+   "story": "ALGN popped on an earnings gap. It drifted six sessions, the hold day's low sat exactly on the 20 EMA, and it closed strong."
+  },
+  {
+   "key": "q49",
+   "skill": "setup.ema_crossback",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "xbk.inv_late_cycle",
+   "q": "What warning did it carry?",
+   "choices": [
+    "It came late in its own run",
+    "The 9 had crossed under the 20",
+    "The hold day had thin volume"
+   ],
+   "answer": "It came late in its own run",
+   "why": "It was late in the stock's own advance, sixteen sessions after the pop. Late crossbacks fail most. LLY was stopped the next day.",
+   "lesson_line": "A long wait after the pop is a warning, not a gate. The stop still decides.",
+   "facts": [
+    "d12",
+    "d13",
+    "x22"
+   ],
+   "wrong": {
+    "The hold day had thin volume": "Nothing in the story says so.",
+    "The 9 had crossed under the 20": "Nothing in the story says so."
+   },
+   "house": true,
+   "story": "LLY gave a crossback sixteen sessions after its pop, after a long advance. The next day it hit the stop."
+  },
+  {
+   "key": "q50",
+   "skill": "setup.ema_crossback",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "xbk.earnings_window",
+   "q": "Did that entry break the earnings rule?",
+   "choices": [
+    "Yes; any report nearby is a no",
+    "Yes; it should have been held through",
+    "No; the report was 5 sessions away"
+   ],
+   "answer": "No; the report was 5 sessions away",
+   "why": "No. The entry was five sessions before the report, outside the 3-session window. The stock still could not hold, and the stop did its job.",
+   "lesson_line": "Outside 3 sessions is legal. The stop is still the exit.",
+   "facts": [
+    "d14",
+    "d15",
+    "x16"
+   ],
+   "wrong": {
+    "Yes; any report nearby is a no": "The rule is a window of 3 sessions.",
+    "Yes; it should have been held through": "We hold through a report only when up 5R."
+   },
+   "house": true,
+   "story": "NFLX gave a crossback with the report's reaction day five sessions after the entry. The next day it hit the stop."
+  },
+  {
+   "key": "q51",
+   "skill": "setup.ema_crossback",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "xbk.first_test",
+   "q": "Which entry is this?",
+   "choices": [
+    "A Wedge Pop",
+    "The EMA Crossback",
+    "A Base n' Break, graded lower"
+   ],
+   "answer": "A Base n' Break, graded lower",
+   "why": "A Base n' Break, graded lower. It was the second pullback into the zone since the pop, so it is not this card's entry, even though it worked.",
+   "lesson_line": "A winner can still be the wrong card. Count the rests.",
+   "facts": [
+    "d18",
+    "d19",
+    "e09"
+   ],
+   "wrong": {
+    "The EMA Crossback": "The crossback is the first rest. This was the second.",
+    "A Wedge Pop": "The pop was the 10-30 move."
+   },
+   "house": true,
+   "story": "AMZN popped on 10-30. It pulled into its averages on 11-21 for the second time since the pop and then ran 9.94R."
+  },
+  {
+   "key": "q52",
+   "skill": "setup.ema_crossback",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "xbk.index_20ema",
+   "q": "What do you do with it?",
+   "choices": [
+    "Ignore it; only the stock matters",
+    "Skip it; the index is a hard gate",
+    "Treat the index cue as a grade cue"
+   ],
+   "answer": "Treat the index cue as a grade cue",
+   "why": "Treat it as a grade cue, not a gate. Kell sizes down or stands aside during index corrections, and a market Wedge Pop is the best cue.",
+   "lesson_line": "The index cue is a cue. A weak index lowers the grade.",
+   "facts": [
+    "x19",
+    "e12",
+    "x22"
+   ],
+   "wrong": {
+    "Skip it; the index is a hard gate": "The card calls it a cue, not a gate.",
+    "Ignore it; only the stock matters": "A weak index makes crossbacks fail more often."
+   },
+   "house": true,
+   "story": "A clean crossback sets up on a leader while the Nasdaq sits just under its 20-day EMA."
+  },
+  {
+   "key": "q53",
+   "skill": "setup.ema_crossback",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "xbk.intraday_option",
+   "q": "Where does the stop go?",
+   "choices": [
+    "Same stop: the hold day's low",
+    "At breakeven the moment you buy",
+    "Just under the 200-day average"
+   ],
+   "answer": "Same stop: the hold day's low",
+   "why": "The same. The advanced version buys an intraday trigger on the hold day itself, with the same stop, the day's low.",
+   "lesson_line": "An earlier entry keeps the same stop. It does not widen it.",
+   "facts": [
+    "x21",
+    "x14"
+   ],
+   "wrong": {
+    "Just under the 200-day average": "That ignores the hold day's low.",
+    "At breakeven the moment you buy": "Breakeven comes at the first trim."
+   },
+   "house": true,
+   "story": "On the hold day itself, the stock breaks its 65-minute high and you buy the advanced version."
+  },
+  {
+   "key": "q54",
+   "skill": "setup.ema_crossback",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "xbk.no_chase",
+   "q": "Buy at market?",
+   "choices": [
+    "Yes, with a wider stop",
+    "No; more than 4% over the trigger",
+    "Yes; heavy volume confirms it"
+   ],
+   "answer": "No; more than 4% over the trigger",
+   "why": "No. Skip if the fill is more than 4% above the trigger. Kell found even 3-4% above the averages was too much.",
+   "lesson_line": "Past 4% over the trigger you are chasing. Wait for the next hold day.",
+   "facts": [
+    "x15",
+    "h11",
+    "e11"
+   ],
+   "wrong": {
+    "Yes; heavy volume confirms it": "Volume does not lift the 4% limit.",
+    "Yes, with a wider stop": "Widening the stop is never the fix."
+   },
+   "house": true,
+   "story": "The trigger was 50.64. The next time you look, the stock trades at 52.90 on heavy volume."
+  },
+  {
+   "key": "q55",
+   "skill": "setup.ema_crossback",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "xbk.tries",
+   "q": "Take the new hold day?",
+   "choices": [
+    "Yes; the new hold day is a new trade",
+    "No; three tries this week are used",
+    "Yes, at half size"
+   ],
+   "answer": "No; three tries this week are used",
+   "why": "No. At most 3 tries a week on one stock, and a new try needs a new trigger.",
+   "lesson_line": "Three tries a week on one stock, six a month. Then stop.",
+   "facts": [
+    "h29"
+   ],
+   "wrong": {
+    "Yes; the new hold day is a new trade": "The weekly cap still applies.",
+    "Yes, at half size": "Size is not the fix for a try limit."
+   },
+   "house": true,
+   "story": "You have bought this stock three times this week, and each try stopped out. A fresh hold day just printed."
+  },
+  {
+   "key": "q56",
+   "skill": "setup.ema_crossback",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "xbk.liquidity",
+   "q": "What do you do?",
+   "choices": [
+    "Take it at half size",
+    "Take it; the pattern is clean",
+    "Pass; it is too thin and too cheap"
+   ],
+   "answer": "Pass; it is too thin and too cheap",
+   "why": "Pass. We trade only stocks at $10 or more that trade at least $20 million a day.",
+   "lesson_line": "The chart comes after the floor.",
+   "facts": [
+    "x35",
+    "h09"
+   ],
+   "wrong": {
+    "Take it at half size": "Size does not fix a liquidity failure.",
+    "Take it; the pattern is clean": "Thin names are not even watched."
+   },
+   "house": true,
+   "story": "A neat crossback sets up on an 8 dollar stock that trades about 5 million dollars a day."
+  },
+  {
+   "key": "q57",
+   "skill": "setup.ema_crossback",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "xbk.leadership",
+   "q": "What do you do?",
+   "choices": [
+    "Pass; not a leader by our rule",
+    "Take it; 72 is close enough to 80",
+    "Take it at half size for now"
+   ],
+   "answer": "Pass; not a leader by our rule",
+   "why": "Pass. We buy leaders, with an RS rating of 80 or more in a strong group. An RS of 72 is not that.",
+   "lesson_line": "Buy leaders. A neat chart on a laggard waits.",
+   "facts": [
+    "x13",
+    "h14"
+   ],
+   "wrong": {
+    "Take it; 72 is close enough to 80": "The rule is 80 or more.",
+    "Take it at half size for now": "Size does not fix a leadership gap."
+   },
+   "house": true,
+   "story": "A clean crossback sets up in a stock with an RS rating of 72."
+  },
+  {
+   "key": "q58",
+   "skill": "setup.ema_crossback",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "xbk.market_reading",
+   "q": "What is your call?",
+   "choices": [
+    "Buy it; the stock is strong",
+    "Pass; Red means mostly cash",
+    "Buy a starter"
+   ],
+   "answer": "Pass; Red means mostly cash",
+   "why": "Pass. In a Red market we hold mostly cash.",
+   "lesson_line": "A great setup in a Red market waits.",
+   "facts": [
+    "x18",
+    "h30"
+   ],
+   "wrong": {
+    "Buy a starter": "A starter in a Red market is still a long.",
+    "Buy it; the stock is strong": "A strong stock does not cancel a Red market."
+   },
+   "house": true,
+   "story": "A textbook crossback sets up on a leader. The market reading is Red."
+  },
+  {
+   "key": "q59",
+   "skill": "setup.ema_crossback",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "xbk.inv_failed_history",
+   "q": "How does that history affect the grade?",
+   "choices": [
+    "It lowers the grade",
+    "It raises the grade; it is due",
+    "It does not matter"
+   ],
+   "answer": "It lowers the grade",
+   "why": "It lowers the grade. A stock whose crossbacks keep failing is a grade cue, and so are many crossbacks failing on low volume across the market.",
+   "lesson_line": "A stock with a history of failed crossbacks gets a lower grade.",
+   "facts": [
+    "x32",
+    "x31"
+   ],
+   "wrong": {
+    "It raises the grade; it is due": "Past failures are a warning, not a reason to expect a win.",
+    "It does not matter": "It is a grade cue."
+   },
+   "house": true,
+   "story": "A clean crossback sets up in a stock whose last three crossbacks all failed."
+  },
+  {
+   "key": "q60",
+   "skill": "setup.ema_crossback",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "xbk.wedge_pop_first",
+   "q": "Which crossback grades higher?",
+   "choices": [
+    "They grade the same",
+    "The first one, after the gap-up pop",
+    "Crossback B, because it waited"
+   ],
+   "answer": "The first one, after the gap-up pop",
+   "why": "The first one. A crossback after a powerful pop, a gap on heavy volume, is the A+ picture. Late crossbacks fail most.",
+   "lesson_line": "A strong pop and a short wait make the best crossback.",
+   "facts": [
+    "x22",
+    "e08"
+   ],
+   "wrong": {
+    "Crossback B, because it waited": "A long wait makes the crossback late.",
+    "They grade the same": "The pop and the timing matter."
+   },
+   "house": true,
+   "story": "Crossback A comes 5 sessions after a gap-up pop on 3.6x volume. Crossback B comes 18 sessions after a 1.0x pop, with the stock already up 15% on the quarter."
+  },
+  {
+   "key": "q61",
+   "skill": "setup.ema_crossback",
+   "rung": 8,
+   "format": "tf",
+   "criterion": "xbk.ma200_rising",
+   "q": "The best crossbacks come with the 200-day falling.",
+   "answer": "False",
+   "why": "False. We prefer the 200-day rising, as a grade cue. The best case is a fresh turn above a rising 200-day.",
+   "lesson_line": "A rising 200-day is a grade cue.",
+   "facts": [
+    "x33"
+   ],
+   "house": true
+  },
+  {
+   "key": "q62",
+   "skill": "setup.ema_crossback",
+   "rung": 9,
+   "format": "mcq",
+   "criterion": "xbk.hold_day",
+   "q": "Hidden ticker, the hold day just closed. Does it close in the upper half above the 20 EMA? Take it or pass.",
+   "choices": [
+    "Pass; there was no gap",
+    "Take it; a strong hold day",
+    "Pass; two sessions is too short"
+   ],
+   "answer": "Take it; a strong hold day",
+   "why": "Take it. The pop came on 1.5x volume, two quiet sessions of pullback, and the hold day closed above the 20 EMA. The trigger came the next day and reached 3R in 5 days.",
+   "lesson_line": "Check the close before the trigger: upper half, over the 20 EMA.",
+   "facts": [
+    "d01",
+    "d02",
+    "x03"
+   ],
+   "wrong": {
+    "Pass; two sessions is too short": "A quiet two-session pullback was the clean case.",
+    "Pass; there was no gap": "A gap helps the grade. It is not required."
+   },
+   "house": true,
+   "chart": {
+    "sym": "UAA",
+    "asof": "2015-06-15",
+    "window": 120,
+    "forward": 20
+   }
+  },
+  {
+   "key": "q63",
+   "skill": "setup.ema_crossback",
+   "rung": 9,
+   "format": "mcq",
+   "criterion": "xbk.hold_day",
+   "q": "Hidden ticker, a hold day just closed. Did it close in the upper half of its range? Take it or pass.",
+   "choices": [
+    "Pass; it closed near the low",
+    "Take it; the low reached the zone",
+    "Take it; the 200-day is rising"
+   ],
+   "answer": "Pass; it closed near the low",
+   "why": "Pass. The hold day closed in the lower 3% of its range, not the upper half. It still reached 3R, which is luck, not the setup.",
+   "lesson_line": "A touch of the zone is not enough. The close must be strong.",
+   "facts": [
+    "d22",
+    "d23",
+    "x03"
+   ],
+   "wrong": {
+    "Take it; the low reached the zone": "The close matters as much as the low.",
+    "Take it; the 200-day is rising": "Context is fine. The hold day is the problem."
+   },
+   "house": true,
+   "chart": {
+    "sym": "GE",
+    "asof": "2025-12-31",
+    "window": 120,
+    "forward": 20
+   }
+  },
+  {
+   "key": "q64",
+   "skill": "setup.ema_crossback",
+   "rung": 9,
+   "format": "scenario",
+   "criterion": "xbk.trigger",
+   "q": "What do you do?",
+   "choices": [
+    "Buy half and set a stop later",
+    "Buy now before it runs away",
+    "Check the hold day and stop"
+   ],
+   "answer": "Check the hold day and stop",
+   "why": "Check it yourself. Never take a trade from an alert, a post or a video without your own entry, stop and size.",
+   "lesson_line": "Someone else's alert is not a plan. Build your own entry, stop and size.",
+   "facts": [
+    "h36",
+    "h39"
+   ],
+   "wrong": {
+    "Buy now before it runs away": "A buy with no stop and no size is a gamble.",
+    "Buy half and set a stop later": "Half a gamble is still a gamble."
+   },
+   "house": true,
+   "story": "A post says a stock is on its EMA Crossback right now. You have not looked at its hold day, stop or size."
+  },
+  {
+   "key": "q65",
+   "skill": "setup.ema_crossback",
+   "rung": 9,
+   "format": "scenario",
+   "criterion": "xbk.inv_cross",
+   "q": "What is your call?",
+   "choices": [
+    "Take it with a tighter stop",
+    "Pass; the 9 slipped under the 20",
+    "Take it; the hold day is strong"
+   ],
+   "answer": "Pass; the 9 slipped under the 20",
+   "why": "Pass. With the 9 EMA under the 20, there is no reason to be long, even if the hold day closes strong.",
+   "lesson_line": "A strong hold day does not repair crossed averages.",
+   "facts": [
+    "x10",
+    "e07",
+    "x26"
+   ],
+   "wrong": {
+    "Take it; the hold day is strong": "A strong close does not fix the averages.",
+    "Take it with a tighter stop": "Pulling the stop in to fit the size is a trap."
+   },
+   "house": true,
+   "story": "A leader above its 200-day pops, then pulls back. During the pullback the 9 EMA slips under the 20. The hold day closes strong."
+  },
+  {
+   "key": "q66",
+   "skill": "setup.ema_crossback",
+   "rung": 9,
+   "format": "scenario",
+   "criterion": "xbk.inv_failed_history",
+   "q": "What does it tell you about the market?",
+   "choices": [
+    "Buy more; they are cheap now",
+    "Be careful; risk appetite is weak",
+    "Nothing; each stock stands alone"
+   ],
+   "answer": "Be careful; risk appetite is weak",
+   "why": "Be careful. Many crossbacks triggering and failing on low volume is a sign of weak risk appetite, and a cue to grade lower.",
+   "lesson_line": "When crossbacks keep failing around the market, grade lower.",
+   "facts": [
+    "x31",
+    "x32"
+   ],
+   "wrong": {
+    "Buy more; they are cheap now": "Failures around the market are a warning, not a bargain.",
+    "Nothing; each stock stands alone": "The market's pattern is part of the context."
+   },
+   "house": true,
+   "story": "Over two weeks, many crossbacks across the market trigger and fail on low volume."
+  },
+  {
+   "key": "q67",
+   "skill": "setup.ema_crossback",
+   "rung": 9,
+   "format": "scenario",
+   "criterion": "xbk.stop",
+   "q": "What do you do about the stop?",
+   "choices": [
+    "Keep the honest stop; cut size or skip",
+    "Pull the stop in to fit",
+    "Widen the stop"
+   ],
+   "answer": "Keep the honest stop; cut size or skip",
+   "why": "Keep the honest stop. If it does not fit the risk, cut the size or skip. The stop only moves up, never wider.",
+   "lesson_line": "The stop does not bend to fit the size. The size bends to the stop.",
+   "facts": [
+    "h01",
+    "h02"
+   ],
+   "wrong": {
+    "Widen the stop": "The stop only moves up, never wider.",
+    "Pull the stop in to fit": "Pulling the stop in to fit the size is a trap."
+   },
+   "house": true,
+   "story": "The honest stop is wider than your risk budget allows. A friend says to give it more room."
+  },
+  {
+   "key": "q68",
+   "skill": "setup.ema_crossback",
+   "rung": 9,
+   "format": "scenario",
+   "criterion": "xbk.drift",
+   "q": "Which pullback is the better crossback?",
+   "choices": [
+    "Neither; both are the same",
+    "The slow, tight drift",
+    "The hard drop; it hit the zone faster"
+   ],
+   "answer": "The slow, tight drift",
+   "why": "The slow drift. Kell says the crossback works best when price gently moves sideways and the averages rise to meet it. TraderLion adds that a slow drift is ideal.",
+   "lesson_line": "Let the averages rise to price. A gentle drift beats a violent drop.",
+   "facts": [
+    "e02",
+    "e13",
+    "e14",
+    "x05"
+   ],
+   "wrong": {
+    "The hard drop; it hit the zone faster": "Speed is not the point. The averages need time to rise.",
+    "Neither; both are the same": "The cleaner and shallower pullback is better."
+   },
+   "house": true,
+   "story": "Two stocks pop and then pull back to their averages. One drifts sideways for five sessions. The other drops hard in two."
+  },
+  {
+   "key": "q69",
+   "skill": "setup.ema_crossback",
+   "rung": 2,
+   "format": "tf",
+   "criterion": "xbk.market_order",
+   "q": "We buy a crossback with a market order the moment the trigger trades, in regular hours.",
+   "answer": "True",
+   "why": "True. Entries are market orders, placed as soon as price trades over the trigger, and only in regular hours.",
+   "lesson_line": "Market order at the trigger, regular hours only.",
+   "facts": [
+    "x37",
+    "h22",
+    "h23"
+   ],
+   "house": true
+  },
+  {
+   "key": "q70",
+   "skill": "setup.ema_crossback",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "xbk.market_order",
+   "q": "What do you do?",
+   "story": "It is 8:10 am, before the open. A thin pre-market print takes the stock a few cents over the hold day's high.",
+   "choices": [
+    "Wait; market buy in regular hours",
+    "Buy at market now, before it runs away",
+    "Rest a limit order at the high now"
+   ],
+   "answer": "Wait; market buy in regular hours",
+   "why": "Wait. No new buys outside regular hours, and entries are market orders. If the trigger trades after the open, buy then.",
+   "lesson_line": "A pre-market print is not your trigger. Regular hours only.",
+   "facts": [
+    "x37",
+    "h22",
+    "h23"
+   ],
+   "wrong": {
+    "Buy at market now, before it runs away": "Pre-market is outside regular hours. The rule is no new buys there.",
+    "Rest a limit order at the high now": "Entries are market orders, bought in regular hours. A resting order is not our entry."
+   },
+   "house": true
+  },
+  {
+   "key": "q71",
+   "skill": "setup.ema_crossback",
+   "rung": 5,
+   "format": "numeric",
+   "criterion": "xbk.not_stretched",
+   "q": "A crossback trigger gaps and would fill at 54.60. The 10-day average is 49.00. How far above it, in percent?",
+   "answer": 11.4,
+   "calc": {
+    "fn": "pct_change",
+    "args": {
+     "start": 49.0,
+     "end": 54.6
+    },
+    "round": 1
+   },
+   "suffix": "%",
+   "why": "11.4%. That is more than 10% above the 10-day average, so we skip it: too stretched to buy.",
+   "lesson_line": "More than 10% over the 10-day is a chase. Skip it.",
+   "facts": [
+    "h13",
+    "x38"
+   ],
+   "house": true
+  },
+  {
+   "key": "q72",
+   "skill": "setup.ema_crossback",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "xbk.not_stretched",
+   "q": "The fill is inside the 4% chase limit. Which rule says skip?",
+   "story": "The hold day's high was 100.00 and the 10-day average is 91.00. The stock opens next morning at 101.50, so a market buy fills near there.",
+   "choices": [
+    "The 10% stretch rule",
+    "The 4% chase limit",
+    "The 1% volume ceiling"
+   ],
+   "answer": "The 10% stretch rule",
+   "why": "The 10% stretch rule. A long more than 10% above its 10-day average is too stretched. 101.50 is more than 10% above 91.00.",
+   "lesson_line": "Two checks at the fill: distance from the trigger and distance from the 10-day.",
+   "facts": [
+    "h13",
+    "x38",
+    "h11"
+   ],
+   "wrong": {
+    "The 4% chase limit": "The fill is a little over the trigger, so the chase limit passes. The stretch rule is the one that fails.",
+    "The 1% volume ceiling": "That caps the share count. Nothing here says the count is too big."
+   },
+   "house": true
+  },
+  {
+   "key": "q73",
+   "skill": "setup.ema_crossback",
+   "rung": 6,
+   "format": "numeric",
+   "criterion": "xbk.position_adv",
+   "q": "A crossback stock trades 4,000,000 shares a day on average. What is the most shares our volume rule lets us hold?",
+   "answer": 40000,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "adv * 0.01",
+     "adv": 4000000
+    },
+    "round": 0
+   },
+   "suffix": "shares",
+   "why": "40,000 shares. We never own more than 1% of a stock's average daily volume, whatever the risk math allows.",
+   "lesson_line": "One percent of the average daily volume is the ceiling.",
+   "facts": [
+    "h19"
+   ],
+   "house": true
+  },
+  {
+   "key": "q74",
+   "skill": "setup.ema_crossback",
+   "rung": 3,
+   "format": "tf",
+   "criterion": "xbk.position_adv",
+   "q": "Even on a textbook crossback, we never own more than 1% of the stock's average daily volume.",
+   "answer": "True",
+   "why": "True. The ceiling is 1% of average daily volume, and illiquid stocks are not even watched.",
+   "lesson_line": "A clean chart does not lift the volume ceiling.",
+   "facts": [
+    "h19"
+   ],
+   "house": true
+  },
+  {
+   "key": "q75",
+   "skill": "setup.ema_crossback",
+   "rung": 1,
+   "format": "fill",
+   "criterion": "xbk.stop_broker",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "Every position has a real stop order with the ___, not a stop kept in your head.",
+   "bank": [
+    "broker",
+    "trader",
+    "screen",
+    "chart",
+    "alert"
+   ],
+   "answer": "broker",
+   "why": "Broker. Every position has a real stop order with the broker, not a stop kept in your head.",
+   "lesson_line": "A stop in your head is a debate. A stop with the broker is an appointment.",
+   "facts": [
+    "h18"
+   ],
+   "house": true
+  },
+  {
+   "key": "q76",
+   "skill": "setup.ema_crossback",
+   "rung": 4,
+   "format": "tf",
+   "criterion": "xbk.stop_broker",
+   "q": "Once the crossback stop is set, it only moves up. The one exception is the gap rule.",
+   "answer": "True",
+   "why": "True. The stop is the exit and it only moves up, never down or wider. The gap rule is the one exception.",
+   "lesson_line": "Set the stop before the buy. It only goes up from there.",
+   "facts": [
+    "h02",
+    "h18"
+   ],
+   "house": true
+  },
+  {
+   "key": "q77",
+   "skill": "setup.ema_crossback",
+   "rung": 5,
+   "format": "tf",
+   "criterion": "xbk.fundamentals",
+   "q": "We pass on a clean crossback when the latest sales and earnings are not growing.",
+   "answer": "False",
+   "why": "False. Growing sales and earnings are preferred, but the chart comes first.",
+   "lesson_line": "Growth helps the grade. The chart still decides.",
+   "facts": [
+    "h17",
+    "x40"
+   ],
+   "house": true
+  },
+  {
+   "key": "q78",
+   "skill": "setup.ema_crossback",
+   "rung": 4,
+   "format": "numeric",
+   "criterion": "xbk.breakeven",
+   "q": "Bought at 40.82, stop 40.17. At what price may the stop first go to breakeven?",
+   "answer": 42.12,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "a + 2 * (a - b)",
+     "a": 40.82,
+     "b": 40.17
+    },
+    "round": 2
+   },
+   "suffix": "R",
+   "why": "42.12. Breakeven comes once the trade reaches 2R: the fill plus two times the distance to the stop. The rule runs from 2R to 5R.",
+   "lesson_line": "Count in R. From 2R the stop can move up to your entry.",
+   "facts": [
+    "h05",
+    "d01"
+   ],
+   "house": true
+  },
+  {
+   "key": "q79",
+   "skill": "setup.ema_crossback",
+   "rung": 2,
+   "format": "mcq",
+   "criterion": "xbk.breakeven",
+   "q": "From which R can the crossback stop go to breakeven?",
+   "choices": [
+    "From 2R, at the first trim",
+    "From 1R, as soon as it moves up",
+    "Only at 5R, and not any sooner",
+    "From the first higher daily close"
+   ],
+   "answer": "From 2R, at the first trim",
+   "why": "From 2R, at the first trim by default. The rule allows 2R to 5R.",
+   "lesson_line": "Breakeven comes between 2R and 5R, not before.",
+   "facts": [
+    "x39",
+    "h05"
+   ],
+   "wrong": {
+    "From 1R, as soon as it moves up": "Too soon. The rule starts at 2R.",
+    "Only at 5R, and not any sooner": "5R is the far end of the range, not the only point. The rule allows 2R to 5R.",
+    "From the first higher daily close": "A close is not a measure of R. The move is set in R, from 2R."
+   },
+   "house": true
+  },
+  {
+   "key": "q80",
+   "skill": "setup.ema_crossback",
+   "rung": 5,
+   "format": "numeric",
+   "criterion": "xbk.trim_2",
+   "q": "You hold 120 shares. A third comes off at 3R and another third at 5R. How many shares sell at 5R?",
+   "answer": 40,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "n / 3",
+     "n": 120
+    },
+    "round": 0
+   },
+   "suffix": "shares",
+   "why": "40 shares. A third of 120 comes off at 3R, another third at 5R, then you trail the last third.",
+   "lesson_line": "Thirds: one at 3R, one at 5R, and the last rides the trail.",
+   "facts": [
+    "h20",
+    "h05"
+   ],
+   "house": true
+  },
+  {
+   "key": "q81",
+   "skill": "setup.ema_crossback",
+   "rung": 3,
+   "format": "fill",
+   "criterion": "xbk.trim_2",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "After the first third at 3R, another third comes off at ___, then you trail the rest.",
+   "bank": [
+    "5R",
+    "2R",
+    "4R",
+    "8R"
+   ],
+   "answer": "5R",
+   "why": "5R. The second third comes off at 5R, and the last third rides the trail.",
+   "lesson_line": "3R for the first third, 5R for the second, then trail.",
+   "facts": [
+    "h20"
+   ],
+   "house": true
+  },
+  {
+   "key": "q82",
+   "skill": "setup.ema_crossback",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "xbk.climax",
+   "q": "What is the move on your long?",
+   "story": "Your crossback winner has run four days straight, gapping up each morning, now far above its 10-day average.",
+   "choices": [
+    "Sell a big part into the burst",
+    "Add a third piece into strength",
+    "Hold all of it and trail the 10-day"
+   ],
+   "answer": "Sell a big part into the burst",
+   "why": "Sell a big part into it. A climax run far above the 10-day on your own long is a judgment call, and we sell into strength.",
+   "lesson_line": "A climax run is a place to sell a big part, not to add.",
+   "facts": [
+    "x36",
+    "h16",
+    "h03b"
+   ],
+   "wrong": {
+    "Add a third piece into strength": "We buy one price with one stop and never add. A burst is a place to sell.",
+    "Hold all of it and trail the 10-day": "The trail is for the rest. Into a climax run we sell a big part first."
+   },
+   "house": true
+  }
+ ],
+ "conflicts": [
+  "Pending-owner criteria kept OUT of every key (the course's current default, waiting on the owner): xbk.definition (D-002; the card follows Kell's definition, the first pullback after a Wedge Pop or breakout, and the unit is built on it; UNITS-method SET.15 and the Model Book card describe a re-entry after an extension with the 9 crossing the 20, which Kell's cycle puts in the wrong stage, and q01 keys Kell's wording with the card's lookalike tells, so the owner's ruling on D-002 decides the whole unit); xbk.vs_pullback (D-002; q22 follows the same default the 20 EMA Pullback unit uses, q48 there: the first test after the pop is the crossback, a tap of a 20 EMA that has risen for weeks is the pullback); xbk.wedge_pop_first, the 3 to 20 session window and the 8-of-15 closes test (D-076; no key states either number, the stories use 5, 8 and 18 sessions and the crossback grade question compares a short wait after a gap pop against a long wait without keying a day count); xbk.averages, the 9/20 pair against Kell's 10/20 (D-021; the unit says the 9 and 20 where the card does and quotes Kell's 10-day only in his own sentence, nothing asks 9 against 10); xbk.first_test (D-026; whether a second pullback is a B grade or another setup: the questions key it as a Base n' Break, 'graded lower' on the proposed xbk.inv_late_cycle line, and never as a B); xbk.volume (D-006; pullback volume is never a gate and never keyed, the winners' volume ratios appear only inside quotes); xbk.trigger (D-003; the buy over the hold day's high at market is keyed because every option keeps it, the 3-session window is keyed only through the proposed xbk.inv_stale, q20, and the intraday trigger only as the card's 'advanced version'); xbk.stop_width (D-005; the 5% skip and the ADR cap are never keyed, the width questions compute only and A13's 'about 3%' is the settled line; the stop 'usually 1 to 3% away, size down past 3%' appears only in the card's stop text); xbk.weekly (D-012; no item).",
+  "Proposed criteria keyed with their basis quoted: xbk.breakout_first, xbk.drift ('a sideways or slow drift'; the 2 to 10 session count is never keyed, and the dossiers disagree on it: 2 to 10, 2 to 15 and 2 to 8), xbk.depth (the zone down to about 1% under the 20 EMA), xbk.hold_day, xbk.intraday_option, xbk.inv_low_break, xbk.inv_stale, xbk.inv_heavy_close_under, xbk.inv_cross, xbk.inv_late_cycle, xbk.inv_failed_history, xbk.index_20ema and xbk.ma200_rising are marked proposed on the card; they are the dossier's proposals built on Kell, not owner rulings, so every question keyed on them carries house: true and the owner's review is the gate. xbk.inv_stale carries the same 3 sessions as the pending trigger line (D-003); the stale question (q20) uses Monday's hold day and Thursday's close, which is stale under every option.",
+  "The 9 and 20 against Kell's 10 and 20: the card, the owner's wording and the house text say 9/20; Kell's articles say 10 and 20-day. This unit keeps the 9/20 pair for our rules and treats Kell's 10-day lines as his own. The 'no reason to be long' quote is Kell's with his 10-day average in it; it is used only to key the idea that a fast average under the slow one is no long (q01 and the two cross-averages questions).",
+  "Adds: Kell buys in two pieces with staggered stops under the 10 and 20 EMA and adds at the crossback; TraderLion says scale in; A5 says one price, one stop (D-135 settled). The unit teaches the house rule only (the one-price question) and names Kell's way as his.",
+  "UNITS-method SET.15 asks for 15 labelled winners and 6 labelled losses from the owner's Model Book labelling and the vault (13.4 rule 2: fewer than 10 labelled examples ships only after the owner labels it in StudyReview). None exist; the ten examples used here come from our scan (dossier 13 and 14), chosen by eye for clarity, not by best R, and the owner has not reviewed them.",
+  "Examples (d1) are read off our own daily bars by the research scan, not a public page or an owner ruling, and are cited as a Tier 3 repo source. The scan buys 2 cents over the hold day's high within 3 sessions and stops 3 cents under its low, with no RS or market filter, no earnings filter for the base rate and a fixed stop for 60 sessions. The base-rate sentence (28.9% to 3R, 82.6% touching the stop) is the raw pattern, not the house plan with its trims.",
+  "Earnings: Kell and the owner both set up crossbacks into reports (NFLX 2023); B22 says skip inside 3 sessions. The NFLX entry sat five sessions before the reaction day, outside the window, so it was legal; JAZZ 2013 and AMD 2019 were dropped from the winners for sitting inside it.",
+  "The exits: the lab test found the house management earned less per trade than holding to a close under the 21-day EMA; D-019's default is one replay across all setups before any course teaches a change. Nothing here teaches a change. Kell's selling into extensions, TraderLion's scale-in and the curriculum's add-only label are not taught.",
+  "The short mirror (Kell's Downside EMA Crossback after a Wedge Drop) is not taught here. The Model Book card's short side is not Kell's downside crossback.",
+  "Chart questions (q62 UAA asof 2015-06-15, q63 GE asof 2025-12-31) are written for the importer to resolve from our own history, with the as-of date the hold day itself (the buy or would-be buy is the next session). The keys rest on the dossier's reads (d01, d02, d22, d23), not on reading the picture; the bars were not checked here. GE's later luck (3R) is explained in the why, so the near-miss does not read as a failed rule.",
+  "Sources: TraderLion's live pages refuse automated clients, so every TraderLion quote is cited by its Internet Archive capture. Kell's newsletter and interview are on Substack. Several Study bank items attribute 'If you miss the Wedge Pop, wait for the EMA Crossback' to Kell; no Kell text carries it (TraderLion staff wrote the nearest line), so it is not used (D-010).",
+  "Cold check 2026-11-10: 60 pass (9 fixed), 0 fix, 11 cut. Look first at: (1) D-002 decides the whole unit (Kell's definition, the first retest after a pop, against the house text): every item stands on it, though none states a number from it; q22 matches SET.14's crossback-versus-pullback tell, and q24 now uses Kell's name (Base n' Break) for a later rest without grading it. (2) 'Late crossbacks fail most' (q49, q60) is Kell's and the card's, but our own scan found waits of 11 to 20 sessions slightly better (30.0% to 3R against 28.5% for 3 to 10). (3) The pending numbers kept out of the keys were checked: q27 (flag pole 22% -> 32% clear of the 30% option), q16, q39 and q47 (no 'size down past 3%'), q24 (D-026). The charts UAA and GE have far more than 120 bars; q62 repeats walk-through w1's trade. Share count: q17 120 shares = 14.0% of the account. Cut as duplicates: q02, q07, q09, q11, q29, q31, q36, q51, q52, q65, q67."
+ ],
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "notes": "UAA matches the dossier row and the bars: pop 2015-06-05 on 7.25M shares (1.5x), 2-session drift, hold day 06-15 high 40.80 so the fill is 40.82, stop 40.17 under the low 40.20, 3R in 5 days.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "CLS matches the dossier row (pop 09-19 on 1.1x, 4-session drift, 0.6% undercut, buy 50.64, stop 48.94 = 3.4%, 3R in 3 days). Step 3 said 'Over 3%: the size shrinks', which leans on 'size down past 3%' (D-005, pending): now just 'a wider stop means fewer shares'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "MU matches the dossier (pop 08-08 on 1.3x, 3-day drift, hold day 08-18, buy 123.70, stop 120.63, low 113.46 on 08-20; 3R on 09-09 and 5R on 09-10, three weeks later). 'Weeks later' is right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q01": {
+   "status": "pass",
+   "notes": "Kell (e01, e04): the first retest of the averages after a Wedge Pop. The whole unit rests on D-002 (Kell's definition against the house text), which is pending; flagged for the owner, not a number. variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q02": {
+   "status": "cut",
+   "notes": "Duplicate of q06 and q26: all three key 'the 9 above the 20 is the crossback's context; the 9 under the 20 means no long'. q06 (the recall) and q26 (the applied case) are kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q03": {
+   "status": "pass",
+   "notes": "Settled trigger shape (E57); the 'hold day's high' is the card's trigger, which keeps its shape under every D-003 option. Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q04": {
+   "status": "pass",
+   "notes": "Kell e03 (wait for confirmation that buyers are stepping in) and the card's named mistake. Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q05": {
+   "status": "pass",
+   "notes": "Settled card stop (F62). Right; wrong notes true. variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q06": {
+   "status": "pass",
+   "notes": "Kell k3 (e07): no reason to be long with the fast average under the 20. The 9/20 pair is the house text (D-021: Kell uses 10/20); the why says so. Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q07": {
+   "status": "cut",
+   "notes": "Duplicate of q01: both key 'the crossback is the first retest after the Wedge Pop' (e05/e06, x01).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q08": {
+   "status": "pass",
+   "notes": "Kell k4 (e08): a Wedge Pop is price bars and volume, not just a cross. Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q09": {
+   "status": "cut",
+   "notes": "Duplicate of q23: both key 'one close back over the averages is a pop setting up, not a crossback'. q23 keeps the applied case.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q10": {
+   "status": "pass",
+   "notes": "Card x03 (proposed hold day). Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q11": {
+   "status": "cut",
+   "notes": "Duplicate of q10 and q18: the fill repeats 'the hold day closes at or above the 20 EMA' from q10's why.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q12": {
+   "status": "pass",
+   "notes": "Card x20 (proposed) and Kell e10. Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q13": {
+   "status": "pass",
+   "notes": "Settled above_200 (B26): the crossback gets no exception. Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q14": {
+   "status": "pass",
+   "notes": "Settled C31: RS 80 or more in a strong group. Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q15": {
+   "status": "pass",
+   "notes": "Arithmetic: 116.55 + 3 x (116.55 - 112.39) = 129.03. HOOD row matches the dossier.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q16": {
+   "status": "pass",
+   "notes": "Arithmetic: (116.55 - 112.39) / 116.55 = 3.57 -> 3.6. The why said 'past about 3%, so the size shrinks', which leans on D-005's 'size down past 3%' (pending): now just 'wider than the usual 3%' (A13, settled).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q17": {
+   "status": "pass",
+   "notes": "Arithmetic: 100,000 x 0.5% = 500; risk per share 4.16; 500 / 4.16 = 120.2 -> 120 shares. Cap A7: 120 x 116.55 = 13,986 = 14.0% of the account, under 40%.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q18": {
+   "status": "pass",
+   "notes": "Arithmetic: (63.40 - 61.00) / (64.00 - 61.00) = 0.80 -> 80%. Upper half per the card's hold day (proposed).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q19": {
+   "status": "pass",
+   "notes": "Arithmetic: (100.00 - 99.20) / 100.00 = 0.8%. Inside the zone to about 1% under the 20 EMA (proposed x04). Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q20": {
+   "status": "pass",
+   "notes": "Monday hold day, no trigger by Thursday's close: three sessions without a trigger, stale (proposed x08, and the 3 is shared by every D-003 option). Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q21": {
+   "status": "pass",
+   "notes": "B22: a report 3 sessions away puts tomorrow's buy inside the window. Right. variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q22": {
+   "status": "pass",
+   "notes": "Same tell as the 20 EMA Pullback unit (SET.14 q48): the first test after the stock closed back over the 9 and 20 is the crossback; a tap of a 20 EMA rising for weeks is the pullback. Eight sessions after the pop is inside the card's 3 to 20 under any D-076 option. Consistent with SET.14. variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q23": {
+   "status": "pass",
+   "notes": "Card x02 and Kell e08. The story: weeks under the averages, then one close back above both out of a tight range on 1.6x volume: a pop, not yet a crossback. Right. variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q24": {
+   "status": "pass",
+   "notes": "Kell e09/x24: a later rest is the Base n' Break. The why said 'graded lower here', which leans on D-026 (a later test is a B grade or another setup, pending): now Kell's name only. SET.14 calls a later orderly test the 20 EMA Pullback; this question offers no pullback choice, so the two do not clash. variety rewrite checked 2026-11-10",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q25": {
+   "status": "pass",
+   "notes": "Card x09 (proposed). Right. Kept over q29, its scenario twin.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q26": {
+   "status": "pass",
+   "notes": "Card x26/x10: a crossback holds the rising 9 and 20 with no run of closes under them. The nine closes under the 50-day make the context wrong; the 9 under the 20 settles it. Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q27": {
+   "status": "pass",
+   "notes": "Story said 'jumps 22%': the bull flag pole is pending (bf.pole 20, 30 or 0; a 30% option would void it). Now 32% in 12 sessions, a 6-session drift (inside 15/20/40), well above the averages: a flag under every option, not a crossback.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q28": {
+   "status": "pass",
+   "notes": "Card x07 (proposed). Right. variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q29": {
+   "status": "cut",
+   "notes": "Duplicate of q25: both key 'a close under the 20 EMA on above-average volume ends the setup before the trigger'. q25 kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q30": {
+   "status": "pass",
+   "notes": "A5 / card x17: one price, one stop. Names Kell's adding as his own way, which the dossier records. Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q31": {
+   "status": "cut",
+   "notes": "Duplicate of q30: both key 'no adding, one price, one stop'.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q32": {
+   "status": "pass",
+   "notes": "Card x11 (proposed): after an Exhaustion Extension the next stage is a Wedge Drop. Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q33": {
+   "status": "pass",
+   "notes": "Settled B26 (the card: no parabolic exception for a crossback). Right. variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q34": {
+   "status": "pass",
+   "notes": "Card x19/x22 (proposed cue) and AAPL 2022. Right as a grade cue; the why says the stop is still the exit.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q35": {
+   "status": "pass",
+   "notes": "F65 settled: Orange is A+ only. Right. variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q36": {
+   "status": "cut",
+   "notes": "Duplicate of q63 (the GE weak hold day, lower 3% of its range) and it names GE, the hidden ticker of the chart question q63.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q37": {
+   "status": "pass",
+   "notes": "AMAT near-miss: the low 2.1% under the 20 EMA against the proposed 'about 1%' line (x04). Right. variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q38": {
+   "status": "pass",
+   "notes": "Dossier base rate: 28.9% reached 3R before the stop, so most did not; 82.6% touched the stop at some point in 60 sessions. Right and labelled 'in our scan'. variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q39": {
+   "status": "pass",
+   "notes": "A3/A5. The why said 'a stop past about 3% means fewer shares', which leans on D-005 (pending): now 'a wider stop means fewer shares'. CLS numbers match. variety rewrite checked 2026-11-10",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q40": {
+   "status": "pass",
+   "notes": "B21 settled. MU matches the dossier. Right. variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q41": {
+   "status": "pass",
+   "notes": "E56 settled (3 tries a week, 6 a month). Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q42": {
+   "status": "pass",
+   "notes": "E52 settled. Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q43": {
+   "status": "pass",
+   "notes": "C33 settled; 0.6R is under 1R at day 10. Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q44": {
+   "status": "pass",
+   "notes": "F63 settled. 130.00 opens above 3R = 129.03 (116.55 + 3 x 4.16). Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q45": {
+   "status": "pass",
+   "notes": "B20 settled. 1R = 3.07; a first 30-minute low of 113.46 is 3.3R down, past 2R. Right (the 113.46 is the day's low in the dossier; the story states it as the first 30-minute low as a hypothetical). variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q46": {
+   "status": "pass",
+   "notes": "Settled trigger and stop. The story named UAA, the same trade as the hidden-ticker chart q62: now anonymous in the story and the why. Numbers match the dossier and the bars. variety rewrite checked 2026-11-10",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q47": {
+   "status": "pass",
+   "notes": "Card x04 (proposed): a 0.6% undercut that closes back over the line is inside the zone. The why said 'the stop is 3.4% away, so the size shrinks' (D-005, pending): removed; the wrong note now says 'fewer shares'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q48": {
+   "status": "pass",
+   "notes": "ALGN row and text match the dossier (earnings gap on 3.7x volume, six sessions, low exactly on the 20 EMA, bars show the 02-10 low 95.17 against a high of 97.22). Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q49": {
+   "status": "pass",
+   "notes": "LLY row matches the dossier (16 sessions after the pop, stopped the next day). The 16 sessions sit inside the card's 3 to 20, so 'a warning, not a gate' is right. Note: our own scan found 11 to 20 session waits did slightly better (30.0% to 3R) than 3 to 10 (28.5%), so 'late fails most' is Kell's and the card's, not our data's. | flagged-question fix checked 2026-11-11",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q50": {
+   "status": "pass",
+   "notes": "NFLX row matches the dossier (reaction day five sessions after the entry); B22's window is 3 sessions. Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q51": {
+   "status": "cut",
+   "notes": "Duplicate of q24: both key 'the second rest after the pop is the Base n' Break, not the crossback'. q24 kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q52": {
+   "status": "cut",
+   "notes": "Duplicate of q34: both key 'the index cue is a grade cue, a weak index lowers the grade' (x19, x22). q34 kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q53": {
+   "status": "pass",
+   "notes": "Card x21 (proposed advanced version). Right. | flagged-question fix checked 2026-11-11",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q54": {
+   "status": "pass",
+   "notes": "C28 settled: 52.90 / 50.64 = 1.0446, 4.5% over the trigger. The why quoted Kell's '3-4% above the averages', which is about distance from the averages, not from the trigger: reworded to say so.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q55": {
+   "status": "pass",
+   "notes": "Settled E56. Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q56": {
+   "status": "pass",
+   "notes": "B23 settled. Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q57": {
+   "status": "pass",
+   "notes": "C31 settled. Right. | flagged-question fix checked 2026-11-11",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q58": {
+   "status": "pass",
+   "notes": "F65/D46 settled. Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q59": {
+   "status": "pass",
+   "notes": "Card x32 (proposed cue). Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q60": {
+   "status": "pass",
+   "notes": "Card x22 and the pop-quality grading (proposed). Right as a grade call. Note: our own scan found waits of 11 to 20 sessions slightly better (30.0% against 28.5% to 3R), so 'late fails most' is Kell's and the card's, not measured; flagged for the owner.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q61": {
+   "status": "pass",
+   "notes": "Card x33 (proposed grade cue). Right. variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q62": {
+   "status": "pass",
+   "notes": "Chart check on the sandbox bars.db: UAA has 2,407 daily bars on or before 2015-06-15, so the 120-bar window is met. The 06-15 bar (open 40.385, high 40.80, low 40.20, close 40.595) closes in the upper 66% of its range, fill 40.82 and stop 40.17 match d01. Question names no ticker; w1 walks the same trade, so the question is weaker as a test (flagged).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q63": {
+   "status": "pass",
+   "notes": "Chart check: GE has 7,786 daily bars on or before 2025-12-31, so the window is met. The 12-31 bar (high 313.36, low 307.87, close 308.03) closes in the lower 2.9% of its range, as d22 says. Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q64": {
+   "status": "pass",
+   "notes": "F66 and D39 settled. The choice said 'Check the base' on a crossback, which has no base: now 'the hold day'. | flagged-question fix checked 2026-11-11",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q65": {
+   "status": "cut",
+   "notes": "Duplicate of q26: both key 'the 9 under the 20 means no long, even with a good-looking day'.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q66": {
+   "status": "pass",
+   "notes": "Card x31/x32 (Bracco's market-wide cue, proposed). Right as a grade cue.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q67": {
+   "status": "cut",
+   "notes": "Duplicate of q39: both key 'keep the honest stop; the size bends to the stop'. Also the story said the stop was 'wider than your risk budget allows', which cannot happen when the size comes from the stop.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q68": {
+   "status": "pass",
+   "notes": "Kell e02 and TraderLion e13/e14: a slow, gentle drift is ideal. Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q69": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10. E57 and E58 settled; True.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q70": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10. E57 and E58 settled; the pre-market print is not a trigger in regular hours.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q71": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10. C29 settled. (54.60 - 49.00) / 49.00 = 11.4%.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q72": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10. Fixed: the old story had a 95 to 108 hold day (a stop about 12% wide) and called 11.3% \"well over\" 10%; now a gap open at 101.50 over a 100.00 hold-day high, 91.00 ten-day average: 11.5% above the average, 1.5% over the trigger. C29 and C28 settled.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q73": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10. Fixed: the question now names the volume rule, since the risk size and the 40% cap could also bind. 4,000,000 x 1% = 40,000 (D42).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q74": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10. D42 settled; True.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q75": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10. D41 verbatim; the other bank words are things a trader watches, and only the broker holds an order.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q76": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10. A4 settled, the gap rule (B20) is its one exception.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q77": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10. D40 settled; the chart comes first, so the False holds.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q78": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10. Fixed: it asked \"how many R\" (the R arithmetic, a neighbour); re-aimed at the breakeven price so it tests xbk.breakeven (B19). 40.82 + 2 x (40.82 - 40.17) = 42.12.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q79": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10. Card line x39 and B19, settled; wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q80": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10. E51 settled. 120 / 3 = 40.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q81": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10. E51 settled.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q82": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10. C34 settled (a judgment call); A5 for the no-add note.",
+   "fixed": false,
+   "by": "checker"
+  }
+ }
+}

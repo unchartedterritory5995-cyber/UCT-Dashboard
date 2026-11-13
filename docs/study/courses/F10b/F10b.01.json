@@ -1,0 +1,1488 @@
+{
+ "unit": "F10b.01",
+ "track": "F10b",
+ "title": "Shorting: borrow, locate, cover",
+ "teaches": "Selling what you don't own: the borrowed shares, the locate your broker needs first, what a short costs while you hold it (the borrow fee, any dividend, the margin), the buy to cover, and the short-sale price rules from the 1938 tick test to today's 10% circuit breaker.",
+ "skills": [
+  {
+   "id": "short.mechanics",
+   "title": "Shorting: borrow, locate, cover"
+  }
+ ],
+ "as_of": "2026-11-09",
+ "sources": [
+  {
+   "id": "s1",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Investor Bulletin: An Introduction to Short Sales (Oct. 29, 2015, updated September 9, 2026)",
+   "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins-51",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s2",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Stock Purchases and Sales: Long and Short",
+   "url": "https://www.investor.gov/introduction-investing/investing-basics/how-stock-markets-work/stock-purchases-and-sales-long-and",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s3",
+   "tier": 1,
+   "publisher": "SEC",
+   "title": "Key Points About Regulation SHO (modified 5/31/2022)",
+   "url": "https://www.sec.gov/investor/pubs/regsho.htm",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s4",
+   "tier": 1,
+   "publisher": "SEC rule text, eCFR (17 CFR 242.203)",
+   "title": "Regulation SHO Rule 203, Borrowing and delivery requirements",
+   "url": "https://www.ecfr.gov/current/title-17/chapter-II/part-242/section-242.203",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s5",
+   "tier": 1,
+   "publisher": "SEC rule text, eCFR (17 CFR 242.201)",
+   "title": "Regulation SHO Rule 201, Circuit breaker",
+   "url": "https://www.ecfr.gov/current/title-17/chapter-II/part-242/section-242.201",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s6",
+   "tier": 1,
+   "publisher": "SEC",
+   "title": "Press release 2010-26: SEC Approves Short Selling Restrictions (Feb. 24, 2010)",
+   "url": "https://www.sec.gov/newsroom/press-releases/2010-26-sec-approves-short-selling-restrictions",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s7",
+   "tier": 1,
+   "publisher": "SEC",
+   "title": "Press release 2007-114: SEC Votes on Regulation SHO Amendments and Proposals; Also Votes to Eliminate Tick Test (June 13, 2007)",
+   "url": "https://www.sec.gov/newsroom/press-releases/2007-114-sec-votes-regulation-sho-amendments-proposals-also-votes-eliminate-tick-test",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s8",
+   "tier": 1,
+   "publisher": "SEC, Division of Trading and Markets",
+   "title": "Responses to Frequently Asked Questions Concerning Rule 201 of Regulation SHO",
+   "url": "https://www.sec.gov/rules-regulations/staff-guidance/trading-markets-frequently-asked-questions-7",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s9",
+   "tier": 1,
+   "publisher": "SEC, Division of Market Regulation",
+   "title": "Responses to Frequently Asked Questions Concerning Regulation SHO (modified 10/15/2015)",
+   "url": "https://www.sec.gov/files/divisions/marketreg/mrfaqregsho1204.htm",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s10",
+   "tier": 1,
+   "publisher": "FINRA",
+   "title": "Short Interest: What It Is, What It Is Not (Investor Insights, January 25, 2023)",
+   "url": "https://www.finra.org/investors/insights/short-interest",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s11",
+   "tier": 1,
+   "publisher": "FINRA",
+   "title": "Rule 4210, Margin Requirements",
+   "url": "https://www.finra.org/rules-guidance/rulebooks/finra-rules/4210",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s12",
+   "tier": 1,
+   "publisher": "SEC",
+   "title": "Staff Report on Equity and Options Market Structure Conditions in Early 2021 (October 14, 2021)",
+   "url": "https://www.sec.gov/files/staff-report-equity-options-market-struction-conditions-early-2021.pdf",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s13",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Glossary: Margin Account",
+   "url": "https://www.investor.gov/introduction-investing/investing-basics/glossary/margin-account",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s14",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "Short Selling: The Risks and Rewards (June 1, 2026)",
+   "url": "https://www.schwab.com/learn/story/ins-and-outs-short-selling",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s15",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Short Selling: Your Step-by-Step Guide for Shorting Stocks (Adam Hayes, Ph.D., CFA; updated April 16, 2026)",
+   "url": "https://www.investopedia.com/terms/s/shortselling.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s16",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Hard-to-Borrow List (Gordon Scott, updated May 18, 2026)",
+   "url": "https://www.investopedia.com/terms/h/hardtoborrowlist.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s17",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Buy-In (James Chen, updated July 7, 2026)",
+   "url": "https://www.investopedia.com/terms/b/buyin.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s18",
+   "tier": 2,
+   "publisher": "Fidelity Investments",
+   "title": "Meeting requirements for margin trading (Learning Center)",
+   "url": "https://www.fidelity.com/learning-center/trading-investing/trading/meeting-requirements-margin-trading",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s19",
+   "tier": 2,
+   "publisher": "Public Investing (Public.com Help Center)",
+   "title": "What are forced buy-ins and recalls? (April 14, 2026)",
+   "url": "https://help.public.com/en/articles/14626901-what-are-forced-buy-ins-and-recalls",
+   "accessed": "2026-11-09",
+   "why_reliable": "The help centre of Public Investing, a FINRA/SIPC member broker-dealer, describing how its own short positions are recalled and bought in: a broker's own education and help pages are the contract's Tier 2 broker education centres. Used only for the recall and buy-in lines, which agree with Schwab (s14) and Investopedia (s17)."
+  }
+ ],
+ "facts": [
+  {
+   "id": "f01",
+   "source": "s1",
+   "quote": "A short sale generally involves the sale of a stock you do not own (or that you will borrow for delivery).",
+   "claim": "A short sale is selling a stock you do not own, usually shares you borrow to deliver."
+  },
+  {
+   "id": "f02",
+   "source": "s1",
+   "quote": "If the price of the stock drops, short sellers buy the stock at the lower price and make a profit. If the price of the stock rises, short sellers will incur a loss.",
+   "claim": "A short makes money when the stock falls and loses when it rises."
+  },
+  {
+   "id": "f03",
+   "source": "s1",
+   "quote": "Company A is trading at $60 a share, so the investor borrows shares of Company A stock at $60 a share and immediately sells them in a short sale.",
+   "claim": "SEC example: borrow the shares and sell them short at $60."
+  },
+  {
+   "id": "f04",
+   "source": "s1",
+   "quote": "Later, Company A’s stock price declines to $40 a share, and the investor buys shares back on the open market to replace the borrowed shares.",
+   "claim": "SEC example: the stock falls to $40 and the short seller buys shares back to replace the borrowed ones."
+  },
+  {
+   "id": "f05",
+   "source": "s1",
+   "quote": "Since the price is lower, the investor profits on the difference -- in this case $20 a share (minus transaction costs such as commissions and fees).",
+   "claim": "The short's profit is the sale price minus the buy-back price, before costs: $20 a share in the SEC example."
+  },
+  {
+   "id": "f06",
+   "source": "s1",
+   "quote": "if the stock price increases to $80 a share, and the investor must buy back the shares on the open market to replace the borrowed shares, the investor would suffer a $20 loss per share",
+   "claim": "If the stock rises from $60 to $80 and the short seller buys back, the loss is $20 a share."
+  },
+  {
+   "id": "f07",
+   "source": "s1",
+   "quote": "shorting a stock leaves an investor open to the possibility of unlimited losses, since a stock can theoretically keep rising indefinitely",
+   "claim": "A short's loss has no fixed cap, because a stock can keep rising."
+  },
+  {
+   "id": "f08",
+   "source": "s1",
+   "quote": "Typically, when you sell short, your brokerage firm loans you the stock. The stock you borrow comes from either the firm’s own inventory, the margin account of other brokerage firm clients, or another lender.",
+   "claim": "Your broker lends you the shares, from its own inventory, other clients' margin accounts or another lender."
+  },
+  {
+   "id": "f09",
+   "source": "s1",
+   "quote": "As with buying stock on margin, your brokerage firm will charge you interest on the loan, and you are subject to the margin rules.",
+   "claim": "You pay interest on the borrowed shares, and the margin rules apply to a short."
+  },
+  {
+   "id": "f10",
+   "source": "s1",
+   "quote": "If the stock you borrow pays a dividend, you must pay the dividend to the person or firm making the loan.",
+   "claim": "If the borrowed stock pays a dividend, the short seller pays it to the lender."
+  },
+  {
+   "id": "f11",
+   "source": "s1",
+   "quote": "In a “naked” short sale, the seller does not borrow or arrange to borrow the securities in time to make delivery to the buyer within the standard one-day settlement period.",
+   "claim": "A naked short is one where the seller does not borrow or arrange to borrow the shares in time to deliver them."
+  },
+  {
+   "id": "f12",
+   "source": "s1",
+   "quote": "Compliance with Regulation SHO began on January 3, 2005.",
+   "claim": "Compliance with Regulation SHO, the SEC's short-sale rulebook with the locate requirement, began on January 3, 2005."
+  },
+  {
+   "id": "f13",
+   "source": "s2",
+   "quote": "The investor later closes out the position by returning the borrowed security to the stock lender, typically by purchasing securities on the open market.",
+   "claim": "You close a short by buying shares in the market and returning them to the lender."
+  },
+  {
+   "id": "f14",
+   "source": "s2",
+   "quote": "Short selling is for the experienced investor.",
+   "claim": "The SEC's investor site calls short selling a strategy for experienced investors."
+  },
+  {
+   "id": "f15",
+   "source": "s2",
+   "quote": "Having a “long” position in a security means that you own the security.",
+   "claim": "Being long means you own the shares."
+  },
+  {
+   "id": "f16",
+   "source": "s3",
+   "quote": "Regulation SHO requires a broker-dealer to have reasonable grounds to believe that the security can be borrowed so that it can be delivered on the date delivery is due before effecting a short sale order in any equity security.",
+   "claim": "Before any short sale, the broker must have reasonable grounds to believe the shares can be borrowed and delivered on time. That is the locate."
+  },
+  {
+   "id": "f17",
+   "source": "s3",
+   "quote": "This “locate” must be made and documented prior to effecting the short sale.",
+   "claim": "The locate is made and documented before the short sale goes through."
+  },
+  {
+   "id": "f18",
+   "source": "s3",
+   "quote": "Once the circuit breaker in Rule 201 has been triggered, the price test restriction will apply to short sale orders in that security for the remainder of the day and the following day, unless an exception applies.",
+   "claim": "Once Rule 201 trips, the short-sale price test lasts the rest of that day and the next day."
+  },
+  {
+   "id": "f19",
+   "source": "s3",
+   "quote": "In 2010, the Commission adopted Rule 201 of Regulation SHO.",
+   "claim": "The SEC adopted Rule 201, today's short-sale price test, in 2010."
+  },
+  {
+   "id": "f20",
+   "source": "s3",
+   "quote": "Rule 201 is designed to prevent short selling, including potentially manipulative or abusive short selling, from driving down further the price of a security that has already experienced a significant intra-day price decline",
+   "claim": "Rule 201 aims to stop short selling from pushing down further a stock that has already dropped hard that day."
+  },
+  {
+   "id": "f21",
+   "source": "s3",
+   "quote": "Selling stock short without having located stock for delivery at settlement. This activity would violate Regulation SHO, except for short sales by market makers engaged in bona fide market making activities.",
+   "claim": "Shorting without a locate violates Regulation SHO, except for short sales by market makers doing bona fide market making."
+  },
+  {
+   "id": "f22",
+   "source": "s3",
+   "quote": "an order can be marked “long” when the seller owns the security being sold",
+   "claim": "A sale can be marked long when the seller owns the shares being sold (and they will be with the broker by settlement)."
+  },
+  {
+   "id": "f23",
+   "source": "s4",
+   "quote": "A broker or dealer may not accept a short sale order in an equity security from another person, or effect a short sale in an equity security for its own account, unless the broker or dealer has:",
+   "claim": "A broker may not take a customer's short sale order until the locate condition is met."
+  },
+  {
+   "id": "f24",
+   "source": "s4",
+   "quote": "Borrowed the security, or entered into a bona-fide arrangement to borrow the security; or (ii) Reasonable grounds to believe that the security can be borrowed so that it can be delivered on the date delivery is due",
+   "claim": "The rule is met by an actual borrow, an arrangement to borrow, or reasonable grounds that the shares can be borrowed in time for delivery."
+  },
+  {
+   "id": "f25",
+   "source": "s5",
+   "quote": "Prevent the execution or display of a short sale order of a covered security at a price that is less than or equal to the current national best bid",
+   "claim": "Once Rule 201 trips, a short sale cannot be executed or shown at or below the current national best bid."
+  },
+  {
+   "id": "f26",
+   "source": "s6",
+   "quote": "The circuit breaker would be triggered for a security any day in which the price declines by 10 percent or more from the prior day’s closing price.",
+   "claim": "The short-sale circuit breaker trips when a stock falls 10% or more from the prior day's close."
+  },
+  {
+   "id": "f27",
+   "source": "s6",
+   "quote": "At that point, short selling would be permitted if the price of the security is above the current national best bid.",
+   "claim": "After the trigger, a short sale is allowed only at a price above the current national best bid."
+  },
+  {
+   "id": "f28",
+   "source": "s6",
+   "quote": "It will enable long sellers to stand in the front of the line and sell their shares before any short sellers once the circuit breaker is triggered.",
+   "claim": "After the trigger, holders who are selling go to the front of the line ahead of short sellers."
+  },
+  {
+   "id": "f29",
+   "source": "s6",
+   "quote": "The rule generally applies to all equity securities that are listed on a national securities exchange, whether traded on an exchange or in the over-the-counter market.",
+   "claim": "Rule 201 generally covers every exchange-listed stock."
+  },
+  {
+   "id": "f30",
+   "source": "s7",
+   "quote": "The Commission adopted Rule 10a-1 in 1938 after several years of considering the effects of short selling in a declining market.",
+   "claim": "The SEC adopted its short-sale tick test, Rule 10a-1, in 1938."
+  },
+  {
+   "id": "f31",
+   "source": "s7",
+   "quote": "Short sales are not permitted on minus ticks or zero-minus ticks, subject to narrow exceptions. The operation of these provisions is commonly described as the “tick test.”",
+   "claim": "The old tick test barred short sales on a downtick (minus or zero-minus tick), with narrow exceptions."
+  },
+  {
+   "id": "f32",
+   "source": "s7",
+   "quote": "SEC Votes on Regulation SHO Amendments and Proposals; Also Votes to Eliminate “Tick” Test For Immediate Release 2007-114 Washington, D.C., June 13, 2007",
+   "claim": "On June 13, 2007, the SEC voted to eliminate the tick test."
+  },
+  {
+   "id": "f33",
+   "source": "s7",
+   "quote": "The general consensus from these analyses and the roundtable was that the Commission should remove price test restrictions because they modestly reduce liquidity and do not appear necessary to prevent manipulation.",
+   "claim": "The SEC removed the tick test because the studies found it modestly reduced liquidity and did not seem needed to stop manipulation."
+  },
+  {
+   "id": "f34",
+   "source": "s8",
+   "quote": "Thus, if the Rule 201 circuit breaker is triggered on a Friday, the price test restriction will be in effect on that Friday and on the following Monday.",
+   "claim": "A Friday trigger keeps the short-sale price test on through the following Monday."
+  },
+  {
+   "id": "f35",
+   "source": "s8",
+   "quote": "Is the determination regarding whether the Rule 201 circuit breaker has been triggered limited to regular trading hours (as defined under Regulation NMS)? Answer: Yes.",
+   "claim": "Only regular trading hours count for tripping the Rule 201 circuit breaker."
+  },
+  {
+   "id": "f36",
+   "source": "s8",
+   "quote": "Regular trading hours is defined by Rule 600(b)(64) of Regulation NMS to mean the time between 9:30 a.m. and 4:00 p.m. Eastern Time",
+   "claim": "Regular trading hours run from 9:30 a.m. to 4:00 p.m. Eastern."
+  },
+  {
+   "id": "f37",
+   "source": "s8",
+   "quote": "the covered security's price is based on trades reported in the consolidated system for the covered security during regular trading hours",
+   "claim": "The 10% drop is measured on trades reported during regular trading hours."
+  },
+  {
+   "id": "f38",
+   "source": "s8",
+   "quote": "if the price of a covered security declines intra-day by at least 10% on a day on which the security is already subject to the short sale price test restriction of Rule 201, the restriction will be re-triggered",
+   "claim": "A fresh 10% drop on a day the restriction is already on triggers it again."
+  },
+  {
+   "id": "f39",
+   "source": "s9",
+   "quote": "Easy to Borrow lists generally may be used to establish a reasonable basis for a locate.",
+   "claim": "A broker's easy-to-borrow list can generally serve as the reasonable basis for a locate."
+  },
+  {
+   "id": "f40",
+   "source": "s9",
+   "quote": "Prior to a customer’s short sale of 100 shares of XYZ stock, the executing broker-dealer obtains an appropriate locate for the securities.",
+   "claim": "Even a short that will be covered the same day gets a locate before it is sold."
+  },
+  {
+   "id": "f41",
+   "source": "s9",
+   "quote": "For a \"hard to borrow\" security or a threshold security, a broker-dealer may not re-apply a locate for intra-day buy-to cover trades.",
+   "claim": "In a hard-to-borrow stock, a new short after a same-day buy to cover needs a fresh locate."
+  },
+  {
+   "id": "f42",
+   "source": "s10",
+   "quote": "To open a short position, an investor places a short sale order with their brokerage firm in a stock that the investor does not own. This is done in a margin account.",
+   "claim": "A short sale is placed with your broker and done in a margin account."
+  },
+  {
+   "id": "f43",
+   "source": "s10",
+   "quote": "Because the investor does not own the shares, the brokerage firm will look to “locate” shares prior to executing the short sale.",
+   "claim": "Your broker locates the shares before it executes your short sale."
+  },
+  {
+   "id": "f44",
+   "source": "s10",
+   "quote": "To close the position, the investor can purchase the stock in the market, which they hope will be at a lower price than they sold the shares short.",
+   "claim": "You close a short by buying the stock in the market, hoping to pay less than you sold it for."
+  },
+  {
+   "id": "f45",
+   "source": "s10",
+   "quote": "For example, an investor might sell a security short and purchase shares to close the position on the same trade date.",
+   "claim": "A short can be opened and closed on the same day."
+  },
+  {
+   "id": "f46",
+   "source": "s10",
+   "quote": "On the other hand, an investor might hold a short position open for days or weeks, perhaps as a hedge against another position.",
+   "claim": "A short can also be held open for days or weeks."
+  },
+  {
+   "id": "f47",
+   "source": "s11",
+   "quote": "$5.00 per share or 30 percent of the current market value, whichever amount is greater, of each stock \"short\" in the account selling at $5.00 per share or above",
+   "claim": "FINRA's minimum maintenance margin on a short stock at $5 or more is the greater of $5.00 a share or 30% of its value."
+  },
+  {
+   "id": "f48",
+   "source": "s11",
+   "quote": "$2.50 per share or 100 percent of the current market value, whichever amount is greater, of each stock \"short\" in the account selling at less than $5.00 per share",
+   "claim": "For a short stock under $5, FINRA's minimum is the greater of $2.50 a share or 100% of its value."
+  },
+  {
+   "id": "f49",
+   "source": "s11",
+   "quote": "House Margin and Limits Procedures shall be established by members to: (A) review limits and types of credit extended to all customers; (B) formulate their own margin requirements",
+   "claim": "Brokers set their own margin requirements on top of FINRA's minimum."
+  },
+  {
+   "id": "f50",
+   "source": "s12",
+   "quote": "Even when a share can be borrowed, short sellers may find it costly to borrow stock to enter or maintain a short position. This cost is known as a securities lending fee, or simply a “lending fee.”",
+   "claim": "Borrowing shares to open or keep a short has a cost, the lending fee."
+  },
+  {
+   "id": "f51",
+   "source": "s12",
+   "quote": "For perspective, between January 2007 and July 2018, the securities of just 222 firms had lending fees greater than 100% at any point, accounting for just 0.01% of observations.",
+   "claim": "From 2007 to 2018, lending fees above 100% a year were rare: 0.01% of observations."
+  },
+  {
+   "id": "f52",
+   "source": "s12",
+   "quote": "Average lending fees were 1.5% during that same period.",
+   "claim": "Lending fees averaged 1.5% a year from 2007 to 2018."
+  },
+  {
+   "id": "f53",
+   "source": "s12",
+   "quote": "During the second quarter of 2020, the cost to borrow GME was greater than 100%. This is an exceptionally high cost to borrow.",
+   "claim": "In the second quarter of 2020, GameStop's (GME) cost to borrow was above 100%, which the SEC staff called exceptionally high."
+  },
+  {
+   "id": "f54",
+   "source": "s13",
+   "quote": "A “margin account” is a type of brokerage account in which the broker-dealer lends the investor cash, using the account as collateral, to purchase securities.",
+   "claim": "A margin loan for buying is a loan of cash, not of shares."
+  },
+  {
+   "id": "f55",
+   "source": "s14",
+   "quote": "Because you're borrowing shares from a brokerage firm, you must first establish a margin account to hold eligible assets like bonds, cash, mutual funds, or stocks as collateral.",
+   "claim": "You need a margin account, holding collateral, before you can short."
+  },
+  {
+   "id": "f56",
+   "source": "s14",
+   "quote": "As with other forms of borrowing, you'll be charged interest on the value of the outstanding shares until they're returned",
+   "claim": "You pay interest on the value of the borrowed shares until you return them."
+  },
+  {
+   "id": "f57",
+   "source": "s14",
+   "quote": "You may be able to short the most liquid shares for nothing, while the least liquid shares could come with an annualized interest rate of more than 100% of the value of your position.",
+   "claim": "Borrow rates run from nothing for the most liquid stocks to more than 100% a year for the least liquid."
+  },
+  {
+   "id": "f58",
+   "source": "s14",
+   "quote": "Rates can also change suddenly if the shares become more or less liquid. Interest accrues daily at the prevailing rate and is deducted from your account on a monthly basis.",
+   "claim": "The borrow rate can change suddenly; it accrues daily at the current rate and is charged monthly at Schwab."
+  },
+  {
+   "id": "f59",
+   "source": "s14",
+   "quote": "Your broker will have to \"locate\" the security you're targeting before you can do a short sale.",
+   "claim": "Your broker has to locate the shares before you can short."
+  },
+  {
+   "id": "f60",
+   "source": "s14",
+   "quote": "For example, you could log off one night with a short position carrying a 20% interest rate, only to log in the next day to find it has surged to 85%.",
+   "claim": "Schwab's example: a 20% borrow rate one night can be 85% the next day."
+  },
+  {
+   "id": "f61",
+   "source": "s14",
+   "quote": "As a result, you may find it no longer makes sense to keep your position open.",
+   "claim": "A jump in the borrow rate can make a short no longer worth holding."
+  },
+  {
+   "id": "f62",
+   "source": "s14",
+   "quote": "the value of any dividends paid will be deducted from short-seller's account on the pay date and delivered to the stock's owner.",
+   "claim": "A dividend paid while you're short comes out of your account and goes to the owner of the shares."
+  },
+  {
+   "id": "f63",
+   "source": "s14",
+   "quote": "Some short sellers choose to close their short positions before the stock's ex-dividend date to avoid having to pay.",
+   "claim": "Covering before the ex-dividend date avoids owing the dividend; staying short through it means you pay."
+  },
+  {
+   "id": "f64",
+   "source": "s14",
+   "quote": "There is no guarantee the brokerage firm can continue to maintain a short position for any period of time. Your position may be closed out by the firm without regard to your profit or loss.",
+   "claim": "Your broker can close your short at any time, whatever your profit or loss."
+  },
+  {
+   "id": "f65",
+   "source": "s14",
+   "quote": "usually 30% to 35% of the value of the borrowed shares, depending on the firm and the particular securities you own",
+   "claim": "Brokers' maintenance requirement on a short is usually 30% to 35% of its value."
+  },
+  {
+   "id": "f66",
+   "source": "s15",
+   "quote": "based on an annualized rate that can range from a small fraction of a percent to more than 100% of the short trade's value and is prorated for the number of days that the short trade is open",
+   "claim": "The borrow fee is a yearly rate, from a fraction of a percent to over 100%, charged for the days the short is open."
+  },
+  {
+   "id": "f67",
+   "source": "s15",
+   "quote": "Shares that are difficult to borrow (because of high short interest, limited float, etc.) have hard-to-borrow fees that can be substantial.",
+   "claim": "Hard-to-borrow shares carry fees that can be large."
+  },
+  {
+   "id": "f68",
+   "source": "s15",
+   "quote": "The short seller must make dividend payments on the shorted stock to the entity from which the stock was borrowed.",
+   "claim": "The short seller pays any dividend to whoever lent the shares."
+  },
+  {
+   "id": "f69",
+   "source": "s15",
+   "quote": "Traders cover the short by buying back the borrowed shares and returning them to the lender.",
+   "claim": "Covering means buying the shares back and returning them to the lender."
+  },
+  {
+   "id": "f70",
+   "source": "s15",
+   "quote": "To open a short position, a trader must have a margin account with a broker and pay interest on the value of the borrowed shares while the position is open.",
+   "claim": "Shorting takes a margin account, and you pay interest on the borrowed shares while the short is open."
+  },
+  {
+   "id": "f71",
+   "source": "s15",
+   "quote": "Put options provide an alternative to short selling by enabling investors to profit from a stock price drop without the need for margin.",
+   "claim": "Buying puts is a different way to profit from a drop; it is not a short sale."
+  },
+  {
+   "id": "f72",
+   "source": "s16",
+   "quote": "This alerts account holders that if they attempt to sell that security short, their trade order may be refused.",
+   "claim": "On a hard-to-borrow stock, a short sale order may be refused."
+  },
+  {
+   "id": "f73",
+   "source": "s16",
+   "quote": "Those on the hard-to-borrow list can have higher stock loan fees as a result of being in shorter supply.",
+   "claim": "Hard-to-borrow stocks can carry higher loan fees because lendable shares are scarce."
+  },
+  {
+   "id": "f74",
+   "source": "s16",
+   "quote": "A stock goes on the hard-to-borrow list if a broker has limited shares of the stock.",
+   "claim": "A stock is hard to borrow when the broker has few shares of it to lend."
+  },
+  {
+   "id": "f75",
+   "source": "s16",
+   "quote": "Brokerage firms update their hard-to-borrow lists daily.",
+   "claim": "Hard-to-borrow lists change daily."
+  },
+  {
+   "id": "f76",
+   "source": "s17",
+   "quote": "A forced buy-in occurs in a short seller’s account when the original lender of the shares recalls them. This can also occur when the broker is no longer able to borrow shares for the shorted position.",
+   "claim": "If the lender recalls the shares, or the broker can no longer borrow them, the short can be bought in."
+  },
+  {
+   "id": "f77",
+   "source": "s17",
+   "quote": "In some cases, an account holder might not be notified before a forced buy-in.",
+   "claim": "A forced buy-in can come without notice."
+  },
+  {
+   "id": "f78",
+   "source": "s18",
+   "quote": "In order to short sell at Fidelity, you must have a margin account.",
+   "claim": "Fidelity requires a margin account to short."
+  },
+  {
+   "id": "f79",
+   "source": "s19",
+   "quote": "If a recall occurs and replacement shares cannot be borrowed, your broker may be required to close your short position by purchasing shares in the market.",
+   "claim": "If the lender recalls the shares and no replacements can be borrowed, your broker may have to buy in your short."
+  },
+  {
+   "id": "f80",
+   "source": "s19",
+   "quote": "Forced buy-ins can occur without advance notice and at prevailing market prices.",
+   "claim": "A forced buy-in can happen without notice, at whatever the market price is."
+  },
+  {
+   "id": "f81",
+   "source": "s19",
+   "quote": "Even if you still believe a stock's price will decline, you may be required to close your position due to share availability or regulatory requirements.",
+   "claim": "You can be made to close a short because of share availability or the rules, whatever your view of the stock."
+  }
+ ],
+ "walkthroughs": [
+  {
+   "key": "w1",
+   "title": "Sell first, buy back later",
+   "steps": [
+    "A short sale is selling a stock you don't own. Your broker usually lends you the shares, and you sell them.",
+    "Later you buy the same number back and return them to the lender. That purchase is the buy to cover.",
+    "Sell at $60 and cover at $40: you make $20 a share before costs.",
+    "Cover at $80 instead and you lose $20 a share."
+   ],
+   "facts": [
+    "f01",
+    "f08",
+    "f13",
+    "f69",
+    "f03",
+    "f04",
+    "f05",
+    "f06"
+   ]
+  },
+  {
+   "key": "w2",
+   "title": "The locate comes first",
+   "steps": [
+    "Shorting happens in a margin account. Before your short goes through, your broker must locate the shares.",
+    "A locate means reasonable grounds the shares can be borrowed and delivered on time. An easy-to-borrow list generally counts.",
+    "Hard-to-borrow names can cost more to borrow, and your order may be refused."
+   ],
+   "facts": [
+    "f42",
+    "f55",
+    "f78",
+    "f43",
+    "f16",
+    "f17",
+    "f39",
+    "f73",
+    "f72"
+   ]
+  },
+  {
+   "key": "w3",
+   "title": "What a short costs while you hold it",
+   "steps": [
+    "You usually pay to borrow the shares. The fee is a yearly rate, charged for each day the short is open.",
+    "On average it's cheap. SEC staff found lending fees averaged 1.5% from 2007 to 2018. Fees over 100% were rare.",
+    "The rate can change overnight. Schwab's example goes from 20% one night to 85% the next day.",
+    "If the stock pays a dividend while you're short, you pay it to the lender."
+   ],
+   "facts": [
+    "f09",
+    "f56",
+    "f57",
+    "f58",
+    "f66",
+    "f51",
+    "f52",
+    "f60",
+    "f10"
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "key": "q01",
+   "skill": "short.mechanics",
+   "rung": 1,
+   "format": "mcq",
+   "term": "short sale",
+   "q": "What is a short sale?",
+   "choices": [
+    "Selling shares you don't own",
+    "Selling shares you bought earlier",
+    "Any trade held for under a day",
+    "Buying puts to bet on a drop"
+   ],
+   "answer": "Selling shares you don't own",
+   "why": "Selling shares you don't own. You sell borrowed shares now and plan to buy them back later, cheaper if you're right.",
+   "lesson_line": "Short means you sold first. You still owe the shares back.",
+   "facts": [
+    "f01",
+    "f08",
+    "f13",
+    "f15",
+    "f45",
+    "f46",
+    "f71"
+   ],
+   "wrong": {
+    "Selling shares you bought earlier": "That's selling a long position. You own those shares. A short seller doesn't.",
+    "Any trade held for under a day": "Short here has nothing to do with time. A short can be closed the same day or held for weeks.",
+    "Buying puts to bet on a drop": "Puts are options. They can profit from a drop too, but buying one isn't selling stock you don't own."
+   }
+  },
+  {
+   "key": "q02",
+   "skill": "short.mechanics",
+   "rung": 1,
+   "format": "tf",
+   "q": "When you're short a stock, you make money if it falls and lose money if it rises.",
+   "answer": "True",
+   "why": "True. You sold first. A lower price lets you buy back for less, and a higher price makes you pay more.",
+   "lesson_line": "Short is the mirror of long. Falling prices pay you, rising prices cost you.",
+   "facts": [
+    "f02",
+    "f44"
+   ]
+  },
+  {
+   "key": "q03",
+   "skill": "short.mechanics",
+   "rung": 2,
+   "format": "mcq",
+   "q": "Where do the shares you sell short usually come from?",
+   "choices": [
+    "Your broker lends them to you",
+    "The company issues new shares",
+    "The exchange lends them to you"
+   ],
+   "answer": "Your broker lends them to you",
+   "why": "Your broker lends them. They come from its own inventory, other clients' margin accounts, or another lender.",
+   "lesson_line": "Every short starts with a loan of shares. You owe them back.",
+   "facts": [
+    "f08",
+    "f43"
+   ],
+   "wrong": {
+    "The company issues new shares": "A short sale creates no new stock. You sell shares that someone else owns and lent out.",
+    "The exchange lends them to you": "The loan comes through your broker, from its inventory, other clients' margin accounts or another lender."
+   }
+  },
+  {
+   "key": "q04",
+   "skill": "short.mechanics",
+   "rung": 2,
+   "format": "fill",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "Buying shares back to close a short is called a buy to ___.",
+   "bank": [
+    "cover",
+    "open",
+    "borrow",
+    "hold",
+    "lend"
+   ],
+   "answer": "cover",
+   "why": "Cover. A buy to cover closes the short by buying shares to return to the lender.",
+   "lesson_line": "Sell short to open. Buy to cover to close.",
+   "facts": [
+    "f41",
+    "f69",
+    "f13",
+    "f44"
+   ]
+  },
+  {
+   "key": "q05",
+   "skill": "short.mechanics",
+   "rung": 2,
+   "format": "mcq",
+   "q": "How is the fee to borrow shares for a short usually quoted?",
+   "choices": [
+    "As a yearly rate",
+    "As a flat fee per trade",
+    "As a cut of your profit",
+    "Per share, paid up front"
+   ],
+   "answer": "As a yearly rate",
+   "why": "As a yearly rate. It accrues for each day the short is open. It can run from nothing on the most liquid names to over 100% a year on the least liquid.",
+   "lesson_line": "Read the borrow rate as a yearly number, then scale it to how long you'll hold.",
+   "facts": [
+    "f66",
+    "f57",
+    "f56",
+    "f58",
+    "f50"
+   ],
+   "wrong": {
+    "As a flat fee per trade": "That sounds like a commission. The borrow fee runs as a yearly rate for as long as you're short.",
+    "As a cut of your profit": "You owe it win or lose. It's charged on the value of the borrowed shares, not on your profit.",
+    "Per share, paid up front": "It isn't paid once at entry. It accrues daily at the current rate while the short is open."
+   }
+  },
+  {
+   "key": "q06",
+   "skill": "short.mechanics",
+   "rung": 3,
+   "format": "mcq",
+   "term": "locate",
+   "q": "Before a short sale, your broker must have a locate. What is it?",
+   "choices": [
+    "Grounds the shares can be borrowed",
+    "Proof you already own the shares",
+    "A buyer lined up for your shares",
+    "A cash loan to buy the shares"
+   ],
+   "answer": "Grounds the shares can be borrowed",
+   "why": "Good grounds the shares can be borrowed. Your broker needs reasonable grounds that they can be borrowed and delivered on time, documented before the short.",
+   "lesson_line": "No locate, no short. It's the first thing your broker checks.",
+   "facts": [
+    "f16",
+    "f17",
+    "f43",
+    "f59",
+    "f22",
+    "f54"
+   ],
+   "wrong": {
+    "Proof you already own the shares": "A locate is for shares you don't own. Selling shares you own is a long sale.",
+    "A buyer lined up for your shares": "The buyer comes from the market when your order fills. The locate is about shares you must deliver.",
+    "A cash loan to buy the shares": "That's a margin loan for buying. A locate is about borrowing shares to sell."
+   }
+  },
+  {
+   "key": "q07",
+   "skill": "short.mechanics",
+   "rung": 3,
+   "format": "mcq",
+   "q": "In 1938 the SEC adopted Rule 10a-1 for short sales. What did it do?",
+   "choices": [
+    "Barred shorts on a downtick",
+    "Barred shorts after a 10% drop",
+    "Made you borrow before shorting"
+   ],
+   "answer": "Barred shorts on a downtick",
+   "why": "Barred shorts on a downtick. Known as the tick test, it didn't allow short sales on minus ticks or zero-minus ticks, with narrow exceptions.",
+   "lesson_line": "The old rule watched every tick. It's gone now.",
+   "facts": [
+    "f30",
+    "f31",
+    "f19",
+    "f26",
+    "f12",
+    "f16"
+   ],
+   "wrong": {
+    "Barred shorts after a 10% drop": "That's closer to today's rule, adopted in 2010, and it limits the price rather than barring the short.",
+    "Made you borrow before shorting": "That's closer to the locate in Regulation SHO, which began in 2005. The tick test was about price."
+   }
+  },
+  {
+   "key": "q08",
+   "skill": "short.mechanics",
+   "rung": 3,
+   "format": "tf",
+   "q": "A locate always means your broker has already borrowed the shares for you.",
+   "answer": "False",
+   "why": "False. An actual borrow is one way to meet the rule. Reasonable grounds that the shares can be borrowed in time also count, like an easy-to-borrow list.",
+   "lesson_line": "A locate says the shares should be there. It isn't a loan in hand.",
+   "facts": [
+    "f24",
+    "f39",
+    "f16"
+   ]
+  },
+  {
+   "key": "q09",
+   "skill": "short.mechanics",
+   "rung": 4,
+   "format": "numeric",
+   "q": "You short 200 shares at $45.00 and buy to cover at $39.00. What's your profit before costs?",
+   "answer": 1200,
+   "prefix": "$",
+   "calc": {
+    "fn": "short_pnl",
+    "args": {
+     "entry": 45.0,
+     "exit": 39.0,
+     "shares": 200
+    }
+   },
+   "why": "$1,200. You sold at $45.00 and bought back at $39.00, keeping the difference on all 200 shares.",
+   "lesson_line": "Short profit: sale price minus cover price, times shares. Then take off the costs.",
+   "facts": [
+    "f05",
+    "f44",
+    "f03",
+    "f04"
+   ]
+  },
+  {
+   "key": "q10",
+   "skill": "short.mechanics",
+   "rung": 4,
+   "format": "tf",
+   "q": "Today's SEC rules bar short sales on a downtick in every stock, every day.",
+   "answer": "False",
+   "why": "False. The SEC voted in 2007 to eliminate the old tick test. Under Rule 201, adopted in 2010, the price limit applies only after a stock falls 10% or more from the prior close.",
+   "lesson_line": "No tick test today. The limit kicks in only after a 10% drop.",
+   "facts": [
+    "f32",
+    "f33",
+    "f19",
+    "f26"
+   ]
+  },
+  {
+   "key": "q11",
+   "skill": "short.mechanics",
+   "rung": 4,
+   "format": "numeric",
+   "q": "You short $20,000 of stock at a 12% yearly borrow fee. The price stays flat for a quarter of a year. What's the borrow cost?",
+   "answer": 600,
+   "prefix": "$",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "value * rate * years",
+     "value": 20000,
+     "rate": 0.12,
+     "years": 0.25
+    }
+   },
+   "why": "$600. The fee is a yearly rate, charged only for the time you're short. A quarter of a year at 12% on $20,000 is $600. Your broker's day count can nudge it a bit.",
+   "lesson_line": "Borrow cost: position value times the yearly rate times the share of a year you hold.",
+   "facts": [
+    "f66",
+    "f58",
+    "f56",
+    "f50"
+   ]
+  },
+  {
+   "key": "q12",
+   "skill": "short.mechanics",
+   "rung": 5,
+   "format": "numeric",
+   "q": "You short 300 shares at $22.00. It rallies and you buy to cover at $25.50. How much did you lose?",
+   "answer": 1050,
+   "prefix": "$",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(cover - entry) * shares",
+     "cover": 25.5,
+     "entry": 22.0,
+     "shares": 300
+    }
+   },
+   "why": "$1,050. You paid $25.50 to buy back shares you sold at $22.00, on all 300 of them.",
+   "lesson_line": "When a short goes up, every point costs you on every share.",
+   "facts": [
+    "f06",
+    "f02",
+    "f44"
+   ]
+  },
+  {
+   "key": "q13",
+   "skill": "short.mechanics",
+   "rung": 5,
+   "format": "scenario",
+   "story": "A stock closed at $50.00 yesterday. This morning, in regular trading, it trades at $44.50. You want to short it.",
+   "q": "What rule now applies to your short sale order?",
+   "choices": [
+    "It must be priced above the best bid",
+    "Short sales are banned for the day",
+    "Nothing changes for any short sellers"
+   ],
+   "answer": "It must be priced above the best bid",
+   "why": "Above the best bid. $44.50 is more than 10% under the $50.00 close, which trips the circuit breaker. Shorts must then be priced above the national best bid.",
+   "lesson_line": "A 10% drop from yesterday's close turns on the short-sale price test. Hitting the bid is off the table.",
+   "facts": [
+    "f26",
+    "f27",
+    "f25",
+    "f18",
+    "f28"
+   ],
+   "wrong": {
+    "Short sales are banned for the day": "The rule limits the price, not the act. A short priced above the national best bid is still allowed.",
+    "Nothing changes for any short sellers": "A drop of 10% or more from the prior close trips the circuit breaker. Shorts can't hit the bid now."
+   }
+  },
+  {
+   "key": "q14",
+   "skill": "short.mechanics",
+   "rung": 5,
+   "format": "tf",
+   "q": "If you plan to cover the same day, your broker can skip the locate.",
+   "answer": "False",
+   "why": "False. The locate comes before the short sale, day trades included. Covering the same day isn't an exception. One real exception is bona fide market making.",
+   "lesson_line": "Same day or overnight, a short needs a locate first.",
+   "facts": [
+    "f17",
+    "f21",
+    "f40",
+    "f41",
+    "f23"
+   ]
+  },
+  {
+   "key": "q15",
+   "skill": "short.mechanics",
+   "rung": 6,
+   "format": "numeric",
+   "q": "You're short 400 shares through the ex-dividend date. The stock pays a $0.75 dividend. What do you owe the lender?",
+   "answer": 300,
+   "prefix": "$",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "dividend * shares",
+     "dividend": 0.75,
+     "shares": 400
+    }
+   },
+   "why": "$300. A short seller pays the dividend to whoever lent the shares: $0.75 on each of your 400 shares.",
+   "lesson_line": "Check the dividend calendar before you short. You pay the dividend, you don't collect it.",
+   "facts": [
+    "f10",
+    "f62",
+    "f63",
+    "f68"
+   ]
+  },
+  {
+   "key": "q16",
+   "skill": "short.mechanics",
+   "rung": 6,
+   "format": "scenario",
+   "story": "You're short 1,000 shares of a $10.00 stock. FINRA's minimum for a short at $5 or more is $5.00 a share or 30% of its value, whichever is greater.",
+   "q": "What is FINRA's minimum maintenance margin on this short?",
+   "choices": [
+    "$5,000",
+    "$3,000",
+    "$10,000",
+    "$2,500"
+   ],
+   "answer": "$5,000",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "per_share * shares",
+     "per_share": 5.0,
+     "shares": 1000
+    }
+   },
+   "why": "$5,000. Thirty percent of $10,000 is $3,000, but the $5.00-a-share floor is bigger, and the greater one wins. Your broker can ask for more.",
+   "lesson_line": "Low-priced shorts hit the per-share floor. Check the margin before you short one.",
+   "facts": [
+    "f47",
+    "f48",
+    "f49",
+    "f65"
+   ],
+   "wrong": {
+    "$3,000": "That's 30% of the value. The rule takes the greater of that and $5.00 a share.",
+    "$10,000": "That's 100% of the value, part of the rule for shorts under $5. This stock is at $10.00.",
+    "$2,500": "That's the $2.50-a-share figure for shorts under $5. This one is above $5."
+   }
+  },
+  {
+   "key": "q17",
+   "skill": "short.mechanics",
+   "rung": 7,
+   "format": "scenario",
+   "story": "On Friday a stock falls 14% from Thursday's close during regular hours. The short-sale circuit breaker trips.",
+   "q": "You plan to short it at Monday's open. Does the price test still apply?",
+   "choices": [
+    "Yes, it runs through Monday",
+    "No, it ended at Friday's close",
+    "Only if it drops 10% again Monday"
+   ],
+   "answer": "Yes, it runs through Monday",
+   "why": "Yes. The restriction covers the rest of the trigger day and the next trading day. Trip it Friday and it holds through Monday.",
+   "lesson_line": "The price test outlasts the drop by a day. A weekend doesn't reset it.",
+   "facts": [
+    "f34",
+    "f18",
+    "f26",
+    "f38"
+   ],
+   "wrong": {
+    "No, it ended at Friday's close": "It runs the rest of the day and the following trading day. For a Friday trigger, that's Monday.",
+    "Only if it drops 10% again Monday": "A fresh 10% drop would trigger it again. Monday is already covered by Friday's trigger."
+   }
+  },
+  {
+   "key": "q18",
+   "skill": "short.mechanics",
+   "rung": 7,
+   "format": "tf",
+   "q": "Your broker can close your short even when you've met every margin call.",
+   "answer": "True",
+   "why": "True. If the lender recalls the shares or your broker can no longer borrow them, you can be bought in. It can come with no warning.",
+   "lesson_line": "A short lives on borrowed shares. The lender can want them back.",
+   "facts": [
+    "f64",
+    "f79",
+    "f80",
+    "f81",
+    "f76",
+    "f77"
+   ]
+  },
+  {
+   "key": "q19",
+   "skill": "short.mechanics",
+   "rung": 7,
+   "format": "scenario",
+   "story": "You want to short a stock. Your platform flags it as hard to borrow.",
+   "q": "What should you expect when you try to short it?",
+   "choices": [
+    "A higher fee, or the order refused",
+    "The usual fee and a normal fill",
+    "A sign the stock is about to drop"
+   ],
+   "answer": "A higher fee, or the order refused",
+   "why": "A higher fee, or no shares at all. Lendable shares are scarce, so loan fees can run higher and orders can be refused. GME's cost to borrow topped 100% in the second quarter of 2020.",
+   "lesson_line": "Hard to borrow means check the fee first. It can eat the trade.",
+   "facts": [
+    "f73",
+    "f72",
+    "f74",
+    "f57",
+    "f53",
+    "f67"
+   ],
+   "wrong": {
+    "The usual fee and a normal fill": "Hard-to-borrow names carry higher loan fees, and your broker may refuse the order.",
+    "A sign the stock is about to drop": "The flag is about how few shares can be lent, not where the price goes next."
+   }
+  },
+  {
+   "key": "q20",
+   "skill": "short.mechanics",
+   "rung": 8,
+   "format": "scenario",
+   "story": "You want to short $30,000 of a hard-to-borrow stock. The borrow fee is 40% a year. You aim to make $3,000 over two months.",
+   "q": "If the price and the fee hold, what will two months of borrowing cost?",
+   "choices": [
+    "About $2,000, most of your target",
+    "About $12,000, more than the target",
+    "Nothing until you buy to cover"
+   ],
+   "answer": "About $2,000, most of your target",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "value * rate * months / 12",
+     "value": 30000,
+     "rate": 0.4,
+     "months": 2
+    }
+   },
+   "why": "About $2,000. That's 40% a year on $30,000 for two of the 12 months. It eats most of the $3,000 you're aiming for.",
+   "lesson_line": "Price the borrow before the short. A slow trade in a costly name can pay the lender instead of you.",
+   "facts": [
+    "f66",
+    "f58",
+    "f57",
+    "f67",
+    "f50"
+   ],
+   "wrong": {
+    "About $12,000, more than the target": "That's a full year's fee. The rate is yearly, and you pay only for the time you're short.",
+    "Nothing until you buy to cover": "The fee accrues every day you're short. It's a cost from day one."
+   }
+  },
+  {
+   "key": "q21",
+   "skill": "short.mechanics",
+   "rung": 8,
+   "format": "scenario",
+   "story": "A stock closed at $40.00. Before the open, bad news has it trading 12% lower. Nothing restricted it yesterday.",
+   "q": "You want to short it premarket. Is the short-sale price test on yet?",
+   "choices": [
+    "No, it trips in regular hours only",
+    "Yes, any 10% drop trips it at once",
+    "No, it covers just the small caps"
+   ],
+   "answer": "No, it trips in regular hours only",
+   "why": "No. The 10% test is measured on regular-hours trades only. If regular trading prints 10% or more below the $40.00 close, it trips then.",
+   "lesson_line": "A premarket gap doesn't trip the price test. The first regular-hours trades can.",
+   "facts": [
+    "f35",
+    "f36",
+    "f37",
+    "f26",
+    "f29"
+   ],
+   "wrong": {
+    "Yes, any 10% drop trips it at once": "Only prices from regular trading hours count, 9:30 a.m. to 4:00 p.m. Eastern.",
+    "No, it covers just the small caps": "It generally covers every exchange-listed stock, large or small."
+   }
+  },
+  {
+   "key": "q22",
+   "skill": "short.mechanics",
+   "rung": 9,
+   "format": "scenario",
+   "story": "You're short a hard-to-borrow stock. You got in at a 20% yearly borrow fee. Overnight it jumps to 85%, and the stock hasn't moved.",
+   "q": "What's your next move?",
+   "choices": [
+    "Re-run the trade's cost at 85%",
+    "Nothing, your entry rate is locked",
+    "Add more, a pricey borrow means a drop",
+    "Nothing, fees only hit when you cover"
+   ],
+   "answer": "Re-run the trade's cost at 85%",
+   "why": "Re-run the cost. Your fee now accrues at 85% a year, not the 20% you planned on. If the target no longer pays for that, I'd cover.",
+   "lesson_line": "The borrow rate floats. When it jumps, price the trade again, the same way you did before entry.",
+   "facts": [
+    "f60",
+    "f61",
+    "f58",
+    "f66",
+    "f50",
+    "f73"
+   ],
+   "wrong": {
+    "Nothing, your entry rate is locked": "The rate floats. Interest accrues daily at the prevailing rate, not your entry rate.",
+    "Add more, a pricey borrow means a drop": "A costly borrow means lendable shares are scarce. It doesn't promise a drop, and adding raises your bill.",
+    "Nothing, fees only hit when you cover": "The fee accrues every day you're short. Waiting just runs up the bill."
+   }
+  },
+  {
+   "key": "q23",
+   "skill": "short.mechanics",
+   "rung": 9,
+   "format": "scenario",
+   "story": "You short 1,000 shares at $40.00 and cover at $36.00 three months later. The borrow fee ran 8% a year on $40,000. A $0.50 dividend was paid while you were short.",
+   "q": "What did you net, before commissions?",
+   "choices": [
+    "$2,700",
+    "$4,000",
+    "$3,200",
+    "$3,500"
+   ],
+   "answer": "$2,700",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(entry - exit) * shares - value * rate * months / 12 - dividend * shares",
+     "entry": 40.0,
+     "exit": 36.0,
+     "shares": 1000,
+     "value": 40000,
+     "rate": 0.08,
+     "months": 3,
+     "dividend": 0.5
+    }
+   },
+   "why": "$2,700. The cover made $4,000 on the price. Then the borrow fee and the dividend you paid the lender come out of it.",
+   "lesson_line": "Count every cost of a short: the borrow, any dividend, then commissions. The price move isn't your profit.",
+   "facts": [
+    "f05",
+    "f66",
+    "f10",
+    "f62",
+    "f56"
+   ],
+   "wrong": {
+    "$4,000": "That's the price move alone. The borrow fee and the dividend still come out.",
+    "$3,200": "You took out the borrow fee but not the dividend you owed the lender.",
+    "$3,500": "You took out the dividend but not the borrow fee."
+   }
+  }
+ ],
+ "conflicts": [
+  "Uptick history: Investopedia's 'Short Selling' page (Adam Hayes, updated 2026-04-16, s15) says Regulation SHO 'mandates that short sales can be executed only in a tick-up or zero-plus tick market'. That is wrong today: the SEC voted on June 13, 2007 to remove the Rule 10a-1 tick test (s7), and Rule 201 (2010) limits short prices only after a 10% drop and only against the national best bid (s5, s6, eCFR current as of 2026-11-05). The file cites s15 only for borrow fees, dividends, covering, margin and puts, never for the uptick rule.",
+  "Investopedia's 'Uptick Rule' page (James Chen, updated 2026-06-17) says Rule 10a-1 was 'introduced by the Securities Exchange Act of 1934 and implemented in 1938' and 'replaced in 2007'; its key takeaway says the rule allows shorts 'only if the sale price is higher than the most recent trade price'. The SEC's 2007 release (s7) says the SEC adopted Rule 10a-1 in 1938 and removed it in 2007; Rule 201 (2010) is measured against the national best bid, not the last trade. The page is not cited, and no choice says 'uptick' for Rule 201 so the two ideas cannot be confused.",
+  "Maintenance margin on shorts: Investopedia's 'Short Selling' page says 'Investors must meet the minimum maintenance requirement of 25%', and Investopedia's 'margin requirements for a short sale' answer (Chad Langager, updated 2024-01-07) describes NYSE/Nasdaq short maintenance as 100% of value plus at least 25% (it then assumes 30% in its example). FINRA Rule 4210(c) as published on 2026-11-09 says $5.00 a share or 30% (stock at $5 or more) and $2.50 a share or 100% (under $5); Schwab (s14) says brokers usually require 30% to 35%. Only FINRA's rule is keyed (q16, rule stated in the story), with the note that brokers can require more (FINRA 4210(d)(1)). Neither Investopedia margin line is cited.",
+  "SEC press release 2010-26 says the rule restricts shorting in a stock 'that has dropped more than 10 percent in one day', while the rule text and the same release's own feature list say 'by 10 percent or more' / 'at least 10 percent'. The file always says '10% or more' and cites the rule text and the trigger line.",
+  "Borrow-fee day count: brokers differ in how they spread the yearly rate (IBKR's short-sale cost page computes on a marked-up collateral value and on settled positions; Schwab says interest accrues daily and is charged monthly). Every borrow question states its time as a fraction of a year (a quarter, two of 12 months, three of 12 months) and a fixed dollar base, so no answer depends on a 360- or 365-day year or a collateral mark-up.",
+  "Settlement cycle: the SEC's Key Points About Regulation SHO (modified 2022-05-31, s3) still says 'T+2', and Investopedia's Buy-In page says T+2 in its key takeaways but T+1 in its body. The SEC short-sale bulletin (updated 2026-09-09, s1) says 'the standard one-day settlement period'. No question states or depends on a settlement cycle; the s3 lines used (locate, marking, Rule 201, the no-locate violation) do not depend on it.",
+  "Taxes: Schwab (s14) notes borrow interest 'may be tax-deductible'. Not used (no taxes in Study, owner 2026-10-17).",
+  "Rule 203(b)(1) lists several locate exceptions (orders from another broker that does its own locate, shares the seller is deemed to own, bona fide market making, security futures). q14 says only that the exception in point is for market makers doing bona fide market making, not day traders; it does not claim market making is the only exception.",
+  "Checker, 2026-11-09: Investopedia's 'Short Selling' page (s15) refused both the plain client (402, then 403) and WebFetch during the check. The quote checker's first run this session (its own cached fetch of the live page) found all six s15 quotes, and an archive.org capture of 2026-03-19 (page then 'Updated December 23, 2025') shows f66, f67, f68, f70 and f71 verbatim; f69's line is only in the April 2026 version. No key rests on s15 alone: each question citing it also has a Tier 1 fact or the live Schwab page, and q05's range now quotes Schwab (f57).",
+  "Checker, 2026-11-09: added s19 (Public Investing help centre, April 14, 2026) for q18's recall and buy-in lines, so q18 rests on two live Tier 2 publishers (Schwab s14, Public s19) plus Investopedia s17. Public's sister page 'What is a hard-to-borrow stock and Regulation SHO?' describes the uptick rule against 'the last traded price', which is wrong for Rule 201 (it is measured against the national best bid, s5); that page is not cited. Public's fee page computes hard-to-borrow fees on 1.02 x the prior close and a 360-day year, which is why every borrow question states a fraction of a year and q11's reveal says the broker's day count can nudge the result.",
+  "Track audit 2026-11-09 (F10b.01 and F10b.02 read together): the Investopedia 'Short Selling' page (s15 here, s19 in F10b.02, the same URL) refused the plain client (402) and WebFetch again today. Both units now give its title as the page's own heading. f66, f67, f68, f70 and f71 (and F10b.02's f130, f131) are verbatim in the archive.org capture of 2026-03-19 (page then 'Updated December 23, 2025'); f69 is only in the April 2026 version, and w1, the one place it is cited, also rests on f13 (Investor.gov, Tier 1)."
+ ],
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "notes": "f01-f06, f08 confirmed in context on the live SEC bulletin (updated 2026-09-09); f13 on Investor.gov. $60 to $40 = $20 profit and $60 to $80 = $20 loss match the SEC example. Changed step 1 to 'Your broker usually lends you the shares' because the SEC says 'Typically'. f69 (s15) is backed by f13 (Tier 1).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "f42, f43 (FINRA), f16, f17 (SEC Key Points), f39 (SEC Reg SHO FAQ 4.2), f55 (Schwab), f78 (Fidelity), f72, f73 (Investopedia HTB, updated 2026-05-18) all confirmed live. Changed 'An easy-to-borrow list usually covers it' to 'generally counts', matching the SEC's 'generally may be used to establish a reasonable basis'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "f51, f52 confirmed in the SEC staff report footnote 84 (Jan 2007 to Jul 2018, average 1.5%, 0.01% over 100%); f60 (20% to 85%), f56, f58 on the live Schwab page (2026-06-01); f10 on the SEC bulletin. Step 1 now says 'You usually pay' and cites f57, since Schwab says the most liquid shares can be shorted for nothing.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q01": {
+   "status": "pass",
+   "notes": "Key from f01 (SEC bulletin, live): a short sale is selling stock you do not own. Wrong notes check out: f15 (long = you own it), f45/f46 (FINRA: same day or weeks), f71 (puts; s15, confirmed in the 2026-03 archive). 'Held under a day' is a real beginner confusion of short with short-term, not silly.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q02": {
+   "status": "pass",
+   "notes": "f02 (SEC bulletin, live) states exactly this; f44 (FINRA) agrees. True before costs, which is how the SEC states it; costs are taught later in the unit.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q03": {
+   "status": "pass",
+   "notes": "f08 (SEC bulletin, live): 'Typically ... your brokerage firm loans you the stock', from inventory, clients' margin accounts or another lender; f43 (FINRA) agrees. The question says 'usually', matching 'Typically'. Both wrong choices are real misconceptions and wrong per the same quote.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q04": {
+   "status": "pass",
+   "notes": "'Buy to cover' is the SEC's own term (f41, Reg SHO FAQ 4.4 'intra-day buy-to-cover trades'); f13 (Investor.gov) and f44 (FINRA) say you close by buying and returning the shares. Bank words are real order words (buy to open, borrow, hold, lend), none fits.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q05": {
+   "status": "pass",
+   "notes": "Annualized rate: Schwab f57 ('annualized interest rate', live) and Investopedia f66 ('annualized rate ... prorated for the number of days'; s15 refused the client today, quote confirmed in the 2026-03 archive and the session's first checker run). Accrues daily: Schwab f58. Changed the range sentence to Schwab's live words ('nothing' for the most liquid, 'more than 100%' for the least) and hedged it with 'can'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q06": {
+   "status": "pass",
+   "notes": "f16, f17 (SEC Key Points, live) define the locate as reasonable grounds the shares can be borrowed and delivered on time, documented before the sale; f59 (Schwab) agrees. Answer 39 characters for the term tile. Wrong notes: f22 (long sale), f54 (margin loan is cash). | variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q07": {
+   "status": "pass",
+   "notes": "f30, f31 confirmed in SEC release 2007-114 (Rule 10a-1 adopted 1938; no shorts on minus or zero-minus ticks). The question named the 'tick test', which gave away 'downtick' (rule 10); it now names Rule 10a-1 and the why says 'Known as the tick test'. Wrong notes: f19, f26 (2010 rule, 10%), f12 (Reg SHO compliance 2005).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q08": {
+   "status": "pass",
+   "notes": "eCFR 242.203(b)(1) (current as of 2026-11-05) lets a broker meet the rule by a borrow, a bona fide arrangement, or reasonable grounds (f24); the SEC FAQ 4.2 says easy-to-borrow lists generally serve (f39). So 'always already borrowed' is False. The 'always' is the point of the item, not a trick.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q09": {
+   "status": "pass",
+   "notes": "Recomputed (45.00 - 39.00) x 200 = 1,200; short_pnl calc matches. Method from f05 (SEC: profit is the difference, before costs) and f44 (FINRA).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q10": {
+   "status": "pass",
+   "notes": "f32, f33 (SEC 2007-114: voted to eliminate the tick test, live); f19, f26 (Rule 201 adopted 2010, trips at 10% or more from the prior close); eCFR 242.201 current. No rule today bars shorts on every downtick in every stock. False is right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q11": {
+   "status": "pass",
+   "notes": "Recomputed 20,000 x 0.12 x 0.25 = 600; calc matches. Yearly rate prorated by time: Schwab f58 (accrues daily) and Investopedia f66. Price held flat is stated. Added 'Your broker's day count can nudge it a bit', since brokers prorate by days (Public uses 1.02 x price and a 360-day year; see conflicts).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q12": {
+   "status": "pass",
+   "notes": "Recomputed (25.50 - 22.00) x 300 = 1,050; arith calc matches, answer is the loss as a positive number, which the question asks for. f06 (SEC: $60 to $80 = $20 loss a share) teaches the method.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q13": {
+   "status": "pass",
+   "notes": "$44.50 vs a $50.00 close is an 11% drop, past the 10% trigger (f26, SEC 2010-26; eCFR 242.201(b)(1)(i) '10% or more', current). Once tripped, shorts may not execute or display at or below the national best bid (f25, f27). Regular trading is stated, so the hours rule (q21) cannot change the key. Wrong choices are the two common myths (a ban, no change). | variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q14": {
+   "status": "pass",
+   "notes": "Rule 203(b)(1) (f23) has no same-day exception; SEC FAQ 4.4 (f40) has the locate before an intraday short; f41: hard-to-borrow names need a fresh locate per short. The why said 'The exception is for market makers', implying the only one, but 203(b)(2) lists several; it now says 'Covering the same day isn't an exception. One real exception is bona fide market making' (f21).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q15": {
+   "status": "pass",
+   "notes": "Recomputed 0.75 x 400 = 300; calc matches. f10 (SEC bulletin: you must pay the dividend to the lender), f62 (Schwab: deducted on the pay date), f63 (Schwab: close before the ex-date to avoid paying), so being short through the ex-date is the condition that makes you owe it, and the question states it.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q16": {
+   "status": "pass",
+   "notes": "FINRA 4210(c)(3) live today: greater of $5.00 a share or 30% for shorts at $5 or more (f47). 1,000 x $5.00 = $5,000 > 30% x $10,000 = $3,000, so $5,000; calc matches. Wrong notes check: $3,000 is the 30% leg, $10,000 and $2,500 are the under-$5 rule (f48). 'Your broker can ask for more' from f49. Lesson 'Cheap shorts' (could read as low-cost) changed to 'Low-priced shorts'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q17": {
+   "status": "pass",
+   "notes": "SEC Rule 201 FAQ 2.1 (f34): a Friday trigger keeps the price test on Friday and the following Monday; the 2026-06-26 FAQ change is about 'short exempt' marking only. 14% in regular hours is past the 10% trigger. Wrong notes: f18 (rest of day and next day), f38 (re-trigger).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q18": {
+   "status": "pass",
+   "notes": "Schwab f64 (live): no guarantee the firm can keep a short open, it may be closed regardless of profit or loss. Investopedia buy-in page (f76, f77; live on the checker's fresh fetch, updated 2026-07-07): recall or no borrow leads to a forced buy-in, sometimes without notice. Added s19 (Public, 2026-04-14, live) f79-f81 as a second confirmed Tier 2 publisher. Track audit 2026-11-09: the why's second sentence was 23 words (VOICE.md: 22 at most in lessons); split in two, same meaning, still f76, f77 (Investopedia buy-in) and f79, f80 (Public), re-read live today.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q19": {
+   "status": "pass",
+   "notes": "Investopedia HTB page (s16, live, 2026-05-18): orders 'may be refused' (f72) and HTB names 'can have higher stock loan fees' (f73); Schwab f57 agrees on costly borrows; the SEC staff report (f53) gives GME's cost to borrow above 100% in Q2 2020, quoted exactly. The 'about to drop' distractor is a real misread, and the wrong note is right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q20": {
+   "status": "pass",
+   "notes": "Recomputed 30,000 x 0.40 x 2 / 12 = 2,000; a full year is 12,000 (the wrong choice). The key needed the price and fee to hold, so the question now says 'If the price and the fee hold'. 'Two-thirds' was a computed number with no calc; now 'most of the $3,000'. Good trading sense: price the borrow first.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q21": {
+   "status": "pass",
+   "notes": "SEC Rule 201 FAQ 1.2 (f35): the trigger is determined in regular trading hours only, 9:30 a.m. to 4:00 p.m. ET (f36); 'Nothing restricted it yesterday' rules out a carry-over. Premarket gappers are not under the price test until regular trades print 10% or more down. f29: covers all exchange-listed stocks. | variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q22": {
+   "status": "pass",
+   "notes": "Schwab f60, f61 (live): 20% one night, 85% the next, 'may no longer make sense'; f58: accrues daily at the prevailing rate, so the entry rate is not locked. 'More than four times your plan' was a computed ratio with no calc; now 'not the 20% you planned on'. Re-pricing the trade is what a good trader does.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q23": {
+   "status": "pass",
+   "notes": "Recomputed: (40 - 36) x 1,000 = 4,000; borrow 40,000 x 0.08 x 3 / 12 = 800; dividend 0.50 x 1,000 = 500; net 2,700; calc matches. Each wrong choice is a real omission: 4,000 (no costs), 3,200 (no dividend), 3,500 (no borrow). Sources: f05, f10, f62, f56, f66.",
+   "fixed": false,
+   "by": "checker"
+  }
+ }
+}

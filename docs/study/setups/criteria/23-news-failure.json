@@ -1,0 +1,1200 @@
+{
+ "setup": "23-news-failure",
+ "name": "News Failure",
+ "unit": "none",
+ "direction": "long",
+ "timeframe": "daily",
+ "dossier": "docs/study/setups/research/23-news-failure.md",
+ "as_of": "2026-11-09",
+ "card": {
+  "context": "Big, dated news meets the opposite reaction. The long: bad news on a stock or index that was already crowded short or down 25% in three months, above the 200-day, liquid, as a correction ends. The short is the mirror, below the 200-day, in Orange or Red.",
+  "pattern": "Bad news gaps the stock down 4% or more on twice the volume and by the close it is green, above the prior close, best in the top quarter of the range after undercutting the prior low. The mirror: good news gaps it up and it closes red.",
+  "trigger": "RED TO GREEN: a market buy as price trades back over the prior close on the news day, or at the close for Shapiro's confirmation; the long may take the first close back over the pre-news close within 3 sessions.",
+  "stop": "A few cents beyond the news day's extreme so far: under the low for a long, over the high for a short. Expect it wide, 7% from the trigger and 11% from the close; if it does not fit, skip.",
+  "failure_mode": "Price takes out the news day's extreme, or the next session closes back on the news side of the prior close. The bearish index read was followed by higher prices more often than not; it is a read first, a trade only when it confirms another setup."
+ },
+ "entry_trigger": "RED TO GREEN",
+ "criteria": [
+  {
+   "id": "nf.read_not_setup",
+   "field": "context",
+   "statement": "Taught first as a read, the way its originator and the house use it: big news meets the opposite reaction by the close, and that confirms another setup or a market turn. The trade is an add-on to a house setup the read confirms (an Oops, a Red to Green, a U&R, a Kicker for longs; their mirrors and the parabolic short for shorts), with that setup's entry and stop.",
+   "basis": "UCT",
+   "sources": [
+    "S1",
+    "S3",
+    "S8",
+    "S19"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "a stand-alone setup with its own plan"
+    },
+    {
+     "value": "b",
+     "basis": "a read that confirms other setups and the market, as Shapiro uses it (the dossier; the register's default)"
+    }
+   ],
+   "recommended": "b",
+   "status": "pending-owner",
+   "owner_question": "D-002",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.0; 10 question 2",
+   "evidence": "Shapiro never trades it alone, the house never wrote it up as a trade, and the dossier's data found no stand-alone edge with the natural stop. The register's default: a read that confirms other setups and the market; no stand-alone plan."
+  },
+  {
+   "id": "nf.direction",
+   "field": "context",
+   "statement": "Which direction is ours: the long (bad news fails, how the owner and Bracco use it), the short (good news fails, how the task and the Chart IQ label frame it), or both named apart. The card is written long first with the short as its mirror.",
+   "basis": "UCT",
+   "sources": [
+    "S8",
+    "S20"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "the long, bad news fails"
+    },
+    {
+     "value": "b",
+     "basis": "the short, good news fails"
+    },
+    {
+     "value": "c",
+     "basis": "both, named News Failure (long) and News Failure (short), the long taught first (the dossier; the register's default)"
+    }
+   ],
+   "recommended": "c",
+   "status": "pending-owner",
+   "owner_question": "D-001",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "10 question 1",
+   "evidence": "Seven of the ten examples are longs, three shorts, matching the house's lean."
+  },
+  {
+   "id": "nf.news",
+   "field": "context",
+   "statement": "A dated catalyst: earnings or guidance (the report day if before the open, the next day if after the close), a product or conference event, an offering or lockup, an analyst action; for an index, a macro release such as CPI or the Fed.",
+   "measure": {
+    "what": "catalyst type",
+    "op": "in",
+    "value": [
+     "earnings or guidance",
+     "product or conference event",
+     "offering or lockup",
+     "analyst action",
+     "macro release (index)"
+    ]
+   },
+   "glossary": "earnings_reaction_day",
+   "basis": "originator",
+   "sources": [
+    "S1",
+    "S3",
+    "S8"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "a confirmed catalyst only, for teaching (the dossier)"
+    },
+    {
+     "value": "b",
+     "basis": "a gap of 4% (or the app's 5%) on 2x volume is enough, for the scanner"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-032",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 The news; 10 question 6",
+   "evidence": "No news feed exists, so the scan used the gap-and-volume stand-in; the earnings file tells an earnings gap from a non-earnings gap from about 2005 for names with report dates. Long news gaps (275) 37.5% / 22.5% did better than long earnings gaps (248) 30.6% / 15.3%."
+  },
+  {
+   "id": "nf.scan_standin",
+   "field": "pattern",
+   "statement": "The scanner stand-in, since there is no news column: the stock opens 4% or more under the prior close on 2 times or more the prior 50-day volume (the short: 4% or more over). The app's Chart IQ uses 5%.",
+   "measure": {
+    "what": "open / prior close - 1",
+    "op": "<=",
+    "value": -4,
+    "unit": "%",
+    "timeframe": "daily",
+    "and": "volume >= 2 x the 50-day average"
+   },
+   "glossary": "gap",
+   "basis": "my proposal",
+   "sources": [
+    "S20",
+    "S19"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Scanner stand-in",
+   "evidence": "Coded in the scan: 1,534 events, 603 long and 931 short. The 4% gap filter guarantees no stop within 3%, which is why the medians are the real evidence on stop width."
+  },
+  {
+   "id": "nf.index_version",
+   "field": "pattern",
+   "statement": "For an index or sector ETF the stand-in is an open 1% or more against the news on 1.2 times volume, and leveraged ETFs may be the vehicle (SOXL, as Bracco considered in September 2026).",
+   "measure": {
+    "what": "open / prior close - 1, index ETF",
+    "op": "<=",
+    "value": -1,
+    "unit": "%",
+    "timeframe": "daily",
+    "and": "volume >= 1.2 x the 50-day average"
+   },
+   "glossary": "gap",
+   "basis": "my proposal",
+   "sources": [
+    "S8",
+    "S19"
+   ],
+   "house_rule": "E54",
+   "status": "pending-owner",
+   "owner_question": "D-018",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Scanner stand-in; 10 question 8",
+   "evidence": "The register's default: ETFs and leveraged ETFs count in every setup, RS 80 waived for index ETFs, the ETF's own volume must pass B23 (D-018). ETFs were excluded from the ten examples by hand."
+  },
+  {
+   "id": "nf.failure_close",
+   "field": "pattern",
+   "statement": "The failure: the news day closes above the prior close (the long) or below it (the short). Shapiro's test: by the end of the day it fails and closes the other way in the absence of any other news.",
+   "measure": {
+    "what": "close against the prior close on the news day",
+    "op": ">",
+    "value": "prior close (long); < prior close (short)",
+    "timeframe": "daily"
+   },
+   "glossary": "red_to_green",
+   "basis": "originator",
+   "sources": [
+    "S1",
+    "S3"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "the same day's close only, Shapiro's usual test; recommended for shorts"
+    },
+    {
+     "value": "b",
+     "basis": "up to 3 sessions to recover the pre-news close (Bracco's SOXX and SPCX); recommended for longs"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-087",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 The failure; 10 question 5",
+   "evidence": "Coded in the scan as the same-day close. MSFT 2025-07-31 faded but still closed up 3.9%: a partial fade is not a failure. The register's default: same day for shorts, 3 sessions for longs."
+  },
+  {
+   "id": "nf.failure_multiday",
+   "field": "pattern",
+   "statement": "The multi-day version, long only: a close back above the pre-news close within 3 sessions, counting the news day as the first.",
+   "measure": {
+    "what": "sessions from the news day to the first close back above the pre-news close",
+    "op": "<=",
+    "value": 3,
+    "unit": "sessions",
+    "timeframe": "daily"
+   },
+   "glossary": "reclaim_window",
+   "basis": "UCT",
+   "sources": [
+    "S8",
+    "S3"
+   ],
+   "status": "pending-owner",
+   "owner_question": "D-087",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.1 The failure; 8.2 Multi-day version; 10 question 5",
+   "evidence": "Bracco's SOXX 2026-09-14 to 18 and SPCX 2026-08-05 to 07 took days; Shapiro once read a run of days in January 2024. The 3 is the dossier's number. Not tested in the scan."
+  },
+  {
+   "id": "nf.grade_shape",
+   "field": "pattern",
+   "statement": "The grade-up shape: the long closes in the top 25% of the range after its low undercut the prior day's low (an Oops); the short closes in the bottom 25% under the prior day's low (a bearish Oops, a key reversal).",
+   "measure": {
+    "what": "(close - low) / (high - low) of the news day",
+    "op": ">=",
+    "value": 0.75,
+    "unit": "of the range",
+    "timeframe": "daily",
+    "and": "the low < the prior day's low (long); mirrored for the short"
+   },
+   "glossary": "close_position",
+   "basis": "my proposal",
+   "sources": [
+    "S9",
+    "S20"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Grade-up shape; 9 A+",
+   "evidence": "Scan: longs closing in the top quarter (500 events) 31% to 3R, no better than all longs (32.0%); shorts in the bottom quarter (751) 32%. Bulkowski's own test of the key reversal: 51% actually continue higher. The shape alone is not an edge; AAOI, SEDG and HIMS all had it."
+  },
+  {
+   "id": "nf.crowding",
+   "field": "context",
+   "statement": "Crowded the other way before the news. The long: a fall of 25% or more over 60 sessions, or crowded shorts (index COT, Bracco's IWM). The short: a run of 50% or more over 60 sessions, or a close 4 ATR or more over the 50-day, or crowded longs.",
+   "measure": {
+    "what": "prior close / highest close of the prior 60 sessions - 1 (long)",
+    "op": "<=",
+    "value": -25,
+    "unit": "%",
+    "timeframe": "daily",
+    "or": "short: a run of 50% or more over 60 sessions, or a close >= 4 x ATR over the 50-day SMA; crowded positioning has no number yet"
+   },
+   "glossary": "prior_trend",
+   "basis": "originator",
+   "sources": [
+    "S1",
+    "S2",
+    "S3",
+    "S19"
+   ],
+   "options": [
+    {
+     "value": "required",
+     "basis": "Shapiro requires both parts and waits weeks or months for them"
+    },
+    {
+     "value": "a grade cue",
+     "basis": "it cannot be measured on the chart alone (the register's default)"
+    }
+   ],
+   "recommended": "a grade cue",
+   "status": "pending-owner",
+   "owner_question": "D-088",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Prior trend / crowding; 10 question 7",
+   "evidence": "Scan: longs after a 25% or deeper 60-session fall (74 events) 43% to 3R, 22% to 5R, the best sub-group; shorts after a 50% or more run (111) 32% / 15%. The tilt in section 4 grew with the prior run. None of the sources read gives a numeric COT threshold for max crowded; Shapiro names only the neutral exit, an indexed score of around 50."
+  },
+  {
+   "id": "nf.above_200",
+   "field": "context",
+   "statement": "The long: above the 200-day simple average, unless it is a parabolic long.",
+   "measure": {
+    "what": "close against the 200-day SMA",
+    "op": ">",
+    "value": "200-day SMA",
+    "timeframe": "daily"
+   },
+   "glossary": "above_200",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B26",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Location",
+   "evidence": "The hard rule cuts against the data: most of the house's bullish market-bottom failures (SPY 2022-10-13, TSLA 2025-04-02, BA 2024-10-29) were below the 200-day, and the B26-legal long half was the worst group in section 4. KSS 2017-11-09 gapped under the 200-day and closed above it, then ran 60%."
+  },
+  {
+   "id": "nf.short_below_200",
+   "field": "context",
+   "statement": "The short: below the 200-day, unless it is a parabolic short by Bracco's checklist. Above the 200-day the read is used only to sell longs or reduce exposure.",
+   "measure": {
+    "what": "close against the 200-day SMA (short)",
+    "op": "<",
+    "value": "200-day SMA",
+    "timeframe": "daily"
+   },
+   "glossary": "above_200",
+   "basis": "house rule",
+   "sources": [
+    "S8",
+    "S19"
+   ],
+   "house_rule": "B26",
+   "options": [
+    {
+     "value": "a",
+     "basis": "keep the hard rule: short only below the 200-day, or as a parabolic short (the dossier)"
+    },
+    {
+     "value": "b",
+     "basis": "treat a News Failure short above the 200-day as a mean-reversion exception"
+    },
+    {
+     "value": "c",
+     "basis": "above the 200-day, use it only to sell longs or reduce exposure (the dossier, with a)"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-009",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Location; 10 question 4",
+   "evidence": "Good-news failures split 874 above and 924 below the 200-day; the bearish tilt lived in the above-200 half, which B26 forbids. The above-200 cases with the clearest tilt were the stretched ones, ground the parabolic short already covers. The register's default: B26 as written, no new exception (D-009)."
+  },
+  {
+   "id": "nf.rs",
+   "field": "context",
+   "statement": "A stock long: RS rating 80 or more. The short: RS 20 or less, unless the owner rules it mean reversion.",
+   "measure": {
+    "what": "RS rating",
+    "op": ">=",
+    "value": 80,
+    "unit": "rating 1 to 99",
+    "and": "the short: RS <= 20 unless ruled mean reversion"
+   },
+   "glossary": "leader",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "C31",
+   "status": "pending-owner",
+   "owner_question": "D-009",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Strength; 10 question 4",
+   "evidence": "RS was not measured. The shorts that leaned bearish sat above the 200-day in stronger stocks C31 does not short; OKLO 2026-04-24 is the mean-reversion short, a 70% bounce into the falling 200-day."
+  },
+  {
+   "id": "nf.liquidity",
+   "field": "context",
+   "statement": "Price $10 or more and $20 million traded a day.",
+   "measure": {
+    "what": "prior close",
+    "op": ">=",
+    "value": 10,
+    "unit": "$",
+    "and": "prior 50-day average dollar volume >= 20,000,000"
+   },
+   "glossary": "liquidity",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B23",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Liquidity",
+   "evidence": "Applied in the scan on the prior close and the prior 50-day dollar volume."
+  },
+  {
+   "id": "nf.not_market_wide",
+   "field": "context",
+   "statement": "Fewer than 5 such events on the same day. A same-day cluster means the news was the market, not the stock.",
+   "measure": {
+    "what": "events of the same shape on the same day",
+    "op": "<",
+    "value": 5,
+    "unit": "events",
+    "timeframe": "daily"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S19"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.9; 12 Notable failures",
+   "evidence": "AMAT and DAL 2025-04-08, shorts the day before the 2025-04-09 market rally, both stopped the next day at 0R; BE 2026-07-29 passed the shape on a day with 5 such events and was stopped the next day."
+  },
+  {
+   "id": "nf.entry_long",
+   "field": "trigger",
+   "statement": "The long: a market order when price trades back over the prior close (red to green) on the news day, or at the close if you wait for Shapiro's confirmation.",
+   "measure": {
+    "what": "price against the prior close, after trading below it",
+    "op": ">",
+    "value": "prior close",
+    "timeframe": "intraday"
+   },
+   "glossary": "red_to_green",
+   "basis": "originator",
+   "sources": [
+    "S3",
+    "S20"
+   ],
+   "house_rule": "E57",
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 Long",
+   "evidence": "Shapiro's written rule: the trade is entered at the close (2024-01-08; Cotton can be executed on the close). The intraday version is the dossier's, borrowed from the house Red to Green tag. The scan filled at the prior close plus a cent; intraday bars could not back-test it across the ten."
+  },
+  {
+   "id": "nf.entry_short",
+   "field": "trigger",
+   "statement": "The short: a market order when price trades back under the prior close (green to red), or at the close. Bracco's parabolic short waits for a break under the intraday VWAP instead.",
+   "measure": {
+    "what": "price against the prior close, after trading above it",
+    "op": "<",
+    "value": "prior close",
+    "timeframe": "intraday"
+   },
+   "glossary": "red_to_green",
+   "basis": "originator",
+   "sources": [
+    "S3",
+    "S8"
+   ],
+   "house_rule": "E57",
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 Short"
+  },
+  {
+   "id": "nf.no_chase",
+   "field": "trigger",
+   "statement": "If the stock already moved more than 4% past the trigger (the prior close), skip it. Mirrored for the short.",
+   "measure": {
+    "what": "fill / prior close - 1",
+    "op": "<=",
+    "value": 4,
+    "unit": "%"
+   },
+   "glossary": "chase_limit",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "C28",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2",
+   "evidence": "Shapiro: I miss a trade, I miss it. The close entry on AAOI 2026-04-02 would have been 20% over the prior close; the intraday red-to-green is the only entry that fits C28 there."
+  },
+  {
+   "id": "nf.earnings_window",
+   "field": "trigger",
+   "statement": "No new buy or short in the 3 sessions before a scheduled report. The trade starts on or after the report, so this binds only a non-earnings failure with a report due.",
+   "measure": {
+    "what": "sessions until the next report",
+    "op": ">",
+    "value": 3,
+    "unit": "sessions"
+   },
+   "glossary": "earnings_blackout",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B22",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "7 B22 row"
+  },
+  {
+   "id": "nf.stop",
+   "field": "stop",
+   "statement": "A few cents beyond the news day's extreme so far: under the low for a long, over the high for a short.",
+   "measure": {
+    "what": "stop",
+    "op": "==",
+    "value": "a few cents beyond the news day's extreme so far"
+   },
+   "glossary": "stop_margin",
+   "basis": "house rule",
+   "sources": [
+    "S10",
+    "S8"
+   ],
+   "house_rule": "F62",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.3 Default",
+   "evidence": "Kullamägi and Bracco both put the parabolic short's stop at the day's high. The scan used $0.03 beyond the extreme."
+  },
+  {
+   "id": "nf.stop_width",
+   "field": "stop",
+   "statement": "Expect it wide: a median of about 7% from the intraday trigger and 11% to 12% from the close. If that does not fit the risk budget, skip or size down; do not tighten it into the noise.",
+   "measure": {
+    "what": "(entry - stop) / entry",
+    "op": "<=",
+    "value": 3,
+    "unit": "%",
+    "note": "the honest stop here is usually 7% to 12%; A13 is why most of these are skips"
+   },
+   "glossary": "stop_width",
+   "basis": "house rule",
+   "sources": [
+    "S19",
+    "S3"
+   ],
+   "house_rule": "A13",
+   "options": [
+    {
+     "value": "a",
+     "basis": "keep the extreme and skip trades that do not fit (the dossier)"
+    },
+    {
+     "value": "b",
+     "basis": "an intraday stop instead: a VWAP reclaim, the first 30-minute extreme (no data)"
+    },
+    {
+     "value": "c",
+     "basis": "Shapiro's close-based stop at the failure day's extreme (conflicts with D41's stop order; tested no better)"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-005",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.3; 10 question 3",
+   "evidence": "None of 3,456 events had the extreme within 3%; the scan's median stop was 6.8% (long) and 7.3% (short) from the prior-close entry. The ten examples' stops ran 4.9% (ZS) to 8.9% (HIMS). NBIS 2026-10-15 took a 12.2% stop with nothing gained: the size alone should have made it a skip."
+  },
+  {
+   "id": "nf.stop_broker",
+   "field": "stop",
+   "statement": "A real stop order with the broker, hit intraday. Shapiro's version is hit only when a session closes beyond the failure day's extreme; it tested no better and it is not ours.",
+   "basis": "house rule",
+   "sources": [
+    "S3",
+    "S19"
+   ],
+   "house_rule": "D41",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.3 The originator's version",
+   "evidence": "Shapiro's written trades (2024-01-08; Cotton 2024-04-24; RBOB 2024-09-11) use the close-based stop at the post-news extreme."
+  },
+  {
+   "id": "nf.stop_only_up",
+   "field": "stop",
+   "statement": "The stop only moves in the trade's favor, never wider.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "A4",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5"
+  },
+  {
+   "id": "nf.stop_gap",
+   "field": "stop",
+   "statement": "A gap through the stop: the first 30-minute extreme is the new stop; out if that is past 2R.",
+   "measure": {
+    "what": "loss at the first 30-minute extreme of the gap day",
+    "op": "<=",
+    "value": 2,
+    "unit": "R",
+    "timeframe": "30-minute"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B20",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4"
+  },
+  {
+   "id": "nf.breakeven",
+   "field": "management",
+   "statement": "Stop to breakeven between 2R and 5R, at the first trim by default.",
+   "measure": {
+    "what": "R at which the stop moves to the entry",
+    "op": "in",
+    "value": [
+     2,
+     5
+    ],
+    "unit": "R"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B19",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4"
+  },
+  {
+   "id": "nf.trim_1",
+   "field": "management",
+   "statement": "Sell (or cover) a third at 3R. With stops near 10%, 3R is a 30% move, so the trims will rarely be reached.",
+   "measure": {
+    "what": "fraction sold at 3R",
+    "op": "==",
+    "value": 0.333,
+    "unit": "of the position"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B19",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4; 7 B19 row",
+   "evidence": "Among the ten examples 3R came in 1 to 16 sessions; AAOI reached 3R the next day."
+  },
+  {
+   "id": "nf.trim_2",
+   "field": "management",
+   "statement": "Sell (or cover) a third at 5R.",
+   "measure": {
+    "what": "fraction sold at 5R",
+    "op": "==",
+    "value": 0.333,
+    "unit": "of the position"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "E51",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4"
+  },
+  {
+   "id": "nf.trim_gap_open",
+   "field": "management",
+   "statement": "If it opens past a trim level, take that trim at the open.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "F63",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4"
+  },
+  {
+   "id": "nf.trail",
+   "field": "management",
+   "statement": "Trail the last third with a close beyond the 10-day for a fast mover or the 21-day for a steadier one.",
+   "measure": {
+    "what": "close against the 10-day (fast) or 21-day (steadier) average",
+    "op": "<",
+    "value": "the average (long); > the average (short)",
+    "timeframe": "daily"
+   },
+   "glossary": "trail",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "E52",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4"
+  },
+  {
+   "id": "nf.parabolic_target",
+   "field": "management",
+   "statement": "If the short qualifies as a parabolic short, use Bracco's 9 EMA target instead of the trims.",
+   "measure": {
+    "what": "cover target for a parabolic short",
+    "op": "==",
+    "value": "the daily 9 EMA"
+   },
+   "basis": "house rule",
+   "sources": [
+    "S8"
+   ],
+   "house_rule": "D47",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4",
+   "evidence": "D47: a parabolic short's stop sits above the day's high and its target is the 9-day average."
+  },
+  {
+   "id": "nf.time_stop",
+   "field": "management",
+   "statement": "Under 1R after 10 sessions: out. With stops near 10%, most trades will still be under 1R after 10 sessions.",
+   "measure": {
+    "what": "open R after 10 trading days",
+    "op": "<",
+    "value": 1,
+    "unit": "R"
+   },
+   "glossary": "time_stop",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "C33",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4; 7 C33 row",
+   "evidence": "The dossier's inference from 4.4, not separately measured. Among the ten examples ZS (12), KSS (14) and OKLO (16) took more than 10 sessions to 3R but were above 1R by day 10."
+  },
+  {
+   "id": "nf.inv_extreme",
+   "field": "invalidation",
+   "statement": "Price takes out the news day's extreme: the stop. A new extreme means the turn was not picked.",
+   "measure": {
+    "what": "price against the news day's extreme",
+    "op": "<",
+    "value": "the news day's low (long); > the high (short)",
+    "timeframe": "daily"
+   },
+   "basis": "house rule",
+   "sources": [
+    "S3"
+   ],
+   "house_rule": "A4",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5",
+   "evidence": "ZTS 2025-08-05, short: reached 0.9R and then reversed through the day's high."
+  },
+  {
+   "id": "nf.inv_failure_failed",
+   "field": "invalidation",
+   "statement": "The next session closes back on the news side of the prior close: the failure itself failed.",
+   "measure": {
+    "what": "the next session's close against the prior (pre-news) close",
+    "op": "<",
+    "value": "the pre-news close (long); > it (short)",
+    "timeframe": "daily"
+   },
+   "basis": "my proposal",
+   "sources": [],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5"
+  },
+  {
+   "id": "nf.inv_no_crowding",
+   "field": "invalidation",
+   "statement": "No crowding: the stock or market was not stretched or crowded before the news. Shapiro would not trade it.",
+   "basis": "originator",
+   "sources": [
+    "S1",
+    "S3"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.5; 8.8 item 2",
+   "evidence": "MRVL 2026-06-04, long: a strong-looking failure after only a 7% pullback; the 8% stop was hit before any gain. Whether crowding is a gate or a cue is D-088."
+  },
+  {
+   "id": "nf.inv_takeover",
+   "field": "invalidation",
+   "statement": "For the short: the news was a takeover or a takeover rumor. Bulkowski: avoid those stocks, they tend to stay high or move even higher.",
+   "basis": "my proposal",
+   "sources": [
+    "S9"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5",
+   "evidence": "One outside source, not a consensus."
+  },
+  {
+   "id": "nf.market_long",
+   "field": "context",
+   "statement": "The long: after a correction, near washed-out breadth (the Model Book's Bottoms signposts), crowded shorts, a market reading turning back toward Green.",
+   "glossary": "market_reading",
+   "basis": "UCT",
+   "sources": [
+    "S8",
+    "S20"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.7 Long",
+   "evidence": "The house's bullish examples: SPY 2022-10-13, RIVN 2025-12-11, SOXX 2026-09-14. COF 2009-07-24 is the recovery version in the ten."
+  },
+  {
+   "id": "nf.market_short",
+   "field": "context",
+   "statement": "The short: an Orange or Red reading; good news being sold across the market; crowded longs and rising bullish sentiment.",
+   "glossary": "market_reading",
+   "basis": "house rule",
+   "sources": [
+    "S8",
+    "S3"
+   ],
+   "house_rule": "F65",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.7 Short",
+   "evidence": "D46: a Red market is mostly cash plus shorts below the 200-day. Bracco, 2026-06-28, on good news being sold. The bearish index reads of 2025-11-20 and 2025-07-31 were followed by higher prices."
+  }
+ ],
+ "grading": {
+  "a_plus": [
+   "nf.crowding: crowded the other way before the news, max positioning on the index COT or a parabolic run for a stock",
+   "nf.news: big, clear news that should have moved it, a major beat or miss, a CPI print, a market-moving event",
+   "nf.grade_shape: a full reversal, the gap erased, the close beyond the prior close near the far end of the range, ideally beyond the prior day's extreme",
+   "nf.scan_standin: heavy volume, above the 30-day average (Bulkowski), 2x in the app",
+   "nf.read_not_setup: it confirms a house setup in the same direction, an Oops, a Red to Green, a U&R, a reclaim; a parabolic short for shorts",
+   "nf.market_long: the market agrees, washed out for the long; nf.market_short: Orange or Red for the short",
+   "nf.above_200: the right side of the 200-day, and a stop that fits the risk budget"
+  ],
+  "b_minus": [
+   "nf.news: small or unclear news; volume barely above normal",
+   "nf.failure_close: a partial fade, off the high but still closing on the news side (MSFT 2025-07-31 closed up 3.9%)",
+   "nf.inv_no_crowding: no crowding before the news",
+   "nf.market_short: against the market's trend, or a stock whose past setups of the same kind mostly failed (Bracco's LOVE note)",
+   "nf.stop_width: a stop far wider than 3%"
+  ],
+  "no_trade": [
+   "nf.above_200: a long under the 200-day, or a short above it, unless parabolic",
+   "nf.stop_width: the honest stop does not fit the risk budget; never tighten it into the noise",
+   "nf.no_chase: already more than 4% past the prior close",
+   "nf.inv_takeover: a takeover or takeover rumor, for the short",
+   "nf.earnings_window: a report within 3 sessions",
+   "nf.liquidity: under $10 or under $20 million a day",
+   "nf.not_market_wide: five or more such events on the same day, the news was the market"
+  ]
+ },
+ "lookalikes": [
+  {
+   "setup": "22-news-gapper",
+   "tell": "Read the close against the prior close. A News Gapper gaps on good news and closes green, holding the gap; a News Failure gaps on good news and closes red, under the prior close. Same headline, opposite trade.",
+   "criterion": "nf.failure_close"
+  },
+  {
+   "setup": "27-bear-gap",
+   "tell": "Watch whether the gap down keeps going. If bad news gaps the stock down and it closes low and stays down, the news worked: that is the earnings breakdown or the bear gap. The News Failure long is the gap down that closes back above the prior close the same day.",
+   "criterion": "nf.failure_close"
+  },
+  {
+   "setup": "30-oops-reversal",
+   "tell": "Ask what caused the gap. An Oops needs an open under the prior low and a reclaim of the prior close on any day, news or not; a News Failure needs a dated catalyst behind the gap and reads the close against that news. An Oops on a news day is the A+ shape here.",
+   "criterion": "nf.news"
+  },
+  {
+   "setup": "43-red-to-green",
+   "tell": "Measure the gap and name the news. The Red to Green is the house entry trigger on any day that opens red and reclaims the prior close; the News Failure is the same trigger on a 4% news gap with a named catalyst and twice the volume behind it.",
+   "criterion": "nf.scan_standin"
+  }
+ ],
+ "invalidations": [
+  "Price takes out the news day's extreme: the stop (nf.inv_extreme).",
+  "The next session closes back on the news side of the prior close; the failure itself failed (nf.inv_failure_failed).",
+  "No crowding before the news: Shapiro would not trade it (nf.inv_no_crowding).",
+  "For the short: the news was a takeover or a takeover rumor (nf.inv_takeover).",
+  "Under 1R after 10 sessions: out (nf.time_stop).",
+  "After entry: the stop only moves in the trade's favor (nf.stop_only_up)."
+ ],
+ "mistakes": [
+  "Treating one failure as proof. The course already says a clue, not proof.",
+  "Trading it with no crowding behind it. Shapiro waits weeks or even months for both parts.",
+  "Shorting the first red hour of a real Episodic Pivot in a leader. A 10% gap that dips intraday has not closed red.",
+  "Reading the bearish index version as a sell signal. In the data it was followed by higher prices more often than an average day.",
+  "Missing that the failure happened in premarket (CIFR) or across several sessions (SOXX, SPCX).",
+  "Tightening the stop to make the size work. Skip instead.",
+  "Calling an earnings breakdown a news failure. If the gap down keeps going, the news worked.",
+  "Chasing a missed one. Shapiro: I miss a trade, I miss it."
+ ],
+ "short_mirror": {
+  "exists": true,
+  "setup": "23-news-failure",
+  "note": "Built in: the two columns of dossier 8.1 are mirrors (D47). Good news gaps the stock up 4% or more on 2x volume and it closes under the prior close, best in the bottom quarter under the prior day's low after a 50%+ run or 4 ATR over the 50-day; short at market as it trades back under the prior close (green to red); stop a few cents over the day's high; below the 200-day (B26) with RS 20 or less, or as a parabolic short with Bracco's 9 EMA target; Orange or Red readings. The house uses the long far more; the short collides with B26 and C31 (D-009) and the bearish index reads of 2025 were followed by higher prices. Which direction is taught is D-001."
+ },
+ "best_conditions": "The long: after a correction, near washed-out breadth, crowded shorts, a market reading turning back toward Green. The short: an Orange or Red reading, good news being sold across the market, crowded longs and rising bullish sentiment. Either way, a read first; the trade only when it confirms a house setup.",
+ "management": {
+  "trim_1": "a third at 3R (B19); with stops near 10% that is a 30% move, rarely reached",
+  "trim_2": "a third at 5R (E51)",
+  "trail": "a close beyond the 10-day for a fast mover, the 21-day for a steadier one (E52)",
+  "breakeven": "between 2R and 5R, at the first trim by default (B19)",
+  "time_stop": "under 1R after 10 trading days, out (C33)",
+  "gap_open": "a trim level the day opens past is taken at the open (F63)",
+  "gap_against": "the first 30-minute extreme is the new stop; out if past 2R (B20)",
+  "overrides": "a short that qualifies as a parabolic short uses Bracco's 9 EMA target (D47; dossier 8.4). Otherwise none: no stand-alone plan exists in the app or the originator's writing; the trade borrows the entry and stop of the setup the read confirms (dossier 8.0)."
+ },
+ "examples": {
+  "winners": 10,
+  "sheet_dir": "_study-resume/scratchpad/setups/23-news-failure/final",
+  "base_rate": {
+   "hits": 1534,
+   "r3_pct": 33.4,
+   "r5_pct": 17.9,
+   "window": "60 sessions forward, fixed stop $0.03 beyond the news day's extreme, no trims, no breakeven; events from 2000 on; 2,630 liquid names; entry a market order at the prior close plus a cent"
+  },
+  "cuts": {
+   "long": {
+    "hits": 603,
+    "r3_pct": 32.0,
+    "r5_pct": 18.1,
+    "stopped_pct": 66.8,
+    "median_stop_pct": 6.8
+   },
+   "short": {
+    "hits": 931,
+    "r3_pct": 34.4,
+    "r5_pct": 17.7,
+    "stopped_pct": 68.7,
+    "median_stop_pct": 7.3
+   },
+   "long_after_25_pct_fall": {
+    "hits": 74,
+    "r3_pct": 43,
+    "r5_pct": 22
+   },
+   "short_after_50_pct_run": {
+    "hits": 111,
+    "r3_pct": 32,
+    "r5_pct": 15
+   },
+   "long_close_top_quarter": {
+    "hits": 500,
+    "r3_pct": 31
+   },
+   "short_close_bottom_quarter": {
+    "hits": 751,
+    "r3_pct": 32
+   },
+   "long_earnings": {
+    "hits": 248,
+    "r3_pct": 30.6,
+    "r5_pct": 15.3
+   },
+   "long_news": {
+    "hits": 275,
+    "r3_pct": 37.5,
+    "r5_pct": 22.5
+   },
+   "short_earnings": {
+    "hits": 311,
+    "r3_pct": 27.7,
+    "r5_pct": 11.3
+   },
+   "short_news": {
+    "hits": 423,
+    "r3_pct": 38.3,
+    "r5_pct": 21.0
+   }
+  },
+  "winners_list": [
+   "AAOI 2026-04-02 (long)",
+   "SEDG 2025-11-05 (long)",
+   "HIMS 2025-05-06 (long)",
+   "CELH 2024-02-29 (long)",
+   "ZS 2023-11-28 (long)",
+   "KSS 2017-11-09 (long)",
+   "COF 2009-07-24 (long)",
+   "STNG 2020-05-06 (short)",
+   "SKIN 2022-08-09 (short)",
+   "OKLO 2026-04-24 (short)"
+  ],
+  "failures": [
+   {
+    "ticker": "MRVL",
+    "date": "2026-06-04",
+    "criterion": "nf.crowding",
+    "why": "long: a 6.2% gap down on 2.7x volume closed in the top 12% of the range above the 200-day, no report that day; the stop, 8% away, was hit before any gain. A strong-looking failure after only a 7% pullback: no crowding behind it."
+   },
+   {
+    "ticker": "NBIS",
+    "date": "2026-10-15",
+    "criterion": "nf.stop_width",
+    "why": "long: a 5.7% gap down closed in the top 4% of the range after a 34% fall, the crowded case the rule likes, yet the 12.2% stop was taken with nothing gained. Even the best shape loses often; the stop size alone should have made it a skip or a small size. No report dates on file, so the gap cannot be classed."
+   },
+   {
+    "ticker": "AMAT",
+    "date": "2025-04-08",
+    "criterion": "nf.not_market_wide",
+    "why": "short (also DAL the same day): gapped up 4.2% on 2.2x and closed in the bottom 11% of the range under the 200-day, the day before the 2025-04-09 market rally; both stops were hit the next day at 0R. The bearish read in a washed-out market is a poor sell signal, and a same-day cluster means the news was the market."
+   },
+   {
+    "ticker": "ZTS",
+    "date": "2025-08-05",
+    "criterion": "nf.inv_failure_failed",
+    "why": "short, earnings: gap up 5.4%, closed in the bottom 10% of the range, reached 0.9R and then reversed through the day's high. The failure itself failed."
+   },
+   {
+    "ticker": "TTD",
+    "date": "2022-02-16",
+    "criterion": "nf.stop_width",
+    "why": "long, earnings: a 4.6% gap down on 3.5x volume closed 0.5% over the prior close in the top 8% of the range after a 27% fall, the crowded case the rule likes; the stop under the day's low was 11.8% away and went in five sessions at 0.33R. Size or skip by A13 and 8.3."
+   },
+   {
+    "ticker": "UAL",
+    "date": "2020-05-19",
+    "criterion": "nf.market_short",
+    "why": "short, news (no report that day): gapped up 6.2% on 2.2x after a 36% run and closed 1.9% under the prior close in the bottom 15% of the range; the stop over the day's high (6.6%) went in two sessions, 0.0R. A short in a Green market: the bearish read is a poor sell signal when the market is being bought."
+   }
+  ],
+  "limits": "No news feed, so a gap-and-volume stand-in defines news; the earnings file classes gaps only from about 2005 and only for names with report dates (STNG and NBIS have none). Entries and stops are tested on daily bars, a touch of the extreme ends the trade, B20 is not modelled, and the intraday red-to-green entry could not be back-tested across the ten; the examples' triggers are the daily prior close. About two losses for every 3R winner. Nothing here is a published statistic.",
+  "near_misses": [
+   {
+    "ticker": "STX",
+    "date": "2026-10-28",
+    "criterion": "nf.scan_standin",
+    "why": "long, earnings 2026-10-27: the open was only 3.1% under the prior close (2.5x volume, closed +4.5% in the top 1% of the range after a 34% fall); the stand-in needs a 4% gap on 2x volume. The shape and the crowding without the gap: a Red to Green day (43) on a report, not this setup."
+   },
+   {
+    "ticker": "HAL",
+    "date": "2010-01-25",
+    "criterion": "nf.failure_close",
+    "why": "long, earnings: a 4.7% gap down on 2.3x traded back over the prior close (31.15) but closed at 31.07, 0.3% under it, in the top 22% of the range; the rule is a close above the prior close. The failure did not confirm; an intraday red-to-green buy at 31.16 made 0.2R and was stopped."
+   },
+   {
+    "ticker": "TSLA",
+    "date": "2025-04-02",
+    "criterion": "nf.above_200",
+    "why": "long, earnings per the report file: a 5.2% gap down on 2.1x closed +5.3% in the top 7% of the range after a 39% fall, but at 282.76, under the 200-day (288.05); the long needs a close above the 200-day. A bear-phase reversal on the wrong side of the average (B26). The would-be buy at 268.47 reached 0.45R and was stopped."
+   },
+   {
+    "ticker": "UNH",
+    "date": "2026-10-13",
+    "criterion": "nf.short_below_200",
+    "why": "short, earnings: gapped up 5.0% on 2.7x and closed 0.2% under the prior close in the bottom 18% of the range, but at 377.76, above the 200-day (358.04); the short needs a close below it. Above the 200-day the read only sells longs. The would-be short at 378.51 was stopped, 0.0R."
+   }
+  ],
+  "sheets": {
+   "failures": "final/fail_1-4.png",
+   "near_misses": "final/near_1-4.png",
+   "pair": "final/pair_22-news-gapper.png"
+  }
+ },
+ "question_seeds": [
+  {
+   "kind": "recall",
+   "criterion": "nf.failure_close",
+   "seed": "What is Shapiro's one-line test for a News Failure?"
+  },
+  {
+   "kind": "recall",
+   "criterion": "nf.stop",
+   "seed": "Where does the stop go on a News Failure long, and on the short?"
+  },
+  {
+   "kind": "recall",
+   "criterion": "nf.read_not_setup",
+   "seed": "Is the News Failure a setup with its own plan, or a read? Which house setups does it confirm?"
+  },
+  {
+   "kind": "spot",
+   "criterion": "nf.failure_close",
+   "seed": "Hidden ticker, an earnings gap down: tap the prior close and say whether the news day closed above it."
+  },
+  {
+   "kind": "spot",
+   "criterion": "nf.grade_shape",
+   "seed": "Hidden ticker: four bad-news days that closed green. Which one closed in the top quarter after undercutting the prior day's low?"
+  },
+  {
+   "kind": "spot",
+   "criterion": "nf.above_200",
+   "seed": "Hidden ticker: a bullish News Failure shape. Is it above the 200-day? Take it or mark it a read only."
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "nf.failure_close",
+   "seed": "News Failure or News Gapper: a contract headline, an 8% gap up, and a close 2% under the prior close. Which is it?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "nf.failure_close",
+   "seed": "News Failure or earnings breakdown: an earnings miss gaps the stock down 9% and it closes at the low. Which is it?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "nf.news",
+   "seed": "News Failure or Oops Reversal: the stock opens under the prior low and reclaims the prior close, with no news anywhere. Which is it?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "nf.scan_standin",
+   "seed": "News Failure or plain Red to Green: a 1% gap down on normal volume, no headline, reclaims the prior close. Which is it?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "nf.stop_width",
+   "seed": "Bad news gapped the stock down 8%; it is back over the prior close at 2:30. The news day's low is 11% under the price. Buy with that stop, tighten it, or skip?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "nf.short_below_200",
+   "seed": "Good news gaps a leader up 6% above a rising 200-day and it closes red at the low. Short it, sell your longs, or pass?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "nf.not_market_wide",
+   "seed": "Twelve stocks show the bearish News Failure shape on the same day. What does that tell you about the news?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "nf.inv_failure_failed",
+   "seed": "You bought the red-to-green on the news day. The next session closes under the pre-news close. What now?"
+  },
+  {
+   "kind": "grade",
+   "criterion": "nf.crowding",
+   "seed": "Two bad-news reversals closing green in the top quarter: one after a 40% fall, one after a 7% dip. Grade each."
+  },
+  {
+   "kind": "grade",
+   "criterion": "nf.failure_close",
+   "seed": "A good-news gap that fades from +9% to close up 3%, against one that closes down 5%. Grade each as a short read."
+  },
+  {
+   "kind": "grade",
+   "criterion": "nf.news",
+   "seed": "A 4% gap down on a vague analyst note against a 4% gap down on an earnings miss, both bought back to a green close. Grade the news of each."
+  },
+  {
+   "kind": "numeric",
+   "criterion": "nf.stop_width",
+   "seed": "Prior close 86.35, the news day's low 81.51. You buy the red-to-green at 86.36. What is the stop distance in percent, and does it fit?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "nf.crowding",
+   "seed": "The highest close of the prior 60 sessions was 60.00 and the close before the news is 43.00. How far has it fallen, and does it pass the crowding line?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "nf.trim_1",
+   "seed": "Bought at 31.83 with the stop at 30.23. Where is 3R, and what percent move is that?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "nf.scan_standin",
+   "seed": "Prior close 50.00, open 47.80, volume 2.4 million against a 50-day average of 1.0 million. Does the day pass the scanner stand-in?"
+  }
+ ],
+ "owner_decisions": [
+  "D-001",
+  "D-002",
+  "D-004",
+  "D-005",
+  "D-009",
+  "D-015",
+  "D-016",
+  "D-018",
+  "D-032",
+  "D-087",
+  "D-088"
+ ],
+ "conflicts": [
+  "Sources are cited by the dossier's own `| n |` numbering in section 11 (S1 is row 1).",
+  "A setup or a read: Shapiro never trades it alone, the house never wrote it up as a trade, and the scan found no stand-alone edge with the natural stop; the task and the Chart IQ label frame it as a trade. The card is a read first, with a measurable stand-alone version for the owner (D-002).",
+  "Direction: the owner and Bracco use the long (bad news fails); the task and the Chart IQ label use the short (good news fails). The card is long first with the short as its mirror (D-001).",
+  "B26 against the data: good-news failures split 874 above and 924 below the 200-day and the bearish tilt lived above it, where shorts are forbidden; the B26-legal long half was the worst group, and most of the house's bullish bottom examples (SPY 2022-10-13, TSLA 2025-04-02, BA 2024-10-29) were below the 200-day. The card keeps the hard rule and sends the above-200 short cases to the parabolic short (D-009).",
+  "A13 against the natural stop: the news day's extreme sat a median 11.9% (short) and 10.6% (long) from the close, 7.4% and 7.1% from the prior-close trigger; none of 3,456 events was within 3%. The card skips what does not fit (D-005).",
+  "The stop itself: Shapiro's is hit only on a close beyond the failure day's extreme; D41 wants a real stop order; the dossier's test of his version found no edge either. The house wins (nf.stop_broker).",
+  "C31 for the short: the above-200 shorts that leaned bearish are the stronger stocks C31 does not short; the below-200 ones showed no tilt. It fits only if the owner counts it as mean reversion (D-009).",
+  "Same day or several days: Shapiro's usual test is the same day's close; Bracco's SOXX and SPCX took days. The card recommends the same day for shorts and up to 3 sessions for longs (D-087).",
+  "Crowding: Shapiro requires it and waits weeks or months; none of the sources read gives a numeric COT threshold. The card makes it a grade cue with the 25% fall and 50% run as the measurable stand-ins (D-088).",
+  "The key-reversal shape: the dossier's grade-up shape against Bulkowski's own test, 51% continue higher; the scan agrees (top-quarter closes no better). A cue, not an edge.",
+  "The index version: the scan used 1% and 1.2x for index ETFs; E54 prefers leveraged ETFs; whether SOXL-style trades count is D-018.",
+  "Two cards, one name: the Bottoms signpost and the swing tag share the name News Failure; the register's default renames the signpost Bad news fails (D-016).",
+  "The dormant Chart IQ label fires one direction with no news check; leave, remove or change it is D-004 (vendored code through the lab's build script).",
+  "The owner's own trades: which journal trades he tagged News Failure, long or short, would let the course model his version (D-015).",
+  "The first draft of 8.9 left out 6 events that passed its own rule (RDDT, ITGR; KORU, ESTA, MRAM, CMPS), all 4 omitted longs stop-outs; the checking pass restored the full list. The card's example lists come from the restored run."
+ ]
+}

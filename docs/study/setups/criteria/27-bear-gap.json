@@ -1,0 +1,1658 @@
+{
+ "setup": "27-bear-gap",
+ "name": "Bear Gap off the Highs",
+ "unit": "none",
+ "direction": "short",
+ "timeframe": "daily",
+ "dossier": "docs/study/setups/research/27-bear-gap.md",
+ "as_of": "2026-11-09",
+ "card": {
+  "context": "Taught today as a level, not a trade (TRADE_PLANS.md: the fall is measured, not traded). The short the dossier measured, Version R, lives under a flat or falling 200-day (B26), in a weak group, in an Orange or Red market. Above the 200-day only Bracco's day-2 parabolic variant could qualify, pending his ruling.",
+  "pattern": "A 250-session closing top within the last 80 sessions, the prior close within 15% of it (better: a range near the highs). Then the first gap down since that top: an open at least 1 ATR or 4% under the prior close, not filled that day, on 1.5x volume, closing down 5% or more in the lower half.",
+  "trigger": "No trade in the app today. Version R, if he rules it in: within 25 sessions a light bounce into the gap zone or the declining 20-day or 50-day is rejected; short at market as price trades under the rejection candle's low.",
+  "stop": "A few cents over the rejection candle's high, within about 3%. Never over the gap day's high on a gap-day close entry: that sat a median 4.2% away and 25% on VRNS.",
+  "failure_mode": "The gap fills: a close back above the zone's top edge. Or the first bounce is bought hard: an earnings collapse straight off a fresh high often reverses up through the stop at once (DIS 2015), and a short taken in a strong market gets run over (CIEN and CHKP 2017)."
+ },
+ "entry_trigger": "OTHER",
+ "criteria": [
+  {
+   "id": "bg.status",
+   "field": "context",
+   "statement": "Today the app defines no trade: the lesson shows the line a close must stay under, the gap day's high, and the fall is measured, not traded.",
+   "basis": "UCT",
+   "sources": [
+    "S23"
+   ],
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "5.3; TRADE_PLANS.md Bear gap row",
+   "evidence": "TRADE_PLANS.md: 'no trade is defined in the app | the lesson shows the line a close must stay under: the gap day's high | the fall is measured, not traded.' Course V.05 marks 'Our app defines a full short trade for the Bear gap' as False. VRNS 2025-10-29: a stop over the gap day's high sat 25.0% over the close."
+  },
+  {
+   "id": "bg.is_short",
+   "field": "context",
+   "statement": "Is it a short at all: a level lesson only, a short setup, or both with the level first. The dossier's measured short side is Version R, the retest short below the 200-day, and it waits on the owner.",
+   "measure": {
+    "what": "what the course teaches",
+    "op": "in",
+    "value": [
+     "a level lesson only",
+     "a short setup",
+     "both, level first"
+    ]
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S22",
+    "S23",
+    "S24"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "a level lesson only (the vocabulary file, the course, how UCT writes about it)"
+    },
+    {
+     "value": "b",
+     "basis": "a short setup"
+    },
+    {
+     "value": "c",
+     "basis": "both, level first; the short only as Version R and Version P (the dossier's recommendation)"
+    }
+   ],
+   "recommended": "c",
+   "status": "pending-owner",
+   "owner_question": "D-001",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.0; 10 question 2",
+   "evidence": "Shorting the gap day's close by the app's rule earned -0.02R (1,733 trades; random shorts -0.09R). The retest scan: 359 hits, 25.3% to 3R, 14.2% to 5R; the dossier's crude daily stand-in for the owner's tactic (T3) was -0.02R, so the short waits for his charts. DECISIONS D-001's default names 27's Versions R and P among the three traded shorts."
+  },
+  {
+   "id": "bg.definition_owner",
+   "field": "context",
+   "statement": "The owner's own charts define 'bear gap off the highs'. He kept MPWR 2024-10-31 ('Good') and cut 7 of 8; the phrase 'the first gap down from a top' and the NFLX seed came from the reviewer's notes, not from him.",
+   "measure": {
+    "what": "owner-ruled charts",
+    "op": "==",
+    "value": "MPWR 2024-10-31 kept; PRIM, CXM, MTZ, NFLX, GKOS, WWD, F cut"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S23"
+   ],
+   "status": "pending-owner",
+   "owner_question": "D-015",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "5.5; 10 question 1",
+   "evidence": "His words: 'Don't want to do downtrend gaps but will do bear gaps off the highs' (2026-10-27). The log waits on 'one or two charts of what he means'. MPWR: top 50 sessions earlier, prior close within 3% of it, gap -10.2%, closed under both averages."
+  },
+  {
+   "id": "bg.top",
+   "field": "pattern",
+   "statement": "A 250-session closing high (the top) set within the prior 80 sessions, and the close before the gap within 15% of it.",
+   "measure": {
+    "what": "sessions since the 250-session closing high",
+    "op": "<=",
+    "value": 80,
+    "unit": "sessions",
+    "timeframe": "daily",
+    "and": "prior close / top - 1 >= -15%"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S23"
+   ],
+   "options": [
+    {
+     "value": 30,
+     "basis": "the app's draft (let in NFLX 2022-01-21, already 26% down, which he cut)"
+    },
+    {
+     "value": 15,
+     "basis": "the dossier's proposal"
+    },
+    {
+     "value": 10,
+     "basis": "DECISIONS D-098's default"
+    }
+   ],
+   "recommended": 15,
+   "status": "pending-owner",
+   "owner_question": "D-098",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Prior trend",
+   "evidence": "'Off the highs' is the owner's phrase; the 250 and 80 are the app's. The ten examples' prior closes sat 3.3% to 13% off the top."
+  },
+  {
+   "id": "bg.structure",
+   "field": "pattern",
+   "statement": "Option A: any top. Option B, MPWR's shape: a range near the highs, the top 15 or more sessions earlier and the prior close within 5% of it.",
+   "measure": {
+    "what": "sessions from the top to the gap day",
+    "op": ">=",
+    "value": 15,
+    "unit": "sessions",
+    "timeframe": "daily",
+    "and": "prior close within 5% of the top"
+   },
+   "basis": "source consensus",
+   "sources": [
+    "S5",
+    "S7",
+    "S15",
+    "S23"
+   ],
+   "options": [
+    {
+     "value": "A",
+     "basis": "any recent top (the app now)"
+    },
+    {
+     "value": "B",
+     "basis": "a range near the highs, like MPWR (DECISIONS D-098's default)"
+    },
+    {
+     "value": "C",
+     "basis": "the owner's call per chart"
+    }
+   ],
+   "recommended": "B",
+   "status": "pending-owner",
+   "owner_question": "D-098",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Structure before the gap; 10 question 3",
+   "evidence": "ChartSchool's breakaway gap comes after 'an extended top or a consolidation period'; Bulkowski's 'on leaving a consolidation area'. Scan: the top 15 or more sessions before the gap reached 3R 69 of 256 times (27%) against 22 of 103 (21%) straight off the top. Test: a range near the highs (top 20+ sessions earlier, prior close within 5%) +0.09R, 154 trades."
+  },
+  {
+   "id": "bg.gap",
+   "field": "pattern",
+   "statement": "The open is under the prior close by at least 1 ATR(14) or 4%, whichever is smaller, and the gap is not filled that day: the day's high stays under the prior close.",
+   "measure": {
+    "what": "prior close - open",
+    "op": ">=",
+    "value": "min(1 ATR(14), 4% of the prior close)",
+    "timeframe": "daily",
+    "and": "the day's high < the prior close"
+   },
+   "glossary": "gap",
+   "basis": "my proposal",
+   "sources": [
+    "S6",
+    "S22",
+    "S23"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "a full daily window, the high under the prior low (the app now)"
+    },
+    {
+     "value": "b",
+     "basis": "any open under the prior close not filled that day (the owner's BE, GLW, MRNA examples; DECISIONS D-099's default with a 1 ATR floor)"
+    },
+    {
+     "value": "c",
+     "basis": "a minimum size: 5% (the app), 1 ATR, or 4%"
+    }
+   ],
+   "recommended": "b",
+   "status": "pending-owner",
+   "owner_question": "D-099",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 The gap; 10 question 6",
+   "evidence": "UCT's named bear gaps (BE, GLW, MRNA, both of SNDK's) were overnight gaps, not full windows; ChartSchool's 'Partial Gap Down' is the published name. The app's 5% and true-window gates miss most of them; GLD's was 4.1%. The 1 ATR in sr_levels.py measures a full window, not the open."
+  },
+  {
+   "id": "bg.full_window",
+   "field": "pattern",
+   "statement": "The stricter form, a full window: the gap day's high under the prior day's low. The app's current rule; all 10 scan examples were full windows.",
+   "measure": {
+    "what": "gap day's high against the prior day's low",
+    "op": "<",
+    "value": "prior day's low",
+    "timeframe": "daily"
+   },
+   "glossary": "gap",
+   "basis": "source consensus",
+   "sources": [
+    "S4",
+    "S8"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Full window",
+   "evidence": "ChartSchool's down gap and Bulkowski's falling window ('yesterday's low is above today's high'). Bulkowski: a falling window showed overhead resistance 25% of the time."
+  },
+  {
+   "id": "bg.first_gap",
+   "field": "pattern",
+   "statement": "The first gap of this kind since the top. Later gaps off the same top did worse.",
+   "measure": {
+    "what": "earlier gaps of this kind since the top",
+    "op": "==",
+    "value": 0,
+    "unit": "gaps"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S23",
+    "S24"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 First crack",
+   "evidence": "The app's draft rule. Test: off a top but not the first gap, 680 trades, -0.22R (95% range -0.36 to -0.05)."
+  },
+  {
+   "id": "bg.gap_volume",
+   "field": "pattern",
+   "statement": "At least 1.5x the 50-day average volume on the gap day; 2x for an A grade.",
+   "measure": {
+    "what": "gap-day volume / 50-day average volume",
+    "op": ">=",
+    "value": 1.5,
+    "unit": "x",
+    "timeframe": "daily"
+   },
+   "glossary": "volume_surge",
+   "basis": "my proposal",
+   "sources": [
+    "S1",
+    "S4",
+    "S7"
+   ],
+   "options": [
+    {
+     "value": 2.0,
+     "basis": "the app and Fleckenstein ('at minimum double')"
+    },
+    {
+     "value": 1.5,
+     "basis": "the dossier's proposal"
+    },
+    {
+     "value": "cue",
+     "basis": "none as a gate (the owner's SNDK gaps had 1.3x and 0.9x); DECISIONS D-099's default"
+    }
+   ],
+   "recommended": 1.5,
+   "status": "pending-owner",
+   "owner_question": "D-099",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Volume; 10 question 6",
+   "evidence": "ChartSchool 'above average'; Bulkowski 'usually on high volume on the gap day'. The ten examples ran 2.2x to 15.1x."
+  },
+  {
+   "id": "bg.gap_day",
+   "field": "pattern",
+   "statement": "The gap day closes down at least 5% and in the lower half of its range.",
+   "measure": {
+    "what": "close / prior close - 1",
+    "op": "<=",
+    "value": -5,
+    "unit": "%",
+    "timeframe": "daily",
+    "and": "(close - low) / (high - low) <= 0.5"
+   },
+   "glossary": "close_position",
+   "basis": "my proposal",
+   "sources": [
+    "S1",
+    "S23"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 The day",
+   "evidence": "Fleckenstein: 'close in the lower half of the day's trading range'; the app's draft uses 6%. The app's events closed a median 32% up the range."
+  },
+  {
+   "id": "bg.gap_zone",
+   "field": "pattern",
+   "statement": "The gap zone: for a full window, from the gap day's high up to the prior day's low; for an overnight gap, up to the prior close. The chart draws both edges as one zone.",
+   "measure": {
+    "what": "gap zone",
+    "op": "==",
+    "value": "gap day's high to the prior day's low (a window) or to the prior close (an overnight gap)"
+   },
+   "glossary": "gap_fill",
+   "basis": "my proposal",
+   "sources": [
+    "S4",
+    "S8",
+    "S22",
+    "S23"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "draw the zone between them as one band (the dossier's recommendation; DECISIONS D-100's default)"
+    },
+    {
+     "value": "b",
+     "basis": "the gap day's high only (the course text)"
+    },
+    {
+     "value": "c",
+     "basis": "the prior day's low only (the overlay's gold label)"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-100",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Gap zone; 5.6 item 3; 10 question 9",
+   "evidence": "The course says the line is the gap day's high; the overlay labels the prior day's low. Sources and UCT treat the zone as resistance, and a close above the top edge fills it. SNDK's 2026-06-26 gap closed back over the prior day's low on 06-30 but never over the prior close by 07-10, which is why the owner could still call it open."
+  },
+  {
+   "id": "bg.liquidity",
+   "field": "context",
+   "statement": "Price $10 or more and $20 million or more traded a day on average.",
+   "measure": {
+    "what": "close",
+    "op": ">=",
+    "value": 10,
+    "unit": "$",
+    "and": "50-day average dollar volume >= 20,000,000"
+   },
+   "glossary": "liquidity",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B23",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Liquidity"
+  },
+  {
+   "id": "bg.position_adv",
+   "field": "management",
+   "statement": "The position is at most 1% of average daily volume.",
+   "measure": {
+    "what": "shares / average daily volume",
+    "op": "<=",
+    "value": 1,
+    "unit": "%"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "D42",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Liquidity"
+  },
+  {
+   "id": "bg.level_resistance",
+   "field": "pattern",
+   "statement": "Version L: under the zone, the zone is resistance. The first rally into it is where the trapped buyers sell.",
+   "basis": "source consensus",
+   "sources": [
+    "S4",
+    "S15",
+    "S22"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.2",
+   "evidence": "The owner on CRWV: 'The bear gap to the left just around $120 is acting as resistance.' Schaeffer's: the equity 'becomes unable to hurdle through the gap zone'; ChartSchool: a downside breakout point becomes resistance. The vocabulary file files 'Bear Gap' as a level; sr_levels.py already draws it."
+  },
+  {
+   "id": "bg.fill",
+   "field": "invalidation",
+   "statement": "A close above the zone's top edge fills the gap; a quick fill is strength. The level and any short are off.",
+   "measure": {
+    "what": "close against the zone's top edge",
+    "op": ">",
+    "value": "top edge",
+    "timeframe": "daily"
+   },
+   "glossary": "gap_fill",
+   "basis": "UCT",
+   "sources": [
+    "S22",
+    "S4",
+    "S15"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2; 8.7",
+   "evidence": "QQQ: 'a major sign of strength to fill bear gaps quickly'; SPY: 'only took two sessions to negate Tuesday's bear gap'. ChartSchool and Schaeffer's on filling. The scan ended every setup on a close above the top edge."
+  },
+  {
+   "id": "bg.long_warning",
+   "field": "management",
+   "statement": "For a long: do not buy right under an open bear gap; wait for the fill or a base under it. For a holder: a bear gap off highs on your stock is a warning; manage by the trail and the gap rule (B20).",
+   "measure": {
+    "what": "a new long under an open bear gap",
+    "op": "==",
+    "value": "wait for the fill or a base"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S22"
+   ],
+   "house_rule": "B20",
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.2",
+   "evidence": "The owner on MRNA: 'Don't love the big bear gap off highs on day two but a proper signal down here would be worthy of the tight risk imo.' On BE: 'Gross bear gap off highs. Would like to see some supportive action early in the week.' TSDR uses a bear gap overhead as a first trim spot on longs."
+  },
+  {
+   "id": "bg.below_200",
+   "field": "context",
+   "statement": "Version R: the stock closes under its 200-day SMA on the setup day.",
+   "measure": {
+    "what": "close against the 200-day SMA",
+    "op": "<",
+    "value": "200-day SMA",
+    "timeframe": "daily"
+   },
+   "glossary": "above_200",
+   "basis": "house rule",
+   "sources": [
+    "S22"
+   ],
+   "house_rule": "B26",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.3 Location",
+   "evidence": "The owner: 'I want them below the 200SMA for sure'. 61% of the app's events close above the 200-day on the gap day (90% the day before), and every UCT-named example but MPWR; those are not Version R shorts. Test: the B26-compatible gap-day close short showed no edge (-0.16R); the structure of a tradable short appears only after the bounce."
+  },
+  {
+   "id": "bg.flat_falling_200",
+   "field": "context",
+   "statement": "The 200-day is flat or falling.",
+   "measure": {
+    "what": "200-day SMA today - 200-day SMA earlier (the dossier fixes no window)",
+    "op": "<=",
+    "value": 0,
+    "unit": "$",
+    "timeframe": "daily"
+   },
+   "basis": "my proposal",
+   "sources": [],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.3 Location; 9 A+",
+   "evidence": "Scan: a falling 200-day 29 of 109 to 3R (27%) against 62 of 250 (25%) still rising. Six of the ten examples sat just under a flat or still-rising 200-day (VRSN, LDOS, GRFS, MDT, ACGL)."
+  },
+  {
+   "id": "bg.bounce",
+   "field": "pattern",
+   "statement": "Within 25 sessions of the gap, price rallies into the gap zone, or to the declining 20-day EMA or 50-day SMA, without a close above the zone's top edge.",
+   "measure": {
+    "what": "sessions from the gap day to the bounce high",
+    "op": "<=",
+    "value": 25,
+    "unit": "sessions",
+    "timeframe": "daily",
+    "and": "the bounce high reaches the zone, the 20-day EMA or the 50-day SMA; no close above the zone's top edge"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S22",
+    "S1",
+    "S11",
+    "S20"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.3 Bounce",
+   "evidence": "The owner: 'a decent pop back up and rejection coinciding with the 50SMA or 20EMA'. Fleckenstein 'wait for the bounce to occur and exhaust itself'; Bulkowski 'short the stock at the top of the bounce'; Kell 'a stop just above the recent high'. The 25 sessions is the dossier's. Scan: rejection at the 20-day EMA on 244 of 359 hits (25% to 3R), at the zone 106 (25%), at the 50-day 9 (4 of 9)."
+  },
+  {
+   "id": "bg.light_bounce",
+   "field": "pattern",
+   "statement": "The bounce days average less volume than the gap day, ideally under the 50-day average.",
+   "measure": {
+    "what": "average volume of the bounce days / gap-day volume",
+    "op": "<",
+    "value": 1,
+    "unit": "x",
+    "timeframe": "daily"
+   },
+   "glossary": "dry_up",
+   "basis": "originator",
+   "sources": [
+    "S1"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.3 Light bounce",
+   "evidence": "Fleckenstein: gains 'meager relative to gap-down loss and come on declining volume relative to the volume of the gap-down session'. The scan required it."
+  },
+  {
+   "id": "bg.rejection_candle",
+   "field": "trigger",
+   "statement": "A rejection candle: a day that touches the level and closes back under it, in the lower half of its range.",
+   "measure": {
+    "what": "(close - low) / (high - low) on the day whose high reached the level",
+    "op": "<=",
+    "value": 0.5,
+    "timeframe": "daily",
+    "and": "close < the level"
+   },
+   "glossary": "close_position",
+   "basis": "UCT",
+   "sources": [
+    "S22"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.3 Rejection candle",
+   "evidence": "'Rejection' is the owner's word; the lower half is the dossier's test. GLD 2025-11-13 reached 388.18, just under the gap day's high (388.89), and closed lower: 'Thursday was a reasonable short opportunity'."
+  },
+  {
+   "id": "bg.trigger",
+   "field": "trigger",
+   "statement": "Price trades a few cents under the rejection candle's low. Short at market.",
+   "measure": {
+    "what": "price against the rejection candle's low",
+    "op": "<",
+    "value": "the rejection candle's low"
+   },
+   "basis": "house rule",
+   "sources": [
+    "S1"
+   ],
+   "house_rule": "D47",
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.3 Trigger, Order",
+   "evidence": "The mirror of his long trigger over a prior high (D47); Fleckenstein's pivot sits under a low. E57 gives the market order. The scan triggered two cents under the rejection day's low, or at the open when it gapped through."
+  },
+  {
+   "id": "bg.trigger_window",
+   "field": "trigger",
+   "statement": "The trigger comes within 5 sessions of the rejection day; later, the setup is stale.",
+   "measure": {
+    "what": "sessions from the rejection day to the trigger",
+    "op": "<=",
+    "value": 5,
+    "unit": "sessions",
+    "timeframe": "daily"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S24"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "12 the scan's rule",
+   "evidence": "The scan's window. Seven of the ten examples triggered the day after the rejection candle."
+  },
+  {
+   "id": "bg.no_chase",
+   "field": "trigger",
+   "statement": "No short more than 4% under the trigger. A gap open often already sits far under any trigger.",
+   "measure": {
+    "what": "trigger / fill - 1",
+    "op": "<=",
+    "value": 4,
+    "unit": "%"
+   },
+   "glossary": "chase_limit",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "C28",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.3 Not too late"
+  },
+  {
+   "id": "bg.not_stretched",
+   "field": "trigger",
+   "statement": "Skip a short more than 10% under its 10-day average. 43% of the app's gap-day closes were past that line: the case for waiting for the bounce.",
+   "measure": {
+    "what": "10-day SMA / entry - 1",
+    "op": "<=",
+    "value": 10,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "C29",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.3 Not too late; 7 C29 row",
+   "evidence": "C29 mirrored through D47. Median distance of the gap-day close under the 10-day: 9.2%."
+  },
+  {
+   "id": "bg.weak_rs",
+   "field": "context",
+   "statement": "RS rating 20 or less, or a weak group.",
+   "measure": {
+    "what": "RS rating",
+    "op": "<=",
+    "value": 20,
+    "unit": "rating 1 to 99"
+   },
+   "glossary": "leader",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "C31",
+   "options": [
+    {
+     "value": "a",
+     "basis": "C31's short mirror applies as written"
+    },
+    {
+     "value": "b",
+     "basis": "exempt as a mean-reversion trade (a stock gapping off its highs is usually still strong on RS)"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-009",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.3 Relative strength; 7 C31 row; 10 question 5",
+   "evidence": "A stock gapping down off its highs is usually still strong on RS; by the time Version R's bounce fails, weeks later and under the 200-day, the rating has usually fallen. Not in the scan."
+  },
+  {
+   "id": "bg.earnings",
+   "field": "trigger",
+   "statement": "No new short within 3 sessions of a report. Most bear gaps are earnings reactions, so the next report is far off; check the date anyway.",
+   "measure": {
+    "what": "sessions until the next report",
+    "op": ">",
+    "value": 3,
+    "unit": "sessions"
+   },
+   "glossary": "earnings_blackout",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B22",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.3 Earnings",
+   "evidence": "66% of the app's events were earnings days. None of the ten examples triggered within 3 days of a report."
+  },
+  {
+   "id": "bg.borrow",
+   "field": "context",
+   "statement": "Skip if hard to borrow or the fee is high; popular collapses are often expensive to borrow.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "D48",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.3 Borrow"
+  },
+  {
+   "id": "bg.earnings_breakdown",
+   "field": "pattern",
+   "statement": "An earnings collapse straight off a fresh high (the top 1 to 3 sessions earlier) is the shape he cut as 'just an earnings breakdown'. Not this setup unless he rules otherwise.",
+   "measure": {
+    "what": "sessions from the top to the gap day",
+    "op": "<=",
+    "value": 3,
+    "unit": "sessions",
+    "timeframe": "daily",
+    "and": "the gap day is an earnings reaction day"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S23",
+    "S24"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "exclude all earnings collapses"
+    },
+    {
+     "value": "b",
+     "basis": "exclude only the one-day collapses straight off a fresh high (PRIM, CXM, MTZ)"
+    },
+    {
+     "value": "c",
+     "basis": "Version E: short the gap day's close on them; the only positive slice in the test, +0.36R, mostly above the 200-day, one of about 40 slices"
+    }
+   ],
+   "recommended": "b",
+   "status": "pending-owner",
+   "owner_question": "D-025",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.0 Version E; 5.5; 10 question 4",
+   "evidence": "His cuts: PRIM (top 1 session earlier), CXM (2), MTZ (2), all earnings days; MPWR, kept, was also an earnings day with the top 50 sessions back. Test: earnings with the top 3 or fewer sessions earlier, 268 trades, +0.36R (+0.11 to +0.62), needs an out-of-sample check. Scan: 21% to 3R when the gap came straight off the top against 27% from a range. DIS 2015-09-10 is the failure."
+  },
+  {
+   "id": "bg.stop",
+   "field": "stop",
+   "statement": "A few cents over the rejection candle's high (Version R) or the day's high (Version P).",
+   "measure": {
+    "what": "stop",
+    "op": "==",
+    "value": "a few cents over the trigger candle's high"
+   },
+   "glossary": "stop_margin",
+   "basis": "house rule",
+   "sources": [
+    "S1",
+    "S23"
+   ],
+   "house_rule": "A3",
+   "options": [
+    {
+     "value": "a",
+     "basis": "over the trigger candle's high, within 3% (A13; the dossier's recommendation)"
+    },
+    {
+     "value": "b",
+     "basis": "over the gap day's high (median 4.2% in the test, 25% on VRNS; TRADE_PLANS' reason for no trade)"
+    },
+    {
+     "value": "c",
+     "basis": "over the gap-fill level (Fleckenstein; median 9.4% on the deep scan, 26.8% on the 39 drafts)"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-008",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5; 10 question 7",
+   "evidence": "A3 and F62 mirrored. Scan: two cents over the rejection day's high, median 2.7%, capped at 5%; the ten examples' stops ran 1.3% to 3.2%."
+  },
+  {
+   "id": "bg.stop_width",
+   "field": "stop",
+   "statement": "If the stop is more than 3% over the entry, skip, or take it at the next lower grade's size.",
+   "measure": {
+    "what": "(stop - entry) / entry",
+    "op": "<=",
+    "value": 3,
+    "unit": "%"
+   },
+   "glossary": "stop_width",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "A13",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.5 Maximum",
+   "evidence": "Scan: a stop of 3% or less reached 3R 61 of 216 times (28%) against 30 of 143 (21%) wider. The retest entry's median stop was 3.1% in the test (T3), 2.7% in the scan."
+  },
+  {
+   "id": "bg.stop_never_wider",
+   "field": "stop",
+   "statement": "The stop is never moved higher after entry.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "A4",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5 Never",
+   "evidence": "Fleckenstein's 'much more room' and his 20% sizing illustration are not ours."
+  },
+  {
+   "id": "bg.stop_gap",
+   "field": "stop",
+   "statement": "A gap up over the stop: the first 30-minute high is the new stop; out if the loss passes 2R.",
+   "measure": {
+    "what": "loss at the first 30-minute high of the gap-up day",
+    "op": "<=",
+    "value": 2,
+    "unit": "R",
+    "timeframe": "30-minute"
+   },
+   "basis": "house rule",
+   "sources": [
+    "S22"
+   ],
+   "house_rule": "B20",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.5 Gap against it",
+   "evidence": "The owner described the same practice in 2025: 'I always use the first 30 min to let play out and establish the range.'"
+  },
+  {
+   "id": "bg.breakeven",
+   "field": "management",
+   "statement": "Stop to breakeven between 2R and 5R, at the first cover by default.",
+   "measure": {
+    "what": "R at which the stop moves to the entry",
+    "op": "in",
+    "value": [
+     2,
+     5
+    ],
+    "unit": "R"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B19",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.6"
+  },
+  {
+   "id": "bg.trim_1",
+   "field": "management",
+   "statement": "Cover a third at 3R (the hard rule).",
+   "measure": {
+    "what": "fraction covered at 3R",
+    "op": "==",
+    "value": 0.333,
+    "unit": "of the position"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B19",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.6",
+   "evidence": "A 25% hit rate at 3R needs the trims and the trail to pay. LPX 2025-03-27 ran to 5R in two weeks and reversed: the case for the trims."
+  },
+  {
+   "id": "bg.trim_2",
+   "field": "management",
+   "statement": "Cover a third at 5R.",
+   "measure": {
+    "what": "fraction covered at 5R",
+    "op": "==",
+    "value": 0.333,
+    "unit": "of the position"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "E51",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.6"
+  },
+  {
+   "id": "bg.trim_gap_open",
+   "field": "management",
+   "statement": "If it opens past a cover level, take that cover at the open.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "F63",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.6"
+  },
+  {
+   "id": "bg.trail",
+   "field": "management",
+   "statement": "Trail the last third: cover on a close back above the 10-day average for a fast mover, the 21-day for a steadier one.",
+   "measure": {
+    "what": "close against the 10-day (fast) or 21-day (steadier) average",
+    "op": ">",
+    "value": "the average",
+    "timeframe": "daily"
+   },
+   "glossary": "trail",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "E52",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.6"
+  },
+  {
+   "id": "bg.time_stop",
+   "field": "management",
+   "statement": "Under 1R of profit after 10 sessions: cover.",
+   "measure": {
+    "what": "open R after 10 trading days",
+    "op": "<",
+    "value": 1,
+    "unit": "R"
+   },
+   "glossary": "time_stop",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "C33",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.6"
+  },
+  {
+   "id": "bg.p_cover_9ema",
+   "field": "management",
+   "statement": "Version P: cover at least a third at the daily 9 EMA even if under 3R.",
+   "measure": {
+    "what": "fraction covered at the first touch of the daily 9 EMA",
+    "op": ">=",
+    "value": 0.333,
+    "unit": "of the position"
+   },
+   "basis": "house rule",
+   "sources": [
+    "S22",
+    "S3"
+   ],
+   "house_rule": "D47",
+   "options": [
+    {
+     "value": "house",
+     "basis": "the house thirds at 3R and 5R"
+    },
+    {
+     "value": "9 EMA",
+     "basis": "Bracco's target for the parabolic short, which D47 names; the dossier's proposal for Version P"
+    },
+    {
+     "value": "10/20-day",
+     "basis": "Qullamaggie's target"
+    }
+   ],
+   "recommended": "9 EMA",
+   "status": "pending-owner",
+   "owner_question": "D-013",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.6; 10 question 8",
+   "evidence": "Loose daily test of the day-2 variant: 306 events, 58% reached the 9 EMA before the stop; +0.87R covering there against +0.49R under house management. DECISIONS D-013's default takes the parabolic family's first trim at the 9 EMA."
+  },
+  {
+   "id": "bg.p_burst",
+   "field": "pattern",
+   "statement": "Version P: Bracco's parabolic burst before the climax day: three straight up days, two overnight gap ups, range and volume expansion; the more boxes, the better. The climax-day gap up is missing by definition in this variant.",
+   "measure": {
+    "what": "Bracco's burst boxes checked (up days, gap ups, range expansion, volume expansion)",
+    "op": ">=",
+    "value": 3,
+    "unit": "boxes",
+    "timeframe": "daily"
+   },
+   "glossary": "parabolic_burst",
+   "basis": "house rule",
+   "sources": [
+    "S22"
+   ],
+   "house_rule": "B26",
+   "options": [
+    {
+     "value": "a",
+     "basis": "Version R only below the 200-day plus Version P above it (the dossier's recommendation)"
+    },
+    {
+     "value": "b",
+     "basis": "a bear gap short above the 200-day as a new exception"
+    },
+    {
+     "value": "c",
+     "basis": "no short at all"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-009",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.4 Burst; 10 question 5",
+   "evidence": "B26 defines parabolic by Bracco's checklist, whose last box is the climax-day gap up; his main setup will not short without it ('I won't short without that gap-up.'). Whether the exception covers a burst without it is the owner's call. The 3 of 4 is the parabolic short card's count, not this dossier's."
+  },
+  {
+   "id": "bg.p_climax_day",
+   "field": "pattern",
+   "statement": "Version P: the climax day sells off intraday but closes near the middle or high of its range, a hanging man or doji at the high.",
+   "measure": {
+    "what": "(close - low) / (high - low) on the climax day",
+    "op": ">=",
+    "value": 0.5,
+    "timeframe": "daily"
+   },
+   "glossary": "close_position",
+   "basis": "UCT",
+   "sources": [
+    "S22"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.4 Climax day",
+   "evidence": "Bracco: 'Sellers lack the strength to push it lower, and it closes near the middle or high of the day's range.' His IREN note: 'a hanging man candle at the high on increased volume.' Examples: DJT 10/29/2024, FUTU 10/7/2024, TASR 4/19/2004, TSLA 2/4/2020, CGC 2/10/2021, UVXY 8/5/2024."
+  },
+  {
+   "id": "bg.p_day2",
+   "field": "trigger",
+   "statement": "Version P: day 2 gaps down and does not fill the gap; short an opening-range breakdown (the 2 or 5-minute low; the 30-minute low as a slower option) at market.",
+   "measure": {
+    "what": "day-2 open against the climax close",
+    "op": "<",
+    "value": "climax close",
+    "and": "price trades under the 2 or 5-minute opening range low while the day's high stays under the climax close"
+   },
+   "glossary": "opening_range",
+   "basis": "UCT",
+   "sources": [
+    "S22",
+    "S3"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.4 Day 2, Trigger",
+   "evidence": "Bracco: 'The gap down the following day is key'; 'any opening range breakdown and failure to fill the gap begins the backside of the move'. Qullamaggie shorts 'the opening range lows (1-minute, 5-minute candles)'. The 30-minute option is the dossier's. In the bars, every Bracco example gapped down the session after his climax date."
+  },
+  {
+   "id": "bg.p_size",
+   "field": "management",
+   "statement": "Version P: smaller than a normal trade, the B- risk band, 0.25% to 0.5%.",
+   "measure": {
+    "what": "account risk on the trade",
+    "op": "in",
+    "value": [
+     0.25,
+     0.5
+    ],
+    "unit": "% of the account"
+   },
+   "basis": "house rule",
+   "sources": [
+    "S22"
+   ],
+   "house_rule": "E49",
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4 Size",
+   "evidence": "Bracco: 'Any other variation may be taken with smaller size.' The B- band is the dossier's reading of E49."
+  },
+  {
+   "id": "bg.p_above_200",
+   "field": "context",
+   "statement": "Version P is the only form that could be shorted above the 200-day, under B26's parabolic exception, if the owner rules that the exception covers a burst without the climax gap up.",
+   "measure": {
+    "what": "B26's parabolic exception applies to the day-2 variant",
+    "op": "==",
+    "value": "pending the owner"
+   },
+   "glossary": "above_200",
+   "basis": "house rule",
+   "sources": [
+    "S22"
+   ],
+   "house_rule": "B26",
+   "status": "pending-owner",
+   "owner_question": "D-009",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.0 Version P; 10 question 5",
+   "evidence": "Bracco: 'I do not typically engage in this setup for reasons stated above, but the backside of the move can still be captured'. The glossary's parabolic_burst entry lists 27's Version P as pending for this reason."
+  },
+  {
+   "id": "bg.market",
+   "field": "context",
+   "statement": "Version R: a Red or Orange reading, the stock's group weak. The short needs the market's help.",
+   "measure": {
+    "what": "market reading",
+    "op": "in",
+    "value": [
+     "Orange",
+     "Red"
+    ]
+   },
+   "glossary": "market_reading",
+   "basis": "house rule",
+   "sources": [
+    "S24"
+   ],
+   "house_rule": "D46",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.9",
+   "evidence": "D46: 'mostly cash, plus shorts below the 200-day'. Test: the app's events shorted at the close did worse with SPY under its 200-day (-0.44R), so a Red market is not by itself an edge. Scan: CIEN 2017-09-29 and CHKP 2017-12-07, both rejected at the 20-day with tight stops, were stopped at once in a strong uptrend; the scan did not check the market."
+  },
+  {
+   "id": "bg.not_after_flush",
+   "field": "context",
+   "statement": "Not right after a big unwind, and never eager: 'pressing shorts immediately after an unwind like feels dangerous'; 'Do not ever be eager to short. Ever.'",
+   "basis": "UCT",
+   "sources": [
+    "S22"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.9; 6.4",
+   "evidence": "Bracco 2025-11-16 and the unsigned intro of 2026-04-12. The owner on 2026-11-08: 'Often hard to not feel like you are shorting the hole when we get big massive moves like this to the downside'."
+  },
+  {
+   "id": "bg.not_late",
+   "field": "context",
+   "statement": "Not too late in the down cycle, and not after several gaps off the same top.",
+   "basis": "UCT",
+   "sources": [
+    "S22",
+    "S24"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.10 item 3",
+   "evidence": "Bracco 2026-08-02: 'extremely dangerous and detrimental to just begin shorting stuff too late in the down cycle.' Test: later gaps off the same top -0.22R. BMRN 2020-09-24: a 35% gap day, the 20-day rejection 24 sessions later with the stock already 40% off its high; 1.3R, then stopped."
+  },
+  {
+   "id": "bg.inv_200",
+   "field": "invalidation",
+   "statement": "Version R: a close back above the 200-day, or above the 50-day the bounce was rejected from.",
+   "measure": {
+    "what": "close against the 200-day SMA (or the rejected 50-day)",
+    "op": ">",
+    "value": "the line",
+    "timeframe": "daily"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B26",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.7"
+  },
+  {
+   "id": "bg.inv_strong_bounce",
+   "field": "invalidation",
+   "statement": "A strong, high-volume bounce into the zone that closes near its high: buyers in control. Fleckenstein's opposite case; a B- or a pass.",
+   "basis": "originator",
+   "sources": [
+    "S1"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.7; 9 B-"
+  },
+  {
+   "id": "bg.inv_market_turn",
+   "field": "invalidation",
+   "statement": "The market reading turns Green with breadth thrusting: stand down.",
+   "basis": "my proposal",
+   "sources": [],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.7"
+  },
+  {
+   "id": "bg.no_reflex_short",
+   "field": "trigger",
+   "statement": "Never short the gap day's close by reflex: the stop over its high is wide (median 4.2%), the stock sits far under its 10-day, and big one-day drops bounced 28% on average in Bulkowski's dead-cat sample.",
+   "measure": {
+    "what": "entry on the gap day's close",
+    "op": "==",
+    "value": false
+   },
+   "basis": "measured",
+   "sources": [
+    "S11",
+    "S24"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.10 item 1; 8.5 Not used",
+   "evidence": "Test: the gap-day close short (T1) -0.02R on 1,733 trades; 43% of gap-day closes more than 10% under the 10-day. The bear-gap atlas counted the gap day's own low as profit on close entries (measure_rules.py), which flatters that entry."
+  },
+  {
+   "id": "bg.name_home",
+   "field": "context",
+   "statement": "Name and home: 'Bear gap off the highs', its own unit (not SET.22 Gap Support), a Model Book card and a journal tag, pending the owner.",
+   "measure": {
+    "what": "unit",
+    "op": "==",
+    "value": "its own, not SET.22"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S23"
+   ],
+   "status": "pending-owner",
+   "owner_question": "D-016",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "5.6 item 6; 10 question 10",
+   "evidence": "The 39 drafts sit under SET.22, a long setup; Hard mode lists 'Bear gap' as its one short. DECISIONS D-016's default: 'Bear gap off the highs', its own unit, a card and a tag."
+  }
+ ],
+ "grading": {
+  "a_plus": [
+   "bg.first_gap: the first gap down off a clear top, or a range near the highs (bg.structure), on 2x volume or more (bg.gap_volume), closing in the lower part of its range and through support (bg.gap_day)",
+   "bg.earnings_breakdown: a real reason, a guidance cut or an earnings collapse in a crowded growth name, but from a range, not one day off a fresh high",
+   "bg.below_200: under a flat or falling 200-day (bg.flat_falling_200); bg.weak_rs: a weak group; bg.market: a weak reading",
+   "bg.bounce: a light-volume bounce (bg.light_bounce) into the gap zone and a declining 20-day or 50-day at the same price, then a clean rejection candle (bg.rejection_candle)",
+   "bg.stop_width: a stop within 3%, with at least 5R of room to the gap-day low or the next support",
+   "bg.fill: the gap never filled",
+   "bg.p_burst: Version P with most of Bracco's boxes checked, a clear hanging man or doji on the highest volume of the run (bg.p_climax_day), and a day 2 that gaps down and never fills (bg.p_day2)"
+  ],
+  "b_minus": [
+   "bg.first_gap: a second or third gap off the same top (bg.not_late)",
+   "bg.inv_strong_bounce: a bounce on heavy volume that pokes into the zone and closes near its high",
+   "bg.below_200: still above the 200-day (not allowed unless Version P)",
+   "bg.not_after_flush: the market just flushed and breadth is washed out",
+   "bg.stop_width: a stop wider than 3%; bg.earnings: a report within 3 days; bg.borrow: hard to borrow",
+   "bg.earnings_breakdown: a no-news drop (more likely to reverse, Savor)",
+   "bg.p_burst: Version P where the burst is a rebound from a crash low rather than a run to new highs (those drove almost all of the test's positive result)"
+  ],
+  "no_trade": [
+   "bg.status: as the app stands, no trade: the level is measured, not traded",
+   "bg.no_reflex_short: the gap day's close, by reflex",
+   "bg.below_200: above the 200-day, except Version P if he rules the exception covers it (bg.p_above_200)",
+   "bg.earnings_breakdown: an earnings collapse one to three sessions off a fresh high, the shape he cut",
+   "bg.fill: the gap has filled",
+   "bg.no_chase: more than 4% under the trigger; bg.not_stretched: more than 10% under the 10-day",
+   "bg.earnings: a report within 3 sessions; bg.borrow: hard to borrow",
+   "bg.market: a Green or Yellow reading, or a market that just turned Green with breadth thrusting (bg.inv_market_turn)"
+  ]
+ },
+ "lookalikes": [
+  {
+   "setup": "23-news-failure",
+   "tell": "Read the close against the prior close. A bear gap off the highs opens down and closes down 5% or more: the bad news worked. A News Failure (long) opens down on the same bad news and closes above the prior close: the news failed, and that is a buy, not a short.",
+   "criterion": "bg.gap_day"
+  },
+  {
+   "setup": "39-parabolic-short",
+   "tell": "Look at the day before the gap. A Parabolic Short's main form is shorted on a climax day that gaps up and closes red after a 3 to 5 day burst; the day-2 gap down after a hanging-man climax is its smaller variant (Version P here). A plain bear gap off the highs has no burst before it and is shorted only on the later retest, below the 200-day.",
+   "criterion": "bg.p_burst"
+  },
+  {
+   "setup": "38-parabolic-long",
+   "tell": "Count the down days before the gap. A Parabolic Long's climax gap down comes after three straight lower closes and two gap downs, and is bought on the intraday turn; a bear gap off the highs is the first gap since the top, with the prior close still within 15% of it, and nothing is bought.",
+   "criterion": "bg.first_gap"
+  },
+  {
+   "setup": "36-mean-reversion",
+   "tell": "Check the 200-day and the leader. A leader above a rising 200-day that gaps down on earnings is the owner's '3 day gap down earnings reversal' buy (PLTR, CLS), Mean Reversion form A; a bear gap short lives only under the 200-day, in a weak name, after the bounce fails.",
+   "criterion": "bg.below_200"
+  },
+  {
+   "setup": "25-gap-support",
+   "tell": "Which way did it gap? Gap Support is a gap up whose zone is tested later as support for a long; the bear gap is a gap down whose zone is resistance. Same mechanics, opposite line.",
+   "criterion": "bg.gap"
+  }
+ ],
+ "invalidations": [
+  "Before any trigger: a close above the gap zone's top edge fills the gap (bg.fill).",
+  "Version R, before the trigger: a close back above the 200-day, or above the 50-day the bounce was rejected from (bg.inv_200).",
+  "Before the trigger: a strong, high-volume bounce into the zone closing near its high (bg.inv_strong_bounce).",
+  "Before the trigger: the market reading turns Green with breadth thrusting (bg.inv_market_turn).",
+  "Before the trigger: no trigger within 5 sessions of the rejection day (bg.trigger_window).",
+  "After the entry: the stop is the exit and never moves higher (bg.stop_never_wider); under 1R after 10 sessions, cover (bg.time_stop)."
+ ],
+ "mistakes": [
+  "Shorting the gap day's close by reflex. The stop is wide, the stock is stretched far under its 10-day, and in Bulkowski's dead-cat sample the big drops bounced 28% on average.",
+  "Shorting a leader above a rising 200-day (B26), where the owner himself buys gap-down reversals.",
+  "Shorting too late in the down cycle (Bracco), or after several gaps off the same top (later gaps did worse in the test).",
+  "Treating every big earnings drop as a bear gap off the highs. He called those 'just an earnings breakdown'.",
+  "Ignoring the fill: holding a short after a close back above the gap zone.",
+  "Chasing: shorting far under the trigger (C28 mirror).",
+  "Hard-to-borrow names and squeezes (D48; the owner's 'Mechanical short squeeze').",
+  "Sizing a variant like a main setup. Bracco: 'smaller size'.",
+  "Buying right under an open bear gap on the long side, instead of waiting for the fill or a base.",
+  "Reading the drafts as proof that bear gaps usually hold: the finder ranked gap_held first, so 37 of 39 drafts held by construction."
+ ],
+ "short_mirror": {
+  "exists": true,
+  "setup": "25-gap-support",
+  "note": "This card is itself a short. Its long mirror is a gap up out of a base: Gap Support (25) and the Power Earnings Gap (21). D47 says shorts are our longs reversed; Version R is the reverse of his pullback-to-a-rising-average buy ('Essentially the same tactics I use for longs but just incredibly more selective'). The opposite trade on the same chart is his '3 day gap down earnings reversal' buy in a leader early in a recovery (CLS, PLTR); the lesson shows both so a gap down in a leader is never read as an automatic short."
+ },
+ "best_conditions": "Version R: a Red or Orange reading, the stock below a flat or falling 200-day, its group weak, a light bounce into the zone and a declining 20-day or 50-day at the same price. Not right after a big flush ('Do not ever be eager to short'). Version P: any market, best when the burst is far from its averages. A Red market is not by itself an edge: the gap-day close short did worse with SPY under its 200-day.",
+ "management": {
+  "trim_1": "cover a third at 3R (B19); Version P covers at least a third at the daily 9 EMA even if under 3R (D47, pending D-013)",
+  "trim_2": "cover a third at 5R (E51)",
+  "trail": "cover the last third on a close back above the 10-day average for a fast mover, the 21-day for a steadier one (E52)",
+  "breakeven": "between 2R and 5R, at the first cover by default (B19)",
+  "time_stop": "under 1R of profit after 10 sessions, cover (C33)",
+  "gap_open": "a cover level the day opens past is taken at the open (F63)",
+  "gap_against": "a gap up over the stop: the first 30-minute high is the new stop; out if past 2R (B20)",
+  "overrides": "Version P takes Bracco's target, the daily 9 EMA, for at least a third (D47; D-013 pending), and is sized in the B- band ('smaller size', E49). Version R keeps the house defaults. Not ours: Fleckenstein's wide 'much more room' stop, ChartSchool's 4% trailing stop, Qullamaggie's 10/20-day target except as an option under D-013."
+ },
+ "examples": {
+  "winners": 10,
+  "sheet_dir": "_study-resume/scratchpad/setups/27-bear-gap/final",
+  "base_rate": {
+   "hits": 359,
+   "r3_pct": 25.3,
+   "r5_pct": 14.2,
+   "stopped_pct": 86.6,
+   "ran_out_of_window_under_3r": 6,
+   "stopped_before_3r": 262,
+   "stopped_after_3r": 49,
+   "stopped_after_5r": 14,
+   "reached_3r_unstopped_at_window_end": 42,
+   "window": "60 sessions forward, fixed stop two cents over the rejection day's high (up to 5%), no trims, no breakeven, no trail; Version R's rule on all 2,630 liquid names, 1984 to 2026 (first trigger 1997-02-27); the market reading, the RS mirror, the borrow rule and the earnings mirror not applied. Of the 359 hits, 311 were stopped at some point in the window (262 before reaching 3R, 49 after reaching 3R, 14 of those after 5R), 42 had reached 3R and were unstopped at the window's end, and 6 ended under 3R unstopped; the groups overlap with the 51 that reached 5R (14 stopped later, 37 not) (corrected 2026-11-10 against the bars)."
+  },
+  "cuts": {
+   "top_15_plus_sessions_before_the_gap": {
+    "hits": 256,
+    "reached_3r": 69,
+    "r3_pct": 27
+   },
+   "gap_straight_off_the_top": {
+    "hits": 103,
+    "reached_3r": 22,
+    "r3_pct": 21
+   },
+   "stop_3_pct_or_less": {
+    "hits": 216,
+    "reached_3r": 61,
+    "r3_pct": 28
+   },
+   "stop_wider_than_3_pct": {
+    "hits": 143,
+    "reached_3r": 30,
+    "r3_pct": 21
+   },
+   "falling_200_day": {
+    "hits": 109,
+    "reached_3r": 29,
+    "r3_pct": 27
+   },
+   "rising_200_day": {
+    "hits": 250,
+    "reached_3r": 62,
+    "r3_pct": 25
+   },
+   "rejection_at_the_20_day_ema": {
+    "hits": 244,
+    "reached_3r": 61,
+    "r3_pct": 25
+   },
+   "rejection_at_the_gap_zone": {
+    "hits": 106,
+    "reached_3r": 26,
+    "r3_pct": 25
+   },
+   "rejection_at_the_50_day_sma": {
+    "hits": 9,
+    "reached_3r": 4
+   },
+   "earnings_gaps": {
+    "hits": 236,
+    "reached_3r": 62,
+    "r3_pct": 26
+   },
+   "news_gaps": {
+    "hits": 91,
+    "reached_3r": 26,
+    "r3_pct": 29
+   },
+   "app_rule_gap_day_close_short_2005_2026": {
+    "all": {
+     "trades": 1733,
+     "mean_r": -0.02,
+     "range": "-0.15 to +0.11"
+    },
+    "random_shorts_baseline": {
+     "trades": 5928,
+     "mean_r": -0.09
+    },
+    "earnings_day": {
+     "trades": 1114,
+     "mean_r": 0.15
+    },
+    "not_earnings": {
+     "trades": 579,
+     "mean_r": -0.35
+    },
+    "close_under_the_200_day": {
+     "trades": 679,
+     "mean_r": -0.16
+    },
+    "not_the_first_gap_off_the_top": {
+     "trades": 680,
+     "mean_r": -0.22
+    },
+    "earnings_top_3_or_fewer_sessions_earlier": {
+     "trades": 268,
+     "mean_r": 0.36,
+     "range": "+0.11 to +0.62"
+    },
+    "owner_tactic_daily_stand_in_T3": {
+     "trades": 571,
+     "mean_r": -0.02
+    },
+    "note": "988 liquid stocks with cached earnings dates, daily bars, house management mirrored; about 40 slices tested, so one or two can look positive by chance"
+   },
+   "day_2_variant_loose_test": {
+    "events": 306,
+    "reached_9ema_pct": 58,
+    "mean_r_at_9ema": 0.87,
+    "without_2008_2009_2020": 0.0
+   }
+  },
+  "winners_list": [
+   "VRSN 2008-07-14",
+   "LDOS 2010-04-28",
+   "OI 2011-07-08",
+   "GRFS 2014-09-05",
+   "HWM 2018-03-14",
+   "DLTR 2020-01-03",
+   "MDT 2021-10-28",
+   "EEFT 2023-08-31",
+   "ACGL 2024-12-03",
+   "LPX 2025-03-27"
+  ],
+  "failures": [
+   {
+    "ticker": "DIS",
+    "date": "2015-09-10",
+    "criterion": "bg.earnings_breakdown",
+    "why": "the 2015-08-05 gap came one session off the top on 10x volume, the kind he cut as 'just an earnings breakdown'; the bounce to the 20-day was rejected, but the trigger day was the low of the move and the stock reversed up through the stop at once (best 0.0R)."
+   },
+   {
+    "ticker": "BMRN",
+    "date": "2020-09-24",
+    "criterion": "bg.not_late",
+    "why": "a textbook 35% gap on 27x volume (2020-08-19); the 20-day rejection came after 24 sessions with the stock already 40% off its high; 1.3R, then a rally through the stop. After a drop that large the 20-day sits far under the zone: shorting late, and Bulkowski's big drops bounce."
+   },
+   {
+    "ticker": "CIEN",
+    "date": "2017-09-29",
+    "criterion": "bg.market",
+    "why": "rejected at the 20-day after 19 to 23 sessions with a 1.3% stop, stopped at once (best 0.0R) in a strong general uptrend; the stock under its own 200-day satisfied B26, but the Red or Orange reading was not met."
+   },
+   {
+    "ticker": "CHKP",
+    "date": "2017-12-07",
+    "criterion": "bg.market",
+    "why": "the same shape as CIEN two months later: a 2.4% stop, stopped at once in a strong market. The scan did not check the market; the short needs its help."
+   },
+   {
+    "ticker": "AGQ",
+    "date": "2026-01-15",
+    "criterion": "bg.p_day2",
+    "why": "Version P: day 2 opened 9.3% under Wednesday's close after the climax; Bracco's '3 failed attempts over 2 sessions'; the next session it fell further, then on 2026-01-20 it opened over the day-2 high."
+   },
+   {
+    "ticker": "NFLX",
+    "date": "2021-05-04",
+    "criterion": "bg.trail",
+    "why": "gap 2021-04-21 (earnings, -7.4% on 6.2x), rejected at the gap zone after 8 sessions, a 2.8% stop; 1.86R by day 11 and never 3R; the close went back over the 20-day EMA on day 12 (the trail covers there) and the fixed stop went on day 36 on the close back over the 200-day (bg.inv_200)."
+   }
+  ],
+  "limits": "The earnings database is complete only from about 2005, so VRSN and OI are classed as news gaps on the absence of a report. None of the ten is an ETF. The ten are the scan's winners chosen for clarity and spread; the base rate is the honest number. Survivors only, so delisted collapses are thin. The 39 bank drafts were ranked by what happened next (gap_held first) and are not a sample.",
+  "near_misses": [
+   {
+    "ticker": "TSLA",
+    "date": "2014-10-30",
+    "criterion": "bg.below_200",
+    "why": "the rejection day closed 5.9% above the 200-day SMA: a pullback in a leader, not a short; stopped at 0R."
+   },
+   {
+    "ticker": "CMCSA",
+    "date": "2015-09-04",
+    "criterion": "bg.gap_day",
+    "why": "the gap day opened -6.0% but closed down only 4.2%, at 70% of its range (rule: down 5% or more in the lower half): a gap bought back the same day, closer to a News Failure; stopped at 0R."
+   },
+   {
+    "ticker": "CDNS",
+    "date": "2024-08-12",
+    "criterion": "bg.rejection_candle",
+    "why": "the rejection day closed at 82% of its range (rule: the lower half): a strong bounce with buyers in control; stopped at 0R."
+   },
+   {
+    "ticker": "VZ",
+    "date": "2026-07-20",
+    "criterion": "bg.gap",
+    "why": "the open was 2.1% (0.89 ATR) under the prior close (rule: at least 1 ATR or 4%): an ordinary down day with no gap zone; 0.2R then stopped."
+   }
+  ],
+  "sheets": {
+   "failures": "final/fail_1-4.png",
+   "near_misses": "final/near_1-4.png",
+   "pair": "final/pair_23-news-failure.png"
+  }
+ },
+ "question_seeds": [
+  {
+   "kind": "recall",
+   "criterion": "bg.status",
+   "seed": "As the app stands today, what does the Bear gap lesson measure, and what line must a close stay under?"
+  },
+  {
+   "kind": "recall",
+   "criterion": "bg.gap_zone",
+   "seed": "Name the two edges of a bear gap's zone for a full window, and what a close above the top edge means."
+  },
+  {
+   "kind": "recall",
+   "criterion": "bg.below_200",
+   "seed": "Version R short: which side of the 200-day must the stock be on, and whose words say so?"
+  },
+  {
+   "kind": "spot",
+   "criterion": "bg.gap_zone",
+   "seed": "Hidden ticker: tap the top edge of the gap zone, the level a close must stay under."
+  },
+  {
+   "kind": "spot",
+   "criterion": "bg.rejection_candle",
+   "seed": "Hidden ticker: which of these four bounces ends in a rejection candle at the declining 20-day, closing in its lower half?"
+  },
+  {
+   "kind": "spot",
+   "criterion": "bg.first_gap",
+   "seed": "Hidden ticker: is this the first gap down since the top, or the third? Setup or pass."
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "bg.gap_day",
+   "seed": "Bear gap or News Failure: the stock opened down 6% on bad news. Where did it close against the prior close, and which is it?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "bg.p_burst",
+   "seed": "Bear gap Version P or Parabolic Short P1: the stock gapped up on day 5 of a burst and closed red. Which is it, and on which day is it shorted?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "bg.below_200",
+   "seed": "A leader above its rising 200-day gaps down 12% on earnings. Bear gap short, or the owner's 3-day gap-down reversal buy?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "bg.no_reflex_short",
+   "seed": "A stock gaps down 15% off its highs on 10x volume and closes near the low. Short the close, or wait? Say why."
+  },
+  {
+   "kind": "scenario",
+   "criterion": "bg.fill",
+   "seed": "You are short from the rejection at the 20-day. Today closes above the prior day's low of the gap day, under your stop. What now?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "bg.market",
+   "seed": "The rejection candle prints under the 200-day, but the reading is Green and QQQ is at highs. Short the break of its low, or pass?"
+  },
+  {
+   "kind": "grade",
+   "criterion": "bg.structure",
+   "seed": "Two bear gaps: one straight off a fresh high on earnings (the top 2 sessions back), one out of a 7-week range near the highs. Grade each as a Version R candidate."
+  },
+  {
+   "kind": "grade",
+   "criterion": "bg.light_bounce",
+   "seed": "The bounce into the zone ran 25 sessions on volume above the gap day's and closed near its high. A+, B-, or pass?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "bg.gap",
+   "seed": "Prior close 100.00, ATR 3.20, open 96.50, day's high 99.40. Is this a bear gap by the 1 ATR or 4% rule, and was it filled?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "bg.stop_width",
+   "seed": "Shorted at 93.01 with the stop at 94.71. How far is the stop in percent, and where is 3R?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "bg.top",
+   "seed": "The 250-session closing high was 50.00, set 40 sessions ago; the close before the gap was 44.50. Is the prior close within 15% of the top?"
+  }
+ ],
+ "owner_decisions": [
+  "D-001",
+  "D-004",
+  "D-008",
+  "D-009",
+  "D-013",
+  "D-015",
+  "D-016",
+  "D-025",
+  "D-028",
+  "D-098",
+  "D-099",
+  "D-100"
+ ],
+ "conflicts": [
+  "Sources: the card cites the dossier's own section 11 numbers (S1 Fleckenstein, S4 ChartSchool gaps, S7 Bulkowski gaps, S11 dead-cat bounce, S22 the UCT Substack, S23 the repo files, S24 the bars). Nobody originated 'bear gap off the highs'; the dossier's [originator] tag marks the authors of the named neighbouring setups (Fleckenstein's gap-down short), and the card follows that.",
+  "Today's house position against the card's short: TRADE_PLANS.md and course V.05 say the fall is measured, not traded, while Hard mode lists 'Bear gap' as its one short. The card records both; Version R and Version P are the dossier's measured short side, pending D-001.",
+  "Top or downtrend: ChartSchool's breakaway gap comes after 'an extended top'; Fleckenstein wants stocks 'already in major declines' below both averages; Bulkowski's bad-earnings short does best near the yearly low; the owner wants 'off the highs' and not 'downtrend gaps'. The card takes the owner's, with B26 then pushing the short to the later retest under the 200-day.",
+  "Short the gap or the bounce: ChartSchool's intraday method and Bracco's day-2 variant short the gap day; Fleckenstein, Bulkowski and the owner wait for the bounce and its rejection. The card takes the bounce (Version R) and keeps the gap-day short only as Version P.",
+  "Where the stop goes: over the gap day's high (the evidence tables; median 4.2%, 25% on VRNS), over the prior day's low or broken support (Fleckenstein), a few cents above the gap (Bulkowski), a 4% trailing stop (ChartSchool). The card takes the trigger candle's high within 3% (D-008).",
+  "News or no news: Fleckenstein and Stockbee require a catalyst; Savor and Chan find drift after news and reversal after no-news shocks; the owner rejected the earnings collapses he saw. The test's only positive slice was those collapses (+0.36R, 268 trades, one of about 40 slices, mostly above the 200-day). The card excludes the one-day collapse off a fresh high and flags the slice (D-025).",
+  "Gap size and volume: by eye (Fleckenstein), any full gap (ChartSchool), 1 standard deviation (QuantRocket), 15%+ (Bulkowski's dead-cat bounce), 5% and 2x (the app). The card takes 1 ATR or 4% with 1.5x volume; DECISIONS D-099's default makes volume a cue (the owner's SNDK gaps had 1.3x and 0.9x).",
+  "The gap definition: the app's full daily window against UCT's overnight gaps (BE, GLW, MRNA, SNDK were not full windows). The card takes the overnight gap with a floor and keeps the window as the stricter grade (D-099).",
+  "Which line: the course says the gap day's high; the overlay labels the prior day's low. The card draws the zone as one band (D-100).",
+  "The 200-day: 61% of the app's events close above it on the gap day and every UCT-named example but MPWR; B26 forbids those shorts unless parabolic. Whether B26's exception covers Bracco's day-2 variant, which lacks the climax-day gap up his main setup requires, is the owner's call (D-009).",
+  "Market: Fleckenstein wants a falling index and Bulkowski a bear market; the test found the gap-day close short did worse with SPY under its 200-day, and the scan's CIEN and CHKP failed in a strong uptrend. The card keeps D46's Red or Orange reading and says the short needs the market's help.",
+  "The evidence replay (measure_rules.py) counts the fill day's own low as profit on close entries, so the atlas's 1R 66% and 2R 44% overstate the gap-day close short (the dossier's own test: 48% and 31%). Owner question 12 in the dossier (D-028 in Part D) asks whether to fix it for every setup.",
+  "Bracco's C31 exemption: a stock gapping off its highs is usually still strong on RS; the card keeps C31's short mirror for Version R and asks whether the bear gap counts as mean reversion (D-009).",
+  "The Version P burst count (3 of 4 boxes) is the parabolic short card's number, not this dossier's; the dossier says only 'the more boxes checked, the stronger'."
+ ]
+}

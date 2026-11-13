@@ -1,0 +1,1437 @@
+{
+ "setup": "01-flat-base",
+ "name": "Flat Base Breakout",
+ "unit": "SET.07",
+ "direction": "long",
+ "timeframe": "daily",
+ "dossier": "docs/study/setups/research/01-flat-base.md",
+ "as_of": "2026-11-09",
+ "card": {
+  "context": "A leader that has already run at least 30% rests in an uptrend, above a rising 200-day, with RS 80 or more. First or second base. Green or Yellow market.",
+  "pattern": "Five weeks or more sideways near the highs, no more than 15% deep, with a flat ceiling tapped at least twice and tight closes at the end.",
+  "trigger": "BASE BREAKOUT: price trades through the top of the base during regular hours, bought at market, no more than 4% past it.",
+  "stop": "A few cents under the breakout day's low, usually within about 3% of the buy; the base low is too far away to be the stop.",
+  "failure_mode": "The breakout day closes back inside the base, often at its low, and the next session takes the stop. Two in three breakouts come back to test the pivot; the stop is where that test is paid for."
+ },
+ "entry_trigger": "BASE BREAKOUT",
+ "criteria": [
+  {
+   "id": "fb.prior_trend",
+   "field": "context",
+   "statement": "The left-side high is at least 30% above the lowest low of the 65 sessions before it.",
+   "measure": {
+    "what": "left-side high / lowest low of the prior 65 sessions - 1",
+    "op": ">=",
+    "value": 30,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "glossary": "prior_trend",
+   "basis": "originator",
+   "sources": [
+    "S4",
+    "S17",
+    "S18"
+   ],
+   "options": [
+    {
+     "value": 20,
+     "basis": "O'Neil via Bonde (S13); MarketSmith's stage step (S12)"
+    },
+    {
+     "value": 25,
+     "basis": "flat_base.py, 60 bars"
+    },
+    {
+     "value": 30,
+     "basis": "IBD S4 for any base; TraderLion S17; Kullamagi S18 (30% to 100%+ in 1 to 3 months)"
+    }
+   ],
+   "recommended": 30,
+   "status": "pending-owner",
+   "owner_question": "D-029",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Prior trend",
+   "evidence": "The 65-session window is the dossier's proposal, from Kullamagi's past 1 to 3 months. The scan used 30% over 65 sessions; the ten examples ran 30% to 155% before the base."
+  },
+  {
+   "id": "fb.base_count",
+   "field": "context",
+   "statement": "First or second base since the last stage reset. A breakout that gained less than 20% before this base does not count as a new stage; the count resets to 1 when price undercuts the prior base's low.",
+   "measure": {
+    "what": "bases since the last stage reset, where a 20% gain starts a new stage and an undercut of the prior base's low resets the count to 1",
+    "op": "<=",
+    "value": 2,
+    "unit": "bases",
+    "timeframe": "daily"
+   },
+   "glossary": "base_count",
+   "basis": "originator",
+   "sources": [
+    "S7",
+    "S12"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Base count",
+   "evidence": "Not coded in the scan, so the base rate mixes early and late bases."
+  },
+  {
+   "id": "fb.left_side_high",
+   "field": "pattern",
+   "statement": "The base starts at the left-side high: the highest intraday high of the last 100 sessions.",
+   "measure": {
+    "what": "sessions over which the left-side high is the highest intraday high",
+    "op": ">=",
+    "value": 100,
+    "unit": "sessions",
+    "timeframe": "daily"
+   },
+   "glossary": "left_side_high",
+   "basis": "originator",
+   "sources": [
+    "S12"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Where the base starts"
+  },
+  {
+   "id": "fb.first_week",
+   "field": "pattern",
+   "statement": "The base's first week reaches within 3% of the left-side high.",
+   "measure": {
+    "what": "(left-side high - the first week's highest high) / left-side high",
+    "op": "<=",
+    "value": 3,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S1"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Where the base starts",
+   "evidence": "The 3% is base_catalog.py's reading of IBD's first down week (S1)."
+  },
+  {
+   "id": "fb.length_min",
+   "field": "pattern",
+   "statement": "At least 25 sessions (5 weeks) from the left-side high to the day before the breakout.",
+   "measure": {
+    "what": "sessions from the left-side high to the day before the breakout",
+    "op": ">=",
+    "value": 25,
+    "unit": "sessions",
+    "timeframe": "daily"
+   },
+   "glossary": "base_length",
+   "basis": "originator",
+   "sources": [
+    "S4",
+    "S11",
+    "S17"
+   ],
+   "options": [
+    {
+     "value": 25,
+     "basis": "IBD S4 and MarketSmith S11: five weeks"
+    },
+    {
+     "value": 15,
+     "basis": "the owner's examples (FPS 4 weeks, USAR 8 days); Kullamagi 2 weeks (S18); Kell a couple of weeks (S19)"
+    },
+    {
+     "value": 10,
+     "basis": "Kullamagi's 2 weeks (S18)"
+    }
+   ],
+   "recommended": 25,
+   "status": "pending-owner",
+   "owner_question": "D-042",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Length",
+   "evidence": "The dossier recommends 25 sessions for the name Flat Base, with 2 to 4-week rests taught under the flag setups. The ten examples ran 6.0 to 12.6 weeks."
+  },
+  {
+   "id": "fb.length_max",
+   "field": "pattern",
+   "statement": "At most 65 weeks (325 sessions) from the left-side high to the day before the breakout.",
+   "measure": {
+    "what": "sessions from the left-side high to the day before the breakout",
+    "op": "<=",
+    "value": 325,
+    "unit": "sessions",
+    "timeframe": "daily"
+   },
+   "glossary": "base_length",
+   "basis": "originator",
+   "sources": [
+    "S11",
+    "S12"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Length"
+  },
+  {
+   "id": "fb.depth",
+   "field": "pattern",
+   "statement": "Depth at most 15%: from the left-side high to the base's lowest intraday low, divided by the high.",
+   "measure": {
+    "what": "(left-side high - lowest intraday low of the base) / left-side high",
+    "op": "<=",
+    "value": 15,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "glossary": "base_depth",
+   "basis": "originator",
+   "sources": [
+    "S1",
+    "S4",
+    "S11"
+   ],
+   "options": [
+    {
+     "value": 15,
+     "basis": "IBD S1, S4; MarketSmith S11"
+    },
+    {
+     "value": 12,
+     "basis": "flat_base.py (measured from the base's midpoint)"
+    },
+    {
+     "value": 10,
+     "basis": "the tight end of IBD's 10% to 15% band (S4)"
+    }
+   ],
+   "recommended": 15,
+   "status": "pending-owner",
+   "owner_question": "D-043",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Depth",
+   "evidence": "Scan, stocks only: depth 10% or less (1,207 hits) was NOT better, 27.1% to 3R and 18.5% to 5R, against 29.7% and 20.8% for 10% to 15%. The examples ran 5.5% to 14.6% deep."
+  },
+  {
+   "id": "fb.depth_shallow",
+   "field": "pattern",
+   "statement": "Depth of 10% or less is the A+ version.",
+   "measure": {
+    "what": "(left-side high - lowest intraday low of the base) / left-side high",
+    "op": "<=",
+    "value": 10,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "glossary": "base_depth",
+   "basis": "my proposal",
+   "sources": [
+    "S4",
+    "S17",
+    "S24"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Depth; 9 Depth row",
+   "evidence": "No source measured it. Bulkowski's rectangles: tall patterns perform better (S24). Our scan agrees with Bulkowski: 10% or less was not better (27.1% / 18.5% against 29.7% / 20.8%). The cue is kept as written and flagged in conflicts."
+  },
+  {
+   "id": "fb.flat",
+   "field": "pattern",
+   "statement": "Flat: the least-squares line through the base's closes moves no more than 10% of the base's average close from start to end. A U shape inside that drift is allowed.",
+   "measure": {
+    "what": "(end - start of the least-squares line through the base's closes) / average close of the base",
+    "op": "<=",
+    "value": 10,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "glossary": "flat_drift",
+   "basis": "UCT",
+   "sources": [
+    "S1"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Shape: flat",
+   "evidence": "The 10% is base_catalog.py's FLAT_MAX_DRIFT, two thirds of the 15% depth ceiling. The U shape is IBD's (S1)."
+  },
+  {
+   "id": "fb.tight_end",
+   "field": "pattern",
+   "statement": "Tight at the end: the last 10 sessions' high-to-low range is at most half the base's depth, or the last 3 sessions include an inside day.",
+   "measure": {
+    "what": "range of the last 10 sessions / depth of the base",
+    "op": "<=",
+    "value": 50,
+    "unit": "%",
+    "timeframe": "daily",
+    "or": "an inside day in the last 3 sessions"
+   },
+   "glossary": "tight",
+   "basis": "my proposal",
+   "sources": [
+    "S5"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Shape: tight at the end",
+   "evidence": "IBD gives no number (S5: flat bases should show tight trading). The test is from the owner's double inside days and a contributor's tight inside day. ALLY (5.5% deep, inside days into the breakout) is the picture of it."
+  },
+  {
+   "id": "fb.ceiling_touches",
+   "field": "pattern",
+   "statement": "The ceiling: two or more separate touches of the top within 0.5 ATR, the first at least 10 sessions back.",
+   "measure": {
+    "what": "separate touches of the pivot within 0.5 ATR(14), the first at least 10 sessions back",
+    "op": ">=",
+    "value": 2,
+    "unit": "touches",
+    "timeframe": "daily"
+   },
+   "glossary": "ceiling",
+   "basis": "UCT",
+   "sources": [],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 The ceiling",
+   "evidence": "From the lab's frozen flat-top rule. Scan: three or more taps (1,621 hits) made no difference, 28.9% / 20.5%. C (two taps) still paid 9.0R."
+  },
+  {
+   "id": "fb.ceiling_three_taps",
+   "field": "pattern",
+   "statement": "Three or more clean taps of one flat level is the A+ version of the ceiling.",
+   "measure": {
+    "what": "separate touches of the pivot within 0.5 ATR(14)",
+    "op": ">=",
+    "value": 3,
+    "unit": "touches",
+    "timeframe": "daily"
+   },
+   "glossary": "ceiling",
+   "basis": "my proposal",
+   "sources": [
+    "S3",
+    "S24"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1 The ceiling; 9 The ceiling row",
+   "evidence": "From the owner's FUTU 3rd tap and RDDT 3 taps, and Bulkowski's rectangle touching a trendline at least three times (S24). IBD's three points (S3) is about drawing the early buy point. Scan: no difference in outcomes."
+  },
+  {
+   "id": "fb.base_volume_dry",
+   "field": "pattern",
+   "statement": "Volume in the base: the second half of the base averages less volume than the first half. A grade cue, not a gate.",
+   "glossary": "dry_up",
+   "basis": "UCT",
+   "sources": [
+    "S27"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Volume in the base",
+   "evidence": "Bulkowski's data on volume inside patterns is close and mixed (S27). Scan: volume drying up in the second half (2,859 hits) made no difference, 29.0% / 20.1%."
+  },
+  {
+   "id": "fb.above_mas",
+   "field": "context",
+   "statement": "On the breakout day price is above the 50-day and the 200-day, and the 50-day is above the 200-day.",
+   "measure": {
+    "what": "close > 50-day SMA > 200-day SMA on the trigger day",
+    "op": "==",
+    "value": true,
+    "timeframe": "daily"
+   },
+   "glossary": "ma_stack",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B26",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Location",
+   "evidence": "B26 is a hard rule: no longs below the 200-day. The 50 over 200 half is the lab's c>s50>s200. flat_base.py and Chart IQ v3 do not check it (conflicts)."
+  },
+  {
+   "id": "fb.ma200_rising",
+   "field": "context",
+   "statement": "The 200-day is not lower than it was 20 sessions ago.",
+   "measure": {
+    "what": "200-day SMA today - 200-day SMA 20 sessions ago",
+    "op": ">=",
+    "value": 0,
+    "unit": "$",
+    "timeframe": "daily"
+   },
+   "glossary": "ma_stack",
+   "basis": "UCT",
+   "sources": [
+    "S22"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Location",
+   "evidence": "From the ftb4 scanner's rising 200-day; the Weinstein school asks for a rising 30-week (S22)."
+  },
+  {
+   "id": "fb.holds_50",
+   "field": "pattern",
+   "statement": "In the base, at least 80% of the closes are at or above the 50-day. A brief shakeout under the 50-day is allowed.",
+   "measure": {
+    "what": "share of the base's closes at or above the 50-day SMA",
+    "op": ">=",
+    "value": 80,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S18"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Location",
+   "evidence": "The 80% makes holds the 50-day countable. Kullamagi: sometimes toe 50-day (S18); the owner on LHX: shakeout into the 50SMA."
+  },
+  {
+   "id": "fb.not_stretched",
+   "field": "trigger",
+   "statement": "At entry, no more than 10% above the 10-day average.",
+   "measure": {
+    "what": "entry / 10-day SMA - 1",
+    "op": "<=",
+    "value": 10,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "C29",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Location",
+   "evidence": "Rarely binds on a flat base; a wide-range gap breakout can break it."
+  },
+  {
+   "id": "fb.liquidity",
+   "field": "context",
+   "statement": "Price $10 or more and $20 million or more traded a day on average.",
+   "measure": {
+    "what": "close",
+    "op": ">=",
+    "value": 10,
+    "unit": "$",
+    "and": "50-day average dollar volume >= 20,000,000"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B23",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Liquidity",
+   "evidence": "Four scanners use $2 and $10,000 a day; Chart IQ v3 has no floor (conflicts). The scan used the house floor."
+  },
+  {
+   "id": "fb.position_adv",
+   "field": "management",
+   "statement": "The position is at most 1% of average daily volume.",
+   "measure": {
+    "what": "shares / average daily volume",
+    "op": "<=",
+    "value": 1,
+    "unit": "%"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "D42",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 Liquidity"
+  },
+  {
+   "id": "fb.leadership",
+   "field": "context",
+   "statement": "RS rating 80 or more, in a strong group.",
+   "measure": {
+    "what": "RS rating",
+    "op": ">=",
+    "value": 80,
+    "unit": "rating 1 to 99"
+   },
+   "glossary": "leader",
+   "basis": "house rule",
+   "sources": [
+    "S1"
+   ],
+   "house_rule": "C31",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Leadership",
+   "evidence": "The scan cannot read an RS rating; a 12-month proxy put all ten examples at 80 or more (ALLY exactly 80). GOOG 2021 was dropped at a proxy of 75."
+  },
+  {
+   "id": "fb.fundamentals",
+   "field": "context",
+   "statement": "Growing sales and earnings preferred; the chart comes first.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "D40",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1 Leadership"
+  },
+  {
+   "id": "fb.pivot",
+   "field": "trigger",
+   "statement": "The pivot is the highest intraday high of the base. IBD adds 10 cents; with market orders the 10 cents does not matter.",
+   "measure": {
+    "what": "pivot",
+    "op": "==",
+    "value": "highest intraday high of the base",
+    "timeframe": "daily"
+   },
+   "glossary": "pivot",
+   "basis": "originator",
+   "sources": [
+    "S1",
+    "S12"
+   ],
+   "house_rule": "E57",
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 Pivot"
+  },
+  {
+   "id": "fb.trigger",
+   "field": "trigger",
+   "statement": "Price trades above the pivot during regular hours. Buy with a market order. Set the alert at the pivot.",
+   "measure": {
+    "what": "intraday high during regular hours",
+    "op": ">",
+    "value": "pivot"
+   },
+   "basis": "house rule",
+   "sources": [
+    "S18"
+   ],
+   "house_rule": "E58",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 Trigger",
+   "evidence": "Market orders are E57. Kullamagi's opening range high is the same idea (S18). The scan filled at the pivot plus a cent, or the open when it gapped above the pivot: gap opens (582 hits) did better, 37.8% / 27.7%."
+  },
+  {
+   "id": "fb.no_chase",
+   "field": "trigger",
+   "statement": "No buy more than 4% above the pivot.",
+   "measure": {
+    "what": "fill / pivot - 1",
+    "op": "<=",
+    "value": 4,
+    "unit": "%"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "C28",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 Do not chase",
+   "evidence": "MarketSmith's buy range is 0% to 5% above the pivot (S12); the house 4% wins."
+  },
+  {
+   "id": "fb.earnings_window",
+   "field": "trigger",
+   "statement": "No new buy in the 3 sessions before an earnings report.",
+   "measure": {
+    "what": "sessions until the next report",
+    "op": ">",
+    "value": 3,
+    "unit": "sessions"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B22",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 Earnings; 8.5"
+  },
+  {
+   "id": "fb.earnings_gap_trigger",
+   "field": "trigger",
+   "statement": "A flat base that breaks out on the earnings gap day: buy the gap day (after the report, so B22 allows it), or treat it as a different setup (Episodic Pivot or Power Earnings Gap).",
+   "measure": {
+    "what": "trigger day is the first session after the report",
+    "op": "==",
+    "value": true
+   },
+   "basis": "UCT",
+   "sources": [],
+   "options": [
+    {
+     "value": "a",
+     "basis": "buy the gap day; the owner's NBIS note; B22 allows a buy after the report"
+    },
+    {
+     "value": "b",
+     "basis": "a different setup: Episodic Pivot or Power Earnings Gap"
+    }
+   ],
+   "status": "pending-owner",
+   "owner_question": "D-025",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "7 B22 row; 10 question 9",
+   "evidence": "Scan: triggers that were earnings-reaction days (102) did better, 43.1% / 35.3%, but they were excluded from the examples as a different setup. The dossier recommends nothing here; he decides."
+  },
+  {
+   "id": "fb.breakout_volume",
+   "field": "trigger",
+   "statement": "Volume on the trigger day: on pace for at least 1.4 times the 50-day average volume. Required for an A or A+ grade, not to take the trade.",
+   "measure": {
+    "what": "trigger-day volume / 50-day average volume",
+    "op": ">=",
+    "value": 1.4,
+    "unit": "x",
+    "timeframe": "daily"
+   },
+   "glossary": "volume_surge",
+   "basis": "originator",
+   "sources": [
+    "S1",
+    "S17",
+    "S18",
+    "S26"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "required at 1.4 times the 50-day average: IBD S1, TraderLion S17"
+    },
+    {
+     "value": "b",
+     "basis": "a grade cue only: the owner (not a big volume guy); Kullamagi silent (S18); Bulkowski's heavy-volume breakouts failed more (S26)"
+    },
+    {
+     "value": "c",
+     "basis": "not used"
+    }
+   ],
+   "recommended": "b",
+   "status": "pending-owner",
+   "owner_question": "D-006",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.2 Volume on the trigger day",
+   "evidence": "Scan, stocks only: 1.4x the 50-day or more (788 hits) reached 3R 39.2% and 5R 30.1%, against 26.0% and 17.3% below 1.4x. IBD's volume rule earns its grade. LII still ran 15.9R on 0.82x, the case for a cue, not a gate."
+  },
+  {
+   "id": "fb.other_entries",
+   "field": "trigger",
+   "statement": "Other entries he uses, taught as named variants only if he rules them in: the early pivot (a lower ceiling inside the base touched 3 times), the undercut and reclaim of the base low, and the retest of the pivot after the breakout on lighter volume.",
+   "measure": {
+    "what": "variant entry",
+    "op": "in",
+    "value": [
+     "early pivot",
+     "undercut and reclaim of the base low",
+     "retest of the pivot"
+    ]
+   },
+   "basis": "UCT",
+   "sources": [
+    "S3",
+    "S21"
+   ],
+   "status": "pending-owner",
+   "owner_question": "D-027",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.2 Other entries he uses",
+   "evidence": "The early pivot is IBD's (S3). The retest is Wyckoff's back-up (S21) and the owner's SE retest on hourly. The undercut and reclaim is the journal's Classic U&R and the owner's PLTR note."
+  },
+  {
+   "id": "fb.stop",
+   "field": "stop",
+   "statement": "A few cents under the breakout day's low.",
+   "measure": {
+    "what": "stop",
+    "op": "==",
+    "value": "a few cents under the trigger day's low"
+   },
+   "glossary": "stop_margin",
+   "basis": "house rule",
+   "sources": [
+    "S18"
+   ],
+   "house_rule": "A3",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.3",
+   "evidence": "F62 gives the few cents. Kullamagi: stop is always lows of the day (S18); the owner on FPS: a buy with LOD stop. The scan used 5 cents under the lower of the trigger day's low and the prior day's low."
+  },
+  {
+   "id": "fb.stop_width",
+   "field": "stop",
+   "statement": "If that stop is more than the stock's 20-session ADR below the entry, or more than 3% below it, skip the trade or wait for a tighter entry. Never pull the stop closer to make it fit.",
+   "measure": {
+    "what": "(entry - stop) / entry",
+    "op": "<=",
+    "value": 3,
+    "unit": "%",
+    "and": "no wider than the 20-session average daily range"
+   },
+   "basis": "house rule",
+   "sources": [
+    "S18"
+   ],
+   "house_rule": "A13",
+   "options": [
+    {
+     "value": "a",
+     "basis": "skip, or wait for a tighter entry: A3, A13"
+    },
+    {
+     "value": "b",
+     "basis": "allowed up to the stock's ADR: Kullamagi (S18)"
+    },
+    {
+     "value": "c",
+     "basis": "use the opening-range low (30-minute) instead"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-005",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.3",
+   "evidence": "The 20-session ADR window is the dossier's proposal. The ten examples' stops sat 0.9% to 2.6% under the fill. XOM 2026-03-20: a stop 0.88% under the fill with a 2.5% average range was shaken out by a 2% gap down, then the stock ran to 176."
+  },
+  {
+   "id": "fb.stop_broker",
+   "field": "stop",
+   "statement": "A real stop order with the broker. It only moves up.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "D41",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.3",
+   "evidence": "A4: the stop only moves up."
+  },
+  {
+   "id": "fb.stop_gap",
+   "field": "stop",
+   "statement": "A gap through the stop: the first 30-minute low is the new stop; out if that is past 2R.",
+   "measure": {
+    "what": "loss at the first 30-minute low of the gap-down day",
+    "op": "<=",
+    "value": 2,
+    "unit": "R",
+    "timeframe": "30-minute"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B20",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.3"
+  },
+  {
+   "id": "fb.stop_not_base_low",
+   "field": "stop",
+   "statement": "The base low is not the stop. It can be up to 15% away (the base's depth) and then breaks A13.",
+   "measure": {
+    "what": "stop placed at the base low",
+    "op": "==",
+    "value": false
+   },
+   "basis": "house rule",
+   "sources": [
+    "S12"
+   ],
+   "house_rule": "A13",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.3 Not the stop",
+   "evidence": "flat_base.py uses base low x 0.985, up to about 12.7% under the entry; IBD's general loss limit is 7% to 8% (S12). The house wins: the day's low."
+  },
+  {
+   "id": "fb.breakeven",
+   "field": "management",
+   "statement": "Stop to breakeven between 2R and 5R, at the first trim by default.",
+   "measure": {
+    "what": "R at which the stop moves to the entry",
+    "op": "in",
+    "value": [
+     2,
+     5
+    ],
+    "unit": "R"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B19",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4"
+  },
+  {
+   "id": "fb.trim_1",
+   "field": "management",
+   "statement": "Sell a third at 3R.",
+   "measure": {
+    "what": "fraction sold at 3R",
+    "op": "==",
+    "value": 0.333,
+    "unit": "of the position"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B19",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4",
+   "evidence": "Among the scan's winners the median time to 3R was 5 sessions. BAC reached 5R in about three weeks, then fell back into the base: the case for the trims."
+  },
+  {
+   "id": "fb.trim_2",
+   "field": "management",
+   "statement": "Sell a third at 5R.",
+   "measure": {
+    "what": "fraction sold at 5R",
+    "op": "==",
+    "value": 0.333,
+    "unit": "of the position"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "E51",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4"
+  },
+  {
+   "id": "fb.trim_gap_open",
+   "field": "management",
+   "statement": "If it opens above a trim level, take that trim at the open.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "F63",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4"
+  },
+  {
+   "id": "fb.trail",
+   "field": "management",
+   "statement": "Trail the last third: a close under the 10-day for a fast mover, under the 21-day for a steadier one.",
+   "measure": {
+    "what": "close against the 10-day (fast) or 21-day (steadier) average",
+    "op": "<",
+    "value": "the average",
+    "timeframe": "daily"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "E52",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4",
+   "evidence": "APH reached 5R by day 10, then failed back through the base: the trims and the trail are what keep it a win."
+  },
+  {
+   "id": "fb.time_stop",
+   "field": "management",
+   "statement": "Time stop: still under 1R after 10 trading days, sell.",
+   "measure": {
+    "what": "open R after 10 trading days",
+    "op": "<",
+    "value": 1,
+    "unit": "R"
+   },
+   "basis": "house rule",
+   "sources": [
+    "S18"
+   ],
+   "house_rule": "C33",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4",
+   "evidence": "Fits Kullamagi's sell some after 3 to 5 days (S18). Every example was above 1R by the tenth session; AAPL 2010 was dropped because it sat at 0.6R on day 10."
+  },
+  {
+   "id": "fb.climax",
+   "field": "management",
+   "statement": "A climax run (Bracco's parabolic burst): sell a big part into it.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "C34",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4"
+  },
+  {
+   "id": "fb.throwback",
+   "field": "management",
+   "statement": "Two in three uptrend-rectangle breakouts come back to the breakout price within 30 days. The day's-low stop will be tested often. That is normal, not a reason to widen it.",
+   "measure": {
+    "what": "throwback rate, Bulkowski's rectangle tops, upward breakouts",
+    "op": "==",
+    "value": 66,
+    "unit": "%",
+    "timeframe": "30 days"
+   },
+   "basis": "measured",
+   "sources": [
+    "S24",
+    "S28"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4 Note for the lesson; 4",
+   "evidence": "WSM: 5R by day 10, then a throwback to 71.56 through the pivot and the original stop after both trims were due, before the run to 99. LII's stop was tested to the cent (low 141.90) before it went."
+  },
+  {
+   "id": "fb.inv_depth",
+   "field": "invalidation",
+   "statement": "Before the trigger: the depth grows past 15%. No longer a flat base; it may become a cup or a double bottom.",
+   "measure": {
+    "what": "(left-side high - lowest intraday low) / left-side high",
+    "op": ">",
+    "value": 15,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "glossary": "base_depth",
+   "basis": "originator",
+   "sources": [
+    "S1",
+    "S11"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5"
+  },
+  {
+   "id": "fb.inv_200",
+   "field": "invalidation",
+   "statement": "Before the trigger: a close under the 200-day.",
+   "measure": {
+    "what": "close against the 200-day SMA",
+    "op": "<",
+    "value": "200-day SMA",
+    "timeframe": "daily"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B26",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5"
+  },
+  {
+   "id": "fb.inv_undercut",
+   "field": "invalidation",
+   "statement": "Before the trigger: the base low is undercut. The flat base is off. If price reclaims the low within 3 sessions, it is a U&R setup instead.",
+   "measure": {
+    "what": "intraday low against the base's lowest low",
+    "op": "<",
+    "value": "base low",
+    "timeframe": "daily",
+    "note": "a reclaim within 3 sessions becomes a U&R"
+   },
+   "basis": "UCT",
+   "sources": [],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5",
+   "evidence": "The 3 sessions is the dossier's proposal, from the owner's UnR habit."
+  },
+  {
+   "id": "fb.inv_loose",
+   "field": "invalidation",
+   "statement": "Before the trigger: the base turns wide and loose. The average daily range of the last 10 sessions is larger than that of the base's first 10 sessions.",
+   "measure": {
+    "what": "average daily range of the last 10 sessions / average daily range of the base's first 10 sessions",
+    "op": ">",
+    "value": 1,
+    "unit": "x",
+    "timeframe": "daily"
+   },
+   "glossary": "wide_and_loose",
+   "basis": "my proposal",
+   "sources": [
+    "S17"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.5",
+   "evidence": "TraderLion: wide and loose bases are a big sign of real danger (S17). The owner on DAVE: too lose and wide."
+  },
+  {
+   "id": "fb.after_entry_stop",
+   "field": "invalidation",
+   "statement": "After the entry, the stop is the exit.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "A4",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5 After the entry",
+   "evidence": "The owner: my stop is my stop most of the time."
+  },
+  {
+   "id": "fb.close_back_in_base",
+   "field": "invalidation",
+   "statement": "After the entry, a close back inside the base under the pivot is a warning, not an exit by itself.",
+   "basis": "UCT",
+   "sources": [],
+   "status": "settled",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.5 After the entry",
+   "evidence": "The owner struck the rule cut at least half if the stock falls back into its base (2026-11-09). AMZN 2024-03-21: the breakout day closed at its low, back inside the base, and the next session took the stop."
+  },
+  {
+   "id": "fb.market_reading",
+   "field": "context",
+   "statement": "Green market: full risk. Yellow: smaller and fewer. Orange: A+ only. Red: mostly cash and shorts.",
+   "basis": "house rule",
+   "sources": [
+    "S17"
+   ],
+   "house_rule": "F65",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.6",
+   "evidence": "TraderLion: flat base breakouts are more likely to succeed in a strong, bullish market (S17). Not coded in the scan."
+  },
+  {
+   "id": "fb.leaders_basing",
+   "field": "context",
+   "statement": "A cue, not a rule: the setup is best when many leaders are basing sideways after a pullback. Bracco steps back when there is a lack of clean, tight bases.",
+   "basis": "UCT",
+   "sources": [],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.6"
+  }
+ ],
+ "grading": {
+  "a_plus": [
+   "fb.leadership: RS 90 or more, a top group, growing sales and earnings",
+   "fb.prior_trend: 50% or more, recent",
+   "fb.base_count: first or second base",
+   "fb.length_min: 5 to 8 weeks, or a long first base after new highs",
+   "fb.depth_shallow: 10% or less (unmeasured; the scan says it does not help)",
+   "fb.tight_end: inside days, narrow ranges, tight weekly closes",
+   "fb.ceiling_three_taps: three or more clean taps of one flat level",
+   "fb.base_volume_dry: dries up on the right side",
+   "fb.above_mas: rides the rising 10 and 21-day above a rising 50 and 200",
+   "fb.breakout_volume: 1.4x the 50-day volume or more, closes near the high",
+   "fb.stop_width: day's low within about 3%",
+   "fb.market_reading: Green; in Orange only if everything else grades A+ (F65)"
+  ],
+  "b_minus": [
+   "fb.leadership: RS near 80, a lagging group",
+   "fb.prior_trend: about 30%, or older",
+   "fb.base_count: third or later",
+   "fb.length_min: right at the minimum",
+   "fb.depth: 12% to 15%",
+   "fb.tight_end: wide daily bars, loose closes",
+   "fb.ceiling_touches: a ragged top, one touch",
+   "fb.base_volume_dry: heavy volume on down days",
+   "fb.holds_50: under the 50-day for much of the base, 200-day flat",
+   "fb.breakout_volume: light volume, closes mid-range",
+   "fb.stop_width: 3% or more, near the ADR",
+   "fb.market_reading: Yellow (smaller and fewer)"
+  ],
+  "no_trade": [
+   "fb.inv_depth: deeper than 15%",
+   "fb.inv_200: under the 200-day",
+   "fb.length_min: under 25 sessions (teach it as a flag)",
+   "fb.no_chase: more than 4% past the pivot",
+   "fb.not_stretched: more than 10% over the 10-day",
+   "fb.stop_width: the honest stop does not fit; never pull it in",
+   "fb.earnings_window: a report within 3 sessions",
+   "fb.liquidity: under $10 or under $20 million a day",
+   "fb.market_reading: Red; Orange below A+"
+  ]
+ },
+ "lookalikes": [
+  {
+   "setup": "06-vcp",
+   "tell": "Count the pullbacks inside the base. A flat base holds one range about 15% deep or less with a flat top; a VCP's pullbacks shrink one after another, from as deep as 40% down to under 10%.",
+   "criterion": "fb.flat"
+  },
+  {
+   "setup": "04-cup-handle",
+   "tell": "Measure the depth. A flat base falls 15% or less and stays boxy; a cup falls 12% to 33% in a rounded U and then dips again for a handle before the buy.",
+   "criterion": "fb.depth"
+  },
+  {
+   "setup": "03-high-tight-flag",
+   "tell": "Measure the run before the rest. A high tight flag nearly doubles (90% or more in 8 weeks or less) and pauses 5 to 30 sessions; a flat base follows a 30% run and rests at least 25 sessions.",
+   "criterion": "fb.length_min"
+  },
+  {
+   "setup": "29-undercut-rally",
+   "tell": "Look at the base low. If price broke under it and came back within 3 sessions, the flat base is off and the trade is the reclaim, not the breakout.",
+   "criterion": "fb.inv_undercut"
+  }
+ ],
+ "invalidations": [
+  "Before the trigger: the depth passes 15% (fb.inv_depth).",
+  "Before the trigger: a close under the 200-day (fb.inv_200).",
+  "Before the trigger: the base low is undercut; a reclaim within 3 sessions is a U&R, not a flat base (fb.inv_undercut).",
+  "Before the trigger: the last 10 sessions' average daily range is larger than the base's first 10 sessions' (fb.inv_loose).",
+  "Before the trigger: a report within 3 sessions, wait (fb.earnings_window).",
+  "After the entry: the stop is the exit (fb.after_entry_stop).",
+  "After the entry: a close back inside the base is a warning, not an exit by itself (fb.close_back_in_base)."
+ ],
+ "mistakes": [
+  "Calling a VCP or any sideways chop a flat base. Our own Model Book card does this.",
+  "Buying a base too early: under 5 weeks or not yet tight. IBD: one, two or three weeks do not get the job done.",
+  "Buying a wide, loose base (the owner on DAVE and SNOW).",
+  "Buying a third or fourth-stage base.",
+  "Chasing more than 4% past the pivot or more than 10% over the 10-day.",
+  "Putting the stop at the base low (too wide), or pulling it tighter to fit the size.",
+  "Buying a flat base under the 200-day. That is Bulkowski's bottoming base, not ours.",
+  "Ignoring the market.",
+  "Picking examples after the fact. Bonde: when a stock makes a big move the perception distorts the earlier chart.",
+  "Buying the week of earnings.",
+  "A biotech that burst once and then went flat. Bonde: it often has upside breakout which fails.",
+  "Anticipating inside the base with no trigger.",
+  "Adding to it later or buying in pieces."
+ ],
+ "short_mirror": {
+  "exists": true,
+  "setup": "01-flat-base",
+  "note": "The flat base breakdown, D47 mirrored line by line (dossier 8.8): below the 200-day with the 50-day under it (B26); the left-side low at least 30% under the highest high of the prior 65 sessions; at least 25 sessions sideways in a range at most 15% tall, opening at its low, closes flat, tight at the end; RS 20 or less in a weak group (C31 mirror); not hard to borrow (D48); short at market as price trades under the base's lowest low; stop a few cents over that day's high; the same trims and trail, mirrored. No dossier of its own. Kell names it (S19). Caution: Bulkowski's downward breakouts from uptrend rectangles failed 34% of the time with an average 13% decline (S24). Whether to teach it is D-001."
+ },
+ "best_conditions": "A Green market reading, with many leaders basing sideways after a pullback. After a correction, when the reading turns Green again, start with a few positions and add more only as the first ones work (F68). Bracco steps back when there is a lack of clean, tight bases.",
+ "management": {
+  "trim_1": "a third at 3R (B19)",
+  "trim_2": "a third at 5R (E51)",
+  "trail": "a close under the 10-day for a fast mover, the 21-day for a steadier one (E52)",
+  "breakeven": "between 2R and 5R, at the first trim by default (B19)",
+  "time_stop": "under 1R after 10 trading days, sell (C33)",
+  "gap_open": "a trim level the day opens past is taken at the open (F63)",
+  "gap_against": "the first 30-minute low is the new stop; out if past 2R (B20)",
+  "climax": "sell a big part into a climax run (C34)",
+  "overrides": "none. The dossier (8.4) finds nothing setup-specific is needed. Not ours: the scanners' 2R and 3R targets, flat_base.py's half-the-advance target, and Kullamagi's sell a third to a half after 3 to 5 days."
+ },
+ "examples": {
+  "winners": 10,
+  "sheet_dir": "_study-resume/scratchpad/setups/01-flat-base/final",
+  "base_rate": {
+   "hits": 3849,
+   "stock_hits": 3671,
+   "r3_pct": 28.9,
+   "r5_pct": 20.0,
+   "stopped_pct": 86.5,
+   "never_1r_pct": 46,
+   "median_sessions_to_3r": 5,
+   "window": "60 sessions forward, fixed stop, no trims, no breakeven, no trail, no time stop; 1994-01-31 to 2026-11-04; one hit per name per 20 sessions"
+  },
+  "cuts": {
+   "breakout_volume_1_4x_or_more": {
+    "hits": 788,
+    "r3_pct": 39.2,
+    "r5_pct": 30.1,
+    "below": {
+     "r3_pct": 26.0,
+     "r5_pct": 17.3
+    }
+   },
+   "gap_open_above_pivot": {
+    "hits": 582,
+    "r3_pct": 37.8,
+    "r5_pct": 27.7
+   },
+   "depth_10_pct_or_less": {
+    "hits": 1207,
+    "r3_pct": 27.1,
+    "r5_pct": 18.5,
+    "deeper_10_to_15": {
+     "r3_pct": 29.7,
+     "r5_pct": 20.8
+    }
+   },
+   "three_or_more_taps": {
+    "hits": 1621,
+    "r3_pct": 28.9,
+    "r5_pct": 20.5
+   },
+   "volume_dry_up_second_half": {
+    "hits": 2859,
+    "r3_pct": 29.0,
+    "r5_pct": 20.1
+   },
+   "earnings_reaction_triggers": {
+    "hits": 102,
+    "r3_pct": 43.1,
+    "r5_pct": 35.3,
+    "note": "excluded from the examples as a different setup (D-025)"
+   }
+  },
+  "winners_list": [
+   "NUS 2013-09-09",
+   "FIX 2025-09-10",
+   "ALLY 2019-06-27",
+   "LNG 2014-05-29",
+   "WSM 2023-09-25",
+   "CMG 2020-07-06",
+   "BAC 2017-02-14",
+   "LII 2016-07-01",
+   "APH 2026-01-12",
+   "C 2012-12-17"
+  ],
+  "failures": [
+   {
+    "ticker": "AMZN",
+    "date": "2024-03-21",
+    "criterion": "fb.close_back_in_base",
+    "why": "a 6.4-week, 8% shelf with four taps and inside days; the breakout day traded to 181.41 on 0.72x volume and closed at 178.15, the low of the day, back inside the base; the next session's low took the 2.05 stop."
+   },
+   {
+    "ticker": "META",
+    "date": "2020-06-23",
+    "criterion": "fb.stop",
+    "why": "gapped above the pivot (241.28), closed mid-range on 1.0x volume; the next day's low hit the stop; two sessions later it closed 10% under the fill. The stop did its job."
+   },
+   {
+    "ticker": "XOM",
+    "date": "2026-03-20",
+    "criterion": "fb.stop_width",
+    "why": "breakout on 2.5x volume but a close in the bottom fifth of the range; the stop sat 0.88% under the fill while the 20-day average range was 2.5%; a 2% gap down stopped it, then it ran to 176 in six sessions."
+   },
+   {
+    "ticker": "BHC",
+    "date": "2015-04-09",
+    "criterion": "fb.breakout_volume",
+    "why": "A 6.4-week, 10.0% shelf with four taps after a 55% run, volume in the second half of the base a quarter of the first. The breakout came on 0.5x volume and closed low in its range at 205.72; it reached 1.63R and was stopped on day 6 (low 203.46)."
+   }
+  ],
+  "limits": "Base count, the real RS rating and group, the market reading and the owner's grade are not in the scan. No delisted names, so the base rate leans toward survivors. Nothing here is a published statistic.",
+  "near_misses": [
+   {
+    "ticker": "AMZN",
+    "date": "2020-05-19",
+    "criterion": "fb.depth",
+    "why": "18.5% deep; the rule is 15% or less. A 27-session rest after a 51% run with three taps, but 18.5% deep. Past 15% it is not a flat base; it is a cup-shaped base (04-cup-handle territory). Best 1.1R, stopped."
+   },
+   {
+    "ticker": "NVDA",
+    "date": "2026-05-08",
+    "criterion": "fb.length_min",
+    "why": "13 sessions from the left-side high; the rule is 25 or more. A 13-session, 10.2% pause after a 32% run. Too short for a flat base; a rest of 10 to 40 sessions after a 30% move is the Qullamaggie breakout base (setup 18). Best 4.9R, stopped."
+   },
+   {
+    "ticker": "MSFT",
+    "date": "2024-03-21",
+    "criterion": "fb.prior_trend",
+    "why": "+28% before the base; the rule is 30% or more. A 39-session, 7.2% shelf with two taps, but only a 28% rise before it. A large-cap drift with no leader's run in front of it, graded under the moving-average pullback cards rather than as a flat base. Best 0.0R, stopped."
+   },
+   {
+    "ticker": "BBY",
+    "date": "2026-07-09",
+    "criterion": "fb.above_mas",
+    "why": "close +14.3% against the 200-day, 50-day -1.6% against it; the rule is close > 50-day > 200-day. A 28-session, 14.5% base after a 42% rebound; the close was 14.3% above the 200-day but the 50-day was still 1.6% under it. A base built in a recovery out of a downtrend, not a leader resting above a settled 50 over 200 order. It worked (best 6.3R) but it is not ours."
+   }
+  ],
+  "sheets": {
+   "failures": "final/fail_1-4.png",
+   "near_misses": "final/near_1-4.png",
+   "pair": "final/pair_06-vcp.png"
+  }
+ },
+ "question_seeds": [
+  {
+   "kind": "recall",
+   "criterion": "fb.length_min",
+   "seed": "How many weeks must a flat base rest before the name applies?"
+  },
+  {
+   "kind": "recall",
+   "criterion": "fb.depth",
+   "seed": "A flat base falls no more than what percent from its left-side high?"
+  },
+  {
+   "kind": "recall",
+   "criterion": "fb.stop",
+   "seed": "Where does the stop go on a flat base breakout?"
+  },
+  {
+   "kind": "spot",
+   "criterion": "fb.ceiling_touches",
+   "seed": "Hidden ticker: tap the pivot, the top of the base this stock must trade through."
+  },
+  {
+   "kind": "spot",
+   "criterion": "fb.tight_end",
+   "seed": "Hidden ticker: which of these four bases is tight at the end?"
+  },
+  {
+   "kind": "spot",
+   "criterion": "fb.above_mas",
+   "seed": "Hidden ticker: is this base above the 200-day with the 50-day over it? Take it or pass."
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "fb.flat",
+   "seed": "Flat base or VCP: do the pullbacks inside this base shrink, or hold one range?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "fb.depth",
+   "seed": "Flat base or cup: this base fell 24% in a rounded U. Which is it?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "fb.length_min",
+   "seed": "Flat base or high tight flag: the stock doubled in 6 weeks and paused 12 sessions. Which is it?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "fb.inv_undercut",
+   "seed": "The base low broke and price reclaimed it in 2 sessions. Flat base breakout or U&R?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "fb.no_chase",
+   "seed": "The pivot is 90.00 and the stock is trading 94.50 at 10:15. Buy, or pass?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "fb.close_back_in_base",
+   "seed": "You bought the breakout at 90.10. It closes at 88.90, back in the base, above your stop. What now?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "fb.earnings_window",
+   "seed": "The base is perfect and earnings are in 2 sessions. Buy the breakout today?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "fb.throwback",
+   "seed": "Three days after the breakout price comes back to the pivot. Widen the stop, hold it, or sell?"
+  },
+  {
+   "kind": "grade",
+   "criterion": "fb.breakout_volume",
+   "seed": "Same base, two breakout days: one on 0.8x volume closing mid-range, one on 1.9x closing at the high. Grade each."
+  },
+  {
+   "kind": "grade",
+   "criterion": "fb.stop_width",
+   "seed": "The breakout day's low sits 4.5% under your fill. What grade and what size?"
+  },
+  {
+   "kind": "grade",
+   "criterion": "fb.base_count",
+   "seed": "This is the stock's fourth base since the stage reset. A+, B, or pass?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "fb.prior_trend",
+   "seed": "The 65-session low was 40.00 and the left-side high is 50.00. What was the prior advance in percent, and does it qualify?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "fb.depth",
+   "seed": "Left-side high 100.00, base low 86.50. How deep is the base, and is it still a flat base?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "fb.trim_1",
+   "seed": "Bought at 90.01 with the stop at 88.22. Where is 3R?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "fb.stop_width",
+   "seed": "Fill 72.20, breakout day's low 70.75, a few cents under it for the stop. Is the stop inside 3%?"
+  }
+ ],
+ "owner_decisions": [
+  "D-001",
+  "D-002",
+  "D-004",
+  "D-005",
+  "D-006",
+  "D-007",
+  "D-018",
+  "D-025",
+  "D-027",
+  "D-029",
+  "D-037",
+  "D-042",
+  "D-043",
+  "D-044"
+ ],
+ "conflicts": [
+  "Depth, four engines, four answers: IBD 15% from the high (S1, S11); flat_base.py 12% of the midpoint (about 11.3% IBD's way); Chart IQ v3 22% for a long base and 15% for a short one; the flat-top scanners 35%. The card takes IBD's 15% (D-043, D-004).",
+  "Length: IBD and MarketSmith 5 weeks; flat_base.py 15 to 35 bars; Chart IQ v3 has no minimum for a short base; the owner's own calls include 4 weeks (FPS) and 8 days (USAR). The card takes 25 sessions and sends shorter rests to the flag setups (D-042).",
+  "Shallow is better: the dossier proposes 10% or less as the A+ depth (fb.depth_shallow) from IBD's 10% to 15% band and TraderLion. Bulkowski's rectangles say tall patterns perform better (S24), and our scan agrees (10% or less: 27.1% / 18.5%; 10% to 15%: 29.7% / 20.8%). The cue stays in grading with the caveat; the owner may drop it (D-044).",
+  "Breakout volume: IBD requires 40% over the 50-day average (S1); flat_base.py's text says 1.5x the 20-bar average and its code checks nothing; Bulkowski's volume study found heavy-volume breakouts failed more (S26) while his study of studies says heavy volume helped in 79% of studies (S27); the owner is not a big volume guy. Our scan sides with IBD (39.2% / 30.1% against 26.0% / 17.3%). The card makes it a grade cue (D-006).",
+  "The stop: IBD allows a 7% to 8% loss (S12); flat_base.py stops at the base low x 0.985 (up to about 12.7% under the entry); the house stop is the day's low within about 3% (A3, A13). The house wins.",
+  "Targets: the scanners put targets at 2R and 3R (and flat_base.py at half the prior advance, capped at +20%); Kullamagi sells a third to a half after 3 to 5 days (S18). The house trims (a third at 3R, a third at 5R, trail the rest) win.",
+  "The 200-day: flat_base.py and Chart IQ v3 can call a base under a falling 200-day a flat base; B26 forbids a long there. Bulkowski's flat base (S23) is a bottoming pattern of any length after a drop, a different pattern with the same name; lessons V.02 and V.04 quote it.",
+  "Liquidity: flat_base.py, both flat-top scanners and the screener use $2 and $10,000 a day; Chart IQ v3 has no floor; the house is $10 and $20 million a day (B23). The house wins for Study.",
+  "Prior advance: O'Neil via Bonde 20% (S13); flat_base.py 25% in 60 bars; IBD S4, TraderLion S17 and Kullamagi S18 30%. The card takes 30% over 65 sessions (D-029).",
+  "Taps: the dossier proposes three or more as the A+ ceiling; the scan found no difference (1,621 hits, 28.9% / 20.5%). Kept as a cue with the caveat.",
+  "Base volume dry-up: Bracco and the owner read it as sellers running out; Bulkowski's data is close and mixed (S27) and our scan found no difference (2,859 hits, 29.0% / 20.1%). A cue, not a gate.",
+  "The Model Book card and UNITS-method SET.07 describe a VCP (shrinking swings, the stop under the final contraction low), not a flat base; the journal keeps VCP and Flat Base Breakout as two tags. The dossier proposes new card text and a flat box drawing (D-002).",
+  "Name and scope: a flat top with rising lows is Bulkowski's ascending triangle (S25), not a rectangle; whether it is the same setup is D-002. Sector ETFs (XLI, IYT) were called flat bases on the Substack; whether they count and whether RS 80 applies is D-018.",
+  "flat_base.py's member-facing text claims with no source found: refined by Bonde and Bauer at Stockbee; CAN SLIM data on a 12% line; O'Neil's research on the first 20% of a breakout; 15 to 35 bars is optimal. None is used on this card.",
+  "The short mirror (8.8) has no source that teaches it as a short; Kell names it (S19). Bulkowski's downward breakouts from uptrend rectangles failed 34% of the time (S24). D-001."
+ ]
+}

@@ -19,6 +19,16 @@ describe('ChartKey', () => {
     expect(key).toHaveTextContent('reached in 3 sessions')
     expect(key).toHaveTextContent('not reached before the stop')
     expect(key).toHaveTextContent('Trailunder each higher low')
+    // the house trims (sizing_rule.md §9, B19 and E51): a third at 3R, the stop to breakeven; a third at 5R, the last third trails
+    expect(key).toHaveTextContent('3R11.83the first trim, a third off at three times the risk; the stop on the rest moves to breakeven')
+    expect(key).toHaveTextContent('5R12.22the second trim, a third off at five times the risk; the last third trails')
+    expect(key.textContent).not.toMatch(/2R|target/)
+  })
+
+  it('names the trims from the plan\'s own trim_r', () => {
+    render(<ChartKey trade={{ ...plan, trim_r: [2, 4] }} testId="key" />)
+    expect(screen.getByTestId('key')).toHaveTextContent('2R11.83the first trim, a third off at twice the risk')
+    expect(screen.getByTestId('key')).toHaveTextContent('4R12.22the second trim, a third off at four times the risk')
   })
 
   it('a setup without a trade shows the line it must hold, and whether it held', () => {

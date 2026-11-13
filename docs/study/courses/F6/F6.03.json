@@ -1,0 +1,1269 @@
+{
+ "unit": "F6.03",
+ "track": "F6",
+ "title": "Intrinsic value and time value",
+ "teaches": "In, at and out of the money; intrinsic value is what the option would be worth if it expired right now, and the rest of the premium is time value that melts to zero by expiry.",
+ "skills": [
+  {
+   "id": "options.value",
+   "title": "Intrinsic value and time value"
+  }
+ ],
+ "as_of": "2026-11-08",
+ "sources": [
+  {
+   "id": "s1",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Options Pricing",
+   "url": "https://www.optionseducation.org/optionsoverview/options-pricing",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s2",
+   "tier": 1,
+   "publisher": "The Options Clearing Corporation and the US options exchanges",
+   "title": "Characteristics and Risks of Standardized Options (June 2024 edition)",
+   "url": "https://cdn.robinhood.com/assets/robinhood/legal/Characteristics%20and%20Risks%20of%20Standardized%20Options.pdf",
+   "accessed": "2026-11-08",
+   "why_reliable": "The official options disclosure document every options customer must receive (June 2024 edition, the version Cboe Regulatory Circular RC24-009 says replaces all prior ones). theocc.com refuses plain clients (403), so this cites the copy Robinhood distributes to its customers (cover: June 2024; copyright the exchanges and OCC)."
+  },
+  {
+   "id": "s3",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Theta",
+   "url": "https://www.optionseducation.org/advancedconcepts/theta",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s4",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Exercising Options",
+   "url": "https://www.optionseducation.org/optionsoverview/exercising-options",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s5",
+   "tier": 2,
+   "publisher": "CME Group",
+   "title": "Calculating Options Moneyness & Intrinsic Value",
+   "url": "https://www.cmegroup.com/education/courses/introduction-to-options/calculating-options-moneyness-and-intrinsic-value.html",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s6",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Extrinsic Value Explained (James Chen, CMT)",
+   "url": "https://www.investopedia.com/terms/e/extrinsicvalue.asp",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s7",
+   "tier": 2,
+   "publisher": "Fidelity",
+   "title": "Understanding options pricing",
+   "url": "https://www.fidelity.com/learning-center/trading-investing/understanding-options-pricing",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s8",
+   "tier": 2,
+   "publisher": "Charles Schwab (Schwab Asset Management)",
+   "title": "Intrinsic and Extrinsic Value",
+   "url": "https://www.schwabassetmanagement.com/story/intrinsic-and-extrinsic-value",
+   "accessed": "2026-11-08"
+  }
+ ],
+ "facts": [
+  {
+   "id": "f1",
+   "source": "s1",
+   "quote": "An option’s premium has two main components: intrinsic value and time value (also known as extrinsic value).",
+   "claim": "Every option premium is intrinsic value plus time value; time value is also called extrinsic value."
+  },
+  {
+   "id": "f2",
+   "source": "s1",
+   "quote": "A call option is in-the-money when the underlying security's price is higher than the strike price.",
+   "claim": "A call is in the money when the stock is above the strike."
+  },
+  {
+   "id": "f3",
+   "source": "s1",
+   "quote": "A put option is in-the-money if the underlying security's price is less than the strike price. Only in-the-money options have intrinsic value.",
+   "claim": "A put is in the money when the stock is below the strike, and only in-the-money options have intrinsic value."
+  },
+  {
+   "id": "f4",
+   "source": "s1",
+   "quote": "Time value is any premium in excess of intrinsic value before expiration.",
+   "claim": "Time value is whatever the premium is above intrinsic value."
+  },
+  {
+   "id": "f5",
+   "source": "s1",
+   "quote": "The longer the amount of time available for market conditions to work to an investor's benefit, the greater the time value.",
+   "claim": "More time left to expiry means more time value."
+  },
+  {
+   "id": "f6",
+   "source": "s1",
+   "quote": "The effect of implied volatility can be difficult to quantify. It can significantly affect the time value portion of an option's premium.",
+   "claim": "Implied volatility can move the time value part of the premium a lot."
+  },
+  {
+   "id": "f7",
+   "source": "s1",
+   "quote": "Higher volatility estimates indicate greater expected fluctuations (in either direction) in underlying price levels. This expectation generally results in higher option premiums for puts and calls alike.",
+   "claim": "When bigger moves are expected, calls and puts both get more expensive."
+  },
+  {
+   "id": "f8",
+   "source": "s2",
+   "quote": "This term means that the current market value of the underlying interest is the same as the exercise price of the option.",
+   "claim": "At the money means the stock price equals the strike."
+  },
+  {
+   "id": "f9",
+   "source": "s2",
+   "quote": "If the current market price of XYZ stock is $43, an XYZ 40 call would be in the money by $3.",
+   "claim": "With the stock at 43, the 40 call is in the money by 3."
+  },
+  {
+   "id": "f10",
+   "source": "s2",
+   "quote": "the intrinsic value reflects the amount, if any, by which the option is in the money. An option that is out of the money would have an intrinsic value of zero.",
+   "claim": "Intrinsic value is the in-the-money amount, and it is zero for an out-of-the-money option."
+  },
+  {
+   "id": "f11",
+   "source": "s2",
+   "quote": "Time value is whatever the premium of the option is in addition to its intrinsic value. Time value is that part of the premium that reflects the time remaining before expiration.",
+   "claim": "Time value is the premium minus intrinsic value; it reflects the time left before expiry."
+  },
+  {
+   "id": "f12",
+   "source": "s2",
+   "quote": "market price of XYZ stock at $45 a share, an XYZ 40 call may have a current market price of $6 a share, reflecting an intrinsic value of $5 a share and a time value of $1 a share",
+   "claim": "Stock at 45, the 40 call at 6 is 5 of intrinsic value plus 1 of time value."
+  },
+  {
+   "id": "f13",
+   "source": "s2",
+   "quote": "At a time when the market price of XYZ stock is $40 a share, an XYZ 40 call may have a current market price of, say, $2 a share. This is entirely time value.",
+   "claim": "An at-the-money call's whole price is time value."
+  },
+  {
+   "id": "f14",
+   "source": "s2",
+   "quote": "all else remaining the same, the time value of an option usually decreases as the option approaches expiration, and this decrease accelerates as the time to expiration shortens.",
+   "claim": "Time value shrinks toward expiry, and the shrinking speeds up near the end."
+  },
+  {
+   "id": "f15",
+   "source": "s2",
+   "quote": "An option normally has very little time value if it is substantially in the money.",
+   "claim": "A deep in-the-money option usually carries very little time value."
+  },
+  {
+   "id": "f16",
+   "source": "s2",
+   "quote": "All else being the same, options on more volatile interests command higher premiums than options on less volatile interests.",
+   "claim": "Options on jumpier stocks cost more, all else equal."
+  },
+  {
+   "id": "f17",
+   "source": "s2",
+   "quote": "closing transactions may provide an opportunity for an option holder to realize the remaining time value (described below) of the option that would be lost in an exercise.",
+   "claim": "Selling an option collects its remaining time value; exercising it throws that time value away."
+  },
+  {
+   "id": "f18",
+   "source": "s2",
+   "quote": "An American-style option may ordinarily be expected to trade for no less than its intrinsic value prior to its expiration, although occasionally an American-style option will trade at less than its intrinsic value.",
+   "claim": "An American-style option usually trades at or above intrinsic value, but occasionally below it."
+  },
+  {
+   "id": "f19",
+   "source": "s2",
+   "quote": "Because of an all cash merger involving XYZ Corporation, the stock held by XYZ’s owners is extinguished in return for a payment of $50 in cash per XYZ share.",
+   "claim": "In the example, an all-cash merger turns each share into 50 dollars of cash."
+  },
+  {
+   "id": "f20",
+   "source": "s2",
+   "quote": "As a result, an XYZ call option with an exercise price of $40 will lose all of its time value and the option’s value will only reflect the intrinsic value of $10 ($50 – $40 = $10).",
+   "claim": "After that cash adjustment, the 40 call loses all its time value and is worth its 10 of intrinsic value."
+  },
+  {
+   "id": "f21",
+   "source": "s2",
+   "quote": "Additionally, an XYZ call option with an exercise price of $60 will become worthless because the exercise price exceeds the $50 cash settlement delivery amount.",
+   "claim": "A call struck above the cash amount, like the 60 call, becomes worthless."
+  },
+  {
+   "id": "f22",
+   "source": "s2",
+   "quote": "an option holder must not only be right about the direction of an anticipated price change in the underlying interest, but she must also be right about when the price change will occur.",
+   "claim": "An option buyer has to be right on direction and on timing."
+  },
+  {
+   "id": "f23",
+   "source": "s2",
+   "quote": "The more an option is out of the money and the shorter the remaining time to expiration, the greater the risk that an option holder will lose all or part of his investment in the option.",
+   "claim": "Further out of the money and less time left means a bigger risk of losing the premium."
+  },
+  {
+   "id": "f24",
+   "source": "s2",
+   "quote": "an XYZ 50 call (covering 100 shares of XYZ at a premium of $5 a share)",
+   "claim": "In the example, the 50 call costs 5 a share."
+  },
+  {
+   "id": "f25",
+   "source": "s2",
+   "quote": "would incur a 20% loss even if the price of XYZ increased to 54 (assuming he did not sell his options while they had significant remaining time value)",
+   "claim": "Holding the 50 calls bought at 5 to expiry with the stock at 54 still loses 20%."
+  },
+  {
+   "id": "f26",
+   "source": "s3",
+   "quote": "Upon expiration, an option has no time value and is worth its intrinsic value only.",
+   "claim": "At expiry an option has no time value left and is worth only its intrinsic value."
+  },
+  {
+   "id": "f27",
+   "source": "s3",
+   "quote": "options that are either deep-in-the-money or far out-of-the-money will have very little decay as they have less time premium.",
+   "claim": "Deep in-the-money and far out-of-the-money options carry less time value than at-the-money ones."
+  },
+  {
+   "id": "f28",
+   "source": "s3",
+   "quote": "Theta or time decay is not linear. The theoretical rate of decay will tend to increase as time to expiration decreases.",
+   "claim": "Time decay is not a straight line; it speeds up as expiry approaches."
+  },
+  {
+   "id": "f29",
+   "source": "s4",
+   "quote": "When an investor exercises a call option, the net price paid for the underlying stock on a per share basis is the sum of the call's strike price plus the premium paid for the call.",
+   "claim": "A call buyer's real cost for the shares is strike plus premium, which is the break-even at expiry."
+  },
+  {
+   "id": "f30",
+   "source": "s5",
+   "quote": "The terms “in the money” and “out of the money” refer to the option contract itself and do not represent the profitability of your trade, nor does it depend on whether you have bought or written the option.",
+   "claim": "In the money describes the contract, not whether your trade is profitable."
+  },
+  {
+   "id": "f31",
+   "source": "s5",
+   "quote": "When an option contract expires, the time value would be zero. At this point the option value is equal to the intrinsic value.",
+   "claim": "At expiry, time value is zero and the option is worth its intrinsic value."
+  },
+  {
+   "id": "f32",
+   "source": "s5",
+   "quote": "The time value of an option (before its expiration date) will always be greatest when the option is at the money.",
+   "claim": "Time value is greatest at the money."
+  },
+  {
+   "id": "f33",
+   "source": "s6",
+   "quote": "Intrinsic value does not mean profit.",
+   "claim": "Having intrinsic value is not the same as making money on the trade."
+  },
+  {
+   "id": "f34",
+   "source": "s6",
+   "quote": "an option with one month to expiration that is out of the money will have more extrinsic value than an out-of-the-money option with one week to expiration.",
+   "claim": "The same out-of-the-money option has more time value with a month left than with a week left."
+  },
+  {
+   "id": "f35",
+   "source": "s7",
+   "quote": "Options buyers focus on the ask price as it represents the cost and risk of purchasing an option.",
+   "claim": "A buyer pays the ask, so the ask is the buyer's real cost."
+  },
+  {
+   "id": "f36",
+   "source": "s7",
+   "quote": "Generally, options with further expiration dates cost more than an equivalent option with a shorter expiration date.",
+   "claim": "The later expiry usually costs more than the same option with an earlier expiry."
+  },
+  {
+   "id": "f37",
+   "source": "s8",
+   "quote": "ATM options have the largest amount of extrinsic value of any option.",
+   "claim": "At-the-money options carry the most time value."
+  },
+  {
+   "id": "f38",
+   "source": "s8",
+   "quote": "buyers suffer from the loss of extrinsic value while option sellers benefit from this loss",
+   "claim": "Time value melting away hurts the buyer and helps the seller."
+  },
+  {
+   "id": "f39",
+   "source": "s8",
+   "quote": "OTM options prices are entirely made up of extrinsic value.",
+   "claim": "An out-of-the-money option's price is all time value."
+  },
+  {
+   "id": "f40",
+   "source": "s8",
+   "quote": "If the stock price is exactly equal to the strike price, the contract is ATM and has no intrinsic value.",
+   "claim": "Stock exactly at the strike is at the money, with no intrinsic value."
+  },
+  {
+   "id": "f41",
+   "source": "s2",
+   "quote": "substantially out of the money has only time value, the amount of that time value is normally less than the time value of an option having the same underlying interest and expiration that is at the money.",
+   "claim": "A far out-of-the-money option is all time value, but normally less of it than the at-the-money option, same stock and same expiry."
+  }
+ ],
+ "walkthroughs": [
+  {
+   "key": "w1",
+   "title": "Two parts in every premium",
+   "steps": [
+    "Every option price has two parts: intrinsic value and time value.",
+    "Intrinsic value is how far the option is in the money right now.",
+    "Time value is everything you pay on top of that.",
+    "Stock at $45, the 40 call at $6. That's $5 of intrinsic value and $1 of time value."
+   ],
+   "facts": [
+    "f1",
+    "f10",
+    "f11",
+    "f12"
+   ]
+  },
+  {
+   "key": "w2",
+   "title": "In, at and out of the money",
+   "steps": [
+    "A call is in the money when the stock is above the strike.",
+    "A put is in the money when the stock is below the strike.",
+    "Stock right at the strike is at the money.",
+    "Only in-the-money options have intrinsic value. Everything else has zero."
+   ],
+   "facts": [
+    "f2",
+    "f3",
+    "f8",
+    "f10"
+   ]
+  },
+  {
+   "key": "w3",
+   "title": "The clock on time value",
+   "steps": [
+    "All else equal, time value shrinks as expiry gets closer, and the shrinking speeds up near the end.",
+    "At expiry there is no time left. The option is worth its intrinsic value only.",
+    "If you're the buyer, time value is the part the clock takes from you."
+   ],
+   "facts": [
+    "f14",
+    "f26",
+    "f38"
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "key": "q01",
+   "skill": "options.value",
+   "rung": 1,
+   "format": "mcq",
+   "q": "An option's premium is made of two parts. Which two?",
+   "choices": [
+    "Intrinsic value and time value",
+    "The bid and the ask",
+    "The strike and the expiry",
+    "Delta and theta"
+   ],
+   "answer": "Intrinsic value and time value",
+   "why": "Intrinsic value and time value. Intrinsic is the in-the-money part, and time value is everything above it.",
+   "lesson_line": "Premium equals intrinsic value plus time value. Split every quote that way.",
+   "facts": [
+    "f1",
+    "f11"
+   ],
+   "wrong": {
+    "The bid and the ask": "Those are the two sides of the quote, what buyers bid and sellers ask. They aren't parts of the price.",
+    "The strike and the expiry": "Those are contract terms. They shape the price, but they aren't the pieces it splits into.",
+    "Delta and theta": "Those measure how the price changes. They don't split the premium into parts."
+   }
+  },
+  {
+   "key": "q02",
+   "skill": "options.value",
+   "rung": 1,
+   "format": "tf",
+   "q": "A put is in the money when the stock trades above its strike.",
+   "answer": "False",
+   "why": "False. A put is in the money when the stock is below the strike. Above the strike, that's a call.",
+   "lesson_line": "Calls are in the money above the strike. Puts are in the money below it.",
+   "facts": [
+    "f2",
+    "f3"
+   ]
+  },
+  {
+   "key": "q03",
+   "skill": "options.value",
+   "rung": 1,
+   "format": "mcq",
+   "q": "On an option quote, what does intrinsic value mean?",
+   "choices": [
+    "The amount it is in the money",
+    "The whole premium you pay",
+    "What the company is really worth",
+    "The time left until expiry"
+   ],
+   "answer": "The amount it is in the money",
+   "term": "Intrinsic value",
+   "why": "The amount it is in the money. Out of the money, intrinsic value is zero.",
+   "lesson_line": "Intrinsic value is the in-the-money amount. Nothing more.",
+   "facts": [
+    "f10",
+    "f3"
+   ],
+   "wrong": {
+    "The whole premium you pay": "The premium is intrinsic value plus time value. Intrinsic is only one part.",
+    "What the company is really worth": "That's the stock investor's meaning of the phrase. On an option it's the in-the-money amount.",
+    "The time left until expiry": "Time left drives time value, the other part of the premium."
+   }
+  },
+  {
+   "key": "q04",
+   "skill": "options.value",
+   "rung": 2,
+   "format": "fill",
+   "q": "Fill in the blank.",
+   "sentence": "An out-of-the-money option has ___ intrinsic value.",
+   "bank": [
+    "zero",
+    "negative",
+    "some",
+    "a little"
+   ],
+   "answer": "zero",
+   "why": "Zero. Intrinsic value is the amount the option is in the money, so out of the money it is zero.",
+   "lesson_line": "Intrinsic value stops at zero. It never goes negative.",
+   "facts": [
+    "f10"
+   ]
+  },
+  {
+   "key": "q05",
+   "skill": "options.value",
+   "rung": 2,
+   "format": "mcq",
+   "q": "Price sits exactly at the option's strike price. What do you call that option?",
+   "choices": [
+    "At the money",
+    "In the money",
+    "Out of the money"
+   ],
+   "answer": "At the money",
+   "term": "At the money",
+   "why": "At the money. The stock price is the same as the strike, so there is no intrinsic value.",
+   "lesson_line": "Stock equals strike: at the money, and no intrinsic value.",
+   "facts": [
+    "f8",
+    "f40"
+   ],
+   "wrong": {
+    "In the money": "That needs the stock past the strike: above it for a call, below it for a put.",
+    "Out of the money": "That needs the stock on the wrong side of the strike. Here it sits right on it."
+   }
+  },
+  {
+   "key": "q06",
+   "skill": "options.value",
+   "rung": 2,
+   "format": "mcq",
+   "q": "On an option quote, what does time value mean?",
+   "choices": [
+    "The premium above intrinsic value",
+    "The days left until expiry",
+    "The amount it is in the money",
+    "The gap from stock to strike"
+   ],
+   "answer": "The premium above intrinsic value",
+   "term": "Time value",
+   "why": "The premium above intrinsic value. It's the part of the price that reflects the time left before expiry.",
+   "lesson_line": "Time value is a dollar amount: the premium minus intrinsic value.",
+   "facts": [
+    "f4",
+    "f11"
+   ],
+   "wrong": {
+    "The days left until expiry": "The days left drive time value, but time value is a dollar amount in the premium.",
+    "The amount it is in the money": "That's intrinsic value, the other part of the premium.",
+    "The gap from stock to strike": "That gap is distance, not price. For an in-the-money option it's the intrinsic value."
+   }
+  },
+  {
+   "key": "q07",
+   "skill": "options.value",
+   "rung": 2,
+   "format": "mcq",
+   "q": "With the stock at 64, which put is in the money?",
+   "choices": [
+    "The 70 put",
+    "The 60 put",
+    "The 64 put"
+   ],
+   "answer": "The 70 put",
+   "why": "The 70 put. A put is in the money when the stock is below the strike, and 64 is below 70.",
+   "lesson_line": "Puts are in the money when the stock sits below the strike.",
+   "facts": [
+    "f3",
+    "f8"
+   ],
+   "wrong": {
+    "The 60 put": "The stock is above 60, so this put is out of the money. It's the 60 call that would be in the money.",
+    "The 64 put": "The stock is right at 64, so this one is at the money, not in it."
+   }
+  },
+  {
+   "key": "q08",
+   "skill": "options.value",
+   "rung": 3,
+   "format": "tf",
+   "q": "An out-of-the-money option's whole premium is time value.",
+   "answer": "True",
+   "why": "True. Out of the money, intrinsic value is zero, so every cent of the premium is time value.",
+   "lesson_line": "No intrinsic value means the whole price is time.",
+   "facts": [
+    "f10",
+    "f4",
+    "f39"
+   ]
+  },
+  {
+   "key": "q09",
+   "skill": "options.value",
+   "rung": 3,
+   "format": "mcq",
+   "q": "What is an option worth at the moment it expires?",
+   "choices": [
+    "Its intrinsic value only",
+    "What you paid for it",
+    "Intrinsic plus a little time",
+    "Zero, every option expires dead"
+   ],
+   "answer": "Its intrinsic value only",
+   "why": "Its intrinsic value only. At expiry there is no time left, so there is no time value.",
+   "lesson_line": "At expiry the time is gone. Only intrinsic value is left.",
+   "facts": [
+    "f26",
+    "f31"
+   ],
+   "wrong": {
+    "What you paid for it": "Your cost doesn't set the price. The market only pays for what the option is worth.",
+    "Intrinsic plus a little time": "With no time left, time value is zero. Nothing is left to pay for.",
+    "Zero, every option expires dead": "Only options with no intrinsic value expire worthless. In-the-money ones are worth their intrinsic value."
+   }
+  },
+  {
+   "key": "q10",
+   "skill": "options.value",
+   "rung": 3,
+   "format": "mcq",
+   "q": "Same stock, same expiry. Which strike usually holds the most time value?",
+   "choices": [
+    "The at-the-money strike",
+    "A deep in-the-money strike",
+    "A far out-of-the-money strike",
+    "Every strike holds the same"
+   ],
+   "answer": "The at-the-money strike",
+   "why": "The at-the-money strike. Deep in-the-money and far out-of-the-money options carry less time value.",
+   "lesson_line": "At the money holds the most time value. Deep in or far out holds little.",
+   "facts": [
+    "f15",
+    "f41",
+    "f27",
+    "f32",
+    "f37"
+   ],
+   "wrong": {
+    "A deep in-the-money strike": "Its price is big, but it's mostly intrinsic value. Very little of it is time.",
+    "A far out-of-the-money strike": "It's all time value, but only a small amount of it.",
+    "Every strike holds the same": "Time value changes with the strike. It peaks near the stock price."
+   }
+  },
+  {
+   "key": "q11",
+   "skill": "options.value",
+   "rung": 4,
+   "format": "numeric",
+   "q": "The stock trades at 87.50. What is the 80 call's intrinsic value, per share?",
+   "answer": 7.5,
+   "prefix": "$",
+   "calc": {
+    "fn": "intrinsic",
+    "args": {
+     "kind": "call",
+     "strike": 80,
+     "underlying": 87.5
+    }
+   },
+   "why": "$7.50. For a call it's stock minus strike: 87.50 minus 80.",
+   "lesson_line": "Call intrinsic: stock minus strike, never below zero.",
+   "facts": [
+    "f2",
+    "f10",
+    "f9"
+   ]
+  },
+  {
+   "key": "q12",
+   "skill": "options.value",
+   "rung": 4,
+   "format": "numeric",
+   "q": "With the stock at 61, what is the 70 put's intrinsic value, per share?",
+   "answer": 9,
+   "prefix": "$",
+   "calc": {
+    "fn": "intrinsic",
+    "args": {
+     "kind": "put",
+     "strike": 70,
+     "underlying": 61
+    }
+   },
+   "why": "$9. For a put it's strike minus stock: 70 minus 61.",
+   "lesson_line": "Put intrinsic: strike minus stock, never below zero.",
+   "facts": [
+    "f3",
+    "f10"
+   ]
+  },
+  {
+   "key": "q13",
+   "skill": "options.value",
+   "rung": 4,
+   "format": "tf",
+   "q": "If your call is in the money, your trade is making money.",
+   "answer": "False",
+   "why": "False. In the money describes the contract against the strike, not your trade. You still have to cover what you paid.",
+   "lesson_line": "In the money is about the strike. Profit is about what you paid.",
+   "facts": [
+    "f30",
+    "f33",
+    "f24",
+    "f25"
+   ]
+  },
+  {
+   "key": "q14",
+   "skill": "options.value",
+   "rung": 4,
+   "format": "mcq",
+   "q": "Same stock, same 50 strike. One call expires in 30 days, the other in 60. Which usually costs more?",
+   "choices": [
+    "The 60-day call",
+    "The 30-day call",
+    "They cost the same"
+   ],
+   "answer": "The 60-day call",
+   "why": "The 60-day call. More time to expiry means more time value, and the intrinsic value is the same for both.",
+   "lesson_line": "More time costs more. You're paying for more chances to be right.",
+   "facts": [
+    "f5",
+    "f36",
+    "f34"
+   ],
+   "wrong": {
+    "The 30-day call": "Less time left means less time value, so the shorter one is usually cheaper.",
+    "They cost the same": "Same strike and stock means the same intrinsic value. The time value is what differs."
+   }
+  },
+  {
+   "key": "q15",
+   "skill": "options.value",
+   "rung": 5,
+   "format": "numeric",
+   "q": "The stock is at 52. The 50 call costs 3.40. How much of that is time value, per share?",
+   "answer": 1.4,
+   "prefix": "$",
+   "calc": {
+    "fn": "extrinsic",
+    "args": {
+     "kind": "call",
+     "strike": 50,
+     "underlying": 52,
+     "premium": 3.4
+    }
+   },
+   "why": "$1.40. Intrinsic is 52 minus 50. Take that off the 3.40 and the rest is time value.",
+   "lesson_line": "Premium minus intrinsic equals time value. Do it on every quote.",
+   "facts": [
+    "f4",
+    "f11",
+    "f12"
+   ]
+  },
+  {
+   "key": "q16",
+   "skill": "options.value",
+   "rung": 5,
+   "format": "scenario",
+   "story": "A stock trades at 38. You look at the 40 call, priced at 1.10. Expiry is three weeks out.",
+   "q": "How much of the 1.10 is time value?",
+   "choices": [
+    "$1.10",
+    "$3.10",
+    "$0.00",
+    "$2.00"
+   ],
+   "answer": "$1.10",
+   "calc": {
+    "fn": "extrinsic",
+    "args": {
+     "kind": "call",
+     "strike": 40,
+     "underlying": 38,
+     "premium": 1.1
+    }
+   },
+   "why": "All of it, $1.10. The call is out of the money, so intrinsic is zero and the whole price is time.",
+   "lesson_line": "Out of the money, every cent of the premium is time value.",
+   "facts": [
+    "f10",
+    "f4",
+    "f39"
+   ],
+   "wrong": {
+    "$3.10": "That counts the 2 points below the strike as negative intrinsic value. Intrinsic stops at zero.",
+    "$0.00": "Out of the money means no intrinsic value, not no value. The 1.10 is real, and all of it is time.",
+    "$2.00": "That's how far the stock is from the strike. It isn't a part of the price."
+   }
+  },
+  {
+   "key": "q17",
+   "skill": "options.value",
+   "rung": 5,
+   "format": "fill",
+   "q": "Fill in the blank.",
+   "sentence": "Exercise an option early and you give up its ___ value.",
+   "bank": [
+    "time",
+    "intrinsic",
+    "strike",
+    "face"
+   ],
+   "answer": "time",
+   "why": "Time. Exercising gets you the intrinsic value only. Selling the option also collects whatever time value is left.",
+   "lesson_line": "With time value left in the bid, I'd sell the option, not exercise it.",
+   "facts": [
+    "f17"
+   ]
+  },
+  {
+   "key": "q18",
+   "skill": "options.value",
+   "rung": 6,
+   "format": "scenario",
+   "story": "XYZ trades at 95. You think it breaks lower. The 100 put is offered at 6.20.",
+   "q": "How much of that 6.20 is time value?",
+   "choices": [
+    "$1.20",
+    "$5",
+    "$6.20",
+    "$0"
+   ],
+   "answer": "$1.20",
+   "calc": {
+    "fn": "extrinsic",
+    "args": {
+     "kind": "put",
+     "strike": 100,
+     "underlying": 95,
+     "premium": 6.2
+    }
+   },
+   "why": "$1.20. The put is in the money by 100 minus 95. The rest of the 6.20 is time value.",
+   "lesson_line": "Put intrinsic is strike minus stock. Time value is whatever sits on top.",
+   "facts": [
+    "f3",
+    "f4",
+    "f11"
+   ],
+   "wrong": {
+    "$5": "That's the intrinsic value, 100 minus 95. Time value is what's left above it.",
+    "$6.20": "That's the whole premium. Only a put with no intrinsic value is all time value.",
+    "$0": "That would make all 6.20 intrinsic value. The put is only in the money by 100 minus 95."
+   }
+  },
+  {
+   "key": "q19",
+   "skill": "options.value",
+   "rung": 6,
+   "format": "tf",
+   "q": "An option's time value melts at a steady rate from the day you buy it until expiry.",
+   "answer": "False",
+   "why": "False. Time value shrinks as expiry nears, and the shrinking speeds up as the time left gets short.",
+   "lesson_line": "The clock runs slow at first and fast at the end.",
+   "facts": [
+    "f14",
+    "f28"
+   ]
+  },
+  {
+   "key": "q20",
+   "skill": "options.value",
+   "rung": 6,
+   "format": "numeric",
+   "q": "The 100 call is 50.40 with the stock at 150. How much time value is in it, per share?",
+   "answer": 0.4,
+   "prefix": "$",
+   "calc": {
+    "fn": "extrinsic",
+    "args": {
+     "kind": "call",
+     "strike": 100,
+     "underlying": 150,
+     "premium": 50.4
+    }
+   },
+   "why": "$0.40. Intrinsic is 150 minus 100, and only the 0.40 above it is time. Deep in the money, time value runs thin.",
+   "lesson_line": "Deep in the money, the premium is almost all intrinsic value.",
+   "facts": [
+    "f15",
+    "f4"
+   ]
+  },
+  {
+   "key": "q21",
+   "skill": "options.value",
+   "rung": 7,
+   "format": "scenario",
+   "story": "You paid 5.00 for the 50 call. On expiry day the stock closes at 54.",
+   "q": "Your call finished in the money. What did the trade make or lose, per share?",
+   "choices": [
+    "Lost $1 a share",
+    "Made $4 a share",
+    "Lost the whole $5",
+    "Broke even"
+   ],
+   "answer": "Lost $1 a share",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "premium - (close - strike)",
+     "premium": 5,
+     "close": 54,
+     "strike": 50
+    }
+   },
+   "why": "Lost $1 a share. The call is worth 54 minus 50 at the bell, but you paid 5.00 for it.",
+   "lesson_line": "In the money at expiry can still be a loss. The premium is the bar to clear.",
+   "facts": [
+    "f24",
+    "f25",
+    "f26",
+    "f30",
+    "f29"
+   ],
+   "wrong": {
+    "Made $4 a share": "That's the intrinsic value at the close. You paid 5.00, so take that off.",
+    "Lost the whole $5": "The call finished in the money, so it's worth $4 at the bell, not zero.",
+    "Broke even": "Break-even is the strike plus the premium, and 54 falls short of it."
+   }
+  },
+  {
+   "key": "q22",
+   "skill": "options.value",
+   "rung": 7,
+   "format": "numeric",
+   "q": "The stock is at 45. You buy the 40 call for 6.00. What stock price at expiry gets you back to even?",
+   "answer": 46,
+   "prefix": "$",
+   "calc": {
+    "fn": "option_breakeven",
+    "args": {
+     "kind": "call",
+     "strike": 40,
+     "premium": 6
+    }
+   },
+   "why": "$46. Strike plus premium, 40 plus 6. From 45 the stock must rise $1, which is the time value you paid.",
+   "lesson_line": "Hold an in-the-money call to expiry and the stock must rise by the time value just to break even.",
+   "facts": [
+    "f29",
+    "f12"
+   ]
+  },
+  {
+   "key": "q23",
+   "skill": "options.value",
+   "rung": 7,
+   "format": "scenario",
+   "story": "A stock trades at 112.40. The 105 call shows bid 8.90, ask 9.30. You'd buy at the ask.",
+   "q": "How much time value are you paying for, per share?",
+   "choices": [
+    "$1.90",
+    "$7.40",
+    "$9.30",
+    "$1.50"
+   ],
+   "answer": "$1.90",
+   "calc": {
+    "fn": "extrinsic",
+    "args": {
+     "kind": "call",
+     "strike": 105,
+     "underlying": 112.4,
+     "premium": 9.3
+    }
+   },
+   "why": "$1.90. Intrinsic is 112.40 minus 105. You pay 9.30, and everything above intrinsic is time value.",
+   "lesson_line": "When you buy, measure time value from the ask. That's the price you actually pay.",
+   "facts": [
+    "f2",
+    "f4",
+    "f35"
+   ],
+   "wrong": {
+    "$7.40": "That's the intrinsic value, 112.40 minus 105. The question asks what you pay above it.",
+    "$9.30": "That's the whole premium. Part of it is intrinsic value.",
+    "$1.50": "That uses the 8.90 bid. You're buying, so you pay the 9.30 ask."
+   }
+  },
+  {
+   "key": "q24",
+   "skill": "options.value",
+   "rung": 8,
+   "format": "scenario",
+   "story": "You own a 40 call. The company agrees to an all-cash buyout at $50 a share. The deal closes and your options now deliver the cash.",
+   "q": "What is your call worth now, per share?",
+   "choices": [
+    "$10, intrinsic only",
+    "$10 plus its old time value",
+    "Nothing, deals kill options",
+    "Whatever it last traded at"
+   ],
+   "answer": "$10, intrinsic only",
+   "calc": {
+    "fn": "intrinsic",
+    "args": {
+     "kind": "call",
+     "strike": 40,
+     "underlying": 50
+    }
+   },
+   "why": "$10, intrinsic only. Once the shares become $50 of cash, the call loses all its time value.",
+   "lesson_line": "A cash buyout erases time value. Your call is worth the cash minus the strike.",
+   "facts": [
+    "f19",
+    "f20",
+    "f21"
+   ],
+   "wrong": {
+    "$10 plus its old time value": "Cash can't move, so there is nothing left for time value to pay for. It goes to zero.",
+    "Nothing, deals kill options": "Only calls struck at or above the $50 cash die, like a 60 call. Yours is struck at 40.",
+    "Whatever it last traded at": "Once the shares turn into cash, the call is worth the cash minus the strike. The last trade doesn't matter."
+   }
+  },
+  {
+   "key": "q25",
+   "skill": "options.value",
+   "rung": 8,
+   "format": "scenario",
+   "story": "A stock trades at 50 and you're bullish. Call A is the 52 strike with two months left. Call B is the 60 strike expiring Friday.",
+   "q": "Which call is more likely to lose you the whole premium?",
+   "choices": [
+    "Call B, the 60 expiring Friday",
+    "Call A, the 52 with two months",
+    "About the same, both are calls"
+   ],
+   "answer": "Call B, the 60 expiring Friday",
+   "why": "Call B. The further out of the money and the less time left, the bigger the risk of losing it all.",
+   "lesson_line": "Far out of the money with days left is the fastest way to lose the whole premium.",
+   "facts": [
+    "f23",
+    "f22"
+   ],
+   "wrong": {
+    "Call A, the 52 with two months": "It costs more, but it sits nearer the stock and has far more time to work.",
+    "About the same, both are calls": "Distance from the strike and time left both change the risk. B is worse on both."
+   }
+  },
+  {
+   "key": "q26",
+   "skill": "options.value",
+   "rung": 8,
+   "format": "scenario",
+   "story": "Two stocks both trade at 100. Stock A swings 5% most days. Stock B barely moves. You price the 100 call on each, same expiry.",
+   "q": "Which call carries more time value?",
+   "choices": [
+    "The call on Stock A",
+    "The call on Stock B",
+    "Same strike, same price"
+   ],
+   "answer": "The call on Stock A",
+   "why": "The call on Stock A. All else equal, options on jumpier stocks cost more, and the extra sits in the time value.",
+   "lesson_line": "Jumpy stocks carry fatter time value. You pay for the movement up front.",
+   "facts": [
+    "f16",
+    "f6",
+    "f7"
+   ],
+   "wrong": {
+    "The call on Stock B": "A quiet stock gives the option less chance to pay off, so sellers charge less for the time.",
+    "Same strike, same price": "Both calls are at the money with zero intrinsic. Expected movement is what differs, and it drives time value."
+   }
+  },
+  {
+   "key": "q27",
+   "skill": "options.value",
+   "rung": 9,
+   "format": "tf",
+   "q": "Before expiry, an American-style option can never trade below its intrinsic value.",
+   "answer": "False",
+   "why": "False. It ordinarily trades at or above intrinsic, but the options disclosure document says it occasionally trades below.",
+   "lesson_line": "Before you sell a deep in-the-money option, check the bid against its intrinsic value.",
+   "facts": [
+    "f18",
+    "f15"
+   ]
+  },
+  {
+   "key": "q28",
+   "skill": "options.value",
+   "rung": 9,
+   "format": "scenario",
+   "story": "The stock is at 80. You own the 70 call, bid 11.50, with a month left. You want out of the trade.",
+   "q": "Selling the call beats exercising and selling the shares. By how much, per share?",
+   "choices": [
+    "$1.50, the time value",
+    "$10, the intrinsic value",
+    "Nothing, same result",
+    "$11.50, the whole premium"
+   ],
+   "answer": "$1.50, the time value",
+   "calc": {
+    "fn": "extrinsic",
+    "args": {
+     "kind": "call",
+     "strike": 70,
+     "underlying": 80,
+     "premium": 11.5
+    }
+   },
+   "why": "$1.50, the time value. Exercising nets 80 minus 70. Selling the call gets 11.50, time value included. Fees aside.",
+   "lesson_line": "Selling the option keeps the time value. Exercising throws it away.",
+   "facts": [
+    "f17",
+    "f4"
+   ],
+   "wrong": {
+    "$10, the intrinsic value": "That's what exercising nets you: buy at 70, sell at 80. It isn't the gap between the two exits.",
+    "Nothing, same result": "Exercise captures the intrinsic value only. The time value is lost.",
+    "$11.50, the whole premium": "Exercising isn't worth zero. It still nets the $10 of intrinsic value."
+   }
+  }
+ ],
+ "conflicts": [
+  "How sure the sources are that at the money holds the most time value: CME Group says time value 'will always be greatest' at the money; the OCC disclosure document says 'normally' (f15, f41) and OIC says deep ITM and far OTM have 'less time premium'. The file keys it as 'usually' (q10) and never as 'always'.",
+  "CME Group's moneyness page is written for options on futures ('future contract price'); its definitions match the OIC and OCC ones for stock options, and every key it supports also cites a Tier 1 fact.",
+  "Whether an option can trade below intrinsic value before expiry: CME Group's (futures options) page says the option value 'will always be greater than the intrinsic value until it reaches expiration'; the OCC disclosure document says an American-style option 'occasionally' trades below it. q27 keys the Tier 1 disclosure document and cites no CME fact for that point."
+ ],
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-08 by the quote checker's own client (all 200, 41/41 found) and read in context; OIC pages also opened with WebFetch. f1 (OIC), f10, f11, f12 (OCC disclosure document, June 2024) read in context. The 45 / 40 call / 6 = 5 + 1 example is the disclosure document's own worked example.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-08 by the quote checker's own client (all 200, 41/41 found) and read in context; OIC pages also opened with WebFetch. f2, f3 (OIC) and f8, f10 (disclosure document glossary) say exactly this. 'Everything else has zero' matches f3's 'Only in-the-money options have intrinsic value'.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-08 by the quote checker's own client (all 200, 41/41 found) and read in context; OIC pages also opened with WebFetch. Step 1 now opens 'All else equal', as f14 does (time value can rise with implied volatility, so the bare claim was too strong). Step 3 'As a buyer, time value is...' was a dangling modifier; now 'If you're the buyer'. f14, f26 (OIC theta), f38 (Schwab) support the steps.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q01": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-08 by the quote checker's own client (all 200, 41/41 found) and read in context; OIC pages also opened with WebFetch. Key is f1 (OIC, Tier 1) word for word; f11 backs the why. Distractors are real confusions (quote sides, contract terms, Greeks), each correctly explained.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q02": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-08 by the quote checker's own client (all 200, 41/41 found) and read in context; OIC pages also opened with WebFetch. False is right: f3 (OIC) puts a put in the money below the strike; f2 gives the call side used in the why.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q03": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-08 by the quote checker's own client (all 200, 41/41 found) and read in context; OIC pages also opened with WebFetch. f10 (disclosure document: 'the amount, if any, by which the option is in the money') is the key; answer 29 chars fits Word Match. 'What the company is really worth' is a real stock-investor confusion.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q04": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-08 by the quote checker's own client (all 200, 41/41 found) and read in context; OIC pages also opened with WebFetch. f10: out of the money 'would have an intrinsic value of zero'. Bank words are all wrong for a real reason; lesson line (never negative) follows from f10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q05": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-08 by the quote checker's own client (all 200, 41/41 found) and read in context; OIC pages also opened with WebFetch. f8 (disclosure document glossary) and f40 (Schwab): stock exactly at the strike is at the money with no intrinsic value. 'Exactly' in the question removes the 'nearest strike' usage CME and Schwab also note. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q06": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-08 by the quote checker's own client (all 200, 41/41 found) and read in context; OIC pages also opened with WebFetch. f4 (OIC) and f11 (disclosure document) define time value as premium above intrinsic and say it reflects time remaining. Distractors are real confusions (days left, intrinsic, distance).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q07": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-08 by the quote checker's own client (all 200, 41/41 found) and read in context; OIC pages also opened with WebFetch. Stock 64: the 70 put is in the money by f3; the 64 put is at the money by f8; the 60 put is out. Rewrote the 60-put note: 'That's the call side of the rule' was unclear, now 'It's the 60 call that would be in the money'. variety rewrite checked 2026-11-10.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q08": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-08 by the quote checker's own client (all 200, 41/41 found) and read in context; OIC pages also opened with WebFetch. True: f10 (intrinsic zero when out of the money) plus f4 (time value = premium above intrinsic); f39 (Schwab) says it outright. Different angle from q04 (fill) and q16 (computed).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q09": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-08 by the quote checker's own client (all 200, 41/41 found) and read in context; OIC pages also opened with WebFetch. Key is f26 (OIC theta) and f31 (CME). Fixed the 'Zero' note: it said 'Only out-of-the-money options expire worthless', which leaves out at-the-money ones; now 'Only options with no intrinsic value'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q10": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-08 by the quote checker's own client (all 200, 41/41 found) and read in context; OIC pages also opened with WebFetch. At the money holds the most time value, keyed 'usually' as the sources hedge. Added f41, the disclosure document's own line that a substantially out-of-the-money option's time value is 'normally less' than the at-the-money one's, so both wrong strikes now rest on Tier 1 (f15 for deep in, f41 for far out). Re-checked f41 on the page (quote check found).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q11": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-08 by the quote checker's own client (all 200, 41/41 found) and read in context; OIC pages also opened with WebFetch. Recomputed: 87.50 - 80 = 7.50; calc agrees. Method is f2 / f10, worked like f9 (43 stock, 40 call, in the money by 3).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q12": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-08 by the quote checker's own client (all 200, 41/41 found) and read in context; OIC pages also opened with WebFetch. Recomputed: 70 - 61 = 9; calc agrees. f3 + f10 give the put method. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q13": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-08 by the quote checker's own client (all 200, 41/41 found) and read in context; OIC pages also opened with WebFetch. False: f30 (CME) says moneyness is not profitability, f33 (Investopedia) 'Intrinsic value does not mean profit', and the disclosure document's own example (f24, f25: 50 call bought at 5, stock 54, still a 20% loss) is the Tier 1 proof.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q14": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-08 by the quote checker's own client (all 200, 41/41 found) and read in context; OIC pages also opened with WebFetch. f5 (OIC: more time, more time value), f36 (Fidelity), f34 (Investopedia). Keyed 'usually', which matches the disclosure document's note that a longer option can occasionally trade lower.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q15": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-08 by the quote checker's own client (all 200, 41/41 found) and read in context; OIC pages also opened with WebFetch. Recomputed: intrinsic 52 - 50 = 2; 3.40 - 2 = 1.40; calc agrees. f4, f11, f12 give the method.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q16": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-08 by the quote checker's own client (all 200, 41/41 found) and read in context; OIC pages also opened with WebFetch. Recomputed: 40 call with stock 38 has 0 intrinsic, so all 1.10 is time value; calc agrees. The 3.10 distractor (negative intrinsic) and 2 (distance) are real mistakes. f10, f4, f39. flagged-question fix checked 2026-11-11",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q17": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-08 by the quote checker's own client (all 200, 41/41 found) and read in context; OIC pages also opened with WebFetch. f17 (disclosure document): closing 'may provide an opportunity... to realize the remaining time value... that would be lost in an exercise'. Lesson line said 'With time left on the clock, I'd sell'; that ignores the case q27 teaches (a bid below intrinsic, where exercising wins). Now 'With time value left in the bid, I'd sell the option, not exercise it.'",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q18": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-08 by the quote checker's own client (all 200, 41/41 found) and read in context; OIC pages also opened with WebFetch. Recomputed: 100 - 95 = 5 intrinsic; 6.20 - 5 = 1.20; calc agrees. Fixed two notes: '$6.20' said 'Only an out-of-the-money put is all time value' (an at-the-money one is too), now 'a put with no intrinsic value'; '$0' claimed an in-the-money option always carries time value (deep ones may not, f18), now explains that $0 would make all 6.20 intrinsic when only 5 is.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q19": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-08 by the quote checker's own client (all 200, 41/41 found) and read in context; OIC pages also opened with WebFetch. False: f14 (disclosure document: decrease 'accelerates as the time to expiration shortens') and f28 (OIC: 'not linear'). Lesson line matches OIC's 'gradual at first and accelerates'.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q20": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-08 by the quote checker's own client (all 200, 41/41 found) and read in context; OIC pages also opened with WebFetch. Recomputed: 150 - 100 = 50 intrinsic; 50.40 - 50 = 0.40; calc agrees. f15: deep in the money 'normally has very little time value'. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q21": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-08 by the quote checker's own client (all 200, 41/41 found) and read in context; OIC pages also opened with WebFetch. Recomputed: worth 54 - 50 = 4 at the close, paid 5, lost 1 a share; calc agrees. Same numbers as the disclosure document's Investor C example (-20%). Added f29 (OIC: strike plus premium) because the 'Broke even' note uses it.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q22": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-08 by the quote checker's own client (all 200, 41/41 found) and read in context; OIC pages also opened with WebFetch. Recomputed: 40 + 6 = 46 (f29, OIC); time value 6 - 5 = 1, so the stock must rise 1 from 45. Lesson line now says 'Hold... to expiry', since the stock-plus-time-value break-even only holds at expiry.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q23": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-08 by the quote checker's own client (all 200, 41/41 found) and read in context; OIC pages also opened with WebFetch. Recomputed: 112.40 - 105 = 7.40 intrinsic; 9.30 - 7.40 = 1.90 at the ask; 1.50 at the bid is the real mistake. f35 (Fidelity) for the ask, f2 and f4 (OIC) for the method. Lesson line 'Buying, measure...' reworded to 'When you buy, measure...'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q24": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-08 by the quote checker's own client (all 200, 41/41 found) and read in context; OIC pages also opened with WebFetch. f19, f20 (disclosure document cash-merger example: the 40 call 'will lose all of its time value', worth 10). Fixed the 'Nothing' note: 'Only calls struck above the $50 cash die' missed the 50 strike (zero intrinsic, no time value); now 'at or above'. Real lesson for anyone holding calls into a cash takeover.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q25": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-08 by the quote checker's own client (all 200, 41/41 found) and read in context; OIC pages also opened with WebFetch. f23 (disclosure document): further out of the money and less time left means greater risk of losing it all. B needs a 20% move by Friday. Third choice is weak but a real 'options all go to zero' belief.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q26": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-08 by the quote checker's own client (all 200, 41/41 found) and read in context; OIC pages also opened with WebFetch. f16 (disclosure document): options on more volatile interests command higher premiums; both calls are at the money, so the difference is all time value (f6, f7, OIC). Softened the 'Same strike' note: 'Expected movement is what sets the time value' overstated it (time, rates and dividends count too); now 'Expected movement is what differs, and it drives time value'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q27": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-08 by the quote checker's own client (all 200, 41/41 found) and read in context; OIC pages also opened with WebFetch. False per f18 (disclosure document: 'occasionally an American-style option will trade at less than its intrinsic value'). CME's futures-options page says the opposite ('always greater'); recorded in conflicts, Tier 1 wins. Added f15 so the lesson line's 'deep in-the-money' has a cited basis. Good practical lesson: deep in-the-money bids can sit under parity.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q28": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-08 by the quote checker's own client (all 200, 41/41 found) and read in context; OIC pages also opened with WebFetch. Recomputed: exercise nets 80 - 70 = 10; selling gets 11.50; difference 1.50 = time value; calc agrees. f17 (disclosure document) is the principle. 'Fees aside' is stated.",
+   "fixed": false,
+   "by": "checker"
+  }
+ }
+}

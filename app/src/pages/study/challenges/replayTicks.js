@@ -50,8 +50,9 @@ export function developing(day, ticks, j) {
   return { t: day.t, o: day.o, h, l, c: upto[upto.length - 1].c, v: total > 0 ? Math.round((day.v || 0) * (sofar / total)) : 0 }
 }
 
-/** The sessions (1 = the first day after the signal) the replay plays slowly: the first two, the targets, the stop and
- *  the best price of the trade; the days between run quickly ("in between the main lesson days can be a bit faster"). */
+/** The sessions (1 = the first day after the signal) the replay plays slowly: the first two, the trims (3R and 5R), the
+ *  stop and the best price of the trade; the days between run quickly ("in between the main lesson days can be a bit
+ *  faster"). */
 export function keyDays(trade, culm = null) {
   const s = new Set([1, 2])
   for (const v of [trade?.t1At, trade?.t2At, trade?.stoppedSession, trade?.bestSessions, culm ? culm.offset : null]) {
@@ -79,9 +80,10 @@ export function showChart(el) {
   try { el?.scrollIntoView?.({ block: 'nearest' }) } catch { /* an old engine without options */ }
 }
 
-/** The questions the replay stops on (N033; api/services/study_trade.replay_checks, on the plan), each with the session
- *  it waits for: 2R's at the session 2R traded, 3R's at 3R's; a target reached on the signal day itself, or after the
- *  stop, asks nothing. */
+/** The questions the replay stops on (N033; api/services/study_trade.replay_checks, on the plan: the house trims, a third
+ *  at 3R with the stop to breakeven, a third at 5R with the last third on the trail), each with the session it waits for:
+ *  the first trim's (`t1`) at the session 3R traded, the second's (`t2`) at 5R's; a trim reached on the signal day itself,
+ *  or after the stop, asks nothing. The words are the server's; nothing here names a level. */
 export function replayChecks(trade) {
   if (!trade || trade.kind !== 'plan' || !Array.isArray(trade.checks)) return []
   const before = (s) => trade.stoppedSession == null || s < trade.stoppedSession

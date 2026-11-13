@@ -1,0 +1,3283 @@
+{
+ "unit": "SET.28",
+ "track": "SET",
+ "title": "Remount",
+ "teaches": "The remount as we trade it: a leader loses a line for real, an average or a price level it held, then retakes it with a clear green close. We buy after a quiet day holds above the line, with a market order over that day's high and a real stop a few cents under its low. The close must be above the 200-day, a third comes off at 3R and 5R, and most tries lose small.",
+ "skills": [
+  {
+   "id": "setup.remount",
+   "title": "Remount"
+  }
+ ],
+ "as_of": "2026-11-10",
+ "card": "docs/study/setups/criteria/32-remount.json",
+ "sources": [
+  {
+   "id": "h1",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
+   "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
+   "accessed": "2026-11-10"
+  },
+  {
+   "id": "c1",
+   "tier": 3,
+   "publisher": "UCT setup criteria card",
+   "title": "Remount criteria card (docs/study/setups/criteria/32-remount.json, as of 2026-11-10)",
+   "url": "repo:docs/study/setups/criteria/32-remount.json",
+   "accessed": "2026-11-10"
+  },
+  {
+   "id": "d1",
+   "tier": 3,
+   "publisher": "UCT setup research (examples read from our own daily bars)",
+   "title": "Remount dossier: examples, failures and near-misses from our data",
+   "url": "repo:docs/study/setups/research/32-remount.md#12-examples-from-our-data",
+   "accessed": "2026-11-10"
+  },
+  {
+   "id": "c2",
+   "tier": 3,
+   "publisher": "UCT setup criteria card",
+   "title": "MA Reclaim (the moving-average form of the Remount) criteria card (docs/study/setups/criteria/13-ma-reclaim.json, as of 2026-11-10)",
+   "url": "repo:docs/study/setups/criteria/13-ma-reclaim.json",
+   "accessed": "2026-11-10"
+  },
+  {
+   "id": "d2",
+   "tier": 3,
+   "publisher": "UCT setup research (examples read from our own daily bars)",
+   "title": "MA Reclaim (the moving-average form of the Remount) dossier: examples, failures and near-misses from our data",
+   "url": "repo:docs/study/setups/research/13-ma-reclaim.md#12-examples-from-our-data",
+   "accessed": "2026-11-10"
+  },
+  {
+   "id": "s1",
+   "tier": 2,
+   "publisher": "Virtue of Selfish Investing (Morales and Kacher, MoKa Investors)",
+   "title": "What is the Moving Average Undercut & Rally (MAU&R) pattern? (2017-07-13)",
+   "url": "https://www.virtueofselfishinvesting.com/faqs/answer/what-is-the-moving-average-undercut-rally-mau-r-pattern",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s2",
+   "tier": 2,
+   "publisher": "Investor's Business Daily (syndicated on Yahoo Finance)",
+   "title": "Use The 50-Day Moving Average To Pinpoint Opportunity Or Risk (2015-05-14)",
+   "url": "https://finance.yahoo.com/news/50-day-moving-average-pinpoint-212000564.html",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s3",
+   "tier": 2,
+   "publisher": "Investor's Business Daily (syndicated on Yahoo Finance)",
+   "title": "When A Low-Volume Rebound Follows Big Sell-Off, Take Gains (2013-10-28)",
+   "url": "https://finance.yahoo.com/news/low-volume-rebound-follows-big-183900666.html",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s4",
+   "tier": 2,
+   "publisher": "StockCharts ChartSchool",
+   "title": "How To Trade Price-to-Moving Average Crossovers",
+   "url": "https://chartschool.stockcharts.com/table-of-contents/trading-strategies-and-models/trading-strategies/moving-average-trading-strategies/how-to-trade-price-to-moving-average-crossovers",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s5",
+   "tier": 2,
+   "publisher": "StockCharts ChartSchool",
+   "title": "Moving Averages - Simple and Exponential",
+   "url": "https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/technical-overlays/moving-averages-simple-and-exponential",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s6",
+   "tier": 2,
+   "publisher": "Deepvue",
+   "title": "Stan Weinstein Stage Analysis: Identify The Best Time To Buy And Sell Stocks (updated 2024-07-26)",
+   "url": "https://deepvue.com/indicators/stan-weinstein-stage-analysis-when-to-buy/",
+   "accessed": "2026-11-09",
+   "why_reliable": "A scanner vendor's education page built with Stan Weinstein. Used only to name the flat-average chop and the Stage 4 decline, never for a number."
+  },
+  {
+   "id": "s7",
+   "tier": 2,
+   "publisher": "StockCharts ChartSchool (Bogomazov and Lipsett)",
+   "title": "The Wyckoff Method: A Tutorial",
+   "url": "https://chartschool.stockcharts.com/table-of-contents/market-analysis/wyckoff-analysis-articles/the-wyckoff-method-a-tutorial",
+   "accessed": "2026-11-09"
+  }
+ ],
+ "facts": [
+  {
+   "id": "v1",
+   "source": "s1",
+   "quote": "When a leading stock breaks below its moving average, a move back above the moving average can provide a long entry point as the stock moves back up through the line.",
+   "claim": "Morales and Kacher: when a leading stock breaks below its moving average, a move back above it can provide a long entry."
+  },
+  {
+   "id": "v2",
+   "source": "s1",
+   "quote": "essentially undercuts the moving average, faking out sellers and would-be short-sellers, and then rallies back above it.",
+   "claim": "Morales and Kacher: the stock undercuts the average, fakes out sellers and would-be short-sellers, then rallies back above it."
+  },
+  {
+   "id": "i1",
+   "source": "s2",
+   "quote": "Stocks often need a large boost of buying power to muscle back above their 50-day lines after losing that level of support.",
+   "claim": "IBD: stocks often need a large boost of buying power to muscle back above their 50-day lines."
+  },
+  {
+   "id": "i2",
+   "source": "s2",
+   "quote": "Once below that line, institutional investors may use the 50-day line to mark a sell level.",
+   "claim": "IBD: once below the 50-day line, institutions may use it to mark a sell level."
+  },
+  {
+   "id": "i3",
+   "source": "s3",
+   "quote": "A high-volume decline to or below the 50-day moving average followed by a weak low-volume rise is your chance to sell.",
+   "claim": "IBD: a high-volume decline to or below the 50-day followed by a weak low-volume rise is a chance to sell."
+  },
+  {
+   "id": "x1",
+   "source": "s4",
+   "quote": "ensure the price has conclusively crossed above the moving average. So, if you're using candlestick charts, you'll have to wait for a full candle close above the SMA.",
+   "claim": "ChartSchool: wait for a full candle close above the moving average before calling the cross."
+  },
+  {
+   "id": "x2",
+   "source": "s4",
+   "quote": "In sideways markets, particularly volatile ones, crossover signals are more uncertain and less reliable.",
+   "claim": "ChartSchool: in sideways markets, crossover signals are more uncertain and less reliable."
+  },
+  {
+   "id": "x3",
+   "source": "s5",
+   "quote": "You would look for bullish price crosses only when prices are already above the longer moving average.",
+   "claim": "ChartSchool: look for bullish price crosses only when prices are already above the longer moving average."
+  },
+  {
+   "id": "x4",
+   "source": "s5",
+   "quote": "if price is above the 200-day moving average, chartists would only focus on signals when price moves above the 50-day moving average.",
+   "claim": "ChartSchool: with price above the 200-day, focus on signals when price moves above the 50-day."
+  },
+  {
+   "id": "x5",
+   "source": "s4",
+   "quote": "For many traders, the 50-day SMA, in particular, serves as a critical support or resistance level.",
+   "claim": "ChartSchool: for many traders the 50-day SMA is a critical support or resistance level."
+  },
+  {
+   "id": "dv1",
+   "source": "s6",
+   "quote": "During this sideways chop, it is best to avoid trading the stock as there is no defined trend.",
+   "claim": "Deepvue on Weinstein: in a sideways chop around a flat average, avoid trading the stock."
+  },
+  {
+   "id": "y1",
+   "source": "s7",
+   "quote": "Shakeouts may also occur once a price advance has started, with rapid downward movement intended to induce retail traders and investors in long positions to sell their shares to large operators.",
+   "claim": "Wyckoff: a shakeout is a rapid drop meant to induce holders to sell to large operators."
+  },
+  {
+   "id": "h01",
+   "source": "h1",
+   "quote": "Stop first (by default a few cents under the day's low or the prior day's low, F62); the size comes from the stop; if the honest stop does not fit the risk, skip the trade.",
+   "claim": "A3: stop first, a few cents under the day's low; the size comes from the stop; if the honest stop does not fit, skip."
+  },
+  {
+   "id": "h02",
+   "source": "h1",
+   "quote": "The stop is the exit. It only moves up, never down or wider. The one exception is the gap rule (B20).",
+   "claim": "A4: the stop is the exit; it only moves up, never wider; the gap rule is the one exception."
+  },
+  {
+   "id": "h03",
+   "source": "h1",
+   "quote": "Shares = account × risk % ÷ (entry − stop), rounded down, then capped: the size is the SMALLER of the risk-based size and the position cap",
+   "claim": "A5: shares are account times risk percent, divided by entry minus stop, rounded down, then capped."
+  },
+  {
+   "id": "h04",
+   "source": "h1",
+   "quote": "\"I almost never take a loss greater than 3%\": the stop usually sits within about 3% of the buy (a loss on the position, not the account).",
+   "claim": "A13: the stop usually sits within about 3% of the buy."
+  },
+  {
+   "id": "h05",
+   "source": "h1",
+   "quote": "Move the stop to breakeven at 2R to 5R, ideally. The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
+   "claim": "B19: breakeven between 2R and 5R; the hard rule for the first trim is a third at 3R."
+  },
+  {
+   "id": "h06",
+   "source": "h1",
+   "quote": "A gap against the stop: the first 30 minutes of the gap-down day decide. The low of the first 30-minute bar is the new stop.",
+   "claim": "B20: on a gap through the stop, the first 30-minute low is the new stop."
+  },
+  {
+   "id": "h07",
+   "source": "h1",
+   "quote": "With a ceiling: if the first 30 minutes take the loss past 2R, get out.",
+   "claim": "B20's ceiling: if the first 30 minutes take the loss past 2R, get out."
+  },
+  {
+   "id": "h08",
+   "source": "h1",
+   "quote": "No new buys in the 3 days before an earnings report; hold through a report only if the trade is up 5R.",
+   "claim": "B22: no new buys in the 3 days before a report; hold through one only if up 5R."
+  },
+  {
+   "id": "h09",
+   "source": "h1",
+   "quote": "Trade only stocks at $10 or more that trade at least $20 million a day.",
+   "claim": "B23: only stocks at $10 or more trading at least $20 million a day."
+  },
+  {
+   "id": "h10",
+   "source": "h1",
+   "quote": "The 200-day line: no longs below the 200-day simple moving average, unless it is a parabolic long; shorts only below the 200-day, never above it unless it is a parabolic short.",
+   "claim": "B26: no longs below the 200-day simple moving average, except a parabolic long."
+  },
+  {
+   "id": "h11",
+   "source": "h1",
+   "quote": "No chasing: never buy more than 4% above the buy point.",
+   "claim": "C28: never buy more than 4% above the buy point."
+  },
+  {
+   "id": "h12",
+   "source": "h1",
+   "quote": "Chasing costs size, not risk: the stop stays under the buy point, so the distance grows and the shares shrink (A5).",
+   "claim": "C28: chasing costs size, because the stop stays put and the distance grows."
+  },
+  {
+   "id": "h13",
+   "source": "h1",
+   "quote": "Too stretched to buy: skip a long that is more than 10% above its 10-day average.",
+   "claim": "C29: skip a long more than 10% above its 10-day average."
+  },
+  {
+   "id": "h15",
+   "source": "h1",
+   "quote": "Time stop: a trade still under 1R after 10 trading days is sold, freeing the money.",
+   "claim": "C33: a trade still under 1R after 10 trading days is sold."
+  },
+  {
+   "id": "h18",
+   "source": "h1",
+   "quote": "Every position has a real stop order with the broker, not a stop kept in your head.",
+   "claim": "D41: a real stop order with the broker."
+  },
+  {
+   "id": "h19",
+   "source": "h1",
+   "quote": "Never own more than 1% of a stock's average daily volume; illiquid stocks are not even watched.",
+   "claim": "D42: never own more than 1% of a stock's average daily volume."
+  },
+  {
+   "id": "h20",
+   "source": "h1",
+   "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
+   "claim": "E51: another third at 5R, then trail the last third."
+  },
+  {
+   "id": "h21",
+   "source": "h1",
+   "quote": "Default trail: the 10-day average for fast movers, the 21-day for steadier ones; sell on a close below it.",
+   "claim": "E52: trail the 10-day for fast movers, the 21-day for steadier ones; sell on a close below it."
+  },
+  {
+   "id": "h22",
+   "source": "h1",
+   "quote": "Entries are market orders.",
+   "claim": "E57: entries are market orders."
+  },
+  {
+   "id": "h24",
+   "source": "h1",
+   "quote": "The stop sits a few cents under the day's low, not exactly on it.",
+   "claim": "F62: the stop sits a few cents under the day's low."
+  },
+  {
+   "id": "h25",
+   "source": "h1",
+   "quote": "If a stock opens above a trim level (3R, 5R), take that trim at the open.",
+   "claim": "F63: a trim level the day opens past is taken at the open."
+  },
+  {
+   "id": "h26",
+   "source": "h1",
+   "quote": "The market reading as a guide (A10): Green, full risk per grade and up to 10 positions; Yellow, smaller and fewer; Orange, only A+ setups; Red, mostly cash and shorts.",
+   "claim": "F65: Green full risk; Yellow smaller and fewer; Orange only A+; Red mostly cash and shorts."
+  },
+  {
+   "id": "h28",
+   "source": "h1",
+   "quote": "After a stop-out, buy again only if the setup triggers again, as a new trade with its own stop and every rule.",
+   "claim": "B21: after a stop-out, buy again only on a new trigger, as a new trade."
+  },
+  {
+   "id": "h29",
+   "source": "h1",
+   "quote": "The same stock: at most 3 tries in a week and 6 in a month.",
+   "claim": "E56: at most 3 tries in a week and 6 in a month on one stock."
+  },
+  {
+   "id": "k01",
+   "source": "c1",
+   "quote": "Location (hard): the remount close is above the 200-day SMA. A 200-day remount is the cross itself.",
+   "claim": "Card 32: the remount close is above the 200-day SMA; a 200-day remount is the cross itself."
+  },
+  {
+   "id": "k02",
+   "source": "c1",
+   "quote": "Market reading Green, or Yellow at smaller size; Orange only an A+ remount; Red, no new longs.",
+   "claim": "Card 32: a Green reading, or Yellow at smaller size; Orange only an A+ remount; Red, no new longs."
+  },
+  {
+   "id": "k03",
+   "source": "c1",
+   "quote": "No new buy in the 3 sessions before a report. A remount on the earnings gap itself is after the report and allowed.",
+   "claim": "Cards 32 and 13: no new buy in the 3 sessions before a report; a remount on the earnings gap itself is after the report and allowed."
+  },
+  {
+   "id": "k04",
+   "source": "c1",
+   "quote": "Skip a stock more than 10% over its 10-day average.",
+   "claim": "Card 32: skip a stock more than 10% over its 10-day average."
+  },
+  {
+   "id": "k05",
+   "source": "c1",
+   "quote": "Expect most trades to lose: about 4 in 5 hit the first stop within 60 sessions in the replay. The few runners pay for them, so do not cut the runner early.",
+   "claim": "Card 32: expect most trades to lose; the few runners pay for them, so do not cut the runner early."
+  },
+  {
+   "id": "k06",
+   "source": "c1",
+   "quote": "Before the buy: a close back under the line before the trigger. No trade.",
+   "claim": "Card 32: a close back under the line before the trigger means no trade."
+  },
+  {
+   "id": "k07",
+   "source": "c1",
+   "quote": "A failed first try: a second try is a new trade with its own trigger and stop, at most 3 tries a week and 6 a month on one stock.",
+   "claim": "Card 32: a second try is a new trade with its own trigger and stop, at most 3 a week and 6 a month on one stock."
+  },
+  {
+   "id": "k08",
+   "source": "c1",
+   "quote": "A+ cue: the remount clears all the averages at once (remounted all MAs), above a rising 200-day.",
+   "claim": "Card 32: an A+ cue is a remount that clears all the averages at once, above a rising 200-day."
+  },
+  {
+   "id": "k09",
+   "source": "c1",
+   "quote": "A+ cue: a leader that lost the line during a market shakeout and remounted before the index did.",
+   "claim": "Card 32: an A+ cue is a leader that lost the line in a market shakeout and remounted before the index did."
+  },
+  {
+   "id": "k10",
+   "source": "c1",
+   "quote": "Best after a correction, as the indexes remount their own lines and leaders remount first.",
+   "claim": "Card 32: best after a correction, as the indexes remount their own lines and leaders remount first."
+  },
+  {
+   "id": "k11",
+   "source": "c1",
+   "quote": "B- cue: a first attempt after a long decline, or a line still curling lower.",
+   "claim": "Card 32: a B minus cue is a first attempt after a long decline, or a line still curling lower."
+  },
+  {
+   "id": "k12",
+   "source": "c1",
+   "quote": "Time stop: still under 1R after 10 trading days, sell. Chop is this setup's main failure, and the rule frees the money.",
+   "claim": "Card 32: still under 1R after 10 trading days, sell; chop is this setup's main failure."
+  },
+  {
+   "id": "k13",
+   "source": "c1",
+   "quote": "Buying a light-volume drift back over a line the stock lost on heavy volume (IBD: a sell).",
+   "claim": "Card 32 mistake: buying a light-volume drift back over a line lost on heavy volume."
+  },
+  {
+   "id": "k14",
+   "source": "c1",
+   "quote": "Buying a level the stock chopped through for weeks (the judges' chop lines).",
+   "claim": "Card 32 mistake: buying a level the stock chopped through for weeks."
+  },
+  {
+   "id": "k15",
+   "source": "c1",
+   "quote": "Buying before the close is above the line, or on a marginal poke a few cents over it.",
+   "claim": "Card 32 mistake: buying before the close is above the line, or on a marginal poke a few cents over it."
+  },
+  {
+   "id": "k16",
+   "source": "c1",
+   "quote": "Cutting the runner early. Most trades lose small; the few big ones carry the setup.",
+   "claim": "Card 32 mistake: cutting the runner early."
+  },
+  {
+   "id": "k17",
+   "source": "c1",
+   "quote": "Buying a remount under a falling 200-day (B26; the replay's weakest group).",
+   "claim": "Card 32 mistake: buying a remount under a falling 200-day."
+  },
+  {
+   "id": "k18",
+   "source": "c1",
+   "quote": "A Remount lost the 50-day or 200-day for a week or more and is buying it back.",
+   "claim": "Card 32: a Remount lost the 50-day or 200-day for a week or more and is buying it back."
+  },
+  {
+   "id": "k20",
+   "source": "c1",
+   "quote": "If it starts at one event day and bends with volume, it is the AVWAP reclaim; a Remount's line is a moving average or a flat price level the stock held before it broke.",
+   "claim": "Card 32: a line that starts at one event day and bends with volume is the AVWAP reclaim; a Remount's line is an average or a flat level that held."
+  },
+  {
+   "id": "k21",
+   "source": "c1",
+   "quote": "An Oops is one session that opens under the prior close, trades under the prior day's low and closes back over the prior close",
+   "claim": "Card 32: an Oops is one session that opens under the prior close, trades under the prior day's low and closes back over the prior close."
+  },
+  {
+   "id": "k22",
+   "source": "c1",
+   "quote": "this card adds the level form (a breakout pivot, a base low, an old high, a round number). One unit, two kinds of line.",
+   "claim": "Card 32: the Remount has a level form (a breakout pivot, a base low, an old high, a round number) beside the moving-average form; one unit, two kinds of line."
+  },
+  {
+   "id": "k23",
+   "source": "c1",
+   "quote": "PREV DAY HIGH BREAK",
+   "claim": "Card 32: the trigger is a PREV DAY HIGH BREAK."
+  },
+  {
+   "id": "k24",
+   "source": "c1",
+   "quote": "Most tries lose small: the line is retaken, lost again, and the stop takes it within days",
+   "claim": "Card 32: most tries lose small; the line is retaken, lost again, and the stop takes it."
+  },
+  {
+   "id": "m01",
+   "source": "c2",
+   "quote": "If the stock lost and retook a moving average (the 50-day or the 200-day) it is this card, the moving-average form",
+   "claim": "Card 13: if the stock lost and retook the 50-day or the 200-day, it is the moving-average form."
+  },
+  {
+   "id": "m02",
+   "source": "c2",
+   "quote": "if it lost and retook a horizontal level (a breakout pivot, a base low, an old high, a round number) that held before it broke, it is the level form",
+   "claim": "Card 13: a horizontal level that held before it broke is the level form of the Remount."
+  },
+  {
+   "id": "m03",
+   "source": "c2",
+   "quote": "An Undercut and Rally closes back above the level within 3 sessions of the undercut (the best the same day) and is bought as the level is retaken",
+   "claim": "Card 13: an Undercut and Rally closes back above the level within 3 sessions and is bought as the level is retaken."
+  },
+  {
+   "id": "m04",
+   "source": "c2",
+   "quote": "A 50-day reclaim with the close still under a falling 200-day is Weinstein's 4B-, a read and not a buy for us (B26)",
+   "claim": "Card 13: a 50-day reclaim with the close still under a falling 200-day is the 4B-, a read and not a buy for us."
+  },
+  {
+   "id": "m05",
+   "source": "c2",
+   "quote": "The reclaim close is above the 200-day SMA. A 200-day remount is the cross itself; a 50-day reclaim counts only with the close above the 200-day too.",
+   "claim": "Card 13: the reclaim close is above the 200-day; a 50-day reclaim counts only with the close above the 200-day too."
+  },
+  {
+   "id": "m06",
+   "source": "c2",
+   "quote": "After entry: the stop is the exit. A 200-day remount that slips back under the line but stays above the stop is held; a close back under the line is not an extra exit.",
+   "claim": "Card 13: the stop is the exit; a close back under the line is not an extra exit."
+  },
+  {
+   "id": "m07",
+   "source": "c2",
+   "quote": "If that stop is more than about 3% away, size down so the account risk is unchanged, or wait for Entry B, or skip. Never tighten the stop to fit.",
+   "claim": "Card 13: a stop more than about 3% away means size down, wait for the pause entry, or skip; never tighten the stop to fit."
+  },
+  {
+   "id": "m08",
+   "source": "c2",
+   "quote": "Before entry: the session after the reclaim closes back under the line. The remount is off until it closes above again.",
+   "claim": "Card 13: if the session after the reclaim closes back under the line, the remount is off until it closes above again."
+  },
+  {
+   "id": "m09",
+   "source": "c2",
+   "quote": "Before entry: a light-volume reclaim after a heavy-volume break.",
+   "claim": "Card 13: a light-volume reclaim after a heavy-volume break is an invalidation."
+  },
+  {
+   "id": "m10",
+   "source": "c2",
+   "quote": "that all close above the line, the last of them an inside day",
+   "claim": "Card 13: the pause entry waits for sessions that all close above the line, the last of them an inside day."
+  },
+  {
+   "id": "m11",
+   "source": "c2",
+   "quote": "then buy at market as price trades over that day's high.",
+   "claim": "Card 13: then buy at market as price trades over that day's high."
+  },
+  {
+   "id": "m12",
+   "source": "c2",
+   "quote": "Market orders, in regular hours; one price, one stop, no adds.",
+   "claim": "Card 13: market orders, in regular hours; one price, one stop, no adds."
+  },
+  {
+   "id": "m13",
+   "source": "c2",
+   "quote": "A real stop order with the broker. It only moves up.",
+   "claim": "Card 13: a real stop order with the broker; it only moves up."
+  },
+  {
+   "id": "m14",
+   "source": "c2",
+   "quote": "Trail the last third under the 21-day for a fresh 200-day remount (an earlier-stage, steadier name) or the 10-day for a fast mover, sold on a close below it.",
+   "claim": "Card 13: trail the last third under the 21-day for a fresh 200-day remount or the 10-day for a fast mover."
+  },
+  {
+   "id": "m15",
+   "source": "c2",
+   "quote": "Buying a reclaim of a flat line that price has crossed back and forth for weeks (the lab's main miss; whipsaw).",
+   "claim": "Card 13 mistake: buying a reclaim of a flat line that price has crossed back and forth for weeks."
+  },
+  {
+   "id": "m16",
+   "source": "c2",
+   "quote": "Buying before the close is above the line (anticipating the reclaim, the Model Book's EMA Crossback mistake).",
+   "claim": "Card 13 mistake: buying before the close is above the line."
+  },
+  {
+   "id": "m17",
+   "source": "c2",
+   "quote": "The line turned from a ceiling back into a floor",
+   "claim": "Card 13: the line turned from a ceiling back into a floor."
+  },
+  {
+   "id": "m18",
+   "source": "c2",
+   "quote": "a reclaim that leaves the 50-day (or other averages) still overhead and falling",
+   "claim": "Card 13: a reclaim that leaves the 50-day still overhead and falling is a B minus cue."
+  },
+  {
+   "id": "d01",
+   "source": "d1",
+   "quote": "NKE | 2020-08-05 | 2020-08-07 | 50 | 7 | 1.0 ATR | 1.37x | 101.18 | 101.19 | 99.98 | 1.2% | 25.0",
+   "claim": "NKE, remount day 2020-08-05, buy day 2020-08-07: buy point 101.18, entry 101.19, stop 99.98 (1.2%); best R 25.0."
+  },
+  {
+   "id": "d02",
+   "source": "d1",
+   "quote": "A 7-day dip under the 50 after the 2020 recovery; a strong remount close (+1.3 ATR), an inside day, the buy, 3R the next day.",
+   "claim": "NKE: a dip under the 50 after the 2020 recovery, a strong remount close, an inside day, the buy, and 3R the next day."
+  },
+  {
+   "id": "d03",
+   "source": "d1",
+   "quote": "AMD | 2023-11-01 | 2023-11-03 | 50 | 11 | 2.4 ATR | 2.60x | 109.41 | 109.42 | 105.86 | 3.3% | 21.2",
+   "claim": "AMD, remount day 2023-11-01, buy day 2023-11-03: buy point 109.41, entry 109.42, stop 105.86 (3.3%); best R 21.2."
+  },
+  {
+   "id": "d04",
+   "source": "d1",
+   "quote": "The remount day is the earnings reaction day (report 2023-10-31 after the close in our table)",
+   "claim": "AMD: the remount day is the earnings reaction day, the report having come out after the close on 2023-10-31."
+  },
+  {
+   "id": "d05",
+   "source": "d1",
+   "quote": "DOCU | 2024-03-11 / 2024-03-14 | 50-day, 24 closes under, break 3.74 ATR, close +0.97 ATR, vol 2.0x | 59.54 | 58.44 (1.8%) | day 1, 2024-03-15, a gap under the stop, best +0.0R",
+   "claim": "DOCU, remount 2024-03-11, buy 2024-03-14: buy 59.54, stop 58.44 (1.8%); a gap under the stop on 2024-03-15."
+  },
+  {
+   "id": "d06",
+   "source": "d1",
+   "quote": "It held the 50-day for the next 20 sessions (0 closes under) and traded up to 61.47 (+1.75R) inside the window without reaching 3R. The level was right; the trigger did not run.",
+   "claim": "DOCU: it held the 50-day for the next 20 sessions and traded up to 61.47 (+1.75R) without reaching 3R; the level was right, the trigger did not run."
+  },
+  {
+   "id": "d08",
+   "source": "d1",
+   "quote": "PYPL | 2018-10-19 / 2018-10-23 | 200-day, 9 closes under, break 2.02 ATR, close +0.71 ATR, vol 2.98x | 86.24 | 83.52 (3.2%) | day 1, 2018-10-24, best +0.0R",
+   "claim": "PYPL, remount 2018-10-19, buy 2018-10-23: buy 86.24, stop 83.52 (3.2%); stopped on 2018-10-24."
+  },
+  {
+   "id": "d09",
+   "source": "d1",
+   "quote": "in the October 2018 correction, with SPY under its own 200-day on the buy day; stopped the next session",
+   "claim": "PYPL: bought in the October 2018 correction with SPY under its own 200-day; stopped the next session."
+  },
+  {
+   "id": "d10",
+   "source": "d1",
+   "quote": "A three-day dip under the 50-day and straight back: a pullback or a U&R (setup 29), not a Remount; the line was never really lost.",
+   "claim": "ENOV: a three-day dip under the 50-day and straight back is a pullback or a U&R, not a Remount."
+  },
+  {
+   "id": "d11",
+   "source": "d1",
+   "quote": "A marginal poke: the remount day closed 0.08 ATR over the 50-day, inside the noise, so the close could not be called a remount that evening.",
+   "claim": "ESS: a remount day that closed 0.08 ATR over the 50-day was a marginal poke inside the noise."
+  },
+  {
+   "id": "d12",
+   "source": "d1",
+   "quote": "The next sessions remounted it clearly and it reached 14.9R; the lesson is to wait for the clear close.",
+   "claim": "ESS: the next sessions remounted it clearly and it reached 14.9R; the lesson is to wait for the clear close."
+  },
+  {
+   "id": "e01",
+   "source": "d2",
+   "quote": "AAPL | 2022-09-12 (A) | 200-day | 163.43 | 159.25 | 09-13, day 1, gap open 159.90, low 153.37",
+   "claim": "AAPL, 2022-09-12: a 200-day remount, buy 163.43, stop 159.25; the next day gapped open at 159.90 and the low was 153.37."
+  },
+  {
+   "id": "e02",
+   "source": "d2",
+   "quote": "Section 12: the S&P 500 was under its own 200-day.",
+   "claim": "AAPL: the S&P 500 was under its own 200-day."
+  },
+  {
+   "id": "e03",
+   "source": "d2",
+   "quote": "FDX | 2018-07-31 (A) | 200-day | 198.12 | 195.31 | 08-01, day 1, low 193.94",
+   "claim": "FDX, 2018-07-31: a 200-day remount, buy 198.12, stop 195.31; stopped the next day with a low of 193.94."
+  },
+  {
+   "id": "e04",
+   "source": "d2",
+   "quote": "it reached the 3R level (206.55) on 09-13 without us. A shakeout.",
+   "claim": "FDX: it reached the 3R level, 206.55, on 09-13 without us. A shakeout."
+  },
+  {
+   "id": "e05",
+   "source": "d2",
+   "quote": "CRM | 2025-06-06 | mar.above_200 | the reclaim close 274.51 is under the 200-day SMA 295.88, and the 50-day (267.88) is under it too",
+   "claim": "CRM, 2025-06-06: the reclaim close, 274.51, is under the 200-day SMA, 295.88, and the 50-day is under it too."
+  },
+  {
+   "id": "e06",
+   "source": "d2",
+   "quote": "GOOG | 2023-07-13 | mar.lost_line | only 3 closes under the 50-day before the reclaim",
+   "claim": "GOOG, 2023-07-13: only 3 closes under the 50-day before the reclaim."
+  },
+  {
+   "id": "e07",
+   "source": "d2",
+   "quote": "a pullback's undercut and reclaim (setup 12, map.undercut) or an Undercut and Rally (setup 29). Best 0.64R, stopped.",
+   "claim": "GOOG: a pullback's undercut and reclaim or an Undercut and Rally, not a Remount; best 0.64R, stopped."
+  },
+  {
+   "id": "e08",
+   "source": "d2",
+   "quote": "MSFT | 2024-11-26 | mar.not_chop | the close switched sides of the 200-day 12 times in the 60 sessions before the break",
+   "claim": "MSFT, 2024-11-26: the close switched sides of the 200-day 12 times in the 60 sessions before the break."
+  },
+  {
+   "id": "e09",
+   "source": "d2",
+   "quote": "A chop line; the 7 closes under were one more saw across a flat average. Stopped at 0R.",
+   "claim": "MSFT: a chop line; the closes under were one more saw across a flat average; stopped at 0R."
+  },
+  {
+   "id": "k25",
+   "source": "c1",
+   "quote": "Weak with the index under its own 200-day.",
+   "claim": "Card 32: a remount is weak with the index under its own 200-day."
+  },
+  {
+   "id": "h30",
+   "source": "h1",
+   "quote": "Max position 40% of the account",
+   "claim": "A7: the maximum position is 40% of the account."
+  },
+  {
+   "id": "k26",
+   "source": "c1",
+   "quote": "The break left the line: at least one of those closes was 0.5 ATR or more under it.",
+   "claim": "Card 32: the break left the line when at least one close was 0.5 ATR or more under it."
+  },
+  {
+   "id": "k27",
+   "source": "c1",
+   "quote": "A level must be a real level (level remounts only): it held before it broke, at least 10 of the 15 closes before the break at or above it.",
+   "claim": "Card 32: a level must have held before it broke, at least 10 of the 15 closes before the break at or above it."
+  },
+  {
+   "id": "k28",
+   "source": "c1",
+   "quote": "Variant: on a gap down after the remount that stays above the line, buy as price turns positive on the day; stop under that day's low.",
+   "claim": "Card 32 variant: on a gap down after the remount that stays above the line, buy as price turns positive; stop under that day's low."
+  },
+  {
+   "id": "k29",
+   "source": "c1",
+   "quote": "often times it on the hourly, a higher low or a flag. Taught as a variant because daily drills cannot show it.",
+   "claim": "Card 32: the hourly timing, a higher low or a flag, is taught as a variant because daily drills cannot show it."
+  },
+  {
+   "id": "k30",
+   "source": "c1",
+   "quote": "One entry per trade.",
+   "claim": "Card 32: one entry per trade; the course teaches one entry."
+  },
+  {
+   "id": "k31",
+   "source": "c1",
+   "quote": "Sell a third at 5R.",
+   "claim": "Card 32: sell a third at 5R."
+  },
+  {
+   "id": "k32",
+   "source": "c1",
+   "quote": "A+ cue: the line matters to many people, the 50-day or 200-day, or a level",
+   "claim": "Card 32: an A plus cue is a line that matters to many people, an average or a level."
+  },
+  {
+   "id": "k33",
+   "source": "c1",
+   "quote": "(a round number, an old high, a base low), and best when an average and a level sit together.",
+   "claim": "Card 32: the examples of a level are a round number, an old high and a base low; best when an average and a level sit together."
+  },
+  {
+   "id": "k34",
+   "source": "c1",
+   "quote": "B- cue: a report within about two weeks (10 sessions).",
+   "claim": "Card 32: a B minus cue is a report within about two weeks, 10 sessions."
+  }
+ ],
+ "walkthroughs": [
+  {
+   "key": "w1",
+   "title": "NKE, August 2020: the clean small stop",
+   "steps": [
+    "NKE, 2020. A dip under the 50-day after the 2020 recovery. The remount day is 2020-08-05, a strong close over the line.",
+    "The next day is an inside day above the line. Its high is the buy point: 101.18.",
+    "2020-08-07: it trades over the high. Buy at market, 101.19. Stop a few cents under the quiet day's low: 99.98, 1.2% away.",
+    "Failure mode: the line is lost again and the stop takes it. Instead 3R came the next day; it ran to 25.0R."
+   ],
+   "facts": [
+    "d01",
+    "d02",
+    "m10",
+    "m11",
+    "h22",
+    "h24",
+    "m06"
+   ]
+  },
+  {
+   "key": "w2",
+   "title": "AMD, November 2023: the reaction day remount",
+   "steps": [
+    "AMD, 2023. The report came after the close on 2023-10-31. On 2023-11-01 it remounts the 50-day.",
+    "A remount on the earnings gap is after the report, so it is allowed. The quiet day sets the buy point: 109.41.",
+    "2023-11-03: buy at market, 109.42. Stop a few cents under the quiet day's low: 105.86, 3.3% away. Size comes from that stop.",
+    "Failure mode: the stop. Instead it ran to 21.2R. A stop over about 3% means fewer shares."
+   ],
+   "facts": [
+    "d03",
+    "d04",
+    "k03",
+    "h22",
+    "h24",
+    "h04",
+    "h03",
+    "m07"
+   ]
+  },
+  {
+   "key": "w3",
+   "title": "DOCU, March 2024: a planned loss",
+   "steps": [
+    "DOCU, 2024. A long stay under the 50-day, then a remount on 2024-03-11 and an inside quiet day above the line.",
+    "2024-03-14: buy at market over the quiet day's high, 59.54. Stop a few cents under its low: 58.44, 1.8% away.",
+    "Failure mode, and it happened: a gap under the stop on 2024-03-15. The stop is the exit.",
+    "It held the 50-day for 20 sessions and reached 61.47. The level was right; the trigger did not run."
+   ],
+   "facts": [
+    "d05",
+    "d06",
+    "h22",
+    "h24",
+    "h02",
+    "k07"
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "key": "q01",
+   "skill": "setup.remount",
+   "rung": 1,
+   "format": "mcq",
+   "criterion": "rm.line",
+   "q": "In one line, what is a Remount?",
+   "choices": [
+    "Retaking a line the stock really lost",
+    "A one-day dip under yesterday's low",
+    "A gap up over resistance on earnings",
+    "A breakout from a flat base on volume"
+   ],
+   "answer": "Retaking a line the stock really lost",
+   "why": "Retaking a line the stock really lost. A Remount lost the 50-day or 200-day for real and is buying it back.",
+   "lesson_line": "A Remount is a line lost for real, then taken back.",
+   "facts": [
+    "k18",
+    "v1",
+    "m17"
+   ],
+   "wrong": {
+    "A one-day dip under yesterday's low": "That is an Oops, one session. A Remount follows a real loss of a line.",
+    "A gap up over resistance on earnings": "A gap is a catalyst setup. A Remount buys back a lost line.",
+    "A breakout from a flat base on volume": "A flat base breakout trades through a ceiling. A Remount retakes a line it lost."
+   },
+   "house": true
+  },
+  {
+   "key": "q02",
+   "skill": "setup.remount",
+   "rung": 1,
+   "format": "tf",
+   "criterion": "rm.one_setup",
+   "q": "The Remount has two kinds of line: a moving average, and a price level that held.",
+   "answer": "True",
+   "why": "True. The average form is the 50-day or the 200-day. The level form is a pivot, base low, old high or round number the stock held before it broke.",
+   "lesson_line": "One setup, two kinds of line: an average or a level.",
+   "facts": [
+    "m01",
+    "m02",
+    "k22"
+   ],
+   "house": true
+  },
+  {
+   "key": "q03",
+   "skill": "setup.remount",
+   "rung": 1,
+   "format": "mcq",
+   "criterion": "rm.line",
+   "q": "Which averages does the moving-average form use?",
+   "choices": [
+    "The 50-day and the 200-day",
+    "The 5-day and the 8-day lines",
+    "The 10-week and the 30-week lines",
+    "The session VWAP"
+   ],
+   "answer": "The 50-day and the 200-day",
+   "why": "The 50-day and the 200-day. If the stock lost and retook one of them, it is the moving-average form.",
+   "lesson_line": "Fifty or two hundred. Those are the lines.",
+   "facts": [
+    "m01",
+    "k18"
+   ],
+   "wrong": {
+    "The 5-day and the 8-day lines": "Those are too short to count as a lost line. The Remount uses the 50-day and 200-day.",
+    "The 10-week and the 30-week lines": "Those are weekly lines. Ours are the 50-day and the 200-day.",
+    "The session VWAP": "VWAP resets every day. A lost line has to be one the stock sat under for days."
+   },
+   "house": true
+  },
+  {
+   "key": "q04",
+   "skill": "setup.remount",
+   "rung": 1,
+   "format": "tf",
+   "criterion": "rm.inv_close_back_before_trigger",
+   "q": "You may buy a Remount before the close is above the line to get a better price.",
+   "answer": "False",
+   "why": "False. Wait for the close. Buying before the close is above the line, or on a marginal poke a few cents over it, is a listed mistake.",
+   "lesson_line": "No close above the line, no Remount. Do not anticipate.",
+   "facts": [
+    "k15",
+    "m16",
+    "x1"
+   ],
+   "house": true
+  },
+  {
+   "key": "q05",
+   "skill": "setup.remount",
+   "rung": 1,
+   "format": "fill",
+   "criterion": "rm.above_200",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "The remount close must be above the ___-day SMA.",
+   "bank": [
+    "200",
+    "50",
+    "100",
+    "20",
+    "10"
+   ],
+   "answer": "200",
+   "why": "200. The remount close is above the 200-day SMA, and a 200-day remount is the cross itself. No longs below the 200-day.",
+   "lesson_line": "Above the 200-day, every time.",
+   "facts": [
+    "k01",
+    "m05",
+    "h10"
+   ],
+   "house": true
+  },
+  {
+   "key": "q06",
+   "skill": "setup.remount",
+   "rung": 1,
+   "format": "tf",
+   "criterion": "rm.market_order",
+   "q": "A Remount buy is a limit order, and the stop is a real order with the broker.",
+   "answer": "False",
+   "why": "False. Entries are market orders, and every position has a real stop order with the broker, not a stop kept in your head.",
+   "lesson_line": "Market order in, real stop order out.",
+   "facts": [
+    "m12",
+    "m13",
+    "h22",
+    "h18"
+   ],
+   "house": true
+  },
+  {
+   "key": "q07",
+   "skill": "setup.remount",
+   "rung": 1,
+   "format": "tf",
+   "criterion": "rm.line",
+   "q": "A successful Remount turns the line from a ceiling back into a floor.",
+   "answer": "True",
+   "why": "True. The stock lost the line and it became a ceiling. A clean retake makes it support again.",
+   "lesson_line": "Ceiling to floor. That is the whole idea.",
+   "facts": [
+    "m17",
+    "i1"
+   ],
+   "house": true
+  },
+  {
+   "key": "q08",
+   "skill": "setup.remount",
+   "rung": 2,
+   "format": "tf",
+   "criterion": "rm.above_200",
+   "q": "A 50-day reclaim counts only if the close is also above the 200-day.",
+   "answer": "True",
+   "why": "True. A 50-day reclaim counts only with the close above the 200-day too. ChartSchool agrees: with price above the 200-day, focus on the 50-day signals.",
+   "lesson_line": "A fifty-day retake needs the 200-day under you first.",
+   "facts": [
+    "m05",
+    "x3",
+    "x4",
+    "h10"
+   ],
+   "house": true
+  },
+  {
+   "key": "q09",
+   "skill": "setup.remount",
+   "rung": 2,
+   "format": "mcq",
+   "criterion": "rm.line",
+   "q": "What does IBD say institutions may do once a stock is below its 50-day?",
+   "choices": [
+    "Use the line to mark a sell level",
+    "Buy every dip to the line",
+    "Ignore the line until the 200-day",
+    "Short only above the line"
+   ],
+   "answer": "Use the line to mark a sell level",
+   "why": "Use the line to mark a sell level. That is why it takes a large boost of buying power to muscle back above it.",
+   "lesson_line": "Lost lines turn into sell levels. Retaking one takes real buying.",
+   "facts": [
+    "i2",
+    "i1",
+    "x5"
+   ],
+   "wrong": {
+    "Buy every dip to the line": "IBD says the opposite: below the line it can mark a sell level.",
+    "Ignore the line until the 200-day": "IBD treats the 50-day line as a level institutions watch.",
+    "Short only above the line": "IBD speaks of a sell level under the line, not a short rule."
+   }
+  },
+  {
+   "key": "q10",
+   "skill": "setup.remount",
+   "rung": 2,
+   "format": "tf",
+   "criterion": "rm.inv_close_back_before_trigger",
+   "q": "A Remount counts once price pokes a few cents over the line during the day.",
+   "answer": "False",
+   "why": "False. A remount needs a full candle close above the average. A marginal poke a few cents over the line is not a remount day.",
+   "lesson_line": "Close it above. A poke is not a retake.",
+   "facts": [
+    "x1",
+    "k15"
+   ],
+   "house": true
+  },
+  {
+   "key": "q11",
+   "skill": "setup.remount",
+   "rung": 2,
+   "format": "mcq",
+   "criterion": "rm.volume",
+   "q": "IBD reads a weak, low-volume rise after a high-volume drop under the 50-day as what?",
+   "choices": [
+    "A chance to sell",
+    "A Remount to buy",
+    "A reason to add",
+    "A confirmed bottom"
+   ],
+   "answer": "A chance to sell",
+   "why": "A chance to sell. A high-volume decline to or below the 50-day followed by a weak low-volume rise is your chance to sell.",
+   "lesson_line": "A light drift back after a heavy drop is a sell, not a buy.",
+   "facts": [
+    "i3",
+    "k13",
+    "m09"
+   ],
+   "wrong": {
+    "A Remount to buy": "IBD says the opposite. A light rise after a heavy drop is a sell, and our card lists it as a mistake.",
+    "A reason to add": "A weak rise gives no reason to add.",
+    "A confirmed bottom": "A weak, low-volume rise confirms nothing."
+   },
+   "house": true
+  },
+  {
+   "key": "q12",
+   "skill": "setup.remount",
+   "rung": 2,
+   "format": "tf",
+   "criterion": "rm.earnings_window",
+   "q": "A Remount on the earnings reaction day is allowed, because the report is already out.",
+   "answer": "True",
+   "why": "True. A remount on the earnings gap itself is after the report and allowed. AMD remounted its 50-day on the reaction day.",
+   "lesson_line": "After the report is fine. Before it is not.",
+   "facts": [
+    "k03",
+    "d03",
+    "d04"
+   ],
+   "house": true
+  },
+  {
+   "key": "q13",
+   "skill": "setup.remount",
+   "rung": 2,
+   "format": "mcq",
+   "criterion": "rm.time_under",
+   "q": "What most separates a Remount from a U&R?",
+   "choices": [
+    "How long the line stayed lost",
+    "The color of the candle",
+    "The ticker's sector",
+    "The size of the first volume bar"
+   ],
+   "answer": "How long the line stayed lost",
+   "why": "How long the line stayed lost. A U&R closes back above within 3 sessions. A Remount spent far longer under the line.",
+   "lesson_line": "Count the sessions under the line. A quick return is a U&R, a long stay a Remount.",
+   "facts": [
+    "m03",
+    "k18"
+   ],
+   "wrong": {
+    "The color of the candle": "Both setups end on a strong close. The stay under the line is what differs.",
+    "The ticker's sector": "Sector does not tell the setups apart.",
+    "The size of the first volume bar": "Volume can be heavy in either setup. The count of sessions under the line decides."
+   },
+   "house": true
+  },
+  {
+   "key": "q14",
+   "skill": "setup.remount",
+   "rung": 2,
+   "format": "fill",
+   "criterion": "rm.breakeven",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "Move the stop to breakeven between 2R and 5R, at the first ___ by default.",
+   "bank": [
+    "trim",
+    "gap",
+    "close",
+    "stop",
+    "week"
+   ],
+   "answer": "trim",
+   "why": "Trim. The stop goes to breakeven between 2R and 5R, at the first trim by default.",
+   "lesson_line": "First trim, stop to breakeven.",
+   "facts": [
+    "h05"
+   ],
+   "house": true
+  },
+  {
+   "key": "q15",
+   "skill": "setup.remount",
+   "rung": 3,
+   "format": "numeric",
+   "criterion": "rm.stop_width",
+   "q": "Buy 101.19, stop 99.98. How far is the stop below the buy, in percent?",
+   "answer": 1.2,
+   "why": "1.2%. The buy minus the stop, divided by the buy. That is NKE: well inside the 3% the stop usually sits within.",
+   "lesson_line": "Measure the stop in percent before you size the trade.",
+   "facts": [
+    "d01",
+    "m07",
+    "h04"
+   ],
+   "house": true,
+   "calc": {
+    "fn": "drawdown_pct",
+    "args": {
+     "peak": 101.19,
+     "trough": 99.98
+    },
+    "round": 1
+   },
+   "suffix": "%"
+  },
+  {
+   "key": "q16",
+   "skill": "setup.remount",
+   "rung": 3,
+   "format": "numeric",
+   "criterion": "rm.trim_1",
+   "q": "Bought at 109.42 with the stop at 105.86. Where is 3R?",
+   "answer": 120.1,
+   "why": "120.10. One R is the fill minus the stop. Add three of those to the fill. The first third comes off there.",
+   "lesson_line": "Know your 3R before the open.",
+   "facts": [
+    "h05",
+    "d03"
+   ],
+   "house": true,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "a + 3 * (a - b)",
+     "a": 109.42,
+     "b": 105.86
+    },
+    "round": 2
+   },
+   "prefix": "$"
+  },
+  {
+   "key": "q17",
+   "skill": "setup.remount",
+   "rung": 3,
+   "format": "tf",
+   "criterion": "rm.after_entry_stop",
+   "q": "A close back under the line after the buy is an extra exit before the stop.",
+   "answer": "False",
+   "why": "False. The stop is the exit. A close back under the line is not an extra exit; the trade is held while it stays above the stop.",
+   "lesson_line": "The stop is the exit. A close under the line is a warning only.",
+   "facts": [
+    "m06",
+    "h02"
+   ],
+   "house": true
+  },
+  {
+   "key": "q18",
+   "skill": "setup.remount",
+   "rung": 3,
+   "format": "mcq",
+   "criterion": "rm.stop",
+   "q": "What kind of stop do we place on a Remount?",
+   "choices": [
+    "A broker order under the low",
+    "A close-only stop under the line",
+    "A mental stop at the line",
+    "No stop until 1R"
+   ],
+   "answer": "A broker order under the low",
+   "why": "A broker order under the low. It is a real stop that only moves up.",
+   "lesson_line": "A real order, a few cents under the low.",
+   "facts": [
+    "h18",
+    "h24",
+    "m13"
+   ],
+   "wrong": {
+    "A close-only stop under the line": "A stop that waits for a close cannot sit with the broker as an order.",
+    "A mental stop at the line": "Every position has a real stop order with the broker.",
+    "No stop until 1R": "The stop goes in with the buy. It is never optional."
+   },
+   "house": true
+  },
+  {
+   "key": "q19",
+   "skill": "setup.remount",
+   "rung": 3,
+   "format": "tf",
+   "criterion": "rm.time_stop",
+   "q": "A gap through the stop is this setup's main failure.",
+   "answer": "False",
+   "why": "False. Chop around the line is the main failure, and the time stop frees the money. ChartSchool agrees that crossover signals are less reliable in sideways markets.",
+   "lesson_line": "Chop kills Remounts. The time stop frees the money.",
+   "facts": [
+    "k12",
+    "x2",
+    "dv1"
+   ],
+   "house": true
+  },
+  {
+   "key": "q20",
+   "skill": "setup.remount",
+   "rung": 3,
+   "format": "mcq",
+   "criterion": "rm.entry_pause",
+   "q": "After the remount day, what arms the buy?",
+   "choices": [
+    "A quiet inside day above the line",
+    "Any red day on heavy volume",
+    "A gap down under the line",
+    "A new 52-week low on heavy volume"
+   ],
+   "answer": "A quiet inside day above the line",
+   "why": "A quiet inside day above the line. The pause closes above the line, and the buy is a market order as price trades over that day's high.",
+   "lesson_line": "Retake, pause, then buy over the quiet day's high.",
+   "facts": [
+    "m10",
+    "m11",
+    "k23"
+   ],
+   "wrong": {
+    "Any red day on heavy volume": "A red day proves nothing. The pause has to hold above the line and go quiet.",
+    "A gap down under the line": "A close back under the line before the trigger means no trade.",
+    "A new 52-week low on heavy volume": "A new low is the opposite of a retake."
+   },
+   "house": true
+  },
+  {
+   "key": "q21",
+   "skill": "setup.remount",
+   "rung": 3,
+   "format": "fill",
+   "criterion": "rm.stop",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "The stop only moves ___.",
+   "bank": [
+    "up",
+    "down",
+    "wider",
+    "sideways",
+    "back"
+   ],
+   "answer": "up",
+   "why": "Up. The stop is the exit. It only moves up, never down or wider. The gap rule is the one exception.",
+   "lesson_line": "Up, never wider.",
+   "facts": [
+    "h02"
+   ],
+   "house": true
+  },
+  {
+   "key": "q22",
+   "skill": "setup.remount",
+   "rung": 3,
+   "format": "tf",
+   "criterion": "rm.liquidity",
+   "q": "A $9 stock that trades $30 million a day passes our price and volume rule for a Remount.",
+   "answer": "False",
+   "why": "False. We trade only stocks at $10 or more that trade at least $20 million a day. The volume passes and the price fails.",
+   "lesson_line": "Ten dollars and twenty million a day. Both.",
+   "facts": [
+    "h09"
+   ],
+   "house": true
+  },
+  {
+   "key": "q23",
+   "skill": "setup.remount",
+   "rung": 4,
+   "format": "scenario",
+   "criterion": "rm.time_under",
+   "q": "Is this a Remount?",
+   "choices": [
+    "No; a pullback or U&R, line kept",
+    "Yes, it retook the 50-day cleanly",
+    "Yes, if the volume is heavy",
+    "Yes, buy the close"
+   ],
+   "answer": "No; a pullback or U&R, line kept",
+   "why": "No. The line was never really lost, so it is a pullback or a U&R.",
+   "lesson_line": "A two-day dip is not a lost line.",
+   "facts": [
+    "m03",
+    "k18"
+   ],
+   "wrong": {
+    "Yes, it retook the 50-day cleanly": "It retook the line, but the line was never really lost. Two sessions is a dip.",
+    "Yes, if the volume is heavy": "Volume does not change the count. A short dip is not a lost line.",
+    "Yes, buy the close": "Buying the close of a short dip is a pullback or U&R trade, with its own rules."
+   },
+   "house": true,
+   "story": "A leader closes under its 50-day for two sessions. Then it closes back above with a strong candle."
+  },
+  {
+   "key": "q24",
+   "skill": "setup.remount",
+   "rung": 4,
+   "format": "scenario",
+   "criterion": "rm.line",
+   "q": "Which setup is this?",
+   "choices": [
+    "The AVWAP reclaim",
+    "A moving-average Remount",
+    "A level Remount",
+    "An Oops"
+   ],
+   "answer": "The AVWAP reclaim",
+   "why": "The AVWAP reclaim. A line that starts at one event day and bends with volume is the AVWAP; a Remount line is an average or a flat level.",
+   "lesson_line": "Name the line. A bending line from an event day is not a Remount.",
+   "facts": [
+    "k20",
+    "m01"
+   ],
+   "wrong": {
+    "A moving-average Remount": "A Remount uses the 50-day or the 200-day, which do not start at one event day.",
+    "A level Remount": "A level Remount uses a flat price level that held. This line bends with volume.",
+    "An Oops": "An Oops is one session that opens under the prior close. It has no line like this."
+   },
+   "house": true,
+   "story": "A stock closes over a line that starts at its August high and bends with volume."
+  },
+  {
+   "key": "q25",
+   "skill": "setup.remount",
+   "rung": 4,
+   "format": "numeric",
+   "criterion": "rm.trim_1",
+   "q": "Bought at 59.54, stop 58.44. The stock trades to 61.47. How many R is that?",
+   "answer": 1.75,
+   "why": "1.75R. Each R is the fill minus the stop. DOCU got that far inside its window without reaching 3R.",
+   "lesson_line": "Count in R. Under 3R, no trim.",
+   "facts": [
+    "d05",
+    "d06",
+    "h05"
+   ],
+   "house": true,
+   "calc": {
+    "fn": "r_multiple",
+    "args": {
+     "entry": 59.54,
+     "stop": 58.44,
+     "exit": 61.47
+    },
+    "round": 2
+   },
+   "suffix": "R"
+  },
+  {
+   "key": "q26",
+   "skill": "setup.remount",
+   "rung": 4,
+   "format": "scenario",
+   "criterion": "rm.stop_width",
+   "q": "Given the wide stop, what is the call?",
+   "choices": [
+    "Size down or skip; never tighten",
+    "Tighten the stop to fit a full size",
+    "Buy full size and accept the risk",
+    "Use the line on a close"
+   ],
+   "answer": "Size down or skip; never tighten",
+   "why": "Size down or skip. If the stop is more than about 3% away, size down so the account risk is unchanged, or skip. Never tighten it to fit.",
+   "lesson_line": "A wide stop means fewer shares or no trade. Never tighten it.",
+   "facts": [
+    "m07",
+    "h01",
+    "h04"
+   ],
+   "wrong": {
+    "Tighten the stop to fit a full size": "Never tighten the stop to fit. A stop that does not mark the real low is not honest.",
+    "Buy full size and accept the risk": "The size comes from the stop. A wide stop means fewer shares or no trade.",
+    "Use the line on a close": "A stop on a close cannot sit with the broker, and it does not fix the distance."
+   },
+   "house": true,
+   "story": "A clean Remount sets up. The honest stop, a few cents under the low, is 5.5% below the buy."
+  },
+  {
+   "key": "q27",
+   "skill": "setup.remount",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "rm.stop_gap",
+   "q": "Gap through the stop. Your move?",
+   "choices": [
+    "Get out; that low is past 2R",
+    "Set the stop at 57.20 and hold",
+    "Keep the 58.44 stop and wait",
+    "Buy more at the lower price"
+   ],
+   "answer": "Get out; that low is past 2R",
+   "why": "Get out. A gap through the stop hands it to the first 30-minute low, but if that takes the loss past 2R, get out.",
+   "lesson_line": "First 30 minutes decide. Past 2R, out.",
+   "facts": [
+    "h06",
+    "h07",
+    "h02"
+   ],
+   "wrong": {
+    "Set the stop at 57.20 and hold": "The first 30-minute low is the new stop, but only up to a ceiling. Past 2R, you are out.",
+    "Keep the 58.44 stop and wait": "The stock is already through it. The gap rule hands the stop to the first 30 minutes.",
+    "Buy more at the lower price": "No adding, and never into a gap against the stop."
+   },
+   "house": true,
+   "story": "You bought at 59.54 with the stop at 58.44, so 1R is 1.10. The next morning gaps down to 57.80. The first 30-minute low is 57.20."
+  },
+  {
+   "key": "q28",
+   "skill": "setup.remount",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "rm.trim_gap_open",
+   "q": "The open is past your 3R level. Your move?",
+   "choices": [
+    "Take the first third at the open",
+    "Wait for 104.82 on a pullback down",
+    "Hold it all and trail the average",
+    "Sell everything at the open"
+   ],
+   "answer": "Take the first third at the open",
+   "why": "Take the first third at the open. If a stock opens above a trim level, take that trim at the open.",
+   "lesson_line": "Gap past a trim level: take it at the open.",
+   "facts": [
+    "h25",
+    "h05",
+    "h20"
+   ],
+   "wrong": {
+    "Wait for 104.82 on a pullback down": "You may never see it again. A trim level the day opens past is taken at the open.",
+    "Hold it all and trail the average": "The trail is for the last third, after the trims.",
+    "Sell everything at the open": "The plan is a third at 3R, a third at 5R, then the trail."
+   },
+   "house": true,
+   "story": "You bought at 101.19 with the stop at 99.98. Your 3R level is 104.82. Two days later the stock opens at 106.00."
+  },
+  {
+   "key": "q29",
+   "skill": "setup.remount",
+   "rung": 5,
+   "format": "numeric",
+   "criterion": "rm.stop_width",
+   "q": "Account 100,000, risk 0.5%. Buy 109.42, stop 105.86. How many shares does the stop allow?",
+   "answer": 140,
+   "why": "140 shares. The size comes from the stop: risk divided by the distance, rounded down. The 40% position cap is not close. That stop was 3.3% from the buy.",
+   "lesson_line": "The stop sets the size. Wider stop, fewer shares.",
+   "facts": [
+    "h03",
+    "d03",
+    "m07",
+    "h30"
+   ],
+   "house": true,
+   "calc": {
+    "fn": "shares_from_risk",
+    "args": {
+     "account": 100000,
+     "risk_pct": 0.5,
+     "entry": 109.42,
+     "stop": 105.86
+    },
+    "round": 0
+   }
+  },
+  {
+   "key": "q30",
+   "skill": "setup.remount",
+   "rung": 5,
+   "format": "mcq",
+   "criterion": "rm.trail",
+   "q": "Which average trails a fresh 200-day remount?",
+   "choices": [
+    "The 21-day, for a steadier name",
+    "The 3-day, for a fast mover",
+    "The 200-day, the line you retook",
+    "The 50-day, for any remount"
+   ],
+   "answer": "The 21-day, for a steadier name",
+   "why": "The 21-day, for a steadier name. A fast mover trails the 10-day. Sell on a close below it.",
+   "lesson_line": "Steady name, 21-day. Fast mover, 10-day.",
+   "facts": [
+    "m14",
+    "h21"
+   ],
+   "wrong": {
+    "The 3-day, for a fast mover": "That is far too tight and shakes you out of a runner.",
+    "The 200-day, the line you retook": "The line you just retook is far too slow to trail.",
+    "The 50-day, for any remount": "The card names the 21-day for a steadier name and the 10-day for a fast mover."
+   },
+   "house": true
+  },
+  {
+   "key": "q31",
+   "skill": "setup.remount",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "rm.time_stop",
+   "q": "What now?",
+   "choices": [
+    "Sell; under 1R after 10 sessions",
+    "Hold, because the stop is not hit",
+    "Add to the position",
+    "Move the stop up to breakeven"
+   ],
+   "answer": "Sell; under 1R after 10 sessions",
+   "why": "Sell. A trade still under 1R after 10 trading days is sold. Chop is this setup's main failure.",
+   "lesson_line": "Ten sessions, under 1R: out.",
+   "facts": [
+    "h15",
+    "k12",
+    "h05"
+   ],
+   "wrong": {
+    "Hold, because the stop is not hit": "The stop is not the only exit. A trade still under 1R after 10 sessions is sold.",
+    "Add to the position": "We do not add. The money is better used on a new setup.",
+    "Move the stop up to breakeven": "Breakeven comes at 2R to 5R, not at 0.5R."
+   },
+   "house": true,
+   "story": "Ten sessions after the buy, the stock sits at 0.5R. The stop has not been hit and no trim has come off."
+  },
+  {
+   "key": "q32",
+   "skill": "setup.remount",
+   "rung": 5,
+   "format": "mcq",
+   "criterion": "rm.trim_1",
+   "q": "Where do the first two trims come off?",
+   "choices": [
+    "A third at 3R, a third at 5R",
+    "Half at 2R, half at 4R",
+    "All of it at 3R",
+    "A third each at 1R, 2R and 3R"
+   ],
+   "answer": "A third at 3R, a third at 5R",
+   "why": "A third at 3R and another third at 5R, then trail the last third.",
+   "lesson_line": "Third at 3R, third at 5R, trail the rest.",
+   "facts": [
+    "h05",
+    "h20"
+   ],
+   "wrong": {
+    "Half at 2R, half at 4R": "That is not our plan. The hard rule is a third at 3R.",
+    "All of it at 3R": "The last third rides the trail.",
+    "A third each at 1R, 2R and 3R": "Trimming that early cuts the runner. The first trim is at 3R."
+   },
+   "house": true
+  },
+  {
+   "key": "q33",
+   "skill": "setup.remount",
+   "rung": 6,
+   "format": "tf",
+   "criterion": "rm.expect_losses",
+   "q": "Most Remount trades win small, so cut the runner early to lock in the gain.",
+   "answer": "False",
+   "why": "False. Expect most trades to lose. The few runners pay for them, so do not cut the runner early.",
+   "lesson_line": "Most lose small. The runners pay for the rest.",
+   "facts": [
+    "k05",
+    "k16",
+    "k24"
+   ],
+   "house": true
+  },
+  {
+   "key": "q34",
+   "skill": "setup.remount",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "rm.expect_losses",
+   "q": "Hold the rest or cash out?",
+   "choices": [
+    "Hold the rest and trail it",
+    "Sell it all; a win is a win",
+    "Widen the stop to give it room",
+    "Add, it is working"
+   ],
+   "answer": "Hold the rest and trail it",
+   "why": "Hold the rest and trail it. Do not cut the runner early. Another third comes off at 5R, then the trail takes the last third.",
+   "lesson_line": "Let the runner run. The trail does the selling.",
+   "facts": [
+    "k05",
+    "k16",
+    "h20",
+    "h21"
+   ],
+   "wrong": {
+    "Sell it all; a win is a win": "Most trades lose small, so cutting the runner early gives up what pays for the losers.",
+    "Widen the stop to give it room": "The stop only moves up, never wider.",
+    "Add, it is working": "Full size at one price with one stop. No adding."
+   },
+   "house": true,
+   "story": "You sold a third at 3R and moved the stop to breakeven. The stock now sits at 4R, above its 10-day, and you want to cash out."
+  },
+  {
+   "key": "q35",
+   "skill": "setup.remount",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "rm.failed_first_try",
+   "q": "Buy again?",
+   "choices": [
+    "Only on a new trigger, as a new trade",
+    "Yes, it is the same setup",
+    "Yes, with a wider stop",
+    "Yes, at double size"
+   ],
+   "answer": "Only on a new trigger, as a new trade",
+   "why": "Only on a new trigger. A second try is a new trade with its own trigger and stop, at most 3 a week and 6 a month on one stock.",
+   "lesson_line": "A stop-out is not a signal. Wait for a new trigger.",
+   "facts": [
+    "k07",
+    "h28",
+    "h29"
+   ],
+   "wrong": {
+    "Yes, it is the same setup": "The same setup is not a trigger. A second try is a new trade with its own trigger and stop.",
+    "Yes, with a wider stop": "A wider stop to get back in is the mistake, not the fix.",
+    "Yes, at double size": "Doubling to win it back makes a small loss bigger."
+   },
+   "house": true,
+   "story": "Your first Remount stopped out. Four sessions later the stock closes back over the 200-day again."
+  },
+  {
+   "key": "q36",
+   "skill": "setup.remount",
+   "rung": 6,
+   "format": "tf",
+   "criterion": "rm.index_remounting",
+   "q": "Remounts do best while the index still sits under its own 200-day.",
+   "answer": "False",
+   "why": "False. Remounts are best after a correction, as the indexes remount their own lines and leaders remount first. They are weak with the index under its own 200-day.",
+   "lesson_line": "The best Remounts come as the market itself turns up.",
+   "facts": [
+    "k10",
+    "k25"
+   ],
+   "house": true
+  },
+  {
+   "key": "q37",
+   "skill": "setup.remount",
+   "rung": 6,
+   "format": "tf",
+   "criterion": "rm.market_reading",
+   "q": "On a Red market reading we are mostly in cash, so a textbook Remount waits.",
+   "answer": "True",
+   "why": "True. Red means mostly cash and shorts. Green is full risk, Yellow is smaller and fewer, and Orange allows only A+ setups.",
+   "lesson_line": "Red means mostly cash. The setup waits.",
+   "facts": [
+    "h26",
+    "k02"
+   ],
+   "house": true
+  },
+  {
+   "key": "q38",
+   "skill": "setup.remount",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "rm.not_chop_line",
+   "q": "Take it or pass?",
+   "choices": [
+    "Pass; it is a chop line",
+    "Take it; it closed above",
+    "Take it at half size",
+    "Buy the open tomorrow"
+   ],
+   "answer": "Pass; it is a chop line",
+   "why": "Pass. A flat line that price has crossed back and forth for weeks is a chop line. Weinstein's stage work says to avoid trading the sideways chop.",
+   "lesson_line": "A flat line crossed for weeks is a chop line. Pass.",
+   "facts": [
+    "m15",
+    "k14",
+    "dv1",
+    "x2",
+    "e08",
+    "e09"
+   ],
+   "wrong": {
+    "Take it; it closed above": "A close above a line it has crossed for weeks proves little. Whipsaw is the main miss.",
+    "Take it at half size": "Half size on a chop line is still a chop trade.",
+    "Buy the open tomorrow": "Waiting a day does not change a flat, sawed-through line."
+   },
+   "house": true,
+   "story": "A stock has crossed back and forth over its flat 200-day for weeks. Today it closes just above the line."
+  },
+  {
+   "key": "q39",
+   "skill": "setup.remount",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "rm.all_mas",
+   "q": "Which grades higher?",
+   "choices": [
+    "The one that clears every average",
+    "The one with the 50-day overhead",
+    "Both grade the same; each is a pass",
+    "Neither; both are passes"
+   ],
+   "answer": "The one that clears every average",
+   "why": "The one that clears every average. That is an A plus cue; leaving the 50-day overhead and falling is a B minus cue.",
+   "lesson_line": "Clear every average at once. That is the A plus picture.",
+   "facts": [
+    "k08",
+    "m18"
+   ],
+   "wrong": {
+    "The one with the 50-day overhead": "Leaving the 50-day overhead and falling is a B minus cue.",
+    "Both grade the same; each is a pass": "Clearing every average at once is an A plus cue; a falling average overhead is not.",
+    "Neither; both are passes": "Both can be taken, and grade sets the size. The weaker one is just a lower grade."
+   },
+   "house": true,
+   "story": "Two remounts of the 200-day. One also clears the 20 and 50-day at once. The other leaves the 50-day overhead and falling."
+  },
+  {
+   "key": "q40",
+   "skill": "setup.remount",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "rm.inv_light_after_heavy",
+   "q": "What is the call?",
+   "choices": [
+    "Pass; a weak retake on light volume",
+    "Buy; the line is retaken on the close",
+    "Buy half size and use a tight stop",
+    "Buy the next dip back to the line"
+   ],
+   "answer": "Pass; a weak retake on light volume",
+   "why": "Pass. A light-volume reclaim after a heavy-volume break is an invalidation. IBD reads that weak rise as a chance to sell.",
+   "lesson_line": "Heavy break, light retake: a sell, not a buy.",
+   "facts": [
+    "m09",
+    "k13",
+    "i3"
+   ],
+   "wrong": {
+    "Buy; the line is retaken on the close": "The line is retaken, but a light-volume reclaim after a heavy-volume break is an invalidation.",
+    "Buy half size and use a tight stop": "Half size does not fix a reclaim IBD reads as a sell.",
+    "Buy the next dip back to the line": "A dip in a weak retake is no trigger."
+   },
+   "house": true,
+   "story": "A stock lost its 50-day on heavy volume. It drifts back over the line on light volume."
+  },
+  {
+   "key": "q41",
+   "skill": "setup.remount",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "rm.time_under",
+   "q": "Remount or U&R?",
+   "choices": [
+    "A U&R, back within 3 sessions",
+    "A Remount of the base low",
+    "An Oops, a one-session undercut",
+    "A 20 EMA pullback to support"
+   ],
+   "answer": "A U&R, back within 3 sessions",
+   "why": "A U&R. An Undercut and Rally closes back above the level within 3 sessions and is bought as the level is retaken.",
+   "lesson_line": "Back in 3 sessions: a U&R. A long stay under the line: a Remount.",
+   "facts": [
+    "m03",
+    "k18"
+   ],
+   "wrong": {
+    "A Remount of the base low": "A Remount lost the line for a long stay. This was a couple of sessions.",
+    "An Oops, a one-session undercut": "An Oops is one session that opens under the prior close. This took more than one.",
+    "A 20 EMA pullback to support": "A pullback holds its line. This undercut a base low and took it back."
+   },
+   "house": true,
+   "story": "The stock closed under its base low on Tuesday. It closed back over it on Thursday."
+  },
+  {
+   "key": "q42",
+   "skill": "setup.remount",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "rm.time_under",
+   "q": "Remount or Oops?",
+   "choices": [
+    "An Oops; it is one session",
+    "A Remount of the 50-day line",
+    "A Remount of a lost level",
+    "An AVWAP reclaim from an event day"
+   ],
+   "answer": "An Oops; it is one session",
+   "why": "An Oops. It is one session. It opens under the prior close, trades under the prior day's low and closes back over the prior close.",
+   "lesson_line": "One session is an Oops. A lost line takes days.",
+   "facts": [
+    "k21",
+    "k18"
+   ],
+   "wrong": {
+    "A Remount of the 50-day line": "A Remount follows a line lost for a long stay. This took one session.",
+    "A Remount of a lost level": "No level was lost for days here. One session is an Oops.",
+    "An AVWAP reclaim from an event day": "No event day or volume-bent line is described. This was one session."
+   },
+   "house": true,
+   "story": "A stock opens under its prior close, trades under yesterday's low and closes back over yesterday's close. All in one session."
+  },
+  {
+   "key": "q43",
+   "skill": "setup.remount",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "rm.line",
+   "q": "Which form is this?",
+   "choices": [
+    "The level form of a Remount",
+    "A moving-average Remount",
+    "A U&R of the breakout level",
+    "An AVWAP reclaim from an event"
+   ],
+   "answer": "The level form of a Remount",
+   "why": "The level form of a Remount. A horizontal level that held before it broke, then lost and retaken, is the level form.",
+   "lesson_line": "Flat level that held, lost, retaken: the level form.",
+   "facts": [
+    "m02",
+    "k22",
+    "k20",
+    "m01"
+   ],
+   "wrong": {
+    "A moving-average Remount": "The line is a breakout level, not the 50-day or the 200-day.",
+    "A U&R of the breakout level": "Three weeks under the line is far past a U&R.",
+    "An AVWAP reclaim from an event": "A breakout level is flat. The AVWAP bends with volume from an event day."
+   },
+   "house": true,
+   "story": "A stock lost its 100.00 breakout level and stayed under it for three weeks. Today it closes back above."
+  },
+  {
+   "key": "q44",
+   "skill": "setup.remount",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "rm.remount_day_margin",
+   "q": "Is this a clear remount day?",
+   "choices": [
+    "No; wait for a clear close",
+    "Yes, it closed over the line",
+    "Yes, buy the next open",
+    "Yes, add on strength"
+   ],
+   "answer": "No; wait for a clear close",
+   "why": "No. A close 0.08 ATR over the line is a marginal poke inside the noise. ESS remounted clearly a few sessions later and reached 14.9R.",
+   "lesson_line": "Wait for the clear close. A poke is not a retake.",
+   "facts": [
+    "d11",
+    "d12",
+    "k15"
+   ],
+   "wrong": {
+    "Yes, it closed over the line": "A close a hair over the line is a marginal poke inside the noise.",
+    "Yes, buy the next open": "Buying a marginal poke is a listed mistake.",
+    "Yes, add on strength": "We do not add, and the retake is not clear yet."
+   },
+   "house": true,
+   "story": "After weeks under the 50-day, the stock closes 0.08 ATR over it. Nothing else is wrong."
+  },
+  {
+   "key": "q45",
+   "skill": "setup.remount",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "rm.inv_close_back_before_trigger",
+   "q": "Your move before the buy?",
+   "choices": [
+    "Nothing; wait for a new close",
+    "Buy anyway; it is just one close",
+    "Buy half size, stop at the low",
+    "Lower the line and buy"
+   ],
+   "answer": "Nothing; wait for a new close",
+   "why": "Nothing. A close back under the line before the trigger means no trade. The remount is off until it closes above again.",
+   "lesson_line": "Back under the line before the buy means no trade.",
+   "facts": [
+    "k06",
+    "m08"
+   ],
+   "wrong": {
+    "Buy anyway; it is just one close": "A close back under the line before the trigger means no trade.",
+    "Buy half size, stop at the low": "Half size does not fix a failed retake.",
+    "Lower the line and buy": "Moving the line to fit the chart is how you buy a failed setup."
+   },
+   "house": true,
+   "story": "The stock remounted its 200-day yesterday. Today, before you buy, it closes back under the line."
+  },
+  {
+   "key": "q46",
+   "skill": "setup.remount",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "rm.no_chase",
+   "q": "Do you buy?",
+   "choices": [
+    "Pass; over 4% above the buy point",
+    "Buy; it traded over the high",
+    "Buy half size to cut the risk",
+    "Buy with a wider stop to fit the gap"
+   ],
+   "answer": "Pass; over 4% above the buy point",
+   "why": "Pass. Never buy more than 4% above the buy point. Chasing costs size, not risk: the stop stays put and the distance grows.",
+   "lesson_line": "Four percent over the buy point and I am done.",
+   "facts": [
+    "h11",
+    "h12",
+    "m11"
+   ],
+   "wrong": {
+    "Buy; it traded over the high": "It did trade over the high, but the fill is more than 4% over the buy point. Never buy more than 4% above the buy point.",
+    "Buy half size to cut the risk": "Half of a chase is still a chase.",
+    "Buy with a wider stop to fit the gap": "A wider stop to fit a late fill is the mistake, not the fix."
+   },
+   "house": true,
+   "story": "The quiet day's high is 50.00. The stock gaps up to 52.60 at the open."
+  },
+  {
+   "key": "q47",
+   "skill": "setup.remount",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "rm.not_stretched",
+   "q": "Buy over the high?",
+   "choices": [
+    "Pass; more than 10% over the 10-day",
+    "Buy; the trigger fired over the high",
+    "Buy at half size",
+    "Buy and trail it with the 5-day"
+   ],
+   "answer": "Pass; more than 10% over the 10-day",
+   "why": "Pass. Skip a stock that is more than 10% over its 10-day average. The trigger firing does not lift that rule.",
+   "lesson_line": "More than ten percent over the 10-day: skip.",
+   "facts": [
+    "h13",
+    "k04"
+   ],
+   "wrong": {
+    "Buy; the trigger fired over the high": "The trigger fired, and the stretch rule still says no.",
+    "Buy at half size": "Smaller size does not make a stretched stock cheaper.",
+    "Buy and trail it with the 5-day": "The trail is for exits. The stretch rule is for entries."
+   },
+   "house": true,
+   "story": "The quiet day holds above the line. The next morning the stock is 12% over its 10-day average."
+  },
+  {
+   "key": "q48",
+   "skill": "setup.remount",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "rm.earnings_window",
+   "q": "Buy the close?",
+   "choices": [
+    "No; a report inside 3 sessions",
+    "Yes, the picture is perfect",
+    "Yes, at half the usual size",
+    "Yes, as long as the stop is tight"
+   ],
+   "answer": "No; a report inside 3 sessions",
+   "why": "No. No new buy in the 3 sessions before a report. After the report, a remount on the reaction day itself is allowed.",
+   "lesson_line": "Report tonight, no buy. After the report, it can trigger.",
+   "facts": [
+    "k03",
+    "h08"
+   ],
+   "wrong": {
+    "Yes, the picture is perfect": "The picture is not the issue. No new buys in the 3 sessions before a report.",
+    "Yes, at half the usual size": "Half size is still a new buy inside the window.",
+    "Yes, as long as the stop is tight": "A tight stop does not lift the earnings rule."
+   },
+   "house": true,
+   "story": "A textbook 200-day remount closes today. The company reports earnings tonight."
+  },
+  {
+   "key": "q49",
+   "skill": "setup.remount",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "rm.first_try_after_decline",
+   "q": "How do you grade it?",
+   "choices": [
+    "B minus; a first try on a curling line",
+    "A plus; it finally turned after months",
+    "A; it cleared the 50-day on a close",
+    "No trade; it is a base"
+   ],
+   "answer": "B minus; a first try on a curling line",
+   "why": "B minus. A first attempt after a long decline, or a line still curling lower, is a B minus cue. Grade sets the size.",
+   "lesson_line": "First try after a long fall: lower grade, smaller size.",
+   "facts": [
+    "k11"
+   ],
+   "wrong": {
+    "A plus; it finally turned after months": "A first attempt after a long decline is a B minus cue.",
+    "A; it cleared the 50-day on a close": "The clear is real, but a line still curling lower is a B minus cue.",
+    "No trade; it is a base": "Nothing makes it a base here. It is a lower grade, not a ban."
+   },
+   "house": true,
+   "story": "A stock sold off hard for months. Today it remounts its 50-day for the first time, still above its 200-day. The 50-day is still curling lower."
+  },
+  {
+   "key": "q50",
+   "skill": "setup.remount",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "rm.index_remounting",
+   "q": "What does that add?",
+   "choices": [
+    "An A plus cue: it leads the index",
+    "A warning: it is ahead of the market",
+    "Nothing; ignore the index",
+    "A reason to double size"
+   ],
+   "answer": "An A plus cue: it leads the index",
+   "why": "An A plus cue. A leader that lost the line in a market shakeout and remounted before the index did is an A plus cue.",
+   "lesson_line": "Leaders remount first. That is the A plus picture.",
+   "facts": [
+    "k09",
+    "k10"
+   ],
+   "wrong": {
+    "A warning: it is ahead of the market": "Leaders remount first. That is a cue, not a warning.",
+    "Nothing; ignore the index": "The market matters. A leader remounting first is a grade cue.",
+    "A reason to double size": "Size comes from the stop and the grade, never doubled."
+   },
+   "house": true,
+   "story": "A leader lost its 50-day in a market shakeout. It remounts while the index is still under its own 50-day."
+  },
+  {
+   "key": "q51",
+   "skill": "setup.remount",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "rm.after_entry_stop",
+   "q": "Where does that leave you?",
+   "choices": [
+    "Nothing; wait for a fresh trigger",
+    "Buy back at 59.54; the line held",
+    "Buy now and skip the stop this time",
+    "Widen the stop next time"
+   ],
+   "answer": "Nothing; wait for a fresh trigger",
+   "why": "Nothing. The level was right and the trigger did not run. A second try is a new trade with its own trigger and stop.",
+   "lesson_line": "Right level, wrong trigger. Wait for a new one.",
+   "facts": [
+    "d05",
+    "d06",
+    "k07"
+   ],
+   "wrong": {
+    "Buy back at 59.54; the line held": "The line held, but the trigger is gone. A second try is a new trade with its own trigger.",
+    "Buy now and skip the stop this time": "The stop is never optional.",
+    "Widen the stop next time": "The stop sits under the low it marks. Widening it only makes the loss bigger."
+   },
+   "house": true,
+   "story": "You bought at 59.54 with the stop at 58.44. A gap under the stop the next morning ended it. The stock then held its 50-day for 20 sessions."
+  },
+  {
+   "key": "q52",
+   "skill": "setup.remount",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "rm.after_entry_stop",
+   "q": "What does this teach?",
+   "choices": [
+    "The stop was the cost of the setup",
+    "The stop was set too tight to hold",
+    "Never use stops on 200-day names",
+    "Buy back at 206.55 on a pullback"
+   ],
+   "answer": "The stop was the cost of the setup",
+   "why": "The stop was the cost of the setup. FDX was a shakeout: stopped the next day, then it reached the 3R level without us.",
+   "lesson_line": "Some stops are shakeouts. That is the price of the setup.",
+   "facts": [
+    "e03",
+    "e04",
+    "k05"
+   ],
+   "wrong": {
+    "The stop was set too tight to hold": "It marked the real low. A shakeout through it is the price of the setup.",
+    "Never use stops on 200-day names": "The stop is never optional.",
+    "Buy back at 206.55 on a pullback": "That is chasing. A new try needs its own trigger."
+   },
+   "house": true,
+   "story": "You bought a 200-day remount at 198.12 with the stop at 195.31. It stopped you out the next day. Weeks later it reached your old 3R level, 206.55."
+  },
+  {
+   "key": "q53",
+   "skill": "setup.remount",
+   "rung": 9,
+   "format": "scenario",
+   "criterion": "rm.index_remounting",
+   "q": "How do you read this loss?",
+   "choices": [
+    "A planned loss in a weak index",
+    "A flaw in the 200-day line itself",
+    "A reason to skip stops next time",
+    "A sign to buy the gap"
+   ],
+   "answer": "A planned loss in a weak index",
+   "why": "A planned loss. A remount is weak with the index under its own 200-day. AAPL opened lower and traded through the stop the next day.",
+   "lesson_line": "A clean chart is weak when the index is weak.",
+   "facts": [
+    "e01",
+    "e02",
+    "k25"
+   ],
+   "wrong": {
+    "A flaw in the 200-day line itself": "The line was fine. The index under its own 200-day made the remount weak.",
+    "A reason to skip stops next time": "The stop limits a loss like this. It is never optional.",
+    "A sign to buy the gap": "A gap down is not a signal to add."
+   },
+   "house": true,
+   "story": "You bought a 200-day remount at 163.43 with the stop at 159.25. The S&P 500 sits under its own 200-day. Next day it opens down at 159.90 and trades through your stop."
+  },
+  {
+   "key": "q54",
+   "skill": "setup.remount",
+   "rung": 9,
+   "format": "scenario",
+   "criterion": "rm.index_remounting",
+   "q": "What did the heavy volume do for the trade?",
+   "choices": [
+    "Nothing; the index was weak",
+    "It made the trade an A plus",
+    "It removed the need for a stop",
+    "It guaranteed follow-through"
+   ],
+   "answer": "Nothing; the index was weak",
+   "why": "Nothing. PYPL remounted its 200-day on the earnings reaction day in the October 2018 correction and stopped out the next session.",
+   "lesson_line": "Heavy volume does not save a remount in a weak market.",
+   "facts": [
+    "d08",
+    "d09",
+    "k25"
+   ],
+   "wrong": {
+    "It made the trade an A plus": "The index decides first. PYPL had heavy volume and still stopped out.",
+    "It removed the need for a stop": "The stop is never optional.",
+    "It guaranteed follow-through": "Nothing guarantees follow-through."
+   },
+   "house": true,
+   "story": "A 200-day remount shows heavy volume on the earnings reaction day. The index is making new lows. You buy over the quiet day's high."
+  },
+  {
+   "key": "q55",
+   "skill": "setup.remount",
+   "rung": 9,
+   "format": "scenario",
+   "criterion": "rm.market_reading",
+   "q": "Which one do you buy?",
+   "choices": [
+    "A; clears every average, 2% stop",
+    "B; it just retook the 50-day",
+    "C; it just closed above the 200-day",
+    "None; wait for a better one"
+   ],
+   "answer": "A; clears every average, 2% stop",
+   "why": "A. It clears every average, sits above the 200-day, has a stop under about 3% and a Green reading. B fails the 200-day and C is a chop line.",
+   "lesson_line": "Context first: above the 200-day, not a chop line, stop inside 3%.",
+   "facts": [
+    "h10",
+    "m15",
+    "k08",
+    "h04",
+    "h26"
+   ],
+   "wrong": {
+    "B; it just retook the 50-day": "Under a falling 200-day it is not a buy for us.",
+    "C; it just closed above the 200-day": "A flat line crossed ten times is a chop line.",
+    "None; wait for a better one": "A is a good one. Waiting for perfect is not the plan."
+   },
+   "house": true,
+   "story": "Three charts. A: a leader clears every average, a quiet day, a 2% stop, a Green reading. B: the 50-day retaken under a falling 200-day. C: a flat 200-day crossed ten times."
+  },
+  {
+   "key": "q56",
+   "skill": "setup.remount",
+   "rung": 9,
+   "format": "mcq",
+   "criterion": "rm.entry_pause",
+   "q": "Hidden ticker, an inside day after a strong remount close. Is the 50-day held? Take it or pass?",
+   "choices": [
+    "Take it; the quiet day holds the line",
+    "Pass; the close sits under the 50-day",
+    "Pass; the remount close was marginal"
+   ],
+   "answer": "Take it; the quiet day holds the line",
+   "why": "Take it. A strong remount close, then an inside day holding above the 50-day. The buy came the next session and 3R the day after.",
+   "lesson_line": "Strong retake, quiet day above the line: that is the trade.",
+   "facts": [
+    "d01",
+    "d02",
+    "m10"
+   ],
+   "wrong": {
+    "Pass; the close sits under the 50-day": "Look again: the quiet day closes above the 50-day.",
+    "Pass; the remount close was marginal": "The remount close was strong, well clear of the line."
+   },
+   "house": true,
+   "chart": {
+    "sym": "NKE",
+    "asof": "2020-08-06",
+    "window": 120,
+    "forward": 20
+   }
+  },
+  {
+   "key": "q57",
+   "skill": "setup.remount",
+   "rung": 9,
+   "format": "mcq",
+   "criterion": "rm.above_200",
+   "q": "Hidden ticker, the day it closes back over the 50-day. Where is the close against the 200-day? Take it or pass?",
+   "choices": [
+    "Pass; the close is under the 200-day",
+    "Take it; the 50-day was just retaken",
+    "Take it; the volume is heavy"
+   ],
+   "answer": "Pass; the close is under the 200-day",
+   "why": "Pass. The reclaim close was 274.51, under the 200-day SMA at 295.88. A 50-day reclaim under the 200-day is a read, not a buy.",
+   "lesson_line": "A fifty-day retake under the 200-day is not a buy.",
+   "facts": [
+    "e05",
+    "m05",
+    "h10",
+    "k01"
+   ],
+   "wrong": {
+    "Take it; the 50-day was just retaken": "A 50-day reclaim counts only with the close above the 200-day too.",
+    "Take it; the volume is heavy": "Volume does not override the 200-day rule."
+   },
+   "house": true,
+   "chart": {
+    "sym": "CRM",
+    "asof": "2025-06-06",
+    "window": 120,
+    "forward": 20
+   }
+  },
+  {
+   "key": "q58",
+   "skill": "setup.remount",
+   "rung": 5,
+   "format": "tf",
+   "criterion": "rm.position_adv",
+   "q": "We keep a position under 1% of the stock's average daily volume.",
+   "answer": "True",
+   "why": "True. Never own more than 1% of a stock's average daily volume. Thin stocks are not even on the watchlist.",
+   "lesson_line": "Stay under 1% of daily volume.",
+   "facts": [
+    "h19"
+   ],
+   "house": true
+  },
+  {
+   "key": "q59",
+   "skill": "setup.remount",
+   "rung": 5,
+   "format": "mcq",
+   "criterion": "rm.breakeven",
+   "q": "After the first third comes off at 3R, where does the stop go?",
+   "choices": [
+    "Up to breakeven, our entry",
+    "Down to the line",
+    "Up to the quiet day's high",
+    "It stays until 5R"
+   ],
+   "answer": "Up to breakeven, our entry",
+   "why": "Up to breakeven. The stop goes to breakeven between 2R and 5R, at the first trim by default.",
+   "lesson_line": "First trim off, stop to breakeven.",
+   "facts": [
+    "h05",
+    "h02"
+   ],
+   "wrong": {
+    "Down to the line": "The stop only moves up.",
+    "Up to the quiet day's high": "That is not part of the plan. The stop goes to breakeven, our entry.",
+    "It stays until 5R": "Breakeven comes between 2R and 5R, at the first trim by default."
+   },
+   "house": true
+  },
+  {
+   "key": "q60",
+   "skill": "setup.remount",
+   "rung": 4,
+   "format": "scenario",
+   "criterion": "rm.trim_1",
+   "q": "What do you do?",
+   "choices": [
+    "Sell a third; the stop goes to breakeven",
+    "Sell half; the stop stays",
+    "Hold it all; the stop stays",
+    "Sell it all"
+   ],
+   "answer": "Sell a third; the stop goes to breakeven",
+   "why": "Sell a third; the stop goes to breakeven. The hard rule is a third at 3R, and the stop moves to breakeven at the first trim by default.",
+   "lesson_line": "Third off at 3R, stop to breakeven.",
+   "facts": [
+    "h05",
+    "h20"
+   ],
+   "wrong": {
+    "Sell half; the stop stays": "The hard rule is a third at 3R. The stop moves to breakeven at the first trim by default.",
+    "Hold it all; the stop stays": "The first third comes off at 3R. Holding it all skips the plan.",
+    "Sell it all": "The last third rides the trail. Another third comes off at 5R."
+   },
+   "house": true,
+   "story": "You bought at 101.19 with the stop at 99.98. The stock trades to 104.82, which is 3R."
+  },
+  {
+   "key": "q61",
+   "skill": "setup.remount",
+   "rung": 4,
+   "format": "mcq",
+   "criterion": "rm.line",
+   "q": "What is a shakeout below a line meant to do to holders?",
+   "choices": [
+    "Get them to sell to large operators",
+    "Lock them in so they ride a rally",
+    "Raise the volume for a later breakout",
+    "Prove the trend is over"
+   ],
+   "answer": "Get them to sell to large operators",
+   "why": "Get them to sell to large operators. The stock undercuts the line, fakes out sellers and would-be short-sellers, then rallies back above it.",
+   "lesson_line": "A shakeout shakes out the weak holders. Then the line comes back.",
+   "facts": [
+    "y1",
+    "v2"
+   ],
+   "wrong": {
+    "Lock them in so they ride a rally": "A shakeout is meant to get holders out, not lock them in.",
+    "Raise the volume for a later breakout": "Volume is a side effect. The aim is to induce selling.",
+    "Prove the trend is over": "The undercut fakes out sellers and would-be short-sellers, then rallies back above."
+   }
+  },
+  {
+   "key": "q62",
+   "skill": "setup.remount",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "rm.market_reading",
+   "q": "What do you do?",
+   "choices": [
+    "Pass; Orange allows only A plus",
+    "Take it at full size",
+    "Take it; Orange is Green with a tint",
+    "Take it and skip the stop"
+   ],
+   "answer": "Pass; Orange allows only A plus",
+   "why": "Pass. Orange allows only an A+ remount. Green is full risk, Yellow is smaller and fewer, and Red is mostly cash.",
+   "lesson_line": "Orange means A plus only. A B waits.",
+   "facts": [
+    "h26",
+    "k02"
+   ],
+   "wrong": {
+    "Take it at full size": "Full risk is the Green reading. Orange allows only A+ setups.",
+    "Take it; Orange is Green with a tint": "Orange is a step down from Yellow. It allows only A+ setups.",
+    "Take it and skip the stop": "The stop is never optional."
+   },
+   "house": true,
+   "story": "The market reading is Orange. A Remount sets up cleanly, but you grade it a B."
+  },
+  {
+   "key": "q63",
+   "skill": "setup.remount",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "rm.after_entry_stop",
+   "q": "What do you do?",
+   "choices": [
+    "Hold; the stop is still the exit",
+    "Sell at the close; the line failed",
+    "Raise the stop to 46.01",
+    "Add on the dip"
+   ],
+   "answer": "Hold; the stop is still the exit",
+   "why": "Hold it. A 200-day remount that slips back under the line but stays above the stop is held. The time stop handles the chop.",
+   "lesson_line": "Slipped under the line, still above the stop: hold.",
+   "facts": [
+    "m06",
+    "h02",
+    "k12"
+   ],
+   "wrong": {
+    "Sell at the close; the line failed": "A close back under the line is not an extra exit. The stop is the exit.",
+    "Raise the stop to 46.01": "The stop moves up with the plan, at the first trim, not on a weak close.",
+    "Add on the dip": "Full size at one price with one stop. No adding."
+   },
+   "house": true,
+   "story": "You bought a 200-day remount at 46.01 with the stop at 44.80. Three days later it closes at 45.60, back under the 200-day, above your stop."
+  },
+  {
+   "key": "q64",
+   "skill": "setup.remount",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "rm.leader_before_index",
+   "q": "Which grades highest?",
+   "choices": [
+    "B; leader first, all averages clear",
+    "A; it finally turned after a long fall",
+    "C; it retook the 50-day, rest overhead",
+    "All three grade the same"
+   ],
+   "answer": "B; leader first, all averages clear",
+   "why": "B. A leader that remounts before the index is an A plus cue, and so is clearing all the averages at once. A and C are B minus cues.",
+   "lesson_line": "Leader first, every average cleared: that is the A plus picture.",
+   "facts": [
+    "k08",
+    "k09",
+    "k11",
+    "m18"
+   ],
+   "wrong": {
+    "A; it finally turned after a long fall": "A first attempt after a long decline, or a line still curling lower, is a B minus cue.",
+    "C; it retook the 50-day, rest overhead": "A retake that leaves averages overhead and falling is a B minus cue.",
+    "All three grade the same": "Grade follows the cues, and these are far apart."
+   },
+   "house": true,
+   "story": "Three remounts. A: a first try after a long decline, the line still curling lower. B: a leader that remounts before the index and clears every average. C: the 50-day retaken, other averages overhead and falling."
+  },
+  {
+   "key": "q65",
+   "skill": "setup.remount",
+   "rung": 3,
+   "format": "numeric",
+   "criterion": "rm.break_left_line",
+   "q": "The line is 50.00. The deepest close under it was 48.50. ATR is 1.20. How many ATR under the line?",
+   "answer": 1.25,
+   "why": "1.25 ATR. Take the line minus the deepest close, then divide by the ATR. Our card asks for at least 0.5 ATR, so the break left the line.",
+   "lesson_line": "A real break closes at least half an ATR under the line.",
+   "facts": [
+    "k26"
+   ],
+   "house": true,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(a - b) / c",
+     "a": 50.0,
+     "b": 48.5,
+     "c": 1.2
+    },
+    "round": 2
+   },
+   "suffix": " ATR"
+  },
+  {
+   "key": "q66",
+   "skill": "setup.remount",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "rm.break_left_line",
+   "q": "Did the break leave the line?",
+   "choices": [
+    "No; the dip stayed under 0.5 ATR",
+    "Yes; any close under the line is a break",
+    "Yes; the close back over proves it",
+    "No; it needs a close under the 200-day"
+   ],
+   "answer": "No; the dip stayed under 0.5 ATR",
+   "why": "No. Our card asks that at least one close sat 0.5 ATR or more under the line. This dip reached only 0.2 ATR.",
+   "lesson_line": "A dip inside the noise is not a lost line. Wait for a real break.",
+   "facts": [
+    "k26",
+    "d10"
+   ],
+   "wrong": {
+    "Yes; any close under the line is a break": "One close under the line is not enough. Our card wants one at least 0.5 ATR under it.",
+    "Yes; the close back over proves it": "The close back over is the retake. The break must be deep enough first.",
+    "No; it needs a close under the 200-day": "The 200-day is a separate test. This one is about how deep the dip went under the 50-day."
+   },
+   "house": true,
+   "story": "A stock held its 50-day for months. It dipped under on a few closes, the deepest only 0.2 ATR below the line. Today it closes back over."
+  },
+  {
+   "key": "q67",
+   "skill": "setup.remount",
+   "rung": 2,
+   "format": "tf",
+   "criterion": "rm.level_held",
+   "q": "A price level counts as a Remount line only if the stock held it before the break.",
+   "answer": "True",
+   "why": "True. Our card wants a level that held before it broke. At least 10 of the 15 closes before the break were at or above it.",
+   "lesson_line": "A level has to hold before it can be lost.",
+   "facts": [
+    "k27"
+   ],
+   "house": true
+  },
+  {
+   "key": "q68",
+   "skill": "setup.remount",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "rm.level_held",
+   "q": "Is 80.00 a real level for a Remount?",
+   "choices": [
+    "No; too few closes were above it",
+    "Yes; the retake is what counts",
+    "Yes; any round number is a level",
+    "No; a Remount uses averages only"
+   ],
+   "answer": "No; too few closes were above it",
+   "why": "No. Our card wants a level that held before it broke, at least 10 of the 15 closes at or above it. Here only 5 did.",
+   "lesson_line": "Chopping through a price for weeks does not make it a level.",
+   "facts": [
+    "k27",
+    "k14"
+   ],
+   "wrong": {
+    "Yes; the retake is what counts": "The retake comes second. The level has to have held before the break.",
+    "Yes; any round number is a level": "A round number counts only if it held. Weeks of chop through it says it did not.",
+    "No; a Remount uses averages only": "The level form is real. A price level that held before it broke counts."
+   },
+   "house": true,
+   "story": "A stock breaks under 80.00 and later closes back over it. In the 15 sessions before the break, only 5 closes were at or above 80.00. It had chopped through that price for weeks."
+  },
+  {
+   "key": "q69",
+   "skill": "setup.remount",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "rm.entry_red_to_green",
+   "q": "What is our card's variant buy?",
+   "choices": [
+    "Buy as it turns positive on the day",
+    "Buy the open to catch the dip",
+    "Wait for a close over the prior high",
+    "Skip it; a gap down ends the setup"
+   ],
+   "answer": "Buy as it turns positive on the day",
+   "why": "Buy as it turns positive on the day. On a gap down that stays above the line, our card buys the turn. The stop goes under that day's low.",
+   "lesson_line": "Gap down, line held: buy the turn to positive.",
+   "facts": [
+    "k28",
+    "h24"
+   ],
+   "wrong": {
+    "Buy the open to catch the dip": "The open is the weakest moment. The variant waits for price to turn positive.",
+    "Wait for a close over the prior high": "That waits for the daily close. This variant buys the turn on the day itself.",
+    "Skip it; a gap down ends the setup": "A gap down that stays above the line is the case this variant is for."
+   },
+   "house": true,
+   "story": "Yesterday was a clean remount day. Today the stock gaps down at the open but stays above the line. You have not bought yet."
+  },
+  {
+   "key": "q70",
+   "skill": "setup.remount",
+   "rung": 7,
+   "format": "tf",
+   "criterion": "rm.entry_hourly",
+   "q": "A Remount can be timed on the hourly chart, on a higher low or a flag.",
+   "answer": "True",
+   "why": "True. Our card teaches the hourly timing, a higher low or a flag, as a variant. Daily drills cannot show it.",
+   "lesson_line": "Hourly timing is a variant. The daily rules stay the base.",
+   "facts": [
+    "k29"
+   ],
+   "house": true
+  },
+  {
+   "key": "q71",
+   "skill": "setup.remount",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "rm.one_price",
+   "q": "Do you add to the position?",
+   "choices": [
+    "No; one price, one stop, no adds",
+    "Yes; add half with the same stop",
+    "Yes; add, and move the stop to average",
+    "No; sell half to lock in the gain"
+   ],
+   "answer": "No; one price, one stop, no adds",
+   "why": "No. We buy the full size at one price with one stop, and no adding. The course teaches one entry.",
+   "lesson_line": "One entry, one price, one stop. Liking it more is not a trigger.",
+   "facts": [
+    "k30",
+    "m12",
+    "h20"
+   ],
+   "wrong": {
+    "Yes; add half with the same stop": "Half now and half later is two entries. We buy the full size at one price.",
+    "Yes; add, and move the stop to average": "Moving the stop to fit an add breaks the one-stop rule.",
+    "No; sell half to lock in the gain": "Trims come at 3R and 5R, a third each. Half now is not the plan."
+   },
+   "house": true,
+   "story": "You bought a Remount at 40.00 with the stop at 38.80. Two days later it holds the line again on a quiet day. You like it even more."
+  },
+  {
+   "key": "q72",
+   "skill": "setup.remount",
+   "rung": 4,
+   "format": "numeric",
+   "criterion": "rm.trim_2",
+   "q": "Bought at 59.54 with the stop at 58.44. Where is 5R?",
+   "answer": 65.04,
+   "why": "65.04. One R is the fill minus the stop. Add five of those to the fill. The second third comes off there.",
+   "lesson_line": "Know your 5R before the open. The second third comes off there.",
+   "facts": [
+    "h20",
+    "k31",
+    "d05"
+   ],
+   "house": true,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "a + 5 * (a - b)",
+     "a": 59.54,
+     "b": 58.44
+    },
+    "round": 2
+   },
+   "prefix": "$"
+  },
+  {
+   "key": "q73",
+   "skill": "setup.remount",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "rm.trim_2",
+   "q": "What comes off at 5R?",
+   "choices": [
+    "Another 100; trail the last 100",
+    "The other 200; no trail needed",
+    "Another 50; trail the other 150",
+    "Nothing; wait for the 21-day"
+   ],
+   "answer": "Another 100; trail the last 100",
+   "why": "Another 100, a third of the position. After the first third at 3R comes another third at 5R, then you trail the last third.",
+   "lesson_line": "A third at 3R, a third at 5R, then the trail.",
+   "facts": [
+    "h20",
+    "k31"
+   ],
+   "wrong": {
+    "The other 200; no trail needed": "The plan keeps the last third on the trail. A third comes off at 5R, not all of it.",
+    "Another 50; trail the other 150": "Half a third is not the plan. The second trim is a third of the position.",
+    "Nothing; wait for the 21-day": "The trail is for the last third, after both trims. At 5R the second third comes off."
+   },
+   "house": true,
+   "story": "You hold 300 shares of a Remount. You sold 100 at 3R. Today the stock reaches 5R."
+  },
+  {
+   "key": "q74",
+   "skill": "setup.remount",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "rm.failed_first_try",
+   "q": "May you take the fourth try?",
+   "choices": [
+    "No; three tries a week is the limit",
+    "Yes; every trigger is a new trade",
+    "No; two tries a week is the limit",
+    "Yes; if the stop is wider this time"
+   ],
+   "answer": "No; three tries a week is the limit",
+   "why": "No. A new trigger after a failed try is a new trade. But the cap is 3 tries a week and 6 a month on one stock.",
+   "lesson_line": "A new trigger is a new trade, but the cap still holds.",
+   "facts": [
+    "k07",
+    "h29"
+   ],
+   "wrong": {
+    "Yes; every trigger is a new trade": "A new trigger is a new trade, but there is a cap: 3 tries a week on one stock.",
+    "No; two tries a week is the limit": "The cap is 3 tries a week and 6 a month on one stock.",
+    "Yes; if the stop is wider this time": "A wider stop is never the fix. The stop only moves up."
+   },
+   "house": true,
+   "story": "This week you took three Remount tries on one stock. All three hit the stop. Today it triggers a fourth time."
+  },
+  {
+   "key": "q75",
+   "skill": "setup.remount",
+   "rung": 2,
+   "format": "tf",
+   "criterion": "rm.failed_first_try",
+   "q": "After a stop-out, a second Remount try is a new trade with its own trigger and its own stop.",
+   "answer": "True",
+   "why": "True. After a stop-out, buy again only if the setup triggers again, as a new trade with its own stop.",
+   "lesson_line": "A second try is a new trade, not a rescue.",
+   "facts": [
+    "h28",
+    "k07"
+   ],
+   "house": true
+  },
+  {
+   "key": "q76",
+   "skill": "setup.remount",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "rm.line_plus_level",
+   "q": "Which carries the stronger A plus cue?",
+   "choices": [
+    "B; average and level together",
+    "A; one clean line reads better",
+    "Same; a second line adds nothing",
+    "A; a level only adds noise to it"
+   ],
+   "answer": "B; average and level together",
+   "why": "B. On our card a line many people watch is an A plus cue, best when an average and a level sit together. It is a cue, not a score.",
+   "lesson_line": "An average and a level together: the strongest line to retake.",
+   "facts": [
+    "k32",
+    "k33"
+   ],
+   "wrong": {
+    "A; one clean line reads better": "Two lines taken back at once is the stronger picture, not the noisier one.",
+    "Same; a second line adds nothing": "A second line that many people watch adds to the cue.",
+    "A; a level only adds noise to it": "A round number is a level many people name. Together with an average it is the best case."
+   },
+   "house": true,
+   "story": "Two remounts close back over their line today. A retakes the 50-day alone. B retakes the 50-day and the round 100.00 level together."
+  },
+  {
+   "key": "q77",
+   "skill": "setup.remount",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "rm.report_soon",
+   "q": "How does the report change the trade?",
+   "choices": [
+    "Allowed; it counts as a B minus cue",
+    "Blocked; no buys within 10 sessions",
+    "Allowed; it is an A plus catalyst",
+    "Blocked; no buys within 8 sessions"
+   ],
+   "answer": "Allowed; it counts as a B minus cue",
+   "why": "Allowed, as a B minus cue. A report within about two weeks (10 sessions) lowers the grade. Only the 3 sessions before are barred.",
+   "lesson_line": "A report close by lowers the grade. Only the last 3 sessions bar the buy.",
+   "facts": [
+    "k34",
+    "k03"
+   ],
+   "wrong": {
+    "Blocked; no buys within 10 sessions": "Only the 3 sessions before a report are barred. Ten sessions is a cue, not a ban.",
+    "Allowed; it is an A plus catalyst": "A report close by lowers the grade. It does not raise it.",
+    "Blocked; no buys within 8 sessions": "Only the 3 sessions before a report are barred. Eight sessions is outside that."
+   },
+   "house": true,
+   "story": "A clean remount triggers today. The company reports in 8 sessions."
+  }
+ ],
+ "conflicts": [
+  "One unit from two cards: SET.28 Remount is built from criteria card 32-remount (the Remount, with both the moving-average and the level form) with 13-ma-reclaim as the moving-average form of the same unit (D-002: one name, Remount; the card calls it MA Reclaim). Only what both cards agree on is keyed. Where they differ the line is below, and the questions say nothing on that point.",
+  "Pending-owner criteria kept OUT of every key (the course's current default, waiting on the owner): the time under the line, 5 to 30 consecutive closes (rm.time_under and mar.lost_line, D-074; the questions use only 'a week or more' as the card's own words and the U&R side's '3 sessions' from the proposed ur.inv_no_reclaim, q13, q23, q41, q42, and never the 5 or the 30); the lines that count, and whether a 20 EMA ever counts (rm.line and mar.lines, D-073; q03 and q43 key only the 50-day, the 200-day and the level form, and CAT's 20 EMA near-miss is not used); the 200-day slope test (rm.ma200_rising is proposed on card 32 and mar.slope_200_rising is pending on card 13, D-075: neither is keyed; q05, q08, q57 key only B26, a close above the 200-day); the chop count of 2 crossings in 60 sessions (mar.not_chop D-075; q38 and q55 say 'crossed back and forth for weeks' and no count, the 12 crossings of MSFT 2024-11-26 stay in the dossier); the remount-day margin 0.25 to 2 ATR and the green upper-half candle (rm.remount_day_margin and rm.remount_day_candle are proposed on card 32, mar.reclaim_candle is pending on card 13, D-075; q44 says only 'a clear close' and uses ESS's 0.08 ATR as a given); the volume number 1.2x or the 50-day average (D-006; q11, q40 key only 'light volume after a heavy break', IBD's reading, and the invalidation card 13 marks proposed); the entry (rm.entry_pause, rm.entry_remount_day, mar.entry_a, D-003: Entry A, the market order at the close of the remount day, is not taught; Entry B, the buy over a quiet inside day's high, is keyed from card 13's proposed mar.entry_b without the 1 to 5 session count, q20); the stop's anchor (rm.stop and mar.stop, D-008: the quiet day's low on card 32, the lowest low of the pause on card 13, the same price when the pause is one inside day, which is every walk-through here; the stop is keyed only as 'a few cents under the low', F62); which buy point C28 counts (D-022; q46 states the quiet day's high as the buy point); RS 80 and leadership (rm.leadership and mar.leadership, D-011; no item); the index under its own 200-day as a hard line (mar.index_200, D-023; keyed only as the proposed 'weak with the index under its own 200-day' on card 32, q36, q53, q54).",
+  "Where the two cards differ and the unit keys neither side: the slope of the 200-day (card 32 proposes higher than 20 sessions ago, card 13 proposes not falling fast and asks for the 20-session slope only for an A); the reclaim day candle numbers (card 13 asks 0.5 ATR in its scan, card 32 0.25 ATR); the pause (card 32 has the first quiet day arm the buy within 5 sessions, card 13 has the last session of a 1 to 5 session pause be the inside day); whether the close of the remount day is a buy (card 13 picks Entry A when its stop is about 3% or less, card 32 makes the pause the default); the stop anchor (above); the close back under the line after the buy (card 13 settles it with D-136: hold, no extra exit; card 32 leaves it to D-008 but its dossier recommends the same, so q17 keys the substance with card 13's wording); a remount of the 20 EMA (card 32 allows it only above a rising 50-day, card 13 gives it to the Wedge Pop). The 50-day line needs the close above the 200-day on both cards (B26).",
+  "The short boundary with the U&R is 3 sessions (the U&R card's proposed ur.inv_no_reclaim) and the long side is 'a week or more'. The glossary closes the gap between them: the U&R family runs to 4 closes and the Remount starts at 5. No question asks about exactly 4 closes.",
+  "The dossier's example numbers (d1 for card 32, d2 for card 13) are cited as a Tier 3 repo source: they were read off our own daily bars by the research scan, not from a public page or an owner ruling, and the owner has not reviewed them. The examples are Entry B (the card 32 scan) plus card 13's failure and near-miss tables, which are Entry A scans: q27's gap story and q53 (AAPL) use numbers from the card 13 table only for the stock, buy and stop. Both cards' criteria text is cited as house: true.",
+  "Walk-through fills: the card 32 scan fills at the quiet day's high plus a cent, or the open, with the stop 5 cents under the quiet day's low; a live market order fills a little differently. The walk-throughs call the stop 'a few cents under' (F62). AMD's stop is 3.3% from the buy, just over the 3% line: A13 says the stop usually sits within about 3%, so the walk-through says size follows the stop.",
+  "The chart questions: q56 (NKE asof 2020-08-06, the inside day after the remount, a take) and q57 (CRM asof 2025-06-06, the 50-day reclaim under the 200-day, a pass). The NKE key rests on the dossier's read (d01, d02, a strong remount close and an inside day); the CRM key rests on the dossier's numbers (e05) and B26. Both show the member's own daily chart with their averages.",
+  "Deepvue is a vendor page about Weinstein (Tier 2 with a note); it is used only to name the sideways chop (dv1). The 4B- name appears only in card 13's tell (m04); the questions explain it in plain words.",
+  "MAU&R: Morales and Kacher let the stop sit 1-2% under the average (the VoSI FAQ). Card 32 lists that as a named variant and not the default; no question keys it. The scanners' remount.py claims (Bonde, Shannon, Raschke, 1.5:1 reward) are not sourced and none reaches a member here.",
+  "Cold-check notes carried from the pilot: no 'the owner' in member text, no untaught house words, the stop stays the rule's stop (B20 for a gap through it), the breakeven move at the first trim (B19).",
+  "Cold check 2026-11-10: 60 pass (13 fixed), 0 fix, 4 cut; 3 walk-throughs pass. Cut: q14 and q60 (breakeven and the 3R trim, duplicates of q59 and q32), q17 (duplicate of q63), q35 (duplicate of q51). Fixed: 'a week or more' removed from member text where it stood for the pending D-074 count (q01, q13, q41, q42); q23's three-session dip is now two sessions (three is unsafe if the owner takes option A, 3 of the prior 20 closes); q39 and q49 stories that contradicted themselves or left out the 200-day; q53 (AAPL opened lower, it did not gap through the stop); q57 (CRM's 200-day is rising, so the 'falling' sources were dropped and B26 carries the key); q29 now names the 40% cap. For the owner, first: D-074 (how long the line must be lost; nothing keys the count now, but q13, q41 and q42 lean on the proposed 3-session U&R limit), D-003 (the pause entry in q20 and the walk-throughs is card 13's proposed Entry B; Entry A, buying the remount-day close, is not taught), and E50 against the grade-cue questions (q39, q49, q50, q64): they teach A plus and B minus cues, and the rulebook says grading is discretionary with no fixed checklist.",
+  "Coverage job 2026-11-10: no question for rm.ma200_rising (held: D-075 (the 200-day slope test: higher than 20 sessions ago, or only 'not falling fast'); the unit keys neither); rm.remount_day_candle (held: D-075 (the remount-day candle: the upper-half close is one of the options); the unit keys neither)."
+ ],
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "notes": "d01/d02 verbatim (NKE: remount 2020-08-05, buy 101.19, stop 99.98 = 1.2%, 3R next day, 25.0R). Re-read in bars.db: 08-05 close 100.94 over the 50-day 98.60; 08-06 high 101.18 and low 100.03 inside the remount day's range (the inside day); 08-07 trades over 101.18; 08-10 passes 104.82. Stop is 5 cents under 100.03.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "d03/d04 verbatim (AMD: report after the close 2023-10-31, remount 11-01, buy 109.42, stop 105.86 = 3.3%, 21.2R). Re-derived (109.42-105.86)/109.42 = 3.25% -> 3.3%. A remount on the reaction day is after the report (card 13 mar.earnings_window).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "d05/d06 verbatim (DOCU: 24 closes under, remount 2024-03-11, buy 2024-03-14 at 59.54, stop 58.44 = 1.8%, gap under the stop 03-15, held the 50-day 20 sessions, high 61.47). Re-derived (59.54-58.44)/59.54 = 1.85%.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q01": {
+   "status": "pass",
+   "notes": "k18 and v1 verbatim. The why said 'lost the 50-day or 200-day for a week or more', which is the pending D-074 number in plain words (5 straight closes, or 3 of 20, or an 8-week base); now 'for real'. variety rewrite checked 2026-11-10.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q02": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the cards, dossiers or rulebook; key right; wrong notes true; voice clean. m01, m02, k22.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q03": {
+   "status": "pass",
+   "notes": "Key right (the 50-day and the 200-day, both cards). The wrong note for '10-week and 30-week' said 'Weinstein's older weekly line'; no fact cites that and the 10-week is not his line (he used the 30-week). Now just 'weekly lines'. variety rewrite checked 2026-11-10.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q04": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the cards, dossiers or rulebook; key right; wrong notes true; voice clean. k15, m16, x1 (ChartSchool: wait for a full candle close).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q05": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the cards, dossiers or rulebook; key right; wrong notes true; voice clean. B26; k01 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q06": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the cards, dossiers or rulebook; key right; wrong notes true; voice clean. E57, D41. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q07": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the cards, dossiers or rulebook; key right; wrong notes true; voice clean. m17 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q08": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the cards, dossiers or rulebook; key right; wrong notes true; voice clean. m05 verbatim; x3, x4 (ChartSchool).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q09": {
+   "status": "pass",
+   "notes": "i2 verbatim (IBD via Yahoo). Key and wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q10": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the cards, dossiers or rulebook; key right; wrong notes true; voice clean. x1 verbatim. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q11": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the cards, dossiers or rulebook; key right; wrong notes true; voice clean. i3 verbatim (IBD); m09 proposed.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q12": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the cards, dossiers or rulebook; key right; wrong notes true; voice clean. AMD d03/d04: remount on the reaction day, allowed (card 13 mar.earnings_window, settled B22).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q13": {
+   "status": "pass",
+   "notes": "Key 'how long the line stayed lost' is categorical and right. The why said 'a week or more' for the Remount, the pending D-074 number in words; now 'far longer'. The U&R side keeps '3 sessions' (m03, card 29's proposed ur.inv_no_reclaim).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q14": {
+   "status": "cut",
+   "notes": "Duplicate of q59 (the stop goes to breakeven at the first trim, B19), asked as a fill. q59 kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q15": {
+   "status": "pass",
+   "notes": "Re-derived (101.19-99.98)/101.19 = 1.196% -> 1.2. NKE d01 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q16": {
+   "status": "pass",
+   "notes": "Re-derived 109.42 + 3 x (109.42-105.86) = 120.10. AMD d03 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q17": {
+   "status": "cut",
+   "notes": "Duplicate of q63 (a close back under the line before the stop is not an extra exit), which asks it in a story. The key itself is right: A4 and card 13's settled mar.after_entry_stop (card 32's rm.close_back_under_after_buy is pending D-008 but defaults to no extra exit).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q18": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the cards, dossiers or rulebook; key right; wrong notes true; voice clean. D41, F62. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q19": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the cards, dossiers or rulebook; key right; wrong notes true; voice clean. k12; x2 (ChartSchool) and dv1 (Deepvue on Weinstein) verbatim. Edited: lesson line reworded (the old one said the stop pays for chop). variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q20": {
+   "status": "pass",
+   "notes": "m10/m11 verbatim from card 13's proposed mar.entry_b (the pause). Entry A, the remount-day close, is the owner's pending D-003 and is not taught here; the quiet-day count (1 to 5 sessions) is never keyed. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q21": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the cards, dossiers or rulebook; key right; wrong notes true; voice clean. A4.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q22": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the cards, dossiers or rulebook; key right; wrong notes true; voice clean. B23: $9 fails the $10 floor.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q23": {
+   "status": "pass",
+   "notes": "Story said the line was lost for three sessions and keyed 'not a Remount'; three closes is not safe under D-074 (option A counts 3 of the prior 20 closes). Now two sessions, a key that holds under every D-074 option; the ENOV/GOOG three-day examples (d10, e06, e07) are no longer cited. variety rewrite checked 2026-11-10.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q24": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the cards, dossiers or rulebook; key right; wrong notes true; voice clean. k20 verbatim. The wrong note for 'An Oops' said 'a gap-open'; the card says 'opens under the prior close', now worded so.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q25": {
+   "status": "pass",
+   "notes": "Re-derived (61.47-59.54)/(59.54-58.44) = 1.93/1.10 = 1.75R. DOCU d05/d06 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q26": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the cards, dossiers or rulebook; key right; wrong notes true; voice clean. m07 verbatim. The 5.5% is a given, over the 3% line (A13). variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q27": {
+   "status": "pass",
+   "notes": "Arithmetic: 1R = 1.10; the gap-day first 30-minute low 57.20 is a loss of 2.34 = 2.13R, past the 2R ceiling (B20), so out is right. h06/h07 verbatim. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q28": {
+   "status": "pass",
+   "notes": "3R re-derived: 101.19 + 3 x 1.21 = 104.82; the open 106.00 is past 3R and under 5R (107.24), so the first third at the open (F63). NKE d01. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q29": {
+   "status": "pass",
+   "notes": "Re-derived 500 / (109.42-105.86) = 140.4 -> 140 shares. A7 check: 140 shares = $15,319, about 15% of the account, under the 40% cap, so the risk-based size is the smaller; the why now says so (new fact h30, A7 verbatim).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q30": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the cards, dossiers or rulebook; key right; wrong notes true; voice clean. m14, h21 (E52). variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q31": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the cards, dossiers or rulebook; key right; wrong notes true; voice clean. C33: 0.5R after 10 sessions -> sell. Breakeven is 2R to 5R, so the wrong note is true. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q32": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the cards, dossiers or rulebook; key right; wrong notes true; voice clean. B19/E51: third at 3R, third at 5R, trail the rest.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q33": {
+   "status": "pass",
+   "notes": "k05/k16/k24 verbatim (card 32, proposed rm.expect_losses). The '4 in 5' replay figure is in the quote only; the key is 'most lose small, the runners carry the setup'. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q34": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the cards, dossiers or rulebook; key right; wrong notes true; voice clean. k05, k16, h20, h21. Another third at 5R then the trail is E51 (adjustable). variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q35": {
+   "status": "cut",
+   "notes": "Near-duplicate of q51 (after a stop-out, a second try needs a new trigger, B21), which asks it on DOCU's real example. q51 kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q36": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the cards, dossiers or rulebook; key right; wrong notes true; voice clean. k10, k25 (card 32, proposed). The index-under-its-200-day line is a guide, not a rule (card 13 mar.index_200, D-023 pending). variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q37": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the cards, dossiers or rulebook; key right; wrong notes true; voice clean. F65.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q38": {
+   "status": "pass",
+   "notes": "m15/k14/dv1/x2/e08/e09 verbatim. The key is categorical ('crossed back and forth for weeks'); the card's chop count (2 crossings in 60 sessions, D-075 pending) is never keyed.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q39": {
+   "status": "pass",
+   "notes": "Story said 'Two 50-day remounts' and then that the second only 'clears the 20-day, with the 50-day still overhead', which contradicts itself (a 50-day remount has retaken the 50-day). Now two 200-day remounts, the second leaving the 50-day overhead and falling (m18, a B minus cue). Grade cues are discretionary (E50); the unit says 'cue', never a fixed score. variety rewrite checked 2026-11-10.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q40": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the cards, dossiers or rulebook; key right; wrong notes true; voice clean. m09 proposed; i3 verbatim. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q41": {
+   "status": "pass",
+   "notes": "Story: closes under Tuesday and Wednesday, back Thursday: inside the 3-session U&R limit (m03). The lesson line and a wrong note said 'a week or more' (the pending D-074 number); now 'a long stay'. The Oops wrong note said 'a gap-open'; now 'opens under the prior close'. variety rewrite checked 2026-11-10.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q42": {
+   "status": "pass",
+   "notes": "k21 verbatim. The wrong note said 'a line lost for a week or more'; now 'a long stay'. Edited: one wrong choice swapped so the right one is not the only non-Remount; why split into short sentences. variety rewrite checked 2026-11-10.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q43": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the cards, dossiers or rulebook; key right; wrong notes true; voice clean. m02, k22; the story's three weeks under a breakout level is a long stay under any D-074 option. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q44": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the cards, dossiers or rulebook; key right; wrong notes true; voice clean. d11/d12 verbatim (ESS: 0.08 ATR over the 50-day, then a clear remount, 14.9R). 0.08 ATR fails every margin on the cards (0.25 or 0.5 ATR), so the key holds whatever D-075 says. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q45": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the cards, dossiers or rulebook; key right; wrong notes true; voice clean. k06, m08 (proposed inv). variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q46": {
+   "status": "pass",
+   "notes": "Re-derived: 52.60 against a buy point of 50.00 = 5.2% over, past C28's 4%. The buy point is the quiet day's high (m11, D-022 pending which point; both cards agree here). Edited: wrong note no longer says limit (entries are market orders). variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q47": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the cards, dossiers or rulebook; key right; wrong notes true; voice clean. C29: 12% over the 10-day. Edited: dropped the ungrounded \"rare on a remount\" claim. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q48": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the cards, dossiers or rulebook; key right; wrong notes true; voice clean. B22 / card 13 mar.earnings_window: a report tonight is inside 3 sessions. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q49": {
+   "status": "pass",
+   "notes": "Story said the stock 'fell 60%' and remounted its 50-day; it did not say where the 200-day was, and a stock down that far would normally sit under it, which is a pass by B26, so the right answer depended on missing information. Now 'sold off hard for months', 'still above its 200-day'. Key (B minus cue, k11) unchanged. variety rewrite checked 2026-11-10.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q50": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the cards, dossiers or rulebook; key right; wrong notes true; voice clean. k09, k10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q51": {
+   "status": "pass",
+   "notes": "d05/d06 verbatim (DOCU: gap under the stop 03-15, held the 50-day 20 sessions). B21 key holds. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q52": {
+   "status": "pass",
+   "notes": "e03/e04 verbatim; re-derived 3R: 198.12 + 3 x 2.81 = 206.55 = the dossier's level. Stopped 08-01 on a low of 193.94 (under 195.31). Key right. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q53": {
+   "status": "pass",
+   "notes": "e01/e02 verbatim. The story and the why said AAPL 'gapped open at 159.90' / 'gapped through the stop'; 159.90 is above the 159.25 stop (the day then traded to 153.37), so it opened lower and traded through, not a gap through the stop (B20 does not apply). Reworded; the wrong note on the gap now says 'a gap down'. Rests on the proposed 'weak with the index under its own 200-day' (k25), not a rule. variety rewrite checked 2026-11-10.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q54": {
+   "status": "pass",
+   "notes": "d08/d09 verbatim (PYPL: 200-day remount, buy 86.24, stop 83.52 = 3.2%, SPY under its own 200-day, stopped the next session). Key is a read of one example, taught as 'weak with the index under its 200-day' (proposed), not a rule; owner may soften 'Nothing'.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q55": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the cards, dossiers or rulebook; key right; wrong notes true; voice clean. Story A has a 2% stop (A13) and a Green reading (F65); C 'crossed ten times' is a chop line under any count the card proposes. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q56": {
+   "status": "pass",
+   "notes": "Chart NKE asof 2020-08-06: sandbox bars.db has 6,429 daily bars to that date (120-bar window starts 2020-02-18), 1,572 after it. Re-read: 08-05 close 100.94 over the 50-day 98.60 after seven closes under it; 08-06 range 100.03-101.18 inside 97.08-101.25 (an inside day) and close 100.45 over the 50-day; 200-day 93.77 below and rising. d01/d02 hold. The question never names the ticker. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q57": {
+   "status": "pass",
+   "notes": "Chart CRM asof 2025-06-06: 5,274 daily bars to that date (window starts 2024-12-12), 359 after it. Re-read: close 274.51 over the 50-day 267.88 and under the 200-day 295.88, as e05 says. The 200-day is slightly RISING (293.44 twenty sessions earlier), but m04 and k17 (cited before) say 'falling'; both dropped. The key is B26 (no longs below the 200-day) and m05, k01, not slope. variety rewrite checked 2026-11-10.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q58": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the cards, dossiers or rulebook; key right; wrong notes true; voice clean. D42.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q59": {
+   "status": "pass",
+   "notes": "Key right. The wrong note for 'Up to the quiet day's high' said it 'would put the stop above a market that may sit lower', which is not true (the quiet day's high sits just under the entry); now 'not part of the plan'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q60": {
+   "status": "cut",
+   "notes": "Duplicate of q59 (breakeven at the first trim) plus q28/q32 (a third at 3R), in one story. The key is right; q59 and q32 kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q61": {
+   "status": "pass",
+   "notes": "y1 (StockCharts Wyckoff) and v2 (Morales and Kacher) verbatim, two publishers. Key right; a shakeout is meant to induce selling. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q62": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the cards, dossiers or rulebook; key right; wrong notes true; voice clean. F65.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q63": {
+   "status": "pass",
+   "notes": "m06 verbatim (card 13 settled mar.after_entry_stop, A4: the stop is the exit). Story is consistent (bought 46.01, stop 44.80, close 45.60 under the line, above the stop). Card 32's own version of this (rm.close_back_under_after_buy) is pending D-008; the default is no extra exit.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q64": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the cards, dossiers or rulebook; key right; wrong notes true; voice clean. k08, k09, k11, m18. Grade cues are discretionary (E50); the unit says 'cue', never a fixed score. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q65": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q66": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q67": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; fixed: why now reads as our card (the 10 of 15 line is proposed)",
+   "by": "checker",
+   "fixed": true
+  },
+  "q68": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; fixed: right choice said 'never held' but 5 of 15 closes did hold; now 'too few closes were above it'",
+   "by": "checker",
+   "fixed": true
+  },
+  "q69": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; fixed: 'green' could mean above the open; choice and why now use the card's 'turns positive on the day'",
+   "by": "checker",
+   "fixed": true
+  },
+  "q70": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q71": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q72": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q73": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q74": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; fixed: one wrong choice used a comma where the others use a semicolon (shape tell); now a semicolon",
+   "by": "checker",
+   "fixed": true
+  },
+  "q75": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q76": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; fixed: why now reads as our card's cue",
+   "by": "checker",
+   "fixed": true
+  },
+  "q77": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  }
+ }
+}

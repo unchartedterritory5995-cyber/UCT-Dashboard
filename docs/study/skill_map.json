@@ -9,7 +9,92 @@
         {
           "id": "F1",
           "title": "Market basics",
-          "units": []
+          "units": [
+            {
+              "id": "F1.02",
+              "title": "What a share is, and where it trades",
+              "skills": [
+                "basics.shares"
+              ],
+              "lessons": [],
+              "modules": [
+                "F1"
+              ],
+              "supply": "authored",
+              "est_questions": 21,
+              "course_file": "docs/study/courses/F1/F1.02.json"
+            },
+            {
+              "id": "F1.03",
+              "title": "Bid, ask and the spread",
+              "skills": [
+                "basics.spread"
+              ],
+              "lessons": [],
+              "modules": [
+                "F1"
+              ],
+              "supply": "authored",
+              "est_questions": 24,
+              "course_file": "docs/study/courses/F1/F1.03.json"
+            },
+            {
+              "id": "F1.04",
+              "title": "Volume and liquidity",
+              "skills": [
+                "basics.volume"
+              ],
+              "lessons": [],
+              "modules": [
+                "F1"
+              ],
+              "supply": "authored",
+              "est_questions": 23,
+              "course_file": "docs/study/courses/F1/F1.04.json"
+            },
+            {
+              "id": "F1.05",
+              "title": "Market hours and extended hours",
+              "skills": [
+                "basics.hours"
+              ],
+              "lessons": [],
+              "modules": [
+                "F1"
+              ],
+              "supply": "authored",
+              "est_questions": 22,
+              "course_file": "docs/study/courses/F1/F1.05.json"
+            },
+            {
+              "id": "F1.06",
+              "title": "Float, shares outstanding, market cap",
+              "skills": [
+                "basics.float_cap"
+              ],
+              "lessons": [],
+              "modules": [
+                "F1"
+              ],
+              "supply": "authored",
+              "est_questions": 24,
+              "course_file": "docs/study/courses/F1/F1.06.json"
+            },
+            {
+              "id": "F1.07",
+              "title": "Indexes and ETFs",
+              "skills": [
+                "basics.etfs"
+              ],
+              "lessons": [],
+              "modules": [
+                "F1"
+              ],
+              "supply": "authored",
+              "est_questions": 23,
+              "course_file": "docs/study/courses/F1/F1.07.json"
+            }
+          ]
         },
         {
           "id": "F2",
@@ -129,52 +214,1210 @@
         {
           "id": "F5",
           "title": "Fundamentals and earnings",
-          "units": []
+          "units": [
+            {
+              "id": "F5.01",
+              "title": "Reading a report",
+              "skills": [
+                "fund.report"
+              ],
+              "lessons": [],
+              "modules": [
+                "F5"
+              ],
+              "supply": "authored",
+              "est_questions": 26,
+              "course_file": "docs/study/courses/F5/F5.01.json"
+            },
+            {
+              "id": "F5.02",
+              "title": "Estimates, surprises and guidance",
+              "skills": [
+                "fund.estimates"
+              ],
+              "lessons": [],
+              "modules": [
+                "F5"
+              ],
+              "supply": "authored",
+              "est_questions": 23,
+              "course_file": "docs/study/courses/F5/F5.02.json"
+            },
+            {
+              "id": "F5.03",
+              "title": "Growth numbers the desk screens for",
+              "skills": [
+                "fund.growth"
+              ],
+              "lessons": [],
+              "modules": [
+                "F5"
+              ],
+              "supply": "authored",
+              "est_questions": 27,
+              "course_file": "docs/study/courses/F5/F5.03.json"
+            },
+            {
+              "id": "F5.04",
+              "title": "Earnings season and the calendar",
+              "skills": [
+                "fund.season"
+              ],
+              "lessons": [],
+              "modules": [
+                "F5"
+              ],
+              "supply": "authored",
+              "est_questions": 20,
+              "course_file": "docs/study/courses/F5/F5.04.json"
+            },
+            {
+              "id": "F5.05",
+              "title": "Expected vs realized move",
+              "skills": [
+                "fund.expected_move"
+              ],
+              "lessons": [],
+              "modules": [
+                "F5"
+              ],
+              "supply": "authored",
+              "est_questions": 24,
+              "course_file": "docs/study/courses/F5/F5.05.json"
+            },
+            {
+              "id": "F5.06",
+              "title": "The Earnings Decision",
+              "skills": [
+                "fund.earnings_decision"
+              ],
+              "lessons": [],
+              "modules": [
+                "F5"
+              ],
+              "supply": "authored",
+              "est_questions": 26,
+              "course_file": "docs/study/courses/F5/F5.06.json"
+            },
+            {
+              "id": "F5.07",
+              "title": "Post earnings: the gap and the drift",
+              "skills": [
+                "fund.post_earnings"
+              ],
+              "lessons": [],
+              "modules": [
+                "F5"
+              ],
+              "supply": "authored",
+              "est_questions": 26,
+              "course_file": "docs/study/courses/F5/F5.07.json"
+            },
+            {
+              "id": "F5.08",
+              "title": "Earnings Desk: real quarters",
+              "skills": [
+                "fund.earnings_desk"
+              ],
+              "lessons": [],
+              "modules": [
+                "F5"
+              ],
+              "supply": "authored",
+              "est_questions": 26,
+              "course_file": "docs/study/courses/F5/F5.08.json"
+            }
+          ]
         },
         {
           "id": "F6",
           "title": "Options, beginner to advanced",
-          "units": []
+          "units": [
+            {
+              "id": "F6.01",
+              "title": "Calls and puts: the right, not the obligation",
+              "skills": [
+                "options.calls_puts"
+              ],
+              "lessons": [],
+              "modules": [
+                "F6"
+              ],
+              "supply": "authored",
+              "est_questions": 26,
+              "course_file": "docs/study/courses/F6/F6.01.json"
+            },
+            {
+              "id": "F6.02",
+              "title": "What you pay: premium",
+              "skills": [
+                "options.premium"
+              ],
+              "lessons": [],
+              "modules": [
+                "F6"
+              ],
+              "supply": "authored",
+              "est_questions": 28,
+              "course_file": "docs/study/courses/F6/F6.02.json"
+            },
+            {
+              "id": "F6.03",
+              "title": "Intrinsic value and time value",
+              "skills": [
+                "options.value"
+              ],
+              "lessons": [],
+              "modules": [
+                "F6"
+              ],
+              "supply": "authored",
+              "est_questions": 31,
+              "course_file": "docs/study/courses/F6/F6.03.json"
+            },
+            {
+              "id": "F6.04",
+              "title": "Delta",
+              "skills": [
+                "options.delta"
+              ],
+              "lessons": [],
+              "modules": [
+                "F6"
+              ],
+              "supply": "authored",
+              "est_questions": 25,
+              "course_file": "docs/study/courses/F6/F6.04.json"
+            },
+            {
+              "id": "F6.05",
+              "title": "Theta",
+              "skills": [
+                "options.theta"
+              ],
+              "lessons": [],
+              "modules": [
+                "F6"
+              ],
+              "supply": "authored",
+              "est_questions": 23,
+              "course_file": "docs/study/courses/F6/F6.05.json"
+            },
+            {
+              "id": "F6.06",
+              "title": "Vega and implied volatility",
+              "skills": [
+                "options.vega_iv"
+              ],
+              "lessons": [],
+              "modules": [
+                "F6"
+              ],
+              "supply": "authored",
+              "est_questions": 26,
+              "course_file": "docs/study/courses/F6/F6.06.json"
+            },
+            {
+              "id": "F6.07",
+              "title": "Gamma",
+              "skills": [
+                "options.gamma"
+              ],
+              "lessons": [],
+              "modules": [
+                "F6"
+              ],
+              "supply": "authored",
+              "est_questions": 25,
+              "course_file": "docs/study/courses/F6/F6.07.json"
+            },
+            {
+              "id": "F6.08",
+              "title": "IV and the expected move",
+              "skills": [
+                "options.expected_move"
+              ],
+              "lessons": [],
+              "modules": [
+                "F6"
+              ],
+              "supply": "authored",
+              "est_questions": 27,
+              "course_file": "docs/study/courses/F6/F6.08.json"
+            },
+            {
+              "id": "F6.09",
+              "title": "Picking the strike",
+              "skills": [
+                "options.strike"
+              ],
+              "lessons": [],
+              "modules": [
+                "F6"
+              ],
+              "supply": "authored",
+              "est_questions": 25,
+              "course_file": "docs/study/courses/F6/F6.09.json"
+            },
+            {
+              "id": "F6.10",
+              "title": "Picking the expiry",
+              "skills": [
+                "options.expiry"
+              ],
+              "lessons": [],
+              "modules": [
+                "F6"
+              ],
+              "supply": "authored",
+              "est_questions": 25,
+              "course_file": "docs/study/courses/F6/F6.10.json"
+            },
+            {
+              "id": "F6.11",
+              "title": "Directional trades: long calls and long puts",
+              "skills": [
+                "options.directional"
+              ],
+              "lessons": [],
+              "modules": [
+                "F6"
+              ],
+              "supply": "authored",
+              "est_questions": 23,
+              "course_file": "docs/study/courses/F6/F6.11.json"
+            },
+            {
+              "id": "F6.12",
+              "title": "Debit and credit verticals",
+              "skills": [
+                "options.verticals"
+              ],
+              "lessons": [],
+              "modules": [
+                "F6"
+              ],
+              "supply": "authored",
+              "est_questions": 29,
+              "course_file": "docs/study/courses/F6/F6.12.json"
+            },
+            {
+              "id": "F6.13",
+              "title": "Covered calls and cash-secured puts",
+              "skills": [
+                "options.income"
+              ],
+              "lessons": [],
+              "modules": [
+                "F6"
+              ],
+              "supply": "authored",
+              "est_questions": 26,
+              "course_file": "docs/study/courses/F6/F6.13.json"
+            },
+            {
+              "id": "F6.14",
+              "title": "Straddles, strangles, calendars, diagonals",
+              "skills": [
+                "options.vol_spreads"
+              ],
+              "lessons": [],
+              "modules": [
+                "F6"
+              ],
+              "supply": "authored",
+              "est_questions": 29,
+              "course_file": "docs/study/courses/F6/F6.14.json"
+            },
+            {
+              "id": "F6.15",
+              "title": "Iron condors and butterflies",
+              "skills": [
+                "options.condors_flies"
+              ],
+              "lessons": [],
+              "modules": [
+                "F6"
+              ],
+              "supply": "authored",
+              "est_questions": 26,
+              "course_file": "docs/study/courses/F6/F6.15.json"
+            },
+            {
+              "id": "F6.16",
+              "title": "Assignment, exercise and expiry",
+              "skills": [
+                "options.assignment"
+              ],
+              "lessons": [],
+              "modules": [
+                "F6"
+              ],
+              "supply": "authored",
+              "est_questions": 25,
+              "course_file": "docs/study/courses/F6/F6.16.json"
+            },
+            {
+              "id": "F6.17",
+              "title": "Managing an options position",
+              "skills": [
+                "options.manage"
+              ],
+              "lessons": [],
+              "modules": [
+                "F6"
+              ],
+              "supply": "authored",
+              "est_questions": 28,
+              "course_file": "docs/study/courses/F6/F6.17.json"
+            },
+            {
+              "id": "F6.18",
+              "title": "Flow and dealer positioning, last",
+              "skills": [
+                "options.flow"
+              ],
+              "lessons": [],
+              "modules": [
+                "F6"
+              ],
+              "supply": "authored",
+              "est_questions": 28,
+              "course_file": "docs/study/courses/F6/F6.18.json"
+            }
+          ]
         },
         {
           "id": "F7",
           "title": "Market history and macro",
-          "units": []
+          "units": [
+            {
+              "id": "F7.01",
+              "title": "How markets move",
+              "skills": [
+                "history.how_markets_move"
+              ],
+              "lessons": [],
+              "modules": [
+                "F7"
+              ],
+              "supply": "authored",
+              "est_questions": 29,
+              "course_file": "docs/study/courses/F7/F7.01.json"
+            },
+            {
+              "id": "F7.02",
+              "title": "The fast crash: 1987 and 2020",
+              "skills": [
+                "history.fast_crash"
+              ],
+              "lessons": [],
+              "modules": [
+                "F7"
+              ],
+              "supply": "authored",
+              "est_questions": 24,
+              "course_file": "docs/study/courses/F7/F7.02.json"
+            },
+            {
+              "id": "F7.03",
+              "title": "The long bear: 2000-02 and 2008-09",
+              "skills": [
+                "history.long_bear"
+              ],
+              "lessons": [],
+              "modules": [
+                "F7"
+              ],
+              "supply": "authored",
+              "est_questions": 25,
+              "course_file": "docs/study/courses/F7/F7.03.json"
+            },
+            {
+              "id": "F7.04",
+              "title": "2022 and how bottoms form",
+              "skills": [
+                "history.bottoms"
+              ],
+              "lessons": [],
+              "modules": [
+                "F7"
+              ],
+              "supply": "authored",
+              "est_questions": 27,
+              "course_file": "docs/study/courses/F7/F7.04.json"
+            },
+            {
+              "id": "F7.05",
+              "title": "Breadth: the market's X-ray",
+              "skills": [
+                "history.breadth"
+              ],
+              "lessons": [],
+              "modules": [
+                "F7"
+              ],
+              "supply": "authored",
+              "est_questions": 29,
+              "course_file": "docs/study/courses/F7/F7.05.json"
+            },
+            {
+              "id": "F7.06",
+              "title": "The Fed, rates and the yield curve",
+              "skills": [
+                "history.fed_rates"
+              ],
+              "lessons": [],
+              "modules": [
+                "F7"
+              ],
+              "supply": "authored",
+              "est_questions": 27,
+              "course_file": "docs/study/courses/F7/F7.06.json"
+            },
+            {
+              "id": "F7.07",
+              "title": "CPI, jobs and the data calendar",
+              "skills": [
+                "history.data_calendar"
+              ],
+              "lessons": [],
+              "modules": [
+                "F7"
+              ],
+              "supply": "authored",
+              "est_questions": 27,
+              "course_file": "docs/study/courses/F7/F7.07.json"
+            },
+            {
+              "id": "F7.08",
+              "title": "History Detective",
+              "skills": [
+                "history.detective"
+              ],
+              "lessons": [],
+              "modules": [
+                "F7"
+              ],
+              "supply": "authored",
+              "est_questions": 22,
+              "course_file": "docs/study/courses/F7/F7.08.json"
+            },
+            {
+              "id": "F7.09",
+              "title": "Sector leadership",
+              "skills": [
+                "history.sectors"
+              ],
+              "lessons": [],
+              "modules": [
+                "F7"
+              ],
+              "supply": "authored",
+              "est_questions": 24,
+              "course_file": "docs/study/courses/F7/F7.09.json"
+            }
+          ]
         },
         {
           "id": "F8",
           "title": "Psychology and discipline",
-          "units": []
+          "units": [
+            {
+              "id": "F8.01",
+              "title": "Map your pattern first",
+              "skills": [
+                "psych.pattern"
+              ],
+              "lessons": [],
+              "modules": [
+                "F8"
+              ],
+              "supply": "authored",
+              "est_questions": 21,
+              "course_file": "docs/study/courses/F8/F8.01.json"
+            },
+            {
+              "id": "F8.02",
+              "title": "FOMO and chasing",
+              "skills": [
+                "psych.fomo"
+              ],
+              "lessons": [],
+              "modules": [
+                "F8"
+              ],
+              "supply": "authored",
+              "est_questions": 27,
+              "course_file": "docs/study/courses/F8/F8.02.json"
+            },
+            {
+              "id": "F8.03",
+              "title": "Fear: freezing, hesitating, cutting winners",
+              "skills": [
+                "psych.fear"
+              ],
+              "lessons": [],
+              "modules": [
+                "F8"
+              ],
+              "supply": "authored",
+              "est_questions": 25,
+              "course_file": "docs/study/courses/F8/F8.03.json"
+            },
+            {
+              "id": "F8.04",
+              "title": "Tilt and revenge",
+              "skills": [
+                "psych.tilt"
+              ],
+              "lessons": [],
+              "modules": [
+                "F8"
+              ],
+              "supply": "authored",
+              "est_questions": 24,
+              "course_file": "docs/study/courses/F8/F8.04.json"
+            },
+            {
+              "id": "F8.05",
+              "title": "Euphoria and oversizing after wins",
+              "skills": [
+                "psych.euphoria"
+              ],
+              "lessons": [],
+              "modules": [
+                "F8"
+              ],
+              "supply": "authored",
+              "est_questions": 23,
+              "course_file": "docs/study/courses/F8/F8.05.json"
+            },
+            {
+              "id": "F8.06",
+              "title": "The mental hand history",
+              "skills": [
+                "psych.hand_history"
+              ],
+              "lessons": [],
+              "modules": [
+                "F8"
+              ],
+              "supply": "authored",
+              "est_questions": 23,
+              "course_file": "docs/study/courses/F8/F8.06.json"
+            },
+            {
+              "id": "F8.07",
+              "title": "The daily mental routine",
+              "skills": [
+                "psych.routine"
+              ],
+              "lessons": [],
+              "modules": [
+                "F8"
+              ],
+              "supply": "authored",
+              "est_questions": 25,
+              "course_file": "docs/study/courses/F8/F8.07.json"
+            }
+          ]
         },
         {
           "id": "F9",
           "title": "Account and risk basics",
-          "units": []
+          "units": [
+            {
+              "id": "F9.01",
+              "title": "Risk per trade",
+              "skills": [
+                "risk.per_trade"
+              ],
+              "lessons": [],
+              "modules": [
+                "F9"
+              ],
+              "supply": "authored",
+              "est_questions": 24,
+              "course_file": "docs/study/courses/F9/F9.01.json"
+            },
+            {
+              "id": "F9.02",
+              "title": "Stop first, then size",
+              "skills": [
+                "risk.size_from_stop"
+              ],
+              "lessons": [],
+              "modules": [
+                "F9"
+              ],
+              "supply": "authored",
+              "est_questions": 27,
+              "course_file": "docs/study/courses/F9/F9.02.json"
+            },
+            {
+              "id": "F9.03",
+              "title": "R, expectancy and the marble game",
+              "skills": [
+                "risk.expectancy"
+              ],
+              "lessons": [],
+              "modules": [
+                "F9"
+              ],
+              "supply": "authored",
+              "est_questions": 31,
+              "course_file": "docs/study/courses/F9/F9.03.json"
+            },
+            {
+              "id": "F9.04",
+              "title": "Drawdown arithmetic and the protocol",
+              "skills": [
+                "risk.drawdown"
+              ],
+              "lessons": [],
+              "modules": [
+                "F9"
+              ],
+              "supply": "authored",
+              "est_questions": 35,
+              "course_file": "docs/study/courses/F9/F9.04.json"
+            },
+            {
+              "id": "F9.05",
+              "title": "Heat and the book",
+              "skills": [
+                "risk.heat"
+              ],
+              "lessons": [],
+              "modules": [
+                "F9"
+              ],
+              "supply": "authored",
+              "est_questions": 19,
+              "course_file": "docs/study/courses/F9/F9.05.json"
+            },
+            {
+              "id": "F9.06",
+              "title": "Open risk after a partial",
+              "skills": [
+                "risk.partials"
+              ],
+              "lessons": [],
+              "modules": [
+                "F9"
+              ],
+              "supply": "authored",
+              "est_questions": 26,
+              "course_file": "docs/study/courses/F9/F9.06.json"
+            },
+            {
+              "id": "F9.07",
+              "title": "Margin, PDT, settlement, cash",
+              "skills": [
+                "risk.account_rules"
+              ],
+              "lessons": [],
+              "modules": [
+                "F9"
+              ],
+              "supply": "authored",
+              "est_questions": 26,
+              "course_file": "docs/study/courses/F9/F9.07.json"
+            },
+            {
+              "id": "F9.08",
+              "title": "Our account rules: size, caps and grades",
+              "skills": [
+                "risk.our_rules"
+              ],
+              "lessons": [],
+              "modules": [
+                "F9"
+              ],
+              "supply": "authored",
+              "est_questions": 29,
+              "course_file": "docs/study/courses/F9/F9.08.json"
+            },
+            {
+              "id": "F9.09",
+              "title": "Our account rules: the market and the trade",
+              "skills": [
+                "risk.trade_rules"
+              ],
+              "lessons": [],
+              "modules": [
+                "F9"
+              ],
+              "supply": "authored",
+              "est_questions": 30,
+              "course_file": "docs/study/courses/F9/F9.09.json"
+            }
+          ]
         },
         {
           "id": "F10",
           "title": "Orders and execution",
-          "units": []
+          "units": [
+            {
+              "id": "F10.01",
+              "title": "Market and limit orders",
+              "skills": [
+                "orders.market_limit"
+              ],
+              "lessons": [],
+              "modules": [
+                "F10"
+              ],
+              "supply": "authored",
+              "est_questions": 24,
+              "course_file": "docs/study/courses/F10/F10.01.json"
+            },
+            {
+              "id": "F10.02",
+              "title": "Stop, stop-limit, trailing",
+              "skills": [
+                "orders.stops"
+              ],
+              "lessons": [],
+              "modules": [
+                "F10"
+              ],
+              "supply": "authored",
+              "est_questions": 27,
+              "course_file": "docs/study/courses/F10/F10.02.json"
+            },
+            {
+              "id": "F10.03",
+              "title": "Brackets and OCO",
+              "skills": [
+                "orders.brackets"
+              ],
+              "lessons": [],
+              "modules": [
+                "F10"
+              ],
+              "supply": "authored",
+              "est_questions": 24,
+              "course_file": "docs/study/courses/F10/F10.03.json"
+            },
+            {
+              "id": "F10.04",
+              "title": "Slippage, partial fills, extended hours",
+              "skills": [
+                "orders.slippage"
+              ],
+              "lessons": [],
+              "modules": [
+                "F10"
+              ],
+              "supply": "authored",
+              "est_questions": 25,
+              "course_file": "docs/study/courses/F10/F10.04.json"
+            },
+            {
+              "id": "F10.05",
+              "title": "Trims, trails and scaling out",
+              "skills": [
+                "orders.scaling"
+              ],
+              "lessons": [],
+              "modules": [
+                "F10"
+              ],
+              "supply": "authored",
+              "est_questions": 30,
+              "course_file": "docs/study/courses/F10/F10.05.json"
+            }
+          ]
         },
         {
           "id": "F10b",
           "title": "Shorting mechanics",
-          "units": []
+          "units": [
+            {
+              "id": "F10b.01",
+              "title": "Shorting: borrow, locate, cover",
+              "skills": [
+                "short.mechanics"
+              ],
+              "lessons": [],
+              "modules": [
+                "F10b"
+              ],
+              "supply": "authored",
+              "est_questions": 26,
+              "course_file": "docs/study/courses/F10b/F10b.01.json"
+            },
+            {
+              "id": "F10b.02",
+              "title": "Short risk: squeezes and the mirror",
+              "skills": [
+                "short.risk"
+              ],
+              "lessons": [],
+              "modules": [
+                "F10b"
+              ],
+              "supply": "authored",
+              "est_questions": 27,
+              "course_file": "docs/study/courses/F10b/F10b.02.json"
+            }
+          ]
         },
         {
           "id": "F11",
           "title": "Styles",
-          "units": []
+          "units": [
+            {
+              "id": "F11.01",
+              "title": "Day, swing, position",
+              "skills": [
+                "styles.horizons"
+              ],
+              "lessons": [],
+              "modules": [
+                "F11"
+              ],
+              "supply": "authored",
+              "est_questions": 22,
+              "course_file": "docs/study/courses/F11/F11.01.json"
+            },
+            {
+              "id": "F11.02",
+              "title": "Which setups fit which style",
+              "skills": [
+                "styles.setups_fit"
+              ],
+              "lessons": [],
+              "modules": [
+                "F11"
+              ],
+              "supply": "authored",
+              "est_questions": 25,
+              "course_file": "docs/study/courses/F11/F11.02.json"
+            },
+            {
+              "id": "F11.03",
+              "title": "Our method in each style",
+              "skills": [
+                "styles.method_by_style"
+              ],
+              "lessons": [],
+              "modules": [
+                "F11"
+              ],
+              "supply": "authored",
+              "est_questions": 22,
+              "course_file": "docs/study/courses/F11/F11.03.json"
+            },
+            {
+              "id": "F11.04",
+              "title": "Pick your lane",
+              "skills": [
+                "styles.lane"
+              ],
+              "lessons": [],
+              "modules": [
+                "F11"
+              ],
+              "supply": "authored",
+              "est_questions": 21,
+              "course_file": "docs/study/courses/F11/F11.04.json"
+            },
+            {
+              "id": "F11.05",
+              "title": "Time of day and the week",
+              "skills": [
+                "styles.time_of_day"
+              ],
+              "lessons": [],
+              "modules": [
+                "F11"
+              ],
+              "supply": "authored",
+              "est_questions": 22,
+              "course_file": "docs/study/courses/F11/F11.05.json"
+            }
+          ]
         },
         {
           "id": "F12",
           "title": "Process",
-          "units": []
+          "units": [
+            {
+              "id": "F12.01",
+              "title": "The written plan",
+              "skills": [
+                "process.plan"
+              ],
+              "lessons": [],
+              "modules": [
+                "F12"
+              ],
+              "supply": "authored",
+              "est_questions": 25,
+              "course_file": "docs/study/courses/F12/F12.01.json"
+            },
+            {
+              "id": "F12.02",
+              "title": "The daily routine",
+              "skills": [
+                "process.routine"
+              ],
+              "lessons": [],
+              "modules": [
+                "F12"
+              ],
+              "supply": "authored",
+              "est_questions": 24,
+              "course_file": "docs/study/courses/F12/F12.02.json"
+            },
+            {
+              "id": "F12.03",
+              "title": "Journaling with fixed fields",
+              "skills": [
+                "process.journal"
+              ],
+              "lessons": [],
+              "modules": [
+                "F12"
+              ],
+              "supply": "authored",
+              "est_questions": 24,
+              "course_file": "docs/study/courses/F12/F12.03.json"
+            },
+            {
+              "id": "F12.04",
+              "title": "Grading on three axes",
+              "skills": [
+                "process.grading"
+              ],
+              "lessons": [],
+              "modules": [
+                "F12"
+              ],
+              "supply": "authored",
+              "est_questions": 27,
+              "course_file": "docs/study/courses/F12/F12.04.json"
+            },
+            {
+              "id": "F12.05",
+              "title": "The weekly and monthly review",
+              "skills": [
+                "process.review"
+              ],
+              "lessons": [],
+              "modules": [
+                "F12"
+              ],
+              "supply": "authored",
+              "est_questions": 27,
+              "course_file": "docs/study/courses/F12/F12.05.json"
+            },
+            {
+              "id": "F12.06",
+              "title": "Your playbook",
+              "skills": [
+                "process.playbook"
+              ],
+              "lessons": [],
+              "modules": [
+                "F12"
+              ],
+              "supply": "authored",
+              "est_questions": 21,
+              "course_file": "docs/study/courses/F12/F12.06.json"
+            },
+            {
+              "id": "F12.07",
+              "title": "Spot the mistake",
+              "skills": [
+                "process.mistakes"
+              ],
+              "lessons": [],
+              "modules": [
+                "F12"
+              ],
+              "supply": "authored",
+              "est_questions": 28,
+              "course_file": "docs/study/courses/F12/F12.07.json"
+            }
+          ]
         },
         {
           "id": "V",
           "title": "Vocabulary",
-          "units": []
+          "units": [
+            {
+              "id": "V.02",
+              "title": "Chart words",
+              "skills": [
+                "vocab.chart_terms"
+              ],
+              "lessons": [],
+              "modules": [
+                "V"
+              ],
+              "supply": "authored",
+              "est_questions": 66,
+              "course_file": "docs/study/courses/V/V.02.json"
+            },
+            {
+              "id": "V.03",
+              "title": "Candle words",
+              "skills": [
+                "vocab.candle_terms"
+              ],
+              "lessons": [],
+              "modules": [
+                "V"
+              ],
+              "supply": "authored",
+              "est_questions": 63,
+              "course_file": "docs/study/courses/V/V.03.json"
+            },
+            {
+              "id": "V.04",
+              "title": "Pattern and base words",
+              "skills": [
+                "vocab.pattern_terms"
+              ],
+              "lessons": [],
+              "modules": [
+                "V"
+              ],
+              "supply": "authored",
+              "est_questions": 68,
+              "course_file": "docs/study/courses/V/V.04.json"
+            },
+            {
+              "id": "V.05",
+              "title": "Setup words",
+              "skills": [
+                "vocab.setup_terms"
+              ],
+              "lessons": [],
+              "modules": [
+                "V"
+              ],
+              "supply": "authored",
+              "est_questions": 62,
+              "course_file": "docs/study/courses/V/V.05.json"
+            },
+            {
+              "id": "V.06",
+              "title": "Risk words",
+              "skills": [
+                "vocab.risk_terms"
+              ],
+              "lessons": [],
+              "modules": [
+                "V"
+              ],
+              "supply": "authored",
+              "est_questions": 70,
+              "course_file": "docs/study/courses/V/V.06.json"
+            },
+            {
+              "id": "V.07",
+              "title": "Order words",
+              "skills": [
+                "vocab.order_terms"
+              ],
+              "lessons": [],
+              "modules": [
+                "V"
+              ],
+              "supply": "authored",
+              "est_questions": 63,
+              "course_file": "docs/study/courses/V/V.07.json"
+            },
+            {
+              "id": "V.08",
+              "title": "Options words",
+              "skills": [
+                "vocab.options_terms"
+              ],
+              "lessons": [],
+              "modules": [
+                "V"
+              ],
+              "supply": "authored",
+              "est_questions": 68,
+              "course_file": "docs/study/courses/V/V.08.json"
+            },
+            {
+              "id": "V.09",
+              "title": "Fundamentals words",
+              "skills": [
+                "vocab.fund_terms"
+              ],
+              "lessons": [],
+              "modules": [
+                "V"
+              ],
+              "supply": "authored",
+              "est_questions": 63,
+              "course_file": "docs/study/courses/V/V.09.json"
+            },
+            {
+              "id": "V.10",
+              "title": "Macro words",
+              "skills": [
+                "vocab.macro_terms"
+              ],
+              "lessons": [],
+              "modules": [
+                "V"
+              ],
+              "supply": "authored",
+              "est_questions": 66,
+              "course_file": "docs/study/courses/V/V.10.json"
+            },
+            {
+              "id": "V.11",
+              "title": "Breadth words",
+              "skills": [
+                "vocab.breadth_terms"
+              ],
+              "lessons": [],
+              "modules": [
+                "V"
+              ],
+              "supply": "authored",
+              "est_questions": 65,
+              "course_file": "docs/study/courses/V/V.11.json"
+            },
+            {
+              "id": "V.12",
+              "title": "Psychology words",
+              "skills": [
+                "vocab.psych_terms"
+              ],
+              "lessons": [],
+              "modules": [
+                "V"
+              ],
+              "supply": "authored",
+              "est_questions": 62,
+              "course_file": "docs/study/courses/V/V.12.json"
+            },
+            {
+              "id": "V.13",
+              "title": "Process words",
+              "skills": [
+                "vocab.process_terms"
+              ],
+              "lessons": [],
+              "modules": [
+                "V"
+              ],
+              "supply": "authored",
+              "est_questions": 62,
+              "course_file": "docs/study/courses/V/V.13.json"
+            }
+          ]
         }
       ]
     },
@@ -634,444 +1877,445 @@
               "id": "SET.07",
               "title": "Flat Base Breakout",
               "skills": [
-                "setup.family1.flat_base"
+                "setup.flat_base"
               ],
               "lessons": [
                 "uct-method:flagship-flat-base-breakout-contractions-dry-up-pivot-and-the-tick-exact-buy"
               ],
               "modules": [
-                "M7"
+                "SET"
               ],
-              "supply": "medium",
-              "est_questions": 100,
-              "setup": "Flat Base Breakout"
+              "supply": "authored",
+              "est_questions": 74,
+              "course_file": "docs/study/courses/SET/SET.07.json"
             },
             {
               "id": "SET.08",
               "title": "Bull Flag",
               "skills": [
-                "setup.family1.bull_flag"
+                "setup.bull_flag"
               ],
               "lessons": [
                 "uct-method:bull-flag-the-flagpole-the-quiet-drift-and-the-trendline-break"
               ],
               "modules": [
-                "M7"
+                "SET"
               ],
-              "supply": "medium",
-              "est_questions": 80,
-              "setup": "Bull Flag"
+              "supply": "authored",
+              "est_questions": 76,
+              "course_file": "docs/study/courses/SET/SET.08.json"
             },
             {
               "id": "SET.09",
-              "title": "Cup & Handle",
+              "title": "Cup with Handle",
               "skills": [
-                "setup.family1.cup_handle"
+                "setup.cup_handle"
               ],
               "lessons": [
                 "uct-method:cup-handle-the-multi-week-base-and-the-handle-s-low-volume-shakeout"
               ],
               "modules": [
-                "M7"
+                "SET"
               ],
-              "supply": "none",
-              "est_questions": 40,
-              "setup": "Cup & Handle"
+              "supply": "authored",
+              "est_questions": 90,
+              "course_file": "docs/study/courses/SET/SET.09.json"
             },
             {
               "id": "SET.10",
               "title": "IPO Base",
               "skills": [
-                "setup.family1.ipo_base"
+                "setup.ipo_base"
               ],
               "lessons": [
                 "uct-method:ipo-base-a-new-issue-s-first-consolidation-short-shallow-explosive"
               ],
               "modules": [
-                "M7"
+                "SET"
               ],
-              "supply": "none",
-              "est_questions": 40,
-              "setup": "IPO Base"
+              "supply": "authored",
+              "est_questions": 70,
+              "course_file": "docs/study/courses/SET/SET.10.json"
             },
             {
               "id": "SET.11",
               "title": "Launchpad",
               "skills": [
-                "setup.family1.launchpad"
+                "setup.launchpad"
               ],
               "lessons": [
                 "uct-method:launchpad-consolidating-on-top-of-the-stacked-averages-then-launching"
               ],
               "modules": [
-                "M7"
+                "SET"
               ],
-              "supply": "medium",
-              "est_questions": 80,
-              "setup": "Launchpad"
+              "supply": "authored",
+              "est_questions": 63,
+              "course_file": "docs/study/courses/SET/SET.11.json"
             },
             {
               "id": "SET.12",
               "title": "VCP",
               "skills": [
-                "setup.family1.vcp"
+                "setup.vcp"
               ],
               "lessons": [],
-              "modules": [],
-              "supply": "good",
-              "est_questions": 120,
-              "lesson_door": "uct-method:flagship-flat-base-breakout-contractions-dry-up-pivot-and-the-tick-exact-buy",
-              "setup": "VCP"
+              "modules": [
+                "SET"
+              ],
+              "supply": "authored",
+              "est_questions": 72,
+              "course_file": "docs/study/courses/SET/SET.12.json"
             },
             {
               "id": "SET.13",
               "title": "High Tight Flag",
               "skills": [
-                "setup.family1.high_tight_flag"
+                "setup.high_tight_flag"
               ],
               "lessons": [],
-              "modules": [],
-              "supply": "good",
-              "est_questions": 100,
-              "lesson_door": "uct-method:bull-flag-the-flagpole-the-quiet-drift-and-the-trendline-break",
-              "setup": "High Tight Flag"
+              "modules": [
+                "SET"
+              ],
+              "supply": "authored",
+              "est_questions": 76,
+              "course_file": "docs/study/courses/SET/SET.13.json"
             },
             {
               "id": "SET.14",
               "title": "20 EMA Pullback",
               "skills": [
-                "setup.family2.ema20_pullback"
+                "setup.ema20_pullback"
               ],
               "lessons": [
                 "uct-method:flagship-20-ema-pullback-qualify-the-touch-buy-the-9-ema-remount"
               ],
               "modules": [
-                "M8"
+                "SET"
               ],
-              "supply": "medium",
-              "est_questions": 100,
-              "setup": "20 EMA Pullback"
+              "supply": "authored",
+              "est_questions": 70,
+              "course_file": "docs/study/courses/SET/SET.14.json"
             },
             {
               "id": "SET.15",
               "title": "EMA Crossback",
               "skills": [
-                "setup.family2.ema_crossback"
+                "setup.ema_crossback"
               ],
               "lessons": [
                 "uct-method:ema-crossback-the-re-entry-after-the-extension"
               ],
               "modules": [
-                "M8"
+                "SET"
               ],
-              "supply": "thin",
-              "est_questions": 50,
-              "setup": "EMA Crossback"
+              "supply": "authored",
+              "est_questions": 74,
+              "course_file": "docs/study/courses/SET/SET.15.json"
             },
             {
               "id": "SET.16",
               "title": "Wedge Pop",
               "skills": [
-                "setup.family2.wedge_pop"
+                "setup.wedge_pop"
               ],
               "lessons": [
                 "uct-method:wedge-pop-wedge-drop-one-coil-two-resolutions"
               ],
               "modules": [
-                "M8"
+                "SET"
               ],
-              "supply": "thin",
-              "est_questions": 50,
-              "setup": "Wedge Pop"
+              "supply": "authored",
+              "est_questions": 68,
+              "course_file": "docs/study/courses/SET/SET.16.json"
             },
             {
               "id": "SET.17",
               "title": "Wedge Drop",
               "skills": [
-                "setup.family2.wedge_drop"
+                "setup.wedge_drop"
               ],
               "lessons": [
                 "uct-method:wedge-pop-wedge-drop-one-coil-two-resolutions"
               ],
               "modules": [
-                "M8"
+                "SET"
               ],
-              "supply": "thin",
-              "est_questions": 40,
-              "setup": "Wedge Drop"
+              "supply": "authored",
+              "est_questions": 67,
+              "course_file": "docs/study/courses/SET/SET.17.json"
             },
             {
               "id": "SET.18",
               "title": "Episodic Pivot",
               "skills": [
-                "setup.family3.episodic_pivot"
+                "setup.episodic_pivot"
               ],
               "lessons": [
                 "uct-method:flagship-episodic-pivot-day-one-of-a-new-trend"
               ],
               "modules": [
-                "M9"
+                "SET"
               ],
-              "supply": "good",
-              "est_questions": 120,
-              "setup": "Episodic Pivot"
+              "supply": "authored",
+              "est_questions": 67,
+              "course_file": "docs/study/courses/SET/SET.18.json"
             },
             {
               "id": "SET.19",
               "title": "Power Earnings Gap",
               "skills": [
-                "setup.family3.power_earnings_gap"
+                "setup.power_earnings_gap"
               ],
               "lessons": [
                 "uct-method:power-earnings-gap-institutions-repricing-in-real-time"
               ],
               "modules": [
-                "M9"
+                "SET"
               ],
-              "supply": "good",
-              "est_questions": 100,
-              "setup": "Power Earnings Gap"
+              "supply": "authored",
+              "est_questions": 58,
+              "course_file": "docs/study/courses/SET/SET.19.json"
             },
             {
               "id": "SET.20",
-              "title": "News/Earnings Gapper",
+              "title": "News Gapper",
               "skills": [
-                "setup.family3.news_gapper"
+                "setup.news_gapper"
               ],
               "lessons": [
                 "uct-method:news-earnings-gapper-trade-the-first-pullback-and-reclaim-not-the-open"
               ],
               "modules": [
-                "M9"
+                "SET"
               ],
-              "supply": "none",
-              "est_questions": 40,
-              "setup": "News/Earnings Gapper"
+              "supply": "authored",
+              "est_questions": 62,
+              "course_file": "docs/study/courses/SET/SET.20.json"
             },
             {
               "id": "SET.21",
               "title": "High Volume Edge",
               "skills": [
-                "setup.family3.hve"
+                "setup.high_volume_edge"
               ],
               "lessons": [
                 "uct-method:the-level-the-tape-remembers-high-volume-edge-gap-support"
               ],
               "modules": [
-                "M9"
+                "SET"
               ],
-              "supply": "medium",
-              "est_questions": 70,
-              "setup": "High Volume Edge"
+              "supply": "authored",
+              "est_questions": 68,
+              "course_file": "docs/study/courses/SET/SET.21.json"
             },
             {
               "id": "SET.22",
               "title": "Gap Support",
               "skills": [
-                "setup.family3.gap_support",
-                "setup.family3.bear_gap"
+                "setup.gap_support"
               ],
               "lessons": [
                 "uct-method:the-level-the-tape-remembers-high-volume-edge-gap-support"
               ],
               "modules": [
-                "M9"
+                "SET"
               ],
-              "supply": "medium",
-              "est_questions": 70,
-              "setup": "Gap Support"
+              "supply": "authored",
+              "est_questions": 65,
+              "course_file": "docs/study/courses/SET/SET.22.json"
             },
             {
               "id": "SET.23",
               "title": "Kicker Candle",
               "skills": [
-                "setup.family3.kicker"
+                "setup.kicker"
               ],
               "lessons": [
                 "uct-method:kicker-candle-the-trap-that-closes-above-yesterday-s-high"
               ],
               "modules": [
-                "M9"
+                "SET"
               ],
-              "supply": "medium",
-              "est_questions": 70,
-              "setup": "Kicker Candle"
+              "supply": "authored",
+              "est_questions": 89,
+              "course_file": "docs/study/courses/SET/SET.23.json"
             },
             {
               "id": "SET.24",
               "title": "2B Reversal",
               "skills": [
-                "setup.family4.two_b"
+                "setup.two_b_reversal"
               ],
               "lessons": [
                 "uct-method:2b-reversal-and-oops-its-gap-open-variant"
               ],
               "modules": [
-                "M10"
+                "SET"
               ],
-              "supply": "none",
-              "est_questions": 40,
-              "setup": "2B Reversal"
+              "supply": "authored",
+              "est_questions": 69,
+              "course_file": "docs/study/courses/SET/SET.24.json"
             },
             {
               "id": "SET.25",
               "title": "Oops Reversal",
               "skills": [
-                "setup.family4.oops"
+                "setup.oops_reversal"
               ],
               "lessons": [
                 "uct-method:2b-reversal-and-oops-its-gap-open-variant"
               ],
               "modules": [
-                "M10"
+                "SET"
               ],
-              "supply": "medium",
-              "est_questions": 70,
-              "setup": "Oops Reversal"
+              "supply": "authored",
+              "est_questions": 66,
+              "course_file": "docs/study/courses/SET/SET.25.json"
             },
             {
               "id": "SET.26",
-              "title": "U&R (Undercut & Rally)",
+              "title": "Undercut and Rally",
               "skills": [
-                "setup.family4.u_and_r"
+                "setup.undercut_rally"
               ],
               "lessons": [
                 "uct-method:flagship-u-r-undercut-rally-the-shakeout-you-buy"
               ],
               "modules": [
-                "M10"
+                "SET"
               ],
-              "supply": "good",
-              "est_questions": 110,
-              "setup": "U&R (Undercut & Rally)"
+              "supply": "authored",
+              "est_questions": 62,
+              "course_file": "docs/study/courses/SET/SET.26.json"
             },
             {
               "id": "SET.27",
               "title": "Slingshot",
               "skills": [
-                "setup.family4.slingshot"
+                "setup.slingshot"
               ],
               "lessons": [
                 "uct-method:slingshot-recapture-the-4-ema-of-the-highs-buy-momentum-resuming-not-the-low"
               ],
               "modules": [
-                "M10"
+                "SET"
               ],
-              "supply": "medium",
-              "est_questions": 70,
-              "setup": "Slingshot"
+              "supply": "authored",
+              "est_questions": 67,
+              "course_file": "docs/study/courses/SET/SET.27.json"
             },
             {
               "id": "SET.28",
               "title": "Remount",
               "skills": [
-                "setup.family4.remount"
+                "setup.remount"
               ],
               "lessons": [
                 "uct-method:remount-shake-out-below-the-line-retake-it-with-authority"
               ],
               "modules": [
-                "M10"
+                "SET"
               ],
-              "supply": "medium",
-              "est_questions": 80,
-              "setup": "Remount"
+              "supply": "authored",
+              "est_questions": 76,
+              "course_file": "docs/study/courses/SET/SET.28.json"
             },
             {
               "id": "SET.29",
-              "title": "Failed H&S / Rounded Top",
+              "title": "Failed Head and Shoulders / Rounded Top",
               "skills": [
-                "setup.family4.failed_hs"
+                "setup.failed_hs"
               ],
               "lessons": [
                 "uct-method:failed-h-s-rounded-top-when-the-breakdown-everyone-sees-never-comes"
               ],
               "modules": [
-                "M10"
+                "SET"
               ],
-              "supply": "thin",
-              "est_questions": 50,
-              "setup": "Failed H&S / Rounded Top"
+              "supply": "authored",
+              "est_questions": 67,
+              "course_file": "docs/study/courses/SET/SET.29.json"
             },
             {
               "id": "SET.30",
               "title": "Parabolic Long",
               "skills": [
-                "setup.family4.parabolic_long"
+                "setup.parabolic_long"
               ],
               "lessons": [
                 "uct-method:parabolic-long-riding-the-vertical-bar-by-bar"
               ],
               "modules": [
-                "M10"
+                "SET"
               ],
-              "supply": "none",
-              "est_questions": 40,
-              "setup": "Parabolic Long"
+              "supply": "authored",
+              "est_questions": 69,
+              "course_file": "docs/study/courses/SET/SET.30.json"
             },
             {
               "id": "SET.31",
               "title": "Parabolic Short",
               "skills": [
-                "setup.family4.parabolic_short"
+                "setup.parabolic_short"
               ],
               "lessons": [
                 "uct-method:parabolic-short-shorting-the-crack-of-a-3-5-day-blow-off"
               ],
               "modules": [
-                "M10"
+                "SET"
               ],
-              "supply": "medium",
-              "est_questions": 70,
-              "setup": "Parabolic Short"
+              "supply": "authored",
+              "est_questions": 67,
+              "course_file": "docs/study/courses/SET/SET.31.json"
             },
             {
               "id": "SET.32",
-              "title": "ORB (Opening Range Break)",
+              "title": "Opening Range Breakout",
               "skills": [
-                "setup.intraday.orb"
+                "setup.orb"
               ],
               "lessons": [
                 "uct-method:reading-the-open-orb-and-the-30-minute-pivot-two-range-break-timers"
               ],
               "modules": [
-                "M11"
+                "SET"
               ],
-              "supply": "thin",
-              "est_questions": 40,
-              "setup": "ORB (Opening Range Break)"
+              "supply": "authored",
+              "est_questions": 64,
+              "course_file": "docs/study/courses/SET/SET.32.json"
             },
             {
               "id": "SET.33",
               "title": "30-Minute Pivot",
               "skills": [
-                "setup.intraday.thirty_min_pivot"
+                "setup.thirty_minute_pivot"
               ],
               "lessons": [
                 "uct-method:reading-the-open-orb-and-the-30-minute-pivot-two-range-break-timers"
               ],
               "modules": [
-                "M11"
+                "SET"
               ],
-              "supply": "none",
-              "est_questions": 30,
-              "setup": "30-Minute Pivot"
+              "supply": "authored",
+              "est_questions": 67,
+              "course_file": "docs/study/courses/SET/SET.33.json"
             },
             {
               "id": "SET.34",
               "title": "Go Signal",
               "skills": [
-                "setup.intraday.go_signal"
+                "setup.go_signal"
               ],
               "lessons": [
                 "uct-method:go-signal-the-catalyst-gap-that-digests-into-the-9-ema-then-engulfs"
               ],
               "modules": [
-                "M11"
+                "SET"
               ],
-              "supply": "medium",
-              "est_questions": 60,
-              "setup": "Go Signal"
+              "supply": "authored",
+              "est_questions": 67,
+              "course_file": "docs/study/courses/SET/SET.34.json"
             },
             {
               "id": "SET.35",
@@ -1149,6 +2393,216 @@
               ],
               "supply": "good",
               "est_questions": 90
+            },
+            {
+              "id": "SET.40",
+              "title": "Inside Day",
+              "skills": [
+                "setup.inside_day"
+              ],
+              "lessons": [],
+              "modules": [
+                "SET"
+              ],
+              "supply": "authored",
+              "est_questions": 62,
+              "course_file": "docs/study/courses/SET/SET.40.json"
+            },
+            {
+              "id": "SET.41",
+              "title": "Trendline Break",
+              "skills": [
+                "setup.trendline_break"
+              ],
+              "lessons": [],
+              "modules": [
+                "SET"
+              ],
+              "supply": "authored",
+              "est_questions": 58,
+              "course_file": "docs/study/courses/SET/SET.41.json"
+            },
+            {
+              "id": "SET.42",
+              "title": "4B Setup",
+              "skills": [
+                "setup.weinstein_4b"
+              ],
+              "lessons": [],
+              "modules": [
+                "SET"
+              ],
+              "supply": "authored",
+              "est_questions": 65,
+              "course_file": "docs/study/courses/SET/SET.42.json"
+            },
+            {
+              "id": "SET.43",
+              "title": "Pullback to the Moving Averages",
+              "skills": [
+                "setup.ma_pullbacks"
+              ],
+              "lessons": [],
+              "modules": [
+                "SET"
+              ],
+              "supply": "authored",
+              "est_questions": 82,
+              "course_file": "docs/study/courses/SET/SET.43.json"
+            },
+            {
+              "id": "SET.44",
+              "title": "Holy Grail",
+              "skills": [
+                "setup.holy_grail"
+              ],
+              "lessons": [],
+              "modules": [
+                "SET"
+              ],
+              "supply": "authored",
+              "est_questions": 61,
+              "course_file": "docs/study/courses/SET/SET.44.json"
+            },
+            {
+              "id": "SET.45",
+              "title": "Qullamaggie Breakout and the Kell Cycle",
+              "skills": [
+                "setup.qullamaggie_kell"
+              ],
+              "lessons": [],
+              "modules": [
+                "SET"
+              ],
+              "supply": "authored",
+              "est_questions": 109,
+              "course_file": "docs/study/courses/SET/SET.45.json"
+            },
+            {
+              "id": "SET.46",
+              "title": "AVWAP Reclaim",
+              "skills": [
+                "setup.avwap_reclaim"
+              ],
+              "lessons": [],
+              "modules": [
+                "SET"
+              ],
+              "supply": "authored",
+              "est_questions": 65,
+              "course_file": "docs/study/courses/SET/SET.46.json"
+            },
+            {
+              "id": "SET.47",
+              "title": "News Failure",
+              "skills": [
+                "setup.news_failure"
+              ],
+              "lessons": [],
+              "modules": [
+                "SET"
+              ],
+              "supply": "authored",
+              "est_questions": 60,
+              "course_file": "docs/study/courses/SET/SET.47.json"
+            },
+            {
+              "id": "SET.48",
+              "title": "Bear Gap off the Highs",
+              "skills": [
+                "setup.bear_gap"
+              ],
+              "lessons": [],
+              "modules": [
+                "SET"
+              ],
+              "supply": "authored",
+              "est_questions": 61,
+              "course_file": "docs/study/courses/SET/SET.48.json"
+            },
+            {
+              "id": "SET.49",
+              "title": "Capitulation",
+              "skills": [
+                "setup.capitulation"
+              ],
+              "lessons": [],
+              "modules": [
+                "SET"
+              ],
+              "supply": "authored",
+              "est_questions": 71,
+              "course_file": "docs/study/courses/SET/SET.49.json"
+            },
+            {
+              "id": "SET.50",
+              "title": "Wyckoff Spring",
+              "skills": [
+                "setup.wyckoff_spring"
+              ],
+              "lessons": [],
+              "modules": [
+                "SET"
+              ],
+              "supply": "authored",
+              "est_questions": 64,
+              "course_file": "docs/study/courses/SET/SET.50.json"
+            },
+            {
+              "id": "SET.51",
+              "title": "Mean Reversion",
+              "skills": [
+                "setup.mean_reversion"
+              ],
+              "lessons": [],
+              "modules": [
+                "SET"
+              ],
+              "supply": "authored",
+              "est_questions": 68,
+              "course_file": "docs/study/courses/SET/SET.51.json"
+            },
+            {
+              "id": "SET.52",
+              "title": "Wick Play",
+              "skills": [
+                "setup.wick_play"
+              ],
+              "lessons": [],
+              "modules": [
+                "SET"
+              ],
+              "supply": "authored",
+              "est_questions": 66,
+              "course_file": "docs/study/courses/SET/SET.52.json"
+            },
+            {
+              "id": "SET.53",
+              "title": "Red to Green",
+              "skills": [
+                "setup.red_to_green"
+              ],
+              "lessons": [],
+              "modules": [
+                "SET"
+              ],
+              "supply": "authored",
+              "est_questions": 73,
+              "course_file": "docs/study/courses/SET/SET.53.json"
+            },
+            {
+              "id": "SET.54",
+              "title": "Opening Drive",
+              "skills": [
+                "setup.opening_drive"
+              ],
+              "lessons": [],
+              "modules": [
+                "SET"
+              ],
+              "supply": "authored",
+              "est_questions": 64,
+              "course_file": "docs/study/courses/SET/SET.54.json"
             }
           ]
         },

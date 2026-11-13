@@ -1,0 +1,3035 @@
+{
+ "unit": "SET.21",
+ "track": "SET",
+ "title": "High Volume Edge",
+ "teaches": "The High Volume Edge as we trade it: an up day on record volume in a lesser-known stock with a fresh story, its close (the HVC) marked with a ray and an AVWAP; the buy is day 2's dip under the HVC and trade back over it at market, the stop a few cents under the day-2 low, a third off at 3R and 5R with the rest trailed, and a close under the HVC is not a failure.",
+ "skills": [
+  {
+   "id": "setup.high_volume_edge",
+   "title": "High Volume Edge"
+  }
+ ],
+ "as_of": "2026-11-10",
+ "card": "docs/study/setups/criteria/24-high-volume-edge.json",
+ "sources": [
+  {
+   "id": "s1",
+   "tier": 2,
+   "publisher": "Greg Duncan",
+   "title": "Trading The High Volume Close Setup (Upside Unlimited, 2023-12-02)",
+   "url": "https://upsideunlimitednewsletter.com/p/trading-the-high-volume-close-setup",
+   "accessed": "2026-11-09",
+   "why_reliable": "Greg Duncan, a named trader-educator who publishes the High Volume Close setup in full in his own newsletter and blog; not shown to be its originator. Both posts are one publisher. Used beside the card and the rulebook, never alone to key."
+  },
+  {
+   "id": "s2",
+   "tier": 2,
+   "publisher": "Greg Duncan",
+   "title": "3 Trading Setups Every Trader Must Know (feather.blog, 2023-01-27)",
+   "url": "https://gregduncan.feather.blog/3-best-trading-setups",
+   "accessed": "2026-11-09",
+   "why_reliable": "Greg Duncan, a named trader-educator who publishes the High Volume Close setup in full in his own newsletter and blog; not shown to be its originator. Both posts are one publisher. Used beside the card and the rulebook, never alone to key."
+  },
+  {
+   "id": "s3",
+   "tier": 2,
+   "publisher": "Stockbee (Pradeep Bonde)",
+   "title": "What are Episodic Pivots and how to find them (2010-02-12, with his comment replies)",
+   "url": "https://stockbee.blogspot.com/2010/02/what-are-episodic-pivots-and-how-to.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Pradeep Bonde, the originator of the Episodic Pivot, a named trader-educator with a long public record; UCT's Sunday Scans run his Market Monitor. His post is the earliest dated statement of the record-volume idea found."
+  },
+  {
+   "id": "s4",
+   "tier": 2,
+   "publisher": "Kristjan Kullamagi (qullamaggie.com)",
+   "title": "How to master a setup: Episodic Pivots (2021-11-02)",
+   "url": "https://qullamaggie.com/how-to-master-a-setup-episodic-pivots/",
+   "accessed": "2026-11-09",
+   "why_reliable": "The trader's own site, in his own words, with a public record widely covered in the trading press. Used only for the Episodic Pivot side of the HVE-or-EP tell."
+  },
+  {
+   "id": "s6",
+   "tier": 2,
+   "publisher": "Brian Shannon (Alphatrends)",
+   "title": "Anchored VWAP / AVWAP explained",
+   "url": "https://alphatrends.net/anchored-vwap/",
+   "accessed": "2026-11-09",
+   "why_reliable": "Brian Shannon, author of Maximum Trading Gains With Anchored VWAP (his page names the book as his), on his own site. Used only for why an AVWAP is anchored at an event."
+  },
+  {
+   "id": "h1",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
+   "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
+   "accessed": "2026-11-10"
+  },
+  {
+   "id": "c1",
+   "tier": 3,
+   "publisher": "UCT setup criteria card",
+   "title": "High Volume Edge criteria card (docs/study/setups/criteria/24-high-volume-edge.json, as of 2026-11-09)",
+   "url": "repo:docs/study/setups/criteria/24-high-volume-edge.json",
+   "accessed": "2026-11-10"
+  },
+  {
+   "id": "d1",
+   "tier": 3,
+   "publisher": "UCT setup research (examples read from our own daily bars)",
+   "title": "High Volume Edge dossier, sections 12 and 13: examples, failures and near-misses from our data",
+   "url": "repo:docs/study/setups/research/24-high-volume-edge.md#12-examples-from-our-data",
+   "accessed": "2026-11-10"
+  }
+ ],
+ "facts": [
+  {
+   "id": "g01",
+   "source": "s1",
+   "quote": "Our focus in the HVC setup is not just on any high volume but on the highest volume.",
+   "claim": "Duncan: the focus is not any high volume but the highest volume."
+  },
+  {
+   "id": "g02",
+   "source": "s1",
+   "quote": "We ideally want to see the stock closing at 75% or higher of its daily range on the gap day. 50% is usually the lowest end DCR that I’ll trade.",
+   "claim": "Duncan wants a close at 75% or more of the day's range, 50% at the least."
+  },
+  {
+   "id": "g03",
+   "source": "s1",
+   "quote": "The closing price of the gap-up day serves as our primary entry point.",
+   "claim": "Duncan buys the close of the gap-up day."
+  },
+  {
+   "id": "g04",
+   "source": "s1",
+   "quote": "I typically set a hard stop-loss at 3-5% below the HVC.",
+   "claim": "Duncan's stop is 3% to 5% under the HVC."
+  },
+  {
+   "id": "g05",
+   "source": "s1",
+   "quote": "An additional exit criterion is an end-of-day close below the HVC.",
+   "claim": "Duncan also exits on a close under the HVC."
+  },
+  {
+   "id": "g06",
+   "source": "s2",
+   "quote": "This pattern occurs after a stock gaps up on huge volume due to earnings or another major news event.",
+   "claim": "Duncan: the pattern follows a gap on huge volume from earnings or major news."
+  },
+  {
+   "id": "b01",
+   "source": "s3",
+   "quote": "In many cases the volume on earnings day might be the highest volume in the history of the stock or multi year high volume.",
+   "claim": "Bonde: the volume on a big earnings day is often the highest in the stock's history."
+  },
+  {
+   "id": "b02",
+   "source": "s3",
+   "quote": "Earnings breakout on companies with significant analyst coverage do not do as well as the first kinds.",
+   "claim": "Bonde: earnings breakouts in widely covered companies do not do as well."
+  },
+  {
+   "id": "b03",
+   "source": "s3",
+   "quote": "Stocks with no analyst coverage are typically smaller companies or companies which are out of favor.",
+   "claim": "Bonde: stocks with no analyst coverage are smaller or out of favor."
+  },
+  {
+   "id": "b04",
+   "source": "s3",
+   "quote": "Because we track earnings daily most of the time we enter these kind of trades in pre market or at open.",
+   "claim": "Bonde enters these trades pre-market or at the open."
+  },
+  {
+   "id": "k01",
+   "source": "s4",
+   "quote": "I rarely trade in extended hours but prefer to wait for the opening range highs",
+   "claim": "Kullamagi waits for the opening-range high on the gap day."
+  },
+  {
+   "id": "a01",
+   "source": "s6",
+   "quote": "We can fix our anchor from meaningful market events, not just fixed time periods.",
+   "claim": "Shannon anchors a VWAP at a meaningful market event."
+  },
+  {
+   "id": "a02",
+   "source": "s6",
+   "quote": "is anchored to a large price movement event.",
+   "claim": "Shannon's example anchors at a large price movement event."
+  },
+  {
+   "id": "h01",
+   "source": "h1",
+   "quote": "Stop first (by default a few cents under the day's low or the prior day's low, F62); the size comes from the stop; if the honest stop does not fit the risk, skip the trade.",
+   "claim": "A3: stop first, a few cents under the day's low; the size comes from the stop; if the honest stop does not fit, skip."
+  },
+  {
+   "id": "h02",
+   "source": "h1",
+   "quote": "The stop is the exit. It only moves up, never down or wider. The one exception is the gap rule (B20).",
+   "claim": "A4: the stop is the exit; it only moves up, never wider; the gap rule is the one exception."
+  },
+  {
+   "id": "h03",
+   "source": "h1",
+   "quote": "Shares = account × risk % ÷ (entry − stop), rounded down, then capped: the size is the SMALLER of the risk-based size and the position cap",
+   "claim": "A5: shares are account times risk percent, divided by entry minus stop, rounded down, then capped."
+  },
+  {
+   "id": "h05",
+   "source": "h1",
+   "quote": "Move the stop to breakeven at 2R to 5R, ideally. The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
+   "claim": "B19: breakeven between 2R and 5R; the hard rule for the first trim is a third at 3R."
+  },
+  {
+   "id": "h06",
+   "source": "h1",
+   "quote": "A gap against the stop: the first 30 minutes of the gap-down day decide. The low of the first 30-minute bar is the new stop.",
+   "claim": "B20: on a gap through the stop, the first 30-minute low is the new stop."
+  },
+  {
+   "id": "h07",
+   "source": "h1",
+   "quote": "With a ceiling: if the first 30 minutes take the loss past 2R, get out.",
+   "claim": "B20's ceiling: if the first 30 minutes take the loss past 2R, get out."
+  },
+  {
+   "id": "h08",
+   "source": "h1",
+   "quote": "No new buys in the 3 days before an earnings report; hold through a report only if the trade is up 5R.",
+   "claim": "B22: no new buys in the 3 days before a report; hold through one only if up 5R."
+  },
+  {
+   "id": "h10",
+   "source": "h1",
+   "quote": "The 200-day line: no longs below the 200-day simple moving average, unless it is a parabolic long; shorts only below the 200-day, never above it unless it is a parabolic short.",
+   "claim": "B26: no longs below the 200-day simple moving average, except a parabolic long."
+  },
+  {
+   "id": "h11",
+   "source": "h1",
+   "quote": "No chasing: never buy more than 4% above the buy point.",
+   "claim": "C28: never buy more than 4% above the buy point."
+  },
+  {
+   "id": "h12",
+   "source": "h1",
+   "quote": "Chasing costs size, not risk: the stop stays under the buy point, so the distance grows and the shares shrink (A5).",
+   "claim": "C28: chasing costs size, because the stop stays put and the distance grows."
+  },
+  {
+   "id": "h15",
+   "source": "h1",
+   "quote": "Time stop: a trade still under 1R after 10 trading days is sold, freeing the money.",
+   "claim": "C33: a trade still under 1R after 10 trading days is sold."
+  },
+  {
+   "id": "h18",
+   "source": "h1",
+   "quote": "Every position has a real stop order with the broker, not a stop kept in your head.",
+   "claim": "D41: a real stop order with the broker."
+  },
+  {
+   "id": "h19",
+   "source": "h1",
+   "quote": "Never own more than 1% of a stock's average daily volume; illiquid stocks are not even watched.",
+   "claim": "D42: never own more than 1% of a stock's average daily volume."
+  },
+  {
+   "id": "h20",
+   "source": "h1",
+   "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
+   "claim": "E51: another third at 5R, then trail the last third."
+  },
+  {
+   "id": "h22",
+   "source": "h1",
+   "quote": "Entries are market orders.",
+   "claim": "E57: entries are market orders."
+  },
+  {
+   "id": "h23",
+   "source": "h1",
+   "quote": "No new buys outside regular trading hours.",
+   "claim": "E58: no new buys outside regular hours."
+  },
+  {
+   "id": "h24",
+   "source": "h1",
+   "quote": "The stop sits a few cents under the day's low, not exactly on it.",
+   "claim": "F62: the stop sits a few cents under the day's low."
+  },
+  {
+   "id": "h25",
+   "source": "h1",
+   "quote": "If a stock opens above a trim level (3R, 5R), take that trim at the open.",
+   "claim": "F63: a trim level the day opens past is taken at the open."
+  },
+  {
+   "id": "h26",
+   "source": "h1",
+   "quote": "The market reading as a guide (A10): Green, full risk per grade and up to 10 positions; Yellow, smaller and fewer; Orange, only A+ setups; Red, mostly cash and shorts.",
+   "claim": "F65: Green full risk; Yellow smaller and fewer; Orange only A+; Red mostly cash and shorts."
+  },
+  {
+   "id": "h28",
+   "source": "h1",
+   "quote": "After a stop-out, buy again only if the setup triggers again, as a new trade with its own stop and every rule.",
+   "claim": "B21: after a stop-out, buy again only on a new trigger, as a new trade."
+  },
+  {
+   "id": "h30",
+   "source": "h1",
+   "quote": "A climax run on your own long (Bracco's parabolic burst): sell a big part into it, a judgment call.",
+   "claim": "C34: sell a big part into a climax run on your own long."
+  },
+  {
+   "id": "h31",
+   "source": "h1",
+   "quote": "The full size at one price with one stop; no adding.",
+   "claim": "A5: full size at one price, one stop, no adding."
+  },
+  {
+   "id": "h36",
+   "source": "h1",
+   "quote": "No setup, no trade: never force a trade to have something on; cash is a position.",
+   "claim": "D44: no setup, no trade; cash is a position."
+  },
+  {
+   "id": "c01",
+   "source": "c1",
+   "quote": "A lesser-known stock, often neglected or beaten down, with no prior trend required. A fresh story arrives all at once.",
+   "claim": "The context: a lesser-known, often neglected stock; a fresh story arrives all at once."
+  },
+  {
+   "id": "c02",
+   "source": "c1",
+   "quote": "Its close is the HVC, a level marked with a ray and an AVWAP for months.",
+   "claim": "The record day's close is the HVC, marked with a ray and an AVWAP."
+  },
+  {
+   "id": "c03",
+   "source": "c1",
+   "quote": "RED TO GREEN on day 2: the session after the HVE opens at or under the HVC, trades under it, then trades back over it; a market order a cent over the HVC.",
+   "claim": "The trigger: day 2 opens at or under the HVC, trades under, then back over; buy at market a cent over."
+  },
+  {
+   "id": "c04",
+   "source": "c1",
+   "quote": "A few cents under the day-2 low, the low made before the reclaim. Never the HVC itself, and never the HVE low on a day-2 entry.",
+   "claim": "The stop: a few cents under the day-2 low; never the HVC, never the HVE low."
+  },
+  {
+   "id": "c05",
+   "source": "c1",
+   "quote": "Day 2 reclaims the HVC and closes back under the fill, or the stock slices back under the HVE low within weeks and the level turns into overhead.",
+   "claim": "The failure mode: a close back under the fill, or a slide under the HVE low that turns the level into overhead."
+  },
+  {
+   "id": "c06",
+   "source": "c1",
+   "quote": "The trade, not the HVE day, is above the 200-day SMA at the moment of entry.",
+   "claim": "The trade, not the HVE day, must be above the 200-day at entry."
+  },
+  {
+   "id": "c07",
+   "source": "c1",
+   "quote": "A fresh story: a contract, a trial result, a partnership, a government stake, an IPO-year re-rating, or earnings so big the volume is extreme. Earnings on ordinary big volume is a PEG, not an HVE.",
+   "claim": "A fresh story; earnings on ordinary big volume is a PEG, not an HVE."
+  },
+  {
+   "id": "c08",
+   "source": "c1",
+   "quote": "An up close: the HVE day closes over the prior close. Long only.",
+   "claim": "The HVE day closes up; long only."
+  },
+  {
+   "id": "c09",
+   "source": "c1",
+   "quote": "Not these days: the monthly options expiry (the third Friday) and the last session of a month. The volume is not demand.",
+   "claim": "Never the monthly options expiry or a month's last session."
+  },
+  {
+   "id": "c10",
+   "source": "c1",
+   "quote": "Not a climax: not after a run of 60% or more in the prior 60 sessions, and not on the third to fifth day of a straight-up burst.",
+   "claim": "Not after a 60% run in 60 sessions, not on day 3 to 5 of a straight-up burst."
+  },
+  {
+   "id": "c11",
+   "source": "c1",
+   "quote": "Mark the level: a horizontal ray at the HVC and an anchored VWAP from the HVE day, kept on the chart for months. Later setups form there.",
+   "claim": "Mark a ray at the HVC and an AVWAP from the HVE day; later setups form there."
+  },
+  {
+   "id": "c12",
+   "source": "c1",
+   "quote": "The taught trigger is on day 2, the one session after the HVE day. Not the HVE close, not a later day.",
+   "claim": "The taught trigger is day 2, not the HVE close or a later day."
+  },
+  {
+   "id": "c13",
+   "source": "c1",
+   "quote": "Day 2 opens at or under the HVC and trades under it. A day 2 that opens over the HVC and never trades under it is not this trigger; it may become a later entry.",
+   "claim": "Day 2 must open at or under the HVC and trade under it."
+  },
+  {
+   "id": "c14",
+   "source": "c1",
+   "quote": "Red to green through the HVC: the moment day 2 trades back over the HVE close, buy with a market order a cent over the HVC.",
+   "claim": "Buy at market a cent over the HVC the moment day 2 trades back over it."
+  },
+  {
+   "id": "c15",
+   "source": "c1",
+   "quote": "No buy more than 4% over the HVC; the HVC is the buy point.",
+   "claim": "No buy more than 4% over the HVC."
+  },
+  {
+   "id": "c16",
+   "source": "c1",
+   "quote": "No buys outside regular trading hours. Bonde buys the event day pre-market; we do not.",
+   "claim": "No buys outside regular hours; we do not buy pre-market."
+  },
+  {
+   "id": "c17",
+   "source": "c1",
+   "quote": "the follow-up entries are the house's own setups at the level: an Oops Reversal or an undercut and rally at the HVC, a hold of the 9 or 20 EMA near the HVC, a tight flag over the HVC.",
+   "claim": "After day 2, later entries are our own setups at the level, each with its own trigger."
+  },
+  {
+   "id": "c18",
+   "source": "c1",
+   "quote": "Each has its own trigger and stop.",
+   "claim": "Each later entry has its own trigger and stop."
+  },
+  {
+   "id": "c19",
+   "source": "c1",
+   "quote": "The HVC itself is never the stop: price trades under it in 98% of cases within 60 sessions",
+   "claim": "The HVC is never the stop; price trades under it in 98% of cases within 60 sessions."
+  },
+  {
+   "id": "c20",
+   "source": "c1",
+   "quote": "Full size at one price with one stop; no adding.",
+   "claim": "One price, one stop, no adding."
+  },
+  {
+   "id": "c21",
+   "source": "c1",
+   "quote": "Stop to breakeven between 2R and 5R, at the first trim by default.",
+   "claim": "Breakeven between 2R and 5R, at the first trim by default."
+  },
+  {
+   "id": "c22",
+   "source": "c1",
+   "quote": "Before the trade: day 2 never trades back over the HVC. No trigger; the chart may give a later entry at the level.",
+   "claim": "No reclaim on day 2, no trigger."
+  },
+  {
+   "id": "c23",
+   "source": "c1",
+   "quote": "For the level: a close under the HVE day's low ends it as support. After that the HVC is overhead, not a floor.",
+   "claim": "A close under the HVE low ends the level as support; the HVC becomes overhead."
+  },
+  {
+   "id": "c24",
+   "source": "c1",
+   "quote": "Trading or closing under the HVC is not an invalidation of the level. Do not erase it.",
+   "claim": "Under the HVC is not an invalidation; do not erase the level."
+  },
+  {
+   "id": "c25",
+   "source": "c1",
+   "quote": "A lesser-known stock: 50-day dollar volume under about $100 million a day before the event. Not a mega-cap.",
+   "claim": "Lesser-known: under about $100 million a day before the event; not a mega-cap."
+  },
+  {
+   "id": "c26",
+   "source": "c1",
+   "quote": "No prior advance is required. The HVE is often the first day of a new story",
+   "claim": "No prior advance is required; the HVE often starts a new story."
+  },
+  {
+   "id": "c27",
+   "source": "c1",
+   "quote": "The close sits in the upper half of the day's range (DCR 0.5 or more); 0.7 or more preferred. A grade cue, not a hard line.",
+   "claim": "The close in the upper half of the range is a grade cue, not a hard line."
+  },
+  {
+   "id": "c28",
+   "source": "c1",
+   "quote": "A cue, not a rule: ERAS (good) gapped 3% and FUN 0.5%.",
+   "claim": "The opening gap is a cue, not a rule."
+  },
+  {
+   "id": "c29",
+   "source": "c1",
+   "quote": "A cue, not a rule: a group or theme setting volume records on the same day helps.",
+   "claim": "A group setting records the same day is a cue, not a rule."
+  },
+  {
+   "id": "c30",
+   "source": "c1",
+   "quote": "No 10, 21 or 50-day requirement on the HVE day; none was found in any source.",
+   "claim": "No 10, 21 or 50-day requirement."
+  },
+  {
+   "id": "c31",
+   "source": "c1",
+   "quote": "Rank the volume, not the gap. An earnings gap on big but ordinary volume in a well-owned name is a PEG",
+   "claim": "The PEG tell: big but ordinary volume in a well-owned name is a PEG."
+  },
+  {
+   "id": "c32",
+   "source": "c1",
+   "quote": "Ask which day you are buying. An EP is bought on the gap day itself over the opening-range high with the day's low as the stop",
+   "claim": "The EP is bought on the gap day itself over the opening-range high."
+  },
+  {
+   "id": "c33",
+   "source": "c1",
+   "quote": "the HVE waits for day 2 to dip under the record day's close and reclaim it, with the day-2 low as the stop.",
+   "claim": "The HVE waits for the day-2 dip and reclaim."
+  },
+  {
+   "id": "c34",
+   "source": "c1",
+   "quote": "Find the line. Gap Support defends the gap-up day's LOW days or weeks later; the HVE's line is the record day's CLOSE",
+   "claim": "Gap Support's line is the gap day's low; the HVE's is the record day's close."
+  },
+  {
+   "id": "c35",
+   "source": "c1",
+   "quote": "A record-volume day that closed DOWN is never an HVE",
+   "claim": "A record-volume down day is never an HVE."
+  },
+  {
+   "id": "c36",
+   "source": "c1",
+   "quote": "Calling any year-high volume an HVE: a 3x day on a mega-cap is an HVC.",
+   "claim": "A named mistake: a 3x day on a mega-cap is an HVC, not an HVE."
+  },
+  {
+   "id": "c37",
+   "source": "c1",
+   "quote": "Shorting a down-close record day because the app called it bearish.",
+   "claim": "A named mistake: shorting a down-close record day."
+  },
+  {
+   "id": "c38",
+   "source": "c1",
+   "quote": "Forgetting the level: the HVC and its AVWAP matter for months; later setups form there.",
+   "claim": "A named mistake: forgetting the level."
+  },
+  {
+   "id": "c39",
+   "source": "c1",
+   "quote": "hve.fresh_catalyst: a fresh, specific catalyst; a story that resets the stock",
+   "claim": "A+: a fresh, specific catalyst."
+  },
+  {
+   "id": "c40",
+   "source": "c1",
+   "quote": "hve.close_position: the lower half of a huge range (TVTX and DYN were cut)",
+   "claim": "B-: a close in the lower half of a huge range."
+  },
+  {
+   "id": "c41",
+   "source": "c1",
+   "quote": "hve.lesser_known: a mega-cap or a well-owned large cap (AAPL, ASML, ORCL were cut)",
+   "claim": "B-: a mega-cap or well-owned large cap."
+  },
+  {
+   "id": "c42",
+   "source": "c1",
+   "quote": "hve.lesser_known: a lesser-known name, small dollar volume before the day",
+   "claim": "A+: a lesser-known name, small dollar volume before."
+  },
+  {
+   "id": "c43",
+   "source": "c1",
+   "quote": "Green market: full risk. Yellow: smaller and fewer. Orange: A+ only. Red: mostly cash and shorts.",
+   "claim": "Green full risk, Yellow smaller, Orange A+ only, Red mostly cash."
+  },
+  {
+   "id": "c44",
+   "source": "c1",
+   "quote": "No new buy in the 3 sessions before an earnings report. An earnings HVE falls just after a report, so this binds the later entries.",
+   "claim": "No new buy in the 3 sessions before a report; it binds the later entries."
+  },
+  {
+   "id": "c45",
+   "source": "c1",
+   "quote": "A gap through the stop: the first 30-minute low is the new stop; out if that is past 2R. HVE names gap often.",
+   "claim": "A gap through the stop: the first 30-minute low is the new stop; out past 2R."
+  },
+  {
+   "id": "c46",
+   "source": "c1",
+   "quote": "The position is at most 1% of the stock's average daily volume, measured on the post-event average.",
+   "claim": "At most 1% of average daily volume, on the post-event average."
+  },
+  {
+   "id": "c47",
+   "source": "c1",
+   "quote": "A real stop order with the broker. It only moves up.",
+   "claim": "A real stop order with the broker; it only moves up."
+  },
+  {
+   "id": "c48",
+   "source": "c1",
+   "quote": "Time stop: still under 1R after 10 trading days, sell.",
+   "claim": "Under 1R after 10 trading days, sell."
+  },
+  {
+   "id": "c49",
+   "source": "c1",
+   "quote": "A climax run on your own long (Bracco's parabolic burst): sell a big part into it.",
+   "claim": "Sell a big part into a climax run on your own long."
+  },
+  {
+   "id": "d01",
+   "source": "d1",
+   "quote": "TVTX | 2015-03-18 | 2015-03-19 | +37% / +34% | 17.2x / 1.6x / yes | 0.98 | $4M | 20.17 | 19.89 (1.4%) | 48.4R",
+   "claim": "TVTX, HVE 2015-03-18, buy 2015-03-19: +37%, close 0.98; HVC 20.17 (buy a cent over), stop 19.89 (1.4%); best 48.4R."
+  },
+  {
+   "id": "d02",
+   "source": "d1",
+   "quote": "The cleanest in the set: a $4M-a-day name in a quiet uptrend (25% over its 200-day), record volume, a close at 0.98 of the range",
+   "claim": "TVTX: a $4M-a-day name 25% over its 200-day; record volume; a close at 0.98."
+  },
+  {
+   "id": "d03",
+   "source": "d1",
+   "quote": "a one-day dip under the HVC and reclaim, then a stair-step to +70% (day 54) with the HVC never traded again.",
+   "claim": "TVTX: a one-day dip and reclaim, then +70% by day 54; the HVC never traded again."
+  },
+  {
+   "id": "d04",
+   "source": "d1",
+   "quote": "DOCU | 2019-09-06 | 2019-09-09 | +22% / +20% | 12.9x / 1.2x / yes | 0.68 | $98M | 56.27 | 55.53 (1.3%) | 22.6R",
+   "claim": "DOCU, HVE 2019-09-06, buy 2019-09-09: +22%; HVC 56.27 (buy a cent over), stop 55.53 (1.3%); best 22.6R."
+  },
+  {
+   "id": "d05",
+   "source": "d1",
+   "quote": "Earnings (report 2019-09-05 after the close) on extreme volume, an all-time record: the \"earnings so big the volume is extreme\" case that is an HVE, not a PEG. Before: 7% under the 200-day.",
+   "claim": "DOCU: earnings on extreme, all-time record volume; an HVE, not a PEG; 7% under the 200-day before."
+  },
+  {
+   "id": "d06",
+   "source": "d1",
+   "quote": "Day 3 dipped 0.8% under the HVC and held above the stop; the HVC was never traded again, and the stock rose 30% by day 55.",
+   "claim": "DOCU: day 3 dipped 0.8% under the HVC, held the stop, then rose 30% by day 55."
+  },
+  {
+   "id": "d07",
+   "source": "d1",
+   "quote": "INOD | 2026-05-08 | 2026-05-11 | +86% / +60% | 18.7x / 2.3x / yes | 0.63 | $44M | 84.89 | 83.38 (1.8%) | 26.5R",
+   "claim": "INOD, HVE 2026-05-08, buy 2026-05-11: +86%; HVC 84.89 (buy a cent over), stop 83.38 (1.8%); best 26.5R."
+  },
+  {
+   "id": "d08",
+   "source": "d1",
+   "quote": "Day 2 dipped 1.8% under the HVC and reclaimed; 5R in two sessions, +47% at the peak on day 17, then a full round trip under the HVC (day 30) and through the fixed stop",
+   "claim": "INOD: 5R in two sessions, +47% at the peak on day 17, then a round trip under the HVC by day 30."
+  },
+  {
+   "id": "d09",
+   "source": "d1",
+   "quote": "the clearest picture in the set of why the last third is trailed.",
+   "claim": "INOD shows why the last third is trailed."
+  },
+  {
+   "id": "d10",
+   "source": "d1",
+   "quote": "INSM | 2024-05-28 | 2024-05-29 | +118% / +126% | 18.3x / 3.5x / yes | 0.64 | $47M | 48.06 | 45.83 (4.7%) | 14.5R",
+   "claim": "INSM, HVE 2024-05-28: +118%, a 126% gap; HVC 48.06 (buy a cent over), stop 45.83 (4.7%); best 14.5R."
+  },
+  {
+   "id": "d11",
+   "source": "d1",
+   "quote": "The textbook \"neglected stock, fresh story\" chart: a flat line for six months, 16% under its 200-day, then a 126% gap on 18x volume, an all-time record",
+   "claim": "INSM: a flat line for six months, 16% under its 200-day, then a 126% gap on an all-time record."
+  },
+  {
+   "id": "d12",
+   "source": "d1",
+   "quote": "the HVC was never traded again and the stock added 68% by day 59.",
+   "claim": "INSM: the HVC never traded again; +68% by day 59."
+  },
+  {
+   "id": "d13",
+   "source": "d1",
+   "quote": "VRTX | 2012-05-07 | 2012-05-08 | +55% / +39% | 18.5x / 3.3x / yes | 0.91 | $86M | 58.12 | 57.54 (1.0%) | 13.5R",
+   "claim": "VRTX, HVE 2012-05-07: HVC 58.12 (buy a cent over), stop 57.54 (1.0%); best 13.5R."
+  },
+  {
+   "id": "d14",
+   "source": "d1",
+   "quote": "QGEN | 2026-01-20, buy 2026-01-21 | 55.46 | 53.73 (3.1%) | 2 sessions after the buy (2026-01-23), 0.0R",
+   "claim": "QGEN: buy 55.46, stop 53.73; stopped 2 sessions after the buy at 0.0R."
+  },
+  {
+   "id": "d15",
+   "source": "d1",
+   "quote": "Day 2 reclaimed the HVC but never cleared the HVE day's high (57.82); the stock slid to 38.80 inside 60 sessions, under the HVE day's low (46.07). The level turned into overhead.",
+   "claim": "QGEN: slid to 38.80, under the HVE low of 46.07; the level turned into overhead."
+  },
+  {
+   "id": "d16",
+   "source": "d1",
+   "quote": "SE | 2023-03-07, buy 2023-03-08 | 80.07 | 77.24 (3.5%) | the next session (2023-03-09), 0.0R",
+   "claim": "SE: buy 80.07, stop 77.24; stopped the next session at 0.0R."
+  },
+  {
+   "id": "d17",
+   "source": "d1",
+   "quote": "A shake-out: 71.08 within 3 sessions, then a run to 88.84 on 04-04 (3R was 88.56) without a new day-2 trigger, then a full collapse to 56.05.",
+   "claim": "SE: shaken out to 71.08, ran to 88.84 with no new trigger, then collapsed to 56.05."
+  },
+  {
+   "id": "d18",
+   "source": "d1",
+   "quote": "YELP | 2018-08-09, buy 2018-08-10 | 48.34 | 47.52 (1.7%) | the next session (2018-08-13), 0.0R",
+   "claim": "YELP: buy 48.34, stop 47.52; stopped the next session at 0.0R."
+  },
+  {
+   "id": "d19",
+   "source": "d1",
+   "quote": "Day 2 closed 49.35 over the HVC; day 3 opened 49.56 and reversed to 46.94 through the stop",
+   "claim": "YELP: day 3 opened 49.56 and reversed to 46.94 through the stop."
+  },
+  {
+   "id": "d20",
+   "source": "d1",
+   "quote": "NKTR | 2017-03-20, buy 2017-03-21 | 331.66 | 323.98 (2.3%) | 4 sessions after the buy (2017-03-27), after 2.3R on 03-22",
+   "claim": "NKTR: buy 331.66, stop 323.98; 2.3R, then stopped 4 sessions after the buy."
+  },
+  {
+   "id": "d21",
+   "source": "d1",
+   "quote": "The stop traded by 2 cents (low 322.50) on a day that closed at 350.70; the stock made 373.20 two days later. The breakeven move at 2R (B19) turns this into a scratch.",
+   "claim": "NKTR: the stop traded by 2 cents on a day that closed 350.70; breakeven at 2R makes it a scratch."
+  },
+  {
+   "id": "d22",
+   "source": "d1",
+   "quote": "An earnings gap on big but ordinary volume in a well-owned ($773M a day) name: a Power Earnings Gap (setup 21). Taken as an HVE it was stopped at 0.0R.",
+   "claim": "ROKU: big but ordinary volume in a $773M-a-day name, a PEG; stopped at 0.0R as an HVE."
+  },
+  {
+   "id": "d23",
+   "source": "d1",
+   "quote": "The rest passes: +28.1%, a one-year record, close 0.99, day 2 dipped 2.8% and reclaimed.",
+   "claim": "ROKU: +28.1%, a one-year record, close 0.99, a day-2 dip and reclaim."
+  },
+  {
+   "id": "d24",
+   "source": "d1",
+   "quote": "the close before the record day was 72.5% over the lowest low of the prior 60 sessions; the rule says under 60%. +102.5% on 18.2x, 3.2x the old record, close 0.50.",
+   "claim": "GPCR: 72.5% over its 60-session low before a +102.5% record day."
+  },
+  {
+   "id": "d25",
+   "source": "d1",
+   "quote": "A climax, not a start: day 2 opened 3% under the HVC, triggered, and the trade was stopped at 0.0R; the stock topped within two months.",
+   "claim": "GPCR: a climax; day 2 triggered and was stopped at 0.0R; it topped within two months."
+  },
+  {
+   "id": "d26",
+   "source": "d1",
+   "quote": "day 2 opened 2.1% over the HVC and its low stayed 1.7% over it; the rule needs an open at or under the HVC and a trade under it.",
+   "claim": "NRG: day 2 opened 2.1% over the HVC and never traded under it."
+  },
+  {
+   "id": "d27",
+   "source": "d1",
+   "quote": "A valid HVE day with no day-2 trigger. The chart may give a later entry at the level",
+   "claim": "NRG: a valid HVE day with no day-2 trigger."
+  },
+  {
+   "id": "d28",
+   "source": "d1",
+   "quote": "It did give the day-2 trigger (opened at 12.80 under the 13.11 HVC and traded through it), but the day-2 low was 7.2% under the HVC, so the honest stop was 7.5% wide",
+   "claim": "NAVN: the day-2 trigger came, but the honest stop was 7.5% wide."
+  },
+  {
+   "id": "d29",
+   "source": "d1",
+   "quote": "A record day that closes in the bottom quarter of its range is a supply day dressed as an HVE",
+   "claim": "MBX: a record day closing in the bottom quarter is a supply day dressed as an HVE."
+  },
+  {
+   "id": "d30",
+   "source": "d1",
+   "quote": "MBX 2025-09-22 (+100%, 62x the 50-day, 10x the old record, a close at 0.26 of the range).",
+   "claim": "MBX: +100% on 62x the 50-day, a close at 0.26 of the range."
+  },
+  {
+   "id": "d31",
+   "source": "d1",
+   "quote": "A day-2 reclaim with a 7.4% stop that never saw a cent of profit afterwards.",
+   "claim": "MBX: the day-2 reclaim never saw a cent of profit."
+  },
+  {
+   "id": "d32",
+   "source": "d1",
+   "quote": "the stop under the day-2 low is tight (1.7% to 3.5%), and the one or two sessions after the reclaim decide the trade.",
+   "claim": "The failures' day-2 stops were 1.7% to 3.5%; the first sessions decide."
+  },
+  {
+   "id": "d33",
+   "source": "d1",
+   "quote": "which is the cost of a tight stop, not a reason to widen it: the rulebook's answer is a new trigger (B21) and the breakeven move at 2R (B19).",
+   "claim": "Stops that trade before a run are the cost of a tight stop, not a reason to widen it."
+  },
+  {
+   "id": "d34",
+   "source": "d1",
+   "quote": "Because the stop is small, 3R is often only 3-7% over the buy and was reached the next session in most winners",
+   "claim": "Because the stop is small, 3R is often only 3% to 7% over the buy."
+  }
+ ],
+ "walkthroughs": [
+  {
+   "key": "w1",
+   "title": "TVTX, March 2015: the clean one",
+   "steps": [
+    "TVTX, March 2015. A $4M-a-day name in a quiet uptrend, 25% over its 200-day. Then record volume, up 37%.",
+    "It closes at 0.98 of its range. That close, 20.17, is the HVC: mark a ray and an AVWAP.",
+    "Day 2, 2015-03-19: a dip under the HVC, then back over. Buy a cent over it. Stop 19.89, under the day-2 low.",
+    "Failure mode: back under the fill. Instead it stair-steps to +70% by day 54, the HVC never traded again."
+   ],
+   "facts": [
+    "d01",
+    "d02",
+    "d03",
+    "c11",
+    "c14",
+    "c04",
+    "h22",
+    "c05"
+   ]
+  },
+  {
+   "key": "w2",
+   "title": "DOCU, September 2019: earnings that count",
+   "steps": [
+    "DOCU, September 2019. An earnings report brings the most shares it has ever traded. Up 22%, from 7% under its 200-day.",
+    "Earnings on ordinary big volume is a PEG. This volume is extreme, an all-time record: an HVE. Mark the close.",
+    "2019-09-09, day 2 dips and reclaims. Buy at market, a cent over the 56.27 close. Stop under the day-2 low, 55.53.",
+    "Failure mode: back under the fill. Day 3 dips 0.8% under the HVC, holds the stop, then rises 30% by day 55."
+   ],
+   "facts": [
+    "d04",
+    "d05",
+    "d06",
+    "c07",
+    "c06",
+    "c14",
+    "c04",
+    "h22",
+    "c05"
+   ]
+  },
+  {
+   "key": "w3",
+   "title": "INOD, May 2026: the trims are the trade",
+   "steps": [
+    "INOD, May 2026. An earnings report on extreme volume, an all-time record, up 86%. Its close is the level.",
+    "2026-05-11, day 2 dips 1.8% under the HVC and reclaims. Buy a cent over 84.89. Stop under the day-2 low, 83.38.",
+    "5R in two sessions: thirds off at 3R and 5R, stop to breakeven. The peak, +47%, comes on day 17.",
+    "Failure mode: a slide back under the level. By day 30 it round-trips under the HVC. The trims kept the win."
+   ],
+   "facts": [
+    "d07",
+    "d08",
+    "d09",
+    "c07",
+    "c14",
+    "c04",
+    "h05",
+    "h20",
+    "c05"
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "key": "q01",
+   "skill": "setup.high_volume_edge",
+   "rung": 1,
+   "format": "mcq",
+   "criterion": "hve.mark_level",
+   "q": "On a High Volume Edge, what is the HVC?",
+   "choices": [
+    "The record day's close",
+    "The record day's high",
+    "The record day's low",
+    "The next day's open"
+   ],
+   "answer": "The record day's close",
+   "why": "The record day's close. The HVC is a level you mark with a ray and an AVWAP, and keep for months.",
+   "lesson_line": "The HVC is the record day's close. That is the line.",
+   "facts": [
+    "c02",
+    "c11",
+    "c03"
+   ],
+   "wrong": {
+    "The record day's high": "The high is not the level. The card marks the close.",
+    "The record day's low": "The low matters later, for the level. The HVC itself is the close.",
+    "The next day's open": "Day 2's open is where the trigger starts. The level is the record day's close."
+   },
+   "house": true
+  },
+  {
+   "key": "q02",
+   "skill": "setup.high_volume_edge",
+   "rung": 1,
+   "format": "tf",
+   "criterion": "hve.up_close",
+   "q": "A High Volume Edge is an up day: the record day closes over the prior close.",
+   "answer": "True",
+   "why": "True. An up close, and long only. A record-volume day that closes down is not this setup.",
+   "lesson_line": "Record volume and an up close. Both, or it is not an HVE.",
+   "facts": [
+    "c08",
+    "c35"
+   ],
+   "house": true
+  },
+  {
+   "key": "q03",
+   "skill": "setup.high_volume_edge",
+   "rung": 1,
+   "format": "mcq",
+   "criterion": "hve.day2_window",
+   "q": "When is the taught High Volume Edge buy?",
+   "choices": [
+    "Day 2, the next session",
+    "At the record day's close",
+    "At the record day's open",
+    "A week later, on a pullback"
+   ],
+   "answer": "Day 2, the next session",
+   "why": "Day 2, the next session. The taught trigger is the one session after the record day. Not the record day's close, not a later day.",
+   "lesson_line": "The record day marks the level. Day 2 gives the trade.",
+   "facts": [
+    "c12",
+    "c33",
+    "c32",
+    "g03"
+   ],
+   "wrong": {
+    "At the record day's close": "The close is the level, not the buy. The taught trigger waits for day 2.",
+    "At the record day's open": "That is the Episodic Pivot's day: bought on the gap day itself. The HVE waits a session.",
+    "A week later, on a pullback": "Later entries exist, each with its own trigger. The taught one is the very next session."
+   },
+   "house": true
+  },
+  {
+   "key": "q04",
+   "skill": "setup.high_volume_edge",
+   "rung": 1,
+   "format": "tf",
+   "criterion": "hve.stop",
+   "q": "On the day-2 entry the stop goes a few cents under the day-2 low.",
+   "answer": "True",
+   "why": "True. A few cents under the day-2 low, the low made before the reclaim. Not exactly on it.",
+   "lesson_line": "Stop first: a few cents under the day-2 low.",
+   "facts": [
+    "c04",
+    "h24",
+    "h01"
+   ],
+   "house": true
+  },
+  {
+   "key": "q05",
+   "skill": "setup.high_volume_edge",
+   "rung": 1,
+   "format": "fill",
+   "criterion": "hve.mark_level",
+   "q": "Tap the words that fit the blank.",
+   "sentence": "Draw a ray at the HVC and an ___ from the record day.",
+   "bank": [
+    "anchored VWAP",
+    "10-day average",
+    "trend line",
+    "Fibonacci grid",
+    "50-day average"
+   ],
+   "answer": "anchored VWAP",
+   "why": "An anchored VWAP. A ray at the HVC and an AVWAP from the record day, kept for months. Shannon anchors at meaningful market events.",
+   "lesson_line": "Two marks on the chart: a ray at the close, an AVWAP from the day.",
+   "facts": [
+    "c11",
+    "a01"
+   ],
+   "house": true
+  },
+  {
+   "key": "q06",
+   "skill": "setup.high_volume_edge",
+   "rung": 1,
+   "format": "tf",
+   "criterion": "hve.excluded_days",
+   "q": "A record-volume day on the monthly options expiry, the third Friday, can count as a High Volume Edge.",
+   "answer": "False",
+   "why": "False. Never the monthly options expiry, and never a month's last session. That volume is not demand.",
+   "lesson_line": "Check the calendar before the volume. Expiry and month-end do not count.",
+   "facts": [
+    "c09"
+   ],
+   "house": true
+  },
+  {
+   "key": "q07",
+   "skill": "setup.high_volume_edge",
+   "rung": 1,
+   "format": "mcq",
+   "criterion": "hve.trigger",
+   "q": "Day 2 opens under the HVC and trades lower. What is the trigger?",
+   "choices": [
+    "A trade back over the HVC",
+    "A close over the HVC",
+    "A trade over the record day's high",
+    "A new low that holds"
+   ],
+   "answer": "A trade back over the HVC",
+   "why": "A trade back over the HVC. Red to green through it: buy at market, a cent over the HVC, the moment it trades back over.",
+   "lesson_line": "Under, then back over the HVC. That is the trigger.",
+   "facts": [
+    "c14",
+    "c03",
+    "h22"
+   ],
+   "wrong": {
+    "A close over the HVC": "The trigger is intraday. Entries are market orders the moment it trades back over.",
+    "A trade over the record day's high": "The line is the HVC, the record day's close, not its high.",
+    "A new low that holds": "A low is where the stop goes. The trigger is the trade back over the HVC."
+   },
+   "house": true
+  },
+  {
+   "key": "q08",
+   "skill": "setup.high_volume_edge",
+   "rung": 1,
+   "format": "tf",
+   "criterion": "hve.stop_not_hvc",
+   "q": "The HVC itself is a good place for the High Volume Edge stop.",
+   "answer": "False",
+   "why": "False. The HVC is never the stop. Price trades under it in 98% of cases within 60 sessions.",
+   "lesson_line": "The HVC is a level to watch, not a stop to sit on.",
+   "facts": [
+    "c19",
+    "c04"
+   ],
+   "house": true
+  },
+  {
+   "key": "q09",
+   "skill": "setup.high_volume_edge",
+   "rung": 2,
+   "format": "mcq",
+   "criterion": "hve.fresh_catalyst",
+   "q": "Which story fits a High Volume Edge?",
+   "choices": [
+    "A trial win in a quiet stock",
+    "An ordinary earnings beat",
+    "A monthly options expiry rally",
+    "The last session of a quarter"
+   ],
+   "answer": "A trial win in a quiet stock",
+   "why": "A trial result in a quiet stock. A fresh story arrives all at once. An ordinary beat on big volume is a PEG.",
+   "lesson_line": "Ask what changed. A new story makes an HVE; a routine beat does not.",
+   "facts": [
+    "c07",
+    "c01",
+    "c09",
+    "g06"
+   ],
+   "wrong": {
+    "An ordinary earnings beat": "Earnings on ordinary big volume is a PEG, not an HVE.",
+    "A monthly options expiry rally": "Expiry volume is not demand. The card rules that day out.",
+    "The last session of a quarter": "Month-end volume is not demand. The card rules it out."
+   },
+   "house": true
+  },
+  {
+   "key": "q10",
+   "skill": "setup.high_volume_edge",
+   "rung": 2,
+   "format": "tf",
+   "criterion": "hve.no_prior_trend",
+   "q": "A High Volume Edge needs a prior advance of 30% or more before the record day.",
+   "answer": "False",
+   "why": "False. No prior advance is required. The HVE is often the first day of a new story.",
+   "lesson_line": "No run-up needed. The record day is often the start.",
+   "facts": [
+    "c26",
+    "c01"
+   ],
+   "house": true
+  },
+  {
+   "key": "q11",
+   "skill": "setup.high_volume_edge",
+   "rung": 2,
+   "format": "mcq",
+   "criterion": "hve.day2_dip",
+   "q": "Day 2 opens over the HVC and never trades under it. Is that our trigger?",
+   "choices": [
+    "No; it never dipped under",
+    "Yes; it is holding above",
+    "Yes; buy the open",
+    "No; it needs a close over"
+   ],
+   "answer": "No; it never dipped under",
+   "why": "No. Day 2 must open at or under the HVC and trade under it. One that never dips is not this trigger; it may become a later entry.",
+   "lesson_line": "No dip under the HVC, no day-2 trade.",
+   "facts": [
+    "c13",
+    "c03"
+   ],
+   "wrong": {
+    "Yes; it is holding above": "Strength is not the trigger here. The trigger is under, then back over.",
+    "Yes; buy the open": "Buying the open over the HVC is not our trade. Day 2 has to dip and reclaim.",
+    "No; it needs a close over": "No close is needed. The trigger is an intraday trade back over the HVC."
+   },
+   "house": true
+  },
+  {
+   "key": "q12",
+   "skill": "setup.high_volume_edge",
+   "rung": 2,
+   "format": "tf",
+   "criterion": "hve.regular_hours",
+   "q": "On big enough news we buy a High Volume Edge pre-market, as Bonde does.",
+   "answer": "False",
+   "why": "False. No buys outside regular trading hours. Bonde enters pre-market or at the open; we do not.",
+   "lesson_line": "Regular hours only. The news can wait for the bell.",
+   "facts": [
+    "c16",
+    "h23",
+    "b04"
+   ],
+   "house": true
+  },
+  {
+   "key": "q13",
+   "skill": "setup.high_volume_edge",
+   "rung": 2,
+   "format": "fill",
+   "criterion": "hve.no_chase",
+   "q": "Tap the number that fits the blank.",
+   "sentence": "Never buy a High Volume Edge more than ___ over the HVC.",
+   "bank": [
+    "4%",
+    "1%",
+    "6%",
+    "15%",
+    "2%"
+   ],
+   "answer": "4%",
+   "why": "4%. No buy more than 4% over the HVC; the HVC is the buy point. A market order a cent over cannot breach it.",
+   "lesson_line": "The HVC is the buy point. Past 4% over it, you are chasing.",
+   "facts": [
+    "c15",
+    "h11"
+   ],
+   "house": true
+  },
+  {
+   "key": "q14",
+   "skill": "setup.high_volume_edge",
+   "rung": 2,
+   "format": "tf",
+   "criterion": "hve.under_hvc_not_failure",
+   "q": "When price closes under the HVC, the level is broken and comes off the chart.",
+   "answer": "False",
+   "why": "False. Trading or closing under the HVC is not an invalidation of the level. Do not erase it.",
+   "lesson_line": "Under the HVC is normal. Keep the line on the chart.",
+   "facts": [
+    "c24",
+    "c19"
+   ],
+   "house": true
+  },
+  {
+   "key": "q15",
+   "skill": "setup.high_volume_edge",
+   "rung": 2,
+   "format": "mcq",
+   "criterion": "hve.lesser_known",
+   "q": "Which name fits a High Volume Edge best?",
+   "choices": [
+    "A thinly owned small company",
+    "A mega-cap everyone owns",
+    "A widely covered large cap"
+   ],
+   "answer": "A thinly owned small company",
+   "why": "A thinly owned small company. The card wants a lesser-known stock, not a mega-cap. Bonde: widely covered names do not do as well.",
+   "lesson_line": "The less known the name, the bigger the new story.",
+   "facts": [
+    "c25",
+    "b02",
+    "b03"
+   ],
+   "wrong": {
+    "A mega-cap everyone owns": "Not a mega-cap. A big day there is usually just an HVC.",
+    "A widely covered large cap": "Bonde: earnings breakouts in widely covered companies do not do as well."
+   },
+   "house": true
+  },
+  {
+   "key": "q16",
+   "skill": "setup.high_volume_edge",
+   "rung": 2,
+   "format": "tf",
+   "criterion": "hve.one_entry",
+   "q": "When a High Volume Edge works, you add to it on the first pullback to the HVC.",
+   "answer": "False",
+   "why": "False. Full size at one price with one stop; no adding. A later setup at the level is a new trade, not an add.",
+   "lesson_line": "One price, one stop, one size. No adds.",
+   "facts": [
+    "c20",
+    "h31"
+   ],
+   "house": true
+  },
+  {
+   "key": "q17",
+   "skill": "setup.high_volume_edge",
+   "rung": 3,
+   "format": "scenario",
+   "criterion": "hve.up_close",
+   "q": "What is it?",
+   "story": "A stock trades the most shares in its history. It closes down 15% on the day.",
+   "choices": [
+    "Not an HVE; it closed down",
+    "An HVE short",
+    "An HVE; record volume is enough"
+   ],
+   "answer": "Not an HVE; it closed down",
+   "why": "Not an HVE. A record-volume day that closed down is never an HVE, and we trade this setup long only. Shorting it is a named mistake.",
+   "lesson_line": "Check the colour of the record bar first.",
+   "facts": [
+    "c35",
+    "c08",
+    "c37"
+   ],
+   "wrong": {
+    "An HVE short": "We trade the HVE long only. Shorting a down-close record day is a named mistake.",
+    "An HVE; record volume is enough": "Record volume is half of it. The day must close up."
+   },
+   "house": true
+  },
+  {
+   "key": "q18",
+   "skill": "setup.high_volume_edge",
+   "rung": 3,
+   "format": "mcq",
+   "criterion": "hve.earnings_window",
+   "q": "A later entry at the HVC sets up two sessions before the next report. Our rule?",
+   "choices": [
+    "No new buy before the report",
+    "Buy half size",
+    "Buy; the HVC is strong support",
+    "Buy with a wider stop"
+   ],
+   "answer": "No new buy before the report",
+   "why": "No new buy. No new buy in the 3 sessions before an earnings report. It binds the later entries.",
+   "lesson_line": "Three sessions before a report, no new buys.",
+   "facts": [
+    "c44",
+    "h08"
+   ],
+   "wrong": {
+    "Buy half size": "Size does not fix it. The rule is no new buy in that window.",
+    "Buy; the HVC is strong support": "The level does not lift the rule. No buy in the 3 sessions before a report.",
+    "Buy with a wider stop": "The stop is never widened, and the window still says no."
+   },
+   "house": true
+  },
+  {
+   "key": "q19",
+   "skill": "setup.high_volume_edge",
+   "rung": 3,
+   "format": "numeric",
+   "criterion": "hve.trim_1",
+   "q": "Bought at 56.28 with the stop at 55.53. Where is 3R?",
+   "answer": 58.53,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "a + 3 * (a - b)",
+     "a": 56.28,
+     "b": 55.53
+    },
+    "round": 2
+   },
+   "why": "58.53. Three times the risk, added to the buy. A third comes off there.",
+   "lesson_line": "Sell a third at 3R. Know the price before the buy.",
+   "facts": [
+    "h05",
+    "d04"
+   ],
+   "house": true
+  },
+  {
+   "key": "q20",
+   "skill": "setup.high_volume_edge",
+   "rung": 3,
+   "format": "tf",
+   "criterion": "hve.breakeven",
+   "q": "On a High Volume Edge winner the stop stays at the day-2 low until the last third is sold.",
+   "answer": "False",
+   "why": "False. The stop moves to breakeven between 2R and 5R, at the first trim by default. It only moves up.",
+   "lesson_line": "At the first trim, the stop goes to breakeven.",
+   "facts": [
+    "c21",
+    "h05",
+    "h02"
+   ],
+   "house": true
+  },
+  {
+   "key": "q21",
+   "skill": "setup.high_volume_edge",
+   "rung": 3,
+   "format": "mcq",
+   "criterion": "hve.market_reading",
+   "q": "The market reading is Orange. Which High Volume Edge trades may you take?",
+   "choices": [
+    "Only A+ setups",
+    "Any HVE, full size",
+    "None at all",
+    "Any HVE, half size"
+   ],
+   "answer": "Only A+ setups",
+   "why": "Only A+ setups. Green, full risk; Yellow, smaller and fewer; Orange, only A+; Red, mostly cash and shorts.",
+   "lesson_line": "The market sets how much you play.",
+   "facts": [
+    "c43",
+    "h26"
+   ],
+   "wrong": {
+    "Any HVE, full size": "Full risk is Green. Orange is A+ only.",
+    "None at all": "That is closer to Red. Orange still allows A+ setups.",
+    "Any HVE, half size": "Smaller and fewer is Yellow. Orange is A+ only."
+   },
+   "house": true
+  },
+  {
+   "key": "q22",
+   "skill": "setup.high_volume_edge",
+   "rung": 3,
+   "format": "scenario",
+   "criterion": "hve.no_chase",
+   "q": "Buy or pass?",
+   "story": "The HVC is 20.00. Day 2 dipped to 19.40 and reclaimed it while you were away. It now trades 21.10.",
+   "choices": [
+    "Pass; it is 5.5% over the HVC",
+    "Buy; it reclaimed the HVC level",
+    "Buy half; it is close enough",
+    "Buy with the stop at 20.00"
+   ],
+   "answer": "Pass; it is 5.5% over the HVC",
+   "calc": {
+    "fn": "pct_change",
+    "args": {
+     "start": 20.0,
+     "end": 21.1
+    },
+    "round": 1
+   },
+   "why": "Pass. 21.10 is 5.5% over the HVC, past the 4% chase limit. Chasing costs size: the stop stays put and the distance grows.",
+   "lesson_line": "Missed the reclaim: let it go, or wait for a later setup at the level.",
+   "facts": [
+    "c15",
+    "h11",
+    "h12"
+   ],
+   "wrong": {
+    "Buy; it reclaimed the HVC level": "The reclaim was the trigger. It is now past 4% over the buy point.",
+    "Buy half; it is close enough": "Half size does not cure a chase. Past 4% is a pass.",
+    "Buy with the stop at 20.00": "A different stop does not cure a chase. Past 4% over the HVC is a pass."
+   },
+   "house": true
+  },
+  {
+   "key": "q23",
+   "skill": "setup.high_volume_edge",
+   "rung": 3,
+   "format": "mcq",
+   "criterion": "hve.time_stop",
+   "q": "Ten trading days after your day-2 buy the trade sits at 0.6R. Our rule?",
+   "choices": [
+    "Sell; under 1R after 10 days",
+    "Hold; the level is still there",
+    "Add to it at the HVC",
+    "Move the stop to breakeven"
+   ],
+   "answer": "Sell; under 1R after 10 days",
+   "why": "Sell it. A trade still under 1R after 10 trading days is sold, freeing the money.",
+   "lesson_line": "Ten days and under 1R: let it go.",
+   "facts": [
+    "c48",
+    "h15",
+    "c21"
+   ],
+   "wrong": {
+    "Hold; the level is still there": "The level stays on the chart. The trade still goes after 10 days under 1R.",
+    "Add to it at the HVC": "No adding, and a dead trade is sold.",
+    "Move the stop to breakeven": "Breakeven comes between 2R and 5R. At 0.6R after 10 days the time stop applies."
+   },
+   "house": true
+  },
+  {
+   "key": "q24",
+   "skill": "setup.high_volume_edge",
+   "rung": 3,
+   "format": "fill",
+   "criterion": "hve.stop_broker",
+   "q": "Tap the words that fit the blank.",
+   "sentence": "On the day-2 buy, place a real ___ with the broker.",
+   "bank": [
+    "stop order",
+    "price alert",
+    "limit order",
+    "mental stop",
+    "chart note"
+   ],
+   "answer": "stop order",
+   "why": "A stop order. Every position has a real stop order with the broker, not a stop kept in your head. It only moves up.",
+   "lesson_line": "The stop lives with the broker, not in your head.",
+   "facts": [
+    "c47",
+    "h18"
+   ],
+   "house": true
+  },
+  {
+   "key": "q25",
+   "skill": "setup.high_volume_edge",
+   "rung": 4,
+   "format": "numeric",
+   "criterion": "hve.stop_width",
+   "q": "Fill 58.13. The day-2 low is 57.56 and the stop sits two cents under it. How far below the fill is the stop, in percent?",
+   "answer": 1.01,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(a - (b - 0.02)) / a * 100",
+     "a": 58.13,
+     "b": 57.56
+    },
+    "round": 2
+   },
+   "why": "1.01%. Two cents under the day-2 low is 57.54, VRTX's stop in May 2012.",
+   "lesson_line": "Stop first, distance second, size last.",
+   "facts": [
+    "c04",
+    "h24",
+    "d13"
+   ],
+   "house": true,
+   "suffix": "%"
+  },
+  {
+   "key": "q26",
+   "skill": "setup.high_volume_edge",
+   "rung": 4,
+   "format": "numeric",
+   "criterion": "hve.position_adv",
+   "q": "After the event the stock trades 3,000,000 shares a day on average. The most shares you may own?",
+   "answer": 30000,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "a * 0.01",
+     "a": 3000000
+    },
+    "round": 0
+   },
+   "why": "30,000 shares. Never more than 1% of the average daily volume, measured on the post-event average.",
+   "lesson_line": "Own no more than 1% of a day's volume.",
+   "facts": [
+    "c46",
+    "h19"
+   ],
+   "house": true
+  },
+  {
+   "key": "q27",
+   "skill": "setup.high_volume_edge",
+   "rung": 4,
+   "format": "numeric",
+   "criterion": "hve.trim_2",
+   "q": "Bought at 84.90, stop 83.38. The stock trades 92.50. How many R is that?",
+   "answer": 5.0,
+   "calc": {
+    "fn": "r_multiple",
+    "args": {
+     "entry": 84.9,
+     "stop": 83.38,
+     "exit": 92.5
+    },
+    "round": 2
+   },
+   "why": "5.0R. Another third comes off at 5R, after the first third at 3R. Then trail the last third.",
+   "lesson_line": "3R a third, 5R a third, trail the rest.",
+   "facts": [
+    "h20",
+    "h05",
+    "d07"
+   ],
+   "house": true
+  },
+  {
+   "key": "q28",
+   "skill": "setup.high_volume_edge",
+   "rung": 4,
+   "format": "numeric",
+   "criterion": "hve.lesser_known",
+   "q": "Before the record day the stock traded 1,200,000 shares a day at 11.50. How many dollars a day is that?",
+   "answer": 13800000,
+   "calc": {
+    "fn": "dollar_volume",
+    "args": {
+     "shares": 1200000,
+     "price": 11.5
+    },
+    "round": 0
+   },
+   "why": "$13.8 million a day. Well under about $100 million: a lesser-known name, the card's grade cue.",
+   "lesson_line": "Read the dollar volume before the day. Small means lesser-known.",
+   "facts": [
+    "c25",
+    "c42"
+   ],
+   "house": true,
+   "prefix": "$"
+  },
+  {
+   "key": "q29",
+   "skill": "setup.high_volume_edge",
+   "rung": 4,
+   "format": "scenario",
+   "criterion": "hve.fresh_catalyst",
+   "q": "HVE or something else?",
+   "story": "A widely owned stock gaps up on earnings and closes 28.1% higher. Volume tops the past year but barely beats the old high. Day 2 dips and reclaims the close.",
+   "choices": [
+    "A PEG; big but ordinary volume",
+    "An HVE; the reclaim triggers",
+    "An HVE; the gap is big",
+    "An Episodic Pivot"
+   ],
+   "answer": "A PEG; big but ordinary volume",
+   "why": "A PEG. An earnings gap on big but ordinary volume in a well-owned name is a PEG, not an HVE. ROKU, taken as an HVE, was stopped at 0.0R.",
+   "lesson_line": "Rank the volume, not the gap.",
+   "facts": [
+    "c31",
+    "c07",
+    "d22",
+    "d23"
+   ],
+   "wrong": {
+    "An HVE; the reclaim triggers": "The trigger is fine. The record day is not an HVE: the volume is ordinary for this name.",
+    "An HVE; the gap is big": "The gap does not make it. Rank the volume, not the gap.",
+    "An Episodic Pivot": "An EP is bought on the gap day itself over the opening-range high. Day 2 is past that."
+   },
+   "house": true
+  },
+  {
+   "key": "q30",
+   "skill": "setup.high_volume_edge",
+   "rung": 4,
+   "format": "scenario",
+   "criterion": "hve.day2_dip",
+   "q": "What is the trade on day 2?",
+   "story": "A stock rises 29% on the most shares it has ever traded and closes near the high. Day 2 opens 2.1% over that close. Its low stays 1.7% above it.",
+   "choices": [
+    "No trigger; it never dipped under",
+    "Buy the open; strength is the tell",
+    "Buy, stop under the HVC",
+    "Short it; the gap will fill"
+   ],
+   "answer": "No trigger; it never dipped under",
+   "why": "No trigger. Day 2 opened 2.1% over the HVC and its low stayed 1.7% over it. A valid HVE day, no day-2 trade.",
+   "lesson_line": "A strong day 2 is not our trigger. Wait for a later setup at the level.",
+   "facts": [
+    "c13",
+    "d26",
+    "d27"
+   ],
+   "wrong": {
+    "Buy the open; strength is the tell": "Our trigger needs a dip under the HVC first. This one never dipped.",
+    "Buy, stop under the HVC": "The HVC is never the stop, and there was no trigger.",
+    "Short it; the gap will fill": "We trade the HVE long only."
+   },
+   "house": true
+  },
+  {
+   "key": "q31",
+   "skill": "setup.high_volume_edge",
+   "rung": 4,
+   "format": "scenario",
+   "criterion": "hve.trigger",
+   "q": "What do you do?",
+   "story": "The HVC is 13.11. Day 2 opens at 12.80 and trades lower. Midday it trades back up to 13.12.",
+   "choices": [
+    "Buy at market, a cent over",
+    "Wait for a close over 13.11",
+    "Place a limit at 12.80",
+    "Wait for a new high"
+   ],
+   "answer": "Buy at market, a cent over",
+   "why": "Buy at market, a cent over the HVC. Red to green through the HVC is the trigger, and entries are market orders.",
+   "lesson_line": "Set the alert at the HVC. When it trades back over, buy at market.",
+   "facts": [
+    "c14",
+    "c03",
+    "h22"
+   ],
+   "wrong": {
+    "Wait for a close over 13.11": "The trigger is intraday, the moment it trades back over.",
+    "Place a limit at 12.80": "Entries are market orders, and 12.80 is under the trigger.",
+    "Wait for a new high": "The line is the HVC. A new high comes later and past the chase limit."
+   },
+   "house": true
+  },
+  {
+   "key": "q32",
+   "skill": "setup.high_volume_edge",
+   "rung": 4,
+   "format": "scenario",
+   "criterion": "hve.not_climax",
+   "q": "Start or climax?",
+   "story": "The stock is on its fourth straight up day, each one gapping higher. Today it trades record volume and closes up 25%.",
+   "choices": [
+    "A climax; not our HVE",
+    "A start; plan day 2",
+    "A start; buy the close"
+   ],
+   "answer": "A climax; not our HVE",
+   "why": "A climax. Not on the third to fifth day of a straight-up burst, and not after a 60% run in 60 sessions. A record day there is often the end.",
+   "lesson_line": "A record at the start is a beginning. A record at the end of a burst is a climax.",
+   "facts": [
+    "c10",
+    "c05"
+   ],
+   "wrong": {
+    "A start; plan day 2": "Not on the third to fifth day of a straight-up burst. This is the fourth.",
+    "A start; buy the close": "The close is not our buy, and this day is a climax."
+   },
+   "house": true
+  },
+  {
+   "key": "q33",
+   "skill": "setup.high_volume_edge",
+   "rung": 5,
+   "format": "tf",
+   "criterion": "hve.stop_gap",
+   "q": "If the stock gaps under your stop, the first 30-minute low is the new stop, unless that takes the loss past 2R.",
+   "answer": "True",
+   "why": "True. The gap rule: the first 30 minutes of the gap-down day decide. Past 2R, get out.",
+   "lesson_line": "A gap through the stop: the first 30 minutes set the new stop.",
+   "facts": [
+    "c45",
+    "h06",
+    "h07"
+   ],
+   "house": true
+  },
+  {
+   "key": "q34",
+   "skill": "setup.high_volume_edge",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "hve.trim_gap_open",
+   "q": "What do you do at the open?",
+   "story": "Your High Volume Edge long closed at 2.7R. The next morning it gaps open at 3.5R.",
+   "choices": [
+    "Sell a third at the open",
+    "Wait for the close",
+    "Sell everything",
+    "Move the stop up and hold"
+   ],
+   "answer": "Sell a third at the open",
+   "why": "Sell a third at the open. If a stock opens above a trim level, take that trim at the open.",
+   "lesson_line": "A gap through a trim level is the trim. Take it at the open.",
+   "facts": [
+    "h25",
+    "h05"
+   ],
+   "wrong": {
+    "Wait for the close": "The level is already passed. Waiting gives the gap a chance to fill.",
+    "Sell everything": "A third at 3R. The rest waits for 5R and the trail.",
+    "Move the stop up and hold": "The stop moves up too, but the trim is the rule at the open."
+   },
+   "house": true
+  },
+  {
+   "key": "q35",
+   "skill": "setup.high_volume_edge",
+   "rung": 5,
+   "format": "mcq",
+   "criterion": "hve.above_200",
+   "q": "The record day closed under the 200-day. Day 2's fill is above it. Does it qualify?",
+   "choices": [
+    "Yes; the trade is above it",
+    "No; the record day was under",
+    "Only after a week above it"
+   ],
+   "answer": "Yes; the trade is above it",
+   "why": "Yes. The trade, not the HVE day, must be above the 200-day at the moment of entry. No longs below the 200-day.",
+   "lesson_line": "Judge the 200-day at the fill, not on the record day.",
+   "facts": [
+    "c06",
+    "h10"
+   ],
+   "wrong": {
+    "No; the record day was under": "The record day does not decide. The fill does.",
+    "Only after a week above it": "No wait is in the rule. The fill above the 200-day qualifies."
+   },
+   "house": true
+  },
+  {
+   "key": "q36",
+   "skill": "setup.high_volume_edge",
+   "rung": 5,
+   "format": "mcq",
+   "criterion": "hve.excluded_days",
+   "q": "Which record-volume up day never counts as a High Volume Edge?",
+   "choices": [
+    "The last session of a month",
+    "A day after a trial result",
+    "A day with a 30% gap",
+    "A day in a beaten-down stock"
+   ],
+   "answer": "The last session of a month",
+   "why": "The last session of a month. Month-end and the monthly options expiry are ruled out: the volume is not demand.",
+   "lesson_line": "Month-end volume is bookkeeping, not buyers.",
+   "facts": [
+    "c09"
+   ],
+   "wrong": {
+    "A day after a trial result": "A trial result is a fresh story, the kind the card wants.",
+    "A day with a 30% gap": "A gap is a cue, not a bar. It does not rule the day out.",
+    "A day in a beaten-down stock": "Beaten-down is often where it starts. No prior trend is needed."
+   },
+   "house": true
+  },
+  {
+   "key": "q37",
+   "skill": "setup.high_volume_edge",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "hve.under_hvc_not_failure",
+   "q": "What do you do?",
+   "story": "Six sessions after your day-2 buy the stock closes 2% under the HVC. Your stop under the day-2 low has not traded.",
+   "choices": [
+    "Hold; the stop decides",
+    "Sell; the level failed",
+    "Erase the level; it broke",
+    "Widen the stop for room"
+   ],
+   "answer": "Hold; the stop decides",
+   "why": "Hold. Closing under the HVC is not an invalidation of the level, and the stop is the exit. It has not traded.",
+   "lesson_line": "Under the HVC is normal. The stop, not the line, ends the trade.",
+   "facts": [
+    "c24",
+    "h02",
+    "c19"
+   ],
+   "wrong": {
+    "Sell; the level failed": "A close under the HVC is not a failure. Price trades under it most of the time.",
+    "Erase the level; it broke": "Do not erase it. The level stays on the chart for months.",
+    "Widen the stop for room": "The stop only moves up, never wider."
+   },
+   "house": true
+  },
+  {
+   "key": "q38",
+   "skill": "setup.high_volume_edge",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "hve.inv_level_fails",
+   "q": "What is the HVC now?",
+   "story": "You bought day 2 at 55.46 with a stop at 53.73. It traded two sessions later, a planned loss. Weeks on, the stock closes under the record day's low.",
+   "choices": [
+    "Overhead, not a floor",
+    "Support; buy it again",
+    "Gone; erase it",
+    "The new stop level"
+   ],
+   "answer": "Overhead, not a floor",
+   "why": "Overhead. A close under the record day's low ends the level as support. QGEN slid to 38.80, under its 46.07 low.",
+   "lesson_line": "Under the record day's low, the HVC turns from floor to ceiling.",
+   "facts": [
+    "c23",
+    "d14",
+    "d15"
+   ],
+   "wrong": {
+    "Support; buy it again": "Under the record day's low it is no longer support. A new buy needs a new trigger.",
+    "Gone; erase it": "Keep it on the chart. It now sits overhead.",
+    "The new stop level": "You are out already. The line now marks overhead supply."
+   },
+   "house": true
+  },
+  {
+   "key": "q39",
+   "skill": "setup.high_volume_edge",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "hve.after_entry_stop",
+   "q": "Was the stop a mistake?",
+   "story": "You bought day 2 at 80.07, stop 77.24. The next session takes your stop, and within three sessions the low is 71.08. Weeks later it runs to 88.84.",
+   "choices": [
+    "No; the stop is the exit",
+    "Yes; it needed a wider stop",
+    "Yes; you should have held"
+   ],
+   "answer": "No; the stop is the exit",
+   "why": "No. The stop is the exit, and you followed the plan. A shake-out that later runs is the cost of a tight stop, not a reason to widen it.",
+   "lesson_line": "A loss taken at plan is the system working.",
+   "facts": [
+    "h02",
+    "d16",
+    "d17",
+    "d33"
+   ],
+   "wrong": {
+    "Yes; it needed a wider stop": "The stop only moves up. It then collapsed to 56.05, so room would have cost more.",
+    "Yes; you should have held": "Holding past the stop is not in the plan. The stop is the exit."
+   },
+   "house": true
+  },
+  {
+   "key": "q40",
+   "skill": "setup.high_volume_edge",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "hve.later_entries",
+   "q": "Buy it back?",
+   "story": "Stopped out the day after your day-2 buy, you watch the stock grind back up. It runs to 88.84 with no new day-2 trigger and no setup at the level.",
+   "choices": [
+    "Only on a new trigger",
+    "Yes; it is back over the HVC",
+    "Yes; the old stop proved right",
+    "Never; the stock failed you"
+   ],
+   "answer": "Only on a new trigger",
+   "why": "Only on a new trigger. After a stop-out, buy again only if the setup triggers again, as a new trade. Each later entry has its own trigger and stop.",
+   "lesson_line": "Stopped out: the next trade needs its own trigger.",
+   "facts": [
+    "h28",
+    "c17",
+    "c18",
+    "d17"
+   ],
+   "wrong": {
+    "Yes; it is back over the HVC": "Being over the HVC is not a trigger. The new trade needs its own setup.",
+    "Yes; the old stop proved right": "That is chasing the past. A re-entry needs a fresh trigger and stop.",
+    "Never; the stock failed you": "Not never. A new trigger is a new trade with its own stop."
+   },
+   "house": true
+  },
+  {
+   "key": "q41",
+   "skill": "setup.high_volume_edge",
+   "rung": 6,
+   "format": "mcq",
+   "criterion": "hve.climax",
+   "q": "Your High Volume Edge long runs four straight days, each gapping higher on rising volume. Our rule?",
+   "choices": [
+    "Sell a big part into it",
+    "Add on the next gap",
+    "Hold all for the trail",
+    "Move the stop to the HVC"
+   ],
+   "answer": "Sell a big part into it",
+   "why": "Sell a big part into it. A climax run on your own long: sell a big part into it, a judgment call.",
+   "lesson_line": "A burst on your own long is a gift. Sell into it.",
+   "facts": [
+    "c49",
+    "h30"
+   ],
+   "wrong": {
+    "Add on the next gap": "No adding, and a burst is a place to sell.",
+    "Hold all for the trail": "A climax is the exception. Sell a big part into it.",
+    "Move the stop to the HVC": "The HVC is never the stop. Sell into the burst instead."
+   },
+   "house": true
+  },
+  {
+   "key": "q42",
+   "skill": "setup.high_volume_edge",
+   "rung": 6,
+   "format": "mcq",
+   "criterion": "hve.later_entries",
+   "q": "After day 2, which is a follow-up entry at the HVC?",
+   "choices": [
+    "An Oops Reversal at the HVC",
+    "Any touch of the HVC",
+    "Averaging down at the HVC",
+    "The first close under it"
+   ],
+   "answer": "An Oops Reversal at the HVC",
+   "why": "An Oops Reversal at the HVC. The follow-up entries are our own setups at the level, each with its own trigger and stop.",
+   "lesson_line": "The level keeps paying. Each later entry is its own setup.",
+   "facts": [
+    "c17",
+    "c18",
+    "c38"
+   ],
+   "wrong": {
+    "Any touch of the HVC": "A touch is not a trigger. The later entries are named setups.",
+    "Averaging down at the HVC": "No adding. Each later entry is a new trade with its own stop.",
+    "The first close under it": "A close under the HVC is no buy signal. It is not even an invalidation."
+   },
+   "house": true
+  },
+  {
+   "key": "q43",
+   "skill": "setup.high_volume_edge",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "hve.lesser_known",
+   "q": "Which grades higher?",
+   "story": "Two stocks set lifetime volume records on fresh news, both up big. One traded $14 million a day before. The other traded $3 billion.",
+   "choices": [
+    "The $14 million name",
+    "The $3 billion name",
+    "They grade the same"
+   ],
+   "answer": "The $14 million name",
+   "why": "The $14 million name. The card's A+ is a lesser-known name with small dollar volume before the day. A mega-cap or well-owned large cap is B- at best.",
+   "lesson_line": "The quieter the name before, the louder the record.",
+   "facts": [
+    "c42",
+    "c41",
+    "c25",
+    "b02"
+   ],
+   "wrong": {
+    "The $3 billion name": "A well-owned large cap grades down. The card cut names like that.",
+    "They grade the same": "Dollar volume before the day is a grade cue. Small is A+."
+   },
+   "house": true
+  },
+  {
+   "key": "q44",
+   "skill": "setup.high_volume_edge",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "hve.fresh_catalyst",
+   "q": "Can it still be a High Volume Edge?",
+   "story": "An earnings report sends a stock up 22%. It trades more shares than on any day in its history, far beyond its usual volume.",
+   "choices": [
+    "Yes; the volume is extreme",
+    "No; earnings days never count",
+    "No; it is always a PEG"
+   ],
+   "answer": "Yes; the volume is extreme",
+   "why": "Yes. Earnings so big the volume is extreme can be an HVE. DOCU's record was all-time, so it is an HVE, not a PEG.",
+   "lesson_line": "Earnings can count. The volume decides, not the report.",
+   "facts": [
+    "c07",
+    "d05",
+    "b01"
+   ],
+   "wrong": {
+    "No; earnings days never count": "Earnings can count when the volume is extreme.",
+    "No; it is always a PEG": "A PEG is ordinary big volume. An all-time record is not ordinary."
+   },
+   "house": true
+  },
+  {
+   "key": "q45",
+   "skill": "setup.high_volume_edge",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "hve.group_move",
+   "q": "How does the group read?",
+   "story": "Four names in one theme all set volume records on the same day. One gives a clean day-2 reclaim of its HVC.",
+   "choices": [
+    "It helps; a cue, not a rule",
+    "A rule; all four must trigger",
+    "A warning; it is a crowd"
+   ],
+   "answer": "It helps; a cue, not a rule",
+   "why": "It helps. A group or theme setting volume records the same day helps. It is a cue, not a rule.",
+   "lesson_line": "A group moving together is a tailwind, not a trigger.",
+   "facts": [
+    "c29"
+   ],
+   "wrong": {
+    "A rule; all four must trigger": "The group is a cue. Each trade still needs its own trigger.",
+    "A warning; it is a crowd": "The card reads a group record as a help, not a warning."
+   },
+   "house": true
+  },
+  {
+   "key": "q46",
+   "skill": "setup.high_volume_edge",
+   "rung": 6,
+   "format": "numeric",
+   "criterion": "hve.stop",
+   "q": "Account 40,000. Risk 0.5%. Fill 20.18, stop 19.89. How many shares?",
+   "answer": 689,
+   "calc": {
+    "fn": "shares_from_risk",
+    "args": {
+     "account": 40000,
+     "risk_pct": 0.5,
+     "entry": 20.18,
+     "stop": 19.89
+    },
+    "round": 0
+   },
+   "why": "689 shares. Account times risk, divided by the stop distance, rounded down. Then check the position cap.",
+   "lesson_line": "The stop sets the size, never the other way round.",
+   "facts": [
+    "h03",
+    "h01",
+    "d01"
+   ],
+   "house": true
+  },
+  {
+   "key": "q47",
+   "skill": "setup.high_volume_edge",
+   "rung": 7,
+   "format": "tf",
+   "criterion": "hve.inv_level_fails",
+   "q": "A trade under the record day's low ends the level as support, even if the day closes back above it.",
+   "answer": "False",
+   "why": "False. A close under the record day's low ends it as support. A trade under it that closes back above does not.",
+   "lesson_line": "The level ends on a close under the record day's low.",
+   "facts": [
+    "c23"
+   ],
+   "house": true
+  },
+  {
+   "key": "q48",
+   "skill": "setup.high_volume_edge",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "hve.stop_gap",
+   "q": "Where is the stop now?",
+   "story": "Your High Volume Edge long: buy 50.00, stop 48.50. It gaps open at 47.90. The first 30-minute bar's low is 47.40.",
+   "choices": [
+    "47.40, the first 30-minute low",
+    "Out at the open, 47.90",
+    "Back at 48.50, the old stop",
+    "46.00, for more room"
+   ],
+   "answer": "47.40, the first 30-minute low",
+   "why": "47.40. On a gap through the stop, the first 30-minute low is the new stop. The loss there stays inside 2R, so you hold to it.",
+   "lesson_line": "Let the first 30 minutes set the stop on a gap against you.",
+   "facts": [
+    "c45",
+    "h06",
+    "h07"
+   ],
+   "wrong": {
+    "Out at the open, 47.90": "The gap rule waits for the first 30 minutes, unless the loss passes 2R.",
+    "Back at 48.50, the old stop": "Price already gapped through it. The first 30-minute low sets the new stop.",
+    "46.00, for more room": "Room is not a rule. The first 30-minute low is the stop."
+   },
+   "house": true
+  },
+  {
+   "key": "q68",
+   "skill": "setup.high_volume_edge",
+   "rung": 6,
+   "format": "mcq",
+   "criterion": "hve.mark_level",
+   "q": "Gap Support and the High Volume Edge both mark a big up day. Which line does Gap Support defend?",
+   "choices": [
+    "The gap-up day's low",
+    "The record day's close",
+    "The gap-up day's high",
+    "The prior day's close"
+   ],
+   "answer": "The gap-up day's low",
+   "why": "The gap-up day's low. Gap Support defends that low days or weeks later; the HVE's line is the record day's close.",
+   "lesson_line": "Find the line: Gap Support, the gap day's low; HVE, the record day's close.",
+   "facts": [
+    "c34",
+    "c11"
+   ],
+   "wrong": {
+    "The record day's close": "That is the HVE's line, the HVC. Gap Support uses the gap day's low.",
+    "The gap-up day's high": "The high is not either setup's line.",
+    "The prior day's close": "That is the line red to green uses. Gap Support defends the gap day's low."
+   },
+   "house": true
+  },
+  {
+   "key": "q49",
+   "skill": "setup.high_volume_edge",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "hve.breakeven",
+   "q": "Inside our rules, what would have saved it?",
+   "story": "You bought day 2 at 331.66, stop 323.98. The next day it reaches 2.3R. Four sessions after the buy, the low trades 322.50 and takes the stop.",
+   "choices": [
+    "Stop to breakeven at 2R",
+    "A stop under 320 for room",
+    "Selling it all at 2R",
+    "Skipping the day-2 trigger"
+   ],
+   "answer": "Stop to breakeven at 2R",
+   "why": "Stop to breakeven at 2R. Our rule moves it between 2R and 5R; moved at 2R, this loss is a scratch. Left for the first trim, it is a planned loss.",
+   "lesson_line": "A 2R gain given back is a scratch once the stop sits at breakeven.",
+   "facts": [
+    "h05",
+    "c21",
+    "d20",
+    "d21"
+   ],
+   "wrong": {
+    "A stop under 320 for room": "The stop only moves up, never wider.",
+    "Selling it all at 2R": "Our first trim is a third at 3R, not everything at 2R.",
+    "Skipping the day-2 trigger": "The trigger was valid. The breakeven move is the tool."
+   },
+   "house": true
+  },
+  {
+   "key": "q50",
+   "skill": "setup.high_volume_edge",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "hve.stop_width",
+   "q": "Which is the one thing you never do?",
+   "story": "The HVC is 13.11. Day 2 opens 12.80, falls well lower, then reclaims 13.11. The honest stop under the day-2 low is far wider than your plan allows.",
+   "choices": [
+    "Pull the stop in to fit",
+    "Skip and wait for a later setup",
+    "Size down from the real stop"
+   ],
+   "answer": "Pull the stop in to fit",
+   "why": "Pull the stop in. If the honest stop does not fit the risk, skip the trade. NAVN's honest day-2 stop was 7.5% wide; a later entry at the level was the plan.",
+   "lesson_line": "Never move the stop to fit the size. Move the size, or skip.",
+   "facts": [
+    "h01",
+    "h02",
+    "d28",
+    "c17"
+   ],
+   "wrong": {
+    "Skip and wait for a later setup": "That is the plan when the stop does not fit. Skip, then watch the level.",
+    "Size down from the real stop": "Sizing from the real stop is the rule. Pulling it in is the mistake."
+   },
+   "house": true
+  },
+  {
+   "key": "q51",
+   "skill": "setup.high_volume_edge",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "hve.trim_2",
+   "q": "By our rules, what kept this a win?",
+   "story": "Bought day 2 at 84.90, stop 83.38. 5R comes in two sessions; the peak is day 17. By day 30 it has round-tripped under the HVC.",
+   "choices": [
+    "The thirds at 3R and 5R",
+    "Holding all of it",
+    "A stop at the HVC",
+    "Adding on day 17"
+   ],
+   "answer": "The thirds at 3R and 5R",
+   "why": "The thirds at 3R and 5R. INOD hit 5R in two sessions, peaked +47% on day 17, then round-tripped under the HVC by day 30.",
+   "lesson_line": "Trims bank the move. The trail decides the rest.",
+   "facts": [
+    "h05",
+    "h20",
+    "d07",
+    "d08",
+    "d09"
+   ],
+   "wrong": {
+    "Holding all of it": "Holding it all rides the round trip back under the HVC.",
+    "A stop at the HVC": "The HVC is never the stop. The trims did the work.",
+    "Adding on day 17": "No adding, and day 17 was the peak."
+   },
+   "house": true
+  },
+  {
+   "key": "q52",
+   "skill": "setup.high_volume_edge",
+   "rung": 7,
+   "format": "tf",
+   "criterion": "hve.stop_not_hvc",
+   "q": "Duncan exits on a close under the HVC; our High Volume Edge plan does the same.",
+   "answer": "False",
+   "why": "False. Duncan also exits on a close under the HVC. Ours: the stop is a few cents under the day-2 low, and under the HVC is not an invalidation.",
+   "lesson_line": "Our exit is the stop, not a close under the line.",
+   "facts": [
+    "g05",
+    "c04",
+    "c24"
+   ],
+   "house": true
+  },
+  {
+   "key": "q53",
+   "skill": "setup.high_volume_edge",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "hve.no_ma_requirement",
+   "q": "Does the 50-day rule it out?",
+   "story": "A beaten-down stock sets a lifetime volume record on fresh news and closes up, still under its 50-day. Day 2 reclaims the HVC above the 200-day.",
+   "choices": [
+    "No; there is no 50-day rule",
+    "Yes; it must be over the 50-day",
+    "Yes; the 50 must top the 200"
+   ],
+   "answer": "No; there is no 50-day rule",
+   "why": "No. The card has no 10, 21 or 50-day requirement on the HVE day. The 200-day is the line, and the fill is above it.",
+   "lesson_line": "The 200-day decides. The shorter averages do not.",
+   "facts": [
+    "c30",
+    "c06"
+   ],
+   "wrong": {
+    "Yes; it must be over the 50-day": "No 50-day test applies on this card. The 200-day at the fill does.",
+    "Yes; the 50 must top the 200": "That is a check for other setups. The HVE has no 50-day requirement."
+   },
+   "house": true
+  },
+  {
+   "key": "q54",
+   "skill": "setup.high_volume_edge",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "hve.gap_at_open",
+   "q": "Does the flat open rule it out?",
+   "story": "A stock opens flat, then grinds higher all day on fresh news. It closes near the high on the most shares in its history.",
+   "choices": [
+    "No; the gap is a cue, not a rule",
+    "Yes; an HVE must open with a gap",
+    "Yes; a flat open makes it an EP"
+   ],
+   "answer": "No; the gap is a cue, not a rule",
+   "why": "No. The opening gap is a cue, not a rule. Some good HVEs gapped 3% or even 0.5%. The record volume and the up close carry it.",
+   "lesson_line": "Gap or no gap, a record up day can be an HVE.",
+   "facts": [
+    "c28",
+    "c08",
+    "c35"
+   ],
+   "wrong": {
+    "Yes; an HVE must open with a gap": "A gap helps the grade. It is not required.",
+    "Yes; a flat open makes it an EP": "An EP needs the gap. A record up day without one is the HVE's lesson."
+   },
+   "house": true
+  },
+  {
+   "key": "q55",
+   "skill": "setup.high_volume_edge",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "hve.close_position",
+   "q": "How does it grade?",
+   "story": "Up 100% on 62 times its average volume, a lifetime record. But it closes at 0.26 of the day's range.",
+   "choices": [
+    "Down; it closed low in range",
+    "A+; the volume is huge and rare",
+    "A+; up 100% is the whole story",
+    "No trade; it closed down"
+   ],
+   "answer": "Down; it closed low in range",
+   "why": "Down. A close in the lower half of a huge range grades B-. MBX closed at 0.26 of its range, a supply day dressed as an HVE.",
+   "lesson_line": "A record day should close strong. A low close is supply.",
+   "facts": [
+    "c27",
+    "c40",
+    "d29",
+    "d30",
+    "d31",
+    "g02"
+   ],
+   "wrong": {
+    "A+; the volume is huge and rare": "Volume is not the whole grade. The close tells who won the day.",
+    "A+; up 100% is the whole story": "The move is big, the close is weak. The close grades it down.",
+    "No trade; it closed down": "It closed up 100% on the day. The weak spot is where in the range."
+   },
+   "house": true
+  },
+  {
+   "key": "q56",
+   "skill": "setup.high_volume_edge",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "hve.fresh_catalyst",
+   "q": "HVE or not?",
+   "story": "A mega-cap everyone owns trades its biggest volume in a year. That is about 3 times its average, and it closes up 7%.",
+   "choices": [
+    "Not an HVE; just an HVC",
+    "An HVE; a one-year record",
+    "An HVE; it closed up"
+   ],
+   "answer": "Not an HVE; just an HVC",
+   "why": "Not an HVE. Calling any year-high volume an HVE is a named mistake: a 3x day on a mega-cap is an HVC.",
+   "lesson_line": "A big day in a mega-cap is an HVC, not an edge.",
+   "facts": [
+    "c36",
+    "c41",
+    "g01"
+   ],
+   "wrong": {
+    "An HVE; a one-year record": "A year-high on a mega-cap is not an HVE.",
+    "An HVE; it closed up": "An up close is needed, not enough. The name and the size of the record fail."
+   },
+   "house": true
+  },
+  {
+   "key": "q57",
+   "skill": "setup.high_volume_edge",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "hve.stop_broker",
+   "q": "What happened, by the plan?",
+   "story": "An earnings record day. You buy day 2 at 48.34, stop 47.52, a real stop order with the broker. Day 3 opens 49.56 and reverses to 46.94.",
+   "choices": [
+    "Stopped; a small planned loss",
+    "Still in; it closed over the HVC",
+    "A mistake; the stop was too tight"
+   ],
+   "answer": "Stopped; a small planned loss",
+   "why": "Stopped, a small planned loss. The broker stop took it on the way through, as planned.",
+   "lesson_line": "A real stop order acts when you cannot. That is its job.",
+   "facts": [
+    "h18",
+    "c47",
+    "d18",
+    "d19",
+    "d32"
+   ],
+   "wrong": {
+    "Still in; it closed over the HVC": "Yesterday's close does not hold today. The stop traded at 47.52.",
+    "A mistake; the stop was too tight": "Tight day-2 stops are the design. The first sessions decide the trade."
+   },
+   "house": true
+  },
+  {
+   "key": "q58",
+   "skill": "setup.high_volume_edge",
+   "rung": 8,
+   "format": "tf",
+   "criterion": "hve.stop",
+   "q": "Our High Volume Edge stop sits a set 3% to 5% under the HVC, as Duncan's does.",
+   "answer": "False",
+   "why": "False. Duncan's stop is 3% to 5% under the HVC. Ours is a few cents under the day-2 low, the low made before the reclaim.",
+   "lesson_line": "Our stop comes from the chart: the day-2 low, not a set percent.",
+   "facts": [
+    "g04",
+    "c04"
+   ],
+   "house": true
+  },
+  {
+   "key": "q59",
+   "skill": "setup.high_volume_edge",
+   "rung": 8,
+   "format": "tf",
+   "criterion": "hve.trim_1",
+   "q": "On a tight day-2 stop, 3R is often a few percent over the buy. The first trim is still a third at 3R.",
+   "answer": "True",
+   "why": "True. Because the stop is small, 3R is often only 3% to 7% over the buy. The hard rule is still a third at 3R.",
+   "lesson_line": "Read the percent, keep the rule: a third at 3R.",
+   "facts": [
+    "d34",
+    "h05"
+   ],
+   "house": true
+  },
+  {
+   "key": "q60",
+   "skill": "setup.high_volume_edge",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "hve.market_reading",
+   "q": "What do you do?",
+   "story": "The market reading turns Red. A clean High Volume Edge gives its day-2 reclaim.",
+   "choices": [
+    "Mostly cash; pass on it",
+    "Buy it, but at full size",
+    "Buy it, but at half size"
+   ],
+   "answer": "Mostly cash; pass on it",
+   "why": "Pass. In a Red market: mostly cash and shorts. A clean HVE is still a long.",
+   "lesson_line": "Red market, mostly cash. The setup can wait.",
+   "facts": [
+    "c43",
+    "h26",
+    "h36"
+   ],
+   "wrong": {
+    "Buy it, but at full size": "Full risk is a Green market. Red is mostly cash.",
+    "Buy it, but at half size": "Smaller and fewer is Yellow. Red is mostly cash and shorts."
+   },
+   "house": true
+  },
+  {
+   "key": "q61",
+   "skill": "setup.high_volume_edge",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "hve.earnings_window",
+   "q": "Hold through the report?",
+   "story": "Your High Volume Edge long is up 3.2R. The company reports in two days.",
+   "choices": [
+    "No; only if up 5R",
+    "Yes; the level is strong",
+    "Yes; move the stop to breakeven"
+   ],
+   "answer": "No; only if up 5R",
+   "why": "No. Hold through a report only if the trade is up 5R. At 3.2R, sell before it.",
+   "lesson_line": "Into a report, only a 5R cushion stays.",
+   "facts": [
+    "h08",
+    "c44"
+   ],
+   "wrong": {
+    "Yes; the level is strong": "The level does not change the rule. Under 5R, sell before the report.",
+    "Yes; move the stop to breakeven": "A stop cannot catch a gap. The rule is 5R or out."
+   },
+   "house": true
+  },
+  {
+   "key": "q62",
+   "skill": "setup.high_volume_edge",
+   "rung": 8,
+   "format": "tf",
+   "criterion": "hve.mark_level",
+   "q": "An AVWAP from the record day is the kind of anchor Shannon describes: fixed at a large price movement event.",
+   "answer": "True",
+   "why": "True. Shannon anchors from meaningful market events, such as a large price movement. Our AVWAP starts on the record day.",
+   "lesson_line": "Anchor the AVWAP where the story changed.",
+   "facts": [
+    "a01",
+    "a02",
+    "c11"
+   ],
+   "house": true
+  },
+  {
+   "key": "q63",
+   "skill": "setup.high_volume_edge",
+   "rung": 9,
+   "format": "scenario",
+   "criterion": "hve.trigger",
+   "q": "Write the plan: entry, stop, first trim.",
+   "story": "A quiet stock trades record volume, up 37%, and closes near its high, 20.17. Day 2 dips under that close to a low of 19.91, then trades back through it.",
+   "choices": [
+    "20.18, stop 19.89, a third at 3R",
+    "Buy the close, stop the record low",
+    "20.18, stop at the HVC",
+    "Wait for 21, stop 19.89"
+   ],
+   "answer": "20.18, stop 19.89, a third at 3R",
+   "why": "20.18, stop 19.89, a third at 3R. A market buy a cent over the HVC, the stop a few cents under the day-2 low. TVTX ran to +70% by day 54.",
+   "lesson_line": "Entry, stop, trim before the buy. Then let the plan work.",
+   "facts": [
+    "c14",
+    "c04",
+    "h05",
+    "d01",
+    "d03"
+   ],
+   "wrong": {
+    "Buy the close, stop the record low": "The close is not our buy, and the record day's low is not the day-2 stop.",
+    "Wait for 21, stop 19.89": "The trigger is the trade back over the HVC, not a higher price.",
+    "20.18, stop at the HVC": "The HVC is never the stop. It sits under the day-2 low."
+   },
+   "house": true
+  },
+  {
+   "key": "q64",
+   "skill": "setup.high_volume_edge",
+   "rung": 9,
+   "format": "scenario",
+   "criterion": "hve.regular_hours",
+   "q": "What is your first High Volume Edge buy?",
+   "story": "A trial result hits at 7 a.m. The stock trades far higher pre-market on huge volume and holds all day.",
+   "choices": [
+    "Day 2, a reclaim of the HVC",
+    "Pre-market, before it runs",
+    "The open, over the first high",
+    "The record day's close"
+   ],
+   "answer": "Day 2, a reclaim of the HVC",
+   "why": "Day 2, a reclaim of the HVC. No buys outside regular hours, and the taught trigger is day 2, not the record day.",
+   "lesson_line": "The news sets the level. Day 2 sets the trade.",
+   "facts": [
+    "c16",
+    "c12",
+    "c03",
+    "c32",
+    "k01"
+   ],
+   "wrong": {
+    "Pre-market, before it runs": "No buys outside regular hours.",
+    "The open, over the first high": "That is the Episodic Pivot's entry on the gap day. Ours waits for day 2.",
+    "The record day's close": "The close is the level, not the buy."
+   },
+   "house": true
+  },
+  {
+   "key": "q65",
+   "skill": "setup.high_volume_edge",
+   "rung": 9,
+   "format": "mcq",
+   "criterion": "hve.fresh_catalyst",
+   "q": "Hidden ticker, the last bar is the record day. Plan the day-2 trade or pass?",
+   "choices": [
+    "Plan day 2; a fresh start",
+    "Pass; a climax after a run",
+    "Pass; it is under the 200-day"
+   ],
+   "answer": "Plan day 2; a fresh start",
+   "why": "Plan day 2. A flat line for six months, 16% under its 200-day, then a 126% gap on 18x volume, an all-time record. The HVC was never traded again; +68% by day 59.",
+   "lesson_line": "A quiet stock, a new story, record volume: mark the close and plan day 2.",
+   "facts": [
+    "c07",
+    "c01",
+    "d10",
+    "d11",
+    "d12",
+    "c39"
+   ],
+   "wrong": {
+    "Pass; a climax after a run": "There was no run before it. Six flat months, then the record day.",
+    "Pass; it is under the 200-day": "The record day closed far above it. The fill on day 2 is what counts."
+   },
+   "house": true,
+   "chart": {
+    "sym": "INSM",
+    "asof": "2024-05-28",
+    "window": 120,
+    "forward": 20
+   }
+  },
+  {
+   "key": "q66",
+   "skill": "setup.high_volume_edge",
+   "rung": 9,
+   "format": "mcq",
+   "criterion": "hve.not_climax",
+   "q": "Hidden ticker, the last bar is a record-volume day. Plan the day-2 trade or pass?",
+   "choices": [
+    "Pass; a climax after a long run",
+    "Plan day 2; it is record volume",
+    "Plan day 2; it doubled in price"
+   ],
+   "answer": "Pass; a climax after a long run",
+   "why": "Pass. The close before the record day was 72.5% over its 60-session low. A climax, not a start: day 2 triggered, was stopped at 0.0R, and it topped within two months.",
+   "lesson_line": "Look left before you mark the level. A record after a big run is a climax.",
+   "facts": [
+    "c10",
+    "d24",
+    "d25"
+   ],
+   "wrong": {
+    "Plan day 2; it is record volume": "Record volume after a 60% run in 60 sessions is a climax, not our start.",
+    "Plan day 2; it doubled in price": "The size of the day does not fix the run before it."
+   },
+   "house": true,
+   "chart": {
+    "sym": "GPCR",
+    "asof": "2025-12-08",
+    "window": 120,
+    "forward": 20
+   }
+  },
+  {
+   "key": "q67",
+   "skill": "setup.high_volume_edge",
+   "rung": 9,
+   "format": "scenario",
+   "criterion": "hve.inv_no_trigger",
+   "q": "What do you do?",
+   "story": "A record day closes at 45.00. Day 2 opens 44.20, trades to 43.60 and closes 44.00, never back over 45.00. You are flat.",
+   "choices": [
+    "Nothing; no trigger, no trade",
+    "Buy the close at 44.00",
+    "Buy, stop under 43.60",
+    "Erase the level"
+   ],
+   "answer": "Nothing; no trigger, no trade",
+   "why": "Nothing. Day 2 never trades back over the HVC: no trigger. The level stays on the chart for a later setup.",
+   "lesson_line": "No setup, no trade. Keep the line and wait.",
+   "facts": [
+    "c22",
+    "c11",
+    "h36"
+   ],
+   "wrong": {
+    "Buy the close at 44.00": "No trigger came. The buy is a trade back over the HVC.",
+    "Buy, stop under 43.60": "A stop needs a trigger first. There was none.",
+    "Erase the level": "Keep it. Later setups form at the level."
+   },
+   "house": true
+  }
+ ],
+ "conflicts": [
+  "Pending-owner criteria kept OUT of every key and wrong note (the course's current default, waiting on the owner): hve.record_volume, ever or one year (D-089; the unit says 'record' and 'lifetime record' only in stories); hve.volume_multiple, 10x the 50-day or 2.5x the old record (D-089; never keyed: the PEG items q29 and q56 key the settled fresh_catalyst line, 'ordinary big volume in a well-owned name', and the card's 3x mega-cap mistake); hve.a_plus_record (D-089; no item); hve.min_move 8% and hve.big_move_a_plus 20% (D-093; no item keys a move size; GNRC, the min_move near-miss, is not used); hve.excluded_days_more, the June reconstitution Friday and acquisition pins (D-092; q09 and q36 use only OPEX and month-end); hve.stop_width, the ceiling on the day-2 stop (D-005; q25 computes a distance only, q50 keys only 'never pull the stop in' from A3/A4); hve.stop_not_hve_low and whether the close entry is taught at all (D-005; no item); hve.not_stretched, C29 on the day-2 entry (D-017; no item); hve.liquidity, B23 on the 20 sessions after (D-030; no item); hve.leadership, C31 (D-011; no item); hve.no_200_history, IPO-year names (D-009; no item, NAVN appears only as the q50 stop story); hve.timeframe_daily (D-012; no item); hve.trail, the 10-day or the 20 EMA (D-024; q27, q51 and w3 say 'trail the last third' without naming the line); hve.first_return, what to do at the first return to the HVC (D-090; no item); hve.inv_down_close, the capitulation-watch label (D-091; q17 keys only the settled up_close line: a down-close record day is not an HVE and not a short).",
+  "UNITS-method SET.21 describes a different trade: 'the candle that holds the zone, entry over its high, stop under the zone', and pairs Gap Support in one lesson. This unit follows the criteria card (D-002): the day-2 red-to-green through the HVC, the stop a few cents under the day-2 low. The unit id is the card's.",
+  "Breakeven: the card's failure notes (KOD, PRTA, NKTR) say 'the breakeven move at 2R (B19) turns these into scratches', while its management line and the pilot's cold check put the move at the first trim by default. q20 keys 'at the first trim by default'; q49 asks only what move INSIDE B19 (2R to 5R) would have saved NKTR and says that left for the first trim it is a planned loss.",
+  "The entry: the app and Duncan buy the HVC on day 1, Bonde buys the event day pre-market or at the open, Kullamagi's EP waits for the opening-range high on the gap day; the card teaches day 2. q03, q52 and q58 contrast them; no outside entry is keyed as ours.",
+  "The stop: Duncan 3% to 5% under the HVC or a close under it; Manrav the HVC; the app the HVE low. The card: a few cents under the day-2 low. q08, q52 and q58 key the card's; the owner's 'they can go below the HVC that is fine' is the basis (card evidence, not quoted in the unit).",
+  "Items on the excluded days (q06, q36) and the EP tell (q03, q64) rest on the card (c1) and the rulebook (h1), Tier 3 with house: true. Duncan (two posts, one publisher), Bonde, Kullamagi and Shannon are colour beside them; no web source alone keys an item.",
+  "Example numbers (d1) were read off our own daily bars by the research scan (dossier sections 12 and 13), a Tier 3 repo source; the scan buys the HVC plus one cent and stops two cents under the day-2 low, so a live fill differs a little. The day-2 'low before the reclaim' is the day-2 low on daily bars. AMRN's price scale is unchecked against the owner's platform and AMRN is not used. The owner has not reviewed the ten examples.",
+  "The HVC's own price: the dossier's example column is 'buy (HVC)' and the scan buys the HVC plus one cent, but section 6.2 gives INOD's record-day close as 84.89, the same as its listed buy. The unit never states an HVC price for a real example; walk-throughs and q63 give the buy and the stop only.",
+  "Chart items: q65 INSM asof 2024-05-28 (the record day as the last bar; take) and q66 GPCR asof 2025-12-08 (the record day after a 72.5% run; pass). Both keys rest on the dossier's reads (d11, d12, d24, d25), not on the picture. The member's chart shows volume; if their settings hide it, the stem still reads.",
+  "Story items that are not real examples (q22, q31's prices are NAVN's but the outcome is not asked, q32, q37, q45, q48, q53, q54, q56, q60, q61, q64, q67) use round or hypothetical numbers to test one rule; none claims a real outcome.",
+  "q28 computes dollar volume against the card's proposed 'under about $100 million' (hve.lesser_known, proposed, a grade cue); q43 grades on it. The owner exempted HVE examples from the bank's liquidity cut (2026-11-07), and B23's application here is D-030, not asked.",
+  "The group cue (q45) rests on an unsigned UCT note (card evidence) and is unmeasured; it is keyed only as 'a cue, not a rule', the card's own words.",
+  "The short mirror does not exist (the owner ruled HVE long only); the down-close record day is taught only as 'not this setup' (q17).",
+  "Cold check 2026-11-10: 68 pass (15 fixed), 0 fix, 3 cut (q14, q30 and q31 cut as duplicates of q37, q11 and q07). Look first at: (1) most of the volume tests are pending-owner (hve.record_volume, volume_multiple, a_plus_record, min_move; D-089); no question keys on a 10x or 8% number, so keep it that way until he rules. (2) The dossier's winners table prints the HVC under 'buy' (the real buy is a cent over it; the walk-throughs and sums now use that). The examples were chosen before the B23 liquidity rule was settled: TVTX traded $4M a day before its record day and INOD is the one kept chart under $20M a day after it (hve.liquidity, D-030), and INSM's day-2 stop was 4.7%, past the card's 'about 3%' (hve.stop_width). (3) The card's close-position line says 'TVTX and DYN were cut' while the unit teaches TVTX 2015 (close 0.98) as the clean example: the card probably means a different TVTX date; check it."
+ ],
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "notes": "d01, d02, d03, c11, c14, c04, c05 verbatim; buy 20.17 / stop 19.89 (1.4%), +70% by day 54. TVTX traded $4M a day before the event; B23 liquidity is pending (D-030, measured on the 20 sessions after), so the line 'a $4M-a-day name' is the dossier's, not a rule check. The walk-through said 'Buy at market' at the HVC price; the buy is a cent over it (c14), now stated (the importer only allows numbers that sit in a quote, so the HVC figure is shown and the extra cent is in words). Re-checked on our bars: the dossier's winners table lists the HVC (the record day's close) in its 'buy' column and the scan bought a cent over it (the card's own seed: HVC 58.12, fill 58.13); the failures table lists the real buys.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "d04, d05, d06, c07, c06 verbatim; 56.27 / 55.53 = 1.3%, 7% under the 200-day before, over it at the entry; day 3 dip 0.8%, +30% by day 55. The walk-through said 'Buy at market' at the HVC price; the buy is a cent over it (c14), now stated (the importer only allows numbers that sit in a quote, so the HVC figure is shown and the extra cent is in words). Re-checked on our bars: the dossier's winners table lists the HVC (the record day's close) in its 'buy' column and the scan bought a cent over it (the card's own seed: HVC 58.12, fill 58.13); the failures table lists the real buys.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "d07, d08, d09, h05, h20 verbatim; INOD earnings 2026-05-07 after the close (dossier section 12), 5R in two sessions, peak +47% day 17, round trip by day 30. Owner: INOD is the one kept chart under $20M a day after the event (B23, pending D-030) and sat under its 200-day the day before. The walk-through said 'Buy at market' at the HVC price; the buy is a cent over it (c14), now stated (the importer only allows numbers that sit in a quote, so the HVC figure is shown and the extra cent is in words). Re-checked on our bars: the dossier's winners table lists the HVC (the record day's close) in its 'buy' column and the scan bought a cent over it (the card's own seed: HVC 58.12, fill 58.13); the failures table lists the real buys.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q01": {
+   "status": "pass",
+   "notes": "c02, c11, c03 verbatim. HVC = the record day's close; wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q02": {
+   "status": "pass",
+   "notes": "c08, c35 verbatim; hve.up_close settled. True.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q03": {
+   "status": "pass",
+   "notes": "c12, c33, c32, g03 verbatim. Day 2 is proposed on the card; wrong notes true (EP is bought on the gap day, c32).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q04": {
+   "status": "pass",
+   "notes": "c04, h24 (F62), h01 (A3) verbatim; hve.stop settled. True.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q05": {
+   "status": "pass",
+   "notes": "c11 and a01 verbatim; hve.mark_level settled. The distractors are real chart tools.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q06": {
+   "status": "pass",
+   "notes": "c09 verbatim; hve.excluded_days settled. False is right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q07": {
+   "status": "pass",
+   "notes": "c14, c03, h22 (E57) verbatim. Trigger is intraday, market order a cent over. Kept over q31, which asked the same thing with numbers.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q08": {
+   "status": "pass",
+   "notes": "c19 (98% within 60 sessions) and c04 verbatim; hve.stop_not_hvc settled. False.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q09": {
+   "status": "pass",
+   "notes": "c07, c01, c09, g06 verbatim. Two of the three wrong choices are calendar days rather than stories, a little loose but each is rightly excluded. variety rewrite checked 2026-11-10; edited: choice now monthly expiry (c09 rules out the monthly expiry, not any Friday).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q10": {
+   "status": "pass",
+   "notes": "c26, c01 verbatim (proposed: no prior advance required). False.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q11": {
+   "status": "pass",
+   "notes": "c13, c03 verbatim (hve.day2_dip, proposed). Kept over q30, which asks the same fact.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q12": {
+   "status": "pass",
+   "notes": "c16 (E58), h23, b04 verbatim. Settled; Bonde buys pre-market, we do not.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q13": {
+   "status": "pass",
+   "notes": "c15 and h11 (C28) verbatim; settled. 4%.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q14": {
+   "status": "cut",
+   "notes": "duplicate of q37 (closing under the HVC is not an invalidation, do not erase the level). q37 asks it with a story and the erase option. q37 kept. c24 and c19 were verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q15": {
+   "status": "pass",
+   "notes": "c25, b02, b03 verbatim (Bonde: widely covered names do not do as well; no analyst coverage means smaller or out of favor). Proposed lesser-known cue; wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q16": {
+   "status": "pass",
+   "notes": "c20, h31 (A5) verbatim; settled. False.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q17": {
+   "status": "pass",
+   "notes": "c35, c08, c37 verbatim. Key rests on the settled up-close/long-only rules, not on hve.inv_down_close (pending).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q18": {
+   "status": "pass",
+   "notes": "c44 and h08 (B22) verbatim; settled. No new buy in the 3 sessions before a report.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q19": {
+   "status": "pass",
+   "notes": "calc re-derived: 56.28 + 3 x (56.28-55.53 = 0.75) = 58.53 (was 56.27 and 58.49, the HVC rather than the fill a cent over it). h05, d04 verbatim. Re-checked on our bars: the dossier's winners table lists the HVC (the record day's close) in its 'buy' column and the scan bought a cent over it (the card's own seed: HVC 58.12, fill 58.13); the failures table lists the real buys.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q20": {
+   "status": "pass",
+   "notes": "c21, h05 (B19), h02 verbatim; settled. False.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q21": {
+   "status": "pass",
+   "notes": "c43 and h26 (F65) verbatim; settled. Orange is A+ only.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q22": {
+   "status": "pass",
+   "notes": "calc re-derived: 21.10/20.00 - 1 = 5.5%. c15, h11, h12 (C28) verbatim; settled. variety rewrite checked 2026-11-10; edited: wrong note no longer claims the HVC is never the stop (unsourced).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q23": {
+   "status": "pass",
+   "notes": "c48, h15 (C33), c21 verbatim; settled. 0.6R after 10 days is a sell. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q24": {
+   "status": "pass",
+   "notes": "c47 and h18 (D41) verbatim; settled.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q25": {
+   "status": "pass",
+   "notes": "calc re-derived: (58.13 - 57.54) / 58.13 = 1.015%, shown as 1.01% (was a fill of 58.12, the HVC itself). c04, h24, d13 verbatim (VRTX day-2 low 57.56, stop 57.54 on our bars). The why said 'the stop the scan used for VRTX'; 'the scan' is internal wording, now 'VRTX's stop in May 2012'. Re-checked on our bars: the dossier's winners table lists the HVC (the record day's close) in its 'buy' column and the scan bought a cent over it (the card's own seed: HVC 58.12, fill 58.13); the failures table lists the real buys.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q26": {
+   "status": "pass",
+   "notes": "calc re-derived: 1% of 3,000,000 = 30,000. c46 and h19 (D42) verbatim; settled.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q27": {
+   "status": "pass",
+   "notes": "calc re-derived: R = 84.90-83.38 = 1.52; (92.50-84.90)/1.52 = 5.0 (was 84.89 and 92.44, the HVC as the fill). h20, h05, d07 verbatim. Re-checked on our bars: the dossier's winners table lists the HVC (the record day's close) in its 'buy' column and the scan bought a cent over it (the card's own seed: HVC 58.12, fill 58.13); the failures table lists the real buys.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q28": {
+   "status": "pass",
+   "notes": "calc re-derived: 1,200,000 x 11.50 = $13.8M. c25 and c42 verbatim; the $100M line is a proposed card number. A $13.8M name would fail B23's $20M before the event, but the card measures B23 after the event (pending), so the arithmetic stands.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q29": {
+   "status": "pass",
+   "notes": "c31, c07, d22, d23 verbatim (ROKU 2019-05-09, +28.1%, one-year record, stopped at 0.0R). Key holds under every D-089 option: 'barely beats the old high' fails 2.5x the record.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q30": {
+   "status": "cut",
+   "notes": "duplicate of q11: day 2 opens over the HVC and never trades under it, so no trigger (the same fact, a mcq and a story). q11 kept. The NRG numbers (d26: opened 2.1% over, low 1.7% over) were verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q31": {
+   "status": "cut",
+   "notes": "duplicate of q07: day 2 opens under the HVC, trades back over it, buy at market a cent over (same fact, same wrong notes). Also built on NAVN's numbers (HVC 13.11, open 12.80), whose honest day-2 stop was 7.5% wide (d28) and so a skip, which q50 teaches. q07 kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q32": {
+   "status": "pass",
+   "notes": "c10 and c05 verbatim (not on the 3rd to 5th day of a straight-up burst). Proposed; fourth day fits.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q33": {
+   "status": "pass",
+   "notes": "c45, h06, h07 (B20) verbatim; settled. True.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q34": {
+   "status": "pass",
+   "notes": "h25 (F63) and h05 verbatim; settled. A third at the open.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q35": {
+   "status": "pass",
+   "notes": "c06 and h10 (B26) verbatim; hve.above_200 settled, read at the fill.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q36": {
+   "status": "pass",
+   "notes": "c09 verbatim. Month-end is excluded; settled.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q37": {
+   "status": "pass",
+   "notes": "c24, h02, c19 verbatim; hve.under_hvc_not_failure and the stop rule settled.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q38": {
+   "status": "pass",
+   "notes": "c23, d14, d15 verbatim (QGEN: buy 55.46, stop 53.73, slid to 38.80 under the 46.07 low). Proposed level rule.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q39": {
+   "status": "pass",
+   "notes": "h02, d16, d17, d33 verbatim (SE buy 80.07, stop 77.24, 71.08, 88.84, 56.05). The story said the next session shook out to 71.08; d17 says 71.08 within 3 sessions, so the story now says that. Key (the stop is the exit; a planned loss) unchanged. The 3.5% stop is over the card's 'about 3%' (hve.stop_width pending), but the lesson is the stop, not the width.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q40": {
+   "status": "pass",
+   "notes": "h28 (B21), c17, c18, d17 verbatim. The wrong note referred to 'the try limits', which nothing in this unit teaches; now 'a new trade with its own stop'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q41": {
+   "status": "pass",
+   "notes": "c49 and h30 (C34) verbatim; settled, a judgment call.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q42": {
+   "status": "pass",
+   "notes": "c17, c18, c38 verbatim. Proposed follow-up entries; the wrong notes are true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q43": {
+   "status": "pass",
+   "notes": "c42, c41, c25, b02 verbatim. Close in content to q15 but q43 asks the grade ($14M A+ against a $3B B-); kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q44": {
+   "status": "pass",
+   "notes": "c07, d05, b01 verbatim. DOCU 2019-09-06 earnings on all-time record volume; key matches the settled fresh_catalyst line.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q45": {
+   "status": "pass",
+   "notes": "c29 verbatim (a cue, not a rule; proposed). The key 'A plus' read like the A+ grade; now 'It helps; a cue, not a rule'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q46": {
+   "status": "pass",
+   "notes": "calc re-derived: 40,000 x 0.5% = 200; 200 / (20.18-19.89 = 0.29) = 689.7, rounded down 689 (was 714 on a fill of 20.17, the HVC itself). Position cap check (A7, 40%): 689 x 20.18 = $13,904 = 34.8% of the account. h03, h01, d01 verbatim. Re-checked on our bars: the dossier's winners table lists the HVC (the record day's close) in its 'buy' column and the scan bought a cent over it (the card's own seed: HVC 58.12, fill 58.13); the failures table lists the real buys.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q47": {
+   "status": "pass",
+   "notes": "c23 verbatim. A close under the record day's low ends it; a trade that closes back does not. False.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q48": {
+   "status": "pass",
+   "notes": "re-derived: R = 50.00-48.50 = 1.50; the open (47.90) is -1.4R, the first-bar low 47.40 is -1.7R, inside the 2R ceiling, so 47.40 is the stop. c45, h06, h07 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q49": {
+   "status": "pass",
+   "notes": "h05, c21, d20, d21 verbatim (NKTR buy 331.66, stop 323.98, 2.3R on 03-22, low 322.50 four sessions after). B19 allows the move at 2R; the default is the first trim, which the why says.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q50": {
+   "status": "pass",
+   "notes": "h01, h02, d28, c17 verbatim (NAVN day-2 stop 7.5% wide). The key (never pull the stop in) is settled A3/A13; hve.stop_width (pending) decides only whether to skip or size down, and both are marked right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q51": {
+   "status": "pass",
+   "notes": "h05, h20, d07, d08, d09 verbatim (INOD 5R in two sessions, +47% day 17, round trip by day 30). The why repeats w3's lesson; kept. Story fill corrected to 84.90 (the HVC is 84.89).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q52": {
+   "status": "pass",
+   "notes": "g05 verbatim (Duncan exits on a close under the HVC); c04 and c24 for ours. False.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q53": {
+   "status": "pass",
+   "notes": "c30 and c06 verbatim (proposed: no 10, 21 or 50-day requirement). 'Base-card check' in a wrong note was internal wording, now 'a check for other setups'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q54": {
+   "status": "pass",
+   "notes": "c28, c08, c35 verbatim (a cue, not a rule; ERAS 3%, FUN 0.5%). False for the 'must gap' claim. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q55": {
+   "status": "pass",
+   "notes": "c27, c40, d29, d30, d31, g02 verbatim (MBX 62x the 50-day, close 0.26, 7.4% stop). The key is 'graded down' (B-), not 'no trade'; consistent with the card. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q56": {
+   "status": "pass",
+   "notes": "c36, c41, g01 verbatim. A 3x year-high on a mega-cap is an HVC.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q57": {
+   "status": "pass",
+   "notes": "h18, c47, d18, d19, d32 verbatim (YELP buy 48.34, stop 47.52; day 3 opened 49.56, low 46.94). The why added 'It drifted lower after', which no fact states; removed.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q58": {
+   "status": "pass",
+   "notes": "g04 verbatim (Duncan 3% to 5% under the HVC); c04 for ours. False.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q59": {
+   "status": "pass",
+   "notes": "d34 and h05 verbatim (3R often only 3% to 7% over the buy). True.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q60": {
+   "status": "pass",
+   "notes": "c43, h26, h36 verbatim. Red is mostly cash and shorts; the card lists Red as a no-trade row for this long. variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q61": {
+   "status": "pass",
+   "notes": "h08 (B22) and c44 verbatim. Up 5R to hold through a report; at 3.2R sell.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q62": {
+   "status": "pass",
+   "notes": "a01, a02 verbatim (Shannon anchors a VWAP at a meaningful market event). Low-stakes contrast question; kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q63": {
+   "status": "pass",
+   "notes": "c14, c04, h05, d01, d03 verbatim. The story gave no HVC, so the member could not derive the fill; it now states the HVC. Re-checked on our bars: TVTX 2015-03-18 closed 20.17 (the HVC), day 2 low 19.91, so the buy is 20.18 (a cent over) and the stop 19.89 (two cents under the low); 3R = 20.18 + 3 x 0.29 = 21.05. (The dossier lists 20.17 as 'buy (HVC)', which is the HVC itself.)",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q64": {
+   "status": "pass",
+   "notes": "c16, c12, c03, c32, k01 verbatim. 'First possible buy' also allowed the Episodic Pivot's same-day buy as a real answer; the question now says 'first High Volume Edge buy'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q65": {
+   "status": "pass",
+   "notes": "chart INSM asof 2024-05-28 (the record day is the last bar, ticker not in the question); c07, c01, d10, d11, d12 verbatim (16% under the 200-day, 126% gap on 18.3x, +68% by day 59). The day-2 stop was 4.7% (hve.stop_width pending), which the question does not ask about.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q66": {
+   "status": "pass",
+   "notes": "chart GPCR asof 2025-12-08 (the record day is the last bar); c10, d24, d25 verbatim (72.5% over the 60-session low, 18.2x, stopped at 0.0R, topped within two months). variety rewrite checked 2026-11-10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q67": {
+   "status": "pass",
+   "notes": "c22, c11, h36 verbatim. Invented prices are consistent: day 2 never trades over 45.00, so no trigger.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q68": {
+   "status": "pass",
+   "notes": "c34 and c11 verbatim. Gap Support defends the gap day's low; the HVE's line is the close. Wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  }
+ }
+}

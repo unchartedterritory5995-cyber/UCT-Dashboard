@@ -1,0 +1,1377 @@
+{
+ "unit": "F11.05",
+ "track": "F11",
+ "title": "Time of day and the week",
+ "teaches": "How the trading day and week are shaped: heavy volume and wide spreads at the open, a quiet midday, the closing auction at 4:00 p.m. with its 3:50 p.m. imbalances and cutoffs, the holidays and index rebalances on the calendar, and why old weekday folklore has faded.",
+ "skills": [
+  {
+   "id": "styles.time_of_day",
+   "title": "Time of day and the week"
+  }
+ ],
+ "as_of": "2026-11-09",
+ "sources": [
+  {
+   "id": "s1",
+   "tier": 1,
+   "publisher": "NYSE",
+   "title": "Holidays & Trading Hours (2026, 2027 and 2028)",
+   "url": "https://www.nyse.com/markets/hours-calendars",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s2",
+   "tier": 1,
+   "publisher": "NYSE",
+   "title": "NYSE opening and closing auctions (fact sheet, 2024)",
+   "url": "https://www.nyse.com/publicdocs/nyse/markets/nyse/NYSE_Opening_and_Closing_Auctions_Fact_Sheet.pdf",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s3",
+   "tier": 1,
+   "publisher": "Nasdaq (NasdaqTrader)",
+   "title": "The Nasdaq Opening and Closing Crosses: Frequently Asked Questions (2025)",
+   "url": "https://nasdaqtrader.com/content/productsservices/trading/crosses/openclose_faqs.pdf",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s4",
+   "tier": 1,
+   "publisher": "NYSE",
+   "title": "NYSE Closing Auction: price discovery opportunities reach new highs (Stefanos Bazinas, Aug. 29, 2024)",
+   "url": "https://www.nyse.com/data-insights/nyse-closing-auction-price-discovery-opportunities-reach-new-highs",
+   "accessed": "2026-11-09",
+   "why_reliable": "The exchange's own research on its own closing auction, from its own data."
+  },
+  {
+   "id": "s5",
+   "tier": 1,
+   "publisher": "NYSE",
+   "title": "Behind the Record Volumes: A Hidden Opportunity (Stefanos Bazinas, April 8, 2026)",
+   "url": "https://www.nyse.com/research/insights/behind-the-record-volumes-a-hidden-opportunity",
+   "accessed": "2026-11-09",
+   "why_reliable": "The exchange's own research on its own closing auction, from its own data."
+  },
+  {
+   "id": "s6",
+   "tier": 2,
+   "publisher": "Cboe Global Markets (Cboe Insights)",
+   "title": "The Impact Closing Auctions Have on Volumes (Nov. 18, 2020)",
+   "url": "https://www.cboe.com/insights/posts/the-impact-closing-auctions-have-on-volumes/",
+   "accessed": "2026-11-09",
+   "why_reliable": "An exchange operator's analysis of its own market data (spreads by minute for S&P 500 names, closing events by exchange)."
+  },
+  {
+   "id": "s7",
+   "tier": 1,
+   "publisher": "FTSE Russell (LSEG)",
+   "title": "Russell US Indexes reconstitution (overview, 2026 calendar and FAQ)",
+   "url": "https://www.lseg.com/en/ftse-russell/russell-reconstitution",
+   "accessed": "2026-11-09",
+   "why_reliable": "The index provider's own page for its own index reconstitution schedule."
+  },
+  {
+   "id": "s8",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Options Basics (Expiration Friday)",
+   "url": "https://www.optionseducation.org/optionsoverview/options-basics",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s9",
+   "tier": 1,
+   "publisher": "U.S. Bureau of Labor Statistics",
+   "title": "2026 release schedule",
+   "url": "https://www.bls.gov/schedule/2026/home.htm",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s10",
+   "tier": 1,
+   "publisher": "Board of Governors of the Federal Reserve System",
+   "title": "Meeting calendars and information (2026 FOMC meetings)",
+   "url": "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s11",
+   "tier": 1,
+   "publisher": "Board of Governors of the Federal Reserve System",
+   "title": "Federal Reserve issues FOMC statement (Oct. 28, 2026)",
+   "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20261028a.htm",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s12",
+   "tier": 1,
+   "publisher": "FINRA",
+   "title": "What Is Earnings Season? (Investor Insights, July 23, 2024)",
+   "url": "https://www.finra.org/investors/insights/earnings-season",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s13",
+   "tier": 1,
+   "publisher": "FINRA",
+   "title": "Stop Orders: Factors to Consider During Volatile Markets (March 26, 2025)",
+   "url": "https://www.finra.org/investors/insights/stop-orders-factors-consider-during-volatile-markets",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s14",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Investor Bulletin: Exchange-Traded Funds (ETFs)",
+   "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-exchange-traded-funds-etfs",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s15",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Extended-Hours Trading: Investor Bulletin",
+   "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins-42",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s16",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "Trading Near the Bells (Kevin Horner, Nov. 26, 2024)",
+   "url": "https://www.schwab.com/learn/story/trading-near-bells",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s17",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Best Times of the Day, Week, and Month to Trade Stocks (Peter Gratton, updated April 28, 2026)",
+   "url": "https://www.investopedia.com/day-trading/best-time-day-week-month-trade-stocks/",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s18",
+   "tier": 2,
+   "publisher": "NBER",
+   "title": "Anomalies and Market Efficiency (G. William Schwert, Working Paper 9277, October 2002)",
+   "url": "https://www.nber.org/papers/w9277",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s19",
+   "tier": 2,
+   "publisher": "Journal of Finance (Hong and Wang, 2000)",
+   "title": "Trading and Returns under Periodic Market Closures (vol. 55(1), 297-354)",
+   "url": "https://ideas.repec.org/a/bla/jfinan/v55y2000i1p297-354.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Peer-reviewed article in the Journal of Finance, the American Finance Association's journal. Only the published abstract is quoted, as indexed on RePEc/IDEAS (the journal page itself is paywalled)."
+  },
+  {
+   "id": "s20",
+   "tier": 2,
+   "publisher": "Journal of Finance (Foster and Viswanathan, 1993)",
+   "title": "Variations in Trading Volume, Return Volatility, and Trading Costs: Evidence on Recent Price Formation Models (vol. 48(1), 187-211)",
+   "url": "https://ideas.repec.org/a/bla/jfinan/v48y1993i1p187-211.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Peer-reviewed article in the Journal of Finance, the American Finance Association's journal. Only the published abstract is quoted, as indexed on RePEc/IDEAS (the journal page itself is paywalled)."
+  },
+  {
+   "id": "s21",
+   "tier": 2,
+   "publisher": "Journal of Finance (McInish and Wood, 1992)",
+   "title": "An Analysis of Intraday Patterns in Bid/Ask Spreads for NYSE Stocks (vol. 47(2), 753-764)",
+   "url": "https://ideas.repec.org/a/bla/jfinan/v47y1992i2p753-64.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Peer-reviewed article in the Journal of Finance, the American Finance Association's journal. Only the published abstract is quoted, as indexed on RePEc/IDEAS (the journal page itself is paywalled)."
+  },
+  {
+   "id": "s22",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Study: the trade plan for every setup (the Entry column the app's detectors compute)",
+   "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s23",
+   "tier": 1,
+   "publisher": "NYSE",
+   "title": "Auctions (auction timelines for NYSE-listed securities)",
+   "url": "https://www.nyse.com/trade/auctions",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s24",
+   "tier": 1,
+   "publisher": "NYSE Regulation",
+   "title": "Regulatory Memo RM-26-15: Quarterly Expiration Day, September 18, 2026 (Sept. 16, 2026)",
+   "url": "https://www.nyse.com/publicdocs/nyse/markets/nyse/rule-interpretations/2026/Q3_2026_Quarterly_Expiration_RM_(FINAL).pdf",
+   "accessed": "2026-11-09"
+  }
+ ],
+ "facts": [
+  {
+   "id": "f1",
+   "source": "s1",
+   "quote": "Core Trading Session: 9:30 a.m. to 4:00 p.m. ET 9:30 a.m. ET - Core Open Auction 3:50 p.m. to 4:00 p.m. ET - Closing Imbalance Period 4:00 p.m. ET - Closing Auction",
+   "claim": "On NYSE the regular session runs 9:30 a.m. to 4:00 p.m. ET: an opening auction at 9:30, a closing imbalance period from 3:50, and the closing auction at 4:00."
+  },
+  {
+   "id": "f2",
+   "source": "s1",
+   "quote": "Thanksgiving Day Thursday, November 26",
+   "claim": "NYSE is closed for Thanksgiving on Thursday, Nov. 26, 2026."
+  },
+  {
+   "id": "f3",
+   "source": "s1",
+   "quote": "Each market will close early at 1:00 p.m. (1:15 p.m. for eligible options) on Friday, November 27, 2026",
+   "claim": "NYSE closes early, at 1:00 p.m., on Friday, Nov. 27, 2026, the day after Thanksgiving."
+  },
+  {
+   "id": "f4",
+   "source": "s1",
+   "quote": "Christmas Day Friday, December 25",
+   "claim": "NYSE is closed for Christmas on Friday, Dec. 25, 2026."
+  },
+  {
+   "id": "f5",
+   "source": "s1",
+   "quote": "Each market will close early at 1:00 p.m. (1:15 p.m. for eligible options) on Thursday, December 24, 2026.",
+   "claim": "NYSE closes early, at 1:00 p.m., on Thursday, Dec. 24, 2026."
+  },
+  {
+   "id": "f6",
+   "source": "s2",
+   "quote": "3:50 p.m. Cutoff time for MOC/LOC order entry",
+   "claim": "On NYSE, 3:50 p.m. is the cutoff for entering market-on-close and limit-on-close orders."
+  },
+  {
+   "id": "f7",
+   "source": "s2",
+   "quote": "After 3:50 p.m. can be entered only on the contra-side of a MOC/LOC Significant Imbalance until 4:00 p.m.",
+   "claim": "After 3:50 p.m., NYSE accepts a new on-close order only if it is on the opposite side of a published significant imbalance."
+  },
+  {
+   "id": "f8",
+   "source": "s2",
+   "quote": "Systemic publication of MOC/LOC Significant Imbalance is released",
+   "claim": "At the 3:50 p.m. cutoff, NYSE publishes any significant imbalance in its on-close orders."
+  },
+  {
+   "id": "f9",
+   "source": "s2",
+   "quote": "Executes only against the opposite side of an imbalance; never adds to an imbalance",
+   "claim": "NYSE's Closing Offset order exists to trade against an imbalance, never to add to it."
+  },
+  {
+   "id": "f10",
+   "source": "s3",
+   "quote": "At 9:30 a.m. ET, the Opening Cross is initiated",
+   "claim": "Nasdaq's opening auction (the Opening Cross) runs at 9:30 a.m. ET."
+  },
+  {
+   "id": "f11",
+   "source": "s3",
+   "quote": "At 4:00 p.m., the Closing Cross is initiated",
+   "claim": "Nasdaq's closing auction (the Closing Cross) runs at 4:00 p.m."
+  },
+  {
+   "id": "f12",
+   "source": "s3",
+   "quote": "The Closing Cross sets the Nasdaq Official Closing Price (NOCP).",
+   "claim": "Nasdaq's closing auction sets the official closing price."
+  },
+  {
+   "id": "f13",
+   "source": "s3",
+   "quote": "Allow investors to specifically request an execution at the closing price.",
+   "claim": "On-close orders let you ask to trade at the closing price."
+  },
+  {
+   "id": "f14",
+   "source": "s3",
+   "quote": "Market-on-close (MOC) orders must be received prior to 3:55 p.m.",
+   "claim": "On Nasdaq, a market-on-close order must arrive before 3:55 p.m."
+  },
+  {
+   "id": "f15",
+   "source": "s3",
+   "quote": "Nasdaq begins disseminating Net Order Imbalance information at 9:25 a.m. for the Opening Cross and 3:50 p.m. for the Closing Cross.",
+   "claim": "Nasdaq starts publishing closing imbalance information at 3:50 p.m."
+  },
+  {
+   "id": "f67",
+   "source": "s3",
+   "quote": "Imbalance Shares: The number of opening or closing shares that would remain unexecuted at the current reference price.",
+   "claim": "Nasdaq's imbalance is the on-close shares that would be left unmatched at the current reference price."
+  },
+  {
+   "id": "f16",
+   "source": "s3",
+   "quote": "IO orders provide liquidity and are intended to offset a buy/sell imbalance during the Closing Cross.",
+   "claim": "Nasdaq's imbalance-only orders exist to offset a buy or sell imbalance in the closing auction."
+  },
+  {
+   "id": "f17",
+   "source": "s3",
+   "quote": "Current Reference Price: A price within the Nasdaq Inside at which paired shares are maximized, the imbalance is minimized and the distance from the bid-ask midpoint is minimized, in that order.",
+   "claim": "Nasdaq's current reference price is set where the most shares pair off, then where the imbalance is smallest."
+  },
+  {
+   "id": "f18",
+   "source": "s3",
+   "quote": "Regular Hours orders are executable from 9:30 a.m. to 4:00 p.m.",
+   "claim": "Regular orders on Nasdaq can trade from 9:30 a.m. to 4:00 p.m."
+  },
+  {
+   "id": "f19",
+   "source": "s3",
+   "quote": "Includes Good-for-the-Day (DAY), Good-til-Canceled (GTC), Immediate-or-Cancel (IOC) and market orders.",
+   "claim": "Those regular-hours orders include market orders."
+  },
+  {
+   "id": "f20",
+   "source": "s4",
+   "quote": "In Q2 2024 closing auctions within the US equity markets matched $55.5bn per day and accounted for 9.44% of total notional value traded - both figures at record highs.",
+   "claim": "In Q2 2024, US closing auctions matched $55.5 billion a day, 9.44% of all dollars traded in US stocks, both records."
+  },
+  {
+   "id": "f21",
+   "source": "s5",
+   "quote": "The NYSE Closing Auction has long been the largest single liquidity event in US equities trading and, lately, every calendar quarter has brought new volume records.",
+   "claim": "NYSE calls its closing auction the largest single liquidity event in US stock trading, setting volume records quarter after quarter."
+  },
+  {
+   "id": "f22",
+   "source": "s6",
+   "quote": "The opening and closing prints typically make up the largest individual trades for the day",
+   "claim": "The opening and closing auction prints are typically the day's largest single trades."
+  },
+  {
+   "id": "f23",
+   "source": "s6",
+   "quote": "Spreads throughout the day are downward sloping and are typically widest at the open, as they continue to decrease until the close.",
+   "claim": "Across S&P 500 stocks, bid-ask spreads are typically widest at the open and narrow toward the close."
+  },
+  {
+   "id": "f24",
+   "source": "s6",
+   "quote": "At 3:50pm, there is a 50–75% increase in transactions per second.",
+   "claim": "At 3:50 p.m., the pace of trades jumps by 50% to 75%."
+  },
+  {
+   "id": "f25",
+   "source": "s7",
+   "quote": "Beginning in 2026, the Russell Indexes are reconstituted semi-annually, in June and December.",
+   "claim": "From 2026, the Russell indexes are rebuilt twice a year, in June and December."
+  },
+  {
+   "id": "f26",
+   "source": "s7",
+   "quote": "The newly reconstituted indexes take effect after the market close on December 11, 2026",
+   "claim": "The December 2026 Russell changes take effect after the close on Friday, Dec. 11, 2026."
+  },
+  {
+   "id": "f27",
+   "source": "s7",
+   "quote": "The June 2026 Reconstitution took effect after the market close on June 26, 2026",
+   "claim": "The June 2026 Russell changes took effect after the close on Friday, June 26, 2026."
+  },
+  {
+   "id": "f28",
+   "source": "s7",
+   "quote": "At the June 2026 reconstitution, $219.9 billion and $334.0 billion in US stocks traded in the closing moments of Friday trading on the New York Stock Exchange (NYSE) and Nasdaq exchanges, respectively.",
+   "claim": "On the June 2026 reconstitution Friday, $219.9 billion traded in the closing moments on NYSE and $334.0 billion on Nasdaq."
+  },
+  {
+   "id": "f29",
+   "source": "s7",
+   "quote": "implemented after the close of US markets on the fourth Friday in June and after the close of US markets on the second Friday in December",
+   "claim": "Russell changes go in after the close on the fourth Friday of June and the second Friday of December."
+  },
+  {
+   "id": "f30",
+   "source": "s8",
+   "quote": "Most equity options that expire in a given month usually expire on the third Friday of the month.",
+   "claim": "Standard monthly stock options expire on the third Friday of the month."
+  },
+  {
+   "id": "f31",
+   "source": "s9",
+   "quote": "December 4, 2026 08:30 AM Employment Situation for November 2026",
+   "claim": "The November 2026 jobs report comes out Friday, Dec. 4, 2026, at 8:30 a.m."
+  },
+  {
+   "id": "f32",
+   "source": "s9",
+   "quote": "December 10, 2026 08:30 AM Consumer Price Index for November 2026",
+   "claim": "The November 2026 CPI comes out Thursday, Dec. 10, 2026, at 8:30 a.m."
+  },
+  {
+   "id": "f33",
+   "source": "s10",
+   "quote": "October 27-28 Statement: PDF | HTML Implementation Note Press Conference December 8-9",
+   "claim": "The Fed's last 2026 meeting is Dec. 8-9, a Tuesday and Wednesday."
+  },
+  {
+   "id": "f34",
+   "source": "s11",
+   "quote": "October 28, 2026 Federal Reserve issues FOMC statement For release at 2:00 p.m. EDT",
+   "claim": "The Fed released its Oct. 28, 2026 statement at 2:00 p.m. Eastern, during the trading session."
+  },
+  {
+   "id": "f35",
+   "source": "s12",
+   "quote": "Companies usually release their earnings reports and accompanying press releases before the market opens or after it closes.",
+   "claim": "Companies usually report earnings before the open or after the close."
+  },
+  {
+   "id": "f36",
+   "source": "s12",
+   "quote": "It typically begins the first two weeks after the end of each quarter (namely early/mid-January, early/mid-April, early/mid-July and early/mid-October).",
+   "claim": "Earnings season usually starts in the first two weeks after each quarter ends."
+  },
+  {
+   "id": "f37",
+   "source": "s13",
+   "quote": "The order is triggered for execution once this predetermined price has been reached.",
+   "claim": "A stop order only goes to work once the stock reaches the stop price."
+  },
+  {
+   "id": "f39",
+   "source": "s14",
+   "quote": "If an investor buys 200 ETF shares at the ask price of $60 and sells them immediately at the bid price of $59.50, the investor would incur a loss of $100.",
+   "claim": "Buy at the ask and sell straight back at the bid, and you lose the spread on every share."
+  },
+  {
+   "id": "f40",
+   "source": "s15",
+   "quote": "The reduced level of trading interest in extended-hours trading generally results in wider spreads between the bid and ask prices for a stock or no quotes at all.",
+   "claim": "After hours, thinner trading usually means wider spreads, or no quote at all."
+  },
+  {
+   "id": "f41",
+   "source": "s15",
+   "quote": "Companies may announce important news or financial information outside of regular trading hours.",
+   "claim": "Companies can release important news outside regular hours."
+  },
+  {
+   "id": "f42",
+   "source": "s16",
+   "quote": "More shares trade hand early in the day; then the action often slows at midday; and then volume grows again near the end of the day.",
+   "claim": "Volume is usually heavy early, slows at midday, and grows again near the close."
+  },
+  {
+   "id": "f43",
+   "source": "s16",
+   "quote": "But when news breaks outside of trading hours, an imbalance between buy and sell orders may cause a stock to open dramatically higher or lower than its price at the previous close.",
+   "claim": "News that breaks outside trading hours can unbalance orders and make a stock open far from the prior close."
+  },
+  {
+   "id": "f44",
+   "source": "s16",
+   "quote": "For example, index-fund managers generally trade near the close to match the returns of their benchmark.",
+   "claim": "Index-fund managers generally trade near the close to match their benchmark."
+  },
+  {
+   "id": "f45",
+   "source": "s16",
+   "quote": "This is largely because institutional investors may do a lot of trading late in the day.",
+   "claim": "Institutions may do a lot of their trading late in the day."
+  },
+  {
+   "id": "f46",
+   "source": "s16",
+   "quote": "Either way, the action in the final 10 to 15 minutes can help signal whether the day's trend will hold or reverse.",
+   "claim": "The last 10 to 15 minutes can help show whether the day's move holds or reverses."
+  },
+  {
+   "id": "f47",
+   "source": "s16",
+   "quote": "And when reversals do occur in the final hour, they may be severe.",
+   "claim": "Reversals in the final hour can be severe."
+  },
+  {
+   "id": "f48",
+   "source": "s16",
+   "quote": "Big news during the day—say, a Federal Reserve interest rate announcement—can upset these market tendencies.",
+   "claim": "Big midday news, like a Fed rate announcement, can upset the usual intraday pattern."
+  },
+  {
+   "id": "f49",
+   "source": "s16",
+   "quote": "If a trader planned to sell a profitable position, this may be their time to do it. You never know what news might hit after the close",
+   "claim": "Schwab says the close may be the time to sell a position you planned to sell, because news can hit after the close."
+  },
+  {
+   "id": "f50",
+   "source": "s16",
+   "quote": "To be clear, this isn't always case and exceptions can occur at any time.",
+   "claim": "The intraday volume shape is a tendency, and exceptions can happen any day."
+  },
+  {
+   "id": "f51",
+   "source": "s17",
+   "quote": "The first and last hours of a trading day are the busiest, offering the most prospects. The middle of the day tends to be the calmest and most stable period of most trading days.",
+   "claim": "The first and last hours are the busiest; the middle of the day tends to be the calmest."
+  },
+  {
+   "id": "f52",
+   "source": "s17",
+   "quote": "The opening and closing hours of the trading day tend to be the most volatile and active periods. When U.S. markets open at 9:30 a.m. ET, it processes all events and news releases since the previous day's close",
+   "claim": "The open and the close are the most volatile, active hours, and the 9:30 a.m. open absorbs all the news since the prior close."
+  },
+  {
+   "id": "f53",
+   "source": "s17",
+   "quote": "By 11:30 a.m., volatility and volume often decrease significantly, leading many day traders to close their positions.",
+   "claim": "By late morning, volume and volatility often drop off."
+  },
+  {
+   "id": "f54",
+   "source": "s17",
+   "quote": "The last hour of trading (3 p.m. to 4 p.m. ET) typically sees another surge in activity, as institutional investors and day traders close positions and react to late-breaking news.",
+   "claim": "Activity surges again in the last hour, as institutions and day traders close positions."
+  },
+  {
+   "id": "f55",
+   "source": "s17",
+   "quote": "Many professional traders focus on the opening period (9:30 a.m. to 10:30 a.m. ET), as it typically offers the most significant price moves in the shortest time.",
+   "claim": "The first hour after the open typically brings the biggest price moves in the shortest time."
+  },
+  {
+   "id": "f56",
+   "source": "s17",
+   "quote": "Research long ago showed that Fridays were when you'd see the best gains for stocks, with Mondays generally coming out the worst.",
+   "claim": "The idea that Mondays are worst and Fridays best comes from old research."
+  },
+  {
+   "id": "f57",
+   "source": "s17",
+   "quote": "In short, there's nothing to be gained by trading based on what day of the week it is—all else being equal.",
+   "claim": "Trading by the day of the week gains nothing, all else equal."
+  },
+  {
+   "id": "f58",
+   "source": "s17",
+   "quote": "The percentage of positive days for the S&P 500 is remarkably consistent across weekdays, ranging from 52% to 54%.",
+   "claim": "Every weekday is up on about 52% to 54% of days for the S&P 500."
+  },
+  {
+   "id": "f59",
+   "source": "s17",
+   "quote": "Put simply, the last trading day before a long weekend has been five times higher than normal trading days.",
+   "claim": "The session before a long weekend has averaged about five times a normal day's return."
+  },
+  {
+   "id": "f60",
+   "source": "s17",
+   "quote": "Before long weekends: Average daily return of +0.185% After long weekends: Average daily return of -0.059% Regular trading days: Average daily return of +0.033%",
+   "claim": "Before long weekends the average day is +0.185%; on regular days it is +0.033%."
+  },
+  {
+   "id": "f61",
+   "source": "s17",
+   "quote": "While the differences in returns are statistically significant, they’re still measured in fractions of a percent.",
+   "claim": "The long-weekend difference is real in the data but measured in fractions of a percent."
+  },
+  {
+   "id": "f62",
+   "source": "s17",
+   "quote": "For most retail investors, trading costs (including bid-ask spreads ) would likely erase any potential gains from trying to exploit these patterns.",
+   "claim": "For most retail traders, costs and spreads would likely erase the gain from trading these patterns."
+  },
+  {
+   "id": "f63",
+   "source": "s18",
+   "quote": "The evidence in this paper shows that the size effect, the value effect, the weekend effect, and the dividend yield effect seem to have weakened or disappeared after the papers that highlighted them were published.",
+   "claim": "The weekend effect, among other famous anomalies, weakened or disappeared after it was published."
+  },
+  {
+   "id": "f64",
+   "source": "s19",
+   "quote": "closures generate rich patterns of time variation in trading and returns, including those consistent with empirical findings: (1) U-shaped patterns in the mean and volatility of returns over trading periods, (2) higher trading activity around the close and open",
+   "claim": "A Journal of Finance model matches the known empirical findings: busier trading around the open and the close, and U-shaped volatility through the day."
+  },
+  {
+   "id": "f65",
+   "source": "s20",
+   "quote": "Intraday test results indicate that, for actively traded firms trading volume, adverse selection costs, and return volatility are higher in the first half-hour of the day.",
+   "claim": "In NYSE data from 1988, actively traded stocks had higher volume and volatility in the first half hour of the day."
+  },
+  {
+   "id": "f66",
+   "source": "s21",
+   "quote": "The plot of minute-by-minute spreads versus time of day has a crude reverse J-shaped pattern.",
+   "claim": "NYSE spreads are widest at the start of the day, dip through the middle and turn up a little at the end."
+  },
+  {
+   "id": "h1",
+   "source": "s22",
+   "quote": "or the day-1 30-minute opening-range break",
+   "claim": "Our Kicker plan has a second day-one entry: the break of the 30-minute opening range."
+  },
+  {
+   "id": "h2",
+   "source": "s22",
+   "quote": "a cent over the red day's high, on the Kicker day",
+   "claim": "Our Kicker plan's first entry is a cent over the red day's high, on the Kicker day."
+  },
+  {
+   "id": "h3",
+   "source": "s22",
+   "quote": "the close back over the 4-day average of the highs",
+   "claim": "Our Slingshot plan enters on the close back over the 4-day average of the highs."
+  },
+  {
+   "id": "h4",
+   "source": "s22",
+   "quote": "the close out of the tight cluster of averages",
+   "claim": "Our Launchpad plan enters on the close out of the tight cluster of averages."
+  },
+  {
+   "id": "f68",
+   "source": "s3",
+   "quote": "No, the Opening and Closing Crosses provide unparalleled transparency which encourages market participants to provide necessary liquidity to offset any MOC imbalance.",
+   "claim": "Nasdaq does not guarantee market-on-close orders; it publishes the imbalance so others can bring orders that offset it."
+  },
+  {
+   "id": "f69",
+   "source": "s17",
+   "quote": "the risk that the pattern might not hold in the future",
+   "claim": "Investopedia warns that a calendar pattern might not hold in the future."
+  },
+  {
+   "id": "f70",
+   "source": "s23",
+   "quote": "Cutoff time for Market on Close/Limit on Close (MOC/LOC) order entry: Imbalance publication begins and disseminated every 1 second until auction is complete",
+   "claim": "NYSE's current timeline: at 3:50 p.m. market-on-close and limit-on-close entry cuts off, and imbalance publication begins, updated every second until the auction."
+  },
+  {
+   "id": "f71",
+   "source": "s24",
+   "quote": "After 3:50 p.m., Exchange systems will accept only MOC and LOC Orders opposite to the side of the Significant Closing Imbalance.",
+   "claim": "NYSE's September 2026 memo: after 3:50 p.m., new market-on-close and limit-on-close orders are accepted only on the side opposite the significant imbalance."
+  }
+ ],
+ "walkthroughs": [
+  {
+   "key": "w1",
+   "title": "The shape of a day",
+   "steps": [
+    "Volume runs heavy near the open, slows at midday, then builds again into the close.",
+    "The open prices in a whole night of news. It tends to swing hardest, and spreads are usually widest.",
+    "The day ends in the closing auction, often one of the day's biggest single trades."
+   ],
+   "facts": [
+    "f42",
+    "f51",
+    "f52",
+    "f10",
+    "f23",
+    "f22",
+    "f11"
+   ]
+  },
+  {
+   "key": "w2",
+   "title": "The last ten minutes",
+   "steps": [
+    "From 3:50 p.m., NYSE and Nasdaq publish the closing imbalance: on-close shares left unmatched, and on which side.",
+    "3:50 p.m. is also NYSE's cutoff for new market-on-close orders. Nasdaq takes them until 3:55 p.m.",
+    "At 4:00 p.m. the closing auction runs. On Nasdaq, it sets the official closing price.",
+    "Some of our setups, like the Slingshot and the Launchpad, enter on the close. This is when they act."
+   ],
+   "facts": [
+    "f1",
+    "f70",
+    "f15",
+    "f67",
+    "f7",
+    "f6",
+    "f14",
+    "f11",
+    "f12",
+    "h3",
+    "h4"
+   ]
+  },
+  {
+   "key": "w3",
+   "title": "Next week, from Sunday",
+   "steps": [
+    "On Sunday, map the week: holidays and early closes, earnings dates, the Fed and the big data days.",
+    "Some Friday closes are giant. The Russell indexes now rebalance every June and December, and index funds trade that close.",
+    "Friday's close starts two days without a regular session. Weekend news can gap the stock at Monday's open.",
+    "Old weekday rules, like weak Mondays, have faded since they were published. Plan around real dates."
+   ],
+   "facts": [
+    "f3",
+    "f35",
+    "f36",
+    "f33",
+    "f32",
+    "f25",
+    "f29",
+    "f28",
+    "f44",
+    "f43",
+    "f63",
+    "f57"
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "key": "q01",
+   "skill": "styles.time_of_day",
+   "rung": 1,
+   "format": "mcq",
+   "q": "On a normal day, when do the most shares trade?",
+   "choices": [
+    "Near the open and near the close",
+    "About evenly all through the day",
+    "Mostly in the middle of the session"
+   ],
+   "answer": "Near the open and near the close",
+   "why": "Near the open and near the close. Volume runs heavy early, slows at midday, then builds again into the close.",
+   "lesson_line": "Busy early, quiet midday, busy late. The trading day has a shape.",
+   "facts": [
+    "f42",
+    "f51",
+    "f64"
+   ],
+   "wrong": {
+    "About evenly all through the day": "Volume isn't flat. Broker research and academic work both describe it bunching up around the open and the close.",
+    "Mostly in the middle of the session": "Midday is the quiet stretch. The action slows there, then picks up again late."
+   }
+  },
+  {
+   "key": "q02",
+   "skill": "styles.time_of_day",
+   "rung": 1,
+   "format": "tf",
+   "q": "Stocks reliably fall on Mondays.",
+   "answer": "False",
+   "why": "False. That's an old finding. Research says the weekend effect seems to have weakened or disappeared after it was published. In S&P 500 data, every weekday is up on 52% to 54% of days.",
+   "lesson_line": "Weekday folklore isn't a plan. Trade the setup, not the day of the week.",
+   "facts": [
+    "f63",
+    "f56",
+    "f58",
+    "f57"
+   ]
+  },
+  {
+   "key": "q03",
+   "skill": "styles.time_of_day",
+   "rung": 2,
+   "format": "fill",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "Bid-ask spreads are usually widest right at the ___, then narrow as the day goes on.",
+   "bank": [
+    "open",
+    "close",
+    "midday",
+    "afternoon"
+   ],
+   "answer": "open",
+   "why": "Open. Spreads are typically widest at the open and shrink toward the close. A study of NYSE stocks found the same shape at the start of the day.",
+   "lesson_line": "The first minutes are usually the priciest to trade. Wide spreads come with the open.",
+   "facts": [
+    "f23",
+    "f66"
+   ]
+  },
+  {
+   "key": "q04",
+   "skill": "styles.time_of_day",
+   "rung": 2,
+   "format": "mcq",
+   "q": "Why does the open often swing harder than the rest of the day?",
+   "choices": [
+    "It prices in news since the close",
+    "Earnings come out right at 9:30 a.m.",
+    "Spreads are tightest at the open"
+   ],
+   "answer": "It prices in news since the close",
+   "why": "It prices in the news since the last close. Everything that broke overnight hits at once, and buy and sell orders can open badly out of balance.",
+   "lesson_line": "The open settles a whole night of news. Expect it to swing.",
+   "facts": [
+    "f52",
+    "f43",
+    "f35",
+    "f23"
+   ],
+   "wrong": {
+    "Earnings come out right at 9:30 a.m.": "Companies usually report before the open or after the close, not at the bell. The open reacts to news that's already out.",
+    "Spreads are tightest at the open": "The other way round. Spreads are typically widest at the open and narrow through the day."
+   }
+  },
+  {
+   "key": "q05",
+   "skill": "styles.time_of_day",
+   "rung": 3,
+   "format": "tf",
+   "q": "The 4:00 p.m. closing auction is often one of the day's biggest trades.",
+   "answer": "True",
+   "why": "True. The opening and closing prints are typically the day's largest single trades. In NYSE's words, its closing auction is the largest single liquidity event in US equities trading.",
+   "lesson_line": "A big slice of the day can trade in one print at 4:00 p.m.",
+   "facts": [
+    "f22",
+    "f21",
+    "f20"
+   ]
+  },
+  {
+   "key": "q06",
+   "skill": "styles.time_of_day",
+   "rung": 3,
+   "format": "mcq",
+   "q": "Who does a lot of trading near the close, and why?",
+   "choices": [
+    "Index funds, to match their benchmark",
+    "Companies, to report earnings at 4:00",
+    "Day traders, to open overnight trades"
+   ],
+   "answer": "Index funds, to match their benchmark",
+   "why": "Index funds, to match their benchmark. Index-fund managers generally trade near the close. On a Russell rebalance Friday, hundreds of billions of dollars trade in the closing moments.",
+   "lesson_line": "Money that tracks an index tends to trade the close. That's part of why the last minutes get busy.",
+   "facts": [
+    "f44",
+    "f45",
+    "f28",
+    "f54",
+    "f35"
+   ],
+   "wrong": {
+    "Companies, to report earnings at 4:00": "Companies usually report before the open or after the close, and a report isn't a trade.",
+    "Day traders, to open overnight trades": "Day traders close out late in the day. The last hour sees them closing positions, not opening overnight ones."
+   }
+  },
+  {
+   "key": "q07",
+   "skill": "styles.time_of_day",
+   "rung": 2,
+   "format": "tf",
+   "q": "Midday is usually the quietest stretch of the trading day.",
+   "answer": "True",
+   "why": "True. Volume and volatility often fade by late morning. The middle of the day tends to be the calmest part of the session.",
+   "lesson_line": "Midday is usually the slow part of the day. Expect less volume and smaller moves.",
+   "facts": [
+    "f42",
+    "f51",
+    "f53"
+   ]
+  },
+  {
+   "key": "q08",
+   "skill": "styles.time_of_day",
+   "rung": 4,
+   "format": "tf",
+   "q": "The first half hour is usually the calmest part of the trading day.",
+   "answer": "False",
+   "why": "False. A study of actively traded NYSE stocks found volume and volatility higher in the first half hour. The open tends to be one of the most volatile, active times of the day.",
+   "lesson_line": "The first 30 minutes are usually one of the wildest stretches of the day, not the calmest.",
+   "facts": [
+    "f65",
+    "f52",
+    "f64",
+    "f55"
+   ]
+  },
+  {
+   "key": "q09",
+   "skill": "styles.time_of_day",
+   "rung": 4,
+   "format": "mcq",
+   "q": "What starts at 3:50 p.m. on both NYSE and Nasdaq?",
+   "choices": [
+    "Closing imbalance info goes out",
+    "The regular session ends",
+    "After-hours trading begins",
+    "Market orders stop being accepted"
+   ],
+   "answer": "Closing imbalance info goes out",
+   "why": "Closing imbalance info goes out. From 3:50 p.m. both exchanges publish how many on-close shares are left unmatched and on which side. After that, NYSE takes new market-on-close and limit-on-close orders only to offset it.",
+   "lesson_line": "From 3:50 p.m. the exchanges show which side is heavy into the close. The last ten minutes get busy.",
+   "facts": [
+    "f1",
+    "f70",
+    "f15",
+    "f67",
+    "f8",
+    "f71",
+    "f7",
+    "f24",
+    "f18",
+    "f19",
+    "f14"
+   ],
+   "wrong": {
+    "The regular session ends": "That's 4:00 p.m., when the closing auction runs. Regular trading goes on until then.",
+    "After-hours trading begins": "The regular session runs to 4:00 p.m. After-hours trading comes after that.",
+    "Market orders stop being accepted": "Regular orders, market orders included, keep working until 4:00 p.m. The 3:50 changes are about on-close orders, and Nasdaq takes market-on-close orders until 3:55."
+   }
+  },
+  {
+   "key": "q10",
+   "skill": "styles.time_of_day",
+   "rung": 4,
+   "format": "mcq",
+   "q": "Sunday night, you plan the week ahead. What goes on your checklist?",
+   "choices": [
+    "Holidays, earnings, Fed, data days",
+    "Which weekday is up the most often",
+    "Last week's best time to buy"
+   ],
+   "answer": "Holidays, earnings, Fed, data days",
+   "why": "Holidays, earnings, Fed and data days. They're dated, and they shape the week: early closes, reports before the open or after the close, a 2:00 p.m. Fed statement, 8:30 a.m. data.",
+   "lesson_line": "Plan around real dates. Holidays, reports, the Fed and the data calendar shape the week.",
+   "facts": [
+    "f3",
+    "f35",
+    "f34",
+    "f32",
+    "f48",
+    "f58",
+    "f50"
+   ],
+   "wrong": {
+    "Which weekday is up the most often": "Weekdays barely differ. In S&P 500 data each one is up on 52% to 54% of days.",
+    "Last week's best time to buy": "Intraday tendencies are averages, not a schedule. Exceptions happen any day, and big news like a Fed announcement can upset them."
+   }
+  },
+  {
+   "key": "q11",
+   "skill": "styles.time_of_day",
+   "rung": 5,
+   "format": "numeric",
+   "q": "Thin stock. 9:31 a.m.: $24.80 bid, $25.10 ask. 10:30: $24.98 bid, $25.02 ask. Buy 1,000 at the ask, sell at the bid. Extra cost at 9:31?",
+   "answer": 260,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "((ask1 - bid1) - (ask2 - bid2)) * shares",
+     "ask1": 25.1,
+     "bid1": 24.8,
+     "ask2": 25.02,
+     "bid2": 24.98,
+     "shares": 1000
+    }
+   },
+   "prefix": "$",
+   "why": "$260. Buy at the ask and sell at the bid, and you give up the whole spread on every share. The 9:31 spread is far wider than the 10:30 one.",
+   "lesson_line": "In a thin stock, the first minutes can be the priciest time to trade. Check the spread first.",
+   "facts": [
+    "f23",
+    "f66",
+    "f39"
+   ]
+  },
+  {
+   "key": "q12",
+   "skill": "styles.time_of_day",
+   "rung": 5,
+   "format": "scenario",
+   "house": true,
+   "story": "Day one of a Kicker. At 9:42 a.m. it's already well up from the open. You missed the first entry, a cent over the red day's high.",
+   "q": "What's our plan's other way in today?",
+   "choices": [
+    "A break of the opening range high",
+    "Buy now, before it runs further",
+    "Buy the close, once the day is done",
+    "Wait for a quiet dip near midday"
+   ],
+   "answer": "A break of the opening range high",
+   "why": "A break of the 30-minute opening range. That's the Kicker plan's second day-one entry. Let the first 30 minutes set the range, then act on the break.",
+   "lesson_line": "Let the first 30 minutes draw the range. Then trade the break, not the noise inside it.",
+   "facts": [
+    "h1",
+    "h2",
+    "f65",
+    "f55",
+    "h3"
+   ],
+   "wrong": {
+    "Buy now, before it runs further": "That's chasing inside the first half hour, when volatility runs high. The plan waits for the range.",
+    "Buy the close, once the day is done": "Some of our setups buy the close, like the Slingshot. Both Kicker entries trigger during the day, not on the close.",
+    "Wait for a quiet dip near midday": "A dip isn't in the plan. The trigger is the break of the opening range, whenever it comes."
+   }
+  },
+  {
+   "key": "q13",
+   "skill": "styles.time_of_day",
+   "rung": 6,
+   "format": "numeric",
+   "q": "It's Sunday, Nov. 22, 2026. How many full NYSE sessions does the coming week hold?",
+   "answer": 3,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "weekdays - holidays - early_closes",
+     "weekdays": 5,
+     "holidays": 1,
+     "early_closes": 1
+    }
+   },
+   "why": "3. Thanksgiving, Thursday, Nov. 26, is a market holiday. Friday, Nov. 27 closes early at 1:00 p.m. That leaves Monday through Wednesday.",
+   "lesson_line": "Check the holiday calendar every Sunday. A short week changes when your plans can act.",
+   "facts": [
+    "f2",
+    "f3"
+   ]
+  },
+  {
+   "key": "q14",
+   "skill": "styles.time_of_day",
+   "rung": 6,
+   "format": "scenario",
+   "story": "Thursday, Dec. 24, 2026. Your plan buys a stock on the close if it holds over its level. You set your usual alert for 3:55 p.m.",
+   "q": "What's the problem with that alert?",
+   "choices": [
+    "The close is at 1:00 p.m. that day",
+    "Nothing, it's a normal full session",
+    "The market is shut the whole day"
+   ],
+   "answer": "The close is at 1:00 p.m. that day",
+   "why": "The close comes at 1:00 p.m. NYSE closes early on Thursday, Dec. 24, 2026, so a 3:55 alert fires hours after the close you meant to trade.",
+   "lesson_line": "On an early-close day the close comes at 1:00 p.m. Move every close-based plan up.",
+   "facts": [
+    "f5",
+    "f4"
+   ],
+   "wrong": {
+    "Nothing, it's a normal full session": "Not this one. NYSE lists Dec. 24, 2026 as an early close at 1:00 p.m.",
+    "The market is shut the whole day": "That's Christmas Day, Friday, Dec. 25. The 24th trades, but only until 1:00 p.m."
+   }
+  },
+  {
+   "key": "q15",
+   "skill": "styles.time_of_day",
+   "rung": 7,
+   "format": "scenario",
+   "story": "Your stock reports earnings after today's close. Your plan says be out before the report. You'll be in a meeting from 3:30 p.m. on.",
+   "q": "Which order best gets you out before the report?",
+   "choices": [
+    "A market-on-close sell, sent early",
+    "A sell stop under today's low",
+    "A sell order after hours at 4:05"
+   ],
+   "answer": "A market-on-close sell, sent early",
+   "why": "A market-on-close sell, sent early. It asks to trade at today's closing price, before the report lands. It must be in by the exchange cutoff: 3:50 p.m. on NYSE, 3:55 p.m. on Nasdaq. Check your broker's cutoff too.",
+   "lesson_line": "Away at the close: a market-on-close order asks for the closing price, if it's in on time.",
+   "facts": [
+    "f13",
+    "f14",
+    "f70",
+    "f6",
+    "f12",
+    "f35",
+    "f49",
+    "f37",
+    "f40",
+    "f41"
+   ],
+   "wrong": {
+    "A sell stop under today's low": "A stop only goes to work if the stock trades down to it. If it doesn't, you hold right through the report.",
+    "A sell order after hours at 4:05": "This report lands after the close, and after-hours trading is thinner, with wider spreads. You could be selling into the news."
+   }
+  },
+  {
+   "key": "q16",
+   "skill": "styles.time_of_day",
+   "rung": 7,
+   "format": "scenario",
+   "story": "Sunday, Dec. 6, 2026. You're mapping the week. The Fed meets Tuesday and Wednesday. CPI comes out Thursday at 8:30 a.m.",
+   "q": "What makes this Friday's 4:00 p.m. close unusual?",
+   "choices": [
+    "The Russell indexes rebalance",
+    "Monthly options expire",
+    "The jobs report comes out",
+    "It's an early 1:00 p.m. close"
+   ],
+   "answer": "The Russell indexes rebalance",
+   "why": "The Russell indexes rebalance. The December changes take effect after the close on Friday, Dec. 11, 2026, and index funds trade into that close. At June's rebalance, hundreds of billions traded in the closing moments.",
+   "lesson_line": "Check the index calendar on Sunday. A rebalance Friday can bring a giant close.",
+   "facts": [
+    "f26",
+    "f29",
+    "f28",
+    "f44",
+    "f30",
+    "f31",
+    "f3",
+    "f5",
+    "f33",
+    "f32"
+   ],
+   "wrong": {
+    "Monthly options expire": "Standard monthly options expire on the third Friday. This is the second Friday of December.",
+    "The jobs report comes out": "That came out last Friday, Dec. 4, at 8:30 a.m. And it lands before the open, not at the close.",
+    "It's an early 1:00 p.m. close": "NYSE's early closes this season are Nov. 27 and Dec. 24. This Friday runs the full day."
+   }
+  },
+  {
+   "key": "q17",
+   "skill": "styles.time_of_day",
+   "rung": 8,
+   "format": "scenario",
+   "story": "Friday, June 26, 2026. Your small-cap stock prints its biggest volume bar in a year. Much of it came in the final print at 4:00 p.m. Price barely moved.",
+   "q": "What most likely explains that volume?",
+   "choices": [
+    "Index funds rebalancing at close",
+    "Big buyers quietly loading up",
+    "A breakout pulling in many new buyers"
+   ],
+   "answer": "Index funds rebalancing at close",
+   "why": "Index funds rebalancing at the close. The June Russell reconstitution took effect after that close. In the closing moments, $219.9 billion traded on NYSE and $334.0 billion on Nasdaq.",
+   "lesson_line": "Before you read a giant volume bar as demand, check the calendar for an index rebalance.",
+   "facts": [
+    "f27",
+    "f28",
+    "f44",
+    "f21"
+   ],
+   "wrong": {
+    "Big buyers quietly loading up": "Maybe, but much of it came in one closing print on a reconstitution day. That points to index funds trading the close.",
+    "A breakout pulling in many new buyers": "Price barely moved, so nothing broke out. The volume came in one print at the close, the way index rebalancing trades."
+   }
+  },
+  {
+   "key": "q18",
+   "skill": "styles.time_of_day",
+   "rung": 8,
+   "format": "scenario",
+   "house": true,
+   "story": "Friday, 3:45 p.m. A stock on your list is back over its 4-day average of the highs, a Slingshot. Fifteen minutes to the bell, then the weekend.",
+   "q": "What does our plan say to do?",
+   "choices": [
+    "Act on the close, if it still holds",
+    "Buy now, it's already over the line",
+    "Skip it, Fridays are bad days to buy",
+    "Wait and buy Monday's open instead"
+   ],
+   "answer": "Act on the close, if it still holds",
+   "why": "Act on the close, if it still holds. Our Slingshot entry is the close back over the 4-day average of the highs, not a 3:45 print. The last 10 to 15 minutes can help show whether a move holds.",
+   "lesson_line": "A level crossed at 3:45 isn't a close. Let the close decide.",
+   "facts": [
+    "h3",
+    "f46",
+    "f47",
+    "f63",
+    "f57",
+    "f43"
+   ],
+   "wrong": {
+    "Buy now, it's already over the line": "Over now isn't over at the close. Reversals in the final hour can be severe, and the plan's trigger is the close.",
+    "Skip it, Fridays are bad days to buy": "That's folklore. The weekend effect weakened or disappeared once it was published, and no weekday has an edge on its own.",
+    "Wait and buy Monday's open instead": "The plan's entry is today's close. Monday's open is a different price, and weekend news can gap it far from your level."
+   }
+  },
+  {
+   "key": "q19",
+   "skill": "styles.time_of_day",
+   "rung": 9,
+   "format": "tf",
+   "q": "A big buy imbalance at 3:50 p.m. locks in a close above the 3:50 price.",
+   "answer": "False",
+   "why": "False. The imbalance is published so other traders can offset it. After 3:50 p.m., NYSE takes new market-on-close and limit-on-close orders only on the opposite side. Nasdaq's imbalance-only orders exist to offset it.",
+   "lesson_line": "An imbalance is information, not a promise. Offsetting orders can still move the closing price.",
+   "facts": [
+    "f68",
+    "f71",
+    "f7",
+    "f9",
+    "f16",
+    "f17",
+    "f15"
+   ]
+  },
+  {
+   "key": "q20",
+   "skill": "styles.time_of_day",
+   "rung": 9,
+   "format": "scenario",
+   "story": "A newsletter says the last session before a long weekend has averaged about five times a normal day's return. It says to buy before every holiday.",
+   "q": "Do you build your plan around it?",
+   "choices": [
+    "No: it's small and may not last",
+    "Yes: five times normal is a real edge",
+    "Yes, and size up before each holiday",
+    "No: calendar studies are all made up"
+   ],
+   "answer": "No: it's small and may not last",
+   "why": "No: it's small and may not last. It's about +0.185% a day against +0.033% on a normal day. Costs and spreads can erase that, and the pattern might not hold in the future.",
+   "lesson_line": "A calendar quirk measured in fractions of a percent is trivia, not a trading plan.",
+   "facts": [
+    "f59",
+    "f60",
+    "f61",
+    "f62",
+    "f69",
+    "f63"
+   ],
+   "wrong": {
+    "Yes: five times normal is a real edge": "Five times a tiny number is still tiny. It's fractions of a percent, and costs can wipe it out.",
+    "Yes, and size up before each holiday": "Sizing up on a quirk that costs can erase only adds risk.",
+    "No: calendar studies are all made up": "The pattern shows up in real data, and it's statistically significant. The problem is its size and your costs, not fakery."
+   }
+  }
+ ],
+ "conflicts": [
+  "Spreads late in the day: McInish and Wood (NYSE stocks, Journal of Finance 1992) found a reverse-J shape, with spreads highest at the start of the day and turning up a little at the end; Cboe's 2020 study of S&P 500 names found spreads narrowing until the close, with a small rise at 3:50 p.m. Both agree spreads are widest at the open, and that is all q03, q04 and q11 key. No question says spreads are widest or narrowest at the close.",
+  "Independence of the volume-shape sources: Investopedia's intraday paragraph lists Schwab's 'Trading Near the Bells' among its article sources, so the two are not fully independent. q01 and q08 also cite Hong and Wang (2000), a Journal of Finance theory paper whose abstract lists 'higher trading activity around the close and open' and U-shaped volatility as empirical findings its model matches; q08 also cites Foster and Viswanathan (1993), which found volume and volatility higher in the first half hour in 1988 NYSE data. (Checker, 2026-11-09: corrected an earlier line here that said both papers used NYSE data; Hong and Wang is theory.)",
+  "Buying late in the day: Schwab's 'Trading Near the Bells' says the end of the day 'may not been seen as a great time to add a position', while several UCT setups (Slingshot, Launchpad, Gap Support, High Volume Edge) enter on the close (TRADE_PLANS.md). No question keys Schwab's view. Our close entries are asked as ours (q18, w2), and the unit never says late-day buying is better or worse in general.",
+  "On-close cutoffs differ by exchange: NYSE's auction fact sheet (2024) puts the MOC/LOC cutoff at 3:50 p.m.; Nasdaq's crosses FAQ (2025) takes market-on-close orders until 3:55 p.m. (limit-on-close until 3:58 p.m.). Brokers can set earlier cutoffs. q15 says 'sent early' and tells the member to check the broker's cutoff; q09 asks only what starts at 3:50 p.m. on both, which both documents agree on (NYSE: significant imbalance publication and the 3:50 to 4:00 p.m. closing imbalance period; Nasdaq: imbalance dissemination from 3:50 p.m.).",
+  "The long-weekend pattern (q20): Investopedia's own 2000-2024 S&P 500 analysis calls the pre-holiday return statistically significant over 196 long weekends (+0.185% vs +0.033% a day), and also says spreads and costs would likely erase the gain for most retail investors. Its general cost threshold (0.05% to 0.09% round trip for S&P 500 names) is below that 0.15% gap, so the key avoids 'too small to beat costs' as a flat fact and keys 'small and may not last', which rests on Investopedia's 'fractions of a percent' and Schwert's NBER finding that published calendar effects weakened or disappeared.",
+  "Time-sensitive facts read on 2026-11-09: NYSE 2026 holidays and early closes (Nov. 26 closed, Nov. 27 1:00 p.m., Dec. 24 1:00 p.m., Dec. 25 closed); the Russell move to semi-annual reconstitution from 2026, with the December 2026 changes effective after the close on Dec. 11; the FOMC's Dec. 8-9 meeting; BLS release dates (jobs Dec. 4, CPI Dec. 10). Nasdaq and NYSE Arca plan an overnight session from December 6, 2026 (see F1.05's conflicts); the regular session, its 9:30 a.m. and 4:00 p.m. auctions and the 3:50 p.m. imbalance events are not changed by it. Re-read the Russell page and the NYSE calendar after Dec. 11, 2026 before reusing q13, q14 or q16 as current-year questions.",
+  "Q2 2024 closing-auction share (f20) is a share of notional value across all US equities, from NYSE research; NYSE's April 2026 note gives a record 605.5 million NYSE closing-auction shares a day in Q1 2026 but no percent. No question states a percent of daily volume; q05 and w1 say only 'often one of the day's biggest trades'.",
+  "Checker, 2026-11-09: Schwab's 'Trading Near the Bells' also says higher volume 'leads to tighter bid-ask spreads', which a member could read as 'spreads are tight at the busy open'. The measured data disagree for the open: Cboe (S&P 500 names, 2020) finds spreads widest at the open and McInish and Wood (NYSE) a reverse J, highest at the start. The unit keys the measured data (q03, q04, q11) and never keys Schwab's general line.",
+  "Checker, 2026-11-09: after 3:50 p.m. NYSE limits new market-on-close and limit-on-close orders to the side that offsets a significant imbalance, but its September 2026 memo (RM-26-15) also says 'Closing IO Orders may be entered on both sides of the market up to 4:00 p.m.' (they execute only against an imbalance) and the Auctions page lets floor-broker D orders in until 3:59:50 p.m. So q09, q19 and w2 now say 'market-on-close and limit-on-close orders', not 'on-close orders' in general. The NYSE Auctions page and RM-26-15 (both current) confirm the 3:50 p.m. cutoff and imbalance start; the Auctions page's 3:00 p.m. imbalance start applies to NYSE Arca and NYSE Texas, not NYSE. Only the Nasdaq FAQ (f12) states that the closing auction sets the official close, so w2 now says that for Nasdaq only.",
+  "Track audit 2026-11-09 (all five F11 units read together): q07 is cut as a duplicate of F12.02 q02 (midday is the calm stretch, as a true/false); q01 and w1 still teach the midday lull here."
+ ],
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "notes": "f42 (Schwab), f51/f52 (Investopedia), f23/f22 (Cboe), f10/f11 (Nasdaq FAQ) read in context on the live pages. Changed step 2 from the flat 'It swings hardest, and spreads run widest' to 'tends to swing hardest ... usually widest': Investopedia says 'tend to be', Cboe 'typically'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "f1 (NYSE hours, live 2026), f70 (NYSE Auctions page, current), f15/f67/f14/f11/f12 (Nasdaq FAQ, 2025) and h3/h4 (TRADE_PLANS.md) checked. Step 3 said 'That price is the official close', sourced only for Nasdaq (f12), so it now says so; 'prints' became 'runs' (NYSE: 'Closing auction process begins' at 4:00). Added f70 so the 3:50 cutoff rests on a current NYSE page, not only the 2024 fact sheet.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "f3 (NYSE 2026 calendar), f35/f36 (FINRA), f33 (Fed: Dec. 8-9 is the last 2026 meeting), f32 (BLS), f25/f29/f28 (FTSE Russell, also re-read via WebFetch), f44/f43 (Schwab), f63 (Schwert NBER abstract), f57 (Investopedia) all read in context. 'Faded' matches Schwert's 'weakened or disappeared'.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q01": {
+   "status": "pass",
+   "notes": "Key matches Schwab f42 and Investopedia f51 (first and last hours busiest); Hong and Wang f64 lists 'higher trading activity around the close and open' among the empirical findings its model matches. Reworded 'when does the most stock trade' to 'when do the most shares trade'. The 'evenly' note said academic studies 'find' it; Hong and Wang is a theory paper, so it now says academic work 'describes' it, and f64's claim is corrected the same way. Track audit 2026-11-09: with q07 cut (duplicate of F12.02 q02), this is the unit's item on the day's volume shape, midday lull included. | variety rewrite checked 2026-11-10",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q02": {
+   "status": "pass",
+   "notes": "False is right: Investopedia's 2000-2024 S&P 500 data has every weekday up on 52% to 54% of days (f58), and Schwert's NBER abstract says the weekend effect weakened or disappeared after publication (f63). Split a 30-word why sentence in two; content unchanged.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q03": {
+   "status": "pass",
+   "notes": "Cboe f23 (S&P 500 names, spreads by minute): 'typically widest at the open'; McInish and Wood f66 (NYSE): reverse J, highest at the start. 'close' is a fair distractor (spreads tick up at the end in M&W), but the sentence's 'then narrow' fits only 'open'. Schwab's general line that volume brings tighter spreads is recorded in conflicts; it is not a measurement.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q04": {
+   "status": "pass",
+   "notes": "Key from Investopedia f52 (the open processes all news since the prior close) and Schwab f43 (overnight news can unbalance orders). Wrong choices really are wrong: FINRA f35 (reports come before the open or after the close), Cboe f23 (spreads widest at the open). 'Often' matches the sources' hedges. | variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q05": {
+   "status": "pass",
+   "notes": "Cboe f22: opening and closing prints 'typically make up the largest individual trades for the day'; NYSE's April 2026 note f21: 'the largest single liquidity event'. 'Often one of' is hedged enough. f20 checked in context (Q2 2024, 9.44% of notional).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q06": {
+   "status": "pass",
+   "notes": "Schwab f44/f45 in context (index-fund managers trade near the close; institutions late in the day); FTSE Russell f28 confirmed live ($219.9bn + $334.0bn, so 'hundreds of billions' holds). Wrong notes check against FINRA f35 and Investopedia f54. Lesson line 'trades the close' changed to 'tends to trade the close', to match Schwab's 'generally'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q07": {
+   "status": "cut",
+   "notes": "duplicate of F12.02#q02. Track audit 2026-11-09: both are true/false items on one fact, that midday is the calm stretch of the session (F12.02: 'Midday is usually the busiest, most volatile stretch', False; here 'the quietest stretch', True), from the same Schwab and Investopedia lines. F12.02's track audit has already run and kept its copy. This unit still teaches the midday lull in w1 and q01 (its 'Mostly in the middle of the day' note), so the cut costs no lesson. This item was right as written. The checker's earlier note: True per Schwab f42 ('the action often slows at midday'), Investopedia f51 and f53. Split a 23-word why sentence. It shares q01's subject but tests the midday half as a true/false, not the same way.",
+   "fixed": false,
+   "by": "track-auditor"
+  },
+  "q08": {
+   "status": "pass",
+   "notes": "False is right. Foster and Viswanathan's abstract (f65, 1988 NYSE data) says volume and volatility are 'higher' in the first half-hour; the why said 'highest', now 'higher', and f65's claim is fixed. Investopedia f52/f55 and Hong and Wang f64 back it. Softened 'The open is one of the most volatile' to 'tends to be', and the lesson line to 'one of the wildest stretches'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q09": {
+   "status": "pass",
+   "notes": "Key confirmed on current pages for both exchanges: NYSE Auctions page f70 ('3:50 p.m. ... Imbalance publication begins') and Nasdaq FAQ f15 (imbalance info from 3:50 p.m.). The Auctions page's 3:00 p.m. start is for NYSE Arca and NYSE Texas, not NYSE. Fixed: 'NYSE then takes new on-close orders only to offset' overstated it (RM-26-15: Closing IO orders may be entered on both sides until 4:00; D orders until 3:59:50). It now says market-on-close and limit-on-close orders (f71). The market-orders note adds Nasdaq's 3:55 MOC cutoff (f14).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q10": {
+   "status": "pass",
+   "notes": "Times in the why come from cited quotes: f3 (NYSE early close), f35 (FINRA), f34 (Fed statement 'For release at 2:00 p.m. EDT', confirmed live), f32 (BLS CPI 08:30 AM). Wrong notes: f58 (52% to 54%), f50 and f48 (Schwab: exceptions at any time; a Fed announcement can upset the pattern). Not leading: both wrong picks are real folklore habits. | variety rewrite checked 2026-11-10: lengthened a wrong choice so the right one is not the longest",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q11": {
+   "status": "pass",
+   "notes": "Recomputed: 9:31 spread $25.10 - $24.80 = $0.30; 10:30 spread $25.02 - $24.98 = $0.04; ($0.30 - $0.04) x 1,000 = $260; the calc agrees. Method from Investor.gov f39 (buy at the ask, sell at the bid, lose the spread); the wide early spread from f23/f66. Made the ask clear: 'How much more at 9:31?' became 'Extra cost at 9:31?' (136 characters).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q12": {
+   "status": "pass",
+   "notes": "House question: TRADE_PLANS.md's Kicker row (the owner's 2026-11-02 rulings) gives both entries, 'a cent over the red day's high, on the Kicker day' (h2) and 'the day-1 30-minute opening-range break' (h1). Fixed two wrong notes: 'volatility runs highest' to 'runs high' (sources say higher, not highest); 'Both Kicker entries are on day one, during the session' (the close is on day one too) to 'trigger during the day, not on the close'. | variety rewrite checked 2026-11-10",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q13": {
+   "status": "pass",
+   "notes": "NYSE 2026 calendar (live, also via WebFetch): Thanksgiving Thu Nov. 26 closed (f2), Fri Nov. 27 closes at 1:00 p.m. (f3). Nov. 22, 2026 is a Sunday; Mon-Wed Nov. 23-25 are full sessions: 5 - 1 - 1 = 3, calc agrees. Changed 'full regular sessions' to 'full NYSE sessions' so the market is named. Valid for the 2026 calendar only (as_of).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q14": {
+   "status": "pass",
+   "notes": "NYSE 2026 calendar (live, also via WebFetch): early close at 1:00 p.m. Thursday, Dec. 24, 2026 (f5); closed for Christmas Friday, Dec. 25 (f4). Weekdays checked. Every wrong choice is really wrong. Time-sensitive: 2026 only. | variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q15": {
+   "status": "pass",
+   "notes": "Was leading: it asked 'How do you get out at today's closing price?' and the key was the only choice saying 'close'. Now 'Which order best gets you out before the report?'. Key facts: Nasdaq f13 (on-close orders request the closing price), f14 (MOC before 3:55 p.m.), NYSE f70 (current Auctions page, 3:50 cutoff) and f6. Lesson line 'gets the official close' changed to 'asks for the closing price' (Nasdaq FAQ: MOC orders are not guaranteed). After-hours note: 'You'd be selling into the news' changed to 'You could be'. | variety rewrite checked 2026-11-10",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q16": {
+   "status": "pass",
+   "notes": "FTSE Russell (live, also via WebFetch): December 2026 changes take effect after the close on Dec. 11, 2026 (f26), the second Friday of December (f29); Dec. 6 is a Sunday and Dec. 11 a Friday. Wrong choices checked: monthly options on the third Friday (OIC f30; that is Dec. 18), jobs report Fri Dec. 4 at 08:30 AM (BLS f31), early closes Nov. 27 and Dec. 24 (f3, f5). Story dates: FOMC Dec. 8-9 (f33), CPI Thu Dec. 10 at 08:30 AM (f32). 2026 only.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q17": {
+   "status": "pass",
+   "notes": "FTSE Russell f27/f28 confirmed live: the June 2026 changes took effect after the close on Fri June 26, 2026 (fourth Friday); $219.9 billion on NYSE and $334.0 billion on Nasdaq in the closing moments, numbers copied exactly. 'Most likely' keeps the key a judgment, and each wrong note says why it is weaker. Split a 23-word why sentence. | variety rewrite checked 2026-11-10",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q18": {
+   "status": "pass",
+   "notes": "House: TRADE_PLANS.md's Slingshot entry is 'the close back over the 4-day average of the highs' (h3), so 'act on the close, if it still holds' is our plan. Schwab f46/f47 (the final 10 to 15 minutes; severe final-hour reversals), Schwert f63 and Investopedia f57 (weekday folklore) and Schwab f43 (weekend gaps) back the notes. Conflicts records Schwab's contrary view of late-day adds; the key is asked as ours.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q19": {
+   "status": "pass",
+   "notes": "False is right: nothing locks in a close. Added Nasdaq FAQ f68 (MOC orders are not guaranteed; the crosses' transparency 'encourages market participants to provide necessary liquidity to offset any MOC imbalance'), which directly backs 'published so others can offset it'. Fixed 'NYSE takes new on-close orders only on the opposite side' to market-on-close and limit-on-close orders (RM-26-15, f71). Corrected f17's claim (the quote names a reference price and says nothing about it shifting).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q20": {
+   "status": "pass",
+   "notes": "Investopedia f59-f62 read in context (+0.185% vs +0.033%, 196 long weekends, 'statistically significant' but 'fractions of a percent'). 'May not last' rested only on Schwert's weekend-effect line (f63); added Investopedia's own 'the risk that the pattern might not hold in the future' (f69) and used it in the why. The why says costs 'can erase' it, not that they always do (Investopedia's cost threshold is in conflicts).",
+   "fixed": true,
+   "by": "checker"
+  }
+ }
+}

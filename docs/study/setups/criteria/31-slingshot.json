@@ -1,0 +1,1283 @@
+{
+ "setup": "31-slingshot",
+ "name": "Slingshot",
+ "unit": "SET.27",
+ "direction": "long",
+ "timeframe": "daily",
+ "dossier": "docs/study/setups/research/31-slingshot.md",
+ "as_of": "2026-11-09",
+ "card": {
+  "context": "A leader (RS 80 or more) above its 50-day and 200-day that just had a drive within the last 25 sessions: an earnings gap of 5% or more (the main case), a 4% day on above-average volume, or a 20% run in five sessions. Green or Yellow market.",
+  "pattern": "Three to seven straight closes under the 4-day EMA of the daily highs, 5% to 12% deep from the drive's high, orderly: the whole pullback inside about 1.6 ATR, no red body over 3.5%, no down day on above-average volume.",
+  "trigger": "OTHER: the first daily close back above the line, bought at market in the last minutes, on a day that closes in the top 30% of its range and opened less than 2% over the prior close.",
+  "stop": "A few cents under the trigger day's low; often 3.5% to 6% away, so the size shrinks (A5); past about 6.5%, skip it or look for an hourly entry.",
+  "failure_mode": "The next session opens lower and trades through the stop, most often after the biggest gaps; or the pullback was already too long or too deep and the trigger was a bounce inside a drift. The stop keeps it small."
+ },
+ "entry_trigger": "OTHER",
+ "criteria": [
+  {
+   "id": "ss.drive",
+   "field": "context",
+   "statement": "The drive comes first: within the 25 sessions before the trigger, and before the pullback began, at least one of (a) an earnings gap, the open 5% or more over the prior close on the report day or the session after, closing in the upper half of its range on volume above its 50-day average (a PEG); (b) a close more than 4% over the prior close on volume above its 50-day average; (c) a gain of more than 20% in five sessions. (a) is the main case.",
+   "measure": {
+    "what": "drive days (an earnings gap open >= 5%, a 4%+ up close on above-average volume, or a 20%+ five-session gain) in the 25 sessions before the trigger and before the pullback began",
+    "op": ">=",
+    "value": 1,
+    "unit": "days",
+    "timeframe": "daily"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S23",
+    "S26",
+    "S27"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "PEG only: the way into a power earnings gap"
+    },
+    {
+     "value": "b",
+     "basis": "PEG mostly, a strong rally allowed: the owner's COIN words (Not exclusively to PEGs but still good); the dossier's lean and the register's default (D-106)"
+    },
+    {
+     "value": "c",
+     "basis": "any strong stock, as Scot1and does (52-week high, RSI, OBV, RS scans)"
+    }
+   ],
+   "recommended": "b",
+   "status": "pending-owner",
+   "owner_question": "D-106",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 rule 2; 10 question 1",
+   "evidence": "The owner: a slingshot is supposed to be used for an earnings gapper, strong stock, or consolidation after a nice uptrend. (b) is the scanner's S3 (Manrav's scan), (c) the team playbook's fast 20%+ run; the 5% gap floor is the dossier's (5 of his 6 pass-2 greats had an earnings-style gap drive, days of +11% to +29%). Test: the earnings-gap drive and the rally drive ended the same (+0.05R each). Scan: PEG-style drives (407 firings) 26.3% to 3R and 18.2% to 5R against 24.6% and 16.5% overall. Five of the ten examples were earnings reactions, five were not."
+  },
+  {
+   "id": "ss.drive_not_trigger",
+   "field": "context",
+   "statement": "The drive day is never the trigger. If the only qualifying drive day is the trigger day itself, it is not a Slingshot.",
+   "basis": "UCT",
+   "sources": [
+    "S23"
+   ],
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 rule 3",
+   "evidence": "The owner's ruling: And no an earnings gap does not count btw (MSFT and GOOGL 2022-07-27, cut). The scanner's S3 window ends on the trigger session, so a gap day that also closes over the line passes; 13% of firings have no strength day other than the trigger (dossier 5.2)."
+  },
+  {
+   "id": "ss.above_50_200",
+   "field": "context",
+   "statement": "Location at the trigger: the close is over the 50-day SMA and over the 200-day SMA.",
+   "measure": {
+    "what": "trigger close against the 50-day SMA and the 200-day SMA",
+    "op": ">",
+    "value": "both averages",
+    "timeframe": "daily"
+   },
+   "glossary": "ma_stack",
+   "basis": "house rule",
+   "sources": [
+    "S27",
+    "S23"
+   ],
+   "house_rule": "B26",
+   "options": [
+    {
+     "value": "a",
+     "basis": "B26 applies to the Slingshot; the bank lesson and the playbook (the 200-day is not required, from HAE 2026-10-25) are corrected: the dossier's recommendation and the register's default (D-009)"
+    },
+    {
+     "value": "b",
+     "basis": "the Slingshot is an exception"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-009",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 rule 7; 10 question 2",
+   "evidence": "The 50 is the scanner's S5; the 200 is B26, a hard rule that came after the HAE lesson. 24% of detector firings were under the 200-day; TEAM, HAS and FIGS (cut) were all under it. On our bars HAE 2026-06-04 closed over its (falling) 200-day, not under it as the verdict note says: check it on the live chart. The test: above the 200-day made no difference to the average (+0.05R both), but the owner's greats were all over a rising 50 and 200."
+  },
+  {
+   "id": "ss.ma_rising_pref",
+   "field": "context",
+   "statement": "Prefer the 50-day over the 200-day and rising (the member tag's test): all six pass-2 greats sat over a rising 50 and 200.",
+   "measure": {
+    "what": "50-day SMA against the 200-day SMA, and 50-day SMA today minus 50-day SMA 10 sessions ago",
+    "op": ">",
+    "value": 0,
+    "unit": "$",
+    "timeframe": "daily",
+    "and": "50-day SMA > 200-day SMA"
+   },
+   "glossary": "rising_average",
+   "basis": "my proposal",
+   "sources": [
+    "S27",
+    "S25"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.1 rule 7; 9 The stock row",
+   "evidence": "From tag_textbook.py: the member tag keeps a Slingshot only over a rising 50-day that is over the 200-day, with a green close. QCOM and HAE were graded with a falling 200-day; the 200-day's own slope is not a rule here."
+  },
+  {
+   "id": "ss.leadership",
+   "field": "context",
+   "statement": "A leader: RS rating 80 or more, in a strong group.",
+   "measure": {
+    "what": "RS rating",
+    "op": ">=",
+    "value": 80,
+    "unit": "rating 1 to 99"
+   },
+   "glossary": "leader",
+   "basis": "house rule",
+   "sources": [
+    "S6"
+   ],
+   "house_rule": "C31",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 rule 8",
+   "evidence": "Scot1and lists High RS compared to the S&P among his power scans. The detector has no RS test and the bars have no point-in-time rating; PSX 2020-12-10 (same market-wide drive day as LPLA, stopped in 2 sessions) is the kind of case this rule exists for."
+  },
+  {
+   "id": "ss.liquidity",
+   "field": "context",
+   "statement": "Price $10 or more and $20 million or more traded a day on average.",
+   "measure": {
+    "what": "close",
+    "op": ">=",
+    "value": 10,
+    "unit": "$",
+    "and": "50-day average dollar volume >= 20,000,000"
+   },
+   "glossary": "liquidity",
+   "basis": "house rule",
+   "sources": [
+    "S5",
+    "S27"
+   ],
+   "house_rule": "B23",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 rule 9",
+   "evidence": "Scot1and used 55,000 shares as a personal preference; the detector $5 and 100,000 shares; the house floor wins. FIGS (a $7 stock) was cut; CBZ and INTA were called thin."
+  },
+  {
+   "id": "ss.position_adv",
+   "field": "management",
+   "statement": "The position is at most 1% of average daily volume.",
+   "measure": {
+    "what": "shares / average daily volume",
+    "op": "<=",
+    "value": 1,
+    "unit": "%"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "D42",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 rule 9"
+  },
+  {
+   "id": "ss.earnings_window",
+   "field": "trigger",
+   "statement": "Not within 3 sessions before an earnings report. A rally Slingshot near a report is the case that binds; a PEG Slingshot is usually weeks from the next one.",
+   "measure": {
+    "what": "sessions until the next report",
+    "op": ">",
+    "value": 3,
+    "unit": "sessions"
+   },
+   "glossary": "earnings_blackout",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B22",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 rule 10; 8.8 mistake 9",
+   "evidence": "Checked by hand on the ten picks: none has a report in the 3 sessions after its trigger."
+  },
+  {
+   "id": "ss.market_reading",
+   "field": "context",
+   "statement": "Green market: full size. Yellow: smaller and fewer. Orange: only A+ setups. Red: mostly cash, plus shorts below the 200-day.",
+   "measure": {
+    "what": "the app's market reading on the trigger day",
+    "op": "in",
+    "value": [
+     "Green",
+     "Yellow",
+     "Orange (A+ only)"
+    ]
+   },
+   "glossary": "market_reading",
+   "basis": "house rule",
+   "sources": [
+    "S6"
+   ],
+   "house_rule": "F65",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.7",
+   "evidence": "Scot1and holds his Slingshots as long as the market is not giving distribution days. The test found no better average with SPY over its 50-day and 200-day (+0.02R) than under its 50-day (+0.10R); both inside the noise. The market rule is a house rule, not something the test shows."
+  },
+  {
+   "id": "ss.daily_only",
+   "field": "context",
+   "statement": "Defined on daily bars. Scot1and's half-hour or hourly Slingshot, an early entry into his Fishhook (a gap setup), is a variant the owner has not ruled on.",
+   "measure": {
+    "what": "chart the setup is defined on",
+    "op": "==",
+    "value": "daily"
+   },
+   "basis": "house rule",
+   "sources": [
+    "S7",
+    "S1"
+   ],
+   "house_rule": "C35",
+   "status": "pending-owner",
+   "owner_question": "D-012",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "3.5; 10 question 11",
+   "evidence": "Scot1and: it is the hourly that gives you the entry (2015); the shorter the timeframe the more false positives there will be (2017). The register's default: the hourly version lives in the Go Signal and 30-Minute Pivot lessons as entry timing (D-012)."
+  },
+  {
+   "id": "ss.line",
+   "field": "pattern",
+   "statement": "The line is the 4-period EMA of the daily HIGHS, drawn on the chart. Not an EMA of closes, not a simple average, not Deepvue's 5-day.",
+   "measure": {
+    "what": "the line",
+    "op": "==",
+    "value": "4-period EMA of the daily highs"
+   },
+   "basis": "originator",
+   "sources": [
+    "S3",
+    "S5",
+    "S14",
+    "S15",
+    "S18",
+    "S23"
+   ],
+   "options": [
+    {
+     "value": "4 EMA of highs",
+     "basis": "Scot1and (Oct 2015 on), TaPlot's copy of his write-up, the BigGuava script, Analyzing Alpha, the owner (I want the 4EMA on the chart), the scanner"
+    },
+    {
+     "value": "5-day EMA",
+     "basis": "Deepvue's knowledge base (S19), a dissent"
+    },
+    {
+     "value": "EMA 4 of closes",
+     "basis": "possibly Scot1and's first post (Aug 2015), which does not say what the EMA 4 is of"
+    }
+   ],
+   "recommended": "4 EMA of highs",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.1 rule 1; 3.12 item 1",
+   "evidence": "Settled by the owner's ruling on VRT (Btw for these I want the 4EMA on the chart so we can see exactly where and when the slingshot triggered and why) and drawn in gold on every Slingshot item (slingshotOverlay.js). The Model Book glyph draws a 3-period EMA of closes instead (D-014)."
+  },
+  {
+   "id": "ss.pullback_length",
+   "field": "pattern",
+   "statement": "The pullback: at least 3 consecutive daily closes under the line, and at most 7.",
+   "measure": {
+    "what": "consecutive closes under the line before the trigger day",
+    "op": "in",
+    "value": [
+     3,
+     7
+    ],
+    "unit": "closes",
+    "timeframe": "daily"
+   },
+   "glossary": "base_length",
+   "basis": "UCT",
+   "sources": [
+    "S5",
+    "S15",
+    "S25",
+    "S26"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "3 to 7 closes: the lesson text, from his rulings"
+    },
+    {
+     "value": "b",
+     "basis": "3 to 8, so that VRT (Perfect, 8 by a strict count) fits: the register's default (D-107)"
+    },
+    {
+     "value": "c",
+     "basis": "no upper limit: the scanner"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-107",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 rule 4; 10 question 4",
+   "evidence": "The 3 is Scot1and's own 2015 scan (c > xavgh4 after three closes under), not a script writer's; the BigGuava default and the team playbook's three or more agree. The 7 is the lesson's. Test by length: 3 closes +0.03R, 4 to 5 +0.03R, 6 to 7 +0.02R; 34% of detector firings came after more than 7 closes; RTX (10 closes) was cut. The ten examples ran 3 to 6."
+  },
+  {
+   "id": "ss.depth",
+   "field": "pattern",
+   "statement": "Depth: from the highest high of the drive leg to the lowest low of the pullback, 5% to 12%.",
+   "measure": {
+    "what": "(drive leg's highest high - pullback's lowest low) / drive leg's highest high",
+    "op": "in",
+    "value": [
+     5,
+     12
+    ],
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "glossary": "base_depth",
+   "basis": "UCT",
+   "sources": [
+    "S25",
+    "S23",
+    "S1"
+   ],
+   "options": [
+    {
+     "value": "a",
+     "basis": "5% to 12%: the lesson text; his greats measured 5.6% to 11.7%; the dossier's recommendation and the register's default (D-107)"
+    },
+    {
+     "value": "b",
+     "basis": "5% to 9%: the owner-rule record (spot.fixtures.jsonl line 23)"
+    },
+    {
+     "value": "c",
+     "basis": "Scot1and's 2015 limit: The EMA 9 should be the limit"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-107",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 rule 5; 10 question 5",
+   "evidence": "Two house texts disagree (5 to 12% against 5 to 9%). Test by depth: 5 to 8% -0.01R, 8 to 12% +0.08R, inside the noise; 23% of firings were deeper than 12%. The ten examples ran 5.3% to 9.9%."
+  },
+  {
+   "id": "ss.orderly",
+   "field": "pattern",
+   "statement": "Orderly: the pullback's total high-to-low range is at most about 1.6 ATR(14); no single red body bigger than about 3.5% of price; no down day on volume above its 50-day average.",
+   "measure": {
+    "what": "pullback range / ATR(14)",
+    "op": "<=",
+    "value": 1.6,
+    "unit": "ATR",
+    "timeframe": "daily",
+    "and": "largest red body <= 3.5% of price; no down day on volume above the 50-day average"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S25",
+    "S14"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.1 rule 6",
+   "evidence": "The measured signature of his greats (1.0 to 1.6 ATR, worst red body 0.9% to 3.3%) from the 2026-10-25 setup-differentiation analysis; Scot1and: tight trading ranges before the trigger are ideal. The exact numbers are the dossier's. TCOM (1.85 ATR) was cut as choppy. The ten examples ran 0.45 to 1.42 ATR."
+  },
+  {
+   "id": "ss.trigger",
+   "field": "trigger",
+   "statement": "The trigger is the first daily close above the line after the pullback. The order: a market order in the last minutes of the trigger day, once the close above the line is clear.",
+   "measure": {
+    "what": "trigger day's close against the 4-period EMA of highs",
+    "op": ">",
+    "value": "the line",
+    "timeframe": "daily",
+    "and": "the three or more prior closes were under it"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S5",
+    "S15",
+    "S18",
+    "S23",
+    "S27"
+   ],
+   "house_rule": "E57",
+   "options": [
+    {
+     "value": "A",
+     "basis": "a market order near the close on the trigger day: the owner's definition and the scanner; the dossier's recommendation; the register's default makes the close the entry for the Slingshot because its definition is a close (D-003)"
+    },
+    {
+     "value": "B",
+     "basis": "the next 1 to 3 sessions, a market order a cent over the trigger day's high: Manrav's range break after the cross, Scot1and's range breakout, Deepvue's and Analyzing Alpha's range break; the levels dossier's pick, to match the Kicker ruling"
+    },
+    {
+     "value": "C",
+     "basis": "intraday on the trigger day as price crosses the line: the team playbook and Scot1and's hourly entries; the line moves with the day's own high, so it cannot be checked on daily bars"
+    }
+   ],
+   "recommended": "A",
+   "status": "pending-owner",
+   "owner_question": "D-003",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 rules 11 and 13; 10 question 3",
+   "evidence": "Scot1and's own scan uses the close (c > xavgh4); his prose says break. Test, Table B on the owner's shape: the close with the trigger-low stop, median stop 3.2%, +0.02R; the next-day entry over the high, median stop 4.0%, +0.04R, filled on 78% (131 skipped as a chase over 4%). Inside the noise; A keeps the stop smallest."
+  },
+  {
+   "id": "ss.trigger_decisive",
+   "field": "trigger",
+   "statement": "A decisive trigger day: it closes in the top 30% of its range (DCR 0.7 or more) and opens less than 2% over the prior close.",
+   "measure": {
+    "what": "(close - low) / (high - low) of the trigger day",
+    "op": ">=",
+    "value": 0.7,
+    "unit": "of the range",
+    "timeframe": "daily",
+    "and": "open / prior close - 1 < 2%"
+   },
+   "glossary": "close_position",
+   "basis": "UCT",
+   "sources": [
+    "S25",
+    "S23"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.2 rule 12",
+   "evidence": "The lesson text from his rulings: a decisive day that closes near its high and needs no gap; the playbook's mistake: buying a trigger day that gaps up 2 or 3 percent. The 0.7 is the dossier's; his greats closed at 0.78 to 0.99 except QCOM at 0.65. 20% of detector firings gapped up 2% or more and 17% closed in the lower 70% of the range. TCOM (+2.7% gap) and COIN (0.72 close) were cut."
+  },
+  {
+   "id": "ss.trigger_size",
+   "field": "trigger",
+   "statement": "Quiet or strong trigger days: the owner graded +11% to +13% trigger days lower (good, okay) than +3% to +6% days; the test found the strong days did better. Neither is a rule; a quiet trigger is the cleaner teaching picture.",
+   "measure": {
+    "what": "trigger day's close / prior close - 1",
+    "op": "in",
+    "value": [
+     3,
+     6
+    ],
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S23",
+    "S25"
+   ],
+   "options": [
+    {
+     "value": "quiet",
+     "basis": "the owner's grades: SMCI +5.8%, VRT +3.2%, PLTR +4.7%, NVDA +4.0% were his greats; APP +13.2% good; PAAS +11.2% okay"
+    },
+    {
+     "value": "strong",
+     "basis": "the test: a trigger day up 6% or more averaged +0.11R (the only group whose range stays above zero); up less than 3%, +0.00R"
+    },
+    {
+     "value": "neither",
+     "basis": "neither as a rule, the quiet trigger as the teaching picture: the register's default (D-108)"
+    }
+   ],
+   "recommended": "neither",
+   "status": "pending-owner",
+   "owner_question": "D-108",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "9 The trigger day row; 10 question 8",
+   "evidence": "His grades may be about how teachable a chart looks. One test, so a question for him."
+  },
+  {
+   "id": "ss.trigger_volume",
+   "field": "trigger",
+   "statement": "No volume surge is needed on the trigger day. Ordinary volume is the picture.",
+   "glossary": "volume_surge",
+   "basis": "originator",
+   "sources": [
+    "S10",
+    "S25",
+    "S15"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.2 rule 12; 3.12 item 10",
+   "evidence": "Scot1and (2023): volume is less important on a slingshot because it is not a breakout setup; it is a signal that sellers have been exhausted. His greats ran on 0.9x to 1.4x; no script has a trigger-volume condition. The test found higher-volume triggers a little better, inside the noise."
+  },
+  {
+   "id": "ss.no_chase",
+   "field": "trigger",
+   "statement": "No chasing: never more than 4% over the buy point. With the close entry the trigger close is the buy point; with the next-day entry, skip if the first price is more than 4% over the trigger day's high.",
+   "measure": {
+    "what": "fill / buy point - 1",
+    "op": "<=",
+    "value": 4,
+    "unit": "%"
+   },
+   "glossary": "chase_limit",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "C28",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 rule 14; 7 C28 row"
+  },
+  {
+   "id": "ss.not_stretched",
+   "field": "trigger",
+   "statement": "Skip if more than 10% over the 10-day average. It rarely binds (4% of firings), but it can after an explosive PEG whose pullback was shallow.",
+   "measure": {
+    "what": "entry / 10-day SMA - 1",
+    "op": "<=",
+    "value": 10,
+    "unit": "%",
+    "timeframe": "daily"
+   },
+   "glossary": "stretched",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "C29",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.2 rule 14; 7 C29 row"
+  },
+  {
+   "id": "ss.one_price",
+   "field": "trigger",
+   "statement": "One price, one stop, full size. No adding; the team's add on the 50-day reclaim is not taught.",
+   "measure": {
+    "what": "entries per trade",
+    "op": "==",
+    "value": 1
+   },
+   "basis": "house rule",
+   "sources": [
+    "S26"
+   ],
+   "house_rule": "A5",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "6.4 Adds; 7",
+   "evidence": "Manrav's notes: start on the Slingshot and add on the 50-day reclaim (KB 11726, 12088). A5 says one price."
+  },
+  {
+   "id": "ss.stop",
+   "field": "stop",
+   "statement": "Default: a few cents under the trigger day's low, as a real stop order with the broker.",
+   "measure": {
+    "what": "stop",
+    "op": "==",
+    "value": "a few cents under the trigger day's low"
+   },
+   "glossary": "stop_margin",
+   "basis": "house rule",
+   "sources": [
+    "S14",
+    "S27",
+    "S18"
+   ],
+   "house_rule": "A3",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.3 rule 15",
+   "evidence": "Scot1and (via TaPlot): I typically place my stop at the low of the slingshot day; F62 gives the few cents, D41 the broker order. The scanner puts it exactly on the low. Test: trigger low, median 3.2%, stop hit 84%, 3R on 20%. Scan: 3,411 firings, stops of 3% or less (1,715) 25.3% to 3R and 16.7% to 5R."
+  },
+  {
+   "id": "ss.stop_wider",
+   "field": "stop",
+   "statement": "Wider choice: a few cents under the lower of the trigger day's and the prior day's lows. Never wider than the bottom of the pullback.",
+   "basis": "UCT",
+   "sources": [
+    "S26",
+    "S14"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.3 rule 16",
+   "evidence": "The team playbook and Manrav (about 9% on RUN and GEV); Scot1and: or at most, the bottom of the consolidation period. Test, Table B: the lower of the two lows, median 4.7%, +0.04R; the pullback's low, median 6.0%, +0.05R; the trigger low, 3.2%, +0.02R. All inside the noise."
+  },
+  {
+   "id": "ss.stop_width",
+   "field": "stop",
+   "statement": "When the default stop is wider than 3% (half of all firings; all six pass-2 greats): take it, and let the size shrink (A5). If it is wider than about 6.5% (wider than any of his greats; usually a news-like trigger day), skip it or look for an hourly entry.",
+   "measure": {
+    "what": "(entry - stop) / entry",
+    "op": "<=",
+    "value": 6.5,
+    "unit": "%",
+    "and": "over 3%, the size shrinks by A5"
+   },
+   "glossary": "stop_width",
+   "basis": "house rule",
+   "sources": [
+    "S23",
+    "S25"
+   ],
+   "house_rule": "A13",
+   "options": [
+    {
+     "value": "a",
+     "basis": "keep the trigger day's low and let the size shrink, skip above about 6.5%: the dossier's recommendation; the 6.5% is the dossier's"
+    },
+    {
+     "value": "b",
+     "basis": "skip any Slingshot whose stop is over 3% (A13 strict)"
+    },
+    {
+     "value": "c",
+     "basis": "the prior day's low, wider (Manrav used about 9% on RUN and GEV)"
+    },
+    {
+     "value": "d",
+     "basis": "up to one ADR take it, size down and grade one notch lower; past one ADR skip or wait for the tighter trigger: the register's default for every setup (D-005)"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-005",
+   "gate": true,
+   "grade_cue": true,
+   "dossier_ref": "8.3 rule 17; 10 question 6",
+   "evidence": "VRT, NFLX, NVDA, SOFI, PLTR and SMCI had trigger-low stops of 3.5% to 6.1%; only QCOM (1.6%) was inside 3%; APP 10.7%. Test: firings with a stop within 3% did slightly worse (-0.03R, stopped 88%) than wider ones (+0.07R, 81%). A13 says usually, not always."
+  },
+  {
+   "id": "ss.stop_gap",
+   "field": "stop",
+   "statement": "A gap through the stop: the low of the first 30 minutes is the new stop; out if that is more than 2R of loss.",
+   "measure": {
+    "what": "loss at the first 30-minute low of the gap-down day",
+    "op": "<=",
+    "value": 2,
+    "unit": "R",
+    "timeframe": "30-minute"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B20",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.3 rule 18",
+   "evidence": "Daily bars cannot test it; 11% of the test's trades ended on a gap through the stop at the open. FSLR 2013-05-06 and BIIB 2022-10-24 both opened lower and traded through the stop the next session."
+  },
+  {
+   "id": "ss.breakeven",
+   "field": "management",
+   "statement": "Breakeven once the trade is 2R up; anywhere from 2R to 5R is allowed.",
+   "measure": {
+    "what": "R at which the stop moves to the entry",
+    "op": "in",
+    "value": [
+     2,
+     5
+    ],
+    "unit": "R"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B19",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4 rule 19",
+   "evidence": "The test moved it at 2R; 15% of trades ended at breakeven."
+  },
+  {
+   "id": "ss.trim_1",
+   "field": "management",
+   "statement": "First trim a third at 3R.",
+   "measure": {
+    "what": "fraction sold at 3R",
+    "op": "==",
+    "value": 0.333,
+    "unit": "of the position"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "B19",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4 rule 20",
+   "evidence": "In the test 3R came first on about 20% of trades. The ten examples reached 3R in 3 to 8 sessions."
+  },
+  {
+   "id": "ss.trim_2",
+   "field": "management",
+   "statement": "Second trim a third at 5R.",
+   "measure": {
+    "what": "fraction sold at 5R",
+    "op": "==",
+    "value": 0.333,
+    "unit": "of the position"
+   },
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "E51",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4 rule 20",
+   "evidence": "In the test 5R came first on about 12% of trades."
+  },
+  {
+   "id": "ss.trim_gap_open",
+   "field": "management",
+   "statement": "At the open if it gaps past a trim level.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "F63",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4 rule 20"
+  },
+  {
+   "id": "ss.first_trim_early",
+   "field": "management",
+   "statement": "A note on the house trims: UCT's team playbook trims into the next 3-5 day burst and Scot1and sold a portion early into the advance. The house plan stays the default; an earlier first trim is the owner's call.",
+   "measure": {
+    "what": "first trim",
+    "op": "==",
+    "value": "a third at 3R, unless the owner rules an earlier partial"
+   },
+   "basis": "house rule",
+   "sources": [
+    "S26",
+    "S6",
+    "S21"
+   ],
+   "house_rule": "B19",
+   "options": [
+    {
+     "value": "a",
+     "basis": "the house plan, a third at 3R: the dossier's default and the register's (D-013: B19 and E51 for every swing setup; a setup's named spot is a cue to take the 3R third early, not a change to the thirds)"
+    },
+    {
+     "value": "b",
+     "basis": "an earlier partial into the next 3-5 day burst (the team playbook, Stockbee's bursts) or early into the advance (Scot1and 2016)"
+    }
+   ],
+   "recommended": "a",
+   "status": "pending-owner",
+   "owner_question": "D-013",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4 rule 24; 10 question 7",
+   "evidence": "Test: 3R came first on about 20% of trades and 5R on about 12%; the average winner was +2.3R and the average loser -0.9R. These are different holding periods."
+  },
+  {
+   "id": "ss.trail",
+   "field": "management",
+   "statement": "Trail the last third: sell on a close under the 10-day EMA for fast movers, the 21-day for steadier ones.",
+   "measure": {
+    "what": "close against the 10-day (fast) or 21-day (steadier) average",
+    "op": "<",
+    "value": "the average",
+    "timeframe": "daily"
+   },
+   "glossary": "trail",
+   "basis": "house rule",
+   "sources": [
+    "S1",
+    "S25"
+   ],
+   "house_rule": "E52",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4 rule 21",
+   "evidence": "Other views: Scot1and 2015, the EMA 4 should never be breached on a close, consider it the trailing stop; Manrav's RBLX note, a run that rides 8 and 21 EMAs. In the test the 10-day and 21-day versions averaged within 0.02R of each other."
+  },
+  {
+   "id": "ss.time_stop",
+   "field": "management",
+   "statement": "Time stop: under 1R after 10 trading days, sell.",
+   "measure": {
+    "what": "open R after 10 trading days",
+    "op": "<",
+    "value": 1,
+    "unit": "R"
+   },
+   "glossary": "time_stop",
+   "basis": "house rule",
+   "sources": [
+    "S25"
+   ],
+   "house_rule": "C33",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4 rule 22",
+   "evidence": "The playbook: a trigger that fades to flat by day 20 was not a Slingshot worth keeping (DUOL, cut). 14% of the test's trades ended on the time stop."
+  },
+  {
+   "id": "ss.climax",
+   "field": "management",
+   "statement": "A climax run in the position (Bracco's parabolic burst): sell a big part into it, a judgement call.",
+   "basis": "house rule",
+   "sources": [],
+   "house_rule": "C34",
+   "status": "settled",
+   "gate": false,
+   "grade_cue": false,
+   "dossier_ref": "8.4 rule 23"
+  },
+  {
+   "id": "ss.inv_long_or_deep",
+   "field": "invalidation",
+   "statement": "Before entry: a pullback that runs past 7 closes or deeper than 12% is no longer a Slingshot. It is becoming a base; judge it as a base or a Launchpad.",
+   "measure": {
+    "what": "consecutive closes under the line, and depth from the drive leg's high",
+    "op": "<=",
+    "value": 7,
+    "unit": "closes",
+    "timeframe": "daily",
+    "and": "depth <= 12%"
+   },
+   "basis": "UCT",
+   "sources": [
+    "S25",
+    "S23"
+   ],
+   "status": "pending-owner",
+   "owner_question": "D-107",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5 rule 25",
+   "evidence": "The owner's ranges. GNRC 2021, HRB 2017 and TREX 2018 qualified on the numbers but were left out of the examples because their pullbacks drifted for weeks before the 3-close count began, which a learner would not read as a Slingshot."
+  },
+  {
+   "id": "ss.inv_both_falling",
+   "field": "invalidation",
+   "statement": "Before entry: above the 200-day, but the 50-day and the 200-day are both falling. A bounce in a downtrend, not a Slingshot.",
+   "measure": {
+    "what": "50-day SMA today minus 10 sessions ago, and 200-day SMA today minus 20 sessions ago",
+    "op": ">",
+    "value": 0,
+    "unit": "$",
+    "timeframe": "daily",
+    "note": "at least one of the two must be rising"
+   },
+   "basis": "my proposal",
+   "sources": [
+    "S14",
+    "S23"
+   ],
+   "status": "proposed",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5 rule 26",
+   "evidence": "Scot1and via TaPlot: a pull back in a stock in a downtrend is merely an opportunity to sell into strength. The owner's cuts TEAM and HAS were both under the 200-day (on our bars TEAM's 200-day was still rising and HAS's 50-day rising slightly); the both-falling clause is the dossier's."
+  },
+  {
+   "id": "ss.after_entry_stop",
+   "field": "invalidation",
+   "statement": "After entry: a trade under the stop ends it. No widening.",
+   "basis": "house rule",
+   "sources": [
+    "S1"
+   ],
+   "house_rule": "A4",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5 rule 27",
+   "evidence": "Scot1and's own trail (a close under the 4-day EMA) only moves up."
+  },
+  {
+   "id": "ss.close_back_under_line",
+   "field": "invalidation",
+   "statement": "After entry: a close back under the line on the next session is a warning, not an exit. The stop decides.",
+   "basis": "UCT",
+   "sources": [
+    "S27"
+   ],
+   "status": "proposed",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.5 rule 28",
+   "evidence": "The scanner narrative; A4 says the stop is the exit."
+  },
+  {
+   "id": "ss.reentry",
+   "field": "invalidation",
+   "statement": "Re-entry only on a new Slingshot: a new run of at least 3 closes under the line, then a new close over it, with its own stop. At most 3 tries a week and 6 a month on one stock.",
+   "measure": {
+    "what": "closes under the line before a new trigger counts",
+    "op": ">=",
+    "value": 3,
+    "unit": "closes",
+    "timeframe": "daily",
+    "and": "at most 3 tries a week, 6 a month"
+   },
+   "basis": "house rule",
+   "sources": [
+    "S27"
+   ],
+   "house_rule": "B21",
+   "status": "settled",
+   "gate": true,
+   "grade_cue": false,
+   "dossier_ref": "8.5 rule 29",
+   "evidence": "E56 caps the tries; the scanner narrative says not to re-enter the same pullback repeatedly. PLTR 2026-08-21 and 2026-08-27: the same earnings drive gave two triggers six sessions apart, both stopped; the second needs its own full check."
+  }
+ ],
+ "grading": {
+  "a_plus": [
+   "ss.drive: an earnings gap, a +11% to +29% day (his SMCI, VRT, PLTR, NVDA)",
+   "ss.leadership: a leader, RS 80 or more; ss.ma_rising_pref: over a rising 50-day and 200-day",
+   "ss.pullback_length: 3 to 7 closes under the line; ss.depth: 5% to 12% deep",
+   "ss.orderly: range 1.0 to 1.6 ATR, small red bodies, quiet volume, tight ranges before the trigger",
+   "ss.trigger_decisive: +3% to +6%, closes at 78% to 99% of its range, no gap, ordinary volume",
+   "ss.stop: the trigger low about 3.5% to 6% away, sized down by A5",
+   "ss.market_reading: Green; in Orange only if everything else grades A+ (F65)"
+  ],
+  "b_minus": [
+   "ss.drive: a rally only (COIN, cut), or no earnings drive and no follow-through (BBWI, CBZ)",
+   "ss.above_50_200: under the 200-day (TEAM, HAS, FIGS: cut)",
+   "ss.liquidity: under $10 (FIGS), thin (CBZ, INTA)",
+   "ss.orderly: choppy (TCOM, 1.85 ATR, cut)",
+   "ss.pullback_length: a long base (RTX, 10 closes, cut)",
+   "ss.trigger_decisive: a gap of 2% or more (TCOM, COIN), a weak close (COIN and INTA at 0.72), a tiny day (PANW +1.5%, B-)",
+   "ss.trigger_size: a bigger, news-like day (APP +13% on 2.4x volume, good) is an A or B, not an A+",
+   "ss.market_reading: Yellow (smaller and fewer)"
+  ],
+  "no_trade": [
+   "ss.market_reading: Red (mostly cash, plus shorts below the 200-day); Orange below A+",
+   "ss.drive_not_trigger: the earnings gap day or the rally day as the trigger",
+   "ss.inv_long_or_deep: past 7 closes or deeper than 12%",
+   "ss.above_50_200: the trigger close under the 200-day",
+   "ss.inv_both_falling: the 50-day and 200-day both falling",
+   "ss.liquidity: under $10 or under $20 million a day",
+   "ss.earnings_window: a report within 3 sessions",
+   "ss.no_chase: more than 4% past the buy point; ss.not_stretched: more than 10% over the 10-day",
+   "ss.stop_width: the honest stop wider than about 6.5%"
+  ]
+ },
+ "lookalikes": [
+  {
+   "setup": "11-ema20-pullback",
+   "tell": "Look at which line was lost. A Slingshot's closes slip under the 4-day EMA of the highs for 3 to 7 sessions and the buy is the first close back over it; a 20 EMA pullback touches the 20-day EMA, holds it, and is bought on the intraday turn.",
+   "criterion": "ss.line"
+  },
+  {
+   "setup": "32-remount",
+   "tell": "Count the closes under the line and name the line. A Slingshot is 3 to 7 closes under a 4-day line after a drive; a Remount has lost its 50-day or 200-day for 5 to 30 closes and takes back a slow line.",
+   "criterion": "ss.pullback_length"
+  },
+  {
+   "setup": "25-gap-support",
+   "tell": "Look at where the pullback stops. Gap Support tests the gap-up day's low from above and buys the hold; a Slingshot never needs to reach the gap, it rests 5% to 12% off the high and buys the close back over the 4-day EMA of highs.",
+   "criterion": "ss.depth"
+  },
+  {
+   "setup": "30-oops-reversal",
+   "tell": "Count the sessions. An Oops is one day: it opens under the prior close, trades under the prior low and reclaims the close the same session; a Slingshot needs at least three closes under its line before the close back over.",
+   "criterion": "ss.pullback_length"
+  },
+  {
+   "setup": "07-launchpad",
+   "tell": "Count the closes and look at the averages. A pullback past 7 closes that flattens out on the bunched 9, 20 and 50-day is a Launchpad or a base, not a Slingshot; a Slingshot is still inside its first week or so under the 4-day line.",
+   "criterion": "ss.inv_long_or_deep"
+  }
+ ],
+ "invalidations": [
+  "Before entry: the only drive day is the trigger day itself (ss.drive_not_trigger).",
+  "Before entry: the pullback runs past 7 closes or deeper than 12%; judge it as a base or a Launchpad (ss.inv_long_or_deep).",
+  "Before entry: the trigger close is under the 200-day (ss.above_50_200), or above it with the 50-day and 200-day both falling (ss.inv_both_falling).",
+  "Before entry: a report within 3 sessions, wait (ss.earnings_window).",
+  "After entry: a trade under the stop ends it; no widening (ss.after_entry_stop).",
+  "After entry: a close back under the line the next session is a warning, not an exit (ss.close_back_under_line).",
+  "After entry: still under 1R after 10 trading days, sell (ss.time_stop).",
+  "Re-entry only on a new run of 3 closes under the line and a new close over it, at most 3 tries a week (ss.reentry)."
+ ],
+ "mistakes": [
+  "Buying the earnings gap day (or the rally day) as the Slingshot. It is never the trigger.",
+  "Buying a trigger day that gaps up 2% or more.",
+  "Buying the first red day of the pullback instead of waiting for the close back over the line. Scot1and: then when momentum resumes we enter.",
+  "Taking a bounce under the 200-day as a Slingshot, falling or not (B26).",
+  "Drawing the wrong line: a 4-day EMA of closes, or Chris Moody's two-average SlingShot System. The Model Book glyph draws a 3-day EMA of closes today.",
+  "Trading a pullback that is too long (8 or more closes) or too deep (more than 12%).",
+  "Widening the stop, or re-buying the same pullback again and again.",
+  "Thin or cheap names (FIGS, a $7 stock, was cut; CBZ and INTA were called thin).",
+  "Holding a rally Slingshot into an earnings report just after it triggers.",
+  "Expecting a giant drive to make the trigger safer: FSLR's 45.5% drive day and BIIB's 39.9% gap both reversed through the stop the next session."
+ ],
+ "short_mirror": {
+  "exists": true,
+  "setup": "31-slingshot",
+  "note": "Our long reversed (D47, dossier 8.6): a stock under its 200-day (B26), RS 20 or less (the C31 mirror), after a breakdown drive (an earnings gap down, or a 4%+ down day on volume); a bounce of 3 to 7 closes above the 4-period EMA of the daily lows; the trigger is the first close back under that line, near the day's low; the stop a few cents over the trigger day's high; skip if hard to borrow (D48). Only BigGuavaTrading's script builds it; nothing in Scot1and's posts, the TaPlot copy or the public podcast lines, and no owner ruling. Untested here. The dossier recommends not teaching it as a named setup until the owner rules (D-001); if taught, call it our mirror, not Scot1and's."
+ },
+ "best_conditions": "A Green market reading at full size (F65); Scot1and holds his Slingshots as long as the market is not giving distribution days. Earnings seasons in a healthy market give the most PEG Slingshots, because many leaders gap and pause at once (the dossier's proposal, untested). The test found no better average with SPY over its 50-day and 200-day than under its 50-day; the market rule is a house rule.",
+ "management": {
+  "trim_1": "a third at 3R (B19)",
+  "trim_2": "a third at 5R (E51)",
+  "trail": "a close under the 10-day EMA for a fast mover, the 21-day for a steadier one (E52); the TRADE_PLANS.md row's under each higher low is the detector's narrative",
+  "breakeven": "at 2R, anywhere from 2R to 5R allowed (B19)",
+  "time_stop": "under 1R after 10 trading days, sell (C33)",
+  "gap_open": "a trim level the day opens past is taken at the open (F63)",
+  "gap_against": "the first 30-minute low is the new stop; out if past 2R (B20)",
+  "climax": "sell a big part into a climax run (C34)",
+  "overrides": "none by default. TRADE_PLANS.md names the trigger day's low as the stop with the day before's low as the wider choice. Whether a Slingshot gets an earlier first trim (the team's trim into the next 3-5 day burst; Scot1and's a portion early into the advance) is D-013. Not ours: the detector's 2R and 3R targets; Scot1and's no close under the 4-day EMA trail."
+ },
+ "examples": {
+  "winners": 10,
+  "sheet_dir": "_study-resume/scratchpad/setups/31-slingshot/final",
+  "base_rate": {
+   "hits": 3411,
+   "names": 2630,
+   "r3_pct": 24.6,
+   "r5_pct": 16.5,
+   "stopped_pct": 86.2,
+   "median_best_r_before_stop": 0.98,
+   "window": "60 sessions forward, fixed stop 3 cents under the trigger day's low, no trims, no breakeven, no trail; trigger dates 1995 to 2026; the 2,630 names that ever met the house liquidity rule; section 8's rules 1 to 7, 9, 11, 12, 15, 17 and C29 coded; RS, the market reading and B22 not coded"
+  },
+  "cuts": {
+   "stop_3_pct_or_less": {
+    "hits": 1715,
+    "r3_pct": 25.3,
+    "r5_pct": 16.7
+   },
+   "peg_style_gap_drive": {
+    "hits": 407,
+    "r3_pct": 26.3,
+    "r5_pct": 18.2
+   },
+   "managed_test_section_4_3": {
+    "note": "the detector's own rule on 86,512 firings, 2010 to 2026, traded the house way (breakeven at 2R, thirds at 3R and 5R, the 21-day trail once 5R is reached, C33): +0.05R a trade, 95% range -0.02 to +0.11, against +0.00R for a plain up-day baseline; the owner's shape (14,963) +0.02R; an earnings-gap drive (1,357) +0.05R; a stop within 3% -0.03R against +0.07R wider; a trigger day up 6% or more +0.11R; up less than 3% +0.00R; by length and depth, inside the noise"
+   }
+  },
+  "winners_list": [
+   "UTHR 2025-09-18",
+   "RELY 2024-11-20",
+   "FRO 2023-01-27",
+   "LPLA 2020-12-02",
+   "MELI 2017-11-17",
+   "URI 2016-11-21",
+   "BIIB 2015-02-18",
+   "BC 2012-11-27",
+   "RGA 2010-12-01",
+   "GRMN 2007-06-11"
+  ],
+  "failures": [
+   {
+    "ticker": "FSLR",
+    "date": "2013-05-06",
+    "criterion": "ss.earnings_window",
+    "why": "the drive was a 45.5% day on 2013-04-09, the pullback 3 closes and 7.1% deep, the trigger closed at 0.94 of its range with a 3.3% stop. The next session opened lower and traded through the stop (low 42.61 against a 46.62 open): out in one day, 0.0R. A giant drive does not make the trigger safer; the stop is what keeps it small. Corrected 2026-11-10: the earnings table puts FSLR's report reaction on 2013-05-07, the session after the buy, so the trade was inside the 3-session blackout and the reversal was the earnings reaction. Not a setup failure; replaced in the failure sheet by SRPT 2019-01-25."
+   },
+   {
+    "ticker": "BIIB",
+    "date": "2022-10-24",
+    "criterion": "ss.earnings_window",
+    "why": "a 39.9% news gap on 2022-09-28, a 6-close pullback 8.2% deep, a 2.4% stop. The day after the trigger opened at 278.60 and fell to 265.46, through the stop: 0.0R. The biggest gaps breed the most violent next-day reversals, even with a tight stop. Corrected 2026-11-10: the earnings table puts BIIB's report reaction on 2022-10-25, the session after the buy, so the trade was inside the 3-session blackout and the gap down was the earnings reaction. Not a setup failure; replaced in the failure sheet by LOW 2008-08-28."
+   },
+   {
+    "ticker": "PLTR",
+    "date": "2026-08-27",
+    "criterion": "ss.reentry",
+    "why": "the same earnings drive (2026-08-04, +29.5%) gave two triggers six sessions apart (2026-08-21 and 2026-08-27); both were stopped (the first the next day, the second after 4 days, best 0.31R). The re-entry rule allows the second try; a stock that fails its first Slingshot has said the pullback was no longer orderly."
+   },
+   {
+    "ticker": "PSX",
+    "date": "2020-12-10",
+    "criterion": "ss.leadership",
+    "why": "the same market-wide drive day as LPLA (2020-11-09, +22.2%), 3 closes, 5.5% deep, DCR 0.76, a 3.9% stop: stopped in 2 sessions, 0.0R. The bars cannot say whether PSX was a leader by RS that day; it is the kind of case rule 8 exists for."
+   },
+   {
+    "ticker": "SRPT",
+    "date": "2019-01-25",
+    "criterion": "ss.stop",
+    "why": "drive 2019-01-04 (+8.2% on volume, not an earnings day), 3 closes under the line, 6.6% deep, 1.13 ATR, trigger DCR 0.94, buy 122.76, stop 119.10 (3.0%); the next session opened at 121.51 and fell to 115.90, under the pullback low, then the 3R level printed 4 sessions later without us. A one-day flush; a second try needs a new run of closes under the line (ss.reentry)."
+   },
+   {
+    "ticker": "LOW",
+    "date": "2008-08-28",
+    "criterion": "ss.ma_rising_pref",
+    "why": "drive 2008-08-08 (+8.8% on volume, not an earnings day), 3 closes under the line, 6.9% deep, 1.09 ATR, trigger DCR 1.0, buy 24.90, stop 24.53 (1.5%); stopped the next session, a spike printed the 3R level 2 sessions later, then the stock fell 12.6% under the buy within 20 sessions as the 2008 market broke. The 50-day sat under the 200-day on the trigger day, the location the card prefers to avoid."
+   }
+  ],
+  "limits": "Fixed stop, no trims; a gap through the stop exits at the stop price (daily bars cannot apply B20), which flatters the failures slightly. RS, group, market reading and the pre-earnings rule were not in the scan. The ten were chosen by eye from the 5R winners, one ticker each, ten different years. No delisted names. The one published backtest (Analyzing Alpha, hourly bars, QQQ members, fixed reward-to-risk exits) does not carry over to our daily rule.",
+  "near_misses": [
+   {
+    "ticker": "ASO",
+    "date": "2024-02-20",
+    "criterion": "ss.drive",
+    "why": "no drive day in the 25 sessions before the pullback: no 5%+ gap, no 4%+ close on above-average volume, no 20% in five sessions. The shape is right (4 closes under the line, 5.5% deep, trigger DCR 0.98); the engine is missing. It reached 4.1R on the climb."
+   },
+   {
+    "ticker": "BA",
+    "date": "2022-11-25",
+    "criterion": "ss.pullback_length",
+    "why": "8 closes under the line; the rule wants 3 to 7 (past 7 it is becoming a base, ss.inv_long_or_deep says the same). Stopped at 0R."
+   },
+   {
+    "ticker": "CMCSA",
+    "date": "2019-02-15",
+    "criterion": "ss.depth",
+    "why": "the pullback was 2.7% deep from the drive leg's high; the rule wants 5% to 12%. A pause after a 5.5% earnings day, not a pullback; it reached 9.5R on the trend."
+   },
+   {
+    "ticker": "GSK",
+    "date": "2025-10-23",
+    "criterion": "ss.trigger_decisive",
+    "why": "the trigger day closed at 0.54 of its range; the rule wants 0.7 or more. An indecisive first close over the line; stopped at 0R."
+   }
+  ],
+  "sheets": {
+   "failures": "final/fail_1-4.png",
+   "near_misses": "final/near_1-4.png",
+   "pair": "final/pair_11-ema20-pullback.png"
+  }
+ },
+ "question_seeds": [
+  {
+   "kind": "recall",
+   "criterion": "ss.line",
+   "seed": "What is the Slingshot's line: an average of what, over how many days?"
+  },
+  {
+   "kind": "recall",
+   "criterion": "ss.pullback_length",
+   "seed": "How many straight closes under the line does a Slingshot need before the trigger, and what is the most it can have?"
+  },
+  {
+   "kind": "recall",
+   "criterion": "ss.drive_not_trigger",
+   "seed": "The stock gaps up 18% on earnings and closes over the 4-day EMA of highs the same day. Is that day the Slingshot trigger?"
+  },
+  {
+   "kind": "spot",
+   "criterion": "ss.trigger",
+   "seed": "Hidden ticker with the 4-day EMA of highs drawn: tap the first close back over the line after the pullback."
+  },
+  {
+   "kind": "spot",
+   "criterion": "ss.drive",
+   "seed": "Hidden ticker: tap the drive day, the gap or the 4% volume day that came before the pullback."
+  },
+  {
+   "kind": "spot",
+   "criterion": "ss.orderly",
+   "seed": "Hidden ticker, four pullbacks: which one is orderly enough for a Slingshot, and which has the outsized red bar?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "ss.line",
+   "seed": "Slingshot or 20 EMA pullback: the stock closed under the 4-day EMA of highs for four sessions while never touching its 20-day EMA, then closed back over the 4-day line. Which is it?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "ss.pullback_length",
+   "seed": "Slingshot or Remount: the stock closed under its 50-day for eleven sessions, then closed back over it on volume. Which is it?"
+  },
+  {
+   "kind": "discriminate",
+   "criterion": "ss.inv_long_or_deep",
+   "seed": "Slingshot or Launchpad: nine closes under the line, the 9, 20 and 50-day bunched together, then a close out of the cluster. Which is it?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "ss.trigger_decisive",
+   "seed": "The pullback is four tight closes, 6% deep. Today opens 3% up on news and closes over the line mid-range. Buy at the close, or pass?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "ss.close_back_under_line",
+   "seed": "You bought the trigger close at 20.46 with the stop at 19.96. The next day closes 20.30, back under the line, above the stop. What now?"
+  },
+  {
+   "kind": "scenario",
+   "criterion": "ss.reentry",
+   "seed": "Your Slingshot stopped out the day after the trigger. Two sessions later price closes back over the line again. Buy it?"
+  },
+  {
+   "kind": "grade",
+   "criterion": "ss.trigger_size",
+   "seed": "Two trigger days on the same pullback shape: one +4% closing at its high on 1.1x volume, one +13% closing at its high on 2.4x volume. Grade each, and say what the test found."
+  },
+  {
+   "kind": "grade",
+   "criterion": "ss.stop_width",
+   "seed": "The trigger day's low sits 5.5% under the close. A+, size down, or pass?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "ss.depth",
+   "seed": "Drive leg high 110.00, pullback low 101.20. How deep is the pullback, and is it inside 5% to 12%?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "ss.stop",
+   "seed": "Trigger close 93.86, trigger day's low 91.72, stop a few cents under. What is the risk in percent, and where is 3R?"
+  },
+  {
+   "kind": "numeric",
+   "criterion": "ss.orderly",
+   "seed": "The pullback's high is 68.40, its low 66.10, and the ATR is 1.50. How many ATR is the range, and does it pass 1.6?"
+  }
+ ],
+ "owner_decisions": [
+  "D-001",
+  "D-003",
+  "D-004",
+  "D-005",
+  "D-009",
+  "D-012",
+  "D-013",
+  "D-014",
+  "D-016",
+  "D-106",
+  "D-107",
+  "D-108"
+ ],
+ "conflicts": [
+  "Sources: the dossier's section 11 is a bullet list that numbers nothing, so the card cites it by reading order as the validator reads it (S1 Introducing the Slingshot 2015, S3 Thrust, S5 the 2015 anticipation scan, S6 the 2016 refresher, S7 Setups 2017, S10 Scot1and's Substack, S14 TaPlot's copy of his write-up, S15 BigGuava, S18 Analyzing Alpha, S21 Stockbee, S23 the owner's rulings, S25 the levels dossiers and the setup-differentiation analysis, S26 the brain KB rows, S27 the code).",
+  "The line: Scot1and's August 2015 post said only EMA 4; from October 2015 his own posts, scan and podcast, TaPlot, BigGuava, Analyzing Alpha and UCT use the 4-period EMA of the highs; Deepvue describes a 5-day EMA and Trade The System's friend a 4 EMA of nothing stated. The card takes the originator's. The Model Book glyph draws a 3-period EMA of closes and the card sits under Reversals & Reclaims though the sources describe a continuation (D-014).",
+  "Close or intraday break: Scot1and's scan uses the close and his prose says break and range breakout; Manrav's slide, Deepvue and Analyzing Alpha add a range break after the cross; the owner's definition and the scanner use the close; the levels dossier recommended the next-day break over the high to match the Kicker ruling. The register's default makes the close the entry because the setup is defined by its close (D-003).",
+  "Pullback length: the scan needs 3 and sets no maximum; the lesson says 3 to 7; VRT (Perfect) had 8; Scot1and's more that 4 pull back bars line is unclear. D-107.",
+  "Depth: the lesson 5 to 12%, the owner-rule record 5 to 9%, Scot1and no deeper than the EMA 9, Deepvue a significant pullback, the scanner no limit. D-107.",
+  "Earnings gaps, Slingshot or Fishhook: in Scot1and's system the first days after a big gap belong to the Fishhook and the Slingshot is the lower entry on a later pullback; the owner calls the Slingshot mostly the way into a PEG. They meet in the middle: with three closes under the line required, a two-day rest cannot be a Slingshot. D-106.",
+  "The stop and A13: all six pass-2 greats had a trigger-low stop of 3.5% to 6.1%, and 51% of all firings had one wider than 3%; the test found the wider stops no worse. A13 says usually; A5 shrinks the size. D-005 (the register's one-ADR default differs from the dossier's 6.5%).",
+  "Selling: Scot1and 2015 trails on a close under the 4-day EMA; 2016 sells a portion early then trendlines; the team playbook trims into the next 3-5 day burst; the house thirds at 3R and 5R. D-013.",
+  "Volume on the trigger: Scot1and (2023) says it is less important because it is not a breakout setup; the owner graded quiet triggers highest; no script has a condition; the test found strong days (+6% or more) did best, inside the noise. D-108.",
+  "The 200-day: the bank lesson and the playbook say the 200-day is not required (HAE, 2026-10-25); B26 (2026-11-09) is a hard rule; the member tag demands the 50 over the 200 but the detector tests neither. HAE on our bars was over its 200-day. D-009.",
+  "The detector against the rulings: five of its six positive fixtures are charts the owner cut; it has no 200-day test, no length or depth cap, no trigger-quality test, a $5 and 100,000-share floor, the stop exactly on the low and 2R/3R targets; its follow-through within one to three sessions has no source; the house record saying the three-closes rule came from a script is wrong (it is Scot1and's own scan). D-004.",
+  "Credit: Scot1and named and published the setup in 2015 with a couple of trader friends; Chris Moody's unrelated SlingShot System (2014) and MarketGauge's course share the name. Whether the lesson names him is D-016.",
+  "The hourly Slingshot as an early entry into a PEG in its first days is D-012; the card is daily only (C35).",
+  "The entry type: the house triggers are BASE BREAKOUT, PREV DAY HIGH BREAK, PREV LOW RECLAIM and RED TO GREEN; the Slingshot's close back over a moving line is none of them, so the card says OTHER. Entry B would be a PREV DAY HIGH BREAK."
+ ]
+}

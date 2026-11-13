@@ -53,17 +53,24 @@ def _unscored(row: dict) -> bool:
 def compose_unit(user_id: str, skill_id: str, bank_query: Callable[[], Iterable[dict]], *,
                  walkthrough_query: Optional[Callable[[str], Iterable[dict]]] = None,
                  n: int = SET_SIZE, max_walkthroughs: int = MAX_WALKTHROUGHS,
-                 rng: Optional[random.Random] = None, **compose_kw) -> list[str]:
+                 rng: Optional[random.Random] = None, band: Optional[str] = None, **compose_kw) -> list[str]:
     """A UNIT session (§13.9 #1): the skill's approved walk-throughs FIRST, at
     most `max_walkthroughs`, in `prompt_json.order` then id (the store's
-    `list_walkthroughs` order), then the scored items exactly as the daily
-    composer picks them (no due slots: a unit is the member's own choice).
-    `walkthrough_query(skill_id)` defaults to the store. Returns item ids."""
+    `list_walkthroughs` order), then the scored items as the daily composer
+    picks them (no due slots: a unit is the member's own choice), leaned to the
+    member's `band` on the skill (LEVEL_WEIGHTS) and played EASY TO HARD (item
+    difficulty, stable, then no two charts back to back), so a lesson climbs
+    Learn, Practise, Prove. `walkthrough_query(skill_id)` defaults to the store.
+    Returns item ids."""
     wq = walkthrough_query or study_store.list_walkthroughs
     walks = [r["id"] for r in (wq(skill_id) or []) if r.get("id")][:max(0, int(max_walkthroughs))]
-    scored = compose_today(user_id, bank_query, n=n, due_slots=0, rng=rng, **compose_kw)
+    rows = {r["id"]: dict(r) for r in (bank_query() or []) if r.get("id")}
+    scored = compose_today(user_id, lambda: list(rows.values()), n=n, due_slots=0, rng=rng,
+                           level_weights=LEVEL_WEIGHTS.get(band or "") if band else None, **compose_kw)
     seen = set(walks)
-    return walks + [i for i in scored if i not in seen]
+    picked = [rows.get(i) or {"id": i} for i in scored if i not in seen]
+    climbing = sorted(picked, key=lambda r: int(r.get("difficulty") or 1))     # stable: ties keep the mix's order
+    return walks + [r["id"] for r in arrange_no_adjacent_charts(climbing)]
 
 
 def _bucket(row: dict) -> str:
@@ -72,19 +79,31 @@ def _bucket(row: dict) -> str:
     return str(row.get("type") or "")
 
 
-def _weight(row: dict, weak: set, missed: set) -> float:
+#: A unit leans its picks to the member's band on the skill (spec §4.4: Learn, Practise, Prove; item difficulty 1, 2, 3
+#: = rungs 1-3, 4-6, 7-9). A lean, never a gate: every level stays reachable, so a member can always test out.
+LEVEL_WEIGHTS = {
+    "learning": {1: 3.0, 2: 2.0, 3: 1.0},
+    "practised": {1: 1.0, 2: 3.0, 3: 2.0},
+    "proficient": {1: 1.0, 2: 2.0, 3: 3.0},
+}
+
+
+def _weight(row: dict, weak: set, missed: set, level_weights: Optional[dict] = None) -> float:
     w = 1.0
     if row.get("skill_id") in weak:
         w *= WEAK_SKILL_WEIGHT
     if row.get("id") in missed:
         w *= MISSED_WEIGHT
+    if level_weights:
+        w *= float(level_weights.get(int(row.get("difficulty") or 1), 1.0))
     return w
 
 
-def _pick_weighted(rows: list, weak: set, missed: set, rng: random.Random) -> Optional[dict]:
+def _pick_weighted(rows: list, weak: set, missed: set, rng: random.Random,
+                   level_weights: Optional[dict] = None) -> Optional[dict]:
     if not rows:
         return None
-    weights = [_weight(r, weak, missed) for r in rows]
+    weights = [_weight(r, weak, missed, level_weights) for r in rows]
     return rng.choices(rows, weights=weights, k=1)[0]
 
 
@@ -113,7 +132,8 @@ def compose_today(user_id: str, bank_query: Callable[[], Iterable[dict]], *,
                   due_fn: Optional[Callable[[str, int], list]] = None,
                   missed_fn: Optional[Callable[[str], set]] = None,
                   weak_fn: Optional[Callable[[str], set]] = None,
-                  rng: Optional[random.Random] = None) -> list[str]:
+                  rng: Optional[random.Random] = None,
+                  level_weights: Optional[dict] = None) -> list[str]:
     """See the module docstring. Returns item ids in play order."""
     rng = rng or random.Random()
     due_fn = due_fn or study_store.list_due
@@ -151,7 +171,7 @@ def compose_today(user_id: str, bank_query: Callable[[], Iterable[dict]], *,
     for bucket, lo, _hi in TYPE_MIX:
         while counts.get(bucket, 0) < lo and len(chosen) < n:
             cands = [r for r in pool if _bucket(r) == bucket]
-            pick = _pick_weighted(cands, weak, missed, rng)
+            pick = _pick_weighted(cands, weak, missed, rng, level_weights)
             if pick is None:
                 break
             take(pick)
@@ -163,7 +183,7 @@ def compose_today(user_id: str, bank_query: Callable[[], Iterable[dict]], *,
         cands = [r for r in pool if counts.get(_bucket(r), 0) < maxima.get(_bucket(r), n)]
         if not cands:
             cands = pool
-        pick = _pick_weighted(cands, weak, missed, rng)
+        pick = _pick_weighted(cands, weak, missed, rng, level_weights)
         if pick is None:
             break
         take(pick)
