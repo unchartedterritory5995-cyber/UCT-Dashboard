@@ -447,7 +447,7 @@ export const GROUPS = [
   // step, a speed with replay) — never "replay mode" / "replay as of / from <date>" (chart.replay's cutoff), never the verb
   // "replay the tutorial / alert". Bare playback words ("next bar", "pause", "5x") bring it only while a chart's bar replay
   // is ON (routingNames.replayOn): outside replay "next bar" stays chartSetup.stepBars.
-  { id: 'chartReplay', title: 'A chart\u2019s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit', domains: ['chartReplay'], fillLast: true, wordsOnly: true,
+  { id: 'chartReplay', title: 'A chart’s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit', domains: ['chartReplay'], fillLast: true, wordsOnly: true,
     words: [
       /\b(?:play|pause|un-?pause|resume|restart|rewind|step|advance|scrub|skip|jump|move|fast[- ]?forward|speed up|slow down|run|continue|start|stop|exit|leave|quit|close|end|enter|open|launch|turn (?:on|off))\s+(?:the\s+|this\s+|that\s+|my\s+|its\s+)?(?:\w+\s+)?(?:bar\s+)?replay\b(?!\s+(?:mode|as of|from|of)\b)/,
       /\breplay\s+(?:bar|speed|playback|controls?|scrubber|slider)\b|\btime machine\b/,
