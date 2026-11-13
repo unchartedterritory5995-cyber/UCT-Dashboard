@@ -359,6 +359,25 @@ EXEMPT_TOOLS: dict[str, str] = {
         "ModuleNotFoundError, and the job gates the promotion of production: #260 was refused "
         "on 2026-10-01. The tool writes one committed JSON fixture under app/ and opens no "
         "database."),
+    "agent_eval_ledger.py": (
+        "A LIBRARY, not a runnable tool: imported by agent_eval_run / agent_latency_probe / "
+        "agent_live_batch (each already pinned) and by tests. Its one `api.*` import is the pure "
+        "`narrative_cost_guard.estimate_cost` arithmetic, function-local and inside a try. Its "
+        "ledger is the fixed `C:/UCT/agent-eval-ledger.db` (POSIX `/var/lib/uct-agent-eval/`), "
+        "outside every census root by design; a module-level pin would only add the census's "
+        "40-120 s AST walk to every importer."),
+    "bench_setup_tags.py": (
+        "Ordered BY DESIGN: it opens `--bars-db` (default the literal `C:/data/bars.db`) "
+        "`immutable=1` read-only FIRST, then runs `import conftest` itself inside main() before "
+        "any `api.*` import, so the census pins every other path and the tag store goes to the "
+        "sandbox. A module-level pin would run the census at import, which the tool deliberately "
+        "keeps side-effect free."),
+    "converse_eval.py": (
+        "Builds its OWN sandbox before the census: `hub_sandbox_boot.apply_sandbox_env` pins every "
+        "census path, THEN it imports conftest inside the run and `verify_pins` against "
+        "`conftest.SHARED_DATA_ROOTS`, refusing (exit 2, nothing created) when pytest is "
+        "missing or a pin lands on the shared root. A module-level pin would import conftest "
+        "before that sandbox and the refusal could not be clean."),
 }
 
 #: Named members, never a count: the walk must see these three PINNED tools and these three

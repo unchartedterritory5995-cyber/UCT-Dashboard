@@ -37,6 +37,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO))
+import conftest  # noqa: E402,F401 -- the shared-data-root census + tripwire (tests/test_tools_pin_the_root.py); inert on a Railway service
 from api.services import pine_runtime_codec as codec  # noqa: E402
 
 MJS = REPO / "tools" / "pine_runtime_host_parity.mjs"
