@@ -449,7 +449,7 @@ export const GROUPS = [
   // is ON (routingNames.replayOn): outside replay "next bar" stays chartSetup.stepBars.
   { id: 'chartReplay', title: 'A chart\u2019s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit', domains: ['chartReplay'], fillLast: true, wordsOnly: true,
     words: [
-      /\b(?:play|pause|un-?pause|resume|restart|rewind|step|advance|scrub|skip|fast[- ]?forward|speed up|slow down|run|continue|start|stop|exit|leave|quit|close|end|enter|open|launch|turn (?:on|off))\s+(?:the\s+|this\s+|that\s+|my\s+|its\s+)?(?:\w+\s+)?(?:bar\s+)?replay\b(?!\s+(?:mode|as of|from|of)\b)/,
+      /\b(?:play|pause|un-?pause|resume|restart|rewind|step|advance|scrub|skip|jump|move|fast[- ]?forward|speed up|slow down|run|continue|start|stop|exit|leave|quit|close|end|enter|open|launch|turn (?:on|off))\s+(?:the\s+|this\s+|that\s+|my\s+|its\s+)?(?:\w+\s+)?(?:bar\s+)?replay\b(?!\s+(?:mode|as of|from|of)\b)/,
       /\breplay\s+(?:bar|speed|playback|controls?|scrubber|slider)\b|\btime machine\b/,
       /\b(?:in|on|during|through) (?:the |this |my )?(?:bar )?replay\b(?!\s+mode\b).*\b(?:step|forward|back|next|previous|bars?|play|pause|speed|faster|slower)\b|\b(?:step|forward|next|previous|bars?|play|pause|speed|faster|slower)\b.*\b(?:in|on|during|through) (?:the |this |my )?(?:bar )?replay\b(?!\s+mode\b)/,
       /\breplay\b(?!\s+mode\b).*\b(?:\d+ ?x|faster|slower)\b|\b(?:\d+ ?x|faster|slower)\b.*\breplay\b(?!\s+mode\b)/] },
