@@ -959,3 +959,32 @@ def test_GATE_one_big_source_per_request():
     assert not b.allows(big) and b.allows(1000)
     first = rt.DetectorBudget(runs=8, seconds=0.3)
     assert first.allows(10 ** 6)                                       # the first run always may start
+
+
+def test_GATE_a_run_in_progress_refuses_a_second_concurrently(store, monkeypatch):
+    """Deterministic: while one detector run holds the gate, a second request's run is refused at once
+    (pending), whatever the timing of the threads. (A timing-only burst can miss an overlap.)"""
+    monkeypatch.setenv(rt.CAPABILITY_ADMISSION_ENV, "on")
+    monkeypatch.setattr(rt, "DETECTOR_DUTY_CYCLE", 1.0)              # the gate alone
+    rt._reset_capability_cache(persisted=True)
+    started, release = threading.Event(), threading.Event()
+    first = []
+
+    def slow_then_fast(src):
+        if not first:
+            first.append(1)
+            started.set()
+            assert release.wait(10)
+        return frozenset({"core"})
+    monkeypatch.setattr(pc, "capabilities_of", slow_then_fast)
+    holder = threading.Thread(target=lambda: rt.capabilities_for(MEMBER_COPY + "// first\n", persist=False))
+    holder.start()
+    try:
+        assert started.wait(10)
+        t0 = time.perf_counter()
+        got = rt.capabilities_for(MEMBER_COPY + "// second\n", budget=rt.DetectorBudget(), persist=False)
+        assert got is None and time.perf_counter() - t0 < 0.2       # refused, without waiting
+    finally:
+        release.set()
+        holder.join(10)
+    assert rt.capabilities_for(MEMBER_COPY + "// second\n", budget=rt.DetectorBudget(), persist=False) is not None
