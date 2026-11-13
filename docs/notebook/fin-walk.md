@@ -456,3 +456,61 @@ all four checkpoints).
 
 Through our server's ask door as the member, at one width (the door has no width). The citation
 is `Image, p.1`, marked `page_only`. Not walked: the document's own sheet in the browser.
+
+## 9. Notebook simplify, go-live wave 2 (2026-11-12, c2 on `13f1b01f5e`)
+
+Branch `feat/notebook-simplify`. The Notebook's layout changed on this branch (the notes list is the landing,
+Research home and its Learn menu are gone, the Daily brief is `?view=today`), so the walk, the door audit and
+the older walkers were first re-pointed at the doors a member uses now (`6ab326bc63`, `5b2c5b4f1d`,
+`13f1b01f5e`), then run. Product fixes found by the walk: `c2198187f0` (the base tour waits for the 60-second
+first run, S16) and `19b4647f94` (the first run's "Skip" is 44 px wide on the touch tier).
+
+Raw record: `evidence/fin-walk/13f1b01f5e/c2/` (local paths redacted to `<temp>` / `<home>`; members are
+synthetic `@local.dev` sandbox accounts). One sandbox boot, port 8132, an empty data dir, tip `13f1b01f5e`
+(product code as of `19b4647f94`). Integrity line: pre-boot, post-boot and post-prewarm CLEAN; the shutdown
+checkpoint is missing (the sandbox was stopped FORCED after 120 s without a graceful exit), recorded as is.
+
+| run | tip | steps | PASS | FAIL | INFO | NOT RUN |
+|---|---|---|---|---|---|---|
+| before (the old walker on the new layout; not committed) | `2c306762b6` | 272 | 137 | 109 | 10 | 16 |
+| after (re-pointed walker, final) | `13f1b01f5e` | 316 | 282 | 16 | 11 | 7 |
+
+Compared with the last fully green c2 record (`evidence/fin-walk/e1b1540e22/`, 256 steps, 2 FAIL): no row that
+passed there fails here because of a change this branch made to the product.
+
+### 9.1 The 16 FAIL rows
+
+| step | width | was (e1b1540e22) | now | class | what was done / why it stays |
+|---|---|---|---|---|---|
+| template gallery: insert a UCT pick | 1280 | PASS | FAIL | INSTRUMENT | master S7 renamed the gallery's words (Use, Template library); the door, heading and Preview were re-pointed, the "added to Your templates" read still misses. Not this branch's code. |
+| tour: template-gallery | 390 | n/a | FAIL | PRODUCT, pre-existing | the tour's first step is the list's "+ New" arrow, which a phone does not draw (master S12 hid it); nothing opens. Needs phone-tier steps (copy/design call): Concerns. |
+| tour: style-library | 390 | n/a | FAIL | PRODUCT, pre-existing | same cause as above. |
+| styles.slash-style | 1280 | PASS | FAIL | INSTRUMENT (suspected) | the step waits for a dialog named "Choose a journal style"; S7 renamed the styles vocabulary to templates. Not re-pointed: not verified in time. |
+| blocks.sizing | 1280 | PASS | FAIL | not this branch | the trader blocks are unchanged on this branch (`lib/blocks`, `components/notebook/blocks`); master-era. |
+| blocks.switch-off-renders | 1280 | PASS | FAIL | not this branch | as above. |
+| smart.screenshot-tag | 1280, 820, 390 | n/a | FAIL | INSTRUMENT (configuration) | the c2 sandbox leaves `J2_OCR_ENABLED` unset, so a pasted screenshot gets no text and no chip is offered. |
+| remove sample: More > Remove the sample notebook (and 6 rows that depend on it) | 1280 | PASS (old strip) | FAIL | PRODUCT, unsettled | the press showed the designed hold: `The sample was not removed: "Trade plan: example -- AAPL pullback" is still syncing — try again in a moment.` The same step passed in one press on the previous full run of the same product code (`5b2c5b4f1d`, 14 FAIL, removal PASS). Whether a write the walk made on that note stayed pending too long was not settled: Concerns. |
+
+NOT RUN (7): writing help, Ask, AI actions, meaning search, dictation, the Compass quote (NO KEY); five passed
+setups and Show all (the member had fewer).
+
+### 9.2 Walkthroughs (Help > Walkthroughs, real browser; the card's count / steps shown / declared at that width)
+
+| tour | 1280 | 820 | 390 |
+|---|---|---|---|
+| voice-notes | 3, 3/3 | 3, 3/3 | 2, 2/2 |
+| review-drafts | 4, 4/4 | 4, 4/4 | 2, 2/2 |
+| earnings-prep | 3, 3/4 | 1, 1/4 | 3, 3/4 |
+| passed-setups | 2, 2/3 | 2, 2/3 | 2, 2/3 |
+| writing-help | 5, 5/5 | 4, 4/4 | 4, 4/4 |
+| template-gallery, style-library | 4, 1/4 | 4, 1/4 | does not open |
+
+The base tour (from the Get started item, 1280): Folders and tags, Search, New note, Views, Import; it ticks its
+item, the tick survives a reload. Every other replayable tour passed at all three widths. The 60-second first run
+and the base tour were never on screen together (checked at 1280, 820 and 390).
+
+### 9.3 Door audit (`evidence/door-audit-20261112T211834Z/`, tip `19b4647f94`)
+
+Both widths, graded on the realistic state: EASY 7, OK 12, HARD 11, HIDDEN 0; every HARD row carries a written
+HARD reason; exit 0. The positive control behaved at both widths. The doors that are HARD now and were EASY or
+OK before are listed, with their rulings, in `simplify-2026-11-11-ledger.md` (Go-live wave 2).

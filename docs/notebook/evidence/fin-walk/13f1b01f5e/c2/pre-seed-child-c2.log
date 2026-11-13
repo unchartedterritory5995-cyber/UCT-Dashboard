@@ -1,0 +1,19 @@
+tip: 13f1b01f5e
+  Model keys   : BLANKED ANTHROPIC_API_KEY, WISDOM_ANTHROPIC_API_KEY, OPENAI_API_KEY, PERPLEXITY_API_KEY, ANTHROPIC_AUTH_TOKEN; keyring -> null backend (opt in: --allow-model-keys or HUB_SANDBOX_ALLOW_MODEL_KEYS=1)
+[sqlite-migration] Applied purge_tf60_2f42e55: deleted 0 rows
+[sqlite-migration] Applied purge_tf60_3cbe1cf_src_cap: deleted 0 rows
+[sqlite-migration] Applied purge_intraday_pagination_v1: deleted 0 rows
+SEEDED 979 <temp>\nb-golive2\final3-data\c2\implied_moves.db
+
+--- stderr ---
+[sqlite] put_bars refused 1/1 impossible bars for SPY tf=D; first: t='2026-09-07' ['D key on a non-trading day (Labor Day)']
+[sqlite] put_bars refused 1/1 impossible bars for QQQ tf=D; first: t='2026-09-07' ['D key on a non-trading day (Labor Day)']
+[sqlite] put_bars refused 1/1 impossible bars for AAPL tf=D; first: t='2026-09-07' ['D key on a non-trading day (Labor Day)']
+[sqlite] put_bars refused 1/1 impossible bars for MSFT tf=D; first: t='2026-09-07' ['D key on a non-trading day (Labor Day)']
+[sqlite] put_bars refused 1/1 impossible bars for NVDA tf=D; first: t='2026-09-07' ['D key on a non-trading day (Labor Day)']
+[sqlite] put_bars refused 1/1 impossible bars for GOOGL tf=D; first: t='2026-09-07' ['D key on a non-trading day (Labor Day)']
+[sqlite] put_bars refused 1/1 impossible bars for TSLA tf=D; first: t='2026-09-07' ['D key on a non-trading day (Labor Day)']
+[sqlite] put_bars refused 1/1 impossible bars for AMZN tf=D; first: t='2026-09-07' ['D key on a non-trading day (Labor Day)']
+[sqlite] put_bars refused 1/1 impossible bars for AMD tf=D; first: t='2026-09-07' ['D key on a non-trading day (Labor Day)']
+[sqlite] put_bars refused 1/1 impossible bars for CRWD tf=D; first: t='2026-09-07' ['D key on a non-trading day (Labor Day)']
+[sqlite] put_bars refused 1/1 impossible bars for IBM tf=D; first: t='2026-09-07' ['D key on a non-trading day (Labor Day)']

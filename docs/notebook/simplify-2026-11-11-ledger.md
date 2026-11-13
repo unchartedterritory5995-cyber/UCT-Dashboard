@@ -280,3 +280,39 @@ Minors: the Daily brief holds only what has not been drawn yet while a walkthrou
 Tests: new `EditorToolSlots.test.jsx`, `NotebookAiPanelSlot.test.jsx`, `PropertiesSection.rollupSlot.test.jsx`; recipes `editor-find-stand-in` and `notebook-ai-panel-failed` in `a11y/simplifyMenus.a11y.test.jsx` (entries in notebookSurfaces.js); `NotebookTab.lazyViews.test.js` (NotebookAiPanel is reached through its slot); `TodayHome.homeNotes.test.jsx` (a tour after drawing); `sampleNotebook.test.js` (one add-failure sentence).
 
 Seen and not changed (master-era): FormulaEditor (typed into) still loads through `lazyChunk` + `<Suspense>`, so its first open per page load carries the same ~300 ms hold.
+
+## Go-live wave 2: the real-browser instruments
+
+The fin walk (c2), the door audit, the wave-8, p5 and proof walkers and their Python tests were re-pointed at the doors a member uses on the simplified Notebook; the walk and the audit were then run on a sandbox from this tree. Full record: `docs/notebook/fin-walk.md` (section 9) and `.superpowers/sdd/2026-11-11-notebook-simplify/golive-2-report.md`.
+
+Product fixes (found by the walk):
+- The base tour waits for the 60-second first run (S16) on a new member's first visit: the two opened together on the empty notes list at every width (the tour gate latched before FirstRunGate's effect said the sheet was up). `NotebookTourGate` now also reads the sheet's own due rule.
+- The first run's "Skip" text button floors its width to 44 px on the touch tier (measured 25 x 44 on the Daily brief at 820 and 390).
+
+First-open bytes: 2,258,169 B across 83 chunks (budget 2,260,793 B).
+
+Fin walk c2, final full run on `13f1b01f5e` from an empty data root: 316 steps, 282 PASS, 16 FAIL, 11 INFO, 7 NOT RUN (before the re-point, on `2c306762b6`: 272 steps, 137 PASS, 109 FAIL). The 16 rows are classified in fin-walk.md section 9.1; none is a PASS -> FAIL caused by this branch's product code.
+
+Checks replaced by ruling (each now proves the replacement door; none was deleted):
+- the welcome screen, the capability preview and the "Want to try it first?" promotion -> the empty notes list (Import notes, Add a sample notebook, Get started) and Help's "What your Notebook can do";
+- the sample strip's "Remove it" -> the list's More menu "Remove the sample notebook" and its status line, and the row leaving the menu;
+- the Get started ticks for opening a sample note, writing a note and starting from a template (the list is not drawn once a note exists, Task 1) -> on an empty member: the base tour item ticks when the tour is finished, survives a reload, Hide hides it for good; and a member with notes is not shown the list;
+- the one-time tour offer on Home -> the offer stays away (Task 1: nothing the member did not ask for); Help > Walkthroughs and What's new;
+- the Learn menu's grouped sheet and its sample item -> Help > Walkthroughs at 390 (every tour listed) and the empty list's sample door (with a member-with-notes control);
+- Research home's New note split button, setups box, Ask section and search box -> the list's "+ New" and its arrow (the phone's More menu), the Daily brief's "Setups near entry" card, the list's "AI" (the note's "AI" menu "Ask about this note"), the folders panel's search and the `#search` door.
+
+Door audit (final, both widths): EASY 7, OK 12, HARD 11 (each with a written HARD reason), HIDDEN 0, exit 0. Doors that are HARD now and were EASY or OK before, each a consequence of a ruling (an owner call to accept or give a nearer door):
+- rows 29 and 53, "What your Notebook can do" lines: in Help after the Walkthroughs list (ruling A6), about 2.3 screens down (was OK through the Learn menu);
+- row 41 (both entries), row 42, row 46: the setups board link and the Notices box live on the Daily brief (rulings A4, A9; Task 5); at 390 the Daily brief row is inside the folders drawer and the cards sit below the first screen (row 46 was EASY);
+- row 63, New Daily prep at 390: the phone's door is More > New from a template, whose sheet keeps the kinds above its search (was OK through Research home's caret);
+- row 39 at 390: the chart's phone header keeps Plan in its More sheet (master S12, by ruling).
+Door rows re-pointed (no door dropped): 11 (View menu), 23 and 33-35 (the "+ New" arrow; the phone's More menu), 24 (desktop Aa menu), 26 (the list's AI; the phone's More > Ask your Notebook and its sheet), 41, 42, 46 (the Daily brief), 54 (More > Manage templates), 55 and 56 (From a template; the phone's More > New from a template), 59 (walked from Trades: Task 1 took the settings gear off the desktop Notebook), 63.
+
+Walkthrough step counts the card showed (Help > Walkthroughs, real browser): see fin-walk.md section 9 (the four re-pointed tours, writing-help, the base tour).
+
+Left for the owner or a later task (not fixed here, evidence in the report):
+- The Template gallery and Template library tours do not open at 390: their first step is the list's "+ New" arrow, which a phone does not draw (master S12 already hid it). Needs phone-tier steps through More > New from a template (a copy and design call).
+- `smart.screenshot-tag`: the c2 sandbox leaves `J2_OCR_ENABLED` unset, so a pasted screenshot has no text and no chip is offered (configuration, not product).
+- `blocks.sizing` / `blocks.switch-off-renders` red with the blocks code unchanged on this branch (master-era).
+- The sample removal held once ("still syncing") on the final run and passed in one press on the run before it, same product code; unsettled (report, Concerns).
+- c1's first-run, note and template-picker steps were re-pointed but c1 was not run; c3, keyed and the other one-off walkers (w13*, w14*, wave10b, nvda, style library, verify) were not re-pointed or run; several still name Research home or the Learn menu.
