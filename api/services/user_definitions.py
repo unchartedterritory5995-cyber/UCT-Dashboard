@@ -3920,8 +3920,18 @@ def resolve_share(token: str) -> dict:
     doc = get(row["user_id"], row["def_id"], version=row["version"])
     if doc is None:
         raise ShareRefused("gone", "the version that was shared is no longer in the store")
+    # ⛔⛔ THE AUTHOR'S PINE NEVER TRAVELS WITH A SHARE (owner ruling) -- and an `ast` document can
+    # carry it INSIDE itself: ENGINE 53's run half (`compute.runtimeObjects.source`) and DIV-4's
+    # run-read colours (`compute.runtimeColours.source`) each hold the whole script. Stripped HERE,
+    # at the one edge every cross-member read of a definition passes (the preview, and through it
+    # `install_share`'s copy), by the one function (`runtime_definitions.without_run_reads`); a
+    # plain document comes back as the same object. The preview never draws a chart, and the copy
+    # is the host document a chart without the runtime lane draws.
+    # `tests/test_share_strips_run_reads.py` enumerates every outbound path (the router table and
+    # this module's cross-member reads), so a new door cannot skip it.
+    from api.services import runtime_definitions
     return {
-        "definition": doc["definition"],
+        "definition": runtime_definitions.without_run_reads(doc["definition"]),
         "author_id": row["user_id"],
         "origin_def_id": row["def_id"],
         "origin_version": row["version"],
@@ -3969,12 +3979,10 @@ def install_share(user_id: Any, token: str, limits: Any = None, *, role: Any = N
     # ⛔ A copy of a refused version is refused too: the installer's alerts and scans
     # must not run maths the author's engine refused. The verdict rides in the copy's
     # own transaction (`_carry_from`) and expires with its engine like any carry.
-    # ⛔ ENGINE 53 — and a run half does not travel either: it IS the author's script
-    # (`compute.runtimeObjects.source`), and a copy saved without that script could never be
-    # bound to it (`runtime_definitions.run_half_source_refusal`). The copy keeps its host
-    # picture, exactly what the author's chart draws wherever the run half is not served.
-    from api.services import runtime_definitions
-    doc = runtime_definitions.without_run_half(doc)
+    # ⛔ ENGINE 53 / DIV-4 — and no run-read part travels either (`compute.runtimeObjects`,
+    # `compute.runtimeColours`): each IS the author's script. `resolve_share` above already
+    # stripped them (`runtime_definitions.without_run_reads`), so the copy keeps its host
+    # picture and host colours, exactly what a chart without the runtime lane draws.
     out = save(user_id, def_id, doc, limits=limits, role=role, _copy_of_stored=True,
                _carry_from=(resolved["author_id"], resolved["origin_def_id"],
                             resolved["origin_version"]))
