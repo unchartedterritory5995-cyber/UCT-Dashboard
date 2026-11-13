@@ -22,7 +22,8 @@ import { NAMES_ASK } from './EmptyNamesAsk'
 import { FIRST_PLAN } from './FirstPlanAsk'
 import { DAILY_FOLDER_NOTICE } from '../../lib/dailyNote'
 import { latchNotebookFlags, __resetNotebookFlags } from '../../lib/offline/notebookFlags'
-import { LANDING_PREF } from '../../lib/todayHome'
+import { SOON_URL } from '../../lib/earningsPrepShared'
+import { PASSED_URL } from '../../lib/researchCapture'
 
 const NOTE = {
   id: 'n-today', title: '2026-11-05 · Thursday', updatedAt: 'x', created: false, templateMissing: false,
@@ -88,7 +89,8 @@ describe('one read, the M1 layout', () => {
     expect(document.querySelector('[data-today-line]').textContent)
       .toBe('Thursday, Nov 5 · Pre-market · Green regime · 61% above the 50-day · 1 h 12 m to the open')
     expect(screen.getByText('Started from “Daily prep”')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: '+ New note' })).toBeInTheDocument()
+    // Final fix (C5): the same words as the notes list's button.
+    expect(screen.getByRole('button', { name: '+ New' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'All notes' })).toBeInTheDocument()
     const setups = screen.getByTestId('today-setups')
     expect(within(setups).getByText('1.2% away')).toBeInTheDocument()
@@ -274,15 +276,48 @@ describe('the evening loop (S18)', () => {
   })
 })
 
-describe('where the Notebook opens', () => {
-  it('the member’s choice is stored on the account', async () => {
-    renderToday()
-    const select = await screen.findByLabelText('Open the Notebook on')
-    await waitFor(() => expect(select).not.toBeDisabled())
-    fireEvent.change(select, { target: { value: 'home' } })
-    await waitFor(() => expect(S.calls.some((c) => c.method === 'POST' && c.url === '/api/auth/preferences'
-      && JSON.parse(c.body).key === LANDING_PREF && JSON.parse(c.body).value === 'home')).toBe(true))
+// Notebook simplify, Task 5: the Today home is the Daily brief, an optional page (the Notebook opens on the notes
+// list). It no longer offers "Open the Notebook on" or a Research home link; its "All notes" button stays.
+describe('the Daily brief', () => {
+  it('offers no landing choice and no Research home link; All notes stays', async () => {
+    const onSelectAllNotes = vi.fn()
+    renderToday({ onSelectAllNotes, onOpenResearchHome: vi.fn() })
+    await screen.findByTestId('today-plan')
+    expect(screen.queryByLabelText('Open the Notebook on')).toBeNull()
+    expect(screen.queryByRole('combobox')).toBeNull()
+    expect(screen.queryByRole('button', { name: /Research home/ })).toBeNull()
+    expect(S.calls.some((c) => c.method === 'POST' && c.url === '/api/auth/preferences')).toBe(false)
+    fireEvent.click(screen.getByRole('button', { name: 'All notes' }))
+    expect(onSelectAllNotes).toHaveBeenCalledTimes(1)
   })
+
+  it('below the cards: "Reporting soon" and "Passed setups", folded, reading nothing until opened', async () => {
+    latchNotebookFlags({ notebook_earnings_prep_enabled: true, notebook_passed_setups_enabled: true })
+    renderToday()
+    await screen.findByTestId('today-plan')
+    const soon = screen.getByRole('button', { name: /^Reporting soon/ })
+    const passed = screen.getByRole('button', { name: /^Passed setups/ })
+    expect(soon.getAttribute('aria-expanded')).toBe('false')
+    expect(passed.getAttribute('aria-expanded')).toBe('false')
+    // after the cards
+    const grid = document.querySelector('[data-today-card]').parentElement
+    // eslint-disable-next-line no-bitwise
+    expect(grid.compareDocumentPosition(soon) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(S.calls.some((c) => c.url === SOON_URL || c.url === PASSED_URL)).toBe(false)
+    fireEvent.click(soon)
+    expect(soon.getAttribute('aria-expanded')).toBe('true')
+    await waitFor(() => expect(S.calls.some((c) => c.url === SOON_URL)).toBe(true))
+  })
+
+  it('CONTROL: with their switches off neither section is drawn', async () => {
+    renderToday()
+    await screen.findByTestId('today-plan')
+    expect(screen.queryByRole('button', { name: /^Reporting soon/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: /^Passed setups/ })).toBeNull()
+  })
+})
+
+describe('where the Notebook opens', () => {
 
   it('sends today_opened once, with the session', async () => {
     renderToday()

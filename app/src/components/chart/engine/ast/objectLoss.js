@@ -130,6 +130,12 @@ export const DROP_KEYS = Object.freeze({
     'a drawing whose text size is an integer point size — withheld, never drawn at a named size'),
   'enum:unreadable': C(LOSS.PARTIAL,
     'a drawing whose style, size or position this chart cannot read — withheld, never drawn with a default style'),
+  // ⛔ Engine 52 — a colour, width, count or tooltip this door cannot read (`ENUM_DROPS.value`):
+  // withheld, never drawn with the renderer's default.
+  'enum:points-unwitnessed': C(LOSS.PARTIAL,
+    'a drawing whose integer text size is not one the reference equates with a named size — withheld, never drawn at a guessed size'),
+  'prop:unreadable': C(LOSS.PARTIAL,
+    'a drawing whose colour, width, count or tooltip this chart cannot read — withheld, never drawn with a default'),
   'runtime:prop': C(LOSS.PARTIAL,
     'a drawing the runtime lane would feed, with a property this chart cannot read — dropped whole, never drawn in a default colour'),
   'cell:target': C(LOSS.PARTIAL, 'a table cell write that addresses no readable table — a missing cell'),

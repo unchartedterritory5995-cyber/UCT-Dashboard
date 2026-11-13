@@ -4,8 +4,8 @@
 // The server (`api/routers/notebook_onboarding.py`) writes five notes into a folder named
 // "Sample notebook" for a paid member with no notes at all, records their ids in the
 // preference `notebook_sample` ({v:1, ids, at}), and trashes exactly those ids on remove.
-// A dismissed strip adds `dismissedAt` to the same value (the whole value is written back —
-// `usePreferences().setPref` replaces it — so the ids travel with it).
+// (Research home's strip could add `dismissedAt` to that value; go-live wave 1 retired the strip, and
+// the removal door is now the notes list's ⋯ row "Remove the sample notebook", tabs/NotebookTab.jsx.)
 //
 // ⛔ Wave 8 final review, fix I-3: "Remove it" is a TRASH door, so before the DELETE it runs
 // the bulk trash's own pre-check (lib/noteBatch.js `precheckNoteBatch`) over the sample's
@@ -14,43 +14,40 @@
 // a device that could not be asked is offered a confirmed "Remove anyway", as bulk trash
 // offers "Trash anyway" -- and the confirmed re-run still refuses a note it finds unsent.
 
-import { FAILURE_WORDS, UNCHECKED_SENTENCE } from '../../../lib/noteBatch'
+import { UNCHECKED_SENTENCE } from '../../../lib/noteBatch'
+import { SAMPLE_ADD_FAILED, SAMPLE_ROW_COPY, SAMPLE_URL, SAMPLE_PREF, readSamplePref } from './sampleNotebookKeys'
 
-export const SAMPLE_URL = '/api/j2/onboarding/sample-notebook'
-export const SAMPLE_PREF = 'notebook_sample'
+// Fix round 1: the route, the key, its reader and the More menu row's words are sampleNotebookKeys.js (on the
+// Notebook's first open); re-exported so every import from here keeps working.
+export { SAMPLE_URL, SAMPLE_PREF, readSamplePref }
+// The two WRITES below name their route as a literal of this file, because the door rail
+// (lib/offline/doorEnumeration.test.js) reads every note-touching write's URL from the file it is in and does not
+// follow an import. sampleNotebook.test.js pins it to sampleNotebookKeys.js's SAMPLE_URL, the one authority.
+export const SAMPLE_WRITE_URL = '/api/j2/onboarding/sample-notebook'
 
 export const SAMPLE_COPY = Object.freeze({
   add: 'Add a sample notebook',
   adding: 'Adding the sample…',
-  tour: 'Take the tour',
-  addFailed: "We couldn't add the sample notebook. Try again in a moment.",
+  addFailed: SAMPLE_ADD_FAILED,
   // M-13: the first-run screen shows while a member has no ACTIVE notes, so the server's
   // refusal ("you already have notes") has to say where they are.
   refused: "You already have notes, so we didn't add the sample. If you can't see them, look in Trash or Archive.",
-  strip: "You're looking at the sample notebook",
-  remove: 'Remove it',
-  removing: 'Removing…',
-  removed: 'The sample notes are in Trash. You can restore them from there.',
+  // (Go-live wave 2: the strip's `strip`, `remove` and `tour` words left with it; tools/notebook_wave8_walk.py now walks
+  // the More menu row below and reads the tour doors from Support.jsx and gettingStarted.js.)
+  // Go-live wave 1 (A7): the notes list's ⋯ row, and its status line while it runs (sampleNotebookKeys.js).
+  ...SAMPLE_ROW_COPY,
+  removed: 'Sample notebook moved to Trash. You can restore it from there.',
   removeFailed: "We couldn't remove the sample notebook. Try again in a moment.",
   notRemoved: 'The sample was not removed:',
+  // Final fix (C1): what THIS door says about a held note (the bulk trash's shared "is still syncing -- try again in a
+  // moment" is not always true here: a save whose answer was lost is not re-sent by waiting). Says what works.
+  heldOne: 'has changes that have not finished saving. Open it so it can finish saving, then remove the sample again.',
+  heldMany: 'have changes that have not finished saving. Open them so they can finish saving, then remove the sample again.',
   uncheckedNotRemoved: `${UNCHECKED_SENTENCE} The sample was not removed:`,
   removeAnyway: 'Remove anyway',
   removeAnywayConfirm: 'Remove the sample notebook without checking this device? Words typed here that have not reached the server may not be kept.',
   removeAnywayYes: 'Yes, remove anyway',
-  cancel: 'Cancel',
-  dismiss: 'Hide this message',
 })
-
-/** The recorded sample, or null. Tolerates a string (the server's TEXT) or an object. */
-export function readSamplePref(raw) {
-  let v = raw
-  if (typeof v === 'string') {
-    try { v = JSON.parse(v) } catch { return null }
-  }
-  if (!v || typeof v !== 'object' || !Array.isArray(v.ids)) return null
-  const ids = v.ids.filter((i) => typeof i === 'string' && i)
-  return ids.length ? { ...v, ids } : null
-}
 
 async function detail(res, fallback) {
   try {
@@ -67,7 +64,7 @@ async function detail(res, fallback) {
  *  Trash and Archive (M-13); any other refusal keeps the server's own sentence. */
 export async function addSampleNotebook() {
   try {
-    const res = await fetch(SAMPLE_URL, { method: 'POST', credentials: 'include' })
+    const res = await fetch(SAMPLE_WRITE_URL, { method: 'POST', credentials: 'include' })
     if (res.status === 409) return { ok: false, message: SAMPLE_COPY.refused }
     if (!res.ok) return { ok: false, message: await detail(res, SAMPLE_COPY.addFailed) }
     const body = await res.json()
@@ -80,7 +77,7 @@ export async function addSampleNotebook() {
 /** DELETE: `{ok: true, trashed}` or `{ok: false, message}`. Never throws. */
 export async function removeSampleNotebook() {
   try {
-    const res = await fetch(SAMPLE_URL, { method: 'DELETE', credentials: 'include' })
+    const res = await fetch(SAMPLE_WRITE_URL, { method: 'DELETE', credentials: 'include' })
     if (!res.ok) return { ok: false, message: await detail(res, SAMPLE_COPY.removeFailed) }
     const body = await res.json()
     return {
@@ -109,15 +106,46 @@ export function removedMessage(out) {
   return [SAMPLE_COPY.removed, ...kept, ...older].join(' ')
 }
 
-const named = (ids, words, titleOf) => ids.map((id) => {
-  const t = titleOf(id)
-  return `${t ? `"${t}"` : 'A note'} ${words}`
-})
+/**
+ * Final fix (C1): a held note is named even when it is not in the list on screen (the old fallback, Research home's
+ * `titleOfAnyNote`, went with it). `titleOf` answers for the notes on screen; every held id it cannot name is read
+ * from the server (`GET /api/j2/notes/<id>`, a read, at most three: the sentence names three), and a read that fails
+ * leaves "A note". Returns the combined `titleOf` for describeSampleHold.
+ */
+export async function heldTitles(hold, titleOf = () => null) {
+  const ids = [...(hold?.unsent || []), ...(hold?.blocked || []), ...(hold?.unchecked || [])].slice(0, 3)
+  const found = new Map()
+  await Promise.all(ids.filter((id) => !titleOf(id)).map(async (id) => {
+    // Final fix residual R1: the removal's busy line waits on these reads, so each gives up after HELD_TITLE_TIMEOUT_MS
+    // (aborted, and raced, so a read that ignores the abort cannot hold the door either): not named, "A note".
+    const ctl = typeof AbortController !== 'undefined' ? new AbortController() : null
+    let timer = null
+    const gaveUp = new Promise((resolve) => { timer = setTimeout(() => { ctl?.abort(); resolve(null) }, HELD_TITLE_TIMEOUT_MS) })
+    try {
+      const read = (async () => {
+        const res = await fetch(`/api/j2/notes/${encodeURIComponent(id)}`, { credentials: 'include', ...(ctl ? { signal: ctl.signal } : {}) })
+        if (!res.ok) return null
+        return (await res.json())?.note?.title
+      })().catch(() => null)   // a failed or aborted read (even one that lands after the race) is "A note"
+      const title = await Promise.race([read, gaveUp])
+      if (typeof title === 'string' && title.trim()) found.set(id, title.trim())
+    } catch {
+      // not named: "A note"
+    } finally {
+      clearTimeout(timer)
+    }
+  }))
+  return (id) => titleOf(id) || found.get(id) || null
+}
+
+/** How long the removal waits for one held note's title before it says "A note" (final fix residual R1). */
+export const HELD_TITLE_TIMEOUT_MS = 3000
 
 /**
  * The sentence -- and, for a device that could not be asked, the offer -- when the pre-check
  * holds the sample back (fix I-3). Null when nothing is held. Every held note is NAMED (up to
- * three, then a count), in the bulk trash's own words (`FAILURE_WORDS`).
+ * three, then a count). A note with changes that have not finished saving (unsent, or blocked)
+ * gets THIS door's sentence (final fix C1): what to do, never "try again in a moment".
  * @param hold  precheckNoteBatch's answer: { blocked, unsent, unchecked }
  */
 export function describeSampleHold(hold, { titleOf = () => null } = {}) {
@@ -129,11 +157,14 @@ export function describeSampleHold(hold, { titleOf = () => null } = {}) {
     return parts.length > 3 ? `${shown} and ${parts.length - 3} more` : shown
   }
   if (blocked.length || unsent.length) {
-    const parts = [
-      ...named(unsent, FAILURE_WORDS.unsent, titleOf),
-      ...named(blocked, FAILURE_WORDS.blocked, titleOf),
-    ]
-    return { message: `${SAMPLE_COPY.notRemoved} ${list(parts)}.` }
+    const held = [...unsent, ...blocked]
+    const names = held.map((id) => {
+      const t = titleOf(id)
+      return t ? `"${t}"` : 'A note'
+    })
+    const shown = names.slice(0, 3).join(', ')
+    const who = names.length > 3 ? `${shown} and ${names.length - 3} more` : shown
+    return { message: `${SAMPLE_COPY.notRemoved} ${who} ${held.length === 1 ? SAMPLE_COPY.heldOne : SAMPLE_COPY.heldMany}` }
   }
   if (unchecked.length) {
     const parts = unchecked.map((id) => {

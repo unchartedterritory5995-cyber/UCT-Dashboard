@@ -1,84 +1,17 @@
-// Research Home's "Learn" menu: WHICH walkthroughs it offers, and the one door each one is
-// started through (Notebook UX pass, 2026-10-10). Pure: no React. `LearnMenu.jsx` renders it.
+// The one door a walkthrough is started through from a list of tours (Notebook UX pass, 2026-10-10). Pure: no React.
 //
-// ⛔ THE TOURS ARE DERIVED, NEVER LISTED. One item per REGISTERED, REPLAYABLE tour that may
-// reach this member right now (`tourLive`, the registry's one answer to that question), in
-// registry order. A tour a track adds tomorrow appears here the day its flag arms, with no
-// edit to this file. This is the SAME derivation Help > Walkthroughs makes (Support.jsx:
-// `replayableTours().filter(t => tourLive(t, notebookFlag))`), so the Learn menu and Help can
-// never offer two different lists. A non-replayable entry (the passive resurfacing explainer)
-// cannot be opened on demand, so it is never offered.
+// ⛔ NO NEW TOUR MACHINERY. Starting a tour goes through the doors that already exist: the base tour's
+// `openNotebookTour` (tourControl.js) and every other tour's `openRegistryTour` (tourRegistryControl.js) -- the same
+// two calls the offer makes. Where a tour starts (another page, a note, a trade) is the engine's business
+// (tourStart.js), never the caller's.
 //
-// ⛔ NO NEW TOUR MACHINERY. Starting a tour goes through the doors that already exist:
-// the base tour's `openNotebookTour` (tourControl.js) and every other tour's
-// `openRegistryTour` (tourRegistryControl.js) -- the same two calls the get-started list
-// and the offer make. Where a tour starts (another page, a note, a trade) is the engine's
-// business (tourStart.js), never this menu's.
-//
-// ⛔ THE GROUPS ARE DATA BESIDE THE REGISTRY (P0.12). ~21 tours in one flat list was a wall;
-// `GROUP_OF` files each under one of four headings. The registry validator (tourRegistry.js)
-// is untouched, and a tour with no entry falls back to the first group rather than vanishing, so a new
-// tour is never LOST to the menu. learnTours.test.js reads every replayable id from
-// TOUR_REGISTRY and fails by name on one with no group, so "falls back" is a safety net and
-// never how a tour is meant to be filed.
-//
-// The menu exists only while the wave-14 onboarding switch is on (`checklistEnabled`: the
-// onboarding flag AND getting-started, reused, never restated). Off, Research Home is the
-// pre-wave-14 page, exactly as Help's Walkthroughs section is.
-import { BASE_TOUR_ID, NEEDS_NOTES, TOUR_REGISTRY, replayableTours, tourLive } from './tourRegistry'
+// ⚰️ This file was Research Home's "Learn" menu's rules (which tours, grouped under five headings, and the button's
+// words in learnMenuCopy.js). Go-live wave 1 dropped the Learn menu with Research home: Help > Walkthroughs
+// (Support.jsx) lists every tour by the same registry derivation. What is left is the one export routed code uses,
+// the get-started list's tour step (GettingStartedList.jsx).
+import { BASE_TOUR_ID } from './tourRegistry'
 import { openNotebookTour } from './tourControl'
 import { openRegistryTour } from './tourRegistryControl'
-
-// The button's words, the Help address and the "is the menu offered" rule live in learnMenuCopy.js
-// (the Learn button is eager, this file is not); they are re-exported so nothing else changes.
-export { HELP_WALKTHROUGHS_HREF, LEARN_COPY, learnMenuEnabled } from './learnMenuCopy'
-
-/** The headings the menu groups tours under, in the order it draws them.
- *  S14 (audit 2026-11-05, detail #65): five groups, by what the member is doing -- Write · Organize · Live data ·
- *  Trading tools · AI (they were Basics / Writing and capture / Trading / Research). */
-export const LEARN_GROUPS = Object.freeze(['Write', 'Organize', 'Live data', 'Trading tools', 'AI'])
-
-/** Which heading each registered, replayable tour sits under. */
-export const GROUP_OF = Object.freeze({
-  'notebook-basics': 'Write', 'template-gallery': 'Write', 'image-docx-import': 'Write', 'voice-notes': 'Write',
-  'formulas-rollups': 'Write', 'journal-styles': 'Write', 'style-library': 'Write',   // R-P5-6: the two template tours together
-  'meaning-search': 'Organize', 'task-reminders': 'Organize', 'publish-share': 'Organize',
-  'ta-fingerprint': 'Live data', 'earnings-prep': 'Live data', 'transcript-capture': 'Live data', 'setups-board': 'Live data',
-  'plan-grading': 'Trading tools', 'entry-context': 'Trading tools', 'my-playbook': 'Trading tools',
-  'chart-plan-basics': 'Trading tools', 'chart-plan-replay': 'Trading tools', 'visual-playbook': 'Trading tools',
-  'passed-setups': 'Trading tools',
-  'writing-help': 'AI', 'review-drafts': 'AI',
-})
-
-/** The heading a tour sits under; an unknown id falls back to the first group, Write (never dropped). */
-export function learnTourGroup(id) {
-  return GROUP_OF[id] || LEARN_GROUPS[0]
-}
-
-/** `tours` split by heading: `[{ name, tours }]`, in `LEARN_GROUPS` order, empty groups left out.
- *  Within a group the tours keep the order they came in (registry order). */
-export function groupLearnTours(tours) {
-  return LEARN_GROUPS
-    .map((name) => ({ name, tours: tours.filter((t) => learnTourGroup(t.id) === name) }))
-    .filter((g) => g.tours.length > 0)
-}
-
-/** Tours whose FIRST anchor exists only once the member has a note: hidden from Learn until they
- *  have one. The list's one authority is the registry module (tourRegistry.js, `NEEDS_NOTES`, which
- *  also tells the engine to say "make a note first" from every other door); re-exported here so
- *  existing imports keep working. */
-export { NEEDS_NOTES }
-
-/** The tours the menu offers, in registry order (see the header). `flag` is notebookFlag
- *  (a parameter so a rail can arm a fake registry's flags); `registry` is TOUR_REGISTRY.
- *  `hasAnyNotes === false` (the member is known to have none) hides `NEEDS_NOTES`; a caller that
- *  does not say hides nothing, like Help > Walkthroughs, which makes the same derivation. */
-export function learnMenuTours({ flag, registry = TOUR_REGISTRY, hasAnyNotes } = {}) {
-  if (typeof flag !== 'function') return []
-  return replayableTours(registry)
-    .filter((t) => tourLive(t, flag))
-    .filter((t) => !(hasAnyNotes === false && NEEDS_NOTES.includes(t.id)))
-}
 
 /** Start one tour through its existing door: the base tour's own, or the registry's. */
 export function startTour(tourId) {

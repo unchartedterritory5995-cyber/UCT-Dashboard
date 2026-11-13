@@ -74,7 +74,9 @@ const DECLARED = Object.freeze({
 
 /** What the slim definition RENDERS, in declaration order, with the live row declared. */
 const RENDERED = Object.freeze([
-  'benchmark', 'customBenchmark', 'showAverage', 'showNewHigh', 'showNewHighBeforePrice', 'showRedDay', 'showRating',
+  'benchmark', 'customBenchmark', 'sectorBenchmark', 'themeBenchmark', 'showAverage', 'showNewHigh', 'showNewHighBeforePrice', 'showRedDay', 'showRating',
+  // 2026-11-12: Scale to rating (`rsScaleToRating.test.js`)
+  'scaleToRating',
   'maLength', 'maType', 'maColor',
   'color', 'lineWidth',
   'lookback', 'dotColor', 'dotBeforePriceColor', 'dotRedColor',
@@ -111,7 +113,8 @@ describe('1 · the shape', () => {
   })
 
   it('on the price pane by default, own invisible scale, no axis; a 0.20 pane never under 64 px after "Display in"', () => {
-    expect(SLIM.placement).toEqual({ target: 'price', ownScale: true, pane: { height: 0.2, minPx: 64 }, axis: 'hidden' })
+    expect(SLIM.placement).toEqual({ target: 'price', ownScale: true, pane: { height: 0.2, minPx: 64 }, axis: 'hidden',
+      axisWhen: { key: 'scaleToRating', notEquals: 'off' } })
     expect(V5.placement.target, 'v5 stays in its own pane by default').toBe('pane')
   })
 
@@ -132,7 +135,8 @@ describe('1 · the shape', () => {
 
   it('meta.serverInputs: the trimmed list, exactly; nothing removed is in it, and mansfieldLength stays for the Study slot key', () => {
     expect(SLIM.meta.serverInputs).toEqual(['benchmark', 'maLength', 'maType', 'lookback', 'redDayThreshold',
-      'showNewHigh', 'showNewHighBeforePrice', 'mansfieldLength', 'showRedDay', 'customBenchmark'])
+      'showNewHigh', 'showNewHighBeforePrice', 'mansfieldLength', 'showRedDay', 'customBenchmark',
+      'sectorBenchmark', 'themeBenchmark'])
     for (const k of REMOVED_FROM_SERVER) expect(SLIM.meta.serverInputs, k).not.toContain(k)
     // a strict subset of the v5 list: no new server key, so the rev 5 row answers it as it is
     for (const k of SLIM.meta.serverInputs) expect(V5.meta.serverInputs, k).toContain(k)
@@ -144,8 +148,10 @@ describe('2 · the inputs', () => {
     const inst = { instanceId: 'rs', defId: 'rsLine', inputs: {} }
     const all = fieldsForInstance(SLIM, inst, { declared: DECLARED }).all.map((f) => f.key)
     expect(all).toEqual(RENDERED)
-    // and without a declaration the one gated box (Your symbol) waits, as on v5
-    expect(visibleInputs(SLIM).map((i) => i.key)).toEqual(RENDERED.filter((k) => k !== 'customBenchmark'))
+    // and without a declaration the gated boxes (Your symbol, and since 2026-11-12 the
+    // picked sector and theme) wait, as on v5
+    const GATED = ['customBenchmark', 'sectorBenchmark', 'themeBenchmark']
+    expect(visibleInputs(SLIM).map((i) => i.key)).toEqual(RENDERED.filter((k) => !GATED.includes(k)))
   })
 
   it('every v5 input is declared here; each one not rendered is legacy with the v5 type, range, default and options', () => {
@@ -292,7 +298,7 @@ describe('3 · the plots', () => {
 describe('4 · the readout', () => {
   /** A rev 5 payload shaped as `rs_provider` sends it, the blocks this definition reads. */
   const PAYLOAD = Object.freeze({
-    benchmark: { requested: 'SECTOR', resolved: 'XLK', label: 'Technology (XLK)', note: null },
+    benchmark: { requested: 'SECTOR', resolved: 'XLK', name: 'XLK', label: 'Technology (XLK)', note: null },
     legend: { pctFromMa: 10.6, above: true, lastValue: 0.47, asOf: 20261106, summary: 'above its 21 EMA by 10.6%' },
     lastRsHigh: { barsAgo: 3, beforePrice: true, redDay: false, summary: '3 bars ago, before price' },
     history: { bars: 330, requested: 852, short: true, summary: '330 bars held of 852' },
@@ -309,10 +315,10 @@ describe('4 · the readout', () => {
   })
   const rows = (inputs = {}) => readoutRows(SLIM, PAYLOAD, { inputs })
 
-  it('the glance list, in reading order; every glance row but History opens a card', () => {
-    expect(SLIM.readout.filter(isGlanceRow).map((r) => r.key)).toEqual(['benchmarkName', 'ratingSummary', 'phase', 'rsHigh', 'checks', 'shortHistory'])
+  it('the glance list, in reading order; every glance row but History and Scale opens a card', () => {
+    expect(SLIM.readout.filter(isGlanceRow).map((r) => r.key)).toEqual(['benchmarkName', 'ratingSummary', 'scale', 'phase', 'rsHigh', 'checks', 'shortHistory'])
     for (const r of SLIM.readout.filter(isGlanceRow)) {
-      if (r.key !== 'shortHistory') expect(r.card, r.key).toBeTruthy()
+      if (r.key !== 'shortHistory' && r.key !== 'scale') expect(r.card, r.key).toBeTruthy()
       expect(r.label.length, r.key).toBeLessThanOrEqual(12)
     }
     // the chip rows: the resolved benchmark and the IBD-style rating, ungated by any headline choice
@@ -474,7 +480,9 @@ describe('6 · the settings dialog on the slim definition', () => {
     // CORE holds every rendered input that is not the Style tab's (colours, the line width) or the gated box
     const style = styleInputKeys(SLIM)
     expect([...style].sort()).toEqual(['color', 'dotBeforePriceColor', 'dotColor', 'dotRedColor', 'lineWidth', 'maColor'])
-    for (const k of RENDERED.filter((k) => k !== 'customBenchmark' && !style.has(k))) {
+    // (the gated boxes: Your symbol, and since 2026-11-12 the picked sector and theme)
+    const GATED = ['customBenchmark', 'sectorBenchmark', 'themeBenchmark']
+    for (const k of RENDERED.filter((k) => !GATED.includes(k) && !style.has(k))) {
       expect(dialog.querySelector(`[data-input-key="${k}"]`), k).not.toBeNull()
     }
     for (const k of ['view', 'showMansfield', 'mansfieldLength', 'anchorDate', 'headlineRating', 'showComponents', 'shadeVsAverage', 'rrgRatioLength']) {

@@ -12,33 +12,36 @@
   },
   "rsPhases": {
     "columns": ["phase", "divergence"],
-    "inputs": ["benchmark", "customBenchmark", "shortEma", "longEma"],
+    "inputs": ["benchmark", "customBenchmark", "sectorBenchmark", "themeBenchmark", "shortEma", "longEma"],
     "paths": ["benchmark.label", "benchmark.resolved", "benchmark.requested", "benchmark.fallback",
-      "benchmark.note", "benchmark.bars",
+      "benchmark.note", "benchmark.bars", "benchmark.name",
       "legend.summary", "legend.phase", "legend.phaseLabel", "legend.divergence",
       "legend.rsTrend", "legend.benchTrend", "legend.asOf", "legend.stale",
-      "history.bars", "history.short", "inputs.benchmark", "inputs.customBenchmark",
+      "history.bars", "history.short", "inputs.benchmark", "inputs.customBenchmark", "inputs.sectorBenchmark",
+      "inputs.themeBenchmark",
       "inputs.shortEma", "inputs.longEma", "intraday", "state"]
   },
   "rsVsEma": {
     "columns": ["dist", "fast", "slow"],
-    "inputs": ["benchmark", "customBenchmark"],
+    "inputs": ["benchmark", "customBenchmark", "sectorBenchmark", "themeBenchmark"],
     "paths": ["benchmark.label", "benchmark.resolved", "benchmark.requested", "benchmark.fallback",
-      "benchmark.note", "benchmark.bars",
+      "benchmark.note", "benchmark.bars", "benchmark.name",
       "legend.summary", "legend.pctFromMa", "legend.above", "legend.maSlope", "legend.index",
       "legend.lastValue", "legend.asOf", "legend.stale", "legend.fast", "legend.slow",
-      "history.bars", "history.short", "inputs.benchmark", "inputs.customBenchmark",
+      "history.bars", "history.short", "inputs.benchmark", "inputs.customBenchmark", "inputs.sectorBenchmark",
+      "inputs.themeBenchmark",
       "inputs.maLength", "inputs.maType", "intraday", "state"]
   },
   "rsExit": {
     "columns": ["rsLine", "fast", "slow", "dotQuick", "dotQuicksand", "dotDead"],
-    "inputs": ["benchmark", "customBenchmark", "fastLength", "slowLength"],
+    "inputs": ["benchmark", "customBenchmark", "sectorBenchmark", "themeBenchmark", "fastLength", "slowLength"],
     "paths": ["benchmark.label", "benchmark.resolved", "benchmark.requested", "benchmark.fallback",
-      "benchmark.note", "benchmark.bars",
+      "benchmark.note", "benchmark.bars", "benchmark.name",
       "legend.summary", "legend.chipText", "legend.blankReason", "legend.lastKind", "legend.lastLabel", "legend.barsAgo", "legend.lastAsOf",
       "legend.status", "legend.statusLabel", "legend.rs", "legend.fast", "legend.slow",
       "legend.fastLength", "legend.slowLength", "legend.asOf", "legend.stale",
-      "history.bars", "history.short", "inputs.benchmark", "inputs.customBenchmark",
+      "history.bars", "history.short", "inputs.benchmark", "inputs.customBenchmark", "inputs.sectorBenchmark",
+      "inputs.themeBenchmark",
       "inputs.fastLength", "inputs.slowLength", "inputs.maType", "intraday", "state"]
   }
 }

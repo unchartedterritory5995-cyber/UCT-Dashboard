@@ -85,7 +85,7 @@ import { toRenderState } from './objectRenderState'
 // binder is where that is known per INSTANCE, so it publishes the sentence for
 // the disclosure strip (`runtimeErrorNotice.js`), exactly as the object layer
 // publishes a scaled table (`paneFitNotice.js`).
-import { runtimeErrorStopOf, runtimeObjectsWithheld, runtimeRunStopOf, runtimeColourStopOf, columnErrors } from './nativeRegistry'
+import { runtimeErrorStopOf, runtimeObjectsWithheld, runtimeRunStopOf, runtimeColourStopOf, columnErrors, resolveInputs } from './nativeRegistry'
 import { setRuntimeErrorNotice } from './runtimeErrorNotice'
 // W9-T13b: a strategy run's record, published for the (dark) report panel
 import { setStrategyRecord } from './strategyReportNotice'
@@ -111,7 +111,8 @@ import { SOURCE_STATUS } from './secondaryBars'
 import { otherSymbolsSignature } from './otherSymbols'
 import { lowerTfSignature } from './lowerTf'
 import { setChartClockNotes } from './chartClockNotice'
-import { serverDeclares } from './serverCompute'
+import { serverDeclares, scalarsFor } from './serverCompute'
+import { rescaleOf, rescalePriceFormat } from './rescale'
 // ⭐ P2b — what a render state dropped, for the member's drawing note.
 import { setObjectRenderDrops, renderDroppedCount, renderHeldCount } from './objectRenderNotice'
 import { runtimeWithheldWhy, stoppedRunSentence, STOPPED_KEY, runHalfRefusedSentence, RUN_HALF_WHY_KEY } from './ast/objectLoss'
@@ -2407,6 +2408,12 @@ export function createBinder({ chart, LWC, scope = '' }) {
         // ⭐ A `fund:` source's unit, from the catalogue -- null for everything else.
         // An MA of a fundamental inherits its unit (`domainBehavior: 'inherit'`).
         priceFormat: fundamentalPriceFormat(fundamentalFormatOfInstance(b.inst, (id) => registry.getDefinition(id), instances))
+          // ⭐ 2026-11-12 — a line scaled to a rating reads in the rating's
+          // decimals (`rescale.rescalePriceFormat`) while the scale is APPLIED, read
+          // off the instance's landed scalars; null with the scale Off or unscaled.
+          || rescalePriceFormat(b.def, b.inst, b.plot && b.plot.key, rescaleOf(b.def)
+            ? attempt(() => scalarsFor(b.def, resolveInputs(b.def, (b.inst && b.inst.inputs) || {}), { sym: ctx.sym, tf: ctx.tf })).value
+            : null)
           || (_onCandleAxis && ctx.mainPriceFormat) || null,
         // ⭐ ONLY A CANDLE READS THESE, and resolving them HERE is what keeps the
         // chart's own palette the default: `cs.candles` is the member's candle

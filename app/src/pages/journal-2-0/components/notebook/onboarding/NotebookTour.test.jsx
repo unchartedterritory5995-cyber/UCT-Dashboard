@@ -93,9 +93,10 @@ describe('when it starts', () => {
     render(<Page />)
     const d = await dialog()
     expect(d).toHaveAttribute('aria-modal', 'true')
-    expect(d).toHaveAccessibleName('Welcome to your Notebook')
+    // Go-live wave 1: the first step is the folders panel (Research Home's first-run step left with it).
+    expect(d).toHaveAccessibleName('Folders and tags')
     expect(screen.getByText(`Step 1 of ${TOUR_STEPS.length}`)).toBeInTheDocument()
-    await waitFor(() => expect(tourWrites()).toEqual([{ v: 1, state: 'started', step: 'first-run' }]))
+    await waitFor(() => expect(tourWrites()).toEqual([{ v: 1, state: 'started', step: 'sidebar' }]))
   })
 
   it.each([
@@ -139,7 +140,7 @@ describe('when it starts', () => {
     expect(screen.queryByRole('dialog')).toBeNull()
     act(() => { openNotebookTour() })
     await dialog()
-    expect(title()).toHaveTextContent('Welcome to your Notebook')
+    expect(title()).toHaveTextContent('Folders and tags')
   })
 
   it('a link from the help article (state startTour) opens it', async () => {
@@ -168,7 +169,7 @@ describe('when it starts', () => {
     standaloneAnchors()
     render(<Page anchors={[]} initial={{ pathname: '/journal/notebook', state: { startTour: true } }} />)
     await dialog()
-    await waitFor(() => expect(tourWrites().at(-1)).toEqual({ v: 1, state: 'started', step: 'first-run' }))
+    await waitFor(() => expect(tourWrites().at(-1)).toEqual({ v: 1, state: 'started', step: 'sidebar' }))
   })
 
   it('with no anchor on the page there is no tour, and nothing is recorded', async () => {
@@ -183,16 +184,16 @@ describe('how it walks', () => {
   it('Next, Back and Done change the words, outline the anchor, and record each step', async () => {
     render(<Page />)
     await dialog()
-    expect(document.querySelector('[data-tour="first-run"]')).toHaveAttribute('data-tour-active', 'true')
-    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
-    expect(title()).toHaveTextContent('Folders and tags')
-    expect(screen.getByText(`Step 2 of ${TOUR_STEPS.length}`)).toBeInTheDocument()
-    expect(document.querySelector('[data-tour="first-run"]')).not.toHaveAttribute('data-tour-active')
     expect(document.querySelector('[data-tour="sidebar"]')).toHaveAttribute('data-tour-active', 'true')
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+    expect(title()).toHaveTextContent('Search')
+    expect(screen.getByText(`Step 2 of ${TOUR_STEPS.length}`)).toBeInTheDocument()
+    expect(document.querySelector('[data-tour="sidebar"]')).not.toHaveAttribute('data-tour-active')
+    expect(document.querySelector('[data-tour="search"]')).toHaveAttribute('data-tour-active', 'true')
     fireEvent.click(screen.getByRole('button', { name: 'Back' }))
-    expect(title()).toHaveTextContent('Welcome to your Notebook')
+    expect(title()).toHaveTextContent('Folders and tags')
     expect(screen.getByRole('button', { name: 'Back' })).toBeDisabled()
-    await waitFor(() => expect(tourWrites().map((w) => w.step)).toEqual(['first-run', 'sidebar', 'first-run']))
+    await waitFor(() => expect(tourWrites().map((w) => w.step)).toEqual(['sidebar', 'search', 'sidebar']))
   })
 
   it('Done records "done", closes, and hands focus back', async () => {
@@ -215,7 +216,7 @@ describe('how it walks', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Next' }))
     fireEvent.keyDown(document.activeElement, { key: 'Escape' })
     expect(screen.queryByRole('dialog')).toBeNull()
-    await waitFor(() => expect(tourWrites().at(-1)).toEqual({ v: 1, state: 'dismissed', step: 'sidebar' }))
+    await waitFor(() => expect(tourWrites().at(-1)).toEqual({ v: 1, state: 'dismissed', step: 'search' }))
     expect(document.activeElement).toBe(screen.getByRole('button', { name: 'before the tour' }))
   })
 
@@ -248,8 +249,10 @@ describe('how it walks', () => {
     render(<Page slot={['sidebar', 'search']} />)
     await dialog()
     expect(screen.getByText(`Step 1 of ${TOUR_STEPS.length - 2}`)).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+    // Go-live wave 1: the panel's two steps are the tour's first two now, so it opens on New note and Next is Views.
     expect(title()).toHaveTextContent('New note')
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+    expect(title()).toHaveTextContent('Views')
     expect(document.querySelector('[data-tour="sidebar"]')).not.toHaveAttribute('data-tour-active')
   })
 
@@ -285,7 +288,8 @@ describe('how it walks', () => {
    * reads NO-DOOR ("not reached with Tab in 220 presses") for the keyboard
    * door on G-171. Reproduced live in a sandbox (docs/notebook/proof/
    * fx2-<sha>/): the WALK checks `skip.count() > 0` the instant the page's
-   * OWN "Welcome to your Notebook" heading (ResearchHome's h2, NOT the tour)
+   * OWN "Welcome to your Notebook" heading (Research Home's h2 then, NOT the tour; Research Home was deleted in
+   * go-live wave 1, and the tour's first step is the folders panel now)
    * becomes visible -- which happens ~400ms before the lazy-loaded tour's
    * async open, so the check reads 0 and the walk skips dismissing it, then
    * tries to reach "Add a sample notebook" while the tour (correctly, by
@@ -334,11 +338,11 @@ describe('the copy contract', () => {
   it('every step has its words, and they are these', () => {
     expect(Object.keys(TOUR_STEP_COPY).sort()).toEqual(TOUR_STEPS.map((s) => s.id).sort())
     expect(TOUR_STEP_COPY).toEqual({
-      'first-run': { title: 'Welcome to your Notebook', body: 'Start here: write a note, create a thesis or bring in the notes you already have.' },
-      sidebar: { title: 'Folders and tags', body: 'Your folders, tags and saved views live here. Choose one to see just those notes.' },
+      // Go-live wave 1: the first-run step left with Research Home; saved views are under View, not the panel.
+      sidebar: { title: 'Folders and tags', body: 'Your folders and tags live here. Choose one to see just those notes.' },
       search: { title: 'Search', body: 'Find any word in any note. Press ? at any time to see every keyboard shortcut.' },
       'new-note': { title: 'New note', body: 'Start a blank note, or pick a template such as the daily note.' },
-      'view-switcher': { title: 'Views', body: 'Open View to see your notes as a list, a table, a board, a calendar, a graph of their links, a timeline or a list of tasks.' },
+      'view-switcher': { title: 'Views', body: 'Open View to see your notes as a list, a table, a board, a calendar, a graph of their links, a timeline or a list of tasks. Your saved views are in View too.' },
       import: { title: 'Import', body: 'Open the ▾ beside New and choose Import to bring in notes from Notion, Obsidian, Evernote, Markdown files or Word documents.' },
       ask: { title: 'Ask your notebook', body: 'Ask a question and get an answer drawn from your own notes, with the notes it came from.' },
       export: { title: 'Export', body: 'Download this note as Markdown, a web page, JSON or Word, or print it to a PDF.' },

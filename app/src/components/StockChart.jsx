@@ -1590,6 +1590,7 @@ import { useCalcFrames } from './chart/engine/useCalcFrames'
 import { useFundamentalSources } from './chart/engine/useFundamentalSources'
 import { useMarketCapAuthority } from './chart/engine/useMarketCapAuthority'
 import { useServerColumns } from './chart/engine/useServerColumns'
+import { armServerWarm } from './chart/engine/serverWarm'
 import { loadBreadthSymbols, breadthRecord } from '../hooks/useBreadthSymbols'
 import useMarketIndicators, { canonicalFamily, canonicalPresentation, canonicalDomain, canonicalSourceCapability, canonicalProduct, loadMarketIndicators } from '../hooks/useMarketIndicators'
 import { primaryChartTypeFor, primaryChartTypesFor } from './chart/engine/sourceCapability'
@@ -1635,6 +1636,13 @@ const useChartBars = BARSTORE ? useBarSnapshotBars : useLegacyChartBars
 engineRegistry.registerRuntimeLaneLoader(() => (runtimePaneEnabled()
   ? import('./chart/engine/runtime/runtimeAsync.js').then((m) => m.ensureRuntimeLane())
   : Promise.reject(new Error('the runtime pane is switched off'))))
+
+// ⚡ THE SERVER LANE'S COLUMNS ARE ASKED FOR AHEAD OF THE MEMBER (2026-11-12). The bars
+// prefetch already knows which symbols are next; this registers the lane's warmer with it
+// (`engine/serverWarm.js`) so an RS pane draws with its candles on a list scan instead of
+// 1-2 s after them. ⛔ REGISTERED HERE, in the chart's module, for the reason above: a page
+// that never loads a chart never arms it, and it adds nothing to another route's bytes.
+armServerWarm()
 
 const NOOP = () => {}
 
@@ -9740,6 +9748,19 @@ export default function StockChart({
   // User/journal price lines only — stable across live ticks.
   const allPriceLines = mergedPriceLines
 
+  // ⛔ CHART DATA IS READ THROUGH `_big` INSIDE INNER FUNCTIONS, NEVER CAPTURED (2026-11-12).
+  // V8 gives every render ONE shared scope for all the functions created in it, and keeps
+  // that scope alive while ANY of them is alive. React keeps each effect's cleanup from the
+  // render it last ran in, and StockChart has hundreds of effects, so dozens of old renders
+  // stay pinned. Any big array an inner function names is held in that scope too: the
+  // 2026-11-12 market-day soak measured the renderer heap floor climbing ~150-230 MB/h, and a
+  // heap snapshot found 478 chart-data arrays alive for 4 charts, 494 of them pinned by ~82
+  // old render scopes through exactly these six. Inner functions read the latest value from
+  // this one stable object instead, so no render scope captures the arrays. Dependency lists
+  // and JSX still use the plain names: they are evaluated during render, not captured.
+  const _bigRef = useRef(null)
+  if (_bigRef.current === null) _bigRef.current = {}
+  const _big = _bigRef.current
   const ohlcData = useMemo(
     () => {
       if (!displayBars) return []
@@ -9871,16 +9892,17 @@ export default function StockChart({
   // Auto Structures: the candle series' own times (anchors snap onto these — timeToCoordinate
   // answers only for a time the series holds) and the latest close (nearest key levels).
   // Computed only while the overlay is active, so a member's chart pays nothing.
+  _big.ohlcData = ohlcData
   const patternBarTimes = useMemo(
-    () => (patternsActive ? ohlcData.map((d) => d.time) : null),
+    () => (patternsActive ? _big.ohlcData.map((d) => d.time) : null),
     [patternsActive, ohlcData],
   )
   const patternLastPrice = patternsActive && ohlcData.length ? ohlcData[ohlcData.length - 1].close : null
   // Chart IQ's drawing plan: its dates are the daily series' own keys ('YYYY-MM-DD'), clipped to the loaded bars.
   const chartIqPlan = useMemo(
     () => {
-      if (!(chartIqActive && chartIqData && ohlcData.length)) return null
-      const plan = buildChartIqPlan(chartIqData, ohlcData.map((d) => d.time), chartIqLayers, { weekly: resolvedTf === 'W' })
+      if (!(chartIqActive && chartIqData && _big.ohlcData.length)) return null
+      const plan = buildChartIqPlan(chartIqData, _big.ohlcData.map((d) => d.time), chartIqLayers, { weekly: resolvedTf === 'W' })
       return resolvedTf === 'W' ? chartIqLevelsOnly(plan) : plan
     },
     [chartIqActive, chartIqData, ohlcData, chartIqLayers, resolvedTf],
@@ -9897,8 +9919,8 @@ export default function StockChart({
     // replacement, not a new bar → no left-shift) — it is an empty axis slot, not
     // a drawn bar, so exclude any trailing whitespace from the reported count.
     // (Left as a tail-only adjustment: the seed only ever appends one.)
-    let _drawn = ohlcData.length
-    while (_drawn > 0 && isWhitespacePoint(ohlcData[_drawn - 1])) _drawn--
+    let _drawn = _big.ohlcData.length
+    while (_drawn > 0 && isWhitespacePoint(_big.ohlcData[_drawn - 1])) _drawn--
     try { onDrawnBarCountRef.current?.(_drawn) } catch { /* a reporting callback must never break the chart */ }
   }, [ohlcData])
   // MarketSurge-style swing high/low pivots — recompute only when the data,
@@ -9909,7 +9931,7 @@ export default function StockChart({
   const swingLabelsOn = !!cs.swingLabels?.enabled && _isDWM
   const swingSensitivity = cs.swingLabels?.sensitivity || 'medium'
   const swingPoints = useMemo(
-    () => swingLabelsOn ? detectSwingPivots(ohlcData, sensitivityToParams(swingSensitivity, resolvedTf)) : [],
+    () => swingLabelsOn ? detectSwingPivots(_big.ohlcData, sensitivityToParams(swingSensitivity, resolvedTf)) : [],
     [swingLabelsOn, swingSensitivity, resolvedTf, ohlcData]
   )
   swingPointsRef.current = swingPoints  // expose to the (later-defined) screenshot builder
@@ -9928,7 +9950,7 @@ export default function StockChart({
   const highlightResolved = useMemo(() => {
     if (highlightBarTime == null) return null
     const arr = Array.isArray(highlightBarTime) ? highlightBarTime : [highlightBarTime]
-    const times = ohlcData.map(d => d.time)
+    const times = _big.ohlcData.map(d => d.time)
     const exact = new Set(times)
     const cmp = (a, b) => (typeof a === 'number' && typeof b === 'number')
       ? a - b
@@ -9961,8 +9983,8 @@ export default function StockChart({
     return m.size ? m : null
   }, [highlightResolved])
   const goldOhlc = useMemo(() => {
-    if (!highlightTimeSet) return ohlcData
-    return ohlcData.map(d => (highlightTimeSet.has(d.time)
+    if (!highlightTimeSet) return _big.ohlcData
+    return _big.ohlcData.map(d => (highlightTimeSet.has(d.time)
       // Body-only leaves borderColor/wickColor unset so the highlighted candle keeps the
       // chart's own border + wick colors (owner wants the gold START candle to have the
       // same black border/wick as every other candle); Model Book paints all three.
@@ -9971,6 +9993,7 @@ export default function StockChart({
           : { ...d, color: highlightColor, borderColor: highlightColor, wickColor: highlightColor })
       : d))
   }, [ohlcData, highlightTimeSet, highlightColor, highlightBodyOnly])
+  _big.goldOhlc = goldOhlc
 
   // Setup⇄Result candle crossfade. The bars PAST the highlighted setup day fade
   // in (Setup→Result) / out (Result→Setup) instead of popping. Cutoff = the
@@ -10005,16 +10028,16 @@ export default function StockChart({
     // flip (same example, same bars), captured fresh each time this re-runs.
     frameFadeAlphaRef.current = from   // sync before any updateChart overlay repaint in this commit reads it
     const cut = fadeCutoff == null ? null : String(fadeCutoff)
-    const buildCandles = a => (cut == null ? goldOhlc : goldOhlc.map(d => {
+    const buildCandles = a => (cut == null ? _big.goldOhlc : _big.goldOhlc.map(d => {
       if (highlightTimeSet?.has(d.time) || String(d.time) <= cut) return d
       const col = _candleRgba(d.close >= d.open, a)
       return { ...d, color: col, borderColor: col, wickColor: col }
     }))
-    const buildVol = a => (cut == null ? volData : volData.map(d => (String(d.time) <= cut ? d : { ...d, color: colorMulAlpha(d.color, a) })))
+    const buildVol = a => (cut == null ? _big.volData : _big.volData.map(d => (String(d.time) <= cut ? d : { ...d, color: colorMulAlpha(d.color, a) })))
     const paint = a => {
       frameFadeAlphaRef.current = a
-      try { candleSeriesRef.current?.setData(a >= 1 ? goldOhlc : buildCandles(a)) } catch { /* range out of bounds mid-load */ }
-      try { volumeSeriesRef.current?.setData(a >= 1 ? volData : buildVol(a)) } catch { /* range out of bounds mid-load */ }
+      try { candleSeriesRef.current?.setData(a >= 1 ? _big.goldOhlc : buildCandles(a)) } catch { /* range out of bounds mid-load */ }
+      try { volumeSeriesRef.current?.setData(a >= 1 ? _big.volData : buildVol(a)) } catch { /* range out of bounds mid-load */ }
       const tails = overlayTailSeriesRefs.current
       for (let i = 0; i < tails.length; i++) {
         const base = overlayData?.[i]?.color
@@ -10036,15 +10059,16 @@ export default function StockChart({
   }, [exitDate, candleFrameFade])
   // Apply the crossfade alpha to the post-setup bars. Untouched at full opacity.
   const fadedOhlc = useMemo(() => {
-    if (!candleFrameFade || frameFadeAlpha >= 1 || fadeCutoff == null) return goldOhlc
+    if (!candleFrameFade || frameFadeAlpha >= 1 || fadeCutoff == null) return _big.goldOhlc
     const a = Math.max(0, Math.min(1, frameFadeAlpha))
     const cut = String(fadeCutoff)
-    return goldOhlc.map(d => {
+    return _big.goldOhlc.map(d => {
       if (highlightTimeSet?.has(d.time) || String(d.time) <= cut) return d
       const col = _candleRgba(d.close >= d.open, a)
       return { ...d, color: col, borderColor: col, wickColor: col }
     })
   }, [goldOhlc, candleFrameFade, frameFadeAlpha, fadeCutoff, highlightTimeSet])
+  _big.fadedOhlc = fadedOhlc
   const closeData = useMemo(
     () => {
       if (!displayBars) return []
@@ -10069,6 +10093,7 @@ export default function StockChart({
     },
     [displayBars, adjustTime, cs.chartType, cs.candleColorMode, mbUp, mbDown, breadthLineColor],
   )
+  _big.closeData = closeData
   const hvcSet = useMemo(
     () => cs.volume.hvcEnabled && !disableHvc && filteredBars?.length > 20 ? computeHVC(filteredBars) : new Set(),
     [filteredBars, cs.volume.hvcEnabled, disableHvc]
@@ -10131,15 +10156,17 @@ export default function StockChart({
       }
     })
   }, [sessionAppliedBars, hvcSet, cs.volume.upColor, cs.volume.downColor, adjustTime, boldCandles, modelBookLook, volExtremes, colorByNetChange, canvasTheme, liveVolForSym, resolvedTf, blankVolume])
+  _big.volData = volData
   // Volume bars past the setup day crossfade with the candles on Setup⇄Result
   // (each bar's existing alpha scaled by the fade). No-op at full opacity. The
   // re-tint effect lives AFTER updateChart (below) so its setData wins over
   // updateChart's full-opacity volume paint — otherwise the bars flicker.
   const fadedVolData = useMemo(() => {
-    if (!candleFrameFade || frameFadeAlpha >= 1 || fadeCutoff == null) return volData
+    if (!candleFrameFade || frameFadeAlpha >= 1 || fadeCutoff == null) return _big.volData
     const a = Math.max(0, Math.min(1, frameFadeAlpha)), cut = String(fadeCutoff)
-    return volData.map(d => (String(d.time) <= cut ? d : { ...d, color: colorMulAlpha(d.color, a) }))
+    return _big.volData.map(d => (String(d.time) <= cut ? d : { ...d, color: colorMulAlpha(d.color, a) }))
   }, [volData, candleFrameFade, frameFadeAlpha, fadeCutoff])
+  _big.fadedVolData = fadedVolData
   // Smooth N-SMA line for the volume pane (subtle, white).
   const volMaData = useMemo(() => {
     if (blankVolume) return []  // no volume ⇒ no volume MA line in the empty pane
@@ -10451,8 +10478,8 @@ export default function StockChart({
   // chart at the wrong dates. Restricting to the stock's bar times keeps the
   // logical indices 1:1 with the stock; the index line simply skips the gap too.
   const indexPaneSeries = useMemo(() => {
-    if (!indexPaneSymbol || !indexPaneData?.length || !ohlcData?.length) return []
-    const stockTimes = new Set(ohlcData.map(b => b.time))
+    if (!indexPaneSymbol || !indexPaneData?.length || !_big.ohlcData?.length) return []
+    const stockTimes = new Set(_big.ohlcData.map(b => b.time))
     // Also bound to the framed window (Model Book book-year) when provided. A
     // reused ticker (SNDK/BE) has an OLD pre-delisting segment in stockTimes too;
     // including its index points makes the line draw one segment straight across
@@ -11668,7 +11695,7 @@ export default function StockChart({
     // as a dep), so we keep plain data here — pulling highlightTimeSet into THIS
     // effect's deps would re-run the whole updateChart (incl. the visible-range /
     // zoom logic) on every focus change and fight the setup focus zoom.
-    _applyData(candleSeriesRef.current, isOhlcType(cs.chartType) ? ohlcData : closeData)
+    _applyData(candleSeriesRef.current, isOhlcType(cs.chartType) ? _big.ohlcData : _big.closeData)
     // ⭐ THE HEADLINE METRIC. Candles are now on the canvas for this (sym, tf) — the
     // moment a scanning member stops seeing the previous chart and starts seeing this
     // one. Marked HERE rather than at a React state change because `loading === false`
@@ -11680,7 +11707,7 @@ export default function StockChart({
     // once a CURRENT-ENOUGH frame reaches the canvas.
     // ⚠️ Not latched on `paint` any more: a stale frame followed by the repaired
     // one must leave BOTH marks, so the stale interval is measurable.
-    const _painted = isOhlcType(cs.chartType) ? ohlcData : closeData
+    const _painted = isOhlcType(cs.chartType) ? _big.ohlcData : _big.closeData
     if (_painted?.length) {
       // ⚠️ INTRADAY ONLY. `filteredBars[].t` is unix SECONDS intraday but a
       // 'YYYY-MM-DD' STRING on D/W/M, and the frontier math is bucket arithmetic
@@ -12114,7 +12141,7 @@ export default function StockChart({
       } catch { /* pane API unavailable */ }
       return null
     }
-    const hasVolumeBand = showVolume && volData.length > 0 && !nativeVolSeparate
+    const hasVolumeBand = showVolume && _big.volData.length > 0 && !nativeVolSeparate
 
     // ── FLIP C, APPLIED: THE SAME STACK, AS REAL PANES ───────────────────────
     //
@@ -12308,7 +12335,7 @@ export default function StockChart({
     // `moveToPane` + `moveSeriesToScale`, which `stockChartWiring.test.jsx` drives
     // mid-session in both directions.
 
-    if (showVolume && volData.length) {
+    if (showVolume && _big.volData.length) {
       // Separate-pane volume sits on the pane's RIGHT axis (visible) so an
       // overlaid indicator can take the LEFT axis. Overlay mode keeps the
       // invisible overlay scale ('').
@@ -12458,11 +12485,11 @@ export default function StockChart({
           || paneMargins.volume || { top: 0.82, bottom: 0 }
         volumeSeriesRef.current.priceScale().applyOptions({ autoScale: true, scaleMargins: volMargins })
       }
-      _applyData(volumeSeriesRef.current, volData)
+      _applyData(volumeSeriesRef.current, _big.volData)
       // The developing VOLUME bar after this setData: the legacy roll-gap re-top, or the store's
       // developing-bar paint (candle + volume) — chart/legacyLiveWriters.liveAfterVolumeSetData.
       liveAfterVolumeSetData({
-        H: LEGACY_LIVE_HELPERS, liveBarRef, volData, cs, volumeSeriesRef, userCandleColors, boldCandles, modelBookLook, mbVolUp,
+        H: LEGACY_LIVE_HELPERS, liveBarRef, volData: _big.volData, cs, volumeSeriesRef, userCandleColors, boldCandles, modelBookLook, mbVolUp,
       }, _paintStoreDev)
 
       // Subtle smooth volume MA line on the same pane/scale as the bars.
@@ -12526,7 +12553,7 @@ export default function StockChart({
     // divider. Attach a SECOND shading instance to the volume pane so the bands extend
     // straight down through it too (owner ask). Only while that pane exists.
     {
-      const _volPane = (volumePaneLive && showVolume && volData.length > 0) ? chart.panes()[VOL_PANE_INDEX] : null
+      const _volPane = (volumePaneLive && showVolume && _big.volData.length > 0) ? chart.panes()[VOL_PANE_INDEX] : null
       if (_volPane) {
         if (!sessionShadeVolRef.current) sessionShadeVolRef.current = createSessionShadingPrimitive({})
         if (!sessionShadeVolAttachedRef.current) {
@@ -12990,7 +13017,7 @@ export default function StockChart({
         // with the bars removed there is no right axis to keep, and a volume pane
         // whose only resident sits on the left wedges lightweight-charts'
         // `_adjustSizeImpl` on every draw. One fact, asked where it is known.
-        nativeVolumeInPane: nativeVolSeparate && showVolume && volData.length > 0,
+        nativeVolumeInPane: nativeVolSeparate && showVolume && _big.volData.length > 0,
         // ⛔⛔ PANE EXISTENCE, NOT THE BARS — `placement.js:476` gates the whole
         // guest branch on this. A member who deletes Volume while an MA of it is
         // displayed there has removed the BARS, not the pane; handing the native
@@ -13369,7 +13396,7 @@ export default function StockChart({
       const pdlIntraday = ['1', '5', '15', '30', '60'].includes(resolvedTf)
       const pdlOn = pdlIntraday && pdl && (pdl.high?.enabled || pdl.low?.enabled || pdl.close?.enabled)
       if (pdlOn) {
-        const lv = computePrevDayLevels(ohlcData)
+        const lv = computePrevDayLevels(_big.ohlcData)
         pdlCtlRef.current.setLines(buildPrevDayLines(lv, pdl), lv?.endTime)
       } else {
         pdlCtlRef.current.setLines([], null)
@@ -14448,10 +14475,10 @@ export default function StockChart({
     if (!series || !isOhlcType(cs.chartType)) return
     if (highlightTimeSet) {
       hadHighlightRef.current = true
-      try { series.setData(fadedOhlc) } catch { /* range can be out of bounds mid-load */ }
+      try { series.setData(_big.fadedOhlc) } catch { /* range can be out of bounds mid-load */ }
     } else if (hadHighlightRef.current) {
       hadHighlightRef.current = false
-      try { series.setData(ohlcData) } catch { /* clear gold back to normal */ }
+      try { series.setData(_big.ohlcData) } catch { /* clear gold back to normal */ }
     }
   }, [fadedOhlc, goldOhlc, ohlcData, highlightTimeSet, chartReady, cs.chartType, updateChart])
 
@@ -14461,7 +14488,7 @@ export default function StockChart({
   useEffect(() => {
     const s = volumeSeriesRef.current
     if (!s || !candleFrameFade) return
-    try { s.setData(fadedVolData) } catch { /* range can be out of bounds mid-load */ }
+    try { s.setData(_big.fadedVolData) } catch { /* range can be out of bounds mid-load */ }
   }, [fadedVolData, candleFrameFade, chartReady, updateChart])
 
   // Install the candle autoscale provider as soon as the chart is ready — on

@@ -40,10 +40,8 @@ export function pressToolbar(name) {
   const [t, row] = WHERE[name] || [null, null]
   if (!t) throw new Error(`toolbarDoors: no door named ${name}`)
   const menu = openMenu(t)
-  // The old "Templates" button opened the sheet with its SEARCH focused: with the template switch on that door is
-  // the ▾'s "From an outline" (fix round 1, Minor 11), and "From a template" focuses the note types instead.
-  const outline = name === 'Templates' && within(menu).queryByRole('menuitem', { name: 'From an outline' })
-  fireEvent.click(outline || within(menu).getByRole('menuitem', { name: row }))
+  // Notebook simplify, Task 3: "From an outline" (the sheet, search first) left the ▾; "Templates" is "From a template".
+  fireEvent.click(within(menu).getByRole('menuitem', { name: row }))
 }
 
 /** Whether the toolbar offers that action at all (its menu is opened, read, and closed again). */
@@ -89,4 +87,23 @@ export function offersSaveView() {
 export function pressSaveView() {
   const menu = openMenu('View')
   fireEvent.click(within(menu).getByRole('menuitem', { name: 'Save view' }))
+}
+
+// Notebook simplify, Task 2: the saved views are the View menu's "Saved views" group (they left the folders panel).
+/** The View menu's "Saved views" group, once the saved-views list has arrived. Opens the menu. */
+export async function savedViewsGroup() {
+  const menu = openMenu('View')
+  return within(menu).findByRole('group', { name: 'Saved views' })
+}
+
+/** Apply a saved view by its name, through the View menu. */
+export async function chooseSavedView(name) {
+  const group = await savedViewsGroup()
+  fireEvent.click(await within(group).findByRole('menuitemradio', { name }))
+}
+
+/** Press a saved view's "Rename" or "Delete" in the View menu. */
+export async function pressSavedViewAction(action, name) {
+  const group = await savedViewsGroup()
+  fireEvent.click(await within(group).findByRole('menuitem', { name: `${action} ${name}` }))
 }

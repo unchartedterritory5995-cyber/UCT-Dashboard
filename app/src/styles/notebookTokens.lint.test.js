@@ -70,7 +70,7 @@ function currentTally() {
 const readBaseline = () => JSON.parse(readFileSync(BASELINE_PATH, 'utf8'))
 
 /** Fix round 1 (review 2): the per-rule ceiling (see the test that reads it). Only ever lowered. */
-const CEILING = Object.freeze({ 'font-size': 202, 'border-radius': 76, 'transition-all': 0, 'raw-duration': 0, spacing: 1253, 'icon-size': 244 })
+const CEILING = Object.freeze({ 'font-size': 201, 'border-radius': 75, 'transition-all': 0, 'raw-duration': 0, spacing: 1202, 'icon-size': 215 })
 
 describe('VIS-6: Notebook token rail', () => {
   it('covers the Notebook (the walk finds the editor, the tab and its CSS modules)', () => {

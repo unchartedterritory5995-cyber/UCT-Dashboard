@@ -169,7 +169,7 @@ export default function TickerResearchWorkspace({ symbol, onOpenNote, showBackLi
   }
   if (isLoading || !summary) {
     // G-106 (Wave B lower-frequency sweep): same skeleton idiom as
-    // ResearchHome's own loading state -- a title-shaped line, then a
+    // Research Home's old loading state -- a title-shaped line, then a
     // couple of body-shaped lines -- rather than bare text.
     return (
       <div className={styles.loading} role="status" aria-label="Loading…">

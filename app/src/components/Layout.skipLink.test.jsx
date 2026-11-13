@@ -128,14 +128,16 @@ describe('the skip link reaches the Notebook content first (VIS-7)', () => {
   }, 30000)
 })
 
-// Wave 14, lane W14-keys: "Skip to getting started" -- on Research Home, while the get-started
-// checklist is on screen, it is the Notebook's FIRST skip link (right after "Skip to main
-// content"), and Enter lands on the checklist's heading (docs/notebook/wave14-keys.md).
-describe('on Research Home with the get-started checklist (W14-keys)', () => {
+// Wave 14, lane W14-keys: "Skip to getting started" -- while the get-started checklist is on
+// screen, it is the Notebook's FIRST skip link (right after "Skip to main content"), and Enter
+// lands on the checklist's heading (docs/notebook/wave14-keys.md). Notebook simplify: the list
+// is for a member with NO notes (Task 1), and it lives in the notes list's empty state, which is
+// what a bare Notebook opens on (Task 5; it was Research Home's first-run screen).
+describe('on the empty Notebook with the get-started checklist (W14-keys)', () => {
   beforeEach(() => { document.body.innerHTML = '' })
 
   it('"Skip to getting started" is the second Tab stop, before "Skip to notes list", and Enter lands on the checklist', async () => {
-    installFetch([[/^\/api\/auth\/preferences$/, {}]])
+    installFetch([[/^\/api\/auth\/preferences$/, {}], [/^\/api\/j2\/notes$/, { notes: [], total: 0 }]])
     latchWave8Flags(true, { notebook_getting_started_enabled: true, notebook_task_reminders_enabled: false })
     const user = userEvent.setup()
     render(<Providers route="/journal/notebook"><Layout><NotebookTab /></Layout></Providers>)

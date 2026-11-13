@@ -67,15 +67,22 @@ function CardThumb({ src }) {
 export default function NoteCard({
   note, onOpen, onRestore, onUnarchive, blocked = false,
   selectable = false, selected = false, onToggleSelect,
+  // Notebook simplify, Task 3: `layout="row"` is the notes list's default -- one line of title, one quiet meta line,
+  // no card chrome (the list draws the hairlines). 'card' is the grid, unchanged, and every other caller's default.
+  // `selecting`: something in the list is selected, so a row shows its tick box without being hovered.
+  layout = 'card', selecting = false,
 }) {
   const title = note.title?.trim() || 'Untitled'
-  let card = renderCard({ note, title, onOpen, onRestore, blocked })
+  const row = layout === 'row'
+  let card = row
+    ? renderRow({ note, title, onOpen, onRestore, blocked })
+    : renderCard({ note, title, onOpen, onRestore, blocked })
   // Wave 6 archive: an archived note still OPENS — archive is not trash — so
   // its Unarchive sits BESIDE the card button, never inside it (a button in a
   // button is invalid HTML, flattened into one control by a screen reader).
   if (onUnarchive && !onRestore) {
     card = (
-      <div className={styles.shelfWrap}>
+      <div className={`${styles.shelfWrap} ${row ? styles.shelfRow : ''}`}>
         {card}
         <button
           type="button"
@@ -92,7 +99,12 @@ export default function NoteCard({
   // lib/useGridRoving.js): the outermost element of this note, whatever shape it has.
   if (!selectable) return cloneElement(card, { 'data-note-row': '' })
   return (
-    <div className={`${styles.selectWrap} ${selected ? styles.selectWrapOn : ''}`} data-note-row="">
+    <div
+      className={[
+        styles.selectWrap, selected && styles.selectWrapOn, row && styles.selectRow, row && selecting && styles.selectingAny,
+      ].filter(Boolean).join(' ')}
+      data-note-row=""
+    >
       <label className={styles.selectBox}>
         <input
           type="checkbox"
@@ -162,6 +174,49 @@ function renderCard({ note, title, onOpen, onRestore, blocked }) {
         <ComputedChips computed={note.computed} className={styles.computed} />
       </div>
       {thumb && <CardThumb key={thumb} src={thumb} />}
+    </button>
+  )
+}
+
+// Notebook simplify, Task 3: the row. Line one is the title; line two, in this order, the relative date, the ticker,
+// up to three tags (muted text, never chips), the subtitle, then the lock and "Not synced" marks. No thumbnail: the row
+// is for scanning titles (Cards still shows it). The same rules as the card: the hub identity on ONE element, a trashed
+// note is inert with its own Restore, no blocked badge on a trashed note.
+function renderRow({ note, title, onOpen, onRestore, blocked }) {
+  const meta = (
+    <span className={styles.rowMeta} data-note-meta="">
+      <span className={styles.rowDate}>{relativeDate(note.updatedAt)}</span>
+      {note.ticker && <span className={styles.rowTicker}>${note.ticker}</span>}
+      {!onRestore && (note.tags || []).slice(0, 3).map((t) => (
+        <span key={t} className={styles.rowTag}>#{t}</span>
+      ))}
+      {note.subtitle && <span className={styles.rowSubtitle}>{note.subtitle}</span>}
+      {!onRestore && <LockedGlyph note={note} />}
+      {!onRestore && blocked && <BlockedBadge />}
+    </span>
+  )
+  const body = (
+    <span className={styles.rowBody}>
+      <span className={styles.rowTitle} data-note-title="">{title}</span>
+      {meta}
+      {!onRestore && <ComputedChips computed={note.computed} className={styles.computed} />}
+    </span>
+  )
+
+  if (onRestore) {
+    return (
+      <div className={styles.row} data-note-card-id={note.id} data-trashed="true">
+        {body}
+        <button type="button" className={styles.restoreBtn} onClick={() => onRestore(note)}>
+          Restore
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <button type="button" className={styles.row} data-note-card-id={note.id} onClick={() => onOpen(note)}>
+      {body}
     </button>
   )
 }

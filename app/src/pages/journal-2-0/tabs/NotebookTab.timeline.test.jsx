@@ -17,12 +17,10 @@ vi.mock('../hooks/useJ2Notes', () => ({
 }))
 const SAVED = { id: 'v1', name: 'Reviews by quarter', viewType: 'timeline',
   spec: { timeline: { timeBy: 'builtin:review_date', zoom: 'quarter', groupBy: 'tag' } } }
+// Notebook simplify, Task 2: the saved views are the View menu's "Saved views" group, fed by the saved-views list
+// (served below); the panel is stubbed out as before.
 vi.mock('../components/notebook/FolderSidebar', () => ({
-  default: ({ onSelectView }) => (
-    <div data-testid="folder-sidebar">
-      <button type="button" onClick={() => onSelectView(SAVED)}>open saved timeline</button>
-    </div>
-  ),
+  default: () => <div data-testid="folder-sidebar" />,
 }))
 let timelineProps = null
 vi.mock('../components/notebook/NoteTimelineView', () => ({
@@ -31,11 +29,10 @@ vi.mock('../components/notebook/NoteTimelineView', () => ({
 vi.mock('../components/notebook/NoteEditorPage', () => ({ default: () => <div data-testid="note-editor" /> }))
 vi.mock('../components/notebook/import/ImportWizard', () => ({ default: () => null }))
 vi.mock('../components/connectors/NoteConnectorsTrustStrip', () => ({ default: () => null }))
-vi.mock('../components/notebook/ResearchHome', () => ({ default: () => <div data-testid="research-home" /> }))
 vi.mock('../lib/offline/useBlockedNotes', () => ({ useBlockedNotes: () => ({ blocked: new Set() }) }))
 
 import NotebookTab from './NotebookTab'
-import { chooseView, pressSaveView } from './__tests__/toolbarDoors'
+import { chooseSavedView, chooseView, pressSaveView } from './__tests__/toolbarDoors'
 
 beforeEach(() => {
   timelineProps = null
@@ -45,7 +42,7 @@ beforeEach(() => {
       const body = JSON.parse(init.body)
       return { ok: true, json: async () => ({ savedView: { id: 'v9', ...body } }) }
     }
-    if (u.startsWith('/api/j2/saved-views')) return { ok: true, json: async () => ({ savedViews: [] }) }
+    if (u.startsWith('/api/j2/saved-views')) return { ok: true, json: async () => ({ savedViews: [SAVED] }) }
     return { ok: true, json: async () => ({}) }
   })
 })
@@ -81,14 +78,13 @@ describe('the Timeline view mode', () => {
     })
   })
 
-  // ⚠️ A UNIT check of the restore branch: the sidebar is mocked and hands a
-  // hand-built view, so this cannot see the row a member clicks or the list the
-  // server serves. That door — the real FolderSidebar row, a server-shaped
+  // ⚠️ A UNIT check of the restore branch over one hand-built view. The door
+  // across every saveable mode — the real View menu row, a server-shaped
   // list, a fresh mount, every saveable mode — is NotebookTab.savedViewRestore
   // .test.jsx (wave 6 fix round 5, R5-2).
   it('a saved timeline REOPENS as a timeline, with that view’s settings', async () => {
     renderTab()
-    fireEvent.click(screen.getByRole('button', { name: 'open saved timeline' }))
+    await chooseSavedView('Reviews by quarter')
     await screen.findByTestId('note-timeline')
     expect(screen.getByTestId('note-timeline')).toBeInTheDocument()
     expect(timelineProps.initialSettings).toEqual(SAVED.spec.timeline)

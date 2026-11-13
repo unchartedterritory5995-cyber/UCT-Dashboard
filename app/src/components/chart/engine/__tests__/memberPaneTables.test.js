@@ -78,8 +78,10 @@ const paneDef = () => {
 function drawn(symbol = SYMBOL) {
   const built = paneDef()
   const reader = objectReaderFor(built.definition, BARS, { inputs: undefined, tf: 'D', symbol })
+  // ⭐ Engine 52 (review M6): `readUnknown` as production passes it (`binder.js`), so a tree
+  // that failed at bind HOLDS what reads it here too, never drawn off an unknown value.
   const run = reader && evaluateObjects(reader.program, {
-    barCount: N, readNode: reader.readNode, readTime: (i) => BARS[i].t,
+    barCount: N, readNode: reader.readNode, readUnknown: reader.readUnknown, readTime: (i) => BARS[i].t,
   })
   const state = run && toRenderState(run.live, { bars: BARS })
   const root = doc.createElement('div')
@@ -107,7 +109,8 @@ describe('⭐⭐ v2 reaches a member\'s pane with both of its dashboards', () =>
     }, {})
     // ⛔ Engine 51: ONE `table.new` — the Volume table's create is withheld by name
     // (`enum:unreadable`, its position below), never drawn in a default corner.
-    expect(kinds).toEqual({ 'create:table': 1, cell: 6, update: 1 })
+    // ⛔⛔ ENGINE 52 — STOP ITEM (reported, coordinator to rule): the ATRx cell's `text_color` is `atrMultColor`, a default reassigned in an `if` from a choice on a block local (`absMult <= 7 ? color.white : …`), which no reader follows; under "never drawn at the default" the cell is WITHHELD by name (`pine:prop-unreadable`). Its TEXT was byte-identical to TradingView (the capture records text, not colour), so this moves the capture's drawn cells 3 -> 2.
+    expect(kinds).toEqual({ 'create:table': 1, cell: 5, update: 1 })
   })
 
   it('⛔⛔ and every object tree EVALUATES — wires 2 and 3, measured as a count', () => {
@@ -139,9 +142,10 @@ describe('⭐⭐ v2 reaches a member\'s pane with both of its dashboards', () =>
     // ⛔ Engine 51: the Volume table (one of the four) is withheld by name, so the
     // member sees the Range table's three and no table in a guessed corner.
     expect(state.tables).toHaveLength(1)
-    expect(stats).toEqual({ tables: 1, cells: 3, skipped: 0 })
+    // (engine 52 STOP item: the ATRx cell is withheld by name)
+    expect(stats).toEqual({ tables: 1, cells: 2, skipped: 0 })
     expect(root.querySelectorAll('table')).toHaveLength(1)
-    expect(root.querySelectorAll('td')).toHaveLength(3)
+    expect(root.querySelectorAll('td')).toHaveLength(2)
   })
 
   it('⛔ the two switched-off cells are ABSENT, not blank', () => {
@@ -208,13 +212,17 @@ describe('⭐⭐ v2 reaches a member\'s pane with both of its dashboards', () =>
     // survived that (an earlier branch answers a bare enum name), so the hole
     // only opened for a script that COMPUTED its size, and it stayed open
     // because six silent fallbacks to `normal` look exactly like a design.
-    const names = built.translation.objectDiagnostics.droppedPropNames
+    // ⛔⛔ ENGINE 52 — NOTHING IS DROPPED TO A DEFAULT ANY MORE. `dcrColor` is read now (the
+    // colour reader follows a reassigned default, `bound`); `atrMultColor` is not, and its cell
+    // is WITHHELD by name (`withheldPropNames`, STOP item in the engine-52 EVIDENCE).
+    const names = built.translation.objectDiagnostics.droppedPropNames || []
     expect(names.filter((n) => n.startsWith('cell.text_size@')),
       'a computed `text_size` should resolve through ENUM_SLOTS, not drop').toHaveLength(0)
-    expect(names.filter((n) => n.startsWith('cell.text_color@'))).toHaveLength(2)
+    expect(names).toEqual([])
+    expect(built.translation.objectDiagnostics.withheldPropNames).toEqual(['cell.text_color@576'])
     // ⛔ AND NOTHING ELSE IS DROPPED SILENTLY — the named list accounts for the
     // whole count, so a tenth drop cannot appear without a name.
-    expect(names).toHaveLength(built.translation.objectDiagnostics.droppedProps)
+    expect(names).toHaveLength(built.translation.objectDiagnostics.droppedProps || 0)
   })
 })
 
@@ -323,5 +331,33 @@ describe('⭐⭐ v2 reads at every depth the product reaches', () => {
     expect(r.refusals[0]).toHaveProperty('node')
     expect(r.refusals[0].guard).toMatch(/^(budget|interpret|resolve):/)
     expect(r.refusals[0].message.length).toBeGreaterThan(10)
+  })
+})
+
+// ⭐⭐ Engine 52 (review M6) — A TREE THAT FAILS AT BIND HOLDS THE TABLE IT POSITIONS. The
+// reviewer's repro: a table whose position is a choice on a condition whose tree exceeds the
+// object reader's lookback budget (`ta.highest(volume[1], 2000)`). Without `readUnknown` the
+// runtime read the failed condition as false and drew the table on its `else` arm.
+describe('engine 52 — a failed condition never positions a drawn table', () => {
+  it('the table is held, never drawn in the else corner', () => {
+    const src = [
+      '//@version=6',
+      'indicator("r", overlay = false)',
+      'plot(close)',
+      'big = volume > ta.highest(volume[1], 2000)',
+      'pos = big ? position.top_center : position.top_right',
+      'if barstate.islast',
+      '    var table t = table.new(pos, 1, 1)',
+      '    table.cell(t, 0, 0, "x")',
+    ].join(String.fromCharCode(10))
+    const built = memberPaneDefinition({ source: src, id: 'u_e52', name: 'e52' })
+    expect(built.ok, built.reason || '').toBe(true)
+    const reader = objectReaderFor(built.definition, BARS, { inputs: undefined, tf: 'D', symbol: SYMBOL })
+    expect(reader.failed.length).toBeGreaterThan(0)
+    const run = evaluateObjects(reader.program, {
+      barCount: N, readNode: reader.readNode, readUnknown: reader.readUnknown, readTime: (i) => BARS[i].t,
+    })
+    const state = toRenderState(run.live, { bars: BARS })
+    expect((state.tables || []).filter((tb) => tb.position === 'top_right')).toEqual([])
   })
 })

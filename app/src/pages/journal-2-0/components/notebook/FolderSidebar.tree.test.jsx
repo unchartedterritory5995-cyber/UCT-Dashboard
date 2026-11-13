@@ -32,15 +32,32 @@ const key = (k, opts = {}) => fireEvent.keyDown(document.activeElement, { key: k
 beforeEach(() => { installFetch(); latchWave8Flags(true) })
 
 describe('the folder panel is a tree', () => {
-  it('the standing rows and every folder are rows of ONE tree, with their level', async () => {
+  // Notebook simplify, Task 2: Unfiled, Archived and Trash moved out of this tree into the "More" fold, which is
+  // its own one-stop tree (below). All notes stays the first row here, the folders follow it.
+  it('the standing row and every folder are rows of ONE tree, with their level', async () => {
     renderSidebar()
     const t = await tree()
     await waitFor(() => expect(within(t).getByRole('treeitem', { name: 'Theses' })).toBeTruthy())
     const names = within(t).getAllByRole('treeitem').map((el) => el.getAttribute('aria-label'))
-    expect(names.slice(0, 4).map((n) => n.split(',')[0])).toEqual(['All notes', 'Unfiled', 'Archived', 'Trash'])
+    expect(names[0].split(',')[0]).toBe('All notes')
     expect(names).toContain('Theses')
     expect(names).toContain('Plans')
+    expect(names.some((n) => /^(Unfiled|Archived|Trash)\b/.test(n))).toBe(false)
     expect(row('Theses').getAttribute('aria-level')).toBe('1')
+  })
+
+  it('Task 2: the "More" fold, open, is its own tree of the three shelves with ONE Tab stop', async () => {
+    window.localStorage.setItem('uct.notebook.sidebar.moreOpen', '1')
+    try {
+      renderSidebar()
+      const more = await screen.findByRole('tree', { name: 'More' })
+      const names = within(more).getAllByRole('treeitem').map((el) => el.getAttribute('aria-label').split(',')[0])
+      expect(names).toEqual(['Unfiled', 'Archived', 'Trash'])
+      expect(within(more).getAllByRole('treeitem').filter((el) => el.getAttribute('tabindex') === '0')).toHaveLength(1)
+      expect([...more.querySelectorAll('button, a[href]')].filter((el) => el.tabIndex >= 0)).toEqual([])
+    } finally {
+      window.localStorage.removeItem('uct.notebook.sidebar.moreOpen')
+    }
   })
 
   it('exactly one row is a Tab stop, and no control inside the tree is', async () => {
@@ -243,7 +260,7 @@ describe('the folder panel is a tree', () => {
       await waitFor(() => row('Plans'))
       within(t).getAllByRole('treeitem')[0].focus()           // All notes
       key('ArrowDown')
-      expect(document.activeElement.getAttribute('aria-label')).toMatch(/^Unfiled/)
+      expect(document.activeElement).toBe(row('Theses'))      // Task 2: the shelves are in the "More" fold now
       row('Plans').focus()
       key('ArrowRight')
       await waitFor(() => expect(row('Plans').getAttribute('aria-expanded')).toBe('true'))

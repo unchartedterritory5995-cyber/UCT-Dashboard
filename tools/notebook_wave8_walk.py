@@ -415,6 +415,12 @@ def takes_text(info):
 TOUR_STEPS_JS = "app/src/pages/journal-2-0/components/notebook/onboarding/tourSteps.js"
 TOUR_COPY_JS = "app/src/pages/journal-2-0/components/notebook/onboarding/tourCopy.js"
 SAMPLE_JS = "app/src/pages/journal-2-0/components/notebook/onboarding/sampleNotebook.js"
+# Go-live wave 1 retired Research home's sample strip ("Remove it"); the removal door is the notes list's More menu row,
+# whose words live here (`SAMPLE_ROW_COPY.removeRow`).
+SAMPLE_KEYS_JS = "app/src/pages/journal-2-0/components/notebook/onboarding/sampleNotebookKeys.js"
+# The Get started list's base-tour item ("Take the <title> tour", CHECKLIST_COPY.tour) is the on-page door to the base
+# tour since Research home's own "Take the tour" button went with it.
+GETTING_STARTED_JS = "app/src/pages/journal-2-0/components/notebook/onboarding/gettingStarted.js"
 SAMPLE_PY = "api/services/journal_two/sample_notebook.py"
 SAMPLE_JSON = "api/services/journal_two/sample_notebook.json"
 PUBLIC_PAYLOAD_PY = "api/services/journal_two/public_note_payload.py"
@@ -487,6 +493,9 @@ def js_string(relpath, key):
     return _js_unescape(m.group(2))
 
 
+LIST_TOOLBAR = "[role='toolbar'][aria-label='Notes list tools']"   # the notes list, the Notebook's first screen
+
+
 def tour_steps():
     """The tour's steps IN ORDER (`tourSteps.js`), each with its anchor, the file carrying
     the anchor and its title (`tourCopy.js`): [{id, anchor, file, title}]."""
@@ -504,6 +513,23 @@ def gone_sentence(relpath):
     if not m:
         raise LookupError(f"no goneTitle heading in {relpath}")
     return m.group(1).strip()
+
+
+def tour_link_text():
+    """The words of Support.jsx's TourLink (the help article's link that opens the Notebook with the tour)."""
+    m = re.search(r"function TourLink\(\)[\s\S]*?<Link[^>]*>([^<]+)</Link>", repo_text(SUPPORT_JSX))
+    if not m:
+        raise LookupError("Support.jsx has no TourLink link text")
+    return m.group(1).strip()
+
+
+def checklist_tour_item_re():
+    """The Get started list's base-tour item, as a name pattern built from CHECKLIST_COPY.tour's own template
+    (`Take the ${title} tour`): the words around the title are read, never retyped."""
+    m = re.search(r"tour:\s*\(title\)\s*=>\s*`([^`$]*)\$\{title\}([^`]*)`", repo_text(GETTING_STARTED_JS))
+    if not m:
+        raise LookupError("gettingStarted.js has no CHECKLIST_COPY.tour template")
+    return re.compile("^" + re.escape(m.group(1)) + ".+" + re.escape(m.group(2)) + "$")
 
 
 def help_question_with_tour_link():
@@ -1184,12 +1210,13 @@ with sync_playwright() as p:
             break
         return seen
 
-    def tour_absent_after_reload(pg, home_title):
-        """Reload, wait for the first-run screen, then give the tour its auto-start delay and
-        a margin as a BOUNDED waiter: a card appearing at any instant inside it is caught."""
+    def tour_absent_after_reload(pg):
+        """Reload, wait for the notes list (the Notebook's first screen since go-live wave 1; Research home's
+        first-run heading is gone), then give the tour its auto-start delay and a margin as a BOUNDED waiter: a card
+        appearing at any instant inside it is caught."""
         pg.reload()
         dismiss_intro(pg)
-        pg.get_by_role("heading", name=home_title).first.wait_for(state="visible", timeout=20000)
+        pg.locator(LIST_TOOLBAR).first.wait_for(state="visible", timeout=20000)
         try:
             tour_card(pg).first.wait_for(state="visible", timeout=5000)
             return False
@@ -1200,12 +1227,14 @@ with sync_playwright() as p:
     def check_w1():
         steps = tour_steps()
         ui = {k: js_string(TOUR_COPY_JS, k) for k in ("next", "done", "skip", "help")}
-        copy = {k: js_string(SAMPLE_JS, k) for k in ("add", "tour", "refused", "strip", "remove", "removed")}
+        copy = {k: js_string(SAMPLE_JS, k) for k in ("add", "refused", "removed")}
+        copy["remove_row"] = js_string(SAMPLE_KEYS_JS, "removeRow")
+        copy["help_tour"] = tour_link_text()
+        take_tour = checklist_tour_item_re()
         server_refusal = py_string(SAMPLE_PY, "REFUSED_SENTENCE")
         sample = json.loads(repo_text(SAMPLE_JSON))
         welcome_title = next(n["title"] for n in sample["notes"] if n["key"] == sample["welcome"])
         sidebar_titles = [s["title"] for s in steps if s["file"].endswith("FolderSidebar.jsx")]
-        home_title = steps[0]["title"]                    # the first-run step's own title
         facts = {"tour_steps_in_source": [s["title"] for s in steps], "sidebar_step_titles": sidebar_titles}
 
         tour_email = f"w8tour{RUN}@local.dev"
@@ -1231,10 +1260,11 @@ with sync_playwright() as p:
                                "progress_total_matches": totals == {len(titles)},
                                "every_anchor_on_screen": all((s["anchor"] or {}).get("hit") for s in walked)}
         facts["pref_after_done"] = pref_value(tapi, "notebook_tour")
-        facts["absent_after_reload_done"] = tour_absent_after_reload(pg, home_title)
+        facts["absent_after_reload_done"] = tour_absent_after_reload(pg)
 
-        # (b) "Take the tour" reopens it; Escape dismisses; the dismissal persists too
-        take = pg.get_by_role("button", name=copy["tour"], exact=True)
+        # (b) the Get started list's "Take the Notebook basics tour" reopens it (Research home's "Take the tour"
+        #     button went with it); Escape dismisses; the dismissal persists too
+        take = pg.get_by_role("button", name=take_tour)
         with pg.expect_response(pref_post("notebook_tour", "started"), timeout=15000):
             take.click()
             tour_card(pg).first.wait_for(state="visible", timeout=10000)
@@ -1249,13 +1279,13 @@ with sync_playwright() as p:
             pass
         facts["focus_after_escape"] = pg.evaluate(FOCUS_JS)
         facts["pref_after_dismiss"] = pref_value(tapi, "notebook_tour")
-        facts["absent_after_reload_dismiss"] = tour_absent_after_reload(pg, home_title)
+        facts["absent_after_reload_dismiss"] = tour_absent_after_reload(pg)
 
         # (c) the sidebar collapsed: no sidebar step outlines an anchor nobody can see (FE M-7)
         pg.get_by_role("button", name="Hide folders panel", exact=True).click()
         pg.get_by_role("button", name="Show folders panel", exact=True).wait_for(state="visible", timeout=8000)
         with pg.expect_response(pref_post("notebook_tour", "started"), timeout=15000):
-            pg.get_by_role("button", name=copy["tour"], exact=True).click()
+            pg.get_by_role("button", name=take_tour).click()
             tour_card(pg).first.wait_for(state="visible", timeout=10000)
         collapsed = walk_tour(pg, ui)
         tour_card(pg).first.wait_for(state="detached", timeout=8000)
@@ -1272,7 +1302,7 @@ with sync_playwright() as p:
         pg.goto(f"{BASE}/support")
         dismiss_intro(pg)
         pg.get_by_role("button", name=q, exact=True).first.click(timeout=15000)
-        link = pg.get_by_role("link", name=copy["tour"], exact=True).first
+        link = pg.get_by_role("link", name=copy["help_tour"], exact=True).first
         link.wait_for(state="visible", timeout=10000)
         try:
             with pg.expect_response(pref_post("notebook_tour", "started"), timeout=20000):
@@ -1296,8 +1326,14 @@ with sync_playwright() as p:
         # (e) Add a sample notebook -> the sample folder and the welcome note open
         pg.goto(notebook_url())
         dismiss_intro(pg)
-        add_btn = pg.get_by_role("button", name=copy["add"], exact=True)
-        add_btn.wait_for(state="visible", timeout=20000)
+        # Final fix (C4): while the Get started card is up, its "Open the sample notebook" row is the one sample door and
+        # the standalone copy["add"] button is not drawn; without the card the standalone button is the door.
+        add_btn = pg.get_by_role("button", name="Open the sample notebook", exact=True)
+        try:
+            add_btn.wait_for(state="visible", timeout=8000)
+        except Exception:  # noqa: BLE001 -- no Get started card here: the standalone button is the door
+            add_btn = pg.get_by_role("button", name=copy["add"], exact=True)
+            add_btn.wait_for(state="visible", timeout=20000)
         with pg.expect_response(lambda r: r.url.endswith("/api/j2/onboarding/sample-notebook")
                                 and r.request.method == "POST", timeout=30000) as ai:
             add_btn.click()
@@ -1314,22 +1350,31 @@ with sync_playwright() as p:
                                  "active": len(status.get("activeIds", []))}
         facts["sample_shot"] = shot(pg, "w1-sample-welcome")
 
-        # (f) the strip shows; Remove it -> the notes are in Trash and the strip is gone
+        # (f) the notes list's More menu offers "Remove the sample notebook" (go-live wave 1 retired Research home's
+        #     strip and its "Remove it"); pressing it puts the notes in Trash, says so in the list's status line, and
+        #     the row leaves the menu
         pg.goto(notebook_url())
         dismiss_intro(pg)
-        strip = pg.get_by_text(copy["strip"], exact=False).first
-        strip.wait_for(state="visible", timeout=20000)
-        pg.get_by_role("button", name=copy["remove"], exact=True).click()
+        more = pg.get_by_role("button", name="More notebook actions", exact=True)
+        more.first.wait_for(state="visible", timeout=20000)
+        more.first.click()
+        row = pg.get_by_role("menu", name="More notebook actions").get_by_role("menuitem", name=copy["remove_row"], exact=True)
+        row.first.wait_for(state="visible", timeout=20000)     # the sample's status is read the first time the menu opens
+        row.first.click()
         pg.get_by_text(copy["removed"], exact=True).first.wait_for(state="visible", timeout=20000)
-        strip_gone = True
+        more.first.click()
+        strip_gone = True                                      # the door is gone once the sample is
         try:
-            pg.get_by_text(copy["strip"], exact=False).first.wait_for(state="detached", timeout=10000)
-        except Exception:  # noqa: BLE001
+            pg.get_by_role("menu", name="More notebook actions").get_by_role(
+                "menuitem", name=copy["remove_row"], exact=True).first.wait_for(state="visible", timeout=5000)
             strip_gone = False
+        except Exception:  # noqa: BLE001 -- the wait running out IS the measurement
+            pass
+        pg.keyboard.press("Escape")
         after = tapi.get(BASE + "/api/j2/onboarding/sample-notebook").json()
         trash = tapi.get(BASE + "/api/j2/notes?deleted=true&limit=200").json().get("notes", [])
         trashed_ids = {n.get("id") for n in trash}
-        facts["sample_removed"] = {"strip_gone": strip_gone, "active_after": after.get("activeIds"),
+        facts["sample_removed"] = {"row_gone": strip_gone, "active_after": after.get("activeIds"),
                                    "ids": len(after.get("ids", [])),
                                    "all_in_trash": bool(after.get("ids")) and set(after.get("ids", [])) <= trashed_ids}
 
@@ -1346,9 +1391,12 @@ with sync_playwright() as p:
         rpg = _fresh_page(rctx)
         rpg.goto(notebook_url())
         dismiss_intro(rpg)
-        tour_card(rpg).first.wait_for(state="visible", timeout=20000)   # a new member: the tour starts
-        rpg.keyboard.press("Escape")
-        tour_card(rpg).first.wait_for(state="detached", timeout=8000)
+        try:   # a new member: the base tour may start by itself; close it the way a member does
+            tour_card(rpg).first.wait_for(state="visible", timeout=20000)
+            rpg.keyboard.press("Escape")
+            tour_card(rpg).first.wait_for(state="detached", timeout=8000)
+        except Exception:  # noqa: BLE001 -- no card: nothing to close
+            pass
         rpg.get_by_role("button", name=copy["add"], exact=True).wait_for(state="visible", timeout=15000)
         mk_note(rctx.request, f"Written elsewhere {RUN}", DOC(P("elsewhere")))
         rpg.get_by_role("button", name=copy["add"], exact=True).click()
@@ -1373,7 +1421,7 @@ with sync_playwright() as p:
               and bool(facts["help_take_the_tour"]["opened_at"])
               and facts["sample_added"]["status"] == 200 and facts["sample_added"]["url_opens_welcome"]
               and facts["sample_added"]["folder_visible"] and facts["sample_added"]["active"] == facts["sample_added"]["ids"] > 0
-              and facts["sample_removed"]["strip_gone"] and facts["sample_removed"]["active_after"] == []
+              and facts["sample_removed"]["row_gone"] and facts["sample_removed"]["active_after"] == []
               and facts["sample_removed"]["all_in_trash"]
               and facts["refusal_api"]["is_server_sentence"] and facts["refusal_ui"]["is_client_sentence"])
         record("W1_onboarding", "PASS" if ok else "FAIL", **facts)

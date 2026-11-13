@@ -101,6 +101,15 @@ export const GROUPS = [
     words: [
       /\b(?:ask|open|pull up|bring up|launch|use)\s+(?:the\s+)?ai\s+(?:about|on|for|regarding)\b|\bask\s+(?:the\s+)?ai\b.*\b(?:chart|stock|symbol|ticker|this one|name)\b/,
       /\bwatermark\b.*\b(?:reset|back|default|original|re-?cent(?:er|re)|where it was)\b|\b(?:reset|re-?cent(?:er|re)|restore|undrag)\b.*\bwatermark\b/] },
+  // Charts family (2026-11-12): a chart's Company Info side panel and Earnings Strip (Add to Chart's host features), in their
+  // OWN words-only group (as chartMenu): never a filler, so no existing group and no unrecognised request changes. The
+  // words name the PANEL or the STRIP itself (company info / company or profile panel / earnings or fundamentals strip / the
+  // strip under the chart) or a tab only that panel has; a bare "earnings" / "news" / "panel" is not enough.
+  { id: 'chartFeatures', title: 'A chart’s Company Info side panel (add, expand, collapse, remove, its tabs) and its Earnings Strip under the chart (add, remove)', domains: ['chartFeatures'], fillLast: true, wordsOnly: true,
+    words: [
+      /\bcompany\s+(?:info(?:rmation)?|panel|profile\s+panel|intelligence|sidebar|side\s*panel)\b|\b(?:profile|info|fundamentals?)\s+(?:side\s*)?panel\b/,
+      /\b(?:earnings|fundamentals?|eps)\s+strip\b|\bstrip\s+(?:under|below|beneath|at the bottom of)\s+(?:the\s+|this\s+|my\s+|that\s+)?chart\b/,
+      /\b(?:financials|ownership|valuation)\s+tab\b|\b(?:overview|earnings|news|financials|ownership)\s+tab\s+(?:of|on|in)\s+(?:the\s+)?(?:company|side|profile|info)\b/] },
   // ⭐ live test 2026-10-28: N tickers as N equal charts (reuse, add, re-tile — one change, one Undo) — its OWN group
   // (one action), so neither the NL-1 core nor the workspace group grows: core + workspace is exactly the budget.
   { id: 'chartGrid', title: 'Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells', domains: ['chartGrid'], fillLast: true,

@@ -5,25 +5,19 @@
     "path": "/journal/notebook",
     "steps": [
       {
-        "click": "link|View all notes"
+        "click": "button|~^View:"
       }
     ],
     "target": {
-      "role": "button",
-      "name": "Board view"
-    },
-    "target_by_viewport": {
-      "390": {
-        "role": "combobox",
-        "name": "View"
-      }
+      "role": "menuitemradio",
+      "name": "Board"
     },
     "viewports": [
       "1280",
       "390"
     ],
     "flag": null,
-    "note": "1280: the icon buttons (aria-labelled, icon only). 390: the labelled View select (Task 10)."
+    "note": "Go-live wave 2 (Notebook simplify): a bare /journal/notebook opens the notes list, so the old 'View all notes' press from Research home is gone. Every mode is a row of the labelled View menu (\"View: List\"), at every width (simplify Task 3); Board stands for the seven."
   },
   {
     "feature": "Formulas and rollups: Add a formula",
@@ -72,15 +66,26 @@
       "1280",
       "390"
     ],
-    "flag": "NOTEBOOK_VOICE_NOTES_ENABLED"
+    "flag": "NOTEBOOK_VOICE_NOTES_ENABLED",
+    "steps_by_viewport": {
+      "390": [
+        {
+          "click": "button|More notebook actions"
+        }
+      ]
+    },
+    "note": "The notes list's \"+ New\" arrow (\"More ways to start a note\"), Voice note. On a phone the \"+ New\" group is not drawn; the More menu's phone-only Voice note row is the door there (go-live wave 1, C1)."
   },
   {
-    "feature": "Attach a file (toolbar paperclip, phone Insert menu)",
+    "feature": "Attach a file (desktop Aa menu, phone Insert menu)",
     "audit_row": 24,
     "path": "/journal/notebook",
     "steps": [
       {
         "open_note": "Research: how a base"
+      },
+      {
+        "click": "button|More formatting"
       }
     ],
     "steps_by_viewport": {
@@ -101,7 +106,14 @@
       "1280",
       "390"
     ],
-    "flag": null
+    "flag": null,
+    "target_by_viewport": {
+      "1280": {
+        "role": "menuitem",
+        "name": "Attach a file"
+      }
+    },
+    "note": "Notebook simplify Task 4: at 1025 px and up the formatting row's paperclip is folded into the \"More formatting\" (Aa) menu, whose \"Attach a file\" row is the desktop door; the phone keeps its Insert menu."
   },
   {
     "feature": "Scan with camera (phone Insert menu)",
@@ -126,25 +138,43 @@
     "note": "The phone Insert menu is the only camera door; a desktop has none."
   },
   {
-    "feature": "Ask the Notebook: the question button on Research Home",
+    "feature": "Ask the Notebook: the AI button on the notes list",
     "audit_row": 26,
     "path": "/journal/notebook",
     "steps": [],
     "target": {
       "role": "button",
-      "name": "Ask a question about my notebook"
+      "name": "AI"
     },
     "viewports": [
       "1280",
       "390"
     ],
-    "flag": null
+    "flag": null,
+    "steps_by_viewport": {
+      "390": [
+        {
+          "click": "button|More notebook actions"
+        }
+      ]
+    },
+    "target_by_viewport": {
+      "390": {
+        "role": "menuitem",
+        "name": "Ask your Notebook"
+      }
+    },
+    "note": "Research home's Ask moved behind the notes list's \"AI\" button (simplify Task 5); at 1024 px and below the button gives way to the More menu's \"Ask your Notebook\" row (go-live wave 1, D2)."
   },
   {
     "feature": "Ask the Notebook: the labelled Ask your Notebook section",
     "audit_row": 26,
     "path": "/journal/notebook",
-    "steps": [],
+    "steps": [
+      {
+        "click": "button|AI"
+      }
+    ],
     "target": {
       "role": "region",
       "name": "Ask your Notebook"
@@ -153,7 +183,24 @@
       "1280",
       "390"
     ],
-    "flag": null
+    "flag": null,
+    "steps_by_viewport": {
+      "390": [
+        {
+          "click": "button|More notebook actions"
+        },
+        {
+          "click": "menuitem|Ask your Notebook"
+        }
+      ]
+    },
+    "note": "The section opens under the list's toolbar from the AI button. At 390 the More menu's Ask your Notebook opens the same section, and its question opens as a bottom sheet over the list (AskPanel, autoOpen), so the door measured there is the sheet's own Ask button.",
+    "target_by_viewport": {
+      "390": {
+        "role": "button",
+        "name": "Ask"
+      }
+    }
   },
   {
     "feature": "Compass can read your notes",
@@ -161,10 +208,10 @@
     "path": "/journal/notebook",
     "steps": [
       {
-        "click": "button|Learn"
+        "click": "button|Help"
       },
       {
-        "click": "menuitem|What your Notebook can do"
+        "click": "menuitem|Tours"
       }
     ],
     "target": {
@@ -176,7 +223,21 @@
       "390"
     ],
     "flag": "COMPASS_NOTES_TOOL_ENABLED",
-    "note": "Research Home, Learn, What your Notebook can do: the entry's label is a line of text in the Sheet (task 14b, ruling R16), so it is reached by its visible text. The press on the target is counted as the audit counts it, though a line of text is read, not pressed."
+    "note": "Go-live wave 1 (ruling A6): \"What your Notebook can do\" left the Learn menu (dropped by ruling) for Help, the section after Walkthroughs (Support.jsx NotebookCapabilitiesSection). Reached the way a member reaches Help from the Notebook: the header's Help menu (S14, one Help menu), then Tours (it lands on Walkthroughs, just above). The entry's label is a line of text (ruling R16), so it is reached by its visible text. On a phone the Journal header's Help is not drawn; the app menu (Open menu) lists Support, which is Help.",
+    "steps_by_viewport": {
+      "390": [
+        {
+          "click": "button|Open menu"
+        },
+        {
+          "click_css": "[role='dialog'] a[href='/support'], [role='dialog'] button:has-text('Support')"
+        }
+      ]
+    },
+    "reason": {
+      "verdict": "HARD",
+      "text": "Go-live wave 2, by ruling A6 (go-live wave 1): \"What your Notebook can do\" left the Learn menu (dropped) for Help, as the section after Walkthroughs; Help lists every tour first (23 rows), so the line sits about 2.3 screens down Help (3 presses at both widths, labelled, uncovered; at 390 the app menu's Support is the door to Help); before: OK through the Learn menu. Recorded in docs/notebook/simplify-2026-11-11-ledger.md, Go-live wave 2. Owner call: accept, or link the section from the top of Help."
+    }
   },
   {
     "feature": "Task reminders: slash menu, Due date",
@@ -228,10 +289,10 @@
     "path": "/journal/notebook",
     "steps": [
       {
-        "click": "link|View all notes"
+        "click": "button|More ways to start a note"
       },
       {
-        "click": "button|Import"
+        "click": "menuitem|Import"
       }
     ],
     "target": {
@@ -243,7 +304,17 @@
       "390"
     ],
     "flag": null,
-    "note": "Shown only while GET /api/j2/inbound-email/address answers (the card's own gate)."
+    "note": "Shown only while GET /api/j2/inbound-email/address answers (the card's own gate). Go-live wave 2 (Notebook simplify): a bare /journal/notebook opens the notes list, so the old 'View all notes' press from Research home is gone. Import is a row of the \"+ New\" arrow's menu (simplify Task 3); on a phone, of the More menu.",
+    "steps_by_viewport": {
+      "390": [
+        {
+          "click": "button|More notebook actions"
+        },
+        {
+          "click": "menuitem|Import"
+        }
+      ]
+    }
   },
   {
     "feature": "Browser capture extension: Import, Capture from anywhere",
@@ -251,10 +322,10 @@
     "path": "/journal/notebook",
     "steps": [
       {
-        "click": "link|View all notes"
+        "click": "button|More ways to start a note"
       },
       {
-        "click": "button|Import"
+        "click": "menuitem|Import"
       }
     ],
     "target": {
@@ -265,7 +336,18 @@
       "1280",
       "390"
     ],
-    "flag": null
+    "flag": null,
+    "steps_by_viewport": {
+      "390": [
+        {
+          "click": "button|More notebook actions"
+        },
+        {
+          "click": "menuitem|Import"
+        }
+      ]
+    },
+    "note": "Go-live wave 2 (Notebook simplify): a bare /journal/notebook opens the notes list, so the old 'View all notes' press from Research home is gone. Import is a row of the \"+ New\" arrow's menu (simplify Task 3); on a phone, of the More menu."
   },
   {
     "feature": "iPhone Shortcut and Personal API: Import, Capture from anywhere",
@@ -273,10 +355,10 @@
     "path": "/journal/notebook",
     "steps": [
       {
-        "click": "link|View all notes"
+        "click": "button|More ways to start a note"
       },
       {
-        "click": "button|Import"
+        "click": "menuitem|Import"
       }
     ],
     "target": {
@@ -288,7 +370,17 @@
       "390"
     ],
     "flag": null,
-    "note": "Shown only while GET /api/j2/personal/tokens answers (NOTEBOOK_PERSONAL_API_ENABLED, which the stock c2 sandbox does not set: boot through --serve)."
+    "note": "Shown only while GET /api/j2/personal/tokens answers (NOTEBOOK_PERSONAL_API_ENABLED, which the stock c2 sandbox does not set: boot through --serve). Go-live wave 2 (Notebook simplify): a bare /journal/notebook opens the notes list, so the old 'View all notes' press from Research home is gone. Import is a row of the \"+ New\" arrow's menu (simplify Task 3); on a phone, of the More menu.",
+    "steps_by_viewport": {
+      "390": [
+        {
+          "click": "button|More notebook actions"
+        },
+        {
+          "click": "menuitem|Import"
+        }
+      ]
+    }
   },
   {
     "feature": "Chart plan: the chart toolbar's Plan",
@@ -311,7 +403,30 @@
       "390"
     ],
     "flag": "NOTEBOOK_CHART_PLAN_ENABLED",
-    "note": "The target is measured after scrollIntoView, then hit-tested at its centre: a toolbar under the note's sticky bar reads covered."
+    "note": "The target is measured after scrollIntoView, then hit-tested at its centre: a toolbar under the note's sticky bar reads covered. At phone width the chart's compact header (S12, master 7ccec23c77, by ruling) moves Draw, Plan and Replay into its More menu, so at 390 the door is More chart actions, then Plan.",
+    "steps_by_viewport": {
+      "390": [
+        {
+          "open_note": "AAPL pullback"
+        },
+        {
+          "hover_css": "[data-widget-embed-view=\"chart\"]"
+        },
+        {
+          "click": "button|More chart actions"
+        }
+      ]
+    },
+    "target_by_viewport": {
+      "390": {
+        "role": "button",
+        "name": "~^Plan"
+      }
+    },
+    "reason": {
+      "verdict": "HARD",
+      "text": "Phone only, by ruling S12 (master 7ccec23c77, phone chart mode): Draw, Plan and Replay moved into the chart's More sheet at phone width. Measured at 390: 3 presses, one scroll, and the hit-test at the Plan row's centre landed on a span of the sheet (the sheet's own layout, not an overlay); the c2 walk's discover.chart-plan-clickable presses that row at 390 and the plan panel opens. 1280: OK. Recorded in the ledger, Go-live wave 2."
+    }
   },
   {
     "feature": "Visual playbook: the fingerprint panel button",
@@ -337,19 +452,38 @@
     }
   },
   {
-    "feature": "Active setups: the Research Home box",
+    "feature": "Active setups: the Daily brief's Setups near entry card",
     "audit_row": 41,
     "path": "/journal/notebook",
-    "steps": [],
+    "steps": [
+      {
+        "click": "treeitem|Daily brief"
+      }
+    ],
     "target": {
       "role": "link",
-      "name": "Open the setups board"
+      "name": "~setups board"
     },
     "viewports": [
       "1280",
       "390"
     ],
-    "flag": "NOTEBOOK_SETUPS_BOARD_ENABLED"
+    "flag": "NOTEBOOK_SETUPS_BOARD_ENABLED",
+    "steps_by_viewport": {
+      "390": [
+        {
+          "click": "button|~^Folder:"
+        },
+        {
+          "click": "treeitem|Daily brief"
+        }
+      ]
+    },
+    "note": "Research home's 'Active setups' box was dropped by ruling (go-live wave 1, A9); the Daily brief's 'Setups near entry' card carries the link to the board. The Daily brief is the folders panel's row under All notes (on a phone, inside the folders drawer).",
+    "reason": {
+      "verdict": "HARD",
+      "text": "Go-live wave 2, by ruling: Research home was retired (simplify Task 5, go-live wave 1) and its 'Active setups' box (dropped, ruling A9; the 'Setups near entry' card's link is the replacement) moved to the Daily brief, an optional page reached from the folders panel's Daily brief row; on a phone that row is inside the folders drawer, so the door costs a press more and the card sits below the brief's first cards. Measured at 390: 3 presses, 1.58 screens down, labelled and uncovered (1280: EASY). Recorded in docs/notebook/simplify-2026-11-11-ledger.md, Go-live wave 2. Owner call: accept, or give the phone a nearer door."
+    }
   },
   {
     "feature": "Active setups: the way back from the board",
@@ -357,7 +491,10 @@
     "path": "/journal/notebook",
     "steps": [
       {
-        "click": "link|Open the setups board"
+        "click": "treeitem|Daily brief"
+      },
+      {
+        "click": "link|~setups board"
       }
     ],
     "target": {
@@ -368,7 +505,24 @@
       "1280",
       "390"
     ],
-    "flag": "NOTEBOOK_SETUPS_BOARD_ENABLED"
+    "flag": "NOTEBOOK_SETUPS_BOARD_ENABLED",
+    "steps_by_viewport": {
+      "390": [
+        {
+          "click": "button|~^Folder:"
+        },
+        {
+          "click": "treeitem|Daily brief"
+        },
+        {
+          "click": "link|~setups board"
+        }
+      ]
+    },
+    "reason": {
+      "verdict": "HARD",
+      "text": "Go-live wave 2, by ruling: Research home was retired (simplify Task 5, go-live wave 1) and its setups board link moved to the Daily brief, an optional page reached from the folders panel's Daily brief row; on a phone that row is inside the folders drawer, so the door costs a press more and the card sits below the brief's first cards. Measured at 390: 4 presses to the board's Back to Notebook, above the fold (1280: OK, 3 presses). Recorded in docs/notebook/simplify-2026-11-11-ledger.md, Go-live wave 2. Owner call: accept, or give the phone a nearer door."
+    }
   },
   {
     "feature": "Find more like this: a board card's or a tagged chart's button",
@@ -376,7 +530,10 @@
     "path": "/journal/notebook",
     "steps": [
       {
-        "click": "link|Open the setups board"
+        "click": "treeitem|Daily brief"
+      },
+      {
+        "click": "link|~setups board"
       }
     ],
     "target": {
@@ -390,13 +547,34 @@
     "flag": "NOTEBOOK_FIND_SIMILAR_ENABLED",
     "needs_seed": "find_similar",
     "target_wait_ms": 30000,
-    "note": "Measured on a member with a chart plan of their own: the run makes the note through the member's route and runs the overnight find-similar job for it (tools/notebook_fin_walk.py run_post_child), so the card carries the button and stored matches exist. An example card never carries it. If the seed did not land the row is NOT_MEASURED; if it landed and the button is absent the row is HIDDEN."
+    "note": "Measured on a member with a chart plan of their own: the run makes the note through the member's route and runs the overnight find-similar job for it (tools/notebook_fin_walk.py run_post_child), so the card carries the button and stored matches exist. An example card never carries it. If the seed did not land the row is NOT_MEASURED; if it landed and the button is absent the row is HIDDEN.",
+    "steps_by_viewport": {
+      "390": [
+        {
+          "click": "button|~^Folder:"
+        },
+        {
+          "click": "treeitem|Daily brief"
+        },
+        {
+          "click": "link|~setups board"
+        }
+      ]
+    },
+    "reason": {
+      "verdict": "HARD",
+      "text": "Go-live wave 2, by ruling: Research home was retired (simplify Task 5, go-live wave 1) and its setups board link moved to the Daily brief, an optional page reached from the folders panel's Daily brief row; on a phone that row is inside the folders drawer, so the door costs a press more and the card sits below the brief's first cards. Measured at 390: 4 presses, above the fold, labelled (1280: OK, 3 presses). Recorded in docs/notebook/simplify-2026-11-11-ledger.md, Go-live wave 2. Owner call: accept, or give the phone a nearer door."
+    }
   },
   {
-    "feature": "Note resurfacing: the Notices box on Research Home",
+    "feature": "Note resurfacing: the Notices box on the Daily brief",
     "audit_row": 46,
     "path": "/journal/notebook",
-    "steps": [],
+    "steps": [
+      {
+        "click": "treeitem|Daily brief"
+      }
+    ],
     "target": {
       "css": "[data-tour=\"home-notices\"] > summary"
     },
@@ -408,7 +586,21 @@
     "stubs": [
       "resurfacing"
     ],
-    "note": "The box renders only while the member has a notice, and a fresh sandbox member has none (a resurfaced note needs the overnight awareness scan). A resurfaced note reaches the box through GET /api/voice/insights (403 without voice access), so that is the feed this row answers, through page.route, with one note_level_touch insight whose link opens one of the member's notes. The box, its position and its label are the real product code, the data is not. With no notice the box is absent by design (components/notebook/NoticesBox.jsx returns null)."
+    "note": "Go-live wave 1 (A4): the Notices box moved from Research home to the top of the Daily brief's cards. The box renders only while the member has a notice, and a fresh sandbox member has none (a resurfaced note needs the overnight awareness scan). A resurfaced note reaches the box through GET /api/voice/insights (403 without voice access), so that is the feed this row answers, through page.route, with one note_level_touch insight whose link opens one of the member's notes. The box, its position and its label are the real product code, the data is not. With no notice the box is absent by design (components/notebook/NoticesBox.jsx returns null).",
+    "steps_by_viewport": {
+      "390": [
+        {
+          "click": "button|~^Folder:"
+        },
+        {
+          "click": "treeitem|Daily brief"
+        }
+      ]
+    },
+    "reason": {
+      "verdict": "HARD",
+      "text": "Go-live wave 2, by ruling: Research home was retired (simplify Task 5, go-live wave 1) and its Notices box (ruling A4: at the top of the Daily brief's cards) moved to the Daily brief, an optional page reached from the folders panel's Daily brief row; on a phone that row is inside the folders drawer, so the door costs a press more and the card sits below the brief's first cards. Measured at 390: 3 presses, 1.38 screens down (1280: EASY). Recorded in docs/notebook/simplify-2026-11-11-ledger.md, Go-live wave 2. Owner call: accept, or give the phone a nearer door."
+    }
   },
   {
     "feature": "Terminal links in notes: paste a command",
@@ -416,10 +608,10 @@
     "path": "/journal/notebook",
     "steps": [
       {
-        "click": "button|Learn"
+        "click": "button|Help"
       },
       {
-        "click": "menuitem|What your Notebook can do"
+        "click": "menuitem|Tours"
       }
     ],
     "target": {
@@ -431,30 +623,44 @@
       "390"
     ],
     "flag": "NOTEBOOK_TERMINAL_LINKS_ENABLED",
-    "note": "Research Home, Learn, What your Notebook can do: the entry's label is a line of text in the Sheet (task 14b, ruling R16). Pasting a command is a behaviour, not a control, so the catalogue line is the door."
+    "note": "Go-live wave 1 (ruling A6): \"What your Notebook can do\" left the Learn menu (dropped by ruling) for Help, the section after Walkthroughs (Support.jsx NotebookCapabilitiesSection). Reached the way a member reaches Help from the Notebook: the header's Help menu (S14, one Help menu), then Tours (it lands on Walkthroughs, just above). The entry's label is a line of text (ruling R16), so it is reached by its visible text. On a phone the Journal header's Help is not drawn; the app menu (Open menu) lists Support, which is Help.",
+    "steps_by_viewport": {
+      "390": [
+        {
+          "click": "button|Open menu"
+        },
+        {
+          "click_css": "[role='dialog'] a[href='/support'], [role='dialog'] button:has-text('Support')"
+        }
+      ]
+    },
+    "reason": {
+      "verdict": "HARD",
+      "text": "Go-live wave 2, by ruling A6 (go-live wave 1): \"What your Notebook can do\" left the Learn menu (dropped) for Help, as the section after Walkthroughs; Help lists every tour first (23 rows), so the line sits about 2.3 screens down Help (3 presses at both widths, labelled, uncovered; at 390 the app menu's Support is the door to Help); before: OK through the Learn menu. Recorded in docs/notebook/simplify-2026-11-11-ledger.md, Go-live wave 2. Owner call: accept, or link the section from the top of Help."
+    }
   },
   {
-    "feature": "Journal styles manager (P1)",
+    "feature": "Journal styles manager (P1): More, Manage templates",
     "audit_row": 54,
     "path": "/journal/notebook",
     "steps": [
       {
-        "click": "link|View all notes"
+        "click": "button|More notebook actions"
       }
     ],
     "target": {
-      "role": "button",
-      "name": "Styles"
+      "role": "menuitem",
+      "name": "Manage templates"
     },
     "viewports": [
       "1280",
       "390"
     ],
     "flag": "NOTEBOOK_JOURNAL_STYLES_ENABLED",
-    "note": "A P1 door, numbered after the 2026-10-11 audit's 53 rows. The Styles button sits in the notes list's header, reached from Research Home the way row 11 reaches it (View all notes): the audit loads every row from Research Home, so a ?view=all path never loads (measured 2026-10-12, door-audit-20261012T055312Z, NOT_MEASURED)."
+    "note": "The styles manager is the list's More menu row \"Manage templates\" (S7, one vocabulary: the toolbar's Styles button folded into the More menu). Go-live wave 2 (Notebook simplify): a bare /journal/notebook opens the notes list, so the old 'View all notes' press from Research home is gone."
   },
   {
-    "feature": "New note from a style (P1)",
+    "feature": "New note from a template (P1)",
     "audit_row": 55,
     "path": "/journal/notebook",
     "steps": [
@@ -464,37 +670,46 @@
     ],
     "target": {
       "role": "menuitem",
-      "name": "From a style"
+      "name": "From a template"
     },
     "viewports": [
       "1280",
       "390"
     ],
     "flag": "NOTEBOOK_JOURNAL_STYLES_ENABLED",
-    "note": "Research Home's New note caret."
+    "note": "The notes list's \"+ New\" arrow, From a template (S7 renamed From a style; it opens the kind picker while journal styles are on). At 390 the More menu's New from a template is the door (the \"+ New\" group is not drawn on a phone).",
+    "steps_by_viewport": {
+      "390": [
+        {
+          "click": "button|More notebook actions"
+        }
+      ]
+    },
+    "target_by_viewport": {
+      "390": {
+        "role": "menuitem",
+        "name": "New from a template"
+      }
+    }
   },
   {
-    "feature": "New note from a style, from the notes list",
+    "feature": "New note from a template, the phone's More menu",
     "audit_row": 56,
     "path": "/journal/notebook",
     "steps": [
       {
-        "click": "link|View all notes"
-      },
-      {
-        "click": "button|More ways to start a note"
+        "click": "button|More notebook actions"
       }
     ],
     "target": {
       "role": "menuitem",
-      "name": "From a style"
+      "name": "New from a template"
     },
     "viewports": [
-      "1280",
       "390"
     ],
     "flag": "NOTEBOOK_JOURNAL_STYLES_ENABLED",
-    "note": "P1 follow-up (owner GO 2026-10-12): the notes list's caret beside \"+ New note\", the same menu as Home's (row 55). Reached from Research Home the way row 54 reaches the list (View all notes). Unmeasured when added."
+    "note": "Go-live wave 2: this row walked Research home's View all notes to reach the list's caret; the list is the landing now, so at 1280 it is row 55's door exactly. It now records the phone's door to the same choice, the More menu's phone-only row."
   },
   {
     "feature": "Trader blocks in the slash menu (P2a)",
@@ -522,7 +737,7 @@
   {
     "feature": "Pre-entry checklist in Log Trade: the opt-in select (P2a)",
     "audit_row": 59,
-    "path": "/journal/notebook",
+    "path": "/journal/trades",
     "steps": [
       {
         "click": "button|Open Portfolio Settings"
@@ -530,9 +745,6 @@
     ],
     "steps_by_viewport": {
       "390": [
-        {
-          "click": "button|Journal tools"
-        },
         {
           "click": "button|Open Portfolio Settings"
         }
@@ -551,7 +763,8 @@
       "verdict": "HARD",
       "text": "Integrator ruling R-T13-5: a once-per-member setting, kept in Portfolio Settings' TRADE SETUPS section beside the per-setup checklists it switches on, so the choice sits with the rules it shows. Measured one press (two at 390, behind Journal tools), labelled and uncovered, but 3.74 screens down the modal at 1280 and 3.96 at 390: past the one-scroll line. Owner call: accept, or add a way in from Log Trade itself (follow-up F-CHECKLIST-DOOR, carried to P2b's pre-flight)."
     },
-    "note": "The member's opt-in (PortfolioSettingsModal, shown only while journal styles are on), reached from the Journal header's settings gear. At 390 the Notebook folds the header tools behind \"Journal tools\" (JournalLayout D2), so that press comes first. Reachability read from the source, not measured; unmeasured when added. Row 58 (the checklist in Log Trade itself) needs this opt-in set, which no seed does, so the walk measures it (blocks.log-trade-checklist); row 60 (Update layout on a v1 Trade plan note) needs a seeded v1 note, which no seed makes, so the walk's styles update row measures it."
+    "note": "Notebook simplify Task 1 took the Journal header's settings gear off the desktop Notebook (it stays on every other Journal page), so the door is measured from Trades, the Journal page a member logs from. The member's opt-in (PortfolioSettingsModal, shown only while journal styles are on), reached from the Journal header's settings gear. At 390 the Notebook folds the header tools behind \"Journal tools\" (JournalLayout D2), so that press comes first. Reachability read from the source, not measured; unmeasured when added. Row 58 (the checklist in Log Trade itself) needs this opt-in set, which no seed does, so the walk measures it (blocks.log-trade-checklist); row 60 (Update layout on a v1 Trade plan note) needs a seeded v1 note, which no seed makes, so the walk's styles update row measures it.",
+    "ready": "button[aria-label='Open Portfolio Settings']"
   },
   {
     "feature": "New Daily prep note (P2b)",
@@ -562,7 +775,7 @@
         "click": "button|More ways to start a note"
       },
       {
-        "click": "menuitem|From a style"
+        "click": "menuitem|From a template"
       }
     ],
     "target": {
@@ -575,7 +788,21 @@
       "390"
     ],
     "flag": "NOTEBOOK_JOURNAL_STYLES_ENABLED",
-    "note": "The P1 kind picker's Daily prep button (KindSection.jsx, aria-label \"New \" + the kind's name); the note it makes holds the prep pack (Daily prep v2). Reached the way row 55 reaches the menu. The button exists only after the lazy KindSection chunk and GET /api/j2/journal-styles answer, so the target wait is 15 s (as row 53's). Three counted presses, so OK is its best verdict. Rows 61 (Before / after this rule) and 62 (Mark a rule before entry) have no entry here: the audit's members cannot reach either (the card needs an account, a tagged trade and a rule; the switch lives inside a note's My rules block), so the walk measures them (blocks.before-after, blocks.my-rules): walk-measured, presence and content, not graded for clicks or fold. Tier 2 part A's screenshot tag offer (\"Tag NVDA · Daily\", the toolbar \"Screenshot tag\") has no entry here for the same reason: it appears only after a chart screenshot is pasted and read by OCR, which an audit row cannot do, and as the file's only unmeasurable_here row it would hold the audit at exit 3 forever (ruling R-T13-1, b171f98dad). The walk measures it (smart.screenshot-tag, at 1280, 820 and 390): walk-measured, not graded for clicks or fold."
+    "note": "The P1 kind picker's Daily prep button (KindSection.jsx, aria-label \"New \" + the kind's name); the note it makes holds the prep pack (Daily prep v2). Reached the way row 55 reaches the menu. The button exists only after the lazy KindSection chunk and GET /api/j2/journal-styles answer, so the target wait is 15 s (as row 53's). Three counted presses, so OK is its best verdict. Rows 61 (Before / after this rule) and 62 (Mark a rule before entry) have no entry here: the audit's members cannot reach either (the card needs an account, a tagged trade and a rule; the switch lives inside a note's My rules block), so the walk measures them (blocks.before-after, blocks.my-rules): walk-measured, presence and content, not graded for clicks or fold. Tier 2 part A's screenshot tag offer (\"Tag NVDA · Daily\", the toolbar \"Screenshot tag\") has no entry here for the same reason: it appears only after a chart screenshot is pasted and read by OCR, which an audit row cannot do, and as the file's only unmeasurable_here row it would hold the audit at exit 3 forever (ruling R-T13-1, b171f98dad). The walk measures it (smart.screenshot-tag, at 1280, 820 and 390): walk-measured, not graded for clicks or fold.",
+    "steps_by_viewport": {
+      "390": [
+        {
+          "click": "button|More notebook actions"
+        },
+        {
+          "click": "menuitem|New from a template"
+        }
+      ]
+    },
+    "reason": {
+      "verdict": "HARD",
+      "text": "Go-live wave 2, by ruling: on a phone the list's \"+ New\" group is not drawn (S12) and Research home's New note caret was retired with it (simplify Task 5), so the phone's door is the More menu's New from a template; the template sheet it opens keeps the note kinds above its search, and the measured Daily prep button sat outside the sheet's first screen (3 presses, one scroll). 1280: OK (3 presses). Recorded in the ledger, Go-live wave 2. Final fix (A1): the phone row now carries a literal walkthrough anchor (data-tour=\"new-from-template-phone\") and the Template gallery and Template library walkthroughs start on it at 390 (More notebook actions, then New from a template), so a phone member is walked to this door; the presses and the scroll to Daily prep are unchanged. Owner call: accept, or open the kind picker from the phone row."
+    }
   },
   {
     "feature": "Trade plan from the slash menu (Tier 2)",

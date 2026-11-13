@@ -4,6 +4,7 @@ import {
   derivedTargetFor, parsePaneOfTarget, paneOfTarget, sourceInputsOf, instanceLabel,
 } from './sourceRef'
 import { disambiguateLabels } from './readout'
+import { axisWantedBy } from './placement'
 
 /**
  * WHERE AN INDICATOR DRAWS — the one place that decides it.
@@ -184,6 +185,17 @@ export function resolveDisplayTarget(instance, cs, defTarget, depth = 0) {
       (other) => resolveDisplayTarget(other, cs, undefined, depth + 1),
     )
     if (derived) return derived
+  }
+
+  // (2.6) ⭐ 2026-11-12 — `placement.axisWhen`: a price overlay drawn on its own
+  // invisible scale whose numbers this instance now needs read (the UCT RS Line
+  // scaled to a rating) goes to its OWN pane, where the axis shows. Automatic, so
+  // a member's explicit destination above still wins, nothing is written, and
+  // turning the switch off puts it back on the candles. `axisWantedBy` answers
+  // false for every definition that declares no `axisWhen`.
+  if (declared === 'price') {
+    const def = getDefinition(defId)
+    if (def && axisWantedBy(def, instance)) return 'pane'
   }
 
   // (3) What the indicator is for.
