@@ -114,7 +114,12 @@ describe('the Daily brief (?view=today)', () => {
   it('is the Today home without the landing choice or a Research home link; All notes stays', async () => {
     at('/journal?view=today')
     await waitFor(() => expect(document.querySelector('[data-today-home]')).not.toBeNull(), T)
-    expect(screen.getByRole('heading', { level: 2, name: 'Daily brief' })).toBeTruthy()
+    // Simplify pass 2 (A1): the Today home now draws its own visible "Daily brief" heading as well as the pane's
+    // hidden focus-landing heading of the same words, so each is read in its own place.
+    const pane = screen.getAllByRole('heading', { level: 2, name: 'Daily brief' })
+    expect(pane).toHaveLength(2)
+    expect(within(document.querySelector('[data-today-home]')).getByRole('heading', { level: 2, name: 'Daily brief' })).toBeTruthy()
+    expect(document.querySelector('[data-focus-fallback]')).toHaveTextContent('Daily brief')
     expect(screen.getByTestId('folder-sidebar').getAttribute('data-today')).toBe('1')
     expect(screen.queryByLabelText('Open the Notebook on')).toBeNull()
     expect(screen.queryByRole('combobox')).toBeNull()

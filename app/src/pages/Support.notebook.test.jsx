@@ -338,6 +338,10 @@ describe('the copy contract', () => {
     expect(await read('What is the sample notebook, and how do I remove it?')).toContain('move to Trash (under More in the folders panel)')
     expect(await read('Does the Notebook work offline, and what is a conflicted copy?')).toContain('(conflicted copy)')
     expect(await read('What can Ask your notebook answer?')).toContain("Ask says it couldn't find it rather than guessing.")
+    // Simplify pass 2 (A5): a template is called a template, never "a layout".
+    const tpl = await read('How do templates and the daily note work?')
+    expect(tpl).toContain('to start a note from a template: a thesis, a daily note and more.')
+    expect(tpl).not.toMatch(/\blayout/i)
   })
 
 })

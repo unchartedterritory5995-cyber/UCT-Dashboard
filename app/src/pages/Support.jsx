@@ -576,9 +576,9 @@ export const FAQS = [
     q: 'How do templates and the daily note work?',
     keywords: 'template templates daily note today journal save as template your templates thesis',
     a: <>On the notes list, open the arrow beside <strong>+ New</strong> and choose{' '}
-      <strong>From a template</strong> to start a note from a layout: a thesis, a daily note and more.{' '}
+      <strong>From a template</strong> to start a note from a template: a thesis, a daily note and more.{' '}
       <strong>Today&apos;s note</strong> opens today&apos;s daily note, and creates it the first time you
-      open it each day. To reuse a layout of your own, open a note and choose{' '}
+      open it each day. To make a template of your own, open a note and choose{' '}
       <strong>Save as template</strong> from its menu; it then appears under
       <strong> Your templates</strong>.</>,
   },

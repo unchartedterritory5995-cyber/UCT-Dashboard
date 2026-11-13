@@ -98,8 +98,8 @@ async function renderEditorAndTap(label = EXCERPT_SOURCE.label) {
   const NoteEditorPage = (await import('./NoteEditorPage')).default
   render(<MemoryRouter><NoteEditorPage noteId="n1" onBack={vi.fn()} showBack /></MemoryRouter>)
   await screen.findByPlaceholderText('Title')
-  fireEvent.click(screen.getByRole('button', { name: 'Ask this note' }))
-  const ask = await screen.findByRole('dialog', { name: 'Ask This note' })
+  fireEvent.click(screen.getByRole('button', { name: 'Ask about this note' }))
+  const ask = await screen.findByRole('dialog', { name: 'Ask about this note' })
   fireEvent.change(within(ask).getByRole('textbox'), { target: { value: 'margins?' } })
   fireEvent.click(within(ask).getByRole('button', { name: 'Ask' }))
   fireEvent.click(await within(ask).findByRole('button', { name: `Source 1: ${label}` }))

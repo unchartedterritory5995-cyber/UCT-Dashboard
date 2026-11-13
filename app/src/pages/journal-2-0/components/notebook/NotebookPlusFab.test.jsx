@@ -31,26 +31,32 @@ const mount = (props = {}) => render(
 const open = () => { fireEvent.click(screen.getByRole('button', { name: 'Add to your notebook' })); return screen.getByRole('dialog', { name: 'Add' }) }
 
 describe('the floating "+"', () => {
-  it('opens a sheet of Quick note, Voice note, Photo, Ask AI and Help & feedback (every gate on)', () => {
-    mount({ onVoiceNote: vi.fn(), onPhoto: vi.fn(), askAi: true })
+  it('opens a sheet of Quick note, Voice note, Photo, Ask your Notebook and Help & feedback (every gate on)', () => {
+    mount({ onVoiceNote: vi.fn(), onPhoto: vi.fn(), onAskNotebook: vi.fn() })
     const sheet = open()
     expect(screen.getByRole('button', { name: 'Add to your notebook' })).toHaveAttribute('aria-expanded', 'true')
-    for (const name of ['Quick note', 'Voice note', 'Ask AI', 'Help & feedback']) {
+    for (const name of ['Quick note', 'Voice note', 'Ask your Notebook', 'Help & feedback']) {
       expect(within(sheet).getByRole('button', { name })).toBeTruthy()
     }
     expect(within(sheet).getByLabelText('Photo / chart screenshot')).toHaveAttribute('type', 'file')
   })
 
-  it('each row runs its door: Quick note creates, Ask AI opens Compass, Help opens the Help & Feedback menu', async () => {
+  // Simplify pass 2 (A8): the row was "Ask AI" and opened Compass (the voice coach page). It is the Notebook's own
+  // Ask now, the same door as the list's More row "Ask your Notebook", and it never leaves the Notebook.
+  it('each row runs its door: Quick note creates, Ask your Notebook opens the Notebook\'s Ask, Help opens the Help & Feedback menu', async () => {
     const onQuickNote = vi.fn()
+    const onAskNotebook = vi.fn()
     const feedback = vi.fn()
     window.addEventListener(OPEN_FEEDBACK_EVENT, feedback)
-    mount({ onQuickNote, askAi: true })
+    mount({ onQuickNote, onAskNotebook })
     fireEvent.click(within(open()).getByRole('button', { name: 'Quick note' }))
     expect(onQuickNote).toHaveBeenCalledTimes(1)
-    fireEvent.click(within(open()).getByRole('button', { name: 'Ask AI' }))
-    expect(screen.getByTestId('where').textContent).toBe('/journal/compass')
-    fireEvent.click(within(open()).getByRole('button', { name: 'Help & feedback' }))
+    fireEvent.click(within(open()).getByRole('button', { name: 'Ask your Notebook' }))
+    expect(onAskNotebook).toHaveBeenCalledTimes(1)
+    expect(screen.getByTestId('where').textContent).toBe('/journal/notebook')
+    expect(screen.queryByRole('dialog', { name: 'Add' })).toBeNull()
+    expect(within(open()).queryByRole('button', { name: 'Ask AI' })).toBeNull()
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Add' })).getByRole('button', { name: 'Help & feedback' }))
     await waitFor(() => expect(feedback).toHaveBeenCalledTimes(1))   // on the next frame (fix round 2, N2)
     window.removeEventListener(OPEN_FEEDBACK_EVENT, feedback)
   })
@@ -70,7 +76,7 @@ describe('the floating "+"', () => {
     mount()
     const sheet = open()
     expect(within(sheet).queryByRole('button', { name: 'Voice note' })).toBeNull()
-    expect(within(sheet).queryByRole('button', { name: 'Ask AI' })).toBeNull()
+    expect(within(sheet).queryByRole('button', { name: 'Ask your Notebook' })).toBeNull()
     expect(within(sheet).queryByLabelText('Photo / chart screenshot')).toBeNull()
     expect(within(sheet).getByRole('button', { name: 'Help & feedback' })).toBeTruthy()
   })

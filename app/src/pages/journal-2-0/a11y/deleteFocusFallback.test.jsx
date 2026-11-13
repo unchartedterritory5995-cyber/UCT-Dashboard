@@ -158,7 +158,10 @@ describe('saved-view delete (NotebookTab, from the View menu) -- focus goes back
     await user.click(within(dialog).getByRole('button', { name: 'Delete' }))
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
     await settle()
-    const heading = screen.getByRole('heading', { level: 2, name: 'Daily brief' })
+    // Simplify pass 2 (A1): the Daily brief draws its own visible "Daily brief" h2 too; the landing is the PANE's.
+    const heading = screen.getAllByRole('heading', { level: 2, name: 'Daily brief' })
+      .find((h) => h.hasAttribute('data-focus-fallback'))
+    expect(heading).toBeTruthy()
     expect(document.activeElement).not.toBe(document.body)
     expect(document.activeElement).toBe(heading)
   })

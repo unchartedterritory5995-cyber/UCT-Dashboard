@@ -350,3 +350,44 @@ Door audit, rows touched re-measured (23, 26 x2, 34, 54, 56, 63): row 54 (More >
 
 Recorded, not fixed (master-era, offline layer): the by-hand C1 reproduction held the removal with the new sentence; following the sentence let the removal through, but the words typed before the aborted save never reached the server (Concerns in the report).
 
+## Pass 2, Task 1 (2026-11-12): one name per thing (spec A1, A4 to A10), base `64e5fc4516`
+
+Spec: `docs/superpowers/specs/2026-11-12-notebook-simplify-2-design.md` section A. Report: `.superpowers/sdd/2026-11-12-notebook-simplify-2/task-1-report.md`. Every move is a string (A8 also a handler); undo any row by reverting its lines.
+
+What moved, and the one-line undo:
+- A1 `TodayHome.jsx`: the Daily brief's visible h2 reads "Daily brief"; the greeting ("Good morning, {name}") is the first part of the date line under it. Undo: put the greeting back in the h2 and `headerLine(data)` alone in the line.
+- A4 note types, "kind" -> "Note type" in member copy: `styles/StylesManager.jsx` (Note type added. / renamed. / Give the note type a name. / Set the note type on N notes. / Set note types / Your note types / You have no note types of your own yet / Delete the note type X? / Yes, delete note type X / Keep note type X / Delete note type X (aria-label) / New note type name / Add note type), `styles/SaveAsStyleForm.jsx` (Choose a note type), `styles/ExampleNotePicker.jsx` (... of this note type ...), `styles/KindSection.jsx` (Loading note types..., screen-reader status). Undo: the old words back in those strings.
+- A5 template, "layout" -> "template": `styles/StyleUpdateSheet.jsx` (sheet title Update template; LOCKED_SENTENCE ...change its template.; This note already has the latest template.), `styles/StyleUpdateBanner.jsx` (Update template to vN?), `pages/Support.jsx` FAQ "How do templates and the daily note work?" (start a note from a template; To make a template of your own). Undo: the old words back.
+- A6 `AskPanel.jsx`: the note scope's door is "Ask about this note" (visible text and accessible name), and its panel (dialog) is named the same (was "Ask This note"). Undo: `toggle: 'Ask this note'` and `label={`Ask ${scopeLabel}`}`.
+- A7 `components/MobileNav.jsx`: `'/journal/notebook': 'Notebook'` in `ROUTE_TITLES` (longest prefix wins); `titleFor` is exported for its test (no other file reads the table). Undo: drop the row.
+- A8 `NotebookPlusSheet.jsx` + `NotebookTab.jsx`: the "+" sheet's "Ask AI" (navigated to `/journal/compass`) is "Ask your Notebook", prop `onAskNotebook` (replaces `askAi`); NotebookTab passes `openAiFromMenu`, the list More row's own handler, only when `auth.isPaid`. Compass stays reachable from the Journal's Compass tab. Undo: restore `askAi` and the `navigate('/journal/compass')` row.
+- A9 "Journal tools" -> "Trade journal tools": the list More row (`NotebookTab.jsx`), the open note's More row (`NoteEditorPage.jsx`), and the room they open, the folded header's disclosure toggle (`JournalLayout.jsx`). Undo: the old words back in the three places.
+- A10 `NotebookTab.jsx`: the View menu group "List layout" (Rows / Cards) is "Show as". Undo: the old group name.
+- Comments only: `NewNoteMenu.jsx` (names the group), `NoteEditorPage.jsx` (A6 note).
+
+Not renamed (recorded, a later job): the server's own words, which need a server change: the property name "Kind of note" (`note_properties.py`, mirrored by `lib/templateSlots.js`, already in `vocabulary.test.js`'s ALLOW), the widget builder's filter field "Note kind" (server catalog; `widgetBuilder/builderCatalog.js` keeps its matching fallbacks "A removed note kind" / "A note kind that couldn't be loaded"), and the refusals "Choose a kind of note." / "Choose a kind of note for this style." (shown as the server words them). The admin-only gallery review panel (`components/admin/TemplateGalleryReviewPanel.jsx`, "Kind of note:") is not member copy. "Kind" in `TradeCanvasDialogs.jsx` (a price-level role) and the page-layout panels' "layout" are other meanings, left.
+
+Walker, door-table and Python-test strings these renames invalidate (Task 4 updates them; not edited here):
+- `tools/notebook_fin_walk_features.py:2533`, `:2545` regex `Update layout to v\d+\?` -> `Update template to v\d+\?` (A5); `:3308` `f"Update layout to v{v2}?"` (A5); `:3297` comment.
+- `tools/notebook_fin_walk_features.py:2851`, `:3237` `get_by_role("button", name="Journal tools", exact=True)` -> "Trade journal tools" (A9); `:2850` comment.
+- `tools/notebook_proof_walk.py:1567` and `:3987` button "Ask this note" -> "Ask about this note" (A6).
+- `tools/notebook_nvda_pass.py:1186`, `:1187`, `:1198` "Ask this note" in the expected speech and `focus_role("button", "Ask this note")` (A6; the panel is now announced "Ask about this note").
+- `tools/notebook_w13q_clicks.py:1508` press label "Ask this note" (a label for the log; the locator is `[data-ask-toggle]`, still valid) (A6).
+- `tools/notebook_w14_flagsoff_parity.py:156`, `:157` (`aria-label="Ask this note"` in the recorded head), `:164`, and `tests/test_notebook_w14_flagsoff_parity_expected.py:43`, `:51`, `:174` (the check's name "note Ask door is named 'Ask this note' (P0.7)") (A6).
+- `tools/notebook_door_audit_doors.json:764`, `:766` prose "behind Journal tools" (A9; text only, no locator).
+- Outside the named globs, same words: `tools/wave_n_e2e.py:441` `get_by_label("Ask this note")` (A6).
+- Comments only, still true as history: `tools/notebook_fin_walk_features.py:2126`, `tools/notebook_fin_walk_keyed.py:287`, `tools/notebook_contract_fixtures.py:1865`, `tools/notebook_perf_harness.py:579`, `tests/test_notebook_flags.py:87`, `tests/test_notebook_perf_harness.py:619`.
+- None found for A1 (no walker reads the greeting heading), A4 (no walker reads the kind strings), A7, A8 or A10.
+
+Existing tests changed, and why (all follow the new words; none weakened):
+- `StylesManager.test.jsx`, `a11y/journalStyles.a11y.test.jsx`, `NoteMenuActions.saveAsStyle.test.jsx`, `styles/KindSection.loadingShape.test.jsx`, `styles/ExampleNotePicker.test.jsx`: A4 words. `StylesManager.test.jsx`'s absence check `/with a Research Type\. Set their Kind/` now names "Note type", the words the offer really uses (the old pattern matched nothing either way).
+- `NoteEditorPage.styleUpdate.test.jsx`, `NoteEditorPage.styleUpdate.gateOff.test.jsx`: A5 words; the two "no banner" checks now match `Update (layout|template)`, so they cannot pass by looking for words the page no longer uses.
+- `AskPanel.test.jsx`, `NoteEditorPage.calmToolbar.test.jsx`, `NoteEditorPage.askInsert.test.jsx`, `NoteEditorPage.citations.test.jsx`, `NoteEditorPage.s10.test.jsx`, `NoteEditorPage.phoneHeader.test.jsx`, `a11y/focusFlows.test.jsx`: A6 door and panel name.
+- `NotebookPlusFab.test.jsx`, `a11y/notebookPlusFab.a11y.test.jsx`: A8 (`onAskNotebook`, no navigation).
+- `NotebookTab.phoneFoldFirstFrame.test.jsx`, `NoteEditorPage.titleWrap.test.jsx`, `JournalLayout.compactHeader.test.jsx`: A9.
+- `NotebookTab.listLayout.test.jsx`: A10.
+- `TodayHome.test.jsx`: A1 (the line now starts with the greeting).
+- `NotebookTab.landing.test.jsx`, `a11y/deleteFocusFallback.test.jsx`: on the Daily brief there are now two h2s named "Daily brief" (the pane's visually hidden focus-landing heading, and the Today home's visible one), so these find the one they mean.
+
+New tests: `components/MobileNav.test.jsx` (A7); the "+" row through the real NotebookTab in `NotebookTab.goLiveMenus.test.jsx` (A8); an A1 case with a member's name in `TodayHome.test.jsx`; the Support FAQ sentence in `Support.notebook.test.jsx` (A5); the rename status in `StylesManager.test.jsx` (A4).
+

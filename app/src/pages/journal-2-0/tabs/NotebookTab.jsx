@@ -2418,7 +2418,8 @@ export default function NotebookTab() {
       // Notebook simplify, Task 3: List's own two-way choice, directly under it, while List is the mode.
       id === 'list' && viewMode === 'list' && {
         key: 'list-layout',
-        group: 'List layout',
+        // Simplify pass 2 (A10): "Show as"; "layout" is the page-layout panels' word.
+        group: 'Show as',
         className: styles.layoutGroup,
         items: [
           { key: 'rows', label: 'Rows', checked: listLayout === 'rows', run: () => setListLayout('rows') },
@@ -2492,7 +2493,8 @@ export default function NotebookTab() {
     },
     // Tier 2 fix round 1 (review Important 1): on the phone Notebook list the Journal header's tools fold into this
     // row (lib/journalToolsDoor.js), so the header takes no row and nothing sits over the section strip.
-    { key: 'journal-tools', label: 'Journal tools', icon: 'sliders', run: openJournalTools, className: phoneOnly },
+    // Simplify pass 2 (A9): "Trade journal tools", so it is not read as a sibling of "My tools" below.
+    { key: 'journal-tools', label: 'Trade journal tools', icon: 'sliders', run: openJournalTools, className: phoneOnly },
     { key: 'export', label: 'Export', icon: 'download', run: () => setExportOpen(true) },
     // Go-live wave 1 (A7): at every width, only while the sample is active (its status read says so). Final fix residual
     // R3: right after Export, so on a desktop (no phone rows) More never opens with focus on this destructive row; on a
@@ -3558,7 +3560,7 @@ export default function NotebookTab() {
       <NotebookPlusSheet open={plusOpen} onClose={() => setPlusOpen(false)} returnFocusTo={plusRef}
         onQuickNote={() => createNote()} onVoiceNote={recordVoiceNote}
         onPhoto={(file) => createNote({ title: 'Chart screenshot', onCreated: (c) => holdImageForNote(c.id, file) })}
-        askAi={auth?.isPaid === true} busy={creating} />
+        onAskNotebook={auth?.isPaid === true ? openAiFromMenu : null} busy={creating} />
     </div>
     </SplitViewContext.Provider>
   )

@@ -96,6 +96,19 @@ describe('D2: "Ask your Notebook" is the touch tier\'s door; the toolbar AI is d
     expect(ask.className).not.toContain(styles.phoneOnlyItem)
   })
 
+  // Simplify pass 2 (A8): the phone "+" sheet's row is the same door: "Ask your Notebook" opens the Notebook's own Ask
+  // (it was "Ask AI" and went to Compass, the voice coach page).
+  it('the "+" sheet\'s "Ask your Notebook" opens the same notebook-wide Ask as the ⋯ row', async () => {
+    await renderTab()
+    expect(screen.queryByTestId('ask-scope')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Add to your notebook' }))
+    const sheet = await screen.findByRole('dialog', { name: 'Add' }, { timeout: 5000 })
+    expect(within(sheet).queryByRole('button', { name: 'Ask AI' })).toBeNull()
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Ask your Notebook' }))
+    expect((await screen.findByTestId('ask-scope', {}, { timeout: 5000 })).textContent).toContain('My Notebook')
+    expect(screen.getByRole('region', { name: 'Ask your Notebook' })).toBeTruthy()
+  })
+
   it('the stylesheet: touch-only rows hidden by default and shown at <=1024px, where the toolbar AI hides', () => {
     const css = readFileSync(join(process.cwd(), 'src', 'pages', 'journal-2-0', 'tabs', 'NotebookTab.module.css'), 'utf8')
     const base = parseRules(css).find((r) => r.selector === '.touchOnlyItem')

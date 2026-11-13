@@ -331,7 +331,7 @@ describe('the header\'s AI control', () => {
     expect(ai).toHaveAttribute('aria-haspopup', 'menu')
     expect(ai.closest('[data-header-control]')).toHaveAttribute('data-header-control', 'ai')
     // today's two buttons are folded at desktop (still the touch tier's)
-    expect(screen.getByRole('button', { name: 'Ask this note' }).closest('[class*="askFolded"]')).not.toBeNull()
+    expect(screen.getByRole('button', { name: 'Ask about this note' }).closest('[class*="askFolded"]')).not.toBeNull()
     expect(within(header()).getByRole('button', { name: 'Writing help' }).className).toMatch(/foldDesktop/)
     expect(onTouch(ai, header())).toBe(false)
 
@@ -345,7 +345,7 @@ describe('the header\'s AI control', () => {
     expect(within(header()).getByRole('button', { name: 'Writing help' })).toHaveAttribute('data-tour', 'writing-help')
     expect(ai).toHaveAttribute('data-tour', 'note-ai')
     fireEvent.click(items[0])
-    expect(await screen.findByRole('dialog', { name: 'Ask This note' })).toBeTruthy()
+    expect(await screen.findByRole('dialog', { name: 'Ask about this note' })).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Close Ask' }))
     await waitFor(() => expect(document.activeElement).toBe(ai))
 
@@ -362,11 +362,11 @@ describe('the header\'s AI control', () => {
     const ai = within(header()).getByRole('button', { name: 'AI' })
     fireEvent.click(ai)
     fireEvent.click(within(screen.getByRole('menu', { name: 'AI' })).getByRole('menuitem', { name: 'Ask about this note' }))
-    await screen.findByRole('dialog', { name: 'Ask This note' })
+    await screen.findByRole('dialog', { name: 'Ask about this note' })
     ai.focus()
     fireEvent.click(ai)
     fireEvent.click(within(screen.getByRole('menu', { name: 'AI' })).getByRole('menuitem', { name: 'Ask about this note' }))
-    expect(screen.getByRole('dialog', { name: 'Ask This note' })).toBeTruthy()
+    expect(screen.getByRole('dialog', { name: 'Ask about this note' })).toBeTruthy()
     await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('textbox', { name: /Your question about/ })))
   }, 60000)
 
@@ -380,10 +380,11 @@ describe('the header\'s AI control', () => {
     expect(document.activeElement).toBe(ai)
   }, 60000)
 
-  it('with Ask only (no Writing help for this member): today\'s plain "Ask this note" button, no AI menu', async () => {
+  it('with Ask only (no Writing help for this member): the plain "Ask about this note" button (A6), no AI menu', async () => {
     await mount()
     expect(within(header()).queryByRole('button', { name: 'AI' })).toBeNull()
-    const ask = screen.getByRole('button', { name: 'Ask this note' })
+    const ask = screen.getByRole('button', { name: 'Ask about this note' })
+    expect(ask).toHaveTextContent(/^Ask about this note$/)
     expect(ask.closest('[class*="askFolded"]')).toBeNull()
     expect(screen.queryByRole('button', { name: 'Writing help' })).toBeNull()
   }, 60000)
@@ -526,7 +527,7 @@ describe('preview fix round 1: the layout the browser walk found wrong', () => {
     const ai = within(header).getByRole('button', { name: 'AI' })
     fireEvent.click(ai)
     fireEvent.click(within(screen.getByRole('menu', { name: 'AI' })).getByRole('menuitem', { name: 'Ask about this note' }))
-    const panel = await screen.findByRole('dialog', { name: 'Ask This note' })
+    const panel = await screen.findByRole('dialog', { name: 'Ask about this note' })
     // the box `.askFolded > div` makes static IS the one holding the panel, and the group it then anchors to is the AI
     // group, whose last drawn control is the AI button
     const box = panel.parentElement

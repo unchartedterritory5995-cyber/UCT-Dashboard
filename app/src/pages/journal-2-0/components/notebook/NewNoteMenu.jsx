@@ -115,7 +115,7 @@ function rowsOf(menuEl) {
 /** The rows of a `useMenuButton` menu. `items`: {key, label, icon?, run, checked?, separator?, className?, disabled?}. A row whose
  *  `checked` is a boolean is a `menuitemradio` (the View menu's modes); `separator: true` draws a rule.
  *  Notebook simplify, Task 3: `{key, group, items, heading?, className?}` is a named role="group" of rows (the View
- *  menu's "List layout" under List, the New menu's "Reviews"); `heading: true` also draws its name, set apart by a rule.
+ *  menu's "Show as" under List, the New menu's "Reviews"); `heading: true` also draws its name, set apart by a rule.
  *  Its rows are still the menu's rows, so the menu's Up and Down reach them.
  *  Go-live wave 1: `render(rowProps, content)` lets the caller draw a row (or a group's box) itself, from the props and
  *  content MenuRows would have used. It exists for walkthrough anchors: a `data-tour` is a LITERAL attribute in the

@@ -690,9 +690,12 @@ export default function TodayHome({
     <div className={styles.today} data-today-home="" aria-busy={!data && !error ? true : undefined}>
       <header className={styles.head}>
         <div className={styles.headText}>
-          {/* M4: the page's h1 is the Journal's ("Trade Journal"); the greeting is the section's heading. */}
-          <h2 className={styles.hello}>{name ? `${greeting()}, ${name}` : greeting()}</h2>
-          <p className={styles.sub} data-today-line="">{headerLine(data)}</p>
+          {/* M4: the page's h1 is the Journal's ("Trade Journal"); this section's heading is the panel row's own name,
+              "Daily brief" (simplify pass 2, A1). The greeting leads the date line under it. */}
+          <h2 className={styles.hello}>Daily brief</h2>
+          <p className={styles.sub} data-today-line="">
+            {`${name ? `${greeting()}, ${name}` : greeting()} · ${headerLine(data)}`}
+          </p>
         </div>
         <div className={styles.headActions}>
           <button type="button" className="btn btn-ghost btn-sm" onClick={quickCapture}>Quick capture</button>

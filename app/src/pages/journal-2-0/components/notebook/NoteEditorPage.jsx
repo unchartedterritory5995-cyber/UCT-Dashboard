@@ -5081,7 +5081,8 @@ export default function NoteEditorPage({
   const showWritingHelp = Boolean(editor && !locked && writingHelpOn && editor.isEditable && !isCanvas)
   // Notebook simplify, Task 4: at desktop width Ask and Writing help are ONE "AI" menu -- when both are offered.
   // Ask is offered on every note (AskPanel has no gate here), so that is exactly when Writing help is; with Writing
-  // help absent, Ask stays the plain "Ask this note" button it was. The touch tier keeps both buttons as they were.
+  // help absent, Ask stays the plain "Ask about this note" button (AskPanel's own toggle; simplify pass 2 A6 gave it
+  // the menu item's words). The touch tier keeps both buttons as they were.
   const aiMenuOn = showWritingHelp
   // Writing help's door: the header button (`menu` null; folded at desktop, the touch tier's), or the desktop "AI"
   // menu's item (`menu` the AI menu). Both open the same panel, and focus comes back to the control that opened it.
@@ -5136,7 +5137,8 @@ export default function NoteEditorPage({
       data-journal-tools-door=""
     >
       <UIcon name="sliders" {...TOOLBAR_ICON} style={{ verticalAlign: '-2px', marginRight: 4 }} />
-      Journal tools
+      {/* Simplify pass 2 (A9): "Trade journal tools", so it is not read as a sibling of "My tools". */}
+      Trade journal tools
     </button>
   )
   const phoneTools = () => (

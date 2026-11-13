@@ -79,7 +79,7 @@ const kindDeleted = (n) => ({ ...KIND_DELETED, purgedDeletedStyles: n })
 const IN_USE = contract('note-kinds.delete.in-use')
 const OFFER = contractBody('note-kinds.mapping-offer')
 const APPLIED = contractBody('note-kinds.mapping-offer.apply')
-const APPLIED_RE = new RegExp(`Set the kind on ${APPLIED.count} note`)
+const APPLIED_RE = new RegExp(`Set the note type on ${APPLIED.count} note`)
 const offerOf = (over) => ({ offer: { ...OFFER.offer, ...over } })
 const re = (path) => new RegExp(`^${path}$`)
 const MEMBER_URL = re(`/api/j2/journal-styles/${MEMBER.id}`)
@@ -795,14 +795,14 @@ describe('kinds of note', () => {
     routes.unshift(['POST', /^\/api\/j2\/note-kinds$/, (b) => ({ kind: { ...OWN_KIND, name: b.name, icon: b.icon } })])
     installFetch()
     open()
-    const name = await screen.findByLabelText('New kind name')
+    const name = await screen.findByLabelText('New note type name')
     expect(name).toHaveAttribute('maxlength', '40')
     fireEvent.change(name, { target: { value: 'Earnings plays' } })
     fireEvent.change(screen.getByLabelText('Icon'), { target: { value: 'bolt' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Add kind' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add note type' }))
     await waitFor(() => expect(called('POST', /note-kinds$/)).toHaveLength(1))
     expect(called('POST', /note-kinds$/)[0].body).toEqual({ name: 'Earnings plays', icon: 'bolt' })
-    await screen.findByText('Kind added.')
+    await screen.findByText('Note type added.')
   })
 
   it('renames an own kind', async () => {
@@ -816,6 +816,8 @@ describe('kinds of note', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save name' }))
     await waitFor(() => expect(called('PUT', OWN_KIND_END)).toHaveLength(1))
     expect(called('PUT', OWN_KIND_END)[0].body).toEqual({ name: 'My setups' })
+    // Simplify pass 2 (A4): one name, "Note type", everywhere a member reads it.
+    await screen.findByText('Note type renamed.')
   })
 
   it('deleting a kind asks first, in the page, and says what goes with it; Keep changes nothing', async () => {
@@ -823,14 +825,14 @@ describe('kinds of note', () => {
     routes.unshift(['DELETE', OWN_KIND_URL, kindDeleted(0)])
     installFetch()
     open()
-    fireEvent.click(await screen.findByRole('button', { name: `Delete kind ${KIND_NAME}` }))
-    expect(await screen.findByText(`Delete the kind ${KIND_NAME}? Templates you deleted that used it are removed permanently.`)).toBeInTheDocument()
+    fireEvent.click(await screen.findByRole('button', { name: `Delete note type ${KIND_NAME}` }))
+    expect(await screen.findByText(`Delete the note type ${KIND_NAME}? Templates you deleted that used it are removed permanently.`)).toBeInTheDocument()
     expect(called('DELETE', /note-kinds/)).toHaveLength(0)
-    fireEvent.click(screen.getByRole('button', { name: `Keep kind ${KIND_NAME}` }))
+    fireEvent.click(screen.getByRole('button', { name: `Keep note type ${KIND_NAME}` }))
     expect(called('DELETE', /note-kinds/)).toHaveLength(0)
     expect(screen.queryByText(/Styles you deleted that used it/)).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: `Delete kind ${KIND_NAME}` }))
-    fireEvent.click(await screen.findByRole('button', { name: `Yes, delete kind ${KIND_NAME}` }))
+    fireEvent.click(screen.getByRole('button', { name: `Delete note type ${KIND_NAME}` }))
+    fireEvent.click(await screen.findByRole('button', { name: `Yes, delete note type ${KIND_NAME}` }))
     await waitFor(() => expect(called('DELETE', OWN_KIND_END)).toHaveLength(1))
     expect(confirmSpy).not.toHaveBeenCalled()                    // never window.confirm
     confirmSpy.mockRestore()
@@ -841,8 +843,8 @@ describe('kinds of note', () => {
     routes.unshift(['DELETE', OWN_KIND_URL, [IN_USE._contract.status, IN_USE.body]])
     installFetch()
     open()
-    fireEvent.click(await screen.findByRole('button', { name: `Delete kind ${KIND_NAME}` }))
-    fireEvent.click(await screen.findByRole('button', { name: `Yes, delete kind ${KIND_NAME}` }))
+    fireEvent.click(await screen.findByRole('button', { name: `Delete note type ${KIND_NAME}` }))
+    fireEvent.click(await screen.findByRole('button', { name: `Yes, delete note type ${KIND_NAME}` }))
     expect(await alertText()).toBe(sentence)
   })
 
@@ -850,8 +852,8 @@ describe('kinds of note', () => {
     routes.unshift(['DELETE', OWN_KIND_URL, kindDeleted(2)])
     installFetch()
     open()
-    fireEvent.click(await screen.findByRole('button', { name: `Delete kind ${KIND_NAME}` }))
-    fireEvent.click(await screen.findByRole('button', { name: `Yes, delete kind ${KIND_NAME}` }))
+    fireEvent.click(await screen.findByRole('button', { name: `Delete note type ${KIND_NAME}` }))
+    fireEvent.click(await screen.findByRole('button', { name: `Yes, delete note type ${KIND_NAME}` }))
     await screen.findByText(/Note type deleted. 2 templates you had deleted for it were removed for good\./)
   })
 
@@ -860,8 +862,8 @@ describe('kinds of note', () => {
     routes.unshift(['DELETE', OWN_KIND_URL, KIND_DELETED])
     installFetch()
     open()
-    fireEvent.click(await screen.findByRole('button', { name: `Delete kind ${KIND_NAME}` }))
-    fireEvent.click(await screen.findByRole('button', { name: `Yes, delete kind ${KIND_NAME}` }))
+    fireEvent.click(await screen.findByRole('button', { name: `Delete note type ${KIND_NAME}` }))
+    fireEvent.click(await screen.findByRole('button', { name: `Yes, delete note type ${KIND_NAME}` }))
     await screen.findByText('Note type deleted. 1 template you had deleted for it was removed for good.')
   })
 
@@ -870,17 +872,17 @@ describe('kinds of note', () => {
     routes.unshift(['DELETE', OWN_KIND_URL, KIND_DELETED_W11])
     installFetch()
     open()
-    fireEvent.click(await screen.findByRole('button', { name: `Delete kind ${KIND_NAME}` }))
-    fireEvent.click(await screen.findByRole('button', { name: `Yes, delete kind ${KIND_NAME}` }))
+    fireEvent.click(await screen.findByRole('button', { name: `Delete note type ${KIND_NAME}` }))
+    fireEvent.click(await screen.findByRole('button', { name: `Yes, delete note type ${KIND_NAME}` }))
     await screen.findByText('Note type deleted.')
     expect(screen.queryByText(/removed for good/)).toBeNull()
   })
 
   it('built-in kinds have no Rename or Delete', async () => {
     open()
-    await screen.findByRole('heading', { name: 'Your kinds of note' })
+    await screen.findByRole('heading', { name: 'Your note types' })
     expect(screen.queryByRole('button', { name: 'Rename Trade plan' })).toBeNull()
-    expect(screen.queryByRole('button', { name: 'Delete kind Trade plan' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Delete note type Trade plan' })).toBeNull()
   })
 })
 
@@ -898,27 +900,27 @@ describe('the Research Type mapping offer', () => {
     withOffer(applied())
     open({ blockedNoteIds: ['n-blocked'] })
     await screen.findByText(`You have ${OFFER.offer.total} notes with a Research Type. Set their Note type to match?`)
-    fireEvent.click(screen.getByRole('button', { name: 'Set kinds' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Set note types' }))
     await waitFor(() => expect(called('POST', /mapping-offer$/)).toHaveLength(1))
     expect(called('POST', /mapping-offer$/)[0].body).toEqual({ excludeNoteIds: ['n-blocked'] })
-    await screen.findByText(`Set the kind on ${APPLIED.count} note. ${APPLIED.skipped.length} locked note was left as it was.`)
+    await screen.findByText(`Set the note type on ${APPLIED.count} note. ${APPLIED.skipped.length} locked note was left as it was.`)
   })
 
   it('notes held back for unsent offline work are named too (3 asked, 1 set, 1 locked, 1 held back)', async () => {
     withOffer(applied(), offerOf({ total: OFFER.offer.total + 1 }))        // one more counted than the server answered for
     open({ blockedNoteIds: ['n-blocked'] })
-    fireEvent.click(await screen.findByRole('button', { name: 'Set kinds' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Set note types' }))
     await screen.findByText(/1 note with unsent changes was left for later\./)
   })
 
   it('the offer is not asked again after it was applied, even though the server still counts the skipped notes', async () => {
     withOffer(applied())
     open()
-    fireEvent.click(await screen.findByRole('button', { name: 'Set kinds' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Set note types' }))
     await screen.findByText(APPLIED_RE)
     await act(async () => { await new Promise((r) => setTimeout(r, 50)) })
-    expect(screen.queryByText(/with a Research Type\. Set their Kind/)).toBeNull()
-    expect(screen.queryByRole('button', { name: 'Set kinds' })).toBeNull()
+    expect(screen.queryByText(/with a Research Type\. Set their Note type/)).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Set note types' })).toBeNull()
   })
 
   it('Not now writes the preference', async () => {
@@ -964,13 +966,13 @@ describe('round 3: the applied offer outlives the Notebook route', () => {
     await screen.findByRole('heading', { name: 'Trade plan', level: 3 })
     await waitFor(() => expect(called('GET', /mapping-offer$/).length).toBeGreaterThan(0))
     await act(async () => { await new Promise((r) => setTimeout(r, 50)) })
-    expect(screen.queryByRole('button', { name: 'Set kinds' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Set note types' })).toBeNull()
   }
 
   it('apply, leave (unmount), arrive again through Settings: the offer is not asked again', async () => {
     setup()
     const first = open()
-    fireEvent.click(await screen.findByRole('button', { name: 'Set kinds' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Set note types' }))
     await screen.findByText(APPLIED_RE)
     first.unmount()
     open()
@@ -983,7 +985,7 @@ describe('round 3: the applied offer outlives the Notebook route', () => {
     try {
       setup()
       const first = open()
-      fireEvent.click(await screen.findByRole('button', { name: 'Set kinds' }))
+      fireEvent.click(await screen.findByRole('button', { name: 'Set note types' }))
       await screen.findByText(APPLIED_RE)
       first.unmount()
       open()
@@ -994,11 +996,11 @@ describe('round 3: the applied offer outlives the Notebook route', () => {
   it('it is kept per member: another member is still offered theirs', async () => {
     setup()
     const first = open({ userId: 'u1' })
-    fireEvent.click(await screen.findByRole('button', { name: 'Set kinds' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Set note types' }))
     await screen.findByText(APPLIED_RE)
     first.unmount()
     open({ userId: 'u2' })
-    expect(await screen.findByRole('button', { name: 'Set kinds' })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'Set note types' })).toBeInTheDocument()
   })
 })
 
@@ -1090,11 +1092,11 @@ describe('round 3: the kind-delete confirm keeps focus', () => {
   it('opening the confirm focuses its first button; Keep returns focus to that kind’s Delete', async () => {
     kindRoutes(TWO)
     open()
-    fireEvent.click(await screen.findByRole('button', { name: `Delete kind ${KIND_NAME}` }))
-    const yes = await screen.findByRole('button', { name: `Yes, delete kind ${KIND_NAME}` })
+    fireEvent.click(await screen.findByRole('button', { name: `Delete note type ${KIND_NAME}` }))
+    const yes = await screen.findByRole('button', { name: `Yes, delete note type ${KIND_NAME}` })
     await waitFor(() => expect(document.activeElement).toBe(yes))
-    fireEvent.click(screen.getByRole('button', { name: `Keep kind ${KIND_NAME}` }))
-    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('button', { name: `Delete kind ${KIND_NAME}` })))
+    fireEvent.click(screen.getByRole('button', { name: `Keep note type ${KIND_NAME}` }))
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('button', { name: `Delete note type ${KIND_NAME}` })))
   })
 
   it('after a delete, focus goes to the next kind row (its first button)', async () => {
@@ -1105,8 +1107,8 @@ describe('round 3: the kind-delete confirm keeps focus', () => {
     )
     installFetch()
     open()
-    fireEvent.click(await screen.findByRole('button', { name: `Delete kind ${KIND_NAME}` }))
-    fireEvent.click(await screen.findByRole('button', { name: `Yes, delete kind ${KIND_NAME}` }))
+    fireEvent.click(await screen.findByRole('button', { name: `Delete note type ${KIND_NAME}` }))
+    fireEvent.click(await screen.findByRole('button', { name: `Yes, delete note type ${KIND_NAME}` }))
     await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('button', { name: `Rename ${OTHER_OWN_KIND.name}` })))
   })
 
@@ -1118,9 +1120,9 @@ describe('round 3: the kind-delete confirm keeps focus', () => {
     )
     installFetch()
     open()
-    fireEvent.click(await screen.findByRole('button', { name: `Delete kind ${KIND_NAME}` }))
-    fireEvent.click(await screen.findByRole('button', { name: `Yes, delete kind ${KIND_NAME}` }))
-    await waitFor(() => expect(document.activeElement).toBe(screen.getByLabelText('New kind name')))
+    fireEvent.click(await screen.findByRole('button', { name: `Delete note type ${KIND_NAME}` }))
+    fireEvent.click(await screen.findByRole('button', { name: `Yes, delete note type ${KIND_NAME}` }))
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByLabelText('New note type name')))
   })
 })
 

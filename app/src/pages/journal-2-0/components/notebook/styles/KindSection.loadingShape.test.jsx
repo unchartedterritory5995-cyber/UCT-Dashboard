@@ -38,7 +38,7 @@ describe('KindSection loads at its settled shape (CLS)', () => {
     </SWRConfig>)
     const loading = container.querySelector('[data-kind-section-loading]')
     expect(loading, 'the loading state is the section').not.toBeNull()
-    expect(screen.getByRole('status')).toHaveTextContent('Loading kinds of note…')
+    expect(screen.getByRole('status')).toHaveTextContent('Loading note types…')
     expect(loading.querySelectorAll('[data-kind-placeholder]').length).toBe(BUILTIN_NOTE_KINDS.length)
     const before = shape(loading)
     release()

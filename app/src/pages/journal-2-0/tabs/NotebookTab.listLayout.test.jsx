@@ -52,7 +52,8 @@ const openViewMenu = () => {
   if (t.getAttribute('aria-expanded') !== 'true') fireEvent.click(t)
   return screen.getByRole('menu', { name: 'View' })
 }
-const layoutGroup = () => within(openViewMenu()).getByRole('group', { name: 'List layout' })
+// Simplify pass 2 (A10): the group is "Show as" (Rows / Cards); "layout" is the page-layout panels' word.
+const layoutGroup = () => within(openViewMenu()).getByRole('group', { name: 'Show as' })
 const openNewMenu = () => {
   fireEvent.click(within(bar()).getByRole('button', { name: 'More ways to start a note' }))
   return screen.getByRole('menu', { name: 'Start a note' })
@@ -88,7 +89,7 @@ describe('rows are the default: one column, a title and a quiet meta line per no
 
   it('CONTROL: outside List (Table) the menu offers no Rows / Cards', async () => {
     await renderTab('/journal/notebook?view=table')
-    expect(within(openViewMenu()).queryByRole('group', { name: 'List layout' })).toBeNull()
+    expect(within(openViewMenu()).queryByRole('group', { name: 'Show as' })).toBeNull()
   })
 })
 

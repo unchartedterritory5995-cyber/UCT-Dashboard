@@ -24,6 +24,7 @@ import { DAILY_FOLDER_NOTICE } from '../../lib/dailyNote'
 import { latchNotebookFlags, __resetNotebookFlags } from '../../lib/offline/notebookFlags'
 import { SOON_URL } from '../../lib/earningsPrepShared'
 import { PASSED_URL } from '../../lib/researchCapture'
+import { AuthContext } from '../../../../context/AuthContext'
 
 const NOTE = {
   id: 'n-today', title: '2026-11-05 · Thursday', updatedAt: 'x', created: false, templateMissing: false,
@@ -86,8 +87,11 @@ describe('one read, the M1 layout', () => {
     await screen.findByTestId('today-plan')
     expect(cards()).toEqual(CARD_ORDER.premarket)
     expect(todayReads()).toHaveLength(1)
-    expect(document.querySelector('[data-today-line]').textContent)
-      .toBe('Thursday, Nov 5 · Pre-market · Green regime · 61% above the 50-day · 1 h 12 m to the open')
+    // Simplify pass 2 (A1): the page is titled by its panel row's name; the greeting leads the date line under it.
+    expect(screen.getByRole('heading', { level: 2, name: 'Daily brief' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: /^Good (morning|afternoon|evening)/ })).toBeNull()
+    expect(document.querySelector('[data-today-line]').textContent).toMatch(
+      /^Good (morning|afternoon|evening) · Thursday, Nov 5 · Pre-market · Green regime · 61% above the 50-day · 1 h 12 m to the open$/)
     expect(screen.getByText('Started from “Daily prep”')).toBeInTheDocument()
     // Final fix (C5): the same words as the notes list's button.
     expect(screen.getByRole('button', { name: '+ New' })).toBeInTheDocument()
@@ -123,6 +127,16 @@ describe('one read, the M1 layout', () => {
     const cards = [...document.querySelectorAll('[data-today-card]')]
     expect(cards.map((c) => c.getAttribute('data-today-card'))).toEqual(CARD_ORDER[phase])
     expect(cards.map(reserve).map((r) => r.join(' ')).sort()).toEqual(before)
+  })
+
+  it('A1: a member with a name is greeted by first name, as the first part of the date line', async () => {
+    render(
+      <AuthContext.Provider value={{ user: { display_name: 'Pat Smith' } }}>
+        <MemoryRouter><TodayHome onOpenNote={vi.fn()} onCreateNote={vi.fn()} onSelectAllNotes={vi.fn()} /></MemoryRouter>
+      </AuthContext.Provider>)
+    await screen.findByTestId('today-plan')
+    expect(screen.getByRole('heading', { level: 2, name: 'Daily brief' })).toBeInTheDocument()
+    expect(document.querySelector('[data-today-line]').textContent).toMatch(/^Good (morning|afternoon|evening), Pat · Thursday, Nov 5 · /)
   })
 
   it('the inline first-run ask sits BELOW the cards, never above them', async () => {
