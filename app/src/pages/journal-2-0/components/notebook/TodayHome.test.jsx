@@ -205,7 +205,7 @@ describe('B1: the read never makes today’s note; the header button says which 
     await act(async () => { done(false) })                                  // the press failed (NotebookTab said so)
     expect(start).not.toBeDisabled()
     expect(start).toHaveTextContent(START_ACTION)
-    expect(document.querySelector('[data-today-status]').textContent).toBe('')
+    expect(document.querySelector('[data-today-actions] [role="status"]').textContent).toBe('')
     expect(S.calls.some((c) => c.method === 'POST' && c.url.startsWith('/api/j2/notes'))).toBe(false)
   })
 
@@ -214,12 +214,12 @@ describe('B1: the read never makes today’s note; the header button says which 
     const onStartToday = vi.fn(async () => true)
     renderToday({ onStartToday })
     const start = await within(header()).findByRole('button', { name: START_ACTION })
-    const status = document.querySelector('[data-today-status]')
+    const status = document.querySelector('[data-today-actions] [role="status"]')
     expect(status.getAttribute('role')).toBe('status')
     expect(status.textContent).toBe('')
     fireEvent.click(start)
     await waitFor(() => expect(status.textContent).toBe(STARTED_STATUS))
-    expect(document.querySelector('[data-today-status]')).toBe(status)       // the same live region, never remounted
+    expect(document.querySelector('[data-today-actions] [role="status"]')).toBe(status)       // the same live region, never remounted
   })
 
   it('(c) a note today: "Open today’s note" opens it', async () => {

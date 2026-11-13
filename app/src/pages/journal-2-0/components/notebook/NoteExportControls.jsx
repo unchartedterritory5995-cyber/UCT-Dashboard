@@ -49,11 +49,11 @@
 // and drawn directly once there. This file keeps the button, the open state and what each item does.
 import { useCallback, useContext, useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { MORE_NOTE_ACTIONS, MoreMenuOpenContext } from './NoteMoreMenu'
+import { MoreMenuOpenContext } from './NoteMoreMenu'
 import { NOTEBOOK_DOORS, onNotebookDoor } from '../../lib/notebookDoors'
 import UIcon from '../../../../components/ui/UIcon'
 import { importWithOneRetry } from '../../lib/lazyChunk'
-import { heldModule, pageReload, useHeldModule } from '../../lib/heldModule'
+import { RELOAD_TO_RECOVER, heldModule, pageReload, useHeldModule } from '../../lib/heldModule'
 import whenIdle from '../../lib/whenIdle'
 // Tier 1a bytes (perf-budgets.md): the PNG and print doors' module is fetched when one is pressed, never on the
 // Notebook's first open (the same on-use import exportNote.js already does for modern-screenshot).
@@ -80,8 +80,9 @@ export const exportMenuLoader = { load: () => import('./export/NoteExportMenu') 
 export const exportMenuModule = heldModule(() => exportMenuLoader.load())
 
 /** Final fix M8: what Export says when its menu's chunk could not be fetched (a stale tab after a deploy, most likely),
- *  beside a Reload the MEMBER presses (never an automatic reload: the pattern of Find and Ask, lib/heldModule.js). */
-export const EXPORT_UNAVAILABLE = 'Export could not be loaded. Reload the page to get it back.'
+ *  beside a Reload the MEMBER presses (never an automatic reload): the pattern, and the second sentence, of Find and Ask
+ *  (lib/heldModule.js `RELOAD_TO_RECOVER`, one authority for it). */
+export const EXPORT_UNAVAILABLE = `Export could not be loaded. ${RELOAD_TO_RECOVER}`
 /** Final fix M8: the Export row while a cold press waits for the menu's chunk. */
 export const EXPORT_WAITING = 'Export…'
 
@@ -108,26 +109,22 @@ export default function NoteExportControls({ noteId, title, columnRef, onMessage
   // an explicit ask from elsewhere). A fetch that failed says so beside Export, with a Reload the member presses.
   const [waiting, setWaiting] = useState(false)
   const [loadFailed, setLoadFailed] = useState(false)
-  const stillHere = useCallback(() => {
-    const active = document.activeElement
-    const button = triggerRef.current
-    if (!button) return false
-    // Focus on nothing (<body>: a click that focuses no button, as Safari's does) is not "moved on", the M-1 rule below.
-    if (!active || active === document.body || active === button) return true
-    const panel = more ? button.closest(`[role="group"][aria-label="${MORE_NOTE_ACTIONS}"]`) : null
-    return Boolean(panel?.contains(active))
-  }, [more])
-  const openMenu = useCallback(({ force = false } = {}) => {
+  const openMenu = useCallback((force) => {
     setLoadFailed(false)
     if (exportMenuModule.get().Component) return setMenuOpen(true)
     setWaiting(true)
     return exportMenuModule.warm().then((C) => {
       setWaiting(false)
-      if (!C) { setLoadFailed(true); return }
-      // the panel was closed meanwhile, or the member moved on: nothing opens under them
-      if (shown.current && (force || stillHere())) setMenuOpen(true)
+      if (!C) return setLoadFailed(true)
+      // Still here: focus on Export, on nothing (<body>: a click that focuses no button, as Safari's does; the M-1 rule
+      // below), or inside its More panel (the button's nearest role="group", NoteMoreMenu.jsx). The panel closed
+      // meanwhile, or the member moved on: nothing opens under them.
+      const a = document.activeElement
+      const b = triggerRef.current
+      if (shown.current && (force === true || !a || a === document.body || a === b
+        || (more && b?.closest('[role="group"]')?.contains(a)))) setMenuOpen(true)
     })
-  }, [setMenuOpen, stillHere])
+  }, [setMenuOpen, more])
   // M-1: the button to hand focus back to once the busy state clears.
   const refocusRef = useRef(null)
   useEffect(() => {
@@ -222,7 +219,7 @@ export default function NoteExportControls({ noteId, title, columnRef, onMessage
   useEffect(() => onNotebookDoor(NOTEBOOK_DOORS.EXPORT, () => {
     if (exportBusy) return false
     more?.open()
-    openMenu({ force: true })
+    openMenu(true)
     return true
   }), [more, exportBusy, openMenu])
 
@@ -260,7 +257,7 @@ export default function NoteExportControls({ noteId, title, columnRef, onMessage
         <UIcon name={more ? 'chevronRight' : 'chevronDown'} size={12} gold={false} />
       </button>
       {loadFailed && (
-        <span className={styles.loadFailed} role="alert" data-export-load-failed="">
+        <span className={styles.loadFailed} role="alert">
           {EXPORT_UNAVAILABLE}
           <button type="button" className={editorStyles.chromeBtn} onClick={pageReload.run}>Reload</button>
         </span>

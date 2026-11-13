@@ -769,7 +769,7 @@ export default function TodayHome({
           <TodayNoteAction state={noteState} note={data?.todayNote} templateId={dailyTemplateId} onOpenNote={onOpenNote}
             onStart={startTodayNote} onOpen={onOpenToday} onChanged={refresh} />
           {/* Final fix I4: always in the page, so the sentence is announced when it is set. */}
-          <p className="sr-only" role="status" data-today-status="">{startedStatus}</p>
+          <p className="sr-only" role="status">{startedStatus}</p>
         </div>
       </header>
       {error && <LoadFailed compact what="your Daily brief" error={error} onRetry={refresh} />}

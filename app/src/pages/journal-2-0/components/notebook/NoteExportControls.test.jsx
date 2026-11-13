@@ -623,7 +623,7 @@ describe('NoteExportControls: the menu is a held chunk', () => {
       fireEvent.click(trigger())
       const alert = await screen.findByRole('alert', {}, { timeout: 3000 })
       expect(alert).toHaveTextContent(EXPORT_UNAVAILABLE)
-      expect(EXPORT_UNAVAILABLE).toBe('Export could not be loaded. Reload the page to get it back.')
+      expect(EXPORT_UNAVAILABLE).toBe('Export could not be loaded. Reload the page to get this back.')   // Find's and Ask's words
       expect(screen.getByTestId('chrome-msg').textContent).not.toBe('export failed')
       expect(screen.queryByRole('menu')).toBeNull()
       expect(trigger().textContent).toBe('Export')

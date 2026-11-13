@@ -5,7 +5,14 @@
 // ⛔ LAZY: only the builder's chunk imports this. ⛔ Which properties a widget may filter by is NOT decided here: the
 // pick list is the server's own (`GET /vocabulary?field=property`, the notes source's rule, `sources.member_property`);
 // these definitions only name what a plan already holds and list a select's options.
-import { withNoteTypeNames } from '../../../lib/noteKinds'
+// Final fix M6: the builder shows the built-in note kind as "Note type", the name every other Notebook surface gives it
+// (lib/noteKinds.js `NOTE_KIND_PROPERTY` / `NOTE_TYPE_LABEL`, which the property hooks apply with `withNoteTypeNames`).
+// ⛔ The two values are restated here ON PURPOSE, and pinned: propertyDefs.test.js reads them FROM noteKinds.js, so a
+// change there turns that test red until this file follows. Importing noteKinds here split it into a first-open chunk of
+// its own (this chunk is reachable outside the Notebook, so the bundler cannot fold it): +268 B on the Notebook's first
+// open, measured, for a two-value lookup.
+const NOTE_KIND_ID = 'builtin:note_kind'
+const NOTE_TYPE_NAME = 'Note type'
 
 export const PROPERTY_DEFS_URL = '/api/j2/property-defs'
 
@@ -16,14 +23,12 @@ const isRecord = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
 export async function loadPropertyDefs() {
   const r = await fetch(PROPERTY_DEFS_URL, { credentials: 'include' })
   if (!r || !r.ok) throw new Error(`property definitions: ${r ? r.status : 'no answer'}`)
-  // Final fix M6: through the "Note type" label mapping the property hooks use, so the builder never shows the server's
-  // "Kind of note" beside the "Note type" every other surface shows.
-  const body = withNoteTypeNames(await r.json(), 'propertyDefs')
+  const body = await r.json()
   const out = new Map()
   for (const d of Array.isArray(body?.propertyDefs) ? body.propertyDefs : []) {
     if (!isRecord(d) || typeof d.id !== 'string' || !d.id) continue
     out.set(d.id, {
-      name: typeof d.name === 'string' ? d.name : '',
+      name: d.id === NOTE_KIND_ID ? NOTE_TYPE_NAME : typeof d.name === 'string' ? d.name : '',
       type: typeof d.type === 'string' ? d.type : null,
       options: Array.isArray(d.options) ? d.options.filter(isRecord) : [],
     })
