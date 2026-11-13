@@ -151,6 +151,7 @@ import { isValidTf } from '../timeframes'
 // validator live beside its reader, `paneTable.js`, which imports nothing of
 // this module — so there is no cycle.
 import { validatePaneTable } from './paneTable'
+import { isOptionsSource, OPTIONS_SOURCES, optionLabelFor, humanizeOptionValue } from './optionsSources'
 // ⭐ The line-end label (`plots[].endLabel`, UCT RS split U2): grammar beside its
 // reader, `endLabel.js`, which imports nothing of this module.
 import { validateEndLabel } from './endLabel'
@@ -2386,11 +2387,16 @@ function validateInput(input, index, seenKeys, errors, runtimeDoc = false) {
 //     rule only through `pattern`; the schema does not rewrite a stored value);
 //   - `placeholder`: the box's empty-state text, up to 64 characters;
 //   - `hint`: the muted line shown under the box when a typed value is refused,
-//     up to 120 characters (the control says "Not a valid value" without one).
+//     up to 120 characters (the control says "Not a valid value" without one);
+//   - `optionsSource` (2026-11-12): the name of a server-owned list of choices
+//     (`optionsSources.OPTIONS_SOURCES`, e.g. `rsThemes`). The box becomes a
+//     searchable chooser on every surface and STORES the chosen entry's value (a
+//     stable ID). A name the table does not list is refused: a definition never
+//     points a chart at an endpoint of its own choosing.
 // ⛔ Only a `string` input takes them: on a number or an enum they would be read
 // by nothing, which is a typo, so they are refused by name.
 export const TEXT_INPUT_MAX_LENGTH = 64
-const TEXT_MODIFIERS = ['pattern', 'maxLength', 'case', 'placeholder', 'hint']
+const TEXT_MODIFIERS = ['pattern', 'maxLength', 'case', 'placeholder', 'hint', 'optionsSource']
 const _patternCache = new Map()
 
 /** A declared `pattern` → its RegExp, or null for one that is not an anchored,
@@ -2429,6 +2435,9 @@ function validateTextModifiers(input, path, errors) {
   }
   if (input.case !== undefined && input.case !== 'upper') {
     errors.push(`${path}.case: the one case a text box applies is "upper", got ${fmt(input.case)}`)
+  }
+  if (input.optionsSource !== undefined && !isOptionsSource(input.optionsSource)) {
+    errors.push(`${path}.optionsSource: ${fmt(input.optionsSource)} is not a known list (known: ${list(Object.keys(OPTIONS_SOURCES))})`)
   }
   for (const [k, max] of [['placeholder', 64], ['hint', 120]]) {
     if (input[k] === undefined) continue
@@ -2658,17 +2667,29 @@ export function identityTextFor(def, key, raw, inputs) {
   if (typeof raw !== 'string' || !raw || !def || !Array.isArray(def.inputs)) return raw
   const inp = def.inputs.find((i) => i && i.key === key)
   if (!inp || inp.type !== 'enum') return raw
-  const companion = def.inputs.find((c) => c && c.identityFor === key && c.type === 'string'
+  const companion = def.inputs.find((c) => c && c.identityFor === key && IDENTITY_COMPANION_TYPES.has(c.type)
     && c.activeWhen && typeof c.activeWhen === 'object' && c.activeWhen.key === key && c.activeWhen.equals === raw)
   if (!companion) return raw
   const typed = (inputs && inputs[companion.key] !== undefined) ? inputs[companion.key] : companion.default
-  if (typeof typed === 'string' && typed.trim()) return typed.trim()
+  if (typeof typed === 'string' && typed.trim()) {
+    // 2026-11-12: a chooser's stored value is an ID; it prints as its label (the
+    // loaded list's, else the ID read as words), never as `semiconductor_equipment`.
+    if (companion.optionsSource) {
+      return optionLabelFor(companion.optionsSource, typed.trim()) || humanizeOptionValue(typed)
+    }
+    return typed.trim()
+  }
   for (const o of (Array.isArray(inp.options) ? inp.options : [])) {
     if (Array.isArray(o) && o[0] === raw) return typeof o[1] === 'string' && o[1] ? o[1] : raw
     if (o && typeof o === 'object' && !Array.isArray(o) && o.value === raw) return typeof o.label === 'string' && o.label ? o.label : raw
   }
   return raw
 }
+
+/** The input types that may stand in for an enum option (3-09b: a text box;
+ *  2026-11-12: also a second enum, e.g. the RS "Pick a sector" ETF list, whose
+ *  stored value is the name printed). */
+const IDENTITY_COMPANION_TYPES = new Set(['string', 'enum'])
 
 function validateIdentityFor(def, inputs, inputsByKey, errors) {
   const params = isPlainObject(def.meta) && Array.isArray(def.meta.legendParams) ? def.meta.legendParams : []
@@ -2681,8 +2702,8 @@ function validateIdentityFor(def, inputs, inputsByKey, errors) {
       errors.push(`${path}: expected the key of the enum input this box names an option of, got ${fmt(k)}`)
       return
     }
-    if (input.type !== 'string') {
-      errors.push(`${path}: only a "string" input stands in for an option, and this one is ${fmt(input.type)}`)
+    if (!IDENTITY_COMPANION_TYPES.has(input.type)) {
+      errors.push(`${path}: only a "string" or "enum" input stands in for an option, and this one is ${fmt(input.type)}`)
       return
     }
     if (input.legacy === true) {

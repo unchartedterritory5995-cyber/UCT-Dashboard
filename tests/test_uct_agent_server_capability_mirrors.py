@@ -32,7 +32,8 @@ DOMAIN_KNOWN_UNLISTED = {"calendar"}
 #: verb enumeration predates these; each is still caught when a verb ("run", "call", "use"…) precedes it.
 GUARD_KNOWN_UNWITHHELD = {
     "chart.resetDefaults", "chart.goToDate", "chart.replay", "chart.compare", "layout.current", "watchlist.keepOnly",
-    "watchlist.sortColumn", "watchlist.step", "watchlist.readView", "screener.state", "stock.profile", "stock.earnings",
+    "watchlist.sortColumn", "watchlist.step", "watchlist.readView", "screener.state", "stock.profile",
+    # stock.earnings left the set with the chartFeatures family (the guard's "earnings" verb withholds it now)
     "stock.compare", "breadth.history", "news.latest", "news.catalysts", "widget.arrange", "widget.readOptions",
     "widget.sendToJournal", "widget.selectTab", "widget.closeTab", "chart.selectTab", "chart.closeTab", "chart.linkTab",
     "drawing.style", "drawing.lock", "indicator.draft", "indicator.previewDraft", "indicator.undoDraft",
@@ -102,3 +103,20 @@ def test_the_chart_menu_family_is_a_CHART_action_not_history():
     # #1106: the chart's right-click Ask AI and watermark Reset act on ONE chart (the chart domain), never history
     assert v2.domain_for("chartMenu.askAi") == "chart"
     assert v2.domain_for("chartMenu.resetWatermark") == "chart"
+
+
+def test_the_chart_features_family_is_a_CHART_action_not_history():
+    # the Company Info panel + Earnings Strip act on ONE chart widget's dock (the chart domain), never history
+    assert v2.domain_for("chartFeatures.companyPanel") == "chart"
+    assert v2.domain_for("chartFeatures.earningsStrip") == "chart"
+
+
+def test_the_chart_features_action_names_are_WITHHELD_bare():
+    for n in ("chartFeatures.companyPanel", "chartFeatures.earningsStrip", "stock.earnings"):
+        assert guard.suspicious(_bare(n)) is True, n
+
+
+def test_the_guard_still_passes_ordinary_company_and_earnings_prose():
+    for text in ("The company reported earnings after the close.", "Open the company panel on the chart to read the profile.",
+                 "The earnings strip shows quarterly EPS and revenue.", "Check the stock's earnings date before entering."):
+        assert guard.suspicious(text) is False, text

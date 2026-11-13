@@ -41,7 +41,7 @@ const BARS = CASE.bars
 const last = (col) => [...col].reverse().find((v) => v !== null)
 /** The envelope `rs_phases_envelope` sends at the fixture's newest bar. */
 const PAYLOAD = Object.freeze({
-  benchmark: { requested: 'SPY', resolved: 'SPY', label: 'S&P 500 (SPY)', fallback: null, note: null, bars: CASE.benchmarkBars.length },
+  benchmark: { requested: 'SPY', resolved: 'SPY', name: 'SPY', label: 'S&P 500 (SPY)', fallback: null, note: null, bars: CASE.benchmarkBars.length },
   legend: { phase: 1, phaseLabel: 'RS up while the market is down', divergence: 1.23, rsTrend: 0.0123, benchTrend: -0.0081,
     asOf: BARS.at(-1).t, stale: false, summary: 'RS up while the market is down · divergence +1.2' },
   history: { bars: BARS.length, requested: 852, short: true },
@@ -49,7 +49,7 @@ const PAYLOAD = Object.freeze({
   intraday: false, state: 'ok',
 })
 const SAME_SYMBOL = Object.freeze({
-  benchmark: { requested: 'SPY', resolved: 'SPY', label: 'S&P 500 (SPY)', fallback: null, note: null, bars: 0 },
+  benchmark: { requested: 'SPY', resolved: 'SPY', name: 'SPY', label: 'S&P 500 (SPY)', fallback: null, note: null, bars: 0 },
   legend: { phase: null, phaseLabel: null, divergence: null, rsTrend: null, benchTrend: null, asOf: null, stale: null,
     summary: 'benchmark is the symbol' },
   history: { bars: BARS.length, requested: 852, short: false },
@@ -87,9 +87,10 @@ describe('1 · the identity', () => {
 describe('2 · the server inputs', () => {
   it('names the row\'s four keys in the row\'s order, and the fetch carries only those', () => {
     expect(DEF.meta.serverInputs).toEqual(CONTRACT.inputs)
-    expect(DEF.meta.serverInputs).toEqual(['benchmark', 'customBenchmark', 'shortEma', 'longEma'])
+    expect(DEF.meta.serverInputs).toEqual(['benchmark', 'customBenchmark', 'sectorBenchmark', 'themeBenchmark',
+      'shortEma', 'longEma'])
     expect(pickServerInputs(DEF, resolveInputs(DEF, { benchmark: 'QQQ', longEma: 12, color: '#fff' })))
-      .toEqual({ benchmark: 'QQQ', customBenchmark: '', shortEma: 3, longEma: 12 })
+      .toEqual({ benchmark: 'QQQ', customBenchmark: '', sectorBenchmark: 'XLK', themeBenchmark: '', shortEma: 3, longEma: 12 })
     const byKey = Object.fromEntries(DEF.inputs.map((i) => [i.key, i]))
     expect(byKey.shortEma).toMatchObject({ type: 'int', default: 3, min: 2, max: 20, label: 'Short avg (bars)' })
     expect(byKey.longEma).toMatchObject({ type: 'int', default: 10, min: 3, max: 60, label: 'Long avg (bars)' })
@@ -98,7 +99,8 @@ describe('2 · the server inputs', () => {
     expect(byKey.benchmark.options).toEqual(rs.benchmark.options)
     expect(byKey.customBenchmark).toMatchObject({ type: 'string', requiresServer: true, identityFor: 'benchmark',
       activeWhen: rs.customBenchmark.activeWhen, pattern: rs.customBenchmark.pattern, maxLength: 10, case: 'upper' })
-    expect(DEF.inputs.map((i) => i.key)).toEqual(['benchmark', 'customBenchmark', 'shortEma', 'longEma', 'color'])
+    expect(DEF.inputs.map((i) => i.key)).toEqual(['benchmark', 'customBenchmark', 'sectorBenchmark', 'themeBenchmark',
+      'shortEma', 'longEma', 'color'])
   })
 })
 

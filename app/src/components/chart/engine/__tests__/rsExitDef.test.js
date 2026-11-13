@@ -47,7 +47,7 @@ const NEWEST_WARNING = Math.max(...EVENTS.quickBreak, ...EVENTS.quicksand, ...EV
 /** The envelope `rs_exit_envelope` sends on the golden series: the legend names the newest
  *  warning (bar 166, a Quicksand, 53 bars before the newest bar 219). */
 const PAYLOAD = Object.freeze({
-  benchmark: { requested: 'SPY', resolved: 'SPY', label: 'S&P 500 (SPY)', fallback: null, note: null, bars: CASE.benchmarkBars.length },
+  benchmark: { requested: 'SPY', resolved: 'SPY', name: 'SPY', label: 'S&P 500 (SPY)', fallback: null, note: null, bars: CASE.benchmarkBars.length },
   legend: {
     blankReason: null,
     lastKind: 'quicksand', lastLabel: 'Quicksand', barsAgo: BARS.length - 1 - NEWEST_WARNING, lastAsOf: BARS[NEWEST_WARNING].t,
@@ -116,12 +116,14 @@ describe('1 · the identity', () => {
 describe('2 · the server inputs', () => {
   it('names the row\'s four keys, in the row\'s order; switches and colours stay on the client', () => {
     expect(DEF.meta.serverInputs).toEqual(CONTRACT.inputs)
-    expect(DEF.meta.serverInputs).toEqual(['benchmark', 'customBenchmark', 'fastLength', 'slowLength'])
+    expect(DEF.meta.serverInputs).toEqual(['benchmark', 'customBenchmark', 'sectorBenchmark', 'themeBenchmark',
+      'fastLength', 'slowLength'])
     const sent = pickServerInputs(DEF, resolveInputs(DEF, {
       benchmark: 'QQQ', fastLength: 10, slowLength: 40, showQuick: false, showQuicksand: false, showDead: false,
       color: '#ffffff', quickColor: '#000000',
     }))
-    expect(sent).toEqual({ benchmark: 'QQQ', customBenchmark: '', fastLength: 10, slowLength: 40 })
+    expect(sent).toEqual({ benchmark: 'QQQ', customBenchmark: '', sectorBenchmark: 'XLK', themeBenchmark: '',
+      fastLength: 10, slowLength: 40 })
   })
 
   it('declares both lengths with 0 as auto and the row\'s 0 to 400 range, and honest copy about where 21 and 50 come from', () => {
