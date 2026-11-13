@@ -14,6 +14,14 @@ export const GROUP_TYPES = [
  *  ('theme' | 'sector' | 'industry', resolved for `sym`) or `{ type, name }`. Unit 3-09 dispatches it. */
 export const COMPARE_OPEN_EVENT = 'uct:compare-open'
 
+/** The chart the Compare panel works on: the active chart when it is registered, else the first one
+ *  (`chartApiById`'s Map, `activeChartRef.current`). `null` when no chart is registered. ONE rule, shared by
+ *  CompareSymbolsPanel and the UCT Agent's compare.openView (which reads that chart's % scale before opening). */
+export function compareChartApi(map, active) {
+  if (!map || !map.size) return null
+  return ((active && map.has(active)) ? map.get(active) : map.get([...map.keys()][0])) || null
+}
+
 /** `[{ name, count }]` for one group type, or `null` when the read fails (the Agent says the list is
  *  unavailable rather than "there is no such group"). */
 export async function readGroupList(type) {
