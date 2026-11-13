@@ -36,6 +36,7 @@ import copy
 import pathlib
 import threading as _threading
 import time as _time
+from api.services.log_redaction import safe_exc as _safe_exc
 
 UCT_INTEL_PATH = pathlib.Path(
     os.environ.get("UCT_INTEL_PATH", r"C:\Users\Patrick\uct-intelligence")
@@ -2594,7 +2595,7 @@ def _compute_news() -> list:
                 data = r.json()
                 return data if isinstance(data, list) else []
             except Exception as e:
-                _logger.warning("get_news: FMP general-latest failed: %s", e)
+                _logger.warning("get_news: FMP general-latest failed: %s", _safe_exc(e))
                 return []
 
         def _fmp_stock_symbols() -> str:
@@ -2628,7 +2629,7 @@ def _compute_news() -> list:
                 data = r.json()
                 return data if isinstance(data, list) else []
             except Exception as e:
-                _logger.warning("get_news: FMP news/stock failed: %s", e)
+                _logger.warning("get_news: FMP news/stock failed: %s", _safe_exc(e))
                 return []
 
         with ThreadPoolExecutor(max_workers=4) as ex:

@@ -1,6 +1,6 @@
 // app/src/components/chart/chartScreenshot.js
 import { formatCompact } from '../../lib/presentation/presentationPrimitives';
-import compassSrc from '../intro/assets/compass-mark.png';
+import compassSrc from '../intro/assets/compass-mark.webp';
 
 // Load the compass mark once (cached promise). Resolves null on failure so a
 // missing asset never blocks the screenshot.

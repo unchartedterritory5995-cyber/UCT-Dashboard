@@ -1,6 +1,6 @@
 // UCT Agent's mark and name, for surfaces outside the panel (UCT News). The same compass as the panel's
 // avatar, on a gold rim, at 14–16px. Branding only: it grants nothing (see canUseAgent).
-import compassMark from '../components/intro/assets/compass-mark.png'
+import compassMark from '../components/intro/assets/compass-mark.webp'
 import styles from './AgentPanel.module.css'
 
 export function AgentIdentity({ size = 16, label = true }) {

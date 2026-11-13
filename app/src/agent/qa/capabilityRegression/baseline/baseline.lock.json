@@ -2957,6 +2957,56 @@
     }
    }
   },
+  "periodSort.run": {
+   "digest": "8aadd94b35628dbd",
+   "phrasings": {
+    "run a custom period sort of sectors from oct 1 to oct 30 with replay on and the start marked": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "rank the sectors from Oct 1 to Oct 30 and replay the charts to the end date, mark the start with a line": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "period sort by sector between 2026-10-01 and 2026-10-30, replay mode on, gold line at the start": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "custom-period sort: sectors, Oct 1 to Oct 30, hide bars after the end and mark the start": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "periodSort.dock": {
+   "digest": "7cdc88865497796f",
+   "phrasings": {
+    "dock that period sort onto the board": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "dock the ranking as a widget": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "keep that period sort on my board": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "pin the custom period sort results to the board": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
   "chart.replay.exit": {
    "digest": "3858cdefd5b544c3",
    "phrasings": {
@@ -4237,6 +4287,46 @@
     }
    }
   },
+  "chartMenu.resetWatermark": {
+   "digest": "df220e8af0d696e0",
+   "phrasings": {
+    "reset the watermark on this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "put the watermark back in the center": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "recenter the watermark": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "chartMenu.askAi": {
+   "digest": "49c7fc65cd5a9fe5",
+   "phrasings": {
+    "ask ai about this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "ask the ai about the stock on this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "open the ai on this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
   "chartSetup.stepBars": {
    "digest": "f1ef323ce91ffc4b",
    "phrasings": {
@@ -4281,6 +4371,31 @@
      "modes": {}
     },
     "put the price axis back on auto": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "chartSetup.zoom": {
+   "digest": "8372590e9451dc10",
+   "phrasings": {
+    "zoom this chart out": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "zoom out on the chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "zoom the chart out one step": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "give me a wider view of the chart": {
      "digest": "44136fa355b3678a",
      "gaps": [],
      "modes": {}
@@ -4385,6 +4500,146 @@
      "modes": {}
     },
     "turn on crosshair sync for the grid": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "drawing.setActiveBoard": {
+   "digest": "48dd7e99f9b9ba07",
+   "phrasings": {
+    "switch to my Swing board": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "switch to the Swing drawing board": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "draw on my Swing board": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "drawing.createBoard": {
+   "digest": "f8f8a31f6fe78acb",
+   "phrasings": {
+    "create a new drawing board called Earnings": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "make a new drawing board named Earnings": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "add a drawing board called Earnings": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "drawing.renameBoard": {
+   "digest": "25c50932ca7843f2",
+   "phrasings": {
+    "rename Board 2 to Breakouts": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "rename my Board 2 drawing board to Breakouts": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "call drawing Board 2 Breakouts": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "drawing.deleteBoard": {
+   "digest": "66044a6a393bf91b",
+   "phrasings": {
+    "delete the Breakouts board": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "delete my Breakouts drawing board": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "remove the Breakouts drawing board": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "drawing.positionCalculator": {
+   "digest": "ae39380cbdbe0412",
+   "phrasings": {
+    "open the position calculator with entry 50 stop 48 target 56": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "size this trade: entry 50, stop 48, target 56": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "put a position calculator on the chart, entry 50, stop 48 and target 56": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "drawing.saveDefaults": {
+   "digest": "f9f30761c1779e5c",
+   "phrasings": {
+    "make this trendline my default style": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "save this trendline's style as the default for new drawings": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "use that line's look as my default drawing style": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "drawing.favoriteTool": {
+   "digest": "53410fdea7505f5e",
+   "phrasings": {
+    "add the fib tool to my favourites": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "star the fibonacci retracement tool": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "put the fib tool on my favorites toolbar": {
      "digest": "44136fa355b3678a",
      "gaps": [],
      "modes": {}

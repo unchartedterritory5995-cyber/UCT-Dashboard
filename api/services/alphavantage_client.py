@@ -75,6 +75,7 @@ from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
 import requests
+from api.services.log_redaction import safe_exc as _safe_exc
 
 _logger = logging.getLogger(__name__)
 
@@ -251,7 +252,7 @@ def av_get_status(
         resp.raise_for_status()
         data = resp.json()
     except Exception as exc:
-        _logger.warning("AlphaVantage %s failed: %s", params.get("function", "?"), exc)
+        _logger.warning("AlphaVantage %s failed: %s", params.get("function", "?"), _safe_exc(exc))
         return None, False
     if is_av_throttle_response(data):
         global _av_bucket_denied_total

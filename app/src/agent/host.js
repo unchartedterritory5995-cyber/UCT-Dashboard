@@ -153,6 +153,8 @@ export function buildChartSource({ chartApiById, getWidgets, selectedChart = nul
           // open now (the read-back). Absent when the adapter has no door (a Multi Chart cell): chartSetup.openSettings refuses.
           ...(typeof e.api.agent.openSettings === 'function'
             ? { canOpenSettings: !!e.api.agent.canOpenSettings?.(), settingsOpen: !!e.api.agent.settingsOpen?.() } : {}),
+          // C1-178: the right-click "Ask AI about {sym}" door (absent = none: chartMenu.askAi refuses)
+          ...(typeof e.api.agent.askAi === 'function' ? { canAskAi: !!e.api.agent.canAskAi?.() } : {}),
           // ⭐ W1-B B-06: the workspace's Replay Mode cutoff ('YYYY-MM-DD' | null) — ONE shared value every linked chart
           // reads (StockChart `replayCutoff`); absent (undefined) when this host has no replay source
           ...(replay ? { replay: replay.read() ?? null } : {}),
@@ -222,6 +224,11 @@ export function buildChartSource({ chartApiById, getWidgets, selectedChart = nul
     openSettings: (ref) => {
       const e = entries().find(x => x.ref === ref)
       try { return !!e?.api.agent.openSettings?.() } catch { return false }
+    },
+    // C1-178: THIS chart's right-click "Ask AI about {sym}" (ChartWidget's openAskAi: /research/:sym?section=ai)
+    askAi: (ref) => {
+      const e = entries().find(x => x.ref === ref)
+      try { return !!e?.api.agent.askAi?.() } catch { return false }
     },
     // The Time Navigator's jump on this chart (a view; see ChartWidget's adapter).
     goTo: (ref, ms) => {
@@ -700,6 +707,55 @@ export function buildDrawingSource(charts, store = drawingsStore) {
   }
 }
 
+/**
+ * ⭐ DRAWING BOARDS (C1-167..170): the member's named drawing sheets. Every chart shares them, so this
+ * covers the whole app, not one chart. It reads the store and writes only through the writers the
+ * Drawing Boards panel uses (components/chart/TracingsPanel.jsx via useTracings): setActiveTracing,
+ * createTracing (then setActiveTracing, as "New board" does), renameTracing, deleteTracing.
+ * `confirm()` polls the server's copy (useTracingsSync pushes exportTracings() into the tracings_doc
+ * preference, debounced 1.5 s) until it holds these boards by id and name and the same active board.
+ * It returns { ok } or { ok: false, reason: 'not-synced' }.
+ */
+export function buildDrawingBoardSource(store = drawingsStore, { fetchFn = (u, o) => fetch(u, o), timeoutMs = 8000, everyMs = 500 } = {}) {
+  const snapshot = () => {
+    const snap = store.getTracingsSnapshot()
+    return {
+      activeId: snap.activeId,
+      boards: snap.tracings.map((t) => {
+        const s = store.tracingStats(t.id)
+        return { id: t.id, name: t.name || '', label: store.tracingLabel(t), active: t.id === snap.activeId, drawings: s.drawings, symbols: s.syms }
+      }),
+    }
+  }
+  const sigOf = (boards, activeId) => JSON.stringify([activeId, (boards || []).map(t => [t.id, t.name || ''])])
+  return {
+    snapshot,
+    setActive: (id) => store.setActiveTracing(id),
+    create: (name) => { const id = store.createTracing({ name }); store.setActiveTracing(id); return id },
+    rename: (id, name) => store.renameTracing(id, name),
+    remove: (id) => store.deleteTracing(id),
+    async confirm() {
+      const t0 = Date.now()
+      for (;;) {
+        const s = store.getTracingsSnapshot()
+        const want = sigOf(s.tracings, s.activeId)
+        try {
+          const r = await fetchFn('/api/auth/preferences', { credentials: 'include', cache: 'no-store' })
+          if (r.ok) {
+            const prefs = await r.json()
+            const raw = prefs?.tracings_doc
+            const env = typeof raw === 'string' ? JSON.parse(raw) : raw
+            const doc = env?.doc ?? null
+            if (doc && sigOf(doc.tracings, doc.activeId) === want) return { ok: true }
+          }
+        } catch { /* keep polling until the deadline */ }
+        if (Date.now() - t0 > timeoutMs) return { ok: false, reason: 'not-synced' }
+        await new Promise(res => setTimeout(res, everyMs))
+      }
+    },
+  }
+}
+
 const drawingSig = (list) => JSON.stringify((Array.isArray(list) ? list : []).map(d => [
   d.id, d.type, d.points, d.color ?? null, d.lineStyle ?? null, d.lineWidth ?? null, !!d.locked, !!d.hidden,
 ]))
@@ -796,7 +852,7 @@ export function scopeHostToGrid(host, { readCells = readServerCells } = {}) {
   }
 }
 
-export function buildWorkspaceHost({ chartApiById, getWidgets, selectedChart, boardVisit, widgetLabel, widgetOps, layouts, layoutDock = null, watchlists, prefs, navigate, replay = null, gridControl = null, readServer = readServerBoard, readLayout = readServerLayout }) {
+export function buildWorkspaceHost({ chartApiById, getWidgets, selectedChart, boardVisit, widgetLabel, widgetOps, layouts, layoutDock = null, watchlists, prefs, navigate, replay = null, periodSort = null, gridControl = null, readServer = readServerBoard, readLayout = readServerLayout }) {
   const layoutSource = layouts ? buildLayoutSource(layouts) : null
   const epoch = layoutSource ? () => {
     const a = layoutSource.snapshot().active
@@ -806,6 +862,7 @@ export function buildWorkspaceHost({ chartApiById, getWidgets, selectedChart, bo
     ...(watchlists ? { watchlists: buildWatchlistSource({ ...watchlists, getWidgets }), flagged: buildFlaggedSource(), listViews: buildListViewSource({ getWidgets }) } : {}),
     charts: buildChartSource({ chartApiById, getWidgets, selectedChart, replay }),
     drawings: buildDrawingSource(buildChartSource({ chartApiById, getWidgets, selectedChart })),
+    drawingBoards: buildDrawingBoardSource(),
     indicatorAlerts: buildIndicatorAlertSource(),
     ...(widgetOps ? { widgets: buildWidgetSource({ widgetOps, getWidgets }) } : {}),
     ...(typeof layoutDock === 'function' ? { layoutDock: buildLayoutDockSource(layoutDock) } : {}),
@@ -829,6 +886,9 @@ export function buildWorkspaceHost({ chartApiById, getWidgets, selectedChart, bo
     ...(prefs ? { prefs } : {}),
     // The router's navigate() (an allow-listed path from capabilities/app.js only).
     ...(navigate ? { navigate } : {}),
+    // Tools → Custom-Period Sort (capabilities/periodSort.js): the popover's own run, the panel's own Dock, and the
+    // panel / Replay cutoff / start marker they write. Absent → periodSort.* refuse (Multi Chart, other pages).
+    ...(periodSort ? { periodSort } : {}),
     // ⭐ MULTI CHART: the grid's own writers (pages/charts/grid/useGridAgentControl.js), on the board as in the grid — the
     // member enters a grid from the board. Read by capabilities/multiChart.js only.
     ...(gridControl ? { gridControl } : {}),

@@ -394,6 +394,9 @@ def backfill_flow_source(target_date: str = None) -> dict:
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
+    # ⛔ credentials never reach a log line: filter on the handlers basicConfig just made
+    from api.services.log_redaction import install as _install_log_redaction
+    _install_log_redaction()
     import sys, json as _json
     cmd = sys.argv[1] if len(sys.argv) > 1 else "help"
     if cmd == "sync":

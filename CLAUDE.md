@@ -58,6 +58,15 @@ master push is a full deploy gate and a deploy, and wasted runs still cost wall-
 - If runs fail with "The job was not started because ... spending limit": that is the budget, not the code.
   Tell the owner; do not re-push to retry.
 
+## ⛔⛔ flow-worker DEPLOYS ARE MANUAL (owner decision 2026-11-12) — read before touching options-flow code
+
+Railway **auto deploy is DISABLED for `flow-worker`** (the live options tape, Live Flow, Options Flow,
+gap-fill). Merging or pushing a change to a file it runs no longer restarts it: someone deploys it by
+hand, **outside market hours only** (Railway → flow-worker → Ctrl/Cmd+K → "Deploy latest commit").
+Why: flow-worker deploys corrupted `flow.db` (Railway pulls the volume from the still-running old
+container); on 2026-11-12 an unrelated PR cost 1.5 h of live tape mid-session. Do not re-enable it.
+How to deploy, verify, and recover a damaged flow.db: **`docs/runbooks/flow-worker-deploys-and-flow-db.md`**.
+
 ## ⭐ Speed and reliability: how every change is made (owner standing rule, 2026-11-10)
 
 The owner's bar: **instant, smooth, reliable, no lag, for every member** (browser and the desktop app), at

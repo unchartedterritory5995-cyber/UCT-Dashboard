@@ -36,8 +36,9 @@ AGENT_CI = pathlib.Path(".github") / "workflows" / "agent-ci.yml"
 SUCCESS, PENDING, FAILURE = "success", "pending", "failure"
 #: the pulls/{n}/files API stops at 3000 entries; a list that long cannot be proven Agent-free
 MAX_PR_FILES = 3000
-#: the job filter on the PR events: same-repo PRs skip every job there by design, so only `push` runs count
-RUN_EVENTS = ("push",)
+#: the agent-ci run events that can be evidence: `push` for agent/** heads, `pull_request` for other same-repo heads
+#: (evidence_event picks per PR; agent-ci's jobs skip the PR event for agent/** heads, so it is never accepted for them)
+RUN_EVENTS = ("push", "pull_request")
 
 
 class ApiError(RuntimeError):
@@ -124,11 +125,11 @@ def decide_with_reason(changed_paths, patterns, run, jobs_required) -> tuple[str
     if not touches_agent(changed_paths, patterns):
         return SUCCESS, "no Agent paths changed"
     if run is None:
-        return PENDING, "Agent paths changed: waiting for the agent ci push run of this exact SHA"
+        return PENDING, "Agent paths changed: waiting for the agent ci run of this exact SHA"
     if not isinstance(run, dict) or run.get("error"):
         return FAILURE, f"could not read the agent ci run: {(run or {}).get('error', run)}"[:140]
     if run.get("status") != "completed":
-        return PENDING, f"agent ci push run is {run.get('status')}"
+        return PENDING, f"agent ci run is {run.get('status')}"
     by_name: dict[str, list] = {}
     for j in run.get("jobs") or []:
         by_name.setdefault(j.get("name"), []).append(j.get("conclusion"))
@@ -141,8 +142,8 @@ def decide_with_reason(changed_paths, patterns, run, jobs_required) -> tuple[str
     if bad:
         return FAILURE, f"{len(bad)} Agent job(s) not success: {bad[0]}"[:140]
     if run.get("conclusion") != SUCCESS:
-        return FAILURE, f"agent ci push run concluded {run.get('conclusion')}"
-    return SUCCESS, f"agent ci push run passed all {len(jobs_required)} required jobs"
+        return FAILURE, f"agent ci run concluded {run.get('conclusion')}"
+    return SUCCESS, f"agent ci run passed all {len(jobs_required)} required jobs"
 
 
 def decide(changed_paths, patterns, run, jobs_required) -> str:
@@ -196,11 +197,25 @@ def pr_changed_paths(api: Api, number: int):
     return paths
 
 
+def evidence_event(head_ref: str | None) -> str:
+    """Which agent-ci run is the evidence for a PR head (AUDIT option B, 2026-11-12): agent/** heads → its PUSH run (the PR
+    event skips the jobs for them); any other same-repo head → its PULL_REQUEST run (agent-ci's jobs run there for non-agent/**
+    heads, path-filtered on the PR's OWN diff, so a branch that only merges master never starts an Agent run)."""
+    return "push" if str(head_ref or "").startswith("agent/") else "pull_request"
+
+
 def push_run_for(api: Api, sha: str):
-    """The newest agent-ci PUSH run for exactly this SHA, with its latest-attempt jobs; None when there is none."""
-    q = urllib.parse.urlencode({"head_sha": sha, "event": "push", "per_page": 100})
+    """The newest agent-ci PUSH run for exactly this SHA (see run_for)."""
+    return run_for(api, sha, "push")
+
+
+def run_for(api: Api, sha: str, event: str):
+    """The newest agent-ci run of `event` for exactly this SHA, with its latest-attempt jobs; None when there is none."""
+    if event not in RUN_EVENTS:
+        raise ValueError(f"not an evidence event: {event}")
+    q = urllib.parse.urlencode({"head_sha": sha, "event": event, "per_page": 100})
     runs = [r for r in api.get(f"actions/workflows/agent-ci.yml/runs?{q}").get("workflow_runs", [])
-            if r.get("head_sha") == sha and r.get("event") in RUN_EVENTS]
+            if r.get("head_sha") == sha and r.get("event") == event]
     if not runs:
         return None
     run = max(runs, key=lambda r: (r.get("created_at") or "", r.get("id") or 0))
@@ -223,22 +238,28 @@ def open_prs_for(api: Api, sha: str) -> list[int]:
 def evaluate(api: Api, sha: str, prs: list[int], doc: dict) -> tuple[str, str, str | None]:
     patterns, jobs_required = agent_paths(doc), required_jobs(doc)
     try:
-        changed = [pr_changed_paths(api, n) for n in prs] or [None]   # no PR found: unknown diff, fail closed
+        # (paths, head ref) per PR; no PR found: unknown diff and head, fail closed (evidence = push, as before)
+        changed = [(pr_changed_paths(api, n), ((api.get(f"pulls/{n}") or {}).get("head") or {}).get("ref")) for n in prs] or [(None, None)]
     except ApiError as e:
         return FAILURE, f"could not read the PR diff: {e}"[:140], None
-    run, run_loaded = None, False
-    results = []
-    for paths in changed:
-        if touches_agent(paths, patterns) and not run_loaded:
-            try:
-                run = push_run_for(api, sha)
-            except ApiError as e:
-                run = {"error": str(e)}
-            run_loaded = True
-        results.append(decide_with_reason(paths, patterns, run if run_loaded else None, jobs_required))
+    runs: dict = {}
+    results, link = [], None
+    for paths, ref in changed:
+        run = None
+        if touches_agent(paths, patterns):
+            ev = evidence_event(ref) if ref else "push"
+            if ev not in runs:
+                try:
+                    runs[ev] = run_for(api, sha, ev)
+                except ApiError as e:
+                    runs[ev] = {"error": str(e)}
+            run = runs[ev]
+            if isinstance(run, dict) and run.get("html_url"):
+                link = link or run["html_url"]
+        results.append(decide_with_reason(paths, patterns, run if touches_agent(paths, patterns) else None, jobs_required))
     state = combine([s for s, _ in results])
     reason = next(r for s, r in results if s == state)
-    return state, reason, (run or {}).get("html_url") if isinstance(run, dict) else None
+    return state, reason, link
 
 
 def main(argv=None) -> int:

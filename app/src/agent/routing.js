@@ -93,6 +93,14 @@ export const GROUPS = [
       // The verb (compare… / overlay / remove / drop / take off / clear) must govern the group noun within six words: a bare
       // "vs … themes" or a plural "overlays … group" (indicator talk) never reaches this group.
       /\b(?:compar\w*|overlay|remove|drop|take off|clear)\s+(?:[\w’'-]+\s+){0,6}?(?:groups?|sectors?|industr(?:y|ies)|themes?)\b|\b(?:groups?|sectors?|industr(?:y|ies)|themes?|semis)\b.*\b(?:overlays?|scale|comparisons?)\b/] },
+  // Family C (right-click and header parity, 2026-11-11): a chart's right-click Ask AI and the watermark's Reset position, in
+  // their OWN words-only group (as compareGroups): never a filler, so no existing group and no unrecognised request changes.
+  // "ask" / "watermark" are used elsewhere, so each needs its context: Ask AI with about / on / for or a chart word; the
+  // watermark with a reset / back / default word (either order). No lookbehind (src/noRegexLookbehind.test.js).
+  { id: 'chartMenu', title: 'A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position', domains: ['chartMenu'], fillLast: true, wordsOnly: true,
+    words: [
+      /\b(?:ask|open|pull up|bring up|launch|use)\s+(?:the\s+)?ai\s+(?:about|on|for|regarding)\b|\bask\s+(?:the\s+)?ai\b.*\b(?:chart|stock|symbol|ticker|this one|name)\b/,
+      /\bwatermark\b.*\b(?:reset|back|default|original|re-?cent(?:er|re)|where it was)\b|\b(?:reset|re-?cent(?:er|re)|restore|undrag)\b.*\bwatermark\b/] },
   // ⭐ live test 2026-10-28: N tickers as N equal charts (reuse, add, re-tile — one change, one Undo) — its OWN group
   // (one action), so neither the NL-1 core nor the workspace group grows: core + workspace is exactly the budget.
   { id: 'chartGrid', title: 'Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells', domains: ['chartGrid'], fillLast: true,
@@ -225,6 +233,27 @@ export const GROUPS = [
     // W2 (CG-7): a stock's "drawdowns" are price history (data), never a drawing
     // CG-28 family: "the lines on here" may be the member's drawn levels as much as their averages — both groups ride
     words: [/\bdraw(?![\s-]?downs?\b)\w*\b/, /\b(?:what|which|any|my|the|all) (?:[a-z-]+ ){0,2}lines\b.*\b(?:on|in) (?:here|this chart|the chart|my chart|it)\b/, /\b(a |the )?line at \$?\d/, /\b(horizontal (line|level)s?|levels?|price lines?|rays?|trend ?lines?|fib\w*|rectangles?|annotat\w+|support|resistance)\b/] },
+  // drawing extras (C1-144 / C1-160 / C1-165): the Position Calculator with entry / stop / target, a drawing's "Save as
+  // default", and a drawing tool's ★ — their OWN group, WORDS-ONLY (as #1027's watchlistShow / #1073's compareGroups), so
+  // `drawings` keeps master's exact size and the nothing-recognised fill (exactly at the 55-action budget) does not move.
+  // Its words: a position-calculator / position-size word, or entry + stop + target with no alert word; "default" with a
+  // save / make / set verb and a drawing noun (or "default style"); a favourite / star word with a TOOL noun. Plain "draw a
+  // line" stays `drawings`, "set an alert at my stop" stays `alerts`, and "favourite NVDA" (a ticker flag) is not this.
+  { id: 'drawingExtras', title: 'Position Calculator with an entry, stop and target on a chart; make a drawing\'s style the chart\'s default for new drawings; star / unstar a drawing tool as a favourite', domains: [], fillLast: true, wordsOnly: true,
+    actions: ['drawing.positionCalculator', 'drawing.saveDefaults', 'drawing.favoriteTool'],
+    words: [/\bposition (?:calculator|calc|sizer|sizing)\b|\bsize (?:the|my|a|this) (?:position|trade)\b|^(?!.*\b(?:alerts?|notify|ping)\b)(?=.*\bentry\b)(?=.*\bstops?\b).*\btargets?\b/,
+      /\bdefault (?:drawing )?style\b|^(?=.*\b(?:save|make|set|use)\b)(?=.*\b(?:drawings?|trend ?lines?|lines?|rays?|rectangles?|boxe?s?|fib\w*|arrows?|notes?|circles?|channels?|pitchforks?)\b).*\bdefaults?\b/,
+      /\b(?:favou?rit\w*|star|unstar|starred)\b.*\b(?:tools?|toolbar)\b|\b(?:tools?|toolbar)\b.*\bfavou?rit\w*\b/] },
+  // C1-167..170: the four Drawing Boards actions in their OWN group, WORDS-ONLY (as #1027's watchlistShow, #1073's compareGroups), so the
+  // drawings group keeps master's size and routing v2's unrecognised-request fill (at its 55-action budget) is unchanged
+  { id: 'drawingBoards', title: 'Drawing Boards: switch the board you draw on, make a new board, rename one, delete one', domains: [], fillLast: true, wordsOnly: true,
+    actions: ['drawing.setActiveBoard', 'drawing.createBoard', 'drawing.renameBoard', 'drawing.deleteBoard'],
+    // a Drawing Board by its verb ("switch to my Swing board", "rename Board 2 to Earnings"), the verb governing the board noun within
+    // two words — a bare "board" is the workspace ("remove everything from the board" is not a Drawing Board)
+    words: [/\b(?:switch|change|go|flip|jump|move)\s+(?:back\s+|over\s+)?to\s+(?:my|the|a|another|this|that)?\s*(?:[\w'’-]+\s+){0,2}boards?\b/,
+      /\bdraw(?:ing)?\s+on\s+(?:my|the|a|another|this|that)?\s*(?:[\w'’-]+\s+){0,2}boards?\b/,
+      /\b(?:rename|delete|remove|erase)\s+(?:my|the|this|that)?\s*(?:[\w'’-]+\s+){0,2}boards?\b/,
+      /\b(?:new|another|create|make|start)\s+(?:(?:me|a|an|another|new)\s+)*(?:drawing\s+)?boards?\b/, /\bdrawing\s+boards?\b/] },
   { id: 'lists', title: 'Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)', domains: ['watchlist'],
     words: [/\bwatch ?lists?\b/, /\blists?\b/, /\b(add|put|remove|drop)\b.+\b(to|into|from|off)\b/] },
   { id: 'screener', title: 'Screener (run screens, saved screens: run, save, copy, rename, delete)', domains: ['screener'],
@@ -380,6 +409,29 @@ export const GROUPS = [
     // review B1: EMPTY here — capabilities/coach.js arms COACH_ROUTE_WORDS only while the coach capabilities are
     // registered, so on a dark server routing is byte-identical to the base (a coach word never narrows the catalog)
     words: [] },
+  // C1-028 (pl-zoom): VIEW GESTURES on one chart — the + / - zoom (chartSetup.zoom) — in their OWN group, WORDS-ONLY and fillLast
+  // (as compareGroups / watchlistShow): master's unrecognised-request fill sits at exactly 55 actions, so a 19th chartSetup
+  // action would push another group out. Last in the catalog, so every existing group keeps its place and its listing order.
+  // Later view gestures (C1-026 price-axis compress, …) join this group. Only its own words select it: zoom + in / out
+  // (optionally "the chart" between), "closer" / "tighter" on the chart's bars, a wider / zoomed-out view, more / fewer bars.
+  // Not "reset the zoom" (chartSetup.resetView), not a "zoom" that names no direction (a company, a ticker).
+  { id: 'chartView', title: 'Chart view gestures: zoom one chart\'s time axis in or out (the + / - keys), more or fewer bars on screen', domains: [], fillLast: true, wordsOnly: true,
+    actions: ['chartSetup.zoom'],
+    words: [
+      /\bzoom(?:ed|ing)? (?:(?:the |this |that |my |it |its )?(?:\w+ )?(?:chart|view|time axis|axis|one|candles|bars) )?(?:way |all the way |back |a (?:bit|little|lot) |further |more )?(?:in|out)\b/,
+      /\b(?:closer|tighter) (?:in |look |view )?(?:on|at) (?:the |this |that |my )?(?:\w+ )?(?:chart|candles|bars|price action)\b|\b(?:wider|broader|zoomed[- ]out) view (?:of|on) (?:the |this |that |my )?(?:\w+ )?(?:chart|candles|bars)\b/,
+      /\b(?:show|see|fit|squeeze|cram) (?:me )?(?:more|fewer|less) (?:bars|candles)\b/] },
+  // C3-205..207 (pl-exec6, #1082): Tools → Custom-Period Sort (periodSort.run / periodSort.dock) in its OWN two-action group,
+  // WORDS-ONLY (as compareGroups / watchlistShow), so boardEdit and every other group stay character-identical to master:
+  // in boardEdit (by domain) it changed v2's lexical scores and its fill, and 5 first calls lost the action they needed.
+  // Words need context: the tool's name; a rank / sort said over DATES (a month-day, M/D or an ISO day after from / since /
+  // between); a Dock of the ranking. LAST in the catalog: the server once named at most turn.MAX_GROUPS (24) groups; #1089
+  // raised that cap to 48, so this group is named too. It stays last so it is the first left unnamed if the catalog outgrows the cap.
+  { id: 'periodSort', title: 'Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget',
+    domains: [], actions: ['periodSort.run', 'periodSort.dock'], fillLast: true, wordsOnly: true,
+    words: [/\bperiod[\s-]?sort\b|\bcustom[\s-]period\b/,
+      /\b(?:rank|ranking|sort)\b.*\b(?:from|since|between)\b.*(?:\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.? \d{1,2}\b|\b\d{4}-\d{2}-\d{2}\b|\b\d{1,2}\/\d{1,2}\b)/,
+      /\bdock\b.*\b(?:ranking|sort|sorted results)\b/] },
 ]
 
 const SYMBOL_VERB = /\b(switch|change|put|show|pull up|load|open|chart)\b/
@@ -437,7 +489,11 @@ function namedGroups(q, names) {
       if (w.length >= 3 && text.includes(` ${w} `)) { out.add(id); break }
     }
   }
-  if (names?.widgetTypes?.length && controlledWidgetTypes(q, names.widgetTypes, surfaceWord).length) out.add('boardEdit')
+  // #1082 re-merge: a docked Period Sort widget's controls (Refresh) never take a date, so "period sort sectors, Oct 1 to Oct 30"
+  // (dates beside the tool's name) asks for a NEW run (the periodSort group), not that widget: it alone does not bring boardEdit
+  const runsPeriodSort = /\bperiod[\s-]?sort\b|\bcustom[\s-]period\b/.test(q)
+    && /\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.? \d{1,2}\b|\b\d{4}-\d{2}-\d{2}\b|\b\d{1,2}\/\d{1,2}\b/.test(q)
+  if (names?.widgetTypes?.length && controlledWidgetTypes(q, names.widgetTypes, surfaceWord).some(t => !(runsPeriodSort && t === 'periodsort'))) out.add('boardEdit')
   if (names?.widgetItems?.length && itemNamedTypes(q, names.widgetItems).length) out.add('boardEdit')
   return out
 }

@@ -14,6 +14,7 @@ from typing import Any
 import httpx
 
 from api.services.cache import TTLCache
+from api.services.log_redaction import safe_exc as _safe_exc
 
 _log = logging.getLogger(__name__)
 
@@ -60,8 +61,8 @@ def get_news(ticker: str = "", limit: int = 10,
         r.raise_for_status()
         data = r.json()
     except httpx.HTTPError as e:
-        _log.warning("polygon news fetch failed: %s", e)
-        return {"error": f"polygon news failed: {e}", "items": []}
+        _log.warning("polygon news fetch failed: %s", _safe_exc(e))
+        return {"error": f"polygon news failed: {_safe_exc(e)}", "items": []}
 
     raw_items = data.get("results") or []
     items = []
