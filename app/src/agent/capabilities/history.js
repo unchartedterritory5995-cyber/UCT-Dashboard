@@ -21,19 +21,26 @@ import { RESOLVE_KIND, toCandidates, resolveInstruments, isFundLabel, FUND_NOTE 
 
 export const CAPABILITY = 'history.afterEvent'
 export const KIND = 'history.eventStudy'
-export const INDICATORS = ['gap_pct', 'pct_from_sma', 'rsi', 'bb_pct_b', 'macd_hist', 'pct_from_high']
-export const NO_PERIOD = ['gap_pct', 'macd_hist']
+export const INDICATORS = ['gap_pct', 'pct_from_sma', 'rsi', 'bb_pct_b', 'macd_hist', 'pct_from_high', 'day_pct']
+export const NO_PERIOD = ['gap_pct', 'macd_hist', 'day_pct']
+/** Phase 2 history: "the last N times" — the study keeps only the most recent N events (event_study.MAX_LAST) */
+export const MAX_LAST = 60
 export const OPS = ['above', 'below', 'cross_above', 'cross_below']
 export const DEFAULT_HORIZONS = [1, 5, 21]
 export const MAX_HORIZONS = 4
 export const MAX_SESSIONS = 252
 export const DESCRIPTIVE = "Descriptive, not predictive: this is what happened after past events in UCT's stored daily history; past results do not predict future returns."
 const GAPS_NOTE = "Opening gaps on any session are counted — UCT's data carries no past earnings dates, so earnings days are not separated."
-const INDICATOR_WORDS = { gap_pct: 'opening gap vs the previous close (%)', pct_from_sma: '% from its N-day SMA', rsi: 'RSI(N)', bb_pct_b: 'Bollinger %B (N, 2σ)', macd_hist: 'MACD histogram (12, 26, 9)', pct_from_high: 'a new N-day closing high' }
+const INDICATOR_WORDS = { day_pct: 'one-day close-to-close change (%)', gap_pct: 'opening gap vs the previous close (%)', pct_from_sma: '% from its N-day SMA', rsi: 'RSI(N)', bb_pct_b: 'Bollinger %B (N, 2σ)', macd_hist: 'MACD histogram (12, 26, 9)', pct_from_high: 'a new N-day closing high' }
 /** PKG2: a BREADTH-conditioned study ("SPY after breadth thrusts") is refused in fixed words, before any read or model call:
  *  UCT's breadth readings are model-isolated and never composed into a study (ADR-005; the server refuses the series kind too). */
 export const BREADTH_DECLINE = "Studies conditioned on market breadth (a breadth thrust, % of stocks above a moving average, new highs / lows) aren't available to UCT Agent: UCT's breadth readings are shown to you directly and are never combined into a study. "
   + 'I can study what one stock or ETF did after its OWN technical events instead — a new N-day closing high (a breakout), an opening gap, RSI, or crossing a moving average — for example "how has SPY done after new 50-day highs". No figure is stated.'
+
+/** Phase 2 history: a study anchored on EARNINGS DATES ("the week after earnings") cannot be run — UCT's stored history carries
+ *  no past report dates — so it is declined in fixed words, before any read or model call, with the study that CAN be run. */
+export const EARNINGS_DECLINE = "UCT's stored daily history carries no past earnings report dates, so I can't isolate the days or weeks after earnings. "
+  + 'I can study what a stock did after large opening gaps (earnings gaps are among them, not separated) or after big one-day moves — for example "how has NVDA behaved after 5%+ gaps" or "what happened to NVDA after the last 5 times it fell 5% in a day". No figure is stated.'
 
 export function historyServed() {
   if (!agentClient.serverServesData()) return false
@@ -61,6 +68,16 @@ export function freshnessLine(env, sym) {
   return `${span}${env.stale ? ' — note: a newer completed session exists, so the newest sessions are not included' : ''}.`
 }
 
+/** The sample the study rests on — its event count, study window and (with `last`) how many earlier events were left
+ *  out — from the envelope's value-free summary only. Past results are a small sample, said every time. */
+export function sampleLine(env) {
+  const s = env?.data?.summary
+  if (!s || !Number.isInteger(s.events_used)) return null
+  const span = s.study_start && s.study_end ? ` between ${sessionDate(s.study_start)} and ${sessionDate(s.study_end)}` : ''
+  const last = Number.isInteger(s.last) ? ` (the most recent ${s.last} asked for${s.events_before_last ? `; ${s.events_before_last} earlier ones left out` : ''})` : ''
+  return `Sample: ${s.events_used} past event${s.events_used === 1 ? '' : 's'}${span}${last}. Past results are a small sample of history, not a forecast.`
+}
+
 /**
  * A `history.eventStudy` envelope → the member's answer: the study's own lead, table, caveats and method, the
  * descriptive line and the dated freshness line. Pure; exported for tests. → { text, table, present, chart }
@@ -78,6 +95,8 @@ export function answerFromEventStudy(env, { symbol, name = null, indicator = nul
   if (caveats.length) lines.push(...caveats.map(c => `Caveat: ${c}`))
   if (indicator === 'gap_pct' || env.data?.request?.condition?.series?.indicator === 'gap_pct') lines.push(GAPS_NOTE)
   if (isFundLabel(name)) lines.push(FUND_NOTE)
+  const sample = sampleLine(env)
+  if (sample) lines.push(sample)
   lines.push(DESCRIPTIVE, freshnessLine(env, bare))
   const text = lines.join('\n')
   return {
@@ -96,7 +115,8 @@ function cleanArgs(args) {
   const threshold = typeof args?.threshold === 'number' && Number.isFinite(args.threshold) ? args.threshold : null
   const horizons = Array.isArray(args?.horizons) && args.horizons.length ? [...new Set(args.horizons.filter(n => Number.isInteger(n) && n >= 1 && n <= MAX_SESSIONS))].slice(0, MAX_HORIZONS) : [...DEFAULT_HORIZONS]
   const since = typeof args?.since === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(args.since) ? args.since : null
-  return { symbol, indicator, period, op, threshold, horizons, since }
+  const last = Number.isInteger(args?.last) && args.last >= 1 && args.last <= MAX_LAST ? args.last : null
+  return { symbol, indicator, period, op, threshold, horizons, since, last }
 }
 
 export async function answerAfterEvent(args) {
@@ -112,7 +132,7 @@ export async function answerAfterEvent(args) {
   const resolved = r.symbols[0]
   const turnId = currentTurnId()
   if (!turnId) return "I couldn't run the study: this needs the Agent's turn, which wasn't available."
-  const params = { symbol: resolved, indicator: a.indicator, period: NO_PERIOD.includes(a.indicator) ? null : a.period, op: a.op, threshold: a.threshold, horizons: a.horizons, ...(a.since ? { since: a.since } : {}) }
+  const params = { symbol: resolved, indicator: a.indicator, period: NO_PERIOD.includes(a.indicator) ? null : a.period, op: a.op, threshold: a.threshold, horizons: a.horizons, ...(a.since ? { since: a.since } : {}), ...(a.last ? { last: a.last } : {}) }
   // ONE read; the kind is a string LITERAL at the call (agent-qa's isolation rail checks every readData kind statically)
   const env = await readData('history.eventStudy', params, { purpose: 'answer', turnId })
   return answerFromEventStudy(env, { symbol: resolved, name: r.names[resolved], indicator: a.indicator })
@@ -131,10 +151,21 @@ const GAPS = new RegExp(`^${LEAD} after (?:a |an )?(?:(\\d{1,2}(?:\\.\\d+)?)\\s?
 const HIGHS = new RegExp(`^${LEAD} after (?:it )?(?:(?:makes?|made|making|hits?|hitting|sets?|setting|breaks? out to|broke out to|breaking out to) )?(?:a |an )?(?:new )?(?:(52)[- ]?week|(\\d{1,3})[- ]?(day|session|week))s? (?:closing )?(?:highs?|breakouts?|break[- ]outs?)${TAIL}`, 'i')
 const SMA_X = new RegExp(`^${LEAD} after (?:it )?(?:cross(?:es|ed|ing)?|breaks?|broke|breaking|closes|closed|closing|moves?|moved|moving) (above|over|below|under) (?:its |the )?(\\d{1,3})[- ]?day(?: (?:simple )?(?:moving average|sma|ma|line|average))?${TAIL}`, 'i')
 const RSI_X = new RegExp(`^${LEAD} after (?:its |the )?rsi(?: ?\\(?(\\d{1,3})\\)?)? (?:(?:drops?|dropped|falls?|fell|goes|went|gets?|got|crosses|crossed|dips?|dipped|moves?|moved|rises?|rose|climbs?|climbed) )?(below|under|above|over) (\\d{1,2})${TAIL}`, 'i')
+// Phase 2 history: a one-day close-to-close move, optionally "the last N times" —
+//   "what happened to SPY after the last 5 times it fell 3% in a day"   day_pct below -3, last 5
+//   "how does SPY do after 3%+ down days" / "after a 5% up day"         day_pct below -3 / above 5
+//   "how has NVDA done after it drops 4% in a day"                      day_pct below -4
+const MOVE_DOWN = /^(?:fell|falls|fall|dropped|drops|drop|declined|declines|lost|loses|sank|sinks|tumbled|tumbles|plunged|plunges|was down|closed down|is down)$/i
+const DAY_MOVE = new RegExp(`^${LEAD} after (?:(?:the )?(?:last|past) (\\d{1,2}) times? )?(?:it |\\$?[A-Za-z][A-Za-z0-9.]{0,5} )?(fell|falls|fall|dropped|drops|drop|declined|declines|lost|loses|sank|sinks|tumbled|tumbles|plunged|plunges|rose|rises|rise|gained|gains|jumped|jumps|rallied|rallies|climbed|climbs|surged|surges|was (?:up|down)|closed (?:up|down)|is (?:up|down)) (?:by )?(?:more than |over |at least )?(\\d{1,2}(?:\\.\\d+)?)\\s?%\\s?\\+?(?: or more)? (?:in a (?:single )?(?:day|session)|in one (?:day|session)|on the day|in a single day)${TAIL}`, 'i')
+const DAY_BAR = new RegExp(`^${LEAD} after (?:the (?:last|past) (\\d{1,2}) )?(?:a |an )?(\\d{1,2}(?:\\.\\d+)?)\\s?%\\s?\\+?(?: or (?:more|bigger|larger))? (down|up|red|green) (?:days?|sessions?)${TAIL}`, 'i')
+// "how does NVDA typically do the week after earnings" → the fixed EARNINGS_DECLINE (no read): the window words are what make
+// it an earnings-date study ("after earnings" alone stays the model's, which may ask or offer a gap study)
+const EARNINGS_WINDOW = new RegExp(`^${LEAD} (?:in )?(?:the )?(?:day|days|week|weeks|month|session|sessions|\\d{1,2} (?:days|sessions|weeks)) (?:after|following) (?:its |their |the )?(?:earnings|earnings reports?|earnings announcements?|reports?)${TAIL}`, 'i')
 const BREADTH_STUDY = /^(?:how|what)\b[^,;]{0,80}\b(?:after|following)\b[^,;]{0,40}\b(?:breadth thrusts?|zweig(?: breadth)?(?: thrusts?)?|breadth (?:surges?|spikes?|signals?))(?: (?:historically|in the past|over time))?(?: since \d{4})?$/i   // anchored: a trailing second request is never swallowed
 const NOT_A_SYMBOL = new Set(['it', 'its', 'this', 'that', 'they', 'them', 'stocks', 'stock', 'market', 'the'])
 const normalise = (t) => String(t || '').replace(/[’`]/g, "'").trim().replace(/[?!.]+$/, '').replace(/\s+/g, ' ').trim()
 const sinceOf = (y) => (y ? `${y}-01-01` : null)
+const withLast = (st, last) => (last ? { ...st, params: { ...st.params, last } } : st)
 const study = (symbol, indicator, period, op, threshold, year) => ({ action: CAPABILITY, params: { symbol, indicator, period, op, threshold, horizons: [...DEFAULT_HORIZONS], since: sinceOf(year) } })
 
 /** The event question → { action, params } with the candidate word exactly as typed, { say } for a breadth-conditioned
@@ -145,6 +176,7 @@ export function match(text) {
   if (!s || s.length > 140) return null
   if (BREADTH_STUDY.test(s)) return { say: BREADTH_DECLINE }
   const sym = (m) => { const w = m[1] || m[2]; return w && !NOT_A_SYMBOL.has(w.toLowerCase()) ? w : null }
+  if (EARNINGS_WINDOW.test(s)) { const e = EARNINGS_WINDOW.exec(s); return sym(e) ? { say: EARNINGS_DECLINE } : null }
   let m = GAPS.exec(s)
   if (m) {
     const symbol = sym(m)
@@ -166,6 +198,24 @@ export function match(text) {
     const n = Number(m[4])
     if (!symbol || !(n >= 2 && n <= 400)) return null
     return study(symbol, 'pct_from_sma', n, /above|over/i.test(m[3]) ? 'cross_above' : 'cross_below', 0, m[5])
+  }
+  m = DAY_MOVE.exec(s)
+  if (m) {
+    const symbol = sym(m)
+    const last = m[3] ? Number(m[3]) : null
+    const pct = Number(m[5])
+    if (!symbol || !(pct >= 0.5 && pct <= 50) || (last != null && !(last >= 1 && last <= MAX_LAST))) return null
+    const down = MOVE_DOWN.test(m[4]) || /down$/i.test(m[4])
+    return withLast(study(symbol, 'day_pct', null, down ? 'below' : 'above', down ? -pct : pct, m[6]), last)
+  }
+  m = DAY_BAR.exec(s)
+  if (m) {
+    const symbol = sym(m)
+    const last = m[3] ? Number(m[3]) : null
+    const pct = Number(m[4])
+    if (!symbol || !(pct >= 0.5 && pct <= 50) || (last != null && !(last >= 1 && last <= MAX_LAST))) return null
+    const down = /down|red/i.test(m[5])
+    return withLast(study(symbol, 'day_pct', null, down ? 'below' : 'above', down ? -pct : pct, m[6]), last)
   }
   m = RSI_X.exec(s)
   if (m) {
@@ -189,13 +239,14 @@ export function registerHistoryCapability() {
     surfaces: ['charts'],
     target: 'market', query: true,
     localOnly: true,                    // ⛔ shown to the member; the model never sees a return (turn.LOCAL_ONLY_ACTIONS)
-    summary: 'EVENT STUDY from UCT\'s stored daily history: every time ONE stock met a technical condition (an opening gap of N%+, a new N-day closing high = a breakout, RSI, % from an N-day SMA, Bollinger %B or the MACD histogram above / below / crossing a level), '
+    summary: 'EVENT STUDY from UCT\'s stored daily history: every time ONE stock met a technical condition (a one-day move of N%, an opening gap of N%+, a new N-day closing high = a breakout, RSI, % from an N-day SMA, Bollinger %B or the MACD histogram above / below / crossing a level), '
       + 'what its price did over the next 1, 5 and 21 sessions — events, hit rate, average, median, best, worst, against all sessions. UCT computes and shows it; you never see the returns. '
       + 'Use this (disposition apply, research null) for "how has NVDA behaved after 5%+ gaps", "what happens after AMD crosses above its 50-day", "how does SPY do after 20-day breakouts". Descriptive, never a prediction. '
       + 'A study conditioned on MARKET BREADTH (breadth thrusts, % above a moving average, NH/NL) or on earnings dates is NOT available: plan nothing and say so in one line, with no figure.',
     hints: 'target = the ref of the stockData entry; symbol uppercase. indicator gap_pct (period null; threshold = the gap % — negative with op below for gaps down; 5 when no size is named) | pct_from_high (an N-day BREAKOUT / new N-day high: period = N, 252 for a 52-week high; op cross_above, threshold 0) '
       + '| pct_from_sma (crossing a moving average: period = the SMA days; op cross_above / cross_below, threshold 0) | rsi (period, 14 when none is named) | bb_pct_b (period) | macd_hist (period null). '
-      + 'op above | below | cross_above | cross_below. horizons = session counts (1–252, at most 4; null = [1, 5, 21]). since = YYYY-MM-DD or null (all history). reply: one short line, no figures.',
+      + 'op above | below | cross_above | cross_below. horizons = session counts (1–252, at most 4; null = [1, 5, 21]). since = YYYY-MM-DD or null (all history). reply: one short line, no figures. '
+      + 'day_pct = a one-day close-to-close move (period null; "fell 3% in a day" → op below, threshold -3). last = N for "the last N times", else null. Earnings-date studies: not available.',
     args: {
       type: 'object',
       properties: {
@@ -206,10 +257,13 @@ export function registerHistoryCapability() {
         threshold: { type: 'number' },
         horizons: { type: ['array', 'null'], items: { type: 'integer' } },
         since: { type: ['string', 'null'] },
+        last: { type: ['integer', 'null'] },
       },
-      required: ['symbol', 'indicator', 'period', 'op', 'threshold', 'horizons', 'since'],
+      required: ['symbol', 'indicator', 'period', 'op', 'threshold', 'horizons', 'since', 'last'],
       additionalProperties: false,
     },
+    // Phase 2 history added `last`: every arg shape from before it still validates, as `last: null`
+    absentAsNull: ['last'],
     fastWhole: true,
     fastCorrect: false,
     // (a breadth-conditioned study is answered in fixed words — fastPath's `__say` — with no read and no model call)
