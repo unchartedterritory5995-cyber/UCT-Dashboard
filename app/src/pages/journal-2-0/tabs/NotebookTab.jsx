@@ -673,7 +673,7 @@ export default function NotebookTab() {
   const [stylesOpen, setStylesOpen] = useState(() => searchParams.get('styles') === '1')
   // Follow-up C: where the manager opens (`show`, read by StylesManager once per opening: 'archived', 'deleted',
   // 'plain', 'daily'; anything else is Active). `n` makes a second ask with the same place a new one.
-  const [stylesAsk, setStylesAsk] = useState(() => ({ show: searchParams.get('styles') === '1' ? searchParams.get('show') : null, n: 0 }))
+  const [stylesAsk, setStylesAsk] = useState({ show: null, n: 0 })
   const openStyles = useCallback((show = null) => {
     setStylesAsk((a) => ({ show, n: a.n + 1 }))
     setStylesOpen(true)
