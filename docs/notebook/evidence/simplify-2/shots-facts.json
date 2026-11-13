@@ -1,0 +1,194 @@
+{
+  "A1-1280": {
+    "shows": "The Daily brief of the walk's main member: the visible heading 'Daily brief', the greeting on the date line under it.",
+    "heading": "Daily brief",
+    "date_line": "Good morning, q1c2m \u00b7 Friday, Nov 13 \u00b7 Pre-market \u00b7 Yellow regime \u00b7 61% above the 50-day \u00b7 7 h 13 m to the open"
+  },
+  "B2-1280": {
+    "shows": "The same brief: only cards with something to show are drawn (no empty 'Open from yesterday' / 'On this day').",
+    "cards_drawn": [
+      "setups",
+      "names"
+    ],
+    "header_buttons": [
+      "Open today's note"
+    ]
+  },
+  "A10-1280": {
+    "shows": "The notes list's View menu: the Rows / Cards group is named 'Show as'.",
+    "groups": [
+      "Show as",
+      "Saved views"
+    ],
+    "rows": [
+      "List",
+      "Rows",
+      "Cards",
+      "Table",
+      "Board",
+      "Calendar",
+      "Tasks",
+      "More views",
+      "Save view",
+      "Add thesis starter views"
+    ]
+  },
+  "C1-1280": {
+    "shows": "View > More views: the menu's second view (Back, Graph, Timeline).",
+    "rows": [
+      "Back",
+      "Graph",
+      "Timeline"
+    ]
+  },
+  "C2-1280": {
+    "shows": "'+ New' arrow > Draft a review: the three reviews are the second view of one row.",
+    "first_view": [
+      "Blank",
+      "From a template",
+      "Voice note",
+      "Import",
+      "Draft a review"
+    ],
+    "second_view": [
+      "Back",
+      "Today's recap",
+      "This week's review",
+      "This month's review"
+    ]
+  },
+  "A9-1280": {
+    "shows": "The notes list's More menu: 'Trade journal tools' (was 'Journal tools').",
+    "rows": [
+      "Today's note",
+      "Ask your Notebook",
+      "New from a template",
+      "Import",
+      "Voice note",
+      "Draft a review",
+      "Trade journal tools",
+      "Export",
+      "Remove the sample notebook",
+      "My tools",
+      "Manage templates"
+    ]
+  },
+  "A4-1280": {
+    "shows": "Manage templates: note types are 'Note type' everywhere a member reads them.",
+    "note_type_lines": [
+      "A template is how a note type starts: its outline, its blocks and the properties it fills. Changing a template never changes a note you already made unless you choose to update it.",
+      "You have no note types of your own yet. Add one below.",
+      "New note type name",
+      "Add note type"
+    ]
+  },
+  "A5-1280": {
+    "shows": "Help: the FAQ answer says 'template' where it said 'layout'. (The 'Update template to vN?' banner needs a v1 note; the walk's styles update rows read it.)"
+  },
+  "A6-1280": {
+    "shows": "An open note's AI menu: 'Ask about this note' (the plain button when Writing help is off has the same words).",
+    "rows": [
+      "Ask about this note",
+      "Writing help"
+    ]
+  },
+  "C3-1280": {
+    "shows": "The note's More > Export: the formats are the panel's second view (Back, PNG, Print, the file formats).",
+    "rows": [
+      "Back",
+      "PNG The note as it looks on screen, charts included, as one image.",
+      "Print Print it, or save it as a PDF from the print dialog.",
+      "Markdown Plain-text files with your folders, tags and attachments. Opens in Obsidian and any Markdown app, and imports back into UCT.",
+      "Web page (HTML) Each note as a page that opens in any browser, offline, with its images, tables and formatting.",
+      "JSON Every note exactly as stored, with nothing left out. The format to bring your notes back into UCT with no loss.",
+      "Word (.docx) Each note as a Word document with its headings, lists, tables and images. Blocks Word has no match for become plain text."
+    ]
+  },
+  "A3-1280": {
+    "shows": "The folders panel: a new member's daily folder is 'Daily notes', under the 'Daily brief' row.",
+    "folders": [
+      "Capability examples",
+      "Daily notes",
+      "Sample notebook"
+    ]
+  },
+  "C5-1280": {
+    "shows": "A brand-new member's empty list: Import, the Get started card, and no template grid under it.",
+    "get_started_card": 1,
+    "template_grid_marker": false
+  },
+  "B1-1280": {
+    "shows": "A member with nothing opens the Daily brief: no note and no folder are made (read with ?make=0).",
+    "notes_before": 0,
+    "notes_after": 0,
+    "folders_after": []
+  },
+  "B3-1280": {
+    "shows": "The two first asks, compact: one line and the field each, no numbered steps.",
+    "cards_drawn": [
+      "setups",
+      "names"
+    ]
+  },
+  "B4-1280": {
+    "shows": "The header's one button: 'Start today's note' (Quick capture, All notes and + New are gone from it).",
+    "header_buttons": [
+      "Start today's note"
+    ]
+  },
+  "B5-1280": {
+    "shows": "Nothing to show yet: one quiet line above the two compact asks.",
+    "nothing_yet_line": 1
+  },
+  "A7-390": {
+    "shows": "The phone top bar on the Notebook reads 'Notebook' (was 'Journal').",
+    "top_bar_title": "Notebook"
+  },
+  "A8-390": {
+    "shows": "The phone '+' sheet: 'Ask your Notebook' (was 'Ask AI', which opened Compass)."
+  },
+  "PhoneMore-390": {
+    "shows": "The phone More menu: one 'Draft a review' row where three review rows were.",
+    "rows": [
+      "Today's note",
+      "Ask your Notebook",
+      "New from a template",
+      "Import",
+      "Voice note",
+      "Draft a review",
+      "Trade journal tools",
+      "Export",
+      "Remove sample notebook",
+      "My tools",
+      "Manage templates"
+    ]
+  },
+  "C2-390": {
+    "shows": "Phone More > Draft a review: Back and the three reviews, inside the window above the '+'.",
+    "rows": [
+      "Back",
+      "Today's recap",
+      "This week's review",
+      "This month's review"
+    ]
+  },
+  "C6-390": {
+    "shows": "Phone More with the sample active: 'Remove sample notebook' on one line.",
+    "rows": [
+      "Today's note",
+      "Ask your Notebook",
+      "New from a template",
+      "Import",
+      "Voice note",
+      "Draft a review",
+      "Trade journal tools",
+      "Export",
+      "Remove sample notebook",
+      "My tools",
+      "Manage templates"
+    ]
+  },
+  "C4-1280": {
+    "shows": "The Insert palette: the market snapshots wait behind 'Show all' at the foot of the list."
+  }
+}
