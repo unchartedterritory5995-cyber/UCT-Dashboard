@@ -345,6 +345,14 @@ Client rails:
 
 Mutants G1-G9 and the re-run of S1-S8 are listed below.
 
+**Re-checked after engine 54 landed** (origin/master merged in at `6a7fbceca4`). The runtime-on
+harness was re-run under the heavy lock: `runtime drew 38, declined 68`, the same as before.
+- Only 2 verdicts changed: `atr-support-and-resistance-{rddt,spy}` went MATCH -> INCONCLUSIVE.
+  Neither is admitted, and it is the same pair that flipped the other way between the 11-10 and
+  11-13 snapshots.
+- 0 admitted runtime-lane DIVERGE, 0 MATCH -> DIVERGE, and every evidence capture is still MATCH.
+- The live lane rail re-derived all 140 admitted captures' lanes under engine 54: unchanged.
+
 ## Before arming (notes; not built here)
 
 - **HARD PRECONDITION before `PINE_RUNTIME_SAVE_ENABLED` is ever set:** the server-lane stamp's
