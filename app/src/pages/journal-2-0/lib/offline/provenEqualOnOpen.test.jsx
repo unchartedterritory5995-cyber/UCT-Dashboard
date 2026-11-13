@@ -60,6 +60,12 @@ vi.mock('../../hooks/useJ2Notes', async () => {
     setNoteFavorite: vi.fn(),
   }
 })
+// Fix round 2: a case can replace one member of the real hook's answer (the rest stays real).
+let DURABLE_OVERRIDE = null
+vi.mock('./useDurableNote', async (importOriginal) => {
+  const real = await importOriginal()
+  return { ...real, useDurableNote: (...args) => ({ ...real.useDurableNote(...args), ...(DURABLE_OVERRIDE || {}) }) }
+})
 vi.mock('../../../../context/AuthContext', () => ({ useAuth: () => ({ user: { id: 'u42', role: 'member' } }) }))
 vi.mock('../../hooks/useJ2NoteFolders', () => ({ default: () => ({ folders: [] }) }))
 
@@ -71,6 +77,7 @@ beforeEach(() => {
   localStorage.setItem(OFFLINE_FLAG_KEY, '1')
   update.mockClear()
   accept = null
+  DURABLE_OVERRIDE = null
   LOAD = { cached: false, note: null }
   __resetNotebookConnections()
   factory = createFakeIndexedDbFactory()
@@ -495,6 +502,74 @@ describe('⭐ fix round 1, section 4: Discard on the recovery banner removes exa
     expect(JSON.stringify(queue().map((e) => e.patch.bodyJson))).toContain('typed while the banner was up')
     expect(JSON.stringify(queue())).not.toContain('words the server never received')
     expect(ring()).toEqual(RING)
+  })
+
+  // ⭐ Fix round 2, section 1: the containment arm of `offerCarries`, both directions.
+  const PREFIX = doc(para('the start of what was typed'))
+  const LONGER = doc(para('the start of what was typed, and more after it'))
+  async function offerTheCrashDraft({ recordBody, draftBody }) {
+    await leftOnDevice({ body: recordBody, entries: [recordBody], withServerBase: false })
+    // same session, newer generation ⇒ the crash draft is the copy the banner offers
+    localStorage.setItem('uct.j2.notedraft.n1', JSON.stringify({
+      title: 'Thesis', subtitle: '', bodyJson: draftBody, savedAt: 2000, sessionId: 'gone', generation: 9,
+    }))
+    await openTheNote()
+    await banner()
+  }
+
+  it('2a: the record and its entry hold the offered words PLUS more: refused, both intact', async () => {
+    await offerTheCrashDraft({ recordBody: LONGER, draftBody: PREFIX })
+    await discard()
+    expect(record()).toMatchObject({ dirty: 1, bodyJson: LONGER })
+    expect(queue().map((e) => e.patch.bodyJson)).toEqual([LONGER])
+  })
+
+  it('2b: the record holds a strict prefix of the offered copy: discarded, clean, nothing queued', async () => {
+    await offerTheCrashDraft({ recordBody: PREFIX, draftBody: LONGER })
+    await discard()
+    expect(record()).toMatchObject({ dirty: 0, bodyJson: SAVED, baseUpdatedAt: T1 })
+    expect(queue()).toEqual([])
+  })
+
+  // ⭐ Fix round 2, section 2: no moment without a copy for words typed under the banner.
+  it('2c: in the same turn as the discard, the crash draft and the record already hold the typed words (no debounce)', async () => {
+    await leftOnDevice({ body: OTHER, entries: [OTHER], withServerBase: false })
+    await openTheNote()
+    await banner()
+    await typeInBody(' typed under the banner')
+    await sit(1)
+    await act(async () => { screen.getByRole('button', { name: 'Discard' }).click(); await settleIdb(8) })
+    expect(localStorage.getItem('uct.j2.notedraft.n1') || '').toContain('typed under the banner')
+    expect(JSON.stringify(record().bodyJson)).toContain('typed under the banner')
+    expect(JSON.stringify(record().bodyJson)).not.toContain('words the server never received')
+  })
+
+  it('2d: nothing typed, or typing undone back to the server copy: no capture, the record stays the clean server copy', async () => {
+    await leftOnDevice({ body: OTHER, entries: [OTHER], withServerBase: false })
+    await openTheNote()
+    await banner()
+    await typeInBody(' typed then undone')
+    const dom = document.querySelector('.ProseMirror')
+    await act(async () => { dom.editor.commands.undo(); await settleIdb(2) })
+    expect(dom.editor.getText()).not.toContain('typed then undone')
+    await sit(1)
+    await act(async () => { screen.getByRole('button', { name: 'Discard' }).click(); await settleIdb(8) })
+    await sit(2)
+    expect(localStorage.getItem('uct.j2.notedraft.n1')).toBeNull()
+    expect(record()).toMatchObject({ dirty: 0, bodyJson: SAVED })
+    expect(queue()).toEqual([])
+  })
+
+  it('2e: a rejected discard falls back to the old path (markSynced through this tab writer), never half-handled', async () => {
+    await leftOnDevice({ body: OTHER, entries: [OTHER], withServerBase: false })
+    DURABLE_OVERRIDE = { discardOffered: () => Promise.reject(new Error('the transaction was aborted')) }
+    await openTheNote()
+    await banner()
+    await discard()
+    expect(screen.queryByText(/Unsaved changes from a previous session/)).toBeNull()
+    // the old path ran: fix 6 kept the words, rewritten by THIS tab's writer (no longer the gone session's)
+    expect(record()).toMatchObject({ dirty: 1, bodyJson: OTHER })
+    expect(record().sessionId).not.toBe('gone')
   })
 
   it('a crash draft alone: unchanged, the draft is cleared and the store holds the server copy, nothing queued', async () => {

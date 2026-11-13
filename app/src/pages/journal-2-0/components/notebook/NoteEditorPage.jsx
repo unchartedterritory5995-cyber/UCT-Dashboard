@@ -2172,11 +2172,18 @@ export default function NoteEditorPage({
     // Refused (newer words, a differing entry, a crash draft alone) ⇒ the old path, unchanged.
     const offered = pendingDraft ? { title: pendingDraft.title, subtitle: pendingDraft.subtitle, bodyJson: pendingDraft.bodyJson } : null
     const known = lastSavedRef.current
+    const keepOldPath = () => durableRef.current.markSynced({ acked: server, current: server, updatedAt: note?.updatedAt || null })
     durableRef.current.discardOffered({ offered, server: known }).then((done) => {
-      if (!done) durableRef.current.markSynced({ acked: server, current: server, updatedAt: note?.updatedAt || null })
-      // Words typed here while the banner was up were kept out of the record by fix 6; now it is clean, capture them.
-      else if (editedSinceHydrationRef.current) { const snap = captureLocalState(); if (snap) durableRef.current.schedule(snap) }
-    })
+      if (!done) { keepOldPath(); return }
+      // Words typed here while the banner was up were kept out of the record by fix 6; now it is clean, capture them:
+      // the crash draft at once (fix round 2: never a moment with no copy), the durable copy without the debounce.
+      if (!editedSinceHydrationRef.current) return
+      const snap = captureLocalState()
+      if (!snap || sameAuthoredContent(snap, known)) return
+      saveDraftLocally(snap)
+      durableRef.current.schedule(snap)
+      durableRef.current.flush()
+    }).catch(keepOldPath)   // a rejected transaction falls back to the old path, never a half-handled banner
     setPendingDraft(null)
     setRecovery(null)
   }

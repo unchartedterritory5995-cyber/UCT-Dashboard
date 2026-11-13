@@ -128,8 +128,12 @@
  *   · the editor settles on open through the same helper, only with a copy that mount saw
  *     arrive from the network (`useDurableNote` `settleProvenEqual`).
  *   · Discard on the recovery banner (`useDurableNote` `discardOffered`) removes the
- *     device's copy of exactly the offered words, by a content-checked transaction; it
- *     never removes words the member typed after the offer. `persist`'s fix 6 is untouched.
+ *     device's copy of exactly the offered words, by a content-checked transaction; when it
+ *     runs it removes nothing the member typed after the offer. `persist`'s fix 6 is
+ *     untouched. Residual, ruled not fixed in this release: a durable write or save-settle
+ *     already in flight when Discard is pressed can put the offered words back (then the
+ *     outcome is what it was before). Pinned below: one door each for the open settle and
+ *     Discard.
  * ⛔ Still NOT moved: the append CALL SITES, `serverChange.js`, `settleNoteWrite.js`, the
  * classifier and `ringVouchedPlan`. `F5_OPEN` stays true.
  *
@@ -323,6 +327,22 @@ describe('⛔⛔ Q1-F5 FREEZE — the append doors do not move until they are pr
     const drain = strip(read('app/src/pages/journal-2-0/lib/offline/outboxDrain.js'))
     expect([...drain.matchAll(/(?<!function\s)supersedeIdentical\(/g)].length, 'the pre-send branch and the 409 branch, nothing else').toBe(2)
     expect([...drain.matchAll(/function\s+supersedeIdentical\(/g)].length).toBe(1)
+  })
+
+  it('⚖️ follow-up D — the open settle and Discard each have ONE door: one helper call each in the hook, one call site each in the editor', () => {
+    const strip = (s) => s.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/[^\n]*/g, ' ').replace(/\r\n/g, '\n')
+    const hook = strip(read('app/src/pages/journal-2-0/lib/offline/useDurableNote.js'))
+    const settles = [...hook.matchAll(/(?<!function\s)settleIfServerHolds\(([^)]*)\)/g)].map((m) => m[1])
+    expect(settles.length, 'the hook settles through the shared helper in exactly one place').toBe(1)
+    expect(settles[0], 'and on open it never clears an entry it could not settle').not.toMatch(/clear/)
+    const ifs = [...hook.matchAll(/putNoteWithIntentIf\(/g)].map((m) => m.index)
+    expect(ifs.length, 'one conditional transaction in the hook: the discard').toBe(1)
+    const from = hook.indexOf('const discardOffered = useCallback(')
+    const to = hook.indexOf('}, [supported', from)
+    expect(from > -1 && ifs[0] > from && ifs[0] < to, 'and it is inside discardOffered').toBe(true)
+    const editor = strip(read('app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx'))
+    expect([...editor.matchAll(/\.discardOffered\(/g)].length, 'Discard is reached from one place').toBe(1)
+    expect([...editor.matchAll(/\.settleProvenEqual\(/g)].length, 'the open settle is reached from one place').toBe(1)
   })
 
   it('⭐ the freeze declares WHEN it lifts, and it has not lifted', () => {
