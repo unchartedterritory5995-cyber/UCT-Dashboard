@@ -12,7 +12,7 @@ import { Parser } from 'acorn'
 import jsx from 'acorn-jsx'
 import { renderHook, cleanup } from '@testing-library/react'
 import { EVENT_SCHEMAS, NOTEBOOK_EVENTS, sanitizeProps } from './notebookTelemetry'
-import { insertDoorOpen, kindStart, reportInsertedBlock, templateFamily, useRouteOpened, withInsertDoor } from './notebookUsage'
+import { insertDoorOpen, insertVia, kindStart, reportInsertedBlock, templateFamily, useRouteOpened, withInsertDoor } from './notebookUsage'
 import { VIEW_MODES } from './savedViewModes'
 import { FAMILIES } from './notebookTemplates'
 import { BUILTIN_NOTE_KINDS } from './noteKinds'
@@ -190,15 +190,17 @@ describe('the helpers', () => {
     ])
   })
 
-  it('a door whose insert waits on a fetch stays open until it settles', async () => {
+  it('fix round 1 (I4): the door is open only for the synchronous code it wraps; a later insert carries it explicitly', async () => {
     const sent = telemetry()
     let release
-    const p = withInsertDoor('phone_plus', () => new Promise((r) => { release = r }))
-    expect(insertDoorOpen()).toBe(true)
-    reportInsertedBlock('tickerCard')
+    let carried = null
+    const p = withInsertDoor('phone_plus', () => { carried = insertVia(); return new Promise((r) => { release = r }) })
+    expect(insertDoorOpen()).toBe(false)              // returned: closed, so a body reload or a paste cannot be claimed
+    reportInsertedBlock('watchlist')                  // an insert that is not the member's press
     release()
     await p
-    expect(insertDoorOpen()).toBe(false)
+    withInsertDoor(carried, () => reportInsertedBlock('tickerCard'))   // the press's own late insert
+    withInsertDoor(null, () => reportInsertedBlock('chart'))           // no door: runs, counts nothing
     expect(sent()).toEqual([{ event: 'block_inserted', props: { kind: 'tickerCard', via: 'phone_plus' } }])
   })
 

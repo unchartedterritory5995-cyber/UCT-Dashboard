@@ -33,7 +33,7 @@ import { WIDGET_KINDS, CAPTURE_KINDS } from '../../lib/notebookWidgets'
 import { widgetsWaveOn, WIDGET_CHUNK_LOST, doorLostSentence } from '../../lib/notebookWidgetsFlags'
 import { captureEnabled } from '../../../../widgets/captureRelease'
 import { insertToolBlock } from '../../lib/toolEmbed'
-import { withInsertDoor } from '../../lib/notebookUsage'
+import { insertVia, withInsertDoor } from '../../lib/notebookUsage'
 import styles from './SlashMenu.module.css'
 
 // Notebook P2a: a trader block (and the market context stamp) in the Planning a trade group, dark behind the
@@ -356,6 +356,7 @@ export const ITEMS = [
     description: 'Stamp the market as it is right now',
     keywords: ['block', 'trading', 'regime'],
     command: async ({ editor, range }) => {
+      const via = insertVia()   // follow-up A fix I4: the stamp lands after a read, so its insert carries the door
       editor.chain().focus().deleteRange(range).run()
       let params
       try {
@@ -364,7 +365,7 @@ export const ITEMS = [
       } catch { /* said below */ }
       // The read can outlive the editor (the member left the note): nothing to stamp, nobody to tell.
       if (editor.isDestroyed) return
-      if (params) editor.chain().focus().insertWidgetEmbed('marketcontext', params).run()
+      if (params) withInsertDoor(via, () => editor.chain().focus().insertWidgetEmbed('marketcontext', params).run())
       else editor.storage?.uctJournalWidgets?.notify?.(
         'Market context could not be read just now, so nothing was added. Try /market context again.', 'error')
     },
@@ -593,6 +594,7 @@ const lost = () => (typeof navigator !== 'undefined' && navigator.onLine === fal
 const inflight = new WeakMap()
 export function snapshotCommand(kind, params) {
   return async ({ editor, range }) => {
+    const via = insertVia()   // follow-up A fix I4: the widget lands after its fetch; its insert carries the door
     const chain = editor.chain().focus()
     ;(range ? chain.deleteRange(range) : chain.caretAfterWidgetEmbed()).run()
     const key = kind.id + JSON.stringify(params)
@@ -629,7 +631,7 @@ export function snapshotCommand(kind, params) {
       // The insert, and final review M-2's writability check, run in the module the fetch loads (first-open
       // bytes). `pos` is read when it runs, so anything typed meanwhile is mapped through.
       // Review N-2: a throw inside the insert says the failed sentence (it replaces the busy toast, never strands it).
-      const landed = await widgetsFetch().then((m) => m.landSnapshot(editor, kind.id, { ...res.payload, ...params }, () => pos, kind.title),
+      const landed = await widgetsFetch().then((m) => withInsertDoor(via, () => m.landSnapshot(editor, kind.id, { ...res.payload, ...params }, () => pos, kind.title)),
         lost).catch(() => ({ ok: false, message: failed }))
       // Review m-3: the insert's chunk lost while offline is said as offline (lost() names no sentence for it).
       if (landed.reason) landed.message = offline
@@ -723,9 +725,10 @@ const routerOf = (editor) => {
   return typeof nav === 'function' ? { navigate: nav } : {}
 }
 const toBuilder = ({ editor, range }) => {
+  const via = insertVia()   // follow-up A fix I4: what the builder inserts on its own press is this press's insert
   editor.chain().focus().deleteRange(range).run()
   return import('./widgetBuilder/openWidgetBuilder.js')
-    .then((m) => { m.openWidgetBuilder({ editor, start: 'examples', ...routerOf(editor) }) }, () => doorLost(editor))
+    .then((m) => { m.openWidgetBuilder({ editor, start: 'examples', via, ...routerOf(editor) }) }, () => doorLost(editor))
 }
 const TOOLS_ROW = {
   title: 'Manage my tools', cmd: 'tools', keywords: ['tools', 'my tools', 'manage', 'widgets'],
@@ -772,9 +775,10 @@ export const __resetBuilt = () => built.reset()
 // ONE routine and tracker client) in this background loader, keyed to the member; that client and the picker are
 // reached only by dynamic import (first-open bytes). A write through that client drops the rows (its one hook).
 const toPicker = (kind) => ({ editor, range }) => {
+  const via = insertVia()   // follow-up A fix I4: the picker's pick is this press's insert
   editor.chain().focus().deleteRange(range).run()
   return import('./routines/openToolPicker.js')
-    .then((m) => { m.openToolPicker({ editor, kind, ...routerOf(editor) }) }, () => doorLost(editor))
+    .then((m) => { m.openToolPicker({ editor, kind, via, ...routerOf(editor) }) }, () => doorLost(editor))
 }
 const PICKER_ROWS = Object.freeze({
   routine: {

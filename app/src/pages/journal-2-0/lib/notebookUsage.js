@@ -50,25 +50,27 @@ export function kindStart({ kindId, styleId } = {}) {
 // ── block_inserted: which door is inserting ──────────────────────────────────
 // A door (the slash menu, the widget palette, the palette opened from the phone "+") runs its insert inside
 // `withInsertDoor`; the widget node's plugin (lib/widgetEmbedNode.jsx) reports the FIRST widget the insert adds, once
-// per press. An insert outside a door (a template, a paste, a capture) counts nothing.
+// per press. An insert outside a door (a template, a paste, a capture, a body reload) counts nothing.
+// Fix round 1 (I4): the door is open ONLY for the synchronous code it wraps, so nothing that lands later (a body
+// reload through setContent, a paste) can be claimed by it. A press whose insert lands later (a widget fetched first,
+// a picker or the widget builder that inserts on its own press) reads `insertVia()` when it starts and wraps its own
+// final insert in `withInsertDoor(via, ...)`.
 let door = null
 
-/** Run `fn` as one press of `via`. A promise keeps the door open until it settles (a widget fetched first). */
+/** Run `fn` as one press of `via` (no door when `via` is empty). The door closes when `fn` returns. */
 export function withInsertDoor(via, fn) {
-  const mine = { via, sent: false }
-  door = mine
-  const done = () => { if (door === mine) door = null }
-  let out
+  if (!via) return fn()
+  const outer = door
+  door = { via, sent: false }
   try {
-    out = fn()
-  } catch (e) {
-    done()
-    throw e
+    return fn()
+  } finally {
+    door = outer
   }
-  if (out && typeof out.then === 'function') out.then(done, done)
-  else done()
-  return out
 }
+
+/** The door a press is running inside right now (read synchronously when the press starts), or null. */
+export const insertVia = () => door?.via || null
 
 /** Is a door open and not yet counted? (the node plugin looks at a transaction only then) */
 export const insertDoorOpen = () => Boolean(door && !door.sent)

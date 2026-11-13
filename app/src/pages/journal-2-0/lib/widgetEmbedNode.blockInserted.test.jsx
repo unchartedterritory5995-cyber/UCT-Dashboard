@@ -75,4 +75,17 @@ describe('block_inserted', () => {
     withInsertDoor('slash', () => heading.command({ editor: ed, range: endRange(ed) }))
     expect(sent('block_inserted')).toEqual([])
   })
+
+  it('fix round 1 (I4): a body reload (setContent) while a slow press is in flight is not claimed by its door', async () => {
+    const { ed, sent } = setup()
+    let release
+    const press = withInsertDoor('slash', () => new Promise((r) => { release = r }))
+    ed.commands.setContent({ type: 'doc', content: [
+      { type: 'widgetEmbed', attrs: { widgetId: 'watchlist' } }, { type: 'paragraph' },
+    ] })
+    expect(embeds(ed)).toEqual(['watchlist'])                   // control: a widget did land
+    release()
+    await press
+    expect(sent('block_inserted')).toEqual([])
+  })
 })
