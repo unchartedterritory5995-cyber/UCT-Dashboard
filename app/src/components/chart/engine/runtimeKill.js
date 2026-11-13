@@ -210,7 +210,12 @@ export function runtimeAdmissionOf({ source, hash } = {}) {
 /** Ask the server about one script and latch the answer. Resolves to the verdict
  *  (`{admitted, at}`) or null (off, not a page, failed, or answered for another hash).
  *  One request per hash in flight. Never rejects. */
-export function requestRuntimeAdmission(source) {
+/** How often, and how many times, a "still being checked" answer (the server's detector gate was
+ *  busy: `missing: ['pending']`) is asked again. A pending answer is never latched. */
+export const RUNTIME_ADMISSION_PENDING_RETRY_MS = 1500
+export const RUNTIME_ADMISSION_PENDING_RETRIES = 5
+
+export function requestRuntimeAdmission(source, _attempt = 0) {
   if (!_capabilityAdmission || typeof source !== 'string' || !source) return Promise.resolve(null)
   if (typeof window === 'undefined' || typeof fetch !== 'function') return Promise.resolve(null)
   const h = runtimeSourceHash(source)
@@ -230,11 +235,21 @@ export function requestRuntimeAdmission(source) {
         // ⛔ a verdict for ANOTHER script (or none) is never latched under this one
         if (!d || typeof d.sha256 !== 'string' || d.sha256.toLowerCase() !== h) return null
         if (!_capabilityAdmission) return null
+        // ⛔ "still being checked" is NOT a verdict: never latched (the row stays "being checked",
+        // fail closed); asked again a few times, the in-flight slot released first
+        if (Array.isArray(d.missing) && d.missing.includes('pending')) {
+          if (_attempt + 1 >= RUNTIME_ADMISSION_PENDING_RETRIES) return null
+          return { retry: true }
+        }
         latchRuntimeAdmission(h, { admitted: d.admitted === true })
         return _verdicts.get(h) || null
       })
       .catch(() => null)
       .finally(() => { _admissionInFlight.delete(h) })
+      .then((v) => (v && v.retry
+        ? new Promise((resolve) => { setTimeout(resolve, RUNTIME_ADMISSION_PENDING_RETRY_MS) })
+          .then(() => requestRuntimeAdmission(source, _attempt + 1))
+        : v))
   } catch {
     return Promise.resolve(null)
   }

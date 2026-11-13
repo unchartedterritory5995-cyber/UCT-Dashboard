@@ -577,13 +577,16 @@ def reach_rule_violations(report: dict, rt_verdicts: dict, prod_verdicts: dict) 
 
 
 def _admitted_capture_ids() -> set:
+    """The captures the committed registry admits, from the detector itself (not the serving path,
+    whose process-wide gate and cool-down answer "pending" between runs)."""
+    admitted = set(rt.admitted_capabilities()["admitted"])
     out = set()
     for r in _verdicts().values():
         try:
             text = (json.loads((ROOT / r["file"]).read_text(encoding="utf-8")).get("source") or {}).get("text")
         except (OSError, ValueError):
             continue
-        if isinstance(text, str) and text.strip() and rt.capability_admitted(text)[0]:
+        if isinstance(text, str) and text.strip() and pc.capabilities_of(text) <= admitted:
             out.add(r["id"])
     return out
 
@@ -695,6 +698,7 @@ def test_SERVE_the_list_with_50_near_cap_rows_cold_is_under_1s(store, monkeypatc
     assert len(drawn) == len(calls)                              # computed ones are admitted
     # and they FILL on later requests: each serves the stored sets and computes the next batch
     for _ in range(60):
+        rt._DETECTOR_IDLE_UNTIL[0] = 0.0          # the periodic re-read comes after the cool-down
         body = _client().get("/api/user-definitions").json()
         if all("runtimeNotGraded" not in (r["definition"].get("meta") or {}) for r in body["definitions"]):
             break
@@ -758,7 +762,8 @@ def test_SERVE_a_300_source_sweep_twice_the_second_pass_is_not_slower(monkeypatc
     (`persist=False`, nothing stored) sweeping 300 sources twice hits on the second pass. A FIFO
     of 256 misses every one of them again (measured before: 79 s, then 87 s)."""
     rt._reset_capability_cache(persisted=True)
-    srcs = [MEMBER_COPY + f"// sweep {i}\n" + "y = close > open ? 1 : 0\n" * 40 for i in range(300)]
+    monkeypatch.setattr(rt, "DETECTOR_DUTY_CYCLE", 1.0)   # the LRU alone, no process cool-down
+    srcs =[MEMBER_COPY + f"// sweep {i}\n" + "y = close > open ? 1 : 0\n" * 40 for i in range(300)]
 
     def sweep():
         t0 = time.perf_counter()
@@ -785,7 +790,7 @@ def test_SERVE_the_budget_bounds_runs_and_time():
     b = rt.DetectorBudget(runs=2, seconds=10)
     assert b.take() and b.take() and not b.take()
     b = rt.DetectorBudget(runs=99, seconds=0.1)
-    b.spent = 0.2
+    b.spent, b.done = 0.2, 1
     assert not b.take()
 
 
@@ -815,3 +820,138 @@ def test_EVIDENCE_variants_are_one_family_and_community_titles_are_untouched():
     assert rg.pine_evidence_script("uct-dmi-parity-v1", "adx-14")[0] == "uct-dmi-parity"
     assert rg.pine_evidence_script("UCTPROBE_VW_INT_ARRAY_AVG_NEG", "vw-a")[0] == "UCTPROBE_VW_INT_ARRAY_AVG"
     assert rg.pine_evidence_script("ADX and DI for v4", "adx-and-di-for-v4-rddt") == ("ADX and DI for v4", True)
+
+
+# ═══ THE PROCESS-WIDE GATE AND THE PROJECTED BUDGET (final verify of #1204) ═══════
+# A2: eight requests each spending their own budget at once stalled each other (3.5-5.1 s each:
+# the detector holds the GIL). ONE detector run at a time in the process; a request that cannot
+# take the gate without waiting serves the row "still being checked". And the 0.9 s edge: a run is
+# PROJECTED from the source's size before it starts, and a source over 64 KiB gets one run per
+# request.
+
+import threading  # noqa: E402
+
+
+def _adversarial_source(tag: str) -> str:
+    """The reviewer's adversarial near-cap shape (unclosed calls to ~126 KB): ~0.3 s here."""
+    base = ADX["compute"]["source"] + f"\n// {tag}\n"
+    unit = "f(a, b\n"
+    return (base + unit * ((126 * 1024 - len(base)) // len(unit)))[: 126 * 1024]
+
+
+def _seed_member_rows(monkeypatch, user: str, sources: list) -> None:
+    monkeypatch.setenv(rt.SAVE_ENV, "1")
+    monkeypatch.setenv(rt.STAGE_ENV, "admins")
+    monkeypatch.setenv(rt.ALLOW_ENV, rt.source_hash(ADX["compute"]["source"]))
+    ids = []
+    for _ in sources:
+        d = copy.deepcopy(ADX)
+        did = svc.new_def_id()
+        d["id"] = did
+        svc.save(user, did, d, role="admin")
+        ids.append(did)
+    with sqlite3.connect(svc._DB_PATH) as c:
+        for did, src in zip(ids, sources):
+            rid, blob = c.execute("SELECT id, definition FROM user_definitions WHERE def_id = ? AND user_id = ?",
+                                  (did, user)).fetchone()
+            d = json.loads(blob)
+            d["compute"]["source"] = src
+            c.execute("UPDATE user_definitions SET definition = ? WHERE id = ?", (json.dumps(d), rid))
+    monkeypatch.delenv(rt.ALLOW_ENV)
+
+
+def test_GATE_8_concurrent_cold_list_requests_each_finish_under_1s(store, monkeypatch):
+    members = [f"u-gate-{i}" for i in range(8)]
+    for i, m in enumerate(members):
+        _seed_member_rows(monkeypatch, m, [_adversarial_source(f"m{i} r{k}") for k in range(12)])
+    monkeypatch.setenv(rt.CAPABILITY_ADMISSION_ENV, "on")
+    monkeypatch.setattr(svc, "server_lanes_stamp", lambda row: {})    # pre-existing, not admission
+    rt._reset_capability_cache(persisted=True)
+    calls = _count_detector(monkeypatch)
+    walls, errors = {}, []
+    start = threading.Barrier(len(members))
+
+    def one(m):
+        try:
+            start.wait()
+            t0 = time.perf_counter()
+            body = router_mod.list_definitions(user={"id": m, "role": "admin", "plan": "premium"},
+                                               graph=False, engine=None)
+            walls[m] = time.perf_counter() - t0
+            assert len(body["definitions"]) == 12
+        except Exception as exc:  # noqa: BLE001
+            errors.append(exc)
+    threads = [threading.Thread(target=one, args=(m,)) for m in members]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert errors == []
+    assert max(walls.values()) < 1.0, walls
+    assert 1 <= len(calls) <= len(members)
+
+
+def test_GATE_a_busy_gate_serves_pending_and_never_waits(store, monkeypatch):
+    monkeypatch.setenv(rt.CAPABILITY_ADMISSION_ENV, "on")
+    monkeypatch.setenv(rt.STAGE_ENV, "admins")
+    row = {"def_id": ADX["id"], "definition": member_doc()}
+    assert rt._DETECTOR_GATE.acquire(blocking=False)
+    try:
+        t0 = time.perf_counter()
+        served = rt.stamp_served(row, budget=rt.DetectorBudget())
+        assert time.perf_counter() - t0 < 0.2                         # it did not wait
+        meta = served["definition"]["meta"]
+        assert "still being checked" in meta["runtimeNotGraded"] and meta["runtimePending"] is True
+        assert _client().post("/api/user-definitions/runtime-admission",
+                              json={"source": MEMBER_COPY}).json()["missing"] == [rt.PENDING]
+    finally:
+        rt._DETECTOR_GATE.release()
+    assert rt.stamp_served(row, budget=rt.DetectorBudget()) is row       # the gate free: admitted
+
+
+def test_GATE_a_save_while_the_gate_is_busy_is_stored_and_persists_nothing(store, monkeypatch):
+    monkeypatch.setenv(rt.SAVE_ENV, "1")
+    monkeypatch.setenv(rt.STAGE_ENV, "admins")
+    monkeypatch.setenv(rt.CAPABILITY_ADMISSION_ENV, "on")
+    assert rt._DETECTOR_GATE.acquire(blocking=False)
+    try:
+        svc.save(USER, ADX["id"], member_doc(), role="admin")         # never refused, never blocked
+    finally:
+        rt._DETECTOR_GATE.release()
+    with sqlite3.connect(svc._DB_PATH) as c:
+        c.execute(rt._CAPS_DDL)
+        assert c.execute(f"SELECT COUNT(*) FROM {rt.CAPS_TABLE}").fetchone()[0] == 0
+    served = _client().get(f"/api/user-definitions/{ADX['id']}").json()["definition"]
+    assert "runtimeNotGraded" not in served["meta"]                   # first serve computed it
+    with sqlite3.connect(svc._DB_PATH) as c:
+        assert c.execute(f"SELECT COUNT(*) FROM {rt.CAPS_TABLE}").fetchone()[0] == 1
+
+
+def test_GATE_a_run_is_projected_before_it_starts(store, monkeypatch):
+    """The 0.9 s edge: a request that has spent part of its budget does not START a run whose
+    projected cost would cross it (a 60 KB source first, then the adversarial near-cap shape)."""
+    first = _near_cap_source("small first", 60)
+    srcs = [first] + [_adversarial_source(f"edge {k}") for k in range(20)]
+    _seed_member_rows(monkeypatch, USER, srcs)
+    monkeypatch.setenv(rt.CAPABILITY_ADMISSION_ENV, "on")
+    monkeypatch.setattr(svc, "server_lanes_stamp", lambda row: {})
+    monkeypatch.setattr(rt, "_SECONDS_PER_BYTE", [2.5e-6])            # a calibrated estimate
+    rt._reset_capability_cache(persisted=True)
+    calls = _count_detector(monkeypatch)
+    rows = sorted(svc.list_for_user(USER), key=lambda r: len(r["definition"]["compute"]["source"]))
+    budget = rt.DetectorBudget()
+    t0 = time.perf_counter()
+    for r in rows:
+        rt.stamp_served(r, budget=budget)
+    assert time.perf_counter() - t0 < 1.0
+    assert len(calls) == 1, len(calls)                                # the small one; no big one after it
+
+
+def test_GATE_one_big_source_per_request():
+    b = rt.DetectorBudget(runs=8, seconds=10)
+    big = rt.DETECTOR_BIG_SOURCE_BYTES + 1
+    assert b.allows(big)
+    b.charge(big, 0.01)
+    assert not b.allows(big) and b.allows(1000)
+    first = rt.DetectorBudget(runs=8, seconds=0.3)
+    assert first.allows(10 ** 6)                                       # the first run always may start

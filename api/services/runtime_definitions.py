@@ -495,7 +495,8 @@ def allow_list() -> list[str]:
 
 
 def not_graded(source: Optional[str], *, graded_only: bool = False,
-               budget: "Optional[DetectorBudget]" = None, capability: bool = True) -> Optional[str]:
+               budget: "Optional[DetectorBudget]" = None, capability: bool = True,
+               pending_ok: bool = False) -> Optional[str]:
     """Why this script is NOT served by the runtime lane (D6), or ``None``.
 
     The sentence is the reason; the code the member door declines with is
@@ -507,18 +508,39 @@ def not_graded(source: Optional[str], *, graded_only: bool = False,
     ``graded_only``, never ``capability=False``) ALSO admits a script `capability_admitted`
     admits, within the request's `budget`; a source whose set the budget could not compute is
     answered "still being checked" (fail closed) and fills on a later request. Off, nothing changes."""
+    sentence, pending = not_graded_reason(source, graded_only=graded_only, budget=budget,
+                                          capability=capability)
+    if pending and pending_ok:
+        return None
+    return sentence
+
+
+def not_graded_at_save(source: Optional[str]) -> Optional[str]:
+    """The save door's question (final verify of #1204). With capability admission on, a source
+    whose capability set cannot be computed right now (the process-wide gate is busy) is SAVED and
+    nothing is persisted for it: the row is served "still being checked" (fail closed, never drawn)
+    and its first serve computes the set under the gate. Every other answer is `not_graded`'s. With
+    admission off the call is exactly the one before Part 2."""
+    if not capability_admission_on():
+        return not_graded(source)
+    return not_graded(source, pending_ok=True)
+
+
+def not_graded_reason(source: Optional[str], *, graded_only: bool = False,
+                      budget: "Optional[DetectorBudget]" = None, capability: bool = True) -> tuple:
+    """``(sentence or None, pending)``: `not_graded`'s answer, and whether it is only "still being
+    checked" (the capability set is not known yet: the budget or the process-wide gate was busy)."""
     h = source_hash(source) if isinstance(source, str) else ""
     if h and any(h.startswith(e) for e in (graded_allow_list() if graded_only else allow_list())):
-        return None
+        return None, False
     if h and capability and not graded_only and capability_admission_on():
         ok, missing = capability_admitted(source, budget=budget)
         if ok:
-            return None
+            return None, False
         if missing == [PENDING]:
-            return (f"this script (sha256 {h[:12]}…) is still being checked against the parts of Pine "
-                    "graded against TradingView, so it is not drawn bar by bar yet")
+            return (PENDING_SENTENCE.format(h=h[:12]), True)
     return (f"this script (sha256 {h[:12] or '?'}…) has not yet been graded against "
-            "TradingView, so it is not drawn bar by bar")
+            "TradingView, so it is not drawn bar by bar"), False
 
 
 def capability_admission_on() -> bool:
@@ -586,28 +608,78 @@ _CAPS_DDL = (f"CREATE TABLE IF NOT EXISTS {CAPS_TABLE} (source_sha256 TEXT PRIMA
 #: The id `capability_admitted` reports for a source whose set is not known yet (budget spent).
 #: Never in the vocabulary: a pending source is withheld, fail closed.
 PENDING = "pending"
-#: At most this many fresh detector runs per request, and no new one once this much time is spent.
+#: What a pending row is served with (`meta.runtimeNotGraded`, beside `meta.runtimePending: true`).
+PENDING_SENTENCE = ("this script (sha256 {h}…) is still being checked against the parts of Pine graded "
+                    "against TradingView, so it is not drawn bar by bar yet")
+#: The served stamp that marks a `runtimeNotGraded` sentence as "being checked", not a refusal.
+PENDING_STAMP = "runtimePending"
+#: At most this many fresh detector runs per request, and no new one that would cross this much
+#: time (its cost PROJECTED from the source's size before it starts).
 DETECTOR_RUNS_PER_REQUEST = 8
 DETECTOR_SECONDS_PER_REQUEST = 0.3
+#: A source over this size gets at most ONE fresh run per request (adversarial near-cap sources cost
+#: 0.3-0.6 s each: a second one would cross a second).
+DETECTOR_BIG_SOURCE_BYTES = 64 * 1024
+#: ⛔⛔ THE PROCESS-WIDE GATE (final verify of #1204, A2). The per-request budget bounds ONE request,
+#: but the detector holds the GIL, so eight requests each spending their budget at once stall each
+#: other (measured 3.5-5.1 s per request). ONE detector run at a time in the process; a request
+#: that cannot take the gate WITHOUT WAITING serves the row "still being checked" and moves on.
+_DETECTOR_GATE = threading.Semaphore(1)
+#: ⛔ AND A DUTY CYCLE ON TOP OF IT. One run at a time is not enough: eight requests taking the gate
+#: in turn still each wait out the other seven runs under the GIL (measured: every one of 8
+#: concurrent cold lists 3.8 s with the gate alone). After a run of cost c, no new run starts until
+#: the detector has been idle for c x (1/DUTY - 1), so detector work is at most DUTY of wall time,
+#: process-wide. A request that finds it cooling serves the row "still being checked".
+DETECTOR_DUTY_CYCLE = 1 / 3
+_DETECTOR_IDLE_UNTIL = [0.0]
+#: A running estimate of the detector's cost per source byte (an exponential average of the runs
+#: measured), so a run is projected before it starts. Seeded conservatively (5 us/byte = 0.65 s
+#: for a 128 KiB source).
+_SECONDS_PER_BYTE = [5e-6]
 _CAPS_LRU_MAX = 4096
 _CAPS_LRU: "OrderedDict[str, frozenset]" = OrderedDict()
 _CAPS_LRU_LOCK = threading.Lock()
 
 
 class DetectorBudget:
-    """How much fresh detector work ONE request may do: `runs` runs, and none started after
-    `seconds` of detector time. `None` where a budget is taken means unbounded (one source: the
-    save door, the verdict door)."""
+    """How much fresh detector work ONE request may do. A run may start only when:
+    runs remain; the request has not run one yet, OR the run's PROJECTED cost (source bytes x the
+    running per-byte estimate) still fits under `seconds`; and, for a source over
+    `DETECTOR_BIG_SOURCE_BYTES`, the request has not run a big one yet. (The first run is always
+    allowed, or a large source would never be checked.) `None` where a budget is taken means one
+    source only (the save door, the verdict door). Every fresh run also needs the process-wide
+    gate (`_DETECTOR_GATE`), taken without waiting."""
 
     def __init__(self, runs: int = DETECTOR_RUNS_PER_REQUEST, seconds: float = DETECTOR_SECONDS_PER_REQUEST):
         self.runs = runs
         self.seconds = seconds
         self.spent = 0.0
+        self.done = 0
+        self.big_done = 0
 
-    def take(self) -> bool:
-        if self.runs <= 0 or self.spent >= self.seconds:
+    def allows(self, nbytes: int = 0) -> bool:
+        if self.runs <= 0:
+            return False
+        if nbytes > DETECTOR_BIG_SOURCE_BYTES and self.big_done:
+            return False
+        projected = nbytes * _SECONDS_PER_BYTE[0]
+        return self.done == 0 or self.spent + projected <= self.seconds
+
+    def charge(self, nbytes: int, elapsed: float) -> None:
+        self.runs -= 1
+        self.done += 1
+        self.spent += elapsed
+        if nbytes > DETECTOR_BIG_SOURCE_BYTES:
+            self.big_done += 1
+
+    def take(self, nbytes: int = 0) -> bool:
+        """`allows` and, when it does, reserve the run (rails and simple callers)."""
+        if not self.allows(nbytes):
             return False
         self.runs -= 1
+        self.done += 1
+        if nbytes > DETECTOR_BIG_SOURCE_BYTES:
+            self.big_done += 1
         return True
 
 
@@ -628,9 +700,11 @@ def _lru_put(key: str, caps: frozenset) -> None:
 
 
 def _reset_capability_cache(*, persisted: bool = False) -> None:
-    """Tests only: forget this process's LRU, and with `persisted` the stored sets too."""
+    """Tests only: forget this process's LRU, and with `persisted` the stored sets too. Also ends
+    any detector cool-down (a fresh process has none)."""
     with _CAPS_LRU_LOCK:
         _CAPS_LRU.clear()
+    _DETECTOR_IDLE_UNTIL[0] = 0.0
     if persisted:
         from api.services import user_definitions as svc
         try:
@@ -690,12 +764,24 @@ def capabilities_for(source: str, *, budget: Optional[DetectorBudget] = None,
     if stored is not None:
         _lru_put(key, stored)
         return stored
-    if budget is not None and not budget.take():
+    nbytes = len(source)
+    if budget is not None and not budget.allows(nbytes):
         return None
-    t0 = time.perf_counter()
-    caps = pine_capabilities.capabilities_of(source)
+    if not _DETECTOR_GATE.acquire(blocking=False):
+        return None                      # another run holds the process: pending, never wait
+    try:
+        if time.monotonic() < _DETECTOR_IDLE_UNTIL[0]:
+            return None                  # the detector is cooling down: pending, never wait
+        t0 = time.perf_counter()
+        caps = pine_capabilities.capabilities_of(source)
+        elapsed = time.perf_counter() - t0
+        _DETECTOR_IDLE_UNTIL[0] = time.monotonic() + elapsed * (1 / DETECTOR_DUTY_CYCLE - 1)
+    finally:
+        _DETECTOR_GATE.release()
+    if nbytes >= 1024:
+        _SECONDS_PER_BYTE[0] = 0.7 * _SECONDS_PER_BYTE[0] + 0.3 * (elapsed / nbytes)
     if budget is not None:
-        budget.spent += time.perf_counter() - t0
+        budget.charge(nbytes, elapsed)
     if persist:
         _store_put(key, caps)
     _lru_put(key, caps)
@@ -893,14 +979,14 @@ def repaint_stamp(definition: dict) -> dict:
     return {k: mode for k in definition["compute"]["outputs"]}
 
 
-def _not_graded_for_stamp(source: Any, budget: "Optional[DetectorBudget]", capability: bool) -> Optional[str]:
+def _not_graded_for_stamp(source: Any, budget: "Optional[DetectorBudget]", capability: bool) -> tuple:
     """`not_graded` as a served row asks it: the call before Part 2 (`not_graded(source)`) unless a
     budget or `capability=False` is in play WHILE capability admission is on. With it off neither can
     change the answer, so the call is exactly the one before Part 2 (every caller and test double
     sees the same call)."""
     if (budget is None and capability) or not capability_admission_on():
-        return not_graded(source)
-    return not_graded(source, budget=budget, capability=capability)
+        return not_graded(source), False
+    return not_graded_reason(source, budget=budget, capability=capability)
 
 
 def stamp_served(row: dict, *, budget: "Optional[DetectorBudget]" = None,
@@ -935,7 +1021,7 @@ def stamp_served(row: dict, *, budget: "Optional[DetectorBudget]" = None,
     # brings the row back on the next read.
     # WS-I Part 2: `budget` bounds the fresh detector runs a whole request may do; `capability=False`
     # (a non-latest history version, never drawn) asks no capability question at all.
-    ungraded = _not_graded_for_stamp(source, budget, capability)
+    ungraded, pending = _not_graded_for_stamp(source, budget, capability)
     if not why and not ungraded:
         return row
     out = dict(row)
@@ -945,6 +1031,8 @@ def stamp_served(row: dict, *, budget: "Optional[DetectorBudget]" = None,
         meta["runtimeKilled"] = why
     if ungraded:
         meta["runtimeNotGraded"] = ungraded
+        if pending:
+            meta[PENDING_STAMP] = True
     d["meta"] = meta
     out["definition"] = d
     return out
@@ -975,19 +1063,21 @@ def _stamp_run_read_ast(row: dict, definition: dict, *, budget: "Optional[Detect
     if not why and stage() == STAGE_OFF:
         why = (f"scripts drawn bar by bar are switched off for every member right now "
                f"({STAGE_ENV}={STAGE_OFF}), so this one is not drawn bar by bar")
-    ungraded = _not_graded_for_stamp(source, budget, capability)
+    ungraded, pending = _not_graded_for_stamp(source, budget, capability)
     meta_in = definition.get("meta") if isinstance(definition.get("meta"), dict) else {}
-    if not why and not ungraded and "runtimeKilled" not in meta_in and "runtimeNotGraded" not in meta_in:
+    if not why and not ungraded and not any(k in meta_in for k in RUN_READ_STAMPS):
         return row
     out = dict(row)
     d = json.loads(json.dumps(definition))
     meta = d.get("meta") if isinstance(d.get("meta"), dict) else {}
-    meta.pop("runtimeKilled", None)
-    meta.pop("runtimeNotGraded", None)
+    for k in RUN_READ_STAMPS:
+        meta.pop(k, None)
     if why:
         meta["runtimeKilled"] = why
     if ungraded:
         meta["runtimeNotGraded"] = ungraded
+        if pending:
+            meta[PENDING_STAMP] = True
     d["meta"] = meta
     out["definition"] = d
     return out
@@ -1035,7 +1125,7 @@ def run_half_source_refusal(definition: Any, pine_source: Optional[str]) -> Opti
 RUN_READ_KEYS = ("runtimeObjects", "runtimeColours")
 
 #: The served stamps (`_stamp_run_read_ast`) that answer only for a run-read part: dropped with it.
-RUN_READ_STAMPS = ("runtimeKilled", "runtimeNotGraded")
+RUN_READ_STAMPS = ("runtimeKilled", "runtimeNotGraded", "runtimePending")
 
 #: `objectLoss.js::RUN_HALF_DRAWING_SENTENCE`, said on the drawing note of a document carrying a
 #: run half (`memberPaneDefinition.js`). A copy without its run half drops it, exactly as the

@@ -125,16 +125,18 @@ def cmd_census(a):
 
 
 def cmd_input(a):
-    os.environ[rt.CAPABILITY_ADMISSION_ENV] = rt.CAPABILITY_ADMISSION_ON
+    # the detector and the registry directly: the serving path's process-wide gate and cool-down
+    # (final verify of #1204) answer "pending" between runs, which is right for a server, not a census
+    admitted = set(rt.admitted_capabilities()["admitted"])
     rows = []
     for s in scripts_of(a.verdicts, a.cache):
         src = _capture_source(s["path"]) if s["path"].endswith(".json") else open(s["path"], encoding="utf-8").read()
         if not isinstance(src, str) or not src.strip():
             s.update(hash=None, caps=[], admitted=False, missing=["<no source>"])
         else:
-            ok, missing = rt.capability_admitted(src)
-            s.update(hash=rt.source_hash(src), caps=sorted(pc.capabilities_of(src)), admitted=bool(ok),
-                     missing=missing, notGraded=rt.not_graded(src) is not None)
+            caps = pc.capabilities_of(src)
+            missing = sorted(c for c in caps if c not in admitted)
+            s.update(hash=rt.source_hash(src), caps=sorted(caps), admitted=not missing, missing=missing)
         rows.append(s)
     reg = rt.admitted_capabilities()
     json.dump({"admittedCapabilities": reg["admitted"], "scripts": rows},

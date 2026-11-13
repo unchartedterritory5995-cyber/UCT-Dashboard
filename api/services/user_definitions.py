@@ -3452,7 +3452,9 @@ def _save_runtime(user_id: Any, def_id: str, definition: dict, limits: Any,
     if why:
         raise ValueError(f"{why} — so it is not saved. Nothing else of yours was touched.")
     # ⭐ GT (D6) — the starter allowlist: only a script graded MATCH is stored.
-    ungraded = runtime_definitions.not_graded(source)
+    # WS-I Part 2 (final verify of #1204): `not_graded_at_save`, so a busy detector gate never
+    # refuses or blocks a save (the row is served "being checked" until its first serve computes it)
+    ungraded = runtime_definitions.not_graded_at_save(source)
     if ungraded:
         raise ValueError(f"{ungraded} — so it is not saved. Nothing else of yours was touched.")
     runtime_definitions.validate(definition)

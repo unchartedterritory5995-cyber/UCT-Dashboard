@@ -101,6 +101,18 @@ async function fetcher(url) {
  *  2026-10-01). Frozen: no consumer may push into a list it does not own. */
 const NO_ROWS = Object.freeze([])
 
+/** ⭐ WS-I Part 2 (final verify of #1204) — while ANY row is served "still being checked"
+ *  (`meta.runtimePending`: runtime capability admission on, its capability set not computed yet),
+ *  the list is read again every `PENDING_REFRESH_MS`, so the row draws once the server's check
+ *  completes. Otherwise there is no periodic read (as before): 0. Polls still pause while hidden
+ *  (the app-wide SWR `isVisible`). */
+export const PENDING_REFRESH_MS = 15000
+export function pendingRefreshInterval(rows) {
+  if (!Array.isArray(rows)) return 0
+  return rows.some((r) => r && r.definition && r.definition.meta && r.definition.meta.runtimePending === true
+    && typeof r.definition.meta.runtimeNotGraded === 'string') ? PENDING_REFRESH_MS : 0
+}
+
 /**
  * Every live user definition, newest version of each.
  *
@@ -122,6 +134,7 @@ export function useUserDefinitions() {
   const { data, error, isLoading } = useSWR(user ? USER_DEFINITIONS_KEY : null, fetcher, {
     revalidateOnFocus: false,
     dedupingInterval: 10000,
+    refreshInterval: pendingRefreshInterval,
   })
   return {
     rows: Array.isArray(data) ? data : NO_ROWS,

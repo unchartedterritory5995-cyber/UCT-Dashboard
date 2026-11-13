@@ -23,6 +23,7 @@ import {
   setRuntimeCapabilityAdmission, runtimeCapabilityAdmissionOn, latchRuntimeAdmission,
   runtimeAdmissionOf, requestRuntimeAdmission, __resetRuntimeAdmission, runtimeSourceHash,
   RUNTIME_ADMISSION_PATH, RUNTIME_ADMISSION_MAX, RUNTIME_LISTS_RECHECK_MS, RUNTIME_KILL_PATH,
+  RUNTIME_ADMISSION_PENDING_RETRY_MS, RUNTIME_ADMISSION_PENDING_RETRIES,
 } from '../runtimeKill'
 
 const SRC = '//@version=5\nindicator("mine")\nvar float x = na\nx := close > open ? close : x\nplot(x)\n'
@@ -208,5 +209,36 @@ describe('ON: bounded and re-asked', () => {
     await flush()
     expect(runtimeCapabilityAdmissionOn()).toBe(false)
     expect(runtimeNotGradedOf({ source: SRC })).toMatch(NOT_GRADED)
+  })
+})
+
+describe('ON: a "still being checked" answer (the server gate was busy)', () => {
+  beforeEach(() => setRuntimeCapabilityAdmission(true))
+
+  it('⛔ is never latched, and is asked again until a verdict lands', async () => {
+    fetchMock
+      .mockResolvedValueOnce(okJson({ sha256: H, admitted: false, missing: ['pending'] }))
+      .mockResolvedValueOnce(okJson({ sha256: H, admitted: true, missing: [] }))
+    const p = requestRuntimeAdmission(SRC)
+    await flush()
+    expect(runtimeAdmissionOf({ hash: H })).toBeNull()                  // pending latched nothing
+    expect(runtimeNotGradedOf({ source: SRC })).toMatch(CHECKING)
+    await vi.advanceTimersByTimeAsync(RUNTIME_ADMISSION_PENDING_RETRY_MS)
+    const v = await p
+    expect(v.admitted).toBe(true)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(runtimeNotGradedOf({ source: SRC })).toBeNull()
+  })
+
+  it('⛔ gives up after RUNTIME_ADMISSION_PENDING_RETRIES asks, still latching nothing', async () => {
+    fetchMock.mockResolvedValue(okJson({ sha256: H, admitted: false, missing: ['pending'] }))
+    const p = requestRuntimeAdmission(SRC)
+    for (let i = 0; i < RUNTIME_ADMISSION_PENDING_RETRIES + 1; i += 1) {
+      await flush()
+      await vi.advanceTimersByTimeAsync(RUNTIME_ADMISSION_PENDING_RETRY_MS)
+    }
+    expect(await p).toBeNull()
+    expect(fetchMock).toHaveBeenCalledTimes(RUNTIME_ADMISSION_PENDING_RETRIES)
+    expect(runtimeAdmissionOf({ hash: H })).toBeNull()
   })
 })
