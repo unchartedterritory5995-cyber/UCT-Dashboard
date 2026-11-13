@@ -1914,6 +1914,18 @@ def max_daily_volume_in_range(from_ymd: int, to_ymd: int, min_sessions: int = 2)
     return {str(r[0]).upper(): int(r[1]) for r in rows}
 
 
+def daily_volume_stats_in_range(from_ymd: int, to_ymd: int) -> dict:
+    """{TICKER: (max daily volume, session count)} over DAILY bars with from_ymd <= ts < to_ymd.
+    The building block of the all-time volume reference's incremental fold
+    (`scan_volume._ever_reference`): a short recent window rides the by-date index."""
+    rows = _conn().execute(
+        """SELECT ticker, MAX(v), COUNT(*) FROM ohlcv
+           WHERE tf='D' AND ts>=? AND ts<? GROUP BY ticker""",
+        (int(from_ymd), int(to_ymd)),
+    ).fetchall()
+    return {str(r[0]).upper(): (int(r[1] or 0), int(r[2])) for r in rows}
+
+
 def closes_near_date(to_ymd: int, from_ymd: int) -> dict:
     """{TICKER: most-recent daily close with from_ymd <= ts <= to_ymd} — each ticker's close
     on the nearest trading day on/before `to_ymd` within the window (one scan handles
