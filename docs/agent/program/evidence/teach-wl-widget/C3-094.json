@@ -1,0 +1,128 @@
+{
+ "id": "C3-094",
+ "say": "how do I copy a list to the clipboard",
+ "feature": "watchlistAction",
+ "title": "Copying a list to the clipboard",
+ "given": [
+  "lists"
+ ],
+ "pass": true,
+ "steps": [
+  {
+   "i": 3,
+   "text": "Click a list to open it. It needs at least one ticker.",
+   "onPrimary": true,
+   "pr": [
+    806,
+    102,
+    389,
+    807
+   ],
+   "rr": [
+    802,
+    98,
+    397,
+    815
+   ]
+  },
+  {
+   "i": 4,
+   "text": "Right-click the list’s name, or click ⋯ (List actions) beside it.",
+   "onPrimary": true,
+   "pr": [
+    969,
+    111,
+    64,
+    14
+   ],
+   "rr": [
+    965,
+    107,
+    72,
+    22
+   ]
+  },
+  {
+   "i": 5,
+   "text": "Click Copy list to clipboard: its tickers are copied, ready to paste.",
+   "onPrimary": true,
+   "pr": [
+    1001,
+    152,
+    178,
+    30
+   ],
+   "rr": [
+    997,
+    148,
+    186,
+    38
+   ]
+  }
+ ],
+ "tried": [
+  [
+   {
+    "x": 1000.5,
+    "y": 117.90625
+   }
+  ]
+ ],
+ "evidence": [
+  {
+   "phase": "before",
+   "screenshot": "C3-094-rightclick-before.png",
+   "point": {
+    "x": 1000.5,
+    "y": 117.90625
+   },
+   "elementFromPoint": {
+    "tag": "span",
+    "guide": "watchlist.title",
+    "aria": null,
+    "title": null,
+    "text": "Momentum"
+   },
+   "stepIndex": 4,
+   "stepText": "Right-click the list’s name, or click ⋯ (List actions) beside it.",
+   "ring": {
+    "x": 1000.5,
+    "y": 117.90625
+   },
+   "menu": null
+  },
+  {
+   "phase": "after",
+   "screenshot": "C3-094-rightclick-after.png",
+   "point": {
+    "x": 1000.5,
+    "y": 117.90625
+   },
+   "elementFromPoint": {
+    "tag": "div",
+    "guide": null,
+    "aria": null,
+    "title": null,
+    "text": "RenameCopy list to clipboardExport CSVIm"
+   },
+   "stepIndex": 4,
+   "stepText": "Right-click the list’s name, or click ⋯ (List actions) beside it.",
+   "ring": {
+    "x": 1000.5,
+    "y": 117.90625
+   },
+   "menu": {
+    "guide": "watchlist.rowMenu",
+    "rows": [
+     "Rename",
+     "Copy list to clipboard",
+     "Export CSV",
+     "Import tickers",
+     "Share with community",
+     "Publish to Prebuilt (UCT)"
+    ]
+   }
+  }
+ ],
+ "consoleErrors": []
+}

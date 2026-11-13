@@ -12,6 +12,7 @@
 // whose capabilities this member cannot use is not shown (guide/registry.guideFeatures).
 
 import { registerCapability, registerTargetKind, registerContextProvider, getTargetKind } from '../capabilities'
+import { listNamesOf, withListRefs, withListContext } from '../guide/listRefs'
 import { GUIDE_IDS, GUIDE_FEATURES, guideFeature, guideFeatures, matchFeature, surfaceOf, featuresOn } from '../guide/registry'
 import { explainTopic, explainWords } from '../guide/explain'
 import { startGuide, lastShownGuide, forgetLastShown, endGuide, guideState } from '../guide/guideStore'
@@ -231,7 +232,8 @@ export function registerGuideCapabilities() {
     args: { type: 'object', properties: { feature: { type: 'string', enum: GUIDE_IDS }, detail: { type: ['string', 'null'] } }, required: ['feature', 'detail'], additionalProperties: false },
     absentAsNull: ['detail'],
     fast: ({ raw, host }) => {
-      const q = String(raw || '').trim()
+      // ⭐ a member's own list, by its name ("add NVDA to Momentum"), reads as their watchlist: names from the store, at run time
+      const q = withListContext(withListRefs(String(raw || '').trim(), listNamesOf(host)))
       if (!SHOW.test(q)) return null
       const here = host?.surface || 'charts'
       // a two-part ask ("X, then Y") starts at its first part's walkthrough, when both parts reach one

@@ -997,8 +997,9 @@
   "from": "2026-11-05 matrix Guide feature"
  },
  "C3-103": {
-  "feature": "widgetSettings",
-  "from": "2026-11-05 matrix Guide feature"
+  "feature": "watchlistAction",
+  "title": "Changing a watchlist’s look",
+  "from": "watchlist widget row reviewed by hand 2026-11-09 (was widgetSettings: the widget’s own ⚙ settings panel (canvas, text, tint))"
  },
  "C3-107": {
   "feature": "widgetAction",
@@ -1574,5 +1575,70 @@
   "feature": "control",
   "title": "A drawing’s Duplicate",
   "from": "cov-5 row reviewed by hand 2026-11-09 (not assigned before: Duplicate on a drawing’s menu)"
+ },
+ "C3-071": {
+  "feature": "watchlistAction",
+  "title": "Creating a list from a template",
+  "from": "watchlist widget row reviewed by hand 2026-11-09 (not assigned before: ‹ Lists → ＋ New → Template, in the Charts widget’s picker)"
+ },
+ "C3-102": {
+  "feature": "watchlistAction",
+  "title": "A ticker’s attention facts",
+  "from": "watchlist widget row reviewed by hand 2026-11-09 (not assigned before: the column menu’s Attention, whose cells hold the facts)"
+ },
+ "C3-104": {
+  "feature": "watchlistAction",
+  "title": "A saved watchlist look",
+  "from": "watchlist widget row reviewed by hand 2026-11-09 (not assigned before: ⚙ → Templates in the widget’s settings panel)"
+ },
+ "C3-085": {
+  "feature": "watchlistAction",
+  "title": "Reordering a list’s columns",
+  "from": "watchlist widget row reviewed by hand 2026-11-09 (not assigned before: drag a column’s title onto another in the Charts widget)"
+ },
+ "C3-072": {
+  "feature": "watchlistAction",
+  "title": "Saving a community list to My Lists",
+  "from": "title-menu row reviewed by hand 2026-11-09 (the list menu from the widget’s title (#1005): right-click the title or ⋯ List actions, then Save to My Lists…)"
+ },
+ "C3-073": {
+  "feature": "watchlistAction",
+  "title": "Renaming a list",
+  "from": "title-menu row reviewed by hand 2026-11-09 (the list menu from the widget’s title (#1005): right-click the title or ⋯ List actions, then Rename)"
+ },
+ "C3-074": {
+  "feature": "watchlistAction",
+  "title": "Renaming a list",
+  "from": "title-menu row reviewed by hand 2026-11-09 (the list menu from the widget’s title (#1005): right-click the title or ⋯ List actions, then Rename, on Flagged)"
+ },
+ "C3-091": {
+  "feature": "watchlistAction",
+  "title": "Sharing a list with the community",
+  "from": "title-menu row reviewed by hand 2026-11-09 (the list menu from the widget’s title (#1005): right-click the title or ⋯ List actions, then Flagged’s Share with community (a tag colour’s share is not in the widget))"
+ },
+ "C3-092": {
+  "feature": "watchlistAction",
+  "title": "Sharing a list with the community",
+  "from": "title-menu row reviewed by hand 2026-11-09 (the list menu from the widget’s title (#1005): right-click the title or ⋯ List actions, then Share with community)"
+ },
+ "C3-093": {
+  "feature": "watchlistAction",
+  "title": "Publishing a list to Prebuilt",
+  "from": "title-menu row reviewed by hand 2026-11-09 (the list menu from the widget’s title (#1005): right-click the title or ⋯ List actions, then Publish to Prebuilt (UCT), admins)"
+ },
+ "C3-094": {
+  "feature": "watchlistAction",
+  "title": "Copying a list to the clipboard",
+  "from": "title-menu row reviewed by hand 2026-11-09 (the list menu from the widget’s title (#1005): right-click the title or ⋯ List actions, then Copy list to clipboard)"
+ },
+ "C3-095": {
+  "feature": "watchlistAction",
+  "title": "Exporting a list",
+  "from": "title-menu row reviewed by hand 2026-11-09 (the list menu from the widget’s title (#1005): right-click the title or ⋯ List actions, then Export CSV / Export Excel)"
+ },
+ "C3-097": {
+  "feature": "watchlistAction",
+  "title": "A list’s version history",
+  "from": "title-menu row reviewed by hand 2026-11-09 (the list menu from the widget’s title (#1005): right-click the title or ⋯ List actions, then Version history)"
  }
 }

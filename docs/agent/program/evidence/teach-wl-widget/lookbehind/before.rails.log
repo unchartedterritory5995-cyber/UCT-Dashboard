@@ -1,0 +1,67 @@
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/w/pl-teach-wl2/app[39m
+
+ [31m❯[39m src/noRegexLookbehind.test.js [2m([22m[2m6 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[33m 3523[2mms[22m[39m
+     [32m✓[39m the detector fires on every form it guards (control)[32m 2[2mms[22m[39m
+[31m     [31m×[31m no product file under app/src uses one[39m[33m 3322[2mms[22m[39m
+     [32m✓[39m the literal detector fires on strings and templates too, and never on a comment (control)[32m 1[2mms[22m[39m
+     [32m✓[39m covers every CODE_LANGUAGES grammar, plus highlight.js core, lowlight and katex[32m 113[2mms[22m[39m
+     [32m✓[39m reads the REAL bytes: r.js carries a commented (?< the scan must not report (control)[32m 1[2mms[22m[39m
+     [32m✓[39m no bundled grammar, core, lowlight or katex file uses one[32m 82[2mms[22m[39m
+ [31m❯[39m src/agent/agentNoLookbehindStrings.test.js [2m([22m[2m5 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[33m 10010[2mms[22m[39m
+     [32m✓[39m the detectors fire on every form they guard, and never on a comment (control)[32m 5[2mms[22m[39m
+[31m     [31m×[31m PARSED: no product file under app/src/agent carries one in a regex, string or template literal[39m[33m 330[2mms[22m[39m
+     [33m[2m✓[22m[39m BUILT: no module under app/src/agent exports a pattern or string that carries one [33m 6780[2mms[22m[39m
+     [33m[2m✓[22m[39m KNOWN GAP: no product file outside app/src/agent carries one [33m 1485[2mms[22m[39m
+     [33m[2m✓[22m[39m KNOWN GAP pinned: the sites outside the Agent are exactly these today [33m 1410[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 2 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/noRegexLookbehind.test.js[2m > [22mno regex lookbehind in product code (iOS 16 floor)[2m > [22mno product file under app/src uses one
+[31m[1mAssertionError[22m: expected [ 'agent\guide\listRefs.js:29' ] to deeply equal [][39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- [][39m
+[31m+ [[39m
+[31m+   "agent\\guide\\listRefs.js:29",[39m
+[31m+ ][39m
+
+[36m [2m❯[22m src/noRegexLookbehind.test.js:[2m77:23[22m[39m
+    [90m 75| [39m      for (const l of lines) offenders.push(`${path.relative(SRC, f)}:…
+    [90m 76| [39m    }
+    [90m 77| [39m    [34mexpect[39m(offenders)[33m.[39m[34mtoEqual[39m([])
+    [90m   | [39m                      [31m^[39m
+    [90m 78| [39m  })
+    [90m 79| [39m})
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/agent/agentNoLookbehindStrings.test.js[2m > [22mno string-built regex lookbehind in app/src/agent (iOS 16 floor)[2m > [22mPARSED: no product file under app/src/agent carries one in a regex, string or template literal
+[31m[1mAssertionError[22m: expected [ 'agent/guide/listRefs.js:29' ] to deeply equal [][39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- [][39m
+[31m+ [[39m
+[31m+   "agent/guide/listRefs.js:29",[39m
+[31m+ ][39m
+
+[36m [2m❯[22m src/agent/agentNoLookbehindStrings.test.js:[2m90:23[22m[39m
+    [90m 88| [39m      for (const at of builtSites(data)) offenders.push(`${path.relati…
+    [90m 89| [39m    }
+    [90m 90| [39m    [34mexpect[39m(offenders)[33m.[39m[34mtoEqual[39m([])
+    [90m   | [39m                      [31m^[39m
+    [90m 91| [39m  })
+    [90m 92| [39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m2 failed[39m[22m[90m (2)[39m
+[2m      Tests [22m [1m[31m2 failed[39m[22m[2m | [22m[1m[32m9 passed[39m[22m[90m (11)[39m
+[2m   Start at [22m 15:25:10
+[2m   Duration [22m 11.11s[2m (transform 5.53s, setup 489ms, import 93ms, tests 13.53s, environment 1.37s)[22m
+

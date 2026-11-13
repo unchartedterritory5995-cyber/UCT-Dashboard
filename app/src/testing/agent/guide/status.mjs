@@ -15,6 +15,9 @@ for (const r of runs) for (const x of r.results) merged.set(x.id, x)
 const run = { at: runs.map(r => r.at).sort().pop(), results: [...merged.values()] }
 const probe = JSON.parse(readFileSync(probeFile, 'utf8'))
 const expected = JSON.parse(readFileSync(path.join(HERE, 'expected.json'), 'utf8'))
+// rows whose control the shipped product does not have (notInProduct.json, reviewed by hand): never counted as missing
+let notInProduct = {}
+try { notInProduct = JSON.parse(readFileSync(path.join(HERE, 'notInProduct.json'), 'utf8')).rows || {} } catch { notInProduct = {} }
 const byId = new Map(run.results.map(r => [r.id, r]))
 const cell = (s) => String(s ?? '').replace(/\|/g, '\\|').replace(/\s+/g, ' ').trim()
 
@@ -22,14 +25,15 @@ const rows = probe.report.map(r => {
   const exp = expected[r.id]
   const res = byId.get(r.id)
   let status, evidence
-  if (res?.pass) { status = 'VERIFIED'; evidence = `Browser ${run.at.slice(0, 10)}: "${res.say}" → ring on the last step's control` }
+  if (notInProduct[r.id] && !res?.pass) { status = 'NOT IN PRODUCT'; evidence = notInProduct[r.id] }
+  else if (res?.pass) { status = 'VERIFIED'; evidence = `Browser ${run.at.slice(0, 10)}: "${res.say}" → ring on the last step's control` }
   else if (res) { const last = (res.steps || []).at(-1); status = 'ROUTED / BROWSER FAILED'; evidence = `"${res.say}" reaches it; browser: ${res.why || res.error || (last ? `step ${last.i + 1} was not completed by the runner's input (card: ${last.text})` : 'failed')}` }
   else if (exp) { status = 'ASSIGNED / NOT REACHED'; evidence = `Assigned ${exp.feature}${exp.title ? ` (${exp.title})` : ''}; the inventory's own words do not reach it` }
   else if (r.a || r.b) { status = 'NO ASSIGNED WALKTHROUGH'; evidence = `The words reach ${(r.a || r.b).feature}${(r.a || r.b).ask ? ' (asks which)' : ''}; nobody has judged it right` }
   else { status = 'NO WALKTHROUGH'; evidence = 'The inventory words reach none.' }
   return { ...r, status, evidence, feature: exp ? `${exp.feature}${exp.title ? `: ${exp.title}` : ''}` : '', prior: r.teach || '' }
 })
-const ORDER = ['VERIFIED', 'ROUTED / BROWSER FAILED', 'ASSIGNED / NOT REACHED', 'NO ASSIGNED WALKTHROUGH', 'NO WALKTHROUGH']
+const ORDER = ['VERIFIED', 'ROUTED / BROWSER FAILED', 'ASSIGNED / NOT REACHED', 'NO ASSIGNED WALKTHROUGH', 'NO WALKTHROUGH', 'NOT IN PRODUCT']
 const count = (part) => ORDER.map(s => rows.filter(r => (!part || r.id.startsWith(part)) && r.status === s).length)
 
 const out = []
@@ -40,7 +44,7 @@ out.push('This replaces the 2026-11-05 count (283 VERIFIED). Its runner was neve
 out.push('| Part | ' + ORDER.join(' | ') + ' |', '|---|' + ORDER.map(() => '---').join('|') + '|')
 for (const part of ['C1', 'C2', 'C3']) out.push(`| ${part} | ${count(part).join(' | ')} |`)
 out.push(`| All | ${count().join(' | ')} |`, '')
-out.push('- VERIFIED: proved in the browser, as above.', '- ROUTED / BROWSER FAILED: the words reach the right walkthrough, but the browser run did not end on its control. Routing only; the reason is in the row.', '- ASSIGNED / NOT REACHED: a walkthrough is assigned, but the inventory\'s own words do not reach it. Other words may.', '- NO ASSIGNED WALKTHROUGH: the words reach some walkthrough, or a question, that no person has judged right for this row.', '- NO WALKTHROUGH: nothing.', '')
+out.push('- VERIFIED: proved in the browser, as above.', '- ROUTED / BROWSER FAILED: the words reach the right walkthrough, but the browser run did not end on its control. Routing only; the reason is in the row.', '- ASSIGNED / NOT REACHED: a walkthrough is assigned, but the inventory\'s own words do not reach it. Other words may.', '- NO ASSIGNED WALKTHROUGH: the words reach some walkthrough, or a question, that no person has judged right for this row.', '- NO WALKTHROUGH: nothing.', '- NOT IN PRODUCT: the shipped product has no such control (notInProduct.json, with the reason in the row): not a missing walkthrough.', '')
 out.push('| ID | Area | Action | Teach status | Assigned walkthrough | Evidence | 11-05 |', '|---|---|---|---|---|---|---|')
 for (const r of rows) out.push(`| ${r.id} | ${cell(r.area)} | ${cell(r.action)} | ${r.status} | ${cell(r.feature)} | ${cell(r.evidence)} | ${cell(r.prior)} |`)
 // ⭐ held-out KNOWN MISSES (knownMisses.json): asserted both ways in their held-out file, so they pass as tests — named here so

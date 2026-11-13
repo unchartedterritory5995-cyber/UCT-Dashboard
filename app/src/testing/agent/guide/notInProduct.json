@@ -1,0 +1,11 @@
+{
+ "note": "Inventory rows whose control the shipped Charts product does not have (reviewed by hand against source, 2026-11-09, TEACH-WATCHLISTS-WIDGET-DESIGN.md group C). Counted as NOT IN PRODUCT, never as a missing walkthrough. A row leaves this file the day its control ships.",
+ "rows": {
+  "C3-066": "Colour-tag lists are rendered only by the unscoped Watchlists page (!pickList), and /watchlists redirects to Charts; the widget's list picker has no tag lists.",
+  "C3-081": "No control in the product: Watchlists.jsx never starts a row drag (dragItemId is never set), so a ticker cannot be reordered by hand.",
+  "C3-084": "Column presets (COL_PRESETS) are rendered only in the unscoped page's sub-header (!pickList); the widget's column menu has none.",
+  "C3-089": "The widget shows one list, always open: there is nothing to expand or collapse. ‹ Lists switches the list.",
+  "C3-090": "Not in the Charts Watchlist widget (counted NOT IN PRODUCT for the widget family): a ticker’s colour tag lives on the ticker action menu (components/TickerActions.jsx, opened from TickerPopup and from ticker lists on other pages: the Calendar, the Screener’s results, Theme Tracker, the Desk reader), which the widget does not open.",
+  "C3-080": "No way to star a ticker in a list: the list menu’s Remove starred shows only while a list has starred tickers, and nothing in the product stars one (pages/Watchlists.jsx toggleStar is never called; a row’s ☆ is Add to Flagged)."
+ }
+}

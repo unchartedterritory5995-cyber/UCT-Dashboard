@@ -147,6 +147,7 @@ export default function WatchlistSettingsPanel({
     <>
       <div
         ref={panelRef}
+        data-guide="watchlist.settings"
         className={styles.panel}
         style={{ ...(themeVars || {}), ...(pos ? { left: pos.left, top: pos.top } : { visibility: 'hidden' }) }}
         onClick={e => e.stopPropagation()}

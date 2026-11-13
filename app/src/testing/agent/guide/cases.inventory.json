@@ -1500,10 +1500,40 @@
   "title": "Creating a watchlist"
  },
  {
+  "id": "C3-071",
+  "say": "how do I create a list from a template",
+  "feature": "watchlistAction",
+  "title": "Creating a list from a template"
+ },
+ {
+  "id": "C3-072",
+  "say": "how do I save a community list to My Lists",
+  "feature": "watchlistAction",
+  "title": "Saving a community list to My Lists"
+ },
+ {
+  "id": "C3-073",
+  "say": "how do I rename a list",
+  "feature": "watchlistAction",
+  "title": "Renaming a list"
+ },
+ {
+  "id": "C3-074",
+  "say": "how do I rename the Flagged list",
+  "feature": "watchlistAction",
+  "title": "Renaming a list"
+ },
+ {
   "id": "C3-075",
   "say": "how do I delete a list",
   "feature": "control",
   "title": "Deleting a watchlist"
+ },
+ {
+  "id": "C3-076",
+  "say": "show me how to add NVDA to Momentum",
+  "feature": "watchlistAddSymbol",
+  "title": "Adding a ticker to a watchlist"
  },
  {
   "id": "C3-077",
@@ -1518,10 +1548,82 @@
   "title": "Flagging a ticker"
  },
  {
+  "id": "C3-079",
+  "say": "show me how to remove NVDA from Momentum",
+  "feature": "watchlistAction",
+  "title": "Removing a ticker from a list"
+ },
+ {
   "id": "C3-082",
-  "say": "show me how to sort my watchlist by RVOL",
+  "say": "how do I sort by a column",
   "feature": "watchlistAction",
   "title": "Sorting a list"
+ },
+ {
+  "id": "C3-083",
+  "say": "how do I show or hide a column",
+  "feature": "watchlistAction",
+  "title": "Choosing a list’s columns"
+ },
+ {
+  "id": "C3-085",
+  "say": "how do I reorder columns by drag",
+  "feature": "watchlistAction",
+  "title": "Reordering a list’s columns"
+ },
+ {
+  "id": "C3-086",
+  "say": "how do I resize a column",
+  "feature": "control",
+  "title": "Resizing a list’s column"
+ },
+ {
+  "id": "C3-087",
+  "say": "how do I reset columns",
+  "feature": "control",
+  "title": "Resetting a list’s columns"
+ },
+ {
+  "id": "C3-088",
+  "say": "how do I write or edit a ticker note",
+  "feature": "watchlistAction",
+  "title": "A note on a ticker"
+ },
+ {
+  "id": "C3-091",
+  "say": "how do I share a tag colour or Flagged",
+  "feature": "watchlistAction",
+  "title": "Sharing a list with the community"
+ },
+ {
+  "id": "C3-092",
+  "say": "how do I make a list public",
+  "feature": "watchlistAction",
+  "title": "Sharing a list with the community"
+ },
+ {
+  "id": "C3-093",
+  "say": "how do I mark a list prebuilt (admin)",
+  "feature": "watchlistAction",
+  "title": "Publishing a list to Prebuilt"
+ },
+ {
+  "id": "C3-094",
+  "say": "how do I copy a list to the clipboard",
+  "feature": "watchlistAction",
+  "title": "Copying a list to the clipboard"
+ },
+ {
+  "id": "C3-095",
+  "say": "how do I export a list as CSV or Excel",
+  "feature": "watchlistAction",
+  "title": "Exporting a list"
+ },
+ {
+  "id": "C3-097",
+  "say": "how do I view or restore list version history",
+  "feature": "watchlistAction",
+  "title": "A list’s version history"
  },
  {
   "id": "C3-098",
@@ -1546,6 +1648,24 @@
   "say": "how do I compare from a row",
   "feature": "watchlistAction",
   "title": "Comparing a ticker from the list"
+ },
+ {
+  "id": "C3-102",
+  "say": "how do I open a row's attention facts",
+  "feature": "watchlistAction",
+  "title": "A ticker’s attention facts"
+ },
+ {
+  "id": "C3-103",
+  "say": "how do I change list appearance (canvas, text, tint)",
+  "feature": "watchlistAction",
+  "title": "Changing a watchlist’s look"
+ },
+ {
+  "id": "C3-104",
+  "say": "how do I save or load a watchlist look",
+  "feature": "watchlistAction",
+  "title": "A saved watchlist look"
  },
  {
   "id": "C3-107",

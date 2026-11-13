@@ -68,7 +68,7 @@ describe('every walkthrough points at a real control', () => {
         if (typeof t === 'object' && t.within) {
           expect(source.includes(`data-guide="${t.within}"`) || source.includes(`guide="${t.within}"`), t.within).toBe(true)
           if (t.guide) { expect(source, t.guide).toContain(`data-guide="${t.guide}"`); continue }
-          if (t.label) continue   // an on-screen label: proved row by row in the browser (teach-status.md), not by grep
+          if (t.label || t.lead) continue   // an on-screen label (or its first words: "Remove starred (3)" carries its count): proved row by row in the browser (teach-status.md), not by grep
           if (t.cursor) continue  // the chart library's own pane divider: proved in the browser, it is not in our source
           // a menu row: a literal id, or chipMenu.js's own key, or the location row's template
           if (t.attr === 'data-menu-id') { expect(source.includes(`data-menu-id="${t.value}"`) || source.includes(`key: '${t.value}'`) || String(t.value).startsWith('settings-'), t.value).toBe(true); continue }

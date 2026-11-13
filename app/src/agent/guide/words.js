@@ -21,7 +21,7 @@ const C = {
   import: ['import', '=paste', 'bulk', 'upload', 'bunch of', 'lots of', 'at once', 'many tickers'],
   history: ['version', 'history', 'older', 'earlier version', 'previous version', 'yesterday'],
   save: ['=save', 'saving', 'keep', 'bookmark', '=store', 'for later', 'for next time'],
-  reset: ['reset', 'default', 'original', 'put back', 'back to its', 'back in the', 'restor'],
+  reset: ['reset', 'default', 'original', 'put back', 'back to its', 'back in the', 'restor', 'back how', 'back the way', 'how they were', 'as they were', 'how it was', 'as it was'],
   sort: ['sort', 'order by', 'rank', '=flip'],
   refresh: ['refresh', 'rerun', 're-run', 'reload', 'fresh', 'run again', 'update the'],
   zoom: ['zoom', 'magnif', 'closer'],

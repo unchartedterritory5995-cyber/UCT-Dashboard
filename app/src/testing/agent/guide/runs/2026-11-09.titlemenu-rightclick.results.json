@@ -1,0 +1,641 @@
+{
+ "mode": "BROWSER-MOCK-MODEL",
+ "evidence": "LOCAL agent harness, scripted model, synthetic bars and fixtures: not production, not gate evidence",
+ "at": "2026-11-10T02:13:42.640Z",
+ "base": "http://127.0.0.1:5303",
+ "results": [
+  {
+   "id": "C3-072",
+   "say": "how do I save a community list to My Lists",
+   "feature": "watchlistAction",
+   "title": "Saving a community list to My Lists",
+   "given": [
+    "board",
+    "community"
+   ],
+   "pass": true,
+   "steps": [
+    {
+     "i": 4,
+     "text": "Right-click the list’s name, or click ⋯ (List actions) beside it.",
+     "onPrimary": true,
+     "pr": [
+      957,
+      111,
+      87,
+      14
+     ],
+     "rr": [
+      953,
+      107,
+      95,
+      22
+     ]
+    },
+    {
+     "i": 5,
+     "text": "Click Save to My Lists…, then choose a copy (yours to edit) or a link (it follows its owner’s list).",
+     "onPrimary": true,
+     "pr": [
+      1001,
+      152,
+      178,
+      30
+     ],
+     "rr": [
+      997,
+      148,
+      186,
+      38
+     ]
+    }
+   ],
+   "tried": [
+    [
+     {
+      "x": 1000.5,
+      "y": 117.90625
+     }
+    ]
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "C3-073",
+   "say": "how do I rename a list",
+   "feature": "watchlistAction",
+   "title": "Renaming a list",
+   "given": [
+    "lists"
+   ],
+   "pass": true,
+   "steps": [
+    {
+     "i": 3,
+     "text": "Click a list to open it. It needs at least one ticker.",
+     "onPrimary": true,
+     "pr": [
+      806,
+      102,
+      389,
+      807
+     ],
+     "rr": [
+      802,
+      98,
+      397,
+      815
+     ]
+    },
+    {
+     "i": 4,
+     "text": "Right-click the list’s name, or click ⋯ (List actions) beside it.",
+     "onPrimary": true,
+     "pr": [
+      969,
+      111,
+      64,
+      14
+     ],
+     "rr": [
+      965,
+      107,
+      72,
+      22
+     ]
+    },
+    {
+     "i": 5,
+     "text": "Click Rename, type the new name and press Enter.",
+     "onPrimary": true,
+     "pr": [
+      1001,
+      122,
+      178,
+      30
+     ],
+     "rr": [
+      997,
+      118,
+      186,
+      38
+     ]
+    }
+   ],
+   "tried": [
+    [
+     {
+      "x": 1000.5,
+      "y": 117.90625
+     }
+    ]
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "C3-074",
+   "say": "how do I rename the Flagged list",
+   "feature": "watchlistAction",
+   "title": "Renaming a list",
+   "given": [
+    "lists"
+   ],
+   "pass": true,
+   "steps": [
+    {
+     "i": 3,
+     "text": "Click a list to open it. It needs at least one ticker.",
+     "onPrimary": true,
+     "pr": [
+      806,
+      102,
+      389,
+      807
+     ],
+     "rr": [
+      802,
+      98,
+      397,
+      815
+     ]
+    },
+    {
+     "i": 4,
+     "text": "Right-click the list’s name, or click ⋯ (List actions) beside it.",
+     "onPrimary": true,
+     "pr": [
+      969,
+      111,
+      64,
+      14
+     ],
+     "rr": [
+      965,
+      107,
+      72,
+      22
+     ]
+    },
+    {
+     "i": 5,
+     "text": "Click Rename, type the new name and press Enter.",
+     "onPrimary": true,
+     "pr": [
+      1001,
+      122,
+      178,
+      30
+     ],
+     "rr": [
+      997,
+      118,
+      186,
+      38
+     ]
+    }
+   ],
+   "tried": [
+    [
+     {
+      "x": 1000.5,
+      "y": 117.90625
+     }
+    ]
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "C3-091",
+   "say": "how do I share a tag colour or Flagged",
+   "feature": "watchlistAction",
+   "title": "Sharing a list with the community",
+   "given": [
+    "lists"
+   ],
+   "pass": true,
+   "steps": [
+    {
+     "i": 3,
+     "text": "Click a list to open it. It needs at least one ticker.",
+     "onPrimary": true,
+     "pr": [
+      806,
+      102,
+      389,
+      807
+     ],
+     "rr": [
+      802,
+      98,
+      397,
+      815
+     ]
+    },
+    {
+     "i": 4,
+     "text": "Right-click the list’s name, or click ⋯ (List actions) beside it.",
+     "onPrimary": true,
+     "pr": [
+      969,
+      111,
+      64,
+      14
+     ],
+     "rr": [
+      965,
+      107,
+      72,
+      22
+     ]
+    },
+    {
+     "i": 5,
+     "text": "Click Share with community to make the list public; the same row says Make Private once it is, and takes it back.",
+     "onPrimary": true,
+     "pr": [
+      1001,
+      242,
+      178,
+      30
+     ],
+     "rr": [
+      997,
+      238,
+      186,
+      38
+     ]
+    }
+   ],
+   "tried": [
+    [
+     {
+      "x": 1000.5,
+      "y": 117.90625
+     }
+    ]
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "C3-092",
+   "say": "how do I make a list public",
+   "feature": "watchlistAction",
+   "title": "Sharing a list with the community",
+   "given": [
+    "lists"
+   ],
+   "pass": true,
+   "steps": [
+    {
+     "i": 3,
+     "text": "Click a list to open it. It needs at least one ticker.",
+     "onPrimary": true,
+     "pr": [
+      806,
+      102,
+      389,
+      807
+     ],
+     "rr": [
+      802,
+      98,
+      397,
+      815
+     ]
+    },
+    {
+     "i": 4,
+     "text": "Right-click the list’s name, or click ⋯ (List actions) beside it.",
+     "onPrimary": true,
+     "pr": [
+      969,
+      111,
+      64,
+      14
+     ],
+     "rr": [
+      965,
+      107,
+      72,
+      22
+     ]
+    },
+    {
+     "i": 5,
+     "text": "Click Share with community to make the list public; the same row says Make Private once it is, and takes it back.",
+     "onPrimary": true,
+     "pr": [
+      1001,
+      242,
+      178,
+      30
+     ],
+     "rr": [
+      997,
+      238,
+      186,
+      38
+     ]
+    }
+   ],
+   "tried": [
+    [
+     {
+      "x": 1000.5,
+      "y": 117.90625
+     }
+    ]
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "C3-093",
+   "say": "how do I mark a list prebuilt (admin)",
+   "feature": "watchlistAction",
+   "title": "Publishing a list to Prebuilt",
+   "given": [
+    "lists"
+   ],
+   "pass": true,
+   "steps": [
+    {
+     "i": 3,
+     "text": "Click a list to open it. It needs at least one ticker.",
+     "onPrimary": true,
+     "pr": [
+      806,
+      102,
+      389,
+      807
+     ],
+     "rr": [
+      802,
+      98,
+      397,
+      815
+     ]
+    },
+    {
+     "i": 4,
+     "text": "Right-click the list’s name, or click ⋯ (List actions) beside it.",
+     "onPrimary": true,
+     "pr": [
+      969,
+      111,
+      64,
+      14
+     ],
+     "rr": [
+      965,
+      107,
+      72,
+      22
+     ]
+    },
+    {
+     "i": 5,
+     "text": "Click Publish to Prebuilt (UCT) to list it for everyone under Prebuilt; the same row unpublishes it. This is for UCT admins.",
+     "onPrimary": true,
+     "pr": [
+      1001,
+      272,
+      178,
+      30
+     ],
+     "rr": [
+      997,
+      268,
+      186,
+      38
+     ]
+    }
+   ],
+   "tried": [
+    [
+     {
+      "x": 1000.5,
+      "y": 117.90625
+     }
+    ]
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "C3-094",
+   "say": "how do I copy a list to the clipboard",
+   "feature": "watchlistAction",
+   "title": "Copying a list to the clipboard",
+   "given": [
+    "lists"
+   ],
+   "pass": true,
+   "steps": [
+    {
+     "i": 3,
+     "text": "Click a list to open it. It needs at least one ticker.",
+     "onPrimary": true,
+     "pr": [
+      806,
+      102,
+      389,
+      807
+     ],
+     "rr": [
+      802,
+      98,
+      397,
+      815
+     ]
+    },
+    {
+     "i": 4,
+     "text": "Right-click the list’s name, or click ⋯ (List actions) beside it.",
+     "onPrimary": true,
+     "pr": [
+      969,
+      111,
+      64,
+      14
+     ],
+     "rr": [
+      965,
+      107,
+      72,
+      22
+     ]
+    },
+    {
+     "i": 5,
+     "text": "Click Copy list to clipboard: its tickers are copied, ready to paste.",
+     "onPrimary": true,
+     "pr": [
+      1001,
+      152,
+      178,
+      30
+     ],
+     "rr": [
+      997,
+      148,
+      186,
+      38
+     ]
+    }
+   ],
+   "tried": [
+    [
+     {
+      "x": 1000.5,
+      "y": 117.90625
+     }
+    ]
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "C3-095",
+   "say": "how do I export a list as CSV or Excel",
+   "feature": "watchlistAction",
+   "title": "Exporting a list",
+   "given": [
+    "lists"
+   ],
+   "pass": true,
+   "steps": [
+    {
+     "i": 3,
+     "text": "Click a list to open it. It needs at least one ticker.",
+     "onPrimary": true,
+     "pr": [
+      806,
+      102,
+      389,
+      807
+     ],
+     "rr": [
+      802,
+      98,
+      397,
+      815
+     ]
+    },
+    {
+     "i": 4,
+     "text": "Right-click the list’s name, or click ⋯ (List actions) beside it.",
+     "onPrimary": true,
+     "pr": [
+      969,
+      111,
+      64,
+      14
+     ],
+     "rr": [
+      965,
+      107,
+      72,
+      22
+     ]
+    },
+    {
+     "i": 5,
+     "text": "Click Export CSV, or Export Excel just below it where it shows, to download this list.",
+     "onPrimary": true,
+     "pr": [
+      1001,
+      182,
+      178,
+      30
+     ],
+     "rr": [
+      997,
+      178,
+      186,
+      38
+     ]
+    }
+   ],
+   "tried": [
+    [
+     {
+      "x": 1000.5,
+      "y": 117.90625
+     }
+    ]
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "C3-097",
+   "say": "how do I view or restore list version history",
+   "feature": "watchlistAction",
+   "title": "A list’s version history",
+   "given": [
+    "lists",
+    "versions"
+   ],
+   "pass": true,
+   "steps": [
+    {
+     "i": 3,
+     "text": "Click a list to open it. It needs at least one ticker.",
+     "onPrimary": true,
+     "pr": [
+      806,
+      102,
+      389,
+      807
+     ],
+     "rr": [
+      802,
+      98,
+      397,
+      815
+     ]
+    },
+    {
+     "i": 4,
+     "text": "Right-click the list’s name, or click ⋯ (List actions) beside it.",
+     "onPrimary": true,
+     "pr": [
+      969,
+      111,
+      64,
+      14
+     ],
+     "rr": [
+      965,
+      107,
+      72,
+      22
+     ]
+    },
+    {
+     "i": 5,
+     "text": "Click Version history. Pick a version, and Restore brings it back.",
+     "onPrimary": true,
+     "pr": [
+      1001,
+      242,
+      178,
+      30
+     ],
+     "rr": [
+      997,
+      238,
+      186,
+      38
+     ]
+    }
+   ],
+   "tried": [
+    [
+     {
+      "x": 1000.5,
+      "y": 117.90625
+     }
+    ]
+   ],
+   "consoleErrors": []
+  }
+ ]
+}

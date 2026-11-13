@@ -111,7 +111,11 @@ const ASK_MISSES = new Set(['how do I delete a list'])   // one owner (a watchli
 // Watchlists.module.css .pickMode .wlHeader { display: none } — so these controls are not reachable on /charts). The rows stay
 // as written; what is asserted now is that the guide never rings a control the member cannot see. Deleting a list is taught
 // through the widget's picker instead (its bin on each list).
-const WITHDRAWN = new Set(['Delete watchlist', 'Share with community', 'Export CSV', 'Import tickers', 'Version history', 'Copy list to clipboard', 'Remove starred'])
+// ⭐ REINSTATED 2026-11-09: #1005 (live, AUDIT-verified) opens the list's own menu from the widget's TITLE (right-click, or ⋯ List
+// actions), so Share, Export, Import, Version history, Copy and Remove starred are reachable on /charts again and these rows are
+// asserted as written. Delete stays withdrawn: the title menu has no Delete (the picker's bin teaches it).
+// Remove starred stays withdrawn too: nothing in the product stars a ticker in a list, so the row never shows (C3-080, NOT IN PRODUCT)
+const WITHDRAWN = new Set(['Delete watchlist', 'Remove starred'])
 describe('held-out: the catalog rings the control the words describe', () => {
   it.each(HELD_OUT.filter(([q, n]) => WITHDRAWN.has(n)))('WITHDRAWN: %s never rings the hidden %s', (q, name) => {
     expect(String(lastTarget(q))).not.toContain(name)
