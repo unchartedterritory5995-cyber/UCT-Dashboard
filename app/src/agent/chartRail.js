@@ -41,7 +41,8 @@ const EFFECTS = {
     const me = all.find(c => c.ref === p.ref) || p.snap || {}
     // a symbol change goes through the chart's link colour group: every chart in it follows
     const group = linked(me.group) ? all.filter(c => c.ref !== p.ref && c.group === me.group) : []
-    return [me, ...group].map(c => ({ type: 'symbol', ref: c.ref, symbol: up(c.symbol || p.before.symbol), to: up(p.after.symbol), position: c.position || null }))
+    // (a chart that follows through its link group is marked `linked`: one symbol change, not several)
+    return [me, ...group].map((c, i) => ({ type: 'symbol', ref: c.ref, symbol: up(c.symbol || p.before.symbol), to: up(p.after.symbol), position: c.position || null, ...(i ? { linked: true } : {}) }))
   },
   board(p, host) {
     const out = []
@@ -140,17 +141,24 @@ const ADD_VERB = /\b(?:add|adds|added|adding|include|includes|included|including
 // an ADD whose object is CHARTS — tickers, or chart / panel / cell, in its own clause ("add AAPL and MSFT", "add two charts", "I want
 // AAPL added") — never an indicator or a drawing ("…, then add rsi to all of them": a step's own change to the charts it made)
 const CLAUSE_END = /[.;,!?]|\bthen\b|\band (?:make|put|set|change|switch|draw|turn|give)\b/i
-export function addsCharts(words) {
+export function addsCharts(words, known = []) {
   const t = String(words || '')
+  const has = (clause) => tickersIn(clause).length > 0 || knownIn(clause, known).length > 0
   for (const m of t.matchAll(ADD_VERB)) {
     const after = t.slice(m.index + m[0].length)
     const end = after.search(CLAUSE_END)
     // the object comes BEFORE only a passive "added" / "included" ("I want AAPL added"); otherwise it follows the verb
     const before = /^(?:added|included)$/i.test(m[0]) ? t.slice(Math.max(0, m.index - 40), m.index).split(CLAUSE_END).pop().split(/\band\b(?=[^]*$)/i).pop() : ''
     const clause = `${before} ${end < 0 ? after : after.slice(0, end)}`
-    if (/\b(?:charts?|panels?|cells?)\b/i.test(clause) || tickersIn(clause).length) return true
+    if (/\b(?:charts?|panels?|cells?)\b/i.test(clause) || has(clause)) return true
   }
   return false
+}
+// ⛔ hotfix 11-13 (AUDIT probe 33 e1): a ticker typed in LOWERCASE counts too — any word that is a symbol this plan resolved
+// (the ticker search already answered for it: a plan's new symbols, the charts' own symbols)
+export const knownIn = (text, known) => {
+  const words = new Set((String(text || '').toLowerCase().match(/\$?[a-z][a-z0-9.]{0,9}/g) || []).map(x => x.replace(/^\$/, '')))
+  return [...new Set((known || []).map(k => String(k || '').toLowerCase()).filter(k => k && words.has(k)))]
 }
 const ADD_REST = /\badd(?:ing)?\b[^.;!?]*\b(?:other|others|remaining|rest)\b|\b(?:as|for|in|into) the (?:other|remaining|empty|new)\b/i
 const REPLACE = /\b(?:replace|replacing|replaced|instead|swap(?:ping)? out|get rid of|switch (?:out|over)|change (?:the |my |that |this |both |all )?(?:\w+ )?(?:chart|charts|one|ones|symbol|ticker)s?\b(?!\s+layout)|(?:change|switch|turn|flip) (?:the |my |that |this )?(?:\w+ )?(?:chart |one )?(?:to|into) \$?[A-Za-z]{1,5}\b)/i
@@ -164,7 +172,20 @@ const named = (words, e, host) => {
   for (const pm of String(words || '').matchAll(POS)) if (matchPosition([{ position: e.position }], normPos(pm[1])).length) return true
   return false
 }
-export const isAdditive = (words) => (ADDITIVE.test(words) || ADD_REST.test(words) || addsCharts(words)) && !REPLACE.test(words)
+export const isAdditive = (words, known = []) => (ADDITIVE.test(words) || ADD_REST.test(words) || addsCharts(words, known)) && !REPLACE.test(words)
+// ⛔ MULTI (hotfix 11-13, AUDIT probe 33 e1/e2 — STRUCTURAL, not vocabulary): a change that gives TWO OR MORE existing charts new
+// tickers in one turn needs the words to say so outright: a replace word (replace / instead / swap out / change|switch <chart> to
+// …), every one of those charts addressed by its position ("NVDA on the left and AMD on the right"), or the WHOLE grid stated
+// with no add — a shape or a count of charts and its tickers ("make a 2x2 of SPY QQQ IWM DIA", GRID-REUSE). Anything else
+// ("put these up there", "add aapl and msft") is refused, whatever reader or model planned it.
+const CHART_COUNT = /\b(?:two|three|four|five|six|seven|eight|nine|[2-9])\s+(?:new\s+)?(?:(?:daily|weekly|monthly|hourly|intraday)\s+)?charts?\b/i
+export function multiResymbolAllowed(words, resym, known, host) {
+  const w = String(words || '')
+  if (REPLACE.test(w)) return true
+  if (resym.every(e => named(w, e, host))) return true
+  const named2 = new Set([...tickersIn(w), ...knownIn(w, known).map(x => x.toUpperCase())]).size
+  return !addsCharts(w, known) && (requestedPanels(w) != null || CHART_COUNT.test(w)) && named2 >= 2
+}
 // "just add …" / "only add …" limit what is ADDED — never a permission to remove
 const removalWords = (w) => String(w || '').replace(/\b(?:just|only)\s+(?=(?:add|adds|added|adding|put|include|includes|included|including)\b)/gi, ' ')
 export function requestedPanels(words) {
@@ -186,6 +207,7 @@ export function chartRailRefusal(plan, { words = '', host = null, mode = 'apply'
   if (!plan?.ok) return null
   const w = String(words || '')
   const effects = chartEffects(plan, host)
+  const known = [...new Set(effects.flatMap(e => [e.to, e.symbol]).filter(Boolean))]
   // KEPT: no exemption
   if (effects.length) {
     const kept = keptCharts(w, host)
@@ -195,10 +217,15 @@ export function chartRailRefusal(plan, { words = '', host = null, mode = 'apply'
       return `I can’t change a chart you asked to keep — you asked to keep ${keptNames.length ? listOf(keptNames) : 'those charts'}, and this would have changed them (${listOf([...new Set(hit.map(said))])}). Nothing was changed. Tell me which chart to replace, or ask to add the new charts beside them.`
     }
     // ADDITIVE: exempt only a chart the words address by its position
-    if (isAdditive(w)) {
+    if (isAdditive(w, known)) {
       // a chart addressed by position is exempt for "too / as well" — never for an ADD verb (add = new charts)
-      const bad = effects.filter(e => addsCharts(w) || !named(w, e, host))
+      const bad = effects.filter(e => addsCharts(w, known) || !named(w, e, host))
       if (bad.length) return `I didn’t change anything: you asked for more charts, but this would have changed the ones you have (${listOf([...new Set(bad.map(said))])}). I only replace a chart when you say which one — ask to add them as new charts, or say which chart to replace.`
+    }
+    // MULTI: two or more existing charts re-symbolled in one turn only on explicit words (structural)
+    const resym = [...new Map(effects.filter(e => e.type === 'symbol' && !e.linked).map(e => [e.ref, e])).values()]
+    if (resym.length >= 2 && mode !== 'approved' && !multiResymbolAllowed(w, resym, known, host)) {
+      return `I didn’t change anything: this would have changed ${resym.length} of your charts at once (${listOf(resym.map(said))}), and you didn’t say to replace them. Say which charts to replace — for example “replace both charts with …” or “change the left to … and the right to …” — or ask to add them as new charts.`
     }
     // REMOVAL: never at once without the words for it
     const removed = effects.filter(e => e.type === 'remove')
