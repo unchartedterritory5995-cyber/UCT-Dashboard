@@ -42,7 +42,7 @@ import { lastCreatedList, resolveListByName } from './watchlist'
 import { namesAnotherKind } from '../nl/collisions'
 import { wordsSelect, namedBoardWidgets } from '../routing'
 import { ITEM_LISTS, AGENT_CONTROLS, allControls } from '../widgetNames'
-import { labelMap, WIDGET_REGISTRY } from '../../widgets/registry'
+import { labelMap, WIDGET_REGISTRY, agentLabelsOf } from '../../widgets/registry'
 import { widgetControls as registryControls } from '../../widgets/widgetControls'
 // every control a widget offers: the registry's rows, then the Agent's own over the product's writers (widgetNames AGENT_CONTROLS)
 const widgetControls = allControls
@@ -67,7 +67,7 @@ import { widgetTabList, setActiveWidgetTab, renameWidgetTab, closeWidgetTab, san
 // a slot holds a handful of widgets as tabs — the Agent stops adding at this many (the header scrolls beyond)
 const MAX_WIDGET_TABS = 8
 
-const LABEL = labelMap('menu')
+const LABEL = labelMap('agent')
 const label = (t) => LABEL[t] || t
 // E-H exist only while the extra-groups flag is on (the colour dot's own rule, colorGroups.linkGroups):
 // always in the schema, refused by the check while the board says the flag is off.
@@ -203,7 +203,7 @@ const controlWord = (f) => {
 const MIN_WORD = 4
 const wordsOf = (v) => String(v).toLowerCase().split(/[^a-z0-9&]+/).filter(x => x.length >= MIN_WORD)
 function namedHere(type, said) {
-  const labels = Object.values(WIDGET_REGISTRY[type]?.labels || {}).flatMap(wordsOf)
+  const labels = Object.values(agentLabelsOf(type)).flatMap(wordsOf)
   const choices = widgetControls(type).flatMap(f => (f.options || []).flatMap(wordsOf)).filter(x => !labels.includes(x))
   return labels.some(x => said.has(x)) && choices.some(x => said.has(x))
 }
