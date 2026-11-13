@@ -14,10 +14,11 @@ vi.mock('../../../../hooks/useTickerMeta', () => ({ prefetchTickerMeta: vi.fn() 
 const {
   clearServerColumns, ensureColumns, cachedColumns, serverColumnsFor, hasColumns, subscribe, primeServerColumns,
   __setServerBatchFetcherForTests,
+  chartShows, chartsNeedTheLane, FLYING_MS, RAPID_MS, OWN_PRIORITY_MS,
 } = await import('../serverCompute')
 const {
   warmSymbols, armServerWarm, serverWarmStats, __resetServerWarm,
-  ACTIVE_MAX, ACTIVE_MAX_NEAR, NEAR_MAX, BULK_HEAD, BACKLOG_MAX, QUEUE_MAX, BACKOFF_MS,
+  ACTIVE_MAX, ACTIVE_MAX_NEAR, NEAR_MAX, BULK_HEAD, BACKLOG_MAX, QUEUE_MAX, BACKOFF_MS, YIELD_MS,
 } = await import('../serverWarm')
 const { getDefinition } = await import('../nativeRegistry')
 const { setDeskHidden, __resetDeskVisibility } = await import('../../../../lib/deskVisibility')
@@ -439,5 +440,117 @@ describe('the bars prefetch tells the lane which symbols are next', () => {
     prefetchBarsToIDB(['NVDA'], '5', { priority: true })
     await settle(3000)
     expect(calls.length).toBe(0)
+  })
+})
+
+
+// ─── THE PRE-LOAD STEPS ASIDE FOR THE CHART ON SCREEN (2026-11-13) ───────────
+//
+// Measured on production (a fresh list, the key held at once at 11 charts a second, then
+// released): the landing chart sent the only own ask and still drew its RS line 4.8 s after its
+// candles, because three pre-load requests had started a third of a second before the stop and
+// one server core was computing all four. A pre-load now starts nothing while a chart's own ask
+// is out, or while a chart is flying through a list faster than anything asked ahead could land.
+describe('the pre-load steps aside for the chart on screen', () => {
+  const NEAR = { priority: true }
+  /** the chart on screen asks for itself, through the batch door (two definitions) */
+  const ownAsk = (sym) => {
+    ensureColumns('rsLine', sym, TF, { benchmark: 'SPY' })
+    ensureColumns('rsLine', sym, TF, { benchmark: 'QQQ' })
+  }
+
+  it('⭐ while the chart\'s own ask is out nothing new starts; when it lands the rows ahead go', async () => {
+    arm('hold')
+    drawing([{ benchmark: 'SPY' }])
+    ownAsk('NOW')
+    await settle()
+    expect(calls.map(symOf)).toEqual(['NOW'])
+    expect(chartsNeedTheLane()).toBe(true)
+    expect(warmSymbols(['AAA', 'BBB'], TF, NEAR)).toBe(2)
+    await settle(YIELD_MS * 5)
+    expect(calls.map(symOf), 'the rows ahead wait').toEqual(['NOW'])
+    expect(serverWarmStats()).toMatchObject({ queued: 2, active: 0 })
+    await release(1)                                   // the chart's ask lands
+    expect(chartsNeedTheLane()).toBe(false)
+    await settle(YIELD_MS + 5)
+    expect(calls.map(symOf)).toEqual(['NOW', 'AAA', 'BBB'])
+  })
+
+  it('a pre-load request already in flight is not touched; only new ones wait', async () => {
+    arm('hold')
+    drawing([{ benchmark: 'SPY' }])
+    warmSymbols(['AAA', 'BBB', 'CCC', 'DDD', 'EEE'], TF, NEAR)
+    await settle()
+    expect(calls.map(symOf)).toEqual(['AAA', 'BBB', 'CCC'])           // ACTIVE_MAX_NEAR in flight
+    ownAsk('NOW')
+    await settle()
+    expect(calls.map(symOf)).toEqual(['AAA', 'BBB', 'CCC', 'NOW'])
+    await release(3)                                   // the three warm requests land ...
+    await settle(YIELD_MS * 3)
+    expect(calls.map(symOf), '... and their slots are NOT refilled while the chart waits').toEqual(['AAA', 'BBB', 'CCC', 'NOW'])
+    await release(1)                                   // the chart's own
+    await settle(YIELD_MS + 5)
+    expect(calls.map(symOf)).toEqual(['AAA', 'BBB', 'CCC', 'NOW', 'DDD', 'EEE'])
+  })
+
+  it('a chart FLYING through a list (faster than anything ahead could land): nothing starts until it rests', async () => {
+    arm('hold')
+    drawing([{ benchmark: 'SPY' }])
+    const chart = {}
+    chartShows(chart, 'S0', TF)
+    for (let i = 1; i <= 6; i++) {
+      await settle(FLYING_MS - 40)
+      chartShows(chart, `S${i}`, TF)
+      warmSymbols([`A${i}`, `B${i}`], TF, NEAR)        // each step tells the rows ahead
+    }
+    expect(chartsNeedTheLane()).toBe(true)
+    expect(calls).toEqual([])
+    await settle(RAPID_MS - 10)
+    expect(calls, 'still inside the rest window').toEqual([])
+    await settle(10 + YIELD_MS + 5)
+    expect(chartsNeedTheLane()).toBe(false)
+    expect(calls.map(symOf).slice(0, 2), 'the rows ahead of where it stopped, first').toEqual(['A6', 'B6'])
+  })
+
+  it('a chart stepping fast but not flying keeps its pre-load: the rows ahead still land in time', async () => {
+    arm('hold')
+    drawing([{ benchmark: 'SPY' }])
+    const chart = {}
+    chartShows(chart, 'S0', TF)
+    await settle(FLYING_MS)                            // exactly FLYING_MS between changes is not flying
+    chartShows(chart, 'S1', TF)
+    expect(chartsNeedTheLane()).toBe(false)
+    warmSymbols(['AAA'], TF, NEAR)
+    await settle()
+    expect(calls.map(symOf)).toEqual(['AAA'])
+  })
+
+  it('an own ask that never settles stops the pre-load for a bounded time, not for good', async () => {
+    arm('hold')
+    drawing([{ benchmark: 'SPY' }])
+    ownAsk('STUCK')
+    await settle()
+    warmSymbols(['AAA'], TF, NEAR)
+    await settle(OWN_PRIORITY_MS - YIELD_MS * 2)
+    expect(calls.map(symOf)).toEqual(['STUCK'])
+    await settle(YIELD_MS * 4)
+    expect(calls.map(symOf)).toEqual(['STUCK', 'AAA'])
+  })
+
+  it('waiting costs one timer, and none once there is nothing left to start', async () => {
+    arm('hold')
+    drawing([{ benchmark: 'SPY' }])
+    ownAsk('NOW')
+    await settle()
+    warmSymbols(['AAA'], TF, NEAR)
+    warmSymbols(['BBB'], TF, NEAR)
+    await settle(YIELD_MS * 2)
+    expect(vi.getTimerCount(), 'one look-again timer, however many calls queued rows').toBe(1)
+    await release(1)
+    await settle(YIELD_MS + 5)
+    await release()
+    await settle(YIELD_MS * 3)
+    expect(calls.map(symOf)).toEqual(['NOW', 'BBB', 'AAA'])
+    expect(vi.getTimerCount()).toBe(0)
   })
 })
