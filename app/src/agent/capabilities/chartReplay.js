@@ -160,6 +160,29 @@ function plan(r, { op, bars, date, speed }) {
   }
 }
 
+/** A multi-step replay plan that stopped part-way: an error the runtime says as-is (`complete`), keeping what landed (`keptNote`). */
+export function replayStopped(done, total, r) {
+  const now = !r ? 'I can’t read it right now' : !r.mode ? 'the bar replay is off'
+    : `the bar replay is on, ${r.playing ? 'playing' : 'paused'} at ${r.speed}×${r.index != null ? `, ${at(r.index, r.total)}` : ''}`
+  const e = new Error(`The bar replay did ${done} of the ${total} steps you asked for, then the next one did not take effect on the chart, so I stopped there and pressed nothing after it. The chart now: ${now}.`)
+  e.complete = true
+  e.keptNote = `the ${done === 1 ? 'first step stays' : `first ${done} steps stay`} (${now})`
+  return e
+}
+
+/** The replay as a planned op leaves it (for the next op of the SAME plan): exactly the toolbar handler's effect. */
+function plannedReplay(r, op, w) {
+  const n = { ...r }
+  if (op === 'enter') Object.assign(n, { mode: true, playing: false, index: Math.floor((r.total || 1) * 0.7) })
+  if (op === 'exit') Object.assign(n, { mode: false, playing: false, index: null })
+  if ('playing' in w) n.playing = w.playing === true
+  if ('index' in w) n.index = w.index
+  if ('speed' in w) n.speed = w.speed
+  if (w.dir || w.dayMs != null || w.playing === true) n.uncertain = true
+  n.dateMs = null
+  return n
+}
+
 /** Unchanged state (a no-op) when the replay is already where the op would put it. */
 function alreadyThere(r, { op, bars, speed }) {
   const i = r.index ?? 0, last = r.total - 1
@@ -224,6 +247,11 @@ export function registerChartReplayCapabilities() {
       if (!st.view) return NOT_READY
       const r = st.view.replay
       if (!r?.can) return NO_REPLAY
+      // one view door per plan: a replay op does not ride with another view change (a step of the window, a zoom, a range)
+      if (st.viewDo && st.viewDo.op !== 'replay') return 'Ask for the bar replay on its own, after that view change has landed. Nothing was changed.'
+      // after a step in this plan whose bar is only known once it lands (a date, a step while playing, play), an op that
+      // counts from the bar waits for it: never planned on a bar nobody has read
+      if (r.uncertain && ['forward', 'back', 'play', 'first', 'last'].includes(op)) return 'Ask for that once the replay has moved: where it lands is only known then. Nothing was changed.'
       if (op === 'enter' || op === 'exit') return null
       if (!r.mode) return NOT_IN_REPLAY
       if (op === 'forward' || op === 'back') {
@@ -243,12 +271,24 @@ export function registerChartReplayCapabilities() {
       }
       return null
     },
+    // Several replay ops in ONE plan ("start the bar replay and step forward 5 bars", "… at 5×"): each op is checked and
+    // planned against the replay as the ops before it leave it (the planned `view.replay`), and they ride ONE viewDo as
+    // ordered `steps`; chartKind.commit presses each only after the one before it is READ BACK (StockChart's door acts on its
+    // last render's state, so a step pressed before the replay is on would be ignored), and stops at the first that does not
+    // land. Undo runs the steps' own ways back in reverse (none if any step has none).
     apply(st, args = {}) {
       const r = st.view.replay
       const a = { ...args, bars: args.op === 'forward' || args.op === 'back' ? (args.bars ?? 1) : args.bars }
       if (alreadyThere(r, a)) return st
       const p = plan(r, a)
-      return p ? { ...st, viewDo: { op: 'replay', ...p } } : st
+      if (!p) return st
+      const prev = st.viewDo?.op === 'replay' ? st.viewDo : null
+      const view = { ...st.view, replay: plannedReplay(r, a.op, p.want) }
+      if (!prev) return { ...st, view, viewDo: { op: 'replay', ...p } }
+      const steps = [...(prev.steps || [{ arg: prev.arg, want: prev.want }]), { arg: p.arg, want: p.want }]
+      const backs = [p.back, ...(prev.backSteps || [prev.back])]
+      const back = backs.every(Boolean) ? { arg: backs[0].arg, want: backs.at(-1).want, steps: backs } : null
+      return { ...st, view, viewDo: { op: 'replay', arg: steps[0].arg, want: p.want, steps, back, backSteps: backs } }
     },
     describe: (b, a, args = {}) => describe(b, a, { ...args, bars: args.bars ?? 1 }),
     noop,

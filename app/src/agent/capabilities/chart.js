@@ -51,7 +51,7 @@ import { whenVisible } from '../frames'
 const ASK_AI_DELAY_MS = 900
 import { readFavoriteTools, writeFavoriteTools } from '../../components/chart/drawToolFavorites'
 import { normalizeDock } from '../../pages/charts/widgets/chartDock'
-import { replayDone, replaySig, replayContext, bareExitFast, exitGuard, isCutoffExit } from './chartReplay'
+import { replayDone, replaySig, replayContext, bareExitFast, exitGuard, isCutoffExit, replayStopped } from './chartReplay'
 
 // The chart types and the timeframes UCT charts natively are the PRODUCT's lists
 // (chartDefaults.CHART_TYPE_OPTIONS, timeframes.NATIVE_TFS) — imported, never copied, so a new
@@ -412,9 +412,19 @@ export const chartKind = {
     if ('replay' in patch && ok) ok = !!host.charts.setReplay?.(replay)
     // The chart's own view control; a long range may load history first (its "Loading chart history…", capped at 6s)
     if (viewDo && ok) {
-      if (!host.charts.viewDo?.(ref, viewDo.op, viewDo.arg)) return false
-      const t0 = Date.now()
-      while (Date.now() - t0 < 10000 && !viewDone(host.charts.read(ref)?.view, viewDo)) await new Promise(r => setTimeout(r, 100))
+      // chartReplay.playback: several replay ops of ONE plan ride as ordered `steps` — each pressed only once the one before it
+      // is READ BACK (the chart's door acts on its last render), and the sequence stops at the first that did not land
+      const steps = viewDo.steps || [viewDo]
+      // a step that fails AFTER earlier ones landed stops there and says exactly what the chart now shows (they stay: a
+      // receipt never claims "nothing was left changed" over a replay that is on)
+      const stop = (done) => { if (done) throw replayStopped(done, steps.length, host.charts.read(ref)?.view?.replay) }
+      for (const [done, s] of steps.entries()) {
+        const one = { op: viewDo.op, arg: s.arg, want: s.want }
+        if (!host.charts.viewDo?.(ref, one.op, one.arg)) { stop(done); return false }
+        const t0 = Date.now()
+        while (Date.now() - t0 < 10000 && !viewDone(host.charts.read(ref)?.view, one)) await new Promise(r => setTimeout(r, 100))
+        if (steps.length > 1 && !viewDone(host.charts.read(ref)?.view, one)) { stop(done); return false }
+      }
     }
     if (goto != null && ok) {
       if (!host.charts.goTo?.(ref, goto)) return false
