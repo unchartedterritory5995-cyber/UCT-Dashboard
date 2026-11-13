@@ -25,7 +25,7 @@ import { setOwnedDefinitionSource } from './capabilities/indicatorEdits'
 import { setAuthoringSources, draftAmbiguity, selectDraft, isDraftAction, lastSaved, screenModelOps, PROPOSAL_TTL_MS, saveReferent, splitSaveAs, renameBeforeSave, explicitIndicatorCreate } from './capabilities/indicatorAuthoring'
 import { fastParse, matchPosition } from './fastPath'
 import { screenNewChart, screenEmptyBoardChart } from './capabilities/workspace'
-import { resolveDeictic, screenDeicticOps, screenUnnamedTargets, pickedChoice, chartRefOf, selectedChart, chartNameWord, clausesNameDifferentCharts } from './deixis'
+import { resolveDeictic, screenDeicticOps, screenUnnamedTargets, pickedChoice, chartRefOf, selectedChart, chartNameWord, clausesNameDifferentCharts, targetTickerConflict } from './deixis'
 import { screenWatchlistWidget } from './watchlistTarget'
 import { whichListView, LIST_VIEW_WHICH } from './whichWidget'
 import { checkSpatialConstraints, excludedCharts, spatialConstraints, UNPLACED, withoutExcludedCharts, everyExceptSet } from './spatialCheck'
@@ -3100,6 +3100,14 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
           push({ role: 'agent', text: 'Which chart do you mean? Click it (or say left, right…) and ask again — nothing has changed yet.' })
         }
         record({ member: null, outcome: spatial.ask.text, outcomeData: { kind: 'clarify-spatial', actions: screened.ops.map(o => o?.action) }, telemetry: { path: 'model', disposition: 'clarify', voice } })
+        return
+      }
+      // ⭐ AUDIT ruling (11-13): a ticker the words name as the TARGET outranks the only chart, the click and "the one left" — a plan
+      // that writes a chart showing another symbol is asked, and nothing runs (a ticker that is a VALUE of the plan is no target).
+      const tgtTicker = targetTickerConflict({ host, ops: screened.ops, text, pickedRefs: answeredRefs, getTargetKind, getCapability })
+      if (tgtTicker?.ask) {
+        push({ role: 'agent', text: tgtTicker.ask.text })
+        record({ member: null, outcome: tgtTicker.ask.text, outcomeData: { kind: 'clarify-target-ticker', actions: screened.ops.map(o => o?.action) }, telemetry: { path: 'model', disposition: 'clarify', voice } })
         return
       }
       if (unnamed?.propose && disposition === 'apply') {

@@ -737,6 +737,80 @@ export function tickerAntecedent(text, charts = [], sel = null, ex = new Set()) 
   return all[0]
 }
 
+// ⭐ AUDIT RULING (11-13): A TICKER NAMED AS THE TARGET outranks every stand-in. When the change words name a ticker as the chart
+// being changed ("Change AMD to the 1-hour timeframe", "add a 20 EMA to AMD", "the AMD chart") and a chart the plan WRITES shows
+// a different symbol, nothing runs: asked. That covers a one-chart board ("the only chart"), the click, and "the one left".
+// ⛔ CARVE-OUT: a ticker that is a VALUE of the plan (a symbol it sets, compares, adds — any argument of an op) is no target:
+// "change this chart to AMD", "switch to AMD", "put AMD on this chart", "replace SPY with AMD", "show AMD instead", "change SPY to
+// AMD" (SPY is the target there, AMD the value) all run as before. Deictic words with no target ticker keep the click rule.
+// A target is read only where a ticker stands for a chart: after a change verb, as the object of to / on / for, or "AMD's" / "the
+// AMD chart"; never in an exclusion or a keep clause, never an indicator acronym, never in words typed in capitals.
+// the verb and determiner in either case ("Change …" opens a sentence); the TICKER keeps its capitals
+const TGT_VERB = /\b(?:[Cc]hange|[Ss]witch|[Ss]et|[Mm]ake|[Pp]ut|[Tt]urn|[Ff]lip|[Mm]ove|[Cc]onvert|[Gg]ive|[Zz]oom|[Rr]eset|[Ss]croll)\s+(?:[Tt]he\s+|[Mm]y\s+)?(\$?[A-Z][A-Z0-9]{0,4}(?:\.[A-Z])?)(?=\s+(?:to|on|onto|into|in|at|from|with|over|back|and|chart|one|graph|weekly|daily|monthly|hourly)\b|['’]s\b|\s*[,.;!?]|\s*$)/g
+const TGT_PREP = /\b(?:to|on|onto|for|of|in)\s+(?:[Tt]he\s+|[Mm]y\s+)?(\$?[A-Z][A-Z0-9]{0,4}(?:\.[A-Z])?)(?=\s+(?:chart|one|graph|and|but|too|please|as\s+well)\b|['’]s\b|\s*[,.;!?]|\s*$)/g
+const TGT_NOUN = /(?:^|[\s(])(\$?[A-Z][A-Z0-9]{0,4}(?:\.[A-Z])?)(?:['’]s)?\s+(?:chart|one|graph)\b/g
+function changeWords(text) {
+  const s = String(text || '')
+  const cuts = [0, ...[...s.matchAll(ANA_SPLIT)].flatMap(m => [m.index, m.index + m[0].length]), s.length].sort((a, b) => a - b)
+  let change = ''
+  for (let i = 0; i < cuts.length - 1; i++) {
+    const part = s.slice(cuts[i], cuts[i + 1])
+    change += KEEP_CLAUSE.test(part) || STAYS_CLAUSE.test(part) ? ' '.repeat(part.length) : part
+  }
+  return withoutExclusions(change)
+}
+/** The tickers the change words name as the chart being changed (never a value position like "switch to AMD" — see the carve-out). */
+export function targetTickers(text) {
+  const w = changeWords(text)
+  if (!/[a-z]/.test(w)) return []
+  const out = []
+  for (const re of [TGT_VERB, TGT_PREP, TGT_NOUN]) for (const m of w.matchAll(re)) {
+    const t = m[1].replace(/^\$/, '').toUpperCase()
+    if (NOT_TICKER_CAPS.has(t) || (!m[1].startsWith('$') && isReservedWord(t)) || out.includes(t)) continue
+    out.push(t)
+  }
+  return out
+}
+const valuesOf = (ops) => {
+  const out = new Set()
+  const walk = (v) => {
+    if (typeof v === 'string') { const t = v.trim().replace(/^\$/, ''); if (/^[A-Za-z][A-Za-z0-9.]{0,9}$/.test(t)) out.add(t.toUpperCase()) } else if (Array.isArray(v)) v.forEach(walk)
+    else if (v && typeof v === 'object') Object.values(v).forEach(walk)
+  }
+  for (const o of ops || []) walk(o?.args)
+  return out
+}
+/** → { ask: { text }, ticker, shown } when a chart the plan writes shows a symbol other than the TARGET ticker the words name. */
+export function targetTickerConflict({ host, ops, text, pickedRefs = [], getTargetKind, getCapability }) {
+  try {
+    const charts = host?.charts?.list?.() || []
+    if (!charts.length || (pickedRefs || []).some(Boolean)) return null
+    const values = valuesOf(ops)
+    const targets = targetTickers(text).filter(t => !values.has(t))
+    if (!targets.length) return null
+    // a chart the words identify by place / order / relation (not by symbol) is named there in its own right
+    const w = changeWords(text)
+    const bySym = chartsNamedBySymbol(w, charts)
+    const other = new Set([...chartsNamedBy(w, charts, selectedChart(host))].filter(r => !bySym.has(r)))
+    const aliases = new Set((ops || []).map(o => o?.args?.as).filter(a => typeof a === 'string' && a))
+    for (const o of ops || []) {
+      const cap = getCapability(o?.action)
+      const kind = cap ? getTargetKind(cap.target) : null
+      if (!kind || cap.query || aliases.has(o.target)) continue
+      const snap = (kind.list(host) || []).find(x => x.ref === o.target)
+      const chart = snap ? chartRefOf(kind, snap) : null
+      if (!chart || other.has(chart)) continue
+      const c = charts.find(x => x.ref === chart)
+      const shown = String(c?.symbol || '').toUpperCase()
+      if (targets.includes(shown)) continue
+      const t = targets[0]
+      const where = charts.some(x => String(x.symbol || '').toUpperCase() === t) ? '' : ` ${t} isn't on a chart here.`
+      return { ticker: t, shown, ask: { text: `You named ${t}, but ${c?.label || 'that chart'} shows ${shown || 'something else'}.${where} Which chart do you mean? Nothing has changed yet.` } }
+    }
+    return null
+  } catch { return null }
+}
+
 /**
  * Narrow `candidates` (snapshots of one chart-backed kind) using the member's words and the
  * selection. → { ref } (exactly one meant) | { ask } (several and nothing reliable) | null (the
