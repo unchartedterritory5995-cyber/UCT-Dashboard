@@ -13,6 +13,7 @@ import {
   clearServerColumns, ensureColumns, cachedColumns, hasColumns, fetchColumns, fetchColumnsBatch,
   serverColumnsBatchUrl, serverColumnsKey, serverColumnsFor, primeServerColumns, subscribe,
   batchAvailable, liveAsks, serverColumnsCacheStats,
+  chartShows, chartGone, RAPID_MS, SETTLE_FACTOR, SETTLE_MIN_MS, SETTLE_MAX_MS,
   __setServerBatchFetcherForTests, __setCacheMaxCellsForTests,
 } from '../serverCompute'
 import { getDefinition, computeFor } from '../nativeRegistry'
@@ -197,6 +198,34 @@ describe('a server without the route, and a request that fails', () => {
     expect(singleCalls.length).toBe(6)
   })
 
+  it('⭐ a server that answers the route with a PAGE (the catch-all of this app, a 200) is the same "no such route"', async () => {
+    // production's own answer for an API path it does not route: 200, text/html, the app shell
+    const page = { ok: true, status: 200, headers: { get: (h) => (h.toLowerCase() === 'content-type' ? 'text/html; charset=utf-8' : null) },
+      json: async () => { throw new SyntaxError('Unexpected token <') } }
+    const json = { ok: true, status: 200, headers: { get: () => 'application/json' }, json: async () => wire(9) }
+    const urls = []
+    vi.stubGlobal('fetch', vi.fn(async (url) => { urls.push(String(url)); return String(url).includes(SERVER_COLUMNS_BATCH_PATH) ? page : json }))
+    __setServerBatchFetcherForTests('default')
+    for (const a of ASKS) ensureColumns(a.defId, SYM, TF, a.inputs)
+    await tick(); await tick()
+    // the chart still draws, through the single route…
+    for (const a of ASKS) expect(cachedColumns(a.defId, SYM, TF, a.inputs)).not.toBeNull()
+    expect(urls.filter((u) => u.includes(SERVER_COLUMNS_BATCH_PATH)).length).toBe(1)
+    // …and the route is remembered as absent: the next symbol does not ask it again
+    expect(batchAvailable()).toBe(false)
+    for (const a of ASKS) ensureColumns(a.defId, 'AAPL', TF, a.inputs)
+    await tick(); await tick()
+    expect(urls.filter((u) => u.includes(SERVER_COLUMNS_BATCH_PATH)).length).toBe(1)
+    expect(urls.length).toBe(1 + 3 + 3)
+  })
+
+  it('a JSON answer with no content-type header at all is still read (a host that sets none)', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, status: 200, json: async () => ({ results: ASKS.map(() => ok(4)) }) })))
+    __setServerBatchFetcherForTests('default')
+    expect(await fetchColumnsBatch(SYM, TF, ASKS)).toBe(3)
+    expect(batchAvailable()).toBe(true)
+  })
+
   it('any other failure falls back for THIS ask only: the route is not written off', async () => {
     armBatch(() => httpError(503))
     expect(await fetchColumnsBatch(SYM, TF, ASKS)).toBe(3)
@@ -337,5 +366,180 @@ describe('the cache is bounded: the entry unused for longest goes first', () => 
     __setCacheMaxCellsForTests(1000)
     for (let i = 0; i < 20; i++) primeServerColumns('defA', 'S1', TF, null, big(i))
     expect(serverColumnsCacheStats()).toMatchObject({ entries: 1, cells: 100 })
+  })
+})
+
+
+// ─── A CHART RACING THROUGH SYMBOLS ASKS FOR THE ONE IT STOPS ON (2026-11-13) ─
+//
+// Measured on production: the arrow key held through 40 charts at 6.6 a second, then released.
+// Every chart passed sent its own ask and the chart the member landed on drew its RS line 7.0 s
+// after its candles, behind 28 requests for charts already gone. A chart now tells the lane what
+// it is on; an ask for a chart that is being raced is held for a little longer than its last
+// step and never sent if the chart has moved on.
+describe('a chart racing through symbols asks for the one it stops on', () => {
+  const chart = {}
+  /** the chart moves to `sym` and paints: its three definitions ask */
+  const goTo = (sym, slot = chart, tf = TF) => {
+    chartShows(slot, sym, tf)
+    for (const a of ASKS) ensureColumns(a.defId, sym, tf, a.inputs)
+  }
+  const symsAsked = () => batchCalls.map((u) => new URL(u, 'http://x').searchParams.get('sym'))
+  beforeEach(() => { armBatch((asks) => ({ results: asks.map((_, i) => ok(i)) })) })
+
+  it('⭐ a held key: only the landing chart is asked for, a third of a step after the member stops', async () => {
+    goTo('S0')                                         // the chart was resting: this one goes at once
+    await tick()
+    expect(symsAsked()).toEqual(['S0'])
+    for (let i = 1; i <= 12; i++) {                    // then twelve more, 50 ms apart
+      await vi.advanceTimersByTimeAsync(50)
+      goTo(`S${i}`)
+      await tick()
+    }
+    expect(symsAsked(), 'none of the charts passed was asked for').toEqual(['S0'])
+    await vi.advanceTimersByTimeAsync(50 * SETTLE_FACTOR - 2)
+    expect(symsAsked()).toEqual(['S0'])
+    await vi.advanceTimersByTimeAsync(4)
+    expect(symsAsked(), 'the one the member stopped on').toEqual(['S0', 'S12'])
+    expect(asksOf(batchCalls[1]).map((a) => a.defId)).toEqual(['defA', 'defB', 'defC'])
+    await tick()
+    expect(cachedColumns('defA', 'S12', TF, ASKS[0].inputs)).not.toBeNull()
+    // nothing is still waited for on behalf of the charts that were passed
+    expect(serverColumnsCacheStats().wanted).toBe(0)
+  })
+
+  it('a chart that was resting pays nothing: its ask leaves in the same tick, as before', async () => {
+    goTo('AAA')
+    await tick()
+    expect(symsAsked()).toEqual(['AAA'])
+    await vi.advanceTimersByTimeAsync(RAPID_MS)        // exactly RAPID_MS later is not "racing"
+    goTo('BBB')
+    await tick()
+    expect(symsAsked()).toEqual(['AAA', 'BBB'])
+  })
+
+  it('the hold follows the cadence, between its floor and its ceiling', async () => {
+    const cases = [[10, SETTLE_MIN_MS], [100, 100 * SETTLE_FACTOR], [RAPID_MS - 1, SETTLE_MAX_MS]]
+    expect(SETTLE_MIN_MS).toBeLessThan(100 * SETTLE_FACTOR)
+    expect(SETTLE_MAX_MS).toBeLessThan((RAPID_MS - 1) * SETTLE_FACTOR)
+    let n = 0
+    for (const [gap, hold] of cases) {
+      clearServerColumns(); batchCalls.length = 0
+      const c = {}
+      goTo(`A${n}`, c); await tick()
+      await vi.advanceTimersByTimeAsync(gap)
+      goTo(`B${n}`, c); await tick()
+      expect(symsAsked(), `gap ${gap}: held`).toEqual([`A${n}`])
+      await vi.advanceTimersByTimeAsync(hold - 2)
+      expect(symsAsked(), `gap ${gap}: still held 2 ms before ${hold}`).toEqual([`A${n}`])
+      await vi.advanceTimersByTimeAsync(4)
+      expect(symsAsked(), `gap ${gap}: sent at ${hold}`).toEqual([`A${n}`, `B${n}`])
+      n += 1
+    }
+  })
+
+  it('⛔ fail open: a host that never says what it shows is asked for at once, racing or not', async () => {
+    for (const sym of ['AAA', 'BBB', 'CCC']) {
+      for (const a of ASKS) ensureColumns(a.defId, sym, TF, a.inputs)
+      await tick()
+      await vi.advanceTimersByTimeAsync(20)
+    }
+    expect(symsAsked()).toEqual(['AAA', 'BBB', 'CCC'])
+  })
+
+  it('two charts on one symbol, one of them resting: sent at once', async () => {
+    const racing = {}; const resting = {}
+    chartShows(resting, 'BBB', TF)
+    await vi.advanceTimersByTimeAsync(1000)
+    goTo('AAA', racing); await tick()
+    await vi.advanceTimersByTimeAsync(60)
+    goTo('BBB', racing); await tick()
+    expect(symsAsked()).toEqual(['AAA', 'BBB'])
+  })
+
+  it('a repaint while the ask is held joins it: one request, when the hold ends', async () => {
+    goTo('AAA'); await tick()
+    await vi.advanceTimersByTimeAsync(100)
+    goTo('BBB'); await tick()
+    for (let i = 0; i < 4; i++) {                      // the chart repaints (live ticks) while it waits
+      await vi.advanceTimersByTimeAsync(20)
+      for (const a of ASKS) ensureColumns(a.defId, 'BBB', TF, a.inputs)
+      ensureColumns('defLate', 'BBB', TF, null)        // and a definition added meanwhile rides along
+      await tick()
+    }
+    expect(symsAsked()).toEqual(['AAA'])
+    await vi.advanceTimersByTimeAsync(100 * SETTLE_FACTOR)
+    expect(symsAsked()).toEqual(['AAA', 'BBB'])
+    expect(asksOf(batchCalls[1]).map((a) => a.defId)).toEqual(['defA', 'defB', 'defC', 'defLate'])
+  })
+
+  it('a chart that is closed while its ask is held: the ask is never sent', async () => {
+    goTo('AAA'); await tick()
+    await vi.advanceTimersByTimeAsync(100)
+    goTo('BBB'); await tick()
+    chartGone(chart)
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(symsAsked()).toEqual(['AAA'])
+    expect(serverColumnsCacheStats().wanted).toBe(0)
+  })
+
+  it('a timeframe is part of what a chart is on: racing on 5m does not hold the same symbol on D', async () => {
+    const fiveMin = {}; const daily = {}
+    chartShows(daily, 'BBB', 'D')
+    await vi.advanceTimersByTimeAsync(1000)
+    goTo('AAA', fiveMin, '5'); await tick()
+    await vi.advanceTimersByTimeAsync(60)
+    goTo('BBB', fiveMin, '5'); await tick()            // held: the 5m chart is racing
+    for (const a of ASKS) ensureColumns(a.defId, 'BBB', 'D', a.inputs)   // the resting daily chart asks too
+    await tick()
+    expect(batchCalls.map((u) => new URL(u, 'http://x').searchParams.get('sym') + '@' + new URL(u, 'http://x').searchParams.get('tf')))
+      .toEqual(['AAA@5', 'BBB@D'])
+    await vi.advanceTimersByTimeAsync(60 * SETTLE_FACTOR + 2)
+    expect(batchCalls.length).toBe(3)
+  })
+
+  it('a held ask is for a timeframe too: the chart switching timeframe on the same symbol drops it', async () => {
+    const c = {}
+    goTo('AAA', c, '5'); await tick()
+    await vi.advanceTimersByTimeAsync(60)
+    goTo('BBB', c, '5'); await tick()                  // held
+    await vi.advanceTimersByTimeAsync(10)
+    chartShows(c, 'BBB', '15')                         // same symbol, another timeframe: the 5m ask is stale
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(batchCalls.map((u) => new URL(u, 'http://x').searchParams.get('sym') + '@' + new URL(u, 'http://x').searchParams.get('tf')))
+      .toEqual(['AAA@5'])
+  })
+
+  it('a chart reporting the SAME symbol again (an effect re-running) has not moved: it is not racing', async () => {
+    chartShows(chart, 'AAA', TF)
+    await vi.advanceTimersByTimeAsync(10)
+    chartShows(chart, 'AAA', TF)                       // and a number where a string was is the same timeframe
+    chartShows(chart, 'AAA', String(TF))
+    for (const a of ASKS) ensureColumns(a.defId, 'AAA', TF, a.inputs)
+    await tick()
+    expect(symsAsked()).toEqual(['AAA'])
+    const five = {}
+    chartShows(five, 'BBB', 5)
+    await vi.advanceTimersByTimeAsync(10)
+    chartShows(five, 'BBB', '5')
+    for (const a of ASKS) ensureColumns(a.defId, 'BBB', '5', a.inputs)
+    await tick()
+    expect(symsAsked()).toEqual(['AAA', 'BBB'])
+  })
+
+  it('clearing the lane forgets held asks and what charts showed', async () => {
+    goTo('AAA'); await tick()
+    await vi.advanceTimersByTimeAsync(100)
+    goTo('BBB'); await tick()                          // held: due 130 ms from here
+    await vi.advanceTimersByTimeAsync(10)
+    clearServerColumns()
+    goTo('CCC'); await tick()                          // the chart is "new" again: not racing, sent at once
+    expect(symsAsked()).toEqual(['AAA', 'CCC'])
+    await vi.advanceTimersByTimeAsync(100)
+    goTo('BBB'); await tick()                          // racing again: a NEW hold for BBB, due 130 ms from here
+    await vi.advanceTimersByTimeAsync(60)              // the forgotten hold's moment passes ...
+    expect(symsAsked(), '... and it neither sends BBB early nor cancels the new hold').toEqual(['AAA', 'CCC'])
+    await vi.advanceTimersByTimeAsync(100 * SETTLE_FACTOR)
+    expect(symsAsked()).toEqual(['AAA', 'CCC', 'BBB'])
   })
 })

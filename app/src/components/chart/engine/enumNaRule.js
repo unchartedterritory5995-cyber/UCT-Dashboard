@@ -46,9 +46,23 @@ export const TEXT_SIZE_POINTS_SENTENCE = 'the text size of this drawing is an in
   + '`text_size` in typographic points), which this chart does not draw yet; the drawing is withheld '
   + 'rather than drawn at one of the six named sizes'
 
+// ⛔⛔ ENGINE 52 — the same rule for every OTHER property a drawing carries: a colour, a
+// width, a row count, a tooltip. One this door cannot read used to be dropped, so the
+// renderer drew its default in its place (453 sites in 38 files at engine 51). Withheld.
+export const PROP_UNREADABLE_SENTENCE = 'a colour, width, count or tooltip of this drawing is a value this '
+  + 'door cannot read; the drawing is withheld rather than drawn with a default colour, width or count'
+
+// ⛔ Engine 52 (review M5) — an int point size the reference does NOT equate with a `size.*`
+// word: no capture records its pixels, so it is withheld rather than drawn at a guessed size.
+export const TEXT_SIZE_POINTS_UNWITNESSED_SENTENCE = 'the text size of this drawing is an integer point '
+  + 'size that is not one of the sizes the Pine reference equates with a named size; no capture shows how '
+  + 'TradingView draws it, so the drawing is withheld rather than drawn at a guessed size'
+
 export const ENUM_DROPS = Object.freeze({
   na: Object.freeze({ guard: 'pine:enum-na', drop: 'enum:na', sentence: ENUM_NA_SENTENCE }),
   named: Object.freeze({ guard: 'pine:enum-named-call', drop: 'enum:named-call', sentence: ENUM_NAMED_CALL_SENTENCE }),
   unreadable: Object.freeze({ guard: 'pine:enum-unreadable', drop: 'enum:unreadable', sentence: ENUM_UNREADABLE_SENTENCE }),
   points: Object.freeze({ guard: 'pine:text-size-points', drop: 'enum:points', sentence: TEXT_SIZE_POINTS_SENTENCE }),
+  pointsUnwitnessed: Object.freeze({ guard: 'pine:text-size-points-unwitnessed', drop: 'enum:points-unwitnessed', sentence: TEXT_SIZE_POINTS_UNWITNESSED_SENTENCE }),
+  value: Object.freeze({ guard: 'pine:prop-unreadable', drop: 'prop:unreadable', sentence: PROP_UNREADABLE_SENTENCE }),
 })

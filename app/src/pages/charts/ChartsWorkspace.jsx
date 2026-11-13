@@ -66,7 +66,8 @@ import { announceDeskLaunchBlocked, finishDeskLaunch } from '../../lib/popoutReg
 import PeriodSortPanel from './PeriodSortPanel'
 import FloatingWidgetPanel from './FloatingWidgetPanel'
 import CompareSymbolsPanel from './CompareSymbolsPanel'
-import { COMPARE_OPEN_EVENT } from './compareGroups'
+import { COMPARE_OPEN_EVENT, compareChartApi } from './compareGroups'
+import { compareAgentSource } from './compareAgent'
 import PeriodSortConfig from './PeriodSortConfig'
 import ReplayPanel from './ReplayPanel'
 import VersionHistoryPanel, { VersionHistoryMenuItem, useVersionHistoryAvailable, keyLabel } from './VersionHistory'
@@ -1234,6 +1235,8 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   const [compareOpen, setCompareOpen] = useState(false)
   // The `uct:compare-open` detail that opened it ({tab: 'rotation', sym, group}, unit 3-09), or null.
   const [compareIntent, setCompareIntent] = useState(null)
+  // The tab the open panel shows ('overlay' | 'rotation'), as the panel reports it (onTabChange); null while it is closed.
+  const [compareTab, setCompareTab] = useState(null)
   // Replay mode: an ISO 'YYYY-MM-DD' cutoff — linked charts hide every bar after it.
   const [replayCutoff, setReplayCutoff] = useState(null)
   // Tools → Replay Mode: the dedicated replay dialog (separate from Custom-Period Sort;
@@ -2017,6 +2020,8 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     if (!layout.widgets.some(w => w.type === 'chart')) handleAddWidget('chart', undefined, { instant: true })
     setCompareOpen(true)
   }, [layout, handleAddWidget])
+  // The panel's own close (its ×, Escape) — UCT Agent's compare.openView Undo closes it the same way.
+  const closeCompare = useCallback(() => { setCompareOpen(false); setCompareIntent(null); setCompareTab(null) }, [])
 
   // UCT RS Phase 3, unit 3-12: a `uct:compare-open` window event (unit 3-09's "see the rotation"
   // link) opens the panel, on the tab it names. The panel listens too, for an open while it is up.
@@ -3459,6 +3464,16 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   // change / exitReplayMode) and the shared cutoff, read through a ref so the host memo stays dependency-free.
   const agentReplayRef = useRef(null)
   agentReplayRef.current = { cutoff: replayCutoff, start: startReplay, exit: exitReplayMode }
+  // Tools → Compare Symbols for UCT Agent (compare.openView, pages/charts/compareAgent.js): the panel's open state, the tab
+  // it reports, the last `uct:compare-open` detail, and the panel's own close — through a ref (the host memo stays
+  // dependency-free). `hasChart` is openCompare's own test; `percentOn` reads the chart the panel will resolve.
+  const agentCompareRef = useRef(null)
+  agentCompareRef.current = {
+    mobile: isMobile, grid: gridMode, open: compareOpen, tab: compareTab, intent: compareIntent,
+    hasChart: () => (layoutRef.current?.widgets || []).some(w => w.type === 'chart'),
+    percentOn: () => { try { return !!compareChartApi(chartApiByIdRef.current, activeChartRef.current)?.getPercentScale?.() } catch { return false } },
+    close: closeCompare,
+  }
   // Custom-Period Sort for UCT Agent (periodSort.run / periodSort.dock): the popover's own runPeriodSort, the panel's own
   // Dock (handleDockPeriodSort), and the state they write, read through a ref (the host memo stays dependency-free).
   const agentPeriodSortRef = useRef(null)
@@ -3538,6 +3553,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
         : Promise.resolve(false)),
     },
     navigate: (to) => agentNavRef.current?.(to),
+    compare: compareAgentSource(() => agentCompareRef.current),
     periodSort: {
       read: () => {
         const r = agentPeriodSortRef.current
@@ -4298,7 +4314,8 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
             chartApiById={chartApiByIdRef}
             activeChartRef={activeChartRef}
             initialIntent={compareIntent}
-            onClose={() => { setCompareOpen(false); setCompareIntent(null) }}
+            onClose={closeCompare}
+            onTabChange={setCompareTab}
           />
         )}
         {replayOpen && (

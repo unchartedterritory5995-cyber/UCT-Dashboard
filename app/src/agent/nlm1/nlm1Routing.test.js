@@ -178,8 +178,12 @@ describe('routing v2: a words-only group never rides the fill, and is still sent
   const full = () => manifestFor({ surface: 'charts', createIndicator: true, manageIndicators: true })
   const opts = () => ({ enabled: true, limit: MANIFEST_CONTRACT.limits.maxCapabilities, budget: MANIFEST_CONTRACT.routingThreshold, correct })
   const sentOf = (msg) => new Set(routeManifestV2(full(), msg, opts()).manifest.map(c => groupOfAction(c.name)))
+  // compare.openView: the RS INDICATOR's Rotation view (its `view` input) never selects the Compare panel's words
+  it.each(['show rotation on the RS indicator', 'switch the RS indicator to the rotation view', 'set the relative strength view to rotation', 'put the rrg view in the rs pane', 'compare nvda with amd'])('"%s": not the comparePanel words', (msg) => expect(wordsSelect('comparePanel', msg)).toBe(false))
   const wordsOnly = GROUPS.filter(g => g.wordsOnly)
   const OWN_WORDS = {
+    // compare.openView: the rotation / RRG map, graph, tab or view; the Compare (Symbols) panel; its Overlay tab
+    comparePanel: ['open the rotation map', 'show me the rrg view for nvda', 'switch the compare panel to the rotation tab', 'go to the overlay tab'],
     // drawing extras: the Position Calculator, a drawing's Save as default, a drawing tool's ★
     drawingExtras: ['open the position calculator with entry 50 stop 48 target 56', 'make this trendline my default style', 'add the fib tool to my favourites'],
     watchlistShow: ['put my flagged list in the watchlist widget', 'export my momentum list to excel', 'make the price column wider in the watchlist'],

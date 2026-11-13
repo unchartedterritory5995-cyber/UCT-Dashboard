@@ -59,6 +59,14 @@ def test_the_multi_chart_grid_family_is_a_BOARD_action_not_history():
     assert "multiChart__set" in v2.domain_listing("board", turn.validate_manifest(CAPS, limit=len(CAPS)))
 
 
+def test_the_compare_panel_view_is_a_BOARD_action_withheld_bare():
+    # compare.openView opens / switches Tools → Compare Symbols, a workspace tool (as periodSort.*), never history
+    assert v2.domain_for("compare.openView") == "board"
+    assert guard.suspicious(_bare("compare.openView")) is True
+    for text in ("Compare the leaders with the index on the overlay tab.", "Open the rotation map and compare the quadrants."):
+        assert guard.suspicious(text) is False, text
+
+
 def test_an_UNLISTED_prefix_is_misfiled_under_history_not_refused():
     # today's behaviour for any prefix the server does not know: silently filed under history
     assert v2.domain_for("someFutureFamily.doThing") == "history"

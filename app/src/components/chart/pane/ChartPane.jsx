@@ -27,7 +27,7 @@ import { TF_ORDER, shortcutClaimsKey } from '../keyboardShortcuts'
 import useMarketOpen from '../../../hooks/useMarketOpen'
 import { getExtSessionCached } from '../../../utils/extSession'
 import { useFlagged } from '../../../hooks/useFlagged'
-import useFundamentalSnapshot from '../../../hooks/useFundamentalSnapshot'
+import useHeaderSnapshot from './useHeaderSnapshot'
 import useWatchlistPerformance from '../../../hooks/useWatchlistPerformance'
 import useWatchlistMeta from '../../../hooks/useWatchlistMeta'
 import useVolumeCurve from '../../../hooks/useVolumeCurve'
@@ -192,7 +192,7 @@ function ChartPane({
   const econCat = useEconomicCatalog(isEcon)
   const econRow = isEcon ? (econCat.list.find((r) => r && String(r.symbol).toUpperCase() === econSym) || null) : null
   const econName = econRow ? (econRow.name || econRow.short_name || econSym) : econSym
-  const { data: fund } = useFundamentalSnapshot(sym, !compact && !mini && showTfBar && !isEcon)
+  const { data: fund } = useHeaderSnapshot(sym, !compact && !mini && showTfBar && !isEcon)
   const [flagToast, setFlagToast] = useState(null)
   useEffect(() => {
     if (!flagToast) return

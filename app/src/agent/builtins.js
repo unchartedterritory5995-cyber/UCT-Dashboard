@@ -51,6 +51,8 @@ import { registerJournalCapabilities } from './capabilities/journal'
 import { registerCoachCapabilities } from './capabilities/coach'
 // C3-205..207 (pl-exec6): Tools → Custom-Period Sort — run a sort, dock its panel
 import { registerPeriodSortCapabilities } from './capabilities/periodSort'
+// Tools → Compare Symbols: open the panel on its Rotation (RRG-style) or Overlay tab, switch between them
+import { registerComparePanelCapabilities } from './capabilities/comparePanel'
 
 let done = false
 export function registerBuiltins() {
@@ -96,6 +98,7 @@ export function registerBuiltins() {
   registerCalendarCapabilities()
   registerJournalCapabilities()
   registerPeriodSortCapabilities()
+  registerComparePanelCapabilities()        // compare.openView: the Compare panel's Rotation / Overlay view (a view, not saved)
   registerMultiChartCapabilities()   // pl-grid: the Multi Chart grid itself (C3-042..061)
 }
 

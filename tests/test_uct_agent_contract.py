@@ -39,6 +39,8 @@ _GROUP_OF = {"chart": "charts", "volume": "charts", "widget": "workspace", "layo
              "chartReplay": "chartReplay",
              # C3-205..207 (pl-exec6): Tools → Custom-Period Sort, its own words-only group (app/src/agent/routing.js)
              "periodSort": "periodSort",
+             # Charts family (2026-11-12): Tools → Compare Symbols' Rotation / Overlay view, its own words-only group
+             "compare": "comparePanel",
              # #1030 (2026-11-10): the Multi Chart grid family, its own fillLast group (app/src/agent/routing.js)
              "multiChart": "multiChart"}
 #: membership by ACTION NAME (routing.js `actions`), ahead of the domain — hotfix 2026-11-03: agent.undo's own group
