@@ -602,3 +602,15 @@ Part 2, usage counting. Eight events, sent through the same telemetry door as ev
 | `notebook_route_opened` (`route`) | How often the Setups board, My Playbook (in the Notebook) and the ticker research page render. |
 
 `block_used` stays as it was: it counts the 13 trader blocks whenever the widget insert command places one, whichever caller ran it, and nothing else. `block_inserted` is the wider one: every registry kind, but only from a member's press in one of the three insert doors, once per press, from the editor's own transaction (the widget node's plugin), so a multi-chart insert counts once.
+
+## Follow-up D (2026-11-13): a note that is saved is not left marked "not finished saving", base `8a5550bd89`
+
+The defect, older than this pass: a save that reached the server but whose answer the page never saw (it navigated, the tab closed) left the device's copy of the note marked unsent. The outbox drain then found the server holding exactly those words and removed only the queued entry, and opening the note wrote nothing, so Move to Trash, bulk trash, tag rename, sample removal, send to journal, AI actions and review drafts kept refusing with "has changes that have not finished saving", which was false, and "Open it so it can finish saving" did nothing.
+
+- F1, the drain (`lib/offline/outboxDrain.js`): both "server already identical" branches go through one helper, `settleIfServerHolds`, in one IndexedDB transaction. A dirty record holding exactly the server's words, with every queued entry for the note holding them too, is written clean at the revision just read and its entries go; otherwise only the proven entry is removed, and only while it still holds those words (an entry rewritten by a newer capture during the server check is now kept, where it used to be deleted by id). The landed-revision ring is not touched; no request is added.
+- F2, on open: when recovery finds a dirty record no local copy differs from, the editor settles it through the same helper before it shows its decision (`useDurableNote` `settleProvenEqual`, `NoteEditorPage` `decide()`).
+- F3, the label: the save indicator says nothing until the device's recovery decision for the note is made; online, if the store held this note's unsent work on open, it reads "Saved in this browser · waiting to sync" (the queue's existing words) instead of "Saved", until this page commits a write of its own or the record is settled.
+- F4: `pagehide` and a tab becoming hidden flush the pending durable write (the writer's own `flush()`); best effort, nothing else changed.
+- Separately: `lib/offline/noteCopy.test.js` read a size sentence that master's `2cd5ccbd0a` had moved into `TOO_LONG_BODY_DETAIL`; the rail now reads the constant.
+
+Rails: `lib/offline/provenEqualSettles.test.js`, `lib/offline/provenEqualOnOpen.test.jsx`; `ringVouchAuthority.test.js` names the new remove-only call. First open 2,250,747 B to 2,251,962 B (+1,215 B). Real-browser steps and the full record: `.superpowers/followups/D-report.md` (local).

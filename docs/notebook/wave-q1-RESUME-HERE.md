@@ -7073,3 +7073,31 @@ as a bookmark, never as completion.
 ⭐ **The deploy-#5 stamp is still owed**, and it is the one that dates the gate.
 This stamp exists so the next session can tell a *paused* wave from a *finished*
 one — the distinction the two hard stops kept losing.
+
+---
+
+## ⛔ 2026-11-13 — FOLLOW-UP D: A RECORD PROVEN EQUAL TO THE SERVER IS SETTLED
+
+**The defect, older than the 2026-11 Notebook work.** A save that reached the server but
+whose answer the page never saw (a full navigation, a closed tab) left the record
+`dirty: 1`, its entry queued and a dead tab's marker. The drain's two *"server already
+identical"* branches removed **the entry only**, and opening the note wrote nothing, so
+the record stayed dirty for good and every `noteHasUnsentWork` door (trash, bulk trash,
+tag rename, sample removal, send to journal, AI actions, review drafts) refused with a
+false *"has changes that have not finished saving"*. ⭐ **The fix** is ONE helper,
+`settleIfServerHolds` (`outboxDrain.js`), in ONE readwrite transaction through
+`putNoteWithIntentIf`: a dirty record holding exactly the server's words, with every
+entry queued for the note holding them too, goes clean at the revision just read and
+its entries go; otherwise only the proven entry is removed, and only while it still
+holds those words — the old clear was BY ID after a network round trip, so a capture
+landing during the server check had its newer entry deleted. The drain calls it from
+both identical branches, and the editor calls it on open (`settleProvenEqual`) when
+recovery finds a dirty record no copy differs from. The save label now waits for the
+recovery decision and does not say "Saved" over unsent work the store held on open;
+`pagehide` and a hidden tab flush the durable writer. ⛔⛔ **The rule it adds: a record
+proven equal to the server is settled, by the drain and on open; identical content
+never enters the landed ring** — the content proves the server HAS the words, never
+that THIS browser wrote the revision, and recording it would hand guard 2 a false
+"ours". Rails: `provenEqualSettles.test.js`, `provenEqualOnOpen.test.jsx`, every guard
+mutation-proved; `ringVouchAuthority.test.js` names `supersedeIdentical` as the
+identical sites' remove-only call.
