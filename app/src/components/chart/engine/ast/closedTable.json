@@ -1467,6 +1467,23 @@
       "yields": "num",
       "sentence": "the {3}-bar stochastic %K of {0}, {1} and {2}"
     },
+    "stochPine": {
+      "args": [
+        "series",
+        "series",
+        "series",
+        "int"
+      ],
+      "argRoles": [
+        "high",
+        "low",
+        "close",
+        "period"
+      ],
+      "lookback": "arg3",
+      "yields": "num",
+      "sentence": "the {3}-bar stochastic %K of {0}, {1} and {2}, skipping missing values and keeping its last value where it has none"
+    },
     "sum": {
       "args": [
         "series",
@@ -3537,7 +3554,8 @@
       "acos",
       "alma",
       "percentileNearestRank",
-      "rci"
+      "rci",
+      "stochPine"
     ]
   },
   "_functions_excluded": {

@@ -77,11 +77,12 @@ function pineSupertrend(bars, factor, n) {
   return { value, dir }
 }
 
-const col = (source, bars) => {
+const col = (source, bars, opts) => {
   const r = parseFormula(source)
   expect(r.ok, `${source}: ${r.error}`).toBe(true)
-  return Array.from(interpret(r.ast, bars, {}))
+  return Array.from(interpret(r.ast, bars, {}, undefined, undefined, opts))
 }
+const LISTING = { historyFromListing: true }
 
 describe('supertrend — the expansion is the manifest\'s own recurrence', () => {
   it('reads its own previous value through the name the manifest declares', () => {
@@ -218,5 +219,91 @@ describe('supertrend — bounded: a value is the same whatever was fetched', () 
   it('a series shorter than the warm-up publishes nothing rather than a guess', () => {
     const value = col('supertrend(3, 10)', walk(2 * W, 11))
     expect(value.every(Number.isNaN)).toBe(true)
+  })
+})
+
+// ─── ⭐⭐ ENGINE 57 — FROM THE LISTING ────────────────────────────────────────────────
+// Every rail above runs OFF the listing (`opts` without `historyFromListing`), which is why
+// none of them saw the defect: from the listing the listing pass runs the recurrences from
+// bar 0, where the raw band seed is `na` (the ATR's warm-up), and a ratchet with no `nz`
+// held that `na` forever — the builtin Supertrend drew NOTHING on all 666 bars of the S6
+// NYSE:RDDT 1D capture. Pine's own `nz(band[1])` seeds and `na(atr[1]) ? 1` arm fix it, and
+// the guard (the bounded window's own curtain, two windows deep) lifts on the listing.
+describe("supertrend — from the listing (engine 57: Pine's `nz` seeds)", () => {
+  it.each([[3, 10], [2, 7], [4, 20]])("factor %s, ATR %s — every bar equals Pine's full history, from bar 0", (factor, n) => {
+    let compared = 0
+    const differing = []
+    for (let seed = 1; seed <= 6; seed += 1) {
+      const bars = walk(1000, seed)
+      const ref = pineSupertrend(bars, factor, n)
+      const value = col(`supertrend(${factor}, ${n})`, bars, LISTING)
+      const dir = col(`supertrendDirection(${factor}, ${n})`, bars, LISTING)
+      for (let i = 0; i < bars.length; i += 1) {
+        // the direction is known on every bar; the value is `na` exactly where Pine's is
+        // (bars 1..n-2: the upper band during the ATR warm-up)
+        expect(dir[i], `seed ${seed} bar ${i} direction`).toBe(ref.dir[i])
+        if (Number.isNaN(ref.value[i])) { expect(Number.isNaN(value[i]), `seed ${seed} bar ${i}`).toBe(true); continue }
+        compared += 1
+        if (!(Math.abs(value[i] - ref.value[i]) <= 1e-9 * Math.abs(ref.value[i]))) {
+          differing.push({ seed, i, ours: value[i], pine: ref.value[i] })
+        }
+      }
+      expect(ref.value.slice(1, n - 1).every(Number.isNaN)).toBe(true)
+    }
+    expect(compared).toBeGreaterThan(6 * 980)
+    expect(differing.slice(0, 5)).toEqual([])
+  })
+
+  it('wherever the off-listing replay draws, the listing replay draws the same number', () => {
+    const bars = walk(1200, 21)
+    for (const f of ['supertrend(3, 10)', 'supertrendDirection(3, 10)']) {
+      const off = col(f, bars)
+      const on = col(f, bars, LISTING)
+      let drawnOff = 0
+      for (let i = 0; i < bars.length; i += 1) {
+        if (!Number.isFinite(off[i])) continue
+        drawnOff += 1
+        expect(on[i], `${f} bar ${i}`).toBe(off[i])
+      }
+      expect(drawnOff).toBeGreaterThan(700)
+      expect(on.filter(Number.isFinite).length).toBeGreaterThan(bars.length - 10)
+    }
+  })
+
+  it("the stored tree carries Pine's `nz(band[1])` and `na(atr[1])` arm (the shape the listing needs)", () => {
+    const t = supertrendTrees({ type: 'num', value: 3 }, { type: 'num', value: 10 })
+    // the direction recurrence itself (under the guard), which reads each band once
+    expect(t.direction.type === 'op' && t.direction.name === '?:').toBe(true)
+    const json = JSON.stringify(t.direction.args[2])
+    // both bands are seeded `nz(band, 0)` and read their previous value as `nz(self, 0)`
+    expect(json.match(/"name":"nz","args":\[\{"type":"series","name":"self"\},\{"type":"num","value":0\}\]/g).length).toBe(6)
+    expect(json).toMatch(/"name":"na","args":\[\{"type":"offset","value":1,"args":\[\{"type":"call","name":"atrPine"/)
+  })
+
+  it('off the listing the guard withholds exactly the bars the old band guard did (t < 2W); on it, none', () => {
+    const t = supertrendTrees({ type: 'num', value: 3 }, { type: 'num', value: 10 })
+    const guard = t.value.args[0]
+    expect(guard.type === 'call' && guard.name === 'na').toBe(true)
+    // the old guard, `na(upper[W]) || na(lower[W])`, built from the same bands
+    const branch = t.value.args[2]
+    const upper = branch.args[2]
+    const lower = branch.args[1]
+    expect(upper.name === 'accum' && lower.name === 'accum').toBe(true)
+    const old = {
+      type: 'op', name: '||', args: [
+        { type: 'call', name: 'na', args: [{ type: 'offset', value: W, args: [upper] }] },
+        { type: 'call', name: 'na', args: [{ type: 'offset', value: W, args: [lower] }] },
+      ],
+    }
+    for (const seed of [2, 5, 9]) {
+      const bars = walk(900, seed)
+      const now = Array.from(interpret(guard, bars, {}))
+      const was = Array.from(interpret(old, bars, {}))
+      expect(now, `seed ${seed}`).toEqual(was)
+      expect(now.findIndex((v) => v === 0)).toBe(2 * W)
+      expect(now.slice(0, 2 * W).every((v) => v === 1) && now.slice(2 * W).every((v) => v === 0)).toBe(true)
+      // from the listing the guard is known on every bar
+      expect(Array.from(interpret(guard, bars, {}, undefined, undefined, LISTING)).every((v) => v === 0)).toBe(true)
+    }
   })
 })

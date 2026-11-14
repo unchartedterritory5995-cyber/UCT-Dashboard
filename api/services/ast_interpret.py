@@ -1135,36 +1135,73 @@ def _window_percentile_nearest(series: Sequence[float], lo: int, hi: int,
     return vals[rank - 1]
 
 
-def _window_rci(series: Sequence[float], lo: int, hi: int) -> float:
-    """``ta.rci(source, length)`` (Phase 1, 2026-10-30): Spearman's rank
-    correlation between time order (newest = 1) and price order (highest = 1),
-    ``(1 - 6 * sum(d^2) / (n * (n^2 - 1))) * 100``; ties share their average
-    rank, ``na`` propagates. ⚠️ UNCONFIRMED UNTIL CAPTURED: TradingView publishes
-    no formula for ``ta.rci``, so the TIE rule (average rank) and the ``na`` rule
-    are this engine's reading, not a measurement. JS twin:
-    ``interpret.js::windowRci``."""
+#: ``interpret.js::RCI_NA_WINDOW`` / ``STOCH_FLAT_WINDOW`` (engine 57) -- the per-bar
+#: withholding codes of ``ta.rci`` and ``ta.stoch``; the JS lane owns the sentences
+#: (``CHART_CLOCK_WITHHELD``).
+RCI_NA_WINDOW = "rci:na-window"
+STOCH_FLAT_WINDOW = "stoch:flat-window"
+
+
+def _finite(v: Any) -> bool:
+    return isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)
+
+
+def _rci_at(series: Sequence[float], lo: int, hi: int) -> float:
+    """``ta.rci`` over ``series[lo..hi]`` (engine 57, MEASURED) -- ``interpret.js::rciAt``, the
+    same arithmetic in the same order: the Pearson correlation of the time ranks (newest = 1)
+    with the price ranks (highest = 1, ties sharing the AVERAGE rank), x 100; an ``na`` of the
+    source ranks as 0; ``NaN`` on a flat window. Read the JS docstring for the captures."""
     n = hi - lo + 1
-    if n < 2:
-        return NAN
-    total = 0.0
+    m = (n + 1) / 2
+
+    def at(j: int) -> float:
+        v = series[j]
+        return v if _finite(v) else 0.0
+
+    cov = 0.0
+    vp = 0.0
     for k in range(n):
-        v = series[hi - k]
-        if _isnan(v):
-            return NAN
+        v = at(hi - k)
         above = 0
         same = 0
         for j in range(lo, hi + 1):
-            w = series[j]
-            if _isnan(w):
-                return NAN
+            w = at(j)
             if w > v:
                 above += 1
             elif w == v:
                 same += 1
-        price_rank = 1 + above + (same - 1) / 2
-        d = (k + 1) - price_rank
-        total += d * d
-    return (1 - (6 * total) / (n * (n * n - 1))) * 100
+        p = 1 + above + (same - 1) / 2
+        cov += (k + 1 - m) * (p - m)
+        vp += (p - m) * (p - m)
+    vt = (n * (n * n - 1)) / 12
+    return (100 * cov) / math.sqrt(vt * vp) if vp > 0 else NAN
+
+
+def rci_withheld_code(series: Sequence[float], n: int, i: int) -> Optional[str]:
+    """``interpret.js::rciWithheldCode`` -- ``rci:na-window`` where the window holds an ``na``
+    of the source beside a value at or below 0, else None."""
+    if i < n or n < 2:
+        return None
+    hole = False
+    non_positive = False
+    for j in range(i - n + 1, i + 1):
+        v = series[j]
+        if not _finite(v):
+            hole = True
+        elif v <= 0:
+            non_positive = True
+    return RCI_NA_WINDOW if hole and non_positive else None
+
+
+def _rci_col(series: Sequence[float], n: int) -> List[float]:
+    """``ta.rci`` as a column (``interpret.js::rciCol``): ``_rci_at`` over ``series[i-n+1..i]``
+    on every bar ``i >= n`` (the captured first value is on bar ``n``)."""
+    out = _nan_col(len(series))
+    if not n >= 2:
+        return out
+    for i in range(n, len(series)):
+        out[i] = _rci_at(series, i - n + 1, i)
+    return out
 
 
 def _alma_col(series: Sequence[float], n: int, offset: Sequence[float],
@@ -2382,6 +2419,55 @@ def _fn_stoch(h, l, c, n):  # noqa: E741
                          lambda bars: compute_stoch_raw(bars, n, 1)[0])
 
 
+def _stoch_pine_scan(h, l, c, n):  # noqa: E741
+    """Pine's ``ta.stoch(source, high, low, n)`` (engine 57, MEASURED) --
+    ``interpret.js::stochPineScan``, step for step: ``na`` before bar ``n - 1``; ``hi`` / ``lo``
+    over the last ``n`` FINITE highs / lows (fewer while fewer exist); ``100 * (c - lo) / (hi - lo)``;
+    where that has no number (an ``na`` source, a 0 range, no observation) the previous answer
+    is held. Returns ``(out, flags)``: ``flags[i]`` is 1 on a flat window whose held value is
+    not 0 (``stoch:flat-window``, withheld by ``builtin_witness_mask``)."""
+    length = len(c)
+    out = _nan_col(length)
+    flags = [0] * length
+    if not n >= 1:
+        return out, flags
+    hs: List[float] = []
+    ls: List[float] = []
+    prev = NAN
+    for i in range(length):
+        if _finite(h[i]):
+            hs.append(h[i])
+            if len(hs) > n:
+                hs.pop(0)
+        if _finite(l[i]):
+            ls.append(l[i])
+            if len(ls) > n:
+                ls.pop(0)
+        if i < n - 1:
+            continue
+        v = NAN
+        flat = False
+        if hs and ls and _finite(c[i]):
+            hi = max(hs)
+            lo = min(ls)
+            if hi - lo == 0:
+                flat = True
+            else:
+                v = (100 * (c[i] - lo)) / (hi - lo)
+        if not math.isfinite(v):
+            v = prev
+            if flat and math.isfinite(prev) and prev != 0:
+                flags[i] = 1
+        out[i] = v
+        prev = v
+    return out, flags
+
+
+def _stoch_pine_col(h, l, c, n):  # noqa: E741
+    """``interpret.js::stochPineCol`` -- ``_stoch_pine_scan``'s column."""
+    return _stoch_pine_scan(h, l, c, n)[0]
+
+
 def _fn_cci(h, l, c, n):  # noqa: E741
     return _bind_shipped(_HLC, (h, l, c), len(c), lambda bars: compute_cci_raw(bars, n))
 
@@ -2497,7 +2583,8 @@ FN: Dict[str, Callable[..., List[float]]] = {
     # bespoke for the same reason as the entry above. JS twins in ``interpret.js``.
     "percentileNearestRank": lambda series, n, percentage: _rolling(
         series, n, lambda s, lo, hi: _window_percentile_nearest(s, lo, hi, percentage), NA_PROPAGATE),
-    "rci": lambda series, n: _rolling(series, n, _window_rci, NA_PROPAGATE),
+    # ENGINE 57 -- the measured Pearson-of-average-ranks form, first value on bar ``n``.
+    "rci": lambda series, n: _rci_col(series, n),
     "alma": lambda series, n, offset, sigma: _alma_col(series, n, offset, sigma),
     "percentrank": lambda series, n: [
         _percentrank_at(series, i, n) if i >= n else NAN for i in range(len(series))
@@ -2557,6 +2644,8 @@ FN: Dict[str, Callable[..., List[float]]] = {
     "plusDI": _fn_plus_di,
     "minusDI": _fn_minus_di,
     "stoch": _fn_stoch,
+    # ENGINE 57 -- Pine's ``ta.stoch``, reached only through ``pine.js::PINE_CALL_SHAPES.stoch``.
+    "stochPine": _stoch_pine_col,
     "cci": _fn_cci,
     "williamsR": _fn_williams_r,
     "mfi": _fn_mfi,
@@ -4465,6 +4554,11 @@ def interpret(ast: Any, bars: List[dict],
         varied = var_origin_mask(ast, bars, inputs, budget, scalars, opts)
         if varied is not None:
             column = [math.nan if varied[i] else v for i, v in enumerate(column)]
+        # ENGINE 57 -- ``interpret.js::builtinWitnessMask``: ``ta.rci`` / ``ta.stoch`` bars
+        # no capture pins, withheld by name.
+        witnessed = builtin_witness_mask(ast, bars, inputs, budget, scalars, opts)
+        if witnessed is not None:
+            column = [math.nan if witnessed[i] else v for i, v in enumerate(column)]
     # C30 / C36 -- the port of ``interpret.js::withPeriodAnchorWithheld``: a tree
     # that reads ``time("W"|"M"|"3M"|"12M")`` (or ``time(timeframe.period)`` /
     # ``time("60")``) is withheld on the bars ``period_anchor_mask`` names.
@@ -4661,6 +4755,104 @@ from api.services.ast_bar_index_shift import (  # noqa: E402,F401
     bar_index_verdict, threshold_unknown, RUNNING_TOTAL_CALLS, reads_running_total,
 )
 
+
+
+#: ``interpret.js::BUILTIN_WITNESS_CODES`` (engine 57).
+_BUILTIN_WITNESS_CODES = {"rci": RCI_NA_WINDOW, "stochPine": STOCH_FLAT_WINDOW}
+#: ``interpret.js::WITNESS_CARRIED_CALLS``.
+_WITNESS_CARRIED_CALLS = frozenset(("ema", "rma", "rsi", "atr", "atrPine", "adx", "plusDI", "minusDI", "macd"))
+
+
+def _positive_on_every_bar(node: Any) -> bool:
+    """``interpret.js::positiveOnEveryBar`` -- True is a proof the tree is a positive number on
+    every bar the chart holds; False is only "not proved"."""
+    if not isinstance(node, dict):
+        return False
+    t = node.get("type")
+    if t == "num":
+        v = node.get("value")
+        return isinstance(v, (int, float)) and not isinstance(v, bool) and v > 0
+    if t == "series":
+        return node.get("name") in ("open", "high", "low", "close")
+    if t == "op" and node.get("name") in ("+", "*", "/"):
+        args = node.get("args")
+        return isinstance(args, list) and len(args) == 2 and all(_positive_on_every_bar(a) for a in args)
+    return False
+
+
+def builtin_witness_mask(tree: Any, bars: List[dict],
+                         inputs: Optional[Mapping[str, Any]] = None,
+                         budget: Optional[Mapping[str, Any]] = None,
+                         scalars: Optional[Mapping[str, Any]] = None,
+                         opts: Optional[Mapping[str, Any]] = None) -> Optional[List[int]]:
+    """``interpret.js::builtinWitnessMask`` (engine 57) -- the bars where a ``ta.rci`` or a
+    Pine ``ta.stoch`` reads a window no capture pins (1 = withheld), or None. Read the JS
+    docstring for the rule; this is the same decision, node for node."""
+    n = len(bars)
+    found: List[tuple] = []
+    stack = [(tree, False, False)]
+    seen = set()
+    functions = TABLE[FUNCTIONS_SECTION]
+    while stack:
+        node, nested, unbounded = stack.pop()
+        if not isinstance(node, dict) or id(node) in seen:
+            continue
+        seen.add(id(node))
+        name = node.get("name")
+        if node.get("type") == "call" and name in _BUILTIN_WITNESS_CODES:
+            found.append((node, nested, unbounded))
+        into = nested or node.get("type") in ("sym", "tf", "tf_live", "tf_merge")
+        spec = functions.get(name) if node.get("type") == "call" and isinstance(name, str) else None
+        opened = unbounded or bool(spec is not None and (spec.get("lookback") == SERIES_LOOKBACK
+                                                         or _is_stateful_call(node)
+                                                         or name in _WITNESS_CARRIED_CALLS))
+        args = node.get("args")
+        if isinstance(args, list):
+            for a in args:
+                stack.append((a, into, opened))
+    if not found:
+        return None
+    mask = [0] * n
+    codes: set = set()
+    held = False
+    root_reach = max_lookback(tree)
+    inner = dict(opts or {}, chartClockSink=None)
+
+    def col_of(node: Any) -> List[float]:
+        return _interpret_column(node, bars, inputs, budget, scalars, inner)
+
+    for node, nested, unbounded in found:
+        args = node.get("args") or []
+        name = node.get("name")
+        if nested or _reads_recurrence_binding(node):
+            if name == "rci" and not _positive_on_every_bar(args[0]):
+                codes.add(_BUILTIN_WITNESS_CODES["rci"])
+                mask = [1] * n
+                held = held or n > 0
+            continue
+        length = col_of(args[1] if name == "rci" else args[3])
+        w = length[-1] if length else NAN
+        if not (_finite(w) and w >= 1 and w == int(w)):
+            continue
+        w = int(w)
+        if name == "rci":
+            src = col_of(args[0])
+            flagged = [rci_withheld_code(src, w, i) is not None for i in range(n)]
+        else:
+            flagged = [f == 1 for f in _stoch_pine_scan(col_of(args[0]), col_of(args[1]), col_of(args[2]), w)[1]]
+        reach = max(0, root_reach - max_lookback(node))
+        last = -math.inf
+        for i in range(n):
+            if flagged[i]:
+                codes.add(_BUILTIN_WITNESS_CODES[name])
+                last = last if (unbounded and last != -math.inf) else i
+            if last != -math.inf and (unbounded or i - last <= reach):
+                mask[i] = 1
+                held = True
+    if not held:
+        return None
+    _name_chart_clock(opts, sorted(codes))
+    return mask
 
 
 def bar_index_mask(tree: Any, bars: List[dict],

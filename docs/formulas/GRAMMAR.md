@@ -89,7 +89,7 @@ declare — how many operands they take and what they answer.
 | `!` | 1 | true or false |
 | `?:` | 3 | passthrough |
 
-## Functions (86)
+## Functions (87)
 
 `Needs` is how far back the function reads — the number the engine adds up to
 decide whether a formula can run at all.
@@ -174,6 +174,7 @@ decide whether a formula can run at all.
 | `sqrt(source)` | a number | 0 bars | the square root of `source` |
 | `stdev(source, period)` | a number | whatever `period` asks for | the `period`-bar standard deviation of `source` |
 | `stoch(high, low, close, period)` | a number | whatever `period` asks for | the `period`-bar stochastic %K of `high`, `low` and `close` |
+| `stochPine(high, low, close, period)` | a number | whatever `period` asks for | the `period`-bar stochastic %K of `high`, `low` and `close`, skipping missing values and keeping its last value where it has none |
 | `sum(source, period)` | a number | whatever `period` asks for | the sum of `source` over the last `period` bars |
 | `tan(source)` | a number | 0 bars | the tangent of `source` |
 | `valuewhen(condition, source, period)` | a number | whatever `period` asks for | the value of `source` on the most recent of the last `period` bars where `condition` was true |

@@ -1819,35 +1819,72 @@ function windowPercentileNearest(series, lo, hi, percentage) {
   return vals[rank - 1]
 }
 
-/** ⭐ PHASE 1 (2026-10-30) — `ta.rci(source, length)`: the Rank Correlation
- *  Index, Spearman's rank correlation between the bars' TIME order (newest = 1)
- *  and their PRICE order (highest = 1), scaled to −100..100 —
- *  `(1 − 6·Σd² / (n·(n² − 1))) × 100`. A rising window reads +100. Tied prices
- *  share the average of the ranks they span. ⚠️ UNCONFIRMED UNTIL CAPTURED:
- *  TradingView publishes no formula and no capture holds `ta.rci` yet, so the
- *  tie rule and the `na` rule (propagates here) are the two readings a capture
- *  must settle. Python twin:
- *  `ast_interpret._window_rci`. */
-function windowRci(series, lo, hi) {
+/** ⭐⭐ ENGINE 57 — `ta.rci(source, length)`, MEASURED: the Pearson correlation of the
+ *  bars' TIME ranks (newest = 1) with their PRICE ranks (highest = 1, tied prices sharing
+ *  the AVERAGE of the ranks they span), × 100. In closed form, with `m = (n + 1) / 2`:
+ *
+ *      100 · Σ (t − m)(p − m) / sqrt(n(n² − 1)/12 · Σ (p − m)²)
+ *
+ *  ⚰️ IT WAS `(1 − 6·Σd² / (n(n² − 1))) × 100`, Spearman's no-ties shortcut, the same number
+ *  only while no two prices in the window are equal. Captured from the listing (S6, NYSE:RDDT
+ *  1D: `rank-correlation-index`, `rci-ribbon` lengths 10 / 30 / 50) the Pearson form has 0
+ *  mismatches over 2,564 values; the shortcut differed on windows holding a tie.
+ *  ⭐ AND THREE EDGES, EACH CAPTURED (S1 probe P1, `vw-cs1-rci-p1-rddt-1d-2026-11-14`, 0
+ *  mismatches on all four columns over 666 bars):
+ *    - the first value is on bar `length` (`bar_index >= length`), never `length - 1` — the
+ *      control `ta.rci(close, 10)` starts on bar 10 though its window is whole on bar 9;
+ *    - an `na` of the source inside the window ranks as `0` (below every positive price,
+ *      tied with any other `na`): `ta.rci(ta.sma(close, 5), 10)` draws 30.06 / -1.22 / -44.24
+ *      on bars 10..12, whose windows still hold the `sma`'s warm-up;
+ *    - a window whose prices are all equal (Σ(p − m)² = 0) is `na`:
+ *      `ta.rci(math.round(close / 1000), 10)` (0 on every RDDT bar) draws nothing.
+ *  ⛔ ONE CASE THE PROBE DOES NOT PIN, WITHHELD BY NAME (`rciWithheldCode`,
+ *  `builtinWitnessMask`, `rci:na-window`): an `na` in a window that also holds a value at or
+ *  below 0. Over the positive prices the probe ran, "an `na` is 0" and "an `na` sorts below
+ *  everything" are the same ranks; there they are not.
+ *  Python twin: `ast_interpret._rci_col`. */
+export function rciAt(series, lo, hi) {
   const n = hi - lo + 1
-  if (n < 2) return NaN
-  let sum = 0
+  const m = (n + 1) / 2
+  const at = (j) => (Number.isFinite(series[j]) ? series[j] : 0)
+  let cov = 0
+  let vp = 0
   for (let k = 0; k < n; k++) {
-    const v = series[hi - k]
-    if (Number.isNaN(v)) return NaN
+    const v = at(hi - k)       // the k-th newest bar: time rank k + 1
     let above = 0
     let same = 0
     for (let j = lo; j <= hi; j++) {
-      const w = series[j]
-      if (Number.isNaN(w)) return NaN
+      const w = at(j)
       if (w > v) above += 1
       else if (w === v) same += 1
     }
-    const priceRank = 1 + above + (same - 1) / 2
-    const d = (k + 1) - priceRank
-    sum += d * d
+    const p = 1 + above + (same - 1) / 2
+    cov += (k + 1 - m) * (p - m)
+    vp += (p - m) * (p - m)
   }
-  return (1 - (6 * sum) / (n * (n * n - 1))) * 100
+  const vt = (n * (n * n - 1)) / 12
+  return vp > 0 ? (100 * cov) / Math.sqrt(vt * vp) : NaN
+}
+
+/** The withholding code for `ta.rci(source, n)` on bar `i`, or null (see `rciAt`): the
+ *  window holds an `na` of the source AND a value at or below 0. */
+export function rciWithheldCode(series, n, i) {
+  if (i < n || n < 2) return null
+  let hole = false
+  let nonPositive = false
+  for (let j = i - n + 1; j <= i; j++) {
+    if (!Number.isFinite(series[j])) hole = true
+    else if (series[j] <= 0) nonPositive = true
+  }
+  return hole && nonPositive ? RCI_NA_WINDOW : null
+}
+
+/** `ta.rci` as a column: `rciAt` over `source[i − n + 1 .. i]` on every bar `i >= n`. */
+export function rciCol(series, n) {
+  const out = nan(series.length)
+  if (!(n >= 2)) return out
+  for (let i = n; i < series.length; i++) out[i] = rciAt(series, i - n + 1, i)
+  return out
 }
 
 /** ⭐ PHASE 1 (2026-10-30) — `ta.alma(series, length, offset, sigma)`:
@@ -2547,6 +2584,66 @@ const windowFn = (name) => (series, n) =>
   rolling(series, FINITE_WINDOW[name].span(n), FINITE_WINDOW[name].reduce,
     FINITE_WINDOW[name].na, FINITE_WINDOW[name].naCurrent)
 
+/** ⭐⭐ ENGINE 57 — PINE'S `ta.stoch(source, high, low, n)`, MEASURED (0 mismatches on five
+ *  captured columns over 666 bars each: the builtin `stochastic-rsi` K and D, S6, and S1 probe P2
+ *  `vw-cs1-stoch-p2-rddt-1d-2026-11-14`'s three stochastics over a source with an `na` every 50
+ *  bars and a flat 20-bar run):
+ *
+ *      bar_index < n − 1                         na
+ *      hi = max of the last n FINITE highs       (fewer while fewer exist; none → na)
+ *      lo = min of the last n FINITE lows
+ *      v  = 100 · (source − lo) / (hi − lo)
+ *      v is na (an na source, a 0 range, no observation) → the PREVIOUS answer, held
+ *
+ *  ⚰️ `ta.stoch` USED TO LAND ON THE HOUSE `stoch` (`computeStochastic` over `bindShipped`),
+ *  which reads only the last all-finite tail, needs a FULL `n`-bar window of it and answers 50
+ *  on a flat window: the captured Stoch RSI %K starts on bar 15 (K on 17); the house one
+ *  started on bar 27. The windows are NOT this table's `highest` / `lowest` (the `RESTART` rule,
+ *  which blanks the bar of a hole and restarts after it): probe P2 reads the last `n` finite
+ *  values across a hole, and its `ta.highest(x, 10)` beside them does the same. Where the
+ *  formula has no number TradingView keeps the previous one: on an `na` source bar (probe P2,
+ *  bars 30, 80, … repeat bar 29's, 79's value), and on a flat window (P2's flat run holds the 0
+ *  before it; the Stoch RSI's first bar, one observation, holds nothing and is `na`).
+ *  ⛔ ONE CASE THE CAPTURES DO NOT PIN, WITHHELD BY NAME (`stoch:flat-window`): a flat window
+ *  whose held value is not 0. The flat run P2 measured followed a 0, where "hold" and "a flat
+ *  window is 0" agree; after another value they part.
+ *  Python twin: `ast_interpret._stoch_pine_scan`; runtime kernel: `CARRIED2.stochPine`. */
+export function stochPineScan(h, l, c, n) {
+  const len = c.length
+  const out = nan(len)
+  const flags = new Uint8Array(len)
+  if (!(n >= 1)) return { out, flags }
+  const hs = []
+  const ls = []
+  let prev = NaN
+  for (let i = 0; i < len; i++) {
+    if (Number.isFinite(h[i])) { hs.push(h[i]); if (hs.length > n) hs.shift() }
+    if (Number.isFinite(l[i])) { ls.push(l[i]); if (ls.length > n) ls.shift() }
+    if (i < n - 1) continue
+    let v = NaN
+    let flat = false
+    if (hs.length && ls.length && Number.isFinite(c[i])) {
+      const hi = Math.max(...hs)
+      const lo = Math.min(...ls)
+      if (hi - lo === 0) flat = true
+      else v = (100 * (c[i] - lo)) / (hi - lo)
+    }
+    if (!Number.isFinite(v)) {
+      v = prev
+      if (flat && Number.isFinite(prev) && prev !== 0) flags[i] = 1
+    }
+    out[i] = v
+    prev = v
+  }
+  return { out, flags }
+}
+
+/** `ta.stoch` as a column (`stochPineScan`). */
+export function stochPineCol(h, l, c, n) {
+  return stochPineScan(h, l, c, n).out
+}
+
+
 /** ⭐⭐⭐ THE CARRIED-STATE FAMILY (2F-2C) — `FINITE_WINDOW`'S COUNTERPART.
  *
  *  A finite window answers from `span` recent INPUTS; a carried builtin answers
@@ -2828,43 +2925,66 @@ const crossStep = (fired) => (st, off, a, b) => {
   return fired(a, b, ap, bp) ? 1 : 0
 }
 
-/** ⭐ `stochPine(close, high, low, n)` — `computeStochastic`'s fast %K, a bar at
- *  a time. Rings of the last `n` highs and lows, a cursor and a count.
- *
- *  ⛔ A NON-FINITE INPUT RESTARTS THE WINDOW. The columnar binding
- *  (`bindShipped` -> `finiteTailStart`) starts its column after the LAST
- *  non-finite value of ANY argument, which no forward pass can know; the causal
- *  form of the same rule is "restart after each one". They agree on every series
- *  whose holes are a leading prefix (a warm-up), which is the case a source
- *  computed by the run presents, and on the part of a gappy series after its
- *  final hole. A zero range is 50, `computeStochastic`'s own answer. */
-const STOCH_PINE_CELLS = (n) => 2 * n + 2
+/** ⭐⭐ ENGINE 57 — `stochPine(close, high, low, n)` — Pine's `ta.stoch`, a bar at a time: the
+ *  columnar `stochPineScan` (`FN.stochPine`) stepped. Rings of the last `n` FINITE highs and
+ *  lows (a non-finite value is skipped, never stored), how many each holds, the bars seen (the
+ *  `bar_index >= n − 1` gate) and the previous answer (held where the formula has none).
+ *  ⚰️ It used to restart its whole window on ANY non-finite input and gate on the run (the
+ *  captured Stoch RSI %K starts on bar 15; this started on bar 27) and answered 50 on a flat
+ *  window.
+ *  ⛔ A flat window whose held value is not 0 is not a bar this lane can answer — the columnar
+ *  lane withholds it by name (`stoch:flat-window`) — so the run STOPS by that name. */
+const STOCH_PINE_CELLS = (n) => 2 * n + 6
 function stochPineInit(st, off, n) {
-  for (let i = 0; i < 2 * n + 2; i += 1) st[off + i] = 0
+  for (let i = 0; i < 2 * n; i += 1) st[off + i] = NaN
+  const at = off + 2 * n
+  st[at] = 0          // high ring cursor
+  st[at + 1] = 0      // highs held
+  st[at + 2] = 0      // low ring cursor
+  st[at + 3] = 0      // lows held
+  st[at + 4] = 0      // bars seen
+  st[at + 5] = NaN    // the previous answer
 }
 function stochPineStep(st, off, c, h, n, l) {
-  const curAt = off + 2 * n
-  const seenAt = curAt + 1
-  if (!Number.isFinite(c) || !Number.isFinite(h) || !Number.isFinite(l)) {
-    st[curAt] = 0
-    st[seenAt] = 0
-    return NaN
+  const at = off + 2 * n
+  if (Number.isFinite(h)) {
+    st[off + st[at]] = h
+    st[at] = (st[at] + 1) % n
+    st[at + 1] = Math.min(n, st[at + 1] + 1)
   }
-  const w = st[curAt]
-  st[off + w] = h
-  st[off + n + w] = l
-  st[curAt] = (w + 1) % n
-  const seen = st[seenAt] < n ? st[seenAt] + 1 : n
-  st[seenAt] = seen
-  if (seen < n) return NaN
-  let lowestLow = Infinity
-  let highestHigh = -Infinity
-  for (let j = 0; j < n; j += 1) {
-    if (st[off + n + j] < lowestLow) lowestLow = st[off + n + j]
-    if (st[off + j] > highestHigh) highestHigh = st[off + j]
+  if (Number.isFinite(l)) {
+    st[off + n + st[at + 2]] = l
+    st[at + 2] = (st[at + 2] + 1) % n
+    st[at + 3] = Math.min(n, st[at + 3] + 1)
   }
-  const range = highestHigh - lowestLow
-  return range === 0 ? 50 : ((c - lowestLow) / range) * 100
+  st[at + 4] = Math.min(n, st[at + 4] + 1)
+  if (st[at + 4] < n) return NaN
+  const prev = st[at + 5]
+  let v = NaN
+  let flat = false
+  const heldH = st[at + 1]
+  const heldL = st[at + 3]
+  if (heldH > 0 && heldL > 0 && Number.isFinite(c)) {
+    let highestHigh = -Infinity
+    let lowestLow = Infinity
+    // a ring holding fewer than `n` values holds them in slots 0 .. held-1
+    for (let j = 0; j < heldH; j += 1) if (st[off + j] > highestHigh) highestHigh = st[off + j]
+    for (let j = 0; j < heldL; j += 1) if (st[off + n + j] < lowestLow) lowestLow = st[off + n + j]
+    const range = highestHigh - lowestLow
+    if (range === 0) flat = true
+    else v = (100 * (c - lowestLow)) / range
+  }
+  if (!Number.isFinite(v)) {
+    if (flat && Number.isFinite(prev) && prev !== 0) throw stochFlatWindowStop(n)
+    v = prev
+  }
+  st[at + 5] = v
+  return v
+}
+function stochFlatWindowStop(n) {
+  const stop = new Error(`${STOCH_FLAT_WINDOW} — \`ta.stoch(…, ${n})\`: this bar's window is flat after a bar whose value was not 0, and no capture says whether TradingView holds that value or answers 0`)
+  stop.guard = STOCH_FLAT_WINDOW
+  return stop
 }
 
 /** ⭐ `vwapPine(sessionKey, price, 0, volume)` — `computeVWAP(bars, price)`'s
@@ -3030,7 +3150,8 @@ export const FN = Object.freeze({
   // bespoke closure for the reason `percentileLinearInterpolation` states above.
   percentileNearestRank: (series, n, percentage) =>
     rolling(series, n, (s, lo, hi) => windowPercentileNearest(s, lo, hi, percentage), NA.PROPAGATE),
-  rci: (series, n) => rolling(series, n, windowRci, NA.PROPAGATE),
+  // ⭐⭐ ENGINE 57 — the measured Pearson-of-average-ranks form, first value on bar `n` (`rciCol`).
+  rci: (series, n) => rciCol(series, n),
   alma: (series, n, offset, sigma) => almaCol(series, n, offset, sigma),
   percentrank: (series, n) => {
     const out = nan(series.length)
@@ -3177,6 +3298,10 @@ export const FN = Object.freeze({
   // `dPeriod` is pinned to 1 for the same reason `macd`'s `signal` is: it must
   // not reach a guard this entry's declaration says nothing about.
   stoch: (h, l, c, n) => bindShipped(HLC, [h, l, c], c.length, (bars) => computeStochastic(bars, n, 1).k),
+  // ⭐⭐ ENGINE 57 — `stochPine`, PINE'S `ta.stoch`, AND THE ONLY DOOR TO IT IS THE PINE
+  // TRANSLATOR (`pine.js::PINE_CALL_SHAPES.stoch`). The house `stoch` above is untouched (the
+  // native Stochastic and its fixtures read it — the `atr`/`atrPine` ruling). See `stochPineCol`.
+  stochPine: (h, l, c, n) => stochPineCol(h, l, c, n),
   cci: (h, l, c, n) => bindShipped(HLC, [h, l, c], c.length, (bars) => computeCCI(bars, n)),
   williamsR: (h, l, c, n) => bindShipped(HLC, [h, l, c], c.length, (bars) => computeWilliamsR(bars, n)),
   mfi: (h, l, c, v, n) => bindShipped(HLCV, [h, l, c, v], c.length, (bars) => computeMFI(bars, n)),
@@ -5200,6 +5325,11 @@ const periodCloseInner = (node) => (node.args[1].type === 'tf_live' ? node.args[
 const ANCHOR_SPELLED = '`time("W")`, `time("M")`, `time("3M")` and `time("12M")`'
 const CLOSE_SPELLED = '`time_close("W")` and `time_close("M")`'
 const tfSpelled = (tf) => (typeof tf === 'string' && tf ? `\`${tf}\`` : 'not stated')
+/** ⭐⭐ ENGINE 57 — the per-bar withholding codes of two measured built-ins, ONE spelling each:
+ *  the chart-clock channel names them (`CHART_CLOCK_WITHHELD`, `builtinWitnessMask`), the
+ *  runtime lane declines by the same string, and the member door shows it. */
+export const RCI_NA_WINDOW = 'rci:na-window'
+export const STOCH_FLAT_WINDOW = 'stoch:flat-window'
 export const CHART_CLOCK_WITHHELD = Object.freeze({
   'time-anchor:not-daily': (tf) => `${ANCHOR_SPELLED} — the opening time of the bar's week, month, `
     + 'quarter or year — are read here on 5-minute, 15-minute, 60-minute, 1D, 1W and 1M charts, the '
@@ -5335,6 +5465,21 @@ export const CHART_CLOCK_WITHHELD = Object.freeze({
     + 'no such bar; a count that has not reset yet) it is not known here, and what this indicator draws from it '
     + 'is withheld on those bars rather than drawn wrong. On a chart whose bars start at the symbol\'s listing '
     + 'it draws. What would settle it: nothing to capture — bars reaching the listing.',
+  // ⭐⭐ ENGINE 57 — `ta.rci` and `ta.stoch` (`builtinWitnessMask`).
+  [RCI_NA_WINDOW]: () => 'TradingView\'s `ta.rci` ranks an `na` of its source inside the window as 0 — measured '
+    + 'on NYSE:RDDT 1D from the listing (`ta.rci(ta.sma(close, 5), 10)`, whose first windows still hold the '
+    + 'average\'s warm-up), which is drawn. Over those positive prices "an `na` is 0" and "an `na` ranks below '
+    + 'every value" give the same answer; on a window that also holds a value at or below 0 they do not, and no '
+    + 'capture says which TradingView reads, so what this indicator draws from it on those bars is withheld '
+    + 'rather than guessed; every other bar is drawn. What would settle it: `ta.rci` over a source with an `na` '
+    + 'beside negative values captured on TradingView.',
+  [STOCH_FLAT_WINDOW]: () => 'Where TradingView\'s `ta.stoch` has no number — an `na` source bar, or a window '
+    + 'whose high and low are equal — it keeps its previous value (measured on NYSE:RDDT 1D from the listing: '
+    + 'the builtin Stochastic RSI and a probe with a hole and a flat run), which is drawn. The flat run measured '
+    + 'followed a bar whose value was 0, where keeping it and answering 0 agree; after any other value they do '
+    + 'not, and no capture says which TradingView does, so what this indicator draws from it on those bars is '
+    + 'withheld rather than guessed; every other bar is drawn. What would settle it: `ta.stoch` over a flat run '
+    + 'that follows a value other than 0 captured on TradingView.',
 })
 export const CHART_CLOCK_WHOLE = Object.freeze(['time-anchor:other-bars', 'time-clock:unreadable',
   'time-anchor:not-daily', 'time-anchor:weekend-bars', 'time-own:chart-unwitnessed', 'time-close:not-daily',
@@ -6202,11 +6347,109 @@ export function withheldReadMask(tree, bars, inputs, budget, scalars, opts) {
     historyReadMask(tree, bars, inputs, budget, scalars, opts),
     barIndexMask(tree, bars, inputs, budget, scalars, opts),
     varOriginMask(tree, bars, inputs, budget, scalars, opts),
+    // ⭐⭐ ENGINE 57 — `ta.rci` / `ta.stoch` bars no capture pins
+    builtinWitnessMask(tree, bars, inputs, budget, scalars, opts),
   ].filter(Boolean)
   if (masks.length <= 1) return masks[0] || null
   const out = new Float64Array(Math.max(...masks.map((m) => m.length)))
   for (let i = 0; i < out.length; i++) out[i] = masks.some((m) => m[i]) ? 1 : 0
   return out
+}
+
+/** ⭐⭐ ENGINE 57 — the calls whose bars `builtinWitnessMask` asks about, and the code each
+ *  names. */
+const BUILTIN_WITNESS_CODES = Object.freeze({
+  rci: RCI_NA_WINDOW,
+  stochPine: STOCH_FLAT_WINDOW,
+})
+/** Table functions that carry state with no end (a value read once moves every later answer):
+ *  a withheld bar under one withholds every later bar, whatever the declared lookback. */
+const WITNESS_CARRIED_CALLS = new Set(['ema', 'rma', 'rsi', 'atr', 'atrPine', 'adx', 'plusDI', 'minusDI', 'macd'])
+/** ⭐⭐ ENGINE 57 — IS THIS TREE A POSITIVE NUMBER ON EVERY BAR THE CHART HOLDS? `true` is a
+ *  proof (open / high / low / close, positive literals, and `+`, `*`, `/` over them — `hl2`,
+ *  `hlc3`, `ohlc4` as the door builds them); `false` is only "not proved". */
+function positiveOnEveryBar(node) {
+  if (!node || typeof node !== 'object') return false
+  if (node.type === 'num') return Number(node.value) > 0
+  if (node.type === 'series') return node.name === 'open' || node.name === 'high' || node.name === 'low' || node.name === 'close'
+  if (node.type === 'op' && (node.name === '+' || node.name === '*' || node.name === '/')) {
+    return Array.isArray(node.args) && node.args.length === 2 && node.args.every(positiveOnEveryBar)
+  }
+  return false
+}
+
+/** ⭐⭐ ENGINE 57 — THE BARS WHERE A `ta.rci` OR A PINE `ta.stoch` READS A WINDOW NO CAPTURE
+ *  PINS, as a 0/1 column (1 = withheld), or null when no bar is.
+ *
+ *  Per call site (`rci(source, n)`, `stochPine(high, low, close, n)`), each bar is asked of
+ *  the site's own argument columns: `rci:na-window` (`rciWithheldCode`: an `na` beside a value
+ *  at or below 0) and `stoch:flat-window` (`stochPineScan`: a flat window holding a value other
+ *  than 0). Every root bar within the tree's reach of a flagged bar is withheld —
+ *  `barIndexMask`'s rule: `maxLookback(tree) − maxLookback(site)` bars forward, or every later
+ *  bar when the site sits under a call that carries state.
+ *  ⛔ A site this pass cannot evaluate on the chart's bars — inside a read of other bars (`tf`,
+ *  `tf_live`, `tf_merge`, `sym`) or reading a recurrence's own value — withholds the WHOLE tree
+ *  for an `rci` whose source is not provably a positive price (`positiveOnEveryBar`: then it
+ *  cannot flag). A `stochPine` there is NOT withheld: a flat window after a value other than 0
+ *  needs `n` bars of one price after a different one, and blanking every higher-timeframe
+ *  stochastic for it would withhold plots that draw exactly — the residual is stated in the
+ *  engine-57 evidence rather than hidden.
+ *  Each code is named in the chart-clock channel (`CHART_CLOCK_WITHHELD`).
+ *  Python twin: `ast_interpret.builtin_witness_mask`. */
+export function builtinWitnessMask(tree, bars, inputs, budget, scalars, opts) {
+  const n = Array.isArray(bars) ? bars.length : 0
+  const found = []
+  const stack = [[tree, false, false]]
+  const seen = new Set()
+  while (stack.length) {
+    const [node, nested, unbounded] = stack.pop()
+    if (!node || typeof node !== 'object' || seen.has(node)) continue
+    seen.add(node)
+    if (node.type === 'call' && own(BUILTIN_WITNESS_CODES, node.name)) found.push({ node, nested, unbounded })
+    const into = nested || node.type === 'sym' || node.type === 'tf' || node.type === 'tf_live' || node.type === 'tf_merge'
+    const spec = node.type === 'call' && own(TABLE.functions, node.name) ? TABLE.functions[node.name] : null
+    const open = unbounded || !!(spec && (spec.lookback === SERIES_LOOKBACK || isStatefulCall(node)
+      || WITNESS_CARRIED_CALLS.has(node.name)))
+    if (Array.isArray(node.args)) for (const a of node.args) stack.push([a, into, open])
+  }
+  if (!found.length) return null
+  const mask = new Float64Array(n)
+  let any = false
+  const codes = new Set()
+  const rootReach = maxLookback(tree)
+  const inner = { ...opts, crossMemo: undefined, probeBase: undefined, chartClockSink: undefined }
+  const colOf = (node) => toColumn(interpretOnce(node, bars, inputs, budget, scalars, inner), n)
+  for (const { node, nested, unbounded } of found) {
+    const args = node.args || []
+    if (nested || readsRecurrenceBinding(node)) {
+      if (node.name === 'rci' && !positiveOnEveryBar(args[0])) {
+        codes.add(BUILTIN_WITNESS_CODES.rci)
+        mask.fill(1)
+        any = n > 0
+      }
+      continue
+    }
+    const lenCol = colOf(args[node.name === 'rci' ? 1 : 3])
+    const w = lenCol.length ? lenCol[lenCol.length - 1] : NaN
+    if (!(w >= 1) || !Number.isInteger(w)) continue
+    let flagged
+    if (node.name === 'rci') {
+      const src = colOf(args[0])
+      flagged = (i) => rciWithheldCode(src, w, i) !== null
+    } else {
+      const { flags } = stochPineScan(colOf(args[0]), colOf(args[1]), colOf(args[2]), w)
+      flagged = (i) => flags[i] === 1
+    }
+    const reach = Math.max(0, rootReach - maxLookback(node))
+    let last = -Infinity
+    for (let i = 0; i < n; i++) {
+      if (flagged(i)) { codes.add(BUILTIN_WITNESS_CODES[node.name]); last = unbounded && last !== -Infinity ? last : i }
+      if (last !== -Infinity && (unbounded || i - last <= reach)) { mask[i] = 1; any = true }
+    }
+  }
+  if (!any) return null
+  nameChartClock(opts, [...codes].sort(), opts && opts.tf)
+  return mask
 }
 
 /** Withhold (`NaN`) the bars `withheldReadMask` names. A COPY. */
