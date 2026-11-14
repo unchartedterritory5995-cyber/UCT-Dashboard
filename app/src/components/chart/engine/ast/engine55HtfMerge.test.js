@@ -142,6 +142,13 @@ describe('⭐⭐ review L3 — a finished newest bar that certainly closes its p
     expect(thu.codes).toEqual([TF_MERGE_NEWEST_CODE])
   })
 
+  it('⛔ M: a THURSDAY whose next weekday (Friday 01-30) is still in the month does not close it, though three days on is February', () => {
+    const jan = ['2026-01-26', '2026-01-27', '2026-01-28', '2026-01-29'].map((t, i) => ({ t, o: i + 1, h: i + 1.5, l: i + 0.5, c: i + 1, v: 100 }))
+    const r = named(node(TF_MERGE, 'M'), jan)
+    expect(r.last).toBe(null)
+    expect(r.codes).toEqual([TF_MERGE_NEWEST_CODE])
+  })
+
   it('W and M in one tree: served only when the bar closes BOTH (Fri 05-29), withheld on a Friday mid-month (03-27)', () => {
     const tree = parseFormula("tf_merge(close, 'W') + tf_merge(close, 'M')").ast
     expect(named(tree, upTo('2026-05-29')).last).toBe(17 + 17)
