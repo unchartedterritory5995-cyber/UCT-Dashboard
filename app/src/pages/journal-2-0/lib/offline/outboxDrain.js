@@ -175,6 +175,61 @@ function settleForkedIfUnmoved(db, noteId, serverNote, usable, forked) {
   })
 }
 
+/**
+ * ⭐⭐ Follow-up D (2026-11-13) — A RECORD PROVEN EQUAL TO THE SERVER IS SETTLED.
+ *
+ * ⚰️ A save that reached the server but whose answer the page never saw (it navigated, the
+ * tab closed) left the record `dirty: 1` and its entry queued. The drain then found the
+ * server holding exactly those words and removed the ENTRY only. The record stayed dirty
+ * for good, so every door asking `noteHasUnsentWork` (trash, bulk trash, tag rename, sample
+ * removal, send to journal, AI actions, review drafts) refused with "has changes that have
+ * not finished saving", which was false, and opening the note did not clear it.
+ *
+ * ⛔ ONE AUTHORITY for "this record is proven equal to the server": the drain's two
+ * identical branches and the editor's open (`useDurableNote` `settleProvenEqual`) both ask
+ * this, inside ONE readwrite transaction, so a durable write lands wholly before it (and the
+ * check sees it) or wholly after it.
+ *   'settled'  the record is dirty, holds exactly `serverCopy`, and so does every entry
+ *              queued for the note ⇒ clean at the revision the server was read at, entries
+ *              removed
+ *   'cleared'  otherwise `clear`, the entry the caller proved delivered, is removed, and only
+ *              while it still holds exactly `serverCopy`: an entry rewritten since then is
+ *              newer words and stays (the owner's invariant)
+ *   'clean'    nothing to do: the record is not dirty and nothing is queued for the note
+ *              (another tab's drain got there first)
+ *   null       nothing written
+ * ⛔ No usable revision ⇒ never settled. ⛔ Fix round 1: a proof OLDER than the base the
+ * record's words were written on proves nothing (a cached copy, read before those words'
+ * base existed) ⇒ never settled. ⛔ The landed ring is NOT touched: identical content is not
+ * proof that THIS browser wrote the revision.
+ */
+export async function settleIfServerHolds(db, noteId, serverCopy, serverUpdatedAt, { clear = null } = {}) {
+  const base = usableBaseline(serverUpdatedAt)
+  const holds = (o) => sameAuthoredContent(o, serverCopy)
+  let outcome = null
+  await putNoteWithIntentIf(db, noteId, (rec, queued) => {
+    if (base && rec?.dirty && !isSupersededBaseline(base, rec.baseUpdatedAt) && holds(rec)
+        && queued.every((e) => holds(e?.patch))) {
+      outcome = 'settled'
+      return { record: { ...rec, dirty: 0, baseUpdatedAt: base, serverBase: null }, intent: null }
+    }
+    if (!rec?.dirty && !queued.length) { outcome = 'clean'; return null }
+    if (!queued.some((e) => e?.mutationId === clear && holds(e.patch))) return null
+    outcome = 'cleared'
+    return { clear: [clear] }
+  })
+  return outcome
+}
+
+/** Both identical branches: settle, or clear the proven entry, or leave a rewritten one. */
+async function supersedeIdentical(db, entry, mine, reason) {
+  const how = await settleIfServerHolds(db, entry.noteId, entry.patch, mine.serverUpdatedAt, { clear: entry.mutationId })
+  const out = { mutationId: entry.mutationId, noteId: entry.noteId }
+  // Neither: the entry changed (or went) while the server was asked. Nothing removed; the next drain decides.
+  if (how !== 'settled' && how !== 'cleared') return { ...out, outcome: SKIPPED, reason: 'the entry changed while the server was asked; kept' }
+  return { ...out, outcome: SUPERSEDED, reason: how === 'settled' ? `${reason}; the record is settled` : reason }
+}
+
 async function settleBlocked(db, entry, error) {
   const rec = await getNote(db, entry.noteId)
   await putNoteWithIntent(db, rec || {
@@ -594,15 +649,11 @@ export async function drainOutbox(db, {
         const mine = await askServerIfOurs(db, entry, serverCopyIsOurs)
         if (mine?.ours && mine.identical) {
           // ⛔ REMOVED ONLY BECAUSE THE SERVER BODY IS PROVEN TO CONTAIN THESE
-          // WORDS. Sending again could not change anything.
+          // WORDS. Sending again could not change anything. ⭐ Follow-up D: and a
+          // record holding exactly them is settled (`settleIfServerHolds`).
           // eslint-disable-next-line no-await-in-loop
-          await clearOutboxEntry(db, entry.mutationId)
-          results.push({
-            mutationId: entry.mutationId,
-            noteId: entry.noteId,
-            outcome: SUPERSEDED,
-            reason: `an expired in-flight save turned out to have landed (${mine.why}) — removed, not sent`,
-          })
+          results.push(await supersedeIdentical(db, entry, mine,
+            `an expired in-flight save turned out to have landed (${mine.why}) — removed, not sent`))
           continue
         }
         if (mine?.ours && mine.serverUpdatedAt) {
@@ -739,14 +790,10 @@ export async function drainOutbox(db, {
           const mine = await askServerIfOurs(db, entry, serverCopyIsOurs)
           if (mine?.ours && mine.identical) {
             // ⛔ Removed ONLY because the server body provably holds these words.
+            // ⭐ Follow-up D: the same settle as the pre-send branch.
             // eslint-disable-next-line no-await-in-loop
-            await clearOutboxEntry(db, entry.mutationId)
-            results.push({
-              mutationId: entry.mutationId,
-              noteId: entry.noteId,
-              outcome: SUPERSEDED,
-              reason: `409, but the server copy is this browser's own save (${mine.why}) — removed, not forked`,
-            })
+            results.push(await supersedeIdentical(db, entry, mine,
+              `409, but the server copy is this browser's own save (${mine.why}) — removed, not forked`))
             continue
           }
           // ⭐⭐ CLASSIFY BEFORE CHOOSING — Q1 fix 3, owner ruling 2026-09-13.

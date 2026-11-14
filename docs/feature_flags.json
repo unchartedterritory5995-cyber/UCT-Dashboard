@@ -3125,6 +3125,17 @@
       "where": [],
       "note": "Wisdom paid TwitterAPI.io backfill of the three tracked accounts (stream S-A). Spends money; internal only. Read in api/services/wisdom/core/flags.py."
     },
+    "WEB_PRIVATE_LISTEN_ENABLED": {
+      "status": "dark",
+      "since": "2026-11-13",
+      "where": [],
+      "default": "0",
+      "values": [
+        "0",
+        "1"
+      ],
+      "note": "DEFAULT OFF. Read by the web image's start command (the CMD in Dockerfile.web), not by Python, and only at process start. 1 runs api/serve_dual.py: the same uvicorn server with the same settings on the same public IPv4 socket, plus one IPv6-only socket, so other Railway services can open a connection to web on the private network (web binds 0.0.0.0 today and is unreachable there). Unset, 0 or any other value runs the uvicorn command line web has always run, byte for byte. If the IPv6 socket cannot be bound the server logs one [serve-dual] line and serves on IPv4 alone; if the public IPv4 socket cannot be bound the start fails. After arming, verify from outside: /api/health 200 through the public domain, and the boot line '[serve-dual] listening on port N (ipv4+ipv6)'. Way back: railway variable delete WEB_PRIVATE_LISTEN_ENABLED --service web, then redeploy web (a delete alone does not restart the process). Rails: tests/test_serve_dual.py, tests/test_ocr_build_isolation.py."
+    },
     "WORKER_ENABLED": {
       "status": "armed",
       "where": [

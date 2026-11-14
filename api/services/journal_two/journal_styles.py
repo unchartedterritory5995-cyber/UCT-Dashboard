@@ -528,7 +528,7 @@ def _clean_name(raw: Any) -> str:
 
 def _clean_kind(user_id: str, raw: Any, conn: sqlite3.Connection) -> str:
     if _nk().get_kind(user_id, raw, conn) is None:
-        raise StyleValidationError("Choose a kind of note for this style.")
+        raise StyleValidationError("Choose a note type for this style.")
     return raw
 
 
@@ -771,7 +771,7 @@ def _clean_properties(user_id: str, raw: Any, conn: sqlite3.Connection) -> dict:
     out = {}
     for pid, value in raw.items():
         if pid == _nk().NOTE_KIND_PROPERTY:
-            raise StyleValidationError("A style's kind of note is set by the kind you choose.")
+            raise StyleValidationError("A style's note type is set by the type you choose.")
         if np.is_builtin_property_id(pid) and pid not in np.BUILTIN_USER_SET_IDS:
             raise StyleValidationError(f"{pid} is not a property a style can fill.")
         d = np.get_property_def(user_id, pid, conn=conn)
@@ -849,7 +849,7 @@ S_BUILTIN_DELETE = "Built-in templates can't be deleted."
 S_ARCHIVE_FIRST = "Archive this template before deleting it."
 S_TYPE_NAME = "Type the template's name exactly to delete it."
 S_RESTORE_EXPIRED = "This template was deleted more than 30 days ago."
-S_RESTORE_KIND_GONE = "This template's kind of note was deleted, so it can't be restored."
+S_RESTORE_KIND_GONE = "This template's note type was deleted, so it can't be restored."
 S_UNARCHIVE_FIRST = "Unarchive this template before making it the default."
 S_CAP = f"You can keep up to {MAX_STYLES_PER_MEMBER} styles. Delete one first."
 _VIEW_WHERE = {"live": "deleted_at IS NULL AND archived_at IS NULL",
@@ -2612,7 +2612,7 @@ def create_styled_note(user_id: str, payload: dict, conn: sqlite3.Connection | N
                 raise StyleNotFound(style_id)
         else:
             if _nk().get_kind(user_id, kind_id, conn) is None:
-                raise StyleValidationError("Choose a kind of note.")
+                raise StyleValidationError("Choose a note type.")
             style = default_style_for_kind(user_id, kind_id, conn)
         ticker = notes_service.validate_ticker(payload.get("ticker"))
         prefill = None

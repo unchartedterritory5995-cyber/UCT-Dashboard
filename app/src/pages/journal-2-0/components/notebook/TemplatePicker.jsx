@@ -194,9 +194,11 @@ export default function TemplatePicker(props) {
 // Wave 6: `onPickMember` adds "Your templates" (the member's own, saved from
 // their notes) right after Blank — the templates a member made are the ones
 // they reach for first. Absent, the picker is exactly the built-in catalog.
+// `onManageTemplates(place)` (follow-up C): the host's door to the template manager, handed to "Your templates" for
+// its "Manage" and daily "Change" links. Absent, neither link is drawn.
 // `onLandNote(note)` (11.20 walk D1): the host's door for a note the Template library's Use already made -- the same
 // close-and-open a member template's pick ends in. Absent, the library's Use navigates to the note as before.
-function TemplatePickerBody({ onPick, onPickMember, onLandNote, busy = false, autoFocusSearch = false, kindSection, catalog, catalogFailed = false }) {
+function TemplatePickerBody({ onPick, onPickMember, onLandNote, onManageTemplates = null, busy = false, autoFocusSearch = false, kindSection, catalog, catalogFailed = false }) {
   const { FAMILIES, templatesByFamily, templatePreview } = catalog
   const navigate = useNavigate()
   // A picker can be on screen twice (the empty notebook and the New-note sheet),
@@ -499,6 +501,7 @@ function TemplatePickerBody({ onPick, onPickMember, onLandNote, busy = false, au
           query={q}
           onPreview={(p) => setPreview(p)}
           onMatches={setMemberShown}
+          onManage={onManageTemplates}
         />
       )}
 

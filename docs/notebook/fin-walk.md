@@ -688,3 +688,100 @@ Door audit (`evidence/door-audit-20261113T160915Z/`, tip `4f3d94089f`, the held 
 row presses the brief's Start, so no row's door changed; the two rows on the Daily brief were re-measured: row 41 card
 1280 EASY / 390 HARD, row 41 way back 1280 OK / 390 HARD, row 46 1280 EASY / 390 HARD, the same readings as
 `door-audit-20261113T083108Z` (HARD at 390 by the recorded ruling); the control behaved at both widths; exit 0.
+
+## 11. Notebook follow-ups A to D (2026-11-13/14, c2 on `b846ca27ef`)
+
+Branch `feat/notebook-followups`. Four follow-ups after the two simplify passes: A (first-load headroom; usage events), D
+(the note-saving layer: a record proven equal to the server is settled, the save label is empty until the device answers,
+Discard discards), B (the two day pages one press apart; walkthrough, menu, export and wording leftovers; the Insert
+palette, the AI request field and the formula editor are held modules), C (one room for templates: Manage templates with
+Active / Archived / Recently deleted, a Plain templates group and the daily control). Walkers re-pointed first
+(`1f0e91c9ef`), then a new step, `followups` (`tools/notebook_fin_walk_followups.py`, 30 rows plus a coverage row, each
+check on its own member; `b846ca27ef`), brought green on one held sandbox, then one full run.
+
+Raw record: `evidence/fin-walk/b846ca27ef/c2/` (paths redacted to `<temp>` / `<home>`; members are synthetic `@local.dev`
+sandbox accounts; `sandbox-c2.log` thinned: 512,892 repeat warning lines dropped and, still over 1 MB, its middle cut; the
+header says both). One sandbox boot, port 8132, an empty data dir, tip `b846ca27ef` (product code as of `651d8897fe`).
+Integrity: pre-boot, post-boot and post-prewarm CLEAN; the shutdown checkpoint is missing (stop FORCED after 120 s), as
+before. First-open bytes at that build: 2,255,076 B of 2,260,793 B, PASS.
+
+| run | tip | steps | PASS | FAIL | INFO | NOT RUN |
+|---|---|---|---|---|---|---|
+| pass 2 full | `d84aa2d949` | 332 | 308 | 6 | 11 | 7 |
+| **follow-ups full** | **`b846ca27ef`** | **369** | **346** | **5** | **11** | **7** |
+
+Every (feature, width) of `d84aa2d949` has a row here; the 33 new ones are the 31 `followups.*` rows (all PASS) and two
+pass 2 final-fix rows. Also green: `discover.setups-card` (from the brief, the board's "Back to Daily brief" returns to
+`?view=today`), `discover.recap-template` (the daily control reached through the New note sheet's Change link into
+Manage templates), `tour: review-drafts` at 1280, 820 and 390 with its new sub-check "the daily card draws no Back
+(noBack)", and every other walkthrough at the three widths.
+
+### 11.1 Rows not PASS
+
+| step | width | `d84aa2d949` | now | class | why / what was done |
+|---|---|---|---|---|---|
+| template gallery: publish for review | 1280 | PASS | FAIL | INSTRUMENT | follow-up C moved a plain template's Share from the New note sheet into Manage templates' Plain templates group. Re-pointed (`31c40d1a6c`): the sheet's "Manage your plain templates", then Share. Re-walked: PASS. |
+| discover.daily-brief (the quiet line) | 1280 | PASS | FAIL | INSTRUMENT (time of day) | reached at about 9 PM ET: after 16:05 ET the server opens the recap and the brief draws its Today's recap card, so "Nothing for today yet" is correctly absent (it shows only when no card is drawn). The earlier records ran before the close. Re-pointed (`31c40d1a6c`): with `session.recap` the line must be absent and the recap card drawn, otherwise the line must show. Re-walked: PASS (recap open, card drawn, line absent). |
+| smart.screenshot-tag | 1280, 820, 390 | FAIL | FAIL | INSTRUMENT (configuration) | c2 leaves `J2_OCR_ENABLED` unset: a pasted screenshot has no text, so no chip. |
+
+INFO (11) and NOT RUN (7) are the same rows as in `d84aa2d949` (NO KEY x6; five passed setups: the member has fewer).
+No PRODUCT row: no row that passed in `d84aa2d949` or its re-walks fails here because of a product change.
+
+### 11.2 What the followups rows settled in a real browser (all PASS, full run and held sandbox)
+
+- Templates: the list's More > Manage templates; Active / Archived / Recently deleted each selected and drawn; Archive on
+  a template used in one note asks "It stays in your 1 note. New notes can't use it until you restore it." and takes it
+  out of the list; Archived's Restore brings it back; Delete says "Deleted “…”. Moved to Recently deleted." with Undo, and
+  Undo says "Template restored."; Recently deleted's Restore; More > Save as template (Plain pressed by default) lands in
+  Plain templates; Rename; "Daily notes start from" chosen in the manager, then the New note sheet reads "Daily notes
+  start from: <name>. Change"; the sheet's Manage lands focus on the "Plain templates" heading, in view; Use closes the
+  manager and makes a note with the template's words; Delete asks once, naming the daily use, and clears the daily
+  choice; My tools > Templates' "Open Manage templates" closes My tools and opens the manager; `?styles=1&show=archived`
+  opens on Archived and leaves the address clean; no horizontal scroll in any view at 1280 or 390.
+- Day pages: Journal Today's Quick actions "Daily brief" (a member with an open position: Today draws no Quick actions
+  for a member with no data) lands on `?view=today`; Ctrl+K, "daily brief" opens the brief; at 390 choosing Daily brief
+  in the folders drawer opens the brief and closes the drawer.
+- Held modules, each with its chunk held back until after the press (requests kept, continued after): Insert at 1280
+  and at 390 ("+" > "Chart or block") shows "Loading Insert…" in the palette's slot with focus and "Close insert panel";
+  the note toolbar's box is 53 px tall before, with the frame and with the palette; "NVDA" typed at once never reached
+  the note. "Or tell Notebook what to change" opens with focus in its field once its chunk lands; Add property > Formula:
+  the editor arrives and focus stays in the property form.
+- Bulk: Move to Trash on a selection straight after a page load, the library held: "Moved 1 note to the Trash." once it
+  landed, the note left the list and the server's list, the other note stayed.
+- Save label: on a page load `["", "Saved"]`; typing "Saving…" then "Saved".
+- Usage: View > Table sent one `view_used {table, menu}` and one `menu_row_used {view, table}`; More > Manage templates
+  one `menu_row_used {list_more, manage_templates}`; Today's note one `today_door_used {list_button}`; none of 63
+  telemetry bodies carried any of the 10 note titles the step made.
+
+### 11.3 Re-walk at `31c40d1a6c`
+
+ONE held c2 sandbox from a fresh empty data dir (port 8132; integrity CLEAN at every checkpoint), `--attach --only
+firstrun,sample,gallery,discover`, stopped once both re-pointed rows had answered (both PASS, above). Three other discover
+rows failed there for attach state (their notes come from `chartplan` and `positions`, not in the run; all three PASS
+in the full run), as in the `7e849c6740` and `4f3d94089f` re-walks. Record: `evidence/fin-walk/31c40d1a6c-rewalk/c2/`
+(its `tool_tree` reads `b846ca27ef`: the re-points ran from the working tree and were committed unchanged).
+
+### 11.4 Door audit (`evidence/door-audit-20261114T023459Z/`, tip `dc52cfd130`)
+
+`--self-check` holds (17 verdict cases, 13 exit cases). A sandbox booted through `--serve` from an empty data dir
+(pre-boot, post-boot and post-prewarm CLEAN; stop FORCED after 120 s). A first boot was aborted by the harness before
+any measurement: the box's shared data root's `bars.db` changed at 20:30 local (the minute the box's 8:30 PM jobs run,
+as recorded in 9.4); it was re-booted on a fresh dir after that minute. Both widths, realistic state: **EASY 7, OK 13,
+HARD 12, HIDDEN 0, exit 0**; the control behaved at both widths. The table gained two rows (`dc52cfd130`): the daily
+control in Manage templates' Plain templates group, HARD (3 clicks and a scroll inside the manager), and My tools >
+Templates' button, HARD (4 clicks); both carry a written HARD reason and a ledger line (Follow-up E). Against
+`door-audit-20261113T083108Z` no existing door went from EASY or OK to HARD; row 46 (the Notices box on the Daily brief)
+went HARD -> OK at 390 (3 clicks, now above the fold; the brief draws different cards by hour and member state, so this reading may not hold at every hour); row
+41's way back reads "Back to Daily brief" (same OK / HARD). The Daily brief's new doors (Journal Today's Quick actions,
+the palette) start outside the Notebook list the audit starts from and are measured by the walk instead.
+
+### 11.5 After the whole-branch review and the final fix pass (2026-11-14, `5d693ef8aa`)
+
+Master was merged in at `2c6c9bd32d` and a final fix pass in two rounds followed (ledger: "Follow-ups, the whole-branch review and the final fix pass"). Not a new full run: the fix pass touched Manage templates, the drain's carrier, the Discard branch and the AI actions frame, so the steps that read those were re-walked on a held c2 sandbox built at `5d693ef8aa` from an empty data root:
+
+| step | rows | result |
+|---|---|---|
+| `followups` (the 30 follow-up rows and coverage) | 32 | 0 FAIL |
+| `styles` (Manage templates' main paths) | 12 | 0 FAIL |
+
+The save layer's cases the walk does not hold (the unseen landing, the held label, Discard and its refusal, typing under the banner, two tabs, reopening a note the list's drain just sent) were run by the controller's own scripts against the same sandbox: 24 of 24 and 35 of 35. First-open bytes: 2,255,872 B of 2,260,793 B, PASS.

@@ -205,6 +205,8 @@ describe('4. touch: no keyboard words, a count instead', () => {
     })
   })
 
+  // Follow-up C fix round 1 (2c): this picker is mounted with no door to the manager, so it keeps its own Rename (the
+  // fallback), and the original rail holds again: a member template being renamed (a form, not a card) still counts.
   it('a member template being renamed (a form, not a card) still counts', async () => {
     coarse.on = true
     await mount()

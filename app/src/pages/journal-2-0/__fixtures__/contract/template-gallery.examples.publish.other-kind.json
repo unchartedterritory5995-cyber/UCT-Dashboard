@@ -11,6 +11,6 @@
     "status": 400
   },
   "body": {
-    "detail": "This note is a different kind from the style."
+    "detail": "This note is a different note type from the style."
   }
 }

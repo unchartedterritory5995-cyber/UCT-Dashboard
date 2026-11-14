@@ -11,6 +11,10 @@ export const SETUPS_BOARD_PATH = '/journal/notebook/setups'
 /** The board's read (`GET`). One authority for the URL. (Research Home's Active setups box read it too, until
  *  go-live wave 1.) */
 export const BOARD_URL = '/api/j2/setups-board'
+/** Follow-up B, item 1c: the router state the Daily brief's "Open the setups board" link carries, so the board's way
+ *  back returns to the brief ("Back to Daily brief"). Router state, not a URL parameter: a shared or reloaded board
+ *  address keeps its plain "Back to Notebook". */
+export const FROM_DAILY_BRIEF = 'daily-brief'
 
 /** The gate, as the auth payload latched it for this tab (absent = OFF). */
 export function setupsBoardEnabled() {

@@ -15,11 +15,12 @@
 // (which rows are left after an unpublish) and routes; it types no shape of its own.
 // `/api/j2/note-templates` is older than this wave and keeps its one-row stand-in.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, within, waitFor } from '@testing-library/react'
+import { cleanup, render, screen, within, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { SWRConfig } from 'swr'
 import { MemoryRouter } from 'react-router-dom'
 import TemplatePicker from './TemplatePicker'
+import { PlainTemplatesManage } from './MemberTemplates'
 import { latchNotebookFlags, __resetNotebookFlags } from '../../lib/offline/notebookFlags'
 import { GALLERY_CATEGORIES } from '../../lib/templateGallery'
 import { contract, contractBody } from '../../__fixtures__/contract'
@@ -113,6 +114,18 @@ function renderPicker(props = {}) {
   return { onPickMember, user }
 }
 
+// Follow-up C (one room for templates): Share on a plain template is in Manage templates' Plain templates group (the
+// SAME rows as the picker's "Your templates", MemberTemplates.jsx); the picker lists and picks.
+function renderManaged() {
+  const user = userEvent.setup()
+  render(
+    <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+      <PlainTemplatesManage />
+    </SWRConfig>,
+  )
+  return { user }
+}
+
 const gateOn = () => latchNotebookFlags({ notebook_template_gallery_enabled: true })
 const door = () => screen.getByRole('button', { name: /Browse the Template library/ })
 const sentTo = (path, method) => calls.filter((c) => c.path === path && c.method === method)
@@ -140,10 +153,13 @@ describe('the recorded gallery holds what these rails read (non-vacuity)', () =>
 describe('the door', () => {
   it('is absent while the gate is off, and nothing else in the picker changes', async () => {
     renderPicker()
+    await screen.findByRole('button', { name: /^Swing plan/ })                // the picker (and its catalog) drew
     expect(screen.queryByRole('button', { name: /community gallery/i })).not.toBeInTheDocument()
+    expect(calls.some((c) => c.path.startsWith('/api/j2/template-gallery'))).toBe(false)
+    cleanup()
+    renderManaged()                                                         // and the manager's group has no Share
     await screen.findByRole('button', { name: 'Rename Swing plan' })
     expect(screen.queryByRole('button', { name: /Share Swing plan/ })).not.toBeInTheDocument()
-    expect(calls.some((c) => c.path.startsWith('/api/j2/template-gallery'))).toBe(false)
   })
 
   it('opens the gallery with focus on its heading, and Back returns focus to the door', async () => {
@@ -239,7 +255,7 @@ describe('browse', () => {
 describe('publishing and your submissions', () => {
   it('Share on one of Your templates submits it for review and says what is left out', async () => {
     gateOn()
-    const { user } = renderPicker()
+    const { user } = renderManaged()
     await user.click(await screen.findByRole('button', { name: 'Share Swing plan to the Template library' }))
     // the share form loads when Share is pressed (it is out of the Notebook's first open)
     const form = await screen.findByRole('form', { name: 'Share Swing plan to the Template library' })

@@ -511,6 +511,35 @@ def test_the_owner_override_adopts_outside_the_quiet_window(adoption, tmp_path, 
     assert ds.adopt_clustered_store(str(tmp_path)) == "adopted"
 
 
+# ── BARS_REINSTALL_TOKEN: re-install over a clustered but partial store ─────────
+def test_reinstall_token_replaces_a_partial_clustered_store_once(adoption, tmp_path,
+                                                                 monkeypatch):
+    ds, fake, local, snap = adoption
+    from api.services import bars_cluster
+    partial = tmp_path / "partial.db"                  # clustered, only a few rows
+    c = sqlite3.connect(str(partial)); c.execute(ds_ohlcv_ddl()); c.execute(
+        "INSERT INTO ohlcv VALUES ('ONLYHERE','D',20261113,1,2,0.5,1.5,9)"); c.commit(); c.close()
+    os.replace(partial, local)
+    (tmp_path / ".adopted_clustered").write_text("local")
+    monkeypatch.delenv("BARS_ADOPT_CLUSTERED", raising=False)
+    assert ds.adopt_clustered_store(str(tmp_path)) == "off"            # no token: untouched
+    monkeypatch.setenv("BARS_REINSTALL_TOKEN", "r1")
+    assert ds.adopt_clustered_store(str(tmp_path)) == "adopted"
+    c = sqlite3.connect(str(local))
+    n = c.execute("SELECT COUNT(*) FROM ohlcv").fetchone()[0]
+    kept = c.execute("SELECT COUNT(*) FROM ohlcv WHERE ticker='ONLYHERE'").fetchone()[0]
+    c.close()
+    assert n > 100 and kept == 1                        # the base AND the local-only row
+    assert ds.adopt_clustered_store(str(tmp_path)) == "off" and fake.downloads == 1  # token spent
+    monkeypatch.setenv("BARS_REINSTALL_TOKEN", "r2")   # a new token runs again
+    assert ds.adopt_clustered_store(str(tmp_path)) == "adopted" and fake.downloads == 2
+
+
+def ds_ohlcv_ddl():
+    from api.services import bars_sqlite
+    return bars_sqlite.ohlcv_ddl()
+
+
 # ── adoption survives restarts (web, 2026-11-13: a deploy killed it twice) ──────
 def test_a_dead_runs_working_folder_is_swept_before_the_disk_check(adoption, tmp_path,
                                                                    monkeypatch):
