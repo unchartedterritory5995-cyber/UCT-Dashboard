@@ -1233,13 +1233,17 @@ def server_columns_batch(
 
 def _rs_batch_server_timing(response, timings: list) -> None:
     """The batch's `Server-Timing`: the RS provider's stages summed over the asks
-    that ran it, `desc` "cold" when any of them computed and "cache" when every
-    one was a cache hit. Behaviour-neutral, like `_rs_server_timing`."""
+    that ran it, `desc` "cold" when any of them computed, "disk" when none did and
+    one was read back from `rs_store`, "cache" when every one was a memory hit.
+    Behaviour-neutral, like `_rs_server_timing`."""
     try:
         if not timings or response is None:
             return
         from api.services.serve_stale import server_timing as _head
-        tier = "cold" if any(t["tier"] != "cache" for t in timings) else "cache"
+        # "cold": at least one ask was computed. "disk": none was, and at least one
+        # was read back from the store that outlives the process (`rs_store`).
+        tiers = {t["tier"] for t in timings}
+        tier = "cold" if "cold" in tiers else "disk" if "disk" in tiers else "cache"
         out = _head("rs", tier, sum(t["total_ms"] for t in timings))
         stages: dict = {}
         for t in timings:
