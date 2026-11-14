@@ -2052,42 +2052,111 @@ did i my me we you your it its this that with about from at as can should would 
 there here any some more most less very just like get got vs""".split())
 _SEARCH_MAX = 3
 _SNIPPET_CHARS = 150
+#: "Watch from" starts this many seconds before the words, so the member hears
+#: the sentence begin. It also absorbs most of the error in placing words inside
+#: a part by how far along its text they are.
+_SEEK_LEAD_S = 15
+#: Words whose final s is not a plural: "news" must not find "new".
+_NO_PLURAL = frozenset({"news"})
+_TOKEN = re.compile(r"[A-Za-z0-9$&.'-]+")
+_TRIM = "$.'-&"
 
 
 def search_words(query: str) -> list[str]:
     """The words worth matching: lowercase, letters and digits, 2+ characters,
     stop words out, a leading $ dropped so "$NVDA" and "nvda" are one word."""
     out = []
-    for w in re.findall(r"[A-Za-z0-9$&.'-]+", str(query or "").lower()):
-        w = w.strip("$.'-&")
+    for w in _TOKEN.findall(str(query or "").lower()):
+        w = w.strip(_TRIM)
         if len(w) >= 2 and w not in _SEARCH_STOP and w not in out:
             out.append(w)
     return out
 
 
-def _count(hay: str, word: str, cap: int = 5) -> int:
-    return min(cap, len(re.findall(rf"(?<![a-z0-9]){re.escape(word)}(?![a-z0-9])", hay)))
+def search_tickers(query: str) -> list[str]:
+    """The symbols `search_words` throws away: a one-letter ticker (F, C, V) and
+    a ticker that spells a filler word (BE, ON, IT, ARE, CAN). Read as a ticker
+    only when typed like one: with a $, in capitals inside a sentence that is
+    not all capitals, or when nothing else was typed. "a" and "I" need the $.
 
-
-def best_moment(row: dict, words: list[str]) -> tuple[Optional[float], str]:
-    """The start of the transcript part that says the most of the words, and a
-    short quote around the first of them; (None, "") when nothing matches."""
-    best, best_hits = None, 0
-    for seg in _json_list(row.get("segments")):
-        if not (isinstance(seg, (list, tuple)) and len(seg) == 2):
+    ⛔ These are matched against a lesson's TICKER LIST and nothing else (see
+    score_lesson): as plain words they are in every transcript."""
+    text = str(query or "")
+    ordinary = search_words(text)
+    shouting = text.upper() == text
+    out = []
+    for tok in _TOKEN.findall(text):
+        marked = tok.startswith("$")
+        body = tok.strip(_TRIM)
+        low = body.lower()
+        if not body.isalpha() or len(body) > 5:
             continue
-        start, text = seg
+        if len(low) >= 2 and low not in _SEARCH_STOP:
+            continue                      # an ordinary word: search_words has it
+        if low in ("a", "i") and not marked:
+            continue
+        if (marked or (body.isupper() and not shouting) or not ordinary) and low not in out:
+            out.append(low)
+    return out
+
+
+def _forms(word: str) -> list[str]:
+    """`word` with its singular and plural, so "stops" finds "stop" and "entry"
+    finds "entries". Short words, anything with a digit or a hyphen, and the
+    few words whose s is not a plural are left exactly as typed."""
+    if len(word) <= 3 or not word.isalpha() or word in _NO_PLURAL:
+        return [word]
+    if word.endswith("ies") and len(word) > 4:
+        base = word[:-3] + "y"
+    elif word.endswith(("sses", "xes", "ches", "shes", "zes")):
+        base = word[:-2]
+    elif word.endswith("s") and not word.endswith(("ss", "us", "is")):
+        base = word[:-1]
+    else:
+        base = word
+    forms = {word, base, base + "s", base + "es"}
+    if base.endswith("y"):
+        forms.add(base[:-1] + "ies")
+    return sorted(forms, key=lambda f: (-len(f), f))
+
+
+def _matcher(word: str, exact: bool = False):
+    """A whole-word pattern for `word` (and its plural forms unless `exact`)."""
+    alt = "|".join(re.escape(f) for f in ([word] if exact else _forms(word)))
+    return re.compile(rf"(?<![a-z0-9])(?:{alt})(?![a-z0-9])")
+
+
+def _count(hay: str, pat, cap: int = 5) -> int:
+    if cap <= 1:
+        return 1 if pat.search(hay) else 0
+    return min(cap, sum(1 for _ in pat.finditer(hay)))
+
+
+def best_moment(row: dict, pats: list) -> tuple[Optional[float], str]:
+    """Where in the video the words are said, and a short quote around the first
+    of them; (None, "") when no part says them. The part that says the most of
+    the words is chosen, then the time is placed INSIDE it by how far along the
+    part's text the words are (a part is five minutes long), less a short
+    lead-in. Never earlier than the part's own start."""
+    segs = [s for s in _json_list(row.get("segments")) if isinstance(s, (list, tuple)) and len(s) == 2]
+    best, best_hits = None, 0
+    for i, (start, text) in enumerate(segs):
         low = str(text or "").lower()
-        hits = sum(1 for w in words if _count(low, w, 1))
+        hits = sum(1 for p in pats if p.search(low))
         if hits > best_hits:
-            best, best_hits = (float(start or 0), str(text or "")), hits
+            best, best_hits = (i, float(start or 0), str(text or "")), hits
     if not best:
         return None, ""
-    start, text = best
+    i, start, text = best
     text = re.sub(r"\s+", " ", text).strip()
     low = text.lower()
-    at = min((m.start() for w in words for m in [re.search(rf"(?<![a-z0-9]){re.escape(w)}", low)] if m),
-             default=0)
+    at = min((m.start() for p in pats for m in [p.search(low)] if m), default=0)
+    if i + 1 < len(segs):
+        end = float(segs[i + 1][0] or 0)
+    else:           # the last part runs to the end of the video (five minutes if unknown)
+        total = float(row.get("duration_s") or 0)
+        end = total if total > start else start + 300.0
+    said = start + (at / float(max(1, len(text)))) * max(0.0, end - start)
     lo = max(0, at - _SNIPPET_CHARS // 3)
     hi = min(len(text), lo + _SNIPPET_CHARS)
     quote = text[lo:hi].strip()
@@ -2095,24 +2164,39 @@ def best_moment(row: dict, words: list[str]) -> tuple[Optional[float], str]:
         quote = "…" + quote.lstrip(" ,.;:")
     if hi < len(text):
         quote = quote.rstrip(" ,.;:") + "…"
-    return start, quote
+    return max(start, said - _SEEK_LEAD_S), quote
 
 
-def score_lesson(row: dict, words: list[str], phrase: str) -> float:
+def score_lesson(row: dict, pats: dict, phrase: str, symbols: tuple = ()) -> float:
     """How well a posted lesson answers the words: its title and tickers count
     most, then its tags and recap, then how often the transcript says them. A
-    clip counts for less than a lesson. 0 = no match at all."""
+    clip counts for less than a lesson. 0 = no match at all.
+
+    `pats` is {word: pattern}; `symbols` are the ticker-only tokens
+    (search_tickers), which score on the ticker list alone. A question of three
+    or more words must have at least half of them answered: one ordinary word
+    said once is not a lesson "on" a five-word question."""
     title = clean_title(row.get("title")).lower()
     recap = f"{row.get('recap') or ''} {row.get('takeaway') or ''} {row.get('question') or ''}".lower()
     transcript = str(row.get("transcript") or "").lower()
     tickers = {str(t).lower().lstrip("$") for t in _json_list(row.get("tickers"))}
     tags = " ".join(str(t).lower() for t in _json_list(row.get("tags")))
-    score = 0.0
-    for w in words:
-        score += 6 * _count(title, w, 1) + (6 if w in tickers else 0) + 3 * _count(tags, w, 1)
-        score += 3 * _count(recap, w, 1) + _count(transcript, w, 5)
-    if phrase and len(words) > 1:
-        score += 6 * _count(title, phrase, 1) + 4 * _count(recap, phrase, 1) + 3 * _count(transcript, phrase, 1)
+    score, answered = 0.0, 0
+    for w, pat in pats.items():
+        got = 6 * _count(title, pat, 1) + (6 if w in tickers else 0) + 3 * _count(tags, pat, 1)
+        got += 3 * _count(recap, pat, 1) + _count(transcript, pat, 5)
+        score += got
+        answered += 1 if got else 0
+    for s in symbols:
+        if s in tickers:
+            score += 6
+            answered += 1
+    asked = len(pats) + len(symbols)
+    if answered < (1 if asked <= 2 else (asked + 1) // 2):
+        return 0.0
+    if phrase and len(pats) > 1:
+        whole = _matcher(phrase, exact=True)
+        score += 6 * _count(title, whole, 1) + 4 * _count(recap, whole, 1) + 3 * _count(transcript, whole, 1)
     if row.get("section") == "clips":
         score *= 0.6
     return score
@@ -2121,22 +2205,28 @@ def score_lesson(row: dict, words: list[str], phrase: str) -> float:
 def search_lessons(query: str, limit: int = _SEARCH_MAX) -> list[dict]:
     """The posted lessons that best answer `query`, best first, each with where
     it lives, its level and section, and the moment in the video that says it."""
-    words = search_words(query)
-    if not words:
+    words, symbols = search_words(query), search_tickers(query)
+    if not words and not symbols:
         return []
     phrase = " ".join(words)
     with contextlib.closing(_connect()) as c:
         rows = [dict(r) for r in c.execute(
             "SELECT attachment_id, title, recap, takeaway, question, tickers, tags, transcript, "
-            "segments, section, level, posted_at, post_channel_id, discord_post_id, forum_post_id, "
-            "youtube_id FROM tsdr_lessons WHERE status = 'posted' AND discord_post_id IS NOT NULL "
-            "AND post_channel_id IS NOT NULL").fetchall()]
-    scored = [(score_lesson(r, words, phrase), r) for r in rows]
+            "segments, duration_s, section, level, posted_at, post_channel_id, discord_post_id, "
+            "forum_post_id, youtube_id FROM tsdr_lessons WHERE status = 'posted' "
+            "AND discord_post_id IS NOT NULL AND post_channel_id IS NOT NULL").fetchall()]
+    # A word that is a ticker somewhere in the library, or was typed as one (in
+    # capitals or with a $), is matched exactly: "hims" must never find "him".
+    library = {str(t).lower().lstrip("$") for r in rows for t in _json_list(r.get("tickers"))}
+    typed_as_ticker = {t.strip(_TRIM).lower() for t in _TOKEN.findall(str(query or ""))
+                       if t.startswith("$") or t.strip(_TRIM).isupper()}
+    pats = {w: _matcher(w, exact=(w in library or w in typed_as_ticker)) for w in words}
+    scored = [(score_lesson(r, pats, phrase, tuple(symbols)), r) for r in rows]
     scored = sorted((s for s in scored if s[0] > 0), key=lambda s: (-s[0], -int(s[1]["posted_at"] or 0)))
     names = {k: n for k, n, _ in SECTIONS}
     out = []
     for score, r in scored[:max(1, int(limit))]:
-        t, quote = best_moment(r, words)
+        t, quote = best_moment(r, list(pats.values()))
         day = datetime.fromtimestamp(int(r["posted_at"]), tz=timezone.utc).astimezone(_ET)
         out.append({"attachment_id": r["attachment_id"], "title": clean_title(r["title"]) or "Lesson",
                     "url": lesson_url(r), "level": r.get("level") or "",
