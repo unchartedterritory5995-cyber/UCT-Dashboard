@@ -148,6 +148,11 @@ def _ymd_iso(ts: Any) -> str | None:
 def read_prices(symbols: Iterable[str]) -> dict[str, dict[str, Any]]:
     """{symbol: {price, source, asOf}} -- the live tick when the shared stream carries the symbol,
     else the last stored daily close. A symbol neither can answer is absent."""
+    # ONE-SHOT get_last_price READ (bar_broadcaster.get_last_price FRESHNESS CONTRACT):
+    # one read inside one request, so registering interest here would subscribe and
+    # release before a tick could land. The tick is best-effort (per-trade only when
+    # another consumer holds the symbol, else up to a minute old) and every card is
+    # labelled with its source and minute (`asOf`).
     out: dict[str, dict[str, Any]] = {}
     try:
         from api.services import bar_broadcaster

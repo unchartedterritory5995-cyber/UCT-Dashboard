@@ -364,15 +364,15 @@ describe('fix round 4 — a refused copy shows its words and speaks for itself',
       expect(m, `${name} not found in notes.py`).toBeTruthy()
       return joined(m[1])
     }
-    const size = src.match(/raise NoteValidationError\(\s*("This note is too long[\s\S]*?)\)/)
-    expect(size, 'the body size sentence was not found in notes.py').toBeTruthy()
+    // The size sentence is a named constant since 2cd5ccbd0a; the raise must still use it.
+    expect(src.includes('raise NoteValidationError(TOO_LONG_BODY_DETAIL)'), 'the body size raise was not found in notes.py').toBe(true)
     for (const literal of ['"title too long"', '"subtitle too long"', '"folder not found"', '"body_json must be a TipTap doc"']) {
       expect(src.includes(literal), `${literal} is no longer in notes.py`).toBe(true)
     }
     return {
       tooDeep: constant('TOO_DEEP_BODY_DETAIL'),
       unbuildable: constant('UNBUILDABLE_BODY_DETAIL'),
-      tooLarge: joined(size[1]),
+      tooLarge: constant('TOO_LONG_BODY_DETAIL'),
     }
   }
 

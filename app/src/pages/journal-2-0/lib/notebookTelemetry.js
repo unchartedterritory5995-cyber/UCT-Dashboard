@@ -50,6 +50,9 @@
  * made the day's note) -- the morning open counted at the surface built for it, beside the visit timestamps.
  */
 
+import { WIDGET_IDS } from '../../../widgets/registry'
+import { VIEW_MODES } from './savedViewModes'
+
 export const NOTEBOOK_EVENTS = Object.freeze({
   NOTE_OPEN_MS: 'note_open_ms',
   SAVE_FAILED: 'save_failed',
@@ -77,6 +80,14 @@ export const NOTEBOOK_EVENTS = Object.freeze({
   RECAP_WRITTEN: 'recap_written',
   TRUST_INCIDENT: 'trust_incident',
   TODAY_OPENED: 'today_opened',
+  VIEW_USED: 'view_used',
+  LIST_LAYOUT_USED: 'list_layout_used',
+  MENU_ROW_USED: 'menu_row_used',
+  TODAY_DOOR_USED: 'today_door_used',
+  TEMPLATE_STARTED: 'template_started',
+  BLOCK_INSERTED: 'block_inserted',
+  PANEL_ROW_USED: 'panel_row_used',
+  NOTEBOOK_ROUTE_OPENED: 'notebook_route_opened',
 })
 
 /**
@@ -113,6 +124,11 @@ const OTHER = 'other'
 const num = { type: 'number' }
 const bool = { type: 'bool' }
 const oneOf = (...values) => ({ type: 'enum', values: new Set(values) })
+// Follow-up A fix round 1 (I5): an enum DERIVED from the list that owns the ids (one source line; the server parity
+// pytest evaluates the same derivation from the same sources).
+const oneOfList = (values) => ({ type: 'enum', values: new Set(values) })
+/** The member-built widget kind (lib/builtWidgets.js BUILT_KIND, not on first open; railed equal in notebookUsage.test.js). */
+export const MEMBER_BUILT_KIND = 'builtWidget'
 
 /** Per-event prop schemas. A key not listed here never leaves the browser. */
 export const EVENT_SCHEMAS = Object.freeze({
@@ -238,7 +254,43 @@ export const EVENT_SCHEMAS = Object.freeze({
     session: oneOf('premarket', 'open', 'after_close', 'closed'),
     created: bool,
   },
+  // Follow-up A (usage counting): which views, menu rows, doors, templates, blocks and panel rows members use. Every
+  // value is a fixed id; each enum is railed against the place its ids are defined (notebookUsage.test.js).
+  view_used: {
+    mode: oneOfList(VIEW_MODES.map((m) => m.id)),
+    via: oneOf('menu', 'saved_view', 'link'),
+  },
+  list_layout_used: {
+    layout: oneOf('rows', 'cards'),
+  },
+  menu_row_used: {
+    menu: oneOf('new', 'list_more', 'view', 'note_more', 'note_ai', 'format', 'plus_sheet'),
+    row: oneOf('blank', 'template', 'voice', 'import', 'reviews', 'review_daily', 'review_weekly', 'review_monthly', 'today_note', 'ask_notebook', 'journal_tools', 'export', 'remove_sample', 'my_tools', 'manage_templates', 'list', 'table', 'board', 'calendar', 'tasks', 'graph', 'timeline', 'rows', 'cards', 'more_views', 'save_view', 'saved_view', 'starter_views', 'rename_view', 'delete_view', 'ask_note', 'writing_help', 'font', 'font_pick', 'size', 'size_pick', 'color', 'quote', 'code', 'attach', 'divider', 'find', 'outline', 'history', 'duplicate', 'make_thesis', 'lock', 'archive', 'save_template', 'open_beside', 'trash', 'export_png', 'export_print', 'export_md', 'export_html', 'export_json', 'export_docx', 'quick_note', 'photo', 'help'),
+  },
+  today_door_used: {
+    door: oneOf('list_button', 'shortcut', 'phone_row', 'brief_start', 'brief_open', 'recap', 'journal_panel'),
+    created: bool,
+  },
+  template_started: {
+    source: oneOf('catalogue', 'note_type', 'own', 'library'),
+    family: oneOf('rituals', 'research', 'trades', 'mind', 'trade_plan', 'daily_prep', 'weekend_prep', 'earnings', 'earnings_followup', 'post_trade_review', 'weekly_review', 'thesis', 'watchlist_note', 'custom'),
+  },
+  // `kind`: the widget registry's ids (src/widgets/registry.js WIDGET_IDS, already on first open) less the member-built
+  // kind, which is sent as 'custom'. Never a widget's name or params. Fix round 1 (I5): derived, not restated.
+  block_inserted: {
+    kind: oneOfList([...WIDGET_IDS.filter((id) => id !== MEMBER_BUILT_KIND), 'custom']),
+    via: oneOf('slash', 'palette', 'phone_plus'),
+  },
+  panel_row_used: {
+    row: oneOf('all_notes', 'daily_brief', 'favorites', 'recents', 'folder', 'tag', 'unfiled', 'archived', 'trash', 'playbook', 'search_tab'),
+  },
+  notebook_route_opened: {
+    route: oneOf('setups_board', 'playbook', 'research_page'),
+  },
 })
+
+/** Follow-up A: a menu row pressed. `row` is the id written where the row is defined (never its label). */
+export const trackMenuRow = (menu, row) => (row ? trackNotebookEvent(NOTEBOOK_EVENTS.MENU_ROW_USED, { menu, row }) : null)
 
 const KNOWN = new Set(Object.values(NOTEBOOK_EVENTS))
 

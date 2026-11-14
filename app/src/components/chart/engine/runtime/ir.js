@@ -832,9 +832,11 @@ export const arrayCall = (fn, args, typeArg = null) => (
 /** ⭐⭐ RT5 — a drawing operation the run executes (`objectStore.js`): `fn` is
  *  the store's canonical name (or `any.<method>`, dispatched on the receiver's
  *  family at run time), `args` positional with `null` for an argument the
- *  script did not pass, `returns` what it leaves on the stack. */
-export const objectCall = (fn, args, returns) => (
-  { kind: EXPR.OBJECT_OP, fn, args, returns })
+ *  script did not pass, `returns` what it leaves on the stack.
+ *  ⭐⭐ ENGINE 54 — `site`, on a call that makes a drawing: its source call
+ *  (`objectProgram.js::objectSiteKey`), stamped on every object it makes. */
+export const objectCall = (fn, args, returns, site = null) => (
+  site ? { kind: EXPR.OBJECT_OP, fn, args, returns, site } : { kind: EXPR.OBJECT_OP, fn, args, returns })
 /** ⭐⭐ S1 — a broker operation (`runtime/broker.js::BROKER_OPS`): `args` positional
  *  with `null` for a parameter the script did not pass. */
 export const brokerCall = (fn, args, returns) => (

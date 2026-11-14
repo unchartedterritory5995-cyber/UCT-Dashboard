@@ -92,6 +92,32 @@ export function createBuildWatcher({ fetchHealth, clientId, onNewBuild, onBuildC
 }
 
 /**
+ * Which frontend build is current. Asks /build.json, the frontend's own identity, and uses its answer
+ * only when it names an entry bundle (`assets/...`). Anything else falls back to /api/health: a server
+ * with no /build.json route answers that path with the app shell and a 200, so "ok" alone proves
+ * nothing. Same shape as fetchHealthSafe (the watcher reads `build_id`), and it never throws.
+ *
+ * When the two disagree, /build.json wins: /api/health names the bundle the API process was built
+ * with, which is the members' frontend only while that process also serves the frontend.
+ */
+export async function fetchBuildSafe({ fetchImpl = (...a) => fetch(...a), timeoutMs = 10000 } = {}) {
+  const ctl = new AbortController()
+  const timer = setTimeout(() => ctl.abort(), timeoutMs)
+  try {
+    const res = await fetchImpl('/build.json', { cache: 'no-store', signal: ctl.signal })
+    if (res && res.ok) {
+      const body = await res.json()
+      if (typeof body?.build_id === 'string' && body.build_id.startsWith('assets/')) return body
+    }
+  } catch {
+    /* fall through to health */
+  } finally {
+    clearTimeout(timer)
+  }
+  return fetchHealthSafe({ fetchImpl, timeoutMs })
+}
+
+/**
  * Reads /api/health with its own 10 second limit. Never throws: any failure resolves null, which the
  * watcher treats as "no information" and resets its streak.
  */

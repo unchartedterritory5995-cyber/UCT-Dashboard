@@ -42,6 +42,8 @@ import re
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.join(ROOT, "tools", "vendor_harness"))
+import evidence_ledger as el  # noqa: E402 -- LEDGER_ONLY evidence and its freshness rule: one authority
 
 # ── what each door guard is, as a CAPABILITY. Derived from pine.js REFUSALS sentences.
 GUARD_BUCKET = {
@@ -157,94 +159,16 @@ LEGACY = {  # v1-v4 bare name -> v6 name (only applied when the script's version
 LEGACY_COLOURS = {"aqua", "black", "blue", "fuchsia", "gray", "green", "lime", "maroon", "navy", "olive",
                   "orange", "purple", "red", "silver", "teal", "white", "yellow"}
 
-# ⭐⭐ WS-C (2026-10-31) — `conditional-ta`: a `ta.*` CALL WRITTEN INSIDE a block
-# that does not run on every bar (an `if` / `else` / `switch` arm, a `for` /
-# `while` body) or inside a user function's body. Pine keeps such a call's
-# history PER CALL SITE (C48, `vw-call-site-history`), which the runtime lane
-# serves for `ta.sma` / `ta.ema` in a root-level block and refuses by name
-# (`runtime:conditional-history`, R4) everywhere else.
-#
-# ⛔ BLOCK-AWARE, NOT "the script has an `if` and a `ta.`". The header line's own
-# condition (`if ta.crossover(a, b)`) runs every bar and does NOT count; only a
-# DEEPER-indented line in the header's contiguous block does (blank lines may sit
-# inside it). Each alternative is deterministic (`[ \t]+\S` cannot split two
-# ways), so the scan is linear per header, never exponential.
-# ⛔ v1-v4 spell the same calls bare (`sma(`, `rsi(`), so the bare names Pine had
-# before namespaces are matched too; a v5+ user function that reuses one of
-# those names is over-reported, which is the safe direction for a grading gate.
-_COND_TA_BARE = ("sma|ema|rma|wma|vwma|swma|hma|alma|linreg|rsi|atr|tr|stdev|dev|variance|"
-                 "highest|lowest|highestbars|lowestbars|change|mom|roc|cum|sum|crossover|crossunder|"
-                 "cross|valuewhen|barssince|pivothigh|pivotlow|rising|falling|correlation|percentrank|"
-                 "percentile_linear_interpolation|percentile_nearest_rank|median|mode|range|stoch|cci|"
-                 "mfi|cmo|tsi|bb|bbw|kc|kcw|macd|dmi|sar|supertrend|vwap|wpr|cog")
-_COND_TA_CALL = r"(?<![\w.])(?:ta\.\w+|(?:%s))\s*\(" % _COND_TA_BARE
-_COND_TA_HEADER = (r"(?:(?:[\w\[\], ]+=\s*)?(?:if|for|while|switch)\b|else\b"
-                   r"|(?:export\s+)?(?:method\s+)?\w+\s*\([^()\n]*\)\s*=>[ \t]*$)")
-COND_TA_RX = (r"^(?P<ci>[ \t]*)%s[^\n]*\n(?:[ \t]*\n|(?P=ci)[ \t]+\S[^\n]*\n)*?(?P=ci)[ \t]+(?=\S)[^\n]*?%s"
-              r"|^[ \t]*(?:export\s+)?(?:method\s+)?\w+\s*\([^()\n]*\)\s*=>[^\n]*?%s"
-              % (_COND_TA_HEADER, _COND_TA_CALL, _COND_TA_CALL))
-
-FEATURES = [  # (id, label, regex over comment/string-stripped code, flags)
-    ("var", "var declarations (state that persists across bars)", r"^\s*var\s+", re.M),
-    ("varip", "varip (intrabar-persistent state, realtime only)", r"\bvarip\b", 0),
-    ("if-block", "if statements / blocks", r"^\s*(?:[\w\[\], ]+=\s*)?if\b", re.M),
-    ("for", "for loops", r"^\s*(?:[\w\[\], ]+=\s*)?for\s+\w+\s*=", re.M),
-    ("for-in", "for...in loops", r"^\s*(?:[\w\[\], ]+=\s*)?for\s+(?:\[[^\]]*\]|\w+)\s+in\b", re.M),
-    ("while", "while loops", r"^\s*(?:[\w\[\], ]+=\s*)?while\b", re.M),
-    ("switch", "switch", r"\bswitch\b", 0),
-    ("reassign", ":= reassignment", r":=", 0),
-    ("compound-assign", "+= -= *= /= %=", r"[+\-*/%]=(?!=)", 0),
-    ("tuple-destructure", "[a, b] = tuple destructuring", r"^\s*\[[\w\s,]+\]\s*=", re.M),
-    ("fn-single", "user function, single-line body", r"^\s*(?:export\s+)?\w+\s*\([^()]*\)\s*=>\s*\S", re.M),
-    ("fn-multi", "user function, multi-line body", r"^\s*(?:export\s+)?\w+\s*\([^()]*\)\s*=>\s*$", re.M),
-    ("udt", "type (user-defined types)", r"^\s*(?:export\s+)?type\s+\w+", re.M),
-    ("method-def", "method definitions", r"^\s*(?:export\s+)?method\s+\w+", re.M),
-    ("enum", "enum", r"^\s*(?:export\s+)?enum\s+\w+", re.M),
-    ("import", "import of a library", r"^\s*import\s+\S+", re.M),
-    ("library-decl", "library() declaration", r"^\s*library\s*\(", re.M),
-    ("strategy-decl", "strategy() declaration", r"^\s*strategy\s*\(", re.M),
-    ("generics", "array<T> / matrix<T> / map<K,V> generics", r"\b(?:array|matrix|map)\s*<", 0),
-    ("typed-array", "float[] style array types", r"\b(?:float|int|bool|string|color|line|label|box)\s*\[\s*\]", 0),
-    ("history-expr", "history reference on an expression  (expr)[n]", r"\)\s*\[", 0),
-    # decided in usage_of(): `x.f(` where x is NOT a built-in namespace (this regex never matches)
-    ("method-call", "method-call syntax  x.f(...) on a value", r"(?!)", 0),
-    ("max_bars_back", "max_bars_back", r"\bmax_bars_back\b", 0),
-    ("ternary", "?: ternary", r"\?[^?:\n]+:", 0),
-    ("conditional-ta", "ta.* called inside an if / loop / switch arm or a function body (per-call-site history)",
-     COND_TA_RX, re.M),
-]
-
-
-def strip_code(src):
-    """Remove // comments and string CONTENTS (quotes kept). Returns (code, strings)."""
-    out, strings, i, n = [], [], 0, len(src)
-    while i < n:
-        c = src[i]
-        if c == "/" and src.startswith("//", i):
-            while i < n and src[i] != "\n":
-                i += 1
-            continue
-        if c in "\"'":
-            q, j, buf = c, i + 1, []
-            while j < n and src[j] != q and src[j] != "\n":
-                if src[j] == "\\" and j + 1 < n:
-                    buf.append(src[j:j + 2])
-                    j += 2
-                    continue
-                buf.append(src[j])
-                j += 1
-            strings.append("".join(buf))
-            out.append(q + q)
-            i = j + 1
-            continue
-        out.append(c)
-        i += 1
-    return "".join(out), strings
-
-
-def version_of(src):
-    m = re.search(r"//\s*@version\s*=\s*(\d+)", src)
-    return int(m.group(1)) if m else 1
+# ⭐⭐ WS-I Part 2 (2026-11-13): THE DETECTOR LIVES IN api/services/pine_capabilities.py, the ONE
+# authority the runtime lane's capability admission asks. The census re-imports it, never a copy:
+# strip_code, version_of, FEATURES + features_of (conditional-ta is a line scan), usage_of, KEYWORD_FEATURE,
+# the engine's order set (PINE_JS, engine_order_calls, order_calls_in).
+if ROOT not in sys.path:
+    sys.path.insert(0, ROOT)
+from api.services.pine_capabilities import (  # noqa: E402
+    FEATURES, KEYWORD_FEATURE, METHOD_CALL_RX, PINE_JS, conditional_ta_in, engine_order_calls, features_of,
+    join_continuations, order_calls_in, strip_code, usage_of, version_of,
+)
 
 
 class Inventory:
@@ -290,65 +214,6 @@ class Inventory:
         return None
 
 
-def usage_of(src, inv):
-    """Which inventory items, legacy names, features and method calls one script uses."""
-    version = version_of(src)
-    code, strings = strip_code(src)
-    used = set()
-    for m in re.finditer(r"(?<![\w.])([A-Za-z_]\w*(?:\s*\.\s*[A-Za-z_]\w*)*)", code):
-        raw = re.sub(r"\s+", "", m.group(1))
-        nm = inv.normalise(raw, version)
-        if nm:
-            # a bare word that is ALSO a keyword/type (`float`, `color`) is only that when it IS the item
-            used.add(nm)
-            continue
-        parts = raw.split(".")
-        # `color.new` inside `ns.fn` chains, and method calls `x.push(`
-        if len(parts) >= 2:
-            tail_call = code[m.end():m.end() + 3].lstrip().startswith("(")
-            head = parts[0]
-            last = parts[-1]
-            if head not in inv.namespaces and tail_call and last in inv.methods:
-                cands = inv.methods[last]
-                typed = {ns for ns in cands if re.search(r"\b%s\s*(?:\.|<)" % re.escape(ns), code)
-                         or (ns == "array" and re.search(r"\w\s*\[\s*\]", code))}
-                for ns in (typed or cands):
-                    used.add(ns + "." + last)
-    for op in ("+", "-", "*", "/", "==", "!=", ">", "<", ">=", "<=", "="):
-        if op in code:
-            used.add(op)
-    for op in ("?:", ":=", "+=", "-=", "*=", "/=", "%=", "=>", "[]", "%"):
-        if op == "?:":
-            if re.search(r"\?[^?:\n]+:", code):
-                used.add("?:")
-        elif op == "[]":
-            if re.search(r"[\w\)]\s*\[", code):
-                used.add("[]")
-        elif op in code:
-            used.add(op)
-    feats = {fid for fid, _l, rx, fl in FEATURES if re.search(rx, code, fl)}
-    for m in re.finditer(r"(?:(?<![\w.])([A-Za-z_]\w*)|[\)\]])\s*\.\s*[a-z_]\w*\s*\(", code):
-        if m.group(1) is None or m.group(1) not in inv.namespaces:
-            feats.add("method-call")
-            break
-    if re.search(r"\b(?:float|int|bool|string|color)\s*\[\s*\]", code):
-        used.add("array")
-    # request.security symbol literals, for the cross-symbol census
-    syms = []
-    for m in re.finditer(r"(?:request\.security|security)\s*\(\s*\"([^\"]*)\"", src):
-        syms.append(m.group(1))
-    for m in re.finditer(r"input\.symbol\s*\(\s*\"([^\"]*)\"", src):
-        syms.append(m.group(1))
-    # ⛔ A KEYWORD SPELLED AS A WORD IS NOT THE KEYWORD: `type = input.integer` (a v4 named
-    # argument) is not a UDT, `in` / `as` appear in prose-like identifiers. These keywords
-    # count only when the statement that USES them is present.
-    for kw, feat in KEYWORD_FEATURE.items():
-        used.discard(kw)
-        if feat in feats:
-            used.add(kw)
-    return {"version": version, "items": used, "features": feats, "symbols": syms, "orders": order_calls_in(code)}
-
-
 def data_limited(name):
     for pre, why in DATA_LIMITED:
         if name == pre or (pre.endswith(".") and name.startswith(pre)) or (name.startswith(pre) and not pre.endswith(".") and name[len(pre):len(pre) + 1] in ("", "_", ".")):
@@ -356,37 +221,7 @@ def data_limited(name):
     return None
 
 
-KEYWORD_FEATURE = {"type": "udt", "in": "for-in", "as": "import", "import": "import", "method": "method-def",
-                   "enum": "enum", "while": "while", "for": "for", "switch": "switch", "varip": "varip"}
-# ⭐ W9 T0 - ONE authority for "which calls place or manage orders": the engine's own
-# STRATEGY_ORDER_CALLS (pine.js), read from the source, never restated here (the old copy named 5 of the
-# engine's 13). Detection is from the SCRIPT'S TEXT, never from the reference inventory: a reference
-# extract that lacks a name (the 11-03 map's lacks strategy.entry / exit / order / position_size) makes
-# an inventory lookup say "no orders" and a strategy placing orders counted as transferring.
-PINE_JS = os.path.join(ROOT, "app", "src", "components", "chart", "engine", "ast", "pine.js")
-
-
-def engine_order_calls(path=PINE_JS):
-    """The names in pine.js's `export const STRATEGY_ORDER_CALLS = Object.freeze(new Set([...]))`."""
-    src = open(path, encoding="utf-8").read()
-    m = re.search(r"STRATEGY_ORDER_CALLS\s*=\s*Object\.freeze\(\s*new Set\(\s*\[(.*?)\]", src, re.S)
-    if not m:
-        raise SystemExit("coverage_map: STRATEGY_ORDER_CALLS not found in %s" % path)
-    names = re.findall(r"'([\w.]+)'", m.group(1))
-    if not names:
-        raise SystemExit("coverage_map: STRATEGY_ORDER_CALLS in %s is empty" % path)
-    return frozenset(names)
-
-
 STRATEGY_ORDERS = engine_order_calls()
-
-
-def order_calls_in(code, orders=None):
-    """The order-set names a script CALLS, read from its comment- and string-stripped code
-    (`strategy.entry(`, with whitespace around the dots allowed). Version-independent."""
-    names = sorted(orders if orders is not None else STRATEGY_ORDERS, key=len, reverse=True)
-    rx = r"(?<![\w.])(" + "|".join(r"\s*\.\s*".join(re.escape(p) for p in n.split(".")) for n in names) + r")\s*\("
-    return {re.sub(r"\s+", "", m.group(1)) for m in re.finditer(rx, code)}
 
 
 def places_orders(u):
@@ -669,6 +504,56 @@ def norm_src(text):
     return hashlib.sha1(re.sub(r"\s+", "", text).encode("utf-8")).hexdigest()
 
 
+def sample_slug(key):
+    """A sample key's script key, as a capture id spells it (`evidence_engine.house_slug`: the corpus
+    hash after `__` dropped, lowercased, each run outside [a-z0-9.] one `-`)."""
+    stem = key.split(":", 1)[-1]
+    return re.sub(r"[^a-z0-9.]+", "-", stem.split("__", 1)[0].lower()).strip("-")
+
+
+def ledger_evidence(path, scripts, source_of, lane, engine, skip_captures=()):
+    """⭐ LEDGER_ONLY EVIDENCE (docs/pine/vendor-harness/evidence-ledger.jsonl): the verdicts of
+    licence-held captures, which stay out of git. Joined to the sample by SOURCE SHA256
+    (`evidence_ledger.classify`): a row counts only when it is FRESH (graded at today's
+    SCRIPT_ENGINE_VERSION, or superseded by a newer regrade that is) and its source sha is the
+    sample's. A stale row is "unproven (stale)", a sha mismatch is never counted, a DIVERGE is a
+    DIVERGE. Captures already graded from a committed fixture are skipped (never counted twice)."""
+    rows = el.read_rows(path) if path and os.path.exists(path) else []
+    samples = {s["key"]: el.source_shas(source_of(s["key"])) for s in scripts}
+    return el.classify(rows, samples, engine=engine, lane=lane, skip_captures=frozenset(skip_captures),
+                       slug_of={s["key"]: sample_slug(s["key"]) for s in scripts})
+
+
+#: A script whose only vendor evidence is a ledger row graded at an older engine: not proven.
+LEDGER_STALE = "unproven (stale)"
+
+
+def fold_ledger(scripts, led, cap_rows, verified_items, diverge_items):
+    """Fold `ledger_evidence` into the sample: each FRESH ledger verdict is a capture of that script
+    (a MATCH proves the names it uses, like a committed MATCH capture; a DIVERGE is a DIVERGE); a
+    script whose only ledger rows are stale is marked so (`vendor_verdict_of` -> LEDGER_STALE)."""
+    for s in scripts:
+        e = led["byKey"].get(s["key"])
+        if not e:
+            continue
+        for v in e["verdicts"]:
+            s.setdefault("_captures", set()).add(v)
+            cap_rows.append({"id": "ledger:" + s["key"], "verdict": v})
+            tgt = verified_items if v == "MATCH" else diverge_items
+            for it in s["_items"]:
+                if not it.startswith(UNGRADED_PREFIXES):
+                    tgt[it] += 1
+        if e["stale"] and not e["verdicts"]:
+            s["_ledgerStale"] = True
+
+
+def vendor_verdict_of(s):
+    """A script's vendor verdict; a script proven only by STALE ledger rows is LEDGER_STALE, never proven."""
+    v = script_verdict(s.pop("_captures", ()))
+    stale = s.pop("_ledgerStale", False)
+    return LEDGER_STALE if v is None and stale else v
+
+
 def script_verdict(verdicts):
     """One script's vendor verdict over its captures' verdicts: MATCH if any capture MATCHes,
     else DIVERGE if any DIVERGEs, else INCONCLUSIVE; None for a script without a capture."""
@@ -944,6 +829,8 @@ def main():
     ap.add_argument("--cache", required=True)
     ap.add_argument("--ref", required=True)
     ap.add_argument("--verdicts", required=True)
+    ap.add_argument("--ledger", default=str(el.LEDGER),
+                    help="LEDGER_ONLY evidence (licence-held captures graded out of git); fresh rows count")
     ap.add_argument("--engine-door")
     ap.add_argument("--out", required=True)
     ap.add_argument("--tables")
@@ -1036,9 +923,15 @@ def main():
             if it.startswith(UNGRADED_PREFIXES):
                 continue
             tgt[it] += 1
+    # ── LEDGER_ONLY evidence: licence-held captures graded out of git (see `ledger_evidence`)
+    led = ledger_evidence(a.ledger, scripts,
+                          lambda k: open(inputs[k]["path"], encoding="utf-8", newline="").read(),
+                          LANE_PRODUCTION, el.engine_version(),
+                          skip_captures={r.get("id") for r in vd.get("results", [])})
+    fold_ledger(scripts, led, cap_rows, verified_items, diverge_items)
     vcount = collections.Counter(r["verdict"] for r in cap_rows)
     for s in scripts:
-        s["vendorVerdict"] = script_verdict(s.pop("_captures", ()))
+        s["vendorVerdict"] = vendor_verdict_of(s)
     sample_parity = collections.Counter(
         ("transfers" if s["clean"] else "does-not-transfer") + ":" + s["vendorVerdict"]
         for s in scripts if s["vendorVerdict"])
@@ -1230,11 +1123,14 @@ def main():
         },
         "parity": {
             "captures": len(cap_rows), "verdicts": dict(sorted(vcount.items())),
-            "sampleScriptsWithACapture": sum(1 for s in scripts if s["vendorVerdict"]),
+            "sampleScriptsWithACapture": sum(1 for s in scripts if s["vendorVerdict"] not in (None, LEDGER_STALE)),
             "sampleByTransferAndVerdict": dict(sorted(sample_parity.items())),
             "verifiedTransfer": sum(1 for s in scripts if s["clean"] and s["vendorVerdict"] == "MATCH"),
             "verifiedTransferPct": round(100.0 * sum(1 for s in scripts if s["clean"] and s["vendorVerdict"] == "MATCH") / N, 1),
             "note": "vendor-harness verdicts over tests/fixtures/vendor/harness (RDDT/SPY daily captures of corpus scripts and probes)",
+            # LEDGER_ONLY evidence, only when the ledger holds rows (an absent ledger leaves the map byte-identical)
+            **({"ledger": {**led["counts"], "staleScripts": sum(1 for s in scripts if s["vendorVerdict"] == LEDGER_STALE),
+                           "shaMismatch": led["shaMismatch"]}} if any(led["counts"].values()) else {}),
         },
         "examples": {"total": examples_total, "transfer": examples_clean},
         "inventory": {

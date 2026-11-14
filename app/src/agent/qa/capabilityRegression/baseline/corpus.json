@@ -9258,7 +9258,7 @@
     },
     {
       "id": "grid.add-count.reuses-one",
-      "source": "GRID-REUSE (11-04, v1 with NLM-1 off): a COUNT of charts with tickers is THE grid — the board's charts reused, never an extra one (held-out P08: \"add a 2x2 of SPY QQQ IWM DIA\" made 5 charts) — one chart on the board",
+      "source": "GRID-REUSE (11-04, v1 with NLM-1 off; phrasings re-worded 11-13: an ADD now never re-symbols — it asks, agentAddNeverReplaces): a COUNT of charts with tickers is THE grid — the board's charts reused, never an extra one (held-out P08: \"add a 2x2 of SPY QQQ IWM DIA\" made 5 charts) — one chart on the board",
       "capabilities": [
         "chartGrid.set"
       ],
@@ -9329,26 +9329,26 @@
       },
       "phrasings": [
         {
-          "text": "add a 2x2 of SPY QQQ IWM DIA",
+          "text": "make a 2x2 of SPY QQQ IWM DIA",
           "det": "required"
         },
         {
-          "text": "add a 2x2 grid of SPY, QQQ, IWM and DIA",
+          "text": "set up a 2x2 grid of SPY, QQQ, IWM and DIA",
           "det": "required"
         },
         {
-          "text": "add SPY, QQQ, IWM and DIA on four charts",
+          "text": "show SPY, QQQ, IWM and DIA on four charts",
           "det": "required"
         },
         {
-          "text": "add four charts for SPY QQQ IWM DIA",
+          "text": "four charts for SPY QQQ IWM DIA",
           "det": "required"
         }
       ]
     },
     {
       "id": "grid.add-count.reuses-two",
-      "source": "GRID-REUSE (11-04, v1 with NLM-1 off): a COUNT of charts with tickers is THE grid — the board's charts reused, never an extra one (held-out P08: \"add a 2x2 of SPY QQQ IWM DIA\" made 5 charts) — two charts on the board",
+      "source": "GRID-REUSE (11-04, v1 with NLM-1 off; phrasings re-worded 11-13: an ADD now never re-symbols — it asks, agentAddNeverReplaces): a COUNT of charts with tickers is THE grid — the board's charts reused, never an extra one (held-out P08: \"add a 2x2 of SPY QQQ IWM DIA\" made 5 charts) — two charts on the board",
       "capabilities": [
         "chartGrid.set"
       ],
@@ -9420,19 +9420,19 @@
       },
       "phrasings": [
         {
-          "text": "add a 2x2 of SPY QQQ IWM DIA",
+          "text": "make a 2x2 of SPY QQQ IWM DIA",
           "det": "required"
         },
         {
-          "text": "add a 2x2 grid of SPY, QQQ, IWM and DIA",
+          "text": "set up a 2x2 grid of SPY, QQQ, IWM and DIA",
           "det": "required"
         },
         {
-          "text": "add SPY, QQQ, IWM and DIA on four charts",
+          "text": "show SPY, QQQ, IWM and DIA on four charts",
           "det": "required"
         },
         {
-          "text": "add four charts for SPY QQQ IWM DIA",
+          "text": "four charts for SPY QQQ IWM DIA",
           "det": "required"
         }
       ]

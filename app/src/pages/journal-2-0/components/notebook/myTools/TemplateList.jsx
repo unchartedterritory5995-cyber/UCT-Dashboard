@@ -1,0 +1,399 @@
+import { useCallback, useEffect, useRef, useState } from 'react'
+import ContextPopover from '../../../../../components/mobile/ContextPopover'
+import UIcon from '../../../../../components/ui/UIcon'
+import { useIsTouch } from '../../../../../hooks/useBreakpoint'
+import { BUILTIN_NOTE_KINDS } from '../../../lib/noteKinds'
+import { deleteTemplate, listTemplates, restoreTemplate, unarchiveTemplate } from '../../../lib/templateLibrary'
+import UsedInList from './UsedInList'
+import DeleteConfirm from './DeleteConfirm'
+import PanelHead from './PanelHead'
+import {
+  LIST_RENDER_MAX, TEMPLATE_COPY, TEMPLATE_DELETED_DAYS, creditText, dayText, editedText, keptUntilText,
+  listHeadingText, notesWord, templateArchiveSentence, usedInText, usedOf,
+} from './myToolsLib'
+import { holdSheetKeys } from '../sheetKeys'
+import styles from './myTools.module.css'
+
+/**
+ * The member's own archived or recently deleted templates, one list at a time (follow-up C: moved here from My tools'
+ * Templates tab, which drew it until then, so Manage templates renders the SAME list for its Archived and Recently
+ * deleted views). The caller owns which list is shown (`filter`: 'archived' or 'deleted'). `onChanged()` runs after every write that
+ * went through, so the caller can read its own copy of the templates again. Active is the manager's own per-note-type
+ * list, which reuses `ArchivePanel` from here. (The tab's Active list, with Open, Rename, Duplicate and Share, went with
+ * the tab: the manager's Edit, Duplicate and Share do those.)
+ *
+ * From the tab's own description (spec 5.8, wave 11 Task 11.19, ruling W11-R10): the member's OWN templates (their
+ * journal styles; the built-in starter templates are not the member's and are not listed), the Widgets tab's pattern.
+ *
+ *  * Each row: the name, the kind of note it makes, "Used in N notes" (which lists those notes; "Not in any note" with
+ *    none), when it was last edited, and for a copy from the library the server's credit line ("Based on Sam's
+ *    Pre-market prep", or "Based on a former member's …").
+ *  * Archived: Restore, Delete permanently (the name typed, DeleteConfirm). Recently deleted: Restore, "Kept until
+ *    <Mon D>" (TEMPLATE_DELETED_DAYS).
+ *  * Every action is a ContextPopover on the row (a bottom sheet on touch); on desktop the row's main action is also a
+ *    button of its own. A panel pushes in place of the list; the list stays mounted, hidden, so Back (or Escape)
+ *    returns focus to the row it came from. Rows are My tools' own `.row` (56 px on phone).
+ *  * Every read and write is lib/templateLibrary's; the server's sentences ("Archive this template before deleting
+ *    it.", the 30-day restore limit) are shown as they came.
+ *  * ONE live region for the list's whole life (`data-testid="my-tools-message"`), its child keyed per message.
+ *
+ * ⛔ LAZY: imported only by on-demand chunks (My tools, through openMyTools.js; the template manager, a `lazyDialog`),
+ *    and only rendered while `widgetsWaveOn(11)` (every route it reads is a 404 otherwise).
+ */
+const isRecord = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
+const VIEW_OF = { archived: 'archived', deleted: 'deleted' }
+const actionsFor = (id) => `[data-actions-for="${String(id).replace(/["\\]/g, '\\$&')}"]`
+export const BACK_LABEL = 'Back to your templates'
+const BUILTIN_KIND_NAME = new Map(BUILTIN_NOTE_KINDS.map((k) => [k.id, k.name]))
+
+/** The kind of note a template makes, by name: the list's own kinds (the member's too), else the built-in names. */
+const kindName = (kinds, id) => kinds.get(id) || BUILTIN_KIND_NAME.get(id) || ''
+
+function Row({ d, kinds, filter, phone, touch, busy, menuOpen, onMenu, onPrimary, onUsedIn, refused = '' }) {
+  const used = usedOf(d)
+  const credit = creditText(d)
+  const kind = kindName(kinds, d.kindId)
+  const primary = 'Restore'
+  return (
+    <li className={`${styles.row}`} data-style-id={d.id} data-testid="my-tools-template-row">
+      <span className={styles.thumb} aria-hidden="true">
+        <UIcon name="document" size={20} gold={false} />
+      </span>
+      <div className={styles.rowMain}>
+        <span className={styles.rowName} title={d.name}><span data-template-name="">{d.name}</span></span>
+        <span className={styles.rowMeta}>
+          {filter === 'deleted' ? (
+            <>
+              {dayText(d.deletedAt) && (
+                <>
+                  <span>{`Deleted ${dayText(d.deletedAt)}`}</span>
+                  <span aria-hidden="true">·</span>
+                  <span>{keptUntilText(d.deletedAt, new Date(), TEMPLATE_DELETED_DAYS)}</span>
+                </>
+              )}
+            </>
+          ) : (
+            <>
+              {kind && <><span>{kind}</span><span aria-hidden="true">·</span></>}
+              {!phone && used > 0 ? (
+                <button type="button" className={styles.linkBtn} onClick={() => onUsedIn(d)}
+                  aria-label={`${usedInText(used)}: list the notes made with ${d.name}`}>{usedInText(used)}</button>
+              ) : <span>{usedInText(used)}</span>}
+              {editedText(d.updatedAt) && <><span aria-hidden="true">·</span><span>{editedText(d.updatedAt)}</span></>}
+            </>
+          )}
+          {credit && <><span aria-hidden="true">·</span><span data-credit="">{credit}</span></>}
+        </span>
+        {refused && <span className={styles.inlineError} data-restore-refused="">{refused}</span>}
+      </div>
+      {!phone && (
+        <button type="button" className={styles.btn} aria-disabled={busy || undefined} aria-busy={busy || undefined}
+          onClick={(e) => { if (!busy) onPrimary(d, e.currentTarget) }} aria-label={`${primary} ${d.name}`}>{primary}</button>
+      )}
+      <button type="button" className={styles.moreBtn} aria-label={`Actions for ${d.name}`}
+        aria-haspopup={touch ? 'dialog' : 'menu'} aria-expanded={menuOpen} aria-busy={busy || undefined}
+        data-actions-for={d.id} onClick={(e) => onMenu(d, e.currentTarget)}>
+        <UIcon name="more" size={20} gold={false} />
+      </button>
+    </li>
+  )
+}
+
+/** "Archive “X”?" for a template in notes: what happens to them, then Archive. The manager's Active rows use it. */
+/* `checking`: the template's notes are being read (the sentence waits, Archive is off). `sentence`: said instead of the
+ * counted one (the manager's, when that read failed: never "no notes" for a count nobody knows). */
+export function ArchivePanel({ d, onBack, onArchive, busy, error, backLabel = BACK_LABEL, checking = false, sentence = null }) {
+  const off = busy || checking
+  return (
+    <div className={styles.pushPanel} data-testid="my-tools-archive">
+      <PanelHead title={`Archive “${d.name}”?`} onBack={onBack} backLabel={backLabel} />
+      <p className={styles.sentence} data-testid="archive-sentence" aria-live="polite">
+        {checking ? 'Checking which notes use it…' : sentence || templateArchiveSentence(usedOf(d))}
+      </p>
+      <p className={styles.hint}>It leaves your template list; you can restore it from Archived.</p>
+      {error && <p className={styles.inlineError}>{error}</p>}
+      <div className={styles.actions}>
+        <button type="button" className={styles.btn} onClick={onBack}>Cancel</button>
+        <button type="button" className={styles.btnPrimary} aria-disabled={off || undefined} aria-busy={off || undefined}
+          onClick={() => { if (!off) onArchive(d) }}>{busy ? 'Archiving…' : 'Archive'}</button>
+      </div>
+    </div>
+  )
+}
+
+export default function TemplateList({ filter = 'archived', phone, onCloseAll, onChanged }) {
+  const touch = useIsTouch()
+  const [lists, setLists] = useState({})            // filter -> {status, items?, kinds?, code?, message?, stale?}
+  const [view, setView] = useState({ kind: 'list' })
+  const [menu, setMenu] = useState(null)
+  const [message, setMessage] = useState(null)
+  const [busyId, setBusyId] = useState(null)
+  // F-FE-1 F5: a restore the server refused for good (its sentence: the kind of note was deleted, the 30 days are
+  // over, the template cap), kept on the row it is about after the live line moves on. id -> the server's sentence.
+  const [refused, setRefused] = useState({})
+  const rootRef = useRef(null)
+  const returnTo = useRef(null)
+  const focusAfter = useRef(null)
+  const mounted = useRef(true)
+  const filterRef = useRef(filter)
+  filterRef.current = filter
+
+  // Another list asked for: the live line's last sentence was about the list left behind.
+  const [seenFilter, setSeenFilter] = useState(filter)
+  if (filter !== seenFilter) {
+    setSeenFilter(filter)
+    setMessage(null)
+  }
+  const changedRef = useRef(onChanged)
+  changedRef.current = onChanged
+  const changed = () => { changedRef.current?.() }
+
+  useEffect(() => () => { mounted.current = false }, [])
+  const say = useCallback((text, tone = 'ok') => setMessage((m) => (text ? { text, tone, n: (m?.n || 0) + 1 } : (m ? { ...m, text: '' } : null))), [])
+
+  const load = useCallback(async (key) => {
+    setLists((all) => (all[key]?.status === 'ok' ? all : { ...all, [key]: { status: 'loading' } }))
+    const got = await listTemplates(VIEW_OF[key])
+    if (!mounted.current) return null
+    const raw = got.ok && Array.isArray(got.data.styles) ? got.data.styles : null
+    // Built-in templates are not the member's (W11-R10): never listed, whatever a view answers.
+    const items = raw ? raw.filter((s) => isRecord(s) && s.id && s.builtin !== true) : null
+    const kinds = got.ok && Array.isArray(got.data.kinds) ? got.data.kinds.filter((k) => isRecord(k) && k.id) : []
+    setLists((all) => ({ ...all, [key]: items ? { status: 'ok', items, kinds } : { status: 'error', code: got.code, message: got.message } }))
+    return items
+  }, [])
+  const refresh = useCallback((key) => {
+    setLists((all) => (all[key] ? { [key]: { ...all[key], stale: true } } : {}))
+    return load(key)
+  }, [load])
+  /** A write went through: read the list it changed again, and tell the caller (its own copy is stale too). */
+  const wrote = (key) => { changed(); refresh(key) }
+  useEffect(() => { if (!lists[filter]) load(filter) }, [filter, lists, load])
+
+  const readText = (s) => (s.code === 'offline' ? TEMPLATE_COPY.offlineList
+    : s.code === 'network' || !s.message ? TEMPLATE_COPY.loadFailed : s.message)
+  const failed = lists[filter]?.status === 'error' ? lists[filter] : null
+  const failedCode = failed?.code || null
+  useEffect(() => {
+    if (failed) say(readText(failed), 'quiet')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [failedCode, say])
+  useEffect(() => {
+    if (failedCode !== 'offline') return undefined
+    const back = () => { say(null); refresh(filter) }
+    window.addEventListener('online', back)
+    return () => window.removeEventListener('online', back)
+  }, [failedCode, filter, refresh, say])
+
+  // ── panels ──────────────────────────────────────────────────────────────────────────────────────
+  const push = (k, d) => {
+    returnTo.current = d?.id ?? null
+    setMessage(null)
+    setMenu(null)
+    setView({ kind: k, d })
+  }
+  const back = useCallback(() => {
+    setView({ kind: 'list' })
+  }, [])
+  useEffect(() => {
+    if (view.kind !== 'list' || !returnTo.current) return
+    if (!focusAfter.current) focusAfter.current = { id: returnTo.current, fallback: true }
+    returnTo.current = null
+  }, [view])
+  useEffect(() => {
+    const want = focusAfter.current
+    if (!want || view.kind !== 'list') return
+    const root = rootRef.current
+    const waited = want.wait ? lists[want.wait] : null
+    if (want.wait && (filter !== want.wait || !waited || waited.stale || waited.status === 'loading')) return
+    if (want.wait && waited.status === 'error') {
+      focusAfter.current = null
+      const failBox = root?.querySelector('[data-load-failed-box]')
+      ;(failBox?.querySelector('button') || failBox?.querySelector('[data-testid="my-tools-load-failed"]'))?.focus()
+      return
+    }
+    const el = want.id && !want.heading ? root?.querySelector(actionsFor(want.id)) : null
+    if (el) { focusAfter.current = null; el.focus(); return }
+    const heading = root?.querySelector('[data-list-heading]')
+    if ((want.fallback || want.heading) && heading) { focusAfter.current = null; heading.focus() }
+  })
+  const focusPast = (key, id) => {
+    const xs = lists[key]?.items || []
+    const i = xs.findIndex((t) => t.id === id)
+    const next = i >= 0 ? (xs[i + 1] || xs[i - 1]) : null
+    focusAfter.current = next ? { id: next.id, fallback: true, wait: key } : { heading: true, wait: key }
+  }
+
+  // Escape: a desktop menu closes first; then a panel goes back one level; at the list the Sheet's own Escape closes
+  // My tools. Only while this sheet is the topmost one (a touch menu or the share preview is a sheet of its own).
+  const keys = useRef(null)
+  keys.current = { menu, view, back }
+  useEffect(() => {
+    const isTop = () => {
+      const panel = rootRef.current?.closest('[data-sheet-panel]')
+      const panels = document.querySelectorAll('[data-sheet-panel]')
+      return !!panel && panels[panels.length - 1] === panel
+    }
+    const onKey = (e) => {
+      if (e.key !== 'Escape' || !isTop()) return
+      const k = keys.current
+      if (k.menu) { e.preventDefault(); e.stopPropagation(); setMenu(null); return }
+      if (k.view.kind === 'list') return
+      e.preventDefault()
+      e.stopPropagation()
+      k.back()
+    }
+    // W11-R86: through the shared key registry (declared there with its scope, `myTools.tabEscape`), so the
+    // key-listener census sees it. Same node (window), same phase (capture), same rule (every Escape, in a field too).
+    // Held through sheetKeys.js, which keeps one registration while a closing sheet and its successor overlap.
+    return holdSheetKeys('myToolsTab', onKey)
+  }, [])
+
+  const gone = useCallback((text = TEMPLATE_COPY.gone) => {
+    returnTo.current = null
+    focusAfter.current = { heading: true, wait: filterRef.current }
+    setView({ kind: 'list' })
+    say(text, 'error')
+    refresh(filterRef.current)
+  }, [refresh, say])
+
+  // ── actions ─────────────────────────────────────────────────────────────────────────────────────
+  const act = async (d, run, done) => {
+    if (busyId) return
+    setBusyId(d.id)
+    setMessage(null)
+    const got = await run()
+    // Round 2, B1: the list can unmount while the request is out (the manager keys it by view, so a switch between
+    // Archived and Recently deleted unmounts it). A write that went through still tells the caller, so its own copy
+    // (the Active list, the usage counts) is read again; this list's state is not touched once it is gone.
+    if (!mounted.current) { if (got.ok) changed(); return }
+    setBusyId(null)
+    if (got.ok) { done(got.data); return }
+    if (got.code === 'unavailable') { gone(); return }
+    say(got.message, 'error')
+  }
+  const unarchive = (d) => act(d, () => unarchiveTemplate(d.id), () => {
+    focusPast('archived', d.id)
+    say(`Restored “${d.name}” to your templates.`)
+    wrote('archived')
+  })
+  // F-FE-1 F4 (W11-R36): where a restored template lands is the SERVER's answer, its `archivedAt`: one deleted from
+  // Archived keeps it and is back in Archived; one deleted from the styles manager was never archived and is back in
+  // the live list. F5: a refusal for good (`invalid`, the router's own sentence) stays on the row; one that could not
+  // be sent or read (offline, network) is only said.
+  const undelete = (d) => act(d, async () => {
+    const got = await restoreTemplate(d.id)
+    if (!got.ok && got.code === 'invalid' && mounted.current) setRefused((r) => ({ ...r, [d.id]: got.message }))
+    return got
+  }, (data) => {
+    // m-6: an answer that does not say (no `archivedAt` key: restore_style's early return when another tab restored it
+    // first answers get_style) is worded from the row's own archived state, the best this tab knows.
+    const t = isRecord(data?.style) ? data.style : null
+    const from = t && Object.hasOwn(t, 'archivedAt') ? t : d
+    const archived = typeof from?.archivedAt === 'string' && from.archivedAt !== ''
+    setRefused((r) => { const next = { ...r }; delete next[d.id]; return next })
+    focusPast('deleted', d.id)
+    say(archived ? `Restored “${d.name}”. It's in Archived.` : `Restored “${d.name}” to your templates.`)
+    wrote('deleted')
+  })
+  const primary = (d) => {
+    if (filter === 'archived') unarchive(d)
+    else undelete(d)
+  }
+
+  const menuItems = (d) => {
+    const used = usedOf(d)
+    const usedIn = used > 0 ? [{ key: 'used', label: usedInText(used), onClick: () => push('usedIn', d) }] : []
+    if (filter === 'deleted') return [{ key: 'restore', label: 'Restore', onClick: () => undelete(d) }]
+    return [
+      { key: 'restore', label: 'Restore', onClick: () => unarchive(d) },
+      ...usedIn,
+      { separator: true },
+      { key: 'delete', label: 'Delete permanently', danger: true, onClick: () => push('delete', d),
+        hint: `Needs the name typed. Kept in Recently deleted for ${TEMPLATE_DELETED_DAYS} days.` },
+    ]
+  }
+  const openMenu = (d, el) => {
+    if (busyId === d.id) return
+    const r = el.getBoundingClientRect()
+    setMenu({ d, anchor: { x: Math.max(8, r.right - 220), y: r.bottom + 4 } })
+  }
+
+  // ── render ──────────────────────────────────────────────────────────────────────────────────────
+  const state = lists[filter]
+  const items = state?.status === 'ok' ? state.items : []
+  const kindsList = state?.kinds || []
+  const kinds = new Map(kindsList.map((k) => [k.id, typeof k.name === 'string' ? k.name : '']))
+  const shown = items.slice(0, LIST_RENDER_MAX)
+  // No zeros (m-2): an empty list's heading names the list (listHeadingText, shared by all four tabs).
+  const heading = listHeadingText(filter, items.length, 'template', 'templates')
+  const empty = filter === 'deleted' ? TEMPLATE_COPY.emptyDeleted : TEMPLATE_COPY.emptyArchived
+
+  let panel = null
+  if (view.kind === 'usedIn') {
+    panel = <UsedInList d={view.d} kind="template" onBack={back} onNavigate={onCloseAll} backLabel={BACK_LABEL} />
+  } else if (view.kind === 'delete') {
+    const d = view.d
+    const used = usedOf(d)
+    panel = <DeleteConfirm d={d} onBack={back} onGone={gone} backLabel={BACK_LABEL}
+      remove={(typed) => deleteTemplate(d.id, typed)}
+      what={`It moves to Recently deleted for ${TEMPLATE_DELETED_DAYS} days, then it is gone for good.${used > 0 ? ` Your ${notesWord(used)} stay${used === 1 ? 's' : ''} as ${used === 1 ? 'it is' : 'they are'}.` : ''}`}
+      deletedText={`“${d.name}” moved to Recently deleted. It's kept for ${TEMPLATE_DELETED_DAYS} days.`}
+      onDeleted={(_data, text) => {
+        returnTo.current = null
+        focusPast('archived', d.id)
+        say(text)
+        back()
+        wrote('archived')
+      }} />
+  }
+
+  const tone = message?.tone
+  return (
+    <div ref={rootRef} className={styles.widgets} data-testid="template-list">
+      <p className={!message?.text ? styles.liveIdle : tone === 'error' ? styles.error : tone === 'quiet' ? styles.srOnly : styles.status}
+        role="status" aria-live="polite" aria-atomic="true" data-tone={tone || undefined}
+        data-testid="my-tools-message">{message?.text ? <span key={message.n}>{message.text}</span> : null}</p>
+      {panel}
+      <div hidden={view.kind !== 'list'} className={styles.listWrap}>
+
+        {(!state || state.status === 'loading') && <p className={styles.hint}>{TEMPLATE_COPY.loading}</p>}
+        {state?.status === 'error' && (
+          <div className={styles.stateBox} data-load-failed-box="">
+            <p className={styles.sentence} tabIndex={-1} data-testid="my-tools-load-failed">{readText(state)}</p>
+            {state.code !== 'unavailable' && state.code !== 'paid' && (
+              <button type="button" className={styles.btn} onClick={() => { say(null); refresh(filter) }}>Try again</button>
+            )}
+          </div>
+        )}
+        {state?.status === 'ok' && (
+          <>
+            <h3 className={styles.listHeading} tabIndex={-1} data-list-heading="">{heading}</h3>
+            {items.length === 0 ? (
+              <div className={styles.stateBox}>
+                <p className={styles.sentence} data-testid="my-tools-empty">{empty}</p>
+              </div>
+            ) : (
+              <ul className={styles.list}>
+                {shown.map((d) => (
+                  <Row key={d.id} d={d} kinds={kinds} filter={filter} phone={phone} touch={touch}
+                    busy={busyId === d.id} menuOpen={menu?.d.id === d.id}
+                    onMenu={openMenu} onPrimary={primary} onUsedIn={(x) => push('usedIn', x)}
+                    refused={filter === 'deleted' ? refused[d.id] || '' : ''} />
+                ))}
+              </ul>
+            )}
+            {items.length > shown.length && (
+              <p className={styles.hint}>{`Showing the ${shown.length} most recently changed. ${items.length - shown.length} more are not shown.`}</p>
+            )}
+          </>
+        )}
+      </div>
+
+      {menu && (
+        <ContextPopover open onClose={() => setMenu(null)} anchor={menu.anchor} title={menu.d.name}
+          items={menuItems(menu.d)} width={240} />
+      )}
+    </div>
+  )
+}

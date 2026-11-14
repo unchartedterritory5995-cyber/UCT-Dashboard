@@ -262,18 +262,22 @@ def test_the_LIBRARY_lists_no_script():
                                              "placement", "inputs", "published_at", "ast_hash"}
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "OPEN, owner call: a RUNTIME document (compute.kind == 'runtime') is its Pine "
-    "(`compute.source`), and WS-H S4 shares it whole. Not a run-read part; not stripped here. "
-    "See docs/pine/evidence/2026-11-13-share-strips-run-reads/EVIDENCE.md"))
-def test_OPEN_a_runtime_document_share_still_carries_its_script(monkeypatch):
+def test_a_runtime_document_share_carries_its_script_AND_says_so(monkeypatch):
+    """DECIDED 2026-11-13 (was a strict xfail, "OPEN, owner call"): a RUNTIME document
+    (compute.kind == 'runtime') IS its Pine (`compute.source`) -- the runtime lane cannot draw it
+    without the script, and members import TradingView scripts -- so its share carries the script.
+    What makes that honest is the disclosure: the answer says so (`includesSource`), and the panel
+    shows the author the sentence before a link exists (`SharePanel.test.jsx`,
+    `tests/test_share_privacy.py`)."""
     monkeypatch.setenv(rt.SAVE_ENV, "1")
     monkeypatch.setenv(rt.STAGE_ENV, "all")
     d = copy.deepcopy(RUNTIME_DOCS["adx-and-di-for-v4"]["definition"])
     svc.save(AUTHOR, d["id"], d)
-    token = svc.share(AUTHOR, d["id"])["token"]
-    body = _as(VIEWER).get(f"/api/user-definitions/shared/{token}").json()
-    assert body["definition"]["compute"].get("source") != d["compute"]["source"]
+    minted = svc.share(AUTHOR, d["id"])
+    assert minted["includesSource"] is True
+    body = _as(VIEWER).get(f"/api/user-definitions/shared/{minted['token']}").json()
+    assert body["definition"]["compute"]["source"] == d["compute"]["source"]   # (a) carried
+    assert body["includesSource"] is True                                      # (b) disclosed
 
 
 # -- 3. the rails: every outbound path --------------------------------------------------------------
@@ -289,6 +293,8 @@ ROUTES = {
     ("POST", "/api/user-definitions/converse"): "none",
     ("GET", "/api/user-definitions/library"): "cross",
     ("GET", "/api/user-definitions/runtime-kill"): "none",
+    # WS-I Part 2: a verdict about the script the CALLER sends; it reads and stores nothing.
+    ("POST", "/api/user-definitions/runtime-admission"): "none",
     ("GET", "/api/user-definitions/{def_id}"): "own",
     ("PUT", "/api/user-definitions/{def_id}"): "own",
     ("POST", "/api/user-definitions/{def_id}/engine-status"): "own",
@@ -391,3 +397,18 @@ def test_the_routers_that_read_the_store_read_only_the_callers_own_rows():
                 if call.func.attr in _READERS:
                     owner = ast.unparse(call.args[0])
                     assert owner in ('user["id"]', "user['id']", "user_id"), (stem, ast.unparse(call))
+
+
+def test_engine54_a_copy_of_an_engine53_run_half_drops_its_older_sentence_too():
+    """ENGINE 54 changed the drawing note's sentence (plots AND drawings must agree); a document
+    minted under engine 53 carries the older one, and its copy drops that one as well."""
+    doc = copy.deepcopy(HALF["sent"])
+    old = rt.RUN_HALF_DRAWING_SENTENCES_PRIOR[0]
+    assert old != rt.RUN_HALF_DRAWING_SENTENCE
+    for n in doc["meta"]["disclosures"]:
+        if n["note"].endswith(" " + rt.RUN_HALF_DRAWING_SENTENCE):
+            n["note"] = n["note"][:-len(rt.RUN_HALF_DRAWING_SENTENCE)] + old
+    assert any(n["note"].endswith(" " + old) for n in doc["meta"]["disclosures"])      # CONTROL
+    got = rt.without_run_reads(doc)
+    assert not any(n["note"].endswith(old) for n in got["meta"]["disclosures"])
+    assert got["meta"]["disclosures"] == rt.without_run_reads(HALF["sent"])["meta"]["disclosures"]

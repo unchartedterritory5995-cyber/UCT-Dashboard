@@ -641,7 +641,7 @@ def test_member_b_notes_folders_kinds_and_properties_never_reach_a(two, monkeypa
                     "Ideas": 3.0, "No folder": 2.0}
             if mode == "kind":
                 assert {g.label: g.values.cells[0].value for g in res.groups} == {
-                    "Setup": 3.0, "No kind": 2.0}
+                    "Setup": 3.0, "No note type": 2.0}
     finally:
         c.set_trace_callback(None)
     scoped = [s for s in seen if re.search(r"FROM (j2_note_folders|j2_note_kinds|j2_note_properties"

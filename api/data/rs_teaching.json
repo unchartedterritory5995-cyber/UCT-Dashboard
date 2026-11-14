@@ -10,7 +10,7 @@
       "evidence": "A rising RS line means the stock is beating this benchmark over the window, nothing more: it can rise while the stock is falling if the benchmark falls faster (IBD). Which benchmark you compare against changes the answer.",
       "label": "Benchmark",
       "origin": "IBD and MarketSurge draw RS against the S&P 500. The equal-weight index or the sector ETF isolates the stock from the few giants that carry a cap-weighted index.",
-      "what": "What the RS line is measured against: this symbol's close divided by the benchmark's close, bar by bar. The resolved ticker is printed; SECTOR and INDUSTRY are resolved on the server."
+      "what": "What the RS line is measured against: this symbol's close divided by the benchmark's close, bar by bar. The benchmark actually used is printed: a ticker, an industry group or a UCT theme, worked out on the server for the auto choices."
     },
     "checks": {
       "evidence": "Counts, not signals: the green-on-red check passes at 6 of the last 20 sessions, which is UCT's own threshold, and the screener's up-on-down-days scan is looser at 3. No published hit rate exists for these checks and UCT has not measured them yet.",

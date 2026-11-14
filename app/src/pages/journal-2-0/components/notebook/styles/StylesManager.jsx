@@ -25,13 +25,28 @@
 // P5 Task 5 (ruling P5-R-C12): "How do you trade?" (StarterPackOffer) sits at the top of the list column while
 //    R-P5-5 holds, and a quiet "Starter packs" button beside New template and Community opens it whenever the
 //    starter-packs switch is on, whatever the member answered before.
-import { useContext, useEffect, useRef, useState } from 'react'
+// Follow-up C (one room for templates): while wave 11 is on, a view switch at the top (a tablist: Active, Archived,
+//    Recently deleted). Archived and Recently deleted render My tools' own list (myTools/TemplateList.jsx, ONE
+//    implementation: its rows, Restore, Delete permanently with the typed name, "Kept until"). A member's own row in
+//    Active gains Archive (with the hint that its notes keep it) and "Used in N notes" (the list of those notes, in
+//    the editor column). Delete's Undo line names the template and says it moved to Recently deleted.
+//    `show` / `showKey` (NotebookTab, from `?styles=1&show=` or a link in the New note sheet): read once per opening,
+//    'archived' or 'deleted' opens that view; anything else opens Active.
+import { useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { useInRouterContext, useSearchParams } from 'react-router-dom'
 import useSWR, { mutate as globalMutate } from 'swr'
 import Sheet from '../../../../../components/mobile/Sheet'
 import { focusableWithin } from '../../../../../components/mobile/useFocusTrap'
 import UIcon, { UICON_NAMES } from '../../../../../components/ui/UIcon'
 import usePreferences from '../../../../../hooks/usePreferences'
+import { useIsPhone } from '../../../../../hooks/useBreakpoint'
+import { widgetsWaveOn } from '../../../lib/notebookWidgetsFlags'
+import { archiveTemplate, listTemplates, templateUsedIn } from '../../../lib/templateLibrary'
+import TemplateList, { ArchivePanel, BACK_LABEL } from '../myTools/TemplateList'
+import UsedInList from '../myTools/UsedInList'
+import { actionFailure, creditText, templateArchiveSentence, usedInText, usedOf } from '../myTools/myToolsLib'
+import { PlainTemplatesManage } from '../MemberTemplates'
+import { holdSheetKeys } from '../sheetKeys'
 import { AuthContext } from '../../../../../context/AuthContext'
 import useJournalStyles from '../../../hooks/useJournalStyles'
 import { journalStylesEnabled } from '../../../lib/journalStylesFlag'
@@ -53,6 +68,14 @@ import { markOfferApplied, offerApplied } from './offerApplied'
 import styles from './StylesManager.module.css'
 
 const MAX_KIND_NAME = 40                           // note_kinds.MAX_KIND_NAME_CHARS
+/** The manager's three views (follow-up C), keyed as My tools' list reads them. */
+export const MANAGER_VIEWS = Object.freeze([['live', 'Active'], ['archived', 'Archived'], ['deleted', 'Recently deleted']])
+const VIEW_KEYS = MANAGER_VIEWS.map(([k]) => k)
+/** What `show` may open as a view; anything else (unknown, absent) opens Active. */
+const viewOf = (show) => (show === 'archived' || show === 'deleted' ? show : 'live')
+/** Fix round 1 (1): what Archive says while the template's notes are not known (never "no notes"). */
+const ARCHIVE_UNKNOWN_HINT = "Notes that use it keep it. New notes can't use it until you restore it."
+const ARCHIVE_UNKNOWN_SENTENCE = 'Archive this template? Notes that use it keep it.'
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`
 const dismissed = (v) => String(v ?? '').replace(/^"|"$/g, '') === 'dismissed'
 const newDraftStyle = (kindId) => ({ id: null, name: '', kindId, outlineTemplateId: null, outlineBodyJson: null, blocks: [], properties: {} })
@@ -75,11 +98,36 @@ function LibraryUpdateParam({ onFound }) {
   return null
 }
 
-export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
+export default function StylesManager({ open, onClose, blockedNoteIds = [], show = null, showKey = 0, onUsePlain = null }) {
   const on = journalStylesEnabled()
   const libraryOn = styleLibraryEnabled()
+  // Read per render (the flag is latched per tab, so it never flips under an open manager), as MyToolsSheet does.
+  const viewsOn = widgetsWaveOn(11)
+  const phone = useIsPhone()
   const inRouter = useInRouterContext()
   const { data, error, isLoading, mutate } = useJournalStyles({ enabled: open })
+  // The member's own templates with their "Used in" counts (the picker's list has none): My tools' live list.
+  const { data: usage, error: usageError, mutate: refreshUsage } = useSWR(open && on && viewsOn ? 'journal-styles:usage' : null,
+    async () => {
+      const got = await listTemplates('live')
+      return got.ok && Array.isArray(got.data.styles) ? got.data.styles : []
+    }, { shouldRetryOnError: false, revalidateOnFocus: false })
+  // Fix round 1 (1): a count is KNOWN only when this read answered for that id. Unknown (still loading, failed, absent)
+  // is never 0: Archive then asks, after reading that template's own notes (`askArchive`).
+  const usageById = new Map((usage || []).filter((s) => s && s.id).map((s) => [s.id, s]))
+  const usedById = new Map([...usageById].map(([id, s]) => [id, usedOf(s)]))
+  const [view, setView] = useState(() => viewOf(show))
+  const [aside, setAside] = useState(null)             // { kind: 'usedIn' | 'archive', s, checking? } in the editor column
+  const asideSeq = useRef(0)                            // a new number per panel opened: a late usage read lands only on its own panel
+  const [asideError, setAsideError] = useState('')
+  const tabRefs = useRef({})
+  const [plainServed, setPlainServed] = useState(-1)   // the ask (`showKey`) the Plain templates group already landed
+  // `show` is read once per opening (and again when a door asks again: `showKey`).
+  useEffect(() => {
+    if (!open) return
+    setView(viewOf(show))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, showKey])
   const { updates, refresh: refreshUpdates } = useStyleUpdates({ enabled: open && on })
   const [sharing, setSharing] = useState(null)          // the style row a Share form is open for
   const [updating, setUpdating] = useState(null)        // the adopted copy whose update sheet is open
@@ -102,10 +150,30 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
     )
     return () => { live = false }
   }, [linkedUpdate, refreshUpdates])
-  const { data: offerData } = useSWR(
+  const { data: offerData, error: offerError } = useSWR(
     open && on ? 'journal-styles:mapping-offer' : null, () => getMappingOffer(), { shouldRetryOnError: false })
   const { prefs, setPref } = usePreferences()
   const starter = useStarterPackOffer(open ? data : undefined, open)
+  // Round 2, B2: opened at the Plain templates group (`show` 'plain' or 'daily'), its heading is brought into view once
+  // everything drawn ABOVE it has arrived: the note-type lists, their "Used in" lines, the starter-pack card and the
+  // Research Type offer. The group's own focus landing scrolls when ITS list answers, which can be before those, and a
+  // list arriving above then pushed the heading out of view (1530 px down a 844 px phone screen). Once per ask, and
+  // not at all when focus has already left the group (the member moved on). scrollIntoView scrolls every scrolling
+  // ancestor: the sheet's body on a phone, the dialog's on a desktop.
+  const plainInView = useRef(-1)
+  const plainAsk = show === 'plain' || show === 'daily'
+  const aboveDrawn = Boolean(data) && starter.settled && (!viewsOn || usage !== undefined || usageError !== undefined)
+    && (offerData !== undefined || offerError !== undefined)
+  useEffect(() => {
+    if (!open || !plainAsk || !aboveDrawn || plainInView.current === showKey) return
+    plainInView.current = showKey
+    const head = titleRef.current?.closest('[role="dialog"]')?.querySelector('#js-plain-templates')
+    if (!head) return
+    const group = head.closest('[data-plain-templates]')
+    if (plainServed === showKey && group && !group.contains(document.activeElement)) return
+    head.scrollIntoView?.({ block: 'start' })
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `plainServed` is read, not watched
+  }, [open, plainAsk, aboveDrawn, showKey])
   const userId = useContext(AuthContext)?.user?.id
 
   const [editing, setEditing] = useState(null)          // { style, seq } while the editor is open
@@ -126,11 +194,51 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
   // a tabIndex=-1 element is outside useFocusTrap's list, so a first Shift+Tab escaped the modal. The
   // Sheet only focuses its panel when nothing inside already has focus, so this wins its frame.
   const titleRef = useRef(null)
+  // Fix round 1 (2g): where focus goes on close. The element that opened the manager, while it is still on the page;
+  // when it went away (a link inside the New note sheet, which closes as the manager opens; My tools' button), never
+  // the page itself. Read at close time by the Sheet (`current`).
+  // Final fix 2c: where focus was is read during render as the Sheet reads it (memoised on `open`, so once per opening
+  // and before any child takes focus), and kept in the ref by an effect: no ref is written during render.
+  const focusAtOpen = useMemo(() => (open && typeof document !== 'undefined' ? document.activeElement : null), [open])
+  const openedFrom = useRef(null)
+  useEffect(() => { if (open) openedFrom.current = focusAtOpen }, [open, focusAtOpen])
+  // Final fix I1: the fallbacks prefer a control drawn at EVERY width: the More menu that holds "Manage templates" (on
+  // a phone "+ New" is in the page but `display: none`, so focusing it lands on <body>), then "+ New", then the page's
+  // own heading (the Daily brief's), then <main> (a note is open: the list's controls are not drawn).
+  const returnFocus = useMemo(() => ({
+    get current() {
+      const o = openedFrom.current
+      if (o && o.isConnected && o !== document.body) return o
+      return document.querySelector('[data-tour="styles-button"]') || document.querySelector('[data-start-note]')
+        || document.querySelector('[data-focus-fallback]') || document.querySelector('main[tabindex="-1"]')
+    },
+  }), [])
   useEffect(() => {
     if (!open) return
+    if (show === 'plain' || show === 'daily') return     // follow-up C: a door asked for the Plain templates group
     const dialog = titleRef.current?.closest('[role="dialog"]')
     focusableWithin(dialog)[0]?.focus()
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `show` is read at the opening only
   }, [open])
+  // Fix round 1 (2f): Escape in Active's "Used in" or Archive panel goes back one level (focus to the row's button), as
+  // it does in Archived and Recently deleted (TemplateList); the next Escape closes the manager (the Sheet's own). Held
+  // through the same key set TemplateList holds (sheetKeys.js, `myTools.tabEscape`), only while a panel is open, and
+  // only while this manager is the topmost sheet (a Preview or share sheet over it handles its own Escape).
+  const asideOpen = Boolean(aside)
+  const closeAsideRef = useRef(null)
+  useEffect(() => {
+    if (!asideOpen) return undefined
+    const onKey = (e) => {
+      if (e.key !== 'Escape') return
+      const panel = titleRef.current?.closest('[data-sheet-panel]')
+      const panels = document.querySelectorAll('[data-sheet-panel]')
+      if (!panel || panels[panels.length - 1] !== panel) return
+      e.preventDefault()
+      e.stopPropagation()
+      closeAsideRef.current?.()
+    }
+    return holdSheetKeys('myToolsTab', onKey)
+  }, [asideOpen])
   const [offerDone, setOfferDone] = useState(false)     // the offer was applied (also kept in offerApplied.js, which outlives this tab)
 
   const editorHeadRef = useRef(null)
@@ -141,7 +249,8 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
   const kindRowEls = useRef({})
   const kindDeleteBtns = useRef({})
   const confirmYesRef = useRef(null)
-  const pendingFocus = useRef(null)                     // { type: 'opener' | 'undo' | 'row' | 'kindDelete' | 'kindRow' | 'addKind', id? }
+  const newBtnRef = useRef(null)
+  const pendingFocus = useRef(null)                     // { type: 'opener' | 'undo' | 'row' | 'kindDelete' | 'kindRow' | 'addKind' | 'newTemplate' | 'tab', id? }
 
   // The editor opened: bring it to the member. (On a phone it sits below the whole list.)
   useEffect(() => {
@@ -174,11 +283,17 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
     } else if (pf.type === 'addKind') {
       pendingFocus.current = null
       document.getElementById('js-kind-name')?.focus()
+    } else if (pf.type === 'newTemplate') {
+      if (newBtnRef.current) { pendingFocus.current = null; newBtnRef.current.focus() }
+    } else if (pf.type === 'tab') {
+      const t = tabRefs.current[pf.id]
+      if (t) { pendingFocus.current = null; t.focus() }
     }
   })
 
   if (!on) return null
 
+  const shownView = viewsOn ? view : 'live'
   const kinds = data?.kinds || []
   const ownKinds = kinds.filter((k) => !k.builtin)
   const offline = data?.fromCache === true
@@ -195,6 +310,10 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
   }
   const finish = () => {
     setUndo(null); setStatus(''); setProblem(''); setKindProblem(''); setEditing(null); setConfirmDiscard(null); setConfirmKind(null)
+    setAside(null); setAsideError('')
+    // Final fix M4: the next opening starts on Active (a `show` it carries is applied by the opening's own effect), so
+    // a view the member closed on is never mounted again for one render (with its list read).
+    setView('live')
     starter.reset()
     onClose()
   }
@@ -215,7 +334,7 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
     then?.()
   }
 
-  const openEditor = (style, opener) => { openerRef.current = opener || null; openSeq.current += 1; setEditing({ style, seq: openSeq.current }) }
+  const openEditor = (style, opener) => { setAside(null); openerRef.current = opener || null; openSeq.current += 1; setEditing({ style, seq: openSeq.current }) }
   const editStyle = (s, opener) => run(async () => {
     const out = await getJournalStyle(s.id)
     openEditor(out.style, opener)
@@ -229,6 +348,7 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
     if (!full.builtin) body.duplicateOf = full.id
     const out = await createJournalStyle(body, { via: 'duplicate' })
     await mutate()
+    if (viewsOn) refreshUsage()
     if (thenEdit) openEditor(out.style, opener); else setStatus('Template duplicated.')
   })
   const makeDefault = (s) => run(async () => {
@@ -239,13 +359,95 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
   const remove = (s) => run(async () => {
     await deleteJournalStyle(s.id)
     await mutate()
+    if (viewsOn) refreshUsage()
     if (editing?.style?.id === s.id) { setEditing(null); setEditorDirty(false); setConfirmDiscard(null) }
+    if (aside?.s?.id === s.id) setAside(null)
     pendingFocus.current = { type: 'undo' }            // the row that held focus is gone: Undo is the next stop
-    setUndo({ id: s.id })
+    setUndo({ id: s.id, name: s.name })
   })
+  // Follow-up C: Archive (My tools' action, now in the one room). A template in notes asks first, with the sentence
+  // that says its notes keep it (ArchivePanel, in the editor column); one in no note archives at once.
+  const archiveNow = (s) => run(async () => {
+    setAsideError('')
+    const list = stylesOfKind(data, s.kindId)
+    const at = list.findIndex((x) => x.id === s.id)
+    const next = list[at + 1] || list[at - 1]
+    const got = await archiveTemplate(s.id)
+    if (!got.ok) {
+      const text = actionFailure(got)
+      if (aside?.kind === 'archive') setAsideError(text); else setProblem(text)
+      return
+    }
+    if (editing?.style?.id === s.id) { setEditing(null); setEditorDirty(false); setConfirmDiscard(null) }
+    setAside(null)
+    await mutate()
+    refreshUsage()
+    pendingFocus.current = next ? { type: 'row', id: next.id } : { type: 'newTemplate' }
+    setStatus(`Archived “${s.name}”. Restore it from Archived.`)
+  })
+  const askArchive = (s, opener) => guard(() => {
+    if (!usedById.has(s.id)) { askArchiveUnknown(s, opener); return }
+    if (usedById.get(s.id) > 0) openAside('archive', s, opener)
+    else archiveNow(s)
+  })
+  // Fix round 1 (1): the list's count is unknown, so the panel opens at once, reads this template's own notes, and
+  // asks with the real count; a failed read still asks (no number). Archive happens only on the panel's own button.
+  const askArchiveUnknown = (s, opener) => {
+    const seq = openAside('archive', { ...s, usedIn: null }, opener, { checking: true })
+    templateUsedIn(s.id).then((got) => {
+      if (asideSeq.current !== seq) return
+      const n = got.ok && Array.isArray(got.data?.notes) ? got.data.notes.length : null
+      setAside((a) => (a && asideSeq.current === seq ? { ...a, checking: false, s: { ...a.s, usedIn: n } } : a))
+    })
+  }
+  /** The editor column shows one panel at a time: the editor, or a row's "Used in" list or Archive question. */
+  const openAside = (kind, s, opener, extra = {}) => {
+    setEditing(null); setEditorDirty(false); setConfirmDiscard(null); setAsideError('')
+    openerRef.current = opener || null
+    asideSeq.current += 1
+    const usedIn = Object.hasOwn(s, 'usedIn') && s.usedIn === null ? null : (usedById.get(s.id) || 0)
+    setAside({ kind, ...extra, s: { ...s, usedIn } })
+    return asideSeq.current
+  }
+  const closeAside = () => {
+    asideSeq.current += 1
+    setAside(null); setAsideError('')
+    pendingFocus.current = { type: 'opener' }
+  }
+  closeAsideRef.current = closeAside
+  /** Another view: the Undo line and any panel belong to the view left behind. */
+  const showView = (v) => {
+    // Final fix M1: through the discard question, "Discard changes" and the Active view it sat in both go away, so
+    // focus goes to the tab just chosen (never left on <body> inside the dialog).
+    const asks = Boolean(editing && editorDirty)
+    guard(() => {
+      setEditing(null); setEditorDirty(false); setConfirmDiscard(null)
+      setAside(null); setUndo(null); setStatus(''); setProblem('')
+      setView(v)
+      if (asks) pendingFocus.current = { type: 'tab', id: v }
+    })
+  }
+  const plainGroup = (
+    <PlainTemplatesManage busy={locked}
+      onUse={onUsePlain ? (t) => guard(() => { finish(); onUsePlain(t) }) : null}
+      focusAsk={(show === 'plain' || show === 'daily') && plainServed !== showKey ? { target: show, n: showKey } : null}
+      onLanded={() => setPlainServed(showKey)}
+      classes={{ section: styles.kindGroup, head: styles.kindHead, lead: styles.hint }} />
+  )
+  const onTabsKey = (e) => {
+    const step = { ArrowRight: 1, ArrowLeft: -1, Home: 'first', End: 'last' }[e.key]
+    if (step == null) return
+    e.preventDefault()
+    const at = VIEW_KEYS.indexOf(shownView)
+    const to = step === 'first' ? 0 : step === 'last' ? VIEW_KEYS.length - 1 : (at + step + VIEW_KEYS.length) % VIEW_KEYS.length
+    const asks = Boolean(editing && editorDirty)      // the discard question takes focus instead
+    showView(VIEW_KEYS[to])
+    if (!asks) tabRefs.current[VIEW_KEYS[to]]?.focus()
+  }
   const restore = () => run(async () => {
     await restoreJournalStyle(undo.id)
     await mutate()
+    if (viewsOn) refreshUsage()
     pendingFocus.current = { type: 'row', id: undo.id }
     setUndo(null)
     setStatus('Template restored.')
@@ -255,6 +457,7 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
     setStatus(`Saved ${s?.name || 'the template'}.`)
     closeEditor()
     mutate()
+    if (viewsOn) refreshUsage()
   }
 
   const addKind = (e) => {
@@ -316,18 +519,39 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
 
   return (
     <Sheet open={open} onClose={close} title={<h2 ref={titleRef} style={{ margin: 0, font: 'inherit' }} data-tour="styles-manager">Manage templates</h2>}
-      labelledByTitle variant="auto" maxWidth={960}>
+      labelledByTitle variant="auto" maxWidth={960} returnFocusTo={returnFocus}>
       <div className={styles.wrap}>
         {open && libraryOn && inRouter && <LibraryUpdateParam onFound={setLinkedUpdate} />}
         <p className={styles.hint}>
           A template is how a note type starts: its outline, its blocks and the properties it fills. Changing a template never changes a note you already made unless you choose to update it.
         </p>
 
+        {viewsOn && (
+          <div role="tablist" aria-label="Show" className={styles.views} onKeyDown={onTabsKey}>
+            {MANAGER_VIEWS.map(([k, label]) => (
+              <button key={k} type="button" role="tab" id={`js-view-${k}`} aria-selected={shownView === k}
+                aria-controls="js-view-panel" tabIndex={shownView === k ? 0 : -1}
+                ref={(el) => { if (el) tabRefs.current[k] = el; else delete tabRefs.current[k] }}
+                className={`${styles.viewTab} ${shownView === k ? styles.viewTabOn : ''}`} onClick={() => showView(k)}>
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
+        <div className={styles.viewPanel} id="js-view-panel" role={viewsOn ? 'tabpanel' : undefined}
+          aria-labelledby={viewsOn ? `js-view-${shownView}` : undefined}>
+        {/* Final fix I2: keyed by the view, so a panel opened in Archived ("Delete permanently", "Used in") never
+            survives the switch to Recently deleted: each view starts on its own list. */}
+        {shownView !== 'live' ? (
+          <TemplateList key={shownView} filter={shownView} phone={phone} onCloseAll={finish}
+            onChanged={() => { mutate(); refreshUsage() }} />
+        ) : (
+        <>
         <div className={styles.stickyTop} data-empty={undo || status || confirmDiscard ? undefined : 'true'}>
           <div role="status" aria-live="polite">
             {undo ? (
               <p className={styles.notice}>
-                <span>Template deleted.</span>
+                <span>{viewsOn ? `Deleted “${undo.name}”. Moved to Recently deleted.` : `Deleted “${undo.name}”.`}</span>
                 <button type="button" ref={undoRef} className={styles.btn} onClick={restore} disabled={busy}>Undo</button>
               </p>
             ) : status ? <p className={styles.notice}>{status}</p> : null}
@@ -362,12 +586,16 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
           </p>
         )}
 
-        {data && (
+        {/* Fix round 1 (2c): the layout is always drawn, so the Plain templates group (which reads its own list) keeps
+            ONE place whether the note-type templates' read is loading, failed or answered: it never waits on that read,
+            and it is never remounted when that read lands (a focus landing or its live line would be lost). */}
           <div className={styles.layout}>
             <div className={styles.listCol} data-starter-offer={starter.settled ? 'settled' : 'deciding'}>
+              {data && (
+              <>
               {starter.show && <StarterPackOffer onClose={starter.close} offline={offline} />}
               <div className={styles.rowActions}>
-                <button type="button" className={`${styles.btn}`} disabled={locked || !kinds.length} data-tour="styles-new"
+                <button type="button" ref={newBtnRef} className={`${styles.btn}`} disabled={locked || !kinds.length} data-tour="styles-new"
                   onClick={(e) => { const opener = e.currentTarget; guard(() => { setUndo(null); openEditor(newDraftStyle(kinds[0]?.id), opener) }) }}>
                   <UIcon name="plus" size={14} gold={false} /> New template
                 </button>
@@ -418,6 +646,19 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
                               {s.isDefault && <span className={styles.badge}>Default</span>}
                               <span className={styles.version}>{`v${s.version}`}</span>
                             </div>
+                            {viewsOn && !s.builtin && usedById.has(s.id) && (
+                              <div className={styles.rowMeta}>
+                                {usedById.get(s.id) > 0 ? (
+                                  <button type="button" className={styles.linkBtn}
+                                    onClick={(e) => { const opener = e.currentTarget; guard(() => openAside('usedIn', s, opener)) }}
+                                    aria-label={`${usedInText(usedById.get(s.id))}: list the notes made with ${s.name}`}>
+                                    {usedInText(usedById.get(s.id))}
+                                  </button>
+                                ) : <span>{usedInText(0)}</span>}
+                                {/* Fix round 1 (2h): an adopted copy's credit line, the server's words, as My tools showed it */}
+                                {creditText(usageById.get(s.id)) && <span data-credit="">{creditText(usageById.get(s.id))}</span>}
+                              </div>
+                            )}
                             <div className={styles.rowActions}>
                               {s.builtin ? (
                                 <button type="button" className={styles.btn} disabled={locked} onClick={(e) => { const opener = e.currentTarget; guard(() => duplicate(s, opener)) }}
@@ -438,6 +679,12 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
                                 <button type="button" className={styles.btn} disabled={locked} onClick={() => makeDefault(s)}
                                   aria-label={`Set ${s.name} as default`}>Set as default</button>
                               )}
+                              {viewsOn && !s.builtin && (
+                                <button type="button" className={styles.btn} disabled={locked}
+                                  onClick={(e) => askArchive(s, e.currentTarget)} aria-label={`Archive ${s.name}`}
+                                  title={usedById.has(s.id) ? templateArchiveSentence(usedById.get(s.id)) : ARCHIVE_UNKNOWN_HINT}
+                                  aria-description={usedById.has(s.id) ? templateArchiveSentence(usedById.get(s.id)) : ARCHIVE_UNKNOWN_HINT}>Archive</button>
+                              )}
                               {!s.builtin && (
                                 <button type="button" className={`${styles.btn} ${styles.danger}`} disabled={locked} onClick={() => remove(s)}
                                   aria-label={`Delete ${s.name}`}>Delete</button>
@@ -451,7 +698,14 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
                 )
               })}
               </div>
+              </>
+              )}
 
+              {/* Follow-up C: the member's plain templates ("Save as template" copies), below the per-note-type lists,
+                  managed in this one room (MemberTemplates.jsx holds their rows and handlers, shared with the picker). */}
+              {plainGroup}
+
+              {data && (
               <section className={styles.kindGroup} aria-labelledby="js-own-kinds">
                 <h3 id="js-own-kinds" className={styles.kindHead}>Your note types</h3>
                 {ownKinds.length === 0 && <p className={styles.hint}>You have no note types of your own yet. Add one below.</p>}
@@ -510,8 +764,10 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
                 </form>
                 {kindProblem && <p role="alert" className={styles.error}>{kindProblem}</p>}
               </section>
+              )}
             </div>
 
+            {data && (
             <div className={styles.editorCol}>
               {editing ? (
                 <>
@@ -519,12 +775,21 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
                   <StyleEditor key={editing.seq} style={editing.style} kinds={kinds} offline={offline}
                     onSaved={saved} onCancel={closeEditor} onDirtyChange={setEditorDirty} />
                 </>
+              ) : aside?.kind === 'usedIn' ? (
+                <UsedInList d={aside.s} kind="template" onBack={closeAside} onNavigate={finish} backLabel={BACK_LABEL} />
+              ) : aside?.kind === 'archive' ? (
+                <ArchivePanel d={aside.s} onBack={closeAside} onArchive={archiveNow} busy={busy} error={asideError}
+                  checking={Boolean(aside.checking)}
+                  sentence={aside.s.usedIn === null && !aside.checking ? ARCHIVE_UNKNOWN_SENTENCE : null} />
               ) : (
                 <p className={styles.hint}>Pick a template to edit, or make a new one.</p>
               )}
             </div>
+            )}
           </div>
+        </>
         )}
+        </div>
         {sharing && (
           <ShareStyleForm style={sharing} onClose={() => setSharing(null)}
             onShared={(sentence) => { setSharing(null); setUndo(null); setProblem(''); setStatus(sentence) }} />

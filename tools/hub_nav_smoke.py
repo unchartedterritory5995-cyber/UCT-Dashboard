@@ -26,8 +26,10 @@ IT WATCHES TWO LAYERS, and the second one was added for the member launch:
      is still the defect, and this catches it one step earlier. See BLOCKED_FRACTION_LIMIT
      for what the threshold is and, more importantly, what it is NOT calibrated against.
 
-Signed in, it sweeps EVERY top-level route (derived from NAV_ITEMS, /dashboard first) and
-departs from each one; the fan-out from /dashboard stays exhaustive.
+Signed in, it sweeps EVERY top-level route (derived from NAV_ITEMS, the home page first) and
+departs from each one; the fan-out from the home page stays exhaustive. The home page is
+`anchor_route()`: `/dashboard` while the nav still lists it, otherwise the nav's first entry
+(since 2026-11 "Charts is the home page": `/dashboard` is a redirect and left the sidebar).
 
 ⛔ READ-ONLY. It navigates and reads. It never submits a form, never fires a hub write
 action, never touches `/api/push`. The single POST it makes is the login, which is how
@@ -152,7 +154,43 @@ def cold_pod_verdict(age, floor=None, allow_cold: bool = False):
 
 # Routes the smoke starts FROM. /dashboard is where the freeze was reported; /journal and
 # /screener are the other two surfaces that mount a hub section on a shared page.
+# (`start_routes(entries)` swaps `/dashboard` for the nav's own home when the nav no longer
+# lists it: see `anchor_route`.)
 START_ROUTES = ("/dashboard", "/journal", "/screener")
+
+#: The page the 2026-09-10 freeze was reported on, and the smoke's anchor while the nav lists it.
+LEGACY_HOME = "/dashboard"
+
+
+def anchor_route(entries: list[dict]) -> str | None:
+    """The page the sweep starts on and the exhaustive fan-out departs from.
+
+    ⚰️ THIS WAS A TYPED `/dashboard`, AND IT WENT STALE. On 2026-11-14 the smoke exited 1 on a
+    healthy production: "Charts is the home page" had turned `/dashboard` into a redirect to
+    `/charts` and taken it out of the sidebar, so the run reported "/dashboard -> /charts: the
+    URL never changed" (it was already on /charts: a click with nowhere to go, the freeze
+    signature for the wrong reason) and "/dashboard was never probed". Every nav entry moved.
+
+    DERIVED, like every other route here: `/dashboard` while the nav still lists it (the page
+    the freeze was reported on keeps leading if it ever comes back), otherwise the nav's FIRST
+    entry, which is the page the app lands a member on. None for an empty nav."""
+    routes = [e["to"] for e in entries]
+    if LEGACY_HOME in routes:
+        return LEGACY_HOME
+    return routes[0] if routes else None
+
+
+def start_routes(entries: list[dict]) -> tuple[str, ...]:
+    """`START_ROUTES` with the anchor in `/dashboard`'s place, each route once, and only routes
+    the nav lists (a start route nobody can click to is a page load, not a navigation)."""
+    anchor = anchor_route(entries)
+    listed = {e["to"] for e in entries}
+    out: list[str] = []
+    for r in START_ROUTES:
+        r = anchor if r == LEGACY_HOME else r
+        if r and r in listed and r not in out:
+            out.append(r)
+    return tuple(out)
 
 # Reachable without an account. Everything else needs `--auth`; see FREE_PAGES in AuthGuard.
 PUBLIC_ROUTES = ("/morning-wire",)
@@ -332,9 +370,10 @@ def top_level_routes(entries: list[dict]) -> list[str]:
             if r not in seen:
                 seen.add(r)
                 out.append(r)
-    if "/dashboard" in out:  # the page the freeze was reported on leads.
-        out.remove("/dashboard")
-        out.insert(0, "/dashboard")
+    lead = anchor_route(entries)  # the page the freeze was reported on leads (or today's home).
+    if lead in out:
+        out.remove(lead)
+        out.insert(0, lead)
     return out
 
 
@@ -1110,7 +1149,7 @@ def main(argv=None) -> int:
                 failures += route_failures
                 total_clicked += clicked
         elif args.full:
-            for start in START_ROUTES:
+            for start in start_routes(entries):
                 say(f"  exhaustive fan-out from {start} …")
                 route_failures, clicked = check_route(page, args.base, start, entries)
                 say(f"    {clicked} nav entr{'y' if clicked == 1 else 'ies'} exercised")
@@ -1118,15 +1157,16 @@ def main(argv=None) -> int:
                 total_clicked += clicked
         else:
             routes = top_level_routes(entries)
-            say(f"  sweeping {len(routes)} top-level routes, /dashboard first …")
+            anchor = anchor_route(entries)
+            say(f"  sweeping {len(routes)} top-level routes, {anchor} first …")
             route_failures, clicked, probes = sweep_every_route(page, args.base, routes, entries)
             failures += route_failures
             total_clicked += clicked
-            # ⛔ THE FAN-OUT FROM /dashboard STAYS EXHAUSTIVE. It is the page the freeze was
-            # reported on and the one that mounts the hub-owning tile; one departure from it is
-            # not enough coverage of the surface that actually broke.
-            say("  exhaustive fan-out from /dashboard …")
-            dash_failures, dash_clicked = check_route(page, args.base, "/dashboard", entries)
+            # ⛔ THE FAN-OUT FROM THE HOME PAGE STAYS EXHAUSTIVE. It is the page the freeze was
+            # reported on (or the page that took its place: `anchor_route`); one departure from
+            # it is not enough coverage of the surface that actually broke.
+            say(f"  exhaustive fan-out from {anchor} …")
+            dash_failures, dash_clicked = check_route(page, args.base, anchor, entries)
             say(f"    {dash_clicked} nav entr{'y' if dash_clicked == 1 else 'ies'} exercised")
             failures += dash_failures
             total_clicked += dash_clicked
@@ -1135,8 +1175,9 @@ def main(argv=None) -> int:
     # ⛔ COVERAGE IS REPORTED, NOT ASSUMED. `/dashboard` is the whole reason this file exists;
     # a run that never reached it must not read like one that did.
     covered = {r for r, _ in probes}
-    if authed and not args.full and "/dashboard" not in covered:
-        failures.append("/dashboard was never probed — the route this smoke exists for was missed")
+    anchor = anchor_route(entries)
+    if authed and not args.full and anchor not in covered:
+        failures.append(f"{anchor} was never probed — the route this smoke exists for was missed")
 
     # ⛔ NON-VACUITY, BEFORE ANY VERDICT. A run that clicked nothing is not a clean run; it is a
     # run that did not happen, and reporting it as PASS is precisely how a green light gets

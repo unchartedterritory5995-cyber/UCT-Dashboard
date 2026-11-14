@@ -3,7 +3,7 @@
 // Notebook widgets wave 11 (Task 11.18 fix round 1, c4): the template library's surfaces through 8A's axe harness,
 // in a state a member meets. Each recipe asserts what painted before axe runs, so an empty screen cannot pass as a
 // clean one. `fetch` is a fake of Task 11.12's routes (the shapes the surfaces' own tests code against):
-//   * my-tools-templates          -- My tools > Templates: the member's own templates, with a library credit;
+//   * my-tools-templates          -- My tools > Templates: the way to Manage templates (follow-up C);
 //   * template-library-section    -- the Template library section: group headings and cards with their facts;
 //   * template-detail-sheet       -- a template's detail: its outline and the preview with the member's data;
 //   * template-adopt-sheet        -- "Make it yours": the choices, the preview cards and the routine;
@@ -136,11 +136,12 @@ describe('a11y: the template library (wave 11)', () => {
   beforeEach(() => { installFetch() })
   afterEach(() => { vi.unstubAllGlobals() })
 
+  // Follow-up C: My tools > Templates is the way to Manage templates (one sentence, one button); the template list it
+  // drew is drawn by the manager's Archived and Recently deleted views (a11y/journalStyles.a11y.test.jsx).
   axeSurface('my-tools-templates', async () => {
     render(<MyToolsSheet onClose={() => {}} uid="u1" tab="templates" />)
-    await screen.findByRole('heading', { name: /templates?$/ })
-    await waitFor(() => expect(screen.getAllByTestId('my-tools-template-row').length).toBeGreaterThan(1))
-    expect(screen.getByText("Based on Sam's Swing review")).toBeTruthy()
+    await screen.findByRole('button', { name: 'Open Manage templates' })
+    expect(screen.getByText('Templates are managed in one place now.')).toBeTruthy()
     await settle()
   })
 

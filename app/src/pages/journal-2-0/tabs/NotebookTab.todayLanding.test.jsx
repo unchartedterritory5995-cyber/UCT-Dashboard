@@ -95,7 +95,8 @@ describe('the first run and the day note (B1: no state makes the note on load)',
 // Final fix (C5): the shell's walkthrough gate (RegistryToursGate.jsx) cannot compute the first run's due rule (it does
 // not know the notes count), so the notes list publishes "the first run is due here or not decided yet" for it.
 function PendingProbe() {
-  return <p data-testid="pending" data-on={useFirstRunPending() ? '1' : '0'} />
+  const state = useFirstRunPending()
+  return <p data-testid="pending" data-on={state ? '1' : '0'} data-state={state || ''} />
 }
 describe('the notes list publishes "first run pending" for the walkthrough gate (C5)', () => {
   beforeEach(() => { latchNotebookFlags({ notebook_starter_packs_enabled: true }) })
@@ -108,6 +109,8 @@ describe('the notes list publishes "first run pending" for the walkthrough gate 
     prefs = {}
     const view = withProbe('/journal?view=all')
     await waitFor(() => expect(screen.getByTestId('pending').getAttribute('data-on')).toBe('1'), T)
+    // Follow-up B, item 2c: the gate is told WHICH: the notes count has not answered, so it is undecided (no limit).
+    expect(screen.getByTestId('pending').getAttribute('data-state')).toBe('undecided')
     view.unmount()
     render(<MemoryRouter><PendingProbe /></MemoryRouter>)
     expect(screen.getByTestId('pending').getAttribute('data-on')).toBe('0')

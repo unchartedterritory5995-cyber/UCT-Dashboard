@@ -34,7 +34,7 @@ import threading
 import time
 from typing import Any, Dict, Literal, Optional, Union
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
@@ -101,6 +101,38 @@ class EngineStatusIn(BaseModel):
     engine: int = Field(..., ge=1)
     status: Literal["refused", "write-failed"]
     reason: str = Field(..., min_length=1, max_length=2000)
+
+
+# ── WS-I Part 2: the runtime-admission door's INVOCATION bound (review B1c, 2026-11-13) ──────
+# The same shape as `_charge_propose` below it in spirit: one sliding window per member, charged
+# BEFORE any work, per process (exact while web is one uvicorn process; per instance after a
+# scale-out). MemberPane asks once per source that has been still for 250 ms, so 60 a minute is
+# far above a member typing and far below a loop.
+RUNTIME_ADMISSION_MAX_PER_MINUTE = 60
+_RUNTIME_ADMISSION_WINDOW_SECONDS = 60
+_runtime_admission_calls: dict[str, list[float]] = {}
+_runtime_admission_lock = threading.Lock()
+
+
+def _charge_runtime_admission(user_id: str, *, now: float | None = None) -> None:
+    """Record one runtime-admission call for `user_id`, or raise 429 if the minute is full."""
+    now = time.time() if now is None else now
+    cutoff = now - _RUNTIME_ADMISSION_WINDOW_SECONDS
+    with _runtime_admission_lock:
+        recent = [t for t in _runtime_admission_calls.get(user_id, ()) if t > cutoff]
+        if len(recent) >= RUNTIME_ADMISSION_MAX_PER_MINUTE:
+            retry_after = max(1, int(recent[0] + _RUNTIME_ADMISSION_WINDOW_SECONDS - now))
+            _runtime_admission_calls[user_id] = recent
+            raise HTTPException(
+                status_code=429,
+                detail=f"At most {RUNTIME_ADMISSION_MAX_PER_MINUTE} script checks per minute. "
+                       f"Try again in {retry_after}s.",
+                headers={"Retry-After": str(retry_after)})
+        recent.append(now)
+        _runtime_admission_calls[user_id] = recent
+        if len(_runtime_admission_calls) > 5000:
+            for uid in [u for u, ts in _runtime_admission_calls.items() if not ts or ts[-1] <= cutoff]:
+                _runtime_admission_calls.pop(uid, None)
 
 
 class ProposeIn(BaseModel):
@@ -230,6 +262,10 @@ def _save_or_400(user_id, def_id: str, definition: dict,
         # ⭐ PHASE 4 — a stale write: 409, the store's own sentence, nothing saved.
         return JSONResponse(status_code=409,
                             content={"detail": str(exc), "conflict": exc.as_dict()})
+    except runtime_definitions.CapabilityCheckBusy as exc:
+        # WS-I Part 2 (re-review F1): the capability check was busy; retryable, nothing saved
+        return JSONResponse(status_code=503, content={"detail": str(exc), "retryable": True},
+                            headers={"Retry-After": "2"})
     except svc.SaveRefused as exc:
         # ⭐ P0/0P — THE ADMISSION REFUSAL IS STRUCTURED: a 422 whose `detail`
         # is still the store's own sentence (so every client that renders
@@ -262,7 +298,7 @@ def _served_lines(user_id: Any, row: Any) -> Any:
         user_id, row.get("def_id"), row.get("version")))
 
 
-def _stamped(row: dict) -> dict:
+def _stamped(row: dict, *, budget: Optional["runtime_definitions.DetectorBudget"] = None) -> dict:
     """One definition, plus THE SERVER'S OWN ANSWER to "can this be a screen?".
 
     ⛔⛔ THIS EXISTS BECAUSE THE CLIENT WAS ANSWERING IT SECOND, AND WEAKER.
@@ -307,8 +343,14 @@ def _stamped(row: dict) -> dict:
     on `PINE_RUNTIME_KILL_LIST`), so every client's install door refuses to draw
     it. The stored row is not touched. It is never scannable — the `kind` gate
     below says so, by name.
+
+    WS-I Part 2 (re-verify of #1204): `budget` is the REQUEST's bound on fresh capability-detector
+    runs (`runtime_definitions.DetectorBudget`), shared by every row the request serves.
     """
-    row = runtime_definitions.stamp_served(row)
+    # ⛔⛔ SHARE PRIVACY -- an installed copy's `origin.author_id` stays on the server
+    # (`svc.served_row`); every door below that hands a stored definition out goes through it.
+    row = svc.served_row(row)
+    row = runtime_definitions.stamp_served(row, budget=budget)
     out = dict(row)
     # ⭐ W5-T17 — THE SERVER'S OWN ANSWER FOR THE THREE SERVER LANES, runtime rows only: an
     # `ast` row's lanes are decided per plot at the alert / sweep door and have no row-level
@@ -388,7 +430,11 @@ def list_definitions(user: dict = Depends(require_paid),
     asked = isinstance(engine, int) and not isinstance(engine, bool)
     rows = (svc.list_for_user(user["id"], source_below=engine) if asked
             else svc.list_for_user(user["id"]))
-    stamped = [_stamped(r) for r in rows]
+    # WS-I Part 2: ONE detector budget for the whole list (a member has up to 50 rows; each row's
+    # capability set is read from the store, and at most `DETECTOR_RUNS_PER_REQUEST` are computed)
+    budget = runtime_definitions.DetectorBudget()
+    runtime_definitions.prefetch_capabilities(rows, budget)   # the stored sets in ONE query (flag on only)
+    stamped = [_stamped(r, budget=budget) for r in rows]
     # ⭐ 2026-11-02 -- LINE IDENTITY, read for every row on ONE connection.
     ids = svc.line_identities_many(
         user["id"], [(r.get("def_id"), r.get("version")) for r in stamped
@@ -606,9 +652,41 @@ def runtime_kill(user: dict = Depends(require_paid)):
     # ⭐ GT (D6) — the starter allowlist rides the same read as the kill list:
     # the member door's preview declines a script not on it by name
     # (`runtime:not-yet-graded`). An empty list serves nothing.
-    return {"kill": runtime_definitions.kill_list(),
-            "allow": runtime_definitions.allow_list(),
-            "save_enabled": runtime_definitions.save_enabled()}
+    out = {"kill": runtime_definitions.kill_list(),
+           "allow": runtime_definitions.allow_list(),
+           "save_enabled": runtime_definitions.save_enabled()}
+    # ⭐ WS-I Part 2 -- while capability admission is ON the member door also asks
+    # `POST /runtime-admission` per script. The key is ABSENT while it is off, so this read
+    # is byte for byte what it was before Part 2 and a client never asks the new door.
+    if runtime_definitions.capability_admission_on():
+        out["capability_admission"] = True
+    return out
+
+
+@router.post("/runtime-admission")
+def runtime_admission(body: Any = Body(None), user: dict = Depends(require_paid)):
+    """WS-I Part 2 -- ``{sha256, admitted, missing}``: may the runtime lane draw THIS script by
+    capability (`runtime_definitions.runtime_admission`)? The member door latches the answer per
+    source hash (`engine/runtimeKill.js`), beside the kill list it reads from `/runtime-kill`.
+
+    ⛔ STORES NOTHING AND NEVER LOGS THE SOURCE (not in a sentence, not in a 4xx detail).
+    ⛔ At most `RUNTIME_MAX_DEFINITION_BYTES` (128 KiB, UTF-8): the runtime document's own cap.
+    ⛔ DECLARED BEFORE `/{def_id}`, beside `/runtime-kill`, though no `POST /{def_id}` exists
+    to shadow it today.
+    ⛔ The body is taken as ANY JSON and checked here, never by a pydantic model: a model's 422
+    echoes the offending value (a script, or a non-object body) back in its detail.
+    ⛔ RATE-LIMITED per member (`RUNTIME_ADMISSION_MAX_PER_MINUTE`), charged before any work."""
+    _charge_runtime_admission(str(user["id"]))
+    source = body.get("source") if isinstance(body, dict) else None
+    if not isinstance(source, str) or not source.strip():
+        raise HTTPException(status_code=400, detail="source: the Pine script to ask about, "
+                                                    "a non-empty string")
+    if len(source.encode("utf-8")) > runtime_definitions.RUNTIME_MAX_DEFINITION_BYTES:
+        raise HTTPException(status_code=413, detail=(
+            "source: longer than the runtime lane's "
+            f"{runtime_definitions.RUNTIME_MAX_DEFINITION_BYTES // 1024} KiB cap, so it is not "
+            "asked about"))
+    return runtime_definitions.runtime_admission(source, member=user["id"])
 
 
 @router.get("/{def_id}")
@@ -623,6 +701,7 @@ def get_definition(def_id: str,
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     if row is None:
         raise HTTPException(status_code=404, detail="Not found")
+    row = svc.served_row(row)
     row = runtime_definitions.stamp_served(row)
     row = dict(row, repaint_notice=relint.member_notice(row))
     row = _served_lines(user["id"], row)
@@ -765,7 +844,9 @@ def share_state(def_id: str, user: dict = Depends(require_paid)):
         out = svc.share_status(user["id"], def_id)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    return out or {"token": None}
+    # ⭐ `includesSource` even with no link yet: the panel shows the sentence BEFORE the member
+    # presses Create (`SharePanel.jsx`), so the disclosure precedes the share.
+    return out or {"token": None, "includesSource": svc.includes_source(user["id"], def_id)}
 
 
 @router.delete("/{def_id}/share")
@@ -800,9 +881,19 @@ def definition_history(def_id: str, user: dict = Depends(require_paid),
     # separate expanded forest, so a ten-version history of the corpus'
     # heaviest script is ~3.6 MB of response for ~80 KB of stored program.
     by_version = svc.history_line_identities(user["id"], def_id)
+    # ⛔ WS-I Part 2 (re-verify of #1204): ONLY THE LATEST VERSION is asked the capability question
+    # (within one request budget). Every older version is never drawn: it is stamped by the kill
+    # list, the stage and the allowlist alone, as not graded, and costs no detector run, so a
+    # 300-version history is one capability lookup, not 300.
+    latest = max((r.get("version") for r in rows if isinstance(r, dict)
+                  and isinstance(r.get("version"), int)), default=None)
+    budget = runtime_definitions.DetectorBudget()
     rows = [dict(r, plot_identities=by_version.get(r.get("version"), {}))
             if isinstance(r, dict) else r
-            for r in (runtime_definitions.stamp_served(r) for r in rows)]
+            for r in (runtime_definitions.stamp_served(
+                svc.served_row(r), budget=budget,
+                capability=isinstance(r, dict) and r.get("version") == latest)
+                for r in rows)]
     return {"def_id": def_id, "versions": _maybe_compact(rows, graph)}
 
 

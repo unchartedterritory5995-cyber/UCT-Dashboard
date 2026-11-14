@@ -136,6 +136,14 @@ def _isolate_fundamentals_snapshot_store(tmp_path, monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _isolate_fmp_response_cache(tmp_path, monkeypatch):
+    """The on-disk FMP response cache is OFF in the suite (a stored body would answer the next test's
+    mocked GET) and, if a test turns it on, points at a per-test file, never /data."""
+    monkeypatch.setenv("FMP_RESPONSE_CACHE", "0")
+    monkeypatch.setenv("FMP_RESPONSE_CACHE_PATH", str(tmp_path / "fmp_response_cache.db"))
+
+
+@pytest.fixture(autouse=True)
 def _isolate_signal_ledger(tmp_path, monkeypatch):
     """Point the Signature signal ledger at a per-test temp DB.
 
