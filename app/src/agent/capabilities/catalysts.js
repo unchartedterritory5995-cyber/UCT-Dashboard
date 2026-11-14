@@ -130,6 +130,9 @@ export function answerFromBoard(envl, { symbols = [], sector = null, newsEnv = n
     requested: d.requested_date, requested_day: dayText(d.requested_date), dates, days: dates.map(dayText), board_count: dates.length, stale: !!envl.stale,
     boards: boards.map(b => ({ date: b.market_date, flagged: b.flagged, updated: b.refreshed_at ? stampET(b.refreshed_at, ref) : null })),
     rows, not_on_board: notOn, sector, sectors: d.sectors || [], scope, watchlist, truncated,
+    // every count the text states (grounding)
+    flagged_total: boards.reduce((a, b) => a + (b.flagged || 0), 0), flagged_stocks: new Set(rows.map(r => r.symbol)).size,
+    shown: rows.length, more_in_table: Math.max(rows.length - TEXT_ROWS, 0),
   }
   const lines = []
   if (!dates.length) {
@@ -142,17 +145,17 @@ export function answerFromBoard(envl, { symbols = [], sector = null, newsEnv = n
   const updated = b0.updated ? ` (board updated ${b0.updated})` : ''
   if (truncated) lines.push(`Your ${watchlist} watchlist has ${truncated.of} symbols; I checked the first ${truncated.checked}.`)
   if (scope) {
-    const n = new Set(rows.map(r => r.symbol)).size
+    const n = facts.flagged_stocks
     lines.push(rows.length
       ? `UCT's catalyst board, ${span}${updated}: ${plural(n, 'stock')} from ${scope} ${n === 1 ? 'was' : 'were'} flagged by UCT's catalyst engine.`
       : `UCT's catalyst board, ${span}${updated}: nothing from ${scope} was flagged by UCT's catalyst engine.`)
   } else {
-    const flagged = boards.reduce((a, b) => a + (b.flagged || 0), 0)
-    lines.push(`UCT's catalyst board, ${span}${updated}: ${plural(flagged, 'stock')} flagged by UCT's catalyst engine${rows.length < flagged ? `; the top ${rows.length} by the board's rank below` : ''}.`)
+    const flagged = facts.flagged_total
+    lines.push(`UCT's catalyst board, ${span}${updated}: ${plural(flagged, 'stock')} flagged by UCT's catalyst engine${rows.length < flagged ? `; the top ${facts.shown} by the board's rank below` : ''}.`)
   }
   const detail = rows.length <= 3
   for (const f of rows.slice(0, TEXT_ROWS)) lines.push(...rowLines(f, { detail, multiDay }))
-  if (rows.length > TEXT_ROWS) lines.push(`(${rows.length - TEXT_ROWS} more in the table.)`)
+  if (rows.length > TEXT_ROWS) lines.push(`(${facts.more_in_table} more in the table.)`)
   if (sector && !rows.length && facts.sectors.length) lines.push(`No stock on the board is in a stored sector named “${sector}”. Sectors on the board: ${facts.sectors.join(', ')}.`)
   if (notOn.length) {
     lines.push(`Not on the board${multiDay ? ' on those days' : ''}: ${andList(notOn)}. The engine flags a short list of stocks each day, so this is not a sign ${notOn.length === 1 ? 'it' : 'they'} had no news.`)

@@ -47,7 +47,8 @@ function ungrounded(text, facts) {
   const walk = (v) => {
     if (typeof v === 'number') { nums.add(Math.abs(v)); return }
     if (typeof v === 'string') { if (/\d/.test(v)) strs.add(v); return }
-    if (v && typeof v === 'object') Object.values(v).forEach(walk)
+    // a row's board rank is never stated in the text, so it never grounds a number
+    if (v && typeof v === 'object') Object.entries(v).forEach(([k, x]) => { if (k !== 'rank') walk(x) })
   }
   walk(facts)
   let t = text
@@ -84,6 +85,7 @@ describe('answerFromBoard — the board, honest and grounded', () => {
   it('symbols: only those, the rest "not on the board" — never "no news"', () => {
     const a = answerFromBoard(envelope({ rows: [row('AAA')], not_on_board: ['ZZZ'] }), { symbols: ['AAA', 'ZZZ'] })
     expect(a.text).toMatch(/^UCT's catalyst board, Fri, Nov 13, 2026 \(board updated 9:15 AM ET\): 1 stock from AAA and ZZZ was flagged by UCT's catalyst engine\./)
+    expect(ungrounded(a.text, a.facts)).toEqual([])
     expect(a.text).toMatch(/Not on the board: ZZZ\. The engine flags a short list of stocks each day, so this is not a sign it had no news\./)
   })
   it('"why is X up" with X not on the board: the news feed\'s stored headlines, co-occurring only, never a cause', () => {
