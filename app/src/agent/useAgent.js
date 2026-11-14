@@ -18,6 +18,7 @@
 import { protectionRefusal, undoProtectionRefusal, protectedOpenLayout, isProtected, protectedRenameRefusal } from './protectedLayouts'
 import { chartRailRefusal, RAIL_MARK } from './chartRail'
 import { replyRelation, QUESTION_TTL_MS, CONTINUE_CHOICES, continueQuestion } from './pendingTask'
+import { pinStep, resolvePinned } from './stepIdentity'
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { AuthContext } from '../context/AuthContext'
 import { useCreateIndicatorAccess } from '../components/chart/builder/studio/createIndicatorFlag'
@@ -562,6 +563,15 @@ function aliasNames(ops) {
 // kind addresses a chart by a derived ref (a chart's indicators: `ixe:<chart>`), the created CHART's ref is translated
 // with that kind's `fromChart` — "open two charts … with the 9 and 20 ema on both" lands its indicator steps on the
 // charts the same request just added (the adds fit in empty space, so nothing was gridded).
+// ⛔ THE HONEST PARTIAL RECEIPT (11-14, BUG B): a follow-up step runs only after the step before it LANDED (its receipt is
+// above), so its refusal never opens with "I didn't change anything" — it says the change above stands and this part didn't run
+export const PARTIAL_LEAD = 'The change above went through, but I didn’t do the next part:'
+export function partialStepText(text) {
+  const t = String(text || '').trim()
+  if (!t || t.startsWith(PARTIAL_LEAD)) return t
+  const rest = t.replace(/^I didn['’]t change anything:\s*/i, '')
+  return `${PARTIAL_LEAD} ${rest}`
+}
 function landDeferred(ops, created, names, approved = false) {
   const real = (v) => (typeof v === 'string' && created?.[v] ? created[v] : v)
   const realTarget = (o) => {
@@ -574,11 +584,12 @@ function landDeferred(ops, created, names, approved = false) {
   const pendingLists = Object.fromEntries(made.map(([a, n]) => [created[a], n]))
   const followNote = made.length
     ? `${made.map(([, n]) => `“${n}”`).join(' and ')} ${made.length === 1 ? 'was' : 'were'} still created and filled — say “open ${made[0][1]}” to try again.`
-    : 'The rest of your request was done.'
+    : null
   return ops.map(o => ({
     action: o.action, target: realTarget(o),
     args: Object.fromEntries(Object.entries(o.args || {}).map(([k, v]) => [k, real(v)])),
     pendingLists, followNote,
+    ...(o.pin ? { pin: o.pin } : {}),
     // a step that was ON the card the member approved runs as approved (re-validated, never re-asked). Not saving over the open
     // layout: that replaces its saved copy with no Undo, and what was on the card was the board before this request changed it
     ...(approved && o.action !== 'layout.saveCurrent' ? { approvedStep: true } : {}),
@@ -986,7 +997,8 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       if (full) { try { host?.widgets?.raiseBound?.(full) } catch { /* the words below still say it */ } }
       const before = leadLines.length ? `${leadLines.join(' ')} ` : ''
       if (lead) lead.used = true
-      push({ role: 'refusal', text: `${before}${note ? `${text} ${note}` : text}` })
+      const said = path === 'followup' ? partialStepText(text) : text
+      push({ role: 'refusal', text: `${before}${note ? `${said} ${note}` : said}` })
     }
     let allOps = opsIn
     let deferred = []
@@ -1008,7 +1020,8 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         const rest = allOps.filter(o => !seq(o))
         const steps = allOps.filter(seq)
         const keep = rest.length ? rest : [steps.shift()]
-        deferred = [...steps, ...deferred]
+        // ⛔ STEP IDENTITY (11-14, BUG B — stepIdentity.js): each queued step pinned to what its words mean NOW
+        deferred = [...steps.map(o => pinStep(o, host)), ...deferred]
         allOps = keep; opsIn = keep
       }
     }
@@ -1709,7 +1722,16 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         record({ member, outcome: text, outcomeData: { kind: 'refused', actions: [op.action] }, telemetry: { path: 'followup', refused: true, voice } })
         continue
       }
-      const { followNote, approvedStep, ...one0 } = op
+      const { followNote, approvedStep, ...pinned } = op
+      // ⛔ STEP IDENTITY (11-14, BUG B): the step's words read again now and compared with what they meant before the first step
+      const rp = resolvePinned(pinned, host)
+      if (rp.say) {
+        const text = partialStepText(rp.say)
+        push({ role: 'refusal', text })
+        record({ member, outcome: text, outcomeData: { kind: 'refused-step-identity', actions: [pinned.action] }, telemetry: { path: 'followup', refused: true, voice } })
+        continue
+      }
+      const one0 = rp.op
       // NLM-1 step plans (dark): a step that changes the indicator an EARLIER step added runs on that step's result — the
       // instance it added, found by state; no result (failed, refused, dismissed, ambiguous) → this step does not run, said
       let one = one0
