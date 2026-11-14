@@ -241,10 +241,13 @@ describe('CAP2 coverage audit — DIVERGE (known; the fix flips each it.fails)',
       const v = grade(id).v
       expect(v.verdict, id).toBe('MATCH')
       for (const t of ['Resistance Daily', 'Support Daily']) expect(item(v, t).verdict, `${id} ${t}`).toBe('MATCH')
+      // ⭐ review L3 — both captures end on a Friday: the weekly plots draw (and grade) it; the
+      // monthly ones still withhold that one bar by name (October is not over).
       for (const t of ['Resistance Weekly', 'Support Weekly', 'Resistance Monthly', 'Support Monthly']) {
+        const monthly = /Monthly/.test(t)
         expect(item(v, t).verdict, `${id} ${t}`).toBe('MATCH')
-        expect(item(v, t).withheldNewest, `${id} ${t}`).toBe('request:htf-newest-unconfirmed')
-        expect(item(v, t).stats.oursUnread, `${id} ${t}`).toBe(1)
+        expect(item(v, t).withheldNewest, `${id} ${t}`).toBe(monthly ? 'request:htf-newest-unconfirmed' : undefined)
+        expect(item(v, t).stats.oursUnread, `${id} ${t}`).toBe(monthly ? 1 : 0)
       }
     }
   }, T)

@@ -4493,6 +4493,9 @@ def interpret(ast: Any, bars: List[dict],
 #: ⭐ ENGINE 55 -- the code a ``tf_merge`` read's withheld bars are named by
 #: (``interpret.js::TF_MERGE_NEWEST_CODE``).
 TF_MERGE_NEWEST_CODE = "request:htf-newest-unconfirmed"
+#: ⭐ ENGINE 55 (review L2) -- ``interpret.js::TF_MERGE_FIRST_CODE``: the bars that would draw
+#: the first period's value from part of it, off the listing.
+TF_MERGE_FIRST_CODE = "request:htf-first-period-partial"
 
 
 def reads_tf_merge(tree: Any) -> bool:
@@ -4516,9 +4519,10 @@ def tf_merge_mask(tree: Any, bars: List[dict],
                   opts: Optional[Mapping[str, Any]] = None) -> Optional[List[int]]:
     """⭐⭐ ENGINE 55 -- the port of ``interpret.js::tfMergeMask``: the bars of a tree
     whose ``tf_merge`` read is not known (1 = withheld), or ``None``. The newest bar
-    unless it is known to be forming and no merge sits under another request; under
-    ``sym`` every bar from that series' newest bar on; every bar when one carries no
-    readable day."""
+    unless it is known to be forming, or (review L3) it is a finished daily bar that
+    certainly closes every merge period (``_newest_closes_every_merge_period``), and no
+    merge sits under another request; under ``sym`` every bar from that series' newest
+    bar on; every bar when one carries no readable day."""
     n = len(bars or [])
     found = []
     stack = [(tree, False, None)]
@@ -4530,7 +4534,7 @@ def tf_merge_mask(tree: Any, bars: List[dict],
         seen.add(id(node))
         kind = node.get("type")
         if kind == "tf_merge":
-            found.append((under, sym))
+            found.append((under, sym, node.get("value")))
         into = under or kind in _SCOPE_TYPES
         sym_here = str(node.get("value")).strip().upper() if kind == "sym" else sym
         args = node.get("args")
@@ -4544,10 +4548,12 @@ def tf_merge_mask(tree: Any, bars: List[dict],
         return [1] * n
     mask = [0] * n
     forming = (opts or {}).get("newest_bar_is_forming") is True
-    if not forming or any(u for u, _s in found):
+    known = forming or _newest_closes_every_merge_period(bars, found, opts)
+    if not known or any(u for u, _s, _c in found):
         mask[n - 1] = 1
+    first_mask = _first_period_partial_mask(bars, found, opts)
     supplied = (opts or {}).get("symbols") or {}
-    for _u, sym in found:
+    for _u, sym, _c in found:
         if not sym:
             continue
         series = supplied.get(sym)
@@ -4561,10 +4567,64 @@ def tf_merge_mask(tree: Any, bars: List[dict],
             key = b.get("t") if isinstance(b, Mapping) else None
             if key is not None and _key_kind(key) == _key_kind(last) and key >= last:
                 mask[i] = 1
-    if not any(mask):
+    named_any = any(mask)
+    if named_any:
+        _name_chart_clock(opts, [TF_MERGE_NEWEST_CODE])
+    if first_mask:
+        mask = [1 if (m or f) else 0 for m, f in zip(mask, first_mask)]
+        _name_chart_clock(opts, [TF_MERGE_FIRST_CODE])
+        named_any = True
+    return mask if named_any else None
+
+
+def _first_period_partial_mask(bars: List[dict], found: list,
+                               opts: Optional[Mapping[str, Any]]) -> Optional[List[int]]:
+    """⭐ REVIEW L2 -- the port of ``interpret.js::firstPeriodPartialMask``."""
+    if (opts or {}).get("historyFromListing") is True:
         return None
-    _name_chart_clock(opts, [TF_MERGE_NEWEST_CODE])
-    return mask
+    n = len(bars)
+    days = [_iso_day(b.get("t") if isinstance(b, Mapping) else None) for b in bars]
+    tf = (opts or {}).get("tf")
+    daily = tf in ("D", "1D") and all(d and datetime.date.fromisoformat(d).weekday() <= 4 for d in days)
+    out = None
+    for code in sorted({c for _u, _s, c in found if isinstance(c, str)}):
+        if daily:
+            first = datetime.date.fromisoformat(days[0])
+            prev = (first - datetime.timedelta(days=3 if first.weekday() == 0 else 1)).isoformat()
+            if _tf_bucket(prev, code) != _tf_bucket(days[0], code):
+                continue
+        b = 0
+        for i in range(n):
+            if i > 0 and _tf_bucket(days[i], code) != _tf_bucket(days[i - 1], code):
+                b += 1
+            closing = i == n - 1 or _tf_bucket(days[i + 1], code) != _tf_bucket(days[i], code)
+            if (b if closing else b - 1) == 0:
+                if out is None:
+                    out = [0] * n
+                out[i] = 1
+    return out
+
+
+def _newest_closes_every_merge_period(bars: List[dict], found: list,
+                                       opts: Optional[Mapping[str, Any]]) -> bool:
+    """⭐ REVIEW L3 -- the port of ``interpret.js::newestClosesEveryMergePeriod``: a daily
+    chart, no Saturday or Sunday bar in the series, and the next weekday after the newest
+    bar in another period for every merge's code (positive-only, calendar-free)."""
+    tf = (opts or {}).get("tf")
+    if tf not in ("D", "1D"):
+        return False
+    days = []
+    for b in bars:
+        iso = _iso_day(b.get("t") if isinstance(b, Mapping) else None)
+        if not iso:
+            return False
+        if datetime.date.fromisoformat(iso).weekday() > 4:
+            return False
+        days.append(iso)
+    last = datetime.date.fromisoformat(days[-1])
+    nxt = (last + datetime.timedelta(days=3 if last.weekday() == 4 else 1)).isoformat()
+    return all(isinstance(c, str) and _tf_bucket(nxt, c) != _tf_bucket(days[-1], c)
+               for _u, _s, c in found)
 
 
 def _tree_reads_sym(tree: Any) -> bool:
@@ -5348,6 +5408,8 @@ CHART_CLOCK_WITHHELD_CODES = CHART_CLOCK_WHOLE + (
     "bar-index:early-bars", "running-total:early-bars", "bar-index:first-bar", "var-origin:bars",
     # ENGINE 55 -- the newest bar of a ``tf_merge`` read (``tf_merge_mask``)
     "request:htf-newest-unconfirmed",
+    # ENGINE 55 (review L2) -- the first period of a ``tf_merge`` read, off the listing
+    "request:htf-first-period-partial",
 )
 
 

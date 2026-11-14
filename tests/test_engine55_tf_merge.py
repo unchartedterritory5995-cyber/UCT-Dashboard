@@ -38,7 +38,8 @@ def node(kind, code, child=None):
 
 
 def col(tree, **opts):
-    return ast_interpret.interpret(tree, BARS, {}, opts=dict({"tf": "D"}, **opts))
+    # review L2 -- these dates stand for a series FROM ITS LISTING (as in the JS twin)
+    return ast_interpret.interpret(tree, BARS, {}, opts=dict({"tf": "D", "historyFromListing": True}, **opts))
 
 
 def test_weekly_merge_reads_the_next_bar_good_friday_week_closes_on_thursday():
@@ -70,6 +71,46 @@ def test_withheld_at_the_root_nz_does_not_make_a_confident_zero():
     c = col(tree, newest_bar_is_forming=False)
     assert c[N - 1] is None
     assert c[0] == 0
+
+
+def _up_to(iso):
+    return BARS[:DATES.index(iso) + 1]
+
+
+def _last(tree, bars, **opts):
+    o = dict({"tf": "D", "newest_bar_is_forming": False, "historyFromListing": True}, **opts)
+    c = ast_interpret.interpret(tree, bars, {}, opts=o)
+    v = c[len(bars) - 1]
+    return None if v is None or (isinstance(v, float) and math.isnan(v)) else v
+
+
+def test_review_l3_a_finished_newest_bar_that_certainly_closes_its_period_is_served():
+    # the SAME cases as engine55HtfMerge.test.js's review-L3 block
+    assert _last(node("tf_merge", "W"), _up_to("2026-03-27")) == 5          # Friday
+    assert _last(node("tf_merge", "W"), _up_to("2026-04-02")) is None       # Thursday before Good Friday
+    assert _last(node("tf_merge", "M"), _up_to("2026-03-31")) == 7          # month's last weekday
+    assert _last(node("tf_merge", "M"), _up_to("2026-05-29")) == 17         # May ends on a Sunday
+    assert _last(node("tf_merge", "M"), _up_to("2026-05-28")) is None
+    assert _last(node("tf_merge", "W"), _up_to("2026-03-27"), tf="5") is None   # intraday
+    weekend = [{"t": "2026-03-21", "o": 1, "h": 1, "l": 1, "c": 1, "v": 1}] + _up_to("2026-03-27")
+    # a series that trades weekends: its week ends on Sunday, so the newest bar is withheld
+    # (the mask says so; the full read refuses outright, its weekly resampler drops the bar)
+    assert ast_interpret.tf_merge_mask(node("tf_merge", "W"), weekend, {"tf": "D"})[-1] == 1
+    assert ast_interpret.tf_merge_mask(node("tf_merge", "W"), _up_to("2026-03-27"), {"tf": "D"}) is None
+
+
+def test_review_l2_off_the_listing_the_first_period_is_never_drawn_from_part_of_it():
+    sink = {}
+    o = {"tf": "D", "newest_bar_is_forming": False, "historyFromListing": False, "chart_clock_sink": sink}
+    m = ast_interpret.tf_merge_mask(node("tf_merge", "M"), BARS, o)
+    for d in ("2026-03-31", "2026-04-01", "2026-04-06", "2026-04-09"):
+        assert m[DATES.index(d)] == 1, d
+    assert m[DATES.index("2026-04-10")] == 0 and m[DATES.index("2026-05-28")] == 0
+    # starting on a Monday, the week's first session: nothing withheld for the first period
+    w = ast_interpret.tf_merge_mask(node("tf_merge", "W"), BARS, {"tf": "D", "historyFromListing": False})
+    assert w[:N - 1] == [0] * (N - 1)
+    # from the listing: nothing withheld for the first period either
+    assert ast_interpret.tf_merge_mask(node("tf_merge", "M"), BARS, {"tf": "D", "historyFromListing": True})[:N - 1] == [0] * (N - 1)
 
 
 def test_formula_tf_is_unchanged_b_minus_one_on_every_bar():

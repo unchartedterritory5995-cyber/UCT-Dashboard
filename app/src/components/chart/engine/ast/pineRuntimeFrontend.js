@@ -6009,18 +6009,25 @@ function buildRuntimeIrLinked(source, opts, holder) {
     if (identity) return requestValueIr(identity.positional[2], scope)
 
     // ⭐⭐ ENGINE 55 — AN OTHER-SYMBOL SPELLING NO BINDING CAN SERVE (a bare index, pair
-    // or foreign spelling; punctuation that names no listing) is the HOST's question,
-    // asked once (`Resolver.otherSymbolStaticDeclineOf` → `otherSymbols.js::
-    // staticallyUnservable`) and refused with the host's own guard and sentence, so the
-    // screen, the pane, this lane and the member door say one thing.
+    // or foreign spelling; punctuation that names no listing; review L5: a foreign
+    // exchange or `BRK/B`, which this lane would otherwise read as bars that never come)
+    // is the HOST's question, asked once (`Resolver.otherSymbolStaticDeclineOf` →
+    // `otherSymbols.js::staticallyUnservable` / `spellingUnservable`) and refused with
+    // the ONE sentence the bind writes for the plots that read it
+    // (`staticOtherSymbolMessage`). This lane runs the whole program, so it refuses the
+    // program; the member door draws such a script from the host lane, which refuses
+    // only those plots (review M1, the C41 pattern).
+    // ⛔ FAILS CLOSED (review L5): a throw while asking is a refusal by name, never a read.
     const hopeless = (() => {
       if (!targetReader || (positional[0] && reachesSlotThroughEnv(argOf(positional[0]), scope))) return null
-      try { return targetReader.otherSymbolStaticDeclineOf(node) } catch { return null }
+      try { return targetReader.otherSymbolStaticDeclineOf(node) } catch (err) {
+        return { message: `${REFUSALS['pine:request']} — \`${node.name}\`: the symbol this request names `
+          + `could not be read (${String((err && err.message) || err)}), so the request is refused rather than read` }
+      }
     })()
     if (hopeless) {
       note('pine:request')
-      throw new PineRefusal('pine:request',
-        `${REFUSALS['pine:request']} — \`${node.name}\`: ${hopeless.why}`, at)
+      throw new PineRefusal('pine:request', hopeless.message, at)
     }
 
     // ⭐⭐ C35 — A TIMEFRAME BELOW THE CHART'S OWN IS THE HOST'S QUESTION, ASKED

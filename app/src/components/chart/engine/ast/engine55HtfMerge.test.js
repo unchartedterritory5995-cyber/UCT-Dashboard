@@ -18,7 +18,7 @@
 //   * formula `tf` still reads `b - 1` on every bar.
 // Expected values are written out by hand below; nothing is derived from the evaluator.
 import { describe, it, expect } from 'vitest'
-import { interpret, TF_MERGE, TF_MERGE_NEWEST_CODE, CHART_CLOCK_WITHHELD } from './interpret'
+import { interpret, TF_MERGE, TF_MERGE_NEWEST_CODE, TF_MERGE_FIRST_CODE, CHART_CLOCK_WITHHELD } from './interpret'
 import { parseFormula } from './parse'
 import { translatePine, printFormula } from './pine'
 import { lintDefinition } from './lint'
@@ -39,7 +39,9 @@ const DATES = [
 const BARS = DATES.map((t, i) => ({ t, o: i + 1, h: i + 1.5, l: i + 0.5, c: i + 1, v: 100 }))
 const N = BARS.length
 const NA = null
-const col = (tree, opts) => Array.from(interpret(tree, BARS, {}, undefined, undefined, { tf: 'D', ...(opts || {}) }))
+// ⭐ review L2 — these hand-written dates stand for a series FROM ITS LISTING (its first period is
+// whole, as TradingView draws it); the off-listing case has its own block below.
+const col = (tree, opts) => Array.from(interpret(tree, BARS, {}, undefined, undefined, { tf: 'D', historyFromListing: true, ...(opts || {}) }))
   .map((v) => (Number.isFinite(v) ? v : null))
 const node = (type, code, child = { type: 'series', name: 'close' }) => ({ type, value: code, args: [child] })
 
@@ -102,6 +104,104 @@ describe('⛔ the newest bar — forming reads the forming period; finished or u
     expect(c[N - 3]).toBe(null)                              // SPY's own newest bar: its period end is unknown
     expect(c[DATES.indexOf('2026-05-28')]).toBe(140)       // mid-week: SPY's last closed week (week C, 14 x 10)
     expect(c[DATES.indexOf('2026-04-02')]).toBe(90)          // SPY's Good Friday week, on its closing bar
+  })
+})
+
+// ⭐⭐ REVIEW L3 — a FINISHED newest daily bar that CERTAINLY closes its period is served:
+// the next weekday after it falls in another period (W: a Friday; M: the month's last
+// weekday), on a daily chart with no weekend bars, never under another request. Positive-only.
+describe('⭐⭐ review L3 — a finished newest bar that certainly closes its period is SERVED (positive-only)', () => {
+  const upTo = (iso) => BARS.slice(0, DATES.indexOf(iso) + 1)
+  const colOn = (tree, bars, opts) => Array.from(interpret(tree, bars, {}, undefined, undefined, { tf: 'D', newestBarIsForming: false, historyFromListing: true, ...(opts || {}) }))
+    .map((v) => (Number.isFinite(v) ? v : null))
+  const named = (tree, bars, opts) => {
+    const sink = new Map()
+    const c = colOn(tree, bars, { ...(opts || {}), chartClockSink: sink })
+    return { last: c[c.length - 1], codes: [...sink.keys()], c }
+  }
+
+  it('W: a finished FRIDAY newest bar reads its own week, nothing named', () => {
+    const r = named(node(TF_MERGE, 'W'), upTo('2026-03-27'))
+    expect(r.last).toBe(5)
+    expect(r.codes).toEqual([])
+  })
+
+  it('⛔ W: the THURSDAY before Good Friday (a holiday ends the week early) stays withheld by name', () => {
+    const r = named(node(TF_MERGE, 'W'), upTo('2026-04-02'))
+    expect(r.last).toBe(null)
+    expect(r.codes).toEqual([TF_MERGE_NEWEST_CODE])
+  })
+
+  it('M: the month\'s last weekday (Tue 03-31; Fri 05-29, May ending on a Sunday) is served; Thu 05-28 is withheld', () => {
+    expect(named(node(TF_MERGE, 'M'), upTo('2026-03-31')).last).toBe(7)
+    const may = named(node(TF_MERGE, 'M'), upTo('2026-05-29'))
+    expect(may.last).toBe(17)
+    expect(may.codes).toEqual([])
+    const thu = named(node(TF_MERGE, 'M'), upTo('2026-05-28'))
+    expect(thu.last).toBe(null)
+    expect(thu.codes).toEqual([TF_MERGE_NEWEST_CODE])
+  })
+
+  it('W and M in one tree: served only when the bar closes BOTH (Fri 05-29), withheld on a Friday mid-month (03-27)', () => {
+    const tree = parseFormula("tf_merge(close, 'W') + tf_merge(close, 'M')").ast
+    expect(named(tree, upTo('2026-05-29')).last).toBe(17 + 17)
+    expect(named(tree, upTo('2026-03-27')).last).toBe(null)
+  })
+
+  it('⛔ not on an intraday chart, not on a series that trades weekends, never under another request', () => {
+    expect(named(node(TF_MERGE, 'W'), upTo('2026-03-27'), { tf: '5' }).last).toBe(null)
+    const weekend = [{ t: '2026-03-21', o: 1, h: 1, l: 1, c: 1, v: 1 }, ...upTo('2026-03-27')]
+    expect(named(node(TF_MERGE, 'W'), weekend).last).toBe(null)
+    const bars = upTo('2026-03-27')
+    const under = { type: 'sym', value: 'SPY', args: [node(TF_MERGE, 'W')] }
+    expect(named(under, bars, { symbols: { SPY: bars } }).last).toBe(null)
+  })
+})
+
+// ⭐⭐ REVIEW L2 — off the listing, a chart that starts mid-period would build the FIRST period's
+// value from part of it: the bars that would show it are withheld by name, unless the first bar
+// certainly opens its period. Formula `tf` keeps its own behaviour.
+describe('⭐⭐ review L2 — off the listing, the first period\'s value is never drawn from part of it', () => {
+  const off = (tree, bars, opts) => {
+    const sink = new Map()
+    const c = Array.from(interpret(tree, bars, {}, undefined, undefined, { tf: 'D', newestBarIsForming: false, historyFromListing: false, chartClockSink: sink, ...(opts || {}) }))
+      .map((v) => (Number.isFinite(v) ? v : null))
+    return { c, codes: [...sink.keys()] }
+  }
+
+  it('M, starting mid-March: March\'s closing bar and April\'s other bars are withheld by name; April\'s close is drawn', () => {
+    const r = off(node(TF_MERGE, 'M'), BARS)
+    for (const d of ['2026-03-31', '2026-04-01', '2026-04-06', '2026-04-09']) expect(r.c[DATES.indexOf(d)], d).toBe(null)
+    expect(r.c[DATES.indexOf('2026-04-10')]).toBe(14)
+    expect(r.c[DATES.indexOf('2026-05-28')]).toBe(14)
+    expect(r.codes).toContain(TF_MERGE_FIRST_CODE)
+    expect(CHART_CLOCK_WITHHELD[TF_MERGE_FIRST_CODE]()).toMatch(/part of a period/)
+  })
+
+  it('W, starting on a MONDAY (the week\'s first session): nothing is withheld for the first period', () => {
+    const r = off(node(TF_MERGE, 'W'), BARS)
+    expect(r.c.slice(0, N - 1)).toEqual(W_MERGE)
+    expect(r.codes).not.toContain(TF_MERGE_FIRST_CODE)
+  })
+
+  it('W, starting on a WEDNESDAY: week A\'s closing bar and week B\'s other bars are withheld; week B\'s close is drawn', () => {
+    const bars = BARS.slice(DATES.indexOf('2026-03-25'))
+    const days = DATES.slice(DATES.indexOf('2026-03-25'))
+    const r = off(node(TF_MERGE, 'W'), bars)
+    for (const d of ['2026-03-27', '2026-03-30', '2026-04-01']) expect(r.c[days.indexOf(d)], d).toBe(null)
+    expect(r.c[days.indexOf('2026-04-02')]).toBe(9)
+    expect(r.codes).toContain(TF_MERGE_FIRST_CODE)
+  })
+
+  it('⛔ on an intraday chart the first bar is never certainly its period\'s first: withheld even from a Monday', () => {
+    const r = off(node(TF_MERGE, 'W'), BARS, { tf: '5' })
+    expect(r.c[DATES.indexOf('2026-03-27')]).toBe(null)
+    expect(r.codes).toContain(TF_MERGE_FIRST_CODE)
+  })
+
+  it('formula `tf` keeps its behaviour off the listing (nothing named)', () => {
+    const r = off(node('tf', 'M'), BARS)
+    expect(r.codes).not.toContain(TF_MERGE_FIRST_CODE)
   })
 })
 

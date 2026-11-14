@@ -413,6 +413,9 @@ export const TF_MERGE = 'tf_merge'
 /** ⭐ ENGINE 55 — the chart-clock code a `tf_merge` read's withheld bars are named by
  *  (`tfMergeMask`, `CHART_CLOCK_WITHHELD`). */
 export const TF_MERGE_NEWEST_CODE = 'request:htf-newest-unconfirmed'
+/** ⭐ ENGINE 55 (review L2) — the bars of a `tf_merge` read that would draw the FIRST period's
+ *  value from a part of it, on a chart that does not start at the listing (`tfMergeMask`). */
+export const TF_MERGE_FIRST_CODE = 'request:htf-first-period-partial'
 
 /** ⭐ C41 — an `ltf` node names a whole number of MINUTES and nothing else. Which
  *  codes are SERVED is `engine/lowerTf.js`'s answer, given per binding as the
@@ -5288,6 +5291,13 @@ export const CHART_CLOCK_WITHHELD = Object.freeze({
     + 'last 5-minute bar\'s. This chart holds no daily bars beside its own, so everything this indicator draws '
     + 'from that request is withheld on this chart rather than drawn from the wrong bars. On a 1D chart it '
     + 'draws. What would settle it: this chart reading the symbol\'s daily bars beside its own.',
+  // ⭐⭐ ENGINE 55 (review L2) — the first period of a `tf_merge` read, off the listing.
+  'request:htf-first-period-partial': () => 'This indicator reads a weekly or monthly value with '
+    + '`request.security` (look-ahead off). This chart\'s history does not begin at the symbol\'s listing, and '
+    + 'its first bar is not certainly the first session of its week or month, so the first period\'s value '
+    + 'would be built from only part of that period. The bars that would show it are withheld rather than '
+    + 'drawn from part of a period; every later bar is drawn. What would settle it: a chart whose history '
+    + 'begins at a period\'s first session, or at the listing.',
   // ⭐⭐ ENGINE 55 — the newest bar of a `tf_merge` read (see `tfMergeMask`).
   'request:htf-newest-unconfirmed': () => 'This indicator reads a weekly or monthly value with '
     + '`request.security` (look-ahead off). TradingView shows that value on the bar that completes the '
@@ -6249,6 +6259,22 @@ export function withheldReadMask(tree, bars, inputs, budget, scalars, opts) {
  *  newest bar onto an earlier chart bar).
  *  ⛔ Bars with no readable day cannot be placed in a period at all (the `tf` arm
  *  leaves them blank too): the whole series is withheld, by the same name.
+ *  ⭐⭐ REVIEW L3 (coordinator, PR #1264) — A FINISHED NEWEST BAR THAT CERTAINLY CLOSES ITS
+ *  PERIOD IS SERVED: on a DAILY chart whose bars include no Saturday or Sunday, when the
+ *  next WEEKDAY after that bar falls in another period for every merge in the tree (`W`:
+ *  the bar is a Friday; `M`: the month's last weekday). POSITIVE-ONLY and calendar-free:
+ *  a holiday can only END a period earlier than this says (a Thursday before Good Friday
+ *  stays withheld by name), never later — and only a weekday, never a session list, is
+ *  read. ⚰️ Every weekend left the last daily bar blank. ⛔ Not on an intraday chart (a
+ *  Friday 10:00 bar does not close its week), not on a series that trades weekends
+ *  (its week ends on Sunday), never under another request.
+ *  ⭐⭐ REVIEW L2 — THE FIRST PERIOD, OFF THE LISTING. A chart whose history does not begin
+ *  at the listing (`historyFromListing !== true`) may start mid-week or mid-month, and the
+ *  first period's value is then built from part of it — drawn on that period's closing bar
+ *  and on the next period's other bars. Those bars are withheld and named
+ *  `request:htf-first-period-partial`, unless the first bar CERTAINLY opens its period (a
+ *  daily chart with no weekend bars whose first bar follows a weekday in another period —
+ *  the mirror of the L3 test). Formula `tf` keeps its own behaviour.
  *  ⛔ NO `try` (`budget.test.js`): a refusal here must reach the caller as itself. */
 export function tfMergeMask(tree, bars, opts) {
   const n = Array.isArray(bars) ? bars.length : 0
@@ -6259,7 +6285,7 @@ export function tfMergeMask(tree, bars, opts) {
     const [node, under, sym] = stack.pop()
     if (!node || typeof node !== 'object' || seen.has(node)) continue
     seen.add(node)
-    if (node.type === TF_MERGE) found.push({ under, sym })
+    if (node.type === TF_MERGE) found.push({ under, sym, code: node.value })
     const into = under || SCOPE_TYPES.has(node.type)
     const symHere = node.type === 'sym' ? String(node.value).trim().toUpperCase() : sym
     if (Array.isArray(node.args)) for (const a of node.args) stack.push([a, into, symHere])
@@ -6276,7 +6302,9 @@ export function tfMergeMask(tree, bars, opts) {
   // ⭐ THE ONE GUARD OVER THE NEWEST BAR (the evaluator computes the forming reading there):
   // withheld unless known to be forming, and under another request whatever the chart says.
   const forming = !!opts && opts.newestBarIsForming === true
-  if (!forming || found.some((f) => f.under)) mask[n - 1] = 1
+  const known = forming || newestClosesEveryMergePeriod(bars, found, opts)
+  if (!known || found.some((f) => f.under)) mask[n - 1] = 1
+  const firstMask = firstPeriodPartialMask(bars, found, opts)
   const supplied = (opts && opts.symbols) || {}
   for (const f of found) {
     if (!f.sym) continue
@@ -6296,9 +6324,73 @@ export function tfMergeMask(tree, bars, opts) {
   }
   let any = false
   for (let i = 0; i < n; i++) if (mask[i]) { any = true; break }
-  if (!any) return null
-  nameChartClock(opts, [TF_MERGE_NEWEST_CODE], opts && opts.tf)
-  return mask
+  if (any) nameChartClock(opts, [TF_MERGE_NEWEST_CODE], opts && opts.tf)
+  if (firstMask) {
+    for (let i = 0; i < n; i++) if (firstMask[i]) mask[i] = 1
+    nameChartClock(opts, [TF_MERGE_FIRST_CODE], opts && opts.tf)
+    any = true
+  }
+  return any ? mask : null
+}
+
+/** ⭐ REVIEW L2 — the bars whose merged reading is the FIRST period's value, on a chart that
+ *  does not begin at the listing and whose first bar does not certainly open that period
+ *  (per merge code), as a 0/1 column; null when there are none. */
+function firstPeriodPartialMask(bars, found, opts) {
+  if (opts && opts.historyFromListing === true) return null
+  const n = bars.length
+  const days = bars.map((b) => isoDay(b && b.t))
+  const daily = !!opts && (opts.tf === 'D' || opts.tf === '1D') && days.every((d) => d && isoWeekday(d) <= 5)
+  let out = null
+  for (const code of new Set(found.map((f) => f.code))) {
+    if (typeof code !== 'string') continue
+    if (daily) {
+      const first = days[0]
+      const dow = isoWeekday(first)
+      const [y, m, d] = first.split('-').map(Number)
+      const [py, pm, pd] = civilFromDays(daysFromCivil(y, m, d) - (dow === 1 ? 3 : 1))
+      const prev = `${String(py).padStart(4, '0')}-${String(pm).padStart(2, '0')}-${String(pd).padStart(2, '0')}`
+      if (tfBucket(prev, code) !== tfBucket(first, code)) continue       // the first bar opens its period
+    }
+    let b = 0
+    for (let i = 0; i < n; i++) {
+      if (i > 0 && tfBucket(days[i], code) !== tfBucket(days[i - 1], code)) b += 1
+      const closing = i === n - 1 || tfBucket(days[i + 1], code) !== tfBucket(days[i], code)
+      if ((closing ? b : b - 1) === 0) {
+        if (!out) out = new Float64Array(n)
+        out[i] = 1
+      }
+    }
+  }
+  return out
+}
+
+/** ⭐ REVIEW L3 — the weekday of an ISO day, Mon = 1 … Sun = 7, from the day count alone. */
+function isoWeekday(iso) {
+  const [y, m, d] = iso.split('-').map(Number)
+  const z = daysFromCivil(y, m, d)
+  return (((z + 3) % 7) + 7) % 7 + 1
+}
+
+/** ⭐ REVIEW L3 — does a FINISHED newest daily bar certainly close every merge period in
+ *  the tree? The sufficient condition `tfMergeMask` documents: a daily chart, no weekend
+ *  bar anywhere in the series, and the next weekday after the newest bar in another period
+ *  for each merge's code. */
+function newestClosesEveryMergePeriod(bars, found, opts) {
+  const tf = opts && opts.tf
+  if (tf !== 'D' && tf !== '1D') return false
+  const days = []
+  for (const b of bars) {
+    const iso = isoDay(b && b.t)
+    if (!iso || isoWeekday(iso) > 5) return false
+    days.push(iso)
+  }
+  const last = days[days.length - 1]
+  const dow = isoWeekday(last)
+  const [y, m, d] = last.split('-').map(Number)
+  const [ny, nm, nd] = civilFromDays(daysFromCivil(y, m, d) + (dow === 5 ? 3 : 1))
+  const next = `${String(ny).padStart(4, '0')}-${String(nm).padStart(2, '0')}-${String(nd).padStart(2, '0')}`
+  return found.every((f) => typeof f.code === 'string' && tfBucket(next, f.code) !== tfBucket(last, f.code))
 }
 
 /** Withhold (`NaN`) the bars `withheldReadMask` names. A COPY. */
@@ -6876,7 +6968,7 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
         // MEASURED, not argued: 0 mismatches over 598 RDDT and 1,799 SPY daily bars, all
         // eight weekly / monthly plots of `support-and-resistance-multi-time-frame`,
         // the Good Friday week (Thursday closes it) and weekend month ends included
-        // (`docs/pine/evidence/2026-11-14-engine55-honest-htf.md`).
+        // (`docs/pine/evidence/2026-11-14-engine55-honest-htf/EVIDENCE.md`).
         // ⛔ THE PERIOD END IS READ OFF THE NEXT BAR, NEVER OFF A CALENDAR: bar `i` closes
         // its period exactly when bar `i + 1` sits in another bucket. A weekday rule
         // ("Friday") draws the Good Friday week one bar late.

@@ -38,7 +38,7 @@ import { toRenderState } from '../../objectRenderState'
 // ⭐ RT5 — a runtime document's own drawings.
 import { runtimeObjectsOf, runtimeObjectsWithheldOf, drawsRuntimeObjects, runtimeWarmupOf, RUNTIME_WARMUP_KEY, runHalfOf, carriesRunHalf } from '../../runtime/runtimeObjects'
 import { runtimeDeclinedTag } from '../../../../../../../tools/pine_coverage/runtime_lane.mjs'
-import { maxLookback, CHART_CLOCK_WHOLE, TF_MERGE_NEWEST_CODE } from '../../ast/interpret'
+import { maxLookback, CHART_CLOCK_WHOLE, TF_MERGE_NEWEST_CODE, TF_MERGE_FIRST_CODE } from '../../ast/interpret'
 import { setRuntimeDoorClock } from '../../runtime/runtimeColumns'
 import { paneObjectsGate } from '../../ast/paneGate'
 import { otherSymbolRequestsOf, storeTickerOf } from '../../otherSymbols'
@@ -954,7 +954,8 @@ export function withheldPlotsOf(clockReport, cols, notes) {
     // ⭐ ENGINE 55 — a NEWEST-BAR code is never a whole-series withholding, even on a
     // plot whose column is empty for its own reasons (RDDT's monthly pivots never
     // form in its history): that bar is excluded by `withheldNewest`, the rest graded.
-    if (r.code === TF_MERGE_NEWEST_CODE) continue
+    // …and review L2's first-period code withholds the first period's bars only, never the series.
+    if (r.code === TF_MERGE_NEWEST_CODE || r.code === TF_MERGE_FIRST_CODE) continue
     for (const key of r.plots) {
       if (out.has(key)) continue
       if (withholdsEveryBar(cols[key])) out.set(key, r.code)
@@ -1192,6 +1193,9 @@ function runOurSideOnTheParityClock(capture) {
         const why = registry.columnErrors(cols)[row.key]
         missingReason = `computeFor returned no column for ${row.key}`
           + (why && why.guard ? ` (${why.guard})` : '')
+          // ⭐ ENGINE 55 (review M1) — a refusal carrying its own code (a spelling no binding serves)
+          // says its whole sentence, so a grade reads WHY that one plot is not drawn.
+          + (why && why.code && why.message ? ` — ${why.message}` : '')
       }
       plots.push({
         title: o ? o.title : null,

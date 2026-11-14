@@ -30,7 +30,10 @@ const grade = (f) => gradeCapture(loadCapture(path.join(H, f)).capture)
 beforeAll(() => { vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', '1') })
 afterAll(() => { vi.unstubAllEnvs() })
 
-describe('1 — S&R multi time frame: every plot MATCHES, the newest finished bar withheld by name', () => {
+// ⭐ REVIEW L3 — both captures end on a FRIDAY (2026-10-02), a finished bar that certainly closes
+// its week: the WEEKLY plots now draw and grade it; October is not over, so the MONTHLY plots
+// still withhold that one bar by name.
+describe('1 — S&R multi time frame: every plot MATCHES; a newest bar not certain to close its period is withheld by name', () => {
   for (const f of ['support-and-resistance-multi-time-frame-rddt-1d-2026-10-02.json',
     'support-and-resistance-multi-time-frame-spy-1d-2026-10-02.json']) {
     it(f, () => {
@@ -42,8 +45,9 @@ describe('1 — S&R multi time frame: every plot MATCHES, the newest finished ba
       const htf = plots.filter((p) => /Weekly|Monthly/.test(p.title))
       expect(htf.length).toBe(4)
       for (const p of htf) {
-        expect(p.withheldNewest, p.title).toBe(TF_MERGE_NEWEST_CODE)
-        expect(p.stats.oursUnread, p.title).toBe(1)        // the one bar not compared
+        const monthly = /Monthly/.test(p.title)
+        expect(p.withheldNewest, p.title).toBe(monthly ? TF_MERGE_NEWEST_CODE : undefined)
+        expect(p.stats.oursUnread, p.title).toBe(monthly ? 1 : 0)   // the one bar not compared
         expect(p.stats.steady.compared, p.title).toBeGreaterThan(500)
       }
     }, 120000)

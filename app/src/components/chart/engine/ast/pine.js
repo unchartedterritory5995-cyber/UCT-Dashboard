@@ -102,7 +102,7 @@ import { yieldsOf, compileRules, SENTENCE_RULES, didYouMean } from './sentence.j
 // evaluation time, which is a refusal at the wrong door.
 import { FN, MAX_SELF_LAG, SEED_RESIDUAL_TOLERANCE, TF_RESAMPLABLE, TF_LADDER, BASE_TF, isIntradayTf, sessionAnchoredIn, ambiguousVarSeed, switchedVarSeed, heldFalseSeed, naConditionIsFalse, periodFirstCondition, readingSeed, chartOwnTimeNode, OWN_TIME_WITNESSED_TF, periodCloseNode, PERIOD_CLOSE_CODES, periodAnchorNode, chartSixtyTimeNode, SIXTY_WITNESSED_TF, PERIOD_ANCHOR_WITNESSED_TF, PERIOD_CLOSE_WITNESSED_TF, requestBaseNode, treeReadsLowerTf, listingSeedIsUnpinned } from './interpret.js'
 import { isLowerTfRequest, lowerTfRefusal, LOWER_TF_REFUSAL } from '../lowerTf.js'
-import { staticallyUnservable } from '../otherSymbols.js'
+import { staticallyUnservable, spellingUnservable, staticOtherSymbolMessage, US_EQUITY_VENUES } from '../otherSymbols.js'
 import { memberNumber } from './memberValue.js'
 import { timeInputDefaultOf, isTimeInputCall } from '../runtime/runtimeInputs.js'
 // ⭐ The budget's own verdict, asked at the translate door (see the row builder
@@ -5112,9 +5112,8 @@ function smaOfBareObv(node) {
  *  refuses, both spellings agree), never the membership, so adding a venue is a
  *  one-line change that nothing else has to follow.
  */
-const US_EQUITY_VENUES = Object.freeze(new Set([
-  'NASDAQ', 'NYSE', 'AMEX', 'ARCA', 'NYSEARCA', 'BATS', 'CBOE', 'OTC', 'IEX',
-]))
+// ⭐ ENGINE 55 (review L5) — `US_EQUITY_VENUES` now lives in `otherSymbols.js`, read by
+// this translator and by `spellingUnservable`, so the two lanes judge one list.
 
 /** `"AMEX:SPY"` → `'SPY'`; a bare `"SPY"` → `'SPY'`; a venue we do not serve →
  *  null, which the callers turn into the ordinary `pine:request` refusal.
@@ -8449,10 +8448,12 @@ export class Resolver {
         })
         if (!out) {
           // ⭐ C27 — a tuple element of a request below the chart names why.
-          // ⭐ ENGINE 55 — …and one reading an other-symbol spelling no binding serves.
+          // ⭐ ENGINE 55 — …and one naming a spelling this door cannot even turn into a
+          // listing (a foreign exchange, `BRK/B`): the one sentence both lanes say.
           const lower = this.lowerTfDeclineOf(bound.call)
-          const hopeless = lower ? null : this.otherSymbolStaticDeclineOf(bound.call)
-          const why = lower ? lower.why : hopeless ? hopeless.why : null
+          const spelled = lower ? null : this.otherSymbolSpellingDeclineOf(bound.call)
+          if (spelled) throw new PineRefusal('pine:request', spelled.message, bound.at || locate(tok))
+          const why = lower ? lower.why : null
           throw new PineRefusal('pine:request',
             `${REFUSALS['pine:request']} — \`${name}\`${why ? `: ${why}` : ''}`,
             bound.at || locate(tok))
@@ -12099,8 +12100,10 @@ export class Resolver {
       if (name === 'request.security' || name === 'security') {
         const decline = this.securityDeclineReason(node)
         if (decline) {
+          // ⭐ ENGINE 55 (review L5) — a spelling no binding serves carries its OWN whole
+          // sentence (`staticOtherSymbolMessage`), said verbatim by the runtime lane too.
           throw new PineRefusal(guard,
-            `${REFUSALS[guard]} — \`${name}\`: ${decline.why}`,
+            decline.message || `${REFUSALS[guard]} — \`${name}\`: ${decline.why}`,
             locate(node.tok), decline.suggest)
         }
       }
@@ -12988,9 +12991,12 @@ export class Resolver {
     // ⭐ P0 0H — a value-changing argument this door cannot honour, named first.
     const argDecline = this.requestArgsDecline(placed)
     if (argDecline) return argDecline
-    // ⭐⭐ ENGINE 55 — an other-symbol spelling no binding can serve, by its code.
-    const hopeless = this.otherSymbolStaticDeclineOf(node)
-    if (hopeless) return { why: hopeless.why }
+    // ⭐⭐ ENGINE 55 (review L5) — a spelling this door cannot even turn into a listing (a
+    // foreign exchange, `BRK/B`), by its code and the one sentence. ⛔ A spelling it CAN
+    // turn into a listing (`XAUUSD`, `SPX`) never reaches here: it is a `sym` node, and the
+    // bind refuses only the plots that read it (review M1).
+    const spelled = this.otherSymbolSpellingDeclineOf(node)
+    if (spelled) return { why: spelled.why, message: spelled.message }
 
     // 1. THE SESSION. `ticker.new(prefix, sym, session.extended)` asks for pre- and
     //    post-market prints; `sym` serves the regular session. The rewrite keeps
@@ -13451,9 +13457,63 @@ export class Resolver {
     if (!placed || placed[0] === undefined) return null
     if (this.ownSymbolNameOf(placed[0]) !== null) return null
     const otherSym = this.otherSymbolOf(placed[0])
-    if (!otherSym) return null
+    if (!otherSym) return this.otherSymbolSpellingDeclineOf(node)
     const s = staticallyUnservable(otherSym.ticker, otherSym.venue)
-    return s ? { code: s.code, why: `${s.code} — ${s.reason}` } : null
+    return s ? { code: s.code, ticker: otherSym.ticker, why: `${s.code} — ${s.reason}`,
+      message: staticOtherSymbolMessage(otherSym.ticker, s) } : null
+  }
+
+  /** ⭐⭐ ENGINE 55 (review L5) — a request whose symbol is a LITERAL spelling this door
+   *  cannot turn into a listing at all (`otherSymbolOf` takes no foreign exchange and no
+   *  `BRK/B`), when `otherSymbols.js::spellingUnservable` names why: `{code, ticker, why,
+   *  message}`, or null. The runtime lane asks the same question (through
+   *  `otherSymbolStaticDeclineOf`), so a spelling one lane refuses the other refuses too,
+   *  in the same words, instead of the runtime lane reading bars that never come. */
+  otherSymbolSpellingDeclineOf(node) {
+    const placed = positionaliseSecurityArgs(node.args || [])
+    if (!placed || placed[0] === undefined) return null
+    if (this.ownSymbolNameOf(placed[0]) !== null || this.otherSymbolOf(placed[0])) return null
+    const raw = this.rawSymbolSpellingOf(placed[0])
+    if (raw === null) return null
+    const s = spellingUnservable(raw)
+    return s ? { code: s.code, ticker: s.ticker, why: `${s.code} — ${s.reason}`,
+      message: staticOtherSymbolMessage(s.ticker, s) } : null
+  }
+
+  /** The literal string a request's symbol argument spells, followed through the shapes
+   *  `otherSymbolOf` follows (a name's binding, a constant ternary branch, an
+   *  `input.symbol` / `input.string` default, `ticker.new(prefix, sym)`), or null. */
+  rawSymbolSpellingOf(node, depth = 0) {
+    if (!node || depth > 4) return null
+    if (node.value && typeof node.value === 'object' && node.value.type && node.name !== undefined && !node.type) {
+      return this.rawSymbolSpellingOf(node.value, depth + 1)
+    }
+    if (node.type === 'string') return String(node.value)
+    if (node.type === 'ternary') {
+      const taken = this.constantBranchOf(node)
+      return taken ? this.rawSymbolSpellingOf(taken, depth + 1) : null
+    }
+    if (node.type === 'name') {
+      const bound = this.env && this.env.get(node.name)
+      return bound && bound.kind === 'expr' ? this.rawSymbolSpellingOf(bound.node, depth + 1) : null
+    }
+    const tick = this.tickerCallArg(node)
+    if (tick) {
+      const inner = this.rawSymbolSpellingOf(tick, depth + 1)
+      if (inner === null) return null
+      const prefix = tickerCallPrefixOf(node)
+      if (prefix === undefined) return inner
+      // a computed or chart-own prefix (`?`, `@syminfo.prefix`) spells no literal
+      return prefix === '?' || String(prefix).startsWith('@') ? null : `${prefix}:${inner}`
+    }
+    if (node.type === 'call' && (node.name === 'input.symbol' || node.name === 'input.string')) {
+      const args = node.args || []
+      for (let i = 0; i < args.length; i += 1) {
+        const a = args[i]
+        if (a && (a.name === 'defval' || (!a.name && i === 0))) return this.rawSymbolSpellingOf(a.value, depth + 1)
+      }
+    }
+    return null
   }
 
   /** ⭐⭐ C23 — WHAT A `request.security(…)` ASKS FOR, without resolving its value:
@@ -13501,12 +13561,12 @@ export class Resolver {
     const other = otherSym ? otherSym.ticker : null
     const venue = otherSym ? otherSym.venue : null
     if (own === null && other === null) return null
-    // ⭐⭐ ENGINE 55 — A SPELLING NO BINDING CAN SERVE DECLINES HERE, at translate
-    // (`otherSymbols.js::staticallyUnservable`: a bare index / pair / foreign spelling,
-    // punctuation that names no listing). ⚰️ It used to become a `sym` node the bind
-    // then starved — an all-`na` plot with nothing said (McClellan's `ADVN` / `DECN`,
-    // `XAUUSD`, `ADVDEC.NY`). `securityDeclineReason` names the code.
-    if (otherSym && staticallyUnservable(other, venue)) return null
+    // ⭐⭐ ENGINE 55 (review M1) — A SPELLING NO BINDING CAN SERVE (`XAUUSD`, `SPX`, `ADVN`,
+    // `ADVDEC.NY`) STAYS A `sym` NODE HERE, and the BIND refuses the plots that read it,
+    // by name (`otherSymbols.js::otherSymbolRefusalOfTree`, one sentence:
+    // `staticOtherSymbolMessage`), while every other plot is drawn. ⚰️ The first engine-55
+    // cut declined it here; the member door then refused the WHOLE script, so a saved
+    // copy with two correct plots and one such read went `refused` on the 54 -> 55 upgrade.
 
     // 2. WHICH PERIOD: the chart's own (`timeframe.period`) or a code `tf` can
     //    resample. A computed timeframe is exactly what the node shape forbids.

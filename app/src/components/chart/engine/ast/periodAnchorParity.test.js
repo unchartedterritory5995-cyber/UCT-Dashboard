@@ -593,12 +593,22 @@ describe('C36 · the fixture is not vacuous', () => {
     // it; `nz` of the first partial week's open is Pine's 0; the newest finished bar is withheld
     // by name (`request:htf-newest-unconfirmed`), never `nz`'s confident 0.
     // ⚰️ It was `tf`: [0, 0] and bar 2 = Friday's close — one bar late on every week's close.
+    // ⭐⭐ REVIEW L2 (PR #1264) — these bars do not start at the listing, and the first bar
+    // (Thursday 2024-10-10) does not open its week, so the first week's value would be built from
+    // two days of it: Friday's closing bar and the next week's other bars (1-5) are withheld by
+    // name (`request:htf-first-period-partial`), never `nz`'s confident 0; Friday 10-18 (bar 6)
+    // closes a whole week and is drawn.
+    // ⭐⭐ REVIEW L3 — the newest bar (Friday 2025-12-19) certainly closes its week on this DAILY
+    // chart, so it is drawn; where no timeframe is stated nothing is certain, and it is withheld.
     const w = col('nz(reqW) · weekdays · D')
-    expect(w.slice(0, 3)).toEqual([0, PARITY.bars.weekdays[1].c, PARITY.bars.weekdays[1].c])
-    expect(w[6]).toBe(PARITY.bars.weekdays[6].c)
-    expect(w[w.length - 1]).toBe(null)
-    expect(codes('nz(reqW) · weekdays · D')).toEqual(['request:htf-newest-unconfirmed'])
-    expect(col('nz(reqW) · weekdays · no tf')).toEqual(w)
+    const days = PARITY.bars.weekdays
+    expect(w.slice(0, 7)).toEqual([0, null, null, null, null, null, days[6].c])
+    expect(w[w.length - 1]).toBe(days[days.length - 1].c)
+    expect(codes('nz(reqW) · weekdays · D')).toEqual(['request:htf-first-period-partial'])
+    const noTf = col('nz(reqW) · weekdays · no tf')
+    expect(noTf.slice(0, -1)).toEqual(w.slice(0, -1))
+    expect(noTf[noTf.length - 1]).toBe(null)
+    expect(codes('nz(reqW) · weekdays · no tf')).toEqual(['request:htf-first-period-partial', 'request:htf-newest-unconfirmed'])
     // ⛔ on a 15-minute and a weekly chart both are withheld on every bar — never a 15-minute
     // close under the name of the daily one, never `nz`'s confident 0
     for (const k of ['reqD', 'nz(reqW)']) {

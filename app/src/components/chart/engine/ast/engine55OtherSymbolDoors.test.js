@@ -5,24 +5,38 @@
 // ⚰️ Before engine 55 a bare index / pair / foreign spelling (`"ADVN"`, `"XAUUSD"`) or a
 // punctuated one (`"ADVDEC.NY"`) became a `sym` node the bind then starved: an all-`na`
 // plot with nothing said (McClellan, smt-divergence, two A/D lines, LazyBear's McClellan).
-//   L1 — ONE helper (`otherSymbols.js::staticallyUnservable`) decides it from the spelling,
-//        and every door refuses the read as `pine:request` carrying the code, in ONE
-//        sentence: the screen, the pane (strict), the runtime lane and the member door.
+//   L1 — ONE helper (`otherSymbols.js::staticallyUnservable`) decides it from the spelling.
+//        ⭐⭐ REVIEW M1 (coordinator ruling, PR #1264): ONLY THE PLOTS THAT READ IT ARE
+//        REFUSED. The translator keeps the `sym` node, every door attaches the script, and
+//        the bind refuses those plots `{guard: 'pine:request', code, message}` with ONE
+//        sentence (`staticOtherSymbolMessage`), while every other plot is drawn exactly.
+//        ⚰️ The first engine-55 cut refused at translate, and the member door's
+//        all-or-nothing gate then refused the WHOLE script — a saved copy with two correct
+//        plots went `refused` on the 54 -> 55 upgrade. The runtime lane (which runs the
+//        whole program) refuses the program with the same sentence; the member door draws
+//        the script from the host lane (the C41 pattern).
 //   L2 — a plot (or object tree) reading a ticker the BIND refuses (settled, not pending) is
 //        refused by name in `columnErrors` (the object lane's `refusals`) — never an all-`na`
 //        column — and `externalReadNotices` publishes it for a Pine translation too.
+//   L5 — a spelling the host cannot turn into a listing at all (a foreign exchange,
+//        `BRK/B`) is refused by name, in one sentence, by the host AND the runtime lane
+//        (which took any string before); a throw while asking refuses, never reads.
 // Controls: bare `SPY` and `AMEX:SPY` are still served (C29).
-import { describe, it, expect } from 'vitest'
-import { translatePine, REFUSALS } from './pine'
+import { describe, it, expect, vi, afterEach } from 'vitest'
+import { translatePine, Resolver } from './pine'
 import { buildRuntimeIr } from './pineRuntimeFrontend'
 import { memberPaneDefinition } from '../../builder/memberPane/memberPaneDefinition'
+import { retranslateRow, upgradeKindOf } from '../../builder/memberPane/savedScriptUpgrade'
 import { computeFor, columnErrors, externalReadNotices } from '../nativeRegistry'
 import { objectReaderFor } from '../objectColumns'
-import { staticallyUnservable, OTHER_SYMBOL_REFUSAL as R } from '../otherSymbols'
+import {
+  staticallyUnservable, spellingUnservable, staticOtherSymbolMessage, staticOtherSymbolRefusalOf,
+  OTHER_SYMBOL_REFUSAL as R,
+} from '../otherSymbols'
 
 const LF = String.fromCharCode(10)
 const pine = (lines) => ['//@version=5', 'indicator("e55")', ...lines].join(LF)
-const BARS = Array.from({ length: 40 }, (_, i) => ({ t: 1767225600 + i * 86400, o: 10 + i, h: 11 + i, l: 9 + i, c: 10 + i, v: 1000 }))
+const BARS = Array.from({ length: 40 }, (_, i) => ({ t: 1767225600 + i * 86400, o: 10 + i, h: 11 + i + (i % 3), l: 9 + i, c: 10 + i + (i % 4) * 0.25, v: 1000 }))
 const hostRefusal = (src, opts) => {
   const t = translatePine(src, opts)
   if (t.ok) return null
@@ -33,46 +47,59 @@ const runtimeRefusal = (src) => {
   return built.ok ? null : built.refusal
 }
 const door = (src) => memberPaneDefinition({ source: src, id: 'u_e55sym', name: 'e55' })
+const CTX = { tf: 'D', symbol: { ticker: 'RDDT', exchange: 'NYSE' }, newestBarIsForming: false, secondary: new Map(), exchangeOf: () => null }
+const sma = (n) => BARS.map((_, i) => (i + 1 < n ? NaN : BARS.slice(i + 1 - n, i + 1).reduce((x, b) => x + b.c, 0) / n))
+const sameSeries = (got, want) => want.every((w, i) => (Number.isNaN(w) ? !Number.isFinite(got[i]) : Math.abs(got[i] - w) < 1e-9))
 
+afterEach(() => { vi.restoreAllMocks() })
+
+// [label, spelled, code, ticker the sentence names]
 const HOPELESS = [
   ['bare XAUUSD (not a US listing shape)', '"XAUUSD"', R.BARE, 'XAUUSD'],
   ['bare EURUSD (a pair)', '"EURUSD"', R.BARE, 'EURUSD'],
   ['bare ADVN (also an index: BARE_AMBIGUOUS, breadth)', '"ADVN"', R.BARE, 'ADVN'],
   ['bare SPX (also an index)', '"SPX"', R.BARE, 'SPX'],
+  ['bare VIX (also an index)', '"VIX"', R.BARE, 'VIX'],
+  ['bare DXY (also an index)', '"DXY"', R.BARE, 'DXY'],
   ['bare ADVDEC.NY (punctuation)', '"ADVDEC.NY"', R.CLASS_SHARE, 'ADVDEC.NY'],
   ['NYSE:BRK-B (a hyphen names no listing)', '"NYSE:BRK-B"', R.CLASS_SHARE, 'BRK-B'],
 ]
+const venueOf = (spelled) => (spelled.includes(':') ? spelled.slice(1, spelled.indexOf(':')) : '')
 
-describe('⭐⭐ L1 — the four doors refuse a hopeless spelling with ONE guard and ONE sentence', () => {
-  it.each(HOPELESS)('%s: screen, pane (strict), runtime lane and member door', (_, spelled, code, ticker) => {
-    const src = pine([`plot(request.security(${spelled}, timeframe.period, close))`])
-    const why = staticallyUnservable(ticker, spelled.includes(':') ? spelled.slice(1, spelled.indexOf(':')) : '')
+describe('⭐⭐ L1 / review M1 — a spelling no binding serves refuses ONLY the plots that read it, in ONE sentence at every door', () => {
+  it.each(HOPELESS)('%s: the doors attach; the bind and the runtime lane say one sentence', (_, spelled, code, ticker) => {
+    const why = staticallyUnservable(ticker, venueOf(spelled))
     expect(why && why.code).toBe(code)
-    const sentence = `${REFUSALS['pine:request']} — \`request.security\`: ${code} — ${why.reason}`
-    for (const r of [hostRefusal(src), hostRefusal(src, { strict: true }), runtimeRefusal(src)]) {
-      expect(r && r.guard).toBe('pine:request')
-      expect(r.message).toBe(sentence)
+    const sentence = staticOtherSymbolMessage(ticker, why)
+    const src = pine(['plot(close, "own")', `plot(request.security(${spelled}, timeframe.period, close), "x")`])
+    // screen and pane (strict): no refusal at translate; the reading output names the refusal it will get
+    for (const opts of [undefined, { strict: true }]) {
+      const t = translatePine(src, opts)
+      expect(hostRefusal(src, opts), JSON.stringify(opts)).toBe(null)
+      const x = t.outputs.find((o) => o.title === 'x')
+      expect(staticOtherSymbolRefusalOf(x.ast, t.otherSymbols)).toEqual({ guard: 'pine:request', code, message: sentence })
+      expect(staticOtherSymbolRefusalOf(t.outputs.find((o) => o.title === 'own').ast, t.otherSymbols)).toBe(null)
     }
+    // the member door attaches, and the bind refuses exactly that plot with that sentence
     const d = door(src)
-    expect(d.ok).toBe(false)
-    expect(d.guard).toBe('pine:request')
-    expect(String(d.reason)).toContain(`${code} — `)
-  })
-
-  it('per plot: a script with one hopeless read and one plain plot keeps the plain plot', () => {
-    const src = pine(['plot(close, "own")', 'plot(request.security("XAUUSD", timeframe.period, close), "gold")'])
-    const t = translatePine(src, { strict: true })
-    const own = t.outputs.find((o) => o.title === 'own')
-    const gold = t.outputs.find((o) => o.refusal)        // a refused row carries no title
-    expect(own && own.ast).toBeTruthy()
-    expect(gold.refusal && gold.refusal.message).toContain(`${R.BARE} — `)
-  })
-
-  it('a tuple request reading a hopeless spelling names the code too', () => {
-    const src = pine(['[a, b] = request.security("XAUUSD", timeframe.period, [open, close])', 'plot(a)'])
-    const r = hostRefusal(src, { strict: true })
+    expect(d.ok, d.reason).toBe(true)
+    const cols = computeFor(d.definition, BARS, undefined, CTX)
+    const errs = columnErrors(cols)
+    expect(Object.values(errs)).toEqual([{ guard: 'pine:request', code, message: sentence }])
+    expect(externalReadNotices(d.definition, cols)).toEqual([{ code, reason: sentence }])
+    // the runtime lane runs the whole program: it refuses it, with the same sentence
+    const r = runtimeRefusal(src)
     expect(r && r.guard).toBe('pine:request')
-    expect(r.message).toContain(`${R.BARE} — `)
+    expect(r.message).toBe(sentence)
+  })
+
+  it('a tuple request reading such a spelling refuses the plots that read it, by the same sentence', () => {
+    const src = pine(['[a, b] = request.security("XAUUSD", timeframe.period, [open, close])', 'plot(a, "a")', 'plot(close, "own")'])
+    expect(hostRefusal(src, { strict: true })).toBe(null)
+    const d = door(src)
+    expect(d.ok, d.reason).toBe(true)
+    const errs = columnErrors(computeFor(d.definition, BARS, undefined, CTX))
+    expect(Object.values(errs).map((e) => e.message)).toEqual([staticOtherSymbolMessage('XAUUSD', staticallyUnservable('XAUUSD', ''))])
   })
 
   it('the breadth sentence says "not available yet", never "never"', () => {
@@ -87,6 +114,7 @@ describe('⭐⭐ L1 — the four doors refuse a hopeless spelling with ONE guard
       const src = pine([`plot(request.security(${spelled}, timeframe.period, close))`])
       expect(hostRefusal(src), spelled).toBe(null)
       expect(hostRefusal(src, { strict: true }), spelled).toBe(null)
+      expect(runtimeRefusal(src), spelled).toBe(null)
       const d = door(src)
       expect(d.ok, spelled).toBe(true)
     }
@@ -94,6 +122,94 @@ describe('⭐⭐ L1 — the four doors refuse a hopeless spelling with ONE guard
     expect(staticallyUnservable('SPY', 'AMEX')).toBe(null)
     expect(staticallyUnservable('BRK.B', '')).toBe(null)
     expect(staticallyUnservable('ADVQ', '')).toBe(null)      // US-shaped: the bind decides
+  })
+})
+
+describe('⭐⭐ review M1 — two correct plots and one unservable read: the two are drawn, exact; the third is refused by name', () => {
+  const THIRD = ['XAUUSD', 'SPX', 'VIX', 'DXY']
+  const srcOf = (t) => pine(['plot(close, "own")', 'plot(ta.sma(close, 5), "sma")', `plot(request.security("${t}", timeframe.period, close), "third")`])
+
+  const check = (def, t) => {
+    const cols = computeFor(def, BARS, undefined, CTX)
+    const keys = def.plots.map((p) => p.key)
+    expect(keys.length).toBe(3)
+    expect(sameSeries(Array.from(cols[keys[0]]), BARS.map((b) => b.c)), `${t} own`).toBe(true)
+    expect(sameSeries(Array.from(cols[keys[1]]), sma(5)), `${t} sma`).toBe(true)
+    const errs = columnErrors(cols)
+    expect(Object.keys(errs)).toEqual([keys[2]])
+    expect(errs[keys[2]]).toEqual({ guard: 'pine:request', code: R.BARE, message: staticOtherSymbolMessage(t, staticallyUnservable(t, '')) })
+    expect(cols[keys[2]]).toBeUndefined()
+  }
+
+  it.each(THIRD)('%s — a fresh translate: the door attaches the script', (t) => {
+    const d = door(srcOf(t))
+    expect(d.ok, d.reason).toBe(true)
+    check(d.definition, t)
+  })
+
+  it.each(THIRD)('%s — a copy saved at engine 54 and upgraded to 55 is UPGRADED, never refused', (t) => {
+    const d = door(srcOf(t))
+    expect(d.ok, d.reason).toBe(true)
+    const saved = JSON.parse(JSON.stringify(d.definition))
+    saved.meta = { ...saved.meta, engineVersion: 54 }
+    const row = { def_id: 'u_e55sym', version: 1, rev: 1, definition: saved, pine_source: srcOf(t) }
+    expect(upgradeKindOf(row)).toBe('retranslate')
+    // the saved-at-54 copy, bound before it is upgraded, already refuses only the third plot
+    check(saved, t)
+    const up = retranslateRow(row, memberPaneDefinition)
+    expect(up.status, up.reason).toBe('upgraded')
+    check(up.definition, t)
+  })
+
+  it('a script whose ONLY plots read unservable tickers is withheld BY NAME, never drawn blank', () => {
+    const d = door(pine(['plot(request.security("XAUUSD", timeframe.period, close), "a")', 'plot(request.security("SPX", timeframe.period, close), "b")']))
+    expect(d.ok, d.reason).toBe(true)
+    const cols = computeFor(d.definition, BARS, undefined, CTX)
+    const errs = columnErrors(cols)
+    for (const p of d.definition.plots) {
+      expect(errs[p.key] && errs[p.key].guard, p.key).toBe('pine:request')
+      expect(cols[p.key], p.key).toBeUndefined()
+    }
+    expect(externalReadNotices(d.definition, cols).length).toBe(2)
+  })
+})
+
+describe('⭐⭐ review L5 — a spelling the host cannot turn into a listing: ONE helper, refused by name in BOTH lanes', () => {
+  const CASES = [['"BRK/B"', R.CLASS_SHARE, 'BRK/B'], ['"TSX:RY"', R.VENUE_FOREIGN, 'TSX:RY'], ['"XETR:SAP"', R.VENUE_FOREIGN, 'XETR:SAP']]
+  it.each(CASES)('%s: the screen, the pane (strict), the runtime lane and the member door say one sentence', (spelled, code, ticker) => {
+    const why = spellingUnservable(spelled.slice(1, -1))
+    expect(why && why.code).toBe(code)
+    const sentence = staticOtherSymbolMessage(ticker, why)
+    const src = pine([`plot(request.security(${spelled}, timeframe.period, close))`])
+    for (const r of [hostRefusal(src), hostRefusal(src, { strict: true }), runtimeRefusal(src)]) {
+      expect(r && r.guard).toBe('pine:request')
+      expect(r.message).toBe(sentence)
+    }
+    const d = door(src)
+    expect(d.ok).toBe(false)
+    expect(d.guard).toBe('pine:request')
+    expect(String(d.reason)).toBe(sentence)
+  })
+
+  it('a throw while the runtime lane asks is a refusal by name, never a read (fails closed)', () => {
+    vi.spyOn(Resolver.prototype, 'otherSymbolStaticDeclineOf').mockImplementation(() => { throw new Error('probe') })
+    const r = runtimeRefusal(pine(['plot(request.security("AMEX:SPY", timeframe.period, close))']))
+    expect(r && r.guard).toBe('pine:request')
+    expect(r.message).toMatch(/could not be read \(probe\), so the request is refused rather than read$/)
+  })
+})
+
+describe('⭐ review L6 — only a real breadth spelling gets the breadth sentence', () => {
+  it('ADVN, TICK.NY and USI:ADD are breadth; DECKXX, ADDYYX and TSX:ADDYY are not', () => {
+    expect(staticallyUnservable('ADVN', '').reason).toMatch(/breadth/)
+    expect(staticallyUnservable('TICK.NY', '').reason).toMatch(/breadth/)
+    expect(spellingUnservable('USI:ADD').reason).toMatch(/breadth/)
+    for (const [t, v] of [['DECKXX', ''], ['ADDYYX', '']]) {
+      const why = staticallyUnservable(t, v)
+      expect(why && why.code, t).toBe(R.BARE)
+      expect(why.reason, t).not.toMatch(/breadth/)
+    }
+    expect(spellingUnservable('TSX:ADDYY').reason).not.toMatch(/breadth/)
   })
 })
 

@@ -170,6 +170,23 @@ const MOVED_BY_ENGINE = Object.freeze({
     'engine 55: request.security(…, "W"|"M") with look-ahead off is tf_merge (TradingView\'s merge), no longer tf',
 })
 
+/** ⭐⭐ ENGINE 55 (review M2) — TODAY'S DOCUMENT WITH THE ONE CLAIMED MOVE UNDONE: every
+ *  `tf_merge` node back to `tf`, every `tf_merge(` in a source back to `tf(`, and the trees'
+ *  hash re-taken over the restored trees. Its digest must EQUAL the saved one, so a move
+ *  listed in `MOVED_BY_ENGINE` can carry nothing else with it. */
+const undoTfMerge = (definition) => {
+  const back = (v) => {
+    if (Array.isArray(v)) return v.map(back)
+    if (!v || typeof v !== 'object') return typeof v === 'string' ? v.split('tf_merge(').join('tf(') : v
+    const o = {}
+    for (const k of Object.keys(v)) o[k] = k === 'type' && v[k] === 'tf_merge' ? 'tf' : back(v[k])
+    return o
+  }
+  const compute = back(definition.compute)
+  if (compute.treesHash !== undefined && compute.trees) compute.treesHash = treesHash(compute.trees)
+  return { ...definition, compute }
+}
+
 const scripts = Object.keys(SAVED).filter((k) => k !== '_about' && fs.existsSync(path.join(REPO, k))
   && !Object.prototype.hasOwnProperty.call(NEVER_INSTALLED, k))
 
@@ -189,12 +206,14 @@ describe('C46 — the documents that never installed are exempt only while they 
 })
 
 describe('ENGINE 55 — a computation moved on purpose is named, and the move is the one claimed', () => {
-  it.each(Object.keys(MOVED_BY_ENGINE))('%s: its saved digest differs AND today\'s tree carries tf_merge', (script) => {
+  it.each(Object.keys(MOVED_BY_ENGINE))('%s: its saved digest differs, and with tf_merge mapped back to tf it is EQUAL', (script) => {
     expect(SAVED[script], `${script} is not in the saved fixture — drop it from MOVED_BY_ENGINE`).toBeTruthy()
     const built = build(script)
     expect(built.ok, built.reason).toBe(true)
     expect(sha(JSON.stringify(asSaved(built.definition)))).not.toBe(SAVED[script].computeSha)
     expect(JSON.stringify(built.definition.compute)).toContain('"tf_merge"')
+    // review M2 — the move is EXACTLY the one claimed: undo it, and the saved document returns
+    expect(sha(JSON.stringify(asSaved(undoTfMerge(built.definition))))).toBe(SAVED[script].computeSha)
   })
 })
 
@@ -228,7 +247,9 @@ describe('C46 — documents saved under the walk-order ids', () => {
         if (!same) moved.push({ script, id, was: a.sourceName, now: b.sourceName, locators: [a.locators, (b.locators || []).length] })
       }
       // …and the document around the manifest is the same document.
-      if (sha(JSON.stringify(asSaved(built.definition))) !== was.computeSha && !Object.prototype.hasOwnProperty.call(MOVED_BY_ENGINE, script)) {
+      // ⭐ review M2 — a document an engine moved on purpose is compared with that move undone
+      const moved55 = Object.prototype.hasOwnProperty.call(MOVED_BY_ENGINE, script)
+      if (sha(JSON.stringify(asSaved(moved55 ? undoTfMerge(built.definition) : built.definition))) !== was.computeSha) {
         moved.push({ script, problem: 'the saved computation changed' })
       }
     }
@@ -255,8 +276,11 @@ describe('C46 — documents saved under the walk-order ids', () => {
         wrong.push({ script, was: was.editedState, now: valuesOf(doc) })
       }
       // the edited document is byte-for-byte the one the old assignment saved
-      if (sha(JSON.stringify(asSaved(doc, built.definition.compute.fn, built.definition))) !== was.editedComputeSha
-        && !Object.prototype.hasOwnProperty.call(MOVED_BY_ENGINE, script)) wrong.push({ script, problem: 'the edited document differs' })
+      const moved55 = Object.prototype.hasOwnProperty.call(MOVED_BY_ENGINE, script)
+      const [docNow, unedited] = moved55 ? [undoTfMerge(doc), undoTfMerge(built.definition)] : [doc, built.definition]
+      if (sha(JSON.stringify(asSaved(docNow, built.definition.compute.fn, unedited))) !== was.editedComputeSha) {
+        wrong.push({ script, problem: 'the edited document differs' })
+      }
     }
     expect(wrong, `saved values landed elsewhere:\n${JSON.stringify(wrong, null, 2)}`).toEqual([])
   }, 900000)

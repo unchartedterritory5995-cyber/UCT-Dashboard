@@ -103,20 +103,36 @@ describe('P0 inv · 0N — HTF request.security(lookahead_off) on a daily chart 
     expect('htfLookaheadOffStepBacks' in o).toBe(false)
   })
 
-  it('EXACT: W and M equal the TradingView historical rule on EVERY bar but the newest, which is WITHHELD (finished bar, period end unknown)', () => {
+  // ⭐⭐ REVIEW L2 / L3 (PR #1264) — FLIPPED DELIBERATELY, twice over. This window does not start at
+  // SPY's listing, so the FIRST period's value would be built from part of it: those bars are now
+  // withheld by name (`request:htf-first-period-partial`), never drawn — the window-built reference
+  // is itself partial there. And the newest finished bar is served exactly when it CERTAINLY closes
+  // its period (the next weekday falls in another period), withheld by name otherwise.
+  it('EXACT: W and M equal the TradingView historical rule on every bar both draw; the first period off the listing and an uncertain newest bar are withheld', () => {
+    const last = BARS[N - 1].t
+    const lastDay = new Date(`${last}T00:00:00Z`)
+    const next = new Date(lastDay.getTime() + (lastDay.getUTCDay() === 5 ? 3 : 1) * 86400000).toISOString().slice(0, 10)
     for (const [code, keyOf] of [['W', isoWeek], ['M', isoMonth]]) {
       const uct = pineCol(`plot(request.security(syminfo.tickerid, "${code}", close))`).col
       const tv = tvLookaheadOff(BARS, keyOf)
+      const k = BARS.map((b) => keyOf(b.t))
+      let secondPeriodEnds = 0
+      for (let i = 1, seen = 0; i < N; i++) if (k[i] !== k[i - 1] && ++seen === 2) { secondPeriodEnds = i; break }
       let diffs = 0
       let compared = 0
+      let withheldLate = 0
       for (let i = 0; i < N - 1; i++) {
         if (!fin(tv.out[i])) continue
+        if (!fin(uct[i])) { if (i >= secondPeriodEnds) withheldLate++; continue }
         compared++
         if (uct[i] !== tv.out[i]) diffs++
       }
       expect(compared, code).toBeGreaterThan(500)
       expect(diffs, code).toBe(0)
-      expect(fin(uct[N - 1]), `${code}: the newest finished bar is withheld`).toBe(false)
+      expect(withheldLate, `${code}: only the first period's bars may be withheld`).toBe(0)
+      const closes = keyOf(next) !== keyOf(last)
+      expect(fin(uct[N - 1]), `${code}: the newest finished bar is served iff it certainly closes its period`).toBe(closes)
+      if (closes) expect(uct[N - 1]).toBe(BARS[N - 1].c)
     }
   })
 

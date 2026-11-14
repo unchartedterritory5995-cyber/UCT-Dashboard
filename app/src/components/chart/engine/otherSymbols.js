@@ -64,6 +64,9 @@ export const OTHER_SYMBOL_REFUSAL = Object.freeze({
   NO_BARS: 'other-symbol:no-bars',
   UNSPELLED: 'other-symbol:unspelled',
   FRAMED: 'other-symbol:framed',
+  // ⭐ ENGINE 55 (review M1/L5) — an exchange outside the US listings our bar store holds
+  // (`TSX:RY`, `XETR:SAP`), decided from the spelling alone (`spellingUnservable`).
+  VENUE_FOREIGN: 'other-symbol:venue-foreign',
 })
 
 const CONFIRMED_PINE = new Set(Object.values(SYMBOL_EXCHANGE_CONFIRMED))
@@ -89,8 +92,17 @@ export const BARE_AMBIGUOUS = Object.freeze(new Set([
   'GOLD', 'SILVER', 'DXY', 'USOIL', 'UKOIL', 'NDX', 'SPX', 'RUT', 'DJI',
 ]))
 
-/** A ticker no store listing can be (punctuation other than a class share's dot). */
-const unservableSpelling = (ticker) => /[.\-]/.test(ticker) && !CLASS_SHARE.test(ticker)
+/** A ticker no store listing can be (punctuation other than a class share's dot, or any
+ *  character a listing is never spelled with — `BRK/B`). */
+const unservableSpelling = (ticker) => (/[.\-]/.test(ticker) && !CLASS_SHARE.test(ticker))
+  || /[^A-Z0-9.\-]/.test(ticker)
+
+/** ⭐ The exchanges a Pine `EXCHANGE:TICKER` spelling may name for a US listing. ONE list:
+ *  `pine.js` (which listing a spelling names) and `spellingUnservable` (which spellings
+ *  no binding serves) both read it, so the host and the runtime lane cannot disagree. */
+export const US_EQUITY_VENUES = Object.freeze(new Set([
+  'NASDAQ', 'NYSE', 'AMEX', 'ARCA', 'NYSEARCA', 'BATS', 'CBOE', 'OTC', 'IEX',
+]))
 
 /** ⭐ ENGINE 55 — the shape of a US listing a BARE spelling can name: one to five
  *  letters, or a class share (`BRK.B`). The same shape `fetchableOtherSymbols` asks. */
@@ -99,15 +111,20 @@ const US_LISTING_SHAPE = /^[A-Z]{1,5}(\.[A-Z])?$/
 /** ⭐ ENGINE 55 — the market-breadth spellings TradingView publishes (advancing /
  *  declining issues and volume, TICK, TRIN, …). Our own breadth data may serve them
  *  later (owner scope); until then a read of one is refused with "not available yet". */
-const BREADTH_SHAPE = /^(ADV|DECL?|UNCH|UVOL|DVOL|TICK|TRIN|ADD|VOLD)/
+// ⭐ ENGINE 55 (review L6) — ANCHORED: a whole breadth spelling (`ADVN`, `DECL.NY`,
+// `TICK.NQ`, `TRIN`, `UVOL`), never any ticker that merely begins with those letters
+// (`ADDYY`, `DECK`, `TICKS` are listings, and must not be told about breadth).
+const BREADTH_SHAPE = /^(ADVDEC|ADVN|ADVQ|ADV|DECN|DECQ|DECL|DEC|UNCH[NQ]?|UVOL[NQ]?|DVOL[NQ]?|TICK[QI]?|TRINQ?|ADDQ?|VOLDQ?)(\.[A-Z]{2})?$/
 
 /**
  * ⭐⭐ ENGINE 55 — AN OTHER-SYMBOL SPELLING NO BINDING CAN EVER SERVE, decided from the
  * spelling alone: `{code, reason}`, or null when the bind must decide (a held listing,
- * a witnessed exchange, bars in hand). ONE helper, asked by the translator
- * (`pine.js::otherSymbolStaticDeclineOf`, so the read is refused at translate, per
- * plot, as `pine:request`) and by the bind (`resolveOtherSymbols`), so the two cannot
- * disagree about which spellings are hopeless:
+ * a witnessed exchange, bars in hand). ONE helper, asked by the bind
+ * (`resolveOtherSymbols`: ONLY the plots that read it are refused, `{guard: 'pine:request',
+ * code, message}`, review M1), by the runtime lane (`pine.js::otherSymbolStaticDeclineOf`,
+ * which refuses the program it cannot serve per plot, in the same sentence) and by
+ * `staticOtherSymbolRefusalOf` (what a door will refuse), so none can disagree about
+ * which spellings are hopeless:
  *   - punctuation other than a class share's dot (`ADVDEC.NY`, `ADVN.NY`) —
  *     `other-symbol:class-share`, whatever the venue;
  *   - a BARE ticker that also names an index or commodity (`BARE_AMBIGUOUS`) —
@@ -123,6 +140,7 @@ const BREADTH_SHAPE = /^(ADV|DECL?|UNCH|UVOL|DVOL|TICK|TRIN|ADD|VOLD)/
  */
 export function staticallyUnservable(ticker, venue) {
   const t = String(ticker || '').trim().toUpperCase()
+  if (!t) return null
   const breadth = BREADTH_SHAPE.test(t)
   const notYet = breadth
     ? ' It is a market breadth series (advancing / declining issues or volume), and this breadth symbol is not available yet.'
@@ -142,6 +160,53 @@ export function staticallyUnservable(ticker, venue) {
     return { code: OTHER_SYMBOL_REFUSAL.BARE, reason: `\`"${t}"\` names no exchange and is not shaped like a US `
       + 'stock listing (one to five letters), so it is a currency pair, a commodity, an index or a foreign '
       + `listing this chart cannot read; what this indicator draws from it is not computed.${notYet}` }
+  }
+  return null
+}
+
+/** ⭐⭐ ENGINE 55 (review L5) — A RAW SPELLING NO BINDING CAN SERVE, read from the string
+ *  the script wrote (`"BRK/B"`, `"TSX:RY"`, `"XETR:SAP"`, `"XAUUSD"`): `{ticker, code,
+ *  reason}` or null. A foreign exchange is `other-symbol:venue-foreign`; anything else
+ *  goes to `staticallyUnservable` (punctuation, a bare index / pair / foreign spelling).
+ *  ONE helper for the host translator (a spelling it cannot even turn into a listing)
+ *  and the runtime lane (which would otherwise take any string), so both refuse by name. */
+export function spellingUnservable(raw) {
+  const s = String(raw == null ? '' : raw).trim().toUpperCase()
+  if (!s) return null
+  const m = /^([A-Z][A-Z0-9_.]{0,15}):(.*)$/.exec(s)
+  const venue = m ? m[1] : ''
+  const ticker = m ? m[2].trim() : s
+  if (m && !US_EQUITY_VENUES.has(venue)) {
+    const notYet = BREADTH_SHAPE.test(ticker)
+      ? ' It is a market breadth series (advancing / declining issues or volume), and this breadth symbol is not available yet.'
+      : ''
+    return { ticker: s, code: OTHER_SYMBOL_REFUSAL.VENUE_FOREIGN, reason: `\`${s}\` names the exchange \`${venue}\`, `
+      + 'outside the US stock listings our bar store holds, so what this indicator draws from it is not computed.'
+      + notYet }
+  }
+  const why = staticallyUnservable(ticker, venue)
+  return why ? { ticker: ticker || s, ...why } : null
+}
+
+/** ⭐⭐ ENGINE 55 (review M1) — THE ONE SENTENCE for a read no binding can serve, said
+ *  identically by the bind (`columnErrors`, the strip) and the runtime lane's refusal. */
+export function staticOtherSymbolMessage(ticker, why) {
+  return `This indicator reads \`${String(ticker).trim().toUpperCase()}\`: ${why.code} — ${why.reason}`
+}
+
+/** ⭐⭐ ENGINE 55 (review M1) — what ONE tree reading a spelling no binding can serve is
+ *  refused with — `{guard: 'pine:request', code, message}` — from the spelling table a
+ *  translation records (`otherSymbols`), or null. The bind refuses exactly this per plot
+ *  (`otherSymbolRefusalOfTree` over `resolveOtherSymbols`), so a door can say which plots
+ *  will be refused, and with what sentence, before any bar is bound. */
+export function staticOtherSymbolRefusalOf(tree, otherSymbols) {
+  if (!tree) return null
+  const read = new Set(symTickersOf({ compute: { ast: tree } }))
+  for (const row of otherSymbols || []) {
+    const ticker = row && String(row.ticker || '').trim().toUpperCase()
+    if (!ticker || !read.has(ticker)) continue
+    const why = (row.spellings || []).map((v) => staticallyUnservable(ticker, v)).find(Boolean)
+    if (why) return { guard: 'pine:request', code: why.code, message: staticOtherSymbolMessage(ticker, why) }
   }
   return null
 }
@@ -346,7 +411,9 @@ export function resolveOtherSymbols(def, ctx = {}, confirmed = SYMBOL_EXCHANGE_C
     // translator refused them reaches here and is refused with the same code.
     const hopeless = spellings.map((v) => staticallyUnservable(ticker, v)).find(Boolean)
     if (hopeless) {
-      no(ticker, hopeless.code, hopeless.reason)
+      // ⭐ `static`: decided by the spelling alone, so it is refused under the request
+      // guard with the one sentence every door says (`staticOtherSymbolMessage`).
+      refused.push({ ticker, code: hopeless.code, reason: hopeless.reason, static: true })
       continue
     }
     const key = storeTickerOf(ticker)
@@ -429,7 +496,11 @@ export function otherSymbolRefusalOfTree(tree, decision) {
   if (!refused.length || !tree) return null
   const read = new Set(symTickersOf({ compute: { ast: tree } }))
   const hit = refused.find((r) => read.has(String(r.ticker).trim().toUpperCase()))
-  return hit ? { guard: hit.code, message: `This indicator reads \`${hit.ticker}\`: ${hit.reason}` } : null
+  if (!hit) return null
+  if (hit.static === true) {
+    return { guard: 'pine:request', code: hit.code, message: staticOtherSymbolMessage(hit.ticker, hit) }
+  }
+  return { guard: hit.code, message: `This indicator reads \`${hit.ticker}\`: ${hit.reason}` }
 }
 
 /** A stable signature of what `resolveOtherSymbols` would supply — for a

@@ -22,6 +22,20 @@ round-tripped by `pine.js::printFormula`). For bar `i` in bucket `b`:
   `interpret.js::tfMergeMask` (`request:htf-newest-unconfirmed`, `CHART_CLOCK_WITHHELD`) unless
   `newestBarIsForming === true` at the chart's own level (under another request: always withheld; under
   `sym`, every chart bar from that series' newest bar on). One authority over that bar.
+  **Review L3:** a FINISHED newest bar that CERTAINLY closes its period is served: on a daily chart whose
+  bars include no Saturday or Sunday, when the next weekday after it falls in another period for every
+  merge in the tree (`W`: a Friday; `M`: the month's last weekday). Positive-only and calendar-free: a
+  holiday can only end a period earlier, so the Thursday before Good Friday stays withheld by name. Not on
+  an intraday chart, not on a series that trades weekends, never under another request. (Every weekend
+  had left the last daily bar blank.)
+- **Review L2 — the first period, off the listing.** A chart whose history does not start at the listing
+  (`historyFromListing !== true`) may start mid-week or mid-month; the first period's value would then be
+  built from part of it. The bars that would show it (that period's closing bar and the next period's
+  other bars) are withheld and named `request:htf-first-period-partial`, unless the first bar certainly
+  opens its period (a daily chart, no weekend bars, the previous weekday in another period — the mirror
+  of L3). The binder's warm-up curtain did not hide it (measured: the reviewer's probe drew Friday
+  2026-01-09 from a chart starting Wednesday 2026-01-07). Formula `tf` keeps its behaviour. Python twin
+  (`_first_period_partial_mask`, `_newest_closes_every_merge_period`) mirrors both.
 - Formula `tf` is byte-identical (rails: `engine55HtfMerge.test.js`, `p0.inv.truth`, Python
   `test_engine55_tf_merge.py`; HEAD vs branch Python `tf` column identical on the conformance bars).
 - Badge: `preview-repaints` (a forming newest bar shows the forming period and moves once it closes
@@ -47,19 +61,32 @@ all-`na` plot with nothing said. Five scripts in the sample: McClellan (`ADVN`/`
 (`XAUUSD`), advance-decline-line-nyse-buschi (`ADVDEC.NY`, `SPX`), kyadvance-decline-line (`ADVDEC.NQ`/`.NY`),
 LazyBear's McClellan (`ADVN.*`/`DECL.*`).
 
-**L1, translate:** ONE helper, `otherSymbols.js::staticallyUnservable(ticker, venue)`, asked by the
-translator (`pine.js::requestTargetOf` declines; `securityDeclineReason` and the tuple path name the code
-via `otherSymbolStaticDeclineOf`) and by the bind (`resolveOtherSymbols`, for a document saved before
-engine 55). It refuses:
-- punctuation other than a class share's dot (`ADVDEC.NY`, `NYSE:BRK-B`): `other-symbol:class-share`;
-- a BARE ticker in `BARE_AMBIGUOUS` (`ADVN`, `SPX`, ...): `other-symbol:bare`;
+**L1 (as revised by the review, M1): ONLY THE PLOTS THAT READ IT.** ONE helper,
+`otherSymbols.js::staticallyUnservable(ticker, venue)`, decides it from the spelling:
+- punctuation other than a class share's dot (`ADVDEC.NY`, `NYSE:BRK-B`, `BRK/B`): `other-symbol:class-share`;
+- a BARE ticker in `BARE_AMBIGUOUS` (`ADVN`, `SPX`, `VIX`, `DXY`, ...): `other-symbol:bare`;
 - a BARE ticker not shaped like a US listing (`XAUUSD`, `EURUSD`): `other-symbol:bare`.
-The refusal is `pine:request` with the sentence
-`<pine:request> — \`request.security\`: <code> — <reason>`, per plot, IDENTICAL at the four doors
-(screen, pane strict, `buildRuntimeIr` — `pineRuntimeFrontend.js` asks the host's `Resolver` — and the
-member door): rail `engine55OtherSymbolDoors.test.js`. Breadth spellings (`ADV*`, `DEC*`, `TICK`, `TRIN`,
-...) add "this breadth symbol is not available yet" (owner scope: INDEX:/USI: breadth from our own breadth
-data is for later; never "never"). Controls: bare `SPY`, `AMEX:SPY`, `NYSE:BRK.B` still translate (C29).
+The translator keeps the read as a `sym` node, so every door ATTACHES the script; the bind refuses exactly
+the plots that read it, `columnErrors[key] = {guard: 'pine:request', code, message}`, and the strip names it
+(`externalReadNotices`), while every other plot is drawn. ONE sentence everywhere:
+`otherSymbols.js::staticOtherSymbolMessage` — "This indicator reads `T`: <code> — <reason>".
+`staticOtherSymbolRefusalOf(tree, otherSymbols)` says, at any door, which plots will be refused and with
+what sentence (rail: identical for the screen, the pane (strict), the member door and the bind). The runtime
+lane runs the whole program, so it refuses the program with the same sentence; the member door draws such a
+script from the host lane (the C41 pattern). A script whose ONLY plots read such tickers is attached and
+every plot is withheld by name, never drawn blank. A copy saved at engine 54 is UPGRADED on the 54 -> 55
+re-translation (`savedScriptUpgrade.retranslateRow`), never `refused`.
+⚰️ The first engine-55 cut refused the read AT TRANSLATE; the member door's all-or-nothing gate then refused
+the WHOLE script (`plot(close)`, `plot(ta.sma(close, 5))` and one `XAUUSD` read went from two correct plots
+plus one blank at engine 54 to refused), and a member's saved copy went `refused` on the upgrade.
+**L5:** a spelling the host cannot turn into a listing at all — a foreign exchange (`TSX:RY`, `XETR:SAP`:
+new code `other-symbol:venue-foreign`) or `BRK/B` — is named by ONE helper (`spellingUnservable`, over the
+one `US_EQUITY_VENUES` list both read) and refused by name, in the same sentence, by the host translator and
+the runtime lane (which took any string before and would have read bars that never come). A throw while the
+runtime lane asks is a refusal by name, never a read (fails closed).
+Breadth spellings add "this breadth symbol is not available yet" — matched by an ANCHORED pattern (L6:
+`ADVN`, `TICK.NY`, `USI:ADD` are breadth; `DECKXX`, `ADDYYX` are not). Controls: bare `SPY`, `AMEX:SPY`,
+`NYSE:BRK.B` still translate and draw (C29).
 
 **L2, bind:** `otherSymbols.js::otherSymbolRefusalOfTree` (one reader): `nativeRegistry.computeFor` (multi- and
 single-tree) writes `columnErrors[key] = {guard: <code>, message}` for a plot reading a ticker the bind

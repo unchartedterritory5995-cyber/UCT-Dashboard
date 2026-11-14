@@ -1069,13 +1069,7 @@
         "plots": [],
         "objects": [
           "DIVERGE",
-          [
-            [
-              "tableCells",
-              30,
-              3
-            ]
-          ]
+          []
         ],
         "paints": null
       }
@@ -1717,10 +1711,79 @@
       "state": "on",
       "signature": {
         "verdict": "INCONCLUSIVE",
-        "reason": "refused on our side: member door refused (pine:request): this request could not ",
-        "plots": [],
-        "objects": null,
-        "paints": null
+        "reason": null,
+        "plots": [
+          [
+            "Osc",
+            "INCONCLUSIVE",
+            "our side produced no column for this plot — computeFor returned no column for va"
+          ],
+          [
+            "MSI",
+            "MATCH",
+            1800
+          ],
+          [
+            "MSI EMA",
+            "MATCH",
+            1800
+          ],
+          [
+            "MSI Cross Up",
+            "MATCH",
+            1800
+          ],
+          [
+            "MSI Cross Down",
+            "MATCH",
+            1800
+          ],
+          [
+            "MSI RSI",
+            "MATCH",
+            1800
+          ],
+          [
+            "RSI Hook Down",
+            "MATCH",
+            1800
+          ],
+          [
+            "RSI Hook Up",
+            "MATCH",
+            1800
+          ],
+          [
+            "MACD",
+            "MATCH",
+            1800
+          ],
+          [
+            "MACD Signal Line",
+            "MATCH",
+            1800
+          ],
+          [
+            "MACD Histogram",
+            "MATCH",
+            1800
+          ],
+          [
+            "MACD Cross Up",
+            "MATCH",
+            1800
+          ],
+          [
+            "MACD Cross Down",
+            "MATCH",
+            1800
+          ]
+        ],
+        "objects": [
+          "MATCH",
+          []
+        ],
+        "paints": "MATCH"
       }
     },
     {
@@ -2297,9 +2360,23 @@
       "state": "on",
       "signature": {
         "verdict": "INCONCLUSIVE",
-        "reason": "refused on our side: member door refused (pine:request): this request could not ",
+        "reason": "1 of 1 items could not be compared",
         "plots": [],
-        "objects": null,
+        "objects": [
+          "INCONCLUSIVE",
+          [
+            [
+              "lines",
+              504,
+              null
+            ],
+            [
+              "labels",
+              504,
+              null
+            ]
+          ]
+        ],
         "paints": null
       }
     },

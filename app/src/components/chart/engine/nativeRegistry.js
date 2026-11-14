@@ -104,7 +104,7 @@ import { ENGINE_ERROR, isRefusal } from './ast/parse'
 // symbol folds it differently, so the second symbol of a sweep would inherit the
 // first's lengths. That shows as a WRONG NUMBER, not an error.
 import { foldBound, bindConstsFor } from './ast/bind'
-import { isPineOriginDoc, otherSymbolPending, otherSymbolRefusalOfTree } from './otherSymbols'
+import { isPineOriginDoc, otherSymbolPending, otherSymbolRefusalOfTree, staticOtherSymbolMessage } from './otherSymbols'
 import { resolveLowerTf } from './lowerTf'
 import { blockRunsRefusal, BLOCK_RUNS_GUARD } from './blockRuns'
 // ⭐⭐ P1 — the chart lane's pre-compute refusals and its other-symbol decision
@@ -2691,7 +2691,8 @@ export function externalReadNotices(def, columns) {
     const other = otherSymbolReport(columns)
     for (const r of (other && other.refused) || []) {
       if (otherSymbolPending(r)) continue
-      out.push({ code: r.code, reason: `This indicator reads \`${r.ticker}\`: ${r.reason}` })
+      out.push({ code: r.code, reason: r.static === true ? staticOtherSymbolMessage(r.ticker, r)
+        : `This indicator reads \`${r.ticker}\`: ${r.reason}` })
     }
     return out
   }
