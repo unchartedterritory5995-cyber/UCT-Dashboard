@@ -1181,12 +1181,16 @@ def run_c3(browser, admin, base: str, fs: dict, data_dir: Path, only) -> None:
             step(pg, inst, "setups board without chart plan", "driver exception", "FAIL", error=str(e)[:400])
         # 3) review drafts without plan grading
         try:
+            # Research home's review box is gone (go-live wave 1); simplify pass 2 (C2): the door is the list's "+ New"
+            # arrow > "Draft a review" > Today's recap (the second view of that one row).
             goto(pg, base, "/journal/notebook")
-            box = pg.locator('[data-tour="review-drafts-home"]')
+            box = pg.get_by_role("button", name="More ways to start a note", exact=True)
             present = vis_loc(box, 20000)
             created, body_text, err = None, None, None
             if present:
-                pg.locator('[data-tour="review-drafts-daily"]').first.click()
+                box.first.click()
+                pg.get_by_role("menuitem", name="Draft a review", exact=True).first.click(timeout=10000)
+                pg.locator('[data-tour="review-drafts-daily"]').first.click(timeout=10000)
                 try:
                     pg.wait_for_url(lambda u: "note=" in u, timeout=45000)
                     created = pg.url.split("note=")[-1].split("&")[0]
@@ -1194,7 +1198,7 @@ def run_c3(browser, admin, base: str, fs: dict, data_dir: Path, only) -> None:
                     body_text = pg.locator(".ProseMirror").first.inner_text()[:1500]
                 except Exception as e:  # noqa: BLE001
                     err = str(e)[:200]
-            step(pg, inst, "review drafts without plan grading", "Draft today from Home: a note, with the discipline part honest", "INFO",
+            step(pg, inst, "review drafts without plan grading", "Draft a review > Today's recap from the list: a note, with the discipline part honest", "INFO",
                  review_box=present, note=created, note_text=body_text, wait_error=err,
                  alerts=[a[:200] for a in pg.get_by_role("alert").all_inner_texts()])
             goto(pg, base, "/journal/insights?ins=reviews")

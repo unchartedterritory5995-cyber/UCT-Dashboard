@@ -13,7 +13,9 @@ import LeverageInverseControl from './LeverageInverseControl'
 import ViewHoldingsControl from './ViewHoldingsControl'
 import ChartDateNav from './ChartDateNav'
 import { WidgetChromeContext } from '../widgetChromeContext'
-import useSingleStockEtfs from '../../../hooks/useSingleStockEtfs'
+import { useChartSingleStockEtfs as useSingleStockEtfs } from '../../../components/chart/restedReaders'
+import { singleStockEtfsKey, singleStockEtfsFetcher } from '../../../hooks/singleStockEtfsKey'
+import { useSymbolResource } from '../../../lib/symbolResourceWarm'
 import useEtfSymbols from '../../../hooks/useEtfSymbols'
 import AdjustmentLabel from '../../../components/chart/AdjustmentLabel'
 import ChartDetailDock from './ChartDetailDock'
@@ -158,6 +160,9 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   // Which context actions this symbol has — the chart widget's symbol menu (▾) rows.
   // SWR / the module cache dedupe these with the controls' own lookups.
   const { hasFamily: symHasLeverage } = useSingleStockEtfs(widgetChrome && !isThemeIndex ? sym : null)
+  // ...and the rows a member is about to reach have theirs asked for ahead (the control
+  // appeared 0.85 s after the candles at the median on production, 2026-11-13).
+  useSymbolResource(widgetChrome && !isThemeIndex ? singleStockEtfsKey : null, singleStockEtfsFetcher)
   const { isEtf } = useEtfSymbols()
   const symIsFund = !!sym && (isEtf(sym) || String(sym).startsWith('$IDX:'))
 

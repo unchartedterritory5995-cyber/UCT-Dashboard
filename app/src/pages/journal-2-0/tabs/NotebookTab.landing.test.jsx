@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, act, waitFor, within } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, useLocation } from 'react-router-dom'
+import { SWRConfig } from 'swr'
 
 /**
  * Notebook simplify, Task 5 ("open on your notes"): one front door, one optional home.
@@ -25,6 +26,7 @@ vi.mock('../components/notebook/FolderSidebar', () => ({
   default: (p) => (
     <div data-testid="folder-sidebar" data-today={p.isToday ? '1' : '0'}>
       {p.onSelectToday && <button type="button" onClick={p.onSelectToday}>Daily brief row</button>}
+      {p.onSelectAllNotes && <button type="button" onClick={p.onSelectAllNotes}>All notes row</button>}
     </div>
   ),
 }))
@@ -77,6 +79,11 @@ const at = (path) => render(<MemoryRouter initialEntries={[path]}><NotebookTab /
 const urls = () => global.fetch.mock.calls.map(([u]) => String(u))
 const dayNoteCalls = () => urls().filter((u) => u.startsWith('/api/j2/notes/today') || u.startsWith('/api/j2/notes/daily'))
 const listToolbar = () => screen.findByRole('toolbar', { name: 'Notes list tools' }, T)
+/** Final fix I4: where the member is, read from the router itself. */
+function LocationProbe({ into }) {
+  into.search = useLocation().search
+  return null
+}
 
 describe('a bare Notebook opens the notes list (Task 5)', () => {
   for (const stored of ['today', 'home', 'all', undefined]) {
@@ -111,18 +118,107 @@ describe('a bare Notebook opens the notes list (Task 5)', () => {
 })
 
 describe('the Daily brief (?view=today)', () => {
-  it('is the Today home without the landing choice or a Research home link; All notes stays', async () => {
+  it('is the Today home without the landing choice or a Research home link; the panel row goes back to All notes', async () => {
     at('/journal?view=today')
     await waitFor(() => expect(document.querySelector('[data-today-home]')).not.toBeNull(), T)
-    expect(screen.getByRole('heading', { level: 2, name: 'Daily brief' })).toBeTruthy()
+    // Simplify pass 2: ONE "Daily brief" heading -- the brief's visible one, which is also the pane's focus landing.
+    const headings = screen.getAllByRole('heading', { level: 2, name: 'Daily brief' })
+    expect(headings).toHaveLength(1)
+    expect(document.querySelector('[data-today-home]').contains(headings[0])).toBe(true)
+    expect(document.querySelectorAll('[data-focus-fallback]')).toHaveLength(1)
+    expect(headings[0].hasAttribute('data-focus-fallback')).toBe(true)
     expect(screen.getByTestId('folder-sidebar').getAttribute('data-today')).toBe('1')
     expect(screen.queryByLabelText('Open the Notebook on')).toBeNull()
     expect(screen.queryByRole('combobox')).toBeNull()
     expect(screen.queryByRole('button', { name: /Research home/ })).toBeNull()
     expect(screen.queryByRole('toolbar', { name: 'Notes list tools' })).toBeNull()
-    const home = document.querySelector('[data-today-home]')
-    act(() => { within(home).getByRole('button', { name: 'All notes' }).click() })
-    await listToolbar()
+    // B4: All notes is the panel's row now, not a button on the brief.
+    expect(within(document.querySelector('[data-today-home]')).queryByRole('button', { name: 'All notes' })).toBeNull()
+  })
+
+  // Final fix I4 (ruling): Start makes the note and STAYS on the brief. One POST (the list button's door, with the seed);
+  // the URL is still ?view=today and no note opens; the door's write into the brief's cache flips the button to "Open
+  // today's note" at once (the re-read is held here), focus moves to it and a polite status says so; when the re-read
+  // lands, the plan card draws the seeded lines.
+  it('B1 + I4: the brief reads with make=0; Start makes the note once and stays, the plan card arriving with the re-read', async () => {
+    const body = { ...TODAY_BODY, todayNote: { id: null, missing: true, trashed: false, created: false, items: [] } }
+    const seeded = {
+      ...TODAY_BODY,
+      todayNote: { id: 'made1', title: '2026-11-11 · Wednesday', missing: false, trashed: false, created: false,
+        items: [{ index: 0, text: 'Check your names: NVDA', checked: false }], openCount: 1, itemCount: 1 },
+    }
+    let made = false
+    let land
+    const reread = new Promise((r) => { land = r })
+    global.fetch.mockImplementation(async (url, opts = {}) => {
+      const u = String(url)
+      const ok = (b) => ({ ok: true, status: 200, json: async () => b })
+      if (u === '/api/auth/preferences') return ok(prefs)
+      if (u.startsWith('/api/j2/note-folders')) return ok({ folders: [] })
+      if (u.startsWith('/api/j2/notes/today')) return made ? reread.then(() => ok(seeded)) : ok(body)
+      if (u === '/api/j2/notes/daily' && opts.method === 'POST') {
+        made = true
+        return ok({ note: { id: 'made1', title: '2026-11-11 · Wednesday', folderId: 'fd' }, created: true, templateMissing: false })
+      }
+      return ok({})
+    })
+    const where = { search: null }
+    // A fresh cache with a long dedupe window, so no other case's answer is in it and only the door's own revalidate
+    // can start the re-read.
+    render(
+      <SWRConfig value={{ dedupingInterval: 600_000, provider: () => new Map() }}>
+        <MemoryRouter initialEntries={['/journal?view=today']}><NotebookTab /><LocationProbe into={where} /></MemoryRouter>
+      </SWRConfig>,
+    )
+    const start = await screen.findByRole('button', { name: "Start today's note" }, T)
+    await act(async () => { await new Promise((r) => setTimeout(r, 30)) })
+    expect(dayNoteCalls()).toEqual(['/api/j2/notes/today?make=0'])
+    act(() => { start.click() })
+    const open = await screen.findByRole('button', { name: "Open today's note" }, T)
+    await waitFor(() => expect(document.activeElement).toBe(open), T)
+    const status = document.querySelector('[data-today-actions] [role="status"]')
+    expect(status.getAttribute('role')).toBe('status')
+    expect(status.textContent).toBe("Today's note started.")
+    const posts = global.fetch.mock.calls.filter(([u, o]) => String(u) === '/api/j2/notes/daily' && o?.method === 'POST')
+    expect(posts).toHaveLength(1)
+    expect(JSON.parse(posts[0][1].body)).toMatchObject({ seedToday: true })
+    expect(screen.queryByTestId('note-editor')).toBeNull()
+    expect(where.search).toBe('?view=today')
+    expect(screen.queryByTestId('today-plan')).toBeNull()                    // the re-read is still held
+    await act(async () => { land() })
+    const plan = await screen.findByTestId('today-plan', {}, T)
+    expect(plan).toHaveTextContent('Check your names: NVDA')
+    expect(dayNoteCalls().filter((u) => u === '/api/j2/notes/today?make=0')).toHaveLength(2)
+    expect(where.search).toBe('?view=today')
+    expect(screen.queryByTestId('note-editor')).toBeNull()
+  })
+
+  it('I4: a failed Start says the failure sentence and the button reads "Start today\'s note" again', async () => {
+    const body = { ...TODAY_BODY, todayNote: { id: null, missing: true, trashed: false, created: false, items: [] } }
+    global.fetch.mockImplementation(async (url, opts = {}) => {
+      const u = String(url)
+      const ok = (b) => ({ ok: true, status: 200, json: async () => b })
+      if (u === '/api/auth/preferences') return ok(prefs)
+      if (u.startsWith('/api/j2/note-folders')) return ok({ folders: [] })
+      if (u.startsWith('/api/j2/notes/today')) return ok(body)
+      if (u === '/api/j2/notes/daily' && opts.method === 'POST') return { ok: false, status: 500, json: async () => ({}) }
+      return ok({})
+    })
+    const where = { search: null }
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {})
+    render(
+      <SWRConfig value={{ provider: () => new Map() }}>
+        <MemoryRouter initialEntries={['/journal?view=today']}><NotebookTab /><LocationProbe into={where} /></MemoryRouter>
+      </SWRConfig>,
+    )
+    const start = await screen.findByRole('button', { name: "Start today's note" }, T)
+    act(() => { start.click() })
+    expect(await screen.findByText("Couldn't open today's note. Nothing was created.", {}, T)).toBeTruthy()
+    await waitFor(() => expect(screen.getByRole('button', { name: "Start today's note" })).not.toBeDisabled(), T)
+    expect(screen.queryByRole('button', { name: "Open today's note" })).toBeNull()
+    expect(document.querySelector('[data-today-actions] [role="status"]').textContent).toBe('')
+    expect(where.search).toBe('?view=today')
+    err.mockRestore()
   })
 
   it('the panel’s Daily brief row opens it', async () => {
@@ -214,7 +310,8 @@ describe('the list toolbar’s AI button', () => {
     await screen.findByTestId('ask-scope', {}, T)
     act(() => { screen.getByRole('button', { name: 'Daily brief row' }).click() })
     await waitFor(() => expect(document.querySelector('[data-today-home]')).not.toBeNull(), T)
-    act(() => { within(document.querySelector('[data-today-home]')).getByRole('button', { name: 'All notes' }).click() })
+    // Simplify pass 2 (B4): the brief has no All notes button; the panel's row is the way back.
+    act(() => { screen.getByRole('button', { name: 'All notes row' }).click() })
     ai = within(await listToolbar()).getByRole('button', { name: 'AI' })
     expect(ai.getAttribute('aria-expanded')).toBe('false')
     expect(screen.queryByRole('region', { name: 'Ask your Notebook' })).toBeNull()

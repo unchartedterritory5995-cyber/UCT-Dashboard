@@ -383,11 +383,20 @@ def _fmp_get(path: str, params: dict, timeout: int = 10):
     key = os.environ.get("FMP_API_KEY", "")
     if not key:
         return None
+    # 2026-11-13: the shared on-disk response cache (fmp_response_cache) — profile and splits for
+    # bars_sanitize and every statement read through here are bought once per TTL, not once per call.
+    from api.services import fmp_response_cache as _frc
+    query = {k: v for k, v in params.items() if k != "apikey"}
+    stored = _frc.get(path, query)
+    if stored is not None:
+        return stored
     params["apikey"] = key
     try:
         r = requests.get(f"https://financialmodelingprep.com{path}", params=params, timeout=timeout)
         r.raise_for_status()
-        return r.json()
+        body = r.json()
+        _frc.put(path, query, body)
+        return body
     except Exception as exc:
         _logger.warning("FMP %s failed for %s: %s", path, params.get("symbol", "?"), _safe_exc(exc))
         return None

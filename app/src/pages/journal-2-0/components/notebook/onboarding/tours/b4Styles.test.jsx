@@ -116,8 +116,8 @@ describe('the steps point where R-P5-7 and the rulings say', () => {
     // the trigger's opening tag, `<button {...moreMenu.triggerProps} ...`, is the line above
     const all = src.split(/\r?\n/)
     expect(all[all.findIndex((l) => l.includes('data-tour="styles-button"')) - 1]).toMatch(/^\s*<button \{\.\.\.moreMenu\.triggerProps\}/)
-    // and that menu holds the door that opens the manager
-    expect(src).toContain("label: 'Manage templates', icon: 'sliders', run: () => setStylesOpen(true)")
+    // and that menu holds the door that opens the manager (follow-up C: through openStyles(), which opens it at Active)
+    expect(src).toContain("label: 'Manage templates', icon: 'sliders', run: () => openStyles()")
     const { steps } = await TOURS.find((t) => t.id === 'journal-styles').load()
     expect(steps.filter((s) => s.file === TAB).map((s) => s.anchor)).toEqual(['styles-button'])
   })
@@ -131,7 +131,8 @@ describe.each(TOURS.map((t) => [t.id, t]))('tour %s', (id, entry) => {
     expect(Object.keys(copy).sort()).toEqual([...new Set(steps.map((s) => s.id))].sort())
     for (const s of steps) {
       // Go-live wave 1: a step may also declare `tier` (the screen tier it belongs to, tourTiers.js, railed in tourRegistry.test.js)
-      expect(Object.keys(s).filter((k) => k !== 'waitFor' && k !== 'tier').sort()).toEqual(['anchor', 'file', 'id'])
+      // Follow-up B fix round 1: and `noBack` (its card draws no Back, railed in tourRegistry.test.js)
+      expect(Object.keys(s).filter((k) => k !== 'waitFor' && k !== 'tier' && k !== 'noBack').sort()).toEqual(['anchor', 'file', 'id'])
       const c = copy[s.id]
       expect(c?.title?.trim(), `${id}.${s.id} title`).toBeTruthy()
       expect(c?.body?.trim(), `${id}.${s.id} body`).toBeTruthy()

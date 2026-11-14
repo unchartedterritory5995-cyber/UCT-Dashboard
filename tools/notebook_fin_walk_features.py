@@ -43,7 +43,7 @@ SAMPLE_SYMS = ["AAPL", "MSFT", "NVDA", "GOOGL", "TSLA", "AMZN"]
 ORDER = ["firstrun", "sample", "examples", "checklist", "offer", "gallery", "formulas", "chartplan", "positions", "board1",
          "transcript", "passed", "child", "resurface", "thesischips", "board2", "trades", "grading", "earnings", "discipline",
          "vplaybook", "playbook", "reviews", "nokey", "layout", "tours1280", "tours820", "tours390", "whysave", "styles", "blocks",
-         "smart", "followup", "page_layouts", "discover", "remove"]
+         "smart", "followup", "page_layouts", "discover", "followups", "remove"]
 
 CHECKLIST_JS = """() => { const hd = [...document.querySelectorAll('h3')].find(e => e.textContent.trim() === 'Get started');
   if (!hd) return null; const card = hd.closest('section');
@@ -109,6 +109,98 @@ GS_TEMPLATE_ROW = re.search(r"\btemplate: '([^']+)'", (_SAMPLE_DIR / "gettingSta
 # Final fix (C1): this door's own hold words for a held note (one note / several), read from SAMPLE_COPY.
 SAMPLE_HELD_ONE = re.search(r"heldOne: '([^']+)'", (_SAMPLE_DIR / "sampleNotebook.js").read_text(encoding="utf-8")).group(1)
 SAMPLE_HELD_MANY = re.search(r"heldMany: '([^']+)'", (_SAMPLE_DIR / "sampleNotebook.js").read_text(encoding="utf-8")).group(1)
+# Simplify pass 2 (D2): a hold on a BLOCKED sample note has words of its own, and its remedy is one more edit, not a wait.
+SAMPLE_BLOCKED_ONE = re.search(r"blockedOne: '([^']+)'", (_SAMPLE_DIR / "sampleNotebook.js").read_text(encoding="utf-8")).group(1)
+SAMPLE_BLOCKED_MANY = re.search(r"blockedMany: '([^']+)'", (_SAMPLE_DIR / "sampleNotebook.js").read_text(encoding="utf-8")).group(1)
+# Simplify pass 2 (C6): at 640 px and below the More row reads the phone words.
+SAMPLE_REMOVE_ROW_PHONE = re.search(r"removeRowPhone: '([^']+)'", (_SAMPLE_DIR / "sampleNotebookKeys.js").read_text(encoding="utf-8")).group(1)
+# Simplify pass 2 (C2): the three reviews are the second view of ONE row, "Draft a review", in the New menu and the phone
+# More menu. The row's words are NotebookTab's `draftReviewRow`; the reviews' own words are lib/reviewPeriods.js.
+_J2 = REPO / "app" / "src" / "pages" / "journal-2-0"
+DRAFT_REVIEW_ROW = re.search(r"key: 'reviews', label: '([^']+)'", (_J2 / "tabs" / "NotebookTab.jsx").read_text(encoding="utf-8")).group(1)
+REVIEW_LABELS = dict(re.findall(r"\{ period: '(\w+)', label: \"([^\"]+)\" \}", (_J2 / "lib" / "reviewPeriods.js").read_text(encoding="utf-8")))
+assert set(REVIEW_LABELS) == {"daily", "weekly", "monthly"}, REVIEW_LABELS
+# Master S9/S17 (read by blocks.prep-pack): what a prep block says while a gap fills itself, and what it asks a member
+# with no names (components/notebook/blocks/PrepCapture.jsx FILLING_WORDS, PREP_NAMES_ASK).
+_PREP_CAPTURE = (_J2 / "components" / "notebook" / "blocks" / "PrepCapture.jsx").read_text(encoding="utf-8")
+PREP_FILLING_WORDS = dict(re.findall(r'^\s+(\w+): "([^"]+)",$', re.search(r"export const FILLING_WORDS = \{([^}]*)\}", _PREP_CAPTURE).group(1), re.M))
+PREP_NAMES_ASK = re.search(r'export const PREP_NAMES_ASK = "([^"]+)"', _PREP_CAPTURE).group(1)
+assert set(PREP_FILLING_WORDS) == {"no_earnings_yet", "no_quotes", "source_error"}, PREP_FILLING_WORDS
+# Pass 2 final fix, part 2: the fourth state of a retrying gap (PrepCapture.jsx FINAL_WORDS). Once nothing will fill
+# it (its reads ran out, it was captured on an earlier New York day, or the view is read-only) the block says these
+# past-tense words AND draws its Captured line. How long the reads run is RETRY_MS x RETRY_MAX, read from the same file.
+PREP_FINAL_WORDS = dict(re.findall(r'^\s+(\w+): "([^"]+)",$', re.search(r"export const FINAL_WORDS = \{([^}]*)\}", _PREP_CAPTURE).group(1), re.M))
+assert set(PREP_FINAL_WORDS) == set(PREP_FILLING_WORDS), PREP_FINAL_WORDS
+PREP_RETRY_MS = int(re.search(r"export const RETRY_MS = (\d+)", _PREP_CAPTURE).group(1))
+PREP_RETRY_MAX = int(re.search(r"export const RETRY_MAX = (\d+)", _PREP_CAPTURE).group(1))
+_NEW_YORK = ZoneInfo("America/New_York")
+
+
+def prep_gap_read(snap, *, today_et, editable=True, reads_ran_out=False) -> dict:
+    """What PrepCapture.jsx draws for a frozen prep snapshot, as the walk then expects to SEE it: the branch, the words
+    the block shows (None for a full snapshot) and whether the "Captured ... ET" line is drawn.
+
+    The gap branches, in the product's order: a switch it needs (blockStates' sentence); a gap that fills itself
+    (RETRYABLE, captured TODAY in New York, in an editable note, its reads not yet run out: FILLING_WORDS and NO
+    Captured line, master S9); the same gap once nothing will fill it (FINAL_WORDS and the Captured line: the fourth
+    state); no names in an editable note (S17's ask); any other gap (the server's frozen `detail`). `today_et` is the
+    New York calendar day the block is read on (a `date`)."""
+    snap = snap if isinstance(snap, dict) else {}
+    missing, needs = snap.get("missing"), snap.get("needs")
+    if needs:
+        return {"branch": "needs", "words": f"This block needs {needs}, which is not on for you.", "captured_line": True}
+    if missing in PREP_FILLING_WORDS:
+        try:
+            day = datetime.fromisoformat(str(snap.get("capturedAt")).replace("Z", "+00:00")).astimezone(_NEW_YORK).date()
+        except ValueError:
+            day = None
+        if editable and day == today_et and not reads_ran_out:
+            return {"branch": "filling", "words": PREP_FILLING_WORDS[missing], "captured_line": False}
+        return {"branch": "final", "words": PREP_FINAL_WORDS[missing], "captured_line": True}
+    if missing == "no_names" and editable:
+        return {"branch": "names", "words": PREP_NAMES_ASK, "captured_line": True}
+    if missing:
+        return {"branch": "detail", "words": snap.get("detail") or "", "captured_line": True}
+    return {"branch": "full", "words": None, "captured_line": True}
+# Simplify pass 2 (B1, B4, B5): the Daily brief's one header button and its quiet line (TodayHome.jsx), and the daily
+# folder a NEW member's first daily note goes into (api/services/journal_two/note_daily.py; read, never imported: this
+# driver never imports api.* in its own process).
+_TODAY_HOME = (_J2 / "components" / "notebook" / "TodayHome.jsx").read_text(encoding="utf-8")
+BRIEF_START = re.search(r'export const START_ACTION = "([^"]+)"', _TODAY_HOME).group(1)
+BRIEF_OPEN = re.search(r'export const OPEN_ACTION = "([^"]+)"', _TODAY_HOME).group(1)
+BRIEF_NOTHING_YET = re.search(r"export const NOTHING_YET = '([^']+)'", _TODAY_HOME).group(1)
+# Pass 2 final fix (I4): the brief's Start makes the note and STAYS; its polite status says this (TodayHome.jsx).
+BRIEF_STARTED = re.search(r'export const STARTED_STATUS = "([^"]+)"', _TODAY_HOME).group(1)
+# Pass 2 final fix (M8): the note's More > Export row on a cold press ("Export…", aria-busy) and after a failed load
+# (NoteExportControls.jsx EXPORT_WAITING, EXPORT_UNAVAILABLE; its second sentence is lib/heldModule.js RELOAD_TO_RECOVER).
+_EXPORT_CONTROLS = (_J2 / "components" / "notebook" / "NoteExportControls.jsx").read_text(encoding="utf-8")
+EXPORT_WAITING = re.search(r"export const EXPORT_WAITING = '([^']+)'", _EXPORT_CONTROLS).group(1)
+EXPORT_UNAVAILABLE = (re.search(r"export const EXPORT_UNAVAILABLE = `([^`]+)`", _EXPORT_CONTROLS).group(1)
+                      .replace("${RELOAD_TO_RECOVER}", re.search(r"export const RELOAD_TO_RECOVER = '([^']+)'",
+                                                                 (_J2 / "lib" / "heldModule.js").read_text(encoding="utf-8")).group(1)))
+# The phone Insert sheet's row that opens the palette at 390 (NoteEditorPage.jsx's insert rows).
+PHONE_PALETTE_ROW = re.search(r"\{ label: '([^']+)', onClick: \(\) => \{ paletteOpenerRef\.current = insertPhoneRef",
+                              (_J2 / "components" / "notebook" / "NoteEditorPage.jsx").read_text(encoding="utf-8")).group(1)
+# Pass 2 final fix (M9): the Insert palette's "Show all" button's accessible name (WidgetPalette.jsx).
+PALETTE_SHOW_ALL = re.search(r'className=\{`\$\{styles\.headBtn\} \$\{styles\.showAll\}`\} aria-label="([^"]+)"',
+                             (_J2 / "components" / "notebook" / "WidgetPalette.jsx").read_text(encoding="utf-8")).group(1)
+DAILY_FOLDER_NAME = re.search(r'^DAILY_FOLDER_NAME = "([^"]+)"', (REPO / "api" / "services" / "journal_two" / "note_daily.py")
+                              .read_text(encoding="utf-8"), re.M).group(1)
+# Simplify pass 2 (C3, review check g): the note's More panel and the formats' menu (NoteMoreMenu.jsx, NoteExportMenu.jsx),
+# and the Aa menu (NoteFormatMenu.jsx).
+MORE_NOTE_ACTIONS = re.search(r"export const MORE_NOTE_ACTIONS = '([^']+)'", (_J2 / "components" / "notebook" / "NoteMoreMenu.jsx").read_text(encoding="utf-8")).group(1)
+EXPORT_MENU_NAME = re.search(r'role="menu" aria-label="([^"]+)"', (_J2 / "components" / "notebook" / "export" / "NoteExportMenu.jsx").read_text(encoding="utf-8")).group(1)
+MORE_FORMATTING = re.search(r"export const MORE_FORMATTING = '([^']+)'", (_J2 / "components" / "notebook" / "NoteFormatMenu.jsx").read_text(encoding="utf-8")).group(1)
+# Simplify pass 2 (C1): Graph and Timeline sit under the View menu's "More views" row (NotebookTab's `more-views`).
+# Follow-up B (item 1c): the setups board's way back when it was reached from the Daily brief (SetupsBoard.jsx).
+BOARD_BACK_FROM_BRIEF = re.search(r"\{fromBrief \? '([^']+)' : 'Back to Notebook'\}",
+                                  (_J2 / "components" / "notebook" / "SetupsBoard.jsx").read_text(encoding="utf-8")).group(1)
+# Follow-up C: the New note sheet's link into Manage templates at the daily control, and its "Manage" link
+# (MemberTemplates.jsx aria-labels).
+_MEMBER_TEMPLATES = (_J2 / "components" / "notebook" / "MemberTemplates.jsx").read_text(encoding="utf-8")
+DAILY_CHANGE_LINK = re.search(r"onManage\('daily'\)\}\s*aria-label=\"([^\"]+)\"", _MEMBER_TEMPLATES).group(1)
+PLAIN_MANAGE_LINK = re.search(r"onManage\('plain'\)\}\s*aria-label=\"([^\"]+)\"", _MEMBER_TEMPLATES).group(1)
+MORE_VIEWS_ROW = re.search(r"key: 'more-views', label: '([^']+)'", (_J2 / "tabs" / "NotebookTab.jsx").read_text(encoding="utf-8")).group(1)
 
 
 class NoteWrites:
@@ -479,19 +571,24 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
         door = C.sample_door(pg_, 10000)
         promo = door["door"] == "card" and not door["standalone_with_card"]
         chk = pg_.evaluate(CHECKLIST_JS)
+        # Simplify pass 2 (C5): while the Get started card is up, the empty list draws no inline template grid (the
+        # card's "Start a note from a template" and "+ New"'s arrow open the picker). Read outside any dialog.
+        grid_inline = pg_.evaluate("() => [...document.querySelectorAll('[data-template-gallery]')]"
+                                   ".filter(e => !e.closest('[role=dialog]') && e.getBoundingClientRect().height > 0).length")
         C.goto(pg_, base, "/support")
         cap = pg_.locator("section[aria-labelledby='support-notebook-can-do']")
         preview = C.vis_loc(cap, 20000)
         lines = [re.sub(r"\s+", " ", t).strip() for t in cap.first.locator("li").all_inner_texts()] if preview else []
         # S16: one first-run moment at a time -- the 60-second first run and the base tour never on screen together
-        ok = empty and imp and promo and bool(chk) and preview and bool(lines) and not seen["both_at_once"]
-        C.step(pg_, inst_, "first run", "empty notes list: Import notes and the Get started list, whose sample row is the one sample door (no standalone Add a sample notebook beside it); one first-run moment at a time; Help lists What your Notebook can do",
+        ok = (empty and imp and promo and bool(chk) and preview and bool(lines) and not seen["both_at_once"]
+              and not (door["door"] == "card" and grid_inline))
+        C.step(pg_, inst_, "first run", "empty notes list: Import notes and the Get started list, whose sample row is the one sample door (no standalone Add a sample notebook beside it) and no template grid under it; one first-run moment at a time; Help lists What your Notebook can do",
                "PASS" if ok else "FAIL", empty_list=empty, import_notes=imp, base_tour_autostarted=seen["base_tour"],
                first_run_sheet_and_tour_together=seen["both_at_once"],
                base_tour_title=seen.get("base_tour_title"), first_run_sheet=seen["first_run_sheet"], help_capabilities=preview,
                preview_lines=lines, sample_door=door["door"], sample_door_first_seen=door.get("first_seen"),
                standalone_sample_button_beside_card=door["standalone_with_card"], checklist=chk,
-               scope=["section[aria-labelledby='support-notebook-can-do']"])
+               template_grid_under_card=grid_inline, scope=["section[aria-labelledby='support-notebook-can-do']"])
 
     def firstrun():
         first_run_on(pg, inst, ctx)
@@ -803,6 +900,9 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
         open_templates(pg)
         sent, perr = False, None
         try:
+            # Follow-up C: a plain template's Share lives in Manage templates' Plain templates group; the New note
+            # sheet's "Your templates" keeps Use and Preview and links there ("Manage your plain templates").
+            pg.get_by_role("button", name=PLAIN_MANAGE_LINK, exact=True).first.click(timeout=20000)
             share = pg.get_by_role("button", name=f"Share {name} to the Template library")   # S7 (was "to the community gallery")
             share.first.wait_for(state="visible", timeout=20000)
             share.first.click()
@@ -1440,15 +1540,22 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
     # ── review drafts ───────────────────────────────────────────────────────────────────
     def reviews():
         for kind in ("daily", "weekly", "monthly"):
-            # Research home's "Reviews that write themselves" box is gone; the door is the list's "+ New" arrow, whose
-            # menu carries a Reviews group (Today's recap, This week's review, This month's review), simplify Task 3.
+            # Research home's "Reviews that write themselves" box is gone; the door is the list's "+ New" arrow. Simplify
+            # pass 2 (C2): its menu has ONE row "Draft a review" whose second view holds the three reviews (Today's recap,
+            # This week's review, This month's review); the monthly row has no walkthrough anchor, so all three are
+            # pressed by name, and the daily/weekly anchors are checked to sit on the rows of those names.
             home()
             caret = pg.get_by_role("button", name="More ways to start a note", exact=True)
             present = C.vis_loc(caret, 30000)
-            made, text, err = None, None, None
+            made, text, err, anchor_ok = None, None, None, None
             try:
                 caret.first.click()
-                pg.locator(f'[data-tour="review-drafts-{kind}"]').first.click(timeout=15000)
+                pg.get_by_role("menuitem", name=DRAFT_REVIEW_ROW, exact=True).first.click(timeout=15000)
+                row = pg.get_by_role("menuitem", name=REVIEW_LABELS[kind], exact=True).first
+                row.wait_for(state="visible", timeout=15000)
+                if kind != "monthly":
+                    anchor_ok = row.get_attribute("data-tour") == f"review-drafts-{kind}"
+                row.click(timeout=15000)
                 pg.wait_for_url(lambda u: "note=" in u, timeout=60000)
                 made = pg.url.split("note=")[-1].split("&")[0]
                 pg.locator(".ProseMirror").first.wait_for(state="visible", timeout=30000)
@@ -1460,7 +1567,8 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
             n = note_json(made) if made else {}
             heads = re.findall(r'"type": "heading".*?"text": "([^"]{2,60})"', json.dumps(n.get("bodyJson") or {}))[:14]
             C.step(pg, inst, "review drafts", f"one click drafts the {kind} review as a note",
-                   "PASS" if made and text and len(text) > 200 else "FAIL", new_menu_arrow=present, note=made, title=n.get("title"),
+                   "PASS" if made and text and len(text) > 200 and anchor_ok is not False else "FAIL", new_menu_arrow=present,
+                   draft_row=DRAFT_REVIEW_ROW, anchor_on_row=anchor_ok, note=made, title=n.get("title"),
                    headings=heads, text_head=(text or "")[:500], mentions_amd="AMD" in (text or ""), alerts=alerts, reach_error=err)
             S[f"review_{kind}"] = made
         C.step(None, inst, "review drafts", "the Compass quote inside a draft", "NOT_RUN", reason="NO KEY", shot=False)
@@ -1697,6 +1805,13 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
         uncovered: !!hit && (hit === el || el.contains(hit)),
         hit: hit ? (hit.tagName.toLowerCase() + (hit.getAttribute('aria-label') ? '[' + hit.getAttribute('aria-label').slice(0, 30) + ']' : '')) : null,
         text: (el.innerText || '').trim().replace(/\s+/g, ' ').slice(0, 60) } }"""
+    # How many lines an element's TEXT takes (its text nodes' boxes, not its icon): the span of their tops and bottoms
+    # over one line box's height.
+    TEXT_LINES_JS = r"""(el) => { const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT); const rs = [];
+      for (let n = w.nextNode(); n; n = w.nextNode()) { if (!n.textContent.trim()) continue; const r = document.createRange();
+        r.selectNodeContents(n); rs.push(...[...r.getClientRects()].filter(b => b.width > 1)) }
+      if (!rs.length) return 0; const top = Math.min(...rs.map(b => b.top)), bottom = Math.max(...rs.map(b => b.bottom));
+      const h = Math.min(...rs.map(b => b.height)); return Math.max(1, Math.round((bottom - top) / h)) }"""
     NUDGE_NAMES = ("Not now", "Got it", "Dismiss tip")
     HOLD = {}
 
@@ -1743,6 +1858,37 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
     def menu_names(menu):
         return [re.sub(r"\s+", " ", t).strip() for t in menu.get_by_role("menuitem").all_inner_texts()]
 
+    def second_view_fit(p_, menu):
+        """Simplify pass 2 (review check g): an open menu's rows (a second view: Back first) measured where a member
+        sees them. Every row is scrolled into view inside the menu and must then be inside the window and uncovered;
+        the menu's box and its LAST row must sit above the floating "+" (`[data-notebook-plus]`) when one is drawn."""
+        fab = p_.locator("[data-notebook-plus]").filter(visible=True)
+        fab_rect = (fab.first.evaluate("(e) => { const b = e.getBoundingClientRect(); return { top: b.top, bottom: b.bottom } }")
+                    if fab.count() else None)
+        m_ = menu.first.evaluate(COVER_JS) if menu.count() else {}
+        rows_, bad_ = [], []
+        rows_loc = menu.locator('[role="menuitem"], [role="menuitemradio"]')
+        n_ = rows_loc.count() if m_ else 0
+        for k_ in range(n_):
+            it_ = rows_loc.nth(k_)
+            try:
+                it_.scroll_into_view_if_needed(timeout=3000)
+            except Exception:  # noqa: BLE001 -- recorded as not inside below
+                pass
+            p_.wait_for_timeout(120)
+            c_ = it_.evaluate(COVER_JS)
+            inside_ = bool(c_.get("inside_x") and c_.get("above_fold") and c_["rect"]["bottom"] <= c_["innerHeight"] + 0.5
+                           and c_.get("uncovered"))
+            rows_.append({"text": c_.get("text"), "inside": inside_, "rect": c_.get("rect"), "hit": c_.get("hit")})
+            if not inside_:
+                bad_.append(c_.get("text"))
+        last_ = rows_[-1]["rect"] if rows_ else None
+        clear_ = bool(m_) and (fab_rect is None or (m_["rect"]["bottom"] <= fab_rect["top"] + 0.5
+                                                    and last_ is not None and last_["bottom"] <= fab_rect["top"] + 0.5))
+        ok_ = bool(m_) and bool(rows_) and m_.get("inside_x") and m_["rect"]["bottom"] <= m_["innerHeight"] + 0.5 and clear_ and not bad_
+        return {"ok": bool(ok_), "menu": m_, "plus_button": fab_rect, "clear_of_plus": clear_, "rows": rows_,
+                "rows_not_inside": bad_, "names": [re.sub(r"\s+", " ", t).strip() for t in rows_loc.all_inner_texts()] if m_ else []}
+
     # ── discover.new-note-list (1280 and 390) ──────────────────────────────────────────────────────
     # Go-live wave 2: Research home's New note split button is gone (wave 1, B); the door a member uses is the notes
     # list's "+ New" (one press, a blank note) and its arrow ("More ways to start a note", the menu "Start a note"). On
@@ -1763,13 +1909,24 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
             # "From a template" is in the menu either way; journal styles decide what it opens (the kind picker, or the
             # plain template sheet), so the switch is recorded with the row, read like the product reads it.
             styles_on = bool(meA.get("notebook_journal_styles_enabled"))
+            # Simplify pass 2 (C2): the three reviews are one row, "Draft a review", whose second view holds them.
             expected = (["Blank", "From a template"] + (["Voice note"] if voice_on else []) + ["Import"]
-                        + (["Today's recap", "This week's review", "This month's review"] if reviews_on else []))
+                        + ([DRAFT_REVIEW_ROW] if reviews_on else []))
             caret.first.click()
             menu = pA.get_by_role("menu", name="Start a note")
             opened = C.vis_loc(menu, 8000)
             items = menu_names(menu) if opened else []
             m_menu = menu.first.evaluate(COVER_JS) if opened else {}
+            # C2: "Draft a review" opens its second view in the same menu: Back, then the three reviews by name.
+            sub_items, sub_ok = [], None
+            if opened and reviews_on:
+                menu.get_by_role("menuitem", name=DRAFT_REVIEW_ROW, exact=True).first.click()
+                pA.wait_for_timeout(300)
+                sub_items = menu_names(menu)
+                sub_ok = (sub_items[1:] == [REVIEW_LABELS[k] for k in ("daily", "weekly", "monthly")]
+                          and menu.get_by_role("menuitem", name=re.compile(r"^Back to ")).count() == 1)
+                pA.keyboard.press("Escape")
+                pA.wait_for_timeout(200)
             pA.keyboard.press("Escape")
             pA.wait_for_timeout(300)
             before = len(C.notes_list(cA, base))
@@ -1782,9 +1939,10 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
                     break
                 pA.wait_for_timeout(400)
             ok = (shown and m_main.get("uncovered") and m_main.get("above_fold") and opened and items == expected
-                  and after == before + 1 and "note=" in (landed or ""))
-            C.step(pA, iA, "discover.new-note-list", "notes list: + New makes a note in one press; its arrow lists the ways that are armed",
+                  and sub_ok is not False and after == before + 1 and "note=" in (landed or ""))
+            C.step(pA, iA, "discover.new-note-list", "notes list: + New makes a note in one press; its arrow lists the ways that are armed (Draft a review opens the three reviews as its second view)",
                    "PASS" if ok else "FAIL", button=m_main, menu=m_menu, menu_items=items, expected_items=expected,
+                   draft_review_view=sub_items, draft_review_view_ok=sub_ok,
                    voice_flag_on=voice_on, styles_flag_on=styles_on, notes_before=before, notes_after=after, landed=landed,
                    note_create_status=st, scope=['[role="toolbar"][aria-label="Notes list tools"]'])
             # 390: the same member; the More menu (the phone's door to the New menu's rows) opens fully inside the window
@@ -1799,11 +1957,23 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
             items9 = [t for t in (menu_names(menu9) if op9 else [])]
             vis9 = [re.sub(r"\s+", " ", e.inner_text()).strip() for e in menu9.get_by_role("menuitem").filter(visible=True).all()] if op9 else []
             want9 = ["Today's note", "New from a template", "Import"] + (["Voice note"] if voice_on else []) + (
-                ["Today's recap", "This week's review", "This month's review"] if reviews_on else [])
+                [DRAFT_REVIEW_ROW] if reviews_on else [])
             ok9 = op9 and mm.get("inside_x") and mm["rect"]["bottom"] <= mm["innerHeight"] and all(x in vis9 for x in want9)
             C.step(p9, i9, "discover.new-note-list", "390 px: the More menu opens fully inside the window and carries the New menu's rows",
                    "PASS" if ok9 else "FAIL", menu=mm, menu_items=items9, visible_items=vis9, expected_present=want9,
                    scope=["[role=menu]"])
+            # Simplify pass 2 (C2, review check g): the phone More menu's "Draft a review" opens its second view inside
+            # the window, every row of it clear of the floating "+".
+            if op9 and reviews_on:
+                row9 = menu9.get_by_role("menuitem", name=DRAFT_REVIEW_ROW, exact=True).first
+                row9.scroll_into_view_if_needed(timeout=3000)
+                row9.click()
+                p9.wait_for_timeout(400)
+                sv = second_view_fit(p9, menu9)
+                C.step(p9, i9, "discover.second-view-390", "390 px: More > Draft a review shows Back and the three reviews inside the window, its last row clear of the floating +",
+                       "PASS" if sv["ok"] and sv["names"][1:] == [REVIEW_LABELS[k] for k in ("daily", "weekly", "monthly")] else "FAIL",
+                       **sv, scope=["[role=menu]"])
+                p9.keyboard.press("Escape")
         finally:
             for c_ in (c9, cA):
                 if c_ is not None:
@@ -1858,7 +2028,8 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
             more = pS.get_by_role("button", name="More notebook actions", exact=True)
             C.vis_loc(more, 30000)
             menu = pS.get_by_role("menu", name="More notebook actions")
-            row = menu.get_by_role("menuitem", name=SAMPLE_REMOVE_ROW, exact=True)
+            # Simplify pass 2 (C6): at 640 px and below the row reads the phone words ("Remove sample notebook").
+            row = menu.get_by_role("menuitem", name=SAMPLE_REMOVE_ROW_PHONE, exact=True)
             got_row = False
             for _ in range(2):    # the sample's status is read when the menu first opens; the row can arrive a moment later
                 C.press_through(pS, more.first)
@@ -1888,11 +2059,15 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
                 if not inside:
                     bad.append(c_.get("text"))
             clear_of_plus = bool(m_menu) and (fab_rect is None or m_menu["rect"]["bottom"] <= fab_rect["top"] + 0.5)
-            order = names.index(SAMPLE_REMOVE_ROW) if SAMPLE_REMOVE_ROW in names else None
-            C.step(pS, iS, "discover.phone-more-sample", "390 px, sample active: the More menu is held inside the window above the floating +, and every row (Remove the sample notebook among them) can be brought into view uncovered",
+            order = names.index(SAMPLE_REMOVE_ROW_PHONE) if SAMPLE_REMOVE_ROW_PHONE in names else None
+            one_line = None
+            if got_row:   # C6: the phone words fit one line (the row's text box is one line-height tall)
+                one_line = row.first.evaluate(TEXT_LINES_JS)
+            C.step(pS, iS, "discover.phone-more-sample", "390 px, sample active: the More menu is held inside the window above the floating +, and every row (Remove sample notebook among them, on one line) can be brought into view uncovered",
                    "PASS" if (got_row and m_menu.get("inside_x") and m_menu["rect"]["bottom"] <= m_menu["innerHeight"]
-                              and clear_of_plus and not bad) else "FAIL",
+                              and clear_of_plus and not bad and one_line == 1 and SAMPLE_REMOVE_ROW not in names) else "FAIL",
                    menu=m_menu, plus_button=fab_rect, menu_clear_of_plus=clear_of_plus, menu_items=names, removal_row_index=order,
+                   removal_row_words=SAMPLE_REMOVE_ROW_PHONE, removal_row_text_lines=one_line, desktop_words_absent=SAMPLE_REMOVE_ROW not in names,
                    rows=rows_seen, rows_not_inside=bad, scope=["[role=menu]"])
             removed_line, clicks, c_row = False, 0, {}
             if got_row:
@@ -1906,7 +2081,7 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
             pS.wait_for_timeout(1500)
             st1 = cS.request.get(base + "/api/j2/onboarding/sample-notebook").json()
             left = [n.get("title") for n in C.notes_list(cS, base) if n.get("id") in ids0]
-            C.step(pS, iS, "discover.phone-more-sample", "390 px: Remove the sample notebook works from the phone's More menu (one press, the status line says so, the sample's notes leave the list)",
+            C.step(pS, iS, "discover.phone-more-sample", "390 px: Remove sample notebook works from the phone's More menu (one press, the status line says so, the sample's notes leave the list)",
                    "PASS" if got_row and removed_line and not left and not (st1.get("activeIds") or []) else "FAIL",
                    removal_row=c_row, clicks=clicks, removed_line=removed_line, message=msg,
                    active_before=len(ids0), active_after=len(st1.get("activeIds") or []), notes_left=left)
@@ -2106,20 +2281,25 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
                 break
             pg.wait_for_timeout(300)
         on_board = pg.url.split("?")[0].endswith("/journal/notebook/setups")
-        back = pg.get_by_role("link", name=re.compile(r"Back to Notebook"))
+        # Follow-up B (item 1c): reached FROM the Daily brief, the board's way back is "Back to Daily brief" and lands on
+        # the brief (`?view=today`); "Back to Notebook" is the label only for a board reached some other way.
+        back = pg.get_by_role("link", name=re.compile(re.escape(BOARD_BACK_FROM_BRIEF)))
         back_shown = C.vis_loc(back, 30000)
         back_href = back.first.get_attribute("href") if back_shown else None
+        old_back = pg.get_by_role("link", name=re.compile(r"Back to Notebook")).count()
         if back_shown:
             back.first.click()
             for _ in range(30):
-                if pg.url.split("?")[0].rstrip("/").endswith("/journal/notebook"):
+                if pg.url.split("?")[0].rstrip("/").endswith("/journal/notebook") and "view=today" in pg.url:
                     break
                 pg.wait_for_timeout(300)
-        home_again = pg.url.split("?")[0].rstrip("/").endswith("/journal/notebook")
-        ok = (shown and lm.get("uncovered") and on_board and back_shown and home_again)
-        C.step(pg, inst, "discover.setups-card", "Daily brief: the 'Setups near entry' card's link opens the board; the board has Back to Notebook",
+        brief_again = pg.url.split("?")[0].rstrip("/").endswith("/journal/notebook") and "view=today" in pg.url
+        brief_heading = C.vis_loc(pg.get_by_role("heading", name="Daily brief", exact=True), 15000) if brief_again else False
+        ok = (shown and lm.get("uncovered") and on_board and back_shown and not old_back and brief_again and brief_heading)
+        C.step(pg, inst, "discover.setups-card", f"Daily brief: the 'Setups near entry' card's link opens the board; the board's '{BOARD_BACK_FROM_BRIEF}' returns to the brief",
                "PASS" if ok else "FAIL", card_text=(text or "")[:300], card=m, link=lm, link_text=link_text, on_board=on_board,
-               back_link=back_shown, back_href=back_href, back_lands_on_notebook=home_again, scope=['[data-today-card="setups"]'])
+               back_link=back_shown, back_href=back_href, old_back_to_notebook=old_back, back_lands_on_brief=brief_again,
+               brief_heading=brief_heading, url_after=pg.url.split("://")[-1].split("/", 1)[-1], scope=['[data-today-card="setups"]'])
 
     # ── discover.one-ask (1280) ────────────────────────────────────────────────────────────────────
     # Go-live wave 2: Research home's Ask section moved behind the notes list's "AI" button (simplify Task 5), and the
@@ -2530,7 +2710,7 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
             n = M.post(base + "/api/j2/notes", data={"styleId": mine["id"], "ticker": "NVDA"}).json()["note"]
             M.put(base + f"/api/j2/journal-styles/{mine['id']}", data={"blocks": [{"block": "chart", "enabled": True, "settings": {"tf": "W"}}]})
         C.goto(pg, base, f"/journal/notebook?note={n['id']}", wait=".ProseMirror")
-        banner = C.vis_loc(pg.get_by_text(re.compile(r"Update layout to v\d+\?")), 15000)
+        banner = C.vis_loc(pg.get_by_text(re.compile(r"Update template to v\d+\?")), 15000)
         apply_status = None
         if banner:
             pg.get_by_role("button", name="Review update").click()
@@ -2542,7 +2722,7 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
                                     timeout=30000) as applied:
                 pg.get_by_role("button", name="Apply").click()
             apply_status = applied.value.status
-            pg.get_by_text(re.compile(r"Update layout to v\d+\?")).first.wait_for(state="hidden", timeout=15000)
+            pg.get_by_text(re.compile(r"Update template to v\d+\?")).first.wait_for(state="hidden", timeout=15000)
         got = M.get(base + f"/api/j2/notes/{n['id']}").json()["note"]
         added = any(x.get("type") == "widgetEmbed" and (x.get("attrs") or {}).get("widgetId") == "chart"
                     for x in got.get("bodyJson", {}).get("content", []))
@@ -2847,8 +3027,8 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
                     # Notebook; they stay on every other Journal page, so the door is walked from Trades.
                     C.goto(p, base, "/journal/trades", wait="main")
                     gear = p.get_by_role("button", name="Open Portfolio Settings", exact=True).filter(visible=True)
-                    if not C.vis_loc(gear, 8000):   # a phone may fold the header tools behind Journal tools (JournalLayout D2)
-                        p.get_by_role("button", name="Journal tools", exact=True).click()
+                    if not C.vis_loc(gear, 8000):   # a phone may fold the header tools behind Trade journal tools (JournalLayout D2; pass 2 A9)
+                        p.get_by_role("button", name="Trade journal tools", exact=True).click()
                     p.get_by_role("button", name="Open Portfolio Settings", exact=True).filter(visible=True).first.click()
                     sel = p.get_by_role("combobox", name="Pre-entry checklist in Log Trade", exact=True)
                     C.vis_loc(sel, 15000)
@@ -3158,6 +3338,7 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
                 p, i, c = at(vp)
                 try:
                     nid, create_status = new_from_kind(p, "Daily prep")
+                    opened_at = time.time()
                     held = note_json(nid) if nid else {}
                     parts = {}
                     for wid, (name, part) in PREP_GROUPS.items():
@@ -3166,12 +3347,19 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
                         rec = {"group": C.vis_loc(group, 20000), "frozen": isinstance(snap, dict) and snap.get("part") == part}
                         if rec["frozen"]:
                             rec.update(missing=snap.get("missing"), needs=snap.get("needs"))
-                            if snap.get("needs"):
-                                rec["names_gap"] = C.vis_loc(group.get_by_text(
-                                    f"This block needs {snap['needs']}, which is not on for you.", exact=True), 10000)
-                            elif snap.get("missing"):
-                                rec["names_gap"] = C.vis_loc(group.get_by_text(snap.get("detail") or "", exact=True), 10000)
-                            rec["captured_line"] = C.vis_loc(group.get_by_text(spaced(f"Captured {et_minute(snap['capturedAt'])} ET")), 10000)
+                            # What the block draws for this snapshot (module-level `prep_gap_read`, four gap states
+                            # plus a switch it needs; railed by tests/test_notebook_fin_walk_prep_gap.py). The walk's
+                            # note is editable; a filling gap's reads run out only after RETRY_MS x RETRY_MAX.
+                            ran_out = (time.time() - opened_at) * 1000 >= PREP_RETRY_MS * PREP_RETRY_MAX
+                            want = prep_gap_read(snap, today_et=datetime.now(ET).date(), editable=True, reads_ran_out=ran_out)
+                            rec.update(branch=want["branch"], filling=want["branch"] == "filling")
+                            if want["words"] is not None:
+                                rec["names_gap"] = C.vis_loc(group.get_by_text(want["words"], exact=True), 10000)
+                            line = group.get_by_text(spaced(f"Captured {et_minute(snap['capturedAt'])} ET"))
+                            if want["captured_line"]:
+                                rec["captured_line"] = C.vis_loc(line, 10000)
+                            else:
+                                rec["captured_line"] = not C.vis_loc(line, 2000)   # held back while it fills (S9)
                         rec["ok"] = bool(rec["group"] and rec["frozen"] and rec.get("captured_line") and rec.get("names_gap", True))
                         parts[wid] = rec
                     old_at = (snapshot_of(held.get("bodyJson"), "prepWire") or {}).get("capturedAt")
@@ -3234,7 +3422,7 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
                     C.goto(p, base, "/journal/trades", wait="main")   # Log Trade left the desktop Notebook's header (simplify Task 1)
                     log_btn = p.get_by_role("button", name="Log Trade", exact=True).filter(visible=True)
                     if not C.vis_loc(log_btn, 8000):          # the phone folds the header tools (JournalLayout D2)
-                        p.get_by_role("button", name="Journal tools", exact=True).click()
+                        p.get_by_role("button", name="Trade journal tools", exact=True).click()
                         C.vis_loc(log_btn, 10000)
                     log_btn.first.click()
                     p.get_by_role("menuitem", name="Log open position", exact=True).click()
@@ -3294,7 +3482,7 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
         # blocks.restore-stamp (1280): a note made from a member style at v1; the style edited to v2 (My rules
         #   switched on: a block added) through PUT /api/j2/journal-styles/{id}; the banner's Review update ->
         #   Apply lands v2; History -> restore the version from before the update; the banner offers
-        #   "Update layout to v2?" again (M-7: the stamp goes back with the body).
+        #   "Update template to v2?" again (pass 2 A5 renamed "layout") (M-7: the stamp goes back with the body).
         def restore_stamp():
             rules_block = lambda on: [{"block": "myRules", "enabled": on, "settings": {"which": "active"}}]  # noqa: E731
             style_status, made = C.api(ctx, inst, "POST", base, "/api/j2/journal-styles",
@@ -3305,7 +3493,7 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
             n = ((nbody or {}).get("note") if isinstance(nbody, dict) else None) or {}
             put_status, upd = C.api(ctx, inst, "PUT", base, f"/api/j2/journal-styles/{sid}", {"blocks": rules_block(True)})
             v2 = (((upd or {}).get("style") if isinstance(upd, dict) else None) or {}).get("version")
-            banner = re.compile(re.escape(f"Update layout to v{v2}?"))
+            banner = re.compile(re.escape(f"Update template to v{v2}?"))
             C.goto(pg, base, f"/journal/notebook?note={n['id']}", wait=".ProseMirror")
             offered = C.vis_loc(pg.get_by_text(banner), 15000)
             apply_status = None
@@ -4186,6 +4374,625 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
                "PASS" if not missing else "FAIL", missing=[f"{f} @ {vp}" for f, vp in missing], shot=False)
     run("page_layouts", page_layouts)
 
+    # ── simplify pass 2 doors (Task 4) ─────────────────────────────────────────────────────────────
+    BRIEF_GEOM_JS = r"""() => { const root = document.querySelector('[data-today-home]'); if (!root) return null;
+      const R = (e) => { if (!e) return null; const b = e.getBoundingClientRect();
+        return { left: +b.left.toFixed(1), top: +b.top.toFixed(1), width: +b.width.toFixed(1), height: +b.height.toFixed(1) } };
+      const sk = root.querySelector('[data-today-skeleton]');
+      const firstContent = [...root.querySelectorAll('[data-today-nothing], [data-today-card], [data-today-skeleton]')]
+        .filter(e => e.getBoundingClientRect().height > 0).sort((a, b) => a.getBoundingClientRect().top - b.getBoundingClientRect().top)[0];
+      return { busy: root.getAttribute('aria-busy'), heading: R(root.querySelector('h2')), line: R(root.querySelector('[data-today-line]')),
+        actions: R(root.querySelector('[data-today-actions]')), skeleton: R(sk), skeletons: root.querySelectorAll('[data-today-skeleton]').length,
+        first_content: R(firstContent), first_content_kind: firstContent ? (firstContent.getAttribute('data-today-card') || (firstContent.hasAttribute('data-today-skeleton') ? 'skeleton' : 'nothing-yet')) : null,
+        buttons: [...root.querySelectorAll('[data-today-actions] button')].filter(b => b.getBoundingClientRect().width > 0 && getComputedStyle(b).visibility !== 'hidden')
+          .map(b => (b.innerText || '').trim()) } }"""
+
+    def folder_names(ctx_):
+        r = ctx_.request.get(base + "/api/j2/note-folders")
+        j = r.json() if r.status == 200 else {}
+        return sorted((f.get("name") or "") for f in ((j.get("folders") if isinstance(j, dict) else j) or []))
+
+    def same_box(a, b, tol=1.0, keys=("left", "top", "width", "height")):
+        return bool(a and b) and all(abs(a[k] - b[k]) <= tol for k in keys)
+
+    # A text line that gains words to its right (the date line gets the session and regime once the read lands) has not
+    # moved: its block box only widens. Measured on c2 (attach run 1): heading and line kept left 372, top 105.4/141.4 and
+    # their heights; only their widths grew. So the text rows are held to where they START and how TALL they are.
+    STILL = ("left", "top", "height")
+
+    # ── discover.daily-brief (1280) ────────────────────────────────────────────────────────────────
+    # Simplify pass 2 (B1, B4, B5; review check e). Opening the Daily brief makes nothing: no note, no folder. Its one
+    # header button is "Start today's note", which makes today's note (in "Daily notes" for a new member); back on the
+    # brief the button says "Open today's note". While the brief's read is held, the page draws its header and one
+    # skeleton; when the read lands the header, the date line and the button's room do not move, and the first thing the
+    # answer draws takes the skeleton's place (a member with nothing: the quiet line), so nothing jumps.
+    def d_daily_brief():
+        cB, emailB, meB, iB, pB = new_member("c2dbr", "1280")
+        try:
+            at(pB, base, "/journal/notebook", first_run=True)   # a new member's first-visit sheet is closed on the list
+            notes0, folders0 = len(C.notes_list(cB, base)), folder_names(cB)
+            held = []
+            today_re = re.compile(r"/api/j2/notes/today\?make=0")
+            pB.route(today_re, lambda route: held.append(route))
+            C.goto(pB, base, "/journal/notebook?view=today")
+            C.vis(pB, "[data-today-skeleton]", 20000)
+            pB.wait_for_timeout(800)
+            first = pB.evaluate(BRIEF_GEOM_JS)
+            shot_first = C.snap(pB, "c2-1280-discover.daily-brief-first-paint")
+            pB.unroute(today_re)
+            for r_ in held:
+                try:
+                    r_.continue_()
+                except Exception:  # noqa: BLE001 -- a request the page already gave up on
+                    pass
+            try:
+                pB.locator("[data-today-home]:not([aria-busy])").first.wait_for(state="visible", timeout=20000)
+            except Exception:  # noqa: BLE001 -- recorded below (busy stays set)
+                pass
+            pB.wait_for_timeout(1500)
+            after = pB.evaluate(BRIEF_GEOM_JS)
+            shot_after = C.snap(pB, "c2-1280-discover.daily-brief-after-read")
+            notes1, folders1 = len(C.notes_list(cB, base)), folder_names(cB)
+            tr = cB.request.get(base + "/api/j2/notes/today?make=0")
+            today_body = tr.json() if tr.status == 200 else {"status": tr.status}
+            quiet = C.vis_loc(pB.get_by_text(BRIEF_NOTHING_YET, exact=True), 3000)
+            made_nothing = notes1 == notes0 and folders1 == folders0
+            # The quiet line says "nothing yet" only when no card is drawn (TodayHome.jsx `nothingYet`). From 16:05 ET the
+            # server opens the recap (`session.recap`) and the brief draws its Today's recap card even for a member with
+            # nothing, so the line must then be ABSENT. The walk reads which case the server answered and checks that one
+            # (measured: a run at 9 PM ET drew the recap card; the earlier records ran before the close).
+            recap_open = bool(((today_body or {}).get("session") or {}).get("recap"))
+            recap_card = pB.locator('[data-today-card="recap"]').count() > 0
+            quiet_ok = (not quiet and recap_card) if recap_open else quiet
+            C.step(pB, iB, "discover.daily-brief", "opening the Daily brief makes no note and no folder; its one header button is Start today's note; a member with nothing sees the quiet line (after 16:05 ET: the recap card instead)",
+                   "PASS" if made_nothing and (after or {}).get("buttons") == [BRIEF_START] and quiet_ok else "FAIL", recap_open=recap_open, recap_card=recap_card,
+                   notes_before=notes0, notes_after=notes1, folders_before=folders0, folders_after=folders1,
+                   today_read=today_body, header_buttons=(after or {}).get("buttons"), expected_button=BRIEF_START,
+                   nothing_yet_line=quiet, scope=["[data-today-home]"])
+            steady = (first and after and same_box(first["heading"], after["heading"], keys=STILL)
+                      and same_box(first["line"], after["line"], keys=STILL)
+                      and same_box(first["actions"], after["actions"]) and first.get("skeletons") == 1
+                      and after.get("first_content") is not None and first.get("skeleton") is not None
+                      and abs(after["first_content"]["top"] - first["skeleton"]["top"]) <= 2.0)
+            C.step(pB, iB, "discover.daily-brief", "while the read is held: header + one skeleton; when it lands the header, date line and button room do not move and the first content takes the skeleton's place",
+                   "PASS" if steady else "FAIL", held_requests=len(held), first_paint=first, after_read=after,
+                   screenshot_first_paint=shot_first, screenshot_after_read=shot_after, scope=["[data-today-home]"])
+            # Pass 2 final fix (I4, ruling; final-fix row a): Start makes today's note and STAYS on the brief. The member
+            # now watches one name, so the plan seed has a line ("Check your names: ..."): the plan card must arrive with
+            # it. Start is pressed twice quickly (a double click): exactly one note is made. The header button becomes
+            # "Open today's note" and holds focus; the polite status says "Today's note started."; the URL keeps
+            # `?view=today`. The made note is read from the server (`GET /api/j2/notes/today?make=0`), never the URL.
+            wl_st, wl = C.api(cB, iB, "POST", base, "/api/watchlists", {"name": "My names"})
+            wl_id = ((wl or {}).get("watchlist") or wl or {}).get("id") if isinstance(wl, dict) else None
+            item_st, _ = C.api(cB, iB, "POST", base, f"/api/watchlists/{wl_id}/items", {"sym": "NVDA"}) if wl_id else (None, None)
+            C.goto(pB, base, "/journal/notebook?view=today")
+            try:
+                pB.locator("[data-today-home]:not([aria-busy])").first.wait_for(state="visible", timeout=20000)
+            except Exception:  # noqa: BLE001 -- the step below records what the page then said
+                pass
+            pB.wait_for_timeout(800)
+            ready = pB.evaluate(BRIEF_GEOM_JS) or {}
+            n_before = len(C.notes_list(cB, base))
+            posts = []
+            on_req = lambda r: posts.append(r.url) if r.method == "POST" and "/api/j2/notes/daily" in r.url else None  # noqa: E731
+            pB.on("request", on_req)
+            facts, err = {}, None
+            try:
+                pB.locator("[data-today-actions]").get_by_role("button", name=BRIEF_START, exact=True).first.dblclick(timeout=10000)
+                pB.locator("[data-today-actions]").get_by_role("button", name=BRIEF_OPEN, exact=True).first.wait_for(state="visible", timeout=30000)
+                plan = pB.locator('[data-today-card="plan"]')
+                plan.first.wait_for(state="visible", timeout=30000)
+                pB.wait_for_timeout(1000)
+                facts = pB.evaluate("""() => { const a = document.activeElement; const acts = document.querySelector('[data-today-actions]');
+                  const st = acts && acts.querySelector('[role="status"]');
+                  const plan = document.querySelector('[data-today-card="plan"]');
+                  return { focus: a ? (a.innerText || '').trim() : null, focus_in_actions: !!(a && acts && acts.contains(a)),
+                           status: st ? st.textContent.trim() : null,
+                           plan_lines: plan ? [...plan.querySelectorAll('li')].map(li => li.innerText.replace(/\\s+/g, ' ').trim()) : [] } }""")
+            except Exception as e:  # noqa: BLE001
+                err = str(e)[:300]
+            pB.wait_for_timeout(1500)        # a second create, if the double press made one, has landed by now
+            pB.remove_listener("request", on_req)
+            url_after = pB.url.split(base)[-1]
+            tr = cB.request.get(base + "/api/j2/notes/today?make=0")
+            today_after = tr.json() if tr.status == 200 else {}
+            made = ((today_after.get("todayNote") or {}).get("id")) if isinstance(today_after, dict) else None
+            n_after = len(C.notes_list(cB, base))
+            n = (cB.request.get(base + f"/api/j2/notes/{made}").json() or {}).get("note") or {} if made else {}
+            fid = n.get("folderId") or n.get("folder_id")
+            fr = cB.request.get(base + "/api/j2/note-folders")
+            fj = fr.json() if fr.status == 200 else {}
+            folder = next((f.get("name") for f in ((fj.get("folders") if isinstance(fj, dict) else fj) or []) if f.get("id") == fid), None)
+            stays = "view=today" in url_after and "note=" not in url_after
+            ok_a = (ready.get("buttons") == [BRIEF_START] and stays and facts.get("focus") == BRIEF_OPEN and facts.get("focus_in_actions")
+                    and facts.get("status") == BRIEF_STARTED and len(facts.get("plan_lines") or []) >= 1
+                    and any("NVDA" in ln for ln in facts.get("plan_lines") or [])
+                    and bool(made) and n_after - n_before == 1 and folder == DAILY_FOLDER_NAME)
+            C.step(pB, iB, "discover.daily-brief", f"Start today's note (pressed twice quickly) makes ONE note in '{DAILY_FOLDER_NAME}' and stays on the brief: the plan card with its lines, the button Open today's note with focus, the status '{BRIEF_STARTED}'",
+                   "PASS" if ok_a else "FAIL", watchlist_status=wl_st, item_status=item_st, buttons_before=ready.get("buttons"),
+                   url_after=url_after, stays_on_brief=stays, focus=facts.get("focus"), focus_in_actions=facts.get("focus_in_actions"),
+                   status=facts.get("status"), expected_status=BRIEF_STARTED, plan_lines=facts.get("plan_lines"),
+                   notes_before=n_before, notes_after=n_after, daily_posts=len(posts), note=made, note_title=n.get("title"),
+                   folder=folder, expected_folder=DAILY_FOLDER_NAME, reach_error=err, scope=["[data-today-home]"])
+            # Then "Open today's note" opens it (final-fix row c, first half): the editor shows that note.
+            opened, ms_open, err2 = None, None, None
+            try:
+                t0 = time.time()
+                pB.locator("[data-today-actions]").get_by_role("button", name=BRIEF_OPEN, exact=True).first.click(timeout=10000)
+                pB.wait_for_url(lambda u: "note=" in u, timeout=30000)
+                pB.locator(".ProseMirror").first.wait_for(state="visible", timeout=30000)
+                ms_open = round((time.time() - t0) * 1000)
+                opened = pB.url.split("note=")[-1].split("&")[0]
+            except Exception as e:  # noqa: BLE001
+                err2 = str(e)[:300]
+            C.step(pB, iB, "discover.daily-brief", "then Open today's note opens that note in the editor",
+                   "PASS" if opened and opened == made else "FAIL", note=made, opened=opened, ms_press_to_editor=ms_open, reach_error=err2)
+            # The list's "Today's note" on a day whose note EXISTS opens it at once (final-fix row c; I3: the server no
+            # longer builds the plan seed for an existing note). Press to the editor visible is recorded; the bar is
+            # 5 s on this sandbox (the editor's code is already loaded by the press above).
+            C.goto(pB, base, "/journal/notebook")
+            pB.wait_for_timeout(1500)
+            btn = pB.get_by_role("button", name="Today's note", exact=True).filter(visible=True)
+            opened2, ms2, post_ms, err3, answer = None, None, None, None, {}
+            try:
+                C.vis_loc(btn, 20000)
+                t0 = time.time()
+                with pB.expect_response(lambda r: r.request.method == "POST" and "/api/j2/notes/daily" in r.url, timeout=30000) as resp:
+                    btn.first.click(timeout=10000)
+                post_ms = round((time.time() - t0) * 1000)
+                try:
+                    answer = resp.value.json()
+                except Exception:  # noqa: BLE001
+                    answer = {}
+                pB.wait_for_url(lambda u: "note=" in u, timeout=30000)
+                pB.locator(".ProseMirror").first.wait_for(state="visible", timeout=30000)
+                ms2 = round((time.time() - t0) * 1000)
+                opened2 = pB.url.split("note=")[-1].split("&")[0]
+            except Exception as e:  # noqa: BLE001
+                err3 = str(e)[:300]
+            n_end = len(C.notes_list(cB, base))
+            C.step(pB, iB, "discover.daily-brief", "the list's Today's note on a day whose note exists opens it at once (press to editor under 5 s), makes nothing",
+                   "PASS" if opened2 == made and made and ms2 is not None and ms2 < 5000 and n_end == n_after and not answer.get("created") else "FAIL",
+                   note=made, opened=opened2, ms_press_to_editor=ms2, ms_press_to_post_answer=post_ms, created=answer.get("created"),
+                   notes_before=n_after, notes_after=n_end, reach_error=err3)
+        finally:
+            cB.close()
+
+    # ── discover.recap-template (1280) ─────────────────────────────────────────────────────────────
+    # Pass 2 final fix (I1; final-fix row b). A member who chose a daily template ("Daily notes start from", since
+    # follow-up C in Manage templates' Plain templates group, reached from the template sheet's Change link) and watches a name drafts Today's recap on a day with NO note (New >
+    # Draft a review > Today's recap: the brief's recap card waits for 16:05 ET). The door makes today's note FROM THAT
+    # TEMPLATE and with the plan lines, then appends the recap: one note holding the template's words and the plan's
+    # line, the recap heading after both.
+    TPL_MARK = "Morning routine from my own template"
+
+    def d_recap_template():
+        cR, emailR, meR, iR, pR = new_member("c2rtp", "1280")
+        try:
+            doc = {"type": "doc", "content": [
+                {"type": "heading", "attrs": {"level": 2}, "content": [{"type": "text", "text": "Before the open"}]},
+                {"type": "paragraph", "content": [{"type": "text", "text": TPL_MARK}]}]}
+            st_n, src = C.api(cR, iR, "POST", base, "/api/j2/notes", {"title": "My day template source", "bodyJson": doc})
+            src_id = ((src or {}).get("note") or src or {}).get("id") if isinstance(src, dict) else None
+            tname = f"My daily start {int(time.time()) % 100000}"
+            st_t, tpl = C.api(cR, iR, "POST", base, "/api/j2/note-templates", {"noteId": src_id, "name": tname})
+            tpl_id = ((tpl or {}).get("template") or {}).get("id") if isinstance(tpl, dict) else None
+            wl_st, wl = C.api(cR, iR, "POST", base, "/api/watchlists", {"name": "My names"})
+            wl_id = ((wl or {}).get("watchlist") or wl or {}).get("id") if isinstance(wl, dict) else None
+            if wl_id:
+                C.api(cR, iR, "POST", base, f"/api/watchlists/{wl_id}/items", {"sym": "NVDA"})
+            at(pR, base, "/journal/notebook", first_run=True)
+            chose, err0 = False, None
+            try:
+                # Follow-up C: the control lives in Manage templates' Plain templates group; the New note sheet's "Your
+                # templates" says "Daily notes start from: A blank page. Change", and Change opens the manager at the control.
+                open_templates(pR)
+                pR.get_by_role("button", name=DAILY_CHANGE_LINK, exact=True).first.click(timeout=20000)
+                pick = pR.get_by_role("dialog", name="Manage templates").get_by_label("Daily notes start from")
+                pick.first.wait_for(state="visible", timeout=20000)
+                with pR.expect_response(lambda r: r.request.method == "POST" and "/api/auth/preferences" in r.url, timeout=15000):
+                    pick.first.select_option(label=tname)
+                chose = True
+                pR.keyboard.press("Escape")
+            except Exception as e:  # noqa: BLE001
+                err0 = str(e)[:300]
+            pr = cR.request.get(base + "/api/auth/preferences")
+            stored = (pr.json() if pr.status == 200 else {}).get("notebook_daily_template")
+            stored_id = json.loads(stored) if isinstance(stored, str) and stored.startswith('"') else stored
+            t0 = cR.request.get(base + "/api/j2/notes/today?make=0")
+            before_id = ((t0.json() if t0.status == 200 else {}).get("todayNote") or {}).get("id")
+            n_before = len(C.notes_list(cR, base))
+            made, text, err = None, "", None
+            try:
+                C.goto(pR, base, "/journal/notebook")
+                pR.wait_for_timeout(1500)
+                caret = pR.get_by_role("button", name="More ways to start a note", exact=True)
+                C.vis_loc(caret, 30000)
+                caret.first.click()
+                pR.get_by_role("menuitem", name=DRAFT_REVIEW_ROW, exact=True).first.click(timeout=15000)
+                pR.get_by_role("menuitem", name=REVIEW_LABELS["daily"], exact=True).first.click(timeout=15000)
+                pR.wait_for_url(lambda u: "note=" in u, timeout=60000)
+                made = pR.url.split("note=")[-1].split("&")[0]
+                pR.locator(".ProseMirror").first.wait_for(state="visible", timeout=30000)
+                pR.wait_for_timeout(1500)
+                text = pR.locator(".ProseMirror").first.inner_text()
+            except Exception as e:  # noqa: BLE001
+                err = str(e)[:300]
+            t1 = cR.request.get(base + "/api/j2/notes/today?make=0")
+            today_id = ((t1.json() if t1.status == 200 else {}).get("todayNote") or {}).get("id")
+            n_after = len(C.notes_list(cR, base))
+            n = note_json(made) if made else {}
+            flat = re.sub(r"\s+", " ", text or "")
+            m_recap = re.search(r"(Today.s recap|Recap) —", flat)     # reviewDrafts.js recapHeading
+            i_mark, i_plan, i_recap = flat.find(TPL_MARK), flat.find("NVDA"), (m_recap.start() if m_recap else -1)
+            # The plan's lines sit ABOVE the template's body when the template has no "Today's plan" heading of its own
+            # (note_daily.merge_seed, by design; measured on the held sandbox, attach run 1): the walk asks for both,
+            # and for the recap after both.
+            ok = (chose and stored_id == tpl_id and bool(tpl_id) and not before_id and made and made == today_id
+                  and n_after - n_before == 1 and i_mark >= 0 and i_plan >= 0 and i_recap > max(i_mark, i_plan))
+            C.step(pR, iR, "discover.recap-template", "with a daily template chosen, Draft a review > Today's recap on a day with no note makes today's note from that template with the plan lines, then the recap",
+                   "PASS" if ok else "FAIL", template_status=st_t, template=tpl_id, chose_in_sheet=chose, stored_pref=stored_id,
+                   today_before=before_id, note=made, today_after=today_id, notes_before=n_before, notes_after=n_after,
+                   daily_date=n.get("dailyDate") or n.get("daily_date"), template_words_at=i_mark, plan_name_at=i_plan, recap_at=i_recap,
+                   text_head=flat[:600], reach_error=err0 or err)
+        finally:
+            cR.close()
+
+    def view_rows(menu):
+        return [re.sub(r"\s+", " ", t).strip() for t in menu.locator('[role="menuitem"], [role="menuitemradio"]').all_inner_texts()]
+
+    def mode_shown(p_, mode):
+        """What the page itself says is open: the View button's words, and the view's own element."""
+        trig = p_.locator('[data-tour="view-switcher"]').filter(visible=True)
+        words = re.sub(r"\s+", " ", trig.first.inner_text()).strip() if trig.count() else None
+        marker = ('[aria-label^="Note graph:"], [role="status"][aria-label="Loading the graph…"]' if mode == "Graph"
+                  else '[role="group"][aria-label="Zoom"]')
+        drawn = C.vis(p_, marker, 15000)
+        return {"trigger": words, "view_drawn": drawn, "ok": words == f"View: {mode}" and drawn}
+
+    # ── discover.more-views (1280, and 390 for the second view's fit) ──────────────────────────────
+    # Simplify pass 2 (C1; review checks f and g). Graph and Timeline are not in the View menu's first view; "More views"
+    # opens them as its second view; each opens its view. `?view=graph` / `?view=timeline` links and a saved view of type
+    # Graph still open them directly. At 390 the second view sits inside the window, clear of the floating "+".
+    def d_more_views():
+        cV, emailV, meV, iV, pV = new_member("c2mvw", "1280")
+        c9 = None
+        try:
+            C.api(cV, iV, "POST", base, "/api/j2/notes", {"title": "A note for the views", "bodyJson": TEXT_DOC})
+            at(pV, base, "/journal/notebook", first_run=True)
+            trig = pV.locator('[data-tour="view-switcher"]').filter(visible=True)
+            C.vis_loc(trig, 30000)
+            menu = pV.get_by_role("menu", name="View")
+            got = {}
+            for mode in ("Graph", "Timeline"):
+                C.goto(pV, base, "/journal/notebook")
+                C.vis_loc(trig, 30000)
+                C.press_through(pV, trig.first)
+                C.vis_loc(menu, 8000)
+                first_view = view_rows(menu)
+                menu.get_by_role("menuitem", name=MORE_VIEWS_ROW, exact=True).first.click(timeout=8000)
+                pV.wait_for_timeout(300)
+                second_view = view_rows(menu)
+                menu.get_by_role("menuitemradio", name=mode, exact=True).first.click(timeout=8000)
+                pV.wait_for_timeout(800)
+                got[mode] = {"first_view": first_view, "second_view": second_view, **mode_shown(pV, mode)}
+            links = {}
+            for mode in ("Graph", "Timeline"):
+                C.goto(pV, base, f"/journal/notebook?view={mode.lower()}")
+                pV.wait_for_timeout(1500)
+                links[mode] = mode_shown(pV, mode)
+            sv_st, sv_body = C.api(cV, iV, "POST", base, "/api/j2/saved-views", {"name": "My note graph", "viewType": "graph", "spec": {}})
+            C.goto(pV, base, "/journal/notebook")
+            C.vis_loc(trig, 30000)
+            C.press_through(pV, trig.first)
+            C.vis_loc(menu, 8000)
+            saved_open = None
+            try:
+                menu.locator('[role="menuitem"], [role="menuitemradio"]').filter(has_text="My note graph").first.click(timeout=8000)
+                pV.wait_for_timeout(800)
+                saved_open = mode_shown(pV, "Graph")
+            except Exception as e:  # noqa: BLE001
+                saved_open = {"ok": False, "error": str(e)[:200]}
+            menu_ok = all(m not in g["first_view"] and MORE_VIEWS_ROW in g["first_view"] and m in g["second_view"] and g["ok"]
+                          for m, g in got.items())
+            C.step(pV, iV, "discover.more-views", "View menu: Graph and Timeline are under More views (its second view) and each opens its view; ?view= links and a saved Graph view open them directly",
+                   "PASS" if menu_ok and all(v["ok"] for v in links.values()) and (saved_open or {}).get("ok") and sv_st in (200, 201) else "FAIL",
+                   menu=got, links=links, saved_view_create=sv_st, saved_view_opens=saved_open)
+            # 390: the second view's fit (review check g)
+            c9, i9, p9 = phone_of(cV)
+            at(p9, base, "/journal/notebook")
+            t9 = p9.locator('[data-tour="view-switcher"]').filter(visible=True)
+            C.vis_loc(t9, 30000)
+            C.press_through(p9, t9.first)
+            m9 = p9.get_by_role("menu", name="View")
+            C.vis_loc(m9, 8000)
+            row9 = m9.get_by_role("menuitem", name=MORE_VIEWS_ROW, exact=True).first
+            row9.scroll_into_view_if_needed(timeout=3000)
+            row9.click(timeout=8000)
+            p9.wait_for_timeout(400)
+            sv = second_view_fit(p9, m9)
+            C.step(p9, i9, "discover.second-view-390", "390 px: View > More views shows Back, Graph and Timeline inside the window, its last row clear of the floating +",
+                   "PASS" if sv["ok"] and sv["names"][1:] == ["Graph", "Timeline"] else "FAIL", **sv, scope=["[role=menu]"])
+            p9.keyboard.press("Escape")
+        finally:
+            for c_ in (c9, cV):
+                if c_ is not None:
+                    c_.close()
+
+    # ── discover.note-second-views (1280 cold Export press; 390 Aa > Font and More > Export fit) ────
+    # Simplify pass 2 (C3; review checks d and g). The formats' menu is an on-demand chunk: a press on More > Export right
+    # after a page load, while that chunk is held back, is not lost: the formats appear once it lands. At 390 the Aa
+    # menu's Font view and the More panel's Export view sit inside the window, clear of the floating "+".
+    # The More panel's Export row as the page draws it: its words and aria-busy (NoteExportControls.jsx's trigger).
+    EXPORT_ROW_JS = r"""(g) => { const b = [...g.querySelectorAll('button[aria-haspopup="menu"]')]
+        .find(x => /^Export/.test((x.innerText || '').trim()));
+      return b ? { text: (b.innerText || '').trim(), busy: b.getAttribute('aria-busy') } : null }"""
+
+    def d_note_second_views():
+        cN, emailN, meN, iN, pN = new_member("c2nsv", "1280")
+        c9 = None
+        try:
+            st, body = C.api(cN, iN, "POST", base, "/api/j2/notes", {"title": "A note to export", "bodyJson": TEXT_DOC})
+            nid = ((body or {}).get("note") or body or {}).get("id") if isinstance(body, dict) else None
+            at(pN, base, "/journal/notebook", first_run=True)
+            held = []
+            chunk_re = re.compile(r"/assets/NoteExportMenu[-.][^/]*\.js")
+            pN.route(chunk_re, lambda route: held.append(route))
+            t0 = time.time()
+            C.goto(pN, base, f"/journal/notebook?note={nid}", ".ProseMirror")
+            more = pN.locator("[data-more-trigger]").filter(visible=True)
+            C.vis_loc(more, 15000)
+            more.first.click()
+            panel = pN.get_by_role("group", name=MORE_NOTE_ACTIONS)
+            exp = panel.get_by_role("button", name="Export", exact=True)
+            C.vis_loc(exp, 8000)
+            exp.first.click()
+            pressed_at = round(time.time() - t0, 2)
+            # Pass 2 final fix (M8; final-fix row d): the press is answered AT ONCE on the row itself ("Export…" with
+            # aria-busy) while the chunk is held, read right after the press.
+            busy_now = panel.first.evaluate(EXPORT_ROW_JS)
+            pN.wait_for_timeout(2000)    # the chunk is held: the press must wait for it, not be dropped
+            busy_later = panel.first.evaluate(EXPORT_ROW_JS)
+            held_n = len(held)
+            pN.unroute(chunk_re)
+            for r_ in held:
+                try:
+                    r_.continue_()
+                except Exception:  # noqa: BLE001
+                    pass
+            fm = pN.get_by_role("menu", name=EXPORT_MENU_NAME)
+            appeared = C.vis_loc(fm, 15000)
+            formats = view_rows(fm) if appeared else []
+            C.step(pN, iN, "discover.note-second-views", "a cold press on the note's More > Export (its chunk held back) is not lost: the formats appear once the chunk lands",
+                   "PASS" if appeared and held_n >= 1 and len(formats) >= 6 else "FAIL", pressed_s_after_load=pressed_at,
+                   chunk_requests_held=held_n, formats=formats, scope=["[role=menu]"])
+            busy_ok = all((b or {}).get("text") == EXPORT_WAITING and (b or {}).get("busy") == "true" for b in (busy_now, busy_later))
+            C.step(pN, iN, "discover.note-second-views", f"that cold press shows a busy cue on the row at once ('{EXPORT_WAITING}', aria-busy) until the formats come",
+                   "PASS" if busy_ok and appeared else "FAIL", row_right_after_press=busy_now, row_after_2s=busy_later,
+                   expected_text=EXPORT_WAITING, formats_appeared=appeared, scope=["[role=group]"])
+            pN.keyboard.press("Escape")
+            # ArrowRight on the Export row opens the formats (the row shows a chevron, as the menu engine's second-view
+            # rows do). Reached by the keyboard: a fresh load, More opened, Tab until Export holds focus (the More panel is
+            # a disclosure, lib/useDisclosureFocus.js: focus moves in on open and Tab walks its rows; ArrowDown does not).
+            kb, kerr = {}, None
+            try:
+                C.goto(pN, base, f"/journal/notebook?note={nid}", ".ProseMirror")
+                more.first.wait_for(state="visible", timeout=15000)
+                more.first.click()
+                exp.first.wait_for(state="visible", timeout=8000)
+                on_export = False
+                for _ in range(16):
+                    on_export = pN.evaluate("() => /^Export/.test(((document.activeElement || {}).innerText || '').trim())")
+                    if on_export:
+                        break
+                    pN.keyboard.press("Tab")
+                    pN.wait_for_timeout(120)
+                kb["export_focused_by_tab"] = on_export
+                if on_export:
+                    pN.keyboard.press("ArrowRight")
+                    kb["formats_opened"] = C.vis_loc(fm, 15000)
+                    kb["formats"] = view_rows(fm) if kb["formats_opened"] else []
+            except Exception as e:  # noqa: BLE001
+                kerr = str(e)[:300]
+            C.step(pN, iN, "discover.note-second-views", "ArrowRight on the More panel's Export row opens the formats",
+                   "PASS" if kb.get("formats_opened") and len(kb.get("formats") or []) >= 6 else "FAIL", **kb, reach_error=kerr,
+                   scope=["[role=menu]"])
+            pN.keyboard.press("Escape")
+            # A failed load says so beside Export, with a Reload the member presses (never "export failed", never an
+            # automatic reload): a fresh page whose formats' chunk cannot load.
+            pF, fail = None, {}
+            try:
+                pF = cN.new_page()
+                pF.route(chunk_re, lambda route: route.abort())
+                C.goto(pF, base, f"/journal/notebook?note={nid}", ".ProseMirror")
+                mF = pF.locator("[data-more-trigger]").filter(visible=True)
+                C.vis_loc(mF, 15000)
+                mF.first.click()
+                eF = pF.get_by_role("group", name=MORE_NOTE_ACTIONS).get_by_role("button", name="Export", exact=True)
+                C.vis_loc(eF, 8000)
+                eF.first.click()
+                alert = pF.get_by_role("alert").filter(has_text=EXPORT_UNAVAILABLE)
+                fail["alert"] = C.vis_loc(alert, 20000)
+                fail["reload_button"] = C.vis_loc(alert.get_by_role("button", name="Reload", exact=True), 3000) if fail["alert"] else False
+                fail["still_on_note"] = "note=" in pF.url
+                fail["old_words"] = pF.get_by_text("export failed").count()
+            except Exception as e:  # noqa: BLE001
+                fail["reach_error"] = str(e)[:300]
+            finally:
+                if pF is not None:
+                    pF.close()
+            C.step(pN, iN, "discover.note-second-views", f"a formats chunk that cannot load says '{EXPORT_UNAVAILABLE}' beside Export with a Reload button",
+                   "PASS" if fail.get("alert") and fail.get("reload_button") and fail.get("still_on_note") and not fail.get("old_words") else "FAIL",
+                   expected=EXPORT_UNAVAILABLE, **fail, shot=False)
+            # 390: the two note second views
+            c9, i9, p9 = phone_of(cN)
+            at(p9, base, f"/journal/notebook?note={nid}", ".ProseMirror")
+            aa = p9.locator("[data-more-formatting]").filter(visible=True)
+            via_format = False
+            if not C.vis_loc(aa, 5000):
+                fmt = p9.get_by_role("button", name="Format", exact=True).filter(visible=True)
+                if C.vis_loc(fmt, 5000):
+                    fmt.first.click()
+                    via_format = True
+                    p9.wait_for_timeout(500)
+            fit_font = {"ok": False, "names": [], "error": "no Aa button on screen"}
+            if C.vis_loc(aa, 5000):
+                aa.first.click()
+                fmenu = p9.get_by_role("menu", name=MORE_FORMATTING)
+                C.vis_loc(fmenu, 8000)
+                fmenu.get_by_role("menuitem", name="Font", exact=True).first.click(timeout=8000)
+                p9.wait_for_timeout(400)
+                fit_font = second_view_fit(p9, fmenu)
+                fit_font["door"] = "Aa menu > Font (second view)"
+            elif via_format:
+                # Measured at 390 (attach run 1): the phone's "Format" ("Aa" in the row) opens the format row in place,
+                # whose font is the native select "Font family" (the platform's own picker), not the Aa menu: there is no
+                # second view to measure. The select itself is measured instead: inside the window, uncovered, above "+".
+                sel = p9.get_by_role("combobox", name="Font family").filter(visible=True)
+                if C.vis_loc(sel, 5000):
+                    c_ = sel.first.evaluate(COVER_JS)
+                    fab = p9.locator("[data-notebook-plus]").filter(visible=True)
+                    fr = fab.first.evaluate("(e) => { const b = e.getBoundingClientRect(); return { top: b.top } }") if fab.count() else None
+                    opts = sel.first.evaluate("(e) => [...e.options].map(o => o.text)")
+                    ok_ = bool(c_.get("inside_x") and c_.get("above_fold") and c_.get("uncovered")
+                               and (fr is None or c_["rect"]["bottom"] <= fr["top"]))
+                    fit_font = {"ok": ok_, "names": opts, "door": "Format row > Font family (native select)", "select": c_,
+                                "plus_button": fr}
+            C.step(p9, i9, "discover.second-view-390", "390 px: the font choice (Aa > Font, or on a phone the Format row's Font family) is inside the window, clear of the floating +",
+                   "PASS" if fit_font["ok"] and len(fit_font["names"]) >= 2 else "FAIL", reached_through_format=via_format,
+                   **fit_font, scope=["[role=menu]"])
+            p9.keyboard.press("Escape")
+            p9.keyboard.press("Escape")
+            at(p9, base, f"/journal/notebook?note={nid}", ".ProseMirror")
+            m9 = p9.locator("[data-more-trigger]").filter(visible=True)
+            fit_exp = {"ok": False, "names": [], "error": "no More button on screen"}
+            if C.vis_loc(m9, 15000):
+                m9.first.click()
+                e9 = p9.get_by_role("group", name=MORE_NOTE_ACTIONS).get_by_role("button", name="Export", exact=True)
+                if C.vis_loc(e9, 8000):
+                    e9.first.scroll_into_view_if_needed(timeout=3000)
+                    e9.first.click()
+                    em = p9.get_by_role("menu", name=EXPORT_MENU_NAME)
+                    C.vis_loc(em, 15000)
+                    p9.wait_for_timeout(400)
+                    fit_exp = second_view_fit(p9, em)
+            C.step(p9, i9, "discover.second-view-390", "390 px: the note's More > Export shows Back and the formats inside the window, its last row clear of the floating +",
+                   "PASS" if fit_exp["ok"] and len(fit_exp["names"]) >= 7 else "FAIL", **fit_exp, scope=["[role=menu]"])
+        finally:
+            for c_ in (c9, cN):
+                if c_ is not None:
+                    c_.close()
+
+    # ── discover.plus-ask-390 (390) ────────────────────────────────────────────────────────────────
+    # Simplify pass 2 (A8 and its fix round; review check a). From an open note, the floating "+" > "Ask your Notebook"
+    # goes to the notes list with the Notebook's Ask open and focus in its question field, in one press; closing Ask
+    # hands focus back to the "+" ("Add to your notebook").
+    ACTIVE_JS = r"""() => { const a = document.activeElement; if (!a) return null;
+      return { tag: a.tagName.toLowerCase(), label: a.getAttribute('aria-label'), placeholder: a.getAttribute('placeholder'),
+               plus: a.hasAttribute('data-notebook-plus') } }"""
+
+    def d_plus_ask_390():
+        cP, emailP, meP, iP, pP = new_member("c2pak", "390")
+        try:
+            st, body = C.api(cP, iP, "POST", base, "/api/j2/notes", {"title": "A note to ask from", "bodyJson": TEXT_DOC})
+            nid = ((body or {}).get("note") or body or {}).get("id") if isinstance(body, dict) else None
+            at(pP, base, "/journal/notebook", first_run=True)
+            at(pP, base, f"/journal/notebook?note={nid}", ".ProseMirror")
+            plus = pP.locator("[data-notebook-plus]").filter(visible=True)
+            shown = C.vis_loc(plus, 15000)
+            row = pP.get_by_role("button", name="Ask your Notebook", exact=True)
+            focus_in, url_after, ask_open, focus_back, err = None, None, False, None, None
+            try:
+                C.press_through(pP, plus.first)
+                row.first.wait_for(state="visible", timeout=10000)
+                row.first.click()
+                field = pP.locator('[placeholder^="What have I written about"]').filter(visible=True)
+                ask_open = C.vis_loc(field, 15000)
+                pP.wait_for_timeout(1200)
+                focus_in = pP.evaluate(ACTIVE_JS)
+                url_after = pP.url.split(base)[-1]
+                pP.get_by_role("button", name="Close Ask", exact=True).filter(visible=True).first.click(timeout=8000)
+                pP.wait_for_timeout(800)
+                focus_back = pP.evaluate(ACTIVE_JS)
+            except Exception as e:  # noqa: BLE001
+                err = str(e)[:300]
+            on_list = bool(url_after) and "note=" not in url_after and "/journal/notebook" in url_after
+            in_field = bool(focus_in) and (focus_in.get("placeholder") or "").startswith("What have I written about")
+            C.step(pP, iP, "discover.plus-ask-390", "390 px, from an open note: + > Ask your Notebook lands on the notes list with Ask open and focus in its field; closing Ask returns focus to +",
+                   "PASS" if shown and ask_open and on_list and in_field and (focus_back or {}).get("plus") else "FAIL",
+                   plus_shown=shown, ask_open=ask_open, url_after=url_after, focus_after_press=focus_in,
+                   focus_after_close=focus_back, reach_error=err)
+        finally:
+            cP.close()
+
+    # ── discover.insert-palette (1280) ─────────────────────────────────────────────────────────────
+    # Simplify pass 2 (C4). The Insert palette's last group (the market snapshots) is not drawn until "Show all" at the
+    # foot of the list is pressed; the press draws it and puts focus on its first row.
+    PALETTE_JS = r"""() => { const SHOW_ALL = %s; const d = document.querySelector('[role=dialog][aria-label="Insert widget"]'); if (!d) return null;
+      const a = document.activeElement;
+      return { groups: [...d.querySelectorAll('[role=group]')].map(g => g.getAttribute('aria-label')),
+               show_all: !!d.querySelector('[aria-label="' + SHOW_ALL + '"]'),
+               focus: a ? { text: (a.innerText || '').trim().slice(0, 40), group: a.closest('[role=group]')?.getAttribute('aria-label') || null } : null } }""" % json.dumps(PALETTE_SHOW_ALL)
+
+    def d_insert_palette():
+        cI, emailI, meI, iI, pI = new_member("c2pal", "1280")
+        try:
+            st, body = C.api(cI, iI, "POST", base, "/api/j2/notes", {"title": "A note to insert into", "bodyJson": TEXT_DOC})
+            nid = ((body or {}).get("note") or body or {}).get("id") if isinstance(body, dict) else None
+            at(pI, base, "/journal/notebook", first_run=True)
+            at(pI, base, f"/journal/notebook?note={nid}", ".ProseMirror")
+            door = pI.locator('[data-tour="note-toolbar"]').get_by_role("button", name=re.compile(r"^Insert( widget)?$")).filter(visible=True)
+            before, after, err = None, None, None
+            try:
+                door.first.click(timeout=10000)
+                pI.get_by_role("dialog", name="Insert widget").first.wait_for(state="visible", timeout=15000)
+                pI.get_by_role("button", name=PALETTE_SHOW_ALL, exact=True).first.wait_for(state="visible", timeout=15000)
+                before = pI.evaluate(PALETTE_JS)
+                pI.get_by_role("button", name=PALETTE_SHOW_ALL, exact=True).first.click()
+                pI.wait_for_timeout(500)
+                after = pI.evaluate(PALETTE_JS)
+            except Exception as e:  # noqa: BLE001
+                err = str(e)[:300]
+            new_groups = [g for g in ((after or {}).get("groups") or []) if g not in ((before or {}).get("groups") or [])]
+            ok = (before and before["show_all"] and after and not after["show_all"] and len(new_groups) == 1
+                  and (after.get("focus") or {}).get("group") == new_groups[0])
+            C.step(pI, iI, "discover.insert-palette", "the Insert palette keeps the market snapshots behind Show all at its foot; Show all draws them and puts focus on the first",
+                   "PASS" if ok else "FAIL", before=before, after=after, new_group=new_groups, reach_error=err,
+                   scope=['[role=dialog][aria-label="Insert widget"]'])
+            pI.keyboard.press("Escape")
+            # Pass 2 final fix (M9; final-fix row f): at 390 the palette's button is named "Show all widgets" too (the
+            # dialog is "Insert widget"; its visible words stay "Show all"). The touch row's "Insert widget" opens it.
+            c9, i9, p9 = phone_of(cI)
+            try:
+                at(p9, base, f"/journal/notebook?note={nid}", ".ProseMirror")
+                d9 = p9.locator('[data-tour="note-toolbar"]').get_by_role("button", name=re.compile(r"^Insert( widget)?$")).filter(visible=True)
+                got9, err9 = {}, None
+                try:
+                    d9.first.scroll_into_view_if_needed(timeout=5000)
+                    d9.first.click(timeout=10000)
+                    # At 390 the row's "+" opens the phone's Insert sheet (Image, Attach a file, Scan with camera, then
+                    # PHONE_PALETTE_ROW): that row is the palette's door there (NoteEditorPage.jsx).
+                    row9 = p9.get_by_role("button", name=PHONE_PALETTE_ROW, exact=True).filter(visible=True)
+                    if C.vis_loc(row9, 5000):
+                        got9["door"] = f"+ > {PHONE_PALETTE_ROW}"
+                        row9.first.click(timeout=10000)
+                    p9.get_by_role("dialog", name="Insert widget").first.wait_for(state="visible", timeout=15000)
+                    b9 = p9.get_by_role("dialog", name="Insert widget").get_by_role("button", name=PALETTE_SHOW_ALL, exact=True)
+                    got9["named_button"] = C.vis_loc(b9, 10000)
+                    got9["words"] = b9.first.inner_text().strip() if got9["named_button"] else None
+                    got9["old_name"] = p9.get_by_role("button", name="Show all blocks", exact=True).count()
+                    got9.update(p9.evaluate(PALETTE_JS) or {})
+                except Exception as e:  # noqa: BLE001
+                    err9 = str(e)[:300]
+                C.step(p9, i9, "discover.insert-palette", f"390 px: the Insert palette's Show all button is named '{PALETTE_SHOW_ALL}' (its words stay Show all)",
+                       "PASS" if got9.get("named_button") and (got9.get("words") or "").startswith("Show all") and not got9.get("old_name") else "FAIL",
+                       expected_name=PALETTE_SHOW_ALL, **got9, reach_error=err9, scope=['[role=dialog][aria-label="Insert widget"]'])
+                p9.keyboard.press("Escape")
+            finally:
+                c9.close()
+        finally:
+            cI.close()
+
     def discover():
         # Go-live wave 2: new-note-home -> new-note-list, setups-box -> setups-card, learn-groups -> help-walkthroughs
         # (Research home's split button, its setups box and the Learn menu were retired; each check now walks the door
@@ -4197,7 +5004,13 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
                  ("catalog", d_catalog), ("search-in-place", d_search_in_place),
                  ("chart-tour-no-deadend", d_chart_tour), ("chart-tour-no-deadend", d_chart_tour_nonotes),
                  ("voice-tour", d_voice_tour), ("get-started-template", d_get_started_template),
-                 ("phone-more-sample", d_phone_more_sample))
+                 ("phone-more-sample", d_phone_more_sample),
+                 # Simplify pass 2 (Task 4): the Daily brief makes nothing until pressed (B1, B4, B5, check e); Graph and
+                 # Timeline under More views (C1, check f); the cold Export press and the 390 second views (C3, check d, g).
+                 ("daily-brief", d_daily_brief), ("more-views", d_more_views), ("note-second-views", d_note_second_views),
+                 # Pass 2 final fix, part 2: the recap door with a daily template on a day with no note (I1, row b).
+                 ("recap-template", d_recap_template),
+                 ("plus-ask-390", d_plus_ask_390), ("insert-palette", d_insert_palette))
         for name, fn in doors:
             HOLD.clear()
             try:
@@ -4215,6 +5028,13 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
         C.step(None, inst, "discover.coverage", f"every one of the {len(want)} door features left a row in the record",
                "PASS" if not missing else "FAIL", doors=want, missing=missing, shot=False)
     run("discover", discover)
+
+    # ── follow-ups A to D (2026-11-13): tools/notebook_fin_walk_followups.py, every check on its own member ──────────
+    def followups():
+        import notebook_fin_walk_followups as fu
+        fu.run({"C": C, "base": base, "inst": inst, "cfg": cfg, "S": S, "new_member": new_member, "at": at,
+                "phone_of": phone_of, "HOLD": HOLD, "open_templates": open_templates, "cover_js": COVER_JS})
+    run("followups", followups)
 
     # ── remove the sample in one click; nothing of it remains ───────────────────────────
     def remove():
@@ -4237,7 +5057,7 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
         # row "Remove the sample notebook" (wave 1, A7), and the list's status line says what happened. One press
         # on the row (opening the menu is the door's first press, as for any menu row).
         home()
-        clicks, msg, hold_seen = 0, None, None
+        clicks, msg, hold_seen, blocked_seen = 0, None, None, None
         there = more_menu_has(pg, SAMPLE_REMOVE_ROW, press=True)
         removed_line = False
         if there:
@@ -4248,6 +5068,13 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
             # Final fix (C1, section D): the designed hold names a note whose changes have not finished saving. The step
             # waits and presses again ONCE, and records that it had to (an INFO row plus `hold_seen` on the verdict row).
             hold = [s for s in status if SAMPLE_HELD_ONE in s or SAMPLE_HELD_MANY in s]
+            # Simplify pass 2 (D2): a BLOCKED sample note has words of its own whose remedy is one more edit, which a
+            # wait cannot give; it is recorded (INFO + `blocked_hold_seen` on the verdict row) and the verdict stays FAIL.
+            blocked = [s for s in status if SAMPLE_BLOCKED_ONE in s or SAMPLE_BLOCKED_MANY in s]
+            if not removed_line and blocked:
+                blocked_seen = blocked[0][:300]
+                C.step(pg, inst, "remove sample", "the blocked-note hold appeared (its remedy is an edit, not a wait)", "INFO",
+                       message=blocked_seen)
             if not removed_line and hold:
                 hold_seen = hold[0][:300]
                 C.step(pg, inst, "remove sample", "the designed hold appeared: the step waits and presses again once", "INFO",
@@ -4275,7 +5102,7 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
                "PASS" if (there and (clicks == 1 or (hold_seen and clicks == 2)) and removed_line and row_gone and not left
                           and not (after.get("activeIds") or [])) else "FAIL",
                more_menu_row=there, removed_line=removed_line, row_gone_after=row_gone, clicks=clicks, hold_seen=hold_seen,
-               message=msg, active_before=len(before.get("activeIds") or []), active_after=len(after.get("activeIds") or []),
+               blocked_hold_seen=blocked_seen, message=msg, active_before=len(before.get("activeIds") or []), active_after=len(after.get("activeIds") or []),
                notes_left=[n.get("title") for n in left])
         pg.wait_for_timeout(1500)
         leftovers = {}

@@ -145,6 +145,47 @@ PHASE3_MIN_BARS: Dict[str, int] = {
 #: :func:`_weekly_quadrant`): 260 sessions is ~52 weeks, almost four times the
 #: 14 the newest quadrant reads.
 RRG_DAILY_TAIL = 260
+
+# ── RS Exit Warnings (2026-11-13): five columns, the chart's `rsExit` study ─
+#
+# Mike Webster's Quick Break / Quicksand / Grateful Dead Break on the RS line,
+# DAILY bars against SPY at the daily auto lengths (21 / 50 simple averages of
+# the RS line, `relative_strength.resolve_exit_lengths("D")`). NO MATHS HERE
+# EITHER: the events are `relative_strength.compute_rs_exit_columns` over the
+# RS line phase 1 already drew (`rs_values=`, one join), the ages
+# `bars_ago_column`, the newest-and-worst `rs_exit_latest` — the functions the
+# chart's dots and legend read, so a scan and the chart name the same warning.
+# Written by the same RS_V2-gated `bars_rs` step as the ten (they are part of
+# that family: `filters.rs_dark_keys` darkens them with it).
+#
+# Why five and not two: `rs_exit_last` names only the NEWEST warning, so a
+# Grateful Dead Break yesterday hides a Quicksand three days ago. "Quicksand in
+# the last 5 sessions" needs Quicksand's own age; "any warning in the last 10"
+# is `rs_exit_bars_ago`. The three per-warning ages are the minimal set that
+# makes every "warning X within N sessions" screen answerable.
+EXIT_COLUMNS = (
+    "rs_exit_last",              # TEXT: Quick Break | Quicksand | Grateful Dead Break (newest; worse on a tie)
+    "rs_exit_bars_ago",          # sessions since that newest warning (0 = the newest bar)
+    "rs_quick_break_bars_ago",   # sessions since the last Quick Break
+    "rs_quicksand_bars_ago",     # sessions since the last Quicksand
+    "rs_dead_break_bars_ago",    # sessions since the last Grateful Dead Break
+)
+EXIT_TEXT_COLUMNS = frozenset({"rs_exit_last"})
+#: The values `rs_exit_last` can hold, mildest first (the order the warnings
+#: arrive in a typical cycle): the writer's own words, read by the screener's
+#: enum filter rather than retyped there.
+EXIT_NAMES = tuple(rs.RS_EXIT_LABELS[k] for k in rs.RS_EXIT_EVENT_COLUMNS)
+#: Each per-warning age column and the `rs_exit_events` column it counts back to.
+EXIT_AGE_EVENTS: Dict[str, str] = {
+    "rs_quick_break_bars_ago": "quickBreak",
+    "rs_quicksand_bars_ago": "quicksand",
+    "rs_dead_break_bars_ago": "deadBreak",
+}
+EXIT_FAST, EXIT_SLOW = rs.resolve_exit_lengths("D")   # 21 / 50, the chart's daily auto pair
+#: The slow average's warm-up plus the bar before a cross: below this no
+#: Grateful Dead Break can be judged, so no column claims "nothing fired".
+EXIT_MIN_BARS = EXIT_SLOW + 1
+
 #: Per-column outcomes counted into ``stats`` (the builder's
 #: ``sources["bars_rs"]``) when a Phase 3 column comes back ``None``:
 #: ``phase3_short:<col>`` when the history is below :data:`PHASE3_MIN_BARS`,
@@ -426,15 +467,36 @@ def _blank() -> dict:
         "mansfield": None,
         "mansfield_cross_bars_ago": None,
         "rs_benchmark_agree": None,
+        **{c: None for c in EXIT_COLUMNS},
     }
+
+
+def _exit_values(win: list, spy: list, rs_spy: list) -> dict:
+    """The five RS Exit Warning columns for one ticker's daily window (see
+    :data:`EXIT_COLUMNS`): every value read off `relative_strength`'s columns.
+    ``None`` throughout below :data:`EXIT_MIN_BARS`; an age is ``None`` when its
+    warning has not fired inside the window, and `rs_exit_last` is ``None`` when
+    none has."""
+    out = {c: None for c in EXIT_COLUMNS}
+    if len(win) < EXIT_MIN_BARS:
+        return out
+    cols = rs.compute_rs_exit_columns(win, spy, EXIT_FAST, EXIT_SLOW, rs_values=rs_spy)
+    for col, event in EXIT_AGE_EVENTS.items():
+        out[col] = _int(rs.bars_ago_column(cols[event])[-1])
+    kind, idx = rs.rs_exit_latest(cols)
+    if kind is not None:
+        out["rs_exit_last"] = rs.RS_EXIT_LABELS[kind]
+        out["rs_exit_bars_ago"] = len(win) - 1 - idx
+    return out
 
 
 def collect_one(bars, spy_bars, rsp_bars=None, *, session=None,
                 stats: Optional[dict] = None, phase3: bool = False,
                 full=None, weekly_cache: Optional[dict] = None,
                 timing: Optional[dict] = None) -> dict:
-    """The ten columns for ONE ticker — ``{column: value}``, every key present
-    (thirteen with ``phase3=True``: :data:`PHASE3_COLUMNS` as well).
+    """The ten columns for ONE ticker, plus the five :data:`EXIT_COLUMNS` —
+    ``{column: value}``, every key present (and :data:`PHASE3_COLUMNS` as well
+    with ``phase3=True``).
 
     ``bars`` is the ticker's daily window (the builder's sanitized 400 bars, or
     a float close list); ``spy_bars`` / ``rsp_bars`` the benchmark bar dicts
@@ -451,7 +513,8 @@ def collect_one(bars, spy_bars, rsp_bars=None, *, session=None,
     Phase 3 column lands in ``stats`` as ``phase3_short:<col>`` (history below
     :data:`PHASE3_MIN_BARS`) or ``phase3_none:<col>``, beside the row's own
     outcome; a row with no benchmark ratio at all is ``no_bench`` alone. With
-    ``phase3=False`` none of it runs and the result is exactly the ten keys.
+    ``phase3=False`` none of it runs and the result is exactly the ten keys and
+    the five exit keys.
 
     Never raises on a short or empty input; a malformed bar (no ``c``) is a
     ``None`` in every derived column, as everywhere in `relative_strength`.
@@ -513,6 +576,8 @@ def collect_one(bars, spy_bars, rsp_bars=None, *, session=None,
     values["mansfield"] = _real(mans["mansfield"][-1], MANSFIELD_DP)
     values["mansfield_cross_bars_ago"] = _int(mans["mansfieldCrossBarsAgo"][-1])
     values["rs_benchmark_agree"] = _flag(agree)
+    # RS Exit Warnings: the chart's rsExit maths over the line drawn above.
+    values.update(_exit_values(win, spy, rs_spy))
 
     # The window rule, applied once and explicitly: a column whose minimum the
     # window does not meet is None whatever came back (the maths already says

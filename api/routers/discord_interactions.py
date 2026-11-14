@@ -246,8 +246,8 @@ def run_buzz_job(app_id: str, token: str, ticker: str, window: str, now: int,
 
 def run_lesson_search_job(app_id: str, token: str, query: str, *, search_fn=None, edit_fn=None) -> None:
     """The far side of a `/lesson` defer: search the library and PATCH the
-    private reply. Never raises; a failure tells the member so instead of
-    leaving a spinner."""
+    reply (public: the defer decides that, not this job). Never raises; a
+    failure says so instead of leaving a spinner."""
     from api.services import tsdr_lessons
     search = search_fn or tsdr_lessons.search_lessons
     edit = edit_fn or di.edit_original
@@ -597,10 +597,12 @@ def _ephemeral(message: str) -> dict:
     return {"type": 4, "data": {"content": message, "flags": di.EPHEMERAL}}
 
 
-def _channel_nudge() -> dict:
-    """Private redirect when /chart or /flow is run outside the allowed channel."""
+def _channel_nudge(what: str = "chart & flow requests") -> dict:
+    """Private redirect when a channel-gated command is run outside the allowed
+    channel. `what` names what the member asked for, so someone who ran /buzz is
+    not told where to make "chart & flow requests"."""
     want = di.cmd_channel_id()
-    return _ephemeral(f"Please use <#{want}> for chart & flow requests." if want
+    return _ephemeral(f"Please use <#{want}> for {what}." if want
                       else "Not available in this channel.")
 
 
@@ -742,8 +744,10 @@ async def _dispatch_interaction(request: Request, background: BackgroundTasks):
     name = (interaction.get("data") or {}).get("name")
     if itype == 4:
         if name == tx_news.NEWS_COMMAND:
+            # /news has its own picker: stocks only, in the form the command accepts.
+            # /chart's helper also offers breadth series and a "chart it" fallback.
             q = di.parse_autocomplete(interaction).lstrip("$")
-            return _autocomplete(fetch_ticker_choices(q) if q else [])
+            return _autocomplete(tx_news.ticker_choices(q) if q else [])
         if name == di.BUZZ_COMMAND:
             # Backed by what the room ACTUALLY said, so an empty query is still
             # useful: it offers the most-mentioned names.
@@ -789,9 +793,21 @@ async def _dispatch_interaction(request: Request, background: BackgroundTasks):
                             quote_fn=fetch_ext_quote, components_fn=di.multi_components)
         return {"type": 5}
     if itype == 2 and name == di.LESSON_COMMAND:
-        # /lesson <about> - a PRIVATE search of the video-lesson library. Defer
-        # first (the search opens a database), work after; the flag on the defer
-        # is what keeps the reply to the member who asked.
+        # /lesson <about> - a search of the video-lesson library, answered IN THE
+        # CHANNEL (owner ruling 2026-11-13: "/lesson and /buzz visible to all";
+        # it was private before that). Defer first (the search opens a
+        # database), work after. ⛔ Visibility is fixed by the defer: Discord
+        # ignores flags on the later PATCH, so the bare `{"type": 5}` below is
+        # what makes the answer public. The throttle, the empty-query nudge and
+        # the missing-token refusal stay private: they are about one member.
+        #
+        # HELD TO THE COMMAND CHANNEL (owner ruling 2026-11-13, "just in UCT
+        # Intelligence"): the same allowlist /chart, /flow and /cot read
+        # (CHART_FLOW_CHANNEL_ID), so there is one list of where the bot
+        # answers. Checked BEFORE the throttle: a refusal must not cost the
+        # member the search they are about to run in the right channel.
+        if not di.cmd_channel_ok(interaction):
+            return _channel_nudge("/lesson")
         uid = di.interaction_user_id(interaction)
         wait = di.user_rate_check(uid)
         if wait:
@@ -806,7 +822,7 @@ async def _dispatch_interaction(request: Request, background: BackgroundTasks):
         if not app_id or not token:
             return _ephemeral("Discord did not supply a reply token.")
         background.add_task(run_lesson_search_job, app_id, token, query)
-        return {"type": 5, "data": {"flags": di.EPHEMERAL}}
+        return {"type": 5}
     if itype == 2 and name == di.STUDY_COMMAND:
         return study_feedback_reply(interaction)
     if itype == 2 and name == tx_news.NEWS_COMMAND:
@@ -838,19 +854,32 @@ async def _dispatch_interaction(request: Request, background: BackgroundTasks):
         # and `buzz_reply` were imported at the top of this branch and used before the
         # defer; both now live in `run_buzz_job`, past the ack. A first import of either
         # module is disk I/O on the ack path.
-        # ⛔ ON-DEMAND /buzz IS EPHEMERAL AND THROTTLED; the SCHEDULED post is
-        # neither. Owner ruling 2026-09-02. The two are different doors on
-        # purpose: the room gets the shared board seven times a session, and a
-        # member checking it in between does not put a second copy in front of
-        # 750 people. Nothing here can reach the scheduled path -- that one
-        # posts through discord_buzz_digest._post_as_bot (POST /channels/{id}/
-        # messages with the bot token), where message flags do not even apply.
+        # ⭐ ON-DEMAND /buzz IS PUBLIC AND THROTTLED. Owner ruling 2026-11-13:
+        # "/lesson and /buzz visible to all" -- the board (and a ticker lookup)
+        # lands in the channel it was asked in, for everyone there.
+        # ⚰️ From 2026-09-02 until then it was EPHEMERAL, so that a member
+        # checking the board between the scheduled posts did not put a second
+        # copy in front of the room. That cost is now accepted on purpose. The
+        # SCHEDULED post is a different door and is untouched: it goes through
+        # discord_buzz_digest._post_as_bot (POST /channels/{id}/messages with
+        # the bot token), where message flags do not even apply.
         #
         # The budget is SHARED with /chart rather than given its own: both end
         # up on the same 4-slot render valve, so one per-member budget is the
-        # honest model. 12/minute (DISCORD_CHART_USER_RATE) is far above real
-        # use -- this bounds a member pinning a render slot in a loop, not
-        # anyone's normal reading.
+        # honest model. DISCORD_CHART_USER_RATE bounds a member pinning a
+        # render slot in a loop -- and, now that the reply is public, it also
+        # bounds one member filling the channel with boards.
+        #
+        # HELD TO THE COMMAND CHANNEL (owner ruling 2026-11-13, "just in UCT
+        # Intelligence"): a public board answers only where /chart, /flow and
+        # /cot answer (CHART_FLOW_CHANNEL_ID, one allowlist for all of them).
+        # Elsewhere the member gets a private pointer to that channel. Checked
+        # BEFORE the throttle so a refusal does not spend the member's budget.
+        # ⛔ The V2 path carries the same check (discord_render/commands.py);
+        # with V2 on this branch is not reached, so a gate here alone is no gate.
+        # The scheduled posts are not gated by this: they are not interactions.
+        if not di.cmd_channel_ok(interaction):
+            return _channel_nudge("/buzz")
         uid = di.interaction_user_id(interaction)
         wait = di.user_rate_check(uid)
         if wait:
@@ -873,16 +902,15 @@ async def _dispatch_interaction(request: Request, background: BackgroundTasks):
             # immediately, and it does no work to do so.
             return _ephemeral("Discord did not supply a reply token.")
         background.add_task(run_buzz_job, app_id, token, ticker, window, now)
-        # ⛔ THE FLAG GOES ON THE DEFER, NOT THE FOLLOW-UP. Discord fixes a deferred
-        # reply's visibility at type 5; setting flags later on the PATCH is silently
-        # ignored and the board lands PUBLICLY. `run_buzz_job` edits via `edit_original`
+        # ⛔ VISIBILITY IS DECIDED HERE, ON THE DEFER, AND NOWHERE ELSE. Discord fixes a
+        # deferred reply's visibility at type 5; setting flags later on the PATCH is
+        # silently ignored. `run_buzz_job` edits via `edit_original`
         # (PATCH /webhooks/{app}/{token}/messages/@original), which keeps whatever this
-        # response declared.
-        # ⚠️ MEMBER-VISIBLE: the TICKER reply was a type-4 immediate text and is now a
-        # deferred one. Same words, same ephemeral visibility, one "thinking…" frame
-        # first. That is the cost of the ack never being able to miss, and it is stated
-        # here rather than discovered.
-        return {"type": 5, "data": {"flags": di.EPHEMERAL}}
+        # response declared -- a bare type 5 is a PUBLIC reply, the same thing /chart
+        # answers. To make it private again, the EPHEMERAL flag goes back on THIS line.
+        # ⚠️ A failure message ("Could not read the counts right now.") is an edit of
+        # this same reply, so it is public too.
+        return {"type": 5}
     if itype == 2 and name == di.COT_COMMAND:
         # /cot <market> [lookback] — the site's COT Data page as a PUBLIC image, in the
         # same channel and on the same per-member render budget as /chart and /flow.

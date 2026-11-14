@@ -27,6 +27,7 @@ import random
 import re
 import shutil
 import sqlite3
+import time
 import tarfile
 from pathlib import Path
 
@@ -504,6 +505,105 @@ def test_adoption_never_runs_outside_the_quiet_window(adoption, tmp_path, monkey
     assert fake.downloads == 0 and _dump(local) == before
 
 
+def test_the_owner_override_adopts_outside_the_quiet_window(adoption, tmp_path, monkeypatch):
+    ds, fake, local, snap = adoption
+    monkeypatch.setattr(ds, "in_quiet_window", lambda now=None: False)
+    monkeypatch.setenv("BARS_ADOPT_IGNORE_WINDOW", "1")
+    assert ds.adopt_clustered_store(str(tmp_path)) == "adopted"
+
+
+# ── BARS_REINSTALL_TOKEN: re-install over a clustered but partial store ─────────
+def test_reinstall_token_replaces_a_partial_clustered_store_once(adoption, tmp_path,
+                                                                 monkeypatch):
+    ds, fake, local, snap = adoption
+    from api.services import bars_cluster
+    partial = tmp_path / "partial.db"                  # clustered, only a few rows
+    c = sqlite3.connect(str(partial)); c.execute(ds_ohlcv_ddl()); c.execute(
+        "INSERT INTO ohlcv VALUES ('ONLYHERE','D',20261113,1,2,0.5,1.5,9)"); c.commit(); c.close()
+    os.replace(partial, local)
+    (tmp_path / ".adopted_clustered").write_text("local")
+    monkeypatch.delenv("BARS_ADOPT_CLUSTERED", raising=False)
+    assert ds.adopt_clustered_store(str(tmp_path)) == "off"            # no token: untouched
+    monkeypatch.setenv("BARS_REINSTALL_TOKEN", "r1")
+    assert ds.adopt_clustered_store(str(tmp_path)) == "adopted"
+    c = sqlite3.connect(str(local))
+    n = c.execute("SELECT COUNT(*) FROM ohlcv").fetchone()[0]
+    kept = c.execute("SELECT COUNT(*) FROM ohlcv WHERE ticker='ONLYHERE'").fetchone()[0]
+    c.close()
+    assert n > 100 and kept == 1                        # the base AND the local-only row
+    assert ds.adopt_clustered_store(str(tmp_path)) == "off" and fake.downloads == 1  # token spent
+    monkeypatch.setenv("BARS_REINSTALL_TOKEN", "r2")   # a new token runs again
+    assert ds.adopt_clustered_store(str(tmp_path)) == "adopted" and fake.downloads == 2
+
+
+def ds_ohlcv_ddl():
+    from api.services import bars_sqlite
+    return bars_sqlite.ohlcv_ddl()
+
+
+# ── adoption survives restarts (web, 2026-11-13: a deploy killed it twice) ──────
+def test_a_dead_runs_working_folder_is_swept_before_the_disk_check(adoption, tmp_path,
+                                                                   monkeypatch):
+    """An interrupted adoption leaves ~20 GB behind; the next attempt must reclaim it,
+    not fail its disk check forever."""
+    ds, fake, local, snap = adoption
+    stale = tmp_path / "adopt_0d5176vf"                 # mkdtemp-named leftover
+    stale.mkdir()
+    (stale / "bars.db").write_bytes(b"x" * 4096)
+    old_ts = tmp_path / "adopt_1600000000"             # a different snapshot's leftover
+    old_ts.mkdir()
+    (old_ts / ".verified").write_text("1600000000")
+    (old_ts / "bars.db").write_bytes(b"y" * 4096)
+    seen = {}
+    real_usage = ds.shutil.disk_usage
+
+    def usage(path):
+        seen["left"] = sorted(q.name for q in tmp_path.iterdir() if q.name.startswith("adopt_"))
+        return real_usage(path)
+    monkeypatch.setattr(ds.shutil, "disk_usage", usage)
+    assert ds.adopt_clustered_store(str(tmp_path)) == "adopted"
+    assert seen["left"] == []                           # swept BEFORE free space was read
+    assert _no_tmp_left(tmp_path)
+
+
+def test_a_restart_after_verification_resumes_without_downloading_again(adoption, tmp_path,
+                                                                        monkeypatch):
+    ds, fake, local, snap = adoption
+    work = tmp_path / "adopt_1700000000"               # what a killed run leaves behind
+    work.mkdir()
+    shutil.copy(snap, work / "bars.db")
+    (work / ".verified").write_text("1700000000")
+    monkeypatch.setattr(ds, "_verify_snapshot_db",
+                        lambda _p: pytest.fail("a verified download is not re-verified"))
+    assert ds.adopt_clustered_store(str(tmp_path)) == "adopted"
+    assert fake.downloads == 0
+    assert _layout(local) == "clustered" and _no_tmp_left(tmp_path)
+    c = sqlite3.connect(str(local))                     # the local-only rows still carried
+    assert c.execute("SELECT COUNT(*) FROM ohlcv WHERE ticker='NEWT'").fetchone()[0] == 1
+    c.close()
+
+
+def test_a_partial_download_is_not_resumed(adoption, tmp_path):
+    ds, fake, local, snap = adoption
+    work = tmp_path / "adopt_1700000000"               # killed mid-extract: no .verified
+    work.mkdir()
+    (work / "bars.db").write_bytes(b"torn")
+    assert ds.adopt_clustered_store(str(tmp_path)) == "adopted"
+    assert fake.downloads == 1 and _layout(local) == "clustered"
+
+
+def test_a_second_concurrent_call_never_touches_the_running_adoption(adoption, tmp_path):
+    ds, fake, local, snap = adoption
+    assert ds._ADOPT_RUN_LOCK.acquire(blocking=False)
+    try:
+        keep = tmp_path / "adopt_1700000000"
+        keep.mkdir()
+        assert ds.adopt_clustered_store(str(tmp_path)) == "busy"
+        assert keep.exists() and fake.downloads == 0
+    finally:
+        ds._ADOPT_RUN_LOCK.release()
+
+
 @pytest.mark.parametrize("utc,quiet", [
     ("2026-11-11T14:30", False), ("2026-11-11T09:00", False), ("2026-11-12T00:59", False),
     ("2026-11-12T01:30", True), ("2026-11-12T08:00", True), ("2026-11-12T08:50", False),
@@ -559,9 +659,115 @@ def test_locked_pass_over_budget_aborts_and_keeps_the_old_store(adoption, tmp_pa
     before_layout = _layout(local)
     assert ds.adopt_clustered_store(str(tmp_path)) == "failed"
     assert before_layout == _layout(local) == "rowid"
-    assert not (tmp_path / ".adopted_clustered").exists() and _no_tmp_left(tmp_path)
+    assert not (tmp_path / ".adopted_clustered").exists()
     from api.services import bars_sqlite
     assert bars_sqlite._tracked_writes is None, "tracking must never be left on"
+    # The verified download is KEPT (worker, 2026-11-14: re-downloading 19.5 GB per try)
+    assert (tmp_path / "adopt_1700000000" / ".verified").exists()
+    monkeypatch.setattr(ds, "ADOPT_LOCKED_BUDGET_S", 10.0)
+    assert ds.adopt_clustered_store(str(tmp_path)) == "adopted"
+    assert fake.downloads == 1, "the retry resumed instead of downloading again"
+    assert _no_tmp_left(tmp_path)
+
+
+def test_catch_up_rounds_shrink_a_busy_pods_remainder_before_the_lock(adoption, tmp_path,
+                                                                       monkeypatch):
+    """A pod writing to many series during the full carry: the unlocked rounds re-carry
+    them, so the locked pass only sees the final small remainder."""
+    from api.services import bars_sqlite
+    ds, fake, local, snap = adoption
+    real = ds._merge_ohlcv_from
+    calls = []
+    bar = [{"t": 20210105, "o": 5.0, "h": 6.0, "l": 4.0, "c": 5.5, "v": 9}]
+
+    def merge(src, local_db=None, **kw):
+        calls.append(kw.get("pairs"))
+        n = len(calls)
+        if n == 1:          # the full carry: 40 series written meanwhile
+            for k in range(40):
+                bars_sqlite.put_bars(f"B{k:02d}", "D", bar)
+        elif n == 2 and not bars_sqlite._WRITE_LOCK.locked():   # round 1: only 2 more
+            bars_sqlite.put_bars("Z1", "D", bar)
+            bars_sqlite.put_bars("Z2", "D", bar)
+        return real(src, local_db, **kw)
+
+    monkeypatch.setattr(ds, "_merge_ohlcv_from", merge)
+    monkeypatch.setattr(ds, "ADOPT_LOCKED_PAIRS_TARGET", 5)
+    assert ds.adopt_clustered_store(str(tmp_path)) == "adopted"
+    assert calls[0] is None and len(calls[1]) == 40, "round 1 re-carries the 40"
+    assert calls[2] == [("Z1", "D"), ("Z2", "D")], "the locked pass gets only the remainder"
+    c = sqlite3.connect(str(local))
+    assert c.execute("SELECT COUNT(*) FROM ohlcv WHERE ticker IN ('B07','Z2')").fetchone()[0] == 2
+    c.close()
+
+
+def _hold_read_txn(path, seconds):
+    """Open a read transaction on `path` (pins the WAL) and keep it `seconds`."""
+    import threading
+    ready = threading.Event()
+
+    def run():
+        c = sqlite3.connect(str(path), check_same_thread=False)
+        c.execute("BEGIN")
+        c.execute("SELECT COUNT(*) FROM ohlcv").fetchone()
+        ready.set()
+        time.sleep(seconds)
+        c.rollback(); c.close()
+    th = threading.Thread(target=run, daemon=True)
+    th.start()
+    assert ready.wait(5)
+    return th
+
+
+def _wal_frames(path):
+    c = sqlite3.connect(str(path))
+    c.execute("PRAGMA journal_mode=WAL")
+    c.execute("INSERT OR REPLACE INTO ohlcv VALUES ('WALX','D',20210106,1,2,0.5,1.5,1)")
+    c.commit(); c.close()
+
+
+def test_truncate_checkpoint_waits_out_a_long_reader(tmp_path):
+    """One 30 s wait was not enough on the worker; the swap now retries within a budget."""
+    import api.services.data_sync as ds
+    db = tmp_path / "x.db"
+    c = sqlite3.connect(str(db)); c.execute(
+        "CREATE TABLE ohlcv (ticker TEXT, tf TEXT, ts INTEGER, o REAL, h REAL, l REAL, "
+        "c REAL, v INTEGER, PRIMARY KEY (ticker, tf, ts))"); c.commit(); c.close()
+    _wal_frames(db)
+    th = _hold_read_txn(db, 2.5)
+    _wal_frames(db)                                     # frames the reader pins
+    t0 = time.monotonic()
+    assert ds._truncate_checkpoint(str(db), 20) is True
+    assert time.monotonic() - t0 >= 1.5, "it must have waited for the reader"
+    th.join(5)
+    assert (not os.path.exists(str(db) + "-wal")) or os.path.getsize(str(db) + "-wal") == 0
+
+
+def test_truncate_checkpoint_gives_up_at_its_budget(tmp_path):
+    import api.services.data_sync as ds
+    db = tmp_path / "x.db"
+    c = sqlite3.connect(str(db)); c.execute(
+        "CREATE TABLE ohlcv (ticker TEXT, tf TEXT, ts INTEGER, o REAL, h REAL, l REAL, "
+        "c REAL, v INTEGER, PRIMARY KEY (ticker, tf, ts))"); c.commit(); c.close()
+    _wal_frames(db)
+    th = _hold_read_txn(db, 6)
+    _wal_frames(db)
+    t0 = time.monotonic()
+    assert ds._truncate_checkpoint(str(db), 1.0) is False
+    assert time.monotonic() - t0 < 5
+    th.join(8)
+
+
+def test_swap_write_tracking_has_no_gap(data_sync_at):
+    from api.services import bars_sqlite
+    bars_sqlite.init_db()
+    bar = [{"t": 20210105, "o": 5.0, "h": 6.0, "l": 4.0, "c": 5.5, "v": 9}]
+    bars_sqlite.start_write_tracking()
+    bars_sqlite.put_bars("AAA", "D", bar)
+    assert bars_sqlite.swap_write_tracking() == {("AAA", "D")}
+    bars_sqlite.put_bars("BBB", "D", bar)
+    assert bars_sqlite.stop_write_tracking() == {("BBB", "D")}
+    assert bars_sqlite.swap_write_tracking() == set() and bars_sqlite._tracked_writes is None
 
 
 def test_put_bars_records_pairs_only_while_tracking(data_sync_at):

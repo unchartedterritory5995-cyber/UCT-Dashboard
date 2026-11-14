@@ -114,3 +114,19 @@ def test_manifest_summary_reports_counts_when_present(tmp_path):
     assert s["above_threshold_modules"] == ["a"]
     assert s["unmeasurable_count"] == 1
     assert s["modules_measured"] == 3
+
+
+def test_a_module_archived_after_the_scan_is_not_preloaded(tmp_path):
+    """2026-11-13: the manifest still listed `...note_connectors.convert.onenote_html` (archived
+    11/04) and its preload raised ModuleNotFoundError on every boot. Present is read from the tree."""
+    from api.services.discord_render import cold_path_manifest as m
+    (tmp_path / "api" / "pkg").mkdir(parents=True)
+    (tmp_path / "api" / "pkg" / "__init__.py").write_text("")
+    (tmp_path / "api" / "pkg" / "here.py").write_text("")
+    assert m.module_present("api.pkg.here", tmp_path)
+    assert m.module_present("api.pkg", tmp_path)                      # a package counts
+    assert not m.module_present("api.pkg.gone", tmp_path)
+    assert m.module_present("numpy.core", tmp_path)                    # not ours to judge
+    # and against this repo: the archived module is gone, a live one is present
+    assert not m.module_present("api.services.journal_two.note_connectors.convert.onenote_html")
+    assert m.module_present("api.services.discord_render.cold_path_manifest")

@@ -661,6 +661,94 @@ class _PooledConnection(sqlite3.Connection):
             return False
 
 
+# ⭐ THE HOT READS' OWN READER (2026-11-14). Every authenticated request reads its session and
+# then its plan. Through the pool above each of those is FIVE sqlite statements, not one: two
+# pragmas on checkout, the read, and two more on return to prove the caller left nothing
+# behind. Ten statements a request, and CPython gives the GIL up and takes it back around
+# every one of them. Alone that is 0.06 ms. Measured with the web pod's switch interval beside
+# busy threads: 6 ms beside eight, 21 ms beside sixteen, 67 ms beside thirty, for a check
+# whose two reads sqlite answers in microseconds. Measured on production the same night: an
+# unauthenticated tiny request took 62 ms twelve at once and a signed-in tiny one 87 to 161
+# (190 to 520 in the minutes after a restart).
+#
+# So those two reads get a connection of their own: one per thread, opened once, used for
+# nothing else and never handed to a caller, so there is nothing to re-apply before a read
+# and nothing to prove after it. It is `query_only`: a write through it is refused by
+# sqlite itself, so it can never be left inside a transaction (the two writes
+# `validate_session` sometimes makes go through the pool, as every other write does).
+# It always reads the database: nothing is remembered between calls, so a session revoked or
+# a plan changed is seen by the very next request exactly as before.
+#
+# ⛔ Off under pytest for the pool's own reason (a kept handle would stop Windows deleting a
+# test's temp file); tests/test_auth_hot_reader.py turns it on and drops it.
+_HOT = threading.local()
+
+
+def hot_reader():
+    """This thread's read-only connection to auth.db, or None when there is none to have
+    (under pytest, or no database file yet): the caller then reads through the pool."""
+    if not _pooling():
+        return None
+    conn = getattr(_HOT, "conn", None)
+    if conn is not None and getattr(_HOT, "path", None) == _DB_PATH:
+        return conn
+    drop_hot_reader()
+    if not os.path.exists(_DB_PATH):
+        return None                              # never create the file from a read
+    try:
+        # `isolation_level=None`: Python never opens a transaction on this connection by
+        # itself. With the default it would issue a BEGIN ahead of a write, the write would
+        # be refused (query_only), and the BEGIN would stay: every later read would then be
+        # served from that one old snapshot. Autocommit, there is no transaction to be left in.
+        conn = sqlite3.connect(_DB_PATH, timeout=3, isolation_level=None)
+        conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA query_only=ON")
+    except sqlite3.Error:
+        return None
+    _HOT.conn, _HOT.path = conn, _DB_PATH
+    return conn
+
+
+def drop_hot_reader() -> None:
+    """Close and forget this thread's reader (the next read opens a new one)."""
+    conn = getattr(_HOT, "conn", None)
+    _HOT.conn = None
+    _HOT.path = None
+    if conn is not None:
+        try:
+            conn.close()
+        except sqlite3.Error:
+            pass
+
+
+def read_row(sql: str, params: tuple = ()):
+    """ONE row of a read-only statement, as a `sqlite3.Row` (or None): through this thread's
+    reader when there is one, through the pool otherwise.
+
+    What a caller sees is what a pooled read shows it. A statement the schema refuses (a
+    column or table that is not there) raises the same error from either connection, and
+    the reader is kept. Any other `OperationalError` (a busy file) is raised as the pool
+    would have raised it, never retried (a second three-second wait is how a thread pool
+    starves), and the reader is dropped so the next read starts clean. Anything else wrong
+    with the reader itself drops it and the read is made through the pool."""
+    reader = hot_reader()
+    if reader is not None:
+        try:
+            return reader.execute(sql, params).fetchone()
+        except sqlite3.OperationalError as e:
+            msg = str(e)
+            if "no such column" not in msg and "no such table" not in msg:
+                drop_hot_reader()
+            raise
+        except sqlite3.Error:
+            drop_hot_reader()
+    conn = get_connection()
+    try:
+        return conn.execute(sql, params).fetchone()
+    finally:
+        conn.close()
+
+
 def execute_with_retry(sql: str, params: tuple = (), tries: int = 2, backoff: float = 0.15) -> None:
     """Autocommit a single write statement, retrying once on a transient
     'database is locked' — this is what was landing as a 500 on

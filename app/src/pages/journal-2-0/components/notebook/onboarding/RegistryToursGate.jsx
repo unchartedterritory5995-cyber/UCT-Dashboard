@@ -18,7 +18,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { notebookFlag } from '../../../lib/offline/notebookFlags'
 import { lazyLeaf, RETRY_WAIT_MS } from '../../../lib/lazyChunk'
 import { reportError } from '../../../../../lib/errorBeacon'
-import { useFirstRunPending, useFirstRunShowing } from '../../../lib/firstRun'
+import { FIRST_RUN_DUE, useFirstRunPending, useFirstRunShowing } from '../../../lib/firstRun'
 import { getTourEntry, tourLive } from './tourRegistry'
 import {
   REGISTRY_TOUR_OPEN_EVENT, announceRegistryTourClosed, hasPendingRegistryTourOpen,
@@ -29,6 +29,8 @@ import {
 export const TOUR_FAILED_NOTICE = 'That walkthrough could not be shown here, so it was closed; you can start it again from Walkthroughs on the Support page.'
 /** How long that sentence stays up. */
 export const TOUR_NOTICE_MS = 8000
+/** Simplify pass 2 (D1): how long a wanted walkthrough waits behind the first run before it is let go, with the notice. */
+export const FIRST_RUN_HOLD_MS = 10000
 const NOTICE_STYLE = Object.freeze({
   position: 'fixed', left: '50%', bottom: 'calc(24px + env(safe-area-inset-bottom, 0px))',
   transform: 'translateX(-50%)', zIndex: 1200, maxWidth: 'min(92vw, 520px)', margin: 0,
@@ -166,8 +168,23 @@ export function makeRegistryToursGate(load, waitMs = RETRY_WAIT_MS) {
     // run is on screen, due on the Notebook list, or not yet decided there (lib/firstRun.js), and opens after it.
     const firstRunShowing = useFirstRunShowing()
     const firstRunPending = useFirstRunPending()
+    // Simplify pass 2 (D1): never with no time limit. Held for FIRST_RUN_HOLD_MS, the walkthrough is let go and the
+    // member is told it could not be shown (they can start it again from Help once the first run is over).
+    // Follow-up B, item 2c: the limit runs only while the first run is actually due or showing. While it is undecided
+    // (the preferences or the notes count have not answered) the walkthrough keeps waiting with no limit: the 10 s used
+    // to cancel it for a member who is NOT new but whose preferences read was slow. A Notebook whose preferences never
+    // load cannot run a walkthrough anyway.
+    const held = Boolean(allowed && (firstRunShowing || firstRunPending))
+    const timed = Boolean(allowed && (firstRunShowing || firstRunPending === FIRST_RUN_DUE))
+    const failedRef = useRef(failed)
+    failedRef.current = failed
+    useEffect(() => {
+      if (!timed) return undefined
+      const t = setTimeout(() => failedRef.current(), FIRST_RUN_HOLD_MS)
+      return () => clearTimeout(t)
+    }, [timed])
     const said = notice ? <p role="status" data-tour-notice="" style={NOTICE_STYLE}>{notice}</p> : null
-    if (!allowed || firstRunShowing || firstRunPending) return said
+    if (!allowed || held) return said
     return (
       <>
         <RegistryTourCatch key={`${wantedId}:${run}`} onFail={failed}>

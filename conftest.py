@@ -1525,6 +1525,19 @@ if not _INERT_IN_PRODUCTION:
     os.environ.setdefault("SCREENER_SNAPSHOT_WARM_ENABLED", "0")
 
 
+# ─── the RS envelope store: OFF under pytest ───────────────────────────────
+#
+# `api/services/signature/rs_store.py` keeps a built RS envelope in a sqlite file
+# under its cache key, so it outlives the process. The provider's suites build
+# the SAME key from different synthetic bars in test after test and clear the
+# in-memory cache between them; a file that outlives a test would hand the next
+# one the previous one's answer. Off here (at conftest import, before any test
+# module), so the store is opt-IN: `tests/test_rs_envelope_store.py` turns it on
+# against a file in its own tmp directory.
+if not _INERT_IN_PRODUCTION:
+    os.environ.setdefault("RS_ENVELOPE_STORE", "0")
+
+
 # ─── prebuilt catalogue memo: cleared between tests ────────────────────────
 #
 # `watchlist_prebuilt._load_committed()` is memoized (TTL + config-file mtime) so

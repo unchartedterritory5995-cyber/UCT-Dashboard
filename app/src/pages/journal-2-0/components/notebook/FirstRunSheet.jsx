@@ -59,6 +59,9 @@ export const MAX_NAMES = 3
 const NOOP = () => {}
 /** Each step-2 row starts this long after the one before; with a 300 ms fade, four rows land in 1.2 s (<= 1.5 s). */
 export const ROW_STAGGER_MS = 300
+/** Step 2's row for today's note: plan lines went in, or the note was made without any (final fix M4). */
+export const PLAN_WRITTEN = "Today's plan written"
+export const NOTE_STARTED = "Today's note started"
 
 const GALLERY_URL = '/api/j2/template-gallery'
 const SEARCH_URL = '/api/ticker-search'
@@ -213,9 +216,9 @@ export function FirstRunFlow({ variant = 'sheet', mark, onSkip, onDone, onOpenNo
     try {
       const tid = typeof prefs?.[DAILY_TEMPLATE_PREF] === 'string' && prefs[DAILY_TEMPLATE_PREF] ? prefs[DAILY_TEMPLATE_PREF] : undefined
       // Tier 3b fix round 1 (I9): the day's note starts with the Today home's plan, names included.
-      const { note, created = false } = await openDailyNote({ templateId: tid, seedToday: true })
+      const { note, created = false, planSeeded = false } = await openDailyNote({ templateId: tid, seedToday: true })
       invalidateNoteViews()
-      out.plan = { ok: Boolean(note?.id), note, created }
+      out.plan = { ok: Boolean(note?.id), note, created, seeded: planSeeded === true }
     } catch {
       out.plan = { ok: false }
     }
@@ -336,8 +339,10 @@ function BuildList({ result, undone, undoing, status, onUndo, onDone, onOpen, on
       : `${label} templates: you already have ${p.alreadyHad.join(' · ') || 'them'}`)
   } else if (p && !p.ok) rows.push("Couldn't add the templates. Nothing was added twice; try again from Manage templates.")
   const plan = result.plan
+  // Final fix M4: "Today's plan written" only when plan lines went in (the server's `planSeeded`); an empty seed made a
+  // note with no plan, and the Daily brief Done lands on would then show none.
   rows.push(plan?.ok
-    ? { text: `Today's plan written${plan.created ? `. ${DAILY_FOLDER_NOTICE}` : ''}`, plan: true }
+    ? { text: `${plan.seeded ? PLAN_WRITTEN : NOTE_STARTED}${plan.created ? `. ${DAILY_FOLDER_NOTICE}` : ''}`, plan: true }
     : "Couldn't write today's plan. Open today's note from the notes list to try again.")
   const sym = names[0] || 'NVDA'
   rows.push({ text: `Try it: draw entry, stop and target on ${sym}, and watch the setups board track it →`, tryIt: sym })

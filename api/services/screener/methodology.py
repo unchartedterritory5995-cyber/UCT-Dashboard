@@ -444,6 +444,88 @@ def _rs_phase3_methods() -> list:
     ]
 
 
+#: RS Exit Warnings (2026-11-13): what every entry says about where the warning comes from.
+_RS_EXIT_NOTE = ("Mike Webster's method, our reading of it: the same rules and the same "
+                 "`relative_strength` functions the chart's UCT RS Exit Warnings draw, on daily "
+                 "bars against SPY, closed bars only. A warning is a prompt to review the "
+                 "position, not an order to sell. " + _RS_BAR_NOTE)
+
+
+def _rs_exit_params() -> dict:
+    from api.services import relative_strength as _rs           # noqa: PLC0415
+    from api.services.screener import rs_columns as _rsc        # noqa: PLC0415
+    return {"fast": _rsc.EXIT_FAST, "slow": _rsc.EXIT_SLOW, "min": _rsc.EXIT_MIN_BARS,
+            "names": tuple(_rsc.EXIT_NAMES),
+            "worst_first": tuple(_rs.RS_EXIT_LABELS[k] for k in _rs.RS_EXIT_SEVERITY)}
+
+
+def _rs_exit_methods() -> list:
+    """The five RS Exit Warning columns (`rs_columns.EXIT_COLUMNS`), every number and
+    name read from the writer so the page cannot drift from it."""
+    e = _rs_exit_params()
+    quick, sand, dead = e["names"]
+    f, sl = e["fast"], e["slow"]
+    age = "sessions, 0 = the last session"
+    rules = (f"{quick}: the RS line closes below its {f}-session simple average after "
+             f"closing at or above it. {sand}: later in the same dip (before the RS line closes "
+             f"back at or above its {f}-session average), the RS line closes below its value on "
+             f"the {quick} session; once per dip. {dead}: the RS line closes below its "
+             f"{sl}-session simple average after closing at or above it; it needs no {quick} "
+             f"first. The averages are simple averages of the RS line itself, not of price.")
+    return [
+        {"column": "rs_exit_last", "label": "RS Exit Warning (latest)",
+         "one_line": "The newest of Mike Webster's three RS-line exit warnings the stock has flashed.",
+         "scale": " | ".join(e["names"]),
+         "how": (f"{rules} This column names the newest warning in the window; when two fire on "
+                 f"the same session the worse one is named (worst first: "
+                 f"{', '.join(e['worst_first'])}). Blank when none has fired, or until {e['min']} "
+                 f"sessions exist. " + _RS_EXIT_NOTE),
+         "caveat": ("The newest warning hides an older one: a Grateful Dead Break yesterday is "
+                    "named even if a Quicksand came three sessions ago. Screen a single warning "
+                    "with its own age column.")},
+        {"column": "rs_exit_bars_ago", "label": "RS Exit Warning Age (sessions)",
+         "one_line": "Sessions since the newest RS-line exit warning, whichever it was.",
+         "scale": age,
+         "how": (f"0 on the session the newest Quick Break, Quicksand or Grateful Dead Break "
+                 f"fired, one more on every session after; blank when none has fired or until "
+                 f"{e['min']} sessions exist. \"Any exit warning in the last 10 sessions\" is "
+                 f"this column from 0 to 9. " + _RS_EXIT_NOTE),
+         "caveat": ("The count keeps running after the RS line recovers above its averages, so "
+                    "an old warning the line has since repaired still carries an age.")},
+        {"column": "rs_quick_break_bars_ago", "label": "Quick Break Age (sessions)",
+         "one_line": f"Sessions since the RS line last broke below its {f}-day average.",
+         "scale": age,
+         "how": (f"0 on the session of the last {quick}, one more on every session after; "
+                 f"blank when none has fired or until {e['min']} sessions exist. {rules} "
+                 + _RS_EXIT_NOTE),
+         "caveat": "The first and mildest warning; many are repaired within days."},
+        {"column": "rs_quicksand_bars_ago", "label": "Quicksand Age (sessions)",
+         "one_line": "Sessions since the RS line last undercut its own Quick Break level.",
+         "scale": age,
+         "how": (f"0 on the session of the last {sand}, one more on every session after; blank "
+                 f"when none has fired or until {e['min']} sessions exist. \"{sand} in the last "
+                 f"5 sessions\" is this column from 0 to 4. {rules} " + _RS_EXIT_NOTE),
+         "caveat": (f"A {sand} needs a {quick} before it in the same dip; a dip that began "
+                    f"before the window or across a missing benchmark bar has none to measure "
+                    f"from, so a warning can be missed, never invented.")},
+        {"column": "rs_dead_break_bars_ago", "label": "Grateful Dead Break Age (sessions)",
+         "one_line": f"Sessions since the RS line last broke below its {sl}-day average.",
+         "scale": age,
+         "how": (f"0 on the session of the last {dead}, one more on every session after; blank "
+                 f"when none has fired or until {e['min']} sessions exist. {rules} "
+                 + _RS_EXIT_NOTE),
+         "caveat": "The most serious of the three, and still a warning about the past, not a forecast."},
+    ]
+
+
+def _rs_exit_note() -> str:
+    e = _rs_exit_params()
+    return (f"The RS Exit Warnings ({', '.join(e['names'])}) are Mike Webster's method, our "
+            f"reading of it, on daily bars against SPY with {e['fast']}- and {e['slow']}-session "
+            f"simple averages of the RS line, the same maths the chart's UCT RS Exit Warnings "
+            f"draw. A warning is a prompt to review the position, not an order to sell.")
+
+
 def _rs_phase3_note() -> str:
     q = _rs_phase3_params()
     return (f"The rotation quadrant is RRG-style, UCT's formula, read on WEEKLY bars against SPY "
@@ -679,6 +761,7 @@ def _rs_column_methods() -> list:
                    "this rank was taken over the plain nine-month return."),
     })
     out.extend(_rs_phase3_methods())
+    out.extend(_rs_exit_methods())
     for m in out:
         m["family"] = RS_FAMILY
     return out
@@ -831,7 +914,9 @@ def rs_columns_section() -> dict:
             "design, and no number here is intraday. The three Phase 3 columns (the rotation "
             "quadrant, the Clenow trend score and the VARS state) are computed in the same "
             "03:00 ET step from the same bars, only while that step's Phase 3 part is switched "
-            "on, and are empty until then."),
+            "on, and are empty until then. The five RS Exit Warning columns (the newest warning, "
+            "its age and each warning's own age) are computed in the same 03:00 ET step from "
+            "the same bars."),
         "notes": [
             # U9 (RS split): these two notes no longer name a chart Reading. The slim UCT RS
             # Line draws no Mansfield line and no sensitivity row (map §(a) U7); the screener
@@ -850,6 +935,7 @@ def rs_columns_section() -> dict:
             "hourly RS Rank ranks and close to Deepvue's own population; a name with no recent "
             "price or under a year of history carries no rating or no long-window rank.",
             _rs_phase3_note(),
+            _rs_exit_note(),
         ],
         "honesty": (
             "Every column here describes the past. Relative strength says which stocks to "

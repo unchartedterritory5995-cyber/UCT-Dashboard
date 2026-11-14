@@ -60,6 +60,8 @@
 //          `waitFor` (W14-C1) makes a "do this to continue" step: the card asks the
 //          member to act (open a panel, a sheet) and moves on when that anchor
 //          appears. It must name the anchor of a LATER step in the same tour.
+//          `noBack: true` (follow-up B fix round 1): the card draws no Back. For a step inside a view an earlier
+//          step opened (a menu's second view), where going back would name a control no longer on screen.
 //   copy:  `{ [step.id]: { title, body } }`, one entry per step.
 //
 // ANCHOR RULE (risk R1). Each step's `anchor` is a literal `data-tour="<anchor>"`

@@ -115,7 +115,7 @@ def _delete_account(auth, user_id: str) -> dict:
 
 # ═══ the live sweep ═════════════════════════════════════════════════════════
 
-def test_the_sweep_removes_a_stale_author_a_late_fire_and_a_failed_halfs_rows_and_nothing_else(env):
+def test_the_sweep_removes_a_stale_author_a_late_fire_and_a_failed_halfs_rows_and_nothing_else(env, monkeypatch):
     auth = env["auth"]
     with sqlite3.connect(str(auth)) as c:
         c.executemany("INSERT INTO users (id) VALUES (?)", [(LEAVER,), (CONTROL,), (FRIEND,)])
@@ -132,7 +132,13 @@ def test_the_sweep_removes_a_stale_author_a_late_fire_and_a_failed_halfs_rows_an
     # What a purge that already ran cannot see:
     stale_editor_doc["meta"]["name"] = "edited in a tab left open"       # 1. the stale re-save
     assert stale_editor_doc["origin"]["author_id"] == LEAVER
-    svc.save(FRIEND, copy_id, stale_editor_doc)
+    # ⭐ since 2026-11-13 the save door takes the author from the STORED predecessor, so an
+    # ordinary stale re-save already lands scrubbed (`tests/test_share_privacy.py`). What is left
+    # for the sweep is a save whose predecessor read RACED the purge (read before it, written after):
+    # simulated by letting this one save keep the document's own author id.
+    with monkeypatch.context() as m:
+        m.setattr(svc, "_server_origin_author", lambda u, d, definition, a: definition)
+        svc.save(FRIEND, copy_id, stale_editor_doc)
     late_alert = _alert(auth, LEAVER)                                    # 2. a late evaluator write
     _fire(auth, LEAVER, late_alert, "late-1")
     def_id = svc.new_def_id()                                            # 3. a failed half's leftovers

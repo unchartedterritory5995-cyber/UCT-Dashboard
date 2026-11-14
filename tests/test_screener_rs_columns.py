@@ -38,6 +38,8 @@ TEN = (
     "green_on_red_20", "rs_line_above_ma", "rs_cross_up_bars_ago",
     "mansfield", "mansfield_cross_bars_ago", "rs_benchmark_agree",
 )
+# the ten plus the five RS Exit Warning keys: every key collect_one returns (2026-11-13)
+ALL = TEN + tuple(rs_columns.EXIT_COLUMNS)
 
 N = 300
 RED_DAY = 290
@@ -207,7 +209,9 @@ def test_every_column_is_the_last_bar_of_the_chart_lane(name, bars):
         "mansfield_cross_bars_ago": integer(mans["mansfieldCrossBarsAgo"][-1]),
         "rs_benchmark_agree": flag(agree[-1]),
     }
-    assert v == expect, name
+    # the ten, plus the five RS Exit Warning keys (their maths: tests/test_screener_rs_exit_columns.py)
+    assert set(v) == set(TEN) | set(rs_columns.EXIT_COLUMNS), name
+    assert {k: v[k] for k in TEN} == expect, name
 
 
 def test_a_date_spy_does_not_have_is_a_hole_not_a_shifted_ratio():
@@ -245,22 +249,22 @@ def test_short_windows_are_none_per_column_and_counted_short():
     assert stats == {"short": 1}
 
     d = rs_columns.collect_one(DDD, SPY, RSP, stats=stats)
-    assert d == {col: None for col in TEN}
+    assert d == {col: None for col in ALL}
     assert stats == {"short": 2}
 
     e = rs_columns.collect_one([], SPY, RSP, stats=stats)
-    assert e == {col: None for col in TEN}
+    assert e == {col: None for col in ALL}
     assert stats == {"short": 3}
 
 
 def test_no_benchmark_bar_at_the_newest_time_is_no_bench():
     stats = {}
-    assert rs_columns.collect_one(AAA, [], RSP, stats=stats) == {col: None for col in TEN}
-    assert rs_columns.collect_one(AAA, None, RSP, stats=stats) == {col: None for col in TEN}
+    assert rs_columns.collect_one(AAA, [], RSP, stats=stats) == {col: None for col in ALL}
+    assert rs_columns.collect_one(AAA, None, RSP, stats=stats) == {col: None for col in ALL}
     # the newest bar on a Saturday: SPY has every other time, not that one
     sat = AAA[:-1] + [dict(AAA[-1], t=_ymd(_date(TIMES[-1]) + dt.timedelta(days=1)))]
     assert _date(sat[-1]["t"]).weekday() == 5
-    assert rs_columns.collect_one(sat, SPY, RSP, stats=stats) == {col: None for col in TEN}
+    assert rs_columns.collect_one(sat, SPY, RSP, stats=stats) == {col: None for col in ALL}
     assert stats == {"no_bench": 3}
 
 
@@ -321,7 +325,7 @@ def test_collect_is_the_batch_shape():
     assert list(out) == ["AAA", "CCC", "ZZZ"]
     assert out["AAA"] == rs_columns.collect_one(AAA, SPY, RSP)
     assert out["CCC"] == rs_columns.collect_one(CCC, SPY, RSP)
-    assert out["ZZZ"] == {col: None for col in TEN}, "asked and not computable: a None row, never a missing key"
+    assert out["ZZZ"] == {col: None for col in ALL}, "asked and not computable: a None row, never a missing key"
     assert stats == {"rated": 1, "short": 2}
 
 
@@ -342,7 +346,7 @@ def test_the_builder_step_merges_the_columns_and_counts_outcomes(monkeypatch):
     failures = {}
     row = sb.build_row("AAA", AAA, None, None, failures=failures, spy_bars=SPY, rsp_bars=RSP)
     expect = rs_columns.collect_one(AAA, SPY, RSP)
-    assert {col: row[col] for col in TEN} == expect
+    assert {col: row[col] for col in ALL} == expect
     assert row["rs_nh_bars_ago"] == 9 and row["price"] == AAA[-1]["c"]
     assert row["bars_asof"] == str(AAA[-1]["t"])
     assert failures["bars_rs"] == {"rated": 1}

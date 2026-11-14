@@ -301,6 +301,14 @@
   font-weight: 600;
   color: var(--text);
 }
+/* Simplify pass 2 (B3): the Daily brief's compact ask sits inside its card, so it draws no box of its own. */
+.firstPlan[data-first-plan='compact'] { padding: 0; border: 0; }
+.firstPlanLine {
+  margin: 0;
+  font-size: var(--text-md);
+  line-height: 1.45;
+  color: var(--text-muted);
+}
 .firstPlanSteps {
   margin: 0;
   padding-left: 18px;

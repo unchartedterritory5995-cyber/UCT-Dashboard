@@ -37,4 +37,25 @@ for an hour means the first delta is still running. `base_upload_started_at` non
 building: do not deploy. Log lines to look for: `uploaded delta`, `uploaded base snapshot`,
 `snapshot clustered (WITHOUT ROWID)`, `snapshot NOT clustered`.
 
+## The clustered layout (bars.db sorted by ticker) — how a pod switches, and the levers
+
+Every service that holds `bars.db` switches through ONE path, `data_sync.adopt_clustered_store`:
+download the latest clustered base, verify it, carry this pod's newer rows into it, swap under
+the write + swap locks. web and bars-api switched on 2026-11-13/14; the worker runs it at boot
+since `f48fcaf184`.
+
+- `BARS_ADOPT_CLUSTERED=1` turns it on (one-shot: marker `/data/.adopted_clustered`). It runs only
+  in the quiet window (20:15-03:45 ET weekdays, all weekend) unless `BARS_ADOPT_IGNORE_WINDOW=1`.
+- **It survives restarts.** The working folder is `/data/adopt_<snapshot ts>`; every other `adopt_*`
+  folder is a dead run's leftover and is swept at the start. Once the download passes its checks it
+  is marked `.verified`, and a restart resumes from the merge (log: `resuming the verified download`).
+- On the worker, deltas and the daily base pause while it runs (uploader outcome `adopting`).
+- **Restart the service after the swap.** Idle threads keep the old file open until they next touch
+  `bars.db`; on web that held 14 GB of disk.
+- `BARS_REINSTALL_TOKEN=<new token>` re-installs the full clustered base over a store that is
+  already clustered but PARTIAL, through the same safe path, once per distinct token. Use it, never
+  `force_resync` / `FORCE_RESYNC_ON_BOOT`: those delete the live file under open connections.
+  ⚰️ 2026-11-14: the boot smoke probe ran `ORDER BY rowid` on the new layout, read the error as
+  corruption, and the boot resync deleted web's freshly adopted 19.7 GB store (fixed `9f66068877`).
+
 ## Do not re-enable auto deploy without the owner.
