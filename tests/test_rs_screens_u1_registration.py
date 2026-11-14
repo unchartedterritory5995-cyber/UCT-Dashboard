@@ -48,10 +48,13 @@ def test_the_flag_has_a_ledger_row_and_ships_dark():
     assert "rs_post_pass.enabled" in row["note"] and "RS_SCREENS_KEYS" in row["note"]
 
 
-def test_the_flag_is_read_per_call_and_only_1_arms_it(monkeypatch):
+def test_the_flag_is_read_per_call_and_only_a_spelling_of_on_arms_it(monkeypatch):
+    # Pin moved 2026-11-14 (unit U10): `true` and `yes` now spell on, as they do for the
+    # Focus flags (one parser). The owner-only value is tests/test_rs_screens_u10_owner_only.py.
     monkeypatch.delenv(pp.FLAG, raising=False)
     assert pp.enabled() is False and F._rs_screens_on() is False
-    for value, armed in (("1", True), ("0", False), ("true", False), ("", False), ("yes", False)):
+    for value, armed in (("1", True), ("0", False), ("true", True), ("", False), ("yes", True),
+                         ("flase", False), ("2", False)):
         monkeypatch.setenv(pp.FLAG, value)
         assert pp.enabled() is armed and F._rs_screens_on() is armed, value
 

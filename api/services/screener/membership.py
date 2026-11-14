@@ -127,7 +127,10 @@ def record_all() -> dict:
     if not snapshot_date:
         out["errors"] = 1
         return out
-    specs = [s.get("spec") or {} for s in saved_screens.starters()] + list(saved_screens.all_specs())
+    # `starters_to_record`: the starters a member is served and, while RS_SCREENS_ENABLED
+    # is `admin`, the five RS screens only the owner is served yet (unit U10).
+    specs = ([s.get("spec") or {} for s in saved_screens.starters_to_record()]
+             + list(saved_screens.all_specs()))
     seen = set()
     for spec in specs:
         h = spec_hash(spec)

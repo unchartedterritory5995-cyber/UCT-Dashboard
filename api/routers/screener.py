@@ -180,8 +180,10 @@ def screener_grammar_parse(body: GrammarIn, _user=Depends(require_paid)):
 
 @router.get("/api/screener/meta")
 def screener_meta(user=Depends(require_paid)):
-    """Filter registry + result views + filter categories (frontend-ready)."""
-    return scr_filters.meta(user_id=user["id"])
+    """Filter registry + result views + filter categories (frontend-ready).
+    The user rides along for one answer: whether the RS screens' keys and views are
+    offered to them (RS_SCREENS_ENABLED at `admin` offers them to admins only)."""
+    return scr_filters.meta(user_id=user["id"], user=user)
 
 
 @router.get("/api/screener/fields")
@@ -194,6 +196,8 @@ def screener_fields(options: int = 0, _user=Depends(require_paid)):
     from api.services.screener import logic as scr_logic
     # `logic_enabled`: a caller that composes screens (UCT Agent) can say a group is off before it asks, instead of
     # finding out from a refusal. The scan route still refuses on its own.
+    # Not gated by RS_SCREENS_ENABLED, for anyone: the registry lists every key whatever
+    # that flag says (off included), so its owner-only value has nothing to hide here.
     out = {"fields": scr_filters.field_catalog(), "logic_enabled": scr_logic.is_enabled(),
            "live_fields": scr_filters.live_field_keys()}
     if options:
@@ -223,7 +227,7 @@ def screener_methodology(column: str = "", user=Depends(require_paid)):
             raise HTTPException(status_code=404,
                                 detail=f"no published method for {column!r}")
         return found
-    return methodology.all_methods()
+    return methodology.all_methods(user)
 
 
 @router.get("/api/screener/structures")

@@ -2664,8 +2664,9 @@ def _run_rs_evidence_pull() -> None:
 def _run_rs_post_pass(source: str) -> None:
     """The RS screens post-pass after a rating run (RS screens unit U1). Never raises.
 
-    Off (`RS_SCREENS_ENABLED` unset or not "1"): returns before touching anything, so
-    every caller behaves exactly as it did. On: one `rs_post_pass.run()` (every screener
+    Off (`RS_SCREENS_ENABLED` unset, `0` or a value that spells nothing): returns before
+    touching anything, so every caller behaves exactly as it did. On, and at `admin` (the
+    owner's private look: the data runs for everyone): one `rs_post_pass.run()` (every screener
     row's rating columns onto the settled session, the session stamp, the exact places;
     its receipt is read back on `snapshot_db.status()` as `rs_post_pass`), and, when the
     pass MOVED the ratings, screen membership is recorded again: the 03:00 record behind

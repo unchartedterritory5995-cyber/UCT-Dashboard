@@ -363,7 +363,8 @@ def stub_services(monkeypatch):
     # warmer, which is a different subsystem and not this file's subject.
     monkeypatch.setattr(scr_router, "get_candidates", lambda: {"candidates": {}})
     monkeypatch.setattr(breadth_monitor, "get_universe_stocks", lambda date_str=None: dict(sentinel))
-    monkeypatch.setattr(scr_filters, "meta", lambda user_id=None: dict(sentinel))
+    # 2026-11-14 (RS screens U10): the route also passes the user, for the owner-only look.
+    monkeypatch.setattr(scr_filters, "meta", lambda user_id=None, user=None: dict(sentinel))
     # ⛔ THE STUB TAKES `user_id` because the ROUTE PASSES IT — the `list`
     # filter resolves a member's own watchlists, and the id must come from the
     # authenticated dependency rather than the request body. A stub that

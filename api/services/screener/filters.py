@@ -1956,12 +1956,17 @@ def _rs_v3_on() -> bool:
         return False
 
 
-def _rs_screens_on() -> bool:
-    """`rs_post_pass.enabled()`, the ONE reader of RS_SCREENS_ENABLED (the writer's own
-    gate), read at call time. An unreadable flag is off: the surface stays dark."""
+def _rs_screens_on(user=None) -> bool:
+    """`rs_post_pass.surfaces_on(user)`: is THIS user shown the RS screens' controls and
+    views (RS_SCREENS_ENABLED on for everyone, or `admin` and the user is an admin; unit
+    U10), read at call time. No user is a member's answer, and an unreadable flag is
+    off: the surface stays dark.
+
+    Only what `meta()` OFFERS is gated here. The scan and count routes need no gate: a
+    column that exists may be filtered by anyone, and under `admin` it holds values."""
     try:
         from . import rs_post_pass  # noqa: PLC0415 - lazy
-        return bool(rs_post_pass.enabled())
+        return bool(rs_post_pass.surfaces_on(user))
     except Exception:  # noqa: BLE001
         return False
 
@@ -2083,8 +2088,12 @@ def _member_views(dark, v2_on, hidden=frozenset(), screens_on=None) -> list:
     return out
 
 
-def meta(user_id=None) -> dict:
+def meta(user_id=None, user=None) -> dict:
     """The whole panel payload.
+
+    `user` (the route's user dict) decides one thing: whether the RS screens' filter
+    keys and views are in it (`_rs_screens_on(user)`, unit U10). Without one the payload
+    is a member's, so the boot warm-up and a caller that forgets it fail closed.
 
     ⭐ `distribution` RIDES BESIDE EACH RANGE CONTROL, AND IS NOT A PRESET.
     Most of these controls ship with no presets and must keep doing so (E-8: a
@@ -2133,7 +2142,11 @@ def meta(user_id=None) -> dict:
     _parts["filters"] = _time.perf_counter() - _t0 - _parts["distribution"]
     # The RS families whose writer is dark leave the payload (see `rs_dark_keys`).
     rs_v2_on = _rs_v2_on()
-    rs_dark = rs_dark_keys(v2_on=rs_v2_on)
+    # Read once for this user and handed to both readers below, so the keys and the
+    # views cannot disagree. A top-level key a later unit adds for the RS screens
+    # follows this same answer (`rs_screens_on`), never `rs_post_pass.enabled()`.
+    rs_screens_on = _rs_screens_on(user)
+    rs_dark = rs_dark_keys(v2_on=rs_v2_on, screens_on=rs_screens_on)
     if rs_dark:
         out_filters = [f for f in out_filters if f["key"] not in rs_dark]
     # S1: hidden-but-valid. The control stays in the payload (a saved screen's
@@ -2159,7 +2172,8 @@ def meta(user_id=None) -> dict:
             categories = categories + [{"key": "my_lists", "label": "My Lists"}]
     _log_if_slow("screener-meta", _time.perf_counter() - _t0, _parts)
     return {"filters": out_filters,
-            "views": _member_views(rs_dark, rs_v2_on, picker_hidden),
+            "views": _member_views(rs_dark, rs_v2_on, picker_hidden,
+                                   screens_on=rs_screens_on),
             "picker_hidden": sorted(picker_hidden),
             "categories": categories,
             # The floors, the wording and the vintage the bands were measured

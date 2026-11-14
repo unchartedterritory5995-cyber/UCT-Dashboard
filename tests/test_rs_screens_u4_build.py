@@ -111,8 +111,10 @@ def test_flag_off_the_build_writes_none_and_calls_none(monkeypatch):
     assert kwargs_seen == [["session", "stats"]]
     assert row["rs_nh_bars_ago"] == 9 and failures == {"bars_rs": {"rated": 1}}
     assert sorted(timing) == ["ms", "rows"], "a dark row adds no timing key"
-    monkeypatch.setenv("RS_SCREENS_ENABLED", "true")
-    assert sb.rs_screens_enabled() is False, "only the literal 1 arms it"
+    # Pin moved 2026-11-14 (unit U10): one parser with the Focus flags, so a value that
+    # spells nothing is off (`true` now spells on).
+    monkeypatch.setenv("RS_SCREENS_ENABLED", "flase")
+    assert sb.rs_screens_enabled() is False, "an unknown value is off"
 
 
 def test_the_six_reuse_the_ten_s_phase_1_pass(on, monkeypatch):

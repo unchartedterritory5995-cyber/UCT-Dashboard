@@ -54,9 +54,11 @@ for the market caution state and keeps the answer in its receipt as ``market``
 and QQQ, not about any row, so it is asked whether or not the rating half of the pass
 succeeded, and a failure there never costs the pass.
 
-DARK BY DEFAULT. ``RS_SCREENS_ENABLED`` is read per call (only the literal ``1`` arms
-it). Off, :func:`run` returns before it opens the database: no column is written, no
-table is created and no receipt is stored.
+DARK BY DEFAULT. ``RS_SCREENS_ENABLED`` is read per call and takes the three values the
+Focus screener flags take (unit U10): off, ``admin`` (the owner's private look) and on
+for everyone. :func:`enabled` answers for the DATA (``admin`` or on) and
+:func:`surfaces_on` for what one user is shown. Off, :func:`run` returns before it opens
+the database: no column is written, no table is created and no receipt is stored.
 
 THE SHADOW LEADER SCORE (unit U9) rides this pass: after the places, and only while
 ``RS_LEADER_SHADOW_ENABLED`` is on too, :func:`_leader_shadow` hands over to
@@ -67,7 +69,6 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import time
 from contextlib import closing
 
@@ -124,12 +125,59 @@ CREATE TABLE IF NOT EXISTS {RUNS_TABLE} (
 )"""
 
 
+#: The flag and its default (off), as a one-row table. The read below goes through the
+#: Focus flags' helper, which takes the name from a variable; the ledger's index of gates
+#: (``feature_flag_index``) finds a gate by a literal, and a module-level ``*_FLAGS``
+#: table is the form it reads for that. Without this row the ledger would describe a
+#: gate the index cannot see.
+RS_SCREENS_FLAGS = {"RS_SCREENS_ENABLED": False}
+
+
+def _reads(user=None) -> tuple:
+    """``(data on, surfaces on for this user)``, read PER CALL (a flip needs no restart
+    and a rollback is an unset). Ledger: docs/feature_flags.json.
+
+    THE ONE PARSE is ``api.routers.auth._breadth_dc_scope``, the helper the Focus
+    screener flags use, so the two cannot disagree about what ``admin`` or a typo means:
+    unset / ``0`` / ``false`` / ``no`` / ``off`` is off, ``admin`` is the owner's private
+    look, ``1`` / ``true`` / ``yes`` / ``on`` is everyone, and anything else takes the
+    default (off), never the opposite of it. The import is lazy, the way ``premarket``
+    and ``membership`` read their own flags: the router is not loaded for this module.
+
+    An admin is ``role == "admin"`` on the user dict, the test ``premarket.served_to``
+    and the New today route apply. No user, or one this cannot read, is a member.
+    A flag that cannot be read is off for both answers."""
+    try:
+        from api.routers import auth                         # noqa: PLC0415 - lazy: no cycle
+        scope = auth._breadth_dc_scope(FLAG, RS_SCREENS_FLAGS[FLAG])
+        data = scope != auth._SCOPE_OFF
+        owner_only = scope == auth._ADMIN_ONLY
+        everyone = scope == auth._SCOPE_ALL
+    except Exception:                                        # noqa: BLE001
+        return False, False
+    is_admin = isinstance(user, dict) and user.get("role") == "admin"
+    return data, everyone or (owner_only and is_admin)
+
+
 def enabled() -> bool:
-    """``RS_SCREENS_ENABLED``, read PER CALL (only the literal ``1`` arms it), so a flip
-    needs no restart and a rollback is an unset. Ledger: docs/feature_flags.json.
-    The name is spelled out here (not read from :data:`FLAG`) because the ledger's index
-    of gates is derived from the literal (``feature_flag_index``)."""
-    return os.environ.get("RS_SCREENS_ENABLED", "0") == "1"
+    """Is the DATA on (``admin`` or on for everyone)? The build's extra columns, this
+    pass, the rating session stamp and the membership re-record all ask this, so under
+    ``admin`` the owner looks at real screens and a full release has its history."""
+    return _reads()[0]
+
+
+def surfaces_on(user=None) -> bool:
+    """Is THIS user shown the screens (on for everyone, or ``admin`` and the user is an
+    admin)? Every member-facing surface asks this: the five starters and the hidden
+    marks, the RS screens views and filter keys in ``filters.meta``, the method page.
+    A caller that passes no user gets a member's answer, so it fails closed at ``admin``.
+
+    A payload a later unit serves for the screens (a new key, a new route) gates on THIS
+    with the route's user, never on :func:`enabled`: a member under ``admin`` must be
+    served exactly what the flag off serves (tests/test_rs_screens_u10_owner_only.py).
+    The scan and count routes are not gated: a column that exists may be filtered by
+    anyone."""
+    return _reads(user)[1]
 
 
 # --------------------------------------------------------------------------- #
