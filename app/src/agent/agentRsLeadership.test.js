@@ -157,6 +157,8 @@ export const NOT_RS = [
   'put the rrg view in the rs pane', 'what is the RSI of NVDA', 'add the relative strength index', 'compare nvda with amd',
   'open the rotation map', 'compare against the Semiconductors industry', 'rank sectors since oct 1', 'put XLK on the chart',
   'add the 50 day moving average', 'how is US breadth now?', 'show me the news on NVDA', 'switch to the weekly', 'add the RS line to the chart',
+  // RS INDICATOR edits that name a comparison word: only the indicator guard keeps them out of the rs group
+  'change the RS indicator to compare against QQQ', 'make the relative strength line red vs the benchmark', 'put the RS pane against SPY',
 ]
 
 describe('served vs dark', () => {
@@ -239,6 +241,16 @@ describe('served vs dark', () => {
     calls.length = 0
     await inTurn(() => getCapability(CAPABILITY).answer(null, { scope: 'backdrop', symbols: null, industry: null, period: '1W' }))
     expect(reads().map(r => [r.kind, r.params.metric || r.params.scope])).toEqual([[KIND, 'backdrop'], ['breadth.current', 'pct_above_50sma'], ['breadth.current', 'pct_above_200sma']])
+  })
+
+  it('backdrop with breadth NOT served: exactly one read, and the answer says breadth is not available', async () => {
+    wire([KIND])
+    await loadAgentConfig()
+    registerServerGatedBuiltins()
+    ENVS[KIND] = envelope({ scope: 'backdrop', sectors: [], indices: [] })
+    const a = await inTurn(() => getCapability(CAPABILITY).answer(null, { scope: 'backdrop', symbols: null, industry: null, period: null }))
+    expect(reads().map(r => r.kind)).toEqual([KIND])
+    expect(a.text).toMatch(/US breadth: not available to the Agent right now/)
   })
 
   it('served but no open turn, no scope, no ticker or no industry: a plain sentence and no read', async () => {

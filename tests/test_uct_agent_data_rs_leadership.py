@@ -109,6 +109,7 @@ def test_cohort_stats_median_pairs_rank_and_top():
     assert st["top"][:3] == [{"symbol": "A", "rating": 90}, {"symbol": "F", "rating": 90}, {"symbol": "B", "rating": 80}]
     assert st["focus"] == {"symbol": "B", "rating": 80, "rank": 3}
     assert rl.cohort_stats(r, ["A"], focus="E")["focus"] is None   # an unrated focus has no rank
+    assert rl.cohort_stats(r, ["A", "B", "C", "D", "E", "F"], focus="A")["focus"]["rank"] == 1   # ties share the higher rank
 
 
 @pytest.mark.parametrize("word,want", [
