@@ -21,7 +21,7 @@ from __future__ import annotations
 
 from api.services.uct_agent.marketdata import (asset_classes, bars_daily, breadth, commodity_quote, crypto_quote, earnings,
                                               index_quote, instruments, news_company, quotes, ratings, statements, themes)
-from api.services.uct_agent.marketdata import history_event_study
+from api.services.uct_agent.marketdata import history_event_study, rs_leadership
 from api.services.uct_agent.research import rs1
 
 # Symbols one read may name. A request-shape bound per kind, not a toolkit cap: the cap numbers live only
@@ -138,6 +138,17 @@ def register(registry) -> None:
         owner="agent-md", max_symbols=ONE_SYMBOL, model_isolated=True,
         description="UCT Ratings: UCT's own composite 0-99 and component scores (not an analyst rating); "
                     "as_of is the price data's last session. Shown to the member only. Params: {symbol}.",
+    ))
+    # Phase 2 (market intelligence): relative strength + group leadership from UCT's stored RS Rating table, the bars
+    # store and the industry map (no provider call). MODEL-ISOLATED like `ratings`: the RS Rating is UCT-derived.
+    registry.register(Kind(
+        name=rs_leadership.KIND, fn=rs_leadership.read_rs_leadership, validate=rs_leadership.validate,
+        freshness="periodic", owner="agent-md", max_symbols=rs_leadership.MAX_SYMBOLS, model_isolated=True,
+        description="Relative strength and leadership from UCT's stored data: the nightly UCT RS Rating (1-99) with its "
+                    "5/20-session change, period returns vs SPY over the identical window, a stock's rank in its "
+                    "industry, the 11 SPDR sector ETFs ranked, one industry's rating distribution, or the index + "
+                    "sector backdrop. Historical, never a forecast. Shown to the member only. Params: {scope: "
+                    f"{'|'.join(rs_leadership.SCOPES)}, symbols?, industry?, period: {'|'.join(rs_leadership.PERIODS)}}}.",
     ))
     # W2-B1 (agent-rs, RS-1 v1): a COMPOSED kind. It reads the served kinds above (purpose "research", so a
     # model-isolated kind refuses before admission) and the turn's one web search; every fact's figures come from

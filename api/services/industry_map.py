@@ -337,6 +337,26 @@ def get_industries(tickers: list[str]) -> dict[str, Optional[str]]:
     return out
 
 
+def peek_groups(tickers: list[str]) -> dict[str, dict]:
+    """{TICKER: {"sector", "industry"}} from the persisted map ONLY — the read half of :func:`get_groups`
+    with NO side effect: no straggler fallback warm (a provider call) and no self-heal refresh. A ticker
+    the map does not hold is absent from the result (never a fabricated None row). For readers that must
+    make zero provider calls (the UCT Agent's MD-1 kinds)."""
+    want = sorted({str(t).strip().upper() for t in (tickers or ()) if t and str(t).strip()})
+    if not want:
+        return {}
+    _ensure_init()
+    out: dict[str, dict] = {}
+    with contextlib.closing(_connect()) as c:
+        for i in range(0, len(want), 400):
+            chunk = want[i:i + 400]
+            q = "SELECT ticker, sector, industry FROM industry_map WHERE ticker IN (%s)" % (
+                ",".join("?" * len(chunk)))
+            for row in c.execute(q, chunk).fetchall():
+                out[row["ticker"]] = {"sector": row["sector"], "industry": row["industry"]}
+    return out
+
+
 def tickers_in_industry(industry: str) -> list[str]:
     """Reverse lookup: every mapped ticker in a Finviz industry. Powers the
     Groups orphan fallback — a stock in no theme groups with its industry cohort.
