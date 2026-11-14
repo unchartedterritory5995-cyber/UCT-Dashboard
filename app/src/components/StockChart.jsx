@@ -6578,6 +6578,8 @@ export default function StockChart({
   const toolbarRef = useRef(null)
   // UCT Agent (uctIntelligence.set): the UCT Intelligence row/panel gates, filled where they are computed (below)
   const uctIntelAgentRef = useRef(null)
+  // UCT Agent (chartShare.export): the Share popover's Download PNG / the popover, filled where they are defined (below)
+  const shareAgentRef = useRef(null)
 
   // Publish the toolbar's imperative API to a host-supplied ref (see the
   // toolbarApiRef prop). toolbarRef is read at CALL time, so the entries stay
@@ -6591,6 +6593,11 @@ export default function StockChart({
       // UCT Agent (uctIntelligence.set): what the Indicators library row and the UCT Intelligence panel offer NOW
       // ({ available, known, availability }), read at call time; null before the first render reached the pattern block
       uctIntelligence: () => (uctIntelAgentRef.current ? { ...uctIntelAgentRef.current } : null),
+      // UCT Agent (chartShare.export): Share → Download PNG (resolves to the file name, or null when no PNG was made), the
+      // Share popover opened (Copy Share URL is the member's own click), and whether it is open now (the read-back)
+      shareDownload: async () => { try { return (await shareAgentRef.current?.download?.()) || null } catch { return null } },
+      shareOpen: () => { try { return !!shareAgentRef.current?.open?.() } catch { return false } },
+      shareIsOpen: () => !!shareAgentRef.current?.isOpen,
       // ⭐ 4-11 — a first add of a toured definition made OUTSIDE this chart's own
       // library (Chart Settings → Indicators, held by the pane until its modal
       // closes): the same handler the library's `onFirstAdd` reaches, with the same
@@ -7695,14 +7702,19 @@ export default function StockChart({
     }
   }, [sym, resolvedTf, watermarkMeta, tickerMeta, crosshairData, cs, canvasTheme, userCanvas, boldCandles, modelBookLook, axisAuto])
 
+  // Resolves to the file name once a PNG was composed and handed to the browser's download, else null
+  // (UCT Agent's chartShare.export reports exactly that; the popover ignores it).
   const handleDownload = useCallback(async () => {
-    if (!chartRef.current) return
+    if (!chartRef.current) return null
     try {
       const blob = await composeScreenshot(chartRef.current, buildScreenshotOpts())
+      if (!blob) return null
       const filename = `${sym || 'chart'}-${resolvedTf}-${new Date().toISOString().slice(0, 10)}.png`
       downloadBlob(blob, filename)
+      return filename
     } catch (err) {
       console.warn('Screenshot failed:', err)
+      return null
     }
   }, [sym, resolvedTf, buildScreenshotOpts])
 
@@ -7777,10 +7789,14 @@ export default function StockChart({
     }
     const encoded = chartStateToUrl(state)
     const url = `${window.location.origin}${window.location.pathname}?state=${encoded}`
+    // true only once the browser confirmed the copy (the popover says "URL copied" only then)
     try {
-      navigator.clipboard.writeText(url)
-    } catch {}
+      return Promise.resolve(navigator.clipboard.writeText(url)).then(() => true, () => false)
+    } catch { return Promise.resolve(false) }
   }, [sym, resolvedTf, cs])
+  // UCT Agent (chartShare.export): the Share popover's own Download PNG and the popover itself, read at call time through
+  // toolbarApiRef. The Agent never copies: a browser lets only a click write the clipboard, so it opens this popover instead.
+  shareAgentRef.current = { download: handleDownload, open: () => { setScreenshotPopoverOpen(true); return true }, isOpen: screenshotPopoverOpen }
 
   // ── Apply share-URL chart state — ONCE, on ONE chart, asking first (A1.3, D6/C3) ──
   // ⚰️ Before A1 this effect ran in EVERY StockChart on the page and never stripped the

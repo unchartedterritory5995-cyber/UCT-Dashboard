@@ -260,6 +260,9 @@ export function checkExpect(ctx, e, label) {
   }
   // uctIntelligence.set: the first chart's UCT Intelligence layers as its stored settings read (readUctIntelligence); only the fields named
   if (e.uctIntelligence) { const u = readUctIntelligence(mergeChartSettings(chartsOf(board)[0]?.opts?.settings ?? null)); for (const [k, v] of Object.entries(e.uctIntelligence)) expect(u[k], `${label}: UCT Intelligence ${k}`).toBe(v) }
+  // chartShare.export: the PNGs the first chart's Share → Download PNG made (file names), and whether its Share popover is open
+  if ('shareDownloads' in e) expect(ctx.st.shareDownloads || [], `${label}: PNGs downloaded`).toEqual(e.shareDownloads)
+  if ('shareOpen' in e) expect(!!ctx.st.shareOpen?.[chartsOf(board)[0]?.id], `${label}: the Share menu open`).toBe(e.shareOpen)
   for (const r of e.reads || []) expect(calls.map(callLine).some(l => new RegExp(r, 'i').test(l)), `${label}: a canonical read matching /${r}/ ran (ran: ${calls.map(c => `${c[0]} ${c[1]}`).join(' | ')})`).toBe(true)
   for (const r of e.writes || []) expect(calls.map(callLine).some(l => new RegExp(r, 'i').test(l)), `${label}: a canonical write matching /${r}/ ran`).toBe(true)
   for (const r of e.noCalls || []) expect(calls.map(callLine).some(l => new RegExp(r, 'i').test(l)), `${label}: nothing matching /${r}/ ran`).toBe(false)

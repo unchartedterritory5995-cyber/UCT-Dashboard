@@ -110,6 +110,16 @@ export const GROUPS = [
       /\bcompany\s+(?:info(?:rmation)?|panel|profile\s+panel|intelligence|sidebar|side\s*panel)\b|\b(?:profile|info|fundamentals?)\s+(?:side\s*)?panel\b/,
       /\b(?:earnings|fundamentals?|eps)\s+strip\b|\bstrip\s+(?:under|below|beneath|at the bottom of)\s+(?:the\s+|this\s+|my\s+|that\s+)?chart\b/,
       /\b(?:financials|ownership|valuation)\s+tab\b|\b(?:overview|earnings|news|financials|ownership)\s+tab\s+(?:of|on|in)\s+(?:the\s+)?(?:company|side|profile|info)\b/] },
+  // Charts family (2026-11-13): a chart's Share popover (chartShare.export) in its OWN words-only group (as chartFeatures): never
+  // a filler, so no existing group and no unrecognised request changes. The words name a screenshot, a PNG / image download,
+  // or SHARING a chart (a share link, the Share menu). ⛔ Never indicator authoring ("recreate an indicator from a screenshot",
+  // the builder's Screenshot door), the Journal (widget.sendToJournal), a chart's link GROUP ("link this chart"), or a bare
+  // "share price" / "shared chart settings".
+  { id: 'chartShare', title: 'A chart as a PNG (Share → Download PNG), or its Share menu for the chart’s link', domains: ['chartShare'], fillLast: true, wordsOnly: true,
+    words: [
+      /^(?!.*\b(?:indicators?|recreate|journal|notebook|build|building|create|creating|formula|pine)\b).*\bscreen[\s-]?(?:shot|grab|cap(?:ture)?)s?\b/,
+      /^(?!.*\b(?:indicators?|recreate|journal|notebook|build|building|create|creating|formula|pine)\b).*(?:\b(?:download|save|export|grab)\b.*\b(?:png|image|picture|pic|snapshot)\b|\b(?:png|image|picture) of (?:the |this |that |my )?(?:\w+ )?chart\b)/,
+      /^(?!.*\b(?:journal|notebook|link(?:ed)? group|link colou?r|unlink)\b).*(?:\bshare (?:link|url)\b|\bshar(?:e|ing) (?:the |this |that |my |a )?(?:\w+ )?charts?\b|\bshareable link\b|\bshare (?:menu|button|popover)\b|\b(?:a|the) link (?:to|for) (?:the |this |that |my )?(?:\w+ )?chart\b|\bchart(?:'s|’s)? (?:share )?(?:link|url)\b(?! group))/] },
   // ⭐ live test 2026-10-28: N tickers as N equal charts (reuse, add, re-tile — one change, one Undo) — its OWN group
   // (one action), so neither the NL-1 core nor the workspace group grows: core + workspace is exactly the budget.
   { id: 'chartGrid', title: 'Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells', domains: ['chartGrid'], fillLast: true,

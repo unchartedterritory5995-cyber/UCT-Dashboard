@@ -13,9 +13,10 @@ export default function ScreenshotPopover({ onDownload, onCopy, onShare, onClose
     setTimeout(() => setStatus(''), 2000);
   }
 
-  function handleShare() {
-    onShare();  // expected to copy URL to clipboard internally
-    setStatus('shared');
+  // "URL copied" only once the copy really happened: onShare resolves false when the browser refused it
+  async function handleShare() {
+    const ok = await onShare();
+    setStatus(ok === false ? 'share-failed' : 'shared');
     setTimeout(() => setStatus(''), 2000);
   }
 
@@ -51,6 +52,7 @@ export default function ScreenshotPopover({ onDownload, onCopy, onShare, onClose
       {status === 'shared' && <div className={styles.status}>URL copied <UIcon name="check" size={12} style={{ verticalAlign: '-1px' }} /></div>}
       {status === 'downloaded' && <div className={styles.status}>Downloaded <UIcon name="check" size={12} style={{ verticalAlign: '-1px' }} /></div>}
       {status === 'copy-failed' && <div className={styles.statusError}>Clipboard unavailable</div>}
+      {status === 'share-failed' && <div className={styles.statusError}>Clipboard unavailable — the link was not copied</div>}
       {status === 'copying' && <div className={styles.status}>Working...</div>}
     </div>
   );

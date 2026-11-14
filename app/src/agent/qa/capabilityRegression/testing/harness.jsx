@@ -105,6 +105,8 @@ export const BOARDS = {
   UCTI: () => [[chart('c1', 0, 0, 24, 20)], { 'N:c1': 'NVDA' }, { uctIntel: UCTI_GATES }],
   UCTI_ADDED: () => [[{ ...chart('c1', 0, 0, 24, 20), opts: { settings: { ...bareSettings(), showPatterns: true, uctIntelligence: { added: true, labels: true, supportResistance: true } } } }],
     { 'N:c1': 'NVDA' }, { uctIntel: UCTI_GATES }],
+  // chartShare.export: a chart with its Share popover doors (StockChart → ChartPane → ChartWidget: Download PNG, the popover)
+  SHARE: () => [[chart('c1', 0, 0, 24, 20)], { 'N:c1': 'NVDA' }, { share: true }],
 }
 const UCTI_GATES = { available: true, known: true, availability: { supportResistance: true, supportResistanceEmpty: false, candles: false, setups: true, caution: false } }
 
@@ -522,6 +524,16 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
   if (extra.uctIntel) {
     const c0 = mounted.h.charts, withUci = (x) => (x ? { ...x, uctIntel: { ...extra.uctIntel } } : x)
     mounted.h.charts = { ...c0, list: () => c0.list().map(withUci), read: (r) => withUci(c0.read(r)) }
+  }
+  // chartShare.export: each chart's Share popover as StockChart exposes it — Download PNG recorded as its file name, the popover
+  // opened (read back as shareOpen). Nothing ever reaches a clipboard.
+  if (extra.share) {
+    st.shareDownloads = []
+    st.shareOpen = {}
+    const c0 = mounted.h.charts, withShare = (x) => (x ? { ...x, canShare: true, shareOpen: !!st.shareOpen[x.ref] } : x)
+    mounted.h.charts = { ...c0, list: () => c0.list().map(withShare), read: (r) => withShare(c0.read(r)),
+      shareDownload: async (ref) => { const f = `${c0.read(ref)?.symbol}-${c0.read(ref)?.tf}.png`; st.shareDownloads.push(f); return f },
+      shareOpen: (ref) => { st.shareOpen[ref] = true; return true } }
   }
   return { p, st, srv, ...mounted }
 }

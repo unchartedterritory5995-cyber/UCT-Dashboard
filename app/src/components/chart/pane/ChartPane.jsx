@@ -949,6 +949,10 @@ function ChartPane({
     canManageIndicators: () => { try { return !!paneToolbarApi.current?.canManageIndicators?.() } catch { return false } },
     // UCT Agent (uctIntelligence.set): the UCT Intelligence row/panel gates StockChart computes (null = not published yet)
     uctIntelligence: () => { try { return paneToolbarApi.current?.uctIntelligence?.() ?? null } catch { return null } },
+    // UCT Agent (chartShare.export): StockChart's Share popover doors — Download PNG (the file name, or null) / open it / is it open
+    shareDownload: async () => { try { return (await paneToolbarApi.current?.shareDownload?.()) || null } catch { return null } },
+    shareOpen: () => { try { return !!paneToolbarApi.current?.shareOpen?.() } catch { return false } },
+    shareIsOpen: () => { try { return !!paneToolbarApi.current?.shareIsOpen?.() } catch { return false } },
     // ⭐ AGENT M3 (S3) — the tab's ONE live authoring preview on this chart (`previewChannel`):
     // `{ok, movedFrom}` | `{ok:false, reason:'readonly'|'busy'|'invalid'}`; never persisted.
     showAuthoringPreview: (definition, opts = {}) => { try { return paneToolbarApi.current?.showAuthoringPreview?.(definition, opts) ?? { ok: false, reason: 'readonly' } } catch { return { ok: false, reason: 'readonly' } } },
