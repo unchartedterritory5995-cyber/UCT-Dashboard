@@ -1,6 +1,26 @@
-# promotion-gate: no
+# promotion-gate: yes — members reach the site through the front door (`web-front`), so a
+#   break in `api/front_app.py` is every page down, and a change to the part of `api/main.py`
+#   it mirrors is a silent difference in what members are served. Both jobs are
+#   deterministic: a local stand-in for `web`, no network, no threshold tighter than seconds.
+#   SEEN GREEN https://github.com/unchartedterritory5995-cyber/UCT-Dashboard/actions/runs/43577596445
+#     (master 04bbed081e: behaviour 124 passed, parity 44 passed)
+#   SEEN RED   https://github.com/unchartedterritory5995-cyber/UCT-Dashboard/actions/runs/43578820787
+#     (throwaway reliability/front-door-seen-red e6405a3e42 = master with front_app.GZIP_LEVEL
+#     set to 9 where `web` uses 5: parity "1 failed, 43 passed" on
+#     `assert gz.kwargs["compresslevel"] == front_app.GZIP_LEVEL`; behaviour stayed green)
 #
-# The front door (`api/front_app.py`), on LINUX, where it will run.
+# ⛔ A RED HERE ON A MASTER COMMIT REFUSES PROMOTION (tools/promotion_gate.py), AND NOTHING
+#   RETRIES IT. It runs on a master commit only when that commit touches a path listed below,
+#   so it holds back exactly the commits that can change what the front door serves.
+#     * `parity` red: `web` and the front door no longer describe the built frontend the same
+#       way. The message names the table, the route or the setting. Fix the side that moved.
+#     * `behaviour` red: the front door itself is broken.
+#     * An INFRASTRUCTURE failure (pip, a runner) refuses too, and says nothing about the code.
+#       Recovery is a re-run: `gh run rerun <run-id> --failed`, then, once green, promote that
+#       commit by hand (a re-run alone does not re-trigger promotion):
+#         gh workflow run promote-production.yml -f sha=<the master commit sha>
+#
+# The front door (`api/front_app.py`), on LINUX, where it runs.
 #
 # Two jobs:
 #   behaviour  the app over real sockets: a stand-in for `web` on one port, the front door
@@ -14,8 +34,7 @@
 # that serves the built frontend; a change there that the front door does not follow is
 # exactly what `parity` exists to turn red.
 #
-# promotion-gate is `no` while no member traffic goes through the front door. The change
-# that sends traffic to it must flip this to `yes` in the same commit.
+# It gated nothing until 2026-11-14, while no member traffic went through the front door.
 name: Front door
 
 on:
