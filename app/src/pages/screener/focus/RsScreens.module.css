@@ -57,6 +57,8 @@
    dominant sector. Quiet text; nothing here is a signal. */
 .head { display: flex; align-items: center; flex-wrap: wrap; gap: 2px 8px; flex-shrink: 0; padding: 6px 20px; border-bottom: 1px solid var(--border); font-size: var(--text-sm); color: var(--text-muted); font-variant-numeric: tabular-nums; }
 .headPart { display: inline-flex; align-items: center; gap: 8px; }
+/* the rows on view answer the previous screen: the line waits with the list, at the list's own dim */
+.headPending { opacity: 0.45; transition: opacity 120ms ease; }
 .headSep { color: var(--text-muted); }
 /* The dropped-names popover opens from the line's own start here (in the list head it hangs from the right). */
 .head [role='list'] { right: auto; left: 0; }

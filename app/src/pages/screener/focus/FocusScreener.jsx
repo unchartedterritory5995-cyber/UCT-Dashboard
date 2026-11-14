@@ -56,7 +56,7 @@ import { activeStructures, structureLabels, structureDescs } from './setupLine'
 import { plainColumnLabel } from './plainWords'
 import { sortableColumns } from './sortKeys'
 import { capToTopN, poolOf } from './counts'
-import { defaultLanding, sameScreen, readLandingSeed, writeLandingSeed, readLastScreen, writeLastScreen } from './landing'
+import { defaultLanding, sameScreen, readLandingSeed, writeLandingSeed, readLastScreen, writeLastScreen, rsExtras } from './landing'
 import { livePriceOf } from './livePrice'
 import ChartPane from './ChartPane'
 import PhoneChartSheet from './PhoneChartSheet'
@@ -69,6 +69,7 @@ import { describeEmptying } from './emptyUndo'
 import { migratePinned } from './screenGroups'
 import QuickControls from './QuickControls'
 import { RS_CONTROLS_PREF, controlsOf, applyOption, specWithChoices, choicesFor, withChoice, withoutChoices, controlStarterFor } from './rsScreens'
+import { rowConfigOf, rowColumns } from './rsRows'
 import { useNameDialog } from './useNameDialog'
 import { useShortcutsSheet } from './useShortcutsSheet'
 import lazy from '../../../utils/lazyWithRetry'
@@ -187,7 +188,31 @@ function FocusList({ mode, onMode }) {
   // ── the scan ─────────────────────────────────────────────────────────────
   // Retry must change the spec's JSON or useScreenerScan refires nothing (ScannerShell's recipe).
   const [retryNonce, setRetryNonce] = useState(0)
-  const columns = useMemo(() => [...new Set([...REQUIRED_COLS, ...LIST_COLUMNS, ...whyColumns(s.filters)])], [s.filters])
+  // ── screen identity (which starter or saved screen is applied). Read BEFORE the scan is built:
+  // the columns the list asks for depend on the open starter (RS screens, below).
+  const { saved, starters, error: savedError, loaded: savedLoaded, refresh } = useSavedScreens()
+  const [current, setCurrent] = useState(() => (arrivedBare.current ? null : readNamed()[normalSpec(s.baseSpec)] || null))
+  // ── RS screens (unit U5): what the open screen's STARTER adds to it ──────
+  // The starter on view, from the live starters payload by id; it may carry `controls`, `row`
+  // and `empty` (CONTRACT-SCREENS.md). A saved screen, a custom screen and a starter without them
+  // get nothing: nothing below draws and nothing more is asked of the server.
+  // Until the payload has answered, a screen that landed from this browser's memory reads what
+  // that memory kept of it (landing.js rsExtras), so its first scan already asks for its row's
+  // columns: one scan on a bare open, never a plain list first and the RS list a moment later.
+  const rsStarter = useMemo(() => {
+    if (!current || current.kind === 'saved') return null
+    const live = starters.find(x => String(x.id) === String(current.id))
+    if (live) return live
+    if (savedLoaded && !savedError) return null
+    return current.controls || current.row || current.empty ? current : null
+  }, [current, starters, savedLoaded, savedError])
+  const rsControls = useMemo(() => controlsOf(rsStarter), [rsStarter])
+  const rsRow = useMemo(() => rowConfigOf(rsStarter), [rsStarter])
+  // ⛔ Asked ONLY for a starter that carries `row`: the scan refuses a column the server does not
+  // have with a 400, and these exist only where the RS screens do. Keyed on the names, so the
+  // live payload replacing a remembered copy of the same starter asks nothing again.
+  const rsCols = rowColumns(rsRow).join(',')
+  const columns = useMemo(() => [...new Set([...REQUIRED_COLS, ...LIST_COLUMNS, ...whyColumns(s.filters), ...(rsCols ? rsCols.split(',') : [])])], [s.filters, rsCols])
   // The screen's identity for the selection: a new screen starts at row 0; paging,
   // a live re-sort or a retry of the same screen keep the selected stock.
   const screenSig = screenSigOf(s.baseSpec)
@@ -295,7 +320,6 @@ function FocusList({ mode, onMode }) {
   // ── New today (spec 2026-10-16 s1) ───────────────────────────────────────
   // Asked with the screen's criteria only (the filter LIST, logic, rank), so a re-sort asks
   // nothing. Off (the payload flag) asks nothing and draws nothing.
-  const [current, setCurrent] = useState(() => (arrivedBare.current ? null : readNamed()[normalSpec(s.baseSpec)] || null))
   const specKey = normalSpec(s.baseSpec)
   const isEdited = !!current && normalSpec(current.spec) !== specKey
   const ntOn = useContext(AuthContext)?.screenerNewTodayEnabled === true
@@ -496,8 +520,7 @@ function FocusList({ mode, onMode }) {
   const howToOn = useContext(AuthContext)?.howToChecklistsEnabled === true
   const howTo = howToOn ? approvedChecklist('screener.stocks') : null
 
-  // ── screen identity (which starter or saved screen is applied) ───────────
-  const { saved, starters, error: savedError, loaded: savedLoaded, refresh } = useSavedScreens()
+  // ── screen identity, continued (`current` and the saved screens are read above the scan) ──
   const [askName, nameDialog] = useNameDialog()
   const shortcuts = useShortcutsSheet()
   // {id, name, kind, spec}. Rehydrated from this tab's named screens when the spec this
@@ -551,13 +574,7 @@ function FocusList({ mode, onMode }) {
     const next = effectivePinned.includes(k) ? effectivePinned.filter(x => x !== k) : [...effectivePinned, k]
     setPinned(next); writeLS(PIN_KEY, JSON.stringify(next))
   }
-  // ── RS screens (unit U5): what the open screen's STARTER adds to it ──────
-  // The optional `controls` of the starter on view, read from the live starters payload by id.
-  // A saved screen, a custom screen and a starter without them get none: nothing below draws.
-  const rsStarter = useMemo(() => (current && current.kind !== 'saved'
-    ? starters.find(x => String(x.id) === String(current.id)) || null : null), [current, starters])
-  const rsControls = useMemo(() => controlsOf(rsStarter), [rsStarter])
-  // A starter opened before its controls or the member's remembered choices were known (a
+  // RS screens: a starter opened before its controls or the member's remembered choices were known (a
   // last-used screen lands from localStorage, ahead of both reads): its id, until they answer.
   const freshOpen = useRef(null)
   const applyScreen = (spec, item) => {
@@ -573,7 +590,7 @@ function FocusList({ mode, onMode }) {
       } else freshOpen.current = String(item.id)
     }
     ed.applySpec(working)
-    setCurrent({ id: item.id, name: item.name, kind: item.kind, spec })
+    setCurrent({ id: item.id, name: item.name, kind: item.kind, spec, ...rsExtras(item) })
   }
   // A quick control edits the working spec through the same editor as the Filters drawer, and
   // the choice is remembered for this member and this screen.
@@ -924,7 +941,7 @@ function FocusList({ mode, onMode }) {
         <ResultList ref={hubResultsRef} itemProps={hubOn ? hubCursor.itemProps : undefined} rows={listRows} index={sel.index} onSelect={onRowSelect} onKeyDown={onListKeyDown}
           livePrices={prices} radar={radar} sortLabel={sortLabel} sortMenu={sortMenu} total={newOnlyOn ? listRows.length : shownTotal} hasMore={listHasMore}
           onLoadMore={s.loadMore} isLoading={isLoading} showCompany={showCompany} pending={pending} structures={structures}
-          newSet={newSet}
+          newSet={newSet} rsRow={rsRow} themes={rsRow ? themeData : null}
           headExtra={<><NewTodayLine nt={nt} newOnly={newOnlyOn} onToggleNewOnly={() => setNewOnly(v => !v)} /><FlaggedActions /></>} />
         {/* S5: primitives and stable callbacks only, so a tick for another ticker skips the pane.
             ONE chart on a phone: while the sheet shows the chart, the side pane (hidden there by
