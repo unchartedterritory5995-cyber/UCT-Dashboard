@@ -240,6 +240,43 @@ function referenceBars() {
   return boundBars
 }
 
+/** ⭐⭐ ENGINE 55 (coordinator, s6-bugs-1114) — THE DARK-PLOT TEST. The reference bars start at
+ *  the listing (`history.startsAtBar0`), so the same definition is also bound OFF the listing
+ *  (`historyFromListing: false`, the replay a chart that does not reach the listing computes). A plot
+ *  is DARK — the script is not fully drawn — when, on the listing, it draws no bar at all, or draws
+ *  fewer of the bars the off-listing replay draws. ⚰️ The builtin Supertrend drew 0 bars from the
+ *  listing against 255 off it (a NaN seed latched in its ratchet) and the census counted it clean.
+ *  The engine bug is NOT fixed here (a later engine); the census is only made honest about it. */
+function darkPlots(def, bars, ctx, listingCols) {
+  if (!ctx || ctx.historyFromListing !== true) return []
+  let off = null
+  try {
+    off = registry.computeFor(def, bars, undefined, { ...ctx, historyFromListing: false })
+  } catch { off = null }
+  if (!off || typeof off.then === 'function') return []
+  const errs = registry.columnErrors(listingCols) || {}
+  const out = []
+  for (const p of (def.plots || [])) {
+    if (!p || p.style === 'hlines' || typeof p.key !== 'string') continue
+    if (Object.prototype.hasOwnProperty.call(errs, p.key)) continue   // already a column error
+    const on = listingCols[p.key]
+    const of = off[p.key]
+    if (!on || typeof on.length !== 'number') continue
+    let onDrawn = 0
+    let offDrawn = 0
+    let onWhereOff = 0
+    for (let i = 0; i < on.length; i++) {
+      const a = Number.isFinite(on[i])
+      const b = of && Number.isFinite(of[i])
+      if (a) onDrawn += 1
+      if (b) { offDrawn += 1; if (a) onWhereOff += 1 }
+    }
+    if (onDrawn === 0) out.push(`dark-plot:${p.key}:listing 0 / off-listing ${offDrawn}`)
+    else if (onWhereOff < offDrawn) out.push(`dark-plot:${p.key}:listing ${onWhereOff} of the off-listing ${offDrawn}`)
+  }
+  return out
+}
+
 /** Why ONE bind of an attached member-door definition is not fully drawn: `[]` = it is.
  *  Exported for the rail below (`cleanBound` can fail). */
 export function boundBlockers(d, bars = referenceBars(), ctx = BOUND_CTX) {
@@ -278,6 +315,7 @@ export function boundBlockers(d, bars = referenceBars(), ctx = BOUND_CTX) {
     for (const r of (other && other.refused) || []) {
       if (SPELLING_DECIDED.has(r.code)) out.push(`other-symbol:${r.code}:${r.ticker}`)
     }
+    for (const w of darkPlots(def, bars, ctx, cols)) out.push(w)
   } else if (cols) {
     out.push('compute-async')
   }
@@ -712,6 +750,13 @@ describe('W3W4-T0: dropHeads', () => {
 describe('⛔ engine 55 — the census bound check (`boundBlockers`) can fail', () => {
   const head = ['//@version=5', "indicator('e55 bound', overlay=true)"]
   const doorOf = (lines) => underLane(false, () => memberPaneDefinition({ source: [...head, ...lines].join(LF), id: DEF_ID, name: 'b' }))
+
+  it('⛔ a DARK plot (the builtin Supertrend from the listing: 0 bars against the off-listing replay) is a blocker', () => {
+    const d = doorOf(['[st, dir] = ta.supertrend(3, 10)', 'plot(st)'])
+    expect(d.ok).toBe(true)
+    const why = boundBlockers(d)
+    expect(why.some((w) => /^dark-plot:[^:]+:listing 0 \/ off-listing [1-9]\d*$/.test(w)), why.join(' | ')).toBe(true)
+  })
 
   it('a plain plot binds clean (the control)', () => {
     const d = doorOf(['plot(ta.sma(close, 5))'])
