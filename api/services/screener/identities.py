@@ -752,6 +752,16 @@ def build_identities(*, percent_cols: Sequence[str] | None = None
         "the Setup label's tight tag is the Tight Consolidation column",
         "`snapshot_builder._rs_setup_fields` hands the row's own `tight_consolidation` "
         "to `rs_setup.label`, which returns it as 0 / 1"))
+    # RS screens, the weekly RS new high (unit U12, 2026-11-14): the weekly copy of
+    # `rs_nh_before_price_implies_rs_new_high` below, true for the same reason.
+    out.append(implies(
+        "rs_nhbp_weekly_implies_rs_nh_weekly", "indicators",
+        ("rs_nhbp_weekly", "rs_nh_weekly"),
+        lambda r: r["rs_nhbp_weekly"] == 1,
+        lambda r: r["rs_nh_weekly"] == 1,
+        "a weekly RS high before price is a weekly RS high",
+        "`relative_strength.weekly_rs_high_last` answers `and_not(rsNH, near)`, which is "
+        "1 only where rsNH is 1, and `rs_columns.weekly_fields` reads both off the same week"))
     # The bar-derived flags are built from ONE ANOTHER in `relative_strength`
     # and land in the row through one `rs_columns.collect_one` call, so the
     # relations below are the maths, not a plausibility guess.

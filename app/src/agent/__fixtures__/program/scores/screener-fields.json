@@ -1392,6 +1392,22 @@
    "agent_omit": true
   },
   {
+   "key": "rs_nh_weekly",
+   "label": "Weekly RS new high",
+   "type": "bool",
+   "unit": null,
+   "category": "relative_strength",
+   "agent_omit": true
+  },
+  {
+   "key": "rs_nhbp_weekly",
+   "label": "Weekly RS high before price",
+   "type": "bool",
+   "unit": null,
+   "category": "relative_strength",
+   "agent_omit": true
+  },
+  {
    "key": "atr_pct",
    "label": "ATR % of Price",
    "type": "range",

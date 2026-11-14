@@ -22,7 +22,8 @@ afterEach(() => { Element.prototype.scrollIntoView = real })
 test('the served page is the shape this panel draws', () => {
   // If the server renames a key, this says which, before a member sees a page with a hole in it.
   // `earnings` joined in unit U8: the sentence about the row's earnings tag.
-  expect(Object.keys(DOC).sort()).toEqual(['earnings', 'floor', 'honesty', 'label', 'rating_note', 'ratings_as_of', 'screens', 'setup'])
+  // `weekly` joined in unit U12: the sentence about the weekly RS high tag and When -> Weekly.
+  expect(Object.keys(DOC).sort()).toEqual(['earnings', 'floor', 'honesty', 'label', 'rating_note', 'ratings_as_of', 'screens', 'setup', 'weekly'])
   for (const s of DOC.screens) expect(Object.keys(s).sort()).toEqual(['caveat', 'controls', 'id', 'name', 'rule'])
   expect(Object.keys(DOC.setup).sort()).toEqual(['atr', 'blank', 'flags', 'labels', 'near', 'order', 'tight'])
   for (const x of DOC.setup.labels) expect(Object.keys(x).sort()).toEqual(['key', 'label', 'rule', 'source'])
@@ -48,7 +49,7 @@ test('every sentence the server wrote is on the page, verbatim', async () => {
     expect(page().textContent).toContain(x.rule)
     if (x.source) expect(page().textContent).toContain(x.source)
   }
-  for (const words of [DOC.setup.order, DOC.setup.atr, DOC.setup.near, DOC.setup.blank, DOC.ratings_as_of, DOC.rating_note, DOC.earnings]) {
+  for (const words of [DOC.setup.order, DOC.setup.atr, DOC.setup.near, DOC.setup.blank, DOC.ratings_as_of, DOC.rating_note, DOC.earnings, DOC.weekly]) {
     expect(p.getByText(words)).toBeInTheDocument()
   }
   expect(page().textContent).toContain(DOC.honesty)
@@ -85,6 +86,7 @@ test('a part the payload does not carry is left out, never a heading over nothin
   expect(heads).toEqual([DOC.screens[0].name])
   expect(page().querySelector('dl')).toBeNull()
   expect(within(page()).queryByTestId('rs-method-earnings')).toBeNull()
+  expect(within(page()).queryByTestId('rs-method-weekly')).toBeNull()
   // and something that is not the document at all draws nothing
   const { container } = render(<MethodologyPanel fetcher={fetchOf({ methods: METHODS, rs_screens: 'soon' })} />)
   await waitFor(() => expect(within(container).getByText('RS Rating place')).toBeInTheDocument())

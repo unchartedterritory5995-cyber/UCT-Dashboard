@@ -713,6 +713,112 @@ def screen_fields(bars, spy_bars, *, session=None, phase1=None) -> dict:
     return values
 
 
+# ── RS screens (unit U12, 2026-11-14): the WEEKLY RS new high ───────────────
+#
+# The house lesson is the weekly RS line making a new high before price; the six
+# above are its daily reading. Two more screener columns, written by the builder's
+# own `bars_rs_weekly` step for rows on the RS liquid floor only (the resample is
+# the cost, see `weekly_fields`). NO MATHS HERE EITHER: the weekly bars come from
+# the one weekly resampler (`_weekly`), the benchmark's from the build's weekly
+# cache (`_bench_weekly`), and both answers are `rs.weekly_rs_high_last`.
+WEEKLY_COLUMNS = (
+    "rs_nh_weekly",     # the last completed week's RS value is a 52-week high (ties count)
+    "rs_nhbp_weekly",   # ... while the weekly close is more than 3% under its own 52-week high
+)
+WEEKLY_LOOKBACK = rs.WEEKLY_NH_LOOKBACK                # 52 prior completed weeks
+WEEKLY_BELOW_PCT = rs.WEEKLY_NHBP_BELOW_PCT            # 3 (percent)
+#: Completed weeks a value needs: the week itself and the 52 before it.
+WEEKLY_MIN_WEEKS = WEEKLY_LOOKBACK + 1
+#: Daily bars resampled per ticker. The answer reads the newest 53 completed weeks
+#: and nothing older, so the series' tail is enough and is the whole-series answer:
+#: a week's close is its LAST daily close and the tail ends on the series' last bar
+#: (the `_weekly_quadrant` argument). 290 sessions is at least 58 weeks at five
+#: sessions a week, which leaves 53 completed after one week in progress and a
+#: first week cut short by the slice (its close is still that week's close).
+WEEKLY_DAILY_TAIL = 290
+
+
+def _week_over(week_t, asof) -> Optional[bool]:
+    """Has the ISO week whose weekly bar is dated ``week_t`` (its Friday, the
+    resampler's key) finished as of the session ``asof``? True when no NYSE
+    session is left in that week after ``asof``: a Friday close, or a Thursday
+    close before a Friday holiday. ``None`` when either date cannot be read or the
+    exchange calendar does not cover a day it would have to judge, so the caller
+    answers blank rather than guess a holiday."""
+    from api.services import session_calendar as sc
+    fri, day = _ymd(week_t), _ymd(asof)
+    if fri is None or day is None:
+        return None
+    try:
+        end = _dt.date(fri // 10000, fri // 100 % 100, fri % 100)
+        cur = _dt.date(day // 10000, day // 100 % 100, day % 100)
+    except ValueError:
+        return None
+    while cur < end:
+        cur += _dt.timedelta(days=1)
+        if not sc.covers(cur):
+            return None
+        if sc.is_trading_day(cur):
+            return False
+    return True
+
+
+def weekly_fields(bars, spy_bars, *, session=None,
+                  weekly_cache: Optional[dict] = None) -> dict:
+    """The two :data:`WEEKLY_COLUMNS` for ONE ticker, every key present.
+
+    ``bars`` is the ticker's daily series (the builder hands its RS window; only
+    the newest :data:`WEEKLY_DAILY_TAIL` bars are resampled), ``spy_bars`` the
+    benchmark's daily bars, ``session`` the session the values are for (bars
+    after it are not read; ``None`` = the newest bar), ``weekly_cache`` the
+    builder's per-build dict for SPY's weekly resample (`_bench_weekly`).
+
+    ⛔ COMPLETED WEEKS ONLY. The week of the newest bar read counts once its last
+    NYSE session has closed (`_week_over`: on Friday's close, or Thursday's before
+    a Friday holiday); until then the newest value is the week before's, so the
+    column changes once a week and never on a half-formed weekly bar. The clock
+    is the row's OWN newest bar, like every bar-derived column of the row: that
+    is the screener's settled session on every row whose bars are current, and a
+    stock whose bars stopped mid-week keeps the last week it finished.
+
+    ``None`` for both under :data:`WEEKLY_MIN_WEEKS` completed weeks, when SPY has
+    no bar in the newest completed week, when the calendar cannot say whether the
+    week is over, and for a series with no dated bars (the float-list compat path
+    carries no calendar a week could be read from)."""
+    values = {c: None for c in WEEKLY_COLUMNS}
+    win = _as_bars(bars)
+    last, s = (_ymd(win[-1].get("t")) if win else None), _ymd(session)
+    if not (last is not None and (s is None or last <= s)):
+        # Only a series that runs PAST the session (or is not dated) needs the
+        # per-bar clip; the builder's window ends on the session (`collect_one`'s
+        # Phase 3 rule), and the clip was a sixth of this call's time.
+        win = _clip(win, session)
+    win = win[-WEEKLY_DAILY_TAIL:]
+    if not win:
+        return values
+    asof = win[-1].get("t")
+    weeks = _weekly(win)
+    if not weeks:
+        return values
+    over = _week_over(weeks[-1].get("t"), asof)
+    if over is None:
+        return values
+    if not over:
+        weeks = weeks[:-1]
+    if len(weeks) < WEEKLY_MIN_WEEKS:
+        return values
+    spy_all = _as_bars(spy_bars, like=win)
+    if not spy_all:
+        return values
+    tail = weeks[-WEEKLY_MIN_WEEKS:]
+    b_week = _bench_weekly(spy_all, asof, weekly_cache, owner=spy_bars)
+    got = rs.weekly_rs_high_last(tail, _trim_to(b_week, _times_of(tail)),
+                                 WEEKLY_LOOKBACK, WEEKLY_BELOW_PCT)
+    values["rs_nh_weekly"] = _flag(got["rsNH"])
+    values["rs_nhbp_weekly"] = _flag(got["rsNHbeforePx"])
+    return values
+
+
 # ── The Leader score's two bar inputs (RS screens unit U9, 2026-11-14) ──────
 #
 # Plan 2026-11-14 v2, section 8: the Leader score is computed nightly, stored and

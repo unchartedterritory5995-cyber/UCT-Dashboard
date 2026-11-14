@@ -119,11 +119,19 @@ export function earningsWords(row) {
   return n === 0 ? 'Earnings today' : n === 1 ? 'Earnings tomorrow' : `Earnings in ${n} days`
 }
 
+// `rs_nh_weekly` (unit U12): 1 when the weekly RS line (weekly close / SPY's) finished the last
+// completed week at or above its highest value of the 52 weeks before.
+export const weeklyWords = row => (row?.rs_nh_weekly === 1 ? 'Weekly RS high' : '')
+
 // ── tags: ONE per row, the first of the starter's list that applies ────────
 export const NEW_TAG = 'New'
 const TAGS = {
   // First on every list screen: a report inside the week changes what a setup means.
   earnings: row => earningsWords(row),
+  // The WEEKLY RS line closed its last finished week at a 52-week high (unit U12): the house
+  // lesson is the weekly line, so it is said before the daily readings. Only a stored 1 says it;
+  // a 0, a blank (under 53 finished weeks, or off the liquid floor) says nothing.
+  weekly: row => weeklyWords(row),
   // The RS line made its high while price was still at least 3% under its own.
   before_price: row => (isNum(row?.rs_nhbp_age) && isNum(row.px_below_high_pct) && row.px_below_high_pct <= -3 ? 'Before price' : ''),
   // The newest RS high came on a session the market fell.
@@ -160,6 +168,7 @@ const PART_COLUMNS = {
 }
 const TAG_COLUMNS = {
   earnings: ['days_to_earnings'],
+  weekly: ['rs_nh_weekly'],
   before_price: ['rs_nhbp_age', 'px_below_high_pct'],
   down_day: ['rs_nh_red_bars_ago', 'rs_nh_bars_ago'],
   flag: ['rs_flag'],

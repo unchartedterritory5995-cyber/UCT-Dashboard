@@ -69,6 +69,11 @@ The ``_read_*`` wrappers reuse data we ALREADY store — NO yfinance:
                 step (after the seam scan): thirteen columns (RS screens unit
                 U4). DARK unless ``RS_SCREENS_ENABLED``. Armed, the receipt's
                 ``bars_rs`` block carries ``screens_ms`` / ``screens_ms_per_row``.
+  - RS screens weekly columns -> ``rs_columns.weekly_fields`` in the
+                ``bars_rs_weekly`` step (RS screens unit U12): the weekly RS new
+                high and its before-price reading, on completed weeks, for rows
+                on the RS liquid floor only. Same flags as the six daily measures.
+                The receipt carries ``weekly_rows`` / ``weekly_ms_per_row``.
   - UCT RS bar columns -> ``rs_columns.collect_one`` (Phase 2a, unit 2a-05),
                 the ``bars_rs`` step. DARK unless ``registry_defs.RS_V2_ENABLED``:
                 a dark pod reads no RSP, settles no benchmark and pays no CPU
@@ -440,6 +445,17 @@ def rs_screens_enabled() -> bool:
         return False
 
 
+def _on_rs_floor(row) -> bool:
+    """Is this row on the RS liquid floor (``rs_post_pass.on_liquid_floor``, liquidity
+    alone: no full year asked)? The one copy of the floor, read lazily like the flag.
+    Unreadable is off the floor: the weekly step it gates then writes nothing."""
+    try:
+        from . import rs_post_pass                           # noqa: PLC0415 - lazy: no cycle
+        return bool(rs_post_pass.on_liquid_floor(row, full_year=False))
+    except Exception:                                        # noqa: BLE001
+        return False
+
+
 def rs_leader_shadow_enabled() -> bool:
     """``RS_LEADER_SHADOW_ENABLED``, read per call through its one reader
     (``rs_leader_shadow.enabled``). Gates the shadow Leader score's two bar inputs in
@@ -614,6 +630,10 @@ def build_row(ticker, bars, ratings_row, fundamentals, rs_row=None,
     gate, reusing its Phase 1 pass) and seven in ``bars_rs_setup`` (after the seam
     scan, so the label reads this row's final pivot). ``rs_timing["screens_ms"]`` /
     ``["screens_rows"]`` carry their wall time, apart from ``ms``.
+
+    The two weekly RS new high columns (unit U12) run under the same flags, in
+    ``bars_rs_weekly``, after ``dollar_vol_30d`` is derived and only for a row on the
+    RS liquid floor. ``rs_timing["weekly_ms"]`` / ``["weekly_rows"]`` are theirs alone.
 
     ``failures`` is the same optional ``{source: {outcome: count}}`` out-dict
     every ``_read_*`` in this file already reports into; ``run_build`` passes
@@ -905,6 +925,33 @@ def build_row(ticker, bars, ratings_row, fundamentals, rs_row=None,
     # technicals lane's finding; the fix for a wrong LABEL is the label.)
     if row.get("price") is not None and row.get("avg_volume_30d") is not None:
         row["dollar_vol_30d"] = row["price"] * row["avg_volume_30d"]
+    # ⭐ RS SCREENS, the WEEKLY RS new high (unit U12; the house lesson is the weekly
+    # RS line making a new high before price). HERE, after `dollar_vol_30d`, because
+    # it runs only for a row on the RS liquid floor (`rs_post_pass.LIQUID_FLOOR`,
+    # the floor every RS screen filters on): the cost is a weekly resample of the
+    # row's bars (measured 2026-11-14 on a 652-bar window: 2.2 to 2.7 ms a ticker,
+    # three quarters of it the shared resampler; about 5 s over 2,000 liquid rows),
+    # and a row off the floor is on no RS screen, so its two columns stay NULL at
+    # no cost. The receipt's `weekly_ms_per_row` is the pod's own figure. Same gates as
+    # the six daily measures (RS_SCREENS under RS_V2, SPY read this build), the
+    # same RS window and the build's one weekly SPY resample (`rs_weekly_cache`).
+    # ⛔ A SERIES THAT CONTRADICTS ITSELF GETS NONE: a year of weekly closes is
+    # the window the seam scan just refused (the shadow inputs' rule).
+    # (`bars` first: `_scr` and `_seam_cols` exist only for a row that had bars.)
+    if bars and _scr and spy_bars and rs_v2_enabled() and _on_rs_floor(row):
+        _wk_t0 = time.perf_counter()
+        if _seam_cols:
+            if failures is not None:
+                _c = failures.setdefault("bars_rs_weekly", {})
+                _c["series_contradicts_itself"] = _c.get("series_contradicts_itself", 0) + 1
+        else:
+            row.update(_step("bars_rs_weekly",
+                             lambda: rs_columns.weekly_fields(
+                                 rs_bars, spy_bars, session=row.get("bars_asof"),
+                                 weekly_cache=rs_weekly_cache)))
+        if rs_timing is not None:
+            rs_timing["weekly_rows"] = rs_timing.get("weekly_rows", 0) + 1
+            rs_timing["weekly_ms"] = rs_timing.get("weekly_ms", 0.0) +                 (time.perf_counter() - _wk_t0) * 1000.0
     # Pure derivation, single writer: analyst price-target upside vs today's
     # price. `analyst_pass.read_analyst_fields` deliberately does NOT emit
     # this — it has no price — so the builder is the one place `pt_target`
@@ -1913,7 +1960,8 @@ def _run_build_locked(max_tickers=None, through_ymd=None) -> dict:
     # one it was. `screens_ms` is NOT inside `ms`.
     rs_scr = rs_screens_enabled()
     if rs_scr:
-        rs_timing.update(screens=True, screens_rows=0, screens_ms=0.0)
+        rs_timing.update(screens=True, screens_rows=0, screens_ms=0.0,
+                         weekly_rows=0, weekly_ms=0.0)
     rs_weekly_cache: dict = {}
     # The shadow Leader score's bar inputs (unit U9), collected per batch and stored
     # beside each `upsert_rows`. Stays empty while RS_LEADER_SHADOW_ENABLED is off.
@@ -2242,6 +2290,12 @@ def _run_build_locked(max_tickers=None, through_ymd=None) -> dict:
         rs_timing["screens_ms_per_row"] = (
             round(rs_timing["screens_ms"] / rs_timing["screens_rows"], 3)
             if rs_timing["screens_rows"] else None)
+        # The weekly RS new high (unit U12), apart from both: it runs only for rows
+        # on the liquid floor, so `weekly_rows` is that count, not the build's.
+        rs_timing["weekly_ms"] = round(rs_timing["weekly_ms"], 1)
+        rs_timing["weekly_ms_per_row"] = (
+            round(rs_timing["weekly_ms"] / rs_timing["weekly_rows"], 3)
+            if rs_timing["weekly_rows"] else None)
     log.info("[screener] bars_rs step: %s", rs_timing)
     stats = {"built": built, "skipped": skipped, "errors": errors,
              "targets": len(targets), "sector_rs": sector_rs,

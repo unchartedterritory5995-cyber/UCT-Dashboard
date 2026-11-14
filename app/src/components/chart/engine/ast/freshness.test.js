@@ -184,7 +184,10 @@ describe('the closed table declares scalars, and both lanes read the same one', 
     //                                rating a month ago, six RS-line measures and the seven Setup
     //                                label columns, written only while RS_SCREENS_ENABLED is on, so
     //                                NULL on every row (R8). Python pin: (149, 130) -> (149, 144).
-    expect(Object.keys(excluded).length).toBe(144)
+    //   excluded 144 + 2 = 146       the two weekly RS new high columns (2026-11-14, unit U12), written
+    //                                by the build's `bars_rs_weekly` step only while RS_SCREENS_ENABLED
+    //                                is on, so NULL on every row (R8). Python pin: (149, 144) -> (149, 146).
+    expect(Object.keys(excluded).length).toBe(146)
     for (const [column, why] of Object.entries(excluded)) {
       expect(names, `${column} is in BOTH halves of the partition`).not.toContain(column)
       expect(String(why).length).toBeGreaterThan(20)

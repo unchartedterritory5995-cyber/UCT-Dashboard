@@ -266,6 +266,15 @@ COLUMNS = [
     "rs_setup", "rs_tight", "rs_flag", "rs_near_buy",
     "atr_ext_ema21", "pct_vs_ema8", "pct_vs_ema21",
     "rs_rating_prev20",
+    # ⭐ UCT RS SCREENS, the WEEKLY RS new high (unit U12, 2026-11-14). Written by the
+    # build LOOP's `bars_rs_weekly` step (`rs_columns.weekly_fields`), only while
+    # RS_SCREENS_ENABLED is on and only for a row on the RS liquid floor: INTEGER
+    # 0/1, on completed weeks. `rs_nh_weekly`: the last completed week's RS value
+    # (weekly close / SPY's) is at or above the highest of the prior 52 weeks.
+    # `rs_nhbp_weekly`: that, while the weekly close is more than 3% under its own
+    # highest weekly close of those weeks. NULL under 53 completed weeks and off
+    # the floor, never a guess. Additive: ALTER-added on init.
+    "rs_nh_weekly", "rs_nhbp_weekly",
     # meta
     "snapshot_date", "bars_asof", "built_at",
 ]
@@ -368,7 +377,9 @@ _INT = {"uct_composite", "rs_rank", "inside_bar_run", "higher_lows_run",
         # ages, a span), two 0/1 flags, and the rating 20 stored sessions earlier.
         # `px_below_high_pct`, `atr_ext_ema21` and the two `pct_vs_ema*` are REAL.
         "rs_nh_count_20", "rs_nh_quiet", "rs_nh_red_bars_ago", "rs_nhbp_age", "rs_nh_span",
-        "rs_tight", "rs_near_buy", "rs_rating_prev20"}
+        "rs_tight", "rs_near_buy", "rs_rating_prev20",
+        # UCT RS screens (U12): the two weekly RS new high flags, 0/1.
+        "rs_nh_weekly", "rs_nhbp_weekly"}
 
 
 # ---------------------------------------------------------------------------

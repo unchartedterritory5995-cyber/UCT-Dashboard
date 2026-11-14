@@ -19,7 +19,8 @@ export const RS_LEADERS_ID = 'starter_rs_leaders'
 // Methodology sheet at the first card, in that document's own order, for one of these.
 export const RS_SCREENS_COLUMNS = ['rs_rating_session', 'rs_rating_score', 'rs_rating_pos', 'rs_rating_pos_n', 'rs_pos_1m', 'rs_pos_3m',
   'rs_pos_6m', 'rs_pos_12m', 'rs_rating_pos_prev20', 'rs_rating_prev20', 'rs_nh_count_20', 'rs_nh_quiet', 'rs_nh_red_bars_ago', 'rs_nhbp_age',
-  'rs_nh_span', 'px_below_high_pct', 'rs_setup', 'rs_tight', 'rs_flag', 'rs_near_buy', 'atr_ext_ema21', 'pct_vs_ema8', 'pct_vs_ema21']
+  'rs_nh_span', 'px_below_high_pct', 'rs_setup', 'rs_tight', 'rs_flag', 'rs_near_buy', 'atr_ext_ema21', 'pct_vs_ema8', 'pct_vs_ema21',
+  'rs_nh_weekly', 'rs_nhbp_weekly']
 
 const POOL_KEYS = ['universe', 'list']
 const isObj = v => !!v && typeof v === 'object' && !Array.isArray(v)

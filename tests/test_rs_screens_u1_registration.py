@@ -67,7 +67,8 @@ def test_the_family_holds_every_column_the_pass_writes():
     assert set(pp.OWNED_COLUMNS) == set(snapshot_db.POST_PASS_COLUMNS) == set(NINE) | {"rs_rating_prev20"}
     assert set(pp.OWNED_COLUMNS) <= set(F.RS_SCREENS_KEYS)
     assert tuple(F.RS_SCREENS_KEYS[:9]) == NINE
-    assert len(F.RS_SCREENS_KEYS) == len(set(F.RS_SCREENS_KEYS)) == 23
+    # 23 -> 25 on 2026-11-14 (unit U12): the two weekly RS new high columns the build writes
+    assert len(F.RS_SCREENS_KEYS) == len(set(F.RS_SCREENS_KEYS)) == 25
 
 
 def test_every_screens_key_is_dark_while_the_flag_is_off_whatever_the_other_flags_say():

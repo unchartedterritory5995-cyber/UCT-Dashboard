@@ -64,8 +64,12 @@ def test_the_fourteen_are_the_contracts_columns_from_their_two_writers():
     assert set(rs_post_pass.OWNED_COLUMNS) == set(snapshot_db.POST_PASS_COLUMNS) == \
         set(U1_NINE) | {"rs_rating_prev20"}
     assert tuple(F.RS_SCREENS_KEYS[:9]) == U1_NINE
-    assert set(F.RS_SCREENS_KEYS) == set(U1_NINE) | set(FOURTEEN)
-    assert len(F.RS_SCREENS_KEYS) == len(set(F.RS_SCREENS_KEYS)) == 23
+    # Pin moved 2026-11-14 (unit U12): the family gained the two weekly RS new high columns
+    # (`rs_columns.WEEKLY_COLUMNS`, the build's `bars_rs_weekly` step), after this unit's
+    # fourteen. tests/test_rs_screens_u12_weekly.py holds those two.
+    assert set(F.RS_SCREENS_KEYS) == set(U1_NINE) | set(FOURTEEN) | set(rs_columns.WEEKLY_COLUMNS)
+    assert set(F.RS_SCREENS_KEYS[9:23]) == set(FOURTEEN)
+    assert len(F.RS_SCREENS_KEYS) == len(set(F.RS_SCREENS_KEYS)) == 25
     for key in FOURTEEN:
         assert snapshot_db.COLUMNS.count(key) == 1, key
     # the build loop writes thirteen; only the rating a month ago is the pass's

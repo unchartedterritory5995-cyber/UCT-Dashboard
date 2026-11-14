@@ -54,12 +54,12 @@ FIVE = ("starter_rs_top_rating", "starter_rs_new_high", "starter_rs_nh_before_pr
 LIST_SCREENS = FIVE[:4]
 #: Rows of each screen's opening answer kept for the client's tests.
 ROWS_KEPT = 8
-#: The 23 columns that exist only for the RS screens (`filters.RS_SCREENS_KEYS`).
+#: The columns that exist only for the RS screens (`filters.RS_SCREENS_KEYS`; 25 since unit U12).
 RS_COLUMNS = tuple(filters.RS_SCREENS_KEYS)
 
 # ── what the client reads off a row, and how (app/src/pages/screener/focus/rsRows.js) ──
 #: `=== 1` in the client: a JSON `true` would not be 1.
-INT_01 = ("rs_tight", "rs_near_buy")
+INT_01 = ("rs_tight", "rs_near_buy", "rs_nh_weekly", "rs_nhbp_weekly")     # the last two: unit U12
 #: `typeof v === 'number'`, printed as whole numbers.
 INTS = ("rs_rating_pos", "rs_rating_pos_n", "rs_rating_pos_prev20", "rs_rating_prev20",
         "rs_rating_chg_5", "rs_rating_chg_20", "rs_pos_1m", "rs_pos_3m", "rs_pos_6m", "rs_pos_12m",
@@ -295,7 +295,15 @@ def test_the_measures_agree_with_each_other_the_way_the_client_assumes(on):
             assert str(r["px_below_high_pct"]) != "-0.0", t
         if r["rs_near_buy"] == 1:
             assert r["rs_setup"] not in rs_setup.NOT_BUY_POINT_SETUPS, t
+        # unit U12: the weekly reading. Before price is a weekly RS high first, and only a
+        # liquid stock is read at all (the build skips the rest).
+        if r["rs_nhbp_weekly"] == 1:
+            assert r["rs_nh_weekly"] == 1, t
+        if r["rs_nh_weekly"] is not None:
+            assert r["price"] >= 10 and r["dollar_vol_30d"] >= 20_000_000 and r["security_type"] != "ETF", t
+            seen["weekly_" + str(r["rs_nh_weekly"])] = seen.get("weekly_" + str(r["rs_nh_weekly"]), 0) + 1
     assert min(seen.values()) >= 1, seen
+    assert seen.get("weekly_1") and seen.get("weekly_0"), "the market holds a weekly RS high and a stock without one"
 
 
 # ───────────────────────── every request the client makes ─────────────────────────

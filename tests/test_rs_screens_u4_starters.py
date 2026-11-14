@@ -60,7 +60,9 @@ LIST_SCREENS = ("starter_rs_top_rating", "starter_rs_new_high", "starter_rs_nh_b
 CAPTION_PARTS = {"setup", "group", "rs_high_age", "below_high", "moving", "exit_warning"}
 #: "earnings" joined the vocabulary in unit U8, first: a report inside the week changes
 #: what a setup means (tests/test_rs_screens_u8_earnings.py).
-TAG_ORDER = ["earnings", "before_price", "down_day", "flag", "new"]
+#: "weekly" joined in unit U12, second: the weekly RS line's high is the house lesson, so it
+#: leads the daily readings (tests/test_rs_screens_u12_weekly.py).
+TAG_ORDER = ["earnings", "weekly", "before_price", "down_day", "flag", "new"]
 #: Words the contract bans from member-facing copy. "buy point" is the plan's own term
 #: for the Setup label's "Near a buy point"; a bare "buy" is not allowed.
 BANNED = re.compile(r"\b(buys|buying|buyable|sells|selling|lens|gate|red day|ADR|RSI)\b|"
@@ -245,14 +247,17 @@ def test_the_controls_are_the_contracts(on):
                      ("rising", "Rising fastest")]),
         "show": ("Show", ["rs_rank", "rs_rating_prev20"],
                  [("all", "All"), ("r90", "90 and up"), ("new90", "New to 90+")])}
+    # unit U12: When owns the weekly flag as well and offers it as a fourth choice
     assert shape("starter_rs_new_high") == {
-        "when": ("When", ["rs_nh_bars_ago"],
-                 [("today", "Today"), ("week", "This week"), ("month", "This month")]),
+        "when": ("When", ["rs_nh_bars_ago", "rs_nh_weekly"],
+                 [("today", "Today"), ("week", "This week"), ("month", "This month"),
+                  ("weekly", "Weekly")]),
         "min": ("Min RS Rating", ["rs_rank"], [("any", "Any"), ("r70", "70"), ("r80", "80"), ("r90", "90")]),
         "down": ("Market", ["rs_nh_red_bars_ago"], [("all", "Any day"), ("down", "Down days only")])}
     assert shape("starter_rs_nh_before_price") == {
-        "when": ("When", ["rs_nhbp_age"],
-                 [("today", "Today"), ("week", "This week"), ("month", "This month")]),
+        "when": ("When", ["rs_nhbp_age", "rs_nhbp_weekly"],
+                 [("today", "Today"), ("week", "This week"), ("month", "This month"),
+                  ("weekly", "Weekly")]),
         "below": ("Below its high by", ["px_below_high_pct"], [("p3", "3%"), ("p5", "5%"), ("p10", "10%")]),
         "min": ("Min RS Rating", ["rs_rank"], [("any", "Any"), ("r70", "70"), ("r80", "80")])}
     assert shape("starter_rs_leaders") == {
@@ -313,10 +318,11 @@ def test_the_rows_are_the_contracts(on):
         # unit U8: the four list screens lead their tags with `earnings`
         "starter_rs_top_rating": {"place": "rs_rating_pos", "caption": ["setup", "moving"],
                                   "tags": ["earnings", "flag", "new"]},
+        # unit U12: the two RS high screens say a weekly RS high right after earnings
         "starter_rs_new_high": {"place": None, "caption": ["rs_high_age", "group"],
-                                "tags": ["earnings", "before_price", "down_day", "flag", "new"]},
+                                "tags": ["earnings", "weekly", "before_price", "down_day", "flag", "new"]},
         "starter_rs_nh_before_price": {"place": None, "caption": ["below_high", "group"],
-                                       "tags": ["earnings", "down_day", "flag", "new"]},
+                                       "tags": ["earnings", "weekly", "down_day", "flag", "new"]},
         # unit U7: the ranked screen names its own order (`sort_label`)
         "starter_rs_leaders": {"place": "index", "caption": ["setup", "group"],
                                "tags": ["earnings", "flag", "new"], "sort_label": "RS Rating"},
@@ -460,25 +466,26 @@ ROWS = [
          rs_pos_6m=1, rs_pos_12m=1, rs_rating_chg_20=2, pct_vs_sma50=5, rs_rank=99,
          rs_rating_prev20=97, pct_vs_sma200=20, rs_nh_bars_ago=0, rs_rating_score=2.0,
          rs_nh_red_bars_ago=0, px_below_high_pct=0.0, adr_pct=4, market_cap=5e9, sma200_rising=1,
-         dist_52w_high_pct=0, rs_line_above_ma=1, rs_near_buy=0, rs_setup="extended"),
+         dist_52w_high_pct=0, rs_line_above_ma=1, rs_near_buy=0, rs_setup="extended",
+         rs_nh_weekly=1),
     dict(ticker="RISE", price=50, dollar_vol_30d=5e7, rs_rating_pos=2, rs_pos_1m=1, rs_pos_3m=2,
          rs_pos_6m=3, rs_pos_12m=3, rs_rating_chg_20=30, pct_vs_sma50=8, rs_rank=95,
          rs_rating_prev20=65, pct_vs_sma200=15, rs_nh_bars_ago=2, rs_rating_score=1.8,
          rs_nh_red_bars_ago=7, rs_nhbp_age=2, px_below_high_pct=-4.0, adr_pct=5, market_cap=1e9,
          sma200_rising=1, dist_52w_high_pct=-4, rs_line_above_ma=1, rs_near_buy=1, rs_setup="at_pivot",
-         rs_flag="one_day_move"),
+         rs_flag="one_day_move", rs_nh_weekly=0, rs_nhbp_weekly=0),
     dict(ticker="BASE", price=30, dollar_vol_30d=3e7, rs_rating_pos=3, rs_pos_1m=2, rs_pos_3m=3,
          rs_pos_6m=2, rs_pos_12m=2, rs_rating_chg_20=2, pct_vs_sma50=1, rs_rank=88,
          rs_rating_prev20=88, pct_vs_sma200=10, rs_nh_bars_ago=0, rs_rating_score=1.5,
          rs_nhbp_age=0, px_below_high_pct=-4.0, adr_pct=3.5, market_cap=8e8, sma200_rising=1,
          dist_52w_high_pct=-4, rs_line_above_ma=1, rs_near_buy=1, rs_setup="pullback_21",
-         rs_flag="new_issue"),
+         rs_flag="new_issue", rs_nhbp_weekly=1),
     dict(ticker="SLIP", price=20, dollar_vol_30d=2.5e7, rs_rating_pos=4, rs_pos_1m=4, rs_pos_3m=4,
          rs_pos_6m=4, rs_pos_12m=4, rs_rating_chg_20=-10, pct_vs_sma50=-3, rs_rank=75,
          rs_rating_prev20=92, pct_vs_sma200=5, rs_nh_bars_ago=15, rs_rating_score=1.2,
          rs_nhbp_age=3, px_below_high_pct=-7.0, adr_pct=3, market_cap=4e8, sma200_rising=1,
          dist_52w_high_pct=-7, rs_line_above_ma=0, rs_near_buy=0, rs_setup="below_50",
-         rs_exit_bars_ago=1, rs_exit_last="Quicksand"),
+         rs_exit_bars_ago=1, rs_exit_last="Quicksand", rs_nh_weekly=1),
     # exactly on the floor ($20M traded): the floor is inclusive
     dict(ticker="WARN", price=15, dollar_vol_30d=2e7, rs_rating_pos=5, rs_pos_1m=6, rs_pos_3m=6,
          rs_pos_6m=5, rs_pos_12m=5, rs_rating_chg_20=-20, pct_vs_sma50=-8, rs_rank=40,
@@ -488,7 +495,7 @@ ROWS = [
     # under a year of history: no overall place, on the 1- and 3-month boards
     dict(ticker="YOUNG", price=40, dollar_vol_30d=4e7, rs_pos_1m=5, rs_pos_3m=5, pct_vs_sma50=4,
          rs_rank=91, pct_vs_sma200=3, rs_nhbp_age=10, px_below_high_pct=-8.0, market_cap=2e9,
-         dist_52w_high_pct=-8, rs_line_above_ma=1),
+         dist_52w_high_pct=-8, rs_line_above_ma=1, rs_nhbp_weekly=1),
     # a leader whose Setup label could not be computed
     dict(ticker="NOLBL", price=60, dollar_vol_30d=6e7, pct_vs_sma50=2, rs_rank=85, pct_vs_sma200=8,
          rs_rating_score=1.4, px_below_high_pct=-10.0, adr_pct=3, market_cap=5e8, sma200_rising=1,
@@ -501,20 +508,23 @@ ROWS = [
          rs_rating_prev20=39, pct_vs_sma200=30, rs_nh_bars_ago=0, rs_rating_score=3.5,
          rs_nh_red_bars_ago=0, rs_nhbp_age=0, px_below_high_pct=-4.0, adr_pct=5, market_cap=2e10,
          sma200_rising=1, dist_52w_high_pct=-4, rs_line_above_ma=1, rs_near_buy=1,
-         rs_setup="at_pivot", rs_flag="buyout_pending", rs_exit_bars_ago=2, rs_exit_last="Quick Break"),
+         rs_setup="at_pivot", rs_flag="buyout_pending", rs_exit_bars_ago=2, rs_exit_last="Quick Break",
+         rs_nh_weekly=1, rs_nhbp_weekly=1),
     # a fund that would top every list, and a stock under the floor that would join four
     dict(ticker="FUND", security_type="ETF", price=400, dollar_vol_30d=1e9, rs_rating_pos=1,
          rs_pos_1m=1, rs_pos_3m=1, rs_pos_6m=1, rs_pos_12m=1, rs_rating_chg_20=50, pct_vs_sma50=9,
          rs_rank=99, rs_rating_prev20=10, pct_vs_sma200=10, rs_nh_bars_ago=0, rs_rating_score=3.0,
          rs_nh_red_bars_ago=0, rs_nhbp_age=0, px_below_high_pct=-5.0, adr_pct=3, market_cap=1e10,
          sma200_rising=1, dist_52w_high_pct=-5, rs_line_above_ma=1, rs_near_buy=1,
-         rs_setup="at_pivot", rs_exit_bars_ago=0, rs_exit_last="Quick Break"),
+         rs_setup="at_pivot", rs_exit_bars_ago=0, rs_exit_last="Quick Break",
+         rs_nh_weekly=1, rs_nhbp_weekly=1),
     dict(ticker="THIN", price=8, dollar_vol_30d=5e6, rs_rating_pos=2, rs_pos_1m=2, rs_pos_3m=2,
          rs_pos_6m=2, rs_pos_12m=2, rs_rating_chg_20=40, pct_vs_sma50=9, rs_rank=97,
          rs_rating_prev20=20, pct_vs_sma200=5, rs_nh_bars_ago=0, rs_rating_score=2.5,
          rs_nh_red_bars_ago=0, rs_nhbp_age=1, px_below_high_pct=-5.0, adr_pct=6, market_cap=1e9,
          sma200_rising=1, dist_52w_high_pct=-5, rs_line_above_ma=1, rs_near_buy=1,
-         rs_setup="at_pivot", rs_exit_bars_ago=0, rs_exit_last="Quick Break"),
+         rs_setup="at_pivot", rs_exit_bars_ago=0, rs_exit_last="Quick Break",
+         rs_nh_weekly=1, rs_nhbp_weekly=1),
 ]
 
 #: ``(starter, {control: option, ...})`` -> the tickers, in the order served.
@@ -536,6 +546,10 @@ EXPECT = [
     ("starter_rs_new_high", {"when": "today"}, ["LEAD", "BASE"]),
     ("starter_rs_new_high", {"when": "week"}, ["LEAD", "BASE", "RISE"]),
     ("starter_rs_new_high", {"when": "month"}, ["LEAD", "BASE", "RISE", "SLIP"]),
+    # unit U12: Weekly lists a weekly RS high whatever its daily age. SLIP's daily high is
+    # 15 sessions old (not on the week); RISE has a fresh daily high and no weekly one. The
+    # buyout name, the fund and the thin stock carry the weekly flag and stay out.
+    ("starter_rs_new_high", {"when": "weekly"}, ["LEAD", "SLIP"]),
     ("starter_rs_new_high", {"min": "any"}, ["LEAD", "BASE", "RISE"]),
     ("starter_rs_new_high", {"min": "r70"}, ["LEAD", "BASE", "RISE"]),
     ("starter_rs_new_high", {"min": "r80"}, ["LEAD", "BASE", "RISE"]),
@@ -547,6 +561,9 @@ EXPECT = [
     ("starter_rs_nh_before_price", {"when": "today"}, ["BASE"]),
     ("starter_rs_nh_before_price", {"when": "week"}, ["RISE", "BASE", "SLIP"]),
     ("starter_rs_nh_before_price", {"when": "month"}, ["RISE", "BASE", "SLIP", "YOUNG"]),
+    # unit U12: the weekly reading, closest to its high first. YOUNG's daily state is 10
+    # sessions old (not on the week); RISE is on the week and has no weekly one.
+    ("starter_rs_nh_before_price", {"when": "weekly"}, ["BASE", "YOUNG"]),
     ("starter_rs_nh_before_price", {"below": "p3"}, ["RISE", "BASE", "SLIP"]),
     ("starter_rs_nh_before_price", {"below": "p5"}, ["SLIP"]),
     ("starter_rs_nh_before_price", {"below": "p10"}, []),

@@ -88,6 +88,16 @@ NO_BUYOUT_SCREENS = ("starter_rs_top_rating", "starter_rs_new_high",
 #: its one tag stays the list's own "New".
 EARNINGS_TAG = "earnings"
 EARNINGS_TAG_DAYS = 5
+#: The row tag ``weekly`` (unit U12): the house lesson is the WEEKLY RS line making a
+#: new high, so RS New Highs and RS New High Before Price say when a row's weekly
+#: line did, right after the earnings tag. The client words it "Weekly RS high" from
+#: the row's ``rs_nh_weekly`` (1 = the last completed week closed at a 52-week RS
+#: high). The same two screens offer it as the fourth choice of When (`_when`).
+WEEKLY_TAG = "weekly"
+#: When -> Weekly filters on these: the weekly RS high on RS New Highs, the weekly RS
+#: high with the weekly close still under its own high on RS New High Before Price.
+WEEKLY_NH_KEY = "rs_nh_weekly"
+WEEKLY_NHBP_KEY = "rs_nhbp_weekly"
 
 
 # ── clause and control builders ─────────────────────────────────────────────
@@ -174,13 +184,22 @@ def _min_rating(levels, default=None):
     return _control("min", "Min RS Rating", ["rs_rank"], options)
 
 
-def _when(key, default="week"):
-    """The "When" control over an age column: today, this week, this month."""
+def _when(key, default="week", weekly=None):
+    """The "When" control over an age column: today, this week, this month.
+
+    ``weekly`` (unit U12) names a 0/1 weekly column and adds a fourth choice,
+    "Weekly": that column equal to 1 and NO daily age clause. The control owns both
+    keys, so choosing Weekly takes the age clause off and choosing a daily span takes
+    the weekly clause off (the contract's control semantics); the two never stack."""
     spans = (("today", "Today", 0), ("week", "This week", WEEK_AGE),
              ("month", "This month", MONTH_AGE))
-    return _control("when", "When", [key],
-                    [_option(i, label, [_between(key, 0, hi)], default=(i == default))
-                     for i, label, hi in spans])
+    options = [_option(i, label, [_between(key, 0, hi)], default=(i == default))
+               for i, label, hi in spans]
+    keys = [key]
+    if weekly:
+        options.append(_option("weekly", "Weekly", [_eq(weekly, 1)]))
+        keys.append(weekly)
+    return _control("when", "When", keys, options)
 
 
 # ── the five ────────────────────────────────────────────────────────────────
@@ -232,7 +251,7 @@ def new_highs() -> dict:
                  "view": "rs_new_highs",
                  "sort": _sort("rs_nh_bars_ago", "asc", then=("rs_rating_score", "desc"))},
         "controls": [
-            _when("rs_nh_bars_ago"),
+            _when("rs_nh_bars_ago", weekly=WEEKLY_NH_KEY),
             _min_rating((70, 80, 90)),
             _control("down", "Market", ["rs_nh_red_bars_ago"],
                      [_option("all", "Any day", default=True),
@@ -240,7 +259,7 @@ def new_highs() -> dict:
                               [_between("rs_nh_red_bars_ago", 0, DOWN_DAY_AGE)])]),
         ],
         "row": {"place": None, "caption": ["rs_high_age", "group"],
-                "tags": [EARNINGS_TAG, "before_price", "down_day", "flag", "new"]},
+                "tags": [EARNINGS_TAG, WEEKLY_TAG, "before_price", "down_day", "flag", "new"]},
     }
 
 
@@ -262,9 +281,10 @@ def before_price() -> dict:
                              no_buyouts()],
                  "view": "rs_before_price",
                  "sort": _sort("px_below_high_pct", "desc", then=("rs_rating_score", "desc"))},
-        "controls": [_when("rs_nhbp_age"), below, _min_rating((70, 80))],
+        "controls": [_when("rs_nhbp_age", weekly=WEEKLY_NHBP_KEY), below,
+                     _min_rating((70, 80))],
         "row": {"place": None, "caption": ["below_high", "group"],
-                "tags": [EARNINGS_TAG, "down_day", "flag", "new"]},
+                "tags": [EARNINGS_TAG, WEEKLY_TAG, "down_day", "flag", "new"]},
         "empty": {
             "text": ("No RS line made a 52-week high ahead of price this week. "
                      "That is normal in a weak market."),

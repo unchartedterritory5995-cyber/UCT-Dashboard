@@ -282,7 +282,8 @@
         "id": "when",
         "label": "When",
         "keys": [
-          "rs_nh_bars_ago"
+          "rs_nh_bars_ago",
+          "rs_nh_weekly"
         ],
         "options": [
           {
@@ -319,6 +320,17 @@
                 "op": "between",
                 "min": 0,
                 "max": 20
+              }
+            ]
+          },
+          {
+            "id": "weekly",
+            "label": "Weekly",
+            "filters": [
+              {
+                "key": "rs_nh_weekly",
+                "op": "eq",
+                "value": 1
               }
             ]
           }
@@ -408,6 +420,7 @@
       ],
       "tags": [
         "earnings",
+        "weekly",
         "before_price",
         "down_day",
         "flag",
@@ -484,7 +497,8 @@
         "id": "when",
         "label": "When",
         "keys": [
-          "rs_nhbp_age"
+          "rs_nhbp_age",
+          "rs_nhbp_weekly"
         ],
         "options": [
           {
@@ -521,6 +535,17 @@
                 "op": "between",
                 "min": 0,
                 "max": 20
+              }
+            ]
+          },
+          {
+            "id": "weekly",
+            "label": "Weekly",
+            "filters": [
+              {
+                "key": "rs_nhbp_weekly",
+                "op": "eq",
+                "value": 1
               }
             ]
           }
@@ -618,6 +643,7 @@
       ],
       "tags": [
         "earnings",
+        "weekly",
         "down_day",
         "flag",
         "new"

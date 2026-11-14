@@ -696,4 +696,12 @@ export const COLUMN_DEFS = {
     desc: 'The last close against the 8-day EMA, in percent: positive above it, negative below. The 8-day is one of the two averages the Setup label reads a pullback against. Blank for a stock whose price history contradicts itself.' },
   pct_vs_ema21: { label: 'EMA21', fmt: pct,
     desc: 'The last close against the 21-day EMA, in percent: positive above it, negative below. The 21-day is one of the two averages the Setup label reads a pullback against. Blank for a stock whose price history contradicts itself.' },
+  // ── UCT RS screens, the weekly RS new high (unit U12, 2026-11-14) ──
+  // Filled by the nightly build only while RS_SCREENS_ENABLED is on, and only for a stock on the RS
+  // liquid floor. The 52 weeks, the 53 the answer needs and the 3% are constants of `rs_columns`
+  // (tests/test_rs_screens_u12_weekly.py holds each to these sentences).
+  rs_nh_weekly: { label: 'Weekly RS high', fmt: tri,
+    desc: 'Yes when the weekly RS line against SPY (the last close of the week divided by the same close of SPY) finished the last full week at or above its highest value of the 52 weeks before it. Only finished weeks count, so the answer changes once a week. Blank until the stock has 53 finished weeks of bars, and for a stock under $10 or under $20M traded a day. It describes the past year and is not a forecast.' },
+  rs_nhbp_weekly: { label: 'Weekly RS high before price', fmt: tri,
+    desc: 'Yes when the weekly RS line finished the last full week at a 52-week high while the close of that week was still more than 3% below its own highest weekly close of the same 52 weeks. Only finished weeks count. Blank until the stock has 53 finished weeks of bars, and for a stock under $10 or under $20M traded a day. The RS line leading price is a rule traders use, with no published test.' },
 }

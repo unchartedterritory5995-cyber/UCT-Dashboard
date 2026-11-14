@@ -40,6 +40,8 @@ const line = (r, cfg, i) => {
   return [r.ticker, d.place, lead ? `RS ${lead.value}${lead.top ? '*' : ''}` : null, d.caption, d.tag]
 }
 const read = (st, rows = rowsOf(st), cfg = rowConfigOf(st)) => rows.map((r, i) => line(r, cfg, i))
+// The screen's row recipe with one tag left out: what its rows read before that tag existed.
+const without = (st, tag) => ({ ...rowConfigOf(st), tags: rowConfigOf(st).tags.filter(t => t !== tag) })
 
 describe('the server answered what the row reads', () => {
   test('every screen opens with rows, on the rating session the header names', () => {
@@ -104,7 +106,9 @@ describe('what a member reads on each screen as it opens', () => {
     expect(rowFacts(rowsOf(TOP_RATING)[0]).map(f => f.label)).toEqual(['Pullback to the 8-day, tight range', 'RS high today', 'At its high', 'RS Rating place 1 of 62'])
   })
   test('RS New Highs: how old the RS high is, the group, and "Before price" on the one that leads price', () => {
-    expect(read(NEW_HIGHS)).toEqual([
+    // Unit U12: the weekly tag is not asked of this read, so the daily tags are the ones these
+    // rows have always carried. The next test reads the screen's own recipe, weekly tag included.
+    expect(read(NEW_HIGHS, rowsOf(NEW_HIGHS), without(NEW_HIGHS, 'weekly'))).toEqual([
       ['RISE5', null, 'RS 99*', 'RS high today · Retail', ''],
       ['RISE4', null, 'RS 96*', 'RS high today · Banks', ''],
       ['RUN1', null, 'RS 93*', 'RS high today · Drug makers', ''],
@@ -120,8 +124,21 @@ describe('what a member reads on each screen as it opens', () => {
     const scores = rowsOf(NEW_HIGHS).filter(r => r.rs_nh_bars_ago === ages[0]).map(r => r.rs_rating_score)
     expect(scores).toEqual([...scores].sort((a, b) => b - a))
   })
+  test('the weekly RS high leads the daily tags on the two RS high screens (unit U12)', () => {
+    // The synthetic market ends in a two-week fall of the benchmark, so every stock listed here
+    // closed its last full week with its weekly RS line at a 52-week high: each of these rows
+    // carries rs_nh_weekly = 1 and says so, ahead of "Before price" and "Market down day".
+    for (const st of [NEW_HIGHS, BEFORE_PRICE]) {
+      expect(rowsOf(st).map(r => r.rs_nh_weekly), st.id).toEqual(rowsOf(st).map(() => 1))
+      expect(read(st).map(l => l[4]), st.id).toEqual(rowsOf(st).map(() => 'Weekly RS high'))
+      // the caption, the place and the lead number are untouched by the tag
+      expect(read(st).map(l => l.slice(0, 4))).toEqual(read(st, rowsOf(st), without(st, 'weekly')).map(l => l.slice(0, 4)))
+    }
+    // a screen that does not carry the tag never says it, on rows that would qualify
+    expect(read(LEADERS).map(l => l[4])).not.toContain('Weekly RS high')
+  })
   test('RS New High Before Price: how far under its high, and the market down day tag only where the RS high fell on one', () => {
-    expect(read(BEFORE_PRICE)).toEqual([
+    expect(read(BEFORE_PRICE, rowsOf(BEFORE_PRICE), without(BEFORE_PRICE, 'weekly'))).toEqual([
       ['WALK20', null, 'RS 55', '3% below its high · Machinery', 'Market down day'],
       ['HOLD0', null, 'RS 40', '3% below its high · Machinery', 'Market down day'],
       ['WALK06', null, 'RS 26', '4% below its high · Semiconductors', 'Market down day'],
