@@ -267,9 +267,9 @@ def test_supertrend_bounded_bars_equal_pines_full_history_and_the_guard_holds():
 def test_supertrend_tree_carries_pines_nz_and_the_curtain_guard():
     t = ce.supertrend_trees(N(3), N(10))
     guard = t["value"]["args"][0]
-    # the guard is the bounded window's own curtain, two windows deep
+    # the guard is a bounded window's own curtain, 2W deep, over a body that forgets its seed
     assert guard["name"] == "na" and guard["args"][0]["name"] == "accum"
-    assert guard["args"][0]["args"][0]["name"] == "accum"
+    assert guard["args"][0]["args"] == [N(0), N(0), N(400)]
     upper = t["value"]["args"][2]["args"][2]
     assert upper["name"] == "accum" and upper["args"][0]["name"] == "nz"
     direction = t["direction"]["args"][2]["args"][1]

@@ -228,7 +228,7 @@ describe('supertrend — bounded: a value is the same whatever was fetched', () 
 // bar 0, where the raw band seed is `na` (the ATR's warm-up), and a ratchet with no `nz`
 // held that `na` forever — the builtin Supertrend drew NOTHING on all 666 bars of the S6
 // NYSE:RDDT 1D capture. Pine's own `nz(band[1])` seeds and `na(atr[1]) ? 1` arm fix it, and
-// the guard (the bounded window's own curtain, two windows deep) lifts on the listing.
+// the guard (a bounded window's own curtain, `2W` deep) lifts on the listing.
 describe("supertrend — from the listing (engine 57: Pine's `nz` seeds)", () => {
   it.each([[3, 10], [2, 7], [4, 20]])("factor %s, ATR %s — every bar equals Pine's full history, from bar 0", (factor, n) => {
     let compared = 0

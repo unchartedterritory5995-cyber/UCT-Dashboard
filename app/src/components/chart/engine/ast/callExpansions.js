@@ -97,7 +97,7 @@ export function trueRangeTree() {
 // it, the direction would be read off bands that do not exist yet (measured: the first
 // ~W published bars disagreed with a full-history reference on every seed).
 // ⛔ ENGINE 57 KEEPS THE GUARD OFF THE LISTING AND LIFTS IT ON IT: it is now the bounded
-// window's own curtain two windows deep (`unknown` below), `na` on bars `t < 2W` off the
+// window's own curtain `2W` deep (`unknown` below), `na` on bars `t < 2W` off the
 // listing exactly as before, and known on every bar from the listing, where the bands and
 // the direction are Pine's own from bar 0.
 // ⭐ MEASURED AGREEMENT (2026-10-29, `supertrend.test.js`): against an independent
@@ -156,21 +156,23 @@ export function supertrendTrees(factorNode, periodNode, warmup = SUPERTREND_WARM
       cOp('?:', [cOp('<', [close, lower]), one, minusOne]),
     ]),
   ]), W])
-  // ⭐⭐ ENGINE 57 — THE GUARD IS THE WINDOW'S OWN CURTAIN, TWO WINDOWS DEEP. Off the listing a
-  // bounded `accum` is `na` before bar `W` (its curtain) and the identity body carries its
-  // seed, so `accum(accum(0, self, W), self, W)` is `na` exactly on bars `t < 2W` — the bars
-  // where the direction's window would read a band from the bands' own curtain, which is
-  // what the old `na(upper[W]) || na(lower[W])` withheld (railed: `supertrend.test.js`, the
-  // two guards withhold the same bars off the listing). It is in the TREE, so every consumer
-  // withholds those bars — the bare `interpret()`, the screen, the Python lane — whatever
-  // warm-up mask it applies or not. From the listing (`opts.historyFromListing`) the listing
-  // pass runs both from bar 0 and they are 0 on every bar, so nothing is withheld there: the
-  // bands and the direction are Pine's own from bar 0 (the S6 capture: every drawn bar of
-  // both plots, 348 Up + 309 Down, equal). ⚰️ The offset form could not do that: `upper[W]`
-  // reaches before bar 0 on bars `t < W`, which the listing reads as Pine's `na`, so it
-  // blanked bars 9..199 that TradingView draws — and `||` also read the upper band's REAL
-  // `na` on bars 1..n-2 (the ATR warm-up) as unknown and blanked bars W+1..W+n-2.
-  const unknown = cCall('na', [cCall('accum', [cCall('accum', [cNum(0), self, W]), self, W])])
+  // ⭐⭐ ENGINE 57 — THE GUARD IS A BOUNDED WINDOW'S OWN CURTAIN, `2W` DEEP. Off the listing a
+  // bounded `accum` is `na` before its warm-up bar, so `accum(0, 0, 2W)` is `na` exactly on bars
+  // `t < 2W` — the bars where the direction's window would read a band from the bands' own
+  // curtain, which is what the old `na(upper[W]) || na(lower[W])` withheld (railed:
+  // `supertrend.test.js`, the two guards withhold the same bars off the listing). It is in the
+  // TREE, so every consumer withholds those bars — the bare `interpret()`, the screen, the Python
+  // lane — whatever warm-up mask it applies or not. Its body is the constant 0, which forgets
+  // its seed at once, so nothing reads it as a value carried from before the loaded bars
+  // (`varOriginMask`; ⚰️ an identity body `accum(accum(0, self, W), self, W)` was withheld whole
+  // off the listing as `var-origin:window`). From the listing (`opts.historyFromListing`) the
+  // listing pass runs it from bar 0 and it is 0 on every bar, so nothing is withheld there: the
+  // bands and the direction are Pine's own from bar 0 (the S6 capture: every drawn bar of both
+  // plots, 348 Up + 309 Down, equal). ⚰️ The offset form could not do that: `upper[W]` reaches
+  // before bar 0 on bars `t < W`, which the listing reads as Pine's `na`, so it blanked bars
+  // 9..199 that TradingView draws — and `||` also read the upper band's REAL `na` on bars
+  // 1..n-2 (the ATR warm-up) as unknown and blanked bars W+1..W+n-2.
+  const unknown = cCall('na', [cCall('accum', [cNum(0), cNum(0), cNum(2 * warmup)])])
   const na = cOp('/', [cNum(0), cNum(0)])
   return {
     value: cOp('?:', [unknown, na, cOp('?:', [cOp('==', [direction, minusOne]), lower, upper])]),

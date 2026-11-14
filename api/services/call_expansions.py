@@ -198,9 +198,9 @@ def supertrend_trees(factor_node: Any, period_node: Any,
             _op("?:", [_op("<", [close, lower]), one, minus_one]),
         ]),
     ]), w])
-    # ENGINE 57 -- the guard is the bounded window's own curtain two windows deep: ``na`` on
+    # ENGINE 57 -- the guard is a bounded window's own curtain ``2W`` deep: ``na`` on
     # bars ``t < 2W`` off the listing, known on every bar from it (``callExpansions.js``).
-    unknown = _call("na", [_call("accum", [_call("accum", [_num(0), self_, w]), self_, w])])
+    unknown = _call("na", [_call("accum", [_num(0), _num(0), _num(2 * warmup)])])
     na = _op("/", [_num(0), _num(0)])
     return {
         "value": _op("?:", [unknown, na, _op("?:", [_op("==", [direction, minus_one]), lower, upper])]),

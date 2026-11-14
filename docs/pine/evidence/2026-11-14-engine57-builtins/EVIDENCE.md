@@ -23,8 +23,9 @@ Fix, node for node in both lanes:
   as Pine's `na`, and `||` also read the upper band's REAL `na` on bars 1..n-2 as unknown. Heal + that guard
   drew 213 + 245 bars from the listing (bars 9..199 and 201..208 blank where TradingView draws), and the
   harness gives a capture that starts at bar 0 no warm-up excuse, so the builtin would have stayed DIVERGE.
-  The guard is now the bounded window's own curtain two windows deep,
-  `na(accum(accum(0, self, W), self, W))`: off the listing it is `na` on exactly the bars `t < 2W` the old
+  The guard is now a bounded window's own curtain `2W` deep, `na(accum(0, 0, 2W))` (a constant body, so
+  `varOriginMask` never reads it as a value carried from before the loaded bars: an identity-body
+  version was withheld whole off the listing as `var-origin:window`, caught by the door rail): off the listing it is `na` on exactly the bars `t < 2W` the old
   guard withheld (railed bar for bar against the old guard on three series), and it is in the TREE, so the
   bare `interpret()`, the screen and the Python lane all withhold those bars with no consumer mask involved
   (the condition the report set for dropping the guard is therefore not needed). From the listing both

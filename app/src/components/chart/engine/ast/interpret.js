@@ -2598,7 +2598,7 @@ const windowFn = (name) => (series, n) =>
 export function stochPineScan(h, l, c, n) {
   const len = c.length
   const out = nan(len)
-  const flags = new Uint8Array(len)
+  const flags = new Float64Array(len)
   if (!(n >= 1)) return { out, flags }
   const hs = []
   const ls = []
