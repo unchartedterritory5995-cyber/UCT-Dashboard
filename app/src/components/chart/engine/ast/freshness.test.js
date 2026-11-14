@@ -177,7 +177,10 @@ describe('the closed table declares scalars, and both lanes read the same one', 
     //   excluded 116 + 5 = 121       the five RS Exit Warning columns (2026-11-13): `rs_exit_last`
     //                                (TEXT, a verdict, stays excluded) and four ages, NULL until the
     //                                first build after deploy (R8). Python pin: (149, 116) -> (149, 121).
-    expect(Object.keys(excluded).length).toBe(121)
+    //   excluded 121 + 9 = 130       the nine UCT RS screens columns (2026-11-14, unit U1), written by
+    //                                `rs_post_pass.run` only while RS_SCREENS_ENABLED is on, so NULL on
+    //                                every row (R8). Python pin: (149, 121) -> (149, 130).
+    expect(Object.keys(excluded).length).toBe(130)
     for (const [column, why] of Object.entries(excluded)) {
       expect(names, `${column} is in BOTH halves of the partition`).not.toContain(column)
       expect(String(why).length).toBeGreaterThan(20)

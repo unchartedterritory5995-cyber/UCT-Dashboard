@@ -64,13 +64,17 @@ def test_CONTROL_a_dropped_section_is_counted(sections):
 def test_the_agent_lists_the_two_rs_exit_fields_and_not_the_three_member_only_ages(sections):
     from api.services.screener import filters
     omitted = {f["key"] for f in filters.field_catalog() if f.get("agent_omit")}
-    assert omitted == {"rs_quick_break_bars_ago", "rs_quicksand_bars_ago", "rs_dead_break_bars_ago"}
+    # Pin moved 2026-11-14 (RS screens U1): every key the RS screens programme adds is kept out
+    # of the Agent's list (`filters.RS_SCREENS_KEYS`); the budget has no room for them.
+    assert omitted == ({"rs_quick_break_bars_ago", "rs_quicksand_bars_ago", "rs_dead_break_bars_ago"}
+                       | set(filters.RS_SCREENS_KEYS))
     full = [s["fields"] for s in sections if isinstance(s.get("fields"), str) and ":" in s["fields"]]
     assert full, "no full field list was recorded"
     for line in full:
         keys = {part.split(":", 1)[0] for part in line.split(";")}
         assert {"rs_exit_last", "rs_exit_bars_ago"} <= keys
         assert not (keys & omitted), sorted(keys & omitted)
+    assert len(filters.RS_SCREENS_KEYS) >= 9
     # still member filters: the screener, starters and saved screens keep every one
     for key in omitted:
         assert key in filters.FILTERS and filters.FILTERS[key]["category"] == "relative_strength"

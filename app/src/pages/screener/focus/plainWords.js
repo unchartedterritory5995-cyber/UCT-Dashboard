@@ -78,6 +78,16 @@ export const PLAIN_COLUMN_LABELS = {
   rs_quicksand_bars_ago: 'Sessions since a Quicksand',
   rs_quick_break_bars_ago: 'Sessions since a Quick Break',
   rs_dead_break_bars_ago: 'Sessions since a Grateful Dead Break',
+  // UCT RS screens (unit U1): a place is a position in the liquid-stock ranking, 1 = strongest.
+  rs_rating_pos: 'RS Rating place',
+  rs_rating_pos_n: 'Stocks ranked',
+  rs_rating_pos_prev20: 'Place a month ago',
+  rs_pos_1m: '1-month place',
+  rs_pos_3m: '3-month place',
+  rs_pos_6m: '6-month place',
+  rs_pos_12m: '12-month place',
+  rs_rating_session: 'Ratings as of',
+  rs_rating_score: 'RS Rating score',
 }
 
 export const plainColumnLabel = key => PLAIN_COLUMN_LABELS[key] || null

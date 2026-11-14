@@ -518,6 +518,111 @@ def _rs_exit_methods() -> list:
     ]
 
 
+#: RS screens (unit U1, 2026-11-14): what every entry says about when it fills.
+_RS_SCREENS_NOTE = ("Empty until the RS screens are switched on: only then does a pass after "
+                    "each screener build, and again after the 04:15 ET rating job, fill this "
+                    "column, and until then every row is blank and the screener does not offer "
+                    "the control.")
+
+
+def _money_words(v: float) -> str:
+    """`20000000.0` -> `$20M`, `10.0` -> `$10`: a floor read from its constant, in words."""
+    v = float(v)
+    if v >= 1_000_000:
+        return f"${v / 1_000_000:g}M"
+    return f"${v:g}"
+
+
+def _rs_screens_params() -> dict:
+    from api.services.screener import rs_post_pass as _pp       # noqa: PLC0415
+    return {"price": _money_words(_pp.LIQUID_FLOOR["price_min"]),
+            "dollar_vol": _money_words(_pp.LIQUID_FLOOR["dollar_vol_30d_min"]),
+            "prev": _pp.PREV_SESSIONS, "keep": _pp.POS_KEEP_SESSIONS,
+            "periods": tuple(col for col, _v in _pp.PERIOD_PLACES)}
+
+
+def _rs_screens_methods() -> list:
+    """The nine RS screens columns (`rs_post_pass.OWNED_COLUMNS`), the floor and the
+    session count read from the writer so the page cannot drift from it."""
+    s = _rs_screens_params()
+    floor = (f"not a fund, price {s['price']} or more, {s['dollar_vol']} or more traded a day "
+             f"on a 30-day average, and a full year of price history")
+    place = "a place, 1 = the strongest"
+    ties = ("Stocks with the same value are ordered by their 3-month value, then by dollar "
+            "volume, then alphabetically, so no two share a place.")
+    not_forecast = ("A place is a rank of past return, not a forecast, and it can change when "
+                    "other stocks move even if this one does not.")
+    out = [
+        {"column": "rs_rating_session", "label": "Ratings as of",
+         "one_line": "The market session the RS Rating columns on this row describe.",
+         "scale": "a date",
+         "how": ("The rating job scores each completed session at 04:15 ET the next morning. "
+                 "Once that session is stored, the RS Rating, its 5- and 20-session change and "
+                 "the 1, 3, 6, 9 and 12-month ranks on every row are refreshed to it, and this "
+                 "column shows its date. Blank when the stock has no rating for that session, "
+                 "and between the 03:00 ET build and the rating job on a row whose ratings "
+                 "cannot be matched to a stored session. " + _RS_SCREENS_NOTE),
+         "caveat": ("It dates the rating columns only. Price and the columns computed from "
+                    "daily bars carry the row's own bar date.")},
+        {"column": "rs_rating_score", "label": "RS Rating score",
+         "one_line": "The unrounded weighted return the RS Rating is a rank of.",
+         "scale": "a ratio, 1.00 = no change over the weighted year",
+         "how": ("The same weighted close ratio the IBD-style RS Rating ranks, kept to six "
+                 "decimal places for the session named in Ratings as of. Dozens of stocks share "
+                 "each rating from 1 to 99; this is the number that tells them apart. Blank "
+                 "when the stock has no rating. " + _RS_SCREENS_NOTE),
+         "caveat": ("It orders stocks, it is not a return to quote: the windows overlap and "
+                    "the newest quarter counts double. A higher score is a stronger past year, "
+                    "not a forecast.")},
+        {"column": "rs_rating_pos", "label": "RS Rating place",
+         "one_line": ("Where this stock ranks by RS Rating among liquid stocks: 1 is the "
+                      "strongest."),
+         "scale": place,
+         "how": (f"Liquid stocks ({floor}) are ordered by the RS Rating score, highest first. "
+                 f"{ties} Blank for a stock that is off that list or has no rating for the "
+                 f"session. " + _RS_SCREENS_NOTE),
+         "caveat": not_forecast},
+        {"column": "rs_rating_pos_n", "label": "Stocks ranked",
+         "one_line": "How many liquid stocks the RS Rating place is out of.",
+         "scale": "a count of stocks",
+         "how": (f"The number of stocks ranked for the session: {floor}. The same number on "
+                 f"every ranked row, so a place reads as \"14 of 1,931\". Blank on a row with "
+                 f"no place. " + _RS_SCREENS_NOTE),
+         "caveat": ("It changes a little each session as stocks cross the price and volume "
+                    "floors, so the same place can mean a slightly different share of the "
+                    "list.")},
+        {"column": "rs_rating_pos_prev20", "label": "Place a month ago",
+         "one_line": (f"The stock's RS Rating place {s['prev']} stored sessions earlier."),
+         "scale": place,
+         "how": (f"Each session's places are kept ({s['keep']} sessions of them), and this "
+                 f"column reads the place stored {s['prev']} sessions before the one named in "
+                 f"Ratings as of. Blank until {s['prev']} earlier sessions are stored, and for "
+                 f"a stock that was off the liquid list that day or is off it now. "
+                 + _RS_SCREENS_NOTE),
+         "caveat": ("The list itself was a different size that day, so compare places with "
+                    "care near the bottom. A climb is partly stocks bouncing back, so it is a "
+                    "list to study, not a signal.")},
+    ]
+    words = {"rs_pos_1m": ("1M place", "1-month", "1M Return Rank"),
+             "rs_pos_3m": ("3M place", "3-month", "3M Return Rank"),
+             "rs_pos_6m": ("6M place", "6-month", "6M Return Rank"),
+             "rs_pos_12m": ("12M place", "12-month", "12M Return Rank")}
+    for col in s["periods"]:
+        label, span, rank = words[col]
+        out.append({
+            "column": col, "label": label,
+            "one_line": (f"Where this stock ranks on its {span} return among liquid stocks: "
+                         f"1 is the strongest."),
+            "scale": place,
+            "how": (f"The same liquid stocks as the RS Rating place ({floor}), ordered by the "
+                    f"value the {rank} is taken over, highest first. {ties} Blank for a stock "
+                    f"off that list, and for a session stored before these values were kept. "
+                    + _RS_SCREENS_NOTE),
+            "caveat": ("A single-window place reacts faster and flips more often than the "
+                       "overall one. " + not_forecast)})
+    return out
+
+
 def _rs_exit_note() -> str:
     e = _rs_exit_params()
     return (f"The RS Exit Warnings ({', '.join(e['names'])}) are Mike Webster's method, our "
@@ -762,6 +867,7 @@ def _rs_column_methods() -> list:
     })
     out.extend(_rs_phase3_methods())
     out.extend(_rs_exit_methods())
+    out.extend(_rs_screens_methods())
     for m in out:
         m["family"] = RS_FAMILY
     return out
@@ -916,7 +1022,12 @@ def rs_columns_section() -> dict:
             "03:00 ET step from the same bars, only while that step's Phase 3 part is switched "
             "on, and are empty until then. The five RS Exit Warning columns (the newest warning, "
             "its age and each warning's own age) are computed in the same 03:00 ET step from "
-            "the same bars."),
+            "the same bars. The nine RS screens columns (the session the ratings are as of, "
+            "the score behind the rating, and each liquid stock's exact place overall, by "
+            "window and a month ago) are filled by a pass after each build and again after "
+            "the 04:15 ET rating job, only while the RS screens are switched on, and are empty "
+            "until then; once that pass has run, Ratings as of names the session the rating "
+            "columns on a row describe."),
         "notes": [
             # U9 (RS split): these two notes no longer name a chart Reading. The slim UCT RS
             # Line draws no Mansfield line and no sensitivity row (map §(a) U7); the screener

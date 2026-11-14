@@ -144,6 +144,22 @@ _CASES: dict[str, tuple[dict, dict]] = {
     "rs_exit_bars_ago_le_rs_dead_break_bars_ago": (
         {"rs_exit_bars_ago": 0, "rs_dead_break_bars_ago": 0},
         {"rs_exit_bars_ago": 9, "rs_dead_break_bars_ago": 8}),
+    # RS screens (U1): a place is never past the end of the list it is a place in
+    "rs_rating_pos_n_ge_rs_rating_pos": (
+        {"rs_rating_pos_n": 1931, "rs_rating_pos": 1931},
+        {"rs_rating_pos_n": 1931, "rs_rating_pos": 1932}),
+    "rs_rating_pos_n_ge_rs_pos_1m": (
+        {"rs_rating_pos_n": 1931, "rs_pos_1m": 14},
+        {"rs_rating_pos_n": 50, "rs_pos_1m": 51}),
+    "rs_rating_pos_n_ge_rs_pos_3m": (
+        {"rs_rating_pos_n": 1931, "rs_pos_3m": 1},
+        {"rs_rating_pos_n": 50, "rs_pos_3m": 60}),
+    "rs_rating_pos_n_ge_rs_pos_6m": (
+        {"rs_rating_pos_n": 2, "rs_pos_6m": 2},
+        {"rs_rating_pos_n": 2, "rs_pos_6m": 3}),
+    "rs_rating_pos_n_ge_rs_pos_12m": (
+        {"rs_rating_pos_n": 1931, "rs_pos_12m": 400},
+        {"rs_rating_pos_n": 399, "rs_pos_12m": 400}),
 
     # size ───────────────────────────────────────────────────────────────
     "dollar_volume_is_price_times_volume": (

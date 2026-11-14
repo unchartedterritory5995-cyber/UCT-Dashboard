@@ -632,4 +632,27 @@ export const COLUMN_DEFS = {
     desc: 'Sessions since the RS line against SPY last closed below its 21-day simple average after closing at or above it (Mike Webster\'s Quick Break, the first and mildest warning), "today" on the warning bar; blank when none has fired.' },
   rs_dead_break_bars_ago: { label: 'GD Break Age', fmt: barsAgo,
     desc: 'Sessions since the RS line against SPY last closed below its 50-day simple average after closing at or above it (Mike Webster\'s Grateful Dead Break, the most serious of the three), "today" on the warning bar; blank when none has fired. A warning to review, not an order to sell.' },
+  // ── UCT RS screens (unit U1, 2026-11-14) ──
+  // Written by `rs_post_pass.run` after each build and after the 04:15 ET rating job, only while
+  // RS_SCREENS_ENABLED is on; `filters.meta()` leaves out their controls and seats until then.
+  // The floor in these sentences is `rs_post_pass.LIQUID_FLOOR` (tests/test_rs_screens_u1_registration.py
+  // holds the two together).
+  rs_rating_pos: { label: 'RS Rating place', fmt: num(0),
+    desc: 'Where this stock ranks by RS Rating among liquid stocks: 1 is the strongest. Liquid means not a fund, price $10 or more, $20M or more traded a day on a 30-day average, and a full year of price history. Stocks that share a rating are told apart by the unrounded score behind it, then by their 3-month value, dollar volume and ticker, so no two share a place; blank for a stock off that list. A place is a rank of past return, not a forecast.' },
+  rs_rating_pos_n: { label: 'Stocks ranked', fmt: num(0),
+    desc: 'How many liquid stocks the RS Rating place is out of, the same number on every ranked row, so a place reads as "14 of 1,931"; it moves a little each session as stocks cross the price and volume floors, and is blank on a row with no place.' },
+  rs_rating_pos_prev20: { label: 'Place a month ago', fmt: num(0),
+    desc: 'The RS Rating place this stock held 20 stored sessions earlier, about a month. Blank until that much history is stored, and for a stock that was off the liquid list then or is off it now. A climb is partly stocks bouncing back, so read it as a list to study, not a signal.' },
+  rs_pos_1m: { label: '1M place', fmt: num(0),
+    desc: 'Where this stock ranks on its 1-month return among the same liquid stocks as the RS Rating place: 1 is the strongest. Ordered by the exact value behind Rank 1M, so no two share a place; blank for a stock off the liquid list. A single-window place flips more often than the overall one.' },
+  rs_pos_3m: { label: '3M place', fmt: num(0),
+    desc: 'Where this stock ranks on its 3-month return among the same liquid stocks as the RS Rating place: 1 is the strongest. Ordered by the exact value behind Rank 3M, so no two share a place; blank for a stock off the liquid list. A single-window place flips more often than the overall one.' },
+  rs_pos_6m: { label: '6M place', fmt: num(0),
+    desc: 'Where this stock ranks on its 6-month return among the same liquid stocks as the RS Rating place: 1 is the strongest. Ordered by the exact value behind Rank 6M, so no two share a place; blank for a stock off the liquid list. A single-window place flips more often than the overall one.' },
+  rs_pos_12m: { label: '12M place', fmt: num(0),
+    desc: 'Where this stock ranks on its 12-month return among the same liquid stocks as the RS Rating place: 1 is the strongest. Ordered by the exact value behind Rank 12M, so no two share a place; blank for a stock off the liquid list. A single-window place flips more often than the overall one.' },
+  rs_rating_session: { label: 'Ratings as of', fmt: v => v || '—',
+    desc: 'The market session the RS Rating columns on this row describe. The rating job scores each completed session at 04:15 ET the next morning and the row is refreshed to it; blank when the stock has no rating for that session. It dates the rating columns only, not the price.' },
+  rs_rating_score: { label: 'RS Rating score', fmt: num(4),
+    desc: 'The unrounded weighted return the RS Rating is a rank of, where 1.0000 means no change over the weighted year. Dozens of stocks share each rating from 1 to 99; this number tells them apart and sets the RS Rating place. It orders stocks and is not a return to quote.' },
 }

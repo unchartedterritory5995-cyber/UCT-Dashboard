@@ -683,6 +683,23 @@ def build_identities(*, percent_cols: Sequence[str] | None = None
             "rating stored n sessions earlier; two values on [1, RATING_MAX] cannot "
             "differ by more than RATING_MAX - 1",
             rating_tol))
+    # RS screens (unit U1, 2026-11-14): a place is a position in ONE ordered list,
+    # so it can never exceed the size of that list. `rs_post_pass.exact_places`
+    # numbers the ranked rows 1..n and `_rewrite` writes that n beside every place;
+    # a per-period list is the same rows less the ones with no value for the period.
+    place_tol = Tol(value=0.0, why="a whole-number place has no tolerance")
+    for col, what in (("rs_rating_pos", "the RS Rating place"),
+                      ("rs_pos_1m", "the 1-month place"),
+                      ("rs_pos_3m", "the 3-month place"),
+                      ("rs_pos_6m", "the 6-month place"),
+                      ("rs_pos_12m", "the 12-month place")):
+        out.append(at_least(
+            f"rs_rating_pos_n_ge_{col}", "indicators", "rs_rating_pos_n", col,
+            f"{what} is no larger than the number of stocks ranked",
+            "`rs_post_pass.exact_places` numbers the liquid-floor rows 1..n with no "
+            "ties and `rs_post_pass._rewrite` stores that n on every ranked row; a "
+            "period's list is a subset of the same rows",
+            place_tol))
     # The bar-derived flags are built from ONE ANOTHER in `relative_strength`
     # and land in the row through one `rs_columns.collect_one` call, so the
     # relations below are the maths, not a plausibility guess.

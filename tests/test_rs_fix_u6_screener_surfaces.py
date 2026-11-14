@@ -34,6 +34,10 @@ RATINGS = frozenset(snapshot_builder._RS_HISTORY_COLUMNS)
 #: Unit 3-11 (2026-11-07): the third family, written by the same step only while
 #: RS_V3 is armed too (`filters.rs_dark_keys`).
 PHASE3 = frozenset(rs_columns.PHASE3_COLUMNS)
+#: RS screens unit U1 (2026-11-14): the fourth family, written by `rs_post_pass.run` only
+#: while RS_SCREENS_ENABLED is on. Its own rails are tests/test_rs_screens_u1_registration.py;
+#: here it is DARK (the flag is unset), so `meta()` serves none of it in any test below.
+SCREENS = frozenset(filters.RS_SCREENS_KEYS)
 
 
 def _main_stub(history):
@@ -158,12 +162,18 @@ def test_the_two_families_are_the_writers_and_the_category_split_matches():
     assert len(BARS) == 15 and len(RATINGS) == 8 and len(PHASE3) == 3
     assert not (BARS & RATINGS) and not (PHASE3 & (BARS | RATINGS))
     family = {k for k, f in filters.FILTERS.items() if f["category"] == "relative_strength"}
-    assert family == BARS | RATINGS | PHASE3
-    assert filters.rs_dark_keys(v2_on=False, history_on=True, v3_on=True) == BARS | PHASE3
-    assert filters.rs_dark_keys(v2_on=True, history_on=False, v3_on=True) == RATINGS
-    assert filters.rs_dark_keys(v2_on=True, history_on=True, v3_on=True) == frozenset()
+    # Pins moved 2026-11-14 (RS screens U1): a fourth family joined the category. It is switched
+    # on here (`screens_on=True`) so each line still reads one of the first three flags alone.
+    assert len(SCREENS) >= 9 and not (SCREENS & (BARS | RATINGS | PHASE3))
+    assert family == BARS | RATINGS | PHASE3 | SCREENS
+    on = {"screens_on": True}
+    assert filters.rs_dark_keys(v2_on=False, history_on=True, v3_on=True, **on) == BARS | PHASE3
+    assert filters.rs_dark_keys(v2_on=True, history_on=False, v3_on=True, **on) == RATINGS
+    assert filters.rs_dark_keys(v2_on=True, history_on=True, v3_on=True, **on) == frozenset()
     # Phase 3 needs BOTH flags: its writer runs inside the RS_V2 step
-    assert filters.rs_dark_keys(v2_on=True, history_on=True, v3_on=False) == PHASE3
+    assert filters.rs_dark_keys(v2_on=True, history_on=True, v3_on=False, **on) == PHASE3
+    # ... and with its own flag off, the fourth family is the only thing dark
+    assert filters.rs_dark_keys(v2_on=True, history_on=True, v3_on=True, screens_on=False) == SCREENS
 
 
 def test_both_flags_off_no_rs_control_seat_view_or_category(monkeypatch):
@@ -209,8 +219,11 @@ def test_both_flags_on_serves_the_whole_family_exactly_as_registered(monkeypatch
     assert (BARS | RATINGS | PHASE3) <= keys
     # S1: the RS view drops only the picker-hidden keys; every other view is as registered.
     hid = filters.picker_hidden_keys()
-    assert views == {k: [c for c in v["columns"] if not (k == "relative_strength" and c in hid)]
+    # Pin moved 2026-11-14 (RS screens U1): the dark fourth family has no seat in any view.
+    assert views == {k: [c for c in v["columns"]
+                         if c not in SCREENS and not (k == "relative_strength" and c in hid)]
                      for k, v in filters.VIEWS.items()}
+    assert not (keys & SCREENS), "RS_SCREENS_ENABLED is off: none of its controls is served"
     assert "relative_strength" in cats
     ibd = next(f for f in m["filters"] if f["key"] == "rs_rating_ibd")
     assert [p["label"] for p in ibd["presets"]] == ["Any", "Over 80", "Over 90"]

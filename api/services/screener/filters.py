@@ -828,6 +828,30 @@ FILTERS = dict([
                             "relative_strength", "rs_quick_break_bars_ago")),
     _agent_omit(_open_range("rs_dead_break_bars_ago", "Grateful Dead Break Age (sessions)",
                             "relative_strength", "rs_dead_break_bars_ago")),
+    # ── relative strength: the RS screens (unit U1, 2026-11-14) ──
+    # ⭐ THE FOURTH FAMILY, ONE WRITER: `rs_post_pass.run`, after the build loop and
+    # again after the 04:15 ET rating job, only while `RS_SCREENS_ENABLED` is on, so
+    # `meta()` serves these only then (`rs_dark_keys`, `RS_SCREENS_KEYS`). Places ship
+    # BARE (`_open_range`): "top 50" is a screen's choice, never a published threshold.
+    # `rs_rating_session` is a date, a range over a TEXT column like `ipo_date`.
+    # ⛔ EVERY ONE IS `_agent_omit`: UCT Agent's field list is sent with every screen
+    # request under `CONTEXT_BUDGET_BYTES` and had 13 bytes of headroom on 2026-11-14.
+    _agent_omit(_open_range("rs_rating_pos", "RS Rating place", "relative_strength",
+                            "rs_rating_pos")),
+    _agent_omit(_open_range("rs_rating_pos_prev20", "Place a month ago", "relative_strength",
+                            "rs_rating_pos_prev20")),
+    _agent_omit(_open_range("rs_pos_1m", "1M place", "relative_strength", "rs_pos_1m")),
+    _agent_omit(_open_range("rs_pos_3m", "3M place", "relative_strength", "rs_pos_3m")),
+    _agent_omit(_open_range("rs_pos_6m", "6M place", "relative_strength", "rs_pos_6m")),
+    _agent_omit(_open_range("rs_pos_12m", "12M place", "relative_strength", "rs_pos_12m")),
+    _agent_omit(_open_range("rs_rating_session", "Ratings as of", "relative_strength",
+                            "rs_rating_session")),
+    # Hidden from the picker (`_PICKER_HIDDEN_ALWAYS`): the size of the ranking is the
+    # "of 1,931" beside a place, and the score is the number the places are ordered by.
+    _agent_omit(_open_range("rs_rating_pos_n", "Stocks ranked", "relative_strength",
+                            "rs_rating_pos_n")),
+    _agent_omit(_open_range("rs_rating_score", "RS Rating score", "relative_strength",
+                            "rs_rating_score")),
     # ── technical: expose the dark columns (registry/UI only) ──
     # ⚠️ NOT bare "ATR %" — that label word-reduces to exactly the FUNCTION
     # name `atr` (the manifest's own indicator call), and the plain-language
@@ -1248,7 +1272,11 @@ VIEWS = {
         # RS Exit Warnings (2026-11-13): the newest warning, its age, and each
         # warning's own age.
         "rs_exit_last", "rs_exit_bars_ago", "rs_quicksand_bars_ago",
-        "rs_quick_break_bars_ago", "rs_dead_break_bars_ago"]},
+        "rs_quick_break_bars_ago", "rs_dead_break_bars_ago",
+        # RS screens (U1, 2026-11-14): the exact places and the rating session. Dark
+        # with `RS_SCREENS_ENABLED` (`rs_dark_keys`); the last two are picker-hidden.
+        "rs_rating_pos", "rs_rating_pos_prev20", "rs_pos_1m", "rs_pos_3m", "rs_pos_6m",
+        "rs_pos_12m", "rs_rating_session", "rs_rating_pos_n", "rs_rating_score"]},
 }
 
 # ── The Type filter (instrument class) ──────────────────────────────────────
@@ -1834,12 +1862,36 @@ def _rs_v3_on() -> bool:
         return False
 
 
+def _rs_screens_on() -> bool:
+    """`rs_post_pass.enabled()`, the ONE reader of RS_SCREENS_ENABLED (the writer's own
+    gate), read at call time. An unreadable flag is off: the surface stays dark."""
+    try:
+        from . import rs_post_pass  # noqa: PLC0415 - lazy
+        return bool(rs_post_pass.enabled())
+    except Exception:  # noqa: BLE001
+        return False
+
+
+#: THE RS SCREENS FAMILY (2026-11-14): every filter key the RS screens programme adds.
+#: `rs_dark_keys` hides all of them from `meta()` while RS_SCREENS_ENABLED is off. A
+#: later unit that adds a key APPENDS IT HERE (and registers it `_agent_omit`); a key
+#: left out would be served to members before its writer runs.
+RS_SCREENS_KEYS = (
+    # unit U1: `rs_post_pass.run` (the exact places and the rating session)
+    "rs_rating_pos", "rs_rating_pos_prev20", "rs_pos_1m", "rs_pos_3m", "rs_pos_6m",
+    "rs_pos_12m", "rs_rating_session", "rs_rating_pos_n", "rs_rating_score",
+)
+
 #: S1 (2026-11-10): RS columns that stay COMPUTED, FILTERABLE and valid inside
 #: every saved screen but are no longer OFFERED in the column picker or the
 #: Relative Strength rail. `rs_rating_chg_5` and `rs_benchmark_agree` always;
 #: `rs_rating_ibd` only while RS_RANK_IBD_ENABLED is on, because then it is the
 #: same number as the `rs_rank` column ("RS") and a second copy only confuses.
-_PICKER_HIDDEN_ALWAYS = frozenset({"rs_rating_chg_5", "rs_benchmark_agree"})
+#: RS screens U1 (2026-11-14): `rs_rating_score` (the unrounded number the places are
+#: ordered by) and `rs_rating_pos_n` (the "of N" beside a place) are read by the
+#: screens, never picked as columns.
+_PICKER_HIDDEN_ALWAYS = frozenset({"rs_rating_chg_5", "rs_benchmark_agree",
+                                   "rs_rating_score", "rs_rating_pos_n"})
 
 
 def picker_hidden_keys() -> frozenset:
@@ -1857,22 +1909,28 @@ def picker_hidden_keys() -> frozenset:
     return frozenset(hidden)
 
 
-def rs_dark_keys(v2_on=None, history_on=None, v3_on=None) -> frozenset:
+def rs_dark_keys(v2_on=None, history_on=None, v3_on=None, screens_on=None) -> frozenset:
     """The RS filter keys (each equal to its column) a member is not shown now.
 
     Derived from the bar writer (`rs_columns.COLUMNS`, `rs_columns.PHASE3_COLUMNS`)
     and the registry's own category, never from a list retyped here. The Phase 3
-    family needs BOTH flags: its writer runs inside the RS_V2 step."""
+    family needs BOTH flags: its writer runs inside the RS_V2 step. The RS screens
+    family (`RS_SCREENS_KEYS`) follows RS_SCREENS_ENABLED alone and is taken out of
+    the rating family first, so it is never shown by RS_HISTORY_ENABLED."""
     v2_on = _rs_v2_on() if v2_on is None else v2_on
     history_on = _rs_history_on() if history_on is None else history_on
     v3_on = _rs_v3_on() if v3_on is None else v3_on
+    screens_on = _rs_screens_on() if screens_on is None else screens_on
     from . import rs_columns  # noqa: PLC0415 - lazy: the registry stays import-light
     family = {k for k, f in FILTERS.items() if f.get("category") == "relative_strength"}
     # The five RS Exit Warning columns share the ten's writer and gate.
     bars = family & (set(rs_columns.COLUMNS) | set(rs_columns.EXIT_COLUMNS))
     phase3 = family & set(rs_columns.PHASE3_COLUMNS)
-    ratings = family - bars - phase3
+    screens = family & set(RS_SCREENS_KEYS)
+    ratings = family - bars - phase3 - screens
     dark = set()
+    if not screens_on:
+        dark |= screens
     if not v2_on:
         dark |= bars
     if not history_on:
