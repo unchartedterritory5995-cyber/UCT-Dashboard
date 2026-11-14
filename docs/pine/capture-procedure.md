@@ -65,6 +65,49 @@ paint or a frame loop belongs in headless Chromium
 not the rig at all. The rig is for the vendor's chart, which nothing else can
 answer.
 
+### 2026-11-14 notes (sessions S2 and S3, agent-driven through Claude-in-Chrome)
+
+1. **A maximised window passes with an 8 px allowance.** A maximised Windows
+   window reports outer bounds about 7 px past the work area. That is the
+   invisible resize border, not a window off the display. Measured on the rig:
+   bottom 7 px and right 7 px over, on the upper display. The coordinator's
+   ruling for these sessions: the gate passes when `visibilityState ===
+   'visible'` AND the window overhangs the work area by at most 8 px on each
+   edge. `visibilityState` is still the term that decides, and it is still read
+   on the driven tab before every write.
+2. **`navigator.clipboard.writeText` hangs.** It hung on this rig with
+   `document.hasFocus() === true` and `clipboard-write` granted. A plain
+   `document.execCommand('copy')` returns `false` (no user activation).
+   What works:
+   - add a temporary overlay element to the page;
+   - in its click handler, select a hidden textarea holding the chunk and
+     call `execCommand('copy')`;
+   - fire that handler with a real pointer click through the `computer` tool,
+     which arrives with `isTrusted: true`;
+   - remove the overlay in the same handler.
+3. **Never leave a `writeText` pending.** A pending `writeText` promise does
+   not fail. It resolves later, on the next user activation, and overwrites
+   whatever is on the clipboard by then. Measured: a probe string replaced a
+   57 KB chunk after the overlay copy. If one was started, expect it to land.
+4. **Copy, then read straight away.** The clipboard was emptied once between a
+   copy and the shell's read, while editor menu clicks happened in between. The
+   FNV receipt refused it and the capture was taken again. Do the copy click as
+   the last browser action, read in the shell, and only then touch the page.
+5. **Sources reach the page through a file input.** Add a temporary
+   `<input type=file multiple>` and load every source plus `tv_capture.js` with
+   the extension's `file_upload`. Read each file with `TextDecoder('utf-8',
+   {fatal: true})` and check its sha256 in the page against the file on disk.
+   Remove the input afterwards. Then `(0,eval)(text)` of `tv_capture.js`, done
+   synchronously (before any `await`), installs `__uctVH`. Nothing has to be
+   typed or pasted.
+6. **The *Create new* row moves with the script's Pine version.** After a
+   v3, v4 or v5 script, the script-title menu has a *Convert code to v…* row
+   that pushes *Create new* down one row (y 238 to 275 in the 1568-wide frame).
+   After a v1, v2 or v6 script it does not. Read the row from the DOM (own-text
+   `Create new`, scaled by `1568 / innerWidth`) after opening the menu, every
+   time. Guess wrong and the template gate must refuse the write. It did, once:
+   a `//@version = 5` written with spaces was taken for v1.
+
 ### ⚰️ THE SUPERSEDED BOUND, AND WHY IT WAS WRONG
 
 The previous rule was **`screenY` within `[0, availHeight)`**. It is withdrawn.

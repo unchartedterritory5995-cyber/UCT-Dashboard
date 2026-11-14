@@ -17,6 +17,12 @@ disk and two copies is replaced with no gap.
 - It never serves "any file that exists in the build". The authority is `web`'s route
   table. `tests/test_front_app_parity.py` fails when a route outside `/api` is neither
   served here nor passed through.
+- What it serves itself goes out through the same two layers `web` puts around every
+  answer, with `web`'s settings: gzip (level 5, every answer that has a body) and CORS.
+  A passed-through answer goes through neither: `web` already applied both. Every OPTIONS
+  request goes to `web`, which answers a preflight itself. The settings are read out of
+  `api.main:app` by `tests/test_front_app_parity.py`, so a change on `web` fails that test
+  until the front door follows.
 
 ## Start command
 
@@ -40,6 +46,16 @@ cannot be reached on the private network.
 
 `GET /__front/health` answers 200 from this app alone. It does not depend on `web`: a
 restart of `web` must not take the front door out of rotation with it.
+
+`GET /__front/edge` shows what Railway's edge told this app about the caller, read with
+`web`'s own function (`api/services/request_ip.py`). `web` limits requests by client
+address and this app forwards the edge's headers untouched, so this is the address `web`
+will see for a request that comes through here. Check it from two places after any change
+to how traffic reaches this service: through Cloudflare (`client_ip` must be your own
+address and `connecting_address_in_cloudflare` true) and straight at the Railway hostname
+with a forged `CF-Connecting-IP` (`client_ip` must still be your own address). If
+`edge_wrote_x_forwarded_for` is ever false in production, STOP: `web` would see every
+member as one address and its rate limits would throttle them together.
 
 ## When `web` is restarting
 
