@@ -72,6 +72,8 @@ import { RS_CONTROLS_PREF, RS_NOTE_PREF, RS_LEADERS_ID, RS_SCREENS_COLUMNS, cont
 import { rowConfigOf, rowColumns, ratingsAsOf, sectorShare, rowFacts } from './rsRows'
 import { RsHeaderLine, RsFirstVisit, RsEmptyState, RsMarketLine } from './RsScreenParts'
 import { marketLineOf, readMarketHidden, writeMarketHidden } from './rsMarket'
+import RsAlertToggle from './RsAlertToggle'
+import { rsAlertsOf } from './rsAlerts'
 import WhyNotHere from './WhyNotHere'
 import { useNameDialog } from './useNameDialog'
 import { useShortcutsSheet } from './useShortcutsSheet'
@@ -193,7 +195,7 @@ function FocusList({ mode, onMode }) {
   const [retryNonce, setRetryNonce] = useState(0)
   // ── screen identity (which starter or saved screen is applied). Read BEFORE the scan is built:
   // the columns the list asks for depend on the open starter (RS screens, below).
-  const { saved, starters, rsMarket, error: savedError, loaded: savedLoaded, refresh } = useSavedScreens()
+  const { saved, starters, rsMarket, rsAlerts, setRsAlert, error: savedError, loaded: savedLoaded, refresh } = useSavedScreens()
   const [current, setCurrent] = useState(() => (arrivedBare.current ? null : readNamed()[normalSpec(s.baseSpec)] || null))
   // ── RS screens (unit U5): what the open screen's STARTER adds to it ──────
   // The starter on view, from the live starters payload by id; it may carry `controls`, `row`
@@ -946,6 +948,14 @@ function FocusList({ mode, onMode }) {
   const [marketHidden, setMarketHidden] = useState(readMarketHidden)
   const rsMarketOn = !!rsRow && !!marketLine && marketHidden !== marketLine.key
   const hideMarketLine = () => { writeMarketHidden(marketLine.key); setMarketHidden(marketLine.key) }
+  // "Tell me what joins and leaves" (unit U13): one switch at the end of the header line, on a
+  // screen whose starter has `row`, only while the saved-screens payload says the daily message
+  // is available (rsAlerts.js). Keyed by the screen, so a refusal is never shown under another.
+  const rsAlertSet = useMemo(() => rsAlertsOf(rsAlerts), [rsAlerts])
+  const rsAlertId = rsRow && rsAlertSet && rsStarter?.id != null ? String(rsStarter.id) : null
+  const alertToggle = rsAlertId
+    ? <RsAlertToggle key={rsAlertId} screenName={rsStarter.name} on={rsAlertSet.subscribed.has(rsAlertId)} onSet={on => setRsAlert(rsAlertId, on)} />
+    : null
   // The starter's own words for "nothing today", while the screen is still the starter's: once the
   // member has changed it, the sentence is no longer about what they asked, and today's state
   // (which filter to drop) is the honest one.
@@ -1061,7 +1071,7 @@ function FocusList({ mode, onMode }) {
       />
       {/* RS screens: the quick controls row, only for a starter that declares controls. */}
       {rsControls.length > 0 && <QuickControls controls={rsControls} filters={s.filters} sort={s.sort} rank={s.rank} onChoose={chooseOption} onReset={resetControls} />}
-      {rsHeadOn && <RsHeaderLine newLine={newLine} showNewLine={newLineShows} asOf={rsAsOf} share={rsShare} pending={pending} />}
+      {rsHeadOn && <RsHeaderLine newLine={newLine} showNewLine={newLineShows} asOf={rsAsOf} share={rsShare} pending={pending} alerts={alertToggle} />}
       {rsMarketOn && <RsMarketLine text={marketLine.text} state={marketLine.state} onHide={hideMarketLine} />}
       {rsNoteOn && <RsFirstVisit onHow={openRsHelp} onDismiss={() => setPref(RS_NOTE_PREF, '1')} />}
       {metaError && !meta && (

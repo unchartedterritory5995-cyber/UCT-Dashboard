@@ -62,6 +62,17 @@
 .headSep { color: var(--text-muted); }
 /* The dropped-names popover opens from the line's own start here (in the list head it hangs from the right). */
 .head [role='list'] { right: auto; left: 0; }
+/* ── "Tell me what joins and leaves" (RsAlertToggle.jsx, unit U13): a text switch, last on the header
+   line. Its state is the word after the label: gold when on (the gold dot's "this is set"), never
+   green (green means price rose). */
+.alert { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 2px 8px; }
+.alertToggle { font-size: var(--text-sm); min-height: 24px; gap: 6px; }
+.alertToggle:focus-visible { outline: 2px solid var(--ut-gold); outline-offset: 2px; }
+.alertLabel { text-decoration: underline; text-underline-offset: 3px; }
+.alertOn, .alertOff { font-weight: 600; }
+.alertOn { color: var(--ut-gold); }
+.alertOff { color: var(--text-muted); }
+.alertFailed { color: var(--text-bright); }
 /* ── The first-visit line: one line of words, a link and a button; the gold bar says "look here". */
 .note { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 14px; flex-shrink: 0; margin: 0; padding: 8px 20px; background: var(--bg-surface); border-bottom: 1px solid var(--border); box-shadow: inset 3px 0 0 var(--ut-gold); font-size: var(--text-base); line-height: var(--lh-snug); color: var(--text); }
 .noteText { flex: 1 1 320px; min-width: 0; }
@@ -103,6 +114,6 @@
 /* Touch (phone AND tablet, breakpoints.css): every control here is a 44 px finger target. Declared
    for the whole touch tier, never the phone alone (styles/tapFloor.test.js). */
 @media (max-width: 1024px) {
-  .opt, .custom, .adjust, .reset, .sheetReset, .noteLink, .noteBtn, .whyNotToggle, .whyNotClose { min-height: var(--tap-min); }
+  .opt, .custom, .adjust, .reset, .sheetReset, .noteLink, .noteBtn, .whyNotToggle, .whyNotClose, .alertToggle { min-height: var(--tap-min); }
   .opt { min-width: var(--tap-min); }
 }
