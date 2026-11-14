@@ -144,3 +144,18 @@ def test_the_guard_still_passes_ordinary_company_and_earnings_prose():
     for text in ("The company reported earnings after the close.", "Open the company panel on the chart to read the profile.",
                  "The earnings strip shows quarterly EPS and revenue.", "Check the stock's earnings date before entering."):
         assert guard.suspicious(text) is False, text
+
+
+# ── Phase 2 catalysts: news.movers is SERVER-GATED (registered only while the server serves `catalysts.board`), so it is not
+#    in manifest.golden.json and the ratchets above cannot see it — pinned by name here instead ──
+def test_the_news_movers_capability_is_a_NEWS_action_withheld_bare_and_local_only():
+    assert v2.domain_for("news.movers") == "news"
+    assert guard.suspicious(_bare("news.movers")) is True            # the guard's "news" domain x "move…" verb
+    assert "news.movers" in turn.LOCAL_ONLY_ACTIONS                  # its headlines / write-ups never reach a model
+    assert "news.movers" not in turn.DATA_READ_ACTIONS
+
+
+def test_the_guard_still_passes_ordinary_catalyst_prose():
+    for text in ("NVDA moved after its earnings report.", "The news moved the stock higher premarket.",
+                 "Catalysts this week include two FDA decisions.", "Semis were the biggest movers on the board today."):
+        assert guard.suspicious(text) is False, text

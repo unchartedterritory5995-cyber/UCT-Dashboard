@@ -33,7 +33,7 @@ from api.services.uct_agent.marketdata import gateway as gw
 REPO = Path(__file__).resolve().parents[1]
 HANDSHAKE = REPO / "app" / "src" / "agent" / "__fixtures__" / "program" / "isolation.json"
 #: the owner's isolation decisions (MD-1 v1.4 §4.4). A kind may JOIN this set; one may never silently LEAVE it.
-MUST_BE_ISOLATED = {"breadth.current", "ratings"}
+MUST_BE_ISOLATED = {"breadth.current", "ratings", "catalysts.board"}   # Phase 2: stored headlines + the engine's AI write-ups
 # token-aware sentinels (tests/test_uct_agent_qa_sentinels.py): a timing can no longer read as a leak
 from tests.test_uct_agent_qa_sentinels import leaks as _token_leaks, SENT_NUM, SENT_INT
 SENTINELS = (SENT_NUM, SENT_INT, "NHNL-SENTINEL-4242")

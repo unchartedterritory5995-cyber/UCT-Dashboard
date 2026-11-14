@@ -7782,6 +7782,50 @@
       ]
     },
     {
+      "id": "news.movers",
+      "source": "Phase 2 market-moving news + catalysts (11-14): UCT's catalyst board, owner-style phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "news.movers"
+      ],
+      "board": "ONE",
+      "needs": [
+        "news.movers"
+      ],
+      "ownWords": [
+        "catalysts"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "news.movers",
+            "target": "$stockData",
+            "args": {
+              "symbols": null,
+              "watchlist": null,
+              "sector": null,
+              "date": null,
+              "days": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*catalysts\\.board.*\"params\":\\{\\}"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "what's moving the market today",
+        "what is driving stocks this morning",
+        "show me the catalyst board",
+        "what are today's catalysts"
+      ]
+    },
+    {
       "id": "history.breakout",
       "source": "PKG2 (11-04): conversational scanning + historical analysis, owner-style phrasings",
       "kinds": "ALL",
