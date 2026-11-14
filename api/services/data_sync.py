@@ -546,6 +546,12 @@ _adopt_logged: set = set()
 #: Hard budget for the adoption's LOCKED pass (writers paused). Over it -> abort, keep
 #: the old store, retry in a later window.
 ADOPT_LOCKED_BUDGET_S = float(os.environ.get("BARS_ADOPT_LOCKED_BUDGET_S", "10"))
+#: Unlocked catch-up rounds before the locked pass: each re-carries only the series written
+#: during the previous round, so on a pod that writes constantly (the worker: 11,464 series
+#: changed during one full carry on 2026-11-14 and the locked pass ran out of budget) the
+#: remainder shrinks round by round. The locked pass starts once it is under the target.
+ADOPT_CONVERGE_ROUNDS = int(os.environ.get("BARS_ADOPT_CONVERGE_ROUNDS", "8"))
+ADOPT_LOCKED_PAIRS_TARGET = int(os.environ.get("BARS_ADOPT_LOCKED_PAIRS_TARGET", "1500"))
 
 
 def in_quiet_window(now: Optional[_dt.datetime] = None) -> bool:
@@ -706,6 +712,7 @@ def _adopt_clustered_store_locked(data_dir: Optional[str] = None) -> str:
         return "no-disk"
     from api.services import bars_sqlite
     _adoption_active.set()
+    keep_work = False
     try:
         new = os.path.join(tmpdir, "bars.db")         # same volume: atomic rename
         if resume:
@@ -732,12 +739,25 @@ def _adopt_clustered_store_locked(data_dir: Optional[str] = None) -> str:
         try:
             carried = max(0, _merge_ohlcv_from(p, new))
             _copy_stat1(p, new)
+            # Catch-up rounds, UNLOCKED: re-carry what was written meanwhile until the
+            # remainder is small enough for the locked pass's budget.
+            pending = bars_sqlite.swap_write_tracking()
+            sizes = [len(pending)]
+            for _ in range(ADOPT_CONVERGE_ROUNDS):
+                if len(pending) <= ADOPT_LOCKED_PAIRS_TARGET:
+                    break
+                carried += max(0, _merge_ohlcv_from(p, new, pairs=sorted(pending)))
+                pending = bars_sqlite.swap_write_tracking()
+                sizes.append(len(pending))
+            logger.info(f"[data_sync] adopt-clustered: catch-up rounds, series pending "
+                        f"{' -> '.join(map(str, sizes))}")
         except BaseException:
             bars_sqlite.stop_write_tracking()
             raise
         with bars_sqlite._WRITE_LOCK, bars_sqlite.DB_SWAP_LOCK:
-            # Pass 2, LOCKED and BUDGETED: only the series written since pass 1 began.
-            changed = sorted(bars_sqlite.stop_write_tracking())
+            # Pass 2, LOCKED and BUDGETED: the last round's remainder plus whatever was
+            # written since.
+            changed = sorted(pending | bars_sqlite.stop_write_tracking())
             t_lock = time.monotonic()
             if changed:
                 carried += max(0, _merge_ohlcv_from(
@@ -770,10 +790,15 @@ def _adopt_clustered_store_locked(data_dir: Optional[str] = None) -> str:
         return "adopted"
     except Exception as e:  # noqa: BLE001 -- the old store is untouched
         _log_once(f"fail-{ts}", f"[data_sync] adopt-clustered FAILED for {ts}; store kept: {e}")
+        if os.path.exists(os.path.join(tmpdir, _ADOPT_VERIFIED)):
+            # The download passed every gate; a later failure (a merge over budget, a busy
+            # checkpoint) keeps it, and the next attempt resumes instead of re-downloading.
+            keep_work = True
         return "failed"
     finally:
         _adoption_active.clear()
-        shutil.rmtree(tmpdir, ignore_errors=True)
+        if not keep_work:
+            shutil.rmtree(tmpdir, ignore_errors=True)
 
 
 def _make_tarball() -> str:
