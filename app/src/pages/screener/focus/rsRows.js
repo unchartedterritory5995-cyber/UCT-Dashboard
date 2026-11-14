@@ -107,9 +107,23 @@ export function captionOf(row, cfg, theme = null) {
   return (cfg?.caption || []).map(p => (PARTS[p] ? PARTS[p](row, theme, cfg) : '')).filter(Boolean).join(' · ')
 }
 
+// A report inside the week (unit U8): `days_to_earnings` is whole calendar days from the build's
+// date to the stock's next earnings report. The server knows that date for under half the names
+// (43% on 2026-11-14), so a row without one says NOTHING: no tag is never "no earnings soon".
+// Past this many days nothing is said either (tests/test_rs_screens_u8_earnings.py holds this
+// number against the one the method page states, rs_screens.EARNINGS_TAG_DAYS).
+export const EARNINGS_TAG_MAX_DAYS = 5
+export function earningsWords(row) {
+  const n = row?.days_to_earnings
+  if (!Number.isInteger(n) || n < 0 || n > EARNINGS_TAG_MAX_DAYS) return ''
+  return n === 0 ? 'Earnings today' : n === 1 ? 'Earnings tomorrow' : `Earnings in ${n} days`
+}
+
 // ── tags: ONE per row, the first of the starter's list that applies ────────
 export const NEW_TAG = 'New'
 const TAGS = {
+  // First on every list screen: a report inside the week changes what a setup means.
+  earnings: row => earningsWords(row),
   // The RS line made its high while price was still at least 3% under its own.
   before_price: row => (isNum(row?.rs_nhbp_age) && isNum(row.px_below_high_pct) && row.px_below_high_pct <= -3 ? 'Before price' : ''),
   // The newest RS high came on a session the market fell.
@@ -145,6 +159,7 @@ const PART_COLUMNS = {
   exit_warning: ['rs_exit_last', 'rs_exit_bars_ago'],
 }
 const TAG_COLUMNS = {
+  earnings: ['days_to_earnings'],
   before_price: ['rs_nhbp_age', 'px_below_high_pct'],
   down_day: ['rs_nh_red_bars_ago', 'rs_nh_bars_ago'],
   flag: ['rs_flag'],

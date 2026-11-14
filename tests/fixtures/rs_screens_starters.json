@@ -218,6 +218,7 @@
         "moving"
       ],
       "tags": [
+        "earnings",
         "flag",
         "new"
       ]
@@ -406,6 +407,7 @@
         "group"
       ],
       "tags": [
+        "earnings",
         "before_price",
         "down_day",
         "flag",
@@ -615,6 +617,7 @@
         "group"
       ],
       "tags": [
+        "earnings",
         "down_day",
         "flag",
         "new"
@@ -817,6 +820,7 @@
         "group"
       ],
       "tags": [
+        "earnings",
         "flag",
         "new"
       ],

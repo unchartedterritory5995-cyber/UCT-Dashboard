@@ -78,6 +78,16 @@ EXCLUDED_FLAGS = ("buyout_pending",)
 #: The four screens that carry the exclusion, by id (the method page reads this).
 NO_BUYOUT_SCREENS = ("starter_rs_top_rating", "starter_rs_new_high",
                      "starter_rs_nh_before_price", "starter_rs_leaders")
+#: The row tag ``earnings`` (unit U8): a report inside the week changes what a setup
+#: means, so it is the FIRST tag on the four list screens. The client words it from
+#: ``days_to_earnings`` (whole calendar days from the build's date to the next report):
+#: "Earnings today", "Earnings tomorrow", "Earnings in N days", for 0 to this many days.
+#: The date is known for under half the names (43% on 2026-11-14), so a row without one
+#: gets no tag, and no tag is never "no earnings soon" (the method page says so).
+#: RS exit warnings does not carry it: that screen is a prompt to review a holding, and
+#: its one tag stays the list's own "New".
+EARNINGS_TAG = "earnings"
+EARNINGS_TAG_DAYS = 5
 
 
 # ── clause and control builders ─────────────────────────────────────────────
@@ -208,7 +218,7 @@ def top_rating() -> dict:
                  "sort": _sort("rs_rating_pos", "asc")},
         "controls": [rank_by, show],
         "row": {"place": "rs_rating_pos", "caption": ["setup", "moving"],
-                "tags": ["flag", "new"]},
+                "tags": [EARNINGS_TAG, "flag", "new"]},
     }
 
 
@@ -230,7 +240,7 @@ def new_highs() -> dict:
                               [_between("rs_nh_red_bars_ago", 0, DOWN_DAY_AGE)])]),
         ],
         "row": {"place": None, "caption": ["rs_high_age", "group"],
-                "tags": ["before_price", "down_day", "flag", "new"]},
+                "tags": [EARNINGS_TAG, "before_price", "down_day", "flag", "new"]},
     }
 
 
@@ -254,7 +264,7 @@ def before_price() -> dict:
                  "sort": _sort("px_below_high_pct", "desc", then=("rs_rating_score", "desc"))},
         "controls": [_when("rs_nhbp_age"), below, _min_rating((70, 80))],
         "row": {"place": None, "caption": ["below_high", "group"],
-                "tags": ["down_day", "flag", "new"]},
+                "tags": [EARNINGS_TAG, "down_day", "flag", "new"]},
         "empty": {
             "text": ("No RS line made a 52-week high ahead of price this week. "
                      "That is normal in a weak market."),
@@ -295,7 +305,8 @@ def leaders() -> dict:
         # any ranked screen. This ranking is ours and it is the RS Rating, so the screen
         # says so. The client prints it only while the working spec still carries this
         # rank; every other ranked screen (UCT 50) keeps "Your ranking".
-        "row": {"place": "index", "caption": ["setup", "group"], "tags": ["flag", "new"],
+        "row": {"place": "index", "caption": ["setup", "group"],
+                "tags": [EARNINGS_TAG, "flag", "new"],
                 "sort_label": LEADERS_SORT_LABEL},
     }
 
