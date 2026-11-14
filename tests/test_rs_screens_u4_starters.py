@@ -887,7 +887,7 @@ def test_the_method_page_states_each_rule_from_the_constants_that_apply_it(on):
     # unit U12: "The 50 with the highest RS Rating score" became the steadier list's rule
     for words in ("average daily range of 3% or more", "$300M or more", "RS Rating 80 or higher",
                   "within 25% of its 52-week high", "ranks in the top 50 of these by RS Rating score",
-                  "stays until it falls past 65th", "The list holds at most 50"):
+                  "stays until it falls past 65th", "The list therefore holds 50 to 65 stocks"):
         assert words in rules["starter_rs_leaders"], words
     assert doc["floor"].count("$10 or more") == 1 and "$20M or more traded a day" in doc["floor"]
     labels = {x["key"]: x for x in doc["setup"]["labels"]}
@@ -949,7 +949,8 @@ def test_the_method_page_follows_a_changed_threshold(on, monkeypatch):
     assert doc["setup"]["labels"][1]["rule"].startswith("6 or more ATRs above the 50-day average")
     assert "at least 9 sessions ago" in doc["setup"]["flags"][0]["rule"]
     assert "in the top 25 of these" in doc["screens"][3]["rule"]
-    assert "holds at most 25" in doc["screens"][3]["rule"]
+    assert "holds 25 to 65 stocks" in doc["screens"][3]["rule"]
+    assert "at most" not in doc["screens"][3]["rule"], "the list is never cut: every top-N stock is listed"
     assert "$12 or more" in doc["floor"]
 
 
