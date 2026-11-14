@@ -28,6 +28,7 @@ import { registerChartSetupCapabilities } from './capabilities/chartSetup'
 import { registerCompareGroupCapability } from './capabilities/compareGroup'
 import { registerChartMenuCapabilities } from './capabilities/chartMenu'
 import { registerChartFeatureCapabilities } from './capabilities/chartFeatures'
+import { registerChartReplayCapabilities } from './capabilities/chartReplay'
 import { registerDrawingExtras } from './capabilities/drawingExtras'
 import { registerIndicatorControlCapabilities } from './capabilities/indicatorControls'
 import { registerIndicatorTemplateCapabilities } from './capabilities/indicatorTemplates'
@@ -41,6 +42,7 @@ import { registerBreadthHistoryCapability } from './capabilities/breadthHistory'
 import { registerGuideCapabilities } from './capabilities/guide'
 import { registerMarketDataCapabilities } from './capabilities/marketDataQuote'
 import { registerMarketFactsCapabilities } from './capabilities/marketDataFacts'
+import { registerCotCapability } from './capabilities/cot'
 import { registerKnowledgeCapabilities } from './capabilities/knowledge'
 import { registerResearchCapability } from './capabilities/research'
 import { registerHistoryCapability } from './capabilities/history'
@@ -89,6 +91,7 @@ export function registerBuiltins() {
   registerCompareGroupCapability()          // C1-035 / C1-037 / C1-040: the Compare panel's group controls
   registerChartMenuCapabilities()           // C1-178 / C1-061: the chart's right-click Ask AI and watermark Reset
   registerChartFeatureCapabilities()        // Add to Chart's host features: the Company Info panel + the Earnings Strip
+  registerChartReplayCapabilities()         // the toolbar's Replay / Time Machine bar: play, pause, step, jump, speed, exit
   registerDrawingExtras()                   // C1-144 / C1-160 / C1-165: Position Calculator, Save as default, tool favourites
   registerIndicatorControlCapabilities()
   registerIndicatorTemplateCapabilities()
@@ -117,4 +120,5 @@ export function registerServerGatedBuiltins() {
   registerHistoryCapability()            // W2-B2: history.afterEvent while the server serves `history.eventStudy`
   registerChartDescribeCapability()      // W2-B3: chart.describeSetup while the server serves `bars.daily`
   registerCoachCapabilities()            // Wave 3 (W3-1..4): coach.* / journal.* while the server serves `coach` (UCT_AGENT_COACH)
+  registerCotCapability()                // Phase 2: cot.positioning while the server serves `cot.positioning`
 }

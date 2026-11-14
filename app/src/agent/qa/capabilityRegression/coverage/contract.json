@@ -325,7 +325,7 @@
    "surfaces": [
     "charts"
    ],
-   "fast": false
+   "fast": true
   },
   "chart.resetDefaults": {
    "domain": "chart",
@@ -521,6 +521,19 @@
     "charts"
    ],
    "fast": false
+  },
+  "chartReplay.playback": {
+   "domain": "chartReplay",
+   "group": "chartReplay",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true
   },
   "chartSetup.autoScale": {
    "domain": "chartSetup",
@@ -753,6 +766,19 @@
    "query": false,
    "surfaces": [
     "charts"
+   ],
+   "fast": false
+  },
+  "cot.positioning": {
+   "domain": "cot",
+   "group": "cot",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
    ],
    "fast": false
   },
