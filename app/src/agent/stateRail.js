@@ -479,7 +479,8 @@ export function permits(e, words, subjects = null, previous = null, previousSet 
             // the message's first words point at the conversation's CURRENT subject ("make it thicker"): an overwrite of
             // EXACTLY that object (never another of its class); a destroy, a replace or a save-over is asked, never assumed
             if (e.type === 'overwrite' && !saving && isSubject()) return true
-            if (demo && e.type === 'overwrite') why.demo = true
+            // no subject (or another object): which one is asked, with the chart's own instances as the choices
+            if (e.type === 'overwrite' && e.state === 'indicator') why.demo = true
             // a destroy right after: only the ONE object the immediately previous turn made or changed (AUDIT #1247 A)
             if (e.type !== 'overwrite' && !saving && e.id && previous && e.id === previous) return true
             // "remove it from the right one": among what the previous turn made, exactly the one(s) at those positions

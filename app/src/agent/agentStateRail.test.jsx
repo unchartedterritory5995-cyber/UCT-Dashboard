@@ -15,7 +15,7 @@ import { AuthContext } from '../context/AuthContext'
 import { planOps, collectTargets, prepareOps } from './executor'
 import { buildContext } from './capabilities'
 import { commitPlan, undoEntry } from './runtime'
-import { stateRailRefusal, stateRailDecision, stateEffects, permits, nextTurnSubjects, previousObjectOf } from './stateRail'
+import { stateRailRefusal, stateRailDecision, stateEffects, permits, nextTurnSubjects, previousObjectOf, noteApplied, previousCandidatesOf } from './stateRail'
 import { createMemory } from './memory'
 import { stateFixture } from './__fixtures__/stateBoard'
 import { buildDrawingSource } from './host'
@@ -643,6 +643,110 @@ describe('STATE RAIL · bindings: position of what the previous turn made, the l
     const show = await planOf(fx, WRONG.widget['widget.showList (Tech → Swing)'])
     expect(stateRailRefusal(show, { words: 'open Swing' })).toBe(null)
     expect(stateRailRefusal(show, { words: 'open Tech' }) || 'LET THROUGH').toMatch(/^I didn’t change anything/)
+  })
+})
+
+// ── D19 (owner, AUDIT #1247): ordinary follow-ups act when the target is UNIQUELY fixed; several → choices; none → ask ──
+describe('STATE RAIL · D19: contextual follow-ups through the real panel — act on the one target, ask with choices otherwise', () => {
+  const ema21 = (fx) => indicatorRowsOf(fx.host.charts.read('c1').cs).find(r => r.defId === 'movingAverage' && r.inputs.period === 21)
+  const rowsC1 = (fx) => JSON.stringify(indicatorRowsOf(fx.host.charts.read('c1').cs))
+  const addEma = async (fx, say) => {
+    envelopes.push(env('apply', [op('indicator.add', 'ixe:c1', { defId: 'movingAverage', inputs: [{ key: 'period', value: 21 }, { key: 'maType', value: 'ema' }] })]))
+    await say('could you put a 21 ema on the left chart for me')
+    envelopes.length = 0
+    return ema21(fx)
+  }
+  for (const [w, mk, done] of [
+    ['make it blue', (id) => op('indicatorStyle.set', 'ixe:c1', { instance: id, property: 'color', value: 'blue', output: null }), /colour .* to blue/],
+    ['change that indicator to 50', (id) => op('indicator.update', 'ixe:c1', { instance: id, inputs: [{ key: 'period', value: 50 }] }), /21 → 50/],
+  ]) {
+    it(`"${w}" with a conversation subject (the EMA 21 just added) → ACTS on exactly it`, async () => {
+      const { fx, say, transcript } = mount()
+      const e = await addEma(fx, say)
+      envelopes.push(env('apply', [mk(e.instanceId)]))
+      await say(w)
+      envelopes.length = 0
+      expect(transcript()).toMatch(done)
+    }, 30000)
+    it(`"${w}" with NO subject (fresh, nothing clicked) → ASKS with the chart's indicators as choices; nothing written`, async () => {
+      const { fx, say, transcript } = mount()
+      const before = rowsC1(fx)
+      envelopes.push(env('apply', [mk('inst:rsi:1')]))
+      await say(w)
+      envelopes.length = 0
+      expect(rowsC1(fx)).toBe(before)
+      expect(transcript()).toMatch(/Which one do you mean\?/)
+      expect(screen.getAllByRole('button').some(b => /RSI/.test(b.textContent))).toBe(true)
+    }, 30000)
+    it(`"${w}" with a subject but the plan aimed at ANOTHER instance (the RSI) → the RSI is never changed`, async () => {
+      const { fx, say } = mount()
+      await addEma(fx, say)
+      const rsi = () => JSON.stringify(indicatorRowsOf(fx.host.charts.read('c1').cs).find(r => r.instanceId === 'inst:rsi:1'))
+      const before = rsi()
+      envelopes.push(env('apply', [mk('inst:rsi:1')]))
+      await say(w)
+      // (the instant reader may read "it" itself — then on the subject EMA; the scripted plan on the RSI never runs)
+      envelopes.length = 0
+      expect(rsi()).toBe(before)
+    }, 30000)
+  }
+  it('a pick from those choices acts on exactly the picked instance', async () => {
+    const { fx, say } = mount()
+    envelopes.push(env('apply', [op('indicator.update', 'ixe:c1', { instance: 'ovl:0', inputs: [{ key: 'period', value: 50 }] })]))
+    await say('change that indicator to 50')
+    envelopes.length = 0
+    fireEvent.click(screen.getAllByRole('button').filter(b => /^RSI/.test(b.textContent)).at(-1))
+    await waitFor(() => expect(indicatorRowsOf(fx.host.charts.read('c1').cs).find(r => r.instanceId === 'inst:rsi:1').inputs.period).toBe(50))
+    expect(indicatorRowsOf(fx.host.charts.read('c1').cs).find(r => r.instanceId === 'ovl:0').inputs.period).toBe(9)
+  }, 30000)
+})
+
+describe('STATE RAIL · D19 rule (i): the previous applied turn’s objects only while still present and UNCHANGED', () => {
+  const turn = (m, ops, touched = []) => { m.beginTurn(); m.noteChange({ ops, epoch: null, undoId: null }); for (const [chart, instanceId] of touched) m.noteIndicator({ chart, instanceId }) }
+  it('one object, unchanged → it; changed since, or deleted since → no candidate (asks)', () => {
+    const fx = stateFixture()
+    const m = createMemory()
+    turn(m, [{ action: 'indicator.add', target: 'c1' }], [['c1', 'inst:rsi:1']])
+    noteApplied(m, null, null, fx.host)
+    expect(previousCandidatesOf(m, null, null, fx.host).map(c => c.id)).toEqual(['ind:c1:inst:rsi:1'])
+    // the member changes it by hand: no longer "it"
+    const cs = JSON.parse(JSON.stringify(fx.host.charts.read('c1').cs))
+    cs.indicatorInstances.find(i => i.instanceId === 'inst:rsi:1').inputs.period = 7
+    fx.host.charts.commit('c1', { settings: cs })
+    expect(previousCandidatesOf(m, null, null, fx.host)).toEqual([])
+    // …or deletes it
+    const fx2 = stateFixture()
+    const m2 = createMemory()
+    turn(m2, [{ action: 'indicator.add', target: 'c1' }], [['c1', 'inst:rsi:1']])
+    noteApplied(m2, null, null, fx2.host)
+    const cs2 = JSON.parse(JSON.stringify(fx2.host.charts.read('c1').cs))
+    cs2.indicatorInstances = cs2.indicatorInstances.filter(i => i.instanceId !== 'inst:rsi:1')
+    fx2.host.charts.commit('c1', { settings: cs2 })
+    expect(previousCandidatesOf(m2, null, null, fx2.host)).toEqual([])
+  })
+  it('two candidates → asked with choices, never acted on', async () => {
+    const fx = stateFixture()
+    const rm = await planOf(fx, WRONG.indicator['indicator.remove (the RSI)'])
+    const d = stateRailDecision(rm, { words: 'remove it', previousSet: [{ id: 'ind:c1:inst:rsi:1' }, { id: 'chart:c1' }] })
+    expect(d.text).toMatch(/^I didn’t change anything/)
+    expect(d.ask.kind).toBe('previous')
+  })
+})
+
+describe('STATE RAIL · D19 rule (ii): "the top three" = the rows the earlier view showed, while the list is unchanged', () => {
+  it('rows recorded and the list unchanged → acts; the list changed since → asks, naming the rows', async () => {
+    const fx = stateFixture()
+    const rm = await planOf(fx, WRONG.watchlist['watchlist.remove (NVDA)'])          // Tech = SPY, NVDA, AMD; removes NVDA
+    expect(stateRailDecision(rm, { words: 'remove the top one', views: [{ rows: ['NVDA', 'SPY', 'AMD'] }] })).toBe(null)
+    expect(stateRailDecision(rm, { words: 'remove the top one', views: [{ rows: ['SPY', 'NVDA', 'AMD'] }] })?.text).toMatch(/^I didn’t change anything/)
+    const changed = stateRailDecision(rm, { words: 'remove the top one', views: [{ rows: ['NVDA', 'SPY', 'AMD', 'TSLA'] }] })
+    expect(changed.text).toMatch(/^I didn’t change anything/)
+  })
+  it('"all three" when the list holds exactly three → acts; "all four" → asks', async () => {
+    const fx = stateFixture()
+    const clear = await planOf(fx, WRONG.watchlist['watchlist.clear (Tech)'])
+    expect(stateRailDecision(clear, { words: 'remove all three' })).toBe(null)
+    expect(stateRailDecision(clear, { words: 'remove all four' })?.text).toMatch(/^I didn’t change anything/)
   })
 })
 

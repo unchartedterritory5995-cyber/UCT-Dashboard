@@ -152,6 +152,38 @@ describe('S · "my other charts", "the same", "match this one"', () => {
     expect(colorOf(board, 'c0', 'EMA 20')).toBe(RED)
   }, 60000)
 
+  // ⛔ AUDIT #1247 (D19): a chart with TWO matching EMA 20s is asked about ALONE (its two as the choices); the others are acted on
+  it('S2c "do the same on the other charts" where one chart has two EMA 20s: the others act, that chart is asked (choices), then the pick', async () => {
+    const { board, say, click } = p.mount(...FOUR())
+    await say('add the 9 and 20 ema to the top left chart')
+    await say('now put those on my other charts')
+    await say('add another 20 ema to the bottom left chart')
+    await say('make the 20 ema on the top left chart red')
+    const out = await say('do the same on the other charts')
+    const reds = (id) => (board.state.widgets.find(w => w.id === id).opts.settings.indicatorInstances || []).filter(i => i.defId === 'movingAverage' && i.inputs?.period === 20 && i.inputs?.color === RED).length
+    const twentyCount = (id) => (board.state.widgets.find(w => w.id === id).opts.settings.indicatorInstances || []).filter(i => i.defId === 'movingAverage' && i.inputs?.period === 20 && !i.deleted).length
+    const two = ['c1', 'c2', 'c3'].find(id => twentyCount(id) === 2)
+    expect(two, 'one chart holds two EMA 20s').toBeTruthy()
+    for (const id of ['c1', 'c2', 'c3'].filter(x => x !== two)) expect(reds(id), id).toBe(1)
+    expect(reds(two)).toBe(0)
+    expect(out).toMatch(/has more than one EMA 20 — which one\?/)
+    await click('EMA 20 (the first in the legend)')
+    await waitFor(() => expect(reds(two)).toBe(1))
+  }, 60000)
+
+  // ⛔ AUDIT #1247 (D19): a chart with NO matching EMA 20 is NAMED in the receipt, not asked about
+  it('S2d "do the same on the other charts" where some charts have no EMA 20: the one that has it acts; the others are named', async () => {
+    const { board, say } = p.mount(...FOUR())
+    await say('add the 20 ema to the top left chart')
+    await say('add the 20 ema to the top right chart')
+    await say('make the 20 ema on the top left chart red')
+    const out = await say('do the same on the other charts')
+    const reds = (id) => (board.state.widgets.find(w => w.id === id).opts.settings?.indicatorInstances || []).filter(i => i.defId === 'movingAverage' && i.inputs?.period === 20 && i.inputs?.color === RED).length
+    expect(reds('c1')).toBe(1)
+    expect(out).toContain('it has no EMA 20')
+    expect(out).toContain('Not on Chart (')
+  }, 60000)
+
   it('S3 "make the top left chart weekly" → "make all my charts match this one" — ONE proposal for the three others (a look copy is approved first); nothing changed yet', async () => {
     const { h, say } = p.mount(...FOUR())
     await say('make the top left chart weekly')

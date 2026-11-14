@@ -682,7 +682,11 @@ function repeatExact(last, dests, host) {
   for (const o of last.ops) {
     const cap = getCapability(o.action)
     if (cap?.target !== 'indicatorEdits' || typeof o.args?.instance !== 'string') return null
-    const src = fullRows(host, String(o.target)).find(r => r.instanceId === o.args.instance)
+    const srcRows = fullRows(host, String(o.target))
+    // by id, or by the portable form an instant edit names it with ("#20:ema": the ONE average of that length and type)
+    const pm = /^#(\d{1,4})(?::(\w+))?$/.exec(o.args.instance)
+    const byLen = pm ? srcRows.filter(r => r.defId === 'movingAverage' && Number(r.inputs?.period) === Number(pm[1]) && (!pm[2] || String(r.inputs?.maType) === pm[2])) : []
+    const src = srcRows.find(r => r.instanceId === o.args.instance) || (byLen.length === 1 ? byLen[0] : null)
     if (!src) return null
     for (const d of dests) {
       const hits = fullRows(host, d).filter(r => r.defId === src.defId && settingsOfRow(r) === settingsOfRow(src))
@@ -792,7 +796,7 @@ function readOnce(t, ctx) {
       if (!exact.ops.length && !exact.ambiguous.length) return { kind: 'say', text: `None of those charts has that indicator, so nothing changed — not on ${exact.missing.join('; not on ')}. Which chart did you mean?` }
       const note = exact.missing.length ? `Not on ${exact.missing.join('; not on ')}.` : null
       const a = exact.ambiguous[0]
-      const ask = a ? { text: `${a.label} has more than one ${a.rows[0].name} — which one?`, choices: a.rows.map(r => ({ ref: r.instanceId, label: r.name })), ops: [a.op] } : null
+      const ask = a ? { text: `${a.label} has more than one ${a.rows[0].name} — which one?`, choices: a.rows.map((r, i) => ({ ref: r.instanceId, label: `${r.name} (the ${['first', 'second', 'third', 'fourth'][i] || `#${i + 1}`} in the legend)` })), ops: [a.op] } : null
       if (exact.ops.length > MAX_FOLLOW_OPS) return { kind: 'say', text: `That would be ${exact.ops.length} changes at once — UCT makes at most ${MAX_FOLLOW_OPS} in one follow-up. Name fewer charts. Nothing has changed.` }
       if (!exact.ops.length && ask) return { kind: 'askArg', text: ask.text, choices: ask.choices, ops: ask.ops, arg: 'instance' }
       return { kind: 'ops', ops: exact.ops, note, then: ask }
