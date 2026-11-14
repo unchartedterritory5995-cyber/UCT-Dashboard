@@ -254,7 +254,7 @@ export function chartRailRefusal(plan, { words = '', host = null, mode = 'apply'
     const dup = fin.created.filter((s0, i) => s0 && ((fin.kept.some(c => c.symbol === s0) && keepSet.has(s0)) || fin.created.indexOf(s0) !== i) && !asksAnother(w, s0))
     if (dup.length) {
       const d = [...new Set(dup)]
-      return `I didn’t change anything: ${listOf(d)} ${d.length === 1 ? 'is' : 'are'} already on your board, and this would have added ${d.length === 1 ? 'a second chart' : 'second charts'} for ${d.length === 1 ? 'it' : 'them'}. Your charts stay as they are — I only add the tickers that aren’t there yet (say “another ${d[0]} chart” if you want a copy).`
+      return dupSentence(d)
     }
     // (a kept chart stays the SAME panel: closing it — even to re-create it on its ticker — is a KEPT 'remove' effect, refused above)
   }
@@ -262,9 +262,13 @@ export function chartRailRefusal(plan, { words = '', host = null, mode = 'apply'
 }
 
 // a copy asked for in words: "another SPY chart", "a second NVDA", "duplicate the SPY chart", "SPY twice"
-const ANOTHER = /\b(?:another|second|2nd|duplicate|copy|clone|again|twice|extra)\b/i
+const ANOTHER = /\b(?:another|second|2nd|duplicate|copy|clone|again|twice|extra|more)\b/i
+/** The duplicate refusal: WHICH ticker, and how to ask for a second copy. */
+export const dupSentence = (syms) => `I didn’t change anything: ${listOf(syms)} ${syms.length === 1 ? 'is' : 'are'} already on your board. Say “add another ${syms[0]} chart” if you want a second one.`
 // words that ask for NEW charts outright ("on a new chart", "4 more charts")
 const NEW_CHART_WORDS = /\b(?:new|another|second|2nd|more|extra|copy|duplicate|clone|again|twice)\b/i
+// "open (daily) charts for AAPL, MSFT and NVDA": a chart per named ticker, asked outright (golden GW-19)
+const OPEN_CHARTS = /\bopen\b[^.;!?]*\bcharts?\b/i
 const mentions = (words, sym) => new RegExp(`(^|[^A-Za-z])\\$?${String(sym).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![A-Za-z])`, 'i').test(words)
 /**
  * ⛔ KEEP ≠ RE-CREATE: the tickers already on the board that THIS request keeps as they are —
@@ -283,7 +287,10 @@ export function keepTickers(words, host, created = []) {
   for (const c of liveCharts(host)) {
     const s0 = up(c.symbol)
     if (!s0) continue
-    if (k.all || k.refs.has(c.ref) || k.symbols.has(s0) || (namesNew && !mentions(w, s0) && !NEW_CHART_WORDS.test(w))) out.add(s0)
+    // (a board ticker the words NAME among the ones to add — "add SPY and AAPL" on a SPY board — is that chart too, never a
+    // second one, unless a word asks for a copy or for charts outright)
+    const asksNew = NEW_CHART_WORDS.test(w) || OPEN_CHARTS.test(w) || CHART_COUNT.test(w)
+    if (k.all || k.refs.has(c.ref) || k.symbols.has(s0) || (!asksNew && (mentions(w, s0) ? true : namesNew))) out.add(s0)
   }
   return out
 }

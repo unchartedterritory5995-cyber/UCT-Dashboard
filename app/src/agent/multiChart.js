@@ -163,6 +163,14 @@ function gridRequest(raw0, lower0, charts, host) {
   // the whole grid (GRID-REUSE, 11-04) or more charts:
   // ASKED (replace them — shown first — or add beside them); more than the board holds: asked (replace, or nothing).
   if (!lead && ADD_VERB.test(raw) && !REPLACE_INTENT.test(raw)) {
+    // ⛔ KEEP ≠ RE-CREATE: a ticker a chart already shows is that chart — never a second one unless a copy is asked for
+    const showing = new Set(charts.map(c => String(c.symbol || '').toUpperCase()).filter(Boolean))
+    // (a count or a grid shape names the WHOLE set — "add a 2x2 of …", "add four charts for …" — and new / more words ask for
+    // charts outright: those go on as before, to the add-or-replace question or new charts)
+    const explicitSet = COPY_WORDS.test(raw) || ASKS_NEW.test(raw) || !!count || GRID_SHAPE_WORDS.test(raw)
+    const already = explicitSet ? [] : syms.filter(s0 => showing.has(s0))
+    if (already.length === syms.length) return { kind: 'say', text: `${andWords(already)} ${already.length === 1 ? 'is' : 'are'} already on your board — nothing changed. Say “add another ${already[0]} chart” if you want a second one.` }
+    if (already.length) syms.splice(0, syms.length, ...syms.filter(s0 => !showing.has(s0)))
     const onBoard = gridChartCount(host, charts.length)
     const layout = layoutHit ? layoutHit[1] : null
     if (onBoard > 0) {
@@ -236,6 +244,8 @@ export function gridChoiceFor(ops, text, host) {
 }
 const wantsNew = (text, n, onBoard) => asksNew(text) || n < onBoard
 // ⛔ ADD NEVER REPLACES (hotfix 2026-11-13): the verbs that ask for MORE charts, and a grid shape said in words
+const COPY_WORDS = /\b(?:another|second|2nd|duplicate|copy|clone|again|twice|one more)\b/i
+const andWords = (xs) => (xs.length < 2 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`)
 export const ADD_VERB = /\b(?:add|adds|added|adding|include|includes|included|including)\b/i
 const GRID_SHAPE_WORDS = /\b[1-4]\s*(?:x|by|-by-)\s*[1-4]\b|\bquad\b/i
 // the board's room for n more widgets (unknown → assumed, the grid's own check still refuses past the cap)
