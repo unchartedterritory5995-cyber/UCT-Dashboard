@@ -111,16 +111,21 @@ test('arrow keys move and choose inside a control, wrap at the ends, and Home an
   expect(chosen).toHaveBeenLastCalledWith('when', 'month')
   expect(document.activeElement).toBe(opt('This month'))
   expect(checked(group(/^When/))).toEqual(['This month'])
-  fireEvent.keyDown(opt('This month'), { key: 'ArrowRight' })      // wraps to the first
+  // Pin moved 2026-11-14 (unit U12): When has a fourth option, Weekly, so the last option is
+  // Weekly and the steps to each end are one longer.
+  fireEvent.keyDown(opt('This month'), { key: 'ArrowRight' })
+  expect(chosen).toHaveBeenLastCalledWith('when', 'weekly')
+  expect(document.activeElement).toBe(opt('Weekly'))
+  fireEvent.keyDown(opt('Weekly'), { key: 'ArrowRight' })          // wraps to the first
   expect(document.activeElement).toBe(opt('Today'))
   fireEvent.keyDown(opt('Today'), { key: 'ArrowLeft' })            // wraps to the last
-  expect(document.activeElement).toBe(opt('This month'))
-  fireEvent.keyDown(opt('This month'), { key: 'Home' })
+  expect(document.activeElement).toBe(opt('Weekly'))
+  fireEvent.keyDown(opt('Weekly'), { key: 'Home' })
   expect(document.activeElement).toBe(opt('Today'))
   fireEvent.keyDown(opt('Today'), { key: 'End' })
-  expect(document.activeElement).toBe(opt('This month'))
-  fireEvent.keyDown(opt('This month'), { key: 'ArrowUp' })
-  expect(checked(group(/^When/))).toEqual(['This week'])
+  expect(document.activeElement).toBe(opt('Weekly'))
+  fireEvent.keyDown(opt('Weekly'), { key: 'ArrowUp' })
+  expect(checked(group(/^When/))).toEqual(['This month'])
   expect(g).toBeInTheDocument()
 })
 
