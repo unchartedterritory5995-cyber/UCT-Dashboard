@@ -365,6 +365,48 @@ def test_I2_a_most_recent_day_moved_into_daily_notes_takes_the_next_day_with_it(
     assert _today(client, "2026-09-26").json()["note"]["folderId"] == newer
 
 
+# ── Follow-up B, item 4a: the most recent live day decides, wherever it is; nested or Unfiled falls to the names ──
+# The setup makes the two answers differ: an OLDER day sits in a root "Daily notes", and a root "Daily" exists too.
+# Looking further back (the old query) answers "Daily notes"; the name order answers "Daily" (the legacy name first).
+
+def _older_day_in_daily_notes_and_a_root_daily(client):
+    older = _today(client, "2026-09-24").json()["note"]
+    home = [f for f in _folders(client) if f["name"] == DAILY][0]["id"]
+    assert older["folderId"] == home
+    legacy = client.post("/api/j2/note-folders", json={"name": LEGACY}).json()["folder"]["id"]
+    return home, legacy
+
+
+def test_4a_a_most_recent_day_in_a_nested_folder_falls_to_the_name_order(app, client):
+    _login_as(app, "u1")
+    home, legacy = _older_day_in_daily_notes_and_a_root_daily(client)
+    trading = client.post("/api/j2/note-folders", json={"name": "Trading"}).json()["folder"]["id"]
+    nested = client.post("/api/j2/note-folders", json={"name": DAILY, "parentId": trading}).json()["folder"]["id"]
+    recent = _today(client, "2026-09-25").json()["note"]
+    _move_to(client, recent["id"], nested)
+    nxt = _today(client, "2026-09-26").json()["note"]
+    assert nxt["folderId"] == legacy, "the older day's folder decided (the query looked past the most recent day)"
+    assert nxt["folderId"] not in (home, nested)
+
+
+def test_4a_a_most_recent_day_in_unfiled_falls_to_the_name_order(app, client):
+    _login_as(app, "u1")
+    home, legacy = _older_day_in_daily_notes_and_a_root_daily(client)
+    recent = _today(client, "2026-09-25").json()["note"]
+    _move_to(client, recent["id"], None)
+    assert client.get(f"/api/j2/notes/{recent['id']}").json()["note"]["folderId"] is None, "non-vacuity: Unfiled"
+    assert _today(client, "2026-09-26").json()["note"]["folderId"] == legacy
+
+
+def test_4a_control_a_most_recent_day_in_a_root_candidate_folder_still_wins(app, client):
+    # The same setup with the most recent day left in root "Daily notes": its folder wins over the name order.
+    _login_as(app, "u1")
+    home, _legacy = _older_day_in_daily_notes_and_a_root_daily(client)
+    recent = _today(client, "2026-09-25").json()["note"]
+    _move_to(client, recent["id"], home)
+    assert _today(client, "2026-09-26").json()["note"]["folderId"] == home
+
+
 # ── I3 (final fix): the plan seed is built only for a note this press MAKES, and a failed build never blocks it ──
 
 def _spy_seed(monkeypatch, *, raises=False, lines=("Check your names: NVDA",)):
@@ -426,6 +468,38 @@ def test_M4_planSeeded_says_whether_plan_lines_went_into_the_note_this_call_made
     assert empty["created"] is True and empty["planSeeded"] is False
     plain = _today(client, "2026-09-26").json()
     assert plain["created"] is True and plain["planSeeded"] is False
+
+
+# Follow-up B, item 4b: the "does today's note exist?" read sits before the seed. Its failure must not block the note.
+def _exists_raises(monkeypatch):
+    from api.services.journal_two import note_daily
+
+    def boom(user_id, raw_date):
+        raise sqlite3.OperationalError("database is locked")
+
+    monkeypatch.setattr(note_daily, "daily_note_exists", boom)
+
+
+def test_4b_the_exists_read_raising_still_makes_the_note_without_a_seed(app, client, monkeypatch):
+    _login_as(app, "u1")
+    calls = _spy_seed(monkeypatch)
+    _exists_raises(monkeypatch)
+    r = _today(client, seedToday=True)
+    assert r.status_code == 200, r.text
+    assert r.json()["created"] is True
+    assert calls == [], "exists unknown: the seed is skipped"
+    assert "Check your names" not in str(r.json()["note"]["bodyJson"])
+
+
+def test_4b_the_exists_read_raising_still_opens_an_existing_note(app, client, monkeypatch):
+    _login_as(app, "u1")
+    made = _today(client).json()["note"]
+    calls = _spy_seed(monkeypatch)
+    _exists_raises(monkeypatch)
+    r = _today(client, seedToday=True)
+    assert r.status_code == 200, r.text
+    assert r.json()["created"] is False and r.json()["note"]["id"] == made["id"]
+    assert calls == []
 
 
 def test_I3_a_bad_date_with_the_seed_is_still_a_400(app, client, monkeypatch):

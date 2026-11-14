@@ -1,5 +1,13 @@
 # Capture procedure — driving a live TradingView chart
 
+
+> ⭐ **2026-11-13: licence-held captures keep counting after an engine bump.** Their verdicts live in
+> `docs/pine/vendor-harness/evidence-ledger.jsonl` (LEDGER_ONLY: source sha256 and verdicts, never
+> the source). After every `SCRIPT_ENGINE_VERSION` bump, run
+> `python tools/vendor_harness/evidence_engine.py regrade`: it re-grades the out-of-git capture store
+> (`$UCT_VENDOR_CAPTURE_STORE`) in both lanes under the heavy lock and appends fresh rows, then
+> commit the ledger diff. Rules: `docs/pine/LICENSING.md` section 2c.
+
 ## ⛔⛔ THE VISIBILITY GATE, v2 — MEASURED AGAINST **THIS DISPLAY**, NOT THE PRIMARY
 
 **Owner ruling, 2026-09-12.** The pass condition, read from the CONNECTED TAB:

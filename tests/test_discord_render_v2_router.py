@@ -163,6 +163,24 @@ def test_v2_buzz_is_offered_and_deferred_PUBLICLY(client, v2, monkeypatch):
     assert job.command == "buzz" and job.ephemeral is False
 
 
+def test_v2_buzz_is_held_to_the_command_channel(client, v2, monkeypatch):
+    """Owner ruling 2026-11-13: "/buzz just in UCT Intelligence". The gate exists on BOTH reply
+    paths, and this is the one that is easy to miss: with V2 on, the pre-V2 branch that carries
+    the same check is never reached, so a gate added only there holds in the tests of that file
+    and lets every board through in production."""
+    tc, rt, sk = client
+    monkeypatch.setenv("CHART_FLOW_CHANNEL_ID", "123,456")
+    monkeypatch.setattr(rt, "run_buzz_job", lambda *a, **k: (_ for _ in ()).throw(AssertionError("old job ran")))
+    r = _post(tc, sk, _slash(name="buzz", options=[], channel="999")).json()
+    assert r["type"] == 4 and r["data"]["flags"] == di.EPHEMERAL
+    assert "<#123>" in r["data"]["content"] and "456" not in r["data"]["content"]
+    assert v2.offered == [], "a refused board was still queued"
+    # Non-vacuity: in the channel it is offered, and the private admin entry works too.
+    assert _post(tc, sk, _slash(name="buzz", options=[], channel="123")).json() == {"type": 5}
+    assert _post(tc, sk, _slash(name="buzz", options=[], channel="456", iid="1415926535897932385")).json() == {"type": 5}
+    assert [j.command for j in v2.offered] == ["buzz", "buzz"]
+
+
 def test_an_invalid_ticker_is_refused_privately_and_never_queued(client, v2):
     tc, _, sk = client
     r = _post(tc, sk, _slash(options=[{"name": "ticker", "value": "N*VDA"}])).json()

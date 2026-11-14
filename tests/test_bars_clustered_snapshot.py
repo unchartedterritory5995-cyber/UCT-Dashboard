@@ -511,6 +511,98 @@ def test_the_owner_override_adopts_outside_the_quiet_window(adoption, tmp_path, 
     assert ds.adopt_clustered_store(str(tmp_path)) == "adopted"
 
 
+# ── BARS_REINSTALL_TOKEN: re-install over a clustered but partial store ─────────
+def test_reinstall_token_replaces_a_partial_clustered_store_once(adoption, tmp_path,
+                                                                 monkeypatch):
+    ds, fake, local, snap = adoption
+    from api.services import bars_cluster
+    partial = tmp_path / "partial.db"                  # clustered, only a few rows
+    c = sqlite3.connect(str(partial)); c.execute(ds_ohlcv_ddl()); c.execute(
+        "INSERT INTO ohlcv VALUES ('ONLYHERE','D',20261113,1,2,0.5,1.5,9)"); c.commit(); c.close()
+    os.replace(partial, local)
+    (tmp_path / ".adopted_clustered").write_text("local")
+    monkeypatch.delenv("BARS_ADOPT_CLUSTERED", raising=False)
+    assert ds.adopt_clustered_store(str(tmp_path)) == "off"            # no token: untouched
+    monkeypatch.setenv("BARS_REINSTALL_TOKEN", "r1")
+    assert ds.adopt_clustered_store(str(tmp_path)) == "adopted"
+    c = sqlite3.connect(str(local))
+    n = c.execute("SELECT COUNT(*) FROM ohlcv").fetchone()[0]
+    kept = c.execute("SELECT COUNT(*) FROM ohlcv WHERE ticker='ONLYHERE'").fetchone()[0]
+    c.close()
+    assert n > 100 and kept == 1                        # the base AND the local-only row
+    assert ds.adopt_clustered_store(str(tmp_path)) == "off" and fake.downloads == 1  # token spent
+    monkeypatch.setenv("BARS_REINSTALL_TOKEN", "r2")   # a new token runs again
+    assert ds.adopt_clustered_store(str(tmp_path)) == "adopted" and fake.downloads == 2
+
+
+def ds_ohlcv_ddl():
+    from api.services import bars_sqlite
+    return bars_sqlite.ohlcv_ddl()
+
+
+# ── adoption survives restarts (web, 2026-11-13: a deploy killed it twice) ──────
+def test_a_dead_runs_working_folder_is_swept_before_the_disk_check(adoption, tmp_path,
+                                                                   monkeypatch):
+    """An interrupted adoption leaves ~20 GB behind; the next attempt must reclaim it,
+    not fail its disk check forever."""
+    ds, fake, local, snap = adoption
+    stale = tmp_path / "adopt_0d5176vf"                 # mkdtemp-named leftover
+    stale.mkdir()
+    (stale / "bars.db").write_bytes(b"x" * 4096)
+    old_ts = tmp_path / "adopt_1600000000"             # a different snapshot's leftover
+    old_ts.mkdir()
+    (old_ts / ".verified").write_text("1600000000")
+    (old_ts / "bars.db").write_bytes(b"y" * 4096)
+    seen = {}
+    real_usage = ds.shutil.disk_usage
+
+    def usage(path):
+        seen["left"] = sorted(q.name for q in tmp_path.iterdir() if q.name.startswith("adopt_"))
+        return real_usage(path)
+    monkeypatch.setattr(ds.shutil, "disk_usage", usage)
+    assert ds.adopt_clustered_store(str(tmp_path)) == "adopted"
+    assert seen["left"] == []                           # swept BEFORE free space was read
+    assert _no_tmp_left(tmp_path)
+
+
+def test_a_restart_after_verification_resumes_without_downloading_again(adoption, tmp_path,
+                                                                        monkeypatch):
+    ds, fake, local, snap = adoption
+    work = tmp_path / "adopt_1700000000"               # what a killed run leaves behind
+    work.mkdir()
+    shutil.copy(snap, work / "bars.db")
+    (work / ".verified").write_text("1700000000")
+    monkeypatch.setattr(ds, "_verify_snapshot_db",
+                        lambda _p: pytest.fail("a verified download is not re-verified"))
+    assert ds.adopt_clustered_store(str(tmp_path)) == "adopted"
+    assert fake.downloads == 0
+    assert _layout(local) == "clustered" and _no_tmp_left(tmp_path)
+    c = sqlite3.connect(str(local))                     # the local-only rows still carried
+    assert c.execute("SELECT COUNT(*) FROM ohlcv WHERE ticker='NEWT'").fetchone()[0] == 1
+    c.close()
+
+
+def test_a_partial_download_is_not_resumed(adoption, tmp_path):
+    ds, fake, local, snap = adoption
+    work = tmp_path / "adopt_1700000000"               # killed mid-extract: no .verified
+    work.mkdir()
+    (work / "bars.db").write_bytes(b"torn")
+    assert ds.adopt_clustered_store(str(tmp_path)) == "adopted"
+    assert fake.downloads == 1 and _layout(local) == "clustered"
+
+
+def test_a_second_concurrent_call_never_touches_the_running_adoption(adoption, tmp_path):
+    ds, fake, local, snap = adoption
+    assert ds._ADOPT_RUN_LOCK.acquire(blocking=False)
+    try:
+        keep = tmp_path / "adopt_1700000000"
+        keep.mkdir()
+        assert ds.adopt_clustered_store(str(tmp_path)) == "busy"
+        assert keep.exists() and fake.downloads == 0
+    finally:
+        ds._ADOPT_RUN_LOCK.release()
+
+
 @pytest.mark.parametrize("utc,quiet", [
     ("2026-11-11T14:30", False), ("2026-11-11T09:00", False), ("2026-11-12T00:59", False),
     ("2026-11-12T01:30", True), ("2026-11-12T08:00", True), ("2026-11-12T08:50", False),

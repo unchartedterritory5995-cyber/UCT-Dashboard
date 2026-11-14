@@ -139,7 +139,8 @@ class BarBroadcaster:
                  *,
                  clock_ms: Optional[Callable[[], int]] = None,
                  scheduler: Optional[Callable[[float, Callable[[], None]], None]] = None,
-                 seed_fetcher: Optional[Callable[[str], list]] = None):
+                 seed_fetcher: Optional[Callable[[str], list]] = None,
+                 publisher: Optional[Callable[[asyncio.Queue, asyncio.AbstractEventLoop, dict], None]] = None):
         # sym -> {minute_ms -> _Minute}: THE state. Every tf's bar is derived from it.
         self._minutes: dict[str, dict[int, _Minute]] = {}
         # sym -> highest event timestamp seen (trade ts, or AM minute end) — the
@@ -181,6 +182,11 @@ class BarBroadcaster:
         self._clock_ms = clock_ms or (lambda: int(_time.time() * 1000))
         self._scheduler = scheduler or self._default_schedule
         self._seed_fetcher = seed_fetcher or _default_seed_fetcher
+        # Publisher seam (ingest PR1): HOW a derived frame reaches one subscriber queue.
+        # Default = today's cross-thread hop (call_soon_threadsafe onto the queue's own
+        # loop). The stream-ingest relay (PR5) passes a same-loop publisher instead.
+        # Called under self._lock, in dispatch order, once per (frame, subscriber).
+        self._publish = publisher or self._threadsafe_publish
         # sym -> ET session day (YYYYMMDD) it was seeded for: a symbol that stays
         # subscribed overnight is re-seeded for the next session (F5).
         self._seeded: dict[str, int] = {}
@@ -692,15 +698,19 @@ class BarBroadcaster:
             for (q, loop, v2) in pairs:
                 if not (v2 or legacy_ok):
                     continue   # F1: older-t correction — opt-in (v2) subscribers only
-                # C1: dispatch via call_soon_threadsafe — safe from any thread
-                try:
-                    loop.call_soon_threadsafe(self._safe_put, q, msg)
-                except RuntimeError:
-                    pass   # loop closed — subscriber's session is dead
+                self._publish(q, loop, msg)
             _bars_emitted_total += 1
             if bar.get("final"):
                 _final_emits_total += 1
         _last_emit_at = _time.time()
+
+    @classmethod
+    def _threadsafe_publish(cls, q: asyncio.Queue, loop: asyncio.AbstractEventLoop, msg: dict) -> None:
+        """Default publisher. C1: dispatch via call_soon_threadsafe — safe from any thread."""
+        try:
+            loop.call_soon_threadsafe(cls._safe_put, q, msg)
+        except RuntimeError:
+            pass   # loop closed — subscriber's session is dead
 
     @staticmethod
     def _safe_put(q: asyncio.Queue, msg: dict) -> None:

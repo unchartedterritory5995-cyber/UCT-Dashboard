@@ -282,6 +282,39 @@ async def test_daily_note_title_gets_the_daily_notes_folder():
     assert note.folder_path == ["Daily Notes"]
 
 
+async def test_follow_up_b_4c_the_daily_notes_folder_reuses_a_members_root_daily_notes(tmp_path, monkeypatch):
+    """Follow-up B, item 4c: Roam names the folder "Daily Notes"; a member whose root daily folder is "Daily notes"
+    (the Notebook's own name) gets their Roam daily pages in it, not in a second "Daily Notes" beside it. The folder
+    is made by the importer's `ensure_folder_path` (the engine files a note's `folder_path` through it), whose root
+    segment matches any casing."""
+    import sqlite3
+
+    from api.services.journal_two import db as j2db
+    from api.services.journal_two import notes as notes_svc
+
+    path = tmp_path / "roam-folders.db"
+    c = sqlite3.connect(str(path))
+    j2db.ensure_schema(c)
+    c.commit()
+    c.close()
+
+    def _open():
+        conn = sqlite3.connect(str(path), timeout=3)
+        conn.row_factory = sqlite3.Row
+        return conn
+
+    monkeypatch.setattr(notes_svc, "get_connection", _open)
+    home = notes_svc.create_folder("u1", "Daily notes")["id"]
+    provider = _make_provider()
+    changed = await provider.list_changed(CREDS)
+    note = await provider.fetch(CREDS, next(r for r in changed if r.remote_id == DAILY_UID))
+    assert notes_svc.ensure_folder_path("u1", note.folder_path) == home
+    with _open() as conn:
+        roots = [r["name"] for r in conn.execute(
+            "SELECT name FROM j2_note_folders WHERE user_id = 'u1' AND (parent_id IS NULL OR parent_id = '')")]
+    assert roots == ["Daily notes"]
+
+
 def test_import_key_matches_roam_graph_uid_format():
     provider = RoamProvider()
     assert provider.import_key(GRAPH, PAGE_1_UID) == f"roam:{GRAPH}/{PAGE_1_UID}"

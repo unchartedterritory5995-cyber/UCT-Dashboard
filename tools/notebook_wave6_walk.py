@@ -1338,6 +1338,12 @@ with sync_playwright() as p:
                 page.get_by_role("button", name="Rename", exact=True).click()
                 page.wait_for_timeout(1200)
 
+                # Follow-up A: a tag rename is a bulk action whose library loads on demand on a cold page, so its
+                # notice can come a beat after the fixed wait above: wait for it (bounded), then read.
+                try:
+                    page.get_by_test_id("bulk-notice").first.wait_for(state="visible", timeout=15000)
+                except Exception:  # noqa: BLE001 -- the read below records what was there
+                    pass
                 notice_el = page.get_by_test_id("bulk-notice")
                 if not notice_el.count():
                     notice_el = page.get_by_role("status")
@@ -1507,6 +1513,12 @@ with sync_playwright() as p:
             rpage.get_by_role("button", name="Rename", exact=True).click()
             rename_fired = True
             rpage.wait_for_timeout(1200)
+            # Follow-up A: a tag rename is a bulk action whose library loads on demand on a cold page, so its
+            # notice can come a beat after the fixed wait above: wait for it (bounded), then read.
+            try:
+                rpage.get_by_test_id("bulk-notice").first.wait_for(state="visible", timeout=15000)
+            except Exception:  # noqa: BLE001 -- the read below records what was there
+                pass
             notice_el = rpage.get_by_test_id("bulk-notice")
             if not notice_el.count():
                 notice_el = rpage.get_by_role("status")

@@ -22,6 +22,8 @@ import { RETRY_WAIT_MS, importWithOneRetry } from './lazyChunk'
 // likely gone from the server (the page was loaded before a deploy), so another Try again cannot work. Then the
 // stand-in says so and offers a Reload the MEMBER presses: never an automatic reload (they may have typed something).
 export const RELOAD_TO_RECOVER = 'Reload the page to get this back.'
+/** The sentence for an action whose code could not be fetched (the bulk bar, the Daily brief's Restore and Recap). */
+export const ACTION_UNAVAILABLE = 'This action could not be loaded.'
 /** A property, so a rail can see the press without reloading jsdom. */
 export const pageReload = { run: () => { window.location.reload() } }
 

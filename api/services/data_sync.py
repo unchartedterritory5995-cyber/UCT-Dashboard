@@ -487,6 +487,59 @@ _last_tarball_meta: dict = {}
 _ADOPTED_MARKER = ".adopted_clustered"
 #: Set while an adoption builds/swaps the store: every sync path stands aside.
 _adoption_active = threading.Event()
+def adoption_active() -> bool:
+    """True while `adopt_clustered_store` owns bars.db (syncs and uploads stand aside)."""
+    return _adoption_active.is_set() or _ADOPT_RUN_LOCK.locked()
+
+
+_ADOPT_RUN_LOCK = threading.Lock()   # one adoption at a time: a second caller must never
+                                     # sweep the first one's working folder
+_ADOPT_VERIFIED = ".verified"        # written inside adopt_<ts>/ once the download passed
+                                     # every gate; a restart resumes from there
+
+
+_REINSTALL_MARKER = ".bars_reinstall_token"
+
+
+def _pending_reinstall_token(data_dir: str) -> str:
+    """The BARS_REINSTALL_TOKEN value if it has not been applied on this volume yet, else ""."""
+    tok = os.environ.get("BARS_REINSTALL_TOKEN", "").strip()
+    if not tok:
+        return ""
+    try:
+        with open(os.path.join(data_dir, _REINSTALL_MARKER)) as f:
+            if f.readline().strip() == tok:
+                return ""
+    except OSError:
+        pass
+    return tok
+
+
+def _adopt_dir_for(ts: str) -> str:
+    return f"adopt_{ts}"
+
+
+def _sweep_stale_adopt_dirs(data_dir: str, keep: Optional[str] = None) -> int:
+    """Delete every `adopt_*` working folder in `data_dir` except `keep`.
+
+    An adoption killed by a restart (a deploy, an OOM) leaves its ~20 GB working folder
+    behind, and the next attempt then fails its disk check and never runs again
+    (web, 2026-11-13: twice). Only called under `_ADOPT_RUN_LOCK`, so nothing live owns
+    any of these. Returns the number removed."""
+    n = 0
+    try:
+        names = os.listdir(data_dir)
+    except OSError:
+        return 0
+    for name in names:
+        if not name.startswith("adopt_") or name == keep:
+            continue
+        path = os.path.join(data_dir, name)
+        if os.path.isdir(path) and not os.path.islink(path):
+            shutil.rmtree(path, ignore_errors=True)
+            n += 1
+            logger.info(f"[data_sync] adopt-clustered: removed stale working folder {name}")
+    return n
 #: An adopted store must hold at least this share of the local store's rows.
 ADOPT_MIN_ROW_RATIO = float(os.environ.get("BARS_ADOPT_MIN_ROW_RATIO", "0.9"))
 _adopt_logged: set = set()
@@ -552,6 +605,17 @@ def _write_marker_at(data_dir: str, filename: str, ts: str) -> None:
 
 
 def adopt_clustered_store(data_dir: Optional[str] = None) -> str:
+    """Public entry: see `_adopt_clustered_store_locked`. Returns "busy" while another
+    call in this process is adopting."""
+    if not _ADOPT_RUN_LOCK.acquire(blocking=False):
+        return "busy"
+    try:
+        return _adopt_clustered_store_locked(data_dir)
+    finally:
+        _ADOPT_RUN_LOCK.release()
+
+
+def _adopt_clustered_store_locked(data_dir: Optional[str] = None) -> str:
     """⭐ HOW A SERVING POD ADOPTS THE CLUSTERED LAYOUT (bars_cluster module doc).
 
     Runs only with `BARS_ADOPT_CLUSTERED=1`, ONCE (marker), on a pod whose store is still
@@ -577,16 +641,22 @@ def adopt_clustered_store(data_dir: Optional[str] = None) -> str:
          delta newer than the base re-applies.
     Any failure leaves the old store exactly as it was and is logged once. Returns a
     status word."""
-    if os.environ.get("BARS_ADOPT_CLUSTERED") != "1":
-        return "off"
     data_dir = data_dir or _DATA_DIR
+    # ⭐ BARS_REINSTALL_TOKEN=<token>: the operator lever to re-install the latest clustered
+    # base over a store that is already clustered but PARTIAL (2026-11-14: a false boot
+    # resync left web with only delta-window rows). Runs ONCE per distinct token, through
+    # this same safe path -- carry the local rows, swap under the write + swap locks --
+    # never `force_resync`, which deletes the live file under open connections.
+    reinstall = _pending_reinstall_token(data_dir)
+    if os.environ.get("BARS_ADOPT_CLUSTERED") != "1" and not reinstall:
+        return "off"
     p = os.path.join(data_dir, "bars.db")
-    if os.path.exists(os.path.join(data_dir, _ADOPTED_MARKER)):
+    if not reinstall and os.path.exists(os.path.join(data_dir, _ADOPTED_MARKER)):
         return "done"
     if not os.path.exists(p):
         return "absent"                       # the cold-start install handles an empty pod
     try:
-        if _layout_of(p) == "clustered":
+        if not reinstall and _layout_of(p) == "clustered":
             _write_marker_at(data_dir, _ADOPTED_MARKER, "local")
             return "done"
     except Exception as e:  # noqa: BLE001
@@ -616,28 +686,47 @@ def adopt_clustered_store(data_dir: Optional[str] = None) -> str:
         db_bytes = int(meta.get(_META_DB_BYTES) or 0)
     except ValueError:
         db_bytes = 0
+    # ⭐ Restart-safe (2026-11-13): the working folder is named for the snapshot, every
+    # other adopt_* folder is a dead run's leftover and is swept first, and a folder whose
+    # download already passed every gate (`.verified`) is RESUMED, not downloaded again.
+    work_name = _adopt_dir_for(ts)
+    tmpdir = os.path.join(data_dir, work_name)
+    _sweep_stale_adopt_dirs(data_dir, keep=work_name)
+    resume = (os.path.exists(os.path.join(tmpdir, _ADOPT_VERIFIED))
+              and os.path.exists(os.path.join(tmpdir, "bars.db")))
+    if not resume:
+        shutil.rmtree(tmpdir, ignore_errors=True)       # a partial download: start over
     need = int((db_bytes or os.path.getsize(p)) * 1.1) + (2 << 30)
+    if resume:                                          # the copy is already on disk
+        need = max(0, need - os.path.getsize(os.path.join(tmpdir, "bars.db")))
     free = shutil.disk_usage(data_dir).free
     if free < need:
         _log_once(f"disk-{ts}", f"[data_sync] adopt-clustered: {free >> 20} MB free < "
                                 f"{need >> 20} MB needed; store kept")
         return "no-disk"
     from api.services import bars_sqlite
-    tmpdir = tempfile.mkdtemp(prefix="adopt_", dir=data_dir)    # same volume: atomic rename
     _adoption_active.set()
     try:
-        _extract_tar_stream(client.get_object(Bucket=bucket, Key=key)["Body"], tmpdir)
-        new = os.path.join(tmpdir, "bars.db")
-        if not os.path.exists(new):
-            raise RuntimeError("snapshot has no bars.db")
+        new = os.path.join(tmpdir, "bars.db")         # same volume: atomic rename
+        if resume:
+            logger.info(f"[data_sync] adopt-clustered: resuming the verified download of {ts}")
+        else:
+            os.makedirs(tmpdir, exist_ok=True)
+            _extract_tar_stream(client.get_object(Bucket=bucket, Key=key)["Body"], tmpdir)
+            if not os.path.exists(new):
+                raise RuntimeError("snapshot has no bars.db")
         if _layout_of(new) != "clustered":
             raise RuntimeError("downloaded store is not clustered")
-        if not _verify_snapshot_db(new):
+        if not resume and not _verify_snapshot_db(new):
             raise RuntimeError("downloaded store failed integrity_check")
         n_old, n_new = _row_count(p), _row_count(new)
         if n_new < ADOPT_MIN_ROW_RATIO * n_old:
             raise RuntimeError(f"downloaded store holds {n_new} rows < "
                                f"{ADOPT_MIN_ROW_RATIO:.0%} of the local {n_old}")
+        if not resume:
+            # Every gate passed: a restart from here on resumes at the carry (both merge
+            # passes are newer-wins and idempotent, so re-running pass 1 is safe).
+            _write_marker_at(tmpdir, _ADOPT_VERIFIED, ts)
         # Pass 1, UNLOCKED: the full carry while the pod keeps serving and writing.
         bars_sqlite.start_write_tracking()
         try:
@@ -669,6 +758,8 @@ def adopt_clustered_store(data_dir: Optional[str] = None) -> str:
             # past what clients hold — the provably safe choice over carrying meta across.
             bars_sqlite.bump_store_floor("adopted clustered store")
         _write_marker_at(data_dir, _ADOPTED_MARKER, ts)
+        if reinstall:
+            _write_marker_at(data_dir, _REINSTALL_MARKER, reinstall)
         _write_marker_at(data_dir, _LAST_SYNC_MARKER, ts)
         try:
             os.remove(os.path.join(data_dir, _LAST_DELTA_MARKER))

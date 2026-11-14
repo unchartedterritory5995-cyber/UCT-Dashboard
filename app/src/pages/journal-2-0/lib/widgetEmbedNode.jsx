@@ -4,7 +4,33 @@ import { ReactNodeViewRenderer } from '@tiptap/react'
 import WidgetEmbedView from '../components/notebook/WidgetEmbedView'
 import { buildWidgetEmbedAttrs } from './widgetEmbedCore'
 import { isTraderBlock } from '../../../widgets/registry'
+import { ReplaceStep } from '@tiptap/pm/transform'
 import { EVENT_SCHEMAS, NOTEBOOK_EVENTS, trackNotebookEvent } from './notebookTelemetry'
+import { insertDoorOpen, reportInsertedBlock } from './notebookUsage'
+
+/** Follow-up A: while an insert door is open (lib/notebookUsage.js), the first widget a transaction ADDS is reported
+ *  once as `block_inserted`. Only a ReplaceStep counts (an attribute change is not an insert). */
+export function insertedBlockPlugin() {
+  return new Plugin({
+    appendTransaction(trs) {
+      if (!insertDoorOpen()) return null
+      for (const tr of trs) {
+        if (!tr.docChanged) continue
+        for (const step of tr.steps) {
+          if (!(step instanceof ReplaceStep)) continue
+          let id = null
+          step.slice.content.descendants((n) => {
+            if (id) return false
+            if (n.type.name === 'widgetEmbed') { id = n.attrs.widgetId || 'custom'; return false }
+            return true
+          })
+          if (id) { reportInsertedBlock(id); return null }
+        }
+      }
+      return null
+    },
+  })
+}
 
 // ⚠️ NEVER remove this extension from buildExtensions(): TipTap DROPS unknown
 // node types at parse time, so unregistering it would silently delete every
@@ -250,7 +276,7 @@ export const WidgetEmbed = Node.create({
   },
 
   addProseMirrorPlugins() {
-    return [chartTypeToSearchPlugin()]
+    return [chartTypeToSearchPlugin(), insertedBlockPlugin()]
   },
 
   addCommands() {
