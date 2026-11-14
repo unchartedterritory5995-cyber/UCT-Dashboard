@@ -35,7 +35,7 @@ ROUNDS_ENV = "UCT_AGENT_PLANNER_ROUNDS"
 TURN_USD_ENV = "UCT_AGENT_TURN_USD"
 DEFAULT_ROUNDS = 6
 DEFAULT_TURN_USD = 0.25
-MAX_CAPABILITIES_V2 = 200
+MAX_CAPABILITIES_V2 = 300                   # == manifest.contract.json catalog.maxRegistered (tests/test_uct_agent_contract.py parity)
 MAX_STEPS_PER_TURN = 12                     # the same ceiling as v1's MAX_OPS, per turn
 MAX_RESULT_CHARS = 2000
 PAUSE_TTL_S = 600
