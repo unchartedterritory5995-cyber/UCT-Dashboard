@@ -73,6 +73,7 @@ import { rowConfigOf, rowColumns, ratingsAsOf, sectorShare, rowFacts } from './r
 import { RsHeaderLine, RsFirstVisit, RsEmptyState, RsMarketLine } from './RsScreenParts'
 import { marketLineOf, readMarketHidden, writeMarketHidden } from './rsMarket'
 import WhyNotHere from './WhyNotHere'
+import { droppedReasons } from './droppedReasons'
 import { useNameDialog } from './useNameDialog'
 import { useShortcutsSheet } from './useShortcutsSheet'
 import lazy from '../../../utils/lazyWithRetry'
@@ -938,7 +939,15 @@ function FocusList({ mode, onMode }) {
   const rsAsOf = useMemo(() => (rsHeadOn ? ratingsAsOf(rows) : ''), [rsHeadOn, rows])
   const rsShare = useMemo(() => (rsHeadOn && !pending && String(rsStarter?.id) === RS_LEADERS_ID ? sectorShare(rows) : ''), [rsHeadOn, pending, rsStarter, rows])
   // On an RS screen the list's new/dropped line moves up into that header line (one copy, never two).
-  const newLine = <NewTodayLine nt={nt} newOnly={newOnlyOn} onToggleNewOnly={() => setNewOnly(v => !v)} />
+  // Unit U12: on an RS screen each dropped name says the first rule it now fails. One batched row
+  // read, asked only when the popover opens (NewTodayLine), judged against the screen the rows on
+  // view answer. A screen without `row` passes no asker and its popover is the one it was.
+  const reasonFilters = shown.filters
+  const metaFiltersAll = meta?.filters
+  const reasonsFor = useMemo(() => (rsRow
+    ? names => droppedReasons(names, { filters: reasonFilters, metaFilters: metaFiltersAll, steady: rsSteady })
+    : null), [rsRow, reasonFilters, metaFiltersAll, rsSteady])
+  const newLine = <NewTodayLine nt={nt} newOnly={newOnlyOn} onToggleNewOnly={() => setNewOnly(v => !v)} reasonsFor={reasonsFor} />
   const newLineShows = nt?.state === 'ok' || nt?.state === 'live_screen'
   // Shown until dismissed, and only once the preferences have answered, so it never flashes at a
   // member who dismissed it (a refused read says nothing either way, so it stays hidden).

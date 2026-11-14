@@ -30,10 +30,13 @@ export const net = {
   // unit U8: `row(ticker, columns)` answers GET /api/screener/row/{ticker} with { row, stale }, null
   // for a 404, { status } for a refusal; `count(body)` answers POST /api/screener/count (null: a 500)
   row: null, count: null,
+  // unit U12: `rowsBatch(tickers, columns)` answers GET /api/screener/rows with { rows, missing }
+  // ({ status } for a refusal; throwing is a dropped connection). Unset: no stock has a row.
+  rowsBatch: null,
 }
 export function resetNet() {
   Object.assign(net, { starters: STARTERS_ON, saved: [], prefs: {}, rows: RS_ROWS, scan: null, savedDelay: 0, prefsDelay: 0,
-    diff: null, methodology: { methods: [] }, themes: {}, prefsFail: false, meta: null, market: undefined, row: null, count: null })
+    diff: null, methodology: { methods: [] }, themes: {}, prefsFail: false, meta: null, market: undefined, row: null, count: null, rowsBatch: null })
 }
 const later = (body, ms) => (ms ? new Promise(r => setTimeout(() => r(body), ms)) : body)
 
@@ -50,6 +53,13 @@ export function installFetch() {
     if (url === '/api/screener/count') {
       const n = net.count ? net.count(JSON.parse(o.body)) : net.rows.length
       return n == null ? { ok: false, status: 500, json: async () => ({}) } : { ok: true, json: async () => ({ count: n }) }
+    }
+    if (url.startsWith('/api/screener/rows')) {
+      const at = new URL(url, 'http://x')
+      const names = (at.searchParams.get('tickers') || '').split(',').filter(Boolean)
+      const out = net.rowsBatch ? net.rowsBatch(names, (at.searchParams.get('columns') || '').split(',').filter(Boolean)) : { rows: {}, missing: names }
+      if (out?.status) return { ok: false, status: out.status, json: async () => ({ detail: 'refused' }) }
+      return { ok: true, status: 200, json: async () => out }
     }
     if (url.startsWith('/api/screener/row/')) {
       const at = new URL(url, 'http://x')

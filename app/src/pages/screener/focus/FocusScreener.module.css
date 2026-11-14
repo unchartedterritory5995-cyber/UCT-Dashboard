@@ -231,6 +231,9 @@ button.pill:hover { border-color: var(--ut-gold); }
 .ntBtn:focus-visible { outline: 2px solid var(--ut-gold); outline-offset: 2px; }
 .ntBtn[aria-pressed="true"] { color: var(--success-ink); font-weight: 700; }
 .ntPop { position: absolute; top: 100%; right: 0; z-index: var(--z-dropdown); display: flex; flex-wrap: wrap; gap: 6px; max-width: 260px; margin-top: 4px; padding: 8px; background: var(--bg-surface); border: 1px solid var(--border-accent); border-radius: var(--radius-lg); color: var(--text); box-shadow: var(--shadow-popover); }
+/* A dropped name that carries a reason (RS screens): the reason is its title; the dotted
+   underline is the only mark, so the chips keep their size and their wrap. */
+.ntWhy { text-decoration: underline dotted; text-underline-offset: 3px; cursor: help; }
 .ntNote { margin-right: 10px; font-size: var(--text-sm); color: var(--text-muted); }
 
 /* Phones (spec 2026-10-16 s3): one column, list first. The side pane is hidden here and the

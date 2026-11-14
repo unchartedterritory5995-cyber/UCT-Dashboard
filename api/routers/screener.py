@@ -425,6 +425,41 @@ def screener_row(ticker: str, columns: str = "", user=Depends(require_paid)):
     return scrub({"ticker": syms[0], **hit})
 
 
+@router.get("/api/screener/rows")
+def screener_rows(tickers: str = "", columns: str = "", user=Depends(require_paid)):
+    """Several stocks' screener rows in ONE read: ``{rows: {TICKER: {row, stale}}, missing}``.
+
+    RS screens unit U12: the "N dropped" popover on an RS screen says, beside each name
+    that left the list, the first rule it now fails. The page judges the rules itself
+    (as "Why isn't a stock here?" does); this hands it every dropped stock's row at once
+    instead of one request a name.
+
+    The single-row route's semantics, batched (`query.rows_for` is the one reader of both):
+    ⛔ PAID, declared on the handler. ⛔ 404 WHILE `RS_SCREENS_ENABLED` IS OFF, before
+    anything is read. ⛔ `columns` IS CHECKED AGAINST THE SCHEMA before any statement
+    exists (an undeclared name is a 400 that names it); a ticker is only ever a bound
+    parameter, and a name that cannot be a ticker is dropped before it gets that far.
+    ⛔ AT MOST ``query.MAX_ROW_TICKERS`` (25) NAMES: one more is a 400, never a silent cut.
+
+    ``rows`` holds each named ticker that has a row, in the order asked; ``missing``
+    names the ones that have none (the page says the stock is no longer in the
+    Screener). ``stale`` is the single route's: the scan leaves that row out of every
+    screen because its own bars stopped arriving. No ticker named is two empty answers,
+    not an error.
+    """
+    if not scr_saved.rs_screens_enabled():
+        raise HTTPException(status_code=404, detail="Not Found")
+    syms = scr_query.row_tickers(tickers)
+    cols = [c.strip() for c in columns.split(",") if c.strip()]
+    try:
+        found = scr_query.rows_for(syms, cols, user=user)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    from api.services.json_finite import scrub
+    return scrub({"rows": {t: found[t] for t in syms if t in found},
+                  "missing": [t for t in syms if t not in found]})
+
+
 def _rs_history_block() -> dict:
     """The UCT RS rating-history side table's state (engineering map unit 2a-04):
     `rs_history.status()` -- `table`, `rows`, `sessions`, `latest_session`, `last_run`
