@@ -271,8 +271,9 @@ export function namesObject(e, clause) {
   return !!label && (has(clause, label) || phrase(label).split(' ').filter(t => t.length >= 3 && /[a-z]/.test(t)).some(t => has(clause, t)))
 }
 // clauses: punctuation, "then", "but", and an "and" that starts a new request ("…, and clear …", "add X and remove Y")
-const CLAUSES = /\.(?!\d)|[;,!?]|\bthen\b|(?<!\b(?:all|everything|anything|every one)\s)\bbut\b|\band (?=(?:then |also )?(?:add|put|include|insert|remove|delete|clear|replace|change|set|make|rename|save|show|swap|keep|move|turn|switch|get rid|erase|wipe|reset|overwrite|unpin|colou?r|apply|use|load|open)\b)/i
-export const clausesOf = (words) => String(words || '').split(CLAUSES).map(c => c.trim()).filter(Boolean)
+const CLAUSES = /\.(?!\d)|[;,!?]|\bthen\b|\bbut\b|\band (?=(?:then |also )?(?:add|put|include|insert|remove|delete|clear|replace|change|set|make|rename|save|show|swap|keep|move|turn|switch|get rid|erase|wipe|reset|overwrite|unpin|colou?r|apply|use|load|open)\b)/i
+// ("all but X" / "everything but X" is one object, never two clauses — said as "except" before the split; no lookbehind: iOS 16)
+export const clausesOf = (words) => String(words || '').replace(/\b(all|everything|anything|every one) but\b/gi, '$1 except').split(CLAUSES).map(c => c.trim()).filter(Boolean)
 // "put Momentum up in my watchlist" / "put the Flagged list in my watchlist widget": a clause that names the LIST a widget is to
 // show (its own name) and where — never "put AAPL on my watchlist" (adding a symbol never switches what a widget shows)
 const PUT_IN = /\bput\b[^.;!?]*\b(?:in|into|on|up in|up on)\s+(?:the|my|that|this|your)\b[^.;!?]*\b(?:watch ?lists?|widgets?|scanner)\b/i
@@ -319,11 +320,12 @@ const DESTROY_ANY = new RegExp(String.raw`^(?:${DESTROY_SRC().slice(3, -1)}|${MO
 const MODIFY_ANY = new RegExp(String.raw`^(?:${MODIFY_SRC().slice(3, -1)}|${MORE_MODIFY})$`, 'i')
 const CUT = /\b(?:how|why|what|whether|because|since|so|if|when|while|once|until|unless|in order)\b/i
 // an object that only POINTS back at something already there ("it", "them", "that one", "the fast one")
-const POINTS = /^(?:it|them|those|these|both(?= of them|\s*$)|all of them|(?:the|that|this) (?:\w+ )?ones?|(?:that|this)(?=\s*$|\s+(?:to|on|in|into|at|from|with|up|down|over|a|an|the)\b)|(?:the )?(?:first|second|third|fourth|last|other|fast|slow|left|right|top|bottom)\b)/i
+const POINTS = /^(?:it|them|both(?= of them|\s*$)|all of them|(?:the|that|this|these|those) (?:\w+ )?ones?|(?:that|this|these|those)(?=\s*$|\s+(?:to|on|in|into|at|from|with|up|down|over|a|an|the)\b)|(?:the )?(?:first|second|third|fourth|last|other|fast|slow|left|right|top|bottom)\b)/i
 // the object ends where its sentence goes elsewhere ("my life WITH an rsi", "the rsi length TO 20"); a container after it stays
-// ("nvda FROM my tech watchlist", "spy IN my list"); a SAVE keeps "to / into" (its container: "save it to my layout")
+// ("nvda FROM my tech watchlist", "spy IN my list"); a SAVE keeps "to / into / as" (its container: "save it to my layout",
+// "save these indicators as my Swing Setup template")
 const OBJ_END = /\s(?:with|for|by|using|like|as|and|onto|into|to|at|than)\s/i
-const SAVE_END = /\s(?:with|for|by|using|like|as|and|at|than)\s/i
+const SAVE_END = /\s(?:with|for|by|using|like|and|at|than)\s/i
 // a NEW object ("a 20 ema", "another line", "some notes"): never an existing one to destroy or change
 const INDEFINITE = /^(?:a|an|another|some|any|new|one more|more|extra)\b/i
 // a VERBLESS style command on a named / pointed-at object: "the 9 green, the 20 yellow", "fast one green and the slow one yellow"
