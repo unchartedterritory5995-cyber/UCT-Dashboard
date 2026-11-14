@@ -5491,8 +5491,20 @@ board image. **Live: seven posts a session, mon-fri**, into a ~750-member room.
   answer: the throttle message, `/lesson`'s empty-query nudge and the
   missing-token refusal. The command still spends the same per-member budget as
   `/chart` (`DISCORD_CHART_USER_RATE` — both land on the same 4-slot render
-  valve), and that budget is now also the only bound on one member filling a
-  channel with boards. ⛔ **Visibility is decided on the DEFER (`type: 5`), not
+  valve), which also bounds one member filling the channel with boards.
+  ⭐ **BOTH ARE HELD TO `#uct-intelligence`** (owner ruling 2026-11-13, "just in
+  UCT Intelligence"): they read the SAME allowlist as `/chart`, `/flow` and
+  `/cot` (`CHART_FLOW_CHANNEL_ID`, `di.cmd_channel_ok`), never a variable of
+  their own, so there is one list of where the bot answers. Elsewhere the
+  member gets a private `_channel_nudge("/buzz")` naming the FIRST id on the
+  list. ⛔ The gate sits on BOTH reply paths (`/buzz` in the router and in
+  `discord_render/commands.py`; `/lesson` has only the router path) and is
+  checked BEFORE the throttle, so a refusal does not spend the member's budget.
+  It does not touch the scheduled posts, which are not interactions and still
+  go to `BUZZ_DIGEST_CHANNEL` (`#main-chat`): a member who runs `/buzz` under a
+  scheduled board there is pointed to `#uct-intelligence`. Same watch-coverage
+  classification as below (INERT STRAND, no flow-worker deploy).
+  ⛔ **Visibility is decided on the DEFER (`type: 5`), not
   the follow-up** — Discord fixes a deferred reply's visibility at defer time and
   silently ignores flags on the later PATCH, so to make either private again the
   flag goes back on the defer (old path in `api/routers/discord_interactions.py`,
