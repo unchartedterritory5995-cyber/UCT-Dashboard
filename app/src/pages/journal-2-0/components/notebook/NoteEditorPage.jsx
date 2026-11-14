@@ -2174,10 +2174,12 @@ export default function NoteEditorPage({
     durableRef.current.discardOffered({ offered, server: known }).then((done) => {
       if (!done) { keepOldPath(); return }
       // Words typed here while the banner was up were kept out of the record by fix 6; now it is clean, capture them:
-      // the crash draft at once (fix round 2: never a moment with no copy), the durable copy without the debounce.
+      // the crash draft was cleared above, before the transaction, and is written again here, then the durable copy
+      // without the debounce. Final fix pass (E-M2): compared with the copy the server holds NOW (`lastSavedRef`), not
+      // the one captured at the press: an autosave that landed during the transaction already holds these words.
       if (!editedSinceHydrationRef.current) return
       const snap = captureLocalState()
-      if (!snap || sameAuthoredContent(snap, known)) return
+      if (!snap || sameAuthoredContent(snap, lastSavedRef.current)) return
       saveDraftLocally(snap)
       durableRef.current.schedule(snap)
       durableRef.current.flush()

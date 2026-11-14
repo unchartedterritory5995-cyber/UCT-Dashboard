@@ -64,7 +64,14 @@ vi.mock('../../hooks/useJ2Notes', async () => {
 let DURABLE_OVERRIDE = null
 vi.mock('./useDurableNote', async (importOriginal) => {
   const real = await importOriginal()
-  return { ...real, useDurableNote: (...args) => ({ ...real.useDurableNote(...args), ...(DURABLE_OVERRIDE || {}) }) }
+  // Final fix pass (E-M2): an override may also be a function of the real answer, to wrap a member.
+  return {
+    ...real,
+    useDurableNote: (...args) => {
+      const r = real.useDurableNote(...args)
+      return { ...r, ...((typeof DURABLE_OVERRIDE === 'function' ? DURABLE_OVERRIDE(r) : DURABLE_OVERRIDE) || {}) }
+    },
+  }
 })
 vi.mock('../../../../context/AuthContext', () => ({ useAuth: () => ({ user: { id: 'u42', role: 'member' } }) }))
 vi.mock('../../hooks/useJ2NoteFolders', () => ({ default: () => ({ folders: [] }) }))
@@ -542,6 +549,38 @@ describe('⭐ fix round 1, section 4: Discard on the recovery banner removes exa
     expect(localStorage.getItem('uct.j2.notedraft.n1') || '').toContain('typed under the banner')
     expect(JSON.stringify(record().bodyJson)).toContain('typed under the banner')
     expect(JSON.stringify(record().bodyJson)).not.toContain('words the server never received')
+  })
+
+  // ⭐ Final fix pass (E-M2): the capture after the discard compares with the copy the server holds NOW.
+  it('2f: the autosave of the words typed under the banner lands during the discard: nothing re-queued, no draft, the record clean', async () => {
+    await leftOnDevice({ body: OTHER, entries: [OTHER], withServerBase: false })
+    let release
+    const held = new Promise((r) => { release = r })
+    const T2 = '2026-11-13T10:00:09.000000+00:00'
+    accept = (patch) => held.then(() => ({ ...SERVER, ...patch, updatedAt: T2 }))
+    // The discard's transaction commits, THEN the autosave's answer arrives, THEN the editor's `.then` runs.
+    DURABLE_OVERRIDE = (real) => ({
+      discardOffered: async (args) => {
+        const done = await real.discardOffered(args)
+        vi.advanceTimersByTime(1000)          // the 800 ms autosave has fired (it waits on `held`)
+        await settleIdb(4)
+        release()
+        await settleIdb(12)
+        return done
+      },
+    })
+    await openTheNote()
+    await banner()
+    await typeInBody(' typed under the banner')
+    await act(async () => { screen.getByRole('button', { name: 'Discard' }).click(); await settleIdb(12) })
+    await sit(2)
+    expect(update).toHaveBeenCalled()
+    expect(JSON.stringify(update.mock.calls.at(-1)[0].bodyJson)).toContain('typed under the banner')
+    expect(queue()).toEqual([])
+    expect(record()).toMatchObject({ dirty: 0 })
+    expect(JSON.stringify(record().bodyJson)).toContain('typed under the banner')
+    expect(localStorage.getItem('uct.j2.notedraft.n1')).toBeNull()
+    expect((await unsent()).unsent).toBe(false)
   })
 
   it('2d: nothing typed, or typing undone back to the server copy: no capture, the record stays the clean server copy', async () => {
