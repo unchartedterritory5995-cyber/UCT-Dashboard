@@ -14,6 +14,7 @@ import * as drawingsStore from '../../../../components/chart/drawingsStore'
 import { resolveLevels } from '../../../../components/chart/drawingFib'
 import { loadIndicatorAlerts, _resetIndicatorAlertCache } from '../../../capabilities/indicatorAlerts'
 import { _resetScreenerCache } from '../../../capabilities/screener'
+import { _resetLayoutHistoryCache } from '../../../capabilities/layoutHistory'
 import { looksLikeFormula } from '../../../capabilities/indicatorAuthoring'
 import { listDrafts } from '../../../../components/chart/builder/agentAuthoring'
 import { readFavoriteTools } from '../../../../components/chart/drawToolFavorites'
@@ -235,6 +236,9 @@ export function checkExpect(ctx, e, label) {
   // compare.openView: the Compare panel open or closed and the tab it shows; `comparePick` the last detail's stock / group
   if ('comparePanel' in e) expect({ open: !!ctx.st.compare?.open, tab: ctx.st.compare?.open ? ctx.st.compare.tab : null }, `${label}: the Compare panel`).toEqual(e.comparePanel)
   if ('comparePick' in e) expect({ sym: ctx.st.compare?.intent?.sym ?? null, group: ctx.st.compare?.intent?.group ?? null }, `${label}: the rotation map's pick`).toEqual(e.comparePick)
+  // layoutHistory.*: the board's newest saved version as the server holds it ({ version, restoredFrom }), and the workspace's re-seeds
+  if ('boardVersion' in e) { const hv = ctx.st.wsVersions?.at(-1); expect(hv ? { version: hv.version, restoredFrom: hv.restored_from ?? null } : null, `${label}: the board's current version`).toEqual(e.boardVersion) }
+  if ('reseeds' in e) expect(ctx.st.reseeds ?? 0, `${label}: the board re-seeded from the restore`).toBe(e.reseeds)
   // chartFeatures: the first chart's dock as ChartWidget reads it (normalizeDock of opts.dock); only the fields named
   if (e.dock) { const d = normalizeDock(chartsOf(board)[0]?.opts?.dock); for (const [k, v] of Object.entries(e.dock)) expect(d[k], `${label}: the chart's dock ${k}`).toEqual(v) }
   if ('askAiOpened' in e) expect(ctx.st.askAi || [], `${label}: Ask AI opened`).toEqual(e.askAiOpened)
@@ -282,6 +286,7 @@ export function checkExpect(ctx, e, label) {
  */
 export async function replay({ board: boardName = 'ONE', steps, seed = {}, kinds = null }, label) {
   _resetScreenerCache()                               // before the panel mounts (it reads the saved screens on open)
+  _resetLayoutHistoryCache()                          // module-level: each case reads its own board versions
   const m = mountCase(boardName, { seed, kinds: kindsFor({ kinds }) })
   const { p, board, say } = m
   _resetScreenerCache()                               // module-level: each case reads its own saved screens

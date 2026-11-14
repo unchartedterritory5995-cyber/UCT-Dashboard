@@ -4870,6 +4870,56 @@
      "modes": {}
     }
    }
+  },
+  "layoutHistory.restore": {
+   "digest": "7872e59b07607537",
+   "phrasings": {
+    "restore my board to the previous version": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "roll back my layout to the version before this one": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "go back to the last saved version of my board": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "open my version history and restore the one before the current version": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "layoutHistory.list": {
+   "digest": "2f0f76cea5c6ef64",
+   "phrasings": {
+    "show me my version history": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "what versions of my board are there": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "list the saved versions of my layout": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "show the layout history": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
   }
  },
  "refusals": {

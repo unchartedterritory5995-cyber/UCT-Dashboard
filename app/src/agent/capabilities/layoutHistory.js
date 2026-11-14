@@ -136,8 +136,8 @@ function resolveTarget(versions, args) {
 }
 
 function readSnap(host) {
+  if (host) lastHost = host                      // a host without Version history too: prepare then reads nothing
   if (!host?.layoutHistory) return null
-  lastHost = host
   const here = hereOn(host)
   const head = cache.status === 'ok' ? (cache.versions[0] || null) : null
   return { ref: REF, label: LABEL, here, status: here ? cache.status : 'absent', head: head ? { ...head } : null }

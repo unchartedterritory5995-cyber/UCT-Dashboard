@@ -186,6 +186,8 @@ describe('routing v2: a words-only group never rides the fill, and is still sent
     indicatorCalc: ['calculate the rsi on weekly bars', 'make the 50 sma use the weekly', 'show a weekly rsi on this daily chart', 'put rsi back to the chart\'s timeframe'],
     // compare.openView: the rotation / RRG map, graph, tab or view; the Compare (Symbols) panel; its Overlay tab
     comparePanel: ['open the rotation map', 'show me the rrg view for nvda', 'switch the compare panel to the rotation tab', 'go to the overlay tab'],
+    // layoutHistory.list / .restore: the board's version history, restoring the board / layout to an earlier version or time
+    layoutHistory: ['open my version history', 'restore my board to the previous version', 'roll back my layout to yesterday', 'go back to version 12'],
     // drawing extras: the Position Calculator, a drawing's Save as default, a drawing tool's ★
     drawingExtras: ['open the position calculator with entry 50 stop 48 target 56', 'make this trendline my default style', 'add the fib tool to my favourites'],
     watchlistShow: ['put my flagged list in the watchlist widget', 'export my momentum list to excel', 'make the price column wider in the watchlist'],

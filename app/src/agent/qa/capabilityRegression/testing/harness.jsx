@@ -32,6 +32,7 @@ import { mergeChartSettings } from '../../../../components/chart/chartDefaults'
 import { makeGridControl } from './gridStub'
 import * as nativeRegistry from '../../../../components/chart/engine/nativeRegistry'
 import { _resetAgentConfig, loadAgentConfig } from '../../../agentClient'
+import { versionHistoryAgentSource } from '../../../../pages/charts/versionHistoryAgent'
 
 const chart = (id, x, y, w, h) => ({ id, type: 'chart', x, y, w, h, color: 'N', opts: { settings: bareSettings() } })
 /** Named fixture boards. Charts are bare (the default 9/20/50/200 overlays removed, as a member's removal leaves them). */
@@ -66,6 +67,8 @@ export const BOARDS = {
     { instanceId: 'inst:rsi:1', defId: 'rsi', inputs: { period: 14 } }] } } }], { 'N:c1': 'NVDA' }, { indicatorAlerts: true }],
   // + the TIME NAVIGATOR over the synthetic history (view, go-to-date, Replay Mode) and the chart's drawings
   TIMED: () => [[chart('c1', 0, 0, 24, 20)], { 'N:c1': 'NVDA' }, { timeNav: true, drawings: true }],
+  // Layouts → Version history (layoutHistory.*): a chart + the board's saved versions behind the workspace-doc routes below
+  HISTORY: () => [[chart('c1', 0, 0, 24, 20)], { 'N:c1': 'NVDA' }, { layoutHistory: true }],
   // family C (C1-061): a chart whose watermark was dragged by hand (ChartWidget endWatermarkAdjust's opts.watermarkPos)
   // chartFeatures: a chart whose Company Info panel is added (collapsed, on Ownership, dragged to 520px) and Earnings Strip shown
   DOCKED: () => [[{ ...chart('c1', 0, 0, 24, 20), opts: { settings: bareSettings(), dock: { company: true, open: false, tab: 'ownership', rightW: 520, strip: true, stripH: 140 } } }], { 'N:c1': 'NVDA' }],
@@ -273,6 +276,24 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
       }
       if (method === 'DELETE') { const id = decodeURIComponent(u.split('/').pop()); st.alerts = st.alerts.filter(r => r.id !== id); return json({ ok: true }) }
       return json(st.alerts)
+    }
+    // Layouts → Version history (api/routers/workspace_doc.py shapes): newest-first versions, one version's doc, a restore that
+    // APPENDS a copy (compare-and-set on base_version: 409). 404 (dark) unless the board is HISTORY
+    if (u.startsWith('/api/workspace/doc')) {
+      const vs = st.wsVersions
+      if (!vs) return json({ detail: 'Not Found' }, 404)
+      const head = vs[vs.length - 1]
+      if (u.startsWith('/api/workspace/doc/versions?')) return json({ board: 'charts', versions: [...vs].reverse().map(({ prefs: _p, ...v }) => v) })
+      const one = /^\/api\/workspace\/doc\/versions\/(\d+)/.exec(u)
+      if (one) { const v = vs.find(x => x.version === Number(one[1])); return v ? json({ ...v, doc: { prefs: v.prefs } }) : json({ detail: 'No such version.' }, 404) }
+      if (u === '/api/workspace/doc/restore' && method === 'POST') {
+        if (body.base_version !== head.version) return json({ detail: 'stale' }, 409)
+        const t = vs.find(x => x.version === body.version)
+        if (!t) return json({ detail: 'No such version.' }, 404)
+        vs.push({ ...t, version: head.version + 1, created_at: head.created_at + 30, source: 'restore', restored_from: t.version })
+        return json({ board: 'charts', version: head.version + 1, appended: true, restored_from: t.version, prefs_written: Object.keys(t.prefs), prefs_unchanged: [], prefs_failed: [], left_untouched: [], complete: true })
+      }
+      return json({}, 404)
     }
     // the Compare panel's group reads (api/routers/compare.py shapes): one theme, for chartSetup.compareGroup
     if (u.startsWith('/api/compare/groups?')) return json({ groups: u.endsWith('type=theme') ? [{ name: 'AI Chips', count: 3 }] : [] })
@@ -519,6 +540,15 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
     for (const [sym, list] of Object.entries(seed.drawings || {})) for (const d of list) drawingsStore.addDrawing(sym, d)
   }
   // uctIntelligence.set: each chart's UCT Intelligence gates as StockChart publishes them (ChartPane → ChartWidget agent.uctIntelligence)
+  if (extra.layoutHistory) {
+    // four saves of the board (Nov 10..14, 2026, fixture layouts only); the workspace's re-seed (handleVersionRestored) counted
+    const v = (version, iso, source, layout, settings) => ({ version, created_at: Math.floor(Date.parse(iso) / 1000), source, restored_from: null, tombstone: false,
+      content_sha256: `sha-${layout}-${settings}`, prefs: { charts_workspace_layout: layout, chart_settings: settings } })
+    st.wsVersions = [v(1, '2026-11-10T14:00:00Z', 'migration', 'L1', 's1'), v(2, '2026-11-12T15:00:00Z', 'mirror', 'L2', 's2'),
+      v(3, '2026-11-13T20:30:00Z', 'mirror', 'L3', 's2'), v(4, '2026-11-14T14:45:00Z', 'mirror', 'L4', 's3')]
+    st.reseeds = 0
+    mounted.h.layoutHistory = versionHistoryAgentSource(() => ({ mobile: false, grid: false, onRestored: async () => { st.reseeds += 1 } }))
+  }
   if (extra.uctIntel) {
     const c0 = mounted.h.charts, withUci = (x) => (x ? { ...x, uctIntel: { ...extra.uctIntel } } : x)
     mounted.h.charts = { ...c0, list: () => c0.list().map(withUci), read: (r) => withUci(c0.read(r)) }

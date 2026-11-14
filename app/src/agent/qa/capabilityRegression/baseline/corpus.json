@@ -12169,6 +12169,98 @@
         "star the fibonacci retracement tool",
         "put the fib tool on my favorites toolbar"
       ]
+    },
+    {
+      "id": "layoutHistory.restore",
+      "source": "Charts family 11-14: Layouts → Version history — restore an earlier saved version of the board, shown first, through the panel's own restore route (compare-and-set on the head) and the workspace's own re-seed",
+      "capabilities": [
+        "layoutHistory.restore"
+      ],
+      "board": "HISTORY",
+      "needs": [
+        "layoutHistory.restore"
+      ],
+      "model": {
+        "disposition": "propose",
+        "ops": [
+          {
+            "action": "layoutHistory.restore",
+            "target": "$layoutHistory",
+            "args": {
+              "version": null,
+              "stepsBack": 1,
+              "before": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "proposal": true,
+        "noCalls": [
+          "^POST /api/workspace/doc/restore"
+        ],
+        "boardVersion": {
+          "version": 4,
+          "restoredFrom": null
+        }
+      },
+      "approve": true,
+      "afterApprove": {
+        "writes": [
+          "^POST /api/workspace/doc/restore .*\"version\":3.*\"base_version\":4"
+        ],
+        "receipt": true,
+        "boardVersion": {
+          "version": 5,
+          "restoredFrom": 3
+        },
+        "reseeds": 1
+      },
+      "phrasings": [
+        "restore my board to the previous version",
+        "roll back my layout to the version before this one",
+        "go back to the last saved version of my board",
+        "open my version history and restore the one before the current version"
+      ]
+    },
+    {
+      "id": "layoutHistory.list",
+      "source": "Charts family 11-14: Layouts → Version history — the board's saved versions, read from the server",
+      "capabilities": [
+        "layoutHistory.list"
+      ],
+      "board": "HISTORY",
+      "needs": [
+        "layoutHistory.list"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "layoutHistory.list",
+            "target": "$layoutHistory",
+            "args": {
+              "count": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^GET /api/workspace/doc/versions"
+        ],
+        "unchanged": true,
+        "refusal": false,
+        "boardVersion": {
+          "version": 4,
+          "restoredFrom": null
+        }
+      },
+      "phrasings": [
+        "show me my version history",
+        "what versions of my board are there",
+        "list the saved versions of my layout",
+        "show the layout history"
+      ]
     }
   ],
   "refusals": [
