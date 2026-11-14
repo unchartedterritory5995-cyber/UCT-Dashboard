@@ -478,6 +478,13 @@ export const GROUPS = [
     words: [/\bperiod[\s-]?sort\b|\bcustom[\s-]period\b/,
       /\b(?:rank|ranking|sort)\b.*\b(?:from|since|between)\b.*(?:\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.? \d{1,2}\b|\b\d{4}-\d{2}-\d{2}\b|\b\d{1,2}\/\d{1,2}\b)/,
       /\bdock\b.*\b(?:ranking|sort|sorted results)\b/] },
+  // Phase 2 catalysts (news.movers): UCT's catalyst board ("what's moving the market", "why is NVDA up", "catalysts for my
+  // watchlist this week") in its OWN group, WORDS-ONLY and fillLast (as periodSort / chartView): never a filler, so no existing
+  // group and no unrecognised request changes. `words` stays EMPTY here: capabilities/catalysts.js arms them only while the
+  // capability is registered (the server serves `catalysts.board`), so on a dark server routing is byte-identical to the base.
+  { id: 'catalysts', title: 'UCT catalyst board: what moved / is moving the market, why a stock is up or down (stored catalysts + headlines), catalysts for your tickers or watchlist',
+    domains: [], actions: ['news.movers'], fillLast: true, wordsOnly: true,
+    words: [] },
 ]
 
 const SYMBOL_VERB = /\b(switch|change|put|show|pull up|load|open|chart)\b/

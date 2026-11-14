@@ -1,6 +1,8 @@
 // NLM-1 D1 — routing v2 units: the vocabulary is valid data, the router registry (NLM1_ROUTER) has selectGroups'
 // interface, the index is generated from the registry (a capability registered later is routable by its own words),
 // and the dev paraphrase floor holds (dev/paraphrases.json — the TUNING set, not the held-out one).
+import fs from 'node:fs'
+import path from 'node:path'
 import { describe, it, expect } from 'vitest'
 import { registerCatalog } from '../qa/capabilityRegression/testing/registry'
 import { routedNames } from '../qa/capabilityRegression/testing/route'
@@ -180,7 +182,22 @@ describe('routing v2: a words-only group never rides the fill, and is still sent
   const sentOf = (msg) => new Set(routeManifestV2(full(), msg, opts()).manifest.map(c => groupOfAction(c.name)))
   // compare.openView: the RS INDICATOR's Rotation view (its `view` input) never selects the Compare panel's words
   it.each(['show rotation on the RS indicator', 'switch the RS indicator to the rotation view', 'set the relative strength view to rotation', 'put the rrg view in the rs pane', 'compare nvda with amd'])('"%s": not the comparePanel words', (msg) => expect(wordsSelect('comparePanel', msg)).toBe(false))
-  const wordsOnly = GROUPS.filter(g => g.wordsOnly)
+  // SERVER-ARMED words-only groups, BY NAME: their words are empty in routing.js until their capability registers (the server
+  // serves the kind), so their own-words / fill checks live in their own file with the capability served. Only these ids are
+  // skipped here; any OTHER words-only group with no words fails below, by name.
+  const SERVER_ARMED = new Map([['catalysts', 'agentCatalysts.test.js']])
+  it.each([...SERVER_ARMED])('server-armed words-only group %s: its words are empty until armed, and %s pins its own words / fill', (id, file) => {
+    const g = GROUPS.find(x => x.id === id)
+    expect(g, `${id} is not a routing group`).toBeTruthy()
+    expect(g.wordsOnly, `${id} must be words-only`).toBe(true)
+    expect(g.words, `${id}: words must be empty until its capability registers`).toEqual([])
+    expect(fs.existsSync(path.join(__dirname, '..', file)), `${id}: its own test file ${file} is missing`).toBe(true)
+  })
+  it('no OTHER words-only group has empty words', () => {
+    const empty = GROUPS.filter(g => g.wordsOnly && !SERVER_ARMED.has(g.id) && !(g.words || []).length).map(g => g.id)
+    expect(empty, `words-only groups with no words (not server-armed): ${empty.join(', ')}`).toEqual([])
+  })
+  const wordsOnly = GROUPS.filter(g => g.wordsOnly && !SERVER_ARMED.has(g.id))
   const OWN_WORDS = {
     // calc-TF (indicatorStyle.setCalcTimeframe): which bars compute an indicator — calculate / compute on, use the weekly bars, a weekly RSI
     indicatorCalc: ['calculate the rsi on weekly bars', 'make the 50 sma use the weekly', 'show a weekly rsi on this daily chart', 'put rsi back to the chart\'s timeframe'],
