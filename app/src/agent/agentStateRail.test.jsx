@@ -408,6 +408,105 @@ describe('STATE RAIL · probe 38: slang additive, negated destroy words, destroy
   }, 90000)
 })
 
+// ── AUDIT #1247 rulings at 57d2605c5c ──
+describe('STATE RAIL · a pointer at the start of a message restyles EXACTLY the conversation’s subject — never another of its class', () => {
+  it('"make it thicker": the subject RSI → allowed; another indicator, or no subject → refused', async () => {
+    const fx = stateFixture()
+    const rsi = await planOf(fx, WRONG.indicator['indicator.update (RSI 14 → 20)'])
+    expect(stateEffects(rsi)[0].id).toBe('ind:c1:inst:rsi:1')
+    for (const w of ['make it thicker', 'Make it a 20', 'change that to a 20', 'make the fast one 20'])
+      expect(stateRailRefusal(rsi, { words: w, subjects: new Set(['ind:c1:inst:rsi:1']) }), w).toBe(null)
+    for (const subj of [new Set(['ind:c1:ovl:0']), new Set(['ind:c2:inst:rsi:1']), new Set(), null])
+      expect(stateRailRefusal(rsi, { words: 'make it thicker', subjects: subj }) || 'LET THROUGH', JSON.stringify([...(subj || [])])).toMatch(/^I didn’t change anything/)
+  })
+  it('a drawing: "make it red" restyles the drawing last drawn / changed, never another one', async () => {
+    const fx = stateFixture()
+    const line = await planOf(fx, WRONG.drawing['drawing.style (the trendline restyled)'])
+    expect(stateRailRefusal(line, { words: 'make it red', subjects: new Set(['draw:SPY:dr-t']) })).toBe(null)
+    expect(stateRailRefusal(line, { words: 'make it red', subjects: new Set(['draw:SPY:dr-h']) }) || 'LET THROUGH').toMatch(/^I didn’t change anything/)
+  })
+  it('a destroy pointed at the subject still ASKS ("remove it" — cross-turn stays fail-closed)', async () => {
+    const fx = stateFixture()
+    const rm = await planOf(fx, WRONG.indicator['indicator.remove (the RSI)'])
+    expect(stateRailRefusal(rm, { words: 'remove it', subjects: new Set(['ind:c1:inst:rsi:1']) }) || 'LET THROUGH').toMatch(/^I didn’t change anything/)
+  })
+  it('"save it" at the start never saves over a layout (it has no exact Undo); "save my layout" / "save it to my layout" do', async () => {
+    const fx = stateFixture()
+    const save = await planOf(fx, WRONG.layout['layout.saveCurrent (saved over Mine)'])
+    for (const w of ['save it', 'Save it.', 'save', 'save that'])
+      expect(stateRailRefusal(save, { words: w, subjects: new Set(['layout:11']) }) || 'LET THROUGH', w).toMatch(/^I didn’t change anything/)
+    for (const w of ['save my layout', 'make this chart weekly and save it to my layout', 'save the layout'])
+      expect(stateRailRefusal(save, { words: w }), w).toBe(null)
+  })
+})
+
+describe('STATE RAIL · grammar extensions bind to the plan’s OWN target (never "any value / ticker counts")', () => {
+  it('a fib level value names only a level THAT fib’s change touches', async () => {
+    const fx = stateFixture()
+    const hide786 = await planOf(fx, [op('drawing.setFibLevels', 'SPY', { drawing: 'dr-f', levels: [{ level: 0.786, visible: false, color: null }], bands: [], reset: false })])
+    expect(hide786.ok, JSON.stringify(hide786.refusals)).toBe(true)
+    for (const w of ['remove the 78.6', 'remove the 0.786', 'hide the 78.6'])
+      expect(stateRailRefusal(hide786, { words: w }), w).toBe(null)
+    for (const w of ['remove the 61.8', 'hide the 0.5', 'remove the 0.618'])
+      expect(stateRailRefusal(hide786, { words: w }) || 'LET THROUGH', w).toMatch(/^I didn’t change anything/)
+    // the same value said against ANOTHER drawing's change (a trendline restyled) licenses nothing
+    const line = await planOf(fx, WRONG.drawing['drawing.style (the trendline restyled)'])
+    expect(stateRailRefusal(line, { words: 'hide the 78.6' }) || 'LET THROUGH').toMatch(/^I didn’t change anything/)
+  })
+  it('a drawing setting names only a key THAT change sets ("use a large arrow size" ≠ a restyle of the line colour)', async () => {
+    const fx = stateFixture()
+    const line = await planOf(fx, WRONG.drawing['drawing.style (the trendline restyled)'])
+    expect(stateRailRefusal(line, { words: 'use a large arrow size' }) || 'LET THROUGH').toMatch(/^I didn’t change anything/)
+    const txt = await planOf(fx, [op('drawing.setProps', 'SPY', { drawing: 'dr-x', set: [{ prop: 'bold', value: true, opacity: null }] })])
+    expect(txt.ok, JSON.stringify(txt.refusals)).toBe(true)
+    expect(stateRailRefusal(txt, { words: 'make the bold on' })).toBe(null)
+  })
+  it('a ticker counts only if it is IN that list and the change removes it', async () => {
+    const fx = stateFixture()
+    const rmNvda = await planOf(fx, WRONG.watchlist['watchlist.remove (NVDA)'])
+    for (const w of ['remove NVDA', 'drop NVDA', 'take NVDA off', 'remove nvda and amd'])
+      expect(stateRailRefusal(rmNvda, { words: w }), w).toBe(null)
+    for (const w of ['remove TSLA', 'drop AAPL', 'remove MSFT and NVDA'])
+      expect(stateRailRefusal(rmNvda, { words: w }) || 'LET THROUGH', w).toMatch(/^I didn’t change anything/)
+    const keep = await planOf(fx, WRONG.watchlist['watchlist.keepOnly (Tech → SPY)'])
+    for (const w of ['keep only spy', 'drop all but SPY', 'remove everything except SPY'])
+      expect(stateRailRefusal(keep, { words: w }), w).toBe(null)
+    expect(stateRailRefusal(keep, { words: 'drop all but TSLA' }) || 'LET THROUGH').toMatch(/^I didn’t change anything/)
+  })
+  it('a widget’s content is named by THAT widget’s own kind ("the scanner" never switches the watchlist widget)', async () => {
+    const fx = stateFixture()
+    const show = await planOf(fx, WRONG.widget['widget.showList (Tech → Swing)'])
+    for (const w of ['go back to the list picker', 'take the watchlist back to its picker', 'let me pick a different list in the watchlist'])
+      expect(stateRailRefusal(show, { words: w }), w).toBe(null)
+    for (const w of ['take the scanner back to its picker', 'go back to the scan picker', 'exit the scan'])
+      expect(stateRailRefusal(show, { words: w }) || 'LET THROUGH', w).toMatch(/^I didn’t change anything/)
+  })
+})
+
+describe('STATE RAIL · a typed approval runs the pending card approved — and with no card is never an approval', () => {
+  it('"do it" with NO pending card: a destroying model plan is refused, nothing written', async () => {
+    for (const w of ['do it', 'yes', 'apply it']) {
+      cleanup()
+      const { fx, say, transcript } = mount()
+      const before = stateOf(fx)
+      envelopes.push(env('apply', WRONG.watchlist['watchlist.clear (Tech)']))
+      await say(w)
+      expect(stateOf(fx), w).toBe(before)
+      // never an approval: nothing ran, no card appeared, nothing is claimed done
+      expect(screen.queryByRole('button', { name: 'Apply' }), w).toBeNull()
+      expect(transcript(), w).not.toMatch(/Cleared|Removed .* from/)
+    }
+  }, 60000)
+  it('"delete my swing watchlist" → its card → "do it": the card runs (approved), the list is gone', async () => {
+    const { fx, say } = mount()
+    envelopes.push(env('apply', WRONG.watchlist['watchlist.delete (Swing)']))
+    await say('delete my swing watchlist')
+    expect(screen.queryByRole('button', { name: 'Apply' })).toBeTruthy()
+    await say('do it')
+    await waitFor(() => expect(fx.b.state.server.lists.some(l => l.id === 'wl2')).toBe(false))
+  }, 30000)
+})
+
 // ── A DRAWING BOARD SWITCH (AUDIT #1247 iii, accepted residual): the receipt names the board now shown; Undo is exact ──
 describe('STATE RAIL · a Drawing Board switch says which board is shown, and Undo puts the previous board back exactly', () => {
   it('drawing.setActiveBoard → "Swing board": receipt names it; Undo restores Board 1 and every drawing on it', async () => {

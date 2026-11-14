@@ -18,6 +18,7 @@
 import { protectionRefusal, undoProtectionRefusal, protectedOpenLayout, isProtected, protectedRenameRefusal } from './protectedLayouts'
 import { chartRailRefusal, RAIL_MARK, chartEffects } from './chartRail'
 import { stateRailRefusal, STATE_RAIL_MARK, notDoneAdds, notDoneLine } from './stateRail'
+import { lastTouchedDrawing } from './capabilities/drawings'
 import { replyRelation, QUESTION_TTL_MS, CONTINUE_CHOICES, continueQuestion } from './pendingTask'
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { AuthContext } from '../context/AuthContext'
@@ -805,11 +806,26 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
   // ⛔ STATE RAIL (owner principle 11-13, stateRail.js): the same hook — an additive request never removes, replaces or
   // overwrites the member's indicators, drawings, watchlists, widgets, layouts, boards or templates. Either rail refuses.
   const railMarkRef = useRef(RAIL_MARK)     // which rail refused last (telemetry)
-  const railOf = (plan, mode) => {
+  // the conversation's CURRENT subject (AUDIT #1247): the exact objects a pointer at the start of a message means — the
+  // indicator(s) the latest changes touched, the drawing last drawn or changed. Only these may be restyled by "make it …"
+  const subjectIds = () => {
+    const out = new Set()
+    try {
+      const m = memoryRef.current, ep = epochOf(host)
+      const ind = (x) => { if (x?.chart && x.instanceId) out.add(`ind:${x.chart}:${x.instanceId}`) }
+      ind(m?.subject?.('indicator', ep))
+      for (const x of [...(m?.indicatorSet?.(ep) || []), ...(m?.priorIndicatorSet?.(ep) || []), ...(m?.mentioned?.(ep) || [])]) ind(x)
+    } catch { /* no subject */ }
+    try { const d = lastTouchedDrawing(); if (d?.sym && d.id) out.add(`draw:${d.sym}:${d.id}`) } catch { /* none */ }
+    return out
+  }
+  // stateMode: an APPROVED run's own steps (deferred, split parts) are approved for the state rail too (the card named them);
+  // the chart rail keeps reading them as 'apply'
+  const railOf = (plan, mode, stateMode = mode) => {
     // a refused bundle names its add parts as NOT done too (AUDIT #1247): the chart rail's refusal, with the plans it did not block
     const c0 = chartRailRefusal(plan, { words: railWordsRef.current, host, mode })
     const c = c0 && `${c0}${notDoneLine(notDoneAdds(plan, (p) => { try { return chartEffects({ ok: true, plans: [p] }, host).length > 0 } catch { return true } }))}`
-    const r = c || stateRailRefusal(plan, { words: railWordsRef.current, mode })
+    const r = c || stateRailRefusal(plan, { words: railWordsRef.current, mode: stateMode, subjects: subjectIds() })
     railMarkRef.current = c ? RAIL_MARK : STATE_RAIL_MARK
     return r
   }
@@ -1046,7 +1062,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         let dp
         try {
           const dp0 = planOps(collectTargets(host, kindsOf([d])), [d], { pendingLists: pendingNames }, capCtx)
-          const shut = dp0.ok ? protectionRefusal(host, dp0, dp0.normalizedOps || [d]) || railOf(dp0, 'apply') : null
+          const shut = dp0.ok ? protectionRefusal(host, dp0, dp0.normalizedOps || [d]) || railOf(dp0, 'apply', suggested === 'approved' ? 'approved' : 'apply') : null
           dp = shut ? { ok: false, refusals: [{ reason: shut }] } : dp0
         } catch { dp = { ok: false, refusals: [{ reason: 'I could not check that step.' }] } }
         if (!dp.ok && (grows.has(d.target) || creates.has(String(d.target)))) okd.push(d)
@@ -1283,7 +1299,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
             if (!pp.ok) return { text: refusalText(pp.refusals) }
             const g = protectionRefusal(host, pp, pp.normalizedOps || part.ops)
             if (g) return { text: `I didn't change anything: ${g}` }
-            const rg = railOf(pp, 'apply')
+            const rg = railOf(pp, 'apply', suggested === 'approved' ? 'approved' : 'apply')
             if (rg) return { text: rg }
             if (decideMode('apply', pp) !== 'apply') return 'needs-approval'
             pre.push({ ...part, lines: pp.lines.length ? pp.lines : pp.noops })
