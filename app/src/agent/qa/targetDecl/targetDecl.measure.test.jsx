@@ -3,10 +3,11 @@
 //   corpus     capreg baseline corpus.json — every non-dark intent's canonical MODEL plan (the plan the corpus expects to run),
 //              under each of its phrasings, path 'model'; and the deterministic readers' own plan for each phrasing, path 'fast'
 //              (the same readers corpus.deterministic runs, with targets kept)
-//   owner      the two owner production cases (11-13 layout clarify; 11-14 duplicate grid), planned as production planned them
-//   heldout    __fixtures__/targetDecl/heldout.json when present — AUDIT held-out probes 33-39 and the #1261 generated set, as
-//              { id, source, board, words, ops, expectRefusal } rows (not in the repo yet: requested from AUDIT)
+//   fixtures   __fixtures__/targetDecl/*.json — this module's OWN generated cases and the two owner production cases (11-13
+//              layout clarify; 11-14 duplicate grid), as { id, source, board, words, ops, expectRefusal } rows. AUDIT's held-out
+//              probes are NOT committed (AUDIT ruling): AUDIT runs them locally against the pure module, in the same row shape.
 // The gate for any enforce PR: 0 rows in `newRefusals` for the kind it enforces (a passing intent the validator would refuse).
+// `content` stays SHADOW (AUDIT ruling): its counts here measure this isolated harness, not the product.
 import { describe, it, expect } from 'vitest'
 import { registerCatalog, isDark } from '../capabilityRegression/testing/registry'
 import { corpus, phrasingsOf } from '../capabilityRegression/testing/corpus'
@@ -21,8 +22,8 @@ import { measureCase, aggregate, report } from './measure'
 pinClock()
 await registerCatalog()
 
-// every JSON file in __fixtures__/targetDecl (none yet: an absent folder is an empty held-out set)
-const heldout = Object.values(import.meta.glob('../../__fixtures__/targetDecl/*.json', { eager: true, import: 'default' })).flat()
+// every JSON file in __fixtures__/targetDecl
+const fixtures = Object.values(import.meta.glob('../../__fixtures__/targetDecl/*.json', { eager: true, import: 'default' })).flat()
 
 // the deterministic readers' plan for a phrasing, targets kept (corpus.deterministicReading drops them)
 function readerOps(text, host) {
@@ -41,15 +42,6 @@ const spyNvda = () => {
   const b = makeBoard([['c1', 0], ['c2', 12]].map(([id, x]) => ({ id, type: 'chart', x, y: 0, w: 12, h: 20, color: 'N', opts: settings() })), { 'N:c1': 'SPY', 'N:c2': 'NVDA' })
   return { ...b.host, charts: { ...b.host.charts, canManageIndicators: () => true, canCreateIndicator: () => true, previewHost: () => null, selected: () => null } }
 }
-const gridOp = (symbols, extra = {}) => ({ action: 'chartGrid.set', target: 'board', args: { symbols, timeframe: null, layout: 'grid', new_charts: null, watchlist: null, replace: null, ...extra } })
-const OWNER = [
-  // 11-13: "…2-by-2 grid, keeping SPY and NVDA" → asked → "Add AAPL and MSFT as the other two charts" → SPY became AAPL, NVDA MSFT
-  { id: 'owner-1113-layout-clarify', words: 'Change my chart layout to a 2-by-2 grid, keeping SPY and NVDA in the layout. . Add AAPL and MSFT as the other two charts', ops: [gridOp(['AAPL', 'MSFT'])], expectRefusal: true },
-  // 11-14: "Add AAPL and MSFT to my charts, but keep SPY and NVDA" → "All four in a grid" → SIX panels
-  { id: 'owner-1114-duplicate-grid', words: 'Add AAPL and MSFT to my charts, but keep SPY and NVDA . All four in a grid', ops: [gridOp(['SPY', 'NVDA', 'AAPL', 'MSFT'], { new_charts: true })], expectRefusal: true },
-  // …and the plan each should have been (must PASS)
-  { id: 'owner-1114-right-plan', words: 'Add AAPL and MSFT to my charts, but keep SPY and NVDA . All four in a grid', ops: [gridOp(['AAPL', 'MSFT'], { new_charts: true })], expectRefusal: false },
-]
 
 function rows() {
   const out = []
@@ -66,18 +58,18 @@ function rows() {
       if (ops?.length) out.push({ id: `${intent.id}#${n}`, source: 'corpus', path: 'fast', expectRefusal, m: measureCase({ words: ph.text, host: host2, ops }) })
     }
   }
-  for (const c of OWNER) out.push({ id: c.id, source: 'owner', path: 'model', expectRefusal: c.expectRefusal, m: measureCase({ words: c.words, host: spyNvda(), ops: c.ops }) })
-  for (const h of heldout) {
-    if (!BOARDS[h.board || 'ONE']) continue
-    out.push({ id: h.id, source: h.source || 'heldout', path: h.path || 'model', expectRefusal: !!h.expectRefusal, m: measureCase({ words: h.words, host: panelHost(h.board || 'ONE'), ops: h.ops }) })
+  for (const h of fixtures) {
+    const host = h.board === 'SPY_NVDA' ? spyNvda() : BOARDS[h.board || 'ONE'] ? panelHost(h.board || 'ONE') : null
+    if (!host) continue
+    out.push({ id: h.id, source: h.source || 'fixture', path: h.path || 'model', expectRefusal: !!h.expectRefusal, m: measureCase({ words: h.words, host, ops: h.ops }) })
   }
   return out
 }
 
 describe('TARGET DECLARATIONS — shadow measurement (report only)', () => {
   const all = rows()
-  it('prints the per-kind report, strict and with the one-chart reading', () => {
-    console.log(`${report(aggregate(all, 'result'), 'TARGET-DECL STRICT')}\n\n${report(aggregate(all, 'sole'), 'TARGET-DECL +SOLE')}\n\nheld-out rows: ${heldout.length}`)
+  it('prints the per-kind report (AUDIT rules), and the same without the sole-chart evidence for comparison', () => {
+    console.log(`${report(aggregate(all, 'result'), 'TARGET-DECL (AUDIT rules)')}\n\n${report(aggregate(all, 'nosole'), 'TARGET-DECL (sole-chart evidence OFF, comparison)')}\n\nfixture rows: ${fixtures.length}`)
     expect(all.filter(r => r.m.status === 'planned').length).toBeGreaterThan(100)
   })
   it('both owner production cases are caught; the right plan passes', () => {
@@ -86,5 +78,12 @@ describe('TARGET DECLARATIONS — shadow measurement (report only)', () => {
     expect(by['owner-1114-duplicate-grid'].verdict).toBe('mismatch')
     expect(by['owner-1114-duplicate-grid'].final).toBe('fail')
     expect(by['owner-1114-right-plan'].verdict).toBe('match')
+  })
+  it('every fixture row reads as expected: a wrong plan is caught, a right one matches (the unrecognised board stays OPEN)', () => {
+    const rowsF = all.filter(r => r.source === 'generated' || r.source === 'owner')
+    expect(rowsF.length).toBe(fixtures.length)
+    const got = Object.fromEntries(rowsF.map(r => [r.id, r.m.status === 'planned' ? r.m.result.verdict : 'unplanned']))
+    const want = Object.fromEntries(fixtures.map(f => [f.id, f.id === 'g-grid-unrecognised' ? 'open' : f.expectRefusal ? 'mismatch' : 'match']))
+    expect(got).toEqual(want)
   })
 })

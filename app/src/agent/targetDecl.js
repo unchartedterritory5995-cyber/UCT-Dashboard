@@ -7,7 +7,9 @@
 //                    far (create < overwrite < replace < remove; switch apart). Entries come ONLY from positive evidence
 //                    (AUDIT condition 2): a click, a chart the words NAME (position / ordinal / relation / symbol / "all"), the
 //                    memory subject behind an anaphor, the created set behind a created-set reference, words that state the
-//                    WHOLE board, a layout-open verb, or a stored card. Never from the absence of a keep.
+//                    WHOLE board, a layout-open verb, a stored card, or (AUDIT ruling) the sole chart of a one-chart board —
+//                    never in grid mode / the phone view, never past a ticker that chart does not show. Never from the absence
+//                    of a keep.
 //   validateDeclaration   the plan's effects (the planner's own before / after, read by chartRail.chartEffects, plus content
 //                    writes to a chart through any chart-backed kind) must be a subset of the declaration, per kind; and, only
 //                    when the words name a keep / count / shape / explicit symbols (AUDIT condition 4), the FINAL BOARD check.
@@ -21,8 +23,8 @@
 // Shadow telemetry (`shadowTelemetry`, condition 9) carries counts, verdict letters, kind names and evidence-type names only —
 // never member words, symbols or ids.
 import { chartEffects, keptCharts, addsCharts, knownIn, requestedPanels, REPLACE, REMOVAL, CHART_COUNT, LAYOUT_WORDS, removalWords, RAIL_KINDS } from './chartRail'
-import { chartsNamedBy, chartRefOf, leftOut, pointsAtChart, selectedChart } from './deixis'
-import { getTargetKind } from './capabilities'
+import { chartsNamedBy, chartRefOf, leftOut, pointsAtChart, selectedChart, targetTickerConflict } from './deixis'
+import { getTargetKind, getCapability } from './capabilities'
 import { tickersIn } from './multiChart'
 
 export const TD_MARK = 'target-decl'
@@ -83,12 +85,49 @@ export function ceilingOf(words) {
 }
 const maxEffect = (a, b) => (RANK[a] >= RANK[b] ? a : b)
 
-/** Words that state the WHOLE board (a shape, a count or an arrangement, with two or more tickers, no add, no keep). */
-function statesWholeBoard(w, host, kept) {
-  if (kept.all || kept.refs.size || kept.symbols.size) return false
-  if (addsCharts(w)) return false
-  if (requestedPanels(w) == null && !CHART_COUNT.test(w) && !LAYOUT_WORDS.test(w)) return false
-  return tickersIn(w).length >= 2
+// ⭐ AUDIT ruling (Phase 1, item 3) — STRUCTURAL, no phrase list: a number word + up to two modifiers + a panel noun is a COUNT
+// ("four equal panels", "3 side-by-side screens"); "split … into" + a number is a SHAPE ("split my screen into four")
+const NUM_WORD = String.raw`(?:two|three|four|five|six|seven|eight|nine|[2-9])`
+const COUNT_NOUN = new RegExp(String.raw`\b(${NUM_WORD})\s+(?:[\w-]+\s+){0,2}?(?:charts?|panels?|panes?|screens?|cells?|windows?|graphs?|tiles?|views?)\b`, 'i')
+const SPLIT_INTO = new RegExp(String.raw`\bsplit\b[^.;!?]{0,40}?\binto\s+(?:a\s+)?(${NUM_WORD})\b`, 'i')
+/** The number of charts the words state outright (a shape, a count with a panel noun, "split … into N"), or null. */
+export function statedCount(words) {
+  const w = String(words || '')
+  const shape = requestedPanels(w)
+  if (shape != null) return shape
+  const m = COUNT_NOUN.exec(w) || SPLIT_INTO.exec(w)
+  return m ? numOf(m[1]) : null
+}
+/** The ticker-like strings a plan's args carry (its VALUES: what it sets, never whom it lands on). */
+export function symbolValues(ops) {
+  const out = new Set()
+  const walk = (v) => {
+    if (typeof v === 'string') { const t = v.trim().replace(/^\$/, ''); if (/^[A-Za-z][A-Za-z0-9.]{0,9}$/.test(t)) out.add(t.toUpperCase()) }
+    else if (Array.isArray(v)) v.forEach(walk)
+    else if (v && typeof v === 'object') Object.values(v).forEach(walk)
+  }
+  for (const o of ops || []) walk(o?.args)
+  return [...out]
+}
+// the distinct tickers the words carry: in capitals, or a lowercase word that is one of the plan's own symbol values
+const namedTickers = (w, ops) => new Set([...tickersIn(w), ...knownIn(w, symbolValues(ops)).map(up)])
+/** 'yes' — the words state the WHOLE board (a count / shape / arrangement + two or more tickers, no add, no keep); 'open' — two
+ *  or more tickers, no add, no keep, but nothing the reader recognises as a count or a shape (reported OPEN, never guessed); 'no'. */
+function wholeBoard(w, kept, ops) {
+  if (kept.all || kept.refs.size || kept.symbols.size) return 'no'
+  if (addsCharts(w, symbolValues(ops))) return 'no'
+  if (namedTickers(w, ops).size < 2) return 'no'
+  return (statedCount(w) != null || CHART_COUNT.test(w) || LAYOUT_WORDS.test(w)) ? 'yes' : 'open'
+}
+// ⭐ AUDIT ruling (Phase 1, item 1): the ONE chart of a one-chart board is evidence for the chart / content kinds — never in Multi
+// Chart grid mode or the phone's single view, and never when the change words name a ticker that chart does not show (Bug-1's
+// rule, deixis.targetTickerConflict, with its value and exclusion carve-outs). Without the plan's ops it cannot be checked: no grant.
+function soleGrant(w, host, charts, ops, ui) {
+  if (charts.length !== 1 || !Array.isArray(ops) || !ops.length) return false
+  if (ui?.mobile || ui?.gridMode) return false
+  try { if (host?.gridControl?.state?.()?.mode === 'grid') return false } catch { return false }
+  const c = targetTickerConflict({ host, ops, text: w, getTargetKind, getCapability })
+  return c == null
 }
 
 /**
@@ -105,7 +144,7 @@ export function finalSpec(words, host, known = []) {
   for (const c of charts) if (kept.all || kept.symbols.has(up(c.symbol))) keptRefs.add(c.ref)
   const keptSymbols = [...new Set(charts.filter(c => keptRefs.has(c.ref)).map(c => up(c.symbol)).filter(Boolean))]
   const named = [...new Set([...tickersIn(w), ...knownIn(w, known).map(up)])]
-  const total = requestedPanels(w)
+  const total = statedCount(w)
   const nc = NEW_COUNT.exec(w)
   const cc = CHART_COUNT.exec(w)
   const minCreated = nc ? numOf(nc[0].split(/\s+/)[0]) : null
@@ -129,17 +168,19 @@ export function finalSpec(words, host, known = []) {
  *   subject  the memory subject chart ref (memory.js subjects.chart.ref), or null
  *   created  the created set (createdRef.current.refs)
  *   card     a declaration stored with a proposal card → returned as the authority (source 'card')
- *   opts.sole  a one-chart board's chart counts as named (NOT one of AUDIT's evidence types: off by default, measured apart)
+ *   ops      the plan's ops (normalized): their VALUES are never targets (the sole-chart guard, lowercase tickers of a stated board)
+ *   ui       { mobile, gridMode } — the phone's single view / Multi Chart grid mode (no sole-chart evidence there)
+ *   opts.sole  false turns the sole-chart evidence off (measurement only)
  */
-export function declareTargets({ words = '', host = null, subject = null, created = [], card = null, opts = {} } = {}) {
+export function declareTargets({ words = '', host = null, subject = null, created = [], card = null, ops = null, ui = {}, opts = {} } = {}) {
   if (card && card.v === TD_VERSION) return { ...card, source: 'card' }
   try {
-    return declare(String(words || ''), host, subject, created, opts)
+    return declare(String(words || ''), host, subject, created, opts, ops, ui)
   } catch {
     return { v: TD_VERSION, source: 'resolver', error: true, entries: [], keep: { refs: [], all: false }, open: [...CHART_KINDS], final: null, move: false }
   }
 }
-function declare(w, host, subject, created, opts) {
+function declare(w, host, subject, created, opts, ops, ui) {
   const charts = liveCharts(host)
   const refs = new Set(charts.map(c => String(c.ref)))
   const sel = selectedChart(host)
@@ -169,32 +210,34 @@ function declare(w, host, subject, created, opts) {
   // every chart, said outright
   if (!refersCreated && ALL_CHARTS.test(w)) for (const c of charts) put(c.ref, 'all')
   // the whole board stated (GRID-REUSE: "make a 2x2 of SPY QQQ IWM DIA")
-  if (statesWholeBoard(w, host, kept)) for (const c of charts) put(c.ref, 'board', maxEffect(ceiling, 'replace'))
+  const whole = wholeBoard(w, kept, ops)
+  if (whole === 'yes') for (const c of charts) put(c.ref, 'board', maxEffect(ceiling, 'replace'))
   const namedAny = ev.size > 0
   // the click: words that point here, or a bare command with nothing else named
   if (sel && (HERE.test(w) || !namedAny)) put(sel, 'click')
   // the conversation's subject, behind an anaphor, when nothing else answered
   if (!ev.size && subject && ANAPHOR.test(w)) put(subject, 'subject')
-  // (off by default) the one chart of a one-chart board
-  if (opts.sole && !ev.size && charts.length === 1) put(charts[0].ref, 'sole')
+  // the one chart of a one-chart board (guarded: soleGrant)
+  if (opts.sole !== false && !ev.size && soleGrant(w, host, charts, ops, ui)) put(charts[0].ref, 'sole')
 
   const entries = [...ev].map(([ref, e]) => ({ family: 'chart', ref, effect: e.effect, via: e.via }))
   // a layout opened in words switches every chart on screen — never a kept one (that stays a mismatch: KEPT)
   if (LAYOUT_OPEN.test(w) || layoutNamed(w, host)) for (const c of charts) if (!blocked(c.ref)) entries.push({ family: 'chart', ref: String(c.ref), effect: 'switch', via: 'layout' })
   // Multi Chart cells: a cell named by a ticker only it shows, or the whole grid stated
   const cells = liveCells(host)
-  const whole = statesWholeBoard(w, host, kept)
   const said = new Set(tickersIn(w))
   for (const c of cells) {
     const sym = up(c.sym)
     const unique = cells.filter(x => up(x.sym) === sym).length === 1
     if (kept.symbols.has(sym) || kept.all) continue
-    if (whole) entries.push({ family: 'cell', ref: String(c.id), effect: maxEffect(ceiling, 'replace'), via: 'board' })
+    if (whole === 'yes') entries.push({ family: 'cell', ref: String(c.id), effect: maxEffect(ceiling, 'replace'), via: 'board' })
     else if (unique && said.has(sym)) entries.push({ family: 'cell', ref: String(c.id), effect: ceiling, via: 'named' })
   }
   // OPEN: the words point at a chart and nothing above could say which (reported; never a pass when enforced)
   const open = []
   if (!ev.size && pointsAtChart(w, { chartOp: true, charts })) open.push(...CHART_KINDS)
+  // a board stated by its tickers with no count or shape the reader recognises: the board kinds stay OPEN (never guessed)
+  if (whole === 'open') for (const k of ['board', 'multiChart']) if (!open.includes(k)) open.push(k)
   const keptCells = cells.filter(c => kept.all || kept.symbols.has(up(c.sym))).map(c => String(c.id))
   return {
     v: TD_VERSION,

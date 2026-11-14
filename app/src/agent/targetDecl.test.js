@@ -31,7 +31,7 @@ const grid = (symbols, extra = {}) => ({ action: 'chartGrid.set', target: 'board
 const run = (words, host, ops, more = {}) => {
   const p = plan(host, ops)
   expect(p.ok, JSON.stringify(p.refusals)).toBe(true)
-  const decl = declareTargets({ words, host, ...more })
+  const decl = declareTargets({ words, host, ops, ...more })
   return { p, decl, r: validateDeclaration(p, decl, { host, words }) }
 }
 const vias = (decl) => decl.entries.map(e => `${e.ref}:${e.effect}:${e.via}`)
@@ -124,10 +124,37 @@ describe('the declaration — entries only from positive evidence (AUDIT conditi
     expect(r.verdict).toBe('mismatch')
     expect(r.mismatches.map(m => m.why)).toContain('kept')
   })
-  it('a one-chart board: STRICT by default (sole is not an AUDIT evidence type), authorised only with opts.sole', () => {
-    const { host } = hostOf([[chart('c1', 0, 24)], { 'N:c1': 'NVDA' }])
-    expect(run('show AAPL', host, [setSym('c1', 'AAPL')]).r.verdict).toBe('mismatch')
-    expect(run('show AAPL', host, [setSym('c1', 'AAPL')], { opts: { sole: true } }).r.verdict).toBe('match')
+  // ⭐ AUDIT ruling (Phase 1, item 1): the sole chart is evidence for chart / content — with two guards
+  const ONE_SPY = () => [[chart('c1', 0, 24)], { 'N:c1': 'SPY' }]
+  it('a one-chart board: its chart is evidence (via sole) — the plan VALUES are never target tickers', () => {
+    const { host } = hostOf(ONE_SPY())
+    const { decl, r } = run('show AAPL', host, [setSym('c1', 'AAPL')])
+    expect(vias(decl)).toEqual(['c1:overwrite:sole'])
+    expect(r.verdict).toBe('match')
+    expect(run('make it weekly', host, [{ action: 'chart.setTimeframe', target: 'c1', args: { timeframe: 'W' } }]).r.kinds.content.match).toBe(1)
+  })
+  it('MUTANT sole-despite-off-board-ticker: "take AMD to weekly" on a one-SPY board stays a mismatch (Bug-1 rule)', () => {
+    const { host } = hostOf(ONE_SPY())
+    for (const words of ['take AMD to weekly', 'bump AMD up to weekly', 'AMD: weekly']) {
+      const { decl, r } = run(words, host, [{ action: 'chart.setTimeframe', target: 'c1', args: { timeframe: 'W' } }])
+      expect(decl.entries, words).toEqual([])
+      expect(r.verdict, words).toBe('mismatch')
+    }
+    // the ticker the chart DOES show is no conflict
+    expect(run('take SPY to weekly', host, [{ action: 'chart.setTimeframe', target: 'c1', args: { timeframe: 'W' } }]).r.verdict).toBe('match')
+  })
+  it('MUTANT sole-in-grid-mode: no sole evidence in Multi Chart grid mode, nor in the phone single view', () => {
+    const { host } = hostOf(ONE_SPY())
+    const grid0 = { ...host, gridControl: { state: () => ({ mode: 'grid', cells: [] }) } }
+    expect(declareTargets({ words: 'show AAPL', host: grid0, ops: [setSym('c1', 'AAPL')] }).entries).toEqual([])
+    expect(declareTargets({ words: 'show AAPL', host, ops: [setSym('c1', 'AAPL')], ui: { gridMode: true } }).entries).toEqual([])
+    expect(declareTargets({ words: 'show AAPL', host, ops: [setSym('c1', 'AAPL')], ui: { mobile: true } }).entries).toEqual([])
+    // …and without the plan's ops the guard cannot be checked: no grant
+    expect(declareTargets({ words: 'show AAPL', host }).entries).toEqual([])
+  })
+  it('a two-chart board is never "sole"', () => {
+    const { host } = hostOf()
+    expect(declareTargets({ words: 'show AAPL', host, ops: [setSym('c1', 'AAPL')] }).entries).toEqual([])
   })
   it('a resolver that throws → error, every chart kind OPEN (never a silent pass)', () => {
     const { host } = hostOf()
@@ -142,6 +169,32 @@ describe('the declaration — entries only from positive evidence (AUDIT conditi
     expect(again.source).toBe('card')
     expect(validateDeclaration(plan(host, [setSym('c1', 'AAPL')]), again, { host, words: 'do it' }).verdict).toBe('match')
     expect(validateDeclaration(plan(host, [setSym('c2', 'AAPL')]), again, { host, words: 'do it' }).verdict).toBe('mismatch')
+  })
+})
+
+describe('the board reader — STRUCTURAL counts and shapes (AUDIT ruling, item 3)', () => {
+  const HALF = () => [[chart('c1', 0, 12)], { 'N:c1': 'NVDA' }]
+  const four = ['SPY', 'QQQ', 'NVDA', 'TSLA']
+  for (const words of ['Show SPY, QQQ, NVDA and TSLA in four equal panels.', 'put spy, qqq, nvda and tsla on four charts',
+    'split my screen into four: SPY, QQQ, NVDA, TSLA', 'SPY QQQ NVDA TSLA on 4 side-by-side screens']) {
+    it(`"${words}" states the whole board → the board kinds are declared`, () => {
+      const { host } = hostOf(HALF())
+      const { decl, r } = run(words, host, [grid(four)])
+      expect(decl.entries.some(e => e.via === 'board' || e.via === 'named'), JSON.stringify(decl.entries)).toBe(true)
+      expect(r.kinds.board.mismatch, JSON.stringify(r.mismatches)).toBe(0)
+      expect(r.kinds.board.open).toBe(0)
+    })
+  }
+  it('two or more tickers with no count or shape the reader recognises: the board kinds stay OPEN (never guessed)', () => {
+    const { host } = hostOf(HALF())
+    const { decl, r } = run('split my screen into SPY, QQQ, NVDA and TSLA', host, [grid(four)])
+    expect(decl.open).toEqual(expect.arrayContaining(['board', 'multiChart']))
+    expect(r.kinds.board.open).toBeGreaterThan(0)
+    expect(refusesUnder(r, new Set(['board']))).toBe(true)
+  })
+  it('a number word that counts something else is no count ("the 9 and 20 EMAs", "two weeks")', () => {
+    const { host } = hostOf(HALF())
+    expect(declareTargets({ words: 'SPY and QQQ for two weeks', host, ops: [grid(['SPY', 'QQQ'])] }).open).toContain('board')
   })
 })
 

@@ -36,19 +36,22 @@ export function measureCase({ words, host, ops, subject = null, created = [] }) 
   if (!resolved.some(o => getCapability(o?.action) && !getCapability(o.action).query)) return { status: 'unplanned', why: 'query or unknown action' }
   try { plan = planOps(collectTargets(host, kindsOf(resolved)), resolved, { mcGroups: [] }, { surface: 'charts' }) } catch { return { status: 'unplanned', why: 'planner threw' } }
   if (!plan?.ok) return { status: 'unplanned', why: `planner refused: ${String(plan?.refusals?.[0]?.reason || '').slice(0, 48)} [${(ops || []).map(o => String(o.target).replace(/\[\d+\]$/, '')).join(',')}]` }
-  const decl = declareTargets({ words, host, subject, created })
-  const solo = declareTargets({ words, host, subject, created, opts: { sole: true } })
-  return { status: 'planned', decl, result: validateDeclaration(plan, decl, { host, words }), sole: validateDeclaration(plan, solo, { host, words }) }
+  const ops2 = plan.normalizedOps || resolved
+  const decl = declareTargets({ words, host, subject, created, ops: ops2 })
+  const noSole = declareTargets({ words, host, subject, created, ops: ops2, opts: { sole: false } })
+  return { status: 'planned', decl, result: validateDeclaration(plan, decl, { host, words }), nosole: validateDeclaration(plan, noSole, { host, words }) }
 }
 
 const ENFORCE_EACH = TD_KINDS.map(k => [k, new Set([k])])
 
-/** Aggregate many measured cases. `variant`: 'result' (strict) | 'sole'. */
+/** Aggregate many measured cases. `variant`: 'result' (AUDIT rules) | 'nosole' (sole-chart evidence off, for comparison). */
 export function aggregate(rows, variant = 'result') {
   const kinds = Object.fromEntries(TD_KINDS.map(k => [k, { match: 0, mismatch: 0, open: 0, newRefusals: 0 }]))
   const byPath = {}
   const mismatches = []
   const newRefusals = []
+  const caught = []
+  const missed = []
   let planned = 0
   const unplanned = {}
   for (const row of rows) {
@@ -61,23 +64,27 @@ export function aggregate(rows, variant = 'result') {
     if (r.verdict === 'mismatch') p.mismatch++
     for (const k of TD_KINDS) for (const v of ['match', 'mismatch', 'open']) kinds[k][v] += r.kinds[k][v]
     for (const mm of r.mismatches) mismatches.push({ id: row.id, source: row.source, path: row.path, kind: mm.kind, why: mm.why })
+    if (row.expectRefusal) (r.verdict === 'mismatch' || r.verdict === 'open' ? caught : missed).push({ id: row.id, source: row.source, verdict: r.verdict })
     if (!row.expectRefusal) {
       for (const [k, set] of ENFORCE_EACH) {
         if (refusesUnder(r, set)) { kinds[k].newRefusals++; newRefusals.push({ id: row.id, source: row.source, path: row.path, kind: k }) }
       }
     }
   }
-  return { cases: rows.length, planned, unplanned, kinds, byPath, mismatches, newRefusals }
+  return { cases: rows.length, planned, unplanned, kinds, byPath, mismatches, newRefusals, caught, missed }
 }
 
 /** A plain-text report (case ids, kinds and reasons only: the corpus phrasing ids, never live member data). */
 export function report(agg, title) {
-  const lines = [`${title}: ${agg.cases} cases, ${agg.planned} planned`, `  unplanned: ${JSON.stringify(agg.unplanned)}`]
+  const lines = [`${title}: ${agg.cases} cases, ${agg.planned} planned (unplanned by reason: ${JSON.stringify(agg.unplanned)})`]
   for (const [k, c] of Object.entries(agg.kinds)) lines.push(`  ${k.padEnd(10)} match ${String(c.match).padStart(4)} · mismatch ${String(c.mismatch).padStart(4)} · open ${String(c.open).padStart(4)} · would newly refuse if enforced ${c.newRefusals}`)
   for (const [p, c] of Object.entries(agg.byPath)) lines.push(`  path ${p.padEnd(8)} cases ${c.cases} · open ${c.open} (${c.cases ? Math.round(100 * c.open / c.cases) : 0}%) · mismatch ${c.mismatch}`)
   const why = {}
   for (const m of agg.mismatches) why[`${m.kind}/${m.why}`] = (why[`${m.kind}/${m.why}`] || 0) + 1
   lines.push(`  mismatch reasons: ${JSON.stringify(why)}`)
-  for (const m of agg.mismatches.slice(0, 60)) lines.push(`    ✗ ${m.source}:${m.id} [${m.path}] ${m.kind} ${m.why}`)
+  for (const m of agg.mismatches.filter(x => x.kind !== 'content').slice(0, 60)) lines.push(`    ✗ ${m.source}:${m.id} [${m.path}] ${m.kind} ${m.why}`)
+  lines.push(`  wrong plans caught ${agg.caught.length} · MISSED ${agg.missed.length}${agg.missed.length ? ` ${JSON.stringify(agg.missed)}` : ''}`)
+  for (const n of agg.newRefusals.filter(x => x.kind !== 'content')) lines.push(`    ! would newly refuse: ${n.source}:${n.id} [${n.path}] if ${n.kind} were enforced`)
+  lines.push('  ⚠ content: SHADOW ONLY (AUDIT ruling) — these counts measure this isolated harness (panelHost, no click / subject / created set), not the product; content needs a real-panel re-measure (the capreg finalState shards with a shadow sink in railOf) before any GO.')
   return lines.join('\n')
 }
