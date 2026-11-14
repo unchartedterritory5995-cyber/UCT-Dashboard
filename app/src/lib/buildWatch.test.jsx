@@ -51,6 +51,30 @@ describe('build watcher singleton', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 
+  it('asks /build.json first, and health only when that answer is unusable', async () => {
+    // A server with no /build.json route answers it with the app shell: ok, and not JSON.
+    const fetchMock = vi.fn(async (url) => (url === '/build.json'
+      ? { ok: true, json: async () => { throw new SyntaxError('Unexpected token <') } }
+      : { ok: true, json: async () => ({ build_id: 'assets/index-new.js' }) }))
+    vi.stubGlobal('fetch', fetchMock)
+    render(<UpdateReadyToast />)
+    await act(async () => { await vi.advanceTimersByTimeAsync(FIVE_MIN + 1) })
+    expect(fetchMock.mock.calls.map((c) => c[0])).toEqual(['/build.json', '/api/health'])
+    await act(async () => { await vi.advanceTimersByTimeAsync(FIVE_MIN) })
+    expect(isUpdateAnnounced()).toBe(true)
+  })
+
+  it('announces from /build.json alone when it names a newer build', async () => {
+    const fetchMock = vi.fn(async (url) => (url === '/build.json'
+      ? { ok: true, json: async () => ({ build_id: 'assets/index-new.js', commit: 'abc' }) }
+      : { ok: true, json: async () => ({ build_id: 'assets/index-old.js' }) }))
+    vi.stubGlobal('fetch', fetchMock)
+    render(<UpdateReadyToast />)
+    await act(async () => { await vi.advanceTimersByTimeAsync(FIVE_MIN * 2 + 1) })
+    expect(isUpdateAnnounced()).toBe(true)
+    expect(fetchMock.mock.calls.every((c) => c[0] === '/build.json')).toBe(true)
+  })
+
   it('stops after the last leaf unmounts for good', async () => {
     const fetchMock = stubHealth('assets/index-new.js')
     render(<UpdateReadyToast />).unmount()

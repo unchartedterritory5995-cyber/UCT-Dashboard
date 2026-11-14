@@ -4,7 +4,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import {
   GALLERY, LIBRARY_COPY, sharePreview, publishTool, publishTemplate, libraryList, previewMine, adoptTool, useTemplate,
   adoptTemplate, updateTool, helpfulPrompt, answerHelpfulPrompt,
-  STYLES, listTemplates, getTemplate, renameTemplate, duplicateTemplate, archiveTemplate, unarchiveTemplate,
+  STYLES, listTemplates, archiveTemplate, unarchiveTemplate,
   deleteTemplate, restoreTemplate, templateUsedIn,
 } from './templateLibrary'
 
@@ -40,9 +40,6 @@ const CALLS = [
   ['answerHelpfulPrompt', () => answerHelpfulPrompt('g1', 'yes'), { url: `${GALLERY}/g1/helpful-prompt`, method: 'POST' }],
   // Task 11.19: My tools' Templates tab, the journal-styles router's wave 11 routes.
   ['listTemplates', () => listTemplates('archived'), { url: `${STYLES}?view=archived`, method: 'GET' }],
-  ['getTemplate', () => getTemplate('s1'), { url: `${STYLES}/s1`, method: 'GET' }],
-  ['renameTemplate', () => renameTemplate('s1', ' Morning prep '), { url: `${STYLES}/s1`, method: 'PUT' }],
-  ['duplicateTemplate', () => duplicateTemplate('s1'), { url: `${STYLES}/s1/duplicate`, method: 'POST' }],
   ['archiveTemplate', () => archiveTemplate('s1'), { url: `${STYLES}/s1/archive`, method: 'POST' }],
   ['unarchiveTemplate', () => unarchiveTemplate('s1'), { url: `${STYLES}/s1/unarchive`, method: 'POST' }],
   ['deleteTemplate', () => deleteTemplate('s1', 'Morning prep'), { url: `${STYLES}/s1/delete`, method: 'POST' }],
@@ -122,10 +119,7 @@ describe('templateLibrary: refusals', () => {
 })
 
 describe('templateLibrary: the Templates tab calls (Task 11.19)', () => {
-  it('rename sends the name only, trimmed; delete sends the typed name exactly', async () => {
-    await renameTemplate('s1', '  Morning prep ')
-    expect(sent().body).toEqual({ name: 'Morning prep' })
-    fetchMock.mockClear()
+  it('delete sends the typed name exactly', async () => {
     await deleteTemplate('s1', ' Morning prep')
     expect(sent().body).toEqual({ typedName: ' Morning prep' })        // never trimmed: the server compares exactly
   })
@@ -147,11 +141,10 @@ describe('templateLibrary: the Templates tab calls (Task 11.19)', () => {
     expect(await archiveTemplate('s1')).toEqual({ ok: false, code: 'network', message: LIBRARY_COPY.network })
   })
 
-  it('a view outside the three, a missing id or a blank name makes no request', async () => {
+  it('a view outside the three, a missing id or a missing typed name makes no request', async () => {
     expect((await listTemplates('picker')).ok).toBe(false)
     expect((await listTemplates()).ok).toBe(false)
     expect((await archiveTemplate('')).ok).toBe(false)
-    expect((await renameTemplate('s1', '   ')).ok).toBe(false)
     expect((await deleteTemplate('s1')).ok).toBe(false)
     expect(fetchMock).not.toHaveBeenCalled()
   })

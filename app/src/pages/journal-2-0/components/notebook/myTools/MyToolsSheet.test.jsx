@@ -4,7 +4,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, within, act, cleanup } from '@testing-library/react'
 import { readFileSync, readdirSync, statSync } from 'node:fs'
-import { join } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import MyToolsSheet from './MyToolsSheet'
 import { openMyTools } from './openMyTools'
 import { installFetch, refuse } from './__fixtures__/myToolsFixtures'
@@ -446,18 +446,19 @@ describe('My tools, Widgets tab', () => {
     expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull()
   })
 
-  it('coming_soon_when_w11_off: Templates has no controls; Routines and Trackers are real lists (Task 9.18)', async () => {
+  // Follow-up C: Templates is one sentence and one button (Manage templates holds the templates now), wave 11 or not.
+  it('Templates points at Manage templates with one button; Routines and Trackers are real lists (Task 9.18)', async () => {
     await openSheet()
     fireEvent.click(screen.getByRole('tab', { name: 'Templates' }))
     expect(screen.getByRole('tab', { name: 'Templates' })).toHaveAttribute('aria-selected', 'true')
     const panel = screen.getByRole('tabpanel', { name: 'Templates' })
-    expect(panel).toHaveTextContent('Templates are coming soon.')
-    expect(panel.querySelectorAll('button, a, input, select, textarea, [tabindex]')).toHaveLength(0)
+    expect(panel).toHaveTextContent('Templates are managed in one place now.')
+    expect([...panel.querySelectorAll('button, a, input, select, textarea, [tabindex]')].map((b) => b.textContent))
+      .toEqual(['Open Manage templates'])
     for (const tab of ['Routines', 'Trackers']) {
       fireEvent.click(screen.getByRole('tab', { name: tab }))
       const p = screen.getByRole('tabpanel', { name: tab })
       expect(p).not.toHaveTextContent(/coming soon/i)
-      expect(screen.queryByTestId('my-tools-soon')).toBeNull()
       expect(within(p).getByRole('group', { name: 'Show' })).toBeInTheDocument()   // the three lists' filters
     }
   })
@@ -602,8 +603,33 @@ describe('openMyTools', () => {
     }
     walk(SRC)
     const STATIC = /^\s*import\s[^;]*?from\s+['"][^'"]*\/myTools\/[^'"]*['"]/m
+    // Follow-up C: Manage templates renders My tools' template list (TemplateList, and the Used in / Archive panels) as
+    // ONE implementation. It may import them statically only because it is itself an on-demand chunk: no non-test file
+    // imports it statically (checked below; NotebookTab's lazyDialog is pinned by NotebookTab.lazyViews.test.js).
+    const ON_DEMAND_IMPORTERS = { 'components/notebook/styles/StylesManager.jsx': 'the template manager, a lazyDialog chunk' }
+    const rel = (f) => f.split(/[\\/]/).join('/').split('/pages/journal-2-0/')[1] || ''
     const offenders = files.filter((f) => !/[\\/]myTools[\\/]/.test(f) && !/\.test\.[jt]sx?$/.test(f))
       .filter((f) => STATIC.test(readFileSync(f, 'utf8')))
+      .filter((f) => !Object.hasOwn(ON_DEMAND_IMPORTERS, rel(f)))
+    // Fix round 1 (2j): every static specifier (`import ... from`, a bare `import '...'`, `export ... from`) is RESOLVED
+    // against its own file before it is compared, so a sibling's './StylesManager', a '.jsx' suffix or a re-export is
+    // seen too, not only a path spelled with '/styles/StylesManager'.
+    const MANAGER = join(SRC, 'pages', 'journal-2-0', 'components', 'notebook', 'styles', 'StylesManager')
+    const SPEC = /^\s*(?:import|export)\s(?:[^;]*?\sfrom\s+)?['"]([^'"]+)['"]/gm
+    const staticTargets = (file, src) => [...src.matchAll(SPEC)].map((m) => m[1]).filter((sp) => sp.startsWith('.'))
+      .map((sp) => resolve(dirname(file), sp).replace(/\.(jsx?|tsx?)$/, '').replace(/[\\/]index$/, ''))
+    const importsManager = (file, src) => staticTargets(file, src).includes(MANAGER)
+    expect(files.filter((f) => !/\.test\.[jt]sx?$/.test(f)).filter((f) => importsManager(f, readFileSync(f, 'utf8'))),
+      'an allowed importer must stay off every static path').toEqual([])
+    // CONTROLS: each form is seen, and a dynamic import is not
+    const NB = join(SRC, 'pages', 'journal-2-0', 'components', 'notebook')
+    const TAB = join(SRC, 'pages', 'journal-2-0', 'tabs', 'NotebookTab.jsx')
+    expect(importsManager(TAB, "import StylesManager from '../components/notebook/styles/StylesManager'")).toBe(true)
+    expect(importsManager(join(NB, 'styles', 'KindSection.jsx'), "import M from './StylesManager.jsx'")).toBe(true)
+    expect(importsManager(join(NB, 'MemberTemplates.jsx'), "export { default } from './styles/StylesManager'")).toBe(true)
+    expect(importsManager(join(NB, 'MemberTemplates.jsx'), "import './styles/StylesManager'")).toBe(true)
+    expect(importsManager(TAB, "const M = lazyDialog(() => import('../components/notebook/styles/StylesManager'))")).toBe(false)
+    expect(importsManager(TAB, "import StylesManagerTest from '../components/notebook/styles/StylesManagerTest'")).toBe(false)
     expect(files.length).toBeGreaterThan(100)                           // the walk saw the tree
     expect(STATIC.test("import { openMyTools } from '../myTools/openMyTools.js'")).toBe(true)   // and can see one
     expect(STATIC.test("const mod = await import('../myTools/openMyTools.js')")).toBe(false)
