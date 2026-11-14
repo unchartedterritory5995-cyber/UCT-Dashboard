@@ -7113,7 +7113,15 @@ the note when Discard is pressed (roughly the two seconds after the last keystro
 the offered words back; the outcome is then what it was before this fix (the words are
 sent after close, or arrive as a conflicted copy). Closing it means the two writers
 re-deciding inside one transaction, which touches fix 6's writer and is left for its own
-change. Rails: `provenEqualSettles.test.js`, `provenEqualOnOpen.test.jsx`, every guard
+change. ⚠️ **Second recorded residual (final fix pass):** when the crash draft is a deletion
+or a mid-text edit ahead of the device record (the tab died within the 200 ms before the
+record caught up), Discard's content check refuses, the banner closes, and the record's
+words are sent when the note closes, as before this release. Closing it means carrying the
+edit lineage on the crash draft; left for its own change. ⚠️ **Third (final fix pass):** a
+note reopened from the cached read keeps a dirty record that equals the server until the
+next full load or the list's drain; the header reads 'waiting to sync' meanwhile. Item 1 of
+the final fix pass removes the common way into this state (the drain now drops a drained
+note's cached read, `useOutboxDrain.js`). Rails: `provenEqualSettles.test.js`, `provenEqualOnOpen.test.jsx`, every guard
 mutation-proved; `ringVouchAuthority.test.js` names `supersedeIdentical` as the
 identical sites' remove-only call and reads both helpers' bodies for a plan or a ring
 write; `f5Freeze.test.js` carries the amendment and pins the two call sites.
