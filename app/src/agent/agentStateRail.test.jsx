@@ -236,6 +236,13 @@ describe('STATE RAIL · kind-matched: a permit for one class never licenses a de
     expect(stateRailRefusal(line, { words: 'add a trendline, then make it red' })).toBe(null)
     expect(stateRailRefusal(rsi, { words: 'add aapl, then make it red' })).toMatch(/^I didn’t change anything/)          // nothing named before
   })
+  it('a widget named by what it shows is a WIDGET: "remove the watchlist widget" never licenses clearing or deleting a watchlist', async () => {
+    const fx = stateFixture()
+    for (const k of ['watchlist.clear (Tech)', 'watchlist.delete (Swing)', 'watchlist.remove (NVDA)']) {
+      expect(stateRailRefusal(await planOf(fx, WRONG.watchlist[k]), { words: 'add aapl, and remove the watchlist widget' }), k).toMatch(/^I didn’t change anything/)
+    }
+    expect(stateRailRefusal(await planOf(fx, WRONG.widget['widget.remove (the Watchlist widget)']), { words: 'add aapl, and remove the watchlist widget' })).toBe(null)
+  })
   it('a shared NAME never crosses kinds: "delete my swing layout" never licenses deleting the Swing watchlist', async () => {
     const fx = stateFixture()
     expect(stateRailRefusal(await planOf(fx, WRONG.watchlist['watchlist.delete (Swing)']), { words: 'add aapl, and delete my swing layout' })).toMatch(/^I didn’t change anything/)
