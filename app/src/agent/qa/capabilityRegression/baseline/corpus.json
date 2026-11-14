@@ -7782,6 +7782,51 @@
       ]
     },
     {
+      "id": "cot.positioning",
+      "source": "Phase 2 COT research (11-13): CFTC Commitments of Traders positioning, owner-style phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "cot.positioning"
+      ],
+      "board": "ONE",
+      "needs": [
+        "cot.positioning"
+      ],
+      "ownWords": [
+        "cot"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "cot.positioning",
+            "target": "$stockData",
+            "args": {
+              "markets": [
+                "gold"
+              ],
+              "group": "large_specs",
+              "change_weeks": null,
+              "lookback_years": 3
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*cot\\.positioning.*\"symbols\":\\[\"gold\"\\],\"weeks\":163"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "where are large speculators positioned in gold",
+        "what does the COT report say about gold",
+        "are specs net long gold at a 3-year extreme",
+        "show me the commitments of traders for gold"
+      ]
+    },
+    {
       "id": "history.monthlyReturns",
       "source": "Phase 2 history (11-13): weekly / monthly bars, relative performance, one-day-move studies, owner-style phrasings",
       "kinds": "ALL",
@@ -11571,6 +11616,56 @@
         "zoom out on the chart",
         "zoom the chart out one step",
         "give me a wider view of the chart"
+      ]
+    },
+    {
+      "id": "chartReplay.playback",
+      "source": "Charts family (pl-rp): the chart toolbar's Replay / Time Machine bar (start, play, pause, step, jump, speed, exit)",
+      "capabilities": [
+        "chartReplay.playback"
+      ],
+      "board": "TIMED",
+      "needs": [
+        "chartReplay.playback"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "chartReplay.playback",
+            "target": "$charts[0]",
+            "args": {
+              "op": "enter",
+              "bars": null,
+              "date": null,
+              "speed": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "barReplay": {
+          "mode": true,
+          "playing": false,
+          "speed": 1
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "barReplay": {
+            "mode": false,
+            "playing": false,
+            "index": null
+          }
+        }
+      },
+      "phrasings": [
+        "start the bar replay",
+        "turn on the bar replay on this chart",
+        "open the replay bar",
+        "start the time machine on this chart"
       ]
     },
     {

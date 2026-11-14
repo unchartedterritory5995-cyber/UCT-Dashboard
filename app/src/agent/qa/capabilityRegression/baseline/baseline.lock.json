@@ -3417,6 +3417,31 @@
     }
    }
   },
+  "cot.positioning": {
+   "digest": "0894466d212c1648",
+   "phrasings": {
+    "where are large speculators positioned in gold": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "what does the COT report say about gold": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "are specs net long gold at a 3-year extreme": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "show me the commitments of traders for gold": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
   "history.monthlyReturns": {
    "digest": "46b9c0a2068ebf2e",
    "phrasings": {
@@ -4628,6 +4653,31 @@
      "modes": {}
     },
     "give me a wider view of the chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "chartReplay.playback": {
+   "digest": "ff4013691b1537c3",
+   "phrasings": {
+    "start the bar replay": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "turn on the bar replay on this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "open the replay bar": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "start the time machine on this chart": {
      "digest": "44136fa355b3678a",
      "gaps": [],
      "modes": {}

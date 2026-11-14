@@ -487,8 +487,23 @@ def test_the_tick_retries_failed_videos_and_reports_the_library(monkeypatch):
                last_error="ValueError: video is larger than the download cap")
     out = tl.tick()
     assert out["retrying_failed"] == 1
-    assert out["library"] == {"posted": 1, "new": 1, "failed": 1, "on_youtube": 0}
+    assert out["library"] == {"posted": 1, "new": 1, "failed": 1, "on_youtube": 0, "links_waiting": 0}
     assert "retrying_failed" not in tl.tick(), "nothing left to reopen: the line stays quiet"
+
+
+def test_the_library_count_says_how_many_link_lessons_wait_for_a_transcript():
+    """A lesson that came from a YouTube link is posted under its title only until its captions
+    are sent in from outside (the pod is refused them). Nothing said how many were waiting, so
+    nobody knew when that step was due."""
+    for day, vid in enumerate(("WAIT0000001", "DONE0000001", "REDO0000001"), start=3):
+        tl.record_message(msg(sf(2026, 5, day), content=f"https://youtu.be/{vid}"), TSDR)
+        tl._update(f"{tl.LINK_PREFIX}{vid}", status="posted", title=vid)
+    tl._update(f"{tl.LINK_PREFIX}DONE0000001", transcript="the words " * 30)
+    tl._update(f"{tl.LINK_PREFIX}REDO0000001", redo=1)        # its captions arrived; the rewrite is queued
+    _thread_lesson("file1", 1, transcript="")                 # a file lesson never waits on captions
+    counts = tl.status_counts()
+    assert counts["links_waiting"] == 1
+    assert counts["links_waiting"] == len(tl.links_needing_transcript()), "one list, counted; never a second rule"
 
 
 def test_a_spent_ai_budget_stops_the_model_stages_and_nothing_else(monkeypatch):
@@ -2145,6 +2160,47 @@ def test_search_reply_text_is_short_private_friendly_and_carries_no_previews():
 
 def _ids(hits):
     return [h["attachment_id"] for h in hits]
+
+
+def test_an_older_lesson_with_no_part_timings_still_gets_its_moment(monkeypatch):
+    """⚰️ Found in Discord 2026-11-14: no /lesson result showed a "Watch from". Part timings
+    arrived with library v2 (2026-10-18); a lesson transcribed before has its words and its
+    length but no parts, and was given no moment at all. It is placed along the whole
+    video, as locate_moments does without parts."""
+    monkeypatch.setenv("TSDR_LESSONS_THREADS_ENABLED", "1")
+    words = "aaaa " * 100 + "stop loss " + "bbbb " * 98                    # the words half way through
+    _searchable("old1", 1, "Stops", transcript=words, youtube_id="YTVID00009", segments=[])
+    tl._update("old1", duration_s=600)
+    hit = tl.search_lessons("stop loss")[0]
+    assert hit["at"] == "4:45" and hit["watch"] == "https://youtu.be/YTVID00009?t=285"      # 300 s less 15
+    assert "stop loss" in hit["quote"]
+    # no length: nothing to place it by, so no moment rather than a made-up one
+    _searchable("old2", 2, "Stops again", transcript=words, segments=[])
+    tl._update("old2", duration_s=None)
+    hit2 = next(h for h in tl.search_lessons("stop loss") if h["attachment_id"] == "old2")
+    assert hit2["at"] == "" and hit2["watch"] == "" and hit2["quote"] == ""
+
+
+def test_a_quote_starts_and_ends_on_whole_words(monkeypatch):
+    """"…ow of 318.20" (seen in Discord 2026-11-14) read as a typo."""
+    monkeypatch.setenv("TSDR_LESSONS_THREADS_ENABLED", "1")
+    said = ("the stock opened at the low of 318.20 and I bought it at 320 with the low of the day as my "
+            "stop loss, so ten dollars of risk on the position, and then Friday it made an inside day "
+            "and never came near my stop, and that is the whole idea of a stop that respects structure")
+    # Eight different lengths of words just BEFORE the match, so the raw cut slides across
+    # the text and lands inside a word for most of them: one fixed text can pass by sitting
+    # on a space. (Padding the start moves the match and the cut together; it proves nothing.)
+    for k in range(8):
+        text = said.replace("as my stop loss", "as my " + "z" * (k + 1) + " stop loss")
+        if k:
+            tl._update(f"q{k - 1}", status="skipped")            # one candidate at a time
+        _searchable(f"q{k}", 1, "Stops", transcript=text, segments=[[0, text]], youtube_id="YTVID00010")
+        quote = next(h for h in tl.search_lessons("stop loss") if h["attachment_id"] == f"q{k}")["quote"]
+        assert "stop loss" in quote
+        body = quote.strip("…")
+        first, last = body.split()[0], body.split()[-1]
+        assert f" {first} " in f" {text} " and f" {last} " in f" {text} ", f"cut mid-word: {quote!r}"
+        assert quote.startswith("…") and quote.endswith("…"), "a cut is still marked as one"
 
 
 def test_a_lesson_whose_post_was_deleted_is_not_offered_by_search_or_see_also(monkeypatch):
