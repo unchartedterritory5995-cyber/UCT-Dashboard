@@ -73,6 +73,51 @@ test('a screen with no aliases, or with a malformed list, is searched by name an
   fireEvent.change(screen.getByRole('searchbox', { name: 'Search screens' }), { target: { value: 'blue dot' } })
   expect(within(dlg).queryAllByRole('button', { name: /^Open / })).toHaveLength(0)
 })
+// 2026-11-14: RS (relative strength) and RSI (an oscillator) are one letter apart, and a member
+// looking for one in a menu full of the other gets no results and no reason. The hint says which
+// is which. It is a line of text: not a screen, not selectable, no count.
+const RSI_HINT = 'RS here is relative strength: a stock against the market. RSI is a different tool, under Filters.'
+test.each(['rsi', 'RSI', 'Rsi'])('typing exactly "%s" shows one quiet hint above the results', q => {
+  const withRsi = [...saved, { id: 9, name: 'RSI under 30', spec: { filters: [] } }]
+  render(<ScreenMenu {...props} saved={withRsi} />)
+  fireEvent.click(screen.getByRole('button', { name: /Leaders/ }))
+  const dlg = screen.getByRole('dialog', { name: 'Screens' })
+  expect(within(dlg).queryByText(RSI_HINT)).toBeNull()
+  fireEvent.change(screen.getByRole('searchbox', { name: 'Search screens' }), { target: { value: q } })
+  const hint = within(dlg).getByText(RSI_HINT)
+  expect(within(dlg).getAllByText(RSI_HINT)).toHaveLength(1)
+  // above the results: it comes before the one screen the search still finds
+  const result = within(dlg).getByRole('button', { name: 'Open RSI under 30' })
+  expect(hint.compareDocumentPosition(result) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  // a hint, not a screen: no control in it or around it, no pin, no count
+  expect(hint.closest('button')).toBeNull()
+  expect(hint.querySelector('button, a, input')).toBeNull()
+  expect(hint).not.toHaveAttribute('tabindex')
+  expect(hint.textContent).toBe(RSI_HINT)
+  expect(within(dlg).getAllByRole('button', { name: /^Open / })).toHaveLength(1)
+  fireEvent.click(hint)
+  expect(props.onApply).not.toHaveBeenCalled()
+  expect(screen.getByRole('dialog', { name: 'Screens' })).toBeInTheDocument()
+})
+test('the RSI hint shows with no results too, and goes when the text is anything else', () => {
+  render(<ScreenMenu {...props} />)
+  fireEvent.click(screen.getByRole('button', { name: /Leaders/ }))
+  const dlg = screen.getByRole('dialog', { name: 'Screens' })
+  const search = screen.getByRole('searchbox', { name: 'Search screens' })
+  fireEvent.change(search, { target: { value: 'rsi' } })
+  expect(within(dlg).getByText(RSI_HINT)).toBeInTheDocument()
+  expect(within(dlg).queryAllByRole('button', { name: /^Open / })).toHaveLength(0)
+  // a stray space around it is still a member typing RSI
+  for (const same of [' rsi ', 'RSI ', ' Rsi']) {
+    fireEvent.change(search, { target: { value: 'x' } })
+    fireEvent.change(search, { target: { value: same } })
+    expect(within(dlg).getAllByText(RSI_HINT), `"${same}"`).toHaveLength(1)
+  }
+  for (const other of ['rs', 'r', 'rsi 14', 'rsi14', 'rsis', 'my rsi', 'r si', 'semis', '']) {
+    fireEvent.change(search, { target: { value: other } })
+    expect(within(dlg).queryByText(RSI_HINT), `"${other}"`).toBeNull()
+  }
+})
 test('picking applies and closes', () => {
   render(<ScreenMenu {...props} />)
   fireEvent.click(screen.getByRole('button', { name: /Leaders/ }))
