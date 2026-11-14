@@ -786,7 +786,11 @@ def post_to_section(lesson: dict, link: str) -> dict:
                          youtube_video_body(lesson) if link_video_id(lesson)
                          else forward_body(lesson)) or {}
         forward_id = str(fwd.get("id") or "")
-    except DiscordError as e:
+    except Exception as e:  # noqa: BLE001
+        # ⛔ EVERYTHING, not only DiscordError. The recap is already in the thread:
+        # anything that escapes from here sends the video back to the queue and the
+        # next run posts the recap AGAIN. A timeout is an httpx error, not a
+        # DiscordError, and did exactly that.
         # Measured 2026-10-17: two lessons were refused every tick for 90 min
         # ("Maximum amount of forwarded attachment bytes reached"), so the
         # refusal is not only a rate: a large enough file is never forwarded.
@@ -799,7 +803,7 @@ def post_to_section(lesson: dict, link: str) -> dict:
                 yt = _in_thread("POST", thread, f"/channels/{thread}/messages",
                                 youtube_video_body(lesson)) or {}
                 forward_id = str(yt.get("id") or "")
-            except DiscordError as e2:
+            except Exception as e2:  # noqa: BLE001 -- same reason
                 log.warning("[tsdr-lessons] could not post the YouTube video for %s: %s",
                             lesson.get("attachment_id"), e2)
     return {"section": key, "thread": thread, "post_id": str(post.get("id") or ""),
@@ -2060,14 +2064,14 @@ def post_to_forum(lesson: dict, link: str) -> dict:
                           youtube_video_body(lesson) if link_video_id(lesson)
                           else forward_body(lesson)) or {}
         video_id = str(sent.get("id") or "")
-    except DiscordError as e:
+    except Exception as e:  # noqa: BLE001 -- the post exists: nothing may escape (see post_to_section)
         log.warning("[tsdr-lessons] could not put the video in post %s: %s", pid, e)
         if lesson.get("youtube_id"):
             try:
                 sent = _in_thread("POST", pid, f"/channels/{pid}/messages",
                                   youtube_video_body(lesson)) or {}
                 video_id = str(sent.get("id") or "")
-            except DiscordError as e2:
+            except Exception as e2:  # noqa: BLE001
                 log.warning("[tsdr-lessons] could not post the YouTube copy in %s: %s", pid, e2)
     return {"post": pid, "video": video_id}
 

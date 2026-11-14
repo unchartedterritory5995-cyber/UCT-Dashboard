@@ -801,6 +801,78 @@ def test_a_failed_forward_keeps_the_recap(monkeypatch):
     assert row["forward_post_id"] == ""
 
 
+def test_a_forward_that_times_out_keeps_the_recap_and_never_posts_it_twice(monkeypatch):
+    """⚰️ Only a Discord REFUSAL of the forward was caught. A timeout is not one (httpx
+    raises its own error), so it escaped after the recap was already in the thread: the
+    video went back in the queue and the next run posted the recap AGAIN, the first copy
+    tracked by nothing. With failed videos now retried for days, that is a recap per try."""
+    import httpx
+    monkeypatch.setenv("TSDR_LESSONS_THREADS_ENABLED", "1")
+    m = msg(sf(2026, 10, 15), attachments=[video("th3")])
+    tl.record_message(m, TSDR)
+    fake = _pipeline(monkeypatch, m)
+    _seed_threads()
+    recaps = []
+
+    def post(p, b):
+        if "message_reference" in b:
+            raise httpx.ReadTimeout("timed out")
+        recaps.append(b)
+        return {"id": "r1"}
+
+    fake.routes[("POST", "/channels/t-setups/messages")] = post
+    assert tl.run_lessons(limit=3, deadline=9e12) == {"posted": 1, "skipped": 0, "duplicate": 0, "errors": 0}
+    row = tl.get_lesson("th3")
+    assert row["status"] == "posted" and row["discord_post_id"] == "r1" and row["forward_post_id"] == ""
+    tl.run_lessons(limit=3, deadline=9e12)                      # the next run has nothing to redo
+    assert len(recaps) == 1, "the recap was posted again"
+
+
+def test_a_timeout_on_the_youtube_fallback_does_not_repost_the_recap_either(monkeypatch):
+    """The forward is refused, the YouTube copy is posted in its place, and THAT post times
+    out. It is the same position: the recap is up, so nothing may escape."""
+    import httpx
+    monkeypatch.setenv("TSDR_LESSONS_THREADS_ENABLED", "1")
+    m = msg(sf(2026, 10, 15), attachments=[video("th5")])
+    tl.record_message(m, TSDR)
+    tl._update("th5", youtube_id="YTVID00005")
+    fake = _pipeline(monkeypatch, m)
+    _seed_threads()
+    recaps = []
+
+    def post(p, b):
+        if "message_reference" in b:
+            raise tl.DiscordError(500, "forward refused")     # not 400/403: those reopen the thread first
+        if str(b.get("content") or "").startswith("https://youtu.be/"):
+            raise httpx.ConnectError("connection reset")
+        recaps.append(b)
+        return {"id": "r5"}
+
+    fake.routes[("POST", "/channels/t-setups/messages")] = post
+    assert tl.run_lessons(limit=3, deadline=9e12)["posted"] == 1
+    tl.run_lessons(limit=3, deadline=9e12)
+    assert len(recaps) == 1 and tl.get_lesson("th5")["discord_post_id"] == "r5"
+
+
+def test_a_recap_that_cannot_be_posted_still_fails_the_attempt(monkeypatch):
+    """The other half: BEFORE the recap is up, a timeout must still count as a failed
+    attempt. Catching everything everywhere would mark a lesson posted that never was."""
+    import httpx
+    monkeypatch.setenv("TSDR_LESSONS_THREADS_ENABLED", "1")
+    m = msg(sf(2026, 10, 15), attachments=[video("th4")])
+    tl.record_message(m, TSDR)
+    fake = _pipeline(monkeypatch, m)
+    _seed_threads()
+
+    def post(p, b):
+        raise httpx.ReadTimeout("timed out")
+
+    fake.routes[("POST", "/channels/t-setups/messages")] = post
+    assert tl.run_lessons(limit=3, deadline=9e12)["errors"] == 1
+    row = tl.get_lesson("th4")
+    assert row["status"] == "new" and row["attempts"] == 1 and not row["discord_post_id"]
+
+
 def test_an_archived_thread_is_reopened_and_the_post_retried(monkeypatch):
     _seed_threads()
     tries = []
