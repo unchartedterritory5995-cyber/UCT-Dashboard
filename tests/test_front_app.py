@@ -86,6 +86,10 @@ def dist(tmp_path_factory):
 
 # ── a stand-in for `web` ──────────────────────────────────────────────────────
 
+#: token -> {"gone": bool}: whether the reader of a stand-in stream has gone away.
+STREAMS: dict = {}
+
+
 async def _upstream_app(scope, receive, send):
     if scope["type"] == "lifespan":
         while True:
@@ -116,6 +120,36 @@ async def _upstream_app(scope, receive, send):
             await asyncio.sleep(0.4)
         await send({"type": "http.response.body", "body": b"", "more_body": False})
         return
+    if path in ("/api/forever", "/api/silent", "/api/slow-stream"):
+        # A stream that ends only when whoever is reading it goes away. "forever" keeps sending;
+        # "silent" sends one event and then nothing, like a quiet market. Either way the moment
+        # the reader's connection closes is recorded under the caller's token.
+        token = scope["query_string"].decode()
+        STREAMS[token] = {"gone": False}
+        if path == "/api/slow-stream":
+            await asyncio.sleep(0.8)   # still working on the answer: no status line yet
+            STREAMS[token] = {"gone": False, "answered": True}
+        await send({"type": "http.response.start", "status": 200,
+                    "headers": [(b"content-type", b"text/event-stream"), (b"cache-control", b"no-store")]})
+        await send({"type": "http.response.body", "body": b"data: first\n\n", "more_body": True})
+
+        async def reader_left():
+            while (await receive())["type"] != "http.disconnect":
+                pass
+
+        left = asyncio.ensure_future(reader_left())
+        try:
+            while not left.done():
+                if path == "/api/forever":
+                    await send({"type": "http.response.body", "body": b"data: more\n\n", "more_body": True})
+                await asyncio.wait({left}, timeout=0.2)
+        finally:
+            left.cancel()
+            STREAMS[token] = dict(STREAMS[token], gone=True)
+        return
+    if path == "/api/stream-state":
+        out = json.dumps(STREAMS.get(scope["query_string"].decode(), {"gone": None})).encode()
+        return await reply(200, [(b"content-type", b"application/json")], [out])
     if path == "/api/gzip":
         return await reply(200, [(b"content-type", b"application/json"), (b"content-encoding", b"gzip"),
                                  (b"content-length", str(len(GZ_BODY)).encode()), (b"vary", b"Accept-Encoding")],
@@ -614,6 +648,54 @@ def test_an_idle_connection_to_web_is_dropped_before_web_drops_it(front, http):
     later = http.get(front + "/api/echo").json()["peer_port"]
     assert later != first, "an idle connection outlived the front door's limit"
     assert front_app.UPSTREAM_KEEPALIVE_EXPIRY_S + 0.5 < 5, "the wait above must stay inside web's own idle limit"
+
+
+# ── when the member leaves ────────────────────────────────────────────────────
+
+@pytest.mark.parametrize("kind", ["forever", "silent"])
+def test_when_the_member_leaves_a_stream_the_connection_to_web_is_dropped(front, http, kind):
+    """A closed tab must end the stream on `web` too. If the front door kept its side open,
+    `web` would go on producing a stream nobody reads and the front door would hold one of
+    its connections to `web` for as long as that lasted; enough closed tabs and there are
+    none left for anyone. "silent" is the hard case: with nothing left to send, nothing ever
+    fails, so the front door has to notice the member leaving by watching for it."""
+    token = f"{kind}-{time.time_ns()}"
+    with http.stream("GET", front + f"/api/{kind}?{token}") as r:
+        events = r.iter_raw()   # held in a name: letting go of this iterator is itself a disconnect
+        first = next(events)
+        assert first.startswith(b"data: first"), first
+        assert http.get(front + f"/api/stream-state?{token}").json() == {"gone": False}   # live through both hops
+    # leaving the block closes the member's connection mid-stream, as closing a tab does
+    deadline = time.time() + 5
+    state = None
+    while time.time() < deadline:
+        state = http.get(front + f"/api/stream-state?{token}").json()
+        if state["gone"]:
+            break
+        time.sleep(0.1)
+    assert state == {"gone": True}, "5 s after the member left, `web` was still streaming to them"
+
+
+def test_a_member_who_left_before_the_answer_started_does_not_leave_a_stream_open(front, http):
+    """The member asks, `web` takes 0.8 s to begin answering, and the member is gone after
+    0.2 s. When `web`'s stream finally starts there is nobody to give it to. Nothing has been
+    sent yet, so nothing has failed, and a pass-through that only cleans up from inside its
+    streaming loop never gets there. The connection to `web` must still be dropped."""
+    token = f"slow-{time.time_ns()}"
+    host, port = front.replace("http://", "").split(":")
+    s = socket.create_connection((host, int(port)), timeout=5)
+    s.sendall(f"GET /api/slow-stream?{token} HTTP/1.1\r\nHost: {host}\r\n\r\n".encode())
+    time.sleep(0.2)
+    s.close()                                                # gone before any answer
+    deadline = time.time() + 6
+    state = {}
+    while time.time() < deadline:
+        state = http.get(front + f"/api/stream-state?{token}").json()
+        if state.get("answered") and state.get("gone"):
+            break
+        time.sleep(0.1)
+    assert state.get("answered"), "the stand-in never got as far as answering: the test proved nothing"
+    assert state.get("gone"), "`web` began a stream for a member who had already left, and it was never closed"
 
 
 # ── when `web` is not there ───────────────────────────────────────────────────
