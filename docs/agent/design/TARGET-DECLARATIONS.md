@@ -46,7 +46,7 @@ widget, layout, layoutBar, template) as a later phase. Query capabilities are ou
 
 **Paths** (all already call `railOf`, useAgent L804):
 instant/fast (`execute(..., {path:'fast'})`, e.g. L2560), model (L3284, `mode:'propose'`), fan-out (`fanOutOf` L510; rail per
-chart L1213), deferred (`landDeferred` L564; pre-check L1038), mixed split (L1275), approved card (`approve` L1966,
+chart L1213), deferred (`landDeferred` L565; pre-check L1038), mixed split (L1275), approved card (`approve` L1966,
 `mode:'approved'`), widget card (L3424-3432).
 
 **Non-goals:** no orchestration/planner rewrite; no change to `planOps`, `approvalBinding`/`bindingDrift`
@@ -92,7 +92,7 @@ On approval the stored declaration is used, **not** re-resolved from "do it". Th
 A model plan *may* carry `targets` (ids it intends to change + effect). It is **never trusted**: used only (a) as a
 self-consistency check — the model's own effects ⊄ its own `targets` → refuse; (b) to fill `open` kinds **only** where every
 model target is also a resolver candidate (on the board, not kept, not outside a named set). The authorising set is always
-`resolver ∩ model`, never `model` alone. Placeholders/aliases (`args.as`, `aliasNames` L548) are allowed only as `create`.
+`resolver ∩ model`, never `model` alone. Placeholders/aliases (`args.as`, `aliasNames` L553) are allowed only as `create`.
 
 ## 4. The validator
 
@@ -126,7 +126,7 @@ an approved card beyond what the card showed.
 ### 4.5 Fan-out, deferred, split
 - **Fan-out**: one declaration per turn; each per-chart plan (L1209) validated against it; additionally the union of the fan's
   targets must equal the declared set (no extra chart).
-- **Deferred / created mid-plan**: alias entries (`create`) are rewritten with `landDeferred`'s own `real()` mapping (L565)
+- **Deferred / created mid-plan**: alias entries (`create`) are rewritten with `landDeferred`'s own `real()` mapping (L566)
   when the step lands, then the step is validated; the pre-check (L1038) validates alias targets as `create` only.
 - **Mixed split** (L1270-1280): each part validated against the same declaration; the grouped Undo is unchanged.
 
