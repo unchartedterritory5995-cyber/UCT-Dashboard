@@ -66,7 +66,7 @@ const lex = lexiconFor({})
 const realOrLexicon = (w) => lex.words.has(w) || isRealWord(w, lex.words)
 // suffix stems only: "unlink" → link is a different word, never normalisation
 const sufStems = (x) => stemsOf(x).filter(st => !/^(?:re|up|un)/.test(x) || !x.endsWith(st))
-const ownBase = (w, to) => sufStems(w).some(st => st === to || sufStems(st).includes(to))
+const ownBase = (w, to) => sufStems(w).some(st => st === to || st + 's' === to || sufStems(st).includes(to))
 const rewritesOf = (text, opts) => [...new Set((correctTypos(text, lex, opts) || []).flatMap(v => v.changes.map(c => `${String(c.from).toLowerCase()}→${c.to}`)))]
 /** { "from→to": [utterance…] } over every utterance; `{ realWords: false }` = the guard OFF (master 68a117516f's behaviour). */
 export function rewriteMap(opts) {

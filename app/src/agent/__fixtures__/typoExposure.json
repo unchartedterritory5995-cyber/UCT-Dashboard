@@ -721,6 +721,9 @@
    "create an indicator that flags days when price closes above the 21 EMA on volume at least 1.5 times its 50-day average",
    "tight flags in the leading groups"
   ],
+  "fundamentally→fundamentals": [
+   "stack up AMD against NVDA fundamentally"
+  ],
   "gapped→gap": [
    "small caps that gapped up today"
   ],

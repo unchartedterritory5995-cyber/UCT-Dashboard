@@ -42,7 +42,7 @@ taken talk team tell term test than thank that the their them then there these t
 through time to today together told too took top toward track trade trend true try turn two type under until up upon
 us use used very view wait walk want was watch way we week well went were what when where whether which while white who
 whole why wide will wipe with within without word work world would write wrong year yes yet you your
-apple chip dump exchange figure fundamental hood kill link oops preset pure slap tape temporary tight trail tweak usual warn
+apple chip dump exchange figure hood kill link oops preset pure slap tape temporary tight trail tweak usual warn
 ascend descend hows whats
 `.trim().split(/\s+/)
 
@@ -90,6 +90,7 @@ export function lexiconBasesOf(w, lexWords) {
   const suffixed = (x) => stemsOf(x).filter(st => !/^(?:re|up|un)/.test(x) || !x.endsWith(st))
   for (const s of suffixed(w)) {
     if (lexWords.has(s)) out.add(s)
+    else if (lexWords.has(s + 's')) out.add(s + 's')          // "fundamentally" → fundamentals (the lexicon keeps the plural)
     for (const s2 of suffixed(s)) if (lexWords.has(s2)) out.add(s2)
   }
   return [...out]
