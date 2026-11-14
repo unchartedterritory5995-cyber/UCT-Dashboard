@@ -6330,7 +6330,7 @@ def _interpret_column(ast: Any, bars: List[dict],
             # HTF code so a nested clock or `tf` reads the right base.
             child = _to_column(
                 interpret(n["args"][0], htf, inputs=inputs, budget=budget,
-                          scalars=scalars, opts=dict(opts or {}, tf=code, merge_scoped=True)),
+                          scalars=scalars, opts=dict(opts or {}, tf=code)),
                 len(htf))
 
             # \u26d4\u26d4 THE LAST *CLOSED* BAR, AND THIS LINE IS THE REPAINT STORY. A base
@@ -6361,12 +6361,10 @@ def _interpret_column(ast: Any, bars: List[dict],
             # ⭐⭐ ENGINE 55 — ``tf_merge``, the port of ``interpret.js``'s arm (its
             # comment carries the measurement): a bar that CLOSES its period (the
             # next bar sits in another bucket) reads bucket ``b``, every other bar
-            # ``b - 1``; the newest bar reads ``b`` only while known to be forming
-            # at the chart's own level, and is withheld (NaN here, named by
-            # ``tf_merge_mask``) otherwise. Read off the next bar, never a calendar.
+            # ``b - 1``; the newest bar computes the forming reading and the ROOT bar
+            # is withheld by ``tf_merge_mask`` (the one authority) unless known to be
+            # forming. Read off the next bar, never a calendar.
             merge = (kind == "tf_merge")
-            newest_forming = (merge and not (opts or {}).get("merge_scoped")
-                              and (opts or {}).get("newest_bar_is_forming") is True)
             out = _nan_col(length)
             for i, k in enumerate(keys):
                 if k is None:
@@ -6375,16 +6373,13 @@ def _interpret_column(ast: Any, bars: List[dict],
                 if live:
                     out[i] = child[b]
                 elif merge:
-                    if i + 1 < length:
-                        nxt = keys[i + 1]
-                        if nxt is None:
-                            continue
-                        if nxt != k:
-                            out[i] = child[b]
-                        elif b > 0:
-                            out[i] = child[b - 1]
-                    elif newest_forming:
+                    nxt = keys[i + 1] if i + 1 < length else None
+                    if i + 1 < length and nxt is None:
+                        continue
+                    if nxt is None or nxt != k:
                         out[i] = child[b]
+                    elif b > 0:
+                        out[i] = child[b - 1]
                 elif b > 0:
                     out[i] = child[b - 1]
             return out
@@ -6409,7 +6404,7 @@ def _interpret_column(ast: Any, bars: List[dict],
 
             child = _to_column(
                 interpret(n["args"][0], series, inputs=inputs, budget=budget,
-                          scalars=scalars, opts=dict(opts or {}, merge_scoped=True)),
+                          scalars=scalars, opts=dict(opts or {})),
                 len(series))
 
             # ⭐ ALIGNED ON THE BAR’S OWN `t`, EXACT MATCH, NEVER FORWARD-FILLED.

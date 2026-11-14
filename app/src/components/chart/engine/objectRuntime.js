@@ -263,11 +263,11 @@ export function beginObjects(program, ctx) {
     return false
   }
   let withheldUnknown = 0
-  /** ⭐⭐ ENGINE 55 — of those, how many per family were held for a reason OTHER than the
-   *  chart clock (the clock names its own): family → count. A family partly drawn
-   *  with some of its ops withheld here is NAMED (`objects:not-computable`, with the
-   *  count), not left to read as the script's whole picture. */
-  const unknownOpsByFam = new Map()
+  /** ⭐⭐ ENGINE 55 — creates withheld for a reason OTHER than the chart clock, per family
+   *  (booked where `famUnknownOther` is marked, `taintOutputs`): an object TradingView may
+   *  hold that this run does not. A family partly drawn with such a create is NAMED
+   *  (`objects:not-computable`, with the count), not left to read as the whole picture. */
+  const unknownCreatesByFam = new Map()
   /** ⭐ C45 — of those, ops held because a bar index reached them as a value. */
   let withheldBarIndex = 0
   /** ⭐ C22 — properties marked because their value read an unmeasured reduction. */
@@ -1439,20 +1439,6 @@ export function beginObjects(program, ctx) {
     /** ⭐ WHAT A WITHHELD OP WOULD HAVE WRITTEN BECOMES UNKNOWN. A create keeps
      *  the register's old value (Pine's guard may have been false) but marks it;
      *  an update or delete marks whatever the handle holds now. */
-    /** ⭐ ENGINE 55 — book a withheld op to its family (`unknownOpsByFam`): its own,
-     *  a cell's table, or the family of the object its handle holds now. */
-    const noteUnknownOpFamily = (op) => {
-      let fam = op.family || (op.k === 'cell' || op.k === 'cellpatch' ? 'table' : null)
-      if (!fam && op.target != null) {
-        try {
-          const ids = targetsOf(op.target)
-          const o = ids.length ? live.get(ids[0]) : null
-          fam = o ? o.family : null
-        } catch { fam = null }
-      }
-      const key = fam || 'object'
-      unknownOpsByFam.set(key, (unknownOpsByFam.get(key) || 0) + 1)
-    }
     const taintOutputs = (op) => {
       taintSeen = true
       if (taintCause !== 'clock') taintOtherSeen = true
@@ -1463,7 +1449,10 @@ export function beginObjects(program, ctx) {
           if (op.once) onceUnknown.add(op.site)
           siteTaint.add(op.site)
           famUnknown.add(op.family)
-          if (taintCause !== 'clock') famUnknownOther.add(op.family)
+          if (taintCause !== 'clock') {
+            famUnknownOther.add(op.family)
+            unknownCreatesByFam.set(op.family, (unknownCreatesByFam.get(op.family) || 0) + 1)
+          }
           break
         case 'update':
           for (const id of targetsOf(op.target)) taintInst(id, Object.keys(op.props || {}))
@@ -1578,7 +1567,6 @@ export function beginObjects(program, ctx) {
         // ⭐ OZ r1 — withheld ONLY by the chart clock (a `time(<tf>)` read C36 names,
         // or a bar index held off the window, `bar-index:window`): the clock note says why.
         taintCause = readsUnknownLatch(op.when) || unknownOtherAt(op, bar) ? 'other' : 'clock'
-        if (taintCause !== 'clock' && !op.indexHeld) noteUnknownOpFamily(op)
         taintOutputs(op)
         taintCause = 'other'
         continue
@@ -1607,7 +1595,6 @@ export function beginObjects(program, ctx) {
         // the op before it reaches here. So a value read here is known.
         if (op.withholdRuns != null && !truthy(value(op.withholdRuns))) continue
         withheldUnknown += 1
-        noteUnknownOpFamily(op)
         noteUnknownCreate(op, true)
         if (ctx.trace) events.push({ bar, k: 'withheld', family: op.family, site: op.site })
         taintOutputs(op)
@@ -1619,7 +1606,7 @@ export function beginObjects(program, ctx) {
       if (op.k !== 'loop') {
         const at = atCheck(op)
         if (at === 'error') return false
-        if (at === 'unknown') { withheldUnknown += 1; noteUnknownOpFamily(op); taintOutputs(op); continue }
+        if (at === 'unknown') { withheldUnknown += 1; taintOutputs(op); continue }
       }
       opsThisBar += 1
       opsExecuted += 1
@@ -2363,10 +2350,23 @@ export function beginObjects(program, ctx) {
   // knows (`runtimeUnknownSentence`: e.g. the last-bar calculation is too heavy to run yet).
   const unknownBecause = ctx && typeof ctx.unknownBecause === 'string' && ctx.unknownBecause ? ctx.unknownBecause : null
   if (!stopped) {
-    for (const [fam, n] of unknownOpsByFam) {
-      if (!n || withheldFams.has(fam) || notShown[NOT_SHOWN.NOT_COMPUTABLE].includes(fam)
+    // ⭐ ONLY WHAT REACHES THE FINAL PICTURE. A drawn table's cells whose LATEST write was
+    // withheld (`cellTaint`: a later clean `table.cell` clears the mark, so a warm-up write
+    // that was overwritten is not counted); any other drawn family's creates withheld for
+    // a non-clock reason (`famUnknownOther`, booked in `taintOutputs`).
+    const missing = new Map()
+    // (a table marked only by the chart clock is the clock note's to name: `taintOtherSeen`)
+    for (const o of (taintOtherSeen ? ordered : [])) {
+      if (o.family !== 'table') continue
+      const ct = cellTaint.get(o.id)
+      if (ct && ct !== '*' && ct.size) missing.set('table', (missing.get('table') || 0) + ct.size)
+    }
+    for (const [fam, n] of unknownCreatesByFam) {
+      if (n && famUnknownOther.has(fam)) missing.set(fam, (missing.get(fam) || 0) + n)
+    }
+    for (const [fam, n] of missing) {
+      if (!drawnFams.has(fam) || withheldFams.has(fam) || notShown[NOT_SHOWN.NOT_COMPUTABLE].includes(fam)
           || notShown[NOT_SHOWN.NOT_CARRIED].includes(fam)) continue
-      if (fam !== 'object' && !drawnFams.has(fam)) continue
       partNotComputable[fam] = n
       notShown[NOT_SHOWN.NOT_COMPUTABLE].push(fam)
     }

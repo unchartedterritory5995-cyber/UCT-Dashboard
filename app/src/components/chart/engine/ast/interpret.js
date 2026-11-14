@@ -6243,10 +6243,10 @@ export function withheldReadMask(tree, bars, inputs, budget, scalars, opts) {
  *  `na(x)` -> true): a confident wrong value, so the ROOT bar is withheld, not only
  *  the read.
  *  ⭐ Under another request (`tf` / `tf_live` / `tf_merge` / `sym` / `ltf`) the merge
- *  runs on OTHER bars and withholds THEIR newest bar (`mergeScoped`): the chart's
- *  newest bar is withheld whatever its state, and under `sym` every chart bar from
- *  that series' newest bar on (a series that ends early maps its newest bar onto
- *  an earlier chart bar).
+ *  runs on OTHER bars, whose newest bar's state the chart's tri-state does not
+ *  describe: the chart's newest bar is withheld whatever its state, and under `sym`
+ *  every chart bar from that series' newest bar on (a series that ends early maps its
+ *  newest bar onto an earlier chart bar).
  *  ⛔ Bars with no readable day cannot be placed in a period at all (the `tf` arm
  *  leaves them blank too): the whole series is withheld, by the same name.
  *  ⛔ NO `try` (`budget.test.js`): a refusal here must reach the caller as itself. */
@@ -6273,6 +6273,8 @@ export function tfMergeMask(tree, bars, opts) {
       return mask
     }
   }
+  // ⭐ THE ONE GUARD OVER THE NEWEST BAR (the evaluator computes the forming reading there):
+  // withheld unless known to be forming, and under another request whatever the chart says.
   const forming = !!opts && opts.newestBarIsForming === true
   if (!forming || found.some((f) => f.under)) mask[n - 1] = 1
   const supplied = (opts && opts.symbols) || {}
@@ -6790,7 +6792,7 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
         const child = toColumn(
           interpret(n.args[0], series, inputs, budget, scalars,
             { ...(opts || {}), crossMemo: scopedCrossMemo(`sym\u0001${ticker}`), probeBase: undefined,
-              historyFromListing: undefined, mergeScoped: true }),
+              historyFromListing: undefined }),
           series.length)
 
         // ⭐ ALIGNED ON THE BAR'S OWN `t`, EXACT MATCH, NEVER FORWARD-FILLED.
@@ -6848,10 +6850,7 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
         // clock or `tf` reads the right base.
         const child = toColumn(
           interpret(n.args[0], htf, inputs, budget, scalars,
-            { ...(opts || {}), tf: code, crossMemo: scopedCrossMemo(`tf\u0001${code}`), probeBase: undefined,
-              // ⭐ ENGINE 55 — a `tf_merge` below this one reads OTHER bars, whose newest bar's
-              // state the caller's `newestBarIsForming` does not describe (`tfMergeMask`).
-              mergeScoped: true }),
+            { ...(opts || {}), tf: code, crossMemo: scopedCrossMemo(`tf\u0001${code}`), probeBase: undefined }),
           htf.length)
         // \u26d4\u26d4 THE LAST *CLOSED* BAR, AND THIS LINE IS THE REPAINT STORY. A base bar
         // in bucket `b` reads bucket `b - 1`. Reading `b` would hand a Monday its own
@@ -6882,17 +6881,16 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
         // its period exactly when bar `i + 1` sits in another bucket. A weekday rule
         // ("Friday") draws the Good Friday week one bar late.
         // ⛔ THE NEWEST BAR HAS NO NEXT BAR. Still forming (`newestBarIsForming === true`)
-        // it reads the forming period, `b`, as TradingView's realtime bar does. Finished
-        // (or not known to be forming) it may or may not close its period, and which it
-        // does is the NEXT session's date, which is not known here: it is WITHHELD,
-        // `NaN` here and named by `tfMergeMask` (`request:htf-newest-unconfirmed`), never
-        // guessed. Under another request (`mergeScoped`) the newest bar of THOSE bars is
-        // withheld whatever the chart's own state is.
+        // it reads the forming period, `b`, as TradingView's realtime bar does, and that is
+        // what this arm computes there. Finished (or not known to be forming) it may or may
+        // not close its period — the NEXT session's date, which is not known here — so the
+        // ROOT bar is withheld and named by `tfMergeMask` (`request:htf-newest-unconfirmed`),
+        // the ONE authority over that bar (nested reads, another symbol's series included).
+        // ⛔ Withheld at the root, not here: a `NaN` here would read downstream as Pine's
+        // `na` (`nz` → 0), and two copies of one guard cannot each be proved.
         // ⛔ FORMULA `tf` IS UNTOUCHED: it keeps `b - 1` on every bar, which is its
         // documented meaning (members' formulas, scans and alerts rely on it).
         const merge = n.type === TF_MERGE
-        const newestKnownForming = merge && !!opts && opts.mergeScoped !== true
-          && opts.newestBarIsForming === true
         const out = nan(length)
         for (let i = 0; i < length; i++) {
           const iso = isos[i]
@@ -6900,15 +6898,10 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
           const b = at.get(tfBucket(iso, code))
           if (live) out[i] = child[b]
           else if (merge) {
-            if (i + 1 < length) {
-              const next = isos[i + 1]
-              if (!next) continue                          // withheld (`tfMergeMask`)
-              if (tfBucket(next, code) !== tfBucket(iso, code)) out[i] = child[b]
-              else if (b > 0) out[i] = child[b - 1]
-            } else if (newestKnownForming) {
-              out[i] = child[b]
-            }
-            // else: the newest bar, finished or of unknown state — withheld
+            const next = i + 1 < length ? isos[i + 1] : null
+            if (i + 1 < length && !next) continue          // withheld whole (`tfMergeMask`)
+            if (next === null || tfBucket(next, code) !== tfBucket(iso, code)) out[i] = child[b]
+            else if (b > 0) out[i] = child[b - 1]
           } else if (b > 0) out[i] = child[b - 1]
         }
         return out
@@ -6932,8 +6925,7 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
         const child = toColumn(
           interpret(n.args[0], sup.bars, inputs, budget, scalars,
             { ...(opts || {}), tf: code, crossMemo: scopedCrossMemo(`ltf\u0001${code}`), probeBase: undefined,
-              historyFromListing: undefined, newestBarIsForming: null, symbols: undefined, lowerTf: undefined,
-              mergeScoped: true }),
+              historyFromListing: undefined, newestBarIsForming: null, symbols: undefined, lowerTf: undefined }),
           sup.bars.length)
         const groups = sup.groups(bars, maxLookback(n.args[0]))
         const out = nan(length)

@@ -654,8 +654,10 @@ export function partlyNotComputableSentence(family, n) {
   const noun = { line: 'lines', label: 'labels', box: 'boxes', table: 'table cells', linefill: 'fills between lines',
     polyline: 'polylines' }[family] || 'drawings'
   const count = Number.isInteger(n) && n > 0 ? n : 0
-  return `Some ${noun} are not shown on this chart: ${count} drawing ${count === 1 ? 'step' : 'steps'} `
-    + 'depend on values this chart can’t work out here, so what they would draw is left out rather than guessed.'
+  const what = family === 'table' ? `${count} table ${count === 1 ? 'cell' : 'cells'}`
+    : `${count} ${count === 1 ? 'drawing' : 'drawings'}`
+  return `Some ${noun} are not shown on this chart: ${what} depend on values this chart can’t work out here, `
+    + 'so they are left out rather than guessed.'
 }
 
 /** ⭐ ENGINE 55 — why a document’s run half was not served, in plain words, or null when

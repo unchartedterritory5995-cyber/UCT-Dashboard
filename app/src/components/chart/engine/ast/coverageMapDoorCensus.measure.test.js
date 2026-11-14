@@ -705,3 +705,38 @@ describe('W3W4-T0: dropHeads', () => {
     if (Object.keys(r.dropReasons).length) expect(r.droppedOps).toBeGreaterThan(0)
   })
 })
+
+// ─── ⛔ ENGINE 55 — THE BOUND CHECK CAN FAIL (ordinary suite, a few door calls) ──────────
+// `cleanBound` adds ONE bind to "fully drawn". Each blocker it names has a script here that
+// trips it, a control that does not, and the store-dependent case it must NOT count.
+describe('⛔ engine 55 — the census bound check (`boundBlockers`) can fail', () => {
+  const head = ['//@version=5', "indicator('e55 bound', overlay=true)"]
+  const doorOf = (lines) => underLane(false, () => memberPaneDefinition({ source: [...head, ...lines].join(LF), id: DEF_ID, name: 'b' }))
+
+  it('a plain plot binds clean (the control)', () => {
+    const d = doorOf(['plot(ta.sma(close, 5))'])
+    expect(d.ok).toBe(true)
+    expect(boundBlockers(d)).toEqual([])
+  })
+
+  it('a venue TradingView was never measured answering (spelling-decided) is a blocker', () => {
+    const d = doorOf(['plot(request.security("NYSEARCA:SPY", timeframe.period, close))', 'plot(close)'])
+    expect(d.ok).toBe(true)
+    expect(boundBlockers(d).join(' ')).toMatch(/other-symbol:venue-unconfirmed/)
+  })
+
+  it('a listing our store may hold (store-dependent: no bars in the census) is NOT counted', () => {
+    const d = doorOf(['plot(request.security("AMEX:SPY", timeframe.period, close))'])
+    expect(d.ok).toBe(true)
+    expect(boundBlockers(d)).toEqual([])
+  })
+
+  it('a drawing step withheld as unknown (K-clustering\'s partly drawn table) is a blocker', () => {
+    const cap = JSON.parse(fs.readFileSync(BOUND_REFERENCE, 'utf8'))
+    const d = underLane(false, () => memberPaneDefinition({ source: cap.source.text, id: DEF_ID, name: 'kc' }))
+    expect(d.ok).toBe(true)
+    const why = boundBlockers(d)
+    expect(why.some((w) => w.startsWith('objects:withheld-unknown:'))).toBe(true)
+    expect(why).toContain('objects:not-computable')
+  })
+})

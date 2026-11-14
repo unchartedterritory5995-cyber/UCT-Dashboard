@@ -402,6 +402,10 @@ export function resolveOtherSymbols(def, ctx = {}, confirmed = SYMBOL_EXCHANGE_C
     if (!bars || !bars.length) {
       no(ticker, OTHER_SYMBOL_REFUSAL.NO_BARS, `\`${pine}:${ticker}\`'s bars for this timeframe are not in hand`
         + (entry && entry.status ? ` (${entry.status})` : ''))
+      // ⭐ ENGINE 55 — a fetch that has not answered yet is WAITING, not a settled "no"
+      // (`otherSymbolPending`, the formula lane's rule): the plot is refused by name only
+      // once the answer is in (`otherSymbolRefusalOfTree`), never flashed while loading.
+      if (!entry || String(entry.status || '') === 'loading') refused[refused.length - 1].pending = true
       continue
     }
     symbols[ticker] = bars
