@@ -25,7 +25,7 @@ import pathlib
 import pytest
 
 from tests.test_buzz_command import (  # noqa: F401 — `route` is a fixture
-    EPHEMERAL, _buzz, _post, route,
+    PUBLIC_DEFER, _buzz, _post, route,
 )
 
 _ROUTER = (pathlib.Path(__file__).resolve().parents[1]
@@ -235,7 +235,7 @@ def test_the_handoff_happens_before_any_reply_is_built(route, monkeypatch, ticke
     r = _post(client, sk, _buzz(ticker=ticker)).json()
 
     assert r["type"] == 5, "the ack must be a defer, not a reply that needed content"
-    assert r.get("data", {}).get("flags") == EPHEMERAL
+    assert r == PUBLIC_DEFER, "the reply is visible to the channel (owner ruling 2026-11-13)"
     assert events, "nothing was recorded — the spies are not on the path"
     assert events[0] == "add_task:run_buzz_job", (
         f"the work did not reach the background FIRST (log={events}) — OI-36 is back. "

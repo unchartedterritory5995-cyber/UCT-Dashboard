@@ -5483,16 +5483,27 @@ board image. **Live: seven posts a session, mon-fri**, into a ~750-member room.
   contextual`. The collision list must be derived from `#main-chat`'s OWN corpus —
   it was first derived from `#tsdr` and booked 1,059 junk mentions (7.7%), with
   `EVER` ranking 10th on 48 people.
-- ⛔⛔ **ON-DEMAND IS EPHEMERAL AND THROTTLED; THE SCHEDULED POST IS NEITHER.**
-  Owner ruling 2026-09-02. `/buzz` is open to every member with no role gate, so
-  a public reply meant one member could put a second board in front of 750
-  people at will. The interaction reply now carries `flags: 64` and the command
-  spends the same per-member budget as `/chart` (`DISCORD_CHART_USER_RATE`,
-  12/min — both land on the same 4-slot render valve, so one budget is the
-  honest model). ⛔ **The flag goes on the DEFER (`type: 5`), not the follow-up**
-  — Discord fixes a deferred reply's visibility at defer time and silently
-  ignores flags on the later PATCH, so a bare defer ships the board publicly and
-  looks correct in review. ⛔⛔ **The scheduled post must NEVER become
+- ⭐ **ON-DEMAND `/buzz` AND `/lesson` REPLY IN THE CHANNEL, FOR EVERYONE.**
+  Owner ruling 2026-11-13 ("visible to all"). ⚰️ From 2026-09-02 until then
+  `/buzz` was ephemeral (`flags: 64`) so one member could not put a second board
+  in front of the room, and `/lesson` was private from the day it shipped; that
+  cost is now accepted on purpose. What stays private is whatever is not the
+  answer: the throttle message, `/lesson`'s empty-query nudge and the
+  missing-token refusal. The command still spends the same per-member budget as
+  `/chart` (`DISCORD_CHART_USER_RATE` — both land on the same 4-slot render
+  valve), and that budget is now also the only bound on one member filling a
+  channel with boards. ⛔ **Visibility is decided on the DEFER (`type: 5`), not
+  the follow-up** — Discord fixes a deferred reply's visibility at defer time and
+  silently ignores flags on the later PATCH, so to make either private again the
+  flag goes back on the defer (old path in `api/routers/discord_interactions.py`,
+  V2 path in `discord_render/commands.py`, where the job's `ephemeral` record
+  must say the same thing). ⛔⛔ **A PUBLIC REPLY THAT ECHOES THE MEMBER'S WORDS
+  CAN PING** — `/lesson @everyone`, `/buzz ticker:<@&role>` — so
+  `discord_interactions.edit_original` sends `allowed_mentions: {"parse": []}`
+  on every shape it builds (`NO_MENTIONS`; rail
+  `tests/test_discord_public_replies_cannot_ping.py`, which reads the wire).
+  Never remove it, and give any new public reply door the same field.
+  ⛔⛔ **The scheduled post must NEVER become
   ephemeral** — it IS what the room is meant to see, and an ephemeral one would
   leave every check green (job ran, `posted` stamped, attachment exists) while
   seven boards a day reached nobody. They cannot collide today: the digest posts

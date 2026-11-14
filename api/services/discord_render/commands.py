@@ -429,8 +429,10 @@ async def handle(interaction: dict, received: float) -> dict | None:
         limited = _rate_limited(di.interaction_user_id(interaction), noun="boards")
         if limited:
             return limited
-        return _enqueue(_job(interaction, "buzz", "/buzz", ephemeral=True),
-                        {"type": 5, "data": {"flags": di.EPHEMERAL}}, received)
+        # PUBLIC since the owner ruling of 2026-11-13 (private from 2026-09-02 until then).
+        # ⛔ The defer and the job's `ephemeral` record say the same thing on purpose: the
+        # defer is what Discord obeys, the record is what a Retry click replays.
+        return _enqueue(_job(interaction, "buzz", "/buzz"), {"type": 5}, received)
 
     if itype == 3 and command_enabled("controls"):
         if cid_field.startswith(di.FLOW_CHART_PREFIX + "|"):
