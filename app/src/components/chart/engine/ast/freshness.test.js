@@ -180,7 +180,11 @@ describe('the closed table declares scalars, and both lanes read the same one', 
     //   excluded 121 + 9 = 130       the nine UCT RS screens columns (2026-11-14, unit U1), written by
     //                                `rs_post_pass.run` only while RS_SCREENS_ENABLED is on, so NULL on
     //                                every row (R8). Python pin: (149, 121) -> (149, 130).
-    expect(Object.keys(excluded).length).toBe(130)
+    //   excluded 130 + 14 = 144      fourteen more UCT RS screens columns (2026-11-14, unit U4): the
+    //                                rating a month ago, six RS-line measures and the seven Setup
+    //                                label columns, written only while RS_SCREENS_ENABLED is on, so
+    //                                NULL on every row (R8). Python pin: (149, 130) -> (149, 144).
+    expect(Object.keys(excluded).length).toBe(144)
     for (const [column, why] of Object.entries(excluded)) {
       expect(names, `${column} is in BOTH halves of the partition`).not.toContain(column)
       expect(String(why).length).toBeGreaterThan(20)

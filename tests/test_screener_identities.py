@@ -148,6 +148,25 @@ _CASES: dict[str, tuple[dict, dict]] = {
     "rs_rating_pos_n_ge_rs_rating_pos": (
         {"rs_rating_pos_n": 1931, "rs_rating_pos": 1931},
         {"rs_rating_pos_n": 1931, "rs_rating_pos": 1932}),
+    # RS screens, the build's columns (unit U4)
+    "rs_nh_red_bars_ago_ge_rs_nh_bars_ago": (
+        {"rs_nh_red_bars_ago": 7, "rs_nh_bars_ago": 2},
+        {"rs_nh_red_bars_ago": 1, "rs_nh_bars_ago": 2}),
+    "rs_nhbp_age_is_rs_nh_bars_ago": (
+        {"rs_nhbp_age": 3, "rs_nh_bars_ago": 3},
+        {"rs_nhbp_age": 9, "rs_nh_bars_ago": 3}),
+    "rs_nh_span_implies_rs_new_high": (
+        {"rs_nh_span": 300, "rs_new_high": 1},
+        {"rs_nh_span": 300, "rs_new_high": 0}),
+    "rs_nh_count_20_within_its_window": (
+        {"rs_nh_count_20": 20},
+        {"rs_nh_count_20": 21}),
+    "px_below_high_pct_at_or_below_zero": (
+        {"px_below_high_pct": 0.0},
+        {"px_below_high_pct": 0.01}),
+    "rs_tight_is_tight_consolidation": (
+        {"rs_tight": 1, "tight_consolidation": 1},
+        {"rs_tight": 1, "tight_consolidation": 0}),
     # Four cases left with their identities on 2026-11-14 (unit U4): the per-period
     # places against `rs_rating_pos_n`. A period board now takes a liquid stock with
     # under a year of history, so it can be longer than the overall count and the

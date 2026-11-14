@@ -220,9 +220,11 @@ def test_both_flags_on_serves_the_whole_family_exactly_as_registered(monkeypatch
     # S1: the RS view drops only the picker-hidden keys; every other view is as registered.
     hid = filters.picker_hidden_keys()
     # Pin moved 2026-11-14 (RS screens U1): the dark fourth family has no seat in any view.
+    # Pin moved 2026-11-14 (RS screens U4): the four views that exist only for the RS screens
+    # (`filters.RS_SCREENS_VIEWS`) are served with the screens, so not here (the flag is off).
     assert views == {k: [c for c in v["columns"]
                          if c not in SCREENS and not (k == "relative_strength" and c in hid)]
-                     for k, v in filters.VIEWS.items()}
+                     for k, v in filters.VIEWS.items() if k not in filters.RS_SCREENS_VIEWS}
     assert not (keys & SCREENS), "RS_SCREENS_ENABLED is off: none of its controls is served"
     assert "relative_strength" in cats
     ibd = next(f for f in m["filters"] if f["key"] == "rs_rating_ibd")

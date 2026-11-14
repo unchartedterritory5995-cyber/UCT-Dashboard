@@ -58,9 +58,16 @@ def test_the_flag_is_read_per_call_and_only_1_arms_it(monkeypatch):
 
 # ───────────────────────── the fourth dark family ─────────────────────────
 
-def test_the_family_is_exactly_the_columns_the_pass_writes():
-    assert set(F.RS_SCREENS_KEYS) == set(pp.OWNED_COLUMNS) == set(snapshot_db.POST_PASS_COLUMNS) == set(NINE)
-    assert len(F.RS_SCREENS_KEYS) == len(set(F.RS_SCREENS_KEYS)) == 9
+def test_the_family_holds_every_column_the_pass_writes():
+    """Pin moved 2026-11-14 (unit U4): this said the family IS the nine columns the pass
+    writes. Unit U4 gave the pass a tenth (`rs_rating_prev20`) and the build thirteen of its
+    own, all in the same dark family; `tests/test_rs_screens_u4_registration.py` holds the
+    whole of it. What still holds here: every column the pass writes is in the family, and
+    the nine lead it."""
+    assert set(pp.OWNED_COLUMNS) == set(snapshot_db.POST_PASS_COLUMNS) == set(NINE) | {"rs_rating_prev20"}
+    assert set(pp.OWNED_COLUMNS) <= set(F.RS_SCREENS_KEYS)
+    assert tuple(F.RS_SCREENS_KEYS[:9]) == NINE
+    assert len(F.RS_SCREENS_KEYS) == len(set(F.RS_SCREENS_KEYS)) == 23
 
 
 def test_every_screens_key_is_dark_while_the_flag_is_off_whatever_the_other_flags_say():

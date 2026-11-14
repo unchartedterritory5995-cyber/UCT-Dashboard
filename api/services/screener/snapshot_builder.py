@@ -61,6 +61,14 @@ The ``_read_*`` wrappers reuse data we ALREADY store — NO yfinance:
                 exact places (``snapshot_db.POST_PASS_COLUMNS``). It runs at the end
                 of EVERY build because the loop's INSERT OR REPLACE blanks those
                 columns on each row it rebuilds. Its receipt is ``rs_post_pass``.
+                Before that session is stored (every 03:00 build) it carries the
+                places from the ratings the rows already hold (unit U4).
+  - RS screens bar columns -> ``rs_columns.screen_fields`` in the
+                ``bars_rs_screens`` step (inside the ``bars_rs`` gate, reusing its
+                Phase 1 pass) and ``_rs_setup_fields`` in the ``bars_rs_setup``
+                step (after the seam scan): thirteen columns (RS screens unit
+                U4). DARK unless ``RS_SCREENS_ENABLED``. Armed, the receipt's
+                ``bars_rs`` block carries ``screens_ms`` / ``screens_ms_per_row``.
   - UCT RS bar columns -> ``rs_columns.collect_one`` (Phase 2a, unit 2a-05),
                 the ``bars_rs`` step. DARK unless ``registry_defs.RS_V2_ENABLED``:
                 a dark pod reads no RSP, settles no benchmark and pays no CPU

@@ -88,6 +88,13 @@ const netUsd = v => {
 // Yes / —). A stored 0 is "we looked, no" and NULL "the window was short"; the
 // filter's Yes/No control is where the two are told apart, the cell stays quiet.
 const yesDash = v => v == null ? '—' : v ? 'Yes' : '—'
+// The Setup label and its flags (UCT RS screens): the stored key -> the words a member reads. The same
+// words as `rs_setup.SETUP_LABELS` on the server (tests/test_rs_screens_u4_registration.py).
+const RS_SETUP_WORDS = {
+  below_50: 'Below its 50-day line', extended: 'Extended', at_pivot: 'At pivot',
+  pullback_8: 'Pullback to the 8-day', pullback_21: 'Pullback to the 21-day', uptrend: 'Uptrend, no setup',
+  buyout_pending: 'Buyout pending', one_day_move: 'One-day move', new_issue: 'New issue',
+}
 // An age in sessions: "today" on the event bar itself, else "n bars ago".
 const barsAgo = v => v == null ? '—' : v === 0 ? 'today' : `${v} bar${v === 1 ? '' : 's'} ago`
 // A signed percent to two places: Mansfield RS is a distance from its own average.
@@ -644,15 +651,49 @@ export const COLUMN_DEFS = {
   rs_rating_pos_prev20: { label: 'Place a month ago', fmt: num(0),
     desc: 'The RS Rating place this stock held 20 stored sessions earlier, about a month. Blank until that much history is stored, and for a stock that was off the liquid list then or is off it now. A climb is partly stocks bouncing back, so read it as a list to study, not a signal.' },
   rs_pos_1m: { label: '1M place', fmt: num(0),
-    desc: 'Where this stock ranks on its 1-month return among the same liquid stocks as the RS Rating place: 1 is the strongest. Ordered by the exact value behind Rank 1M, so no two share a place; blank for a stock off the liquid list. A single-window place flips more often than the overall one.' },
+    desc: 'Where this stock ranks on its 1-month return among liquid stocks: 1 is the strongest. Liquid here means not a fund, price $10 or more and $20M or more traded a day; unlike the RS Rating place it does not need a full year of price history, so a newer listing is ranked too and this list can be longer. Ordered by the exact value behind Rank 1M, so no two share a place; blank for a stock off the liquid list. A single-window place flips more often than the overall one.' },
   rs_pos_3m: { label: '3M place', fmt: num(0),
-    desc: 'Where this stock ranks on its 3-month return among the same liquid stocks as the RS Rating place: 1 is the strongest. Ordered by the exact value behind Rank 3M, so no two share a place; blank for a stock off the liquid list. A single-window place flips more often than the overall one.' },
+    desc: 'Where this stock ranks on its 3-month return among liquid stocks: 1 is the strongest. Liquid here means not a fund, price $10 or more and $20M or more traded a day; unlike the RS Rating place it does not need a full year of price history, so a newer listing is ranked too and this list can be longer. Ordered by the exact value behind Rank 3M, so no two share a place; blank for a stock off the liquid list. A single-window place flips more often than the overall one.' },
   rs_pos_6m: { label: '6M place', fmt: num(0),
-    desc: 'Where this stock ranks on its 6-month return among the same liquid stocks as the RS Rating place: 1 is the strongest. Ordered by the exact value behind Rank 6M, so no two share a place; blank for a stock off the liquid list. A single-window place flips more often than the overall one.' },
+    desc: 'Where this stock ranks on its 6-month return among liquid stocks: 1 is the strongest. Liquid here means not a fund, price $10 or more and $20M or more traded a day; unlike the RS Rating place it does not need a full year of price history, so a newer listing is ranked too and this list can be longer. Ordered by the exact value behind Rank 6M, so no two share a place; blank for a stock off the liquid list. A single-window place flips more often than the overall one.' },
   rs_pos_12m: { label: '12M place', fmt: num(0),
-    desc: 'Where this stock ranks on its 12-month return among the same liquid stocks as the RS Rating place: 1 is the strongest. Ordered by the exact value behind Rank 12M, so no two share a place; blank for a stock off the liquid list. A single-window place flips more often than the overall one.' },
+    desc: 'Where this stock ranks on its 12-month return among liquid stocks: 1 is the strongest. Liquid here means not a fund, price $10 or more and $20M or more traded a day; unlike the RS Rating place it does not need a full year of price history, so a newer listing is ranked too and this list can be longer. Ordered by the exact value behind Rank 12M, so no two share a place; blank for a stock off the liquid list. A single-window place flips more often than the overall one.' },
   rs_rating_session: { label: 'Ratings as of', fmt: v => v || '—',
     desc: 'The market session the RS Rating columns on this row describe. The rating job scores each completed session at 04:15 ET the next morning and the row is refreshed to it; blank when the stock has no rating for that session. It dates the rating columns only, not the price.' },
   rs_rating_score: { label: 'RS Rating score', fmt: num(4),
     desc: 'The unrounded weighted return the RS Rating is a rank of, where 1.0000 means no change over the weighted year. Dozens of stocks share each rating from 1 to 99; this number tells them apart and sets the RS Rating place. It orders stocks and is not a return to quote.' },
+  // ── UCT RS screens (unit U4, 2026-11-14) ──
+  // Filled only while RS_SCREENS_ENABLED is on: `rs_rating_prev20` by the pass after each build and
+  // after the 04:15 ET rating job, the other thirteen by the nightly build itself. `filters.meta()`
+  // leaves out their controls and seats until then. Every number in these sentences is a constant of
+  // `rs_setup` or `rs_columns`, and the label words are `rs_setup.SETUP_LABELS`
+  // (tests/test_rs_screens_u4_registration.py holds each pair together).
+  rs_rating_prev20: { label: 'RS a month ago', fmt: num(0),
+    desc: 'The RS Rating this stock held 20 stored sessions earlier, about a month. It is the rating now minus its 20-session change, so the three numbers always agree. Blank until 21 sessions of ratings are stored, and for a stock that had no rating that day.' },
+  rs_nh_count_20: { label: 'RS highs (20)', fmt: num(0),
+    desc: 'On how many of the last 20 sessions the RS line against SPY closed at a 52-week high. A high count means the stock kept outpacing the index, not once. Blank until the stock has about a year of daily bars. It counts the past and is not a forecast.' },
+  rs_nh_quiet: { label: 'RS high gap', fmt: num(0),
+    desc: 'How many sessions passed between the newest 52-week high in the RS line and the one before it. 1 means highs on back-to-back sessions; a large number means the newest high was the first in a long while. Blank when the bars we read hold fewer than two such highs.' },
+  rs_nh_red_bars_ago: { label: 'Down-day RS high', fmt: barsAgo,
+    desc: 'Sessions since the RS line last closed at a 52-week high on a market down day, a session SPY closed down 0.5% or more: "today" on that session, blank when the bars we read hold none. Holding up on a weak day is a house reading with no published test.' },
+  rs_nhbp_age: { label: 'RS high before price', fmt: barsAgo,
+    desc: 'Sessions since the RS line made a 52-week high that price has not yet followed: "today" on the session of the RS high. Price has followed once it closes within 2% of its own 52-week closing high. Blank from then on, when no such RS high came in the last 63 sessions, and when the bars cannot settle it.' },
+  rs_nh_span: { label: 'RS high span', fmt: num(0),
+    desc: 'Only on a session the RS line closed at a 52-week high: how many sessions the RS line had gone without closing this high, as far as the bars we read go. A larger number is a longer high: 500 means it had not closed this high in about two years. Blank on every other session.' },
+  px_below_high_pct: { label: 'Below high', fmt: pct,
+    desc: 'How far the last close sits under the highest close of the past 252 sessions, in percent. 0% is a close at that high and the number is never above 0. Measured on closing prices only. Blank until 252 closes exist, and for a stock whose price history contradicts itself.' },
+  rs_setup: { label: 'Setup', fmt: v => RS_SETUP_WORDS[v] || '—',
+    desc: 'Where price sits against its own averages, by the first rule that matches. Below its 50-day line. Extended: 4 or more ATRs above the 50-day average, 3 or more above the 21-day EMA, or more than 5% past a base pivot. At pivot: 3% below a base pivot to 5% above it. Pullback: a 20-session closing high in the last 15 sessions, then the low within 0.5 ATR of a rising 8-day or 21-day EMA. Otherwise an uptrend with no setup. Blank when a measure it needs is missing. It describes the chart and is not a recommendation.' },
+  rs_tight: { label: 'Tight range', fmt: yesDash,
+    desc: 'Yes when the recent closes sit in a tight range, the same reading as the Tight column. It is a second tag beside the Setup label, and it can sit next to any of them.' },
+  rs_flag: { label: 'Setup flag', fmt: v => RS_SETUP_WORDS[v] || '—',
+    desc: 'A caution beside the Setup label, the first that applies. Buyout pending: one session closed 15% or more above the prior close at least 5 sessions ago and every close since has stayed inside 1.5%. One-day move: over the last 63 sessions one session supplied more than half of the gain and was 15% or more on its own. New issue: fewer than 253 daily bars. Blank when none applies.' },
+  rs_near_buy: { label: 'Near a buy point', fmt: tri,
+    desc: 'Yes when the Setup label is At pivot or a Pullback, or the range is tight, and the stock is not Extended, Below its 50-day line, Buyout pending or a One-day move. It says where price sits against its own averages and is not a recommendation. Blank when the stock has no Setup label.' },
+  atr_ext_ema21: { label: 'ATR Ext 21E', fmt: num(1),
+    desc: 'How many ATRs the last close is above the 21-day EMA (negative when below), where ATR is the 14-session average true range. The Setup label reads Extended at 3 or more. Blank until the averages exist, and for a stock with no daily range to measure.' },
+  pct_vs_ema8: { label: 'EMA8', fmt: pct,
+    desc: 'The last close against the 8-day EMA, in percent: positive above it, negative below. The 8-day is one of the two averages the Setup label reads a pullback against. Blank for a stock whose price history contradicts itself.' },
+  pct_vs_ema21: { label: 'EMA21', fmt: pct,
+    desc: 'The last close against the 21-day EMA, in percent: positive above it, negative below. The 21-day is one of the two averages the Setup label reads a pullback against. Blank for a stock whose price history contradicts itself.' },
 }

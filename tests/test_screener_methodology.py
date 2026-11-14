@@ -170,7 +170,9 @@ def _rs_columns():
     from api.services.screener import rs_columns, rs_post_pass, snapshot_builder
     return [*rs_columns.COLUMNS, *snapshot_builder._RS_HISTORY_COLUMNS,
             *rs_columns.PHASE3_COLUMNS, *rs_columns.EXIT_COLUMNS,
-            *rs_post_pass.OWNED_COLUMNS]       # 2026-11-14: the RS screens post-pass, a fourth writer
+            *rs_post_pass.OWNED_COLUMNS,       # 2026-11-14: the RS screens post-pass, a fourth writer
+            # 2026-11-14 (unit U4): the build's two RS screens steps
+            *rs_columns.SCREEN_COLUMNS, *snapshot_builder.RS_SETUP_COLUMNS]
 
 
 def test_every_rs_column_publishes_a_method_with_a_stated_limit():
@@ -179,7 +181,9 @@ def test_every_rs_column_publishes_a_method_with_a_stated_limit():
     doc = M.all_methods()
     published = {m["column"]: m for m in doc["methods"]}
     cols = _rs_columns()
-    assert len(cols) == 35, cols        # 21 -> 26 on 2026-11-13: the five RS Exit Warning columns
+    assert len(cols) == 49, cols        # 21 -> 26 on 2026-11-13: the five RS Exit Warning columns
+    #        # 35 -> 49 on 2026-11-14 (unit U4): `rs_rating_prev20` joins the pass's columns, and the
+    #        #   build writes six RS-line measures and seven Setup label columns
     #        # 26 -> 35 on 2026-11-14: the nine RS screens columns `rs_post_pass.run` writes (unit U1)
     #        # 17 -> 20 on 2026-11-07: the Phase 3 three (unit 3-11); 20 -> 21 on 2026-11-10: rs_rating_9m (S1)
     for col in cols:

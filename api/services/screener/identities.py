@@ -700,6 +700,58 @@ def build_identities(*, percent_cols: Sequence[str] | None = None
         "`rs_post_pass.exact_places` numbers the liquid-floor rows 1..n with no "
         "ties and the pass stores that n on every ranked row",
         place_tol))
+    # RS screens, the build's own columns (unit U4, 2026-11-14). The six RS-line
+    # measures are cut from the SAME Phase 1 pass as the ten (`rs_columns.screen_fields`
+    # is handed `collect_one`'s), so each relation below is the maths. Checked over
+    # 4,000 random series, benchmark holes and short windows included, before it was
+    # made a proof: no violation.
+    out.append(implies(
+        "rs_nh_red_bars_ago_ge_rs_nh_bars_ago", "indicators",
+        ("rs_nh_red_bars_ago", "rs_nh_bars_ago"),
+        lambda r: True,
+        lambda r: r["rs_nh_red_bars_ago"] >= r["rs_nh_bars_ago"],
+        "the newest RS high on a market down day is no newer than the newest RS high",
+        "`relative_strength.both(rsNH, red)` is 1 only where rsNH is 1, and both ages "
+        "are `bars_ago_column` over columns of one Phase 1 pass"))
+    out.append(implies(
+        "rs_nhbp_age_is_rs_nh_bars_ago", "indicators",
+        ("rs_nhbp_age", "rs_nh_bars_ago"),
+        lambda r: True,
+        lambda r: r["rs_nhbp_age"] == r["rs_nh_bars_ago"],
+        "an RS high that price has not followed yet is the newest RS high",
+        "`relative_strength.event_age_unbroken_last` answers at the first RS new high "
+        "it meets walking back from the newest bar, which is the bar "
+        "`bars_ago_column` counts from; it is blank otherwise, never an older high"))
+    out.append(implies(
+        "rs_nh_span_implies_rs_new_high", "indicators",
+        ("rs_nh_span", "rs_new_high"),
+        lambda r: True,
+        lambda r: r["rs_new_high"] == 1,
+        "a span is stated only on a session the RS line is at a high",
+        "`rs_columns.screen_fields` writes `rs_nh_span` only when the newest `rsNH` is "
+        "1, and `rs_new_high` is that same value"))
+    out.append(band(
+        "rs_nh_count_20_within_its_window", "indicators", "rs_nh_count_20", 0.0, 20.0,
+        "the count of RS highs in 20 sessions is between 0 and 20",
+        "`relative_strength.rolling_count` over the last 20 values of a 0 / 1 column "
+        "(`rs_columns.SCREEN_NH_COUNT_WINDOW`; tests/test_screener_identities.py holds "
+        "the 20 to that constant)",
+        Tol(value=0.0, why="a whole-number count has no tolerance")))
+    out.append(band(
+        "px_below_high_pct_at_or_below_zero", "indicators", "px_below_high_pct", -100.0, 0.0,
+        "the close is never above its own highest close of the window",
+        "`relative_strength.close_below_high_pct_last` divides the close by the maximum "
+        "of a window that includes it, over positive closes only: the ratio is in (0, 1]",
+        Tol(value=0.0, why="the maximum of a window is exact; the stored value is "
+                           "rounded toward the same side of zero")))
+    out.append(implies(
+        "rs_tight_is_tight_consolidation", "multi_candle",
+        ("rs_tight", "tight_consolidation"),
+        lambda r: True,
+        lambda r: int(r["rs_tight"]) == int(r["tight_consolidation"]),
+        "the Setup label's tight tag is the Tight Consolidation column",
+        "`snapshot_builder._rs_setup_fields` hands the row's own `tight_consolidation` "
+        "to `rs_setup.label`, which returns it as 0 / 1"))
     # The bar-derived flags are built from ONE ANOTHER in `relative_strength`
     # and land in the row through one `rs_columns.collect_one` call, so the
     # relations below are the maths, not a plausibility guess.

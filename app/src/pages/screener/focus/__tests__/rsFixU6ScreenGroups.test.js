@@ -8,9 +8,13 @@
 import { expect, test } from 'vitest'
 import { GROUPS, groupOf } from '../screenGroups'
 
+// 2026-11-14 (RS screens U4): with RS_SCREENS_ENABLED on the server sends two more ids in the same
+// group (Top RS Rating, UCT RS Leaders); the three it keeps (new high, before price, exit warning)
+// carry new specs under their old ids.
 const RS_IDS = ['starter_rs_new_high', 'starter_rs_nh_before_price', 'starter_rs_nh_red_day',
   'starter_rs_green_on_red', 'starter_rs_cross_up_21ema', 'starter_rs_mansfield_positive',
-  'starter_rs_leaders_equal_weight']
+  'starter_rs_leaders_equal_weight', 'starter_rs_exit_warning_5', 'starter_rs_quicksand_5',
+  'starter_rs_top_rating', 'starter_rs_leaders']
 
 test('the RS starters resolve to their own group, not the momentum fallback', () => {
   expect(GROUPS.some(g => g.key === 'relative_strength')).toBe(true)
