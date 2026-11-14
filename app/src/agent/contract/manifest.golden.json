@@ -358,8 +358,8 @@
    "name": "chart.setSetting",
    "domain": "chart",
    "target": "chart",
-   "summary": "Change one chart display setting from UCT's approved list (grid, crosshair, scale text, legend, watermark, labels, event/IPO markers, dark-pool levels, swing labels, prev-day lines, countdown, title, color mode, thin bars, inverted scale, gradient background, Volume pane look, Heikin Ashi, Chart IQ, position calculator, Info row / Bar info fields).",
-   "hints": "value = true/false for on/off settings (crosshair.mode, header.legendMode and bgMode too); a hex color (#2962ff) for colors; a number in range. Allowed — crosshair.mode, header.legendMode: always|hold|off; textSize: 8|10|11|12|14|16|18|20|22|24|28|32|40; header.titleMode: ticker|company|both; candleColorMode: onecolor|netchange|openclose; swingLabels.sensitivity: low|medium|high; crosshair.width, prevDayLevels.high|low|close.width, volume.maLineWidth: 1|2|3|4; crosshair.style, prevDayLevels.high|low|close.style, volume.maLineStyle: solid|dashed|dotted; watermark.sizeScale: 0.5|0.75|1|1.25|1.5|2|2.5|3|4; watermark.weight: 300|400|500|600|700|800; bgMode: solid|gradient; volume.barStyle: columns|histogram; volume.paneHeightPct: 8–45 (whole); volume.maPeriod: 0–500 (whole); watermark.opacity|x|y: 0–1; positionCalc.accountSize: 0–1000000000; positionCalc.riskPct: 0–100. header.fields|barInfo: +/-field (\"+Market Cap\"). Anything else: no op — say where it lives in Chart Settings.",
+   "summary": "Change one chart display setting from UCT's approved list (grid, crosshair, scale text, legend, watermark, labels, event/IPO markers, dark-pool levels, swing labels, prev-day lines, countdown, title, color mode, thin bars, inverted scale, gradient background, Volume pane look, Heikin Ashi, Chart IQ, position calculator, Info row / Bar info fields, light/dark palette).",
+   "hints": "value = true/false for on/off settings (crosshair.mode, header.legendMode and bgMode too); hex (#2962ff) for colors; a number in range. Allowed — crosshair.mode, header.legendMode: always|hold|off; textSize: 8|10|11|12|14|16|18|20|22|24|28|32|40; header.titleMode: ticker|company|both; candleColorMode: onecolor|netchange|openclose; swingLabels.sensitivity: low|medium|high; crosshair.width, prevDayLevels.high|low|close.width, volume.maLineWidth: 1|2|3|4; crosshair.style, prevDayLevels.high|low|close.style, volume.maLineStyle: solid|dashed|dotted; watermark.sizeScale: 0.5|0.75|1|1.25|1.5|2|2.5|3|4; watermark.weight: 300|400|500|600|700|800; bgMode: solid|gradient; volume.barStyle: columns|histogram; theme: dark|light; volume.paneHeightPct: 8–45 (whole); volume.maPeriod: 0–500 (whole); watermark.opacity|x|y: 0–1; positionCalc.accountSize: 0–1000000000; positionCalc.riskPct: 0–100. header.fields|barInfo: +/-field (\"+Market Cap\"). Anything else: no op — say where it lives in Chart Settings.",
    "args": {
     "type": "object",
     "properties": {
@@ -449,6 +449,7 @@
        "showChartIq",
        "positionCalc.accountSize",
        "positionCalc.riskPct",
+       "theme",
        "header.fields",
        "header.barInfo"
       ]
@@ -6729,6 +6730,39 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "chartShare.export",
+   "domain": "chartShare",
+   "target": "chart",
+   "summary": "Download ONE chart as a PNG (its Share → Download PNG) and/or open its Share menu, where Copy Share URL copies its link — a browser lets only a click copy, so the Agent never copies. Nothing on the chart changes; no Undo.",
+   "hints": "target = the chart. output: image = download a PNG / screenshot; link = a share link (opens the Share menu); both. For the Journal, use widget.sendToJournal.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "output": {
+      "type": "string",
+      "enum": [
+       "image",
+       "link",
+       "both"
+      ]
+     }
+    },
+    "required": [
+     "output"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
    "query": false,
    "argAliases": null,
    "coerce": null,

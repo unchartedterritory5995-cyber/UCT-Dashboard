@@ -114,7 +114,18 @@ describe('chart settings descriptors — UI-equivalent writes', () => {
     expect(settingUnavailable(settingDescriptor('volume.paneHeightPct'), withSetting(mergeChartSettings({}), settingDescriptor('volume.visible'), false))).toMatch(/Show Volume first/)
     expect(settingUnavailable(settingDescriptor('markers.ipoColor'), mergeChartSettings({}))).toBe(null)   // ipo marker is on by default
     // the header Info-row flags stay known (header.fields is the stored truth) — KNOWING ≠ DOING
-    for (const id of ['header.showMarketCap', 'header.showNextEarnings', 'header.showUctRating', 'volume.plotStyle', 'theme']) expect(settingDescriptor(id).agent, id).toBe('known')
+    for (const id of ['header.showMarketCap', 'header.showNextEarnings', 'header.showUctRating', 'volume.plotStyle']) expect(settingDescriptor(id).agent, id).toBe('known')
+    // Shift+T's palette: KNOWN → ELIGIBLE (chartShare family, 2026-11-13) — dark | light, written as Shift+T's updateField writes
+    // it ({ ...cs, theme, preset: 'custom' }); writing the old value back is the exact inverse; the Sunrise canvas refuses it
+    const th = settingDescriptor('theme')
+    expect(th).toMatchObject({ agent: 'eligible', type: 'enum', options: ['dark', 'light'], fixedBy: ['sunrise'] })
+    const dark = mergeChartSettings({})
+    const light = withSetting(dark, th, 'light')
+    expect(light).toEqual({ ...dark, theme: 'light', preset: 'custom' })
+    expect(withSetting(light, th, 'dark')).toEqual({ ...dark, theme: 'dark', preset: 'custom' })
+    expect(coerceSettingValue(th, 'sepia').ok).toBe(false)
+    expect(settingUnavailable(th, dark, { canvasTheme: 'sunrise' })).toMatch(/Sunrise theme/)
+    expect(settingUnavailable(th, light)).toBeNull()                  // the light palette never locks its own switch
   })
 
   it('the UI prerequisite holds: thin bars only on Bars/HLC charts', () => {

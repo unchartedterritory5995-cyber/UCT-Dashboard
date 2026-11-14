@@ -144,3 +144,12 @@ def test_the_guard_still_passes_ordinary_company_and_earnings_prose():
     for text in ("The company reported earnings after the close.", "Open the company panel on the chart to read the profile.",
                  "The earnings strip shows quarterly EPS and revenue.", "Check the stock's earnings date before entering."):
         assert guard.suspicious(text) is False, text
+
+
+def test_the_chart_share_action_is_a_CHART_action_withheld_bare():
+    # chartShare.export acts on ONE chart's Share popover (Download PNG / the menu opened): the chart domain, never history
+    assert v2.domain_for("chartShare.export") == "chart"
+    assert guard.suspicious(_bare("chartShare.export")) is True
+    for text in ("Share the chart with a screenshot after the close.", "Export the chart as a PNG and post it.",
+                 "The share link opens the same chart for whoever clicks it."):
+        assert guard.suspicious(text) is False, text

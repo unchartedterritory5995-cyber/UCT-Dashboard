@@ -379,6 +379,11 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
         // C1-178: right-click → "Ask AI about {sym}": the menu's own opener (openAskAi below), never a second route
         canAskAi: () => !!askAiRef.current?.can?.(),
         askAi: () => !!askAiRef.current?.open?.(),
+        // chartShare.export: THIS chart's Share popover (ChartPane → StockChart): Share → Download PNG (resolves to the file
+        // name, or null when no PNG was made), the popover opened for the member's own Copy Share URL click, its read-back
+        shareDownload: async () => (await paneRef.current?.shareDownload?.()) || null,
+        shareOpen: () => !!paneRef.current?.shareOpen?.(),
+        shareIsOpen: () => !!paneRef.current?.shareIsOpen?.(),
         // ONE onOptsChange for settings + tf; the ticker through the colour group.
         // `settings` present (even null) means "store exactly this blob".
         // `watermarkPos` is the widget's own (every tab shows it), in the shape endWatermarkAdjust / resetWatermark write.

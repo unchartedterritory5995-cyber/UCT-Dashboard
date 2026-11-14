@@ -191,12 +191,18 @@ const ELIGIBLE = [
   E('showChartIq', 'tools', 'Chart IQ pattern recognition', 'bool', { ui: 'Chart toolbar → Chart IQ (server-gated: drawn only where Chart IQ is served)', words: ['chart iq', 'pattern recognition', 'patterns'] }),
   N('positionCalc.accountSize', 'tools', 'Position calculator account size', { ui: 'Position Calculator', min: 0, max: 1e9 }),
   N('positionCalc.riskPct', 'tools', 'Position calculator risk per trade (%)', { ui: 'Position Calculator', min: 0, max: 100 }),
+  // Charts family (2026-11-13): KNOWN → ELIGIBLE. Shift+T's own write (StockChart toggle:theme → updateField('theme'): a plain
+  // field, the same withSetting shape). StockChart themeColors reads it on every canvas but Sunrise (fixedBy below); while it is
+  // 'light' the palette sets its own canvas, grid and crosshair colors (the rows fixedBy 'light' refuse, as they always did).
+  E('theme', 'canvas', 'Light/dark palette (Shift+T)', 'enum', { options: ['dark', 'light'], ui: 'Shift+T on the chart' }),
 ]
 
 // What StockChart's themeColors ignores (a Sunrise canvas has no grid and its own colors; the light palette has its own)
 const FIXED_BY = {
   'grid.visible': ['sunrise'], 'grid.color': ['sunrise', 'light'], 'crosshair.color': ['sunrise', 'light'],
   bgMode: ['sunrise', 'light'], 'bgGradient.top': ['sunrise', 'light'], 'bgGradient.bottom': ['sunrise', 'light'],
+  // the Shift+T palette itself: a Sunrise canvas ignores it (themeColors returns Sunrise's colors first)
+  theme: ['sunrise'],
 }
 for (const d of ELIGIBLE) {
   if (FIXED_BY[d.id]) d.fixedBy = FIXED_BY[d.id]
@@ -243,7 +249,6 @@ const KNOWN = [
   K('header.colors.*', 'header', 'Header colors', 'Chart Settings → Header'),
   K('volume.plotStyle', 'volume', 'Volume plot style (declared, not yet honoured)', 'Chart Settings → Indicators → Volume'),
   K('drawingDefaults.*', 'drawings', 'Default drawing style', 'drawing → Save as default'),
-  K('theme', 'canvas', 'Light/dark palette (Shift+T)', 'Shift+T on the chart'),
 ]
 
 // ── internal: bookkeeping or dead data, never offered ──

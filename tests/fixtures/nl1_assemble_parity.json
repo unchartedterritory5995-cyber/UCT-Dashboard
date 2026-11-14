@@ -166,6 +166,7 @@
   "chartMenu.resetWatermark": "chartMenu",
   "chartFeatures.companyPanel": "chartFeatures",
   "chartFeatures.earningsStrip": "chartFeatures",
+  "chartShare.export": "chartShare",
   "drawing.positionCalculator": "drawingExtras",
   "drawing.saveDefaults": "drawingExtras",
   "drawing.favoriteTool": "drawingExtras",
@@ -216,6 +217,10 @@
   {
    "id": "chartFeatures",
    "title": "A chart’s Company Info side panel (add, expand, collapse, remove, its tabs) and its Earnings Strip under the chart (add, remove)"
+  },
+  {
+   "id": "chartShare",
+   "title": "A chart as a PNG (Share → Download PNG), or its Share menu for the chart’s link"
   },
   {
    "id": "chartGrid",
@@ -411,6 +416,10 @@
      {
       "id": "chartFeatures",
       "title": "A chart’s Company Info side panel (add, expand, collapse, remove, its tabs) and its Earnings Strip under the chart (add, remove)"
+     },
+     {
+      "id": "chartShare",
+      "title": "A chart as a PNG (Share → Download PNG), or its Share menu for the chart’s link"
      },
      {
       "id": "chartGrid",
@@ -624,6 +633,10 @@
      {
       "id": "chartFeatures",
       "title": "A chart’s Company Info side panel (add, expand, collapse, remove, its tabs) and its Earnings Strip under the chart (add, remove)"
+     },
+     {
+      "id": "chartShare",
+      "title": "A chart as a PNG (Share → Download PNG), or its Share menu for the chart’s link"
      },
      {
       "id": "chartGrid",
@@ -851,6 +864,10 @@
      {
       "id": "chartFeatures",
       "title": "A chart’s Company Info side panel (add, expand, collapse, remove, its tabs) and its Earnings Strip under the chart (add, remove)"
+     },
+     {
+      "id": "chartShare",
+      "title": "A chart as a PNG (Share → Download PNG), or its Share menu for the chart’s link"
      },
      {
       "id": "chartGrid",
@@ -1090,6 +1107,10 @@
       "title": "A chart’s Company Info side panel (add, expand, collapse, remove, its tabs) and its Earnings Strip under the chart (add, remove)"
      },
      {
+      "id": "chartShare",
+      "title": "A chart as a PNG (Share → Download PNG), or its Share menu for the chart’s link"
+     },
+     {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
@@ -1299,6 +1320,10 @@
       "title": "A chart’s Company Info side panel (add, expand, collapse, remove, its tabs) and its Earnings Strip under the chart (add, remove)"
      },
      {
+      "id": "chartShare",
+      "title": "A chart as a PNG (Share → Download PNG), or its Share menu for the chart’s link"
+     },
+     {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
@@ -1440,6 +1465,7 @@
     "compareGroups",
     "chartMenu",
     "chartFeatures",
+    "chartShare",
     "chartGrid",
     "boardEdit",
     "workspace",
@@ -1632,6 +1658,7 @@
     "chartMenu.resetWatermark",
     "chartFeatures.companyPanel",
     "chartFeatures.earningsStrip",
+    "chartShare.export",
     "drawing.positionCalculator",
     "drawing.saveDefaults",
     "drawing.favoriteTool",

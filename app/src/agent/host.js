@@ -158,6 +158,9 @@ export function buildChartSource({ chartApiById, getWidgets, selectedChart = nul
             ? { canOpenSettings: !!e.api.agent.canOpenSettings?.(), settingsOpen: !!e.api.agent.settingsOpen?.() } : {}),
           // C1-178: the right-click "Ask AI about {sym}" door (absent = none: chartMenu.askAi refuses)
           ...(typeof e.api.agent.askAi === 'function' ? { canAskAi: !!e.api.agent.canAskAi?.() } : {}),
+          // chartShare.export: the chart's Share popover (Download PNG / Copy Share URL) and whether it is open now (the
+          // read-back). Absent when the adapter has no Share doors (a Multi Chart cell): refused there.
+          ...(typeof e.api.agent.shareDownload === 'function' ? { canShare: true, shareOpen: !!e.api.agent.shareIsOpen?.() } : {}),
           // chartFeatures.companyPanel / earningsStrip: the widget's Company Info panel + Earnings Strip (opts.dock, RAW; per
           // WIDGET, shared by its `dockTabs` chart tabs). Absent when the chart has no dock (a Multi Chart cell): refused.
           ...(e.api.agent.canDock?.() === true ? { canDock: true, dock: e.r.dock ?? null, dockTabs: e.r.dockTabs || 1 } : {}),
@@ -235,6 +238,16 @@ export function buildChartSource({ chartApiById, getWidgets, selectedChart = nul
     askAi: (ref) => {
       const e = entries().find(x => x.ref === ref)
       try { return !!e?.api.agent.askAi?.() } catch { return false }
+    },
+    // chartShare.export: THIS chart's Share → Download PNG (resolves to the file name, or null: no PNG was made) and its Share
+    // popover opened (Copy Share URL stays the member's click: a browser lets only a click write the clipboard)
+    shareDownload: async (ref) => {
+      const e = entries().find(x => x.ref === ref)
+      try { return (await e?.api.agent.shareDownload?.()) || null } catch { return null }
+    },
+    shareOpen: (ref) => {
+      const e = entries().find(x => x.ref === ref)
+      try { return !!e?.api.agent.shareOpen?.() } catch { return false }
     },
     // The Time Navigator's jump on this chart (a view; see ChartWidget's adapter).
     goTo: (ref, ms) => {
