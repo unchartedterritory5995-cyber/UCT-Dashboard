@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import ast
 import importlib
+import json
 import os
 import random
 import re
@@ -820,3 +821,79 @@ def test_adoption_voids_every_proof_and_moves_every_rev(adoption, tmp_path):
     assert bars_sqlite.series_meta("T00", "5")["rev"] >= before_ms
     bars_sqlite.record_verified("T00", "5", before_s - 1)       # a proof from before
     assert bars_sqlite.series_meta("T00", "5")["verified_through"] is None
+
+
+# ── a busy old store: the swap is deferred to the next boot ─────────────────────
+class _Exited(BaseException):
+    """Stands in for os._exit in tests (BaseException: nothing in the code catches it)."""
+
+
+def _busy_old_store(ds, monkeypatch, local):
+    real = ds._truncate_checkpoint
+
+    def ckpt(path, budget):
+        if os.path.abspath(path) == os.path.abspath(str(local)):
+            return False                     # a reader that never lets go
+        return real(path, budget)
+    monkeypatch.setattr(ds, "_truncate_checkpoint", ckpt)
+    return real
+
+
+def test_a_busy_swap_is_deferred_and_finished_at_boot(adoption, tmp_path, monkeypatch):
+    ds, fake, local, snap = adoption
+    row = ("LATE", "D", 20210105)
+    _write_during_pass_one(ds, monkeypatch, row)
+    real = _busy_old_store(ds, monkeypatch, local)
+
+    def exit_now():
+        raise _Exited()
+    with pytest.raises(_Exited):
+        ds.adopt_clustered_store(str(tmp_path), defer_swap=exit_now)
+    work = tmp_path / "adopt_1700000000"
+    assert _layout(local) == "rowid", "the old store is still the live one"
+    assert (work / ".swap_at_boot").exists() and (work / ".pending_pairs.json").exists()
+    assert ["LATE", "D"] in json.loads((work / ".pending_pairs.json").read_text())
+    from api.services import bars_sqlite
+    assert bars_sqlite._tracked_writes is None
+
+    # the next boot: a fresh process, nothing has opened bars.db yet
+    bars_sqlite._drop_local_conn()
+    monkeypatch.setattr(ds, "_truncate_checkpoint", real)
+    assert ds.complete_deferred_swap(str(tmp_path)) == "adopted"
+    assert _layout(local) == "clustered" and _no_tmp_left(tmp_path)
+    assert (tmp_path / ".adopted_clustered").exists()
+    c = sqlite3.connect(str(local))
+    assert c.execute("SELECT COUNT(*) FROM ohlcv WHERE ticker=? AND tf=? AND ts=?",
+                     row).fetchone()[0] == 1, "a write during pass 1 was lost"
+    assert c.execute("SELECT COUNT(*) FROM ohlcv WHERE ticker='NEWT'").fetchone()[0] == 1
+    c.close()
+    assert ds.adopt_clustered_store(str(tmp_path)) == "done"
+    assert ds.complete_deferred_swap(str(tmp_path)) == "none"
+
+
+def test_a_deferral_whose_process_lives_on_is_withdrawn(adoption, tmp_path, monkeypatch):
+    """If the exit callback returns, writers resume untracked; a boot swap would then lose
+    their rows, so the deferral must not survive."""
+    ds, fake, local, snap = adoption
+    _busy_old_store(ds, monkeypatch, local)
+    assert ds.adopt_clustered_store(str(tmp_path), defer_swap=lambda: None) == "failed"
+    work = tmp_path / "adopt_1700000000"
+    assert not (work / ".swap_at_boot").exists()
+    assert (work / ".verified").exists(), "the verified copy is kept for a resume"
+    assert ds.complete_deferred_swap(str(tmp_path)) == "none"
+    assert _layout(local) == "rowid"
+
+
+def test_busy_without_a_defer_callback_fails_as_before(adoption, tmp_path, monkeypatch):
+    ds, fake, local, snap = adoption
+    _busy_old_store(ds, monkeypatch, local)
+    assert ds.adopt_clustered_store(str(tmp_path)) == "failed"
+    assert not (tmp_path / "adopt_1700000000" / ".swap_at_boot").exists()
+    assert _layout(local) == "rowid"
+
+
+def test_boot_swap_with_nothing_pending_does_nothing(tmp_path):
+    import api.services.data_sync as ds
+    (tmp_path / "adopt_1700000000").mkdir()             # a kept copy, no deferral
+    assert ds.complete_deferred_swap(str(tmp_path)) == "none"
+    assert (tmp_path / "adopt_1700000000").exists()
