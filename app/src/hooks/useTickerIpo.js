@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import useSWR, { preload } from 'swr'
+import { tickerIpoKey } from './tickerIpoKey'
 
 // Per-symbol IPO / first-listing date for the chart's first-bar "IPO" badge.
 // The listing date is immutable, so we persist it to localStorage and seed SWR's
@@ -77,10 +78,12 @@ export function prefetchTickerIpo(sym) {
   })
 }
 
-export default function useTickerIpo(sym) {
+export default function useTickerIpo(sym, isPaused) {
   const fallbackData = useMemo(() => (sym ? lsGet(sym) : undefined), [sym])
+  // `isPaused` (optional): a chart passes its rest gate, so a symbol the member is racing past is not
+  // asked for (components/chart/restedReaders.js). Without it this is an ordinary read.
   const { data } = useSWR(
-    sym ? `/api/ticker-ipo/${encodeURIComponent(sym)}` : null,
+    tickerIpoKey(sym),
     fetcher,
     {
       fallbackData,
@@ -93,6 +96,7 @@ export default function useTickerIpo(sym) {
       // While the server is still resolving the first-trade date, ask again so the
       // chart picks up the final answer in-session; a final answer stops polling.
       refreshInterval: (d) => (d && d.first_trade_final === false ? NON_FINAL_POLL_MS : 0),
+      ...(isPaused && { isPaused }),
     },
   )
   return data || NULL_IPO

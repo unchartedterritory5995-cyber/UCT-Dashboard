@@ -702,6 +702,21 @@ def build_identities(*, percent_cols: Sequence[str] | None = None
         "an RS high on a red day is an RS high",
         "`relative_strength.both(rsNH, red)` is 1 only where rsNH is 1, read off "
         "the same bar by the same collector call"))
+    # RS Exit Warnings (2026-11-13): the newest warning is never older than any
+    # one warning, because `rs_exit_bars_ago` is the age of `rs_exit_latest`'s bar,
+    # the newest bar on which ANY of the three event columns fired.
+    for col, what in (("rs_quick_break_bars_ago", "Quick Break"),
+                      ("rs_quicksand_bars_ago", "Quicksand"),
+                      ("rs_dead_break_bars_ago", "Grateful Dead Break")):
+        out.append(implies(
+            f"rs_exit_bars_ago_le_{col}", "indicators",
+            ("rs_exit_bars_ago", col),
+            lambda r: True,
+            lambda r, c=col: r["rs_exit_bars_ago"] <= r[c],
+            f"the newest RS exit warning is no older than the last {what}",
+            "`rs_columns._exit_values` reads both ages off the same "
+            "`compute_rs_exit_columns` call: the newest warning's bar is the newest "
+            "bar any event column fired on"))
     out.append(implies(
         "rs_new_high_implies_age_zero", "indicators",
         ("rs_new_high", "rs_nh_bars_ago"),

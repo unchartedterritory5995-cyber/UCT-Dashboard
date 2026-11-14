@@ -104,7 +104,7 @@ def test_a_missing_or_wrong_stamp_is_refused(stamp):
 
 def test_a_document_without_a_run_half_is_not_asked():
     assert rt.run_half_source_refusal({"compute": {"kind": "ast"}}, None) is None
-    assert rt.run_half_source_refusal(rt.without_run_half(sent()), None) is None
+    assert rt.run_half_source_refusal(rt.without_run_reads(sent()), None) is None
 
 
 def test_a_share_copy_drops_the_run_half_and_a_fork_keeps_it():

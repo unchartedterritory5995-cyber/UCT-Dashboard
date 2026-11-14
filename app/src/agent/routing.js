@@ -215,9 +215,29 @@ export const GROUPS = [
       /\b(daily|weekly|monthly|intraday|hourly)( charts?)? only\b|\bonly (show|display|draw|on)\b.*\b(daily|weekly|monthly|intraday|hourly)\b|\bexcept (on )?the (daily|weekly|monthly|intraday)\b/,
       // ⭐ PACKAGE 3: the indicator just built / changed onto another chart ("apply it to my other chart", "copy it to the SPY chart")
       /\b(apply|put|copy|add|place)\b.*\b(it|this|that|them|those)\b.*\b(other|another|both|all)\b.*\bcharts?\b|\bcopy (it|this|that|them|those)\b.*\bcharts?\b/] },
+  // calc-TF family (indicatorStyle.setCalcTimeframe) in its OWN one-action group, WORDS-ONLY (as compareGroups / chartMenu): a 7th
+  // indicatorSetup action made that group outsize boardEdit in the per-request budget, and an unrecognised request ("show tomorrow
+  // on the terminal", agentExecTune C3-148) lost widget.setOption from its v2 first call (firstCallRatchet, AUDIT #1171 hold). Never
+  // a filler, so indicatorSetup keeps master's size and title. Its words: which bars COMPUTE it — "calculate the RSI on weekly",
+  // "make the 50 sma use the weekly bars", "a weekly RSI", "back to the chart's timeframe" (the chart's own timeframe words stay charts').
+  { id: 'indicatorCalc', title: 'An indicator calculated on another timeframe\'s bars (a weekly RSI on a daily chart), or back on the chart\'s own', domains: [], fillLast: true, wordsOnly: true,
+    actions: ['indicatorStyle.setCalcTimeframe'],
+    words: [
+      /\b(calculat\w*|comput\w*|calc)\b.*\b(daily|weekly|monthly|hourly|\d+ ?(min|minute|hour)s?|time ?frame)\b/,
+      /\b(use|uses|using|run on)\b (the )?(daily|weekly|monthly|hourly)( bars| data| candles| closes)?$/,
+      /\b(daily|weekly|monthly|hourly) (rsi|macd|atr|adx|cci|mfi|obv|stoch\w*|bollinger\w*|vwap|\d{1,3} ?(sma|ema|wma|ma)|(sma|ema|wma) ?\d{1,3})\b/,
+      /\bchart'?s (own )?time ?frame\b|\bcalc(ulation)? time ?frame\b/] },
   { id: 'definitions', title: 'Indicator definitions: search UCT\'s and your own indicators, describe one, save a copy, delete one of yours', domains: ['definition'], fillLast: true,
     // CG-24 (corpus #774): "are there any volatility indicators", "which momentum indicators do you have" — a SEARCH of the catalog
     words: [/\b(my|saved|custom|own) indicators?\b/, /\bindicators? (for|that|which|to)\b/, /^(?!.*\b(?:remove|delete|clear|hide|show|add|drop|take off)\b)(?!.*\b(?:on|in) (?:my|this|the|that) charts?\b).*\b(?:(?:any|which|what|some|other|more) (?:[a-z-]+ ){1,2}indicators|indicators? (?:do you have|are available|exist)|are there (?:any )?(?:[a-z-]+ ){0,2}indicators?)\b/, /^(?!.*\b(?:on|in) (?:my|this|the|that) charts?\b)(?!.*\bon (?:here|it|there)\b).*\b(find|search|look for|what) .*\bindicators?\b/, /\b(describe|explain|what does)\b.*\b(indicator|rsi|macd|atr|study)\b/, /\b(delete|remove|copy|duplicate)\b.*\b(my|saved|custom)\b(?:\s+[a-z0-9-]+){0,3}\s+(indicator|formula|study)\b/] },
+  // Charts family (2026-11-12): a chart's Volume Profile overlay (volumeProfile.set), in its OWN words-only group (as chartMenu):
+  // never a filler, so no existing group and no unrecognised request changes. The words name the PROFILE itself (volume
+  // profile / VPVR / visible range volume); "VP" only beside an on / off verb or a bins word. A bare "volume" (the Volume
+  // pane), "VWAP" and volume alerts are not its words.
+  { id: 'volumeProfile', title: 'A chart’s Volume Profile overlay: on / off, bins, colours', domains: ['volumeProfile'], fillLast: true, wordsOnly: true,
+    words: [
+      /\bvolume[\s-]?profiles?\b|\bvol profile\b|\bvpvr\b|\bvisible range volume\b/,
+      /\b(?:add|show|hide|remove|turn on|turn off|enable|disable|switch on|switch off|toggle)\s+(?:the\s+|my\s+)?vp\b|\bvp\s+(?:on|off|bins?)\b/] },
   // ⭐ W1-B (2026-11-02): the TIME-ANCHORED tools in their OWN small group (as chartSetup is), so the drawings group keeps
   // its size and every group still fits a reroute beside the NL-1 core. Membership is by ACTION NAME (`actions`), not by
   // domain: the tools stay `drawing.*` on the drawing kind. Listed BEFORE drawings so "draw a trendline from…" takes this.
@@ -263,6 +283,21 @@ export const GROUPS = [
       /\bdraw(?:ing)?\s+on\s+(?:my|the|a|another|this|that)?\s*(?:[\w'’-]+\s+){0,2}boards?\b/,
       /\b(?:rename|delete|remove|erase)\s+(?:my|the|this|that)?\s*(?:[\w'’-]+\s+){0,2}boards?\b/,
       /\b(?:new|another|create|make|start)\s+(?:(?:me|a|an|another|new)\s+)*(?:drawing\s+)?boards?\b/, /\bdrawing\s+boards?\b/] },
+  // Charts family (2026-11-12): the UCT Intelligence chart INDICATOR (uctIntelligence.set), its OWN words-only group (as chartMenu):
+  // never a filler, so no existing group and no unrecognised request changes. The words name the indicator, or one of its panel's
+  // switches with its own label (auto patterns, pattern labels, candlestick patterns, the setups / caution / S&R layer) or a toggle
+  // verb on it. ⛔ "Modify / create / build an indicator WITH UCT Intelligence" is indicator AUTHORING (indicatorAuthoring.js, the
+  // guide's 'modify' / 'create'): an authoring verb, "with / using UCT Intelligence" or a new / custom indicator never selects
+  // this group. A bare "patterns" / "setups" / "labels" / "support" (a question, a scan, price labels, a drawn level) is not enough.
+  { id: 'uctIntelligence', title: 'The UCT Intelligence chart indicator: add or remove it on a chart, turn its layers on or off (Auto patterns, Pattern labels, Support & resistance, Candlestick patterns, Setups, Caution)',
+    domains: ['uctIntelligence'], fillLast: true, wordsOnly: true,
+    words: [
+      /^(?!.*\b(?:modify|modif(?:ied|ying)|create|creating|build|building|write|writing|draft|drafting|edit|editing|author(?:ing)?|generate|design)\b)(?!.*\b(?:with|using|via|through|ask|asking) (?:the )?uct[\s-]?intel)(?!.*\b(?:new|own|custom) (?:\w+ )?indicators?\b).*\buct[\s-]?intel(?:ligence)?\b/,
+      /\bauto(?:matic)?[\s-]?(?:chart )?patterns?\b|\bpattern (?:labels?|numbers|overlay|layer|drawings?)\b|\b(?:chart )?patterns? (?:button|overlay|layer|toggle)\b/,
+      /^(?!.*\b(?:recognition|chart iq)\b).*\b(?:turn|switch|toggle)\s+(?:on\s+|off\s+)?(?:the\s+|my\s+)?(?:chart\s+)?patterns\b|\bhide\s+(?:the\s+)?(?:chart\s+)?patterns\b/,
+      /\b(?:turn|switch|toggle|show|hide|enable|disable)\b.*\bcandlestick patterns?\b|\bcandlestick (?:pattern )?(?:markers|layer)\b/,
+      /\b(?:turn|switch|toggle|enable|disable)\s+(?:on\s+|off\s+)?(?:the\s+|my\s+)?(?:confirmed\s+)?(?:setups|caution)\b|\b(?:setups?|caution|support\s*(?:&|and|\/)\s*resistance|s\/r) (?:layer|lines|toggle)\b|\bcaution setups?\b/,
+      /\b(?:turn|switch|toggle|enable|disable)\b.*\bsupport\s*(?:&|and|\/)\s*resistance\b/] },
   { id: 'lists', title: 'Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)', domains: ['watchlist'],
     words: [/\bwatch ?lists?\b/, /\blists?\b/, /\b(add|put|remove|drop)\b.+\b(to|into|from|off)\b/] },
   { id: 'screener', title: 'Screener (run screens, saved screens: run, save, copy, rename, delete)', domains: ['screener'],

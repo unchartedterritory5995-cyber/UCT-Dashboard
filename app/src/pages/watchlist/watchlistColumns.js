@@ -31,6 +31,7 @@ export const EXTRA_COLS = [
   { key: 'attention', label: 'Attention' },
   { key: 'atr', label: 'ATR %' },
   { key: 'a50', label: 'ATR from 50SMA' },
+  { key: 'rsexit', label: 'RS Exit Warning' },
 ]
 export const DEFAULT_COL_ORDER = ['flag', 'sym', 'price', 'vol', 'chg']   // reorderable by dragging a header
 // [full label, abbreviation].
@@ -48,6 +49,7 @@ export const COL_LABELS = {
   weight: ['Weight %', 'Wt %'],
   atr: ['ATR %', 'ATR%'], a50: ['ATR from 50SMA', '50SMA'],
   attention: ['Attention', 'Attn'],
+  rsexit: ['RS Exit Warning', 'RS Exit'],
 }
 // Text columns — sorted alphabetically, not numerically.
 export const TEXT_COLS = new Set(['name', 'sector', 'industry', 'theme'])

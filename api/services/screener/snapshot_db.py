@@ -8,6 +8,7 @@ import json
 import os
 import sqlite3
 import threading
+import time
 
 _WRITE_LOCK = threading.Lock()
 
@@ -218,6 +219,16 @@ COLUMNS = [
     # history is short or the maths has no answer, never a guessed value.
     # Additive: ALTER-added on init.
     "rrg_quadrant", "clenow_score", "vars_state",
+    # ⭐ UCT RS EXIT WARNINGS (2026-11-13; the chart's `rsExit`, PR #1136). ONE
+    # writer, `rs_columns.collect_one` inside the same RS_V2-gated `bars_rs` step
+    # (`rs_columns.EXIT_COLUMNS`): Mike Webster's Quick Break / Quicksand /
+    # Grateful Dead Break on the RS line vs SPY, daily 21 / 50 simple averages.
+    # `rs_exit_last` TEXT names the newest warning (the worse one on a shared
+    # bar), the four ages are INTEGER sessions since a warning (0 = the newest
+    # bar). NULL when no such warning fired inside the window or the window is
+    # under 51 bars. Additive: ALTER-added on init, NULL until the next build.
+    "rs_exit_last", "rs_exit_bars_ago", "rs_quick_break_bars_ago",
+    "rs_quicksand_bars_ago", "rs_dead_break_bars_ago",
     # meta
     "snapshot_date", "bars_asof", "built_at",
 ]
@@ -242,6 +253,8 @@ _TEXT = {"ticker", "company", "sector", "industry", "exchange", "security_type",
          "accdis", "rs_line_trend", "theme",
          # UCT RS Phase 3 (3-10): the two classification names
          "rrg_quadrant", "vars_state",
+         # UCT RS Exit Warnings: the newest warning's name
+         "rs_exit_last",
          # Wave 2
          "ipo_date", "country", "next_earnings_date", "earnings_session",
          "earnings_setup_grade", "analyst_consensus", "sponsorship",
@@ -291,7 +304,10 @@ _INT = {"uct_composite", "rs_rank", "inside_bar_run", "higher_lows_run",
         # UCT RS, history-derived (2a-06): the 1-99 rating, two signed deltas
         # of it, four 1-99 component percentiles. Whole numbers, all seven.
         "rs_rating_ibd", "rs_rating_chg_5", "rs_rating_chg_20",
-        "rs_rating_1m", "rs_rating_3m", "rs_rating_6m", "rs_rating_9m", "rs_rating_12m"}
+        "rs_rating_1m", "rs_rating_3m", "rs_rating_6m", "rs_rating_9m", "rs_rating_12m",
+        # UCT RS Exit Warnings: four ages in sessions (`rs_exit_last` is TEXT).
+        "rs_exit_bars_ago", "rs_quick_break_bars_ago", "rs_quicksand_bars_ago",
+        "rs_dead_break_bars_ago"}
 
 
 # ---------------------------------------------------------------------------
@@ -543,6 +559,125 @@ def connect(busy_timeout_ms: int = 5000) -> sqlite3.Connection:
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute(f"PRAGMA busy_timeout={int(busy_timeout_ms)}")
     return conn
+
+
+# ── A CHART'S READS KEEP THEIR CONNECTION (2026-11-14) ───────────────────────
+#
+# ⚰️ MEASURED ON PRODUCTION 2026-11-14 (Server-Timing on a fast scan of the Nasdaq 100, 79
+# RS answers computed): the answer took a median 408 ms on the server and 185 of them were
+# the `rating` stage, two reads of a handful of rows. `connect()` above is three round trips
+# before the first row (the open, and two PRAGMAs), every statement after it is one or two
+# more, and on the web pod a thread waits to get the GIL back after each one. Measured with
+# the pod's switch interval beside 30 busy threads: 17 ms for the open and its PRAGMAs, 6 to
+# 14 ms for a statement that sqlite answers in 13 microseconds.
+#
+# So the reads a chart makes keep one connection per thread: opened once, used only through
+# `read_on_reader`, never handed out to be closed. It is `query_only` (sqlite itself refuses a
+# write through it, so it can never be left inside a transaction) and autocommit (every
+# statement sees the newest committed data, exactly as a fresh connection does; nothing is
+# remembered between calls). Its page cache is capped at `HOT_CACHE_KB` so forty threads'
+# readers stay small.
+#
+# ⛔ screener.db is updated in place and never replaced by this code. If it ever were (a
+# restore by hand), a kept handle would go on reading the old file: so the file's identity is
+# checked every `HOT_RECHECK_S` and a different file reopens the reader.
+# ⛔ Off under pytest (a kept handle stops Windows deleting a test's temp directory);
+# tests/test_screener_hot_reader.py turns it on and drops it. `SCREENER_KEPT_READER=0` turns
+# it off on a service: every read then opens its own connection, as before.
+_HOT = threading.local()
+HOT_RECHECK_S = 60.0
+HOT_CACHE_KB = 512
+
+
+def hot_readers_on() -> bool:
+    return (os.environ.get("SCREENER_KEPT_READER", "1") != "0"
+            and not os.environ.get("PYTEST_CURRENT_TEST"))
+
+
+def _file_identity(path: str):
+    """``(device, inode)`` of the database file, or None when there is no file."""
+    try:
+        st = os.stat(path)
+    except OSError:
+        return None
+    return (st.st_dev, st.st_ino)
+
+
+def hot_reader(path: str | None = None):
+    """This thread's read-only connection to screener.db, or None when there is none to have
+    (switched off, under pytest, or no database file yet): the caller then opens its own."""
+    if not hot_readers_on():
+        return None
+    path = path or get_db_path()
+    conn = getattr(_HOT, "conn", None)
+    now = time.monotonic()
+    if conn is not None and getattr(_HOT, "path", None) == path:
+        if 0 <= now - _HOT.checked < HOT_RECHECK_S:
+            return conn
+        if _file_identity(path) == _HOT.identity:
+            _HOT.checked = now
+            return conn
+    drop_hot_reader()
+    identity = _file_identity(path)
+    if identity is None:
+        return None                                  # never create the file from a read
+    conn = None
+    try:
+        conn = sqlite3.connect(path, timeout=5, isolation_level=None)
+        conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA query_only=ON")
+        conn.execute(f"PRAGMA cache_size=-{int(HOT_CACHE_KB)}")
+    except sqlite3.Error:
+        if conn is not None:
+            conn.close()
+        return None
+    _HOT.conn, _HOT.path, _HOT.identity, _HOT.checked = conn, path, identity, now
+    return conn
+
+
+def drop_hot_reader() -> None:
+    """Close and forget this thread's reader (the next read opens a new one)."""
+    conn = getattr(_HOT, "conn", None)
+    _HOT.conn = None
+    _HOT.path = None
+    if conn is not None:
+        try:
+            conn.close()
+        except sqlite3.Error:
+            pass
+
+
+def _schema_refusal(e: Exception) -> bool:
+    msg = str(e)
+    return "no such table" in msg or "no such column" in msg
+
+
+def read_on_reader(read):
+    """``read(conn, path)`` on this thread's kept reader when there is one, on a connection of
+    its own (closed after) otherwise. ``read`` must only read.
+
+    What a caller sees is what a fresh connection shows it. A statement the schema refuses (no
+    such table on a pod that never stored one) raises the same error from either, and the
+    reader is kept. Any other ``OperationalError`` (a busy file) is raised as it would have
+    been, never retried (a second five-second wait is how a thread pool starves), and the
+    reader is dropped so the next read starts clean. Anything else wrong with the reader
+    itself drops it and the read is made once more on a fresh connection."""
+    path = get_db_path()
+    reader = hot_reader(path)
+    if reader is not None:
+        try:
+            return read(reader, path)
+        except sqlite3.OperationalError as e:
+            if not _schema_refusal(e):
+                drop_hot_reader()
+            raise
+        except sqlite3.Error:
+            drop_hot_reader()
+    conn = connect()
+    try:
+        return read(conn, path)
+    finally:
+        conn.close()
 
 
 def _coldef(name: str) -> str:

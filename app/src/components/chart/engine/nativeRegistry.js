@@ -166,6 +166,10 @@ import { serverColumnsFor, notifyColumnsLanded, scalarsFor } from './serverCompu
 // `computeSignature` carries the benchmark tail's version into the binder's memo.
 import { definitionHasLiveTail, liveTailSignature } from './liveTail'
 import { runtimeKillOf, runtimeNotGradedOf, runtimeSourceHash } from './runtimeKill'
+// ⭐⭐ ENGINE 54 — the run half's program binding, object rail (registered) and refusal telemetry
+import { runHalfProgramBound, runHalfProgramStamped } from './runHalfProgram.js'
+import { registeredRunHalfObjectRail } from './runHalfRailSeam.js'
+import { noteRunHalfAnswer } from './runHalfTelemetry.js'
 import { runtimePaneEnabled, runtimePaneBuilt, runtimePanePermitted } from './runtimePaneGate'
 // ⭐ W5-T2 — the lower-timeframe gate is registered at this door (`lowerTfServing.js`),
 // never imported by the compute closure.
@@ -3320,6 +3324,18 @@ function servedRunStamp(def) {
  *  drawings are not drawn and the host picture stays. */
 export const RUN_HALF_COLUMN_RAIL = 'run-half:column-rail'
 
+/** ⭐⭐ ENGINE 54 — the document's trees and object program are not the ones its door stamped
+ *  (`runHalfProgram.js`): the run half is not drawn beside a program it was not minted for. */
+export const RUN_HALF_PROGRAM_UNBOUND = 'run-half:program-unbound'
+/** ⭐⭐ ENGINE 54 (review) — the run half carries no program stamp at all: it was minted by an
+ *  older engine, before the program binding (not "changed"; its own sentence). */
+export const RUN_HALF_PROGRAM_UNSTAMPED = 'run-half:program-unstamped'
+/** ⭐⭐ ENGINE 54 — the object rail (`runHalfObjectRail.js`) is not registered in this bundle:
+ *  a rail that cannot run is a refusal, never a pass. */
+export const RUN_HALF_RAIL_NOT_LOADED = 'run-half:rail-not-loaded'
+/** ⭐⭐ ENGINE 54 — the object rail's own default code (its others ride its answer). */
+export const RUN_HALF_OBJECT_RAIL = 'run-half:object-rail'
+
 /** Two column values agree: both `na`, or equal to 1e-9 of their size (the runtime lane's
  *  own rule, `runtimeColumns.js::sameValue`, restated as a value comparison: this module
  *  must not import the lane). */
@@ -3411,6 +3427,14 @@ function copyColumns(out) {
  *  run serves (`na` with `na`, a number to 1e-9 of its size). That is what proves the run's
  *  drawings belong to the plots beside them on THIS chart; one bar off and the host picture
  *  stays.
+ *  ⛔⛔ ENGINE 54 — and before the run is asked, the document must still digest to the program
+ *  stamp its door wrote (`runHalfProgram.js`, `run-half:program-unbound`); after the column rail,
+ *  THE OBJECT RAIL (`runHalfObjectRail.js`, registered through `runHalfRailSeam.js`): at every
+ *  create site the host draws, the run's objects made at the same source call must be the host's
+ *  (`run-half:object-rail`, `run-half:host-object-withheld`), and a run half with nothing
+ *  comparable is refused (`run-half:no-comparable-objects`) unless recorded evidence admits its
+ *  script. A drawing-only script (no plot mapped) is therefore never served on its gates alone.
+ *  Every answer is noted for the refusal telemetry (`runHalfTelemetry.js`).
  *  The answer rides non-enumerable (`runtimeObjects.js::RUN_HALF_KEY`): `served` with the
  *  run's drawings beside it (`RUNTIME_OBJECTS_KEY`, the RT5 shape the binder already draws),
  *  `pending` while the run is in flight, `refused` with its code. `ctx` absent (a probe that
@@ -3419,7 +3443,11 @@ function withRunHalf(def, out, bars, inputs, ctx) {
   if (!ctx) return out
   const ro = def.compute.runtimeObjects
   const res = copyColumns(out)
-  const refused = (code) => withRunHalfState(res, { state: 'refused', code })
+  // ⭐⭐ ENGINE 54 — every answer is noted for the refusal telemetry (`runHalfTelemetry.js`:
+  // a code per document session, a hash-prefixed beacon; never the source)
+  const src = ro && typeof ro.source === 'string' ? ro.source : null
+  const refused = (code) => { noteRunHalfAnswer(def, src, code); return withRunHalfState(res, { state: 'refused', code }) }
+  const answered = (state, code) => { noteRunHalfAnswer(def, src, null); return withRunHalfState(res, { state, code }) }
   if (!ro || typeof ro.source !== 'string' || !ro.source || !ro.outputs || typeof ro.outputs !== 'object') {
     return refused('run-half:malformed')
   }
@@ -3432,6 +3460,11 @@ function withRunHalf(def, out, bars, inputs, ctx) {
   const own = def.meta && typeof def.meta[RUN_HALF_SOURCE_STAMP_KEY] === 'string'
     ? def.meta[RUN_HALF_SOURCE_STAMP_KEY].toLowerCase() : null
   if (!own || runHalfSourceHashOf(ro) !== own) return refused('run-half:source-unbound')
+  // ⛔⛔ ENGINE 54 — AND BESIDE THE PROGRAM IT WAS MINTED FOR: the door's digest of the trees, the
+  // object program, the output map and the site map, re-derived from this document
+  // (`runHalfProgram.js`). An edited tree or object program, kept under the old stamp, is refused.
+  if (!runHalfProgramStamped(def)) return refused(RUN_HALF_PROGRAM_UNSTAMPED)
+  if (!runHalfProgramBound(def)) return refused(RUN_HALF_PROGRAM_UNBOUND)
   const stamp = servedRunStamp(def)
   if (!runtimePaneBuilt()) return refused('pane:not-built')
   if (!runtimePanePermitted()) return refused('pane:not-permitted')
@@ -3442,7 +3475,7 @@ function withRunHalf(def, out, bars, inputs, ctx) {
   if (!runtimeColoursAtDefaults(def, inputs)) return refused('runtime:member-inputs')
   if (!_runtimeLane) {
     if (_runtimeLoadFailed !== null) return refused(RUNTIME_LOAD_FAILED_GUARD)
-    if (loadRuntimeLane()) return withRunHalfState(res, { state: 'pending', code: 'runtime:not-loaded' })
+    if (loadRuntimeLane()) return answered('pending', 'runtime:not-loaded')
     return refused('runtime:not-loaded')
   }
   let cols
@@ -3454,7 +3487,7 @@ function withRunHalf(def, out, bars, inputs, ctx) {
   const payload = cols && typeof cols === 'object' ? cols[RUNTIME_OBJECTS_KEY] : null
   // ⛔ A run that owns its drawings always attaches them when it finishes
   // (`runtimeColumns.js`): nothing attached is a run still in flight.
-  if (!payload || typeof payload !== 'object') return withRunHalfState(res, { state: 'pending', code: 'runtime:in-flight' })
+  if (!payload || typeof payload !== 'object') return answered('pending', 'runtime:in-flight')
   if (payload.status === 'WITHHELD') return refused(payload.guard || 'runtime:objects')
   if (payload.status !== 'ok' || !Array.isArray(payload.live)) return refused('runtime:objects-stopped')
   const hostFams = hostObjectFamilies(def.objects)
@@ -3473,8 +3506,21 @@ function withRunHalf(def, out, bars, inputs, ctx) {
       if (!sameColumnValue(host[i], run[i])) return refused(RUN_HALF_COLUMN_RAIL)
     }
   }
+  // ⛔⛔ ENGINE 54 — THE OBJECT RAIL (`runHalfObjectRail.js`): the run's drawings at every
+  // create site the host draws must BE the host's, object for object, on these bars. With no
+  // plot mapped the column rail above compared nothing; this one never compares nothing (no
+  // comparable object is its own refusal, `run-half:no-comparable-objects`).
+  const rail = registeredRunHalfObjectRail()
+  if (!rail) return refused(RUN_HALF_RAIL_NOT_LOADED)
+  let verdict
+  try {
+    verdict = rail({ def, bars, inputs, ctx, payload, from })
+  } catch {
+    verdict = null
+  }
+  if (!verdict || verdict.ok !== true) return refused((verdict && verdict.code) || RUN_HALF_OBJECT_RAIL)
   Object.defineProperty(res, RUNTIME_OBJECTS_KEY, { value: payload, enumerable: false, configurable: true })
-  return withRunHalfState(res, { state: 'served', code: null })
+  return answered('served', null)
 }
 
 /** ⭐ ENGINE 53 — what a run half's gates read that can change under an unchanged
@@ -4108,8 +4154,15 @@ export function validateUserDefinitions(rawDefs) {
       const killed = (typeof meta.runtimeKilled === 'string' && meta.runtimeKilled)
         || (typeof meta.runtimeNotGraded === 'string' && meta.runtimeNotGraded)
         || runtimeKillOf({ defId: def.id, source: def.compute && def.compute.source })
+      // ⭐ WS-I Part 2 (final verify of #1204) — a row the server is STILL CHECKING (capability
+      // admission on, its set not computed yet: `meta.runtimePending`) is refused like any other
+      // ungraded row, but it is not "on a list": it will draw once the check completes.
+      const pending = !meta.runtimeKilled && meta.runtimePending === true
+        && typeof meta.runtimeNotGraded === 'string' && killed === meta.runtimeNotGraded
       if (killed) {
-        errors.push(`${def.id}: ${killed} — the saved definition is kept; it comes back when it is taken off the list.`)
+        errors.push(pending
+          ? `${def.id}: ${killed} — the saved definition is kept; it is being checked, and it will draw once the check completes.`
+          : `${def.id}: ${killed} — the saved definition is kept; it comes back when it is taken off the list.`)
         killedIds.push(def.id)
         continue
       }
@@ -4298,6 +4351,12 @@ const RS_GOLD = '#c9a84c'
 // (design round, 2026-11-08: green while the line is above, red while below).
 const RS_BULL = '#3cb868'
 const RS_BEAR = '#e74c3c'
+// ⭐ 2026-11-13 — THE SECOND AVERAGE'S VIOLET: a hue no other RS mark wears (not
+// the line's blue, the neutral, the gold, the bull or the bear), measured at WCAG
+// >= 3:1 against EVERY chart theme's canvas, dark and light (3.31:1 on Warm sand,
+// the worst; the first average's neutral is 3.29:1 there). Pinned by
+// `rsSecondAverage.test.js` over `CHART_THEMES`.
+const RS_MA2 = '#9b6fd6'
 /** The band's opacity: a tint under the line, never a second line. */
 const RS_SHADE_OPACITY = 0.12
 /** The toggles every preset states explicitly, so `detectPreset` (first match
@@ -4403,6 +4462,11 @@ const RS_BAND_WHEN = 'input:ratingBands'
  *  shade (`showAverage`), in the inputs' condition grammar: the `rsMa` plot, its
  *  band and the Average group's colour read it. */
 const RS_AVERAGE_ON = Object.freeze({ key: 'showAverage', equals: true })
+/** 2026-11-13 — the slim line's switch for its SECOND average (`showAverage2`). */
+const RS_AVERAGE2_ON = Object.freeze({ key: 'showAverage2', equals: true })
+/** 2026-11-13 — the second average's type choices, shared with the v5 legacy
+ *  declaration so a stored value survives a rollback (the first's vocabulary). */
+const RS_MA_TYPE_OPTIONS = [['EMA', 'Exponential'], ['SMA', 'Simple']]
 /** 2026-11-12 — the slim line's "Scale to rating" choices (`rescale`), shared with
  *  the v5 definition's legacy declaration so a stored value survives a rollback. */
 const RS_SCALE_OPTIONS = [['off', 'Off'], ['ibd', 'RS Rating'], ['m1', '1M rank'], ['m3', '3M rank'],
@@ -4705,6 +4769,13 @@ const RS_LINE_V5_RAW = {
     // legacy with the slim options exactly, so a stored choice survives a rollback.
     { key: 'scaleToRating', type: 'enum', label: 'Scale to rating', default: 'off', group: 'Line', legacy: true,
       options: RS_SCALE_OPTIONS },
+    // And for the slim line's second average (2026-11-13): its switch, length, type
+    // and colour, legacy here with the slim types, ranges and options exactly.
+    { key: 'showAverage2', type: 'bool', label: 'Second average', default: false, group: 'Line', legacy: true },
+    { key: 'maLength2', type: 'int', label: 'Second average (bars)', default: 50, min: 2, max: 200, step: 1, group: 'Line', legacy: true },
+    { key: 'maType2', type: 'enum', label: 'Second average type', default: 'SMA', group: 'Line', legacy: true,
+      options: RS_MA_TYPE_OPTIONS },
+    { ...colorInput('ma2Color', 'Second average colour', RS_MA2), group: 'Line', legacy: true },
     { key: 'lineWidth', type: 'int', label: 'Line width', default: 1, min: 1, max: 4, step: 1, group: 'Line' },
     { key: 'lookback', type: 'int', label: 'Lookback (bars)', default: 252, min: 20, max: 500, step: 1, group: 'New highs',
       tooltip: 'New-high lookback: bars for a new high. 252 bars is one trading year on a daily chart; on a weekly chart use 52. Shorter reacts faster and fires more often.' },
@@ -5411,6 +5482,20 @@ const RS_LINE_SLIM_RAW = {
       options: [['EMA', 'Exponential'], ['SMA', 'Simple']],
       tooltip: 'Exponential reacts faster; simple is what StockCharts uses.' },
     { ...colorInput('maColor', 'Average colour', RS_NEUTRAL), group: 'Average', activeWhen: RS_AVERAGE_ON },
+    // ⭐ 2026-11-13 — THE SECOND AVERAGE (Deepvue's MA2, a 50 SMA off by default;
+    // Webster reads the 21 and the 50 on the RS line). Presentation only: none of
+    // the four is a server input, so it keys no fetch, moves no `compute.rev` and
+    // no alert reads it; the column is derived on the client (`rsMa2` below).
+    // Declared OFF, so every saved chart draws exactly as before.
+    { key: 'showAverage2', type: 'bool', label: 'Second average', default: false, group: 'Average',
+      tooltip: 'Draw a second moving average on the RS line, dotted, with no shading (a 50-day simple average by default, the slower read beside the 21). Off by default.' },
+    { key: 'maLength2', type: 'int', label: 'Second average (bars)', default: 50, min: 2, max: 200, step: 1, group: 'Average',
+      activeWhen: RS_AVERAGE2_ON,
+      tooltip: 'Second average length in bars. 50 is the slower read many traders pair with the 21.' },
+    { key: 'maType2', type: 'enum', label: 'Second average type', default: 'SMA', group: 'Average',
+      options: RS_MA_TYPE_OPTIONS, activeWhen: RS_AVERAGE2_ON,
+      tooltip: 'Simple by default (Deepvue draws its second RS average as a 50 SMA); exponential reacts faster.' },
+    { ...colorInput('ma2Color', 'Second average colour', RS_MA2), group: 'Average', activeWhen: RS_AVERAGE2_ON },
     // ── rendered: Line (folded) ──
     { ...colorInput('color', 'Line colour', RS_INFO), group: 'Line', tooltip: 'Colour of the RS line' },
     { key: 'lineWidth', type: 'int', label: 'Line width', default: 1, min: 1, max: 4, step: 1, group: 'Line' },
@@ -5481,6 +5566,17 @@ const RS_LINE_SLIM_RAW = {
     { key: 'rsMa', label: 'Average', style: 'line', color: '$maColor', width: 1, lineStyle: 'largeDashed', precision: 4, role: 'context', legend: { hide: true },
       activeWhen: RS_AVERAGE_ON,
       liveTail: { kind: 'ma', of: 'rsLine', length: 'input:maLength', type: 'input:maType' } },
+    // ⭐ 2026-11-13 — THE SECOND AVERAGE, derived on the CLIENT from the line as
+    // drawn (`derivedColumns.derivedAverage`, the server's own arithmetic): it runs
+    // after the live tail and the rating scale, so the forming bar is in it and,
+    // scaled, it is k times the raw average, exactly like `rsMa`. Not in
+    // `rescale.plots` (it would be scaled twice). Dotted and violet against the
+    // first's large dashes; no band (the 21's shade stays the one shade). Hidden
+    // from the pane label like the first; its reading is the readout's `phase2` row.
+    { key: 'rsMa2', label: 'Second average', style: 'line', color: '$ma2Color', width: 1, lineStyle: 'dotted', precision: 4,
+      role: 'context', legend: { hide: true }, activeWhen: RS_AVERAGE2_ON,
+      derive: { kind: 'ma', of: 'rsLine', length: 'input:maLength2', type: 'input:maType2', activeWhen: RS_AVERAGE2_ON,
+        scalar: 'average2' } },
     // ⭐ THE DOTS ARE GLYPHS, ALL THREE (map §(a) U7: MarketSurge's blue circle, not
     // a 4 px point). lightweight-charts clamps a glyph's height to 12..30 px of bar
     // spacing BEFORE the multiplier (`__tests__/markerPixels.test.js` mirrors the
@@ -5555,6 +5651,12 @@ const RS_LINE_SLIM_RAW = {
         evidenceSource: 'scalar:evidence.sentence.phase',
         learn: 'phase' } },
     { key: 'fromMa', label: 'From average', source: 'scalar:legend.pctFromMa', format: 'pct', detailOf: 'phase' },
+    // ⭐ 2026-11-13 — the second average's reading, the RS line row's words
+    // ("above its 50 SMA by 2.1%"), only while it is drawn. The CLIENT writes
+    // `average2` beside the payload (`derivedColumns.withDerivedScalars`); no card,
+    // like Scale: the sentence is the statement, and the cards export to the agent,
+    // which has no second average.
+    { key: 'phase2', label: '2nd average', source: 'scalar:average2.summary', format: 'text', when: 'input:showAverage2' },
     { key: 'rsHigh', label: 'Last RS high', source: 'scalar:lastRsHigh.summary', format: 'text',
       card: { what: 'How many bars since the RS line last closed at its highest level of the lookback (252 bars on a daily chart, ties count).',
         origin: 'IBD\'s RS line new high; the blue dot MarketSurge draws.',

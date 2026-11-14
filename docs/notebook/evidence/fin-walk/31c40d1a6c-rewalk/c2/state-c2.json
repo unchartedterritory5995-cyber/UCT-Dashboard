@@ -1,0 +1,39 @@
+{
+ "report_day": "2026-11-18",
+ "data_dir": "<temp>\\fe-rw-root\\c2",
+ "c2_email": "q1c2m2614879@local.dev",
+ "sample_ids": [
+  "42752a82fcf347e0930904b2407e6441",
+  "098745a8031b47a08c7bde6209e2ebfd",
+  "868d25c0a3fa476a8b643a5bdc3c7611",
+  "29493ab8f9da49a7b81eb20e02b00365",
+  "44d4f3ffb7a54b46b742014cd05c40c5",
+  "83daa709a0f54cb28454451c1a1ec602",
+  "4432ac8b8f2449bc898136337046e949",
+  "34ee49d5d1d24b09a1a844a890a9714f",
+  "8abb4fbe8c714897a1e8a04144e8d79e",
+  "4305fd9f3be9465d800015c382bfda7b"
+ ],
+ "sample_titles": [
+  "Call excerpt: example -- TSLA",
+  "Earnings prep draft: example -- AMZN",
+  "Thesis: example -- NVDA leadership",
+  "Active setup: example -- MSFT base breakout",
+  "Trade plan: example -- AAPL pullback",
+  "Research: how a base forms",
+  "Thesis: leaders recover first",
+  "Welcome to your sample notebook",
+  "Daily note example",
+  "Pre-market checklist"
+ ],
+ "sample_by_ticker": {
+  "AAPL": "83daa709a0f54cb28454451c1a1ec602",
+  "MSFT": "4432ac8b8f2449bc898136337046e949",
+  "NVDA": "34ee49d5d1d24b09a1a844a890a9714f",
+  "GOOGL": null,
+  "TSLA": "4305fd9f3be9465d800015c382bfda7b",
+  "AMZN": "8abb4fbe8c714897a1e8a04144e8d79e"
+ },
+ "gallery_submission": "fdc93bd3bfc34ae6882eae1c3fe0705f",
+ "tip": "b846ca27ef"
+}

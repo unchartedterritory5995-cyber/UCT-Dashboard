@@ -6,13 +6,14 @@
 // `useSWR` sees on its first render, and how many requests reach the network.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, waitFor, act } from '@testing-library/react'
-import useSWR, { mutate } from 'swr'
+import useSWR, { mutate, unstable_serialize } from 'swr'
 import { cache as swrCache, SWRGlobalState } from 'swr/_internal'
 import {
   registerSymbolResource, useSymbolResource, warmSymbolResources, armSymbolResourceWarm,
   symbolResourceWarmStats, __resetSymbolResourceWarm, NEAR_MAX, ACTIVE_MAX, QUEUE_MAX,
 } from './symbolResourceWarm'
 import { setDeskHidden, __resetDeskVisibility } from './deskVisibility'
+import { RACE_MS, REST_FACTOR, REST_GATE_OFF_KEY, __resetRestGate } from './symbolPace'
 import { registerSymbolWarmer, tellSymbolWarmers } from '../utils/prefetchBars'
 
 const NEAR = { priority: true }
@@ -39,7 +40,7 @@ function mountSurface(key, own = vi.fn(async () => ({ from: 'own' })), config = 
 }
 
 beforeEach(() => { __resetSymbolResourceWarm({ painted: true }); __resetDeskVisibility() })
-afterEach(() => { try { localStorage.removeItem('uct.indwarm.off') } catch { /* */ } })
+afterEach(() => { try { localStorage.removeItem('uct.indwarm.off'); localStorage.removeItem(REST_GATE_OFF_KEY) } catch { /* */ } __resetRestGate() })
 
 describe('a near call asks for every registered resource of the rows ahead', () => {
   it('⭐ each symbol, each resource, with that resource\'s own fetcher, nearest first, a few at a time', async () => {
@@ -235,10 +236,13 @@ describe('what is not asked for', () => {
     expect(b).not.toHaveBeenCalled()
   })
 
-  it('a key function that answers null, a non-string, or throws: skipped, and the others still go', () => {
+  it('a key function that answers null, something that is not a key, or throws: skipped, and the others still go', () => {
     const stat = held()
     registerSymbolResource(() => null, stat)
-    registerSymbolResource(() => ['/api/array', 1], stat)
+    registerSymbolResource(() => '', stat)
+    registerSymbolResource(() => [], stat)
+    registerSymbolResource(() => 42, stat)
+    registerSymbolResource(() => ({ url: '/api/object' }), stat)
     registerSymbolResource(() => { throw new Error('a bad surface') }, stat)
     registerSymbolResource(labelKey, stat)
     expect(warmSymbolResources(['NVDA'], 'D', NEAR)).toBe(1)
@@ -347,7 +351,7 @@ describe('restraint', () => {
     const names = Array.from({ length: 264 }, (_, i) => `F${String.fromCharCode(65 + (i % 26))}${String.fromCharCode(65 + Math.floor(i / 26))}`)
     for (let i = 0; i < names.length; i += NEAR_MAX) warmSymbolResources(names.slice(i, i + NEAR_MAX), 'D', NEAR)
     expect(symbolResourceWarmStats().failed).toBe(264)
-    await wait(20)
+    await wait(RACE_MS)                                   // (a reader's step: calls closer than that are a member racing)
     warmSymbolResources(['ZZZZ'], 'D', NEAR)
     expect(symbolResourceWarmStats().failed, 'the 264 expired ones are gone; the new one is remembered').toBe(1)
   })
@@ -404,5 +408,154 @@ describe('arming', () => {
       tellSymbolWarmers(['MSFT'], 'D', { priority: false })
       expect(stat).toHaveBeenCalledTimes(2)
     } finally { off() }
+  })
+})
+
+// ⭐ 2026-11-13. The optional header fields are POSTs keyed `[url, [SYM]]` (SWR's array form).
+describe('a resource whose key is an array (a POST read)', () => {
+  const perfKey = (s) => ['/api/perf', [s]]
+  const id = (s) => unstable_serialize(perfKey(s))
+
+  it('⭐ is asked for with the surface\'s fetcher, handed the key as the surface\'s own hook would hand it', async () => {
+    const perf = held()
+    registerSymbolResource(perfKey, perf)
+    expect(warmSymbolResources(['NVDA', 'AAPL'], 'D', NEAR)).toBe(2)
+    expect(perf.keys()).toEqual([['/api/perf', ['NVDA']], ['/api/perf', ['AAPL']]])
+    expect(preloaded(id('NVDA')), 'out under SWR\'s own form of the key').toBeTruthy()
+  })
+
+  it('⭐ the surface\'s hook has the answer on its FIRST render and asks for nothing', async () => {
+    const perf = held()
+    registerSymbolResource(perfKey, perf)
+    warmSymbolResources(['NVDA'], 'D', NEAR)
+    perf.calls[0].resolve({ NVDA: { '5d': 3.2 } })
+    await flush()
+    expect(swrCache.get(id('NVDA')).data).toEqual({ NVDA: { '5d': 3.2 } })
+    // a NEW array each render, as a hook that builds its key inline does
+    const seen = []
+    const own = vi.fn(async () => ({ from: 'own' }))
+    renderHook(() => { const r = useSWR(['/api/perf', ['NVDA']], own); seen.push(r.data); return r })
+    expect(seen[0], 'no blank first frame').toEqual({ NVDA: { '5d': 3.2 } })
+    await wait(80)
+    expect(own, 'and the arrival cost no request').not.toHaveBeenCalled()
+  })
+
+  it('a surface that arrives while the ask is in flight joins it: one request', async () => {
+    const perf = held()
+    registerSymbolResource(perfKey, perf)
+    warmSymbolResources(['NVDA'], 'D', NEAR)
+    const s = mountSurface(['/api/perf', ['NVDA']], perf)
+    await flush()
+    expect(perf.calls.length, 'the hook took the ask already out').toBe(1)
+    await act(async () => { perf.calls[0].resolve({ NVDA: { '5d': 1 } }); await flush() })
+    await waitFor(() => expect(s.result.current.data).toEqual({ NVDA: { '5d': 1 } }))
+    expect(perf.calls.length).toBe(1)
+  })
+
+  it('an answer the surface already has, a key already out, and a key that failed are left alone, by the same rules as a string key', async () => {
+    const perf = held()
+    registerSymbolResource(perfKey, perf)
+    await mutate(perfKey('NVDA'), { NVDA: {} }, { revalidate: false })
+    expect(warmSymbolResources(['NVDA'], 'D', NEAR), 'held').toBe(0)
+    expect(warmSymbolResources(['AAPL'], 'D', NEAR)).toBe(1)
+    expect(warmSymbolResources(['AAPL'], 'D', NEAR), 'already out').toBe(0)
+    perf.calls[0].reject(new Error('down'))
+    await flush()
+    expect(warmSymbolResources(['AAPL'], 'D', NEAR), 'failed a moment ago').toBe(0)
+    expect(symbolResourceWarmStats().failed).toBe(1)
+  })
+
+  it('a failed ask is asked for again once the pause is over (its own failed request is not left in the way)', async () => {
+    __resetSymbolResourceWarm({ painted: true, retryMs: 30 })
+    const perf = held()
+    registerSymbolResource(perfKey, perf)
+    warmSymbolResources(['NVDA'], 'D', NEAR)
+    perf.calls[0].reject(new Error('down'))
+    await flush()
+    expect(preloaded(id('NVDA')), 'the failed request is withdrawn').toBeUndefined()
+    expect(warmSymbolResources(['NVDA'], 'D', NEAR)).toBe(0)
+    await wait(RACE_MS)                                   // (past the 30 ms pause, at a reader's pace)
+    expect(warmSymbolResources(['NVDA'], 'D', NEAR), 'asked again after the pause').toBe(1)
+    expect(perf.calls.length).toBe(2)
+  })
+
+  it('when the fresh window closes our ask is withdrawn, and the answer stays in the cache', async () => {
+    __resetSymbolResourceWarm({ painted: true, freshMs: 20 })
+    const perf = held()
+    registerSymbolResource(perfKey, perf)
+    warmSymbolResources(['NVDA'], 'D', NEAR)
+    perf.calls[0].resolve({ NVDA: { '5d': 2 } })
+    await flush()
+    expect(preloaded(id('NVDA')), 'joinable while fresh').toBeTruthy()
+    await wait(40)
+    expect(preloaded(id('NVDA'))).toBeUndefined()
+    expect(swrCache.get(id('NVDA')).data).toEqual({ NVDA: { '5d': 2 } })
+  })
+
+  it('two different arrays are two keys; the same array from two surfaces is one request', () => {
+    const perf = held()
+    registerSymbolResource(perfKey, perf)
+    registerSymbolResource((s) => ['/api/perf', [s]], perf)
+    registerSymbolResource((s) => ['/api/theme', [s]], perf)
+    expect(warmSymbolResources(['NVDA'], 'D', NEAR)).toBe(2)
+    expect(perf.keys()).toEqual([['/api/perf', ['NVDA']], ['/api/theme', ['NVDA']]])
+  })
+})
+
+// ─── 2026-11-13: NOTHING NEW FOR ROWS A MEMBER IS RACING PAST ────────────────
+// Measured on production with the arrow key held through 40 charts: 121 requests in flight
+// at once, and the chart the member stopped on waited 5.4 to 6.0 s for the pod. One priority
+// call is one step of the scan; while steps come faster than RACE_MS apart, this queue starts
+// nothing and keeps only the newest rows.
+describe('⭐ a member racing through a list', () => {
+  const rows = (n) => [`R${n}A`, `R${n}B`]
+
+  it('steps faster than RACE_MS start nothing new; once the member stops, the LAST rows are asked for', async () => {
+    const stat = held()
+    registerSymbolResource(statKey, stat)
+    warmSymbolResources(rows(0), 'D', NEAR)               // arrived and read: asked at once
+    expect(stat.keys()).toEqual(['/api/stat/R0A', '/api/stat/R0B'])
+    for (const c of stat.calls) c.resolve({ v: 1 })
+    await flush()
+    await wait(RACE_MS)
+    warmSymbolResources(rows(1), 'D', NEAR)               // a reader's step
+    expect(stat.calls.length).toBe(4)
+    for (const c of stat.calls) c.resolve({ v: 1 })
+    await flush()
+    for (let n = 2; n <= 4; n++) { await wait(60); warmSymbolResources(rows(n), 'D', NEAR) }
+    expect(symbolResourceWarmStats().racing).toBe(true)
+    expect(stat.calls.length, 'nothing started for the rows raced past').toBe(4)
+    await wait(Math.round(60 * REST_FACTOR) + 40)
+    expect(symbolResourceWarmStats().racing).toBe(false)
+    expect(stat.keys().slice(4, 6), 'the newest rows first, once stopped').toEqual(['/api/stat/R4A', '/api/stat/R4B'])
+  })
+
+  it('what is already in flight is left to finish, and its slot is not refilled while racing', async () => {
+    const stat = held()
+    registerSymbolResource(statKey, stat)
+    warmSymbolResources(['A1', 'A2', 'A3', 'A4', 'A5'], 'D', NEAR)
+    expect(stat.calls.length).toBe(ACTIVE_MAX)
+    await wait(60)
+    warmSymbolResources(['B1'], 'D', NEAR)                // racing now
+    stat.calls[0].resolve({ v: 1 })
+    await flush()
+    expect(stat.calls.length, 'the freed slot waits for the member to stop').toBe(ACTIVE_MAX)
+    expect(swrCache.get('/api/stat/A1')?.data, 'the answer that landed is kept').toEqual({ v: 1 })
+    await wait(Math.round(60 * REST_FACTOR) + 40)
+    expect(stat.keys()[ACTIVE_MAX], 'then the newest row').toBe('/api/stat/B1')
+  })
+
+  it('CONTROL: the per-browser switch asks at once whatever the pace', async () => {
+    localStorage.setItem(REST_GATE_OFF_KEY, '1')
+    __resetRestGate()
+    const stat = held()
+    registerSymbolResource(statKey, stat)
+    warmSymbolResources(['C1'], 'D', NEAR)
+    await wait(60)
+    warmSymbolResources(['C2'], 'D', NEAR)
+    await wait(60)
+    warmSymbolResources(['C3'], 'D', NEAR)
+    expect(stat.keys()).toEqual(['/api/stat/C1', '/api/stat/C2', '/api/stat/C3'])
+    expect(symbolResourceWarmStats().racing).toBe(false)
   })
 })

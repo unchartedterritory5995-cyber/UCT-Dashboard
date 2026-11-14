@@ -50,6 +50,12 @@ _INJECTION = re.compile(
     r"|company|earnings)[A-Za-z]*\b"
     r"|\bnew\s+instructions?\b|\bsystem\s*prompt\b|\bjailbreak\b"
     r"|<\s*/?\s*(system|assistant|user|tool|instructions?)\b|\[\s*(system|inst)\s*\]|<\|[a-z_]+\|>"
+    # Charts family (2026-11-12): the UCT Intelligence chart indicator (uctIntelligence.set as a bare name), on its own line; stricter only
+    # (never the site's own domain: "uctintelligence.com" is prose)
+    r"|\buctIntelligence\.(?!(?:com|net|org|io|co|ai|app|dev|us)\b)[a-z][A-Za-z]*\b"
+    # Charts family (2026-11-12): the volumeProfile domain (volumeProfile.set as a bare name — any volumeProfile.<verb>); its
+    # own branch, so the domain list above is untouched; stricter only. Prose "volume profile" has no dot and passes.
+    r"|\bvolumeProfile\.[a-z][A-Za-z]*\b"
     r"|\b(call|use|invoke)\s+the\s+\w+\s+tool\b|\btool_use\b|\bfunction_call\b",
     re.I)
 _CTRL = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")

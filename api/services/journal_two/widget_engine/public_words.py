@@ -10,7 +10,7 @@ from __future__ import annotations
 
 #: label kind -> the word it is numbered with. "property" (W10-R74) numbers a property measure ("Sum of Property 1").
 RELABEL_WORDS: dict[str, str] = {
-    "account": "Account", "note": "Note", "folder": "Folder", "tag": "Tag", "kind": "Note kind",
+    "account": "Account", "note": "Note", "folder": "Folder", "tag": "Tag", "kind": "Note type",
     "routine": "Routine", "item": "Item", "tracker": "Tracker", "property": "Property",
 }
 

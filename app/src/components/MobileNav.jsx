@@ -30,6 +30,8 @@ const ROUTE_TITLES = {
   '/setup-library': 'Setup Library',
   '/desk': 'The Desk',
   '/journal': 'Journal',
+  // Notebook simplify pass 2 (A7): the Notebook is named on its own (longest prefix wins over /journal).
+  '/journal/notebook': 'Notebook',
   '/community': 'Community',
   '/support': 'Support',
   '/settings': 'Settings',
@@ -37,7 +39,8 @@ const ROUTE_TITLES = {
   '/research': 'Research',
 }
 
-function titleFor(pathname) {
+/** The top bar's title for an address: the longest matching row, whole segments only. Exported for its test. */
+export function titleFor(pathname) {
   const match = Object.keys(ROUTE_TITLES)
     .filter((p) => pathname === p || pathname.startsWith(`${p}/`))
     .sort((a, b) => b.length - a.length)[0]

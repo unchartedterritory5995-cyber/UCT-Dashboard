@@ -494,7 +494,10 @@
   /* position: the ⋯ menu hangs from this row, right-aligned (NewNoteMenu's phone rule hangs a menu from
      its LEFT edge, which would run a row-end menu off a 390 px screen) */
   .newWrap { margin-left: auto; position: relative; }
-  .newWrap [role="menu"] { left: auto; right: 0; }
+  /* Simplify pass 2 (C6, found by the walk at 390): the ⋯ menu takes the width of its longest row, so "Remove sample
+     notebook" sits on one line (at the engine's 200 px floor it wrapped to two). Right-anchored at the row's end, it
+     grows leftward; NewNoteMenu's max-width (the window less 32 px) still caps it. */
+  .newWrap [role="menu"] { left: auto; right: 0; width: max-content; }
 }
 
 /* A failed note action, said in the member's language — replaces a native

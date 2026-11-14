@@ -225,7 +225,9 @@ def test_other_members_copies_survive_with_the_author_scrubbed_and_still_install
     # INSTALLS: the copy can be shared on, and the next copy names its new author.
     token = svc.share(FRIEND, copy_id)["token"]
     third = svc.install_share(THIRD, token)
-    assert third["origin"]["author_id"] == FRIEND
+    # share privacy (2026-11-13): the new author is recorded server-side, never in the answer
+    assert "author_id" not in third["origin"]
+    assert svc.get(THIRD, third["def_id"])["definition"]["origin"]["author_id"] == FRIEND
     assert svc.get(THIRD, third["def_id"])["ast_hash"] == svc.get(FRIEND, copy_id)["ast_hash"]
 
 

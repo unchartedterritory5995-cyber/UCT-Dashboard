@@ -29,8 +29,11 @@ export function resolveBarStoreSwitch({ buildConst, read } = {}) {
   return buildConst === '1' || buildConst === 1 || buildConst === true
 }
 
-function _readStorage(key) {
-  try { return globalThis.localStorage?.getItem(key) ?? null } catch { return null }
+// (Reads this module's own key by NAME, not a parameter: the settings census resolves a
+// storage key from the call that names it, and a key handed in through `read` is one it
+// cannot follow. lib/persistence/persistenceManifest.test.js.)
+function _readStorage() {
+  try { return globalThis.localStorage?.getItem(BARSTORE_STORAGE_KEY) ?? null } catch { return null }
 }
 
 let _build

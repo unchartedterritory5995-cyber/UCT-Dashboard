@@ -3,7 +3,9 @@
 // receipt / proposal / refusal by its structure. Never an exact string of prose.
 import { anyAverageOn } from '../../../../components/chart/averageVisibility'
 import { mergeChartSettings } from '../../../../components/chart/chartDefaults'
+import { readUctIntelligence } from '../../../../components/chart/uctIntelligence'
 import * as nativeRegistry from '../../../../components/chart/engine/nativeRegistry'
+import { volumeProfileOf } from '../../../../components/chart/builder/agentMutations'
 import { expect } from 'vitest'
 import { waitFor, fireEvent, screen } from '@testing-library/react'
 import { mountCase, faithful, boardState, chartsOf, refusals, receiptsNow, proposalsNow, nlm1Of } from './harness'
@@ -239,6 +241,8 @@ export function checkExpect(ctx, e, label) {
   if ('askAiOpened' in e) expect(ctx.st.askAi || [], `${label}: Ask AI opened`).toEqual(e.askAiOpened)
   // is any moving average on the first chart showing (the same answer Ctrl+M reads)
   if ('movingAveragesOn' in e) expect(anyAverageOn(mergeChartSettings(chartsOf(board)[0]?.opts?.settings ?? null), nativeRegistry.getDefinition), `${label}: a moving average showing`).toBe(e.movingAveragesOn)
+  // volumeProfile.set: the first chart's Volume Profile as the canvas reads it ({enabled, bins, ...} — only the keys a case names)
+  if (e.volumeProfile) expect(volumeProfileOf(chartsOf(board)[0]?.opts?.settings ?? null), `${label}: the Volume Profile`).toMatchObject(e.volumeProfile)
   if (e.indicators) {
     const id = chartsOf(board)[e.indicators.chart || 0]?.id
     const got = p.brief(board, id)
@@ -257,6 +261,8 @@ export function checkExpect(ctx, e, label) {
       expect(bad, `${label}: every returned row has ${c.key} ${c.op} ${JSON.stringify(c.value)}`).toEqual([])
     }
   }
+  // uctIntelligence.set: the first chart's UCT Intelligence layers as its stored settings read (readUctIntelligence); only the fields named
+  if (e.uctIntelligence) { const u = readUctIntelligence(mergeChartSettings(chartsOf(board)[0]?.opts?.settings ?? null)); for (const [k, v] of Object.entries(e.uctIntelligence)) expect(u[k], `${label}: UCT Intelligence ${k}`).toBe(v) }
   for (const r of e.reads || []) expect(calls.map(callLine).some(l => new RegExp(r, 'i').test(l)), `${label}: a canonical read matching /${r}/ ran (ran: ${calls.map(c => `${c[0]} ${c[1]}`).join(' | ')})`).toBe(true)
   for (const r of e.writes || []) expect(calls.map(callLine).some(l => new RegExp(r, 'i').test(l)), `${label}: a canonical write matching /${r}/ ran`).toBe(true)
   for (const r of e.noCalls || []) expect(calls.map(callLine).some(l => new RegExp(r, 'i').test(l)), `${label}: nothing matching /${r}/ ran`).toBe(false)

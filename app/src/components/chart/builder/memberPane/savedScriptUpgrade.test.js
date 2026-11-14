@@ -7,7 +7,7 @@ import * as mpd from './memberPaneDefinition'
 import {
   upgradeKindOf, retranslateRow, resolveRow, writeBackOnce, writeBackStatus,
   needsScriptForUpgrade, onUpgradeSettled, isScriptDocument, savedScriptUpgradeEnabled,
-  __resetSavedScriptUpgrade, __setTranslatorForTests,
+  __resetSavedScriptUpgrade, __setTranslatorForTests, UPGRADE_NOTIFY_COALESCE_MS,
 } from './savedScriptUpgrade'
 import {
   SCRIPT_ENGINE_VERSION, engineStampOf, withEngineStamp, withoutEngineStamp, isStaleStamp,
@@ -33,7 +33,9 @@ function staleDoc({ name = 'My renamed script', semantics, repaint } = {}) {
 }
 const rowOf = (definition, extra = {}) => ({ def_id: ID, version: 7, rev: 3, definition, ...extra })
 
-const flush = () => new Promise((r) => setTimeout(r, 0))
+// Past the landing-notify coalescing window (`UPGRADE_NOTIFY_COALESCE_MS`), so a settled
+// translation has been announced by the time a test reads it.
+const flush = () => new Promise((r) => setTimeout(r, UPGRADE_NOTIFY_COALESCE_MS + 5))
 
 beforeEach(() => { __resetSavedScriptUpgrade(); __setTranslatorForTests(mpd) })
 afterEach(() => { vi.unstubAllEnvs() })
