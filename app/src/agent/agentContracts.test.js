@@ -81,7 +81,7 @@ describe('golden manifest (the JS ⇄ Python contract)', () => {
     vi.resetModules()
     const KINDS = ['instrument.resolve', 'quote', 'quotes', 'bars.daily', 'fundamentals', 'earnings', 'news.company', 'themes',
       'screen.run', 'screen.count', 'screen.saved', 'history.eventStudy', 'research.company',
-      'knowledge.search', 'setup.playbook', 'setup.record', 'breadth.current', 'ratings']
+      'knowledge.search', 'setup.playbook', 'setup.record', 'breadth.current', 'ratings', 'cot.positioning']
     const cfg = { stream: true, nl1: true, data: true, scan: true, news: true, coach: true, routing_v2: true, planner: 'v2', data_kinds: KINDS }
     const realFetch = globalThis.fetch
     globalThis.fetch = vi.fn(async (url) => new Response(JSON.stringify(String(url).endsWith('/api/agent/config') ? cfg : {}),
@@ -99,7 +99,7 @@ describe('golden manifest (the JS ⇄ Python contract)', () => {
       const gated = caps.allCapabilityNames().filter(n => !ungated.has(n))
       // every server-gated family actually armed (a gate this list misses would make the bound a proxy again)
       for (const n of ['stock.quote', 'stock.dailyBars', 'stock.themes', 'research.ask', 'history.afterEvent', 'chart.describeSetup',
-        'playbook.explain', 'playbook.setup', 'playbook.record']) expect(gated, n).toContain(n)
+        'playbook.explain', 'playbook.setup', 'playbook.record', 'cot.positioning']) expect(gated, n).toContain(n)
       expect(gated.some(n => n.startsWith('coach.'))).toBe(true)
       const surfaces = ['charts', 'screener', 'breadth', 'calendar', 'journal', 'home']
       const sizes = surfaces.map(s => caps.manifestFor({ surface: s, createIndicator: true, manageIndicators: true }).length)

@@ -21,7 +21,7 @@ from __future__ import annotations
 
 from api.services.uct_agent.marketdata import (asset_classes, bars_daily, breadth, commodity_quote, crypto_quote, earnings,
                                               index_quote, instruments, news_company, quotes, ratings, statements, themes)
-from api.services.uct_agent.marketdata import history_event_study
+from api.services.uct_agent.marketdata import cot, history_event_study
 from api.services.uct_agent.research import rs1
 
 # Symbols one read may name. A request-shape bound per kind, not a toolkit cap: the cap numbers live only
@@ -138,6 +138,16 @@ def register(registry) -> None:
         owner="agent-md", max_symbols=ONE_SYMBOL, model_isolated=True,
         description="UCT Ratings: UCT's own composite 0-99 and component scores (not an analyst rating); "
                     "as_of is the price data's last session. Shown to the member only. Params: {symbol}.",
+    ))
+    # Phase 2 (COT research): CFTC Commitments of Traders weekly rows from the COT tab's own store (no provider call).
+    # The positioning statistics are computed in the browser by the COT tab's single authority (cotRead.js), not here.
+    registry.register(Kind(
+        name=cot.KIND, fn=cot.read_cot, validate=cot.validate, freshness="periodic", owner="agent-md",
+        max_symbols=cot.MAX_MARKETS,
+        description="CFTC Commitments of Traders: stored weekly net positions (large speculators, commercials, small "
+                    "speculators) and open interest for 1-6 futures markets, named by a member's word or COT code; "
+                    "as_of is the Tuesday report date (published the following Friday), stale when a newer report is "
+                    f"due. Unmapped words are listed as not covered. Params: {{symbols: [...], weeks (1-{cot.MAX_WEEKS})}}.",
     ))
     # W2-B1 (agent-rs, RS-1 v1): a COMPOSED kind. It reads the served kinds above (purpose "research", so a
     # model-isolated kind refuses before admission) and the turn's one web search; every fact's figures come from
