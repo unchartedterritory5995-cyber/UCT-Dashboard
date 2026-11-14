@@ -103,10 +103,18 @@ export function planChartGrid({ board, charts, symbols, timeframe = null, layout
     const restSyms = syms.filter(s => !placed.includes(s))
     syms = Array.from({ length: n }, (_, i) => placed[i] || restSyms.shift())
   }
+  // ⛔ KEEP ≠ RE-CREATE (live 2026-11-14, #1210 follow-up: "Add AAPL and MSFT …, but keep SPY and NVDA" → "All four in a grid"
+  // made SIX panels — SPY, NVDA, SPY, NVDA, AAPL, MSFT): with newCharts, a ticker a chart on the grid ALREADY shows is that chart —
+  // it keeps its panel (the same widget, arranged with the others) and is never created again. Only the tickers no chart shows
+  // become new charts: the final board is the existing charts ∪ the new tickers.
+  const showing = new Set(chartWs.map(w => String(charts.get(String(w.id))?.symbol || '').toUpperCase()).filter(Boolean))
+  const shown = newCharts ? syms.filter(s0 => showing.has(s0)) : []
+  if (newCharts && shown.length) syms = syms.filter(s0 => !showing.has(s0))
+  const n2 = syms.length
   // the charts that take a cell: the first n (reused for the tickers), or with newCharts every chart (kept as they are)
   const reuseWs = newCharts ? chartWs : chartWs.slice(0, n)
   const k = reuseWs.length
-  const needed = newCharts ? n : n - k
+  const needed = newCharts ? n2 : n - k
   if (board.length + needed + (railAdd ? 1 : 0) > maxWidgets) {
     return { ok: false, reason: boardRefusalSentence(board.length + needed + (railAdd ? 1 : 0)) }
   }
@@ -197,5 +205,5 @@ export function planChartGrid({ board, charts, symbols, timeframe = null, layout
     set[railMove] = { x: cols - (rail.w || RAIL_W), y: 0, w: rail.w || RAIL_W, h: rows }
   }
   const noop = !add.length && !remove.length && !Object.keys(set).length && !unlink.length && reuse.every(r => r.symbol == null && r.tf == null)
-  return { ok: true, reuse: newCharts ? reuse.filter(r => r.id in set) : reuse, add, set, unlink, tiled, shape, reflowed, noop, symbols: syms, timeframe, newCharts: !!newCharts, kept: newCharts ? k : 0, rail: railAdd ? railAdd.type : null, remove, railMoved: railMove }
+  return { ok: true, reuse: newCharts ? reuse.filter(r => r.id in set) : reuse, add, set, unlink, tiled, shape, reflowed, noop, symbols: syms, shown, timeframe, newCharts: !!newCharts, kept: newCharts ? k : 0, rail: railAdd ? railAdd.type : null, remove, railMoved: railMove }
 }

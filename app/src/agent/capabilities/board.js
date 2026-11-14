@@ -1042,7 +1042,10 @@ export function registerBoardCapabilities() {
       const rail = g.rail ? `, with a new ${label(g.rail)} on the right` : g.railMoved ? ', with your Watchlist on the right' : ''
       // ⭐ PHASE 3 acceptance: a replaced board says exactly what went (and that Undo brings it back)
       const gone = g.remove?.length ? ` — replacing your ${(g.removedNames || []).every(x => /\bchart\b/i.test(String(x))) ? 'charts' : 'board'}: removed ${andList((g.removedNames || []).map(x => `the ${x}`))} (Undo puts ${g.remove.length === 1 ? 'it' : 'them'} back)` : ''
-      if (g.newCharts) return `Added ${gridPhrase(g, { fresh: true })}${g.kept ? ` beside your ${g.kept === 1 ? 'chart' : `${g.kept} charts`}, re-tiled evenly` : ''}${line}${rail}`
+      // KEEP ≠ RE-CREATE: tickers a chart already showed are said as kept, never as added
+      const kept = g.shown?.length ? ` (${andList(g.shown)} kept as ${g.shown.length === 1 ? 'it is' : 'they are'})` : ''
+      if (g.newCharts && !g.symbols.length) return `Arranged your ${g.kept === 1 ? 'chart' : `${g.kept} charts`} evenly${kept} — every ticker you named is already on the board, so nothing new was added`
+      if (g.newCharts) return `Added ${gridPhrase(g, { fresh: true })}${g.kept ? ` beside your ${g.kept === 1 ? 'chart' : `${g.kept} charts`}${kept}, re-tiled evenly` : ''}${line}${rail}`
       const nNew = g.add.filter(a => !a.type || a.type === 'chart').length
       const parts = [g.reuse.length && nNew ? `${g.reuse.length} reused, ${nNew} new` : nNew ? `${nNew} new` : null,
         g.unlink.length ? `${g.unlink.length} unlinked so ${g.unlink.length === 1 ? 'it' : 'each'} can show its own ticker` : null].filter(Boolean)
