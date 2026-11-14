@@ -113,7 +113,10 @@ def test_sharing_mints_a_token_that_resolves_to_the_definition(owned):
 
     got = svc.resolve_share(minted["token"])
     assert got["definition"]["meta"]["name"] == "Shared Screen"
-    assert got["author_id"] == OWNER
+    # ⛔ share privacy (2026-11-13): the author's member id is never in a share answer; the
+    # server keeps it for the install alone (`_with_author`, `tests/test_share_privacy.py`)
+    assert "author_id" not in got
+    assert svc.resolve_share(minted["token"], _with_author=True)["author_id"] == OWNER
     assert got["origin_def_id"] == owned
     assert got["origin_version"] == 1
 
@@ -263,7 +266,7 @@ def test_revoking_stops_the_link_and_says_REVOKED_not_not_found(owned):
     over. "That link was turned off" and "that link never existed" are different
     facts, and only one of them explains anything to the person holding it."""
     token = svc.share(OWNER, owned)["token"]
-    assert svc.resolve_share(token)["author_id"] == OWNER
+    assert svc.resolve_share(token)["origin_def_id"] == owned
 
     assert svc.unshare(OWNER, owned) is True
     with pytest.raises(svc.ShareRefused) as exc:
@@ -298,7 +301,7 @@ def test_re_sharing_after_revoking_mints_a_FRESH_token(owned):
     assert second != first
     with pytest.raises(svc.ShareRefused):
         svc.resolve_share(first)
-    assert svc.resolve_share(second)["author_id"] == OWNER
+    assert svc.resolve_share(second)["origin_def_id"] == owned
 
 
 # ─── version history ─────────────────────────────────────────────────────────
@@ -356,7 +359,8 @@ def test_the_share_ROUTES_round_trip_over_real_http(app, owned):
     friend = _as(app, FRIEND)
     preview = friend.get(f"/api/user-definitions/shared/{token}")
     assert preview.status_code == 200, preview.text
-    assert preview.json()["author_id"] == OWNER
+    assert preview.json()["origin_def_id"] == owned
+    assert OWNER not in preview.text           # share privacy: no author id on the wire
 
     installed = friend.post(f"/api/user-definitions/shared/{token}/install")
     assert installed.status_code == 200, installed.text
@@ -423,6 +427,7 @@ def test_a_stranger_cannot_read_a_definition_they_were_not_sent(app, owned):
     friend = _as(app, FRIEND)
     assert friend.get(f"/api/user-definitions/{owned}").status_code == 404
     assert friend.get(f"/api/user-definitions/{owned}/history").status_code == 404
-    assert friend.get(f"/api/user-definitions/{owned}/share").json() == {"token": None}
+    # (`includesSource` answers for the CALLER's own row: a stranger has none, so False)
+    assert friend.get(f"/api/user-definitions/{owned}/share").json() ==         {"token": None, "includesSource": False}
     # …and they cannot mint a link to it either.
     assert friend.post(f"/api/user-definitions/{owned}/share").status_code == 404
