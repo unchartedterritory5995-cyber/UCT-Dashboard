@@ -3048,6 +3048,9 @@ _PREFERENCE_KEYS = {
     # read-modify-write through `setPrefMerged`). Ids only, at most three controls on five
     # screens. Added in the same commit as its writer, so a choice never answers 400.
     "screener_rs_controls": _PREF_OPAQUE,
+    # RS screens (unit U5): "1" once the member dismissed the first-visit line above an RS
+    # screen's list (`focus/rsScreens.js` RS_NOTE_PREF). Added in the same commit as its writer.
+    "screener_rs_note_seen": _PREF_OPAQUE,
     # Written server-side by `ticker_tag_service.set_shared_tag_colors`, not
     # through this endpoint — listed so a client that ever writes it directly
     # is not refused for a key the product already owns.

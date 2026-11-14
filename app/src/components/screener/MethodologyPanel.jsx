@@ -8,7 +8,7 @@
 // had zero frontend callers. Modeled on StructureProvenance.jsx's idiom in
 // this same directory: a failed fetch reports an error, never an empty
 // library; a caveat is a first-class field, never a hidden footnote.
-import { useEffect, useId, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import styles from './MethodologyPanel.module.css'
 
 function ComponentBreakdown({ components }) {
@@ -57,11 +57,22 @@ function MethodCard({ m }) {
   )
 }
 
-export default function MethodologyPanel({ fetcher = fetch }) {
+// `focusColumns` (optional): open AT a section. Once the methods have loaded, the first card
+// (in the document's own order) whose column is in this list is scrolled to the top of the
+// panel. The Focus screener's "How the RS screens work" uses it. Absent, or no card matching:
+// the panel opens at the top, as before.
+export default function MethodologyPanel({ fetcher = fetch, focusColumns = null }) {
   const [data, setData] = useState(null)
   const [error, setError] = useState(null)
   const uid = useId()
   const titleId = `${uid}-title`
+  const wanted = Array.isArray(focusColumns) ? focusColumns : []
+  const focusAt = data ? (data.methods || []).find((m) => wanted.includes(m.column))?.column : null
+  const focusRef = useRef(null)
+  useEffect(() => {
+    // jsdom has no scrollIntoView; a browser without it simply opens at the top.
+    if (focusAt && typeof focusRef.current?.scrollIntoView === 'function') focusRef.current.scrollIntoView({ block: 'start' })
+  }, [focusAt])
 
   useEffect(() => {
     let alive = true
@@ -87,7 +98,7 @@ export default function MethodologyPanel({ fetcher = fetch }) {
       {data.as_of_note && <div className={styles.asOfNote}>{data.as_of_note}</div>}
       <ul className={styles.cards} aria-labelledby={titleId}>
         {(data.methods || []).map((m) => (
-          <li key={m.column}><MethodCard m={m} /></li>
+          <li key={m.column} ref={m.column === focusAt ? focusRef : undefined}><MethodCard m={m} /></li>
         ))}
       </ul>
     </div>

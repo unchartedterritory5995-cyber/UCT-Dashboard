@@ -11,6 +11,15 @@
 export const MAX_CONTROLS = 3
 // The two member preferences this feature writes (both in `_PREFERENCE_KEYS`, api/routers/auth.py).
 export const RS_CONTROLS_PREF = 'screener_rs_controls'
+// Set once the member presses "Got it" on the first-visit line.
+export const RS_NOTE_PREF = 'screener_rs_note_seen'
+// The one screen whose header line names a dominant sector (BRIEF-U5 item 4).
+export const RS_LEADERS_ID = 'starter_rs_leaders'
+// The RS screens' columns (CONTRACT-SCREENS.md section 1). "How the RS screens work" opens the
+// Methodology sheet at the first card, in that document's own order, for one of these.
+export const RS_SCREENS_COLUMNS = ['rs_rating_session', 'rs_rating_score', 'rs_rating_pos', 'rs_rating_pos_n', 'rs_pos_1m', 'rs_pos_3m',
+  'rs_pos_6m', 'rs_pos_12m', 'rs_rating_pos_prev20', 'rs_rating_prev20', 'rs_nh_count_20', 'rs_nh_quiet', 'rs_nh_red_bars_ago', 'rs_nhbp_age',
+  'rs_nh_span', 'px_below_high_pct', 'rs_setup', 'rs_tight', 'rs_flag', 'rs_near_buy', 'atr_ext_ema21', 'pct_vs_ema8', 'pct_vs_ema21']
 
 const POOL_KEYS = ['universe', 'list']
 const isObj = v => !!v && typeof v === 'object' && !Array.isArray(v)

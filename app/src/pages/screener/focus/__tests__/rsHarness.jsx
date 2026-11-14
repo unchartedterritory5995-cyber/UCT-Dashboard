@@ -23,11 +23,11 @@ export const META = {
 // What a test can move. `scan(body)` may return rows, or {rows, total}.
 export const net = {
   starters: STARTERS_ON, saved: [], prefs: {}, rows: RS_ROWS, scan: null, savedDelay: 0, prefsDelay: 0,
-  diff: null, methodology: { methods: [] }, themes: {},
+  diff: null, methodology: { methods: [] }, themes: {}, prefsFail: false,
 }
 export function resetNet() {
   Object.assign(net, { starters: STARTERS_ON, saved: [], prefs: {}, rows: RS_ROWS, scan: null, savedDelay: 0, prefsDelay: 0,
-    diff: null, methodology: { methods: [] }, themes: {} })
+    diff: null, methodology: { methods: [] }, themes: {}, prefsFail: false })
 }
 const later = (body, ms) => (ms ? new Promise(r => setTimeout(() => r(body), ms)) : body)
 
@@ -52,6 +52,7 @@ export function installFetch() {
         net.prefs = { ...net.prefs, [key]: value }
         return { ok: true, json: async () => ({ ok: true }) }
       }
+      if (net.prefsFail) return { ok: false, status: 502, json: async () => ({}) }
       const snap = { ...net.prefs }
       return later({ ok: true, json: async () => snap }, net.prefsDelay)
     }

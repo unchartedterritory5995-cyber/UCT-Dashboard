@@ -602,6 +602,18 @@
       ]
     },
     {
+      "key": "screener_rs_note_seen",
+      "store": "server-preference",
+      "scope": "cross-device",
+      "surface": "Screener",
+      "kind": "state",
+      "label": "RS screens first-visit note dismissed",
+      "serverAllowlisted": true,
+      "files": [
+        "app/src/pages/screener/focus/FocusScreener.jsx"
+      ]
+    },
+    {
       "key": "shared_tag_colors",
       "store": "server-preference",
       "scope": "cross-device",

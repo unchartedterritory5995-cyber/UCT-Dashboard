@@ -78,8 +78,11 @@
   .first { flex: 1 1 auto; }
   .first .scroll { overflow-x: auto; scrollbar-width: none; border-radius: var(--radius-lg); }
   .adjust { display: inline-flex; align-items: center; gap: 6px; flex: none; }
-  .opt, .custom, .adjust, .reset, .sheetReset { min-height: var(--tap-min); }
-  .opt { min-width: var(--tap-min); }
   .head, .note { padding-left: 12px; padding-right: 12px; }
-  .noteLink, .noteBtn { min-height: var(--tap-min); }
+}
+/* Touch (phone AND tablet, breakpoints.css): every control here is a 44 px finger target. Declared
+   for the whole touch tier, never the phone alone (styles/tapFloor.test.js). */
+@media (max-width: 1024px) {
+  .opt, .custom, .adjust, .reset, .sheetReset, .noteLink, .noteBtn { min-height: var(--tap-min); }
+  .opt { min-width: var(--tap-min); }
 }
