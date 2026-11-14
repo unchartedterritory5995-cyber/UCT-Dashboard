@@ -1,0 +1,5 @@
+{
+ "rsi above 70": "{\"sym\":\"NVDA\",\"indicator\":\"rsi\",\"condition\":\"above\",\"tf\":\"D\",\"params\":{\"period\":14},\"instance_id\":\"inst:rsi:1\",\"threshold\":70}",
+ "rsi cross above 30 weekly": "{\"sym\":\"NVDA\",\"indicator\":\"rsi\",\"condition\":\"cross_above\",\"tf\":\"W\",\"params\":{\"period\":14},\"instance_id\":\"inst:rsi:1\",\"threshold\":30}",
+ "macd signal crosses zero": "{\"sym\":\"NVDA\",\"indicator\":\"macd.signal\",\"condition\":\"cross_zero\",\"tf\":\"D\",\"params\":{\"fast\":12,\"slow\":26,\"signal\":9},\"instance_id\":\"inst:macd:1\"}"
+}

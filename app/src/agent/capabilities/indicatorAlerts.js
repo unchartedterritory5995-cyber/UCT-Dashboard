@@ -34,6 +34,7 @@ import {
 } from '../../components/chart/engine/triggerPolicy'
 import { alertNeedsAttention } from '../../components/chart/alertState'
 import { showOnOf } from './indicatorControls'
+import { alertScopeOfRef } from '../host'
 
 const MAX_CREATES = 5
 const SHOW_IN_CONTEXT = 25
@@ -175,6 +176,29 @@ function findInstance(host, instanceId, chartRef = null) {
   if (new Set(hits.map(h => `${h.chart.symbol}|${h.chart.tf}`)).size > 1) return { ambiguous: hits }
   return hits[0]
 }
+const NOT_CREATED = 'Nothing was created.'
+/** A create whose stored scope is not the one asked: delete exactly the ids this commit's POSTs returned, re-read, and
+ *  throw the sentence that is TRUE — "nothing was created" only when none of them is still there. */
+async function takeBackMismatch(host, src, patch, created, book, bad) {
+  const ids = Object.values(created)
+  for (const id of ids) { try { await src.remove(id) } catch { /* the re-read below decides */ } }
+  let now = null
+  try { now = await loadIndicatorAlerts(host, { force: true }) } catch { now = null }
+  const left = now ? now.filter(a => ids.includes(a.id)) : ids.map(id => book.find(a => a.id === id) || { id })
+  const c = patch.create[bad]
+  if (!left.length) {
+    const e = new Error(c.scope ? SCOPE_NOT_KEPT : 'The server saved the alert differently from what was asked, so I took it back — nothing was created.')
+    e.complete = true
+    throw e
+  }
+  const how = (a) => (a.scope ? 'listed on a different chart' : 'listed on every chart')
+  const named = left.map(a => (a.sym ? `${phrase(a)} (${how(a)})` : `alert ${a.id}`)).join('; ')
+  const e = new Error(`An alert WAS created, but not as asked${c.scope ? ` (only on ${c.chartLabel || 'this chart'})` : ''}, and I couldn't take it back: ${named}. It is in your Indicator Alerts — delete it there if you don't want it.`)
+  e.complete = true
+  e.unreverted = true
+  throw e
+}
+export const SCOPE_NOT_KEPT = 'The server saved that alert for every chart, not only this one, so I took it back — nothing was created. Use the chart\'s Indicator Alerts popover (Only on this chart).'
 const money = (n) => (Number.isFinite(n) ? (Math.abs(n) >= 1000 ? `$${n.toLocaleString('en-US', { maximumFractionDigits: 2 })}` : String(n)) : '')
 const plotOfAddress = (address) => { for (const e of cache.catalog || []) for (const p of plotsOf(e)) if (p.value === address) return p; return null }
 /** "becomes true" for a yes/no alert (the popover's reading: never the 0.5 it compiles to), else null. */
@@ -239,7 +263,9 @@ export const indicatorAlertLibraryKind = {
       // the SAME SHAPE as the popover's payload (IndicatorAlertPopover.handleAdd): sym, indicator (the PLOT address), condition,
       // tf, params when the plot has inputs (the INSTANCE's own inputs for the plot's declared knobs — not the popover's
       // catalog defaults), instance_id; threshold when the condition needs one; no scope = global
-      const payload = { sym: c.sym, indicator: c.indicator, condition: c.condition, tf: c.tf, ...(c.params ? { params: c.params } : {}), instance_id: c.instanceId, ...(c.threshold != null ? { threshold: c.threshold } : {}), ...(c.triggerPolicy ? { trigger_policy: c.triggerPolicy } : {}) }
+      const payload = { sym: c.sym, indicator: c.indicator, condition: c.condition, tf: c.tf, ...(c.params ? { params: c.params } : {}), instance_id: c.instanceId, ...(c.threshold != null ? { threshold: c.threshold } : {}), ...(c.triggerPolicy ? { trigger_policy: c.triggerPolicy } : {}),
+        // "Only on this chart": the popover's own `scope` (only when asked — omitted = GLOBAL, as every earlier client sends)
+        ...(c.scope ? { scope: c.scope } : {}) }
       let res
       try { res = await src.create(payload) } catch (e) { res = { ok: false, error: e?.message || 'error' } }
       if (!res || !res.ok) { const e = new Error(res?.error || 'The server refused this alert.'); e.created = created; throw e }
@@ -247,6 +273,11 @@ export const indicatorAlertLibraryKind = {
     }
     // the receipt words what the server STORED (normalize_params may change a value), read back from the fresh list
     const book = await loadIndicatorAlerts(host, { force: true })
+    // READ BACK the scope the server STORED: a chart-only alert the server saved GLOBAL (or the reverse) is not what was
+    // asked — it is taken back HERE, by the exact ids the POSTs returned (never by a lookalike), and said, never receipted.
+    // If taking it back fails, the reply says an alert WAS created, how it is listed, and names it.
+    const bad = patch.create.findIndex((c, i) => { const row = book.find(a => a.id === created[`#${i}`]); return !row || (row.scope || null) !== (c.scope || null) })
+    if (bad >= 0) await takeBackMismatch(host, src, patch, created, book, bad)
     const lines = patch.create.map((c, i) => { const row = book.find(a => a.id === created[`#${i}`]); return createLine(c, row ? row.params : null) })
     return { created, lines }
   },
@@ -254,7 +285,7 @@ export const indicatorAlertLibraryKind = {
     if (!snap) return false
     const have = snap.alerts
     if (patch.deleteCreated) return patch.deleteCreated.every(id => !have.some(a => a.id === id))
-    return patch.create.every(c => have.some(a => a.active && sameAlert(a, c)))
+    return patch.create.every(c => have.some(a => a.active && sameAlert(a, c) && (a.scope || null) === (c.scope || null)))
   },
   undoPatch: (item) => { const ids = Object.values(item.created || {}); return ids.length ? { deleteCreated: ids } : null },
   compensatePatch: (item) => { const ids = Object.values(item.created || item.partial || {}); return ids.length ? { deleteCreated: ids } : null },
@@ -326,7 +357,8 @@ function settingsWords(c, stored) {
 function createLine(c, stored) {
   const level = c.threshold != null && !c.triggerPolicy ? ` ${money(c.threshold)}` : ''
   const where = c.tf === c.chartTf ? `on the ${c.tf} chart` : `on ${tfLabel(c.tf)} bars (the chart shows ${tfLabel(c.chartTf)})`
-  return `Indicator alert: ${c.sym} ${c.label} ${c.condLabel.toLowerCase()}${level} ${where} — ${settingsWords(c, stored)}`
+  const only = c.scope ? ` — only on ${c.chartLabel || 'this chart'} (listed in that chart's alerts; it notifies you like any alert)` : ''
+  return `Indicator alert: ${c.sym} ${c.label} ${c.condLabel.toLowerCase()}${level} ${where}${only} — ${settingsWords(c, stored)}`
 }
 
 let registered = false
@@ -408,19 +440,22 @@ export function registerIndicatorAlertCapabilities() {
     createsResource: true,
     summary: 'Create ONE indicator alert on an indicator that is ON a chart (RSI above 70, MACD crossing a level, price touching a band, the 9 EMA crossing the 20 EMA, the member\'s own yes/no signal turning on), as the Indicator Alerts popover does. It watches that chart\'s symbol with the instance\'s own settings, on the chart\'s timeframe or another native one. Undo deletes it.',
     hints: 'target = the ref of the indicatorAlertLibrary entry; instance = the id of the indicator from that chart\'s indicators entry (never a name); chart = the ref of the chart it is on; '
-      + 'plot = null, or for several lines the address the catalog names (macd.signal) — not sure which line: ask. '
+      + 'plot = null, or the catalog address of one line (macd.signal); unsure: ask. '
       + 'condition = above | below | cross_above | cross_below | cross_zero | touch_upper | touch_lower ("crosses above 70" = cross_above; "is over 70" = above); threshold = the level, else null. '
       + 'MA cross: instance = the 9, crossWith = the 20 (ids), cross_above|cross_below, threshold null; crossWith = null otherwise. '
       + 'The member\'s own yes/no signal: trigger = becomes_true ("turns on") | becomes_false ("turns off") | is_true, condition and threshold null; trigger = null otherwise. '
-      + 'timeframe = null for the chart\'s own, or 1 | 5 | 15 | 30 | 60 | D | W | M ("alert on the weekly RSI" = W). '
-      + 'A PRICE level ("when NVDA hits 150") is alert.create. Always proposed (disposition propose). Not on any chart: say to add it first.',
+      + 'timeframe = null for the chart\'s own, or 1 | 5 | 15 | 30 | 60 | D | W | M ("weekly RSI" = W). '
+      + 'chartOnly = true only for "this chart only", else null. '
+      + 'A PRICE level ("NVDA hits 150") is alert.create. Always propose. Not on a chart: say add it first.',
     args: { type: 'object', properties: {
       instance: { type: 'string' }, plot: { type: ['string', 'null'] }, condition: { type: ['string', 'null'] }, threshold: { type: ['number', 'null'] },
       crossWith: { type: ['string', 'null'] }, chart: { type: ['string', 'null'] },
       trigger: { type: ['string', 'null'], enum: [...POLICY_OPTIONS.map(o => o.value), null] }, timeframe: { type: ['string', 'null'] },
-    }, required: ['instance', 'plot', 'condition', 'threshold', 'crossWith', 'chart', 'trigger', 'timeframe'], additionalProperties: false },
+      chartOnly: { type: ['boolean', 'null'] },
+    }, required: ['instance', 'plot', 'condition', 'threshold', 'crossWith', 'chart', 'trigger', 'timeframe', 'chartOnly'], additionalProperties: false },
     // 2026-11-04 — `crossWith` and `chart` were ADDED, then `trigger` and `timeframe`; an arg shape from before them (key left out) reads as null.
-    absentAsNull: ['crossWith', 'chart', 'trigger', 'timeframe'],
+    // 2026-11-14 — `chartOnly` (the popover's "Only on this chart" box) ADDED the same way.
+    absentAsNull: ['crossWith', 'chart', 'trigger', 'timeframe', 'chartOnly'],
     // the model's chart ref → the real chart ref (useAgent translateRefs)
     argRefs: { chart: 'chart' },
     async prepare() {
@@ -603,7 +638,35 @@ function valueRangeOf(inst) {
   const s = d?.placement?.scale
   return s && Number.isFinite(s.min) && Number.isFinite(s.max) && s.min < s.max ? { min: s.min, max: s.max } : null
 }
-function resolveCreate({ instance, plot, condition, threshold, crossWith = null, chart = null, trigger = null, timeframe = null }, env) {
+function resolveCreate({ instance, plot, condition, threshold, crossWith = null, chart = null, trigger = null, timeframe = null, chartOnly = null }, env) {
+  const r = resolveCreateCore({ instance, plot, condition, threshold, crossWith, chart, trigger, timeframe }, env)
+  if (r.why || chartOnly !== true) return r
+  // "Only on this chart": exactly ONE chart — the one named, else the one chart with this indicator, else the clicked one
+  const where = scopeChart(instance, chart, r.found)
+  if (where.why) return { why: where.why }
+  return { ...r, scope: where.scope, chartLabel: where.label }
+}
+
+/** The chart a chart-only alert is listed on → { scope, label } | { why }. Never a guess between charts. */
+function scopeChart(instance, chartRef, found) {
+  let charts = []
+  try { charts = hostRef?.charts?.list?.() || [] } catch { charts = [] }
+  let on = null
+  if (chartRef != null && String(chartRef).trim()) on = found.chart
+  else {
+    const id = String(instance || '')
+    const direct = charts.filter(c => indicatorsOn(c.cs).some(i => i.instanceId === id))
+    const withIt = direct.length ? direct : resolveInstanceRef(charts, id).hits.map(h => h.chart)
+    const uniq = [...new Map(withIt.map(c => [c.ref, c])).values()]
+    on = uniq.length === 1 ? uniq[0] : (uniq.find(c => c.selected) || null)
+    if (!on) return { why: `That indicator is on ${uniq.length} charts — which chart should this alert be listed on? Say the chart (or click it), and ask again. ${NOT_CREATED}` }
+  }
+  const scope = alertScopeOfRef(on?.ref)
+  if (!scope) return { why: `That chart has no identity an alert can be listed on, so I can't make it chart-only. ${NOT_CREATED}` }
+  return { scope, label: on.label || 'this chart' }
+}
+
+function resolveCreateCore({ instance, plot, condition, threshold, crossWith = null, chart = null, trigger = null, timeframe = null }, env) {
   const found = findInstance(hostRef, instance, chart)
   if (found?.noChart) return { why: 'That chart isn’t on this board any more, so nothing was created — ask again for the chart you mean.' }
   if (!found) return { why: `There's no indicator “${instance}” on your charts — use an id from the indicators entry, or add the indicator to a chart first.` }
@@ -656,8 +719,8 @@ function resolveCreate({ instance, plot, condition, threshold, crossWith = null,
 }
 
 /** The alert to create, from the chart the instance is on and the catalog's plot — the popover's own fields. */
-function toCreate({ found, p, tf, policy, condition, threshold, cross }) {
-  const common = { sym: String(found.chart.symbol || '').toUpperCase(), tf, chartTf: String(found.chart.tf || 'D'), indicator: p.value }
+function toCreate({ found, p, tf, policy, condition, threshold, cross, scope = null, chartLabel = null }) {
+  const common = { sym: String(found.chart.symbol || '').toUpperCase(), tf, chartTf: String(found.chart.tf || 'D'), indicator: p.value, ...(scope ? { scope, chartLabel } : {}) }
   if (cross) {
     const t = cross.params.ma_type.toUpperCase()
     return {
