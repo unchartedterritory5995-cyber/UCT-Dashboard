@@ -1000,7 +1000,8 @@ export function withheldPlotsOf(clockReport, cols, notes) {
   for (const r of clockReport.withheld) {
     const what = r.code.startsWith('bar-index:') ? '`bar_index`'
       : r.code.startsWith('running-total:') ? 'a running total'
-        : r.code.startsWith('var-origin:') ? '`var`' : 'time(<timeframe>)'
+        : r.code.startsWith('var-origin:') ? '`var`'
+          : r.code.startsWith('pine:') ? 'a value (engine 56 per-bar witness)' : 'time(<timeframe>)'
     notes.push(`${what} withheld (${r.code}) on ${r.plots.length} plot(s) — ${r.reason}`)
     const whole = CHART_CLOCK_WHOLE.includes(r.code)
     for (const key of r.plots) {

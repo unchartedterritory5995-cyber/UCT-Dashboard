@@ -102,3 +102,58 @@ runs the newest reducer.
 - a bar withheld by a per-bar witness code (`nativeRegistry.withheldBarsReport`, recorded by
   `spreadWitnessMask`) is not compared; where TradingView drew a value on one, the plot is INCONCLUSIVE
   with the count.
+
+## Rails
+- `app/src/components/chart/engine/ast/engine56Values.test.js` (host and runtime lanes, four doors):
+  - A1: the trailing stop of bars 4..11 (16.49207, 16.49207, 16.49207, 17.547739840000006, …) from a v1
+    script in this repo's words, v1 = v2; the ternary re-seed bar by bar; control: an update that never
+    answers `na` (`x = close > nz(x[1], 0) ? close : nz(x[1], 0)`) is the running max.
+  - A2: Connors RSI (written from its public definition) reads 68.6058732213702 on bar 100, `na` on 98/99,
+    73.8326746093395 / 41.05454228993245 on 101/102; synthetic `[na x 3, values]`; the runtime lane
+    draws the same column.
+  - A3: the markers script reads `na` on bar 14 and -84920.78585333377 on bar 31, nothing withheld, no
+    marker in the tree; v6 draws the bar-14 marker. Synthetic forms over v1 (no pragma) .. v6: `c == false`
+    served at every version; `!=`, `==` of two `na`-able sides, v1-v3 `not` / `or`, `(c and x) == false`
+    withheld on bars 0..3 with the code in the clock channel, `withheldBarsReport` and the door; the
+    screen / pane / member door translate and `buildRuntimeIr` declines by the same code; the served
+    forms are equal on both lanes.
+  - S4-1: synthetic left-`na` pivots in `pivotCol` and the runtime kernel; a v4 pivot of
+    `close - sma(close, 10)` on RDDT (the pivots of bars 10 and 14, read on bars 12 and 16);
+    `rsi-divergence-indicator` (S6) bars 19 (45.19746465138957) and 23 (41.366625940024655), an all-`na`
+    left window passing and a window before bar 0 withheld.
+  - S4-2: the aroon form on RDDT (78.57142857142857 / 100 / 92.85714285714286 on bars 115..117); v4
+    `highestbars(11)` = -1 on bar 117; a two-valued computed source withheld (v6, v4) with the runtime
+    declining; a computed source with no tie drawn, tie bars counted exactly; the bar-price test.
+  - the runtime lane's own path: a VM `!=` over a comparison of a mutable value declines (v5), not v6;
+    a VM window over a computed source stops by name on its first tied window and is served (equal to
+    the columnar lane) with none; `ta.highestbars(high, <per-bar length>)` names bar 116 on bar 116.
+- `app/src/components/chart/engine/__tests__/vendorHarness/vendorHarness.engine56FloatFloor.test.js`:
+  the S4-4 floor on the capture's magnitudes (2 ulps of a 1.2e9 total pass, a relative 1e-6 error still
+  diverges), `floatOrderFloorOf`, and per-bar withholding (INCONCLUSIVE with a count in steady state,
+  nothing in warm-up, a wrong value elsewhere still DIVERGE).
+- `tests/test_engine56_values.py`: the Python twin of A2, S4-1, S4-2 (newest, aroon, tie mask) and the A3
+  marker and mask.
+- Pins updated for the new shape, each with its reason: `pine.convergence`, `pine.selfref`,
+  `thinkscript.selfref` (the step keeps `nz` / the `na` test), `pinePhase1Builtins` (TradingView's Aroon:
+  newest), `sentence` / `parse` / `doorCoverage` / `pine.window` / `periodAnchorParity` (the new table
+  function and codes), `test_ast_interpret` / `test_ast_scalars` / the corpus and input-compat fixtures,
+  `docs/formulas/GRAMMAR.md` (regenerated), `tools/lookback_agreement.json` (written by its own rail),
+  host-parity digests (`--write`, every case moves with the engine identity; 0 status or guard changes).
+
+## Census (1,816 sources: corpus 266, repo `.pine` 507, committed vendor captures 173, licence-held sample 679, held capture store 191)
+BEFORE = this tree with `origin/master`'s product files swapped in (`ast_interpret.py`, `interpret.js`,
+`pine.js`, `pineRuntimeFrontend.js`, `thinkscript.js`, `closedTable.json`, `nativeRegistry.js`, `vm.js`,
+`scriptEngineVersion.js`, `ourSide.js`, `compare.mjs`), restored from saved copies afterwards (`git status`
+clean on every one). Each source through the screen translation, the pane (`strict`), `buildRuntimeIr`
+(300 synthetic bars, from the listing) and `memberPaneDefinition`.
+
+- Guard changes: **0** at the screen, the pane and the member door. **5** at `buildRuntimeIr`, each
+  `OK -> pine:bool-na-unwitnessed` (a column the columnar lane now withholds on some of those bars):
+  `pivot-points-high-low-extension` (sample and held capture), `check-head-and-shouldersmask-man`,
+  `stoch-money-flow-admf-absolute-strength-index-asi-ci8dh`, `vix-fix-stochrsi-strategy`.
+- Translations that changed (output formulas / the door's definition): screen 17, pane 21, door 22 rows
+  (A1's step shape, A3's rewrites): the v1/v2 self-declarations (`average-true-range-trailing-stops`,
+  `bill-williams-awesome-oscillator`, `squeeze-momentum-indicator-lazybear`, `smoothed-heiken-ashi-candles`,
+  `ehlers-instantaneous-trend`, `cm-williams-vix-fix`, `16-smacd`, …) and the v1-v5 bool forms
+  (`accumulation-distribution-with-markers`, `ytc-swing-highs-lows`, `mcclellan-oscillator`,
+  `onchart-wavetrend-divergence-with-pivots`, `qqe-mod-ssl-hybrid`, …). No translation errors appeared.
