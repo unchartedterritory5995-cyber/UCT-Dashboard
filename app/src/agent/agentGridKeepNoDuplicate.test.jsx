@@ -151,6 +151,14 @@ describe('KEEP ≠ RE-CREATE · the rail alone refuses a plan that re-creates a 
     const plan = { ok: true, plans: [...p1.plans, ...p2.plans] }
     expect(chartRailRefusal(plan, { words: 'add AAPL but keep SPY and NVDA', host: bd.host, mode: 'apply' })).toMatch(/you asked to keep SPY/)
   })
+  it('CONTROL · a Multi Chart grid-mode board: growing the grid (empty cells) with a keep clause is not a re-creation', () => {
+    const bd = makeBoard(...boardOf(['SPY', 'NVDA'], 10))
+    const st = { mode: 'grid', layout: '2x2', cells: [{ id: 'g0', sym: 'SPY', tf: 'D' }, { id: 'g1', sym: 'NVDA', tf: 'D' }, { id: 'g2', sym: null, tf: 'D' }, { id: 'g3', sym: null, tf: 'D' }] }
+    const host = { ...bd.host, gridControl: { state: () => st, maxId: () => null, settingsOpen: () => false, snapshot: () => ({ st }), savedGrids: () => [] } }
+    const plan = planOps(collectTargets(host, ['multiChart']), [{ action: 'multiChart.set', target: 'multichart', args: { op: 'layout', rows: 2, cols: 3, on: null, name: null, direction: null } }], {}, { surface: 'charts' })
+    expect(plan.ok).toBe(true)
+    expect(chartRailRefusal(plan, { words: 'add AAPL and MSFT but keep SPY and NVDA', host, mode: 'apply' })).toBe(null)
+  })
   it('fails closed: charts from a list whose tickers are unknown, while charts are kept → asked to name them', () => {
     const bd = makeBoard(...boardOf(['SPY']))
     const plan = { ok: true, plans: [{ kind: 'workspace', ref: 'workspace', after: { pendingCharts: [{ symbols: { from: 'wl1', top: 2 } }] }, before: {} }] }
