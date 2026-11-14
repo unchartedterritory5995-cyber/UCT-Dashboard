@@ -556,6 +556,11 @@ _EXEMPT = {
     # source and which carries series_meta / store_meta verbatim (so the copy's revs and
     # proofs describe exactly its rows); any install of it bumps the store floor.
     ("api/services/bars_cluster.py", "cluster_copy"),
+    # The packed read's self-proof (2026-11-12): it builds a throwaway `:memory:` database with
+    # the store's DDL, writes a fixed set of doubles into it and reads them back. No series in
+    # the live store is touched. (This census had been failing on it since the proof was added;
+    # it is not in the deploy gate.)
+    ("api/services/bars_sqlite.py", "_packed_self_test"),
 }
 
 
