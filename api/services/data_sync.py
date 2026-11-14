@@ -493,6 +493,23 @@ _ADOPT_VERIFIED = ".verified"        # written inside adopt_<ts>/ once the downl
                                      # every gate; a restart resumes from there
 
 
+_REINSTALL_MARKER = ".bars_reinstall_token"
+
+
+def _pending_reinstall_token(data_dir: str) -> str:
+    """The BARS_REINSTALL_TOKEN value if it has not been applied on this volume yet, else ""."""
+    tok = os.environ.get("BARS_REINSTALL_TOKEN", "").strip()
+    if not tok:
+        return ""
+    try:
+        with open(os.path.join(data_dir, _REINSTALL_MARKER)) as f:
+            if f.readline().strip() == tok:
+                return ""
+    except OSError:
+        pass
+    return tok
+
+
 def _adopt_dir_for(ts: str) -> str:
     return f"adopt_{ts}"
 
@@ -619,16 +636,22 @@ def _adopt_clustered_store_locked(data_dir: Optional[str] = None) -> str:
          delta newer than the base re-applies.
     Any failure leaves the old store exactly as it was and is logged once. Returns a
     status word."""
-    if os.environ.get("BARS_ADOPT_CLUSTERED") != "1":
-        return "off"
     data_dir = data_dir or _DATA_DIR
+    # ⭐ BARS_REINSTALL_TOKEN=<token>: the operator lever to re-install the latest clustered
+    # base over a store that is already clustered but PARTIAL (2026-11-14: a false boot
+    # resync left web with only delta-window rows). Runs ONCE per distinct token, through
+    # this same safe path -- carry the local rows, swap under the write + swap locks --
+    # never `force_resync`, which deletes the live file under open connections.
+    reinstall = _pending_reinstall_token(data_dir)
+    if os.environ.get("BARS_ADOPT_CLUSTERED") != "1" and not reinstall:
+        return "off"
     p = os.path.join(data_dir, "bars.db")
-    if os.path.exists(os.path.join(data_dir, _ADOPTED_MARKER)):
+    if not reinstall and os.path.exists(os.path.join(data_dir, _ADOPTED_MARKER)):
         return "done"
     if not os.path.exists(p):
         return "absent"                       # the cold-start install handles an empty pod
     try:
-        if _layout_of(p) == "clustered":
+        if not reinstall and _layout_of(p) == "clustered":
             _write_marker_at(data_dir, _ADOPTED_MARKER, "local")
             return "done"
     except Exception as e:  # noqa: BLE001
@@ -730,6 +753,8 @@ def _adopt_clustered_store_locked(data_dir: Optional[str] = None) -> str:
             # past what clients hold — the provably safe choice over carrying meta across.
             bars_sqlite.bump_store_floor("adopted clustered store")
         _write_marker_at(data_dir, _ADOPTED_MARKER, ts)
+        if reinstall:
+            _write_marker_at(data_dir, _REINSTALL_MARKER, reinstall)
         _write_marker_at(data_dir, _LAST_SYNC_MARKER, ts)
         try:
             os.remove(os.path.join(data_dir, _LAST_DELTA_MARKER))
