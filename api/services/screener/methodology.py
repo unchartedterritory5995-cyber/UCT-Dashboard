@@ -909,6 +909,10 @@ def _left_out_words() -> str:
     return f"Stocks flagged {' or '.join(names)} are left out."
 
 
+#: The last sentence of both Pullback rules (unit U7): the label is a description.
+PULLBACK_IS_A_PLACE = "It marks where the stock is, not what to do."
+
+
 def _rs_setup_rules() -> dict:
     """The Setup label's rules in plain words, every number read from `rs_setup` and
     `technicals`: one copy for the screens' page and for the `rs_setup`, `rs_flag` and
@@ -918,11 +922,16 @@ def _rs_setup_rules() -> dict:
     words = _st.SETUP_LABELS
     band = f"{_st.PULLBACK_ATR_BAND:g}"
     zone = _pct_words(_st.IBD_BUY_ZONE)
+    # Unit U7 (2026-11-14, polish from the real screens): the plain sentence leads and
+    # the numbers follow it. "Pullback to the 8-day" can be read as an instruction, so
+    # each of the two rules ends by saying what the label is (`PULLBACK_IS_A_PLACE`).
     pullback = (
-        f"The stock closed at a {_tech.HIGH20_WINDOW}-session high within the last "
-        f"{_st.PULLBACK_HIGH_MAX_AGE} sessions, and today its low came within {band} ATR of a "
-        f"rising {{n}}-day EMA while its close is no more than {band} ATR under it. An EMA is "
-        f"rising when it stands above its value {_tech.EMA_RISING_SPAN} sessions earlier.")
+        f"The stock made a {_tech.HIGH20_WINDOW}-session high within the last "
+        f"{_st.PULLBACK_HIGH_MAX_AGE} sessions and is now trading at its rising {{n}}-day "
+        f"average. In numbers: the high is a closing high, and today its low came within "
+        f"{band} ATR of a rising {{n}}-day EMA while its close is no more than {band} ATR "
+        f"under it. An EMA is rising when it stands above its value "
+        f"{_tech.EMA_RISING_SPAN} sessions earlier.")
     return {
         "order": "The first rule that matches names the stock. Tight range is a second tag "
                  "that can sit beside any of them.",
@@ -947,11 +956,12 @@ def _rs_setup_rules() -> dict:
              "source": (f"{zone} above the pivot is IBD's published range. "
                         f"{_pct_words(_st.PIVOT_BELOW)} below is a house threshold.")},
             {"key": "pullback_8", "label": words["pullback_8"],
-             "rule": pullback.format(n=8) + " Named ahead of the 21-day when both hold.",
+             "rule": (pullback.format(n=8) + " Named ahead of the 21-day when both hold. "
+                      + PULLBACK_IS_A_PLACE),
              "source": "The 8-day and 21-day EMAs are the house teaching averages. The "
                        "half-ATR band is a house threshold with no published test."},
             {"key": "pullback_21", "label": words["pullback_21"],
-             "rule": pullback.format(n=21),
+             "rule": pullback.format(n=21) + " " + PULLBACK_IS_A_PLACE,
              "source": "The same house rule, on the 21-day EMA."},
             {"key": "uptrend", "label": words["uptrend"],
              "rule": "None of the above, with the close at or above the 50-day average.",
