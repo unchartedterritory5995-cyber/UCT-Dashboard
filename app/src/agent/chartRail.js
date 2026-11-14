@@ -79,12 +79,13 @@ const EFFECTS = {
 export const RAIL_KINDS = Object.keys(EFFECTS)
 
 /** Every effect a planned change has on the charts already on screen: [{ type, ref, symbol, to?, position, kind }]. */
-export function chartEffects(plan, host) {
+export function chartEffects(plan, host, { strict = false } = {}) {
   const out = []
   for (const p of plan?.plans || []) {
     const f = EFFECTS[p.kind]
     if (!f) continue
-    try { for (const e of f(p, host)) out.push({ ...e, kind: p.kind }) } catch { /* an unreadable plan has no effects to claim */ }
+    // (`strict`: targetDecl.js reads an unreadable plan as a fail-closed mismatch; the rail's own reading is unchanged)
+    try { for (const e of f(p, host)) out.push({ ...e, kind: p.kind }) } catch (err) { if (strict) throw err /* an unreadable plan has no effects to claim */ }
   }
   return out
 }
@@ -161,8 +162,8 @@ export const knownIn = (text, known) => {
   return [...new Set((known || []).map(k => String(k || '').toLowerCase()).filter(k => k && words.has(k)))]
 }
 const ADD_REST = /\badd(?:ing)?\b[^.;!?]*\b(?:other|others|remaining|rest)\b|\b(?:as|for|in|into) the (?:other|remaining|empty|new)\b/i
-const REPLACE = /\b(?:replace|replacing|replaced|instead|swap(?:ping)? out|swap (?:the |my )?(?:tickers?|symbols?|charts?)\b|swap \$?[A-Za-z]{1,5} (?:and|with) |get rid of|switch (?:out|over)|change (?:the |my |that |this |both |all )?(?:\w+ )?(?:chart|charts|one|ones|symbol|ticker)s?\b(?!\s+layout)|(?:change|switch|turn|flip) (?:the |my |that |this )?(?:\w+ )?(?:chart |one )?(?:to|into) \$?[A-Za-z]{1,5}\b)/i
-const REMOVAL = /\b(?:remove|removing|delete|deleting|close|closing|get rid|replace|replacing|clear|clean(?:ing)? up|tidy|drop|dropping|only|just|fewer|less|reduce|down to|instead|swap(?:ping)? out|single|one chart)\b/i
+export const REPLACE = /\b(?:replace|replacing|replaced|instead|swap(?:ping)? out|swap (?:the |my )?(?:tickers?|symbols?|charts?)\b|swap \$?[A-Za-z]{1,5} (?:and|with) |get rid of|switch (?:out|over)|change (?:the |my |that |this |both |all )?(?:\w+ )?(?:chart|charts|one|ones|symbol|ticker)s?\b(?!\s+layout)|(?:change|switch|turn|flip) (?:the |my |that |this )?(?:\w+ )?(?:chart |one )?(?:to|into) \$?[A-Za-z]{1,5}\b)/i
+export const REMOVAL = /\b(?:remove|removing|delete|deleting|close|closing|get rid|replace|replacing|clear|clean(?:ing)? up|tidy|drop|dropping|only|just|fewer|less|reduce|down to|instead|swap(?:ping)? out|single|one chart)\b/i
 const SHAPE = /\b([1-4])\s*(?:x|×|by|-by-|\s+by\s+)\s*([1-4])\b/i
 const QUAD = /\bquad\b/i
 
@@ -178,7 +179,7 @@ export const isAdditive = (words, known = []) => (ADDITIVE.test(words) || ADD_RE
 // …), every one of those charts addressed by its position ("NVDA on the left and AMD on the right"), or the WHOLE grid stated
 // with no add — a shape or a count of charts and its tickers ("make a 2x2 of SPY QQQ IWM DIA", GRID-REUSE). Anything else
 // ("put these up there", "add aapl and msft") is refused, whatever reader or model planned it.
-const CHART_COUNT = /\b(?:two|three|four|five|six|seven|eight|nine|[2-9])\s+(?:new\s+)?(?:(?:daily|weekly|monthly|hourly|intraday)\s+)?charts?\b/i
+export const CHART_COUNT = /\b(?:two|three|four|five|six|seven|eight|nine|[2-9])\s+(?:new\s+)?(?:(?:daily|weekly|monthly|hourly|intraday)\s+)?charts?\b/i
 export function multiResymbolAllowed(words, resym, known, host) {
   const w = String(words || '')
   if (REPLACE.test(w)) return true
@@ -186,9 +187,9 @@ export function multiResymbolAllowed(words, resym, known, host) {
   const named2 = new Set([...tickersIn(w), ...knownIn(w, known).map(x => x.toUpperCase())]).size
   return !addsCharts(w, known) && (requestedPanels(w) != null || CHART_COUNT.test(w) || LAYOUT_WORDS.test(w)) && named2 >= 2
 }
-const LAYOUT_WORDS = /\b(?:side[\s-]by[\s-]side|next to each other|beside each other|stacked|on top of each other|in a (?:row|column|grid))\b/i
+export const LAYOUT_WORDS = /\b(?:side[\s-]by[\s-]side|next to each other|beside each other|stacked|on top of each other|in a (?:row|column|grid))\b/i
 // "just add …" / "only add …" limit what is ADDED — never a permission to remove
-const removalWords = (w) => String(w || '').replace(/\b(?:just|only)\s+(?=(?:add|adds|added|adding|put|include|includes|included|including)\b)/gi, ' ')
+export const removalWords = (w) => String(w || '').replace(/\b(?:just|only)\s+(?=(?:add|adds|added|adding|put|include|includes|included|including)\b)/gi, ' ')
 export function requestedPanels(words) {
   const t = String(words || '').replace(/(\d)\s*-\s*by\s*-\s*(\d)/gi, '$1x$2')
   const m = SHAPE.exec(t)
