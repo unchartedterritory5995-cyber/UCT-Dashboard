@@ -1,0 +1,897 @@
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [  1%]
+........................................................sss.........F... [  2%]
+........sss............................................................. [  3%]
+........................................................................ [  5%]
+........................................................................ [  6%]
+........................................................................ [  7%]
+........................................................................ [  9%]
+........................................................................ [ 10%]
+........................................................................ [ 11%]
+........................................................................ [ 12%]
+........................................................................ [ 14%]
+F....................................................................... [ 15%]
+........................................................................ [ 16%]
+........................................................................ [ 18%]
+........................................................................ [ 19%]
+........................................................................ [ 20%]
+........................................................................ [ 21%]
+........................................................................ [ 23%]
+........................................................................ [ 24%]
+...............................F........................................ [ 25%]
+........................................................................ [ 27%]
+........................................................................ [ 28%]
+........................................................................ [ 29%]
+........................................................................ [ 30%]
+........................................................................ [ 32%]
+........................................................................ [ 33%]
+........................................................................ [ 34%]
+........................................................................ [ 36%]
+........................................................................ [ 37%]
+........................................................................ [ 38%]
+........................................................................ [ 40%]
+........................................................................ [ 41%]
+........................................................................ [ 42%]
+........................................................................ [ 43%]
+........................................................................ [ 45%]
+........................................................................ [ 46%]
+........................................................................ [ 47%]
+........................................................................ [ 49%]
+........................................................................ [ 50%]
+........................................................................ [ 51%]
+........................................................................ [ 52%]
+........................................................................ [ 54%]
+........................................................................ [ 55%]
+........................................................................ [ 56%]
+........................................................................ [ 58%]
+........................................................................ [ 59%]
+........................................................................ [ 60%]
+........................................................................ [ 61%]
+........................................................................ [ 63%]
+........................................................................ [ 64%]
+........................................................................ [ 65%]
+.........................................................FFssss......... [ 67%]
+........................................................................ [ 68%]
+.............................s...s................ss.....FF..FFF........ [ 69%]
+........................................................................ [ 71%]
+........................................................................ [ 72%]
+........................................................................ [ 73%]
+........................................................................ [ 74%]
+........................................................................ [ 76%]
+.............................FF.FF.........................ssssss....... [ 77%]
+.........FFFF...................F....................................... [ 78%]
+................F....................................................... [ 80%]
+........................................................................ [ 81%]
+........................................................................ [ 82%]
+...............................sF....................................... [ 83%]
+........................................................................ [ 85%]
+........................................................................ [ 86%]
+........................................................................ [ 87%]
+........................................................................ [ 89%]
+........................................................................ [ 90%]
+........................................................................ [ 91%]
+........................................................................ [ 92%]
+........................................................................ [ 94%]
+........................................................................ [ 95%]
+........................................................................ [ 96%]
+........................................................................ [ 98%]
+........................................................................ [ 99%]
+................................                                         [100%]
+=================================== FAILURES ===================================
+_ TestAClaimNobodyCanServeIsNotProcessing.test_the_member_facing_chain_ends_at_a_navigable_page _
+
+self = <tests.test_document_ocr.TestAClaimNobodyCanServeIsNotProcessing object at 0x70cee5d28770>
+env = None
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x70cebd503d40>
+
+    def test_the_member_facing_chain_ends_at_a_navigable_page(self, env, monkeypatch):
+        # ⛔⛔ A SERVICE RAIL IS NOT A ROUTE RAIL. The test above proves the
+        # pipeline; this one proves the DOOR — the member searches, and what
+        # comes back is a document at a page they can open, carrying the fact
+        # that its words were read off an image.
+        monkeypatch.setenv(tess.FLAG, "1")
+        monkeypatch.setenv("TESSERACT_BINARY", _TESS_BIN)
+>       assert tess.install_if_enabled()["active"] is True
+E       assert False is True
+
+tests/test_document_ocr.py:835: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Database ready at /tmp/uct_tests_authdb_q9131jbi/auth.db
+----------------------------- Captured stderr call -----------------------------
+2026-11-14 14:34:58,217 WARNING api.services.journal_two.document_ocr_tesseract: [doc-ocr] J2_OCR_ENABLED=1 but no usable tesseract binary was found — OCR stays unavailable
+------------------------------ Captured log call -------------------------------
+WARNING  api.services.journal_two.document_ocr_tesseract:document_ocr_tesseract.py:128 [doc-ocr] J2_OCR_ENABLED=1 but no usable tesseract binary was found — OCR stays unavailable
+______________ test_forward_includes_ended_but_unreported_quarter ______________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x70ced3bea6f0>
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_forward_includes_ended_bu0')
+
+    def test_forward_includes_ended_but_unreported_quarter(monkeypatch, tmp_path):
+        # THE 2026-07-02 MXL bug: two days after the Jun-30 quarter END (weeks
+        # before its REPORT), the old `period_end < today` filter dropped the
+        # Jun-quarter estimate row and the blind-sequential labels pinned the
+        # Sep-quarter numbers under the "2026 Q2" label — all four forward cards
+        # shifted one quarter, and every YoY % compared the wrong quarters.
+        et = _mod(monkeypatch, tmp_path)
+        import api.services.earnings_table as etmod
+    
+        fake_year = _realistic_year({
+            2025: {1: (0.10, 1.0e8), 2: (0.20, 1.2e8), 3: (0.30, 1.4e8), 4: (0.40, 1.6e8)},
+            2026: {1: (0.22, 1.37e8)},          # only Q1 reported as of early July
+        })
+    
+        def fake_fmp(path, params, timeout=10):
+            if "analyst-estimates" in path:
+                return [
+                    {"date": "2026-03-31", "epsAvg": 0.18, "revenueAvg": 1.35e8},  # reported → skip
+                    {"date": "2026-06-30", "epsAvg": 0.30, "revenueAvg": 1.60e8},  # ended, unreported → KEEP
+                    {"date": "2026-09-30", "epsAvg": 0.38, "revenueAvg": 1.74e8},
+                    {"date": "2026-12-31", "epsAvg": 0.41, "revenueAvg": 1.81e8},
+                    {"date": "2027-03-31", "epsAvg": 0.38, "revenueAvg": 1.78e8},
+                    {"date": "2027-06-30", "epsAvg": 0.44, "revenueAvg": 1.92e8},
+                ]
+            if "stable/earnings" in path:   # the next scheduled report
+                return [{"date": "2026-07-28", "epsActual": None, "revenueActual": None}]
+            return None
+    
+        monkeypatch.setenv("FUNDAMENTALS_FMP_ANALYST_ESTIMATES", "1")
+        monkeypatch.setattr(etmod.ee, "get_year_earnings", fake_year)
+        route_fmp(monkeypatch, fake_fmp)
+        import calendar, time
+        now = calendar.timegm(time.strptime("2026-07-02", "%Y-%m-%d"))
+        q = et._build_quarterly("ZZMXL", now)
+        fwd = [r for r in q if not r["reported"]]
+>       assert [r["label"] for r in fwd] == ["2026 Q2", "2026 Q3", "2026 Q4", "2027 Q1"]
+E       AssertionError: assert ['2026 Q3', '...1', '2027 Q2'] == ['2026 Q2', '...4', '2027 Q1']
+E         
+E         At index 0 diff: '2026 Q3' != '2026 Q2'
+E         
+E         Full diff:
+E           [
+E         -     '2026 Q2',
+E               '2026 Q3',
+E               '2026 Q4',
+E               '2027 Q1',
+E         +     '2027 Q2',
+E           ]
+
+tests/test_earnings_table.py:129: AssertionError
+_________ test_the_checked_in_manifest_IS_what_the_declarations_derive _________
+
+    def test_the_checked_in_manifest_IS_what_the_declarations_derive():
+        r = subprocess.run([sys.executable, str(_BUILDER), "--check"],
+                           cwd=str(_REPO), capture_output=True, text=True)
+>       assert r.returncode == 0, (
+            "the checked-in entitlements manifest is not what the declarations "
+            "derive:\n" + r.stdout + r.stderr)
+E       AssertionError: the checked-in entitlements manifest is not what the declarations derive:
+E         [entitlements-manifest] STALE — the checked-in manifest is not what the declarations derive. Re-run without --check.
+E         <unknown>:964: SyntaxWarning: invalid escape sequence '\`'
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/opt/hostedtoolcache/Python/3.12.16/x64/bin/python', '/home/runner/work/UCT-Dashboard/UCT-Dash...eclarations derive. Re-run without --check.\n', stderr="<unknown>:964: SyntaxWarning: invalid escape sequence '\\`'\n").returncode
+
+tests/test_entitlements_manifest.py:70: AssertionError
+____________ test_every_existing_drawing_is_byte_for_byte_unchanged ____________
+
+swept = {'counts': {'detections': 3689, 'dropped_new_ids': 39, 'flat_top': 20, 'flat_top_stamped': 3, ...}, 'kept': {'0:262': ...:262': 'eb15c66be2b78ec0', '0:268': '692f80a4583c4c7e', '0:274': '960916705e64c48e', '0:280': '414e50c6ed72ead8', ...}}
+
+    def test_every_existing_drawing_is_byte_for_byte_unchanged(swept):
+        bad = sorted(k for k, d in GOLDEN["digests"].items() if swept["stripped"].get(k) != d)
+>       assert bad == [], f"{len(bad)} scans moved: {bad[:10]}"
+E       AssertionError: 14 scans moved: ['12:262', '12:268', '12:280', '14:274', '15:268', '17:280', '17:286', '18:286', '19:298', '20:262']
+E       assert ['12:262', '1...'17:280', ...] == []
+E         
+E         Left contains 14 more items, first extra item: '12:262'
+E         
+E         Full diff:
+E         - []
+E         + [
+E         +     '12:262',
+E         +     '12:268',
+E         +     '12:280',
+E         +     '14:274',
+E         +     '15:268',
+E         +     '17:280',
+E         +     '17:286',
+E         +     '18:286',
+E         +     '19:298',
+E         +     '20:262',
+E         +     '22:262',
+E         +     '3:268',
+E         +     '6:268',
+E         +     '6:274',
+E         + ]
+
+tests/test_flat_top_golden.py:97: AssertionError
+__________ test_control_the_comparison_sees_the_stamp_when_it_is_kept __________
+
+swept = {'counts': {'detections': 3689, 'dropped_new_ids': 39, 'flat_top': 20, 'flat_top_stamped': 3, ...}, 'kept': {'0:262': ...:262': 'eb15c66be2b78ec0', '0:268': '692f80a4583c4c7e', '0:274': '960916705e64c48e', '0:280': '414e50c6ed72ead8', ...}}
+
+    def test_control_the_comparison_sees_the_stamp_when_it_is_kept(swept):
+        moved = {k for k, d in GOLDEN["digests"].items() if swept["kept"].get(k) != d}
+        assert moved, "keeping the stamp changed nothing: the digest cannot see a drawing"
+>       assert len(moved) <= swept["counts"]["flat_top_stamped"]
+E       AssertionError: assert 16 <= 3
+E        +  where 16 = len({'12:262', '12:268', '12:280', '14:274', '15:268', '17:280', ...})
+
+tests/test_flat_top_golden.py:103: AssertionError
+________ test_warm_means_this_exact_version_not_merely_something_cached ________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x70ceacc47650>
+
+    def test_warm_means_this_exact_version_not_merely_something_cached(monkeypatch):
+        """⛔ THE CASE A STALLED WARMER WOULD HIDE BEHIND.
+    
+        An entry for a SUPERSEDED version is not warm — the next caller rebuilds.
+        Counting it as warm is how a warmer that stopped running would keep
+        reporting healthy: the cache is non-empty forever after one success.
+        """
+        monkeypatch.setattr(fa, "build", lambda csv, date_filter=None: {
+            "json_bytes": b'{"ok":true}', "stats": {}})
+        fa.get_cached_or_build(("stocks", 1, "Last1"), 5, lambda: "csv", "Last1")
+    
+>       assert fa.health(current_version=5)["warm"] is True
+E       assert False is True
+
+tests/test_flow_aggregate.py:400: AssertionError
+----------------------------- Captured stderr call -----------------------------
+2026-11-14 14:39:35,517 INFO api.services.flow_aggregate: [flow-agg] built ('stocks', 1, 'Last1'): -1 raw rows -> -1 trades, json 0.0 MB -> gz 0.0 MB, -1 ms
+------------------------------ Captured log call -------------------------------
+INFO     api.services.flow_aggregate:flow_aggregate.py:195 [flow-agg] built ('stocks', 1, 'Last1'): -1 raw rows -> -1 trades, json 0.0 MB -> gz 0.0 MB, -1 ms
+__________________ test_cold_is_reported_but_is_not_a_failure __________________
+
+    def test_cold_is_reported_but_is_not_a_failure():
+        """A pod that just booted has an empty cache BY CONSTRUCTION."""
+        h = fa.health(current_version=1)
+>       assert h["warm"] is False and h["reason"] == "cold"
+E       AssertionError: assert (False is False and 'bundle_missing' == 'cold'
+E         
+E         - cold
+E         + bundle_missing)
+
+tests/test_flow_aggregate.py:409: AssertionError
+__________ test_each_way_it_can_break_names_itself[env2-node_missing] __________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x70ceacc7f7a0>
+env = {'FLOW_NODE_BIN': 'definitely-not-a-real-binary-xyz'}
+expected = 'node_missing'
+
+    @pytest.mark.parametrize("env,expected", [
+        ({"FLOW_AGGREGATE_ENABLED": "0"}, "disabled"),
+        ({"FLOW_FACTS_BUNDLE": "/nope/missing.cjs"}, "bundle_missing"),
+        ({"FLOW_NODE_BIN": "definitely-not-a-real-binary-xyz"}, "node_missing"),
+    ])
+    def test_each_way_it_can_break_names_itself(monkeypatch, env, expected):
+        """The reason string is the whole point — 'unhealthy' with no cause sends
+        someone reading code at 7am."""
+        for k, v in env.items():
+            monkeypatch.setenv(k, v)
+        h = fa.health(current_version=1)
+        assert h["available"] is False
+>       assert h["reason"] == expected
+E       AssertionError: assert 'bundle_missing' == 'node_missing'
+E         
+E         - node_missing
+E         ?  -
+E         + bundle_missing
+E         ? ++  +
+
+tests/test_flow_aggregate.py:426: AssertionError
+______________________ test_it_alerts_on_TRANSITION_only _______________________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x70ceacc7f290>
+
+    def test_it_alerts_on_TRANSITION_only(monkeypatch):
+        """⛔ A check that posts every cycle while broken gets muted inside a week,
+        and a muted alert is worse than none because it reads as coverage."""
+        posts = []
+        monkeypatch.setattr(fa, "available", lambda: True)
+        fa.alert_if_unavailable(post=posts.append)          # first observation: arm only
+        assert posts == []
+    
+        monkeypatch.setattr(fa, "available", lambda: False)
+        monkeypatch.setenv("FLOW_AGGREGATE_ENABLED", "0")
+        fa.alert_if_unavailable(post=posts.append)          # healthy -> broken
+>       assert len(posts) == 1 and "UNAVAILABLE" in posts[0]
+E       assert (0 == 1)
+E        +  where 0 = len([])
+
+tests/test_flow_aggregate.py:440: AssertionError
+________________________ test_recovery_is_announced_too ________________________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x70ceacc7dfd0>
+
+    def test_recovery_is_announced_too(monkeypatch):
+        """Without this nobody knows whether this morning's alert still stands."""
+        posts = []
+        monkeypatch.setenv("FLOW_AGGREGATE_ENABLED", "0")
+        fa.alert_if_unavailable(post=posts.append)          # arm as broken
+        monkeypatch.setenv("FLOW_AGGREGATE_ENABLED", "1")
+        monkeypatch.setattr(fa, "available", lambda: True)
+        fa.alert_if_unavailable(post=posts.append)
+>       assert len(posts) == 1 and "again" in posts[0]
+E       assert (0 == 1)
+E        +  where 0 = len([])
+
+tests/test_flow_aggregate.py:455: AssertionError
+_______ test_NARRATIVE_a_failed_call_charges_every_sdk_attempt[timeout] ________
+
+narrative = <function narrative.<locals>.run at 0x70cebc444860>
+failure = APITimeoutError('Request timed out or interrupted. This could be due to a network timeout, dropped connection, or request cancellation. See https://docs.anthropic.com/en/api/errors#long-requests for more details.')
+
+    @pytest.mark.parametrize("failure", [TIMEOUT, DROPPED], ids=["timeout", "dropped"])
+    def test_NARRATIVE_a_failed_call_charges_every_sdk_attempt(narrative, failure):
+        fake, out = narrative(failure)
+        assert out.status_code == 500 and len(fake.calls) == 1
+>       assert narrative_cost_guard.spend_today_usd(NARRATIVE) == pytest.approx(_worst())
+E       assert 0.3015 == 0.40725 ± 4.1e-07
+E         
+E         comparison failed
+E         Obtained: 0.3015
+E         Expected: 0.40725 ± 4.1e-07
+
+tests/test_flow_lanes_failed_call_charged.py:168: AssertionError
+_______ test_NARRATIVE_a_failed_call_charges_every_sdk_attempt[dropped] ________
+
+narrative = <function narrative.<locals>.run at 0x70cebc447560>
+failure = APIConnectionError('Connection error.')
+
+    @pytest.mark.parametrize("failure", [TIMEOUT, DROPPED], ids=["timeout", "dropped"])
+    def test_NARRATIVE_a_failed_call_charges_every_sdk_attempt(narrative, failure):
+        fake, out = narrative(failure)
+        assert out.status_code == 500 and len(fake.calls) == 1
+>       assert narrative_cost_guard.spend_today_usd(NARRATIVE) == pytest.approx(_worst())
+E       assert 0.3015 == 0.40725 ± 4.1e-07
+E         
+E         comparison failed
+E         Obtained: 0.3015
+E         Expected: 0.40725 ± 4.1e-07
+
+tests/test_flow_lanes_failed_call_charged.py:168: AssertionError
+________ test_NARRATIVE_a_failure_after_the_reply_is_not_charged_twice _________
+
+narrative = <function narrative.<locals>.run at 0x70cebc425620>
+
+    def test_NARRATIVE_a_failure_after_the_reply_is_not_charged_twice(narrative):
+        """`content=None` fails after the usage was recorded: one row at its usage, no worst case on top."""
+        _, out = narrative(SimpleNamespace(content=None, usage=SimpleNamespace(input_tokens=1000, output_tokens=100)))
+        assert out.status_code == 500
+        assert narrative_cost_guard.calls_today_for_surface(NARRATIVE) == 1
+>       assert narrative_cost_guard.spend_today_usd(NARRATIVE) == pytest.approx(
+            narrative_cost_guard.estimate_cost(MODEL, 1000, 100))
+E       assert 0.003 == 0.00450000000...0005 ± 4.5e-09
+E         
+E         comparison failed
+E         Obtained: 0.003
+E         Expected: 0.0045000000000000005 ± 4.5e-09
+
+tests/test_flow_lanes_failed_call_charged.py:182: AssertionError
+___________ test_NARRATIVE_a_success_is_still_charged_from_its_usage ___________
+
+narrative = <function narrative.<locals>.run at 0x70cebc4251c0>
+
+    def test_NARRATIVE_a_success_is_still_charged_from_its_usage(narrative):
+        reply = SimpleNamespace(content=[SimpleNamespace(text="Stocks closed higher.")],
+                                usage=SimpleNamespace(input_tokens=1000, output_tokens=100))
+        fake, out = narrative(reply)
+        assert out == {"narrative": "Stocks closed higher."}
+        assert fake.calls[0]["max_tokens"] == 250
+>       assert narrative_cost_guard.spend_today_usd(NARRATIVE) == pytest.approx(
+            narrative_cost_guard.estimate_cost(MODEL, 1000, 100))
+E       assert 0.003 == 0.00450000000...0005 ± 4.5e-09
+E         
+E         comparison failed
+E         Obtained: 0.003
+E         Expected: 0.0045000000000000005 ± 4.5e-09
+
+tests/test_flow_lanes_failed_call_charged.py:192: AssertionError
+__________ test_warm_is_FALSE_when_the_parts_transport_is_on_but_cold __________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x70ceaca46450>
+_clean_caches = None
+
+    def test_warm_is_FALSE_when_the_parts_transport_is_on_but_cold(monkeypatch, _clean_caches):
+        monkeypatch.setattr(fa, "parts_enabled", lambda: True)
+        monkeypatch.setattr(fa, "available", lambda: True)
+        fa._CACHE[fa.DEFAULT_VIEW] = (7, b"whole")      # whole-D warm...
+        # ...and no parts at all, which is precisely the prod reading.
+    
+        h = fa.health(current_version=7)
+    
+        assert h["warm"] is False, (
+            "health reported the fast path warm while the transport members take "
+            "was empty -- the proxy-not-artifact defect")
+>       assert h["warm_whole"] is True, "the whole-D path really was warm"
+E       KeyError: 'warm_whole'
+
+tests/test_flow_prepare.py:240: KeyError
+_________ test_CONTROL_with_parts_off_the_whole_D_verdict_is_unchanged _________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x70ceaca448c0>
+_clean_caches = None
+
+    def test_CONTROL_with_parts_off_the_whole_D_verdict_is_unchanged(monkeypatch, _clean_caches):
+        """Without this the test above would pass on a health() that always says
+        cold, and the long-standing behaviour would be silently broken."""
+        monkeypatch.setattr(fa, "parts_enabled", lambda: False)
+        monkeypatch.setattr(fa, "available", lambda: True)
+        fa._CACHE[fa.DEFAULT_VIEW] = (7, b"whole")
+    
+        h = fa.health(current_version=7)
+>       assert h["warm"] is True and h["reason"] is None
+E       assert (False is True)
+
+tests/test_flow_prepare.py:252: AssertionError
+_______ test_warm_is_TRUE_once_the_parts_for_the_default_view_are_built ________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x70ceaca46240>
+_clean_caches = None
+
+    def test_warm_is_TRUE_once_the_parts_for_the_default_view_are_built(monkeypatch, _clean_caches):
+        monkeypatch.setattr(fa, "parts_enabled", lambda: True)
+        monkeypatch.setattr(fa, "available", lambda: True)
+        fa._CACHE[fa.DEFAULT_VIEW] = (7, b"whole")
+        fa._PARTS_CACHE[fa.DEFAULT_VIEW + ("bootstrap",)] = (7, b"gz")
+    
+        h = fa.health(current_version=7)
+>       assert h["warm"] is True and h["warm_parts"] is True
+E       assert (False is True)
+
+tests/test_flow_prepare.py:262: AssertionError
+____________ test_parts_built_for_a_SUPERSEDED_version_are_not_warm ____________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x70cec47e9190>
+_clean_caches = None
+
+    def test_parts_built_for_a_SUPERSEDED_version_are_not_warm(monkeypatch, _clean_caches):
+        """The next caller rebuilds, so reporting warm is how a stalled preparer
+        would hide -- the same rule the whole-D path already had."""
+        monkeypatch.setattr(fa, "parts_enabled", lambda: True)
+        monkeypatch.setattr(fa, "available", lambda: True)
+        fa._PARTS_CACHE[fa.DEFAULT_VIEW + ("bootstrap",)] = (6, b"gz")
+    
+        h = fa.health(current_version=7)
+        assert h["warm"] is False
+>       assert "stale" in (h["reason"] or "")
+E       AssertionError: assert 'stale' in (('bundle_missing'))
+
+tests/test_flow_prepare.py:274: AssertionError
+_________________ test_a_BURST_of_bumps_collapses_to_ONE_roll __________________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x70cec46f4170>
+
+    def test_a_BURST_of_bumps_collapses_to_ONE_roll(monkeypatch):
+        """N rapid bumps must not become N rolls. If this ever fails, the burst
+        concern becomes real and `prev_version is None` stops being sufficient."""
+        monkeypatch.setattr(fr, "_FORCE_BUMP_OFFSET", 1)
+        monkeypatch.setattr(fr, "_PREPARE_LAST", None)
+        monkeypatch.setattr(fr, "_PREPARE_POLL_S", 0.05)
+        base = _bumped_version()
+        state = {"v": base}
+        _stub_build(monkeypatch, base, lambda: state["v"])
+        monkeypatch.setattr(fr, "_get_cached_or_build",
+                            lambda source, days: (state["v"],
+                                                  __import__("gzip").compress(b"csv")))
+    
+        fr._PREPARE_STOP.clear()
+        t = threading.Thread(target=fr._prepare_loop, daemon=True)
+        t.start()
+        try:
+            for i in range(1, 6):        # five bumps, back to back
+                state["v"] = base + i
+            time.sleep(1.2)
+        finally:
+            fr._PREPARE_STOP.set()       # ⛔ never leak the thread into a neighbour
+            t.join(timeout=5)
+            fr._PREPARE_STOP.clear()
+    
+        rolls = list(fr._PREPARE_ROLLS)
+>       assert len(rolls) == 1, (
+            f"{len(rolls)} rolls from 5 bumps — the loop is observing intermediate "
+            "versions, so a burst CAN reach the ledger and rolls 2..N would be "
+            "misfiled as steady-state")
+E       AssertionError: 2 rolls from 5 bumps — the loop is observing intermediate versions, so a burst CAN reach the ledger and rolls 2..N would be misfiled as steady-state
+E       assert 2 == 1
+E        +  where 2 = len([{'blocked_by': None, 'blocked_held_ms': None, 'blocked_pass': None, 'bucket_bound_s': None, ...}, {'blocked_by': None, 'blocked_held_ms': None, 'blocked_pass': None, 'bucket_bound_s': None, ...}])
+
+tests/test_flow_prepare.py:682: AssertionError
+----------------------------- Captured stderr call -----------------------------
+2026-11-14 14:39:49,602 INFO api.flow_router: [flow-prepare] first paint warmed ('stocks', 1, 'Last1') v=39911119 in 0ms
+2026-11-14 14:39:49,602 INFO api.flow_router: [flow-prepare] remainder warmed v=39911119 in 0ms
+2026-11-14 14:39:49,653 INFO api.flow_router: [flow-prepare] first paint warmed ('stocks', 1, 'Last1') v=39911124 in 0ms
+2026-11-14 14:39:49,653 INFO api.flow_router: [flow-prepare] remainder warmed v=39911124 in 0ms
+------------------------------ Captured log call -------------------------------
+INFO     api.flow_router:flow_router.py:2778 [flow-prepare] first paint warmed ('stocks', 1, 'Last1') v=39911119 in 0ms
+INFO     api.flow_router:flow_router.py:2800 [flow-prepare] remainder warmed v=39911119 in 0ms
+INFO     api.flow_router:flow_router.py:2778 [flow-prepare] first paint warmed ('stocks', 1, 'Last1') v=39911124 in 0ms
+INFO     api.flow_router:flow_router.py:2800 [flow-prepare] remainder warmed v=39911124 in 0ms
+_________________ test_every_read_path_test_file_is_classified _________________
+
+    def test_every_read_path_test_file_is_classified():
+        classified = _classified()
+        orphans = [f for f in _read_path_test_files() if f not in classified]
+>       assert orphans == [], (
+            "these test files reach a flow read-path module and NOTHING RUNS THEM:\n  "
+            + "\n  ".join(orphans)
+            + "\n\nPut each one in a batch in tools/flow_read_gate.py, or in EXCLUDED with a "
+              "reason. This is the position test_cream_meta_key was in for 54 days.")
+E       AssertionError: these test files reach a flow read-path module and NOTHING RUNS THEM:
+E           tests/test_live_massive_corrupt_page_resilience.py
+E           tests/test_live_massive_fair_ask_aggregate.py
+E           tests/test_mem_observe.py
+E           tests/test_stream_ingest_skeleton.py
+E           tests/test_ticker_types_replica.py
+E         
+E         Put each one in a batch in tools/flow_read_gate.py, or in EXCLUDED with a reason. This is the position test_cream_meta_key was in for 54 days.
+E       assert ['tests/test_...s_replica.py'] == []
+E         
+E         Left contains 5 more items, first extra item: 'tests/test_live_massive_corrupt_page_resilience.py'
+E         
+E         Full diff:
+E         - []
+E         + [
+E         +     'tests/test_live_massive_corrupt_page_resilience.py',
+E         +     'tests/test_live_massive_fair_ask_aggregate.py',
+E         +     'tests/test_mem_observe.py',
+E         +     'tests/test_stream_ingest_skeleton.py',
+E         +     'tests/test_ticker_types_replica.py',
+E         + ]
+
+tests/test_flow_read_gate_manifest.py:92: AssertionError
+____________ test_price_level_is_STILL_OUTSIDE_flow_workers_closure ____________
+
+root = '/home/runner/work/UCT-Dashboard/UCT-Dashboard'
+
+    def test_price_level_is_STILL_OUTSIDE_flow_workers_closure(root):
+        """⚰️ A PREDICTION THIS PROGRAM MADE TWICE AND MEASURED ONCE.
+    
+        Marker bump #2 and the S7 ledger row both said, of Checkpoint 3:
+    
+            "api/services/alerts.py (reachable) imports the taxonomy modules, so
+            wiring register() makes price_level.py reachable and unwatched."
+    
+        ⛔ **It does not.** `alerts.py` imports `receipts` and `document_arrival` BY
+        NAME — not the package — and `register()` is wired in `api/main.py`, which is
+        the WEB entry and is not in flow-worker's closure at all. Measured with
+        `reachable_paths()` after the wiring landed: `price_level.py` reachable=False.
+        The premise was a generalisation from "document_arrival is reachable", never a
+        measurement, and it survived two artifacts because it sounded like one.
+    
+        ⭐ So this test exists instead of a ledger sentence. The owner's ruling —
+        **from CP3 onward the module is BEHAVIOUR-CHANGING under the rail** — is
+        CONDITIONAL on reachability, and nobody should have to remember the condition.
+        The day anything in flow-worker's closure imports `price_level`, this goes RED
+        and says what to do.
+        """
+        reach = wc.reachable_paths(root)
+        watch = wc.watched_paths(root)
+        # NON-VACUITY: an empty or broken closure would pass every "not in" below.
+        assert "api/services/alert_taxonomy/document_arrival.py" in reach, (
+            "the closure does not contain a module known to be in it — this probe is "
+            "broken, not green")
+    
+        newly = {p for p in (
+            "api/services/alert_taxonomy/price_level.py",
+            "api/services/alert_taxonomy/price_level_compare.py",
+            "api/services/alert_taxonomy/price_level_projection.py",
+        ) if p in reach}
+    
+>       assert not newly, (
+            "S7 price-level HAS ENTERED FLOW-WORKER'S CLOSURE: %s.\n"
+            "Per GATE-S7-PRICE-LEVEL's CP3 ruling the module is now "
+            "BEHAVIOUR-CHANGING under the rail, and from this commit on a change to "
+            "it needs a deploy window and a marker bump — do NOT classify it as "
+            "ADDITIVE by habit. Update the S7 ledger row, then rewrite this test to "
+            "assert the new state (%s of them are unwatched)."
+            % (sorted(newly), len(newly - watch)))
+E       AssertionError: S7 price-level HAS ENTERED FLOW-WORKER'S CLOSURE: ['api/services/alert_taxonomy/price_level.py', 'api/services/alert_taxonomy/price_level_compare.py', 'api/services/alert_taxonomy/price_level_projection.py'].
+E         Per GATE-S7-PRICE-LEVEL's CP3 ruling the module is now BEHAVIOUR-CHANGING under the rail, and from this commit on a change to it needs a deploy window and a marker bump — do NOT classify it as ADDITIVE by habit. Update the S7 ledger row, then rewrite this test to assert the new state (3 of them are unwatched).
+E       assert not {'api/services/alert_taxonomy/price_level.py', 'api/services/alert_taxonomy/price_level_compare.py', 'api/services/alert_taxonomy/price_level_projection.py'}
+
+tests/test_flow_worker_watch_coverage.py:146: AssertionError
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/test_document_ocr.py::TestAClaimNobodyCanServeIsNotProcessing::test_the_member_facing_chain_ends_at_a_navigable_page
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_document_ocr.py:834: PytestWarning: Value of environment variable TESSERACT_BINARY type should be str, but got None (type: NoneType); converted to str implicitly
+    monkeypatch.setenv("TESSERACT_BINARY", _TESS_BIN)
+
+tests/test_earnings_warm_row_adapter.py::test_run_submits_stale_names_and_reports_what_topn_dropped
+tests/test_earnings_warm_row_adapter.py::test_companions_are_submitted_for_a_name_the_preview_filter_drops
+tests/test_earnings_warm_row_adapter.py::test_companions_off_leaves_the_brief_budget_exactly_as_it_was
+tests/test_earnings_warm_row_adapter.py::test_a_brief_still_rides_its_own_row_not_a_board_row
+tests/test_earnings_warm_row_adapter.py::test_companions_look_further_ahead_than_the_briefs
+tests/test_earnings_warm_row_adapter.py::test_the_census_counts_coverage_from_artifacts_not_from_its_own_queue
+tests/test_earnings_warm_row_adapter.py::test_a_broken_warm_says_so_at_warning
+tests/test_earnings_warm_row_adapter.py::test_a_fully_covered_board_stays_silent
+tests/test_earnings_warm_row_adapter.py::test_coverage_does_not_demand_a_brief_the_pass_never_promised
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/_pytest/threadexception.py:82: PytestUnhandledThreadExceptionWarning: Exception in thread earn-warm-batch-preview
+  
+  Traceback (most recent call last):
+    File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/threading.py", line 1075, in _bootstrap_inner
+      self.run()
+    File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/threading.py", line 1012, in run
+      self._target(*self._args, **self._kwargs)
+    File "/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/earnings_preview_warm.py", line 540, in _close_after
+      wait(futures, timeout=6 * 3600)
+    File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/concurrent/futures/_base.py", line 289, in wait
+      with _AcquireFutures(fs):
+           ^^^^^^^^^^^^^^^^^^^
+    File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/concurrent/futures/_base.py", line 149, in __enter__
+      future._condition.acquire()
+      ^^^^^^^^^^^^^^^^^
+  AttributeError: 'NoneType' object has no attribute '_condition'
+  
+    warnings.warn(pytest.PytestUnhandledThreadExceptionWarning(msg))
+
+tests/test_econ_search.py: 91 warnings
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:484: DeprecationWarning: Setting per-request cookies=<...> is being deprecated, because the expected behaviour on cookie persistence is ambiguous. Set cookies directly on the client instance instead.
+    return super().request(
+
+tests/test_entitlements.py: 2 warnings
+tests/test_entitlements_manifest.py: 1 warning
+tests/test_feature_flag_ledger.py: 4 warnings
+tests/test_flag_ledger_knobs.py: 1 warning
+tests/test_flow_worker_watch_coverage.py: 3 warnings
+tests/test_fmp_helper_census.py: 1 warning
+tests/test_fmp_timeout_pinning.py: 3 warnings
+  <unknown>:964: SyntaxWarning: invalid escape sequence '\`'
+
+tests/test_exposed_routes_gated.py::test_a_PAID_member_is_NOT_refused_on_any_route_gated_here
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:3149: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    to_date = datetime.utcnow().strftime("%Y-%m-%d")
+
+tests/test_exposed_routes_gated.py::test_a_PAID_member_is_NOT_refused_on_any_route_gated_here
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:3152: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    from_date = (datetime.utcnow() - timedelta(days=lookback)).strftime("%Y-%m-%d")
+
+tests/test_exposed_routes_gated.py::test_a_PAID_member_is_NOT_refused_on_any_route_gated_here
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/insider.py:180: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    cutoff = (datetime.utcnow() - timedelta(days=7)).strftime("%Y-%m-%d")
+
+tests/test_exposed_routes_gated.py::test_a_PAID_member_is_NOT_refused_on_any_route_gated_here
+tests/test_exposed_routes_gated.py::test_the_paid_pass_produces_REAL_successes_not_just_absence_of_refusal
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/insider.py:330: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    cutoff = (datetime.utcnow() - timedelta(days=days)).strftime("%Y-%m-%d")
+
+tests/test_exposed_routes_gated.py: 7280 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/rs_ranking.py:158: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    to_date = datetime.utcnow().strftime("%Y-%m-%d")
+
+tests/test_exposed_routes_gated.py: 7280 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/rs_ranking.py:159: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    from_date = (datetime.utcnow() - timedelta(days=200)).strftime("%Y-%m-%d")
+
+tests/test_exposed_routes_gated.py: 22 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/sector_strength.py:65: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    to_date = datetime.utcnow().strftime("%Y-%m-%d")
+
+tests/test_exposed_routes_gated.py: 22 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/sector_strength.py:66: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    from_date = (datetime.utcnow() - timedelta(days=calendar_days)).strftime("%Y-%m-%d")
+
+tests/test_exposed_routes_gated.py::test_the_paid_pass_produces_REAL_successes_not_just_absence_of_refusal
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:539: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    d = datetime.utcnow()
+
+tests/test_exposed_routes_gated.py::test_the_paid_pass_produces_REAL_successes_not_just_absence_of_refusal
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:2599: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    from_date = (datetime.utcnow() - timedelta(days=days)).strftime("%Y-%m-%d")
+
+tests/test_exposed_routes_gated.py::test_the_paid_pass_produces_REAL_successes_not_just_absence_of_refusal
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:2600: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    to_date   = datetime.utcnow().strftime("%Y-%m-%d")
+
+tests/test_exposed_routes_gated.py::test_an_ADMIN_is_not_refused_on_the_admin_routes
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:1968: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    to_date = datetime.utcnow().strftime("%Y-%m-%d")
+
+tests/test_exposed_routes_gated.py::test_an_ADMIN_is_not_refused_on_the_admin_routes
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:1969: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    from_date = (datetime.utcnow() - timedelta(days=lookback_days)).strftime("%Y-%m-%d")
+
+tests/test_feature_flag_ledger.py::test_every_off_by_default_gate_is_declared
+tests/test_feature_flag_ledger.py::test_the_ledger_does_not_describe_gates_that_no_longer_exist
+tests/test_feature_flag_ledger.py::test_the_ledger_does_not_describe_gates_that_no_longer_exist
+tests/test_feature_flag_ledger.py::test_the_ledger_does_not_describe_gates_that_no_longer_exist
+tests/test_flag_ledger_knobs.py::test_every_local_knob_is_read_by_the_code
+  <unknown>:7: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_flow_card_from_page.py::test_an_incomplete_basis_is_labelled_on_the_all_rung_and_on_the_card
+tests/test_flow_card_from_page.py::test_the_card_reads_the_as_of_header_and_says_so_on_the_card
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/watchlist_card.py:131: DeprecationWarning: Image.Image.getdata is deprecated and will be removed in Pillow 14 (2027-10-15). Use get_flattened_data instead.
+    for (r, g, b, a) in lg.getdata()])
+
+tests/test_flow_prepare.py::test_the_detection_loop_KEEPS_POLLING_while_a_build_runs
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/_pytest/threadexception.py:82: PytestUnhandledThreadExceptionWarning: Exception in thread flow-prepare-build
+  
+  Traceback (most recent call last):
+    File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/threading.py", line 1075, in _bootstrap_inner
+      self.run()
+    File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/threading.py", line 1012, in run
+      self._target(*self._args, **self._kwargs)
+    File "/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/flow_router.py", line 2978, in _run
+      _PREPARE_INFLIGHT.release()
+  RuntimeError: release unlocked lock
+  
+    warnings.warn(pytest.PytestUnhandledThreadExceptionWarning(msg))
+
+tests/test_flow_tape_spool.py::test_collect_window_trades_assignment_and_junk
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_flow_tape_spool.py:57: DeprecationWarning: datetime.datetime.utcfromtimestamp() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.fromtimestamp(timestamp, datetime.UTC).
+    hour = datetime.utcfromtimestamp(in_w0 / 1e9).strftime("%Y%m%d-%H")
+
+tests/test_flow_tape_spool.py::test_collect_window_trades_assignment_and_junk
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_flow_tape_spool.py:63: DeprecationWarning: datetime.datetime.utcfromtimestamp() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.fromtimestamp(timestamp, datetime.UTC).
+    hour1 = datetime.utcfromtimestamp(in_w1 / 1e9).strftime("%Y%m%d-%H")
+
+tests/test_flow_tape_spool.py::test_collect_window_trades_assignment_and_junk
+tests/test_flow_tape_spool.py::test_iter_spool_lines_prefers_gz_over_plain_twin
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/flow_tape_spool.py:357: DeprecationWarning: datetime.datetime.utcfromtimestamp() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.fromtimestamp(timestamp, datetime.UTC).
+    h0 = datetime.utcfromtimestamp(t0_ns / 1e9).strftime("%Y%m%d-%H")
+
+tests/test_flow_tape_spool.py::test_collect_window_trades_assignment_and_junk
+tests/test_flow_tape_spool.py::test_iter_spool_lines_prefers_gz_over_plain_twin
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/flow_tape_spool.py:358: DeprecationWarning: datetime.datetime.utcfromtimestamp() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.fromtimestamp(timestamp, datetime.UTC).
+    h1 = datetime.utcfromtimestamp(t1_ns / 1e9 + 3600).strftime("%Y%m%d-%H")
+
+tests/test_fmp_guard_census.py::test_real_repo_has_zero_unquarantined_violations
+tests/test_fmp_guard_census.py::test_retired_quarantine_entries_are_genuinely_clean
+tests/test_fmp_guard_census.py::test_no_quarantine_entry_is_stale
+tests/test_fmp_helper_census.py::test_the_real_tree_matches_the_ratchet_exactly
+tests/test_fmp_helper_census.py::test_the_census_is_not_blind_on_the_real_tree
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/journal_two/note_connectors/providers/obsidian.py:964: SyntaxWarning: invalid escape sequence '\`'
+    taken off, cut at the first `?` or `#`, percent-decoded ONCE and every `\` read as `/`
+
+tests/test_front_app.py::test_health_does_not_depend_on_the_upstream
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/websockets/legacy/__init__.py:6: DeprecationWarning: websockets.legacy is deprecated; see https://websockets.readthedocs.io/en/stable/howto/upgrade.html for upgrade instructions
+    warnings.warn(  # deprecated in 14.0 - 2024-11-09
+
+tests/test_front_app.py::test_health_does_not_depend_on_the_upstream
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/uvicorn/protocols/websockets/websockets_impl.py:17: DeprecationWarning: websockets.server.WebSocketServerProtocol is deprecated
+    from websockets.server import WebSocketServerProtocol
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_document_ocr.py:642: no tesseract binary on this machine — the real-engine rail cannot run here (the dark-by-default rails above still do)
+SKIPPED [1] tests/test_document_ocr.py:668: no tesseract binary on this machine — the real-engine rail cannot run here (the dark-by-default rails above still do)
+SKIPPED [1] tests/test_document_ocr.py:683: no tesseract binary on this machine — the real-engine rail cannot run here (the dark-by-default rails above still do)
+SKIPPED [1] tests/test_document_ocr.py:1054: no tesseract binary on this machine
+SKIPPED [1] tests/test_document_ocr.py:1078: no tesseract binary on this machine
+SKIPPED [1] tests/test_document_ocr.py:1106: no tesseract binary on this machine
+SKIPPED [1] tests/test_flat_top_lab_parity.py:146: UCT_LAB_FLATTOP_V2 unset
+SKIPPED [1] tests/test_flat_top_lab_parity.py:171: UCT_LAB_FLATTOP_V2 unset
+SKIPPED [1] tests/test_flat_top_lab_parity.py:196: UCT_LAB_FLATTOP_V2 unset
+SKIPPED [1] tests/test_flat_top_lab_parity.py:231: UCT_LAB_FLATTOP_V2 unset
+SKIPPED [1] tests/test_flow_aggregate.py:67: node/bundle not present in this environment
+SKIPPED [1] tests/test_flow_aggregate.py:117: node/bundle not present in this environment
+SKIPPED [1] tests/test_flow_aggregate.py:242: node/bundle not present in this environment
+SKIPPED [1] tests/test_flow_aggregate.py:258: node/bundle not present in this environment
+SKIPPED [1] tests/test_flow_parts_only.py:64: flow-facts bundle not built
+SKIPPED [1] tests/test_flow_parts_only.py:73: flow-facts bundle not built
+SKIPPED [1] tests/test_flow_parts_only.py:81: flow-facts bundle not built
+SKIPPED [1] tests/test_flow_parts_only.py:89: flow-facts bundle not built
+SKIPPED [1] tests/test_flow_parts_only.py:98: flow-facts bundle not built
+SKIPPED [1] tests/test_flow_parts_only.py:122: flow-facts bundle not built
+SKIPPED [1] tests/test_flow_worker_watch_coverage.py:100: no diff against origin/master — nothing to judge (this is the on-master case, not a pass)
+FAILED tests/test_document_ocr.py::TestAClaimNobodyCanServeIsNotProcessing::test_the_member_facing_chain_ends_at_a_navigable_page - assert False is True
+FAILED tests/test_earnings_table.py::test_forward_includes_ended_but_unreported_quarter - AssertionError: assert ['2026 Q3', '...1', '2027 Q2'] == ['2026 Q2', '...4', '2027 Q1']
+  
+  At index 0 diff: '2026 Q3' != '2026 Q2'
+  
+  Full diff:
+    [
+  -     '2026 Q2',
+        '2026 Q3',
+        '2026 Q4',
+        '2027 Q1',
+  +     '2027 Q2',
+    ]
+FAILED tests/test_entitlements_manifest.py::test_the_checked_in_manifest_IS_what_the_declarations_derive - AssertionError: the checked-in entitlements manifest is not what the declarations derive:
+  [entitlements-manifest] STALE — the checked-in manifest is not what the declarations derive. Re-run without --check.
+  <unknown>:964: SyntaxWarning: invalid escape sequence '\`'
+  
+assert 1 == 0
+ +  where 1 = CompletedProcess(args=['/opt/hostedtoolcache/Python/3.12.16/x64/bin/python', '/home/runner/work/UCT-Dashboard/UCT-Dash...eclarations derive. Re-run without --check.\n', stderr="<unknown>:964: SyntaxWarning: invalid escape sequence '\\`'\n").returncode
+FAILED tests/test_flat_top_golden.py::test_every_existing_drawing_is_byte_for_byte_unchanged - AssertionError: 14 scans moved: ['12:262', '12:268', '12:280', '14:274', '15:268', '17:280', '17:286', '18:286', '19:298', '20:262']
+assert ['12:262', '1...'17:280', ...] == []
+  
+  Left contains 14 more items, first extra item: '12:262'
+  
+  Full diff:
+  - []
+  + [
+  +     '12:262',
+  +     '12:268',
+  +     '12:280',
+  +     '14:274',
+  +     '15:268',
+  +     '17:280',
+  +     '17:286',
+  +     '18:286',
+  +     '19:298',
+  +     '20:262',
+  +     '22:262',
+  +     '3:268',
+  +     '6:268',
+  +     '6:274',
+  + ]
+FAILED tests/test_flat_top_golden.py::test_control_the_comparison_sees_the_stamp_when_it_is_kept - AssertionError: assert 16 <= 3
+ +  where 16 = len({'12:262', '12:268', '12:280', '14:274', '15:268', '17:280', ...})
+FAILED tests/test_flow_aggregate.py::test_warm_means_this_exact_version_not_merely_something_cached - assert False is True
+FAILED tests/test_flow_aggregate.py::test_cold_is_reported_but_is_not_a_failure - AssertionError: assert (False is False and 'bundle_missing' == 'cold'
+  
+  - cold
+  + bundle_missing)
+FAILED tests/test_flow_aggregate.py::test_each_way_it_can_break_names_itself[env2-node_missing] - AssertionError: assert 'bundle_missing' == 'node_missing'
+  
+  - node_missing
+  ?  -
+  + bundle_missing
+  ? ++  +
+FAILED tests/test_flow_aggregate.py::test_it_alerts_on_TRANSITION_only - assert (0 == 1)
+ +  where 0 = len([])
+FAILED tests/test_flow_aggregate.py::test_recovery_is_announced_too - assert (0 == 1)
+ +  where 0 = len([])
+FAILED tests/test_flow_lanes_failed_call_charged.py::test_NARRATIVE_a_failed_call_charges_every_sdk_attempt[timeout] - assert 0.3015 == 0.40725 ± 4.1e-07
+  
+  comparison failed
+  Obtained: 0.3015
+  Expected: 0.40725 ± 4.1e-07
+FAILED tests/test_flow_lanes_failed_call_charged.py::test_NARRATIVE_a_failed_call_charges_every_sdk_attempt[dropped] - assert 0.3015 == 0.40725 ± 4.1e-07
+  
+  comparison failed
+  Obtained: 0.3015
+  Expected: 0.40725 ± 4.1e-07
+FAILED tests/test_flow_lanes_failed_call_charged.py::test_NARRATIVE_a_failure_after_the_reply_is_not_charged_twice - assert 0.003 == 0.00450000000...0005 ± 4.5e-09
+  
+  comparison failed
+  Obtained: 0.003
+  Expected: 0.0045000000000000005 ± 4.5e-09
+FAILED tests/test_flow_lanes_failed_call_charged.py::test_NARRATIVE_a_success_is_still_charged_from_its_usage - assert 0.003 == 0.00450000000...0005 ± 4.5e-09
+  
+  comparison failed
+  Obtained: 0.003
+  Expected: 0.0045000000000000005 ± 4.5e-09
+FAILED tests/test_flow_prepare.py::test_warm_is_FALSE_when_the_parts_transport_is_on_but_cold - KeyError: 'warm_whole'
+FAILED tests/test_flow_prepare.py::test_CONTROL_with_parts_off_the_whole_D_verdict_is_unchanged - assert (False is True)
+FAILED tests/test_flow_prepare.py::test_warm_is_TRUE_once_the_parts_for_the_default_view_are_built - assert (False is True)
+FAILED tests/test_flow_prepare.py::test_parts_built_for_a_SUPERSEDED_version_are_not_warm - AssertionError: assert 'stale' in (('bundle_missing'))
+FAILED tests/test_flow_prepare.py::test_a_BURST_of_bumps_collapses_to_ONE_roll - AssertionError: 2 rolls from 5 bumps — the loop is observing intermediate versions, so a burst CAN reach the ledger and rolls 2..N would be misfiled as steady-state
+assert 2 == 1
+ +  where 2 = len([{'blocked_by': None, 'blocked_held_ms': None, 'blocked_pass': None, 'bucket_bound_s': None, ...}, {'blocked_by': None, 'blocked_held_ms': None, 'blocked_pass': None, 'bucket_bound_s': None, ...}])
+FAILED tests/test_flow_read_gate_manifest.py::test_every_read_path_test_file_is_classified - AssertionError: these test files reach a flow read-path module and NOTHING RUNS THEM:
+    tests/test_live_massive_corrupt_page_resilience.py
+    tests/test_live_massive_fair_ask_aggregate.py
+    tests/test_mem_observe.py
+    tests/test_stream_ingest_skeleton.py
+    tests/test_ticker_types_replica.py
+  
+  Put each one in a batch in tools/flow_read_gate.py, or in EXCLUDED with a reason. This is the position test_cream_meta_key was in for 54 days.
+assert ['tests/test_...s_replica.py'] == []
+  
+  Left contains 5 more items, first extra item: 'tests/test_live_massive_corrupt_page_resilience.py'
+  
+  Full diff:
+  - []
+  + [
+  +     'tests/test_live_massive_corrupt_page_resilience.py',
+  +     'tests/test_live_massive_fair_ask_aggregate.py',
+  +     'tests/test_mem_observe.py',
+  +     'tests/test_stream_ingest_skeleton.py',
+  +     'tests/test_ticker_types_replica.py',
+  + ]
+FAILED tests/test_flow_worker_watch_coverage.py::test_price_level_is_STILL_OUTSIDE_flow_workers_closure - AssertionError: S7 price-level HAS ENTERED FLOW-WORKER'S CLOSURE: ['api/services/alert_taxonomy/price_level.py', 'api/services/alert_taxonomy/price_level_compare.py', 'api/services/alert_taxonomy/price_level_projection.py'].
+  Per GATE-S7-PRICE-LEVEL's CP3 ruling the module is now BEHAVIOUR-CHANGING under the rail, and from this commit on a change to it needs a deploy window and a marker bump — do NOT classify it as ADDITIVE by habit. Update the S7 ledger row, then rewrite this test to assert the new state (3 of them are unwatched).
+assert not {'api/services/alert_taxonomy/price_level.py', 'api/services/alert_taxonomy/price_level_compare.py', 'api/services/alert_taxonomy/price_level_projection.py'}
+21 failed, 5534 passed, 21 skipped, 14753 warnings in 583.28s (0:09:43)

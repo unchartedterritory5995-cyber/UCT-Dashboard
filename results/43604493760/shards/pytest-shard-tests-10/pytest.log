@@ -1,0 +1,1385 @@
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [  1%]
+........................................................................ [  3%]
+........................................................................ [  5%]
+........................................................................ [  7%]
+...............s................................................F....... [  9%]
+........................................................................ [ 11%]
+........................................................................ [ 13%]
+........................................................................ [ 15%]
+...[dormant] self-heal rebuilt active set (0 active)
+.................F................................................... [ 17%]
+........................................................................ [ 19%]
+.F...................................................................... [ 21%]
+........................................................................ [ 23%]
+........................................................................ [ 25%]
+........................................................................ [ 27%]
+........................................FFFF............................ [ 29%]
+........................................................................ [ 31%]
+........................................................................ [ 33%]
+........................................................................ [ 35%]
+........................................................................ [ 37%]
+........................................................................ [ 39%]
+........................................................................ [ 41%]
+.............................................F.......................... [ 43%]
+........................................................................ [ 45%]
+........................................................................ [ 47%]
+........................................................................ [ 49%]
+........................................................................ [ 51%]
+...............................F...........+++++++++++++++++++++++++++++++++++ Timeout ++++++++++++++++++++++++++++++++++++
+~~~~~~~~~~~~~~~~ Stack of options-backtest_1 (128392016668352) ~~~~~~~~~~~~~~~~~
+  File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/threading.py", line 1032, in _bootstrap
+    self._bootstrap_inner()
+  File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/threading.py", line 1075, in _bootstrap_inner
+    self.run()
+  File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/threading.py", line 1012, in run
+    self._target(*self._args, **self._kwargs)
+  File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/concurrent/futures/thread.py", line 90, in _worker
+    work_item = work_queue.get(block=True)
+~~~~~~~~~~~~~~~~ Stack of options-backtest_0 (128391856514752) ~~~~~~~~~~~~~~~~~
+  File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/threading.py", line 1032, in _bootstrap
+    self._bootstrap_inner()
+  File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/threading.py", line 1075, in _bootstrap_inner
+    self.run()
+  File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/threading.py", line 1012, in run
+    self._target(*self._args, **self._kwargs)
+  File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/concurrent/futures/thread.py", line 90, in _worker
+    work_item = work_queue.get(block=True)
+~~~~~~~~~~~~~~ Stack of flow-conviction-warmer (128392112809664) ~~~~~~~~~~~~~~~
+  File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/threading.py", line 1032, in _bootstrap
+    self._bootstrap_inner()
+  File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/threading.py", line 1075, in _bootstrap_inner
+    self.run()
+  File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/threading.py", line 1012, in run
+    self._target(*self._args, **self._kwargs)
+  File "/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/flow_summary.py", line 523, in _warm_loop
+    time.sleep(45)  # under _CACHE_TTL (60s) so the cache never expires cold
++++++++++++++++++++++++++++++++++++ Timeout ++++++++++++++++++++++++++++++++++++
+F..........................................................F.F.......... [ 54%]
+........................................................................ [ 56%]
+........................................................................ [ 58%]
+........................................................................ [ 60%]
+...F.......................................F............................ [ 62%]
+........................................................................ [ 64%]
+..................F..................................................... [ 66%]
+..............
+  -- A2.5: one definition, four surfaces --------------------
+  builder / store : sha256:223ac9251e92dbf30fc96da80b13d40de61bd18e5f4169ecc5335af390e07718~s2
+  screener        : sha256:223ac9251e92dbf30fc96da80b13d40de61bd18e5f4169ecc5335af390e07718~s2
+  chart           : sha256:223ac9251e92dbf30fc96da80b13d40de61bd18e5f4169ecc5335af390e07718~s2
+  alert           : sha256:223ac9251e92dbf30fc96da80b13d40de61bd18e5f4169ecc5335af390e07718~s2
+  store rows @ tree: 1   (indicator's own hash: 1)
+  hits            : ['NVDA', 'AMD'] of ['NVDA', 'AMD', 'INTC']
+....
+  -- A2.5 + W4a: one definition, five surfaces ----------------
+  store           : sha256:223ac9251e92dbf30fc96da80b13d40de61bd18e5f4169ecc5335af390e07718~s2
+  nightly sweep   : sha256:223ac9251e92dbf30fc96da80b13d40de61bd18e5f4169ecc5335af390e07718~s2
+  run-now         : sha256:223ac9251e92dbf30fc96da80b13d40de61bd18e5f4169ecc5335af390e07718~s2   hits=['AMD', 'NVDA']
+  receipt moved?  : False
+...................................................... [ 68%]
+..........................................................FFF........... [ 70%]
+..........F.................F.FFF................F....F.F............... [ 72%]
+........................................................................ [ 74%]
+........................................................................ [ 76%]
+........................................................................ [ 78%]
+........................................................................ [ 80%]
+........................................................................ [ 82%]
+........................................................................ [ 84%]
+........................................................................ [ 86%]
+........................................................................ [ 88%]
+........................................................................ [ 90%]
+...............F........................................................ [ 92%]
+........................................................................ [ 94%]
+........................................................................ [ 96%]
+........................................................................ [ 98%]
+...................................................................      [100%]
+=================================== FAILURES ===================================
+_ TestStartupSemanticsAreNotForked.test_every_other_deploy_setting_is_identical_to_the_shared_one _
+
+self = <tests.test_ocr_build_isolation.TestStartupSemanticsAreNotForked object at 0x74c59b0a0fb0>
+shared_railway = {'$schema': 'https://railway.app/railway.schema.json', 'build': {'buildCommand': "pip install -r requirements.txt && c...drainingSeconds': 30, 'healthcheckPath': '/api/health', 'healthcheckTimeout': 600, 'restartPolicyType': 'ALWAYS', ...}}
+web_railway = {'$schema': 'https://railway.app/railway.schema.json', 'build': {'builder': 'DOCKERFILE', 'dockerfilePath': 'Dockerfil... 'deploy': {'drainingSeconds': 30, 'healthcheckPath': '/api/health', 'healthcheckTimeout': 600, 'numReplicas': 1, ...}}
+
+    def test_every_other_deploy_setting_is_identical_to_the_shared_one(
+            self, shared_railway, web_railway):
+        shared = {k: v for k, v in shared_railway["deploy"].items()
+                  if k != "startCommand"}
+>       assert web_railway["deploy"] == shared, (
+            "the web service would deploy differently from every other service "
+            "reading railway.json, beyond the start command it is meant to own")
+E       AssertionError: the web service would deploy differently from every other service reading railway.json, beyond the start command it is meant to own
+E       assert {'drainingSec...icas': 1, ...} == {'drainingSec...pe': 'ALWAYS'}
+E         
+E         Omitting 4 identical items, use -vv to show
+E         Left contains 1 more item:
+E         {'numReplicas': 1}
+E         
+E         Full diff:
+E           {
+E               'drainingSeconds': 30,
+E               'healthcheckPath': '/api/health',
+E               'healthcheckTimeout': 600,
+E         +     'numReplicas': 1,
+E               'restartPolicyType': 'ALWAYS',
+E           }
+
+tests/test_ocr_build_isolation.py:238: AssertionError
+____________________ test_v_the_census_reflects_the_gating _____________________
+
+app = <fastapi.applications.FastAPI object at 0x74c59e4faf00>
+
+    def test_v_the_census_reflects_the_gating(app):
+        res = asc.audit_surface(app)
+        reads = res["reads"]
+>       assert res["ok"] is True, (reads["ungated"], res["stale_baseline"])
+E       AssertionError: ([('GET', '/api/brand/massive-card-logo.png'), ('GET', '/api/catalysts/pending-deals-internal'), ('GET', '/build.json')], [])
+E       assert False is True
+
+tests/test_open_reads_gate.py:323: AssertionError
+______________ test_the_new_flags_are_declared_dark_in_the_ledger ______________
+
+    def test_the_new_flags_are_declared_dark_in_the_ledger():
+        ledger = json.loads((pathlib.Path(__file__).parents[1] / "docs" / "feature_flags.json").read_text(encoding="utf-8"))
+        for f in NEW_FLAGS:
+            e = ledger["flags"][f]
+>           assert e["status"] == "dark" and "web" in e["where"] and "L3" in e["note"]
+E           AssertionError: assert ('armed' == 'dark'
+E             
+E             - dark
+E             + armed)
+
+tests/test_options_l3.py:122: AssertionError
+_ test_vision_candidate_with_sym_tf_textop__CLAIMED_no_candidate__DID_named_refusal[sym] _
+
+vision_ledger = None
+tree = {'args': [{'args': [{'name': 'close', 'type': 'series'}, {'args': [{...}], 'type': 'sym', 'value': 'SPY'}], 'name': '/...e': '/', 'type': 'op'}, {'type': 'num', 'value': 63}], 'name': 'highest', 'type': 'call'}], 'name': '>=', 'type': 'op'}
+
+    @pytest.mark.parametrize("tree", [RS_NEW_HIGH, TF_TREE, TEXTOP_TREE], ids=["sym", "tf", "textop"])
+    def test_vision_candidate_with_sym_tf_textop__CLAIMED_no_candidate__DID_named_refusal(
+            vision_ledger, tree):
+        """ASKED: a screenshot of an RS line / weekly read / ticker test.
+        CLAIMED (before): `vision:no-candidate` -- "nothing in that picture could be
+        turned into a formula", hiding a KeyError. DID (after): the candidate row
+        carries `unsupported:node` and its reason, no formula. OUTCOME: UNSUPPORTED."""
+        out = vision.candidates_from_image(image_bytes=b"\x89PNG", media_type="image/png",
+                                           user_id="u1", client=_VisionStub(_candidates(tree)),
+                                           bars=_bars())
+        assert out["ok"] is False and "candidates" not in out
+>       assert [r["gate"] for r in out["refused"]] == ["unsupported:node"]
+E       KeyError: 'refused'
+
+tests/test_p0_truth_conc.py:383: KeyError
+----------------------------- Captured stderr call -----------------------------
+2026-11-14 14:52:55,611 ERROR api.services.indicator_from_image: [indicator-vision] ledger unavailable; call refused
+Traceback (most recent call last):
+  File "/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/indicator_from_image.py", line 551, in candidates_from_image
+    slot = cost_guard.reserve_member_call(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/catalyst/cost_guard.py", line 307, in reserve_member_call
+    rowid, verdict = store.reserve_cost(
+                     ^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/catalyst/store.py", line 919, in reserve_cost
+    rows = [(r[0], float(r[1] or 0.0)) for r in c.execute(
+                                                ^^^^^^^^^^
+sqlite3.OperationalError: no such table: catalyst_cost_log
+------------------------------ Captured log call -------------------------------
+ERROR    api.services.indicator_from_image:indicator_from_image.py:555 [indicator-vision] ledger unavailable; call refused
+Traceback (most recent call last):
+  File "/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/indicator_from_image.py", line 551, in candidates_from_image
+    slot = cost_guard.reserve_member_call(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/catalyst/cost_guard.py", line 307, in reserve_member_call
+    rowid, verdict = store.reserve_cost(
+                     ^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/catalyst/store.py", line 919, in reserve_cost
+    rows = [(r[0], float(r[1] or 0.0)) for r in c.execute(
+                                                ^^^^^^^^^^
+sqlite3.OperationalError: no such table: catalyst_cost_log
+_ test_vision_candidate_with_sym_tf_textop__CLAIMED_no_candidate__DID_named_refusal[tf] _
+
+vision_ledger = None
+tree = {'args': [{'name': 'close', 'type': 'series'}, {'args': [{'name': 'close', 'type': 'series'}], 'type': 'tf', 'value': 'W'}], 'name': '>', 'type': 'op'}
+
+    @pytest.mark.parametrize("tree", [RS_NEW_HIGH, TF_TREE, TEXTOP_TREE], ids=["sym", "tf", "textop"])
+    def test_vision_candidate_with_sym_tf_textop__CLAIMED_no_candidate__DID_named_refusal(
+            vision_ledger, tree):
+        """ASKED: a screenshot of an RS line / weekly read / ticker test.
+        CLAIMED (before): `vision:no-candidate` -- "nothing in that picture could be
+        turned into a formula", hiding a KeyError. DID (after): the candidate row
+        carries `unsupported:node` and its reason, no formula. OUTCOME: UNSUPPORTED."""
+        out = vision.candidates_from_image(image_bytes=b"\x89PNG", media_type="image/png",
+                                           user_id="u1", client=_VisionStub(_candidates(tree)),
+                                           bars=_bars())
+        assert out["ok"] is False and "candidates" not in out
+>       assert [r["gate"] for r in out["refused"]] == ["unsupported:node"]
+E       KeyError: 'refused'
+
+tests/test_p0_truth_conc.py:383: KeyError
+----------------------------- Captured stderr call -----------------------------
+2026-11-14 14:52:55,641 ERROR api.services.indicator_from_image: [indicator-vision] ledger unavailable; call refused
+Traceback (most recent call last):
+  File "/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/indicator_from_image.py", line 551, in candidates_from_image
+    slot = cost_guard.reserve_member_call(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/catalyst/cost_guard.py", line 307, in reserve_member_call
+    rowid, verdict = store.reserve_cost(
+                     ^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/catalyst/store.py", line 919, in reserve_cost
+    rows = [(r[0], float(r[1] or 0.0)) for r in c.execute(
+                                                ^^^^^^^^^^
+sqlite3.OperationalError: no such table: catalyst_cost_log
+------------------------------ Captured log call -------------------------------
+ERROR    api.services.indicator_from_image:indicator_from_image.py:555 [indicator-vision] ledger unavailable; call refused
+Traceback (most recent call last):
+  File "/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/indicator_from_image.py", line 551, in candidates_from_image
+    slot = cost_guard.reserve_member_call(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/catalyst/cost_guard.py", line 307, in reserve_member_call
+    rowid, verdict = store.reserve_cost(
+                     ^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/catalyst/store.py", line 919, in reserve_cost
+    rows = [(r[0], float(r[1] or 0.0)) for r in c.execute(
+                                                ^^^^^^^^^^
+sqlite3.OperationalError: no such table: catalyst_cost_log
+_ test_vision_candidate_with_sym_tf_textop__CLAIMED_no_candidate__DID_named_refusal[textop] _
+
+vision_ledger = None
+tree = {'args': [{'name': 'close', 'type': 'series'}, {'args': [{'name': 'ticker', 'type': 'symtext'}, {'type': 'str', 'value': '/'}], 'name': 'contains', 'type': 'textop'}], 'name': '*', 'type': 'op'}
+
+    @pytest.mark.parametrize("tree", [RS_NEW_HIGH, TF_TREE, TEXTOP_TREE], ids=["sym", "tf", "textop"])
+    def test_vision_candidate_with_sym_tf_textop__CLAIMED_no_candidate__DID_named_refusal(
+            vision_ledger, tree):
+        """ASKED: a screenshot of an RS line / weekly read / ticker test.
+        CLAIMED (before): `vision:no-candidate` -- "nothing in that picture could be
+        turned into a formula", hiding a KeyError. DID (after): the candidate row
+        carries `unsupported:node` and its reason, no formula. OUTCOME: UNSUPPORTED."""
+        out = vision.candidates_from_image(image_bytes=b"\x89PNG", media_type="image/png",
+                                           user_id="u1", client=_VisionStub(_candidates(tree)),
+                                           bars=_bars())
+        assert out["ok"] is False and "candidates" not in out
+>       assert [r["gate"] for r in out["refused"]] == ["unsupported:node"]
+E       KeyError: 'refused'
+
+tests/test_p0_truth_conc.py:383: KeyError
+----------------------------- Captured stderr call -----------------------------
+2026-11-14 14:52:55,658 ERROR api.services.indicator_from_image: [indicator-vision] ledger unavailable; call refused
+Traceback (most recent call last):
+  File "/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/indicator_from_image.py", line 551, in candidates_from_image
+    slot = cost_guard.reserve_member_call(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/catalyst/cost_guard.py", line 307, in reserve_member_call
+    rowid, verdict = store.reserve_cost(
+                     ^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/catalyst/store.py", line 919, in reserve_cost
+    rows = [(r[0], float(r[1] or 0.0)) for r in c.execute(
+                                                ^^^^^^^^^^
+sqlite3.OperationalError: no such table: catalyst_cost_log
+------------------------------ Captured log call -------------------------------
+ERROR    api.services.indicator_from_image:indicator_from_image.py:555 [indicator-vision] ledger unavailable; call refused
+Traceback (most recent call last):
+  File "/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/indicator_from_image.py", line 551, in candidates_from_image
+    slot = cost_guard.reserve_member_call(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/catalyst/cost_guard.py", line 307, in reserve_member_call
+    rowid, verdict = store.reserve_cost(
+                     ^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/catalyst/store.py", line 919, in reserve_cost
+    rows = [(r[0], float(r[1] or 0.0)) for r in c.execute(
+                                                ^^^^^^^^^^
+sqlite3.OperationalError: no such table: catalyst_cost_log
+___ test_vision_unexpected_exception__DID_logged_vision_internal_not_silent ____
+
+vision_ledger = None
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x74c595fce120>
+caplog = <_pytest.logging.LogCaptureFixture object at 0x74c595fcd010>
+
+    def test_vision_unexpected_exception__DID_logged_vision_internal_not_silent(
+            vision_ledger, monkeypatch, caplog):
+        """CLAIMED (before): a bug filed as `vision:no-candidate` with a warning and
+        no traceback. DID (after): row gate `vision:internal`, traceback logged at
+        ERROR, the other candidate still served. OUTCOME: CONTROLLED ERROR."""
+        from api.services import definition_concierge as dc
+        real = dc._validate
+    
+        def flaky(tree, bars, kind):
+            if tree is TF_TREE:
+                raise RuntimeError("synthetic candidate bug")
+            return real(tree, bars, kind)
+        monkeypatch.setattr(dc, "_validate", flaky)
+        with caplog.at_level(logging.ERROR, logger=vision.logger.name):
+            out = vision.candidates_from_image(
+                image_bytes=b"\x89PNG", media_type="image/png", user_id="u1",
+                client=_VisionStub(_candidates(TF_TREE, PLAIN)), bars=_bars())
+>       assert out["ok"] is True and [c["source"] for c in out["candidates"]] == ["sma(close, 20)"]
+E       assert (False is True)
+
+tests/test_p0_truth_conc.py:404: AssertionError
+----------------------------- Captured stderr call -----------------------------
+2026-11-14 14:52:55,675 ERROR api.services.indicator_from_image: [indicator-vision] ledger unavailable; call refused
+Traceback (most recent call last):
+  File "/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/indicator_from_image.py", line 551, in candidates_from_image
+    slot = cost_guard.reserve_member_call(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/catalyst/cost_guard.py", line 307, in reserve_member_call
+    rowid, verdict = store.reserve_cost(
+                     ^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/catalyst/store.py", line 919, in reserve_cost
+    rows = [(r[0], float(r[1] or 0.0)) for r in c.execute(
+                                                ^^^^^^^^^^
+sqlite3.OperationalError: no such table: catalyst_cost_log
+------------------------------ Captured log call -------------------------------
+ERROR    api.services.indicator_from_image:indicator_from_image.py:555 [indicator-vision] ledger unavailable; call refused
+Traceback (most recent call last):
+  File "/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/indicator_from_image.py", line 551, in candidates_from_image
+    slot = cost_guard.reserve_member_call(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/catalyst/cost_guard.py", line 307, in reserve_member_call
+    rowid, verdict = store.reserve_cost(
+                     ^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/catalyst/store.py", line 919, in reserve_cost
+    rows = [(r[0], float(r[1] or 0.0)) for r in c.execute(
+                                                ^^^^^^^^^^
+sqlite3.OperationalError: no such table: catalyst_cost_log
+__________________ test_R4_every_refusal_gate_is_member_safe ___________________
+
+conv = <module 'api.services.definition_conversation' from '/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/definition_conversation.py'>
+clean_env = None, model = <function model.<locals>.arm at 0x74c595da1760>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x74c594f7ffe0>
+
+    def test_R4_every_refusal_gate_is_member_safe(conv, clean_env, model, monkeypatch):
+        """ASKED: sweep every gate a member can meet on this door. CLAIMED: none leaks an
+        op path, None, schema/validator words or a contract id. DID. Class: REFUSAL."""
+        v = view(1, [out("value", RSI_GT_70)])
+        seen = {}
+    
+        def run(msg="make it 80", answers=(), vv=v, **kw):
+            model(list(answers))
+            r = conv.converse(msg, user_id="u1", view=vv, **kw)
+            assert r["ok"] is False
+            seen[r["gate"]] = r["reason"]
+        run(answers=[emits(env(1, [{"op": "nope"}])), emits(env(1, [{"op": "nope"}]))])
+        run(answers=[emits(env(7, [])), emits(env(7, []))])
+        run(answers=[emits(env(1, [{"op": "set_slot", "slot": "value#1", "value": 80}],
+                               questions=[{"text": "which?"}]))] * 2)
+        run(answers=[emits(env(1, [{"op": "set_output_tree", "output": "value", "tree": SCALAR_TREE}]))])
+        run(answers=[emits(env(1, [{"op": "set_output_tree", "output": "value",
+                                    "tree": op(">", CLOSE, {"type": "ltf", "args": [CLOSE]})}]))])
+        run(vv={"contract": "nope", "revision": 1})
+        run(vv={"contract": "uct.authoring.view/1", "revision": -1})
+        run(msg="x" * 2001)
+        run(snippets=[{"role": "member", "text": "x" * 401}])
+        run(msg="cheap")
+        from api.services.engine import _get_anthropic_client  # noqa: F401
+        monkeypatch.setattr(conv, "_call_model", lambda _m: (_ for _ in ()).throw(RuntimeError("boom None")))
+        run()
+        monkeypatch.undo()
+        monkeypatch.setattr(conv, "check_envelope", lambda *_a: (_ for _ in ()).throw(KeyError("ops[0]")))
+        model([emits(GOOD())])
+        r = conv.converse("make it 80", user_id="u1", view=v)
+        seen[r["gate"]] = r["reason"]
+>       assert {"envelope:schema", "envelope:revision", "unsupported:scalar", "unsupported:node",
+                "converse:view", "converse:too-large", "concept:ambiguous", "model:transport",
+                "internal:error"} <= set(seen), seen
+E       AssertionError: {'concept:ambiguous': '"cheap" has no defensible definition here. The firm\'s own screen that uses the word -- `Cheap ...rn is not one the assistant can read', 'cost:user': "you have used up today's allowance of the formula assistant", ...}
+E       assert {'concept:amb...l:error', ...} <= {'concept:amb...:schema', ...}
+E         
+E         Extra items in the left set:
+E         'internal:error'
+
+tests/test_p2x_truth_converse.py:342: AssertionError
+----------------------------- Captured stderr call -----------------------------
+2026-11-14 14:53:12,584 INFO api.services.definition_conversation: [converse] repair after attempt=1 gate=envelope:schema
+2026-11-14 14:53:12,592 INFO api.services.definition_conversation: [converse] usage {"admin": false, "calls": 2, "cap_usd": 0.75, "conversation": null, "event": "converse_turn", "input_tokens": 600, "input_wrapper": null, "max_calls": 2, "model": "claude-opus-5", "outcome": "envelope:schema", "output_tokens": 240, "per_call": [{"cache_creation_tokens": 0, "cache_read_tokens": 0, "input_tokens": 300, "output_tokens": 120, "usd": 0.0045}, {"cache_creation_tokens": 0, "cache_read_tokens": 0, "input_tokens": 300, "output_tokens": 120, "usd": 0.0045}], "repair_gate": "envelope:schema", "usd": 0.009, "user": "u1"}
+2026-11-14 14:53:12,595 ERROR api.services.indicator_telemetry: [indicator-telemetry] write failed for u1/converse_turn
+Traceback (most recent call last):
+  File "/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/indicator_telemetry.py", line 447, in log_event
+    conn.execute(
+sqlite3.OperationalError: no such table: landing_events
+2026-11-14 14:53:12,602 INFO api.services.definition_conversation: [converse] repair after attempt=1 gate=envelope:revision
+2026-11-14 14:53:12,607 INFO api.services.definition_conversation: [converse] usage {"admin": false, "calls": 2, "cap_usd": 0.75, "conversation": null, "event": "converse_turn", "input_tokens": 600, "input_wrapper": null, "max_calls": 2, "model": "claude-opus-5", "outcome": "envelope:revision", "output_tokens": 240, "per_call": [{"cache_creation_tokens": 0, "cache_read_tokens": 0, "input_tokens": 300, "output_tokens": 120, "usd": 0.0045}, {"cache_creation_tokens": 0, "cache_read_tokens": 0, "input_tokens": 300, "output_tokens": 120, "usd": 0.0045}], "repair_gate": "envelope:revision", "usd": 0.009, "user": "u1"}
+2026-11-14 14:53:12,610 ERROR api.services.indicator_telemetry: [indicator-telemetry] write failed for u1/converse_turn
+Traceback (most recent call last):
+  File "/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/indicator_telemetry.py", line 447, in log_event
+    conn.execute(
+sqlite3.OperationalError: no such table: landing_events
+2026-11-14 14:53:12,618 INFO api.services.definition_conversation: [converse] repair after attempt=1 gate=envelope:schema
+2026-11-14 14:53:12,626 INFO api.services.definition_conversation: [converse] usage {"admin": false, "calls": 2, "cap_usd": 0.75, "conversation": null, "event": "converse_turn", "input_tokens": 600, "input_wrapper": null, "max_calls": 2, "model": "claude-opus-5", "outcome": "envelope:schema", "output_tokens": 240, "per_call": [{"cache_creation_tokens": 0, "cache_read_tokens": 0, "input_tokens": 300, "output_tokens": 120, "usd": 0.0045}, {"cache_creation_tokens": 0, "cache_read_tokens": 0, "input_tokens": 300, "output_tokens": 120, "usd": 0.0045}], "repair_gate": "envelope:schema", "usd": 0.009, "user": "u1"}
+2026-11-14 14:53:12,628 ERROR api.services.indicator_telemetry: [indicator-telemetry] write failed for u1/converse_turn
+Traceback (most recent call last):
+  File "/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/indicator_telemetry.py", line 447, in log_event
+    conn.execute(
+sqlite3.OperationalError: no such table: landing_events
+2026-11-14 14:53:12,635 INFO api.services.definition_conversation: [converse] usage {"admin": false, "calls": 1, "cap_usd": 0.75, "conversation": null, "event": "converse_turn", "input_tokens": 300, "input_wrapper": null, "max_calls": 2, "model": "claude-opus-5", "outcome": "unsupported:scalar", "output_tokens": 120, "per_call": [{"cache_creation_tokens": 0, "cache_read_tokens": 0, "input_tokens": 300, "output_tokens": 120, "usd": 0.0045}], "repair_gate": null, "usd": 0.0045, "user": "u1"}
+2026-11-14 14:53:12,637 ERROR api.services.indicator_telemetry: [indicator-telemetry] write failed for u1/converse_turn
+Traceback (most recent call last):
+  File "/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/indicator_telemetry.py", line 447, in log_event
+    conn.execute(
+sqlite3.OperationalError: no such table: landing_events
+2026-11-14 14:53:12,643 INFO api.services.definition_conversation: [converse] usage {"admin": false, "calls": 1, "cap_usd": 0.75, "conversation": null, "event": "converse_turn", "input_tokens": 300, "input_wrapper": null, "max_calls": 2, "model": "claude-opus-5", "outcome": "unsupported:node", "output_tokens": 120, "per_call": [{"cache_creation_tokens": 0, "cache_read_tokens": 0, "input_tokens": 300, "output_tokens": 120, "usd": 0.0045}], "repair_gate": null, "usd": 0.0045, "user": "u1"}
+2026-11-14 14:53:12,645 ERROR api.services.indicator_telemetry: [indicator-telemetry] write failed for u1/converse_turn
+Traceback (most recent call last):
+  File "/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/indicator_telemetry.py", line 447, in log_event
+    conn.execute(
+sqlite3.OperationalError: no such table: landing_events
+2026-11-14 14:53:12,646 INFO api.services.definition_conversation: [converse] usage {"admin": false, "calls": 0, "cap_usd": 0.75, "conversation": null, "event": "converse_turn", "input_tokens": 0, "input_wrapper": null, "max_calls": 2, "model": "claude-opus-5", "outcome": "converse:view", "output_tokens": 0, "per_call": [], "repair_gate": null, "usd": 0, "user": "u1"}
+2026-11-14 14:53:12,648 ERROR api.services.indicator_telemetry: [indicator-telemetry] write failed for u1/converse_turn
+Traceback (most recent call last):
+  File "/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/indicator_telemetry.py", line 447, in log_event
+    conn.execute(
+sqlite3.OperationalError: no such table: landing_events
+2026-11-14 14:53:12,649 INFO api.services.definition_conversation: [converse] usage {"admin": false, "calls": 0, "cap_usd": 0.75, "conversation": null, "event": "converse_turn", "input_tokens": 0, "input_wrapper": null, "max_calls": 2, "model": "claude-opus-5", "outcome": "converse:view", "output_tokens": 0, "per_call": [], "repair_gate": null, "usd": 0, "user": "u1"}
+2026-11-14 14:53:12,651 ERROR api.services.indicator_telemetry: [indicator-telemetry] write failed for u1/converse_turn
+Traceback (most recent call last):
+  File "/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/indicator_telemetry.py", line 447, in log_event
+    conn.execute(
+sqlite3.OperationalError: no such table: landing_events
+2026-11-14 14:53:12,651 INFO api.services.definition_conversation: [converse] usage {"admin": false, "calls": 0, "cap_usd": 0.75, "conversation": null, "event": "converse_turn", "input_tokens": 0, "input_wrapper": null, "max_calls": 2, "model": "claude-opus-5", "outcome": "converse:too-large", "output_tokens": 0, "per_call": [], "repair_gate": null, "usd": 0, "user": "u1"}
+2026-11-14 14:53:12,653 ERROR api.services.indicator_telemetry: [indicator-telemetry] write failed for u1/converse_turn
+Traceback (most recent call last):
+  File "/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/indicator_telemetry.py", line 447, in log_event
+    conn.execute(
+sqlite3.OperationalError: no such table: landing_events
+2026-11-14 14:53:12,658 WARNING api.services.definition_conversation: [converse] model call failed: model called 1 times; armed fewer
+2026-11-14 14:53:12,663 INFO api.services.definition_conversation: [converse] usage {"admin": false, "calls": 0, "cap_usd": 0.75, "conversation": null, "event": "converse_turn", "input_tokens": 0, "input_wrapper": null, "max_calls": 2, "model": "claude-opus-5", "outcome": "model:transport", "output_tokens": 0, "per_call": [], "repair_gate": null, "usd": 0, "user": "u1"}
+2026-11-14 14:53:12,665 ERROR api.services.indicator_telemetry: [indicator-telemetry] write failed for u1/converse_turn
+Traceback (most recent call last):
+  File "/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/indicator_telemetry.py", line 447, in log_event
+    conn.execute(
+sqlite3.OperationalError: no such table: landing_events
+2026-11-14 14:53:12,666 INFO api.services.definition_conversation: [converse] usage {"admin": false, "calls": 0, "cap_usd": 0.75, "conversation": null, "event": "converse_turn", "input_tokens": 0, "input_wrapper": null, "max_calls": 2, "model": "claude-opus-5", "outcome": "concept:ambiguous", "output_tokens": 0, "per_call": [], "repair_gate": null, "usd": 0, "user": "u1"}
+2026-11-14 14:53:12,668 ERROR api.services.indicator_telemetry: [indicator-telemetry] write failed for u1/converse_turn
+Traceback (most recent call last):
+  File "/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/indicator_telemetry.py", line 447, in log_event
+    conn.execute(
+sqlite3.OperationalError: no such table: landing_events
+2026-11-14 14:53:12,669 WARNING api.services.definition_conversation: [converse] model call failed: boom None
+2026-11-14 14:53:12,674 INFO api.services.definition_conversation: [converse] usage {"admin": false, "calls": 0, "cap_usd": 0.75, "conversation": null, "event": "converse_turn", "input_tokens": 0, "input_wrapper": null, "max_calls": 2, "model": "claude-opus-5", "outcome": "model:transport", "output_tokens": 0, "per_call": [], "repair_gate": null, "usd": 0, "user": "u1"}
+2026-11-14 14:53:12,676 ERROR api.services.indicator_telemetry: [indicator-telemetry] write failed for u1/converse_turn
+Traceback (most recent call last):
+  File "/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/indicator_telemetry.py", line 447, in log_event
+    conn.execute(
+sqlite3.OperationalError: no such table: landing_events
+2026-11-14 14:53:12,678 INFO api.services.definition_conversation: [converse] usage {"admin": false, "calls": 0, "cap_usd": 0.75, "conversation": null, "event": "converse_turn", "input_tokens": 0, "input_wrapper": null, "max_calls": 2, "model": "claude-opus-5", "outcome": "cost:user", "output_tokens": 0, "per_call": [], "repair_gate": null, "usd": 0, "user": "u1"}
+2026-11-14 14:53:12,680 ERROR api.services.indicator_telemetry: [indicator-telemetry] write failed for u1/converse_turn
+Traceback (most recent call last):
+  File "/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/indicator_telemetry.py", line 447, in log_event
+    conn.execute(
+sqlite3.OperationalError: no such table: landing_events
+------------------------------ Captured log call -------------------------------
+INFO     api.services.definition_conversation:definition_conversation.py:1978 [converse] repair after attempt=1 gate=envelope:schema
+INFO     api.services.definition_conversation:definition_conversation.py:1648 [converse] usage {"admin": false, "calls": 2, "cap_usd": 0.75, "conversation": null, "event": "converse_turn", "input_tokens": 600, "input_wrapper": null, "max_calls": 2, "model": "claude-opus-5", "outcome": "envelope:schema", "output_tokens": 240, "per_call": [{"cache_creation_tokens": 0, "cache_read_tokens": 0, "input_tokens": 300, "output_tokens": 120, "usd": 0.0045}, {"cache_creation_tokens": 0, "cache_read_tokens": 0, "input_tokens": 300, "output_tokens": 120, "usd": 0.0045}], "repair_gate": "envelope:schema", "usd": 0.009, "user": "u1"}
+ERROR    api.services.indicator_telemetry:indicator_telemetry.py:454 [indicator-telemetry] write failed for u1/converse_turn
+Traceback (most recent call last):
+  File "/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/indicator_telemetry.py", line 447, in log_event
+    conn.execute(
+sqlite3.OperationalError: no such table: landing_events
+INFO     api.services.definition_conversation:definition_conversation.py:1978 [converse] repair after attempt=1 gate=envelope:revision
+INFO     api.services.definition_conversation:definition_conversation.py:1648 [converse] usage {"admin": false, "calls": 2, "cap_usd": 0.75, "conversation": null, "event": "converse_turn", "input_tokens": 600, "input_wrapper": null, "max_calls": 2, "model": "claude-opus-5", "outcome": "envelope:revision", "output_tokens": 240, "per_call": [{"cache_creation_tokens": 0, "cache_read_tokens": 0, "input_tokens": 300, "output_tokens": 120, "usd": 0.0045}, {"cache_creation_tokens": 0, "cache_read_tokens": 0, "input_tokens": 300, "output_tokens": 120, "usd": 0.0045}], "repair_gate": "envelope:revision", "usd": 0.009, "user": "u1"}
+ERROR    api.services.indicator_telemetry:indicator_telemetry.py:454 [indicator-telemetry] write failed for u1/converse_turn
+Traceback (most recent call last):
+  File "/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/indicator_telemetry.py", line 447, in log_event
+    conn.execute(
+sqlite3.OperationalError: no such table: landing_events
+INFO     api.services.definition_conversation:definition_conversation.py:1978 [converse] repair after attempt=1 gate=envelope:schema
+INFO     api.services.definition_conversation:definition_conversation.py:1648 [converse] usage {"admin": false, "calls": 2, "cap_usd": 0.75, "conversation": null, "event": "converse_turn", "input_tokens": 600, "input_wrapper": null, "max_calls": 2, "model": "claude-opus-5", "outcome": "envelope:schema", "output_tokens": 240, "per_call": [{"cache_creation_tokens": 0, "cache_read_tokens": 0, "input_tokens": 300, "output_tokens": 120, "usd": 0.0045}, {"cache_creation_tokens": 0, "cache_read_tokens": 0, "input_tokens": 300, "output_tokens": 120, "usd": 0.0045}], "repair_gate": "envelope:schema", "usd": 0.009, "user": "u1"}
+ERROR    api.services.indicator_telemetry:indicator_telemetry.py:454 [indicator-telemetry] write failed for u1/converse_turn
+Traceback (most recent call last):
+  File "/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/indicator_telemetry.py", line 447, in log_event
+    conn.execute(
+sqlite3.OperationalError: no such table: landing_events
+INFO     api.services.definition_conversation:definition_conversation.py:1648 [converse] usage {"admin": false, "calls": 1, "cap_usd": 0.75, "conversation": null, "event": "converse_turn", "input_tokens": 300, "input_wrapper": null, "max_calls": 2, "model": "claude-opus-5", "outcome": "unsupported:scalar", "output_tokens": 120, "per_call": [{"cache_creation_tokens": 0, "cache_read_tokens": 0, "input_tokens": 300, "output_tokens": 120, "usd": 0.0045}], "repair_gate": null, "usd": 0.0045, "user": "u1"}
+ERROR    api.services.indicator_telemetry:indicator_telemetry.py:454 [indicator-telemetry] write failed for u1/converse_turn
+Traceback (most recent call last):
+  File "/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/indicator_telemetry.py", line 447, in log_event
+    conn.execute(
+sqlite3.OperationalError: no such table: landing_events
+INFO     api.services.definition_conversation:definition_conversation.py:1648 [converse] usage {"admin": false, "calls": 1, "cap_usd": 0.75, "conversation": null, "event": "converse_turn", "input_tokens": 300, "input_wrapper": null, "max_calls": 2, "model": "claude-opus-5", "outcome": "unsupported:node", "output_tokens": 120, "per_call": [{"cache_creation_tokens": 0, "cache_read_tokens": 0, "input_tokens": 300, "output_tokens": 120, "usd": 0.0045}], "repair_gate": null, "usd": 0.0045, "user": "u1"}
+ERROR    api.services.indicator_telemetry:indicator_telemetry.py:454 [indicator-telemetry] write failed for u1/converse_turn
+Traceback (most recent call last):
+  File "/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/indicator_telemetry.py", line 447, in log_event
+    conn.execute(
+sqlite3.OperationalError: no such table: landing_events
+INFO     api.services.definition_conversation:definition_conversation.py:1648 [converse] usage {"admin": false, "calls": 0, "cap_usd": 0.75, "conversation": null, "event": "converse_turn", "input_tokens": 0, "input_wrapper": null, "max_calls": 2, "model": "claude-opus-5", "outcome": "converse:view", "output_tokens": 0, "per_call": [], "repair_gate": null, "usd": 0, "user": "u1"}
+ERROR    api.services.indicator_telemetry:indicator_telemetry.py:454 [indicator-telemetry] write failed for u1/converse_turn
+Traceback (most recent call last):
+  File "/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/indicator_telemetry.py", line 447, in log_event
+    conn.execute(
+sqlite3.OperationalError: no such table: landing_events
+INFO     api.services.definition_conversation:definition_conversation.py:1648 [converse] usage {"admin": false, "calls": 0, "cap_usd": 0.75, "conversation": null, "event": "converse_turn", "input_tokens": 0, "input_wrapper": null, "max_calls": 2, "model": "claude-opus-5", "outcome": "converse:view", "output_tokens": 0, "per_call": [], "repair_gate": null, "usd": 0, "user": "u1"}
+ERROR    api.services.indicator_telemetry:indicator_telemetry.py:454 [indicator-telemetry] write failed for u1/converse_turn
+Traceback (most recent call last):
+  File "/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/indicator_telemetry.py", line 447, in log_event
+    conn.execute(
+sqlite3.OperationalError: no such table: landing_events
+INFO     api.services.definition_conversation:definition_conversation.py:1648 [converse] usage {"admin": false, "calls": 0, "cap_usd": 0.75, "conversation": null, "event": "converse_turn", "input_tokens": 0, "input_wrapper": null, "max_calls": 2, "model": "claude-opus-5", "outcome": "converse:too-large", "output_tokens": 0, "per_call": [], "repair_gate": null, "usd": 0, "user": "u1"}
+ERROR    api.services.indicator_telemetry:indicator_telemetry.py:454 [indicator-telemetry] write failed for u1/converse_turn
+Traceback (most recent call last):
+  File "/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/indicator_telemetry.py", line 447, in log_event
+    conn.execute(
+sqlite3.OperationalError: no such table: landing_events
+WARNING  api.services.definition_conversation:definition_conversation.py:1934 [converse] model call failed: model called 1 times; armed fewer
+INFO     api.services.definition_conversation:definition_conversation.py:1648 [converse] usage {"admin": false, "calls": 0, "cap_usd": 0.75, "conversation": null, "event": "converse_turn", "input_tokens": 0, "input_wrapper": null, "max_calls": 2, "model": "claude-opus-5", "outcome": "model:transport", "output_tokens": 0, "per_call": [], "repair_gate": null, "usd": 0, "user": "u1"}
+ERROR    api.services.indicator_telemetry:indicator_telemetry.py:454 [indicator-telemetry] write failed for u1/converse_turn
+Traceback (most recent call last):
+  File "/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/indicator_telemetry.py", line 447, in log_event
+    conn.execute(
+sqlite3.OperationalError: no such table: landing_events
+INFO     api.services.definition_conversation:definition_conversation.py:1648 [converse] usage {"admin": false, "calls": 0, "cap_usd": 0.75, "conversation": null, "event": "converse_turn", "input_tokens": 0, "input_wrapper": null, "max_calls": 2, "model": "claude-opus-5", "outcome": "concept:ambiguous", "output_tokens": 0, "per_call": [], "repair_gate": null, "usd": 0, "user": "u1"}
+ERROR    api.services.indicator_telemetry:indicator_telemetry.py:454 [indicator-telemetry] write failed for u1/converse_turn
+Traceback (most recent call last):
+  File "/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/indicator_telemetry.py", line 447, in log_event
+    conn.execute(
+sqlite3.OperationalError: no such table: landing_events
+WARNING  api.services.definition_conversation:definition_conversation.py:1934 [converse] model call failed: boom None
+INFO     api.services.definition_conversation:definition_conversation.py:1648 [converse] usage {"admin": false, "calls": 0, "cap_usd": 0.75, "conversation": null, "event": "converse_turn", "input_tokens": 0, "input_wrapper": null, "max_calls": 2, "model": "claude-opus-5", "outcome": "model:transport", "output_tokens": 0, "per_call": [], "repair_gate": null, "usd": 0, "user": "u1"}
+ERROR    api.services.indicator_telemetry:indicator_telemetry.py:454 [indicator-telemetry] write failed for u1/converse_turn
+Traceback (most recent call last):
+  File "/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/indicator_telemetry.py", line 447, in log_event
+    conn.execute(
+sqlite3.OperationalError: no such table: landing_events
+INFO     api.services.definition_conversation:definition_conversation.py:1648 [converse] usage {"admin": false, "calls": 0, "cap_usd": 0.75, "conversation": null, "event": "converse_turn", "input_tokens": 0, "input_wrapper": null, "max_calls": 2, "model": "claude-opus-5", "outcome": "cost:user", "output_tokens": 0, "per_call": [], "repair_gate": null, "usd": 0, "user": "u1"}
+ERROR    api.services.indicator_telemetry:indicator_telemetry.py:454 [indicator-telemetry] write failed for u1/converse_turn
+Traceback (most recent call last):
+  File "/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/indicator_telemetry.py", line 447, in log_event
+    conn.execute(
+sqlite3.OperationalError: no such table: landing_events
+______ test_every_backticked_repo_path_in_an_evidence_cell_exists_at_head ______
+
+    def test_every_backticked_repo_path_in_an_evidence_cell_exists_at_head():
+        tracked = _tracked()
+        assert 'docs/notebook/competitive-gap-ledger.md' in tracked, 'non-vacuity: git ls-files did not answer'
+        paths = set()
+        for cell in _evidence_cells():
+            for tok in re.findall(r'`([^`\s]+)`', cell):
+                if '/' not in tok or tok.startswith('http'):
+                    continue
+                paths.add(re.sub(r':[\d\-]+$', '', tok))
+        assert len(paths) > 50, f'non-vacuity: only {len(paths)} cited paths found'
+        missing = sorted(p for p in paths if p not in tracked)
+>       assert not missing, missing
+E       AssertionError: ['app/src/pages/journal-2-0/components/notebook/ResearchHome.jsx']
+E       assert not ['app/src/pages/journal-2-0/components/notebook/ResearchHome.jsx']
+
+tests/test_parity_scorecard.py:178: AssertionError
+_____ test_the_evidence_index_holds_on_the_real_inputs_and_is_not_vacuous ______
+
+    def test_the_evidence_index_holds_on_the_real_inputs_and_is_not_vacuous():
+>       rows, problems = psc.evidence_index('HEAD')
+
+tests/test_parity_scorecard.py:361: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tools/parity_scorecard.py:2700: in evidence_index
+    land = _find_squash(sha, head)
+tools/parity_scorecard.py:2656: in _find_squash
+    if c in touched and not _tie(tip, c)[1]:
+tools/parity_scorecard.py:2623: in _tie
+    rc, out = git('merge-tree', '--write-tree', '--name-only', '--no-messages', f'{landing}^', tip)
+tools/parity_scorecard.py:2123: in git
+    r = subprocess.run(['git', '-C', ROOT, *a], capture_output=True, text=True, encoding='utf-8', errors='replace')
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/subprocess.py:550: in run
+    stdout, stderr = process.communicate(input, timeout=timeout)
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/subprocess.py:1209: in communicate
+    stdout, stderr = self._communicate(input, endtime, timeout)
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/subprocess.py:2115: in _communicate
+    ready = selector.select(timeout)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <selectors.PollSelector object at 0x74c5956c23f0>, timeout = None
+
+    def select(self, timeout=None):
+        # This is shared between poll() and epoll().
+        # epoll() has a different signature and handling of timeout parameter.
+        if timeout is None:
+            timeout = None
+        elif timeout <= 0:
+            timeout = 0
+        else:
+            # poll() has a resolution of 1 millisecond, round away from
+            # zero to wait *at least* timeout seconds.
+            timeout = math.ceil(timeout * 1e3)
+        ready = []
+        try:
+>           fd_event_list = self._selector.poll(timeout)
+E           Failed: Timeout (>120.0s) from pytest-timeout.
+
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/selectors.py:415: Failed
+____ test_the_pullback_detector_declares_its_history_and_nothing_else_does _____
+
+    def test_the_pullback_detector_declares_its_history_and_nothing_else_does():
+        assert registry.min_bars_for(_ID) == PB.MIN_BARS == 222
+        declared = {pid for pid in registry.list_pattern_ids() if registry.min_bars_for(pid)}
+        # uct_flat_top_breakout declares 202 (its rule needs the 200 SMA on the
+        # marked session, plus the two prior trigger sessions). uct_flag_htf
+        # declares 222 (its guard reads the 200 SMA 20 sessions back) and
+        # uct_ma_reclaim 225 (its 200 SMA branch reads it 23 sessions back), so the
+        # deepest declaration, and the scan's fetch, is now 225. uct_launch_pad_v4
+        # declares 222 (its falling-200 gate reads the 200 SMA 20 sessions back),
+        # which leaves the deepest at 225.
+        # uct_flat_top_breakout_ftb4 declares 222 (its new branch reads the 200 SMA
+        # 20 sessions back on the marked session and the two prior trigger sessions).
+>       assert declared == {_ID, _FT_ID, _FL_ID, _MR_ID, _LP4_ID, _FT4_ID, _ID4_ID}, declared
+E       AssertionError: {'death_cross', 'golden_cross', 'pullback_to_200sma', 'pullback_to_50sma', 'uct_flag_htf', 'uct_flat_top_breakout', ...}
+E       assert {'death_cross...reakout', ...} == {'uct_flag_ht...reclaim', ...}
+E         
+E         Extra items in the left set:
+E         'pullback_to_50sma'
+E         'death_cross'
+E         'pullback_to_200sma'
+E         'golden_cross'
+E         
+E         Full diff:
+E           {
+E         +     'death_cross',
+E         +     'golden_cross',
+E         +     'pullback_to_200sma',
+E         +     'pullback_to_50sma',
+E               'uct_flag_htf',
+E               'uct_flat_top_breakout',
+E               'uct_flat_top_breakout_ftb4',
+E               'uct_inside_day_id4',
+E               'uct_launch_pad_v4',
+E               'uct_ma_reclaim',
+E               'uct_pullback_ma_v5',
+E           }
+
+tests/test_pattern_scan_depth_and_sym.py:113: AssertionError
+______ test_undeclared_detectors_receive_byte_identical_bars_and_context _______
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x74c5955c0260>
+store = None
+
+    def test_undeclared_detectors_receive_byte_identical_bars_and_context(monkeypatch, store):
+        """Record exactly what each registered detector is handed by the scan, and
+        compare with what the pre-change scan handed it: the trailing 200 bars of a
+        200-bar fetch, and the context built on those 200 bars."""
+        import api.routers.patterns  # noqa: F401  (registers every detector)
+        full = _recent(SY.random_walk(n=320, seed=3))
+        rows = _tuples(full)
+        # non-vacuity: on this series the context depends on the window, so a scan
+        # that built it on the deeper fetch would be caught below
+        assert build_context(full[-222:], sym="DEPTHX") != build_context(full[-200:], sym="DEPTHX")
+        calls = []
+        _stub_bars(monkeypatch, {"DEPTHX": rows}, calls)
+        seen = {}
+        for pid in registry.list_pattern_ids():
+            real = registry._REGISTRY[pid]
+    
+            def rec(bars, ctx, _pid=pid, _real=real):
+                seen[_pid] = (tuple(tuple(sorted(b.items())) for b in bars), dict(ctx))
+                return _real(bars, ctx)
+            monkeypatch.setitem(registry._REGISTRY, pid, rec)
+        _scan_patterns_daily(["DEPTHX"], set(), _Log())
+    
+>       assert calls == [("DEPTHX", "D", MR.MIN_BARS)], calls
+E       AssertionError: [('DEPTHX', 'D', 270)]
+E       assert [('DEPTHX', 'D', 270)] == [('DEPTHX', 'D', 225)]
+E         
+E         At index 0 diff: ('DEPTHX', 'D', 270) != ('DEPTHX', 'D', 225)
+E         
+E         Full diff:
+E           [
+E               (
+E                   'DEPTHX',
+E                   'D',
+E         -         225,
+E         ?          ^^
+E         +         270,
+E         ?          ^^
+E               ),
+E           ]
+
+tests/test_pattern_scan_depth_and_sym.py:158: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+[patterns] Pattern DB ready at /tmp/pytest-of-runner/pytest-0/test_undeclared_detectors_rece0/patterns.db
+___ test_nothing_NEW_on_the_free_page_became_paid_without_a_recorded_verdict ___
+
+    def test_nothing_NEW_on_the_free_page_became_paid_without_a_recorded_verdict():
+        """⭐ THE WIRE TEST — it goes RED when the free page starts calling something
+        this file paywalled, while every component stays individually correct.
+    
+        The morning-wire component tree is WALKED (`pages/MorningWire.jsx` plus the
+        shell that renders around every page), the `/api/...` literals in it are
+        collected, and each one that this task gated must have a recorded verdict
+        above. A tile added to the free page tomorrow that fetches the Model Book
+        fails here — which is the only place it would fail, because the tile and the
+        gate would both be correct on their own (`lesson_built_tested_green_and_
+        unreachable`)."""
+        tree = _module_tree([
+            "pages/MorningWire.jsx",
+            "components/Layout.jsx",
+            "components/AuthGuard.jsx",
+            "components/NavBar.jsx",
+            "components/MobileNav.jsx",
+            "components/mobile/MoreSheet.jsx",
+        ])
+    
+        # CONTROLS — a walk that resolved nothing would pass this test by finding no
+        # reachable route at all, which is the vacuous-guard shape this repo keeps
+        # re-committing. Both a size floor and a specific LAZY edge are required.
+        assert len(tree) > 150, f"the import walk resolved only {len(tree)} files"
+        assert os.path.join(SRC, "components", "TickerPopup.jsx") in tree, (
+            "the walk did not reach TickerPopup — the static edges are not resolving")
+        assert os.path.join(SRC, "components", "fundamentals", "AnalystPanel.jsx") in tree, (
+            "the walk did not follow lazy(() => import(...)) into AnalystPanel — it "
+            "is measuring less than the browser loads, so its silence means nothing")
+    
+        literals = set()
+        for path in tree:
+            try:
+                src = open(path, encoding="utf-8").read()
+            except OSError:
+                continue
+            literals.update(re.findall(r"""['"`](/api/[A-Za-z0-9_\-/]*)""", src))
+    
+        gated_prefixes = set()
+        for _method, path in PAID_NOW:
+            gated_prefixes.add(path.split("{", 1)[0])
+    
+        reached = {p for p in gated_prefixes
+                   if any(lit.startswith(p) and len(lit) >= len(p) - 1 for lit in literals)}
+        # `/api/patterns/feedback` is a literal, not a prefix-with-param.
+        reached |= {p for p in gated_prefixes if p.rstrip("/") in literals}
+    
+>       assert reached == set(REACHED_FROM_FREE_PAGE), (
+            "the set of paywalled routes the FREE Morning Wire page can reach has "
+            f"changed.\n  newly reachable: {sorted(reached - set(REACHED_FROM_FREE_PAGE))}\n"
+            f"  no longer reachable: {sorted(set(REACHED_FROM_FREE_PAGE) - reached)}\n"
+            "Each one needs a verdict recorded in REACHED_FROM_FREE_PAGE — a free "
+            "member walks this tree, and 'it is behind a click' is a judgement "
+            "somebody has to make out loud, not inherit.")
+E       AssertionError: the set of paywalled routes the FREE Morning Wire page can reach has changed.
+E           newly reachable: ['/api/calendar/next-report', '/api/single-stock-etfs/', '/api/stock-brief/']
+E           no longer reachable: []
+E         Each one needs a verdict recorded in REACHED_FROM_FREE_PAGE — a free member walks this tree, and 'it is behind a click' is a judgement somebody has to make out loud, not inherit.
+E       assert {'/api/ai-sea...s-table', ...} == {'/api/ai-sea.../stock/', ...}
+E         
+E         Extra items in the left set:
+E         '/api/stock-brief/'
+E         '/api/single-stock-etfs/'
+E         '/api/calendar/next-report'
+E         
+E         Full diff:
+E           {
+E               '/api/ai-search',
+E               '/api/ai-search/signal',
+E               '/api/ai-search/stream',
+E               '/api/analyst/',
+E         +     '/api/calendar/next-report',
+E               '/api/fundamentals/earnings-table',
+E               '/api/modelbook/stock/',
+E               '/api/modelbook/stocks',
+E               '/api/news-catalysts/',
+E               '/api/ownership/',
+E               '/api/patterns/',
+E               '/api/patterns/feedback',
+E               '/api/rundown',
+E               '/api/rundown/speech-text',
+E         +     '/api/single-stock-etfs/',
+E         +     '/api/stock-brief/',
+E               '/api/theme-index/',
+E               '/api/wire/archive',
+E               '/api/wire/archive/',
+E           }
+
+tests/test_paywall_gate_free_tier.py:827: AssertionError
+___________________ test_get_rs_for_ticker_never_recomputes ____________________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x74c595617350>
+
+    def test_get_rs_for_ticker_never_recomputes(monkeypatch):
+        import api.services.rs_ranking as rs
+        calls = {"compute": 0}
+        monkeypatch.setattr(rs, "compute_rs_scores",
+                            lambda *a, **k: (calls.__setitem__("compute", calls["compute"] + 1), [])[1])
+    
+        class FakeCache:
+            def __init__(self, v):
+                self.v = v
+            def get(self, k):
+                return self.v
+    
+        # cold cache → None, and compute must NOT be called
+        monkeypatch.setattr(rs, "cache", FakeCache(None))
+        assert rs.get_rs_for_ticker("AAPL") is None
+        assert calls["compute"] == 0
+    
+        # warm cache → returns the item, still no recompute
+        monkeypatch.setattr(rs, "cache", FakeCache([{"ticker": "AAPL", "rs_rank": 88}]))
+        got = rs.get_rs_for_ticker("aapl")
+>       assert got and got["rs_rank"] == 88
+E       assert (None)
+
+tests/test_perf_batch_a.py:52: AssertionError
+___________ test_every_server_preference_is_declared_in_the_manifest ___________
+
+    def test_every_server_preference_is_declared_in_the_manifest():
+        missing = sorted(_server_keys() - _declared_server_keys(_manifest()))
+>       assert not missing, f"server preference keys missing from the manifest: {missing} — {FIX}"
+E       AssertionError: server preference keys missing from the manifest: ['indicator_tours_seen', 'notebook_chart_sets', 'notebook_landing'] — node tools/persistence_census.mjs --write
+E       assert not ['indicator_tours_seen', 'notebook_chart_sets', 'notebook_landing']
+
+tests/test_persistence_manifest_server_keys.py:56: AssertionError
+________ test_A2_every_vocabulary_id_outside_the_admitted_set_withholds ________
+
+on = None
+
+    def test_A2_every_vocabulary_id_outside_the_admitted_set_withholds(on):
+        admitted = set(rt.admitted_capabilities()["admitted"])
+        for cap in sorted(pc.CAPABILITY_IDS - admitted):
+            orig = pc.capabilities_of
+            try:
+                pc.capabilities_of = lambda _s, c=cap: frozenset({"core", c})
+                rt._reset_capability_cache(persisted=True)
+>               assert rt.capability_admitted(MEMBER_COPY) == (False, [cap]), cap
+E               AssertionError: calc-bars
+E               assert (True, []) == (False, ['calc-bars'])
+E                 
+E                 At index 0 diff: True != False
+E                 
+E                 Full diff:
+E                   (
+E                 +     True,
+E                 -     False,
+E                 -     [
+E                 -         'calc-bars',
+E                 -     ],
+E                 +     [],
+E                 ?     +
+E                   )
+
+tests/test_pine_capability_admission.py:234: AssertionError
+_____________ test_C3_an_id_outside_the_vocabulary_counts_missing ______________
+
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_C3_an_id_outside_the_voca0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x74c595e0d1c0>
+on = None
+
+    def test_C3_an_id_outside_the_vocabulary_counts_missing(tmp_path, monkeypatch, on):
+        """Closed world at the gate: an id the detector returns that the vocabulary does not name is
+        missing, even when a registry row of that name looks admitted."""
+        def add(doc):
+            doc["capabilities"]["zz-new"] = dict(ROW)
+            return doc
+        _registry_file(tmp_path, monkeypatch, add)
+        orig = pc.capabilities_of
+        try:
+            pc.capabilities_of = lambda _s: frozenset({"core", "zz-new"})
+            rt._reset_capability_cache(persisted=True)
+>           assert rt.capability_admitted(MEMBER_COPY) == (False, ["zz-new"])
+E           AssertionError: assert (True, []) == (False, ['zz-new'])
+E             
+E             At index 0 diff: True != False
+E             
+E             Full diff:
+E               (
+E             +     True,
+E             -     False,
+E             -     [
+E             -         'zz-new',
+E             -     ],
+E             +     [],
+E             ?     +
+E               )
+
+tests/test_pine_capability_admission.py:251: AssertionError
+__________________ test_C1_a_matrix_or_map_script_is_withheld __________________
+
+on = None
+
+    def test_C1_a_matrix_or_map_script_is_withheld(on):
+        """The collection namespaces are admitted on their own evidence: matrix and map have none."""
+        for body, cap in (("m = matrix.new<float>(2, 2)\n", "collections:matrix"),
+                          ("var mp = map.new<string, float>()\n", "collections:map")):
+            ok, missing = rt.capability_admitted(MEMBER_COPY + body)
+>           assert not ok and cap in missing, (cap, missing)
+E           AssertionError: ('collections:map', ['pending'])
+E           assert (not False and 'collections:map' in ['pending'])
+
+tests/test_pine_capability_admission.py:262: AssertionError
+__________ test_B1_with_the_flag_off_the_door_never_runs_the_detector __________
+
+store = PosixPath('/tmp/pytest-of-runner/pytest-0/test_B1_with_the_flag_off_the_0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x74c599983e60>
+
+    def test_B1_with_the_flag_off_the_door_never_runs_the_detector(store, monkeypatch):
+        """B1a: OFF answers a constant; no request can spend server time on a door that admits nothing."""
+        # a SPY, not a raiser: `capability_admitted` swallows an exception into "unreadable", which
+        # would let a door that DID run the detector pass (mutant B1c survived that version)
+        calls = []
+    
+        def spy(src):
+            calls.append(1)
+            return frozenset({"core"})
+        monkeypatch.setattr(pc, "capabilities_of", spy)
+        rt._reset_capability_cache(persisted=True)
+        src = MEMBER_COPY + "// x\n"
+        r = _client().post("/api/user-definitions/runtime-admission", json={"source": src})
+        assert r.status_code == 200
+        assert r.json() == {"sha256": rt.source_hash(src), "admitted": False, "missing": []}
+        assert calls == []
+        monkeypatch.setenv(rt.CAPABILITY_ADMISSION_ENV, "on")             # CONTROL: on, the detector runs
+        rt._reset_capability_cache(persisted=True)
+        _client().post("/api/user-definitions/runtime-admission", json={"source": src})
+>       assert calls == [1]
+E       assert [] == [1]
+E         
+E         Right contains one more item: 1
+E         
+E         Full diff:
+E         + []
+E         - [
+E         -     1,
+E         - ]
+
+tests/test_pine_capability_admission.py:485: AssertionError
+__________ test_SERVE_the_list_with_50_near_cap_rows_cold_is_under_1s __________
+
+store = PosixPath('/tmp/pytest-of-runner/pytest-0/test_SERVE_the_list_with_50_ne0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x74c594f7c5f0>
+
+    def test_SERVE_the_list_with_50_near_cap_rows_cold_is_under_1s(store, monkeypatch):
+        ids = _seed_runtime_rows(monkeypatch, 50)
+        monkeypatch.setenv(rt.CAPABILITY_ADMISSION_ENV, "on")
+        # the server-lane composition stamp lexes each runtime source once per process (the repaint memo;
+        # it lexed every row three times before, ~10 s for these 50 rows, `EVIDENCE.md`). A cold lex of 50
+        # near-cap sources is still ~2 s and is not admission, so it is held still here; the rail below
+        # serves the full list, server lanes included
+        monkeypatch.setattr(svc, "server_lanes_stamp", lambda row: {})
+        monkeypatch.setattr(rt, "DETECTOR_DUTY_CYCLE", 1.0)   # the per-request budget alone (the gate rails test the cool-down)
+        rt._reset_capability_cache(persisted=True)
+        calls = _count_detector(monkeypatch)
+        t0 = time.perf_counter()
+        body = _client().get("/api/user-definitions").json()
+        elapsed = time.perf_counter() - t0
+        assert len(body["definitions"]) == 50
+        assert elapsed < 1.0, elapsed
+>       assert 1 <= len(calls) <= rt.DETECTOR_RUNS_PER_REQUEST
+E       assert 1 <= 0
+E        +  where 0 = len([])
+
+tests/test_pine_capability_admission.py:696: AssertionError
+_____ test_SERVE_a_saved_row_is_computed_at_save_and_never_on_the_hot_path _____
+
+store = PosixPath('/tmp/pytest-of-runner/pytest-0/test_SERVE_a_saved_row_is_comp0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x74c596a430b0>
+
+    def test_SERVE_a_saved_row_is_computed_at_save_and_never_on_the_hot_path(store, monkeypatch):
+        monkeypatch.setenv(rt.SAVE_ENV, "1")
+        monkeypatch.setenv(rt.STAGE_ENV, "admins")
+        monkeypatch.setenv(rt.CAPABILITY_ADMISSION_ENV, "on")
+        calls = _count_detector(monkeypatch)
+        svc.save(USER, ADX["id"], member_doc(), role="admin")
+>       assert len(calls) == 1                                       # computed (and persisted) at the save
+E       assert 0 == 1
+E        +  where 0 = len([])
+
+tests/test_pine_capability_admission.py:742: AssertionError
+____________ test_SERVE_a_set_from_an_older_detector_is_recomputed _____________
+
+store = PosixPath('/tmp/pytest-of-runner/pytest-0/test_SERVE_a_set_from_an_older0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x74c5bb4f6ab0>
+
+    def test_SERVE_a_set_from_an_older_detector_is_recomputed(store, monkeypatch):
+        monkeypatch.setenv(rt.CAPABILITY_ADMISSION_ENV, "on")
+        calls = _count_detector(monkeypatch)
+        assert rt.capability_admitted(MEMBER_COPY)[0]
+        rt._reset_capability_cache()
+        monkeypatch.setattr(pc, "DETECTOR_VERSION", pc.DETECTOR_VERSION + 1)
+>       assert rt.capability_admitted(MEMBER_COPY, budget=rt.DetectorBudget(runs=0)) == (False, [rt.PENDING])
+E       AssertionError: assert (True, []) == (False, ['pending'])
+E         
+E         At index 0 diff: True != False
+E         
+E         Full diff:
+E           (
+E         +     True,
+E         -     False,
+E         -     [
+E         -         'pending',
+E         -     ],
+E         +     [],
+E         ?     +
+E           )
+
+tests/test_pine_capability_admission.py:755: AssertionError
+__________ test_SERVE_history_with_300_versions_asks_only_the_latest ___________
+
+store = PosixPath('/tmp/pytest-of-runner/pytest-0/test_SERVE_history_with_300_ve0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x74c5bb4f6780>
+
+    def test_SERVE_history_with_300_versions_asks_only_the_latest(store, monkeypatch):
+        monkeypatch.setenv(rt.SAVE_ENV, "1")
+        monkeypatch.setenv(rt.STAGE_ENV, "admins")
+        svc.save(USER, ADX["id"], copy.deepcopy(ADX), role="admin")
+        with sqlite3.connect(svc._DB_PATH) as c:
+            c.row_factory = sqlite3.Row
+            base = dict(c.execute("SELECT * FROM user_definitions WHERE def_id = ?", (ADX["id"],)).fetchone())
+            for v in range(2, 301):
+                d = json.loads(base["definition"])
+                d["compute"]["source"] = _near_cap_source(f"version {v}", 20)
+                row = dict(base, version=v, definition=json.dumps(d))
+                row.pop("id")
+                c.execute(f"INSERT INTO user_definitions ({', '.join(row)}) VALUES ({', '.join('?' * len(row))})",
+                          list(row.values()))
+        monkeypatch.setenv(rt.CAPABILITY_ADMISSION_ENV, "on")
+        rt._reset_capability_cache(persisted=True)
+        calls = _count_detector(monkeypatch)
+        t0 = time.perf_counter()
+        body = _client().get(f"/api/user-definitions/{ADX['id']}/history").json()
+        elapsed = time.perf_counter() - t0
+        assert len(body["versions"]) == 300
+        assert elapsed < 1.0, elapsed
+>       assert len(calls) == 1                                       # the latest version only
+E       assert 0 == 1
+E        +  where 0 = len([])
+
+tests/test_pine_capability_admission.py:781: AssertionError
+________ test_GATE_8_concurrent_cold_list_requests_each_finish_under_1s ________
+
+store = PosixPath('/tmp/pytest-of-runner/pytest-0/test_GATE_8_concurrent_cold_li0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x74c595015910>
+
+    def test_GATE_8_concurrent_cold_list_requests_each_finish_under_1s(store, monkeypatch):
+        members = [f"u-gate-{i}" for i in range(8)]
+        for i, m in enumerate(members):
+            _seed_member_rows(monkeypatch, m, [_adversarial_source(f"m{i} r{k}") for k in range(12)])
+        monkeypatch.setenv(rt.CAPABILITY_ADMISSION_ENV, "on")
+        monkeypatch.setattr(svc, "server_lanes_stamp", lambda row: {})    # pre-existing, not admission
+        rt._reset_capability_cache(persisted=True)
+        calls = _count_detector(monkeypatch)
+        walls, errors = {}, []
+        start = threading.Barrier(len(members))
+    
+        def one(m):
+            try:
+                start.wait()
+                t0 = time.perf_counter()
+                body = router_mod.list_definitions(user={"id": m, "role": "admin", "plan": "premium"},
+                                                   graph=False, engine=None)
+                walls[m] = time.perf_counter() - t0
+                assert len(body["definitions"]) == 12
+            except Exception as exc:  # noqa: BLE001
+                errors.append(exc)
+        threads = [threading.Thread(target=one, args=(m,)) for m in members]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+        assert errors == []
+        assert max(walls.values()) < 1.0, walls
+        # ONE detector run in the whole burst: the gate refuses a second while it runs, and the cool-down
+        # after it (2x its cost) outlasts every request. Without the gate, runs overlap (measured 5).
+>       assert len(calls) == 1, len(calls)
+E       AssertionError: 0
+E       assert 0 == 1
+E        +  where 0 = len([])
+
+tests/test_pine_capability_admission.py:920: AssertionError
+________________ test_GATE_a_run_is_projected_before_it_starts _________________
+
+store = PosixPath('/tmp/pytest-of-runner/pytest-0/test_GATE_a_run_is_projected_b0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x74c5baaece30>
+
+    def test_GATE_a_run_is_projected_before_it_starts(store, monkeypatch):
+        """The 0.9 s edge: a request that has spent part of its budget does not START a run whose
+        projected cost would cross it (a 60 KB source first, then the adversarial near-cap shape)."""
+        first = _near_cap_source("small first", 60)
+        srcs = [first] + [_adversarial_source(f"edge {k}") for k in range(20)]
+        _seed_member_rows(monkeypatch, USER, srcs)
+        monkeypatch.setenv(rt.CAPABILITY_ADMISSION_ENV, "on")
+        monkeypatch.setattr(svc, "server_lanes_stamp", lambda row: {})
+        monkeypatch.setattr(rt, "_SECONDS_PER_BYTE", [2.5e-6])            # a calibrated estimate
+        monkeypatch.setattr(rt, "DETECTOR_DUTY_CYCLE", 1.0)               # the projection alone, no cool-down
+        rt._reset_capability_cache(persisted=True)
+        calls = _count_detector(monkeypatch)
+        rows = sorted(svc.list_for_user(USER), key=lambda r: len(r["definition"]["compute"]["source"]))
+        budget = rt.DetectorBudget()
+        t0 = time.perf_counter()
+        for r in rows:
+            rt.stamp_served(r, budget=budget)
+        assert time.perf_counter() - t0 < 1.0
+>       assert len(calls) == 1, len(calls)                                # the small one; no big one after it
+E       AssertionError: 0
+E       assert 0 == 1
+E        +  where 0 = len([])
+
+tests/test_pine_capability_admission.py:1020: AssertionError
+__________ test_GATE_a_run_in_progress_refuses_a_second_concurrently ___________
+
+store = PosixPath('/tmp/pytest-of-runner/pytest-0/test_GATE_a_run_in_progress_re0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x74c59505ae70>
+
+    def test_GATE_a_run_in_progress_refuses_a_second_concurrently(store, monkeypatch):
+        """Deterministic: while one detector run holds the gate, a second request's run is refused at once
+        (pending), whatever the timing of the threads. (A timing-only burst can miss an overlap.)"""
+        monkeypatch.setenv(rt.CAPABILITY_ADMISSION_ENV, "on")
+        monkeypatch.setattr(rt, "DETECTOR_DUTY_CYCLE", 1.0)              # the gate alone
+        rt._reset_capability_cache(persisted=True)
+        started, release = threading.Event(), threading.Event()
+        first = []
+    
+        def slow_then_fast(src):
+            if not first:
+                first.append(1)
+                started.set()
+                assert release.wait(10)
+            return frozenset({"core"})
+        monkeypatch.setattr(pc, "capabilities_of", slow_then_fast)
+        holder = threading.Thread(target=lambda: rt.capabilities_for(MEMBER_COPY + "// first\n", persist=False))
+        holder.start()
+        try:
+>           assert started.wait(10)
+E           assert False
+E            +  where False = wait(10)
+E            +    where wait = <threading.Event at 0x74c59505a990: unset>.wait
+
+tests/test_pine_capability_admission.py:1052: AssertionError
+___ test_a_non_listing_window_refused_by_the_broker_is_served_with_its_start ___
+
+world = {'admission': None, 'client': <tests.test_pine_strategy_backtest.StubClient object at 0x74c595ad26f0>, 'exchanges': {'AAA': 'NYSE'}, 'http': <starlette.testclient.TestClient object at 0x74c596855850>, ...}
+
+    def test_a_non_listing_window_refused_by_the_broker_is_served_with_its_start(world):
+        world["client"] = StubClient(withheld("runtime:strategy-unsettled", "not known to start at the listing (Q-S1n)", 0))
+        r = post(world)
+        assert r.status_code == 200, r.text
+        a = r.json()["results"][0]
+        assert a["status"] == "refused"
+        assert a["refusal"] == {"guard": "runtime:strategy-unsettled", "sentence": "not known to start at the listing (Q-S1n)", "bar": 0}
+>       assert a["window"]["startDate"] == "2024-01-02" and a["window"]["bars"] == 12
+E       AssertionError: assert ('2024-01-02' == '2024-01-02'
+E         
+E           2024-01-02 and 9 == 12)
+
+tests/test_pine_strategy_backtest.py:266: AssertionError
+=============================== warnings summary ===============================
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+../../../../../opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+tests/test_oi44_loop_blockers_gate.py::test_no_loop_blocking_route_handler_beyond_the_named_partner_owned_exception
+tests/test_oi44_loop_blockers_gate.py::test_the_allowlist_itself_still_names_a_real_route_and_is_not_stale
+tests/test_oi44_loop_blockers_gate.py::test_oi_confirmation_map_specifically_no_longer_blocks_the_loop
+tests/test_open_reads_gate.py::test_the_flag_is_declared_as_a_MODE_with_OFF_as_its_default
+tests/test_ops_second_transport.py::test_the_recipients_variable_NAME_comes_from_the_RESOLVER_not_a_literal
+tests/test_pine_runtime_switch_on.py::test_D1_the_default_is_pinned_in_SOURCE_not_only_in_behaviour
+tests/test_pine_strategy_backtest.py::test_E3_walks_the_new_route_and_it_cannot_reach_the_sweep
+tests/test_placeholder_stop_is_one_definition.py::test_only_ONE_module_defines_a_placeholder_stop_test
+  <unknown>:964: SyntaxWarning: invalid escape sequence '\`'
+
+tests/test_oi_morning.py::test_render_returns_png
+tests/test_oi_morning.py::test_render_returns_png
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/oi_morning.py:442: DeprecationWarning: Image.Image.getdata is deprecated and will be removed in Pillow 14 (2027-10-15). Use get_flattened_data instead.
+    for (r, g, b, a) in lg.getdata()])
+
+tests/test_open_reads_gate.py::test_i_ENFORCE_admits_an_ADMIN_session[/openapi.json]
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/fastapi/openapi/utils.py:225: UserWarning: Duplicate Operation ID chart_markers_endpoint_api_chart_markers__ticker__get for function chart_markers_endpoint at /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/routers/earnings.py
+    warnings.warn(message, stacklevel=1)
+
+tests/test_open_reads_gate.py::test_i_ENFORCE_admits_an_ADMIN_session[/openapi.json]
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/fastapi/openapi/utils.py:225: UserWarning: Duplicate Operation ID test_discord_post_api_live_test_discord_post_post for function test_discord_post at /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/liveflow_router.py
+    warnings.warn(message, stacklevel=1)
+
+tests/test_open_reads_gate.py::test_i_ENFORCE_admits_an_ADMIN_session[/openapi.json]
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/fastapi/openapi/utils.py:225: UserWarning: Duplicate Operation ID admin_clear_before_date_api_live_admin_clear_before_date_post for function admin_clear_before_date at /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/liveflow_router.py
+    warnings.warn(message, stacklevel=1)
+
+tests/test_perf_batch_a.py::test_insider_feed_parallel_aggregates
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/insider.py:180: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    cutoff = (datetime.utcnow() - timedelta(days=7)).strftime("%Y-%m-%d")
+
+tests/test_phase_e_acceptance.py::test_the_RUN_NOW_leg_holds_the_SAME_hash_and_leaves_the_store_UNTOUCHED
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_scan_run.py:1347: SyntaxWarning: invalid escape sequence '\d'
+    which leaves the carriage return inside the match, so a trailing ``(\d+)$``
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_nyse_calendar_vendor_evidence.py:141: the 60m capture is kept outside git: C:/Users/Patrick/AppData/Local/uct-vendor-batch/runs/probes2-2026-09-28/captures/vw-clock-close-tfchange-spy-60-2026-09-28.json
+FAILED tests/test_ocr_build_isolation.py::TestStartupSemanticsAreNotForked::test_every_other_deploy_setting_is_identical_to_the_shared_one - AssertionError: the web service would deploy differently from every other service reading railway.json, beyond the start command it is meant to own
+assert {'drainingSec...icas': 1, ...} == {'drainingSec...pe': 'ALWAYS'}
+  
+  Omitting 4 identical items, use -vv to show
+  Left contains 1 more item:
+  {'numReplicas': 1}
+  
+  Full diff:
+    {
+        'drainingSeconds': 30,
+        'healthcheckPath': '/api/health',
+        'healthcheckTimeout': 600,
+  +     'numReplicas': 1,
+        'restartPolicyType': 'ALWAYS',
+    }
+FAILED tests/test_open_reads_gate.py::test_v_the_census_reflects_the_gating - AssertionError: ([('GET', '/api/brand/massive-card-logo.png'), ('GET', '/api/catalysts/pending-deals-internal'), ('GET', '/build.json')], [])
+assert False is True
+FAILED tests/test_options_l3.py::test_the_new_flags_are_declared_dark_in_the_ledger - AssertionError: assert ('armed' == 'dark'
+  
+  - dark
+  + armed)
+FAILED tests/test_p0_truth_conc.py::test_vision_candidate_with_sym_tf_textop__CLAIMED_no_candidate__DID_named_refusal[sym] - KeyError: 'refused'
+FAILED tests/test_p0_truth_conc.py::test_vision_candidate_with_sym_tf_textop__CLAIMED_no_candidate__DID_named_refusal[tf] - KeyError: 'refused'
+FAILED tests/test_p0_truth_conc.py::test_vision_candidate_with_sym_tf_textop__CLAIMED_no_candidate__DID_named_refusal[textop] - KeyError: 'refused'
+FAILED tests/test_p0_truth_conc.py::test_vision_unexpected_exception__DID_logged_vision_internal_not_silent - assert (False is True)
+FAILED tests/test_p2x_truth_converse.py::test_R4_every_refusal_gate_is_member_safe - AssertionError: {'concept:ambiguous': '"cheap" has no defensible definition here. The firm\'s own screen that uses the word -- `Cheap ...rn is not one the assistant can read', 'cost:user': "you have used up today's allowance of the formula assistant", ...}
+assert {'concept:amb...l:error', ...} <= {'concept:amb...:schema', ...}
+  
+  Extra items in the left set:
+  'internal:error'
+FAILED tests/test_parity_scorecard.py::test_every_backticked_repo_path_in_an_evidence_cell_exists_at_head - AssertionError: ['app/src/pages/journal-2-0/components/notebook/ResearchHome.jsx']
+assert not ['app/src/pages/journal-2-0/components/notebook/ResearchHome.jsx']
+FAILED tests/test_parity_scorecard.py::test_the_evidence_index_holds_on_the_real_inputs_and_is_not_vacuous - Failed: Timeout (>120.0s) from pytest-timeout.
+FAILED tests/test_pattern_scan_depth_and_sym.py::test_the_pullback_detector_declares_its_history_and_nothing_else_does - AssertionError: {'death_cross', 'golden_cross', 'pullback_to_200sma', 'pullback_to_50sma', 'uct_flag_htf', 'uct_flat_top_breakout', ...}
+assert {'death_cross...reakout', ...} == {'uct_flag_ht...reclaim', ...}
+  
+  Extra items in the left set:
+  'pullback_to_50sma'
+  'death_cross'
+  'pullback_to_200sma'
+  'golden_cross'
+  
+  Full diff:
+    {
+  +     'death_cross',
+  +     'golden_cross',
+  +     'pullback_to_200sma',
+  +     'pullback_to_50sma',
+        'uct_flag_htf',
+        'uct_flat_top_breakout',
+        'uct_flat_top_breakout_ftb4',
+        'uct_inside_day_id4',
+        'uct_launch_pad_v4',
+        'uct_ma_reclaim',
+        'uct_pullback_ma_v5',
+    }
+FAILED tests/test_pattern_scan_depth_and_sym.py::test_undeclared_detectors_receive_byte_identical_bars_and_context - AssertionError: [('DEPTHX', 'D', 270)]
+assert [('DEPTHX', 'D', 270)] == [('DEPTHX', 'D', 225)]
+  
+  At index 0 diff: ('DEPTHX', 'D', 270) != ('DEPTHX', 'D', 225)
+  
+  Full diff:
+    [
+        (
+            'DEPTHX',
+            'D',
+  -         225,
+  ?          ^^
+  +         270,
+  ?          ^^
+        ),
+    ]
+FAILED tests/test_paywall_gate_free_tier.py::test_nothing_NEW_on_the_free_page_became_paid_without_a_recorded_verdict - AssertionError: the set of paywalled routes the FREE Morning Wire page can reach has changed.
+    newly reachable: ['/api/calendar/next-report', '/api/single-stock-etfs/', '/api/stock-brief/']
+    no longer reachable: []
+  Each one needs a verdict recorded in REACHED_FROM_FREE_PAGE — a free member walks this tree, and 'it is behind a click' is a judgement somebody has to make out loud, not inherit.
+assert {'/api/ai-sea...s-table', ...} == {'/api/ai-sea.../stock/', ...}
+  
+  Extra items in the left set:
+  '/api/stock-brief/'
+  '/api/single-stock-etfs/'
+  '/api/calendar/next-report'
+  
+  Full diff:
+    {
+        '/api/ai-search',
+        '/api/ai-search/signal',
+        '/api/ai-search/stream',
+        '/api/analyst/',
+  +     '/api/calendar/next-report',
+        '/api/fundamentals/earnings-table',
+        '/api/modelbook/stock/',
+        '/api/modelbook/stocks',
+        '/api/news-catalysts/',
+        '/api/ownership/',
+        '/api/patterns/',
+        '/api/patterns/feedback',
+        '/api/rundown',
+        '/api/rundown/speech-text',
+  +     '/api/single-stock-etfs/',
+  +     '/api/stock-brief/',
+        '/api/theme-index/',
+        '/api/wire/archive',
+        '/api/wire/archive/',
+    }
+FAILED tests/test_perf_batch_a.py::test_get_rs_for_ticker_never_recomputes - assert (None)
+FAILED tests/test_persistence_manifest_server_keys.py::test_every_server_preference_is_declared_in_the_manifest - AssertionError: server preference keys missing from the manifest: ['indicator_tours_seen', 'notebook_chart_sets', 'notebook_landing'] — node tools/persistence_census.mjs --write
+assert not ['indicator_tours_seen', 'notebook_chart_sets', 'notebook_landing']
+FAILED tests/test_pine_capability_admission.py::test_A2_every_vocabulary_id_outside_the_admitted_set_withholds - AssertionError: calc-bars
+assert (True, []) == (False, ['calc-bars'])
+  
+  At index 0 diff: True != False
+  
+  Full diff:
+    (
+  +     True,
+  -     False,
+  -     [
+  -         'calc-bars',
+  -     ],
+  +     [],
+  ?     +
+    )
+FAILED tests/test_pine_capability_admission.py::test_C3_an_id_outside_the_vocabulary_counts_missing - AssertionError: assert (True, []) == (False, ['zz-new'])
+  
+  At index 0 diff: True != False
+  
+  Full diff:
+    (
+  +     True,
+  -     False,
+  -     [
+  -         'zz-new',
+  -     ],
+  +     [],
+  ?     +
+    )
+FAILED tests/test_pine_capability_admission.py::test_C1_a_matrix_or_map_script_is_withheld - AssertionError: ('collections:map', ['pending'])
+assert (not False and 'collections:map' in ['pending'])
+FAILED tests/test_pine_capability_admission.py::test_B1_with_the_flag_off_the_door_never_runs_the_detector - assert [] == [1]
+  
+  Right contains one more item: 1
+  
+  Full diff:
+  + []
+  - [
+  -     1,
+  - ]
+FAILED tests/test_pine_capability_admission.py::test_SERVE_the_list_with_50_near_cap_rows_cold_is_under_1s - assert 1 <= 0
+ +  where 0 = len([])
+FAILED tests/test_pine_capability_admission.py::test_SERVE_a_saved_row_is_computed_at_save_and_never_on_the_hot_path - assert 0 == 1
+ +  where 0 = len([])
+FAILED tests/test_pine_capability_admission.py::test_SERVE_a_set_from_an_older_detector_is_recomputed - AssertionError: assert (True, []) == (False, ['pending'])
+  
+  At index 0 diff: True != False
+  
+  Full diff:
+    (
+  +     True,
+  -     False,
+  -     [
+  -         'pending',
+  -     ],
+  +     [],
+  ?     +
+    )
+FAILED tests/test_pine_capability_admission.py::test_SERVE_history_with_300_versions_asks_only_the_latest - assert 0 == 1
+ +  where 0 = len([])
+FAILED tests/test_pine_capability_admission.py::test_GATE_8_concurrent_cold_list_requests_each_finish_under_1s - AssertionError: 0
+assert 0 == 1
+ +  where 0 = len([])
+FAILED tests/test_pine_capability_admission.py::test_GATE_a_run_is_projected_before_it_starts - AssertionError: 0
+assert 0 == 1
+ +  where 0 = len([])
+FAILED tests/test_pine_capability_admission.py::test_GATE_a_run_in_progress_refuses_a_second_concurrently - assert False
+ +  where False = wait(10)
+ +    where wait = <threading.Event at 0x74c59505a990: unset>.wait
+FAILED tests/test_pine_strategy_backtest.py::test_a_non_listing_window_refused_by_the_broker_is_served_with_its_start - AssertionError: assert ('2024-01-02' == '2024-01-02'
+  
+    2024-01-02 and 9 == 12)
+27 failed, 3610 passed, 1 skipped, 17 warnings in 755.39s (0:12:35)

@@ -1,0 +1,24 @@
+{
+  "suite": "pytest",
+  "collected": 3291,
+  "passed": 3229,
+  "failed": 30,
+  "errored": 0,
+  "skipped": 32,
+  "wall_s": 718.9,
+  "failed_files": [
+    "tests/test_gallery_w11_fnote1.py",
+    "tests/test_gate_box_lock.py",
+    "tests/test_gate_shards.py",
+    "tests/test_gitattributes_eol.py",
+    "tests/test_hub_nav_smoke_login_inconclusive.py",
+    "tests/test_hub_sandbox_model_keys.py",
+    "tests/test_implied_backfill.py",
+    "tests/test_indicator_golden.py",
+    "tests/test_journal_styles_deep_settings.py",
+    "tests/test_journal_styles_schema.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "30 failed, 3229 passed, 32 skipped, 3443 warnings in 718.90s (0:11:58)",
+  "ok": true
+}

@@ -1,0 +1,19 @@
+{
+  "suite": "pytest",
+  "collected": 2270,
+  "passed": 2243,
+  "failed": 19,
+  "errored": 0,
+  "skipped": 8,
+  "wall_s": 593.59,
+  "failed_files": [
+    "tests/test_journal_two_task_digest.py",
+    "tests/test_massive_guard_census.py",
+    "tests/test_member_interest_surfaces.py",
+    "tests/test_mutation_check.py",
+    "tests/test_mutation_harness_anchors.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "19 failed, 2243 passed, 8 skipped, 18 warnings in 593.59s (0:09:53)",
+  "ok": true
+}

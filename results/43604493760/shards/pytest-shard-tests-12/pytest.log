@@ -1,0 +1,732 @@
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [  1%]
+........................................................................ [  3%]
+........................................................................ [  5%]
+........................................................................ [  6%]
+........................................................................ [  8%]
+........................................................................ [ 10%]
+........................................................................ [ 11%]
+..............F......................................................... [ 13%]
+........................................................................ [ 15%]
+F....................................................................... [ 16%]
+........................................................................ [ 18%]
+........................................................................ [ 20%]
+........................................ss.............................. [ 21%]
+........................................................................ [ 23%]
+......................................F................................. [ 25%]
+........................................................................ [ 26%]
+........................................................................ [ 28%]
+........................................................................ [ 30%]
+........................................................................ [ 31%]
+........................................................................ [ 33%]
+........................................................................ [ 35%]
+.................................[dormant] self-heal rebuilt active set (0 active)
+....................................... [ 36%]
+........................................................................ [ 38%]
+.......................................s................................ [ 40%]
+........................................................................ [ 42%]
+........................................................................ [ 43%]
+........................................................................ [ 45%]
+........................................................................ [ 47%]
+........................................................................ [ 48%]
+........................................................................ [ 50%]
+........................................................................ [ 52%]
+........................................................................ [ 53%]
+........................................................................ [ 55%]
+........................................................................ [ 57%]
+......................................................................s. [ 58%]
+........................................................................ [ 60%]
+........................................................................ [ 62%]
+........................................................................ [ 63%]
+........................................................................ [ 65%]
+........................................................................ [ 67%]
+........................................................................ [ 68%]
+........................................................................ [ 70%]
+........................................................................ [ 72%]
+........................................................................ [ 73%]
+........................................................................ [ 75%]
+........................................................................ [ 77%]
+..................................F..................................... [ 79%]
+........................................................................ [ 80%]
+........................................................................ [ 82%]
+........................................................................ [ 84%]
+........................................................................ [ 85%]
+........................................................................ [ 87%]
+........................................................................ [ 89%]
+........................................................................ [ 90%]
+..........................F.............s............................... [ 92%]
+..............................x......................................... [ 94%]
+........................................................................ [ 95%]
+........................................................................ [ 97%]
+........................................................................ [ 99%]
+...................................                                      [100%]
+=================================== FAILURES ===================================
+______ test_every_call_site_is_in_a_module_this_migration_reasoned_about _______
+
+    def test_every_call_site_is_in_a_module_this_migration_reasoned_about():
+        """⛔⛔ THE RAIL, failing BY NAME on a site nobody has looked at. A new
+        caller of `get_user_ticker_sets` in a module outside the three F-S6-1
+        named is not wrong by construction -- `get_user_ticker_sets`'s shape is
+        unchanged, so it would likely still be a no-op -- but it is UNREASONED
+        ABOUT, and this rail's whole purpose is to stop that from being silent
+        the way F-S6-1's original "Calendar the only caller" claim was."""
+        sites = _call_sites_of("get_user_ticker_sets")
+        unreasoned = sorted({f for f, _ln in sites} - _KNOWN_2026_09_15 - _REASONED_AFTER_2026_09_15)
+>       assert not unreasoned, (
+            f"get_user_ticker_sets is now called from {unreasoned}, which this "
+            "migration's own reasoning (F-S6-1, GATE-S6 CP2') never considered. "
+            "Read what it does with the returned dict before trusting the "
+            "no-op claim for this site, then add it to _KNOWN_2026_09_15 here.")
+E       AssertionError: get_user_ticker_sets is now called from ['api/services/journal_two/notebook_widgets.py'], which this migration's own reasoning (F-S6-1, GATE-S6 CP2') never considered. Read what it does with the returned dict before trusting the no-op claim for this site, then add it to _KNOWN_2026_09_15 here.
+E       assert not ['api/services/journal_two/notebook_widgets.py']
+
+tests/test_s6_cp2_migration.py:118: AssertionError
+_____ test_every_reader_of_a_note_table_is_guarded_or_exempt_with_a_reason _____
+
+    def test_every_reader_of_a_note_table_is_guarded_or_exempt_with_a_reason():
+        readers = _readers()
+        unknown = sorted(set(readers) - set(GUARDED) - set(EXEMPT))
+>       assert not unknown, (
+            "These modules read a note table and are in neither list. If a note's content becomes a "
+            "fact about the member there (a statistic, a grade, an alert, a chip), add it to GUARDED "
+            "and filter with sample_marker; otherwise add it to EXEMPT with the reason: " + ", ".join(unknown))
+E       AssertionError: These modules read a note table and are in neither list. If a note's content becomes a fact about the member there (a statistic, a grade, an alert, a chip), add it to GUARDED and filter with sample_marker; otherwise add it to EXEMPT with the reason: api/services/journal_two/tweet_capture.py, api/services/journal_two/tweet_capture_sync.py
+E       assert not ['api/services/journal_two/tweet_capture.py', 'api/services/journal_two/tweet_capture_sync.py']
+
+tests/test_sample_never_feeds_real_numbers.py:558: AssertionError
+__ test_no_route_handler_can_reach_the_evaluator__DERIVED_FROM_router_routes ___
+
+    def test_no_route_handler_can_reach_the_evaluator__DERIVED_FROM_router_routes():
+        """🔴 M8. A member request never triggers an evaluation — not bounded on the
+        request path, ABSENT from it."""
+        handlers = _endpoints_from_router_routes()
+        assert len(handlers) > 100, f"the census walked {len(handlers)} handlers"
+    
+        offenders = [f"{h[2]} -> {h[0]}::{h[1]}" for h in handlers
+                     if _transitive_imports_and_calls(h)]
+>       assert not offenders, (
+            "these route handlers can reach the universe sweep:\n  "
+            + "\n  ".join(offenders)
+            + "\nA universe screen is 2-8 s of GIL-bound pure-Python CPU on a pod "
+              "with 64 shared anyio threads. That is the 2026-07-01 outage.")
+E       AssertionError: these route handlers can reach the universe sweep:
+E           /api/indicator-alerts -> api.routers.indicator_alerts::create_alert
+E           /api/indicator-alerts/current-value -> api.routers.indicator_alerts::get_current_value
+E         A universe screen is 2-8 s of GIL-bound pure-Python CPU on a pod with 64 shared anyio threads. That is the 2026-07-01 outage.
+E       assert not ['/api/indicator-alerts -> api.routers.indicator_alerts::create_alert', '/api/indicator-alerts/current-value -> api.routers.indicator_alerts::get_current_value']
+
+tests/test_scan_evaluator_off_request_path.py:459: AssertionError
+_____________________ test_captured_views_match_the_server _____________________
+
+    def test_captured_views_match_the_server():
+        views, _ = _captured()
+>       assert views == {name: v["columns"] for name, v in filters.VIEWS.items()}
+E       AssertionError: assert {'bases': ['t...0', ...], ...} == {'bases': ['t...0', ...], ...}
+E         
+E         Omitting 16 identical items, use -vv to show
+E         Differing items:
+E         {'relative_strength': ['ticker', 'company', 'price', 'chg_pct_1d', 'rs_rank', 'rs_rating_1m', ...]} != {'relative_strength': ['ticker', 'company', 'price', 'chg_pct_1d', 'rs_rank', 'rs_rating_1m', ...]}
+E         
+E         Full diff:
+E           {
+E               'bases': [
+E                   'ticker',
+E                   'company',
+E                   'base_render',
+E                   'base_shape',
+E                   'base_relation_count',
+E                   'price',
+E                   'chg_pct_1d',
+E                   'candle_score',
+E                   'pct_vs_sma50',
+E                   'dist_52w_high_pct',
+E                   'vol_ratio',
+E               ],
+E               'candles': [
+E                   'ticker',
+E                   'company',
+E                   'candle_type',
+E                   'candle_trend',
+E                   'bar_character',
+E                   'candle_recent',
+E                   'candle_recent_bars_ago',
+E                   'candle_weekly',
+E                   'candle_monthly',
+E                   'body_pct',
+E                   'upper_wick_pct',
+E                   'lower_wick_pct',
+E                   'close_position',
+E                   'inside_bar_run',
+E                   'nr7',
+E                   'vol_ratio',
+E                   'chg_pct_1d',
+E               ],
+E               'charts': [
+E                   'ticker',
+E                   'company',
+E                   'chg_pct_1d',
+E                   'price',
+E               ],
+E               'context': [
+E                   'ticker',
+E                   'company',
+E                   'security_type',
+E                   'theme',
+E                   'in_uct20',
+E                   'index_sp500',
+E                   'index_ndx',
+E                   'index_r2k',
+E                   'is_etf',
+E                   'is_leveraged',
+E                   'stage2',
+E                   'stage4',
+E                   'hvc_52w',
+E               ],
+E               'events': [
+E                   'ticker',
+E                   'company',
+E                   'next_earnings_date',
+E                   'days_to_earnings',
+E                   'earnings_session',
+E                   'implied_move_pct',
+E                   'last_report_move_pct',
+E                   'earnings_setup_grade',
+E                   'analyst_consensus',
+E                   'pt_upside_pct',
+E                   'upgrades_30d',
+E                   'downgrades_30d',
+E               ],
+E               'financial': [
+E                   'ticker',
+E                   'eps_growth',
+E                   'rev_growth',
+E                   'op_margin',
+E                   'roe',
+E                   'rs_return',
+E                   'accdis',
+E               ],
+E               'flow': [
+E                   'ticker',
+E                   'company',
+E                   'price',
+E                   'chg_pct_1d',
+E                   'dp_notional_1d',
+E                   'dp_prints_1d',
+E                   'dp_notional_5d',
+E                   'dp_level_dist_pct',
+E                   'opt_net_premium_1d',
+E                   'opt_bull_pct_1d',
+E                   'opt_net_premium_5d',
+E               ],
+E               'momentum': [
+E                   'ticker',
+E                   'company',
+E                   'candle_score',
+E                   'pct_vs_ema20',
+E                   'close_cv_pct',
+E                   'avg_body_pct_5',
+E                   'pole_pct',
+E                   'adr_pct',
+E                   'vol_nweek_low',
+E                   'vol_updown_ratio',
+E                   'rs_line_trend',
+E                   'rs_rating_ibd',
+E                   'rs_new_high',
+E                   'rs_nh_before_price',
+E                   'chg_pct_1d',
+E               ],
+E               'overview': [
+E                   'ticker',
+E                   'company',
+E                   'sector',
+E                   'market_cap',
+E                   'price',
+E                   'chg_pct_1d',
+E                   'vol_ratio',
+E                   'rs_rank',
+E                   'base_render',
+E               ],
+E               'ownership': [
+E                   'ticker',
+E                   'company',
+E                   'shares_outstanding',
+E                   'float_shares',
+E                   'float_pct',
+E                   'inst_pct',
+E                   'inst_trans_pct',
+E                   'insider_own_pct',
+E                   'insider_trans_pct',
+E                   'short_float_pct',
+E                   'short_ratio',
+E                   'optionable',
+E                   'shortable',
+E               ],
+E               'patterns': [
+E                   'ticker',
+E                   'company',
+E                   'pattern_engine_ids',
+E                   'pattern_engine_conf',
+E                   'pattern_engine_dir',
+E                   'pattern_expectancy_r',
+E                   'pattern_entry_dist_pct',
+E                   'pattern_stop_dist_pct',
+E                   'pattern_engine_vcp',
+E                   'pattern_engine_flat_base',
+E                   'candle_score',
+E               ],
+E               'performance': [
+E                   'ticker',
+E                   'company',
+E                   'chg_pct_1d',
+E                   'chg_pct_1w',
+E                   'chg_pct_1m',
+E                   'chg_pct_3m',
+E                   'chg_pct_6m',
+E                   'chg_pct_1y',
+E                   'chg_pct_ytd',
+E                   'dist_52w_high_pct',
+E                   'dist_ath_pct',
+E               ],
+E               'relative_strength': [
+E                   'ticker',
+E                   'company',
+E                   'price',
+E                   'chg_pct_1d',
+E                   'rs_rank',
+E                   'rs_rating_1m',
+E                   'rs_rating_3m',
+E                   'rs_rating_6m',
+E                   'rs_rating_9m',
+E                   'rs_rating_12m',
+E                   'rs_rating_chg_20',
+E                   'rs_new_high',
+E                   'rs_nh_before_price',
+E                   'rs_nh_red_day',
+E                   'rs_nh_bars_ago',
+E                   'green_on_red_20',
+E                   'rs_line_above_ma',
+E                   'rs_cross_up_bars_ago',
+E                   'mansfield',
+E                   'mansfield_cross_bars_ago',
+E                   'rs_rating_ibd',
+E                   'rs_rating_chg_5',
+E                   'rs_benchmark_agree',
+E                   'rrg_quadrant',
+E                   'clenow_score',
+E                   'vars_state',
+E         -         'rs_exit_last',
+E         -         'rs_exit_bars_ago',
+E         -         'rs_quicksand_bars_ago',
+E         -         'rs_quick_break_bars_ago',
+E         -         'rs_dead_break_bars_ago',
+E               ],
+E               'team': [
+E                   'ticker',
+E                   'company',
+E                   'price',
+E                   'chg_pct_1d',
+E                   'archive_calls_n',
+E                   'archive_traders_n',
+E                   'archive_last_call_date',
+E                   'archive_last_setup',
+E                   'archive_last_r20',
+E                   'archive_setup',
+E                   'archive_setup_edge_r',
+E                   'archive_setup_edge_20d',
+E                   'archive_setup_n',
+E               ],
+E               'technical': [
+E                   'ticker',
+E                   'rsi14',
+E                   'pct_vs_sma50',
+E                   'pct_vs_sma200',
+E                   'adr_pct',
+E                   'dist_52w_high_pct',
+E                   'vol_ratio',
+E                   'rvol_live',
+E                   'gap_pct',
+E                   'pct_vs_ema20',
+E                   'candle_type',
+E               ],
+E               'uct_ratings': [
+E                   'ticker',
+E                   'uct_composite',
+E                   'rs_rank',
+E                   'rs_return',
+E                   'accdis',
+E                   'eps_growth',
+E                   'op_margin',
+E                   'roe',
+E               ],
+E               'valuation': [
+E                   'ticker',
+E                   'company',
+E                   'market_cap',
+E                   'pe_fwd',
+E                   'peg',
+E                   'price',
+E                   'uct_composite',
+E               ],
+E           }
+
+tests/test_screener_sortkeys_fixture_matches_server.py:41: AssertionError
+_______________ test_no_credential_in_git_history_of_this_branch _______________
+
+    def test_no_credential_in_git_history_of_this_branch():
+        """A scrubbed working tree is not enough — the leak may be in a commit.
+    
+        ⛔ RANGE IS `origin/master..HEAD`, NOT `merge-base..HEAD`. After this branch merges
+        master, a merge-base range replays master's OWN commits as if they were ours — the
+        first run failed on an `Authorization:` header in `api/` code from another
+        workstream. A rail that reds on somebody else's commit gets waved through.
+    
+        ⛔ Findings name the FILE. The first version scanned one concatenated blob and
+        reported `line 2058` of something that exists nowhere on disk, which is a finding
+        nobody can act on (`lesson_a_differ_can_truncate_the_names_a_rail_exists_to_report`).
+        """
+        # ⛔ NOT `text=True`: on Windows that decodes the pipe with the locale codec
+        # (cp1252) and git emits UTF-8, so the first box-drawing byte kills the reader
+        # thread. That is the exact bug that made `tools/flag_ledger_audit.py` unrunnable
+        # for weeks while reporting something that read like an auth failure.
+        def git(*args):
+            return subprocess.run(["git", "-C", str(REPO), *args],
+                                  capture_output=True, encoding="utf-8", errors="replace").stdout
+    
+        if not git("rev-parse", "--verify", "-q", "origin/master").strip():
+            return                                  # no remote to compare against
+        diff = git("diff", "-U0", "origin/master..HEAD")
+>       assert diff.strip(), "empty diff — the check would pass vacuously"
+E       AssertionError: empty diff — the check would pass vacuously
+E       assert ''
+E        +  where '' = <built-in method strip of str object at 0x714b4002f5f0>()
+E        +    where <built-in method strip of str object at 0x714b4002f5f0> = ''.strip
+
+tests/test_secret_scrub.py:81: AssertionError
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+tests/test_scan_run.py:1347
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_scan_run.py:1347: SyntaxWarning: invalid escape sequence '\d'
+    which leaves the carriage return inside the match, so a trailing ``(\d+)$``
+
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/test_runtime_repaint_memo.py: 1 warning
+tests/test_s6_cp2_migration.py: 3 warnings
+tests/test_sample_never_feeds_real_numbers.py: 5 warnings
+tests/test_scan_evaluator_off_request_path.py: 1 warning
+  <unknown>:964: SyntaxWarning: invalid escape sequence '\`'
+
+tests/test_runtime_repaint_memo.py::test_M6_nothing_else_lexes_a_runtime_script_or_bypasses_the_memo
+  <unknown>:7: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_scan_period.py::test_ranks_common_stock_by_period_change
+tests/test_scan_period.py::test_snaps_holiday_start_date_back_to_a_trading_day
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:3149: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    to_date = datetime.utcnow().strftime("%Y-%m-%d")
+
+tests/test_scan_period.py::test_ranks_common_stock_by_period_change
+tests/test_scan_period.py::test_snaps_holiday_start_date_back_to_a_trading_day
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:3152: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    from_date = (datetime.utcnow() - timedelta(days=lookback)).strftime("%Y-%m-%d")
+
+tests/test_schwab_partner_fixes.py::test_snapshot_now_is_admin_only_not_merely_logged_in
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:484: DeprecationWarning: Setting per-request cookies=<...> is being deprecated, because the expected behaviour on cookie persistence is ambiguous. Set cookies directly on the client instance instead.
+    return super().request(
+
+tests/test_screener_backtest_auth.py::test_a_PAID_member_still_gets_200_on_EVERY_route
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pydantic/_internal/_generate_schema.py:2249: UnsupportedFieldAttributeWarning: The 'alias' attribute with value 'from' was provided to the `Field()` function, which has no effect in the context it was used. 'alias' is field-specific metadata, and can only be attached to a model field using `Annotated` metadata or by assignment. This may have happened because an `Annotated` type alias using the `type` statement was used, or if the `Field()` function was attached to a single member of a union type.
+    warnings.warn(
+
+tests/test_serve_dual.py: 3640 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/rs_ranking.py:158: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    to_date = datetime.utcnow().strftime("%Y-%m-%d")
+
+tests/test_serve_dual.py: 3640 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/rs_ranking.py:159: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    from_date = (datetime.utcnow() - timedelta(days=200)).strftime("%Y-%m-%d")
+
+tests/test_serve_dual.py::test_both_sockets_answer
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/websockets/legacy/__init__.py:6: DeprecationWarning: websockets.legacy is deprecated; see https://websockets.readthedocs.io/en/stable/howto/upgrade.html for upgrade instructions
+    warnings.warn(  # deprecated in 14.0 - 2024-11-09
+
+tests/test_serve_dual.py::test_both_sockets_answer
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/uvicorn/protocols/websockets/websockets_impl.py:17: DeprecationWarning: websockets.server.WebSocketServerProtocol is deprecated
+    from websockets.server import WebSocketServerProtocol
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [2] tests/test_scalar_population_rail.py:428: set SCALAR_POPULATION_ARTIFACT=<path to a screener.db> to measure a real snapshot (the suite's own DB is a sandbox)
+SKIPPED [1] tests/test_screener_auth_surface.py:71: SCREEN_BACKTEST_ENABLED is off — the router is not mounted, so there is no served route to check (this is the flag working, not a gap)
+SKIPPED [1] tests/test_screener_integration.py:15: local bars reader unavailable: no such table: ohlcv
+SKIPPED [1] tests/test_seed_large_notebook_guard.py:72: mklink /J unavailable/failed on this host ([Errno 2] No such file or directory: 'cmd') -- this guard's resistance to an NTFS-junction bypass into the shared production root is UNVERIFIED on this host.
+XFAIL tests/test_serve_label_budget.py::test_warmth_audit_tool_classifies_only_declared_labels_and_all_of_them - KNOWN ROT (P0 rails 2026-11-11): tools/bars_warmth_audit.py classifies by its own hand-copied sets; they name 'disk' (never emitted) and omit most deadline/delta labels. TODO(P1 monitor): import api.services.serve_labels.SERVE_LABELS there and delete the copies — then drop this xfail.
+FAILED tests/test_s6_cp2_migration.py::test_every_call_site_is_in_a_module_this_migration_reasoned_about - AssertionError: get_user_ticker_sets is now called from ['api/services/journal_two/notebook_widgets.py'], which this migration's own reasoning (F-S6-1, GATE-S6 CP2') never considered. Read what it does with the returned dict before trusting the no-op claim for this site, then add it to _KNOWN_2026_09_15 here.
+assert not ['api/services/journal_two/notebook_widgets.py']
+FAILED tests/test_sample_never_feeds_real_numbers.py::test_every_reader_of_a_note_table_is_guarded_or_exempt_with_a_reason - AssertionError: These modules read a note table and are in neither list. If a note's content becomes a fact about the member there (a statistic, a grade, an alert, a chip), add it to GUARDED and filter with sample_marker; otherwise add it to EXEMPT with the reason: api/services/journal_two/tweet_capture.py, api/services/journal_two/tweet_capture_sync.py
+assert not ['api/services/journal_two/tweet_capture.py', 'api/services/journal_two/tweet_capture_sync.py']
+FAILED tests/test_scan_evaluator_off_request_path.py::test_no_route_handler_can_reach_the_evaluator__DERIVED_FROM_router_routes - AssertionError: these route handlers can reach the universe sweep:
+    /api/indicator-alerts -> api.routers.indicator_alerts::create_alert
+    /api/indicator-alerts/current-value -> api.routers.indicator_alerts::get_current_value
+  A universe screen is 2-8 s of GIL-bound pure-Python CPU on a pod with 64 shared anyio threads. That is the 2026-07-01 outage.
+assert not ['/api/indicator-alerts -> api.routers.indicator_alerts::create_alert', '/api/indicator-alerts/current-value -> api.routers.indicator_alerts::get_current_value']
+FAILED tests/test_screener_sortkeys_fixture_matches_server.py::test_captured_views_match_the_server - AssertionError: assert {'bases': ['t...0', ...], ...} == {'bases': ['t...0', ...], ...}
+  
+  Omitting 16 identical items, use -vv to show
+  Differing items:
+  {'relative_strength': ['ticker', 'company', 'price', 'chg_pct_1d', 'rs_rank', 'rs_rating_1m', ...]} != {'relative_strength': ['ticker', 'company', 'price', 'chg_pct_1d', 'rs_rank', 'rs_rating_1m', ...]}
+  
+  Full diff:
+    {
+        'bases': [
+            'ticker',
+            'company',
+            'base_render',
+            'base_shape',
+            'base_relation_count',
+            'price',
+            'chg_pct_1d',
+            'candle_score',
+            'pct_vs_sma50',
+            'dist_52w_high_pct',
+            'vol_ratio',
+        ],
+        'candles': [
+            'ticker',
+            'company',
+            'candle_type',
+            'candle_trend',
+            'bar_character',
+            'candle_recent',
+            'candle_recent_bars_ago',
+            'candle_weekly',
+            'candle_monthly',
+            'body_pct',
+            'upper_wick_pct',
+            'lower_wick_pct',
+            'close_position',
+            'inside_bar_run',
+            'nr7',
+            'vol_ratio',
+            'chg_pct_1d',
+        ],
+        'charts': [
+            'ticker',
+            'company',
+            'chg_pct_1d',
+            'price',
+        ],
+        'context': [
+            'ticker',
+            'company',
+            'security_type',
+            'theme',
+            'in_uct20',
+            'index_sp500',
+            'index_ndx',
+            'index_r2k',
+            'is_etf',
+            'is_leveraged',
+            'stage2',
+            'stage4',
+            'hvc_52w',
+        ],
+        'events': [
+            'ticker',
+            'company',
+            'next_earnings_date',
+            'days_to_earnings',
+            'earnings_session',
+            'implied_move_pct',
+            'last_report_move_pct',
+            'earnings_setup_grade',
+            'analyst_consensus',
+            'pt_upside_pct',
+            'upgrades_30d',
+            'downgrades_30d',
+        ],
+        'financial': [
+            'ticker',
+            'eps_growth',
+            'rev_growth',
+            'op_margin',
+            'roe',
+            'rs_return',
+            'accdis',
+        ],
+        'flow': [
+            'ticker',
+            'company',
+            'price',
+            'chg_pct_1d',
+            'dp_notional_1d',
+            'dp_prints_1d',
+            'dp_notional_5d',
+            'dp_level_dist_pct',
+            'opt_net_premium_1d',
+            'opt_bull_pct_1d',
+            'opt_net_premium_5d',
+        ],
+        'momentum': [
+            'ticker',
+            'company',
+            'candle_score',
+            'pct_vs_ema20',
+            'close_cv_pct',
+            'avg_body_pct_5',
+            'pole_pct',
+            'adr_pct',
+            'vol_nweek_low',
+            'vol_updown_ratio',
+            'rs_line_trend',
+            'rs_rating_ibd',
+            'rs_new_high',
+            'rs_nh_before_price',
+            'chg_pct_1d',
+        ],
+        'overview': [
+            'ticker',
+            'company',
+            'sector',
+            'market_cap',
+            'price',
+            'chg_pct_1d',
+            'vol_ratio',
+            'rs_rank',
+            'base_render',
+        ],
+        'ownership': [
+            'ticker',
+            'company',
+            'shares_outstanding',
+            'float_shares',
+            'float_pct',
+            'inst_pct',
+            'inst_trans_pct',
+            'insider_own_pct',
+            'insider_trans_pct',
+            'short_float_pct',
+            'short_ratio',
+            'optionable',
+            'shortable',
+        ],
+        'patterns': [
+            'ticker',
+            'company',
+            'pattern_engine_ids',
+            'pattern_engine_conf',
+            'pattern_engine_dir',
+            'pattern_expectancy_r',
+            'pattern_entry_dist_pct',
+            'pattern_stop_dist_pct',
+            'pattern_engine_vcp',
+            'pattern_engine_flat_base',
+            'candle_score',
+        ],
+        'performance': [
+            'ticker',
+            'company',
+            'chg_pct_1d',
+            'chg_pct_1w',
+            'chg_pct_1m',
+            'chg_pct_3m',
+            'chg_pct_6m',
+            'chg_pct_1y',
+            'chg_pct_ytd',
+            'dist_52w_high_pct',
+            'dist_ath_pct',
+        ],
+        'relative_strength': [
+            'ticker',
+            'company',
+            'price',
+            'chg_pct_1d',
+            'rs_rank',
+            'rs_rating_1m',
+            'rs_rating_3m',
+            'rs_rating_6m',
+            'rs_rating_9m',
+            'rs_rating_12m',
+            'rs_rating_chg_20',
+            'rs_new_high',
+            'rs_nh_before_price',
+            'rs_nh_red_day',
+            'rs_nh_bars_ago',
+            'green_on_red_20',
+            'rs_line_above_ma',
+            'rs_cross_up_bars_ago',
+            'mansfield',
+            'mansfield_cross_bars_ago',
+            'rs_rating_ibd',
+            'rs_rating_chg_5',
+            'rs_benchmark_agree',
+            'rrg_quadrant',
+            'clenow_score',
+            'vars_state',
+  -         'rs_exit_last',
+  -         'rs_exit_bars_ago',
+  -         'rs_quicksand_bars_ago',
+  -         'rs_quick_break_bars_ago',
+  -         'rs_dead_break_bars_ago',
+        ],
+        'team': [
+            'ticker',
+            'company',
+            'price',
+            'chg_pct_1d',
+            'archive_calls_n',
+            'archive_traders_n',
+            'archive_last_call_date',
+            'archive_last_setup',
+            'archive_last_r20',
+            'archive_setup',
+            'archive_setup_edge_r',
+            'archive_setup_edge_20d',
+            'archive_setup_n',
+        ],
+        'technical': [
+            'ticker',
+            'rsi14',
+            'pct_vs_sma50',
+            'pct_vs_sma200',
+            'adr_pct',
+            'dist_52w_high_pct',
+            'vol_ratio',
+            'rvol_live',
+            'gap_pct',
+            'pct_vs_ema20',
+            'candle_type',
+        ],
+        'uct_ratings': [
+            'ticker',
+            'uct_composite',
+            'rs_rank',
+            'rs_return',
+            'accdis',
+            'eps_growth',
+            'op_margin',
+            'roe',
+        ],
+        'valuation': [
+            'ticker',
+            'company',
+            'market_cap',
+            'pe_fwd',
+            'peg',
+            'price',
+            'uct_composite',
+        ],
+    }
+FAILED tests/test_secret_scrub.py::test_no_credential_in_git_history_of_this_branch - AssertionError: empty diff — the check would pass vacuously
+assert ''
+ +  where '' = <built-in method strip of str object at 0x714b4002f5f0>()
+ +    where <built-in method strip of str object at 0x714b4002f5f0> = ''.strip
+5 failed, 4272 passed, 5 skipped, 1 xfailed, 7302 warnings in 402.49s (0:06:42)

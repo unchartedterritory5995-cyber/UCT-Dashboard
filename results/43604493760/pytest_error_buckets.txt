@@ -1,0 +1,5 @@
+bucket | count | example node id
+----------------------------------------------------------------------
+3   | ModuleNotFoundError: No module named 'playwright' | tests/test_notebook_fin_walk_followup_group.py
+1   | AssertionError: the report body never reached the file | tests/test_canonical_address_book.py
+1   | AssertionError: mutation_harness_contract.py does not import the shared guard | tests/test_notebook_fin_walk_prep_gap.py

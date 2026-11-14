@@ -1,0 +1,19 @@
+{
+  "suite": "pytest",
+  "collected": 4282,
+  "passed": 4272,
+  "failed": 5,
+  "errored": 0,
+  "skipped": 5,
+  "wall_s": 402.49,
+  "failed_files": [
+    "tests/test_s6_cp2_migration.py",
+    "tests/test_sample_never_feeds_real_numbers.py",
+    "tests/test_scan_evaluator_off_request_path.py",
+    "tests/test_screener_sortkeys_fixture_matches_server.py",
+    "tests/test_secret_scrub.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "5 failed, 4272 passed, 5 skipped, 1 xfailed, 7302 warnings in 402.49s (0:06:42)",
+  "ok": true
+}

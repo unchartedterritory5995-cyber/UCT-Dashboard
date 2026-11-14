@@ -1,0 +1,1072 @@
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+............................F........................................... [  4%]
+........................................................................ [  9%]
+........................................................................ [ 13%]
+...................................F..........F.F...F.....F............. [ 18%]
+........................................................................ [ 22%]
+........................................................................ [ 27%]
+........................................................................ [ 32%]
+........................................................................ [ 36%]
+.............................................................EEEEEEEF.EE [ 41%]
+EEE.E.EEEEEE.E..E....................................................... [ 45%]
+........................................................................ [ 50%]
+........................................................................ [ 54%]
+........................................................................ [ 59%]
+........................................................................ [ 64%]
+........................................................................ [ 68%]
+........................................................................ [ 73%]
+........................................................................ [ 77%]
+...............................F........................................ [ 82%]
+...s.................................................................... [ 87%]
+........................................................................ [ 91%]
+........................................................................ [ 96%]
+.....................................F.....................              [100%]
+==================================== ERRORS ====================================
+_______ ERROR at setup of test_every_segment_validates_and_is_non_empty ________
+
+    @pytest.fixture(scope="module")
+    def segments() -> dict:
+        out: dict = {}
+        for mod in (gen_recall, gen_size, gen_fixtures, gen_candles, gen_walkthroughs, gen_terms):
+>           out.update(mod.generate())
+
+tests/test_study_generators.py:32: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+scripts/study/gen_recall.py:288: in generate
+    "recall.bible": bible_items(read_bible_rules(), mistakes_pool),
+scripts/study/gen_recall.py:92: in read_bible_rules
+    text = BIBLE.read_text(encoding="utf-8")
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/pathlib.py:1027: in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/pathlib.py:1013: in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+file = PosixPath('C:\\Users\\pgosz\\projects\\uct-intelligence\\prompts\\01_methodology_bible.txt')
+mode = 'r', args = (-1, 'utf-8', None, None), kwargs = {}, hit = None
+
+    def _guarded_open(file, mode="r", *args, **kwargs):
+        hit = _shared_root_hit(file)
+        if hit is not None:
+            m = mode if isinstance(mode, str) else "r"
+            if any(c in m for c in _WRITE_MODE_CHARS):
+                _refuse(f"open(mode={m!r})", hit)
+            else:
+                _record("read", f"open(mode={m!r})", hit)
+>       return _real_open(file, mode, *args, **kwargs)
+E       FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\pgosz\\projects\\uct-intelligence\\prompts\\01_methodology_bible.txt'
+
+conftest.py:1075: FileNotFoundError
+_ ERROR at setup of test_every_item_is_a_draft_with_a_citation_and_a_valid_id __
+
+    @pytest.fixture(scope="module")
+    def segments() -> dict:
+        out: dict = {}
+        for mod in (gen_recall, gen_size, gen_fixtures, gen_candles, gen_walkthroughs, gen_terms):
+>           out.update(mod.generate())
+
+tests/test_study_generators.py:32: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+scripts/study/gen_recall.py:288: in generate
+    "recall.bible": bible_items(read_bible_rules(), mistakes_pool),
+scripts/study/gen_recall.py:92: in read_bible_rules
+    text = BIBLE.read_text(encoding="utf-8")
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/pathlib.py:1027: in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/pathlib.py:1013: in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+file = PosixPath('C:\\Users\\pgosz\\projects\\uct-intelligence\\prompts\\01_methodology_bible.txt')
+mode = 'r', args = (-1, 'utf-8', None, None), kwargs = {}, hit = None
+
+    def _guarded_open(file, mode="r", *args, **kwargs):
+        hit = _shared_root_hit(file)
+        if hit is not None:
+            m = mode if isinstance(mode, str) else "r"
+            if any(c in m for c in _WRITE_MODE_CHARS):
+                _refuse(f"open(mode={m!r})", hit)
+            else:
+                _record("read", f"open(mode={m!r})", hit)
+>       return _real_open(file, mode, *args, **kwargs)
+E       FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\pgosz\\projects\\uct-intelligence\\prompts\\01_methodology_bible.txt'
+
+conftest.py:1075: FileNotFoundError
+___________ ERROR at setup of test_ids_are_deterministic_across_runs ___________
+
+    @pytest.fixture(scope="module")
+    def segments() -> dict:
+        out: dict = {}
+        for mod in (gen_recall, gen_size, gen_fixtures, gen_candles, gen_walkthroughs, gen_terms):
+>           out.update(mod.generate())
+
+tests/test_study_generators.py:32: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+scripts/study/gen_recall.py:288: in generate
+    "recall.bible": bible_items(read_bible_rules(), mistakes_pool),
+scripts/study/gen_recall.py:92: in read_bible_rules
+    text = BIBLE.read_text(encoding="utf-8")
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/pathlib.py:1027: in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/pathlib.py:1013: in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+file = PosixPath('C:\\Users\\pgosz\\projects\\uct-intelligence\\prompts\\01_methodology_bible.txt')
+mode = 'r', args = (-1, 'utf-8', None, None), kwargs = {}, hit = None
+
+    def _guarded_open(file, mode="r", *args, **kwargs):
+        hit = _shared_root_hit(file)
+        if hit is not None:
+            m = mode if isinstance(mode, str) else "r"
+            if any(c in m for c in _WRITE_MODE_CHARS):
+                _refuse(f"open(mode={m!r})", hit)
+            else:
+                _record("read", f"open(mode={m!r})", hit)
+>       return _real_open(file, mode, *args, **kwargs)
+E       FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\pgosz\\projects\\uct-intelligence\\prompts\\01_methodology_bible.txt'
+
+conftest.py:1075: FileNotFoundError
+_ ERROR at setup of test_no_banned_phrase_em_dash_or_long_sentence_in_any_question_or_lesson _
+
+    @pytest.fixture(scope="module")
+    def segments() -> dict:
+        out: dict = {}
+        for mod in (gen_recall, gen_size, gen_fixtures, gen_candles, gen_walkthroughs, gen_terms):
+>           out.update(mod.generate())
+
+tests/test_study_generators.py:32: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+scripts/study/gen_recall.py:288: in generate
+    "recall.bible": bible_items(read_bible_rules(), mistakes_pool),
+scripts/study/gen_recall.py:92: in read_bible_rules
+    text = BIBLE.read_text(encoding="utf-8")
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/pathlib.py:1027: in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/pathlib.py:1013: in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+file = PosixPath('C:\\Users\\pgosz\\projects\\uct-intelligence\\prompts\\01_methodology_bible.txt')
+mode = 'r', args = (-1, 'utf-8', None, None), kwargs = {}, hit = None
+
+    def _guarded_open(file, mode="r", *args, **kwargs):
+        hit = _shared_root_hit(file)
+        if hit is not None:
+            m = mode if isinstance(mode, str) else "r"
+            if any(c in m for c in _WRITE_MODE_CHARS):
+                _refuse(f"open(mode={m!r})", hit)
+            else:
+                _record("read", f"open(mode={m!r})", hit)
+>       return _real_open(file, mode, *args, **kwargs)
+E       FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\pgosz\\projects\\uct-intelligence\\prompts\\01_methodology_bible.txt'
+
+conftest.py:1075: FileNotFoundError
+_ ERROR at setup of test_only_fixture_items_embed_bars_and_chart_items_record_a_spec _
+
+    @pytest.fixture(scope="module")
+    def segments() -> dict:
+        out: dict = {}
+        for mod in (gen_recall, gen_size, gen_fixtures, gen_candles, gen_walkthroughs, gen_terms):
+>           out.update(mod.generate())
+
+tests/test_study_generators.py:32: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+scripts/study/gen_recall.py:288: in generate
+    "recall.bible": bible_items(read_bible_rules(), mistakes_pool),
+scripts/study/gen_recall.py:92: in read_bible_rules
+    text = BIBLE.read_text(encoding="utf-8")
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/pathlib.py:1027: in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/pathlib.py:1013: in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+file = PosixPath('C:\\Users\\pgosz\\projects\\uct-intelligence\\prompts\\01_methodology_bible.txt')
+mode = 'r', args = (-1, 'utf-8', None, None), kwargs = {}, hit = None
+
+    def _guarded_open(file, mode="r", *args, **kwargs):
+        hit = _shared_root_hit(file)
+        if hit is not None:
+            m = mode if isinstance(mode, str) else "r"
+            if any(c in m for c in _WRITE_MODE_CHARS):
+                _refuse(f"open(mode={m!r})", hit)
+            else:
+                _record("read", f"open(mode={m!r})", hit)
+>       return _real_open(file, mode, *args, **kwargs)
+E       FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\pgosz\\projects\\uct-intelligence\\prompts\\01_methodology_bible.txt'
+
+conftest.py:1075: FileNotFoundError
+____________ ERROR at setup of test_the_ticker_never_rides_a_prompt ____________
+
+    @pytest.fixture(scope="module")
+    def segments() -> dict:
+        out: dict = {}
+        for mod in (gen_recall, gen_size, gen_fixtures, gen_candles, gen_walkthroughs, gen_terms):
+>           out.update(mod.generate())
+
+tests/test_study_generators.py:32: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+scripts/study/gen_recall.py:288: in generate
+    "recall.bible": bible_items(read_bible_rules(), mistakes_pool),
+scripts/study/gen_recall.py:92: in read_bible_rules
+    text = BIBLE.read_text(encoding="utf-8")
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/pathlib.py:1027: in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/pathlib.py:1013: in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+file = PosixPath('C:\\Users\\pgosz\\projects\\uct-intelligence\\prompts\\01_methodology_bible.txt')
+mode = 'r', args = (-1, 'utf-8', None, None), kwargs = {}, hit = None
+
+    def _guarded_open(file, mode="r", *args, **kwargs):
+        hit = _shared_root_hit(file)
+        if hit is not None:
+            m = mode if isinstance(mode, str) else "r"
+            if any(c in m for c in _WRITE_MODE_CHARS):
+                _refuse(f"open(mode={m!r})", hit)
+            else:
+                _record("read", f"open(mode={m!r})", hit)
+>       return _real_open(file, mode, *args, **kwargs)
+E       FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\pgosz\\projects\\uct-intelligence\\prompts\\01_methodology_bible.txt'
+
+conftest.py:1075: FileNotFoundError
+__ ERROR at setup of test_recall_keys_are_verbatim_substrings_of_their_source __
+
+    @pytest.fixture(scope="module")
+    def segments() -> dict:
+        out: dict = {}
+        for mod in (gen_recall, gen_size, gen_fixtures, gen_candles, gen_walkthroughs, gen_terms):
+>           out.update(mod.generate())
+
+tests/test_study_generators.py:32: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+scripts/study/gen_recall.py:288: in generate
+    "recall.bible": bible_items(read_bible_rules(), mistakes_pool),
+scripts/study/gen_recall.py:92: in read_bible_rules
+    text = BIBLE.read_text(encoding="utf-8")
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/pathlib.py:1027: in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/pathlib.py:1013: in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+file = PosixPath('C:\\Users\\pgosz\\projects\\uct-intelligence\\prompts\\01_methodology_bible.txt')
+mode = 'r', args = (-1, 'utf-8', None, None), kwargs = {}, hit = None
+
+    def _guarded_open(file, mode="r", *args, **kwargs):
+        hit = _shared_root_hit(file)
+        if hit is not None:
+            m = mode if isinstance(mode, str) else "r"
+            if any(c in m for c in _WRITE_MODE_CHARS):
+                _refuse(f"open(mode={m!r})", hit)
+            else:
+                _record("read", f"open(mode={m!r})", hit)
+>       return _real_open(file, mode, *args, **kwargs)
+E       FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\pgosz\\projects\\uct-intelligence\\prompts\\01_methodology_bible.txt'
+
+conftest.py:1075: FileNotFoundError
+_ ERROR at setup of test_every_glossary_term_gets_two_items_with_distractors_from_siblings _
+
+    @pytest.fixture(scope="module")
+    def segments() -> dict:
+        out: dict = {}
+        for mod in (gen_recall, gen_size, gen_fixtures, gen_candles, gen_walkthroughs, gen_terms):
+>           out.update(mod.generate())
+
+tests/test_study_generators.py:32: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+scripts/study/gen_recall.py:288: in generate
+    "recall.bible": bible_items(read_bible_rules(), mistakes_pool),
+scripts/study/gen_recall.py:92: in read_bible_rules
+    text = BIBLE.read_text(encoding="utf-8")
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/pathlib.py:1027: in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/pathlib.py:1013: in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+file = PosixPath('C:\\Users\\pgosz\\projects\\uct-intelligence\\prompts\\01_methodology_bible.txt')
+mode = 'r', args = (-1, 'utf-8', None, None), kwargs = {}, hit = None
+
+    def _guarded_open(file, mode="r", *args, **kwargs):
+        hit = _shared_root_hit(file)
+        if hit is not None:
+            m = mode if isinstance(mode, str) else "r"
+            if any(c in m for c in _WRITE_MODE_CHARS):
+                _refuse(f"open(mode={m!r})", hit)
+            else:
+                _record("read", f"open(mode={m!r})", hit)
+>       return _real_open(file, mode, *args, **kwargs)
+E       FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\pgosz\\projects\\uct-intelligence\\prompts\\01_methodology_bible.txt'
+
+conftest.py:1075: FileNotFoundError
+_ ERROR at setup of test_size_answers_match_the_house_formula_and_never_exceed_the_ceiling _
+
+    @pytest.fixture(scope="module")
+    def segments() -> dict:
+        out: dict = {}
+        for mod in (gen_recall, gen_size, gen_fixtures, gen_candles, gen_walkthroughs, gen_terms):
+>           out.update(mod.generate())
+
+tests/test_study_generators.py:32: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+scripts/study/gen_recall.py:288: in generate
+    "recall.bible": bible_items(read_bible_rules(), mistakes_pool),
+scripts/study/gen_recall.py:92: in read_bible_rules
+    text = BIBLE.read_text(encoding="utf-8")
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/pathlib.py:1027: in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/pathlib.py:1013: in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+file = PosixPath('C:\\Users\\pgosz\\projects\\uct-intelligence\\prompts\\01_methodology_bible.txt')
+mode = 'r', args = (-1, 'utf-8', None, None), kwargs = {}, hit = None
+
+    def _guarded_open(file, mode="r", *args, **kwargs):
+        hit = _shared_root_hit(file)
+        if hit is not None:
+            m = mode if isinstance(mode, str) else "r"
+            if any(c in m for c in _WRITE_MODE_CHARS):
+                _refuse(f"open(mode={m!r})", hit)
+            else:
+                _record("read", f"open(mode={m!r})", hit)
+>       return _real_open(file, mode, *args, **kwargs)
+E       FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\pgosz\\projects\\uct-intelligence\\prompts\\01_methodology_bible.txt'
+
+conftest.py:1075: FileNotFoundError
+_________ ERROR at setup of test_size_segment_covers_every_case_family _________
+
+    @pytest.fixture(scope="module")
+    def segments() -> dict:
+        out: dict = {}
+        for mod in (gen_recall, gen_size, gen_fixtures, gen_candles, gen_walkthroughs, gen_terms):
+>           out.update(mod.generate())
+
+tests/test_study_generators.py:32: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+scripts/study/gen_recall.py:288: in generate
+    "recall.bible": bible_items(read_bible_rules(), mistakes_pool),
+scripts/study/gen_recall.py:92: in read_bible_rules
+    text = BIBLE.read_text(encoding="utf-8")
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/pathlib.py:1027: in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/pathlib.py:1013: in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+file = PosixPath('C:\\Users\\pgosz\\projects\\uct-intelligence\\prompts\\01_methodology_bible.txt')
+mode = 'r', args = (-1, 'utf-8', None, None), kwargs = {}, hit = None
+
+    def _guarded_open(file, mode="r", *args, **kwargs):
+        hit = _shared_root_hit(file)
+        if hit is not None:
+            m = mode if isinstance(mode, str) else "r"
+            if any(c in m for c in _WRITE_MODE_CHARS):
+                _refuse(f"open(mode={m!r})", hit)
+            else:
+                _record("read", f"open(mode={m!r})", hit)
+>       return _real_open(file, mode, *args, **kwargs)
+E       FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\pgosz\\projects\\uct-intelligence\\prompts\\01_methodology_bible.txt'
+
+conftest.py:1075: FileNotFoundError
+_ ERROR at setup of test_size_rulings_2026_10_19_wide_stop_over_cap_tight_batch_and_plural _
+
+    @pytest.fixture(scope="module")
+    def segments() -> dict:
+        out: dict = {}
+        for mod in (gen_recall, gen_size, gen_fixtures, gen_candles, gen_walkthroughs, gen_terms):
+>           out.update(mod.generate())
+
+tests/test_study_generators.py:32: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+scripts/study/gen_recall.py:288: in generate
+    "recall.bible": bible_items(read_bible_rules(), mistakes_pool),
+scripts/study/gen_recall.py:92: in read_bible_rules
+    text = BIBLE.read_text(encoding="utf-8")
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/pathlib.py:1027: in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/pathlib.py:1013: in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+file = PosixPath('C:\\Users\\pgosz\\projects\\uct-intelligence\\prompts\\01_methodology_bible.txt')
+mode = 'r', args = (-1, 'utf-8', None, None), kwargs = {}, hit = None
+
+    def _guarded_open(file, mode="r", *args, **kwargs):
+        hit = _shared_root_hit(file)
+        if hit is not None:
+            m = mode if isinstance(mode, str) else "r"
+            if any(c in m for c in _WRITE_MODE_CHARS):
+                _refuse(f"open(mode={m!r})", hit)
+            else:
+                _record("read", f"open(mode={m!r})", hit)
+>       return _real_open(file, mode, *args, **kwargs)
+E       FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\pgosz\\projects\\uct-intelligence\\prompts\\01_methodology_bible.txt'
+
+conftest.py:1075: FileNotFoundError
+_ ERROR at setup of test_fixtures_use_only_unmodified_positives_and_negatives __
+
+    @pytest.fixture(scope="module")
+    def segments() -> dict:
+        out: dict = {}
+        for mod in (gen_recall, gen_size, gen_fixtures, gen_candles, gen_walkthroughs, gen_terms):
+>           out.update(mod.generate())
+
+tests/test_study_generators.py:32: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+scripts/study/gen_recall.py:288: in generate
+    "recall.bible": bible_items(read_bible_rules(), mistakes_pool),
+scripts/study/gen_recall.py:92: in read_bible_rules
+    text = BIBLE.read_text(encoding="utf-8")
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/pathlib.py:1027: in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/pathlib.py:1013: in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+file = PosixPath('C:\\Users\\pgosz\\projects\\uct-intelligence\\prompts\\01_methodology_bible.txt')
+mode = 'r', args = (-1, 'utf-8', None, None), kwargs = {}, hit = None
+
+    def _guarded_open(file, mode="r", *args, **kwargs):
+        hit = _shared_root_hit(file)
+        if hit is not None:
+            m = mode if isinstance(mode, str) else "r"
+            if any(c in m for c in _WRITE_MODE_CHARS):
+                _refuse(f"open(mode={m!r})", hit)
+            else:
+                _record("read", f"open(mode={m!r})", hit)
+>       return _real_open(file, mode, *args, **kwargs)
+E       FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\pgosz\\projects\\uct-intelligence\\prompts\\01_methodology_bible.txt'
+
+conftest.py:1075: FileNotFoundError
+_ ERROR at setup of test_bottoms_items_key_on_recorded_signposts_never_a_tier __
+
+    @pytest.fixture(scope="module")
+    def segments() -> dict:
+        out: dict = {}
+        for mod in (gen_recall, gen_size, gen_fixtures, gen_candles, gen_walkthroughs, gen_terms):
+>           out.update(mod.generate())
+
+tests/test_study_generators.py:32: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+scripts/study/gen_recall.py:288: in generate
+    "recall.bible": bible_items(read_bible_rules(), mistakes_pool),
+scripts/study/gen_recall.py:92: in read_bible_rules
+    text = BIBLE.read_text(encoding="utf-8")
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/pathlib.py:1027: in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/pathlib.py:1013: in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+file = PosixPath('C:\\Users\\pgosz\\projects\\uct-intelligence\\prompts\\01_methodology_bible.txt')
+mode = 'r', args = (-1, 'utf-8', None, None), kwargs = {}, hit = None
+
+    def _guarded_open(file, mode="r", *args, **kwargs):
+        hit = _shared_root_hit(file)
+        if hit is not None:
+            m = mode if isinstance(mode, str) else "r"
+            if any(c in m for c in _WRITE_MODE_CHARS):
+                _refuse(f"open(mode={m!r})", hit)
+            else:
+                _record("read", f"open(mode={m!r})", hit)
+>       return _real_open(file, mode, *args, **kwargs)
+E       FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\pgosz\\projects\\uct-intelligence\\prompts\\01_methodology_bible.txt'
+
+conftest.py:1075: FileNotFoundError
+__________ ERROR at setup of test_candle_items_never_key_on_direction __________
+
+    @pytest.fixture(scope="module")
+    def segments() -> dict:
+        out: dict = {}
+        for mod in (gen_recall, gen_size, gen_fixtures, gen_candles, gen_walkthroughs, gen_terms):
+>           out.update(mod.generate())
+
+tests/test_study_generators.py:32: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+scripts/study/gen_recall.py:288: in generate
+    "recall.bible": bible_items(read_bible_rules(), mistakes_pool),
+scripts/study/gen_recall.py:92: in read_bible_rules
+    text = BIBLE.read_text(encoding="utf-8")
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/pathlib.py:1027: in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/pathlib.py:1013: in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+file = PosixPath('C:\\Users\\pgosz\\projects\\uct-intelligence\\prompts\\01_methodology_bible.txt')
+mode = 'r', args = (-1, 'utf-8', None, None), kwargs = {}, hit = None
+
+    def _guarded_open(file, mode="r", *args, **kwargs):
+        hit = _shared_root_hit(file)
+        if hit is not None:
+            m = mode if isinstance(mode, str) else "r"
+            if any(c in m for c in _WRITE_MODE_CHARS):
+                _refuse(f"open(mode={m!r})", hit)
+            else:
+                _record("read", f"open(mode={m!r})", hit)
+>       return _real_open(file, mode, *args, **kwargs)
+E       FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\pgosz\\projects\\uct-intelligence\\prompts\\01_methodology_bible.txt'
+
+conftest.py:1075: FileNotFoundError
+__ ERROR at setup of test_candle_description_questions_never_name_the_answer ___
+
+    @pytest.fixture(scope="module")
+    def segments() -> dict:
+        out: dict = {}
+        for mod in (gen_recall, gen_size, gen_fixtures, gen_candles, gen_walkthroughs, gen_terms):
+>           out.update(mod.generate())
+
+tests/test_study_generators.py:32: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+scripts/study/gen_recall.py:288: in generate
+    "recall.bible": bible_items(read_bible_rules(), mistakes_pool),
+scripts/study/gen_recall.py:92: in read_bible_rules
+    text = BIBLE.read_text(encoding="utf-8")
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/pathlib.py:1027: in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/pathlib.py:1013: in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+file = PosixPath('C:\\Users\\pgosz\\projects\\uct-intelligence\\prompts\\01_methodology_bible.txt')
+mode = 'r', args = (-1, 'utf-8', None, None), kwargs = {}, hit = None
+
+    def _guarded_open(file, mode="r", *args, **kwargs):
+        hit = _shared_root_hit(file)
+        if hit is not None:
+            m = mode if isinstance(mode, str) else "r"
+            if any(c in m for c in _WRITE_MODE_CHARS):
+                _refuse(f"open(mode={m!r})", hit)
+            else:
+                _record("read", f"open(mode={m!r})", hit)
+>       return _real_open(file, mode, *args, **kwargs)
+E       FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\pgosz\\projects\\uct-intelligence\\prompts\\01_methodology_bible.txt'
+
+conftest.py:1075: FileNotFoundError
+_ ERROR at setup of test_every_candle_name_has_a_full_six_part_lesson_and_every_item_carries_it _
+
+    @pytest.fixture(scope="module")
+    def segments() -> dict:
+        out: dict = {}
+        for mod in (gen_recall, gen_size, gen_fixtures, gen_candles, gen_walkthroughs, gen_terms):
+>           out.update(mod.generate())
+
+tests/test_study_generators.py:32: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+scripts/study/gen_recall.py:288: in generate
+    "recall.bible": bible_items(read_bible_rules(), mistakes_pool),
+scripts/study/gen_recall.py:92: in read_bible_rules
+    text = BIBLE.read_text(encoding="utf-8")
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/pathlib.py:1027: in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/pathlib.py:1013: in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+file = PosixPath('C:\\Users\\pgosz\\projects\\uct-intelligence\\prompts\\01_methodology_bible.txt')
+mode = 'r', args = (-1, 'utf-8', None, None), kwargs = {}, hit = None
+
+    def _guarded_open(file, mode="r", *args, **kwargs):
+        hit = _shared_root_hit(file)
+        if hit is not None:
+            m = mode if isinstance(mode, str) else "r"
+            if any(c in m for c in _WRITE_MODE_CHARS):
+                _refuse(f"open(mode={m!r})", hit)
+            else:
+                _record("read", f"open(mode={m!r})", hit)
+>       return _real_open(file, mode, *args, **kwargs)
+E       FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\pgosz\\projects\\uct-intelligence\\prompts\\01_methodology_bible.txt'
+
+conftest.py:1075: FileNotFoundError
+_ ERROR at setup of test_candle_chart_items_show_a_real_bar_found_by_the_catalog _
+
+    @pytest.fixture(scope="module")
+    def segments() -> dict:
+        out: dict = {}
+        for mod in (gen_recall, gen_size, gen_fixtures, gen_candles, gen_walkthroughs, gen_terms):
+>           out.update(mod.generate())
+
+tests/test_study_generators.py:32: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+scripts/study/gen_recall.py:288: in generate
+    "recall.bible": bible_items(read_bible_rules(), mistakes_pool),
+scripts/study/gen_recall.py:92: in read_bible_rules
+    text = BIBLE.read_text(encoding="utf-8")
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/pathlib.py:1027: in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/pathlib.py:1013: in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+file = PosixPath('C:\\Users\\pgosz\\projects\\uct-intelligence\\prompts\\01_methodology_bible.txt')
+mode = 'r', args = (-1, 'utf-8', None, None), kwargs = {}, hit = None
+
+    def _guarded_open(file, mode="r", *args, **kwargs):
+        hit = _shared_root_hit(file)
+        if hit is not None:
+            m = mode if isinstance(mode, str) else "r"
+            if any(c in m for c in _WRITE_MODE_CHARS):
+                _refuse(f"open(mode={m!r})", hit)
+            else:
+                _record("read", f"open(mode={m!r})", hit)
+>       return _real_open(file, mode, *args, **kwargs)
+E       FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\pgosz\\projects\\uct-intelligence\\prompts\\01_methodology_bible.txt'
+
+conftest.py:1075: FileNotFoundError
+____________ ERROR at setup of test_no_framing_term_is_a_quiz_item _____________
+
+    @pytest.fixture(scope="module")
+    def segments() -> dict:
+        out: dict = {}
+        for mod in (gen_recall, gen_size, gen_fixtures, gen_candles, gen_walkthroughs, gen_terms):
+>           out.update(mod.generate())
+
+tests/test_study_generators.py:32: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+scripts/study/gen_recall.py:288: in generate
+    "recall.bible": bible_items(read_bible_rules(), mistakes_pool),
+scripts/study/gen_recall.py:92: in read_bible_rules
+    text = BIBLE.read_text(encoding="utf-8")
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/pathlib.py:1027: in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/pathlib.py:1013: in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+file = PosixPath('C:\\Users\\pgosz\\projects\\uct-intelligence\\prompts\\01_methodology_bible.txt')
+mode = 'r', args = (-1, 'utf-8', None, None), kwargs = {}, hit = None
+
+    def _guarded_open(file, mode="r", *args, **kwargs):
+        hit = _shared_root_hit(file)
+        if hit is not None:
+            m = mode if isinstance(mode, str) else "r"
+            if any(c in m for c in _WRITE_MODE_CHARS):
+                _refuse(f"open(mode={m!r})", hit)
+            else:
+                _record("read", f"open(mode={m!r})", hit)
+>       return _real_open(file, mode, *args, **kwargs)
+E       FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\pgosz\\projects\\uct-intelligence\\prompts\\01_methodology_bible.txt'
+
+conftest.py:1075: FileNotFoundError
+_ ERROR at setup of test_every_walkthrough_has_two_to_four_short_dedashed_steps_and_the_unscored_shape _
+
+    @pytest.fixture(scope="module")
+    def segments() -> dict:
+        out: dict = {}
+        for mod in (gen_recall, gen_size, gen_fixtures, gen_candles, gen_walkthroughs, gen_terms):
+>           out.update(mod.generate())
+
+tests/test_study_generators.py:32: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+scripts/study/gen_recall.py:288: in generate
+    "recall.bible": bible_items(read_bible_rules(), mistakes_pool),
+scripts/study/gen_recall.py:92: in read_bible_rules
+    text = BIBLE.read_text(encoding="utf-8")
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/pathlib.py:1027: in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/pathlib.py:1013: in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+file = PosixPath('C:\\Users\\pgosz\\projects\\uct-intelligence\\prompts\\01_methodology_bible.txt')
+mode = 'r', args = (-1, 'utf-8', None, None), kwargs = {}, hit = None
+
+    def _guarded_open(file, mode="r", *args, **kwargs):
+        hit = _shared_root_hit(file)
+        if hit is not None:
+            m = mode if isinstance(mode, str) else "r"
+            if any(c in m for c in _WRITE_MODE_CHARS):
+                _refuse(f"open(mode={m!r})", hit)
+            else:
+                _record("read", f"open(mode={m!r})", hit)
+>       return _real_open(file, mode, *args, **kwargs)
+E       FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\pgosz\\projects\\uct-intelligence\\prompts\\01_methodology_bible.txt'
+
+conftest.py:1075: FileNotFoundError
+_________ ERROR at setup of test_committed_bank_matches_the_generators _________
+
+    @pytest.fixture(scope="module")
+    def segments() -> dict:
+        out: dict = {}
+        for mod in (gen_recall, gen_size, gen_fixtures, gen_candles, gen_walkthroughs, gen_terms):
+>           out.update(mod.generate())
+
+tests/test_study_generators.py:32: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+scripts/study/gen_recall.py:288: in generate
+    "recall.bible": bible_items(read_bible_rules(), mistakes_pool),
+scripts/study/gen_recall.py:92: in read_bible_rules
+    text = BIBLE.read_text(encoding="utf-8")
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/pathlib.py:1027: in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/pathlib.py:1013: in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+file = PosixPath('C:\\Users\\pgosz\\projects\\uct-intelligence\\prompts\\01_methodology_bible.txt')
+mode = 'r', args = (-1, 'utf-8', None, None), kwargs = {}, hit = None
+
+    def _guarded_open(file, mode="r", *args, **kwargs):
+        hit = _shared_root_hit(file)
+        if hit is not None:
+            m = mode if isinstance(mode, str) else "r"
+            if any(c in m for c in _WRITE_MODE_CHARS):
+                _refuse(f"open(mode={m!r})", hit)
+            else:
+                _record("read", f"open(mode={m!r})", hit)
+>       return _real_open(file, mode, *args, **kwargs)
+E       FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\pgosz\\projects\\uct-intelligence\\prompts\\01_methodology_bible.txt'
+
+conftest.py:1075: FileNotFoundError
+_ ERROR at setup of test_playbook_mistake_items_use_the_same_playbooks_rules_as_distractors _
+
+    @pytest.fixture(scope="module")
+    def segments() -> dict:
+        out: dict = {}
+        for mod in (gen_recall, gen_size, gen_fixtures, gen_candles, gen_walkthroughs, gen_terms):
+>           out.update(mod.generate())
+
+tests/test_study_generators.py:32: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+scripts/study/gen_recall.py:288: in generate
+    "recall.bible": bible_items(read_bible_rules(), mistakes_pool),
+scripts/study/gen_recall.py:92: in read_bible_rules
+    text = BIBLE.read_text(encoding="utf-8")
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/pathlib.py:1027: in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/pathlib.py:1013: in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+file = PosixPath('C:\\Users\\pgosz\\projects\\uct-intelligence\\prompts\\01_methodology_bible.txt')
+mode = 'r', args = (-1, 'utf-8', None, None), kwargs = {}, hit = None
+
+    def _guarded_open(file, mode="r", *args, **kwargs):
+        hit = _shared_root_hit(file)
+        if hit is not None:
+            m = mode if isinstance(mode, str) else "r"
+            if any(c in m for c in _WRITE_MODE_CHARS):
+                _refuse(f"open(mode={m!r})", hit)
+            else:
+                _record("read", f"open(mode={m!r})", hit)
+>       return _real_open(file, mode, *args, **kwargs)
+E       FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\pgosz\\projects\\uct-intelligence\\prompts\\01_methodology_bible.txt'
+
+conftest.py:1075: FileNotFoundError
+=================================== FAILURES ===================================
+____________ test_the_switch_is_the_SAME_one_the_store_writer_obeys ____________
+
+    def test_the_switch_is_the_SAME_one_the_store_writer_obeys():
+        """⛔ NOT A SECOND FLAG. One switch, one meaning — a separate serve-time flag
+        would let the two halves disagree, which is the state that produced a report
+        describing live damage as 'frozen'."""
+        import inspect
+        src = inspect.getsource(san.sanitize_daily_bars)
+        assert "bars_split_repair" in src, "the serve path does not consult the repair flag"
+>       assert "enabled()" in src
+E       assert 'enabled()' in 'def sanitize_daily_bars(ticker: str, bars: list[dict], tf: str) -> list[dict]:\n    """Normalize a D/W/M bars list (l...oqa: BLE001\n        _log.warning("sanitize_daily_bars failed for %s tf=%s: %s", ticker, tf, e)\n        return bars\n'
+
+tests/test_split_killswitch_reaches_serve.py:87: AssertionError
+_______________ test_the_save_path_has_NO_STARTER_BRANCH__BY_AST _______________
+
+    def test_the_save_path_has_NO_STARTER_BRANCH__BY_AST():
+        """⛔ THE OTHER HALF, AND A GREP CANNOT SEE IT.
+    
+        A starter that is special-cased in the WRITER produces an identical row and a
+        different history. This walks the store and its router with ``ast`` — names,
+        attributes, arguments, keywords, function names and string constants (a
+        column name lives inside the schema STRING) — and asserts nothing in either
+        module names a starter.
+        """
+        for module in ("api/services/user_definitions.py",
+                       "api/routers/user_definitions.py"):
+            path = ROOT / module
+            assert path.exists(), path
+            with io.open(path, encoding="utf-8") as fh:
+                source = fh.read()
+>           assert _special_hits(source) == [], (
+                f"{module} names a starter — a second branch through the one write "
+                "door is a second set of gates to keep in step")
+E           AssertionError: api/services/user_definitions.py names a starter — a second branch through the one write door is a second set of gates to keep in step
+E           assert ["starter in ...\\n    The '"] == []
+E             
+E             Left contains one more item: "starter in 'RT1 — append a version of a RUNTIME-LANE document.\\n\\n    The '"
+E             
+E             Full diff:
+E             - []
+E             + [
+E             +     "starter in 'RT1 — append a version of a RUNTIME-LANE document.\\n\\n    "
+E             +     "The '",
+E             + ]
+
+tests/test_starter_library.py:313: AssertionError
+________________ test_every_DECLARED_starter_ACTUALLY_RESOLVES _________________
+
+    def test_every_DECLARED_starter_ACTUALLY_RESOLVES():
+        """🔴 THE RAIL THAT MAKES AN APPROXIMATION IMPOSSIBLE TO SLIP IN QUIETLY.
+    
+        A starter whose grounding refuses degrades GRACEFULLY into a named refusal —
+        which is right for a citation that rotted underneath us, and wrong for a
+        catalogue somebody just edited. Without this, filling a refused setup's slot
+        with a plausible-looking scan carrying an invented number would leave every
+        other assertion in this file green: the partition still closes, the reason
+        still names the setup, and the only trace is that a sentence the firm wrote
+        was replaced by one a resolver generated.
+    
+        So the SHIPPED file has to be internally consistent: every entry under
+        ``starters`` resolves, and everything else is a DECLARED reason somebody
+        reviewed.
+        """
+        declared = set(sl.entries())
+        assert declared, "the catalogue declares no starters"
+        unresolved = sorted(declared - sl.grounded_setups())
+>       assert unresolved == [], (
+            "these starters are DECLARED but do not resolve, so each has silently "
+            "become a machine-generated refusal in place of a reviewed one: "
+            + "; ".join(f"{n}: {sl.ungrounded_setups().get(n)}" for n in unresolved))
+E       AssertionError: these starters are DECLARED but do not resolve, so each has silently become a machine-generated refusal in place of a reviewed one: Classic Flag/Pullback: Classic Flag/Pullback is no longer grounded: the screener no longer ships a starter screen called 'starter_leaders_pullback' (it ships ['starter_52w_breakout', 'starter_anticipation', 'starter_base_pocket_pivot', 'starter_earnings_momentum', 'starter_gap_movers', 'starter_gap_up_volume', 'starter_momentum_leaders', 'starter_near_20d_high_volume', 'starter_power_play', 'starter_pullback_20ema', 'starter_stage2_breakout', 'starter_three_weeks_tight', 'starter_tight_base', 'starter_trend_template', 'starter_uct_50', 'starter_value_quality', 'starter_volume_surge_now']); Oops Reversal: Oops Reversal is no longer grounded: the Setup Library's definition of 'Oops Reversal' no longer says "A gap below the prior day's low" — it says 'Opens below the prior close, trades under the prior low, then closes back above the prior close, at the end of an orderly drift into a buyable spot. Williams: opens under the low. Super: closes over the high.'
+E       assert ['Classic Fla...ops Reversal'] == []
+E         
+E         Left contains 2 more items, first extra item: 'Classic Flag/Pullback'
+E         
+E         Full diff:
+E         - []
+E         + [
+E         +     'Classic Flag/Pullback',
+E         +     'Oops Reversal',
+E         + ]
+
+tests/test_starter_library.py:629: AssertionError
+_____________ test_a_RETUNED_THRESHOLD_goes_red_NAMING_THE_NUMBER ______________
+
+    def test_a_RETUNED_THRESHOLD_goes_red_NAMING_THE_NUMBER():
+        """⭐ E-5a's rail, inherited: no number in a starter may be the author's.
+    
+        ``rs_rank >= 80`` is shippable because the firm publishes a preset labelled
+        ``Over 80``. 75 is nobody's published threshold, and the refusal has to SAY
+        75 — a refusal that merely said "ungrounded" would leave an author guessing
+        which of four numbers was rejected.
+        """
+        doc = copy.deepcopy(sl._thaw(sl.CATALOG))
+        victim = None
+        for name, spec in doc["starters"].items():
+            found = _retune(spec["ast"], 80, 75)
+            if found:
+                victim = name
+                break
+        assert victim, "no starter carries the 80 this test retunes"
+        reason = sl.ungrounded_setups(vocab=doc)[victim]
+>       assert "75" in reason, reason
+E       AssertionError: Classic Flag/Pullback is no longer grounded: the screener no longer ships a starter screen called 'starter_leaders_pullback' (it ships ['starter_52w_breakout', 'starter_anticipation', 'starter_base_pocket_pivot', 'starter_earnings_momentum', 'starter_gap_movers', 'starter_gap_up_volume', 'starter_momentum_leaders', 'starter_near_20d_high_volume', 'starter_power_play', 'starter_pullback_20ema', 'starter_stage2_breakout', 'starter_three_weeks_tight', 'starter_tight_base', 'starter_trend_template', 'starter_uct_50', 'starter_value_quality', 'starter_volume_surge_now'])
+E       assert '75' in "Classic Flag/Pullback is no longer grounded: the screener no longer ships a starter screen called 'starter_leaders_pu...starter_tight_base', 'starter_trend_template', 'starter_uct_50', 'starter_value_quality', 'starter_volume_surge_now'])"
+
+tests/test_starter_library.py:671: AssertionError
+_ test_a_DEFINITION_GROUNDED_starter_STATES_NO_NUMBER_AND_SCREENS_ON_NO_COLUMN _
+
+    def test_a_DEFINITION_GROUNDED_starter_STATES_NO_NUMBER_AND_SCREENS_ON_NO_COLUMN():
+        """⛔⛔ THE CONTAINMENT THAT MAKES THE FIFTH CITATION KIND SAFE TO SHIP.
+    
+        ``setup_catalog`` grounds a starter in the firm's own PUBLISHED DEFINITION
+        of the setup — prose, which cannot publish a threshold — so it hands back an
+        empty ``publishes`` and an empty ``columns``. The consequence, and the whole
+        reason a prose artifact may ground anything at all: a starter standing on a
+        definition ALONE can carry no numeric literal and can screen on no
+        table-declared scalar, because there is nothing for those two rails to draw
+        on. It vouches for a SHAPE and can never launder a number.
+    
+        ⛔ DERIVED FROM THE CITATION KINDS IN USE, never from a setup name typed
+        here — the day a second definition-grounded starter ships it is covered
+        without an edit, and the day one quietly gains a literal it goes red.
+        """
+        rows = [e for e in sl.catalog()
+                if {c["kind"] for c in e["grounding"]} == {"setup_catalog"}]
+>       assert rows, (
+            "no starter is grounded by the firm's published definition alone — this "
+            "rail has nothing to check, and the fifth citation kind is unused")
+E       AssertionError: no starter is grounded by the firm's published definition alone — this rail has nothing to check, and the fifth citation kind is unused
+E       assert []
+
+tests/test_starter_library.py:758: AssertionError
+_ test_installing_a_starter_TWICE_is_ONE_definition_and_editing_it_FORKS_the_hash _
+
+store = PosixPath('/tmp/pytest-of-runner/pytest-0/test_installing_a_starter_TWIC0')
+
+    def test_installing_a_starter_TWICE_is_ONE_definition_and_editing_it_FORKS_the_hash(store):
+        """⭐ ONE HASH, ONE OBJECT — and the edit story A2.3 depends on.
+    
+        Two members installing the same starter share a ``def_hash`` (and therefore
+        E-3's results and E-6's record); a member who EDITS one gets a new
+        ``def_hash``, a new ``rev`` and D-A3's rev semantics — which is exactly why an
+        edited scan's performance starts over rather than inheriting somebody else's.
+        """
+        entry = sl.catalog()[0]
+        mine = svc.save(USER, "u_0000000000c1",
+                        _document(entry["setup"], entry["source"], entry["ast"],
+                                  def_id="u_0000000000c1"))
+        yours = svc.save(OTHER, "u_0000000000d1",
+                         _document(entry["setup"], entry["source"], entry["ast"],
+                                   def_id="u_0000000000d1"))
+        assert mine["ast_hash"] == yours["ast_hash"]
+        assert mine["rev"] == yours["rev"] == svc.FIRST_REV
+    
+        # The SAME member installing it twice under one id appends nothing.
+        again = svc.save(USER, "u_0000000000c1",
+                         _document(entry["setup"], entry["source"], entry["ast"],
+                                   def_id="u_0000000000c1"))
+        assert again["appended"] is False
+        assert again["version"] == mine["version"]
+    
+        # …and an EDIT forks the maths.
+        edited_tree = copy.deepcopy(entry["ast"])
+>       assert _retune(edited_tree, 80, 90) or _retune(edited_tree, 2, 3) or \
+            _retune(edited_tree, 0.66, 0.33) or _retune(edited_tree, 20, 30), \
+            "no literal to retune — the fork below would be vacuous"
+E       AssertionError: no literal to retune — the fork below would be vacuous
+E       assert (False or False or False or False)
+E        +  where False = _retune({'name': 'pattern_engine_vcp', 'type': 'series'}, 80, 90)
+E        +  and   False = _retune({'name': 'pattern_engine_vcp', 'type': 'series'}, 2, 3)
+E        +  and   False = _retune({'name': 'pattern_engine_vcp', 'type': 'series'}, 0.66, 0.33)
+E        +  and   False = _retune({'name': 'pattern_engine_vcp', 'type': 'series'}, 20, 30)
+
+tests/test_starter_library.py:897: AssertionError
+_____________ test_bible_numbers_are_only_the_ones_the_rule_states _____________
+
+    def test_bible_numbers_are_only_the_ones_the_rule_states():
+>       rules = dict(gen_recall.read_bible_rules())
+
+tests/test_study_generators.py:122: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+scripts/study/gen_recall.py:92: in read_bible_rules
+    text = BIBLE.read_text(encoding="utf-8")
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/pathlib.py:1027: in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/pathlib.py:1013: in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+file = PosixPath('C:\\Users\\pgosz\\projects\\uct-intelligence\\prompts\\01_methodology_bible.txt')
+mode = 'r', args = (-1, 'utf-8', None, None), kwargs = {}, hit = None
+
+    def _guarded_open(file, mode="r", *args, **kwargs):
+        hit = _shared_root_hit(file)
+        if hit is not None:
+            m = mode if isinstance(mode, str) else "r"
+            if any(c in m for c in _WRITE_MODE_CHARS):
+                _refuse(f"open(mode={m!r})", hit)
+            else:
+                _record("read", f"open(mode={m!r})", hit)
+>       return _real_open(file, mode, *args, **kwargs)
+E       FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\pgosz\\projects\\uct-intelligence\\prompts\\01_methodology_bible.txt'
+
+conftest.py:1075: FileNotFoundError
+_ TestSourceStaysInTheWorkDir.test_the_writer_refuses_any_path_outside_the_report_dir[..\\escape.pine] _
+
+self = <tests.test_support_loop_tools.TestSourceStaysInTheWorkDir object at 0x7b2fb125bdd0>
+fname = '..\\escape.pine'
+work = PosixPath('/tmp/pytest-of-runner/pytest-0/test_the_writer_refuses_any_pa1/outside-repo/work')
+
+    @pytest.mark.parametrize("fname", ["../escape.pine", "..\\escape.pine", "/abs.pine", "sub/x.pine", "", ".."])
+    def test_the_writer_refuses_any_path_outside_the_report_dir(self, fname, work):
+>       with pytest.raises(workdir.WorkdirError):
+E       Failed: DID NOT RAISE <class 'tools.support_loop.workdir.WorkdirError'>
+
+tests/test_support_loop_tools.py:140: Failed
+_____________ test_the_page_flag_is_declared_in_the_ledger_as_dark _____________
+
+    def test_the_page_flag_is_declared_in_the_ledger_as_dark():
+        ledger = json.loads((_REPO / "docs" / "feature_flags.json").read_text(encoding="utf-8"))
+        entry = ledger["flags"][brm.FLAG]
+>       assert entry["status"] == "dark" and entry["where"] == [] and entry["note"]
+E       AssertionError: assert ('armed' == 'dark'
+E         
+E         - dark
+E         + armed)
+
+tests/test_term013_bars_rail_reader.py:457: AssertionError
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/test_study_flags.py::test_no_default_off_study_gate_is_undeclared
+  <unknown>:964: SyntaxWarning: invalid escape sequence '\`'
+
+tests/test_study_flags.py::test_no_default_off_study_gate_is_undeclared
+  <unknown>:7: SyntaxWarning: invalid escape sequence '\d'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_survivorship_is_declared.py:91: no local screener.db to measure against
+ERROR tests/test_study_generators.py::test_every_segment_validates_and_is_non_empty - FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\pgosz\\projects\\uct-intelligence\\prompts\\01_methodology_bible.txt'
+ERROR tests/test_study_generators.py::test_every_item_is_a_draft_with_a_citation_and_a_valid_id - FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\pgosz\\projects\\uct-intelligence\\prompts\\01_methodology_bible.txt'
+ERROR tests/test_study_generators.py::test_ids_are_deterministic_across_runs - FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\pgosz\\projects\\uct-intelligence\\prompts\\01_methodology_bible.txt'
+ERROR tests/test_study_generators.py::test_no_banned_phrase_em_dash_or_long_sentence_in_any_question_or_lesson - FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\pgosz\\projects\\uct-intelligence\\prompts\\01_methodology_bible.txt'
+ERROR tests/test_study_generators.py::test_only_fixture_items_embed_bars_and_chart_items_record_a_spec - FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\pgosz\\projects\\uct-intelligence\\prompts\\01_methodology_bible.txt'
+ERROR tests/test_study_generators.py::test_the_ticker_never_rides_a_prompt - FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\pgosz\\projects\\uct-intelligence\\prompts\\01_methodology_bible.txt'
+ERROR tests/test_study_generators.py::test_recall_keys_are_verbatim_substrings_of_their_source - FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\pgosz\\projects\\uct-intelligence\\prompts\\01_methodology_bible.txt'
+ERROR tests/test_study_generators.py::test_every_glossary_term_gets_two_items_with_distractors_from_siblings - FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\pgosz\\projects\\uct-intelligence\\prompts\\01_methodology_bible.txt'
+ERROR tests/test_study_generators.py::test_size_answers_match_the_house_formula_and_never_exceed_the_ceiling - FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\pgosz\\projects\\uct-intelligence\\prompts\\01_methodology_bible.txt'
+ERROR tests/test_study_generators.py::test_size_segment_covers_every_case_family - FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\pgosz\\projects\\uct-intelligence\\prompts\\01_methodology_bible.txt'
+ERROR tests/test_study_generators.py::test_size_rulings_2026_10_19_wide_stop_over_cap_tight_batch_and_plural - FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\pgosz\\projects\\uct-intelligence\\prompts\\01_methodology_bible.txt'
+ERROR tests/test_study_generators.py::test_fixtures_use_only_unmodified_positives_and_negatives - FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\pgosz\\projects\\uct-intelligence\\prompts\\01_methodology_bible.txt'
+ERROR tests/test_study_generators.py::test_bottoms_items_key_on_recorded_signposts_never_a_tier - FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\pgosz\\projects\\uct-intelligence\\prompts\\01_methodology_bible.txt'
+ERROR tests/test_study_generators.py::test_candle_items_never_key_on_direction - FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\pgosz\\projects\\uct-intelligence\\prompts\\01_methodology_bible.txt'
+ERROR tests/test_study_generators.py::test_candle_description_questions_never_name_the_answer - FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\pgosz\\projects\\uct-intelligence\\prompts\\01_methodology_bible.txt'
+ERROR tests/test_study_generators.py::test_every_candle_name_has_a_full_six_part_lesson_and_every_item_carries_it - FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\pgosz\\projects\\uct-intelligence\\prompts\\01_methodology_bible.txt'
+ERROR tests/test_study_generators.py::test_candle_chart_items_show_a_real_bar_found_by_the_catalog - FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\pgosz\\projects\\uct-intelligence\\prompts\\01_methodology_bible.txt'
+ERROR tests/test_study_generators.py::test_no_framing_term_is_a_quiz_item - FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\pgosz\\projects\\uct-intelligence\\prompts\\01_methodology_bible.txt'
+ERROR tests/test_study_generators.py::test_every_walkthrough_has_two_to_four_short_dedashed_steps_and_the_unscored_shape - FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\pgosz\\projects\\uct-intelligence\\prompts\\01_methodology_bible.txt'
+ERROR tests/test_study_generators.py::test_committed_bank_matches_the_generators - FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\pgosz\\projects\\uct-intelligence\\prompts\\01_methodology_bible.txt'
+ERROR tests/test_study_generators.py::test_playbook_mistake_items_use_the_same_playbooks_rules_as_distractors - FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\pgosz\\projects\\uct-intelligence\\prompts\\01_methodology_bible.txt'
+FAILED tests/test_split_killswitch_reaches_serve.py::test_the_switch_is_the_SAME_one_the_store_writer_obeys - assert 'enabled()' in 'def sanitize_daily_bars(ticker: str, bars: list[dict], tf: str) -> list[dict]:\n    """Normalize a D/W/M bars list (l...oqa: BLE001\n        _log.warning("sanitize_daily_bars failed for %s tf=%s: %s", ticker, tf, e)\n        return bars\n'
+FAILED tests/test_starter_library.py::test_the_save_path_has_NO_STARTER_BRANCH__BY_AST - AssertionError: api/services/user_definitions.py names a starter — a second branch through the one write door is a second set of gates to keep in step
+assert ["starter in ...\\n    The '"] == []
+  
+  Left contains one more item: "starter in 'RT1 — append a version of a RUNTIME-LANE document.\\n\\n    The '"
+  
+  Full diff:
+  - []
+  + [
+  +     "starter in 'RT1 — append a version of a RUNTIME-LANE document.\\n\\n    "
+  +     "The '",
+  + ]
+FAILED tests/test_starter_library.py::test_every_DECLARED_starter_ACTUALLY_RESOLVES - AssertionError: these starters are DECLARED but do not resolve, so each has silently become a machine-generated refusal in place of a reviewed one: Classic Flag/Pullback: Classic Flag/Pullback is no longer grounded: the screener no longer ships a starter screen called 'starter_leaders_pullback' (it ships ['starter_52w_breakout', 'starter_anticipation', 'starter_base_pocket_pivot', 'starter_earnings_momentum', 'starter_gap_movers', 'starter_gap_up_volume', 'starter_momentum_leaders', 'starter_near_20d_high_volume', 'starter_power_play', 'starter_pullback_20ema', 'starter_stage2_breakout', 'starter_three_weeks_tight', 'starter_tight_base', 'starter_trend_template', 'starter_uct_50', 'starter_value_quality', 'starter_volume_surge_now']); Oops Reversal: Oops Reversal is no longer grounded: the Setup Library's definition of 'Oops Reversal' no longer says "A gap below the prior day's low" — it says 'Opens below the prior close, trades under the prior low, then closes back above the prior close, at the end of an orderly drift into a buyable spot. Williams: opens under the low. Super: closes over the high.'
+assert ['Classic Fla...ops Reversal'] == []
+  
+  Left contains 2 more items, first extra item: 'Classic Flag/Pullback'
+  
+  Full diff:
+  - []
+  + [
+  +     'Classic Flag/Pullback',
+  +     'Oops Reversal',
+  + ]
+FAILED tests/test_starter_library.py::test_a_RETUNED_THRESHOLD_goes_red_NAMING_THE_NUMBER - AssertionError: Classic Flag/Pullback is no longer grounded: the screener no longer ships a starter screen called 'starter_leaders_pullback' (it ships ['starter_52w_breakout', 'starter_anticipation', 'starter_base_pocket_pivot', 'starter_earnings_momentum', 'starter_gap_movers', 'starter_gap_up_volume', 'starter_momentum_leaders', 'starter_near_20d_high_volume', 'starter_power_play', 'starter_pullback_20ema', 'starter_stage2_breakout', 'starter_three_weeks_tight', 'starter_tight_base', 'starter_trend_template', 'starter_uct_50', 'starter_value_quality', 'starter_volume_surge_now'])
+assert '75' in "Classic Flag/Pullback is no longer grounded: the screener no longer ships a starter screen called 'starter_leaders_pu...starter_tight_base', 'starter_trend_template', 'starter_uct_50', 'starter_value_quality', 'starter_volume_surge_now'])"
+FAILED tests/test_starter_library.py::test_a_DEFINITION_GROUNDED_starter_STATES_NO_NUMBER_AND_SCREENS_ON_NO_COLUMN - AssertionError: no starter is grounded by the firm's published definition alone — this rail has nothing to check, and the fifth citation kind is unused
+assert []
+FAILED tests/test_starter_library.py::test_installing_a_starter_TWICE_is_ONE_definition_and_editing_it_FORKS_the_hash - AssertionError: no literal to retune — the fork below would be vacuous
+assert (False or False or False or False)
+ +  where False = _retune({'name': 'pattern_engine_vcp', 'type': 'series'}, 80, 90)
+ +  and   False = _retune({'name': 'pattern_engine_vcp', 'type': 'series'}, 2, 3)
+ +  and   False = _retune({'name': 'pattern_engine_vcp', 'type': 'series'}, 0.66, 0.33)
+ +  and   False = _retune({'name': 'pattern_engine_vcp', 'type': 'series'}, 20, 30)
+FAILED tests/test_study_generators.py::test_bible_numbers_are_only_the_ones_the_rule_states - FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\pgosz\\projects\\uct-intelligence\\prompts\\01_methodology_bible.txt'
+FAILED tests/test_support_loop_tools.py::TestSourceStaysInTheWorkDir::test_the_writer_refuses_any_path_outside_the_report_dir[..\\escape.pine] - Failed: DID NOT RAISE <class 'tools.support_loop.workdir.WorkdirError'>
+FAILED tests/test_term013_bars_rail_reader.py::test_the_page_flag_is_declared_in_the_ledger_as_dark - AssertionError: assert ('armed' == 'dark'
+  
+  - dark
+  + armed)
+9 failed, 1540 passed, 1 skipped, 4 warnings, 21 errors in 529.79s (0:08:49)

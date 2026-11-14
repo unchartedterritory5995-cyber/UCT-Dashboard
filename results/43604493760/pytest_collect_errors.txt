@@ -1,0 +1,165 @@
+======================================================================
+ERROR collecting tests/test_canonical_address_book.py
+BUCKET: AssertionError: the report body never reached the file
+----------------------------------------------------------------------
+tests/test_canonical_address_book.py:659: in <module>
+    @pytest.mark.parametrize("column,sqltype", _ohlcv_columns())
+tests/test_canonical_address_book.py:614: in _ohlcv_columns
+    body = _re.search(r"\((.*)\)", _ohlcv_ddl(), _re.S).group(1)
+tests/test_canonical_address_book.py:607: in _ohlcv_ddl
+    assert len(hits) == 1, f"expected one ohlcv DDL in CODE, found {len(hits)}"
+E   AssertionError: expected one ohlcv DDL in CODE, found 0
+E   assert 0 == 1
+E    +  where 0 = len([])
+=================================== FAILURES ===================================
+_ test_the_report_survives_a_forced_cp1252_stdout_and_writes_a_complete_summary _
+
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_the_report_survives_a_for0')
+
+    def test_the_report_survives_a_forced_cp1252_stdout_and_writes_a_complete_summary(tmp_path):
+        """⛔⛔ THE FAILURE THIS REPLACES: exit 1 and NO FILE, on the box Task Scheduler runs
+        it on. The tool reconfigures stdout at entry, and writes the artifact before it echoes.
+        """
+        p, summary = _run_report(tmp_path, "cp1252")
+        assert p.returncode == 0, (f"exit {p.returncode}\n"
+                                   f"{p.stderr.decode('utf-8', 'replace')[-800:]}")
+        assert summary.exists(), "the summary was not written under a cp1252 stdout"
+    
+        text = summary.read_text(encoding="utf-8")
+        # ⛔ "Complete", not merely "present": a truncated file is the failure mode that a
+        # bare exists() check cannot see.
+        for marker in ("GENERATED FILE", "NOT A SOURCE", "NO MEMBER DATA",
+                       "# Breadth sampler - pool summary", "```"):
+            assert marker in text, f"summary is missing {marker!r} — written but incomplete"
+        assert text.rstrip().endswith("```"), "the fenced block is not closed — truncated"
+>       assert "BREADTH SAMPLER" in text, "the report body never reached the file"
+E       AssertionError: the report body never reached the file
+E       assert 'BREADTH SAMPLER' in '<!-- GENERATED FILE - do not edit by hand.\n     Written by tools/breadth_sampler_report.py on every run.\n     NOT A...readth sampler - pool summary\n\n```\nno sample file at C:/Users/Patrick/uct-breadth-pool/breadth-samples.jsonl\n```\n'
+
+tests/test_breadth_sampler.py:400: AssertionError
+_____________ test_G2_every_ledger_writer_is_classified_as_audited _____________
+
+    def test_G2_every_ledger_writer_is_classified_as_audited():
+        """⛔ THE AUDIT AS A RAIL: every module that writes this ledger, and the lane
+        its rows land in. A new writer must be added here, deliberately."""
+
+======================================================================
+ERROR collecting tests/test_notebook_fin_walk_followup_group.py
+BUCKET: ModuleNotFoundError: No module named 'playwright'
+----------------------------------------------------------------------
+ImportError while importing test module '/home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_notebook_fin_walk_followup_group.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+tests/test_notebook_fin_walk_followup_group.py:18: in <module>
+    import notebook_fin_walk_features as F  # noqa: E402
+tools/notebook_fin_walk_features.py:30: in <module>
+    from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
+E   ModuleNotFoundError: No module named 'playwright'
+
+======================================================================
+ERROR collecting tests/test_notebook_fin_walk_page_layouts_group.py
+BUCKET: ModuleNotFoundError: No module named 'playwright'
+----------------------------------------------------------------------
+ImportError while importing test module '/home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_notebook_fin_walk_page_layouts_group.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+tests/test_notebook_fin_walk_page_layouts_group.py:20: in <module>
+    import notebook_fin_walk_features as F  # noqa: E402
+tools/notebook_fin_walk_features.py:30: in <module>
+    from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
+E   ModuleNotFoundError: No module named 'playwright'
+
+======================================================================
+ERROR collecting tests/test_notebook_fin_walk_prep_gap.py
+BUCKET: AssertionError: mutation_harness_contract.py does not import the shared guard
+----------------------------------------------------------------------
+ImportError while importing test module '/home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_notebook_fin_walk_prep_gap.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+tests/test_notebook_fin_walk_prep_gap.py:15: in <module>
+    import notebook_fin_walk_features as F  # noqa: E402
+tools/notebook_fin_walk_features.py:30: in <module>
+    from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
+E   ModuleNotFoundError: No module named 'playwright'
+=================================== FAILURES ===================================
+_ test_every_mutation_harness_imports_the_shared_guard_and_calls_it_before_any_write _
+
+    def test_every_mutation_harness_imports_the_shared_guard_and_calls_it_before_any_write():
+        """The guard is useless if a harness forgets it, or calls it after the first write."""
+        harnesses = _harnesses()
+        # NON-VACUITY: if the glob matched nothing this test would pass by iterating zero times.
+        assert len(harnesses) >= 5, f"only {len(harnesses)} harnesses found — the glob is wrong"
+    
+        for h in harnesses:
+            src = h.read_text(encoding="utf-8")
+            tree = ast.parse(src)
+    
+            imported = any(
+                isinstance(n, ast.ImportFrom) and n.module == "harness_guard"
+                and any(a.name == "guard" for a in n.names)
+                for n in ast.walk(tree))
+>           assert imported, f"{h.name} does not import the shared guard"
+E           AssertionError: mutation_harness_contract.py does not import the shared guard
+E           assert False
+
+tests/test_mutation_harness_hygiene.py:105: AssertionError
+___ test_every_instrument_that_can_leave_a_mutation_imports_the_shared_guard ___
+
+    def test_every_instrument_that_can_leave_a_mutation_imports_the_shared_guard():
+        """B4 says "any harness that can leave a mutation in a working-tree file" — that is not
+        the same set as `mutation_harness*.py`.
+    
+        ⚰️ `prove_eol_gate.py` plants real line-ending flips in TRACKED files, and its ROOT was
+        the hard-coded literal `C:\\Users\\Patrick\\uct-worktrees\\discord-render` — the
+
+======================================================================
+ERROR collecting tests/test_notebook_p5_walk.py
+BUCKET: ModuleNotFoundError: No module named 'playwright'
+----------------------------------------------------------------------
+ImportError while importing test module '/home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_notebook_p5_walk.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+tests/test_notebook_p5_walk.py:22: in <module>
+    import notebook_p5_walk as w  # noqa: E402
+tools/notebook_p5_walk.py:80: in <module>
+    import mobile_audit as ma  # noqa: E402  -- _dismiss_intro
+tools/mobile_audit.py:28: in <module>
+    from playwright.sync_api import sync_playwright
+E   ModuleNotFoundError: No module named 'playwright'
+_ ERROR at setup of test_a_cross_origin_fetch_carries_no_proof_headers_and_a_same_origin_one_still_does _
+
+    @pytest.fixture(scope="module")
+    def real_browser():
+        """Headless Chromium, launched once for this file's real-Playwright rails (no server, no
+        navigation past `about:blank` / `set_content`). Module-scoped because launching the browser
+        is the expensive part; each rail opens its own fresh page/context."""
+>       from playwright.sync_api import sync_playwright
+E       ModuleNotFoundError: No module named 'playwright'
+
+tests/test_notebook_proof_walk.py:649: ModuleNotFoundError
+_ ERROR at setup of test_mutation_removing_the_origin_check_reds_the_cross_origin_rail _
+
+    @pytest.fixture(scope="module")
+    def real_browser():
+        """Headless Chromium, launched once for this file's real-Playwright rails (no server, no
+        navigation past `about:blank` / `set_content`). Module-scoped because launching the browser
+        is the expensive part; each rail opens its own fresh page/context."""
+>       from playwright.sync_api import sync_playwright
+E       ModuleNotFoundError: No module named 'playwright'
+
+tests/test_notebook_proof_walk.py:649: ModuleNotFoundError
+_ ERROR at setup of test_a_never_resolving_evaluate_is_bounded_by_a_js_side_race_not_a_hang _
+
+    @pytest.fixture(scope="module")
+    def real_browser():
+        """Headless Chromium, launched once for this file's real-Playwright rails (no server, no
+        navigation past `about:blank` / `set_content`). Module-scoped because launching the browser
+
