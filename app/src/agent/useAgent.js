@@ -16,7 +16,10 @@
 // conversation, so the model's next turn remembers what UCT DID.
 
 import { protectionRefusal, undoProtectionRefusal, protectedOpenLayout, isProtected, protectedRenameRefusal } from './protectedLayouts'
-import { chartRailRefusal, RAIL_MARK } from './chartRail'
+import { chartRailRefusal, RAIL_MARK, chartEffects } from './chartRail'
+import { stateRailRefusal, STATE_RAIL_MARK, notDoneAdds, notDoneLine, subjectIdsOf, nextTurnSubjects } from './stateRail'
+import { lastTouchedDrawing } from './capabilities/drawings'
+import { lastCreatedList } from './capabilities/watchlist'
 import { replyRelation, QUESTION_TTL_MS, CONTINUE_CHOICES, continueQuestion } from './pendingTask'
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { AuthContext } from '../context/AuthContext'
@@ -801,7 +804,38 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
   const carriedWordsRef = useRef(null)
   const turnWords = (member) => [member, saidRef.current, carriedWordsRef.current]
   const resumeRef = useRef(null)            // pendingTask: restores (yes) or withdraws (no) a held reply's pending task
-  const railOf = (plan, mode) => chartRailRefusal(plan, { words: railWordsRef.current, host, mode })
+  // ⛔ STATE RAIL (owner principle 11-13, stateRail.js): the same hook — an additive request never removes, replaces or
+  // overwrites the member's indicators, drawings, watchlists, widgets, layouts, boards or templates. Either rail refuses.
+  const railMarkRef = useRef(RAIL_MARK)     // which rail refused last (telemetry)
+  // the conversation's CURRENT subject (AUDIT #1247): the exact objects a pointer at the start of a message means — the
+  // indicator(s) the latest changes touched, the drawing last drawn or changed. Only these may be restyled by "make it …"
+  // (what the subject was when the member SPOKE joins it: a step of this turn that already ran never narrows "them all")
+  const turnSubjectsRef = useRef({ ids: new Set(), previous: null })
+  const subjectIds = (withTurnStart = true) => {
+    const out = subjectIdsOf(memoryRef.current, epochOf(host), lastTouchedDrawing())
+    if (withTurnStart) for (const id of turnSubjectsRef.current.ids) out.add(id)
+    return out
+  }
+  // what "it" / "the one I just made" may mean (AUDIT #1247): the ONE object the previous turn made, ALL of them with the
+  // position of the chart each is on ("remove it from the right one"), and the list this session last created — exact ids
+  const railMemoryOf = () => {
+    const ts = turnSubjectsRef.current
+    const chartPos = (id) => { try { return id.startsWith('ind:') ? host?.charts?.read?.(id.split(':')[1])?.position || null : null } catch { return null } }
+    let made = new Set()
+    try { const lc = lastCreatedList(); if (lc?.id) made = new Set([`list:${lc.id}`]) } catch { /* none */ }
+    return { previous: ts.previous, previousSet: (ts.previousAll || []).map(id => ({ id, position: chartPos(id) })), made }
+  }
+  // stateMode: an APPROVED run's own steps (deferred, split parts) are approved for the state rail too (the card named them);
+  // the chart rail keeps reading them as 'apply'
+  const railOf = (plan, mode, stateMode = mode) => {
+    // a refused bundle names its add parts as NOT done too (AUDIT #1247): the chart rail's refusal, with the plans it did not block
+    const c0 = chartRailRefusal(plan, { words: railWordsRef.current, host, mode })
+    const c = c0 && `${c0}${notDoneLine(notDoneAdds(plan, (p) => { try { return chartEffects({ ok: true, plans: [p] }, host).length > 0 } catch { return true } }))}`
+    const r = c || stateRailRefusal(plan, { words: railWordsRef.current, mode: stateMode, subjects: subjectIds(), ...railMemoryOf() })
+
+    railMarkRef.current = c ? RAIL_MARK : STATE_RAIL_MARK
+    return r
+  }
   if (!memoryRef.current) memoryRef.current = createMemory()
   const [, force] = useState(0)
   const rerender = () => force(n => n + 1)
@@ -1022,6 +1056,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     if (deferred.length) {
       // each one on its own (they run one at a time, so they are checked one at a time)
       const okd = []
+      let stateStop = null
       // ⭐ P2: a step aimed at a chart an EARLIER step of this request adds indicators to ("add the 9 EMA, make the
       // 9 green") cannot be checked yet — what it names does not exist until then. It is checked at its own turn
       // (and refused there, with the real reason, if it still cannot run).
@@ -1035,7 +1070,11 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         let dp
         try {
           const dp0 = planOps(collectTargets(host, kindsOf([d])), [d], { pendingLists: pendingNames }, capCtx)
-          const shut = dp0.ok ? protectionRefusal(host, dp0, dp0.normalizedOps || [d]) || railOf(dp0, 'apply') : null
+          const prot = dp0.ok ? protectionRefusal(host, dp0, dp0.normalizedOps || [d]) : null
+          const railed = dp0.ok && !prot ? railOf(dp0, 'apply', suggested === 'approved' ? 'approved' : 'apply') : null
+          // ⛔ AUDIT #1247: a later step the STATE rail stops stops the whole request — nothing runs, never "the rest"
+          if (railed && railMarkRef.current === STATE_RAIL_MARK && !stateStop) stateStop = railed
+          const shut = prot || railed
           dp = shut ? { ok: false, refusals: [{ reason: shut }] } : dp0
         } catch { dp = { ok: false, refusals: [{ reason: 'I could not check that step.' }] } }
         if (!dp.ok && (grows.has(d.target) || creates.has(String(d.target)))) okd.push(d)
@@ -1050,6 +1089,12 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         if (getCapability(d?.action)?.addsIndicators) grows.add(d.target)
       }
       deferred = okd
+      if (stateStop) {
+        refusalPush(stateStop)
+        const acts = [...allOps, ...deferred].map(o => o?.action)
+        record({ member, outcome: stateStop, outcomeData: { kind: 'refused', actions: acts, reason: STATE_RAIL_MARK }, telemetry: { path, refused: true, actions: acts, voice } })
+        return
+      }
     }
     // ⛔ Another window/device may have changed this member's board (one shared,
     // last-write-wins preference): never write over it (host.boardInSync).
@@ -1272,7 +1317,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
             if (!pp.ok) return { text: refusalText(pp.refusals) }
             const g = protectionRefusal(host, pp, pp.normalizedOps || part.ops)
             if (g) return { text: `I didn't change anything: ${g}` }
-            const rg = railOf(pp, 'apply')
+            const rg = railOf(pp, 'apply', suggested === 'approved' ? 'approved' : 'apply')
             if (rg) return { text: rg }
             if (decideMode('apply', pp) !== 'apply') return 'needs-approval'
             pre.push({ ...part, lines: pp.lines.length ? pp.lines : pp.noops })
@@ -1309,9 +1354,9 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     // grid shape asked for in words with fewer charts — on every path (instant, model, approved), before anything is written
     const railed = railOf(plan, suggested === 'approved' ? 'approved' : decideMode(suggested, plan))
     if (railed) {
-      mark(RAIL_MARK, 'refused')
+      mark(railMarkRef.current, 'refused')
       refusalPush(railed)
-      record({ member, outcome: railed, outcomeData: { kind: 'refused', actions, reason: RAIL_MARK }, telemetry: { path, refused: true, actions, voice } })
+      record({ member, outcome: railed, outcomeData: { kind: 'refused', actions, reason: railMarkRef.current }, telemetry: { path, refused: true, actions, voice } })
       return
     }
     // ⛔ F6: a sealed approval runs only if the plan still reads EXACTLY as the card the member approved
@@ -2269,6 +2314,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     if (echo) push({ role: 'member', text, voice })
     setBusy(true)
     // ⭐ PHASE 2: everything this message commits is one turn of session memory ("do the same on the others")
+    turnSubjectsRef.current = nextTurnSubjects(turnSubjectsRef.current, memoryRef.current, epochOf(host), lastTouchedDrawing())
     memoryRef.current.beginTurn()
     try {
       // a layout opened since the last turn drops the board's refs — on BOTH paths: NL-1 sends memory to the model

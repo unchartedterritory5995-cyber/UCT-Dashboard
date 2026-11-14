@@ -141,9 +141,13 @@ describe('S · "my other charts", "the same", "match this one"', () => {
     await say('add the 9 and 20 ema to the top left chart')
     await say('now put those on my other charts')
     await say('make the 20 ema on the top left chart red')
-    await say('do the same on the other charts')
-    for (const id of ['c0', 'c1', 'c2', 'c3']) expect(colorOf(board, id, 'EMA 20'), id).toBe(RED)
-    expect(p.turns()).toBe(0)
+    // ⛔ AUDIT #1247 (owner D16): "do the same on the other charts" names no command of its own — ASKS, nothing written
+    const was = ['c1', 'c2', 'c3'].map(id => colorOf(board, id, 'EMA 20'))
+    const out = await say('do the same on the other charts')
+    expect(colorOf(board, 'c0', 'EMA 20')).toBe(RED)
+    expect(out).toMatch(/didn’t change anything/)
+    expect(['c1', 'c2', 'c3'].map(id => colorOf(board, id, 'EMA 20'))).toEqual(was)
+    expect(p.proposals()).toHaveLength(0)
   }, 60000)
 
   it('S3 "make the top left chart weekly" → "make all my charts match this one" — ONE proposal for the three others (a look copy is approved first); nothing changed yet', async () => {
@@ -290,9 +294,12 @@ describe('G · never stale, never invented', () => {
     const { board, say } = p.mount(...ONE())
     await say('ad teh 20 ema')
     expect(p.brief(board, 'c')).toEqual(['movingAverage(20 ema)'])
-    await say('mak it grean')
-    expect(colorOf(board, 'c', 'EMA 20')).toBe(GREEN)
-    expect(p.turns()).toBe(0)
+    // ⛔ AUDIT #1247 (owner D16): "mak" is no command — the state rail ASKS, nothing written, no card
+    const was = colorOf(board, 'c', 'EMA 20')
+    const out = await say('mak it grean')
+    expect(out).toMatch(/didn’t change anything/)
+    expect(colorOf(board, 'c', 'EMA 20')).toBe(was)
+    expect(p.proposals()).toHaveLength(0)
   }, 40000)
 
   it('G5 "Put the 9 above the 20" — both on the price chart: said plainly what UCT cannot do (no fake change)', async () => {

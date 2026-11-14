@@ -21,12 +21,14 @@ const MA21 = { defId: 'movingAverage', inputs: [{ key: 'period', value: 21 }, { 
 const addedOf = (c, i, kind) => (c.results[i]?.added || []).find(a => a.kind === kind)?.ref
 const ctxRef = (c, section, i = 0) => (c.body.context[section] || [])[i]?.ref
 
-async function v2(board, script, { nlm1 = true } = {}) {
+// `words`: what the member typed for the scripted plan. ⛔ AUDIT #1247: a plan that CHANGES an existing indicator needs the
+// member's own words for it (the state rail) — a test of that plan says them; the placeholder stays for every other plan
+async function v2(board, script, { nlm1 = true, words = '«scripted v2 turn»' } = {}) {
   const m = mountCase(board, { seed: { nlm1 }, stepScript: script })
   _resetAgentConfig()
   await loadAgentConfig()
   const start = boardState(m.board)
-  await m.say('«scripted v2 turn»')
+  await m.say(words)
   await waitFor(() => { if (screen.queryByTestId('agent-typing') || m.srv.stream) throw new Error('busy') }, { timeout: 15000 })
   return { m, start, said: () => String(m.p.transcript()) }
 }
@@ -56,7 +58,7 @@ describe('planner v2: an indicator a step added is a result the next step can na
       (c) => ({ action: 'indicatorStyle.set', target: addedOf(c, 0, 'indicatorEdits'), args: { instance: addedOf(c, 3, 'indicatorInstance'), property: 'color', value: 'orange', output: null } }),
       { reply: '' },
     ]
-    const { m, start, said } = await v2('HALF', script)
+    const { m, start, said } = await v2('HALF', script, { words: 'open a chart for AMD on the weekly with the 21 EMA and RSI, and make the EMA orange' })
     // the EMA step reported its instance; the style step named it and ran
     expect(addedOf({ results: m.srv.results }, 3, 'indicatorInstance')).toBe('ind1')
     expect(m.srv.results.map(r => r.status)).toEqual(['done', 'done', 'done', 'done', 'done', 'done'])
@@ -79,7 +81,7 @@ describe('planner v2: an indicator a step added is a result the next step can na
       (c) => ({ action: 'indicatorStyle.set', target: ctxRef(c, 'indicatorEdits'), args: { instance: addedOf(c, 0, 'indicatorInstance'), property: 'color', value: 'orange', output: null } }),
       { reply: '' },
     ]
-    const { m } = await v2('ONE', script)
+    const { m } = await v2('ONE', script, { words: 'add a 21 EMA to this chart, then make the EMA orange' })
     expect(m.srv.results.map(r => r.status)).toEqual(['done', 'done'])
     const ema = rowsOf(m, 'NVDA').find(r => r.defId === 'movingAverage')
     expect(JSON.stringify(ema)).toMatch(/orange|#f[0-9a-f]{2}|#ff/i)
@@ -134,7 +136,7 @@ describe('planner v2: an indicator a step added is a result the next step can na
       (c) => ({ action: 'indicatorStyle.set', target: ieOf(c, 'NVDA'), args: { instance: addedOf(c, 0, 'indicatorInstance'), property: 'color', value: 'orange', output: null } }),
       { reply: '' },
     ]
-    const { m } = await v2('TWO', script)
+    const { m } = await v2('TWO', script, { words: 'add a 21 EMA on NVDA and a 50 SMA on AMD, then make the NVDA EMA orange' })
     expect(addedOf({ results: m.srv.results }, 1, 'indicatorInstance')).toBe('ind2')   // AMD's SMA: its own ref (chart + id)
     expect(styled(rowsOf(m, 'NVDA').find(r => r.defId === 'movingAverage'))).toBe(true)
     expect(styled(rowsOf(m, 'AMD').find(r => r.defId === 'movingAverage'))).toBe(false)
