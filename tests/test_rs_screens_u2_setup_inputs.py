@@ -180,3 +180,18 @@ def test_setup_inputs_does_not_change_its_argument():
     snapshot = [dict(b) for b in bars]
     technicals.setup_inputs(bars)
     assert bars == snapshot
+
+
+def test_atr14_is_wilders_fourteen_on_a_range_that_changes():
+    # 16 bars rising 1 a session with high = close + 1, low = close - 1: the
+    # first 14 true ranges are 2, so the seed (their mean, on the 15th bar) is 2.
+    # The 16th bar is given high = close + 8, low = close - 8: its true range is
+    # 16 (the bar's own range; the gaps to the prior close are 9 and 7).
+    #   ATR14 = (2 x 13 + 16) / 14 = 42 / 14 = 3.0
+    # (A 13-session ATR would read (2 x 12 + 16) / 13 = 3.08.)
+    bars = _bars(_rise(16))
+    bars[-1]["h"] = bars[-1]["c"] + 8.0
+    bars[-1]["l"] = bars[-1]["c"] - 8.0
+    got = technicals.setup_inputs(bars)
+    assert got["atr14"] == pytest.approx(3.0, abs=1e-9)
+    assert got["low"] == 107.0                                   # close 115, low 115 - 8
