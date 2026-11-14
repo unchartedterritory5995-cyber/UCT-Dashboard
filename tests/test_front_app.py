@@ -28,6 +28,10 @@ Mutation proof (run before calling these done):
    15. /__front/edge drops `no-store`           -> test_front_edge_reads_the_callers_address_the_way_web_does RED
    16. proxy drops X-Real-IP                    -> test_front_edge_and_web_are_handed_the_same_three_headers RED
    17. no keepalive_expiry on the client        -> test_an_idle_connection_to_web_is_dropped_before_web_drops_it RED
+   18. the read from web detached, never closed -> test_when_the_member_leaves_a_stream_the_connection_to_web_is_dropped RED
+       (removing only the explicit close SURVIVES: the HTTP library closes a cancelled read itself)
+   19. static_assets.register_missing_types does nothing
+                                                -> test_web_fonts_are_typed_where_python_does_not_know_them RED
 """
 from __future__ import annotations
 
@@ -320,6 +324,27 @@ def test_hashed_assets_are_immutable_and_precompressed(front, http):
     assert img.headers["cache-control"] == "public, max-age=31536000, immutable, no-transform"
     font = http.get(front + "/fonts/a.woff2")
     assert font.status_code == 200 and font.headers["cache-control"].startswith("public, max-age=31536000, immutable")
+    assert font.headers["content-type"] == "font/woff2"
+
+
+def test_web_fonts_are_typed_where_python_does_not_know_them(monkeypatch):
+    """The runtime image's Python has no entry for web fonts and no system table to read one
+    from, so a font went out as `text/plain`. This puts `mimetypes` in that state (the test
+    machine's own table usually does know fonts, which is why nothing ever failed), then
+    requires the registration to fix it."""
+    import mimetypes
+
+    from api.services import static_assets
+
+    bare = mimetypes.MimeTypes(filenames=())
+    for extension in (".woff2", ".woff"):
+        for table in bare.types_map:
+            table.pop(extension, None)
+    monkeypatch.setattr(mimetypes, "_db", bare)
+    assert mimetypes.guess_type("a.woff2")[0] is None, "the stripped table still knows .woff2: this test proves nothing"
+    static_assets.register_missing_types()
+    assert mimetypes.guess_type("a.woff2")[0] == "font/woff2"
+    assert mimetypes.guess_type("a.woff")[0] == "font/woff"
 
 
 @pytest.mark.parametrize("path", ["/assets/index-GONE.js", "/assets/index-abc123.js.br", "/assets/index-abc123.js.gz",
