@@ -91,7 +91,7 @@ def _spy_kind(name, k, calls):
 def test_DORMANT_by_default_every_purpose_is_refused_before_admission(monkeypatch, purpose):
     """#599 (owner): isolated kinds are refused for EVERY purpose, `answer` included, unless UCT_AGENT_ISOLATED=1."""
     monkeypatch.delenv(gw.ISOLATED_ENV, raising=False)
-    assert gw.isolated_enabled() is False
+    assert not any(gw.isolated_enabled(n) for n in isolated_kinds())
     r = gw.registry()
     for name in isolated_kinds():
         calls = {"fn": 0, "validate": 0}
@@ -105,7 +105,8 @@ def test_DORMANT_by_default_every_purpose_is_refused_before_admission(monkeypatc
 
 @pytest.mark.parametrize("purpose", ["research", "scan"])
 def test_an_isolated_kind_is_refused_before_admission_for_any_purpose_but_answer(monkeypatch, purpose):
-    monkeypatch.setenv(gw.ISOLATED_ENV, "1")                       # activated (a separate owner decision)
+    monkeypatch.setenv(gw.ISOLATED_ENV, "1")
+    monkeypatch.setenv(gw.ISOLATED_KINDS_ENV, ",".join(isolated_kinds()))  # activated, each kind by its own entry (owner decisions)
     r = gw.registry()
     for name in isolated_kinds():
         k = r.get(name)

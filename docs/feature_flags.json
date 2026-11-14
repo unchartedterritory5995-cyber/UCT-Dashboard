@@ -3749,6 +3749,26 @@
       "status": "dark",
       "note": "TERM-085: one sentence under the wire's regime banner naming the surface it came from; this repo carries only the styling (app/src/pages/MorningWire.module.css .rd-surface). Default OFF in the engine. Ledgered HERE because morning-wire has no flag ledger and the dashboard renders its output; arming is a morning-wire config change on the local engine box (CONFIG or env), the owner's call. Reversal: unset it; the dashboard renders nothing when the engine emits no line."
     },
+    "UCT_AGENT_ISOLATED": {
+      "repo": "uct-dashboard",
+      "read_at": "api/services/uct_agent/marketdata/gateway.py::isolated_kinds (read per call; == '1' is on)",
+      "kind": "config",
+      "status": "dark",
+      "where": [],
+      "since": "2026-11-14",
+      "default": "unset (off)",
+      "note": "MASTER switch over model-isolated Agent data kinds (ADR-005). Since 2026-11-14 it arms NOTHING on its own: a kind also needs its own UCT_AGENT_ISOLATED_KINDS entry (and UCT_AGENT_DATA_KINDS + UCT_AGENT_DATA). Before 2026-11-14 it alone armed every isolated kind listed in UCT_AGENT_DATA_KINDS. Unset in production at the last recorded read (2026-11-03, docs/agent/program/FLAGS-INVESTIGATION-2026-11-03.md), with no isolated kind in UCT_AGENT_DATA_KINDS, so the change is a no-op there. DARK: isolated values are not cleared for members; turning it on is an owner decision. Unset = kill switch for every isolated kind."
+    },
+    "UCT_AGENT_ISOLATED_KINDS": {
+      "repo": "uct-dashboard",
+      "read_at": "api/services/uct_agent/marketdata/gateway.py::isolated_kinds / isolated_enabled(name), asked by gateway.read for every model-isolated kind (read per call; comma list of kind names, whitespace trimmed; no wildcard)",
+      "kind": "config",
+      "status": "dark",
+      "where": [],
+      "since": "2026-11-14",
+      "default": "unset (NO model-isolated kind is served)",
+      "note": "Per-kind activation of MODEL-ISOLATED Agent data kinds (ADR-005; owner decision 2026-11-12: each Phase 2 data feature is controlled on its own, no single switch may arm several). A model-isolated kind (today breadth.current, ratings; pending rs.leadership #1236, catalysts.board #1256) is served only when UCT_AGENT_DATA=1 AND it is in UCT_AGENT_DATA_KINDS AND UCT_AGENT_ISOLATED=1 (master) AND it is listed here; and then for purpose 'answer' only. Fails closed: unset/empty arms none, an unknown name arms nothing, and a name here never arms a non-isolated kind. DARK: no isolated kind has been cleared for members; each entry is a separate owner decision. Reversal: remove the kind's name (or unset UCT_AGENT_ISOLATED to turn every isolated kind off at once)."
+    },
     "DESK_YT_FIRST_COMMENT": {
       "repo": "uct-dashboard",
       "read_at": "api/services/desk_daily_session.py::first_comment_enabled (read per upload; 1/true/yes is on)",

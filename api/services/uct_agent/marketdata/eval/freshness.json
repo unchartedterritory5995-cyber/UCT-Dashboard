@@ -2197,7 +2197,8 @@
       },
       "expect_refusal": true,
       "flags": {
-        "UCT_AGENT_ISOLATED": "1"
+        "UCT_AGENT_ISOLATED": "1",
+        "UCT_AGENT_ISOLATED_KINDS": "breadth.current"
       }
     },
     {

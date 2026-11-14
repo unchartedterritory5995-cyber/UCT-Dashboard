@@ -55,7 +55,7 @@ def client(app):
 
 @pytest.fixture(autouse=True)
 def _flags(monkeypatch):
-    for name in (gw.SCAN_ENV, gw.ISOLATED_ENV, "UCT_AGENT_STREAM", "UCT_AGENT_COST_CAP_DAILY"):
+    for name in (gw.SCAN_ENV, gw.ISOLATED_ENV, gw.ISOLATED_KINDS_ENV, "UCT_AGENT_STREAM", "UCT_AGENT_COST_CAP_DAILY"):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setenv(gw.DATA_ENV, "1")
     monkeypatch.setenv(gw.KINDS_ENV, DATA_KINDS)
