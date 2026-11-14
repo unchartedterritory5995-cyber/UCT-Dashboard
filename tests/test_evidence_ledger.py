@@ -266,7 +266,7 @@ def test_L10_retire_legacy_drops_only_a_legacy_row_a_v2_row_has_filed_again(tmp_
     v2 = _row()
     lines = [json.dumps(_row(cid="other-rddt-1d-2026-11-13", text=OTHER), sort_keys=True),
              json.dumps(_legacy()), json.dumps(_legacy(cid="orphan-rddt-1d-2026-11-13")),
-             json.dumps(v2, sort_keys=True)]
+             json.dumps(v2, separators=(",", ":"))]                   # bytes a re-serialisation would change
     path.write_text("".join(ln + chr(10) for ln in lines), encoding="utf-8")
     out = el.retire_legacy(path)
     assert out == {"retired": ["held-momentum-rddt-1d-2026-11-13"], "kept": ["orphan-rddt-1d-2026-11-13"]}
