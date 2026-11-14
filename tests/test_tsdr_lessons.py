@@ -2162,6 +2162,25 @@ def _ids(hits):
     return [h["attachment_id"] for h in hits]
 
 
+def test_an_older_lesson_with_no_part_timings_still_gets_its_moment(monkeypatch):
+    """⚰️ Found in Discord 2026-11-14: no /lesson result showed a "Watch from". Part timings
+    arrived with library v2 (2026-10-18); a lesson transcribed before has its words and its
+    length but no parts, and was given no moment at all. It is placed along the whole
+    video, as locate_moments does without parts."""
+    monkeypatch.setenv("TSDR_LESSONS_THREADS_ENABLED", "1")
+    words = "aaaa " * 100 + "stop loss " + "bbbb " * 98                    # the words half way through
+    _searchable("old1", 1, "Stops", transcript=words, youtube_id="YTVID00009", segments=[])
+    tl._update("old1", duration_s=600)
+    hit = tl.search_lessons("stop loss")[0]
+    assert hit["at"] == "4:45" and hit["watch"] == "https://youtu.be/YTVID00009?t=285"      # 300 s less 15
+    assert "stop loss" in hit["quote"]
+    # no length: nothing to place it by, so no moment rather than a made-up one
+    _searchable("old2", 2, "Stops again", transcript=words, segments=[])
+    tl._update("old2", duration_s=None)
+    hit2 = next(h for h in tl.search_lessons("stop loss") if h["attachment_id"] == "old2")
+    assert hit2["at"] == "" and hit2["watch"] == "" and hit2["quote"] == ""
+
+
 def test_a_lesson_whose_post_was_deleted_is_not_offered_by_search_or_see_also(monkeypatch):
     """⚰️ run_regroup marks a lesson whose old post was deleted by hand with the section
     "removed" and leaves it `posted`. /lesson and "See also" both read `posted`, so they
