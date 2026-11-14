@@ -1084,36 +1084,34 @@
    "skill": "basics.volume",
    "rung": 6,
    "format": "scenario",
-   "story": "You hold 6,000 shares of a small stock that trades about 15,000 shares a day. You decide to sell all of it right now.",
-   "q": "What should you be ready for?",
+   "story": "A scan flags QLMN, a $12 stock with a clean setup. It trades about 15,000 shares a day, and you would like to buy 6,000. These are made-up numbers.",
+   "q": "What do we do with it?",
    "choices": [
-    "Taking a lower price to get out",
-    "Getting out at the last price",
-    "Filling all 6,000 at one price",
-    "A better price for selling in bulk"
+    "We pass: just 15,000 shares a day",
+    "We pass: the $12 price is too low",
+    "We buy 6,000 and sell it in pieces",
+    "We buy 1,500 shares, a smaller size"
    ],
-   "answer": "Taking a lower price to get out",
-   "why": "Taking a lower price to get out. Your 6,000 shares are a big slice of a 15,000-share day. In a thin stock, selling quickly can mean accepting a lower price, and any size trade can move the price a lot. Sometimes nobody will buy at a price you'd accept. The last trade is not a promised price.",
-   "lesson_line": "In a thin stock, the exit is the hard part. Plan it before you buy.",
+   "answer": "We pass: just 15,000 shares a day",
+   "why": "We pass. Dollar volume is the price times the shares traded, the money that changes hands in a day. Multiply $12 by 15,000 shares and the dollars traded are far under the $20 million a day we require. The price clears our $10 line, but the dollars traded do not. Buying 6,000 shares would be a big slice of a 15,000-share day. Selling later could mean taking a lower price, and sometimes no buyer shows at a price you accept. Our rule also says never own more than 1% of the average day, and illiquid stocks are not even watched. To check any name, multiply its price by its average daily volume.",
+   "lesson_line": "Check dollars traded before the setup. A name this thin fails our liquidity minimum and never makes our list.",
    "facts": [
+    "h1",
+    "h2",
+    "f43",
     "f20",
     "f21",
-    "f18",
-    "f34",
-    "f58",
     "f35",
-    "f36",
-    "f30",
-    "h2"
+    "f30"
    ],
    "wrong": {
-    "Getting out at the last price": "The last price is a trade that already happened. It is not the price your order is promised.",
-    "Filling all 6,000 at one price": "Not in a thin stock. When one price lacks enough shares, parts of a big market order can fill at other prices.",
-    "A better price for selling in bulk": "There is no bulk bonus. In a low-volume stock any size trade can move the price a lot, and selling fast can mean a lower price."
+    "We pass: the $12 price is too low": "The price is fine. Our line is $10 a share, and $12 clears it. What fails is the dollars traded each day.",
+    "We buy 6,000 and sell it in pieces": "Pieces do not fix it. In a low-volume stock any size trade can move the price a lot, and selling fast can mean a lower price.",
+    "We buy 1,500 shares, a smaller size": "Size cannot fix it. The $20 million a day line decides which stocks we trade at all, and illiquid stocks are not even watched."
    },
-   "simple": "Expect a lower price, because a thin stock may lack the buyers to take 6,000 shares fast.",
+   "simple": "We pass, because 15,000 shares a day at $12 is far under the dollars our rule needs to trade it.",
    "deeper": {
-    "trap": "The trap is planning only the way in. In a thin stock, getting out of a big position is the hard part. Our rule guards against it: never own more than 1% of a stock's average daily volume, and illiquid stocks are not even watched."
+    "trap": "The trap is judging only the chart. A clean setup on a thin name still fails, because we check dollars traded first. A stock this thin is not even on our list."
    },
    "tier": "extended",
    "risk": {
@@ -1122,7 +1120,7 @@
      "fixed before (choice reworded)"
     ]
    },
-   "batch": "wave6"
+   "batch": "review4"
   },
   {
    "key": "q15",
@@ -1814,7 +1812,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key is right and solid (f20, f21, f30, f35, f36, f58). Only break: deeper.trap says 'That is why we never own more than 1%...'. The rulebook (D42) states the rule but never gives its reason, so 'That is why' claims a cause the owner never stated. Reworded to say the rule guards against the trap, which is still grounded in h2. Everything else is unchanged."
+   "notes": "Meets his note: the scenario no longer has us trading a 15,000-share stock; it is now a pass under the $20 million a day line (h1, h2 quotes word for word, f20/f21/f30/f35 cited quotes support the exit-risk teaching). QLMN is not a known listed company and the numbers are flagged made-up. Right answer pass, three wrongs clearly wrong; price $12 clears $10 so option B is truly false. Fix: the why told the reader to multiply price by volume but never did it (learning 3: show the math), and the right answer was the longest choice. Made the multiplication explicit in the why ($12 by 15,000 shares,"
   },
   "q15": {
    "status": "cut",

@@ -669,7 +669,7 @@
    "rung": 1,
    "format": "mcq",
    "term": "float",
-   "q": "What is a company's float?",
+   "q": "A trader looks up a stock's float. What does the float count?",
    "choices": [
     "Shares the public can trade",
     "Every share the company issued",
@@ -677,26 +677,29 @@
     "Shares traded in one day"
    ],
    "answer": "Shares the public can trade",
-   "why": "Shares the public can trade. Nasdaq defines the float as the outstanding shares available for trading by the public, excluding insiders or restricted stock. It is not short interest, which is often measured against the float. Nor is it a day's trading: buying and selling only move shares around, so the float stays the same.",
-   "lesson_line": "The float is the supply you and I can actually buy and sell.",
+   "why": "Shares the public can trade. The float is the supply we can actually buy and sell. Shares outstanding is the bigger count, because it also includes insider and restricted shares that cannot trade yet. Nasdaq defines the float as outstanding shares available to the public, leaving out insiders and restricted stock. We check it because a small float means thin supply, and the price can swing fast both ways. Find it in the UCT Screener as Float (Shares), or work it out: shares outstanding minus insider and restricted shares.",
+   "lesson_line": "The float is the supply we can actually trade. A thin float means fast moves, both ways.",
    "facts": [
     "f26",
     "f20",
     "f64",
-    "f51"
+    "f51",
+    "f43",
+    "f27",
+    "f45"
    ],
    "wrong": {
-    "Every share the company issued": "That's closer to shares outstanding, which also counts insiders' and restricted shares.",
-    "Shares sold short right now": "That's short interest. It's often measured against the float, but it isn't the float.",
-    "Shares traded in one day": "That's a day's trading. Buying and selling move shares around but don't change the float."
+    "Every share the company issued": "That is close to shares outstanding. It also counts insider and restricted shares the public cannot trade.",
+    "Shares sold short right now": "That is short interest. It is often measured against the float, but it is not the float.",
+    "Shares traded in one day": "That is volume. Buying and selling move shares between owners and do not change the float."
    },
-   "simple": "The float is the shares the public can trade, because insiders' shares and restricted stock are left out.",
+   "simple": "The shares the public can freely trade. Insider and restricted shares are left out, so this is the real supply.",
    "tier": "core",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave6"
+   "batch": "review4"
   },
   {
    "key": "q03",
@@ -1072,17 +1075,17 @@
    "skill": "basics.float_cap",
    "rung": 6,
    "format": "scenario",
-   "story": "Four stocks gap up on the same kind of news before the open. Market caps: QZLN $600 million, VXRP $3 billion, HJTK $40 billion, ZWMB $900 billion.",
-   "q": "Which one is most likely to make the biggest percent move?",
+   "story": "Four stocks report strong earnings. Market caps: HJTK $40 billion, QZLN $1.5 billion, ZWMB $900 billion, VXRP $6 billion.",
+   "q": "Which is most likely to gap up the most in percent?",
    "choices": [
-    "QZLN",
-    "VXRP",
     "HJTK",
-    "ZWMB"
+    "QZLN",
+    "ZWMB",
+    "VXRP"
    ],
    "answer": "QZLN",
-   "why": "QZLN, most likely. At $600 million it is a small-cap on FINRA's ranges, the smallest of the four. VXRP is a mid-cap, HJTK a large-cap and ZWMB a mega-cap. FINRA says large caps tend to swing less than mid caps, and mid caps less than small caps. Fidelity agrees that smaller companies may have more volatile stocks. These are tendencies, no guarantee for any one company.",
-   "lesson_line": "Same news, smaller company, usually a bigger move. Then check the float.",
+   "why": "QZLN, most likely. At $1.5 billion it is the smallest of the four, a small-cap on FINRA's ranges. VXRP at $6 billion is a mid-cap, HJTK at $40 billion a large-cap and ZWMB at $900 billion a mega-cap. FINRA says large caps tend to swing less than mid caps, and mid caps less than small caps. Fidelity agrees that smaller companies may be more volatile. Size is only a rough guide. The float matters too: Nasdaq ties a stock's volatility to its float. Market cap is a column in the UCT Screener, and the float sits next to it as Float (Shares).",
+   "lesson_line": "Same earnings gap, smaller company, usually a bigger move. Then check the float.",
    "facts": [
     "f10",
     "f60",
@@ -1091,13 +1094,13 @@
     "f27"
    ],
    "wrong": {
-    "VXRP": "At $3 billion it is a mid-cap, and mid caps tend to swing less than small caps.",
+    "VXRP": "At $6 billion it is a mid-cap, and mid caps tend to swing less than small caps.",
     "HJTK": "At $40 billion it is a large-cap. Large caps tend to be steadier than mid caps and small caps.",
     "ZWMB": "At $900 billion it is the biggest of the four. Fidelity says larger companies often have less volatile stocks."
    },
    "simple": "QZLN, because the smallest company tends to swing the most, though that is a tendency and not a promise.",
    "deeper": {
-    "counter": "The tendency can fail for any one company. FINRA says these generalizations are no guarantee that any particular small-cap company will or won't thrive. Read size as odds, not a forecast. Then check the float as well, because Nasdaq ties a stock's volatility to its float."
+    "counter": "The tendency can fail for any one company. FINRA says these generalizations are no guarantee that any particular small-cap company will or won't thrive. Read size as odds, not a forecast. Then check the float, because Nasdaq ties a stock's volatility to its float. A $1.5 billion company with a big float can move less than a $6 billion one with a tiny float."
    },
    "tier": "extended",
    "risk": {
@@ -1106,7 +1109,7 @@
      "fixed before (+1)"
     ]
    },
-   "batch": "review2"
+   "batch": "review4"
   },
   {
    "key": "q14",
@@ -1532,8 +1535,8 @@
   "q02": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key from f26 (Nasdaq, Tier 1). Key 27 chars, not the longest. Notes rest on f64 and f51. The why states the Nasdaq definition, which also gives q07's reason; accepted because w2 step 2 already teaches it before any question, and q07 asks the reason at a higher rung."
+   "fixed": true,
+   "notes": "Answer right, choices even, why defines float and shares outstanding, shows where to find it (UCT Screener has a Float (Shares) filter, checked in api/services/screener/filters.py) and by hand (f43), says a thin float swings both ways (f45, f27 tend wording). Facts f26 f20 f64 f51 f43 f27 f45 all exist and match. No banned phrase. One catch: the wrong note for 'Every share the company issued' says 'That is shares outstanding', but issued shares include treasury shares that are not outstanding (f28), so the note overstated. Now 'That is close to shares outstanding'."
   },
   "q03": {
    "status": "cut",
@@ -1598,8 +1601,8 @@
   "q13": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Made-up tickers QZLN, VXRP, HJTK, ZWMB checked against Nasdaq's nasdaqlisted.txt and otherlisted.txt (fetched today) and the 3,742-name cap universe: none is a listed company. Buckets right on FINRA's lines (f5, f6, f4): $600 million small, $3 billion mid, $40 billion large, $900 billion mega. f10 and f11 quotes verbatim. Tickers fixes the unlabeled-dollar-stems problem (rule 7); tendency wording kept (most likely). All four tickers are four capital letters, no tell."
+   "fixed": true,
+   "notes": "Owner note met: smallest name now $1.5 billion, labelled a small-cap, universe-friendly. Buckets right on FINRA lines (f6, f5, f4): $1.5 billion small, $6 billion mid, $40 billion large, $900 billion mega. Made-up tickers are not the real companies (earlier checker verified against Nasdaq lists). 'Likely' and 'rough guide' wording, float follow-up and Screener lookup present, no number in why missing from the story. Catch: the story says all four already gap up, then asks which makes the biggest percent move, which reads as a second move after the gap and needs a second read (rule 5). Reworded"
   },
   "q14": {
    "status": "cut",

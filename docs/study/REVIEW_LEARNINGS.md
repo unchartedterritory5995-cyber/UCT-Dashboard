@@ -53,3 +53,6 @@ rule names the evidence.
     validator now rejects it (courses_lib.BANNED_PHRASES).
 17. **Our universe is mostly $1 billion and up.** "I don't really trade small caps though. Very rarely under $1B but
     sometimes." Examples should use the kinds of stocks we trade; a small-cap is the exception, labelled as one.
+18. **Don't repeat one question shape.** "Seem to have a lot of these questions for some reason" (F5.05 had seven
+    "options priced X%, the stock moved Y%, compare" questions). Within a lesson, keep two or three of any one shape and
+    spend the rest on different skills: where to find it, what to do with it, how it meets our rules.

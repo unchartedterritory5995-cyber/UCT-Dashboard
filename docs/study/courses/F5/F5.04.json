@@ -204,6 +204,22 @@
    "title": "The house sizing rule, section 9: The account rulebook (the owner, 2026-11-09)",
    "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
    "accessed": "2026-11-12"
+  },
+  {
+   "id": "s24",
+   "tier": 3,
+   "publisher": "UCT app",
+   "title": "The UCT app's own guide: where the Calendar page shows implied moves",
+   "url": "repo:app/src/agent/discovery.js",
+   "accessed": "2026-11-14"
+  },
+  {
+   "id": "s25",
+   "tier": 3,
+   "publisher": "UCT app",
+   "title": "The UCT app's Calendar widget: the sortable Impl. Move column",
+   "url": "repo:app/src/pages/charts/widgets/CalendarWidget.jsx",
+   "accessed": "2026-11-14"
   }
  ],
  "facts": [
@@ -650,6 +666,18 @@
    "source": "s23",
    "quote": "No new buys in the 3 days before an earnings report; hold through a report only if the trade is up 5R.",
    "claim": "Our rule B22: no new buys in the 3 days before an earnings report."
+  },
+  {
+   "id": "f74",
+   "source": "s24",
+   "quote": "estimates, implied moves and reactions (read them on the Calendar page)",
+   "claim": "The UCT app shows each name's implied move on its Calendar page."
+  },
+  {
+   "id": "f75",
+   "source": "s25",
+   "quote": "title=\"Sort by implied move\"",
+   "claim": "The Calendar page's earnings list has an Impl. Move column that you can sort by."
   }
  ],
  "walkthroughs": [
@@ -1019,16 +1047,18 @@
     "round": 1
    },
    "suffix": "%",
-   "why": "4.5%. The implied move is the move the options market is pricing in. Divide it by the price: $9.48 / $209.58 is about 4.5%. IBKR read the move from the nearest at-the-money straddle, a call and a put at the same 210 strike. Their prices, 4.75 and 5.15, less the gap between strike and price, 210 minus 209.58, give 9.48. It is a size, not a direction. MSFT closed at $202.54 on July 23, the day after.",
-   "lesson_line": "Turn the priced move into a percent. Then compare it with how far away your stop is.",
+   "why": "4.5%. The implied move is the move the options market prices in for the report. It is a size, not a direction. Divide it by the price: $9.48 / $209.58 is about 4.5%. In the UCT app, the Calendar page shows it in the Impl. Move column, and you can sort by it. To find it by hand, use the nearest at-the-money straddle, a call and a put at the strike closest to the price. Add their prices, 4.75 and 5.15. Subtract the gap between the 210 strike and the 209.58 price. That leaves 9.48. MSFT closed at $202.54 the next day.",
+   "lesson_line": "Turn the priced move into a percent. Read it in the Calendar page's Impl. Move column, or work it from the straddle.",
    "facts": [
     "f52",
     "f51",
     "f53",
     "f50",
-    "f36"
+    "f36",
+    "f74",
+    "f75"
    ],
-   "simple": "About 4.5%, because $9.48 is about 4.5% of the $209.58 price.",
+   "simple": "About 4.5%, because $9.48 is about 4.5% of the $209.58 price. The Calendar page shows this number for you.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1036,7 +1066,7 @@
      "computed key (calc); inputs from one IBKR page, which refused a plain client (403) on 2026-11-12"
     ]
    },
-   "batch": "review3",
+   "batch": "review4",
    "choices": [
     "0.5%",
     "22.1%",
@@ -1586,16 +1616,16 @@
    "notes": "Key from f56/f55/f57. Choices 20-25, key not longest. Neutral on holding; the pointer to our rule does not state the 3 days, so it does not answer q24."
   },
   "q03": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Extended-hours definition rests on f17/f18 (SEC bulletin). Key unchanged and correct; the added action line (which side of the session) is the trader framing. Clean."
+   "notes": "cut in review4: see the resolver's notes"
   },
   "q04": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Retailer fiscal-quarter case is f5 verbatim in substance; ends on the action (look up each name). Answer False correct."
+   "notes": "cut in review4: see the resolver's notes"
   },
   "q05": {
    "status": "cut",
@@ -1622,17 +1652,16 @@
    "notes": "False is right. Meta $249.90 after hours, down 22.6% (f67), and $237.76 close the next session (f64) are verbatim and the why claims only that the price kept moving, not that it opened there. SEC point is f19. Definition of after-hours is in the why."
   },
   "q09": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "f27 (7:00 a.m. release, 8:30 call) + f17 (9:30 open). Choices 34-35. Stem 137 chars. Its lesson_line teaches the before-open half q12 applies; q12 is the synthesis item, so accepted as teaching, not a give-away.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "cut in review4: see the resolver's notes"
   },
   "q10": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Math checked: 4.75+5.15-(210-209.58)=9.48; 9.48/209.58=4.5%. IBKR (interactivebrokers.com/campus/?p=53743, re-fetched) says 'weekly 210 strike calls and puts... midpoint minus any intrinsic value'; it does NOT say which of 4.75/5.15 is the call, so 'the $4.75 call and $5.15 put' was an unsupported assignment. Also the writer's 'less 210 minus 209.58' was confusing and 'once you multiply by 100' was clumsy. Rewritten with the source's own numbers only."
+   "fixed": false,
+   "notes": "Owner note answered: names the Calendar page Impl. Move column (sortable; verified in CalendarWidget.jsx, shows the pre-report implied move as a percent) and the by-hand route (nearest at-the-money straddle; 4.75+5.15-(210-209.58)=9.48; 9.48/209.58=4.5%). Facts f74/f75 quotes found verbatim in app/src/agent/discovery.js line 173 and CalendarWidget.jsx line 219. Answer 4.5% right; wrong choices keyed to real slips. Sentences <=22 words."
   },
   "q11": {
    "status": "cut",
@@ -1665,11 +1694,10 @@
    "by": "track auditor"
   },
   "q16": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Key from f71/f72/f73 (OIC, Tier 1). Choices 35-37, key is shortest. Volume wrong note now rests on f50/f73; weak but not unsupported.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "cut in review4: see the resolver's notes"
   },
   "q17": {
    "status": "pass",

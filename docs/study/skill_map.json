@@ -240,7 +240,7 @@
                 "F5"
               ],
               "supply": "authored",
-              "est_questions": 23,
+              "est_questions": 22,
               "course_file": "docs/study/courses/F5/F5.02.json"
             },
             {
@@ -268,7 +268,7 @@
                 "F5"
               ],
               "supply": "authored",
-              "est_questions": 20,
+              "est_questions": 16,
               "course_file": "docs/study/courses/F5/F5.04.json"
             },
             {

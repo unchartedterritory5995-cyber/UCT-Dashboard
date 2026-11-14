@@ -941,7 +941,7 @@
    "skill": "fund.expected_move",
    "rung": 5,
    "format": "mcq",
-   "q": "Options priced a 4% move. The stock moved 10%. What is the realized move divided by the implied move?",
+   "q": "HXLR closed at $50 before earnings. Its at-the-money straddle cost $2. It closed at $55 after. Realized move divided by implied move?",
    "answer": "2.5x",
    "calc": {
     "fn": "arith",
@@ -952,16 +952,18 @@
     }
    },
    "suffix": "x",
-   "why": "2.5. Divide the realized move by the implied move: 10 divided by 4 is 2.5. Near one means about as priced, under one means smaller, over one means bigger. When a stock moves more than implied, OIC says the options are sometimes called outperforming expectations. At 2.5 the stock moved far more than options priced.",
-   "lesson_line": "Realized over implied: under one is smaller than priced, over one is bigger.",
+   "why": "2.5x. A straddle is a call and a put at the same strike, and its price is the quick read of the move options price. $2 divided by the $50 stock is 4%. The stock went from $50 to $55, which is a 10% move. Realized divided by implied is 10 divided by 4, which is 2.5. Under one means smaller than priced. Over one means bigger. OIC says options are sometimes called outperforming expectations when the stock moves more than implied. At 2.5 the stock moved far more than options priced. To work it out by hand, divide the nearest at-the-money straddle price by the stock price.",
+   "lesson_line": "Straddle over price gives the priced move. Realized over implied tells you how it compared.",
    "facts": [
-    "f18",
+    "f7",
+    "f26",
+    "f35",
+    "f37",
     "f27",
-    "f17",
     "f53",
     "f54"
    ],
-   "simple": "It is 2.5, because a 10% move is two and a half times the 4% move options priced.",
+   "simple": "It is 2.5, because the stock moved two and a half times what the straddle priced.",
    "tier": "extended",
    "risk": {
     "score": 3,
@@ -970,17 +972,17 @@
      "fixed before (OIC f53 and f54 added)"
     ]
    },
-   "batch": "rank",
+   "batch": "review4",
    "choices": [
     "2.5x",
+    "0.4x",
     "6.0x",
-    "14.0x",
-    "40.0x"
+    "14.0x"
    ],
    "wrong": {
-    "6.0x": "You subtracted 4 from 10 instead of dividing.",
-    "14.0x": "You added 4 and 10 instead of dividing.",
-    "40.0x": "You multiplied 4 by 10 instead of dividing."
+    "6.0x": "You subtracted the 4% from the 10% instead of dividing.",
+    "14.0x": "You added the 4% and the 10% instead of dividing.",
+    "0.4x": "You flipped it and divided the priced 4% by the realized 10%. Put the realized move on top."
    }
   },
   {
@@ -1554,7 +1556,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Only facts changed (f26 added). Realized is the only defensible bank word; 'expected' is correctly ruled out via f26 and w1. Fidelity f26 found in the transcript PDF text."
+   "notes": "Owner said good; untouched by the upgrade."
   },
   "q04": {
    "status": "pass",
@@ -1602,8 +1604,8 @@
   "q11": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
+   "fixed": true,
+   "notes": "Answers his note (different style: ticker story, dollar straddle, two steps, steps shown, how to work it out by hand). Math right: 2/50=4%, 5/50=10%, 10/4=2.5; wrong answers are real slips (flip, subtract, add). HXLR is not a real ticker (search found none), and no real company's numbers are claimed. Claims backed by f7, f26, f35, f54. Only change: the stem ended on the bare 'Realized divided by implied?' and 'After earnings it is $55' left the close-to-close basis and the percent unstated, so a second read was needed (learnings rule 5). Made explicit; 133 chars. No cuts, no new questions, no "
   },
   "q12": {
    "status": "pass",
@@ -1615,7 +1617,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer: buyers (12% held into expiry vs about 5% priced; f8, f22). New fourth choice 'Depends on implied volatility' is a real IV-crush misconception, not the key, with a grounded note (f9, f5, f12). Choice lengths 26-29. Seller max gain no longer given away to q08."
+   "notes": "Owner said good; untouched by the upgrade."
   },
   "q14": {
    "status": "pass",
@@ -1682,9 +1684,8 @@
   "q24": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Own answer before key: the report surprised the market (f17/f34: options price the expected reaction; f54: more than implied beats it). Key matches; 'surprise' is an inference from those quotes, not a quote, but the only defensible one of the four. Rulebook section 9 has nothing against 'judge the chart on its own merits'. Breaks: (1) the why's OIC sentence is copied word for word from q11's why, and the wrong note repeats it a third time; (2) 'A move twice that size means the news landed far outside that expectation' copies q21's why. Fix rewords both. STILL OPEN, OUTSIDE THIS CHECK: q21 (run",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": false,
+   "notes": "Owner said good; untouched by the upgrade."
   },
   "q25": {
    "status": "pass",

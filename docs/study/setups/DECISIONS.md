@@ -2769,3 +2769,5 @@ Still open (he asked what these mean; the defaults stand until he answers):
   Rule: Shorts enter like buys: as price trades through the trigger, never at the close.
 - **Heavy-volume down day in a pullback (chat, 2026-11-14).** His words: "Does not void the setup, just more mindful of the distribution day but by no means invalid"
   Rule: A heavy-volume down day during a pullback (for example 1.5 times the 50-day volume into the line) does not void the setup. Treat it as a distribution day to be mindful of, a warning and a lower grade, never an invalidation.
+- **VCP heavy down day (chat, 2026-11-14).** His words: "Eh doesn't matter most of the time honestly"
+  Rule: In a VCP, a heavy-volume down day in the right side of the base does not end the setup; most of the time it does not matter. At most it is a warning to note, never an invalidation.

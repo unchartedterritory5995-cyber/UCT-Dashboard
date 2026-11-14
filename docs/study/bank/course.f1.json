@@ -3811,31 +3811,52 @@
  },
  {
   "answer_json": {
-   "answer": "Taking a lower price to get out"
+   "answer": "We pass: just 15,000 shares a day"
   },
   "difficulty": 2,
   "id": "si_5f4d56d9d6b3",
   "lesson_origin": "session",
-  "lesson_text": "Taking a lower price to get out. Your 6,000 shares are a big slice of a 15,000-share day. In a thin stock, selling quickly can mean accepting a lower price, and any size trade can move the price a lot. Sometimes nobody will buy at a price you'd accept. The last trade is not a promised price. In a thin stock, the exit is the hard part. Plan it before you buy.",
+  "lesson_text": "We pass. Dollar volume is the price times the shares traded, the money that changes hands in a day. Multiply $12 by 15,000 shares and the dollars traded are far under the $20 million a day we require. The price clears our $10 line, but the dollars traded do not. Buying 6,000 shares would be a big slice of a 15,000-share day. Selling later could mean taking a lower price, and sometimes no buyer shows at a price you accept. Our rule also says never own more than 1% of the average day, and illiquid stocks are not even watched. To check any name, multiply its price by its average daily volume. Check dollars traded before the setup. A name this thin fails our liquidity minimum and never makes our list.",
   "module": "F1",
   "prompt_json": {
    "choices": [
-    "A better price for selling in bulk",
-    "Getting out at the last price",
-    "Taking a lower price to get out",
-    "Filling all 6,000 at one price"
+    "We buy 1,500 shares, a smaller size",
+    "We pass: the $12 price is too low",
+    "We pass: just 15,000 shares a day",
+    "We buy 6,000 and sell it in pieces"
    ],
    "kind": "mcq",
-   "q": "What should you be ready for?",
-   "story": "You hold 6,000 shares of a small stock that trades about 15,000 shares a day. You decide to sell all of it right now.",
+   "q": "What do we do with it?",
+   "story": "A scan flags QLMN, a $12 stock with a clean setup. It trades about 15,000 shares a day, and you would like to buy 6,000. These are made-up numbers.",
    "subject": "F1.04#q14"
   },
   "reveal_json": {
    "deeper": {
-    "trap": "The trap is planning only the way in. In a thin stock, getting out of a big position is the hard part. Our rule guards against it: never own more than 1% of a stock's average daily volume, and illiquid stocks are not even watched."
+    "trap": "The trap is judging only the chart. A clean setup on a thin name still fails, because we check dollars traded first. A stock this thin is not even on our list."
    },
    "depth": {
     "sources": [
+     {
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "Trade only stocks at $10 or more that trade at least $20 million a day.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "Never own more than 1% of a stock's average daily volume; illiquid stocks are not even watched.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "S&P Dow Jones Indices: Float Adjusted Liquidity Ratio Clarification for Certain U.S. Indices (Dec 9, 2024)",
+      "quote": "annual dollar value traded is defined as the average closing price multiplied by the historical volume over the 365 calendar days prior to the evaluation date.",
+      "tier": 1,
+      "url": "https://press.spglobal.com/2024-12-09-S-P-Dow-Jones-Indices-Float-Adjusted-Liquidity-Ratio-Clarification-for-Certain-U-S-Indices"
+     },
      {
       "accessed": "2026-11-09",
       "name": "FINRA: Understanding Market Liquidity and Your Investments",
@@ -3852,27 +3873,6 @@
      },
      {
       "accessed": "2026-11-09",
-      "name": "SEC, Investor.gov: Liquidity (or Marketability)",
-      "quote": "Stocks with low liquidity may be difficult to sell and may cause you to take a bigger loss if you cannot sell the shares when you want to.",
-      "tier": 1,
-      "url": "https://www.investor.gov/introduction-investing/investing-basics/glossary/liquidity-or-marketability"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC, Investor.gov: Investor Bulletin: Microcap Stock Basics (Part 1 of 3: General Information)",
-      "quote": "Another risk that pertains to microcap stocks involves the low volumes of trades, which may make it difficult for you to sell your shares when you want to do so.",
-      "tier": 1,
-      "url": "https://investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-microcap-stock-basics-part-1-3"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC, Investor.gov: Investor Bulletin: Understanding Order Types",
-      "quote": "the last-traded price is not necessarily the price at which a market order will be executed.",
-      "tier": 1,
-      "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-understanding-order-types"
-     },
-     {
-      "accessed": "2026-11-09",
       "name": "SEC, Investor.gov: Investor Bulletin: Microcap Stock Basics (Part 1 of 3: General Information)",
       "quote": "Because many microcap stocks trade in low volumes, any size trade can have a large percentage impact on the price of the stock.",
       "tier": 1,
@@ -3880,40 +3880,26 @@
      },
      {
       "accessed": "2026-11-09",
-      "name": "SEC, Investor.gov: Investor Bulletin: Understanding Order Types",
-      "quote": "In addition, parts of a large market order may execute at different prices due to lack of liquidity at a price at the time of execution.",
-      "tier": 1,
-      "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-understanding-order-types"
-     },
-     {
-      "accessed": "2026-11-09",
       "name": "FINRA: Low-Priced Stocks Can Spell Big Problems",
       "quote": "The low trading volume of these securities also can make them hard to sell due to a potential lack of buyers.",
       "tier": 1,
       "url": "https://www.finra.org/investors/insights/low-priced-stocks-big-problems"
-     },
-     {
-      "accessed": "2026-11-12",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "Never own more than 1% of a stock's average daily volume; illiquid stocks are not even watched.",
-      "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      }
     ],
-    "summary": "Selling an illiquid stock fast can mean taking a lower price. Sometimes there is no buyer at any price you would accept. Illiquid stocks can be hard to sell, and that can turn into a bigger loss. Low volume can make it hard to sell your shares when you want to. The last trade is not the price your market order is promised. In a low-volume stock, any size trade can move the price a lot in percentage terms. When one price lacks enough shares, parts of a big market order can fill at other prices. Low trading volume can make a stock hard to sell because buyers may not be there. Our rule: never own more than 1% of a stock's average daily volume, and we do not even watch illiquid stocks."
+    "summary": "Our rule: we trade only stocks priced at $10 or more that trade at least $20 million a day. Our rule: never own more than 1% of a stock's average daily volume, and we do not even watch illiquid stocks. S&P Dow Jones Indices measures dollar value traded as price times volume. Selling an illiquid stock fast can mean taking a lower price. Sometimes there is no buyer at any price you would accept. In a low-volume stock, any size trade can move the price a lot in percentage terms. Low trading volume can make a stock hard to sell because buyers may not be there."
    },
    "facts": {
-    "given": "What should you be ready for? You hold 6,000 shares of a small stock that trades about 15,000 shares a day. You decide to sell all of it right now. Taking a lower price to get out Getting out at the last price Filling all 6,000 at one price A better price for selling in bulk"
+    "given": "What do we do with it? A scan flags QLMN, a $12 stock with a clean setup. It trades about 15,000 shares a day, and you would like to buy 6,000. These are made-up numbers. We pass: just 15,000 shares a day We pass: the $12 price is too low We buy 6,000 and sell it in pieces We buy 1,500 shares, a smaller size"
    },
-   "lesson_line": "In a thin stock, the exit is the hard part. Plan it before you buy.",
-   "simple": "Expect a lower price, because a thin stock may lack the buyers to take 6,000 shares fast.",
+   "lesson_line": "Check dollars traded before the setup. A name this thin fails our liquidity minimum and never makes our list.",
+   "simple": "We pass, because 15,000 shares a day at $12 is far under the dollars our rule needs to trade it.",
    "tier": "extended",
    "unit": "F1.04",
-   "why": "Taking a lower price to get out. Your 6,000 shares are a big slice of a 15,000-share day. In a thin stock, selling quickly can mean accepting a lower price, and any size trade can move the price a lot. Sometimes nobody will buy at a price you'd accept. The last trade is not a promised price.",
+   "why": "We pass. Dollar volume is the price times the shares traded, the money that changes hands in a day. Multiply $12 by 15,000 shares and the dollars traded are far under the $20 million a day we require. The price clears our $10 line, but the dollars traded do not. Buying 6,000 shares would be a big slice of a 15,000-share day. Selling later could mean taking a lower price, and sometimes no buyer shows at a price you accept. Our rule also says never own more than 1% of the average day, and illiquid stocks are not even watched. To check any name, multiply its price by its average daily volume.",
    "wrong": {
-    "A better price for selling in bulk": "There is no bulk bonus. In a low-volume stock any size trade can move the price a lot, and selling fast can mean a lower price.",
-    "Filling all 6,000 at one price": "Not in a thin stock. When one price lacks enough shares, parts of a big market order can fill at other prices.",
-    "Getting out at the last price": "The last price is a trade that already happened. It is not the price your order is promised."
+    "We buy 1,500 shares, a smaller size": "Size cannot fix it. The $20 million a day line decides which stocks we trade at all, and illiquid stocks are not even watched.",
+    "We buy 6,000 and sell it in pieces": "Pieces do not fix it. In a low-volume stock any size trade can move the price a lot, and selling fast can mean a lower price.",
+    "We pass: the $12 price is too low": "The price is fine. Our line is $10 a share, and $12 clears it. What fails is the dollars traded each day."
    }
   },
   "review_status": "draft",
@@ -6804,7 +6790,7 @@
   "difficulty": 1,
   "id": "si_8b99fa1bdff3",
   "lesson_origin": "session",
-  "lesson_text": "Shares the public can trade. Nasdaq defines the float as the outstanding shares available for trading by the public, excluding insiders or restricted stock. It is not short interest, which is often measured against the float. Nor is it a day's trading: buying and selling only move shares around, so the float stays the same. The float is the supply you and I can actually buy and sell.",
+  "lesson_text": "Shares the public can trade. The float is the supply we can actually buy and sell. Shares outstanding is the bigger count, because it also includes insider and restricted shares that cannot trade yet. Nasdaq defines the float as outstanding shares available to the public, leaving out insiders and restricted stock. We check it because a small float means thin supply, and the price can swing fast both ways. Find it in the UCT Screener as Float (Shares), or work it out: shares outstanding minus insider and restricted shares. The float is the supply we can actually trade. A thin float means fast moves, both ways.",
   "module": "F1",
   "prompt_json": {
    "choices": [
@@ -6814,7 +6800,7 @@
     "Shares the public can trade"
    ],
    "kind": "mcq",
-   "q": "What is a company's float?",
+   "q": "A trader looks up a stock's float. What does the float count?",
    "subject": "float"
   },
   "reveal_json": {
@@ -6847,22 +6833,43 @@
       "quote": "Therefore, shares that are purchased, sold, or even shorted by investors do not affect the float because these actions do not represent a change in the number of shares available for trade.",
       "tier": 2,
       "url": "https://www.investopedia.com/terms/f/floating-stock.asp"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "Investopedia: Floating Stock: Definition, Example, and Why It's Important (Cory Mitchell, CMT; updated December 15, 2023)",
+      "quote": "Floating stock is calculated by subtracting closely-held shares and restricted stock from a firm’s total outstanding shares.",
+      "tier": 2,
+      "url": "https://www.investopedia.com/terms/f/floating-stock.asp"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "Nasdaq: Float (Nasdaq glossary)",
+      "quote": "A stock's volatility is inversely correlated to its float.",
+      "tier": 1,
+      "url": "https://www.nasdaq.com/glossary/f/float"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "Investopedia: Floating Stock: Definition, Example, and Why It's Important (Cory Mitchell, CMT; updated December 15, 2023)",
+      "quote": "A stock with a small float will generally be more volatile than a stock with a large float. This is because, with fewer shares available, it may be harder to find a buyer or seller.",
+      "tier": 2,
+      "url": "https://www.investopedia.com/terms/f/floating-stock.asp"
      }
     ],
-    "summary": "The float is the outstanding shares the public can trade, leaving out insiders' holdings and restricted stock. The public float is the shares everyday investors can trade, and pump-and-dump schemes try to buy up a big part of it. The float is the shares available for trading; short interest is often measured against it. Buying, selling or shorting a stock does not change its float."
+    "summary": "The float is the outstanding shares the public can trade, leaving out insiders' holdings and restricted stock. The public float is the shares everyday investors can trade, and pump-and-dump schemes try to buy up a big part of it. The float is the shares available for trading; short interest is often measured against it. Buying, selling or shorting a stock does not change its float. Float equals shares outstanding minus closely held shares and restricted stock. The smaller the float, the more volatile the stock tends to be. A small float is generally more volatile, because with fewer shares around it's harder to find the other side of a trade."
    },
    "facts": {
-    "given": "What is a company's float? Shares the public can trade Every share the company issued Shares sold short right now Shares traded in one day"
+    "given": "A trader looks up a stock's float. What does the float count? Shares the public can trade Every share the company issued Shares sold short right now Shares traded in one day"
    },
-   "lesson_line": "The float is the supply you and I can actually buy and sell.",
-   "simple": "The float is the shares the public can trade, because insiders' shares and restricted stock are left out.",
+   "lesson_line": "The float is the supply we can actually trade. A thin float means fast moves, both ways.",
+   "simple": "The shares the public can freely trade. Insider and restricted shares are left out, so this is the real supply.",
    "tier": "core",
    "unit": "F1.06",
-   "why": "Shares the public can trade. Nasdaq defines the float as the outstanding shares available for trading by the public, excluding insiders or restricted stock. It is not short interest, which is often measured against the float. Nor is it a day's trading: buying and selling only move shares around, so the float stays the same.",
+   "why": "Shares the public can trade. The float is the supply we can actually buy and sell. Shares outstanding is the bigger count, because it also includes insider and restricted shares that cannot trade yet. Nasdaq defines the float as outstanding shares available to the public, leaving out insiders and restricted stock. We check it because a small float means thin supply, and the price can swing fast both ways. Find it in the UCT Screener as Float (Shares), or work it out: shares outstanding minus insider and restricted shares.",
    "wrong": {
-    "Every share the company issued": "That's closer to shares outstanding, which also counts insiders' and restricted shares.",
-    "Shares sold short right now": "That's short interest. It's often measured against the float, but it isn't the float.",
-    "Shares traded in one day": "That's a day's trading. Buying and selling move shares around but don't change the float."
+    "Every share the company issued": "That is close to shares outstanding. It also counts insider and restricted shares the public cannot trade.",
+    "Shares sold short right now": "That is short interest. It is often measured against the float, but it is not the float.",
+    "Shares traded in one day": "That is volume. Buying and selling move shares between owners and do not change the float."
    }
   },
   "review_status": "draft",
@@ -7435,23 +7442,23 @@
   "difficulty": 2,
   "id": "si_275c5199579b",
   "lesson_origin": "session",
-  "lesson_text": "QZLN, most likely. At $600 million it is a small-cap on FINRA's ranges, the smallest of the four. VXRP is a mid-cap, HJTK a large-cap and ZWMB a mega-cap. FINRA says large caps tend to swing less than mid caps, and mid caps less than small caps. Fidelity agrees that smaller companies may have more volatile stocks. These are tendencies, no guarantee for any one company. Same news, smaller company, usually a bigger move. Then check the float.",
+  "lesson_text": "QZLN, most likely. At $1.5 billion it is the smallest of the four, a small-cap on FINRA's ranges. VXRP at $6 billion is a mid-cap, HJTK at $40 billion a large-cap and ZWMB at $900 billion a mega-cap. FINRA says large caps tend to swing less than mid caps, and mid caps less than small caps. Fidelity agrees that smaller companies may be more volatile. Size is only a rough guide. The float matters too: Nasdaq ties a stock's volatility to its float. Market cap is a column in the UCT Screener, and the float sits next to it as Float (Shares). Same earnings gap, smaller company, usually a bigger move. Then check the float.",
   "module": "F1",
   "prompt_json": {
    "choices": [
     "QZLN",
+    "VXRP",
     "ZWMB",
-    "HJTK",
-    "VXRP"
+    "HJTK"
    ],
    "kind": "mcq",
-   "q": "Which one is most likely to make the biggest percent move?",
-   "story": "Four stocks gap up on the same kind of news before the open. Market caps: QZLN $600 million, VXRP $3 billion, HJTK $40 billion, ZWMB $900 billion.",
+   "q": "Which is most likely to gap up the most in percent?",
+   "story": "Four stocks report strong earnings. Market caps: HJTK $40 billion, QZLN $1.5 billion, ZWMB $900 billion, VXRP $6 billion.",
    "subject": "F1.06#q13"
   },
   "reveal_json": {
    "deeper": {
-    "counter": "The tendency can fail for any one company. FINRA says these generalizations are no guarantee that any particular small-cap company will or won't thrive. Read size as odds, not a forecast. Then check the float as well, because Nasdaq ties a stock's volatility to its float."
+    "counter": "The tendency can fail for any one company. FINRA says these generalizations are no guarantee that any particular small-cap company will or won't thrive. Read size as odds, not a forecast. Then check the float, because Nasdaq ties a stock's volatility to its float. A $1.5 billion company with a big float can move less than a $6 billion one with a tiny float."
    },
    "depth": {
     "sources": [
@@ -7494,16 +7501,16 @@
     "summary": "In general, the smaller the company, the more its stock swings: small caps more than mid caps, mid caps more than large caps. Bigger companies tend to have steadier stocks; smaller companies tend to have more volatile ones. Size tendencies are no guarantee for any one company. On FINRA's usual ranges, small-cap is $250 million to $2 billion and micro-cap is under $250 million. The smaller the float, the more volatile the stock tends to be."
    },
    "facts": {
-    "given": "Which one is most likely to make the biggest percent move? Four stocks gap up on the same kind of news before the open. Market caps: QZLN $600 million, VXRP $3 billion, HJTK $40 billion, ZWMB $900 billion. QZLN VXRP HJTK ZWMB"
+    "given": "Which is most likely to gap up the most in percent? Four stocks report strong earnings. Market caps: HJTK $40 billion, QZLN $1.5 billion, ZWMB $900 billion, VXRP $6 billion. HJTK QZLN ZWMB VXRP"
    },
-   "lesson_line": "Same news, smaller company, usually a bigger move. Then check the float.",
+   "lesson_line": "Same earnings gap, smaller company, usually a bigger move. Then check the float.",
    "simple": "QZLN, because the smallest company tends to swing the most, though that is a tendency and not a promise.",
    "tier": "extended",
    "unit": "F1.06",
-   "why": "QZLN, most likely. At $600 million it is a small-cap on FINRA's ranges, the smallest of the four. VXRP is a mid-cap, HJTK a large-cap and ZWMB a mega-cap. FINRA says large caps tend to swing less than mid caps, and mid caps less than small caps. Fidelity agrees that smaller companies may have more volatile stocks. These are tendencies, no guarantee for any one company.",
+   "why": "QZLN, most likely. At $1.5 billion it is the smallest of the four, a small-cap on FINRA's ranges. VXRP at $6 billion is a mid-cap, HJTK at $40 billion a large-cap and ZWMB at $900 billion a mega-cap. FINRA says large caps tend to swing less than mid caps, and mid caps less than small caps. Fidelity agrees that smaller companies may be more volatile. Size is only a rough guide. The float matters too: Nasdaq ties a stock's volatility to its float. Market cap is a column in the UCT Screener, and the float sits next to it as Float (Shares).",
    "wrong": {
     "HJTK": "At $40 billion it is a large-cap. Large caps tend to be steadier than mid caps and small caps.",
-    "VXRP": "At $3 billion it is a mid-cap, and mid caps tend to swing less than small caps.",
+    "VXRP": "At $6 billion it is a mid-cap, and mid caps tend to swing less than small caps.",
     "ZWMB": "At $900 billion it is the biggest of the four. Fidelity says larger companies often have less volatile stocks."
    }
   },

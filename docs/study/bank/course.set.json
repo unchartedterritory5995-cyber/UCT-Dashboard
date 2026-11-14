@@ -26812,7 +26812,7 @@
   "difficulty": 1,
   "id": "si_30574eba0cac",
   "lesson_origin": "session",
-  "lesson_text": "Drying up, below the 50-day average. Our rule wants the final contraction's average daily volume below the first contraction's and below the 50-day average, with at least one day at or under half the 50-day average. Volume at or above the average is not a dry-up. This tests the last swing, not the breakout day. Quiet price, quiet volume. Volume dries up into the tight final swing.",
+  "lesson_text": "Drying up, below the 50-day average. The 50-day average volume is the shares traded per day, averaged over the last 50 sessions. In the final, tightest swing the sellers run out, so volume shrinks. Our rule wants that swing's average volume below the first swing's and below the 50-day average, with one day at or under half of it. RNG's final swing traded at 0.46 times the average. This tests the last swing, not the breakout day. Quiet price, quiet volume. Volume dries up into the tight final swing.",
   "module": "SET",
   "prompt_json": {
    "choices": [
@@ -26841,9 +26841,16 @@
       "quote": "The progressive reduction in price volatility, which will be accompanied by a reduction in volume at particular points, eventually signifies that the base has been completed.",
       "tier": 2,
       "url": "https://web.archive.org/web/20150225145654/http://www.minervini.com:80/blog/index.php/blog/show/how_to_time_your_trade_with_pinpoint_accuracy_the_volatility_contraction_vc"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup research (examples read from our own daily bars): VCP dossier, sections 12 and 13: examples, failures and near-misses from our data",
+      "quote": "Final T under 4% riding the 10-day; final-T volume 0.46x the average; a 2.4x breakout; 5R in weeks.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/research/06-vcp.md#12-examples-from-our-data"
      }
     ],
-    "summary": "Volume dries up into the final contraction. Minervini: shrinking swings and falling volume at points signal a finished base."
+    "summary": "Volume dries up into the final contraction. Minervini: shrinking swings and falling volume at points signal a finished base. RNG: a final contraction under 4% riding the 10-day, final volume 0.46x the average, a 2.4x breakout."
    },
    "facts": {
     "given": "How should volume look in the final contraction? Spiking on a wide, heavy down day Drying up, below the 50-day average Rising, above the 50-day average About the same as in the first swing"
@@ -26852,11 +26859,11 @@
    "simple": "Volume should dry up below the 50-day average in the last swing, a sign that selling has faded.",
    "tier": "core",
    "unit": "SET.12",
-   "why": "Drying up, below the 50-day average. Our rule wants the final contraction's average daily volume below the first contraction's and below the 50-day average, with at least one day at or under half the 50-day average. Volume at or above the average is not a dry-up. This tests the last swing, not the breakout day.",
+   "why": "Drying up, below the 50-day average. The 50-day average volume is the shares traded per day, averaged over the last 50 sessions. In the final, tightest swing the sellers run out, so volume shrinks. Our rule wants that swing's average volume below the first swing's and below the 50-day average, with one day at or under half of it. RNG's final swing traded at 0.46 times the average. This tests the last swing, not the breakout day.",
    "wrong": {
     "About the same as in the first swing": "The final swing's volume should be below the first swing's, not equal to it.",
     "Rising, above the 50-day average": "Volume above the 50-day average is not a dry-up. Our rule wants it below.",
-    "Spiking on a wide, heavy down day": "That is a heavy down day. It ends the setup before the buy."
+    "Spiking on a wide, heavy down day": "That is the opposite of a dry-up. A heavy down day is a warning to note, and it is not a quiet last swing."
    }
   },
   "review_status": "draft",
@@ -27565,23 +27572,23 @@
  },
  {
   "answer_json": {
-   "answer": "Pass; there is still selling"
+   "answer": "Buy it, and note the heavy day"
   },
   "difficulty": 2,
   "id": "si_00b32f3cb1df",
   "lesson_origin": "session",
-  "lesson_text": "Pass. A heavy-volume down day in the right half of the base (1.5 times the 50-day average or more) ends the setup before the buy, and 1.6 times is over that line. ChartMill is looser and says several heavy down days mean distribution and you are too early. Our rule draws the line at one such day. A heavy down day on the right side means supply is still coming.",
+  "lesson_text": "Buy it, and note the heavy day. A heavy-volume down day is a day the stock fell on 1.5 times its 50-day average volume or more. Here 3.2 million divided by 2 million is 1.6 times. In the right half it is a distribution day, meaning sellers were active. Be mindful of it and grade the setup lower. It does not end the setup, and most of the time it does not matter. Compare that day's volume bar with the 50-day average line on the chart. Several such days are a bigger worry, and ChartMill says you may be too early. A heavy down day on the right side is a warning to note, not a reason to pass.",
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "Take it, but at half the size",
-    "Pass; the base is too loose",
-    "Take it; one heavy day is noise",
-    "Pass; there is still selling"
+    "Pass; the heavy day voids the setup",
+    "Buy it, but with a wider stop",
+    "Wait until the next base forms",
+    "Buy it, and note the heavy day"
    ],
    "kind": "mcq",
-   "q": "By our right-side rule, take it or pass?",
-   "story": "A base has tightened nicely. But in the right half, one down day came on 1.6 times the 50-day average volume.",
+   "q": "A VCP trades through its pivot. Do you buy it?",
+   "story": "A VCP trades through its pivot in regular hours. Its three swings shrink and the base is tight. In the right half, one down day traded 3.2 million shares, 1.6 times its 50-day average of 2 million.",
    "subject": "SET.12#q35"
   },
   "reveal_json": {
@@ -27590,7 +27597,14 @@
      {
       "accessed": "2026-11-10",
       "name": "UCT setup criteria card: VCP criteria card (docs/study/setups/criteria/06-vcp.json, as of 2026-11-09)",
-      "quote": "Before the buy: a heavy-volume down day in the right half of the base (1.5 times the 50-day average or more).",
+      "quote": "A heavy-volume down day in the right half of the base (1.5 times the 50-day average or more) does not end the setup; at most it is a warning.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/06-vcp.json"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: VCP criteria card (docs/study/setups/criteria/06-vcp.json, as of 2026-11-09)",
+      "quote": "A down day in the second half of the base on 1.5 times the 50-day volume or more is worth noting, but most of the time it does not matter; it is no gate.",
       "tier": 3,
       "url": "repo:docs/study/setups/criteria/06-vcp.json"
      },
@@ -27600,22 +27614,29 @@
       "quote": "If you see several down days on heavy volume in the right half of the base, there is still distribution going on in the stock and you are too early.",
       "tier": 2,
       "url": "https://www.chartmill.com/images/uploads/The-Complete-ChartMill-VCP-Guide.pdf"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "The stop sits a few cents under the day's low, not exactly on it.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      }
     ],
-    "summary": "A heavy-volume down day in the right half ends it before the buy. ChartMill: several heavy down days in the right half mean distribution; you are too early."
+    "summary": "A heavy-volume down day in the right half does not end the setup; at most it is a warning (owner ruling VCP-HEAVY, 2026-11-14). A right-side down day on 1.5 times the 50-day volume is worth noting, but it is no gate (owner ruling VCP-HEAVY, 2026-11-14). ChartMill: several heavy down days in the right half mean distribution; you are too early. F62: the stop sits a few cents under the day's low."
    },
    "facts": {
-    "given": "By our right-side rule, take it or pass? A base has tightened nicely. But in the right half, one down day came on 1.6 times the 50-day average volume. Take it, but at half the size Take it; one heavy day is noise Pass; there is still selling Pass; the base is too loose"
+    "given": "A VCP trades through its pivot. Do you buy it? A VCP trades through its pivot in regular hours. Its three swings shrink and the base is tight. In the right half, one down day traded 3.2 million shares, 1.6 times its 50-day average of 2 million. Buy it, and note the heavy day Pass; the heavy day voids the setup Wait until the next base forms Buy it, but with a wider stop"
    },
-   "lesson_line": "A heavy down day on the right side means supply is still coming.",
-   "simple": "Pass, because a heavy down day in the right half means there is still selling, so you are too early.",
+   "lesson_line": "A heavy down day on the right side is a warning to note, not a reason to pass.",
+   "simple": "Buy it and note the heavy day. It is a warning and a lower grade, but it does not end the setup.",
    "tier": "extended",
    "unit": "SET.12",
-   "why": "Pass. A heavy-volume down day in the right half of the base (1.5 times the 50-day average or more) ends the setup before the buy, and 1.6 times is over that line. ChartMill is looser and says several heavy down days mean distribution and you are too early. Our rule draws the line at one such day.",
+   "why": "Buy it, and note the heavy day. A heavy-volume down day is a day the stock fell on 1.5 times its 50-day average volume or more. Here 3.2 million divided by 2 million is 1.6 times. In the right half it is a distribution day, meaning sellers were active. Be mindful of it and grade the setup lower. It does not end the setup, and most of the time it does not matter. Compare that day's volume bar with the 50-day average line on the chart. Several such days are a bigger worry, and ChartMill says you may be too early.",
    "wrong": {
-    "Pass; the base is too loose": "The story says the base has tightened nicely. The failed test is the heavy down day, not the tightness.",
-    "Take it, but at half the size": "Size does not repair a failed test.",
-    "Take it; one heavy day is noise": "Our rule counts one heavy down day in the right half as a failed test."
+    "Buy it, but with a wider stop": "The stop never widens for a worry. It stays a few cents under the entry day's low.",
+    "Pass; the heavy day voids the setup": "One heavy down day is a warning, not a veto. It does not end the setup.",
+    "Wait until the next base forms": "Nothing in this base has failed. Skipping a valid trigger over one warning day gives up the trade."
    }
   },
   "review_status": "draft",
@@ -29530,7 +29551,7 @@
   "difficulty": 2,
   "id": "si_ea9531dd1064",
   "lesson_origin": "session",
-  "lesson_text": "Divide the day's volume by the average: 3,300,000 divided by 2,200,000 is 1.5. That meets our limit of 1.5 times the 50-day average or more, so exactly 1.5 counts and this base still has selling on its right side. A down day at 1.5 times the average or more on the right side is selling.",
+  "lesson_text": "Divide the day's volume by the average: 3.3 million divided by 2.2 million is 1.5. That meets our line for a heavy-volume down day, 1.5 times the 50-day average or more. On the right side of a base it is a day to note and a reason to grade the setup lower. It does not end the setup. Find it by comparing that day's volume bar with the 50-day average line on the chart. A right-side down day at 1.5 times the average or more is a heavy day to note, not a veto.",
   "module": "SET",
   "prompt_json": {
    "choices": [
@@ -29540,7 +29561,7 @@
     "1.5x"
    ],
    "kind": "mcq",
-   "q": "A down day in the second half of a base trades 3,300,000 shares. The 50-day average is 2,200,000. How many times the average?",
+   "q": "A down day in the base's second half trades 3.3 million shares. The 50-day average is 2.2 million. How many times the average?",
    "subject": "SET.12#q72"
   },
   "reveal_json": {
@@ -29549,7 +29570,14 @@
      {
       "accessed": "2026-11-10",
       "name": "UCT setup criteria card: VCP criteria card (docs/study/setups/criteria/06-vcp.json, as of 2026-11-09)",
-      "quote": "No selling on the right side: no down day in the second half of the base on volume of 1.5 times the 50-day average or more.",
+      "quote": "A heavy-volume down day in the right half of the base (1.5 times the 50-day average or more) does not end the setup; at most it is a warning.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/06-vcp.json"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: VCP criteria card (docs/study/setups/criteria/06-vcp.json, as of 2026-11-09)",
+      "quote": "A down day in the second half of the base on 1.5 times the 50-day volume or more is worth noting, but most of the time it does not matter; it is no gate.",
       "tier": 3,
       "url": "repo:docs/study/setups/criteria/06-vcp.json"
      },
@@ -29561,7 +29589,7 @@
       "url": "https://www.chartmill.com/images/uploads/The-Complete-ChartMill-VCP-Guide.pdf"
      }
     ],
-    "summary": "No heavy down day in the second half of the base. ChartMill: several heavy down days in the right half mean distribution; you are too early."
+    "summary": "A heavy-volume down day in the right half does not end the setup; at most it is a warning (owner ruling VCP-HEAVY, 2026-11-14). A right-side down day on 1.5 times the 50-day volume is worth noting, but it is no gate (owner ruling VCP-HEAVY, 2026-11-14). ChartMill: several heavy down days in the right half mean distribution; you are too early."
    },
    "facts": {
     "calc": {
@@ -29573,13 +29601,13 @@
      "fn": "arith",
      "result": 1.5
     },
-    "given": "A down day in the second half of a base trades 3,300,000 shares. The 50-day average is 2,200,000. How many times the average? 1.1x 0.7x 0.5x 1.5x"
+    "given": "A down day in the base's second half trades 3.3 million shares. The 50-day average is 2.2 million. How many times the average? 1.1x 0.7x 0.5x 1.5x"
    },
-   "lesson_line": "A down day at 1.5 times the average or more on the right side is selling.",
-   "simple": "The volume is 1.5 times the 50-day average, which meets our limit, so the base still has selling.",
+   "lesson_line": "A right-side down day at 1.5 times the average or more is a heavy day to note, not a veto.",
+   "simple": "The volume is 1.5 times the 50-day average. That is a heavy day to note, not a reason to pass.",
    "tier": "extended",
    "unit": "SET.12",
-   "why": "Divide the day's volume by the average: 3,300,000 divided by 2,200,000 is 1.5. That meets our limit of 1.5 times the 50-day average or more, so exactly 1.5 counts and this base still has selling on its right side.",
+   "why": "Divide the day's volume by the average: 3.3 million divided by 2.2 million is 1.5. That meets our line for a heavy-volume down day, 1.5 times the 50-day average or more. On the right side of a base it is a day to note and a reason to grade the setup lower. It does not end the setup. Find it by comparing that day's volume bar with the 50-day average line on the chart.",
    "wrong": {
     "0.5x": "That is only the extra over the average, not the multiple.",
     "0.7x": "That flips the division. Put the day's volume on top.",
@@ -29600,7 +29628,7 @@
   "difficulty": 1,
   "id": "si_15d7fcdbac86",
   "lesson_origin": "session",
-  "lesson_text": "False. Our rule wants no down day in the second half of the base on 1.5 times the 50-day volume or more. The test is volume, not how shallow the day was. ChartMill says several heavy down days in the right half mean distribution is going on. Our rule bars a heavy down day on the right side, however shallow.",
+  "lesson_text": "False. A heavy-volume down day is a day the stock falls on 1.5 times its 50-day average volume or more. In the right half of the base it is a day to note, but it does not end the setup. Most of the time it does not matter. Treat it as a distribution day, meaning sellers were active. Be more mindful of it and grade the setup lower. Several such days together are a bigger warning. A heavy down day on the right side is a warning, not a veto.",
   "module": "SET",
   "prompt_json": {
    "choices": [
@@ -29608,7 +29636,7 @@
     "False"
    ],
    "kind": "tf",
-   "q": "By our rule, a down day on 1.5 times the 50-day volume in the base's second half is fine if shallow.",
+   "q": "By our rule, one heavy-volume down day in the right half of a VCP voids the setup.",
    "subject": "SET.12#q73"
   },
   "reveal_json": {
@@ -29617,7 +29645,14 @@
      {
       "accessed": "2026-11-10",
       "name": "UCT setup criteria card: VCP criteria card (docs/study/setups/criteria/06-vcp.json, as of 2026-11-09)",
-      "quote": "No selling on the right side: no down day in the second half of the base on volume of 1.5 times the 50-day average or more.",
+      "quote": "A heavy-volume down day in the right half of the base (1.5 times the 50-day average or more) does not end the setup; at most it is a warning.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/06-vcp.json"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: VCP criteria card (docs/study/setups/criteria/06-vcp.json, as of 2026-11-09)",
+      "quote": "A down day in the second half of the base on 1.5 times the 50-day volume or more is worth noting, but most of the time it does not matter; it is no gate.",
       "tier": 3,
       "url": "repo:docs/study/setups/criteria/06-vcp.json"
      },
@@ -29629,16 +29664,16 @@
       "url": "https://www.chartmill.com/images/uploads/The-Complete-ChartMill-VCP-Guide.pdf"
      }
     ],
-    "summary": "No heavy down day in the second half of the base. ChartMill: several heavy down days in the right half mean distribution; you are too early."
+    "summary": "A heavy-volume down day in the right half does not end the setup; at most it is a warning (owner ruling VCP-HEAVY, 2026-11-14). A right-side down day on 1.5 times the 50-day volume is worth noting, but it is no gate (owner ruling VCP-HEAVY, 2026-11-14). ChartMill: several heavy down days in the right half mean distribution; you are too early."
    },
    "facts": {
-    "given": "By our rule, a down day on 1.5 times the 50-day volume in the base's second half is fine if shallow."
+    "given": "By our rule, one heavy-volume down day in the right half of a VCP voids the setup."
    },
-   "lesson_line": "Our rule bars a heavy down day on the right side, however shallow.",
-   "simple": "False, because our rule tests the volume of right-side down days, and 1.5 times the 50-day average or more is selling.",
+   "lesson_line": "A heavy down day on the right side is a warning, not a veto.",
+   "simple": "False. A heavy down day on the right side is a warning to note, but it does not end the setup.",
    "tier": "core",
    "unit": "SET.12",
-   "why": "False. Our rule wants no down day in the second half of the base on 1.5 times the 50-day volume or more. The test is volume, not how shallow the day was. ChartMill says several heavy down days in the right half mean distribution is going on."
+   "why": "False. A heavy-volume down day is a day the stock falls on 1.5 times its 50-day average volume or more. In the right half of the base it is a day to note, but it does not end the setup. Most of the time it does not matter. Treat it as a distribution day, meaning sellers were active. Be more mindful of it and grade the setup lower. Several such days together are a bigger warning."
   },
   "review_status": "draft",
   "skill_id": "setup.vcp",

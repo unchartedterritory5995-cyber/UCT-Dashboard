@@ -935,41 +935,53 @@
    "skill": "fund.estimates",
    "rung": 3,
    "format": "mcq",
-   "q": "Why can guidance move a stock more than the quarter it just reported?",
+   "q": "Why can a company's guidance move its stock more than the quarter it just reported?",
    "choices": [
-    "The price is built on future profits",
+    "It resets estimates, so growth reprices",
     "Guidance always turns out to be right",
     "Companies only guide when news is bad",
-    "Analysts ignore reported results"
+    "Analysts ignore the reported quarter"
    ],
-   "answer": "The price is built on future profits",
-   "why": "The price is built on future profits. A stock trades on the profits people expect next, and guidance looks ahead. A report covers a quarter that is already over. Schwab says guidance can be the top factor in the near-term price. Example: in January Intel reported 15 cents adjusted EPS against 8 cents expected, a beat. It guided to breakeven against 5 cents expected, and the stock fell 17% the next day. FINRA notes a company can beat and still drop on a dour outlook. The guide does not win every time, but read it first.",
-   "lesson_line": "Read the guide before you celebrate the beat.",
+   "answer": "It resets estimates, so growth reprices",
+   "why": "Guidance changes the estimates and the outlook, so the market reprices the stock's growth. Estimates are analysts' forecasts of profit in the quarters ahead. Analysts build them partly from the company's guidance. A guide below the consensus can bring cuts to those numbers, downgrades and selling. Example: Intel (INTC) beat in its third quarter, then guided fourth-quarter EPS to 25 cents against 43 cents expected. The stock had its worst day since the 1970s, down 29%. A guide that reassures works the other way. Nvidia (NVDA) rose nearly 9% when its revenue guidance reassured investors. Compare the guide with the consensus before you react to the beat.",
+   "lesson_line": "The guide resets the estimates. Read it before you celebrate the beat.",
    "facts": [
     "f37",
     "f38",
+    "f20",
+    "f26",
+    "f78",
+    "f79",
+    "f80",
+    "f68",
+    "f22",
+    "f27",
     "f3",
-    "f23",
-    "f24",
-    "f2",
     "f62",
     "f63",
     "f66",
-    "f22",
-    "f27"
+    "f70",
+    "f72",
+    "f73",
+    "f74"
    ],
    "wrong": {
-    "Analysts ignore reported results": "They don't. Beat and miss are measured on the reported quarter. It just describes a quarter that's already over.",
-    "Companies only guide when news is bad": "No. Giving guidance is common practice for many companies.",
-    "Guidance always turns out to be right": "No. Guidance is a forecast, not a promise, and a company can change it later."
+    "Companies only guide when news is bad": "No. Guiding is common practice for many companies, whatever the news. Nvidia's guide lifted it nearly 9%.",
+    "Guidance always turns out to be right": "No. Guidance is an estimate, not a guarantee, and a company can change it later.",
+    "Analysts ignore the reported quarter": "They don't. Beat and miss are measured on the reported quarter. The guide speaks to the quarters still ahead."
    },
-   "simple": "A stock is priced on the profits people expect next, and guidance speaks to those, while the report looks back.",
+   "simple": "Guidance changes what analysts expect next, so the market reprices the stock's growth, while the report looks back.",
    "tier": "core",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "review3"
+   "batch": "review4",
+   "deeper": {
+    "example": "In January, Intel (INTC) earned 15 cents adjusted against 8 cents expected. It guided to breakeven against 5 cents expected, and the stock fell 17% the next day.",
+    "counter": "Cisco (CSCO) beat and guided revenue of $18 billion to $18.2 billion against $16.8 billion expected, and still dropped after hours. It was up more than 60% that year, so the bar was high.",
+    "trap": "Do not read every soft guide as a sell. Judge the guide against the consensus and against how far the stock already ran."
+   }
   },
   {
    "key": "q07",
@@ -2039,7 +2051,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Intel January numbers verified against f62/f63/f66 (15c vs 8c, breakeven vs 5c, down 17% next day). Distractor 'Guidance is an estimate, not a guarantee' is TRUE (f22), so a student could defend it on a 'why' question: replaced with a clearly wrong 'always turns out to be right', note grounded in f22/f27."
+   "notes": "Answers his note (estimates and outlook reset, growth repriced). Facts f78/f79/f80 (Intel Oct 2026), f68 (Nvidia), f20, f26 and Cisco f70/f72/f73/f74 match the quotes; numbers all appear in cited quotes. Two fixes: why said a weak guide 'brings' downgrades and selling, but f26 only says 'might downgrade', so it now says 'can bring' (learning 11, likely not guaranteed); the 'Companies only guide when news is bad' note claimed companies 'guide every quarter', which no cited fact supports (f23 says only common practice for many), so it now follows f23."
   },
   "q07": {
    "status": "cut",
@@ -2060,10 +2072,10 @@
    "notes": "Owner-approved question; only the ticker and shown math steps added. (0.84-0.80)/0.80 = 5%. Zacks denominator note matches f60. Choices and wrong notes unchanged."
   },
   "q10": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "True per f49 (78%, 77%, 84%), f81 (67%), f50 (2.7% vs 5-year 7.5%), f43 (guide low on purpose). Explanation now says a beat alone is normal, not a signal: the nuance the owner asks for."
+   "notes": "cut in review4: see the resolver's notes"
   },
   "q11": {
    "status": "cut",

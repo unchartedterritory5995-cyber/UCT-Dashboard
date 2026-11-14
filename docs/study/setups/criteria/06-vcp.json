@@ -563,7 +563,7 @@
   {
    "id": "vcp.no_right_side_selling",
    "field": "pattern",
-   "statement": "No selling on the right side: no down day in the second half of the base on volume of 1.5 times the 50-day average or more.",
+   "statement": "A down day in the second half of the base on 1.5 times the 50-day volume or more is worth noting, but most of the time it does not matter; it is no gate.",
    "measure": {
     "what": "down days in the second half of the base with volume >= 1.5x the 50-day average",
     "op": "==",
@@ -571,16 +571,28 @@
     "unit": "days",
     "timeframe": "daily"
    },
-   "basis": "my proposal",
+   "basis": "UCT",
    "sources": [
     "S13",
     "S12"
    ],
-   "status": "proposed",
-   "gate": true,
+   "status": "settled",
+   "gate": false,
    "grade_cue": true,
    "dossier_ref": "8.1 line 12",
-   "evidence": "ChartMill: several down days on heavy volume in the right half mean distribution is still going on (S13); Minervini: if price and volume do not quiet down on the right side, supply is still coming (S12). The 1.5 is the dossier's. The scan required it."
+   "evidence": "ChartMill: several down days on heavy volume in the right half mean distribution is still going on (S13); Minervini: if price and volume do not quiet down on the right side, supply is still coming (S12). The 1.5 is the dossier's. The scan required it.",
+   "superseded": [
+    {
+     "statement": "No selling on the right side: no down day in the second half of the base on volume of 1.5 times the 50-day average or more.",
+     "field": "pattern",
+     "gate": true,
+     "grade_cue": true,
+     "status": "proposed",
+     "on": "2026-11-14",
+     "by": "VCP-HEAVY"
+    }
+   ],
+   "ruling": "VCP-HEAVY"
   },
   {
    "id": "vcp.tight_closes",
@@ -1251,8 +1263,8 @@
   },
   {
    "id": "vcp.inv_heavy_down_day",
-   "field": "invalidation",
-   "statement": "Before the buy: a heavy-volume down day in the right half of the base (1.5 times the 50-day average or more).",
+   "field": "pattern",
+   "statement": "A heavy-volume down day in the right half of the base (1.5 times the 50-day average or more) does not end the setup; at most it is a warning.",
    "measure": {
     "what": "volume on a down day in the second half of the base / 50-day average volume",
     "op": ">=",
@@ -1260,14 +1272,26 @@
     "unit": "x",
     "timeframe": "daily"
    },
-   "basis": "my proposal",
+   "basis": "UCT",
    "sources": [
     "S13"
    ],
-   "status": "proposed",
-   "gate": true,
-   "grade_cue": false,
-   "dossier_ref": "8.5 line 5"
+   "status": "settled",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.5 line 5",
+   "superseded": [
+    {
+     "statement": "Before the buy: a heavy-volume down day in the right half of the base (1.5 times the 50-day average or more).",
+     "field": "invalidation",
+     "gate": true,
+     "grade_cue": false,
+     "status": "proposed",
+     "on": "2026-11-14",
+     "by": "VCP-HEAVY"
+    }
+   ],
+   "ruling": "VCP-HEAVY"
   },
   {
    "id": "vcp.inv_chase",

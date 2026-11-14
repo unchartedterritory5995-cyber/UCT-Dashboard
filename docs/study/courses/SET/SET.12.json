@@ -774,6 +774,18 @@
    "source": "h2",
    "quote": "Below the 200-day is a hard no for stocks. The one exception: indexes and leveraged ETFs may be bought under their 200-day on a reversal extension or a parabolic long.",
    "claim": "Below the 200-day is a hard no for stocks; indexes and leveraged ETFs are the exception (D-009)"
+  },
+  {
+   "id": "c35",
+   "source": "c1",
+   "quote": "A heavy-volume down day in the right half of the base (1.5 times the 50-day average or more) does not end the setup; at most it is a warning.",
+   "claim": "A heavy-volume down day in the right half does not end the setup; at most it is a warning (owner ruling VCP-HEAVY, 2026-11-14)."
+  },
+  {
+   "id": "c36",
+   "source": "c1",
+   "quote": "A down day in the second half of the base on 1.5 times the 50-day volume or more is worth noting, but most of the time it does not matter; it is no gate.",
+   "claim": "A right-side down day on 1.5 times the 50-day volume is worth noting, but it is no gate (owner ruling VCP-HEAVY, 2026-11-14)."
   }
  ],
  "walkthroughs": [
@@ -1577,15 +1589,16 @@
     "About the same as in the first swing"
    ],
    "answer": "Drying up, below the 50-day average",
-   "why": "Drying up, below the 50-day average. Our rule wants the final contraction's average daily volume below the first contraction's and below the 50-day average, with at least one day at or under half the 50-day average. Volume at or above the average is not a dry-up. This tests the last swing, not the breakout day.",
+   "why": "Drying up, below the 50-day average. The 50-day average volume is the shares traded per day, averaged over the last 50 sessions. In the final, tightest swing the sellers run out, so volume shrinks. Our rule wants that swing's average volume below the first swing's and below the 50-day average, with one day at or under half of it. RNG's final swing traded at 0.46 times the average. This tests the last swing, not the breakout day.",
    "lesson_line": "Quiet price, quiet volume. Volume dries up into the tight final swing.",
    "facts": [
     "c05",
-    "v03"
+    "v03",
+    "d05"
    ],
    "wrong": {
     "Rising, above the 50-day average": "Volume above the 50-day average is not a dry-up. Our rule wants it below.",
-    "Spiking on a wide, heavy down day": "That is a heavy down day. It ends the setup before the buy.",
+    "Spiking on a wide, heavy down day": "That is the opposite of a dry-up. A heavy down day is a warning to note, and it is not a quiet last swing.",
     "About the same as in the first swing": "The final swing's volume should be below the first swing's, not equal to it."
    },
    "house": true,
@@ -1598,7 +1611,7 @@
      "volume_dry is a proposed criterion"
     ]
    },
-   "batch": "wave2"
+   "batch": "review4"
   },
   {
    "key": "q23",
@@ -2061,37 +2074,39 @@
    "rung": 5,
    "format": "scenario",
    "criterion": "vcp.inv_heavy_down_day",
-   "q": "By our right-side rule, take it or pass?",
+   "q": "A VCP trades through its pivot. Do you buy it?",
    "choices": [
-    "Take it, but at half the size",
-    "Take it; one heavy day is noise",
-    "Pass; there is still selling",
-    "Pass; the base is too loose"
+    "Buy it, and note the heavy day",
+    "Pass; the heavy day voids the setup",
+    "Wait until the next base forms",
+    "Buy it, but with a wider stop"
    ],
-   "answer": "Pass; there is still selling",
-   "why": "Pass. A heavy-volume down day in the right half of the base (1.5 times the 50-day average or more) ends the setup before the buy, and 1.6 times is over that line. ChartMill is looser and says several heavy down days mean distribution and you are too early. Our rule draws the line at one such day.",
-   "lesson_line": "A heavy down day on the right side means supply is still coming.",
+   "answer": "Buy it, and note the heavy day",
+   "why": "Buy it, and note the heavy day. A heavy-volume down day is a day the stock fell on 1.5 times its 50-day average volume or more. Here 3.2 million divided by 2 million is 1.6 times. In the right half it is a distribution day, meaning sellers were active. Be mindful of it and grade the setup lower. It does not end the setup, and most of the time it does not matter. Compare that day's volume bar with the 50-day average line on the chart. Several such days are a bigger worry, and ChartMill says you may be too early.",
+   "lesson_line": "A heavy down day on the right side is a warning to note, not a reason to pass.",
    "facts": [
-    "c14",
-    "cm2"
+    "c35",
+    "c36",
+    "cm2",
+    "h24"
    ],
    "wrong": {
-    "Take it; one heavy day is noise": "Our rule counts one heavy down day in the right half as a failed test.",
-    "Take it, but at half the size": "Size does not repair a failed test.",
-    "Pass; the base is too loose": "The story says the base has tightened nicely. The failed test is the heavy down day, not the tightness."
+    "Pass; the heavy day voids the setup": "One heavy down day is a warning, not a veto. It does not end the setup.",
+    "Wait until the next base forms": "Nothing in this base has failed. Skipping a valid trigger over one warning day gives up the trade.",
+    "Buy it, but with a wider stop": "The stop never widens for a worry. It stays a few cents under the entry day's low."
    },
    "house": true,
-   "story": "A base has tightened nicely. But in the right half, one down day came on 1.6 times the 50-day average volume.",
-   "simple": "Pass, because a heavy down day in the right half means there is still selling, so you are too early.",
+   "story": "A VCP trades through its pivot in regular hours. Its three swings shrink and the base is tight. In the right half, one down day traded 3.2 million shares, 1.6 times its 50-day average of 2 million.",
+   "simple": "Buy it and note the heavy day. It is a warning and a lower grade, but it does not end the setup.",
    "tier": "extended",
    "risk": {
-    "score": 4,
+    "score": 3,
     "reasons": [
-     "no_right_side_selling is a proposed criterion",
-     "our one-day line is stricter than ChartMill's 'several' days"
+     "the heavy-down-day rule is the owner's 2026-11-14 ruling VCP-HEAVY: a warning and a lower grade, never an invalidation",
+     "ChartMill's 'several days' is a caution, not a gate"
     ]
    },
-   "batch": "wave2"
+   "batch": "review4"
   },
   {
    "key": "q36",
@@ -3431,7 +3446,7 @@
    "rung": 5,
    "format": "mcq",
    "criterion": "vcp.no_right_side_selling",
-   "q": "A down day in the second half of a base trades 3,300,000 shares. The 50-day average is 2,200,000. How many times the average?",
+   "q": "A down day in the base's second half trades 3.3 million shares. The 50-day average is 2.2 million. How many times the average?",
    "answer": "1.5x",
    "calc": {
     "fn": "arith",
@@ -3442,22 +3457,22 @@
     },
     "round": 2
    },
-   "why": "Divide the day's volume by the average: 3,300,000 divided by 2,200,000 is 1.5. That meets our limit of 1.5 times the 50-day average or more, so exactly 1.5 counts and this base still has selling on its right side.",
-   "lesson_line": "A down day at 1.5 times the average or more on the right side is selling.",
+   "why": "Divide the day's volume by the average: 3.3 million divided by 2.2 million is 1.5. That meets our line for a heavy-volume down day, 1.5 times the 50-day average or more. On the right side of a base it is a day to note and a reason to grade the setup lower. It does not end the setup. Find it by comparing that day's volume bar with the 50-day average line on the chart.",
+   "lesson_line": "A right-side down day at 1.5 times the average or more is a heavy day to note, not a veto.",
    "facts": [
-    "c06",
+    "c35",
+    "c36",
     "cm2"
    ],
    "house": true,
    "suffix": "x",
-   "simple": "The volume is 1.5 times the 50-day average, which meets our limit, so the base still has selling.",
+   "simple": "The volume is 1.5 times the 50-day average. That is a heavy day to note, not a reason to pass.",
    "tier": "extended",
    "risk": {
-    "score": 4,
+    "score": 3,
     "reasons": [
      "a computed key",
-     "no_right_side_selling is a proposed criterion",
-     "our one-day line is stricter than ChartMill's 'several' days"
+     "the 1.5 line is the card's measure; the owner's VCP-HEAVY ruling (2026-11-14) makes a heavy day a warning, never a gate"
     ]
    },
    "batch": "tomcq",
@@ -3479,26 +3494,26 @@
    "rung": 3,
    "format": "tf",
    "criterion": "vcp.no_right_side_selling",
-   "q": "By our rule, a down day on 1.5 times the 50-day volume in the base's second half is fine if shallow.",
+   "q": "By our rule, one heavy-volume down day in the right half of a VCP voids the setup.",
    "answer": "False",
-   "why": "False. Our rule wants no down day in the second half of the base on 1.5 times the 50-day volume or more. The test is volume, not how shallow the day was. ChartMill says several heavy down days in the right half mean distribution is going on.",
-   "lesson_line": "Our rule bars a heavy down day on the right side, however shallow.",
+   "why": "False. A heavy-volume down day is a day the stock falls on 1.5 times its 50-day average volume or more. In the right half of the base it is a day to note, but it does not end the setup. Most of the time it does not matter. Treat it as a distribution day, meaning sellers were active. Be more mindful of it and grade the setup lower. Several such days together are a bigger warning.",
+   "lesson_line": "A heavy down day on the right side is a warning, not a veto.",
    "facts": [
-    "c06",
+    "c35",
+    "c36",
     "cm2"
    ],
    "house": true,
-   "simple": "False, because our rule tests the volume of right-side down days, and 1.5 times the 50-day average or more is selling.",
+   "simple": "False. A heavy down day on the right side is a warning to note, but it does not end the setup.",
    "tier": "core",
    "risk": {
-    "score": 4,
+    "score": 3,
     "reasons": [
-     "no_right_side_selling is a proposed criterion",
-     "our one-day line is stricter than ChartMill's 'several' days",
+     "the heavy-down-day rule is the owner's 2026-11-14 ruling VCP-HEAVY: a warning, no gate",
      "overlaps q72, which computes the same 1.5 line"
     ]
    },
-   "batch": "wave2"
+   "batch": "review4"
   },
   {
    "key": "q74",
@@ -4072,7 +4087,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Right answer re-derived from the cited quotes and matches the key; no second defensible answer, tell or ungrounded number found."
+   "notes": "Right answer (volume dries up below the 50-day average) stands and matches c05. The wrong note on the heavy down day no longer says it ends the setup. The why now defines the 50-day average volume and adds RNG's real 0.46x final-swing volume; the number comes word for word from d05, which matches the dossier row for RNG (06-vcp.md line 990). Sentences short, no banned words."
   },
   "q23": {
    "status": "pass",
@@ -4151,7 +4166,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Pass. q73 (rung 3) teaches the 1.5x line first, q35 (rung 5) applies it. Owner flag on one-day line stands."
+   "notes": "Re-keyed correctly to VCP-HEAVY and HEAVY-DOWN: buy it, note the heavy day, a warning and a lower grade, never a veto. Math checked (3.2 million / 2 million = 1.6, over the 1.5 line). Choices 29 to 35 characters, the right answer does not stand out, every wrong choice is clearly wrong and each wrong note teaches. Quotes c35 and c36 match the updated card word for word (06-vcp.json lines 1267 and 566). Cm2 is quoted accurately as the several-days caution. Where to look on the chart is given. No false claim left."
   },
   "q36": {
    "status": "pass",
@@ -4337,9 +4352,9 @@
   },
   "q66": {
    "status": "cut",
-   "notes": "Duplicate of q35: both key 'a heavy down day in the right half means supply, pass'. q35 kept.",
+   "by": "writer",
    "fixed": false,
-   "by": "checker"
+   "notes": "cut in review4: see the resolver's notes"
   },
   "q67": {
    "status": "pass",
@@ -4376,13 +4391,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "0.67x had two decimals against one in the other choices; now 0.7x. Calc recomputed; the other wrong choices checked by hand."
+   "notes": "Not in the upgrade, but its why still says 'this base still has selling on its right side' and the lesson line calls the day selling, and it cites c06, the superseded 'no heavy down day' line. That teaches the old rule the owner just overruled. Fixed: the arithmetic stays, the lesson becomes a heavy day to note and grade lower, never a gate. Shares written in millions (learning 9 style). The stale risk reason about a stricter one-day line is dropped."
   },
   "q73": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Right answer re-derived from the cited quotes and matches the key; no second defensible answer, tell or ungrounded number found."
+   "notes": "Statement now asks whether one heavy right-side down day voids the setup; False is correct under VCP-HEAVY. The why defines the 1.5x line, calls it a distribution day, a warning and a lower grade, never a veto, with 'several' as the bigger warning (cm2). Simple is 21 words, no semicolons, no new numbers. It overlaps q35 in idea but a true/false teaching of the rule before the scenario is fine, and the lesson keeps its other formats."
   },
   "q74": {
    "status": "pass",

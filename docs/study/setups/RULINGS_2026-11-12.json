@@ -130,6 +130,12 @@
    "date": "2026-11-14",
    "reading": "A heavy-volume down day during a pullback (for example 1.5 times the 50-day volume into the line) does not void the setup. Treat it as a distribution day to be mindful of, a warning and a lower grade, never an invalidation.",
    "changes_lessons": true
+  },
+  "VCP-HEAVY": {
+   "owner": "Eh doesn't matter most of the time honestly",
+   "date": "2026-11-14",
+   "reading": "In a VCP, a heavy-volume down day in the right side of the base does not end the setup; most of the time it does not matter. At most it is a warning to note, never an invalidation.",
+   "changes_lessons": true
   }
  },
  "still_open": {

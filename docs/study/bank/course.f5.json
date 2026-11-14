@@ -2083,25 +2083,30 @@
  },
  {
   "answer_json": {
-   "answer": "The price is built on future profits"
+   "answer": "It resets estimates, so growth reprices"
   },
   "difficulty": 1,
   "id": "si_93a7111a93bc",
   "lesson_origin": "session",
-  "lesson_text": "The price is built on future profits. A stock trades on the profits people expect next, and guidance looks ahead. A report covers a quarter that is already over. Schwab says guidance can be the top factor in the near-term price. Example: in January Intel reported 15 cents adjusted EPS against 8 cents expected, a beat. It guided to breakeven against 5 cents expected, and the stock fell 17% the next day. FINRA notes a company can beat and still drop on a dour outlook. The guide does not win every time, but read it first. Read the guide before you celebrate the beat.",
+  "lesson_text": "Guidance changes the estimates and the outlook, so the market reprices the stock's growth. Estimates are analysts' forecasts of profit in the quarters ahead. Analysts build them partly from the company's guidance. A guide below the consensus can bring cuts to those numbers, downgrades and selling. Example: Intel (INTC) beat in its third quarter, then guided fourth-quarter EPS to 25 cents against 43 cents expected. The stock had its worst day since the 1970s, down 29%. A guide that reassures works the other way. Nvidia (NVDA) rose nearly 9% when its revenue guidance reassured investors. Compare the guide with the consensus before you react to the beat. The guide resets the estimates. Read it before you celebrate the beat.",
   "module": "F5",
   "prompt_json": {
    "choices": [
     "Companies only guide when news is bad",
     "Guidance always turns out to be right",
-    "The price is built on future profits",
-    "Analysts ignore reported results"
+    "It resets estimates, so growth reprices",
+    "Analysts ignore the reported quarter"
    ],
    "kind": "mcq",
-   "q": "Why can guidance move a stock more than the quarter it just reported?",
+   "q": "Why can a company's guidance move its stock more than the quarter it just reported?",
    "subject": "F5.02#q06"
   },
   "reveal_json": {
+   "deeper": {
+    "counter": "Cisco (CSCO) beat and guided revenue of $18 billion to $18.2 billion against $16.8 billion expected, and still dropped after hours. It was up more than 60% that year, so the bar was high.",
+    "example": "In January, Intel (INTC) earned 15 cents adjusted against 8 cents expected. It guided to breakeven against 5 cents expected, and the stock fell 17% the next day.",
+    "trap": "Do not read every soft guide as a sell. Judge the guide against the consensus and against how far the stock already ran."
+   },
    "depth": {
     "sources": [
      {
@@ -2120,29 +2125,64 @@
      },
      {
       "accessed": "2026-11-08",
+      "name": "Investopedia: What Earnings Surprises Mean for Stock Prices (updated April 2, 2026)",
+      "quote": "Many analysts use forecasting models, management guidance, and other fundamental information to derive EPS estimates.",
+      "tier": 2,
+      "url": "https://www.investopedia.com/terms/e/earningssurprise.asp"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "Investopedia: Company Guidance: What Investors Need to Know (updated May 20, 2026)",
+      "quote": "If management provides guidance that’s below market expectations, analysts might downgrade the stock, prompting investors to sell.",
+      "tier": 2,
+      "url": "https://www.investopedia.com/terms/g/guidance.asp"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "CNBC: Intel issued weaker-than-expected guidance. Analysts are losing confidence in the stock (Oct 30, 2026)",
+      "quote": "it sees adjusted earnings per share of 25 cents on revenue between $15 billion and $16 billion for the fourth quarter. That's below LSEG estimates of 43 cents per share",
+      "tier": 2,
+      "url": "https://www.cnbc.com/2026/10/30/intel-guidance-analyst-price-targets.html"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "CNBC: Intel issued weaker-than-expected guidance. Analysts are losing confidence in the stock (Oct 30, 2026)",
+      "quote": "That weak forecast overshadowed better-than-expected third-quarter earnings.",
+      "tier": 2,
+      "url": "https://www.cnbc.com/2026/10/30/intel-guidance-analyst-price-targets.html"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "CNBC: Intel stock has worst day since 1970s, wiping about $12 billion off government's stake (Oct 30, 2026)",
+      "quote": "Intel shares fell 29% on Friday, posting the stock's worst day since the 1970s.",
+      "tier": 2,
+      "url": "https://www.cnbc.com/2026/10/30/amazon-intel-earnings-big-tech-ai-spending-concerns.html"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "CNBC: Nvidia adds more than $400 billion in value after blowout earnings boost AI confidence (Aug 27, 2026)",
+      "quote": "shares rose nearly 9% Thursday after the chip giant's revenue guidance reassured investors that artificial intelligence demand will remain strong.",
+      "tier": 2,
+      "url": "https://www.cnbc.com/2026/08/27/nvidia-nvda-q2-earnings.html"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "Investopedia: Company Guidance: What Investors Need to Know (updated May 20, 2026)",
+      "quote": "These statements are forward-looking estimates, not guarantees",
+      "tier": 2,
+      "url": "https://www.investopedia.com/terms/g/guidance.asp"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "Investopedia: Company Guidance: What Investors Need to Know (updated May 20, 2026)",
+      "quote": "Companies can adjust their earnings guidance up or down later in the quarter if their outlook changes.",
+      "tier": 2,
+      "url": "https://www.investopedia.com/terms/g/guidance.asp"
+     },
+     {
+      "accessed": "2026-11-08",
       "name": "FINRA: What Is Earnings Season? (Investor Insights, July 23, 2024)",
       "quote": "Sometimes a company might beat estimates but provide a dour outlook for the future, leading the share price to drop.",
-      "tier": 1,
-      "url": "https://www.finra.org/investors/insights/earnings-season"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "Investopedia: Company Guidance: What Investors Need to Know (updated May 20, 2026)",
-      "quote": "Companies are not legally required to provide earnings guidance, although it is common practice for many of them to do so.",
-      "tier": 2,
-      "url": "https://www.investopedia.com/terms/g/guidance.asp"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "Investopedia: Company Guidance: What Investors Need to Know (updated May 20, 2026)",
-      "quote": "Company guidance is typically released immediately after a company publishes its latest quarterly earnings report and is often discussed in depth during a meeting between industry analysts and company executives.",
-      "tier": 2,
-      "url": "https://www.investopedia.com/terms/g/guidance.asp"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "FINRA: What Is Earnings Season? (Investor Insights, July 23, 2024)",
-      "quote": "A company beats (exceeds) the estimate or misses (falls short of) the estimate based on how actual earnings or revenues compare to the consensus. If the number equals the estimate, it’s said to be in line.",
       "tier": 1,
       "url": "https://www.finra.org/investors/insights/earnings-season"
      },
@@ -2169,33 +2209,47 @@
      },
      {
       "accessed": "2026-11-08",
-      "name": "Investopedia: Company Guidance: What Investors Need to Know (updated May 20, 2026)",
-      "quote": "These statements are forward-looking estimates, not guarantees",
+      "name": "CNBC: Cisco's stock drops despite earnings, revenue beat (Aug 12, 2026)",
+      "quote": "Cisco's results topped estimates, but they weren't good enough to satisfy Wall Street.",
       "tier": 2,
-      "url": "https://www.investopedia.com/terms/g/guidance.asp"
+      "url": "https://www.cnbc.com/2026/08/12/ciscos-stock-drops-despite-earnings-revenue-beat.html"
      },
      {
       "accessed": "2026-11-08",
-      "name": "Investopedia: Company Guidance: What Investors Need to Know (updated May 20, 2026)",
-      "quote": "Companies can adjust their earnings guidance up or down later in the quarter if their outlook changes.",
+      "name": "CNBC: Cisco's stock drops despite earnings, revenue beat (Aug 12, 2026)",
+      "quote": "The company said it sees revenue this quarter of $18 billion to $18.2 billion, topping the $16.8 billion average estimate, according to LSEG.",
       "tier": 2,
-      "url": "https://www.investopedia.com/terms/g/guidance.asp"
+      "url": "https://www.cnbc.com/2026/08/12/ciscos-stock-drops-despite-earnings-revenue-beat.html"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "CNBC: Cisco's stock drops despite earnings, revenue beat (Aug 12, 2026)",
+      "quote": "Entering the fiscal fourth-quarter report, Wall Street had turned bullish on Cisco, pushing the stock up more than 60% this year and about 8% this month",
+      "tier": 2,
+      "url": "https://www.cnbc.com/2026/08/12/ciscos-stock-drops-despite-earnings-revenue-beat.html"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "CNBC: Cisco's stock drops despite earnings, revenue beat (Aug 12, 2026)",
+      "quote": "shares dropped in extended trading on Wednesday despite a better-than-expected earnings report and a revenue forecast that sailed past estimates.",
+      "tier": 2,
+      "url": "https://www.cnbc.com/2026/08/12/ciscos-stock-drops-despite-earnings-revenue-beat.html"
      }
     ],
-    "summary": "Guidance looks ahead, and a stock's price rests on expected future profit growth. Guidance often drives the near-term share price more than anything else in the release. A company can beat estimates and still fall because its outlook is weak. Guidance is voluntary, though many companies give it. Guidance usually comes right after the quarterly report and is discussed with analysts. Actual above the consensus is a beat, below is a miss, and equal is in line. Intel earned 15 cents adjusted against 8 cents expected. Intel guided to breakeven EPS against 5 cents expected. Intel fell 17% the next day on its guidance and a supply warning. Guidance is an estimate, not a guarantee. A company can raise or lower its guidance when its outlook changes."
+    "summary": "Guidance looks ahead, and a stock's price rests on expected future profit growth. Guidance often drives the near-term share price more than anything else in the release. Analysts build their EPS estimates partly from the company's own guidance. Guidance below market expectations can bring downgrades and selling. Intel guided fourth-quarter 2026 EPS to 25 cents against 43 cents expected. Intel's third quarter of 2026 beat, and the weak forecast overshadowed it. Intel had its worst day since the 1970s after the October 2026 guide. Nvidia rose nearly 9% when its revenue guidance reassured investors. Guidance is an estimate, not a guarantee. A company can raise or lower its guidance when its outlook changes. A company can beat estimates and still fall because its outlook is weak. Intel earned 15 cents adjusted against 8 cents expected. Intel guided to breakeven EPS against 5 cents expected. Intel fell 17% the next day on its guidance and a supply warning. Cisco beat, and it still wasn't enough for the market. Cisco's revenue guide was above the consensus. Cisco had run more than 60% that year going into the report. Cisco fell after hours despite the beat and the strong forecast."
    },
    "facts": {
-    "given": "Why can guidance move a stock more than the quarter it just reported? The price is built on future profits Guidance always turns out to be right Companies only guide when news is bad Analysts ignore reported results"
+    "given": "Why can a company's guidance move its stock more than the quarter it just reported? It resets estimates, so growth reprices Guidance always turns out to be right Companies only guide when news is bad Analysts ignore the reported quarter"
    },
-   "lesson_line": "Read the guide before you celebrate the beat.",
-   "simple": "A stock is priced on the profits people expect next, and guidance speaks to those, while the report looks back.",
+   "lesson_line": "The guide resets the estimates. Read it before you celebrate the beat.",
+   "simple": "Guidance changes what analysts expect next, so the market reprices the stock's growth, while the report looks back.",
    "tier": "core",
    "unit": "F5.02",
-   "why": "The price is built on future profits. A stock trades on the profits people expect next, and guidance looks ahead. A report covers a quarter that is already over. Schwab says guidance can be the top factor in the near-term price. Example: in January Intel reported 15 cents adjusted EPS against 8 cents expected, a beat. It guided to breakeven against 5 cents expected, and the stock fell 17% the next day. FINRA notes a company can beat and still drop on a dour outlook. The guide does not win every time, but read it first.",
+   "why": "Guidance changes the estimates and the outlook, so the market reprices the stock's growth. Estimates are analysts' forecasts of profit in the quarters ahead. Analysts build them partly from the company's guidance. A guide below the consensus can bring cuts to those numbers, downgrades and selling. Example: Intel (INTC) beat in its third quarter, then guided fourth-quarter EPS to 25 cents against 43 cents expected. The stock had its worst day since the 1970s, down 29%. A guide that reassures works the other way. Nvidia (NVDA) rose nearly 9% when its revenue guidance reassured investors. Compare the guide with the consensus before you react to the beat.",
    "wrong": {
-    "Analysts ignore reported results": "They don't. Beat and miss are measured on the reported quarter. It just describes a quarter that's already over.",
-    "Companies only guide when news is bad": "No. Giving guidance is common practice for many companies.",
-    "Guidance always turns out to be right": "No. Guidance is a forecast, not a promise, and a company can change it later."
+    "Analysts ignore the reported quarter": "They don't. Beat and miss are measured on the reported quarter. The guide speaks to the quarters still ahead.",
+    "Companies only guide when news is bad": "No. Guiding is common practice for many companies, whatever the news. Nvidia's guide lifted it nearly 9%.",
+    "Guidance always turns out to be right": "No. Guidance is an estimate, not a guarantee, and a company can change it later."
    }
   },
   "review_status": "draft",
@@ -2278,98 +2332,6 @@
   "skill_id": "fund.estimates",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F5/F5.02.json#q09",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
-   "answer": "True"
-  },
-  "difficulty": 2,
-  "id": "si_e94da4092989",
-  "lesson_origin": "session",
-  "lesson_text": "True. FactSet's 5-year average is 78% of S&P 500 companies beating EPS estimates, and its 10-year average is 77%. LSEG's long-term average is 67%. The providers differ, but all say most beat. In its latest count FactSet had 84% beating, with an aggregate surprise of 2.7%, below its 5-year average of 7.5%. Some companies guide low on purpose, and analysts tend to estimate conservatively. That makes beats easier. So a beat alone is normal, not a buy signal. It is a tendency for the index, not a rule for any one company. A beat is expected. I want to know how big it was and what the guide says.",
-  "module": "F5",
-  "prompt_json": {
-   "choices": [
-    "True",
-    "False"
-   ],
-   "kind": "tf",
-   "q": "In a typical quarter, most S&P 500 companies beat the analysts' EPS consensus.",
-   "subject": "F5.02#q10"
-  },
-  "reveal_json": {
-   "deeper": {
-    "trap": "A beat is the normal case. If most companies beat in a typical quarter, a beat tells you little by itself. Ask how big it was, what was inside it, and what the guide says."
-   },
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-08",
-      "name": "FactSet: Earnings Insight, November 6, 2026 (John Butters, VP, Senior Earnings Analyst)",
-      "quote": "Of these companies, 84% have reported actual EPS above estimates, which is above the 5-year average of 78% and above the 10-year average of 77%.",
-      "tier": 2,
-      "url": "https://advantage.factset.com/hubfs/Website/Resources%20Section/Research%20Desk/Earnings%20Insight/EarningsInsight_110626.pdf"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "LSEG (Lipper Alpha Insight): This Week in Earnings 26Q3, November 6, 2026 (Tajinder Dhillon, Senior Research Analyst)",
-      "quote": "83.2 % reported above analyst expectations. This compares to a long-term average of 67%.",
-      "tier": 2,
-      "url": "https://lipperalpha.refinitiv.com/2026/11/this-week-in-earnings-26q3-november-6-2026/"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "Charles Schwab: What Is Guidance and How Should Investors React? (Dan Rosenberg, March 26, 2026)",
-      "quote": "This is among the factors leading to about 75% of companies exceeding analysts' EPS consensus each quarter, according to data from FactSet.",
-      "tier": 2,
-      "url": "https://www.schwab.com/learn/story/what-is-guidance-and-how-should-investors-react"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "Charles Schwab: What Is Guidance and How Should Investors React? (Dan Rosenberg, March 26, 2026)",
-      "quote": "companies may intentionally undershoot, hoping to see their shares gain when they exceed the numbers. And analysts, often guided by companies' guidance, tend to make conservative EPS and revenue estimates for the stocks they cover.",
-      "tier": 2,
-      "url": "https://www.schwab.com/learn/story/what-is-guidance-and-how-should-investors-react"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "FactSet: Earnings Insight, October 30, 2026 (John Butters, VP, Senior Earnings Analyst)",
-      "quote": "In a typical quarter, analysts usually reduce earnings estimates during the first month of a quarter.",
-      "tier": 2,
-      "url": "https://advantage.factset.com/hubfs/Website/Resources%20Section/Research%20Desk/Earnings%20Insight/EarningsInsight_103026.pdf"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "Investopedia: What Earnings Surprises Mean for Stock Prices (updated April 2, 2026)",
-      "quote": "Many analysts use forecasting models, management guidance, and other fundamental information to derive EPS estimates.",
-      "tier": 2,
-      "url": "https://www.investopedia.com/terms/e/earningssurprise.asp"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "FactSet: Earnings Insight, November 6, 2026 (John Butters, VP, Senior Earnings Analyst)",
-      "quote": "In aggregate, companies are reporting earnings that are 2.7% above estimates, which is below the 5-year average of 7.5% and below the 10-year average of 8.0%.",
-      "tier": 2,
-      "url": "https://advantage.factset.com/hubfs/Website/Resources%20Section/Research%20Desk/Earnings%20Insight/EarningsInsight_110626.pdf"
-     }
-    ],
-    "summary": "84% of reporting S&P 500 companies beat in Q3 2026; the 5-year average is 78%. On LSEG's data, 67% of S&P 500 companies beat over the long term; 83.2% had beaten so far in Q3 2026. About three in four companies beat the EPS consensus each quarter. Companies often guide low, and analysts' estimates follow, so beats are easier. Analysts usually trim estimates early in the quarter. Analysts build their EPS estimates partly from the company's own guidance. The surprise is stated as a percent above the estimates."
-   },
-   "facts": {
-    "given": "In a typical quarter, most S&P 500 companies beat the analysts' EPS consensus."
-   },
-   "lesson_line": "A beat is expected. I want to know how big it was and what the guide says.",
-   "simple": "True, most S&P 500 companies beat the consensus in a typical quarter, so a beat on its own is normal.",
-   "tier": "core",
-   "unit": "F5.02",
-   "why": "True. FactSet's 5-year average is 78% of S&P 500 companies beating EPS estimates, and its 10-year average is 77%. LSEG's long-term average is 67%. The providers differ, but all say most beat. In its latest count FactSet had 84% beating, with an aggregate surprise of 2.7%, below its 5-year average of 7.5%. Some companies guide low on purpose, and analysts tend to estimate conservatively. That makes beats easier. So a beat alone is normal, not a buy signal. It is a tendency for the index, not a rule for any one company."
-  },
-  "review_status": "draft",
-  "skill_id": "fund.estimates",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F5/F5.02.json#q10",
   "type": "recall",
   "version": 1
  },
@@ -6293,135 +6255,6 @@
  },
  {
   "answer_json": {
-   "answer": "Before the open or after the close"
-  },
-  "difficulty": 1,
-  "id": "si_cc7605de408d",
-  "lesson_origin": "session",
-  "lesson_text": "Before the open or after the close. FINRA says companies usually release results then. Regular trading runs 9:30 a.m. to 4:00 p.m. ET, so the news lands while it is shut. Trading before 9:30 and after 4:00 is called extended hours, and the stock can still move sharply there. So the first thing to ask about any report is which side of the session it lands on. Most results land while regular trading is shut. Know which side of the session yours falls on.",
-  "module": "F5",
-  "prompt_json": {
-   "choices": [
-    "Right at the 9:30 opening bell",
-    "In the final hour of trading",
-    "In the middle of the trading day",
-    "Before the open or after the close"
-   ],
-   "kind": "mcq",
-   "q": "When do most companies release their earnings?",
-   "subject": "F5.04#q03"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-08",
-      "name": "FINRA: What Is Earnings Season? (Investor Insights, July 23, 2024)",
-      "quote": "Companies usually release their earnings reports and accompanying press releases before the market opens or after it closes.",
-      "tier": 1,
-      "url": "https://www.finra.org/investors/insights/earnings-season"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC, Investor.gov: Extended-Hours Trading: Investor Bulletin (June 6, 2022)",
-      "quote": "Regular trading hours for stocks traded on exchanges and certain other markets are from 9:30 a.m. to 4:00 p.m. Eastern Time.",
-      "tier": 1,
-      "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins-42"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC, Investor.gov: Extended-Hours Trading: Investor Bulletin (June 6, 2022)",
-      "quote": "Companies may announce important news or financial information outside of regular trading hours. These announcements, combined with other extended-hours trading risks, may lead to significant price changes in these companies’ stocks during extended hours trading.",
-      "tier": 1,
-      "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins-42"
-     }
-    ],
-    "summary": "Most companies release earnings before the open or after the close, not during regular trading. The regular session runs 9:30 a.m. to 4:00 p.m. Eastern Time. News released outside regular hours can move the stock sharply in extended-hours trading."
-   },
-   "facts": {
-    "given": "When do most companies release their earnings? Before the open or after the close In the middle of the trading day In the final hour of trading Right at the 9:30 opening bell"
-   },
-   "lesson_line": "Most results land while regular trading is shut. Know which side of the session yours falls on.",
-   "simple": "Most companies report before the open or after the close, so the news lands while regular trading is shut.",
-   "tier": "core",
-   "unit": "F5.04",
-   "why": "Before the open or after the close. FINRA says companies usually release results then. Regular trading runs 9:30 a.m. to 4:00 p.m. ET, so the news lands while it is shut. Trading before 9:30 and after 4:00 is called extended hours, and the stock can still move sharply there. So the first thing to ask about any report is which side of the session it lands on.",
-   "wrong": {
-    "In the final hour of trading": "Results usually come after the close, not in the final hour.",
-    "In the middle of the trading day": "FINRA says companies usually release results before the open or after the close, not mid-session.",
-    "Right at the 9:30 opening bell": "Morning results usually come out before the open, while regular trading is still shut, not at the bell."
-   }
-  },
-  "review_status": "draft",
-  "skill_id": "fund.season",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F5/F5.04.json#q03",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
-   "answer": "False"
-  },
-  "difficulty": 1,
-  "id": "si_3d9feafa1b04",
-  "lesson_origin": "session",
-  "lesson_text": "False. Most companies use calendar quarters, so most report in the weeks after March, June, September and December end. Some don't. A retailer might end its quarter in January instead of December, to keep the holiday sales and returns together. It then reports on its own schedule. So never guess a name's report date from the season. Look it up for each stock you hold. Don't guess the date from the season. Look it up for each name you hold.",
-  "module": "F5",
-  "prompt_json": {
-   "choices": [
-    "True",
-    "False"
-   ],
-   "kind": "tf",
-   "q": "Every public company reports in the same few weeks each quarter.",
-   "subject": "F5.04#q04"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-08",
-      "name": "FINRA: What Is Earnings Season? (Investor Insights, July 23, 2024)",
-      "quote": "Since the majority of public companies use calendar quarters (the end of March, June, September and December), earnings season focuses on this schedule.",
-      "tier": 1,
-      "url": "https://www.finra.org/investors/insights/earnings-season"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "FINRA: What Is Earnings Season? (Investor Insights, July 23, 2024)",
-      "quote": "Some companies deviate from the standard calendar, generally due to seasonal factors in the operation of their business.",
-      "tier": 1,
-      "url": "https://www.finra.org/investors/insights/earnings-season"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "FINRA: What Is Earnings Season? (Investor Insights, July 23, 2024)",
-      "quote": "For example, retailers might end the quarter in January instead of December to account for winter holidays and other seasonal sales and returns during the same quarter.",
-      "tier": 1,
-      "url": "https://www.finra.org/investors/insights/earnings-season"
-     }
-    ],
-    "summary": "Most companies use calendar quarters, so the season follows the March, June, September and December quarter ends. Some companies run on their own fiscal calendar, so they report outside the usual weeks. A retailer may end its quarter in January rather than December, so its report comes on a different schedule."
-   },
-   "facts": {
-    "given": "Every public company reports in the same few weeks each quarter."
-   },
-   "lesson_line": "Don't guess the date from the season. Look it up for each name you hold.",
-   "simple": "False, because some companies end their quarters in other months, so they report on their own schedule.",
-   "tier": "core",
-   "unit": "F5.04",
-   "why": "False. Most companies use calendar quarters, so most report in the weeks after March, June, September and December end. Some don't. A retailer might end its quarter in January instead of December, to keep the holiday sales and returns together. It then reports on its own schedule. So never guess a name's report date from the season. Look it up for each stock you hold."
-  },
-  "review_status": "draft",
-  "skill_id": "fund.season",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F5/F5.04.json#q04",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
    "answer": "Results topped the analysts' average"
   },
   "difficulty": 1,
@@ -6586,87 +6419,12 @@
  },
  {
   "answer_json": {
-   "answer": "At 9:30 a.m., the open that morning"
-  },
-  "difficulty": 2,
-  "id": "si_6e126ae96fce",
-  "lesson_origin": "session",
-  "lesson_text": "At 9:30 a.m., the open that morning. JPMorgan set its results for about 7:00 a.m. ET on Tuesday, Oct. 13, with its call at 8:30 a.m. Regular trading starts at 9:30 a.m. ET, so that same morning's open first takes the news. The stock can trade earlier in extended hours, but that is not the regular session. A report before the open hits that day's open. Your last regular-session exit is the close before.",
-  "module": "F5",
-  "prompt_json": {
-   "choices": [
-    "At 9:30 a.m., the open that morning",
-    "At 8:30 a.m., the call starts",
-    "At 9:30 a.m., the next day's open",
-    "At 7:00 a.m., the release"
-   ],
-   "kind": "mcq",
-   "q": "JPMorgan set its Oct. 13, 2026 results for about 7:00 a.m. ET, and its call for 8:30 a.m. When does the regular session first trade them?",
-   "subject": "F5.04#q09"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-08",
-      "name": "JPMorgan Chase & Co. (investor relations): JPMorganChase to Host Third-Quarter 2026 Earnings Call (Sept. 17, 2026)",
-      "quote": "will host a conference call to review third-quarter 2026 financial results on Tuesday, October 13, 2026 at 8:30 a.m. (ET). The results are scheduled to be released at approximately 7:00 a.m. (ET).",
-      "tier": 1,
-      "url": "https://www.jpmorganchase.com/ir/news/2026/jpmc-to-host-third-quarter-2026-earnings-call"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC, Investor.gov: Extended-Hours Trading: Investor Bulletin (June 6, 2022)",
-      "quote": "Regular trading hours for stocks traded on exchanges and certain other markets are from 9:30 a.m. to 4:00 p.m. Eastern Time.",
-      "tier": 1,
-      "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins-42"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "FINRA: What Is Earnings Season? (Investor Insights, July 23, 2024)",
-      "quote": "Companies usually release their earnings reports and accompanying press releases before the market opens or after it closes.",
-      "tier": 1,
-      "url": "https://www.finra.org/investors/insights/earnings-season"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC, Investor.gov: Extended-Hours Trading: Investor Bulletin (June 6, 2022)",
-      "quote": "Companies may announce important news or financial information outside of regular trading hours. These announcements, combined with other extended-hours trading risks, may lead to significant price changes in these companies’ stocks during extended hours trading.",
-      "tier": 1,
-      "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins-42"
-     }
-    ],
-    "summary": "JPMorgan set its third-quarter 2026 results for about 7:00 a.m. ET on Tuesday, Oct. 13, 2026, before the open. The regular session runs 9:30 a.m. to 4:00 p.m. Eastern Time. Most companies release earnings before the open or after the close, not during regular trading. News released outside regular hours can move the stock sharply in extended-hours trading."
-   },
-   "facts": {
-    "given": "JPMorgan set its Oct. 13, 2026 results for about 7:00 a.m. ET, and its call for 8:30 a.m. When does the regular session first trade them? At 9:30 a.m., the open that morning At 7:00 a.m., the release At 8:30 a.m., the call starts At 9:30 a.m., the next day's open"
-   },
-   "lesson_line": "A report before the open hits that day's open. Your last regular-session exit is the close before.",
-   "simple": "At the open that morning, because the 7:00 release comes before regular trading starts at 9:30.",
-   "tier": "core",
-   "unit": "F5.04",
-   "why": "At 9:30 a.m., the open that morning. JPMorgan set its results for about 7:00 a.m. ET on Tuesday, Oct. 13, with its call at 8:30 a.m. Regular trading starts at 9:30 a.m. ET, so that same morning's open first takes the news. The stock can trade earlier in extended hours, but that is not the regular session.",
-   "wrong": {
-    "At 7:00 a.m., the release": "That's the release time. Regular trading starts at 9:30 a.m. ET; anything earlier is extended hours.",
-    "At 8:30 a.m., the call starts": "That's the call time. The regular session still opens at 9:30 a.m. ET.",
-    "At 9:30 a.m., the next day's open": "That's how a report after the close would play. This one came before the open."
-   }
-  },
-  "review_status": "draft",
-  "skill_id": "fund.season",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F5/F5.04.json#q09",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
    "answer": "4.5%"
   },
   "difficulty": 2,
   "id": "si_242b5119f610",
   "lesson_origin": "session",
-  "lesson_text": "4.5%. The implied move is the move the options market is pricing in. Divide it by the price: $9.48 / $209.58 is about 4.5%. IBKR read the move from the nearest at-the-money straddle, a call and a put at the same 210 strike. Their prices, 4.75 and 5.15, less the gap between strike and price, 210 minus 209.58, give 9.48. It is a size, not a direction. MSFT closed at $202.54 on July 23, the day after. Turn the priced move into a percent. Then compare it with how far away your stop is.",
+  "lesson_text": "4.5%. The implied move is the move the options market prices in for the report. It is a size, not a direction. Divide it by the price: $9.48 / $209.58 is about 4.5%. In the UCT app, the Calendar page shows it in the Impl. Move column, and you can sort by it. To find it by hand, use the nearest at-the-money straddle, a call and a put at the strike closest to the price. Add their prices, 4.75 and 5.15. Subtract the gap between the 210 strike and the 209.58 price. That leaves 9.48. MSFT closed at $202.54 the next day. Turn the priced move into a percent. Read it in the Calendar page's Impl. Move column, or work it from the straddle.",
   "module": "F5",
   "prompt_json": {
    "choices": [
@@ -6716,9 +6474,23 @@
       "quote": "Note that the MMM value does not guarantee a stock will move by a certain magnitude, nor does it indicate in which direction a move might occur.",
       "tier": 2,
       "url": "https://www.schwab.com/learn/story/price-movement-indicator-market-maker-move"
+     },
+     {
+      "accessed": "2026-11-14",
+      "name": "UCT app: The UCT app's own guide: where the Calendar page shows implied moves",
+      "quote": "estimates, implied moves and reactions (read them on the Calendar page)",
+      "tier": 3,
+      "url": "repo:app/src/agent/discovery.js"
+     },
+     {
+      "accessed": "2026-11-14",
+      "name": "UCT app: The UCT app's Calendar widget: the sortable Impl. Move column",
+      "quote": "title=\"Sort by implied move\"",
+      "tier": 3,
+      "url": "repo:app/src/pages/charts/widgets/CalendarWidget.jsx"
      }
     ],
-    "summary": "With MSFT at $209.58, the straddle priced a $9.48 move, about 4.5%. Microsoft reported after the close on Wednesday, July 22, 2020. MSFT closed at $202.54 on July 23, 2020, the day after its report. The nearest at-the-money straddle shows the move the options market expects from the report. The priced move for an event is not a promised size and says nothing about direction."
+    "summary": "With MSFT at $209.58, the straddle priced a $9.48 move, about 4.5%. Microsoft reported after the close on Wednesday, July 22, 2020. MSFT closed at $202.54 on July 23, 2020, the day after its report. The nearest at-the-money straddle shows the move the options market expects from the report. The priced move for an event is not a promised size and says nothing about direction. The UCT app shows each name's implied move on its Calendar page. The Calendar page's earnings list has an Impl. Move column that you can sort by."
    },
    "facts": {
     "calc": {
@@ -6732,11 +6504,11 @@
     },
     "given": "MSFT was $209.58 hours before its July 22, 2020 report. Options priced a $9.48 move. What is that as a percent? 0.5% 22.1% 9.5% 4.5%"
    },
-   "lesson_line": "Turn the priced move into a percent. Then compare it with how far away your stop is.",
-   "simple": "About 4.5%, because $9.48 is about 4.5% of the $209.58 price.",
+   "lesson_line": "Turn the priced move into a percent. Read it in the Calendar page's Impl. Move column, or work it from the straddle.",
+   "simple": "About 4.5%, because $9.48 is about 4.5% of the $209.58 price. The Calendar page shows this number for you.",
    "tier": "core",
    "unit": "F5.04",
-   "why": "4.5%. The implied move is the move the options market is pricing in. Divide it by the price: $9.48 / $209.58 is about 4.5%. IBKR read the move from the nearest at-the-money straddle, a call and a put at the same 210 strike. Their prices, 4.75 and 5.15, less the gap between strike and price, 210 minus 209.58, give 9.48. It is a size, not a direction. MSFT closed at $202.54 on July 23, the day after.",
+   "why": "4.5%. The implied move is the move the options market prices in for the report. It is a size, not a direction. Divide it by the price: $9.48 / $209.58 is about 4.5%. In the UCT app, the Calendar page shows it in the Impl. Move column, and you can sort by it. To find it by hand, use the nearest at-the-money straddle, a call and a put at the strike closest to the price. Add their prices, 4.75 and 5.15. Subtract the gap between the 210 strike and the 209.58 price. That leaves 9.48. MSFT closed at $202.54 the next day.",
    "wrong": {
     "0.5%": "A decimal slip: you moved the point the wrong way.",
     "22.1%": "You flipped it and divided the stock price by the priced move.",
@@ -7008,98 +6780,6 @@
   "skill_id": "fund.season",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F5/F5.04.json#q14",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
-   "answer": "The news is out, so volatility fell"
-  },
-  "difficulty": 2,
-  "id": "si_0f57df56e63f",
-  "lesson_origin": "session",
-  "lesson_text": "The news is out, so volatility fell. In the weeks before a report, option volatility usually rises and makes options pricier. Once the news is out, most of the uncertainty is gone and options reprice fast. So the implied move shrinks. It does not mean the stock can't move. The options simply stopped pricing the report. Read the implied move before the report. After it, the number deflates.",
-  "module": "F5",
-  "prompt_json": {
-   "choices": [
-    "The stock can't move much now",
-    "The news is out, so volatility fell",
-    "Fewer people trade the options",
-    "Analysts lowered their estimates"
-   ],
-   "kind": "mcq",
-   "q": "The morning after a report, the live implied move reads far smaller than last night. Why?",
-   "subject": "F5.04#q16"
-  },
-  "reveal_json": {
-   "deeper": {
-    "trap": "Read the implied move before the report, not the morning after. Option volatility often collapses after the first reaction to earnings. So a reading taken after the news looks calm, even on a stock that just gapped."
-   },
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-09",
-      "name": "The Options Industry Council (OCC): The Crush Is Real (OIC, July 16, 2026)",
-      "quote": "In the weeks leading up to an earnings announcement implied volatility (IV) typically increases steadily, inflating option prices in anticipation of the unknown impact of the announcement on the stock price.",
-      "tier": 1,
-      "url": "https://www.optionseducation.org/news/the-crush-is-real"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "The Options Industry Council (OCC): The Crush Is Real (OIC, July 16, 2026)",
-      "quote": "Once an event comes and goes, uncertainty is generally replaced with more certainty, and that is accompanied by a commensurate repricing of options.",
-      "tier": 1,
-      "url": "https://www.optionseducation.org/news/the-crush-is-real"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "The Options Industry Council (OCC): The Crush Is Real (OIC, July 16, 2026)",
-      "quote": "The moment that uncertainty is replaced with more certainty, options tend to reprice quickly",
-      "tier": 1,
-      "url": "https://www.optionseducation.org/news/the-crush-is-real"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "Charles Schwab: Price Movement Indicator: Market Maker Move (Aug. 5, 2025)",
-      "quote": "in an attempt to capitalize on the expected collapse of IV that can often come after the market's initial reaction to earnings releases.",
-      "tier": 2,
-      "url": "https://www.schwab.com/learn/story/price-movement-indicator-market-maker-move"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "Charles Schwab: Price Movement Indicator: Market Maker Move (Aug. 5, 2025)",
-      "quote": "When the market is pricing in a potentially outsized move, such as right before an earnings release or other company announcement, front-month IV might be higher.",
-      "tier": 2,
-      "url": "https://www.schwab.com/learn/story/price-movement-indicator-market-maker-move"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "Interactive Brokers (IBKR Campus): Use Your TWS to See What the Options Market Thinks About Earnings Expectations (Steve Sosnick, July 24, 2020)",
-      "quote": "Options markets signal the market’s expectation for the stock’s move after the earnings release. The simplest way to see that anticipated move is to look at the nearest term, at-money straddle.",
-      "tier": 2,
-      "url": "https://www.interactivebrokers.com/campus/?p=53743"
-     }
-    ],
-    "summary": "In the weeks before an earnings report, option volatility usually rises, which makes options pricier. Once the event passes, most of the uncertainty is gone and option prices reset to match. When the news is out, options tend to reprice fast. Option volatility often collapses after the first reaction to an earnings release. Right before earnings, near-term option volatility can be higher because a big move is priced in. The nearest at-the-money straddle shows the move the options market expects from the report."
-   },
-   "facts": {
-    "given": "The morning after a report, the live implied move reads far smaller than last night. Why? The news is out, so volatility fell The stock can't move much now Analysts lowered their estimates Fewer people trade the options"
-   },
-   "lesson_line": "Read the implied move before the report. After it, the number deflates.",
-   "simple": "The report is over, so the options no longer price in its big unknown, and the implied move shrinks.",
-   "tier": "extended",
-   "unit": "F5.04",
-   "why": "The news is out, so volatility fell. In the weeks before a report, option volatility usually rises and makes options pricier. Once the news is out, most of the uncertainty is gone and options reprice fast. So the implied move shrinks. It does not mean the stock can't move. The options simply stopped pricing the report.",
-   "wrong": {
-    "Analysts lowered their estimates": "Estimates don't drive this. The drop comes from volatility leaving the options.",
-    "Fewer people trade the options": "The implied move is read from option prices, and they reprice fast once the news is out.",
-    "The stock can't move much now": "It can still move. The options simply stopped pricing the report."
-   }
-  },
-  "review_status": "draft",
-  "skill_id": "fund.season",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F5/F5.04.json#q16",
   "type": "recall",
   "version": 1
  },
@@ -8584,17 +8264,17 @@
   "difficulty": 2,
   "id": "si_d0e413e82ed1",
   "lesson_origin": "session",
-  "lesson_text": "2.5. Divide the realized move by the implied move: 10 divided by 4 is 2.5. Near one means about as priced, under one means smaller, over one means bigger. When a stock moves more than implied, OIC says the options are sometimes called outperforming expectations. At 2.5 the stock moved far more than options priced. Realized over implied: under one is smaller than priced, over one is bigger.",
+  "lesson_text": "2.5x. A straddle is a call and a put at the same strike, and its price is the quick read of the move options price. $2 divided by the $50 stock is 4%. The stock went from $50 to $55, which is a 10% move. Realized divided by implied is 10 divided by 4, which is 2.5. Under one means smaller than priced. Over one means bigger. OIC says options are sometimes called outperforming expectations when the stock moves more than implied. At 2.5 the stock moved far more than options priced. To work it out by hand, divide the nearest at-the-money straddle price by the stock price. Straddle over price gives the priced move. Realized over implied tells you how it compared.",
   "module": "F5",
   "prompt_json": {
    "choices": [
+    "0.4x",
     "2.5x",
     "6.0x",
-    "14.0x",
-    "40.0x"
+    "14.0x"
    ],
    "kind": "mcq",
-   "q": "Options priced a 4% move. The stock moved 10%. What is the realized move divided by the implied move?",
+   "q": "HXLR closed at $50 before earnings. Its at-the-money straddle cost $2. It closed at $55 after. Realized move divided by implied move?",
    "subject": "F5.05#q11"
   },
   "reveal_json": {
@@ -8602,10 +8282,31 @@
     "sources": [
      {
       "accessed": "2026-11-08",
-      "name": "Cboe Global Markets (Cboe Insights): What Options Data May Indicate About Mag 7 Earnings (July 30, 2025)",
-      "quote": "The simplest way to estimate the magnitude of the reaction is by comparing the straddle price to historic moves.",
+      "name": "The Options Industry Council (OCC): Long Straddle",
+      "quote": "A long straddle is a combination of buying a call and buying a put, both with the same strike price and expiration.",
+      "tier": 1,
+      "url": "https://www.optionseducation.org/strategies/all-strategies/long-straddle"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "Fidelity Investments: Options trading around earnings (webinar transcript, Trading Strategy Desk, presenter Konstantin Vrandopulo, 2022)",
+      "quote": "And option traders would frequently use the price of a straddle as the expected move of a stock post-earnings event.",
       "tier": 2,
-      "url": "https://www.cboe.com/insights/posts/what-options-data-may-indicate-about-mag-7-earnings"
+      "url": "https://www.fidelity.com/bin-public/060_www_fidelity_com/documents/learning-center/options-around-earnings-transcript.pdf"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "Interactive Brokers (IBKR Campus, Traders' Insight): Use Your TWS to See What the Options Market Thinks About Earnings Expectations (Steve Sosnick, Chief Strategist, July 24, 2020)",
+      "quote": "The simplest way to see that anticipated move is to look at the nearest term, at-money straddle.",
+      "tier": 2,
+      "url": "https://www.interactivebrokers.com/campus/traders-insight/securities/options/use-your-tws-to-see-what-the-options-market-thinks-about-earnings-expectations/"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "Interactive Brokers (IBKR Campus, Traders' Insight): Use Your TWS to See What the Options Market Thinks About Earnings Expectations (Steve Sosnick, Chief Strategist, July 24, 2020)",
+      "quote": "In this case, that is $9.48 (4.75 + 5.15 – (210 – 209.58)), or about 4.5% (9.48 / 209.58).",
+      "tier": 2,
+      "url": "https://www.interactivebrokers.com/campus/traders-insight/securities/options/use-your-tws-to-see-what-the-options-market-thinks-about-earnings-expectations/"
      },
      {
       "accessed": "2026-11-08",
@@ -8613,13 +8314,6 @@
       "quote": "once that events comes and goes, the stock either moves by the expected move or more or it doesn't.",
       "tier": 2,
       "url": "https://www.fidelity.com/bin-public/060_www_fidelity_com/documents/learning-center/options-around-earnings-transcript.pdf"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "Cboe Global Markets (Cboe Insights): What Options Data May Indicate About Mag 7 Earnings (July 30, 2025)",
-      "quote": "Immediately ahead of an earnings release, short-dated options prices reflect the market expectations of how a stock is likely to react.",
-      "tier": 2,
-      "url": "https://www.cboe.com/insights/posts/what-options-data-may-indicate-about-mag-7-earnings"
      },
      {
       "accessed": "2026-11-09",
@@ -8636,7 +8330,7 @@
       "url": "https://www.optionseducation.org/news/may-keytakeaways"
      }
     ],
-    "summary": "Compare the straddle price with the stock's past reactions to size up the expected move. After the event the stock may move about as much as expected, more, or less. Right before a report, short-dated option prices show the reaction the market expects. You judge the move that really happened against what option prices were implying. A stock that moves less than implied fell short of what options expected; one that moves more beat it."
+    "summary": "A straddle is a call and a put bought together at the same strike and expiry. Option traders often use the straddle price as the expected move after earnings. The quickest read of the expected move is the nearest-expiry, at-the-money straddle. MSFT's straddle priced a $9.48 move on a $209.58 stock: about 4.5%. After the event the stock may move about as much as expected, more, or less. You judge the move that really happened against what option prices were implying. A stock that moves less than implied fell short of what options expected; one that moves more beat it."
    },
    "facts": {
     "calc": {
@@ -8648,17 +8342,17 @@
      "fn": "arith",
      "result": 2.5
     },
-    "given": "Options priced a 4% move. The stock moved 10%. What is the realized move divided by the implied move? 2.5x 6.0x 14.0x 40.0x"
+    "given": "HXLR closed at $50 before earnings. Its at-the-money straddle cost $2. It closed at $55 after. Realized move divided by implied move? 2.5x 0.4x 6.0x 14.0x"
    },
-   "lesson_line": "Realized over implied: under one is smaller than priced, over one is bigger.",
-   "simple": "It is 2.5, because a 10% move is two and a half times the 4% move options priced.",
+   "lesson_line": "Straddle over price gives the priced move. Realized over implied tells you how it compared.",
+   "simple": "It is 2.5, because the stock moved two and a half times what the straddle priced.",
    "tier": "extended",
    "unit": "F5.05",
-   "why": "2.5. Divide the realized move by the implied move: 10 divided by 4 is 2.5. Near one means about as priced, under one means smaller, over one means bigger. When a stock moves more than implied, OIC says the options are sometimes called outperforming expectations. At 2.5 the stock moved far more than options priced.",
+   "why": "2.5x. A straddle is a call and a put at the same strike, and its price is the quick read of the move options price. $2 divided by the $50 stock is 4%. The stock went from $50 to $55, which is a 10% move. Realized divided by implied is 10 divided by 4, which is 2.5. Under one means smaller than priced. Over one means bigger. OIC says options are sometimes called outperforming expectations when the stock moves more than implied. At 2.5 the stock moved far more than options priced. To work it out by hand, divide the nearest at-the-money straddle price by the stock price.",
    "wrong": {
-    "14.0x": "You added 4 and 10 instead of dividing.",
-    "40.0x": "You multiplied 4 by 10 instead of dividing.",
-    "6.0x": "You subtracted 4 from 10 instead of dividing."
+    "0.4x": "You flipped it and divided the priced 4% by the realized 10%. Put the realized move on top.",
+    "14.0x": "You added the 4% and the 10% instead of dividing.",
+    "6.0x": "You subtracted the 4% from the 10% instead of dividing."
    }
   },
   "review_status": "draft",
