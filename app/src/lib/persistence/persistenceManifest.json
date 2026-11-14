@@ -590,6 +590,18 @@
       ]
     },
     {
+      "key": "screener_rs_controls",
+      "store": "server-preference",
+      "scope": "cross-device",
+      "surface": "Screener",
+      "kind": "setting",
+      "label": "RS screen quick controls",
+      "serverAllowlisted": true,
+      "files": [
+        "app/src/pages/screener/focus/FocusScreener.jsx"
+      ]
+    },
+    {
       "key": "shared_tag_colors",
       "store": "server-preference",
       "scope": "cross-device",

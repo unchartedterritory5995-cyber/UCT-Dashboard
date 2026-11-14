@@ -1,0 +1,83 @@
+/* The RS screens in the Focus layout (unit U5). Everything here is reached only by a starter
+   that carries `controls`, `row` or `empty`; every other screen draws from
+   FocusScreener.module.css alone, as before. Tokens only. Gold is --ut-gold, which the light
+   theme re-points to #7a5c16 (tokens.css): 6.2:1 on white, so gold text and the gold dot hold
+   on light without a second rule. Green and red are not used here: they mean direction of money. */
+
+/* The quick controls row: one row under the top bar. The segmented controls themselves are the
+   Focus layout's own .seg / .segOn / .segOff (QuickControls.jsx takes them from that file). */
+.controls { display: flex; align-items: center; gap: 8px 20px; flex-wrap: wrap; flex-shrink: 0; box-sizing: border-box; padding: 8px 20px; border-bottom: 1px solid var(--border); font-size: var(--text-base); }
+.control { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+.label { display: inline-flex; align-items: center; gap: 6px; color: var(--text-muted); white-space: nowrap; }
+.scroll { display: inline-flex; min-width: 0; max-width: 100%; }
+/* "look here": this control is off its default */
+.dot { flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--ut-gold); }
+/* The group clips its tabs to its corners (.seg is overflow: hidden), so the focus ring is drawn inside the
+   tab, in the tab's own ink: dark on the gold tab that is on, light on the others. */
+.opt:focus-visible { outline: 2px solid currentColor; outline-offset: -3px; }
+/* No option matches the working spec: shown as the one that is on, and not a button. */
+.custom { display: inline-flex; align-items: center; cursor: default; font-style: italic; }
+.reset { color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
+.reset:focus-visible, .adjust:focus-visible { outline: 2px solid var(--ut-gold); outline-offset: 2px; }
+/* "Adjust" exists only on a phone. */
+.adjust { display: none; }
+.sheet { display: flex; flex-direction: column; gap: 18px; padding: 4px 0 8px; }
+.stacked { flex-direction: column; align-items: flex-start; gap: 8px; }
+.stacked [role='radiogroup'] { flex-wrap: wrap; }
+.sheetReset { align-self: flex-start; }
+
+/* ── The RS row (RsResultRow.jsx). The list's own .row sets the padding, the tap height, the
+   hover and the selection; this lays its children on a two-line grid so the caption can run
+   under the sparkline (the list is 340 px wide: a caption boxed in beside it has ~120 px).
+     dot [place] TICKER ........ RS 97  ~spark~  price
+                 caption ............ [tag]      change                                       */
+/* (Two-part selectors below: they must beat the list's one-class .row, .rowSpark and .newPill whatever
+   order the two stylesheets load in.) */
+.row[data-rs-row] { display: grid; grid-template-columns: 6px minmax(0, 1fr) auto 56px auto; grid-template-areas: "radar ticker lead spark nums" ". below below below nums"; column-gap: 10px; row-gap: 2px; align-items: center; }
+.row[data-rs-row].rowPlaced { grid-template-columns: 6px auto minmax(0, 1fr) auto 56px auto; grid-template-areas: "radar place ticker lead spark nums" ". . below below below nums"; }
+.row > .radar { grid-area: radar; }
+/* the place numeral: tabular, right-aligned, so 9 and 1,204 share a right edge */
+.place { grid-area: place; min-width: 1.6em; text-align: right; font-variant-numeric: tabular-nums; font-size: var(--text-base); font-weight: 600; color: var(--text-muted); white-space: nowrap; }
+.row > .ticker { grid-area: ticker; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* the lead number: bright by default, gold only from 90 up */
+.lead { grid-area: lead; justify-self: end; font-variant-numeric: tabular-nums; font-size: var(--text-base); font-weight: 600; color: var(--text-bright); white-space: nowrap; }
+.leadTop { color: var(--ut-gold); }
+.below { grid-area: below; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.capLine { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.caption { flex: 1 1 auto; min-width: 0; }
+/* A tag is words in a plain outline: never green or red (those mean direction of money), never gold. */
+.tag { flex: none; padding: 0 6px; border: 1px solid var(--border-accent); border-radius: var(--radius-pill); font-size: var(--text-xs); font-weight: 600; line-height: 16px; color: var(--text); white-space: nowrap; }
+/* the list's existing New pill, in the tag's place on the caption line */
+.capLine > .newTag { flex: none; margin-left: 0; }
+/* the list's sparkline box and price column, placed on the grid (their own margins belong to the flex row) */
+.row > .spark { grid-area: spark; margin: 0; }
+.row > .nums { grid-area: nums; }
+
+/* ── The header line under the controls: the list's new/dropped line, the rating date, the
+   dominant sector. Quiet text; nothing here is a signal. */
+.head { display: flex; align-items: center; flex-wrap: wrap; gap: 2px 8px; flex-shrink: 0; padding: 6px 20px; border-bottom: 1px solid var(--border); font-size: var(--text-sm); color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.headPart { display: inline-flex; align-items: center; gap: 8px; }
+.headSep { color: var(--text-muted); }
+/* The dropped-names popover opens from the line's own start here (in the list head it hangs from the right). */
+.head [role='list'] { right: auto; left: 0; }
+/* ── The first-visit line: one line of words, a link and a button; the gold bar says "look here". */
+.note { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 14px; flex-shrink: 0; margin: 0; padding: 8px 20px; background: var(--bg-surface); border-bottom: 1px solid var(--border); box-shadow: inset 3px 0 0 var(--ut-gold); font-size: var(--text-base); line-height: var(--lh-snug); color: var(--text); }
+.noteText { flex: 1 1 320px; min-width: 0; }
+.noteLink { flex: none; color: var(--ut-gold); text-decoration: underline; text-underline-offset: 3px; }
+.noteBtn { flex: none; }
+.noteLink:focus-visible { outline: 2px solid var(--ut-gold); outline-offset: 2px; }
+/* the empty state's words (the list's own .stateBox centres them) */
+.status { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+
+@media (max-width: 640px) {
+  /* One line: the first control (it scrolls sideways when its options do not fit), then Adjust. */
+  .controls { flex-wrap: nowrap; gap: 10px; padding: 6px 12px; }
+  .rest, .resetInRow { display: none; }
+  .first { flex: 1 1 auto; }
+  .first .scroll { overflow-x: auto; scrollbar-width: none; border-radius: var(--radius-lg); }
+  .adjust { display: inline-flex; align-items: center; gap: 6px; flex: none; }
+  .opt, .custom, .adjust, .reset, .sheetReset { min-height: var(--tap-min); }
+  .opt { min-width: var(--tap-min); }
+  .head, .note { padding-left: 12px; padding-right: 12px; }
+  .noteLink, .noteBtn { min-height: var(--tap-min); }
+}

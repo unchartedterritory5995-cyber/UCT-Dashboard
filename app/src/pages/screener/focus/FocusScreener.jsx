@@ -67,6 +67,8 @@ import useWatchlistTarget from './useWatchlistTarget'
 import { whyItsHere, whyColumns } from './whyItsHere'
 import { describeEmptying } from './emptyUndo'
 import { migratePinned } from './screenGroups'
+import QuickControls from './QuickControls'
+import { RS_CONTROLS_PREF, controlsOf, applyOption, specWithChoices, choicesFor, withChoice, withoutChoices, controlStarterFor } from './rsScreens'
 import { useNameDialog } from './useNameDialog'
 import { useShortcutsSheet } from './useShortcutsSheet'
 import lazy from '../../../utils/lazyWithRetry'
@@ -524,10 +526,14 @@ function FocusList({ mode, onMode }) {
     if (current && normalSpec(current.spec) === specKey) { needsName.current = false; return }
     const hit = readNamed()[specKey] || [...starters.map(x => ({ ...x, kind: 'starter' })), ...saved.map(x => ({ ...x, kind: 'saved' }))]
       .find(it => it.spec && normalSpec(it.spec) === specKey)
+      // RS screens: a starter changed ONLY by its own quick controls is still that starter, shown as
+      // edited, so its name and controls survive a refresh or Back from a full chart (the URL carries
+      // the working spec, never the name). Tried last: an exact match above always wins.
+      || (st => (st ? { ...st, kind: 'starter' } : null))(controlStarterFor(starters, s.baseSpec))
     if (hit) { needsName.current = false; setCurrent({ id: hit.id, name: hit.name, kind: hit.kind, spec: hit.spec }) }
     else if (current) setCurrent(null)
   }, [s.baseSpec, specKey, starters, saved, current])
-  const { prefs, loading: prefsLoading } = usePreferences()
+  const { prefs, setPrefMerged, loading: prefsLoading } = usePreferences()
   // Pinned is migrated from the member's prefs, so the landing decision waits for them to answer
   // (a failed read settles too and lands on the defaults). Neither read is waited on forever.
   const [landingWaitOver, setLandingWaitOver] = useState(false)
@@ -545,7 +551,45 @@ function FocusList({ mode, onMode }) {
     const next = effectivePinned.includes(k) ? effectivePinned.filter(x => x !== k) : [...effectivePinned, k]
     setPinned(next); writeLS(PIN_KEY, JSON.stringify(next))
   }
-  const applyScreen = (spec, item) => { ed.applySpec(spec); setCurrent({ id: item.id, name: item.name, kind: item.kind, spec }) }
+  // ── RS screens (unit U5): what the open screen's STARTER adds to it ──────
+  // The optional `controls` of the starter on view, read from the live starters payload by id.
+  // A saved screen, a custom screen and a starter without them get none: nothing below draws.
+  const rsStarter = useMemo(() => (current && current.kind !== 'saved'
+    ? starters.find(x => String(x.id) === String(current.id)) || null : null), [current, starters])
+  const rsControls = useMemo(() => controlsOf(rsStarter), [rsStarter])
+  // A starter opened before its controls or the member's remembered choices were known (a
+  // last-used screen lands from localStorage, ahead of both reads): its id, until they answer.
+  const freshOpen = useRef(null)
+  const applyScreen = (spec, item) => {
+    // A starter with quick controls opens with the member's remembered choices already laid over
+    // its spec (preference `screener_rs_controls`): one applySpec, so one scan. `current` keeps the
+    // starter's OWN spec, so a remembered choice reads as the edit it is.
+    let working = spec
+    freshOpen.current = null
+    if (item && item.kind !== 'saved') {
+      if (savedLoaded && !prefsLoading) {
+        const st = starters.find(x => String(x.id) === String(item.id))
+        if (st?.controls) working = specWithChoices(spec, st, choicesFor(parsePref(prefs[RS_CONTROLS_PREF], null), item.id))
+      } else freshOpen.current = String(item.id)
+    }
+    ed.applySpec(working)
+    setCurrent({ id: item.id, name: item.name, kind: item.kind, spec })
+  }
+  // A quick control edits the working spec through the same editor as the Filters drawer, and
+  // the choice is remembered for this member and this screen.
+  const chooseOption = (control, option) => {
+    freshOpen.current = null
+    applyOption(ed, control, option)
+    if (rsStarter) setPrefMerged(RS_CONTROLS_PREF, stored => withChoice(stored, rsStarter.id, control.id, option.id))
+  }
+  // Reset: the starter's own spec again, and nothing remembered for it.
+  const resetControls = () => {
+    if (!rsStarter) return
+    freshOpen.current = null
+    ed.applySpec(rsStarter.spec)
+    setCurrent({ id: rsStarter.id, name: rsStarter.name, kind: 'starter', spec: rsStarter.spec })
+    setPrefMerged(RS_CONTROLS_PREF, stored => withoutChoices(stored, rsStarter.id))
+  }
   // A screen the member chose is the one the next open lands on. Landing itself goes through
   // applyScreen, so a member who only ever landed is still a first-timer.
   const chooseScreen = (spec, item) => { writeLastScreen(uid, { ...item, spec }); applyScreen(spec, item) }
@@ -649,6 +693,24 @@ function FocusList({ mode, onMode }) {
       setCurrent(c => (c && String(c.id) === String(srv.id) ? { ...c, name: srv.name, spec: srv.spec || { filters: [] } } : c))
     }
   }, [landPhase, serverAnswered, starters, saved, savedError])
+  // RS screens: a starter that landed before its controls and the member's remembered choices
+  // were known gets those choices once both reads have answered and the landing is settled. Only
+  // while the screen is still exactly as it landed: a member who has touched the page, edited the
+  // screen or moved on keeps what they see (the landing's own rule).
+  useEffect(() => {
+    const id = freshOpen.current
+    if (!id || landPhase !== 'final' || !savedLoaded || prefsLoading) return
+    freshOpen.current = null
+    if (touched.current || !current || String(current.id) !== id || normalSpec(current.spec) !== specKey) return
+    const st = starters.find(x => String(x.id) === id)
+    const choices = st?.controls ? choicesFor(parsePref(prefs[RS_CONTROLS_PREF], null), id) : null
+    if (!choices) return
+    for (const control of controlsOf(st)) {
+      const option = control.options.find(o => o && o.id === choices[control.id])
+      if (option && !option.default) applyOption(ed, control, option)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs when the landing settles and the two reads answer; `prefs` and `ed` are read as of that render
+  }, [landPhase, savedLoaded, prefsLoading, current, specKey, starters])
   const markTouched = () => { touched.current = true }
   const myScans = useMemo(() => ((meta?.filters || []).find(f => f.key === 'scan')?.scans || [])
     .filter(x => x?.def_hash).map(x => ({ hash: x.def_hash, name: x.name || 'Untitled scan' })), [meta])
@@ -908,6 +970,8 @@ function FocusList({ mode, onMode }) {
         helpMenu={<HelpMenu onHowTo={howTo ? () => setSheet('howto') : null} onMethodology={() => setSheet('methodology')}
           onLibrary={() => setSheet('library')} onGlossary={() => openFilters()} shortcuts={shortcuts} />}
       />
+      {/* RS screens: the quick controls row, only for a starter that declares controls. */}
+      {rsControls.length > 0 && <QuickControls controls={rsControls} filters={s.filters} sort={s.sort} rank={s.rank} onChoose={chooseOption} onReset={resetControls} />}
       {metaError && !meta && (
         // The list still renders with the current screen; only the filter registry is missing.
         <div className={styles.metaNote} role="alert">
