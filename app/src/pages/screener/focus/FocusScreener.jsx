@@ -68,7 +68,7 @@ import { whyItsHere, whyColumns } from './whyItsHere'
 import { describeEmptying } from './emptyUndo'
 import { migratePinned } from './screenGroups'
 import QuickControls from './QuickControls'
-import { RS_CONTROLS_PREF, RS_NOTE_PREF, RS_LEADERS_ID, RS_SCREENS_COLUMNS, controlsOf, applyOption, specWithChoices, choicesFor, withChoice, withoutChoices, controlStarterFor, placeOverride, rankLabelOf } from './rsScreens'
+import { RS_CONTROLS_PREF, RS_NOTE_PREF, RS_LEADERS_ID, RS_SCREENS_COLUMNS, controlsOf, applyOption, specWithChoices, choicesFor, withChoice, withoutChoices, controlStarterFor, placeOverride, rankLabelOf, offeredChoices } from './rsScreens'
 import { rowConfigOf, rowColumns, ratingsAsOf, sectorShare, rowFacts } from './rsRows'
 import { RsHeaderLine, RsFirstVisit, RsEmptyState, RsMarketLine } from './RsScreenParts'
 import { marketLineOf, readMarketHidden, writeMarketHidden } from './rsMarket'
@@ -600,10 +600,16 @@ function FocusList({ mode, onMode }) {
     let working = spec
     freshOpen.current = null
     if (item && item.kind !== 'saved') {
+      const st = starters.find(x => String(x.id) === String(item.id))
+      // A choice named WITH the open (unit U11: UCT Agent's "open RS New Highs for today" hands
+      // `item.choices`, { controlId: optionId }) goes over the remembered ones for this open. Only
+      // options the starter itself offers count. It is not written to the member's preference: a
+      // tap on the quick control is what remembers a choice, and Reset still returns the screen.
+      const asked = st?.controls ? offeredChoices(st, item.choices) : null
       if (savedLoaded && !prefsLoading) {
-        const st = starters.find(x => String(x.id) === String(item.id))
-        if (st?.controls) working = specWithChoices(spec, st, choicesFor(parsePref(prefs[RS_CONTROLS_PREF], null), item.id))
-      } else freshOpen.current = String(item.id)
+        if (st?.controls) working = specWithChoices(spec, st, { ...choicesFor(parsePref(prefs[RS_CONTROLS_PREF], null), item.id), ...asked })
+      } else if (asked) working = specWithChoices(spec, st, asked)
+      else freshOpen.current = String(item.id)
     }
     ed.applySpec(working)
     setCurrent({ id: item.id, name: item.name, kind: item.kind, spec, ...rsExtras(item) })
@@ -1023,7 +1029,8 @@ function FocusList({ mode, onMode }) {
   }
 
   // ⭐ W2-C1: what UCT Agent may read here and the door it opens a saved screen through (applyScreen — the Screen menu's own)
-  useScreenerAgentHost({ rows, total, current, edited: isEdited, filters: Object.keys(s.filters || {}), loading: isLoading, saved, starters, applyScreen: chooseScreen, refresh })
+  // (`quickChoices`, unit U11: this layout lays a choice named with the open over the screen, applyScreen above)
+  useScreenerAgentHost({ rows, total, current, edited: isEdited, filters: Object.keys(s.filters || {}), loading: isLoading, saved, starters, applyScreen: chooseScreen, quickChoices: true, refresh })
   return (
     <div ref={pageRef} className={styles.page} data-testid="focus-screener" data-mode="list" data-density={density} onKeyDown={shortcuts.onKeyDown}
       onKeyDownCapture={markTouched} onPointerDownCapture={markTouched} onWheelCapture={markTouched} onScrollCapture={markTouched}>

@@ -110,6 +110,51 @@ export function specWithChoices(spec, starter, choices) {
   return out
 }
 
+// ── a choice named in words (unit U11) ───────────────────────────────────────────────────────
+// UCT Agent opens an RS screen with a quick choice the member named ("open RS New Highs for
+// today"). The words are matched against the starter's OWN options, by id or by label, as the
+// payload serves them: nothing here names a control, an option or a screen. The server words its
+// own lists the same way (api/services/rs_screens_service.py resolve_options).
+const plainWord = v => String(v ?? '').toLowerCase().replace(/[^a-z0-9]+/g, '')
+// One phrase -> [control, option], or null when it names no option or options of two controls.
+// "control = option" (the control by id or label) settles a word two controls share.
+function optionNamed(controls, phrase) {
+  const cut = String(phrase).indexOf('=')
+  const controlWord = cut < 0 ? null : plainWord(String(phrase).slice(0, cut))
+  const want = plainWord(cut < 0 ? phrase : String(phrase).slice(cut + 1))
+  if (!want) return null
+  const pool = controlWord === null ? controls : controls.filter(c => [plainWord(c.id), plainWord(c.label)].includes(controlWord))
+  const hits = pool.flatMap(c => c.options.filter(o => o && [plainWord(o.id), plainWord(o.label)].includes(want)).map(o => [c, o]))
+  return hits.length && new Set(hits.map(([c]) => c.id)).size === 1 ? hits[0] : null
+}
+// What the member named, as { choices: { controlId: optionId }, labels: [option label...],
+// problems: [the words that named nothing...] }. The whole phrase is tried first (a label may hold
+// a comma or an "and" of its own), then its parts. Nothing is guessed: a list said to be "today"
+// must be today's, so an unknown word is a problem for the caller to say, never a default.
+export function choicesNamed(starter, words) {
+  const controls = controlsOf(starter)
+  const out = { choices: {}, labels: [], problems: [] }
+  const whole = String(words ?? '').trim()
+  if (!whole) return out
+  const parts = optionNamed(controls, whole) ? [whole] : whole.split(/\s*(?:[,;]|\band\b)\s*/i).filter(Boolean)
+  for (const part of parts) {
+    const hit = optionNamed(controls, part)
+    if (!hit) { out.problems.push(part); continue }
+    out.choices[hit[0].id] = hit[1].id
+    out.labels.push(hit[1].label)
+  }
+  return out
+}
+// The choices of `choices` ({ controlId: optionId }) this starter really offers, or null when none.
+export function offeredChoices(starter, choices) {
+  if (!isObj(choices)) return null
+  const out = {}
+  for (const control of controlsOf(starter)) if (control.options.some(o => o && o.id === choices[control.id])) out[control.id] = choices[control.id]
+  return Object.keys(out).length ? out : null
+}
+// A starter's quick choices as a sentence may list them: ["When: Today, This week, This month", ...].
+export const choiceWords = starter => controlsOf(starter).map(c => `${c.label}: ${c.options.map(o => o.label).join(', ')}`)
+
 // The remembered choices of one starter, from the stored preference value (parsed), or null.
 export function choicesFor(stored, starterId) {
   const mine = isObj(stored) ? stored[String(starterId)] : null
