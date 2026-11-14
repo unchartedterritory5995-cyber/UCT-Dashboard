@@ -346,10 +346,17 @@ export function useOutboxDrain({
       // leaves its source alone. Never the note this tab has open now: its editor reads that key, and
       // the drain skips it, but it can open while the drain runs. Swallowed: a failed drop is a stale
       // read until the next load, never a change to what the drain returns.
+      // ⛔ Round 2 (A1): and only a note NO editor owns. The side pane's editor, or one in another tab,
+      // mounts the same read, and clearing it drops that editor to the loading skeleton under the
+      // member's hands. The drain's own question, asked again now: only an answer of exactly `false`
+      // clears; `true`, unknown (`null`, a query slower than OWNER_QUERY_TIMEOUT_MS) or a throw keep
+      // the cached read, as before round 1.
       for (const r of results) {
         if (r?.copy || (r?.outcome !== SENT && r?.outcome !== SUPERSEDED && r?.outcome !== FORKED)) continue
         if (r.noteId === excludeRef.current) continue
         try {
+          // eslint-disable-next-line no-await-in-loop
+          if ((await isNoteOwned(accountId, r.noteId)) !== false) continue
           const p = (mutateRef.current || globalMutate)(noteReadKey(r.noteId), undefined, { revalidate: true })
           if (p && typeof p.catch === 'function') p.catch(() => {})
         } catch { /* a cache drop is not a guard */ }

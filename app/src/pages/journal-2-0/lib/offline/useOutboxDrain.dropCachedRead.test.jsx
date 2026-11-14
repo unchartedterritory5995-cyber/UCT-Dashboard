@@ -20,6 +20,7 @@ import { LEADER } from './outboxLeader'
 import { OFFLINE_FLAG_KEY } from './offlineFlag'
 import { FORKED, KEPT, SENT, SKIPPED, SUPERSEDED, drainOutbox, summarize } from './outboxDrain'
 import { noteReadKey } from '../noteReadKey'
+import { isNoteOwned } from './noteOwnerLock'
 
 vi.mock('./outboxDrain', async (importOriginal) => {
   const actual = await importOriginal()
@@ -28,6 +29,11 @@ vi.mock('./outboxDrain', async (importOriginal) => {
 vi.mock('../notebookTelemetry', async (importOriginal) => {
   const actual = await importOriginal()
   return { ...actual, trackNotebookEvent: vi.fn() }
+})
+// Round 2 (A1): the owner-lock answer the clear asks. Default "no editor owns it" (false); a case overrides per note.
+vi.mock('./noteOwnerLock', async (importOriginal) => {
+  const actual = await importOriginal()
+  return { ...actual, isNoteOwned: vi.fn() }
 })
 
 let db
@@ -55,6 +61,7 @@ beforeEach(() => {
   db = createFakeDb()
   globalThis.indexedDB = { open: () => { throw new Error('injected in tests') } }
   installLocks()
+  isNoteOwned.mockImplementation(async () => false)
 })
 afterEach(() => {
   Object.defineProperty(globalThis.navigator, 'locks', { configurable: true, value: undefined })
@@ -142,6 +149,46 @@ describe('⭐ final fix pass, item 1 — the drain drops a drained note’s cach
     await act(async () => { release() })
     await waitFor(() => expect(dropped(mutate)).toContain(noteReadKey('C')))
     expect(dropped(mutate)).not.toContain(noteReadKey('A'))
+  })
+
+  // ⛔ Round 2 (A1): the side pane's editor, or one in another tab, reads the same key.
+  it('a note an editor owns (true) is not cleared; one nobody owns (false) is', async () => {
+    isNoteOwned.mockImplementation(async (acct, id) => (id === 'SIDE' ? true : false))
+    drainOutbox.mockResolvedValue([r('SIDE', SENT), r('C', SENT)])
+    const mutate = vi.fn(async () => undefined)
+    const { result } = mount({ mutate })
+    await waitFor(() => expect(result.current.role).toBe(LEADER))
+    await waitFor(() => expect(dropped(mutate)).toContain(noteReadKey('C')))
+    expect(dropped(mutate)).not.toContain(noteReadKey('SIDE'))
+    expect(isNoteOwned).toHaveBeenCalledWith('acct1', 'SIDE')
+  })
+
+  it('unknown (null: no Web Locks, or a query slower than its limit) is not cleared', async () => {
+    isNoteOwned.mockImplementation(async (acct, id) => (id === 'U' ? null : false))
+    drainOutbox.mockResolvedValue([r('U', SENT), r('C', SENT)])
+    const mutate = vi.fn(async () => undefined)
+    const { result } = mount({ mutate })
+    await waitFor(() => expect(result.current.role).toBe(LEADER))
+    await waitFor(() => expect(dropped(mutate)).toContain(noteReadKey('C')))
+    expect(dropped(mutate)).not.toContain(noteReadKey('U'))
+  })
+
+  it('an owner question that throws clears nothing and does not change what drainNow returns', async () => {
+    const results = [r('A', SENT), r('B', SKIPPED)]
+    drainOutbox.mockResolvedValue(results)
+    isNoteOwned.mockImplementation(async () => { throw new Error('locks.query failed') })
+    const mutate = vi.fn(async () => undefined)
+    const { result } = mount({ mutate })
+    await waitFor(() => expect(result.current.role).toBe(LEADER))
+    await waitFor(() => expect(result.current.lastSummary).not.toBeNull())
+    let s = null
+    await waitFor(async () => {
+      await act(async () => { s = await result.current.drainNow() })
+      expect(s).not.toBeNull()
+    })
+    expect(s).toEqual(summarize(results))
+    expect(mutate).not.toHaveBeenCalled()
+    expect(isNoteOwned).toHaveBeenCalled()
   })
 
   it('with SWR’s own global mutate, a reopen after the drain loads the server copy, not the cached one', async () => {
