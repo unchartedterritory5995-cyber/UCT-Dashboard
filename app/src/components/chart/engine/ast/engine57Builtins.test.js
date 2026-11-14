@@ -186,7 +186,9 @@ describe('supertrend from the listing (S6 builtin `supertrend`)', () => {
       for (let i = 0; i < N; i += 1) if (Number.isFinite(off.cols[k][i])) expect(onPlain.cols[k][i], `plot ${k} bar ${i}`).toBe(off.cols[k][i])
     }
     expect(drawn(off.cols[0]) + drawn(off.cols[1])).toBeGreaterThan(200)
-    expect(doors(ST_SRC)).toEqual(['OK', 'OK', 'OK', 'OK'])
+    // (the screen refuses `barstate.isfirst` by name, `pine:window-dependent`, as on master; the
+    // supertrend itself translates at all four doors)
+    expect(doors(plain)).toEqual(['OK', 'OK', 'OK', 'OK'])
   })
 })
 
