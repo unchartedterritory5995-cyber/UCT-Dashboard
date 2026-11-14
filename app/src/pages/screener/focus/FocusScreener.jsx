@@ -519,7 +519,8 @@ function FocusList({ mode, onMode }) {
   const openFiltersFromStrip = useCallback(() => openFilters(), [openFilters])
   const [sheet, setSheet] = useState(null) // 'howto' | 'methodology' | 'rs-methodology' | 'library' | null
   // RS screens: "How it works" (the first-visit line) and Help's "How the RS screens work" open
-  // the Methodology sheet at the RS screens' own cards.
+  // the Methodology sheet at the RS screens' own page (the server's `rs_screens` document, U6), or
+  // at their first column card when the payload carries no such page.
   const openRsHelp = useCallback(() => setSheet('rs-methodology'), [])
   const howToOn = useContext(AuthContext)?.howToChecklistsEnabled === true
   const howTo = howToOn ? approvedChecklist('screener.stocks') : null
@@ -1052,7 +1053,7 @@ function FocusList({ mode, onMode }) {
       </Sheet>
       <Sheet open={sheet === 'methodology' || sheet === 'rs-methodology'} onClose={() => setSheet(null)} variant="auto" title="Methodology" ariaLabel="Methodology" maxWidth={880}>
         {sheet === 'methodology' && <MethodologyPanel />}
-        {sheet === 'rs-methodology' && <MethodologyPanel focusColumns={RS_SCREENS_COLUMNS} />}
+        {sheet === 'rs-methodology' && <MethodologyPanel focusSection="rs_screens" focusColumns={RS_SCREENS_COLUMNS} />}
       </Sheet>
       <Sheet open={sheet === 'library'} onClose={() => setSheet(null)} variant="auto" title="Structure library" ariaLabel="Structure library" maxWidth={880}>
         {sheet === 'library' && <StructureProvenance />}

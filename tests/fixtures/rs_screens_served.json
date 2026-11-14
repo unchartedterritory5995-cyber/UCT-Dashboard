@@ -1,0 +1,1073 @@
+{
+  "about": "Captured by tests/test_rs_screens_u6_golden.py (UPDATE_RS_SCREENS_GOLDEN=1 rewrites); read by app/src/pages/screener/focus/__tests__/rsScreensFixture.js.",
+  "hidden": [
+    {
+      "id": "starter_momentum_leaders",
+      "name": "Leaders (RS \u2265 90)",
+      "group": "Momentum leaders",
+      "description": "RS 90+ stocks, MAs stacked, within 15% of the 52 week high, 4%+ daily range, $20M+ traded, price $5+",
+      "spec": {
+        "filters": [
+          {
+            "key": "rs_rank",
+            "op": "gte",
+            "min": 90
+          },
+          {
+            "key": "ma_stack",
+            "op": "eq",
+            "value": "full-bull"
+          },
+          {
+            "key": "dist_52w_high_pct",
+            "op": "gte",
+            "min": -15
+          },
+          {
+            "key": "adr_pct",
+            "op": "gte",
+            "min": 4
+          },
+          {
+            "key": "dollar_vol_30d",
+            "op": "gte",
+            "min": 20000000
+          },
+          {
+            "key": "price",
+            "op": "gte",
+            "min": 5
+          },
+          {
+            "key": "security_type",
+            "op": "not_in",
+            "values": [
+              "ETF"
+            ]
+          }
+        ],
+        "view": "technical",
+        "sort": {
+          "key": "rs_rank",
+          "dir": "desc"
+        }
+      },
+      "hidden": true
+    },
+    {
+      "id": "starter_rs_nh_red_day",
+      "name": "RS new highs on a red day",
+      "group": "Relative strength",
+      "description": "Stocks whose RS line made a 52-week high on a session SPY closed down 0.5% or more, $10M+ traded, price $5+",
+      "spec": {
+        "filters": [
+          {
+            "key": "rs_nh_red_day",
+            "op": "eq",
+            "value": 1
+          },
+          {
+            "key": "dollar_vol_30d",
+            "op": "gte",
+            "min": 10000000
+          },
+          {
+            "key": "price",
+            "op": "gte",
+            "min": 5
+          },
+          {
+            "key": "security_type",
+            "op": "not_in",
+            "values": [
+              "ETF"
+            ]
+          }
+        ],
+        "view": "relative_strength",
+        "sort": {
+          "key": "rs_rank",
+          "dir": "desc"
+        }
+      },
+      "hidden": true
+    },
+    {
+      "id": "starter_rs_green_on_red",
+      "name": "Up on down days (3+ of 20)",
+      "group": "Relative strength",
+      "description": "Stocks that closed up on at least 3 of the last 20 sessions' SPY down days (SPY down 0.5% or more), $10M+ traded, price $5+",
+      "spec": {
+        "filters": [
+          {
+            "key": "green_on_red_20",
+            "op": "gte",
+            "min": 3
+          },
+          {
+            "key": "dollar_vol_30d",
+            "op": "gte",
+            "min": 10000000
+          },
+          {
+            "key": "price",
+            "op": "gte",
+            "min": 5
+          },
+          {
+            "key": "security_type",
+            "op": "not_in",
+            "values": [
+              "ETF"
+            ]
+          }
+        ],
+        "view": "relative_strength",
+        "sort": {
+          "key": "green_on_red_20",
+          "dir": "desc"
+        }
+      },
+      "hidden": true
+    },
+    {
+      "id": "starter_rs_cross_up_21ema",
+      "name": "RS line crossed above its 21 EMA within 5 bars",
+      "group": "Relative strength",
+      "description": "Stocks whose RS line against SPY crossed above its 21-day EMA within the last 5 sessions and is still above it, $10M+ traded, price $5+",
+      "spec": {
+        "filters": [
+          {
+            "key": "rs_cross_up_bars_ago",
+            "op": "between",
+            "min": 0,
+            "max": 5
+          },
+          {
+            "key": "rs_line_above_ma",
+            "op": "eq",
+            "value": 1
+          },
+          {
+            "key": "dollar_vol_30d",
+            "op": "gte",
+            "min": 10000000
+          },
+          {
+            "key": "price",
+            "op": "gte",
+            "min": 5
+          },
+          {
+            "key": "security_type",
+            "op": "not_in",
+            "values": [
+              "ETF"
+            ]
+          }
+        ],
+        "view": "relative_strength",
+        "sort": {
+          "key": "rs_cross_up_bars_ago",
+          "dir": "asc"
+        }
+      },
+      "hidden": true
+    },
+    {
+      "id": "starter_rs_mansfield_positive",
+      "name": "Mansfield turned positive this month",
+      "group": "Relative strength",
+      "description": "Stocks whose Mansfield RS (the RS line against its own 200-day average) crossed zero within the last 21 sessions and reads above zero now, $10M+ traded, price $5+",
+      "spec": {
+        "filters": [
+          {
+            "key": "mansfield_cross_bars_ago",
+            "op": "lte",
+            "max": 21
+          },
+          {
+            "key": "mansfield",
+            "op": "gt",
+            "min": 0
+          },
+          {
+            "key": "dollar_vol_30d",
+            "op": "gte",
+            "min": 10000000
+          },
+          {
+            "key": "price",
+            "op": "gte",
+            "min": 5
+          },
+          {
+            "key": "security_type",
+            "op": "not_in",
+            "values": [
+              "ETF"
+            ]
+          }
+        ],
+        "view": "relative_strength",
+        "sort": {
+          "key": "mansfield",
+          "dir": "desc"
+        }
+      },
+      "hidden": true
+    },
+    {
+      "id": "starter_rs_leaders_equal_weight",
+      "name": "Leaders vs equal-weight too",
+      "group": "Relative strength",
+      "description": "RS 80+ stocks whose RS line is above its 21-day EMA and whose 20-day RS slope has the same sign against SPY and against equal-weight RSP, $10M+ traded, price $5+",
+      "spec": {
+        "filters": [
+          {
+            "key": "rs_rank",
+            "op": "gte",
+            "min": 80
+          },
+          {
+            "key": "rs_benchmark_agree",
+            "op": "eq",
+            "value": 1
+          },
+          {
+            "key": "rs_line_above_ma",
+            "op": "eq",
+            "value": 1
+          },
+          {
+            "key": "dollar_vol_30d",
+            "op": "gte",
+            "min": 10000000
+          },
+          {
+            "key": "price",
+            "op": "gte",
+            "min": 5
+          },
+          {
+            "key": "security_type",
+            "op": "not_in",
+            "values": [
+              "ETF"
+            ]
+          }
+        ],
+        "view": "relative_strength",
+        "sort": {
+          "key": "rs_rank",
+          "dir": "desc"
+        }
+      },
+      "hidden": true
+    },
+    {
+      "id": "starter_rs_quicksand_5",
+      "name": "Quicksand in the last 5 sessions",
+      "group": "Relative strength",
+      "description": "Stocks whose RS line against SPY, after breaking below its 21-day average, closed below the level of that break in the last 5 sessions (Mike Webster's Quicksand), $10M+ traded, price $5+. A warning to review the position, not an order to sell",
+      "spec": {
+        "filters": [
+          {
+            "key": "rs_quicksand_bars_ago",
+            "op": "between",
+            "min": 0,
+            "max": 4
+          },
+          {
+            "key": "dollar_vol_30d",
+            "op": "gte",
+            "min": 10000000
+          },
+          {
+            "key": "price",
+            "op": "gte",
+            "min": 5
+          },
+          {
+            "key": "security_type",
+            "op": "not_in",
+            "values": [
+              "ETF"
+            ]
+          }
+        ],
+        "view": "relative_strength",
+        "sort": {
+          "key": "rs_quicksand_bars_ago",
+          "dir": "asc"
+        }
+      },
+      "hidden": true
+    }
+  ],
+  "words": {
+    "setup": {
+      "below_50": "Below its 50-day line",
+      "extended": "Extended",
+      "at_pivot": "At pivot",
+      "pullback_8": "Pullback to the 8-day",
+      "pullback_21": "Pullback to the 21-day",
+      "uptrend": "Uptrend, no setup"
+    },
+    "flags": {
+      "buyout_pending": "Buyout pending",
+      "one_day_move": "One-day move",
+      "new_issue": "New issue"
+    },
+    "tight": "Tight range"
+  },
+  "method": {
+    "label": "Relative Strength screens",
+    "screens": [
+      {
+        "id": "starter_rs_top_rating",
+        "name": "Top RS Rating",
+        "rule": "Every stock on the liquidity floor that holds an RS Rating place, strongest first. The order is the unrounded score behind the rating, so stocks that share a rating are told apart and no two share a place. The overall list needs a full year of price history. The 1, 3, 6 and 12-month lists need only a value for that window, so a newer listing appears on the shorter lists.",
+        "controls": "Rank by chooses the list: overall, one window, or Rising fastest (the largest gain in RS Rating over 20 stored sessions, among stocks above their 50-day line). Show narrows it to RS Rating 90 and up, or to stocks at 90 or higher now that were under 90 20 stored sessions ago.",
+        "caveat": "A rating is a rank of past return, not a forecast. Rising fastest is partly stocks bouncing back, so read it as a list to study."
+      },
+      {
+        "id": "starter_rs_new_high",
+        "name": "RS New Highs",
+        "rule": "The RS line (the stock's price divided by SPY's, daily closes) closed above its highest close of the prior 252 sessions within the last 5 sessions, and the stock closed above its 200-day average. Newest first; stocks whose RS high came on the same session are ordered by RS Rating score.",
+        "controls": "When: today, the last 5 sessions, or the last 21. Min RS Rating. Market: Down days only keeps a stock whose RS line made that high within the last 10 sessions on a day SPY closed down 0.5% or more.",
+        "caveat": "An RS line can rise while the stock falls, when SPY falls faster. The market down day reading is a house method with no published test."
+      },
+      {
+        "id": "starter_rs_nh_before_price",
+        "name": "RS New High Before Price",
+        "rule": "The RS line made a 52-week high within the last 5 sessions and price has not made its own 52-week closing high since, the stock closed 3% to 25% below that high, and above its 200-day average. Closest to its high first. A stock leaves the list once price makes its high.",
+        "controls": "When: today, the last 5 sessions, or the last 21. Below its high by: at least 3%, 5% or 10%. Min RS Rating.",
+        "caveat": "The RS line leading price is a trader's rule with no published test. An empty list is normal in a weak market."
+      },
+      {
+        "id": "starter_rs_leaders",
+        "name": "UCT RS Leaders",
+        "rule": "Stocks on the liquidity floor with an average daily range of 3% or more, a market value of $300M or more, RS Rating 80 or higher, the RS line above its 21-day average, a close above a rising 200-day average, and price within 25% of its 52-week high. The 50 with the highest RS Rating score are shown, strongest first.",
+        "controls": "Show: all, only stocks near a buy point, or everything except Extended and Below its 50-day line. Min RS Rating: 80, 85, 90, 95.",
+        "caveat": "RS Rating 80 is a convention, not a tested threshold. The list says which stocks to study, and the Setup label says where each one sits against its own averages."
+      },
+      {
+        "id": "starter_rs_exit_warning_5",
+        "name": "RS exit warnings",
+        "rule": "The RS line against SPY flashed a Quick Break, a Quicksand or a Grateful Dead Break (Mike Webster's warnings, our reading of them) within the last 5 sessions. Newest first.",
+        "controls": "Type keeps one kind of warning.",
+        "caveat": "A warning is a prompt to review a position, not an order to sell."
+      }
+    ],
+    "setup": {
+      "order": "The first rule that matches names the stock. Tight range is a second tag that can sit beside any of them.",
+      "atr": "ATR is the 14-session average true range, the stock's typical daily move in dollars.",
+      "labels": [
+        {
+          "key": "below_50",
+          "label": "Below its 50-day line",
+          "rule": "The close is under the 50-day simple average.",
+          "source": "A definition."
+        },
+        {
+          "key": "extended",
+          "label": "Extended",
+          "rule": "4 or more ATRs above the 50-day average, or 3 or more ATRs above the 21-day EMA, or more than 5% past a base pivot.",
+          "source": "The 4 ATR limit is Jeff Sun's published rule. 3 ATRs over the 21-day is a house threshold with no published test. 5% past a pivot is the top of IBD's published range."
+        },
+        {
+          "key": "at_pivot",
+          "label": "At pivot",
+          "rule": "From 3% below a base pivot to 5% above it. The pivot is the one the Base Structure column names for the stock on this build.",
+          "source": "5% above the pivot is IBD's published range. 3% below is a house threshold."
+        },
+        {
+          "key": "pullback_8",
+          "label": "Pullback to the 8-day",
+          "rule": "The stock closed at a 20-session high within the last 15 sessions, and today its low came within 0.5 ATR of a rising 8-day EMA while its close is no more than 0.5 ATR under it. An EMA is rising when it stands above its value 5 sessions earlier. Named ahead of the 21-day when both hold.",
+          "source": "The 8-day and 21-day EMAs are the house teaching averages. The half-ATR band is a house threshold with no published test."
+        },
+        {
+          "key": "pullback_21",
+          "label": "Pullback to the 21-day",
+          "rule": "The stock closed at a 20-session high within the last 15 sessions, and today its low came within 0.5 ATR of a rising 21-day EMA while its close is no more than 0.5 ATR under it. An EMA is rising when it stands above its value 5 sessions earlier.",
+          "source": "The same house rule, on the 21-day EMA."
+        },
+        {
+          "key": "uptrend",
+          "label": "Uptrend, no setup",
+          "rule": "None of the above, with the close at or above the 50-day average.",
+          "source": "A definition."
+        }
+      ],
+      "tight": {
+        "label": "Tight range",
+        "rule": "The Tight Consolidation column reads yes for the stock."
+      },
+      "flags": [
+        {
+          "key": "buyout_pending",
+          "label": "Buyout pending",
+          "rule": "One session closed 15% or more above the prior close within the last 60 sessions, at least 5 sessions ago, and every close since has stayed inside a 1.5% range."
+        },
+        {
+          "key": "one_day_move",
+          "label": "One-day move",
+          "rule": "Over the last 63 sessions the stock is up, and one session's gain was more than half of that rise and at least 15% on its own."
+        },
+        {
+          "key": "new_issue",
+          "label": "New issue",
+          "rule": "Fewer than 253 daily bars of price history."
+        }
+      ],
+      "near": "Near a buy point means At pivot, a Pullback, or a Tight range. It never includes a stock that is Extended, Below its 50-day line, Buyout pending or a One-day move. It describes where price sits against its own averages. It is not a recommendation.",
+      "blank": "A label is blank when one of the measures it needs cannot be computed, and for a stock whose price history contradicts itself. A blank is never replaced by the next label down."
+    },
+    "floor": "Every screen here is stocks only, no funds, with a price of $10 or more and $20M or more traded a day on a 30-day average. The benchmark is SPY, on daily closing prices.",
+    "ratings_as_of": "Ratings as of names the market session the RS Rating numbers on a row describe. The rating job scores each completed session at 04:15 ET the next morning. Between the 03:00 ET screener build and that job the screens keep the previous session's ratings and places, and this date says so.",
+    "rating_note": "Our RS Rating is our own calculation. It follows IBD's published method and can differ from IBD's number by a few points.",
+    "honesty": "Every screen and label here describes the past. Each one says which stocks to study, not what will happen next, and none of them is a forecast or a recommendation."
+  },
+  "meta": {
+    "filters": [
+      {
+        "key": "price",
+        "label": "Price",
+        "category": "descriptive",
+        "type": "range",
+        "presets": [
+          {
+            "label": "Any"
+          },
+          {
+            "label": "Over $10",
+            "op": "gte",
+            "min": 10
+          },
+          {
+            "label": "Over $50",
+            "op": "gte",
+            "min": 50
+          },
+          {
+            "label": "Under $20",
+            "op": "lte",
+            "max": 20
+          }
+        ],
+        "allow_custom": true,
+        "unit": "$"
+      },
+      {
+        "key": "dollar_vol_30d",
+        "label": "Dollar Volume (30d)",
+        "category": "descriptive",
+        "type": "range",
+        "presets": [
+          {
+            "label": "Any"
+          },
+          {
+            "label": "$10M+",
+            "op": "gte",
+            "min": 10000000
+          },
+          {
+            "label": "$20M+",
+            "op": "gte",
+            "min": 20000000
+          },
+          {
+            "label": "$50M+",
+            "op": "gte",
+            "min": 50000000
+          }
+        ],
+        "allow_custom": true,
+        "unit": "$"
+      },
+      {
+        "key": "rs_rating_pos",
+        "label": "RS Rating place",
+        "category": "relative_strength",
+        "type": "range",
+        "presets": [
+          {
+            "label": "Any"
+          }
+        ],
+        "allow_custom": true,
+        "unit": null
+      },
+      {
+        "key": "security_type",
+        "label": "Type",
+        "category": "type",
+        "type": "enum",
+        "presets": [
+          {
+            "label": "Any"
+          }
+        ],
+        "allow_custom": false,
+        "unit": null,
+        "control": "typeset",
+        "options": [
+          "Stock",
+          "ADR",
+          "ETF"
+        ]
+      },
+      {
+        "key": "rs_pos_1m",
+        "label": "1M place",
+        "category": "relative_strength",
+        "type": "range",
+        "presets": [
+          {
+            "label": "Any"
+          }
+        ],
+        "allow_custom": true,
+        "unit": null
+      },
+      {
+        "key": "rs_pos_3m",
+        "label": "3M place",
+        "category": "relative_strength",
+        "type": "range",
+        "presets": [
+          {
+            "label": "Any"
+          }
+        ],
+        "allow_custom": true,
+        "unit": null
+      },
+      {
+        "key": "rs_pos_6m",
+        "label": "6M place",
+        "category": "relative_strength",
+        "type": "range",
+        "presets": [
+          {
+            "label": "Any"
+          }
+        ],
+        "allow_custom": true,
+        "unit": null
+      },
+      {
+        "key": "rs_pos_12m",
+        "label": "12M place",
+        "category": "relative_strength",
+        "type": "range",
+        "presets": [
+          {
+            "label": "Any"
+          }
+        ],
+        "allow_custom": true,
+        "unit": null
+      },
+      {
+        "key": "rs_rating_chg_20",
+        "label": "RS Rating Change (20 sessions)",
+        "category": "relative_strength",
+        "type": "range",
+        "presets": [
+          {
+            "label": "Any"
+          }
+        ],
+        "allow_custom": true,
+        "unit": null
+      },
+      {
+        "key": "pct_vs_sma50",
+        "label": "SMA50 Distance",
+        "category": "technical",
+        "type": "range",
+        "presets": [
+          {
+            "label": "Any"
+          }
+        ],
+        "allow_custom": true,
+        "unit": "%",
+        "description": "Percent the price is above (+) or below (-) its 50-day simple moving average. During the session this follows the live price, while a field measured at the last completed session does not, so comparing the two mixes two clocks."
+      },
+      {
+        "key": "rs_rank",
+        "label": "RS Rank",
+        "category": "technical",
+        "type": "range",
+        "presets": [
+          {
+            "label": "Any"
+          },
+          {
+            "label": "Over 70",
+            "op": "gte",
+            "min": 70
+          },
+          {
+            "label": "Over 80",
+            "op": "gte",
+            "min": 80
+          },
+          {
+            "label": "Over 90",
+            "op": "gte",
+            "min": 90
+          }
+        ],
+        "allow_custom": true,
+        "unit": null
+      },
+      {
+        "key": "rs_rating_prev20",
+        "label": "RS Rating a month ago",
+        "category": "relative_strength",
+        "type": "range",
+        "presets": [
+          {
+            "label": "Any"
+          }
+        ],
+        "allow_custom": true,
+        "unit": null
+      },
+      {
+        "key": "pct_vs_sma200",
+        "label": "SMA200 Distance",
+        "category": "technical",
+        "type": "range",
+        "presets": [
+          {
+            "label": "Any"
+          }
+        ],
+        "allow_custom": true,
+        "unit": "%",
+        "description": "Percent the price is above (+) or below (-) its 200-day simple moving average. During the session this follows the live price, while a field measured at the last completed session does not, so comparing the two mixes two clocks."
+      },
+      {
+        "key": "rs_nh_bars_ago",
+        "label": "RS New High Age (bars)",
+        "category": "relative_strength",
+        "type": "range",
+        "presets": [
+          {
+            "label": "Any"
+          }
+        ],
+        "allow_custom": true,
+        "unit": null
+      },
+      {
+        "key": "rs_nh_red_bars_ago",
+        "label": "RS high on a down day, age",
+        "category": "relative_strength",
+        "type": "range",
+        "presets": [
+          {
+            "label": "Any"
+          }
+        ],
+        "allow_custom": true,
+        "unit": null
+      },
+      {
+        "key": "rs_nhbp_age",
+        "label": "RS high before price, age",
+        "category": "relative_strength",
+        "type": "range",
+        "presets": [
+          {
+            "label": "Any"
+          }
+        ],
+        "allow_custom": true,
+        "unit": null
+      },
+      {
+        "key": "px_below_high_pct",
+        "label": "Below its high",
+        "category": "relative_strength",
+        "type": "range",
+        "presets": [
+          {
+            "label": "Any"
+          }
+        ],
+        "allow_custom": true,
+        "unit": "%"
+      },
+      {
+        "key": "adr_pct",
+        "label": "ADR %",
+        "category": "technical",
+        "type": "range",
+        "presets": [
+          {
+            "label": "Any"
+          },
+          {
+            "label": "Over 4%",
+            "op": "gte",
+            "min": 4
+          },
+          {
+            "label": "Over 8%",
+            "op": "gte",
+            "min": 8
+          }
+        ],
+        "allow_custom": true,
+        "unit": "%"
+      },
+      {
+        "key": "market_cap",
+        "label": "Market Cap",
+        "category": "descriptive",
+        "type": "range",
+        "presets": [
+          {
+            "label": "Any"
+          },
+          {
+            "label": "Mega (>$200B)",
+            "op": "gte",
+            "min": 200000000000.0
+          },
+          {
+            "label": "Large (>$10B)",
+            "op": "gte",
+            "min": 10000000000.0
+          },
+          {
+            "label": "Mid+ (>$2B)",
+            "op": "gte",
+            "min": 2000000000.0
+          },
+          {
+            "label": "Small+ (>$300M)",
+            "op": "gte",
+            "min": 300000000.0
+          }
+        ],
+        "allow_custom": true,
+        "unit": "$"
+      },
+      {
+        "key": "sma200_rising",
+        "label": "SMA200 Rising",
+        "category": "technical",
+        "type": "bool",
+        "presets": [
+          {
+            "label": "Any"
+          },
+          {
+            "label": "Yes",
+            "op": "eq",
+            "value": 1
+          },
+          {
+            "label": "No",
+            "op": "eq",
+            "value": 0
+          }
+        ],
+        "allow_custom": false,
+        "unit": null,
+        "description": "Yes when the average stands above its own value 20 sessions earlier. Blank until both values exist. Measured at the last completed session."
+      },
+      {
+        "key": "dist_52w_high_pct",
+        "label": "Dist from 52W High",
+        "category": "technical",
+        "type": "range",
+        "presets": [
+          {
+            "label": "Any"
+          },
+          {
+            "label": "Within 5%",
+            "op": "gte",
+            "min": -5
+          }
+        ],
+        "allow_custom": true,
+        "unit": "%"
+      },
+      {
+        "key": "rs_line_above_ma",
+        "label": "RS Line Above 21 EMA",
+        "category": "relative_strength",
+        "type": "bool",
+        "presets": [
+          {
+            "label": "Any"
+          },
+          {
+            "label": "Yes",
+            "op": "eq",
+            "value": 1
+          },
+          {
+            "label": "No",
+            "op": "eq",
+            "value": 0
+          }
+        ],
+        "allow_custom": false,
+        "unit": null
+      },
+      {
+        "key": "rs_near_buy",
+        "label": "Near a buy point",
+        "category": "relative_strength",
+        "type": "bool",
+        "presets": [
+          {
+            "label": "Any"
+          },
+          {
+            "label": "Yes",
+            "op": "eq",
+            "value": 1
+          },
+          {
+            "label": "No",
+            "op": "eq",
+            "value": 0
+          }
+        ],
+        "allow_custom": false,
+        "unit": null
+      },
+      {
+        "key": "rs_setup",
+        "label": "Setup",
+        "category": "relative_strength",
+        "type": "enum",
+        "presets": [
+          {
+            "label": "Any"
+          },
+          {
+            "label": "Below its 50-day line",
+            "op": "eq",
+            "value": "below_50"
+          },
+          {
+            "label": "Extended",
+            "op": "eq",
+            "value": "extended"
+          },
+          {
+            "label": "At pivot",
+            "op": "eq",
+            "value": "at_pivot"
+          },
+          {
+            "label": "Pullback to the 8-day",
+            "op": "eq",
+            "value": "pullback_8"
+          },
+          {
+            "label": "Pullback to the 21-day",
+            "op": "eq",
+            "value": "pullback_21"
+          },
+          {
+            "label": "Uptrend, no setup",
+            "op": "eq",
+            "value": "uptrend"
+          }
+        ],
+        "allow_custom": false,
+        "unit": null
+      },
+      {
+        "key": "rs_exit_bars_ago",
+        "label": "RS Exit Age",
+        "category": "relative_strength",
+        "type": "range",
+        "presets": [
+          {
+            "label": "Any"
+          }
+        ],
+        "allow_custom": true,
+        "unit": null
+      },
+      {
+        "key": "rs_exit_last",
+        "label": "RS Exit Warning",
+        "category": "relative_strength",
+        "type": "enum",
+        "presets": [
+          {
+            "label": "Any"
+          },
+          {
+            "label": "Quick Break",
+            "op": "eq",
+            "value": "Quick Break"
+          },
+          {
+            "label": "Quicksand",
+            "op": "eq",
+            "value": "Quicksand"
+          },
+          {
+            "label": "Grateful Dead Break",
+            "op": "eq",
+            "value": "Grateful Dead Break"
+          }
+        ],
+        "allow_custom": false,
+        "unit": null
+      }
+    ],
+    "views": [
+      {
+        "key": "relative_strength",
+        "label": "Relative Strength",
+        "columns": [
+          "ticker",
+          "company",
+          "price",
+          "chg_pct_1d",
+          "rs_rank",
+          "rs_rating_1m",
+          "rs_rating_3m",
+          "rs_rating_6m",
+          "rs_rating_9m",
+          "rs_rating_12m",
+          "rs_rating_chg_20",
+          "rs_new_high",
+          "rs_nh_before_price",
+          "rs_nh_red_day",
+          "rs_nh_bars_ago",
+          "green_on_red_20",
+          "rs_line_above_ma",
+          "rs_cross_up_bars_ago",
+          "mansfield",
+          "mansfield_cross_bars_ago",
+          "rs_rating_ibd",
+          "rs_exit_last",
+          "rs_exit_bars_ago",
+          "rs_quicksand_bars_ago",
+          "rs_quick_break_bars_ago",
+          "rs_dead_break_bars_ago",
+          "rs_rating_pos",
+          "rs_rating_pos_prev20",
+          "rs_pos_1m",
+          "rs_pos_3m",
+          "rs_pos_6m",
+          "rs_pos_12m",
+          "rs_rating_session",
+          "rs_rating_prev20",
+          "rs_nh_count_20",
+          "rs_nh_quiet",
+          "rs_nh_red_bars_ago",
+          "rs_nhbp_age",
+          "rs_nh_span",
+          "px_below_high_pct",
+          "rs_setup",
+          "rs_tight",
+          "rs_flag",
+          "rs_near_buy",
+          "atr_ext_ema21",
+          "pct_vs_ema8",
+          "pct_vs_ema21"
+        ]
+      },
+      {
+        "key": "rs_top_rating",
+        "label": "Top RS Rating",
+        "columns": [
+          "ticker",
+          "company",
+          "price",
+          "chg_pct_1d",
+          "rs_rank",
+          "rs_rating_pos",
+          "rs_rating_pos_prev20",
+          "rs_rating_chg_20",
+          "rs_rating_prev20",
+          "rs_pos_1m",
+          "rs_pos_3m",
+          "rs_pos_6m",
+          "rs_pos_12m",
+          "rs_setup",
+          "rs_rating_session"
+        ]
+      },
+      {
+        "key": "rs_new_highs",
+        "label": "RS New Highs",
+        "columns": [
+          "ticker",
+          "company",
+          "price",
+          "chg_pct_1d",
+          "rs_rank",
+          "rs_nh_bars_ago",
+          "rs_nh_count_20",
+          "rs_nh_quiet",
+          "rs_nh_span",
+          "rs_nh_red_bars_ago",
+          "px_below_high_pct",
+          "pct_vs_sma200",
+          "rs_setup"
+        ]
+      },
+      {
+        "key": "rs_before_price",
+        "label": "RS New High Before Price",
+        "columns": [
+          "ticker",
+          "company",
+          "price",
+          "chg_pct_1d",
+          "rs_rank",
+          "px_below_high_pct",
+          "rs_nhbp_age",
+          "rs_nh_bars_ago",
+          "rs_nh_count_20",
+          "rs_nh_red_bars_ago",
+          "pct_vs_sma200",
+          "rs_setup"
+        ]
+      },
+      {
+        "key": "rs_leaders",
+        "label": "UCT RS Leaders",
+        "columns": [
+          "ticker",
+          "company",
+          "price",
+          "chg_pct_1d",
+          "rs_rank",
+          "rs_rating_pos",
+          "rs_setup",
+          "rs_tight",
+          "rs_flag",
+          "rs_near_buy",
+          "atr_ext_sma50",
+          "atr_ext_ema21",
+          "pct_vs_ema8",
+          "pct_vs_ema21",
+          "dist_52w_high_pct"
+        ]
+      }
+    ]
+  }
+}

@@ -2,7 +2,7 @@
 // comparison; pools read "In …"; everything that cannot be checked per row
 // (scan joins, logic trees, ranks, field-to-field, structure contains) is a
 // plain sentence. Never a ✓ we cannot back with the row's own value.
-import { chipLabel } from '../chipLabel'
+import { chipLabel, codeWord, CODE_ENUM_KEYS } from '../chipLabel'
 import { plainColumnLabel, structureSentence, patternEngineSentence, lowerOperator } from './plainWords'
 import { sessionCloseLabel } from './dates'
 
@@ -52,7 +52,8 @@ export const compactDigits = s => String(s).replace(/\d{5,}(?:\.\d+)?/g, m => co
 function fmtValue(def, v) {
   if (isMissing(v)) return '—'
   if (def?.type === 'bool') return isYes(v) ? 'Yes' : 'No'
-  if (typeof v !== 'number') return String(v)
+  // A stored code of the RS screens' label enums reads as its word ("At pivot", never "at_pivot").
+  if (typeof v !== 'number') return codeWord(def, v) ?? String(v)
   const big = compact(v)
   const n = big ?? (Math.abs(v) >= 100 ? v.toFixed(2).replace(/\.00$/, '') : String(Math.round(v * 100) / 100))
   if (def?.unit === '$') return `$${n}`
@@ -67,7 +68,7 @@ function checkLabel(def, spec) {
   // Mid-sentence after "Not" a word drops its capital ("Not above 50-day avg"); an acronym keeps it ("Not HVC").
   if (def.type === 'bool') return requiresFalse(spec.value) ? `Not ${/^[A-Z][a-z]/.test(def.label) ? def.label[0].toLowerCase() + def.label.slice(1) : def.label}` : def.label
   if ((spec.op === 'in' || spec.op === 'not_in') && Array.isArray(spec.values) && spec.values.length) {
-    const list = spec.values.join(', ')
+    const list = spec.values.map(v => codeWord(def, v) ?? v).join(', ')
     return stripColon(spec.op === 'not_in' ? `${def.label}: not ${list}` : `${def.label}: ${list}`)
   }
   return compactDigits(stripColon(lowerOperator(chipLabel(def, spec))))
@@ -155,7 +156,14 @@ export function whyItsHere({ filters = {}, logic = null, rank = null, metaFilter
       all.push({ kind: 'note', label, value: `${fmtValue(def, v)} now${asOfClose ? ` (matched at ${asOfClose})` : ''}` })
       continue
     }
-    if (isMissing(row[key])) { all.push({ kind: 'note', label, value: '—' }); continue }
+    if (isMissing(row[key])) {
+      // RS screens (unit U6): a blank PASSES an exclude list on the server (query.py keeps a NULL
+      // under not_in), and for the Setup label and its flag a blank is the ordinary answer (no
+      // label, no flag). The row is here because it holds none of the excluded ones: a check.
+      // Every other filter keeps its rule: a value the row does not carry is never a tick.
+      if (spec.op === 'not_in' && CODE_ENUM_KEYS.has(key)) { all.push({ kind: 'check', label, value: 'None' }); continue }
+      all.push({ kind: 'note', label, value: '—' }); continue
+    }
     const value = fmtValue(def, row[key])
     // No live price: the value is the snapshot's, and says which close it is.
     all.push({ kind: 'check', label, value: field && asOfClose ? `${value} at ${asOfClose}` : value })

@@ -15,7 +15,7 @@ import styles from './ScannerPro.module.css'
 import Input from '../../components/ui/Input'
 import ArtifactHistory, { useArtifactVersionsAvailable } from '../../components/artifactHistory/ArtifactHistory'
 import RecentlyDeleted from '../../components/artifactHistory/RecentlyDeleted'
-import { GROUPS, FALLBACK_GROUP } from './focus/screenGroups'
+import { GROUPS, FALLBACK_GROUP, offeredStarters } from './focus/screenGroups'
 import { usePhonePanel } from './shell/phonePanel'
 
 // ⭐ THE ONE BUILDER, LAZY. `ChartToolbar` mounts `BuilderSheet` statically;
@@ -388,7 +388,9 @@ export default function ScreensManager({ currentSpec, onApply, onUseScan }) {
   // Phone (<= 640 px): the menu becomes a viewport-pinned panel, 8 px from each
   // edge (spec A7). `undefined` everywhere else, so desktop keeps its CSS placement.
   const phonePanel = usePhonePanel(open, wrapRef)
-  const starterGroups = useMemo(() => groupStarters(starters), [starters])
+  // A starter the server marked `hidden` (RS screens contract, 2026-11-14) is not listed under
+  // UCT Preset Scans. One a member favourited still shows in Favorites, above, and opens.
+  const starterGroups = useMemo(() => groupStarters(offeredStarters(starters)), [starters])
 
   useEffect(() => {
     if (!open) return
