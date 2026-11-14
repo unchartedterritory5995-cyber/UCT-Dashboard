@@ -162,6 +162,9 @@ describe('an old chart the SAME words address still changes beside the new ones'
     ['make the new charts weekly', ['n1', 'c0'], 'Chart (SPY)'],
     ['make the new charts weekly, spy is fine as it is', ['n1', 'n2', 'c1'], 'Chart (QQQ)'],
     ['make the new charts weekly', ['n1', 'n2'], null],
+    // a position / ticker INSIDE the created-chart phrase describes the new charts — it never addresses an old one
+    ['make the new top left ones weekly', ['n1', 'n2', 'c0'], 'Chart (SPY)'],
+    ['make the newest SPY charts weekly', ['n1', 'n2', 'c0'], 'Chart (SPY)'],
     ['make the new charts weekly, the ones on the right too', ['n1', 'n2', 'c1'], null],
   ])('"%s" over %j → %s', (t, refs, refused) => {
     const r = newChartsRefusal(plan(...refs), { words: t, host, created: ['n1', 'n2'] })
