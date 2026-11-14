@@ -15,6 +15,19 @@ Mutation proof (run before calling these done):
     4. add httpx's default Accept-Encoding      -> test_no_headers_are_invented RED
     5. drop the public-note headers             -> test_public_note_pages_are_not_indexed RED
     6. let the app shell answer a missing asset -> test_a_missing_asset_is_404_never_the_shell RED
+    7. GZIP_MINIMUM_SIZE = 0                    -> test_an_answer_with_no_body_is_not_compressed RED
+    8. GZIP_MINIMUM_SIZE = 1000                 -> test_local_answers_are_gzipped_however_small RED
+    9. is_gzip_exempt returns False             -> test_hashed_assets_and_fonts_are_never_recompressed RED
+   10. proxy stops marking the request          -> test_a_passed_through_answer_is_not_compressed_or_cors_marked_here,
+                                                   test_the_cors_answer_web_chose_arrives_as_web_wrote_it and the
+                                                   browser case of test_a_stream_arrives_as_it_is_produced RED
+   11. let the layers see an OPTIONS            -> test_every_options_request_goes_to_web RED (preflight cases)
+   12. drop the OPTIONS_TO_WEB_PREFIXES routes  -> test_every_options_request_goes_to_web RED (folder cases)
+   13. drop the CORS layer                      -> test_local_answers_carry_the_cors_header_web_adds RED
+   14. /__front/edge reports the TCP peer       -> test_front_edge_reads_the_callers_address_the_way_web_does RED
+   15. /__front/edge drops `no-store`           -> test_front_edge_reads_the_callers_address_the_way_web_does RED
+   16. proxy drops X-Real-IP                    -> test_front_edge_and_web_are_handed_the_same_three_headers RED
+   17. no keepalive_expiry on the client        -> test_an_idle_connection_to_web_is_dropped_before_web_drops_it RED
 """
 from __future__ import annotations
 
@@ -110,6 +123,10 @@ async def _upstream_app(scope, receive, send):
     if path == "/api/cookies":
         return await reply(200, [(b"content-type", b"text/plain"), (b"set-cookie", b"a=1; Path=/"),
                                  (b"set-cookie", b"b=2; Path=/; HttpOnly")], [b"ok"])
+    if path == "/api/cors":
+        return await reply(200, [(b"content-type", b"text/plain"),
+                                 (b"access-control-allow-origin", b"https://chosen-by-web.example"),
+                                 (b"access-control-allow-credentials", b"true"), (b"vary", b"Origin")], [b"ok"])
     if path == "/api/redirect":
         return await reply(302, [(b"location", b"/login?next=%2Fcharts"), (b"content-length", b"0")], [b""])
     if path == "/api/big":
@@ -124,6 +141,7 @@ async def _upstream_app(scope, receive, send):
         "body_len": len(body),
         "body_sha": hashlib.sha256(body).hexdigest(),
         "from": "upstream",
+        "peer_port": (scope.get("client") or (None, None))[1],
     }
     out = json.dumps(echo).encode()
     await reply(200, [(b"content-type", b"application/json"), (b"content-length", str(len(out)).encode()),
@@ -416,12 +434,15 @@ def test_a_large_answer_arrives_whole(front, http):
     assert len(r.content) == 65536 * 48
 
 
-def test_a_stream_arrives_as_it_is_produced(front, http):
+@pytest.mark.parametrize("headers", [{}, {"Accept-Encoding": "gzip", "Origin": "https://elsewhere.example"}])
+def test_a_stream_arrives_as_it_is_produced(front, http, headers):
     """The stand-in sends three events 0.4 s apart. A proxy that buffers delivers all three
-    at the end; one that streams delivers the first long before the last."""
+    at the end; one that streams delivers the first long before the last. The second case is
+    a browser: it accepts gzip, and a compressor in the way would hold the events back."""
     arrivals = []
     start = time.perf_counter()
-    with http.stream("GET", front + "/api/stream") as r:
+    with http.stream("GET", front + "/api/stream", headers=headers) as r:
+        assert "content-encoding" not in r.headers
         assert r.headers["content-type"].startswith("text/event-stream")
         for chunk in r.iter_raw():
             if chunk:
@@ -436,6 +457,163 @@ def test_a_stream_arrives_as_it_is_produced(front, http):
 def test_a_head_request_has_headers_and_no_body(front, http):
     r = http.head(front + "/api/echo")
     assert r.status_code == 200 and r.content == b"" and r.headers["x-upstream"] == "1"
+
+
+# ── gzip and CORS: on what this app answers itself, never on what it passes on ─
+#
+# `web` wraps every answer in gzip (outside) and CORS (inside). These prove the front door
+# does the same to its own answers; tests/test_front_app_parity.py proves the settings are
+# `web`'s. Measured on production 2026-11-14: `web` compresses every answer that has a
+# body, however small, and no answer that has none.
+
+ELSEWHERE = "https://elsewhere.example"
+
+
+def _get_raw(http, url, headers):
+    with http.stream("GET", url, headers=headers) as r:
+        return r, b"".join(r.iter_raw())
+
+
+@pytest.mark.parametrize("path,body", [
+    ("/", SHELL), ("/charts", SHELL), ("/share/n/tok", SHELL),
+    ("/robots.txt", b"file:robots.txt"), ("/og-image.png", b"file:og-image.png"),
+    ("/live-trading-room/terms", b"ltr:terms.html"), ("/live-trading-room/email/f04.jpg", b"\xff\xd8jpeg"),
+])
+def test_local_answers_are_gzipped_however_small(front, http, path, body):
+    r, raw = _get_raw(http, front + path, {"Accept-Encoding": "gzip"})
+    assert r.headers.get("content-encoding") == "gzip", path
+    assert r.headers["vary"] == "Accept-Encoding"
+    assert gzip.decompress(raw) == body
+    plain, raw_plain = _get_raw(http, front + path, {})
+    assert "content-encoding" not in plain.headers and raw_plain == body
+
+
+def test_build_json_is_gzipped_though_it_is_tiny(front, http):
+    r, raw = _get_raw(http, front + "/build.json", {"Accept-Encoding": "gzip"})
+    assert r.headers.get("content-encoding") == "gzip" and r.headers["vary"] == "Accept-Encoding"
+    assert json.loads(gzip.decompress(raw))["build_id"] == ENTRY
+    assert r.headers["cache-control"] == "no-store"
+
+
+def test_an_answer_with_no_body_is_not_compressed(front, http):
+    """A redirect and a HEAD have no body. gzip of nothing is 20 bytes of body where there
+    must be none."""
+    r, raw = _get_raw(http, front + "/live-trading-room/", {"Accept-Encoding": "gzip"})
+    assert r.status_code == 301 and raw == b"" and "content-encoding" not in r.headers
+    h = http.head(front + "/", headers={"Accept-Encoding": "gzip"})
+    assert h.status_code == 200 and "content-encoding" not in h.headers
+    assert h.headers["content-length"] == str(len(SHELL))
+
+
+def test_hashed_assets_and_fonts_are_never_recompressed(front, http):
+    for path, body in (("/assets/logo-zzz.webp", b"RIFFxxxxWEBP"), ("/fonts/a.woff2", b"wOF2font")):
+        r, raw = _get_raw(http, front + path, {"Accept-Encoding": "gzip"})
+        assert "content-encoding" not in r.headers and raw == body, path
+
+
+@pytest.mark.parametrize("path", ["/", "/charts", "/build.json", "/robots.txt", "/og-image.png", "/" + ENTRY,
+                                  "/fonts/a.woff2", "/live-trading-room", "/live-trading-room/email/f04.jpg"])
+def test_local_answers_carry_the_cors_header_web_adds(front, http, path):
+    r = http.get(front + path, headers={"Origin": ELSEWHERE})
+    assert r.status_code == 200 and r.headers.get_list("access-control-allow-origin") == ["*"]
+    assert "access-control-allow-origin" not in http.get(front + path).headers
+
+
+def test_cors_with_a_cookie_names_the_origin_and_varies_on_it(front, http):
+    """`web` answers a request that carries a cookie with the origin itself, never `*`."""
+    r, _raw = _get_raw(http, front + "/", {"Origin": ELSEWHERE, "Cookie": "a=1", "Accept-Encoding": "gzip"})
+    assert r.headers.get_list("access-control-allow-origin") == [ELSEWHERE]
+    assert r.headers["vary"] == "Origin, Accept-Encoding"
+    assert r.headers.get("content-encoding") == "gzip"
+
+
+def test_a_passed_through_answer_is_not_compressed_or_cors_marked_here(front, http):
+    """The stand-in for `web` neither compresses /api/echo nor adds a CORS header to it. If
+    either shows up, this app added it."""
+    r, raw = _get_raw(http, front + "/api/echo", {"Accept-Encoding": "gzip", "Origin": ELSEWHERE, "Cookie": "a=1"})
+    assert json.loads(raw)["from"] == "upstream"
+    for added in ("content-encoding", "access-control-allow-origin", "vary"):
+        assert added not in r.headers, added
+    assert r.headers["content-length"] == str(len(raw))
+
+
+def test_the_cors_answer_web_chose_arrives_as_web_wrote_it(front, http):
+    r = http.get(front + "/api/cors", headers={"Origin": ELSEWHERE})
+    assert r.headers.get_list("access-control-allow-origin") == ["https://chosen-by-web.example"]
+    assert r.headers.get_list("access-control-allow-credentials") == ["true"]
+    assert r.headers.get_list("vary") == ["Origin"]
+
+
+@pytest.mark.parametrize("path", ["/", "/charts", "/build.json", "/robots.txt", "/" + ENTRY, "/assets/index-GONE.js",
+                                  "/fonts/a.woff2", "/live-trading-room", "/live-trading-room/terms",
+                                  "/live-trading-room/email/f04.jpg", "/api/echo", "/openapi.json"])
+@pytest.mark.parametrize("preflight", [True, False])
+def test_every_options_request_goes_to_web(front, http, path, preflight):
+    """`web`'s own CORS layer answers a preflight. This app never does: the stand-in adds no
+    CORS header, so one in the answer would have been made here."""
+    headers = {"Origin": ELSEWHERE, "Access-Control-Request-Method": "GET"} if preflight else {}
+    r = http.request("OPTIONS", front + path, headers=headers)
+    assert r.status_code == 200 and r.json()["from"] == "upstream" and r.json()["method"] == "OPTIONS"
+    assert "access-control-allow-origin" not in r.headers and "access-control-allow-methods" not in r.headers
+
+
+# ── /__front/edge: what the edge said about the caller, read the way `web` reads it ─
+#
+# `web` limits by client address, derived from three headers Railway's edge writes. The
+# front door forwards them untouched (test_the_request_arrives_unchanged). This endpoint
+# applies `web`'s own function to them HERE, so one request without a login shows what
+# `web` will see for traffic that comes through this service.
+
+CF_EDGE = "173.245.48.5"        # inside Cloudflare's published ranges
+RAILWAY_PROXY = "100.64.0.9"
+
+
+@pytest.mark.parametrize("headers,expected", [
+    # through Cloudflare: the edge that connected is Cloudflare's, so CF-Connecting-IP is the member
+    ({"X-Forwarded-For": f"{CF_EDGE}, {RAILWAY_PROXY}", "X-Real-IP": "198.51.100.7", "CF-Connecting-IP": "198.51.100.7"},
+     {"client_ip": "198.51.100.7", "edge_wrote_x_forwarded_for": True, "x_forwarded_for_entries": 2,
+      "connecting_address_in_cloudflare": True, "x_real_ip_present": True, "cf_connecting_ip_present": True}),
+    # straight at the origin with a forged CF-Connecting-IP: Railway's X-Real-IP wins
+    ({"X-Forwarded-For": f"203.0.113.50, {RAILWAY_PROXY}", "X-Real-IP": "203.0.113.50", "CF-Connecting-IP": "8.8.4.4"},
+     {"client_ip": "203.0.113.50", "edge_wrote_x_forwarded_for": True, "x_forwarded_for_entries": 2,
+      "connecting_address_in_cloudflare": False, "x_real_ip_present": True, "cf_connecting_ip_present": True}),
+    # no edge in front at all (this test): the peer, and the endpoint says so
+    ({},
+     {"client_ip": "127.0.0.1", "edge_wrote_x_forwarded_for": False, "x_forwarded_for_entries": 0,
+      "connecting_address_in_cloudflare": False, "x_real_ip_present": False, "cf_connecting_ip_present": False}),
+])
+def test_front_edge_reads_the_callers_address_the_way_web_does(front, http, headers, expected):
+    r = http.get(front + "/__front/edge", headers=headers)
+    assert r.status_code == 200 and r.json() == expected
+    assert r.headers["cache-control"] == "no-store", "one caller's address must never be cached for another"
+
+
+def test_front_edge_and_web_are_handed_the_same_three_headers(front, http):
+    """The endpoint is only evidence about `web` if `web` gets the same headers. Same request,
+    once to the endpoint and once passed through: the stand-in for `web` echoes what arrived."""
+    sent = {"X-Forwarded-For": f"{CF_EDGE}, {RAILWAY_PROXY}", "X-Real-IP": "198.51.100.7",
+            "CF-Connecting-IP": "198.51.100.7"}
+    here = http.get(front + "/__front/edge", headers=sent).json()
+    arrived = _headers(http.get(front + "/api/echo", headers=sent).json())
+    for name, value in sent.items():
+        assert arrived[name.lower()] == [value], name
+    assert here["client_ip"] == arrived["cf-connecting-ip"][0]
+
+
+# ── connections to `web` ──────────────────────────────────────────────────────
+
+def test_an_idle_connection_to_web_is_dropped_before_web_drops_it(front, http):
+    """The stand-in for `web` reports the port each request arrived from, which names the
+    connection. Back to back, two requests share one (connections ARE reused). After the front
+    door's idle limit has passed, the next request must arrive on a new one: the front door let
+    go first, well inside `web`'s own 5 s, so it never writes into a connection `web` is closing."""
+    first = http.get(front + "/api/echo").json()["peer_port"]
+    again = http.get(front + "/api/echo").json()["peer_port"]
+    assert first == again, "two back-to-back requests did not share a connection: nothing is being reused"
+    time.sleep(front_app.UPSTREAM_KEEPALIVE_EXPIRY_S + 0.5)
+    later = http.get(front + "/api/echo").json()["peer_port"]
+    assert later != first, "an idle connection outlived the front door's limit"
+    assert front_app.UPSTREAM_KEEPALIVE_EXPIRY_S + 0.5 < 5, "the wait above must stay inside web's own idle limit"
 
 
 # ── when `web` is not there ───────────────────────────────────────────────────
