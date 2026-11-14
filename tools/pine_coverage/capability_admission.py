@@ -44,6 +44,9 @@ from api.services import pine_capabilities as pc  # noqa: E402
 from api.services import rollout_gate as rg  # noqa: E402
 from api.services import runtime_definitions as rt  # noqa: E402
 
+sys.path.insert(0, os.path.join(ROOT, "tools", "vendor_harness"))
+import evidence_ledger as el  # noqa: E402 -- LEDGER_ONLY evidence and its freshness rule: one authority
+
 
 def _capture_source(path):
     try:
@@ -151,11 +154,46 @@ def _verdicts_by_id(path):
     return {r["id"]: r for r in json.load(open(path, encoding="utf-8"))["results"]}
 
 
+def ledger_runtime_evidence(inp, lanes, ledger_rows, verdict_ids, engine):
+    """⭐ LEDGER_ONLY EVIDENCE for admission: a licence-held script's runtime-on MATCH, graded out of
+    git and filed in the evidence ledger. Same rule as a committed capture, plus FRESHNESS
+    (`evidence_ledger.classify`): the row counts only when it was graded at today's
+    SCRIPT_ENGINE_VERSION (or superseded by a newer regrade that was), its source sha256 is the
+    input script's own `hash`, the RUNTIME lane drew that script (`lanes`), and its runtime-on
+    verdict is MATCH. A stale row or a sha mismatch is never evidence.
+    Returns {input key: [(capture id, title, SCRIPT_ENGINE_VERSION it was graded at)]}."""
+    samples = {k: {s["hash"]} for k, s in inp.items()
+               if s.get("population") != "capture" and isinstance(s.get("hash"), str)}
+    led = el.classify(ledger_rows, samples, engine=engine, lane="runtime-on", skip_captures=frozenset(verdict_ids))
+    title = {r.get("captureId"): r.get("script") for r in ledger_rows}
+    graded_at = {r.get("captureId"): r.get("scriptEngineVersion") for r in ledger_rows
+                 if r.get("scriptEngineVersion") == engine}
+    out = {}
+    for key, e in led["byKey"].items():
+        if lanes.get(key, {}).get("lane") != "runtime":
+            continue
+        hits = [(cid, title.get(cid), graded_at.get(cid))
+                for cid, verdict in zip(e["captures"], e["verdicts"]) if verdict == "MATCH"]
+        if hits:
+            out[key] = hits
+    return out
+
+
 def cmd_evidence(a):
     inp = {s["key"]: s for s in json.load(open(a.input, encoding="utf-8"))["scripts"]}
     lanes = {r["key"]: r for r in json.load(open(a.lanes, encoding="utf-8"))["rows"]}
     v = _verdicts_by_id(a.verdicts)
     per = collections.defaultdict(list)
+    # licence-held captures, graded out of git: fresh ledger rows only (see `ledger_runtime_evidence`)
+    ledger_rows = el.read_rows(a.ledger) if a.ledger and os.path.exists(a.ledger) else []
+    for key, hits in ledger_runtime_evidence(inp, lanes, ledger_rows, set(v), el.engine_version()).items():
+        for cid, title, engine_at in hits:
+            family, community = rg.pine_evidence_script(title, cid)
+            for cap in inp[key]["caps"]:
+                # `ledger` + `scriptEngineVersion`: the registry rule re-asks freshness at every admission
+                # (`rollout_gate._pine_capability_evidence_counts`), so an engine bump retires it
+                per[cap].append({"capture": cid, "script": family, "community": community, "title": title,
+                                 "ledger": True, "scriptEngineVersion": engine_at})
     for key, s in inp.items():
         if s["population"] != "capture":
             continue
@@ -238,6 +276,8 @@ def main():
     i.add_argument("--cache")
     i.add_argument("--out", required=True)
     e = sub.add_parser("evidence")
+    e.add_argument("--ledger", default=str(el.LEDGER),
+                   help="LEDGER_ONLY evidence (licence-held captures graded out of git); fresh rows count")
     e.add_argument("--input", required=True)
     e.add_argument("--lanes", required=True)
     e.add_argument("--verdicts", required=True)
