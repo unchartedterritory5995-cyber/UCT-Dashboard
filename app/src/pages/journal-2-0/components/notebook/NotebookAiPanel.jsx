@@ -39,11 +39,17 @@ export const AI_ACTIONS_LOADING = 'Loading…'
 
 // Fix round 2: the failure is said only once the member has pressed the toggle (an idle warm that failed while the
 // section is open says nothing they did not ask for), and a second press closes it again.
-function AiActionsFrame({ failed, wantOpen, onToggle }) {
+function AiActionsFrame({ failed, wantOpen, onToggle, heldFocusRef }) {
   const statusRef = useRef(null)
+  const wrapRef = useRef(null)
   useLayoutEffect(() => { if (wantOpen) statusRef.current?.focus() }, [wantOpen])
+  // Final fix pass (E-AI): read as the frame goes (a layout cleanup runs before its DOM is removed): if keyboard focus
+  // was in it, the slot puts focus in the real box once it is drawn, instead of letting it drop to the page.
+  useLayoutEffect(() => () => {
+    heldFocusRef.current = wrapRef.current?.contains(document.activeElement) ? wrapRef.current.parentNode : null
+  }, [heldFocusRef])
   return (
-    <section className={actionStyles.wrap} aria-label="Or tell Notebook what to change" data-ai-actions-stand-in="">
+    <section ref={wrapRef} className={actionStyles.wrap} aria-label="Or tell Notebook what to change" data-ai-actions-stand-in="">
       <button type="button" className={actionStyles.toggle} aria-expanded={wantOpen} onClick={onToggle}>
         <UIcon name="sparkle" {...TOOLBAR_ICON} gold={false} /> Or tell Notebook what to change
       </button>
@@ -61,9 +67,22 @@ export function AiActionsSlot(props) {
   const { status, Component } = useHeldModule(aiActionsModule)
   // A press on the frame's toggle before the box lands: the box opens (request field focused) when it does.
   const [wantOpen, setWantOpen] = useState(false)
+  // E-AI: where the frame stood when it went, if it held keyboard focus then (see AiActionsFrame).
+  const frameHeldFocus = useRef(null)
   useEffect(() => { aiActionsModule.warm() }, [])
+  useLayoutEffect(() => {
+    const host = frameHeldFocus.current
+    frameHeldFocus.current = null
+    // Opened: the box focuses its own request field. Closed: focus goes to its toggle, where it was on the frame.
+    if (Component && host && !wantOpen) host.querySelector('[aria-label="Or tell Notebook what to change"] > button')?.focus()
+  }, [Component]) // eslint-disable-line react-hooks/exhaustive-deps -- once, as the box replaces the frame
   if (Component) return <Component {...props} defaultOpen={wantOpen} />
-  return <AiActionsFrame failed={status === 'failed'} wantOpen={wantOpen} onToggle={() => setWantOpen((o) => !o)} />
+  // E-AI: after a failed fetch each press asks again (one more attempt per press, never a loop).
+  const onToggle = () => {
+    if (status === 'failed') aiActionsModule.warm()
+    setWantOpen((o) => !o)
+  }
+  return <AiActionsFrame failed={status === 'failed'} wantOpen={wantOpen} onToggle={onToggle} heldFocusRef={frameHeldFocus} />
 }
 
 export default function NotebookAiPanel({ id, onOpenNote, onClose, blockedNoteIds = null }) {

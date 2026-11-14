@@ -82,6 +82,61 @@ describe('the AI actions slot', () => {
     expect(screen.queryByRole('status')).toBeNull()
   })
 
+  // Final fix pass (E-AI): one offline blip used to leave the section unable to load until a page reload.
+  it('after a failed fetch, each press of the toggle asks again, one attempt per press, never a loop', async () => {
+    let fail = true
+    const box = vi.fn(() => (fail ? Promise.reject(new Error('offline blip')) : REAL.box()))
+    aiActionsLoaders.box = box
+    renderSlot()
+    await act(async () => { await new Promise((r) => setTimeout(r, 30)) })
+    const afterMount = box.mock.calls.length
+    expect(afterMount).toBeGreaterThan(0)
+    const toggle = screen.getByRole('button', { name: TOGGLE })
+    await act(async () => { fireEvent.click(toggle); await new Promise((r) => setTimeout(r, 30)) })
+    const afterPress = box.mock.calls.length
+    expect(afterPress).toBeGreaterThan(afterMount)
+    expect((await screen.findByRole('alert')).textContent).toContain(AI_ACTIONS_UNAVAILABLE)
+    // Nothing asks again on its own.
+    await act(async () => { await new Promise((r) => setTimeout(r, 60)) })
+    expect(box.mock.calls.length).toBe(afterPress)
+    // The network is back: the next press (it closes the frame) asks again, and the press after it opens the box.
+    fail = false
+    await act(async () => { fireEvent.click(toggle); await new Promise((r) => setTimeout(r, 30)) })
+    expect(box.mock.calls.length).toBeGreaterThan(afterPress)
+    expect(document.querySelector('[data-ai-actions-stand-in]')).toBeNull()
+    act(() => { fireEvent.click(screen.getByRole('button', { name: TOGGLE })) })
+    expect(document.activeElement).toBe(request())
+  })
+
+  it('keyboard focus resting on the frame toggle (not pressed) moves to the real toggle when the box lands', async () => {
+    let resolve
+    aiActionsLoaders.box = () => new Promise((r) => { resolve = r })
+    renderSlot()
+    const frameToggle = screen.getByRole('button', { name: TOGGLE })
+    act(() => { frameToggle.focus() })
+    expect(document.activeElement).toBe(frameToggle)
+    await act(async () => { await Promise.resolve() })
+    await act(async () => { resolve(await REAL.box()) })
+    expect(document.querySelector('[data-ai-actions-stand-in]')).toBeNull()
+    const realToggle = screen.getByRole('button', { name: TOGGLE })
+    expect(realToggle).not.toBe(frameToggle)
+    expect(document.activeElement).toBe(realToggle)
+    expect(realToggle.getAttribute('aria-expanded')).toBe('false')   // focus moved; nothing opened that was not pressed
+  })
+
+  it('control: focus elsewhere when the box lands stays where it is', async () => {
+    let resolve
+    aiActionsLoaders.box = () => new Promise((r) => { resolve = r })
+    const outside = document.createElement('button')
+    document.body.appendChild(outside)
+    renderSlot()
+    act(() => { outside.focus() })
+    await act(async () => { await Promise.resolve() })
+    await act(async () => { resolve(await REAL.box()) })
+    expect(document.activeElement).toBe(outside)
+    outside.remove()
+  })
+
   it('the panel mounts the slot, never a lazy wrapper', () => {
     const src = readFileSync(join(process.cwd(), 'src/pages/journal-2-0/components/notebook/NotebookAiPanel.jsx'), 'utf8')
     expect(src).toContain('<AiActionsSlot ')
