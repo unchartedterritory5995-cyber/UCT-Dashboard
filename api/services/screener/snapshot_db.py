@@ -243,6 +243,29 @@ COLUMNS = [
     # ALTER-added on init.
     "rs_rating_session", "rs_rating_score", "rs_rating_pos", "rs_rating_pos_n",
     "rs_pos_1m", "rs_pos_3m", "rs_pos_6m", "rs_pos_12m", "rs_rating_pos_prev20",
+    # ⭐ UCT RS SCREENS, the build's own columns (unit U4, 2026-11-14). Written by the
+    # build LOOP, only while RS_SCREENS_ENABLED is on (NULL on every row until then):
+    #   * six last-bar measures of the RS line from `rs_columns.screen_fields`, in the
+    #     RS_V2-gated `bars_rs_screens` step: RS new highs in 20 sessions, the gap
+    #     before the newest one, the age of the newest on a market down day, the age
+    #     of an RS new high price has not followed, the span of today's RS high (all
+    #     INTEGER) and the close against its own 252-session closing high
+    #     (`px_below_high_pct` REAL, a percent, never above 0);
+    #   * the Setup label from `rs_setup.label` over `technicals.setup_inputs`, in
+    #     the `bars_rs_setup` step: `rs_setup` TEXT (one of `rs_setup.SETUPS`),
+    #     `rs_tight` INTEGER 0/1, `rs_flag` TEXT (one of `rs_setup.FLAGS`),
+    #     `rs_near_buy` INTEGER 0/1, and three of the label's own inputs so a row can
+    #     show why it reads as it does: `atr_ext_ema21` REAL (ATRs above the 21-day
+    #     EMA), `pct_vs_ema8` / `pct_vs_ema21` REAL (percent from the 8- and 21-day
+    #     EMAs).
+    # `rs_rating_prev20` INTEGER is the post-pass's (`POST_PASS_COLUMNS`): the RS
+    # Rating 20 stored sessions earlier. NULL where the maths has no answer, never a
+    # guess. Additive: ALTER-added on init.
+    "rs_nh_count_20", "rs_nh_quiet", "rs_nh_red_bars_ago", "px_below_high_pct",
+    "rs_nhbp_age", "rs_nh_span",
+    "rs_setup", "rs_tight", "rs_flag", "rs_near_buy",
+    "atr_ext_ema21", "pct_vs_ema8", "pct_vs_ema21",
+    "rs_rating_prev20",
     # meta
     "snapshot_date", "bars_asof", "built_at",
 ]
@@ -280,6 +303,8 @@ _TEXT = {"ticker", "company", "sector", "industry", "exchange", "security_type",
          "rs_exit_last",
          # UCT RS screens (U1): the rating session, a YYYY-MM-DD key
          "rs_rating_session",
+         # UCT RS screens (U4): the Setup label and the flag, `rs_setup`'s own keys
+         "rs_setup", "rs_flag",
          # Wave 2
          "ipo_date", "country", "next_earnings_date", "earnings_session",
          "earnings_setup_grade", "analyst_consensus", "sponsorship",
@@ -336,7 +361,12 @@ _INT = {"uct_composite", "rs_rank", "inside_bar_run", "higher_lows_run",
         # UCT RS screens (U1): seven whole-number places and counts. `rs_rating_score`
         # is deliberately NOT here: it is the unrounded REAL score.
         "rs_rating_pos", "rs_rating_pos_n", "rs_pos_1m", "rs_pos_3m", "rs_pos_6m",
-        "rs_pos_12m", "rs_rating_pos_prev20"}
+        "rs_pos_12m", "rs_rating_pos_prev20",
+        # UCT RS screens (U4): five whole-number measures of the RS line (a count, three
+        # ages, a span), two 0/1 flags, and the rating 20 stored sessions earlier.
+        # `px_below_high_pct`, `atr_ext_ema21` and the two `pct_vs_ema*` are REAL.
+        "rs_nh_count_20", "rs_nh_quiet", "rs_nh_red_bars_ago", "rs_nhbp_age", "rs_nh_span",
+        "rs_tight", "rs_near_buy", "rs_rating_prev20"}
 
 
 # ---------------------------------------------------------------------------

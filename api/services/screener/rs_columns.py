@@ -493,7 +493,8 @@ def _exit_values(win: list, spy: list, rs_spy: list) -> dict:
 def collect_one(bars, spy_bars, rsp_bars=None, *, session=None,
                 stats: Optional[dict] = None, phase3: bool = False,
                 full=None, weekly_cache: Optional[dict] = None,
-                timing: Optional[dict] = None) -> dict:
+                timing: Optional[dict] = None,
+                phase1_out: Optional[dict] = None) -> dict:
     """The ten columns for ONE ticker, plus the five :data:`EXIT_COLUMNS` —
     ``{column: value}``, every key present (and :data:`PHASE3_COLUMNS` as well
     with ``phase3=True``).
@@ -515,6 +516,12 @@ def collect_one(bars, spy_bars, rsp_bars=None, *, session=None,
     outcome; a row with no benchmark ratio at all is ``no_bench`` alone. With
     ``phase3=False`` none of it runs and the result is exactly the ten keys and
     the five exit keys.
+
+    ``phase1_out`` (RS screens unit U4) is an optional out-dict that receives the
+    Phase 1 columns this call computed, under ``"phase1"``, so the builder can hand
+    them to :func:`screen_fields` instead of paying for a second Phase 1 pass
+    (measured 2026-11-14: 0.10 ms a ticker handed in, 2.67 ms recomputed). Left
+    empty when the call returned before Phase 1 ran. It changes no value.
 
     Never raises on a short or empty input; a malformed bar (no ``c``) is a
     ``None`` in every derived column, as everywhere in `relative_strength`.
@@ -538,6 +545,8 @@ def collect_one(bars, spy_bars, rsp_bars=None, *, session=None,
     spy = _trim_to(spy_all, times)
 
     p1 = rs.compute_phase1_columns(win, spy)      # defaults: 252 / EMA 21 / 2 % / −0.5 %
+    if phase1_out is not None:
+        phase1_out["phase1"] = p1
     rs_spy = p1["rsLine"]
     if rs_spy[-1] is None:
         # SPY holds no bar at the ticker's newest time: no ratio to read today.
@@ -629,8 +638,9 @@ def collect(tickers, bars_by_ticker, spy_closes, rsp_closes, *, session,
 # ── RS screens (2026-11-14): six last-bar measures for the five RS lists ────
 #
 # Plan 2026-11-14 v2, sections 1.2 (RS New Highs) and 1.3 (RS New High Before
-# Price). NOT screener columns yet and not written by `collect_one`: the build
-# step that stores them is wired separately. NO MATHS HERE EITHER: each value is
+# Price). Screener columns since unit U4, NOT written by `collect_one`: the
+# builder's own `bars_rs_screens` step stores them, only while RS_SCREENS_ENABLED
+# is on (`snapshot_builder.build_row`). NO MATHS HERE EITHER: each value is
 # a `relative_strength` helper asked of the Phase 1 columns `collect_one`
 # already computes, so a list, the chart's dot and the ten columns above read
 # one RS-new-high rule and one before-price rule.

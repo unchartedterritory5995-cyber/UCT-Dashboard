@@ -4,7 +4,8 @@ of three flags.
 
 PURE. No I/O, no env read, no clock. :func:`label` reads a dict and returns a
 dict; it changes neither. Nothing here writes a `screener_rows` column: the
-build step that calls this (unit U2b) decides what is stored.
+build step that calls this (`snapshot_builder._rs_setup_fields`, unit U4)
+decides what is stored.
 
 FAIL CLOSED. A rule is answered only when every input it reads is a real number
 (or a real true/false). When one is missing the setup is ``None``, never the
@@ -49,11 +50,17 @@ PULLBACK_HIGH_MAX_AGE = 15
 #: with the close no more than this many ATRs under it (decision D5).
 PULLBACK_ATR_BAND = 0.5
 
-#: "Buyout pending" (plan section 3: "3 flat sessions following a 15%+ gap").
+#: "Buyout pending": a 15%+ one-session jump, then a pinned price.
+#: TIGHTENED 2026-11-14 (unit U4, owner concern). The plan's first rule (section 3:
+#: "3 flat sessions following a 15%+ gap", a 2% band) also matched an earnings gap
+#: that then traded tightly for three days, and a row tagged "Buyout pending" is kept
+#: out of "near a buy point". The jump must now be at least FIVE sessions old and
+#: every close from it on inside 1.5%: a deal pins a price for weeks, a gap rarely
+#: holds a 1.5% range for a week.
 BUYOUT_JUMP_PCT = 15.0      # one session's close over the prior close, percent
 BUYOUT_WINDOW = 60          # the jump is one of the last 60 sessions (today counts)
-BUYOUT_MIN_SESSIONS = 3     # at least this many sessions have closed since the jump
-BUYOUT_BAND_PCT = 2.0       # every close from the jump on sits inside this range, percent
+BUYOUT_MIN_SESSIONS = 5     # at least this many sessions have closed since the jump
+BUYOUT_BAND_PCT = 1.5       # every close from the jump on sits inside this range, percent
 
 #: "One-day move" (plan section 3: "one session supplied over half of the
 #: 3-month gain").
@@ -187,8 +194,9 @@ def _pct_gain(now: float, before: float) -> float:
 
 def _buyout_pending(closes: Sequence) -> bool:
     """A session inside the last :data:`BUYOUT_WINDOW` closed 15%+ above the
-    prior close, at least :data:`BUYOUT_MIN_SESSIONS` sessions have closed
-    since, and every close FROM THAT SESSION ON sits inside a 2% range.
+    prior close, at least :data:`BUYOUT_MIN_SESSIONS` (5) sessions have closed
+    since, and every close FROM THAT SESSION ON sits inside a
+    :data:`BUYOUT_BAND_PCT` (1.5%) range.
 
     The jump session's own close is inside the range on purpose: a deal pins the
     price at the jump, and a stock that gapped and then kept climbing is not

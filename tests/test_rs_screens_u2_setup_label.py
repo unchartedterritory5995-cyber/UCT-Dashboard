@@ -76,7 +76,7 @@ def test_the_thresholds_are_the_published_ones():
     assert rs_setup.PULLBACK_HIGH_MAX_AGE == 15
     assert rs_setup.PULLBACK_ATR_BAND == 0.5
     assert (rs_setup.BUYOUT_JUMP_PCT, rs_setup.BUYOUT_WINDOW, rs_setup.BUYOUT_MIN_SESSIONS,
-            rs_setup.BUYOUT_BAND_PCT) == (15.0, 60, 3, 2.0)
+            rs_setup.BUYOUT_BAND_PCT) == (15.0, 60, 5, 1.5)   # tightened 2026-11-14 (unit U4)
     assert (rs_setup.ONE_DAY_WINDOW, rs_setup.ONE_DAY_SHARE, rs_setup.ONE_DAY_MIN_PCT) == (63, 0.5, 15.0)
     assert rs_setup.NEW_ISSUE_BARS == 253
     assert rs_setup.CLOSES_NEEDED == 64
@@ -209,39 +209,54 @@ def test_tight_is_a_second_tag_beside_any_setup():
 
 # ─────────────────────────────────── flags ──────────────────────────────────
 
-# 100 for 60 sessions, a 30% jump, then three closes within 0.77% of it.
-BUYOUT = [100.0] * 60 + [130.0, 130.5, 131.0, 130.2]
+# 100 for 58 sessions, a 30% jump, then five closes within 0.77% of it.
+BUYOUT = [100.0] * 58 + [130.0, 130.5, 131.0, 130.2, 130.4, 130.6]
+# The owner's case (2026-11-14): an earnings gap, then three tight sessions. Under the
+# first rule (3 sessions, a 2% band) this read "Buyout pending".
+EARNINGS_GAP = [100.0] * 60 + [130.0, 130.5, 131.0, 130.2]
 # 100 for 40 sessions, a 20% jump to 120, then a choppy 118/126 for 22 sessions,
 # closing 126. Net gain 26; the jump supplied 20 of it (more than half, 13).
 ONE_DAY = [100.0] * 40 + [120.0] + [118.0, 126.0] * 11 + [126.0]
 
 
 def test_the_scripted_series_are_64_closes():
-    assert len(BUYOUT) == len(ONE_DAY) == len(FLAT64) == 64
+    assert len(BUYOUT) == len(EARNINGS_GAP) == len(ONE_DAY) == len(FLAT64) == 64
 
 
-def test_buyout_pending_after_three_flat_sessions():
+def test_buyout_pending_after_five_flat_sessions():
     assert _flag(BUYOUT) == "buyout_pending"
-    # Two sessions after the jump is one short. (It reads as a one-day move
-    # meanwhile: the jump is 30 of a 31 net gain.)
-    assert _flag([100.0] * 61 + [130.0, 130.5, 131.0]) == "one_day_move"
-    # Enough closes to judge a buyout need not be 64.
-    assert _flag([100.0, 130.0, 130.0, 130.0, 130.0]) == "buyout_pending"
-    assert _flag([100.0, 130.0, 130.0, 130.0]) is None
+    # Four sessions after the jump is one short. (It reads as a one-day move
+    # meanwhile: the jump is 30 of a 30.4 net gain.)
+    assert _flag([100.0] * 59 + [130.0, 130.5, 131.0, 130.2, 130.4]) == "one_day_move"
+    # Enough closes to judge a buyout need not be 64: the jump and five closes after it.
+    assert _flag([100.0] + [130.0] * 6) == "buyout_pending"
+    assert _flag([100.0] + [130.0] * 5) is None
+
+
+def test_an_earnings_gap_with_three_tight_sessions_is_not_a_buyout():
+    """Tightened 2026-11-14 (unit U4, the owner's concern): a stock that gapped on
+    earnings and then traded tightly for three days read "Buyout pending". The jump
+    must now be at least five sessions old, and every close since inside 1.5%."""
+    assert _flag(EARNINGS_GAP) == "one_day_move"
+    assert rs_setup.near_buy_point(rs_setup.label(_inp(closes=EARNINGS_GAP))) is False
+    # The same gap, held flat for five sessions, is the pinned price of a deal.
+    assert _flag([100.0] * 58 + [130.0, 130.5, 131.0, 130.2, 130.4, 130.6]) == "buyout_pending"
+    # A gap that drifts 1.8% in the week after (inside the old 2% band) is still moving.
+    assert _flag([100.0] * 58 + [130.0, 130.8, 131.6, 132.34, 131.9, 132.0]) == "one_day_move"
 
 
 def test_buyout_jump_is_at_least_fifteen_percent():
-    assert _flag([100.0] * 60 + [115.0] * 4) == "buyout_pending"
-    assert _flag([100.0] * 60 + [114.9] * 4) is None
+    assert _flag([100.0] * 58 + [115.0] * 6) == "buyout_pending"
+    assert _flag([100.0] * 58 + [114.9] * 6) is None
 
 
-def test_buyout_band_is_two_percent_and_includes_the_jump_close():
-    # (153 - 150) / 150 = exactly 2%.
-    assert _flag([100.0] * 60 + [150.0, 153.0, 150.0, 151.0]) == "buyout_pending"
-    assert _flag([100.0] * 60 + [150.0, 153.1, 150.0, 151.0]) == "one_day_move"
-    # The three closes after the jump are tight among themselves (156 to 156.5)
+def test_buyout_band_is_one_and_a_half_percent_and_includes_the_jump_close():
+    # (203 - 200) / 200 = exactly 1.5%.
+    assert _flag([100.0] * 58 + [200.0, 203.0, 200.0, 201.0, 202.0, 201.5]) == "buyout_pending"
+    assert _flag([100.0] * 58 + [200.0, 203.1, 200.0, 201.0, 202.0, 201.5]) == "one_day_move"
+    # The five closes after the jump are tight among themselves (156 to 156.5)
     # but 4% above the jump's own close: price is still moving, not pinned.
-    assert _flag([100.0] * 60 + [150.0, 156.0, 156.5, 156.0]) == "one_day_move"
+    assert _flag([100.0] * 58 + [150.0, 156.0, 156.5, 156.0, 156.2, 156.1]) == "one_day_move"
 
 
 def test_buyout_jump_must_be_inside_the_last_sixty_sessions():
@@ -316,7 +331,7 @@ def test_a_bad_close_blanks_only_the_flag_that_reads_it():
     assert _flag(holed) == "buyout_pending"
     # A hole after the jump does.
     holed = list(BUYOUT)
-    holed[62] = None
+    holed[61] = None
     assert _flag(holed) is None
 
 
