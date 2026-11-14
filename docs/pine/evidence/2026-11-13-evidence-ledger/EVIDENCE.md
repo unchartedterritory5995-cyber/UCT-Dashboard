@@ -83,6 +83,35 @@ captures in the store and filed 67 rows at engine 54, grader `0d24464e1be1`.
 
 The largest row is 1,456 bytes. Every row passes `row_problems` (rail L9).
 
+## Reconciled with S2 (#1233, merged as e1bd2bf929)
+
+**What #1233 brought.**
+- It created the ledger with 37 rows written by the OLD promote (`uct.evidence-ledger/v1`, packet
+  `0d5fad6d...`).
+- Each row has one production verdict, no engine, no grader, and the run's provenance.
+- 36 are licence-held; their captures are in the store under `s2-prove-drawn-2026-11-13`.
+- The S2 run was not in the store when the 67-capture regrade ran.
+
+**Rule (`evidence_ledger.retire_legacy`, the ONE rewrite of the file):**
+- The ledger stays append-only for v2 rows.
+- A legacy v1 row can never be judged fresh, so it is never evidence and it fails the row check.
+- It is retired only once a v2 row files the SAME capture (captureId + receipt).
+- A legacy row with no successor is kept and keeps the committed-ledger rail red.
+- `regrade` calls it after every append.
+
+**Run:** `regrade --exclude-run s3-prove-drawn-2026-11-14` (S3 was still capturing).
+- 103 captures, 103 graded.
+- +36 v2 rows; the one corpus S2 capture was already filed.
+- 37 legacy rows retired, 0 left without a v2 row.
+- The ledger is now 103 rows, all v2, no duplicate keys, 0 row problems.
+- licence: corpus 48, held 36, probe 19.
+- Every retired row's production verdict equals its v2 successor's (37 of 37 the same); the v2
+  rows add the runtime-on lane, the engine (54) and the grader.
+
+**New sessions are picked up with no configuration.** `regrade` reads every
+`<store>/*/captures/*.json`. `--exclude-run <dir>` (repeatable) leaves a session that is still
+capturing out of the regrade.
+
 ## Not done here
 
 - `docs/pine/coverage-map.json` was not regenerated: that needs the local census cache, which is not

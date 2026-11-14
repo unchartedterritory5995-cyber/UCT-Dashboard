@@ -247,6 +247,68 @@ def test_L7_the_regrade_runs_only_under_the_heavy_lock_and_reads_the_store_from_
     assert calls[0][:3] == [sys.executable, str(lock), "run"] and "evidence-regrade" in calls[0] and "--locked" in calls[0]
 
 
+def _legacy(cid="held-momentum-rddt-1d-2026-11-13", text=HELD):
+    """A row as the OLD promote wrote it (schema v1): one production verdict, no engine, provenance."""
+    return {"schema": el.LEGACY_SCHEMA, "captureId": cid, "receipt": _sha(cid)[:8], "sourceSha256": _sha(text),
+            "symbol": "NYSE:RDDT", "timeframe": "1D", "verdict": "MATCH", "reason": "r", "licence": "held",
+            "packetSha256": "0" * 64, "provenance": {"driver": "an agent session"}, "filedAtUTC": "2026-11-14T00:00:00Z"}
+
+
+def test_L10_a_legacy_row_is_never_evidence_and_fails_the_committed_check():
+    legacy = _legacy()
+    assert el.row_problems(legacy) != []
+    out = el.classify([legacy], SAMPLES, engine=ENGINE, lane="production", slug_of=SLUGS)
+    assert out["byKey"] == {} and sum(out["counts"].values()) == 0
+
+
+def test_L10_retire_legacy_drops_only_a_legacy_row_a_v2_row_has_filed_again(tmp_path):
+    path = tmp_path / "evidence-ledger.jsonl"
+    v2 = _row()
+    lines = [json.dumps(_row(cid="other-rddt-1d-2026-11-13", text=OTHER), sort_keys=True),
+             json.dumps(_legacy()), json.dumps(_legacy(cid="orphan-rddt-1d-2026-11-13")),
+             json.dumps(v2, sort_keys=True)]
+    path.write_text("".join(ln + chr(10) for ln in lines), encoding="utf-8")
+    out = el.retire_legacy(path)
+    assert out == {"retired": ["held-momentum-rddt-1d-2026-11-13"], "kept": ["orphan-rddt-1d-2026-11-13"]}
+    after = path.read_text(encoding="utf-8").splitlines()
+    assert after == [lines[0], lines[2], lines[3]]                 # every v2 row kept, byte for byte, in order
+    assert el.retire_legacy(path)["retired"] == []                  # idempotent
+
+
+def test_L7_a_new_capture_session_is_picked_up_with_no_configuration_and_a_live_one_can_be_left_out(tmp_path):
+    import evidence_engine as ee
+    store = tmp_path / "runs"
+    for run, cid in (("s2-a", "held-momentum-rddt-1d-2026-11-13"), ("s3-live", "other-rddt-1d-2026-11-13")):
+        d = store / run / "captures"
+        d.mkdir(parents=True)
+        (d / f"{cid}.json").write_text(json.dumps(_capture(cid)), encoding="utf-8")
+    (store / "s3-live" / "captures" / "half-written.json").write_text("{", encoding="utf-8")
+    assert sorted(c["id"] for _f, c in ee.store_captures(store)) == ["held-momentum-rddt-1d-2026-11-13",
+                                                                     "other-rddt-1d-2026-11-13"]
+    assert [c["id"] for _f, c in ee.store_captures(store, exclude_runs=["s3-live"])] == \
+        ["held-momentum-rddt-1d-2026-11-13"]
+
+
+def test_L7_the_regrade_retires_the_legacy_rows_it_files_again(tmp_path, monkeypatch):
+    import evidence_engine as ee
+    store = tmp_path / "runs" / "s2" / "captures"
+    store.mkdir(parents=True)
+    cid = "held-momentum-rddt-1d-2026-11-13"
+    (store / f"{cid}.json").write_text(json.dumps(_capture(cid)), encoding="utf-8")
+    ledger = tmp_path / "evidence-ledger.jsonl"
+    ledger.write_text(json.dumps(_legacy()) + chr(10), encoding="utf-8")
+    monkeypatch.setattr(el, "engine_version", lambda: ENGINE)
+
+    class W:
+        sources_by_sha = {}
+    out = ee.regrade(tmp_path / "runs", ledger, world=W(), log=lambda *a: None,
+                     grade=lambda stage, out_dir, lane: {"lane": lane, "results": [
+                         {"id": cid, "verdict": "MATCH", "reason": "graded"}]})
+    assert out["legacyRetired"] == [cid] and out["legacyKept"] == []
+    rows = el.read_rows(ledger)
+    assert len(rows) == 1 and rows[0]["schema"] == el.SCHEMA and el.row_problems(rows[0]) == []
+
+
 # ── L8: admission evidence ───────────────────────────────────────────────────────
 
 def _inp():

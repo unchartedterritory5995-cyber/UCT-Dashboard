@@ -94,6 +94,10 @@ sha256 is the sample's. Otherwise:
   re-grades the out-of-git capture store in both lanes, under the heavy lock, and appends fresh
   rows. The store is `$UCT_VENDOR_CAPTURE_STORE`, default
   `%LOCALAPPDATA%/uct-vendor-batch/runs/*/captures`.
+- Every run directory in the store is read, so a new capture session needs no configuration.
+  `--exclude-run <dir>` leaves out a session that is still capturing.
+- Legacy v1 rows (written by the old promote, with no engine version) are never evidence. `regrade`
+  retires each one once a v2 row files the same capture; the file is otherwise append-only.
 - Commit the ledger diff. Never commit a held capture.
 
 ## 3. Legacy fixtures are exempt

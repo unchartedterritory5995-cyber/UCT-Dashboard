@@ -1612,10 +1612,15 @@ def harness_lane(captures_dir: pathlib.Path, out_dir: pathlib.Path, lane: str) -
     return vd
 
 
-def store_captures(store: pathlib.Path) -> list:
-    """Every capture under `<store>/*/captures/*.json`, once per (id, receipt): [(path, capture)]."""
+def store_captures(store: pathlib.Path, exclude_runs=()) -> list:
+    """Every capture under `<store>/*/captures/*.json`, once per (id, receipt): [(path, capture)].
+    Every run directory is read, so a new capture session's run is picked up with no configuration;
+    `exclude_runs` names run directories to leave out (a session still writing its captures)."""
     seen, out = set(), []
+    skip = set(exclude_runs or ())
     for f in sorted(pathlib.Path(store).glob("*/captures/*.json")):
+        if f.parent.parent.name in skip:
+            continue
         try:
             cap = json.loads(f.read_text(encoding="utf-8"))
         except (OSError, ValueError):
@@ -1631,7 +1636,7 @@ def store_captures(store: pathlib.Path) -> list:
 
 
 def regrade(store: pathlib.Path, ledger: pathlib.Path = LEDGER, lanes=el.LANES, world: World | None = None,
-            grade=harness_lane, log=print) -> dict:
+            grade=harness_lane, log=print, exclude_runs=()) -> dict:
     """Re-grade every capture in the out-of-git store at TODAY's engine, both lanes, and append one
     fresh ledger row per capture. The captures (and their source) never leave the store's side:
     they are staged into a temp dir for the harness and only the verdict is filed."""
@@ -1639,7 +1644,7 @@ def regrade(store: pathlib.Path, ledger: pathlib.Path = LEDGER, lanes=el.LANES, 
     engine, grader = el.engine_version(), el.grader_version()
     if not isinstance(engine, int):
         raise RuntimeError("SCRIPT_ENGINE_VERSION could not be read; nothing is graded")
-    caps = store_captures(store)
+    caps = store_captures(store, exclude_runs)
     if not caps:
         log(f"[regrade] no captures under {store}")
         return {"captures": 0, "ledgerRows": 0}
@@ -1661,22 +1666,28 @@ def regrade(store: pathlib.Path, ledger: pathlib.Path = LEDGER, lanes=el.LANES, 
         rows.append(el.make_row(capture=cap, capture_bytes=f.read_bytes(), verdicts=verdicts, filed_by="regrade",
                                 licence=licence_of_capture(world, cap), engine=engine, grader=grader, stamp=stamp))
     n = append_ledger(ledger, rows)
-    log(f"[regrade] {len(caps)} captures · {len(rows)} graded · ledger +{n} (engine {engine}, grader {grader})")
-    return {"captures": len(caps), "graded": len(rows), "ledgerRows": n, "engine": engine, "grader": grader}
+    # a legacy (v1, engine-less) row the regrade has now filed again as v2 is retired
+    legacy = el.retire_legacy(ledger)
+    log(f"[regrade] {len(caps)} captures · {len(rows)} graded · ledger +{n} (engine {engine}, grader {grader})"
+        f" · legacy rows retired {len(legacy['retired'])}, still without a v2 row {len(legacy['kept'])}")
+    return {"captures": len(caps), "graded": len(rows), "ledgerRows": n, "engine": engine, "grader": grader,
+            "legacyRetired": legacy["retired"], "legacyKept": legacy["kept"]}
 
 
-def cmd_regrade(store, ledger, lanes, locked: bool) -> int:
+def cmd_regrade(store, ledger, lanes, locked: bool, exclude_runs=()) -> int:
     store = pathlib.Path(store) if store else el.capture_store()
     if not locked:
         cmd = [sys.executable, str(HERE / "evidence_engine.py"), "regrade", "--store", str(store),
                "--ledger", str(ledger), "--lanes", ",".join(lanes), "--locked"]
+        for run in exclude_runs or ():
+            cmd += ["--exclude-run", run]
         wrapped = heavy("evidence-regrade", cmd)
         if wrapped is None:
             print(f"[regrade] REFUSED: {no_lock_reason()}. The regrade runs the corpus harness: never unlocked.")
             return 2
         return subprocess.call(wrapped, cwd=str(REPO))
     try:
-        regrade(store, pathlib.Path(ledger), lanes=tuple(lanes))
+        regrade(store, pathlib.Path(ledger), lanes=tuple(lanes), exclude_runs=tuple(exclude_runs or ()))
     except (RuntimeError, ValueError, OSError) as exc:
         print(f"[regrade] FAILED: {exc}")
         return 1
@@ -1724,6 +1735,8 @@ def main(argv=None) -> int:
     rg_.add_argument("--store", default=None, help=f"default ${el.CAPTURE_STORE_ENV} or {el.DEFAULT_CAPTURE_STORE}")
     rg_.add_argument("--ledger", default=str(LEDGER))
     rg_.add_argument("--lanes", default=",".join(el.LANES))
+    rg_.add_argument("--exclude-run", action="append", default=[],
+                     help="a run directory under the store to leave out (a capture session still running)")
     rg_.add_argument("--locked", action="store_true", help=argparse.SUPPRESS)
     pn = sub.add_parser("pins", help="resolve brokerPins.json against the committed verdicts (W9-T2)")
     pn.add_argument("--check", action="store_true")
@@ -1737,7 +1750,7 @@ def main(argv=None) -> int:
         if not lanes or set(lanes) - set(el.LANES):
             print(f"[regrade] --lanes must name lanes of {list(el.LANES)}")
             return 2
-        return cmd_regrade(args.store, args.ledger, lanes, args.locked)
+        return cmd_regrade(args.store, args.ledger, lanes, args.locked, exclude_runs=args.exclude_run)
 
     if args.cmd == "queue":
         qd = build_queue(World())

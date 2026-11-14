@@ -225,6 +225,40 @@ def append(path: pathlib.Path, rows) -> int:
     return len(new)
 
 
+#: The schema the OLD promote wrote (2026-11-13, before this module): one production verdict, no
+#: SCRIPT_ENGINE_VERSION, no grader version, the run's provenance. Such a row can never be judged
+#: fresh, so it is never evidence here (`newest_per_capture` reads only `verdicts`).
+LEGACY_SCHEMA = "uct.evidence-ledger/v1"
+
+
+def retire_legacy(path: pathlib.Path = LEDGER) -> dict:
+    """⛔ THE ONE REWRITE OF THIS FILE. The ledger is append-only for v2 rows. A LEGACY v1 row is
+    removed only once a v2 row files the SAME capture (captureId + receipt): the v2 row carries
+    everything the v1 row did that a verdict needs, plus the engine, the grader and both lanes.
+    A legacy row with no v2 successor is KEPT (and fails `row_problems`, so the committed-ledger
+    rail stays red until `regrade` files it). Every v2 row is kept byte for byte, in order.
+    Returns {"retired": [captureId...], "kept": [captureId...]}."""
+    path = pathlib.Path(path)
+    if not path.exists():
+        return {"retired": [], "kept": []}
+    lines = [ln for ln in path.read_text(encoding="utf-8").splitlines() if ln.strip()]
+    rows = [json.loads(ln) for ln in lines]
+    v2 = {(r.get("captureId"), r.get("receipt")) for r in rows if r.get("schema") == SCHEMA}
+    out, retired, kept = [], [], []
+    for ln, r in zip(lines, rows):
+        if r.get("schema") == LEGACY_SCHEMA:
+            if (r.get("captureId"), r.get("receipt")) in v2:
+                retired.append(r.get("captureId"))
+                continue
+            kept.append(r.get("captureId"))
+        out.append(ln)
+    if retired:
+        tmp = path.with_name(path.name + ".tmp")
+        tmp.write_text("".join(ln + "\n" for ln in out), encoding="utf-8", newline="\n")
+        os.replace(tmp, path)
+    return {"retired": retired, "kept": kept}
+
+
 def newest_per_capture(rows, lane: str) -> list:
     """The newest row per capture (captureId + receipt) that carries a verdict in `lane`."""
     best = {}
