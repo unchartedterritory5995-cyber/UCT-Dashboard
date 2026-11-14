@@ -755,7 +755,7 @@ const TGT_NOUN = /(?:^|[\s(])(\$?[A-Z][A-Z0-9]{0,4}(?:\.[A-Z])?)(?:['’]s)?\s+(
 // (AUDIT held-out t1/t2) a ticker as the SUBJECT of a change in ANY verb position: "take / bring / get / move AMD to weekly", a
 // verb-less "AMD on weekly please", "AMD weekly", "AMD to 1h", "AMD with a 20 EMA" — the ticker followed by the change it gets.
 // (A ticker at the END of a clause — "switch to AMD", "make this one AMD", "flip it to AMD" — is the VALUE shape, never this one.)
-const TGT_SUBJ = /(?:^|[\s,;:(])(\$?[A-Z][A-Z0-9]{0,4}(?:\.[A-Z])?)(?=\s+(?:to|on|onto|into|in|at|with|over|back|weekly|daily|monthly|hourly|intraday|log|linear|bars|candles|heikin|\d{1,3}\s*(?:m|min|mins|minutes?|h|hr|hrs|hours?|d|day|w|wk|week)\b))/g
+const TGT_SUBJ = /(?:^|[\s,;:(])(\$?[A-Z][A-Z0-9]{0,4}(?:\.[A-Z])?)(?=\s+(?:(?:to|on|onto|into|in|at|with|over|back|weekly|daily|monthly|hourly|intraday|log|linear|bars|candles|heikin)\b|\d{1,3}\s*(?:m|min|mins|minutes?|h|hr|hrs|hours?|d|day|w|wk|week)\b))/g
 function changeWords(text) {
   const s = String(text || '')
   const cuts = [0, ...[...s.matchAll(ANA_SPLIT)].flatMap(m => [m.index, m.index + m[0].length]), s.length].sort((a, b) => a - b)

@@ -188,7 +188,7 @@ describe('targetTickers: where a ticker stands for the chart being changed', () 
     ['change SPY to AMD', ['SPY', 'AMD']],                   // AMD is dropped as the plan's VALUE by targetTickerConflict
     ['switch to AMD', ['AMD']],                              // likewise
     ['show AMD instead', []],
-    ['replace SPY with AMD', []],
+    ['replace SPY with AMD', ['SPY']],                      // SPY is the chart being changed (on the board: no conflict)
     ['add the RSI and MACD to it', []],
     ['put the TTM squeeze on this chart', []],
     ['change SPY to hourly, but leave my NVDA alone', ['SPY']],
