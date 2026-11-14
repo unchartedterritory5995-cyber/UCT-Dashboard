@@ -192,6 +192,14 @@ MORE_NOTE_ACTIONS = re.search(r"export const MORE_NOTE_ACTIONS = '([^']+)'", (_J
 EXPORT_MENU_NAME = re.search(r'role="menu" aria-label="([^"]+)"', (_J2 / "components" / "notebook" / "export" / "NoteExportMenu.jsx").read_text(encoding="utf-8")).group(1)
 MORE_FORMATTING = re.search(r"export const MORE_FORMATTING = '([^']+)'", (_J2 / "components" / "notebook" / "NoteFormatMenu.jsx").read_text(encoding="utf-8")).group(1)
 # Simplify pass 2 (C1): Graph and Timeline sit under the View menu's "More views" row (NotebookTab's `more-views`).
+# Follow-up B (item 1c): the setups board's way back when it was reached from the Daily brief (SetupsBoard.jsx).
+BOARD_BACK_FROM_BRIEF = re.search(r"\{fromBrief \? '([^']+)' : 'Back to Notebook'\}",
+                                  (_J2 / "components" / "notebook" / "SetupsBoard.jsx").read_text(encoding="utf-8")).group(1)
+# Follow-up C: the New note sheet's link into Manage templates at the daily control, and its "Manage" link
+# (MemberTemplates.jsx aria-labels).
+_MEMBER_TEMPLATES = (_J2 / "components" / "notebook" / "MemberTemplates.jsx").read_text(encoding="utf-8")
+DAILY_CHANGE_LINK = re.search(r"onManage\('daily', e\.currentTarget\)\}\s*aria-label=\"([^\"]+)\"", _MEMBER_TEMPLATES).group(1)
+PLAIN_MANAGE_LINK = re.search(r"onManage\('plain', e\.currentTarget\)\}\s*aria-label=\"([^\"]+)\"", _MEMBER_TEMPLATES).group(1)
 MORE_VIEWS_ROW = re.search(r"key: 'more-views', label: '([^']+)'", (_J2 / "tabs" / "NotebookTab.jsx").read_text(encoding="utf-8")).group(1)
 
 
@@ -2270,20 +2278,25 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
                 break
             pg.wait_for_timeout(300)
         on_board = pg.url.split("?")[0].endswith("/journal/notebook/setups")
-        back = pg.get_by_role("link", name=re.compile(r"Back to Notebook"))
+        # Follow-up B (item 1c): reached FROM the Daily brief, the board's way back is "Back to Daily brief" and lands on
+        # the brief (`?view=today`); "Back to Notebook" is the label only for a board reached some other way.
+        back = pg.get_by_role("link", name=re.compile(re.escape(BOARD_BACK_FROM_BRIEF)))
         back_shown = C.vis_loc(back, 30000)
         back_href = back.first.get_attribute("href") if back_shown else None
+        old_back = pg.get_by_role("link", name=re.compile(r"Back to Notebook")).count()
         if back_shown:
             back.first.click()
             for _ in range(30):
-                if pg.url.split("?")[0].rstrip("/").endswith("/journal/notebook"):
+                if pg.url.split("?")[0].rstrip("/").endswith("/journal/notebook") and "view=today" in pg.url:
                     break
                 pg.wait_for_timeout(300)
-        home_again = pg.url.split("?")[0].rstrip("/").endswith("/journal/notebook")
-        ok = (shown and lm.get("uncovered") and on_board and back_shown and home_again)
-        C.step(pg, inst, "discover.setups-card", "Daily brief: the 'Setups near entry' card's link opens the board; the board has Back to Notebook",
+        brief_again = pg.url.split("?")[0].rstrip("/").endswith("/journal/notebook") and "view=today" in pg.url
+        brief_heading = C.vis_loc(pg.get_by_role("heading", name="Daily brief", exact=True), 15000) if brief_again else False
+        ok = (shown and lm.get("uncovered") and on_board and back_shown and not old_back and brief_again and brief_heading)
+        C.step(pg, inst, "discover.setups-card", f"Daily brief: the 'Setups near entry' card's link opens the board; the board's '{BOARD_BACK_FROM_BRIEF}' returns to the brief",
                "PASS" if ok else "FAIL", card_text=(text or "")[:300], card=m, link=lm, link_text=link_text, on_board=on_board,
-               back_link=back_shown, back_href=back_href, back_lands_on_notebook=home_again, scope=['[data-today-card="setups"]'])
+               back_link=back_shown, back_href=back_href, old_back_to_notebook=old_back, back_lands_on_brief=brief_again,
+               brief_heading=brief_heading, url_after=pg.url.split("://")[-1].split("/", 1)[-1], scope=['[data-today-card="setups"]'])
 
     # ── discover.one-ask (1280) ────────────────────────────────────────────────────────────────────
     # Go-live wave 2: Research home's Ask section moved behind the notes list's "AI" button (simplify Task 5), and the
@@ -4536,8 +4549,8 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
             cB.close()
 
     # ── discover.recap-template (1280) ─────────────────────────────────────────────────────────────
-    # Pass 2 final fix (I1; final-fix row b). A member who chose a daily template ("Daily notes start from" in the
-    # template sheet, the member's own control) and watches a name drafts Today's recap on a day with NO note (New >
+    # Pass 2 final fix (I1; final-fix row b). A member who chose a daily template ("Daily notes start from", since
+    # follow-up C in Manage templates' Plain templates group, reached from the template sheet's Change link) and watches a name drafts Today's recap on a day with NO note (New >
     # Draft a review > Today's recap: the brief's recap card waits for 16:05 ET). The door makes today's note FROM THAT
     # TEMPLATE and with the plan lines, then appends the recap: one note holding the template's words and the plan's
     # line, the recap heading after both.
@@ -4561,8 +4574,11 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
             at(pR, base, "/journal/notebook", first_run=True)
             chose, err0 = False, None
             try:
+                # Follow-up C: the control lives in Manage templates' Plain templates group; the New note sheet's "Your
+                # templates" says "Daily notes start from: None. Change", and Change opens the manager at the control.
                 open_templates(pR)
-                pick = pR.get_by_label("Daily notes start from")
+                pR.get_by_role("button", name=DAILY_CHANGE_LINK, exact=True).first.click(timeout=20000)
+                pick = pR.get_by_role("dialog", name="Manage templates").get_by_label("Daily notes start from")
                 pick.first.wait_for(state="visible", timeout=20000)
                 with pR.expect_response(lambda r: r.request.method == "POST" and "/api/auth/preferences" in r.url, timeout=15000):
                     pick.first.select_option(label=tname)

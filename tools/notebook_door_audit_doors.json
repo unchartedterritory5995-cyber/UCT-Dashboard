@@ -499,7 +499,7 @@
     ],
     "target": {
       "role": "link",
-      "name": "~Back to Notebook"
+      "name": "~Back to Daily brief"
     },
     "viewports": [
       "1280",
