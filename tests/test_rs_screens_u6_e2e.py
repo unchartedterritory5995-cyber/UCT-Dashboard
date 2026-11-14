@@ -92,7 +92,7 @@ def _stub_sources(mp, b, universe, series, final_ratings):
 def _build(mp, tmp_path, *, screens_on):
     """Run the nightly build and the rating job's post-pass chain into a fresh database.
     Returns the build's stats."""
-    from api.services.screener import membership, rs_history
+    from api.services.screener import rs_history
     from api.services.screener import snapshot_builder as b
     from api.services.signature import registry_defs
     mp.setenv("SCREENER_DB_PATH", str(tmp_path / "screener.db"))
@@ -114,8 +114,18 @@ def _build(mp, tmp_path, *, screens_on):
     # the 04:15 ET rating job's pass, once per stored session in order, so "a month ago"
     # reads a real earlier ranking (off, each call returns before it opens the database)
     passes = [rs_post_pass.run(session, source="rating") for session in market.RATED_SESSIONS]
-    membership._CURRENT.clear()
     return {"stats": stats, "passes": passes, "universe": universe}
+
+
+def _forget_caches():
+    """The screener keeps three small process-wide memos keyed on the table's shape (the
+    stale-row gate, the measured bands, each screen's current tickers). This module builds
+    its own tables, so they are dropped before it reads one and again when it is done:
+    nothing it measured may answer for another test's table, or the other way round."""
+    from api.services.screener import distribution, membership, query
+    query._STALE_GATE_MEMO = None
+    distribution.invalidate()
+    membership._CURRENT.clear()
 
 
 def _client(mp):
@@ -125,10 +135,9 @@ def _client(mp):
     from fastapi.testclient import TestClient
     from api.middleware.auth_middleware import get_current_user, get_current_user_with_plan
     from api.routers import screener as screener_mod
-    from api.services.screener import distribution
     mp.setattr(screener_mod.scr_saved, "list_for", lambda uid: [])
     mp.setattr(filters, "_rs_history_on", lambda: True)
-    distribution.invalidate()
+    _forget_caches()
     paid = {"id": "u1", "role": "member", "plan": "pro"}
     app = FastAPI()
     app.include_router(screener_mod.router)
@@ -148,6 +157,7 @@ def on(tmp_path_factory):
         yield {**built, "client": _client(mp), "table": {r["ticker"]: r for r in table}}
     finally:
         mp.undo()
+        _forget_caches()
 
 
 def _requests():
@@ -523,6 +533,7 @@ def test_the_flag_off_application_serves_none_of_it(tmp_path):
         assert out.status_code == 200 and out.json()["rows"] == [] and out.json()["total"] == 0
     finally:
         mp.undo()
+        _forget_caches()
 
 
 def test_a_listing_too_young_to_be_rated_is_on_the_one_month_board_with_no_rs_number(on):
