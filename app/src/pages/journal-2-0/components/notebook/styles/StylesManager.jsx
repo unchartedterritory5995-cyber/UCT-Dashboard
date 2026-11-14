@@ -230,7 +230,7 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [], show
   const kindDeleteBtns = useRef({})
   const confirmYesRef = useRef(null)
   const newBtnRef = useRef(null)
-  const pendingFocus = useRef(null)                     // { type: 'opener' | 'undo' | 'row' | 'kindDelete' | 'kindRow' | 'addKind' | 'newTemplate', id? }
+  const pendingFocus = useRef(null)                     // { type: 'opener' | 'undo' | 'row' | 'kindDelete' | 'kindRow' | 'addKind' | 'newTemplate' | 'tab', id? }
 
   // The editor opened: bring it to the member. (On a phone it sits below the whole list.)
   useEffect(() => {
@@ -265,6 +265,9 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [], show
       document.getElementById('js-kind-name')?.focus()
     } else if (pf.type === 'newTemplate') {
       if (newBtnRef.current) { pendingFocus.current = null; newBtnRef.current.focus() }
+    } else if (pf.type === 'tab') {
+      const t = tabRefs.current[pf.id]
+      if (t) { pendingFocus.current = null; t.focus() }
     }
   })
 
@@ -390,11 +393,17 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [], show
   }
   closeAsideRef.current = closeAside
   /** Another view: the Undo line and any panel belong to the view left behind. */
-  const showView = (v) => guard(() => {
-    setEditing(null); setEditorDirty(false); setConfirmDiscard(null)
-    setAside(null); setUndo(null); setStatus(''); setProblem('')
-    setView(v)
-  })
+  const showView = (v) => {
+    // Final fix M1: through the discard question, "Discard changes" and the Active view it sat in both go away, so
+    // focus goes to the tab just chosen (never left on <body> inside the dialog).
+    const asks = Boolean(editing && editorDirty)
+    guard(() => {
+      setEditing(null); setEditorDirty(false); setConfirmDiscard(null)
+      setAside(null); setUndo(null); setStatus(''); setProblem('')
+      setView(v)
+      if (asks) pendingFocus.current = { type: 'tab', id: v }
+    })
+  }
   const plainGroup = (
     <PlainTemplatesManage busy={locked}
       onUse={onUsePlain ? (t) => guard(() => { finish(); onUsePlain(t) }) : null}

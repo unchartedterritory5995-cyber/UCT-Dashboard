@@ -323,6 +323,26 @@ describe('the manager is the one room: its views', () => {
     expect(sent('POST', 'journal-styles/sa1/delete')).toHaveLength(0)
   })
 
+  it('(final M1) Discard reached through a view switch puts focus on the tab just chosen (click and Arrow key)', async () => {
+    open()
+    const startDirty = async () => {
+      fireEvent.click(await screen.findByRole('button', { name: /New template/ }))
+      fireEvent.change(await screen.findByLabelText('Name'), { target: { value: 'Half done' } })
+    }
+    await startDirty()
+    fireEvent.click(tab('Archived'))
+    fireEvent.click(await screen.findByRole('button', { name: 'Discard changes' }))
+    await waitFor(() => expect(tab('Archived')).toHaveAttribute('aria-selected', 'true'))
+    await waitFor(() => expect(tab('Archived')).toHaveFocus())
+    // the Arrow key on the tablist, the same way
+    fireEvent.click(tab('Active'))
+    await startDirty()
+    tab('Active').focus()
+    fireEvent.keyDown(tab('Active'), { key: 'ArrowLeft' })                         // wraps to Recently deleted
+    fireEvent.click(await screen.findByRole('button', { name: 'Discard changes' }))
+    await waitFor(() => expect(tab('Recently deleted')).toHaveFocus())
+  })
+
   it('(1) CONTROL: a KNOWN zero archives at once, as before (no panel, no extra read)', async () => {
     open()
     const row = await activeRow('Gap plan')
