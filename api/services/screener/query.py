@@ -344,6 +344,47 @@ def _readiness_refusal(label: str) -> ValueError:
     return ValueError(f"{label} isn't ready on this screen yet — remove it and try again")
 
 
+def _require_operands(key: str, op: str, f: dict) -> None:
+    """Refuse a filter that arrived without the operand its op reads.
+
+    `filters.OP_OPERANDS` declares what each op needs and nothing checked it:
+    `build_where` indexed `f["min"]` / `f["max"]` / `f["value"]` directly and the
+    routes catch only `ValueError`, so `{"key": "rs_rank", "op": "gte",
+    "value": 90}` (the wrong operand name) was a `KeyError` and an HTTP 500
+    "Internal Server Error" (found 2026-11-14 while planning the RS screens).
+
+    A missing operand, a null one and an empty string (a cleared input) are the
+    same mistake. A null bound into `col >= ?` compares against NULL and matches
+    no row, and SQLite ranks every number below any text, so the member read an
+    empty table as "nothing qualifies" when the criterion never ran.
+
+    ⛔ REFUSE WITH THE FILTER'S OWN LABEL AND THE OP'S PLAIN WORDS, the rule
+    `_readiness_refusal` states: a sentence the member can act on, never a key
+    name. Zero and False are real operands, so the test is never truthiness. An EMPTY `values` list stays the documented no-op; anything that
+    is not a list is refused, because a string would be read letter by letter
+    and a number raises.
+    """
+    entry = filters.FILTERS[key]
+    words = filters.OP_WORDS.get(op, op)
+    for operand in filters.OP_OPERANDS.get(op, ()):
+        v = f.get(operand)
+        if operand == "values":
+            if isinstance(v, list):
+                continue
+            needs = "a list of values"
+        elif v is not None and v != "":
+            continue
+        elif operand == "other":
+            needs = "a second field to compare with"
+        elif op == "between":
+            needs = "a low and a high number"
+        elif op == "contains":
+            needs = "some text"
+        else:
+            needs = "a number" if entry.get("type") == "range" else "a value"
+        raise ValueError(f'{entry["label"]}: "{words}" needs {needs}.')
+
+
 # ⭐ "VOLUME VS USUAL BY NOW" SORTS ON LAST SESSION'S VOLUME WHEN THE MARKET IS CLOSED.
 # `rvol_live` is blank outside the session (and before 09:45 ET), and members scan
 # mostly after hours and on weekends: sorted by it alone, every live-volume screen
@@ -785,6 +826,7 @@ def build_where(filter_specs, scan_joins=None, overlay=None, *,
             raise ValueError(f"bad op {op} for {key}")
         if name not in known:
             raise _readiness_refusal(filters.FILTERS[key]["label"])
+        _require_operands(key, op, f)
         col = overlay.col_expr(name)
         if op in filters.COL_OPS:
             # 🔴 FIELD-TO-FIELD (benchmark metric 423). The right-hand side is a

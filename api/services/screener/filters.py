@@ -1084,6 +1084,27 @@ OP_OPERANDS = {
     "lte_col": ("other",),
 }
 
+#: `op` -> the words a member reads for it, in the refusal `query.build_where`
+#: raises when a filter arrives without the operand declared just above
+#: (`RS Rank: "at least" needs a number.`). Beside `OP_OPERANDS` for the same
+#: reason that table is beside `_VALID_OPS`: one definition per op, and
+#: `tests/test_screener_operand_refusal.py` asserts the two name the same ops.
+OP_WORDS = {
+    "gte": "at least",
+    "gt": "above",
+    "lte": "at most",
+    "lt": "below",
+    "between": "between",
+    "eq": "equals",
+    "contains": "contains",
+    "in": "is one of",
+    "not_in": "is none of",
+    "gt_col": "above",
+    "gte_col": "at least",
+    "lt_col": "below",
+    "lte_col": "at most",
+}
+
 #: ⛔ FILTERS THAT ONCE EXISTED AND NO LONGER DO — the safe-deletion mechanism.
 #:
 #: A saved screen serializes filter KEYS as JSON (`screener_saved_screens.
