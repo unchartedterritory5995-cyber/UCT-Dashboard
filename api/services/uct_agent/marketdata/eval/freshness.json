@@ -1394,6 +1394,152 @@
       "flags": {}
     },
     {
+      "id": "b-week-forming",
+      "category": "historical",
+      "kind": "bars.daily",
+      "purpose": "answer",
+      "question": "How has AAPL done this week?",
+      "envelope": {
+        "contract": "MD-1.0",
+        "kind": "bars.daily",
+        "params_echo": {
+          "symbol": "AAPL",
+          "tf": "W",
+          "bars": 1
+        },
+        "status": "ok",
+        "freshness": "historical",
+        "as_of": "2026-10-28T20:00:00Z",
+        "fetched_at": "2026-11-02T16:55:00Z",
+        "delay_s": null,
+        "stale": false,
+        "source": "uct-bars",
+        "coverage": null,
+        "data": {
+          "symbol": "AAPL",
+          "timeframe": "W",
+          "bars": [
+            {
+              "date": "2026-10-30",
+              "first_session": "2026-10-26",
+              "last_session": "2026-10-28",
+              "sessions": 3,
+              "open": 1,
+              "high": 2,
+              "low": 0.5,
+              "close": 1.5,
+              "volume": 30,
+              "change_pct": 1.0,
+              "partial": true,
+              "partial_reason": "forming"
+            }
+          ],
+          "through": "2026-10-28",
+          "latest_completed_session": "2026-10-28",
+          "current_period_partial": true
+        },
+        "notes": [
+          "completed sessions only — the current session's developing bar is never included",
+          "weekly bars resampled from completed daily sessions by the product's own resampler, each dated by its week's Friday (friday-close)",
+          "the newest week (2026-10-30) is still forming: it is partial, not a closed bar"
+        ],
+        "provider_calls": 0
+      },
+      "expect": {
+        "freshness_class": "historical",
+        "as_of_renderings": [
+          "2026-10-28",
+          "Oct 28",
+          "October 28"
+        ],
+        "may_claim_live": false,
+        "must_disclose_stale": false,
+        "must_say_unavailable": false,
+        "must_not_state_a_value": false,
+        "must_disclose": [
+          "still forming",
+          "partial"
+        ],
+        "as_of_null_reason_required": false
+      },
+      "expect_refusal": false,
+      "flags": {}
+    },
+    {
+      "id": "b-month-pre-floor",
+      "category": "historical",
+      "kind": "bars.daily",
+      "purpose": "answer",
+      "question": "What are MSFT's monthly closes back to 2003, through the latest month?",
+      "envelope": {
+        "contract": "MD-1.0",
+        "kind": "bars.daily",
+        "params_echo": {
+          "symbol": "MSFT",
+          "tf": "M",
+          "from": "2003-01-01",
+          "to": "2003-12-31"
+        },
+        "status": "ok",
+        "freshness": "historical",
+        "as_of": "2003-12-31T21:00:00Z",
+        "fetched_at": "2026-11-02T16:55:00Z",
+        "delay_s": null,
+        "stale": false,
+        "source": "uct-bars",
+        "coverage": null,
+        "data": {
+          "symbol": "MSFT",
+          "timeframe": "M",
+          "bars": [
+            {
+              "date": "2003-08-01",
+              "first_session": "2003-08-01",
+              "last_session": "2003-08-29",
+              "sessions": 21,
+              "open": 1,
+              "high": 2,
+              "low": 0.5,
+              "close": 1.5,
+              "volume": 30,
+              "change_pct": 1.0,
+              "partial": false,
+              "pre_vendor_floor": true
+            }
+          ],
+          "through": "2003-12-31",
+          "latest_completed_session": "2003-12-31",
+          "current_period_partial": false,
+          "window_from": "2003-01-01"
+        },
+        "notes": [
+          "completed sessions only — the current session's developing bar is never included",
+          "monthly bars resampled from completed daily sessions by the product's own resampler, each dated by its month's 1st",
+          "window: bars on or after 2003-01-01",
+          "rows before 2003-09-10 come from yfinance history (Massive's daily archive starts 2003-09-10)"
+        ],
+        "provider_calls": 0
+      },
+      "expect": {
+        "freshness_class": "historical",
+        "as_of_renderings": [
+          "2003-12-31",
+          "Dec 31",
+          "December 31"
+        ],
+        "may_claim_live": false,
+        "must_disclose_stale": false,
+        "must_say_unavailable": false,
+        "must_not_state_a_value": false,
+        "must_disclose": [
+          "yfinance"
+        ],
+        "as_of_null_reason_required": false
+      },
+      "expect_refusal": false,
+      "flags": {}
+    },
+    {
       "id": "f-current",
       "category": "periodic",
       "kind": "fundamentals",
