@@ -246,7 +246,13 @@ function referenceBars() {
  *  is DARK — the script is not fully drawn — when, on the listing, it draws no bar at all, or draws
  *  fewer of the bars the off-listing replay draws. ⚰️ The builtin Supertrend drew 0 bars from the
  *  listing against 255 off it (a NaN seed latched in its ratchet) and the census counted it clean.
- *  The engine bug is NOT fixed here (a later engine); the census is only made honest about it. */
+ *  The engine bug is NOT fixed here (a later engine); the census is only made honest about it.
+ *  ⛔ A plot that draws NOTHING OFF the listing either is not dark BY THE LISTING, and is not
+ *  counted: measured on the first full run, 33 of 35 such demotions were plots empty by design on
+ *  a daily chart — an input left off (`show_5m ? x : na`, the builtin SMA's smoothing plots with
+ *  type "None"), an intraday-only session level — which TradingView draws as nothing too. Whether
+ *  a plot empty in BOTH replays should draw is a question this test has no witness for (the
+ *  harness has one, per capture); counting it would demote by the plot's design, not the engine. */
 function darkPlots(def, bars, ctx, listingCols) {
   if (!ctx || ctx.historyFromListing !== true) return []
   let off = null
@@ -271,6 +277,7 @@ function darkPlots(def, bars, ctx, listingCols) {
       if (a) onDrawn += 1
       if (b) { offDrawn += 1; if (a) onWhereOff += 1 }
     }
+    if (offDrawn === 0) continue   // empty in both replays: no evidence the listing darkened it
     if (onDrawn === 0) out.push(`dark-plot:${p.key}:listing 0 / off-listing ${offDrawn}`)
     else if (onWhereOff < offDrawn) out.push(`dark-plot:${p.key}:listing ${onWhereOff} of the off-listing ${offDrawn}`)
   }
@@ -756,6 +763,12 @@ describe('⛔ engine 55 — the census bound check (`boundBlockers`) can fail', 
     expect(d.ok).toBe(true)
     const why = boundBlockers(d)
     expect(why.some((w) => /^dark-plot:[^:]+:listing 0 \/ off-listing [1-9]\d*$/.test(w)), why.join(' | ')).toBe(true)
+  })
+
+  it('a plot empty in BOTH replays (an input left off) is NOT a dark plot (the control for the rule)', () => {
+    const d = doorOf(['showIt = input.bool(false, "Show")', 'plot(showIt ? close : na)', 'plot(close)'])
+    expect(d.ok).toBe(true)
+    expect(boundBlockers(d)).toEqual([])
   })
 
   it('a plain plot binds clean (the control)', () => {
