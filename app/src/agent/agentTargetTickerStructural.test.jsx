@@ -109,3 +109,20 @@ describe('no false ask: ordinary words and acronyms in capitals', () => {
     expect(JSON.stringify(m.board.state.widgets[0]), transcript()).not.toBe(spy0)   // (some go the instant way: the change is theirs)
   }, 60000)
 })
+
+// the reader itself (several controls above go the instant way and never reach the model-plan screen)
+describe('targetTickers: ordinary words in capitals, digit labels and the app lexicon are no tickers', () => {
+  it.each([
+    ['make ALL charts weekly NOW', []], ['put THIS one on weekly', []], ['is IT on weekly YET', []], ['ok SO put it on weekly', []],
+    ['«scripted plan P5.symbol-tf»', []], ['set the Q3 view, H1 too', []],
+    ['bump AMD up to weekly', ['AMD']], ['AMD: weekly', ['AMD']], ['CHANGE AMD TO WEEKLY', ['AMD']], ['take spy to weekly', ['SPY']],
+  ])('"%s" → %j', async (t, want) => {
+    const { targetTickers } = await import('./deixis')
+    expect(targetTickers(t, [{ symbol: 'SPY' }])).toEqual(want)
+  })
+  it('the app lexicon is ordinary: "Chart IQ", "AI Chips"', async () => {
+    const { targetTickers } = await import('./deixis')
+    expect(targetTickers('turn on Chart IQ, compare with AI Chips', [{ symbol: 'SPY' }], new Map(), new Set(['iq', 'ai']))).toEqual([])
+    expect(targetTickers('turn on Chart IQ, compare with AI Chips', [{ symbol: 'SPY' }])).toEqual(['IQ', 'AI'])
+  })
+})
