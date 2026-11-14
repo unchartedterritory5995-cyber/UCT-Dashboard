@@ -92,7 +92,9 @@ def test_the_job_delivers_the_reply_and_survives_a_failing_search(route):
                                                    "quote": ""}],
                              edit_fn=lambda a, t, **kw: edits.append((a, t, kw)))
     assert edits[0][0:2] == ("APP", "TOK")
-    assert "**Lessons on “stop loss”**" in edits[0][2]["content"] and "[Stops](<https://d/1>)" in edits[0][2]["content"]
+    card = edits[0][2]["embeds"][0]
+    assert card["title"] == "Lessons on “stop loss”" and "[Stops](https://d/1)" in card["description"]
+    assert card["author"]["name"] == "UCT INTELLIGENCE · LESSONS" and edits[0][2]["content"] == ""
 
     def boom(q):
         raise RuntimeError("db locked")
@@ -110,7 +112,8 @@ def test_the_job_searches_the_real_library_by_default(route, monkeypatch):
     from api.services import tsdr_lessons as tl
     tl.init_db() if hasattr(tl, "init_db") else None
     edits = []
-    rt.run_lesson_search_job("APP", "TOK", "zebra", edit_fn=lambda a, t, **kw: edits.append(kw["content"]))
+    rt.run_lesson_search_job("APP", "TOK", "zebra",
+                             edit_fn=lambda a, t, **kw: edits.append(kw["embeds"][0]["description"]))
     assert len(edits) == 1 and "Nothing in the lesson library" in edits[0]
 
 

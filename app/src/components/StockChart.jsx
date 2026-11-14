@@ -8819,6 +8819,8 @@ export default function StockChart({
   const [replayIndex, setReplayIndex] = useState(null)
   const [replayPlaying, setReplayPlaying] = useState(false)
   const [replaySpeed, setReplaySpeed] = useState(1)
+  // the Replay bar's handlers + state for the UCT Agent's door (written each render below; never read during render)
+  const replayCtlRef = useRef(null)
 
   // ── Extended-hours session preview (Charts workspace; D/W/M only) ──────────
   // `sessionView` is non-null only on the workspace. `marketSession` is the live
@@ -18624,6 +18626,62 @@ export default function StockChart({
     } catch { /* noop */ }
   }
 
+  // ── Replay / Time Machine bar: its OWN handlers. The toolbar's buttons (ChartToolbar onReplay*) and the UCT Agent's
+  // onDateNavApi.replay (chartReplay.playback) call these SAME functions; replayCtlRef is a plain ref write per render
+  // (no state, no effect), so the Agent's door always reaches this render's handlers and reads this render's state.
+  const replayToggle = () => {
+    if (replayMode) {
+      setReplayMode(false)
+      setReplayPlaying(false)
+      setReplayIndex(null)
+    } else {
+      setReplayMode(true)
+      setReplayPlaying(false)
+      setReplayIndex(Math.floor((sessionBars?.length || 1) * 0.7))
+    }
+  }
+  const replayPlayPause = () => setReplayPlaying(p => !p)
+  const replayStep = (dir) => {
+    setReplayPlaying(false)
+    setReplayIndex(i => {
+      const max = (sessionBars?.length || 1) - 1
+      return Math.max(0, Math.min(max, (i ?? 0) + dir))
+    })
+  }
+  const replayIndexChange = (idx) => {
+    setReplayPlaying(false)
+    const max = (sessionBars?.length || 1) - 1
+    setReplayIndex(Math.max(0, Math.min(max, idx)))
+  }
+  // the Replay button is on this chart only where the primary toolbar mounts visibly with it (not a grid cell, not the phone shell)
+  replayCtlRef.current = { toggle: replayToggle, playPause: replayPlayPause, step: replayStep, seek: replayIndexChange, setSpeed: setReplaySpeed,
+    can: !!showDrawingTools && !hideReplay && !mobileDrawBar, mode: replayMode, playing: replayPlaying, speed: replaySpeed, index: replayIndex, bars: sessionBars }
+  // ⭐ UCT Agent's replay door: one op → the button that op names, only when that button would do it (never a toggle by accident)
+  const replayDo = (a) => {
+    const c = replayCtlRef.current
+    if (!c?.can || !a || typeof a !== 'object') return
+    const n = c.bars?.length || 0
+    if (a.op === 'enter') { if (!c.mode && n) c.toggle(); return }
+    if (a.op === 'restore') { if (!c.mode && n) c.toggle(); if (Number.isInteger(a.index)) c.seek(a.index); return }   // Undo of an exit
+    if (!c.mode) return
+    if (a.op === 'exit') c.toggle()
+    else if (a.op === 'play') { if (!c.playing) c.playPause() }
+    else if (a.op === 'pause') { if (c.playing) c.playPause() }
+    else if (a.op === 'step' && Number.isInteger(a.n)) c.step(a.n)
+    else if (a.op === 'seek' && Number.isInteger(a.index)) c.seek(a.index)
+    else if (a.op === 'seekDate' && Number.isFinite(a.ms)) {
+      // the scrubber at the last bar on or before that day (the bar's own day; never past the replay's bars)
+      let idx = -1
+      for (let i = 0; i < n; i++) { if (_dateToMs(c.bars[i].t) <= a.ms + 86399999) idx = i; else break }
+      if (idx >= 0) c.seek(idx)
+    } else if (a.op === 'speed' && [1, 5, 20].includes(a.speed)) c.setSpeed(a.speed)
+  }
+  const replayMeta = () => {
+    const c = replayCtlRef.current, b = c?.bars, n = b?.length || 0, i = c?.index
+    return { can: !!c?.can && n > 0, mode: !!c?.mode, playing: !!c?.playing, speed: c?.speed ?? 1, index: c?.mode && i != null ? i : null, total: n,
+      dateMs: c?.mode && i != null && b?.[i] ? _dateToMs(b[i].t) : null, firstMs: n ? _dateToMs(b[0].t) : null, lastMs: n ? _dateToMs(b[n - 1].t) : null }
+  }
+
   // ── Imperative date-nav API (published to the host via onDateNavApi) ──
   // Drives the top-bar Time Navigator box (ChartDateNav): jump to a date at the
   // right edge, frame a whole year, step one bar, and read the loaded date span.
@@ -18721,6 +18779,8 @@ export default function StockChart({
       // panel's own entry / stop / target strings (PositionPanel onChange writes the same state)
       positionCalc: { can: !!showDrawingToolsRef.current, open: !!showDrawingToolsRef.current && activeToolRef.current === 'position', entry: positionToolRef.current.entry, stop: positionToolRef.current.stop,
         target: positionToolRef.current.target, direction: positionToolRef.current.direction },
+      // ⭐ UCT Agent (chartReplay.playback): the Replay / Time Machine bar as it is now — on, playing, speed, scrubber index
+      replay: replayMeta(),
     }
   }
   // ⭐ UCT Agent (drawing extras): the Position Calculator through the tool's OWN state — the toolbar button's
@@ -18747,7 +18807,7 @@ export default function StockChart({
   }
   useEffect(() => {
     if (typeof onDateNavApi !== 'function') return undefined
-    onDateNavApi({ goToDate, goToYear, stepBar, ensureFullHistory, getDateMeta, applyRange, restoreView, resetView: () => resetViewRef.current?.(), setIndicatorsHidden, autoScale: () => autoScaleRef.current?.(), zoom: (z) => zoomTimeAxis(chartRef.current, !!z?.out, z?.steps), positionCalc })
+    onDateNavApi({ goToDate, goToYear, stepBar, ensureFullHistory, getDateMeta, applyRange, restoreView, resetView: () => resetViewRef.current?.(), setIndicatorsHidden, autoScale: () => autoScaleRef.current?.(), zoom: (z) => zoomTimeAxis(chartRef.current, !!z?.out, z?.steps), positionCalc, replay: replayDo })
     return () => onDateNavApi(null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onDateNavApi, barCount, isValidating, fetchDepth, originLoading])
@@ -21229,30 +21289,11 @@ export default function StockChart({
             replayDate={replayMode && filteredBars?.length ? filteredBars[filteredBars.length - 1]?.t : null}
             replayIndex={replayIndex ?? 0}
             replayTotal={sessionBars?.length || 0}
-            onReplayToggle={() => {
-              if (replayMode) {
-                setReplayMode(false)
-                setReplayPlaying(false)
-                setReplayIndex(null)
-              } else {
-                setReplayMode(true)
-                setReplayPlaying(false)
-                setReplayIndex(Math.floor((sessionBars?.length || 1) * 0.7))
-              }
-            }}
-            onReplayPlayPause={() => setReplayPlaying(p => !p)}
-            onReplayStep={dir => {
-              setReplayPlaying(false)
-              setReplayIndex(i => {
-                const max = (sessionBars?.length || 1) - 1
-                return Math.max(0, Math.min(max, (i ?? 0) + dir))
-              })
-            }}
-            onReplayIndexChange={idx => {
-              setReplayPlaying(false)
-              const max = (sessionBars?.length || 1) - 1
-              setReplayIndex(Math.max(0, Math.min(max, idx)))
-            }}
+            /* the Replay bar's own handlers (defined above the date-nav API: the Agent's replay door calls the same ones) */
+            onReplayToggle={replayToggle}
+            onReplayPlayPause={replayPlayPause}
+            onReplayStep={replayStep}
+            onReplayIndexChange={replayIndexChange}
             onReplaySpeedChange={setReplaySpeed}
             showPatterns={showPatterns}
             onTogglePatterns={handleTogglePatterns}
