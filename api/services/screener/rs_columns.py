@@ -624,3 +624,80 @@ def collect(tickers, bars_by_ticker, spy_closes, rsp_closes, *, session,
         out[key] = collect_one(bars or [], spy_closes, rsp_closes,
                                session=session, stats=stats)
     return out
+
+
+# ── RS screens (2026-11-14): six last-bar measures for the five RS lists ────
+#
+# Plan 2026-11-14 v2, sections 1.2 (RS New Highs) and 1.3 (RS New High Before
+# Price). NOT screener columns yet and not written by `collect_one`: the build
+# step that stores them is wired separately. NO MATHS HERE EITHER: each value is
+# a `relative_strength` helper asked of the Phase 1 columns `collect_one`
+# already computes, so a list, the chart's dot and the ten columns above read
+# one RS-new-high rule and one before-price rule.
+SCREEN_COLUMNS = (
+    "rs_nh_count_20",       # RS new highs in the last 20 sessions
+    "rs_nh_quiet",          # sessions between the newest RS new high and the one before it
+    "rs_nh_red_bars_ago",   # sessions since the newest RS new high on a market down day
+    "px_below_high_pct",    # close vs its highest close of 252 sessions, percent, <= 0
+    "rs_nhbp_age",          # sessions since an RS new high that price has not followed yet
+    "rs_nh_span",           # today is an RS new high: the highest in this many sessions
+)
+SCREEN_INT_COLUMNS = frozenset(SCREEN_COLUMNS) - {"px_below_high_pct"}
+SCREEN_NH_COUNT_WINDOW = rs.SCREEN_NH_COUNT_WINDOW     # 20
+SCREEN_NHBP_WINDOW = rs.SCREEN_NHBP_WINDOW             # 63 sessions counting today: ages 0-62
+#: `px_below_high_pct` is a PERCENT, rounded like `mansfield` and the table's
+#: other percent columns.
+PX_BELOW_HIGH_DP = 2
+#: The Phase 1 columns `screen_fields` reads. A caller's ``phase1`` is used only
+#: when it carries all four at the window's length.
+SCREEN_PHASE1_READS = ("rsLine", "rsNH", "rsNHred", "pxNH")
+
+
+def screen_fields(bars, spy_bars, *, session=None, phase1=None) -> dict:
+    """The six :data:`SCREEN_COLUMNS` for ONE ticker's newest bar, every key
+    present. ``bars`` / ``spy_bars`` / ``session`` are `collect_one`'s (hand it
+    the same RS window, `snapshot_builder.RS_WINDOW_BARS` deep, so an RS new
+    high up to 400 sessions old can be seen).
+
+    ``phase1`` is the caller's ``rs.compute_phase1_columns(window, spy)`` when
+    it already holds it (`collect_one` does): the six then cost a few backward
+    walks instead of a second Phase 1 pass. It is used only when aligned to the
+    window; anything else is ignored and recomputed (the ``rs_values``
+    convention of `compute_mansfield_columns`).
+
+    ``None`` per measure, never per row: ``px_below_high_pct`` reads the stock
+    alone and needs 252 closes; the five RS measures are ``None`` when SPY has
+    no bar at the newest time, and each is ``None`` on its own when the series
+    is too short or the event rule could not judge a bar it would have to read
+    (see the `relative_strength` helpers). ``rs_nh_red_bars_ago`` follows
+    ``rs_nh_bars_ago``: it counts back to the newest event the column saw.
+    """
+    values = {c: None for c in SCREEN_COLUMNS}
+    win = _clip(_as_bars(bars), session)
+    if not win:
+        return values
+    below = _real(rs.close_below_high_pct_last([b.get("c") for b in win], LOOKBACK),
+                  PX_BELOW_HIGH_DP)
+    # `+ 0.0`: a close a hair under the high rounds to 0.0, never a stored "-0.0".
+    values["px_below_high_pct"] = None if below is None else below + 0.0
+
+    spy_all = _as_bars(spy_bars, like=win)
+    if not spy_all:
+        return values
+    p1 = phase1
+    if not (isinstance(p1, dict)
+            and all(len(p1.get(k) or ()) == len(win) for k in SCREEN_PHASE1_READS)):
+        p1 = rs.compute_phase1_columns(win, _trim_to(spy_all, _times_of(win)))
+    line, nh = p1["rsLine"], p1["rsNH"]
+    if line[-1] is None:
+        # SPY holds no bar at the ticker's newest time: no RS reading for today.
+        return values
+
+    count = rs.rolling_count(nh[-SCREEN_NH_COUNT_WINDOW:], SCREEN_NH_COUNT_WINDOW)
+    values["rs_nh_count_20"] = _int(count[-1])
+    values["rs_nh_quiet"] = rs.event_gap_last(nh)
+    values["rs_nh_red_bars_ago"] = _int(rs.bars_ago_column(p1["rsNHred"])[-1])
+    values["rs_nhbp_age"] = rs.event_age_unbroken_last(nh, p1["pxNH"], SCREEN_NHBP_WINDOW)
+    if nh[-1] == 1.0:
+        values["rs_nh_span"] = rs.level_span_last(line)
+    return values
