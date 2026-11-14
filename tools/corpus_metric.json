@@ -1,8 +1,8 @@
 {
-  "measured_at": "2026-11-12",
+  "measured_at": "2026-11-14",
   "scripts": 266,
-  "host_ok": 83,
-  "screener_ok": 69,
+  "host_ok": 81,
+  "screener_ok": 67,
   "threw": [],
   "rows": [
     {
@@ -1424,10 +1424,14 @@
     },
     {
       "file": "mcclellan-indicators__29fdf0235d.pine",
-      "host": true,
-      "screener": true,
-      "hostGuards": [],
-      "screenerGuards": []
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:request"
+      ],
+      "screenerGuards": [
+        "pine:request"
+      ]
     },
     {
       "file": "mgi-levels-suite__285168ddfb.pine",
@@ -2230,10 +2234,14 @@
     },
     {
       "file": "smt-divergence-ict-01-tradingfinder-smart-money-technique__3f66e16b3c.pine",
-      "host": true,
-      "screener": true,
-      "hostGuards": [],
-      "screenerGuards": []
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:request"
+      ],
+      "screenerGuards": [
+        "pine:request"
+      ]
     },
     {
       "file": "smt-divergence-ict-killzones__c932d56665.pine",

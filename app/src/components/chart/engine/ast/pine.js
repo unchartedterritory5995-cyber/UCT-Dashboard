@@ -102,6 +102,7 @@ import { yieldsOf, compileRules, SENTENCE_RULES, didYouMean } from './sentence.j
 // evaluation time, which is a refusal at the wrong door.
 import { FN, MAX_SELF_LAG, SEED_RESIDUAL_TOLERANCE, TF_RESAMPLABLE, TF_LADDER, BASE_TF, isIntradayTf, sessionAnchoredIn, ambiguousVarSeed, switchedVarSeed, heldFalseSeed, naConditionIsFalse, periodFirstCondition, readingSeed, chartOwnTimeNode, OWN_TIME_WITNESSED_TF, periodCloseNode, PERIOD_CLOSE_CODES, periodAnchorNode, chartSixtyTimeNode, SIXTY_WITNESSED_TF, PERIOD_ANCHOR_WITNESSED_TF, PERIOD_CLOSE_WITNESSED_TF, requestBaseNode, treeReadsLowerTf, listingSeedIsUnpinned } from './interpret.js'
 import { isLowerTfRequest, lowerTfRefusal, LOWER_TF_REFUSAL } from '../lowerTf.js'
+import { staticallyUnservable } from '../otherSymbols.js'
 import { memberNumber } from './memberValue.js'
 import { timeInputDefaultOf, isTimeInputCall } from '../runtime/runtimeInputs.js'
 // ⭐ The budget's own verdict, asked at the translate door (see the row builder
@@ -6520,6 +6521,9 @@ export function printFormula(node, parentBp = 0) {
       // ⚠️ ITS OWN SPELLING, never `tf` with a flag — a member reading the formula
       // back must be able to see that this one reads the FORMING period.
       return `tf_live(${printFormula(node.args[0], 0)}, '${node.value}')`
+    case 'tf_merge':
+      // ⭐ ENGINE 55 — Pine's look-ahead-off request, in the spelling `parse.js` reads back.
+      return `tf_merge(${printFormula(node.args[0], 0)}, '${node.value}')`
     case 'ltf':
       // ⭐ C41 — the read BELOW the chart, in the spelling `parse.js` reads back.
       return `ltf(${printFormula(node.args[0], 0)}, '${node.value}')`
@@ -7549,14 +7553,6 @@ export class Resolver {
      *  can see their `'D'` became the chart's own series. A fold nobody is told about
      *  is a script that quietly stopped being the one they pasted. */
     this.baseFolds = new Map()
-    /** ⭐⭐ P0 (inv + imp, 2026-10-05) — every look-ahead-OFF higher-timeframe read
-     *  this run emitted as `tf`. `tf` reads the last CLOSED period on every bar, so
-     *  on the bar that completes a week/month UCT still shows the PREVIOUS period
-     *  where TradingView already shows the completed one: one bar later on the last
-     *  bar of every period. The evaluator is not changed in P0; the difference is
-     *  DISCLOSED through the `_folds` seam (`closedTable.json::_folds.
-     *  htfLookaheadOffStepBacks`), surfaced per output exactly like `baseFolds`. */
-    this.htfStepBacks = new Map()
     /** Which bound input names this run may emit as identifiers: `'all'`, a Set,
      *  or null for the shipped default (fold everything, as before). */
     this.declareInputs = null
@@ -8453,9 +8449,12 @@ export class Resolver {
         })
         if (!out) {
           // ⭐ C27 — a tuple element of a request below the chart names why.
+          // ⭐ ENGINE 55 — …and one reading an other-symbol spelling no binding serves.
           const lower = this.lowerTfDeclineOf(bound.call)
+          const hopeless = lower ? null : this.otherSymbolStaticDeclineOf(bound.call)
+          const why = lower ? lower.why : hopeless ? hopeless.why : null
           throw new PineRefusal('pine:request',
-            `${REFUSALS['pine:request']} — \`${name}\`${lower ? `: ${lower.why}` : ''}`,
+            `${REFUSALS['pine:request']} — \`${name}\`${why ? `: ${why}` : ''}`,
             bound.at || locate(tok))
         }
         return out
@@ -12989,6 +12988,9 @@ export class Resolver {
     // ⭐ P0 0H — a value-changing argument this door cannot honour, named first.
     const argDecline = this.requestArgsDecline(placed)
     if (argDecline) return argDecline
+    // ⭐⭐ ENGINE 55 — an other-symbol spelling no binding can serve, by its code.
+    const hopeless = this.otherSymbolStaticDeclineOf(node)
+    if (hopeless) return { why: hopeless.why }
 
     // 1. THE SESSION. `ticker.new(prefix, sym, session.extended)` asks for pre- and
     //    post-market prints; `sym` serves the regular session. The rewrite keeps
@@ -13134,7 +13136,7 @@ export class Resolver {
       const n = stack.pop()
       if (!n || typeof n !== 'object' || seen.has(n)) continue
       seen.add(n)
-      if (n.type === 'tf' || n.type === 'tf_live' || n.type === 'sym' || n.type === 'ltf') {
+      if (n.type === 'tf' || n.type === 'tf_live' || n.type === 'tf_merge' || n.type === 'sym' || n.type === 'ltf') {
         what = 'another request'
       } else if (n.type === 'call' && own(RECURRENCES, n.name)) {
         what = 'a running value (a `var` or a self-reference), whose value depends on where the series starts'
@@ -13403,15 +13405,14 @@ export class Resolver {
       if (LOWER_TF_SINK) LOWER_TF_SINK.add(code)
       return { type: 'ltf', value: code, args: [out] }
     }
-    if (code) out = { type: live ? 'tf_live' : 'tf', value: code, args: [out] }
-    if (code && !live) {
-      this.htfStepBacks.set(`${node.tok ? node.tok.line : '?'}:${code}`, {
-        line: node.tok ? node.tok.line : null,
-        column: node.tok ? node.tok.column : null,
-        requested: code,
-        base: this.basePeriod,
-      })
-    }
+    // ⭐⭐ ENGINE 55 — LOOK-AHEAD OFF IS `tf_merge`, TRADINGVIEW'S MERGE: the period's
+    // value on the bar that closes it, the last closed period on every other bar, the
+    // newest finished bar withheld by name (`interpret.js`'s `tf_merge` arm). ⚰️ It was
+    // `tf` (the last CLOSED period on every bar) plus a disclosed one-bar lag on each
+    // period's last bar (`htfLookaheadOffStepBacks`, deleted): 213 wrong bars on the
+    // two `support-and-resistance-multi-time-frame` captures. Formula `tf` keeps its
+    // own meaning; only this door writes `tf_merge`.
+    if (code) out = { type: live ? 'tf_live' : 'tf_merge', value: code, args: [out] }
     // ⭐⭐ C49 — A REQUEST FOR ANOTHER TIMEFRAME CARRIES THE GATE OF THE BASE IT
     // WAS TRANSLATED FOR, ON A CHART PANE. The pane translates once (for a daily
     // base) and its tree is bound on every chart; on any chart but the base's the
@@ -13438,6 +13439,21 @@ export class Resolver {
       if (gateBase) out = requestBaseNode(gateBase, out)
     }
     return out
+  }
+
+  /** ⭐⭐ ENGINE 55 — the other-symbol spelling this request names, when NO binding can
+   *  serve it (`otherSymbols.js::staticallyUnservable`): `{code, why}`, or null. ONE
+   *  reader for the screen, the pane and the runtime lane (`pineRuntimeFrontend.js`
+   *  asks it through its own `Resolver`), so the refusal is one sentence everywhere:
+   *  `pine:request — \`request.security\`: <code> — <reason>`. */
+  otherSymbolStaticDeclineOf(node) {
+    const placed = positionaliseSecurityArgs(node.args || [])
+    if (!placed || placed[0] === undefined) return null
+    if (this.ownSymbolNameOf(placed[0]) !== null) return null
+    const otherSym = this.otherSymbolOf(placed[0])
+    if (!otherSym) return null
+    const s = staticallyUnservable(otherSym.ticker, otherSym.venue)
+    return s ? { code: s.code, why: `${s.code} — ${s.reason}` } : null
   }
 
   /** ⭐⭐ C23 — WHAT A `request.security(…)` ASKS FOR, without resolving its value:
@@ -13485,6 +13501,12 @@ export class Resolver {
     const other = otherSym ? otherSym.ticker : null
     const venue = otherSym ? otherSym.venue : null
     if (own === null && other === null) return null
+    // ⭐⭐ ENGINE 55 — A SPELLING NO BINDING CAN SERVE DECLINES HERE, at translate
+    // (`otherSymbols.js::staticallyUnservable`: a bare index / pair / foreign spelling,
+    // punctuation that names no listing). ⚰️ It used to become a `sym` node the bind
+    // then starved — an all-`na` plot with nothing said (McClellan's `ADVN` / `DECN`,
+    // `XAUUSD`, `ADVDEC.NY`). `securityDeclineReason` names the code.
+    if (otherSym && staticallyUnservable(other, venue)) return null
 
     // 2. WHICH PERIOD: the chart's own (`timeframe.period`) or a code `tf` can
     //    resample. A computed timeframe is exactly what the node shape forbids.
@@ -27858,7 +27880,7 @@ function translatePineResult(source, opts = {}) {
     const outerSymbols = OTHER_SYMBOL_SINK
     const outerPeriod = PERIOD_READ_SINK
     const readsOther = (n, d = 0) => !!n && typeof n === 'object' && d < 256
-      && (n.type === 'sym' || n.type === 'tf' || (Array.isArray(n.args) && n.args.some((a) => readsOther(a, d + 1))))
+      && (n.type === 'sym' || n.type === 'tf' || n.type === 'tf_merge' || (Array.isArray(n.args) && n.args.some((a) => readsOther(a, d + 1))))
     // the calls that vary bar to bar whatever they are handed (`readsBars`'s own set)
     const barFns = barVaryingNamesFor(table)
     for (const site of runtimeErrorPlan.sites) {
@@ -27889,7 +27911,7 @@ function translatePineResult(source, opts = {}) {
             if (!n || typeof n !== 'object') continue
             if (n.type === 'series' && typeof n.name === 'string') series.add(n.name)
             if (n.type === 'call' && barFns.has(n.name)) barCalls = true
-            if (n.type === 'offset' || n.type === 'tf' || n.type === 'sym') barCalls = true
+            if (n.type === 'offset' || n.type === 'tf' || n.type === 'tf_merge' || n.type === 'sym') barCalls = true
             if (Array.isArray(n.args)) stack.push(...n.args)
             else if (n.arg && typeof n.arg === 'object') stack.push(n.arg)
           }
@@ -28103,8 +28125,6 @@ function translatePineResult(source, opts = {}) {
         formula,
         ast,
         baseTimeframeFolds: [...resolver.baseFolds.values()],
-        // ⭐ P0 — see `htfStepBacks`; the `_folds` channel of the same name words it.
-        htfLookaheadOffStepBacks: [...resolver.htfStepBacks.values()],
         inputsFolded: [...resolver.usedInputs.values()].map((e) => {
           // ⛔ `windowBound` TRAVELS WITH THE ENTRY rather than being re-derived
           // by the reader. Whether an input reached an `int` slot is a fact about
@@ -31986,6 +32006,7 @@ export function conditionKindOf(node, table = TABLE) {
       case 'sym':
       case 'tf':
       case 'tf_live':
+      case 'tf_merge':
       case 'ltf':
         return Array.isArray(n.args) && n.args.length === 1 ? kindOf(n.args[0], depth + 1) : 'unknown'
       case 'textop':

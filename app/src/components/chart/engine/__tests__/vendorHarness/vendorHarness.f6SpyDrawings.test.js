@@ -448,15 +448,17 @@ describe('F6 — what is not drawn on the SPY captures, why, and whose it is', (
     expect(probeRuntimeProgram(c.source.text, { objectsInRun: true }).refusal.guard).toBe('pine:request')
   }, T)
 
-  it('smt-divergence: the divergences read `XAUUSD`, a bare symbol no exchange resolves (`other-symbol:bare`) — 0 drawn on SPY and RDDT', () => {
+  // ⭐⭐ ENGINE 55 — FLIPPED DELIBERATELY: the bare `XAUUSD` read is refused AT TRANSLATE now
+  // (`pine:request`, `other-symbol:bare`, `otherSymbols.staticallyUnservable`), so the member door
+  // refuses the script by name instead of drawing nothing under a `sym` the bind starved.
+  it('smt-divergence: the divergences read `XAUUSD`, a bare symbol no exchange resolves — refused by name at the door (`other-symbol:bare`), on SPY and RDDT', () => {
     for (const id of ['smt-divergence-ict-01-tradingfinder-smart-money-technique-spy-1d-2026-10-03', 'smt-divergence-ict-01-tradingfinder-smart-money-technique-rddt-1d-2026-09-28']) {
-      const o = ours(id)
-      expect(o.notes.some((n) => /other symbol XAUUSD: refused \(other-symbol:bare\)/.test(n)), id).toBe(true)
-      const v = graded(id)
-      // ⭐ OZ RE-PIN (2026-11-09): nothing of either is drawn, now withheld BY NAME
-      // (every create the refused symbol reaches is withheld: `objects:not-computable`).
-      expect([family(v, 'lines').ours, family(v, 'labels').ours]).toEqual([null, null])
-      expect([family(v, 'lines').withheld, family(v, 'labels').withheld]).toEqual([true, true])
+      objectsPane()
+      const o = runOurSide(cap(id))
+      expect(o.ok, id).toBe(false)
+      expect(o.refusal, id).toMatch(/pine:request/)
+      expect(o.refusal, id).toMatch(/other-symbol:bare — `"XAUUSD"`/)
+      expect(graded(id).verdict, id).toBe('INCONCLUSIVE')
     }
   }, T)
 

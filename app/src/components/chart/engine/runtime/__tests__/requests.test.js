@@ -79,11 +79,13 @@ describe('request.security', () => {
 
   it('⛔ a symbol with no bars is `na`, and the run REPORTS it', () => {
     const { out, requested } = run(
-      'x = request.security("MISSING", "D", close)\nplot(x)\n', {})
+      // ⭐ ENGINE 55 — a US-listing-shaped ticker no store holds: a bare `"MISSING"` (seven
+      // letters, no US listing's shape) is now refused at translate by name, every door.
+      'x = request.security("ZZZZ", "D", close)\nplot(x)\n', {})
     expect(out.every(Number.isNaN)).toBe(true)
     // ⭐ The report is what makes the second pass possible — the host fetches
     // exactly what the script asked for and runs it again.
-    expect(requested).toContain('MISSING|D')
+    expect(requested).toContain('ZZZZ|D')
   })
 
   it('a symbol only known while the script RUNS is still discovered', () => {

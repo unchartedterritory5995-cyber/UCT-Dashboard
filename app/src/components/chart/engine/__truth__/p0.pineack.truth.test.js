@@ -75,11 +75,16 @@ describe('D — every frontend definition write goes through the server rule', (
 })
 
 describe('HTF fold note — a human heading, never the channel key', () => {
-  it('DISCLOSED DIFFERENCE — ASKED weekly request.security lookahead off; CLAIMED heading `htfLookaheadOffStepBacks` (BEFORE); DID human label', () => {
+  // ⭐⭐ ENGINE 55 — FLIPPED DELIBERATELY: the weekly look-ahead-off request is now
+  // `tf_merge`, TradingView's merge, so the step-back fold note (and its channel,
+  // `htfLookaheadOffStepBacks`) is deleted. The heading rule is pinned on the fold
+  // that remains (`baseTimeframeFolds`).
+  it('ENGINE 55 — ASKED weekly request.security lookahead off; DID no fold note (nothing differs); a remaining fold prints its human heading', () => {
     const r = inspectSource('//@version=5\nindicator("t")\nplot(request.security(syminfo.tickerid, "W", close))\n')
     const names = r.outputs.flatMap((o) => (o.vendorNotes || []).map((v) => v.name))
-    expect(names).toContain('htfLookaheadOffStepBacks')
-    expect(noteHeading('htfLookaheadOffStepBacks')).toBe('Higher-timeframe timing differs from TradingView')
+    expect(names).not.toContain('htfLookaheadOffStepBacks')
+    expect(noteHeading('htfLookaheadOffStepBacks')).toBe('htfLookaheadOffStepBacks')
+    expect(noteHeading('baseTimeframeFolds')).toBe("Daily request read from the chart's own bars")
   })
 
   it('every fold channel that declares a member sentence also declares a label (no raw key can print)', () => {
@@ -88,7 +93,8 @@ describe('HTF fold note — a human heading, never the channel key', () => {
   })
 
   it('the note BODIES are unchanged and a non-fold name passes through', () => {
-    expect(FOLD_NOTES.htfLookaheadOffStepBacks).toBe(TABLE._folds.htfLookaheadOffStepBacks.memberNote)
+    expect(FOLD_NOTES.baseTimeframeFolds).toBe(TABLE._folds.baseTimeframeFolds.memberNote)
+    expect('htfLookaheadOffStepBacks' in FOLD_NOTES).toBe(false)   // ⚰️ ENGINE 55
     expect(noteHeading('ta.rsi')).toBe('ta.rsi')
     expect(noteHeading('alertcondition')).toBe('alertcondition')
     expect(foldLabelsOf({ _folds: { x: { memberNote: 'n' } } })).toEqual({})

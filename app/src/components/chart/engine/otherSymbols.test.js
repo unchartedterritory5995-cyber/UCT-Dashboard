@@ -97,10 +97,26 @@ describe('the bind serves a read only when the spelling is witnessed AND is our 
     expect(r.served).toEqual(['SPY'])
   })
 
-  it('REFUSED bare: a bare ticker our store does not hold on a witnessed exchange', () => {
-    const r = decide(pine(['plot(request.security("XAUUSD", timeframe.period, close))']))
+  // ⭐⭐ ENGINE 55 — FLIPPED DELIBERATELY: a bare spelling no binding can serve (`XAUUSD`, not
+  // shaped like a US listing) is refused AT TRANSLATE now (`staticallyUnservable`), so no
+  // `sym` node is written; a document saved before engine 55 still carries one and the bind
+  // refuses it with the same code, from the same helper.
+  it('REFUSED bare: a bare spelling no binding can serve — at translate, and at the bind for an older document', () => {
+    const t = translatePine(pine(['plot(request.security("XAUUSD", timeframe.period, close))']), { strict: true })
+    const refusal = t.refusal || ((t.outputs || []).find((o) => o && o.refusal) || {}).refusal
+    expect(refusal && refusal.guard).toBe('pine:request')
+    expect(refusal.message).toContain(`${R.BARE} — `)
+    expect(t.otherSymbols || []).toEqual([])
+    const older = { id: 'u_c26', compute: { kind: 'ast', trees: { p0: { type: 'sym', value: 'XAUUSD', args: [{ type: 'series', name: 'close' }] } } },
+      meta: { recurrenceOrigin: 'pine', otherSymbols: [{ ticker: 'XAUUSD', spellings: [''] }] } }
+    const r = resolveOtherSymbols(older, ctxOf())
     expect(codes(r)).toEqual([`XAUUSD:${R.BARE}`])
     expect(r.symbols).toEqual({})
+  })
+  it('SERVED bare (C29 control): a bare US-shaped ticker the store holds on a witnessed exchange', () => {
+    const r = decide(pine(['plot(request.security("SPY", timeframe.period, close))']))
+    expect(r.served).toEqual(['SPY'])
+    expect(codes(r)).toEqual([])
   })
 
   it('REFUSED venue mismatch: a witnessed spelling that is not our listing', () => {
@@ -152,7 +168,13 @@ describe('the bind serves a read only when the spelling is witnessed AND is our 
     // this context's store does not hold it; the hyphen spelling is the class refusal.
     const cls = decide(pine(['plot(request.security("NYSE:BRK.B", timeframe.period, close))']))
     expect(codes(cls)).toEqual([`BRK.B:${R.NOT_HELD}`])
-    const hy = decide(pine(['plot(request.security("NYSE:BRK-B", timeframe.period, close))']))
+    // ⭐ ENGINE 55 — the hyphen spelling names no listing in any binding: refused at
+    // translate (`pine:request`, `other-symbol:class-share`); an older document's bind says the same.
+    const hyT = translatePine(pine(['plot(request.security("NYSE:BRK-B", timeframe.period, close))']), { strict: true })
+    const hyRefusal = hyT.refusal || ((hyT.outputs || []).find((o) => o && o.refusal) || {}).refusal
+    expect(hyRefusal && hyRefusal.message).toContain(`${R.CLASS_SHARE} — `)
+    const hy = resolveOtherSymbols({ id: 'u_c26', compute: { kind: 'ast', trees: { p0: { type: 'sym', value: 'BRK-B', args: [{ type: 'series', name: 'close' }] } } },
+      meta: { recurrenceOrigin: 'pine', otherSymbols: [{ ticker: 'BRK-B', spellings: ['NYSE'] }] } }, ctxOf())
     expect(codes(hy)).toEqual([`BRK-B:${R.CLASS_SHARE}`])
     const framed = decide(pine(['plot(request.security("AMEX:SPY", timeframe.period, close))']), { framed: true })
     expect(codes(framed)).toEqual([`SPY:${R.FRAMED}`])

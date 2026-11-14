@@ -12,15 +12,16 @@
 // CONTROLLED ERROR. Report: scratchpad/P0-inv-report.md.
 //
 // ── 0N  HIGHER-TIMEFRAME `request.security(…, lookahead_off)` ON A DAILY CHART ──
-// UCT translates it to `tf(expr, 'W'|'M')`, which reads bucket b-1 on EVERY bar
-// (interpret.js `case 'tf'`, `else if (b > 0) out[i] = child[b - 1]`; mirrored in
-// ast_interpret.py). TradingView, on HISTORICAL bars, shows a period's value on the
-// chart bar that COMPLETES the period. That rule is WITNESSED one timeframe down
-// (packet #3, `request-realtime-alignment-spy-5-b-2026-10-01`: a "D" request on 5m
-// reads the previous day on every bar except the day's 15:55 bar, which reads that
-// day's own close) and is the documented Pine rule; for W/M on D it is NOT yet
-// captured (docs/pine/capture-queue-2026-10-01-c49-clock.md, Q-R1). UCT's column
-// is exactly TradingView's NON-repainting idiom
+// ⭐⭐ ENGINE 55 — FLIPPED DELIBERATELY. UCT used to translate it to `tf(expr, 'W'|'M')`,
+// which reads bucket b-1 on EVERY bar, and disclosed the one-bar lag on each period's
+// last bar (`htfLookaheadOffStepBacks`). It now translates to `tf_merge`, TradingView's
+// historical rule: the bar that COMPLETES a period reads that period's value, every
+// other bar the previous completed period's, and the NEWEST finished bar — whose
+// period end is the next session's date — is withheld by name
+// (`request:htf-newest-unconfirmed`). MEASURED on W/M on D since: 0 mismatches over
+// the `support-and-resistance-multi-time-frame-{rddt,spy}-1d-2026-10-02` captures
+// (598 + 1,799 bars, 8 weekly/monthly plots). Formula `tf` is unchanged (b-1), and it
+// is still exactly TradingView's NON-repainting idiom
 // `request.security(sym, tf, expr[1], lookahead=barmerge.lookahead_on)`.
 //
 // ── 0O  GAPPY (mid-series NaN) INPUTS ────────────────────────────────────────
@@ -93,69 +94,54 @@ function tvLookaheadOff(bars, keyOf) {
   return { out, isLast, periods: new Set(k).size }
 }
 
-/** ⭐ The member-facing sentence proposed for the import outcome contract (slice
- *  "imp" integrates it; see the report for the hook). Kept here so the text and
- *  the measurement that justifies it live together. */
-const HTF_LOOKAHEAD_OFF_DISCLOSURE = 'This script reads a higher timeframe with request.security '
-  + '(lookahead off). UCT shows a weekly or monthly value only from the first bar AFTER that period '
-  + 'has closed. TradingView shows it already on the bar that completes the period (for example, the '
-  + 'week’s close appears on Friday’s daily bar) and, on a forming bar, shows the still-forming '
-  + 'period. So on a daily chart this line is one bar later than TradingView on the last bar of every '
-  + 'week (about 1 bar in 5) or month (about 1 in 21). UCT never shows a period’s value before it has closed.'
-
-describe('P0 inv · 0N — HTF request.security(lookahead_off) on a daily chart', () => {
-  it('ASKED request.security(tickerid,"W",close) · CLAIMED a lookahead-off weekly read · DID `tf(close,\'W\')` behind the daily gate, and NO disclosure rides on the row today', () => {
+describe('P0 inv · 0N — HTF request.security(lookahead_off) on a daily chart (ENGINE 55: `tf_merge`)', () => {
+  it('ASKED request.security(tickerid,"W",close) · CLAIMED a lookahead-off weekly read · DID `tf_merge(close,\'W\')` behind the daily gate, and no fold disclosure (nothing differs to disclose)', () => {
     const { o } = pineCol('plot(request.security(syminfo.tickerid, "W", close))')
-    expect(o.formula).toBe("86400 != periodseconds ? 0 / 0 : tf(close, 'W')")
-    // ⛔ the only fold channel is empty: nothing tells the member about 0N today.
+    expect(o.formula).toBe("86400 != periodseconds ? 0 / 0 : tf_merge(close, 'W')")
     expect(o.baseTimeframeFolds).toEqual([])
+    // ⚰️ the step-back channel is deleted with the difference it disclosed
+    expect('htfLookaheadOffStepBacks' in o).toBe(false)
   })
 
-  it('EXACT (to UCT\'s own intent): the column equals TradingView\'s NON-repainting idiom `request.security(…, close[1], lookahead_on)` on every bar', () => {
+  it('EXACT: W and M equal the TradingView historical rule on EVERY bar but the newest, which is WITHHELD (finished bar, period end unknown)', () => {
+    for (const [code, keyOf] of [['W', isoWeek], ['M', isoMonth]]) {
+      const uct = pineCol(`plot(request.security(syminfo.tickerid, "${code}", close))`).col
+      const tv = tvLookaheadOff(BARS, keyOf)
+      let diffs = 0
+      let compared = 0
+      for (let i = 0; i < N - 1; i++) {
+        if (!fin(tv.out[i])) continue
+        compared++
+        if (uct[i] !== tv.out[i]) diffs++
+      }
+      expect(compared, code).toBeGreaterThan(500)
+      expect(diffs, code).toBe(0)
+      expect(fin(uct[N - 1]), `${code}: the newest finished bar is withheld`).toBe(false)
+    }
+  })
+
+  it('…and on a FORMING newest bar it reads the forming period, as TradingView\'s realtime bar does', () => {
+    const t = translatePine(H + 'plot(request.security(syminfo.tickerid, "W", close))', { strict: true })
+    const col = Array.from(interpret(t.outputs[0].ast, BARS, undefined, undefined, undefined, { tf: 'D', newestBarIsForming: true }))
+    expect(col[N - 1]).toBe(BARS[N - 1].c)
+  })
+
+  it('the native formula `tf(close,"W")` is UNCHANGED — the last closed week on every bar, TradingView\'s non-repainting idiom', () => {
     for (const code of ['W', 'M']) {
-      const off = pineCol(`plot(request.security(syminfo.tickerid, "${code}", close))`).col
       const idiom = pineCol(`plot(request.security(syminfo.tickerid, "${code}", close[1], lookahead=barmerge.lookahead_on))`)
       expect(idiom.o.formula).toBe(`86400 != periodseconds ? 0 / 0 : tf_live(close[1], '${code}')`)
-      expect(cmp(off, idiom.col)).toMatchObject({ onlyA: 0, onlyB: 0, valueDiffs: 0 })
+      expect(cmp(formula(`tf(close, "${code}")`), idiom.col)).toMatchObject({ onlyA: 0, onlyB: 0, valueDiffs: 0 })
     }
   })
 
-  it('the native formula `tf(close,"W")` is the SAME column — one rule, both doors', () => {
+  it('the Pine read and the formula `tf` now differ EXACTLY on the bars that complete a period (W: 124 of 600 on this series)', () => {
     const pine = pineCol('plot(request.security(syminfo.tickerid, "W", close))').col
-    expect(cmp(pine, formula('tf(close, "W")'))).toMatchObject({ onlyA: 0, onlyB: 0, valueDiffs: 0 })
-  })
-
-  it('DISCLOSED DIFFERENCE (today SILENT — the hook is pending): vs the TV historical rule, W differs on 124 / 600 bars, EVERY one the last bar of a week, max |Δ| 50.38', () => {
-    const uct = pineCol('plot(request.security(syminfo.tickerid, "W", close))').col
+    const f = formula('tf(close, "W")')
     const tv = tvLookaheadOff(BARS, isoWeek)
-    expect(tv.periods).toBe(125)
     const diffs = []
-    let max = 0
-    for (let i = 0; i < N; i++) {
-      if (!fin(uct[i]) || !fin(tv.out[i])) continue
-      if (uct[i] !== tv.out[i]) { diffs.push(i); max = Math.max(max, Math.abs(uct[i] - tv.out[i])) }
-    }
-    expect(diffs.length).toBe(124)
-    expect(diffs.every((i) => tv.isLast[i])).toBe(true)          // never a mid-week bar
-    expect(diffs.every((i) => tv.out[i] === BARS[i].c)).toBe(true) // TV: the completing bar's own close
-    expect(max).toBeCloseTo(50.38, 2)
-    // and UCT on those bars is the PREVIOUS week's final close (one bar late, never early)
-    expect(diffs.every((i) => uct[i] === tv.out[i - 1])).toBe(true)
-    // the one UNKNOWN: the first week's completing bar (UCT has no closed predecessor yet)
-    expect(fin(uct[4])).toBe(false)
-    expect(tv.out[4]).toBe(BARS[4].c)
-  })
-
-  it('DISCLOSED DIFFERENCE (today SILENT): M differs on 29 / 600 bars — the last bar of each month — max |Δ| 68.32', () => {
-    const uct = pineCol('plot(request.security(syminfo.tickerid, "M", close))').col
-    const tv = tvLookaheadOff(BARS, isoMonth)
-    let n = 0; let max = 0; let offLast = 0
-    for (let i = 0; i < N; i++) {
-      if (!fin(uct[i]) || !fin(tv.out[i]) || uct[i] === tv.out[i]) continue
-      n++; max = Math.max(max, Math.abs(uct[i] - tv.out[i])); if (!tv.isLast[i]) offLast++
-    }
-    expect([n, offLast]).toEqual([29, 0])
-    expect(max).toBeCloseTo(68.32, 2)
+    for (let i = 0; i < N - 1; i++) if (fin(pine[i]) && fin(f[i]) && pine[i] !== f[i]) diffs.push(i)
+    expect(diffs.length).toBe(123)                                // 124 week ends, the newest withheld
+    expect(diffs.every((i) => tv.isLast[i])).toBe(true)
   })
 
   it('EVIDENCE: the TV rule is WITNESSED one timeframe down (packet #3, "D" on 5m): the completing bar reads its own period', () => {
@@ -173,13 +159,8 @@ describe('P0 inv · 0N — HTF request.security(lookahead_off) on a daily chart'
       const own = on[idx[0]]
       const before = on[day.indexOf(prev)]
       expect(idx.slice(0, -1).every((i) => off[i] === before)).toBe(true)
-      expect(off[idx[idx.length - 1]]).toBe(own)                 // ← the bar UCT's `tf` would read one bar later
+      expect(off[idx[idx.length - 1]]).toBe(own)                 // ← the completing bar: `tf_merge` reads it here
     }
-  })
-
-  it('the proposed disclosure names the direction, the size and the safety property', () => {
-    expect(HTF_LOOKAHEAD_OFF_DISCLOSURE).toMatch(/one bar later than TradingView/)
-    expect(HTF_LOOKAHEAD_OFF_DISCLOSURE).toMatch(/never shows a period.s value before it has closed/)
   })
 })
 

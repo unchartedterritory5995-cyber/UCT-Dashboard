@@ -377,7 +377,7 @@ function assertSymPlacement(root, refuse) {
         '— a lower-timeframe read (`ltf`) cannot sit inside another request: it is mapped '
         + 'onto the chart\'s own bars, and those are not the bars that request hands its child')
     }
-    if (underLtf && (node.type === 'tf' || node.type === 'tf_live' || node.type === 'sym')) {
+    if (underLtf && (node.type === 'tf' || node.type === 'tf_live' || node.type === TF_MERGE || node.type === 'sym')) {
       refuse('interpret:timeframe',
         `— a \`${node.type}\` read cannot sit inside a lower-timeframe read (\`ltf\`): `
         + 'its child runs on intraday bars, and a request made from those is not one this engine reads')
@@ -392,7 +392,7 @@ function assertSymPlacement(root, refuse) {
         + `higher-timeframe bar: sym('${ticker}', tf(…)).`)
     }
     if (Array.isArray(node.args)) {
-      const isTf = node.type === 'tf' || node.type === 'tf_live'
+      const isTf = node.type === 'tf' || node.type === 'tf_live' || node.type === TF_MERGE
       for (const a of node.args) {
         stack.push([a, underTf || isTf, underRequest || isTf || node.type === 'sym' || node.type === LTF,
           underLtf || node.type === LTF])
@@ -404,6 +404,15 @@ function assertSymPlacement(root, refuse) {
 /** ⭐ C41 — the node type of a read BELOW the chart's own timeframe
  *  (`parse.js::NODE_TYPES`; the rules are `engine/lowerTf.js`'s). */
 const LTF = 'ltf'
+
+/** ⭐⭐ ENGINE 55 — the node type of Pine's `request.security(…, 'W'|'M')` with
+ *  look-ahead off (`pine.js::securityAsNode`): `tf`'s shape, TradingView's merge
+ *  (the evaluator's `tf_merge` arm states the rule). Only the Pine door writes it;
+ *  a formula document that spells it is refused by name (`evaluability.js`). */
+export const TF_MERGE = 'tf_merge'
+/** ⭐ ENGINE 55 — the chart-clock code a `tf_merge` read's withheld bars are named by
+ *  (`tfMergeMask`, `CHART_CLOCK_WITHHELD`). */
+export const TF_MERGE_NEWEST_CODE = 'request:htf-newest-unconfirmed'
 
 /** ⭐ C41 — an `ltf` node names a whole number of MINUTES and nothing else. Which
  *  codes are SERVED is `engine/lowerTf.js`'s answer, given per binding as the
@@ -3898,7 +3907,7 @@ function flatten(root) {
     // the one node type most likely to arrive UNFOLDED was the one whose
     // children nothing checked.
     if (node.type === 'op' || node.type === 'call' || node.type === 'offset'
-        || node.type === 'tf' || node.type === 'sym' || node.type === 'tf_live'
+        || node.type === 'tf' || node.type === 'sym' || node.type === 'tf_live' || node.type === TF_MERGE
         || node.type === LTF || node.type === 'textop') {
       if (!Array.isArray(node.args)) {
         refuse('interpret:node', `a ${node.type} node carries an \`args\` array; got ${JSON.stringify(node.args)}`)
@@ -4326,7 +4335,9 @@ export function maxLookback(ast) {
       seen.set(node, best)
       continue
     }
-    if (node.type === 'tf') {
+    // ⭐ ENGINE 55 — `tf_merge` reaches exactly as far as `tf`: its period-end bar
+    // reads bucket `b` (inside the span) and every other bar bucket `b - 1` (the `+1`).
+    if (node.type === 'tf' || node.type === TF_MERGE) {
       // ⭐ THE TREE SUM, IN BASE BARS. The child's lookback is counted in HIGHER-
       // timeframe bars, so it is multiplied by the span; the +1 is the bar this
       // node always steps back to reach the last CLOSED period.
@@ -4543,7 +4554,7 @@ export function nodeCount(ast, held) {
 /** The node types whose child is evaluated by a FRESH `interpret` call on other
  *  bars (`tf` / `tf_live` resample, `sym` reads another ticker): a scope of its
  *  own, with its own memo. See `evaluationUnits`. */
-const SCOPE_TYPES = new Set(['tf', 'tf_live', 'sym', 'ltf'])
+const SCOPE_TYPES = new Set(['tf', 'tf_live', 'tf_merge', 'sym', 'ltf'])
 
 /** ⭐⭐ C19 (2026-09-30) — WHAT THE EVALUATOR ACTUALLY COMPUTES, counted in the
  *  units it memoises. The number `budget:nodes` thresholds.
@@ -5277,6 +5288,15 @@ export const CHART_CLOCK_WITHHELD = Object.freeze({
     + 'last 5-minute bar\'s. This chart holds no daily bars beside its own, so everything this indicator draws '
     + 'from that request is withheld on this chart rather than drawn from the wrong bars. On a 1D chart it '
     + 'draws. What would settle it: this chart reading the symbol\'s daily bars beside its own.',
+  // ⭐⭐ ENGINE 55 — the newest bar of a `tf_merge` read (see `tfMergeMask`).
+  'request:htf-newest-unconfirmed': () => 'This indicator reads a weekly or monthly value with '
+    + '`request.security` (look-ahead off). TradingView shows that value on the bar that completes the '
+    + 'week or month, and the still-forming period\'s value on a bar that is still forming (measured bar for '
+    + 'bar on RDDT and SPY daily charts, captures `support-and-resistance-multi-time-frame-{rddt,spy}-1d-'
+    + '2026-10-02`). This chart\'s newest bar is not known to be still forming, and whether it completes its '
+    + 'week or month depends on the date of the next session, which is not known yet, so this indicator\'s '
+    + 'value on that one bar is withheld rather than guessed; every earlier bar is drawn. What would settle '
+    + 'it: the next session, or a capture taken after the close of a session that does not end its week.',
   // ⭐⭐ C45 — `bar_index` (see `barIndexMask`).
   'bar-index:window': () => '`bar_index` counts bars from the first bar of the symbol\'s history on '
     + 'TradingView. This chart\'s loaded bars start later, so its count is lower by a number of bars it '
@@ -5402,7 +5422,7 @@ function scanChartClock(tree) {
     if (base !== null && !folds.includes(base)) folds.push(base)
     // C41: an `ltf` child runs on the symbol's INTRADAY series, another clock, so a
     // chart-clock node under one is nested exactly as it is under a request.
-    const into = under || node.type === 'sym' || node.type === 'tf' || node.type === 'tf_live' || node.type === LTF
+    const into = under || node.type === 'sym' || node.type === 'tf' || node.type === 'tf_live' || node.type === TF_MERGE || node.type === LTF
     if (Array.isArray(node.args)) for (const a of node.args) stack.push([a, into])
   }
   return { anchors, closes, owns, sixties, folds, nested, leaves }
@@ -5704,7 +5724,7 @@ export function historyReadMask(tree, bars, inputs, budget, scalars, opts) {
     if (!node || typeof node !== 'object' || seen.has(node)) continue
     seen.add(node)
     if (node.type === 'call' && node.name === 'barsAgo') reads.push({ node, nested, unbounded })
-    const into = nested || node.type === 'sym' || node.type === 'tf' || node.type === 'tf_live'
+    const into = nested || node.type === 'sym' || node.type === 'tf' || node.type === 'tf_live' || node.type === TF_MERGE
     const spec = node.type === 'call' && own(TABLE.functions, node.name) ? TABLE.functions[node.name] : null
     const open = unbounded || !!(spec && (spec.lookback === SERIES_LOOKBACK || isStatefulCall(node)))
     if (Array.isArray(node.args)) for (const a of node.args) stack.push([a, into, open])
@@ -5802,7 +5822,7 @@ export function barIndexMask(tree, bars, inputs, budget, scalars, opts) {
     if (!node || typeof node !== 'object' || seen.has(node)) continue
     seen.add(node)
     if (wanted.has(node)) found.push({ t: wanted.get(node), nested, unbounded })
-    const into = nested || node.type === 'sym' || node.type === 'tf' || node.type === 'tf_live'
+    const into = nested || node.type === 'sym' || node.type === 'tf' || node.type === 'tf_live' || node.type === TF_MERGE
     const spec = node.type === 'call' && own(TABLE.functions, node.name) ? TABLE.functions[node.name] : null
     const open = unbounded || !!(spec && spec.lookback === SERIES_LOOKBACK)
     if (Array.isArray(node.args)) for (const a of node.args) stack.push([a, into, open])
@@ -6137,7 +6157,7 @@ export function varOriginMask(tree, bars, inputs, budget, scalars, opts) {
         }
       }
     }
-    const into = under || node.type === 'tf' || node.type === 'tf_live' || node.type === 'sym' || node.type === LTF
+    const into = under || node.type === 'tf' || node.type === 'tf_live' || node.type === TF_MERGE || node.type === 'sym' || node.type === LTF
     if (Array.isArray(node.args)) for (const a of node.args) stack.push([a, into])
   }
   if (!found.length) return null
@@ -6202,11 +6222,83 @@ export function withheldReadMask(tree, bars, inputs, budget, scalars, opts) {
     historyReadMask(tree, bars, inputs, budget, scalars, opts),
     barIndexMask(tree, bars, inputs, budget, scalars, opts),
     varOriginMask(tree, bars, inputs, budget, scalars, opts),
+    tfMergeMask(tree, bars, opts),
   ].filter(Boolean)
   if (masks.length <= 1) return masks[0] || null
   const out = new Float64Array(Math.max(...masks.map((m) => m.length)))
   for (let i = 0; i < out.length; i++) out[i] = masks.some((m) => m[i]) ? 1 : 0
   return out
+}
+
+/** ⭐⭐ ENGINE 55 — THE BARS OF A TREE WHOSE `tf_merge` READ IS NOT KNOWN, as a
+ *  0/1 column (1 = withheld), or null when the tree holds no `tf_merge`.
+ *
+ *  The merge (the evaluator's `tf_merge` arm) reads the NEXT bar to tell whether a
+ *  bar closes its period. The newest bar has none: it is known only while still
+ *  forming (`newestBarIsForming === true`: the forming period, as TradingView's
+ *  realtime bar reads it). Finished — or of unknown state — whether it closes its
+ *  week or month is the next session's date, which this engine does not hold, so
+ *  the bar is WITHHELD and named `request:htf-newest-unconfirmed`; every earlier
+ *  bar is drawn. ⛔ A `NaN` there would read downstream as Pine's `na` (`nz` -> 0,
+ *  `na(x)` -> true): a confident wrong value, so the ROOT bar is withheld, not only
+ *  the read.
+ *  ⭐ Under another request (`tf` / `tf_live` / `tf_merge` / `sym` / `ltf`) the merge
+ *  runs on OTHER bars, whose newest bar's state the chart's tri-state does not
+ *  describe: the chart's newest bar is withheld whatever its state, and under `sym`
+ *  every chart bar from that series' newest bar on (a series that ends early maps its
+ *  newest bar onto an earlier chart bar).
+ *  ⛔ Bars with no readable day cannot be placed in a period at all (the `tf` arm
+ *  leaves them blank too): the whole series is withheld, by the same name.
+ *  ⛔ NO `try` (`budget.test.js`): a refusal here must reach the caller as itself. */
+export function tfMergeMask(tree, bars, opts) {
+  const n = Array.isArray(bars) ? bars.length : 0
+  const found = []
+  const stack = [[tree, false, null]]
+  const seen = new Set()
+  while (stack.length) {
+    const [node, under, sym] = stack.pop()
+    if (!node || typeof node !== 'object' || seen.has(node)) continue
+    seen.add(node)
+    if (node.type === TF_MERGE) found.push({ under, sym })
+    const into = under || SCOPE_TYPES.has(node.type)
+    const symHere = node.type === 'sym' ? String(node.value).trim().toUpperCase() : sym
+    if (Array.isArray(node.args)) for (const a of node.args) stack.push([a, into, symHere])
+  }
+  if (!found.length || n === 0) return null
+  const mask = new Float64Array(n)
+  for (let i = 0; i < n; i++) {
+    if (!isoDay(bars[i] && bars[i].t)) {
+      mask.fill(1)
+      nameChartClock(opts, [TF_MERGE_NEWEST_CODE], opts && opts.tf)
+      return mask
+    }
+  }
+  // ⭐ THE ONE GUARD OVER THE NEWEST BAR (the evaluator computes the forming reading there):
+  // withheld unless known to be forming, and under another request whatever the chart says.
+  const forming = !!opts && opts.newestBarIsForming === true
+  if (!forming || found.some((f) => f.under)) mask[n - 1] = 1
+  const supplied = (opts && opts.symbols) || {}
+  for (const f of found) {
+    if (!f.sym) continue
+    const series = supplied[f.sym]
+    if (!Array.isArray(series) || !series.length) continue      // `symAlignmentMask` withholds it all
+    let lastT
+    for (const b of series) {
+      const key = b && typeof b === 'object' ? b.t : undefined
+      if (key === undefined || key === null) continue
+      if (lastT === undefined || key > lastT) lastT = key
+    }
+    if (lastT === undefined) continue
+    for (let i = 0; i < n; i++) {
+      const key = bars[i] && bars[i].t
+      if (typeof key === typeof lastT && key >= lastT) mask[i] = 1
+    }
+  }
+  let any = false
+  for (let i = 0; i < n; i++) if (mask[i]) { any = true; break }
+  if (!any) return null
+  nameChartClock(opts, [TF_MERGE_NEWEST_CODE], opts && opts.tf)
+  return mask
 }
 
 /** Withhold (`NaN`) the bars `withheldReadMask` names. A COPY. */
@@ -6267,7 +6359,7 @@ export function symAlignmentMask(tree, bars, opts) {
       if (under) nested = true
       nodes.push(node)
     }
-    const into = under || node.type === 'sym' || node.type === 'tf' || node.type === 'tf_live' || node.type === LTF
+    const into = under || node.type === 'sym' || node.type === 'tf' || node.type === 'tf_live' || node.type === TF_MERGE || node.type === LTF
     if (Array.isArray(node.args)) for (const a of node.args) stack.push([a, into])
   }
   if (!nodes.length) return null
@@ -6389,7 +6481,7 @@ export function switchedDependencyMask(tree, bars, inputs, budget, scalars, opts
       if (under) crossesBars = true
       nodes.push(node)
     }
-    const into = under || node.type === 'tf' || node.type === 'tf_live' || node.type === 'sym' || node.type === LTF
+    const into = under || node.type === 'tf' || node.type === 'tf_live' || node.type === TF_MERGE || node.type === 'sym' || node.type === LTF
     if (Array.isArray(node.args)) for (const a of node.args) stack.push([a, into])
   }
   if (!nodes.length) return null
@@ -6729,7 +6821,8 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
         return out
       }
       case 'tf':
-      case 'tf_live': {
+      case 'tf_live':
+      case TF_MERGE: {
         const code = String(n.value)
         // ⭐ C47 — a forming read may also name the quarter, from daily bars.
         if (n.type === 'tf_live') assertLiveResamplable(code, refuse, (opts && opts.tf) ?? null)
@@ -6776,13 +6869,40 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
         // ⚠️ And bucket 0 IS computable here, unlike `tf`'s — a forming first
         // period is perfectly readable; an artificial hole would be dishonest.
         const live = n.type === 'tf_live'
+        // ⭐⭐ ENGINE 55 — `tf_merge`: PINE'S `request.security(…, 'W'|'M')` WITH LOOK-AHEAD
+        // OFF, as TradingView draws it on historical bars. The higher-timeframe value
+        // appears on the chart bar where that period CLOSES — the period's last bar
+        // reads bucket `b` — and every other bar reads `b - 1`, the last closed period.
+        // MEASURED, not argued: 0 mismatches over 598 RDDT and 1,799 SPY daily bars, all
+        // eight weekly / monthly plots of `support-and-resistance-multi-time-frame`,
+        // the Good Friday week (Thursday closes it) and weekend month ends included
+        // (`docs/pine/evidence/2026-11-14-engine55-honest-htf.md`).
+        // ⛔ THE PERIOD END IS READ OFF THE NEXT BAR, NEVER OFF A CALENDAR: bar `i` closes
+        // its period exactly when bar `i + 1` sits in another bucket. A weekday rule
+        // ("Friday") draws the Good Friday week one bar late.
+        // ⛔ THE NEWEST BAR HAS NO NEXT BAR. Still forming (`newestBarIsForming === true`)
+        // it reads the forming period, `b`, as TradingView's realtime bar does, and that is
+        // what this arm computes there. Finished (or not known to be forming) it may or may
+        // not close its period — the NEXT session's date, which is not known here — so the
+        // ROOT bar is withheld and named by `tfMergeMask` (`request:htf-newest-unconfirmed`),
+        // the ONE authority over that bar (nested reads, another symbol's series included).
+        // ⛔ Withheld at the root, not here: a `NaN` here would read downstream as Pine's
+        // `na` (`nz` → 0), and two copies of one guard cannot each be proved.
+        // ⛔ FORMULA `tf` IS UNTOUCHED: it keeps `b - 1` on every bar, which is its
+        // documented meaning (members' formulas, scans and alerts rely on it).
+        const merge = n.type === TF_MERGE
         const out = nan(length)
         for (let i = 0; i < length; i++) {
           const iso = isos[i]
           if (!iso) continue
           const b = at.get(tfBucket(iso, code))
           if (live) out[i] = child[b]
-          else if (b > 0) out[i] = child[b - 1]
+          else if (merge) {
+            const next = i + 1 < length ? isos[i + 1] : null
+            if (i + 1 < length && !next) continue          // withheld whole (`tfMergeMask`)
+            if (next === null || tfBucket(next, code) !== tfBucket(iso, code)) out[i] = child[b]
+            else if (b > 0) out[i] = child[b - 1]
+          } else if (b > 0) out[i] = child[b - 1]
         }
         return out
       }

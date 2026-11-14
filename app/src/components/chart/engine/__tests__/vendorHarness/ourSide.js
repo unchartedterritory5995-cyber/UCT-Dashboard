@@ -33,12 +33,12 @@ import { addInstance } from '../../instanceControls'
 import { mergeChartSettings } from '../../../chartDefaults'
 import { objectReaderFor } from '../../objectColumns'
 import { evaluateObjects } from '../../objectRuntime'
-import { NOT_SHOWN, runtimeWithheldWhy, runtimeWithheldCause } from '../../ast/objectLoss'
+import { NOT_SHOWN, runtimeWithheldWhy, runtimeWithheldCause, runtimeUnknownSentence } from '../../ast/objectLoss'
 import { toRenderState } from '../../objectRenderState'
 // ⭐ RT5 — a runtime document's own drawings.
 import { runtimeObjectsOf, runtimeObjectsWithheldOf, drawsRuntimeObjects, runtimeWarmupOf, RUNTIME_WARMUP_KEY, runHalfOf, carriesRunHalf } from '../../runtime/runtimeObjects'
 import { runtimeDeclinedTag } from '../../../../../../../tools/pine_coverage/runtime_lane.mjs'
-import { maxLookback, CHART_CLOCK_WHOLE } from '../../ast/interpret'
+import { maxLookback, CHART_CLOCK_WHOLE, TF_MERGE_NEWEST_CODE } from '../../ast/interpret'
 import { setRuntimeDoorClock } from '../../runtime/runtimeColumns'
 import { paneObjectsGate } from '../../ast/paneGate'
 import { otherSymbolRequestsOf, storeTickerOf } from '../../otherSymbols'
@@ -806,6 +806,8 @@ function hostObjectsOf(def, bars, ctx, cols, built = null) {
       // ⭐ F1 — the binder's own statement (`binder.js`): off the listing a `var`
       // list of drawings is withheld whole (`objectRuntime.js`, `withheldBy`).
       offListing: reader.historyFromListing !== true,
+      // ⭐ ENGINE 55 — the binder's own statement of why run-half values are unknown.
+      unknownBecause: runtimeUnknownSentence(reader.runtime),
     })
     if (run.withheldBy && run.withheldBy['objects:off-listing']) {
       const fams = run.withheldBy['objects:off-listing']
@@ -945,9 +947,14 @@ export function withheldPlotsOf(clockReport, cols, notes) {
   for (const r of clockReport.withheld) {
     const what = r.code.startsWith('bar-index:') ? '`bar_index`'
       : r.code.startsWith('running-total:') ? 'a running total'
-        : r.code.startsWith('var-origin:') ? '`var`' : 'time(<timeframe>)'
+        : r.code.startsWith('var-origin:') ? '`var`'
+          : r.code.startsWith('request:') ? '`request.security`' : 'time(<timeframe>)'
     notes.push(`${what} withheld (${r.code}) on ${r.plots.length} plot(s) — ${r.reason}`)
     const whole = CHART_CLOCK_WHOLE.includes(r.code)
+    // ⭐ ENGINE 55 — a NEWEST-BAR code is never a whole-series withholding, even on a
+    // plot whose column is empty for its own reasons (RDDT's monthly pivots never
+    // form in its history): that bar is excluded by `withheldNewest`, the rest graded.
+    if (r.code === TF_MERGE_NEWEST_CODE) continue
     for (const key of r.plots) {
       if (out.has(key)) continue
       if (withholdsEveryBar(cols[key])) out.set(key, r.code)
@@ -1106,6 +1113,11 @@ function runOurSideOnTheParityClock(capture) {
     // whole just the same, and graded the same way. A plot with values keeps its
     // comparison: the bars the door drew are still judged.
     const withheldWhole = withheldPlotsOf(registry.chartClockReport(cols), cols, notes)
+    // ⭐⭐ ENGINE 55 — the plots whose NEWEST bar the door withheld by name
+    // (`request:htf-newest-unconfirmed`, `interpret.js::tfMergeMask`): that one bar is
+    // not compared (`compare.mjs`, `withheldNewest`), every other bar is.
+    const newestHeld = new Set(((registry.chartClockReport(cols) || {}).withheld || [])
+      .filter((r) => r.code === TF_MERGE_NEWEST_CODE).flatMap((r) => r.plots))
     let colours
     // ⭐ DIV-1 — the plot colours the binder draws over the SAME replayed bars the
     // values were computed on, each sliced to the window.
@@ -1186,6 +1198,7 @@ function runOurSideOnTheParityClock(capture) {
         formula: o ? o.formula : null,
         key: row ? row.key : null,
         withheldBy: heldBy || null,
+        withheldNewest: !!(col && row && newestHeld.has(row.key) && col.length > 0 && !(col[col.length - 1] === col[col.length - 1])),
         hidden: !!(o && o.hidden),
         column: col || null,
         missingReason,

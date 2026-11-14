@@ -89,11 +89,10 @@ const INFO_VENDOR_NOTES = Object.freeze(new Set(['alertcondition']))
 /** ⭐⭐ THE SEAM FOR A TREE-SHAPED SEMANTIC DIFFERENCE (P0, for slice `inv`).
  *  A rule `{ node, name, note }` attaches `note` (SEMANTIC) to every output whose
  *  saved tree contains a node of type `node`. ⛔ A rule whose `note` is null
- *  attaches nothing. The Pine look-ahead-off HTF step-back is NOT wired here: it
- *  rides the translator's own `_folds` channel (`htfLookaheadOffStepBacks`,
- *  declared in `closedTable.json`) and reaches `vendorNotes` like every fold note,
- *  which also persists it to `meta.disclosures` on the member pane. This table
- *  exists for a difference a translator cannot record on its row. */
+ *  attaches nothing. ⚰️ ENGINE 55 — the Pine look-ahead-off HTF step-back that used
+ *  to ride the `_folds` channel `htfLookaheadOffStepBacks` is GONE: the request is
+ *  now `tf_merge`, TradingView's merge, and there is no difference left to disclose.
+ *  This table exists for a difference a translator cannot record on its row. */
 export const TREE_SEMANTIC_RULES = Object.freeze([])
 
 /** ⭐ PCF — TC2000 `XUP`/`XDOWN` at the default one-bar distance read as this

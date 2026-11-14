@@ -419,6 +419,12 @@ CONCIERGE_OMITS: Mapping[str, str] = MappingProxyType({
         "is evaluated on a symbol's intraday bars, which only a chart supplies — a "
         "saved screen holds none and refuses it — so it is translated-only."
     ),
+    "tf_merge": (
+        "Pine's look-ahead-off higher-timeframe read as TradingView merges it (ENGINE 55). "
+        "It exists to translate `request.security(…, \"W\"|\"M\")` exactly; a screen and an "
+        "alert read the newest finished bar, which it withholds, and refuse it — a member "
+        "asking in English gets `tf` (the last closed week or month), so it is translated-only."
+    ),
 })
 
 

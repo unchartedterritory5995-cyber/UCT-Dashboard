@@ -134,8 +134,14 @@ INF = float("inf")
 #: INTRADAY BARS: the supply exists only on a chart, so here the node is NOT
 #: COMPUTABLE on every bar (the JS lane's own answer for an unsupplied code) and
 #: ``scan_definition.assert_scannable`` refuses a screen that carries one, by name.
+#: ⭐⭐ ENGINE 55 — AND ``tf_merge``: Pine's ``request.security(…, 'W'|'M')`` with
+#: look-ahead off, as TradingView merges it (``interpret.js``'s ``tf_merge`` arm;
+#: the evaluator arm below is its port). Only the Pine door writes it; the scan door
+#: and the alert lane refuse it by name (``scan_definition.assert_scannable``,
+#: ``alert_user_series._make_value_fn``): what they read is the newest finished bar,
+#: which the merge withholds.
 NODE_TYPES = ("num", "series", "op", "call", "offset", "tf", "sym", "tf_live",
-              "str", "symtext", "textop", "ltf")
+              "str", "symtext", "textop", "ltf", "tf_merge")
 
 #: The subset of ``NODE_TYPES`` that is NOT EVALUABLE — settled by the fold
 #: before anything computes, and refused by ``interpret`` if one ever reaches it.
@@ -289,7 +295,7 @@ def _assert_sym_placement(root: Any) -> None:
                     "— a lower-timeframe read (`ltf`) cannot sit inside another "
                     "request: it is mapped onto the chart's own bars, and those "
                     "are not the bars that request hands its child")
-        if under_ltf and kind in ("tf", "tf_live", "sym"):
+        if under_ltf and kind in ("tf", "tf_live", "tf_merge", "sym"):
             _refuse("interpret:timeframe",
                     "— a `%s` read cannot sit inside a lower-timeframe read "
                     "(`ltf`): its child runs on intraday bars, and a request made "
@@ -305,7 +311,7 @@ def _assert_sym_placement(root: Any) -> None:
                     "sym('%s', tf(…))." % (ticker, ticker, ticker))
         args = node.get("args")
         if isinstance(args, list):
-            is_tf = kind in ("tf", "tf_live")
+            is_tf = kind in ("tf", "tf_live", "tf_merge")
             for a in args:
                 stack.append((a, under_tf or is_tf,
                               under_request or is_tf or kind in ("sym", "ltf"),
@@ -3296,7 +3302,7 @@ def _flatten(root: Any) -> List[dict]:
         # inside a bind-time text question was never asserted, so the one node
         # type most likely to arrive UNFOLDED was the one whose children nothing
         # checked.
-        if node["type"] in ("op", "call", "offset", "tf", "sym", "tf_live",
+        if node["type"] in ("op", "call", "offset", "tf", "sym", "tf_live", "tf_merge",
                             "ltf", "textop"):
             args = node.get("args")
             if not isinstance(args, list):
@@ -3691,7 +3697,8 @@ def max_lookback(ast: Any) -> int:
                 best = max(best, seen[id(arg)])
             seen[id(node)] = best
             continue
-        if kind == "tf":
+        # ⭐ ENGINE 55 — ``tf_merge`` reaches exactly as far as ``tf`` (``interpret.js``).
+        if kind in ("tf", "tf_merge"):
             # ⭐ THE TREE SUM, IN BASE BARS. The child's lookback is counted in
             # HIGHER-timeframe bars, so it is multiplied by the span; the +1 is the
             # bar this node always steps back to reach the last CLOSED period.
@@ -4247,7 +4254,7 @@ def node_count(ast: Any) -> int:
 
 
 #: Node types whose child a FRESH ``interpret`` evaluates on other bars.
-_SCOPE_TYPES = frozenset(("tf", "tf_live", "sym", "ltf"))
+_SCOPE_TYPES = frozenset(("tf", "tf_live", "tf_merge", "sym", "ltf"))
 
 
 def evaluation_units(root: Any) -> int:
@@ -4450,6 +4457,11 @@ def interpret(ast: Any, bars: List[dict],
         if aligned is not None:
             column = [math.nan if aligned[i] else v for i, v in enumerate(column)]
     if not probing:
+        # ⭐ ENGINE 55 -- ...and its ``tf_merge`` half (``interpret.js::tfMergeMask``).
+        merged = tf_merge_mask(ast, bars, opts)
+        if merged is not None:
+            column = [math.nan if merged[i] else v for i, v in enumerate(column)]
+    if not probing:
         # C38 -- the port of ``interpret.js::withReadsWithheld``'s history half
         held = history_read_mask(ast, bars, inputs, budget, scalars, opts)
         if held is not None:
@@ -4476,6 +4488,83 @@ def interpret(ast: Any, bars: List[dict],
     # `indicator_compute`'s alignment rule and spec §4's format, and the same
     # mapping `tools/ast_conformance.py` applies to the JS lane's NaN.
     return [None if math.isnan(v) else v for v in column]
+
+
+#: ⭐ ENGINE 55 -- the code a ``tf_merge`` read's withheld bars are named by
+#: (``interpret.js::TF_MERGE_NEWEST_CODE``).
+TF_MERGE_NEWEST_CODE = "request:htf-newest-unconfirmed"
+
+
+def reads_tf_merge(tree: Any) -> bool:
+    """⭐ ENGINE 55 -- does this tree hold a ``tf_merge`` node anywhere? Iterative."""
+    stack = [tree]
+    seen: set = set()
+    while stack:
+        node = stack.pop()
+        if not isinstance(node, Mapping) or id(node) in seen:
+            continue
+        seen.add(id(node))
+        if node.get("type") == "tf_merge":
+            return True
+        args = node.get("args")
+        if isinstance(args, list):
+            stack.extend(args)
+    return False
+
+
+def tf_merge_mask(tree: Any, bars: List[dict],
+                  opts: Optional[Mapping[str, Any]] = None) -> Optional[List[int]]:
+    """⭐⭐ ENGINE 55 -- the port of ``interpret.js::tfMergeMask``: the bars of a tree
+    whose ``tf_merge`` read is not known (1 = withheld), or ``None``. The newest bar
+    unless it is known to be forming and no merge sits under another request; under
+    ``sym`` every bar from that series' newest bar on; every bar when one carries no
+    readable day."""
+    n = len(bars or [])
+    found = []
+    stack = [(tree, False, None)]
+    seen: set = set()
+    while stack:
+        node, under, sym = stack.pop()
+        if not isinstance(node, Mapping) or id(node) in seen:
+            continue
+        seen.add(id(node))
+        kind = node.get("type")
+        if kind == "tf_merge":
+            found.append((under, sym))
+        into = under or kind in _SCOPE_TYPES
+        sym_here = str(node.get("value")).strip().upper() if kind == "sym" else sym
+        args = node.get("args")
+        if isinstance(args, list):
+            for a in args:
+                stack.append((a, into, sym_here))
+    if not found or n == 0:
+        return None
+    if any(not _iso_day(b.get("t") if isinstance(b, Mapping) else None) for b in bars):
+        _name_chart_clock(opts, [TF_MERGE_NEWEST_CODE])
+        return [1] * n
+    mask = [0] * n
+    forming = (opts or {}).get("newest_bar_is_forming") is True
+    if not forming or any(u for u, _s in found):
+        mask[n - 1] = 1
+    supplied = (opts or {}).get("symbols") or {}
+    for _u, sym in found:
+        if not sym:
+            continue
+        series = supplied.get(sym)
+        if not isinstance(series, (list, tuple)) or not series:
+            continue
+        keys = [b.get("t") for b in series if isinstance(b, Mapping) and b.get("t") is not None]
+        if not keys:
+            continue
+        last = max(keys)
+        for i, b in enumerate(bars):
+            key = b.get("t") if isinstance(b, Mapping) else None
+            if key is not None and _key_kind(key) == _key_kind(last) and key >= last:
+                mask[i] = 1
+    if not any(mask):
+        return None
+    _name_chart_clock(opts, [TF_MERGE_NEWEST_CODE])
+    return mask
 
 
 def _tree_reads_sym(tree: Any) -> bool:
@@ -4536,7 +4625,7 @@ def sym_alignment_mask(tree: Any, bars: List[dict],
             if under:
                 nested = True
             nodes.append(node)
-        into = under or kind in ("sym", "tf", "tf_live", "ltf")
+        into = under or kind in ("sym", "tf", "tf_live", "tf_merge", "ltf")
         args = node.get("args")
         if isinstance(args, list):
             stack.extend((a, into) for a in args)
@@ -4607,7 +4696,7 @@ def history_read_mask(tree: Any, bars: List[dict],
         is_call = node.get("type") == "call" and isinstance(name, str)
         if is_call and name == "barsAgo":
             reads.append((node, nested, unbounded))
-        into = nested or node.get("type") in ("tf", "tf_live", "sym")
+        into = nested or node.get("type") in ("tf", "tf_live", "tf_merge", "sym")
         spec = functions.get(name) if is_call else None
         opened = unbounded or bool(
             spec is not None and (spec.get("lookback") == SERIES_LOOKBACK or _is_stateful_call(node)))
@@ -4704,7 +4793,7 @@ def bar_index_mask(tree: Any, bars: List[dict],
         seen.add(id(node))
         if id(node) in wanted:
             found.append((wanted[id(node)], nested, unbounded))
-        into = nested or node.get("type") in ("tf", "tf_live", "sym")
+        into = nested or node.get("type") in ("tf", "tf_live", "tf_merge", "sym")
         name = node.get("name")
         spec = functions.get(name) if node.get("type") == "call" and isinstance(name, str) else None
         opened = unbounded or bool(spec is not None and spec.get("lookback") == SERIES_LOOKBACK)
@@ -5041,7 +5130,7 @@ def var_origin_mask(tree: Any, bars: List[dict],
                             found.append((node, under, "held", None))
                     elif _var_origin_holds(shape, bind) or _var_origin_self_decides_branch(shape, bind):
                         found.append((node, under, "probe", shape))
-        into = under or node.get("type") in ("tf", "tf_live", "sym", "ltf")
+        into = under or node.get("type") in ("tf", "tf_live", "tf_merge", "sym", "ltf")
         if isinstance(args, list):
             for a in args:
                 stack.append((a, into))
@@ -5257,6 +5346,8 @@ SESSION_CLOCK_LEAVES = ("time", "hour", "minute", "timeclose", "dayopentime",
 CHART_CLOCK_WITHHELD_CODES = CHART_CLOCK_WHOLE + (
     "time-anchor:period-open-missing", "time-anchor:utc-day-clock",
     "bar-index:early-bars", "running-total:early-bars", "bar-index:first-bar", "var-origin:bars",
+    # ENGINE 55 -- the newest bar of a ``tf_merge`` read (``tf_merge_mask``)
+    "request:htf-newest-unconfirmed",
 )
 
 
@@ -5603,7 +5694,7 @@ def _scan_chart_clock(tree: Any):
             folds.append(base)
         # C41 (`interpret.js::scanChartClock`): an `ltf` child runs on the symbol's
         # intraday series, another clock -- nested exactly as under a request
-        into = under or node.get("type") in ("tf", "tf_live", "sym", "ltf")
+        into = under or node.get("type") in ("tf", "tf_live", "tf_merge", "sym", "ltf")
         args = node.get("args")
         if isinstance(args, list):
             for a in args:
@@ -5798,7 +5889,7 @@ def switched_dependency_mask(tree: Any, bars: List[dict],
                 if under:
                     crosses = True
                 nodes.append(node)
-        into = under or node.get("type") in ("tf", "tf_live", "sym", "ltf")
+        into = under or node.get("type") in ("tf", "tf_live", "tf_merge", "sym", "ltf")
         if isinstance(args, list):
             for a in args:
                 stack.append((a, into))
@@ -6159,7 +6250,7 @@ def _interpret_column(ast: Any, bars: List[dict],
         if not isinstance(n, dict):
             return _refuse("interpret:node", f"got {n!r}")
         kind = n.get("type")
-        if kind in ("op", "call", "offset", "tf", "sym", "tf_live", "ltf") and not isinstance(n.get("args"), list):
+        if kind in ("op", "call", "offset", "tf", "sym", "tf_live", "tf_merge", "ltf") and not isinstance(n.get("args"), list):
             return _refuse("interpret:node",
                            f"a {kind} node carries an `args` array; got {n.get('args')!r}")
         if kind == "num":
@@ -6187,7 +6278,7 @@ def _interpret_column(ast: Any, bars: List[dict],
             for i in range(back, length):
                 out[i] = src[i - back]
             return out
-        if kind in ("tf", "tf_live"):
+        if kind in ("tf", "tf_live", "tf_merge"):
             code = str(n.get("value"))
             # ⭐ C47 — a forming read may also name the quarter, from daily bars.
             if kind == "tf_live":
@@ -6273,6 +6364,13 @@ def _interpret_column(ast: Any, bars: List[dict],
             # forming bucket 0 is perfectly readable, and pretending otherwise
             # would be an artificial hole rather than an honest one.
             live = (kind == "tf_live")
+            # ⭐⭐ ENGINE 55 — ``tf_merge``, the port of ``interpret.js``'s arm (its
+            # comment carries the measurement): a bar that CLOSES its period (the
+            # next bar sits in another bucket) reads bucket ``b``, every other bar
+            # ``b - 1``; the newest bar computes the forming reading and the ROOT bar
+            # is withheld by ``tf_merge_mask`` (the one authority) unless known to be
+            # forming. Read off the next bar, never a calendar.
+            merge = (kind == "tf_merge")
             out = _nan_col(length)
             for i, k in enumerate(keys):
                 if k is None:
@@ -6280,6 +6378,14 @@ def _interpret_column(ast: Any, bars: List[dict],
                 b = at[k]
                 if live:
                     out[i] = child[b]
+                elif merge:
+                    nxt = keys[i + 1] if i + 1 < length else None
+                    if i + 1 < length and nxt is None:
+                        continue
+                    if nxt is None or nxt != k:
+                        out[i] = child[b]
+                    elif b > 0:
+                        out[i] = child[b - 1]
                 elif b > 0:
                     out[i] = child[b - 1]
             return out

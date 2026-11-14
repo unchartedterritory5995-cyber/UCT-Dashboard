@@ -44,6 +44,7 @@ import {
   resolveOtherSymbols, resolveFormulaSymbols, symTickersOf, isPineOriginDoc,
 } from './otherSymbols'
 import { scalarsIn } from './ast/freshness'
+import { TF_MERGE_NEWEST_CODE } from './ast/interpret'
 import CROSS from '../builder/authoring/crossContext.json'
 
 export const STATUS = Object.freeze({ SUPPORTED: 'supported', REFUSED: 'refused', DISCLOSED: 'disclosed' })
@@ -80,8 +81,26 @@ export const FORMULA_LTF_GUARD = 'lower-tf:formula-unsupported'
 export const FORMULA_LTF_MESSAGE = 'This indicator reads a timeframe below the chart (`ltf(…)`), which is '
   + 'only computed for an imported Pine script; a formula that reads one is not computed on any chart.'
 
+/** ⭐⭐ ENGINE 55 — the guard a formula document's `tf_merge` plot is refused under.
+ *  `tf_merge` is Pine's look-ahead-off request as TradingView merges it
+ *  (`interpret.js`'s `tf_merge` arm); only the Pine door writes it. A formula a member
+ *  types reads `tf(…)` — the last closed period on every bar — which is unchanged. */
+export const FORMULA_TF_MERGE_GUARD = 'request:formula-unsupported'
+export const FORMULA_TF_MERGE_MESSAGE = 'This indicator reads a higher timeframe the way TradingView\'s '
+  + '`request.security` merges it (`tf_merge(…)`), which is computed only for an imported Pine script; in a '
+  + 'formula, write `tf(…)` for the last closed week or month instead.'
+
 /** Does a tree contain an `ltf` node? Iterative, like `symTickersOf`. */
 export function treeReadsLtf(tree) {
+  return treeHoldsType(tree, 'ltf')
+}
+
+/** ⭐ ENGINE 55 — does a tree contain a `tf_merge` node? */
+export function treeReadsTfMerge(tree) {
+  return treeHoldsType(tree, 'tf_merge')
+}
+
+function treeHoldsType(tree, type) {
   const stack = [tree]
   const seen = new Set()
   while (stack.length) {
@@ -89,7 +108,7 @@ export function treeReadsLtf(tree) {
     if (!n || typeof n !== 'object' || seen.has(n)) continue
     seen.add(n)
     if (Array.isArray(n)) { for (const x of n) stack.push(x); continue }
-    if (n.type === 'ltf') return true
+    if (n.type === type) return true
     for (const k of Object.keys(n)) {
       const v = n[k]
       if (v && typeof v === 'object') stack.push(v)
@@ -138,22 +157,27 @@ export function chartStaticRefusals(def, ctx) {
     return { whole, perKey: new Map() }
   }
   const ltfWhy = new Map()
+  const mergeWhy = new Map()
   if (!isPineOriginDoc(def)) {
     for (const k of keys) {
       const tree = trees ? trees[k] : compute.ast
       if (treeReadsLtf(tree)) ltfWhy.set(k, FORMULA_LTF_MESSAGE)
+      else if (treeReadsTfMerge(tree)) mergeWhy.set(k, FORMULA_TF_MERGE_MESSAGE)
     }
   }
-  if (ltfWhy.size && (!trees || ltfWhy.size === keys.length)) {
+  const formulaWhy = (k) => (ltfWhy.has(k) ? { guard: FORMULA_LTF_GUARD, message: FORMULA_LTF_MESSAGE }
+    : mergeWhy.has(k) ? { guard: FORMULA_TF_MERGE_GUARD, message: FORMULA_TF_MERGE_MESSAGE } : null)
+  if ((ltfWhy.size || mergeWhy.size) && (!trees || ltfWhy.size + mergeWhy.size === keys.length)) {
     const whole = {}
-    for (const key of keys) whole[key] = { guard: FORMULA_LTF_GUARD, message: FORMULA_LTF_MESSAGE }
+    const first = formulaWhy(keys.find((k) => formulaWhy(k)))
+    for (const key of keys) whole[key] = formulaWhy(key) || first
     return { whole, perKey: new Map() }
   }
   const perKey = new Map()
   if (trees) {
     for (const key of keys) {
       if (periodWhy.has(key)) { perKey.set(key, { guard: PERIOD_READS_GUARD, message: periodWhy.get(key) }); continue }
-      if (ltfWhy.has(key)) { perKey.set(key, { guard: FORMULA_LTF_GUARD, message: ltfWhy.get(key) }); continue }
+      if (formulaWhy(key)) { perKey.set(key, formulaWhy(key)); continue }
       if (!Object.prototype.hasOwnProperty.call(trees, key)) continue
       const scalarWhy = chartScalarRefusal(trees[key])
       if (scalarWhy) perKey.set(key, { guard: CHART_SCALAR_GUARD, message: scalarWhy })
@@ -229,6 +253,10 @@ function alertPlotRefusal(compute, key) {
   const crossCode = crossSymbolAlertCode(treeSymTickers(tree))
   if (crossCode) codes.push(crossCode)
   if (treeReadsLtf(tree)) codes.push('lower-tf:unsupplied')
+  // ⭐ ENGINE 55 — Pine's merged higher-timeframe read: its newest finished bar is
+  // withheld (`interpret.js::tfMergeMask`), and that is the bar an alert reads.
+  // Mirrors `alert_user_series._make_value_fn`.
+  if (treeReadsTfMerge(tree)) codes.push(TF_MERGE_NEWEST_CODE)
   if (codes.length) return { gate: 'withheld', codes }
   return null
 }
@@ -255,7 +283,8 @@ const ALERT_SENTENCE = {
   presentation: 'These are level lines — a guide drawn at fixed values, not a value that moves — so there is '
     + 'nothing for an alert to watch. Alert on the indicator\'s own line instead (for example, RSI crossing above 70).',
   withheld: 'It reads a series the alert lane is never handed (a timeframe below the chart, or another '
-    + 'symbol it cannot load: an ambiguous spelling, or more than two), so an alert on it would arm and never fire.',
+    + 'symbol it cannot load: an ambiguous spelling, or more than two), or a weekly or monthly value whose newest '
+    + 'finished bar is not known until the next session, so an alert on it would arm and never fire.',
 }
 
 function alertAnswer(def, key, base) {

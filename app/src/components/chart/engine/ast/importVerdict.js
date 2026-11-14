@@ -115,7 +115,7 @@ function treeHas(ast, pred) {
   return false
 }
 
-const PERIOD_READ = (n) => n.type === 'tf' || n.type === 'tf_live'
+const PERIOD_READ = (n) => n.type === 'tf' || n.type === 'tf_live' || n.type === 'tf_merge'
 
 /** True when a `call` or `offset` node (not itself a period read) has a period
  *  read somewhere beneath it — audit PA1 §2.2 signature P2, subtree form. */
