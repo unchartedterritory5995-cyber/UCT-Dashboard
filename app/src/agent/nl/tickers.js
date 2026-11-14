@@ -81,7 +81,9 @@ export async function groundSymbols(inputs, { fetchFn = (u, o) => fetch(u, o) } 
       let rows = []
       try { rows = await search(raw, fetchFn) } catch { rows = [] }
       rows = rows.filter(x => !x.delisted && !x.breadth && x.type !== 'economic' && x.ticker)
-      if (rows.some(x => String(x.ticker).toUpperCase() === key)) v = { kind: 'ticker', ticker: key }
+      const exactRow = rows.find(x => String(x.ticker).toUpperCase() === key)
+      // (the company name rides along: a homograph question names it — "the ticker ON (ON Semiconductor)")
+      if (exactRow) v = { kind: 'ticker', ticker: key, ...(exactRow.name ? { name: exactRow.name } : {}) }
       else {
         const want = normName(raw)
         const exact = want ? rows.filter(x => x.name && normName(x.name) === want) : []

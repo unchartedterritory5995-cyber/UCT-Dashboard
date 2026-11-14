@@ -27,7 +27,7 @@ import { setOwnedDefinitionSource } from './capabilities/indicatorEdits'
 import { setAuthoringSources, draftAmbiguity, selectDraft, isDraftAction, lastSaved, screenModelOps, PROPOSAL_TTL_MS, saveReferent, splitSaveAs, renameBeforeSave, explicitIndicatorCreate } from './capabilities/indicatorAuthoring'
 import { fastParse, matchPosition } from './fastPath'
 import { screenNewChart, screenEmptyBoardChart } from './capabilities/workspace'
-import { resolveDeictic, screenDeicticOps, screenUnnamedTargets, pickedChoice, chartRefOf, selectedChart, chartNameWord, clausesNameDifferentCharts, targetTickerConflict, lowerTickerCandidates, TARGET_CHECK_FAILED } from './deixis'
+import { resolveDeictic, screenDeicticOps, screenUnnamedTargets, pickedChoice, chartRefOf, selectedChart, chartNameWord, clausesNameDifferentCharts, targetTickerConflict, tickerGroundingCandidates, TARGET_CHECK_FAILED } from './deixis'
 import { screenWatchlistWidget } from './watchlistTarget'
 import { whichListView, LIST_VIEW_WHICH } from './whichWidget'
 import { checkSpatialConstraints, excludedCharts, spatialConstraints, UNPLACED, withoutExcludedCharts, everyExceptSet } from './spatialCheck'
@@ -660,10 +660,10 @@ const nameSearch = (word) => new Promise((resolve) => {
   const t = setTimeout(resolve, NAME_SEARCH_MS)
   groundSymbols([word]).catch(() => {}).finally(() => { clearTimeout(t); resolve() })
 })
-// …several words at once (the target-ticker check's lowercase words), one bound for all of them
-const nameSearchAll = (words) => new Promise((resolve) => {
-  const t = setTimeout(resolve, NAME_SEARCH_MS)
-  groundSymbols(words).catch(() => {}).finally(() => { clearTimeout(t); resolve() })
+// a started promise, waited on for at most `ms` (the target-ticker prefetch): no answer in time resolves undefined
+const boundedWait = (p, ms) => new Promise((resolve) => {
+  const t = setTimeout(resolve, ms)
+  Promise.resolve(p).catch(() => {}).finally(() => { clearTimeout(t); resolve() })
 })
 
 // the server's stage timings (ms only) for the turn trace
@@ -2763,6 +2763,15 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         return
       }
       let res, refMap, live, nl1Body = null, nl1Sel = null, rerouted = false
+      // ticker resolution (owner D16 item 3): the words the target-ticker check may need the ticker search for are asked NOW,
+      // while the model plans — by the time the plan is screened the answer is usually in (groundSymbols caches it)
+      const tickerWords = (() => {
+        try {
+          const lex = lexiconFor(host)
+          return tickerGroundingCandidates(text, { charts: host?.charts?.list?.() || [], lists: lex.symbols, ordinary: lex.words, cached: (w) => groundingOf(w), isSymbolWord: (w) => plainSymbolWord(w, host) })
+        } catch { return null }                                                    // a lookup that cannot even start: fail closed below
+      })()
+      const tickerPrefetch = tickerWords?.length ? groundSymbols(tickerWords).catch(() => null) : null
       let answeredRefs = []        // the chart a reply to UCT's own question picked (screenUnnamedTargets)
       if (nl1) {
         // NL-1: the request's actions (nl1/selection.js: the core, pinned groups, groups its words add — every
@@ -3210,15 +3219,17 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       // verdict (groundSymbols, cached; bounded like nameSearch — no answer in time is "not known here").
       let tgtTicker = null
       try {
-        const known = new Map()
-        const live = host?.charts?.list?.() || []
         const writesChart = (screened.ops || []).some(o => { const cap = getCapability(o?.action); return !!cap && !cap.query && !!getTargetKind(cap.target) })
-        const lower = writesChart ? lowerTickerCandidates(text, live, (w) => plainSymbolWord(w, host)) : []
-        if (lower.length) {
-          await nameSearchAll(lower)
-          for (const w of lower) { const v = groundingOf(w); if (v && (v.kind === 'ticker' || v.kind === 'name') && v.ticker) known.set(w, v.ticker) }
-        }
-        tgtTicker = targetTickerConflict({ host, ops: screened.ops, text, pickedRefs: answeredRefs, getTargetKind, getCapability, known, ordinary: lexiconFor(host).words })
+        // the prefetch started with the model call; what is still out gets the rest of one bound (NAME_SEARCH_MS) — a word the
+        // search never answered is 'pending': in a ticker slot that is ASKED, never a stand-in chart
+        if (writesChart && tickerWords === null) throw new Error('ticker lookup could not start')
+        if (writesChart && tickerPrefetch) await boundedWait(tickerPrefetch, NAME_SEARCH_MS)
+        const lex = lexiconFor(host)
+        const asked = new Set(tickerWords || [])
+        // a word this turn asked about: its verdict, or 'pending' (a failing lookup throws → the catch below asks); any other
+        // word: a verdict an earlier turn already cached, if any
+        const verdict = (w) => (asked.has(w) ? groundingOf(w) || 'pending' : (() => { try { return groundingOf(w) } catch { return null } })())
+        tgtTicker = targetTickerConflict({ host, ops: screened.ops, text, pickedRefs: answeredRefs, getTargetKind, getCapability, ordinary: lex.words, lists: lex.symbols, verdict, plainWord: (w) => plainSymbolWord(w, host) })
       } catch {
         tgtTicker = { failed: true, ask: { text: TARGET_CHECK_FAILED } }        // ⛔ fail closed: an unread check never writes
       }
