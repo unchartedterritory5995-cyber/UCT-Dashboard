@@ -58,6 +58,36 @@ describe('My tools, Templates: the way to Manage templates', () => {
     expect(pops).toEqual(['/journal/notebook?styles=1'])
   })
 
+  // Fix round 1 (2g): on the notes page the move REPLACES the entry (NotebookTab takes `styles` out with a replace too),
+  // so Back never lands on an entry that keeps or reopens the manager; and it does so even when a navigate was handed
+  // over (not every door's navigate passes a replace on).
+  it('on the notes page it replaces the entry (no new history entry), with or without a router', () => {
+    for (const navigate of [null, vi.fn()]) {
+      window.history.replaceState({ idx: 3 }, '', '/journal/notebook?note=n1')
+      const before = window.history.length
+      const pops = []
+      const onPop = () => pops.push(window.location.pathname + window.location.search)
+      window.addEventListener('popstate', onPop)
+      render(<MyToolsSheet onClose={() => {}} uid="u1" tab="templates" navigate={navigate} />)
+      fireEvent.click(screen.getByRole('button', { name: 'Open Manage templates' }))
+      window.removeEventListener('popstate', onPop)
+      expect(window.history.length).toBe(before)
+      expect(window.history.state?.idx).toBe(3)
+      expect(pops).toEqual(['/journal/notebook?note=n1&styles=1'])
+      if (navigate) expect(navigate).not.toHaveBeenCalled()
+      cleanup()
+    }
+  })
+
+  it('CONTROL: from another page it pushes (Back leaves the notes page, and the manager with it)', () => {
+    window.history.replaceState(null, '', '/journal/trades')
+    const before = window.history.length
+    render(<MyToolsSheet onClose={() => {}} uid="u1" tab="templates" />)
+    fireEvent.click(screen.getByRole('button', { name: 'Open Manage templates' }))
+    expect(window.history.length).toBe(before + 1)
+    expect(window.location.pathname + window.location.search).toBe('/journal/notebook?styles=1')
+  })
+
   it('on the notes page the manager opens over what is there (an open note stays open)', () => {
     expect(managerHref({ pathname: '/journal/notebook', search: '?note=n1' })).toBe('/journal/notebook?note=n1&styles=1')
     expect(managerHref({ pathname: '/journal/notebook', search: '?styles=1' })).toBe('/journal/notebook?styles=1')

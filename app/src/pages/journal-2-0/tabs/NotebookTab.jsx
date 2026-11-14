@@ -680,8 +680,9 @@ export default function NotebookTab() {
   }, [])
   useEffect(() => {
     if (searchParams.get('styles') !== '1') return
-    // `?styles=1&show=archived|deleted|plain` (My tools' "Open Manage templates", a link that wants a place): read
-    // once, then both leave the URL. 'daily' is an in-app ask only, so the URL cannot name it.
+    // `?styles=1` (the Settings card; My tools' "Open Manage templates") and `&show=archived|deleted|plain` (a link that
+    // wants a view or group): read once, then both leave the URL. 'daily' is an in-app ask only, so the URL cannot name
+    // it.
     const show = searchParams.get('show')
     openStyles(show === 'daily' ? null : show)
     setSearchParams((prev) => { const p = new URLSearchParams(prev); p.delete('styles'); p.delete('show'); return p }, { replace: true })
@@ -2412,6 +2413,9 @@ export default function NotebookTab() {
   const openNewNoteSheet = () => setPickerOpen(true)
   // Follow-up C: the picker's "Your templates" picks; its "Manage" and "Daily notes start from: ... Change" links open
   // the template manager at its Plain templates group (the New note sheet closes first: one room at a time).
+  // Fix round 1 (2c): offered only while the manager's door can open (`stylesOn`); otherwise the picker keeps its own
+  // Rename, Delete, Share and daily control (MemberTemplates' fallback), so nothing is ever left without a manager.
+  // (2g) Where focus goes when the manager closes after its opener went away with the sheet: StylesManager's own.
   const manageTemplates = stylesOn ? (place) => { setPickerOpen(false); openStyles(place) } : null
   const fromStyle = stylesOn ? () => setPickerOpen('kinds') : null
   const recordVoiceNote = voiceOn ? () => startVoiceNote('record') : null

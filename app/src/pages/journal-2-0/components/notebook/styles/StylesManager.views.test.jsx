@@ -26,10 +26,11 @@ const USED_IN = { s1: [{ id: 'n1', title: 'Monday prep', updatedAt: '2025-03-03T
 
 const json = (status, body) => ({ ok: status >= 200 && status < 300, status, json: async () => body })
 let server
-function installServer() {
+function installServer(overrides = {}) {
   const lists = {
     live: [own({ id: 's1', name: 'Morning prep', kindId: 'daily_prep', usedIn: 3 }),
-      own({ id: 's2', name: 'Gap plan', kindId: 'trade_plan', usedIn: 0 })],
+      own({ id: 's2', name: 'Gap plan', kindId: 'trade_plan', usedIn: 0, credit: "Based on Sam's Gap plan", fromLibrary: true,
+        sourceGalleryId: 'g9' })],
     archived: [own({ id: 'sa1', name: 'Old prep', kindId: 'daily_prep', usedIn: 2, archivedAt: '2025-01-10T17:00:00Z' })],
     deleted: [own({ id: 'sx1', name: 'Gone prep', kindId: 'daily_prep', usedIn: 0, deletedAt: '2025-01-20T17:00:00Z' })],
   }
@@ -47,6 +48,8 @@ function installServer() {
     const url = String(typeof input === 'string' ? input : input.url)
     const path = url.replace(/^\/api\/j2\//, '')
     calls.push({ method, path })
+    const over = overrides[`${method} ${path}`]
+    if (over) return over()
     if (method === 'GET' && path === 'journal-styles') return json(200, { kinds: KINDS, styles: [BUILTIN, ...lists.live], blockKinds: [] })
     const view = /^journal-styles\?view=(\w+)$/.exec(path)
     if (method === 'GET' && view) return json(200, { kinds: KINDS, styles: lists[view[1]] })
@@ -240,5 +243,81 @@ describe('the manager is the one room: its views', () => {
     fireEvent.click(within(row).getByRole('button', { name: 'Delete Morning prep' }))
     expect(await screen.findByText('Deleted “Morning prep”.')).toBeInTheDocument()
     expect(screen.queryByText(/Moved to Recently deleted/)).toBeNull()
+  })
+
+  // ── fix round 1 ──────────────────────────────────────────────────────────────────────────────────
+  it('(1) Archive pressed BEFORE the usage read answers asks with the real count, and archives only on confirm', async () => {
+    let release
+    const gate = new Promise((r) => { release = r })
+    server = installServer({ 'GET journal-styles?view=live': async () => { await gate; return json(200, { kinds: KINDS, styles: [] }) } })
+    open()
+    const row = await activeRow('Morning prep')
+    const archive = within(row).getByRole('button', { name: 'Archive Morning prep' })
+    // the count is not known yet: the hint never claims "no notes"
+    expect(archive).toHaveAttribute('aria-description', "Notes that use it keep it. New notes can't use it until you restore it.")
+    fireEvent.click(archive)
+    expect(await screen.findByTestId('archive-sentence')).toHaveTextContent("It stays in your 3 notes. New notes can't use it until you restore it.")
+    expect(sent('GET', 'journal-styles/s1/used-in')).toHaveLength(1)        // its own notes, read on the press
+    expect(sent('POST', 'journal-styles/s1/archive')).toHaveLength(0)       // asked, nothing sent
+    fireEvent.click(screen.getByRole('button', { name: 'Archive' }))
+    await screen.findByText('Archived “Morning prep”. Restore it from Archived.')
+    expect(sent('POST', 'journal-styles/s1/archive')).toHaveLength(1)
+    release()
+  })
+
+  it('(1) with the usage read answering 500 the panel still asks, and with its own read failing too it asks without a number', async () => {
+    server = installServer({
+      'GET journal-styles?view=live': async () => json(500, {}),
+      'GET journal-styles/s2/used-in': async () => json(500, {}),
+    })
+    open()
+    const row = await activeRow('Gap plan')
+    await waitFor(() => expect(sent('GET', 'journal-styles?view=live').length).toBeGreaterThan(0))
+    fireEvent.click(within(row).getByRole('button', { name: 'Archive Gap plan' }))
+    expect(await screen.findByText('Archive this template? Notes that use it keep it.')).toBeInTheDocument()
+    expect(sent('POST', 'journal-styles/s2/archive')).toHaveLength(0)
+    fireEvent.click(screen.getByRole('button', { name: 'Archive' }))
+    await screen.findByText('Archived “Gap plan”. Restore it from Archived.')
+    expect(sent('POST', 'journal-styles/s2/archive')).toHaveLength(1)
+  })
+
+  it('(1) CONTROL: a KNOWN zero archives at once, as before (no panel, no extra read)', async () => {
+    open()
+    const row = await activeRow('Gap plan')
+    const archive = await within(row).findByRole('button', { name: 'Archive Gap plan' })
+    await waitFor(() => expect(archive).toHaveAttribute('aria-description', "New notes can't use it until you restore it."))
+    fireEvent.click(archive)
+    await screen.findByText('Archived “Gap plan”. Restore it from Archived.')
+    expect(screen.queryByTestId('my-tools-archive')).toBeNull()
+    expect(sent('GET', 'journal-styles/s2/used-in')).toHaveLength(0)
+  })
+
+  it('(2f) Escape in the Active "Used in" and Archive panels goes back one level; the next Escape closes the manager', async () => {
+    const onClose = vi.fn()
+    open({ onClose })
+    const row = await activeRow('Morning prep')
+    const used = await within(row).findByRole('button', { name: /^Used in 3 notes/ })
+    fireEvent.click(used)
+    await screen.findByRole('heading', { name: '“Morning prep” is in 3 notes' })
+    fireEvent.keyDown(document.activeElement || document.body, { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('heading', { name: '“Morning prep” is in 3 notes' })).toBeNull())
+    await waitFor(() => expect(within(row).getByRole('button', { name: /^Used in 3 notes/ })).toHaveFocus())
+    expect(onClose).not.toHaveBeenCalled()
+    // the Archive panel the same way
+    fireEvent.click(within(row).getByRole('button', { name: 'Archive Morning prep' }))
+    await screen.findByTestId('archive-sentence')
+    fireEvent.keyDown(document.activeElement || document.body, { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByTestId('archive-sentence')).toBeNull())
+    expect(onClose).not.toHaveBeenCalled()
+    expect(sent('POST', 'journal-styles/s1/archive')).toHaveLength(0)
+    // nothing open: Escape is the Sheet's again
+    fireEvent.keyDown(document.activeElement || document.body, { key: 'Escape' })
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1))
+  })
+
+  it("(2h) an adopted copy's Active row shows the library credit line, the member's own work none", async () => {
+    open()
+    expect(await within(await activeRow('Gap plan')).findByText("Based on Sam's Gap plan")).toBeInTheDocument()
+    expect(await activeRow('Morning prep')).not.toHaveTextContent('Based on')
   })
 })

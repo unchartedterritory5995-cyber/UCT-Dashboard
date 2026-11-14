@@ -131,6 +131,7 @@ describe('the Styles door on the Notebook tab', () => {
     fireEvent.click(await within(sheet).findByRole('button', { name: 'Manage your plain templates' }))
     expect(await screen.findByTestId('manager-show')).toHaveTextContent(/^plain #/)
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'New note' })).toBeNull())
+    // (fix round 1, 2g: where focus goes on close is the manager's own; StylesManager.plain.test.jsx)
     cleanup()
     await show('/journal/notebook?view=all#templates')
     fireEvent.click(await within(await screen.findByRole('dialog', { name: 'New note' }))
@@ -138,13 +139,23 @@ describe('the Styles door on the Notebook tab', () => {
     expect(await screen.findByTestId('manager-show')).toHaveTextContent(/^daily #/)
   })
 
-  it('CONTROL: with the switch off the New note sheet draws neither link (there is no manager to open)', async () => {
+  it('CONTROL: with the switch off the New note sheet draws neither link, and keeps its own controls (fix round 1, 2c)', async () => {
     latchNotebookFlags({ notebook_journal_styles_enabled: false })
     installFetch([[/^\/api\/j2\/note-templates$/, { templates: [{ id: 't1', name: 'Morning plan', title: '', createdAt: '1' }] }]])
     await show('/journal/notebook?view=all#templates')
     const sheet = await screen.findByRole('dialog', { name: 'New note' })
     expect(await within(sheet).findByRole('button', { name: /^Morning plan/ })).toBeInTheDocument()   // the list drew
     expect(within(sheet).queryByRole('button', { name: 'Manage your plain templates' })).toBeNull()
-    expect(within(sheet).queryByText(/Daily notes start from/)).toBeNull()
+    expect(within(sheet).queryByText(/Daily notes start from:/)).toBeNull()
+    expect(within(sheet).getByRole('button', { name: 'Rename Morning plan' })).toBeInTheDocument()
+    expect(within(sheet).getByRole('combobox', { name: 'Daily notes start from' })).toBeInTheDocument()
+  })
+
+  it('with the switch NOT YET latched (nothing heard from the server) the New note sheet keeps its own controls too', async () => {
+    installFetch([[/^\/api\/j2\/note-templates$/, { templates: [{ id: 't1', name: 'Morning plan', title: '', createdAt: '1' }] }]])
+    await show('/journal/notebook?view=all#templates')
+    const sheet = await screen.findByRole('dialog', { name: 'New note' })
+    expect(await within(sheet).findByRole('button', { name: 'Rename Morning plan' })).toBeInTheDocument()
+    expect(within(sheet).queryByRole('button', { name: 'Manage your plain templates' })).toBeNull()
   })
 })

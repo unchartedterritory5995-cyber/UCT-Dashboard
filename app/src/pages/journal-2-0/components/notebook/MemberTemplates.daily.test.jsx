@@ -79,9 +79,9 @@ describe('the daily template, from the New note sheet', () => {
     const onManageTemplates = vi.fn()
     renderPicker({ onManageTemplates })
     fireEvent.click(await screen.findByRole('button', { name: 'Change what daily notes start from' }))
-    expect(onManageTemplates).toHaveBeenLastCalledWith('daily')
+    expect(onManageTemplates).toHaveBeenLastCalledWith('daily', expect.any(HTMLElement))   // and the link that asked
     fireEvent.click(screen.getByRole('button', { name: 'Manage your plain templates' }))
-    expect(onManageTemplates).toHaveBeenLastCalledWith('plain')
+    expect(onManageTemplates).toHaveBeenLastCalledWith('plain', expect.any(HTMLElement))
   })
 
   it('the picker picks: Use (the card) and Preview stay; Rename, Delete and Share are the manager\'s now', async () => {
@@ -93,10 +93,19 @@ describe('the daily template, from the New note sheet', () => {
     expect(screen.queryByRole('button', { name: /^Share .* to the Template library$/ })).toBeNull()
   })
 
-  it('without a door to the manager, neither link is drawn (the cards still pick)', async () => {
+  // Fix round 1 (2c): when the manager's door cannot open (its switch not latched yet, an offline cold start), the
+  // picker keeps its own controls, so a plain template is never without a manager.
+  it('without a door to the manager: no links, and the picker keeps its own Rename, Delete and daily control', async () => {
+    prefs = { notebook_daily_template: 't2' }
     renderPicker()
-    expect(await screen.findByRole('button', { name: /^Morning plan/ })).toBeInTheDocument()  // control: the list drew
-    expect(screen.queryByText(/Daily notes start from/)).toBeNull()
+    expect(await screen.findByRole('button', { name: /^Morning plan/ })).toBeInTheDocument()  // the card still picks
     expect(screen.queryByRole('button', { name: 'Manage your plain templates' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Change what daily notes start from' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Rename Morning plan' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Delete Morning plan' })).toBeInTheDocument()
+    const select = screen.getByRole('combobox', { name: 'Daily notes start from' })
+    expect(select).toHaveValue('t2')
+    fireEvent.change(select, { target: { value: 't1' } })
+    expect(setPref).toHaveBeenCalledWith('notebook_daily_template', 't1')
   })
 })

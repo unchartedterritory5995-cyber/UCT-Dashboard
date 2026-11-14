@@ -14,14 +14,22 @@ import styles from './myTools.module.css'
 export const TEMPLATES_MOVED = 'Templates are managed in one place now.'
 export const OPEN_MANAGER = 'Open Manage templates'
 /** Through the app router's `navigate` when the door that opened My tools passed one; else the router's own history
- *  move, told with `popstate` (My tools is on its own root, outside the router: lib/noteHref.js's pattern). */
+ *  move, told with `popstate` (My tools is on its own root, outside the router: lib/noteHref.js's pattern).
+ *  Fix round 1 (2g): on the notes page itself the move REPLACES the entry (and NotebookTab then takes `styles` back out
+ *  with a replace of its own), so Back never lands on an entry that reopens or keeps the manager. That case always uses
+ *  the history move, because not every door's `navigate` passes a replace on. From another page it pushes: Back
+ *  leaves the notes page, and the manager with it. */
 function openManager(navigate) {
   const to = managerHref()
-  if (typeof navigate === 'function') { navigate(to); return }
-  if (typeof window === 'undefined' || !window.history?.pushState) return
+  if (typeof window === 'undefined') return
+  const replace = window.location?.pathname === '/journal/notebook'
+  if (!replace && typeof navigate === 'function') { navigate(to); return }
+  if (!window.history?.pushState) return
   const prev = window.history.state
-  const idx = prev && typeof prev === 'object' && Number.isInteger(prev.idx) ? prev.idx + 1 : 0
-  window.history.pushState({ usr: null, key: Math.random().toString(36).slice(2, 10), idx }, '', to)
+  const at = prev && typeof prev === 'object' && Number.isInteger(prev.idx) ? prev.idx : -1
+  const state = { usr: null, key: Math.random().toString(36).slice(2, 10), idx: replace ? Math.max(at, 0) : at + 1 }
+  if (replace) window.history.replaceState(state, '', to)
+  else window.history.pushState(state, '', to)
   window.dispatchEvent(new PopStateEvent('popstate', { state: window.history.state }))
 }
 

@@ -4,9 +4,11 @@
  *
  *   * default `MemberTemplates`: "Your templates" in the template picker (the New note sheet and the empty notebook's
  *     inline picker). It PICKS: each template's card makes a note from it (Use) and Preview opens the picker's own
- *     preview. With `onManage(place)` (NotebookTab, while the template manager is on) it also draws a "Manage" link
- *     (opens the manager at its Plain templates group, `place` 'plain') and "Daily notes start from: <name>. Change"
- *     (opens it at the daily control, `place` 'daily'). Without `onManage` neither link is drawn.
+ *     preview. With `onManage(place, opener)` (NotebookTab, while the template manager's door can open) it also draws
+ *     a "Manage" link (opens the manager at its Plain templates group, `place` 'plain') and "Daily notes start from:
+ *     <name>. Change" (opens it at the daily control, `place` 'daily'). Without `onManage` (the door cannot open, e.g.
+ *     its switch has not latched yet) the picker keeps its own Rename, Delete, Share and the daily control (fix round
+ *     1, 2c), so a plain template is never without a manager.
  *   * `PlainTemplatesManage`: the manager's Plain templates group. It MANAGES: the "Daily notes start from" control
  *     (the preference `notebook_daily_template`, plain templates only), and per template Use (the picker's own action,
  *     `onUse`), Preview (its own preview sheet), Rename, Delete (asks once; there is no trash for a plain template, and
@@ -43,7 +45,12 @@ export const PLAIN_COPY = Object.freeze({
   empty: "No plain templates yet. Open a note's More menu and choose Save as template.",
   dailyHint: 'Daily notes can start from a plain template.',
   none: 'None',
+  dailyDelete: 'Daily notes start from this template. After deleting it they start from a blank page.',
 })
+
+/** The ONE write of the daily preference in this file (the select, and a delete of the template it names): the
+ *  additions-only rail counts this file's opaque `setPref` sites. */
+const writeDaily = (setPref, id) => setPref(DAILY_TEMPLATE_PREF, id)
 
 /** Preview one plain template through `onPreview` (the picker's sheet, or the manager's own): a loading frame first,
  *  then the body with each `{{block:...}}` line named (W11-R76; the slot words load on demand). */
@@ -59,27 +66,40 @@ async function previewPlain(t, onPreview, onPick) {
   }
 }
 
-/** The rows. `manage` adds Use as a button (the name is plain text), Rename, Delete and Share; without it each card
- *  is the Use and Preview is the only other control. */
-function PlainRows({ templates, manage = false, onPick, onPreview, busy = false }) {
+/** A group's live line: it lives with the group, so it survives the rows going away (the last delete, 2b). */
+function PlainMessage({ message }) {
+  if (!message) return null
+  return (
+    <div className={message.tone === 'error' ? styles.memberError : styles.memberNote}
+      role={message.tone === 'error' ? 'alert' : 'status'} data-plain-message="">
+      {message.text}
+    </div>
+  )
+}
+
+/** The rows. `asCards`: each name is a card that is the Use (the picker); otherwise the name is text and Use is a
+ *  button of its own (the manager). `manage` adds Rename, Delete and Share. `say(message)` is the group's live line;
+ *  `onDeleted(template)` runs after a delete went through. */
+function PlainRows({ templates, manage = false, asCards = true, onPick, onPreview, busy = false, say, onDeleted }) {
   const [renaming, setRenaming] = useState(null) // { id, draft }
   const [confirmDelete, setConfirmDelete] = useState(null) // id
   const [working, setWorking] = useState(false)
-  const [message, setMessage] = useState(null) // { text, tone }
   const [sharing, setSharing] = useState(null) // id of the template being shared to the gallery
   const galleryOn = templateGalleryEnabled()
+  const { prefs, setPref } = usePreferences()
+  const dailyId = prefs?.[DAILY_TEMPLATE_PREF] || ''
 
   const submitRename = async (e) => {
     e.preventDefault()
     if (!renaming || working) return
     setWorking(true)
-    setMessage(null)
+    say(null)
     try {
       const t = await renameMemberTemplate(renaming.id, renaming.draft)
       setRenaming(null)
-      setMessage({ tone: 'ok', text: `Renamed to “${t.name}”.` })
+      say({ tone: 'ok', text: `Renamed to “${t.name}”.` })
     } catch (err) {
-      setMessage({ tone: 'error', text: err?.message || "Couldn't rename that template." })
+      say({ tone: 'error', text: err?.message || "Couldn't rename that template." })
     } finally {
       setWorking(false)
     }
@@ -88,120 +108,118 @@ function PlainRows({ templates, manage = false, onPick, onPreview, busy = false 
   const doDelete = async (t) => {
     if (working) return
     setWorking(true)
-    setMessage(null)
+    say(null)
     try {
       await deleteMemberTemplate(t.id)
       setConfirmDelete(null)
-      setMessage({ tone: 'ok', text: `Deleted “${t.name}”. Notes made from it are unchanged.` })
+      // Fix round 1 (2a): the daily preference named this template: clear it, so the control and the picker's line
+      // agree with what the next daily note does (it starts blank).
+      if (dailyId && dailyId === t.id) writeDaily(setPref, '')
+      say({ tone: 'ok', text: `Deleted “${t.name}”. Notes made from it are unchanged.` })
+      onDeleted?.(t)
     } catch {
-      setMessage({ tone: 'error', text: `Couldn't delete “${t.name}”. It is still here.` })
+      say({ tone: 'error', text: `Couldn't delete “${t.name}”. It is still here.` })
     } finally {
       setWorking(false)
     }
   }
 
   return (
-    <>
-      {message && (
-        <div className={message.tone === 'error' ? styles.memberError : styles.memberNote}
-          role={message.tone === 'error' ? 'alert' : 'status'}>
-          {message.text}
-        </div>
-      )}
-      <div className={styles.grid}>
-        {templates.map((t) => (
-          <div key={t.id} className={styles.memberItem} data-plain-template={t.id}>
-            {renaming?.id === t.id ? (
-              <form className={styles.renameForm} onSubmit={submitRename}>
-                <input
-                  className={styles.renameInput}
-                  value={renaming.draft}
-                  onChange={(e) => setRenaming({ id: t.id, draft: e.target.value })}
-                  aria-label={`New name for ${t.name}`}
-                  maxLength={80}
-                  autoFocus
-                />
-                <button type="submit" className={styles.miniBtn} disabled={working}>Save</button>
-                <button type="button" className={styles.miniBtn} onClick={() => setRenaming(null)}>Cancel</button>
-              </form>
-            ) : manage ? (
-              <span className={styles.memberName}>
-                <span className={styles.cardLabel}>{t.name}</span>
-                {t.title && t.title !== t.name && <span className={styles.cardDesc}>{t.title}</span>}
+    <div className={styles.grid}>
+      {templates.map((t) => (
+        <div key={t.id} className={styles.memberItem} data-plain-template={t.id}>
+          {renaming?.id === t.id ? (
+            <form className={styles.renameForm} onSubmit={submitRename}>
+              <input
+                className={styles.renameInput}
+                value={renaming.draft}
+                onChange={(e) => setRenaming({ id: t.id, draft: e.target.value })}
+                aria-label={`New name for ${t.name}`}
+                maxLength={80}
+                autoFocus
+              />
+              <button type="submit" className={styles.miniBtn} disabled={working}>Save</button>
+              <button type="button" className={styles.miniBtn} onClick={() => setRenaming(null)}>Cancel</button>
+            </form>
+          ) : !asCards ? (
+            <span className={styles.memberName}>
+              <span className={styles.cardLabel}>{t.name}</span>
+              {t.title && t.title !== t.name && <span className={styles.cardDesc}>{t.title}</span>}
+            </span>
+          ) : (
+            <button
+              type="button"
+              className={styles.card}
+              data-template-card=""
+              onClick={() => onPick(t)}
+              disabled={busy || working}
+            >
+              <span className={styles.cardLabel}>{t.name}</span>
+              {t.title && t.title !== t.name && <span className={styles.cardDesc}>{t.title}</span>}
+            </button>
+          )}
+          {confirmDelete === t.id ? (
+            <div className={styles.memberActions} role="group" aria-label={`Delete ${t.name}?`}>
+              <span className={styles.memberNote}>
+                {`Delete “${t.name}”? This can't be undone.${dailyId === t.id ? ` ${PLAIN_COPY.dailyDelete}` : ''}`}
               </span>
-            ) : (
-              <button
-                type="button"
-                className={styles.card}
-                data-template-card=""
-                onClick={() => onPick(t)}
-                disabled={busy || working}
-              >
-                <span className={styles.cardLabel}>{t.name}</span>
-                {t.title && t.title !== t.name && <span className={styles.cardDesc}>{t.title}</span>}
+              <button type="button" className={`${styles.miniBtn} ${styles.miniDanger}`}
+                onClick={() => doDelete(t)} disabled={working}>
+                Delete
               </button>
-            )}
-            {confirmDelete === t.id ? (
-              <div className={styles.memberActions} role="group" aria-label={`Delete ${t.name}?`}>
-                <span className={styles.memberNote}>Delete “{t.name}”? This can't be undone.</span>
-                <button type="button" className={`${styles.miniBtn} ${styles.miniDanger}`}
-                  onClick={() => doDelete(t)} disabled={working}>
-                  Delete
+              <button type="button" className={styles.miniBtn} onClick={() => setConfirmDelete(null)}>
+                Keep it
+              </button>
+            </div>
+          ) : renaming?.id !== t.id && (
+            <div className={styles.memberActions}>
+              {!asCards && onPick && (
+                <button type="button" className={styles.miniBtn} onClick={() => onPick(t)}
+                  disabled={busy || working} aria-label={`Use ${t.name}`}>
+                  Use
                 </button>
-                <button type="button" className={styles.miniBtn} onClick={() => setConfirmDelete(null)}>
-                  Keep it
-                </button>
-              </div>
-            ) : renaming?.id !== t.id && (
-              <div className={styles.memberActions}>
-                {manage && onPick && (
-                  <button type="button" className={styles.miniBtn} onClick={() => onPick(t)}
-                    disabled={busy || working} aria-label={`Use ${t.name}`}>
-                    Use
+              )}
+              <button type="button" className={styles.miniBtn}
+                onClick={() => previewPlain(t, onPreview, onPick)}
+                aria-label={`Preview ${t.name}`}>
+                <UIcon name="eye" size={12} gold={false} /> Preview
+              </button>
+              {manage && (
+                <>
+                  <button type="button" className={styles.miniBtn}
+                    onClick={() => { setConfirmDelete(null); setSharing(null); setRenaming({ id: t.id, draft: t.name }) }}
+                    aria-label={`Rename ${t.name}`}>
+                    Rename
                   </button>
-                )}
-                <button type="button" className={styles.miniBtn}
-                  onClick={() => previewPlain(t, onPreview, onPick)}
-                  aria-label={`Preview ${t.name}`}>
-                  <UIcon name="eye" size={12} gold={false} /> Preview
-                </button>
-                {manage && (
-                  <>
+                  <button type="button" className={styles.miniBtn}
+                    onClick={() => { setRenaming(null); setSharing(null); setConfirmDelete(t.id) }}
+                    aria-label={`Delete ${t.name}`}>
+                    Delete
+                  </button>
+                  {galleryOn && (
                     <button type="button" className={styles.miniBtn}
-                      onClick={() => { setConfirmDelete(null); setSharing(null); setRenaming({ id: t.id, draft: t.name }) }}
-                      aria-label={`Rename ${t.name}`}>
-                      Rename
+                      onClick={() => { setRenaming(null); setConfirmDelete(null); setSharing(t.id) }}
+                      aria-expanded={sharing === t.id}
+                      aria-label={`Share ${t.name} to the Template library`}>
+                      Share
                     </button>
-                    <button type="button" className={styles.miniBtn}
-                      onClick={() => { setRenaming(null); setSharing(null); setConfirmDelete(t.id) }}
-                      aria-label={`Delete ${t.name}`}>
-                      Delete
-                    </button>
-                    {galleryOn && (
-                      <button type="button" className={styles.miniBtn}
-                        onClick={() => { setRenaming(null); setConfirmDelete(null); setSharing(t.id) }}
-                        aria-expanded={sharing === t.id}
-                        aria-label={`Share ${t.name} to the Template library`}>
-                        Share
-                      </button>
-                    )}
-                  </>
-                )}
-              </div>
-            )}
-            {manage && galleryOn && sharing === t.id && (
-              <Suspense fallback={<p role="status">Loading the share form…</p>}>
-                <GalleryPublishForm
-                  template={t}
-                  onCancel={() => setSharing(null)}
-                  onDone={(text) => { setSharing(null); setMessage({ tone: 'ok', text }) }}
-                />
-              </Suspense>
-            )}
-          </div>
-        ))}
-      </div>
-    </>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+          {manage && galleryOn && sharing === t.id && (
+            <Suspense fallback={<p role="status">Loading the share form…</p>}>
+              <GalleryPublishForm
+                template={t}
+                onCancel={() => setSharing(null)}
+                onDone={(text) => { setSharing(null); say({ tone: 'ok', text }) }}
+              />
+            </Suspense>
+          )}
+        </div>
+      ))}
+    </div>
   )
 }
 
@@ -220,7 +238,7 @@ export function DailyTemplateSelect({ templates, selectRef = null, hintId = 'js-
           ref={selectRef}
           value={dailyChoice}
           aria-describedby={hintId}
-          onChange={(e) => setPref(DAILY_TEMPLATE_PREF, e.target.value)}
+          onChange={(e) => writeDaily(setPref, e.target.value)}
         >
           <option value="">A blank page</option>
           {templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
@@ -234,11 +252,12 @@ export function DailyTemplateSelect({ templates, selectRef = null, hintId = 'js-
 /** The template manager's Plain templates group. `onUse(template)` makes a note from it (absent: no Use).
  *  `focusAsk` `{target: 'plain' | 'daily' | null, n}`: a door asked to land here; once the list has settled, focus
  *  moves to the daily control ('daily', when there is one) or the group's heading, scrolled into view, once per `n`
- *  (`onLanded()` then, so the manager stops asking).
- *  `classes` `{section, head, lead}`: the manager's own look for the group's frame. */
+ *  (`onLanded()` then, so the manager stops asking). `classes` `{section, head, lead}`: the manager's own look for the
+ *  group's frame. The group reads its own list, so it never waits on another one (fix round 1, 2c). */
 export function PlainTemplatesManage({ onUse = null, busy = false, focusAsk = null, onLanded = null, classes = {} }) {
   const { templates, error, isLoading } = useMemberTemplates()
   const [preview, setPreview] = useState(null)
+  const [message, setMessage] = useState(null)
   const headRef = useRef(null)
   const dailyRef = useRef(null)
   const landed = useRef(null)
@@ -252,10 +271,13 @@ export function PlainTemplatesManage({ onUse = null, busy = false, focusAsk = nu
     onLanded?.()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [target, isLoading, focusAsk?.n])
+  // Fix round 1 (2b): the last delete takes its row away; focus goes to the group's heading (the line stays above).
+  const afterDelete = () => { if (templates.length <= 1) headRef.current?.focus() }
   return (
     <section className={classes.section} aria-labelledby="js-plain-templates" data-plain-templates="">
       <h3 id="js-plain-templates" ref={headRef} tabIndex={-1} className={classes.head}>{PLAIN_COPY.title}</h3>
       <p className={classes.lead}>{PLAIN_COPY.lead}</p>
+      <PlainMessage message={message} />
       {error ? (
         <div className={styles.memberError} role="alert">Couldn't load your plain templates.</div>
       ) : isLoading ? (
@@ -265,7 +287,8 @@ export function PlainTemplatesManage({ onUse = null, busy = false, focusAsk = nu
       ) : (
         <>
           <DailyTemplateSelect templates={templates} selectRef={dailyRef} />
-          <PlainRows templates={templates} manage onPick={onUse} onPreview={setPreview} busy={busy} />
+          <PlainRows templates={templates} manage asCards={false} onPick={onUse} onPreview={setPreview} busy={busy}
+            say={setMessage} onDeleted={afterDelete} />
         </>
       )}
       <TemplatePreview
@@ -289,6 +312,8 @@ export function PlainTemplatesManage({ onUse = null, busy = false, focusAsk = nu
 export default function MemberTemplates({ onPick, busy = false, query = '', onPreview = () => {}, onMatches, onManage = null }) {
   const { templates, error, isLoading } = useMemberTemplates()
   const { prefs } = usePreferences()
+  const [message, setMessage] = useState(null)
+  const headRef = useRef(null)
   const q = query.trim().toLowerCase()
   const visible = q ? templates.filter((t) => t.name.toLowerCase().includes(q)) : templates
   const matchCount = isLoading ? null : visible.length
@@ -301,14 +326,15 @@ export default function MemberTemplates({ onPick, busy = false, query = '', onPr
   return (
     <section className={styles.family} aria-labelledby="member-templates-label">
       <div className={styles.memberHead}>
-        <h3 id="member-templates-label" className={styles.famLabel}>Your templates</h3>
+        <h3 id="member-templates-label" className={styles.famLabel} ref={headRef} tabIndex={-1}>Your templates</h3>
         {canManage && templates.length > 0 && (
-          <button type="button" className={styles.linkBtn} onClick={() => onManage('plain')}
+          <button type="button" className={styles.linkBtn} onClick={(e) => onManage('plain', e.currentTarget)}
             aria-label="Manage your plain templates">
             Manage
           </button>
         )}
       </div>
+      <PlainMessage message={message} />
       {error ? (
         <div className={styles.memberError} role="alert">Couldn't load your templates.</div>
       ) : isLoading ? (
@@ -319,19 +345,20 @@ export default function MemberTemplates({ onPick, busy = false, query = '', onPr
         </div>
       ) : (
         <>
-          {canManage && (
+          {canManage ? (
             <p className={styles.dailyLine} data-daily-line="">
               {`Daily notes start from: ${dailyName}. `}
-              <button type="button" className={styles.linkBtn} onClick={() => onManage('daily')}
+              <button type="button" className={styles.linkBtn} onClick={(e) => onManage('daily', e.currentTarget)}
                 aria-label="Change what daily notes start from">
                 Change
               </button>
             </p>
-          )}
+          ) : <DailyTemplateSelect templates={templates} hintId="js-daily-template-hint-picker" />}
           {q && visible.length === 0 && (
             <p className={styles.memberNote} role="status">No saved templates match “{query.trim()}”.</p>
           )}
-          <PlainRows templates={visible} onPick={onPick} onPreview={onPreview} busy={busy} />
+          <PlainRows templates={visible} manage={!canManage} onPick={onPick} onPreview={onPreview} busy={busy}
+            say={setMessage} onDeleted={() => { if (templates.length <= 1) headRef.current?.focus() }} />
         </>
       )}
     </section>

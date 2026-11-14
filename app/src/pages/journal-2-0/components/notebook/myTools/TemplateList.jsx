@@ -17,8 +17,7 @@ import styles from './myTools.module.css'
 /**
  * The member's own archived or recently deleted templates, one list at a time (follow-up C: moved here from My tools'
  * Templates tab, which drew it until then, so Manage templates renders the SAME list for its Archived and Recently
- * deleted views). The caller owns which list is shown (`filter`: 'archived' or 'deleted') and may hand a switch in as
- * `toolbar` (drawn above the list, hidden with it while a panel is pushed). `onChanged()` runs after every write that
+ * deleted views). The caller owns which list is shown (`filter`: 'archived' or 'deleted'). `onChanged()` runs after every write that
  * went through, so the caller can read its own copy of the templates again. Active is the manager's own per-note-type
  * list, which reuses `ArchivePanel` from here. (The tab's Active list, with Open, Rename, Duplicate and Share, went with
  * the tab: the manager's Edit, Duplicate and Share do those.)
@@ -94,30 +93,35 @@ function Row({ d, kinds, filter, phone, touch, busy, menuOpen, onMenu, onPrimary
       <button type="button" className={styles.moreBtn} aria-label={`Actions for ${d.name}`}
         aria-haspopup={touch ? 'dialog' : 'menu'} aria-expanded={menuOpen} aria-busy={busy || undefined}
         data-actions-for={d.id} onClick={(e) => onMenu(d, e.currentTarget)}>
-        <UIcon name="more" size={18} gold={false} />
+        <UIcon name="more" size={20} gold={false} />
       </button>
     </li>
   )
 }
 
 /** "Archive “X”?" for a template in notes: what happens to them, then Archive. The manager's Active rows use it. */
-export function ArchivePanel({ d, onBack, onArchive, busy, error, backLabel = BACK_LABEL }) {
+/* `checking`: the template's notes are being read (the sentence waits, Archive is off). `sentence`: said instead of the
+ * counted one (the manager's, when that read failed: never "no notes" for a count nobody knows). */
+export function ArchivePanel({ d, onBack, onArchive, busy, error, backLabel = BACK_LABEL, checking = false, sentence = null }) {
+  const off = busy || checking
   return (
     <div className={styles.pushPanel} data-testid="my-tools-archive">
       <PanelHead title={`Archive “${d.name}”?`} onBack={onBack} backLabel={backLabel} />
-      <p className={styles.sentence} data-testid="archive-sentence">{templateArchiveSentence(usedOf(d))}</p>
+      <p className={styles.sentence} data-testid="archive-sentence" aria-live="polite">
+        {checking ? 'Checking which notes use it…' : sentence || templateArchiveSentence(usedOf(d))}
+      </p>
       <p className={styles.hint}>It leaves your template list; you can restore it from Archived.</p>
       {error && <p className={styles.inlineError}>{error}</p>}
       <div className={styles.actions}>
         <button type="button" className={styles.btn} onClick={onBack}>Cancel</button>
-        <button type="button" className={styles.btnPrimary} aria-disabled={busy || undefined} aria-busy={busy || undefined}
-          onClick={() => { if (!busy) onArchive(d) }}>{busy ? 'Archiving…' : 'Archive'}</button>
+        <button type="button" className={styles.btnPrimary} aria-disabled={off || undefined} aria-busy={off || undefined}
+          onClick={() => { if (!off) onArchive(d) }}>{busy ? 'Archiving…' : 'Archive'}</button>
       </div>
     </div>
   )
 }
 
-export default function TemplateList({ filter = 'archived', toolbar = null, phone, navigate = null, onCloseAll, onChanged }) {
+export default function TemplateList({ filter = 'archived', phone, onCloseAll, onChanged }) {
   const touch = useIsTouch()
   const [lists, setLists] = useState({})            // filter -> {status, items?, kinds?, code?, message?, stale?}
   const [view, setView] = useState({ kind: 'list' })
@@ -324,7 +328,7 @@ export default function TemplateList({ filter = 'archived', toolbar = null, phon
 
   let panel = null
   if (view.kind === 'usedIn') {
-    panel = <UsedInList d={view.d} kind="template" onBack={back} onNavigate={onCloseAll} navigate={navigate} backLabel={BACK_LABEL} />
+    panel = <UsedInList d={view.d} kind="template" onBack={back} onNavigate={onCloseAll} backLabel={BACK_LABEL} />
   } else if (view.kind === 'delete') {
     const d = view.d
     const used = usedOf(d)
@@ -349,7 +353,6 @@ export default function TemplateList({ filter = 'archived', toolbar = null, phon
         data-testid="my-tools-message">{message?.text ? <span key={message.n}>{message.text}</span> : null}</p>
       {panel}
       <div hidden={view.kind !== 'list'} className={styles.listWrap}>
-        {toolbar && <div className={styles.toolbar}>{toolbar}</div>}
 
         {(!state || state.status === 'loading') && <p className={styles.hint}>{TEMPLATE_COPY.loading}</p>}
         {state?.status === 'error' && (

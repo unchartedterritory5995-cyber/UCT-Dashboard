@@ -3,15 +3,16 @@
 // network; the share form (lazy, dark behind the gallery switch) is a stand-in that shows what it was handed.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, within, fireEvent, waitFor, cleanup } from '@testing-library/react'
-import { SWRConfig } from 'swr'
+import { SWRConfig, mutate as swrMutate } from 'swr'
 import { __resetNotebookFlags, latchNotebookFlags } from '../../../lib/offline/notebookFlags'
 import { AuthContext } from '../../../../../context/AuthContext'
 import { BUILTIN_NOTE_KINDS } from '../../../lib/noteKinds'
 import { __resetOfferApplied } from './offerApplied'
 
 const setPref = vi.fn()
+let prefsNow = {}
 vi.mock('../../../../../hooks/usePreferences', () => ({
-  default: () => ({ prefs: {}, setPref, setPrefMerged: vi.fn(), loading: false }),
+  default: () => ({ prefs: prefsNow, setPref, setPrefMerged: vi.fn(), loading: false }),
 }))
 vi.mock('../GalleryPublishForm', () => ({
   default: ({ template, onDone }) => (
@@ -31,20 +32,21 @@ const BODY = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'te
 
 const json = (status, body) => ({ ok: status >= 200 && status < 300, status, json: async () => body })
 let calls
-function installFetch({ plain = PLAIN } = {}) {
+function installFetch({ plain: start = PLAIN, styles = () => json(200, STYLE_LIST) } = {}) {
   calls = []
+  let plain = [...start]
   globalThis.fetch = vi.fn(async (input, init = {}) => {
     const method = (init.method || 'GET').toUpperCase()
     const path = String(typeof input === 'string' ? input : input.url)
     const body = init.body ? JSON.parse(init.body) : undefined
     calls.push({ method, path, body })
-    if (method === 'GET' && path === '/api/j2/journal-styles') return json(200, STYLE_LIST)
+    if (method === 'GET' && path === '/api/j2/journal-styles') return styles()
     if (method === 'GET' && path === '/api/j2/note-kinds/mapping-offer') return json(200, { offer: null })
     if (method === 'GET' && path === '/api/j2/note-templates') return json(200, { templates: plain })
     const one = /^\/api\/j2\/note-templates\/([^/]+)$/.exec(path)
     if (one && method === 'GET') return json(200, { template: { ...plain.find((t) => t.id === one[1]), bodyJson: BODY, properties: {} } })
     if (one && method === 'PATCH') return json(200, { template: { ...plain.find((t) => t.id === one[1]), name: body.name } })
-    if (one && method === 'DELETE') return json(200, { ok: true })
+    if (one && method === 'DELETE') { plain = plain.filter((t) => t.id !== one[1]); return json(200, { ok: true }) }
     return json(404, { detail: 'Not found' })
   })
 }
@@ -55,6 +57,7 @@ beforeEach(() => {
   latchNotebookFlags({ notebook_journal_styles_enabled: true, notebook_template_gallery_enabled: true })
   __resetOfferApplied()
   setPref.mockClear()
+  prefsNow = {}
   Element.prototype.scrollIntoView = vi.fn()
   installFetch()
 })
@@ -182,5 +185,100 @@ describe('Manage templates: the Plain templates group', () => {
     await waitFor(() => expect(item('Morning plan')).toBeTruthy())
     await waitFor(() => expect(document.activeElement).toBe(screen.getAllByRole('button', { name: 'Close' })[0]))
     expect(head).not.toHaveFocus()
+  })
+
+  // ── fix round 1 ──────────────────────────────────────────────────────────────────────────────────
+  it('(2c) the group reads its own list: with the note-type templates read failing, it still lists and manages', async () => {
+    installFetch({ styles: () => json(500, {}) })
+    render(tree())
+    expect(await screen.findByRole('alert')).toBeInTheDocument()            // the other list's failure line
+    await waitFor(() => expect(item('Morning plan')).toBeTruthy())
+    fireEvent.click(screen.getByRole('button', { name: 'Rename Morning plan' }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'New name for Morning plan' }), { target: { value: 'Opening plan' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    expect(await screen.findByText('Renamed to “Opening plan”.')).toBeInTheDocument()
+  })
+
+  it('(2c) the group keeps ONE place: a focus landing survives the note-type list arriving after it', async () => {
+    let release
+    const gate = new Promise((r) => { release = r })
+    installFetch({ styles: async () => { await gate; return json(200, STYLE_LIST) } })
+    render(tree({ show: 'plain', showKey: 1 }))
+    const head = await screen.findByRole('heading', { name: 'Plain templates', level: 3 })
+    await waitFor(() => expect(head).toHaveFocus())
+    release()
+    await screen.findByRole('heading', { name: 'Trade plan', level: 3 })
+    expect(screen.getByRole('heading', { name: 'Plain templates', level: 3 })).toBe(head)   // the same element
+    expect(head).toHaveFocus()
+  })
+
+  it('(2a) deleting the template daily notes start from says so first, then clears the preference', async () => {
+    prefsNow = { notebook_daily_template: 't1' }
+    render(tree())
+    await group()
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete Morning plan' }))
+    expect(screen.getByRole('group', { name: 'Delete Morning plan?' }))
+      .toHaveTextContent("Delete “Morning plan”? This can't be undone. Daily notes start from this template. After deleting it they start from a blank page.")
+    fireEvent.click(within(screen.getByRole('group', { name: 'Delete Morning plan?' })).getByRole('button', { name: 'Delete' }))
+    await screen.findByText('Deleted “Morning plan”. Notes made from it are unchanged.')
+    expect(setPref).toHaveBeenCalledWith('notebook_daily_template', '')
+  })
+
+  it('(2a) CONTROL: deleting another template says nothing of daily notes and leaves the preference alone', async () => {
+    prefsNow = { notebook_daily_template: 't1' }
+    render(tree())
+    await group()
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete Weekly wrap' }))
+    expect(screen.getByRole('group', { name: 'Delete Weekly wrap?' })).not.toHaveTextContent('Daily notes')
+    fireEvent.click(within(screen.getByRole('group', { name: 'Delete Weekly wrap?' })).getByRole('button', { name: 'Delete' }))
+    await screen.findByText('Deleted “Weekly wrap”. Notes made from it are unchanged.')
+    expect(setPref).not.toHaveBeenCalled()
+  })
+
+  it('(2b) deleting the LAST plain template keeps its line and puts focus on the group heading', async () => {
+    // The app's own cache (the list re-reads after a delete through it), cleared first so no other test's answer shows.
+    await swrMutate(() => true, undefined, { revalidate: false })
+    installFetch({ plain: [PLAIN[0]] })
+    render(
+      <AuthContext.Provider value={{ user: { id: 'u1' } }}>
+        <SWRConfig value={{ dedupingInterval: 0, shouldRetryOnError: false }}>
+          <StylesManager open onClose={vi.fn()} />
+        </SWRConfig>
+      </AuthContext.Provider>,
+    )
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete Morning plan' }))
+    fireEvent.click(within(screen.getByRole('group', { name: 'Delete Morning plan?' })).getByRole('button', { name: 'Delete' }))
+    // the list re-read empty: the row is gone, the empty line shows, and the line and focus are still here
+    expect(await screen.findByText("No plain templates yet. Open a note's More menu and choose Save as template.")).toBeInTheDocument()
+    expect(screen.getByText('Deleted “Morning plan”. Notes made from it are unchanged.')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Plain templates', level: 3 })).toHaveFocus()
+    await swrMutate(() => true, undefined, { revalidate: false })
+  })
+
+  it('(2g) closing after the opener went away (a link in the New note sheet) puts focus on "+ New", not the page', async () => {
+    const page = document.createElement('div')
+    page.innerHTML = '<button type="button" data-start-note="">+ New</button><button type="button" id="opener">Manage</button>'
+    document.body.appendChild(page)
+    const opener = document.getElementById('opener')
+    opener.focus()
+    const { rerender } = render(tree({ open: true }))
+    await group()
+    opener.remove()                                                            // the sheet that held it closed
+    rerender(tree({ open: false }))
+    await waitFor(() => expect(document.activeElement).toBe(page.querySelector('[data-start-note]')))
+    page.remove()
+  })
+
+  it('(2g) CONTROL: with the opener still on the page, closing returns focus to it', async () => {
+    const page = document.createElement('div')
+    page.innerHTML = '<button type="button" data-start-note="">+ New</button><button type="button" id="opener">Manage</button>'
+    document.body.appendChild(page)
+    const opener = document.getElementById('opener')
+    opener.focus()
+    const { rerender } = render(tree({ open: true }))
+    await group()
+    rerender(tree({ open: false }))
+    await waitFor(() => expect(document.activeElement).toBe(opener))
+    page.remove()
   })
 })

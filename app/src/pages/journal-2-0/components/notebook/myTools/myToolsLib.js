@@ -58,13 +58,10 @@ export const TEMPLATE_COPY = Object.freeze({
   loading: 'Loading your templates…',
   loadFailed: "Your templates couldn't be loaded just now.",
   offlineList: "You're offline. Your templates show here when you're back online.",
-  emptyActive: 'No templates yet. Save a note’s setup as a template, or use one from the Template library.',
   emptyArchived: "Nothing archived. An archived template stays in its notes; new notes can't use it until you restore it.",
   emptyDeleted: `Nothing deleted in the last ${TEMPLATE_DELETED_DAYS} days.`,
   usedInEmpty: "This template isn't in any note yet.",
-  editorFailed: "The template editor couldn't open. Try again.",
   gone: "That template isn't available.",
-  heading: (n) => listHeadingText('live', n, 'template', 'templates'),
 })
 
 /** Spec 5.8 / W11-R10: archiving a template says what happens to its notes and to new notes. No zeros (W9-R7): a

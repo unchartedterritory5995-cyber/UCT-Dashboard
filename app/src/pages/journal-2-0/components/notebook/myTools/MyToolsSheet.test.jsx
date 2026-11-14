@@ -4,7 +4,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, within, act, cleanup } from '@testing-library/react'
 import { readFileSync, readdirSync, statSync } from 'node:fs'
-import { join } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import MyToolsSheet from './MyToolsSheet'
 import { openMyTools } from './openMyTools'
 import { installFetch, refuse } from './__fixtures__/myToolsFixtures'
@@ -611,10 +611,25 @@ describe('openMyTools', () => {
     const offenders = files.filter((f) => !/[\\/]myTools[\\/]/.test(f) && !/\.test\.[jt]sx?$/.test(f))
       .filter((f) => STATIC.test(readFileSync(f, 'utf8')))
       .filter((f) => !Object.hasOwn(ON_DEMAND_IMPORTERS, rel(f)))
-    const MANAGER_STATIC = /^\s*import\s[^;]*?from\s+['"][^'"]*\/styles\/StylesManager['"]/m
-    expect(files.filter((f) => !/\.test\.[jt]sx?$/.test(f)).filter((f) => MANAGER_STATIC.test(readFileSync(f, 'utf8'))),
+    // Fix round 1 (2j): every static specifier (`import ... from`, a bare `import '...'`, `export ... from`) is RESOLVED
+    // against its own file before it is compared, so a sibling's './StylesManager', a '.jsx' suffix or a re-export is
+    // seen too, not only a path spelled with '/styles/StylesManager'.
+    const MANAGER = join(SRC, 'pages', 'journal-2-0', 'components', 'notebook', 'styles', 'StylesManager')
+    const SPEC = /^\s*(?:import|export)\s(?:[^;]*?\sfrom\s+)?['"]([^'"]+)['"]/gm
+    const staticTargets = (file, src) => [...src.matchAll(SPEC)].map((m) => m[1]).filter((sp) => sp.startsWith('.'))
+      .map((sp) => resolve(dirname(file), sp).replace(/\.(jsx?|tsx?)$/, '').replace(/[\\/]index$/, ''))
+    const importsManager = (file, src) => staticTargets(file, src).includes(MANAGER)
+    expect(files.filter((f) => !/\.test\.[jt]sx?$/.test(f)).filter((f) => importsManager(f, readFileSync(f, 'utf8'))),
       'an allowed importer must stay off every static path').toEqual([])
-    expect(MANAGER_STATIC.test("import StylesManager from '../components/notebook/styles/StylesManager'")).toBe(true)
+    // CONTROLS: each form is seen, and a dynamic import is not
+    const NB = join(SRC, 'pages', 'journal-2-0', 'components', 'notebook')
+    const TAB = join(SRC, 'pages', 'journal-2-0', 'tabs', 'NotebookTab.jsx')
+    expect(importsManager(TAB, "import StylesManager from '../components/notebook/styles/StylesManager'")).toBe(true)
+    expect(importsManager(join(NB, 'styles', 'KindSection.jsx'), "import M from './StylesManager.jsx'")).toBe(true)
+    expect(importsManager(join(NB, 'MemberTemplates.jsx'), "export { default } from './styles/StylesManager'")).toBe(true)
+    expect(importsManager(join(NB, 'MemberTemplates.jsx'), "import './styles/StylesManager'")).toBe(true)
+    expect(importsManager(TAB, "const M = lazyDialog(() => import('../components/notebook/styles/StylesManager'))")).toBe(false)
+    expect(importsManager(TAB, "import StylesManagerTest from '../components/notebook/styles/StylesManagerTest'")).toBe(false)
     expect(files.length).toBeGreaterThan(100)                           // the walk saw the tree
     expect(STATIC.test("import { openMyTools } from '../myTools/openMyTools.js'")).toBe(true)   // and can see one
     expect(STATIC.test("const mod = await import('../myTools/openMyTools.js')")).toBe(false)
