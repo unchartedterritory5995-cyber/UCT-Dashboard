@@ -20,7 +20,8 @@ This document reflects:
 - the re-verify at 4e30752e41: the serving cost with the flag on, and the evidence-classifier
   hardening;
 - the final verify at 761c0747f6 (approved to merge dark): the process-wide detector gate, the
-  0.9 s edge, the pending wording, and the notes before arming.
+  0.9 s edge, the pending wording, and the notes before arming;
+- the re-review at 94daaefe6c: F1 (the save door), F2 (verdict-door starvation), F3 and F4.
 
 ## What was built
 
@@ -285,9 +286,11 @@ Two process-wide controls, both NON-BLOCKING:
 A request that finds the gate busy, or the detector cooling down, serves the row "still being
 checked" and moves on.
 
-How each door behaves when the gate is busy or cooling:
-- **The save door** stores the row and persists no set (`not_graded_at_save`). The first serve then
-  computes the set under the gate. A save is never refused or blocked by the gate.
+How each door behaves when the gate is busy or cooling (as revised by the re-review, below):
+- **The save door** waits at most `SAVE_WAIT_SECONDS` = 0.7 s for the gate and the cool-down and
+  runs the detector once. If it still cannot, it is refused as busy: `CapabilityCheckBusy`, a 503
+  with Retry-After and "try again in a moment", and nothing is saved. **D6 holds: an unadmitted
+  runtime row is never stored** (re-review F1; the earlier "store it and backfill" is withdrawn).
 - **The verdict door** answers `missing: ["pending"]`. The client never latches that answer; it asks
   again (5 x 1.5 s), and until then the row reads "still being checked" (fail closed).
 
@@ -353,6 +356,51 @@ harness was re-run under the heavy lock: `runtime drew 38, declined 68`, the sam
 - 0 admitted runtime-lane DIVERGE, 0 MATCH -> DIVERGE, and every evidence capture is still MATCH.
 - The live lane rail re-derived all 140 admitted captures' lanes under engine 54: unchanged.
 
+## Re-review of #1204 (94daaefe6c): F1-F4
+
+- **F1, the save door (MEDIUM).** Previously a save stored an unadmitted source while the gate was
+  busy or cooling, which broke D6. Now the save waits, bounded, then refuses retryably:
+  `not_graded_at_save` -> `not_graded_reason(wait=0.7)` -> `capabilities_for(wait=...)` (a blocking
+  `acquire(timeout)`, then waiting out the cool-down if that fits the deadline). Still busy:
+  `CapabilityCheckBusy` -> 503 + Retry-After. Rails:
+  - gate held 1.7 s: the save is refused within the bound, nothing is stored, no set is persisted,
+    and the route answers 503;
+  - gate held 0.2 s: the save waits, checks and stores, and the set is persisted;
+  - an unadmitted script: refused, nothing stored.
+- **F2, verdict-door starvation (MEDIUM).** Three changes:
+  - A per-member budget: `VERDICT_MEMBER_SECONDS` = 3 s of detector time in a rolling
+    `VERDICT_MEMBER_WINDOW` = 60 s, answering pending when exhausted. The route passes the caller's
+    id.
+  - Persisted work has priority. The verdict door runs only when the gate is free and the persisted
+    cool-down has passed; it has its OWN cool-down (`VERDICT_DUTY_CYCLE` = 1/6 of wall time); and a
+    verdict run does NOT extend the persisted cool-down.
+  - The client re-asks no-verdict sources on the 60 s recheck (`runtimeNotGradedOf`, at most once
+    per interval per hash). MemberPane keeps asking through `watchRuntimeAdmission` until a verdict
+    lands, so the preview recovers without an edit or remount.
+  - Rails:
+    - one member hammering the verdict door with distinct near-cap sources cannot stop another
+      member's save (stored, never refused as busy) or another member's serve (checked within a few
+      reads); the hammer itself is held back (pending) and stays inside its budget;
+    - the member budget;
+    - a verdict run yields to a serve;
+    - the route charges the caller;
+    - the client re-ask and the watcher, and that the watcher is wired into MemberPane.
+- **F3 (LOW).** `_not_graded_for_stamp` with no budget (`GET /{def_id}`, the share view) now returns
+  `not_graded_reason(...)` while the flag is on, so pending rows are marked `runtimePending` there
+  too (railed).
+- **F4 (LOW).** The served stamps (`runtimeKilled` / `runtimeNotGraded` / `runtimePending`) are
+  scrubbed from a runtime row at save (`_save_runtime` -> `scrub_served_stamps`) and on the runtime
+  serve path (`stamp_served` drops them before applying today's), so a written-back stamp can never
+  pin a row (railed).
+  - ⚠️ This is the one deliberate flag-OFF behaviour change in the PR. A runtime row that carries a
+    stamp a client wrote back is now stored and served without it. Master stored it and served it
+    as-is, which refused a graded script forever. The `ast` run-read path already dropped stale
+    stamps on master. The flag-off differential (rows carrying no written-back stamp) still shows 0
+    differences.
+- **Mutants F1a-F4b** (12 in all) are listed below, all KILLED. The gate set G1-G9 was re-run on
+  this code: G1 and G2 were re-anchored to the new acquire path; G5 was retired because the
+  store-on-busy behaviour it guarded is gone, and F1b covers the save door now.
+
 ## Before arming (notes; not built here)
 
 - **HARD PRECONDITION before `PINE_RUNTIME_SAVE_ENABLED` is ever set:** the server-lane stamp's
@@ -411,7 +459,7 @@ The method:
 `.pyc` files are cleared and `PYTHONDONTWRITEBYTECODE=1` is set. C0 (no edit) is green for every
 set. The record is `runs/mutants.json`.
 
-Sets 1-3 ran at `549deeb910` (38 mutants). Set 4 (S1-S8, serving cost) ran at `f344fbd526`, and again at `193dce412e` after the final-verify changes (S6 retargeted to the run limit). Set 5 (G1-G9, final verify) ran at `316c46b7e9`. 55 mutants in all, every one KILLED; C0 green for every set. Two survived a first pass and their rails were strengthened: G1 (gate removed) survived a timing-only burst, so a deterministic gate rail was added; G3 (no projection) was masked by the cool-down, so that rail isolates the projection.
+Sets 1-3 ran at `549deeb910` (38 mutants). Set 4 (S1-S8, serving cost) ran at `f344fbd526`, and again at `193dce412e` after the final-verify changes (S6 retargeted to the run limit). Set 5 (G1-G9, final verify) ran at `316c46b7e9`, and again at `0f32d61635` after the re-review changes (G1/G2/G6/G9 re-anchored; G5 retired). Set 6 (F1a-F4b, re-review) ran at `0f32d61635`. 66 mutants in all, every one KILLED; C0 green for every set. Two survived a first pass and their rails were strengthened: G1 (gate removed) survived a timing-only burst, so a deterministic gate rail was added; G3 (no projection) was masked by the cool-down, so that rail isolates the projection.
 
 | id | mutant | killed by |
 |---|---|---|
@@ -453,11 +501,23 @@ Sets 1-3 ran at `549deeb910` (38 mutants). Set 4 (S1-S8, serving cost) ran at `f
 | G2 | the duty cycle (cool-down) removed | GATE 8 concurrent (each over 1 s) |
 | G3 | a run is not projected before it starts | GATE projected (a second, big run) |
 | G4 | no limit of one big source per request | GATE one big source |
-| G5 | a busy gate refuses the save | GATE save while busy |
+| G5 | (retired by the re-review: a busy save is now refused, not stored; see F1b) | - |
 | G6 | a pending row is not stamped `runtimePending` | GATE busy gate |
 | G7 | the install door says "taken off the list" for a pending row | runtimeCapabilityPending.test.js |
 | G8 | a pending verdict is latched | runtimeCapabilityAdmission.test.js |
 | G9 | the list never re-reads while a row is pending | runtimeCapabilityPending.test.js (wiring) |
+| F1a | the save door does not wait for the check | F1 save waits out a short busy spell |
+| F1b | a busy save stores the unadmitted row | F1 save never stores while busy |
+| F1c | the router answers a busy save with a plain 400 | F1 (503 + Retry-After) |
+| F2a | the verdict door ignores the member's budget | F2 member budget |
+| F2b | a verdict run delays persisted work | F2 a verdict run yields |
+| F2c | the verdict door ignores its own cool-down | F2 a verdict run yields |
+| F2d | the route does not pass the member | F2 the route charges the caller |
+| F2e | the client stops asking after one pending answer | runtimeCapabilityAdmission.test.js (watcher) |
+| F2f | a consult with no verdict never re-asks | runtimeCapabilityAdmission.test.js (re-ask) |
+| F3 | a single-row serve stamps pending without `runtimePending` | F3 |
+| F4a | a written-back stamp is stored | F4 |
+| F4b | a written-back stamp is served | F4 |
 
 
 ## Not built here (follow-ups)

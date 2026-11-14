@@ -899,5 +899,136 @@
    }
   ],
   "note": "G1 and G3 survived a first pass (a timing-only burst; a cool-down masking the projection); the rails were strengthened and both are now killed."
+ },
+ "finalVerifyRerun": {
+  "ranAt": "0f32d61635",
+  "note": "G1-G8 (G5 retired) from mutants-gate-r; G9 alone after a CRLF re-anchor",
+  "results": [
+   "C0 True",
+   "G1 KILLED restore ok (1, '1 failed, 2 passed, 106 deselected in 2.63s')",
+   "G2 KILLED restore ok (1, '1 failed, 111 deselected in 4.73s')",
+   "G3 KILLED restore ok (1, '1 failed, 111 deselected in 1.72s')",
+   "G4 KILLED restore ok (1, '1 failed, 111 deselected in 1.38s')",
+   "G6 KILLED restore ok (1, '1 failed, 111 deselected in 1.42s')",
+   "G7 KILLED restore ok (1, 'Tests  1 failed | 4 passed (5)')",
+   "G8 KILLED restore ok (1, 'Tests  3 failed | 19 passed (22)')"
+  ],
+  "g9": [
+   {
+    "id": "C0",
+    "mutant": "no edit (control)",
+    "runs": {
+     "js:src/components/chart/engine/__tests__/runtimeCapabilityAdmission.test.js:None": [
+      0,
+      "Tests  22 passed (22)"
+     ],
+     "js:src/components/chart/engine/__tests__/runtimeCapabilityPending.test.js:None": [
+      0,
+      "Tests  5 passed (5)"
+     ],
+     "py:tests/test_pine_capability_admission.py:GATE": [
+      0,
+      "6 passed, 106 deselected in 3.21s"
+     ],
+     "py:tests/test_pine_capability_admission.py:GATE_8_concurrent": [
+      0,
+      "1 passed, 111 deselected in 2.36s"
+     ],
+     "py:tests/test_pine_capability_admission.py:GATE_a_busy_gate": [
+      0,
+      "1 passed, 111 deselected in 1.23s"
+     ],
+     "py:tests/test_pine_capability_admission.py:GATE_a_run_is_projected": [
+      0,
+      "1 passed, 111 deselected in 1.52s"
+     ],
+     "py:tests/test_pine_capability_admission.py:GATE_one_big_source": [
+      0,
+      "1 passed, 111 deselected in 1.49s"
+     ]
+    },
+    "green": true
+   },
+   {
+    "id": "G9",
+    "mutant": "the list never re-reads while a row is pending",
+    "file": "app/src/hooks/useUserDefinitions.js",
+    "killed": true,
+    "run": [
+     1,
+     "Tests  1 failed | 4 passed (5)"
+    ],
+    "restoredBlobMatches": true
+   }
+  ]
+ },
+ "reReview": {
+  "ranAt": "0f32d61635",
+  "results_F1a_F4a": [
+   "C0 True",
+   "F1a KILLED restore ok (1, '1 failed, 111 deselected in 1.47s')",
+   "F1b KILLED restore ok (1, '1 failed, 111 deselected in 3.60s')",
+   "F1c KILLED restore ok (1, '1 failed, 111 deselected in 3.27s')",
+   "F2a KILLED restore ok (1, '1 failed, 111 deselected in 1.25s')",
+   "F2b KILLED restore ok (1, '1 failed, 111 deselected in 1.64s')",
+   "F2c KILLED restore ok (1, '1 failed, 111 deselected in 1.42s')",
+   "F2d KILLED restore ok (1, '1 failed, 111 deselected in 1.67s')",
+   "F2e KILLED restore ok (1, 'Tests  1 failed | 21 passed (22)')",
+   "F2f KILLED restore ok (1, 'Tests  1 failed | 21 passed (22)')",
+   "F3 KILLED restore ok (1, '1 failed, 111 deselected in 3.22s')",
+   "F4a KILLED restore ok (1, '1 failed, 111 deselected in 1.87s')"
+  ],
+  "F4b": [
+   {
+    "id": "C0",
+    "mutant": "no edit (control)",
+    "runs": {
+     "js:src/components/chart/engine/__tests__/runtimeCapabilityAdmission.test.js:None": [
+      0,
+      "Tests  22 passed (22)"
+     ],
+     "py:tests/test_pine_capability_admission.py:F1_a_save_never": [
+      0,
+      "1 passed, 111 deselected in 2.84s"
+     ],
+     "py:tests/test_pine_capability_admission.py:F1_a_save_waits": [
+      0,
+      "1 passed, 111 deselected in 1.32s"
+     ],
+     "py:tests/test_pine_capability_admission.py:F2_a_verdict_run_yields": [
+      0,
+      "1 passed, 111 deselected in 1.11s"
+     ],
+     "py:tests/test_pine_capability_admission.py:F2_the_route": [
+      0,
+      "1 passed, 111 deselected in 1.18s"
+     ],
+     "py:tests/test_pine_capability_admission.py:F2_the_verdict_door_spends": [
+      0,
+      "1 passed, 111 deselected in 1.11s"
+     ],
+     "py:tests/test_pine_capability_admission.py:F3": [
+      0,
+      "1 passed, 111 deselected in 1.59s"
+     ],
+     "py:tests/test_pine_capability_admission.py:F4": [
+      0,
+      "1 passed, 111 deselected in 1.11s"
+     ]
+    },
+    "green": true
+   },
+   {
+    "id": "F4b",
+    "mutant": "a written-back stamp is served",
+    "file": "api/services/runtime_definitions.py",
+    "killed": true,
+    "run": [
+     1,
+     "1 failed, 111 deselected in 1.24s"
+    ],
+    "restoredBlobMatches": true
+   }
+  ]
  }
 }
