@@ -413,7 +413,7 @@ def screener_row(ticker: str, columns: str = "", user=Depends(require_paid)):
     bars stopped arriving (`query.stale_gate`); the page says so instead of calling
     the stock a match. A ticker with no row is a 404 with the member-facing sentence.
     """
-    if not scr_saved.rs_screens_enabled():
+    if not scr_saved.rs_screens_served(user):
         raise HTTPException(status_code=404, detail="Not Found")
     syms = scr_query.row_tickers(ticker)[:1]
     cols = [c.strip() for c in columns.split(",") if c.strip()]
@@ -1144,8 +1144,9 @@ def screener_saved_list(user=Depends(require_paid)):
     # RS screens unit U8: the market caution state the RS screens print above their
     # lists, `{state, text, asof}` from the newest post-pass receipt, or null when no
     # state can be claimed. It rides this payload so the page asks nothing new. The KEY
-    # exists only while RS_SCREENS_ENABLED is on: off, the payload is the one it was.
-    if scr_saved.rs_screens_enabled():
+    # exists only for a user the RS screens are shown to (unit U10: `rs_screens_served`):
+    # for everyone else the payload is the one it was.
+    if scr_saved.rs_screens_served(user):
         from api.services.screener import rs_market_state
         out["rs_market"] = rs_market_state.served()
     return out

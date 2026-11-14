@@ -151,7 +151,8 @@ def test_every_data_call_site_follows_the_data_reader(monkeypatch, value, data):
     with monkeypatch.context() as mp:
         mp.setattr(pp, "run", lambda **k: ran.append(k) or {"ok": True, "populated": {}})
         assert (sb._rs_post_pass({}) is not None) is data
-    assert ran == ([{"source": "build"}] if data else [])
+    # (unit U8 also hands the build's own SPY read to the pass; this test is about the gate)
+    assert [k["source"] for k in ran] == (["build"] if data else [])
     # the pass itself (its own gate, before it opens the database)
     monkeypatch.setattr(pp, "_run", lambda receipt, session, now: receipt.update(ok=True))
     monkeypatch.setattr(pp, "_record", lambda receipt: None)
@@ -434,3 +435,42 @@ def test_the_ledger_row_states_the_three_values_and_the_rollback():
         assert words in note, words
     assert "only the literal 1 arms it" not in note, "the old grammar is no longer true"
     assert "—" not in note
+
+
+# ── surfaces added by later units follow the same reader (integration, 2026-11-14) ──────────
+
+def test_the_one_row_route_exists_only_for_a_user_the_screens_are_shown_to(monkeypatch):
+    """`GET /api/screener/row/{ticker}` (unit U8, "Why isn't a stock here?") is part of the
+    RS screens: under `admin` it answers a member 404, exactly as with the flag off."""
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from api.middleware.auth_middleware import get_current_user, get_current_user_with_plan
+    from api.routers import screener as screener_mod
+    monkeypatch.setattr(screener_mod.scr_query, "rows_for",
+                        lambda tickers, columns, user=None:
+                        {t: {"row": {"ticker": t}, "stale": False} for t in tickers})
+    who = {}
+    app = FastAPI()
+    app.include_router(screener_mod.router)
+    app.dependency_overrides[get_current_user] = lambda: dict(who["user"])
+    app.dependency_overrides[get_current_user_with_plan] = lambda: dict(who["user"])
+    client = TestClient(app)
+
+    def status(value, user):
+        _set(monkeypatch, value)
+        who["user"] = user
+        return client.get("/api/screener/row/AAPL?columns=ticker").status_code
+
+    assert status(None, ADMIN) == 404 and status(None, MEMBER) == 404
+    assert status("admin", MEMBER) == 404
+    assert status("admin", ADMIN) == 200
+    assert status("1", MEMBER) == 200
+
+
+def test_the_market_line_rides_the_saved_screens_payload_only_for_a_served_user(served):
+    import json
+    route = "/api/screener/saved-screens"
+    assert "rs_market" not in json.loads(served(None, MEMBER)[route])
+    assert "rs_market" not in json.loads(served("admin", MEMBER)[route])
+    assert "rs_market" in json.loads(served("admin", ADMIN)[route])
+    assert "rs_market" in json.loads(served("1", MEMBER)[route])

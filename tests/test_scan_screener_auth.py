@@ -382,7 +382,7 @@ def stub_services(monkeypatch):
     # GET /api/screener/row/{ticker} (RS screens unit U8) is part of the RS screens: it
     # answers 404 while they are off, which is not what this sweep measures. Armed here
     # so the sweep reads its GATE; the reader is stubbed with the route's own arguments.
-    monkeypatch.setattr(scr_saved, "rs_screens_enabled", lambda: True)
+    monkeypatch.setattr(scr_saved, "rs_screens_served", lambda user=None: True)
     monkeypatch.setattr(scr_query, "rows_for",
                         lambda tickers, columns, user=None:
                         {t: {"row": {"ticker": t}, "stale": False} for t in tickers})
