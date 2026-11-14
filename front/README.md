@@ -18,6 +18,13 @@ disk and two copies is replaced with no gap.
   table. `tests/test_front_app_parity.py` fails when a route outside `/api` is neither
   served here nor passed through.
 
+## Start command
+
+`front/service.json` starts it through a shell: `/bin/sh -c "exec uvicorn api.front_app:app ... --port ${PORT:-8080} ..."`.
+Railway runs a Dockerfile service's start command in exec form, so without the shell `$PORT`
+would reach uvicorn as the literal text. Config-as-code overrides the start command field in
+the Railway dashboard, so change it here, not there.
+
 ## Variables on the service
 
 | Name | Value |
