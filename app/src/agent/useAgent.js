@@ -16,8 +16,8 @@
 // conversation, so the model's next turn remembers what UCT DID.
 
 import { protectionRefusal, undoProtectionRefusal, protectedOpenLayout, isProtected, protectedRenameRefusal } from './protectedLayouts'
-import { chartRailRefusal, RAIL_MARK } from './chartRail'
-import { stateRailRefusal, STATE_RAIL_MARK } from './stateRail'
+import { chartRailRefusal, RAIL_MARK, chartEffects } from './chartRail'
+import { stateRailRefusal, STATE_RAIL_MARK, notDoneAdds, notDoneLine } from './stateRail'
 import { replyRelation, QUESTION_TTL_MS, CONTINUE_CHOICES, continueQuestion } from './pendingTask'
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { AuthContext } from '../context/AuthContext'
@@ -775,7 +775,9 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
   // overwrites the member's indicators, drawings, watchlists, widgets, layouts, boards or templates. Either rail refuses.
   const railMarkRef = useRef(RAIL_MARK)     // which rail refused last (telemetry)
   const railOf = (plan, mode) => {
-    const c = chartRailRefusal(plan, { words: railWordsRef.current, host, mode })
+    // a refused bundle names its add parts as NOT done too (AUDIT #1247): the chart rail's refusal, with the plans it did not block
+    const c0 = chartRailRefusal(plan, { words: railWordsRef.current, host, mode })
+    const c = c0 && `${c0}${notDoneLine(notDoneAdds(plan, (p) => { try { return chartEffects({ ok: true, plans: [p] }, host).length > 0 } catch { return true } }))}`
     const r = c || stateRailRefusal(plan, { words: railWordsRef.current })
     railMarkRef.current = c ? RAIL_MARK : STATE_RAIL_MARK
     return r

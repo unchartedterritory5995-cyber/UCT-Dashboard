@@ -325,6 +325,50 @@ describe('STATE RAIL · "put X in my watchlist": a list switches the display, a 
   }, 30000)
 })
 
+// ── A REFUSED BUNDLE says its add parts did NOT happen either (AUDIT #1247) ──
+describe('STATE RAIL · a refused bundle names the adds that were not done too', () => {
+  const BUNDLE = [op('watchlist.add', 'wl1', { symbols: ['AAPL'] }), op('widget.showList', 'board', { widget: 'wl', list: 'wl2' })]
+  it('rail: "put AAPL on my watchlist" + add AAPL & switch to Swing → refused, and AAPL named as NOT added', async () => {
+    const fx = stateFixture()
+    const t = stateRailRefusal(await planOf(fx, BUNDLE), { words: 'put AAPL on my watchlist' })
+    expect(t).toMatch(/^I didn’t change anything/)
+    expect(t).toMatch(/Nothing was changed: I didn’t add AAPL to Tech either — say “add AAPL to Tech” on its own/)
+  })
+  it('every kind: a bundle of an add and a blocked change names the add (a drawing with a watchlist clear; a list add with a drawing delete)', async () => {
+    const fx = stateFixture()
+    const cases = [
+      [[op('drawing.addLevel', 'SPY', { price: 101, color: null, style: null }), op('watchlist.clear', 'wl1', {})], /didn’t draw a horizontal line at \$101/i],
+      [[op('watchlist.add', 'wl2', { symbols: ['AAPL'] }), op('drawing.remove', 'SPY', { drawing: 'dr-t' })], /didn’t add AAPL to Swing/i],
+    ]
+    for (const [ops, re] of cases) {
+      const p = await planOf(fx, ops)
+      expect(p.ok, JSON.stringify(p.refusals)).toBe(true)
+      expect(stateRailRefusal(p, { words: 'add another one' }), ops[0].action).toMatch(re)
+    }
+    // a plan with nothing additive in it says no "either"
+    expect(stateRailRefusal(await planOf(fx, WRONG.watchlist['watchlist.clear (Tech)']), { words: 'add aapl' })).not.toMatch(/either/)
+  })
+  it('through the panel: the bundled plan writes 0 changes, and the reply names AAPL as not added', async () => {
+    // ("put AAPL on my watchlist" word for word is read by the instant path: it ADDS AAPL and leaves the display — the next
+    // test; a wording that reaches the model meets the bundled plan)
+    const { fx, say, transcript } = mount()
+    const before = stateOf(fx)
+    envelopes.push(env('apply', BUNDLE))
+    await say('can you put AAPL on my watchlist')
+    expect(calls.some(c => c[1] === '/api/agent/turn')).toBe(true)
+    expect(stateOf(fx)).toBe(before)
+    expect(fx.b.state.server.lists.find(l => l.id === 'wl1').items.map(i => i.sym)).not.toContain('AAPL')
+    expect(fx.b.state.widgets.find(w => w.id === 'wl').opts.watchKey).toBe('user:wl1')
+    expect(transcript()).toMatch(/I didn’t add AAPL to Tech either/)
+  }, 30000)
+  it('through the panel: "put AAPL on my watchlist" (instant path) adds AAPL to the list shown, and the display stays Tech', async () => {
+    const { fx, say } = mount()
+    await say('put AAPL on my watchlist')
+    expect(fx.b.state.server.lists.find(l => l.id === 'wl1').items.map(i => i.sym)).toContain('AAPL')
+    expect(fx.b.state.widgets.find(w => w.id === 'wl').opts.watchKey).toBe('user:wl1')
+  }, 30000)
+})
+
 // ── A DRAWING BOARD SWITCH (AUDIT #1247 iii, accepted residual): the receipt names the board now shown; Undo is exact ──
 describe('STATE RAIL · a Drawing Board switch says which board is shown, and Undo puts the previous board back exactly', () => {
   it('drawing.setActiveBoard → "Swing board": receipt names it; Undo restores Board 1 and every drawing on it', async () => {

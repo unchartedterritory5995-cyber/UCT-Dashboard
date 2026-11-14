@@ -317,6 +317,32 @@ const listOf = (xs) => (xs.length < 2 ? xs.join('') : `${xs.slice(0, -1).join(',
 const VERB = { remove: 'remove', clear: 'clear', delete: 'delete', replace: 'replace', overwrite: 'change', unreadable: 'change' }
 const said = (e) => `${VERB[e.type] || 'change'} ${e.name}`
 
+// ⛔ A REFUSED BUNDLE (AUDIT #1247): the parts of the plan that only ADD were not done either — said by name, so a member is
+// never left thinking the add landed ("Nothing was changed: I didn't add AAPL to Tech either — say …")
+const PAST = { added: 'add', drew: 'draw', created: 'create', saved: 'save', opened: 'open', put: 'put', placed: 'place', copied: 'copy',
+  duplicated: 'duplicate', pinned: 'pin', set: 'set', showed: 'show', flagged: 'flag', made: 'make', applied: 'apply', moved: 'move' }
+const plainName = (s) => String(s || '').replace(/[“”"]/g, '').replace(/\s+/g, ' ').trim()
+function asked(line) {
+  const t = plainName(line)
+  const m = /^(\w+)\s+(.*)$/.exec(t)
+  const v = m && PAST[m[1].toLowerCase()]
+  return v ? `${v} ${m[2]}` : null
+}
+/** The ADD parts of a plan the rail refused (each plan with no destroying effect of its own, by its own lines). */
+export function notDoneAdds(plan, alsoBlocked = () => false) {
+  const out = []
+  for (const p of plan?.plans || []) {
+    let mine = []
+    try { mine = stateEffects({ ok: true, plans: [p] }) } catch { mine = [{}] }
+    if (mine.length || alsoBlocked(p)) continue
+    for (const l of p.lines || []) { const a = asked(l); if (a && !out.includes(a)) out.push(a) }
+  }
+  return out
+}
+export const notDoneLine = (adds) => (adds.length
+  ? ` Nothing was changed: I didn’t ${listOf(adds)} either — say “${adds[0]}” on its own to have just that done.`
+  : '')
+
 /**
  * The refusal sentence for a plan the STATE rail stops, or null. `words`: this turn's words (the message, and the request
  * a pending question carried). Every mode (apply / propose / approved): an additive request never reaches a card that
@@ -329,10 +355,10 @@ export function stateRailRefusal(plan, { words = '' } = {}) {
   try {
     const effects = stateEffects(plan)
     const amb = effects.map(e => homograph(e, w)).find(Boolean)
-    if (amb) return `Do you mean your “${amb}” list, or the ticker ${String(amb).toUpperCase()}? Nothing was changed — say “show my ${amb} list” to switch the widget to it, or “add ${String(amb).toUpperCase()} to my watchlist” to add the symbol.`
+    if (amb) return `Do you mean your “${amb}” list, or the ticker ${String(amb).toUpperCase()}? Nothing was changed — say “show my ${amb} list” to switch the widget to it, or “add ${String(amb).toUpperCase()} to my watchlist” to add the symbol.${notDoneLine(notDoneAdds(plan))}`
     const bad = effects.filter(e => !permits(e, w))
     if (!bad.length) return null
-    return `I didn’t change anything: you asked to add, but this would ${listOf([...new Set(bad.map(said))])}. Adding never replaces or removes what you already have — say “replace”, “remove” or “change” if that is what you want.`
+    return `I didn’t change anything: you asked to add, but this would ${listOf([...new Set(bad.map(said))])}. Adding never replaces or removes what you already have — say “replace”, “remove” or “change” if that is what you want.${notDoneLine(notDoneAdds(plan))}`
   } catch {
     return 'I didn’t change anything: I couldn’t check that this only adds to what you already have. Ask again, or say exactly what to replace or remove.'
   }
