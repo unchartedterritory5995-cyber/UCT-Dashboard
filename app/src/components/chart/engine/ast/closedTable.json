@@ -862,7 +862,7 @@
       ],
       "lookback": "arg1",
       "yields": "num",
-      "sentence": "the number of bars back to the oldest bar holding the highest {0} of the last {1} bars"
+      "sentence": "the number of bars back to the bar holding the highest {0} of the last {1} bars, the newest of a tie over a bar price and withheld on a tie over anything else"
     },
     "hma": {
       "args": [
@@ -1039,7 +1039,7 @@
       ],
       "lookback": "arg1",
       "yields": "num",
-      "sentence": "the number of bars back to the oldest bar holding the lowest {0} of the last {1} bars"
+      "sentence": "the number of bars back to the bar holding the lowest {0} of the last {1} bars, the newest of a tie over a bar price and withheld on a tie over anything else"
     },
     "macd": {
       "args": [
@@ -1195,7 +1195,7 @@
       ],
       "argRoles": [
         "source",
-        "withheld"
+        "right"
       ],
       "lookback": 0,
       "yields": "num",

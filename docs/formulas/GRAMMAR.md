@@ -113,7 +113,7 @@ decide whether a formula can run at all.
 | `barsAgo(source, offset, period)` | a number | whatever `period` asks for | `source` as it stood `offset` bars earlier, a count that changes from bar to bar and is read only below `period` |
 | `barssince(condition, period)` | a number | whatever `period` asks for | the number of bars since `condition` was last true, and `period` when it has not been true that recently |
 | `bbw(source, period, mult)` | a number | whatever `period` asks for | the `period`-bar Bollinger Band Width of `source` at multiplier `mult` |
-| `boolNaWithheld(source, withheld)` | a number | 0 bars | `source`, withheld wherever `withheld` |
+| `boolNaWithheld(source, right)` | a number | 0 bars | `source`, withheld wherever `right` |
 | `bop(period)` | a number | whatever `period` asks for | the `period`-bar average of where each bar closed within its own range |
 | `cci(high, low, close, period)` | a number | whatever `period` asks for | the `period`-bar commodity channel index of `high`, `low` and `close` |
 | `ceil(source)` | a number | 0 bars | `source` rounded up to a whole number |
@@ -132,7 +132,7 @@ decide whether a formula can run at all.
 | `falling(source, period)` | true or false | whatever `period` asks for | `source` falling for `period` bars |
 | `floor(source)` | a number | 0 bars | `source` rounded down to a whole number |
 | `highest(source, period)` | a number | whatever `period` asks for | the highest `source` of the last `period` bars |
-| `highestbars(source, period)` | a number | whatever `period` asks for | the number of bars back to the oldest bar holding the highest `source` of the last `period` bars |
+| `highestbars(source, period)` | a number | whatever `period` asks for | the number of bars back to the bar holding the highest `source` of the last `period` bars, the newest of a tie over a bar price and withheld on a tie over anything else |
 | `hma(source, period)` | a number | 2*arg1 | the `period`-bar Hull average of `source` |
 | `ichimokuChikou(high, low, close, tenkanPeriod, kijunPeriod, senkouBPeriod)` | a number | whatever `senkouBPeriod` asks for | the Ichimoku lagging span of `close` over `high` and `low` at `tenkanPeriod`/`kijunPeriod`/`senkouBPeriod` |
 | `ichimokuKijun(high, low, tenkanPeriod, kijunPeriod, senkouBPeriod)` | a number | whatever `senkouBPeriod` asks for | the Ichimoku base line over `high` and `low` at `tenkanPeriod`/`kijunPeriod`/`senkouBPeriod` |
@@ -143,7 +143,7 @@ decide whether a formula can run at all.
 | `ln(source)` | a number | 0 bars | the natural log of `source` |
 | `log10(source)` | a number | 0 bars | the base-10 log of `source` |
 | `lowest(source, period)` | a number | whatever `period` asks for | the lowest `source` of the last `period` bars |
-| `lowestbars(source, period)` | a number | whatever `period` asks for | the number of bars back to the oldest bar holding the lowest `source` of the last `period` bars |
+| `lowestbars(source, period)` | a number | whatever `period` asks for | the number of bars back to the bar holding the lowest `source` of the last `period` bars, the newest of a tie over a bar price and withheld on a tie over anything else |
 | `macd(source, fastPeriod, slowPeriod)` | a number | whatever `slowPeriod` asks for | the `fastPeriod`/`slowPeriod` MACD line of `source` |
 | `max(left, right)` | a number | 0 bars | the larger of `left` and `right` |
 | `median(source, period)` | a number | whatever `period` asks for | the `period`-bar median of `source` |

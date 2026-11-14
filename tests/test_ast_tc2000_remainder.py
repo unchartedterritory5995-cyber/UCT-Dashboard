@@ -204,27 +204,12 @@ def aroon_oracle(values, n, want_max):
 # 1. AROON — against the published formula, computed independently
 # ═══════════════════════════════════════════════════════════════════════════ #
 
-@pytest.mark.xfail(strict=True, reason=(
-    "OPEN OWNER RULING, raised 2026-09-09 — TWO REAL AUTHORITIES DISAGREE ABOUT "
-    "A TIE, and neither is obviously wrong. `days_since_extreme` above encodes "
-    "the PUBLISHED words — 'the number of periods elapsed since the MOST RECENT "
-    "x-day high' — so a tie resolves to the NEWEST bar holding the extreme. On "
-    "2026-09-08 `ta.highestbars` was measured on TradingView and ties resolve to "
-    "the OLDEST bar (380/0 against 193/187 for the other reading); `aroonUp` is "
-    "built on that walk, so it moved with it. ⚠️ TradingView has no built-in "
-    "`ta.aroon` — its stock Aroon is Pine written over `ta.highestbars`, so "
-    "TradingView's OWN Aroon presumably disagrees with the published words too, "
-    "and that is the measurement that would settle this. Until somebody reads it "
-    "off a TradingView Aroon pane, changing either side would be picking an "
-    "authority rather than following one. ⛔ STRICT: the day the tie rule or the "
-    "oracle moves, this goes RED and the decision gets recorded instead of "
-    "quietly landing. Blast radius, RE-MEASURED 2026-09-09 over 2,031 real SPY "
-    "daily bars: aroon differs on 0.6% of bars at both n=14 and n=25 (median 7.1 "
-    "points on a 0-100 scale, max 14.3); the underlying highestbars tie moves "
-    "0.3-0.6% depending on field and length. An earlier note said 6-10% and was "
-    "wrong by an order of magnitude. "
-    "and NO live member definition calls aroon/highestbars/lowestbars today "
-    "(count-only prod query 2026-09-09: 0 of 5)."))
+# ⭐ SETTLED 2026-11-14 (engine 56) — the measurement this test's xfail waited for arrived: TradingView's OWN
+# Aroon pane (the builtin `aroon`, v6, NYSE:RDDT 1D from the listing, S5) reads 100 on bar 116, where
+# `ta.highestbars(high, 15)` ties the current bar with bar 112 — the NEWEST tied bar, the published
+# words' 'most recent'. A v4 pivot script on the same chart agrees. Over a bar price (`aroonUp` reads
+# `high`) the newest tied bar now wins; the 2026-09-08 oldest-wins measurement was a COMPUTED source,
+# whose tied window is now withheld by name (`_functions_arg_extreme`). The strict xfail is removed.
 def test_aroonUp_matches_the_published_formula_over_a_shaped_series():
     n = 10
     col = ast_interpret.interpret(CALL("aroonUp", NUM(n)), BARS, {})

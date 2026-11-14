@@ -284,14 +284,16 @@ const FORMS = [
   // working, not friction: this oracle is hand-typed precisely so a wording
   // change has to be made twice by a human who agrees with it, instead of being
   // inherited from the renderer and proving nothing.
+  // ⭐ ENGINE 56 (2026-11-14): and the rule now depends on the source — the newest tied bar over a
+  // bar price (the builtin Aroon and a v4 pivot script, measured), withheld over anything else.
   { kind: 'call',
     name: 'highestbars',
-    parts: ['the number of bars back to the oldest bar holding the highest ', 0,
-            ' of the last ', 1, ' bars'] },
+    parts: ['the number of bars back to the bar holding the highest ', 0,
+            ' of the last ', 1, ' bars, the newest of a tie over a bar price and withheld on a tie over anything else'] },
   { kind: 'call',
     name: 'lowestbars',
-    parts: ['the number of bars back to the oldest bar holding the lowest ', 0,
-            ' of the last ', 1, ' bars'] },
+    parts: ['the number of bars back to the bar holding the lowest ', 0,
+            ' of the last ', 1, ' bars, the newest of a tie over a bar price and withheld on a tie over anything else'] },
   // ⭐ THE PIVOTS (2026-08-27). Hand-typed from the manifest's words like every
   // row here — deriving them would make the oracle agree with the renderer by
   // construction and the round trip would prove nothing.

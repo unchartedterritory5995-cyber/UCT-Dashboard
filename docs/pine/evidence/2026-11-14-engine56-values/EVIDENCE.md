@@ -185,3 +185,90 @@ Per-bar withholding in the graded sets: `pivot-points-high-low-extension` (v4, `
 44 and 11 bars on four plots, every one a bar where TradingView draws nothing) and
 `squeeze-momentum-indicator-lazybear` (named on one plot); no capture has a withheld bar where TradingView
 draws a value. No `pine:tie-unwitnessed` bar occurs in any capture.
+
+## Mutants
+Copy aside, edit, run the focused rails (`engine56Values.test.js`; the harness mutants run
+`vendorHarness.engine56FloatFloor.test.js`; the Python ones `tests/test_engine56_values.py`), restore FROM THE
+SAVED COPY, `git hash-object` == the HEAD blob. Everything ran under one heavy lock. C0 (no edit) was green;
+every restore matched the HEAD blob.
+
+| # | mutant | red |
+|---|---|---|
+| M1 | A1: `nz` stripped from the step (`step: substitute(body)`) | 1 |
+| M2 | A1: the ternary's `na(self)` test dropped (`step: update`) | 1 |
+| M3 | A2: a `na` prior answers `na` | 3 |
+| M4 | A2: divisor = the finite count | 2 |
+| M5 | A2 Python: a `na` prior answers `na` | 2 |
+| M6 | S4-1: a left-side `na` fails again (`pivotCol`) | 3 |
+| M7 | S4-1: the same in the runtime kernel | 1 |
+| M8 | S4-1: an all-`na` left window withheld | 1 |
+| M9 | S4-1 Python: a left-side `na` fails again | 1 |
+| M10 | S4-2: the newest dispatch off | 2 |
+| M11 | S4-2: the tie mask off | 1 |
+| M12 | S4-2 Python: newest off | 1 |
+| M13 | S4-2 Python: tie mask off | 1 |
+| M14 | S4-2: the runtime newest reducer off | 1 |
+| M15 | S4-2: the runtime VM tie stop off | 1 |
+| M15b | S4-2: the runtime `tieGuard` flag never set | 1 |
+| M16 | A3: the served `==` not rewritten | 7 |
+| M17 | A3 applied to v6 | 3 |
+| M18 | A3: v4/v5 `or` / `not` withheld | 3 |
+| M19a | A3: a v1-v3 `and` withheld | 3 |
+| M19b | A3: a v1-v3 `and` loses its `maybe` | 1 |
+| M20 | A3: the bool-na mask off | 8 |
+| M21 | A3 Python: the bool-na mask off | 1 |
+| M22 | the runtime's column decline off | 9 |
+| M23 | the runtime's VM bool-na refusal off | 1 |
+| M24 | S4-4: the floor ignored | 1 |
+| M25 | S4-4: the floor 1e6 too wide | 1 |
+| M26 | the harness grades withheld bars as values | 2 |
+| M27 | the harness grades a withheld bar MATCH | 1 |
+
+All 29 were killed. The first run's M19 (deleting `if (op === '&&') return built`) survived: the line was
+redundant, because `&&` already falls through the `==` / `!=` test. It was an equivalent mutant, so the line was removed
+and replaced by M19a / M19b, which test the rule itself.
+
+## Evidence ledger regrade (`python tools/vendor_harness/evidence_engine.py regrade`, LICENSING 2c)
+246 captures graded, ledger +246 rows at engine 56 (grader `a730737b43ef`); 0 legacy rows retired.
+- 103 of the 246 already had an engine-54 row: **0 verdict moves** among them, in either lane.
+- The other 143 (S3-S6 sessions) are filed for the first time.
+- Totals at engine 56: production MATCH 140 / DIVERGE 76 / INCONCLUSIVE 30; runtime-on MATCH 149 /
+  DIVERGE 78 / INCONCLUSIVE 19.
+The ledger rows carry the source sha256 and the verdicts only; no capture or source text is committed.
+
+## The tie sentence and the strict xfail it settles
+`highestbars` / `lowestbars` now read back as "the number of bars back to the bar holding the highest X of
+the last N bars, the newest of a tie over a bar price and withheld on a tie over anything else"
+(`docs/formulas/GRAMMAR.md` regenerated; the hand-typed inverse in `sentence.test.js` re-typed).
+`tests/test_ast_tc2000_remainder.py::test_aroonUp_matches_the_published_formula_over_a_shaped_series` was a
+strict xfail waiting for exactly this measurement ("until somebody reads it off a TradingView Aroon pane").
+The S5 aroon capture is that reading, so the xfail is removed. `test_ast_bounded_state.py`'s constructed tie
+(over `high` / `low`) now reads the newest bar, and a computed-source twin of it is withheld.
+
+## Tests run (all under the heavy lock, `--maxWorkers=1`; pytest one file at a time)
+- vitest `src/components/chart/engine/ast` (351 files) and `runtime` + `builder` + `engine/__tests__`
+  (798 files): every failure was triaged. Engine 56's own were fixed and re-run green, and the files named above
+  were re-run green after the last edit (23 files / 972 tests; 7 files / 295 tests). These failures are not
+  engine 56's: they fail the same way with `origin/master`'s product files (the UCT RS work on master):
+  `colorUpDownSubstitution`, `markerPixels`, `readoutSchema.va2`, `rsRatingDef`, `rsVsEmaDef`.
+- pytest: all 43 `tests/test_ast_*.py` + `tests/test_engine56_values.py` green. These fail identically with
+  `origin/master`'s `ast_interpret.py` and `closedTable.json` swapped in, so they are not engine 56's:
+  `tests/test_indicator_golden.py` (1: `rs_parity_deepvue_universe` fixture vs CASES) and
+  `tests/test_c45_withheld_doors.py` (2: `time-clock:unreadable`).
+
+## Open notes
+- **Engine 55 merges first.** This branch says 56 and was measured on `origin/master` (54) plus this
+  change. After 55 lands, merge master in, re-run `node tools/pine_runtime_host_parity.mjs --write` (both
+  branches regenerate the digests), and resolve the `scriptEngineVersion.js` history line.
+- A3 residual: a `bool` whose `na` cannot be tracked keeps today's value. That covers a recurrence's own value
+  read as a bool, a `var bool`, a numeric operand used as a bool in `==`, and a VM `==` over a column the
+  runtime holds as a number. The A3 probe (capture queue: v2/v4/v5 warm-up bars of `(c > na_s) == false`,
+  `!= false`, `== true`, `not`, `and true`, `or true`) settles the withheld forms. A `bool` meeting `==`
+  against a non-literal non-`na` bool is withheld rather than served; the guide's sentence probably covers
+  it, but no capture does.
+- S4-2: the runtime lane stops a computed-source window on its first tied bar (whole run, by name), where
+  the columnar lane withholds only the bars within reach. The tie probe (v4/v5 two-valued source,
+  `highestbars(vt, 4)` and `highestbars(4)`) settles the computed-source rule.
+- S4-3 (ytc-swing-highs-lows `max_bars_back`) needs a capture; not touched.
+- Colours (section B) are engine 57's. The ATR trailing stop, accumulation/distribution markers, uptrick,
+  accdist-macd and bill-williams AO now differ from TradingView in colour only.
