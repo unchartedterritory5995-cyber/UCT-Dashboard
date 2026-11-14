@@ -2766,6 +2766,73 @@ def server_lanes_stamp(row: Any) -> dict:
     return out
 
 
+#: ⛔⛔ SHARE PRIVACY (2026-11-13) -- `origin.author_id` IS A MEMBER IDENTIFIER, AND IT IS THE
+#: SERVER'S, NEVER A VIEWER'S. An installed copy records who wrote it (`install_share`) so the
+#: erasure path can scrub it (`user_definitions_erasure.purge_user`) and the engine verdict can be
+#: carried (`_carry_from`); that lineage stays in the STORED document. What a member receives --
+#: the share preview, an installed copy, a fork, a listing, a history -- never carries it
+#: (`served_definition`, applied at every door of the router), and what a member SENDS is never
+#: believed: a save takes `origin.author_id` from the server (`_server_origin_author`), so an Undo
+#: in a tab left open across the author's account deletion cannot write the scrubbed id back.
+_DERIVE_AUTHOR = object()   # take it from the stored predecessor (every ordinary save)
+_NO_AUTHOR = object()       # this copy has no recorded author
+
+
+def _origin_author_of(definition: Any) -> tuple:
+    """``(present, value)`` of ``origin.author_id`` on a STORED document."""
+    origin = definition.get("origin") if isinstance(definition, dict) else None
+    if isinstance(origin, dict) and "author_id" in origin:
+        return True, origin["author_id"]
+    return False, None
+
+
+def _server_origin_author(user_id: Any, def_id: str, definition: dict, author: Any) -> dict:
+    """The document as it is STORED: ``origin.author_id`` decided by the server, whatever the
+    client sent. ``author`` is `_DERIVE_AUTHOR` (the caller's own stored predecessor at this id:
+    an edit keeps what the store holds, and a scrubbed ``None`` stays ``None``), `_NO_AUTHOR`, or
+    the value a server-side copy (`install_share`, `fork`) hands in. A document without an
+    ``origin`` is returned as the same object.
+
+    ⚠️ Read before the write lock, like the rest of the document's checks: a purge landing between
+    this read and the append is the in-flight case `tombstone_sweep` re-scrubs (its case 3)."""
+    origin = definition.get("origin")
+    if not isinstance(origin, dict):
+        return definition
+    if author is _DERIVE_AUTHOR:
+        with contextlib.closing(_connect()) as c:
+            _ensure(c)
+            prev = _newest(c, user_id, def_id)
+        present, value = (_origin_author_of(json.loads(prev["definition"]))
+                          if prev is not None else (False, None))
+    elif author is _NO_AUTHOR:
+        present, value = False, None
+    else:
+        present, value = True, author
+    kept = {k: v for k, v in origin.items() if k != "author_id"}
+    if present:
+        kept["author_id"] = value
+    return dict(definition, origin=kept)
+
+
+def served_definition(definition: Any) -> Any:
+    """The definition as a MEMBER receives it: ``origin.author_id`` removed (the server keeps it,
+    `_server_origin_author`). The same object when it carries none."""
+    if not isinstance(definition, dict):
+        return definition
+    origin = definition.get("origin")
+    if not isinstance(origin, dict) or "author_id" not in origin:
+        return definition
+    return dict(definition, origin={k: v for k, v in origin.items() if k != "author_id"})
+
+
+def served_row(row: Any) -> Any:
+    """A stored row as a member receives it (`served_definition` on its ``definition``)."""
+    if not isinstance(row, dict) or not isinstance(row.get("definition"), dict):
+        return row
+    served = served_definition(row["definition"])
+    return row if served is row["definition"] else dict(row, definition=served)
+
+
 def save(user_id: Any, def_id: str, definition: dict,
          limits: Any = None, *, role: Any = None,
          repaint_acknowledged: Any = None,
@@ -2774,7 +2841,8 @@ def save(user_id: Any, def_id: str, definition: dict,
          pine_source: Any = None,
          reason: Optional[str] = None,
          _copy_of_stored: bool = False,
-         _carry_from: Optional[tuple] = None) -> dict:
+         _carry_from: Optional[tuple] = None,
+         _origin_author: Any = _DERIVE_AUTHOR) -> dict:
     """Append a version. Bump `rev` iff the maths moved, and MIGRATE if it did.
 
     ⭐⭐ SAVED-SCRIPT AUTO-UPGRADE — ``pine_source``: the script a SCRIPT door
@@ -2844,6 +2912,9 @@ def save(user_id: Any, def_id: str, definition: dict,
     # never reach the document (`strip_line_fields`); the identities are decided in
     # the lock (`decide_line_ids`) and stored in the row's own `line_ids` column.
     definition, _new_line_keys = strip_line_fields(definition)
+    # ⛔⛔ SHARE PRIVACY -- `origin.author_id` is the server's, never the client's (see
+    # `_server_origin_author`): a forged or stale one is replaced before anything reads the document.
+    definition = _server_origin_author(user_id, def_id, definition, _origin_author)
     if definition.get("id") not in (None, def_id):
         raise ValueError(
             f"definition.id is {definition.get('id')!r} but it is being stored at "
@@ -3812,7 +3883,8 @@ def share(user_id: Any, def_id: str) -> Optional[dict]:
                  table_version, int(time.time())),
             )
     return {"token": token, "def_id": def_id, "version": row["version"],
-            "ast_hash": row["ast_hash"], "table_version": table_version}
+            "ast_hash": row["ast_hash"], "table_version": table_version,
+            "includesSource": shares_source(row.get("definition"))}
 
 
 def unshare(user_id: Any, def_id: str) -> bool:
@@ -3855,7 +3927,40 @@ def share_status(user_id: Any, def_id: str) -> Optional[dict]:
     if row is None or row["revoked"]:
         return None
     return {"token": row["token"], "def_id": row["def_id"], "version": row["version"],
-            "ast_hash": row["ast_hash"], "table_version": row["table_version"]}
+            "ast_hash": row["ast_hash"], "table_version": row["table_version"],
+            "includesSource": pinned_shares_source(row)}
+
+
+def shares_source(definition: Any) -> bool:
+    """⭐ DECIDED (2026-11-13): a shared RUNTIME document carries its Pine source
+    (``compute.source``) -- the runtime lane cannot draw it without the script, and members import
+    TradingView scripts. So the share is HONEST about it: every share answer carries
+    ``includesSource`` and the panel shows the sentence before a link is made
+    (`SharePanel.jsx` ``SHARE_SOURCE_SENTENCE``). An ``ast`` document never carries its script
+    (`resolve_share` strips the run-read parts), so it answers False. ONE AUTHORITY: whether a
+    share carries the script is `runtime_definitions.is_runtime`, the test the preview's stamp
+    asks too."""
+    from api.services import runtime_definitions  # noqa: PLC0415
+    return bool(runtime_definitions.is_runtime(definition))
+
+
+def pinned_shares_source(share_row: Any) -> bool:
+    """Does the version a share link PINS carry its script? (review of #1227: the link serves the
+    version pinned at mint, `resolve_share` reads `row["version"]`, so the disclosure is decided by
+    that version, never by whatever was saved since.) The pinned row's `ast_hash` names its lane:
+    a runtime document's is `runtime_definitions.handle`, which opens with `HASH_PREFIX`."""
+    from api.services import runtime_definitions  # noqa: PLC0415
+    try:
+        h = share_row["ast_hash"]
+    except (KeyError, IndexError, TypeError):
+        return False
+    return isinstance(h, str) and h.startswith(runtime_definitions.HASH_PREFIX)
+
+
+def includes_source(user_id: Any, def_id: str) -> bool:
+    """`shares_source` of the caller's own live definition (False when there is none)."""
+    row = get(user_id, def_id)
+    return shares_source(row.get("definition")) if row else False
 
 
 class ShareRefused(Exception):
@@ -3881,7 +3986,7 @@ def _current_table_version() -> int:
     return int(value) if isinstance(value, (int, float)) else 0
 
 
-def resolve_share(token: str) -> dict:
+def resolve_share(token: str, *, _with_author: bool = False) -> dict:
     """The shared document, or a refusal that names its own reason.
 
     ⛔⛔ THE `tableVersion` CHECK IS THE ACCEPTANCE CRITERION, NOT A NICETY. A
@@ -3938,15 +4043,23 @@ def resolve_share(token: str) -> dict:
     # is the host document a chart without the runtime lane draws.
     # `tests/test_share_strips_run_reads.py` enumerates every outbound path (the router table and
     # this module's cross-member reads), so a new door cannot skip it.
+    # ⛔⛔ SHARE PRIVACY -- the author's member id is never in what a viewer receives: not as
+    # `author_id`, and not as an `origin.author_id` the author's own document carries from a copy
+    # THEY installed (`served_definition`). `_with_author` is for `install_share` alone, which
+    # records the lineage server-side.
     from api.services import runtime_definitions
-    return {
-        "definition": runtime_definitions.without_run_reads(doc["definition"]),
-        "author_id": row["user_id"],
+    definition = runtime_definitions.without_run_reads(doc["definition"])
+    out = {
+        "definition": served_definition(definition),
         "origin_def_id": row["def_id"],
         "origin_version": row["version"],
         "origin_ast_hash": row["ast_hash"],
         "table_version": int(row["table_version"]),
+        "includesSource": shares_source(definition),
     }
+    if _with_author:
+        out["author_id"] = row["user_id"]
+    return out
 
 
 def install_share(user_id: Any, token: str, limits: Any = None, *, role: Any = None) -> dict:
@@ -3964,7 +4077,7 @@ def install_share(user_id: Any, token: str, limits: Any = None, *, role: Any = N
     what they hold and can edit it freely, and ORIGIN is what says where it came
     from.
     """
-    resolved = resolve_share(token)
+    resolved = resolve_share(token, _with_author=True)
     doc = json.loads(json.dumps(resolved["definition"]))
     def_id = new_def_id()
     doc["id"] = def_id
@@ -3992,10 +4105,13 @@ def install_share(user_id: Any, token: str, limits: Any = None, *, role: Any = N
     # `compute.runtimeColours`): each IS the author's script. `resolve_share` above already
     # stripped them (`runtime_definitions.without_run_reads`), so the copy keeps its host
     # picture and host colours, exactly what a chart without the runtime lane draws.
+    # ⛔ the author id is handed to the store BY THE SERVER (`_origin_author`), never read off the
+    # document, and the answer the installer receives does not carry it (`served_definition`).
     out = save(user_id, def_id, doc, limits=limits, role=role, _copy_of_stored=True,
                _carry_from=(resolved["author_id"], resolved["origin_def_id"],
-                            resolved["origin_version"]))
-    out["origin"] = doc["origin"]
+                            resolved["origin_version"]),
+               _origin_author=resolved["author_id"])
+    out["origin"] = served_definition(doc)["origin"]
     return out
 
 
@@ -4039,9 +4155,13 @@ def fork(user_id: Any, def_id: str, limits: Any = None, *, role: Any = None) -> 
     # ⭐ SAVED-SCRIPT AUTO-UPGRADE — a copy of a script document keeps its script.
     # ⛔ a copy of a refused version is refused too (the same known-wrong maths), carried
     # in the copy's own transaction (`_carry_from`).
+    # ⛔ a fork of an installed copy keeps the copy's STORED author (`_server_origin_author`),
+    # handed in by the server: the new id has no predecessor to take it from.
+    present, author = _origin_author_of(src["definition"])
     out = save(user_id, new_id, doc, limits=limits, role=role, _copy_of_stored=True,
                pine_source=src.get("pine_source"),
-               _carry_from=(user_id, def_id, src["version"]))
+               _carry_from=(user_id, def_id, src["version"]),
+               _origin_author=author if present else _NO_AUTHOR)
     out["forked_from"] = meta["forkedFrom"]
     return out
 
@@ -4112,7 +4232,8 @@ def publish(user_id: Any, def_id: str) -> Optional[dict]:
                 (str(user_id), def_id, int(time.time())),
             )
     return {"def_id": def_id, "listed": True, "token": shared["token"],
-            "version": shared["version"], "table_version": shared["table_version"]}
+            "version": shared["version"], "table_version": shared["table_version"],
+            "includesSource": shared["includesSource"]}
 
 
 def unpublish(user_id: Any, def_id: str) -> bool:
@@ -4198,8 +4319,8 @@ def public_library(limit: int = 24, after: Optional[int] = None) -> dict:
     Members published a formula, not their name; putting an identity on a public
     page they cannot see beforehand is not ours to assume. Attribution is additive
     later — and cannot be taken back once it has shipped, which is why the default
-    is the reversible one. `author_id` still rides on an INSTALL, where the
-    recipient was handed the link deliberately.
+    is the reversible one. And since 2026-11-13 no share answer carries the author's
+    member id at all: an install records it server-side only (`_server_origin_author`).
     """
     try:
         n = int(limit)

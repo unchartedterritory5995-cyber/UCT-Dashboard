@@ -2147,6 +2147,20 @@ def _ids(hits):
     return [h["attachment_id"] for h in hits]
 
 
+def test_a_lesson_whose_post_was_deleted_is_not_offered_by_search_or_see_also(monkeypatch):
+    """⚰️ run_regroup marks a lesson whose old post was deleted by hand with the section
+    "removed" and leaves it `posted`. /lesson and "See also" both read `posted`, so they
+    went on linking to a post that no longer exists."""
+    monkeypatch.setenv("TSDR_LESSONS_THREADS_ENABLED", "1")
+    _searchable("gone1", 1, "Breakout entries, deleted", transcript="breakout " * 5, tickers=("NVDA",))
+    tl._update("gone1", section=tl.REMOVED)
+    _searchable("live1", 2, "Breakout entries", transcript="breakout", tickers=("NVDA",))
+    _searchable("live2", 3, "Breakout exits", transcript="breakout", tickers=("NVDA",))
+    assert sorted(_ids(tl.search_lessons("breakout"))) == ["live1", "live2"]
+    titles = [r["title"] for r in tl.related_lessons(tl.get_lesson("live1"))]
+    assert titles == ["Breakout exits"], "See also offered a deleted lesson, or lost a live one"
+
+
 def test_a_ticker_that_spells_a_filler_word_or_is_one_letter_still_finds_its_lesson(monkeypatch):
     """BE, ON, IT, ARE, CAN are tickers and filler words; F, C, V, T are one letter. All of
     them were dropped before the search began, so `/lesson $BE` answered "Nothing in the

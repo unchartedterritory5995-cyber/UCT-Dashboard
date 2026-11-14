@@ -42,6 +42,8 @@ import re
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.join(ROOT, "tools", "vendor_harness"))
+import evidence_ledger as el  # noqa: E402 -- LEDGER_ONLY evidence and its freshness rule: one authority
 
 # ── what each door guard is, as a CAPABILITY. Derived from pine.js REFUSALS sentences.
 GUARD_BUCKET = {
@@ -502,6 +504,56 @@ def norm_src(text):
     return hashlib.sha1(re.sub(r"\s+", "", text).encode("utf-8")).hexdigest()
 
 
+def sample_slug(key):
+    """A sample key's script key, as a capture id spells it (`evidence_engine.house_slug`: the corpus
+    hash after `__` dropped, lowercased, each run outside [a-z0-9.] one `-`)."""
+    stem = key.split(":", 1)[-1]
+    return re.sub(r"[^a-z0-9.]+", "-", stem.split("__", 1)[0].lower()).strip("-")
+
+
+def ledger_evidence(path, scripts, source_of, lane, engine, skip_captures=()):
+    """⭐ LEDGER_ONLY EVIDENCE (docs/pine/vendor-harness/evidence-ledger.jsonl): the verdicts of
+    licence-held captures, which stay out of git. Joined to the sample by SOURCE SHA256
+    (`evidence_ledger.classify`): a row counts only when it is FRESH (graded at today's
+    SCRIPT_ENGINE_VERSION, or superseded by a newer regrade that is) and its source sha is the
+    sample's. A stale row is "unproven (stale)", a sha mismatch is never counted, a DIVERGE is a
+    DIVERGE. Captures already graded from a committed fixture are skipped (never counted twice)."""
+    rows = el.read_rows(path) if path and os.path.exists(path) else []
+    samples = {s["key"]: el.source_shas(source_of(s["key"])) for s in scripts}
+    return el.classify(rows, samples, engine=engine, lane=lane, skip_captures=frozenset(skip_captures),
+                       slug_of={s["key"]: sample_slug(s["key"]) for s in scripts})
+
+
+#: A script whose only vendor evidence is a ledger row graded at an older engine: not proven.
+LEDGER_STALE = "unproven (stale)"
+
+
+def fold_ledger(scripts, led, cap_rows, verified_items, diverge_items):
+    """Fold `ledger_evidence` into the sample: each FRESH ledger verdict is a capture of that script
+    (a MATCH proves the names it uses, like a committed MATCH capture; a DIVERGE is a DIVERGE); a
+    script whose only ledger rows are stale is marked so (`vendor_verdict_of` -> LEDGER_STALE)."""
+    for s in scripts:
+        e = led["byKey"].get(s["key"])
+        if not e:
+            continue
+        for v in e["verdicts"]:
+            s.setdefault("_captures", set()).add(v)
+            cap_rows.append({"id": "ledger:" + s["key"], "verdict": v})
+            tgt = verified_items if v == "MATCH" else diverge_items
+            for it in s["_items"]:
+                if not it.startswith(UNGRADED_PREFIXES):
+                    tgt[it] += 1
+        if e["stale"] and not e["verdicts"]:
+            s["_ledgerStale"] = True
+
+
+def vendor_verdict_of(s):
+    """A script's vendor verdict; a script proven only by STALE ledger rows is LEDGER_STALE, never proven."""
+    v = script_verdict(s.pop("_captures", ()))
+    stale = s.pop("_ledgerStale", False)
+    return LEDGER_STALE if v is None and stale else v
+
+
 def script_verdict(verdicts):
     """One script's vendor verdict over its captures' verdicts: MATCH if any capture MATCHes,
     else DIVERGE if any DIVERGEs, else INCONCLUSIVE; None for a script without a capture."""
@@ -777,6 +829,8 @@ def main():
     ap.add_argument("--cache", required=True)
     ap.add_argument("--ref", required=True)
     ap.add_argument("--verdicts", required=True)
+    ap.add_argument("--ledger", default=str(el.LEDGER),
+                    help="LEDGER_ONLY evidence (licence-held captures graded out of git); fresh rows count")
     ap.add_argument("--engine-door")
     ap.add_argument("--out", required=True)
     ap.add_argument("--tables")
@@ -873,9 +927,15 @@ def main():
             if it.startswith(UNGRADED_PREFIXES):
                 continue
             tgt[it] += 1
+    # ── LEDGER_ONLY evidence: licence-held captures graded out of git (see `ledger_evidence`)
+    led = ledger_evidence(a.ledger, scripts,
+                          lambda k: open(inputs[k]["path"], encoding="utf-8", newline="").read(),
+                          LANE_PRODUCTION, el.engine_version(),
+                          skip_captures={r.get("id") for r in vd.get("results", [])})
+    fold_ledger(scripts, led, cap_rows, verified_items, diverge_items)
     vcount = collections.Counter(r["verdict"] for r in cap_rows)
     for s in scripts:
-        s["vendorVerdict"] = script_verdict(s.pop("_captures", ()))
+        s["vendorVerdict"] = vendor_verdict_of(s)
     sample_parity = collections.Counter(
         ("transfers" if s["clean"] else "does-not-transfer") + ":" + s["vendorVerdict"]
         for s in scripts if s["vendorVerdict"])
@@ -1072,11 +1132,14 @@ def main():
         },
         "parity": {
             "captures": len(cap_rows), "verdicts": dict(sorted(vcount.items())),
-            "sampleScriptsWithACapture": sum(1 for s in scripts if s["vendorVerdict"]),
+            "sampleScriptsWithACapture": sum(1 for s in scripts if s["vendorVerdict"] not in (None, LEDGER_STALE)),
             "sampleByTransferAndVerdict": dict(sorted(sample_parity.items())),
             "verifiedTransfer": sum(1 for s in scripts if s["clean"] and s["vendorVerdict"] == "MATCH"),
             "verifiedTransferPct": round(100.0 * sum(1 for s in scripts if s["clean"] and s["vendorVerdict"] == "MATCH") / N, 1),
             "note": "vendor-harness verdicts over tests/fixtures/vendor/harness (RDDT/SPY daily captures of corpus scripts and probes)",
+            # LEDGER_ONLY evidence, only when the ledger holds rows (an absent ledger leaves the map byte-identical)
+            **({"ledger": {**led["counts"], "staleScripts": sum(1 for s in scripts if s["vendorVerdict"] == LEDGER_STALE),
+                           "shaMismatch": led["shaMismatch"]}} if any(led["counts"].values()) else {}),
         },
         "examples": {"total": examples_total, "transfer": examples_clean},
         "inventory": {

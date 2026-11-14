@@ -14,7 +14,7 @@
     ]
   },
   "deploy": {
-    "startCommand": "uvicorn api.front_app:app --host 0.0.0.0 --port $PORT --timeout-graceful-shutdown 25 --no-access-log",
+    "startCommand": "/bin/sh -c \"exec uvicorn api.front_app:app --host 0.0.0.0 --port ${PORT:-8080} --timeout-graceful-shutdown 25 --no-access-log\"",
     "numReplicas": 2,
     "healthcheckPath": "/__front/health",
     "healthcheckTimeout": 120,

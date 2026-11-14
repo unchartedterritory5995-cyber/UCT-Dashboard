@@ -14,6 +14,14 @@ from zoneinfo import ZoneInfo
 from api.services.log_redaction import install as _install_log_redaction
 _install_log_redaction()
 
+# ⛔ The front-door service runs this same image. If its own start command is ever not
+# applied, the default command would boot THIS module there: a second copy of the whole
+# application (INC-1, 2026-09-16, docs/breadth/INC-1-second-app-instance.md). Stop here,
+# before any scheduler or job exists, so that deployment fails instead of succeeding as
+# the wrong program. See api/services/role_guard.py.
+from api.services.role_guard import refuse_full_app_on_front_door as _refuse_full_app_on_front_door
+_refuse_full_app_on_front_door()
+
 # APScheduler trap: a pre-built CronTrigger(...) resolves tzlocal (UTC on
 # Railway), NOT the scheduler's timezone -- every trigger below must carry
 # an explicit timezone or its "ET" schedule silently fires 4h early.
