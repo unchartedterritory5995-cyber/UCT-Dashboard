@@ -37,7 +37,7 @@ import {
   OUTPUT_CALLS as PINE_OUTPUT_CALLS, BAR_SERIES_DEFAULTS, paramDefaultShapeOk,
   declarationWordsOf, pineConstIntValue, constIntWritesOf, pineTupleBuiltinCallParts, pineNamespacedName,
   legacyBarsSignUnstated, LEGACY_BARS_SIGN_SENTENCE, REFUSALS, selfReferenceSentence,
-  selfReferencingDeclaration, blockDeclarationReadsOwnHistory,
+  selfReferencingDeclaration, blockDeclarationReadsOwnHistory, barPriceVarsOf, neverNaBoolNamesOf,
 } from './pine.js'
 import { CLOCK_REALTIME } from '../../indicators.js'
 // ⭐⭐ L1 — an imported library's exports are linked in as the script's own.
@@ -2184,21 +2184,190 @@ function buildRuntimeIrLinked(source, opts, holder) {
    *  comparison answers 0 for an `na` operand and cannot tell `na` from false, so a shape
    *  that asks the difference declines by name. A comparison of two finite literals or bar
    *  prices is never `na` and is served. */
-  const boolNaOnThisLane = (op, l, r, at) => {
+  const boolNaOnThisLane = (op, l, r, at, pineL = null, pineR = null) => {
     const v = pineVersion === null ? 1 : pineVersion
     if (!(v <= 5)) return
     const known = (x) => !!x && ((x.kind === EXPR.NUM && Number.isFinite(x.value))
       || (x.kind === EXPR.SERIES && RUNTIME_BAR_PRICES.has(x.name)))
+    // ⭐ (review #1265 finding 2) a READ of a `bool` slot can hold `na` (a v1-v5 `bool` assigned a
+    // comparison carries it), and so can its history; (finding 6) a v4/v5 `and` / `or` / `not` is
+    // never `na` (read as false: `rt3-na-logic`, witnessed), so it is not asked there
+    const boolSlot = (x) => !!x && x.kind === EXPR.READ && (slotTy(x.slot) || {}).kind === 'bool'
+    const slotNeverNa = (x) => !!x && x.kind === EXPR.READ && !!slots[x.slot] && neverNaBoolNames.has(slots[x.slot].name)
     const mayBeNaBool = (e) => {
       if (!e) return false
-      if (e.kind === EXPR.UNARY && e.op === '!') return mayBeNaBool(e.of)
+      if (boolSlot(e)) return !slotNeverNa(e)
+      if (e.kind === EXPR.HIST) return boolSlot(e.of) || mayBeNaBool(e.of)
+      if (e.kind === EXPR.UNARY && e.op === '!') return v <= 3 && mayBeNaBool(e.of)
       if (e.kind !== EXPR.BINARY || !RUNTIME_BOOL_OPS.has(e.op)) return false
-      if (e.op === '&&' || e.op === '||') return mayBeNaBool(e.left) || mayBeNaBool(e.right)
+      if (e.op === '&&' || e.op === '||') return v <= 3 && (mayBeNaBool(e.left) || mayBeNaBool(e.right))
       return !(known(e.left) && known(e.right))
     }
+    // a `bool` this lane can show is never `na`: a literal, a comparison of known values, and from v4
+    // an `and` / `or` / `not`
+    const neverNaBool = (e) => !!e && ((e.kind === EXPR.NUM && (e.value === 0 || e.value === 1))
+      || (e.kind === EXPR.BINARY && ['<', '>', '<=', '>=', '==', '!='].includes(e.op) && known(e.left) && known(e.right))
+      || (v >= 4 && ((e.kind === EXPR.BINARY && (e.op === '&&' || e.op === '||')) || (e.kind === EXPR.UNARY && e.op === '!')))
+      || slotNeverNa(e))
+    const pineLit = (n) => !!n && n.type === 'number' && !!n.tok && (n.tok.value === 'true' || n.tok.value === 'false')
     const asks = op === '==' || op === '!=' || (v <= 3 && (op === 'or' || op === 'not'))
-    if (!asks || !(mayBeNaBool(l) || mayBeNaBool(r))) return
+    if (!asks) return
+    // ⭐ (review #1265, round 2) `==` with a WRITTEN `true` / `false` on one side is served as the
+    // columnar lane serves it (`na == true` is false) wherever the VM holds that side's `na` AS
+    // `na`: a `bool` with no comparison over a value that can be `na` anywhere in what it is
+    // built from (an unmatched `if` block's `na`, a history read before bar 0, a literal arm).
+    // Whether it is so needs every write of every slot it reads, so it is decided once the
+    // program is lowered (`boolNaFaithfulness`); the site declines there by this name if not.
+    if (op === '==' && pineLit(pineL) !== pineLit(pineR)) {
+      const other = pineLit(pineR) ? l : r
+      if (neverNaBool(other)) return
+      return { other, at, message: `\`==\` over a comparison that can be \`na\` (Pine v${v === 1 && pineVersion === null ? '1, no //@version' : v})` }
+    }
+    // (review #1265 finding 1, this lane) a side compared with a WRITTEN `true` / `false` is a `bool`:
+    // it must be one this lane can show is never `na` (a `valuewhen` of a comparison, a read of a
+    // `bool` slot, … are not)
+    const literalSideUnknown = (pineLit(pineR) && !neverNaBool(l)) || (pineLit(pineL) && !neverNaBool(r))
+    if (!literalSideUnknown && !(mayBeNaBool(l) || mayBeNaBool(r))) return
     throw new RuntimeRefusal(BOOL_NA_UNWITNESSED, `\`${op}\` over a comparison that can be \`na\` (Pine v${v === 1 && pineVersion === null ? '1, no //@version' : v})`, at)
+  }
+  /** The `== true / false` sites `boolNaOnThisLane` deferred, each with its lowered node. */
+  const boolNaDeferred = []
+  /** ⭐⭐ ENGINE 56 (review #1265, round 2) — the first deferred `== true / false` site whose
+   *  other side the VM may hold as `false` where Pine holds `na` (a RuntimeRefusal), or null.
+   *
+   *  A VM comparison answers 0 for an `na` operand, so a `bool` built from a comparison over a
+   *  value that can be `na` (`close > ta.sma(close, 20)`, a `valuewhen` of one, another
+   *  symbol's) has lost its `na`, and `== false` over it would draw 1 where the columnar lane
+   *  serves 0. Everything else a `bool` is built from keeps `na` as `na` (a literal, an
+   *  unmatched block's `na`, a history read before bar 0, a comparison of values that are never
+   *  `na`, a v4+ `and` / `or` / `not`), and there `na == false` is 0 on this lane as on the
+   *  other. Decided over the WHOLE lowered program: every write of a slot (a parameter: every
+   *  argument passed to it), greatest fixpoint (a latch reading its own past adds no
+   *  comparison). A slot written by anything this does not read (a loop counter, a tuple) is
+   *  not trusted. Only sites that reached the program are asked (a lowering that was tried and
+   *  discarded leaves its site behind). */
+  const boolNaFaithfulness = (mainStatements) => {
+    if (!boolNaDeferred.length) return null
+    const v = pineVersion === null ? 1 : pineVersion
+    const STMT_KINDS = new Set(Object.values(STMT))
+    const writes = new Map()
+    const opaque = new Set()
+    const callArgs = new Map()
+    const reached = new Set()
+    const walk = (n) => {
+      if (!n || typeof n !== 'object' || reached.has(n) || ArrayBuffer.isView(n)) return
+      reached.add(n)
+      if (Array.isArray(n)) { for (const x of n) walk(x); return }
+      if (STMT_KINDS.has(n.kind)) {
+        if ((n.kind === STMT.DECLARE || n.kind === STMT.ASSIGN) && Number.isInteger(n.slot)) {
+          if (!writes.has(n.slot)) writes.set(n.slot, [])
+          writes.get(n.slot).push(n.value)
+        } else {
+          for (const [k, x] of Object.entries(n)) {
+            if (!/slot/i.test(k)) continue
+            if (Number.isInteger(x)) opaque.add(x)
+            else if (Array.isArray(x)) for (const y of x) if (Number.isInteger(y)) opaque.add(y)
+          }
+        }
+      }
+      if (n.kind === EXPR.CALL && Number.isInteger(n.fn) && Array.isArray(n.args)) {
+        if (!callArgs.has(n.fn)) callArgs.set(n.fn, [])
+        callArgs.get(n.fn).push(n.args)
+      }
+      for (const x of Object.values(n)) if (x && typeof x === 'object') walk(x)
+    }
+    walk(mainStatements)
+    for (const f of functions) { walk(f.body); walk(f.result) }
+    const sourcesOf = (s) => {
+      if (opaque.has(s)) return null
+      const sl = slots[s]
+      const fn = sl && sl.owner !== null && sl.owner !== undefined ? functions[sl.owner] : null
+      if (fn && sl.index !== undefined && sl.index < fn.params) {
+        const sites = callArgs.get(sl.owner) || []
+        return sites.length ? sites.map((a) => a[sl.index]) : null
+      }
+      const w = writes.get(s)
+      return w && w.length ? w : null
+    }
+    const CMP = new Set(['<', '>', '<=', '>=', '==', '!='])
+    const ARITH = new Set(['+', '-', '*'])
+    const CANON_BAR = new Set([...RUNTIME_BAR_PRICES])
+    // a canonical (columnar) tree that is never `na`, and one whose `na` is a real `na`
+    const canonNever = (t, d = 0) => {
+      if (!t || typeof t !== 'object' || d > 64) return false
+      if (t.type === 'num') return Number.isFinite(t.value)
+      if (t.type === 'series') return CANON_BAR.has(t.name)
+      const a = Array.isArray(t.args) ? t.args : []
+      if (t.type !== 'op') return false
+      if (ARITH.has(t.name) || CMP.has(t.name)) return a.length === 2 && a.every((x) => canonNever(x, d + 1))
+      if (t.name === '?:') return a.length === 3 && canonNever(a[1], d + 1) && canonNever(a[2], d + 1)
+      if (t.name === '&&' || t.name === '||' || t.name === '!') return v >= 4 || a.every((x) => canonNever(x, d + 1))
+      return false
+    }
+    const canonKeeps = (t, d = 0) => {
+      if (canonNever(t, d)) return true
+      if (!t || typeof t !== 'object' || d > 64) return false
+      const a = Array.isArray(t.args) ? t.args : []
+      if (t.type === 'op' && t.name === '/' && a.length === 2 && a.every((x) => x && x.type === 'num' && x.value === 0)) return true
+      if (t.type === 'op' && t.name === '?:') return a.length === 3 && canonKeeps(a[1], d + 1) && canonKeeps(a[2], d + 1)
+      return false
+    }
+    // a lowered expression that is never `na` (`slotOk` answers for a READ)
+    const never = (e, slotOk, d = 0) => {
+      if (!e || typeof e !== 'object' || d > 64) return false
+      switch (e.kind) {
+        case EXPR.NUM: return Number.isFinite(e.value)
+        case EXPR.SERIES: return RUNTIME_BAR_PRICES.has(e.name)
+        case EXPR.CLOCK: return true
+        case EXPR.BINARY:
+          if (ARITH.has(e.op) || CMP.has(e.op)) return never(e.left, slotOk, d + 1) && never(e.right, slotOk, d + 1)
+          if (e.op === '&&' || e.op === '||') return v >= 4 || (never(e.left, slotOk, d + 1) && never(e.right, slotOk, d + 1))
+          return false
+        case EXPR.UNARY:
+          if (e.op === 'u-') return never(e.of, slotOk, d + 1)
+          if (e.op === '!') return v >= 4 || never(e.of, slotOk, d + 1)
+          return false
+        case EXPR.TERNARY: return never(e.then, slotOk, d + 1) && never(e.else, slotOk, d + 1)
+        case EXPR.READ: return slotOk(e.slot)
+        case EXPR.CALL: return !!functions[e.fn] && never(functions[e.fn].result, slotOk, d + 1)
+        case EXPR.COLUMN: return canonNever(columnTrees[e.index])
+        default: return false
+      }
+    }
+    // a lowered `bool` whose `na` (if any) the VM holds as `na`
+    const keeps = (e, slotOk, neverOk, d = 0) => {
+      if (never(e, neverOk, d)) return true
+      if (!e || typeof e !== 'object' || d > 64) return false
+      switch (e.kind) {
+        case EXPR.NUM: return true
+        case EXPR.TERNARY: return keeps(e.then, slotOk, neverOk, d + 1) && keeps(e.else, slotOk, neverOk, d + 1)
+        case EXPR.READ: return slotOk(e.slot)
+        case EXPR.HIST: return keeps(e.of, slotOk, neverOk, d + 1)
+        case EXPR.CALL: return !!functions[e.fn] && keeps(functions[e.fn].result, slotOk, neverOk, d + 1)
+        case EXPR.COLUMN: return canonKeeps(columnTrees[e.index])
+        default: return false
+      }
+    }
+    const fixpoint = (holds) => {
+      const ok = new Map()
+      for (let s = 0; s < slots.length; s++) ok.set(s, sourcesOf(s) !== null)
+      const slotOk = (s) => ok.get(s) === true
+      for (let changed = true, rounds = 0; changed && rounds < slots.length + 2; rounds++) {
+        changed = false
+        for (let s = 0; s < slots.length; s++) {
+          if (!ok.get(s)) continue
+          if (!sourcesOf(s).every((e) => holds(e, slotOk))) { ok.set(s, false); changed = true }
+        }
+      }
+      return slotOk
+    }
+    const neverSlot = fixpoint((e, slotOk) => never(e, slotOk))
+    const keepsSlot = fixpoint((e, slotOk) => keeps(e, slotOk, neverSlot))
+    for (const site of boolNaDeferred) {
+      if (!reached.has(site.node)) continue
+      if (!keeps(site.other, keepsSlot, neverSlot)) return new RuntimeRefusal(BOOL_NA_UNWITNESSED, site.message, site.at)
+    }
+    return null
   }
   /** ⭐⭐ P3 WS-B — THE OPTIONS EVERY PURE COLUMN OF THIS RUN IS EVALUATED WITH.
    *  The caller's `interpretOpts`, plus Pine's `na`-condition rule when the caller
@@ -2238,6 +2407,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
   const declWords = declarationWordsOf(tokens)
   const constIntCtx = { version: pineVersion, declWords }
   const constIntWrites = constIntWritesOf(stmts, constIntCtx)
+  // ⭐ ENGINE 56 (finding 6) — top-level variables that hold a bar price on every bar they are read
+  const barPriceVars = barPriceVarsOf(stmts)
+  // ⭐ ENGINE 56 (finding 6) — names whose every write is a `bool` never `na` at this version
+  const neverNaBoolNames = neverNaBoolNamesOf(stmts, pineVersion)
   // ⛔ W1 (review, 2026-11-02) — THE OBJECT DOOR TELLS THE RESOLVER, and the
   // Resolver alone decides what that withholds (`pine.js::seriesTreeOf`,
   // `PINE_DRAWING_HELD_SERIES`: a running total served to the pane is refused by
@@ -2330,6 +2503,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
 
   const slots = []
   const columns = []
+  // ⭐ ENGINE 56 (round 2) — the canonical tree of each column, for `boolNaFaithfulness`
+  const columnTrees = []
   const columnByKey = new Map()
   const outputs = []
   // ⭐ THE STATIC HISTORY-DEMAND ANALYSIS, accumulated as the body is lowered:
@@ -3396,6 +3571,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
     }
     columns.push(arr)
     const i = columns.length - 1
+    columnTrees[i] = canonical
     columnByKey.set(key, i)
     return i
   }
@@ -7871,8 +8047,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
         }
         const loweredL = lowerExpr(node.left, scope)
         const loweredR = lowerExpr(node.right, scope)
-        boolNaOnThisLane(node.op, loweredL, loweredR, locate(node.tok))
-        return binary(op, loweredL, loweredR)
+        const naLate = boolNaOnThisLane(node.op, loweredL, loweredR, locate(node.tok), node.left, node.right)
+        const lowered = binary(op, loweredL, loweredR)
+        if (naLate) boolNaDeferred.push({ ...naLate, node: lowered })
+        return lowered
       }
       case 'unary': {
         if (node.op === '-') return unary('u-', lowerExpr(node.arg, scope))
@@ -8804,8 +8982,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
           // (`interpret.js::windowArgExtreme`); over anything else a tied window is withheld by
           // the columnar lane, and this lane, which has no per-bar withholding, STOPS BY NAME on the first
           // bar whose window holds a tie (`tieGuard`, `runtime/vm.js`): a window with no tie is served.
-          const barPriceSrc = !!srcNode && srcNode.type === 'name' && RUNTIME_BAR_PRICES.has(srcNode.name)
-            && scope.lookup(srcNode.name) === null
+          const barPriceSrc = !!srcNode && srcNode.type === 'name' && ((RUNTIME_BAR_PRICES.has(srcNode.name)
+            && scope.lookup(srcNode.name) === null)
+            || (owner === null && barPriceVars.has(srcNode.name) && scope.lookup(srcNode.name) === root.names.get(srcNode.name)))
           const tieGuard = (win.table === 'highestbars' || win.table === 'lowestbars') && !barPriceSrc
           let varSlot = srcNode && srcNode.type === 'name' ? scope.lookup(srcNode.name) : null
           let srcLabel = srcNode && srcNode.type === 'name' ? srcNode.name : null
@@ -14429,6 +14608,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
     ce.desc[ce.field || 'colour'] = { output: outputs.length }
     outputs.push({ call: 'colour', of })
   }
+
+  // ⭐ ENGINE 56 (round 2) — the deferred `== true / false` sites, now that every write is known
+  const boolNaLate = boolNaFaithfulness(statements)
+  if (boolNaLate) return fail(boolNaLate, diagnostics)
 
   let ir
   try {

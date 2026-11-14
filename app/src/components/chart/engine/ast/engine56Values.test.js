@@ -401,3 +401,136 @@ describe('the runtime lane on its own path (a mutable value: no column to read)'
     expect(run.col[115]).toBeCloseTo(78.57142857142857, 9)
   })
 })
+
+// ─── the review of #1265 (f4601e45a1): findings 1-7 ─────────────────────────────────────────────
+/** the member door's served column, the bars withheld by name, on RDDT (or other) bars */
+function doorOn(src, bars = RDDT) {
+  const d = memberPaneDefinition({ source: src, id: 'u_e56r', name: 'e56r' })
+  expect(d.ok, d.guard).toBe(true)
+  const cols = registry.computeFor(d.definition, bars, undefined, CTX)
+  const key = Object.keys(cols)[0]
+  const rep = registry.withheldBarsReport(cols)
+  const masks = rep && rep[key] ? rep[key] : {}
+  return { col: Array.from(cols[key]), codes: Object.keys(masks),
+    held: Object.values(masks).reduce((a, m) => a + Array.from(m).filter(Boolean).length, 0),
+    maskLengths: Object.values(masks).map((m) => m.length), formula: d.translation.outputs[0].formula }
+}
+
+describe('finding 1 - no untracked bool reaches `== true/false` with the comparison 0', () => {
+  it('v4 `security(…, "W", close > sma(close, 20)) == false` is 0 where the weekly comparison is `na` (it served 1)', () => {
+    const src = '//@version=4\nstudy("r1")\nw = security(syminfo.tickerid, "W", close > sma(close, 20))\nplot(w == false ? 1 : 0)'
+    const { col, codes } = doorOn(src)
+    // the weekly `sma(close, 20)` is `na` for the first 20 weeks: about 100 daily bars
+    for (let i = 0; i < 95; i++) expect(col[i], `bar ${i}`).toBe(0)
+    expect(col.slice(100).some((x) => x === 1)).toBe(true)
+    expect(codes).toEqual([])
+    const rt = runtimeRun(src)
+    if (!rt.err) for (let i = 0; i < 95; i++) expect(rt.col[i], `runtime bar ${i}`).toBe(0)
+  })
+  it('v4 `valuewhen(close > open, close > sma(close, 20), 0) == false` is 0 while the chosen comparison is `na`', () => {
+    const src = '//@version=4\nstudy("r1")\nb = valuewhen(close > open, close > sma(close, 20), 0)\nplot(b == false ? 1 : 0)'
+    const { col } = doorOn(src)
+    for (let i = 0; i < 19; i++) expect(col[i], `bar ${i}`).toBe(0)
+    // the runtime lane computes `valuewhen` itself and cannot tell its `na` from false: it declines
+    const rt = runtimeRun(src)
+    expect(rt.err && rt.err.guard).toBe(BOOL_NA_UNWITNESSED)
+  })
+  it('a v1 `bool` latch (`x = close > open ? true : nz(x[1], false)`) is TRACKED, never na, and served on every bar', () => {
+    const { col, codes } = doorOn('study("r1")\nx = close > open ? true : nz(x[1], false)\nplot(x == true ? 1 : 0)')
+    expect(codes).toEqual([])
+    expect(col.filter((x) => Number.isFinite(x)).length).toBe(RDDT.length)
+  })
+  it('a `bool` this cannot track (a v1 `and` over its own history) is withheld by name on every bar, never served', () => {
+    const src = 'study("r1")\nx = close > open ? (nz(x[1], false) and close > sma(close, 5)) : false\nplot(x == true ? 1 : 0)'
+    const t = translatePine(src, { strict: true })
+    if (!t.ok) return expect(t.refusal || t.outputs[0].refusal).toBeTruthy() // refused by name is also honest
+    const { col, codes } = doorOn(src)
+    expect(codes).toEqual([BOOL_NA_UNWITNESSED])
+    expect(col.every((x) => Number.isNaN(x))).toBe(true)
+  })
+  it('finding 5b: `x = close > open ? 1 : na; x != 1` is a NUMBER compare, served as `sma != close` is', () => {
+    const { col, codes, formula } = doorOn('//@version=5\nindicator("r1")\nx = close > open ? 1 : na\nplot(x != 1 ? 1 : 0)')
+    expect(codes).toEqual([])
+    expect(formula).not.toMatch(/boolNaWithheld/)
+    expect(col.every((x) => Number.isFinite(x))).toBe(true)
+  })
+})
+
+describe('finding 2 - the runtime lane declines a mutable `bool` that can be `na` (it served 0 where the host withholds)', () => {
+  it('`bool up = false; up := close > ta.sma(close, 20); up != up[1]`: host withholds bars 0..19, the runtime declines', () => {
+    const src = '//@version=5\nindicator("r2")\nbool up = false\nup := close > ta.sma(close, 20)\nplot(up != up[1] ? 1 : 0)'
+    const { col, codes } = doorOn(src)
+    expect(codes).toEqual([BOOL_NA_UNWITNESSED])
+    for (let i = 0; i < 20; i++) expect(Number.isNaN(col[i]), `bar ${i}`).toBe(true)
+    expect(col.slice(20).every((x) => Number.isFinite(x))).toBe(true)
+    const b = buildRuntimeIr(src, { bars: RDDT, inputs: {}, pane: true, historyFromListing: true })
+    expect(b.ok).toBe(false)
+    expect(b.refusal.guard).toBe(BOOL_NA_UNWITNESSED)
+  })
+  it('finding 6: a v5 `and` is never `na` on this lane (served)', () => {
+    const body = ['float x = 0.0', 'x := close - open', 'b = x > 0 and close > 0', 'plot(b == true ? 1 : 0)']
+    const built = buildRuntimeIr(['//@version=5', 'indicator("r6")', ...body].join('\n'), { bars: RDDT, inputs: {}, pane: true, historyFromListing: true })
+    expect(built.ok, built.refusal && `${built.refusal.guard}: ${built.refusal.message}`).toBe(true)
+  })
+  it('finding 6: a variable whose every write is a bar price (`float h = na; h := high`) takes the newest tie rule on this lane', () => {
+    const src = '//@version=5\nindicator("r6")\nfloat h = na\nh := high\nplot(ta.highestbars(h, 11))'
+    const rt = runtimeRun(src)
+    expect(rt.err).toBeUndefined()
+    expect(rt.col[117]).toBe(-1)
+    expect(rt.col).toEqual(doorOn(src).col)
+  })
+  // ⭐ round 2: `== true / false` is decided over every write of what it reads — declined where
+  // a write is a comparison over a value that can be `na` (the VM holds that `na` as 0), served
+  // (equal to the member door) where the `na` is a real one
+  it('round 2: `up := close > ta.sma(close, 20)` then `up == false` declines on this lane (it would draw 1 where the door draws 0)', () => {
+    const src = '//@version=5\nindicator("r2b")\nbool up = false\nup := close > ta.sma(close, 20)\nplot(up == false ? 1 : 0)'
+    const { col } = doorOn(src)
+    for (let i = 0; i < 19; i++) expect(col[i], `bar ${i}`).toBe(0)
+    const b = buildRuntimeIr(src, { bars: RDDT, inputs: {}, pane: true, historyFromListing: true })
+    expect(b.ok).toBe(false)
+    expect(b.refusal.guard).toBe(BOOL_NA_UNWITNESSED)
+  })
+  it('round 2: an unmatched v5 `if` block\'s `na`, read through a function and its history, is served (`na == true` is 0)', () => {
+    // the member door refuses a block value (`pine:block`); the answer is Pine's: `b[1]` is `na`
+    // on bar 0 and wherever the previous close was not above 60, and `na == true` is false
+    const src = '//@version=5\nindicator("r2c")\nb = if close > 60\n    close > open\nf(x) => x[1] == true\nplot(f(b) ? 1 : 0)'
+    const rt = runtimeRun(src)
+    expect(rt.err).toBeUndefined()
+    const want = RDDT.map((_, i) => (i > 0 && RDDT[i - 1].c > 60 && RDDT[i - 1].c > RDDT[i - 1].o ? 1 : 0))
+    expect(rt.col).toEqual(want)
+    expect(want.some((x) => x === 1) && want.some((x, i) => x === 0 && i > 0 && RDDT[i - 1].c <= 60)).toBe(true)
+  })
+})
+
+describe('finding 3 -a witness site under a read on other bars is withheld (TF_MERGE / LTF / tf / sym)', () => {
+  it('a `!=` site under `request.security(…, "W", …)` withholds the plot, never draws the weekly guess', () => {
+    const { col, codes, maskLengths } = doorOn('//@version=5\nindicator("r3")\nw = request.security(syminfo.tickerid, "W", (close > ta.sma(close, 20)) != false)\nplot(w ? 1 : 0)')
+    expect(codes).toEqual([BOOL_NA_UNWITNESSED])
+    expect(col.every((x) => Number.isNaN(x))).toBe(true)
+    // finding 7: the mask the harness trusts is the chart's length, never the weekly child's
+    expect(maskLengths).toEqual([RDDT.length])
+  })
+  it('a tie site under `request.security(…, "W", …)` too', () => {
+    const { col, codes } = doorOn('//@version=5\nindicator("r3")\nvt = close > open ? 10 : 20\nplot(request.security(syminfo.tickerid, "W", ta.highestbars(vt, 4)))')
+    expect(codes).toEqual([TIE_UNWITNESSED])
+    expect(col.every((x) => Number.isNaN(x))).toBe(true)
+  })
+})
+
+describe('finding 5 - the withholding ENDS once the answer no longer depends on the unknown bars', () => {
+  it('`ta.barssince(up != up[1])` withholds only its warm-up (it withheld 666 of 666 bars)', () => {
+    const { col, held } = doorOn('//@version=5\nindicator("r5")\nup = close > ta.sma(close, 20)\nplot(ta.barssince(up != up[1]))')
+    expect(held).toBeLessThan(40)
+    expect(col.slice(40).every((x) => Number.isFinite(x))).toBe(true)
+  })
+  it('`ta.valuewhen(up != up[1], close, 0)` withholds only until the first known occurrence', () => {
+    const { col, held } = doorOn('//@version=5\nindicator("r5")\nup = close > ta.sma(close, 20)\nplot(ta.valuewhen(up != up[1], close, 0))')
+    expect(held).toBeLessThan(40)
+    expect(col.slice(40).every((x) => Number.isFinite(x))).toBe(true)
+  })
+  it('a recurrence over the unknown bars still withholds every later bar (it cannot forget them)', () => {
+    const { col, codes } = doorOn('//@version=5\nindicator("r5")\nup = close > ta.sma(close, 20)\nplot(ta.cum(up != up[1] ? 1 : 0))')
+    expect(codes).toEqual([BOOL_NA_UNWITNESSED])
+    expect(col.every((x) => Number.isNaN(x))).toBe(true)
+  })
+})

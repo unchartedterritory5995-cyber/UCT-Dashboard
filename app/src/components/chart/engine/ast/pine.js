@@ -5312,6 +5312,124 @@ export function pineConstIntValue(node, lookup, ctx, depth = 0) {
  *  ⭐ A write is visible from the END of its statement, so the read of `a` inside
  *  `a := a / 100` sees the value before the write.
  *  @returns {{valueAt: (name: string, offset: number) => (number|null)}} */
+/** ⭐⭐ ENGINE 56 (review #1265 finding 6) — THE VARIABLES THAT HOLD A PRICE THE BAR ITSELF HOLDS
+ *  on every bar they are read: every write is a top-level `name = <price>` / `name := <price>`
+ *  (`open` / `high` / `low` / `close`, or `hl2` / `hlc3` / `ohlc4` / `hlcc4`), except an optional
+ *  first `name = na` declaration that no top-level statement mentions before the first price
+ *  write. Any other write anywhere (a block, a function, a tuple, a compound operator, a `var`)
+ *  disqualifies the name. The runtime lane reads it for the arg-extreme tie rule (S4-2): over
+ *  such a variable the newest tied bar wins, as over the price itself. Conservative by design. */
+const BAR_PRICE_WORDS = new Set(['open', 'high', 'low', 'close', 'hl2', 'hlc3', 'ohlc4', 'hlcc4'])
+/** ⭐ ENGINE 56 (review #1265 finding 6) — THE NAMES EVERY WRITE OF WHICH IS A `bool` THAT IS NEVER
+ *  `na` at this version: a written `true` / `false`, a comparison of literals and bar prices, and
+ *  from v4 an `and` / `or` / `not` (read as false over an `na` operand: `rt3-na-logic`). Any other
+ *  write, in any scope, disqualifies the name. The runtime lane reads it so `inPos == true` over
+ *  such a variable is served rather than declined; its history (`b[1]`) is still `na` before bar 0. */
+export function neverNaBoolNamesOf(stmts, version) {
+  const v = version === null || version === undefined ? 1 : Number(version)
+  const state = new Map()
+  const PRICES = new Set(['open', 'high', 'low', 'close', 'hl2', 'hlc3', 'ohlc4', 'hlcc4'])
+  const knownNum = (n) => !!n && ((n.type === 'number' && Number.isFinite(n.value)) || (n.type === 'name' && PRICES.has(n.name)))
+  const CMP = new Set(['<', '>', '<=', '>=', '==', '!='])
+  const neverNa = (n) => {
+    if (!n) return false
+    if (n.type === 'number') return n.value === 0 || n.value === 1
+    if (n.type === 'paren' || n.type === 'group') return neverNa(n.expr || n.inner)
+    if (n.type === 'binary' && CMP.has(n.op)) return knownNum(n.left) && knownNum(n.right)
+    if (n.type === 'binary' && (n.op === 'and' || n.op === 'or')) return v >= 4
+    if (n.type === 'unary' && n.op === 'not') return v >= 4
+    return false
+  }
+  const visit = (list) => {
+    for (const st of list || []) {
+      const toks = st.header || []
+      if (toks.length && !toks.some((t) => isPunct(t, '=>'))) {
+        const mut = findTop(toks, (t) => t.kind === 'punct' && MUTATORS.has(t.value))
+        let name = null
+        let rhs = null
+        let ok = true
+        if (mut === 1 && toks[0].kind === 'ident') {
+          name = String(toks[0].value)
+          if (toks[1].value !== ':=') ok = false
+          rhs = toks.slice(2)
+        } else if (mut < 0) {
+          const eq = findTop(toks, (t) => isPunct(t, '='))
+          if (eq > 0 && !isPunct(toks[0], '[')) {
+            const nameTok = boundName(toks, eq)
+            if (nameTok) { name = String(nameTok.value); rhs = toks.slice(eq + 1) }
+          } else if (eq > 0) {
+            for (const t of toks.slice(1, eq)) if (t.kind === 'ident') state.set(String(t.value), false)
+          }
+        }
+        if (name) {
+          let node = null
+          if (ok && rhs && rhs.length) { try { node = parseWholeExpression(rhs) } catch { node = null } }
+          if (!ok || !neverNa(node)) state.set(name, false)
+          else if (!state.has(name)) state.set(name, true)
+        }
+      }
+      visit(st.sub)
+    }
+  }
+  visit(stmts)
+  return new Set([...state].filter(([, ok]) => ok).map(([k]) => k))
+}
+
+export function barPriceVarsOf(stmts) {
+  const state = new Map() // name -> 'na' (declared na, no price yet) | 'price' | 'bad'
+  const bad = (name) => state.set(name, 'bad')
+  const targetOf = (toks) => {
+    const mut = findTop(toks, (t) => t.kind === 'punct' && MUTATORS.has(t.value))
+    if (mut === 1 && toks[0].kind === 'ident') return { name: String(toks[0].value), op: toks[1].value, rhs: toks.slice(2) }
+    if (mut > 0) return { other: true }
+    const eq = findTop(toks, (t) => isPunct(t, '='))
+    if (eq <= 0) return null
+    if (isPunct(toks[0], '[')) return { tuple: toks.slice(1, eq).filter((t) => t.kind === 'ident').map((t) => String(t.value)) }
+    const nameTok = boundName(toks, eq)
+    if (!nameTok) return null
+    const words = toks.slice(0, eq - 1).map((t) => String(t.value))
+    return { name: String(nameTok.value), op: '=', rhs: toks.slice(eq + 1), words }
+  }
+  const nested = (list) => {
+    for (const st of list || []) {
+      const w = targetOf(st.header || [])
+      if (w && w.name) bad(w.name)
+      if (w && w.tuple) for (const n of w.tuple) bad(n)
+      nested(st.sub)
+    }
+  }
+  for (const st of stmts || []) {
+    const toks = st.header || []
+    nested(st.sub)
+    if (!toks.length) continue
+    if (toks.some((t) => isPunct(t, '=>'))) {
+      // a function body may write a global with `:=`: anything it names is disqualified
+      for (const t of toks) if (t.kind === 'ident' && state.has(String(t.value))) bad(String(t.value))
+      continue
+    }
+    const w = targetOf(toks)
+    // a statement that READS a name still at `na` before its first price write disqualifies it
+    for (const t of toks) {
+      const nm = t.kind === 'ident' ? String(t.value) : null
+      if (nm && state.get(nm) === 'na' && !(w && w.name === nm && t === toks[0])) bad(nm)
+    }
+    if (!w) continue
+    if (w.tuple) { for (const n of w.tuple) bad(n); continue }
+    if (!w.name) continue
+    if ((w.words || []).some((x) => x === 'var' || x === 'varip')) { bad(w.name); continue }
+    const rhs = w.rhs
+    const isPrice = rhs.length === 1 && rhs[0].kind === 'ident' && BAR_PRICE_WORDS.has(String(rhs[0].value))
+    const isNa = rhs.length === 1 && rhs[0].kind === 'ident' && String(rhs[0].value) === 'na'
+    const prior = state.get(w.name)
+    if (prior === 'bad') continue
+    if (w.op !== '=' && w.op !== ':=') { bad(w.name); continue }
+    if (isPrice) { state.set(w.name, 'price'); continue }
+    if (isNa && prior === undefined && w.op === '=') { state.set(w.name, 'na'); continue }
+    bad(w.name)
+  }
+  return new Set([...state].filter(([, v]) => v === 'price').map(([k]) => k))
+}
+
 export function constIntWritesOf(stmts, ctx) {
   const disq = new Set()
   const order = []
@@ -6816,10 +6934,17 @@ const PINE_BAR_PRICES = new Set(['open', 'high', 'low', 'close'])
 const NA_NEVER = Object.freeze({ type: 'num', value: 0 })
 const isNaNever = (m) => m === NA_NEVER || (!!m && m.type === 'num' && m.value === 0)
 const naOr = (a, b) => (isNaNever(a) ? b : isNaNever(b) ? a : cOp('||', [a, b]))
+const naTree = (m) => (isNaNever(m) ? cNum(0) : m)
 const isBoolLiteralNode = (t) => !!t && t.type === 'num' && (t.value === 0 || t.value === 1)
+/** A Pine `true` / `false` as WRITTEN (the parse keeps the token: `{type:'number', value, tok}`). */
+const isPineBoolLiteral = (n) => !!n && n.type === 'number' && !!n.tok
+  && (n.tok.value === 'true' || n.tok.value === 'false')
 const BOOL_NA_RANGE = new Set(['<', '<=', '>', '>='])
 const NA_KEEPING_OPS = new Set(['+', '-', '*', 'u-'])
 const NA_KEEPING_CALLS = new Set(['abs', 'max', 'min', 'sign'])
+/** Nodes that read their child on OTHER bars (another timeframe, symbol or the bars below):
+ *  a tracked flag is lifted through the same node, so it is read on the bars the value is. */
+const NA_LIFT_TYPES = new Set(['tf', 'tf_live', 'tf_merge', 'sym', 'ltf'])
 const naInfoOf = (na, maybe) => ({ na, maybe })
 const NA_INFO_NEVER = Object.freeze(naInfoOf(NA_NEVER, NA_NEVER))
 /** 1 where the NUMBER `x` is `na`, or `NA_NEVER` for a value known on every bar (a finite
@@ -6839,31 +6964,61 @@ function naOfNumber(x, version) {
   if (asBool !== null) return naOr(asBool.na, asBool.maybe)
   return cCall('na', [x])
 }
+/** ⭐⭐ ENGINE 56 (review #1265, finding 1) — IS THIS RESOLVED TREE A `bool`? A tree whose
+ *  manifest kind is `bool` (comparisons, `and` / `or` / `not`, the bool-yielding calls), and
+ *  the shapes that carry one: an offset, a timeframe / symbol / lower-timeframe read, a
+ *  `valuewhen` whose source is one, an `accum` whose seed and every step arm are one (a
+ *  `var bool`). `selfIsBool` is true inside such an `accum`'s body. */
+function isBoolishTree(t, selfIsBool = false) {
+  if (!t || typeof t !== 'object') return false
+  if (t.type === 'num') return t.value === 0 || t.value === 1
+  if (isStaticNa(t)) return selfIsBool
+  if (t.type === 'series') return selfIsBool && t.name === 'self'
+  if (t.type === 'offset' || NA_LIFT_TYPES.has(t.type)) return isBoolishTree(t.args && t.args[0], selfIsBool)
+  if (t.type === 'op' && t.name === '?:' && Array.isArray(t.args) && t.args.length === 3) {
+    return isBoolishTree(t.args[1], selfIsBool) && isBoolishTree(t.args[2], selfIsBool)
+      && !(isBoolLiteralNode(t.args[1]) && isBoolLiteralNode(t.args[2]) && !selfIsBool)
+      || treeYieldsBool(t)
+  }
+  if (t.type === 'call' && (t.name === 'valuewhen' || t.name === 'valuewhenOccurrence')) {
+    return isBoolishTree(t.args && t.args[1], selfIsBool)
+  }
+  if (t.type === 'call' && t.name === 'accum' && Array.isArray(t.args)) {
+    return isBoolishTree(t.args[0], true) && isBoolishTree(t.args[1], true)
+  }
+  return treeYieldsBool(t)
+}
+/** A side that is a `bool` (not a bare `1` / `0`, which may be a number): bool-typed by the
+ *  manifest or the shapes above, or tracked. */
+const isBoolSide = (x, v) => !isBoolLiteralNode(x) && (isBoolishTree(x) || naInfo(x, v) !== null)
 /** ⭐⭐ ENGINE 56 (A3) — where this resolved `bool` tree is Pine's `na`: `{na, maybe}`, each a
  *  0/1 tree or `NA_NEVER`, or null when the tree is not one this engine tracks as a `bool`.
  *  `na` is where it IS `na`; `maybe` is where it is false or `na` and no capture says which:
  *  a v1-v3 `and` over an `na` operand (read as false it is false; carried through, `na`).
  *  A condition reads both as false, so only an operator that tells `na` from false
- *  (`boolNaOperator`) asks. */
+ *  (`boolNaOperator`) asks. `boolCtx`: the tree is known to be a `bool` (it meets a written
+ *  `true` / `false`, or a tracked `bool`), so `1` / `0` / `na` arms of a `?:` are `bool`s
+ *  (review #1265 finding 5: never otherwise, so `c ? 1 : na` compared with `1` stays a number). */
 const NA_INFO_MEMO = new WeakMap()
-export function naInfo(t, version) {
+export function naInfo(t, version, boolCtx = false) {
   if (!t || typeof t !== 'object') return null
   const v = version === null || version === undefined ? 1 : Number(version)
-  // ⭐ memoised per node and version: trees here share subtrees, and `==` asks its operands twice
-  let byVersion = NA_INFO_MEMO.get(t)
-  if (!byVersion) { byVersion = new Map(); NA_INFO_MEMO.set(t, byVersion) }
-  if (byVersion.has(v)) return byVersion.get(v)
-  const info = naInfoUncached(t, v)
-  byVersion.set(v, info)
+  // ⭐ memoised per node, version and context: trees here share subtrees
+  let byKey = NA_INFO_MEMO.get(t)
+  if (!byKey) { byKey = new Map(); NA_INFO_MEMO.set(t, byKey) }
+  const key = `${v}|${boolCtx ? 1 : 0}`
+  if (byKey.has(key)) return byKey.get(key)
+  const info = naInfoUncached(t, v, boolCtx)
+  byKey.set(key, info)
   return info
 }
-function naInfoUncached(t, v) {
+function naInfoUncached(t, v, boolCtx) {
   if (t.type === 'op' && Array.isArray(t.args)) {
     const [a, b] = t.args
     if (BOOL_NA_RANGE.has(t.name)) return naInfoOf(naOr(naOfNumber(a, v), naOfNumber(b, v)), NA_NEVER)
     if (t.name === '==' || t.name === '!=') {
       // a comparison OF bools is rewritten by `boolNaOperator` (served false, or withheld)
-      if (naInfo(a, v) !== null || naInfo(b, v) !== null) return NA_INFO_NEVER
+      if (isBoolSide(a, v) || isBoolSide(b, v)) return NA_INFO_NEVER
       return naInfoOf(naOr(naOfNumber(a, v), naOfNumber(b, v)), NA_NEVER)
     }
     if (t.name === '&&' && v <= 3) {
@@ -6872,37 +7027,100 @@ function naInfoUncached(t, v) {
     }
     if (t.name === '&&' || t.name === '||' || t.name === '!') return NA_INFO_NEVER
     if (t.name === '?:' && t.args.length === 3) {
-      const arm = (x) => (isBoolLiteralNode(x) ? NA_INFO_NEVER : isStaticNa(x) ? naInfoOf(cNum(1), NA_NEVER) : naInfo(x, v))
+      const typedArm = (n) => !isBoolLiteralNode(n) && !isStaticNa(n)
+      const bothLiteral = !typedArm(t.args[1]) && !typedArm(t.args[2])
+      // literal arms are a `bool` only where the context says the tree is one
+      if (bothLiteral && !boolCtx) return null
+      const arm = (x) => (isBoolLiteralNode(x) ? NA_INFO_NEVER : isStaticNa(x) ? naInfoOf(cNum(1), NA_NEVER) : naInfo(x, v, boolCtx))
       const x = arm(t.args[1])
       const y = arm(t.args[2])
       if (x === null || y === null) return null
-      // two numbers written as `1` / `0` / `na` are a `bool` only beside a tracked `bool` arm,
-      // or as `true : false`, or as `true : na`
-      const typed = (n) => !isBoolLiteralNode(n) && !isStaticNa(n)
-      if (!(typed(t.args[1]) || typed(t.args[2])
-        || (isBoolLiteralNode(t.args[1]) && isBoolLiteralNode(t.args[2])))
-        && !(isStaticNa(t.args[1]) !== isStaticNa(t.args[2]) && (isBoolLiteralNode(t.args[1]) || isBoolLiteralNode(t.args[2])))) return null
-      const tree = (m) => (isNaNever(m) ? cNum(0) : m)
-      const pick = (mx, my) => (isNaNever(mx) && isNaNever(my) ? NA_NEVER : cOp('?:', [t.args[0], tree(mx), tree(my)]))
+      const pick = (mx, my) => (isNaNever(mx) && isNaNever(my) ? NA_NEVER : cOp('?:', [t.args[0], naTree(mx), naTree(my)]))
       return naInfoOf(pick(x.na, y.na), pick(x.maybe, y.maybe))
     }
     return null
   }
   if (t.type === 'offset' && Array.isArray(t.args) && t.args[0]) {
-    const inner = naInfo(t.args[0], v)
+    const inner = naInfo(t.args[0], v, boolCtx)
     if (inner === null) return null
     // a read before the first bar is `na` too
     const back = (m, before) => cCall('nz', [{ type: 'offset', value: t.value, args: [m] }, cNum(before)])
     return naInfoOf(isNaNever(inner.na) ? cCall('na', [t]) : back(inner.na, 1),
       isNaNever(inner.maybe) ? NA_NEVER : back(inner.maybe, 0))
   }
+  // ⭐ (review finding 1) a read on other bars: the flag is read through the SAME node, so it is
+  // the flag of the bar the value came from; a bar the read cannot fill is `na` (fail closed)
+  if (NA_LIFT_TYPES.has(t.type) && Array.isArray(t.args) && t.args[0]) {
+    const inner = naInfo(t.args[0], v, boolCtx)
+    if (inner === null) return null
+    const lift = (m, gap) => cCall('nz', [{ ...t, args: [naTree(m)] }, cNum(gap)])
+    return naInfoOf(lift(inner.na, 1), isNaNever(inner.maybe) ? NA_NEVER : lift(inner.maybe, 0))
+  }
   if (t.type === 'call' && (t.name === 'crossOver' || t.name === 'crossUnder' || t.name === 'na'
     || t.name === 'rising' || t.name === 'falling')) return NA_INFO_NEVER
+  // `nz(b, S)` of a `bool`: `na` only where `b` is and `S` is too
+  if (t.type === 'call' && t.name === 'nz' && Array.isArray(t.args) && t.args.length === 2) {
+    const x = naInfo(t.args[0], v, boolCtx)
+    if (x === null) return null
+    const fb = isBoolLiteralNode(t.args[1]) ? NA_INFO_NEVER : naInfo(t.args[1], v, boolCtx)
+    if (fb === null || !isNaNever(x.maybe) || !isNaNever(fb.maybe)) return null
+    return isNaNever(fb.na) || isNaNever(x.na) ? NA_INFO_NEVER : naInfoOf(cOp('&&', [naTree(x.na), naTree(fb.na)]), NA_NEVER)
+  }
+  // ⭐ (review finding 1) `valuewhen(cond, src, k)` of a `bool`: the source's flag at the SAME
+  // occurrence; before an occurrence the answer is `na`
+  if (t.type === 'call' && (t.name === 'valuewhen' || t.name === 'valuewhenOccurrence')
+    && Array.isArray(t.args) && t.args.length === 3) {
+    const inner = naInfo(t.args[1], v, boolCtx || isBoolishTree(t.args[1]))
+    if (inner === null) return null
+    const at = (m, none) => cCall('nz', [cCall(t.name, [t.args[0], naTree(m), t.args[2]]), cNum(none)])
+    return naInfoOf(at(inner.na, 1), isNaNever(inner.maybe) ? NA_NEVER : at(inner.maybe, 0))
+  }
+  // ⭐ (review finding 1) a `var bool` (`accum` of a `bool`): its flag is a recurrence of its own,
+  // stepped with the value's (`self` there is the flag's own previous value). A step whose flag
+  // has a `maybe` part, or a seed or arm this cannot track, is not tracked (null).
+  if (t.type === 'call' && t.name === 'accum' && Array.isArray(t.args) && t.args.length === 3
+    && (boolCtx || isBoolishTree(t))) {
+    const [seed, body, warmup] = t.args
+    if (!containsFreeSelfSeries(body, TABLE)) return naInfo(body, v, true)
+    const seedInfo = isBoolLiteralNode(seed) ? NA_INFO_NEVER : naInfo(seed, v, true)
+    const bodyInfo = naInfoSelf(body, v)
+    if (seedInfo === null || bodyInfo === null || !isNaNever(seedInfo.maybe) || !isNaNever(bodyInfo.maybe)) return null
+    return naInfoOf(cCall('accum', [naTree(seedInfo.na), naTree(bodyInfo.na), warmup]), NA_NEVER)
+  }
+  return null
+}
+/** The flag of an `accum` step: as `naInfo`, with `self` / `self[k]` read as the flag
+ *  recurrence's own previous value. Not memoised (the meaning of `self` is local). */
+function naInfoSelf(t, v) {
+  if (!t || typeof t !== 'object') return null
+  if (t.type === 'series' && t.name === 'self') return naInfoOf(cSeries('self'), NA_NEVER)
+  if (t.type === 'offset' && t.args && t.args[0] && t.args[0].type === 'series' && t.args[0].name === 'self') {
+    return naInfoOf({ type: 'offset', value: t.value, args: [cSeries('self')] }, NA_NEVER)
+  }
+  if (!containsFreeSelfSeries(t, TABLE)) return isBoolLiteralNode(t) ? NA_INFO_NEVER : isStaticNa(t) ? naInfoOf(cNum(1), NA_NEVER) : naInfo(t, v, true)
+  // `nz(self[k], S)`: `na` only where the flag says so AND `S` is `na`
+  if (t.type === 'call' && t.name === 'nz' && Array.isArray(t.args) && t.args.length === 2
+    && !containsFreeSelfSeries(t.args[1], TABLE)) {
+    const x = naInfoSelf(t.args[0], v)
+    const fallback = isBoolLiteralNode(t.args[1]) ? NA_INFO_NEVER : naInfo(t.args[1], v, true)
+    if (x === null || fallback === null || !isNaNever(x.maybe) || !isNaNever(fallback.maybe)) return null
+    return isNaNever(fallback.na) ? NA_INFO_NEVER : naInfoOf(cOp('&&', [naTree(x.na), naTree(fallback.na)]), NA_NEVER)
+  }
+  if (t.type === 'op' && t.name === '?:' && Array.isArray(t.args) && t.args.length === 3) {
+    const x = naInfoSelf(t.args[1], v)
+    const y = naInfoSelf(t.args[2], v)
+    if (x === null || y === null) return null
+    const pick = (mx, my) => (isNaNever(mx) && isNaNever(my) ? NA_NEVER : cOp('?:', [t.args[0], naTree(mx), naTree(my)]))
+    return naInfoOf(pick(x.na, y.na), pick(x.maybe, y.maybe))
+  }
   return null
 }
 /** ⭐⭐ ENGINE 56 (A3) — `out` (the operator as built) rewritten for a v1-v5 `bool` that can
- *  be `na`, or `out` unchanged. `right` is null for `!`. See the block above. */
-function boolNaOperator(op, left, right, pineVersion, out = undefined) {
+ *  be `na`, or `out` unchanged. `right` is null for `!`. `pineLeft` / `pineRight` are the
+ *  operands as WRITTEN (a written `true` / `false` makes the comparison a `bool` one). See the
+ *  block above. ⛔ (review #1265 finding 1) A `bool` side this cannot track is WITHHELD on every
+ *  bar (`boolNaWithheld(side, 1)`), never served with the comparison's 0 for its `na`. */
+function boolNaOperator(op, left, right, pineVersion, out = undefined, pineLeft = null, pineRight = null) {
   const built = out === undefined ? cOp(op, right === null ? [left] : [left, right]) : out
   const v = pineVersion === null || pineVersion === undefined ? 1 : Number(pineVersion)
   if (!(v <= 5)) return built
@@ -6919,13 +7137,26 @@ function boolNaOperator(op, left, right, pineVersion, out = undefined) {
   // as false: it is served as built (it falls through the `==` / `!=` test below), tracked as
   // `naInfo`'s `maybe`, and withheld only where an operator tells the two apart
   if (op !== '==' && op !== '!=') return built
-  const il = naInfo(left, v)
-  const ir = naInfo(right, v)
-  if (il === null && ir === null) return built
-  const litL = isBoolLiteralNode(left) && il === null
-  const litR = isBoolLiteralNode(right) && ir === null
-  const sideL = il !== null ? il : naInfoOf(litL ? NA_NEVER : naOfNumber(left, v), NA_NEVER)
-  const sideR = ir !== null ? ir : naInfoOf(litR ? NA_NEVER : naOfNumber(right, v), NA_NEVER)
+  const pineLitL = isPineBoolLiteral(pineLeft)
+  const pineLitR = isPineBoolLiteral(pineRight)
+  const boolL = pineLitL || isBoolSide(left, v)
+  const boolR = pineLitR || isBoolSide(right, v)
+  // a comparison of NUMBERS keeps the shared rule
+  if (!boolL && !boolR) return built
+  // a `1` / `0` beside a `bool` is that `bool`'s literal (v1-v3 compare a bool with a number)
+  const litL = pineLitL || (isBoolLiteralNode(left) && boolR)
+  const litR = pineLitR || (isBoolLiteralNode(right) && boolL)
+  const UNTRACKED = 'untracked'
+  const sideInfo = (tree, lit) => {
+    if (lit) return NA_INFO_NEVER
+    const info = naInfo(tree, v, true)
+    return info === null ? UNTRACKED : info
+  }
+  const sideL = sideInfo(left, litL)
+  const sideR = sideInfo(right, litR)
+  if (sideL === UNTRACKED || sideR === UNTRACKED) {
+    return cOp(op, [cCall('boolNaWithheld', [left, cNum(1)]), right])
+  }
   const flag = naOr(flagOf(sideL), flagOf(sideR))
   if (isNaNever(flag)) return built
   if (op === '==' && (litL || litR)) {
@@ -10850,7 +11081,7 @@ export class Resolver {
             const out = foldLogicalIdentity(mapped, decidedBy, rightCast, this.table)
             // ⭐⭐ C45 — a v6 right side that runs only where the left has not decided
             this.stampLogicRight(out, node, decidedBy, mapped)
-            return boolNaOperator(mapped, decidedBy, rightCast, this.pineVersion, out)
+            return boolNaOperator(mapped, decidedBy, rightCast, this.pineVersion, out, node.left, node.right)
           }
           let right
           try {
@@ -10864,16 +11095,16 @@ export class Resolver {
           // same way (`deadLowerTfRead`): the left has decided every bar.
           if (deadLowerTfRead(right) && constantTestValue(decidedBy) === annihilator) return cNum(annihilator)
           return boolNaOperator(mapped, decidedBy, right, this.pineVersion,
-            foldLogicalIdentity(mapped, decidedBy, right, this.table))
+            foldLogicalIdentity(mapped, decidedBy, right, this.table), node.left, node.right)
         }
         if (probed) {
           const pl = this.resolveProbed(node.left, probed)
           const pr = this.resolveProbed(node.right, probed)
-          return boolNaOperator(mapped, pl, pr, this.pineVersion, foldLogicalIdentity(mapped, pl, pr, this.table))
+          return boolNaOperator(mapped, pl, pr, this.pineVersion, foldLogicalIdentity(mapped, pl, pr, this.table), node.left, node.right)
         }
         const rl = this.resolve(node.left)
         const rr = this.resolve(node.right)
-        return boolNaOperator(mapped, rl, rr, this.pineVersion, foldLogicalIdentity(mapped, rl, rr, this.table))
+        return boolNaOperator(mapped, rl, rr, this.pineVersion, foldLogicalIdentity(mapped, rl, rr, this.table), node.left, node.right)
       }
       case 'ternary': {
         // ⭐ THE TEST IS A BOOL CONTEXT — `if` chains fold to this node too, so

@@ -6312,49 +6312,163 @@ export function withheldReadMask(tree, bars, inputs, budget, scalars, opts) {
   return out
 }
 
-/** ⭐⭐ ENGINE 56 — THE NODES A PER-BAR WITNESS MASK ASKS ABOUT, with the two facts its
- *  reach needs: read under `tf` / `sym` (`nested`: other bars, so the whole tree), or
- *  under a function whose memory is unbounded or a recurrence (`unbounded`: every bar
- *  from the first withheld one on). The walk `historyReadMask` makes, for any predicate. */
-function witnessSites(tree, want) {
-  const sites = []
-  const stack = [[tree, false, false]]
-  const seen = new Set()
-  while (stack.length) {
-    const [node, nested, unbounded] = stack.pop()
-    if (!node || typeof node !== 'object' || seen.has(node)) continue
-    seen.add(node)
-    if (want(node)) sites.push({ node, nested, unbounded })
-    const into = nested || node.type === 'sym' || node.type === 'tf' || node.type === 'tf_live'
-    const spec = node.type === 'call' && own(TABLE.functions, node.name) ? TABLE.functions[node.name] : null
-    const open = unbounded || !!(spec && (spec.lookback === SERIES_LOOKBACK || isStatefulCall(node)))
-    if (Array.isArray(node.args)) for (const a of node.args) stack.push([a, into, open])
-  }
-  return sites
-}
-
-/** ⭐⭐ ENGINE 56 — spread each site's own withheld bars (`flagged(site)` → a 0/1 column,
- *  or null = every bar) to the root bars that read them, name the code, and record the
- *  mask in `opts.withheldBarsSink` (code → 0/1 column; the vendor harness reads it: a bar
- *  withheld by name is not a value and is not graded as one). Null when no bar is. */
-function spreadWitnessMask(tree, bars, sites, flagged, code, opts) {
+/** ⭐⭐ ENGINE 56 — WHICH ROOT BARS DEPEND ON A WITHHELD BAR OF A WITNESS SITE, by walking the
+ *  tree bottom-up with one 0/1 "unknown" column per node (review #1265, finding 5: the reach
+ *  arithmetic withheld every bar after the first under any stateful call, which blanked
+ *  `barssince(up != up[1])` and `valuewhen(up != up[1], close, 0)` on all 666 bars).
+ *
+ *  A node with no site under it is known on every bar. Otherwise, by its kind:
+ *    - a site: its own flagged bars (`flagged(site)`; null = every bar), with its children's;
+ *    - a read on other bars (`tf`, `tf_live`, `tf_merge`, `sym`, `ltf`): every bar (finding 3:
+ *      the child's bars are not this chart's);
+ *    - `x[k]`: the child's column, k bars later;
+ *    - an operator or a pointwise call: any child unknown on the bar;
+ *    - a finite window (`FINITE_WINDOW`, `change`, the crossings, `percentrank`, `barsAgo`):
+ *      any child unknown within the window; a pivot: within its left and right spans;
+ *    - `barssince(cond, n)`: unknown from an unknown `cond` bar until a bar where `cond` is
+ *      KNOWN true (the most recent true is then at or after it);
+ *    - `valuewhen(cond, src, n)` / `valuewhenOccurrence(cond, src, k)`: unknown while an
+ *      unknown `cond` bar is more recent than the occurrence the answer reads (k+1 known-true
+ *      bars back, or the most recent within the window), or where `src` is unknown at it;
+ *    - anything else (a recurrence, `cum`, the smoothers, a series-lookback call): every bar
+ *      from the first unknown one on (it carries state it cannot forget).
+ *  The result names `code` in the chart-clock channel and records the mask in
+ *  `opts.withheldBarsSink` (code -> 0/1 column; the vendor harness reads it). Null when no bar is. */
+const WITNESS_NESTED = new Set(['sym', 'tf', 'tf_live', 'tf_merge', 'ltf'])
+const WITNESS_WINDOW_CALLS = new Set(['change', 'crossOver', 'crossUnder', 'percentrank', 'barsAgo'])
+function witnessMask(tree, bars, inputs, budget, scalars, opts, isSite, flagged, code) {
   const n = Array.isArray(bars) ? bars.length : 0
-  if (!sites.length) return null
-  const mask = new Float64Array(n)
-  let any = false
-  const rootReach = maxLookback(tree)
-  for (const site of sites) {
-    // ⛔ no `try` here (this file holds none: `budget.test.js`): a site `flagged` cannot answer
-    // returns null, and a refusal inside it is the tree's refusal, as `historyReadMask`'s is
-    const col = site.nested ? null : flagged(site)
-    if (!col) { mask.fill(1); any = n > 0; break }
-    const reach = Math.max(0, rootReach - maxLookback(site.node))
-    let last = -Infinity
-    for (let i = 0; i < n; i++) {
-      if (col[i]) last = site.unbounded && last !== -Infinity ? last : i
-      if (last !== -Infinity && (site.unbounded || i - last <= reach)) { mask[i] = 1; any = true }
-    }
+  const hasSiteMemo = new Map()
+  const hasSite = (node) => {
+    if (!node || typeof node !== 'object') return false
+    if (hasSiteMemo.has(node)) return hasSiteMemo.get(node)
+    hasSiteMemo.set(node, false)
+    const r = isSite(node) || (Array.isArray(node.args) && node.args.some(hasSite))
+    hasSiteMemo.set(node, r)
+    return r
   }
+  if (!hasSite(tree)) return null
+  const ALL = 'all'
+  const memo = new Map()
+  const colOf = (node) => toColumn(interpretOnce(node, bars, inputs, budget, scalars, witnessOpts(opts)), n)
+  const asCol = (u) => (u === ALL ? new Float64Array(n).fill(1) : u)
+  const orInto = (acc, u) => {
+    if (u === null) return acc
+    if (u === ALL || acc === ALL) return ALL
+    if (acc === null) return Float64Array.from(u)
+    for (let i = 0; i < n; i++) if (u[i]) acc[i] = 1
+    return acc
+  }
+  const forward = (u) => {
+    if (u === null || u === ALL) return u
+    const out = Float64Array.from(u)
+    let on = false
+    for (let i = 0; i < n; i++) { if (out[i]) on = true; if (on) out[i] = 1 }
+    return out
+  }
+  const windowed = (u, back, ahead = 0) => {
+    if (u === null || u === ALL) return u
+    const out = new Float64Array(n)
+    for (let i = 0; i < n; i++) {
+      if (!u[i]) continue
+      for (let j = Math.max(0, i - ahead); j <= Math.min(n - 1, i + back); j++) out[j] = 1
+    }
+    return out
+  }
+  const unk = (node) => {
+    if (!hasSite(node)) return null
+    if (memo.has(node)) return memo.get(node)
+    let out = null
+    if (WITNESS_NESTED.has(node.type)) out = ALL
+    else {
+      const args = Array.isArray(node.args) ? node.args : []
+      if (isSite(node)) {
+        const own = flagged(node)
+        out = own === null ? ALL : own
+        for (const a of args) out = orInto(out, unk(a))
+      } else if (node.type === 'offset') {
+        const u = unk(args[0])
+        if (u === null || u === ALL) out = u
+        else {
+          const k = Number(node.value) || 0
+          out = new Float64Array(n)
+          for (let i = k; i < n; i++) out[i] = u[i - k]
+        }
+      } else if (node.type === 'op') {
+        for (const a of args) out = orInto(out, unk(a))
+      } else if (node.type === 'call') {
+        const spec = own(TABLE.functions, node.name) ? TABLE.functions[node.name] : null
+        if (spec && isPointwise(spec) && !isStatefulCall(node)) {
+          for (const a of args) out = orInto(out, unk(a))
+        } else if (node.name === 'barssince' && !hasSite(args[1])) {
+          const u = unk(args[0])
+          if (u === null || u === ALL) out = u
+          else {
+            const cond = colOf(args[0])
+            out = new Float64Array(n)
+            let tainted = false
+            for (let i = 0; i < n; i++) {
+              if (u[i]) tainted = true
+              else if (cond[i] === 1) tainted = false
+              out[i] = tainted ? 1 : 0
+            }
+          }
+        } else if ((node.name === 'valuewhen' || node.name === 'valuewhenOccurrence') && args[2] && args[2].type === 'num') {
+          const uc = unk(args[0])
+          const us = unk(args[1])
+          if (uc === ALL || us === ALL) out = ALL
+          else {
+            const cond = colOf(args[0])
+            const k = Number(args[2].value)
+            out = new Float64Array(n)
+            const trues = []
+            let lastUnknown = -1
+            for (let i = 0; i < n; i++) {
+              if (uc && uc[i]) lastUnknown = i
+              else if (cond[i] === 1) trues.push(i)
+              if (node.name === 'valuewhen') {
+                // the most recent known-true bar within the last `k` bars
+                const lt = trues.length ? trues[trues.length - 1] : -1
+                const start = i - k + 1
+                if (lastUnknown > lt && lastUnknown >= start) out[i] = 1
+                else if (lt >= start && us && us[lt]) out[i] = 1
+              } else {
+                const need = k + 1
+                if (trues.length < need) { if (lastUnknown >= 0) out[i] = 1 }
+                else {
+                  const at = trues[trues.length - need]
+                  if (lastUnknown > at || (us && us[at])) out[i] = 1
+                }
+              }
+            }
+          }
+        } else if (node.name === 'pivothigh' || node.name === 'pivotlow') {
+          let u = null
+          for (const a of args) u = orInto(u, unk(a))
+          out = windowed(u, windowLiteral(node, 2), windowLiteral(node, 1))
+        } else if (spec && !isStatefulCall(node) && (own(FINITE_WINDOW, node.name) || WITNESS_WINDOW_CALLS.has(node.name))
+          && (typeof spec.lookback === 'number' || /^arg\d+$/.test(String(spec.lookback)))) {
+          let u = null
+          for (const a of args) u = orInto(u, unk(a))
+          const lb = typeof spec.lookback === 'number' ? spec.lookback : windowLiteral(node, Number(String(spec.lookback).slice(3)))
+          out = windowed(u, Math.max(0, lb))
+        } else {
+          let u = null
+          for (const a of args) u = orInto(u, unk(a))
+          out = forward(u)
+        }
+      } else {
+        for (const a of args) out = orInto(out, unk(a))
+      }
+    }
+    memo.set(node, out)
+    return out
+  }
+  const root = unk(tree)
+  if (root === null) return null
+  const mask = asCol(root)
+  let any = false
+  for (let i = 0; i < n; i++) if (mask[i]) { any = true; break }
   if (!any) return null
   nameChartClock(opts, [code], opts && opts.tf)
   const sink = opts && opts.withheldBarsSink
@@ -6374,23 +6488,23 @@ const witnessOpts = (opts) => ({ ...(opts || {}), crossMemo: undefined, probeBas
  *
  *  The translator (`pine.js::boolNaOperator`) writes `boolNaWithheld(operand, flag)` at
  *  each such operator: `!=` with a `bool` side that can be `na`; `==` whose sides can both
- *  be `na`, or whose `na`-able side meets a side that is not a written literal; and before
- *  v4 `and`, `or` and `not` over one. The marker is its operand on every bar; `flag` is 1
- *  on the bars where an operand is `na` (a `NaN` flag reads as withheld: fail closed).
- *  Every root bar within the tree's reach of such a bar is withheld (`historyReadMask`'s
- *  rule); a flag that reads a recurrence's own value withholds the whole tree. */
+ *  be `na`, or whose `na`-able side meets a side that is not a written literal; before v4
+ *  `or` and `not` over one; and a `bool` side it cannot track (flag 1, every bar). The marker
+ *  is its operand on every bar; `flag` is 1 on the bars where an operand is `na` (a `NaN`
+ *  flag reads as withheld: fail closed). Which root bars that reaches is `witnessMask`'s; a
+ *  flag that reads a recurrence's own value withholds the whole tree. */
 export function boolNaMask(tree, bars, inputs, budget, scalars, opts) {
-  const sites = witnessSites(tree, (nd) => nd.type === 'call' && nd.name === 'boolNaWithheld')
-  if (!sites.length) return null
   const n = Array.isArray(bars) ? bars.length : 0
-  return spreadWitnessMask(tree, bars, sites, (site) => {
-    const f = site.node.args && site.node.args[1]
-    if (readsRecurrenceBinding(f)) return null
-    const col = toColumn(interpretOnce(f, bars, inputs, budget, scalars, witnessOpts(opts)), n)
-    const out = new Float64Array(n)
-    for (let i = 0; i < n; i++) out[i] = col[i] === 0 ? 0 : 1
-    return out
-  }, BOOL_NA_UNWITNESSED, opts)
+  return witnessMask(tree, bars, inputs, budget, scalars, opts,
+    (nd) => nd.type === 'call' && nd.name === 'boolNaWithheld',
+    (node) => {
+      const f = node.args && node.args[1]
+      if (readsRecurrenceBinding(f)) return null
+      const col = toColumn(interpretOnce(f, bars, inputs, budget, scalars, witnessOpts(opts)), n)
+      const out = new Float64Array(n)
+      for (let i = 0; i < n; i++) out[i] = col[i] === 0 ? 0 : 1
+      return out
+    }, BOOL_NA_UNWITNESSED)
 }
 
 /** Does the window `[lo, hi]` hold its extreme on two or more bars? 1 / 0, `NaN` when it
@@ -6412,25 +6526,23 @@ function windowHoldsTie(series, lo, hi, better) {
  *  (`divergences.json::argextreme-ties-resolve-to-the-newest-bar`, a two-valued computed
  *  source at v6) names the OLDEST: the two readings are not reconciled, so a computed
  *  source's tied windows are withheld by name, never guessed. The window is the call's own
- *  (`FINITE_WINDOW`'s span and `restart` policy). */
+ *  (`FINITE_WINDOW`'s span and `restart` policy); which root bars it reaches is `witnessMask`'s. */
 export function argExtremeTieMask(tree, bars, inputs, budget, scalars, opts) {
-  const sites = witnessSites(tree, (nd) => nd.type === 'call'
-    && (nd.name === 'highestbars' || nd.name === 'lowestbars')
-    && Array.isArray(nd.args) && nd.args.length === 2 && !isBarPriceTree(nd.args[0]))
-  if (!sites.length) return null
   const n = Array.isArray(bars) ? bars.length : 0
-  return spreadWitnessMask(tree, bars, sites, (site) => {
-    const node = site.node
-    if (readsRecurrenceBinding(node.args[0]) || !node.args[1] || node.args[1].type !== 'num') return null
-    const len = windowLiteral(node, 1)
-    const src = toColumn(interpretOnce(node.args[0], bars, inputs, budget, scalars, witnessOpts(opts)), n)
-    const better = node.name === 'highestbars' ? (v, b) => v > b : (v, b) => v < b
-    const spec = FINITE_WINDOW[node.name]
-    const ties = rolling(src, spec.span(len), (sr, lo, hi) => windowHoldsTie(sr, lo, hi, better), spec.na)
-    const out = new Float64Array(n)
-    for (let i = 0; i < n; i++) out[i] = ties[i] === 1 ? 1 : 0
-    return out
-  }, TIE_UNWITNESSED, opts)
+  return witnessMask(tree, bars, inputs, budget, scalars, opts,
+    (nd) => nd.type === 'call' && (nd.name === 'highestbars' || nd.name === 'lowestbars')
+      && Array.isArray(nd.args) && nd.args.length === 2 && !isBarPriceTree(nd.args[0]),
+    (node) => {
+      if (readsRecurrenceBinding(node.args[0]) || !node.args[1] || node.args[1].type !== 'num') return null
+      const len = windowLiteral(node, 1)
+      const src = toColumn(interpretOnce(node.args[0], bars, inputs, budget, scalars, witnessOpts(opts)), n)
+      const better = node.name === 'highestbars' ? (v, b) => v > b : (v, b) => v < b
+      const spec = FINITE_WINDOW[node.name]
+      const ties = rolling(src, spec.span(len), (sr, lo, hi) => windowHoldsTie(sr, lo, hi, better), spec.na)
+      const out = new Float64Array(n)
+      for (let i = 0; i < n; i++) out[i] = ties[i] === 1 ? 1 : 0
+      return out
+    }, TIE_UNWITNESSED)
 }
 
 /** Withhold (`NaN`) the bars `withheldReadMask` names. A COPY. */
@@ -6924,7 +7036,7 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
         const child = toColumn(
           interpret(n.args[0], series, inputs, budget, scalars,
             { ...(opts || {}), crossMemo: scopedCrossMemo(`sym\u0001${ticker}`), probeBase: undefined,
-              historyFromListing: undefined }),
+              historyFromListing: undefined, withheldBarsSink: undefined }),
           series.length)
 
         // ⭐ ALIGNED ON THE BAR'S OWN `t`, EXACT MATCH, NEVER FORWARD-FILLED.
@@ -6981,7 +7093,7 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
         // clock or `tf` reads the right base.
         const child = toColumn(
           interpret(n.args[0], htf, inputs, budget, scalars,
-            { ...(opts || {}), tf: code, crossMemo: scopedCrossMemo(`tf\u0001${code}`), probeBase: undefined }),
+            { ...(opts || {}), tf: code, crossMemo: scopedCrossMemo(`tf\u0001${code}`), probeBase: undefined, withheldBarsSink: undefined }),
           htf.length)
         // \u26d4\u26d4 THE LAST *CLOSED* BAR, AND THIS LINE IS THE REPAINT STORY. A base bar
         // in bucket `b` reads bucket `b - 1`. Reading `b` would hand a Monday its own
@@ -7029,7 +7141,7 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
         const child = toColumn(
           interpret(n.args[0], sup.bars, inputs, budget, scalars,
             { ...(opts || {}), tf: code, crossMemo: scopedCrossMemo(`ltf\u0001${code}`), probeBase: undefined,
-              historyFromListing: undefined, newestBarIsForming: null, symbols: undefined, lowerTf: undefined }),
+              historyFromListing: undefined, newestBarIsForming: null, symbols: undefined, lowerTf: undefined, withheldBarsSink: undefined }),
           sup.bars.length)
         const groups = sup.groups(bars, maxLookback(n.args[0]))
         const out = nan(length)

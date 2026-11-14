@@ -4709,56 +4709,186 @@ def history_read_mask(tree: Any, bars: List[dict],
     return mask if held else None
 
 
-def _witness_sites(tree: Any, want: Callable[[dict], bool]) -> List[tuple]:
-    """ENGINE 56 -- the nodes a per-bar witness mask asks about, with ``nested`` (read under
-    ``tf``/``sym``) and ``unbounded`` (under a ``series``-lookback function or a recurrence).
-    The walk ``history_read_mask`` makes; the twin of ``interpret.js::witnessSites``."""
-    sites: List[tuple] = []
-    stack = [(tree, False, False)]
-    seen = set()
-    functions = TABLE[FUNCTIONS_SECTION]
-    while stack:
-        node, nested, unbounded = stack.pop()
-        if not isinstance(node, dict) or id(node) in seen:
-            continue
-        seen.add(id(node))
-        if want(node):
-            sites.append((node, nested, unbounded))
-        name = node.get("name")
-        is_call = node.get("type") == "call" and isinstance(name, str)
-        into = nested or node.get("type") in ("tf", "tf_live", "sym")
-        spec = functions.get(name) if is_call else None
-        opened = unbounded or bool(
-            spec is not None and (spec.get("lookback") == SERIES_LOOKBACK or _is_stateful_call(node)))
+_WITNESS_NESTED = ("sym", "tf", "tf_live", "tf_merge", "ltf")
+_WITNESS_WINDOW_CALLS = ("change", "crossOver", "crossUnder", "percentrank", "barsAgo")
+_WITNESS_FINITE = ("sma", "wma", "stdev", "sum", "dev", "median", "highest", "lowest", "highestbars", "lowestbars")
+
+
+def _witness_mask(tree: Any, bars: List[dict], inputs, budget, scalars, opts,
+                  is_site: Callable[[dict], bool],
+                  flagged: Callable[[dict], Optional[List[int]]]) -> Optional[List[int]]:
+    """ENGINE 56 -- the root bars that depend on a withheld bar of a witness site, by one 0/1
+    "unknown" column per node, bottom-up. The twin of ``interpret.js::witnessMask`` (its
+    docstring states each node kind's rule: nested reads every bar, offsets shift, operators and
+    pointwise calls OR, finite windows spread over their window, ``barssince`` until a known
+    true, ``valuewhen`` until enough known occurrences, everything else from the first
+    unknown bar on)."""
+    n = len(bars)
+    has_memo: Dict[int, bool] = {}
+
+    def has_site(node: Any) -> bool:
+        if not isinstance(node, dict):
+            return False
+        key = id(node)
+        if key in has_memo:
+            return has_memo[key]
+        has_memo[key] = False
         args = node.get("args")
-        if isinstance(args, list):
-            for a in args:
-                stack.append((a, into, opened))
-    return sites
+        r = is_site(node) or (isinstance(args, list) and any(has_site(a) for a in args))
+        has_memo[key] = r
+        return r
 
-
-def _spread_witness_mask(tree: Any, n: int, sites: List[tuple],
-                         flagged: Callable[[dict], Optional[List[int]]]) -> Optional[List[int]]:
-    """ENGINE 56 -- each site's withheld bars (``flagged`` -> 0/1, or ``None`` = every bar)
-    spread to the root bars that read them. The twin of ``interpret.js::spreadWitnessMask``."""
-    if not sites:
+    if not has_site(tree):
         return None
-    mask = [0] * n
-    hit = False
-    root_reach = max_lookback(tree)
-    for node, nested, unbounded in sites:
-        col = None if nested else flagged(node)
-        if col is None:
-            return [1] * n if n else None
-        reach = max(0, root_reach - max_lookback(node))
-        last = -math.inf
+    ALL = "all"
+    memo: Dict[int, Any] = {}
+    functions = TABLE[FUNCTIONS_SECTION]
+
+    def col_of(node: Any) -> List[float]:
+        return _to_column(_interpret_column(node, bars, inputs, budget, scalars, opts), n)
+
+    def or_into(acc, u):
+        if u is None:
+            return acc
+        if u == ALL or acc == ALL:
+            return ALL
+        if acc is None:
+            return list(u)
+        return [1 if (a or b) else 0 for a, b in zip(acc, u)]
+
+    def forward(u):
+        if u is None or u == ALL:
+            return u
+        out = list(u)
+        on = False
         for i in range(n):
-            if col[i]:
-                last = last if (unbounded and last != -math.inf) else i
-            if last != -math.inf and (unbounded or i - last <= reach):
-                mask[i] = 1
-                hit = True
-    return mask if hit else None
+            if out[i]:
+                on = True
+            if on:
+                out[i] = 1
+        return out
+
+    def windowed(u, back, ahead=0):
+        if u is None or u == ALL:
+            return u
+        out = [0] * n
+        for i in range(n):
+            if not u[i]:
+                continue
+            for j in range(max(0, i - ahead), min(n - 1, i + back) + 1):
+                out[j] = 1
+        return out
+
+    def unk(node: Any):
+        if not has_site(node):
+            return None
+        key = id(node)
+        if key in memo:
+            return memo[key]
+        out = None
+        kind = node.get("type")
+        args = node.get("args") if isinstance(node.get("args"), list) else []
+        name = node.get("name")
+        if kind in _WITNESS_NESTED:
+            out = ALL
+        elif is_site(node):
+            own = flagged(node)
+            out = ALL if own is None else own
+            for a in args:
+                out = or_into(out, unk(a))
+        elif kind == "offset":
+            u = unk(args[0])
+            if u is None or u == ALL:
+                out = u
+            else:
+                k = int(node.get("value") or 0)
+                out = [0] * n
+                for i in range(k, n):
+                    out[i] = u[i - k]
+        elif kind == "op":
+            for a in args:
+                out = or_into(out, unk(a))
+        elif kind == "call":
+            spec = functions.get(name) if isinstance(name, str) else None
+            stateful = name in RECURRENCES or name in MULTI_STATES
+            if spec is not None and is_pointwise(spec) and not stateful:
+                for a in args:
+                    out = or_into(out, unk(a))
+            elif name == "barssince" and not has_site(args[1]):
+                u = unk(args[0])
+                if u is None or u == ALL:
+                    out = u
+                else:
+                    cond = col_of(args[0])
+                    out = [0] * n
+                    tainted = False
+                    for i in range(n):
+                        if u[i]:
+                            tainted = True
+                        elif cond[i] == 1:
+                            tainted = False
+                        out[i] = 1 if tainted else 0
+            elif (name in ("valuewhen", "valuewhenOccurrence") and len(args) == 3
+                  and isinstance(args[2], dict) and args[2].get("type") == "num"):
+                uc, us = unk(args[0]), unk(args[1])
+                if uc == ALL or us == ALL:
+                    out = ALL
+                else:
+                    cond = col_of(args[0])
+                    k = int(args[2]["value"])
+                    out = [0] * n
+                    trues: List[int] = []
+                    last_unknown = -1
+                    for i in range(n):
+                        if uc is not None and uc[i]:
+                            last_unknown = i
+                        elif cond[i] == 1:
+                            trues.append(i)
+                        if name == "valuewhen":
+                            lt = trues[-1] if trues else -1
+                            start = i - k + 1
+                            if last_unknown > lt and last_unknown >= start:
+                                out[i] = 1
+                            elif lt >= start and us is not None and us[lt]:
+                                out[i] = 1
+                        else:
+                            need = k + 1
+                            if len(trues) < need:
+                                if last_unknown >= 0:
+                                    out[i] = 1
+                            else:
+                                at = trues[len(trues) - need]
+                                if last_unknown > at or (us is not None and us[at]):
+                                    out[i] = 1
+            elif name in ("pivothigh", "pivotlow"):
+                u = None
+                for a in args:
+                    u = or_into(u, unk(a))
+                out = windowed(u, _window_literal(node, 2), _window_literal(node, 1))
+            elif (spec is not None and not stateful and (name in _WITNESS_FINITE or name in _WITNESS_WINDOW_CALLS)
+                  and (isinstance(spec.get("lookback"), int) or str(spec.get("lookback")).startswith("arg"))):
+                u = None
+                for a in args:
+                    u = or_into(u, unk(a))
+                lb = spec.get("lookback")
+                lb = lb if isinstance(lb, int) else _window_literal(node, int(str(lb)[3:]))
+                out = windowed(u, max(0, lb))
+            else:
+                u = None
+                for a in args:
+                    u = or_into(u, unk(a))
+                out = forward(u)
+        else:
+            for a in args:
+                out = or_into(out, unk(a))
+        memo[key] = out
+        return out
+
+    root = unk(tree)
+    if root is None:
+        return None
+    mask = [1] * n if root == ALL else [1 if x else 0 for x in root]
+    return mask if any(mask) else None
 
 
 def bool_na_mask(tree: Any, bars: List[dict],
@@ -4768,9 +4898,8 @@ def bool_na_mask(tree: Any, bars: List[dict],
                  opts: Optional[Mapping[str, Any]] = None) -> Optional[List[int]]:
     """ENGINE 56 (A3) -- ``interpret.js::boolNaMask``: the bars where a Pine v1-v5 ``bool``
     that is ``na`` meets an operator no capture has witnessed for it (the translator's
-    ``boolNaWithheld(operand, flag)``), spread to the root; a ``NaN`` flag withholds."""
+    ``boolNaWithheld(operand, flag)``), propagated to the root; a ``NaN`` flag withholds."""
     n = len(bars)
-    sites = _witness_sites(tree, lambda nd: nd.get("type") == "call" and nd.get("name") == "boolNaWithheld")
 
     def flagged(node: dict) -> Optional[List[int]]:
         f = node["args"][1]
@@ -4778,7 +4907,8 @@ def bool_na_mask(tree: Any, bars: List[dict],
             return None
         col = _to_column(_interpret_column(f, bars, inputs, budget, scalars, opts), n)
         return [0 if v == 0 else 1 for v in col]
-    return _spread_witness_mask(tree, n, sites, flagged)
+    return _witness_mask(tree, bars, inputs, budget, scalars, opts,
+                         lambda nd: nd.get("type") == "call" and nd.get("name") == "boolNaWithheld", flagged)
 
 
 def _window_holds_tie(series: Sequence[float], lo: int, hi: int,
@@ -4802,12 +4932,13 @@ def arg_extreme_tie_mask(tree: Any, bars: List[dict],
                          opts: Optional[Mapping[str, Any]] = None) -> Optional[List[int]]:
     """ENGINE 56 (S4-2) -- ``interpret.js::argExtremeTieMask``: the bars where a
     ``highestbars``/``lowestbars`` over a COMPUTED source (not ``is_bar_price_tree``) names
-    one of two tied bars, spread to the root. A non-literal length withholds every bar."""
+    one of two tied bars, propagated to the root. A non-literal length withholds every bar."""
     n = len(bars)
-    sites = _witness_sites(tree, lambda nd: (
-        nd.get("type") == "call" and nd.get("name") in ("highestbars", "lowestbars")
-        and isinstance(nd.get("args"), list) and len(nd["args"]) == 2
-        and not is_bar_price_tree(nd["args"][0])))
+
+    def is_site(nd: dict) -> bool:
+        return (nd.get("type") == "call" and nd.get("name") in ("highestbars", "lowestbars")
+                and isinstance(nd.get("args"), list) and len(nd["args"]) == 2
+                and not is_bar_price_tree(nd["args"][0]))
 
     def flagged(node: dict) -> Optional[List[int]]:
         src_tree, len_tree = node["args"]
@@ -4820,7 +4951,7 @@ def arg_extreme_tie_mask(tree: Any, bars: List[dict],
         ties = _rolling(src, length, lambda sr, lo, hi: _window_holds_tie(sr, lo, hi, better),
                         WINDOW_NA[node["name"]])
         return [1 if t == 1 else 0 for t in ties]
-    return _spread_witness_mask(tree, n, sites, flagged)
+    return _witness_mask(tree, bars, inputs, budget, scalars, opts, is_site, flagged)
 
 
 def _reads_recurrence_binding(tree: Any) -> bool:

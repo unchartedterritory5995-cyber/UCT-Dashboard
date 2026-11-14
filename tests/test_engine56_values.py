@@ -112,3 +112,30 @@ def test_is_bar_price_tree_matches_the_js_shapes():
     assert ast_interpret.is_bar_price_tree(op("/", op("+", op("+", s("high"), s("low")), s("close")), num(3)))
     assert not ast_interpret.is_bar_price_tree(s("volume"))
     assert not ast_interpret.is_bar_price_tree(op("/", op("+", s("low"), s("high")), num(2)))
+
+
+def test_review_finding3_a_site_under_another_timeframe_withholds_every_bar():
+    vt = op("?:", op(">", s("close"), s("open")), num(10), num(20))
+    tree = {"type": "tf", "value": "W", "args": [call("highestbars", vt, num(4))]}
+    mask = ast_interpret.arg_extreme_tie_mask(tree, RDDT)
+    assert mask is not None and all(mask)
+    for kind in ("tf_merge", "ltf", "sym"):
+        nested = {"type": kind, "value": "W", "args": [call("highestbars", vt, num(4))]}
+        assert all(ast_interpret.arg_extreme_tie_mask(nested, RDDT)), kind
+
+
+def test_review_finding5_barssince_and_valuewhen_stop_withholding_once_known():
+    sma = call("sma", s("close"), num(20))
+    up = op(">", s("close"), sma)
+    up1 = {"type": "offset", "value": 1, "args": [up]}
+    flag = op("||", call("na", sma), call("nz", {"type": "offset", "value": 1, "args": [call("na", sma)]}, num(1)))
+    cond = op("!=", call("boolNaWithheld", up, flag), up1)
+    bs = call("barssince", cond, num(100))
+    mask = ast_interpret.bool_na_mask(bs, RDDT)
+    assert mask is not None and 0 < sum(mask) < 40
+    vw = call("valuewhenOccurrence", cond, s("close"), num(0))
+    m2 = ast_interpret.bool_na_mask(vw, RDDT)
+    assert m2 is not None and 0 < sum(m2) < 40
+    # a running total cannot forget: every bar from the first unknown one on
+    total = call("cum", op("?:", cond, num(1), num(0)))
+    assert all(ast_interpret.bool_na_mask(total, RDDT))

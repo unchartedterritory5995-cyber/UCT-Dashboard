@@ -403,19 +403,39 @@ export function withheldBarsOf(report, key, pre) {
  *  still a DIVERGE (railed in `vendorHarness.engine56FloatFloor.test.js`). */
 export const FLOAT_ORDER_ULPS = 8
 const RUNNING_TOTAL_NODES = new Set(['cum', 'cumFrom', 'sum'])
+/** ⭐ (review #1265 finding 4) the calls that are LINEAR in their source: a total's float-order
+ *  error passes through them unscaled by any other value. */
+const LINEAR_OF_SOURCE = new Set(['sma', 'ema', 'rma', 'wma', 'change'])
+const hasTotal = (n) => !!n && typeof n === 'object'
+  && ((n.type === 'call' && RUNNING_TOTAL_NODES.has(n.name)) || (Array.isArray(n.args) && n.args.some(hasTotal)))
+/** The running totals a plot is a LINEAR combination of (sums and differences of totals, a
+ *  total times or over a constant, an offset, a linear smoother of one), or null when a total
+ *  reaches the plot any other way (a ratio or product of totals, `abs`, a comparison, …). Only
+ *  then is the absolute floor sound: through a ratio (`cum(hlc3 * v) / cum(v)`) the total's
+ *  ulps are divided away, and the plot is graded by REL 1e-9 on its own magnitude. */
+export function linearTotalsOf(tree) {
+  const totals = []
+  const walk = (n) => {
+    if (!n || typeof n !== 'object' || !hasTotal(n)) return true
+    if (n.type === 'call' && RUNNING_TOTAL_NODES.has(n.name)) { totals.push(n); return true }
+    const args = Array.isArray(n.args) ? n.args : []
+    if (n.type === 'op' && (n.name === '+' || n.name === '-' || n.name === 'u-')) return args.every(walk)
+    if (n.type === 'op' && (n.name === '*' || n.name === '/')) {
+      const [a, b] = args
+      if (n.name === '*' && !hasTotal(a)) return walk(b)
+      if (!hasTotal(b)) return walk(a)
+      return false
+    }
+    if (n.type === 'offset') return walk(args[0])
+    if (n.type === 'call' && LINEAR_OF_SOURCE.has(n.name)) return walk(args[0]) && args.slice(1).every((x) => !hasTotal(x))
+    return false
+  }
+  return walk(tree) && totals.length ? totals : null
+}
 export function floatOrderFloorOf(tree, calcBars, pre) {
   if (!tree || typeof tree !== 'object') return null
-  const totals = []
-  const stack = [tree]
-  const seen = new Set()
-  while (stack.length) {
-    const n = stack.pop()
-    if (!n || typeof n !== 'object' || seen.has(n)) continue
-    seen.add(n)
-    if (n.type === 'call' && RUNNING_TOTAL_NODES.has(n.name)) totals.push(n)
-    if (Array.isArray(n.args)) for (const a of n.args) stack.push(a)
-  }
-  if (!totals.length) return null
+  const totals = linearTotalsOf(tree)
+  if (!totals) return null
   const len = calcBars.length
   const mag = new Float64Array(len)
   for (const node of totals) {

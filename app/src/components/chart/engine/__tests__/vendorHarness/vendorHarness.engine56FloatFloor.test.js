@@ -15,7 +15,7 @@
 // withholding is not a wrong value).
 import { describe, it, expect } from 'vitest'
 import { comparePlot, plotVerdict, tolerancePolicy } from '../../../../../../../tools/vendor_harness/compare.mjs'
-import { floatOrderFloorOf, withheldBarsOf, FLOAT_ORDER_ULPS } from './ourSide'
+import { floatOrderFloorOf, withheldBarsOf, FLOAT_ORDER_ULPS, linearTotalsOf } from './ourSide'
 
 const TOL = tolerancePolicy({ symbol: { pricescale: 100 } })
 const times = (n) => Array.from({ length: n }, (_, i) => 1700000000 + i * 86400)
@@ -91,5 +91,35 @@ describe('per-bar withholding is graded "not compared"', () => {
     expect(withheldBarsOf(report, 'p0', 1)).toEqual({ bars: [0, 1, 1, 0], codes: ['pine:a', 'pine:b'] })
     expect(withheldBarsOf(report, 'p1', 0)).toBeNull()
     expect(withheldBarsOf({ p0: { 'pine:a': Float64Array.from([1, 0]) } }, 'p0', 1)).toBeNull()
+  })
+})
+
+describe('review #1265 finding 4 - the floor applies to a LINEAR combination of totals only', () => {
+  const ser = (name) => ({ type: 'series', name })
+  const op = (name, args) => ({ type: 'op', name, args })
+  const call = (name, args) => ({ type: 'call', name, args })
+  const num = (value) => ({ type: 'num', value })
+  const ad = call('cum', [op('*', [ser('close'), ser('volume')])])
+  it('ema(ad, 12) - ema(ad, 26) (accdist-macd) is linear in its total; a VWAP ratio is not', () => {
+    expect(linearTotalsOf(op('-', [call('ema', [ad, num(12)]), call('ema', [ad, num(26)])]))).toHaveLength(2)
+    const vwap = op('/', [call('cum', [op('*', [ser('close'), ser('volume')])]), call('cum', [ser('volume')])])
+    expect(linearTotalsOf(vwap)).toBeNull()
+    expect(linearTotalsOf(op('*', [ad, ad]))).toBeNull()
+    expect(linearTotalsOf(call('abs', [ad]))).toBeNull()
+    expect(linearTotalsOf(op('/', [ad, num(1000)]))).toHaveLength(1)
+  })
+  it('a VWAP-shaped plot gets no floor, and a 1e-7 relative error DIVERGES', () => {
+    const bars = [100, 101, 99, 102].map((c, i) => ({ t: 1700000000 + i * 86400, o: c, h: c, l: c, c, v: 1e9 }))
+    const vwap = op('/', [call('cum', [op('*', [ser('close'), ser('volume')])]), call('cum', [ser('volume')])])
+    expect(floatOrderFloorOf(vwap, bars, 0)).toBeNull()
+    const v = 100.5
+    const r = comparePlot({ times: times(1), vendor: [v], ours: [v * (1 + 1e-7)], tol: TOL, floatOrderFloor: null })
+    expect(verdictOf(r)).toBe('DIVERGE')
+  })
+  it('the floor used is in the verdict reason', () => {
+    const r = comparePlot({ times: times(1), vendor: [1], ours: [1 + 5e-7], tol: { rel: 1e-12, abs: 1e-12 }, floatOrderFloor: [1e-6] })
+    const pv = plotVerdict(r, { colorMeasured: false, colorResolvable: false })
+    expect(pv.verdict).toBe('MATCH')
+    expect(pv.reason).toMatch(/1 of them within the float-order floor/)
   })
 })
