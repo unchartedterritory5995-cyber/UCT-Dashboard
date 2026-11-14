@@ -54,6 +54,13 @@ The ``_read_*`` wrappers reuse data we ALREADY store — NO yfinance:
                 session more than ``RS_HISTORY_MAX_LAG_SESSIONS`` trading
                 sessions behind the build's settled session is WITHHELD (the
                 seven go NULL) and counted ``withheld_stale``.
+  - RS screens post-pass -> ``rs_post_pass.run`` (RS screens unit U1), AFTER the
+                loop, beside the sector ranking. DARK unless ``RS_SCREENS_ENABLED``.
+                It moves every row's rating columns onto the settled session once
+                that session is stored, stamps ``rs_rating_session`` and fills the
+                exact places (``snapshot_db.POST_PASS_COLUMNS``). It runs at the end
+                of EVERY build because the loop's INSERT OR REPLACE blanks those
+                columns on each row it rebuilds. Its receipt is ``rs_post_pass``.
   - UCT RS bar columns -> ``rs_columns.collect_one`` (Phase 2a, unit 2a-05),
                 the ``bars_rs`` step. DARK unless ``registry_defs.RS_V2_ENABLED``:
                 a dark pod reads no RSP, settles no benchmark and pays no CPU
@@ -1246,6 +1253,32 @@ def _read_rs_history_fields(targets, failures=None) -> dict:
     return out
 
 
+def _rs_post_pass(populated: dict):
+    """The RS screens post-pass at the end of a build (RS screens unit U1): its
+    receipt, or ``None`` while ``RS_SCREENS_ENABLED`` is off (then nothing is read,
+    written or reported, and the build's stats carry no key for it).
+
+    ⭐ WHY HERE, EVERY BUILD: ``upsert_rows`` is INSERT OR REPLACE over every column, so
+    a row this build rebuilt holds NULL in every column only the pass writes. A single
+    nightly pass would be wiped by the next resume or admin build.
+
+    The pass's own counts replace ``populated`` for the columns it owns (the
+    ``sector_rs_pct`` rule: counted over the table it just wrote). Never raises: a
+    failed pass is ``{"error": ...}`` in the receipt and the build goes on."""
+    try:
+        from . import rs_post_pass                           # noqa: PLC0415 - lazy: no cycle
+        if not rs_post_pass.enabled():
+            return None
+        receipt = rs_post_pass.run(source="build")
+    except Exception as e:  # noqa: BLE001
+        log.warning("[screener] rs post-pass failed: %s", e)
+        return {"error": f"{type(e).__name__}: {e}"}
+    for col, n in (receipt.get("populated") or {}).items():
+        if col in snapshot_db.POST_PASS_COLUMNS and isinstance(populated.get(col), int):
+            populated[col] = n
+    return receipt
+
+
 # ── orchestration ─────────────────────────────────────────────────────────────
 
 # The generator's `{ticker: Stock|ADR|ETF}` map, loaded ONCE per build (it is
@@ -1995,10 +2028,14 @@ def _run_build_locked(max_tickers=None, through_ymd=None) -> dict:
         log.warning("[screener] sector RS ranking failed: %s", e)
     if isinstance(populated.get("sector_rs_pct"), int) and "ranked" in sector_rs:
         populated["sector_rs_pct"] = sector_rs["ranked"]
+    # The RS screens post-pass, over the whole table the loop just wrote (see
+    # `_rs_post_pass`). None while RS_SCREENS_ENABLED is off.
+    rs_post = _rs_post_pass(populated)
 
     empty_columns = sorted(c for c in snapshot_db.COLUMNS
                            if built and populated[c] == 0
-                           and c not in snapshot_db.LIVE_ONLY_COLUMNS)
+                           and c not in snapshot_db.LIVE_ONLY_COLUMNS
+                           and c not in snapshot_db.POST_PASS_COLUMNS)
     log.info("[screener] build done built=%s skipped=%s errors=%s "
              "rs_map=%s bulk_map=%s empty_columns=%s",
              built, skipped, errors, len(rs_map), len(bulk_map),
@@ -2022,8 +2059,11 @@ def _run_build_locked(max_tickers=None, through_ymd=None) -> dict:
     rs_timing["ms_per_row"] = (round(rs_timing["ms"] / rs_timing["rows"], 2)
                                if rs_timing["rows"] else None)
     log.info("[screener] bars_rs step: %s", rs_timing)
-    return {"built": built, "skipped": skipped, "errors": errors,
-            "targets": len(targets), "sector_rs": sector_rs,
-            "populated": populated, "empty_columns": empty_columns,
-            "sources": sources, "identity_refusals": identity_state,
-            "settled_bars": settled_receipt, "bars_rs": rs_timing}
+    stats = {"built": built, "skipped": skipped, "errors": errors,
+             "targets": len(targets), "sector_rs": sector_rs,
+             "populated": populated, "empty_columns": empty_columns,
+             "sources": sources, "identity_refusals": identity_state,
+             "settled_bars": settled_receipt, "bars_rs": rs_timing}
+    if rs_post is not None:
+        stats["rs_post_pass"] = rs_post
+    return stats
