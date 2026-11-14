@@ -31,6 +31,7 @@ const PROVIDERS = new Map()
 
 // The manifest wire contract shared with the server (api/services/uct_agent/turn.py reads the
 // same numbers; tests/test_uct_agent_contract.py and agentContracts.test.js hold both to it).
+import { withTimeframeWords } from './capabilities/timeframeWords'
 import MANIFEST_CONTRACT from './contract/manifest.contract.json'
 export { MANIFEST_CONTRACT }
 export const MANIFEST_VERSION = MANIFEST_CONTRACT.manifestVersion
@@ -40,7 +41,9 @@ const RISKS = new Set(['local', 'confirm'])
 const UNDO = new Set(['exact', 'none'])
 
 /** Throws on a malformed registration — a broken capability never reaches a member. */
-export function registerCapability(cap) {
+export function registerCapability(cap0) {
+  // ⛔ BUG C (11-14, capabilities/timeframeWords.js): every TIMEFRAME enum arg (by schema) carries the shared timeframe words
+  const cap = withTimeframeWords(cap0)
   if (!cap || !NAME.test(cap.name || '')) throw new Error(`capability name invalid: ${cap && cap.name}`)
   if (!cap.summary || typeof cap.summary !== 'string') throw new Error(`${cap.name}: summary required`)
   if (!cap.target || typeof cap.target !== 'string') throw new Error(`${cap.name}: target kind required`)
