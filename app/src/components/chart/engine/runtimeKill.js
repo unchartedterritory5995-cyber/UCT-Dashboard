@@ -64,6 +64,8 @@ function maybeRefreshRuntimeLists() {
         if (!d) return
         setRuntimeKillList(d.kill)
         setRuntimeAllowList(d.allow)
+        // WS-I Part 2 -- a switch-off of capability admission reaches the open tab here too
+        setRuntimeCapabilityAdmission(d.capability_admission)
       })
       .catch(() => { /* the lists stay as they were */ })
       .finally(() => { _listsInFlight = false })
@@ -144,7 +146,148 @@ export function __allowEveryRuntimeScriptForTests() { _allow = ALLOW_ANY }
 /** Rails only. */
 export function __resetRuntimeAllowList() { _allow = Object.freeze([]) }
 
+// ─── ⭐⭐ WS-I PART 2 (2026-11-13) — ADMISSION BY CAPABILITY, PER-HASH VERDICTS ──
+//
+// A member's own copy of a script never hashes to a graded copy, so the allowlist
+// above admits nothing a member brings. While the server says capability admission
+// is ON (`capability_admission: true` on the `RUNTIME_KILL_PATH` read; the key is
+// ABSENT while it is off), the member door also asks
+// `POST RUNTIME_ADMISSION_PATH {source}` -> `{sha256, admitted, missing}` and latches
+// the answer here, per source hash. ONE AUTHORITY: the server decides (one detector,
+// `api/services/pine_capabilities.py`); this file only remembers its answers.
+//
+// ⛔ FAIL CLOSED: no verdict (not asked yet, in flight, failed) means NOT drawn, with
+// its own sentence ("still being checked") so a member never reads "not graded" or
+// "switched off" for a script that may be admitted a moment later.
+// ⛔ The allowlist is asked FIRST; a verdict never overrides the kill list (asked
+// before this at every door), and a verdict naming another hash is not latched.
+// ⛔ Bounded (`RUNTIME_ADMISSION_MAX` hashes, least recently used dropped) and stale
+// after `RUNTIME_LISTS_RECHECK_MS`: a consult that finds its verdict stale and has
+// the source fires ONE background re-ask and answers from the verdict it has.
+// Never in a worker or outside a page, never under the test grant, never throws.
+
+/** The server's per-script verdict (`api/routers/user_definitions.py::runtime_admission`). */
+export const RUNTIME_ADMISSION_PATH = '/api/user-definitions/runtime-admission'
+/** How many per-hash verdicts a tab keeps. */
+export const RUNTIME_ADMISSION_MAX = 64
+
+let _capabilityAdmission = false
+const _verdicts = new Map()        // hash -> { admitted, at }
+const _askedAt = new Map()         // hash -> when a source with NO verdict was last re-asked (bounded)
+const _admissionInFlight = new Map() // hash -> Promise
+
+/** Latch the server's switch (`capability_admission` on the kill read). Anything but
+ *  `true` is OFF, and switching it off forgets every verdict. */
+export function setRuntimeCapabilityAdmission(on) {
+  _capabilityAdmission = on === true
+  if (!_capabilityAdmission) _verdicts.clear()
+}
+
+/** Is capability admission latched ON in this tab? */
+export function runtimeCapabilityAdmissionOn() {
+  return _capabilityAdmission
+}
+
+/** Latch one verdict. Only a 64-hex hash and a boolean `admitted` are kept. */
+export function latchRuntimeAdmission(hash, verdict) {
+  const h = typeof hash === 'string' ? hash.toLowerCase() : ''
+  if (!/^[0-9a-f]{64}$/.test(h) || !verdict || typeof verdict.admitted !== 'boolean') return
+  _verdicts.delete(h)
+  _verdicts.set(h, { admitted: verdict.admitted, at: Date.now() })
+  while (_verdicts.size > RUNTIME_ADMISSION_MAX) _verdicts.delete(_verdicts.keys().next().value)
+}
+
+/** The latched verdict for this script (`{admitted, at}`) or null. Touches the LRU. */
+export function runtimeAdmissionOf({ source, hash } = {}) {
+  const h = typeof hash === 'string' && hash ? hash.toLowerCase()
+    : (typeof source === 'string' ? runtimeSourceHash(source) : '')
+  const v = h ? _verdicts.get(h) : undefined
+  if (!v) return null
+  _verdicts.delete(h)
+  _verdicts.set(h, v)
+  return v
+}
+
+/** Ask the server about one script and latch the answer. Resolves to the verdict
+ *  (`{admitted, at}`) or null (off, not a page, failed, or answered for another hash).
+ *  One request per hash in flight. Never rejects. */
+/** How often, and how many times, a "still being checked" answer (the server's detector gate was
+ *  busy: `missing: ['pending']`) is asked again. A pending answer is never latched. */
+export const RUNTIME_ADMISSION_PENDING_RETRY_MS = 1500
+export const RUNTIME_ADMISSION_PENDING_RETRIES = 5
+
+export function requestRuntimeAdmission(source, _attempt = 0) {
+  if (!_capabilityAdmission || typeof source !== 'string' || !source) return Promise.resolve(null)
+  if (typeof window === 'undefined' || typeof fetch !== 'function') return Promise.resolve(null)
+  const h = runtimeSourceHash(source)
+  const pending = _admissionInFlight.get(h)
+  if (pending) return pending
+  let p
+  try {
+    p = Promise.resolve(fetch(RUNTIME_ADMISSION_PATH, {
+      method: 'POST',
+      credentials: 'include',
+      cache: 'no-store',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ source }),
+    }))
+      .then((r) => (r && r.ok ? r.json() : null))
+      .then((d) => {
+        // ⛔ a verdict for ANOTHER script (or none) is never latched under this one
+        if (!d || typeof d.sha256 !== 'string' || d.sha256.toLowerCase() !== h) return null
+        if (!_capabilityAdmission) return null
+        // ⛔ "still being checked" is NOT a verdict: never latched (the row stays "being checked",
+        // fail closed); asked again a few times, the in-flight slot released first
+        if (Array.isArray(d.missing) && d.missing.includes('pending')) {
+          if (_attempt + 1 >= RUNTIME_ADMISSION_PENDING_RETRIES) return null
+          return { retry: true }
+        }
+        latchRuntimeAdmission(h, { admitted: d.admitted === true })
+        return _verdicts.get(h) || null
+      })
+      .catch(() => null)
+      .finally(() => { _admissionInFlight.delete(h) })
+      .then((v) => (v && v.retry
+        ? new Promise((resolve) => { setTimeout(resolve, RUNTIME_ADMISSION_PENDING_RETRY_MS) })
+          .then(() => requestRuntimeAdmission(source, _attempt + 1))
+        : v))
+  } catch {
+    return Promise.resolve(null)
+  }
+  _admissionInFlight.set(h, p)
+  return p
+}
+
+/** ⭐ Re-review F2 — keep asking about ONE source until a verdict lands: now (after `delayMs`), and
+ *  then on the lists' recheck interval while the answer is still "being checked", so a preview stuck
+ *  pending recovers without an edit or a remount. `onVerdict(v)` fires once, with the latched verdict.
+ *  Returns a cancel function. Never throws. */
+export function watchRuntimeAdmission(source, onVerdict, { delayMs = 0, recheckMs = RUNTIME_LISTS_RECHECK_MS } = {}) {
+  let alive = true
+  let timer = null
+  const ask = () => {
+    if (!alive) return
+    Promise.resolve(requestRuntimeAdmission(source)).then((v) => {
+      if (!alive) return
+      if (v) { onVerdict(v); return }
+      timer = setTimeout(ask, recheckMs)      // no verdict yet: ask again on the recheck
+    }).catch(() => { if (alive) timer = setTimeout(ask, recheckMs) })
+  }
+  timer = setTimeout(ask, delayMs)
+  return () => { alive = false; if (timer) clearTimeout(timer) }
+}
+
+/** Rails only. */
+export function __resetRuntimeAdmission() {
+  _capabilityAdmission = false
+  _verdicts.clear()
+  _admissionInFlight.clear()
+  _askedAt.clear()
+}
+
 /** Why this script is NOT drawn by the runtime lane (not yet graded), or null.
+ *  WS-I Part 2: the allowlist first, then (while capability admission is latched ON)
+ *  this tab's per-hash verdict; no verdict yet fails closed with its own sentence.
  *  @param {{source?: string, hash?: string}} arg */
 export function runtimeNotGradedOf({ source, hash } = {}) {
   if (_allow === ALLOW_ANY) return null
@@ -152,6 +295,25 @@ export function runtimeNotGradedOf({ source, hash } = {}) {
   const h = typeof hash === 'string' && hash ? hash.toLowerCase()
     : (typeof source === 'string' ? runtimeSourceHash(source) : '')
   if (h && _allow.some((e) => h.startsWith(e))) return null
+  if (_capabilityAdmission && h) {
+    const v = runtimeAdmissionOf({ hash: h })
+    if (v && typeof source === 'string' && Date.now() - v.at >= RUNTIME_LISTS_RECHECK_MS) {
+      v.at = Date.now()                         // a failed re-ask waits a full interval too
+      requestRuntimeAdmission(source)           // re-ask once; answer from the verdict we hold
+    }
+    if (v && v.admitted) return null
+    if (!v) {
+      // ⭐ re-review F2 — a source with NO verdict is re-asked on the lists' recheck interval (at most
+      // once per interval per hash), so the chart's own consults recover too
+      if (typeof source === 'string' && Date.now() - (_askedAt.get(h) || 0) >= RUNTIME_LISTS_RECHECK_MS) {
+        _askedAt.set(h, Date.now())
+        while (_askedAt.size > RUNTIME_ADMISSION_MAX) _askedAt.delete(_askedAt.keys().next().value)
+        requestRuntimeAdmission(source)
+      }
+      return `this script (sha256 ${h.slice(0, 12)}…) is still being checked against the parts of `
+        + 'Pine graded against TradingView, so it is not drawn bar by bar yet'
+    }
+  }
   return `this script (sha256 ${h ? h.slice(0, 12) : '?'}…) has not yet been graded against `
     + 'TradingView, so it is not drawn bar by bar'
 }

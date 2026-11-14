@@ -4154,8 +4154,15 @@ export function validateUserDefinitions(rawDefs) {
       const killed = (typeof meta.runtimeKilled === 'string' && meta.runtimeKilled)
         || (typeof meta.runtimeNotGraded === 'string' && meta.runtimeNotGraded)
         || runtimeKillOf({ defId: def.id, source: def.compute && def.compute.source })
+      // ⭐ WS-I Part 2 (final verify of #1204) — a row the server is STILL CHECKING (capability
+      // admission on, its set not computed yet: `meta.runtimePending`) is refused like any other
+      // ungraded row, but it is not "on a list": it will draw once the check completes.
+      const pending = !meta.runtimeKilled && meta.runtimePending === true
+        && typeof meta.runtimeNotGraded === 'string' && killed === meta.runtimeNotGraded
       if (killed) {
-        errors.push(`${def.id}: ${killed} — the saved definition is kept; it comes back when it is taken off the list.`)
+        errors.push(pending
+          ? `${def.id}: ${killed} — the saved definition is kept; it is being checked, and it will draw once the check completes.`
+          : `${def.id}: ${killed} — the saved definition is kept; it comes back when it is taken off the list.`)
         killedIds.push(def.id)
         continue
       }
