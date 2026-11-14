@@ -4248,6 +4248,52 @@
       }
     },
     {
+      "id": "tf_merge_close_weekly",
+      "source": "tf_merge(close, 'W')",
+      "why": "⭐⭐ ENGINE 55 — PINE'S LOOK-AHEAD-OFF REQUEST AS TRADINGVIEW MERGES IT (`tf_merge`). The bar that CLOSES a week (the next bar sits in another week) reads that week's own close; every other bar reads the last closed week; the NEWEST bar has no next bar and, with no forming state stated, is withheld in both lanes (`tfMergeMask` / `tf_merge_mask`). On these 5-minute bars a week closes on its last 5-minute bar, so the rule is exercised off a daily base too — the period end is read off the next bar, never a calendar.",
+      "ast": {
+        "type": "tf_merge",
+        "value": "W",
+        "args": [
+          {
+            "type": "series",
+            "name": "close"
+          }
+        ]
+      }
+    },
+    {
+      "id": "tf_merge_against_the_closed_week",
+      "source": "tf_merge(close, 'W') - tf(close, 'W')",
+      "why": "⭐ THE DIFFERENCE IS THE MEASUREMENT. `tf_merge` and formula `tf` over the same bars: zero on every bar of a week but the one that closes it, where the merge already reads the closing week. A lane that implemented one as the other would answer a flat zero (or a zero everywhere but the newest bar) that no other case could tell from a correct one (`lesson_a_fixture_that_cannot_distinguish_is_not_a_rail`).",
+      "ast": {
+        "type": "op",
+        "name": "-",
+        "args": [
+          {
+            "type": "tf_merge",
+            "value": "W",
+            "args": [
+              {
+                "type": "series",
+                "name": "close"
+              }
+            ]
+          },
+          {
+            "type": "tf",
+            "value": "W",
+            "args": [
+              {
+                "type": "series",
+                "name": "close"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
       "id": "ltf_close_sixty_is_not_computable_without_a_supply",
       "source": "ltf(close, '60')",
       "why": "⛔ THE READ BELOW THE CHART'S TIMEFRAME (C41), AND WHAT BOTH LANES MUST SAY WHEN NOBODY SUPPLIES IT. An `ltf` child runs on the chart symbol's INTRADAY bars, which only a chart's bind supplies (`engine/lowerTf.js::resolveLowerTf` -> `interpret`'s `opts.lowerTf`); this census supplies none, in either lane, and the Python lane never can -- a screen holds daily bars. The correct column is therefore NOT COMPUTABLE on every bar, never the bars in hand read under a lower timeframe's name: a lane that fell back to `close` would produce finite rows, which this case's `allNaN` flag turns into a named failure. The served reading is railed on TradingView's own bars in `vendorHarness.c41LowerTfServe.test.js`.",

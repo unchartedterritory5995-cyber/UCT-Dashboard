@@ -228,6 +228,7 @@ function argYieldsBool(node, table) {
     case 'sym':
     case 'ltf':
     case 'tf_live':
+    case 'tf_merge':
     case 'tf': {
       const args = Array.isArray(node.args) ? node.args : []
       return args.length === 1 ? argYieldsBool(args[0], table) : false
@@ -678,6 +679,31 @@ export function astReach(ast, opts = {}) {
           back: typeof child.back === 'number' ? (child.back + 1) * span : scale(child.back),
           forward: (typeof child.forward === 'number' && child.forward !== 0)
             ? child.forward * span : child.forward,
+        })
+        break
+      }
+      case 'tf_merge': {
+        // ⭐⭐ ENGINE 55 — PINE'S MERGED HIGHER-TIMEFRAME READ (`interpret.js`'s `tf_merge`
+        // arm). Back: `tf`'s window (it reads at most the last closed period). Forward:
+        // AT LEAST ONE BAR, and this is the badge. Whether bar `i` shows the period's
+        // value or the previous one is decided by bar `i + 1`'s date, so on a FORMING
+        // newest bar the value is the forming period's and, once that bar closes
+        // mid-period, the previous period's: a past value moves, exactly as it does on
+        // TradingView's realtime bar. `modeFromReach` reads that as `preview-repaints`.
+        // Mirrors `ast_lint.ast_reach`'s `tf_merge` arm.
+        const args = Array.isArray(node.args) ? node.args : []
+        const span = TF_BASE_BARS[String(node.value)]
+        if (args.length !== 1 || span === undefined) {
+          reachOf.set(node, noteUnknown(
+            'a higher-timeframe node carries one child and a timeframe this engine '
+            + `resamples (${Object.keys(TF_BASE_BARS).sort().join(', ')}), got `
+            + `${JSON.stringify(node.value)} over ${args.length}`))
+          break
+        }
+        const child = reachOf.get(args[0]) || { back: UNKNOWN, forward: UNKNOWN }
+        reachOf.set(node, {
+          back: typeof child.back === 'number' ? (child.back + 1) * span : child.back,
+          forward: typeof child.forward === 'number' ? Math.max(1, child.forward * span) : child.forward,
         })
         break
       }

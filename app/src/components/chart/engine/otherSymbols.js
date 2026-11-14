@@ -92,6 +92,60 @@ export const BARE_AMBIGUOUS = Object.freeze(new Set([
 /** A ticker no store listing can be (punctuation other than a class share's dot). */
 const unservableSpelling = (ticker) => /[.\-]/.test(ticker) && !CLASS_SHARE.test(ticker)
 
+/** ⭐ ENGINE 55 — the shape of a US listing a BARE spelling can name: one to five
+ *  letters, or a class share (`BRK.B`). The same shape `fetchableOtherSymbols` asks. */
+const US_LISTING_SHAPE = /^[A-Z]{1,5}(\.[A-Z])?$/
+
+/** ⭐ ENGINE 55 — the market-breadth spellings TradingView publishes (advancing /
+ *  declining issues and volume, TICK, TRIN, …). Our own breadth data may serve them
+ *  later (owner scope); until then a read of one is refused with "not available yet". */
+const BREADTH_SHAPE = /^(ADV|DECL?|UNCH|UVOL|DVOL|TICK|TRIN|ADD|VOLD)/
+
+/**
+ * ⭐⭐ ENGINE 55 — AN OTHER-SYMBOL SPELLING NO BINDING CAN EVER SERVE, decided from the
+ * spelling alone: `{code, reason}`, or null when the bind must decide (a held listing,
+ * a witnessed exchange, bars in hand). ONE helper, asked by the translator
+ * (`pine.js::otherSymbolStaticDeclineOf`, so the read is refused at translate, per
+ * plot, as `pine:request`) and by the bind (`resolveOtherSymbols`), so the two cannot
+ * disagree about which spellings are hopeless:
+ *   - punctuation other than a class share's dot (`ADVDEC.NY`, `ADVN.NY`) —
+ *     `other-symbol:class-share`, whatever the venue;
+ *   - a BARE ticker that also names an index or commodity (`BARE_AMBIGUOUS`) —
+ *     `other-symbol:bare`;
+ *   - a BARE ticker not shaped like a US listing (`XAUUSD`, `EURUSD`) —
+ *     `other-symbol:bare`.
+ * ⛔ A bare `SPY` or a venue-qualified `AMEX:SPY` is NOT decided here: C29 measured
+ * bare `SPY` == `AMEX:SPY`, and the bind serves both when the listing is held.
+ *
+ * @param {string} ticker  the ticker as the script spelled it (upper-cased here)
+ * @param {string} venue   `''` for a bare spelling, else the venue / `'?'` / the
+ *                         chart-prefix marker (only `''` matters here)
+ */
+export function staticallyUnservable(ticker, venue) {
+  const t = String(ticker || '').trim().toUpperCase()
+  const breadth = BREADTH_SHAPE.test(t)
+  const notYet = breadth
+    ? ' It is a market breadth series (advancing / declining issues or volume), and this breadth symbol is not available yet.'
+    : ''
+  if (unservableSpelling(t)) {
+    return { code: OTHER_SYMBOL_REFUSAL.CLASS_SHARE, reason: `\`${t}\` is spelled with punctuation that names no `
+      + 'listing our store holds (a class share is written with TradingView’s dot, `BRK.B`), so what this '
+      + `indicator draws from it is not computed.${notYet}` }
+  }
+  if (venue !== '') return null
+  if (BARE_AMBIGUOUS.has(t)) {
+    return { code: OTHER_SYMBOL_REFUSAL.BARE, reason: `\`"${t}"\` names no exchange, and those letters also name `
+      + 'a market index or commodity outside our bar store, so which instrument TradingView resolves it to '
+      + `cannot be settled here; what this indicator draws from it is not computed.${notYet}` }
+  }
+  if (!US_LISTING_SHAPE.test(t)) {
+    return { code: OTHER_SYMBOL_REFUSAL.BARE, reason: `\`"${t}"\` names no exchange and is not shaped like a US `
+      + 'stock listing (one to five letters), so it is a currency pair, a commodity, an index or a foreign '
+      + `listing this chart cannot read; what this indicator draws from it is not computed.${notYet}` }
+  }
+  return null
+}
+
 /** Every ticker a document's trees read through a `sym` node — plots, object
  *  trees and graph nodes alike. Iterative (a deep tree must not overflow). */
 export function symTickersOf(def) {
@@ -287,9 +341,12 @@ export function resolveOtherSymbols(def, ctx = {}, confirmed = SYMBOL_EXCHANGE_C
         + 'was not recorded (the indicator was saved before it was) — re-open the script to record it')
       continue
     }
-    if (unservableSpelling(ticker)) {
-      no(ticker, OTHER_SYMBOL_REFUSAL.CLASS_SHARE, `\`${ticker}\` is spelled with punctuation that `
-        + 'names no listing our store holds (a class share is written with TradingView\'s dot, `BRK.B`)')
+    // ⭐ ENGINE 55 — the spellings no binding can serve, decided by the ONE helper the
+    // translator asks too (`staticallyUnservable`): a document saved before the
+    // translator refused them reaches here and is refused with the same code.
+    const hopeless = spellings.map((v) => staticallyUnservable(ticker, v)).find(Boolean)
+    if (hopeless) {
+      no(ticker, hopeless.code, hopeless.reason)
       continue
     }
     const key = storeTickerOf(ticker)
@@ -351,6 +408,24 @@ export function resolveOtherSymbols(def, ctx = {}, confirmed = SYMBOL_EXCHANGE_C
     served.push(ticker)
   }
   return { symbols, served, refused }
+}
+
+/** ⭐⭐ ENGINE 55 — THE SETTLED REFUSAL A TREE READS, or null. `{guard, message}`
+ *  for the first ticker the tree reads through `sym` that this binding REFUSED (a
+ *  settled "no" — never a read still waiting for its bars, `otherSymbolPending`).
+ *  ⚰️ Such a plot used to compute as an all-`na` column with nothing said: the
+ *  bind starved the ticker and `interpret` answered "not computable" on every bar.
+ *  The chart now refuses the PLOT by name (`nativeRegistry.computeFor`'s
+ *  `columnErrors`, the object lane's `refusals`), with the bind's own code and
+ *  sentence. ONE reader for both lanes.
+ *  @param {object} tree   one plot / object tree
+ *  @param {object|null} decision  `resolveOtherSymbols` / `resolveFormulaSymbols`' answer */
+export function otherSymbolRefusalOfTree(tree, decision) {
+  const refused = ((decision && decision.refused) || []).filter((r) => r && !otherSymbolPending(r))
+  if (!refused.length || !tree) return null
+  const read = new Set(symTickersOf({ compute: { ast: tree } }))
+  const hit = refused.find((r) => read.has(String(r.ticker).trim().toUpperCase()))
+  return hit ? { guard: hit.code, message: `This indicator reads \`${hit.ticker}\`: ${hit.reason}` } : null
 }
 
 /** A stable signature of what `resolveOtherSymbols` would supply — for a

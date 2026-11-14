@@ -272,7 +272,8 @@ export function nameOfTree(node, parentPrec = 0, mode = 'plain') {
       return `${String(node.value || '?')} ${sub(child, 9)}`
     }
     case 'tf':
-    case 'tf_live': {
+    case 'tf_live':
+    case 'tf_merge': {
       const child = Array.isArray(node.args) ? node.args[0] : null
       return `${sub(child, 9)} (${String(node.value || '?')}${node.type === 'tf_live' ? ', forming' : ''})`
     }

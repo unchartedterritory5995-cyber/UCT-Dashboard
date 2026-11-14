@@ -418,6 +418,7 @@ export function barIndexVerdict(tree) {
       }
       case 'tf':
       case 'tf_live':
+      case 'tf_merge':
       case 'sym':
       case 'textop':
         // other bars, or text: served only when nothing beneath it moves

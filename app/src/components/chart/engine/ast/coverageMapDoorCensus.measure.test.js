@@ -55,6 +55,11 @@ import {
   CENSUS_RUNTIME_ENV, LANE_PRODUCTION, LANE_RUNTIME_ON, requestedLane, assertLaneMeasured, isGateDecline,
 } from '../../../../../../tools/pine_coverage/runtime_lane.mjs'
 import { peelStatement } from '../../../../../../tools/pine_coverage/census_peel.mjs'
+import { loadCapture } from '../__tests__/vendorHarness/harness.js'
+import { toProductBars } from '../__tests__/vendorHarness/ourSide.js'
+import { hostObjectRun, hostObjectReaderOpts } from '../runHalfObjectRail.js'
+import { OTHER_SYMBOL_REFUSAL, staticallyUnservable } from '../otherSymbols'
+import { foldNotesForOutput } from './parse'
 
 const INPUT = process.env.COVERAGE_INPUT
 const OUT = process.env.COVERAGE_OUT
@@ -141,12 +146,17 @@ export function dropHeads(diag) {
   return [...new Set(out)].slice(0, 60)
 }
 
-function oneDoor(source, { runtimeDetail = RT_ON } = {}) {
+function oneDoor(source, { runtimeDetail = RT_ON, bound = false } = {}) {
   let d
   try {
     d = memberPaneDefinition({ source, id: DEF_ID, name: 'coverage' })
   } catch (err) {
     return { threw: short((err && err.message) || err) }
+  }
+  // ⭐ ENGINE 55 — step 0 only (`census`): the bound check's blockers, before install.
+  let boundWhy = null
+  if (bound && d.ok) {
+    try { boundWhy = boundBlockers(d) } catch (err) { boundWhy = [`bound-threw:${short((err && err.message) || err, 80)}`] }
   }
   const t = d.translation || {}
   const refusals = (t.refusals || []).map((r) => ({
@@ -195,11 +205,95 @@ function oneDoor(source, { runtimeDetail = RT_ON } = {}) {
     loopBlockedCalls: diag.loopBlockedCalls || [],
     notes: (d.notes || []).map((n) => (n && n.name) || null).filter(Boolean),
     refusals,
+    ...(boundWhy ? { boundWhy } : {}),
     ...(runtimeDetail ? {
       runtimeDeclined: d.runtimeDeclined ? { code: d.runtimeDeclined.code, why: short(d.runtimeDeclined.why, 300) } : null,
       rtProbe: d.runtimeDeclined ? runtimeProbeOf(source, d.runtimeDeclined) : null,
     } : {}),
   }
+}
+
+// ─── ⭐⭐ ENGINE 55 — THE BOUND CHECK: "FULLY DRAWN" ASKED OF A BIND, NOT ONLY OF A DOOR ──
+// ⚰️ `isClean` (below) judges the DOOR's answer: attached, zero refusals, nothing dropped. It
+// never binds. Three silent shapes passed it: a plot that reads another symbol no bind can serve
+// (McClellan's bare `ADVN`, an all-`na` line), a table whose cells read a value the bind could
+// not compute (K-clustering, `withheldUnknown`), and a semantic-difference fold. `cleanBound`
+// asks ONE bind of the attached definition on a reference series — the RDDT 1D capture bars —
+// and requires: no column error, no object op withheld as unknown (and nothing named
+// not-computable), no other-symbol refusal the spelling alone decides, and no fold note.
+// ⭐ BOTH NUMBERS ARE KEPT: `clean` (static, comparable with every earlier map) and
+// `cleanBound`. ⛔ A refusal that depends on OUR STORE (a listing not held, no bars in hand) is
+// not counted: the census supplies no secondary bars, and a member's chart does.
+const BOUND_REFERENCE = path.resolve(process.cwd(), '..', 'tests/fixtures/vendor/harness/k-clustering-rddt-1d-2026-09-28.json')
+const BOUND_CTX = Object.freeze({
+  tf: 'D', symbol: Object.freeze({ ticker: 'RDDT', exchange: 'NYSE' }), newestBarIsForming: false, historyFromListing: true,
+})
+/** The other-symbol refusal codes a SPELLING decides (no store, no bars, no chart state). */
+const SPELLING_DECIDED = new Set([OTHER_SYMBOL_REFUSAL.UNSPELLED, OTHER_SYMBOL_REFUSAL.VENUE_UNREADABLE,
+  OTHER_SYMBOL_REFUSAL.VENUE_UNCONFIRMED])
+const STORE_DEPENDENT = new Set([OTHER_SYMBOL_REFUSAL.NOT_HELD, OTHER_SYMBOL_REFUSAL.NO_BARS,
+  OTHER_SYMBOL_REFUSAL.EXCHANGE_UNCONFIRMED, OTHER_SYMBOL_REFUSAL.VENUE_MISMATCH, OTHER_SYMBOL_REFUSAL.BARE,
+  OTHER_SYMBOL_REFUSAL.CHART_PREFIX, OTHER_SYMBOL_REFUSAL.FRAMED])
+let boundBars = null
+function referenceBars() {
+  if (!boundBars) boundBars = toProductBars(loadCapture(BOUND_REFERENCE).capture)
+  return boundBars
+}
+
+/** Why ONE bind of an attached member-door definition is not fully drawn: `[]` = it is.
+ *  Exported for the rail below (`cleanBound` can fail). */
+export function boundBlockers(d, bars = referenceBars(), ctx = BOUND_CTX) {
+  const out = []
+  if (!d || !d.ok || !d.definition) return ['not-attached']
+  const def = d.definition
+  const t = d.translation || {}
+  for (const o of t.outputs || []) {
+    // ⚠️ `baseTimeframeFolds` (a daily request read as the chart's own daily bars) is the
+    // identity on a DAILY bind — measured (C49) and withheld by name on any other chart —
+    // so on this daily reference it differs from nothing; every other fold note counts.
+    for (const n of foldNotesForOutput(o)) {
+      if (n.name === 'baseTimeframeFolds' && ctx.tf === 'D') continue
+      out.push(`fold:${n.name}`)
+    }
+  }
+  for (const r of (def.meta && def.meta.otherSymbols) || []) {
+    for (const v of r.spellings || []) {
+      const s = staticallyUnservable(r.ticker, v)
+      if (s) out.push(`other-symbol:${s.code}:${r.ticker}`)
+    }
+  }
+  let cols = null
+  try {
+    cols = registry.computeFor(def, bars, undefined, ctx)
+  } catch (err) {
+    out.push(`compute-threw:${short((err && err.message) || err, 80)}`)
+  }
+  if (cols && typeof cols.then !== 'function') {
+    for (const [key, e] of Object.entries(registry.columnErrors(cols) || {})) {
+      const guard = (e && (e.guard || e.status)) || 'error'
+      if (STORE_DEPENDENT.has(guard)) continue
+      out.push(`column-error:${key}:${guard}`)
+    }
+    const other = registry.otherSymbolReport(cols)
+    for (const r of (other && other.refused) || []) {
+      if (SPELLING_DECIDED.has(r.code)) out.push(`other-symbol:${r.code}:${r.ticker}`)
+    }
+  } else if (cols) {
+    out.push('compute-async')
+  }
+  if (def.objects) {
+    try {
+      const host = hostObjectRun(def, bars, hostObjectReaderOpts(ctx, undefined))
+      const run = host && host.run
+      if (run) {
+        if (run.stats && run.stats.withheldUnknown) out.push(`objects:withheld-unknown:${run.stats.withheldUnknown}`)
+        if (run.withheldBy && run.withheldBy['objects:not-computable']) out.push('objects:not-computable')
+      }
+    } catch (err) {
+      out.push(`objects-threw:${short((err && err.message) || err, 80)}`)
+    }
+  }
+  return [...new Set(out)]
 }
 
 /** ⭐ "TRANSFERS FULLY" — the coverage map's headline predicate, in one place.
@@ -217,7 +311,7 @@ function census(source, cap, { rtOn = RT_ON } = {}) {
   const steps = []
   let stuck = null
   for (let step = 0; step < cap; step += 1) {
-    const r = oneDoor(work.join(LF), { runtimeDetail: rtOn })
+    const r = oneDoor(work.join(LF), { runtimeDetail: rtOn, bound: step === 0 })
     // the line text each refusal names, read off the CURRENT program
     for (const ref of r.refusals || []) {
       ref.text = ref.line && work[ref.line - 1] != null ? short(work[ref.line - 1].trim(), 200) : null
@@ -250,6 +344,8 @@ function census(source, cap, { rtOn = RT_ON } = {}) {
   return {
     attached: !!first.attached && first.installed !== false,
     clean: isClean(first),
+    // ⭐ ENGINE 55 — the BOUND predicate (`boundBlockers`), beside the static one.
+    cleanBound: isClean(first) && Array.isArray(first.boundWhy) && first.boundWhy.length === 0,
     reachedAfterPeel: !!last.attached,
     peelSteps: steps.length - 1,
     stuck,

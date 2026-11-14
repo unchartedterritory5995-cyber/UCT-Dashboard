@@ -65,6 +65,9 @@ CANONICAL_KEYS = {
     # ⭐ C41 — the read BELOW the chart's timeframe; `tf`'s key set
     # (`parse.js::CANONICAL_KEYS.ltf`).
     "ltf": ("type", "value", "args"),
+    # ⭐ ENGINE 55 — Pine's merged higher-timeframe read; `tf`'s key set
+    # (`parse.js::CANONICAL_KEYS.tf_merge`).
+    "tf_merge": ("type", "value", "args"),
     # ⚰️ THE BIND-TIME TEXT TRIO, MISSING HERE UNTIL 2026-09-11 while
     # `parse.js::CANONICAL_KEYS` — the roster this one claims to mirror — has
     # carried all three since the Kind-4 merge. Key sets are that file's, not a

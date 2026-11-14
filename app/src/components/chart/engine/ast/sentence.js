@@ -363,6 +363,7 @@ export function yieldsOf(node, rules) {
     case 'sym':
     case 'ltf':
     case 'tf_live':
+    case 'tf_merge':
     case 'tf':
       // ⭐ NONE OF THEM CHANGES *WHAT*. A higher-timeframe read changes WHEN the value
       // comes from and a symbol read changes WHERE — `tf(close >
@@ -1032,8 +1033,13 @@ function renderTf(node, rules, inputs, depth, path, trace) {
   // trust. A shared phrase would have made a repainting column indistinguishable
   // from a settled one in the sentence a member reads.
   const live = node.type === 'tf_live'
-  trace.push({ path, rule: live ? 'tf_live' : 'tf' })
+  // ⭐ ENGINE 55 — Pine's merged read (`tf_merge`) says WHICH BAR shows the period's
+  // value, because that is the one thing that separates it from `tf`: the period's
+  // value appears on the bar that closes it. A shared phrase would read back as `tf`.
+  const merge = node.type === 'tf_merge'
+  trace.push({ path, rule: live ? 'tf_live' : merge ? 'tf_merge' : 'tf' })
   const inner = renderArg(node.args[0], rules, inputs, depth, `${path}.args[0]`, trace)
+  if (merge) return `${inner} on the ${word} timeframe, from the bar that closes each ${TF_LIVE_NOUN[String(node.value)]}`
   return live
     ? `${inner} so far this ${liveNoun}`
     : `${inner} on the ${word} timeframe`
@@ -1114,6 +1120,7 @@ function renderNode(node, rules, inputs, depth, path, trace) {
       return renderOffset(node, rules, inputs, depth, path, trace)
     case 'tf':
     case 'tf_live':
+    case 'tf_merge':
       return renderTf(node, rules, inputs, depth, path, trace)
     case 'sym':
       return renderSym(node, rules, inputs, depth, path, trace)

@@ -1,3 +1,6 @@
+// ⭐⭐ ENGINE 55 — a look-ahead-off `request.security(…, 'W'|'M')` translates to `tf_merge`
+// (TradingView's merge: the period's value on the bar that closes it), no longer `tf`;
+// the pins below were flipped deliberately with it (formula `tf` is unchanged).
 import { describe, it, expect } from 'vitest'
 
 import { translatePine } from './pine.js'
@@ -169,7 +172,7 @@ if barstate.islast
     // ⭐ C49 — the request reaches `tf(close, 'W')`, under the gate of the base it
     // was translated for (`interpret.js::requestBaseNode`).
     expect(out.objects.trees[cellOp.props.text.node.tree])
-      .toEqual(requestBaseNode('D', { type: 'tf', value: 'W', args: [{ type: 'series', name: 'close' }] }))
+      .toEqual(requestBaseNode('D', { type: 'tf_merge', value: 'W', args: [{ type: 'series', name: 'close' }] }))
   })
 
   it('⛔ CONFINED — the plot lane keeps its four-hop reader (its parameter addresses must not move)', () => {

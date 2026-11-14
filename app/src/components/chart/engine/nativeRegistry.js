@@ -104,7 +104,7 @@ import { ENGINE_ERROR, isRefusal } from './ast/parse'
 // symbol folds it differently, so the second symbol of a sweep would inherit the
 // first's lengths. That shows as a WRONG NUMBER, not an error.
 import { foldBound, bindConstsFor } from './ast/bind'
-import { isPineOriginDoc, otherSymbolPending } from './otherSymbols'
+import { isPineOriginDoc, otherSymbolPending, otherSymbolRefusalOfTree } from './otherSymbols'
 import { resolveLowerTf } from './lowerTf'
 import { blockRunsRefusal, BLOCK_RUNS_GUARD } from './blockRuns'
 // ⭐⭐ P1 — the chart lane's pre-compute refusals and its other-symbol decision
@@ -2544,6 +2544,14 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
         errors[key] = staticWhy.get(key)
         continue
       }
+      // ⭐⭐ ENGINE 55 — a plot that reads a ticker this binding REFUSED (settled, not
+      // pending) is refused BY NAME with the bind's code and sentence, never computed
+      // into an all-`na` column (`otherSymbols.js::otherSymbolRefusalOfTree`).
+      const symWhy = otherSymbolRefusalOfTree(trees[key], other)
+      if (symWhy) {
+        errors[key] = symWhy
+        continue
+      }
       try {
         out[key] = interpret(bound(trees[key]), bars, inputs, def.compute.budget,
           // ⛔ `newestBarIsForming` IS READ THE SAME WAY `tf` IS, and fails closed
@@ -2615,6 +2623,9 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
   // different route and reads identically at the call site.
   // ⭐ P0 0F — see the per-plot branch above (`chartScalars.js`).
   if (staticWhy.has(keys[0])) return withColumnErrors({}, { [keys[0]]: staticWhy.get(keys[0]) })
+  // ⭐⭐ ENGINE 55 — the single tree's settled other-symbol refusal, by name.
+  const soleSymWhy = otherSymbolRefusalOfTree(def.compute.ast, other)
+  if (soleSymWhy) return withOtherSymbols(withColumnErrors({}, { [keys[0]]: soleSymWhy }), other)
   const clock = { [keys[0]]: new Map() }
   const sole = interpret(bound(def.compute.ast), bars, inputs, def.compute.budget,
     undefined, { tf: ctx && ctx.tf,
@@ -2669,8 +2680,21 @@ export { FORMULA_LTF_GUARD, FORMULA_LTF_MESSAGE }
  *  `ltf` is never a silent blank line. ⛔ A Pine translation's own refusals are
  *  left exactly as they were (its disclosures ride on `meta.disclosures`). */
 export function externalReadNotices(def, columns) {
-  if (!def || isPineOriginDoc(def) || !columns) return []
+  if (!def || !columns) return []
   const out = []
+  // ⭐⭐ ENGINE 55 — A PINE TRANSLATION'S OTHER-SYMBOL REFUSALS ARE PUBLISHED TOO. Its
+  // translate-time disclosures ride `meta.disclosures`, but a ticker the BIND refuses
+  // (`ADVQ` held nowhere, an unwitnessed venue) is decided per chart and was said
+  // nowhere: the plot drew an all-`na` line. It is now refused by name in
+  // `columnErrors` and named here, on the same strip.
+  if (isPineOriginDoc(def)) {
+    const other = otherSymbolReport(columns)
+    for (const r of (other && other.refused) || []) {
+      if (otherSymbolPending(r)) continue
+      out.push({ code: r.code, reason: `This indicator reads \`${r.ticker}\`: ${r.reason}` })
+    }
+    return out
+  }
   const other = otherSymbolReport(columns)
   for (const r of (other && other.refused) || []) {
     if (otherSymbolPending(r)) continue

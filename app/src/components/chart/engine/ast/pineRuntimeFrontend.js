@@ -2692,7 +2692,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
     if (!n || typeof n !== 'object') return false
     if (n.type === 'offset') return !chartPure((n.args || [])[0], frame)
 
-    if (n.type === 'tf' || n.type === 'sym' || n.type === 'tf_live') return true
+    if (n.type === 'tf' || n.type === 'sym' || n.type === 'tf_live' || n.type === 'tf_merge') return true
     if (n.type === 'call') {
       const spec = TABLE.functions[n.name]
       if (!spec || !isPointwise(spec)) return true
@@ -6007,6 +6007,21 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // chart's own period the expression runs in THIS context, which is the
     // whole reason it folds.
     if (identity) return requestValueIr(identity.positional[2], scope)
+
+    // ⭐⭐ ENGINE 55 — AN OTHER-SYMBOL SPELLING NO BINDING CAN SERVE (a bare index, pair
+    // or foreign spelling; punctuation that names no listing) is the HOST's question,
+    // asked once (`Resolver.otherSymbolStaticDeclineOf` → `otherSymbols.js::
+    // staticallyUnservable`) and refused with the host's own guard and sentence, so the
+    // screen, the pane, this lane and the member door say one thing.
+    const hopeless = (() => {
+      if (!targetReader || (positional[0] && reachesSlotThroughEnv(argOf(positional[0]), scope))) return null
+      try { return targetReader.otherSymbolStaticDeclineOf(node) } catch { return null }
+    })()
+    if (hopeless) {
+      note('pine:request')
+      throw new PineRefusal('pine:request',
+        `${REFUSALS['pine:request']} — \`${node.name}\`: ${hopeless.why}`, at)
+    }
 
     // ⭐⭐ C35 — A TIMEFRAME BELOW THE CHART'S OWN IS THE HOST'S QUESTION, ASKED
     // ONCE (`Resolver.lowerTfDeclineOf` → `lowerTf.js::lowerTfRefusal`, C27). It

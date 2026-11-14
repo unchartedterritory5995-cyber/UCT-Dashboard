@@ -1,3 +1,6 @@
+// ⭐⭐ ENGINE 55 — a look-ahead-off `request.security(…, 'W'|'M')` translates to `tf_merge`
+// (TradingView's merge: the period's value on the bar that closes it), no longer `tf`;
+// the pins below were flipped deliberately with it (formula `tf` is unchanged).
 import { describe, it, expect } from 'vitest'
 import { translatePine } from './pine.js'
 
@@ -92,13 +95,13 @@ describe('request.security → tf', () => {
   it('⭐ the plain shape becomes a tf node — same symbol, literal timeframe', () => {
     const out = translatePine(src("plot(request.security(syminfo.tickerid, 'W', close))"))
     const ast = treeOf(out)
-    expect(ast).toEqual({ type: 'tf', value: 'W', args: [{ type: 'series', name: 'close' }] })
+    expect(ast).toEqual({ type: 'tf_merge', value: 'W', args: [{ type: 'series', name: 'close' }] })
   })
 
   it('…and the child is translated, not passed through as text', () => {
     const out = translatePine(src("plot(request.security(syminfo.tickerid, 'M', ta.sma(close, 20)))"))
     const ast = treeOf(out)
-    expect(ast.type).toBe('tf')
+    expect(ast.type).toBe('tf_merge')
     expect(ast.value).toBe('M')
     expect(ast.args[0]).toEqual({
       type: 'call',
@@ -157,7 +160,7 @@ describe('request.security → tf', () => {
     // refused every `lookahead=` argument, or every four-argument call.
     const ast = treeOf(translatePine(src(
       "plot(request.security(syminfo.tickerid, 'W', close, lookahead=barmerge.lookahead_off))")))
-    expect(ast).toEqual({ type: 'tf', value: 'W', args: [{ type: 'series', name: 'close' }] })
+    expect(ast).toEqual({ type: 'tf_merge', value: 'W', args: [{ type: 'series', name: 'close' }] })
   })
 
   it('⭐⭐ another SYMBOL is now `sym`, and it wraps the `tf` — never the other way', () => {
@@ -171,7 +174,7 @@ describe('request.security → tf', () => {
     expect(ast).toEqual({
       type: 'sym',
       value: 'SPY',
-      args: [{ type: 'tf', value: 'W', args: [{ type: 'series', name: 'close' }] }],
+      args: [{ type: 'tf_merge', value: 'W', args: [{ type: 'series', name: 'close' }] }],
     })
   })
 
@@ -221,7 +224,7 @@ describe('request.security → tf', () => {
     expect(ast).toEqual({
       type: 'sym',
       value: 'AAPL',
-      args: [{ type: 'tf', value: 'W', args: [{ type: 'series', name: 'close' }] }],
+      args: [{ type: 'tf_merge', value: 'W', args: [{ type: 'series', name: 'close' }] }],
     })
   })
 
@@ -279,7 +282,7 @@ describe('request.security → tf', () => {
     // refusing them refuses the IDIOM, not the maths.
     const ast = treeOf(translatePine(src(
       "res = input.timeframe(defval='W')\nplot(request.security(syminfo.tickerid, res, close))")))
-    expect(ast).toEqual({ type: 'tf', value: 'W', args: [{ type: 'series', name: 'close' }] })
+    expect(ast).toEqual({ type: 'tf_merge', value: 'W', args: [{ type: 'series', name: 'close' }] })
   })
 
   it('⭐ and a `tickerid = syminfo.tickerid` ALIAS is still this chart\'s own symbol', () => {
@@ -288,7 +291,7 @@ describe('request.security → tf', () => {
     // common way.
     const ast = treeOf(translatePine(src(
       "tickerid = syminfo.tickerid\nplot(request.security(tickerid, 'W', close))")))
-    expect(ast.type).toBe('tf')
+    expect(ast.type).toBe('tf_merge')
     expect(ast.value).toBe('W')
   })
 
@@ -318,7 +321,7 @@ describe('request.security → tf', () => {
     for (const spelled of ['tickerid', 'ticker', 'syminfo.ticker']) {
       const ast = treeOf(translatePine(src(
         `plot(security(${spelled}, 'W', close))`)))
-      expect(ast.type, spelled).toBe('tf')
+      expect(ast.type, spelled).toBe('tf_merge')
       expect(ast.value, spelled).toBe('W')
     }
   })
@@ -351,7 +354,7 @@ plot(security(syminfo.tickerid, 'W', close))`))
     // The control: the fix must be a SHADOW check, not a deletion of the carve-out.
     const ast = treeOf(translatePine(src(
       "plot(security(syminfo.tickerid, 'W', close))")))
-    expect(ast).toEqual({ type: 'tf', value: 'W', args: [{ type: 'series', name: 'close' }] })
+    expect(ast).toEqual({ type: 'tf_merge', value: 'W', args: [{ type: 'series', name: 'close' }] })
   })
 
   it('⭐ and a LOCAL binding that shadows `tickerid` reads as the instrument it NAMES', () => {
@@ -397,10 +400,10 @@ describe('request.security → tf, the TUPLE form', () => {
   it('⭐ element 0 and element 1 each become their OWN tf node', () => {
     const a = one(`${F}[p, q] = request.security(syminfo.tickerid, 'W', f(), lookahead = barmerge.lookahead_off)\nplot(p)`)
     expect(a.guard).toBe(null)
-    expect(a.ast).toEqual({ type: 'tf', value: 'W', args: [{ type: 'series', name: 'close' }] })
+    expect(a.ast).toEqual({ type: 'tf_merge', value: 'W', args: [{ type: 'series', name: 'close' }] })
 
     const b = one(`${F}[p, q] = request.security(syminfo.tickerid, 'W', f(), lookahead = barmerge.lookahead_off)\nplot(q)`)
-    expect(b.ast).toEqual({ type: 'tf', value: 'W', args: [{ type: 'series', name: 'high' }] })
+    expect(b.ast).toEqual({ type: 'tf_merge', value: 'W', args: [{ type: 'series', name: 'high' }] })
   })
 
   it('⭐⭐ INHERITS lookahead_on → `tf_live`, with no second rule written here', () => {
@@ -416,7 +419,7 @@ describe('request.security → tf, the TUPLE form', () => {
     expect(r.ast).toEqual({
       type: 'sym',
       value: 'SPY',
-      args: [{ type: 'tf', value: 'W', args: [{ type: 'series', name: 'close' }] }],
+      args: [{ type: 'tf_merge', value: 'W', args: [{ type: 'series', name: 'close' }] }],
     })
   })
 

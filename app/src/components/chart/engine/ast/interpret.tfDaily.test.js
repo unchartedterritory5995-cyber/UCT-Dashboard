@@ -23,6 +23,9 @@
 // the FORMING bucket, which is the identity on a daily base and WRONG on an
 // intraday one, where the last completed session really is what `"D"` means. The
 // right node depends on the base timeframe, and the translator is not handed one.
+// ⭐⭐ ENGINE 55 — a look-ahead-off `request.security(…, 'W'|'M')` translates to `tf_merge`
+// (TradingView's merge: the period's value on the bar that closes it), no longer `tf`;
+// the pins below were flipped deliberately with it (formula `tf` is unchanged).
 
 import { describe, it, expect } from 'vitest'
 
@@ -113,6 +116,6 @@ describe('the D ruling — the step-back that makes it unsafe', () => {
   it('⭐ a HIGHER timeframe still works, so the refusal is about `D`, not about MTF', () => {
     const out = pine('request.security(syminfo.tickerid, "W", close)')
     expect(out.ok).toBe(true)
-    expect(out.outputs[out.selected].formula).toBe("tf(close, 'W')")
+    expect(out.outputs[out.selected].formula).toBe("tf_merge(close, 'W')")
   })
 })

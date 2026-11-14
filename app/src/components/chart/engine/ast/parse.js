@@ -393,7 +393,16 @@ export const NODE_TYPES = Object.freeze(['num', 'series', 'op', 'call', 'offset'
   // expression) and a separate TYPE because it reads bars the chart does not
   // hold: every rule is `engine/lowerTf.js`'s, and a lane with no intraday
   // supply (the screener) refuses it by name.
-  'ltf'])
+  'ltf',
+  // ⭐⭐ ENGINE 55 — PINE'S HIGHER-TIMEFRAME READ, AS TRADINGVIEW MERGES IT.
+  // `tf_merge(expr, 'W')`: `tf`'s shape, and a separate TYPE because its bar rule
+  // differs (the period's value appears ON the bar that closes the period, the
+  // newest finished bar is withheld — `interpret.js`'s `tf_merge` arm). Only the
+  // Pine door writes it: a formula document that spells it is refused by name
+  // (`evaluability.js::FORMULA_TF_MERGE_GUARD`), and so are the scan and alert
+  // lanes (`api/services/scan_definition.py`, `alert_user_series.py`). Formula
+  // `tf` is byte-identical.
+  'tf_merge'])
 
 // --------------------------------------------------------------------------- //
 // the recurrence, READ from the manifest
@@ -623,7 +632,7 @@ export function foldNotesOf(table) {
 export const FOLD_NOTES = Object.freeze(foldNotesOf(TABLE))
 
 /** ⭐ P0 gate (pineack) — the HEADING a fold note is printed under. A note's
- *  `name` is its channel KEY (`htfLookaheadOffStepBacks`), an internal
+ *  `name` is its channel KEY (`baseTimeframeFolds`), an internal
  *  identifier the import box used to print verbatim above the sentence. The
  *  label is declared beside the sentence (`_folds.<channel>.memberLabel`) and
  *  read ONLY by renderers — `foldNotesForOutput`'s `{name, note}` shape (which
@@ -1394,6 +1403,22 @@ function enterNode(node) {
           build: (k) => ({ type: 'ltf', value: code.value, args: k }),
         }
       }
+      // ⭐⭐ ENGINE 55 — PINE'S MERGED HIGHER-TIMEFRAME READ, spelled `tf_merge(expr, 'W')`:
+      // the surface `pine.js::printFormula` prints and the round trip reads back. The
+      // parser decides SHAPE only; which codes and which documents are served is
+      // `interpret` / `evaluability`'s.
+      if (node.callee && node.callee.name === 'tf_merge') {
+        const args = node.arguments || []
+        if (args.length !== 2) return refuse('canonicalise:timeframe')
+        const code = args[1]
+        if (!code || code.type !== 'Literal' || typeof code.value !== 'string') {
+          return refuse('canonicalise:timeframe')
+        }
+        return {
+          children: [args[0]],
+          build: (k) => ({ type: 'tf_merge', value: code.value, args: k }),
+        }
+      }
       // ⭐⭐ AND THE READ OF ANOTHER INSTRUMENT — `sym('SPY', expr)`, the same
       // shape one axis over: `tf` changes WHICH PERIOD, `sym` changes WHICH
       // INSTRUMENT, and both keep their parameter as a FIELD so neither can be
@@ -1674,6 +1699,8 @@ export const CANONICAL_KEYS = Object.freeze({
   // by walkers that already exist, so `tf` comes out non-repainting and this comes
   // out `preview-repaints` without anybody threading a flag through the linter.
   tf_live: ['type', 'value', 'args'],
+  // ⚠️ ENGINE 55 — Pine's merged higher-timeframe read: `tf`'s key set, for `tf`'s reason.
+  tf_merge: ['type', 'value', 'args'],
   // ⚠️ A TEXT LITERAL, AND THE SIBLING OF `num` DOWN TO ITS KEY SET. It carries
   // no `args` because it has no children and no `name` because the value IS the
   // node — the same reasoning `num` follows.

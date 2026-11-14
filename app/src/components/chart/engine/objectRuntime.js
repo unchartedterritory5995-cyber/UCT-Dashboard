@@ -46,7 +46,7 @@ const BAR_COORDS = new Set(BAR_COORD_PROPS)
 // passed. This is the seam it was built for.
 import { POOL_LIMITS, resolveCapacity, collectsAbove } from './objectPool'
 import { writeCell, spanned, MERGED_HEAD_REWRITE, MERGED_HEAD_REWRITE_SENTENCE } from './objectCells.js'
-import { NOT_SHOWN, notShownSentence, stoppedRunSentence, STOPPED_KEY } from './ast/objectLoss.js'
+import { NOT_SHOWN, notShownSentence, partlyNotComputableSentence, stoppedRunSentence, STOPPED_KEY, RUNTIME_UNKNOWN_KEY } from './ast/objectLoss.js'
 // ⭐ A GUARD THAT READS OBJECT STATE (`{v:'bool'|'cmp'|'cross'|'get'|'size'}`, see
 // `LIVE_GUARD_KINDS`) is combined with `interpret`'s OWN operator table and its
 // OWN carried crossing step — never a second copy of either.
@@ -263,6 +263,11 @@ export function beginObjects(program, ctx) {
     return false
   }
   let withheldUnknown = 0
+  /** ⭐⭐ ENGINE 55 — of those, how many per family were held for a reason OTHER than the
+   *  chart clock (the clock names its own): family → count. A family partly drawn
+   *  with some of its ops withheld here is NAMED (`objects:not-computable`, with the
+   *  count), not left to read as the script's whole picture. */
+  const unknownOpsByFam = new Map()
   /** ⭐ C45 — of those, ops held because a bar index reached them as a value. */
   let withheldBarIndex = 0
   /** ⭐ C22 — properties marked because their value read an unmeasured reduction. */
@@ -1434,6 +1439,20 @@ export function beginObjects(program, ctx) {
     /** ⭐ WHAT A WITHHELD OP WOULD HAVE WRITTEN BECOMES UNKNOWN. A create keeps
      *  the register's old value (Pine's guard may have been false) but marks it;
      *  an update or delete marks whatever the handle holds now. */
+    /** ⭐ ENGINE 55 — book a withheld op to its family (`unknownOpsByFam`): its own,
+     *  a cell's table, or the family of the object its handle holds now. */
+    const noteUnknownOpFamily = (op) => {
+      let fam = op.family || (op.k === 'cell' || op.k === 'cellpatch' ? 'table' : null)
+      if (!fam && op.target != null) {
+        try {
+          const ids = targetsOf(op.target)
+          const o = ids.length ? live.get(ids[0]) : null
+          fam = o ? o.family : null
+        } catch { fam = null }
+      }
+      const key = fam || 'object'
+      unknownOpsByFam.set(key, (unknownOpsByFam.get(key) || 0) + 1)
+    }
     const taintOutputs = (op) => {
       taintSeen = true
       if (taintCause !== 'clock') taintOtherSeen = true
@@ -1559,6 +1578,7 @@ export function beginObjects(program, ctx) {
         // ⭐ OZ r1 — withheld ONLY by the chart clock (a `time(<tf>)` read C36 names,
         // or a bar index held off the window, `bar-index:window`): the clock note says why.
         taintCause = readsUnknownLatch(op.when) || unknownOtherAt(op, bar) ? 'other' : 'clock'
+        if (taintCause !== 'clock' && !op.indexHeld) noteUnknownOpFamily(op)
         taintOutputs(op)
         taintCause = 'other'
         continue
@@ -1587,6 +1607,7 @@ export function beginObjects(program, ctx) {
         // the op before it reaches here. So a value read here is known.
         if (op.withholdRuns != null && !truthy(value(op.withholdRuns))) continue
         withheldUnknown += 1
+        noteUnknownOpFamily(op)
         noteUnknownCreate(op, true)
         if (ctx.trace) events.push({ bar, k: 'withheld', family: op.family, site: op.site })
         taintOutputs(op)
@@ -1598,7 +1619,7 @@ export function beginObjects(program, ctx) {
       if (op.k !== 'loop') {
         const at = atCheck(op)
         if (at === 'error') return false
-        if (at === 'unknown') { withheldUnknown += 1; taintOutputs(op); continue }
+        if (at === 'unknown') { withheldUnknown += 1; noteUnknownOpFamily(op); taintOutputs(op); continue }
       }
       opsThisBar += 1
       opsExecuted += 1
@@ -2330,12 +2351,37 @@ export function beginObjects(program, ctx) {
       else if (famUnknownOther.has(fam) || taintFams.has(fam)) notShown[NOT_SHOWN.NOT_COMPUTABLE].push(fam)
     }
   }
+  // ⭐⭐ ENGINE 55 — A FAMILY PARTLY DRAWN, SOME OF WHOSE OPS THIS RUN WITHHELD FOR A VALUE
+  // IT COULD NOT COMPUTE, IS NAMED TOO, with how many. ⚰️ OZ named a not-computable
+  // family only when NOTHING of it was drawn, so K-clustering's table drew its header
+  // cells and silently left out the 51 ops whose values were unknown: the member read a
+  // short table as the script's whole table, and the harness graded it DIVERGE.
+  // ⛔ Not for a stopped run (it draws nothing and says why), not for a family already
+  // withheld or named above, and never for a clock-only withholding (C36 names those).
+  const partNotComputable = {}
+  // ⭐ ENGINE 55 — why the run half's values are unknown, in plain words, when the caller
+  // knows (`runtimeUnknownSentence`: e.g. the last-bar calculation is too heavy to run yet).
+  const unknownBecause = ctx && typeof ctx.unknownBecause === 'string' && ctx.unknownBecause ? ctx.unknownBecause : null
+  if (!stopped) {
+    for (const [fam, n] of unknownOpsByFam) {
+      if (!n || withheldFams.has(fam) || notShown[NOT_SHOWN.NOT_COMPUTABLE].includes(fam)
+          || notShown[NOT_SHOWN.NOT_CARRIED].includes(fam)) continue
+      if (fam !== 'object' && !drawnFams.has(fam)) continue
+      partNotComputable[fam] = n
+      notShown[NOT_SHOWN.NOT_COMPUTABLE].push(fam)
+    }
+  }
   const notShownBy = Object.fromEntries(Object.entries(notShown).filter(([, fs]) => fs.length))
   const notShownWhy = {}
   for (const [guard, fs] of Object.entries(notShownBy)) {
-    const t = notShownSentence(fs, guard)
-    for (const f of fs) notShownWhy[f] = t
+    const whole = fs.filter((f) => !Object.prototype.hasOwnProperty.call(partNotComputable, f))
+    const t = whole.length ? notShownSentence(whole, guard) : null
+    for (const f of whole) notShownWhy[f] = t
   }
+  for (const [fam, n] of Object.entries(partNotComputable)) notShownWhy[fam] = partlyNotComputableSentence(fam, n)
+  // ⭐ ENGINE 55 — the run half's reason, said ONCE beside the not-computable sentences
+  // (its own key in the note's `why`, like the stop reason), only when one was given.
+  const runtimeWhy = unknownBecause && (notShown[NOT_SHOWN.NOT_COMPUTABLE] || []).length ? unknownBecause : null
   // ⭐⭐ OZ r1 — A STOPPED RUN DRAWS NOTHING (C9 / C40 above), AND SAYS WHY: its
   // reason, which until now reached only the layer's meta, in the member's note.
   const stoppedWhy = stopped ? stoppedRunSentence(reason,
@@ -2343,6 +2389,7 @@ export function beginObjects(program, ctx) {
   const whyOut = {
     ...(stoppedWhy ? { [STOPPED_KEY]: stoppedWhy } : {}),
     ...notShownWhy,
+    ...(runtimeWhy ? { [RUNTIME_UNKNOWN_KEY]: runtimeWhy } : {}),
     ...(cellGuards.has(MERGED_HEAD_REWRITE) && !stopped ? { table: MERGED_HEAD_REWRITE_SENTENCE } : {}),
   }
 
@@ -2386,6 +2433,7 @@ export function beginObjects(program, ctx) {
       ...(textsWithheld ? { textsWithheld } : {}),
       ...(atBeyondAuto ? { atBeyondAutoBuffer: atBeyondAuto } : {}),
       ...(withheldUnknown ? { withheldUnknown } : {}),
+      ...(Object.keys(partNotComputable).length ? { withheldUnknownPartial: { ...partNotComputable } } : {}),
       ...(withheldBarIndex ? { withheldBarIndex } : {}),
       ...(propsUnmeasured ? { propsUnmeasured } : {}),
       ...(propsUnsaid ? { propsUnsaid } : {}),
