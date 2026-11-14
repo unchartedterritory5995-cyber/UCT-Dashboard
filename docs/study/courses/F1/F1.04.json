@@ -1039,15 +1039,15 @@
    "skill": "basics.volume",
    "rung": 6,
    "format": "scenario",
-   "story": "Stock A trades 3,000,000 shares a day at $2. Stock B trades 400,000 shares a day at $150.",
+   "story": "PNQL trades 3 million shares a day at $2. VRXD trades 400,000 shares a day at $150. These are made-up examples.",
    "q": "Which one trades more dollars each day?",
    "choices": [
-    "B, at $60 million a day",
-    "A, 3 million shares a day",
+    "VRXD, at $60 million a day",
+    "PNQL, at 3 million shares a day",
     "Same, about $6 million each",
-    "Need market cap to tell"
+    "Can't tell without market cap"
    ],
-   "answer": "B, at $60 million a day",
+   "answer": "VRXD, at $60 million a day",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1056,7 +1056,7 @@
      "b_price": 150
     }
    },
-   "why": "B, at $60 million a day. Dollar volume is shares traded times the price. B is 400,000 shares times $150, which is $60 million. A is 3,000,000 shares times $2, only $6 million. A trades more shares, but a tenth of the dollars. Compare stocks in dollars traded, not shares.",
+   "why": "Dollar volume is the shares traded times the price. It tells you how much real money changes hands. VRXD is 400,000 shares times $150, which is $60 million a day. PNQL is 3 million shares times $2, only $6 million. PNQL trades more shares, but a tenth of the dollars. Traders compare stocks in dollars traded, not shares.",
    "lesson_line": "Compare stocks in dollars traded, not shares. A share count hides the price.",
    "facts": [
     "f43",
@@ -1064,11 +1064,11 @@
     "f57"
    ],
    "wrong": {
-    "A, 3 million shares a day": "More shares, but cheap ones. At $2 a share, A trades far fewer dollars than B.",
-    "Same, about $6 million each": "Not the same. Work out each one: A's cheap shares come to far fewer dollars than B's $60 million.",
-    "Need market cap to tell": "Market cap uses shares outstanding. Dollars traded uses only the shares that trade: price times volume."
+    "Same, about $6 million each": "Not the same. PNQL comes to about $6 million, but VRXD comes to $60 million.",
+    "PNQL, at 3 million shares a day": "More shares, but cheap ones. At $2 a share, PNQL trades far fewer dollars than VRXD.",
+    "Can't tell without market cap": "Market cap uses all shares outstanding. Dollars traded uses only the shares that trade: price times volume."
    },
-   "simple": "B trades more dollars, because 400,000 shares at $150 is $60 million a day, while A's cheap shares come to far less.",
+   "simple": "VRXD trades more dollars, because 400,000 shares at $150 is $60 million a day, while PNQL's cheap shares come to far less.",
    "tier": "extended",
    "risk": {
     "score": 3,
@@ -1077,7 +1077,7 @@
      "fixed before (key was the only dollar choice)"
     ]
    },
-   "batch": "review1"
+   "batch": "review2"
   },
   {
    "key": "q14",
@@ -1808,7 +1808,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Why now shows both products: 400,000 x 150 = 60M, 3,000,000 x 2 = 6M, a tenth. Correct; teaches the math steps (rule 3)."
+   "notes": "Answers his note: Stock A/B replaced by tickers PNQL and VRXD, flagged as made-up. Math re-checked: 400,000 x $150 = $60 million; 3,000,000 x $2 = $6 million, a tenth. Right answer is correct and unique; wrong choices clearly wrong; wrong keys match choice texts exactly. Money in natural units. Explanation defines dollar volume and shows both products (rules 3, 7, 9). Claims rest on cited facts f43 (price x volume) and f41/f57 (dollars vs shares, market cap); no new numbers. q13 is live (verify status pass). Skill basics.volume keeps its other questions. Style: why/simple sentences short, simp"
   },
   "q14": {
    "status": "pass",

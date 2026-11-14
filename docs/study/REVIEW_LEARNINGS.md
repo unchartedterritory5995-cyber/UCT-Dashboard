@@ -22,3 +22,21 @@ rule names the evidence.
    (two companies, same cap, float-adjusted index) is rewritten or cut. One idea per question.
 6. **Order-flow questions name the tool.** A question about how many shares sit at a price reads as time and sales /
    level 2; say so and frame it the way he reads a tape.
+7. **Tickers, not "Stock A / Stock B".** He asked to "change stock titles to tickers instead of a and b". A comparison
+   names its stocks the way a trader sees them, with ticker-style symbols. When the numbers are made up, the ticker must
+   not be a real company's (or the numbers must be that company's real ones).
+8. **Company trivia goes.** A share-count line item from one company's annual report (Apple's fiscal 2025 buybacks) was
+   cut; so was the OTC penny-stock tip question. Keep what a swing trader uses at the screen.
+9. **Write money the way it is said.** "$1,200 million" should read "$1.2 billion" ("make it read in Billions if it is
+   billions"). Use the natural unit: thousands, millions, billions.
+10. **Real examples and fuller explanations.** "Can be much better worded with a real life example as well"; "can be
+    explained better in more detail". Where a concept is abstract (inverse funds decaying, what an ETF is), the
+    explanation uses a real, sourced case (a named fund over a real stretch, with its real numbers) and a little more
+    depth, not a one-liner.
+11. **Market reactions are likely, never guaranteed.** "LIKELY, not GUARANTEED": an answer about how the market reads
+    news says "likely" or "usually", never states the reaction as certain.
+12. **Earnings nuance, taught properly.** He cut a one-off Intel reaction question because "we could have much better
+    and more thorough teaching lessons and better questions on this to get the nuance around earnings and reactions".
+    And on Palantir's 500% EPS growth off one cent: "the flip to profitability is big". Earnings questions should teach
+    what actually moves a stock (guidance vs consensus, the quality of a beat, a turn to profitability), with the
+    nuance, not a single headline fact.

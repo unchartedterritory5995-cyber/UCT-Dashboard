@@ -6,7 +6,7 @@
   "difficulty": 1,
   "id": "si_d751ef0fef9e",
   "lesson_origin": "session",
-  "lesson_text": "Money brought in from sales. Revenue is the top line of the income statement. It is the total brought in from selling products or services over a period, such as a year or a quarter. It comes before any costs are taken out, so it is not profit. You'll also see it called sales. Revenue is the top line. Costs and expenses come out of it.",
+  "lesson_text": "Money brought in from sales. Revenue is the top line of the income statement: all the money from selling products or services over a period, before any cost comes out. So it is not profit. You'll also see it called sales. Real case: Amazon's net sales were $155.7 billion in its first quarter. Revenue is the top line. Costs and expenses come out of it.",
   "module": "F5",
   "prompt_json": {
    "choices": [
@@ -49,9 +49,16 @@
       "quote": "To calculate EPS, you take the total net income and divide it by the number of outstanding shares of the company.",
       "tier": 1,
       "url": "https://www.sec.gov/about/reports-publications/beginners-guide-financial-statements"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "Amazon.com, Inc., Form 8-K Exhibit 99.1 (SEC EDGAR): Amazon.com Announces First Quarter Results (May 1, 2025)",
+      "quote": "Net sales increased 9% to $155.7 billion in the first quarter, compared with $143.3 billion in first quarter 2024.",
+      "tier": 1,
+      "url": "https://www.sec.gov/Archives/edgar/data/1018724/000101872425000034/amzn-20250331xex991.htm"
      }
     ],
-    "summary": "Revenue, also called sales, is the top line: the money brought in from selling products or services. An income statement shows the revenue a company earned over a set period, such as a year or a quarter. Net income is the profit left after subtracting all expenses from revenue. EPS is net income divided by the shares outstanding."
+    "summary": "Revenue, also called sales, is the top line: the money brought in from selling products or services. An income statement shows the revenue a company earned over a set period, such as a year or a quarter. Net income is the profit left after subtracting all expenses from revenue. EPS is net income divided by the shares outstanding. Amazon's Q1 2025 net sales were $155.7 billion, up 9% from $143.3 billion in Q1 2024."
    },
    "facts": {
     "given": "On an income statement, what is revenue? Profit left after all costs Cash the company has on hand Profit earned per share Money brought in from sales"
@@ -60,7 +67,7 @@
    "simple": "It's the money a company takes in from sales, because revenue is the top line before any costs come out.",
    "tier": "core",
    "unit": "F5.01",
-   "why": "Money brought in from sales. Revenue is the top line of the income statement. It is the total brought in from selling products or services over a period, such as a year or a quarter. It comes before any costs are taken out, so it is not profit. You'll also see it called sales.",
+   "why": "Money brought in from sales. Revenue is the top line of the income statement: all the money from selling products or services over a period, before any cost comes out. So it is not profit. You'll also see it called sales. Real case: Amazon's net sales were $155.7 billion in its first quarter.",
    "wrong": {
     "Cash the company has on hand": "Revenue is what came in from sales over a period. It isn't the cash the company holds.",
     "Profit earned per share": "That's EPS. Revenue comes before any costs, so it isn't profit at all.",
@@ -76,73 +83,12 @@
  },
  {
   "answer_json": {
-   "answer": "True"
-  },
-  "difficulty": 1,
-  "id": "si_ae53cf76d2d0",
-  "lesson_origin": "session",
-  "lesson_text": "True. Net income, also called the bottom line, is the profit left after subtracting all expenses from revenue. When expenses are bigger, the same line shows a net loss. Revenue is the top line. Top line is sales. Bottom line is profit.",
-  "module": "F5",
-  "prompt_json": {
-   "choices": [
-    "True",
-    "False"
-   ],
-   "kind": "tf",
-   "q": "Net income is the bottom line of the income statement.",
-   "subject": "F5.01#q02"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-08",
-      "name": "SEC, Office of the Advocate for Small Business Capital Formation: Income statement building blocks",
-      "quote": "The net income or net loss (also known as the “bottom line”) reported on the income statement",
-      "tier": 1,
-      "url": "https://www.sec.gov/files/income-statement-building-blocks.pdf"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "SEC, Office of the Advocate for Small Business Capital Formation: Income statement building blocks",
-      "quote": "Net Income (Loss): the amount of profit the entity made or loss it incurred after subtracting all its expenses from its revenue",
-      "tier": 1,
-      "url": "https://www.sec.gov/files/income-statement-building-blocks.pdf"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "SEC: Beginners' Guide to Financial Statements",
-      "quote": "At the top of the income statement is the total amount of money brought in from sales of products or services. This top line is often referred to as gross revenues or sales.",
-      "tier": 1,
-      "url": "https://www.sec.gov/about/reports-publications/beginners-guide-financial-statements"
-     }
-    ],
-    "summary": "Net income is the bottom line of the income statement. Net income is the profit left after subtracting all expenses from revenue. Revenue, also called sales, is the top line: the money brought in from selling products or services."
-   },
-   "facts": {
-    "given": "Net income is the bottom line of the income statement."
-   },
-   "lesson_line": "Top line is sales. Bottom line is profit.",
-   "simple": "True, because net income is the profit left at the bottom after every cost is taken out of sales.",
-   "tier": "core",
-   "unit": "F5.01",
-   "why": "True. Net income, also called the bottom line, is the profit left after subtracting all expenses from revenue. When expenses are bigger, the same line shows a net loss. Revenue is the top line."
-  },
-  "review_status": "draft",
-  "skill_id": "fund.report",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F5/F5.01.json#q02",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
    "answer": "A press release filed on an 8-K"
   },
   "difficulty": 1,
   "id": "si_bf6991b9ba4a",
   "lesson_origin": "session",
-  "lesson_text": "A press release filed on an 8-K. Most companies put out their sales and earnings in a press release. If they do, they must file it with the SEC on Form 8-K. The release is a summary. The full statements come later in the 10-Q or 10-K. The earnings call usually comes shortly after the release. The release comes first. The 10-Q fills in the detail later.",
+  "lesson_text": "A press release filed on an 8-K. Most companies put their sales and earnings in a press release. A company that issues one must file it with the SEC on Form 8-K. So that is where the numbers show up first. The 10-Q is the full quarterly report and comes later. The call with analysts usually follows shortly after the release. A slide deck is marketing and tends to sound rosier than the filings. Read the release, not the deck. The numbers show up there first.",
   "module": "F5",
   "prompt_json": {
    "choices": [
@@ -206,11 +152,11 @@
    "facts": {
     "given": "Where does a company usually put out its quarterly numbers first? The 10-Q quarterly report A press release filed on an 8-K The call with analysts The investor slide deck"
    },
-   "lesson_line": "The release comes first. The 10-Q fills in the detail later.",
+   "lesson_line": "Read the release, not the deck. The numbers show up there first.",
    "simple": "A press release filed on an 8-K comes first, because the call and the 10-Q both follow it.",
    "tier": "core",
    "unit": "F5.01",
-   "why": "A press release filed on an 8-K. Most companies put out their sales and earnings in a press release. If they do, they must file it with the SEC on Form 8-K. The release is a summary. The full statements come later in the 10-Q or 10-K. The earnings call usually comes shortly after the release.",
+   "why": "A press release filed on an 8-K. Most companies put their sales and earnings in a press release. A company that issues one must file it with the SEC on Form 8-K. So that is where the numbers show up first. The 10-Q is the full quarterly report and comes later. The call with analysts usually follows shortly after the release. A slide deck is marketing and tends to sound rosier than the filings.",
    "wrong": {
     "The 10-Q quarterly report": "The 10-Q comes later, with the full financial statements the release summarizes.",
     "The call with analysts": "The call usually comes shortly after the release, to discuss numbers already out.",
@@ -226,80 +172,20 @@
  },
  {
   "answer_json": {
-   "answer": "EPS"
-  },
-  "difficulty": 1,
-  "id": "si_2405aa977592",
-  "lesson_origin": "session",
-  "lesson_text": "EPS. Earnings per share is net income divided by the shares outstanding. It tells you how much each share would get if the company paid out all of its net income for the period. EPS is the profit behind one share.",
-  "module": "F5",
-  "prompt_json": {
-   "bank": [
-    "EPS",
-    "revenue",
-    "margin",
-    "P/E",
-    "dividend"
-   ],
-   "kind": "fill",
-   "q": "Tap the word that fits the blank.",
-   "sentence": "Net income divided by the shares outstanding is ___.",
-   "subject": "EPS"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-08",
-      "name": "SEC: Beginners' Guide to Financial Statements",
-      "quote": "To calculate EPS, you take the total net income and divide it by the number of outstanding shares of the company.",
-      "tier": 1,
-      "url": "https://www.sec.gov/about/reports-publications/beginners-guide-financial-statements"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "SEC: Beginners' Guide to Financial Statements",
-      "quote": "This calculation tells you how much money shareholders would receive for each share of stock they own if the company distributed all of its net income for the period.",
-      "tier": 1,
-      "url": "https://www.sec.gov/about/reports-publications/beginners-guide-financial-statements"
-     }
-    ],
-    "summary": "EPS is net income divided by the shares outstanding. EPS is the slice of the period's net income that belongs to each share, before anything is paid out."
-   },
-   "facts": {
-    "given": "Tap the word that fits the blank. Net income divided by the shares outstanding is ___."
-   },
-   "lesson_line": "EPS is the profit behind one share.",
-   "simple": "EPS, because net income split across every share gives the profit for each share.",
-   "tier": "core",
-   "unit": "F5.01",
-   "why": "EPS. Earnings per share is net income divided by the shares outstanding. It tells you how much each share would get if the company paid out all of its net income for the period."
-  },
-  "review_status": "draft",
-  "skill_id": "fund.report",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F5/F5.01.json#q04",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
-   "answer": "The same period a year earlier"
+   "answer": "False"
   },
   "difficulty": 1,
   "id": "si_2be7ea0de7fd",
   "lesson_origin": "session",
-  "lesson_text": "The same period a year earlier. Year over year sets a period against the same period one year before. Amazon's release compares first-quarter net sales of $155.7 billion with $143.3 billion in the first quarter of 2024. Quarter over quarter would use the quarter just before. Year to date counts from the start of the year. Year over year means the same period, one year apart.",
+  "lesson_text": "False. Year over year compares with the same period a year earlier, not the quarter just before it. That is quarter over quarter. Year over year means the same period, one year apart.",
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "The quarter just before this one",
-    "The same period a year earlier",
-    "The start of the year to now",
-    "The analysts' estimate for it"
+    "True",
+    "False"
    ],
-   "kind": "mcq",
-   "q": "Amazon says first-quarter sales grew 9% year over year. What is the quarter compared with?",
+   "kind": "tf",
+   "q": "When a company says sales grew 9% year over year, it compares with the quarter just before.",
    "subject": "year over year"
   },
   "reveal_json": {
@@ -344,18 +230,13 @@
     "summary": "Year over year compares a period with the same period one year earlier. Amazon's Q1 2025 net sales were $155.7 billion, up 9% from $143.3 billion in Q1 2024. Quarter over quarter compares a quarter with the one just before it. Year to date measures from the start of the year, not against the same period a year ago. Above the consensus is a beat, below it a miss, and equal is in line, for earnings or for revenue."
    },
    "facts": {
-    "given": "Amazon says first-quarter sales grew 9% year over year. What is the quarter compared with? The quarter just before this one The start of the year to now The same period a year earlier The analysts' estimate for it"
+    "given": "When a company says sales grew 9% year over year, it compares with the quarter just before."
    },
    "lesson_line": "Year over year means the same period, one year apart.",
-   "simple": "It's set against the same quarter one year before, because that is what year over year means.",
+   "simple": "False, because year over year means the same quarter a year earlier.",
    "tier": "core",
    "unit": "F5.01",
-   "why": "The same period a year earlier. Year over year sets a period against the same period one year before. Amazon's release compares first-quarter net sales of $155.7 billion with $143.3 billion in the first quarter of 2024. Quarter over quarter would use the quarter just before. Year to date counts from the start of the year.",
-   "wrong": {
-    "The analysts' estimate for it": "That's the yardstick for a beat or a miss. Growth compares the result with a real number from the past.",
-    "The quarter just before this one": "That's quarter over quarter, the change from the previous quarter.",
-    "The start of the year to now": "That's year to date, measured from the start of the year. Year over year matches the same period a year apart."
-   }
+   "why": "False. Year over year compares with the same period a year earlier, not the quarter just before it. That is quarter over quarter."
   },
   "review_status": "draft",
   "skill_id": "fund.report",
@@ -376,9 +257,9 @@
   "prompt_json": {
    "choices": [
     "Mixed",
+    "A beat",
     "In line",
-    "A miss",
-    "A beat"
+    "A miss"
    ],
    "kind": "mcq",
    "q": "Amazon's Q1 2025 EPS was $1.59. Analysts expected $1.36. How does it read on EPS?",
@@ -434,66 +315,12 @@
  },
  {
   "answer_json": {
-   "answer": "True"
-  },
-  "difficulty": 1,
-  "id": "si_4778edf74411",
-  "lesson_origin": "session",
-  "lesson_text": "True. Analysts estimate both earnings and revenue. A company beats or misses based on how its actual earnings or revenues compare with the consensus. That gives two verdicts, one per line. Read both. Two estimates, two verdicts. Check EPS and revenue.",
-  "module": "F5",
-  "prompt_json": {
-   "choices": [
-    "True",
-    "False"
-   ],
-   "kind": "tf",
-   "q": "Beat and miss apply to revenue as well as to EPS.",
-   "subject": "F5.01#q08"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-08",
-      "name": "FINRA: What Is Earnings Season? (July 23, 2024)",
-      "quote": "A company beats (exceeds) the estimate or misses (falls short of) the estimate based on how actual earnings or revenues compare to the consensus. If the number equals the estimate, it’s said to be in line.",
-      "tier": 1,
-      "url": "https://www.finra.org/investors/insights/earnings-season"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "FINRA: What Is Earnings Season? (July 23, 2024)",
-      "quote": "Throughout the year, Wall Street analysts calculate earnings and revenue estimates for how they expect a company to perform this quarter, next quarter and even in future years.",
-      "tier": 1,
-      "url": "https://www.finra.org/investors/insights/earnings-season"
-     }
-    ],
-    "summary": "Above the consensus is a beat, below it a miss, and equal is in line, for earnings or for revenue. Analysts publish estimates for both earnings and revenue."
-   },
-   "facts": {
-    "given": "Beat and miss apply to revenue as well as to EPS."
-   },
-   "lesson_line": "Two estimates, two verdicts. Check EPS and revenue.",
-   "simple": "True, because analysts estimate sales as well as profit, and a company can beat or miss on each.",
-   "tier": "core",
-   "unit": "F5.01",
-   "why": "True. Analysts estimate both earnings and revenue. A company beats or misses based on how its actual earnings or revenues compare with the consensus. That gives two verdicts, one per line. Read both."
-  },
-  "review_status": "draft",
-  "skill_id": "fund.report",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F5/F5.01.json#q08",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
    "answer": "$2.27"
   },
   "difficulty": 2,
   "id": "si_d1dbc1089c43",
   "lesson_origin": "session",
-  "lesson_text": "$2.27. Divide net earnings of $1,036 million by 456.5 million diluted shares. Both are in millions, so the millions cancel, and 1,036 / 456.5 is about 2.27. Target's table divides by the quarter's weighted average diluted shares and reports the same $2.27. EPS is net income over the share count. You can check it yourself.",
+  "lesson_text": "$2.27. EPS is net income divided by the shares outstanding. Diluted counts the shares that options and similar securities could become. Put both numbers in millions: $1.036 billion is 1,036 million. Then 1,036 / 456.5 is about 2.27. Target's table divides by the quarter's weighted average diluted shares and reports the same $2.27. EPS is net income over the share count. You can check it yourself.",
   "module": "F5",
   "prompt_json": {
    "choices": [
@@ -503,7 +330,7 @@
     "$579.50"
    ],
    "kind": "mcq",
-   "q": "Target's Q1 2025 net earnings were $1,036 million on 456.5 million diluted shares. What is diluted EPS, to the cent?",
+   "q": "Target's Q1 2025 net earnings were $1.036 billion on 456.5 million diluted shares. What is diluted EPS, to the cent?",
    "subject": "F5.01#q09"
   },
   "reveal_json": {
@@ -536,13 +363,13 @@
      "fn": "arith",
      "result": 2.27
     },
-    "given": "Target's Q1 2025 net earnings were $1,036 million on 456.5 million diluted shares. What is diluted EPS, to the cent? $579.50 $0.44 $22.70 $2.27"
+    "given": "Target's Q1 2025 net earnings were $1.036 billion on 456.5 million diluted shares. What is diluted EPS, to the cent? $579.50 $0.44 $22.70 $2.27"
    },
    "lesson_line": "EPS is net income over the share count. You can check it yourself.",
-   "simple": "It's $2.27, because you split the $1,036 million of profit over the 456.5 million shares.",
+   "simple": "It's $2.27, because you split the $1.036 billion of profit over the 456.5 million shares.",
    "tier": "core",
    "unit": "F5.01",
-   "why": "$2.27. Divide net earnings of $1,036 million by 456.5 million diluted shares. Both are in millions, so the millions cancel, and 1,036 / 456.5 is about 2.27. Target's table divides by the quarter's weighted average diluted shares and reports the same $2.27.",
+   "why": "$2.27. EPS is net income divided by the shares outstanding. Diluted counts the shares that options and similar securities could become. Put both numbers in millions: $1.036 billion is 1,036 million. Then 1,036 / 456.5 is about 2.27. Target's table divides by the quarter's weighted average diluted shares and reports the same $2.27.",
    "wrong": {
     "$0.44": "You flipped the division and divided the shares by the earnings.",
     "$22.70": "A decimal slip: you moved the point one place.",
@@ -563,7 +390,7 @@
   "difficulty": 2,
   "id": "si_4d887c73fe32",
   "lesson_origin": "session",
-  "lesson_text": "62%. Divide this year's $57,006 million by the year-ago $35,082 million, subtract one, then times 100. That rounds to 62. NVIDIA's release says revenue was up 62% from a year ago. Growth is measured from the old number. For year over year, divide by the year-ago figure.",
+  "lesson_text": "62%. Growth is measured from the old number. Divide this year's $57.0 billion by the year-ago $35.1 billion, subtract one, then times 100. That rounds to 62. NVIDIA's release says revenue was up 62% from a year ago. Growth is measured from the old number. For year over year, divide by the year-ago figure.",
   "module": "F5",
   "prompt_json": {
    "choices": [
@@ -573,12 +400,12 @@
     "162%"
    ],
    "kind": "mcq",
-   "q": "NVIDIA's Q3 fiscal 2026 revenue was $57,006 million, up from $35,082 million a year earlier. YoY growth, to the nearest percent?",
+   "q": "NVIDIA's Q3 fiscal 2026 revenue was $57.0 billion, up from $35.1 billion a year earlier. YoY growth, to the nearest percent?",
    "subject": "F5.01#q10"
   },
   "reveal_json": {
    "deeper": {
-    "example": "NVIDIA's table gives both yardsticks. Against the quarter before, $46,743 million, revenue rose 22%. Against a year earlier, it rose 62%. Same quarter, two growth rates. Say which one you mean."
+    "example": "NVIDIA's table gives both yardsticks. Against the quarter before, revenue rose 22%. Against a year earlier, it rose 62%. Same quarter, two growth rates. Say which one you mean."
    },
    "depth": {
     "sources": [
@@ -609,22 +436,22 @@
    "facts": {
     "calc": {
      "args": {
-      "current": 57006,
-      "prior": 35082
+      "current": 57.0,
+      "prior": 35.1
      },
      "fn": "yoy_growth",
      "result": 62.0
     },
-    "given": "NVIDIA's Q3 fiscal 2026 revenue was $57,006 million, up from $35,082 million a year earlier. YoY growth, to the nearest percent? 6.2% 38% 162% 62%"
+    "given": "NVIDIA's Q3 fiscal 2026 revenue was $57.0 billion, up from $35.1 billion a year earlier. YoY growth, to the nearest percent? 6.2% 38% 162% 62%"
    },
    "lesson_line": "Growth is measured from the old number. For year over year, divide by the year-ago figure.",
-   "simple": "62%, because the jump from $35,082 million to $57,006 million is about 62% of the year-ago number.",
+   "simple": "62%, because the jump from $35.1 billion to $57.0 billion is about 62% of the year-ago number.",
    "tier": "core",
    "unit": "F5.01",
-   "why": "62%. Divide this year's $57,006 million by the year-ago $35,082 million, subtract one, then times 100. That rounds to 62. NVIDIA's release says revenue was up 62% from a year ago.",
+   "why": "62%. Growth is measured from the old number. Divide this year's $57.0 billion by the year-ago $35.1 billion, subtract one, then times 100. That rounds to 62. NVIDIA's release says revenue was up 62% from a year ago.",
    "wrong": {
     "162%": "You divided the two numbers and forgot to subtract one.",
-    "38%": "You divided the rise by this year's $57,006 million instead of the year-ago figure.",
+    "38%": "You divided the rise by this year's $57.0 billion instead of the year-ago $35.1 billion.",
     "6.2%": "A decimal slip: you moved the point one place."
    }
   },
@@ -729,7 +556,7 @@
   "difficulty": 2,
   "id": "si_96057433d33b",
   "lesson_origin": "session",
-  "lesson_text": "28.2%. Take sales less cost of sales, $23,846 million minus $17,128 million. Divide that by the $23,846 million of sales and you get 28.2%. Target's release reports the same 28.2 percent. Gross margin is what's left of each sales dollar after the cost of the goods.",
+  "lesson_text": "28.2%. Take sales less cost of sales, $23.846 billion minus $17.128 billion. That is gross profit: what is left of the sales after paying for the goods sold. Divide it by the $23.846 billion of sales and you get 28.2%. Target's release reports the same 28.2 percent. Gross margin is what's left of each sales dollar after the cost of the goods.",
   "module": "F5",
   "prompt_json": {
    "choices": [
@@ -739,7 +566,7 @@
     "282.0%"
    ],
    "kind": "mcq",
-   "q": "Gross margin is sales less cost of sales, divided by sales. Target, Q1 2025: sales $23,846 million, cost $17,128 million. To one decimal?",
+   "q": "Gross margin is sales less cost of sales, divided by sales. Target, Q1 2025: sales $23.846 billion, cost $17.128 billion. To one decimal?",
    "subject": "F5.01#q12"
   },
   "reveal_json": {
@@ -793,13 +620,13 @@
      "fn": "arith",
      "result": 28.2
     },
-    "given": "Gross margin is sales less cost of sales, divided by sales. Target, Q1 2025: sales $23,846 million, cost $17,128 million. To one decimal? 28.2% 39.2% 71.8% 282.0%"
+    "given": "Gross margin is sales less cost of sales, divided by sales. Target, Q1 2025: sales $23.846 billion, cost $17.128 billion. To one decimal? 28.2% 39.2% 71.8% 282.0%"
    },
    "lesson_line": "Gross margin is what's left of each sales dollar after the cost of the goods.",
    "simple": "28.2%, because sales minus the cost of sales, divided by sales, comes to about 28.2%.",
    "tier": "extended",
    "unit": "F5.01",
-   "why": "28.2%. Take sales less cost of sales, $23,846 million minus $17,128 million. Divide that by the $23,846 million of sales and you get 28.2%. Target's release reports the same 28.2 percent.",
+   "why": "28.2%. Take sales less cost of sales, $23.846 billion minus $17.128 billion. That is gross profit: what is left of the sales after paying for the goods sold. Divide it by the $23.846 billion of sales and you get 28.2%. Target's release reports the same 28.2 percent.",
    "wrong": {
     "282.0%": "A decimal slip: you moved the point one place the wrong way.",
     "39.2%": "You divided the profit by the cost of sales instead of by sales.",
@@ -820,14 +647,14 @@
   "difficulty": 2,
   "id": "si_f52d0dd3e8ca",
   "lesson_origin": "session",
-  "lesson_text": "Calendar 2025. The release calls it the third quarter of fiscal 2026. But it says the quarter ended October 26, 2025. A quarter is three months, so it began in 2025 too. Some companies run fiscal years that don't match the calendar. Go by the end date, not the label. Fiscal labels can mislead. Read the quarter's end date.",
+  "lesson_text": "Calendar 2025. The release calls it the third quarter of fiscal 2026, but it also says the quarter ended October 26, 2025. Some companies run a fiscal calendar that does not line up with the calendar year, so the label can run ahead of the date. A quarter is three months, so three quarters is nine months. That puts the start of this fiscal year in early 2025. Go by the end date, not the label. Fiscal labels can mislead. Read the quarter's end date.",
   "module": "F5",
   "prompt_json": {
    "choices": [
     "Calendar 2026",
-    "Calendar 2025",
     "2025 into 2026",
-    "Calendar 2024"
+    "Calendar 2024",
+    "Calendar 2025"
    ],
    "kind": "mcq",
    "q": "In which calendar year did that quarter happen?",
@@ -885,7 +712,7 @@
    "simple": "2025, because the quarter ended October 26, 2025, and three months back is still 2025.",
    "tier": "extended",
    "unit": "F5.01",
-   "why": "Calendar 2025. The release calls it the third quarter of fiscal 2026. But it says the quarter ended October 26, 2025. A quarter is three months, so it began in 2025 too. Some companies run fiscal years that don't match the calendar. Go by the end date, not the label.",
+   "why": "Calendar 2025. The release calls it the third quarter of fiscal 2026, but it also says the quarter ended October 26, 2025. Some companies run a fiscal calendar that does not line up with the calendar year, so the label can run ahead of the date. A quarter is three months, so three quarters is nine months. That puts the start of this fiscal year in early 2025. Go by the end date, not the label.",
    "wrong": {
     "2025 into 2026": "A quarter is three months. One that ended October 26, 2025 started in 2025 too.",
     "Calendar 2024": "That over-corrects the label. The quarter ended October 26, 2025, and a quarter is three months, so it began in 2025 too.",
@@ -911,8 +738,8 @@
   "prompt_json": {
    "choices": [
     "Q4 was lifted by a one-time gain",
-    "It's a miss on revenue estimates",
     "It's the season, not a decline",
+    "It's a miss on revenue estimates",
     "He's right. Sales are falling"
    ],
    "kind": "mcq",
@@ -1006,7 +833,7 @@
   "difficulty": 2,
   "id": "si_5819d55401d4",
   "lesson_origin": "session",
-  "lesson_text": "5.8%. Operating margin is income from operations divided by revenue: $1,624 million over $28,095 million is 5.8%. It is the share of each sales dollar left from the main business. Tesla's financial summary table shows the same 5.8%, down from 10.8% a year earlier. Operating margin shows how much of each sales dollar survives the cost of running the business.",
+  "lesson_text": "5.8%. Operating margin is income from operations divided by revenue: $1.624 billion over $28.095 billion is 5.8%. It is the share of each sales dollar left from the main business. Tesla's financial summary table shows the same 5.8%, down from 10.8% a year earlier. Operating margin shows how much of each sales dollar survives the cost of running the business.",
   "module": "F5",
   "prompt_json": {
    "choices": [
@@ -1016,7 +843,7 @@
     "5.8%"
    ],
    "kind": "mcq",
-   "q": "Operating margin is income from operations over revenue. Tesla, Q3 2025: $1,624 million on $28,095 million of revenue. To one decimal?",
+   "q": "Operating margin is income from operations over revenue. Tesla, Q3 2025: $1.624 billion on $28.095 billion of revenue. To one decimal?",
    "subject": "F5.01#q15"
   },
   "reveal_json": {
@@ -1070,17 +897,17 @@
      "fn": "arith",
      "result": 5.8
     },
-    "given": "Operating margin is income from operations over revenue. Tesla, Q3 2025: $1,624 million on $28,095 million of revenue. To one decimal? 5.8% 0.1% 0.6% 1.6%"
+    "given": "Operating margin is income from operations over revenue. Tesla, Q3 2025: $1.624 billion on $28.095 billion of revenue. To one decimal? 5.8% 0.1% 0.6% 1.6%"
    },
    "lesson_line": "Operating margin shows how much of each sales dollar survives the cost of running the business.",
-   "simple": "5.8%, because $1,624 million of operating income is about 5.8% of $28,095 million in revenue.",
+   "simple": "5.8%, because $1.624 billion of operating income is about 5.8% of $28.095 billion in revenue.",
    "tier": "extended",
    "unit": "F5.01",
-   "why": "5.8%. Operating margin is income from operations divided by revenue: $1,624 million over $28,095 million is 5.8%. It is the share of each sales dollar left from the main business. Tesla's financial summary table shows the same 5.8%, down from 10.8% a year earlier.",
+   "why": "5.8%. Operating margin is income from operations divided by revenue: $1.624 billion over $28.095 billion is 5.8%. It is the share of each sales dollar left from the main business. Tesla's financial summary table shows the same 5.8%, down from 10.8% a year earlier.",
    "wrong": {
     "0.1%": "You forgot to multiply by 100 and rounded the decimal.",
     "0.6%": "A decimal slip: you moved the point one place.",
-    "1.6%": "You read the first digits of $1,624 million as a percent."
+    "1.6%": "You read the first digits of $1.624 billion as a percent."
    }
   },
   "review_status": "draft",
@@ -1097,17 +924,17 @@
   "difficulty": 2,
   "id": "si_a6e50c64e10d",
   "lesson_origin": "session",
-  "lesson_text": "It counts shares that could be issued. Basic EPS counts only shares already issued and outstanding. Diluted EPS also counts the shares that options, convertibles and similar securities could become. Target's net earnings were $1,036 million on both lines. Spread over 456.5 million diluted shares instead of 455.0 million basic, EPS is $2.27, not $2.28. Diluted EPS spreads the same profit over more shares.",
+  "lesson_text": "It counts shares that could be issued. Basic EPS counts only the shares already issued and outstanding. Diluted EPS also counts the shares that options, convertibles and similar securities could become. Target's net earnings were $1.036 billion on both lines. Over 455.0 million basic shares that is about $2.28. Over 456.5 million diluted shares it is about $2.27. Same profit, more shares, a smaller slice. Target's release quotes diluted EPS throughout. Diluted EPS spreads the same profit over more shares. It is the more cautious number.",
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "It counts shares that could be issued",
     "It uses the share count at quarter end",
     "It leaves out one-time gains",
+    "It counts shares that could be issued",
     "It subtracts the dividend paid"
    ],
    "kind": "mcq",
-   "q": "Target's Q1 2025 table shows basic EPS of $2.28 and diluted EPS of $2.27. Why is diluted lower?",
+   "q": "Target's Q1 2025 table shows basic EPS $2.28 and diluted EPS $2.27 on $1.036 billion of net earnings. Why is diluted lower?",
    "subject": "F5.01#q16"
   },
   "reveal_json": {
@@ -1145,13 +972,13 @@
     "summary": "Diluted EPS also counts the shares that options, convertibles and similar securities could become. Basic EPS counts only the shares already issued and outstanding. Target Q1 2025 vs Q1 2024: net earnings $1,036 million vs $942 million (up 10.0%); basic EPS $2.28, diluted EPS $2.27 (up 11.7%); diluted shares 456.5 million vs 463.9 million (down 1.6%). Target's release quotes diluted EPS throughout."
    },
    "facts": {
-    "given": "Target's Q1 2025 table shows basic EPS of $2.28 and diluted EPS of $2.27. Why is diluted lower? It counts shares that could be issued It leaves out one-time gains It subtracts the dividend paid It uses the share count at quarter end"
+    "given": "Target's Q1 2025 table shows basic EPS $2.28 and diluted EPS $2.27 on $1.036 billion of net earnings. Why is diluted lower? It counts shares that could be issued It leaves out one-time gains It subtracts the dividend paid It uses the share count at quarter end"
    },
-   "lesson_line": "Diluted EPS spreads the same profit over more shares.",
+   "lesson_line": "Diluted EPS spreads the same profit over more shares. It is the more cautious number.",
    "simple": "Diluted EPS counts shares that could still be issued, so the same profit is split over more shares.",
    "tier": "extended",
    "unit": "F5.01",
-   "why": "It counts shares that could be issued. Basic EPS counts only shares already issued and outstanding. Diluted EPS also counts the shares that options, convertibles and similar securities could become. Target's net earnings were $1,036 million on both lines. Spread over 456.5 million diluted shares instead of 455.0 million basic, EPS is $2.27, not $2.28.",
+   "why": "It counts shares that could be issued. Basic EPS counts only the shares already issued and outstanding. Diluted EPS also counts the shares that options, convertibles and similar securities could become. Target's net earnings were $1.036 billion on both lines. Over 455.0 million basic shares that is about $2.28. Over 456.5 million diluted shares it is about $2.27. Same profit, more shares, a smaller slice. Target's release quotes diluted EPS throughout.",
    "wrong": {
     "It leaves out one-time gains": "That's adjusted EPS. Diluted EPS changes the share count, not the profit.",
     "It subtracts the dividend paid": "A common dividend doesn't come out of EPS. EPS is the profit per share as if all of it were paid out.",
@@ -1172,13 +999,13 @@
   "difficulty": 3,
   "id": "si_f0e5ff9882a0",
   "lesson_origin": "session",
-  "lesson_text": "Missed. CNBC sets LSEG's $1.61 estimate against adjusted EPS, so compare it with the adjusted $1.30. The $2.27 GAAP figure includes one-time lawsuit settlement gains that adjusted EPS leaves out. Compare like with like. Target's shares fell more than 5% that day. Compare like with like. Adjusted EPS against the adjusted estimate.",
+  "lesson_text": "Missed. GAAP EPS follows the standard accounting rules, and Target's $2.27 includes one-time lawsuit settlement gains. Adjusted EPS leaves those gains out and was $1.30. CNBC sets LSEG's $1.61 estimate against adjusted EPS, so $1.30 is the number to compare. Compare like with like. Target's shares fell more than 5% that day. Compare like with like. Adjusted EPS against the adjusted estimate.",
   "module": "F5",
   "prompt_json": {
    "choices": [
+    "Missed. $1.30 is below $1.61",
     "Beat. $2.27 is well above $1.61",
     "Can't say without the 10-Q",
-    "Missed. $1.30 is below $1.61",
     "Mixed. GAAP beat, adjusted missed"
    ],
    "kind": "mcq",
@@ -1237,7 +1064,7 @@
    "simple": "Missed, because the $1.61 estimate was for adjusted EPS, and adjusted EPS was only $1.30.",
    "tier": "extended",
    "unit": "F5.01",
-   "why": "Missed. CNBC sets LSEG's $1.61 estimate against adjusted EPS, so compare it with the adjusted $1.30. The $2.27 GAAP figure includes one-time lawsuit settlement gains that adjusted EPS leaves out. Compare like with like. Target's shares fell more than 5% that day.",
+   "why": "Missed. GAAP EPS follows the standard accounting rules, and Target's $2.27 includes one-time lawsuit settlement gains. Adjusted EPS leaves those gains out and was $1.30. CNBC sets LSEG's $1.61 estimate against adjusted EPS, so $1.30 is the number to compare. Compare like with like. Target's shares fell more than 5% that day.",
    "wrong": {
     "Beat. $2.27 is well above $1.61": "That sets GAAP EPS, lawsuit gains and all, against an estimate made on the adjusted basis.",
     "Can't say without the 10-Q": "The release already gives both EPS numbers and reconciles them. You have what you need now.",
@@ -1258,7 +1085,7 @@
   "difficulty": 3,
   "id": "si_457763478b2a",
   "lesson_origin": "session",
-  "lesson_text": "False. Adjusted EPS is each company's own measure, with no single recipe. Target's release warns that other companies may calculate it differently, which limits comparisons. A company showing a non-GAAP number must also show how it differs from the closest GAAP number. Read the reconciliation to see what each one changed. Adjusted is the company's own recipe. Check the reconciliation.",
+  "lesson_text": "False. Adjusted EPS is EPS with some items left out, and each company picks which ones. There is no single recipe. Target's release warns that other companies may calculate it differently, so two adjusted numbers may not match. Look at Target's own case. GAAP EPS was $2.27 and adjusted was $1.30, because adjusted leaves out lawsuit settlement gains. A company that shows an adjusted number must also show how it differs from the closest GAAP number. Read that reconciliation to see what was left out. Adjusted is the company's own recipe. Read the reconciliation before you compare.",
   "module": "F5",
   "prompt_json": {
    "choices": [
@@ -1302,84 +1129,30 @@
       "quote": "The attached tables provide a reconciliation of non-GAAP to GAAP measures.",
       "tier": 1,
       "url": "https://www.sec.gov/Archives/edgar/data/27419/000002741925000096/a2025q1ex-99.htm"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "Target Corporation, Form 8-K Exhibit 99 (SEC EDGAR): Target Corporation Reports First Quarter Earnings (May 21, 2025)",
+      "quote": "First quarter GAAP EPS was $2.27 compared with $2.03 last year. Adjusted EPS(1), which excludes the gains from litigation settlements, was $1.30.",
+      "tier": 1,
+      "url": "https://www.sec.gov/Archives/edgar/data/27419/000002741925000096/a2025q1ex-99.htm"
      }
     ],
-    "summary": "Adjusted EPS has no single recipe: other companies may calculate it differently. Under SEC Regulation G, a non-GAAP measure can leave out amounts that the closest GAAP measure includes. A company may show non-GAAP numbers but must show how they differ from the closest GAAP number. Target's release reconciles its adjusted numbers to GAAP in its own tables."
+    "summary": "Adjusted EPS has no single recipe: other companies may calculate it differently. Under SEC Regulation G, a non-GAAP measure can leave out amounts that the closest GAAP measure includes. A company may show non-GAAP numbers but must show how they differ from the closest GAAP number. Target's release reconciles its adjusted numbers to GAAP in its own tables. Target's Q1 2025 GAAP EPS was $2.27 (from $2.03); adjusted EPS, which leaves out the lawsuit settlement gains, was $1.30."
    },
    "facts": {
     "given": "Adjusted EPS lets you compare two companies like for like."
    },
-   "lesson_line": "Adjusted is the company's own recipe. Check the reconciliation.",
+   "lesson_line": "Adjusted is the company's own recipe. Read the reconciliation before you compare.",
    "simple": "False, because other companies may work out adjusted EPS in a different way, so two figures may not match.",
    "tier": "extended",
    "unit": "F5.01",
-   "why": "False. Adjusted EPS is each company's own measure, with no single recipe. Target's release warns that other companies may calculate it differently, which limits comparisons. A company showing a non-GAAP number must also show how it differs from the closest GAAP number. Read the reconciliation to see what each one changed."
+   "why": "False. Adjusted EPS is EPS with some items left out, and each company picks which ones. There is no single recipe. Target's release warns that other companies may calculate it differently, so two adjusted numbers may not match. Look at Target's own case. GAAP EPS was $2.27 and adjusted was $1.30, because adjusted leaves out lawsuit settlement gains. A company that shows an adjusted number must also show how it differs from the closest GAAP number. Read that reconciliation to see what was left out."
   },
   "review_status": "draft",
   "skill_id": "fund.report",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F5/F5.01.json#q18",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
-   "answer": "False"
-  },
-  "difficulty": 3,
-  "id": "si_668dde43cbab",
-  "lesson_origin": "session",
-  "lesson_text": "False. FINRA calls investor presentation decks marketing documents. They tend to be more optimistic than the text in official filings. Take your numbers from the press release filed on the 8-K, then from the 10-Q or 10-K. Slides sell. Filings report. Trust the filing.",
-  "module": "F5",
-  "prompt_json": {
-   "choices": [
-    "True",
-    "False"
-   ],
-   "kind": "tf",
-   "q": "A company's investor slide deck is as reliable as its SEC filings.",
-   "subject": "F5.01#q19"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-08",
-      "name": "FINRA: What Is Earnings Season? (July 23, 2024)",
-      "quote": "Some companies will issue an investor presentation deck along with the earnings figures. These pieces are marketing documents and tend to be more optimistic than the text included in official filings.",
-      "tier": 1,
-      "url": "https://www.finra.org/investors/insights/earnings-season"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "SEC, Investor.gov: How to Read an 8-K",
-      "quote": "The financial disclosures in the 8-K typically summarize the full financial statements, which will appear later in the company’s quarterly report (on Form 10-Q) or annual report (on Form 10-K).",
-      "tier": 1,
-      "url": "https://www.investor.gov/news-alerts/investor-bulletins/how-read-8-k"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "FINRA: What Is Earnings Season? (July 23, 2024)",
-      "quote": "If a company does issue a press release, it’s required to file an SEC Form 8-K, which must include the text of the release.",
-      "tier": 1,
-      "url": "https://www.finra.org/investors/insights/earnings-season"
-     }
-    ],
-    "summary": "Investor slide decks are marketing and tend to be rosier than the official filings. The earnings release is a summary; the full statements come later in the 10-Q or 10-K. An earnings press release must be filed with the SEC on Form 8-K."
-   },
-   "facts": {
-    "given": "A company's investor slide deck is as reliable as its SEC filings."
-   },
-   "lesson_line": "Slides sell. Filings report. Trust the filing.",
-   "simple": "False, because slide decks are sales pitches that tend to sound rosier than the filings sent to the SEC.",
-   "tier": "extended",
-   "unit": "F5.01",
-   "why": "False. FINRA calls investor presentation decks marketing documents. They tend to be more optimistic than the text in official filings. Take your numbers from the press release filed on the 8-K, then from the 10-Q or 10-K."
-  },
-  "review_status": "draft",
-  "skill_id": "fund.report",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F5/F5.01.json#q19",
   "type": "recall",
   "version": 1
  },
@@ -1394,9 +1167,9 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "Revenue beat, EPS missed",
     "EPS beat, sales missed",
     "Beat on both lines",
+    "Revenue beat, EPS missed",
     "Missed on both lines"
    ],
    "kind": "mcq",
@@ -1476,12 +1249,12 @@
   "difficulty": 3,
   "id": "si_69f7ecf4d94b",
   "lesson_origin": "session",
-  "lesson_text": "No. Strip out the one-time lawsuit gains and Target's operating margin was 3.7%, below last year's 5.3%. The reported 6.2% includes the settlement benefit. Last year's quarter had nothing to strip out: GAAP and adjusted EPS were both $2.03. Compare a company with its own past, like for like. One-time gains can dress up a margin. Look at it without them.",
+  "lesson_text": "No. Operating margin is income from operations divided by revenue: the share of each sales dollar left from the main business. Target reported 6.2%, up from 5.3%. But the 6.2% includes $593 million of one-time gains from settling a lawsuit over card fees. That gain does not come from selling goods, and it will not repeat. Take it out and the margin was 3.7%. Last year's quarter had nothing to take out, since GAAP and adjusted EPS were both $2.03. So 3.7% against 5.3% means the core business kept less of each sales dollar. Gross margin slipped too, to 28.2% from 28.8%. Judge a margin without one-time items, against the company's own past. One-time gains can dress up a margin. Strip them out and compare with the company's own past.",
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "Can't say. It varies by industry",
     "No. Without the gains it fell",
+    "Can't say. It varies by industry",
     "No. The margin fell to 5.3%",
     "Yes. The margin rose to 6.2%"
    ],
@@ -1544,18 +1317,25 @@
       "quote": "The operating margin should only be used to compare companies that operate in the same industry and, ideally, have similar business models and annual sales.",
       "tier": 2,
       "url": "https://www.investopedia.com/terms/o/operatingmargin.asp"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "Target Corporation, Form 8-K Exhibit 99 (SEC EDGAR): Target Corporation Reports First Quarter Earnings (May 21, 2025)",
+      "quote": "First quarter gross margin rate was 28.2 percent, compared with 28.8 percent in 2024",
+      "tier": 1,
+      "url": "https://www.sec.gov/Archives/edgar/data/27419/000002741925000096/a2025q1ex-99.htm"
      }
     ],
-    "summary": "Target's Q1 2025 operating margin was 6.2%, up from 5.3%, but the 6.2% includes a one-time lawsuit settlement benefit. Without the settlement gains, Target's Q1 2025 operating margin was 3.7%. A year earlier, Target's GAAP and adjusted EPS were the same, $2.03, so that quarter had no adjustments. Target's Q1 2025 operating income included $593 million of gains from settling a lawsuit over card fees. A company's own past margins show whether it is getting better. A company's operating margin is useful tracked over time. Compare different companies' operating margins only within the same industry."
+    "summary": "Target's Q1 2025 operating margin was 6.2%, up from 5.3%, but the 6.2% includes a one-time lawsuit settlement benefit. Without the settlement gains, Target's Q1 2025 operating margin was 3.7%. A year earlier, Target's GAAP and adjusted EPS were the same, $2.03, so that quarter had no adjustments. Target's Q1 2025 operating income included $593 million of gains from settling a lawsuit over card fees. A company's own past margins show whether it is getting better. A company's operating margin is useful tracked over time. Compare different companies' operating margins only within the same industry. Target's Q1 2025 gross margin was 28.2%, down from 28.8% a year earlier."
    },
    "facts": {
     "given": "Did Target's core business get more profitable? Target's Q1 2025 operating margin is 6.2%, up from 5.3% a year earlier. The 6.2% includes one-time lawsuit gains. Without them, it's 3.7%. Yes. The margin rose to 6.2% No. Without the gains it fell Can't say. It varies by industry No. The margin fell to 5.3%"
    },
-   "lesson_line": "One-time gains can dress up a margin. Look at it without them.",
+   "lesson_line": "One-time gains can dress up a margin. Strip them out and compare with the company's own past.",
    "simple": "No, because without the one-time lawsuit gains the margin was 3.7%, which is below last year's 5.3%.",
    "tier": "expert",
    "unit": "F5.01",
-   "why": "No. Strip out the one-time lawsuit gains and Target's operating margin was 3.7%, below last year's 5.3%. The reported 6.2% includes the settlement benefit. Last year's quarter had nothing to strip out: GAAP and adjusted EPS were both $2.03. Compare a company with its own past, like for like.",
+   "why": "No. Operating margin is income from operations divided by revenue: the share of each sales dollar left from the main business. Target reported 6.2%, up from 5.3%. But the 6.2% includes $593 million of one-time gains from settling a lawsuit over card fees. That gain does not come from selling goods, and it will not repeat. Take it out and the margin was 3.7%. Last year's quarter had nothing to take out, since GAAP and adjusted EPS were both $2.03. So 3.7% against 5.3% means the core business kept less of each sales dollar. Gross margin slipped too, to 28.2% from 28.8%. Judge a margin without one-time items, against the company's own past.",
    "wrong": {
     "Can't say. It varies by industry": "That rule is for comparing different industries. Comparing Target with its own past is exactly right.",
     "No. The margin fell to 5.3%": "5.3% was last year's margin. This year's was 6.2% with the gains and 3.7% without them.",
@@ -1576,7 +1356,7 @@
   "difficulty": 3,
   "id": "si_39d8a4026ad0",
   "lesson_origin": "session",
-  "lesson_text": "False. A beat does not promise a rise. Amazon beat both the EPS and revenue estimates for its first quarter of 2025. Its stock still fell more than 2% in extended trading. FINRA notes a company can beat but give a dour outlook, and the price can drop. A beat doesn't promise a rally. The outlook can matter more.",
+  "lesson_text": "False. A beat does not promise a rise. Amazon beat both the EPS and revenue estimates for its first quarter of 2025. Its stock still fell more than 2% in extended trading. Guidance is management's own view of what comes next, often given on the earnings call. FINRA notes a company can beat but give a dour outlook, and the price can drop. A beat doesn't promise a rally. The outlook can matter more.",
   "module": "F5",
   "prompt_json": {
    "choices": [
@@ -1638,7 +1418,7 @@
    "simple": "False, because Amazon beat on both lines and its stock still fell more than 2% in extended trading.",
    "tier": "expert",
    "unit": "F5.01",
-   "why": "False. A beat does not promise a rise. Amazon beat both the EPS and revenue estimates for its first quarter of 2025. Its stock still fell more than 2% in extended trading. FINRA notes a company can beat but give a dour outlook, and the price can drop."
+   "why": "False. A beat does not promise a rise. Amazon beat both the EPS and revenue estimates for its first quarter of 2025. Its stock still fell more than 2% in extended trading. Guidance is management's own view of what comes next, often given on the earnings call. FINRA notes a company can beat but give a dour outlook, and the price can drop."
   },
   "review_status": "draft",
   "skill_id": "fund.report",
@@ -1649,109 +1429,23 @@
  },
  {
   "answer_json": {
-   "answer": "Fewer shares split the profit"
-  },
-  "difficulty": 3,
-  "id": "si_cc05ae0a4b3b",
-  "lesson_origin": "session",
-  "lesson_text": "Fewer shares split the profit. EPS is net income divided by shares. Net earnings rose 10.0%, but the diluted share count fell 1.6%. So each share's slice grew faster, 11.7%. Target also bought back and retired 2.2 million shares in the quarter. A shrinking share count lifts EPS. Check net income growth beside it.",
-  "module": "F5",
-  "prompt_json": {
-   "choices": [
-    "Adjusted EPS left out costs",
-    "Revenue outgrew profit",
-    "Target paid more dividends",
-    "Fewer shares split the profit"
-   ],
-   "kind": "mcq",
-   "q": "Why did EPS grow faster than net earnings?",
-   "story": "Target's Q1 2025 net earnings rose 10.0%. Diluted EPS rose 11.7%.",
-   "subject": "F5.01#q23"
-  },
-  "reveal_json": {
-   "deeper": {
-    "counter": "EPS can grow even when profit stands still. Buybacks shrink the share count, so each share's slice gets bigger. Target spent $251 million in the quarter to retire 2.2 million shares at an average of $114.60."
-   },
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-08",
-      "name": "SEC: Beginners' Guide to Financial Statements",
-      "quote": "To calculate EPS, you take the total net income and divide it by the number of outstanding shares of the company.",
-      "tier": 1,
-      "url": "https://www.sec.gov/about/reports-publications/beginners-guide-financial-statements"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "Target Corporation, Form 8-K Exhibit 99 (SEC EDGAR): Target Corporation Reports First Quarter Earnings (May 21, 2025)",
-      "quote": "Net earnings $1,036 $942 10.0% Basic earnings per share $2.28 $2.04 11.7% Diluted earnings per share $2.27 $2.03 11.7% Weighted average common shares outstanding Basic 455.0 462.2 (1.6)% Diluted 456.5 463.9 (1.6)%",
-      "tier": 1,
-      "url": "https://www.sec.gov/Archives/edgar/data/27419/000002741925000096/a2025q1ex-99.htm"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "Target Corporation, Form 8-K Exhibit 99 (SEC EDGAR): Target Corporation Reports First Quarter Earnings (May 21, 2025)",
-      "quote": "The Company repurchased $251 million of its shares in the first quarter, retiring 2.2 million shares of common stock at an average price of $114.60.",
-      "tier": 1,
-      "url": "https://www.sec.gov/Archives/edgar/data/27419/000002741925000096/a2025q1ex-99.htm"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "Target Corporation, Form 8-K Exhibit 99 (SEC EDGAR): Target Corporation Reports First Quarter Earnings (May 21, 2025)",
-      "quote": "Net Sales of $23.8 billion in the first quarter were 2.8 percent lower than last year",
-      "tier": 1,
-      "url": "https://www.sec.gov/Archives/edgar/data/27419/000002741925000096/a2025q1ex-99.htm"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "SEC: Beginners' Guide to Financial Statements",
-      "quote": "This calculation tells you how much money shareholders would receive for each share of stock they own if the company distributed all of its net income for the period.",
-      "tier": 1,
-      "url": "https://www.sec.gov/about/reports-publications/beginners-guide-financial-statements"
-     }
-    ],
-    "summary": "EPS is net income divided by the shares outstanding. Target Q1 2025 vs Q1 2024: net earnings $1,036 million vs $942 million (up 10.0%); basic EPS $2.28, diluted EPS $2.27 (up 11.7%); diluted shares 456.5 million vs 463.9 million (down 1.6%). Target bought back and retired 2.2 million of its own shares in Q1 2025. Target's Q1 2025 net sales fell 2.8% from a year earlier. EPS is the slice of the period's net income that belongs to each share, before anything is paid out."
-   },
-   "facts": {
-    "given": "Why did EPS grow faster than net earnings? Target's Q1 2025 net earnings rose 10.0%. Diluted EPS rose 11.7%. Fewer shares split the profit Revenue outgrew profit Target paid more dividends Adjusted EPS left out costs"
-   },
-   "lesson_line": "A shrinking share count lifts EPS. Check net income growth beside it.",
-   "simple": "Fewer shares, because the profit grew 10.0% but was split over 1.6% fewer shares, so each share got more.",
-   "tier": "expert",
-   "unit": "F5.01",
-   "why": "Fewer shares split the profit. EPS is net income divided by shares. Net earnings rose 10.0%, but the diluted share count fell 1.6%. So each share's slice grew faster, 11.7%. Target also bought back and retired 2.2 million shares in the quarter.",
-   "wrong": {
-    "Adjusted EPS left out costs": "The 11.7% is diluted EPS from the same table as net earnings, not an adjusted figure. The gap comes from the share count.",
-    "Revenue outgrew profit": "Target's net sales fell 2.8%. And revenue isn't in the EPS math at all.",
-    "Target paid more dividends": "EPS is net income over the share count. A dividend is neither one, so the gap has to come from those two."
-   }
-  },
-  "review_status": "draft",
-  "skill_id": "fund.report",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F5/F5.01.json#q23",
-  "type": "scenario",
-  "version": 1
- },
- {
-  "answer_json": {
-   "answer": "Its own past and other retailers"
+   "answer": "Against its past and other retailers"
   },
   "difficulty": 3,
   "id": "si_38725b6290f1",
   "lesson_origin": "session",
-  "lesson_text": "Its own past and other retailers. What counts as a good ratio depends on the industry. CNBC groups Target with retailers such as Walmart and Home Depot. NVIDIA is in AI and accelerated computing, so its 73.4% says little about Target. Against its own year-ago 28.8%, Target's margin slipped. Judge a margin against its own history and its industry, not across industries.",
+  "lesson_text": "Against its past and other retailers. Gross margin is sales less cost of sales, divided by sales. What counts as a good ratio depends on the industry. CNBC groups Target with retailers such as Walmart and Home Depot. NVIDIA is in AI and accelerated computing, so its 73.4% says little about Target. Against its own year-ago 28.8%, Target's margin slipped. That is the signal to follow. Judge a margin against its own history and its industry, not across industries.",
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "Its own past and other retailers",
-    "The market's average margin",
-    "NVIDIA's 73.4%, a big firm",
-    "Its own 6.2% operating margin"
+    "Against the average of all stocks",
+    "Against NVIDIA's 73.4%, the AI leader",
+    "Against its own 6.2% operating margin",
+    "Against its past and other retailers"
    ],
    "kind": "mcq",
-   "q": "What's the right yardstick for Target's gross margin?",
-   "story": "NVIDIA is an AI and accelerated computing company. Its GAAP gross margin for Q3 fiscal 2026 was 73.4%. Target's Q1 2025 gross margin slipped from 28.8% a year earlier.",
+   "q": "How should you judge Target's 28.2%?",
+   "story": "Target's gross margin was 28.2% in Q1 2025, down from 28.8% a year earlier. A friend calls that weak next to NVIDIA's 73.4%.",
    "subject": "F5.01#q24"
   },
   "reveal_json": {
@@ -1825,20 +1519,6 @@
      },
      {
       "accessed": "2026-11-08",
-      "name": "SEC: Beginners' Guide to Financial Statements",
-      "quote": "Operating Margin = Income from Operations / Net Revenues Operating margin is usually expressed as a percentage. It shows, for each dollar of sales, what percentage was profit.",
-      "tier": 1,
-      "url": "https://www.sec.gov/about/reports-publications/beginners-guide-financial-statements"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "Target Corporation, Form 8-K Exhibit 99 (SEC EDGAR): Target Corporation Reports First Quarter Earnings (May 21, 2025)",
-      "quote": "First quarter operating income margin rate, which includes the one-time benefit of the settlement of credit card interchange fee litigation, was 6.2 percent in 2025, compared with 5.3 percent in 2024.",
-      "tier": 1,
-      "url": "https://www.sec.gov/Archives/edgar/data/27419/000002741925000096/a2025q1ex-99.htm"
-     },
-     {
-      "accessed": "2026-11-08",
       "name": "CNBC: Target cuts sales outlook as retailer blames tariff uncertainty and backlash to DEI rollback (May 21, 2025)",
       "quote": "Target's earnings follow updates from other retailers, including Walmart and Home Depot.",
       "tier": 2,
@@ -1850,42 +1530,121 @@
       "quote": "NVIDIA (NASDAQ: NVDA) is the world leader in AI and accelerated computing.",
       "tier": 1,
       "url": "https://www.sec.gov/Archives/edgar/data/1045810/000104581025000228/q3fy26pr.htm"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "NVIDIA Corporation, Form 8-K Exhibit 99.1 (SEC EDGAR): NVIDIA Announces Financial Results for Third Quarter Fiscal 2026 (November 19, 2025)",
-      "quote": "GAAP ($ in millions, except earnings per share) Q3 FY26 Q2 FY26 Q3 FY25 Q/Q Y/Y Revenue $57,006 $46,743 $35,082 22% 62%",
-      "tier": 1,
-      "url": "https://www.sec.gov/Archives/edgar/data/1045810/000104581025000228/q3fy26pr.htm"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "Target Corporation, Form 8-K Exhibit 99 (SEC EDGAR): Target Corporation Reports First Quarter Earnings (May 21, 2025)",
-      "quote": "Consolidated Statements of Operations Three Months Ended (millions, except per share data) (unaudited) May 3, 2025 May 4, 2024 Change Net sales $23,846 $24,531 (2.8) Cost of sales 17,128 17,471 (2.0)",
-      "tier": 1,
-      "url": "https://www.sec.gov/Archives/edgar/data/27419/000002741925000096/a2025q1ex-99.htm"
      }
     ],
-    "summary": "What counts as a good ratio, margins included, depends on the industry. Gross margin is compared between similar companies and against their own industry. Compare different companies' operating margins only within the same industry. Operating margin levels vary widely from one industry to another. Gross margins differ by industry: software companies often run much higher gross margins than retailers. A company's own past margins show whether it is getting better. NVIDIA's GAAP gross margin for Q3 fiscal 2026 was 73.4%. Target's Q1 2025 gross margin was 28.2%, down from 28.8% a year earlier. Gross profit is net revenue minus the cost of sales. Operating margin is income from operations divided by net revenue, shown as a percent: the profit kept from each dollar of sales. Target's Q1 2025 operating margin was 6.2%, up from 5.3%, but the 6.2% includes a one-time lawsuit settlement benefit. CNBC counts Target among the retailers, beside Walmart and Home Depot. NVIDIA describes itself as a company in AI and accelerated computing. NVIDIA revenue in millions: $57,006 in Q3 FY26, $46,743 in Q2 FY26, $35,082 in Q3 FY25. Target, three months ended May 3, 2025 vs May 4, 2024, in millions: net sales $23,846 vs $24,531; cost of sales $17,128 vs $17,471."
+    "summary": "What counts as a good ratio, margins included, depends on the industry. Gross margin is compared between similar companies and against their own industry. Compare different companies' operating margins only within the same industry. Operating margin levels vary widely from one industry to another. Gross margins differ by industry: software companies often run much higher gross margins than retailers. A company's own past margins show whether it is getting better. NVIDIA's GAAP gross margin for Q3 fiscal 2026 was 73.4%. Target's Q1 2025 gross margin was 28.2%, down from 28.8% a year earlier. Gross profit is net revenue minus the cost of sales. CNBC counts Target among the retailers, beside Walmart and Home Depot. NVIDIA describes itself as a company in AI and accelerated computing."
    },
    "facts": {
-    "given": "What's the right yardstick for Target's gross margin? NVIDIA is an AI and accelerated computing company. Its GAAP gross margin for Q3 fiscal 2026 was 73.4%. Target's Q1 2025 gross margin slipped from 28.8% a year earlier. Its own past and other retailers NVIDIA's 73.4%, a big firm The market's average margin Its own 6.2% operating margin"
+    "given": "How should you judge Target's 28.2%? Target's gross margin was 28.2% in Q1 2025, down from 28.8% a year earlier. A friend calls that weak next to NVIDIA's 73.4%. Against its past and other retailers Against NVIDIA's 73.4%, the AI leader Against the average of all stocks Against its own 6.2% operating margin"
    },
    "lesson_line": "Judge a margin against its own history and its industry, not across industries.",
-   "simple": "Compare it with Target's own past and with other retailers, because good margins differ from one industry to another.",
+   "simple": "Compare it with Target's own past and with other stores, since good margins differ by trade.",
    "tier": "expert",
    "unit": "F5.01",
-   "why": "Its own past and other retailers. What counts as a good ratio depends on the industry. CNBC groups Target with retailers such as Walmart and Home Depot. NVIDIA is in AI and accelerated computing, so its 73.4% says little about Target. Against its own year-ago 28.8%, Target's margin slipped.",
+   "why": "Against its past and other retailers. Gross margin is sales less cost of sales, divided by sales. What counts as a good ratio depends on the industry. CNBC groups Target with retailers such as Walmart and Home Depot. NVIDIA is in AI and accelerated computing, so its 73.4% says little about Target. Against its own year-ago 28.8%, Target's margin slipped. That is the signal to follow.",
    "wrong": {
-    "Its own 6.2% operating margin": "That's a different measure. Gross margin subtracts only the cost of sales. Operating margin uses income from operations.",
-    "NVIDIA's 73.4%, a big firm": "Size isn't the yardstick. NVIDIA is in AI and accelerated computing, not retail, and desirable ratios vary by industry.",
-    "The market's average margin": "A market average mixes many industries. What counts as a good ratio depends on the industry."
+    "Against NVIDIA's 73.4%, the AI leader": "Company size is not the yardstick. NVIDIA is in AI and accelerated computing, not retail, and good ratios vary by industry.",
+    "Against its own 6.2% operating margin": "That's a different measure. Gross margin subtracts only the cost of sales. Operating margin uses income from operations.",
+    "Against the average of all stocks": "An average across all stocks mixes many industries. What counts as a good ratio depends on the industry."
    }
   },
   "review_status": "draft",
   "skill_id": "fund.report",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F5/F5.01.json#q24",
+  "type": "scenario",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "One-time gains from a lawsuit"
+  },
+  "difficulty": 2,
+  "id": "si_c3e3966c20b9",
+  "lesson_origin": "session",
+  "lesson_text": "One-time gains from a lawsuit. Net income is the bottom line: the profit left after expenses, with any gains counted in. Target's release says its operating income included $593 million of pre-tax gains from settling a lawsuit over card fees. That is not money from selling more goods. Net earnings went from $942 million to $1.036 billion, up 10.0%, while net sales fell 2.8%. A rising bottom line can come from a gain that will not repeat. Check where the profit came from. When sales fall and net income rises, look for one-time items first.",
+  "module": "F5",
+  "prompt_json": {
+   "choices": [
+    "One-time gains from a lawsuit",
+    "A wider gross margin than 2024",
+    "Higher sales than last year",
+    "Fewer shares to split the profit"
+   ],
+   "kind": "mcq",
+   "q": "Sales fell and margin slipped, yet net earnings rose. What lifted the bottom line?",
+   "story": "Target, Q1 2025: net sales fell 2.8% from a year earlier. Net earnings still rose 10.0%, to $1.036 billion. Gross margin slipped to 28.2% from 28.8%.",
+   "subject": "F5.01#q91"
+  },
+  "reveal_json": {
+   "deeper": {
+    "trap": "The trap is reading only the bottom line. Net earnings rose 10.0%, but sales fell and the gross margin slipped. The lift came from the settlement, which is not a sign that the stores sold more."
+   },
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "Target Corporation, Form 8-K Exhibit 99 (SEC EDGAR): Target Corporation Reports First Quarter Earnings (May 21, 2025)",
+      "quote": "Net Sales of $23.8 billion in the first quarter were 2.8 percent lower than last year",
+      "tier": 1,
+      "url": "https://www.sec.gov/Archives/edgar/data/27419/000002741925000096/a2025q1ex-99.htm"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "Target Corporation, Form 8-K Exhibit 99 (SEC EDGAR): Target Corporation Reports First Quarter Earnings (May 21, 2025)",
+      "quote": "Net earnings $1,036 $942 10.0% Basic earnings per share $2.28 $2.04 11.7% Diluted earnings per share $2.27 $2.03 11.7% Weighted average common shares outstanding Basic 455.0 462.2 (1.6)% Diluted 456.5 463.9 (1.6)%",
+      "tier": 1,
+      "url": "https://www.sec.gov/Archives/edgar/data/27419/000002741925000096/a2025q1ex-99.htm"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "Target Corporation, Form 8-K Exhibit 99 (SEC EDGAR): Target Corporation Reports First Quarter Earnings (May 21, 2025)",
+      "quote": "First quarter gross margin rate was 28.2 percent, compared with 28.8 percent in 2024",
+      "tier": 1,
+      "url": "https://www.sec.gov/Archives/edgar/data/27419/000002741925000096/a2025q1ex-99.htm"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "Target Corporation, Form 8-K Exhibit 99 (SEC EDGAR): Target Corporation Reports First Quarter Earnings (May 21, 2025)",
+      "quote": "First quarter SG&A Expense and Operating Income included $593 million in pre-tax gains from the settlement of credit card interchange fee litigation.",
+      "tier": 1,
+      "url": "https://www.sec.gov/Archives/edgar/data/27419/000002741925000096/a2025q1ex-99.htm"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "SEC, Office of the Advocate for Small Business Capital Formation: Income statement building blocks",
+      "quote": "Net Income (Loss): the amount of profit the entity made or loss it incurred after subtracting all its expenses from its revenue",
+      "tier": 1,
+      "url": "https://www.sec.gov/files/income-statement-building-blocks.pdf"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "SEC, Office of the Advocate for Small Business Capital Formation: Income statement building blocks",
+      "quote": "The net income or net loss (also known as the “bottom line”) reported on the income statement",
+      "tier": 1,
+      "url": "https://www.sec.gov/files/income-statement-building-blocks.pdf"
+     }
+    ],
+    "summary": "Target's Q1 2025 net sales fell 2.8% from a year earlier. Target Q1 2025 vs Q1 2024: net earnings $1,036 million vs $942 million (up 10.0%); basic EPS $2.28, diluted EPS $2.27 (up 11.7%); diluted shares 456.5 million vs 463.9 million (down 1.6%). Target's Q1 2025 gross margin was 28.2%, down from 28.8% a year earlier. Target's Q1 2025 operating income included $593 million of gains from settling a lawsuit over card fees. Net income is the profit left after subtracting all expenses from revenue. Net income is the bottom line of the income statement."
+   },
+   "facts": {
+    "given": "Sales fell and margin slipped, yet net earnings rose. What lifted the bottom line? Target, Q1 2025: net sales fell 2.8% from a year earlier. Net earnings still rose 10.0%, to $1.036 billion. Gross margin slipped to 28.2% from 28.8%. Higher sales than last year A wider gross margin than 2024 One-time gains from a lawsuit Fewer shares to split the profit"
+   },
+   "lesson_line": "When sales fall and net income rises, look for one-time items first.",
+   "simple": "One-time lawsuit gains, because sales and gross margin both fell while the settlement added profit.",
+   "tier": "extended",
+   "unit": "F5.01",
+   "why": "One-time gains from a lawsuit. Net income is the bottom line: the profit left after expenses, with any gains counted in. Target's release says its operating income included $593 million of pre-tax gains from settling a lawsuit over card fees. That is not money from selling more goods. Net earnings went from $942 million to $1.036 billion, up 10.0%, while net sales fell 2.8%. A rising bottom line can come from a gain that will not repeat. Check where the profit came from.",
+   "wrong": {
+    "A wider gross margin than 2024": "Gross margin narrowed to 28.2% from 28.8%, so it did not help.",
+    "Fewer shares to split the profit": "The share count moves EPS, not net earnings. Net earnings is the total profit before it is split per share.",
+    "Higher sales than last year": "Net sales fell 2.8%, so sales did not help."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "fund.report",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F5/F5.01.json#q91",
   "type": "scenario",
   "version": 1
  },
@@ -3584,106 +3343,6 @@
   "source_kind": "course",
   "source_ref": "docs/study/courses/F5/F5.02.json#q18",
   "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
-   "answer": "Its forecast calmed investors"
-  },
-  "difficulty": 3,
-  "id": "si_243e5edc84cb",
-  "lesson_origin": "session",
-  "lesson_text": "Its forecast calmed investors. Nvidia had met or beaten estimates in each of the four quarters before, and the stock fell the next day each time. This time CNBC credits the revenue guidance, which reassured investors about AI demand. Earnings sailed past estimates too, but meeting or beating had not stopped the earlier drops. Supply was still limited, so that had not changed. Four reports that met or beat, four drops. Then a reassuring guide and a nearly 9% day.",
-  "module": "F5",
-  "prompt_json": {
-   "choices": [
-    "It missed, the bar was low",
-    "A stock split was announced",
-    "It ran up into the report",
-    "Its forecast calmed investors"
-   ],
-   "kind": "mcq",
-   "q": "This time the stock rises nearly 9%. Going by CNBC's report, what was different?",
-   "story": "Nvidia met or beat estimates four quarters running. After each of those reports, the stock fell the next day. In August 2026 it reports again, with supply still limited.",
-   "subject": "F5.02#q19"
-  },
-  "reveal_json": {
-   "deeper": {
-    "counter": "Meeting or beating was not new. Four reports met or beat, and four drops followed. The new piece, CNBC says, was a guide that reassured investors about demand."
-   },
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-08",
-      "name": "CNBC: Nvidia adds more than $400 billion in value after blowout earnings boost AI confidence (Aug 27, 2026)",
-      "quote": "shares rose nearly 9% Thursday after the chip giant's revenue guidance reassured investors that artificial intelligence demand will remain strong.",
-      "tier": 2,
-      "url": "https://www.cnbc.com/2026/08/27/nvidia-nvda-q2-earnings.html"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "CNBC: Nvidia adds more than $400 billion in value after blowout earnings boost AI confidence (Aug 27, 2026)",
-      "quote": "Investor bullishness suggests Nvidia could buck the trend of its stock dropping the day after reporting earnings in all of the previous four quarters, despite meeting or beating estimates.",
-      "tier": 2,
-      "url": "https://www.cnbc.com/2026/08/27/nvidia-nvda-q2-earnings.html"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "CNBC: Nvidia adds more than $400 billion in value after blowout earnings boost AI confidence (Aug 27, 2026)",
-      "quote": "Nvidia shares climbed on Thursday after earnings sailed past estimates.",
-      "tier": 2,
-      "url": "https://www.cnbc.com/2026/08/27/nvidia-nvda-q2-earnings.html"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "CNBC: Nvidia adds more than $400 billion in value after blowout earnings boost AI confidence (Aug 27, 2026)",
-      "quote": "the company is constrained on the amount of product it can supply.",
-      "tier": 2,
-      "url": "https://www.cnbc.com/2026/08/27/nvidia-nvda-q2-earnings.html"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "Investopedia: What Earnings Surprises Mean for Stock Prices (updated April 2, 2026)",
-      "quote": "A negative earnings surprise will usually result in a decline in share price.",
-      "tier": 2,
-      "url": "https://www.investopedia.com/terms/e/earningssurprise.asp"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "FINRA: What Is Earnings Season? (Investor Insights, July 23, 2024)",
-      "quote": "Other times a stock that rallied ahead of its earnings release and met expectations by reporting great numbers simply doesn’t have enough new buyers to bid the shares higher, causing share prices to hold steady or perhaps fall.",
-      "tier": 1,
-      "url": "https://www.finra.org/investors/insights/earnings-season"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "Charles Schwab: What Is Guidance and How Should Investors React? (Dan Rosenberg, March 26, 2026)",
-      "quote": "Though guidance usually appears near the bottom of a company's earnings release, it can often be the top factor in determining near-term share price.",
-      "tier": 2,
-      "url": "https://www.schwab.com/learn/story/what-is-guidance-and-how-should-investors-react"
-     }
-    ],
-    "summary": "Nvidia rose nearly 9% when its revenue guidance reassured investors. Nvidia had dropped the day after each of its previous four reports, though it met or beat each time. Nvidia's August 2026 earnings sailed past estimates. Nvidia was still limited in how much product it could supply. A miss usually sends the stock lower. A stock that ran up into its report can meet expectations and still stall or fall for lack of new buyers. Guidance often drives the near-term share price more than anything else in the release."
-   },
-   "facts": {
-    "given": "This time the stock rises nearly 9%. Going by CNBC's report, what was different? Nvidia met or beat estimates four quarters running. After each of those reports, the stock fell the next day. In August 2026 it reports again, with supply still limited. Its forecast calmed investors It missed, the bar was low It ran up into the report A stock split was announced"
-   },
-   "lesson_line": "Four reports that met or beat, four drops. Then a reassuring guide and a nearly 9% day.",
-   "simple": "Its guidance made the difference: meeting or beating had not lifted the stock before, and this time the forecast calmed investors.",
-   "tier": "expert",
-   "unit": "F5.02",
-   "why": "Its forecast calmed investors. Nvidia had met or beaten estimates in each of the four quarters before, and the stock fell the next day each time. This time CNBC credits the revenue guidance, which reassured investors about AI demand. Earnings sailed past estimates too, but meeting or beating had not stopped the earlier drops. Supply was still limited, so that had not changed.",
-   "wrong": {
-    "A stock split was announced": "Nothing in the coverage ties the reaction to a split. CNBC ties it to the forecast.",
-    "It missed, the bar was low": "It didn't miss. CNBC says its earnings sailed past estimates. And a miss usually sends a stock lower.",
-    "It ran up into the report": "A run-up cuts the other way. FINRA says a stock that rallied into its report may lack new buyers."
-   }
-  },
-  "review_status": "draft",
-  "skill_id": "fund.estimates",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F5/F5.02.json#q19",
-  "type": "scenario",
   "version": 1
  },
  {

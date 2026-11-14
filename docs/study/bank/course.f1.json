@@ -1159,113 +1159,6 @@
  },
  {
   "answer_json": {
-   "answer": "Little public info and higher risk"
-  },
-  "difficulty": 3,
-  "id": "si_9e6d379434a1",
-  "lesson_origin": "session",
-  "lesson_text": "Little public information, higher risk. Low-priced microcaps, also called penny stocks, trade mostly over the counter. Relatively little information is available on them compared with companies listed on national exchanges. The microcap sector has a long history of price manipulation and fraud. Penny stocks pay no dividends, and you can lose the money you put in. At UCT we skip it anyway: we trade only stocks at $10 or more that trade at least $20 million a day. Little public information and a long fraud history. It is also under our $10 floor. I'd pass on that tip.",
-  "module": "F1",
-  "prompt_json": {
-   "choices": [
-    "Little public info and higher risk",
-    "Penny stocks pay dividends",
-    "Low price means little downside",
-    "OTC stocks meet listing standards"
-   ],
-   "kind": "mcq",
-   "q": "What should you know before you touch it?",
-   "story": "A friend texts you a tip on a $0.40 stock. It trades over the counter, not on a national exchange.",
-   "subject": "F1.02#q17"
-  },
-  "reveal_json": {
-   "deeper": {
-    "trap": "A cheap price feels like low risk. It is not. With little public information, you cannot check the story behind a tip. And the microcap sector has a long history of price manipulation."
-   },
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-08",
-      "name": "FINRA: Stocks",
-      "quote": "Microcap securities, sometimes referred to as penny stocks, include low-priced securities issued by small companies with low market capitalization.",
-      "tier": 1,
-      "url": "https://www.finra.org/investors/investing/investment-products/stocks"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "FINRA: Stocks",
-      "quote": "These securities are primarily traded on the over-the-counter (OTC) market.",
-      "tier": 1,
-      "url": "https://www.finra.org/investors/investing/investment-products/stocks"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "FINRA: Stocks",
-      "quote": "This is largely because relatively little information is available about microcap companies compared with larger companies that list their securities on national exchanges.",
-      "tier": 1,
-      "url": "https://www.finra.org/investors/investing/investment-products/stocks"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "FINRA: Stocks",
-      "quote": "the microcap sector has a long history of bad actors engaging in price manipulation and other fraud.",
-      "tier": 1,
-      "url": "https://www.finra.org/investors/investing/investment-products/stocks"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "SEC, Investor.gov: Stocks",
-      "quote": "Penny stocks do not pay dividends and are highly speculative.",
-      "tier": 1,
-      "url": "https://www.investor.gov/introduction-investing/investing-basics/investment-products/stocks"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "SEC, Investor.gov: Stocks",
-      "quote": "There’s no guarantee that the company whose stock you hold will grow and do well, so you can lose money you invest in stocks.",
-      "tier": 1,
-      "url": "https://www.investor.gov/introduction-investing/investing-basics/investment-products/stocks"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "SEC, Investor.gov: Glossary: Listing Standards",
-      "quote": "Before a company’s stock can begin trading on an exchange, the company must meet certain minimum financial and non-financial requirements, or \"initial listing standards.\"",
-      "tier": 1,
-      "url": "https://www.investor.gov/introduction-investing/investing-basics/glossary/listing-standards"
-     },
-     {
-      "accessed": "2026-11-12",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "Trade only stocks at $10 or more that trade at least $20 million a day.",
-      "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
-     }
-    ],
-    "summary": "Microcaps, also called penny stocks, are low-priced shares of very small companies. Microcaps mostly trade over the counter (OTC). Relatively little information is available on microcaps compared with larger companies listed on national exchanges. Microcaps have a long history of price manipulation and fraud. Penny stocks pay no dividends and are highly speculative. Nothing guarantees the company does well, so you can lose money in a stock. To trade on an exchange, a company first has to meet that exchange's listing standards. Our rule: we trade only stocks priced at $10 or more that trade at least $20 million a day."
-   },
-   "facts": {
-    "given": "What should you know before you touch it? A friend texts you a tip on a $0.40 stock. It trades over the counter, not on a national exchange. Little public info and higher risk Low price means little downside OTC stocks meet listing standards Penny stocks pay dividends"
-   },
-   "lesson_line": "Little public information and a long fraud history. It is also under our $10 floor. I'd pass on that tip.",
-   "simple": "Little public info and higher risk. Little is known about cheap OTC microcaps, and the sector has a long history of fraud.",
-   "tier": "expert",
-   "unit": "F1.02",
-   "why": "Little public information, higher risk. Low-priced microcaps, also called penny stocks, trade mostly over the counter. Relatively little information is available on them compared with companies listed on national exchanges. The microcap sector has a long history of price manipulation and fraud. Penny stocks pay no dividends, and you can lose the money you put in. At UCT we skip it anyway: we trade only stocks at $10 or more that trade at least $20 million a day.",
-   "wrong": {
-    "Low price means little downside": "Cheap isn't safe. Penny stocks are highly speculative, and you can lose the money you put in.",
-    "OTC stocks meet listing standards": "Listing standards are the bar for trading on an exchange. This stock isn't on one.",
-    "Penny stocks pay dividends": "Penny stocks do not pay dividends. Investor.gov calls them highly speculative."
-   }
-  },
-  "review_status": "draft",
-  "skill_id": "basics.shares",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F1/F1.02.json#q17",
-  "type": "scenario",
-  "version": 1
- },
- {
-  "answer_json": {
    "answer": "QQQ follows a different basket"
   },
   "difficulty": 3,
@@ -2429,23 +2322,23 @@
  },
  {
   "answer_json": {
-   "answer": "Some at $12.40, rest higher"
+   "answer": "300 fill at $12.40, the rest higher"
   },
   "difficulty": 2,
   "id": "si_d021029177dc",
   "lesson_origin": "session",
-  "lesson_text": "Some at $12.40, rest higher. The ask is the least a seller will take, and only 300 shares sit there. A market order fills right away against what is there. Expect the rest to fill against the sellers above it, at $12.45, $12.50 or higher. The SEC's own example works the same way: 500 of 1,000 shares fill at the quote, the rest higher. Read the size before you send size. A market order takes what's there, then reaches higher.",
+  "lesson_text": "300 fill at $12.40, the rest higher. The ask is the least a seller will take, and Level 2 shows only 300 shares there. A market order fills right away against whoever is selling. It takes 300 at $12.40, then 400 at $12.45, then the last 300 at $12.50. That adds up to 1,000 shares. Your average price is worse than the quote you saw. The SEC gives the same kind of case. A 1,000-share market buy could fill 500 at the quote and 500 higher. Read the size at the ask before you send size. A market order takes what is there, then reaches higher.",
   "module": "F1",
   "prompt_json": {
    "choices": [
-    "All 1,000 shares at $12.40",
-    "Some at $12.40, rest higher",
-    "Some at $12.40, rest cancelled",
-    "It waits until $12.40 has size"
+    "All 1,000 shares fill at $12.40",
+    "300 fill at $12.40, the rest higher",
+    "The order waits for more at $12.40",
+    "300 fill, and the rest are cancelled"
    ],
    "kind": "mcq",
    "q": "What should you expect from the fill?",
-   "story": "On Level 2, the ask is $12.40 with 300 shares showing. More sellers wait at $12.45 and $12.50. You send a market buy for 1,000 shares.",
+   "story": "You watch ZXQT on Level 2. The ask is $12.40 with only 300 shares. The next sellers are 400 shares at $12.45 and 500 at $12.50. You send a market buy for 1,000 shares.",
    "subject": "F1.03#q12"
   },
   "reveal_json": {
@@ -2507,17 +2400,17 @@
     "summary": "A big market order can fill at several prices when one price does not hold enough shares. Part of a market order can fill at the quoted price and the rest at higher prices. A market order fills right away, but its price is not guaranteed. You can be filled better than the quote (price improvement), but nothing promises it. In a fast market, a market order can fill away from the quote you saw. The ask is the lowest price a seller will take. A question about shares at a price names the tool: Level 2 or time and sales."
    },
    "facts": {
-    "given": "What should you expect from the fill? On Level 2, the ask is $12.40 with 300 shares showing. More sellers wait at $12.45 and $12.50. You send a market buy for 1,000 shares. All 1,000 shares at $12.40 Some at $12.40, rest higher It waits until $12.40 has size Some at $12.40, rest cancelled"
+    "given": "What should you expect from the fill? You watch ZXQT on Level 2. The ask is $12.40 with only 300 shares. The next sellers are 400 shares at $12.45 and 500 at $12.50. You send a market buy for 1,000 shares. All 1,000 shares fill at $12.40 300 fill at $12.40, the rest higher 300 fill, and the rest are cancelled The order waits for more at $12.40"
    },
-   "lesson_line": "Read the size before you send size. A market order takes what's there, then reaches higher.",
-   "simple": "Only 300 shares sit at $12.40, so expect some to fill there and the rest at the higher prices above it.",
+   "lesson_line": "Read the size at the ask before you send size. A market order takes what is there, then reaches higher.",
+   "simple": "Only 300 shares sit at the ask, so your market buy takes those, then climbs to the next sellers at higher prices.",
    "tier": "extended",
    "unit": "F1.03",
-   "why": "Some at $12.40, rest higher. The ask is the least a seller will take, and only 300 shares sit there. A market order fills right away against what is there. Expect the rest to fill against the sellers above it, at $12.45, $12.50 or higher. The SEC's own example works the same way: 500 of 1,000 shares fill at the quote, the rest higher.",
+   "why": "300 fill at $12.40, the rest higher. The ask is the least a seller will take, and Level 2 shows only 300 shares there. A market order fills right away against whoever is selling. It takes 300 at $12.40, then 400 at $12.45, then the last 300 at $12.50. That adds up to 1,000 shares. Your average price is worse than the quote you saw. The SEC gives the same kind of case. A 1,000-share market buy could fill 500 at the quote and 500 higher.",
    "wrong": {
-    "All 1,000 shares at $12.40": "Only 300 shares show there. You can't count on more at that price, so expect the rest higher.",
-    "It waits until $12.40 has size": "A market order doesn't wait for more sellers at your price. It generally executes right away, against the sellers who are there.",
-    "Some at $12.40, rest cancelled": "A market order doesn't drop the rest. In the SEC's example, the other 500 shares could execute at a higher price."
+    "300 fill, and the rest are cancelled": "A market order does not drop the rest. In the SEC's example, the other 500 shares could execute at a higher price.",
+    "All 1,000 shares fill at $12.40": "Level 2 shows only 300 shares at $12.40. Once those are gone, your order reaches the next sellers at higher prices.",
+    "The order waits for more at $12.40": "A market order does not wait for more sellers at your price. It fills right away, against the sellers who are there."
    }
   },
   "review_status": "draft",
@@ -3983,23 +3876,23 @@
  },
  {
   "answer_json": {
-   "answer": "B, at $60 million a day"
+   "answer": "VRXD, at $60 million a day"
   },
   "difficulty": 2,
   "id": "si_fa53ce311df1",
   "lesson_origin": "session",
-  "lesson_text": "B, at $60 million a day. Dollar volume is shares traded times the price. B is 400,000 shares times $150, which is $60 million. A is 3,000,000 shares times $2, only $6 million. A trades more shares, but a tenth of the dollars. Compare stocks in dollars traded, not shares. Compare stocks in dollars traded, not shares. A share count hides the price.",
+  "lesson_text": "Dollar volume is the shares traded times the price. It tells you how much real money changes hands. VRXD is 400,000 shares times $150, which is $60 million a day. PNQL is 3 million shares times $2, only $6 million. PNQL trades more shares, but a tenth of the dollars. Traders compare stocks in dollars traded, not shares. Compare stocks in dollars traded, not shares. A share count hides the price.",
   "module": "F1",
   "prompt_json": {
    "choices": [
-    "A, 3 million shares a day",
-    "Need market cap to tell",
+    "PNQL, at 3 million shares a day",
+    "Can't tell without market cap",
     "Same, about $6 million each",
-    "B, at $60 million a day"
+    "VRXD, at $60 million a day"
    ],
    "kind": "mcq",
    "q": "Which one trades more dollars each day?",
-   "story": "Stock A trades 3,000,000 shares a day at $2. Stock B trades 400,000 shares a day at $150.",
+   "story": "PNQL trades 3 million shares a day at $2. VRXD trades 400,000 shares a day at $150. These are made-up examples.",
    "subject": "F1.04#q13"
   },
   "reveal_json": {
@@ -4039,17 +3932,17 @@
      "fn": "arith",
      "result": 60.0
     },
-    "given": "Which one trades more dollars each day? Stock A trades 3,000,000 shares a day at $2. Stock B trades 400,000 shares a day at $150. B, at $60 million a day A, 3 million shares a day Same, about $6 million each Need market cap to tell"
+    "given": "Which one trades more dollars each day? PNQL trades 3 million shares a day at $2. VRXD trades 400,000 shares a day at $150. These are made-up examples. VRXD, at $60 million a day PNQL, at 3 million shares a day Same, about $6 million each Can't tell without market cap"
    },
    "lesson_line": "Compare stocks in dollars traded, not shares. A share count hides the price.",
-   "simple": "B trades more dollars, because 400,000 shares at $150 is $60 million a day, while A's cheap shares come to far less.",
+   "simple": "VRXD trades more dollars, because 400,000 shares at $150 is $60 million a day, while PNQL's cheap shares come to far less.",
    "tier": "extended",
    "unit": "F1.04",
-   "why": "B, at $60 million a day. Dollar volume is shares traded times the price. B is 400,000 shares times $150, which is $60 million. A is 3,000,000 shares times $2, only $6 million. A trades more shares, but a tenth of the dollars. Compare stocks in dollars traded, not shares.",
+   "why": "Dollar volume is the shares traded times the price. It tells you how much real money changes hands. VRXD is 400,000 shares times $150, which is $60 million a day. PNQL is 3 million shares times $2, only $6 million. PNQL trades more shares, but a tenth of the dollars. Traders compare stocks in dollars traded, not shares.",
    "wrong": {
-    "A, 3 million shares a day": "More shares, but cheap ones. At $2 a share, A trades far fewer dollars than B.",
-    "Need market cap to tell": "Market cap uses shares outstanding. Dollars traded uses only the shares that trade: price times volume.",
-    "Same, about $6 million each": "Not the same. Work out each one: A's cheap shares come to far fewer dollars than B's $60 million."
+    "Can't tell without market cap": "Market cap uses all shares outstanding. Dollars traded uses only the shares that trade: price times volume.",
+    "PNQL, at 3 million shares a day": "More shares, but cheap ones. At $2 a share, PNQL trades far fewer dollars than VRXD.",
+    "Same, about $6 million each": "Not the same. PNQL comes to about $6 million, but VRXD comes to $60 million."
    }
   },
   "review_status": "draft",
@@ -7051,7 +6944,7 @@
   "difficulty": 1,
   "id": "si_ca405dcc0dc4",
   "lesson_origin": "session",
-  "lesson_text": "Price times all shares outstanding. Investor.gov defines market cap as the current share price times the total shares outstanding. FINRA adds that this includes restricted shares held by officers and insiders. It is the company's perceived value, because investors set the price. It is not sales, and not the day's trading. Free-float cap, which counts only freely tradable shares, is a separate measure. Market cap is price times every share outstanding, not just the ones trading.",
+  "lesson_text": "Price times all shares outstanding. Shares outstanding means every share investors hold, including the restricted shares officers and insiders own. FINRA's example: 5 million shares at $20 is a $100 million market cap. Think of it as the market's price tag on the whole company. It is not sales, and not the day's trading. Free-float cap, which counts only freely tradable shares, is a separate measure. Market cap is price times every share outstanding, not just the ones trading.",
   "module": "F1",
   "prompt_json": {
    "choices": [
@@ -7083,6 +6976,13 @@
      },
      {
       "accessed": "2026-11-08",
+      "name": "FINRA: Market Cap Explained (Investor Insights, September 30, 2022)",
+      "quote": "For example, if a company has 5 million shares outstanding and its current stock price is $20, it has a market capitalization of $100 million.",
+      "tier": 1,
+      "url": "https://www.finra.org/investors/insights/market-cap"
+     },
+     {
+      "accessed": "2026-11-08",
       "name": "Fidelity Investments: What is market cap and how do you calculate it? (Fidelity Viewpoints, Learning Center, March 31, 2026)",
       "quote": "Market cap is the total dollar value of a company's outstanding shares of stock.",
       "tier": 2,
@@ -7103,7 +7003,7 @@
       "url": "https://www.finra.org/investors/insights/market-cap"
      }
     ],
-    "summary": "Market cap is the share price times the total number of shares outstanding. Market cap counts every outstanding share: the publicly traded ones plus the restricted shares officers and insiders hold. Market cap is the dollar value of all outstanding shares. Free-float market cap counts only freely tradable shares and is commonly used to weight indexes. Market cap is the company's perceived value, because investors set the stock price."
+    "summary": "Market cap is the share price times the total number of shares outstanding. Market cap counts every outstanding share: the publicly traded ones plus the restricted shares officers and insiders hold. 5 million shares at $20 is a $100 million market cap. Market cap is the dollar value of all outstanding shares. Free-float market cap counts only freely tradable shares and is commonly used to weight indexes. Market cap is the company's perceived value, because investors set the stock price."
    },
    "facts": {
     "given": "What is a stock's market cap? Price times all shares outstanding Price times the shares traded today Price times the float shares only The company's total yearly sales"
@@ -7112,7 +7012,7 @@
    "simple": "Price times all shares outstanding, since it counts each share, even the ones that insiders hold.",
    "tier": "core",
    "unit": "F1.06",
-   "why": "Price times all shares outstanding. Investor.gov defines market cap as the current share price times the total shares outstanding. FINRA adds that this includes restricted shares held by officers and insiders. It is the company's perceived value, because investors set the price. It is not sales, and not the day's trading. Free-float cap, which counts only freely tradable shares, is a separate measure.",
+   "why": "Price times all shares outstanding. Shares outstanding means every share investors hold, including the restricted shares officers and insiders own. FINRA's example: 5 million shares at $20 is a $100 million market cap. Think of it as the market's price tag on the whole company. It is not sales, and not the day's trading. Free-float cap, which counts only freely tradable shares, is a separate measure.",
    "wrong": {
     "Price times the float shares only": "That's free-float market cap, a version many indexes use for weighting. Plain market cap counts every outstanding share.",
     "Price times the shares traded today": "That counts one day's trading, not the company. Market cap uses every share outstanding.",
@@ -7198,71 +7098,6 @@
   "skill_id": "basics.float_cap",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F1/F1.06.json#q02",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
-   "answer": "outstanding"
-  },
-  "difficulty": 1,
-  "id": "si_0ec7a51c1bed",
-  "lesson_origin": "session",
-  "lesson_text": "Outstanding. Shares outstanding are every share held by shareholders: the public, big institutions, officers and employees. FINRA counts the restricted shares insiders hold too. The float is the smaller number: only the part the public can trade. Shares outstanding is the whole count. The float is only the part that can trade.",
-  "module": "F1",
-  "prompt_json": {
-   "bank": [
-    "outstanding",
-    "floating",
-    "restricted",
-    "traded",
-    "shorted"
-   ],
-   "kind": "fill",
-   "q": "Tap the word that fits the blank.",
-   "sentence": "Count every share investors hold, insiders included, and you get the shares ___.",
-   "subject": "outstanding"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-08",
-      "name": "Investopedia: The Basics of Outstanding Shares: Definition and How to Find Them (James Chen; updated July 29, 2026)",
-      "quote": "Outstanding shares are the total stock currently held by all shareholders, including institutions and insiders, excluding treasury stock.",
-      "tier": 2,
-      "url": "https://www.investopedia.com/terms/o/outstandingshares.asp"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "Charles Schwab: More Than Meets the Eye: How to Read Stock Quotes (December 23, 2025)",
-      "quote": "Shares Outstanding: Indicates how many shares are currently held by all shareholders, including large institutional investors and even the company's officers and employees.",
-      "tier": 2,
-      "url": "https://www.schwab.com/learn/story/learn-how-to-read-stock-quotes"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "FINRA: Market Cap Explained (Investor Insights, September 30, 2022)",
-      "quote": "It’s the total value of a company's outstanding shares of stock, which include publicly traded shares plus restricted shares held by company officers and insiders.",
-      "tier": 1,
-      "url": "https://www.finra.org/investors/insights/market-cap"
-     }
-    ],
-    "summary": "Shares outstanding are every share held by investors, institutions and insiders included, but not treasury stock. Shares outstanding counts every holder, from big institutions to the company's own officers and employees. Market cap counts every outstanding share: the publicly traded ones plus the restricted shares officers and insiders hold."
-   },
-   "facts": {
-    "given": "Tap the word that fits the blank. Count every share investors hold, insiders included, and you get the shares ___."
-   },
-   "lesson_line": "Shares outstanding is the whole count. The float is only the part that can trade.",
-   "simple": "Outstanding, since it counts every share that is held, by big funds, the public and even the staff.",
-   "tier": "core",
-   "unit": "F1.06",
-   "why": "Outstanding. Shares outstanding are every share held by shareholders: the public, big institutions, officers and employees. FINRA counts the restricted shares insiders hold too. The float is the smaller number: only the part the public can trade."
-  },
-  "review_status": "draft",
-  "skill_id": "basics.float_cap",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F1/F1.06.json#q03",
   "type": "recall",
   "version": 1
  },
@@ -7490,22 +7325,20 @@
  },
  {
   "answer_json": {
-   "answer": "Insider and restricted stock left out"
+   "answer": "True"
   },
   "difficulty": 1,
   "id": "si_91065f5d8ac9",
   "lesson_origin": "session",
-  "lesson_text": "Insider and restricted stock left out. The float is the outstanding shares the public can trade, excluding insiders' holdings and restricted stock. Restricted shares are ones bought in private, unregistered sales from the company or an affiliate. An affiliate is someone in control, such as an executive officer, a director or a large shareholder. Buying, selling or shorting only moves existing shares, so the float stays the same. The float leaves out insiders' shares and anything that can't trade yet.",
+  "lesson_text": "True. The float leaves out shares insiders hold and restricted stock, so it is usually smaller than the full share count. The float leaves out insiders' shares and anything that can't trade yet.",
   "module": "F1",
   "prompt_json": {
    "choices": [
-    "Insider and restricted stock left out",
-    "Shares traded today are left out of it",
-    "Only shares sold in the IPO count",
-    "Shares sold short are left out of it"
+    "True",
+    "False"
    ],
-   "kind": "mcq",
-   "q": "Why is a stock's float usually smaller than its shares outstanding?",
+   "kind": "tf",
+   "q": "A stock's float is usually smaller than its shares outstanding.",
    "subject": "F1.06#q07"
   },
   "reveal_json": {
@@ -7564,18 +7397,13 @@
     "summary": "The float is the outstanding shares the public can trade, leaving out insiders' holdings and restricted stock. Float equals shares outstanding minus closely held shares and restricted stock. An affiliate is someone in a control relationship with the company, such as an executive officer, a director or a large shareholder. Restricted shares are ones bought in private, unregistered sales from the company or from an affiliate. Buying, selling or shorting a stock does not change its float. When restricted or closely held shares become free to sell, the float grows. When a company sells new shares to raise money, the float goes up."
    },
    "facts": {
-    "given": "Why is a stock's float usually smaller than its shares outstanding? Insider and restricted stock left out Shares sold short are left out of it Shares traded today are left out of it Only shares sold in the IPO count"
+    "given": "A stock's float is usually smaller than its shares outstanding."
    },
    "lesson_line": "The float leaves out insiders' shares and anything that can't trade yet.",
-   "simple": "Insider and restricted stock is left out, so the float counts only the shares the public can trade.",
+   "simple": "True, because the float leaves out insider and restricted shares the public cannot trade.",
    "tier": "core",
    "unit": "F1.06",
-   "why": "Insider and restricted stock left out. The float is the outstanding shares the public can trade, excluding insiders' holdings and restricted stock. Restricted shares are ones bought in private, unregistered sales from the company or an affiliate. An affiliate is someone in control, such as an executive officer, a director or a large shareholder. Buying, selling or shorting only moves existing shares, so the float stays the same.",
-   "wrong": {
-    "Only shares sold in the IPO count": "The float isn't frozen at the IPO. New shares sold later add to it, and so do restricted shares once they're free to sell.",
-    "Shares sold short are left out of it": "Short selling doesn't change the float. It moves existing shares between investors.",
-    "Shares traded today are left out of it": "Buying and selling only moves shares around. The number available to trade stays the same."
-   }
+   "why": "True. The float leaves out shares insiders hold and restricted stock, so it is usually smaller than the full share count."
   },
   "review_status": "draft",
   "skill_id": "basics.float_cap",
@@ -7586,19 +7414,19 @@
  },
  {
   "answer_json": {
-   "answer": "$1,500 million"
+   "answer": "$1.5 billion"
   },
   "difficulty": 2,
   "id": "si_04086f801b7c",
   "lesson_origin": "session",
-  "lesson_text": "$1,500 million, which is $1.5 billion. Market cap is the share price times the shares outstanding: $30 times 50 million is 1,500 million. FINRA's own example works the same way: 5 million shares at $20 is a $100 million market cap. Price times shares outstanding. Work in millions and the zeros stay easy.",
+  "lesson_text": "$1.5 billion. Market cap is the share price times the shares outstanding: $30 times 50 million is 1,500 million. A billion is 1,000 million, so that reads $1.5 billion. FINRA's own example works the same way: 5 million shares at $20 is a $100 million market cap. Price times shares outstanding. Past 1,000 million, say it in billions.",
   "module": "F1",
   "prompt_json": {
    "choices": [
-    "$1.5 million",
-    "$1,500 million",
+    "$1.5 billion",
+    "$15 billion",
     "$80 million",
-    "$150 million"
+    "$1.5 million"
    ],
    "kind": "mcq",
    "q": "A stock trades at $30 with 50 million shares outstanding. What is its market cap?",
@@ -7627,22 +7455,25 @@
    "facts": {
     "calc": {
      "args": {
+      "expr": "price * shares / per_billion",
+      "per_billion": 1000,
       "price": 30,
-      "shares_outstanding": 50
+      "product_millions": 1500,
+      "shares": 50
      },
-     "fn": "market_cap",
-     "result": 1500.0
+     "fn": "arith",
+     "result": 1.5
     },
-    "given": "A stock trades at $30 with 50 million shares outstanding. What is its market cap? $1.5 million $150 million $80 million $1,500 million"
+    "given": "A stock trades at $30 with 50 million shares outstanding. What is its market cap? $15 billion $1.5 million $80 million $1.5 billion"
    },
-   "lesson_line": "Price times shares outstanding. Work in millions and the zeros stay easy.",
-   "simple": "$1,500 million, since market cap is the $30 price times the 50 million shares.",
+   "lesson_line": "Price times shares outstanding. Past 1,000 million, say it in billions.",
+   "simple": "$1.5 billion, since market cap is the $30 price times the 50 million shares.",
    "tier": "core",
    "unit": "F1.06",
-   "why": "$1,500 million, which is $1.5 billion. Market cap is the share price times the shares outstanding: $30 times 50 million is 1,500 million. FINRA's own example works the same way: 5 million shares at $20 is a $100 million market cap.",
+   "why": "$1.5 billion. Market cap is the share price times the shares outstanding: $30 times 50 million is 1,500 million. A billion is 1,000 million, so that reads $1.5 billion. FINRA's own example works the same way: 5 million shares at $20 is a $100 million market cap.",
    "wrong": {
     "$1.5 million": "A units slip: 1,500 million is $1.5 billion, not $1.5 million.",
-    "$150 million": "A decimal slip: you dropped a zero.",
+    "$15 billion": "A decimal slip: 30 times 50 is 1,500 million, and you added a zero.",
     "$80 million": "You added the price and the shares instead of multiplying."
    }
   },
@@ -7665,8 +7496,8 @@
   "prompt_json": {
    "choices": [
     "110 million",
-    "30 million",
     "50 million",
+    "30 million",
     "80 million"
    ],
    "kind": "mcq",
@@ -7732,121 +7563,19 @@
  },
  {
   "answer_json": {
-   "answer": "300 shares near $200"
-  },
-  "difficulty": 2,
-  "id": "si_8f23eb685792",
-  "lesson_origin": "session",
-  "lesson_text": "300 shares near $200. A split is a board decision to give holders new shares in a set ratio. In a 3-for-1 split each share becomes three, so 100 become 300. The price falls in step: $600 divided by 3. The value of your stake and the market cap stay the same. A split cuts the same pie into more slices. The value doesn't change.",
-  "module": "F1",
-  "prompt_json": {
-   "choices": [
-    "100 shares near $200",
-    "300 shares near $600",
-    "33 shares near $1,800",
-    "300 shares near $200"
-   ],
-   "kind": "mcq",
-   "q": "What do you hold right after the split?",
-   "story": "You own 100 shares at $600. The company does a 3-for-1 split. Nothing else changes.",
-   "subject": "F1.06#q10"
-  },
-  "reveal_json": {
-   "deeper": {
-    "trap": "The lower price can look like a bargain. It isn't: FINRA says a split does nothing to change the value of a company. What does change is the share count, and with it the float: a split raises the floating shares. The lower price per share is not a cheaper company."
-   },
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-08",
-      "name": "FINRA: Stock Splits",
-      "quote": "A stock split is a decision by a company’s board to increase the number of outstanding shares in the company by issuing new shares to existing shareholders in a set proportion.",
-      "tier": 1,
-      "url": "https://www.finra.org/investors/investing/investment-products/stocks/stock-splits"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "FINRA: Stock Splits",
-      "quote": "And while the company’s shares outstanding increase with the split, its market capitalization—the total value of the company derived from multiplying the number of shares by the stock price—remains the same, too.",
-      "tier": 1,
-      "url": "https://www.finra.org/investors/investing/investment-products/stocks/stock-splits"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "FINRA: Stock Splits",
-      "quote": "In a 2-for-1 split, the company would give you two shares with a market-adjusted worth of $50 for every one share you own, leaving you with 20 shares.",
-      "tier": 1,
-      "url": "https://www.finra.org/investors/investing/investment-products/stocks/stock-splits"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "Investopedia: Market Capitalization: What It Means for Investors (Jason Fernando; updated June 28, 2026)",
-      "quote": "Stock splits do not change market capitalization because the increase in shares outstanding is offset by a proportional decrease in share price.",
-      "tier": 2,
-      "url": "https://www.investopedia.com/terms/m/marketcapitalization.asp"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "FINRA: Stock Splits",
-      "quote": "Remember that a stock split—or a reverse stock split—does nothing to change the value of a company.",
-      "tier": 1,
-      "url": "https://www.finra.org/investors/investing/investment-products/stocks/stock-splits"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "Investopedia: Floating Stock: Definition, Example, and Why It's Important (Cory Mitchell, CMT; updated December 15, 2023)",
-      "quote": "A stock split will increase floating shares, while a reverse stock split decreases float.",
-      "tier": 2,
-      "url": "https://www.investopedia.com/terms/f/floating-stock.asp"
-     }
-    ],
-    "summary": "A stock split raises the share count by giving existing holders new shares in a set ratio. A split raises shares outstanding but leaves market cap unchanged. In a 2-for-1 split, each $100 share becomes two shares worth about $50 each. A split doesn't change market cap: more shares, proportionally lower price. Neither a split nor a reverse split changes what the company is worth. A split raises the float; a reverse split shrinks it."
-   },
-   "facts": {
-    "calc": {
-     "args": {
-      "expr": "price / ratio",
-      "price": 600,
-      "ratio": 3
-     },
-     "fn": "arith",
-     "result": 200.0
-    },
-    "given": "What do you hold right after the split? You own 100 shares at $600. The company does a 3-for-1 split. Nothing else changes. 300 shares near $200 300 shares near $600 100 shares near $200 33 shares near $1,800"
-   },
-   "lesson_line": "A split cuts the same pie into more slices. The value doesn't change.",
-   "simple": "300 shares near $200, because a 3-for-1 split triples your shares and cuts the price to a third.",
-   "tier": "extended",
-   "unit": "F1.06",
-   "why": "300 shares near $200. A split is a board decision to give holders new shares in a set ratio. In a 3-for-1 split each share becomes three, so 100 become 300. The price falls in step: $600 divided by 3. The value of your stake and the market cap stay the same.",
-   "wrong": {
-    "100 shares near $200": "A split adds shares to your account. It doesn't take two thirds of your stake.",
-    "300 shares near $600": "That would triple your money for nothing. The price falls in step with the new shares.",
-    "33 shares near $1,800": "That's a reverse split. A 3-for-1 split gives you more shares, not fewer."
-   }
-  },
-  "review_status": "draft",
-  "skill_id": "basics.float_cap",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F1/F1.06.json#q10",
-  "type": "scenario",
-  "version": 1
- },
- {
-  "answer_json": {
-   "answer": "$1,200 million"
+   "answer": "$1.2 billion"
   },
   "difficulty": 2,
   "id": "si_47fb32cd605b",
   "lesson_origin": "session",
-  "lesson_text": "$1,200 million. Float-adjusted market cap is the price times the shares available to the public: $20 times 60 million is 1,200 million. Plain market cap would use all 100 million shares outstanding instead. Many index providers, Russell included, weight stocks by the float-adjusted number. Market cap counts every share. Float-adjusted cap counts only what can trade.",
+  "lesson_text": "$1.2 billion. Float-adjusted market cap is the price times the shares available to the public, the float: $20 times 60 million is 1,200 million. A billion is 1,000 million, so that reads $1.2 billion. Plain market cap would use all 100 million shares outstanding instead. Many index providers, Russell included, weight stocks by the float-adjusted number. Market cap counts every share. Float-adjusted cap counts only what can trade.",
   "module": "F1",
   "prompt_json": {
    "choices": [
-    "$1,200 million",
-    "$2,000 million",
-    "$12,000 million",
-    "$800 million"
+    "$2 billion",
+    "$1.2 million",
+    "$800 million",
+    "$1.2 billion"
    ],
    "kind": "mcq",
    "q": "A $20 stock has 100 million shares outstanding and 60 million in the float. What is its float-adjusted market cap?",
@@ -7882,23 +7611,25 @@
    "facts": {
     "calc": {
      "args": {
-      "expr": "price * float_shares",
+      "expr": "price * float_shares / per_billion",
       "float_shares": 60,
-      "price": 20
+      "per_billion": 1000,
+      "price": 20,
+      "product_millions": 1200
      },
      "fn": "arith",
-     "result": 1200.0
+     "result": 1.2
     },
-    "given": "A $20 stock has 100 million shares outstanding and 60 million in the float. What is its float-adjusted market cap? $2,000 million $1,200 million $800 million $12,000 million"
+    "given": "A $20 stock has 100 million shares outstanding and 60 million in the float. What is its float-adjusted market cap? $2 billion $800 million $1.2 million $1.2 billion"
    },
    "lesson_line": "Market cap counts every share. Float-adjusted cap counts only what can trade.",
-   "simple": "$1,200 million, because float-adjusted cap counts only the 60 million shares the public can trade, at $20 each.",
+   "simple": "$1.2 billion, because float-adjusted cap counts only the 60 million shares the public can trade, at $20 each.",
    "tier": "extended",
    "unit": "F1.06",
-   "why": "$1,200 million. Float-adjusted market cap is the price times the shares available to the public: $20 times 60 million is 1,200 million. Plain market cap would use all 100 million shares outstanding instead. Many index providers, Russell included, weight stocks by the float-adjusted number.",
+   "why": "$1.2 billion. Float-adjusted market cap is the price times the shares available to the public, the float: $20 times 60 million is 1,200 million. A billion is 1,000 million, so that reads $1.2 billion. Plain market cap would use all 100 million shares outstanding instead. Many index providers, Russell included, weight stocks by the float-adjusted number.",
    "wrong": {
-    "$12,000 million": "A decimal slip: you added a zero.",
-    "$2,000 million": "You used all 100 million shares outstanding instead of the 60 million float.",
+    "$1.2 million": "A units slip: 1,200 million is $1.2 billion, not $1.2 million.",
+    "$2 billion": "You used all 100 million shares outstanding instead of the 60 million float.",
     "$800 million": "You used only the shares that are not in the float."
    }
   },
@@ -8000,23 +7731,23 @@
  },
  {
   "answer_json": {
-   "answer": "The $600 million stock"
+   "answer": "QZLN"
   },
   "difficulty": 2,
   "id": "si_275c5199579b",
   "lesson_origin": "session",
-  "lesson_text": "The $600 million stock, most likely. On FINRA's ranges it is a small-cap, the smallest of the four. FINRA says large caps tend to swing less than mid caps, and mid caps less than small caps. Fidelity agrees that smaller companies may have more volatile stocks. These are tendencies, no guarantee for any one company. Same news, smaller company, usually a bigger move. Then check the float.",
+  "lesson_text": "QZLN, most likely. At $600 million it is a small-cap on FINRA's ranges, the smallest of the four. VXRP is a mid-cap, HJTK a large-cap and ZWMB a mega-cap. FINRA says large caps tend to swing less than mid caps, and mid caps less than small caps. Fidelity agrees that smaller companies may have more volatile stocks. These are tendencies, no guarantee for any one company. Same news, smaller company, usually a bigger move. Then check the float.",
   "module": "F1",
   "prompt_json": {
    "choices": [
-    "The $600 million stock",
-    "The $900 billion stock",
-    "The $40 billion stock",
-    "The $3 billion stock"
+    "QZLN",
+    "ZWMB",
+    "HJTK",
+    "VXRP"
    ],
    "kind": "mcq",
    "q": "Which one is most likely to make the biggest percent move?",
-   "story": "Four stocks get the same kind of good news before the open. Their market caps: $600 million, $3 billion, $40 billion and $900 billion.",
+   "story": "Four stocks gap up on the same kind of news before the open. Market caps: QZLN $600 million, VXRP $3 billion, HJTK $40 billion, ZWMB $900 billion.",
    "subject": "F1.06#q13"
   },
   "reveal_json": {
@@ -8064,17 +7795,17 @@
     "summary": "In general, the smaller the company, the more its stock swings: small caps more than mid caps, mid caps more than large caps. Bigger companies tend to have steadier stocks; smaller companies tend to have more volatile ones. Size tendencies are no guarantee for any one company. On FINRA's usual ranges, small-cap is $250 million to $2 billion and micro-cap is under $250 million. The smaller the float, the more volatile the stock tends to be."
    },
    "facts": {
-    "given": "Which one is most likely to make the biggest percent move? Four stocks get the same kind of good news before the open. Their market caps: $600 million, $3 billion, $40 billion and $900 billion. The $600 million stock The $3 billion stock The $40 billion stock The $900 billion stock"
+    "given": "Which one is most likely to make the biggest percent move? Four stocks gap up on the same kind of news before the open. Market caps: QZLN $600 million, VXRP $3 billion, HJTK $40 billion, ZWMB $900 billion. QZLN VXRP HJTK ZWMB"
    },
    "lesson_line": "Same news, smaller company, usually a bigger move. Then check the float.",
-   "simple": "The $600 million stock, because smaller companies tend to swing more, though it is a tendency and not a promise.",
+   "simple": "QZLN, because the smallest company tends to swing the most, though that is a tendency and not a promise.",
    "tier": "extended",
    "unit": "F1.06",
-   "why": "The $600 million stock, most likely. On FINRA's ranges it is a small-cap, the smallest of the four. FINRA says large caps tend to swing less than mid caps, and mid caps less than small caps. Fidelity agrees that smaller companies may have more volatile stocks. These are tendencies, no guarantee for any one company.",
+   "why": "QZLN, most likely. At $600 million it is a small-cap on FINRA's ranges, the smallest of the four. VXRP is a mid-cap, HJTK a large-cap and ZWMB a mega-cap. FINRA says large caps tend to swing less than mid caps, and mid caps less than small caps. Fidelity agrees that smaller companies may have more volatile stocks. These are tendencies, no guarantee for any one company.",
    "wrong": {
-    "The $3 billion stock": "A mid cap tends to swing less than a small cap.",
-    "The $40 billion stock": "Large caps tend to be steadier than mid caps and small caps.",
-    "The $900 billion stock": "It is the biggest of the four. Fidelity says larger companies often have less volatile stocks."
+    "HJTK": "At $40 billion it is a large-cap. Large caps tend to be steadier than mid caps and small caps.",
+    "VXRP": "At $3 billion it is a mid-cap, and mid caps tend to swing less than small caps.",
+    "ZWMB": "At $900 billion it is the biggest of the four. Fidelity says larger companies often have less volatile stocks."
    }
   },
   "review_status": "draft",
@@ -8082,85 +7813,6 @@
   "source_kind": "course",
   "source_ref": "docs/study/courses/F1/F1.06.json#q13",
   "type": "scenario",
-  "version": 1
- },
- {
-  "answer_json": {
-   "answer": "5 times"
-  },
-  "difficulty": 2,
-  "id": "si_a2df07aed0b6",
-  "lesson_origin": "session",
-  "lesson_text": "5 times. Size is price times shares, so multiply each before you compare. A is $900 times 20 million shares. B is $45 times 2 billion shares. B's far lower price hides a far bigger company, and its cap is 5 times A's. FINRA warns that price alone is not a good guide to size; the share count matters most. A high price can just mean few shares. Size is price times shares.",
-  "module": "F1",
-  "prompt_json": {
-   "choices": [
-    "20 times",
-    "0.05 times",
-    "5 times",
-    "100 times"
-   ],
-   "kind": "mcq",
-   "q": "Stock A trades at $900 with 20 million shares. Stock B trades at $45 with 2 billion shares. B's market cap is how many times A's?",
-   "subject": "F1.06#q14"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-08",
-      "name": "FINRA: Market Cap Explained (Investor Insights, September 30, 2022)",
-      "quote": "Newer investors might mistakenly believe that stock price alone could be a good indicator of how large a company is, but what’s most important in determining a company's size is the number of shares outstanding.",
-      "tier": 1,
-      "url": "https://www.finra.org/investors/insights/market-cap"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "SEC, Investor.gov: Market Capitalization (glossary)",
-      "quote": "Market capitalization is the value of a corporation determined by multiplying the current public market price of one share of the corporation by the number of total outstanding shares.",
-      "tier": 1,
-      "url": "https://www.investor.gov/glossary/glossary_terms/market-capitalization"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "FINRA: Market Cap Explained (Investor Insights, September 30, 2022)",
-      "quote": "Both have stocks trading at $50 a share, but Company A has 5 million shares outstanding, and Company B has 5 billion shares outstanding.",
-      "tier": 1,
-      "url": "https://www.finra.org/investors/insights/market-cap"
-     }
-    ],
-    "summary": "Share price alone does not tell you how big a company is; the share count matters most. Market cap is the share price times the total number of shares outstanding. FINRA's example: two stocks at $50, one with 5 million shares and one with 5 billion."
-   },
-   "facts": {
-    "calc": {
-     "args": {
-      "a_price": 900,
-      "a_shares": 20,
-      "b_price": 45,
-      "b_shares": 2000,
-      "expr": "(b_price * b_shares) / (a_price * a_shares)"
-     },
-     "fn": "arith",
-     "result": 5.0
-    },
-    "given": "Stock A trades at $900 with 20 million shares. Stock B trades at $45 with 2 billion shares. B's market cap is how many times A's? 0.05 times 20 times 100 times 5 times"
-   },
-   "lesson_line": "A high price can just mean few shares. Size is price times shares.",
-   "simple": "5 times, because B's low price is spread over far more shares, so the whole company is worth more.",
-   "tier": "extended",
-   "unit": "F1.06",
-   "why": "5 times. Size is price times shares, so multiply each before you compare. A is $900 times 20 million shares. B is $45 times 2 billion shares. B's far lower price hides a far bigger company, and its cap is 5 times A's. FINRA warns that price alone is not a good guide to size; the share count matters most.",
-   "wrong": {
-    "0.05 times": "You compared only the prices, $45 over $900.",
-    "100 times": "You compared only the share counts, 2 billion over 20 million.",
-    "20 times": "You compared only the prices and flipped them, $900 over $45."
-   }
-  },
-  "review_status": "draft",
-  "skill_id": "basics.float_cap",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F1/F1.06.json#q14",
-  "type": "recall",
   "version": 1
  },
  {
@@ -8176,8 +7828,8 @@
    "choices": [
     "Neither, same news, same move",
     "Can't tell without the price",
-    "Stock B, the big float",
-    "Stock A, the small float"
+    "Stock A, the small float",
+    "Stock B, the big float"
    ],
    "kind": "mcq",
    "q": "Which is more likely to make the bigger percent move?",
@@ -8261,9 +7913,9 @@
   "prompt_json": {
    "choices": [
     "Insiders forced to sell",
-    "More shares free to sell",
     "A guaranteed drop in price",
-    "Fewer shares in the float"
+    "Fewer shares in the float",
+    "More shares free to sell"
    ],
    "kind": "mcq",
    "q": "What should you watch for as that date gets close?",
@@ -8330,176 +7982,23 @@
  },
  {
   "answer_json": {
-   "answer": "False"
-  },
-  "difficulty": 3,
-  "id": "si_ec62f875951d",
-  "lesson_origin": "session",
-  "lesson_text": "False. The count fell. Apple began fiscal 2025 with 15,116,786 thousand shares and ended with 14,773,260 thousand. It bought back 401,672 thousand and issued a net 58,146 thousand, so the buybacks won. A buyback lowers shares outstanding. New stock for staff or for cash adds to it. Buybacks shrink the share count. New stock for staff or cash adds to it. Watch the net.",
-  "module": "F1",
-  "prompt_json": {
-   "choices": [
-    "True",
-    "False"
-   ],
-   "kind": "tf",
-   "q": "Apple bought back 401,672 thousand shares in fiscal 2025 and issued a net 58,146 thousand. Its share count went up.",
-   "subject": "F1.06#q17"
-  },
-  "reveal_json": {
-   "deeper": {
-    "example": "Apple's own table, in thousands of shares, starts at 15,116,786. Take away 401,672 bought back and add 58,146 issued. That gives 14,773,260 at the end. A company issuing some stock to staff can still shrink its count, as long as it buys back more."
-   },
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-08",
-      "name": "Apple Inc., Form 10-K on SEC EDGAR: Apple Inc. annual report on Form 10-K for the fiscal year ended September 27, 2025",
-      "quote": "The following table shows the changes in shares of common stock for 2025, 2024 and 2023 (in thousands): 2025 2024 2023 Common stock outstanding, beginning balances 15,116,786",
-      "tier": 1,
-      "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019325000079/aapl-20250927.htm"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "Apple Inc., Form 10-K on SEC EDGAR: Apple Inc. annual report on Form 10-K for the fiscal year ended September 27, 2025",
-      "quote": "Common stock repurchased (401,672) (499,372) (471,419) Common stock issued, net of shares withheld for employee taxes 58,146 66,097 78,055 Common stock outstanding, ending balances 14,773,260",
-      "tier": 1,
-      "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019325000079/aapl-20250927.htm"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "Investopedia: The Basics of Outstanding Shares: Definition and How to Find Them (James Chen; updated July 29, 2026)",
-      "quote": "Outstanding shares decrease if the company buys back its shares under a share repurchase program.",
-      "tier": 2,
-      "url": "https://www.investopedia.com/terms/o/outstandingshares.asp"
-     }
-    ],
-    "summary": "Apple began fiscal 2025 with 15,116,786 thousand shares outstanding. In fiscal 2025 Apple repurchased 401,672 thousand shares, issued a net 58,146 thousand, and ended with 14,773,260 thousand outstanding. A buyback lowers shares outstanding."
-   },
-   "facts": {
-    "given": "Apple bought back 401,672 thousand shares in fiscal 2025 and issued a net 58,146 thousand. Its share count went up."
-   },
-   "lesson_line": "Buybacks shrink the share count. New stock for staff or cash adds to it. Watch the net.",
-   "simple": "False, because Apple bought back far more shares than it issued, so its share count went down.",
-   "tier": "extended",
-   "unit": "F1.06",
-   "why": "False. The count fell. Apple began fiscal 2025 with 15,116,786 thousand shares and ended with 14,773,260 thousand. It bought back 401,672 thousand and issued a net 58,146 thousand, so the buybacks won. A buyback lowers shares outstanding. New stock for staff or for cash adds to it."
-  },
-  "review_status": "draft",
-  "skill_id": "basics.float_cap",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F1/F1.06.json#q17",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
-   "answer": "About $3.7 trillion"
-  },
-  "difficulty": 3,
-  "id": "si_7e826d54605a",
-  "lesson_origin": "session",
-  "lesson_text": "About $3.7 trillion. Market cap is the price times the total shares outstanding, and a 10-K cover gives that count. Here that is 14,776,353,000 shares times $250. The float is not needed; it is a separate number. The result is far past FINRA's $200 billion mega-cap line. The $250 is a made-up price, not Apple's price on any date. Take the share count from the filing, then multiply. The float is a separate number.",
-  "module": "F1",
-  "prompt_json": {
-   "choices": [
-    "About $3.7 trillion",
-    "Need the float to tell",
-    "About $3.7 billion",
-    "About $370 billion"
-   ],
-   "kind": "mcq",
-   "q": "Roughly what market cap is that?",
-   "story": "Apple's 10-K says 14,776,353,000 shares were outstanding on October 17, 2025. Say the stock trades at $250.",
-   "subject": "F1.06#q18"
-  },
-  "reveal_json": {
-   "deeper": {
-    "trap": "Big share counts invite slips. 14,776,353,000 is billions of shares, not millions. Billions of shares at $250 each lands in the trillions. Write the count in billions first, then multiply, and check the answer against FINRA's $200 billion mega-cap line."
-   },
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-08",
-      "name": "Apple Inc., Form 10-K on SEC EDGAR: Apple Inc. annual report on Form 10-K for the fiscal year ended September 27, 2025",
-      "quote": "14,776,353,000 shares of common stock were issued and outstanding as of October 17, 2025.",
-      "tier": 1,
-      "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019325000079/aapl-20250927.htm"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "SEC: Form 10-K (form and general instructions)",
-      "quote": "Indicate the number of shares outstanding of each of the registrant’s classes of common stock, as of the latest practicable date.",
-      "tier": 1,
-      "url": "https://www.sec.gov/files/form10-k.pdf"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "SEC, Investor.gov: Market Capitalization (glossary)",
-      "quote": "Market capitalization is the value of a corporation determined by multiplying the current public market price of one share of the corporation by the number of total outstanding shares.",
-      "tier": 1,
-      "url": "https://www.investor.gov/glossary/glossary_terms/market-capitalization"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "FINRA: Market Cap Explained (Investor Insights, September 30, 2022)",
-      "quote": "The delineation between each group can vary, but generally, you'll see them broken down like this: mega-cap: market value of $200 billion or more;",
-      "tier": 1,
-      "url": "https://www.finra.org/investors/insights/market-cap"
-     }
-    ],
-    "summary": "Apple reported 14,776,353,000 shares outstanding on October 17, 2025. A company's 10-K cover gives its shares outstanding as of the latest practicable date. Market cap is the share price times the total number of shares outstanding. Cap buckets are a convention and the lines vary; FINRA's usual mega-cap line is $200 billion or more."
-   },
-   "facts": {
-    "calc": {
-     "args": {
-      "expr": "shares * price / trillion",
-      "price": 250,
-      "shares": 14776353000,
-      "trillion": 1000000000000
-     },
-     "fn": "arith",
-     "result": 3.7
-    },
-    "given": "Roughly what market cap is that? Apple's 10-K says 14,776,353,000 shares were outstanding on October 17, 2025. Say the stock trades at $250. About $3.7 trillion About $370 billion Need the float to tell About $3.7 billion"
-   },
-   "lesson_line": "Take the share count from the filing, then multiply. The float is a separate number.",
-   "simple": "About $3.7 trillion, because market cap is every share outstanding times the price, and the 10-K gives that count.",
-   "tier": "expert",
-   "unit": "F1.06",
-   "why": "About $3.7 trillion. Market cap is the price times the total shares outstanding, and a 10-K cover gives that count. Here that is 14,776,353,000 shares times $250. The float is not needed; it is a separate number. The result is far past FINRA's $200 billion mega-cap line. The $250 is a made-up price, not Apple's price on any date.",
-   "wrong": {
-    "About $3.7 billion": "That reads billions of shares as millions. 14,776,353,000 shares at $250 each lands in the trillions.",
-    "About $370 billion": "That drops a zero. Multiply the full share count by $250 and you land in the trillions.",
-    "Need the float to tell": "Market cap uses every share outstanding, and the 10-K gives that count. The float matters for other things."
-   }
-  },
-  "review_status": "draft",
-  "skill_id": "basics.float_cap",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F1/F1.06.json#q18",
-  "type": "scenario",
-  "version": 1
- },
- {
-  "answer_json": {
    "answer": "Fewer shares, same company value"
   },
   "difficulty": 3,
   "id": "si_ebbee614508f",
   "lesson_origin": "session",
-  "lesson_text": "Fewer shares, same company value. In a 1-for-25 reverse split you get one new share for every 25 old ones, so $0.40 becomes about $10. FINRA says a split or reverse split does nothing to change the value of a company. The float shrinks with the share count. FINRA notes reverse splits tend to go hand in hand with low-priced, high-risk stocks. A reverse split shrinks the share count and the float. It changes nothing about the business.",
+  "lesson_text": "Fewer shares, same company value. In a 1-for-25 reverse split you get one new share for every 25 old ones. So 25 shares at $0.40 become one share near $10. FINRA's example: 5,000 shares at 10 cents, worth $500, become 25 shares at $20. FINRA says a split or reverse split does nothing to change the value of a company. The float shrinks with the share count. Reverse splits tend to go hand in hand with low-priced, high-risk stocks. A reverse split shrinks the share count and the float. It changes nothing about the business.",
   "module": "F1",
   "prompt_json": {
    "choices": [
+    "Fewer shares, same company value",
     "The company is worth 25 times more",
     "The float grew 25 times larger",
-    "It is a safer stock to own now",
-    "Fewer shares, same company value"
+    "It is a safer stock to own now"
    ],
    "kind": "mcq",
    "q": "What has really changed?",
-   "story": "A $0.40 stock announces a 1-for-25 reverse split. After it takes effect, the stock trades around $10.",
+   "story": "NRTQ trades at $0.40 and announces a 1-for-25 reverse split. After it takes effect, the stock trades around $10.",
    "subject": "F1.06#q19"
   },
   "reveal_json": {
@@ -8554,13 +8053,13 @@
     "summary": "In a reverse split you get one new share for a set number of old ones (one for every 200 in FINRA's example). After a reverse split you hold fewer shares at a higher price, and the total value is unchanged. Neither a split nor a reverse split changes what the company is worth. Reverse splits tend to go with low-priced, high-risk stocks. A split raises the float; a reverse split shrinks it. Companies often reverse split to lift a low share price back above an exchange's minimum."
    },
    "facts": {
-    "given": "What has really changed? A $0.40 stock announces a 1-for-25 reverse split. After it takes effect, the stock trades around $10. Fewer shares, same company value The company is worth 25 times more The float grew 25 times larger It is a safer stock to own now"
+    "given": "What has really changed? NRTQ trades at $0.40 and announces a 1-for-25 reverse split. After it takes effect, the stock trades around $10. Fewer shares, same company value The company is worth 25 times more The float grew 25 times larger It is a safer stock to own now"
    },
    "lesson_line": "A reverse split shrinks the share count and the float. It changes nothing about the business.",
    "simple": "Fewer shares, same company value: 25 old shares become 1 new one, and the price rises to match.",
    "tier": "expert",
    "unit": "F1.06",
-   "why": "Fewer shares, same company value. In a 1-for-25 reverse split you get one new share for every 25 old ones, so $0.40 becomes about $10. FINRA says a split or reverse split does nothing to change the value of a company. The float shrinks with the share count. FINRA notes reverse splits tend to go hand in hand with low-priced, high-risk stocks.",
+   "why": "Fewer shares, same company value. In a 1-for-25 reverse split you get one new share for every 25 old ones. So 25 shares at $0.40 become one share near $10. FINRA's example: 5,000 shares at 10 cents, worth $500, become 25 shares at $20. FINRA says a split or reverse split does nothing to change the value of a company. The float shrinks with the share count. Reverse splits tend to go hand in hand with low-priced, high-risk stocks.",
    "wrong": {
     "It is a safer stock to own now": "A higher price is cosmetic. Reverse splits tend to go with high-risk stocks.",
     "The company is worth 25 times more": "The price rose because the share count fell. The company's value didn't change.",
@@ -8587,8 +8086,8 @@
    "choices": [
     "Missing more of the move",
     "Paying a few cents extra",
-    "A crash that's hard to exit",
-    "Being shaken out early"
+    "Being shaken out early",
+    "A crash that's hard to exit"
    ],
    "kind": "mcq",
    "q": "What's the biggest risk if you buy here?",
@@ -8683,55 +8182,33 @@
  },
  {
   "answer_json": {
-   "answer": "True"
+   "answer": "25%"
   },
-  "difficulty": 3,
-  "id": "si_fac18bbe362a",
+  "difficulty": 2,
+  "id": "si_0bad1c627cfb",
   "lesson_origin": "session",
-  "lesson_text": "True. The float is the shares the public can trade. Market cap counts every share outstanding, insiders included. A float-adjusted index uses price times the float only. When insiders hold most shares, the float is small. So the index weight is small too, even if market cap looks large. Index weight follows the float. An insider-heavy company counts for less than its market cap suggests.",
+  "lesson_text": "25%. Short interest is measured against the float, the shares available for trading. Divide the shares sold short by the float: 3 million divided by 12 million is 25%. It tells you how much of the tradable supply is already sold short. The float is the right base because those are the shares that trade. Short interest is shares sold short divided by the float, not by all shares outstanding.",
   "module": "F1",
   "prompt_json": {
    "choices": [
-    "True",
-    "False"
+    "3%",
+    "25%",
+    "75%",
+    "400%"
    ],
-   "kind": "tf",
-   "q": "A float-adjusted index gives an insider-heavy company less weight than its market cap suggests.",
-   "subject": "F1.06#q21"
+   "kind": "mcq",
+   "q": "A stock has a 12 million share float and 3 million shares sold short. Short interest is what percent of the float?",
+   "subject": "F1.06#q91"
   },
   "reveal_json": {
-   "deeper": {
-    "trap": "Two companies can show the same market cap on a quote screen and still weigh very differently in a float-adjusted index. The weight follows the shares available to buy, not every share outstanding. Fidelity says free-float cap typically subtracts shares held by officers and directors, and by other public companies."
-   },
    "depth": {
     "sources": [
      {
       "accessed": "2026-11-08",
-      "name": "FTSE Russell (LSEG): Russell US Equity Indexes Construction and Methodology, v7.2, August 2026",
-      "quote": "Stocks in the Russell US indexes are weighted by their available (also called float-adjusted) market capitalization, which is calculated by multiplying the primary closing price by the available shares.",
-      "tier": 1,
-      "url": "https://www.lseg.com/content/dam/ftse-russell/en_us/documents/ground-rules/russell-us-indexes-construction-and-methodology.pdf"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "FTSE Russell (LSEG): Russell US Equity Indexes Construction and Methodology, v7.2, August 2026",
-      "quote": "The purpose of this adjustment is to exclude from market calculations the capitalization that is not available for purchase and is not part of the investable opportunity set.",
-      "tier": 1,
-      "url": "https://www.lseg.com/content/dam/ftse-russell/en_us/documents/ground-rules/russell-us-indexes-construction-and-methodology.pdf"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "Fidelity Investments: What is market cap and how do you calculate it? (Fidelity Viewpoints, Learning Center, March 31, 2026)",
-      "quote": "Free-float market cap considers only shares that are considered to be freely available for trading in the market, and is a common measure used in index weightings.",
+      "name": "Charles Schwab: More Than Meets the Eye: How to Read Stock Quotes (December 23, 2025)",
+      "quote": "this information indicates the ratio of shares sold short from the total number of shares available for trading (the float).",
       "tier": 2,
-      "url": "https://www.fidelity.com/learning-center/trading-investing/market-cap"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "Fidelity Investments: What is market cap and how do you calculate it? (Fidelity Viewpoints, Learning Center, March 31, 2026)",
-      "quote": "This typically means subtracting shares held by officers and directors of the company, those held by another publicly traded company, and by certain other entities.",
-      "tier": 2,
-      "url": "https://www.fidelity.com/learning-center/trading-investing/market-cap"
+      "url": "https://www.schwab.com/learn/story/learn-how-to-read-stock-quotes"
      },
      {
       "accessed": "2026-11-08",
@@ -8739,91 +8216,37 @@
       "quote": "Number of shares of a corporation that are outstanding and available for trading by the public, excluding insiders or restricted stock",
       "tier": 1,
       "url": "https://www.nasdaq.com/glossary/f/float"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "FINRA: Market Cap Explained (Investor Insights, September 30, 2022)",
-      "quote": "It’s the total value of a company's outstanding shares of stock, which include publicly traded shares plus restricted shares held by company officers and insiders.",
-      "tier": 1,
-      "url": "https://www.finra.org/investors/insights/market-cap"
      }
     ],
-    "summary": "Russell indexes weight each stock by float-adjusted market cap: price times the shares available to the public. The float adjustment drops the part of a company that is not available to buy. Free-float market cap counts only freely tradable shares and is commonly used to weight indexes. Free-float cap typically leaves out shares held by officers, directors, other public companies and certain other holders. The float is the outstanding shares the public can trade, leaving out insiders' holdings and restricted stock. Market cap counts every outstanding share: the publicly traded ones plus the restricted shares officers and insiders hold."
+    "summary": "The float is the shares available for trading; short interest is often measured against it. The float is the outstanding shares the public can trade, leaving out insiders' holdings and restricted stock."
    },
    "facts": {
-    "given": "A float-adjusted index gives an insider-heavy company less weight than its market cap suggests."
+    "calc": {
+     "args": {
+      "expr": "short_shares / float_shares * 100",
+      "float_shares": 12,
+      "short_shares": 3
+     },
+     "fn": "arith",
+     "result": 25.0
+    },
+    "given": "A stock has a 12 million share float and 3 million shares sold short. Short interest is what percent of the float? 25% 75% 400% 3%"
    },
-   "lesson_line": "Index weight follows the float. An insider-heavy company counts for less than its market cap suggests.",
-   "simple": "True, because the index counts only shares the public can buy, and insiders' shares are left out.",
-   "tier": "expert",
+   "lesson_line": "Short interest is shares sold short divided by the float, not by all shares outstanding.",
+   "simple": "25%, since 3 million shorted shares out of a 12 million float is one quarter.",
+   "tier": "extended",
    "unit": "F1.06",
-   "why": "True. The float is the shares the public can trade. Market cap counts every share outstanding, insiders included. A float-adjusted index uses price times the float only. When insiders hold most shares, the float is small. So the index weight is small too, even if market cap looks large."
+   "why": "25%. Short interest is measured against the float, the shares available for trading. Divide the shares sold short by the float: 3 million divided by 12 million is 25%. It tells you how much of the tradable supply is already sold short. The float is the right base because those are the shares that trade.",
+   "wrong": {
+    "3%": "You read 3 million as 3 percent. Divide the short shares by the float shares to get the percent.",
+    "400%": "You divided the float by the shares sold short, 12 over 3, instead of the other way round.",
+    "75%": "You found the part of the float that is not sold short, not the part that is."
+   }
   },
   "review_status": "draft",
   "skill_id": "basics.float_cap",
   "source_kind": "course",
-  "source_ref": "docs/study/courses/F1/F1.06.json#q21",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
-   "answer": "True"
-  },
-  "difficulty": 1,
-  "id": "si_8228d5d26fc9",
-  "lesson_origin": "session",
-  "lesson_text": "True. Nasdaq defines outstanding stock as stock held by shareholders, not the company's treasury stock. Investopedia says the same: shares outstanding exclude treasury stock. Market cap uses the shares outstanding, so treasury shares are left out of it too. Treasury stock sits with the company. It isn't outstanding, so it isn't in market cap.",
-  "module": "F1",
-  "prompt_json": {
-   "choices": [
-    "True",
-    "False"
-   ],
-   "kind": "tf",
-   "q": "Shares a company holds in its own treasury are not counted as shares outstanding.",
-   "subject": "F1.06#q22"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-08",
-      "name": "Nasdaq: Outstanding (Nasdaq glossary)",
-      "quote": "Stock held by shareholders (verses the company's treasury stock).",
-      "tier": 1,
-      "url": "https://www.nasdaq.com/glossary/o/outstanding"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "Investopedia: The Basics of Outstanding Shares: Definition and How to Find Them (James Chen; updated July 29, 2026)",
-      "quote": "Outstanding shares are the total stock currently held by all shareholders, including institutions and insiders, excluding treasury stock.",
-      "tier": 2,
-      "url": "https://www.investopedia.com/terms/o/outstandingshares.asp"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "SEC, Investor.gov: Market Capitalization (glossary)",
-      "quote": "Market capitalization is the value of a corporation determined by multiplying the current public market price of one share of the corporation by the number of total outstanding shares.",
-      "tier": 1,
-      "url": "https://www.investor.gov/glossary/glossary_terms/market-capitalization"
-     }
-    ],
-    "summary": "Outstanding shares are the ones shareholders hold; shares the company keeps in its own treasury are not outstanding. Shares outstanding are every share held by investors, institutions and insiders included, but not treasury stock. Market cap is the share price times the total number of shares outstanding."
-   },
-   "facts": {
-    "given": "Shares a company holds in its own treasury are not counted as shares outstanding."
-   },
-   "lesson_line": "Treasury stock sits with the company. It isn't outstanding, so it isn't in market cap.",
-   "simple": "True, because stock the company keeps for itself is not held by investors, so it is left out.",
-   "tier": "core",
-   "unit": "F1.06",
-   "why": "True. Nasdaq defines outstanding stock as stock held by shareholders, not the company's treasury stock. Investopedia says the same: shares outstanding exclude treasury stock. Market cap uses the shares outstanding, so treasury shares are left out of it too."
-  },
-  "review_status": "draft",
-  "skill_id": "basics.float_cap",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F1/F1.06.json#q22",
+  "source_ref": "docs/study/courses/F1/F1.06.json#q91",
   "type": "recall",
   "version": 1
  },
@@ -9112,22 +8535,22 @@
  },
  {
   "answer_json": {
-   "answer": "A fund that trades on an exchange"
+   "answer": "A basket of assets that trades all day"
   },
   "difficulty": 1,
   "id": "si_4bc418e11cec",
   "lesson_origin": "session",
-  "lesson_text": "A fund that trades on an exchange. An ETF pools investors' money into a basket of stocks, bonds or other assets. Each share is a slice of that basket. Its shares trade all day at market prices, like a stock. It is not one company's stock. It is not a mutual fund, bought at its next calculated value. Nor is it an ETN: unsecured debt, typically from a bank, with no basket behind it. An ETF is a whole basket you can trade like one stock.",
+  "lesson_text": "A basket of assets that trades all day. An ETF is a fund. It pools many investors' money and buys stocks, bonds or other assets. Each share you buy is a slice of that whole basket. Take SPY: it tracks the S&P 500, so one share is a slice of large US companies across all eleven sectors. Take XLK: its basket is technology, from software to chips. Both trade on an exchange like a stock, so you see your price as you trade. A mutual fund is different: you buy it at its next calculated value, not a live price. An ETN is different too: unsecured debt from a bank, with no basket behind it. An ETF is a whole basket you can trade like one stock.",
   "module": "F1",
   "prompt_json": {
    "choices": [
-    "A fund that trades on an exchange",
+    "A basket of assets that trades all day",
     "Shares in just one listed company",
     "Unsecured debt issued by a bank",
-    "A fund you buy only at the day's close"
+    "A fund priced once a day, at the close"
    ],
    "kind": "mcq",
-   "q": "What is an ETF?",
+   "q": "You buy a share of SPY or XLK. What are you actually buying?",
    "subject": "ETF"
   },
   "reveal_json": {
@@ -9181,21 +8604,42 @@
       "quote": "ETNs aren’t pooled vehicles and don’t buy or hold shares of stock or other underlying assets. They’re unsecured debt obligations that, similar to bonds, are typically issued by a bank or other financial institution.",
       "tier": 1,
       "url": "https://www.finra.org/investors/investing/investment-products/exchange-traded-funds-and-products"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "State Street Investment Management: XLK: State Street Technology Select Sector SPDR ETF",
+      "quote": "Seeks to provide precise exposure to companies from technology hardware, storage and peripherals; software; communications equipment; semiconductors and semiconductor equipment; IT services; and electronic equipment, instruments and components industries.",
+      "tier": 1,
+      "url": "https://www.ssga.com/us/en/intermediary/etfs/state-street-technology-select-sector-spdr-etf-xlk"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "State Street Investment Management: SPY: State Street SPDR S&P 500 ETF Trust",
+      "quote": "The S&P 500® Index is designed to measure the performance of the large-cap segment of the US equity market. It is float-adjusted market capitalization weighted.",
+      "tier": 1,
+      "url": "https://www.ssga.com/us/en/intermediary/etfs/state-street-spdr-sp-500-etf-trust-spy"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "State Street Investment Management: SPY: State Street SPDR S&P 500 ETF Trust",
+      "quote": "The S&P 500 Index is a diversified large cap U.S. index that holds companies across all eleven GICS sectors",
+      "tier": 1,
+      "url": "https://www.ssga.com/us/en/intermediary/etfs/state-street-spdr-sp-500-etf-trust-spy"
      }
     ],
-    "summary": "An ETF pools investors' money in a fund that owns stocks, bonds or other assets. Each ETF share is a slice of everything the fund owns. ETF shares trade all day on stock exchanges, at market prices. ETFs and other exchange-traded products list on an exchange and trade all day like a stock. A mutual fund is bought at its next calculated value (NAV), not at a live market price. With an ETF you see your price during the day; you don't wait for the close. An ETN is unsecured debt, typically issued by a bank, with no basket behind it: it is not a fund."
+    "summary": "An ETF pools investors' money in a fund that owns stocks, bonds or other assets. Each ETF share is a slice of everything the fund owns. ETF shares trade all day on stock exchanges, at market prices. ETFs and other exchange-traded products list on an exchange and trade all day like a stock. A mutual fund is bought at its next calculated value (NAV), not at a live market price. With an ETF you see your price during the day; you don't wait for the close. An ETN is unsecured debt, typically issued by a bank, with no basket behind it: it is not a fund. XLK holds tech hardware, software, semiconductors and chip equipment, IT services and electronic equipment. The S&P 500 measures large US companies and is weighted by float-adjusted market cap. The S&P 500, which SPY tracks, holds companies in all 11 sectors."
    },
    "facts": {
-    "given": "What is an ETF? A fund that trades on an exchange Shares in just one listed company A fund you buy only at the day's close Unsecured debt issued by a bank"
+    "given": "You buy a share of SPY or XLK. What are you actually buying? A basket of assets that trades all day Shares in just one listed company A fund priced once a day, at the close Unsecured debt issued by a bank"
    },
    "lesson_line": "An ETF is a whole basket you can trade like one stock.",
-   "simple": "An ETF is a fund that trades on an exchange, so you can buy a whole basket like one stock.",
+   "simple": "A slice of a whole basket of stocks or bonds, and you can trade it all day like a stock.",
    "tier": "core",
    "unit": "F1.07",
-   "why": "A fund that trades on an exchange. An ETF pools investors' money into a basket of stocks, bonds or other assets. Each share is a slice of that basket. Its shares trade all day at market prices, like a stock. It is not one company's stock. It is not a mutual fund, bought at its next calculated value. Nor is it an ETN: unsecured debt, typically from a bank, with no basket behind it.",
+   "why": "A basket of assets that trades all day. An ETF is a fund. It pools many investors' money and buys stocks, bonds or other assets. Each share you buy is a slice of that whole basket. Take SPY: it tracks the S&P 500, so one share is a slice of large US companies across all eleven sectors. Take XLK: its basket is technology, from software to chips. Both trade on an exchange like a stock, so you see your price as you trade. A mutual fund is different: you buy it at its next calculated value, not a live price. An ETN is different too: unsecured debt from a bank, with no basket behind it.",
    "wrong": {
-    "A fund you buy only at the day's close": "That's closer to a mutual fund, bought at its next calculated price. ETF shares trade all day at market prices.",
-    "Shares in just one listed company": "That's a single stock. An ETF is a fund, and each share is a slice of everything the fund owns.",
+    "A fund priced once a day, at the close": "That's closer to a mutual fund, bought at its next calculated value. ETF shares trade all day at market prices.",
+    "Shares in just one listed company": "That's a single stock. An ETF is a fund, and each share is a slice of everything the fund owns, like all the technology names in XLK.",
     "Unsecured debt issued by a bank": "That's an ETN: unsecured debt, typically issued by a bank. It isn't pooled and holds no basket. An ETF is a pooled fund."
    }
   },
@@ -9203,132 +8647,6 @@
   "skill_id": "basics.etfs",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F1/F1.07.json#q01",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
-   "answer": "True"
-  },
-  "difficulty": 1,
-  "id": "si_e1f9fcb841d9",
-  "lesson_origin": "session",
-  "lesson_text": "True. ETF shares trade on stock exchanges at market prices, whenever the market is open. You see your price as you trade, not after the close. A mutual fund is different: you buy it at its next calculated value, not at a live market price. It trades like a stock. You see your price as you trade, not after the close.",
-  "module": "F1",
-  "prompt_json": {
-   "choices": [
-    "True",
-    "False"
-   ],
-   "kind": "tf",
-   "q": "You can buy or sell ETF shares any time the market is open.",
-   "subject": "F1.07#q02"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-08",
-      "name": "SEC, Investor.gov: Exchange-Traded Funds (ETFs)",
-      "quote": "ETF investors can trade their shares on the market at the market price whenever the market is open",
-      "tier": 1,
-      "url": "https://www.investor.gov/introduction-investing/investing-basics/investment-products/mutual-funds-and-exchange-traded-2"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "SEC, Investor.gov: Updated Investor Bulletin: Exchange-Traded Funds (ETFs) (Feb. 23, 2023)",
-      "quote": "ETF shares are traded throughout the day on national stock exchanges and at market prices.",
-      "tier": 1,
-      "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-exchange-traded-funds-etfs"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "FINRA: Exchange-Traded Funds and Products",
-      "quote": "The intraday pricing of ETPs provides trading flexibility because you can monitor how the price is doing and don’t have to wait until the end of the day to know your purchase or sale price.",
-      "tier": 1,
-      "url": "https://www.finra.org/investors/investing/investment-products/exchange-traded-funds-and-products"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "SEC, Investor.gov: Mutual Funds",
-      "quote": "The purchase price is the next calculated NAV, plus any fees charged at the time of purchase.",
-      "tier": 1,
-      "url": "https://www.investor.gov/introduction-investing/investing-basics/investment-products/mutual-funds-and-exchange-traded-funds-etfs/mutual-funds"
-     }
-    ],
-    "summary": "You can trade ETF shares at the market price whenever the market is open. ETF shares trade all day on stock exchanges, at market prices. With an ETF you see your price during the day; you don't wait for the close. A mutual fund is bought at its next calculated value (NAV), not at a live market price."
-   },
-   "facts": {
-    "given": "You can buy or sell ETF shares any time the market is open."
-   },
-   "lesson_line": "It trades like a stock. You see your price as you trade, not after the close.",
-   "simple": "True, ETF shares trade on an exchange all through the trading day, at the price the market sets.",
-   "tier": "core",
-   "unit": "F1.07",
-   "why": "True. ETF shares trade on stock exchanges at market prices, whenever the market is open. You see your price as you trade, not after the close. A mutual fund is different: you buy it at its next calculated value, not at a live market price."
-  },
-  "review_status": "draft",
-  "skill_id": "basics.etfs",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F1/F1.07.json#q02",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
-   "answer": "track"
-  },
-  "difficulty": 1,
-  "id": "si_c3b2542b5229",
-  "lesson_origin": "session",
-  "lesson_text": "Track. An index ETF tries to track its index and return close to what the index returns. The SEC's glossary says an index fund aims for about the same return as its index, before fees. It is not trying to beat the index. What you get is about the index's move, less the fund's fees. Buy an index fund and you get about the index's move, less the fund's fees.",
-  "module": "F1",
-  "prompt_json": {
-   "bank": [
-    "track",
-    "beat",
-    "short",
-    "time",
-    "hedge"
-   ],
-   "kind": "fill",
-   "q": "Tap the word that fits the blank.",
-   "sentence": "An index ETF tries to ___ its index, before fees.",
-   "subject": "F1.07#q04"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-08",
-      "name": "SEC, Investor.gov: Updated Investor Bulletin: Exchange-Traded Funds (ETFs) (Feb. 23, 2023)",
-      "quote": "For an indexed-based ETF, the adviser seeks to track an underlying securities index and achieve returns that closely correspond to the returns of that index.",
-      "tier": 1,
-      "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-exchange-traded-funds-etfs"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "SEC, Investor.gov: Glossary: Index Fund",
-      "quote": "These funds follow a passive investment strategy designed to achieve approximately the same return as a particular index before fees.",
-      "tier": 1,
-      "url": "https://www.investor.gov/introduction-investing/investing-basics/glossary/index-fund"
-     }
-    ],
-    "summary": "An index ETF tries to track its index and return close to what the index returns. An index fund aims for about the same return as its index, before fees."
-   },
-   "facts": {
-    "given": "Tap the word that fits the blank. An index ETF tries to ___ its index, before fees."
-   },
-   "lesson_line": "Buy an index fund and you get about the index's move, less the fund's fees.",
-   "simple": "Track, because an index ETF tries to match what its index returns, less its fees, not beat it.",
-   "tier": "core",
-   "unit": "F1.07",
-   "why": "Track. An index ETF tries to track its index and return close to what the index returns. The SEC's glossary says an index fund aims for about the same return as its index, before fees. It is not trying to beat the index. What you get is about the index's move, less the fund's fees."
-  },
-  "review_status": "draft",
-  "skill_id": "basics.etfs",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F1/F1.07.json#q04",
   "type": "recall",
   "version": 1
  },
@@ -9423,108 +8741,12 @@
  },
  {
   "answer_json": {
-   "answer": "11"
-  },
-  "difficulty": 1,
-  "id": "si_cacfcadbd15d",
-  "lesson_origin": "session",
-  "lesson_text": "11. GICS has 11 sectors and 25 industry groups. Sectors are the top of its four tiers: sectors, industry groups, industries and sub-industries. Each company gets one sector, by its main business. The count can change: GICS began in 1999 with 10 sectors. State Street runs one Select Sector SPDR fund for each of the 11. 11 sectors, one Select Sector SPDR for each. Learn the 11 and you can see which group leads.",
-  "module": "F1",
-  "prompt_json": {
-   "choices": [
-    "4",
-    "10",
-    "11",
-    "25"
-   ],
-   "kind": "mcq",
-   "q": "How many sectors does the GICS system sort companies into?",
-   "subject": "F1.07#q06"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-08",
-      "name": "State Street Investment Management: Sector Investing & Sector ETFs",
-      "quote": "The GICS structure consists of 11 sectors, 25 industry groups, 74 industries, and 163 sub-industries",
-      "tier": 1,
-      "url": "https://www.ssga.com/us/en/individual/capabilities/equities/sector-investing/select-sector-etfs"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "MSCI: The Global Industry Classification Standard (GICS)",
-      "quote": "GICS® is a four-tiered, hierarchical industry classification system. The four tiers are: Sectors, Industry Groups, Industries and Sub-Industries.",
-      "tier": 1,
-      "url": "https://www.msci.com/indexes/index-resources/gics"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "State Street Investment Management: Sector Investing & Sector ETFs",
-      "quote": "State Street Investment Management offers 11 sector ETFs for broad exposure to each of the 11 GICS® sectors.",
-      "tier": 1,
-      "url": "https://www.ssga.com/us/en/individual/capabilities/equities/sector-investing/select-sector-etfs"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "MSCI: The Global Industry Classification Standard (GICS)",
-      "quote": "Covering Energy, Materials, Industrials, Consumer Discretionary, Consumer Staples, Health Care, Financials, Information Technology, Real Estate, Communication Services and Utilities Sector.",
-      "tier": 1,
-      "url": "https://www.msci.com/indexes/index-resources/gics"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "MSCI and S&P Dow Jones Indices: Consultation on Potential Changes to the GICS Structure (July 17, 2026)",
-      "quote": "In 1999, MSCI and S&P Dow Jones Indices agreed to co-develop GICS",
-      "tier": 1,
-      "url": "https://www.msci.com/downloads/documents/indexes/gics/annual-review-and-consultations/GICS%20Consultation%202026.pdf"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "MSCI and S&P Dow Jones Indices: Consultation on Potential Changes to the GICS Structure (July 17, 2026)",
-      "quote": "Sectors 10 → 11 Industry Groups 23 → 25",
-      "tier": 1,
-      "url": "https://www.msci.com/downloads/documents/indexes/gics/annual-review-and-consultations/GICS%20Consultation%202026.pdf"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "MSCI: The Global Industry Classification Standard (GICS)",
-      "quote": "Each company is assigned a single GICS® classification in each of the four tiers, according to its principal business activity.",
-      "tier": 1,
-      "url": "https://www.msci.com/indexes/index-resources/gics"
-     }
-    ],
-    "summary": "GICS has 11 sectors, 25 industry groups, 74 industries and 163 sub-industries. GICS has four tiers: sectors, industry groups, industries and sub-industries. There are 11 Select Sector SPDR funds, one for each GICS sector. The GICS sectors are energy, materials, industrials, consumer discretionary, consumer staples, health care, financials, information technology, real estate, communication services and utilities. MSCI and S&P Dow Jones Indices built GICS together starting in 1999. Since 1999 GICS has grown from 10 sectors to 11, and from 23 industry groups to 25. Each company gets one GICS sector (and one spot in each lower tier), by its main business."
-   },
-   "facts": {
-    "given": "How many sectors does the GICS system sort companies into? 11 10 25 4"
-   },
-   "lesson_line": "11 sectors, one Select Sector SPDR for each. Learn the 11 and you can see which group leads.",
-   "simple": "GICS sorts companies into 11 sectors, the top of its four tiers, by each company's main business.",
-   "tier": "core",
-   "unit": "F1.07",
-   "why": "11. GICS has 11 sectors and 25 industry groups. Sectors are the top of its four tiers: sectors, industry groups, industries and sub-industries. Each company gets one sector, by its main business. The count can change: GICS began in 1999 with 10 sectors. State Street runs one Select Sector SPDR fund for each of the 11.",
-   "wrong": {
-    "10": "That was GICS when it began in 1999. It has 11 sectors today.",
-    "25": "That's the industry groups, one tier below sectors.",
-    "4": "That's the number of tiers in GICS: sectors, industry groups, industries and sub-industries. Sectors are the top tier."
-   }
-  },
-  "review_status": "draft",
-  "skill_id": "basics.etfs",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F1/F1.07.json#q06",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
    "answer": "False"
   },
   "difficulty": 1,
   "id": "si_409a79ba6f26",
   "lesson_origin": "session",
-  "lesson_text": "False. A 3x fund aims for three times the index's daily move, and most reset every day. TQQQ, for one, aims for 3x the Nasdaq-100's daily move, before fees. For any holding period other than a day, the return can be higher or lower than 3x. The gap can be large. Read 3x as three times today's move, not three times your whole trade.",
+  "lesson_text": "False. A 3x fund aims for three times the index's daily move, and most reset every day. TQQQ, for one, aims for 3x the Nasdaq-100's daily move, before fees. Reset means each new day starts from the last close, so the days compound on a changing balance. For any holding period other than a day, the return can be higher or lower than 3x. The gap can be large. Read 3x as three times today's move, not three times your whole trade.",
   "module": "F1",
   "prompt_json": {
    "choices": [
@@ -9583,7 +8805,7 @@
    "simple": "False, a 3x fund aims for three times one day's move, so over longer holds it can land far from 3x.",
    "tier": "core",
    "unit": "F1.07",
-   "why": "False. A 3x fund aims for three times the index's daily move, and most reset every day. TQQQ, for one, aims for 3x the Nasdaq-100's daily move, before fees. For any holding period other than a day, the return can be higher or lower than 3x. The gap can be large."
+   "why": "False. A 3x fund aims for three times the index's daily move, and most reset every day. TQQQ, for one, aims for 3x the Nasdaq-100's daily move, before fees. Reset means each new day starts from the last close, so the days compound on a changing balance. For any holding period other than a day, the return can be higher or lower than 3x. The gap can be large."
   },
   "review_status": "draft",
   "skill_id": "basics.etfs",
@@ -9772,7 +8994,7 @@
   "difficulty": 2,
   "id": "si_44585aebf6a7",
   "lesson_origin": "session",
-  "lesson_text": "XLK. It holds one sector, technology: hardware, software, chips and IT services. SPY tracks the S&P 500, which holds companies in all 11 sectors. A sector fund is less diversified than a broad market fund, so one group's news moves more of your money. State Street says sector funds may be more volatile and generally swing more than the overall market. A sector fund is one group's bet. A broad fund like SPY spreads it across all 11 sectors.",
+  "lesson_text": "XLK. GICS sorts every company into one of 11 sectors by its main business. State Street runs one Select Sector SPDR for each: XLK for tech, XLF for financials, XLE for energy. XLK holds one sector: hardware, software, chips and IT services. SPY tracks the S&P 500, which holds companies in all 11 sectors. A sector fund is less diversified than a broad market fund, so one group's news moves more of your money. State Street says sector funds may be more volatile and generally swing more than the overall market. A sector fund is one group's bet. A broad fund like SPY spreads it across all 11 sectors.",
   "module": "F1",
   "prompt_json": {
    "choices": [
@@ -9812,6 +9034,27 @@
      },
      {
       "accessed": "2026-11-08",
+      "name": "MSCI: The Global Industry Classification Standard (GICS)",
+      "quote": "Each company is assigned a single GICS® classification in each of the four tiers, according to its principal business activity.",
+      "tier": 1,
+      "url": "https://www.msci.com/indexes/index-resources/gics"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "State Street Investment Management: Sector Investing & Sector ETFs",
+      "quote": "State Street Investment Management offers 11 sector ETFs for broad exposure to each of the 11 GICS® sectors.",
+      "tier": 1,
+      "url": "https://www.ssga.com/us/en/individual/capabilities/equities/sector-investing/select-sector-etfs"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "State Street Investment Management: Sector Investing & Sector ETFs",
+      "quote": "Communication Services (XLC), Consumer Discretionary (XLY), Consumer Staples (XLP), Energy (XLE), Financials (XLF), Health Care (XLV), Industrials (XLI), Materials (XLB), Real Estate (XLRE), Technology (XLK), and Utilities (XLU).",
+      "tier": 1,
+      "url": "https://www.ssga.com/us/en/individual/capabilities/equities/sector-investing/select-sector-etfs"
+     },
+     {
+      "accessed": "2026-11-08",
       "name": "State Street Investment Management: Sector Investing & Sector ETFs",
       "quote": "sector ETFs are less diversified than broad market funds and may be more volatile",
       "tier": 1,
@@ -9832,7 +9075,7 @@
       "url": "https://www.investor.gov/introduction-investing/investing-basics/investment-products/mutual-funds-and-exchange-traded-2"
      }
     ],
-    "summary": "XLK holds tech hardware, software, semiconductors and chip equipment, IT services and electronic equipment. The S&P 500, which SPY tracks, holds companies in all 11 sectors. GICS has 11 sectors, 25 industry groups, 74 industries and 163 sub-industries. A sector ETF is less diversified than a broad market fund and may swing more. Sector ETFs carry one-sector risk and generally swing more than the overall market. Some ETFs are less diversified than others; some even track a single stock."
+    "summary": "XLK holds tech hardware, software, semiconductors and chip equipment, IT services and electronic equipment. The S&P 500, which SPY tracks, holds companies in all 11 sectors. GICS has 11 sectors, 25 industry groups, 74 industries and 163 sub-industries. Each company gets one GICS sector (and one spot in each lower tier), by its main business. There are 11 Select Sector SPDR funds, one for each GICS sector. The tickers: XLC, XLY, XLP, XLE, XLF, XLV, XLI, XLB, XLRE, XLK and XLU, one per sector. A sector ETF is less diversified than a broad market fund and may swing more. Sector ETFs carry one-sector risk and generally swing more than the overall market. Some ETFs are less diversified than others; some even track a single stock."
    },
    "facts": {
     "given": "Which one ties more of your money to one group's news? XLK and SPY both have strong charts. You'll put the same dollars into one of them. XLK SPY About the same Neither, ETFs spread your money wide"
@@ -9841,7 +9084,7 @@
    "simple": "XLK, because it holds just one sector, tech, while SPY spreads your money across all 11 sectors.",
    "tier": "core",
    "unit": "F1.07",
-   "why": "XLK. It holds one sector, technology: hardware, software, chips and IT services. SPY tracks the S&P 500, which holds companies in all 11 sectors. A sector fund is less diversified than a broad market fund, so one group's news moves more of your money. State Street says sector funds may be more volatile and generally swing more than the overall market.",
+   "why": "XLK. GICS sorts every company into one of 11 sectors by its main business. State Street runs one Select Sector SPDR for each: XLK for tech, XLF for financials, XLE for energy. XLK holds one sector: hardware, software, chips and IT services. SPY tracks the S&P 500, which holds companies in all 11 sectors. A sector fund is less diversified than a broad market fund, so one group's news moves more of your money. State Street says sector funds may be more volatile and generally swing more than the overall market.",
    "wrong": {
     "About the same": "Not the same. XLK is one sector. SPY covers the whole S&P 500.",
     "Neither, ETFs spread your money wide": "Not every ETF is spread wide. The SEC says some ETFs are less diverse than others, and XLK holds one sector.",
@@ -10014,7 +9257,7 @@
   "difficulty": 2,
   "id": "si_ff6e4a34dbe4",
   "lesson_origin": "session",
-  "lesson_text": "$91. The fund triples each day's move: three times the 10% gain, then three times the 10% drop. The drop lands on a bigger balance than the gain did, so the round trip leaves it below $100. The index itself lost only 1%: up 10% and down 10% leaves it at 99. This assumes the fund hits its daily target exactly, before fees. Up 10%, down 10% is a small loss. A 3x fund turns it into a big one.",
+  "lesson_text": "$91. A 3x fund triples each day's move. Day 1: the index gains 10%, so the fund gains 30%, from $100 to $130. Day 2: the index drops 10%, so the fund drops 30%. But 30% of $130 is $39, not $30, so the fund ends at $91. The index itself lost only 1%: up 10% and down 10% leaves it at 99. This assumes the fund hits its daily target exactly, before fees. Up 10%, down 10% is a small loss. A 3x fund turns it into a big one.",
   "module": "F1",
   "prompt_json": {
    "choices": [
@@ -10029,7 +9272,7 @@
   },
   "reveal_json": {
    "deeper": {
-    "example": "FINRA's 2x case runs the same way. Start with $100. The index drops 10% to 90, so the 2x fund drops 20%, to $80. Next day the index rises 10% to 99. The fund gains 20%, but only on $80, so it reaches $96. Over the two days the index lost 1% and the 2x fund lost 4%."
+    "example": "A real stretch shows the same drag. From December 1, 2008 to April 30, 2009, a financials index gained about 8% while a 3x fund on it fell 53%, as FINRA's notice reports."
    },
    "depth": {
     "sources": [
@@ -10067,21 +9310,39 @@
       "quote": "TQQQ seeks daily investment results, before fees and expenses, that correspond to three times (3x) the daily performance of the Nasdaq-100 Index®.",
       "tier": 1,
       "url": "https://www.proshares.com/our-etfs/leveraged-and-inverse/tqqq"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "FINRA: Regulatory Notice 09-31: Leveraged and Inverse Exchange-Traded Funds",
+      "quote": "An ETF seeking to deliver three times the daily return of the Russell 1000 Financial Services Index fell 53 percent while the index actually gained around 8 percent.",
+      "tier": 1,
+      "url": "https://www.finra.org/rules-guidance/notices/09-31"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "FINRA: Regulatory Notice 09-31: Leveraged and Inverse Exchange-Traded Funds",
+      "quote": "between December 1, 2008, and April 30, 2009: The Dow Jones U.S. Oil & Gas Index gained 2 percent, while an ETF seeking to deliver twice the index's daily return fell 6 percent",
+      "tier": 1,
+      "url": "https://www.finra.org/rules-guidance/notices/09-31"
      }
     ],
-    "summary": "Index down 10% to 90: a 2x fund drops 20%, from $100 to $80. Index up 10% to 99: the 2x fund gains 20%, but only on $80, so it reaches just $96. Over the two days the index lost 1% and the 2x fund lost 4%. A leveraged ETF aims for a multiple of its index's DAILY move. TQQQ aims for 3x the Nasdaq-100's daily move, before fees."
+    "summary": "Index down 10% to 90: a 2x fund drops 20%, from $100 to $80. Index up 10% to 99: the 2x fund gains 20%, but only on $80, so it reaches just $96. Over the two days the index lost 1% and the 2x fund lost 4%. A leveraged ETF aims for a multiple of its index's DAILY move. TQQQ aims for 3x the Nasdaq-100's daily move, before fees. Same months: a financials index rose about 8% while the 3x fund on it fell 53%. Dec 2008 to Apr 2009: the oil and gas index rose 2% while the 2x fund on it fell 6%."
    },
    "facts": {
     "calc": {
      "args": {
-      "daily_pcts": [
-       10,
-       -10
-      ],
-      "leverage": 3,
-      "start": 100
+      "day1": 130,
+      "down": -10,
+      "expr": "start * (1 + lev * up / 100) * (1 + lev * down / 100)",
+      "index_end": 99,
+      "index_loss": 1,
+      "lev": 3,
+      "loss": 39,
+      "move": 30,
+      "start": 100,
+      "up": 10
      },
-     "fn": "leveraged_path",
+     "fn": "arith",
      "result": 91.0
     },
     "given": "A 3x fund starts at $100. The index rises 10% one day and falls 10% the next. What is the fund worth, before fees? $99 $100 $91 $70"
@@ -10090,7 +9351,7 @@
    "simple": "$91, because the fund triples each move, and the drop hits a bigger balance than the gain did.",
    "tier": "extended",
    "unit": "F1.07",
-   "why": "$91. The fund triples each day's move: three times the 10% gain, then three times the 10% drop. The drop lands on a bigger balance than the gain did, so the round trip leaves it below $100. The index itself lost only 1%: up 10% and down 10% leaves it at 99. This assumes the fund hits its daily target exactly, before fees.",
+   "why": "$91. A 3x fund triples each day's move. Day 1: the index gains 10%, so the fund gains 30%, from $100 to $130. Day 2: the index drops 10%, so the fund drops 30%. But 30% of $130 is $39, not $30, so the fund ends at $91. The index itself lost only 1%: up 10% and down 10% leaves it at 99. This assumes the fund hits its daily target exactly, before fees.",
    "wrong": {
     "$100": "You assumed an up 10% and a down 10% cancel out.",
     "$70": "You took the tripled drop off the original $100 instead of off the bigger balance.",
@@ -10195,7 +9456,7 @@
   "difficulty": 2,
   "id": "si_bac1f8156956",
   "lesson_origin": "session",
-  "lesson_text": "True. Small net moves and higher index volatility give a 3x fund returns worse than its daily target. FINRA says a higher multiple and more volatility widen the gap between the daily multiple and what you get. Both indexes end flat, so the wilder swings should leave its 3x fund further behind. The SEC adds that this effect can be magnified in volatile markets. The wilder the chop, the harder a 3x fund bleeds.",
+  "lesson_text": "True. A 3x fund triples each day's move and resets daily, so day two's move lands on a new balance. FINRA's 2x case shows the math. The index falls 10% to 90, so the 2x fund falls 20% to $80. The index rises 10% to 99, so the fund gains 20%, but 20% of $80 is just $16. It ends at $96. The index lost 1%. The fund lost 4%. A 3x fund triples the moves, so it loses more. Shrink the swing to 1% and the drag nearly vanishes. Chop and big swings hurt a 3x fund most. The wilder the chop, the harder a 3x fund bleeds.",
   "module": "F1",
   "prompt_json": {
    "choices": [
@@ -10203,12 +9464,47 @@
     "False"
    ],
    "kind": "tf",
-   "q": "Two indexes chop for weeks and both end flat. One swings far harder. Its 3x fund should do worse than the other's.",
+   "q": "One index falls 10% then rises 10%. Another falls 1% then rises 1%. A 3x fund on the first ends further below its start.",
    "subject": "F1.07#q16"
   },
   "reveal_json": {
    "depth": {
     "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "SEC, Investor.gov: Updated Investor Bulletin: Leveraged and Inverse ETFs (Aug. 29, 2023)",
+      "quote": "Leveraged ETFs seek to deliver multiples of the daily performance of the index or benchmark they track.",
+      "tier": 1,
+      "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-alerts/sec"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "FINRA: The Lowdown on Leveraged and Inverse Exchange-Traded Products (Investor Insights)",
+      "quote": "At the close of trading on Tuesday, the index is down 10 percent to 90, resulting in a 20 percent loss for the ETP, bringing its value down to $80.",
+      "tier": 1,
+      "url": "https://www.finra.org/investors/insights/lowdown-leveraged-and-inverse-exchange-traded-products"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "FINRA: The Lowdown on Leveraged and Inverse Exchange-Traded Products (Investor Insights)",
+      "quote": "Then, on Wednesday, the index closes up 10 percent at 99, resulting in a gain of 20 percent for the ETP. However, 20 percent of $80 is just $16, meaning the ETP’s value is now at $96.",
+      "tier": 1,
+      "url": "https://www.finra.org/investors/insights/lowdown-leveraged-and-inverse-exchange-traded-products"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "FINRA: The Lowdown on Leveraged and Inverse Exchange-Traded Products (Investor Insights)",
+      "quote": "But over the course of these days the index lost just 1 percent, while the 2x leveraged ETP lost 4 percent.",
+      "tier": 1,
+      "url": "https://www.finra.org/investors/insights/lowdown-leveraged-and-inverse-exchange-traded-products"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "FINRA: The Lowdown on Leveraged and Inverse Exchange-Traded Products (Investor Insights)",
+      "quote": "For example, a higher degree of leverage and increased volatility of the index being tracked can lead to a greater divergence between the daily leverage factor and actual performance.",
+      "tier": 1,
+      "url": "https://www.finra.org/investors/insights/lowdown-leveraged-and-inverse-exchange-traded-products"
+     },
      {
       "accessed": "2026-11-08",
       "name": "ProShares: TQQQ: UltraPro QQQ",
@@ -10218,10 +9514,10 @@
      },
      {
       "accessed": "2026-11-08",
-      "name": "FINRA: The Lowdown on Leveraged and Inverse Exchange-Traded Products (Investor Insights)",
-      "quote": "For example, a higher degree of leverage and increased volatility of the index being tracked can lead to a greater divergence between the daily leverage factor and actual performance.",
-      "tier": 1,
-      "url": "https://www.finra.org/investors/insights/lowdown-leveraged-and-inverse-exchange-traded-products"
+      "name": "Fidelity Investments: Leveraged ETFs (Fidelity Learning Center)",
+      "quote": "The market is up 10% and down 10% alternatively for 10 days straight. This gut-wrenching movement would exacerbate the drag on a leveraged long ETF position.",
+      "tier": 2,
+      "url": "https://www.fidelity.com/learning-center/investment-products/etf/types-of-etfs-leveraged-etfs"
      },
      {
       "accessed": "2026-11-08",
@@ -10236,25 +9532,18 @@
       "quote": "Most leveraged and inverse ETFs “reset” daily, meaning that they are designed to achieve their stated objectives on a daily basis.",
       "tier": 1,
       "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-alerts/sec"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "Fidelity Investments: Leveraged ETFs (Fidelity Learning Center)",
-      "quote": "The market is up 10% and down 10% alternatively for 10 days straight. This gut-wrenching movement would exacerbate the drag on a leveraged long ETF position.",
-      "tier": 2,
-      "url": "https://www.fidelity.com/learning-center/investment-products/etf/types-of-etfs-leveraged-etfs"
      }
     ],
-    "summary": "Chop (small net moves, high volatility) hurts a 3x fund; a strong, steady trend helps it. More leverage and more volatility mean a bigger gap between the daily multiple and what you actually get. The drift from the stated multiple can grow in volatile markets. Most leveraged and inverse ETFs reset every day: their target is for one day. A market that swings up and down without going anywhere drags on a leveraged long fund."
+    "summary": "A leveraged ETF aims for a multiple of its index's DAILY move. Index down 10% to 90: a 2x fund drops 20%, from $100 to $80. Index up 10% to 99: the 2x fund gains 20%, but only on $80, so it reaches just $96. Over the two days the index lost 1% and the 2x fund lost 4%. More leverage and more volatility mean a bigger gap between the daily multiple and what you actually get. Chop (small net moves, high volatility) hurts a 3x fund; a strong, steady trend helps it. A market that swings up and down without going anywhere drags on a leveraged long fund. The drift from the stated multiple can grow in volatile markets. Most leveraged and inverse ETFs reset every day: their target is for one day."
    },
    "facts": {
-    "given": "Two indexes chop for weeks and both end flat. One swings far harder. Its 3x fund should do worse than the other's."
+    "given": "One index falls 10% then rises 10%. Another falls 1% then rises 1%. A 3x fund on the first ends further below its start."
    },
    "lesson_line": "The wilder the chop, the harder a 3x fund bleeds.",
-   "simple": "True, because bigger daily swings make the reset drag worse, so the wilder index leaves its 3x fund further behind.",
+   "simple": "True, because each day resets the fund, so wilder swings leave a 3x fund further behind.",
    "tier": "extended",
    "unit": "F1.07",
-   "why": "True. Small net moves and higher index volatility give a 3x fund returns worse than its daily target. FINRA says a higher multiple and more volatility widen the gap between the daily multiple and what you get. Both indexes end flat, so the wilder swings should leave its 3x fund further behind. The SEC adds that this effect can be magnified in volatile markets."
+   "why": "True. A 3x fund triples each day's move and resets daily, so day two's move lands on a new balance. FINRA's 2x case shows the math. The index falls 10% to 90, so the 2x fund falls 20% to $80. The index rises 10% to 99, so the fund gains 20%, but 20% of $80 is just $16. It ends at $96. The index lost 1%. The fund lost 4%. A 3x fund triples the moves, so it loses more. Shrink the swing to 1% and the drag nearly vanishes. Chop and big swings hurt a 3x fund most."
   },
   "review_status": "draft",
   "skill_id": "basics.etfs",
@@ -10349,7 +9638,7 @@
   "difficulty": 3,
   "id": "si_0b433fe0dad7",
   "lesson_origin": "session",
-  "lesson_text": "False. An inverse fund aims for the opposite of each day's move, and most reset daily. Over months its result depends on the path the index takes, not just where it ends. FINRA warns you could suffer losses in an inverse fund even if the index is down over the longer term. With a daily-reset fund, being right on direction isn't enough. The path counts too.",
+  "lesson_text": "False. Work it day by day, because the fund resets every day. Day 1: the index rises 10%, so the fund falls 10%, from 100 to 90. Day 2: the index falls 10%, so the fund gains 10%. That gain lands on 90, not 100, so the fund reaches 99. The index and the fund both end at 99, below the start. Real case, FINRA, December 2008 to April 2009: a financials index gained about 8%. A fund built for three times the inverse of its daily move fell 90%. That is far more than three times the index's gain. Right on direction is not enough. The path decides what a daily-reset fund pays.",
   "module": "F1",
   "prompt_json": {
    "choices": [
@@ -10357,7 +9646,7 @@
     "False"
    ],
    "kind": "tf",
-   "q": "If the index ends lower after three months, an inverse fund held all that time ends higher.",
+   "q": "The index rises 10% to 110, then falls 10% to 99. A fund moving opposite it each day drops to 90 first, then ends above 100.",
    "subject": "F1.07#q19"
   },
   "reveal_json": {
@@ -10396,29 +9685,43 @@
      },
      {
       "accessed": "2026-11-08",
+      "name": "SEC, Investor.gov: Updated Investor Bulletin: Leveraged and Inverse ETFs (Aug. 29, 2023)",
+      "quote": "This effect can be magnified in volatile markets.",
+      "tier": 1,
+      "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-alerts/sec"
+     },
+     {
+      "accessed": "2026-11-08",
       "name": "FINRA: Regulatory Notice 09-31: Leveraged and Inverse Exchange-Traded Funds",
-      "quote": "In the first case with low volatility, the inverse ETF loses 0.02 percent; but in the more volatile scenario the inverse ETF loses 1.82 percent.",
+      "quote": "The related ETF seeking to deliver three times the inverse of the index's daily return declined by 90 percent over the same period.",
       "tier": 1,
       "url": "https://www.finra.org/rules-guidance/notices/09-31"
      },
      {
       "accessed": "2026-11-08",
-      "name": "SEC, Investor.gov: Updated Investor Bulletin: Leveraged and Inverse ETFs (Aug. 29, 2023)",
-      "quote": "This effect can be magnified in volatile markets.",
+      "name": "FINRA: Regulatory Notice 09-31: Leveraged and Inverse Exchange-Traded Funds",
+      "quote": "An ETF seeking to deliver three times the daily return of the Russell 1000 Financial Services Index fell 53 percent while the index actually gained around 8 percent.",
       "tier": 1,
-      "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-alerts/sec"
+      "url": "https://www.finra.org/rules-guidance/notices/09-31"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "FINRA: Regulatory Notice 09-31: Leveraged and Inverse Exchange-Traded Funds",
+      "quote": "between December 1, 2008, and April 30, 2009: The Dow Jones U.S. Oil & Gas Index gained 2 percent, while an ETF seeking to deliver twice the index's daily return fell 6 percent",
+      "tier": 1,
+      "url": "https://www.finra.org/rules-guidance/notices/09-31"
      }
     ],
-    "summary": "You can lose in an inverse fund even when the index ends lower, and in a leveraged fund even when it ends higher. An inverse ETF aims for the opposite of its index's daily move. Most leveraged and inverse ETFs reset every day: their target is for one day. Because they reset daily, these funds can quickly drift away from their index's performance. Same start and finish: the inverse fund loses 0.02% on the calm path and 1.82% on the volatile one. The drift from the stated multiple can grow in volatile markets."
+    "summary": "You can lose in an inverse fund even when the index ends lower, and in a leveraged fund even when it ends higher. An inverse ETF aims for the opposite of its index's daily move. Most leveraged and inverse ETFs reset every day: their target is for one day. Because they reset daily, these funds can quickly drift away from their index's performance. The drift from the stated multiple can grow in volatile markets. Same months: the 3x inverse fund on the financials index fell 90%, while that index gained about 8%. Same months: a financials index rose about 8% while the 3x fund on it fell 53%. Dec 2008 to Apr 2009: the oil and gas index rose 2% while the 2x fund on it fell 6%."
    },
    "facts": {
-    "given": "If the index ends lower after three months, an inverse fund held all that time ends higher."
+    "given": "The index rises 10% to 110, then falls 10% to 99. A fund moving opposite it each day drops to 90 first, then ends above 100."
    },
-   "lesson_line": "With a daily-reset fund, being right on direction isn't enough. The path counts too.",
-   "simple": "False, because an inverse fund resets daily, so held for months it can lose even when the index ends lower.",
+   "lesson_line": "Right on direction is not enough. The path decides what a daily-reset fund pays.",
+   "simple": "False, because an inverse fund resets every day, so it can lose even when the index ends lower.",
    "tier": "expert",
    "unit": "F1.07",
-   "why": "False. An inverse fund aims for the opposite of each day's move, and most reset daily. Over months its result depends on the path the index takes, not just where it ends. FINRA warns you could suffer losses in an inverse fund even if the index is down over the longer term."
+   "why": "False. Work it day by day, because the fund resets every day. Day 1: the index rises 10%, so the fund falls 10%, from 100 to 90. Day 2: the index falls 10%, so the fund gains 10%. That gain lands on 90, not 100, so the fund reaches 99. The index and the fund both end at 99, below the start. Real case, FINRA, December 2008 to April 2009: a financials index gained about 8%. A fund built for three times the inverse of its daily move fell 90%. That is far more than three times the index's gain."
   },
   "review_status": "draft",
   "skill_id": "basics.etfs",
@@ -10805,6 +10108,89 @@
   "skill_id": "basics.etfs",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F1/F1.07.json#q23",
+  "type": "scenario",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Fell about 26%"
+  },
+  "difficulty": 3,
+  "id": "si_81c4834d211a",
+  "lesson_origin": "session",
+  "lesson_text": "Fell about 26%. FINRA's notice covers December 1, 2008 to April 30, 2009. The Dow Jones U.S. Oil & Gas Index gained 2%, and the 2x inverse fund fell 26%. The fund built for twice the index's daily return fell too, by 6%. So both funds lost money in the same months. Each one resets daily, so compounding wears it down whichever way it points. FINRA adds that this effect can be magnified in volatile markets. Over months, a 2x fund and its inverse can both lose money.",
+  "module": "F1",
+  "prompt_json": {
+   "choices": [
+    "Fell about 26%",
+    "Ended about flat",
+    "Fell about 4%",
+    "Rose about 6%"
+   ],
+   "kind": "mcq",
+   "q": "What did that 2x inverse fund do over those months?",
+   "story": "From December 2008 to April 2009, a US oil and gas index gained 2%. Picture a fund built for twice the opposite of each day's move.",
+   "subject": "F1.07#q24"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "FINRA: Regulatory Notice 09-31: Leveraged and Inverse Exchange-Traded Funds",
+      "quote": "between December 1, 2008, and April 30, 2009: The Dow Jones U.S. Oil & Gas Index gained 2 percent, while an ETF seeking to deliver twice the index's daily return fell 6 percent",
+      "tier": 1,
+      "url": "https://www.finra.org/rules-guidance/notices/09-31"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "FINRA: Regulatory Notice 09-31: Leveraged and Inverse Exchange-Traded Funds",
+      "quote": "the related ETF seeking to deliver twice the inverse of the index's daily return fell 26 percent.",
+      "tier": 1,
+      "url": "https://www.finra.org/rules-guidance/notices/09-31"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "SEC, Investor.gov: Updated Investor Bulletin: Leveraged and Inverse ETFs (Aug. 29, 2023)",
+      "quote": "because most leveraged and inverse ETFs reset each day, their performance can quickly diverge from the performance of the underlying index or benchmark.",
+      "tier": 1,
+      "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-alerts/sec"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "SEC, Investor.gov: Updated Investor Bulletin: Leveraged and Inverse ETFs (Aug. 29, 2023)",
+      "quote": "This effect can be magnified in volatile markets.",
+      "tier": 1,
+      "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-alerts/sec"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "SEC, Investor.gov: Updated Investor Bulletin: Leveraged and Inverse ETFs (Aug. 29, 2023)",
+      "quote": "Most leveraged and inverse ETFs “reset” daily, meaning that they are designed to achieve their stated objectives on a daily basis.",
+      "tier": 1,
+      "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-alerts/sec"
+     }
+    ],
+    "summary": "Dec 2008 to Apr 2009: the oil and gas index rose 2% while the 2x fund on it fell 6%. Dec 2008 to Apr 2009: the 2x inverse fund on the oil and gas index fell 26%, while the index rose 2%. Because they reset daily, these funds can quickly drift away from their index's performance. The drift from the stated multiple can grow in volatile markets. Most leveraged and inverse ETFs reset every day: their target is for one day."
+   },
+   "facts": {
+    "given": "What did that 2x inverse fund do over those months? From December 2008 to April 2009, a US oil and gas index gained 2%. Picture a fund built for twice the opposite of each day's move. Fell about 26% Fell about 4% Rose about 6% Ended about flat"
+   },
+   "lesson_line": "Over months, a 2x fund and its inverse can both lose money.",
+   "simple": "It fell about 26%, because daily resets and compounding wore it down even though the index rose 2%.",
+   "tier": "expert",
+   "unit": "F1.07",
+   "why": "Fell about 26%. FINRA's notice covers December 1, 2008 to April 30, 2009. The Dow Jones U.S. Oil & Gas Index gained 2%, and the 2x inverse fund fell 26%. The fund built for twice the index's daily return fell too, by 6%. So both funds lost money in the same months. Each one resets daily, so compounding wears it down whichever way it points. FINRA adds that this effect can be magnified in volatile markets.",
+   "wrong": {
+    "Ended about flat": "Not close. FINRA reports a fall of 26%, far more than the 2% the index moved.",
+    "Fell about 4%": "That is the naive math: twice the opposite of a 2% gain. A daily-reset fund doesn't deliver that over months, and here it did far worse.",
+    "Rose about 6%": "The fund built for twice the index's daily return fell 6% in these months. The inverse fund is not its mirror. Both fell."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "basics.etfs",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F1/F1.07.json#q24",
   "type": "scenario",
   "version": 1
  },

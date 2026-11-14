@@ -818,17 +818,17 @@
    "skill": "basics.spread",
    "rung": 5,
    "format": "scenario",
-   "story": "On Level 2, the ask is $12.40 with 300 shares showing. More sellers wait at $12.45 and $12.50. You send a market buy for 1,000 shares.",
+   "story": "You watch ZXQT on Level 2. The ask is $12.40 with only 300 shares. The next sellers are 400 shares at $12.45 and 500 at $12.50. You send a market buy for 1,000 shares.",
    "q": "What should you expect from the fill?",
    "choices": [
-    "All 1,000 shares at $12.40",
-    "Some at $12.40, rest higher",
-    "It waits until $12.40 has size",
-    "Some at $12.40, rest cancelled"
+    "All 1,000 shares fill at $12.40",
+    "300 fill at $12.40, the rest higher",
+    "300 fill, and the rest are cancelled",
+    "The order waits for more at $12.40"
    ],
-   "answer": "Some at $12.40, rest higher",
-   "why": "Some at $12.40, rest higher. The ask is the least a seller will take, and only 300 shares sit there. A market order fills right away against what is there. Expect the rest to fill against the sellers above it, at $12.45, $12.50 or higher. The SEC's own example works the same way: 500 of 1,000 shares fill at the quote, the rest higher.",
-   "lesson_line": "Read the size before you send size. A market order takes what's there, then reaches higher.",
+   "answer": "300 fill at $12.40, the rest higher",
+   "why": "300 fill at $12.40, the rest higher. The ask is the least a seller will take, and Level 2 shows only 300 shares there. A market order fills right away against whoever is selling. It takes 300 at $12.40, then 400 at $12.45, then the last 300 at $12.50. That adds up to 1,000 shares. Your average price is worse than the quote you saw. The SEC gives the same kind of case. A 1,000-share market buy could fill 500 at the quote and 500 higher.",
+   "lesson_line": "Read the size at the ask before you send size. A market order takes what is there, then reaches higher.",
    "facts": [
     "f10",
     "f11",
@@ -839,11 +839,11 @@
     "f43"
    ],
    "wrong": {
-    "It waits until $12.40 has size": "A market order doesn't wait for more sellers at your price. It generally executes right away, against the sellers who are there.",
-    "All 1,000 shares at $12.40": "Only 300 shares show there. You can't count on more at that price, so expect the rest higher.",
-    "Some at $12.40, rest cancelled": "A market order doesn't drop the rest. In the SEC's example, the other 500 shares could execute at a higher price."
+    "All 1,000 shares fill at $12.40": "Level 2 shows only 300 shares at $12.40. Once those are gone, your order reaches the next sellers at higher prices.",
+    "300 fill, and the rest are cancelled": "A market order does not drop the rest. In the SEC's example, the other 500 shares could execute at a higher price.",
+    "The order waits for more at $12.40": "A market order does not wait for more sellers at your price. It fills right away, against the sellers who are there."
    },
-   "simple": "Only 300 shares sit at $12.40, so expect some to fill there and the rest at the higher prices above it.",
+   "simple": "Only 300 shares sit at the ask, so your market buy takes those, then climbs to the next sellers at higher prices.",
    "deeper": {
     "trap": "The size on screen is a snapshot. By the time a big market order lands, those 300 shares may be gone and the next sellers may sit higher. FINRA warns you might not get the price you saw, especially in a fast market. A market order buys speed, not price."
    },
@@ -854,7 +854,7 @@
      "fixed before (absolute wording softened by the checker)"
     ]
    },
-   "batch": "review1"
+   "batch": "review2"
   },
   {
    "key": "q13",
@@ -1378,8 +1378,8 @@
   "q12": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Story now names Level 2 (rule 6). Some at 12.40 and the rest higher is right (f10, f11, f9). The why defines the ask. The SEC 500-of-1000 example matches f11."
+   "fixed": true,
+   "notes": "Right answer is right: 300 + 400 + 300 = 1,000, matches f9, f10, f11 and f20. ZXQT is not a real company. Level 2 named (rule 6). Choices parallel in length, key not longest. Fixed: the SEC sentence ran 24 words (limit 22) and stated the SEC example as fact when f11 says the order 'could have' filled that way. Reworded in the why and in the cancelled wrong note."
   },
   "q13": {
    "status": "pass",

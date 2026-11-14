@@ -638,11 +638,12 @@
     "The company's total yearly sales"
    ],
    "answer": "Price times all shares outstanding",
-   "why": "Price times all shares outstanding. Investor.gov defines market cap as the current share price times the total shares outstanding. FINRA adds that this includes restricted shares held by officers and insiders. It is the company's perceived value, because investors set the price. It is not sales, and not the day's trading. Free-float cap, which counts only freely tradable shares, is a separate measure.",
+   "why": "Price times all shares outstanding. Shares outstanding means every share investors hold, including the restricted shares officers and insiders own. FINRA's example: 5 million shares at $20 is a $100 million market cap. Think of it as the market's price tag on the whole company. It is not sales, and not the day's trading. Free-float cap, which counts only freely tradable shares, is a separate measure.",
    "lesson_line": "Market cap is price times every share outstanding, not just the ones trading.",
    "facts": [
     "f1",
     "f2",
+    "f3",
     "f59",
     "f61",
     "f12"
@@ -660,7 +661,7 @@
      "fixed before (+1)"
     ]
    },
-   "batch": "wave6"
+   "batch": "review2"
   },
   {
    "key": "q02",
@@ -827,16 +828,10 @@
    "key": "q07",
    "skill": "basics.float_cap",
    "rung": 3,
-   "format": "mcq",
-   "q": "Why is a stock's float usually smaller than its shares outstanding?",
-   "choices": [
-    "Insider and restricted stock left out",
-    "Shares sold short are left out of it",
-    "Shares traded today are left out of it",
-    "Only shares sold in the IPO count"
-   ],
-   "answer": "Insider and restricted stock left out",
-   "why": "Insider and restricted stock left out. The float is the outstanding shares the public can trade, excluding insiders' holdings and restricted stock. Restricted shares are ones bought in private, unregistered sales from the company or an affiliate. An affiliate is someone in control, such as an executive officer, a director or a large shareholder. Buying, selling or shorting only moves existing shares, so the float stays the same.",
+   "format": "tf",
+   "q": "A stock's float is usually smaller than its shares outstanding.",
+   "answer": "True",
+   "why": "True. The float leaves out shares insiders hold and restricted stock, so it is usually smaller than the full share count.",
    "lesson_line": "The float leaves out insiders' shares and anything that can't trade yet.",
    "facts": [
     "f26",
@@ -847,12 +842,7 @@
     "f48",
     "f52"
    ],
-   "wrong": {
-    "Shares sold short are left out of it": "Short selling doesn't change the float. It moves existing shares between investors.",
-    "Shares traded today are left out of it": "Buying and selling only moves shares around. The number available to trade stays the same.",
-    "Only shares sold in the IPO count": "The float isn't frozen at the IPO. New shares sold later add to it, and so do restricted shares once they're free to sell."
-   },
-   "simple": "Insider and restricted stock is left out, so the float counts only the shares the public can trade.",
+   "simple": "True, because the float leaves out insider and restricted shares the public cannot trade.",
    "tier": "core",
    "risk": {
     "score": 0,
@@ -866,23 +856,26 @@
    "rung": 4,
    "format": "mcq",
    "q": "A stock trades at $30 with 50 million shares outstanding. What is its market cap?",
-   "answer": "$1,500 million",
+   "answer": "$1.5 billion",
    "calc": {
-    "fn": "market_cap",
+    "fn": "arith",
     "args": {
+     "expr": "price * shares / per_billion",
      "price": 30,
-     "shares_outstanding": 50
+     "shares": 50,
+     "product_millions": 1500,
+     "per_billion": 1000
     }
    },
    "prefix": "$",
-   "suffix": " million",
-   "why": "$1,500 million, which is $1.5 billion. Market cap is the share price times the shares outstanding: $30 times 50 million is 1,500 million. FINRA's own example works the same way: 5 million shares at $20 is a $100 million market cap.",
-   "lesson_line": "Price times shares outstanding. Work in millions and the zeros stay easy.",
+   "suffix": " billion",
+   "why": "$1.5 billion. Market cap is the share price times the shares outstanding: $30 times 50 million is 1,500 million. A billion is 1,000 million, so that reads $1.5 billion. FINRA's own example works the same way: 5 million shares at $20 is a $100 million market cap.",
+   "lesson_line": "Price times shares outstanding. Past 1,000 million, say it in billions.",
    "facts": [
     "f1",
     "f3"
    ],
-   "simple": "$1,500 million, since market cap is the $30 price times the 50 million shares.",
+   "simple": "$1.5 billion, since market cap is the $30 price times the 50 million shares.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -890,16 +883,16 @@
      "computed key (+2)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "review2",
    "choices": [
+    "$15 billion",
     "$1.5 million",
-    "$150 million",
     "$80 million",
-    "$1,500 million"
+    "$1.5 billion"
    ],
    "wrong": {
-    "$150 million": "A decimal slip: you dropped a zero.",
     "$80 million": "You added the price and the shares instead of multiplying.",
+    "$15 billion": "A decimal slip: 30 times 50 is 1,500 million, and you added a zero.",
     "$1.5 million": "A units slip: 1,500 million is $1.5 billion, not $1.5 million."
    }
   },
@@ -1004,25 +997,27 @@
    "rung": 5,
    "format": "mcq",
    "q": "A $20 stock has 100 million shares outstanding and 60 million in the float. What is its float-adjusted market cap?",
-   "answer": "$1,200 million",
+   "answer": "$1.2 billion",
    "calc": {
     "fn": "arith",
     "args": {
-     "expr": "price * float_shares",
+     "expr": "price * float_shares / per_billion",
      "price": 20,
-     "float_shares": 60
+     "float_shares": 60,
+     "product_millions": 1200,
+     "per_billion": 1000
     }
    },
    "prefix": "$",
-   "suffix": " million",
-   "why": "$1,200 million. Float-adjusted market cap is the price times the shares available to the public: $20 times 60 million is 1,200 million. Plain market cap would use all 100 million shares outstanding instead. Many index providers, Russell included, weight stocks by the float-adjusted number.",
+   "suffix": " billion",
+   "why": "$1.2 billion. Float-adjusted market cap is the price times the shares available to the public, the float: $20 times 60 million is 1,200 million. A billion is 1,000 million, so that reads $1.2 billion. Plain market cap would use all 100 million shares outstanding instead. Many index providers, Russell included, weight stocks by the float-adjusted number.",
    "lesson_line": "Market cap counts every share. Float-adjusted cap counts only what can trade.",
    "facts": [
     "f40",
     "f61",
     "f38"
    ],
-   "simple": "$1,200 million, because float-adjusted cap counts only the 60 million shares the public can trade, at $20 each.",
+   "simple": "$1.2 billion, because float-adjusted cap counts only the 60 million shares the public can trade, at $20 each.",
    "tier": "extended",
    "risk": {
     "score": 3,
@@ -1031,17 +1026,17 @@
      "fixed before (+1)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "review2",
    "choices": [
-    "$2,000 million",
-    "$1,200 million",
+    "$2 billion",
     "$800 million",
-    "$12,000 million"
+    "$1.2 million",
+    "$1.2 billion"
    ],
    "wrong": {
-    "$2,000 million": "You used all 100 million shares outstanding instead of the 60 million float.",
     "$800 million": "You used only the shares that are not in the float.",
-    "$12,000 million": "A decimal slip: you added a zero."
+    "$2 billion": "You used all 100 million shares outstanding instead of the 60 million float.",
+    "$1.2 million": "A units slip: 1,200 million is $1.2 billion, not $1.2 million."
    }
   },
   {
@@ -1077,16 +1072,16 @@
    "skill": "basics.float_cap",
    "rung": 6,
    "format": "scenario",
-   "story": "Four stocks get the same kind of good news before the open. Their market caps: $600 million, $3 billion, $40 billion and $900 billion.",
+   "story": "Four stocks gap up on the same kind of news before the open. Market caps: QZLN $600 million, VXRP $3 billion, HJTK $40 billion, ZWMB $900 billion.",
    "q": "Which one is most likely to make the biggest percent move?",
    "choices": [
-    "The $600 million stock",
-    "The $3 billion stock",
-    "The $40 billion stock",
-    "The $900 billion stock"
+    "QZLN",
+    "VXRP",
+    "HJTK",
+    "ZWMB"
    ],
-   "answer": "The $600 million stock",
-   "why": "The $600 million stock, most likely. On FINRA's ranges it is a small-cap, the smallest of the four. FINRA says large caps tend to swing less than mid caps, and mid caps less than small caps. Fidelity agrees that smaller companies may have more volatile stocks. These are tendencies, no guarantee for any one company.",
+   "answer": "QZLN",
+   "why": "QZLN, most likely. At $600 million it is a small-cap on FINRA's ranges, the smallest of the four. VXRP is a mid-cap, HJTK a large-cap and ZWMB a mega-cap. FINRA says large caps tend to swing less than mid caps, and mid caps less than small caps. Fidelity agrees that smaller companies may have more volatile stocks. These are tendencies, no guarantee for any one company.",
    "lesson_line": "Same news, smaller company, usually a bigger move. Then check the float.",
    "facts": [
     "f10",
@@ -1096,11 +1091,11 @@
     "f27"
    ],
    "wrong": {
-    "The $3 billion stock": "A mid cap tends to swing less than a small cap.",
-    "The $40 billion stock": "Large caps tend to be steadier than mid caps and small caps.",
-    "The $900 billion stock": "It is the biggest of the four. Fidelity says larger companies often have less volatile stocks."
+    "VXRP": "At $3 billion it is a mid-cap, and mid caps tend to swing less than small caps.",
+    "HJTK": "At $40 billion it is a large-cap. Large caps tend to be steadier than mid caps and small caps.",
+    "ZWMB": "At $900 billion it is the biggest of the four. Fidelity says larger companies often have less volatile stocks."
    },
-   "simple": "The $600 million stock, because smaller companies tend to swing more, though it is a tendency and not a promise.",
+   "simple": "QZLN, because the smallest company tends to swing the most, though that is a tendency and not a promise.",
    "deeper": {
     "counter": "The tendency can fail for any one company. FINRA says these generalizations are no guarantee that any particular small-cap company will or won't thrive. Read size as odds, not a forecast. Then check the float as well, because Nasdaq ties a stock's volatility to its float."
    },
@@ -1111,7 +1106,7 @@
      "fixed before (+1)"
     ]
    },
-   "batch": "wave6"
+   "batch": "review2"
   },
   {
    "key": "q14",
@@ -1322,7 +1317,7 @@
    "skill": "basics.float_cap",
    "rung": 8,
    "format": "scenario",
-   "story": "A $0.40 stock announces a 1-for-25 reverse split. After it takes effect, the stock trades around $10.",
+   "story": "NRTQ trades at $0.40 and announces a 1-for-25 reverse split. After it takes effect, the stock trades around $10.",
    "q": "What has really changed?",
    "choices": [
     "Fewer shares, same company value",
@@ -1331,7 +1326,7 @@
     "It is a safer stock to own now"
    ],
    "answer": "Fewer shares, same company value",
-   "why": "Fewer shares, same company value. In a 1-for-25 reverse split you get one new share for every 25 old ones, so $0.40 becomes about $10. FINRA says a split or reverse split does nothing to change the value of a company. The float shrinks with the share count. FINRA notes reverse splits tend to go hand in hand with low-priced, high-risk stocks.",
+   "why": "Fewer shares, same company value. In a 1-for-25 reverse split you get one new share for every 25 old ones. So 25 shares at $0.40 become one share near $10. FINRA's example: 5,000 shares at 10 cents, worth $500, become 25 shares at $20. FINRA says a split or reverse split does nothing to change the value of a company. The float shrinks with the share count. Reverse splits tend to go hand in hand with low-priced, high-risk stocks.",
    "lesson_line": "A reverse split shrinks the share count and the float. It changes nothing about the business.",
    "facts": [
     "f17",
@@ -1355,7 +1350,7 @@
     "score": 0,
     "reasons": []
    },
-   "batch": "wave6"
+   "batch": "review2"
   },
   {
    "key": "q20",
@@ -1452,6 +1447,48 @@
     "reasons": []
    },
    "batch": "wave6"
+  },
+  {
+   "key": "q91",
+   "skill": "basics.float_cap",
+   "rung": 5,
+   "format": "mcq",
+   "q": "A stock has a 12 million share float and 3 million shares sold short. Short interest is what percent of the float?",
+   "choices": [
+    "25%",
+    "75%",
+    "400%",
+    "3%"
+   ],
+   "answer": "25%",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "short_shares / float_shares * 100",
+     "short_shares": 3,
+     "float_shares": 12
+    }
+   },
+   "why": "25%. Short interest is measured against the float, the shares available for trading. Divide the shares sold short by the float: 3 million divided by 12 million is 25%. It tells you how much of the tradable supply is already sold short. The float is the right base because those are the shares that trade.",
+   "lesson_line": "Short interest is shares sold short divided by the float, not by all shares outstanding.",
+   "facts": [
+    "f64",
+    "f26"
+   ],
+   "wrong": {
+    "75%": "You found the part of the float that is not sold short, not the part that is.",
+    "400%": "You divided the float by the shares sold short, 12 over 3, instead of the other way round.",
+    "3%": "You read 3 million as 3 percent. Divide the short shares by the float shares to get the percent."
+   },
+   "simple": "25%, since 3 million shorted shares out of a 12 million float is one quarter.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key (+2)"
+    ]
+   },
+   "batch": "review2"
   }
  ],
  "conflicts": [
@@ -1490,7 +1527,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key re-derived from f1 (Investor.gov, Tier 1) before reading it: price times total shares outstanding. Key 34 chars, not the longest (35). Each wrong note rests on f1/f61/f2. No tell, no second defensible answer."
+   "notes": "Why now defines shares outstanding in plain words and shows FINRA's 5 million x $20 = $100 million (f3, re-read live on finra.org, word for word); f2 and f12 also verbatim. Every sentence under 22 words, teaches per rules 3 and 10. Answer unchanged and right."
   },
   "q02": {
    "status": "pass",
@@ -1499,10 +1536,10 @@
    "notes": "Key from f26 (Nasdaq, Tier 1). Key 27 chars, not the longest. Notes rest on f64 and f51. The why states the Nasdaq definition, which also gives q07's reason; accepted because w2 step 2 already teaches it before any question, and q07 asks the reason at a higher rung."
   },
   "q03": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Only 'outstanding' fits 'every share investors hold, insiders included' (f63, f53); 'floating' excludes insiders. Treasury sentence removed, so the reveal text no longer hands q22 its key (f53 is still cited; its quote mentions treasury, low risk)."
+   "notes": "cut in review2: see the resolver's notes"
   },
   "q04": {
    "status": "pass",
@@ -1532,7 +1569,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Answer and calc check out. Fix: $150 / $1,500 / $15,000 was a decimal ladder with the answer in the middle, an easy tell; swapped $15,000 for a units slip."
+   "notes": "Billions answer is right (30 x 50 = 1,500 million = $1.5 billion) and the why shows the steps (owner note: read in billions). Break: $1.5 billion was the ONLY choice with a decimal point among $15 billion, $150 million and $80 million, so the key stood out as the odd one. Swapped $150 million for a units slip, $1.5 million, so two choices carry a decimal and two read in billions. Every wrong note is a real distinct mistake."
   },
   "q09": {
    "status": "pass",
@@ -1541,16 +1578,16 @@
    "notes": "Recomputed the calc by hand; answer shows it; every wrong choice is a real, distinct mistake; no tell; why walks the steps."
   },
   "q10": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "New deeper names only the split; f19 and f49 support it. No reverse-split statement, so q19 is not handed its key. 'Can look like a bargain' is framing, not a fact claim."
+   "notes": "cut in review2: see the resolver's notes"
   },
   "q11": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Recomputed the calc by hand; answer shows it; every wrong choice is a real, distinct mistake; no tell; why walks the steps."
+   "fixed": true,
+   "notes": "Owner note applied: answer reads $1.2 billion with the step 20 x 60 = 1,200 million shown, and a billion defined. Recomputed by hand. Break: $1.2 billion was the only choice with a decimal point beside $2 billion, $800 million and $12 billion, a tell. Swapped $12 billion for a units slip, $1.2 million, so two choices carry a decimal. Wrong notes for the other two choices stay right (100 million shares at $20 = $2 billion; 40 million non-float shares at $20 = $800 million)."
   },
   "q12": {
    "status": "pass",
@@ -1561,14 +1598,14 @@
   "q13": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key re-derived before reading it: the $600 million stock (f10 FINRA, f60 Fidelity; both quotes re-read live on 2026-11-12, f10 and f11 verbatim on finra.org, f60 verbatim on fidelity.com). $600M is small-cap on f6, $3B mid on f5, $40B large on f5. Choices balanced (20-22 chars), no tell, no second defensible answer; 'most likely' matches the tendency wording. Break found: the wrong note for 'The $900 billion stock' says 'A mega cap is usually the steadiest of the four'. FINRA's page compares only large, mid and small caps and says nothing about mega-cap volatility (checked live). The only supp"
+   "fixed": false,
+   "notes": "Made-up tickers QZLN, VXRP, HJTK, ZWMB checked against Nasdaq's nasdaqlisted.txt and otherlisted.txt (fetched today) and the 3,742-name cap universe: none is a listed company. Buckets right on FINRA's lines (f5, f6, f4): $600 million small, $3 billion mid, $40 billion large, $900 billion mega. f10 and f11 quotes verbatim. Tickers fixes the unlabeled-dollar-stems problem (rule 7); tendency wording kept (most likely). All four tickers are four capital letters, no tell."
   },
   "q14": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Recomputed the calc by hand; answer shows it; every wrong choice is a real, distinct mistake; no tell; why walks the steps."
+   "notes": "cut in review2: see the resolver's notes"
   },
   "q15": {
    "status": "pass",
@@ -1583,22 +1620,22 @@
    "notes": "Key from f31 + f41/f48. 'May, not will' matches f33. The new note 'may sell or keep their shares' is supported by f33's 'may be sold'. 'Guaranteed' is the lone absolute but sits on a wrong choice, so it marks a wrong answer, not the key."
   },
   "q17": {
-   "status": "pass",
-   "by": "checker",
-   "fixed": false,
-   "notes": "Deeper arithmetic checked: 15,116,786 - 401,672 + 58,146 = 14,773,260, matching f37's quoted ending balance. Every number is in f36/f37. Sentences split under 22 words."
-  },
-  "q18": {
-   "status": "pass",
+   "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "cut in review2: see the resolver's notes"
+  },
+  "q18": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in review2: see the resolver's notes"
   },
   "q19": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "New simple: 25 and 1 come from the story's 1-for-25; claim matches f17/f19. Under 25 words."
+   "notes": "NRTQ is not a listed ticker (Nasdaq directories checked today). Math right: 25 shares at $0.40 = $10 = one share near $10; FINRA's 5,000 shares at 10 cents = $500 = 25 shares at $20, quote re-read word for word on finra.org (f18). f19 and f16 quotes verbatim on the live page. Teaches the step and a real sourced case (rule 10). Answer unchanged and right."
   },
   "q20": {
    "status": "pass",
@@ -1608,16 +1645,22 @@
    "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q21": {
-   "status": "pass",
-   "by": "checker",
-   "fixed": true,
-   "notes": "One-idea stem fixes his 'slightly confusing' note, key True is right (f40, f39, f61, f62, f26, f2), why defines float and walks the logic. Defect: the 'simple' starts 'Smaller,' but the question is true/false and the answer is True, and 'this one' has no referent. Rewritten to open with True."
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in review2: see the resolver's notes"
   },
   "q22": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in review2: see the resolver's notes"
+  },
+  "q91": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "New TF. Key True re-derived from f28 (Nasdaq, Tier 1) with f53 (Investopedia) agreeing. No hedge or absolute in the statement. True/False balance improves to 2 True, 3 False. Nasdaq's glossary page timed out on a re-fetch this pass (unreachable now); f28 was already on file from the earlier verified build, nothing new quoted from memory."
+   "notes": "New. 3 / 12 = 25%, calc and key agree; wrong notes are the real slips (75% = the part not shorted, 400% = 12/3 flipped, 3% = unit slip). f64 (Schwab) quote re-read live, word for word: ratio of shares sold short to the float. Practical screen number a trader reads and ties the float to a real use, replacing cut calc slots. No new fact needed. Choices all round, no tell. Short interest was already introduced in q02's wrong note and why."
   }
  }
 }

@@ -721,13 +721,14 @@
     "Money brought in from sales"
    ],
    "answer": "Money brought in from sales",
-   "why": "Money brought in from sales. Revenue is the top line of the income statement. It is the total brought in from selling products or services over a period, such as a year or a quarter. It comes before any costs are taken out, so it is not profit. You'll also see it called sales.",
+   "why": "Money brought in from sales. Revenue is the top line of the income statement: all the money from selling products or services over a period, before any cost comes out. So it is not profit. You'll also see it called sales. Real case: Amazon's net sales were $155.7 billion in its first quarter.",
    "lesson_line": "Revenue is the top line. Costs and expenses come out of it.",
    "facts": [
     "f02",
     "f01",
     "f08",
-    "f04"
+    "f04",
+    "f41"
    ],
    "wrong": {
     "Profit left after all costs": "That's net income, what's left once every expense is subtracted from revenue.",
@@ -742,7 +743,7 @@
      "fixed before: choices reordered (+1)"
     ]
    },
-   "batch": "wave6"
+   "batch": "review2"
   },
   {
    "key": "q02",
@@ -781,8 +782,8 @@
     "The investor slide deck"
    ],
    "answer": "A press release filed on an 8-K",
-   "why": "A press release filed on an 8-K. Most companies put out their sales and earnings in a press release. If they do, they must file it with the SEC on Form 8-K. The release is a summary. The full statements come later in the 10-Q or 10-K. The earnings call usually comes shortly after the release.",
-   "lesson_line": "The release comes first. The 10-Q fills in the detail later.",
+   "why": "A press release filed on an 8-K. Most companies put their sales and earnings in a press release. A company that issues one must file it with the SEC on Form 8-K. So that is where the numbers show up first. The 10-Q is the full quarterly report and comes later. The call with analysts usually follows shortly after the release. A slide deck is marketing and tends to sound rosier than the filings.",
+   "lesson_line": "Read the release, not the deck. The numbers show up there first.",
    "facts": [
     "f76",
     "f12",
@@ -804,7 +805,7 @@
      "fixed before: choices reordered (+1)"
     ]
    },
-   "batch": "wave6"
+   "batch": "review2"
   },
   {
    "key": "q04",
@@ -850,34 +851,31 @@
     "The highest analyst estimate"
    ],
    "answer": "The analysts' average estimate",
-   "why": "The analysts' average estimate. Several data groups track it, averaging every analyst who covers the stock.",
+   "why": "The analysts' average estimate. Analysts publish estimates for both earnings and revenue. The consensus is the average of all the analysts who cover the stock. Several data groups track it, so the figure can differ a little by provider. It is the bar a report gets measured against. Amazon earned $1.59 per share in its first quarter against a $1.36 consensus, which is a beat.",
    "lesson_line": "The consensus is the bar the report gets measured against.",
    "facts": [
     "f18",
     "f20",
-    "f25"
+    "f25",
+    "f55"
    ],
    "wrong": {
     "The company's own forecast": "That's guidance, management's own view of what comes next. The consensus is the analysts' number.",
     "Last year's result": "That's the year-ago number you measure growth against, not the estimate.",
     "The highest analyst estimate": "One analyst's high number isn't the consensus. The consensus averages them all."
-   }
+   },
+   "simple": "It is the average guess of all the analysts, so one high or low call does not count.",
+   "batch": "review2"
   },
   {
    "key": "q06",
    "skill": "fund.report",
    "rung": 2,
-   "format": "mcq",
+   "format": "tf",
    "term": "year over year",
-   "q": "Amazon says first-quarter sales grew 9% year over year. What is the quarter compared with?",
-   "choices": [
-    "The quarter just before this one",
-    "The start of the year to now",
-    "The same period a year earlier",
-    "The analysts' estimate for it"
-   ],
-   "answer": "The same period a year earlier",
-   "why": "The same period a year earlier. Year over year sets a period against the same period one year before. Amazon's release compares first-quarter net sales of $155.7 billion with $143.3 billion in the first quarter of 2024. Quarter over quarter would use the quarter just before. Year to date counts from the start of the year.",
+   "q": "When a company says sales grew 9% year over year, it compares with the quarter just before.",
+   "answer": "False",
+   "why": "False. Year over year compares with the same period a year earlier, not the quarter just before it. That is quarter over quarter.",
    "lesson_line": "Year over year means the same period, one year apart.",
    "facts": [
     "f58",
@@ -886,12 +884,7 @@
     "f62",
     "f19"
    ],
-   "wrong": {
-    "The quarter just before this one": "That's quarter over quarter, the change from the previous quarter.",
-    "The start of the year to now": "That's year to date, measured from the start of the year. Year over year matches the same period a year apart.",
-    "The analysts' estimate for it": "That's the yardstick for a beat or a miss. Growth compares the result with a real number from the past."
-   },
-   "simple": "It's set against the same quarter one year before, because that is what year over year means.",
+   "simple": "False, because year over year means the same quarter a year earlier.",
    "tier": "core",
    "risk": {
     "score": 1,
@@ -899,7 +892,7 @@
      "fixed before: choices reordered (+1)"
     ]
    },
-   "batch": "wave6"
+   "batch": "review2"
   },
   {
    "key": "q07",
@@ -962,7 +955,7 @@
    "skill": "fund.report",
    "rung": 4,
    "format": "mcq",
-   "q": "Target's Q1 2025 net earnings were $1,036 million on 456.5 million diluted shares. What is diluted EPS, to the cent?",
+   "q": "Target's Q1 2025 net earnings were $1.036 billion on 456.5 million diluted shares. What is diluted EPS, to the cent?",
    "answer": "$2.27",
    "prefix": "$",
    "calc": {
@@ -973,13 +966,13 @@
      "shares": 456.5
     }
    },
-   "why": "$2.27. Divide net earnings of $1,036 million by 456.5 million diluted shares. Both are in millions, so the millions cancel, and 1,036 / 456.5 is about 2.27. Target's table divides by the quarter's weighted average diluted shares and reports the same $2.27.",
+   "why": "$2.27. EPS is net income divided by the shares outstanding. Diluted counts the shares that options and similar securities could become. Put both numbers in millions: $1.036 billion is 1,036 million. Then 1,036 / 456.5 is about 2.27. Target's table divides by the quarter's weighted average diluted shares and reports the same $2.27.",
    "lesson_line": "EPS is net income over the share count. You can check it yourself.",
    "facts": [
     "f04",
     "f31"
    ],
-   "simple": "It's $2.27, because you split the $1,036 million of profit over the 456.5 million shares.",
+   "simple": "It's $2.27, because you split the $1.036 billion of profit over the 456.5 million shares.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -988,7 +981,7 @@
      "fixed before: 'to the cent' added (+1)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "review2",
    "choices": [
     "$579.50",
     "$0.44",
@@ -1006,27 +999,27 @@
    "skill": "fund.report",
    "rung": 4,
    "format": "mcq",
-   "q": "NVIDIA's Q3 fiscal 2026 revenue was $57,006 million, up from $35,082 million a year earlier. YoY growth, to the nearest percent?",
+   "q": "NVIDIA's Q3 fiscal 2026 revenue was $57.0 billion, up from $35.1 billion a year earlier. YoY growth, to the nearest percent?",
    "answer": "62%",
    "suffix": "%",
    "calc": {
     "fn": "yoy_growth",
     "args": {
-     "prior": 35082,
-     "current": 57006
+     "prior": 35.1,
+     "current": 57.0
     },
     "round": 0
    },
-   "why": "62%. Divide this year's $57,006 million by the year-ago $35,082 million, subtract one, then times 100. That rounds to 62. NVIDIA's release says revenue was up 62% from a year ago.",
+   "why": "62%. Growth is measured from the old number. Divide this year's $57.0 billion by the year-ago $35.1 billion, subtract one, then times 100. That rounds to 62. NVIDIA's release says revenue was up 62% from a year ago.",
    "lesson_line": "Growth is measured from the old number. For year over year, divide by the year-ago figure.",
    "facts": [
     "f61",
     "f48",
     "f47"
    ],
-   "simple": "62%, because the jump from $35,082 million to $57,006 million is about 62% of the year-ago number.",
+   "simple": "62%, because the jump from $35.1 billion to $57.0 billion is about 62% of the year-ago number.",
    "deeper": {
-    "example": "NVIDIA's table gives both yardsticks. Against the quarter before, $46,743 million, revenue rose 22%. Against a year earlier, it rose 62%. Same quarter, two growth rates. Say which one you mean."
+    "example": "NVIDIA's table gives both yardsticks. Against the quarter before, revenue rose 22%. Against a year earlier, it rose 62%. Same quarter, two growth rates. Say which one you mean."
    },
    "tier": "core",
    "risk": {
@@ -1035,7 +1028,7 @@
      "computed key (+2)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "review2",
    "choices": [
     "6.2%",
     "38%",
@@ -1043,7 +1036,7 @@
     "62%"
    ],
    "wrong": {
-    "38%": "You divided the rise by this year's $57,006 million instead of the year-ago figure.",
+    "38%": "You divided the rise by this year's $57.0 billion instead of the year-ago $35.1 billion.",
     "162%": "You divided the two numbers and forgot to subtract one.",
     "6.2%": "A decimal slip: you moved the point one place."
    }
@@ -1103,7 +1096,7 @@
    "skill": "fund.report",
    "rung": 5,
    "format": "mcq",
-   "q": "Gross margin is sales less cost of sales, divided by sales. Target, Q1 2025: sales $23,846 million, cost $17,128 million. To one decimal?",
+   "q": "Gross margin is sales less cost of sales, divided by sales. Target, Q1 2025: sales $23.846 billion, cost $17.128 billion. To one decimal?",
    "answer": "28.2%",
    "suffix": "%",
    "calc": {
@@ -1115,7 +1108,7 @@
     },
     "round": 1
    },
-   "why": "28.2%. Take sales less cost of sales, $23,846 million minus $17,128 million. Divide that by the $23,846 million of sales and you get 28.2%. Target's release reports the same 28.2 percent.",
+   "why": "28.2%. Take sales less cost of sales, $23.846 billion minus $17.128 billion. That is gross profit: what is left of the sales after paying for the goods sold. Divide it by the $23.846 billion of sales and you get 28.2%. Target's release reports the same 28.2 percent.",
    "lesson_line": "Gross margin is what's left of each sales dollar after the cost of the goods.",
    "facts": [
     "f03",
@@ -1132,7 +1125,7 @@
      "computed key (+2)"
     ]
    },
-   "batch": "rank",
+   "batch": "review2",
    "choices": [
     "28.2%",
     "39.2%",
@@ -1159,7 +1152,7 @@
     "2025 into 2026"
    ],
    "answer": "Calendar 2025",
-   "why": "Calendar 2025. The release calls it the third quarter of fiscal 2026. But it says the quarter ended October 26, 2025. A quarter is three months, so it began in 2025 too. Some companies run fiscal years that don't match the calendar. Go by the end date, not the label.",
+   "why": "Calendar 2025. The release calls it the third quarter of fiscal 2026, but it also says the quarter ended October 26, 2025. Some companies run a fiscal calendar that does not line up with the calendar year, so the label can run ahead of the date. A quarter is three months, so three quarters is nine months. That puts the start of this fiscal year in early 2025. Go by the end date, not the label.",
    "lesson_line": "Fiscal labels can mislead. Read the quarter's end date.",
    "facts": [
     "f46",
@@ -1184,7 +1177,7 @@
      "fixed before: choices reordered (+1)"
     ]
    },
-   "batch": "wave6"
+   "batch": "review2"
   },
   {
    "key": "q14",
@@ -1234,7 +1227,7 @@
    "skill": "fund.report",
    "rung": 6,
    "format": "mcq",
-   "q": "Operating margin is income from operations over revenue. Tesla, Q3 2025: $1,624 million on $28,095 million of revenue. To one decimal?",
+   "q": "Operating margin is income from operations over revenue. Tesla, Q3 2025: $1.624 billion on $28.095 billion of revenue. To one decimal?",
    "answer": "5.8%",
    "suffix": "%",
    "calc": {
@@ -1246,7 +1239,7 @@
     },
     "round": 1
    },
-   "why": "5.8%. Operating margin is income from operations divided by revenue: $1,624 million over $28,095 million is 5.8%. It is the share of each sales dollar left from the main business. Tesla's financial summary table shows the same 5.8%, down from 10.8% a year earlier.",
+   "why": "5.8%. Operating margin is income from operations divided by revenue: $1.624 billion over $28.095 billion is 5.8%. It is the share of each sales dollar left from the main business. Tesla's financial summary table shows the same 5.8%, down from 10.8% a year earlier.",
    "lesson_line": "Operating margin shows how much of each sales dollar survives the cost of running the business.",
    "facts": [
     "f06",
@@ -1255,7 +1248,7 @@
     "f52",
     "f51"
    ],
-   "simple": "5.8%, because $1,624 million of operating income is about 5.8% of $28,095 million in revenue.",
+   "simple": "5.8%, because $1.624 billion of operating income is about 5.8% of $28.095 billion in revenue.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -1263,7 +1256,7 @@
      "computed key (+2)"
     ]
    },
-   "batch": "rank",
+   "batch": "review2",
    "choices": [
     "5.8%",
     "0.1%",
@@ -1273,7 +1266,7 @@
    "wrong": {
     "0.6%": "A decimal slip: you moved the point one place.",
     "0.1%": "You forgot to multiply by 100 and rounded the decimal.",
-    "1.6%": "You read the first digits of $1,624 million as a percent."
+    "1.6%": "You read the first digits of $1.624 billion as a percent."
    }
   },
   {
@@ -1281,7 +1274,7 @@
    "skill": "fund.report",
    "rung": 6,
    "format": "mcq",
-   "q": "Target's Q1 2025 table shows basic EPS of $2.28 and diluted EPS of $2.27. Why is diluted lower?",
+   "q": "Target's Q1 2025 table shows basic EPS $2.28 and diluted EPS $2.27 on $1.036 billion of net earnings. Why is diluted lower?",
    "choices": [
     "It counts shares that could be issued",
     "It leaves out one-time gains",
@@ -1289,8 +1282,8 @@
     "It uses the share count at quarter end"
    ],
    "answer": "It counts shares that could be issued",
-   "why": "It counts shares that could be issued. Basic EPS counts only shares already issued and outstanding. Diluted EPS also counts the shares that options, convertibles and similar securities could become. Target's net earnings were $1,036 million on both lines. Spread over 456.5 million diluted shares instead of 455.0 million basic, EPS is $2.27, not $2.28.",
-   "lesson_line": "Diluted EPS spreads the same profit over more shares.",
+   "why": "It counts shares that could be issued. Basic EPS counts only the shares already issued and outstanding. Diluted EPS also counts the shares that options, convertibles and similar securities could become. Target's net earnings were $1.036 billion on both lines. Over 455.0 million basic shares that is about $2.28. Over 456.5 million diluted shares it is about $2.27. Same profit, more shares, a smaller slice. Target's release quotes diluted EPS throughout.",
+   "lesson_line": "Diluted EPS spreads the same profit over more shares. It is the more cautious number.",
    "facts": [
     "f11",
     "f10",
@@ -1310,7 +1303,7 @@
      "fixed before: key reworded to the SEC's general wording (+1)"
     ]
    },
-   "batch": "wave6"
+   "batch": "review2"
   },
   {
    "key": "q17",
@@ -1326,7 +1319,7 @@
     "Mixed. GAAP beat, adjusted missed"
    ],
    "answer": "Missed. $1.30 is below $1.61",
-   "why": "Missed. CNBC sets LSEG's $1.61 estimate against adjusted EPS, so compare it with the adjusted $1.30. The $2.27 GAAP figure includes one-time lawsuit settlement gains that adjusted EPS leaves out. Compare like with like. Target's shares fell more than 5% that day.",
+   "why": "Missed. GAAP EPS follows the standard accounting rules, and Target's $2.27 includes one-time lawsuit settlement gains. Adjusted EPS leaves those gains out and was $1.30. CNBC sets LSEG's $1.61 estimate against adjusted EPS, so $1.30 is the number to compare. Compare like with like. Target's shares fell more than 5% that day.",
    "lesson_line": "Compare like with like. Adjusted EPS against the adjusted estimate.",
    "facts": [
     "f28",
@@ -1351,7 +1344,7 @@
      "fixed before: why reworded, choices reordered (+1)"
     ]
    },
-   "batch": "wave6"
+   "batch": "review2"
   },
   {
    "key": "q18",
@@ -1360,13 +1353,14 @@
    "format": "tf",
    "q": "Adjusted EPS lets you compare two companies like for like.",
    "answer": "False",
-   "why": "False. Adjusted EPS is each company's own measure, with no single recipe. Target's release warns that other companies may calculate it differently, which limits comparisons. A company showing a non-GAAP number must also show how it differs from the closest GAAP number. Read the reconciliation to see what each one changed.",
-   "lesson_line": "Adjusted is the company's own recipe. Check the reconciliation.",
+   "why": "False. Adjusted EPS is EPS with some items left out, and each company picks which ones. There is no single recipe. Target's release warns that other companies may calculate it differently, so two adjusted numbers may not match. Look at Target's own case. GAAP EPS was $2.27 and adjusted was $1.30, because adjusted leaves out lawsuit settlement gains. A company that shows an adjusted number must also show how it differs from the closest GAAP number. Read that reconciliation to see what was left out.",
+   "lesson_line": "Adjusted is the company's own recipe. Read the reconciliation before you compare.",
    "facts": [
     "f37",
     "f26",
     "f16",
-    "f40"
+    "f40",
+    "f28"
    ],
    "simple": "False, because other companies may work out adjusted EPS in a different way, so two figures may not match.",
    "deeper": {
@@ -1379,7 +1373,7 @@
      "fixed before: 'leaves out' changed to 'changed' (+1)"
     ]
    },
-   "batch": "wave6"
+   "batch": "review2"
   },
   {
    "key": "q19",
@@ -1458,8 +1452,8 @@
     "No. The margin fell to 5.3%"
    ],
    "answer": "No. Without the gains it fell",
-   "why": "No. Strip out the one-time lawsuit gains and Target's operating margin was 3.7%, below last year's 5.3%. The reported 6.2% includes the settlement benefit. Last year's quarter had nothing to strip out: GAAP and adjusted EPS were both $2.03. Compare a company with its own past, like for like.",
-   "lesson_line": "One-time gains can dress up a margin. Look at it without them.",
+   "why": "No. Operating margin is income from operations divided by revenue: the share of each sales dollar left from the main business. Target reported 6.2%, up from 5.3%. But the 6.2% includes $593 million of one-time gains from settling a lawsuit over card fees. That gain does not come from selling goods, and it will not repeat. Take it out and the margin was 3.7%. Last year's quarter had nothing to take out, since GAAP and adjusted EPS were both $2.03. So 3.7% against 5.3% means the core business kept less of each sales dollar. Gross margin slipped too, to 28.2% from 28.8%. Judge a margin without one-time items, against the company's own past.",
+   "lesson_line": "One-time gains can dress up a margin. Strip them out and compare with the company's own past.",
    "facts": [
     "f34",
     "f35",
@@ -1467,7 +1461,8 @@
     "f29",
     "f69",
     "f74",
-    "f68"
+    "f68",
+    "f33"
    ],
    "wrong": {
     "Yes. The margin rose to 6.2%": "That 6.2% leans on a one-time benefit from the lawsuit settlements. Selling goods didn't earn that part.",
@@ -1485,7 +1480,7 @@
      "fixed before: f77 added, choices reordered (+1)"
     ]
    },
-   "batch": "wave6"
+   "batch": "review2"
   },
   {
    "key": "q22",
@@ -1494,7 +1489,7 @@
    "format": "tf",
    "q": "When a company beats both the EPS and revenue estimates, its stock rises.",
    "answer": "False",
-   "why": "False. A beat does not promise a rise. Amazon beat both the EPS and revenue estimates for its first quarter of 2025. Its stock still fell more than 2% in extended trading. FINRA notes a company can beat but give a dour outlook, and the price can drop.",
+   "why": "False. A beat does not promise a rise. Amazon beat both the EPS and revenue estimates for its first quarter of 2025. Its stock still fell more than 2% in extended trading. Guidance is management's own view of what comes next, often given on the earnings call. FINRA notes a company can beat but give a dour outlook, and the price can drop.",
    "lesson_line": "A beat doesn't promise a rally. The outlook can matter more.",
    "facts": [
     "f21",
@@ -1512,7 +1507,7 @@
     "score": 0,
     "reasons": []
    },
-   "batch": "wave6"
+   "batch": "review2"
   },
   {
    "key": "q23",
@@ -1558,16 +1553,16 @@
    "skill": "fund.report",
    "rung": 9,
    "format": "scenario",
-   "story": "NVIDIA is an AI and accelerated computing company. Its GAAP gross margin for Q3 fiscal 2026 was 73.4%. Target's Q1 2025 gross margin slipped from 28.8% a year earlier.",
-   "q": "What's the right yardstick for Target's gross margin?",
+   "story": "Target's gross margin was 28.2% in Q1 2025, down from 28.8% a year earlier. A friend calls that weak next to NVIDIA's 73.4%.",
+   "q": "How should you judge Target's 28.2%?",
    "choices": [
-    "Its own past and other retailers",
-    "NVIDIA's 73.4%, a big firm",
-    "The market's average margin",
-    "Its own 6.2% operating margin"
+    "Against its past and other retailers",
+    "Against NVIDIA's 73.4%, the AI leader",
+    "Against the average of all stocks",
+    "Against its own 6.2% operating margin"
    ],
-   "answer": "Its own past and other retailers",
-   "why": "Its own past and other retailers. What counts as a good ratio depends on the industry. CNBC groups Target with retailers such as Walmart and Home Depot. NVIDIA is in AI and accelerated computing, so its 73.4% says little about Target. Against its own year-ago 28.8%, Target's margin slipped.",
+   "answer": "Against its past and other retailers",
+   "why": "Against its past and other retailers. Gross margin is sales less cost of sales, divided by sales. What counts as a good ratio depends on the industry. CNBC groups Target with retailers such as Walmart and Home Depot. NVIDIA is in AI and accelerated computing, so its 73.4% says little about Target. Against its own year-ago 28.8%, Target's margin slipped. That is the signal to follow.",
    "lesson_line": "Judge a margin against its own history and its industry, not across industries.",
    "facts": [
     "f07",
@@ -1579,19 +1574,15 @@
     "f49",
     "f33",
     "f03",
-    "f06",
-    "f34",
     "f78",
-    "f79",
-    "f48",
-    "f30"
+    "f79"
    ],
    "wrong": {
-    "NVIDIA's 73.4%, a big firm": "Size isn't the yardstick. NVIDIA is in AI and accelerated computing, not retail, and desirable ratios vary by industry.",
-    "The market's average margin": "A market average mixes many industries. What counts as a good ratio depends on the industry.",
-    "Its own 6.2% operating margin": "That's a different measure. Gross margin subtracts only the cost of sales. Operating margin uses income from operations."
+    "Against NVIDIA's 73.4%, the AI leader": "Company size is not the yardstick. NVIDIA is in AI and accelerated computing, not retail, and good ratios vary by industry.",
+    "Against the average of all stocks": "An average across all stocks mixes many industries. What counts as a good ratio depends on the industry.",
+    "Against its own 6.2% operating margin": "That's a different measure. Gross margin subtracts only the cost of sales. Operating margin uses income from operations."
    },
-   "simple": "Compare it with Target's own past and with other retailers, because good margins differ from one industry to another.",
+   "simple": "Compare it with Target's own past and with other stores, since good margins differ by trade.",
    "deeper": {
     "trap": "The trap is ranking companies from different industries by margin. Software companies often run much higher gross margins than retailers, because their direct production costs are lower. Line a margin up against its peers and its own past."
    },
@@ -1600,7 +1591,49 @@
     "score": 0,
     "reasons": []
    },
-   "batch": "wave6"
+   "batch": "review2"
+  },
+  {
+   "key": "q91",
+   "skill": "fund.report",
+   "rung": 6,
+   "format": "scenario",
+   "story": "Target, Q1 2025: net sales fell 2.8% from a year earlier. Net earnings still rose 10.0%, to $1.036 billion. Gross margin slipped to 28.2% from 28.8%.",
+   "q": "Sales fell and margin slipped, yet net earnings rose. What lifted the bottom line?",
+   "choices": [
+    "Higher sales than last year",
+    "A wider gross margin than 2024",
+    "One-time gains from a lawsuit",
+    "Fewer shares to split the profit"
+   ],
+   "answer": "One-time gains from a lawsuit",
+   "why": "One-time gains from a lawsuit. Net income is the bottom line: the profit left after expenses, with any gains counted in. Target's release says its operating income included $593 million of pre-tax gains from settling a lawsuit over card fees. That is not money from selling more goods. Net earnings went from $942 million to $1.036 billion, up 10.0%, while net sales fell 2.8%. A rising bottom line can come from a gain that will not repeat. Check where the profit came from.",
+   "lesson_line": "When sales fall and net income rises, look for one-time items first.",
+   "facts": [
+    "f36",
+    "f31",
+    "f33",
+    "f29",
+    "f08",
+    "f09"
+   ],
+   "wrong": {
+    "A wider gross margin than 2024": "Gross margin narrowed to 28.2% from 28.8%, so it did not help.",
+    "Fewer shares to split the profit": "The share count moves EPS, not net earnings. Net earnings is the total profit before it is split per share.",
+    "Higher sales than last year": "Net sales fell 2.8%, so sales did not help."
+   },
+   "simple": "One-time lawsuit gains, because sales and gross margin both fell while the settlement added profit.",
+   "tier": "extended",
+   "deeper": {
+    "trap": "The trap is reading only the bottom line. Net earnings rose 10.0%, but sales fell and the gross margin slipped. The lift came from the settlement, which is not a sign that the stores sold more."
+   },
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "new question"
+    ]
+   },
+   "batch": "review2"
   }
  ],
  "conflicts": [
@@ -1638,38 +1671,37 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Solved cold: money brought in from sales (f02 top line; f01 over a period). Choices 23-28 chars, key not longest, distractors are real confusions (net income f08, EPS f04, cash). Wrong notes grounded. The EPS wrong note names EPS, but w1 step 2 already states q04's answer, so no new leak. No duplicate term 'revenue' elsewhere in courses."
+   "notes": "Cold solve: money brought in from sales (f02). Amazon $155.7B example matches f41. Choices balanced, wrong notes sound."
   },
   "q02": {
-   "status": "pass",
+   "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "cut in review2: see the resolver's notes"
   },
   "q03": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Cold solve: press release filed on 8-K (f76, f24, f12). 10-Q later (f14), call after (f13), deck marketing (f22). Defines the terms in plain words; choices unchanged and balanced."
   },
   "q04": {
-   "status": "pass",
+   "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "cut in review2: see the resolver's notes"
   },
   "q05": {
    "status": "cut",
-   "notes": "duplicate of F5.02#q01. Track audit 2026-11-09: Same definition of the consensus estimate, same multiple-choice ask, nearly the same choices, and a second Word Match tile for the same term. The consensus is F5.02's topic, so F5.02#q01 is kept; F5.01's w1 still introduces the word. The question stays in the file as the record. Checker's earlier note (pass): f18 (FINRA: consensus is 'the average for all the analysts covering the stock'); f25 (FINRA: management gives guidance) backs the forecast note. Every key sat in the first slot and the lesson player does not shuffle, so the choices were reordered (no wording change).",
+   "by": "checker",
    "fixed": false,
-   "by": "track auditor"
+   "notes": "Already cut in the lesson (verify status cut: duplicate of F5.02#q01). The upgrade edited it, which would have revived it; kept cut."
   },
   "q06": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "Cold solve: same period a year earlier (f58). 155.7/143.3 - 1 = 8.65%, 'about 9%' matches f41 release. Distractors are real confusions (QoQ, YTD)."
   },
   "q07": {
    "status": "pass",
@@ -1678,22 +1710,22 @@
    "notes": "upgraded wave6; awaiting cold re-read"
   },
   "q08": {
-   "status": "pass",
+   "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "cut in review2: see the resolver's notes"
   },
   "q09": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed the calc by hand; answer shows it; every wrong choice is a real, distinct mistake; no tell; why walks the steps."
+   "notes": "1,036 / 456.5 = 2.269 -> $2.27. $1.036 billion = 1,036 million explained in why; calc args still 1036 and 456.5. Wrong values 0.44, 22.70, 579.50 recomputed and match their notes."
   },
   "q10": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Answer and calc check out. Fix: the 22% choice (versus the quarter before) cannot be made from the numbers in the question; swapped it for a decimal slip."
+   "fixed": false,
+   "notes": "57.0/35.1 - 1 = 62.4% -> 62 (and 62.5% from the unrounded 35,082). Calc args updated to billions. 38% = 21.9/57.0 matches its note. Deeper 22% QoQ and 62% YoY match f47."
   },
   "q11": {
    "status": "pass",
@@ -1705,13 +1737,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
+   "notes": "(23.846 - 17.128)/23.846 = 28.17% -> 28.2%. Billions now, same as f33's 28.2 percent. Wrong values recompute: 39.2, 71.8, 282.0."
   },
   "q13": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Solved cold: quarter ended Oct 26, 2025 (f47) and a quarter is three months (f65), so calendar 2025. Choices balanced (13-14 chars); '2025 into 2026' is a real confusion (the fiscal 2026 label). Deeper grounded in f23 and f30 (three months ended May 3, 2025)."
+   "notes": "Answers the owner's note: brief line that some companies run fiscal calendars off the calendar year (f23), plus a nine-month check from f47 and f65 (FY2026 began late Jan 2025). Answer Calendar 2025 right; wrong choices clearly wrong."
   },
   "q14": {
    "status": "pass",
@@ -1722,32 +1754,32 @@
   "q15": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
+   "fixed": true,
+   "notes": "1,624/28,095 = 5.78% -> 5.8%, f52 matches. Defect: the 1.6% wrong note still said '$1,624 million' while the question now reads $1.624 billion (stale unit, number not in the stem). Reworded to $1.624 billion."
   },
   "q16": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Right answer per f10/f11; 1,036/455.0 = 2.277 -> 2.28 and 1,036/456.5 = 2.269 -> 2.27 both check; f38 backs 'release quotes diluted EPS'. Fix: why wrote $1,036 million while q09 now says $1.036 billion (learning 9, natural units, and the lesson must not mix the two). The stem now carries the $1.036 billion so the number is grounded."
   },
   "q17": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "Missed is right: CNBC compares LSEG's $1.61 with adjusted $1.30 (f53). $2.27 GAAP includes the $593M gains (f28, f29). 5% drop is f54. Defines GAAP vs adjusted; deeper unchanged and supported."
   },
   "q18": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "False is right per f37 (other companies may calculate it differently, limiting comparisons). Statement no longer carries an absolute. Why grounded in f37, f16, f40; deeper counter in f26 plus the arithmetic of removing a cost."
+   "notes": "Answers 'teach more': defines adjusted EPS, uses Target's own $2.27 vs $1.30 (f28), explains the reconciliation (f16, f40). False is right per f37. 'each company picks which ones' is a fair reading of f37 and f26."
   },
   "q19": {
-   "status": "pass",
+   "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "cut in review2: see the resolver's notes"
   },
   "q20": {
    "status": "pass",
@@ -1760,27 +1792,31 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Solved cold: no, 3.7% without the gains vs 5.3% (f34, f35), and last year had no adjustments (f77) so the comparison is like for like. Choices 27-32 chars, key not longest. Changed notes grounded (f68/f69; f34/f35)."
+   "notes": "Answers 'more thorough': defines operating margin, 6.2% vs 3.7% vs 5.3% (f34, f35), $593M (f29), last year's quarter had nothing to remove (f77), gross margin slip (f33). No: without the gains it fell is right. Sentences short."
   },
   "q22": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "False is right. f55/f56 re-fetched from CNBC 2026-11-12: $1.59 vs $1.36, $155.67B vs $155.04B, 'The stock fell more than 2% in extended trading.' Why does not claim the fall was caused by the outlook (it cites FINRA f21 as a general possibility), which keeps it accurate. Deeper is grounded in f25/f21 and no longer copies the why. Lesson-level note for the resolver: the why says Amazon beat on EPS, which is q07's key; q07 is rung 3 and its own stem gives both numbers, so the leak is minor."
+   "notes": "False is right: Amazon beat both lines (f55) and fell more than 2% in extended trading (f56); FINRA general point from f21; guidance from f25 is in the facts. Defines guidance."
   },
   "q23": {
-   "status": "pass",
-   "by": "checker",
-   "fixed": true,
-   "notes": "Key right (f31: net earnings +10.0%, diluted EPS +11.7%, diluted shares -1.6%; f04). Story does not name the cause, choices balanced, key not longest. Defect: the dividend wrong note is copied almost word for word from q16's dividend note ('EPS is the profit per share as if all of it were paid out'), a copied explanation. Reworded to rest on f04's formula instead, which also points the member at the two parts of EPS.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in review2: see the resolver's notes"
   },
   "q24": {
    "status": "pass",
    "by": "checker",
+   "fixed": false,
+   "notes": "Cold solve: own past and other retailers (f07, f71, f69, f78). One company in the stem, NVIDIA as the friend's trap (f49, f79). Choices 33-37 chars, key not an outlier; wrong keys match the choices exactly."
+  },
+  "q91": {
+   "status": "pass",
+   "by": "checker",
    "fixed": true,
-   "notes": "Key right (f07 SEC: desirable ratios vary by industry; f71 Fidelity: compare similar companies and the industry; f69; f78 Target among retailers; f33 own year-ago 28.8%). Defect: the story, why and a wrong note state NVIDIA is in 'AI and accelerated computing', and the verify note says this rests on new fact f79, but f79 was never added to the facts array or to q24's facts. Ungrounded claim as the file stands. Quote re-fetched 2026-11-12 from the s11 8-K, About NVIDIA: 'NVIDIA (NASDAQ: NVDA) is the world leader in AI and accelerated computing.' Fix: add that fact as f79 to the file's facts and",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Cold solve: one-time lawsuit gains. Net earnings 942 -> 1,036 is +10.0% while sales fell 2.8% (f36, f31), gross margin slipped (f33), $593M settlement gain in operating income (f29). Share count moves EPS not net earnings (f31, f04). Fixes: the answer was the shortest choice (29 chars vs 30/32/32), so the first distractor was shortened; $1,036 million made $1.036 billion to match q09 and q16; 'every gain' reworded since f08 only says profit after expenses. The story now carries the $1.036 billion so the number is grounded."
   }
  }
 }

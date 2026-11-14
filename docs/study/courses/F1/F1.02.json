@@ -1639,7 +1639,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Edit is only to the explanation: now defines market cap and small cap (f41 supports it), facts list gains f41. Right answer and wrong ones unchanged and clear. Kept because it sets up the owner-approved IWM question q09 and a trader acts on knowing IWM is the small-cap read. Skill basics.shares keeps many questions."
+   "notes": "Owner marked good; live (verify pass) and left unchanged."
   },
   "q09": {
    "status": "pass",
@@ -1663,7 +1663,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from f13. Unquoted QQQ line removed; notes rest on f13. Choices balanced. Q-on-OTC drift recorded in conflicts; stem asks only what an added Q means."
+   "notes": "Owner marked good; live (verify pass) and left unchanged."
   },
   "q13": {
    "status": "pass",
@@ -1690,11 +1690,10 @@
    "notes": "Answers the owner's note: key is now 'Track it. Watch its relative strength', matching his rule (a strong setup is a name to track for relative strength until the market stabilizes). h3 quote is verbatim from REVIEW_LEARNINGS.md line 14. Relative strength is defined in the why in plain words. Wrong choices (buy it, ignore the market, buy the dip) are clearly wrong, each wrong note is supported by f27-f34. House flag set and h3 cited. Choices all in the same 'Verb it. Reason' pattern, 34-37 chars, so the key does not stand out."
   },
   "q17": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Key from f26/f25. B23 now taught (h1 matches the rulebook verbatim); $10 and $20 million come from h1, $0.40 from the story. Choices 31-34 chars. Owner flag on F66 (friend's tip) left open, correctly.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "cut in review2: see the resolver's notes"
   },
   "q18": {
    "status": "pass",

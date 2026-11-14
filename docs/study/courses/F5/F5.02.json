@@ -1685,8 +1685,8 @@
   "q09": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Answer and calc check out. Fix: 4.8% was within a fifth of a point of the answer; swapped it for 95%, dividing estimate by actual."
+   "fixed": false,
+   "notes": "Owner marked good; left untouched. Math checks: (0.84-0.80)/0.80 = 5%."
   },
   "q10": {
    "status": "pass",
@@ -1743,11 +1743,10 @@
    "notes": "Recomputed the calc by hand; answer shows it; every wrong choice is a real, distinct mistake; no tell; why walks the steps."
   },
   "q19": {
-   "status": "pass",
-   "by": "checker",
-   "fixed": true,
-   "notes": "Key right (f68). Two breaks: (1) 'Its stock split was announced' is ungrounded filler; the CNBC page (re-read live) never mentions a split, so the wrong note's 'nothing in the coverage' is the only basis, and no fact backs it. (2) Story too thin: 'Its supply limits had cleared' is forward-looking news a learner could pick by the lesson's own logic, and only the article (unseen) rules it out. Fix: the story states supply is still limited (f83), the supply and split choices go, and a run-up choice ruled out by FINRA f4 comes in. 'It missed' note now also cites f19.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in review2: see the resolver's notes"
   },
   "q20": {
    "status": "cut",
