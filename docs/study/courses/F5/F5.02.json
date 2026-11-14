@@ -835,17 +835,11 @@
    "key": "q03",
    "skill": "fund.estimates",
    "rung": 2,
-   "format": "mcq",
+   "format": "tf",
    "term": "guidance",
-   "q": "What is company guidance?",
-   "choices": [
-    "Management's forecast of what's ahead",
-    "One top analyst's own forecast",
-    "The results for the quarter just ended",
-    "An analyst's buy or sell rating"
-   ],
-   "answer": "Management's forecast of what's ahead",
-   "why": "Management's forecast of what's ahead. Guidance is the company's own forecast of its revenue, earnings or growth. It usually comes as a range, for the next quarter or the full year. Example: Qualcomm guided its next-quarter EPS to $2.15 to $2.35. A stock trades on what comes next, so guidance matters. Analysts make their own estimates, so guidance is not an analyst's number. It is not the quarter just reported.",
+   "q": "Company guidance is an analyst's forecast of what comes next for the company.",
+   "answer": "False",
+   "why": "False. Guidance is the company's own forecast of its revenue, earnings or growth, given by management. It usually comes as a range, for the next quarter or the full year. Example: Qualcomm guided its next-quarter EPS to $2.15 to $2.35. Analysts make their own estimates, so guidance is not an analyst's number.",
    "lesson_line": "Results look back. Guidance looks forward.",
    "facts": [
     "f21",
@@ -857,12 +851,7 @@
     "f9",
     "f76"
    ],
-   "wrong": {
-    "The results for the quarter just ended": "That's the report. Guidance is about the quarters still to come.",
-    "An analyst's buy or sell rating": "A rating is an analyst's opinion. Guidance can move ratings, but it comes from management.",
-    "One top analyst's own forecast": "Analysts make their own estimates. Guidance is the company's own forecast."
-   },
-   "simple": "Guidance is the company's own forecast of what comes next, given by its managers, not by analysts.",
+   "simple": "False, because guidance is the company's own forecast, given by its managers, not by analysts.",
    "tier": "core",
    "risk": {
     "score": 0,

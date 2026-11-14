@@ -1980,22 +1980,20 @@
  },
  {
   "answer_json": {
-   "answer": "Management's forecast of what's ahead"
+   "answer": "False"
   },
   "difficulty": 1,
   "id": "si_e9417118815a",
   "lesson_origin": "session",
-  "lesson_text": "Management's forecast of what's ahead. Guidance is the company's own forecast of its revenue, earnings or growth. It usually comes as a range, for the next quarter or the full year. Example: Qualcomm guided its next-quarter EPS to $2.15 to $2.35. A stock trades on what comes next, so guidance matters. Analysts make their own estimates, so guidance is not an analyst's number. It is not the quarter just reported. Results look back. Guidance looks forward.",
+  "lesson_text": "False. Guidance is the company's own forecast of its revenue, earnings or growth, given by management. It usually comes as a range, for the next quarter or the full year. Example: Qualcomm guided its next-quarter EPS to $2.15 to $2.35. Analysts make their own estimates, so guidance is not an analyst's number. Results look back. Guidance looks forward.",
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "Management's forecast of what's ahead",
-    "One top analyst's own forecast",
-    "The results for the quarter just ended",
-    "An analyst's buy or sell rating"
+    "True",
+    "False"
    ],
-   "kind": "mcq",
-   "q": "What is company guidance?",
+   "kind": "tf",
+   "q": "Company guidance is an analyst's forecast of what comes next for the company.",
    "subject": "guidance"
   },
   "reveal_json": {
@@ -2061,18 +2059,13 @@
     "summary": "Guidance is the company's own forecast of its revenue, earnings or growth. Guidance is the company's own EPS projection, given before it reports. Guidance looks ahead, and a stock's price rests on expected future profit growth. Reported EPS is also compared with what the company itself had guided for that period. Guidance is usually a range, for the next quarter or the full year. Guidance below market expectations can bring downgrades and selling. Analysts publish earnings and revenue estimates for this quarter, next quarter and later years. Qualcomm guided EPS to $2.15 to $2.35 against $2.27 expected."
    },
    "facts": {
-    "given": "What is company guidance? Management's forecast of what's ahead One top analyst's own forecast The results for the quarter just ended An analyst's buy or sell rating"
+    "given": "Company guidance is an analyst's forecast of what comes next for the company."
    },
    "lesson_line": "Results look back. Guidance looks forward.",
-   "simple": "Guidance is the company's own forecast of what comes next, given by its managers, not by analysts.",
+   "simple": "False, because guidance is the company's own forecast, given by its managers, not by analysts.",
    "tier": "core",
    "unit": "F5.02",
-   "why": "Management's forecast of what's ahead. Guidance is the company's own forecast of its revenue, earnings or growth. It usually comes as a range, for the next quarter or the full year. Example: Qualcomm guided its next-quarter EPS to $2.15 to $2.35. A stock trades on what comes next, so guidance matters. Analysts make their own estimates, so guidance is not an analyst's number. It is not the quarter just reported.",
-   "wrong": {
-    "An analyst's buy or sell rating": "A rating is an analyst's opinion. Guidance can move ratings, but it comes from management.",
-    "One top analyst's own forecast": "Analysts make their own estimates. Guidance is the company's own forecast.",
-    "The results for the quarter just ended": "That's the report. Guidance is about the quarters still to come."
-   }
+   "why": "False. Guidance is the company's own forecast of its revenue, earnings or growth, given by management. It usually comes as a range, for the next quarter or the full year. Example: Qualcomm guided its next-quarter EPS to $2.15 to $2.35. Analysts make their own estimates, so guidance is not an analyst's number."
   },
   "review_status": "draft",
   "skill_id": "fund.estimates",
@@ -2092,9 +2085,9 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
+    "It resets estimates, so growth reprices",
     "Companies only guide when news is bad",
     "Guidance always turns out to be right",
-    "It resets estimates, so growth reprices",
     "Analysts ignore the reported quarter"
    ],
    "kind": "mcq",
@@ -2575,8 +2568,8 @@
   "prompt_json": {
    "choices": [
     "Likely neutral: only results count",
-    "Likely positive: a raise from $3.00",
     "Likely negative: below consensus",
+    "Likely positive: a raise from $3.00",
     "Likely positive: estimates go up"
    ],
    "kind": "mcq",
@@ -2754,9 +2747,9 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "The bar was above the estimates",
     "The quarter was really a miss",
     "Beats usually get sold on the news",
+    "The bar was above the estimates",
     "The guide missed the consensus"
    ],
    "kind": "mcq",
@@ -2875,8 +2868,8 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "About 72% below",
     "About 42% below",
+    "About 72% below",
     "About 58% below",
     "About 18% below"
    ],
@@ -2985,8 +2978,8 @@
   "prompt_json": {
    "choices": [
     "Beating the consensus is a bad sign",
-    "Analysts cut estimates after a beat",
     "The whisper was above what it earned",
+    "Analysts cut estimates after a beat",
     "The consensus was out of date"
    ],
    "kind": "mcq",
@@ -3068,8 +3061,8 @@
   "prompt_json": {
    "choices": [
     "The top of the guide range, $2.35",
-    "The guide: $2.25 midpoint, under $2.27",
     "The beat: $2.17 is above $2.16",
+    "The guide: $2.25 midpoint, under $2.27",
     "Nothing: the stock is likely unchanged"
    ],
    "kind": "mcq",
@@ -3236,8 +3229,8 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "A miss has cost more than a beat paid",
     "A beat has paid more than a miss cost",
+    "A miss has cost more than a beat paid",
     "Misses happen more often than beats",
     "Beats and misses move a stock the same"
    ],
@@ -3407,10 +3400,10 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
+    "Wait: no new buys in the 3 days before",
     "Buy half now and half after the report",
     "Buy now with a tighter stop",
-    "Skip the stock until next quarter",
-    "Wait: no new buys in the 3 days before"
+    "Skip the stock until next quarter"
    ],
    "kind": "mcq",
    "q": "What does our rule say to do before the report?",
@@ -3492,8 +3485,8 @@
    "choices": [
     "No: it would need to be up 3R",
     "Yes: if you move the stop to breakeven",
-    "No: it would need to be up 5R",
-    "Yes: any winning trade can be held"
+    "Yes: any winning trade can be held",
+    "No: it would need to be up 5R"
    ],
    "kind": "mcq",
    "q": "Under our rule, can you hold this trade through the report?",
