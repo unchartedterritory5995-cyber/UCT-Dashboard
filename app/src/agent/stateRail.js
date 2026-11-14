@@ -7,12 +7,14 @@
 // TARGET KIND (never per action name, so a new action on these kinds is covered without being listed here):
 //
 //   indicator    an instance removed, its settings overwritten (inputs / style / calc timeframe), the chart's
-//                indicators replaced wholesale (a chart template)                       indicatorEdits · chart
+//                indicators replaced wholesale (a chart template), a saved indicator deleted
+//                                                                     indicatorEdits · chart · definitionLibrary
 //   drawing      a drawing removed (all of them: cleared), its shape / style / anchors overwritten        drawing
 //   drawingBoard a Drawing Board deleted or renamed                                                  drawingBoards
-//   watchlist    symbols removed (clear / keep only), the list deleted, renamed, a note overwritten    watchlist
+//   watchlist    symbols removed (clear / keep only / unflag), the list deleted, renamed, a note overwritten
+//                                                                                         watchlist · flaggedList
 //   widget       a widget removed (charts: the chart rail), a widget tab closed, the list / scan a widget
-//                already shows replaced, an item in a widget's own list deleted or renamed                  board
+//                already shows replaced, an item in a widget's own list deleted or renamed      board · workspace
 //   layout       a saved layout deleted, renamed, or saved over (the open layout's stored arrangement)     layouts
 //   layoutBar    a layout unpinned from the Layout bar                                                  layoutDock
 //   template     a saved chart / indicator template deleted or saved over          chartTemplates · indicatorTemplates
@@ -220,9 +222,10 @@ export function stateEffects(plan) {
 // ── what the member's words say ────────────────────────────────────────────────────────────────────────────────────────
 // words that ask for MORE: an add verb, or "new / another / more / also / too …" with no verb at all ("another RSI")
 export const STATE_ADDITIVE = /\b(?:add|adds|added|adding|include|includes|included|including|put|puts|putting|insert|inserts|inserting|append|appends|appending|plus|new|another|more|additional|extra|also|as well|too|in addition|one more|second)\b/i
-// a negated word never permits anything ("don't remove anything", "without deleting", "never replace")
-const NEGATED = /\b(?:do not|don['’]?t|dont|never|without|no need to|not)\s+(?:\w+\s+){0,2}?(?=\w)/gi
-const strip = (w) => String(w || '').replace(new RegExp(`${NEGATED.source}${DESTROY_SRC()}`, 'gi'), ' ').replace(new RegExp(`${NEGATED.source}${MODIFY_SRC()}`, 'gi'), ' ')
+// a negated word never permits anything: the negation and the rest of its clause are not read ("don't remove or change
+// anything", "without deleting", "never replace") — a permission said later in that clause is lost too (fail closed)
+const NEGATED = /\b(?:do not|don['’]?t|dont|never|without|no need to|not)\b[^.;,!?]*/gi
+const strip = (w) => String(w || '').replace(NEGATED, ' ')
 function DESTROY_SRC() { return '(?:replac\\w*|instead|swap\\w*|remov\\w*|delet\\w*|clear\\w*|eras\\w*|wip(?:e|es|ed|ing)\\b|get rid|gets rid|getting rid|overwrit\\w*|keep only|only keep|keep just|just keep|reset\\w*|trash\\w*|discard\\w*|unpin\\w*|take (?:off|out|away))' }
 function MODIFY_SRC() { return '(?:chang\\w*|set|sets|setting|make|makes|making|made|turn\\w*|switch\\w*|updat\\w*|edit\\w*|modif\\w*|renam\\w*|adjust\\w*|bump\\w*|increas\\w*|decreas\\w*|tweak\\w*|recolou?r\\w*|restyl\\w*|move|moves|moved|moving|shift\\w*)' }
 const DESTROY = new RegExp(`\\b${DESTROY_SRC()}`, 'i')
