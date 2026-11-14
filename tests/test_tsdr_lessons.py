@@ -1900,9 +1900,11 @@ def test_search_ranks_title_and_ticker_matches_above_passing_mentions_and_points
     assert top["title"] == "Where to put the stop loss" and top["level"] == "beginner"
     assert top["section"] == "Trade Management" and top["day"].startswith("Mar 1, ")
     assert top["url"] == f"https://discord.com/channels/{GUILD}/t-management/msg-s1"
-    assert top["at"] == "5:00" and top["watch"] == "https://youtu.be/YTVID00001?t=300"
+    # the words are 7 characters into a 72-character part of unknown length (5 minutes):
+    # about 29 s in, less the 15 s lead-in
+    assert top["at"] == "5:14" and top["watch"] == "https://youtu.be/YTVID00001?t=314"
     assert "stop loss goes right under the low" in top["quote"]
-    assert hits[1]["watch"] == "" and hits[1]["at"] == "0:00"          # no YouTube copy: no seek link
+    assert hits[1]["watch"] == "" and hits[1]["at"] == "0:17"          # no YouTube copy: no seek link
     assert tl.search_lessons("NVDA")[0]["attachment_id"] == "s2"        # a ticker finds its lesson
     assert [h["attachment_id"] for h in tl.search_lessons("$spy")] == ["s3"]   # even when only the ticker list has it
     assert tl.search_lessons("nothing relevant")[0]["attachment_id"] == "s3"
@@ -1937,6 +1939,87 @@ def test_search_reply_text_is_short_private_friendly_and_carries_no_previews():
     assert len(text) <= 1900
     empty = tl.format_search_reply("zebra stripes", [])
     assert "Nothing in the lesson library" in empty and "“zebra stripes”" in empty
+
+
+def _ids(hits):
+    return [h["attachment_id"] for h in hits]
+
+
+def test_a_ticker_that_spells_a_filler_word_or_is_one_letter_still_finds_its_lesson(monkeypatch):
+    """BE, ON, IT, ARE, CAN are tickers and filler words; F, C, V, T are one letter. All of
+    them were dropped before the search began, so `/lesson $BE` answered "Nothing in the
+    lesson library". They are read as tickers when typed like one, and matched against the
+    lesson's TICKER LIST only: "be" is in every transcript ever recorded."""
+    monkeypatch.setenv("TSDR_LESSONS_THREADS_ENABLED", "1")
+    _searchable("be1", 1, "Bloom Energy breakout", transcript="it can be a leader on any day " * 5, tickers=("BE",))
+    _searchable("f1", 2, "Ford gap and go", transcript="ford gapped up " * 5, tickers=("F",))
+    _searchable("x1", 3, "Market read", transcript="it can be on any day " * 5, tickers=("SPY",), section="market")
+    assert _ids(tl.search_lessons("$BE")) == ["be1"]
+    assert _ids(tl.search_lessons("BE")) == ["be1"]
+    assert _ids(tl.search_lessons("be")) == ["be1"], "nothing else was typed, so it is read as a ticker"
+    assert _ids(tl.search_lessons("$F")) == ["f1"] and _ids(tl.search_lessons("F")) == ["f1"]
+    assert _ids(tl.search_lessons("BE breakout")) == ["be1"]
+    # ⛔ the discriminator: x1 SAYS "be", "on", "any" and "can" and must never be found by them
+    assert tl.search_lessons("ON") == [] and tl.search_lessons("$CAN") == []
+
+
+def test_filler_words_in_an_ordinary_sentence_are_not_read_as_tickers():
+    assert tl.search_tickers("How do I set a stop on NVDA") == []
+    assert tl.search_tickers("HOW DO I SET A STOP ON NVDA") == [], "an all-caps sentence marks nothing"
+    assert tl.search_tickers("is $ON a buy here") == ["on"]
+    assert tl.search_tickers("thoughts on BE earnings") == ["be"]
+    assert tl.search_tickers("a") == [] and tl.search_tickers("I") == [], "never the two one-letter words"
+    assert tl.search_tickers("$A") == ["a"]
+    assert tl.search_tickers("NVDA") == [], "an ordinary ticker is an ordinary word: search_words has it"
+
+
+def test_search_matches_the_singular_and_the_plural(monkeypatch):
+    """`/lesson stops` found nothing in a lesson titled "Where the stop goes"."""
+    monkeypatch.setenv("TSDR_LESSONS_THREADS_ENABLED", "1")
+    _searchable("p1", 1, "Where the stop goes", transcript="the stop goes under the low " * 3,
+                recap="Stop under the low.", tickers=("TSLA",))
+    _searchable("p2", 2, "My first pullback", transcript="my entries are on the first pullback",
+                recap="Wait for it.", tickers=("AMD",))
+    _searchable("p3", 3, "Patience", transcript="I told him this is new to me " * 4, recap="Wait.", tickers=("SPY",))
+    _searchable("p4", 4, "The gap on earnings", transcript="hims gapped up", recap="A gap.", tickers=("HIMS",))
+    assert _ids(tl.search_lessons("stops")) == ["p1"]
+    assert _ids(tl.search_lessons("entry")) == ["p2"] and _ids(tl.search_lessons("entries")) == ["p2"]
+    assert _ids(tl.search_lessons("pullbacks")) == ["p2"]
+    # ⛔ a ticker is never stretched, typed in capitals or not: HIMS must not find "him"
+    assert _ids(tl.search_lessons("HIMS")) == ["p4"] and _ids(tl.search_lessons("hims")) == ["p4"]
+    assert tl.search_lessons("news") == [], '"news" is not the plural of "new"'
+
+
+def test_a_long_question_needs_half_of_its_words(monkeypatch):
+    """One word anywhere was enough to be listed under "Lessons on ...", so a long question
+    returned whatever lesson happened to say its most ordinary word."""
+    monkeypatch.setenv("TSDR_LESSONS_THREADS_ENABLED", "1")
+    _searchable("w1", 1, "Selling into strength", transcript="sell into strength after the gap " * 3,
+                recap="Sell some.", tickers=("TSLA",))
+    _searchable("w2", 2, "Monday notes", transcript="the gap was small", recap="Small.", tickers=("SPY",))
+    assert _ids(tl.search_lessons("when to sell strength after gap")) == ["w1"]     # four words, two needed
+    assert _ids(tl.search_lessons("gap")) == ["w1", "w2"], "a one-word search still lists a single mention"
+    assert _ids(tl.search_lessons("small gap")) == ["w2", "w1"], "two words: either one is enough"
+
+
+def test_watch_from_points_inside_the_five_minute_part_not_at_its_start(monkeypatch):
+    """A part is five minutes of talking. "Watch from 5:00" for words said at 7:30 leaves the
+    member two and a half minutes of something else, which reads as a wrong link."""
+    monkeypatch.setenv("TSDR_LESSONS_THREADS_ENABLED", "1")
+    half = "aaaa " * 100 + "stop loss " + "bbbb " * 98                  # 1,000 characters, the words at 500
+    _searchable("m1", 1, "Stops", transcript="stop loss", youtube_id="YTVID00001",
+                segments=[[0, "hello everyone"], [300, half], [600, "and that is the day"]])
+    hit = tl.search_lessons("stop loss")[0]
+    assert hit["at"] == "7:15" and hit["watch"] == "https://youtu.be/YTVID00001?t=435"   # 7:30 less the lead-in
+    # the last part runs to the end of the video, not for five more minutes
+    _searchable("m2", 2, "Targets", transcript="target", youtube_id="YTVID00002",
+                segments=[[0, "hello"], [300, "cccc " * 100 + "target " + "dddd " * 98 + "ddd"]])
+    tl._update("m2", duration_s=400)
+    assert tl.search_lessons("target")[0]["at"] == "5:35"                 # 300 + half of 100 s, less 15
+    # and it never points before the part the words are in
+    _searchable("m3", 3, "Volume", transcript="volume", youtube_id="YTVID00003",
+                segments=[[0, "hello"], [300, "volume is the tell today " + "eeee " * 195]])
+    assert tl.search_lessons("volume")[0]["at"] == "5:00"
 
 
 def test_a_post_whose_title_is_only_a_link_gets_the_videos_name_or_a_dated_one(monkeypatch):
