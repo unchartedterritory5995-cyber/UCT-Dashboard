@@ -115,6 +115,19 @@ describe('C · after a request created several charts, "the new charts" means ex
     expect(out).toContain(MODEL_SENTINEL)                     // handed on as typed (the scripted model planned nothing)
     expect(JSON.stringify(tfOf(m))).toBe(before)
   }, 40000)
+  it('a request that created two charts AND changed an existing one: "the new charts" are the created two only', async () => {
+    const m = p.mount(...TWO_OLD())
+    const ws = (b) => (Object.values(b.context || {}).flat().find(e => /workspace/i.test(String(e?.label || e?.ref)))?.ref) || 'workspace'
+    p.st.envelopes.push(b => p.env('apply', [
+      { action: 'widget.addCharts', target: ws(b), args: { symbols: ['AAPL', 'MSFT'], timeframe: null, chart_type: null, exact: null } },
+      { action: 'chart.setTimeframe', target: chartOf(b, 'SPY'), args: { timeframe: 'W' } },
+    ]))
+    await m.say('put up AAPL and MSFT next to these, and flip SPY over to the weekly while you are at it')
+    expect(tfOf(m), p.transcript()).toEqual([['SPY', 'W'], ['QQQ', 'D'], ['AAPL', 'D'], ['MSFT', 'D']])
+    const out = await m.say('make the new charts monthly')
+    expect(out).not.toContain(MODEL_SENTINEL)
+    expect(tfOf(m), out).toEqual([['SPY', 'W'], ['QQQ', 'D'], ['AAPL', 'M'], ['MSFT', 'M']])
+  }, 40000)
   it('"add two new charts for AMD and AVGO" after a creation is still a creation, never a reference', async () => {
     const m = p.mount(...TWO_OLD())
     await m.say(MADE[2][0])
