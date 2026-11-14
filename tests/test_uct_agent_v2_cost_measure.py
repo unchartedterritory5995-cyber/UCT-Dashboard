@@ -52,6 +52,9 @@ def _one(case_id: str, layout: str, model: str, manifest: list[dict] | None = No
 #: the round-1 request WITHOUT the action index (system prompt, real Screener section, tools, loaded schemas), measured
 #: 19_666 B on master 6c373e0300. It does not scale with registered actions; move it only for a deliberate prompt/section
 #: change, in its own commit with its measured number. Slack 128 B (< the few-hundred-byte bloat it must catch).
+#: RAISING THIS CONSTANT IS A DELIBERATE ACT: it needs AUDIT review in the PR that raises it. A master change that
+#: legitimately grows the system prompt or Screener section turns this test red ON PURPOSE (not a flake). A PR that moves
+#: both this constant and the $ figures below is AUDIT T2, not T1. The $ assertion stays the gate.
 NON_INDEX_BUDGET_BYTES = 19_666 + 128
 
 
@@ -133,7 +136,11 @@ def test_grouping_keeps_dependent_steps_apart():
 
 
 def test_the_round1_bound_scales_with_a_new_action_and_catches_an_uncapped_line(monkeypatch):
-    """Mutants (D11-A): an added action moves the bound by its own line cost and still passes; a line past the cap fails."""
+    """Mutants (D11-A): an added action moves the bound by its own line cost and still passes; a line past the cap fails.
+
+    Resolution: the index bound counts each line at its CAP, while real summaries are trimmed at word boundaries, so on
+    master 6c373e0300 the index sits 712 B under its bound (10_150 vs 10_862). An index overrun smaller than that slack is
+    not caught here; that is acceptable only because the $ assertion stays the gate."""
     m = _manifest()
     b0 = _round1_bound(m)
     extra = dict(m[0], name="chart.mutantProbeAction", summary="A new action added by a later family, longer than the cap")
