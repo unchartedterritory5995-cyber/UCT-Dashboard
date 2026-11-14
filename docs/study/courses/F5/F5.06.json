@@ -1764,6 +1764,57 @@
     ]
    },
    "batch": "wave6"
+  },
+  {
+   "key": "q29",
+   "skill": "fund.earnings_decision",
+   "rung": 2,
+   "format": "mcq",
+   "q": "Why do some traders sell before a report instead of holding?",
+   "choices": [
+    "No one can predict how it will react",
+    "A report always sends a stock lower",
+    "Stop orders work better after a report",
+    "Brokers do not allow holding through"
+   ],
+   "answer": "No one can predict how it will react",
+   "why": "No one can predict how it will react. A company can beat estimates and still fall on a weak outlook, and another can climb after a report. Some traders sell before the report because the reaction is mostly a roll of the dice, and a stop cannot trade inside a gap. Others hold. It is a choice set by a plan, and the reaction is never certain either way.",
+   "lesson_line": "Nobody calls the reaction. That is why stepping aside before a report is a sound choice.",
+   "simple": "Because nobody can predict how the stock will react, and a stop cannot catch a gap. Holding is a choice too.",
+   "facts": [
+    "f38",
+    "f53",
+    "f4",
+    "f44",
+    "f32",
+    "f54"
+   ],
+   "wrong": {
+    "A report always sends a stock lower": "No. AMBA climbed almost 35% within two days of a report. The reaction can go either way.",
+    "Stop orders work better after a report": "A stop cannot trade inside a gap, so it protects you less around a report, not more.",
+    "Brokers do not allow holding through": "Nothing forces you to sell. Holding through a report is your own choice."
+   },
+   "tier": "core",
+   "batch": "cover"
+  },
+  {
+   "key": "q30",
+   "skill": "fund.earnings_decision",
+   "rung": 3,
+   "format": "tf",
+   "q": "Our rule lets you hold through a report only if the trade is already up 5R.",
+   "answer": "True",
+   "why": "True. Our rule is no new buys in the 3 days before a report, and hold through one only if the trade is up 5R. That gain is a cushion, because a gap that takes back part of it still leaves you ahead. Without that cushion, trim or step aside, since a stop cannot catch a gap.",
+   "lesson_line": "Hold through a report only on a cushion. Up 5R is ours.",
+   "simple": "True. A trade up 5R has a cushion, so a gap that takes back some of it still leaves you ahead.",
+   "facts": [
+    "h4",
+    "f32",
+    "f7"
+   ],
+   "tier": "core",
+   "house": true,
+   "batch": "cover"
   }
  ],
  "conflicts": [
@@ -1805,10 +1856,10 @@
    "by": "track auditor"
   },
   "q02": {
-   "status": "pass",
+   "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q03": {
    "status": "pass",
@@ -1841,10 +1892,10 @@
    "notes": "Own answer False: f11 (SEC, many brokers take only limit orders after hours) plus f61/f62 (Schwab) make 'will trigger' something not to count on. The why bounds it to 'at those brokers' and says check yours. No ungrounded number (9:30 to 4 is in f61)."
   },
   "q08": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Only the lesson line changed. It is neutral and true (h1), and does not sell a trim into a report against B22."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q09": {
    "status": "pass",
@@ -1966,6 +2017,18 @@
    "by": "checker",
    "fixed": false,
    "notes": "Own answer from h4 (B22): up 1R is under 5R, so out before the numbers; key matches. Trim (B19's first trim is at 3R), hold-all (f30/f60/f4) and add (B22 no new buys; A5 no adding) are wrong for distinct reasons. Key is not the longest; no story words repeated. The NVDA outcome (f30) is flavour; the key does not depend on it. Earlier reveals (q14, q27) state B22, which is the rule being tested: practice, not a giveaway. Minor: rung 9 is high for a recall of B22."
+  },
+  "q29": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Learn-level mcq (rung 2). Right answer matches f38 and f53; wrong notes match f44 (AMBA +35%), f32 and f54. Fixed the why's last line: 'the reaction is likely tied to expectations' is unsupported by the cited facts; replaced with the supported point that holding is a choice and the reaction is never certain either way."
+  },
+  "q30": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Learn-level true/false (rung 3) on the house rule B22: quote is word for word from h4, the cushion reasoning is the lesson's thesis (f32, f7: a stop cannot catch a gap). Matches q24, q28 and SET.29 q60. Plain statement of the rule, not a duplicate of the scenarios."
   }
  }
 }

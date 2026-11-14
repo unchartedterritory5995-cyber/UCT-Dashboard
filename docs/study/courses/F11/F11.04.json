@@ -1495,6 +1495,42 @@
     ]
    },
    "batch": "wave9"
+  },
+  {
+   "key": "q97",
+   "skill": "styles.lane",
+   "rung": 2,
+   "format": "mcq",
+   "q": "To find the setups that fit your strengths, which trades do you study?",
+   "choices": [
+    "Your best trades, and how you won them",
+    "Your worst trades, and how you lost them",
+    "Your newest trades, win or lose",
+    "Trades you skipped, to see the misses"
+   ],
+   "answer": "Your best trades, and how you won them",
+   "why": "Your best trades, and how you won them. They show what you do well, and that points you to setups that fit you. Bellafiore says build on those strengths. Look at your losses too, since Schwab says patterns show up in both.",
+   "lesson_line": "Your winners show you your lane. Study them as hard as your losers.",
+   "facts": [
+    "f13",
+    "f31",
+    "f71",
+    "f68"
+   ],
+   "wrong": {
+    "Trades you skipped, to see the misses": "Skipped trades are not your trades. Your own winners show what you do well.",
+    "Your worst trades, and how you lost them": "Your losses are worth reviewing too, but they show what went wrong. Your strengths show in your best trades.",
+    "Your newest trades, win or lose": "Recent trades are one slice. The question is which trades show what you do well."
+   },
+   "simple": "Your best trades, because how you won them shows what you do well and which setups fit you.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "Steenbarger, Bellafiore and Schwab agree"
+    ]
+   },
+   "batch": "fills"
   }
  ],
  "conflicts": [
@@ -1527,10 +1563,10 @@
    "by": "checker"
   },
   "q01": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Re-derived: temperament (f1). Re-read live on the SEC page 2026-11-12. Bank has no second fit. Why and simple stay inside f1."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q02": {
    "status": "pass",
@@ -1552,10 +1588,10 @@
    "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q05": {
-   "status": "pass",
+   "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q06": {
    "status": "pass",
@@ -1660,6 +1696,12 @@
    "fixed": false,
    "notes": "Key is E59 (f79), quoted exactly from sizing_rule.md section 9. Each distractor is wrong under the each-month rule, and its note rests on f68, f33 and f13. f32 and f33 re-read live on SMB s10. Not against B27 (weekly review). f68 (Schwab) unreachable 2026-11-12.",
    "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+  },
+  "q97": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Replacement agreed (no live question tests studying your best trades to find your lane). Fix: the old stem ('study first') let 'worst trades' be defended, and the 'Only ...' distractors flagged themselves as wrong. The stem now names the goal (strengths), the distractors are parallel, and the wrong notes are updated."
   }
  }
 }

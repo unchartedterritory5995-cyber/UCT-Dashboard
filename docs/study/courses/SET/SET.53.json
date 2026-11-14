@@ -3752,10 +3752,10 @@
    "by": "checker"
   },
   "q13": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Cent, from cLine verbatim. Why grounded, voice clean."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q14": {
    "status": "pass",
@@ -4137,10 +4137,10 @@
    "notes": "story said you sold a third at 3R; softened to first sell"
   },
   "q73": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Fill 10 from h21/cTrail; sentence no longer states q75's close rule."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q74": {
    "status": "pass",

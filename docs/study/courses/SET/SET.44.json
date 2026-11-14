@@ -3682,10 +3682,10 @@
    "notes": "Derived 'a few cents under the swing low' from c15/r04/h24 before the key; matches. ATR choice ruled out by c16, line and 50-day choices by r04/c15. Choices 28-35 chars, no tell. Overlaps q39/q60 on the same stop fact (accepted earlier); q03 is rung 1 and comes first."
   },
   "q04": {
-   "status": "pass",
+   "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave4b; awaiting cold re-read"
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q05": {
    "status": "pass",
@@ -3731,10 +3731,10 @@
    "notes": "upgraded wave4b; awaiting cold re-read"
   },
   "q12": {
-   "status": "pass",
+   "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave4b; awaiting cold re-read"
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q13": {
    "status": "pass",
@@ -3792,10 +3792,10 @@
    "notes": "Key from c14 + d22 ('the fifth session after the touch (the last one allowed)'); consistent with q32 (sixth session void) and COST d44. 'Five sessions ago' = the fifth session after the touch. The second Yes is a wrong-reason choice, clearly false by c08 vs c14."
   },
   "q22": {
-   "status": "pass",
-   "by": "checker",
-   "fixed": true,
-   "notes": "The why and simple say the card's full rule also wants a fresh ADX push, but the fact c17c the earlier fix says it added is NOT in the file's facts array and not cited (facts are c17, r20, c17b; c17's quote stops at 'new momentum high'). Add c17c (verbatim on the card, hg.failed_grail statement, 20 words) and cite it. 'Raschke's own rule covers the stop' reworded. Note: q30's key also names 'new momentum high'; q22 is rung 3 recall and should be dealt before q30."
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q23": {
    "status": "pass",

@@ -1591,7 +1591,7 @@
    "criterion": "pl.lower_band",
    "q": "A close under the lower Bollinger band the day before is the trigger to buy.",
    "answer": "False",
-   "why": "False. A close under the lower band the day before is a plus, not a trigger. Bracco says a band breach is usually short-lived and often precedes a snap back. The owner read one as stretched, not a bottom call. The trigger is the first 5-minute close back over VWAP on the climax day.",
+   "why": "False. A close under the lower band the day before is a plus, not a trigger. Bracco says a band breach is usually short-lived and often precedes a snap back. We read one as stretched, not a bottom call. The trigger is the first 5-minute close back over VWAP on the climax day.",
    "lesson_line": "Outside the Bollinger band says stretched. It does not say buy.",
    "facts": [
     "c09",
@@ -3952,6 +3952,41 @@
     "Sell it all on day 1 of the buy": "We very rarely sell on day 1 of the buy, and selling all of it is not a first sell."
    },
    "batch": "rulings2"
+  },
+  {
+   "key": "q72",
+   "skill": "setup.parabolic_long",
+   "rung": 3,
+   "format": "scenario",
+   "criterion": "pl.climax_day",
+   "story": "A liquid ETF has closed lower three days running, and each drop was bigger than the last: 1.0%, then 1.8%, then 3.0%. Today it opens flat, drifts lower, then climbs back over VWAP at 10:45.",
+   "q": "A friend says the VWAP reclaim is the buy. What do you do?",
+   "choices": [
+    "Pass; there is no gap-down climax day",
+    "Buy; three lower closes are enough",
+    "Buy; it just reclaimed VWAP",
+    "Buy half now and half on a gap down"
+   ],
+   "answer": "Pass; there is no gap-down climax day",
+   "why": "Pass. The buy day is the climax day, the gap-down day. Here the drops grew from 1.0% to 1.8% to 3.0%, but today opened flat, so there is no climax gap. The VWAP reclaim is the trigger only on a climax day, after the low is in.",
+   "lesson_line": "No gap-down climax, no buy. A VWAP reclaim alone is not the trigger.",
+   "simple": "Pass. The buy day is the gap-down climax day, and today opened flat, so the VWAP reclaim alone is not a buy.",
+   "facts": [
+    "c11",
+    "c01",
+    "c03",
+    "c12",
+    "c13",
+    "p06"
+   ],
+   "wrong": {
+    "Buy; three lower closes are enough": "Three lower closes are only the first box. The buy day itself must gap down.",
+    "Buy; it just reclaimed VWAP": "The reclaim is the trigger only on a climax day, after the low is in. Today is not one.",
+    "Buy half now and half on a gap down": "The setup is one entry, the full size at one price, with no second entry. Buying before the climax day is buying early."
+   },
+   "house": true,
+   "tier": "core",
+   "batch": "cover"
   }
  ],
  "conflicts": [
@@ -3995,10 +4030,10 @@
    "notes": "agrees with ruling"
   },
   "q05": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Key from c11. One blank, one fit; distractors are not gap-down buy days in the lesson."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q06": {
    "status": "pass",
@@ -4031,10 +4066,10 @@
    "notes": "upgraded wave3; awaiting cold re-read"
   },
   "q11": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Key 2 from c06; blank reads as a single minimum. Card proposal stays on owner gate."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q12": {
    "status": "pass",
@@ -4166,10 +4201,10 @@
    "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q33": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Key from c25; bank words are not the climax low; w03 supports the Wyckoff line."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q34": {
    "status": "pass",
@@ -4421,6 +4456,12 @@
    "by": "checker",
    "fixed": true,
    "notes": "re-key right; wrong text 'never all of it' overclaims (a trailing exit can sell all)"
+  },
+  "q72": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Right criterion (pl.climax_day: the buy day is the gap-down day) and right answer, but the story was over-determined: the shrinking losses (2.0, 1.5, 1.0) and light volume also fail the setup, so the missing gap was not the only reason to pass. Rebuilt with accelerating drops (1.0, 1.8, 3.0) so the flat open is the one thing missing; the VWAP reclaim then fails only because there is no climax day. Facts c11, c01, c03, c12, c13, p06 cover every claim. Not a duplicate of q43 (orderly decline) or q31 (buying before the turn on a gap-down day)."
   }
  }
 }

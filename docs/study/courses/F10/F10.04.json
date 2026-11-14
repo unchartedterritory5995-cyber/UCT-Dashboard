@@ -1610,6 +1610,43 @@
     "16,000 shares": "Divided the 800,000 by the $50 price. The price does not enter the cap.",
     "400,000 shares": "Multiplied the 8,000 by the $50 price. That is a dollar amount, not shares."
    }
+  },
+  {
+   "key": "q97",
+   "skill": "orders.slippage",
+   "rung": 3,
+   "format": "mcq",
+   "q": "You want whatever shares are there right now, and no leftover order working after. Which order condition fits?",
+   "choices": [
+    "Immediate-or-cancel",
+    "All-or-none",
+    "Good-'til-canceled",
+    "Day order"
+   ],
+   "answer": "Immediate-or-cancel",
+   "why": "Immediate-or-cancel. It fills any part it can at once and cancels the rest, so no order is left working. All-or-none refuses a partial fill. Good-'til-canceled and day orders keep working until they fill or expire.",
+   "lesson_line": "Immediate-or-cancel takes a partial fill now and leaves no order behind.",
+   "facts": [
+    "f12",
+    "f49",
+    "f14",
+    "f64",
+    "f50"
+   ],
+   "wrong": {
+    "All-or-none": "All-or-none fills the whole order or nothing. It refuses the partial fill you are willing to take.",
+    "Good-'til-canceled": "Good-'til-canceled keeps the unfilled shares working until they fill in full or you cancel.",
+    "Day order": "A day order keeps the unfilled shares working until the close, then cancels them."
+   },
+   "simple": "Immediate-or-cancel, because it takes the shares available now and cancels whatever is left.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "stable rule: order conditions agree across brokers"
+    ]
+   },
+   "batch": "fills"
   }
  ],
  "conflicts": [
@@ -1660,10 +1697,10 @@
    "notes": "upgraded wave6; awaiting cold re-read"
   },
   "q03": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Only facts changed (f50 added). Why now fully cited: in parts until complete (f46), canceled at expiry (f50), partial or not at all after hours (f28), thinly traded (f43), term 'partial fill' (f62). Bank has no second fit."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q04": {
    "status": "pass",
@@ -1678,10 +1715,10 @@
    "notes": "upgraded wave6; awaiting cold re-read"
   },
   "q06": {
-   "status": "pass",
+   "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q07": {
    "status": "pass",
@@ -1797,6 +1834,12 @@
    "by": "checker",
    "fixed": false,
    "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
+  },
+  "q97": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Replacement agreed: no live choice question tests immediate-or-cancel, and traders pick it at the ticket. Facts f12, f49, f14, f64, f50 support the answer and every wrong note. The stem paraphrases the definition but the four choices are similar in length and form, so no real tell. Style fine."
   }
  }
 }

@@ -1696,10 +1696,10 @@
    "notes": "upgraded wave7; awaiting cold re-read"
   },
   "q03": {
-   "status": "pass",
+   "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave7; awaiting cold re-read"
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q04": {
    "status": "pass",

@@ -1338,6 +1338,41 @@
     ]
    },
    "batch": "wave9"
+  },
+  {
+   "key": "q97",
+   "skill": "styles.horizons",
+   "rung": 5,
+   "format": "mcq",
+   "q": "You found a swing setup on the daily chart. What does the hourly chart help you do?",
+   "choices": [
+    "Time the entry and exit",
+    "Read the main trend",
+    "Judge the company's value",
+    "Pick which stocks to scan"
+   ],
+   "answer": "Time the entry and exit",
+   "why": "Time the entry and exit. Many swing traders find the setup on the daily chart and use the hourly chart to plan and time entries and exits. Investopedia's example uses the weekly chart for the main trend.",
+   "lesson_line": "The longer chart finds the trade. The shorter chart times it.",
+   "facts": [
+    "f29",
+    "f47",
+    "f30"
+   ],
+   "wrong": {
+    "Read the main trend": "The main trend is the longer chart's job. Investopedia's swing trader uses the weekly chart to define it.",
+    "Judge the company's value": "Value comes from fundamentals, which weigh more for position traders. The hourly chart shows price.",
+    "Pick which stocks to scan": "Finding the setup is the daily chart's job. The hourly chart times the entry once you have one."
+   },
+   "simple": "It helps you time the entry and exit, because the longer chart finds the trade and the hourly chart times it.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "stable practice: Schwab and Investopedia agree"
+    ]
+   },
+   "batch": "fills"
   }
  ],
  "conflicts": [
@@ -1385,10 +1420,10 @@
    "notes": "upgraded wave9; awaiting cold re-read"
   },
   "q03": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Months is in f30, f41 and f46; weeks kept out of the bank so the overlap cannot bite; decades named by no source. Why sentences all grounded."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q04": {
    "status": "pass",
@@ -1439,10 +1474,10 @@
    "notes": "Gap risk is the key under f28/f36 and under our rules too (B20's 30-minute rule can also take the loss past the 4% stop, up to 2R). Deeper teaches B22 correctly: a 3-day-old trade only up a bit is not held into the report. Remaining tension (why/wrong note teach a resting stop filling at the open, while B20 says the first 30 minutes decide and D41 keeps a real broker stop) is already an owner flag; not a key against the rulebook."
   },
   "q12": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Hourly by f29 (Schwab, could not re-fetch: 403) and f47 (60-minute short-term trend). Weekly/monthly/quarterly are all longer than a swing setup chart; no second defensible fill for a swing trader. Stem says 'a longer chart', not daily, so it does not hand over q05. Could not break it."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q13": {
    "status": "pass",
@@ -1499,6 +1534,12 @@
    "by": "checker",
    "fixed": false,
    "notes": "Swing trader by f26/f39/f27; 2 to 12 trading days is days to weeks; numbers from the story. Why does not call the stop-out a day trade, so q16's key is not repeated. Deeper rests on h01 (C35) and says the key does not. Key shortest-but-one; no tell. Could not break it."
+  },
+  "q97": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Replacement agreed (q05 tests the daily chart for the setup; nothing tests timing the entry on the shorter chart). Fix: it cited f36, a gap-stop fact that does not support it; swapped in f30 for the value wrong note and softened the weekly-chart claim to what f47 says ('could use')."
   }
  }
 }

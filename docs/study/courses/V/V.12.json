@@ -3490,6 +3490,79 @@
     ]
    },
    "batch": "wave8"
+  },
+  {
+   "key": "q97",
+   "skill": "vocab.psych_terms",
+   "rung": 4,
+   "format": "mcq",
+   "term": "Confirmation bias",
+   "q": "You are long a stock and want to test yourself for confirmation bias. Which step does that best?",
+   "choices": [
+    "Read the best case against the trade",
+    "Read more posts from other holders",
+    "Re-read your own notes on the thesis",
+    "Ask a friend who is long it too"
+   ],
+   "answer": "Read the best case against the trade",
+   "why": "Read the best case against the trade. Confirmation bias is seeking out what supports what you already believe. Schwab's fix is to seek out reputable views that contradict your own. If you can't make a data-backed rebuttal to the opposing view, you're likely being blinded by bias. Investopedia gives the same advice: seek ideas that challenge your point of view.",
+   "lesson_line": "Read the best case against your trade. If you can't answer it, you're not ready.",
+   "facts": [
+    "f24",
+    "f57"
+   ],
+   "wrong": {
+    "Read more posts from other holders": "Other holders agree with you, so this feeds the bias. It is more of the same view.",
+    "Re-read your own notes on the thesis": "Your own notes only repeat your view. The test needs a view that contradicts it.",
+    "Ask a friend who is long it too": "A friend who owns it will likely agree. That is more of the same view, not a test of it."
+   },
+   "simple": "Read the best case against your trade, because only a view that contradicts yours can show whether bias is blinding you.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "Schwab and Investopedia agree; replaces a fill-in on the same idea"
+    ]
+   },
+   "batch": "fills"
+  },
+  {
+   "key": "q98",
+   "skill": "vocab.psych_terms",
+   "rung": 4,
+   "format": "mcq",
+   "term": "Anchoring",
+   "q": "You bought at $50. It is now $42, below your stop, but you will not sell under $50. What should drive your exit?",
+   "choices": [
+    "The stop you set before the trade",
+    "The $50 you paid for it",
+    "How far it has fallen from your cost",
+    "What other holders of it are doing"
+   ],
+   "answer": "The stop you set before the trade",
+   "why": "The stop you set before the trade. Anchoring is leaning on a first number, here your $50 cost, as a reference point. The OSC says many people won't sell below what they paid, even when selling is the smart move. It blames both loss aversion and the original price acting as an anchor. The stock does not know your $50. At $42 and below your stop, the stop decides.",
+   "lesson_line": "Your entry price means nothing to the stock. Judge it as it is now.",
+   "facts": [
+    "f153",
+    "f152",
+    "f88",
+    "f94",
+    "f83"
+   ],
+   "wrong": {
+    "The $50 you paid for it": "That is the anchor. The stock does not know what you paid, so your cost says nothing about where it goes next.",
+    "How far it has fallen from your cost": "That still measures the stock against your $50 cost. Your entry is the anchor, so it cannot tell you when to exit.",
+    "What other holders of it are doing": "That is herding, copying others. Your exit comes from your own stop, set before the trade."
+   },
+   "simple": "Your stop decides, because the $50 you paid has become an anchor and the stock does not know it.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "OSC anchoring page; replaces a fill-in on the same idea"
+    ]
+   },
+   "batch": "fills"
   }
  ],
  "conflicts": [
@@ -3528,10 +3601,10 @@
    "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q02": {
-   "status": "pass",
+   "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q03": {
    "status": "pass",
@@ -3583,10 +3656,10 @@
    "notes": "Key matches CIBC f123 (confirmed on the page) and Investopedia f73. Distractors are real confusions; the 'Re-entering after a stop-out' note agrees with rulebook B21. Overlap with q11 is same-term recognition only."
   },
   "q11": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "New lesson line is grounded in f85 and makes no promise. Bank words are real trading words, none silly."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q12": {
    "status": "pass",
@@ -3655,10 +3728,10 @@
    "notes": "upgraded wave8; awaiting cold re-read"
   },
   "q23": {
-   "status": "pass",
+   "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q24": {
    "status": "cut",
@@ -3697,10 +3770,10 @@
    "notes": "Key right (Schwab f23, OSC f89, Investopedia f56). Broke on a cross-answer: the Investopedia line 'keeps bulls bullish and bears bearish whatever the market does' is q32's reasoning (confirmation bias keeps you in a losing view, True). Dropped it and f58."
   },
   "q30": {
-   "status": "pass",
+   "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q31": {
    "status": "pass",
@@ -3723,10 +3796,10 @@
    "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q34": {
-   "status": "pass",
+   "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q35": {
    "status": "pass",
@@ -3896,6 +3969,18 @@
    "by": "checker",
    "fixed": false,
    "notes": "Key False matches B21 (h21, verbatim). The statement's motive (make up the loss) is what makes it false under the rule. With q10's note rewritten, no other question states this answer."
+  },
+  "q97": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Correct, supported by f24 and f57; the answer is the only choice that does not feed the view. Wrong notes fit. No tell beyond the natural one."
+  },
+  "q98": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Correct, supported by f153, f152, f88, f94, f83. Two wrong choices anchor on cost and one is herding, so the stop is the clear exit. Numbers 50 and 42 are in the stem."
   }
  }
 }

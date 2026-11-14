@@ -768,6 +768,12 @@
    "source": "h2",
    "quote": "A gap up past 3R at the open is not an automatic sell. Selling part at the open on a big gap is one choice he may make by judgment, never a rule",
    "claim": "GAP-TRIM: a gap past 3R is not an automatic sell; selling part at the open is an optional judgment."
+  },
+  {
+   "id": "r06",
+   "source": "h2",
+   "quote": "Below the 200-day is a hard no for stocks. The one exception: indexes and leveraged ETFs may be bought under their 200-day on a reversal extension or a parabolic long.",
+   "claim": "Below the 200-day is a hard no for stocks; indexes and leveraged ETFs are the exception (D-009)"
   }
  ],
  "walkthroughs": [
@@ -3864,6 +3870,40 @@
     ]
    },
    "batch": "wave2"
+  },
+  {
+   "key": "q84",
+   "skill": "setup.vcp",
+   "rung": 4,
+   "format": "scenario",
+   "criterion": "vcp.above_200",
+   "q": "Buy the breakout through 42.00?",
+   "story": "A textbook VCP: shrinking pullbacks, a 5% final contraction, volume dried up. The stock trades through the 42.00 pivot at 42.15. Its 200-day line sits at 43.00.",
+   "choices": [
+    "Pass; it is under the 200-day line",
+    "Pass; the final contraction is too wide",
+    "Buy; it is only a hair under the line",
+    "Buy half size until it clears the line"
+   ],
+   "answer": "Pass; it is under the 200-day line",
+   "why": "Pass. Below the 200-day is a hard no for stocks, so a clean pattern does not rescue the buy. The 200-day sits at 43.00 and the stock trades at 42.15, under it. Our card wants price above the 200-day at the buy. The exception is narrow: an index or a levered ETF, on a reversal extension or a parabolic long.",
+   "lesson_line": "A clean pattern under the 200-day is still a pass. Wait for the line to be reclaimed.",
+   "simple": "Pass. A stock under its 200-day average is a hard no, however clean the pattern looks.",
+   "wrong": {
+    "Pass; the final contraction is too wide": "The final contraction is 5%, inside the 10% limit. The pattern is fine. The 200-day is what fails.",
+    "Buy; it is only a hair under the line": "The rule is above the line at the buy. There is no allowance for being close.",
+    "Buy half size until it clears the line": "The 200-day is a gate, not a size cue. Below it, we do not buy the stock at all."
+   },
+   "facts": [
+    "h10",
+    "c23",
+    "c24",
+    "c03",
+    "r06"
+   ],
+   "house": true,
+   "tier": "core",
+   "batch": "cover"
   }
  ],
  "conflicts": [
@@ -3969,10 +4009,10 @@
    "notes": "Key re-derived cold from the cited quotes and agrees; wrong notes true; numbers grounded; no tell found; no rulebook conflict."
   },
   "q12": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Key re-derived cold from the cited quotes and agrees; wrong notes true; numbers grounded; no tell found; no rulebook conflict."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q13": {
    "status": "cut",
@@ -4383,10 +4423,10 @@
    "notes": "edit ok, agrees with D-013"
   },
   "q80": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "fill now judgment; ok"
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q81": {
    "status": "pass",
@@ -4406,6 +4446,12 @@
    "by": "checker",
    "fixed": false,
    "notes": "Buy at market is right (E57, F62, B22, C28 0.8% over pivot, C29 3%, RS 90, above 200-day, Green). Distractors fail on stated rules. Story omits volume and the day's low vs final low but no choice depends on them."
+  },
+  "q84": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Applies vcp.above_200 with a near miss (42.15 vs a 200-day at 43.00), framed by D-009; r06 quote is verbatim from RULINGS D-009 reading. Distractors clearly wrong (5% final contraction is within c03's 10%; no near-miss allowance; 200-day is a gate not a size cue per h10). Not a duplicate of q58 (close under 200 while a base forms). Fixed why: 'a fast ETF' was not the ruling's wording; now a levered ETF, avoiding the banned word leverage."
   }
  }
 }

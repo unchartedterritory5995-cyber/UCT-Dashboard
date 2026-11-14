@@ -898,14 +898,20 @@
     }
    },
    "suffix": "%",
-   "why": "8.5%. Measure from the last close before the report to the first close after it. $86.80 minus $80 is $6.80. Divide $6.80 by $80 and you get 8.5%. That is the realized move, the move that actually printed. Hold it up against the implied move to see whether the stock moved more or less than options priced.",
-   "lesson_line": "Measure the realized move from the last close before the report. Then hold it up against what was priced.",
+   "why": "8.5%. The realized move is how far the stock really moved because of the report. Find it on a daily chart. Take the last close before the report and the first close after it. The rise is $86.80 minus $80, which is $6.80. Divide that by the starting $80 and you get 8.5%. Close to close catches the whole gap, because news lands while the market is shut. The implied move is the forecast read from options before the report. Realized is what printed. Set the two side by side to see if the stock moved more or less than priced.",
+   "lesson_line": "Realized move = (close after minus close before) divided by close before. Then hold it up against the implied move.",
    "facts": [
     "f2",
     "f29",
-    "f27"
+    "f27",
+    "f15",
+    "f53",
+    "f39",
+    "f41",
+    "f17",
+    "f20"
    ],
-   "simple": "It was 8.5%, found by taking the rise from $80 to $86.80 and dividing it by the $80 start.",
+   "simple": "It was 8.5%, the gain from the last close before the report to the first close after, divided by the $80 start.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -914,7 +920,7 @@
      "fixed before (stem made self-contained)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "review3",
    "choices": [
     "6.8%",
     "7.8%",
@@ -922,9 +928,12 @@
     "108.5%"
    ],
    "wrong": {
-    "7.8%": "You divided the rise by the new $86.80 close instead of the old $80 close.",
-    "6.8%": "You read the $6.80 dollar rise as a percent.",
-    "108.5%": "You divided the new close by the old and forgot to subtract one."
+    "7.8%": "You divided the $6.80 rise by the new $86.80 close. Always divide by where the move started, the old $80 close.",
+    "6.8%": "That is the rise in dollars, $6.80, read as a percent. Divide it by the $80 start to turn it into a percent.",
+    "108.5%": "That is the new close as a share of the old one. The move is only the part above the start, so subtract the starting $80 first."
+   },
+   "deeper": {
+    "example": "A real one: before AMD's report, options priced about 7%. The next morning the stock was trading about 10% lower. That is bigger than priced, so the options likely priced too small a move."
    }
   },
   {
@@ -1587,8 +1596,8 @@
   "q10": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Recomputed the calc by hand; answer shows it; every wrong choice is a real, distinct mistake; no tell; why walks the steps."
+   "fixed": true,
+   "notes": "Answers his note: defines realized vs implied, says where it is found (daily chart, last close before to first close after), shows the math step by step, explains why close to close, wrong notes teach. Math verified (6.80/80 = 8.5%; 6.80/86.80 = 7.8%; 86.8/80 = 108.5%). Style rules met. Fixes: the implied-move definition had no cited fact (added f17, f20 from Cboe); the AMD example quotes a premarket snapshot ('currently about -10% lower'), so it now says the stock was trading about 10% lower, not a settled close, and says options likely priced too small a move."
   },
   "q11": {
    "status": "pass",

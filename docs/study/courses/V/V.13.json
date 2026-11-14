@@ -3593,10 +3593,10 @@
    "notes": "upgraded wave8; awaiting cold re-read"
   },
   "q15": {
-   "status": "pass",
+   "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q16": {
    "status": "pass",
@@ -3839,10 +3839,10 @@
    "notes": "upgraded wave8; awaiting cold re-read"
   },
   "q56": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Opened the rule text (17 CFR 275.206(4)-1(e)(8), via the law.cornell.edu mirror; eCFR blocks the client): 'Hypothetical performance includes, but is not limited to ... (B) Performance that is backtested ...'. f99 and f100 quotes match verbatim. Tier 1. Bank distractors (actual, audited, realized, verified) are wrong under the rule. Sentence names the SEC adviser rule, so not market-ambiguous; as_of covers rule-change risk."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q57": {
    "status": "pass",
@@ -3851,10 +3851,10 @@
    "notes": "False is the only answer: f73 Steenbarger, f104 CFTC (Tier 1), f47 StockCharts. Deeper uses f103 correctly. Overlaps in theme with q52/q61 but tests a different object (a backtest). After the q59 fix its why is no longer near-copied by q59."
   },
   "q58": {
-   "status": "pass",
+   "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q59": {
    "status": "pass",

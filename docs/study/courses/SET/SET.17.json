@@ -3869,6 +3869,44 @@
     ]
    },
    "batch": "wave2"
+  },
+  {
+   "key": "q97",
+   "skill": "setup.wedge_drop",
+   "rung": 3,
+   "format": "mcq",
+   "criterion": "wd.trail",
+   "q": "You hold the last third of a short and trail the 10-day EMA. Price pokes above it at noon, then closes under it. Cover?",
+   "choices": [
+    "No, the close under it keeps you in",
+    "Yes, any trade above it is a cover",
+    "Yes, cover half and trail the rest",
+    "Yes, a poke shows buyers are back"
+   ],
+   "answer": "No, the close under it keeps you in",
+   "why": "No. The trail is the 10-day EMA for a fast mover or the 21-day for a steadier one. We cover the last third on a close back above it, not on a touch. Here the stock closed under the line, so the short stays on. A rally that stalls under the falling averages is a place to hold.",
+   "lesson_line": "Cover on the close back above the line, not on the poke.",
+   "facts": [
+    "h19",
+    "c51",
+    "y04",
+    "c18"
+   ],
+   "wrong": {
+    "Yes, any trade above it is a cover": "A touch is not a close. We cover only on a close back above the trail, so a poke that fades by the close changes nothing.",
+    "Yes, cover half and trail the rest": "You hold only the last third, and it comes off in one piece on a close back above the line. A poke that fades by the close changes nothing.",
+    "Yes, a poke shows buyers are back": "A poke is not buyers taking over. A rally that stalls under the falling averages is a place to hold."
+   },
+   "simple": "No. We cover the last third only on a close back above the trail line, not on an intraday poke.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "+2 rests on the owner's rulebook (E52)"
+    ]
+   },
+   "house": true,
+   "batch": "fills"
   }
  ],
  "conflicts": [
@@ -3908,10 +3946,10 @@
    "notes": "Key from y01/t02; t03 caveat is in the why; no second answer."
   },
   "q04": {
-   "status": "pass",
+   "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave2; awaiting cold re-read"
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q05": {
    "status": "pass",
@@ -3938,10 +3976,10 @@
    "notes": "t08/t09/u03/k04 support key and notes; no overlap with q61 beyond the spaced re-test."
   },
   "q09": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "10 per h14 and c48. Bank is fine. Sessions and trading days read the same."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q10": {
    "status": "pass",
@@ -4017,10 +4055,10 @@
    "notes": "c20 and t06: a close back above both averages is the cover. 50.00 to 51.20 is 2.4%, inside 3%. HPQ anecdote matches d23/d24 (reclaim and stop hit on day 2). Add/hold/breakeven choices all wrong by the card and h05."
   },
   "q22": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "21 per h19 and c51. Bank has no tell. The deeper trap rests on c18 and the close-based trail."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q23": {
    "status": "pass",
@@ -4326,6 +4364,12 @@
    "by": "checker",
    "fixed": true,
    "notes": "Key is right (F66/hf66, k06 hedge). One tell: the lone absolute 'no post can ever be a lead' marks the choice as wrong at a glance. Soften choice 4 and its wrong note."
+  },
+  "q97": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Correct and supported by h19, c51, c18. The wrong note for 'cover half' invented a 'no half step' rule no fact supports; replaced with a note from the facts (only the last third is held, covered on a close)."
   }
  }
 }

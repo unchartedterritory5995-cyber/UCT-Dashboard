@@ -1514,10 +1514,10 @@
    "notes": "Solved cold from f1/f11: 9:30 a.m. to 4:00 p.m. ET. Key matches. The simple line is 19 words. The why rests on f1, f11 (FINRA 'as defined by the SEC') and f16. The 'your time' and Nasdaq 4-to-8 distractors are real misreadings with grounded notes (f27, f31). The key is not the longest choice and has no tell."
   },
   "q02": {
-   "status": "pass",
+   "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q03": {
    "status": "pass",

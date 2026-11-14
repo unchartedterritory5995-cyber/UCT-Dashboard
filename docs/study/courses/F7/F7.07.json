@@ -1674,10 +1674,10 @@
    "notes": "True from f03, f04. Simple and lesson_line grounded (volatile -> swing a lot; underlying rate). No tell."
   },
   "q03": {
-   "status": "pass",
+   "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q04": {
    "status": "pass",
@@ -1696,7 +1696,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Thursday from f45; Nov. 25, 2026 is a Wednesday (Nov. 10 is a Tuesday per f09). No holiday named; f46 covers the move."
+   "notes": "Keep. Jobless claims every Thursday at 8:30 Eastern is a weekly calendar item a swing trader plans around, and the why teaches the holiday shift. Weekday bank is a mild recall but the lesson is the data calendar."
   },
   "q07": {
    "status": "pass",

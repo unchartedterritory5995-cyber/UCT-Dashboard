@@ -1762,7 +1762,7 @@
    "rung": 2,
    "format": "mcq",
    "term": "Advance-decline ratio",
-   "q": "What is the advance-decline ratio?",
+   "q": "How is the advance-decline ratio worked out?",
    "choices": [
     "Advancers divided by decliners",
     "Advancers minus decliners",
@@ -2589,7 +2589,7 @@
     "20"
    ],
    "answer": "200",
-   "why": "200. ChartSchool says that for medium-to-long-term timeframes it is best to look at the share above the 150-day and 200-day averages. Schwab says long-term investors should consider the 200-day, while active traders watch the 50-day for a nearer-term look.",
+   "why": "200. The share of stocks above their 200-day average shows how many stocks are in a long-term uptrend, so it gives the bigger picture. ChartSchool says that for medium-to-long-term timeframes it is best to look at the share above the 150-day and 200-day averages. Schwab says long-term investors should consider the 200-day, while active traders watch the 50-day for a nearer-term look.",
    "lesson_line": "The 50-day for the nearer term. The 200-day for the bigger picture.",
    "facts": [
     "f26",
@@ -2602,7 +2602,7 @@
     "score": 0,
     "reasons": []
    },
-   "batch": "wave8"
+   "batch": "fills"
   },
   {
    "key": "q36",
@@ -3311,7 +3311,7 @@
     "3"
    ],
    "answer": "0.2",
-   "why": "0.2. IBD's rule: a distribution day is a loss of 0.2% or greater in the Nasdaq composite or S&P 500, in higher volume. Bulkowski used the same 0.2% cut to match IBD. This is IBD's method as its published articles state it, not a law of the market.",
+   "why": "0.2. A distribution day is a day big institutions are selling: the Nasdaq composite or S&P 500 falls 0.2% or more on higher volume. Bulkowski used the same 0.2% cut to match IBD. Traders count these days, and IBD reads a cluster of them as a warning. This is IBD's method as its published articles state it, not a law of the market.",
    "lesson_line": "It doesn't take a crash. A small drop on rising volume still counts.",
    "facts": [
     "f112",
@@ -3326,7 +3326,7 @@
      "IBD's rule can change (its live page is for subscribers)"
     ]
    },
-   "batch": "wave8"
+   "batch": "fills"
   },
   {
    "key": "q56",
@@ -3806,10 +3806,10 @@
    "notes": "Key right (f99, f47, f11). The why ('A new high needs a one-year extreme') and the New highs note ('a one-year test') give q23's key (a stock at its highest price in a year); no walkthrough teaches it first. The simple and lesson line said 'many breadth gauges' start from the count, which the why never said. Reworded so the why carries the A/D-line link (f11) and no note defines new highs."
   },
   "q04": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Decliners from f99/f47, the word from f11. Bank items do not fit the one-day close test. No overlap with q24 or q46 left."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q05": {
    "status": "pass",
@@ -3897,10 +3897,10 @@
    "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q19": {
-   "status": "pass",
+   "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q20": {
    "status": "pass",
@@ -3927,10 +3927,10 @@
    "by": "track-auditor"
   },
   "q24": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "New lows from f32/f09. The new-highs line only repeats q23, which comes earlier. Bank distractors are daily measures."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q25": {
    "status": "pass",
@@ -3996,7 +3996,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from ChartSchool f26 and Schwab f97, with f96 for the 50-day contrast. q36 is cut, so the why gives nothing away. Every bank option is a real MA length."
+   "notes": "Keep agreed: which average to read breadth against is a screen skill; the why now defines the 200-day share."
   },
   "q36": {
    "status": "cut",
@@ -4059,10 +4059,10 @@
    "notes": "Key from Nasdaq f07 (Tier 1) plus f47. The OBV contrast is from f151. The unsourced buyer/seller claim is gone. The key is 4 chars longest, which is acceptable."
   },
   "q46": {
-   "status": "pass",
+   "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q47": {
    "status": "pass",
@@ -4117,7 +4117,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "0.2 from f112/f116, Bulkowski f136. Bank mixes decimals; no tell."
+   "notes": "Keep agreed: the IBD distribution day threshold is what a trader counts; the why states the use and that it is IBD method."
   },
   "q56": {
    "status": "pass",

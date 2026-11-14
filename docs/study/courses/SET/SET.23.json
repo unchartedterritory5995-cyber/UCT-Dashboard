@@ -3680,7 +3680,7 @@
     "90"
    ],
    "answer": "80",
-   "why": "80. We buy leaders: an RS rating of 80 or more, in one of the strongest groups, except parabolic and mean-reversion trades. A Kicker belongs on a leader that is already set up, so the leader test comes first.",
+   "why": "80. We buy leaders: an RS rating of 80 or more, in one of the strongest groups, except parabolic and mean-reversion trades. The RS rating ranks a stock's price performance against other stocks, so a high rating means it has been outperforming. A Kicker belongs on a leader that is already set up, so the leader test comes first.",
    "lesson_line": "A Kicker belongs on a leader: an RS rating of 80 or more.",
    "facts": [
     "h34",
@@ -3695,7 +3695,7 @@
      "rests on the owner's rulebook (C31)"
     ]
    },
-   "batch": "wave3"
+   "batch": "fills"
   },
   {
    "key": "q72",
@@ -4502,10 +4502,10 @@
    "notes": "upgraded wave3; awaiting cold re-read"
   },
   "q03": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "1.5 from cp2/k_gap; bank has one defensible word; no tell."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q04": {
    "status": "pass",
@@ -4521,10 +4521,10 @@
    "notes": "cut in wave3: see the resolver's notes"
   },
   "q06": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Fill 'low' is in k_stop/h24; 3.5% half supported. No tell."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q07": {
    "status": "pass",
@@ -4565,10 +4565,10 @@
    "notes": "True is the card's own context line (cx2) and the PEG tell (l_peg). LUV deeper counter matches dLUV, dLUVn, dLUVd. Rests on pending D-025 as already flagged, but the key does not go beyond the card text."
   },
   "q13": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "15 from k_struct; bank clean; deeper trap grounded (dIDCC 44.1%)."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q14": {
    "status": "pass",
@@ -4922,9 +4922,9 @@
   },
   "q71": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave3; awaiting cold re-read"
+   "notes": "Keep right: the RS 80 leader screen is used at the screen and no other question tests it. Added definition of RS rating teaches the term, as the learnings ask."
   },
   "q72": {
    "status": "pass",
@@ -5011,10 +5011,10 @@
    "notes": "wrong text leaned on day 1 though story gives no day; re-worded"
   },
   "q86": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "ok"
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q87": {
    "status": "pass",

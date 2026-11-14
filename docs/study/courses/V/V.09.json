@@ -3870,6 +3870,43 @@
     ]
    },
    "batch": "wave8"
+  },
+  {
+   "key": "q97",
+   "skill": "vocab.fund_terms",
+   "rung": 4,
+   "format": "mcq",
+   "term": "In line",
+   "q": "A company's reported EPS exactly matches the consensus. What is the best read on how the stock will likely trade?",
+   "choices": [
+    "It depends, because guidance can move it",
+    "It rises, because nothing missed",
+    "It falls, because nothing beat",
+    "It stays flat, because nothing changed"
+   ],
+   "answer": "It depends, because guidance can move it",
+   "why": "It depends, because guidance can move it. The consensus is the analysts' average estimate. FINRA: if the number equals the estimate, it's said to be in line, which is neither a beat nor a miss. So in line does not settle the trade. FINRA notes a beat or miss isn't always what moves the stock, and a dour outlook can still drop the share price.",
+   "lesson_line": "In line isn't a free pass. The stock still trades on guidance and on what was already priced in.",
+   "facts": [
+    "f35",
+    "f38",
+    "f39",
+    "f40"
+   ],
+   "wrong": {
+    "It rises, because nothing missed": "No miss is not good news. In line means the number matched the estimate, which is neither good nor bad on its own.",
+    "It falls, because nothing beat": "In line is not a failure. The stock often trades on guidance and on what was already priced in, not on the match alone.",
+    "It stays flat, because nothing changed": "Nothing says it stays flat. The report still brings revenue and guidance, and either can move the stock."
+   },
+   "simple": "It depends on guidance and what was priced in, because matching the consensus is neither a beat nor a miss.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "FINRA definition and note; replaces a fill-in on the same idea"
+    ]
+   },
+   "batch": "fills"
   }
  ],
  "conflicts": [
@@ -3912,10 +3949,10 @@
    "notes": "Key agrees with f1/f3. Choices balanced (key 30, EPS 32). Wrong notes grounded (f9, f4, f10). Reveal names the top line, which q02 (rung 2) later asks; reveal-level reinforcement in a vocab unit, not a stem give-away."
   },
   "q02": {
-   "status": "pass",
+   "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q03": {
    "status": "pass",
@@ -3949,10 +3986,10 @@
    "notes": "Re-derived from f22/f66: diluted EPS adds shares convertibles and warrants could become. Key right, no tell (lengths 31-33), notes grounded."
   },
   "q08": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "lesson_line backed by f121 (gross profit services other costs), f8 (interest, tax after operating profit), f9. Bank has one fit."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q09": {
    "status": "pass",
@@ -4041,10 +4078,10 @@
    "notes": "Beat per f35/f141. New deeper (revenue $57.01B vs $54.92B) is in f141. 'A wash' is a minor odd label but its note rests on f35 and it tests the close-means-nothing misconception."
   },
   "q23": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "In line per f35; f38 now cited; f39/f40 back the lesson line."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q24": {
    "status": "pass",
@@ -4109,10 +4146,10 @@
    "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q34": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Bank has one fit (f149). lesson_line states B22's hold half verbatim from h01 (21 words); it is where B22 is taught before q63. Note: its why also tells q37's answer (rung 4 before rung 7); accepted as teach-then-test, and walkthrough w3 already says it."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q35": {
    "status": "pass",
@@ -4296,6 +4333,12 @@
    "by": "checker",
    "fixed": false,
    "notes": "Story arithmetic checks ($50-$45 = $5 risk; ($60-$50)/$5 = 2R, givens of the question). 2R < 5R, so B22 says be out before the report; the breakeven distractor fairly tests B19 against B22. Notes grounded (h01, f110, f46). R undefined in this lesson: owner flag stands."
+  },
+  "q97": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Content correct and supported by f35, f38, f39, f40. Tell: the right answer was the only one not shaped like the three \"It X, because Y\" choices. Rewritten in the same shape. Wrong notes unchanged."
   }
  }
 }

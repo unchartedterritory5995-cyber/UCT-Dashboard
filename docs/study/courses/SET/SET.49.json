@@ -3901,7 +3901,7 @@
     "10"
    ],
    "answer": "40",
-   "why": "40. T2108 is the percent of stocks above their 40-day average. Our card reads it near or under 15% to 20% as breadth washed out, one backdrop for a market-wide flush.",
+   "why": "40. T2108 is the share of stocks trading above their own 40-day average, a quick read of market breadth. Our card reads it near or under 15% to 20% as breadth washed out, one backdrop for a market-wide flush.",
    "lesson_line": "T2108 counts stocks above their 40-day average. Low readings are washed out.",
    "facts": [
     "c30"
@@ -3916,7 +3916,7 @@
      "a proposed card criterion"
     ]
    },
-   "batch": "wave5"
+   "batch": "fills"
   },
   {
    "key": "q75",
@@ -4164,10 +4164,10 @@
    "notes": "upgraded wave5; awaiting cold re-read"
   },
   "q03": {
-   "status": "pass",
-   "by": "checker",
-   "fixed": true,
-   "notes": "keep ok; depends_on restored (writer emptied it)"
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q04": {
    "status": "pass",
@@ -4188,10 +4188,10 @@
    "notes": "Key from c02. Distractors fail the 2x floor in different ways. m01 colour only."
   },
   "q07": {
-   "status": "pass",
+   "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q08": {
    "status": "pass",
@@ -4602,9 +4602,9 @@
   },
   "q74": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "notes": "Keep is right: T2108 is a breadth gauge traders watch; q75 tests the reading but not what it measures. New why defines it; c30 supports it."
   },
   "q75": {
    "status": "pass",

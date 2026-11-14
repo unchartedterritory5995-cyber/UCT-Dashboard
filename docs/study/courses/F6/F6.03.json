@@ -1479,10 +1479,10 @@
    "notes": "Key from f10 (Tier 1). 'What the company is really worth' is a real stock-investor misreading, not silly. Notes grounded (f1, f11). Key not longest (29 vs 32)."
   },
   "q04": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Key from f10 and f3. 'Never goes negative' follows from f10's 'the amount, if any'. Dropping the 'whole price is time value' line removed the give-away of q08."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q05": {
    "status": "pass",
@@ -1557,10 +1557,10 @@
    "notes": "Answer unchanged and at target rank after sorting; each wrong choice matches a real slip on this math and is clearly wrong; no new tell."
   },
   "q17": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Key from f17 (Tier 1): exercise loses the remaining time value. Simple now hedged ('can also collect'). Teaches the rule q28 later applies, which is the right order."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q18": {
    "status": "pass",

@@ -158,92 +158,6 @@
  },
  {
   "answer_json": {
-   "answer": "months"
-  },
-  "difficulty": 1,
-  "id": "si_97a219901cb5",
-  "lesson_origin": "session",
-  "lesson_text": "Months. Schwab and Investopedia put position trades at weeks or months. Fidelity says many months or years. Months is the span all three name. Minutes and hours are a day trader's clock, and days a swing trader's. None of the three sources says decades. Day traders count minutes, swing traders count days, position traders count months.",
-  "module": "F11",
-  "prompt_json": {
-   "bank": [
-    "minutes",
-    "hours",
-    "days",
-    "months",
-    "decades"
-   ],
-   "kind": "fill",
-   "q": "Tap the word that fits the blank.",
-   "sentence": "A position trader often holds for ___ at a time.",
-   "subject": "F11.01#q03"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-09",
-      "name": "Charles Schwab: What Is Swing Trading and How Does It Work? (August 11, 2026)",
-      "quote": "Like investors, position traders may hold a security for weeks or months. Longer holding periods often lead position traders to place greater weight than swing traders on business fundamentals, valuations, institutional money flows, and the economic backdrop.",
-      "tier": 2,
-      "url": "https://www.schwab.com/learn/story/swing-trading-strategies"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Investopedia: Mastering Swing Trading: Techniques and Strategies (Adam Hayes, updated July 24, 2026)",
-      "quote": "Swing trading occupies a middle ground between day trading and position trading, which is driven more by fundamentals and involves holding on to positions for weeks or months at a time.",
-      "tier": 2,
-      "url": "https://www.investopedia.com/terms/s/swingtrading.asp"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Fidelity Investments: Stock trading (Fidelity Learning Center, Smart Money, June 5, 2026)",
-      "quote": "Position traders may hold their position for many months or years.",
-      "tier": 2,
-      "url": "https://www.fidelity.com/learning-center/smart-money/what-is-trading"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC, Investor.gov: Day Trading (glossary)",
-      "quote": "Day traders rapidly buy, sell and short-sell stocks throughout the day in the hope that the stocks continue climbing or falling in value for the seconds or minutes they hold the shares",
-      "tier": 1,
-      "url": "https://www.investor.gov/introduction-investing/investing-basics/glossary/day-trading"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Charles Schwab: What Is Day Trading? How It Works, Strategies, & Risks (Joe Mazzola, October 29, 2026)",
-      "quote": "The key is that every position is opened and closed on the same day.",
-      "tier": 2,
-      "url": "https://www.schwab.com/learn/story/introduction-to-pattern-day-trader-rules"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Charles Schwab: What Is Swing Trading and How Does It Work? (August 11, 2026)",
-      "quote": "Swing traders seek to capitalize on price swings over a period of days or weeks, typically using technical analysis to identify price patterns and entry and exit points.",
-      "tier": 2,
-      "url": "https://www.schwab.com/learn/story/swing-trading-strategies"
-     }
-    ],
-    "summary": "Position traders hold for weeks or months and weigh fundamentals, valuation, fund flows and the economy more than swing traders do. Position trading holds for weeks or months and leans more on fundamentals; swing trading sits between it and day trading. Position traders can hold for many months or years. Day traders trade throughout the day and often hold for only seconds or minutes. In day trading, every position opens and closes the same day. Swing traders try to profit from price swings over days or weeks, mostly with chart analysis."
-   },
-   "facts": {
-    "given": "Tap the word that fits the blank. A position trader often holds for ___ at a time."
-   },
-   "lesson_line": "Day traders count minutes, swing traders count days, position traders count months.",
-   "simple": "Months, because position traders ride a big trend and hold much longer than swing traders do.",
-   "tier": "core",
-   "unit": "F11.01",
-   "why": "Months. Schwab and Investopedia put position trades at weeks or months. Fidelity says many months or years. Months is the span all three name. Minutes and hours are a day trader's clock, and days a swing trader's. None of the three sources says decades."
-  },
-  "review_status": "draft",
-  "skill_id": "styles.horizons",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F11/F11.01.json#q03",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
    "answer": "True"
   },
   "difficulty": 1,
@@ -709,77 +623,6 @@
   "source_kind": "course",
   "source_ref": "docs/study/courses/F11/F11.01.json#q11",
   "type": "scenario",
-  "version": 1
- },
- {
-  "answer_json": {
-   "answer": "hourly"
-  },
-  "difficulty": 2,
-  "id": "si_496197880682",
-  "lesson_origin": "session",
-  "lesson_text": "Hourly. Schwab describes a longer chart for the setup and an hourly chart for planning and executing entries and exits. Investopedia's example swing trader uses 60-minute charts for the short-term trend. A weekly, monthly or quarterly bar is too long to time a trade that lasts days. The longer chart finds the trade. The shorter chart times it.",
-  "module": "F11",
-  "prompt_json": {
-   "bank": [
-    "hourly",
-    "weekly",
-    "monthly",
-    "quarterly"
-   ],
-   "kind": "fill",
-   "q": "Tap the word that fits the blank.",
-   "sentence": "Many swing traders find the trade on a longer chart and time the entry on the ___ chart.",
-   "subject": "F11.01#q12"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-09",
-      "name": "Charles Schwab: What Is Swing Trading and How Does It Work? (August 11, 2026)",
-      "quote": "For example, they may use a longer period (like a daily chart) for the trade setup but refer to an hourly chart when planning and executing entry and exit points.",
-      "tier": 2,
-      "url": "https://www.schwab.com/learn/story/swing-trading-strategies"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Investopedia: Master Trading With Multiple Time Frames (Joey Fundora, updated October 12, 2025)",
-      "quote": "A swing trader, who focuses on daily charts for decisions, could use weekly charts to define the primary trend and 60-minute charts to define the short-term trend.",
-      "tier": 2,
-      "url": "https://www.investopedia.com/articles/trading/07/timeframes.asp"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Charles Schwab: What Is Swing Trading and How Does It Work? (August 11, 2026)",
-      "quote": "Swing traders seek to capitalize on price swings over a period of days or weeks, typically using technical analysis to identify price patterns and entry and exit points.",
-      "tier": 2,
-      "url": "https://www.schwab.com/learn/story/swing-trading-strategies"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "StockCharts.com: What Are Charts? (ChartSchool)",
-      "quote": "Daily data consists of intraday data compressed to show each day as a single data point or period. Weekly data includes daily data that has been compressed to show each week as a single data point.",
-      "tier": 2,
-      "url": "https://chartschool.stockcharts.com/table-of-contents/chart-analysis/what-are-charts"
-     }
-    ],
-    "summary": "Swing traders often find the setup on a daily chart and time entries and exits on an hourly chart. A swing trader decides on daily charts, with weekly for the main trend and 60-minute for the short term. Swing traders try to profit from price swings over days or weeks, mostly with chart analysis. On a daily chart each bar is one day; on a weekly chart each bar is one week."
-   },
-   "facts": {
-    "given": "Tap the word that fits the blank. Many swing traders find the trade on a longer chart and time the entry on the ___ chart."
-   },
-   "lesson_line": "The longer chart finds the trade. The shorter chart times it.",
-   "simple": "Hourly, because the longer chart finds the trade and the shorter hourly chart times the entry.",
-   "tier": "extended",
-   "unit": "F11.01",
-   "why": "Hourly. Schwab describes a longer chart for the setup and an hourly chart for planning and executing entries and exits. Investopedia's example swing trader uses 60-minute charts for the short-term trend. A weekly, monthly or quarterly bar is too long to time a trade that lasts days."
-  },
-  "review_status": "draft",
-  "skill_id": "styles.horizons",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F11/F11.01.json#q12",
-  "type": "recall",
   "version": 1
  },
  {
@@ -1582,6 +1425,74 @@
  },
  {
   "answer_json": {
+   "answer": "Time the entry and exit"
+  },
+  "difficulty": 2,
+  "id": "si_ded81ddb88c5",
+  "lesson_origin": "session",
+  "lesson_text": "Time the entry and exit. Many swing traders find the setup on the daily chart and use the hourly chart to plan and time entries and exits. Investopedia's example uses the weekly chart for the main trend. The longer chart finds the trade. The shorter chart times it.",
+  "module": "F11",
+  "prompt_json": {
+   "choices": [
+    "Time the entry and exit",
+    "Pick which stocks to scan",
+    "Judge the company's value",
+    "Read the main trend"
+   ],
+   "kind": "mcq",
+   "q": "You found a swing setup on the daily chart. What does the hourly chart help you do?",
+   "subject": "F11.01#q97"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-09",
+      "name": "Charles Schwab: What Is Swing Trading and How Does It Work? (August 11, 2026)",
+      "quote": "For example, they may use a longer period (like a daily chart) for the trade setup but refer to an hourly chart when planning and executing entry and exit points.",
+      "tier": 2,
+      "url": "https://www.schwab.com/learn/story/swing-trading-strategies"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "Investopedia: Master Trading With Multiple Time Frames (Joey Fundora, updated October 12, 2025)",
+      "quote": "A swing trader, who focuses on daily charts for decisions, could use weekly charts to define the primary trend and 60-minute charts to define the short-term trend.",
+      "tier": 2,
+      "url": "https://www.investopedia.com/articles/trading/07/timeframes.asp"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "Charles Schwab: What Is Swing Trading and How Does It Work? (August 11, 2026)",
+      "quote": "Like investors, position traders may hold a security for weeks or months. Longer holding periods often lead position traders to place greater weight than swing traders on business fundamentals, valuations, institutional money flows, and the economic backdrop.",
+      "tier": 2,
+      "url": "https://www.schwab.com/learn/story/swing-trading-strategies"
+     }
+    ],
+    "summary": "Swing traders often find the setup on a daily chart and time entries and exits on an hourly chart. A swing trader decides on daily charts, with weekly for the main trend and 60-minute for the short term. Position traders hold for weeks or months and weigh fundamentals, valuation, fund flows and the economy more than swing traders do."
+   },
+   "facts": {
+    "given": "You found a swing setup on the daily chart. What does the hourly chart help you do? Time the entry and exit Read the main trend Judge the company's value Pick which stocks to scan"
+   },
+   "lesson_line": "The longer chart finds the trade. The shorter chart times it.",
+   "simple": "It helps you time the entry and exit, because the longer chart finds the trade and the hourly chart times it.",
+   "tier": "core",
+   "unit": "F11.01",
+   "why": "Time the entry and exit. Many swing traders find the setup on the daily chart and use the hourly chart to plan and time entries and exits. Investopedia's example uses the weekly chart for the main trend.",
+   "wrong": {
+    "Judge the company's value": "Value comes from fundamentals, which weigh more for position traders. The hourly chart shows price.",
+    "Pick which stocks to scan": "Finding the setup is the daily chart's job. The hourly chart times the entry once you have one.",
+    "Read the main trend": "The main trend is the longer chart's job. Investopedia's swing trader uses the weekly chart to define it."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "styles.horizons",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F11/F11.01.json#q97",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
    "unscored": true
   },
   "difficulty": 1,
@@ -2051,98 +1962,6 @@
   "skill_id": "styles.setups_fit",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F11/F11.02.json#q02",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
-   "answer": "day"
-  },
-  "difficulty": 1,
-  "id": "si_37487a14242e",
-  "lesson_origin": "session",
-  "lesson_text": "Day. Bulkowski calls this opening-gap setup a day trading setup. He enters off the 5-minute chart and times the exit on the 1- or 2-minute. Investopedia lists fading the gap among day traders' techniques. A gap alone does not make a day trade: ChartSchool applies its gap strategies to daily and weekly gaps too. A short exit chart alone does not either, since a swing trade can time its exit on a shorter chart. The setup's own plan sets the clock. Bulkowski built this gap trade to finish inside the session.",
-  "module": "F11",
-  "prompt_json": {
-   "bank": [
-    "day",
-    "swing",
-    "position",
-    "buy-and-hold"
-   ],
-   "kind": "fill",
-   "q": "Tap the word that fits the blank.",
-   "sentence": "Bulkowski's opening gap-down setup, in off the 5-minute chart and out off the 1- or 2-minute, is a ___ trading setup.",
-   "subject": "F11.02#q03"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-09",
-      "name": "Thomas Bulkowski, ThePatternSite.com: Bulkowski's Opening Gap Trading Setup, Long Side",
-      "quote": "The following discusses a day trading setup that uses a downward price gap at the open.",
-      "tier": 2,
-      "url": "https://www.thepatternsite.com/gapsetupl.html"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Thomas Bulkowski, ThePatternSite.com: Bulkowski's Opening Gap Trading Setup, Long Side",
-      "quote": "Use the 5-minute chart for entry, the 1 or 2 minute chart to better time the exit",
-      "tier": 2,
-      "url": "https://www.thepatternsite.com/gapsetupl.html"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Investopedia: Day Trader Basics: Techniques, Strategies, and Risks Explained (James Chen, updated 2026-09-29)",
-      "quote": "Techniques used by day traders include trading the news, fading the gap, and assessing market direction to buy or short securities.",
-      "tier": 2,
-      "url": "https://www.investopedia.com/terms/d/daytrader.asp"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Charles Schwab: What Is Swing Trading and How Does It Work? (updated 2026-08-11)",
-      "quote": "a day trade, by definition, is one in which the trader enters and exits the trade within the same trading day, holding positions for seconds, minutes, or hours.",
-      "tier": 2,
-      "url": "https://www.schwab.com/learn/story/swing-trading-strategies"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "StockCharts.com: ChartSchool: Gap Trading Strategies",
-      "quote": "gap trading strategies can be applied to weekly, end-of-day or intraday gaps.",
-      "tier": 2,
-      "url": "https://chartschool.stockcharts.com/table-of-contents/trading-strategies-and-models/trading-strategies/gap-trading-strategies"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Investopedia: Master Trading With Multiple Time Frames (Joey Fundora, updated 2025-10-12)",
-      "quote": "they would be using the long-term chart to define the trend, the intermediate-term chart to provide the trading signal and the short-term chart to refine the entry and exit.",
-      "tier": 2,
-      "url": "https://www.investopedia.com/articles/trading/07/timeframes.asp"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Charles Schwab: What Is Swing Trading and How Does It Work? (updated 2026-08-11)",
-      "quote": "they may use a longer period (like a daily chart) for the trade setup but refer to an hourly chart when planning and executing entry and exit points.",
-      "tier": 2,
-      "url": "https://www.schwab.com/learn/story/swing-trading-strategies"
-     }
-    ],
-    "summary": "Bulkowski's opening-gap setup is a day trade. The opening-gap setup enters off the 5-minute chart and exits off the 1- or 2-minute. Fading the gap is a day trader's technique. A day trade opens and closes in the same session. ChartSchool's gap strategies can be applied to intraday, daily and weekly gaps. Longer chart for the trend, main chart for the signal, shorter chart for the entry. A swing trader may find the setup on the daily chart and time the entry on an hourly chart."
-   },
-   "facts": {
-    "given": "Tap the word that fits the blank. Bulkowski's opening gap-down setup, in off the 5-minute chart and out off the 1- or 2-minute, is a ___ trading setup."
-   },
-   "lesson_line": "The setup's own plan sets the clock. Bulkowski built this gap trade to finish inside the session.",
-   "simple": "Day, because Bulkowski built this gap setup as a day trade, in and out off minute charts.",
-   "tier": "core",
-   "unit": "F11.02",
-   "why": "Day. Bulkowski calls this opening-gap setup a day trading setup. He enters off the 5-minute chart and times the exit on the 1- or 2-minute. Investopedia lists fading the gap among day traders' techniques. A gap alone does not make a day trade: ChartSchool applies its gap strategies to daily and weekly gaps too. A short exit chart alone does not either, since a swing trade can time its exit on a shorter chart."
-  },
-  "review_status": "draft",
-  "skill_id": "styles.setups_fit",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F11/F11.02.json#q03",
   "type": "recall",
   "version": 1
  },
@@ -6119,57 +5938,6 @@
  },
  {
   "answer_json": {
-   "answer": "temperament"
-  },
-  "difficulty": 1,
-  "id": "si_c50dadf0fccd",
-  "lesson_origin": "session",
-  "lesson_text": "Temperament. The SEC's page on day trading names three things most individual investors lack. They are the wealth, the time and the temperament to make money at it and survive its losses. The warning is about day trading, so weigh it when you pick that lane. Pick a style that fits your money, your hours and your nerves.",
-  "module": "F11",
-  "prompt_json": {
-   "bank": [
-    "temperament",
-    "software",
-    "license",
-    "education",
-    "data feed"
-   ],
-   "kind": "fill",
-   "q": "Tap the word the SEC used.",
-   "sentence": "Most investors lack the wealth, the time or the ___ to make money day trading, the SEC warns.",
-   "subject": "F11.04#q01"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC: Day Trading: Your Dollars at Risk (investor publication, April 19, 2005)",
-      "quote": "Most individual investors do not have the wealth, the time, or the temperament to make money and to sustain the devastating losses that day trading can bring.",
-      "tier": 1,
-      "url": "https://www.sec.gov/about/reports-publications/investorpubsdaytipshtm"
-     }
-    ],
-    "summary": "The SEC says most individual investors lack the wealth, the time or the temperament to make money day trading and survive its losses."
-   },
-   "facts": {
-    "given": "Tap the word the SEC used. Most investors lack the wealth, the time or the ___ to make money day trading, the SEC warns."
-   },
-   "lesson_line": "Pick a style that fits your money, your hours and your nerves.",
-   "simple": "Temperament, because the SEC says most investors lack the wealth, the time or the temperament to make money day trading.",
-   "tier": "core",
-   "unit": "F11.04",
-   "why": "Temperament. The SEC's page on day trading names three things most individual investors lack. They are the wealth, the time and the temperament to make money at it and survive its losses. The warning is about day trading, so weigh it when you pick that lane."
-  },
-  "review_status": "draft",
-  "skill_id": "styles.lane",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F11/F11.04.json#q01",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
    "answer": "True"
   },
   "difficulty": 1,
@@ -6372,78 +6140,6 @@
   "skill_id": "styles.lane",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F11/F11.04.json#q04",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
-   "answer": "best"
-  },
-  "difficulty": 1,
-  "id": "si_0e0adb88cd6c",
-  "lesson_origin": "session",
-  "lesson_text": "Best. Steenbarger says study your best trades, and how you succeeded, to see how your personality helps you win. Bellafiore says look at how you've succeeded and pick setups that build on those strengths. Schwab adds that if your winners come from one approach, lean on it for a while. This does not mean skip your losers. Schwab says look for patterns in both your wins and your losses. Your winners show you your lane. Study them as hard as your losers.",
-  "module": "F11",
-  "prompt_json": {
-   "bank": [
-    "best",
-    "worst",
-    "newest",
-    "riskiest",
-    "missed"
-   ],
-   "kind": "fill",
-   "q": "Tap the word that completes the advice.",
-   "sentence": "To find your strengths, Steenbarger says study your ___ trades.",
-   "subject": "F11.04#q05"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-09",
-      "name": "Brett Steenbarger, TraderFeed: What Kind of Trader Are You? (daily entries 2025-03-11 to 2025-03-16)",
-      "quote": "A great way to see how your personality contributes to your trading success is to study your best trades and how you succeeded.",
-      "tier": 2,
-      "url": "https://traderfeed.blogspot.com/2025/03/what-kind-of-trader-are-you.html"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Mike Bellafiore, SMB Capital (SMB Training blog): How to answer the burning question every trader must ask to succeed (2020-01-30)",
-      "quote": "Consider how you have been successful in the past and find setups that accentuate those strengths.",
-      "tier": 2,
-      "url": "https://www.smbtraining.com/blog/?p=49552"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Charles Schwab: Breaking Bad Trade Behaviors (Kevin Horner, 2025-10-01)",
-      "quote": "if winning trades employ fundamental analysis and losing trades are based on technical analysis, a trader might want to focus more on fundamentals for a while.",
-      "tier": 2,
-      "url": "https://www.schwab.com/learn/story/breaking-bad-trade-behaviors"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Charles Schwab: Breaking Bad Trade Behaviors (Kevin Horner, 2025-10-01)",
-      "quote": "To begin, traders should look at whether they're losing or making money on a net basis, then look for patterns in their wins and losses.",
-      "tier": 2,
-      "url": "https://www.schwab.com/learn/story/breaking-bad-trade-behaviors"
-     }
-    ],
-    "summary": "Study your best trades, and how you won them, to see what you do well. Bellafiore: look at how you've succeeded and pick setups that build on those strengths. Schwab: if your winners come from one approach and your losers from another, lean on the one that wins for a while. After a streak, check whether you're net up or down, then look for patterns in your wins and losses."
-   },
-   "facts": {
-    "given": "Tap the word that completes the advice. To find your strengths, Steenbarger says study your ___ trades."
-   },
-   "lesson_line": "Your winners show you your lane. Study them as hard as your losers.",
-   "simple": "Best, because your winning trades show what you do well, and that points you to the setups that fit you.",
-   "tier": "core",
-   "unit": "F11.04",
-   "why": "Best. Steenbarger says study your best trades, and how you succeeded, to see how your personality helps you win. Bellafiore says look at how you've succeeded and pick setups that build on those strengths. Schwab adds that if your winners come from one approach, lean on it for a while. This does not mean skip your losers. Schwab says look for patterns in both your wins and your losses."
-  },
-  "review_status": "draft",
-  "skill_id": "styles.lane",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F11/F11.04.json#q05",
   "type": "recall",
   "version": 1
  },
@@ -7693,6 +7389,81 @@
  },
  {
   "answer_json": {
+   "answer": "Your best trades, and how you won them"
+  },
+  "difficulty": 1,
+  "id": "si_6002717702c5",
+  "lesson_origin": "session",
+  "lesson_text": "Your best trades, and how you won them. They show what you do well, and that points you to setups that fit you. Bellafiore says build on those strengths. Look at your losses too, since Schwab says patterns show up in both. Your winners show you your lane. Study them as hard as your losers.",
+  "module": "F11",
+  "prompt_json": {
+   "choices": [
+    "Trades you skipped, to see the misses",
+    "Your best trades, and how you won them",
+    "Your worst trades, and how you lost them",
+    "Your newest trades, win or lose"
+   ],
+   "kind": "mcq",
+   "q": "To find the setups that fit your strengths, which trades do you study?",
+   "subject": "F11.04#q97"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-09",
+      "name": "Brett Steenbarger, TraderFeed: What Kind of Trader Are You? (daily entries 2025-03-11 to 2025-03-16)",
+      "quote": "A great way to see how your personality contributes to your trading success is to study your best trades and how you succeeded.",
+      "tier": 2,
+      "url": "https://traderfeed.blogspot.com/2025/03/what-kind-of-trader-are-you.html"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "Mike Bellafiore, SMB Capital (SMB Training blog): How to answer the burning question every trader must ask to succeed (2020-01-30)",
+      "quote": "Consider how you have been successful in the past and find setups that accentuate those strengths.",
+      "tier": 2,
+      "url": "https://www.smbtraining.com/blog/?p=49552"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "Charles Schwab: Breaking Bad Trade Behaviors (Kevin Horner, 2025-10-01)",
+      "quote": "if winning trades employ fundamental analysis and losing trades are based on technical analysis, a trader might want to focus more on fundamentals for a while.",
+      "tier": 2,
+      "url": "https://www.schwab.com/learn/story/breaking-bad-trade-behaviors"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "Charles Schwab: Breaking Bad Trade Behaviors (Kevin Horner, 2025-10-01)",
+      "quote": "To begin, traders should look at whether they're losing or making money on a net basis, then look for patterns in their wins and losses.",
+      "tier": 2,
+      "url": "https://www.schwab.com/learn/story/breaking-bad-trade-behaviors"
+     }
+    ],
+    "summary": "Study your best trades, and how you won them, to see what you do well. Bellafiore: look at how you've succeeded and pick setups that build on those strengths. Schwab: if your winners come from one approach and your losers from another, lean on the one that wins for a while. After a streak, check whether you're net up or down, then look for patterns in your wins and losses."
+   },
+   "facts": {
+    "given": "To find the setups that fit your strengths, which trades do you study? Your best trades, and how you won them Your worst trades, and how you lost them Your newest trades, win or lose Trades you skipped, to see the misses"
+   },
+   "lesson_line": "Your winners show you your lane. Study them as hard as your losers.",
+   "simple": "Your best trades, because how you won them shows what you do well and which setups fit you.",
+   "tier": "core",
+   "unit": "F11.04",
+   "why": "Your best trades, and how you won them. They show what you do well, and that points you to setups that fit you. Bellafiore says build on those strengths. Look at your losses too, since Schwab says patterns show up in both.",
+   "wrong": {
+    "Trades you skipped, to see the misses": "Skipped trades are not your trades. Your own winners show what you do well.",
+    "Your newest trades, win or lose": "Recent trades are one slice. The question is which trades show what you do well.",
+    "Your worst trades, and how you lost them": "Your losses are worth reviewing too, but they show what went wrong. Your strengths show in your best trades."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "styles.lane",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F11/F11.04.json#q97",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
    "unscored": true
   },
   "difficulty": 1,
@@ -8095,7 +7866,7 @@
   "difficulty": 1,
   "id": "si_eb8d6e9eade9",
   "lesson_origin": "session",
-  "lesson_text": "Open. In Cboe data on large US stocks, bid-ask spreads are typically widest at the open and narrow toward the close. A study of NYSE stocks found a reverse J shape. Spreads were highest at the start and turned up a little at the end. So spreads can tick up late, but the open is still the widest. The first minutes are usually the priciest to trade. Wide spreads come with the open.",
+  "lesson_text": "Open. The spread is the gap between the bid, the most a buyer pays, and the ask, the least a seller takes. Cboe data on large US stocks show spreads widest at the open, then narrowing toward the close. For you, the first minutes cost the most to trade, since you buy at the ask and sell at the bid. The first minutes are usually the priciest to trade. Wide spreads come with the open.",
   "module": "F11",
   "prompt_json": {
    "bank": [
@@ -8140,10 +7911,10 @@
     "given": "Tap the word that fits the blank. On a typical day, bid-ask spreads are widest right at the ___."
    },
    "lesson_line": "The first minutes are usually the priciest to trade. Wide spreads come with the open.",
-   "simple": "The open. Spreads are usually widest in the first minutes, so that is often the priciest time to trade.",
+   "simple": "The open. Spreads are widest in the first minutes, so that is often the priciest time to trade.",
    "tier": "core",
    "unit": "F11.05",
-   "why": "Open. In Cboe data on large US stocks, bid-ask spreads are typically widest at the open and narrow toward the close. A study of NYSE stocks found a reverse J shape. Spreads were highest at the start and turned up a little at the end. So spreads can tick up late, but the open is still the widest."
+   "why": "Open. The spread is the gap between the bid, the most a buyer pays, and the ask, the least a seller takes. Cboe data on large US stocks show spreads widest at the open, then narrowing toward the close. For you, the first minutes cost the most to trade, since you buy at the ask and sell at the bid."
   },
   "review_status": "draft",
   "skill_id": "styles.time_of_day",

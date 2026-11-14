@@ -1828,7 +1828,7 @@
    "rung": 4,
    "format": "scenario",
    "criterion": "ng.trim_gap_open",
-   "q": "What do you do about the first sell?",
+   "q": "How do you handle the first sell here?",
    "story": "You bought at 50.00 this morning with the stop at 48.00, so 3R is 56.00. By 2:00 the stock trades at 56.00.",
    "choices": [
     "Hold; we rarely sell on day 1",
@@ -3896,10 +3896,10 @@
    "notes": "upgraded wave2; awaiting cold re-read"
   },
   "q20": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "edit: was 'second third at 5R'; now the 3, 5 or 7 day push (D-013)"
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q21": {
    "status": "pass",

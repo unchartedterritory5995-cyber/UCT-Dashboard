@@ -1868,10 +1868,10 @@
    "notes": "Own answer from f50/f51/f55: above the price, as a buy stop. Matches. Choices 29-31 chars, key not longest. The mental-stop distractor is wrong under D41 (h41 quote verified in sizing_rule.md section 9) and its wrong note says so as our rule; the key itself rests on Tier 1 (f50, f51). No second defensible answer: a mental stop is not a protective stop order."
   },
   "q04": {
-   "status": "pass",
+   "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q05": {
    "status": "pass",

@@ -2,7 +2,7 @@
  "unit": "SET.45",
  "track": "SET",
  "title": "Qullamaggie Breakout and the Kell Cycle",
- "teaches": "The Qullamaggie breakout and Kell's cycle as we trade them: a leader rests 10 to 40 sessions in a tightening range with rising lows, surfing its rising averages, the buy is a market order as price trades over the base high, the stop sits a few cents under the breakout day's low 1-3% preferred, 3.5% good, up to 5%, and past 5% we wait for a tighter trigger, the first sell is a judgment, usually day 3 or later into a 3, 5 or 7 day push, with the rest on the trail; Kell's cycle then says wait, buy, sell into strength or get out, and a loss at the stop is the system working.",
+ "teaches": "The Qullamaggie breakout and Kell's cycle as we trade them: a leader rests 10 to 40 sessions in a tightening range with rising lows, surfing its rising averages, the buy is a market order as price trades over the base high, the stop sits a few cents under the breakout day's low, 1-3% preferred, 3.5% good, up to 5%, and past 5% we wait for a tighter trigger, the first sell is a judgment, usually day 3 or later into a 3, 5 or 7 day push, with the rest on the trail; Kell's cycle then says wait, buy, sell into strength or get out, and a loss at the stop is the system working.",
  "skills": [
   {
    "id": "setup.qullamaggie_kell",
@@ -1143,6 +1143,12 @@
    "source": "h2",
    "quote": "A gap up past 3R at the open is not an automatic sell. Selling part at the open on a big gap is one choice he may make by judgment, never a rule",
    "claim": "Owner: a gap past 3R is not an automatic sell. Selling part at the open is a judgment, never a rule."
+  },
+  {
+   "id": "r04",
+   "source": "h2",
+   "quote": "This replaces the proposed one-ADR rule.",
+   "claim": "Owner ruling D-005: the 1-3% to 5% stop distance replaces the proposed one-ADR rule."
   }
  ],
  "walkthroughs": [
@@ -1380,18 +1386,19 @@
    "rung": 1,
    "format": "tf",
    "criterion": "qk.breakout_stop_adr",
-   "q": "The stop may be wider than the stock's ADR if the chart is clean.",
-   "answer": "False",
-   "why": "False. The stop must be no wider than the stock's ADR, and if it is wider, skip the trade. ADR is the 20-day average of high over low minus 1. Kullamagi says the same of the stock's ATR or ADR. A clean chart does not widen the limit.",
-   "lesson_line": "A stop wider than the ADR is a skip, however clean the chart.",
+   "q": "Under our rules, a breakout stop wider than the stock's ADR can still be taken if it is within 5%.",
+   "answer": "True",
+   "why": "True. Kullamagi caps the stop at the stock's ADR. We judge the stop by its distance from the buy instead: 1-3% preferred, 3.5% good, up to 5% acceptable. Past 5%, we mostly wait for a tighter trigger.",
+   "lesson_line": "Our stop limit is 5% from the buy, not the ADR.",
    "facts": [
-    "a23",
     "K5",
-    "hA3",
-    "a4"
+    "r01",
+    "r02",
+    "r04",
+    "hA3"
    ],
    "house": true,
-   "simple": "False, because a stop wider than the stock's average daily range means you skip the trade.",
+   "simple": "True, because our limit is 5% from the buy, not the ADR.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1758,23 +1765,25 @@
     "A few cents under the day's low"
    ],
    "answer": "A few cents under the day's low",
-   "why": "A few cents under the day's low so far, usually the opening-range low. At the moment of an opening-range buy, the breakout day's low is the low so far. The stop sits a few cents under it, not exactly on it, and no wider than the stock's ADR.",
+   "why": "A few cents under the day's low so far, usually the opening-range low. At the moment of an opening-range buy, the breakout day's low is the low so far. The stop sits a few cents under it, not exactly on it, ideally 1-3% from the buy and never past 5%.",
    "lesson_line": "On the first buy, the day's low so far is the stop.",
    "facts": [
     "a22",
     "K5",
     "hF62",
-    "a23"
+    "a23",
+    "r01",
+    "r02"
    ],
    "wrong": {
     "Under the 20-day moving average": "A stop under the average instead of the day's low is a listed mistake.",
     "A few cents under the base low": "The card puts the stop under the breakout day's low, not the base low.",
-    "10% under the price you paid": "A fixed percent ignores the chart and can break the ADR cap."
+    "10% under the price you paid": "A fixed percent ignores the chart; the stop goes under the day's low."
    },
    "house": true,
    "simple": "The stop goes a few cents under the low of the day so far, which is usually the opening-range low.",
    "deeper": {
-    "trap": "A stop under a moving average looks safer, but it ignores the breakout day's low. The stop must also be no wider than the stock's ADR. If it is wider, skip the trade."
+    "trap": "A stop under a moving average looks safer, but it ignores the breakout day's low. Past 5% from the buy, we mostly wait for a tighter trigger. If it is wider, skip the trade."
    },
    "tier": "extended",
    "risk": {
@@ -2360,7 +2369,7 @@
    ],
    "wrong": {
     "The breakout's validity": "There is no volume rule, so neither breakout is invalid for its volume.",
-    "The stop's maximum width": "The stop is the day's low and capped by ADR, not by volume.",
+    "The stop's maximum width": "The stop is the day's low, set by the chart, not by volume.",
     "The base's tightness": "Tight means the range narrows: the last 5 sessions' average range sits below the whole base's, whatever the volume."
    },
    "house": true,
@@ -3337,12 +3346,13 @@
     "A few cents under the pop day's low"
    ],
    "answer": "A few cents under the pop day's low",
-   "why": "A few cents under the pop day's low, within the ADR and usually within about 3%. Skip if it does not fit. The stop is the exit and only moves up.",
+   "why": "A few cents under the pop day's low, usually within about 3% and never past 5%. Skip if it does not fit. The stop is the exit and only moves up.",
    "lesson_line": "Wedge Pop stop: under the pop day's low.",
    "facts": [
     "b5",
     "hF62",
-    "hA4"
+    "hA4",
+    "r02"
    ],
    "wrong": {
     "Under the 200-day moving average": "The stop is set from the pop day's low, not from an average.",
@@ -3792,11 +3802,12 @@
     "L3",
     "b3",
     "b4",
-    "a23"
+    "a23",
+    "r01"
    ],
    "wrong": {
     "Yes; the bottom is in, so buy it": "Kell calls it not necessarily a playable setup, more a change in mindset.",
-    "Maybe; a wide stop would make it safe": "Our stop is never wider than the ADR, so a wide stop would break the rule.",
+    "Maybe; a wide stop would make it safe": "Our stop can run up to 5% from the buy, so a wide stop alone is not the issue.",
     "No; that bar can never lead to a setup": "Kell says not necessarily, and a Wedge Pop can follow a Reversal Extension, so never goes too far."
    },
    "house": true,
@@ -5485,6 +5496,40 @@
    },
    "house": true,
    "batch": "wave4"
+  },
+  {
+   "key": "q133",
+   "skill": "setup.qullamaggie_kell",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "qk.breakout_adr",
+   "story": "A quiet, steady leader has a 20-day ADR of 2.9%. It breaks out over its base high, and the stop a few cents under the day's low sits 4.0% under your buy.",
+   "q": "Do you take the breakout?",
+   "choices": [
+    "Yes; 4.0% is acceptable, so size from it",
+    "No; the stop is wider than the 2.9% ADR",
+    "Yes, with the stop pulled up to 2.9%",
+    "No; any stop past 3% is a pass"
+   ],
+   "answer": "Yes; 4.0% is acceptable, so size from it",
+   "why": "Yes. Our rule judges the stop by its distance from the buy: 1-3% preferred, 3.5% good, up to 5% acceptable. A 4.0% stop fits, so it is a trade, and the share count comes from that stop. The ruling replaced the one-ADR cap, so the 2.9% ADR no longer limits the stop. Never move the stop up to make a trade fit.",
+   "simple": "Yes, because a 4.0% stop is inside the 5% we accept, and the ADR no longer caps the stop.",
+   "lesson_line": "Judge the stop by its distance from the buy. The ADR no longer caps it.",
+   "wrong": {
+    "No; the stop is wider than the 2.9% ADR": "That was the one-ADR cap. Our 5% line replaced it, so a stop wider than the ADR is no reason to skip.",
+    "Yes, with the stop pulled up to 2.9%": "Never move the stop up to make a trade fit. The stop stays under the day's low.",
+    "No; any stop past 3% is a pass": "1-3% is preferred, not required. Up to 5% is acceptable, and we wait for a tighter trigger only past 5%."
+   },
+   "facts": [
+    "r01",
+    "r02",
+    "r03",
+    "r04",
+    "dHWM"
+   ],
+   "house": true,
+   "tier": "extended",
+   "batch": "cover"
   }
  ],
  "conflicts": [
@@ -5517,10 +5562,10 @@
    "notes": "Pass: a1 and hC31 support True."
   },
   "q03": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Pass: only 200 fits a2; 100 and 150 are not on the card. Parabolic-long wording is now taught by q123."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q04": {
    "status": "pass",
@@ -5579,10 +5624,10 @@
    "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q14": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "a4 supports; bank fine."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q15": {
    "status": "pass",
@@ -5834,10 +5879,10 @@
    "notes": "Cold-checked: key matches cited facts, no second defensible answer, no tell found."
   },
   "q64": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Cold-checked: key matches cited facts, no second defensible answer, no tell found."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q65": {
    "status": "pass",
@@ -6078,10 +6123,10 @@
    "notes": "Share arithmetic with no 3R/5R trigger; ok."
   },
   "q106": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "agrees with GAP-TRIM/SHORT-ENTRY or not affected; key right, quote exact, style ok"
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q107": {
    "status": "pass",
@@ -6184,16 +6229,16 @@
    "notes": "upgraded wave4; awaiting cold re-read"
   },
   "q131": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "hC29 10%; 4% lure explained in why. Rulebook beats Kell 3-4%."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q132": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "aRet supports; teaches the rule q97 uses."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q124": {
    "status": "pass",
@@ -6206,6 +6251,12 @@
    "by": "checker",
    "fixed": false,
    "notes": "hB26, hB26b, hB26c verbatim in sizing_rule B26. Stem no longer leaks q03's 200."
+  },
+  "q133": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "qk.breakout_adr: D-005 (1-3% preferred, 3.5% good, up to 5% acceptable, replaces the one-ADR rule): a 4.0% stop on a 2.9% ADR is a trade, sized from the stop; wrong answers are the old ADR cap, moving the stop up (r03) and a hard 3% pass. Fixed: the claim that the ADR no longer caps the stop had no cited fact, so new fact r04 quotes the RULINGS sentence \"This replaces the proposed one-ADR rule.\" word for word via h2; removed \"no minimum is set\" (from card fact a4, now stale). WARNING for the owner pass: live q06 (a stop wider than the ADR is a skip), q38 and card facts a4, a23, K5 still teach "
   }
  }
 }

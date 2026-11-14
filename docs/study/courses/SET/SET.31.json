@@ -1394,7 +1394,7 @@
     "5"
    ],
    "answer": "9",
-   "why": "9. The target is the daily 9-day exponential moving average, the 9 EMA. Bracco calls it a magnet for mean reversion, and our rule names the 9-day average as this setup's target.",
+   "why": "9. The 9 EMA is the exponential moving average of the daily closes, so recent days count most. Bracco calls it a magnet for mean reversion: a stretched stock tends to get pulled back toward it. That makes it the level you cover at, so know where it sits before you short. Our rule names the 9-day average as this setup's target.",
    "lesson_line": "The trade runs to the 9 EMA. Know where it sits before you short.",
    "facts": [
     "h05",
@@ -1410,7 +1410,7 @@
      "how much comes off at the 9 EMA is held (D-013); the key is the level only"
     ]
    },
-   "batch": "rulings"
+   "batch": "fills"
   },
   {
    "key": "q05",
@@ -4077,6 +4077,40 @@
     ]
    },
    "batch": "polish"
+  },
+  {
+   "key": "q75",
+   "skill": "setup.parabolic_short",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "ps.round_number",
+   "story": "A large-cap leader is up 80% in 12 sessions. Today it gaps up on record volume, runs to 87.30, and breaks back under VWAP at 10:15. The chart is parabolic even on a log scale. No round number sits near the high.",
+   "q": "How does the missing round number count?",
+   "choices": [
+    "Nothing; a round number is a cue only",
+    "The short waits for a round number",
+    "Skip it; climaxes need round numbers",
+    "Cut the size in half for lack of one"
+   ],
+   "answer": "Nothing; a round number is a cue only",
+   "why": "It counts for nothing against the trade. Bracco says most climax points occur around very obvious, round numbers, so one near the high is a plus. Our card calls it a cue. A chart parabolic even on a log scale is the strong form, and this one is. The short still rests on the climax gap, the VWAP break and the stop over the high.",
+   "lesson_line": "A round number is a plus for the grade. It is never a gate.",
+   "simple": "A round number is a cue that helps the grade. Its absence blocks nothing, since the trigger is the break under VWAP.",
+   "facts": [
+    "s11",
+    "c37",
+    "c04",
+    "c05",
+    "h12"
+   ],
+   "wrong": {
+    "The short waits for a round number": "A cue is not a gate. The trigger is the break back under VWAP after the high is set.",
+    "Skip it; climaxes need round numbers": "Bracco says most climax points come at round numbers, not all. It is a cue, not a requirement.",
+    "Cut the size in half for lack of one": "Size comes from the stop, not from a missing cue. A stop over the climax high sets the shares."
+   },
+   "house": true,
+   "tier": "extended",
+   "batch": "cover"
   }
  ],
  "conflicts": [
@@ -4142,7 +4176,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "keep; 9 EMA target or 3R as arithmetic/stat; short entry on a break not a close, outside D-003"
+   "notes": "Keep is right: the daily 9 EMA is the cover level a trader plots; bank has real averages. New why defines the EMA and its use; facts h05/b14 support it; sentences short."
   },
   "q05": {
    "status": "pass",
@@ -4177,10 +4211,10 @@
    "notes": "Key correct (straight negation of c02). The simple line says 'a green climax day won only 23%': it was SHORTING the green day that won 23%, not the day. Reworded."
   },
   "q10": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Right answer decided from cited quotes first and matches the key; no second defensible choice, tell, ungrounded number or rulebook conflict found."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q11": {
    "status": "pass",
@@ -4250,10 +4284,10 @@
    "notes": "upgraded wave3; awaiting cold re-read"
   },
   "q22": {
-   "status": "pass",
+   "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave3; awaiting cold re-read"
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q23": {
    "status": "cut",
@@ -4304,10 +4338,10 @@
    "notes": "Key derived from the cited quotes before reading the key; no second defensible answer, no tell, numbers grounded, sentences and choices within limits."
   },
   "q31": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Key derived from the cited quotes before reading the key; no second defensible answer, no tell, numbers grounded, sentences and choices within limits."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q32": {
    "status": "cut",
@@ -4427,10 +4461,10 @@
    "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q51": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Key derived from the cited quotes before reading the key; no second defensible answer, no tell, numbers grounded, sentences and choices within limits."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q52": {
    "status": "cut",
@@ -4572,6 +4606,12 @@
    "by": "checker",
    "fixed": false,
    "notes": "Facts are real: d34 is verbatim at dossier line 1164, d35 at line 1123, d36 at lines 1120-1121; s13 and c36 verbatim. The key is right, but the question is a recall of one dated scan outcome (three correlated silver funds on one day). q40 was cut last round for resting on that same thin event. q74 keeps the event and moves the cue into the why ('Our card turns that into a cue against commodity ETFs'). That still teaches a proposed cue that may sit against the owner's E54 ('Leveraged ETFs are preferred; no extra rules'; AGQ is leveraged), with D-018 pending. If the why drops the cue, the only l"
+  },
+  "q75": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Tests ps.round_number as a cue, not a gate, by application (a clean climax with no round number near the high). Agrees with D-006 (a cue raises the grade, never a requirement). Quotes s11 and c37 word for word; c04, c05, h12 support the wrong notes. No live duplicate (the fill q51 was cut). Mild note: three of the four choices penalise the trade, but the right one is the criterion's own point and is not the longest or the only hedge."
   }
  }
 }

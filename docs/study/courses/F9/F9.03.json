@@ -1851,10 +1851,10 @@
    "notes": "upgraded wave9; awaiting cold re-read"
   },
   "q08": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Blank is now the operation; 'loss size' makes 'plus' wrong. $4,000 example is f30-f32. No second defensible word in the bank."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q09": {
    "status": "pass",

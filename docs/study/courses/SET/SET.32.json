@@ -989,7 +989,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "4 is h11/c04 verbatim. Why and lesson line grounded (h12, u01)."
+   "notes": "Keep is right: the 4% chase limit is applied on every ORB entry. New why spells out ORB and the buy point (c04/h11/h12 support)."
   },
   "q05": {
    "status": "pass",
@@ -1034,10 +1034,10 @@
    "notes": "Solved cold: a rule, not a price (c08 says so word for word; D39 h31 says the plan is written before the open). No second defensible choice, no tell, quotes verified in the card and sizing_rule.md s9. Stem and choices do not give away another item's key."
   },
   "q12": {
-   "status": "pass",
+   "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave4; awaiting cold re-read"
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q13": {
    "status": "pass",
@@ -1506,7 +1506,7 @@
     "10"
    ],
    "answer": "4",
-   "why": "4%. Never buy more than 4% above the buy point, and on an ORB the buy point is the 30-minute high. Chasing costs size, not risk: the stop stays under the range, so the distance grows and the shares shrink. Past the line, wait for a pullback that holds, or a VWAP retest or undercut and hold mid morning.",
+   "why": "4%. Never buy more than 4% above the buy point, and on an ORB (opening range breakout) the buy point is the high of the first 30-minute candle. Chasing costs size, not risk: the stop stays under the range, so the stop distance grows and the shares shrink. Past the line, wait for a pullback that holds, or a VWAP retest or undercut and hold mid morning.",
    "lesson_line": "Four percent over the range high and we are done. A retest is the second chance.",
    "facts": [
     "h11",
@@ -1523,7 +1523,7 @@
      "rests on the owner's rulebook (C28)"
     ]
    },
-   "batch": "wave4"
+   "batch": "fills"
   },
   {
    "key": "q05",

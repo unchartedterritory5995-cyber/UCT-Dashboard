@@ -3864,6 +3864,42 @@
     ]
    },
    "batch": "polish"
+  },
+  {
+   "key": "q97",
+   "skill": "setup.gap_support",
+   "rung": 3,
+   "format": "mcq",
+   "criterion": "gs.breakeven",
+   "q": "You buy a Gap Support test. When does the stop move to breakeven, by default?",
+   "choices": [
+    "When the first trim is made",
+    "The moment the buy fills",
+    "When the stock is up 1R",
+    "Only after the last third sells"
+   ],
+   "answer": "When the first trim is made",
+   "why": "At the first trim, by default. Breakeven means moving the stop up to your entry price, so a stop-out costs about nothing. The rulebook's ideal window is 2R to 5R, and the Gap Support card sets the first trim as the default.",
+   "lesson_line": "First trim, then the stop to breakeven.",
+   "facts": [
+    "g19",
+    "h05"
+   ],
+   "wrong": {
+    "The moment the buy fills": "Too early. At the fill the stop stays under the test day's low. Breakeven comes only after the trade has made 2R to 5R.",
+    "When the stock is up 1R": "At 1R the trade has not made enough. The window opens at 2R, so the original stop stays.",
+    "Only after the last third sells": "That is too late. Breakeven comes at the first trim by default, while most of the position is still on."
+   },
+   "simple": "By default the stop moves to breakeven at the first trim, inside the ideal 2R to 5R window.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook (B19)"
+    ]
+   },
+   "house": true,
+   "batch": "fills"
   }
  ],
  "conflicts": [
@@ -4084,10 +4120,10 @@
    "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q20": {
-   "status": "pass",
+   "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave3; awaiting cold re-read"
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q21": {
    "status": "cut",
@@ -4306,10 +4342,10 @@
    "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q67": {
-   "status": "pass",
+   "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave3; awaiting cold re-read"
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q68": {
    "status": "pass",
@@ -4406,6 +4442,12 @@
    "by": "checker",
    "fixed": false,
    "notes": "Near-verbatim duplicate of q12 (same criterion gs.heavy_selling_warning, same g31 statement, same True key, almost the same why and lesson_line). q39 covers the same cue as a scenario. It also restates the card sentence nearly word for word, so it tests copying, not judgment. Proposed criterion, not ruled by the owner."
+  },
+  "q97": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Correct, supported by g19 and h05, no existing choice question on breakeven timing (q20 was the only one). Facts say the 2R to 5R window is the 'ideal' one, not an allowance; reworded why and simple to say ideal."
   }
  }
 }

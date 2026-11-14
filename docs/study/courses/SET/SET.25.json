@@ -3442,10 +3442,10 @@
    "notes": "q01's stem says 'closes over the prior close' and q03's stem says 'closes back over the prior close', so the blank is answered by its neighbours; same fact as q01."
   },
   "q03": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Low is right (o_main, l_rg1). Bank fillers average and volume are weak but accepted. Does not leak q02 backward (q02 comes first)."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q04": {
    "status": "pass",
@@ -3485,10 +3485,10 @@
    "notes": "Cold check: key re-derived from the cited quotes/calc; no tell, no second answer found."
   },
   "q10": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Cold check: key re-derived from the cited quotes/calc; no tell, no second answer found."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q11": {
    "status": "cut",
@@ -3546,10 +3546,10 @@
    "notes": "Cold check: key re-derived from the cited quotes/calc; no tell, no second answer found."
   },
   "q20": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Key 4 matches o_chase/C28. Note: q28's right choice also says 'over 4%' (q28 is not wave3; consider rewording it)."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q21": {
    "status": "cut",

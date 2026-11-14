@@ -1749,7 +1749,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer before key: 16 (f11, f73). Calendar-day count would give about 19 (sqrt 365), not in the bank, so no second answer. Distractors 12/52/252/365 each explained (f4, f71, f48). Why and deeper sentences grounded and short. Only leak is q01's reveal mentioning 'divide by about 16', which is a reveal, not a stem."
+   "notes": "Keep. The Rule of 16 is a screen tool for turning IV into a one-day move; the bank holds the real mistakes (252, 365, 52, 12). Why teaches the square root."
   },
   "q05": {
    "status": "pass",

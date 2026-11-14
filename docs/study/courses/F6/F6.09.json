@@ -1637,10 +1637,10 @@
    "notes": "Solved cold: 90 put (strike furthest above 80, delta closest to -1.00). Key matches; put delta grows more negative with strike, so only one answer. f58, f53, f3, f52 back it; the 80 put note's 'about half as much' rests on f1 and f52. Choices in strike order, no tell. 'Deep in moves most like the stock' is w1's teaching, not a leak of q19's own answer."
   },
   "q04": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Bigger (f34 Tier 1; f5 'strong move'). f11 now backs 'slower'. No second defensible bank word. The walk-through w2 step 4 teaches the same idea, which is fine for a rung-2 recall item."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q05": {
    "status": "cut",

@@ -1457,10 +1457,10 @@
    "notes": "Own answer About 34% (f34 Tier 1, f58 agrees). All choices 9 chars. 'About 20%' no longer echoes q01's 22.6%; its note rests on f34. 'Weeks, not one day' rests on f34 (March) vs f59 (one day)."
   },
   "q05": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Own answer liquidity (f11 verbatim). 'bailouts' is a plausible wrong word and not the Fed's word; no second answer. 'stocks' and 'gold' are weak but were not changed and are not silly enough to give it away."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q06": {
    "status": "pass",
@@ -1475,10 +1475,10 @@
    "notes": "upgraded wave6; awaiting cold re-read"
   },
   "q08": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Own answer two (f15). Why now states only f15 and f14; the line that handed over q20's 1929 key is gone. q20's story ('within two years') sits later and does not leak backward."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q09": {
    "status": "pass",

@@ -1358,6 +1358,40 @@
     ]
    },
    "batch": "wave9"
+  },
+  {
+   "key": "q97",
+   "skill": "psych.euphoria",
+   "rung": 2,
+   "format": "mcq",
+   "q": "You credit every win to your skill and every loss to bad luck. What does that habit build?",
+   "choices": [
+    "Becoming overconfident in your skill",
+    "Becoming too cautious after a win",
+    "Spotting your own mistakes sooner",
+    "Trading less after a winning run"
+   ],
+   "answer": "Becoming overconfident in your skill",
+   "why": "Becoming overconfident in your skill. This is self-attribution bias: crediting your successes to your own skill and blaming your failures on things outside your control. A research review done for the SEC lists it as a form of overconfidence. Real brokerage clients show it: the better their recent returns, the more they credited their skill.",
+   "lesson_line": "Grade your wins as hard as you grade your losses.",
+   "facts": [
+    "f52",
+    "f44",
+    "f15",
+    "f53"
+   ],
+   "wrong": {
+    "Becoming too cautious after a win": "Overconfidence pushes the other way. Winners tend to feel surer of their skill.",
+    "Spotting your own mistakes sooner": "Blaming losses on luck hides your mistakes, so you spot them later, not sooner.",
+    "Trading less after a winning run": "Overconfidence tends to raise trading after good returns, not cut it."
+   },
+   "simple": "Taking credit for wins and blaming luck for losses makes you too sure of yourself, so judge wins as hard as losses.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "fills"
   }
  ],
  "conflicts": [
@@ -1406,10 +1440,10 @@
    "notes": "upgraded wave9; awaiting cold re-read"
   },
   "q03": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Key self-attribution decided from f52 before reading it. Why sentences each map to f52, f44, f53. Bank has one fit."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q04": {
    "status": "pass",
@@ -1521,6 +1555,12 @@
    "by": "checker",
    "fixed": true,
    "notes": "Asked as our rule (At UCT) and keyed on Tier 3 f55 (rulebook D45). README section 5 requires house: true; the previous checker note says it was added but the file has no house field. Key True is right. Also note q08 and q20 whys state this rule verbatim, so q21 is plain recall if seen after them; acceptable at rung 3."
+  },
+  "q97": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Pass. What crediting wins to skill and losses to luck builds is overconfidence; supported by f52, f44, f15, f53; distractors are plausible opposites; wrong notes keyed to exact texts."
   }
  }
 }

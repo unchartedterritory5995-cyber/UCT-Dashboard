@@ -3796,6 +3796,41 @@
     ]
    },
    "batch": "polish"
+  },
+  {
+   "key": "q98",
+   "skill": "setup.wedge_pop",
+   "rung": 4,
+   "format": "scenario",
+   "criterion": "wp.base_sessions",
+   "story": "A stock bottomed on Monday after a sharp decline. On Tuesday and Wednesday it closed tight under its 10 and 20-day EMAs. Thursday it gapped above both averages and above those two days' highs, and closed above both.",
+   "q": "Is Thursday a Wedge Pop buy by our card?",
+   "choices": [
+    "No; the base ran only 2 sessions",
+    "Yes; a gap over the pivot is an A+ pop",
+    "Yes; it closed above both averages",
+    "No; a base needs at least 10 sessions"
+   ],
+   "answer": "No; the base ran only 2 sessions",
+   "why": "No. The base needs at least 3 sessions after the low, with at least half the closes at or under the higher average. This one ran only 2, Tuesday and Wednesday. TraderLion: no lasting bottom until the stock tests the averages and has a few days to retreat. Without the base this is a rebound, not a Wedge Pop. Buying in the window before the base is built is a named mistake.",
+   "simple": "No, because the base needs at least three sessions after the low, and this one ran only two.",
+   "lesson_line": "Count the base. Fewer than three sessions after the low is a rebound, not a pop.",
+   "wrong": {
+    "Yes; a gap over the pivot is an A+ pop": "A gap through the pivot and the averages is the A+ pop, but only once the base is built. Two sessions are too few.",
+    "Yes; it closed above both averages": "A close above both averages is a cross. A cross alone is not a Wedge Pop, because it needs the tight base first.",
+    "No; a base needs at least 10 sessions": "The card needs at least 3 sessions after the low, not 10. A few days to retreat is enough."
+   },
+   "facts": [
+    "c05",
+    "k05",
+    "c34",
+    "c11",
+    "c17",
+    "k02"
+   ],
+   "house": true,
+   "tier": "core",
+   "batch": "cover"
   }
  ],
  "conflicts": [
@@ -4091,10 +4126,10 @@
    "notes": "keep agrees with ruling"
   },
   "q03": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "4 from c13/h11 (C28). Generic deeper, no example reused. Pass."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q04": {
    "status": "pass",
@@ -4135,10 +4170,10 @@
    "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q10": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Pass. 3 is c05 verbatim. 'Shortest base we allow' keeps 1 and 2 out as true bank words. Owner flag stands: w2/d04 call RCL's 4-day base 'the shortest the rule allows', which clashes with 3 in the same lesson."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q11": {
    "status": "pass",
@@ -4261,6 +4296,12 @@
    "by": "checker",
    "fixed": true,
    "notes": "Key is right and the only defensible pick: c46 needs both falling 10/20 EMAs (vs 5 sessions ago) and a new 20-session low in the last 5 sessions; the 200-day, a lone heavy down day and rising EMAs all miss it. No length tell (37/35/38/36 chars), no Yes/No tell, rulebook silent. Fixes: (1) the wrong note for 'Rising EMAs off a fresh 20-session low' said rising averages 'fail the test', which reads as the opposite of the stem's 'fails that check' (it actually passes); rewritten. (2) Dropped the Kell w05 sentence: 'avoided long swings until...' leans toward the stricter no-trade outcome the owner"
+  },
+  "q98": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "wp.base_sessions: 2 base sessions (Tue, Wed) after a Monday low fails the 3-session floor (c05, c02) while the gap tempts an A+ read; no ruling touches it; not a duplicate of q32 (cross alone). Fixed: \"their high\" in the story was ambiguous (averages or sessions); wrong-answer text overclaimed (\"closing above both grades the pop\", \"RCL 4-day base was the shortest the rule allows\", which clashes with a 3-session floor); the \"Kell\" credit is TraderLion per fact k05; added c11, c17, k02 so every claim is cited."
   }
  }
 }

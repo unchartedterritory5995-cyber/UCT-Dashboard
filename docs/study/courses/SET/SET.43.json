@@ -1446,7 +1446,7 @@
     "90"
    ],
    "answer": "30",
-   "why": "30. After a gap against the stop, the first 30 minutes of the gap-down day decide. The low of the first 30-minute bar becomes the new stop.",
+   "why": "30. A gap against the stop means the stock opens beyond your stop price, so you cannot get out at the stop. After it, the first 30 minutes of the gap-down day decide. The low of the first 30-minute bar becomes the new stop.",
    "lesson_line": "A gap through the stop: the first 30-minute low decides.",
    "facts": [
     "hB20"
@@ -1461,7 +1461,7 @@
      "rests on the owner's rulebook"
     ]
    },
-   "batch": "wave4"
+   "batch": "fills"
   },
   {
    "key": "q16",
@@ -4262,10 +4262,10 @@
    "notes": "agrees with its rulings"
   },
   "q03": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "agrees with its rulings"
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q04": {
    "status": "pass",
@@ -4337,7 +4337,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "B20 verbatim: the first 30-minute low is the new stop. Numeric bank is fine. The 2R ceiling is asked separately in q60."
+   "notes": "Keep is right: the only direct test of the 30-minute rule after a gap through the stop (hB20); q60 tests the exit, not the rule. New why defines the gap against the stop."
   },
   "q16": {
    "status": "pass",

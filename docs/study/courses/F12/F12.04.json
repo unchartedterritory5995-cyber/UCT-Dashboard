@@ -1477,10 +1477,10 @@
    "notes": "False from f23, f29, f54. Simple softened to 'tells you little' (f30/f35 hedge kept). Why no longer states q20's aggregate line."
   },
   "q03": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Only 'resulting' fits the bank. Why grounded in f34, f44, f51; the 'other half' sentence is gone, so q16's key is not given away."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q04": {
    "status": "pass",
@@ -1513,10 +1513,10 @@
    "notes": "Solved cold as True from f22 (Baron and Hershey abstract: thinking rated better when the outcome was favorable; 'more competent' also in the quote). 1988 is in the source title. f33 checked on the Wharton page: the speaker is Duke, so 'Duke sees the same thing' holds; 'does not show it' is a fair read of 'does not necessarily bear that out'. Statement 103 chars, no lone absolute; T/F balance in the lesson 3 True, 2 False. 'Happened to' leans toward the luck framing but does not decide the answer. Lesson line is a watch-for, not a claim about self-grading, so the others-vs-self gap is respected"
   },
   "q09": {
-   "status": "pass",
+   "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q10": {
    "status": "pass",

@@ -3635,6 +3635,44 @@
     ]
    },
    "batch": "polish"
+  },
+  {
+   "key": "q97",
+   "skill": "setup.slingshot",
+   "rung": 2,
+   "format": "mcq",
+   "criterion": "ss.no_chase",
+   "q": "A Slingshot buy point is 40.00. You are late, and the stock trades at 42.20. Do you buy?",
+   "choices": [
+    "No, it is 5.5% over the buy point",
+    "Yes, it is only 2.2% over the buy point",
+    "Yes, with a wider stop to fit",
+    "Yes, but at half size"
+   ],
+   "answer": "No, it is 5.5% over the buy point",
+   "why": "No. 42.20 is 5.5% over the 40.00 buy point: (42.20 - 40.00) / 40.00 = 5.5%. We never buy more than 4% above the buy point, because that is chasing. Chasing costs size, not risk: the stop stays under the buy point, so the distance grows and the shares shrink.",
+   "lesson_line": "Four percent over the buy point and I am done. I would rather miss it than chase it.",
+   "facts": [
+    "h11",
+    "h12",
+    "c35"
+   ],
+   "wrong": {
+    "Yes, it is only 2.2% over the buy point": "That reads the 2.20 dollars as a percent. As a percent of 40.00 the move is 5.5%, past the 4% limit.",
+    "Yes, with a wider stop to fit": "We do not widen a stop to fit a late buy. Past 4% over the buy point we pass.",
+    "Yes, but at half size": "Half size does not fix a late buy. The limit is 4% over the buy point, and the stock is past it."
+   },
+   "simple": "No. 42.20 is 5.5% over the buy point, past our 4% limit, so buying now is chasing.",
+   "tier": "core",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "a number in the owner's rulebook (C28)",
+     "rests on a rule that can change"
+    ]
+   },
+   "house": true,
+   "batch": "fills"
   }
  ],
  "conflicts": [
@@ -3682,10 +3720,10 @@
    "notes": "Key from c01/o04/a03; wrong notes supported by t04, c17, c18. No number in the key. Not the longest choice."
   },
   "q02": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "4 grounded in c01/o02/t01; 5 named as Deepvue dissent (v02). Every other stem says 4-day line, so the blank is guessable from neighbours, but it tests the core criterion; accepted."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q03": {
    "status": "pass",
@@ -3730,10 +3768,10 @@
    "notes": "Yellow = smaller and fewer (h26, c43). Distractors map to Green, Orange and a stricter-than-guide rule. No tell, no length issue."
   },
   "q10": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "h11, h12, c35 verbatim; 4 is the owner's number. Bank holds the 10% and 2% confusers."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q11": {
    "status": "pass",
@@ -4099,6 +4137,12 @@
    "by": "checker",
    "fixed": true,
    "notes": "Key decides pending D-106. The story's stock 'drifts higher for weeks', an uptrend. Option (c) of ss.drive (any strong stock, as Scot1and does) and the owner's own evidence words ('consolidation after a nice uptrend', t02 'upward momentum') could count that uptrend as the drive, so 'No; no drive came before the dip' is not settled under every option; q64 avoided this by using a sideways stock. Fix: flat base with no gap and no big up day (no option makes that a strong stock), and the key now names the settled ss.drive_not_trigger point (c02: the only drive day is the trigger day), not the pend"
+  },
+  "q97": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Correct: (42.20 - 40.00) / 40.00 = 5.5%, past the 4% limit (h11, c35); distractors come from real mistakes (dollars read as percent, wider stop, half size). No other question on the no-chase limit. Style rules pass."
   }
  }
 }

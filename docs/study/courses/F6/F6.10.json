@@ -1515,10 +1515,10 @@
    "notes": "upgraded wave7; awaiting cold re-read"
   },
   "q05": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "f15 (disclosure document, Tier 1) keys 'timing'; bank is fair; why grounded in f15 and f11."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q06": {
    "status": "pass",

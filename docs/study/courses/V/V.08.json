@@ -4415,10 +4415,10 @@
    "notes": "Writer is the key under f43/f66. 'To you' isn't needed; the stem names the seller. Clearing member note is grounded in f2/f199. The Market maker note is a little indirect but true (f40, f66)."
   },
   "q08": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Underlying is the only fit (f63/f71). The new lesson_line is f195 in plain words."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q09": {
    "status": "pass",
@@ -4640,10 +4640,10 @@
    "notes": "upgraded wave8; awaiting cold re-read"
   },
   "q45": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Fetched f231 again on 2026-11-12: the heading 'LEAPS® (Long-term Equity AnticiPation Securities) / Long-dated options' and the entry text are both on the OIC L page as quoted. Time value line from f81."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q46": {
    "status": "pass",
@@ -4653,10 +4653,10 @@
    "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q47": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Leg from f35. The new lesson_line is f37 only. The four-leg layout from f162 partly previews q42, but you still have to know the spread names to answer q42."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q48": {
    "status": "pass",

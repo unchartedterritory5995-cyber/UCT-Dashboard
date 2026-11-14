@@ -1109,8 +1109,8 @@
   "q07": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "C28 (h11) 4%; buy point is a cent over the pivot high (c02). Bank has 10 and 5 as decoys; key is not a tell."
+   "fixed": true,
+   "notes": "Keep is right (4% chase limit used on every pivot entry). The new why defines the pivot candle, which is fact c01, but q07 does not cite c01. Fix adds c01 to its facts."
   },
   "q08": {
    "status": "pass",
@@ -1131,10 +1131,10 @@
    "notes": "upgraded wave4; awaiting cold re-read"
   },
   "q11": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "c12 verbatim, 5 sessions. IQV numbers d23 verified. Note: q39's story says 'five sessions ago', which leaks this key, but q39 is rung 6 and q11 rung 2, so q11 is met first."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q12": {
    "status": "pass",
@@ -1203,10 +1203,10 @@
    "notes": "agrees with D-013/D-003; quotes verbatim"
   },
   "q23": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "agrees with D-013/D-003; quotes verbatim"
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q24": {
    "status": "pass",
@@ -1729,14 +1729,15 @@
     "8"
    ],
    "answer": "4",
-   "why": "4%. We never buy more than 4% above the buy point, and for a pivot the buy point is a cent over the pivot candle's high. Past that, skip it. Chasing costs size, not risk: the stop stays under the buy point, so the distance grows and the shares shrink. It is not the 10% stretch rule over the 10-day, and not the 3% stop line.",
+   "why": "4%. We never buy more than 4% above the buy point, and for a pivot the buy point is a cent over the pivot candle's high. The pivot candle is the first green 30-minute candle after a string of red ones. Past that, skip the trade. Chasing costs size, not risk: the stop stays under the buy point, so the distance grows and the shares shrink. It is not the 10% stretch rule over the 10-day, and not the 3% stop line.",
    "lesson_line": "Past 4% over the pivot high, the trade is gone. Wait for the next one.",
    "facts": [
     "h11",
     "h12",
     "h13",
     "h04",
-    "c02"
+    "c02",
+    "c01"
    ],
    "house": true,
    "simple": "Four percent, because we never buy more than 4% above the buy point, which sits just over the pivot high.",
@@ -1747,7 +1748,7 @@
      "+2 rests on the owner's rulebook (C28)"
     ]
    },
-   "batch": "wave4"
+   "batch": "fills"
   },
   {
    "key": "q08",

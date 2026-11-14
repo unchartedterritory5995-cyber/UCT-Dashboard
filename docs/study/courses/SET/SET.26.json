@@ -3248,10 +3248,10 @@
    "by": "checker"
   },
   "q04": {
-   "status": "pass",
+   "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave3; awaiting cold re-read"
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q05": {
    "status": "pass",
@@ -3278,10 +3278,10 @@
    "notes": "Distractor 'A close back under the level' and its feedback answer q16 (tested next rung); why repeated h02 'only moves up', which answers q24; simple added claims not in the why. Swapped the distractor for the 10-day trail, trimmed why and simple."
   },
   "q09": {
-   "status": "pass",
-   "by": "checker",
-   "fixed": true,
-   "notes": "PASS (depends_on restored: writer file blanked it). agrees with the rulings"
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q10": {
    "status": "pass",
@@ -3376,16 +3376,16 @@
    "notes": "Stem 'dips a few cents under the stop' is breakable: a real broker stop has already filled, and if the dip is a gap the gap rule B20 does make the first 30-minute low the new (lower) stop, so True is defensible. Restated as price a few cents above the stop."
   },
   "q25": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Key follows from cited quotes; no tell or second answer found."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q26": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "agrees with rulings"
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q27": {
    "status": "pass",

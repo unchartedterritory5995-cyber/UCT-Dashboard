@@ -1567,10 +1567,10 @@
    "notes": "Simple matches f20 ('less willing to accept risk') and f18 ('increases the likelihood of making costly short-term mistakes')."
   },
   "q07": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Key 'before' from f29 + f31. 'once'/'as' are plausible misreadings, not second answers given the sources. Why and simple now hold f28's hedge ('can get in the way')."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q08": {
    "status": "pass",

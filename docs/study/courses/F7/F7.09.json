@@ -1939,10 +1939,10 @@
    "notes": "Re-derived 'demand holds up when the economy slows' from f86, f87, f98. Key 38 chars, not longest (39). 0.70% / 18.11% from f26, f35, labeled with dividends via g16. Debt note from g02, cyclical note from f97, f85. Mild hint toward q15 (utilities borrow heavily) is teaching then applying, not a giveaway."
   },
   "q04": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Strength from f91 (Fidelity) and f76 (ChartSchool), two publishers. Why no longer gives away q13's both-falling case. Bank distractors are real words with no second right answer."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q05": {
    "status": "pass",

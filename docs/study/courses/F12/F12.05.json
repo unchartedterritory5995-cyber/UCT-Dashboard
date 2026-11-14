@@ -1731,10 +1731,10 @@
    "notes": "Rederived before the key: A = 500/200 = 2.5R (calc), B = 1500/1000 = 1.5R, so A paid more per dollar risked. Key matches. f52 (Tharp: P&L as a ratio of initial risk) and f54 ('per dollar you risk') back the why; f55 backs the win-rate wrong note. Choices 30/30/34/31, no lone absolute, no silly choice; B's 1.5R is never stated as a number, so nothing ungrounded. Simple stays inside the why. Does not answer q09/q10 (those are win rate and average R over a list)."
   },
   "q04": {
-   "status": "pass",
+   "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q05": {
    "status": "pass",

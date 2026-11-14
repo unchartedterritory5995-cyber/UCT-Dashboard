@@ -619,7 +619,7 @@
     "200%"
    ],
    "answer": "100%",
-   "why": "100%. After a 50% loss, half the money is gone, so what's left has to double to get back to even. Every loss needs a bigger percent gain than itself. Many investors wrongly think a 50% gain is enough.",
+   "why": "100%. After a 50% loss, half your money is gone, so what is left has to double to get back to even. Every loss needs a bigger percent gain than itself: down 10% needs about 11%, but down 50% needs 100%. Many investors wrongly think a 50% gain is enough. That is why traders cut losses early, before the hole gets deep.",
    "lesson_line": "Down 50% means you have to double just to get back to even.",
    "facts": [
     "f14",
@@ -635,7 +635,7 @@
      "stable arithmetic, two publishers agree"
     ]
    },
-   "batch": "wave9"
+   "batch": "fills"
   },
   {
    "key": "q04",
@@ -1496,7 +1496,7 @@
     "6%"
    ],
    "answer": "15%",
-   "why": "15%. At a 15% drawdown we stop opening new trades and review before trading again. The shallower rungs only cap the size of a position.",
+   "why": "15%. A drawdown is how far your account sits below its highest value. As it gets deeper, our ladder cuts the biggest position you may hold. At 15% down we stop opening new trades. You review before you trade again. The shallower rungs only cap size.",
    "lesson_line": "At 15% down the ladder ends in a stop: no new trades, review first.",
    "facts": [
     "h05",
@@ -1510,7 +1510,7 @@
      "rests on the owner's rulebook (A8, B13)"
     ]
    },
-   "batch": "wave9"
+   "batch": "fills"
   },
   {
    "key": "q27",
@@ -1846,9 +1846,9 @@
   },
   "q03": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "notes": "Keep is right: what a loss needs to recover is a number a trader weighs before letting a loss run; bank is four plain numbers, no giveaway. New why shows the steps and the numbers (10%, 11%) come from f20. Sentences short."
   },
   "q04": {
    "status": "pass",
@@ -1986,7 +1986,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key 15% decided first from B13 (h05) and A8 (h04); h05 quote verbatim. Why, simple and lesson_line are grounded and no longer list the rungs (q08, q14, q15, q23 stay unanswered). One break: the '20%' bank item is defensible as a fill. Under our rules you are also not opening new trades at a 20% drawdown (you passed 15% on the way), so 'At a 20% drawdown we stop opening new trades' is not false. Swapped for '5%', which is a real ladder number (the cap at 10% down, and the within-5% return in A8) and so a fair lure, but no reading makes it the stop. Every other field unchanged. q26 (rung 3) teac"
+   "notes": "Keep is right: our own ladder end point (stop new trades) is used at the screen and q32 only derives it. But the rewritten why listed the 10%/8%/5% rungs, which gives away the answers to q08, q14, q15 and q23 (an earlier checker removed exactly this). Fix: define drawdown, say the ladder cuts size as it deepens, give the 15% stop, no rung list."
   },
   "q27": {
    "status": "pass",

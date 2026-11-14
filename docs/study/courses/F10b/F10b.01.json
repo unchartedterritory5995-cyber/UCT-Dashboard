@@ -1671,6 +1671,42 @@
     ]
    },
    "batch": "wave6"
+  },
+  {
+   "key": "q97",
+   "skill": "short.mechanics",
+   "rung": 2,
+   "format": "mcq",
+   "q": "You're short 200 shares and want out. Which order closes the position?",
+   "choices": [
+    "Buy to cover",
+    "Sell short",
+    "A plain sell order",
+    "Borrow more shares"
+   ],
+   "answer": "Buy to cover",
+   "why": "Buy to cover. To close a short you buy the shares back in the market and return them to the lender. Sell short opens the position. It does not close it. Borrowing is how a short starts.",
+   "lesson_line": "Sell short to open. Buy to cover to close.",
+   "facts": [
+    "f13",
+    "f69",
+    "f44",
+    "f08"
+   ],
+   "wrong": {
+    "Sell short": "Sell short opens a short. Selling more shares would add to the position, not close it.",
+    "A plain sell order": "A plain sell closes a long position. You hold no shares to sell. You owe shares to the lender.",
+    "Borrow more shares": "Borrowing is how a short starts. More borrowed shares would grow the position, not close it."
+   },
+   "simple": "Buy to cover, because you close a short by buying shares back and returning them to the lender.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "stable definition: SEC, FINRA and brokers agree"
+    ]
+   },
+   "batch": "fills"
   }
  ],
  "conflicts": [
@@ -1725,10 +1761,10 @@
    "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q04": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Cover is the only defensible bank word; buy-to cover is in f41, cover in f69. Opening and borrowing lines now grounded by f42 and f08. Pass."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q05": {
    "status": "pass",
@@ -1851,6 +1887,12 @@
    "by": "checker",
    "fixed": false,
    "notes": "Decided cold from sizing_rule.md section 9, D48: 'Skip a short when the stock is hard to borrow or the borrow fee is high.' Hard to borrow alone triggers it, so 'We skip the short trade' is the only defensible choice; 'only if the fee is high' fails the 'or'. No exception for setup grade or a paid fee exists in section 9 (B26's parabolic exception is about the 200-day line, not borrow). Choices balanced (two skip, two short), key is the shortest. It answers no other question. Note for the lesson, outside this scope: q19 and q20 whys (rungs 7 and 8) restate D48, so they would give q24 away only"
+  },
+  "q97": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Replacement agreed: the live choice questions use buy to cover only inside P&L math, none tests which order closes a short. Facts f13, f69, f44, f08 support it; wrong notes are accurate (a plain sell closes a long). No tell."
   }
  }
 }

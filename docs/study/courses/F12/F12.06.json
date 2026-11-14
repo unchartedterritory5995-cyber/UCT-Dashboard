@@ -1403,10 +1403,10 @@
    "notes": "Key from f04. Stem no longer echoes 'trade'. 'Analyst targets' is not a second answer: the question asks for Bellafiore's sections. Wrong notes grounded in f04/f30."
   },
   "q04": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Keyed 'sense' before looking, from f01, checked word for word in the Pearson sample (Introduction, What's Inside: 'archive a trading setup that made the most sense to them during that day'). f21 confirms it. 'money' is the only near-miss: f22 says 'a best trade', but the stem asks for his wording and the quote settles it. 'volume' and 'headlines' fit the sentence, so no grammar tell. q01 and w1 teach 'make sense' earlier, which is meant as recall, not a give-away. Rung 2 comes after q02's rung 1, so the 'that day' wording does not hand q02 its answer."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q05": {
    "status": "pass",
@@ -1439,10 +1439,10 @@
    "notes": "Story and distractor said 'sold a third at 3R', a fixed first sell; reworded to 'sold part into strength'; h02 dropped."
   },
   "q10": {
-   "status": "pass",
+   "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q11": {
    "status": "pass",

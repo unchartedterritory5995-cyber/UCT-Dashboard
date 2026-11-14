@@ -1255,7 +1255,7 @@
     "10"
    ],
    "answer": "4",
-   "why": "4%. Never fill more than 4% above the first 5-minute bar's high. Past that the buy point has passed; use the second entry. Chasing costs size, not risk: the stop stays under the buy point, so the distance grows and the shares shrink. The 4% is measured from the first bar's high, not from the open.",
+   "why": "4%. The buy point is the first 5-minute bar's high. Never fill more than 4% above it. Chasing means paying up after the trigger has fired. Past 4% the buy point has passed, so wait for the second entry. Chasing costs size, not risk: the stop stays under the buy point, so the distance grows and the shares shrink. The 4% is measured from the first bar's high, not from the open.",
    "lesson_line": "Four percent past the first bar's high and the buy point is gone. Use the second entry.",
    "facts": [
     "c03",
@@ -1271,7 +1271,7 @@
      "rests on the owner's rulebook (C28)"
     ]
    },
-   "batch": "wave5"
+   "batch": "fills"
   },
   {
    "key": "q05",
@@ -3645,6 +3645,36 @@
     ]
    },
    "batch": "wave5"
+  },
+  {
+   "key": "q97",
+   "skill": "setup.opening_drive",
+   "rung": 2,
+   "format": "mcq",
+   "criterion": "od.day1_close_check",
+   "q": "A drive day closes in the bottom third of its day's range. What does that tell us?",
+   "choices": [
+    "The drive failed; it is a warning",
+    "The drive is strong; add to it",
+    "A sell signal; exit at the close",
+    "Nothing; only the open grades a drive"
+   ],
+   "answer": "The drive failed; it is a warning",
+   "why": "The drive failed, and that is a warning. A drive day that closes below its open or in the bottom third of its range has failed. It is not a sell signal: the stop is the only exit, and it only moves up. The check grades the day. It adds no second exit.",
+   "lesson_line": "A bottom-third close grades the drive as failed.",
+   "facts": [
+    "c11",
+    "h02"
+   ],
+   "wrong": {
+    "The drive is strong; add to it": "A close in the bottom third is the opposite of strength. Adding to it adds risk to a drive that just failed.",
+    "A sell signal; exit at the close": "The stop is the only exit. The close check grades the day. It does not add a second exit.",
+    "Nothing; only the open grades a drive": "The close grades the drive too. A drive day that closes in the bottom third of its range has failed."
+   },
+   "simple": "The drive failed, so treat it as a warning, but the stop stays your only exit.",
+   "tier": "core",
+   "house": true,
+   "batch": "fills"
   }
  ],
  "conflicts": [
@@ -3899,9 +3929,9 @@
   },
   "q04": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "notes": "Keep right: the 4% no-chase limit is used on every drive. Sharpened why defines the buy point and chasing, and is faithful to h11, h12."
   },
   "q05": {
    "status": "pass",
@@ -3922,10 +3952,10 @@
    "notes": "upgraded wave5; awaiting cold re-read"
   },
   "q11": {
-   "status": "pass",
+   "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q12": {
    "status": "pass",
@@ -4097,6 +4127,12 @@
    "by": "writer",
    "fixed": false,
    "notes": "cut in wave5: see the resolver's notes"
+  },
+  "q97": {
+   "status": "cut",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Cut: duplicates existing choice question q40 (a drive closing at 24% of range: a warning, the stop is the exit), same criterion od.day1_close_check. The brief says not to replace when a choice question on the same idea exists."
   }
  }
 }

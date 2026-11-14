@@ -1490,10 +1490,10 @@
    "notes": "True from f70/f95 before the key. Simple names hindsight bias, grounded. Why rests on f95, f03/f04, f72, f71. No absolute or hedge in the statement. q03 no longer pre-answers it."
   },
   "q05": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "'mistake' from f85/f77 and the sentence's own contrast. 'loss' is ruled out by the first sentence, the other bank words are clearly off. Simple rests on f83 and f82. Facts list fine."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q06": {
    "status": "pass",

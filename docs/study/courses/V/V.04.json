@@ -4292,10 +4292,10 @@
    "notes": "Key right (f40, f41, f49). The why's 'The StockCharts glossary says flags generally last less than three weeks' answers q31 (rung 7: a four-month flag is still a flag? False). The q08 checker kept the three-week number out for the same reason. Sentence dropped; f48 stays cited for 'brief'."
   },
   "q07": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Only 'flagpole' names a run; handle, neckline, apex and lip cannot fit. Quotes f50, f43, f44 support it; w3 teaches the word, so no cross-reveal. Voice clean."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q08": {
    "status": "pass",
@@ -4322,10 +4322,10 @@
    "notes": "Key fixed by f79, f80, f81 (three publishers). Supply line from f190, bias from f82. Wrong notes grounded (f85, f96, f65). No longer answers q61."
   },
   "q12": {
-   "status": "pass",
+   "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q13": {
    "status": "pass",
@@ -4346,10 +4346,10 @@
    "notes": "Key right (f106, f109, f111: three publishers). Notes grounded (f123, f185, f149) and name nothing another question keys. The highs/lows mirror pair is resolved by the word 'bottom', fine at rung 1."
   },
   "q16": {
-   "status": "pass",
-   "by": "checker",
-   "fixed": true,
-   "notes": "Key right (f114, f119). Two small defects. (1) 'form a ___ top' says two peaks and a dip form the pattern, while q41 keys that the top is not complete without the break, and StockCharts' own f114 includes the support break in what forms it. Reworded to 'make the shape of', in line with w1 ('Until then it's just a shape'). (2) 'Triple would need three peaks' had no cited fact; f121 added."
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q17": {
    "status": "pass",
@@ -4371,10 +4371,10 @@
    "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q20": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Only 'saucer' fits (f151). why and simple rest on f151, f150, f149; no weekly-chart giveaway for q56. Note: risk.reasons still says 'checker added f148' though f148 is no longer cited; stale metadata only."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q21": {
    "status": "pass",

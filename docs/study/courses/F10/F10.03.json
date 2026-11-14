@@ -1575,7 +1575,7 @@
     "Tighten the stop on all shares"
    ],
    "answer": "Sell partials, trail the rest",
-   "why": "Sell partials, trail the rest. The first sell is a judgment, not a fixed third at 3R. We rarely sell on day 1 and usually wait until day 3 at the earliest. In the owner's words: hold your winners by selling partials into strength and trailing the rising moving averages. One target for every share sells you out early, just as a stock may start to run.",
+   "why": "Sell partials, trail the rest. The first sell is a judgment, not a fixed third at 3R. We rarely sell on day 1 and usually wait until day 3 at the earliest. As we put it: hold your winners by selling partials into strength and trailing the rising moving averages. One target for every share sells you out early, just as a stock may start to run.",
    "lesson_line": "One target for every share caps your best winners. Trim into strength and trail the rest.",
    "facts": [
     "h3",
@@ -1658,10 +1658,10 @@
    "notes": "upgraded wave6; awaiting cold re-read"
   },
   "q04": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Own answer from f01/f47/f72 = limit. 'stop-limit' is a real order word and not defensible: a sell stop-type order above the market fails f03. 'trailing' and 'market' not defensible. Why grounded."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q05": {
    "status": "pass",

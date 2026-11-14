@@ -43,3 +43,6 @@ rule names the evidence.
 13. **Great traders' principles are high value.** "Test questions on O'Neil principles and principles of great traders
     and us as well are very valuable." Questions that test the principles of O'Neil, the other great traders the course
     quotes, and our own rules are worth keeping and adding to.
+14. **Show where to find it.** "Explain how you can find the move on our app or how you can calculate it yourself." When a
+    question uses a number a trader looks up (implied move, float, earnings date, relative strength), the explanation
+    says where to find it in the UCT app or how to work it out by hand.

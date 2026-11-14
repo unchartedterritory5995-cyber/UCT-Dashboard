@@ -1483,7 +1483,7 @@
     "8"
    ],
    "answer": "21",
-   "why": "21. Our default trail is the 21-day average for a steadier stock and the 10-day for a fast mover. Sell on a close below it. This trail is for the last part, after the earlier sells.",
+   "why": "21. The trail is the line the last part of the trade rides. Our default is the 21-day average for a steadier stock and the 10-day for a fast mover. Sell on a close below it, not on an intraday touch. It applies only to the last part, after the earlier sells.",
    "lesson_line": "Steadier stock, 21-day. Fast mover, 10-day. Sell the close below it, not the touch.",
    "facts": [
     "c23",
@@ -1498,7 +1498,7 @@
      "rests on the owner's rulebook (E52)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "fills"
   },
   {
    "key": "q21",
@@ -3341,10 +3341,10 @@
    "notes": "upgraded wave4b; awaiting cold re-read"
   },
   "q04": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "200 from c07/h10 (B26). Bank 100/150/30 has no second true answer; the 10 and 21-day gate items are gone."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q05": {
    "status": "cut",
@@ -3440,8 +3440,8 @@
   "q20": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key fine, but the prompt and simple still say 'last third', which implies the old thirds scheme; soften to 'last part'."
+   "fixed": false,
+   "notes": "Keep is right: which average to trail is a daily decision with real alternatives; q42 tests the close, not which line. New why defines the trail; c23/h21 support the close-not-touch wording."
   },
   "q21": {
    "status": "cut",

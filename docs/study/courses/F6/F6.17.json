@@ -1751,7 +1751,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Buy is right (f44, f31). Bank swap to 'roll' is a real misread and the why rebuts it on f30. Sentences under 22 words. Reveal states a sale closes a long option, which echoes q01's key only after both are answered; the stems do not give each other away."
+   "notes": "Keep. Buy to close a put you sold is the exact action at the screen; the bank holds real wrong moves (sell, exercise, roll). Why is a plain account of closing orders."
   },
   "q05": {
    "status": "pass",

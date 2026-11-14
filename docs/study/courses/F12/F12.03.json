@@ -1413,9 +1413,9 @@
   },
   "q04": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "notes": "Keep agreed: sorting a note into the emotion field is what a trader does when journaling; q05 tests the reason field the same way. The why defines the field and cites Steenbarger and Tendler."
   },
   "q05": {
    "status": "pass",
@@ -1430,10 +1430,10 @@
    "notes": "upgraded wave9; awaiting cold re-read"
   },
   "q07": {
-   "status": "pass",
+   "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q08": {
    "status": "pass",

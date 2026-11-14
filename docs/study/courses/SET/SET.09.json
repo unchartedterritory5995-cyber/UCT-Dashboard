@@ -4813,6 +4813,76 @@
     ]
    },
    "batch": "polish"
+  },
+  {
+   "key": "q94",
+   "skill": "setup.cup_handle",
+   "rung": 2,
+   "format": "mcq",
+   "criterion": "ch.cup_length_min",
+   "q": "A rounded base took 5 weeks to form, handle included. Does it count as a cup with handle on our card?",
+   "choices": [
+    "No. It is under our 7-week minimum",
+    "Yes. A rounded shape is all it needs",
+    "Yes, if the handle is quiet enough",
+    "No. A cup needs at least 12 weeks"
+   ],
+   "answer": "No. It is under our 7-week minimum",
+   "why": "No. Our card wants a cup with handle at least 7 weeks long, handle included. That is 35 sessions from the left-side high to the day before the breakout. IBD asks for seven weeks too. A 5-week base has not had time to build a cup.",
+   "lesson_line": "Seven weeks or more. A real cup takes time to build.",
+   "facts": [
+    "c05",
+    "i08",
+    "b02"
+   ],
+   "wrong": {
+    "Yes. A rounded shape is all it needs": "Shape is not enough. The card also wants at least 7 weeks, handle included.",
+    "Yes, if the handle is quiet enough": "A quiet handle helps the grade. It does not make up for a base under 7 weeks.",
+    "No. A cup needs at least 12 weeks": "Too long. The minimum is 7 weeks, not 12. Bulkowski's range starts at 7 too."
+   },
+   "house": true,
+   "simple": "A cup with handle must run at least 7 weeks, handle included, so a 5-week base is too short.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "IBD and Bulkowski agree"
+    ]
+   },
+   "batch": "fills"
+  },
+  {
+   "key": "q95",
+   "skill": "setup.cup_handle",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "ch.handle_above_50",
+   "q": "Does the handle pass the card's 50-day test?",
+   "story": "The handle is eight sessions old and its 50-day line sits at 61.40. On day five the stock trades down to 61.10, then closes at 62.30. Every other close is above the line too.",
+   "choices": [
+    "Yes; no close was under the 50-day",
+    "No; the intraday low went under it",
+    "No; it needs a close over the 21-day",
+    "Yes; but only on light volume"
+   ],
+   "answer": "Yes; no close was under the 50-day",
+   "why": "Yes. On our card the handle holds above the 50-day when no daily close is below it. The dip to 61.10 was intraday, and every close, including 62.30, stayed above the line at 61.40. IBD says a handle should generally form above the 50-day. A close under the line would end the setup before the buy.",
+   "lesson_line": "The 50-day test counts closes. A low that dips under and closes back above still passes.",
+   "simple": "Yes. The card counts closes, and every close in the handle stayed above the 50-day line.",
+   "wrong": {
+    "No; the intraday low went under it": "The card's test is the daily close. A low under the line that closes back above it does not end the handle. A close under the line would.",
+    "No; it needs a close over the 21-day": "The card names the 50-day for the handle. It does not ask for the 21-day.",
+    "Yes; but only on light volume": "Volume is its own test: the handle should average quieter than the cup. It does not change the 50-day test, which looks only at closes."
+   },
+   "facts": [
+    "c13",
+    "c23",
+    "i17",
+    "c12"
+   ],
+   "house": true,
+   "tier": "extended",
+   "batch": "cover"
   }
  ],
  "conflicts": [
@@ -4880,10 +4950,10 @@
    "notes": "V fails the rounded-U test (c06, sc01, i05, b01). Two publishers plus card."
   },
   "q05": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Fill asks for the minimum; c09, i18, i19 agree; no second reading."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q06": {
    "status": "pass",
@@ -4904,10 +4974,10 @@
    "notes": "c03, h22, h23 support the key; stem scoped to our breakout rule; Bulkowski close and premarket refuted; no ungrounded number (48.20 is in the stem). In-handle buy remains an owner flag."
   },
   "q09": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "c05, i08, b02 agree; blank asks for the minimum."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q10": {
    "status": "pass",
@@ -5260,10 +5330,10 @@
    "notes": "Story checks every B26 box (three up days, two gap ups incl. the last day, range expansion on two, volume up on two); C34 says sell a big part."
   },
   "q67": {
-   "status": "pass",
+   "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave1; awaiting cold re-read"
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q68": {
    "status": "pass",
@@ -5351,10 +5421,10 @@
    "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q82": {
-   "status": "pass",
+   "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave1; awaiting cold re-read"
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q83": {
    "status": "pass",
@@ -5400,10 +5470,10 @@
    "notes": "upgraded wave1; awaiting cold re-read"
   },
   "q91": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "C29 (h13) says 10%; 4% distractor is the chase line (h11), explained in the why. Teaches the stretch rule before q43 applies it."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q92": {
    "status": "pass",
@@ -5422,6 +5492,18 @@
    "by": "checker",
    "fixed": true,
    "notes": "Key is right: c22 says rising handle volume ends the setup, and every other story fact clears its row (c09 5-session minimum, i14 upper half, c13 50-day, c11 drift). Fixed two defects. (1) The keyed choice \"Pass; it ends the setup before the buy\" has no antecedent for \"it\" and echoes the card row wording rather than naming a reason, while the rival Pass names one. Now \"Pass; a loud handle ends the setup\" (34 chars, not the lone longest; \"loud\" is the lesson's own word from q21, not the story's). (2) \"ends above the cup's average\" was ambiguous (last day or handle average). The story now says t"
+  },
+  "q94": {
+   "status": "cut",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Cut: duplicates q36, a choice question that already tests the 7-week cup minimum, and its right answer says 'under our 7-week minimum', which hands the rule to the learner. Do not replace q09."
+  },
+  "q95": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Applies ch.handle_above_50 as the card measures it (daily closes vs the 50-day SMA, c13/c23). Numbers consistent (low 61.10 under the 61.40 line, closes above). Pass-side complement of q44 (a close under fails), not a duplicate. Distractors clearly wrong against the card; volume distractor supported by c12. i17 quote verbatim. Note: the card entry is status proposed (one-close test is the dossier's), so revisit if the owner rules otherwise."
   }
  }
 }

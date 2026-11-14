@@ -1823,6 +1823,39 @@
     ]
    },
    "batch": "wave6"
+  },
+  {
+   "key": "q97",
+   "skill": "history.how_markets_move",
+   "rung": 2,
+   "format": "mcq",
+   "q": "A stock in an uptrend pulls back and undercuts its last pullback low. What does that tell you?",
+   "choices": [
+    "Higher lows stopped, so it's in doubt",
+    "It just made a new higher high",
+    "The uptrend got stronger",
+    "Nothing, only the highs matter"
+   ],
+   "answer": "Higher lows stopped, so it's in doubt",
+   "why": "Higher lows stopped, so it's in doubt. ChartSchool describes an uptrend as a series of higher highs and higher lows. Bulkowski's account of Weinstein says that if you don't see higher lows, it isn't Stage 2. A pullback under the last low breaks that pattern. That is a warning, not proof the trend is over.",
+   "lesson_line": "Higher highs and higher lows. When the lows stop rising, the uptrend is in doubt.",
+   "facts": [
+    "f55",
+    "f66",
+    "f67"
+   ],
+   "wrong": {
+    "It just made a new higher high": "A higher high is a new peak above the last peak. A pullback that undercuts the last low is the opposite signal.",
+    "The uptrend got stronger": "A stronger uptrend keeps making higher lows. Undercutting the last low is a sign of weakness.",
+    "Nothing, only the highs matter": "An uptrend needs both higher highs and higher lows. When the lows stop rising, the trend is in doubt."
+   },
+   "simple": "An uptrend needs higher highs and higher lows, so a pullback under the last low puts the trend in doubt.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "fills"
   }
  ],
  "conflicts": [
@@ -1880,10 +1913,10 @@
    "notes": "True per f01 (Tier 1) and f19. Two-month and 33-day lines grounded in f01, f08. No closing-price detail, so it no longer pre-answers q04."
   },
   "q03": {
-   "status": "pass",
+   "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q04": {
    "status": "pass",
@@ -1911,10 +1944,10 @@
    "notes": "upgraded wave6; awaiting cold re-read"
   },
   "q08": {
-   "status": "pass",
+   "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q09": {
    "status": "pass",
@@ -2029,6 +2062,12 @@
    "by": "checker",
    "fixed": true,
    "notes": "House question. Own answer: the rulebook ties size to the app's market reading (B18, F65/h01, A10/h03, D46), not to how far the index is off its high. The story gives no reading, and an index 22% down under a falling 30-week average can still read Green early in a new uptrend (F68 even covers the reading turning Green after a correction), where F65 says full risk per grade. So the key depends on an unstated reading; the file's own risk note admits 'the key fits every reading short of Green'. Second issue: the deeper states IBD's '3 of 4 stocks move in the same direction as the market' and the "
+  },
+  "q97": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Pass. Undercutting the last pullback low breaks higher lows; supported by f55, f66, f67; hedged wording (in doubt, not proof) fits standing rule 11."
   }
  }
 }

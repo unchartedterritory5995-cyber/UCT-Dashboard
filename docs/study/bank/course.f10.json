@@ -254,64 +254,6 @@
  },
  {
   "answer_json": {
-   "answer": "higher"
-  },
-  "difficulty": 1,
-  "id": "si_27d3a2b3a03f",
-  "lesson_origin": "session",
-  "lesson_text": "Higher. A sell limit can only fill at the limit price or higher. It is a floor: you get your price or more, never less. It does not promise a fill. Buy limits are ceilings. Sell limits are floors.",
-  "module": "F10",
-  "prompt_json": {
-   "bank": [
-    "higher",
-    "lower",
-    "the bid",
-    "the close",
-    "the last"
-   ],
-   "kind": "fill",
-   "q": "Tap the word that fits the blank.",
-   "sentence": "A sell limit order fills only at your limit price or ___.",
-   "subject": "F10.01#q04"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC, Investor.gov: Understanding Order Types: Investor Bulletin (July 12, 2017, updated August 18, 2026)",
-      "quote": "A buy limit order can only be executed at the limit price or lower, and a sell limit order can only be executed at the limit price or higher.",
-      "tier": 1,
-      "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins-14"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "FINRA: Order Types",
-      "quote": "This means you're guaranteed to get your limit price or a better price if your order is executed. However, there's a chance your order doesn't get executed at all.",
-      "tier": 1,
-      "url": "https://www.finra.org/investors/investing/investment-products/stocks/order-types"
-     }
-    ],
-    "summary": "A buy limit fills at your limit or lower; a sell limit fills at your limit or higher. If a limit order fills, you get your limit price or better; it may not fill at all."
-   },
-   "facts": {
-    "given": "Tap the word that fits the blank. A sell limit order fills only at your limit price or ___."
-   },
-   "lesson_line": "Buy limits are ceilings. Sell limits are floors.",
-   "simple": "Higher, because a sell limit is a floor: you get your price or more, never less.",
-   "tier": "core",
-   "unit": "F10.01",
-   "why": "Higher. A sell limit can only fill at the limit price or higher. It is a floor: you get your price or more, never less. It does not promise a fill."
-  },
-  "review_status": "draft",
-  "skill_id": "orders.market_limit",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F10/F10.01.json#q04",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
    "answer": "Your price isn't promised"
   },
   "difficulty": 1,
@@ -453,71 +395,6 @@
   "skill_id": "orders.market_limit",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F10/F10.01.json#q06",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
-   "answer": "marketable"
-  },
-  "difficulty": 1,
-  "id": "si_3473c9acada2",
-  "lesson_origin": "session",
-  "lesson_text": "Marketable. Under the SEC's definition, a buy limit at or above the national best offer, the ask, is a marketable limit order. It can trade right away against the sellers there. The limit still caps the price you pay. Marketable means it can trade now. Your limit only caps the price.",
-  "module": "F10",
-  "prompt_json": {
-   "bank": [
-    "marketable",
-    "resting",
-    "stop",
-    "hidden",
-    "day"
-   ],
-   "kind": "fill",
-   "q": "Tap the word that fits the blank.",
-   "sentence": "A buy limit priced at or above the best ask is called a ___ limit order.",
-   "subject": "F10.01#q07"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC rule text, eCFR (17 CFR 242.600): Rule 600 of Regulation NMS, definitions: (b)(56) Marketable limit order",
-      "quote": "any buy order with a limit price equal to or greater than the national best offer at the time of order receipt, or any sell order with a limit price equal to or less than the national best bid",
-      "tier": 1,
-      "url": "https://www.ecfr.gov/current/title-17/chapter-II/part-242/subject-group-ECFR3dd95cf4d3f6730/section-242.600"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Charles Schwab: Trade execution glossary",
-      "quote": "A marketable limit order is an order to buy (or sell) in which the limit price is at or above (or below) the current market.",
-      "tier": 2,
-      "url": "https://www.schwab.com/execution-quality/glossary"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Fidelity Investments: Trading FAQs: Placing Orders",
-      "quote": "It is associated with trades that are immediately marketable (limit orders that can immediately execute based on current market prices, as well as market orders).",
-      "tier": 2,
-      "url": "https://www.fidelity.com/trading/faqs-placing-orders"
-     }
-    ],
-    "summary": "Under the SEC's rule, a buy limit at or above the best ask, or a sell limit at or below the best bid, is a marketable limit order. A marketable limit is a buy limit at or above the market, or a sell limit at or below it. A limit order that can trade right away at current prices is immediately marketable, like a market order."
-   },
-   "facts": {
-    "given": "Tap the word that fits the blank. A buy limit priced at or above the best ask is called a ___ limit order."
-   },
-   "lesson_line": "Marketable means it can trade now. Your limit only caps the price.",
-   "simple": "Marketable, because a buy limit at or above the ask can trade right away against the sellers there.",
-   "tier": "core",
-   "unit": "F10.01",
-   "why": "Marketable. Under the SEC's definition, a buy limit at or above the national best offer, the ask, is a marketable limit order. It can trade right away against the sellers there. The limit still caps the price you pay."
-  },
-  "review_status": "draft",
-  "skill_id": "orders.market_limit",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F10/F10.01.json#q07",
   "type": "recall",
   "version": 1
  },
@@ -2364,78 +2241,6 @@
   "skill_id": "orders.stops",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F10/F10.02.json#q02",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
-   "answer": "limit"
-  },
-  "difficulty": 1,
-  "id": "si_af32fa5b8150",
-  "lesson_origin": "session",
-  "lesson_text": "Limit. The stop price triggers it, and then it becomes a limit order. It fills only at the limit price or better. If the price moves away from the limit, it may not fill at all. A plain stop is the one that becomes a market order. Stop-limit: the stop triggers it, the limit is the worst price you'll take.",
-  "module": "F10",
-  "prompt_json": {
-   "bank": [
-    "limit",
-    "market",
-    "trailing",
-    "day",
-    "stop"
-   ],
-   "kind": "fill",
-   "q": "Tap the word that fits the blank.",
-   "sentence": "Once its stop price is reached, a stop-limit order becomes a ___ order.",
-   "subject": "F10.02#q03"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC, Investor.gov: Stop, Stop-Limit, and Trailing Stop Orders: Investor Bulletin (July 13, 2017, updated August 18, 2026)",
-      "quote": "Once the stop price is reached, a stop-limit order becomes a limit order that will be executed at a specified price (or better).",
-      "tier": 1,
-      "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins-15"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "FINRA: Stop Orders: Factors to Consider During Volatile Markets (March 26, 2025)",
-      "quote": "In addition to the stop price, you can set a “limit price” beyond which you’re not willing to buy or sell.",
-      "tier": 1,
-      "url": "https://www.finra.org/investors/insights/stop-orders-factors-consider-during-volatile-markets"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC, Investor.gov: Stop, Stop-Limit, and Trailing Stop Orders: Investor Bulletin (July 13, 2017, updated August 18, 2026)",
-      "quote": "As with all limit orders, a stop-limit order may not be executed if the stock’s price moves away from the specified limit price",
-      "tier": 1,
-      "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins-15"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC, Investor.gov: Stop, Stop-Limit, and Trailing Stop Orders: Investor Bulletin (July 13, 2017, updated August 18, 2026)",
-      "quote": "When the stop price is reached, a stop order becomes a market order.",
-      "tier": 1,
-      "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins-15"
-     }
-    ],
-    "summary": "Once triggered, a stop-limit becomes a limit order that fills only at its limit price or better. A stop-limit's limit is the price beyond which you won't buy or sell. If the price moves away from the limit, a stop-limit order may not fill at all. Once the stop price is reached, a stop order turns into a market order."
-   },
-   "facts": {
-    "given": "Tap the word that fits the blank. Once its stop price is reached, a stop-limit order becomes a ___ order."
-   },
-   "lesson_line": "Stop-limit: the stop triggers it, the limit is the worst price you'll take.",
-   "simple": "Limit, because after the stop is hit the order can only fill at your limit price or better.",
-   "tier": "core",
-   "unit": "F10.02",
-   "why": "Limit. The stop price triggers it, and then it becomes a limit order. It fills only at the limit price or better. If the price moves away from the limit, it may not fill at all. A plain stop is the one that becomes a market order."
-  },
-  "review_status": "draft",
-  "skill_id": "orders.stops",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F10/F10.02.json#q03",
   "type": "recall",
   "version": 1
  },
@@ -4807,85 +4612,6 @@
  },
  {
   "answer_json": {
-   "answer": "limit"
-  },
-  "difficulty": 1,
-  "id": "si_c29730178fa8",
-  "lesson_origin": "session",
-  "lesson_text": "Limit. A sell limit fills only at its price or higher, so it rests above the market as your profit target. A take-profit order is a limit order. The sell stop is the other exit, and it sits below the market to limit the loss. Target above: sell limit. Stop below: sell stop.",
-  "module": "F10",
-  "prompt_json": {
-   "bank": [
-    "limit",
-    "stop",
-    "market",
-    "trailing",
-    "stop-limit"
-   ],
-   "kind": "fill",
-   "q": "Tap the order type that fits the blank.",
-   "sentence": "On a long bracket, the profit target is a sell ___ order above your entry.",
-   "subject": "F10.03#q04"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC, Investor.gov: Types of Orders",
-      "quote": "A buy limit order can only be executed at the limit price or lower, and a sell limit order can only be executed at the limit price or higher.",
-      "tier": 1,
-      "url": "https://www.investor.gov/introduction-investing/investing-basics/how-stock-markets-work/types-orders"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Interactive Brokers: Order Types and Algos (Bracket; One Cancels All)",
-      "quote": "A BUY order is bracketed by a high-side sell limit order and a low-side sell stop order. A SELL order is bracketed by a high-side buy stop order and a low side buy limit order.",
-      "tier": 2,
-      "url": "https://www.interactivebrokers.com/en/trading/ordertypes.php"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Investopedia: Take-Profit Order (TP): How to Maximize Profits in Trading (James Chen, CMT; updated July 23, 2026)",
-      "quote": "A take-profit order (TP) is a limit order used to automatically close a position when a specified profit price is reached.",
-      "tier": 2,
-      "url": "https://www.investopedia.com/terms/t/take-profitorder.asp"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC, Investor.gov: Types of Orders",
-      "quote": "A sell stop order is entered at a stop price below the current market price. Investors generally use a sell stop order to limit a loss or protect a profit on a stock they own.",
-      "tier": 1,
-      "url": "https://www.investor.gov/introduction-investing/investing-basics/how-stock-markets-work/types-orders"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC, Investor.gov: Understanding Order Types: Investor Bulletin (July 12, 2017, updated August 18, 2026)",
-      "quote": "Once the stop price is reached, a stop-limit order becomes a limit order that will be executed at a specified price (or better).",
-      "tier": 1,
-      "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins-14"
-     }
-    ],
-    "summary": "A sell limit fills only at its price or higher; a buy limit only at its price or lower. A long bracket has a sell limit above and a sell stop below; a short bracket has a buy stop above and a buy limit below. A take-profit order is a limit order that closes the position at your profit price. A sell stop sits below the market and limits the loss on shares you own. Once its stop price is reached, a stop-limit order becomes a limit order, filled only at its set price or better."
-   },
-   "facts": {
-    "given": "Tap the order type that fits the blank. On a long bracket, the profit target is a sell ___ order above your entry."
-   },
-   "lesson_line": "Target above: sell limit. Stop below: sell stop.",
-   "simple": "The target is a sell limit, because a sell limit only fills at your price or higher.",
-   "tier": "core",
-   "unit": "F10.03",
-   "why": "Limit. A sell limit fills only at its price or higher, so it rests above the market as your profit target. A take-profit order is a limit order. The sell stop is the other exit, and it sits below the market to limit the loss."
-  },
-  "review_status": "draft",
-  "skill_id": "orders.brackets",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F10/F10.03.json#q04",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
    "answer": "False"
   },
   "difficulty": 1,
@@ -6255,7 +5981,7 @@
   "difficulty": 3,
   "id": "si_7b3089640061",
   "lesson_origin": "session",
-  "lesson_text": "Sell partials, trail the rest. The first sell is a judgment, not a fixed third at 3R. We rarely sell on day 1 and usually wait until day 3 at the earliest. In the owner's words: hold your winners by selling partials into strength and trailing the rising moving averages. One target for every share sells you out early, just as a stock may start to run. One target for every share caps your best winners. Trim into strength and trail the rest.",
+  "lesson_text": "Sell partials, trail the rest. The first sell is a judgment, not a fixed third at 3R. We rarely sell on day 1 and usually wait until day 3 at the earliest. As we put it: hold your winners by selling partials into strength and trailing the rising moving averages. One target for every share sells you out early, just as a stock may start to run. One target for every share caps your best winners. Trim into strength and trail the rest.",
   "module": "F10",
   "prompt_json": {
    "choices": [
@@ -6327,7 +6053,7 @@
    "simple": "Sell part of the position and trail a stop on the rest, so you bank gains and still ride a long run.",
    "tier": "expert",
    "unit": "F10.03",
-   "why": "Sell partials, trail the rest. The first sell is a judgment, not a fixed third at 3R. We rarely sell on day 1 and usually wait until day 3 at the earliest. In the owner's words: hold your winners by selling partials into strength and trailing the rising moving averages. One target for every share sells you out early, just as a stock may start to run.",
+   "why": "Sell partials, trail the rest. The first sell is a judgment, not a fixed third at 3R. We rarely sell on day 1 and usually wait until day 3 at the earliest. As we put it: hold your winners by selling partials into strength and trailing the rising moving averages. One target for every share sells you out early, just as a stock may start to run.",
    "wrong": {
     "No targets, hold every share": "That banks nothing into strength. We sell some into a push and let the rest run.",
     "One bigger target for all shares": "Then nothing gets banked if it stalls short of that price. We take some off along the way.",
@@ -6752,85 +6478,6 @@
  },
  {
   "answer_json": {
-   "answer": "partial"
-  },
-  "difficulty": 1,
-  "id": "si_f2a031626366",
-  "lesson_origin": "session",
-  "lesson_text": "Partial. Only part of the order executed; the rest is still waiting or was canceled. A limit order for more than 100 shares can fill in parts until it completes. In extended hours an order may fill partially or not at all. Partial fills happen especially in thinly traded stocks. Check the shares filled, not just the order status. A partial fill changes your position and your risk.",
-  "module": "F10",
-  "prompt_json": {
-   "bank": [
-    "partial",
-    "market",
-    "limit",
-    "stop",
-    "short"
-   ],
-   "kind": "fill",
-   "q": "Tap the word that fits the blank.",
-   "sentence": "When only some of the shares in your order execute, that's a ___ fill.",
-   "subject": "F10.04#q03"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-09",
-      "name": "FINRA: Extended-Hours Trading: Know the Risks (July 31, 2024)",
-      "quote": "As a result, your order may be executed partially or not at all. If it's executed, it might not be at a competitive price compared to regular trading hours.",
-      "tier": 1,
-      "url": "https://www.finra.org/investors/insights/extended-hours-trading"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Fidelity Investments: Trading FAQs: Order Types",
-      "quote": "Limit orders for more than 100 shares or for multiple round lots (200, 300, 400, etc.) may be filled completely or in part until completed.",
-      "tier": 2,
-      "url": "https://www.fidelity.com/trading/faqs-order-types"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Charles Schwab: How Does After-Hours Trading Work? (September 21, 2026)",
-      "quote": "it can also result in multiple executions to fill a single order, especially if the security is thinly traded.",
-      "tier": 2,
-      "url": "https://www.schwab.com/learn/story/how-does-extended-hours-trading-work"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Interactive Brokers: Order Types and Algos",
-      "quote": "In order to prevent a partial fill, the client uses an All-or-None order type, which can also be used for stock orders.",
-      "tier": 2,
-      "url": "https://www.interactivebrokers.com/en/trading/ordertypes.php"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Fidelity Investments: Trading FAQs: Order Types",
-      "quote": "If all or part of your order is not executed by the time you’ve selected for expiration, your order will be canceled.",
-      "tier": 2,
-      "url": "https://www.fidelity.com/trading/faqs-order-types"
-     }
-    ],
-    "summary": "In extended hours, your order may fill in part or not at all, and the price may be worse than in the regular session. A limit order for more than 100 shares can fill in parts. An order left working across sessions can fill in several pieces, especially in a thinly traded stock. An all-or-none order prevents a partial fill, on stocks too. When a day order expires, any part not filled is canceled."
-   },
-   "facts": {
-    "given": "Tap the word that fits the blank. When only some of the shares in your order execute, that's a ___ fill."
-   },
-   "lesson_line": "Check the shares filled, not just the order status. A partial fill changes your position and your risk.",
-   "simple": "Partial, because only some of the shares in your order filled and the rest did not.",
-   "tier": "core",
-   "unit": "F10.04",
-   "why": "Partial. Only part of the order executed; the rest is still waiting or was canceled. A limit order for more than 100 shares can fill in parts until it completes. In extended hours an order may fill partially or not at all. Partial fills happen especially in thinly traded stocks."
-  },
-  "review_status": "draft",
-  "skill_id": "orders.slippage",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F10/F10.04.json#q03",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
    "answer": "Fills the whole order or none of it"
   },
   "difficulty": 1,
@@ -6986,85 +6633,6 @@
   "skill_id": "orders.slippage",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F10/F10.04.json#q05",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
-   "answer": "immediate-or-cancel"
-  },
-  "difficulty": 1,
-  "id": "si_9906d40aaa90",
-  "lesson_origin": "session",
-  "lesson_text": "Immediate-or-cancel. It fills any part it can at once and cancels whatever is left, so nothing keeps working. Fill-or-kill and all-or-none refuse a partial fill. Good-'til-canceled keeps working until it fills in full or is canceled. Immediate-or-cancel takes a partial fill now and leaves no order behind.",
-  "module": "F10",
-  "prompt_json": {
-   "bank": [
-    "immediate-or-cancel",
-    "all-or-none",
-    "fill-or-kill",
-    "good-'til-canceled",
-    "day"
-   ],
-   "kind": "fill",
-   "q": "Tap the order condition that fits the blank.",
-   "sentence": "Use ___ to take whatever shares are there right now and cancel the rest.",
-   "subject": "F10.04#q06"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC, Investor.gov: Understanding Order Types: Investor Bulletin (July 12, 2017, updated August 18, 2026)",
-      "quote": "An IOC order is an order to buy or sell a stock that must be executed immediately. Any portion of the order that cannot be filled immediately will be canceled.",
-      "tier": 1,
-      "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins-14"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Fidelity Investments: Trading FAQs: Order Types",
-      "quote": "Immediate or cancel (fill the whole order or any part immediately, and cancel any unfilled balance).",
-      "tier": 2,
-      "url": "https://www.fidelity.com/trading/faqs-order-types"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC, Investor.gov: Understanding Order Types: Investor Bulletin (July 12, 2017, updated August 18, 2026)",
-      "quote": "An FOK order is an order to buy or sell a stock that must be executed immediately in its entirety; otherwise, the entire order will be canceled",
-      "tier": 1,
-      "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins-14"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC, Investor.gov: Understanding Order Types: Investor Bulletin (July 12, 2017, updated August 18, 2026)",
-      "quote": "An AON order is an order to buy or sell a stock that must be executed in its entirety, or not executed at all.",
-      "tier": 1,
-      "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins-14"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC, Investor.gov: Understanding Order Types: Investor Bulletin (July 12, 2017, updated August 18, 2026)",
-      "quote": "A GTC order is an order to buy or sell a stock that lasts until it is executed in full or it is canceled.",
-      "tier": 1,
-      "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins-14"
-     }
-    ],
-    "summary": "Immediate-or-cancel fills what it can at once and cancels the rest. Immediate-or-cancel fills any part at once and cancels the rest. Fill-or-kill must fill completely at once, or the whole order is canceled. All-or-none fills the whole order or nothing. A good-'til-canceled order stays working until it fills in full or is canceled."
-   },
-   "facts": {
-    "given": "Tap the order condition that fits the blank. Use ___ to take whatever shares are there right now and cancel the rest."
-   },
-   "lesson_line": "Immediate-or-cancel takes a partial fill now and leaves no order behind.",
-   "simple": "Immediate-or-cancel, because it takes whatever shares are there right now and cancels the rest.",
-   "tier": "core",
-   "unit": "F10.04",
-   "why": "Immediate-or-cancel. It fills any part it can at once and cancels whatever is left, so nothing keeps working. Fill-or-kill and all-or-none refuse a partial fill. Good-'til-canceled keeps working until it fills in full or is canceled."
-  },
-  "review_status": "draft",
-  "skill_id": "orders.slippage",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F10/F10.04.json#q06",
   "type": "recall",
   "version": 1
  },
@@ -8667,6 +8235,88 @@
   "skill_id": "orders.slippage",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F10/F10.04.json#q25",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Immediate-or-cancel"
+  },
+  "difficulty": 1,
+  "id": "si_361d07621027",
+  "lesson_origin": "session",
+  "lesson_text": "Immediate-or-cancel. It fills any part it can at once and cancels the rest, so no order is left working. All-or-none refuses a partial fill. Good-'til-canceled and day orders keep working until they fill or expire. Immediate-or-cancel takes a partial fill now and leaves no order behind.",
+  "module": "F10",
+  "prompt_json": {
+   "choices": [
+    "Day order",
+    "All-or-none",
+    "Immediate-or-cancel",
+    "Good-'til-canceled"
+   ],
+   "kind": "mcq",
+   "q": "You want whatever shares are there right now, and no leftover order working after. Which order condition fits?",
+   "subject": "F10.04#q97"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-09",
+      "name": "SEC, Investor.gov: Understanding Order Types: Investor Bulletin (July 12, 2017, updated August 18, 2026)",
+      "quote": "An IOC order is an order to buy or sell a stock that must be executed immediately. Any portion of the order that cannot be filled immediately will be canceled.",
+      "tier": 1,
+      "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins-14"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "Fidelity Investments: Trading FAQs: Order Types",
+      "quote": "Immediate or cancel (fill the whole order or any part immediately, and cancel any unfilled balance).",
+      "tier": 2,
+      "url": "https://www.fidelity.com/trading/faqs-order-types"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "SEC, Investor.gov: Understanding Order Types: Investor Bulletin (July 12, 2017, updated August 18, 2026)",
+      "quote": "An AON order is an order to buy or sell a stock that must be executed in its entirety, or not executed at all.",
+      "tier": 1,
+      "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins-14"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "SEC, Investor.gov: Understanding Order Types: Investor Bulletin (July 12, 2017, updated August 18, 2026)",
+      "quote": "A GTC order is an order to buy or sell a stock that lasts until it is executed in full or it is canceled.",
+      "tier": 1,
+      "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins-14"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "Fidelity Investments: Trading FAQs: Order Types",
+      "quote": "If all or part of your order is not executed by the time you’ve selected for expiration, your order will be canceled.",
+      "tier": 2,
+      "url": "https://www.fidelity.com/trading/faqs-order-types"
+     }
+    ],
+    "summary": "Immediate-or-cancel fills what it can at once and cancels the rest. Immediate-or-cancel fills any part at once and cancels the rest. All-or-none fills the whole order or nothing. A good-'til-canceled order stays working until it fills in full or is canceled. When a day order expires, any part not filled is canceled."
+   },
+   "facts": {
+    "given": "You want whatever shares are there right now, and no leftover order working after. Which order condition fits? Immediate-or-cancel All-or-none Good-'til-canceled Day order"
+   },
+   "lesson_line": "Immediate-or-cancel takes a partial fill now and leaves no order behind.",
+   "simple": "Immediate-or-cancel, because it takes the shares available now and cancels whatever is left.",
+   "tier": "core",
+   "unit": "F10.04",
+   "why": "Immediate-or-cancel. It fills any part it can at once and cancels the rest, so no order is left working. All-or-none refuses a partial fill. Good-'til-canceled and day orders keep working until they fill or expire.",
+   "wrong": {
+    "All-or-none": "All-or-none fills the whole order or nothing. It refuses the partial fill you are willing to take.",
+    "Day order": "A day order keeps the unfilled shares working until the close, then cancels them.",
+    "Good-'til-canceled": "Good-'til-canceled keeps the unfilled shares working until they fill in full or you cancel."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "orders.slippage",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F10/F10.04.json#q97",
   "type": "recall",
   "version": 1
  },

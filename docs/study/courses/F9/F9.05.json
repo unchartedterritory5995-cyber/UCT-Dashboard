@@ -1271,10 +1271,10 @@
    "notes": "duplicate of F9.02#q04. Track auditor 2026-11-09: Same fact tested the same way (true/false, keyed False): money at risk is not the money in the position, on the same Schwab article (this unit's f05 = F9.02's f33) with near-identical lesson lines. F9.02 teaches risk vs position size, so it keeps it; q01 still defines total open risk here. The question was right as written."
   },
   "q03": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Own answer 'together' from f13 (FINRA, confirmed live) and f21. Bank has no second defensible word. FINRA fact is not the struck counting rule. Gives q14/q19 their premise but does not answer them."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q04": {
    "status": "cut",

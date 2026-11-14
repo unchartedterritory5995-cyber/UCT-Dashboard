@@ -1287,10 +1287,10 @@
    "notes": "False is right per f06 (step 2 explains why it makes sense) and f07 (judging is step 3). Why sentences under 22 words."
   },
   "q05": {
-   "status": "pass",
+   "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q06": {
    "status": "pass",
@@ -1318,10 +1318,10 @@
    "notes": "Step 3 per f12/f07; recall of w3's label accepted at this rung as before. Choices 26-32 chars, key 30 not longest. New step 4 wrong note fits the rewritten choice."
   },
   "q10": {
-   "status": "pass",
-   "by": "checker",
-   "fixed": true,
-   "notes": "Key right (f08, g05). Bank has no second fit, and 'why it's right' does not echo 'correction'. Defect: the why says 'The five steps run in order' and describes steps 1 and 2, but the cited facts (f08, f09, g05) cover only steps 3 to 5. The count 'five' and the step 1-2 wording need g04 (s2 quotes steps 1 and 2). Fix adds g04 to facts; the text stays the same."
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q11": {
    "status": "pass",

@@ -1360,10 +1360,10 @@
    "notes": "True re-derived from f06 (Schwab: objective as a north star guiding all other decisions) and f45 (IBKR: methodology and reasoning); two publishers. Why keeps Schwab's 'can be' hedge; f43 backs the prices line. No tell, sentences short."
   },
   "q03": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Exit re-derived from f03 (Schwab's four decisions) and f28 (Investopedia: when and how to exit). 'Four' is a count of f03's own list. Add, hedge, hold are not defensible from the quote. Why is supported."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q04": {
    "status": "pass",

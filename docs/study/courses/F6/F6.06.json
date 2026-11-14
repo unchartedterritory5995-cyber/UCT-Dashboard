@@ -1605,10 +1605,10 @@
    "notes": "Key from f15/f42/f6. 'One point, not one percent' rests on f6's '(100 basis points)' and f42's 'percentage-point'. Gamma-style distractor note only says it is not IV (f15). Lengths 31-37, key not longest."
   },
   "q04": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Key 'price' from f4/f58/f64; dropping 'strike' from the not-read-from list is right (it is a model input). No second bank word fits. Reinforces q01/w1 rather than giving away a stem."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q05": {
    "status": "pass",

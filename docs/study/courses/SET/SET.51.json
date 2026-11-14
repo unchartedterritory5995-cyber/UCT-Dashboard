@@ -956,7 +956,7 @@
     "70"
    ],
    "answer": "5",
-   "why": "5. The card's stretch mark 3 is the 2-period RSI under 5. StockCharts reports that Connors found returns were higher buying an RSI dip below 5 than one below 10. So under 10 is a dip, and under 5 is the deep stretch the mark asks for. A mark measures the stretch. It is not the buy signal: we still wait for the turn.",
+   "why": "5. RSI(2) is the 2-period relative strength index, a fast read of how hard a stock was just sold. A low reading means a hard, quick drop. Our stretch mark 3 is the 2-period RSI under 5. StockCharts reports that Connors found returns were higher buying an RSI dip below 5 than one below 10. So the filter is under 5, not under 10. A mark measures the stretch. It is not the buy signal: we still wait for the turn.",
    "lesson_line": "RSI(2) under 5 is the deep dip. Under 10 is only a dip.",
    "facts": [
     "cD",
@@ -977,7 +977,7 @@
      "rests on the card's proposed stretch mark 3, not an owner ruling"
     ]
    },
-   "batch": "wave5"
+   "batch": "fills"
   },
   {
    "key": "q04",
@@ -2438,7 +2438,7 @@
     "7"
    ],
    "answer": "3",
-   "why": "3. The card's mark 4 is 3 or more straight down closes. Stockbee notes that after 3 to 4 days of negative action a bounce is a likely outcome. The first or second down day is a skip. A mark measures the stretch; the trigger is still the turn.",
+   "why": "3. A down close means the stock finished below the prior day's close. Our mark 4 is 3 or more of them in a row. Stockbee notes that after 3 to 4 days of negative action a bounce is a likely outcome. The first or second down day is a skip, because a slow, controlled decline is not stretched enough. A mark measures the stretch. The trigger is still the turn.",
    "lesson_line": "Count the down closes. Three or more ticks mark 4.",
    "facts": [
     "cE",
@@ -2455,7 +2455,7 @@
      "rests on the card's proposed stretch mark 4, not an owner ruling"
     ]
    },
-   "batch": "wave5"
+   "batch": "fills"
   },
   {
    "key": "q43",
@@ -3516,6 +3516,38 @@
     ]
    },
    "batch": "polish"
+  },
+  {
+   "key": "q97",
+   "skill": "setup.mean_reversion",
+   "rung": 3,
+   "format": "mcq",
+   "criterion": "mr.trim_1",
+   "q": "A mean-reversion long is bought today and bounces hard. When does our first sell usually come?",
+   "choices": [
+    "Day 3 or later, as a judgment call",
+    "Day 1, to lock in the quick pop",
+    "A fixed third the moment it hits 3R",
+    "The first close under the 10-day"
+   ],
+   "answer": "Day 3 or later, as a judgment call",
+   "why": "Day 3 or later, by judgment. We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest. The first sell is a judgment, not a fixed third at 3R. Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best. The last part rides the trail.",
+   "lesson_line": "First sell is a judgment, rarely before day 3.",
+   "facts": [
+    "r05",
+    "r06",
+    "r07",
+    "r02"
+   ],
+   "wrong": {
+    "Day 1, to lock in the quick pop": "We very rarely sell on day 1. A quick pop can grow into a 3, 5 or 7 day push, and day 1 is too early.",
+    "A fixed third the moment it hits 3R": "The first sell is a judgment, not a fixed third at 3R. A 3, 5 or 7 day push can run well past 3R.",
+    "The first close under the 10-day": "A close under the 10-day average sells the last third. That is the trail, not the first sell."
+   },
+   "simple": "Day 3 or later, because we rarely sell on day 1 and the first sell is a judgment call.",
+   "tier": "core",
+   "house": true,
+   "batch": "fills"
   }
  ],
  "conflicts": [
@@ -3553,7 +3585,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key 5 from cD; sc2 grounds the 5-vs-10 why; the bank holds real RSI levels. Its answer leaked through q10's old choice text, fixed on q10."
+   "notes": "Keep right: RSI(2) under 5 is a scan filter a trader sets. Sharpened why defines RSI(2) and keeps the under-5 vs under-10 point."
   },
   "q04": {
    "status": "pass",
@@ -3624,10 +3656,10 @@
    "notes": "The 52-week low is no mark in cB-cF. All four choices describe falling, with no thresholds. The why is grounded and holds no count (D-114)."
   },
   "q15": {
-   "status": "pass",
-   "by": "checker",
-   "fixed": true,
-   "notes": "BLANK UNCHANGED: sentence still keyed \"a third of the position at 3R\" while why/simple said the third day; re-keyed the blank to day 1 being the rare first-sell day"
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q16": {
    "status": "pass",
@@ -3793,7 +3825,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key 3 from cE. bo3 and cG ground the why, with no count language."
+   "notes": "Keep right: counting down closes is a screen filter and the first or second down day is a real skip."
   },
   "q43": {
    "status": "pass",
@@ -3971,6 +4003,12 @@
    "by": "checker",
    "fixed": false,
    "notes": "Cut. My own key from h33/cLE before reading it: 'nothing extra', so the key is right on E54 alone. It still cannot stand. (1) The lesson's conflicts line promises 'no index or ETF question' (D-009) and says 'no question quizzes the forms as a rule' (D-002); the story is a form B index flush bought as a live trade, and the why teaches 'the preferred vehicles for the index flush', so form B is taught as tradable while mr.forms is pending. q67 was cut by the checker on exactly this ground, and the same ground applies here. (2) The key, lesson_line ('the same rules as any other trade') and simple "
+  },
+  "q97": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Correct and supported by r05, r06, r07, r02. No clear tell: all four choices are plausible first-sell rules. Skill and rung match q15."
   }
  }
 }

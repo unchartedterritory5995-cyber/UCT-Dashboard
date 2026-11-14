@@ -599,6 +599,18 @@
    "source": "s23",
    "quote": "Prefer stocks with growing sales and earnings; the chart comes first.",
    "claim": "Our rule D40: prefer stocks with growing sales and earnings, and the chart comes first."
+  },
+  {
+   "id": "f67",
+   "source": "s9",
+   "quote": "GAAP net income of $134 million, representing a 20% margin",
+   "claim": "Palantir's Q2 2024 GAAP net income was $134 million, a 20% margin."
+  },
+  {
+   "id": "f68",
+   "source": "s9",
+   "quote": "Net income attributable to common stockholders $ 134,126 $ 28,127",
+   "claim": "In the Q2 2024 table, net income attributable to common stockholders was $134,126 thousand against $28,127 thousand a year earlier."
   }
  ],
  "walkthroughs": [
@@ -1004,13 +1016,13 @@
    "story": "Four names on a growth screen. Each row shows EPS growth for the last three quarters, oldest first.",
    "q": "Which one is accelerating?",
    "choices": [
-    "A: 60%, 45%, 30%",
-    "B: 15%, 22%, 31%",
-    "C: 40%, 40%, 40%",
-    "D: 10%, 55%, 12%"
+    "AXLR: 60%, 45%, 30%",
+    "BVTO: 15%, 22%, 31%",
+    "CRLN: 40%, 40%, 40%",
+    "DYNM: 10%, 55%, 12%"
    ],
-   "answer": "B: 15%, 22%, 31%",
-   "why": "B. Accelerating means the growth rate itself rises, quarter after quarter: 15%, then 22%, then 31%. A has the biggest numbers, but each is lower than the last, so it is slowing. C is steady, which is strong but not speeding up. D jumped once and fell back, a spike and not a trend.",
+   "answer": "BVTO: 15%, 22%, 31%",
+   "why": "BVTO. Accelerating means the growth rate itself rises, quarter after quarter: 15%, then 22%, then 31%. CFI calls accelerating EPS growth a strong positive sign in O'Neil's method. AXLR has the biggest numbers, but each is lower than the last, so it is slowing. CRLN is steady, which is strong but not speeding up. DYNM jumped once and fell back, a spike and not a trend.",
    "lesson_line": "Read the direction of the growth rate, not just its size.",
    "facts": [
     "f29",
@@ -1018,17 +1030,17 @@
     "f47"
    ],
    "wrong": {
-    "A: 60%, 45%, 30%": "Big numbers, but each quarter is slower than the last. That's deceleration.",
-    "C: 40%, 40%, 40%": "Strong and steady, but steady isn't speeding up.",
-    "D: 10%, 55%, 12%": "One big quarter, then back down. That's a spike, not a trend."
+    "AXLR: 60%, 45%, 30%": "Big numbers, but each quarter is slower than the last. That's deceleration.",
+    "CRLN: 40%, 40%, 40%": "Strong and steady, but steady isn't speeding up.",
+    "DYNM: 10%, 55%, 12%": "One big quarter, then back down. That's a spike, not a trend."
    },
-   "simple": "B, because its growth rate climbs every quarter, from 15% to 22% to 31%.",
+   "simple": "BVTO, because its growth rate climbs every quarter, from 15% to 22% to 31%.",
    "tier": "core",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave6"
+   "batch": "review3"
   },
   {
    "key": "q12",
@@ -1077,16 +1089,16 @@
    "skill": "fund.growth",
    "rung": 5,
    "format": "scenario",
-   "story": "Two companies both grew EPS 40% from a year ago. A's sales grew 35%. B's sales fell 2%.",
+   "story": "Two stocks on a growth screen both grew EPS 40% from a year ago. KRVT's sales grew 35%. MBLX's sales fell 2%.",
    "q": "Whose EPS growth looks more solid?",
    "choices": [
-    "A's, real demand is behind it",
-    "B's, it made more profit",
-    "Same, EPS growth counts",
-    "Neither, 40% is too low"
+    "KRVT, real sales growth backs it",
+    "MBLX, it made more profit per share",
+    "Same, a 40% jump is a 40% jump",
+    "Neither, 40% is too low a jump"
    ],
-   "answer": "A's, real demand is behind it",
-   "why": "A's. Its earnings growth rides on sales growth. Fidelity notes sales are much harder to manipulate than earnings. Investopedia notes earnings come from the company itself and could be shaped. O'Neil's method looks for strong sales as well as improving earnings. B grew EPS while its sales fell, so the jump did not come from more customers buying.",
+   "answer": "KRVT, real sales growth backs it",
+   "why": "KRVT's. Its earnings growth rides on sales growth, so customers are buying more. Fidelity notes sales are much harder to manipulate than earnings. Investopedia notes earnings come from the company itself and could be shaped. O'Neil's method looks for strong sales as well as improving earnings. MBLX grew EPS while its sales fell, so the jump did not come from more demand. Trader's read: check the sales line before you trust an EPS jump.",
    "lesson_line": "Check the sales line behind every EPS jump. Earnings are easier to shape than sales.",
    "facts": [
     "f35",
@@ -1099,17 +1111,17 @@
     "f42"
    ],
    "wrong": {
-    "B's, it made more profit": "Earning more on shrinking sales says nothing about demand growing. Earnings are easier to shape than sales, and O'Neil's method wants strong sales too.",
-    "Same, EPS growth counts": "EPS can rise without customers buying more. Sales show whether the business itself is growing.",
-    "Neither, 40% is too low": "40% clears every version of O'Neil's quarterly floor, from 18-20% up to 25%. The real question is what backs it."
+    "MBLX, it made more profit per share": "Earning more on shrinking sales says nothing about demand growing. Earnings are easier to shape than sales, and O'Neil's method wants strong sales too.",
+    "Same, a 40% jump is a 40% jump": "EPS can rise without customers buying more. Sales show whether the business itself is growing.",
+    "Neither, 40% is too low a jump": "40% clears every version of O'Neil's quarterly floor, from 18-20% up to 25%. The real question is what backs it."
    },
-   "simple": "A's, because its profit growth is backed by real sales growth, and sales are harder to dress up than earnings.",
+   "simple": "KRVT, because its profit growth is backed by real sales growth, and sales are harder to dress up than earnings.",
    "tier": "extended",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave6"
+   "batch": "review3"
   },
   {
    "key": "q14",
@@ -1182,16 +1194,16 @@
    "skill": "fund.growth",
    "rung": 6,
    "format": "scenario",
-   "story": "Stock A has a P/E of 15, with EPS growing 5% a year. Stock B has a P/E of 45, with EPS growing 45% a year.",
+   "story": "Two made-up stocks. ZBRN trades at 15 times earnings, with EPS growing 5% a year. ZVLT trades at 45 times earnings, with EPS growing 45% a year.",
    "q": "Measured against its growth, which one is pricier?",
    "choices": [
-    "A, the slow grower, PEG 3",
-    "B, the fast grower, PEG 1",
+    "ZBRN, the slow grower, PEG 3",
+    "ZVLT, the fast grower, PEG 1",
     "They cost about the same",
-    "Can't tell without prices"
+    "Can't tell without share prices"
    ],
-   "answer": "A, the slow grower, PEG 3",
-   "why": "A, the slow grower. PEG is the P/E divided by the growth rate. A: 15 over 5 is 3. B: 45 over 45 is 1. A lower PEG means less paid per point of growth. Fidelity notes a PEG of 1 or less is typically read as undervalued. A looks cheaper on P/E alone, but its growth is too slow to justify even that, the point Investopedia's own example makes. PEG is a rough check and can mislead on high-growth tech.",
+   "answer": "ZBRN, the slow grower, PEG 3",
+   "why": "ZBRN. PEG is the P/E divided by the growth rate, so it shows what you pay per point of growth. ZBRN: 15 over 5 is 3. ZVLT: 45 over 45 is 1. Fidelity says a PEG of 1 or less is typically read as undervalued. ZBRN looks cheaper on P/E alone, but its growth is too slow to justify even that, the point Investopedia's own example makes. PEG is a rough check and can mislead on high-growth tech.",
    "lesson_line": "A low P/E with slow growth can cost more per point of growth than a high P/E.",
    "facts": [
     "f21",
@@ -1202,13 +1214,13 @@
     "f01"
    ],
    "wrong": {
-    "They cost about the same": "Against growth they're far apart: a PEG of 3 for A, 1 for B.",
-    "Can't tell without prices": "PEG needs only the P/E and the growth rate. The share price is already inside the P/E.",
-    "B, the fast grower, PEG 1": "Its P/E is higher, but so is its growth. Against growth, B's PEG is 1 and A's is 3."
+    "They cost about the same": "Against growth they are far apart: a PEG of 3 for ZBRN, 1 for ZVLT.",
+    "ZVLT, the fast grower, PEG 1": "Its P/E is higher, but so is its growth. Against growth, ZVLT's PEG is 1 and ZBRN's is 3.",
+    "Can't tell without share prices": "PEG needs only the P/E and the growth rate. The share price is already inside the P/E."
    },
-   "simple": "A is pricier. Its PEG is 3, against 1 for B, so you pay more for each point of growth.",
+   "simple": "ZBRN is pricier. Its PEG is 3, against 1 for ZVLT, so you pay more for each point of growth.",
    "deeper": {
-    "trap": "PEG is only as good as the growth number you feed it. Investopedia warns it can be unreliable for cyclical stocks and high-growth tech firms. B's PEG of 1 assumes its 45% growth keeps coming. If that forecast is too high, B is pricier than it looks. Use PEG to compare two stocks, never as a buy signal on its own."
+    "trap": "PEG is only as good as the growth number you feed it. Investopedia warns it can be unreliable for cyclical stocks and high-growth tech firms. ZVLT's PEG of 1 assumes its 45% growth keeps coming. If that forecast is too high, ZVLT is pricier than it looks. Use PEG to compare two stocks, never as a buy signal on its own."
    },
    "tier": "extended",
    "risk": {
@@ -1218,7 +1230,7 @@
      "fixed before (checker 2026-11-09)"
     ]
    },
-   "batch": "wave6",
+   "batch": "review3",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1233,16 +1245,16 @@
    "skill": "fund.growth",
    "rung": 6,
    "format": "scenario",
-   "story": "Four growth-screen rows, latest quarter. A: EPS up 12% from a year ago, up 45% from last quarter. B: EPS up 38% and C: EPS up 16%, both from a year ago. D: sales up 40% from a year ago, EPS flat.",
+   "story": "Four rows on a growth screen, latest quarter. KLZR: EPS up 12% from a year ago, up 45% from last quarter. MWRN: EPS up 38% from a year ago. TPLX: EPS up 16% from a year ago. YRDN: sales up 40% from a year ago, EPS flat.",
    "q": "Which one clears O'Neil's quarterly EPS test?",
    "choices": [
-    "A: up 45% from last quarter",
-    "B: up 38% from a year ago",
-    "C: up 16% from a year ago",
-    "D: sales up 40% from a year ago"
+    "KLZR, up 45% from last quarter",
+    "MWRN, up 38% from a year ago",
+    "TPLX, up 16% from a year ago",
+    "YRDN, sales up 40% from a year ago"
    ],
-   "answer": "B: up 38% from a year ago",
-   "why": "B. O'Neil's C test compares this quarter's EPS with the same quarter a year ago. The floor depends on the version: Disnat says no less than 18-20%, CFI at least 25%, Investopedia over 25%. B's 38% clears every one. A is up only 12% on a year ago; its 45% is against last quarter. C's 16% is under every version. D's sales grew, but the C test reads EPS, and D's EPS was flat.",
+   "answer": "MWRN, up 38% from a year ago",
+   "why": "MWRN. O'Neil's C test compares this quarter's EPS with the same quarter a year ago. The floor depends on the version: Disnat says no less than 18-20%, CFI at least 25%, Investopedia over 25%. MWRN's 38% clears every one. KLZR is up only 12% on a year ago; its 45% is against last quarter. TPLX's 16% is under every version. YRDN's sales grew, but the C test reads EPS, and YRDN's EPS was flat.",
    "lesson_line": "Measure against the same quarter a year ago, then hold it up to the floor.",
    "facts": [
     "f06",
@@ -1251,13 +1263,13 @@
     "f37"
    ],
    "wrong": {
-    "A: up 45% from last quarter": "That 45% is against last quarter. Against a year ago A is up only 12%, under the floor.",
-    "C: up 16% from a year ago": "16% is under every version of the floor, from 18-20% up to 25%.",
-    "D: sales up 40% from a year ago": "The C test is about EPS, not sales. D's EPS was flat against a year ago, so it fails."
+    "KLZR, up 45% from last quarter": "That 45% is against last quarter. Against a year ago KLZR is up only 12%, under the floor.",
+    "TPLX, up 16% from a year ago": "16% is under every version of the floor, from 18-20% up to 25%.",
+    "YRDN, sales up 40% from a year ago": "The C test is about EPS, not sales. YRDN's EPS was flat against a year ago, so it fails."
    },
-   "simple": "B, because its EPS is up 38% on the same quarter a year ago, which clears every version of O'Neil's floor.",
+   "simple": "MWRN, because its EPS is up 38% on the same quarter a year ago, which clears every version of O'Neil's floor.",
    "deeper": {
-    "trap": "Two traps sit in this screen. A's 45% is real, but it is against last quarter, not a year ago, so it is not the C test. D's sales are strong, and sales matter, but the C test reads EPS. A row has to pass on the right number before anything else counts."
+    "trap": "Two traps sit in this screen. KLZR's 45% is real, but it is against last quarter, not a year ago, so it is not the C test. YRDN's sales are strong, and sales matter, but the C test reads EPS. A row has to pass on the right number before anything else counts."
    },
    "tier": "extended",
    "risk": {
@@ -1266,7 +1278,7 @@
      "O'Neil's floor differs by edition and source (see conflicts); keyed only where every version agrees"
     ]
    },
-   "batch": "wave6"
+   "batch": "review3"
   },
   {
    "key": "q18",
@@ -1384,15 +1396,15 @@
    "skill": "fund.growth",
    "rung": 8,
    "format": "scenario",
-   "story": "Palantir's Q2 2024 report: GAAP EPS grew 500% year over year, to $0.06. Revenue grew 27%.",
-   "q": "What's the main thing to know about that 500%?",
+   "story": "Palantir's Q2 2024 report: GAAP EPS grew 500% year over year, to $0.06 from $0.01. Net income was $134 million, up from $28 million. Its Q1 report was the sixth straight GAAP-profitable quarter.",
+   "q": "How should a trader read that 500%?",
    "choices": [
-    "It came off $0.01 a year earlier",
-    "It beat the estimate by 500%",
+    "Tiny $0.01 base, but real profit",
+    "It means nothing, it came off one cent",
     "Sales must have grown just as fast",
-    "It's a sign growth is speeding up"
+    "It proves growth is speeding up"
    ],
-   "answer": "It came off $0.01 a year earlier",
+   "answer": "Tiny $0.01 base, but real profit",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1401,24 +1413,27 @@
      "growth": 500
     }
    },
-   "why": "It came off $0.01 a year earlier. The table shows diluted EPS of $0.06 against $0.01, so a rise of a few cents reads as 500%. A huge percent on a tiny base can mean little. Investopedia notes growth rates ignore the amounts involved. That same quarter, adjusted EPS grew 80% and revenue grew 27%.",
-   "lesson_line": "A huge percent off a tiny base can mean very little. Check the dollars behind it.",
+   "why": "Both halves matter. The 500% came off just $0.01 a year earlier, so a gain of a few cents reads as a huge percent. Investopedia notes growth rates ignore the amounts involved. But the profit behind it is real. Net income attributable to common stockholders rose from about $28 million to $134 million, a 20% margin. Palantir's Q1 report was its sixth straight GAAP-profitable quarter, so this is steady profit, not a one-off. Adjusted EPS grew 80% and revenue grew 27% the same quarter, so the story rests on more than one cent.",
+   "lesson_line": "A huge percent off a tiny base is inflated. Real, growing profit is the real news.",
    "facts": [
     "f62",
     "f63",
     "f64",
     "f59",
+    "f58",
+    "f67",
+    "f68",
     "f30",
     "f29"
    ],
    "wrong": {
-    "It beat the estimate by 500%": "500% is growth against a year ago. A beat is measured against the analysts' estimate, a different number.",
     "Sales must have grown just as fast": "Revenue grew 27%. EPS off a tiny base can jump far faster than sales.",
-    "It's a sign growth is speeding up": "One year-over-year number can't show a trend. Acceleration means the growth rate climbs over several quarters."
+    "It means nothing, it came off one cent": "The base was tiny, but the profit behind it is real. Net income rose from about $28 million to $134 million.",
+    "It proves growth is speeding up": "One year-over-year number can't show a trend. Acceleration means the growth rate climbs over several quarters."
    },
-   "simple": "It came off just $0.01 a year earlier, so a rise of a few cents shows up as a huge 500%.",
+   "simple": "Tiny base, one cent, so the 500% is inflated. But net income rose to $134 million, so the profit is real.",
    "deeper": {
-    "trap": "Percent growth explodes when the starting number is tiny. Investopedia's own example: earnings growing from $100,000 to $150,000 is 50% growth but only a $50,000 change. Here the base was $0.01, so almost any gain looks enormous. Check the base and the sales line before you trust a big percent."
+    "trap": "Percent growth explodes off a tiny base. Investopedia's own example: earnings growing from $100,000 to $150,000 is 50% growth but only a $50,000 change. Here the base was $0.01, so almost any gain looks huge. Do not stop at the percent, and do not throw it out either. Look at the dollars: a turn from thin profit to steady profit, with sales growing, is what a trader acts on."
    },
    "tier": "expert",
    "risk": {
@@ -1427,7 +1442,7 @@
      "computed key (calc recovers the $0.01 base)"
     ]
    },
-   "batch": "wave6"
+   "batch": "review3"
   },
   {
    "key": "q22",
@@ -1614,6 +1629,35 @@
     ]
    },
    "batch": "wave6"
+  },
+  {
+   "key": "q91",
+   "skill": "fund.growth",
+   "rung": 4,
+   "format": "mcq",
+   "q": "O'Neil says stocks that seem too high-priced and risky most often do what?",
+   "choices": [
+    "Keep going even higher",
+    "Fall back to a lower price",
+    "Stall, then go sideways",
+    "Split their stock soon"
+   ],
+   "answer": "Keep going even higher",
+   "why": "Keep going even higher. This is one of O'Neil's trading principles, as Stockopedia reports it. Stocks that seem too high-priced and risky most often go even higher, while stocks that seem cheap often go even lower. Disnat's summary agrees that cheap stocks are usually cheap for a reason. Investopedia notes growth stocks often look expensive at a high P/E, yet can prove cheap if growth continues. So do not skip a stock only because its price or P/E looks high. Check the growth behind it. It is a tendency, not a guarantee.",
+   "lesson_line": "O'Neil: what looks too high-priced often goes higher, and what looks cheap often goes lower.",
+   "facts": [
+    "f49",
+    "f41",
+    "f23"
+   ],
+   "wrong": {
+    "Fall back to a lower price": "That's the opposite of what O'Neil says. He says the too-high-priced stocks most often go even higher.",
+    "Stall, then go sideways": "O'Neil's point is about direction. Stocks that seem too high-priced most often go even higher.",
+    "Split their stock soon": "A split is not part of O'Neil's point. He says these stocks most often go even higher."
+   },
+   "simple": "They go even higher. O'Neil says stocks that seem too high-priced most often rise further, and cheap-looking ones often fall further.",
+   "tier": "core",
+   "batch": "review3"
   }
  ],
  "conflicts": [
@@ -1662,10 +1706,10 @@
    "notes": "Own answer True before reading the key: Investopedia f07 (over 25%, 3-5 years), CFI f44 (at least 25%, past three years), Disnat f40 (25-50%). 'About' fits all three. The why's C-test line is backed by f06/f42. No tell, all numbers in quotes."
   },
   "q03": {
-   "status": "pass",
+   "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "cut in review3: see the resolver's notes"
   },
   "q04": {
    "status": "pass",
@@ -1712,9 +1756,9 @@
   },
   "q11": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "Tickers replace Stock A-D (learning 7). Solved cold: BVTO, 15/22/31 rises every quarter. AXLR slows, CRLN flat, DYNM spike. Key is not the longest and its numbers are in the choices. O'Neil acceleration line backed by f43 (CFI), already a quote-checked fact. Wrong keys match choice texts exactly. Tickers are made up and I could not confirm any is a real listing in a search, so no known real company is used; note q17 reused these four tickers with different numbers and is changed below."
   },
   "q12": {
    "status": "pass",
@@ -1726,8 +1770,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer: A, because its EPS growth is backed by sales (f35, f18, f09, f50). Choices 29-32 chars, key not longest, and the key no longer echoes the story. 40% clears both the quarterly floors (f06, f38, f42) and the annual 25% bar (f07), so 'too low' fails either way. 'Real demand' and 'more customers buying' are fair plain readings of sales growth. Agrees with rulebook D40 (prefer growing sales and earnings).",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Tickers KRVT and MBLX replace A and B (learning 7). Solved cold: KRVT, sales growth of 35% backs the 40% EPS rise, MBLX sales fell 2% (f35 sales harder to manipulate, f18 earnings from the company itself, f09). 'Neither' fails because 40% clears every floor (f06, f38, f42). Key 32 chars, not longest (35). Wrong keys match choices exactly. The key now says 'real sales growth', which echoes the story somewhat, but that is the lesson itself, so left."
   },
   "q14": {
    "status": "pass",
@@ -1744,20 +1787,20 @@
   "q16": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key is right (A: 15/5=3, B: 45/45=1, A pricier against growth; I solved it before reading the key). Broken on two counts: (1) the key choice 'A, with a PEG of 3' is the only choice carrying a computed PEG, a tell that hands over the work; (2) with the story's 15 and 5 it reveals PEG = P/E / growth, which answers q25 and gives away q15's method. Fix: neutral symmetric choices with no numbers, similar lengths; why/wrong/simple updated to match. Calc, story, q, facts, lesson_line, deeper unchanged. B's PEG of 1 rests on the story's 45/45 and f34's 'A PEG of 1'. Fidelity quotes f33/f34 verified on"
+   "fixed": false,
+   "notes": "Owner note (worded a lot better) is met: tickers ZBRN and ZVLT replace A and B, the stem asks about price against growth, PEG is defined in the why as price paid per point of growth, with the steps shown (15 over 5 is 3, 45 over 45 is 1). Solved cold: ZBRN is pricier against growth. Attempted a neutral-choices fix (no PEG numbers), but the validator requires the keyed answer to show the calc result 3, and the calc cannot be removed by an upgrade, so the writer's design stands: both stock choices carry their PEG (3 and 1), so the key is not the only choice with a number. Key is not longest. Wro"
   },
   "q17": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Own answer B (38% vs same quarter a year ago clears 18-20%, at least 25% and over 25%). A's 12% year-over-year, C's 16% and D's flat EPS fail every version. The story is four sentences and every number is given. The key is not the longest choice."
+   "fixed": true,
+   "notes": "Right answer and math are correct: the 38% row clears every version of the floor (18-20%, 25%, over 25%); the 12%, 16% and flat-EPS rows fail. But q11 uses the very same four tickers (AXLR, BVTO, CRLN, DYNM) with different numbers (AXLR 60/45/30 in q11, up 12% here; BVTO 15/22/31 against 38%). Two questions in one lesson showing the same ticker with unrelated figures is a confusing setup (learning 5). Fix: fresh made-up tickers in q17 (KLZR, MWRN, TPLX, YRDN), all text re-keyed, numbers and logic unchanged. I could not confirm in a search that these are not real listings; they are not any well"
   },
   "q18": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Own answer: revenue rose every time (all four year-over-year rates above zero, f28). Each quarter set a record (f53-f57). Choices 18-21 chars. 'It doubled every time' is a real misreading: 94% and 78% are short of a double, and the first two did more than double, so 'not every time' is accurate."
+   "notes": "cut in review3: see the resolver's notes"
   },
   "q19": {
    "status": "pass",
@@ -1773,9 +1816,9 @@
   },
   "q21": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Owner note (came off 1 cent, but the flip to profitability is big) is the right target. Fixes: (1) the key 'profit flip is big' was a 'X, but Y' hedge and the unclear word 'flip' (Palantir was already in its 6th straight profitable quarter, so no flip happened in Q2 2024); now 'Tiny $0.01 base, but real profit'. (2) 'A company that used to lose money now earns real profit' was unsupported by any cited fact; replaced with the sourced dollars, net income attributable to common stockholders $28,127 thousand to $134,126 thousand (new fact f68, quoted from the Palantir Q2 2024 8-K table, read via W"
   },
   "q22": {
    "status": "pass",
@@ -1797,17 +1840,22 @@
    "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q25": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Solved cold: P/E divided by EPS growth rate; matches f20 (Investopedia) and f33 (Fidelity, verified live). Distractors are real errors (P/E itself, inverted, multiplied), lengths 33-38, no tell, no absolutes. Why and simple stay inside f19/f20/f33/f34/f22; wrong note for P/E grounded in f01. It teaches the definition q15/q16 build on but answers neither (both still need the arithmetic). No em dashes, voice fine. Investopedia page blocked our fetch this pass; Fidelity quotes confirmed.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "cut in review3: see the resolver's notes"
   },
   "q26": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
    "notes": "f66 checked word for word against sizing_rule.md section 9 D40 (owner's '40, yes.'), and the repo anchor resolves. False is a fair reading of 'the chart comes first', and B26 (hard 200-day rule) points the same way. 'Never stand in for it' (simple) and 'do not stand in for the chart' (why) go a step beyond D40's words. That stays inside the existing owner flag asking him to approve the wording. Voice is fine: 'our rule', no 'the firm'."
+  },
+  "q91": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Good addition (O'Neil principle, which the owner said are very valuable) and f49 quote is exact on Stockopedia. Three problems fixed. (1) Key 'Go even higher' was the shortest choice at 14 chars against 21-26, so it stood out; now 'Keep going even higher' (22). (2) The why claimed 'Strength tends to attract more buyers', which no cited fact supports; removed. (3) s20 (Stockopedia) is flagged in the file as used only where another publisher agrees, so the why now cites the two that do: Disnat f41 (cheap stocks are cheap for a reason) and Investopedia f23 (growth stocks look expensive yet can pr"
   }
  }
 }

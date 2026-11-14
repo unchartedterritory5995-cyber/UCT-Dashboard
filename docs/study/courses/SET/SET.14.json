@@ -906,6 +906,12 @@
    "source": "h2",
    "quote": "He very rarely sells on day 1 of the buy; he usually waits until day 3 at the earliest.",
    "claim": "Very rarely sells on day 1; usually waits until day 3 at the earliest (D-013)"
+  },
+  {
+   "id": "r58",
+   "source": "h2",
+   "quote": "Volume raises the grade; it is not a requirement for the setup to count (except where volume IS the setup, as proposed: HVE and the burst setups).",
+   "claim": "Volume raises the grade; it is not a requirement for the setup to count (D-006)."
   }
  ],
  "walkthroughs": [
@@ -3619,6 +3625,107 @@
     ]
    },
    "batch": "wave2"
+  },
+  {
+   "key": "q71",
+   "skill": "setup.ema20_pullback",
+   "rung": 7,
+   "format": "mcq",
+   "criterion": "e20.tries",
+   "q": "You took 3 tries on one stock this week and every one stopped out. It sets up a fourth time. What does our rule say?",
+   "choices": [
+    "Skip it. You used the week's limit",
+    "Take it. Every try is a new trade",
+    "Take it at half size as a fourth try",
+    "Skip it. Wait until the month ends"
+   ],
+   "answer": "Skip it. You used the week's limit",
+   "why": "Skip it. We take at most 3 tries a week and 6 a month on one stock. You have used the week's 3. Each try is a new trade with its own trigger and stop, but the cap counts every try, stop-outs included.",
+   "lesson_line": "Three tries a week and six a month on one stock. That is the cap.",
+   "facts": [
+    "h29",
+    "c33"
+   ],
+   "wrong": {
+    "Take it. Every try is a new trade": "Each try is a new trade, but the cap still counts every one. After 3 in a week, you stop.",
+    "Take it at half size as a fourth try": "A smaller size does not lift the cap. The rule is 3 tries a week, whatever the size.",
+    "Skip it. Wait until the month ends": "The weekly limit is the one you hit. The month allows 6 tries, so the pause is about the week."
+   },
+   "house": true,
+   "simple": "On one stock we take at most 3 tries a week and 6 a month, so a fourth try this week is a skip.",
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook E56"
+    ]
+   },
+   "batch": "fills"
+  },
+  {
+   "key": "q98",
+   "skill": "setup.ema20_pullback",
+   "rung": 3,
+   "format": "scenario",
+   "criterion": "e20.ema_rising",
+   "story": "A leader ran from 60 to 80, then drifted six quiet sessions. Today its low of 74.60 touches the 20 EMA, which reads 74.30. That line read 71.20 ten sessions ago.",
+   "q": "How does the card read the 20 EMA here?",
+   "choices": [
+    "Rising; above its level 10 sessions ago",
+    "Flat; price is under its high of 80",
+    "Weak; it did not rise on all 10 sessions",
+    "Not rising until price retakes 80"
+   ],
+   "answer": "Rising; above its level 10 sessions ago",
+   "why": "Rising. The 20 EMA is rising when it is higher than it was 10 sessions earlier. Here it reads 74.30 against 71.20 ten sessions ago, so it passes. A pullback is price drifting down to a line that still climbs, so a price under the high of 80 is expected. Kullamagi has the leader surf its rising lines.",
+   "simple": "The line is higher than it was ten sessions ago, so it is rising, and the dip in price does not change that.",
+   "lesson_line": "Judge the line, not the price. A pullback sits under the high by design.",
+   "wrong": {
+    "Flat; price is under its high of 80": "The test looks at the line, not the price. A pullback sits under the swing high by design, so a price under 80 says nothing about the line.",
+    "Weak; it did not rise on all 10 sessions": "The card compares the line today with its level 10 sessions earlier. It does not ask for a rise on every session.",
+    "Not rising until price retakes 80": "The rising test needs nothing from the high of 80. Price retaking a high is a breakout, not part of this test."
+   },
+   "facts": [
+    "c06",
+    "k04",
+    "q01"
+   ],
+   "house": true,
+   "tier": "core",
+   "batch": "cover"
+  },
+  {
+   "key": "q100",
+   "skill": "setup.ema20_pullback",
+   "rung": 2,
+   "format": "scenario",
+   "criterion": "e20.pullback_length",
+   "story": "A leader peaked at 72.00. Since then it has moved sideways in a loose range for 22 sessions on light volume. Today its low tags the rising 20 EMA.",
+   "q": "Is this a 20 EMA pullback by our card?",
+   "choices": [
+    "No; the drift ran too long for this card",
+    "Yes; a quiet drift of any length counts",
+    "Yes; only the touch of the line matters",
+    "No; it should last under 5 sessions"
+   ],
+   "answer": "No; the drift ran too long for this card",
+   "why": "No. On our card the pullback lasts 2 to 15 sessions from the swing high to the hold session. This one has run 22, which is too long for this card. Our TOL example drifted 10 days to the line and still fit. Count the sessions before you judge the touch.",
+   "simple": "No, because a pullback here lasts at most 15 sessions, and this one has run 22.",
+   "lesson_line": "Count the sessions. A drift that long is a base, not a pullback.",
+   "wrong": {
+    "Yes; a quiet drift of any length counts": "Quiet volume helps the grade, but the card also limits the length. A drift of any length is not a pullback.",
+    "Yes; only the touch of the line matters": "The touch is one part of the pattern. The pullback must also last 2 to 15 sessions from the swing high to the hold session.",
+    "No; it should last under 5 sessions": "The card allows up to 15 sessions, not under 5. TOL drifted 10 days and still fit."
+   },
+   "facts": [
+    "c04",
+    "c30",
+    "d09",
+    "d10"
+   ],
+   "house": true,
+   "tier": "core",
+   "batch": "cover"
   }
  ],
  "conflicts": [
@@ -3682,10 +3789,10 @@
    "notes": "True per c11, h24. Note: q45 teaches the lower-of-two-lows exception (c12); acceptable as the default statement."
   },
   "q04": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Fine."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q05": {
    "status": "pass",
@@ -3712,10 +3819,10 @@
    "notes": "cut in wave2: see the resolver's notes"
   },
   "q09": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "c04 verbatim on the card; examples 4 to 10 sessions match d01/d03/d05/d07/d09. Keyed 'on our card' and flagged proposed; ok."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q10": {
    "status": "pass",
@@ -3793,10 +3900,10 @@
    "notes": "Key h14 (C31). Bonde line is colour only."
   },
   "q22": {
-   "status": "pass",
+   "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave2; awaiting cold re-read"
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q23": {
    "status": "pass",
@@ -3995,10 +4102,10 @@
    "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q55": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "E56 owner ruling: 3 a week, 6 a month; bank 1-5 has one fit; no other stem gives the number."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q56": {
    "status": "pass",
@@ -4091,6 +4198,24 @@
    "fixed": false,
    "notes": "Key c17: a low breaking the 50-day before entry ends the 20 EMA setup. Notes fine.",
    "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+  },
+  "q71": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Keep: tests the 3-a-week cap on one stock (h29, c33) in a case q35 does not cover. Fix: the stem gave '3 tries' and the right answer repeated '3 tries a week is the cap', which hands the number over; the right answer now says the week's limit is used. Wrong notes unchanged."
+  },
+  "q98": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "e20.ema_rising: applies the card test (74.30 against 71.20 ten sessions earlier, so rising) while price sits under its 80 high; c06 and q01 quotes support it; answers balanced; not a duplicate of q17 (the not-rising case). The right answer is the plain card reading, the three wrong ones are real mistakes (judging price, requiring every session, requiring a retake of the high)."
+  },
+  "q100": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "e20.pullback_length: 22 sessions is past 2 to 15 (c04, c30) and past the 2-8 and 2-10 other dossiers proposed, so no number dispute decides it. Fixed: the story said \"sideways to lower\" with a RISING 20 EMA, which a sharp trader would doubt, so it is now a sideways loose range; removed the unsupported \"long sideways base\" claim and the odd \"limit not a target\" line; simple no longer claims a base."
   }
  }
 }

@@ -83,70 +83,6 @@
  },
  {
   "answer_json": {
-   "answer": "sell"
-  },
-  "difficulty": 1,
-  "id": "si_411e8a3acb99",
-  "lesson_origin": "session",
-  "lesson_text": "Sell. A put gives its buyer the right, not the obligation, to sell the stock at the strike. That right lasts until expiration. Buy is the call's word. A put buyer is not obliged to sell. It is the put's seller who must buy the shares if assigned. Calls are the right to buy. Puts are the right to sell.",
-  "module": "F6",
-  "prompt_json": {
-   "bank": [
-    "sell",
-    "buy",
-    "borrow",
-    "hold"
-   ],
-   "kind": "fill",
-   "q": "Fill in the blank.",
-   "sentence": "Buy a put and you get the right to ___ the stock at the strike price.",
-   "subject": "F6.01#q02"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-09",
-      "name": "The Options Industry Council (OCC): What is an Option?",
-      "quote": "If you buy a put, you have the right to sell the underlying instrument on or before expiration.",
-      "tier": 1,
-      "url": "https://www.optionseducation.org/optionsoverview/what-is-an-option"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "FINRA: Options (Investment Products)",
-      "quote": "Puts convey to the purchaser the right, but not the obligation, to sell shares. They convey to the seller the obligation to buy shares if the contract is assigned.",
-      "tier": 1,
-      "url": "https://www.finra.org/investors/investing/investment-products/options"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "The Options Industry Council (OCC): FAQ: Basics",
-      "quote": "A stock option is a contract that gives the owner the right, but not the obligation, to buy or sell a particular stock at a fixed price (the strike price) for a specific period (until expiration).",
-      "tier": 1,
-      "url": "https://www.optionseducation.org/referencelibrary/faq/basics"
-     }
-    ],
-    "summary": "Buying a put gives you the right to sell the stock, on or before expiry. A put gives the buyer the right to sell, and the seller the obligation to buy if assigned. A stock option gives its owner the right, not the obligation, to buy or sell a stock at the strike price until expiration."
-   },
-   "facts": {
-    "given": "Fill in the blank. Buy a put and you get the right to ___ the stock at the strike price."
-   },
-   "lesson_line": "Calls are the right to buy. Puts are the right to sell.",
-   "simple": "Sell, because a put gives the buyer the right to sell the stock at the strike.",
-   "tier": "core",
-   "unit": "F6.01",
-   "why": "Sell. A put gives its buyer the right, not the obligation, to sell the stock at the strike. That right lasts until expiration. Buy is the call's word. A put buyer is not obliged to sell. It is the put's seller who must buy the shares if assigned."
-  },
-  "review_status": "draft",
-  "skill_id": "options.calls_puts",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F6/F6.01.json#q02",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
    "answer": "False"
   },
   "difficulty": 1,
@@ -641,87 +577,6 @@
   "skill_id": "options.calls_puts",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F6/F6.01.json#q10",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
-   "answer": "keeps"
-  },
-  "difficulty": 2,
-  "id": "si_59994a434b70",
-  "lesson_origin": "session",
-  "lesson_text": "Keeps. The premium is paid up front to the seller and is non-refundable. If the option is never exercised, the seller keeps it. If it is exercised, the seller still keeps it but must buy or sell the shares. Keeping the premium does not cap the seller's loss. The premium is the writer's to keep, exercised or not. It doesn't cap what the writer can lose.",
-  "module": "F6",
-  "prompt_json": {
-   "bank": [
-    "keeps",
-    "refunds",
-    "forfeits",
-    "owes"
-   ],
-   "kind": "fill",
-   "q": "Fill in the blank.",
-   "sentence": "Exercised or not, the seller of an option ___ the premium.",
-   "subject": "F6.01#q12"
-  },
-  "reveal_json": {
-   "deeper": {
-    "trap": "Keeping the premium can feel like the whole story. It is only the most a seller can make: FINRA calls the premium received the seller's maximum profit. The loss is not capped at the premium. OIC says a call writer has theoretically unlimited loss potential, and a put writer substantial loss potential."
-   },
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC, Investor.gov: An Introduction to Options, Investor Bulletin (March 18, 2015, updated July 16, 2026)",
-      "quote": "The premium is paid up front to the seller of the option contract and is non-refundable.",
-      "tier": 1,
-      "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins-63"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "The Options Industry Council (OCC): What is an Option?",
-      "quote": "As a seller, you begin with a net credit because you collect the premium. If the option is never exercised, you keep the money.",
-      "tier": 1,
-      "url": "https://www.optionseducation.org/optionsoverview/what-is-an-option"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "The Options Industry Council (OCC): What is an Option?",
-      "quote": "If the option is exercised, you still keep the premium but are obligated to buy or sell the underlying stock if assigned.",
-      "tier": 1,
-      "url": "https://www.optionseducation.org/optionsoverview/what-is-an-option"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "The Options Industry Council (OCC): Options Basics",
-      "quote": "The option holder’s potential loss is limited to the initial premium paid for the contract. Alternately, the writer collects the premium and has theoretically unlimited loss potential for a call option and substantial loss potential for a put option.",
-      "tier": 1,
-      "url": "https://www.optionseducation.org/optionsoverview/options-basics"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "FINRA: Options (Investment Products)",
-      "quote": "For the purchaser of an option, the premium paid is your maximum loss. For the seller of an option, the premium you receive at the time of the sale is your maximum profit.",
-      "tier": 1,
-      "url": "https://www.finra.org/investors/investing/investment-products/options"
-     }
-    ],
-    "summary": "The premium goes to the seller up front and is not refunded. The seller collects the premium up front and keeps it if the option is never exercised. Even when the option is exercised, the seller keeps the premium, and must buy or sell the shares. A buyer can lose only the premium; a writer can lose without limit on a call and a lot on a put. A buyer's maximum loss is the premium paid; a seller's maximum profit is the premium received."
-   },
-   "facts": {
-    "given": "Fill in the blank. Exercised or not, the seller of an option ___ the premium."
-   },
-   "lesson_line": "The premium is the writer's to keep, exercised or not. It doesn't cap what the writer can lose.",
-   "simple": "The seller keeps the premium, because it is paid up front and is never refunded.",
-   "tier": "core",
-   "unit": "F6.01",
-   "why": "Keeps. The premium is paid up front to the seller and is non-refundable. If the option is never exercised, the seller keeps it. If it is exercised, the seller still keeps it but must buy or sell the shares. Keeping the premium does not cap the seller's loss."
-  },
-  "review_status": "draft",
-  "skill_id": "options.calls_puts",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F6/F6.01.json#q12",
   "type": "recall",
   "version": 1
  },
@@ -1852,6 +1707,88 @@
  },
  {
   "answer_json": {
+   "answer": "You keep it and still deliver shares"
+  },
+  "difficulty": 2,
+  "id": "si_ea9be6a77089",
+  "lesson_origin": "session",
+  "lesson_text": "You keep it and still deliver shares. The premium is paid up front and is never refunded. Exercise does not change that. It only means a call seller must now sell the shares at the strike. The seller keeps the premium, exercised or not. It doesn't cap what the seller can lose.",
+  "module": "F6",
+  "prompt_json": {
+   "choices": [
+    "You return it, since the option was used",
+    "It lowers the buyer's share price",
+    "You keep it only if it expires unused",
+    "You keep it and still deliver shares"
+   ],
+   "kind": "mcq",
+   "q": "You sell a call and collect the premium. The buyer exercises it. What happens to the premium?",
+   "subject": "F6.01#q97"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-09",
+      "name": "SEC, Investor.gov: An Introduction to Options, Investor Bulletin (March 18, 2015, updated July 16, 2026)",
+      "quote": "The premium is paid up front to the seller of the option contract and is non-refundable.",
+      "tier": 1,
+      "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins-63"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "The Options Industry Council (OCC): What is an Option?",
+      "quote": "As a seller, you begin with a net credit because you collect the premium. If the option is never exercised, you keep the money.",
+      "tier": 1,
+      "url": "https://www.optionseducation.org/optionsoverview/what-is-an-option"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "The Options Industry Council (OCC): What is an Option?",
+      "quote": "If the option is exercised, you still keep the premium but are obligated to buy or sell the underlying stock if assigned.",
+      "tier": 1,
+      "url": "https://www.optionseducation.org/optionsoverview/what-is-an-option"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "The Options Industry Council (OCC): Options Basics",
+      "quote": "The option holder’s potential loss is limited to the initial premium paid for the contract. Alternately, the writer collects the premium and has theoretically unlimited loss potential for a call option and substantial loss potential for a put option.",
+      "tier": 1,
+      "url": "https://www.optionseducation.org/optionsoverview/options-basics"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "FINRA: Options (Investment Products)",
+      "quote": "For the purchaser of an option, the premium paid is your maximum loss. For the seller of an option, the premium you receive at the time of the sale is your maximum profit.",
+      "tier": 1,
+      "url": "https://www.finra.org/investors/investing/investment-products/options"
+     }
+    ],
+    "summary": "The premium goes to the seller up front and is not refunded. The seller collects the premium up front and keeps it if the option is never exercised. Even when the option is exercised, the seller keeps the premium, and must buy or sell the shares. A buyer can lose only the premium; a writer can lose without limit on a call and a lot on a put. A buyer's maximum loss is the premium paid; a seller's maximum profit is the premium received."
+   },
+   "facts": {
+    "given": "You sell a call and collect the premium. The buyer exercises it. What happens to the premium? You keep it and still deliver shares You return it, since the option was used You keep it only if it expires unused It lowers the buyer's share price"
+   },
+   "lesson_line": "The seller keeps the premium, exercised or not. It doesn't cap what the seller can lose.",
+   "simple": "You keep the premium and still deliver the shares, because the premium is paid up front and never refunded.",
+   "tier": "core",
+   "unit": "F6.01",
+   "why": "You keep it and still deliver shares. The premium is paid up front and is never refunded. Exercise does not change that. It only means a call seller must now sell the shares at the strike.",
+   "wrong": {
+    "It lowers the buyer's share price": "The strike sets the price the buyer pays. The premium was paid earlier and stays with the seller.",
+    "You keep it only if it expires unused": "The seller keeps the premium either way. Exercise just adds the duty to deliver the shares.",
+    "You return it, since the option was used": "The premium is paid up front and is not refunded, whether or not the option is used."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "options.calls_puts",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F6/F6.01.json#q97",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
    "unscored": true
   },
   "difficulty": 1,
@@ -2209,70 +2146,6 @@
   "skill_id": "options.premium",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F6/F6.02.json#q02",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
-   "answer": "share"
-  },
-  "difficulty": 1,
-  "id": "si_cd23c07b4b2c",
-  "lesson_origin": "session",
-  "lesson_text": "Share. An option's price, the premium, is quoted on a per share basis. Equity option contracts usually cover 100 shares, so one contract usually costs 100 times the quote. It is not quoted per contract, per day or per lot. Read every option quote as per share. The contract is 100 times that.",
-  "module": "F6",
-  "prompt_json": {
-   "bank": [
-    "share",
-    "contract",
-    "day",
-    "lot"
-   ],
-   "kind": "fill",
-   "q": "Fill in the blank.",
-   "sentence": "Stock option prices are quoted per ___.",
-   "subject": "F6.02#q03"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-09",
-      "name": "The Options Industry Council (OCC): Options Basics",
-      "quote": "An option's price is called the premium and is priced at a per share basis. The option holder’s potential loss is limited to the initial premium paid for the contract.",
-      "tier": 1,
-      "url": "https://www.optionseducation.org/optionsoverview/options-basics"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "The Options Industry Council (OCC): Options Basics",
-      "quote": "Equity option contracts usually represent 100 shares of the underlying stock.",
-      "tier": 1,
-      "url": "https://www.optionseducation.org/optionsoverview/options-basics"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "FINRA: Options",
-      "quote": "A standard-size options contract is equal to 100 shares of the underlying security.",
-      "tier": 1,
-      "url": "https://www.finra.org/investors/investing/investment-products/options"
-     }
-    ],
-    "summary": "The premium is quoted per share, and a buyer's loss is limited to the premium paid. A stock option contract usually covers 100 shares. A standard options contract equals 100 shares."
-   },
-   "facts": {
-    "given": "Fill in the blank. Stock option prices are quoted per ___."
-   },
-   "lesson_line": "Read every option quote as per share. The contract is 100 times that.",
-   "simple": "Stock option prices are quoted per share, and one contract usually covers 100 shares.",
-   "tier": "core",
-   "unit": "F6.02",
-   "why": "Share. An option's price, the premium, is quoted on a per share basis. Equity option contracts usually cover 100 shares, so one contract usually costs 100 times the quote. It is not quoted per contract, per day or per lot."
-  },
-  "review_status": "draft",
-  "skill_id": "options.premium",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F6/F6.02.json#q03",
   "type": "recall",
   "version": 1
  },
@@ -4572,63 +4445,6 @@
  },
  {
   "answer_json": {
-   "answer": "zero"
-  },
-  "difficulty": 1,
-  "id": "si_5cf2d974e444",
-  "lesson_origin": "session",
-  "lesson_text": "Zero. Intrinsic value is the amount the option is in the money, and only in-the-money options have it. So an out-of-the-money option has zero intrinsic value. It never goes negative. Intrinsic value stops at zero. It never goes negative.",
-  "module": "F6",
-  "prompt_json": {
-   "bank": [
-    "zero",
-    "negative",
-    "some",
-    "a little"
-   ],
-   "kind": "fill",
-   "q": "Fill in the blank.",
-   "sentence": "An out-of-the-money option has ___ intrinsic value.",
-   "subject": "F6.03#q04"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-08",
-      "name": "The Options Clearing Corporation and the US options exchanges: Characteristics and Risks of Standardized Options (June 2024 edition)",
-      "quote": "the intrinsic value reflects the amount, if any, by which the option is in the money. An option that is out of the money would have an intrinsic value of zero.",
-      "tier": 1,
-      "url": "https://cdn.robinhood.com/assets/robinhood/legal/Characteristics%20and%20Risks%20of%20Standardized%20Options.pdf"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "The Options Industry Council (OCC): Options Pricing",
-      "quote": "A put option is in-the-money if the underlying security's price is less than the strike price. Only in-the-money options have intrinsic value.",
-      "tier": 1,
-      "url": "https://www.optionseducation.org/optionsoverview/options-pricing"
-     }
-    ],
-    "summary": "Intrinsic value is the in-the-money amount, and it is zero for an out-of-the-money option. A put is in the money when the stock is below the strike, and only in-the-money options have intrinsic value."
-   },
-   "facts": {
-    "given": "Fill in the blank. An out-of-the-money option has ___ intrinsic value."
-   },
-   "lesson_line": "Intrinsic value stops at zero. It never goes negative.",
-   "simple": "Zero, because only an option that is in the money has any intrinsic value.",
-   "tier": "core",
-   "unit": "F6.03",
-   "why": "Zero. Intrinsic value is the amount the option is in the money, and only in-the-money options have it. So an out-of-the-money option has zero intrinsic value. It never goes negative."
-  },
-  "review_status": "draft",
-  "skill_id": "options.value",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F6/F6.03.json#q04",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
    "answer": "At the money"
   },
   "difficulty": 1,
@@ -5507,56 +5323,6 @@
   "source_kind": "course",
   "source_ref": "docs/study/courses/F6/F6.03.json#q16",
   "type": "scenario",
-  "version": 1
- },
- {
-  "answer_json": {
-   "answer": "time"
-  },
-  "difficulty": 2,
-  "id": "si_a7425a447a24",
-  "lesson_origin": "session",
-  "lesson_text": "Time. Exercising gets you only the intrinsic value. Selling the option in a closing trade can also collect whatever time value is left, which exercise throws away. With time value left in the bid, I'd sell the option, not exercise it.",
-  "module": "F6",
-  "prompt_json": {
-   "bank": [
-    "time",
-    "intrinsic",
-    "strike",
-    "face"
-   ],
-   "kind": "fill",
-   "q": "Fill in the blank.",
-   "sentence": "Exercise an option early and you give up its ___ value.",
-   "subject": "F6.03#q17"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-08",
-      "name": "The Options Clearing Corporation and the US options exchanges: Characteristics and Risks of Standardized Options (June 2024 edition)",
-      "quote": "closing transactions may provide an opportunity for an option holder to realize the remaining time value (described below) of the option that would be lost in an exercise.",
-      "tier": 1,
-      "url": "https://cdn.robinhood.com/assets/robinhood/legal/Characteristics%20and%20Risks%20of%20Standardized%20Options.pdf"
-     }
-    ],
-    "summary": "Selling an option collects its remaining time value; exercising it throws that time value away."
-   },
-   "facts": {
-    "given": "Fill in the blank. Exercise an option early and you give up its ___ value."
-   },
-   "lesson_line": "With time value left in the bid, I'd sell the option, not exercise it.",
-   "simple": "Time value, because exercising gets only the in-the-money amount, while selling can also collect any time value left.",
-   "tier": "extended",
-   "unit": "F6.03",
-   "why": "Time. Exercising gets you only the intrinsic value. Selling the option in a closing trade can also collect whatever time value is left, which exercise throws away."
-  },
-  "review_status": "draft",
-  "skill_id": "options.value",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F6/F6.03.json#q17",
-  "type": "recall",
   "version": 1
  },
  {
@@ -6757,7 +6523,7 @@
   "difficulty": 1,
   "id": "si_ddb625b071a7",
   "lesson_origin": "session",
-  "lesson_text": "0.50. An at-the-money call typically has a delta around .50, so it moves about $0.50 for each one-point stock move. That is a rough figure, not a promise. At the money, figure on about half the stock's move.",
+  "lesson_text": "0.50. Delta estimates how much an option's price moves when the stock moves one dollar. A call at the money is roughly a coin flip to finish in the money, so its delta sits near 0.50 and it moves about half as much as the stock. Deeper in the money the delta climbs toward 1.00, and further out it falls toward zero. It is a rough guide, not a promise. At the money, figure on about half the stock's move.",
   "module": "F6",
   "prompt_json": {
    "bank": [
@@ -6805,7 +6571,7 @@
    "simple": "A call at the money has a delta near 0.50, so it moves about half as much as the stock.",
    "tier": "core",
    "unit": "F6.04",
-   "why": "0.50. An at-the-money call typically has a delta around .50, so it moves about $0.50 for each one-point stock move. That is a rough figure, not a promise."
+   "why": "0.50. Delta estimates how much an option's price moves when the stock moves one dollar. A call at the money is roughly a coin flip to finish in the money, so its delta sits near 0.50 and it moves about half as much as the stock. Deeper in the money the delta climbs toward 1.00, and further out it falls toward zero. It is a rough guide, not a promise."
   },
   "review_status": "draft",
   "skill_id": "options.delta",
@@ -6936,7 +6702,7 @@
   "difficulty": 1,
   "id": "si_c2a660598c94",
   "lesson_origin": "session",
-  "lesson_text": "Positive. Selling flips the sign, so a short put has a positive delta. A short put gains when the stock rises, all else equal. Source: the Options Industry Council. Selling flips the sign. A short put carries positive delta.",
+  "lesson_text": "Positive. Delta is how much a position gains or loses when the stock moves. Selling a put flips the sign of a bought put's negative delta, so a short put gains when the stock rises and loses when it falls. Read it as a bullish position. Source: the Options Industry Council. Selling flips the sign. A short put carries positive delta.",
   "module": "F6",
   "prompt_json": {
    "bank": [
@@ -6977,7 +6743,7 @@
    "simple": "Selling a put flips its sign, so a short put has a positive delta and gains when the stock rises.",
    "tier": "core",
    "unit": "F6.04",
-   "why": "Positive. Selling flips the sign, so a short put has a positive delta. A short put gains when the stock rises, all else equal. Source: the Options Industry Council."
+   "why": "Positive. Delta is how much a position gains or loses when the stock moves. Selling a put flips the sign of a bought put's negative delta, so a short put gains when the stock rises and loses when it falls. Read it as a bullish position. Source: the Options Industry Council."
   },
   "review_status": "draft",
   "skill_id": "options.delta",
@@ -8653,77 +8419,6 @@
   "skill_id": "options.theta",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F6/F6.05.json#q02",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
-   "answer": "share"
-  },
-  "difficulty": 1,
-  "id": "si_8913403c514c",
-  "lesson_origin": "session",
-  "lesson_text": "Share. Option premiums are priced per share, and theta is a premium amount, so it is per share too. One equity contract usually covers 100 shares. Multiply theta by 100 to get the daily decay on one contract. Theta times 100 is the daily decay on one contract.",
-  "module": "F6",
-  "prompt_json": {
-   "bank": [
-    "share",
-    "contract",
-    "position",
-    "account"
-   ],
-   "kind": "fill",
-   "q": "Fill in the blank.",
-   "sentence": "Like the premium, an option's theta is quoted per ___.",
-   "subject": "F6.05#q03"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-09",
-      "name": "The Options Industry Council (OCC): Options Basics",
-      "quote": "An option's price is called the premium and is priced at a per share basis.",
-      "tier": 1,
-      "url": "https://www.optionseducation.org/optionsoverview/options-basics"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "The Options Industry Council (OCC): Theta",
-      "quote": "Theta is represented in an actual dollar or premium amount. Theta represents, in theory, how much an option’s premium may decay per day with all other pricing factors remaining the same.",
-      "tier": 1,
-      "url": "https://www.optionseducation.org/advancedconcepts/theta"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "The Options Industry Council (OCC): Options Basics",
-      "quote": "Equity option contracts usually represent 100 shares of the underlying stock.",
-      "tier": 1,
-      "url": "https://www.optionseducation.org/optionsoverview/options-basics"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Investopedia: Theta Explained: How Time Decay Affects Options (James Chen, CMT; updated 2026-08-25)",
-      "quote": "This option costs $2 per share, or $200 for a standard options contract that covers 100 shares.",
-      "tier": 2,
-      "url": "https://www.investopedia.com/terms/t/theta.asp"
-     }
-    ],
-    "summary": "Option premiums are quoted per share. Theta is a dollar amount: in theory, how much the premium may drop per day if nothing else changes. One stock option contract usually covers 100 shares. Option prices are per share; a standard contract covers 100 shares."
-   },
-   "facts": {
-    "given": "Fill in the blank. Like the premium, an option's theta is quoted per ___."
-   },
-   "lesson_line": "Theta times 100 is the daily decay on one contract.",
-   "simple": "Per share, because option prices are quoted per share, so multiply by 100 for one contract.",
-   "tier": "core",
-   "unit": "F6.05",
-   "why": "Share. Option premiums are priced per share, and theta is a premium amount, so it is per share too. One equity contract usually covers 100 shares. Multiply theta by 100 to get the daily decay on one contract."
-  },
-  "review_status": "draft",
-  "skill_id": "options.theta",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F6/F6.05.json#q03",
   "type": "recall",
   "version": 1
  },
@@ -10417,71 +10112,6 @@
   "skill_id": "options.vega_iv",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F6/F6.06.json#q03",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
-   "answer": "price"
-  },
-  "difficulty": 1,
-  "id": "si_f06ca40caae0",
-  "lesson_origin": "session",
-  "lesson_text": "Price. Start with the option's market price. Enter the other known inputs into a pricing model. Then solve for the volatility that would justify that price. That number is the implied volatility. It is not read from volume, delta or the chart. IV comes from what people pay for the option, not from the chart.",
-  "module": "F6",
-  "prompt_json": {
-   "bank": [
-    "price",
-    "volume",
-    "strike",
-    "delta",
-    "chart"
-   ],
-   "kind": "fill",
-   "q": "Fill in the blank.",
-   "sentence": "Implied volatility is backed out of the option's ___.",
-   "subject": "F6.06#q04"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-09",
-      "name": "The Options Industry Council (OCC): Vega",
-      "quote": "If we know what the current market premiums are for the calls and the puts on a certain strike, we can solve for the implied volatility",
-      "tier": 1,
-      "url": "https://www.optionseducation.org/advancedconcepts/vega"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Investopedia: Exploring Implied Volatility and Options Pricing (Akhilesh Ganti; updated August 2, 2026)",
-      "quote": "Start with the option’s current price and work backward to determine the level of volatility that would justify that price, given all the other known variables entered into the model.",
-      "tier": 2,
-      "url": "https://www.investopedia.com/terms/i/iv.asp"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Fidelity Investments: Trading Options Around Earnings (Trading Strategy Desk webinar slides, 2016)",
-      "quote": "Derived from the option contract prices on the given security",
-      "tier": 2,
-      "url": "https://fidelity.com/bin-public/060_www_fidelity_com/documents/TradingOptionsandEarnings_Webinar.pdf"
-     }
-    ],
-    "summary": "Implied volatility is solved for from the option's market price. IV is found by working backward from the option's price through a pricing model. IV is derived from the option prices on the stock."
-   },
-   "facts": {
-    "given": "Fill in the blank. Implied volatility is backed out of the option's ___."
-   },
-   "lesson_line": "IV comes from what people pay for the option, not from the chart.",
-   "simple": "Price, because implied volatility is worked out backward from what the option trades for.",
-   "tier": "core",
-   "unit": "F6.06",
-   "why": "Price. Start with the option's market price. Enter the other known inputs into a pricing model. Then solve for the volatility that would justify that price. That number is the implied volatility. It is not read from volume, delta or the chart."
-  },
-  "review_status": "draft",
-  "skill_id": "options.vega_iv",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F6/F6.06.json#q04",
   "type": "recall",
   "version": 1
  },
@@ -17038,70 +16668,6 @@
  },
  {
   "answer_json": {
-   "answer": "bigger"
-  },
-  "difficulty": 1,
-  "id": "si_b36d0fe8765b",
-  "lesson_origin": "session",
-  "lesson_text": "Bigger. The options disclosure document says an option bought further out of the money needs a greater move to become profitable. OIC adds that an option under a .10 delta needs a strong move. A smaller, slower or calmer move works against a far strike. Every step further out raises the bar the stock has to clear.",
-  "module": "F6",
-  "prompt_json": {
-   "bank": [
-    "smaller",
-    "slower",
-    "bigger",
-    "calmer"
-   ],
-   "kind": "fill",
-   "q": "Fill in the blank.",
-   "sentence": "Buy further out of the money and the stock needs a ___ move before you profit.",
-   "subject": "F6.09#q04"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-09",
-      "name": "The Options Clearing Corporation and the US options exchanges: Characteristics and Risks of Standardized Options (June 2024 edition)",
-      "quote": "The greater the price movement of the underlying interest necessary for the option to become profitable (that is, the more the option is out of the money when purchased and the greater the cost of the option)",
-      "tier": 1,
-      "url": "https://cdn.robinhood.com/assets/robinhood/legal/Characteristics%20and%20Risks%20of%20Standardized%20Options.pdf"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "The Options Industry Council (OCC): Delta",
-      "quote": "An option with less than a .10 Delta (or less than 10% probability of being in-the-money) is not viewed as very likely to be in-the-money at any point and will need a strong move",
-      "tier": 1,
-      "url": "https://www.optionseducation.org/advancedconcepts/delta"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "The Options Industry Council (OCC): Long Call",
-      "quote": "Generally speaking, the earlier and sharper the increase in the stock's value, the better for the long call strategy.",
-      "tier": 1,
-      "url": "https://www.optionseducation.org/strategies/all-strategies/long-call"
-     }
-    ],
-    "summary": "The further out of the money an option is when you buy it, the bigger the move it needs to turn a profit. An option under a .10 delta is unlikely to finish in the money and needs a strong move to be worth anything. A long call does best when the stock rises early and sharply."
-   },
-   "facts": {
-    "given": "Fill in the blank. Buy further out of the money and the stock needs a ___ move before you profit."
-   },
-   "lesson_line": "Every step further out raises the bar the stock has to clear.",
-   "simple": "Bigger, because the further out of the money you buy, the more the stock has to move before you make money.",
-   "tier": "core",
-   "unit": "F6.09",
-   "why": "Bigger. The options disclosure document says an option bought further out of the money needs a greater move to become profitable. OIC adds that an option under a .10 delta needs a strong move. A smaller, slower or calmer move works against a far strike."
-  },
-  "review_status": "draft",
-  "skill_id": "options.strike",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F6/F6.09.json#q04",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
    "answer": "False"
   },
   "difficulty": 1,
@@ -19194,63 +18760,6 @@
  },
  {
   "answer_json": {
-   "answer": "timing"
-  },
-  "difficulty": 1,
-  "id": "si_caedcd609bab",
-  "lesson_origin": "session",
-  "lesson_text": "Timing. The options disclosure document says a holder must be right about the direction of the move and also about when it happens. The option has a deadline. OIC says being right about a rally does no good if it comes after expiration. So being right too late loses like being wrong. With options, being right too late is the same as being wrong.",
-  "module": "F6",
-  "prompt_json": {
-   "bank": [
-    "timing",
-    "volume",
-    "valuation",
-    "sentiment"
-   ],
-   "kind": "fill",
-   "q": "Fill in the blank.",
-   "sentence": "An option buyer has to be right on direction and on ___.",
-   "subject": "F6.10#q05"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-09",
-      "name": "The Options Clearing Corporation and the US options exchanges: Characteristics and Risks of Standardized Options (June 2024 edition)",
-      "quote": "an option holder must not only be right about the direction of an anticipated price change in the underlying interest, but she must also be right about when the price change will occur.",
-      "tier": 1,
-      "url": "https://cdn.robinhood.com/assets/robinhood/legal/Characteristics%20and%20Risks%20of%20Standardized%20Options.pdf"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "The Options Industry Council (OCC): Long Call",
-      "quote": "timing is everything for this strategy, because all value must be realized before the option expires. Being right about an anticipated rally does no good if it occurs after expiration.",
-      "tier": 1,
-      "url": "https://www.optionseducation.org/strategies/all-strategies/long-call"
-     }
-    ],
-    "summary": "An option buyer has to be right on direction and on timing. For a call buyer, the move has to come before expiry; a rally after expiration does no good."
-   },
-   "facts": {
-    "given": "Fill in the blank. An option buyer has to be right on direction and on ___."
-   },
-   "lesson_line": "With options, being right too late is the same as being wrong.",
-   "simple": "Timing, because an option has a deadline, and a move that comes after it pays you nothing.",
-   "tier": "core",
-   "unit": "F6.10",
-   "why": "Timing. The options disclosure document says a holder must be right about the direction of the move and also about when it happens. The option has a deadline. OIC says being right about a rally does no good if it comes after expiration. So being right too late loses like being wrong."
-  },
-  "review_status": "draft",
-  "skill_id": "options.expiry",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F6/F6.10.json#q05",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
    "answer": "Long-dated options, up to 3 years out"
   },
   "difficulty": 1,
@@ -21230,77 +20739,6 @@
  },
  {
   "answer_json": {
-   "answer": "premium"
-  },
-  "difficulty": 1,
-  "id": "si_9af4b4a5b30d",
-  "lesson_origin": "session",
-  "lesson_text": "Premium. At expiry a long call breaks even when the stock equals the strike plus what you paid for the call. Above that, it makes money. Between the strike and the break-even, the call is in the money but still a net loss. A put is the mirror: strike minus premium. Call break-even: strike plus premium. Put break-even: strike minus premium.",
-  "module": "F6",
-  "prompt_json": {
-   "bank": [
-    "premium",
-    "stock price",
-    "intrinsic value",
-    "dividend"
-   ],
-   "kind": "fill",
-   "q": "Fill in the blank.",
-   "sentence": "At expiry, a long call breaks even when the stock sits at the strike plus the ___.",
-   "subject": "F6.11#q04"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-09",
-      "name": "The Options Industry Council (OCC): Long Call",
-      "quote": "At expiration, the strategy breaks even if the stock price is equal to the strike price plus the initial cost of the call option.",
-      "tier": 1,
-      "url": "https://www.optionseducation.org/strategies/all-strategies/long-call"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "The Options Industry Council (OCC): Long Put",
-      "quote": "At expiration, the strategy breaks even if the stock price equals the strike price minus the cost of the option. Any stock price below that level produces a net profit.",
-      "tier": 1,
-      "url": "https://www.optionseducation.org/strategies/all-strategies/long-put"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "FINRA: Options",
-      "quote": "rises above (in the case of a call) or falls below (in the case of a put) the strike price of their options contract by more than the premium paid.",
-      "tier": 1,
-      "url": "https://www.finra.org/investors/investing/investment-products/options"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "The Options Industry Council (OCC): Long Call",
-      "quote": "Once time value disappears, all that remains is intrinsic value. For in-the-money options, that is the difference between the stock price and the strike price. For at-the-money and out-of-the-money options, intrinsic value is zero.",
-      "tier": 1,
-      "url": "https://www.optionseducation.org/strategies/all-strategies/long-call"
-     }
-    ],
-    "summary": "A long call breaks even at expiry at the strike plus the premium paid. A long put breaks even at expiry at the strike minus the premium. A buyer makes money only when the stock passes the strike by more than the premium: above it for a call, below it for a put. At expiry an option is worth only its in-the-money amount; at or out of the money that is zero."
-   },
-   "facts": {
-    "given": "Fill in the blank. At expiry, a long call breaks even when the stock sits at the strike plus the ___."
-   },
-   "lesson_line": "Call break-even: strike plus premium. Put break-even: strike minus premium.",
-   "simple": "The word is premium, because a call breaks even at the strike plus the price you paid for it.",
-   "tier": "core",
-   "unit": "F6.11",
-   "why": "Premium. At expiry a long call breaks even when the stock equals the strike plus what you paid for the call. Above that, it makes money. Between the strike and the break-even, the call is in the money but still a net loss. A put is the mirror: strike minus premium."
-  },
-  "review_status": "draft",
-  "skill_id": "options.directional",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F6/F6.11.json#q04",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
    "answer": "True"
   },
   "difficulty": 1,
@@ -23266,70 +22704,6 @@
   "skill_id": "options.verticals",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F6/F6.12.json#q02",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
-   "answer": "higher"
-  },
-  "difficulty": 1,
-  "id": "si_6394b433d941",
-  "lesson_origin": "session",
-  "lesson_text": "Higher. A bear put spread is long the higher strike put and short the lower strike put, in the same expiry. The bought put profits from a drop. The sold put brings in premium that offsets some of the cost. The higher put costs more than the lower one brings in, so the spread opens for a debit. Bear put spread: buy the higher put, sell the lower one. The sold put pays for part of the bought one.",
-  "module": "F6",
-  "prompt_json": {
-   "bank": [
-    "higher",
-    "lower",
-    "same",
-    "cheaper"
-   ],
-   "kind": "fill",
-   "q": "Fill in the blank.",
-   "sentence": "In a bear put spread, you buy the ___ strike put and sell the other one.",
-   "subject": "F6.12#q03"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-09",
-      "name": "The Options Industry Council (OCC): Bear Put Spread",
-      "quote": "It consists of buying one put in hopes of profiting from a decline in the underlying stock, and writing another put with the same expiration, but with a lower strike price, as a way to offset some of the cost.",
-      "tier": 1,
-      "url": "https://www.optionseducation.org/strategies/all-strategies/bear-put-spread"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Fidelity: Options strategy guide: Bear put spread",
-      "quote": "A bear put spread consists of one long put with a higher strike price and one short put with a lower strike price.",
-      "tier": 2,
-      "url": "https://www.fidelity.com/learning-center/investment-products/options/options-strategy-guide/bear-put-spread"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Charles Schwab: Bullish & Bearish Vertical Options Spreads (2023-08-31)",
-      "quote": "A spread strategy that decreases the account's cash balance when established. A bull spread with calls and a bear spread with puts are examples of debit spreads.",
-      "tier": 2,
-      "url": "https://www.schwab.com/learn/story/bullish-bearish-vertical-options-spreads"
-     }
-    ],
-    "summary": "A bear put spread buys one put and sells another, same expiry, at a lower strike, to offset some of the cost. A bear put spread is long the higher strike put and short the lower strike put. A debit spread costs cash when opened; bull call and bear put spreads are debit spreads."
-   },
-   "facts": {
-    "given": "Fill in the blank. In a bear put spread, you buy the ___ strike put and sell the other one."
-   },
-   "lesson_line": "Bear put spread: buy the higher put, sell the lower one. The sold put pays for part of the bought one.",
-   "simple": "Higher: you buy the higher put to profit from a drop and sell a lower one to pay for part of it.",
-   "tier": "core",
-   "unit": "F6.12",
-   "why": "Higher. A bear put spread is long the higher strike put and short the lower strike put, in the same expiry. The bought put profits from a drop. The sold put brings in premium that offsets some of the cost. The higher put costs more than the lower one brings in, so the spread opens for a debit."
-  },
-  "review_status": "draft",
-  "skill_id": "options.verticals",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F6/F6.12.json#q03",
   "type": "recall",
   "version": 1
  },
@@ -25784,78 +25158,6 @@
   "skill_id": "options.income",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F6/F6.13.json#q03",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
-   "answer": "strike"
-  },
-  "difficulty": 1,
-  "id": "si_f81cf1d8eed5",
-  "lesson_origin": "session",
-  "lesson_text": "Strike. A covered call is an obligation to sell your shares at the strike price of the call. If you're assigned, you deliver them at the strike, wherever the stock trades. Your full exit is the strike plus the premium you kept. It is not today's market price, and not what you paid for the shares. A covered call fits only a strike you'd be glad to sell at, with the premium on top.",
-  "module": "F6",
-  "prompt_json": {
-   "bank": [
-    "market",
-    "strike",
-    "purchase",
-    "break-even",
-    "closing"
-   ],
-   "kind": "fill",
-   "q": "Fill in the blank.",
-   "sentence": "Sell a covered call and, if assigned, you sell your shares at the ___ price.",
-   "subject": "F6.13#q04"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-09",
-      "name": "Fidelity: Selecting a Strike Price and Expiration Date (covered calls; article copyright 2013 Cboe, reprinted by Fidelity)",
-      "quote": "Remember, a covered call position is an obligation to sell the underlying shares at the strike price of the call.",
-      "tier": 2,
-      "url": "https://www.fidelity.com/learning-center/investment-products/options/selecting-strike-price-expiration-date"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "FINRA: Trading Options: Understanding Assignment (Investor Insights, December 14, 2020)",
-      "quote": "In the case of a short equity call, the seller of the option must deliver stock at the strike price and in return receives cash.",
-      "tier": 1,
-      "url": "https://www.finra.org/investors/insights/trading-options-understanding-assignment"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "The Options Industry Council (OCC): Covered Call (Buy/Write) (strategy page)",
-      "quote": "But whatever the choice, the strike price (plus the premium) should represent an acceptable liquidation price.",
-      "tier": 1,
-      "url": "https://www.optionseducation.org/strategies/all-strategies/covered-call-buy-write"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Fidelity: Beyond generating income: Using covered calls for other investment strategies (article copyright 2013 Cboe, reprinted by Fidelity)",
-      "quote": "Remember, the effective selling price of a covered call is a stock price equal to strike price plus the call premium.",
-      "tier": 2,
-      "url": "https://www.fidelity.com/learning-center/investment-products/options/beyondgenerating-income-covered-calls"
-     }
-    ],
-    "summary": "A covered call obligates you to sell the shares at the strike. An assigned call seller delivers the shares at the strike. Whatever strike you pick, strike plus premium should be a price you are happy to sell at. A covered call's effective selling price is the strike plus the premium."
-   },
-   "facts": {
-    "given": "Fill in the blank. Sell a covered call and, if assigned, you sell your shares at the ___ price."
-   },
-   "lesson_line": "A covered call fits only a strike you'd be glad to sell at, with the premium on top.",
-   "simple": "You sell at the strike price, because a covered call is a promise to sell your shares at that price.",
-   "tier": "core",
-   "unit": "F6.13",
-   "why": "Strike. A covered call is an obligation to sell your shares at the strike price of the call. If you're assigned, you deliver them at the strike, wherever the stock trades. Your full exit is the strike plus the premium you kept. It is not today's market price, and not what you paid for the shares."
-  },
-  "review_status": "draft",
-  "skill_id": "options.income",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F6/F6.13.json#q04",
   "type": "recall",
   "version": 1
  },
@@ -30421,57 +29723,6 @@
   "skill_id": "options.condors_flies",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F6/F6.15.json#q02",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
-   "answer": "body"
-  },
-  "difficulty": 1,
-  "id": "si_9b15c173e33d",
-  "lesson_origin": "session",
-  "lesson_text": "Body. On a butterfly the middle strike is the body. The upper and lower strikes are the wings, and both must sit the same distance from the body. All the options share one expiry date. Body in the middle, wings on the outside, the same distance away.",
-  "module": "F6",
-  "prompt_json": {
-   "bank": [
-    "body",
-    "wing",
-    "shoulder",
-    "tail",
-    "spread"
-   ],
-   "kind": "fill",
-   "q": "Fill in the blank.",
-   "sentence": "On a butterfly, the middle strike is called the ___.",
-   "subject": "F6.15#q03"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-09",
-      "name": "The Options Industry Council (OCC): Long Call Butterfly",
-      "quote": "The upper and lower strikes (wings) must both be equidistant from the middle strike (body), and all the options must have the same expiration date.",
-      "tier": 1,
-      "url": "https://www.optionseducation.org/strategies/all-strategies/long-call-butterfly"
-     }
-    ],
-    "summary": "On a butterfly the middle strike is the body and the outer strikes are the wings, the same distance away."
-   },
-   "facts": {
-    "given": "Fill in the blank. On a butterfly, the middle strike is called the ___."
-   },
-   "lesson_line": "Body in the middle, wings on the outside, the same distance away.",
-   "simple": "Body is the name for the middle strike of a butterfly, and the two outer strikes are called the wings.",
-   "tier": "core",
-   "unit": "F6.15",
-   "why": "Body. On a butterfly the middle strike is the body. The upper and lower strikes are the wings, and both must sit the same distance from the body. All the options share one expiry date."
-  },
-  "review_status": "draft",
-  "skill_id": "options.condors_flies",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F6/F6.15.json#q03",
   "type": "recall",
   "version": 1
  },
@@ -37210,87 +36461,6 @@
  },
  {
   "answer_json": {
-   "answer": "strike"
-  },
-  "difficulty": 1,
-  "id": "si_0774c17ecca5",
-  "lesson_origin": "session",
-  "lesson_text": "Strike. Pin risk is the option seller's risk that the stock closes exactly at, or very near, the strike at expiration. The seller then can't know how many of their short options will be assigned. If assigned, they can be left holding stock that moves against them by the next open. Short an option into expiry with the stock sitting on the strike: that's pin risk.",
-  "module": "F6",
-  "prompt_json": {
-   "bank": [
-    "strike",
-    "stop",
-    "break-even",
-    "entry"
-   ],
-   "kind": "fill",
-   "q": "Fill in the blank.",
-   "sentence": "Pin risk is the seller's risk that the stock closes right at the option's ___ at expiration.",
-   "subject": "F6.18#q04"
-  },
-  "reveal_json": {
-   "deeper": {
-    "example": "Say you sold a put and the stock closes right on its strike at expiration. You may or may not be assigned, and you won't know until after the close. If you are, you start the next session long the stock, a position you never planned. If it opens lower, that loss is yours. A call seller faces the mirror case: a surprise short stock position."
-   },
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-09",
-      "name": "The Options Industry Council (OCC): Options Glossary (P): Pin risk",
-      "quote": "The risk to an investor (option writer) that the stock price will exactly equal the strike price at expiration (that option will be exactly at-the-money).",
-      "tier": 1,
-      "url": "https://www.optionseducation.org/referencelibrary/optionsglossary?filter=P"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "The Options Industry Council (OCC): Options Glossary (P): Pin risk",
-      "quote": "The investor will not know how many of their written(short) options will be assigned",
-      "tier": 1,
-      "url": "https://www.optionseducation.org/referencelibrary/optionsglossary?filter=P"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "FINRA: Options (investor page: pin risk, open interest)",
-      "quote": "This risk occurs when a stock closes at or very near an option's strike price at expiration, creating uncertainty for both buyers and sellers.",
-      "tier": 1,
-      "url": "https://www.finra.org/investors/investing/investment-products/options"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "FINRA: Options (investor page: pin risk, open interest)",
-      "quote": "Option sellers don't know if they'll be assigned, and if assigned, must fulfill the contract at the strike price but are left holding a stock position that might have moved unfavorably by the next day’s open",
-      "tier": 1,
-      "url": "https://www.finra.org/investors/investing/investment-products/options"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "The Options Industry Council (OCC): Options Glossary (P): Pin risk",
-      "quote": "The risk is that on the following Monday the option writer might have an unexpected long (in the case of a written put) or short (in the case of a written call) stock position",
-      "tier": 1,
-      "url": "https://www.optionseducation.org/referencelibrary/optionsglossary?filter=P"
-     }
-    ],
-    "summary": "Pin risk is the option seller's risk that the stock finishes exactly at the strike at expiration. With the stock on the strike, a seller can't know how many short options will be assigned. Pin risk is the uncertainty when a stock closes at or very near the strike at expiration. A pinned seller doesn't know about assignment and may hold stock that moves against them by the next open. Pin risk can leave a seller with a surprise stock position after expiration: long from a short put, short from a short call."
-   },
-   "facts": {
-    "given": "Fill in the blank. Pin risk is the seller's risk that the stock closes right at the option's ___ at expiration."
-   },
-   "lesson_line": "Short an option into expiry with the stock sitting on the strike: that's pin risk.",
-   "simple": "Strike, because a close right on the strike leaves the seller unsure whether they will be assigned.",
-   "tier": "core",
-   "unit": "F6.18",
-   "why": "Strike. Pin risk is the option seller's risk that the stock closes exactly at, or very near, the strike at expiration. The seller then can't know how many of their short options will be assigned. If assigned, they can be left holding stock that moves against them by the next open."
-  },
-  "review_status": "draft",
-  "skill_id": "options.flow",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F6/F6.18.json#q04",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
    "answer": "True"
   },
   "difficulty": 1,
@@ -39103,6 +38273,74 @@
   "skill_id": "options.flow",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F6/F6.18.json#q25",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Whether you'll be assigned the stock"
+  },
+  "difficulty": 1,
+  "id": "si_8d063ab1dbcf",
+  "lesson_origin": "session",
+  "lesson_text": "Whether you'll be assigned the stock. This is pin risk: the seller's risk that the stock finishes exactly at the strike at expiration. With the stock on the strike, a seller can't know how many short options will be assigned. Assigned on a short put, you start the next session long the stock, and it may move against you by the next open. Short an option into expiry with the stock sitting on the strike: that's pin risk.",
+  "module": "F6",
+  "prompt_json": {
+   "choices": [
+    "Whether you'll be assigned the stock",
+    "What strike the put was written at",
+    "How much premium you collected",
+    "Whether the put is in the money"
+   ],
+   "kind": "mcq",
+   "q": "You're short a put at the 50 strike. The stock closes at 50 on expiry day. What can't you know yet?",
+   "subject": "F6.18#q97"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-09",
+      "name": "The Options Industry Council (OCC): Options Glossary (P): Pin risk",
+      "quote": "The risk to an investor (option writer) that the stock price will exactly equal the strike price at expiration (that option will be exactly at-the-money).",
+      "tier": 1,
+      "url": "https://www.optionseducation.org/referencelibrary/optionsglossary?filter=P"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "The Options Industry Council (OCC): Options Glossary (P): Pin risk",
+      "quote": "The investor will not know how many of their written(short) options will be assigned",
+      "tier": 1,
+      "url": "https://www.optionseducation.org/referencelibrary/optionsglossary?filter=P"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "The Options Industry Council (OCC): Options Glossary (P): Pin risk",
+      "quote": "The risk is that on the following Monday the option writer might have an unexpected long (in the case of a written put) or short (in the case of a written call) stock position",
+      "tier": 1,
+      "url": "https://www.optionseducation.org/referencelibrary/optionsglossary?filter=P"
+     }
+    ],
+    "summary": "Pin risk is the option seller's risk that the stock finishes exactly at the strike at expiration. With the stock on the strike, a seller can't know how many short options will be assigned. Pin risk can leave a seller with a surprise stock position after expiration: long from a short put, short from a short call."
+   },
+   "facts": {
+    "given": "You're short a put at the 50 strike. The stock closes at 50 on expiry day. What can't you know yet? Whether you'll be assigned the stock What strike the put was written at How much premium you collected Whether the put is in the money"
+   },
+   "lesson_line": "Short an option into expiry with the stock sitting on the strike: that's pin risk.",
+   "simple": "A close right on the strike leaves you unsure whether you will be assigned, and assignment would leave you holding stock.",
+   "tier": "core",
+   "unit": "F6.18",
+   "why": "Whether you'll be assigned the stock. This is pin risk: the seller's risk that the stock finishes exactly at the strike at expiration. With the stock on the strike, a seller can't know how many short options will be assigned. Assigned on a short put, you start the next session long the stock, and it may move against you by the next open.",
+   "wrong": {
+    "How much premium you collected": "Your premium is already in your account. The open question is assignment.",
+    "What strike the put was written at": "You know your own strike. The unknown is whether the put will be assigned.",
+    "Whether the put is in the money": "With the stock on the strike it is not in the money. What you can't know is whether you'll be assigned."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "options.flow",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F6/F6.18.json#q97",
   "type": "recall",
   "version": 1
  },

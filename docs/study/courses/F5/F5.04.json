@@ -795,7 +795,7 @@
     "Right at the 9:30 opening bell"
    ],
    "answer": "Before the open or after the close",
-   "why": "Before the open or after the close. FINRA says companies usually release results then. Regular trading runs 9:30 a.m. to 4:00 p.m. ET, so the news lands while it is shut. The stock can still move sharply in extended hours.",
+   "why": "Before the open or after the close. FINRA says companies usually release results then. Regular trading runs 9:30 a.m. to 4:00 p.m. ET, so the news lands while it is shut. Trading before 9:30 and after 4:00 is called extended hours, and the stock can still move sharply there. So the first thing to ask about any report is which side of the session it lands on.",
    "lesson_line": "Most results land while regular trading is shut. Know which side of the session yours falls on.",
    "facts": [
     "f7",
@@ -815,7 +815,7 @@
      "FINRA (Tier 1) states it directly; stable"
     ]
    },
-   "batch": "wave6"
+   "batch": "review3"
   },
   {
    "key": "q04",
@@ -824,7 +824,7 @@
    "format": "tf",
    "q": "Every public company reports in the same few weeks each quarter.",
    "answer": "False",
-   "why": "False. Most companies use calendar quarters, so most report in the weeks after March, June, September and December end. Some don't. A retailer might end its quarter in January instead of December, to keep the holiday sales and returns together. It then reports on its own schedule.",
+   "why": "False. Most companies use calendar quarters, so most report in the weeks after March, June, September and December end. Some don't. A retailer might end its quarter in January instead of December, to keep the holiday sales and returns together. It then reports on its own schedule. So never guess a name's report date from the season. Look it up for each stock you hold.",
    "lesson_line": "Don't guess the date from the season. Look it up for each name you hold.",
    "facts": [
     "f3",
@@ -839,7 +839,7 @@
      "three FINRA (Tier 1) facts; stable"
     ]
    },
-   "batch": "wave6"
+   "batch": "review3"
   },
   {
    "key": "q05",
@@ -883,11 +883,12 @@
     "It reported before the SEC deadline"
    ],
    "answer": "Results topped the analysts' average",
-   "why": "Results topped the analysts' average. A beat means actual earnings or revenue came in above the consensus estimate. The consensus is the average of the analysts who cover the stock. A miss means results fell short of it. A beat alone does not decide the price: a company can beat and still fall on a dour outlook.",
+   "why": "Results topped the analysts' average. A beat means actual earnings or revenue came in above the consensus estimate, the average of the analysts who cover the stock. A miss means results fell short of it. A beat alone does not decide the price: a company can beat and still fall on a weak outlook. The market's real bar can also be an unofficial whisper number that differs from the consensus.",
    "lesson_line": "A beat is the numbers against estimates. The stock can still go either way.",
    "facts": [
     "f9",
     "f10",
+    "f11",
     "f12",
     "f13"
    ],
@@ -904,7 +905,7 @@
      "FINRA (Tier 1) definition; stable"
     ]
    },
-   "batch": "wave6"
+   "batch": "review3"
   },
   {
    "key": "q07",
@@ -945,12 +946,15 @@
    "format": "tf",
    "q": "The after-hours price right after a report tells you where the stock will open.",
    "answer": "False",
-   "why": "False. The SEC warns that extended-hours prices may not reflect the price at the next business day's open. The price can keep moving until the 9:30 a.m. ET open. Treat the after-hours print as a first read, not a forecast of the open.",
+   "why": "False. After-hours trading is extended-hours trading, outside 9:30 a.m. to 4:00 p.m. ET. The SEC warns that an extended-hours price may not reflect the price at the next day's regular open. Meta traded at $249.90 after hours on Feb. 2, 2022, down 22.6%. The price kept moving: the next regular session ended at $237.76. Treat the after-hours print as a first read, not a forecast of the open.",
    "lesson_line": "An after-hours print is a first guess. The open can be somewhere else.",
    "facts": [
     "f19",
     "f18",
-    "f17"
+    "f17",
+    "f67",
+    "f64",
+    "f25"
    ],
    "simple": "False, because the price can keep moving after hours, so the open can be somewhere else.",
    "tier": "core",
@@ -960,7 +964,7 @@
      "the key rests on one cited fact (f19, SEC)"
     ]
    },
-   "batch": "wave6"
+   "batch": "review3"
   },
   {
    "key": "q09",
@@ -1015,7 +1019,7 @@
     "round": 1
    },
    "suffix": "%",
-   "why": "4.5%. Divide the priced move by the price, then multiply by 100. $9.48 divided by $209.58 is about 4.5%. IBKR read that move from the nearest at-the-money straddle. It is a size, not a direction. MSFT closed at $202.54 on July 23, the day after.",
+   "why": "4.5%. The implied move is the move the options market is pricing in. Divide it by the price: $9.48 / $209.58 is about 4.5%. IBKR read the move from the nearest at-the-money straddle, a call and a put at the same 210 strike. Their prices, 4.75 and 5.15, less the gap between strike and price, 210 minus 209.58, give 9.48. It is a size, not a direction. MSFT closed at $202.54 on July 23, the day after.",
    "lesson_line": "Turn the priced move into a percent. Then compare it with how far away your stop is.",
    "facts": [
     "f52",
@@ -1032,7 +1036,7 @@
      "computed key (calc); inputs from one IBKR page, which refused a plain client (403) on 2026-11-12"
     ]
    },
-   "batch": "tomcq",
+   "batch": "review3",
    "choices": [
     "0.5%",
     "22.1%",
@@ -1109,17 +1113,18 @@
    "story": "You plan to buy a breakout and hold for a few weeks. The calendar shows a report in eight days, marked \"Time Not Supplied\".",
    "q": "What do you do before you buy?",
    "choices": [
-    "Get the date and time from the company",
+    "Check the company's own website",
     "Assume it reports after the close",
     "Nothing, your stop has it covered",
     "Trust the calendar date, it is official"
    ],
-   "answer": "Get the date and time from the company",
-   "why": "Get the date and time from the company. \"Time Not Supplied\" means the calendar does not know the time yet. A calendar date can also be tentative, or an estimate from past reports. The company's own release settles both. Meta's, sent Jan. 4, 2022, set its report for after the close on Feb. 2.",
-   "lesson_line": "A calendar date is a lead. The company's own release is the answer.",
+   "answer": "Check the company's own website",
+   "why": "Check the company's own website. \"Time Not Supplied\" is Nasdaq's label when the calendar has no report time yet. A calendar date can also be tentative, or just an estimate from past reports. The company's investor relations site, where it posts its own release, settles both. Meta's site posted its Jan. 4, 2022 notice: results after the close on Feb. 2. JPMorgan's site gave about 7:00 a.m. ET for its Oct. 13, 2026 results, before the open. The time matters, because it tells you which session first trades the news.",
+   "lesson_line": "A calendar date is a lead. The company's own website is the answer.",
    "facts": [
     "f24",
     "f25",
+    "f27",
     "f70",
     "f56",
     "f20",
@@ -1130,7 +1135,7 @@
     "Nothing, your stop has it covered": "A stop is a trigger, not a price. It can't catch a gap.",
     "Trust the calendar date, it is official": "A calendar date can be tentative, or just an estimate from the company's past pattern. The company's own release is the answer."
    },
-   "simple": "Check the company's own release, because a calendar date can be just a guess and the time is not given.",
+   "simple": "Check the company's own website, because a calendar date can be a guess and may not list the time.",
    "tier": "extended",
    "risk": {
     "score": 1,
@@ -1138,7 +1143,7 @@
      "fixed before (checker, 2026-11-09)"
     ]
    },
-   "batch": "wave6"
+   "batch": "review3"
   },
   {
    "key": "q14",
@@ -1157,7 +1162,7 @@
     }
    },
    "prefix": "$",
-   "why": "$720. The loss is shares times price times the implied move: 200 times $40 times 9% is $720. That is the loss if the stock gaps down by the implied move. The implied move is no cap: the real gap can be bigger or smaller.",
+   "why": "$720. The implied move is the move options are pricing in, here 9% either way. Your position is 200 shares times $40, which is $8,000. A 9% drop on $8,000 is $720. The implied move is no cap: the real gap can be bigger or smaller.",
    "lesson_line": "Put the implied move in dollars on your position. Plan for that loss, and know it can be bigger.",
    "facts": [
     "f39",
@@ -1173,7 +1178,7 @@
      "fixed before (checker, 2026-11-09)"
     ]
    },
-   "batch": "rank",
+   "batch": "review3",
    "choices": [
     "$720",
     "$1,800",
@@ -1260,18 +1265,21 @@
    "format": "tf",
    "q": "A stock that beat estimates four quarters running is safe to hold into its next report.",
    "answer": "False",
-   "why": "False. A beat record is history, not a forecast. Beating is the norm: on FactSet's 5-year average, 78% of S&P 500 companies beat EPS estimates. A company can still beat and fall on a dour outlook. Holding shares into a report leaves you fully exposed to a move either way.",
+   "why": "False. A beat means results came in above the analysts' average estimate. A beat streak is only history, and beating is normal: on FactSet's 5-year average, 78% of S&P 500 companies beat EPS estimates. So four beats in a row tells you little. The stock can still fall if the outlook disappoints. It can also stall if it ran up into the report and has no new buyers left. The payoff is lopsided too: beaters gained 0.9% on average around the report, while misses lost 3.1%. Holding shares into a report leaves you fully exposed to a move either way.",
    "lesson_line": "A beat streak is a record, not a forecast. The report can still gap you either way.",
    "facts": [
     "f60",
+    "f62",
+    "f63",
+    "f9",
     "f13",
     "f14",
     "f45",
     "f57"
    ],
-   "simple": "False, because past beats do not predict the next report, and a beat can still drop on a weak outlook.",
+   "simple": "False, because beating is normal and the stock can still fall on a weak outlook, so past beats do not make it safe.",
    "deeper": {
-    "trap": "A beat streak feels like safety, but beating is the normal case: 78% of S&P 500 companies beat on FactSet's 5-year average. The price can still fall. FINRA notes a company may beat and give a dour outlook. A stock that ran up into its report may also lack new buyers to push it higher."
+    "trap": "A beat streak feels like safety, but beating is the normal case: 78% of S&P 500 companies beat on FactSet's 5-year average. What moves the price is the outlook and the run into the report. FINRA notes a company may beat and give a weak outlook. A stock that rallied into its report may lack new buyers. And the miss hurts more than the beat pays: on that same average, beaters gained 0.9% and misses lost 3.1%."
    },
    "tier": "extended",
    "risk": {
@@ -1281,7 +1289,7 @@
      "fixed before (checker, 2026-11-09)"
     ]
    },
-   "batch": "wave6"
+   "batch": "review3"
   },
   {
    "key": "q18",
@@ -1497,7 +1505,7 @@
    "house": true,
    "q": "Our earnings rule allows a new buy today in a stock that reports a week from now.",
    "answer": "True",
-   "why": "True. Our rule bars new buys only in the 3 days before an earnings report. A week away is outside that window. The report still lands soon after, so plan for it before you buy.",
+   "why": "True. Our rule bars new buys only in the 3 days before an earnings report. A week away is outside that window, so a new buy is allowed. The report still lands soon after, so plan for it before you buy. Our rule lets you hold through a report only when the trade is up 5R, five times what you risked. So a buy a week out must be up 5R by the report, or be sold before it.",
    "simple": "True, because our rule bars new buys only in the 3 days before a report, and a week is further out.",
    "lesson_line": "No new buys in the 3 days before a report. Look up the date before every buy.",
    "facts": [
@@ -1512,7 +1520,7 @@
      "days versus sessions is an open owner question elsewhere; a week out is clear under either reading"
     ]
    },
-   "batch": "wave6"
+   "batch": "review3"
   },
   {
    "key": "q25",
@@ -1581,14 +1589,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Decided cold: before the open or after the close (f7, FINRA, re-fetched on syndication.finra.org/node/846 2026-11-12, quote present word for word). Key matches. Choices 32-36 chars, key 34 and not the longest; only tell is that the key is the one two-part choice, which is the real answer shape. No second defensible answer: the bell, mid-day and final-hour choices are all inside regular hours. Why numbers 9:30/4:00 ET from f17; 'can still move sharply in extended hours' from f18. Wrong notes keep 'usually' (f7). Simple matches the why and does not overreach. Does not give away q07, q09 or q12 (",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Extended-hours definition rests on f17/f18 (SEC bulletin). Key unchanged and correct; the added action line (which side of the session) is the trader framing. Clean."
   },
   "q04": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "Retailer fiscal-quarter case is f5 verbatim in substance; ends on the action (look up each name). Answer False correct."
   },
   "q05": {
    "status": "cut",
@@ -1599,20 +1606,20 @@
   "q06": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key from f9/f10 (FINRA). Choices 32-37, key not longest. SEC-deadline wrong note no longer answers q25."
+   "fixed": true,
+   "notes": "Fix: 'whisper number above the consensus' overreached. FINRA (syndication.finra.org/node/846, re-fetched) says the whisper number 'differs from the consensus' (analysts may be too cautious or too optimistic) and 'can become the market expectation'. Reworded to 'differs'. Rest correct."
   },
   "q07": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "f17 + f28 + f31. 'next open' handles Fridays and holidays. 'close' is not a second answer: the next open comes first."
+   "notes": "cut in review3: see the resolver's notes"
   },
   "q08": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "f19 (SEC) says extended-hours prices may not reflect the next business day's open. False is right; why uses f19's own wording."
+   "notes": "False is right. Meta $249.90 after hours, down 22.6% (f67), and $237.76 close the next session (f64) are verbatim and the why claims only that the price kept moving, not that it opened there. SEC point is f19. Definition of after-hours is in the why."
   },
   "q09": {
    "status": "pass",
@@ -1625,7 +1632,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Answer and calc check out. Fix: the explanation did not show the intermediate step; added it."
+   "notes": "Math checked: 4.75+5.15-(210-209.58)=9.48; 9.48/209.58=4.5%. IBKR (interactivebrokers.com/campus/?p=53743, re-fetched) says 'weekly 210 strike calls and puts... midpoint minus any intrinsic value'; it does NOT say which of 4.75/5.15 is the call, so 'the $4.75 call and $5.15 put' was an unsupported assignment. Also the writer's 'less 210 minus 209.58' was confusing and 'once you multiply by 100' was clumsy. Rewritten with the source's own numbers only."
   },
   "q11": {
    "status": "cut",
@@ -1642,14 +1649,14 @@
   "q13": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Only facts changed (f34 added for the stop wrong note, which it supports). Key from f24/f70/f25. Choices 33-39, key not longest. Buying 8 days out is allowed by B22 (h01)."
+   "fixed": true,
+   "notes": "Answers the owner's 'company website' note; the sources s7 and s8 are the companies' own investor-relations sites (f25, f27) and Nasdaq's 'Time Not Supplied' label is f24. Key is the shortest choice by two characters (31 vs 33); within the validator's bar, left. Fix: the Meta sentence was broken English ('Meta posted its on Jan. 4') and JPMorgan 'posted its report' misdescribed a notice of the release time; both reworded."
   },
   "q14": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
+   "notes": "$8,000 position, 9% = $720 checked; every number is in the question or the choices. Teaches the steps and keeps 'no cap'."
   },
   "q15": {
    "status": "cut",
@@ -1666,9 +1673,9 @@
   },
   "q17": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Answer False kept; the owner's 'explain' note is met: defines a beat, shows the 78% base rate (f60), the 0.9% vs 3.1% payoff (f62, f63), the outlook and run-up causes (f13, f14) and the full exposure (f45). All numbers sit in cited quotes. Fix: one 23-word sentence split to stay under 22."
   },
   "q18": {
    "status": "cut",
@@ -1709,14 +1716,14 @@
   "q24": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "h01 is sizing_rule.md line 149 word for word (checked). A week out is outside 3 days under either days or sessions, so True. Scoped to 'our earnings rule', so other rules do not make it False. Note: no walkthrough step teaches B22 before this item; the reveal teaches it. Consider a w2 step later (walkthroughs out of this check's scope)."
+   "fixed": true,
+   "notes": "True is right under h01 (no new buys in the 3 days before; hold through only if up 5R). Fix: the added sentence ran 25 words, split; and made it teach the real consequence of buying a week out (up 5R by the report or out before it), which follows directly from h01."
   },
   "q25": {
-   "status": "pass",
+   "status": "cut",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key True is right (f6, FINRA, re-fetched: 'companies are free to announce their results before they officially file the required forms ... and most do so, resulting in earnings season commencing well before the deadline'). But the stem says 'the SEC's deadline for filing the quarterly report'. FINRA's same page says quarterly numbers go on Form 10-Q and end-of-year numbers on Form 10-K, and the question's own cited f23 says a 10-Q covers only the first three fiscal quarters. So for the January season there is no quarterly-report deadline, and a careful learner who read f23 can argue the stem i"
+   "fixed": false,
+   "notes": "Not touched by the upgrade, but rule 1 of REVIEW_LEARNINGS (cut trivia, pedantic true/false, regulatory minutiae): the SEC filing deadline changes nothing a trader does at the screen, and its lesson line ('don't wait for the filing') is not an action anyone takes. Coverage is safe: fund.season keeps many questions on dates, timing, beats and the implied move."
   }
  }
 }

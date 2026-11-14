@@ -3623,6 +3623,42 @@
     ]
    },
    "batch": "rulings"
+  },
+  {
+   "key": "q69",
+   "skill": "setup.launchpad",
+   "rung": 4,
+   "format": "scenario",
+   "criterion": "lp.launch_volume_2x",
+   "q": "Take it or pass?",
+   "story": "Every other launchpad test passes. The launch bar is up 3.4%, closes at 0.85 of its range above all four averages, and trades 1.4x the 50-day volume. The reading is Green.",
+   "choices": [
+    "Take it; volume only lifts the grade",
+    "Pass; a launch needs 2x volume to count",
+    "Pass; wait for a 2x day to follow",
+    "Take it; sell day one if volume fades"
+   ],
+   "answer": "Take it; volume only lifts the grade",
+   "why": "Take it. Volume of 2 times the 50-day average or more is the A+ version of the launch bar, not a rule. This bar has 1.4x, so it grades lower, not out. The push, the close and the four averages all pass. Heavy volume is no protection either: TEAM was up 4.1% on 2.13x volume and was stopped the next session.",
+   "lesson_line": "Volume lifts the grade. It is not a gate, and it is no protection.",
+   "simple": "Take it. Heavy volume lifts the grade, but lighter volume does not stop the launch from counting.",
+   "wrong": {
+    "Pass; a launch needs 2x volume to count": "2x volume is the A+ version of the launch bar, not a rule. This bar passes on its push, its close and the four averages.",
+    "Pass; wait for a 2x day to follow": "Waiting for volume is not a test. Volume grades the bar and does not gate it, and a 2x launch bar did not protect TEAM.",
+    "Take it; sell day one if volume fades": "He very rarely sells on day 1 of the buy; he usually waits until day 3 at the earliest. The stop is the exit, not a volume read."
+   },
+   "facts": [
+    "c11",
+    "c09",
+    "c10",
+    "c08",
+    "c56",
+    "r12",
+    "h02"
+   ],
+   "house": true,
+   "tier": "core",
+   "batch": "cover"
   }
  ],
  "conflicts": [
@@ -3680,10 +3716,10 @@
    "notes": "edit right: buy through trigger, stop under day low | mechanical: depends_on left empty, restored to the ruling id(s)"
   },
   "q04": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Pass. Right answer decided from the quotes first and matches the key; no second defensible answer, no tell found, numbers grounded."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q05": {
    "status": "pass",
@@ -3735,10 +3771,10 @@
    "notes": "Pass. Right answer decided from the quotes first and matches the key; no second defensible answer, no tell found, numbers grounded."
   },
   "q13": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Pass. Right answer decided from the quotes first and matches the key; no second defensible answer, no tell found, numbers grounded."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q14": {
    "status": "pass",
@@ -3869,10 +3905,10 @@
    "by": "checker"
   },
   "q35": {
-   "status": "pass",
-   "by": "checker",
-   "fixed": true,
-   "notes": "keep right: 2x is a grade cue not a rule | mechanical: depends_on left empty, restored to the ruling id(s)"
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q36": {
    "status": "cut",
@@ -4075,6 +4111,12 @@
    "by": "checker",
    "fixed": true,
    "notes": "edit right: 1-3% preferred, up to 5% accepted | mechanical: depends_on left empty, restored to the ruling id(s)"
+  },
+  "q69": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Core is right: lp.launch_volume_2x is a grade cue, not a gate (c11, D-006), and 1.4x with every other test passing is a take. Fixed distractor 4: 'Take it if the stop is under the bundle' was a second 'take' that D-008 could make arguable (pattern-low stops are acceptable alternatives), so it could read as also right. Replaced with a clearly wrong 'sell day one if volume fades' (contradicts r12 day-1 sell ruling and h02, the stop is the exit). Not a duplicate of q44 (A+ ranking) or q63 (fails on 2% push)."
   }
  }
 }

@@ -3690,10 +3690,10 @@
    "notes": "E52 (h21) says 10-day fast, 21-day steady, sell on a close. Distractors are clearly wrong by the rules; BIDU example matches d04/d06."
   },
   "q22": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "edit: was 'a third at 3R'; now day 3 at the earliest for a first sell (D-013)"
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q23": {
    "status": "pass",

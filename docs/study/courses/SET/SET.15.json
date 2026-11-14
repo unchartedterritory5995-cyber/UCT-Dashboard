@@ -4023,6 +4023,42 @@
     ]
    },
    "batch": "polish"
+  },
+  {
+   "key": "q85",
+   "skill": "setup.ema_crossback",
+   "rung": 1,
+   "format": "mcq",
+   "criterion": "xbk.stop_broker",
+   "q": "You buy a crossback. Where does your stop live?",
+   "choices": [
+    "A real stop order with your broker",
+    "In your head, with the screen watched",
+    "As a phone alert at the hold day's low",
+    "In your journal as a planned exit"
+   ],
+   "answer": "A real stop order with your broker",
+   "why": "A real stop order with your broker. Only an order placed with the broker is a real stop. A stop kept in your head or an alert only works if you are watching and act at once. Place the real stop right after the buy.",
+   "lesson_line": "A stop in your head is not a stop. Place a real one with the broker.",
+   "facts": [
+    "h18"
+   ],
+   "wrong": {
+    "In your head, with the screen watched": "A stop kept in your head is not a stop. It only works if you are watching and act.",
+    "As a phone alert at the hold day's low": "An alert only tells you the price traded there. It does not sell. Only a stop order with the broker is a real stop.",
+    "In your journal as a planned exit": "A journal note is a plan, not an order. Nothing sells until an order sits with the broker."
+   },
+   "house": true,
+   "simple": "A stop must be a real order with your broker. A stop in your head, an alert or a note does not sell anything.",
+   "tier": "core",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "one cited fact only (h18)",
+     "rests on the owner's rulebook (D41)"
+    ]
+   },
+   "batch": "fills"
   }
  ],
  "conflicts": [
@@ -4071,10 +4107,10 @@
    "by": "checker"
   },
   "q03": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Cold check: answer decided from the cited quotes first, matched the key; no second defensible answer, tell, ungrounded number or rulebook conflict found."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q04": {
    "status": "pass",
@@ -4511,10 +4547,10 @@
    "notes": "Duplicate of q73 (same fact h19, one cited fact), and the 'does not lift our limit' form is always True, a tell."
   },
   "q75": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Cold check: answer decided from the cited quotes first, matched the key; no second defensible answer, tell, ungrounded number or rulebook conflict found."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q76": {
    "status": "pass",
@@ -4547,10 +4583,10 @@
    "notes": "Calc 40 ok. The 60-shares note was wrong: two halves would leave 30; 60 is one half sold."
   },
   "q81": {
-   "status": "pass",
-   "by": "checker",
-   "fixed": true,
-   "notes": "upgrade key 10R had wrong choice 8R that is inside the 5-10R range (not clearly wrong); re-keyed to day 3 at the earliest, a clean quote"
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q82": {
    "status": "pass",
@@ -4559,10 +4595,10 @@
    "notes": "Key re-derived from the cited quotes before reading it; matches. No second defensible answer, no lone tell found, numbers grounded, wrong notes supported."
   },
   "q83": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Cold check: answer decided from the cited quotes first, matched the key; no second defensible answer, tell, ungrounded number or rulebook conflict found. Had no verify entry; checked here."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q84": {
    "status": "pass",
@@ -4570,6 +4606,12 @@
    "fixed": true,
    "notes": "Before looking at the key I got the same answer: x19 (card) says the index is 'a cue, not a gate', and x43 / grading.b_minus lists 'the market under its 20-day EMA' as a lower-grade cue. The story meets neither half of the cue, so the grade drops and nothing blocks. The key is right, there is no second defensible answer on the card's wording, the choices are 38-39 chars with no length or Yes/No tell, and the answer does not reuse the story's words. It conflicts with nothing in sizing_rule.md: B18/F65's market filter is the app's reading, a separate question (q35, q58). It answers no other live",
    "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+  },
+  "q85": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Pass: the real-stop-with-the-broker rule (h18) is not tested by a choice question in this lesson (q76 only covers moving the stop). Answer supported, four plausible places for a stop, wrong notes true, rung 1 and skill match q75."
   }
  }
 }

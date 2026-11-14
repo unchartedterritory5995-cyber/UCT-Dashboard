@@ -1761,6 +1761,41 @@
     ]
    },
    "batch": "wave6"
+  },
+  {
+   "key": "q97",
+   "skill": "fund.post_earnings",
+   "rung": 2,
+   "format": "mcq",
+   "q": "A stock closes at $50.00, then gaps up to open at $56.00. At what price is that gap filled?",
+   "choices": [
+    "$50.00, the old close",
+    "$53.00, halfway back",
+    "$56.00, the open",
+    "$59.00, further up"
+   ],
+   "answer": "$50.00, the old close",
+   "why": "Filled. A gap is filled when price returns to where it was before the gap. This stock closed at $50.00 before it jumped to $56.00. Back at $53.00 leaves part of the jump open.",
+   "lesson_line": "A gap is filled only when price comes all the way back to where it was before the jump.",
+   "facts": [
+    "f53",
+    "f14",
+    "f24"
+   ],
+   "wrong": {
+    "$53.00, halfway back": "Halfway back still leaves part of the jump open. The gap is filled only when price is back at $50.00.",
+    "$56.00, the open": "That is where the stock opened. The gap is still wide open there.",
+    "$59.00, further up": "A price above the open moves away from $50.00. That widens the gap."
+   },
+   "simple": "$50.00, because a gap is filled when price comes all the way back to where it was before the gap.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "stable definition: Investopedia, StockCharts and ChartSchool agree"
+    ]
+   },
+   "batch": "fills"
   }
  ],
  "conflicts": [
@@ -1807,10 +1842,10 @@
    "notes": "Own answer: buy orders pile up overnight (f10). Key matches. f4 now backs the thin-trading note (wider spreads). Choices 28-32 chars, key shortest, no tell. Simple is 22 words."
   },
   "q03": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Filled is the only bank word that fits. f53, f14, f24 support the three wordings; all three are pre-gap levels. Sentences within 22 words."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q04": {
    "status": "pass",
@@ -1906,10 +1941,10 @@
    "by": "track auditor"
   },
   "q19": {
-   "status": "pass",
+   "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q20": {
    "status": "pass",
@@ -1959,6 +1994,12 @@
    "by": "checker",
    "fixed": false,
    "notes": "Own answer: skip (C29; h5 matches sizing_rule.md section 9 C29 word for word). 14% comes from the story, 10% from h5. No section 9 exception for earnings gaps; B22 (3 days before a report) does not apply after the report. Distractors are real temptations each refuted by a rule: A5/h4 no adding, A3/h2 and section 2.4 never tighten the stop. Key not the longest (34 vs 39). Its stop wrong-note appears only after answering and q16 sits on a lower rung, so it gives nothing away."
+  },
+  "q97": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Replacement agreed (q12 only uses 'filled' as a wrong choice; nothing tests what fills a gap). Fix: the stem walked through the price path in words the right choice echoed ('back down to $50.00' and 'back at the old level'), a giveaway. Rewritten to ask at what price the gap fills, with four prices."
   }
  }
 }

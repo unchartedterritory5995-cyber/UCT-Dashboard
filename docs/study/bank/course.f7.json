@@ -144,70 +144,6 @@
  },
  {
   "answer_json": {
-   "answer": "bull"
-  },
-  "difficulty": 1,
-  "id": "si_dd75b5d6178b",
-  "lesson_origin": "session",
-  "lesson_text": "Bull. The SEC's investor site generally calls a rise of 20% or more in a broad market index a bull market. Bulkowski measures it from the low to the high, the mirror of a bear market's 20% drop from the high. The SEC adds that the rise generally runs over at least two months. 20% up off the low is a bull. 20% down off the high is a bear.",
-  "module": "F7",
-  "prompt_json": {
-   "bank": [
-    "bull",
-    "bear",
-    "sideways",
-    "recovery"
-   ],
-   "kind": "fill",
-   "q": "Tap the word that fits the blank.",
-   "sentence": "A rise of 20% or more in a broad index, measured from a low, is generally called a ___ market.",
-   "subject": "bull"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC, Investor.gov: Glossary: Bull Market",
-      "quote": "A time when stock prices are rising and market sentiment is optimistic. Generally, a bull market occurs when there is a rise of 20% or more in a broad market index over at least a two-month period.",
-      "tier": 1,
-      "url": "https://www.investor.gov/introduction-investing/investing-basics/glossary/bull-market"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Thomas N. Bulkowski, thepatternsite.com: Bear Markets",
-      "quote": "A bear market is a swing from high to low of at least 20%, and a bull market is a swing from low to high of at least 20%. That's the most common definition and it applies to market indices",
-      "tier": 2,
-      "url": "https://www.thepatternsite.com/BearMarkets.html"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Thomas N. Bulkowski, thepatternsite.com: Bulkowski on How Long Bull Markets Last (last updated 2015-03-13)",
-      "quote": "I define a bull market as one in which price rises at least 20% as measured from low to high. A bear market is a drop of at least 20% from high to low.",
-      "tier": 2,
-      "url": "https://www.thepatternsite.com/MarketLongevity.html"
-     }
-    ],
-    "summary": "The SEC's investor site: a bull market is a time of rising prices and optimism, generally a rise of 20% or more in a broad market index over at least two months. The most common definition: a bear market is a 20% swing from high to low, a bull market a 20% swing from low to high, applied to market indexes. Bulkowski measures a bull market from the low (a 20% rise) and a bear market from the high (a 20% drop)."
-   },
-   "facts": {
-    "given": "Tap the word that fits the blank. A rise of 20% or more in a broad index, measured from a low, is generally called a ___ market."
-   },
-   "lesson_line": "20% up off the low is a bull. 20% down off the high is a bear.",
-   "simple": "Bull, because a rise of 20% or more off a low is the usual line for a bull market.",
-   "tier": "core",
-   "unit": "F7.01",
-   "why": "Bull. The SEC's investor site generally calls a rise of 20% or more in a broad market index a bull market. Bulkowski measures it from the low to the high, the mirror of a bear market's 20% drop from the high. The SEC adds that the rise generally runs over at least two months."
-  },
-  "review_status": "draft",
-  "skill_id": "history.how_markets_move",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F7/F7.01.json#q03",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
    "answer": "Daily closing prices"
   },
   "difficulty": 1,
@@ -545,70 +481,6 @@
   "skill_id": "history.how_markets_move",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F7/F7.01.json#q07",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
-   "answer": "lows"
-  },
-  "difficulty": 1,
-  "id": "si_60c5adea00c5",
-  "lesson_origin": "session",
-  "lesson_text": "Lows. ChartSchool describes an uptrend as a series of higher highs and higher lows. Bulkowski's account of Weinstein says the same of Stage 2: if you don't see higher lows, it isn't Stage 2. Higher highs and higher lows. When the lows stop rising, the uptrend is in doubt.",
-  "module": "F7",
-  "prompt_json": {
-   "bank": [
-    "lows",
-    "volume",
-    "gaps",
-    "ranges"
-   ],
-   "kind": "fill",
-   "q": "Fill the blank.",
-   "sentence": "In an uptrend, price makes higher highs and higher ___.",
-   "subject": "F7.01#q08"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-09",
-      "name": "StockCharts.com: ChartSchool: Dow Theory",
-      "quote": "An uptrend began with the Oct-98 lows and the DJIA formed a series of higher highs and higher lows over the next 11 months.",
-      "tier": 2,
-      "url": "https://chartschool.stockcharts.com/table-of-contents/market-analysis/dow-theory"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Thomas N. Bulkowski, thepatternsite.com: Bulkowski's on Four Stages of Price Movement (Stan Weinstein's method)",
-      "quote": "The moving average turns up. Price makes higher highs and higher lows",
-      "tier": 2,
-      "url": "https://www.thepatternsite.com/Stages.html"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Thomas N. Bulkowski, thepatternsite.com: Bulkowski's on Four Stages of Price Movement (Stan Weinstein's method)",
-      "quote": "If you don't see higher lows, then it's not stage 2. Price will remain above the moving average. If it does not, then consider taking profits. Weinstein says that stage 2 is the ideal time to buy.",
-      "tier": 2,
-      "url": "https://www.thepatternsite.com/Stages.html"
-     }
-    ],
-    "summary": "An uptrend is a series of higher highs and higher lows. In Stage 2 the average turns up and price makes higher highs and higher lows. Stage 2 needs higher lows and price holding above the average; Weinstein calls Stage 2 the ideal time to buy."
-   },
-   "facts": {
-    "given": "Fill the blank. In an uptrend, price makes higher highs and higher ___."
-   },
-   "lesson_line": "Higher highs and higher lows. When the lows stop rising, the uptrend is in doubt.",
-   "simple": "Lows, because an uptrend is a series of higher highs and higher lows.",
-   "tier": "core",
-   "unit": "F7.01",
-   "why": "Lows. ChartSchool describes an uptrend as a series of higher highs and higher lows. Bulkowski's account of Weinstein says the same of Stage 2: if you don't see higher lows, it isn't Stage 2."
-  },
-  "review_status": "draft",
-  "skill_id": "history.how_markets_move",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F7/F7.01.json#q08",
   "type": "recall",
   "version": 1
  },
@@ -2312,6 +2184,74 @@
  },
  {
   "answer_json": {
+   "answer": "Higher lows stopped, so it's in doubt"
+  },
+  "difficulty": 1,
+  "id": "si_87929c255969",
+  "lesson_origin": "session",
+  "lesson_text": "Higher lows stopped, so it's in doubt. ChartSchool describes an uptrend as a series of higher highs and higher lows. Bulkowski's account of Weinstein says that if you don't see higher lows, it isn't Stage 2. A pullback under the last low breaks that pattern. That is a warning, not proof the trend is over. Higher highs and higher lows. When the lows stop rising, the uptrend is in doubt.",
+  "module": "F7",
+  "prompt_json": {
+   "choices": [
+    "The uptrend got stronger",
+    "Nothing, only the highs matter",
+    "Higher lows stopped, so it's in doubt",
+    "It just made a new higher high"
+   ],
+   "kind": "mcq",
+   "q": "A stock in an uptrend pulls back and undercuts its last pullback low. What does that tell you?",
+   "subject": "F7.01#q97"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-09",
+      "name": "StockCharts.com: ChartSchool: Dow Theory",
+      "quote": "An uptrend began with the Oct-98 lows and the DJIA formed a series of higher highs and higher lows over the next 11 months.",
+      "tier": 2,
+      "url": "https://chartschool.stockcharts.com/table-of-contents/market-analysis/dow-theory"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "Thomas N. Bulkowski, thepatternsite.com: Bulkowski's on Four Stages of Price Movement (Stan Weinstein's method)",
+      "quote": "The moving average turns up. Price makes higher highs and higher lows",
+      "tier": 2,
+      "url": "https://www.thepatternsite.com/Stages.html"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "Thomas N. Bulkowski, thepatternsite.com: Bulkowski's on Four Stages of Price Movement (Stan Weinstein's method)",
+      "quote": "If you don't see higher lows, then it's not stage 2. Price will remain above the moving average. If it does not, then consider taking profits. Weinstein says that stage 2 is the ideal time to buy.",
+      "tier": 2,
+      "url": "https://www.thepatternsite.com/Stages.html"
+     }
+    ],
+    "summary": "An uptrend is a series of higher highs and higher lows. In Stage 2 the average turns up and price makes higher highs and higher lows. Stage 2 needs higher lows and price holding above the average; Weinstein calls Stage 2 the ideal time to buy."
+   },
+   "facts": {
+    "given": "A stock in an uptrend pulls back and undercuts its last pullback low. What does that tell you? Higher lows stopped, so it's in doubt It just made a new higher high The uptrend got stronger Nothing, only the highs matter"
+   },
+   "lesson_line": "Higher highs and higher lows. When the lows stop rising, the uptrend is in doubt.",
+   "simple": "An uptrend needs higher highs and higher lows, so a pullback under the last low puts the trend in doubt.",
+   "tier": "core",
+   "unit": "F7.01",
+   "why": "Higher lows stopped, so it's in doubt. ChartSchool describes an uptrend as a series of higher highs and higher lows. Bulkowski's account of Weinstein says that if you don't see higher lows, it isn't Stage 2. A pullback under the last low breaks that pattern. That is a warning, not proof the trend is over.",
+   "wrong": {
+    "It just made a new higher high": "A higher high is a new peak above the last peak. A pullback that undercuts the last low is the opposite signal.",
+    "Nothing, only the highs matter": "An uptrend needs both higher highs and higher lows. When the lows stop rising, the trend is in doubt.",
+    "The uptrend got stronger": "A stronger uptrend keeps making higher lows. Undercutting the last low is a sign of weakness."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "history.how_markets_move",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F7/F7.01.json#q97",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
    "unscored": true
   },
   "difficulty": 1,
@@ -2921,63 +2861,6 @@
  },
  {
   "answer_json": {
-   "answer": "liquidity"
-  },
-  "difficulty": 1,
-  "id": "si_a8caa71c3c72",
-  "lesson_origin": "session",
-  "lesson_text": "Liquidity. On October 20, 1987, the day after Black Monday, the Fed affirmed its readiness to serve as a source of liquidity. Behind the scenes, it encouraged banks to keep lending on their usual terms. In 1987 the Fed's answer was liquidity: keep cash and credit flowing.",
-  "module": "F7",
-  "prompt_json": {
-   "bank": [
-    "liquidity",
-    "stocks",
-    "gold",
-    "bailouts"
-   ],
-   "kind": "fill",
-   "q": "Fill in the blank.",
-   "sentence": "The day after Black Monday, the Fed said it stood ready to serve as a source of ___.",
-   "subject": "F7.02#q05"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-09",
-      "name": "Federal Reserve History (Federal Reserve System): Stock Market Crash of 1987 (Donald Bernhardt and Marshall Eckblad, written as of November 22, 2013)",
-      "quote": "In a statement on October 20, 1987, Fed Chairman Alan Greenspan said, \"The Federal Reserve, consistent with its responsibilities as the Nation's central bank, affirmed today its readiness to serve as a source of liquidity",
-      "tier": 1,
-      "url": "https://www.federalreservehistory.org/essays/stock-market-crash-of-1987"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Federal Reserve History (Federal Reserve System): Stock Market Crash of 1987 (Donald Bernhardt and Marshall Eckblad, written as of November 22, 2013)",
-      "quote": "Behind the scenes, the Fed encouraged banks to continue to lend on their usual terms.",
-      "tier": 1,
-      "url": "https://www.federalreservehistory.org/essays/stock-market-crash-of-1987"
-     }
-    ],
-    "summary": "The day after Black Monday, the Fed said it stood ready to serve as a source of liquidity. In 1987 the Fed also encouraged banks to keep lending on their usual terms."
-   },
-   "facts": {
-    "given": "Fill in the blank. The day after Black Monday, the Fed said it stood ready to serve as a source of ___."
-   },
-   "lesson_line": "In 1987 the Fed's answer was liquidity: keep cash and credit flowing.",
-   "simple": "Liquidity, because the Fed said it stood ready to supply it, and it urged banks to keep lending.",
-   "tier": "core",
-   "unit": "F7.02",
-   "why": "Liquidity. On October 20, 1987, the day after Black Monday, the Fed affirmed its readiness to serve as a source of liquidity. Behind the scenes, it encouraged banks to keep lending on their usual terms."
-  },
-  "review_status": "draft",
-  "skill_id": "history.fast_crash",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F7/F7.02.json#q05",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
    "answer": "A halt in trading across all stocks"
   },
   "difficulty": 1,
@@ -3123,63 +3006,6 @@
   "skill_id": "history.fast_crash",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F7/F7.02.json#q07",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
-   "answer": "two"
-  },
-  "difficulty": 1,
-  "id": "si_ab1bdf1a89dd",
-  "lesson_origin": "session",
-  "lesson_text": "Two. The Fed says that less than two years after the 1987 crash, US stocks surpassed their pre-crash highs. Most of the Black Monday loss came back quickly. 1987 hurt fast and healed in under two years.",
-  "module": "F7",
-  "prompt_json": {
-   "bank": [
-    "two",
-    "five",
-    "ten",
-    "twenty"
-   ],
-   "kind": "fill",
-   "q": "Fill in the blank.",
-   "sentence": "Less than ___ years after the 1987 crash, US stocks passed their pre-crash highs.",
-   "subject": "F7.02#q08"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-09",
-      "name": "Federal Reserve History (Federal Reserve System): Stock Market Crash of 1987 (Donald Bernhardt and Marshall Eckblad, written as of November 22, 2013)",
-      "quote": "Less than two years later, US stock markets surpassed their pre-crash highs.",
-      "tier": 1,
-      "url": "https://www.federalreservehistory.org/essays/stock-market-crash-of-1987"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Federal Reserve History (Federal Reserve System): Stock Market Crash of 1987 (Donald Bernhardt and Marshall Eckblad, written as of November 22, 2013)",
-      "quote": "Stock markets quickly recovered a majority of their Black Monday losses.",
-      "tier": 1,
-      "url": "https://www.federalreservehistory.org/essays/stock-market-crash-of-1987"
-     }
-    ],
-    "summary": "After 1987, US stocks passed their pre-crash highs in less than two years. Stocks won back most of the Black Monday loss quickly."
-   },
-   "facts": {
-    "given": "Fill in the blank. Less than ___ years after the 1987 crash, US stocks passed their pre-crash highs."
-   },
-   "lesson_line": "1987 hurt fast and healed in under two years.",
-   "simple": "Two, because US stocks passed their old highs less than two years after the 1987 crash.",
-   "tier": "core",
-   "unit": "F7.02",
-   "why": "Two. The Fed says that less than two years after the 1987 crash, US stocks surpassed their pre-crash highs. Most of the Black Monday loss came back quickly."
-  },
-  "review_status": "draft",
-  "skill_id": "history.fast_crash",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F7/F7.02.json#q08",
   "type": "recall",
   "version": 1
  },
@@ -5023,71 +4849,6 @@
   "skill_id": "history.long_bear",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F7/F7.03.json#q04",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
-   "answer": "low"
-  },
-  "difficulty": 1,
-  "id": "si_8bcf377ebe28",
-  "lesson_origin": "session",
-  "lesson_text": "Low. A downtrend stays in force until price makes a higher low, then rallies above the last rally high. Both steps count, in that order. A higher low alone is still too early to call a change of trend. Even with both steps, it points to a possible turn, not a sure one. Higher low first, then a break above the last rally high. Until then, the downtrend stands.",
-  "module": "F7",
-  "prompt_json": {
-   "bank": [
-    "low",
-    "high",
-    "volume",
-    "gap",
-    "close"
-   ],
-   "kind": "fill",
-   "q": "Finish the rule for when a downtrend ends.",
-   "sentence": "A downtrend holds until price makes a higher ___, then rises above the last rally high.",
-   "subject": "F7.03#q05"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-09",
-      "name": "StockCharts.com (ChartSchool): Dow Theory",
-      "quote": "A downtrend is considered valid until a higher low forms and the ensuing advance off of the higher low surpasses the previous reaction high.",
-      "tier": 2,
-      "url": "https://chartschool.stockcharts.com/table-of-contents/market-analysis/dow-theory"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "StockCharts.com (ChartSchool): Dow Theory",
-      "quote": "Even after the higher low is in place, it is still too early to call for a change in trend. The change of trend is not confirmed until the previous reaction high is surpassed",
-      "tier": 2,
-      "url": "https://chartschool.stockcharts.com/table-of-contents/market-analysis/dow-theory"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Investopedia: Understanding Dow Theory: Definition and Application in Market Trends",
-      "quote": "Consecutive higher highs and higher lows in a downward-trending market demonstrate a possible reversal to an upward trend.",
-      "tier": 2,
-      "url": "https://www.investopedia.com/terms/d/dowtheory.asp"
-     }
-    ],
-    "summary": "A downtrend holds until price makes a higher low and then rises above the last rally high. A higher low alone is not enough; the turn is confirmed only when the last rally high is cleared. Higher highs and higher lows after a downtrend point to a possible turn up."
-   },
-   "facts": {
-    "given": "Finish the rule for when a downtrend ends. A downtrend holds until price makes a higher ___, then rises above the last rally high."
-   },
-   "lesson_line": "Higher low first, then a break above the last rally high. Until then, the downtrend stands.",
-   "simple": "The word is low: a downtrend ends only after a higher low, then a rise above the last rally high.",
-   "tier": "core",
-   "unit": "F7.03",
-   "why": "Low. A downtrend stays in force until price makes a higher low, then rallies above the last rally high. Both steps count, in that order. A higher low alone is still too early to call a change of trend. Even with both steps, it points to a possible turn, not a sure one."
-  },
-  "review_status": "draft",
-  "skill_id": "history.long_bear",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F7/F7.03.json#q05",
   "type": "recall",
   "version": 1
  },
@@ -7454,71 +7215,6 @@
  },
  {
   "answer_json": {
-   "answer": "volume"
-  },
-  "difficulty": 1,
-  "id": "si_a778bea2f188",
-  "lesson_origin": "session",
-  "lesson_text": "Volume. Investopedia says traders look for unusually high trading volume with sharp price drops to signal capitulation. ChartSchool's Wyckoff tutorial shows the selling climax the same way: wide price ranges and heavy volume. On that day price often closes well off the low, as large buyers absorb the selling. Big drop, huge volume, a close well off the low. That's the look of a washout.",
-  "module": "F7",
-  "prompt_json": {
-   "bank": [
-    "volume",
-    "earnings",
-    "dividends",
-    "buybacks",
-    "debt"
-   ],
-   "kind": "fill",
-   "q": "Tap the word that fits the blank.",
-   "sentence": "Capitulation shows up as a sharp drop on unusually heavy ___.",
-   "subject": "F7.04#q05"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-09",
-      "name": "Investopedia: Capitulation Explained (James Chen, CMT)",
-      "quote": "Traders look for unusually high trading volume accompanying sharp price declines to signal capitulation.",
-      "tier": 2,
-      "url": "https://www.investopedia.com/terms/c/capitulation.asp"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "StockCharts.com: ChartSchool: The Wyckoff Method, a tutorial",
-      "quote": "These events are often very obvious on bar charts, where widening spread and heavy volume depict the transfer of huge numbers of shares from the public to large professional interests.",
-      "tier": 2,
-      "url": "https://chartschool.stockcharts.com/table-of-contents/market-analysis/wyckoff-analysis-articles/the-wyckoff-method-a-tutorial"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "StockCharts.com: ChartSchool: The Wyckoff Method, a tutorial",
-      "quote": "Often price will close well off the low in a SC, reflecting the buying by these large interests.",
-      "tier": 2,
-      "url": "https://chartschool.stockcharts.com/table-of-contents/market-analysis/wyckoff-analysis-articles/the-wyckoff-method-a-tutorial"
-     }
-    ],
-    "summary": "Capitulation shows up as sharp drops on unusually high volume. A selling climax shows wide price ranges and heavy volume on the chart. On a selling climax day, price often closes well off the low."
-   },
-   "facts": {
-    "given": "Tap the word that fits the blank. Capitulation shows up as a sharp drop on unusually heavy ___."
-   },
-   "lesson_line": "Big drop, huge volume, a close well off the low. That's the look of a washout.",
-   "simple": "Volume, because panic selling shows up as a huge number of shares traded on a sharp drop.",
-   "tier": "core",
-   "unit": "F7.04",
-   "why": "Volume. Investopedia says traders look for unusually high trading volume with sharp price drops to signal capitulation. ChartSchool's Wyckoff tutorial shows the selling climax the same way: wide price ranges and heavy volume. On that day price often closes well off the low, as large buyers absorb the selling."
-  },
-  "review_status": "draft",
-  "skill_id": "history.bottoms",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F7/F7.04.json#q05",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
    "answer": "Confirming a new uptrend began"
   },
   "difficulty": 1,
@@ -9331,6 +9027,74 @@
  },
  {
   "answer_json": {
+   "answer": "A sharp drop on unusually heavy volume"
+  },
+  "difficulty": 1,
+  "id": "si_6b7d7197bd0b",
+  "lesson_origin": "session",
+  "lesson_text": "A sharp drop on unusually heavy volume. Investopedia says traders look for unusually high trading volume with sharp price drops to signal capitulation. ChartSchool's Wyckoff tutorial shows the selling climax with wide price ranges and heavy volume, and price often closes well off the low. It is a clue to watch for, not proof. Big drop, huge volume, a close well off the low. That's the look of a washout.",
+  "module": "F7",
+  "prompt_json": {
+   "choices": [
+    "A sharp rally on light volume",
+    "A tight range on unusually heavy volume",
+    "A sharp drop on unusually heavy volume",
+    "A slow drift down on light volume"
+   ],
+   "kind": "mcq",
+   "q": "You're watching a sell-off for signs of capitulation. Which day looks like it?",
+   "subject": "F7.04#q97"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-09",
+      "name": "Investopedia: Capitulation Explained (James Chen, CMT)",
+      "quote": "Traders look for unusually high trading volume accompanying sharp price declines to signal capitulation.",
+      "tier": 2,
+      "url": "https://www.investopedia.com/terms/c/capitulation.asp"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "StockCharts.com: ChartSchool: The Wyckoff Method, a tutorial",
+      "quote": "These events are often very obvious on bar charts, where widening spread and heavy volume depict the transfer of huge numbers of shares from the public to large professional interests.",
+      "tier": 2,
+      "url": "https://chartschool.stockcharts.com/table-of-contents/market-analysis/wyckoff-analysis-articles/the-wyckoff-method-a-tutorial"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "StockCharts.com: ChartSchool: The Wyckoff Method, a tutorial",
+      "quote": "Often price will close well off the low in a SC, reflecting the buying by these large interests.",
+      "tier": 2,
+      "url": "https://chartschool.stockcharts.com/table-of-contents/market-analysis/wyckoff-analysis-articles/the-wyckoff-method-a-tutorial"
+     }
+    ],
+    "summary": "Capitulation shows up as sharp drops on unusually high volume. A selling climax shows wide price ranges and heavy volume on the chart. On a selling climax day, price often closes well off the low."
+   },
+   "facts": {
+    "given": "You're watching a sell-off for signs of capitulation. Which day looks like it? A sharp drop on unusually heavy volume A slow drift down on light volume A tight range on unusually heavy volume A sharp rally on light volume"
+   },
+   "lesson_line": "Big drop, huge volume, a close well off the low. That's the look of a washout.",
+   "simple": "Capitulation looks like panic: a sharp drop on unusually heavy volume, often closing well off the low.",
+   "tier": "core",
+   "unit": "F7.04",
+   "why": "A sharp drop on unusually heavy volume. Investopedia says traders look for unusually high trading volume with sharp price drops to signal capitulation. ChartSchool's Wyckoff tutorial shows the selling climax with wide price ranges and heavy volume, and price often closes well off the low. It is a clue to watch for, not proof.",
+   "wrong": {
+    "A sharp rally on light volume": "A rally is the opposite move. Capitulation is a sharp drop.",
+    "A slow drift down on light volume": "A quiet slide is not panic selling. Capitulation shows heavy volume.",
+    "A tight range on unusually heavy volume": "A selling climax shows wide price ranges. A tight range means little selling pressure."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "history.bottoms",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F7/F7.04.json#q97",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
    "unscored": true
   },
   "difficulty": 1,
@@ -9967,78 +9731,6 @@
   "skill_id": "history.breadth",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F7/F7.05.json#q04",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
-   "answer": "52"
-  },
-  "difficulty": 1,
-  "id": "si_f612378f48ec",
-  "lesson_origin": "session",
-  "lesson_text": "52. The standard count uses 52-week highs and lows. A new high is a stock at its highest price of the past 52 weeks. A new low is at its lowest. Net new highs are new highs minus new lows. Positive favors the bulls, and negative favors the bears. The classic new highs and new lows count is built on 52-week highs and lows.",
-  "module": "F7",
-  "prompt_json": {
-   "bank": [
-    "52",
-    "4",
-    "13",
-    "26",
-    "200"
-   ],
-   "kind": "fill",
-   "q": "Tap the number that fits the blank.",
-   "sentence": "The standard net new highs count subtracts stocks at new ___-week lows from those at new highs.",
-   "subject": "F7.05#q05"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-09",
-      "name": "StockCharts.com: ChartSchool: Net New 52-Week Highs",
-      "quote": "Net New 52-Week Highs is a simple breadth indicator found by subtracting new lows from new highs.",
-      "tier": 2,
-      "url": "https://chartschool.stockcharts.com/table-of-contents/market-indicators/net-new-52-week-highs"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "StockCharts.com: ChartSchool: Net New 52-Week Highs",
-      "quote": "“New lows” is the number of stocks recording new 52-week lows. “New highs” is the number of stocks making new 52-week highs.",
-      "tier": 2,
-      "url": "https://chartschool.stockcharts.com/table-of-contents/market-indicators/net-new-52-week-highs"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Investopedia: High-Low Index Overview: Trends and Trading Signals (James Chen, CMT; updated February 18, 2026)",
-      "quote": "A high-low index above 50 means more stocks are reaching 52-week highs than reaching 52 lows. Conversely, a reading below 50 shows that more stocks are making 52-week lows compared to stocks making 52-week highs.",
-      "tier": 2,
-      "url": "https://www.investopedia.com/terms/h/high-low-index.asp"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "StockCharts.com: ChartSchool: Net New 52-Week Highs",
-      "quote": "There are more new highs when the indicator is positive, which favors the bulls. There are more new lows when the indicator is negative, which favors the bears.",
-      "tier": 2,
-      "url": "https://chartschool.stockcharts.com/table-of-contents/market-indicators/net-new-52-week-highs"
-     }
-    ],
-    "summary": "Net new highs are new highs minus new lows. New highs and new lows count stocks at 52-week highs and 52-week lows. Above 50, more stocks are at 52-week highs than lows; below 50, more are at lows. More new highs than lows favors the bulls; more new lows favors the bears."
-   },
-   "facts": {
-    "given": "Tap the number that fits the blank. The standard net new highs count subtracts stocks at new ___-week lows from those at new highs."
-   },
-   "lesson_line": "The classic new highs and new lows count is built on 52-week highs and lows.",
-   "simple": "52, because new highs and new lows are stocks at their highest or lowest price of the past 52 weeks.",
-   "tier": "core",
-   "unit": "F7.05",
-   "why": "52. The standard count uses 52-week highs and lows. A new high is a stock at its highest price of the past 52 weeks. A new low is at its lowest. Net new highs are new highs minus new lows. Positive favors the bulls, and negative favors the bears."
-  },
-  "review_status": "draft",
-  "skill_id": "history.breadth",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F7/F7.05.json#q05",
   "type": "recall",
   "version": 1
  },
@@ -12465,77 +12157,6 @@
  },
  {
   "answer_json": {
-   "answer": "prices"
-  },
-  "difficulty": 1,
-  "id": "si_61c6601dc1f4",
-  "lesson_origin": "session",
-  "lesson_text": "Prices. The Federal Reserve Act lists maximum employment, stable prices and moderate long-term interest rates. Even so, the mandate is commonly known as the dual mandate. Stable prices means low, steady inflation, not steady stock prices. Jobs and prices. When inflation runs hot, the Fed leans on rates.",
-  "module": "F7",
-  "prompt_json": {
-   "bank": [
-    "prices",
-    "stock prices",
-    "wages",
-    "markets"
-   ],
-   "kind": "fill",
-   "q": "Fill in the blank.",
-   "sentence": "The Fed's dual mandate is maximum employment and stable ___.",
-   "subject": "F7.06#q03"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-09",
-      "name": "Federal Reserve Board: Monetary Policy: What Are Its Goals? How Does It Work?",
-      "quote": "so as to promote effectively the goals of maximum employment, stable prices, and moderate long-term interest rates.",
-      "tier": 1,
-      "url": "https://www.federalreserve.gov/monetarypolicy/monetary-policy-what-are-its-goals-how-does-it-work.htm"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Federal Reserve Board: Monetary Policy: What Are Its Goals? How Does It Work?",
-      "quote": "Even though the act lists three distinct goals of monetary policy, the Fed's mandate for monetary policy is commonly known as the dual mandate.",
-      "tier": 1,
-      "url": "https://www.federalreserve.gov/monetarypolicy/monetary-policy-what-are-its-goals-how-does-it-work.htm"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Federal Reserve Board: Monetary Policy: What Are Its Goals? How Does It Work?",
-      "quote": "low and stable inflation at the rate of 2 percent per year, as measured by the annual change in the price index for personal consumption expenditures, is most consistent with achievement of both parts of the dual mandate.",
-      "tier": 1,
-      "url": "https://www.federalreserve.gov/monetarypolicy/monetary-policy-what-are-its-goals-how-does-it-work.htm"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Federal Reserve Board: Monetary Policy: What Are Its Goals? How Does It Work?",
-      "quote": "In such a situation, the Fed can guide economic activity back to more sustainable levels and keep inflation in check by tightening monetary policy to raise interest rates.",
-      "tier": 1,
-      "url": "https://www.federalreserve.gov/monetarypolicy/monetary-policy-what-are-its-goals-how-does-it-work.htm"
-     }
-    ],
-    "summary": "The Federal Reserve Act gives the Fed the goals of maximum employment, stable prices and moderate long-term interest rates. The Fed's goals are known as the dual mandate: maximum employment and stable prices. The FOMC's inflation goal is 2% a year, measured by the PCE price index. When demand runs too hot and inflation rises, the Fed tightens by raising rates."
-   },
-   "facts": {
-    "given": "Fill in the blank. The Fed's dual mandate is maximum employment and stable ___."
-   },
-   "lesson_line": "Jobs and prices. When inflation runs hot, the Fed leans on rates.",
-   "simple": "Prices. The Fed's two goals are lots of jobs and steady prices, meaning low, steady inflation.",
-   "tier": "core",
-   "unit": "F7.06",
-   "why": "Prices. The Federal Reserve Act lists maximum employment, stable prices and moderate long-term interest rates. Even so, the mandate is commonly known as the dual mandate. Stable prices means low, steady inflation, not steady stock prices."
-  },
-  "review_status": "draft",
-  "skill_id": "history.fed_rates",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F7/F7.06.json#q03",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
    "answer": "False"
   },
   "difficulty": 1,
@@ -12848,7 +12469,7 @@
   "difficulty": 1,
   "id": "si_7ff64ea71a2b",
   "lesson_origin": "session",
-  "lesson_text": "2:00 p.m. Eastern. One Fed statement reads 'For release at 2:00 p.m. EDT'. Another reads 'For release at 2:00 p.m. EST'. The decision is not out at the open or at the close. Scheduled FOMC statements come out at 2:00 p.m. Eastern, EST or EDT by season.",
+  "lesson_text": "2:00 p.m. Eastern. The FOMC is the Fed committee that sets the fed funds rate, and its decision statement comes out at 2:00 p.m. Eastern on decision day. That is neither at the open nor at the close, so a trader checks the clock on Fed days. One Fed statement reads 'For release at 2:00 p.m. EDT'. Another reads 'For release at 2:00 p.m. EST'. Scheduled FOMC statements come out at 2:00 p.m. Eastern, EST or EDT by season.",
   "module": "F7",
   "prompt_json": {
    "bank": [
@@ -12889,7 +12510,7 @@
    "simple": "The Fed's statement comes out at 2:00 p.m. Eastern time on decision day.",
    "tier": "core",
    "unit": "F7.06",
-   "why": "2:00 p.m. Eastern. One Fed statement reads 'For release at 2:00 p.m. EDT'. Another reads 'For release at 2:00 p.m. EST'. The decision is not out at the open or at the close."
+   "why": "2:00 p.m. Eastern. The FOMC is the Fed committee that sets the fed funds rate, and its decision statement comes out at 2:00 p.m. Eastern on decision day. That is neither at the open nor at the close, so a trader checks the clock on Fed days. One Fed statement reads 'For release at 2:00 p.m. EDT'. Another reads 'For release at 2:00 p.m. EST'."
   },
   "review_status": "draft",
   "skill_id": "history.fed_rates",
@@ -14780,64 +14401,6 @@
   "skill_id": "history.data_calendar",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F7/F7.07.json#q02",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
-   "answer": "businesses"
-  },
-  "difficulty": 1,
-  "id": "si_d972773a3d43",
-  "lesson_origin": "session",
-  "lesson_text": "Businesses. Nonfarm payrolls come from the Current Employment Statistics survey, a monthly survey of business establishments. The same survey gives average hourly earnings and average weekly hours. It counts jobs, not people, so it is not where the unemployment rate comes from. Payrolls are the headline jobs number, and they come from employers.",
-  "module": "F7",
-  "prompt_json": {
-   "bank": [
-    "businesses",
-    "households",
-    "economists",
-    "consumers",
-    "banks"
-   ],
-   "kind": "fill",
-   "q": "Tap the word that fits the blank.",
-   "sentence": "Nonfarm payrolls come from a monthly survey of ___.",
-   "subject": "F7.07#q03"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-09",
-      "name": "U.S. Bureau of Labor Statistics: CES Frequently Asked Questions",
-      "quote": "The Current Employment Statistics (CES) program is a monthly survey of business establishments (or jobs). CES produces estimates on the number of employees on nonfarm payrolls, average hourly earnings, average weekly earnings, and average weekly hours.",
-      "tier": 1,
-      "url": "https://www.bls.gov/web/empsit/cesfaq.htm"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "U.S. Bureau of Labor Statistics: CES Frequently Asked Questions",
-      "quote": "The Current Population Survey (CPS) is a monthly survey of households (or people). The household survey produces estimates about the labor force, the employed, the unemployed, the unemployment rate, and demographic information about the employed and unemployed.",
-      "tier": 1,
-      "url": "https://www.bls.gov/web/empsit/cesfaq.htm"
-     }
-    ],
-    "summary": "Nonfarm payrolls (and average hourly earnings) come from a monthly survey of businesses. The unemployment rate comes from a monthly survey of households."
-   },
-   "facts": {
-    "given": "Tap the word that fits the blank. Nonfarm payrolls come from a monthly survey of ___."
-   },
-   "lesson_line": "Payrolls are the headline jobs number, and they come from employers.",
-   "simple": "Businesses. The payroll count comes from a monthly survey of employers about the jobs on their books.",
-   "tier": "core",
-   "unit": "F7.07",
-   "why": "Businesses. Nonfarm payrolls come from the Current Employment Statistics survey, a monthly survey of business establishments. The same survey gives average hourly earnings and average weekly hours. It counts jobs, not people, so it is not where the unemployment rate comes from."
-  },
-  "review_status": "draft",
-  "skill_id": "history.data_calendar",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F7/F7.07.json#q03",
   "type": "recall",
   "version": 1
  },
@@ -17029,85 +16592,6 @@
  },
  {
   "answer_json": {
-   "answer": "home"
-  },
-  "difficulty": 1,
-  "id": "si_c630cb2cfd2b",
-  "lesson_origin": "session",
-  "lesson_text": "Home. Falling home prices helped spark the financial crisis of 2007-08. Markets faced considerable uncertainty about losses on mortgage-related assets. US home prices fell about 30% on average from mid-2006 to mid-2009. The crisis then reached the big firms: Lehman Brothers filed for bankruptcy, and the next day the Fed supported AIG. Oil, tech, gold and food prices were not the trigger here. 2007-09 started in housing, then spread through the banks to the whole market.",
-  "module": "F7",
-  "prompt_json": {
-   "bank": [
-    "home",
-    "oil",
-    "tech",
-    "gold",
-    "food"
-   ],
-   "kind": "fill",
-   "q": "Tap the word that fits the blank.",
-   "sentence": "The 2007-09 bear market grew out of a collapse in ___ prices.",
-   "subject": "F7.08#q02"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-09",
-      "name": "Federal Reserve History (Federal Reserve System): The Great Recession and Its Aftermath (John Weinberg, written as of November 22, 2013)",
-      "quote": "This decline in home prices helped to spark the financial crisis of 2007-08, as financial market participants faced considerable uncertainty about the incidence of losses on mortgage-related assets.",
-      "tier": 1,
-      "url": "https://www.federalreservehistory.org/essays/great-recession-and-its-aftermath"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Federal Reserve History (Federal Reserve System): The Great Recession (Robert Rich, written as of November 22, 2013)",
-      "quote": "Home prices fell approximately 30 percent, on average, from their mid-2006 peak to mid-2009",
-      "tier": 1,
-      "url": "https://www.federalreservehistory.org/essays/great-recession-of-200709"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Federal Reserve History (Federal Reserve System): The Great Recession and Its Aftermath (John Weinberg, written as of November 22, 2013)",
-      "quote": "In September, Lehman Brothers filed for bankruptcy, and the next day the Federal Reserve provided support to AIG",
-      "tier": 1,
-      "url": "https://www.federalreservehistory.org/essays/great-recession-and-its-aftermath"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "CNBC: The S&P 500 is now in an official bear market, according to S&P Dow Jones Indices (Scott Schnipper, June 13, 2022; table source: S&P Dow Jones Indices)",
-      "quote": "The Global Financial Crisis created the 2007-2009 bear market as the housing market imploded.",
-      "tier": 2,
-      "url": "https://www.cnbc.com/2022/06/13/sp-500-is-in-official-bear-market-according-to-sp-dow-jones-indices.html"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Fox Business: History of bear markets since 1929 (Jade Scipioni, December 26, 2018; data: Ned Davis Research)",
-      "quote": "9. October 2007 to March 2009 Duration: 17 months S&P 500 loss: 57 percent The collapse in the U.S. housing market triggered this bear market.",
-      "tier": 2,
-      "url": "https://www.foxbusiness.com/markets/history-of-bear-markets-since-1929"
-     }
-    ],
-    "summary": "Falling home prices helped spark the 2007-08 financial crisis, through losses on mortgage-related assets. US home prices fell about 30% on average from mid-2006 to mid-2009. In September 2008 Lehman Brothers went bankrupt, and the next day the Fed supported AIG. The 2007-09 bear market came from the global financial crisis as housing collapsed. Fox Business (Ned Davis data): the S&P 500 lost 57% from October 2007 to March 2009, set off by the housing collapse."
-   },
-   "facts": {
-    "given": "Tap the word that fits the blank. The 2007-09 bear market grew out of a collapse in ___ prices."
-   },
-   "lesson_line": "2007-09 started in housing, then spread through the banks to the whole market.",
-   "simple": "Home, because falling home prices helped set off the 2007-08 financial crisis behind the 2007-09 fall.",
-   "tier": "core",
-   "unit": "F7.08",
-   "why": "Home. Falling home prices helped spark the financial crisis of 2007-08. Markets faced considerable uncertainty about losses on mortgage-related assets. US home prices fell about 30% on average from mid-2006 to mid-2009. The crisis then reached the big firms: Lehman Brothers filed for bankruptcy, and the next day the Fed supported AIG. Oil, tech, gold and food prices were not the trigger here."
-  },
-  "review_status": "draft",
-  "skill_id": "history.detective",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F7/F7.08.json#q02",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
    "answer": "True"
   },
   "difficulty": 1,
@@ -19240,91 +18724,6 @@
   "skill_id": "history.sectors",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F7/F7.09.json#q03",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
-   "answer": "strength"
-  },
-  "difficulty": 1,
-  "id": "si_bf96b6bbcc60",
-  "lesson_origin": "session",
-  "lesson_text": "Strength. Dividing the sector fund by the S&P 500 gives a ratio, the price relative. The ratio rises when the sector gains more than the S&P 500, or falls less. A rising line means relative strength. Sector divided by the market. A rising line means the sector is leading.",
-  "module": "F7",
-  "prompt_json": {
-   "bank": [
-    "strength",
-    "weakness",
-    "volume",
-    "value"
-   ],
-   "kind": "fill",
-   "q": "Fill in the blank.",
-   "sentence": "Divide a sector fund by the S&P 500 and chart it. A rising line shows relative ___.",
-   "subject": "F7.09#q04"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-09",
-      "name": "StockCharts.com ChartSchool: Price Relative/Relative Strength",
-      "quote": "the Price Relative indicator uses a ratio chart to compare the performance of one security to another.",
-      "tier": 2,
-      "url": "https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/technical-indicators/price-relative-relative-strength"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "StockCharts.com ChartSchool: Price Relative/Relative Strength",
-      "quote": "Chartists could also view sector performance relative to the S&P 500 (XLY:$SPX).",
-      "tier": 2,
-      "url": "https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/technical-indicators/price-relative-relative-strength"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "StockCharts.com ChartSchool: Price Relative/Relative Strength",
-      "quote": "This ratio increases when Starbucks advances more than the S&P 500 or declines less than the S&P 500.",
-      "tier": 2,
-      "url": "https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/technical-indicators/price-relative-relative-strength"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Fidelity Investments: Relative Strength Comparison (Technical Indicator Guide)",
-      "quote": "Relative Strength Comparison compares two securities, or a security and an index, to show relative performance to each other.",
-      "tier": 2,
-      "url": "https://www.fidelity.com/learning-center/trading-investing/technical-analysis/technical-indicator-guide/relative-strength-comparison"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Fidelity Investments: Relative Strength Comparison (Technical Indicator Guide)",
-      "quote": "When the Relative Strength Comparison indicator is moving up, it shows that the security’s price is performing better than the base security/index in relative terms.",
-      "tier": 2,
-      "url": "https://www.fidelity.com/learning-center/trading-investing/technical-analysis/technical-indicator-guide/relative-strength-comparison"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Fidelity Investments: Relative Strength Comparison (Technical Indicator Guide)",
-      "quote": "The Relative Strength Comparison indicator is calculated by dividing one security's price by a second security's price (the \"base\" security).",
-      "tier": 2,
-      "url": "https://www.fidelity.com/learning-center/trading-investing/technical-analysis/technical-indicator-guide/relative-strength-comparison"
-     }
-    ],
-    "summary": "The price relative is a ratio chart that compares one security with another. You can chart a sector fund against the S&P 500 as a ratio, for example XLY:$SPX. The ratio rises when the stock gains more than the S&P 500 or falls less than it. Relative strength compares a security with an index to show which is doing better. A rising relative strength line means the security is beating the index. Relative strength is one price divided by the other."
-   },
-   "facts": {
-    "given": "Fill in the blank. Divide a sector fund by the S&P 500 and chart it. A rising line shows relative ___."
-   },
-   "lesson_line": "Sector divided by the market. A rising line means the sector is leading.",
-   "simple": "Strength, because a rising line means the sector is doing better than the S&P 500.",
-   "tier": "core",
-   "unit": "F7.09",
-   "why": "Strength. Dividing the sector fund by the S&P 500 gives a ratio, the price relative. The ratio rises when the sector gains more than the S&P 500, or falls less. A rising line means relative strength."
-  },
-  "review_status": "draft",
-  "skill_id": "history.sectors",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F7/F7.09.json#q04",
   "type": "recall",
   "version": 1
  },

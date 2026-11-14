@@ -560,7 +560,7 @@
     "0.75"
    ],
    "answer": "0.50",
-   "why": "0.50. An at-the-money call typically has a delta around .50, so it moves about $0.50 for each one-point stock move. That is a rough figure, not a promise.",
+   "why": "0.50. Delta estimates how much an option's price moves when the stock moves one dollar. A call at the money is roughly a coin flip to finish in the money, so its delta sits near 0.50 and it moves about half as much as the stock. Deeper in the money the delta climbs toward 1.00, and further out it falls toward zero. It is a rough guide, not a promise.",
    "lesson_line": "At the money, figure on about half the stock's move.",
    "facts": [
     "f45",
@@ -573,7 +573,7 @@
     "score": 0,
     "reasons": []
    },
-   "batch": "pilot-1"
+   "batch": "fills"
   },
   {
    "key": "q04",
@@ -644,7 +644,7 @@
     "unchanged"
    ],
    "answer": "positive",
-   "why": "Positive. Selling flips the sign, so a short put has a positive delta. A short put gains when the stock rises, all else equal. Source: the Options Industry Council.",
+   "why": "Positive. Delta is how much a position gains or loses when the stock moves. Selling a put flips the sign of a bought put's negative delta, so a short put gains when the stock rises and loses when it falls. Read it as a bullish position. Source: the Options Industry Council.",
    "lesson_line": "Selling flips the sign. A short put carries positive delta.",
    "facts": [
     "f4",
@@ -658,7 +658,7 @@
      "it was fixed before"
     ]
    },
-   "batch": "pilot-1"
+   "batch": "fills"
   },
   {
    "key": "q07",
@@ -1392,7 +1392,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "ATM call about 0.50 (f45, f2). Bank clean."
+   "notes": "Keep. An at-the-money call near 0.50 delta is read straight off the chain; bank of 0.50/1.00/0.00/0.75 has no giveaway. New why defines delta and gives the trader use, no new numbers."
   },
   "q04": {
    "status": "pass",
@@ -1410,7 +1410,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Short put is positive delta (f4). 'you don't own' removes the closing-a-long reading."
+   "notes": "Keep. Reading a sold put as a bullish, positive-delta position is how a trader sizes exposure. New why defines delta and states the use."
   },
   "q07": {
    "status": "pass",

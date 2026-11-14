@@ -2051,9 +2051,9 @@
   },
   "q04": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "Keep agreed: O'Neil's averaging principle (rule 13), a standing rule a trader acts on; the why defines the term and notes our no-adding rule."
   },
   "q05": {
    "status": "cut",
@@ -2071,7 +2071,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer: strength (h01 verbatim, A11). IBD f06 and O'Neil f10 agree; 'contrary to human nature' is f06's own words. No other bank word fits the rule. No stem elsewhere carries the fill word now that q14's stem was changed."
+   "notes": "Keep agreed: our own rule for holding winners (rule 13); 'weakness' and 'pullbacks' are live distractors so the blank is not a giveaway."
   },
   "q08": {
    "status": "cut",

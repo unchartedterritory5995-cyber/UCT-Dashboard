@@ -840,14 +840,14 @@
     "afternoon"
    ],
    "answer": "open",
-   "why": "Open. In Cboe data on large US stocks, bid-ask spreads are typically widest at the open and narrow toward the close. A study of NYSE stocks found a reverse J shape. Spreads were highest at the start and turned up a little at the end. So spreads can tick up late, but the open is still the widest.",
+   "why": "Open. The spread is the gap between the bid, the most a buyer pays, and the ask, the least a seller takes. Cboe data on large US stocks show spreads widest at the open, then narrowing toward the close. For you, the first minutes cost the most to trade, since you buy at the ask and sell at the bid.",
    "lesson_line": "The first minutes are usually the priciest to trade. Wide spreads come with the open.",
    "facts": [
     "f23",
     "f66",
     "f39"
    ],
-   "simple": "The open. Spreads are usually widest in the first minutes, so that is often the priciest time to trade.",
+   "simple": "The open. Spreads are widest in the first minutes, so that is often the priciest time to trade.",
    "tier": "core",
    "risk": {
     "score": 0,
@@ -855,7 +855,7 @@
      "two Tier 2 publishers agree (Cboe, Journal of Finance)"
     ]
    },
-   "batch": "wave9"
+   "batch": "fills"
   },
   {
    "key": "q04",
@@ -1609,8 +1609,8 @@
   "q03": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Cold answer: open (f23 Cboe, f66 McInish and Wood; two Tier 2 publishers agree). Re-read the Cboe page on 2026-11-12: 'typically widest at the open', over 'all names in the S&P 500', so 'large US stocks' holds. Defect is a tell: the sentence's own second half ('then narrow as the day goes on') gives the blank away, because only a start-of-day word can be followed by narrowing all day. Rewrote the sentence so the member has to choose between open and close. The bank, key, why, simple and lesson line stay as they are and still fit. The why already covers the late uptick (f66), so close stays pla"
+   "fixed": false,
+   "notes": "Keep agreed: the open's wide spread is a cost a trader acts on. The sharpened why defines bid, ask and spread and gives the trader's use (rule 3); facts f23 and f39 support it."
   },
   "q04": {
    "status": "pass",

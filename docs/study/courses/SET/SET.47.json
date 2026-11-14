@@ -3544,10 +3544,10 @@
    "notes": "upgraded wave5; awaiting cold re-read"
   },
   "q03": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Key 'prior' re-derived from n6; bank has real rivals (weekly, monthly); why grounded in n6 and hE57. '200-day close' and '50-day close' read oddly but leave three plausible fills."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q04": {
    "status": "pass",
@@ -3598,10 +3598,10 @@
    "notes": "Key from n4 and hB23; stem no longer gives the units away. Minor: two choices share $10, a mild convergence on the key; not a listed tell, kept."
   },
   "q12": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Key 3 from n9; why's buys-only rulebook line quoted from hB22; owner flag on shorts and sessions vs days stands."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q13": {
    "status": "pass",

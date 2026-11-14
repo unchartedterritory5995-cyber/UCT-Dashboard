@@ -1435,6 +1435,43 @@
     ]
    },
    "batch": "wave7"
+  },
+  {
+   "key": "q97",
+   "skill": "options.calls_puts",
+   "rung": 4,
+   "format": "mcq",
+   "q": "You sell a call and collect the premium. The buyer exercises it. What happens to the premium?",
+   "choices": [
+    "You keep it and still deliver shares",
+    "You return it, since the option was used",
+    "You keep it only if it expires unused",
+    "It lowers the buyer's share price"
+   ],
+   "answer": "You keep it and still deliver shares",
+   "why": "You keep it and still deliver shares. The premium is paid up front and is never refunded. Exercise does not change that. It only means a call seller must now sell the shares at the strike.",
+   "lesson_line": "The seller keeps the premium, exercised or not. It doesn't cap what the seller can lose.",
+   "facts": [
+    "f19",
+    "f9",
+    "f10",
+    "f30",
+    "f49"
+   ],
+   "wrong": {
+    "You return it, since the option was used": "The premium is paid up front and is not refunded, whether or not the option is used.",
+    "You keep it only if it expires unused": "The seller keeps the premium either way. Exercise just adds the duty to deliver the shares.",
+    "It lowers the buyer's share price": "The strike sets the price the buyer pays. The premium was paid earlier and stays with the seller."
+   },
+   "simple": "You keep the premium and still deliver the shares, because the premium is paid up front and never refunded.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "stable rule: FINRA and OIC agree"
+    ]
+   },
+   "batch": "fills"
   }
  ],
  "conflicts": [
@@ -1472,10 +1509,10 @@
    "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q02": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Own answer: sell (f4, f46). 'Not obliged to sell' and 'the put's seller must buy if assigned' are f46 almost word for word. Bank words are real slips (buy is the call's word)."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q03": {
    "status": "pass",
@@ -1544,10 +1581,10 @@
    }
   },
   "q12": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Own answer: keeps (f19 non-refundable, f9 never exercised, f10 exercised). Bank slips are real: refunds contradicts f19, owes and forfeits put the premium on the wrong side. The why ends at 'does not cap the seller's loss' (f30). The deeper's maximum profit is f49, and its call/put loss line is f30 word for word. The deeper naming unlimited call-writer loss overlaps q21's crux, but q21 still needs the buyer's capped loss (f49), so it is not a full leak."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q13": {
    "status": "pass",
@@ -1628,6 +1665,12 @@
    "by": "checker",
    "fixed": false,
    "notes": "Own answer: the SPY call (f55 American-style; f25 meaning of American-style; f67/f68 SPX European, re-read on Cboe 2026-11-12: 'Options can only be exercised at expiration... eliminating early assignment risk'). The why now puts the cause on American-style alone. Deeper adds only the writer angle (f42, f68), not a copy of the why. Date-dependent product spec, already flagged in risk. q15's why teaches the rule but not which product is which, so not a leak."
+  },
+  "q97": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Replacement agreed (no live question tests what happens to the premium on an exercise). Facts f19, f9, f10, f30, f49 support the answer and every wrong note. Fix: lesson_line said 'writer'; the lesson says 'seller'."
   }
  }
 }

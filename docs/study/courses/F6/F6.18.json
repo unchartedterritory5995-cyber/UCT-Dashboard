@@ -1643,6 +1643,39 @@
     ]
    },
    "batch": "wave7"
+  },
+  {
+   "key": "q97",
+   "skill": "options.flow",
+   "rung": 2,
+   "format": "mcq",
+   "q": "You're short a put at the 50 strike. The stock closes at 50 on expiry day. What can't you know yet?",
+   "choices": [
+    "Whether you'll be assigned the stock",
+    "What strike the put was written at",
+    "How much premium you collected",
+    "Whether the put is in the money"
+   ],
+   "answer": "Whether you'll be assigned the stock",
+   "why": "Whether you'll be assigned the stock. This is pin risk: the seller's risk that the stock finishes exactly at the strike at expiration. With the stock on the strike, a seller can't know how many short options will be assigned. Assigned on a short put, you start the next session long the stock, and it may move against you by the next open.",
+   "lesson_line": "Short an option into expiry with the stock sitting on the strike: that's pin risk.",
+   "facts": [
+    "f4",
+    "f5",
+    "f6"
+   ],
+   "wrong": {
+    "What strike the put was written at": "You know your own strike. The unknown is whether the put will be assigned.",
+    "How much premium you collected": "Your premium is already in your account. The open question is assignment.",
+    "Whether the put is in the money": "With the stock on the strike it is not in the money. What you can't know is whether you'll be assigned."
+   },
+   "simple": "A close right on the strike leaves you unsure whether you will be assigned, and assignment would leave you holding stock.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "fills"
   }
  ],
  "conflicts": [
@@ -1692,10 +1725,10 @@
    "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q04": {
-   "status": "pass",
+   "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave7; awaiting cold re-read"
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q05": {
    "status": "pass",
@@ -1826,6 +1859,12 @@
    "by": "checker",
    "fixed": false,
    "notes": "False per f66/f60/f72/f67. The first-person rule and the repeated $50bn line are gone. The deeper rests on f60. 'reliable' is accepted, since q08 and q14 lost their absolutes."
+  },
+  "q97": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Pass. Screen scenario of the pin-risk idea; correct and supported by f4, f5, f6; four distinct choices, wrong notes keyed to exact texts, no new numbers. Distractors are easy but not a tell."
   }
  }
 }

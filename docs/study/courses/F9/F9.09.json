@@ -1760,10 +1760,10 @@
    "notes": "True by h05 + h07, exception carried so False is not defensible. Previews q13/q26 only as rung-1 recall of a rule the walkthrough w2 already states; acceptable."
   },
   "q03": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "4% by h10; simple and why rest on h11; IBD 5% framed as theirs (f28), ours wins per sizing_rule.md C28."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q04": {
    "status": "pass",
@@ -1809,10 +1809,10 @@
    "notes": "False by h35. Narrowed claim no longer contradicts h15/h24. Deeper sentences under 22 words."
   },
   "q11": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "1R by h16; simple uses the rule's own words."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q12": {
    "status": "pass",

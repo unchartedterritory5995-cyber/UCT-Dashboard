@@ -1119,7 +1119,7 @@
     "4:00 p.m."
    ],
    "answer": "2:00 p.m.",
-   "why": "2:00 p.m. Eastern. One Fed statement reads 'For release at 2:00 p.m. EDT'. Another reads 'For release at 2:00 p.m. EST'. The decision is not out at the open or at the close.",
+   "why": "2:00 p.m. Eastern. The FOMC is the Fed committee that sets the fed funds rate, and its decision statement comes out at 2:00 p.m. Eastern on decision day. That is neither at the open nor at the close, so a trader checks the clock on Fed days. One Fed statement reads 'For release at 2:00 p.m. EDT'. Another reads 'For release at 2:00 p.m. EST'.",
    "lesson_line": "Scheduled FOMC statements come out at 2:00 p.m. Eastern, EST or EDT by season.",
    "facts": [
     "f23",
@@ -1133,7 +1133,7 @@
      "release time is a practice that can change (checked live on the October 28, 2026 statement)"
     ]
    },
-   "batch": "wave6"
+   "batch": "fills"
   },
   {
    "key": "q09",
@@ -1819,10 +1819,10 @@
    "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q03": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "'prices' right (f4, f5, f6). The why now treats the act's three goals and the dual mandate correctly, and gives no 2% (q05 is safe). 'Stock prices' is a real misreading, and the why names it. The lesson line rests on f16."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q04": {
    "status": "pass",
@@ -1852,7 +1852,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "2:00 p.m. rests on f23 and f24, from two statements four years apart. 'Open' and 'close' in the why add no numbers. The answer is knowledge only and gives no Fed-day trading advice, so it does not clash with C32. q16 and q22 no longer print the time."
+   "notes": "Keep. The FOMC statement lands at 2:00 p.m. Eastern, a time a trader plans a Fed day around. New why defines the FOMC and states the use; no new numbers."
   },
   "q09": {
    "status": "pass",

@@ -1376,10 +1376,10 @@
    "notes": "True by f05 (SEC); f35 (Schwab) sentence is the quote's meaning. Numbers from the stem. Schwab unreachable 2026-11-12 but f05 alone carries the key."
   },
   "q04": {
-   "status": "pass",
+   "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q05": {
    "status": "pass",
@@ -1394,10 +1394,10 @@
    "notes": "False by f06, f33, f34: a trade at your limit is necessary, not sufficient. No lone absolute left in the stem. Deeper trap is grounded in f33/f34. No second defensible reading found."
   },
   "q07": {
-   "status": "pass",
+   "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q08": {
    "status": "pass",

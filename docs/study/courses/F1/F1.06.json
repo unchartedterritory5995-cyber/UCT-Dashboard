@@ -1554,10 +1554,10 @@
    "notes": "Why now defines market cap as price times shares outstanding, shows both multiplications ($50 x 5 million = $250 million small-cap; $50 x 5 billion = $250 billion, over FINRA's $200 billion mega-cap line f4) and the 1,000x ratio (250B / 250M). Supported by f7, f8, f9, f4, f6, f1. Answer False is right. Sentences under 22 words; simple unchanged and valid."
   },
   "q06": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Key 'lockup' from f31 (Investor.gov). Why sentences all under 22 words; 180 days from f32; restricted-stock link from f44/f41. Overlap with q16 accepted: w2 step 3 teaches the same point before the questions."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q07": {
    "status": "pass",

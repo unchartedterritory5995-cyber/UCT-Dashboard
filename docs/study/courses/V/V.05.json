@@ -1315,7 +1315,7 @@
     }
    },
    "prefix": "$",
-   "why": "$11.05. Our Kicker entry is over the red day's high, on the Kicker day, at market as it trades through. A cent over $11.04 is $11.05, the same price as the owner's JBI example.",
+   "why": "$11.05. Our Kicker entry is over the red day's high, on the Kicker day, at market as it trades through. A cent over $11.04 is $11.05, the same price as our JBI example.",
    "lesson_line": "Kicker entry: over the red day's high, at market as it trades through.",
    "facts": [
     "h05"
@@ -2803,7 +2803,7 @@
    "house": true,
    "q": "Investopedia's opening range is the first 15 minutes. Our Kicker ORB uses that same window.",
    "answer": "False",
-   "why": "False. Investopedia defines the opening range as the first 15 minutes of trading. Our Kicker ORB is the 30-minute opening range on day one, as the owner set it. Investopedia also notes day traders frequently use the first half hour.",
+   "why": "False. Investopedia defines the opening range as the first 15 minutes of trading. Our Kicker ORB is the 30-minute opening range on day one, as we set it. Investopedia also notes day traders frequently use the first half hour.",
    "lesson_line": "Our Kicker ORB: the first 30 minutes, on day one.",
    "facts": [
     "h06",
@@ -3073,6 +3073,97 @@
     ]
    },
    "batch": "rulings2"
+  },
+  {
+   "key": "q97",
+   "skill": "vocab.setup_terms",
+   "rung": 1,
+   "format": "mcq",
+   "q": "Which order do our setup plans run in?",
+   "choices": [
+    "Entry, Stop, Trim, Trail",
+    "Entry, Trim, Stop, Trail",
+    "Stop, Entry, Trail, Trim",
+    "Entry, Stop, Trail, Trim"
+   ],
+   "answer": "Entry, Stop, Trim, Trail",
+   "why": "Entry, Stop, Trim, Trail. Our plans run in that order: get in, set the stop, take some off, then trail the rest. Our full line ends with Advance. The first sell is a judgment, rarely on day 1.",
+   "lesson_line": "Entry, Stop, Trim, Trail. Every plan runs in that order.",
+   "facts": [
+    "o01",
+    "r03",
+    "r05"
+   ],
+   "wrong": {
+    "Entry, Trim, Stop, Trail": "The stop goes in before any profit is taken. It is the plan for when the trade turns.",
+    "Stop, Entry, Trail, Trim": "The stop protects a position, so the entry comes first.",
+    "Entry, Stop, Trail, Trim": "You trim first, then trail what is left. The trail rides the part you kept."
+   },
+   "simple": "Entry, Stop, Trim, Trail, because you get in, protect it, take some off, then trail the rest.",
+   "tier": "core",
+   "house": true,
+   "batch": "fills"
+  },
+  {
+   "key": "q98",
+   "skill": "vocab.setup_terms",
+   "rung": 2,
+   "format": "mcq",
+   "q": "A trade is working. Which line is ours for holding a winner?",
+   "choices": [
+    "Sell partials, trail the rising averages",
+    "Sell the whole position at the first pop",
+    "Hold the full size until the stop hits",
+    "Move the stop down to give it room"
+   ],
+   "answer": "Sell partials, trail the rising averages",
+   "why": "Sell partials into strength and trail the rest. You sell some of the position as it rises, not all of it. The rest stays on, with the stop trailing the rising moving averages. The first sell is a judgment, rarely on day 1.",
+   "lesson_line": "Sell partials into strength. Trail the rest.",
+   "facts": [
+    "p01",
+    "r03",
+    "r05"
+   ],
+   "wrong": {
+    "Sell the whole position at the first pop": "Our line is partials, not everything. Selling it all at the first pop leaves the rest of the move behind.",
+    "Hold the full size until the stop hits": "Our line sells partials into strength. Holding the full size gives gains back if the stock turns.",
+    "Move the stop down to give it room": "Moving the stop down adds risk. Our line trails the stop up behind the rising averages."
+   },
+   "simple": "Sell partials into strength and trail the rest, because that banks some gain and keeps the winner running.",
+   "tier": "core",
+   "house": true,
+   "batch": "fills"
+  },
+  {
+   "key": "q99",
+   "skill": "vocab.setup_terms",
+   "rung": 3,
+   "format": "mcq",
+   "q": "Where does our Gap Support stop go?",
+   "choices": [
+    "The lower of the gap top and day's low",
+    "The higher of the gap top and day's low",
+    "The closer of the gap top and day's low",
+    "A few cents under the prior day's close"
+   ],
+   "answer": "The lower of the gap top and day's low",
+   "why": "The lower of the gap top and the day's low. Our Gap Support buys the close as the gap holds. If the trade drifts sideways at the gap, the stop tightens to just under the gap top. Our rulebook puts the stop order a few cents under the day's low, not exactly on it.",
+   "lesson_line": "Gap Support stop: the lower of the gap top and the day's low.",
+   "facts": [
+    "h19",
+    "h21",
+    "h07",
+    "h26"
+   ],
+   "wrong": {
+    "The higher of the gap top and day's low": "Our card says whichever is lower, not higher.",
+    "The closer of the gap top and day's low": "Whichever is closer is the Kicker's rule. Gap Support takes whichever is lower.",
+    "A few cents under the prior day's close": "Our Gap Support stop is tied to the gap top and the day's low, not the prior close."
+   },
+   "simple": "The lower of the gap top and the day's low, because our Gap Support stop goes on whichever sits further down.",
+   "tier": "core",
+   "house": true,
+   "batch": "fills"
   }
  ],
  "conflicts": [
@@ -3116,10 +3207,10 @@
    "notes": "Trigger-means-entry kept; trim text now judgment."
   },
   "q02": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Order key kept; thirds wording removed."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q03": {
    "status": "pass",
@@ -3170,10 +3261,10 @@
    "notes": "True under both h09 (plan: the day's low) and h26 (F62: a few cents under it, section 9 wins). The why separates plan level from order placement."
   },
   "q11": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Partials key kept; bank 'half' replaced by 'nothing'. NOTE: stale wrong['half'] entry persists because apply_upgrade merges wrong; drop it by hand."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q12": {
    "status": "pass",
@@ -3212,16 +3303,16 @@
    "notes": "Content passes; reordered only to vary the answer slot."
   },
   "q18": {
-   "status": "pass",
+   "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q19": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Key from h22 (TRADE_PLANS Bear gap row). Gap Support is a long that holds above the gap top (h19), so no second answer fits. q25 and q59 repeat the line only in feedback or as a rung-8 application."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q20": {
    "status": "pass",
@@ -3483,6 +3574,24 @@
    "by": "checker",
    "fixed": false,
    "notes": "Re-keyed to stop move at 2R-5R as a stop move, not a sale; OK."
+  },
+  "q97": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Correct per o01 (Entry, Stop, Trim, Trail) and it is the owner's own structure. Distractors are real permutations with no tell. Q13 and q21 test single words, not the order."
+  },
+  "q98": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Correct per p01, r03, r05: the owner's own line on holding winners. Distractors are real mistakes. Q56 covers the 3R-exit mistake, not the partials-plus-trail line."
+  },
+  "q99": {
+   "status": "cut",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Cut: duplicates scenario q35 (gap top 50.00, low 49.60, stop is today's low because the stop is the lower of the two) and q52. The brief says not to replace when a choice question on the same idea exists."
   }
  }
 }

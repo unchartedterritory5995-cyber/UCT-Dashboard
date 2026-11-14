@@ -1599,10 +1599,10 @@
    "notes": "Key right before looking (f21, f44, f63; OIC page re-fetched 2026-11-12, f21/f24/f27 verbatim). Choices 30-39 chars, key not longest, no silly choice. Defect: the why says 'set aside cash equal to the strike price'. For a 45 put a learner reads that as $45, which is q08's own wrong choice ('$45: that's one share'). f44 is the disclosure document's wording, but the lesson needs the plain reading: enough cash to buy the shares at the strike. Reworded the why; no new numbers. Everything else unchanged."
   },
   "q04": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Strike is the only defensible bank word (f67, f61). Why and lesson line rest on f12, f70. No tell."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q05": {
    "status": "pass",

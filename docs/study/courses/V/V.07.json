@@ -2766,7 +2766,7 @@
    "rung": 1,
    "format": "mcq",
    "term": "Short sale",
-   "q": "What is a short sale?",
+   "q": "In a short sale, what are you doing?",
    "choices": [
     "Selling borrowed shares, rebuy later",
     "Selling shares on the day you buy them",
@@ -3474,10 +3474,10 @@
    "notes": "upgraded wave8; awaiting cold re-read"
   },
   "q03": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Solved cold: 'not a cent more' is a buy limit (f5 limit or lower, f54 limit or better, f6 may not fill). Bank has no stop-limit, so one answer. Third person, so no clash with E57 (entries are market orders). Why, simple and lesson line all trace to f5/f6/f54. No stem leak beyond the walkthrough."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q04": {
    "status": "pass",
@@ -3504,10 +3504,10 @@
    "notes": "upgraded wave8; awaiting cold re-read"
   },
   "q08": {
-   "status": "pass",
+   "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q09": {
    "status": "pass",
@@ -3607,10 +3607,10 @@
    "notes": "Key = f71, f80, f96, f122. 'One use is' matches f97 (ability, not frequency); 'both exits can't fire' is f79. Choices 32-39, key not longest. Cross-reveal with q22's OCO distractor and q25 noted; accepted as vocabulary contrast, as the resolver ruled."
   },
   "q25": {
-   "status": "pass",
+   "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q26": {
    "status": "pass",
@@ -3670,10 +3670,10 @@
    "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q35": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Only market-on-close fits 'filled at the end of today's regular session' (f58, f31); market-on-open is the start of regular hours. The sentence no longer echoes the key. Consistent with E57 (market orders) and E58 (regular hours)."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q36": {
    "status": "pass",
@@ -3750,10 +3750,10 @@
    "notes": "False from f42 (locate made and documented prior to the short sale). The simple line now matches f41 and f49 (reasonable grounds to believe the shares can be borrowed)."
   },
   "q48": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Solved cold: borrow (f82 'borrowing a security ... and then selling it', f38 broker lends, f36). 'buy' and 'own' are ruled out by the sentence's 'shares they don't own'; 'cover' is the closing word. Schwab fee range is f83 (checked, 'more than 100% of the value of your position', annualized). The sentence restates the short-sale meaning (q45), but w3 already teaches it, and q46's stem says the same."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q49": {
    "status": "pass",
@@ -3781,10 +3781,10 @@
    "notes": "Solved cold: a short closes with a buy, entered as buy to cover (f102 Fidelity, checked; f37 SEC, checked; f70 Nasdaq, checked). Sell to close needs owned shares; sell short adds; buy to open opens. No second answer. Note: q54's and q60's stems also use 'buy to cover' for closing a short, which hints this key; those stems are outside this check, and w3 teaches the word anyway."
   },
   "q53": {
-   "status": "pass",
+   "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q54": {
    "status": "pass",

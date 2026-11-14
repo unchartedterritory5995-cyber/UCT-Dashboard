@@ -3556,6 +3556,75 @@
     ]
    },
    "batch": "wave3"
+  },
+  {
+   "key": "q97",
+   "skill": "setup.two_b_reversal",
+   "rung": 1,
+   "format": "mcq",
+   "criterion": "tb.stop_broker",
+   "q": "You buy a 2B reclaim. How do you hold your stop?",
+   "choices": [
+    "A stop order resting with your broker",
+    "A stop you keep in mind and act on",
+    "An alert set to ping your phone",
+    "A level you mark on the chart"
+   ],
+   "answer": "A stop order resting with your broker",
+   "why": "A stop order resting with your broker. It sells for you if price trades down to it. A stop in your head or an alert only works if you are at the screen and act. It only moves up, never down or wider. The gap rule is the one exception.",
+   "lesson_line": "A real stop order sits with the broker. It only moves up.",
+   "facts": [
+    "t_brk",
+    "h02"
+   ],
+   "wrong": {
+    "A stop you keep in mind and act on": "A stop in your head depends on you acting in the moment. Every position has a real stop order with the broker.",
+    "An alert set to ping your phone": "An alert only tells you. It does not sell. The stop must be a real order with the broker.",
+    "A level you mark on the chart": "A level on a chart is not an order. Nothing sells when price reaches it."
+   },
+   "simple": "Use a real stop order with the broker. It sells for you and only moves up, never down or wider.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook D41 (settled)",
+     "fixed before: a silly bank word removed"
+    ]
+   },
+   "house": true,
+   "batch": "fills"
+  },
+  {
+   "key": "q98",
+   "skill": "setup.two_b_reversal",
+   "rung": 4,
+   "format": "scenario",
+   "criterion": "tb.inv_no_reclaim",
+   "story": "A stock breaks a seven-week-old swing low of 60.00 on Monday and falls to 58.40. Tuesday, Wednesday and Thursday it stays under 60.00 all day and closes under it. Friday it trades back above 60.00.",
+   "q": "Is Friday a 2B buy?",
+   "choices": [
+    "No; it did not reclaim within 3 sessions",
+    "Yes; it is back above 60.00, the trigger",
+    "Yes; put the stop under the 58.40 low",
+    "No; a 2B must reclaim by the next day"
+   ],
+   "answer": "No; it did not reclaim within 3 sessions",
+   "why": "No. A 2B closes back above the broken low within 3 sessions. Here Tuesday, Wednesday and Thursday all stayed under 60.00, so by Friday it is a breakdown, not a 2B. A 2B may take up to 3 sessions to reclaim, so it need not come the same day, but it cannot take longer. Pass on this one.",
+   "simple": "No, because a 2B has to reclaim the broken low within 3 sessions, and this stock stayed under it for three days.",
+   "lesson_line": "Three sessions to reclaim. A longer stay under the low is a breakdown.",
+   "wrong": {
+    "Yes; it is back above 60.00, the trigger": "The trade back above the low is the trigger only inside the 3-session window. Friday is past it, so the shape is a breakdown.",
+    "Yes; put the stop under the 58.40 low": "A stop only matters once there is a trade to take. The 3-session window has closed, so there is no 2B to buy.",
+    "No; a 2B must reclaim by the next day": "A 2B may take up to 3 sessions to close back above the broken low. The next day is the fastest case, not the limit."
+   },
+   "facts": [
+    "t_inv",
+    "l_oops2",
+    "l_remount"
+   ],
+   "house": true,
+   "tier": "core",
+   "batch": "cover"
   }
  ],
  "conflicts": [
@@ -3618,16 +3687,16 @@
    "notes": "cut in wave3: see the resolver's notes"
   },
   "q05": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "4 matches t_chase and h11; bank 3 is the depth number, fair. Why rests on h12."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q06": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Broker matches t_brk and E57/D41; bank words are weak but this is a recall fill."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q07": {
    "status": "pass",
@@ -3649,10 +3718,10 @@
    "notes": "Key False matches t_close (card tb.reclaim_close, quote verified at criteria/28-2b-reversal.json line 399). why, simple, deeper agree and say no more than the fact. No tell. Overlaps q55/q61 only as the recall rung of the same rule (by design), it does not give their keys away."
   },
   "q10": {
-   "status": "pass",
+   "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave3; awaiting cold re-read"
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q11": {
    "status": "cut",
@@ -3714,10 +3783,10 @@
    "notes": "upgraded wave3; awaiting cold re-read"
   },
   "q21": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "First matches t_first. Recall fill."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q22": {
    "status": "pass",
@@ -4035,6 +4104,18 @@
    "by": "checker",
    "fixed": false,
    "notes": "New. Key from l_oops and t_oops. Decoys are real rules from other setups. Defines the Oops before rung 7; answers q46's tell by design (teach, then apply)."
+  },
+  "q97": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Correct and supported by t_brk and h02. No other choice question tests real stop order versus a stop in your head or an alert. Answer is not a giveaway; distractors are real habits. Style rules pass."
+  },
+  "q98": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "tb.inv_no_reclaim: break Monday, closes under Tue to Thu, retake Friday: past the 3-session window by any count (break day as session 0 or 1), so a breakdown, not a 2B (t_inv, l_oops2). The 3-session window is the card default (D-102 held; D-036 names only setups 11 and 29) and the lesson already keys it (q08, q54), so no ruling conflict; the case is clear under a judgment reading too. Fixed: removed \"a fresh break and reclaim would be a new setup\" (a second break of the same low fails tb.first_break, so it was wrong) and the uncited claim that 58.40 is the right stop for a 2B."
   }
  }
 }

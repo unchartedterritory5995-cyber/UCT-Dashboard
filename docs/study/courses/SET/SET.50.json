@@ -3699,10 +3699,10 @@
    "notes": "c07 verbatim band. Four bands, no tell; wrong notes stay on c07 (over 20% grades lower, not ruled out)."
   },
   "q07": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "c10 verbatim on the card: over 1 ATR is a shakeout (grade lower), over 2 ATR is a breakdown. 2 does not fit because over 2 ATR is a breakdown, not a shakeout."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q08": {
    "status": "pass",

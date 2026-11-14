@@ -343,101 +343,6 @@
  },
  {
   "answer_json": {
-   "answer": "mistake"
-  },
-  "difficulty": 1,
-  "id": "si_d4e5a65a2a95",
-  "lesson_origin": "session",
-  "lesson_text": "Mistake. A mistake is not doing what your plan says. A planned trade that hits its stop is a loss, and losses are common and part of the risk. One loss, or a rough patch, is no reason to change the plan. Your review checks one thing first: whether you followed the plan. That, not the P&L, is what you tag in your log. Losses are part of the risk. Breaking the plan is the mistake.",
-  "module": "F8",
-  "prompt_json": {
-   "bank": [
-    "mistake",
-    "loss",
-    "setup",
-    "signal"
-   ],
-   "kind": "fill",
-   "q": "Fill in the word.",
-   "sentence": "A planned trade that hits its stop is a loss. Breaking your own plan is a ___.",
-   "subject": "F8.01#q05"
-  },
-  "reveal_json": {
-   "deeper": {
-    "counter": "A loss can hold no mistake at all. You took a planned setup, set the stop, and it hit. Nothing to fix. Now flip it: you skipped your stop and the stock bounced back. No loss, but still a mistake. Tag by the plan, never by the P&L."
-   },
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-09",
-      "name": "Investopedia: Psychological Coping Strategies for Handling Losses (Brian J. Bloch, updated 2026-10-16)",
-      "quote": "Losses are common and a part of the risk.",
-      "tier": 2,
-      "url": "https://www.investopedia.com/articles/financial-theory/12/psychological-coping-strategies.asp"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Investopedia: Psychological Coping Strategies for Handling Losses (Brian J. Bloch, updated 2026-10-16)",
-      "quote": "Experiencing losses in the markets can be painful, but they are also almost always inevitable.",
-      "tier": 2,
-      "url": "https://www.investopedia.com/articles/financial-theory/12/psychological-coping-strategies.asp"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Investopedia: Trading Plan: Definition, How It Works, Rules, and Examples (Cory Mitchell, updated 2024-05-03)",
-      "quote": "Plans shouldn't change whenever there's a loss or a rough patch.",
-      "tier": 2,
-      "url": "https://www.investopedia.com/terms/t/trading-plan.asp"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Investopedia: Trading Plan: Definition, How It Works, Rules, and Examples (Cory Mitchell, updated 2024-05-03)",
-      "quote": "The plan is written and must be followed and unaltered unless it's found not to work or the trader finds a way to improve it.",
-      "tier": 2,
-      "url": "https://www.investopedia.com/terms/t/trading-plan.asp"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Investopedia: How to Avoid Emotional Investing (Peter Gratton, updated 2026-10-19)",
-      "quote": "Schedule quarterly reviews focused on whether you’re adhering to your plan, not on market performance.",
-      "tier": 2,
-      "url": "https://www.investopedia.com/articles/basics/10/how-to-avoid-emotional-investing.asp"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Investopedia: Psychological Coping Strategies for Handling Losses (Brian J. Bloch, updated 2026-10-16)",
-      "quote": "Assess what went wrong carefully and objectively. If the cause was out of your hands, there is nothing that can be done. If you identify mistakes or missteps, take responsibility and learn from them.",
-      "tier": 2,
-      "url": "https://www.investopedia.com/articles/financial-theory/12/psychological-coping-strategies.asp"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Jared Tendler (author's blog): The Dangerous Comfort of Hoping and Wishing (2026-09-07)",
-      "quote": "Win and you’ll end up right back in this spot again because you’ve taught yourself that when things get difficult, abandoning your process can save you.",
-      "tier": 2,
-      "url": "https://www.goodreads.com/author_blog_posts/26909691-the-dangerous-comfort-of-hoping-and-wishing"
-     }
-    ],
-    "summary": "Losses are common and part of the risk. Losses in the market are painful but almost always inevitable. A loss or a rough patch is not a reason to change the plan. A trading plan is written down and followed; you change it only when it doesn't work or you find a better way. Review whether you followed your plan, not how the market did. After a loss, sort what was out of your hands from the mistakes that were yours to learn from. When things get hard, a win after you abandon your process teaches you to abandon it again."
-   },
-   "facts": {
-    "given": "Fill in the word. A planned trade that hits its stop is a loss. Breaking your own plan is a ___."
-   },
-   "lesson_line": "Losses are part of the risk. Breaking the plan is the mistake.",
-   "simple": "Mistake, because a planned stop-out is part of the risk, while breaking your plan is a choice you own.",
-   "tier": "core",
-   "unit": "F8.01",
-   "why": "Mistake. A mistake is not doing what your plan says. A planned trade that hits its stop is a loss, and losses are common and part of the risk. One loss, or a rough patch, is no reason to change the plan. Your review checks one thing first: whether you followed the plan. That, not the P&L, is what you tag in your log."
-  },
-  "review_status": "draft",
-  "skill_id": "psych.pattern",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F8/F8.01.json#q05",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
    "answer": "True"
   },
   "difficulty": 1,
@@ -1938,64 +1843,6 @@
   "skill_id": "psych.fomo",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F8/F8.02.json#q03",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
-   "answer": "low"
-  },
-  "difficulty": 1,
-  "id": "si_4d4a62ff9e42",
-  "lesson_origin": "session",
-  "lesson_text": "Low. An uptrend is a series of rising peaks and rising troughs: higher highs and higher lows. A pullback that stops above the last pullback's bottom makes a higher low. A higher high is the other half of the pattern: a new peak above the last peak, not a pullback's bottom. Higher highs and higher lows. That's what an uptrend is made of.",
-  "module": "F8",
-  "prompt_json": {
-   "bank": [
-    "low",
-    "high",
-    "close",
-    "gap",
-    "open"
-   ],
-   "kind": "fill",
-   "q": "Tap the word that fits.",
-   "sentence": "In an uptrend, each pullback stops above the last pullback's bottom. That's a higher ___.",
-   "subject": "F8.02#q04"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-09",
-      "name": "StockCharts.com, ChartSchool: Dow Theory",
-      "quote": "An uptrend is defined by prices that form a series of rising peaks and rising troughs (higher highs and higher lows).",
-      "tier": 2,
-      "url": "https://chartschool.stockcharts.com/table-of-contents/market-analysis/dow-theory"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Investopedia: Predict Market Movements with Trend Analysis & Trading Strategies (updated 2026-07-25)",
-      "quote": "Trends are identified by drawing lines, known as trendlines, that connect price action making higher highs and higher lows for an uptrend, or lower lows and lower highs for a downtrend.",
-      "tier": 2,
-      "url": "https://www.investopedia.com/terms/t/trendanalysis.asp"
-     }
-    ],
-    "summary": "An uptrend is a series of higher highs and higher lows. An uptrend makes higher highs and higher lows."
-   },
-   "facts": {
-    "given": "Tap the word that fits. In an uptrend, each pullback stops above the last pullback's bottom. That's a higher ___."
-   },
-   "lesson_line": "Higher highs and higher lows. That's what an uptrend is made of.",
-   "simple": "Low, because in an uptrend each dip stops above the last dip, and that makes a higher low.",
-   "tier": "core",
-   "unit": "F8.02",
-   "why": "Low. An uptrend is a series of rising peaks and rising troughs: higher highs and higher lows. A pullback that stops above the last pullback's bottom makes a higher low. A higher high is the other half of the pattern: a new peak above the last peak, not a pullback's bottom."
-  },
-  "review_status": "draft",
-  "skill_id": "psych.fomo",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F8/F8.02.json#q04",
   "type": "recall",
   "version": 1
  },
@@ -4455,70 +4302,6 @@
  },
  {
   "answer_json": {
-   "answer": "before"
-  },
-  "difficulty": 1,
-  "id": "si_a8c1bdff34e8",
-  "lesson_origin": "session",
-  "lesson_text": "Before. Fidelity says to have a plan for how you might exit even before you enter. Investopedia's Alan Farley says to set reward and risk targets before each trade. Fidelity adds that emotions and loss aversion can get in the way of good trading decisions. That is why the exit is decided first. Exits are decided before the entry. In the trade, you follow them.",
-  "module": "F8",
-  "prompt_json": {
-   "bank": [
-    "before",
-    "after",
-    "once",
-    "as"
-   ],
-   "kind": "fill",
-   "q": "Fill in the word.",
-   "sentence": "Plan your exit ___ you enter the trade.",
-   "subject": "F8.03#q07"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-09",
-      "name": "Fidelity Investments: Exit Strategies (Fidelity Learning Center)",
-      "quote": "Even before you enter a trade, it can be helpful to have a plan for how you might exit the trade.",
-      "tier": 2,
-      "url": "https://www.fidelity.com/learning-center/trading-investing/trading/exit-strategies"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Investopedia: Profitable Trading Exits: Simple and Effective Techniques (Alan Farley, updated 2026-09-15)",
-      "quote": "Get into the habit of establishing reward and risk targets before entering each trade.",
-      "tier": 2,
-      "url": "https://www.investopedia.com/articles/active-trading/020915/mustknow-simple-effective-exit-trading-strategies.asp"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Fidelity Investments: Exit Strategies (Fidelity Learning Center)",
-      "quote": "Often, emotions and loss aversion can get in the way of making good trading decisions. That’s why it's so important that you have a plan for getting out of an investment.",
-      "tier": 2,
-      "url": "https://www.fidelity.com/learning-center/trading-investing/trading/exit-strategies"
-     }
-    ],
-    "summary": "Plan your exit before you enter the trade. Set your reward and risk targets before each entry. Emotions and loss aversion get in the way of good decisions, so have an exit plan."
-   },
-   "facts": {
-    "given": "Fill in the word. Plan your exit ___ you enter the trade."
-   },
-   "lesson_line": "Exits are decided before the entry. In the trade, you follow them.",
-   "simple": "Plan your exit before you buy, because fear of loss can get in the way of good decisions later.",
-   "tier": "core",
-   "unit": "F8.03",
-   "why": "Before. Fidelity says to have a plan for how you might exit even before you enter. Investopedia's Alan Farley says to set reward and risk targets before each trade. Fidelity adds that emotions and loss aversion can get in the way of good trading decisions. That is why the exit is decided first."
-  },
-  "review_status": "draft",
-  "skill_id": "psych.fear",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F8/F8.03.json#q07",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
    "answer": "Freezing on a valid entry"
   },
   "difficulty": 2,
@@ -6257,70 +6040,6 @@
   "skill_id": "psych.tilt",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F8/F8.04.json#q04",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
-   "answer": "Recognize"
-  },
-  "difficulty": 1,
-  "id": "si_8a3cfe66e737",
-  "lesson_origin": "session",
-  "lesson_text": "Recognize. Step 1 of Tendler's real-time strategy is recognizing that your problems have been triggered. Then you disrupt the momentum of the emotion, inject logic and use a strategic reminder. The order matters. Once emotion gets too intense, he says, the mind can't stop it, so you must see it early. Spot it early. The sooner you name it, the cheaper it is.",
-  "module": "F8",
-  "prompt_json": {
-   "bank": [
-    "Recognize",
-    "Suppress",
-    "Ignore",
-    "Justify"
-   ],
-   "kind": "fill",
-   "q": "Fill in the first step of Tendler's real-time strategy.",
-   "sentence": "Step 1: ___ that your problem has been triggered.",
-   "subject": "F8.04#q05"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-09",
-      "name": "Jared Tendler (author's site): Troubleshooting Your Real-Time Strategy (2023-07-10)",
-      "quote": "Step 1: Recognizing that your problems have been triggered Step 2: Disrupting the momentum of those emotions Step 3: Injecting Logic Step 4: Using a Strategic Reminder",
-      "tier": 2,
-      "url": "https://jaredtendler.com/troubleshooting-your-real-time-strategy/"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Jared Tendler (author's site): You Can't Stop a Problem You Can't See (2021-04-14)",
-      "quote": "Catching it early is critical. When emotions get too intense, the mind isn’t powerful enough to stop them and mistakes become inevitable. Seeing it afterwards, is like seeing a trade you missed.",
-      "tier": 2,
-      "url": "https://jaredtendler.com/you-cant-stop-a-problem-you-cant-see/"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Charles Schwab: Trading Psychology: Recovering From Big Losses (Henry Hoenig, 2026-02-10)",
-      "quote": "The practice may help traders recognize and acknowledge market triggers as they occur and then take steps to avoid or counteract the emotion-based behaviors that typically follow.",
-      "tier": 2,
-      "url": "https://www.schwab.com/learn/story/trading-psychology-recovering-from-big-losses"
-     }
-    ],
-    "summary": "Tendler's real-time strategy: recognise the trigger, disrupt the momentum, inject logic, use a reminder. Once emotion gets too intense you can't stop it, so it has to be caught early. Recognising a trigger as it happens is what lets you head off the emotional trade that follows."
-   },
-   "facts": {
-    "given": "Fill in the first step of Tendler's real-time strategy. Step 1: ___ that your problem has been triggered."
-   },
-   "lesson_line": "Spot it early. The sooner you name it, the cheaper it is.",
-   "simple": "Recognize comes first, because you can't stop a feeling you haven't noticed yet.",
-   "tier": "core",
-   "unit": "F8.04",
-   "why": "Recognize. Step 1 of Tendler's real-time strategy is recognizing that your problems have been triggered. Then you disrupt the momentum of the emotion, inject logic and use a strategic reminder. The order matters. Once emotion gets too intense, he says, the mind can't stop it, so you must see it early."
-  },
-  "review_status": "draft",
-  "skill_id": "psych.tilt",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F8/F8.04.json#q05",
   "type": "recall",
   "version": 1
  },
@@ -8143,92 +7862,6 @@
  },
  {
   "answer_json": {
-   "answer": "self-attribution"
-  },
-  "difficulty": 1,
-  "id": "si_75f6eacb6875",
-  "lesson_origin": "session",
-  "lesson_text": "Self-attribution. It means crediting your successes to your own skill and blaming your failures on things outside your control. A research review done for the SEC lists it as a form of overconfidence. Real brokerage clients show the first half: the better their recent returns, the more they credited their skill. Grade your wins as hard as you grade your losses.",
-  "module": "F8",
-  "prompt_json": {
-   "bank": [
-    "self-attribution",
-    "confirmation",
-    "anchoring",
-    "recency",
-    "hindsight"
-   ],
-   "kind": "fill",
-   "q": "Name the bias.",
-   "sentence": "Crediting your wins to skill and blaming your losses on bad luck is ___ bias.",
-   "subject": "F8.05#q03"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-09",
-      "name": "Journal of Behavioral and Experimental Economics (Elsevier): Hoffmann and Post, 'Self-attribution bias in consumer financial decision-making: How investment returns affect individuals' belief in skill', vol. 52 (2014), abstract",
-      "quote": "Self-attribution bias is a long-standing concept in psychology research and refers to individuals' tendency to attribute successes to personal skills and failures to factors beyond their control.",
-      "tier": 2,
-      "url": "https://ideas.repec.org/a/eee/soceco/v52y2014icp23-28.html"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC (report by the Library of Congress, Federal Research Division): Behavioral Patterns and Pitfalls of U.S. Investors (August 2010)",
-      "quote": "and succumbing to optimism, short-term thinking, and overconfidence (self-attribution bias)",
-      "tier": 2,
-      "url": "https://www.sec.gov/investor/locinvestorbehaviorreport.pdf"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Financial Analysts Journal: Barber and Odean, 'The Courage of Misguided Convictions', vol. 55, no. 6 (November/December 1999), authors' copy at UC Berkeley Haas",
-      "quote": "too much credit for their own success and do not attribute enough of that success to chance or outside circumstance. Gervais and Odean showed that this bias leads successful investors to become overconfident.",
-      "tier": 2,
-      "url": "https://faculty.haas.berkeley.edu/odean/Papers%20current%20versions/FAJ%20NovDec99%20Barber%20and%20Odean.pdf"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Investopedia: Navigating Overconfidence Bias To Improve Investment Success (Adam Hayes, updated 2026-07-01)",
-      "quote": "It also leads us to discount or ignore our mistakes and instead assign blame to others or to things that are outside of our control.",
-      "tier": 2,
-      "url": "https://www.investopedia.com/overconfidence-bias-7485796"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "The Review of Financial Studies: Statman, Thorley and Vorkink, 'Investor Overconfidence and Trading Volume', vol. 19, no. 4 (2006), abstract",
-      "quote": "With biased self-attribution, the level of investor overconfidence and thus trading volume varies with past returns.",
-      "tier": 2,
-      "url": "https://ideas.repec.org/a/oup/rfinst/v19y2006i4p1531-1565.html"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Journal of Behavioral and Experimental Economics (Elsevier): Hoffmann and Post, 'Self-attribution bias in consumer financial decision-making: How investment returns affect individuals' belief in skill', vol. 52 (2014), abstract",
-      "quote": "the higher the returns in a previous period are, the more investors agree with a statement claiming that their recent performance accurately reflects their investment skills",
-      "tier": 2,
-      "url": "https://ideas.repec.org/a/eee/soceco/v52y2014icp23-28.html"
-     }
-    ],
-    "summary": "Self-attribution bias: crediting your successes to your own skill and blaming your failures on things outside your control. The report lists overconfidence, in the form of self-attribution bias, among investors' common mistakes. People give themselves too much credit for success and too little to chance or circumstance, and that turns successful investors overconfident. Overconfidence makes us shrug off our mistakes and blame others or things outside our control. In overconfidence models with biased self-attribution, overconfidence and trading rise and fall with past returns. Among real brokerage clients, the better their recent returns, the more they believed those returns reflected their skill."
-   },
-   "facts": {
-    "given": "Name the bias. Crediting your wins to skill and blaming your losses on bad luck is ___ bias."
-   },
-   "lesson_line": "Grade your wins as hard as you grade your losses.",
-   "simple": "It is self-attribution bias, because you give your skill the credit for wins and blame bad luck for losses.",
-   "tier": "core",
-   "unit": "F8.05",
-   "why": "Self-attribution. It means crediting your successes to your own skill and blaming your failures on things outside your control. A research review done for the SEC lists it as a form of overconfidence. Real brokerage clients show the first half: the better their recent returns, the more they credited their skill."
-  },
-  "review_status": "draft",
-  "skill_id": "psych.euphoria",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F8/F8.05.json#q03",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
    "answer": "Taking on more risk after a gain"
   },
   "difficulty": 1,
@@ -9756,6 +9389,81 @@
  },
  {
   "answer_json": {
+   "answer": "Becoming overconfident in your skill"
+  },
+  "difficulty": 1,
+  "id": "si_5e78e8d58761",
+  "lesson_origin": "session",
+  "lesson_text": "Becoming overconfident in your skill. This is self-attribution bias: crediting your successes to your own skill and blaming your failures on things outside your control. A research review done for the SEC lists it as a form of overconfidence. Real brokerage clients show it: the better their recent returns, the more they credited their skill. Grade your wins as hard as you grade your losses.",
+  "module": "F8",
+  "prompt_json": {
+   "choices": [
+    "Trading less after a winning run",
+    "Becoming overconfident in your skill",
+    "Spotting your own mistakes sooner",
+    "Becoming too cautious after a win"
+   ],
+   "kind": "mcq",
+   "q": "You credit every win to your skill and every loss to bad luck. What does that habit build?",
+   "subject": "F8.05#q97"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-09",
+      "name": "Journal of Behavioral and Experimental Economics (Elsevier): Hoffmann and Post, 'Self-attribution bias in consumer financial decision-making: How investment returns affect individuals' belief in skill', vol. 52 (2014), abstract",
+      "quote": "Self-attribution bias is a long-standing concept in psychology research and refers to individuals' tendency to attribute successes to personal skills and failures to factors beyond their control.",
+      "tier": 2,
+      "url": "https://ideas.repec.org/a/eee/soceco/v52y2014icp23-28.html"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "SEC (report by the Library of Congress, Federal Research Division): Behavioral Patterns and Pitfalls of U.S. Investors (August 2010)",
+      "quote": "and succumbing to optimism, short-term thinking, and overconfidence (self-attribution bias)",
+      "tier": 2,
+      "url": "https://www.sec.gov/investor/locinvestorbehaviorreport.pdf"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "Financial Analysts Journal: Barber and Odean, 'The Courage of Misguided Convictions', vol. 55, no. 6 (November/December 1999), authors' copy at UC Berkeley Haas",
+      "quote": "too much credit for their own success and do not attribute enough of that success to chance or outside circumstance. Gervais and Odean showed that this bias leads successful investors to become overconfident.",
+      "tier": 2,
+      "url": "https://faculty.haas.berkeley.edu/odean/Papers%20current%20versions/FAJ%20NovDec99%20Barber%20and%20Odean.pdf"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "Journal of Behavioral and Experimental Economics (Elsevier): Hoffmann and Post, 'Self-attribution bias in consumer financial decision-making: How investment returns affect individuals' belief in skill', vol. 52 (2014), abstract",
+      "quote": "the higher the returns in a previous period are, the more investors agree with a statement claiming that their recent performance accurately reflects their investment skills",
+      "tier": 2,
+      "url": "https://ideas.repec.org/a/eee/soceco/v52y2014icp23-28.html"
+     }
+    ],
+    "summary": "Self-attribution bias: crediting your successes to your own skill and blaming your failures on things outside your control. The report lists overconfidence, in the form of self-attribution bias, among investors' common mistakes. People give themselves too much credit for success and too little to chance or circumstance, and that turns successful investors overconfident. Among real brokerage clients, the better their recent returns, the more they believed those returns reflected their skill."
+   },
+   "facts": {
+    "given": "You credit every win to your skill and every loss to bad luck. What does that habit build? Becoming overconfident in your skill Becoming too cautious after a win Spotting your own mistakes sooner Trading less after a winning run"
+   },
+   "lesson_line": "Grade your wins as hard as you grade your losses.",
+   "simple": "Taking credit for wins and blaming luck for losses makes you too sure of yourself, so judge wins as hard as losses.",
+   "tier": "core",
+   "unit": "F8.05",
+   "why": "Becoming overconfident in your skill. This is self-attribution bias: crediting your successes to your own skill and blaming your failures on things outside your control. A research review done for the SEC lists it as a form of overconfidence. Real brokerage clients show it: the better their recent returns, the more they credited their skill.",
+   "wrong": {
+    "Becoming too cautious after a win": "Overconfidence pushes the other way. Winners tend to feel surer of their skill.",
+    "Spotting your own mistakes sooner": "Blaming losses on luck hides your mistakes, so you spot them later, not sooner.",
+    "Trading less after a winning run": "Overconfidence tends to raise trading after good returns, not cut it."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "psych.euphoria",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F8/F8.05.json#q97",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
    "unscored": true
   },
   "difficulty": 1,
@@ -10246,71 +9954,6 @@
  },
  {
   "answer_json": {
-   "answer": "flawed"
-  },
-  "difficulty": 1,
-  "id": "si_fc7f6709d067",
-  "lesson_origin": "session",
-  "lesson_text": "Flawed. Tendler's step 3 reads: explain why the logic in step 2 is flawed. 'Correct' is the word for step 5, which explains why your correction is correct. Step 3 tests the reason you wrote down. It does not fix it yet. Lay the logic out first. Then find the spot where it breaks.",
-  "module": "F8",
-  "prompt_json": {
-   "bank": [
-    "flawed",
-    "correct",
-    "emotional",
-    "profitable",
-    "new"
-   ],
-   "kind": "fill",
-   "q": "Fill in the blank.",
-   "sentence": "Step 3: explain why the logic in step 2 is ___.",
-   "subject": "F8.06#q05"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-09",
-      "name": "Jared Tendler (jaredtendler.com): Find the \"Rocks\" in Your Mind (blog, 2022-05-09)",
-      "quote": "STEP 3: Explain why the logic in Step 2 is flawed.",
-      "tier": 2,
-      "url": "https://jaredtendler.com/find-the-rocks-in-your-mind/"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Betfair Australia, The Automation Hub: Correcting Your Emotions (Mental Game series, part 5, by Jared Tendler)",
-      "quote": "Step 3: Explain why the logic in Step 2 is flawed. Step 4: Come up with a correction to that flawed logic. Step 5: Explain why that correction is correct.",
-      "tier": 2,
-      "url": "https://betfair-datascientists.github.io/mentalGame/correctingyouremotions"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Charles Schwab: Trading Psychology: Recovering From Big Losses (Henry Hoenig, 2026-02-10)",
-      "quote": "Challenge thoughts and assumptions about the loss, especially those that might be self-defeating. Put thoughts on \"trial,\" treating them as hypotheses that need to be tested.",
-      "tier": 2,
-      "url": "https://www.schwab.com/learn/story/trading-psychology-recovering-from-big-losses"
-     }
-    ],
-    "summary": "Step 3: explain why the logic from step 2 is flawed. Steps 3 to 5: show the logic is flawed, correct it, and explain why the correction is correct. Challenge your thoughts about a loss: treat them as ideas to test, not facts."
-   },
-   "facts": {
-    "given": "Fill in the blank. Step 3: explain why the logic in step 2 is ___."
-   },
-   "lesson_line": "Lay the logic out first. Then find the spot where it breaks.",
-   "simple": "The word is flawed, because step 3 finds where the reasoning from step 2 breaks.",
-   "tier": "core",
-   "unit": "F8.06",
-   "why": "Flawed. Tendler's step 3 reads: explain why the logic in step 2 is flawed. 'Correct' is the word for step 5, which explains why your correction is correct. Step 3 tests the reason you wrote down. It does not fix it yet."
-  },
-  "review_status": "draft",
-  "skill_id": "psych.hand_history",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F8/F8.06.json#q05",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
    "answer": "The flawed logic you laid out"
   },
   "difficulty": 1,
@@ -10609,78 +10252,6 @@
   "source_kind": "course",
   "source_ref": "docs/study/courses/F8/F8.06.json#q09",
   "type": "scenario",
-  "version": 1
- },
- {
-  "answer_json": {
-   "answer": "correction"
-  },
-  "difficulty": 2,
-  "id": "si_679d98fa46fe",
-  "lesson_origin": "session",
-  "lesson_text": "Correction. The five steps run in order. Describe the problem, and explain why it makes sense. Explain why that logic is flawed, then come up with a correction to it. Step 5 explains why the correction is correct. The blank is step 4. Problem, why it makes sense, the flaw, the correction, why it's correct. In that order.",
-  "module": "F8",
-  "prompt_json": {
-   "bank": [
-    "correction",
-    "trigger",
-    "setup",
-    "result",
-    "target"
-   ],
-   "kind": "fill",
-   "q": "Fill in the missing step.",
-   "sentence": "Problem, why it makes sense, why that logic is flawed, the ___, and why it's right.",
-   "subject": "F8.06#q10"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-09",
-      "name": "Jared Tendler (jaredtendler.com): Find the \"Rocks\" in Your Mind (blog, 2022-05-09)",
-      "quote": "STEP 4: Come up with a correction to that flawed logic.",
-      "tier": 2,
-      "url": "https://jaredtendler.com/find-the-rocks-in-your-mind/"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Jared Tendler (jaredtendler.com): Find the \"Rocks\" in Your Mind (blog, 2022-05-09)",
-      "quote": "STEP 5: Explain why that correction is correct.",
-      "tier": 2,
-      "url": "https://jaredtendler.com/find-the-rocks-in-your-mind/"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Betfair Australia, The Automation Hub: Correcting Your Emotions (Mental Game series, part 5, by Jared Tendler)",
-      "quote": "Step 1: Describe the problem in detail. Step 2: Explain why it makes sense that you have this problem, or why you think, feel, or react that way.",
-      "tier": 2,
-      "url": "https://betfair-datascientists.github.io/mentalGame/correctingyouremotions"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Betfair Australia, The Automation Hub: Correcting Your Emotions (Mental Game series, part 5, by Jared Tendler)",
-      "quote": "Step 3: Explain why the logic in Step 2 is flawed. Step 4: Come up with a correction to that flawed logic. Step 5: Explain why that correction is correct.",
-      "tier": 2,
-      "url": "https://betfair-datascientists.github.io/mentalGame/correctingyouremotions"
-     }
-    ],
-    "summary": "Step 4: come up with a correction to that flawed logic. Step 5: explain why the correction is correct. Steps 1 and 2: describe the problem in detail, then explain why it makes sense that you react that way. Steps 3 to 5: show the logic is flawed, correct it, and explain why the correction is correct."
-   },
-   "facts": {
-    "given": "Fill in the missing step. Problem, why it makes sense, why that logic is flawed, the ___, and why it's right."
-   },
-   "lesson_line": "Problem, why it makes sense, the flaw, the correction, why it's correct. In that order.",
-   "simple": "The missing word is correction, because step 4 fixes the flawed logic before step 5 explains why it is right.",
-   "tier": "core",
-   "unit": "F8.06",
-   "why": "Correction. The five steps run in order. Describe the problem, and explain why it makes sense. Explain why that logic is flawed, then come up with a correction to it. Step 5 explains why the correction is correct. The blank is step 4."
-  },
-  "review_status": "draft",
-  "skill_id": "psych.hand_history",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F8/F8.06.json#q10",
-  "type": "recall",
   "version": 1
  },
  {
@@ -12222,70 +11793,6 @@
  },
  {
   "answer_json": {
-   "answer": "one"
-  },
-  "difficulty": 1,
-  "id": "si_df06a4db1eeb",
-  "lesson_origin": "session",
-  "lesson_text": "One. Tendler: when your routines need work, start small and look for just one thing you can add. Steenbarger says change is a daily job. Try massive changes in one day and you risk derailing your efforts. This does not mean your routine stays small. Small steps add up to big changes. One small change you keep beats a big overhaul you drop.",
-  "module": "F8",
-  "prompt_json": {
-   "bank": [
-    "one",
-    "two",
-    "three",
-    "five"
-   ],
-   "kind": "fill",
-   "q": "Finish the line. It sums up Tendler's advice on improving a routine.",
-   "sentence": "When your routine needs work, add new things ___ at a time.",
-   "subject": "F8.07#q07"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-09",
-      "name": "Jared Tendler: Building a Winning Routine (2023-06-05)",
-      "quote": "If your routines need improvement, start small. Look for just one thing you can add that can make a slight improvement.",
-      "tier": 2,
-      "url": "https://jaredtendler.com/building-a-winning-routine/"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Brett Steenbarger, TraderFeed: Small Steps, Large Changes (2014-03-20)",
-      "quote": "If you're not working on change daily, you're not working on change. And if you try to accomplish massive changes in one day, you run the risk of activating competing motivations and derailing your efforts.",
-      "tier": 2,
-      "url": "https://traderfeed.blogspot.com/2014/03/small-steps-large-changes.html"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Brett Steenbarger, TraderFeed: Small Steps, Large Changes (2014-03-20)",
-      "quote": "The key to remaking yourself is to find the small steps that add to big changes without setting off alarms.",
-      "tier": 2,
-      "url": "https://traderfeed.blogspot.com/2014/03/small-steps-large-changes.html"
-     }
-    ],
-    "summary": "Improve a routine one small addition at a time. Change is a daily job, and trying to change everything at once tends to derail it. Small steps add up to big changes."
-   },
-   "facts": {
-    "given": "Finish the line. It sums up Tendler's advice on improving a routine. When your routine needs work, add new things ___ at a time."
-   },
-   "lesson_line": "One small change you keep beats a big overhaul you drop.",
-   "simple": "One, because a single small change you can keep beats trying to fix everything at once.",
-   "tier": "core",
-   "unit": "F8.07",
-   "why": "One. Tendler: when your routines need work, start small and look for just one thing you can add. Steenbarger says change is a daily job. Try massive changes in one day and you risk derailing your efforts. This does not mean your routine stays small. Small steps add up to big changes."
-  },
-  "review_status": "draft",
-  "skill_id": "psych.routine",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F8/F8.07.json#q07",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
    "answer": "Doing the ideal thing automatically"
   },
   "difficulty": 1,
@@ -12655,70 +12162,6 @@
   "skill_id": "psych.routine",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F8/F8.07.json#q11",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
-   "answer": "improve"
-  },
-  "difficulty": 2,
-  "id": "si_97bbbed90732",
-  "lesson_origin": "session",
-  "lesson_text": "Improve. Tendler asks three questions after a session: what you did well, what mistakes you made, and how to improve next time. Steenbarger's review tracks what you did well and what needs improvement, at the end of each day, week and month. The cool-down is about tomorrow, not today's score. Three questions after every session: what worked, what didn't, what changes tomorrow.",
-  "module": "F8",
-  "prompt_json": {
-   "bank": [
-    "improve",
-    "forget",
-    "profit",
-    "relax"
-   ],
-   "kind": "fill",
-   "q": "Finish Tendler's three cool-down questions.",
-   "sentence": "What did I do well? What mistakes did I make? How can I ___ next time?",
-   "subject": "F8.07#q12"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-09",
-      "name": "Jared Tendler: Effective Journaling (2025-08-11)",
-      "quote": "What did you do well in general and/or improve on the things you've been working on? What mistakes did you make? How can you improve on them and/or be better next time?",
-      "tier": 2,
-      "url": "https://jaredtendler.com/effective-journaling/"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Brett Steenbarger, TraderFeed: Best Practices For Coaching Our Own Trading (2026-02-13, entries to 2026-02-19)",
-      "quote": "At the end of the day, week, and month, you can track what you did well and what needs improvement.",
-      "tier": 2,
-      "url": "https://traderfeed.blogspot.com/2026/02/best-practices-for-coaching-our-own.html"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Jared Tendler: Building a Winning Routine (2023-06-05)",
-      "quote": "What you do after the session or event is all about tomorrow.",
-      "tier": 2,
-      "url": "https://jaredtendler.com/building-a-winning-routine/"
-     }
-    ],
-    "summary": "Tendler's three cool-down questions: what went well, what mistakes you made, how to improve next time. Review at the end of each day, week and month: what went well and what needs work. The cool-down is preparation for tomorrow."
-   },
-   "facts": {
-    "given": "Finish Tendler's three cool-down questions. What did I do well? What mistakes did I make? How can I ___ next time?"
-   },
-   "lesson_line": "Three questions after every session: what worked, what didn't, what changes tomorrow.",
-   "simple": "Improve, because the third question turns today's mistakes into a change you make next time.",
-   "tier": "extended",
-   "unit": "F8.07",
-   "why": "Improve. Tendler asks three questions after a session: what you did well, what mistakes you made, and how to improve next time. Steenbarger's review tracks what you did well and what needs improvement, at the end of each day, week and month. The cool-down is about tomorrow, not today's score."
-  },
-  "review_status": "draft",
-  "skill_id": "psych.routine",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F8/F8.07.json#q12",
   "type": "recall",
   "version": 1
  },

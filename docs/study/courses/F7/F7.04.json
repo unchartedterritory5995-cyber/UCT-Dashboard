@@ -1916,6 +1916,39 @@
     ]
    },
    "batch": "wave6"
+  },
+  {
+   "key": "q97",
+   "skill": "history.bottoms",
+   "rung": 2,
+   "format": "mcq",
+   "q": "You're watching a sell-off for signs of capitulation. Which day looks like it?",
+   "choices": [
+    "A sharp drop on unusually heavy volume",
+    "A slow drift down on light volume",
+    "A tight range on unusually heavy volume",
+    "A sharp rally on light volume"
+   ],
+   "answer": "A sharp drop on unusually heavy volume",
+   "why": "A sharp drop on unusually heavy volume. Investopedia says traders look for unusually high trading volume with sharp price drops to signal capitulation. ChartSchool's Wyckoff tutorial shows the selling climax with wide price ranges and heavy volume, and price often closes well off the low. It is a clue to watch for, not proof.",
+   "lesson_line": "Big drop, huge volume, a close well off the low. That's the look of a washout.",
+   "facts": [
+    "f43",
+    "f63",
+    "f62"
+   ],
+   "wrong": {
+    "A slow drift down on light volume": "A quiet slide is not panic selling. Capitulation shows heavy volume.",
+    "A tight range on unusually heavy volume": "A selling climax shows wide price ranges. A tight range means little selling pressure.",
+    "A sharp rally on light volume": "A rally is the opposite move. Capitulation is a sharp drop."
+   },
+   "simple": "Capitulation looks like panic: a sharp drop on unusually heavy volume, often closing well off the low.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "fills"
   }
  ],
  "conflicts": [
@@ -1972,15 +2005,15 @@
   },
   "q04": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "Keep. A bullish breadth divergence (index new low, fewer stocks follow) is a bottom clue read at the screen; bank is all breadth words so the blank is not a giveaway; why defines breadth and says clue not proof."
   },
   "q05": {
-   "status": "pass",
+   "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q06": {
    "status": "pass",
@@ -2121,6 +2154,12 @@
    "by": "checker",
    "fixed": false,
    "notes": "False from h1 (A4, verbatim in sizing_rule.md section 9); gap exception h4 (B20, verbatim); f71 used correctly. A hedged 'can' keyed False, so the hedge is not a tell. It deliberately teaches the stop rule that q26 then uses (a lower rung teaches, a higher rung applies); q26 still needs the market read (f78), so q27 does not answer q26. Small note: its lesson_line nearly repeats q26's."
+  },
+  "q97": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Pass. Right answer is not the longest and each distractor flips one feature (slow, tight range, rally); supported by f43, f62, f63; framed as a clue, not proof."
   }
  }
 }

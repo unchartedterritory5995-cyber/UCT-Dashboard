@@ -3690,10 +3690,10 @@
    "notes": "True from c06 and B26 (h10); the why handles B26's parabolic exception. Rung-1 statement of the rule that q66 applies; that is the learn-then-apply ladder, not a give-away of q66's trap (the earlier undercut)."
   },
   "q04": {
-   "status": "pass",
+   "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave4b; awaiting cold re-read"
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q07": {
    "status": "pass",
@@ -3751,10 +3751,10 @@
    "notes": "Edit is right; 'not wrong answers' is test-speak, reworded."
   },
   "q16": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "4 from c20 and C28 (h11, h12). Bank holds 10 (C29's number), a real confusion. Pass."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q18": {
    "status": "pass",

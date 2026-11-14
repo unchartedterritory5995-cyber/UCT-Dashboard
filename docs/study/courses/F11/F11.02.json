@@ -1675,10 +1675,10 @@
    "notes": "upgraded wave9; awaiting cold re-read"
   },
   "q03": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Re-derived 'day' from f52 (Bulkowski's own label), f39, f59. The why's two cautions are grounded (f21 gaps on any scale; f36/f57 shorter chart for exits). Numbers 5, 1, 2 come from f53 and the sentence. Bulkowski sourcing stays an owner flag."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q04": {
    "status": "pass",

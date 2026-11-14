@@ -1768,10 +1768,10 @@
    "notes": "Own answer December 2007 to June 2009 from f49, f62, f64. The September to December 2008 note now rests only on f85 and no longer spells out q18's order. The longest choice is a wrong one."
   },
   "q05": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Own answer 'low' from f68. 'close' and 'high' are not defensible in that slot. The simple answer is 20 words."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q06": {
    "status": "pass",

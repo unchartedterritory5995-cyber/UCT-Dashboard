@@ -1050,6 +1050,18 @@
    "source": "h2",
    "quote": "He very rarely sells on day 1 of the buy; he usually waits until day 3 at the earliest.",
    "claim": "Very rarely sells on day 1; usually waits until day 3 at the earliest (D-013)"
+  },
+  {
+   "id": "r05",
+   "source": "h2",
+   "quote": "I very rarely buy at close. It is always just the trigger for each trade never the close.",
+   "claim": "Buys are at the trigger, never the close (D-003)"
+  },
+  {
+   "id": "r06",
+   "source": "h2",
+   "quote": "Every setup buys as price trades through its trigger, during the day.",
+   "claim": "Every setup buys as price trades through its trigger during the day (D-003)"
   }
  ],
  "walkthroughs": [
@@ -4218,6 +4230,40 @@
     ]
    },
    "batch": "rulings2"
+  },
+  {
+   "key": "q80",
+   "skill": "setup.high_tight_flag",
+   "rung": 4,
+   "format": "scenario",
+   "criterion": "htf.market_order",
+   "q": "What do you do?",
+   "story": "Your alert fires in regular hours. The stock trades at 48.22, over the 48.20 pattern high. The flag passed every test and the market reading is Green.",
+   "choices": [
+    "Buy at market now; stop goes in at once",
+    "Wait for a close over 48.20, then buy",
+    "Bid 48.00 and wait for a dip back",
+    "Buy now; add the stop after the close"
+   ],
+   "answer": "Buy at market now; stop goes in at once",
+   "why": "Buy at market now, with the real stop in at once. Every setup buys as price trades through its trigger, during the day, never at the close. Our entry is a market order at least a cent over the high, regular hours only. At 48.22 the stock is already through 48.20. Bulkowski's close above the top confirms the pattern is valid, but our buy does not wait for it.",
+   "lesson_line": "Buy as it trades through the top. The stop goes in with the buy.",
+   "simple": "Buy at market as it trades through the high, with the stop in at once. We never wait for the close.",
+   "wrong": {
+    "Wait for a close over 48.20, then buy": "He very rarely buys at the close. It is always the trigger, never the close. Bulkowski's close only confirms the pattern is valid.",
+    "Bid 48.00 and wait for a dip back": "A bid under the trigger may never fill, and the stock has already traded through. We buy at market as it trades through, not on a hoped-for dip.",
+    "Buy now; add the stop after the close": "A real stop goes in at once. Until it is in, the position has no exit while it trades."
+   },
+   "facts": [
+    "c05",
+    "r06",
+    "r05",
+    "h22",
+    "b21"
+   ],
+   "house": true,
+   "tier": "core",
+   "batch": "cover"
   }
  ],
  "conflicts": [
@@ -4275,10 +4321,10 @@
    "by": "checker"
   },
   "q03": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "pole is supported by i04, b04, b21, c05; tiles are real peaks the sources rule out; no trendline clause left, so q43 is not given away."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q04": {
    "status": "pass",
@@ -4336,10 +4382,10 @@
    "notes": "Key follows c15, b08, t02; the sags-to-pole-low and loose-swings notes rest on c02 and b05. Key is not the longest."
   },
   "q13": {
-   "status": "pass",
+   "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave2; awaiting cold re-read"
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q14": {
    "status": "pass",
@@ -4667,10 +4713,10 @@
    "notes": "d17/d18/c47/c48: +78% in 40 sessions under the 90% line; flag 0.78x volume kills the volume choice. Stem 131 chars. Chart TSLA 2023-07-13 consistent with the 2023-07-14 trigger. Held decision D-048 noted in depends_on."
   },
   "q67": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "40 sessions = 8 weeks per c48; IBD four to eight weeks (i01) and Bulkowski 2 months (b01) agree. Bank is fine."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q68": {
    "status": "pass",
@@ -4746,6 +4792,12 @@
    "by": "checker",
    "fixed": false,
    "notes": "edit ok, agrees with D-013"
+  },
+  "q80": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Applies htf.market_order: market order as price trades through 48.20 (at 48.22, over a cent past), real stop at once. Agrees with D-003 (trigger, never the close); r05/r06 quote RULINGS word for word via existing source h2. Wrong answers clearly wrong (close wait contradicts D-003, dip bid, stop later contradicts c05/h18). Bulkowski b21 quote verbatim. No existing live entry-order question on this card. No stop-distance or volume claims."
   }
  }
 }

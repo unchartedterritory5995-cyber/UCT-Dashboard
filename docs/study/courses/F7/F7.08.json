@@ -1432,10 +1432,10 @@
    "notes": "Decided 2007-09 before the key: f02 57% (Fed History), f45 56.8% (S&P DJI table, re-read live on CNBC), vs f44 49.1%, f46 33.9%, 2022 4,796.56 to 3,577.03 (calc 25.4%, not stated). Choices 13-16 chars, cause-neutral, no tell. Why, wrong notes and simple use only cited numbers; 'ranks only these four falls' guards the date dependence. Question text gives away no other key."
   },
   "q02": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Home, decided from f04/f50/f57 before reading the key; matches. Why sentences all trace to f04, f03, f05; Lehman/AIG sentence 20 words. Bank of 5, no tell. Closing negative about oil/tech/gold/food follows from the cited trigger facts."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q03": {
    "status": "pass",

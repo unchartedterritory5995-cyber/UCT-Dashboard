@@ -1578,7 +1578,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "My own answer is zero, from f5. All four bank words read correctly in the blank. 'Long or short' in the why comes from f5. No tell."
+   "notes": "Keep. Shares carry delta but no gamma is the base of delta hedging and why gamma is an option risk. Existing why defines gamma; bank has no giveaway."
   },
   "q04": {
    "status": "pass",

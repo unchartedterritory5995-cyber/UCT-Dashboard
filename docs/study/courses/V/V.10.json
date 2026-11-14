@@ -3994,10 +3994,10 @@
    "notes": "Solved cold: large-scale Fed bond buying. Backed by f54/f165 (LSAPs), f159, f27, f160 (Tier 1 + Tier 2). Rate cut, letting bonds mature (QT, f162) and fiscal spending are real confusions. Lesson line 'both ease policy' backed by f21 + f54. Note: fact f159's quote has mojibake (an encoded apostrophe and dash) at the fact level, worth cleaning, but it does not affect this question's text."
   },
   "q10": {
-   "status": "pass",
+   "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q11": {
    "status": "pass",
@@ -4006,10 +4006,10 @@
    "notes": "Decided QT from f159/f162 before reading the key; matches. Choices similar length, no tell. 'Holdings keep growing until buying stops' follows from f57 (taper = phaseout of asset purchases) + f54 (those purchases are QE) + f159 (QE grows the balance sheet). The stem's 'letting bonds mature without replacing them' and the why's reinvestment sentence preview q57's False key (rung 2 vs 8); accepted as teach-then-test, but the player should not serve them back to back."
   },
   "q12": {
-   "status": "pass",
+   "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q13": {
    "status": "pass",
@@ -4038,10 +4038,10 @@
    "notes": "upgraded wave8; awaiting cold re-read"
   },
   "q17": {
-   "status": "pass",
+   "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q18": {
    "status": "pass",
@@ -4050,10 +4050,10 @@
    "notes": "upgraded wave8; awaiting cold re-read"
   },
   "q19": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Dove from f157 + f139 (two Tier 2 publishers agree). Simple now matches the why. Lesson line's cut/hike halves grounded by f21/f152. Bull/bear are a real confusion (f153), not silly. q03's 'Favors easier policy to support jobs' wrong note names the dove; different term tested, accepted."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q20": {
    "status": "pass",
@@ -4128,10 +4128,10 @@
    "notes": "upgraded wave8; awaiting cold re-read"
   },
   "q32": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Basis points from f136/f30; 25 comes from the stem (1/4 percentage point = 25 hundredths per f136). 'tenths' ties to q08's real 0.1-point misconception, not a silly unit, and is not a second right answer (25 tenths = 2.5 points). Weak spot noted: w3 ('A quarter-point Fed move is 25 basis points'), q08's lesson line and q26's lesson line all state the answer, so this plays as recall; accepted under the lesson's teach-then-test ruling."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q33": {
    "status": "pass",

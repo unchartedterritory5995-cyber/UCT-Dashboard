@@ -3890,6 +3890,76 @@
     ]
    },
    "batch": "wave3"
+  },
+  {
+   "key": "q71",
+   "skill": "setup.failed_hs",
+   "rung": 4,
+   "format": "scenario",
+   "criterion": "fh.above_50",
+   "story": "A leader broke its neckline, then recovered. The neckline is 98.00 and today it closed at 101.00, back above it. The 50-day is 103.00 and the 200-day is 90.00. The right-shoulder high is 106.00.",
+   "q": "A friend says to buy it at the close. What is your move?",
+   "choices": [
+    "Wait; it must remount the 50-day first",
+    "Buy the close; the neckline is support",
+    "Short it; it sits under the 50-day",
+    "Buy half now and half at the trigger"
+   ],
+   "answer": "Wait; it must remount the 50-day first",
+   "why": "Wait. Bracco calls turning the neckline into support step 1 and remounting the 50-day step 2. Today's close of 101.00 is still under the 50-day at 103.00. Our card wants the trigger-day close above the 50-day and above the 200-day, and this stock clears the 200-day at 90.00. The buy is the first trade over the right-shoulder high at 106.00, at market in regular hours, never a buy at the close.",
+   "lesson_line": "Neckline first, then the 50-day. Buy only the trade over the right-shoulder high.",
+   "simple": "Wait. Price is still under the 50-day, and the buy is only the first trade over the right-shoulder high, never the close.",
+   "facts": [
+    "u04",
+    "u05",
+    "c09",
+    "c37",
+    "c22",
+    "c02",
+    "c38"
+   ],
+   "wrong": {
+    "Buy the close; the neckline is support": "Step 1 alone is not enough, and buying the first bounce back to the neckline is a named mistake on our card. We buy as price trades through the trigger, not at the close.",
+    "Short it; it sits under the 50-day": "We never short above the 200-day, and this stock is over its 200-day at 90.00. The neckline break is not taught as a short setup here.",
+    "Buy half now and half at the trigger": "The buy is one trade, the first trade over the right-shoulder high. A half position now is the early bounce buy again."
+   },
+   "house": true,
+   "tier": "core",
+   "batch": "cover"
+  },
+  {
+   "key": "q72",
+   "skill": "setup.failed_hs",
+   "rung": 4,
+   "format": "scenario",
+   "criterion": "fh.hs_structure",
+   "story": "A stock rallies to 118.00, dips to 109.00, rallies to 118.00 again, dips to 109.00, then rallies to 118.00 a third time. A friend calls it a head and shoulders and wants a failure alert set.",
+   "q": "How do you read the three peaks?",
+   "choices": [
+    "No head; the middle peak is not higher",
+    "A true head; three peaks make the shape",
+    "A true head; equal peaks are the ideal",
+    "Not yet; a fourth peak must form"
+   ],
+   "answer": "No head; the middle peak is not higher",
+   "why": "Not a head. A head and shoulders has a middle peak above the others. Here all three peaks stop at 118.00, so nothing stands above. That is a flat top with three bumps. Calling every three bumps a head and shoulders is a named mistake on our card, and Brandt warns that novices mislabel ordinary action as one.",
+   "lesson_line": "The head has to be the highest peak. Three equal bumps are a flat top.",
+   "simple": "The middle peak must sit above the other two. Here all three match, so it is a flat top, not a head.",
+   "facts": [
+    "b01",
+    "c24",
+    "br05",
+    "c20",
+    "sc04"
+   ],
+   "wrong": {
+    "A true head; three peaks make the shape": "Three peaks are not enough. The middle one must be above the other two, and here all three match.",
+    "A true head; equal peaks are the ideal": "Symmetry between the shoulders is preferred, but the head still has to be the highest peak.",
+    "Not yet; a fourth peak must form": "The pattern needs three peaks with the middle one highest. A fourth peak would not fix a missing head."
+   },
+   "house": true,
+   "tier": "core",
+   "batch": "cover"
   }
  ],
  "conflicts": [
@@ -3956,10 +4026,10 @@
    "notes": "c37 hard rule plus h10. Same 200-day fact as q67 and q66 (outside chunk); trigger-day versus before-trigger framing keeps q04 answerable. Coverage of fh.above_200 also in q63 and q64."
   },
   "q05": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "b01 supports 'middle'. 'lower' is a weak lure but no second defensible answer."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q06": {
    "status": "pass",
@@ -3993,10 +4063,10 @@
    "notes": "c38, h22, h23, c02 support it. Key is the shortest choice; every wrong note is grounded."
   },
   "q11": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "u05 supports 50; the sentence now says Bracco's line in the sand so the 200-day no longer fits. 21 and 10 are not defensible."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q12": {
    "status": "pass",
@@ -4059,10 +4129,10 @@
    "notes": "agrees with ruling"
   },
   "q22": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "day 3 earliest; verbatim facts"
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q23": {
    "status": "pass",
@@ -4358,6 +4428,18 @@
    "by": "checker",
    "fixed": false,
    "notes": "Its stem restates q21's story as a definition (breaks one swing low, bought on the reclaim), so it answers q21, and q21's why gives q70's key (1 to 3 sessions). It adds nothing q21's why does not already teach, and 'must' overreaches the card's descriptive 'within 1 to 3 sessions'."
+  },
+  "q71": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Tests fh.above_50 by application and agrees with D-003 (no close buys) and the 200-day rule. Facts u04, u05, c09, c37, c22, c02, c38, h10 support every claim. Fixed: the story's 'closed back over the neckline at 98.00, ending at 101.00' needed a second read, and the 'simple' said the failure is not complete until the 50-day is remounted, which clashes with q02 (the failure is complete on the trade over the right-shoulder high). Not a duplicate of q51 (the neckline return move) or q63."
+  },
+  "q72": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "As written the key is a head 0.6% over the shoulder, which rests on the card's 3% head minimum (D-110, still pending-owner); q44 was cut for exactly this reason, and no cited fact says the head must stand 'clearly' above (b01 only says the middle peak is above the others, so 'any middle peak counts' was arguably right). Rebuilt on three EQUAL peaks, which fail b01 with no threshold, plus c24 and br05 (calling every three bumps a head and shoulders). Right answer is true, wrong ones clearly wrong, no unsupported claim."
   }
  }
 }

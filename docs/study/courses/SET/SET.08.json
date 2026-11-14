@@ -4222,6 +4222,42 @@
     ]
    },
    "batch": "wave1"
+  },
+  {
+   "key": "q80",
+   "skill": "setup.bull_flag",
+   "rung": 1,
+   "format": "mcq",
+   "criterion": "bf.above_200",
+   "q": "A bull flag forms in a stock under its 200-day simple moving average. What does our rule say about buying it?",
+   "choices": [
+    "Skip it. No longs below the 200-day",
+    "Buy it at half size to be safe",
+    "Buy it if volume dries up in the flag",
+    "Buy it with a tighter stop than usual"
+   ],
+   "answer": "Skip it. No longs below the 200-day",
+   "why": "Skip it. We take no longs below the 200-day simple moving average, except a rare parabolic long. A flag only counts when the close holds above that line on every flag session and at the entry. A smaller size or a tighter stop does not fix a stock under the line.",
+   "lesson_line": "Below the 200-day there is no flag to buy.",
+   "facts": [
+    "c01",
+    "h10"
+   ],
+   "wrong": {
+    "Buy it at half size to be safe": "Half size does not fix it. The rule bars longs under the 200-day, whatever the size.",
+    "Buy it if volume dries up in the flag": "Quiet volume helps a flag grade well, but it does not lift the 200-day rule.",
+    "Buy it with a tighter stop than usual": "A tighter stop changes the size, not the rule. No longs sit below the 200-day."
+   },
+   "house": true,
+   "simple": "We buy no longs below the 200-day line, so a flag under it is a skip, whatever the volume looks like.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook (B26)"
+    ]
+   },
+   "batch": "fills"
   }
  ],
  "conflicts": [
@@ -4279,10 +4315,10 @@
    "notes": "Statement matches c36 and h24 (F62). Kullamagi aside matches k4."
   },
   "q04": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Anchored on B26 (no longs below it); only 200 fits. Numbers come from c01 and h10."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q05": {
    "status": "pass",
@@ -4740,6 +4776,12 @@
    "by": "checker",
    "fixed": true,
    "notes": "Key False is right (F65, c33) but 'any clean flag ... still' is a lone absolute tell, and TF is skewed to False. Flip to a True guide statement per F65 (a guide, A10)."
+  },
+  "q80": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Pass: nothing else in this lesson applies the hard no-longs-under-the-200-day rule to a flag (q11 is the 50-day slope, q57 has price above the 200). Answer is supported by c01 and h10, four choices, wrong notes true, rung and skill match the cut question. One Skip among three Buys is common style here; not a tell worth a rewrite."
   }
  }
 }

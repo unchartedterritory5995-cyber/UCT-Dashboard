@@ -3949,7 +3949,7 @@
     "20"
    ],
    "answer": "3",
-   "why": "3. We make no new buys in the 3 days before an earnings report. A report can gap the stock right through your stop.",
+   "why": "3. We make no new buys in the 3 days before an earnings report. A report can gap the stock right through your stop, so you can lose more than you planned. Once a trade is up 5R, we may hold through one.",
    "simple": "We make no new buys in the 3 days before a report. The report can gap the stock right through your stop.",
    "lesson_line": "No new buys in the 3 days before a report. A report is a gap you cannot stop.",
    "facts": [
@@ -3963,7 +3963,7 @@
      "rests on the owner's rulebook (B22)"
     ]
    },
-   "batch": "wave2"
+   "batch": "fills"
   },
   {
    "key": "q70",
@@ -4041,6 +4041,81 @@
     ]
    },
    "batch": "polish"
+  },
+  {
+   "key": "q97",
+   "skill": "setup.episodic_pivot",
+   "rung": 1,
+   "format": "mcq",
+   "criterion": "ep.stop_day1",
+   "q": "You buy the opening-range break on day one. Where does the stop go?",
+   "choices": [
+    "A few cents under the day's low so far",
+    "Exactly on the day's low so far",
+    "A few cents under the prior close",
+    "Under the base low from months ago"
+   ],
+   "answer": "A few cents under the day's low so far",
+   "why": "A few cents under the low of the day at the time of entry. Stop first: the size comes from the stop. Kullamagi puts the stop at the lows of the day. It goes a few cents past the low, not exactly on it. On a delayed entry it goes under the trigger day's low.",
+   "lesson_line": "Stop first: a few cents under the low of the day.",
+   "facts": [
+    "c16",
+    "h24",
+    "k11",
+    "h01",
+    "c17"
+   ],
+   "wrong": {
+    "Exactly on the day's low so far": "Our rule puts the stop a few cents past the low, not exactly on it.",
+    "A few cents under the prior close": "After a gap the prior close is far under the day's low, so that stop is wide and the size shrinks. The stop belongs under the day's low.",
+    "Under the base low from months ago": "A base low from months ago is far away. The day-one stop sits under the low of the day."
+   },
+   "simple": "On day one the stop goes a few cents under the day's low at the moment you buy, not exactly on it.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook (F62, stop under the day's low)"
+    ]
+   },
+   "house": true,
+   "batch": "fills"
+  },
+  {
+   "key": "q98",
+   "skill": "setup.episodic_pivot",
+   "rung": 3,
+   "format": "scenario",
+   "criterion": "ep.stop_day1",
+   "story": "An earnings gap takes a stock from 44.00 to an open of 49.50 on huge volume. The low of the day so far is 49.10. At 9:52 it trades over the opening-range high and you buy at 50.45.",
+   "q": "Where does the day-one stop go?",
+   "choices": [
+    "A few cents under 49.10, the low",
+    "Under 44.00, the prior close",
+    "At 49.50, back at the open",
+    "No stop yet; set one after the close"
+   ],
+   "answer": "A few cents under 49.10, the low",
+   "why": "A few cents under 49.10, the low of the day at the time of entry. Stop first: the size comes from the stop. Kullamagi puts the stop at the lows of the day, and the stop sits a few cents past the low, not exactly on it. Here it is close to the fill, inside the 1-3% we prefer. If the low of day were past 5% away, we would wait for a tighter trigger.",
+   "simple": "Put it a few cents under 49.10, the day's low at the time you buy.",
+   "lesson_line": "Stop first. On day one it sits a few cents under the low of the day.",
+   "wrong": {
+    "Under 44.00, the prior close": "A trade back to the prior close is a gap fill, which ends the setup. It is not a stop, and it is far past the 5% we accept.",
+    "At 49.50, back at the open": "That sits above the day's low, so the stop is tighter than the honest stop. The stop belongs a few cents under the day's low, and if that does not fit the risk, skip the trade.",
+    "No stop yet; set one after the close": "Every position has a real stop order with the broker from the start, and the stop is part of the plan before the buy. No stop, no trade."
+   },
+   "facts": [
+    "c16",
+    "h24",
+    "k11",
+    "h01",
+    "r53",
+    "h18",
+    "c19"
+   ],
+   "house": true,
+   "tier": "core",
+   "batch": "cover"
   }
  ],
  "verify": {
@@ -4081,10 +4156,10 @@
    "notes": "Derived blind: flat or down for months, no rally (b18, k05, b14). Near-miss 'flat two weeks then rally' is clearly wrong; no second answer; no overlap with q24/q25/q52/q62/q63 answers."
   },
   "q04": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Key re-derived from the cited quotes and matches; no second defensible answer, no tell beyond the accepted ones, numbers grounded."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q05": {
    "status": "pass",
@@ -4142,10 +4217,10 @@
    "by": "checker"
   },
   "q14": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "edit: re-keyed from 'a third at 3R' to day 3 at the earliest (D-013)"
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q15": {
    "status": "pass",
@@ -4484,7 +4559,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "h29 gives 3 a week and 6 a month; the five in the statement is false. Fine as a new False."
+   "notes": "Keep right: a no-new-buys window before earnings is a rule a trader acts on, and q56 tests holding through a report, not the pre-report buy window. 3 and 5R are in fact h08. Sharpened why is accurate."
   },
   "q70": {
    "status": "pass",
@@ -4503,6 +4578,18 @@
    "by": "checker",
    "fixed": true,
    "notes": "As written it is a near-duplicate of q29 (three green days before the delayed trigger, True, a guide not a gate): the only new content is reading green as an up close, which the owner has not ruled (its own flag asks him to). 'One to pass on' also drops the guide-not-gate nuance from the stem. Rewritten to test the card's threshold (consecutive up closes < 3, so two does not trip it), using the card's own 'green days' wording so the key does not rest on the unruled definition. Keep the owner flag for SET.18 q72 but reword it: the line itself is proposed and unsigned from the 2026-04-19 starter"
+  },
+  "q97": {
+   "status": "cut",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Replacement not needed: q18 already tests the day-one buy with the stop a few cents under the low of the day (its why says exactly that) and q26 the delayed version. A fourth stop-under-the-low question is redundant by the 'do not replace' rule."
+  },
+  "q98": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "ep.stop_day1: stop a few cents under the day low so far (c16, h24, k11; D-008 LOD primary); the buy at 50.45 over the ORH with the low 49.10 puts the stop near 2.7% away, inside the 1-3% band; no close entry. Overlaps live q18 (same setup, asks buy or wait) but asks where the stop goes, and q97 was cut, so ep.stop_day1 needs this. Fixed: gap-fill claim now cited (c19); the 49.50 stop explanation cited \"never move the stop up\" with no fact in this lesson, now rests on h01; right answer shortened to 32 characters so it is not the longest choice."
   }
  }
 }

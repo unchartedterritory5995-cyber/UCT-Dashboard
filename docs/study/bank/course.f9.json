@@ -233,70 +233,6 @@
  },
  {
   "answer_json": {
-   "answer": "ceiling"
-  },
-  "difficulty": 1,
-  "id": "si_b857395696f2",
-  "lesson_origin": "session",
-  "lesson_text": "Ceiling. 2% is the most you may risk on one trade, never the number you aim for. You can go as low as 0.25%. Under 1% is normal, and 1.5% is the most any setup grade uses. 2% is the most you risk on a trade, not the number you aim for.",
-  "module": "F9",
-  "prompt_json": {
-   "bank": [
-    "ceiling",
-    "floor",
-    "target",
-    "average"
-   ],
-   "kind": "fill",
-   "q": "Fill in our rule.",
-   "sentence": "Under our rule, 2% is the ___ for risk on any one trade.",
-   "subject": "F9.01#q04"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-09",
-      "name": "UCT house rule: The house sizing rule, section 1: Risk per trade (the owner's workshop answer, 2026-10-17)",
-      "quote": "0.25% to 2% of the account, chosen by setup quality, your recent performance, market conditions and your edge. 2% is the hard ceiling.",
-      "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#1-risk-per-trade"
-     },
-     {
-      "accessed": "2026-11-12",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "Under 1% is normal; 1.5% is the most any grade uses (E49); 2% is the absolute ceiling.",
-      "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Investopedia: Manage Trading Risk: Effective Position Sizing Techniques (Daniel Liberto, updated 2026-08-13)",
-      "quote": "Establish the maximum you're willing to risk per trade. A general rule of thumb is never to risk more than 2% of your available capital on any single trade.",
-      "tier": 2,
-      "url": "https://www.investopedia.com/articles/trading/09/determine-position-size.asp"
-     }
-    ],
-    "summary": "Our rule: risk 0.25% to 2% of the account on a trade, chosen by the setup, your recent results, the market and your edge; never above 2%. Rule A1: under 1% is normal, 1.5% is the most any setup grade uses, and 2% is the absolute ceiling. Set your maximum risk per trade; the usual rule of thumb is never more than 2% of your capital."
-   },
-   "facts": {
-    "given": "Fill in our rule. Under our rule, 2% is the ___ for risk on any one trade."
-   },
-   "lesson_line": "2% is the most you risk on a trade, not the number you aim for.",
-   "simple": "Ceiling, because 2% is the most you may ever risk on one trade, not a target.",
-   "tier": "core",
-   "unit": "F9.01",
-   "why": "Ceiling. 2% is the most you may risk on one trade, never the number you aim for. You can go as low as 0.25%. Under 1% is normal, and 1.5% is the most any setup grade uses."
-  },
-  "review_status": "draft",
-  "skill_id": "risk.per_trade",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F9/F9.01.json#q04",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
    "answer": "False"
   },
   "difficulty": 1,
@@ -2096,63 +2032,6 @@
   "skill_id": "risk.size_from_stop",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F9/F9.02.json#q02",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
-   "answer": "stop"
-  },
-  "difficulty": 1,
-  "id": "si_95c23def2097",
-  "lesson_origin": "session",
-  "lesson_text": "Stop. Risk per share is the dollar distance from your entry to your stop. A target, a high or a close is not part of it. It is the loss per share you plan for if the stop holds. A gap can cost more than that, so call it your planned loss, not a promise. Schwab's example: entry $67, exit $57, so $10 a share. Entry minus stop is what each share can cost you.",
-  "module": "F9",
-  "prompt_json": {
-   "bank": [
-    "stop",
-    "target",
-    "high",
-    "close"
-   ],
-   "kind": "fill",
-   "q": "Finish the rule.",
-   "sentence": "Your risk per share is the distance from your entry to your ___.",
-   "subject": "F9.02#q03"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-08",
-      "name": "Investopedia: Master Position Sizing: Minimize Risk and Boost Investment Returns",
-      "quote": "The investor must then determine where to place their stop-loss order for the specific trade. For stock trades, the trade risk is the dollar difference between the entry price and the stop-loss.",
-      "tier": 2,
-      "url": "https://www.investopedia.com/terms/p/positionsizing.asp"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "Charles Schwab: 5 Elements of a Smart Trade Plan",
-      "quote": "Start with the difference between the entry price, $67, and the exit price, $57, or $10, then divide the amount the trader is willing to lose, $750, by that difference to determine the number of shares",
-      "tier": 2,
-      "url": "https://www.schwab.com/learn/story/5-elements-smart-trade-plan"
-     }
-    ],
-    "summary": "Risk per share is the dollar distance from your entry to your stop. Schwab's worked example: $750 at risk divided by $10 of risk per share."
-   },
-   "facts": {
-    "given": "Finish the rule. Your risk per share is the distance from your entry to your ___."
-   },
-   "lesson_line": "Entry minus stop is what each share can cost you.",
-   "simple": "The answer is stop, because risk per share is the gap between your entry price and where your stop sits.",
-   "tier": "core",
-   "unit": "F9.02",
-   "why": "Stop. Risk per share is the dollar distance from your entry to your stop. A target, a high or a close is not part of it. It is the loss per share you plan for if the stop holds. A gap can cost more than that, so call it your planned loss, not a promise. Schwab's example: entry $67, exit $57, so $10 a share."
-  },
-  "review_status": "draft",
-  "skill_id": "risk.size_from_stop",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F9/F9.02.json#q03",
   "type": "recall",
   "version": 1
  },
@@ -4495,84 +4374,6 @@
  },
  {
   "answer_json": {
-   "answer": "minus"
-  },
-  "difficulty": 1,
-  "id": "si_6f542be30a36",
-  "lesson_origin": "session",
-  "lesson_text": "Minus. Weight each outcome by how often it happens, then subtract the losing side from the winning side. Investopedia's example: 0.6 x $10,000 minus 0.4 x $5,000 is $4,000. The loss goes in as a size, then gets subtracted. In R, the result is your average R per trade. Win rate times average win, minus loss rate times average loss.",
-  "module": "F9",
-  "prompt_json": {
-   "bank": [
-    "minus",
-    "plus",
-    "over",
-    "times"
-   ],
-   "kind": "fill",
-   "q": "Finish the formula.",
-   "sentence": "Expectancy is win rate times average win, ___ loss rate times average loss size.",
-   "subject": "F9.03#q08"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-09",
-      "name": "Investopedia: Understanding Expected Value in Investments: Definition & Formula (Will Kenton, updated 2026-05-09)",
-      "quote": "The EV is calculated in statistics and probability analysis by multiplying each of the possible outcomes by the likelihood that each outcome will occur and then summing all of those values.",
-      "tier": 2,
-      "url": "https://www.investopedia.com/terms/e/expected-value.asp"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Investopedia: Understanding Expected Value in Investments: Definition & Formula (Will Kenton, updated 2026-05-09)",
-      "quote": "Say an investment has a 60% chance of increasing in value by $10,000. The calculation would be: 0.6 x $10,000 = $6,000.",
-      "tier": 2,
-      "url": "https://www.investopedia.com/terms/e/expected-value.asp"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Investopedia: Understanding Expected Value in Investments: Definition & Formula (Will Kenton, updated 2026-05-09)",
-      "quote": "The investment also has a 40% chance of decreasing in value by $5,000. The calculation would be: 0.4 x $5,000 = $2,000.",
-      "tier": 2,
-      "url": "https://www.investopedia.com/terms/e/expected-value.asp"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Investopedia: Understanding Expected Value in Investments: Definition & Formula (Will Kenton, updated 2026-05-09)",
-      "quote": "Finally, subtract the second result from the first: $6,000 - $2,000 = $4,000. That's the EV for this investment.",
-      "tier": 2,
-      "url": "https://www.investopedia.com/terms/e/expected-value.asp"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Van Tharp Institute: Glossary: Expectancy",
-      "quote": "Expectancy is the mean R of an R-multiple distribution generated by a trading system.",
-      "tier": 2,
-      "url": "https://vantharpinstitute.com/glossary/expectancy"
-     }
-    ],
-    "summary": "Expected value: multiply each outcome by its chance, then add them up. A 60% chance of gaining $10,000 is worth $6,000 on average. A 40% chance of losing $5,000 costs $2,000 on average. The weighted gain minus the weighted loss is the expected value: $4,000 here. Expectancy is the mean R of all a system's trades."
-   },
-   "facts": {
-    "given": "Finish the formula. Expectancy is win rate times average win, ___ loss rate times average loss size."
-   },
-   "lesson_line": "Win rate times average win, minus loss rate times average loss.",
-   "simple": "Minus, because you weigh the losing side by how often you lose, then take it away from the winning side.",
-   "tier": "core",
-   "unit": "F9.03",
-   "why": "Minus. Weight each outcome by how often it happens, then subtract the losing side from the winning side. Investopedia's example: 0.6 x $10,000 minus 0.4 x $5,000 is $4,000. The loss goes in as a size, then gets subtracted. In R, the result is your average R per trade."
-  },
-  "review_status": "draft",
-  "skill_id": "risk.expectancy",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F9/F9.03.json#q08",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
    "answer": "45%"
   },
   "difficulty": 1,
@@ -6575,7 +6376,7 @@
   "difficulty": 1,
   "id": "si_16b6436be590",
   "lesson_origin": "session",
-  "lesson_text": "100%. After a 50% loss, half the money is gone, so what's left has to double to get back to even. Every loss needs a bigger percent gain than itself. Many investors wrongly think a 50% gain is enough. Down 50% means you have to double just to get back to even.",
+  "lesson_text": "100%. After a 50% loss, half your money is gone, so what is left has to double to get back to even. Every loss needs a bigger percent gain than itself: down 10% needs about 11%, but down 50% needs 100%. Many investors wrongly think a 50% gain is enough. That is why traders cut losses early, before the hole gets deep. Down 50% means you have to double just to get back to even.",
   "module": "F9",
   "prompt_json": {
    "bank": [
@@ -6623,7 +6424,7 @@
    "simple": "100%, because after losing half, the half you have left must double to get back to even.",
    "tier": "core",
    "unit": "F9.04",
-   "why": "100%. After a 50% loss, half the money is gone, so what's left has to double to get back to even. Every loss needs a bigger percent gain than itself. Many investors wrongly think a 50% gain is enough."
+   "why": "100%. After a 50% loss, half your money is gone, so what is left has to double to get back to even. Every loss needs a bigger percent gain than itself: down 10% needs about 11%, but down 50% needs 100%. Many investors wrongly think a 50% gain is enough. That is why traders cut losses early, before the hole gets deep."
   },
   "review_status": "draft",
   "skill_id": "risk.drawdown",
@@ -8109,7 +7910,7 @@
   "difficulty": 1,
   "id": "si_18f989d7e69b",
   "lesson_origin": "session",
-  "lesson_text": "15%. At a 15% drawdown we stop opening new trades and review before trading again. The shallower rungs only cap the size of a position. At 15% down the ladder ends in a stop: no new trades, review first.",
+  "lesson_text": "15%. A drawdown is how far your account sits below its highest value. As it gets deeper, our ladder cuts the biggest position you may hold. At 15% down we stop opening new trades. You review before you trade again. The shallower rungs only cap size. At 15% down the ladder ends in a stop: no new trades, review first.",
   "module": "F9",
   "prompt_json": {
    "bank": [
@@ -8151,7 +7952,7 @@
    "simple": "15%, because at 15% down our ladder goes from capping size to no new trades until you review.",
    "tier": "core",
    "unit": "F9.04",
-   "why": "15%. At a 15% drawdown we stop opening new trades and review before trading again. The shallower rungs only cap the size of a position."
+   "why": "15%. A drawdown is how far your account sits below its highest value. As it gets deeper, our ladder cuts the biggest position you may hold. At 15% down we stop opening new trades. You review before you trade again. The shallower rungs only cap size."
   },
   "review_status": "draft",
   "skill_id": "risk.drawdown",
@@ -8939,63 +8740,6 @@
   "skill_id": "risk.heat",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F9/F9.05.json#q01",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
-   "answer": "together"
-  },
-  "difficulty": 1,
-  "id": "si_01606005927c",
-  "lesson_origin": "session",
-  "lesson_text": "Together. FINRA says investments in the same industry tend to be highly correlated. What happens to one is likely to happen to the others. StockCharts says highly correlated stocks move together in the same direction. FINRA's word is tend: a strong habit, not a promise for every name on every day. Names in one industry tend to rise and fall as a group.",
-  "module": "F9",
-  "prompt_json": {
-   "bank": [
-    "together",
-    "independently",
-    "inversely",
-    "randomly"
-   ],
-   "kind": "fill",
-   "q": "Finish the sentence.",
-   "sentence": "Stocks in the same industry tend to move ___.",
-   "subject": "F9.05#q03"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-09",
-      "name": "FINRA: Concentrate on Concentration Risk (2022-06-15)",
-      "quote": "Investments within the same industry, geographic region or security type tend to be highly correlated, meaning that what happens to one investment is likely to happen to the others.",
-      "tier": 1,
-      "url": "https://www.finra.org/investors/insights/concentration-risk"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "StockCharts.com: ChartSchool: Why and How To Use Correlation",
-      "quote": "Securities with high positive correlation values move together in the same direction.",
-      "tier": 2,
-      "url": "https://chartschool.stockcharts.com/table-of-contents/overview/why-and-how-to-use-correlation"
-     }
-    ],
-    "summary": "Stocks in the same industry tend to move together: what hits one is likely to hit the others. Highly correlated stocks move together in the same direction."
-   },
-   "facts": {
-    "given": "Finish the sentence. Stocks in the same industry tend to move ___."
-   },
-   "lesson_line": "Names in one industry tend to rise and fall as a group.",
-   "simple": "Together, because stocks in one industry tend to rise and fall as a group.",
-   "tier": "core",
-   "unit": "F9.05",
-   "why": "Together. FINRA says investments in the same industry tend to be highly correlated. What happens to one is likely to happen to the others. StockCharts says highly correlated stocks move together in the same direction. FINRA's word is tend: a strong habit, not a promise for every name on every day."
-  },
-  "review_status": "draft",
-  "skill_id": "risk.heat",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F9/F9.05.json#q03",
   "type": "recall",
   "version": 1
  },
@@ -10525,84 +10269,6 @@
   "skill_id": "risk.partials",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F9/F9.06.json#q03",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
-   "answer": "profit"
-  },
-  "difficulty": 1,
-  "id": "si_88beaa9186a9",
-  "lesson_origin": "session",
-  "lesson_text": "Profit. Measured from today's price, a position's risk is its price minus its stop, times the shares. With the stop at your entry, that is the gain since you bought. Your capital comes back if the stop fills at your entry. The open gain does not, unless you raise the stop or sell some. A stop at entry guards your capital, if it fills. A higher stop, or a sale, guards the gain.",
-  "module": "F9",
-  "prompt_json": {
-   "bank": [
-    "profit",
-    "order",
-    "interest",
-    "range"
-   ],
-   "kind": "fill",
-   "q": "Finish the sentence.",
-   "sentence": "Once your stop is at your entry, the main thing still at risk is your open ___.",
-   "subject": "F9.06#q04"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-09",
-      "name": "Incredible Charts: Alexander Elder's 6 Percent Rule (Colin Twiggs)",
-      "quote": "Subtract your stop loss level for each stock from its closing price at the last month-end;",
-      "tier": 2,
-      "url": "https://www.incrediblecharts.com/trading/6_percent_rule.php"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Incredible Charts: Alexander Elder's 6 Percent Rule (Colin Twiggs)",
-      "quote": "Multiply the risk margin by the number of shares held; and",
-      "tier": 2,
-      "url": "https://www.incrediblecharts.com/trading/6_percent_rule.php"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Investopedia: Trailing Stops: What They Are, How to Use Them in Trading (Henry Hoenig, updated October 29, 2025)",
-      "quote": "A stop that's too tight may result in a trader getting stopped out by the regular ups and downs of the market, while one that's too loose could mean giving back most of a big win.",
-      "tier": 2,
-      "url": "https://www.investopedia.com/terms/t/trailingstop.asp"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Investopedia: Trailing Stops: What They Are, How to Use Them in Trading (Henry Hoenig, updated October 29, 2025)",
-      "quote": "Trailing stops protect profits by moving with the market, preventing big wins from turning into small ones or, worse, losses.",
-      "tier": 2,
-      "url": "https://www.investopedia.com/terms/t/trailingstop.asp"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Charles Schwab: How Traders Can Take Advantage of Volatile Markets (May 11, 2022)",
-      "quote": "In volatile markets, profits can suddenly vanish and turn into losses, so consider ways to lock in more gains when you can.",
-      "tier": 2,
-      "url": "https://www.schwab.com/learn/story/how-traders-can-take-advantage-volatile-markets"
-     }
-    ],
-    "summary": "Measured from the current price, each stock's risk starts with its price minus its stop. Each position's risk is that distance times the shares you hold. Too tight a stop gets hit by normal swings; too loose a stop gives back most of a big win. A trailing stop protects a profit by moving up with the price. Open profits can vanish and turn into losses, so lock in some of the gain when you can."
-   },
-   "facts": {
-    "given": "Finish the sentence. Once your stop is at your entry, the main thing still at risk is your open ___."
-   },
-   "lesson_line": "A stop at entry guards your capital, if it fills. A higher stop, or a sale, guards the gain.",
-   "simple": "Profit, because a stop at your entry gets your money back, but the gain since then can still slip away.",
-   "tier": "core",
-   "unit": "F9.06",
-   "why": "Profit. Measured from today's price, a position's risk is its price minus its stop, times the shares. With the stop at your entry, that is the gain since you bought. Your capital comes back if the stop fills at your entry. The open gain does not, unless you raise the stop or sell some."
-  },
-  "review_status": "draft",
-  "skill_id": "risk.partials",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F9/F9.06.json#q04",
   "type": "recall",
   "version": 1
  },
@@ -12592,7 +12258,7 @@
   "difficulty": 1,
   "id": "si_3733516e4fbe",
   "lesson_origin": "session",
-  "lesson_text": "25%. FINRA says your equity in a margin account must not fall below 25% of the securities' current market value. FINRA's margin rule itself sets the same 25% for long margin stocks. It is a floor, not a target. Your broker can set a stricter house level, and that is the one you must meet. It is not the 50% Regulation T limit on the loan for a new buy. Know your broker's maintenance number. FINRA's is only the floor.",
+  "lesson_text": "25%. Equity is what you own after you subtract the margin loan. FINRA says it must not fall below 25% of the stocks' current market value. That is the maintenance margin. It is a floor, not a target. Your broker can set a stricter level, and that is the one you must meet. Fall under it and you get a margin call. It is not the 50% Regulation T limit on the loan for a new buy. Know your broker's maintenance number. FINRA's is only the floor.",
   "module": "F9",
   "prompt_json": {
    "bank": [
@@ -12647,7 +12313,7 @@
    "simple": "It is 25%, the floor FINRA sets for your equity on margin, and your broker can set it higher.",
    "tier": "core",
    "unit": "F9.07",
-   "why": "25%. FINRA says your equity in a margin account must not fall below 25% of the securities' current market value. FINRA's margin rule itself sets the same 25% for long margin stocks. It is a floor, not a target. Your broker can set a stricter house level, and that is the one you must meet. It is not the 50% Regulation T limit on the loan for a new buy."
+   "why": "25%. Equity is what you own after you subtract the margin loan. FINRA says it must not fall below 25% of the stocks' current market value. That is the maintenance margin. It is a floor, not a target. Your broker can set a stricter level, and that is the one you must meet. Fall under it and you get a margin call. It is not the 50% Regulation T limit on the loan for a new buy."
   },
   "review_status": "draft",
   "skill_id": "risk.account_rules",
@@ -14774,64 +14440,6 @@
  },
  {
   "answer_json": {
-   "answer": "1.5%"
-  },
-  "difficulty": 1,
-  "id": "si_9e4852f1f056",
-  "lesson_origin": "session",
-  "lesson_text": "1.5%. An A+ setup risks 1% to 1.5% of the account, so 1.5% is its top. It is also the most any grade uses. 2% is the absolute ceiling, and no grade uses it. 1% is the bottom of the A+ range. A+ gets 1% to 1.5%. No grade uses more than 1.5%.",
-  "module": "F9",
-  "prompt_json": {
-   "bank": [
-    "1.5%",
-    "2%",
-    "1%",
-    "0.5%",
-    "0.25%"
-   ],
-   "kind": "fill",
-   "q": "Fill in our rule.",
-   "sentence": "Under our rules, the most an A+ setup risks is ___ of the account.",
-   "subject": "F9.08#q03"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-09",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "Risk by grade: A+ 1% to 1.5%; A and B 0.5% to 1%; B- or lower 0.25% to 0.5%.",
-      "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "Under 1% is normal; 1.5% is the most any grade uses (E49); 2% is the absolute ceiling.",
-      "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
-     }
-    ],
-    "summary": "Risk by grade: A+ 1% to 1.5% of the account, A and B 0.5% to 1%, B- or lower 0.25% to 0.5%. Under 1% risk is normal, 1.5% is the most any grade uses, and 2% is the absolute ceiling."
-   },
-   "facts": {
-    "given": "Fill in our rule. Under our rules, the most an A+ setup risks is ___ of the account."
-   },
-   "lesson_line": "A+ gets 1% to 1.5%. No grade uses more than 1.5%.",
-   "simple": "It is 1.5%, the top of the A+ range of 1% to 1.5%, and the most any grade uses.",
-   "tier": "core",
-   "unit": "F9.08",
-   "why": "1.5%. An A+ setup risks 1% to 1.5% of the account, so 1.5% is its top. It is also the most any grade uses. 2% is the absolute ceiling, and no grade uses it. 1% is the bottom of the A+ range."
-  },
-  "review_status": "draft",
-  "skill_id": "risk.our_rules",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F9/F9.08.json#q03",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
    "answer": "0.25% to 0.5%"
   },
   "difficulty": 1,
@@ -16919,71 +16527,6 @@
  },
  {
   "answer_json": {
-   "answer": "4%"
-  },
-  "difficulty": 1,
-  "id": "si_caae09043afb",
-  "lesson_origin": "session",
-  "lesson_text": "4%. Never buy more than 4% above the buy point. Above the buy point, the stop still sits under it, so the distance grows and the shares shrink. Past 4% is chasing, and we skip it. IBD teaches a 5% buy zone, but our line is 4%. Our chase line is 4% over the buy point. Past it, wait for the next setup.",
-  "module": "F9",
-  "prompt_json": {
-   "bank": [
-    "4%",
-    "2%",
-    "5%",
-    "10%",
-    "1%"
-   ],
-   "kind": "fill",
-   "q": "Fill in our chase line.",
-   "sentence": "Never buy more than ___ above the buy point.",
-   "subject": "F9.09#q03"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-09",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "No chasing: never buy more than 4% above the buy point. (\"28, make it 4%.\")",
-      "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "Chasing costs size, not risk: the stop stays under the buy point, so the distance grows and the shares shrink (A5).",
-      "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Investor's Business Daily: Why You Should Pay Close Attention To The 5% Buy Zone After A Breakout (Nancy Gondo, updated 2022-11-21)",
-      "quote": "Why You Should Pay Close Attention To The 5% Buy Zone After A Breakout",
-      "tier": 2,
-      "url": "https://www.investors.com/how-to-invest/investors-corner/buy-zone-gives-investors-chance-to-buy-top-stocks-beyond-breakout/"
-     }
-    ],
-    "summary": "Our chase line: never buy more than 4% above the buy point. Chasing costs size: the stop stays under the buy point, the distance grows and the shares shrink. IBD teaches a buy zone that runs 5% above the buy point."
-   },
-   "facts": {
-    "given": "Fill in our chase line. Never buy more than ___ above the buy point."
-   },
-   "lesson_line": "Our chase line is 4% over the buy point. Past it, wait for the next setup.",
-   "simple": "4%, because past that is chasing: the stop stays under the buy point, so a higher buy means fewer shares.",
-   "tier": "core",
-   "unit": "F9.09",
-   "why": "4%. Never buy more than 4% above the buy point. Above the buy point, the stop still sits under it, so the distance grows and the shares shrink. Past 4% is chasing, and we skip it. IBD teaches a 5% buy zone, but our line is 4%."
-  },
-  "review_status": "draft",
-  "skill_id": "risk.trade_rules",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F9/F9.09.json#q03",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
    "answer": "Below the 200-day, unless parabolic"
   },
   "difficulty": 1,
@@ -17453,71 +16996,6 @@
   "skill_id": "risk.trade_rules",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F9/F9.09.json#q10",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
-   "answer": "1R"
-  },
-  "difficulty": 1,
-  "id": "si_bee131122596",
-  "lesson_origin": "session",
-  "lesson_text": "1R. A trade still under 1R after 10 trading days is sold, freeing the money. That's a time stop: it sets the longest you'll wait. It catches a stock drifting sideways that never hits the price stop. It isn't a loss rule. The trade may even be a little up and still be sold. Under 1R after 10 trading days: sell it. Dead money is a cost too.",
-  "module": "F9",
-  "prompt_json": {
-   "bank": [
-    "1R",
-    "2R",
-    "3R",
-    "5R",
-    "0R"
-   ],
-   "kind": "fill",
-   "q": "Fill in our time stop.",
-   "sentence": "A trade still under ___ after 10 trading days is sold.",
-   "subject": "F9.09#q11"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-09",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "Time stop: a trade still under 1R after 10 trading days is sold, freeing the money.",
-      "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Fidelity Investments: What you need to know about exit strategies (January 20, 2026)",
-      "quote": "Defines the maximum amount of time you plan on being exposed to a particular investment.",
-      "tier": 2,
-      "url": "https://www.fidelity.com/learning-center/trading-investing/trading/exit-strategies"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Fidelity Investments: What you need to know about exit strategies (January 20, 2026)",
-      "quote": "Time exit strategies can work when the security is moving sideways for an extended period of time, when prices are moving against you but not enough to trigger a stop-loss",
-      "tier": 2,
-      "url": "https://www.fidelity.com/learning-center/trading-investing/trading/exit-strategies"
-     }
-    ],
-    "summary": "Our time stop: a trade still under 1R after 10 trading days is sold. A time exit sets the longest you will stay in a position. A time exit helps when a stock drifts sideways for a long time without hitting the stop."
-   },
-   "facts": {
-    "given": "Fill in our time stop. A trade still under ___ after 10 trading days is sold."
-   },
-   "lesson_line": "Under 1R after 10 trading days: sell it. Dead money is a cost too.",
-   "simple": "1R, because our time stop sells a trade still under 1R after 10 trading days, freeing the money.",
-   "tier": "core",
-   "unit": "F9.09",
-   "why": "1R. A trade still under 1R after 10 trading days is sold, freeing the money. That's a time stop: it sets the longest you'll wait. It catches a stock drifting sideways that never hits the price stop. It isn't a loss rule. The trade may even be a little up and still be sold."
-  },
-  "review_status": "draft",
-  "skill_id": "risk.trade_rules",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F9/F9.09.json#q11",
   "type": "recall",
   "version": 1
  },

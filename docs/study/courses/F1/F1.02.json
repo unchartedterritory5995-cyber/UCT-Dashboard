@@ -1636,10 +1636,10 @@
    "notes": "Key from f49/f54; simple follows f54 ('100 of the largest'). Composite note grounded in f87/f51."
   },
   "q08": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Owner marked good; live (verify pass) and left unchanged."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q09": {
    "status": "pass",

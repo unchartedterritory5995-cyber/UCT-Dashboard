@@ -1912,7 +1912,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "vega is the only bank word tied to IV (f47, f23, f20). Simple matches f47's wording."
+   "notes": "Keep. Short straddles and strangles are short vega is what a premium seller reads on the screen; bank is all Greeks so no giveaway; why ties it to falling IV."
   },
   "q08": {
    "status": "pass",

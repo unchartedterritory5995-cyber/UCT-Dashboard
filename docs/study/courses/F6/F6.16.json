@@ -1677,7 +1677,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "My answer before the key: penny ($0.01). OIC FAQ re-fetched 2026-11-12: 'OCC uses the $.01 threshold for the positions of its clearing members' (f12) and 'Equity options: $.01 per contract in-the-money' are on the page; f13 and f18 also found. Sentence names OCC, so a broker's own threshold is not a second answer. All four bank words fit the grammar; no tell. Simple says 'a cent or more ... at the close', backed by f12/f69/f18/f92 and limited to equity options (f33/f54). Later questions (q19, q21) apply the threshold; q05 gives no keyed answer away."
+   "notes": "Keep. A short option one penny in the money at the close is exercised unless told otherwise; a seller must plan for it. Bank (penny, nickel, quarter, dollar) is not a giveaway."
   },
   "q06": {
    "status": "pass",

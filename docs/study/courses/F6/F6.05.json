@@ -1489,10 +1489,10 @@
    "notes": "False from f25 (Tier 1) plus f52/f62/f45. Why carries no unsupported claim; no absolute or hedge in the stem."
   },
   "q03": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "'Like the premium' pins per share (f28), so 'contract' or 'position' are not defensible. Multiply-by-100 step from f27. It teaches the method q10 applies; q10 still needs the calc, so no leak."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q04": {
    "status": "pass",

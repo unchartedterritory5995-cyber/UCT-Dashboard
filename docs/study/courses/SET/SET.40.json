@@ -1620,7 +1620,7 @@
     "15"
    ],
    "answer": "10",
-   "why": "10. Our time stop: a trade still under 1R after 10 trading days is sold, freeing the money. StockCharts says a short-term setup should start working right away. It does not set our 10 days.",
+   "why": "10. A trade still under 1R after 10 trading days is sold, which frees the money for a better setup. 1R is what you risk on the trade, the gap from your entry to your stop. StockCharts says a short-term setup should start working right away, but it does not set our 10 days.",
    "lesson_line": "Ten days and nothing. The money has somewhere better to be.",
    "facts": [
     "h15",
@@ -1636,7 +1636,7 @@
      "rests on the owner's rulebook (C33)"
     ]
    },
-   "batch": "wave4"
+   "batch": "fills"
   },
   {
    "key": "q20",
@@ -3478,6 +3478,40 @@
     ]
    },
    "batch": "wave4"
+  },
+  {
+   "key": "q67",
+   "skill": "setup.inside_day",
+   "rung": 4,
+   "format": "scenario",
+   "criterion": "id.double_inside",
+   "q": "What do you have after Wednesday's close?",
+   "story": "Monday ran 52.00 to 49.00. Tuesday ran 51.20 to 49.80. Wednesday ran 50.90 to 50.10. Judge the bars after Wednesday's close.",
+   "choices": [
+    "A double inside day; Monday is mother",
+    "A triple inside day; Monday counts too",
+    "A single inside day; only Tuesday counts",
+    "None; Wednesday is only a narrow bar"
+   ],
+   "answer": "A double inside day; Monday is mother",
+   "why": "A double inside day. Tuesday sits inside Monday, so Monday is the mother bar. Wednesday sits inside Tuesday, its high 50.90 under 51.20 and its low 50.10 over 49.80. That is two inside days in a row, each inside the day before. Mish says two in a row is an even clearer sign of indecision. It is still an entry tool inside a bigger setup, not a setup by itself.",
+   "lesson_line": "Count from the mother bar. Each inside day has to sit inside the day before.",
+   "simple": "A double inside day. Tuesday is inside Monday and Wednesday is inside Tuesday, so that is two in a row.",
+   "wrong": {
+    "A triple inside day; Monday counts too": "Monday is the mother bar, the day the others sit inside. It is not an inside day, so the count is two.",
+    "A single inside day; only Tuesday counts": "Wednesday sits inside Tuesday, so it counts too. A single would stop after Tuesday.",
+    "None; Wednesday is only a narrow bar": "Wednesday's high is under 51.20 and its low is over 49.80, so both ends sit inside. A narrow range is no fault, and it is still an inside day."
+   },
+   "facts": [
+    "c03",
+    "c01",
+    "c02",
+    "mi02",
+    "c06"
+   ],
+   "house": true,
+   "tier": "core",
+   "batch": "cover"
   }
  ],
  "conflicts": [
@@ -3538,10 +3572,10 @@
    "notes": "Key matches c14/h24/c15. Key is tied-shortest. Seven percent note grounded in bk04 and h04."
   },
   "q04": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "200 per c04/h10; sentence gives the 50-day over it, bank plausible."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q05": {
    "status": "pass",
@@ -3550,10 +3584,10 @@
    "notes": "True, c02 verbatim. A vocabulary item, flagged for the owner as the card's own name."
   },
   "q06": {
-   "status": "pass",
+   "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave4; awaiting cold re-read"
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q07": {
    "status": "cut",
@@ -3630,9 +3664,9 @@
   },
   "q19": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave4; awaiting cold re-read"
+   "notes": "Keep is right: the only question on the 10-day time stop in this lesson, a rule applied to stale trades. New why defines 1R and the point of the stop; facts h15/c55 support it."
   },
   "q20": {
    "status": "pass",
@@ -3919,6 +3953,12 @@
    "fixed": false,
    "notes": "Rulebook D38 (h38) and E50 (h50) quoted exactly; key is the rulebook's. Taught as a size rule, not a grading checklist. Guessable from the minus sign but correct and grounded.",
    "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+  },
+  "q67": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Applies id.double_inside by counting a real sequence: Tuesday 51.20/49.80 inside Monday 52.00/49.00, Wednesday 50.90/50.10 inside Tuesday, so two in a row, each inside the day before (c03). Monday is the mother bar (c02). Both readings of the card's count give two. Distractors clearly wrong. mi02 and c06 quotes verbatim. Complements q28 (single inside day), not a duplicate."
   }
  }
 }

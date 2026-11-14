@@ -3998,6 +3998,42 @@
     ]
    },
    "batch": "polish"
+  },
+  {
+   "key": "q97",
+   "skill": "setup.remount",
+   "rung": 3,
+   "format": "mcq",
+   "criterion": "rm.stop",
+   "q": "You bought a Remount. It sinks toward your stop, and you think it will turn. What do you do with the stop?",
+   "choices": [
+    "Leave it where it is",
+    "Lower it a little to give room",
+    "Cancel it and watch the close",
+    "Widen it to the 200-day"
+   ],
+   "answer": "Leave it where it is",
+   "why": "Leave it where it is. The stop is the exit. It only moves up, never down or wider. The one exception is the gap rule, where the low of the first 30-minute bar of a gap-down day becomes the new stop. Hoping a trade turns is no reason to change the stop.",
+   "lesson_line": "Up, never wider.",
+   "facts": [
+    "h02",
+    "h06"
+   ],
+   "wrong": {
+    "Lower it a little to give room": "Lowering the stop makes the planned loss bigger than the size was built for. The stop never moves down.",
+    "Cancel it and watch the close": "Without the order, nothing exits for you if it keeps falling. The stop is the exit.",
+    "Widen it to the 200-day": "Moving the stop out to the 200-day makes it wider. The stop never moves wider, except under the gap rule."
+   },
+   "simple": "Leave the stop where it is. It only moves up, never down or wider, apart from the one gap rule.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "+2 rests on the account rulebook"
+    ]
+   },
+   "house": true,
+   "batch": "fills"
   }
  ],
  "conflicts": [
@@ -4058,10 +4094,10 @@
    "notes": "upgraded wave3; awaiting cold re-read"
   },
   "q05": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Only 200 fits (k01, m05, B26 h10). A 200-day remount can close under the 50-day, so 50 is not a second answer. A parabolic long is not a Remount, so 'never' holds. It overlaps q08/q57 as rule then application, which is fine."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q06": {
    "status": "pass",
@@ -4155,10 +4191,10 @@
    "notes": "PASS (depends_on restored: writer file blanked it). agrees with the rulings"
   },
   "q21": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "h02 verbatim: stop only moves up. Gap rule B20 is the one exception and is stated. Bank words are weak but not silly."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q22": {
    "status": "pass",
@@ -4511,10 +4547,10 @@
    "notes": "Key False from k20/m01; stem names no setup, the why teaches AVWAP boundary. Complete fields, tf balance fine."
   },
   "q83": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Derived the answer from the cited quotes first and it matches the key; no second defensible answer, no tell, numbers grounded, notes supported."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q84": {
    "status": "pass",
@@ -4540,6 +4576,12 @@
    "by": "checker",
    "fixed": false,
    "notes": "Near-duplicate of live q50 (passed): same criterion pair (k09 leader before index, k10 leaders remount first, h50), same story (a leader loses its 50-day in a market shakeout and remounts while the index is still under its own 50-day) and the same key in other words ('A point toward a higher grade' vs 'An A plus cue'). Each answers the other. q50's softer key fits E50 better than this one's flat 'A plus cue', and q64 was already cut in wave3 for repeating q50. Minor besides: the key's 'it moved first' restates the story's timing, and the story gives no market reading, so a Red reading (k02, no"
+  },
+  "q97": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Correct and supported by h02 and h06. The answer 'Leave it, the stop only moves up' carried its own justification, which the wrong choices lacked, so it stood out; made it parallel ('Leave it where it is')."
   }
  }
 }

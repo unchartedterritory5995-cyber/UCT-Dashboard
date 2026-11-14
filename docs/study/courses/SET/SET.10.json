@@ -3983,6 +3983,41 @@
     ]
    },
    "batch": "polish"
+  },
+  {
+   "key": "q80",
+   "skill": "setup.ipo_base",
+   "rung": 2,
+   "format": "mcq",
+   "criterion": "ipo.above_avwap",
+   "q": "A new issue closes above its IPO AVWAP. What does that tell you?",
+   "choices": [
+    "The average buyer is ahead",
+    "The stock has cleared its IPO high",
+    "Volume is drying up on the pullbacks",
+    "The average buyer is underwater"
+   ],
+   "answer": "The average buyer is ahead",
+   "why": "The average buyer is ahead. The IPO AVWAP is the volume-weighted average price anchored at the listing day. It is roughly what the typical share since listing cost. A close above it means that buyer is in profit. Our card checks that the close sits above it. The buy still waits for the trade through the IPO high.",
+   "lesson_line": "Above the IPO AVWAP, the average buyer since listing is in profit.",
+   "facts": [
+    "c19"
+   ],
+   "wrong": {
+    "The stock has cleared its IPO high": "No. The AVWAP is an average price, not the high. The pivot is the IPO high.",
+    "Volume is drying up on the pullbacks": "The AVWAP uses volume to weight the average. It does not say if volume is drying up.",
+    "The average buyer is underwater": "That is backwards. Above the average price means the average buyer is in profit."
+   },
+   "house": true,
+   "simple": "The IPO AVWAP is the average price paid since listing, weighted by volume, so a close above it means the average buyer is ahead.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "one cited fact only, the card definition"
+    ]
+   },
+   "batch": "fills"
   }
  ],
  "conflicts": [
@@ -4032,10 +4067,10 @@
    "notes": "upgraded wave1; awaiting cold re-read"
   },
   "q03": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Blank is the high; only one bank word fits 'top of the left side'. Quotes c03 and m03 support it."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q04": {
    "status": "pass",
@@ -4081,10 +4116,10 @@
    "notes": "c20 supports it. Single proposed card line, already carried as a risk note."
   },
   "q11": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "c19 quote gives 'listing day'. Bank is sound."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q12": {
    "status": "pass",
@@ -4501,6 +4536,12 @@
    "by": "checker",
    "fixed": false,
    "notes": "CUT. My own answer before the key: on the sources (m02 MarketSmith India: no undercut at all; i19 IBD: base generally above the IPO price) BOTH bases fail, so 'Both' is a second defensible answer; only the card's 3-session line gives 'Only B'. That window is exactly the territory the lesson holds back: the card's ipo.ipo_price_undercut (pending-owner, D-057) says a reclaim within 1 to 3 sessions makes Stock A a U&R of the IPO open, graded B, and lookalike 3 says that trade is 'not the IPO-high breakout'. So the card itself does not keep Stock A's IPO base intact; it reclassifies it, which also"
+  },
+  "q80": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Keep the replacement: q64 applies the location test but nothing says what closing above the IPO AVWAP means. It rests on c19 (the definition) with a plain VWAP inference, worded roughly. Fix: the stem said 'about buyers' and only the right answer mentioned buyers, a tell; all four choices are now the same kind of statement, with the opposite (underwater) as a plausible wrong one and the stretched-to-buy choice dropped."
   }
  }
 }

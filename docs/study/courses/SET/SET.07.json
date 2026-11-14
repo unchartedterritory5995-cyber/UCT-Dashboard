@@ -4081,10 +4081,10 @@
    "by": "checker"
   },
   "q04": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Cold read: own answer matches key, cited quotes support it, one defensible answer, no tell found, why and simple do not overreach."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q05": {
    "status": "pass",
@@ -4141,10 +4141,10 @@
    "notes": "Cold read: own answer matches key, cited quotes support it, one defensible answer, no tell found, why and simple do not overreach."
   },
   "q14": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Cold read: own answer matches key, cited quotes support it, one defensible answer, no tell found, why and simple do not overreach."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q15": {
    "status": "pass",
@@ -4201,10 +4201,10 @@
    "notes": "Own answer: the reclaim as a U&R. Tue undercut, Thu close back above, inside 3 sessions. c10 and c19 support it and the card's own seed example matches. Rests on a proposed card row (fb.inv_undercut, 3 sessions) and D-027; owner review still needed."
   },
   "q24": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Own answer: base low. c08 supports it; 'depth away' fits only the base low. No second defensible blank."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q25": {
    "status": "pass",

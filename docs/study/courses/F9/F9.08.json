@@ -1424,10 +1424,10 @@
    "notes": "True per A7 (h03). Drawdown ladder lowering the cap is covered in why from h01's '(A7, or the ladder's cap in a drawdown, A8)', so 'max position' as the normal ceiling stands. 20%-25% history is in h03. simple says the final size never passes 40%, correct per h01. q05 stem already names the 40% cap, so q02 adds no new give-away."
   },
   "q03": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "1.5% per E49 (h08) and A1 (h19: 1.5% is the most any grade uses, 2% the ceiling). Every bank word fits the sentence grammatically; 2% is cleanly excluded by h19. No date or market dependence. q25's old '1.5%, the most a grade uses' give-away is gone (see q25 fix, which also softens 'sized up' so it no longer ties 1.5% to A+ via h07)."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q04": {
    "status": "pass",

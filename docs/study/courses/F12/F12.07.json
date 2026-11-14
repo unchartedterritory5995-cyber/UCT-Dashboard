@@ -2048,10 +2048,10 @@
    "notes": "Own answer: set the exit before emotions hit (f53, f52). New fourth choice is plausible, wrong per h06/f61/f59; key no longer beaten in length by a silly choice (30-40 chars). Wrong notes grounded (f01, f03, h06)."
   },
   "q07": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Own answer limit (f06; f29, f56). No longer keys a premarket buy (E58 in the why, h10). Note: q17 and q25 whys state the same broker fact, so a learner who saw them gets q07 easily; reinforcement, not a stem giveaway. The q prompt 'Pick the order type for the premarket' still reads as use-advice; harmless for exits (q25)."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q08": {
    "status": "pass",

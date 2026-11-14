@@ -4430,6 +4430,65 @@
     ]
    },
    "batch": "wave8"
+  },
+  {
+   "key": "q97",
+   "skill": "vocab.chart_terms",
+   "rung": 2,
+   "format": "mcq",
+   "q": "A stock rallies into the price where it stalled twice before. Why do traders watch that level?",
+   "choices": [
+    "Selling tends to show up there again",
+    "Buyers run out of cash at that price",
+    "It marks the stock's 52-week low",
+    "It is where every stop order sits"
+   ],
+   "answer": "Selling tends to show up there again",
+   "why": "That price is resistance: a price or zone where selling tends to show up and stop a rise. Earlier reaction highs often mark it, like the price where this stock stalled before. Schwab calls it a ceiling. It is not a wall, and a move above it is a breakout. Traders use it to see how much room a buy has before sellers may step in.",
+   "lesson_line": "Resistance is a ceiling made of sellers.",
+   "facts": [
+    "f32",
+    "f44",
+    "f48",
+    "f33"
+   ],
+   "wrong": {
+    "Buyers run out of cash at that price": "Resistance is about sellers showing up, not buyers running out of money.",
+    "It marks the stock's 52-week low": "A 52-week low is a low. Resistance sits at earlier highs that stopped a rise.",
+    "It is where every stop order sits": "Stops are placed by each trader. Resistance is a price where selling tends to emerge."
+   },
+   "simple": "Selling tends to show up at an old high, so that price is called resistance and can stop a rally.",
+   "tier": "core",
+   "batch": "fills"
+  },
+  {
+   "key": "q98",
+   "skill": "vocab.chart_terms",
+   "rung": 3,
+   "format": "mcq",
+   "q": "Price falls through a support level on heavy volume. How do traders usually read that?",
+   "choices": [
+    "A more serious break than on low volume",
+    "A cue to buy more at the lower price",
+    "A sign the sellers are running out",
+    "A routine move; volume adds nothing"
+   ],
+   "answer": "A more serious break than on low volume",
+   "why": "A more serious break. Schwab says a breakdown is generally believed to be more significant when volume is high or above average. ChartSchool reads a drop below support as a new willingness to sell. Technical traders may then close longs or go short.",
+   "lesson_line": "A break of support on heavy volume counts for more.",
+   "facts": [
+    "f65",
+    "f216",
+    "f63"
+   ],
+   "wrong": {
+    "A cue to buy more at the lower price": "A drop through support shows a new willingness to sell. Buying more adds to a position that just broke.",
+    "A sign the sellers are running out": "Heavy volume on a break shows sellers in control. It does not show them tiring.",
+    "A routine move; volume adds nothing": "Volume matters here. A breakdown on high volume is generally believed to be more significant."
+   },
+   "simple": "Heavy volume makes a break through support count for more, so it reads as a more serious break.",
+   "tier": "core",
+   "batch": "fills"
   }
  ],
  "conflicts": [
@@ -4478,10 +4537,10 @@
    "notes": "upgraded wave8; awaiting cold re-read"
   },
   "q02": {
-   "status": "pass",
+   "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q03": {
    "status": "pass",
@@ -4514,10 +4573,10 @@
    "notes": "Cold answer matches f31/f42/f209. Key not the longest; absolute choice is wrong and its note quotes f31's 'thought to be'. q09's polarity point no longer in the reveal."
   },
   "q08": {
-   "status": "pass",
+   "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q09": {
    "status": "pass",
@@ -4544,10 +4603,10 @@
    "notes": "Re-derived: a breakout is a move above resistance or below support (f52 Investopedia, f59 Schwab, f61 ChartSchool). 'Breakdown' and 'pullback' are gone from the reveal, so q13 and q63 are not handed over. f64's volume point is already taught in w2."
   },
   "q13": {
-   "status": "pass",
+   "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q14": {
    "status": "pass",
@@ -4726,10 +4785,10 @@
    "notes": "Key matches ChartSchool's basing and Bulkowski's weeks or months. The distractors are distinct. q03 defines a trading range but does not name a base."
   },
   "q43": {
-   "status": "pass",
+   "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q44": {
    "status": "pass",
@@ -4850,6 +4909,18 @@
    "by": "writer",
    "fixed": false,
    "notes": "upgraded wave8; awaiting cold re-read"
+  },
+  "q97": {
+   "status": "cut",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Cut: resistance is already tested by q07 (support mcq with resistance as a choice) and scenario q11 (selling from trapped buyers at an old level). Same idea, and its distractors were weak (52-week low, every stop order)."
+  },
+  "q98": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Idea right and supported by f65, f216, f63. Two distractors were weak tells: a bounce that proves support holds contradicts the stem, and noise because volume never matters is a straw man. Replace with plausible real mistakes."
   }
  }
 }

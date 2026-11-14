@@ -3178,6 +3178,67 @@
     ]
    },
    "batch": "wave5"
+  },
+  {
+   "key": "q97",
+   "skill": "setup.wick_play",
+   "rung": 3,
+   "format": "mcq",
+   "criterion": "wk.trim_2",
+   "q": "A wick play is bought today and runs up fast. When do we usually make the first sell?",
+   "choices": [
+    "Day 3 or later, as a judgment call",
+    "Day 1, to lock in the quick gain",
+    "A fixed third the moment it hits 3R",
+    "The first close under the 21-day"
+   ],
+   "answer": "Day 3 or later, as a judgment call",
+   "why": "Day 3 or later, by judgment. We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest. The first sell is a judgment, not a fixed third at 3R. The rest rides the trail.",
+   "lesson_line": "First sell is a judgment, rarely before day 3.",
+   "facts": [
+    "r02",
+    "r03",
+    "h21"
+   ],
+   "wrong": {
+    "Day 1, to lock in the quick gain": "We very rarely sell on day 1. Waiting gives the move room to run.",
+    "A fixed third the moment it hits 3R": "The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R.",
+    "The first close under the 21-day": "A close under the 21-day average sells the last third of a steadier mover. That is the trail, not the first sell."
+   },
+   "simple": "Day 3 or later, because we rarely sell on day 1 and the first sell is a judgment call.",
+   "tier": "core",
+   "house": true,
+   "batch": "fills"
+  },
+  {
+   "key": "q98",
+   "skill": "setup.wick_play",
+   "rung": 3,
+   "format": "mcq",
+   "criterion": "wk.trail",
+   "q": "A fast mover is in the last third of a wick play. What sells it by default?",
+   "choices": [
+    "A close under the 10-day average",
+    "A dip under the 10-day during the day",
+    "A close under the 21-day average",
+    "A close under the 50-day average"
+   ],
+   "answer": "A close under the 10-day average",
+   "why": "A close under the 10-day average. Our default trail is the 10-day for fast movers and the 21-day for steadier ones. We sell on a close below it, not on a dip under it during the day. The trail carries the last third, after the earlier sells.",
+   "lesson_line": "Fast mover, 10-day. Steadier, 21-day.",
+   "facts": [
+    "h21",
+    "h20"
+   ],
+   "wrong": {
+    "A dip under the 10-day during the day": "We sell on a close below the average, not on a dip under it during the day.",
+    "A close under the 21-day average": "The 21-day is the trail for steadier movers. A fast mover trails the 10-day.",
+    "A close under the 50-day average": "Our defaults are the 10-day and the 21-day, not the 50-day."
+   },
+   "simple": "A close under the 10-day average, because a fast mover trails the 10-day and we sell on a close below it.",
+   "tier": "core",
+   "house": true,
+   "batch": "fills"
   }
  ],
  "conflicts": [
@@ -3229,10 +3290,10 @@
    "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q06": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "h22 'Entries are market orders' verbatim; key market. Bank words are real order types. Overlaps q63 (tf, same fact, other format), accepted earlier."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q07": {
    "status": "pass",
@@ -3290,10 +3351,10 @@
    "notes": "1.54/2.17 = 71%. 87 = 1.89/2.17 from the close, 29 the part under the open, 5 = 1.54/32.46. Verified."
   },
   "q16": {
-   "status": "pass",
-   "by": "checker",
-   "fixed": true,
-   "notes": "BLANK UNCHANGED: sentence still said \"a third comes off at 3R\"; re-keyed to day 1 as the rare first-sell day (second-third-at-5R fact is B19 and clashes with a 5R first sell)"
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q17": {
    "status": "pass",
@@ -3529,10 +3590,10 @@
    "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q55": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "agrees with D-013; key and wrongs sound"
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q56": {
    "status": "pass",
@@ -3619,6 +3680,18 @@
    "fixed": false,
    "notes": "Own answer 12,000 (1% of 1,200,000, calc; h19). q62's recall comes at rung 4, before this rung 7 application. Distractors are real (day-2 volume, raw risk size, splitting the buy).",
    "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+  },
+  "q97": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Correct per r02, r03. Distractors are plausible real mistakes. Rung and skill match the cut."
+  },
+  "q98": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Correct per h21 (10-day fast, 21-day steadier, sell on a close below). Choices plausible, close-vs-dip distractor is a real trader mistake."
   }
  }
 }

@@ -1007,7 +1007,7 @@
     "10"
    ],
    "answer": "150",
-   "why": "150. The 30-week line roughly matches the 150-day average, and the 40-week line is the 200-day. Roughly is the word: it is a close match, not an exact one.",
+   "why": "150. Weinstein's 30-week line, on a daily chart, sits near the 150-day average, and the 40-week line matches the 200-day. Roughly is the word: it is a close match, not an exact one. A trader needs this to draw the line on a daily chart.",
    "lesson_line": "Thirty weeks is about 150 days. Forty weeks is 200.",
    "facts": [
     "x04",
@@ -1021,7 +1021,7 @@
      "the TraderLion archive page (x05) could not be opened to re-check; Deepvue (x04) was confirmed"
     ]
    },
-   "batch": "wave4"
+   "batch": "fills"
   },
   {
    "key": "q05",
@@ -3720,9 +3720,9 @@
   },
   "q04": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave4; awaiting cold re-read"
+   "notes": "Keep is right: a trader needs the 30-week to 150-day conversion to plot Weinstein on a daily chart; x04/x05 support it. Only fill and no giveaway in the bank."
   },
   "q05": {
    "status": "cut",

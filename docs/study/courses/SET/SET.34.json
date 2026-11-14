@@ -3573,6 +3573,42 @@
     ]
    },
    "batch": "polish"
+  },
+  {
+   "key": "q78",
+   "skill": "setup.go_signal",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "go.time_stop",
+   "story": "You bought a Go Signal at 52.00 with the stop at 50.80, so one R is 1.20. Ten trading days later it trades 53.70, about 1.4R up. No trim has come off.",
+   "q": "What now?",
+   "choices": [
+    "Hold; it is over 1R, so no time stop",
+    "Sell; ten days is the limit",
+    "Add to it; it has held for ten days",
+    "Move the stop to breakeven now"
+   ],
+   "answer": "Hold; it is over 1R, so no time stop",
+   "why": "Hold. The time stop sells a trade still under 1R after 10 trading days, and this one is about 1.4R up. The stop stays where it is and only moves up. Breakeven starts at 2R. The first sell is a judgment, usually day 3 or later into a 3, 5 or 7 day push, not a sale because ten days passed.",
+   "lesson_line": "The time stop is for dead money under 1R. Over 1R, manage the trade.",
+   "simple": "Hold. The time stop only sells a trade that is still under 1R after ten days, and this one is past it.",
+   "facts": [
+    "h15",
+    "h05",
+    "h02",
+    "h03b",
+    "r21",
+    "r22",
+    "r23"
+   ],
+   "wrong": {
+    "Sell; ten days is the limit": "The rule sells a trade still under 1R after ten days. This one is about 1.4R up, so a day count alone sells nothing.",
+    "Move the stop to breakeven now": "Breakeven comes at 2R to 5R, ideally. At about 1.4R it is too early.",
+    "Add to it; it has held for ten days": "We do not add. The full size goes in at one price with one stop, and the trade stays at that size."
+   },
+   "house": true,
+   "tier": "core",
+   "batch": "cover"
   }
  ],
  "conflicts": [
@@ -3633,10 +3669,10 @@
    "by": "checker"
   },
   "q05": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "cents from g08/h24; bank fine; why supported by g22."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q06": {
    "status": "pass",
@@ -3663,10 +3699,10 @@
    "notes": "Red = mostly cash plus shorts below 200-day (g14, g14b, h26, D46). Wrong notes match h26."
   },
   "q10": {
-   "status": "pass",
+   "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave4; awaiting cold re-read"
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q11": {
    "status": "pass",
@@ -3711,10 +3747,10 @@
    "notes": "cut in wave4: see the resolver's notes"
   },
   "q18": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "agrees with D-013/D-003; quotes verbatim"
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q19": {
    "status": "cut",
@@ -4074,6 +4110,12 @@
    "by": "checker",
    "fixed": false,
    "notes": "My answer before the key: under the settled card lines (D-145: first hourly candle trades under the prior close, close back above it by the end of the second candle) this candle passes, so Yes. Only the card's go.reclaim_candle_green line makes it No, and that line is status 'proposed', basis 'my proposal' (the research model's, not an owner ruling, no owner question). README section 3 says a house rule must come from the owner's own rulings. So the key turns a buy/no-buy decision on an unruled proposal, and 'Yes; it closed back over 50.00' is a second defensible answer on the ruled lines. Sec"
+  },
+  "q78": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Right criterion (go.time_stop) applied the other way round: day 10 but 1.4R up (52.00 to 53.70 on a 1.20 R is 1.42R, correct), so the time stop does not fire. Agrees with D-013 (the first sell is a judgment). Fixed: 'Sell half; it has stalled for ten days' could be defended as a judgment sell under D-013, so it was not clearly wrong; replaced with an add, which h03b (no adding) rules out. Not a duplicate: the direct time-stop questions q18 and q32 are cut."
   }
  }
 }

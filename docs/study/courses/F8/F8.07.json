@@ -1810,10 +1810,10 @@
    "notes": "Own answer from fi3, fd1, fz1, fz2, fz4 before the key: directed practice and review. Matches. Quotes fz1, fz2, fz4 re-read on the live Fidelity page (authors Steenbarger and Toghraie); lengths 28/33/30/26, no tell. Break found in the simple: 'the best in any field spend more time on practice' overreaches fd1, which names elite performers in music, theater, sports and chess only. Simple now restates fd1's own claim. Newsletter-tips owner flag stays as recorded in risk/conflicts."
   },
   "q07": {
-   "status": "pass",
-   "by": "checker",
-   "fixed": true,
-   "notes": "Own answer from ta2: one. Matches; all bank words fit the sentence. ff1 re-read on the live s6 page: the 'change daily / massive changes in one day' paragraph is Steenbarger's own (the 'one action at a time' line is the rabbi's, correctly not cited). Break: the stem 'Finish the line.' presents 'add new things one at a time' as a general truth, while a source in this same file (s10, Steenbarger's 'shattering' routines post, see conflicts) says real change can mean shattering a routine rather than small tweaks. Tie the line to Tendler, whose words it paraphrases, so the key is unambiguous. Overl"
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q08": {
    "status": "pass",
@@ -1841,10 +1841,10 @@
    "notes": "upgraded wave9; awaiting cold re-read"
   },
   "q12": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "'improve' is tb1's word; bank has no near-synonym now. 'forget' is a real temptation (shut it and forget it), not silly enough to cut."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q13": {
    "status": "pass",

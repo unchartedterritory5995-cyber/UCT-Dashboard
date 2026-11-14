@@ -226,92 +226,6 @@
  },
  {
   "answer_json": {
-   "answer": "cover"
-  },
-  "difficulty": 1,
-  "id": "si_4acff1b2663b",
-  "lesson_origin": "session",
-  "lesson_text": "Cover. A buy to cover is the purchase that closes a short. You buy the same number of shares in the market and return them to the lender. Sell short opens the position. Buy to cover closes it. Borrowing is how a short starts, not how it ends. Sell short to open. Buy to cover to close.",
-  "module": "F10b",
-  "prompt_json": {
-   "bank": [
-    "cover",
-    "open",
-    "borrow",
-    "hold",
-    "lend"
-   ],
-   "kind": "fill",
-   "q": "Tap the word that fits the blank.",
-   "sentence": "Buying shares back to close a short is called a buy to ___.",
-   "subject": "F10b.01#q04"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC, Division of Market Regulation: Responses to Frequently Asked Questions Concerning Regulation SHO (modified 10/15/2015)",
-      "quote": "For a \"hard to borrow\" security or a threshold security, a broker-dealer may not re-apply a locate for intra-day buy-to cover trades.",
-      "tier": 1,
-      "url": "https://www.sec.gov/files/divisions/marketreg/mrfaqregsho1204.htm"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Investopedia: Short Selling: Your Step-by-Step Guide for Shorting Stocks (Adam Hayes, Ph.D., CFA; updated April 16, 2026)",
-      "quote": "Traders cover the short by buying back the borrowed shares and returning them to the lender.",
-      "tier": 2,
-      "url": "https://www.investopedia.com/terms/s/shortselling.asp"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC, Investor.gov: Stock Purchases and Sales: Long and Short",
-      "quote": "The investor later closes out the position by returning the borrowed security to the stock lender, typically by purchasing securities on the open market.",
-      "tier": 1,
-      "url": "https://www.investor.gov/introduction-investing/investing-basics/how-stock-markets-work/stock-purchases-and-sales-long-and"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "FINRA: Short Interest: What It Is, What It Is Not (Investor Insights, January 25, 2023)",
-      "quote": "To close the position, the investor can purchase the stock in the market, which they hope will be at a lower price than they sold the shares short.",
-      "tier": 1,
-      "url": "https://www.finra.org/investors/insights/short-interest"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "FINRA: Short Interest: What It Is, What It Is Not (Investor Insights, January 25, 2023)",
-      "quote": "To open a short position, an investor places a short sale order with their brokerage firm in a stock that the investor does not own. This is done in a margin account.",
-      "tier": 1,
-      "url": "https://www.finra.org/investors/insights/short-interest"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC, Investor.gov: Investor Bulletin: An Introduction to Short Sales (Oct. 29, 2015, updated September 9, 2026)",
-      "quote": "Typically, when you sell short, your brokerage firm loans you the stock. The stock you borrow comes from either the firm’s own inventory, the margin account of other brokerage firm clients, or another lender.",
-      "tier": 1,
-      "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins-51"
-     }
-    ],
-    "summary": "In a hard-to-borrow stock, a new short after a same-day buy to cover needs a fresh locate. Covering means buying the shares back and returning them to the lender. You close a short by buying shares in the market and returning them to the lender. You close a short by buying the stock in the market, hoping to pay less than you sold it for. A short sale is placed with your broker and done in a margin account. Your broker lends you the shares, from its own inventory, other clients' margin accounts or another lender."
-   },
-   "facts": {
-    "given": "Tap the word that fits the blank. Buying shares back to close a short is called a buy to ___."
-   },
-   "lesson_line": "Sell short to open. Buy to cover to close.",
-   "simple": "Cover, because a buy to cover closes the short by buying shares back to return to the lender.",
-   "tier": "core",
-   "unit": "F10b.01",
-   "why": "Cover. A buy to cover is the purchase that closes a short. You buy the same number of shares in the market and return them to the lender. Sell short opens the position. Buy to cover closes it. Borrowing is how a short starts, not how it ends."
-  },
-  "review_status": "draft",
-  "skill_id": "short.mechanics",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F10b/F10b.01.json#q04",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
    "answer": "As a percent per year"
   },
   "difficulty": 1,
@@ -2072,6 +1986,81 @@
  },
  {
   "answer_json": {
+   "answer": "Buy to cover"
+  },
+  "difficulty": 1,
+  "id": "si_f457bfc95956",
+  "lesson_origin": "session",
+  "lesson_text": "Buy to cover. To close a short you buy the shares back in the market and return them to the lender. Sell short opens the position. It does not close it. Borrowing is how a short starts. Sell short to open. Buy to cover to close.",
+  "module": "F10b",
+  "prompt_json": {
+   "choices": [
+    "Borrow more shares",
+    "Sell short",
+    "A plain sell order",
+    "Buy to cover"
+   ],
+   "kind": "mcq",
+   "q": "You're short 200 shares and want out. Which order closes the position?",
+   "subject": "F10b.01#q97"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-09",
+      "name": "SEC, Investor.gov: Stock Purchases and Sales: Long and Short",
+      "quote": "The investor later closes out the position by returning the borrowed security to the stock lender, typically by purchasing securities on the open market.",
+      "tier": 1,
+      "url": "https://www.investor.gov/introduction-investing/investing-basics/how-stock-markets-work/stock-purchases-and-sales-long-and"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "Investopedia: Short Selling: Your Step-by-Step Guide for Shorting Stocks (Adam Hayes, Ph.D., CFA; updated April 16, 2026)",
+      "quote": "Traders cover the short by buying back the borrowed shares and returning them to the lender.",
+      "tier": 2,
+      "url": "https://www.investopedia.com/terms/s/shortselling.asp"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "FINRA: Short Interest: What It Is, What It Is Not (Investor Insights, January 25, 2023)",
+      "quote": "To close the position, the investor can purchase the stock in the market, which they hope will be at a lower price than they sold the shares short.",
+      "tier": 1,
+      "url": "https://www.finra.org/investors/insights/short-interest"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "SEC, Investor.gov: Investor Bulletin: An Introduction to Short Sales (Oct. 29, 2015, updated September 9, 2026)",
+      "quote": "Typically, when you sell short, your brokerage firm loans you the stock. The stock you borrow comes from either the firm’s own inventory, the margin account of other brokerage firm clients, or another lender.",
+      "tier": 1,
+      "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins-51"
+     }
+    ],
+    "summary": "You close a short by buying shares in the market and returning them to the lender. Covering means buying the shares back and returning them to the lender. You close a short by buying the stock in the market, hoping to pay less than you sold it for. Your broker lends you the shares, from its own inventory, other clients' margin accounts or another lender."
+   },
+   "facts": {
+    "given": "You're short 200 shares and want out. Which order closes the position? Buy to cover Sell short A plain sell order Borrow more shares"
+   },
+   "lesson_line": "Sell short to open. Buy to cover to close.",
+   "simple": "Buy to cover, because you close a short by buying shares back and returning them to the lender.",
+   "tier": "core",
+   "unit": "F10b.01",
+   "why": "Buy to cover. To close a short you buy the shares back in the market and return them to the lender. Sell short opens the position. It does not close it. Borrowing is how a short starts.",
+   "wrong": {
+    "A plain sell order": "A plain sell closes a long position. You hold no shares to sell. You owe shares to the lender.",
+    "Borrow more shares": "Borrowing is how a short starts. More borrowed shares would grow the position, not close it.",
+    "Sell short": "Sell short opens a short. Selling more shares would add to the position, not close it."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "short.mechanics",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F10b/F10b.01.json#q97",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
    "unscored": true
   },
   "difficulty": 1,
@@ -2588,71 +2577,6 @@
   "skill_id": "short.risk",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F10b/F10b.02.json#q03",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
-   "answer": "short interest"
-  },
-  "difficulty": 1,
-  "id": "si_0aea5d497546",
-  "lesson_origin": "session",
-  "lesson_text": "Short interest. It is the number of shares sold short and still open. FINRA's figure is a snapshot of all open short positions on brokers' books on one settlement date. It is not short volume, which counts the day's trades marked short. Short interest counts the shorts still open. Short volume counts the day's short sale trades.",
-  "module": "F10b",
-  "prompt_json": {
-   "bank": [
-    "short interest",
-    "short volume",
-    "float",
-    "open interest",
-    "days to cover"
-   ],
-   "kind": "fill",
-   "q": "Tap the term that fits the blank.",
-   "sentence": "Shares sold short and not yet bought back are a stock's ___.",
-   "subject": "short interest"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-09",
-      "name": "Charles Schwab: What Is Short Interest? (June 4, 2024)",
-      "quote": "By definition, it represents the number of shares that have been sold short and remain outstanding.",
-      "tier": 2,
-      "url": "https://www.schwab.com/learn/story/what-is-short-interest"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "FINRA: Short Interest: What It Is, What It Is Not (Investor Insights, January 25, 2023)",
-      "quote": "“Short interest” is a snapshot of the total open short positions existing on the books and records of brokerage firms for all equity securities on a given settlement date.",
-      "tier": 1,
-      "url": "https://www.finra.org/investors/insights/short-interest"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "FINRA: Short Interest: What It Is, What It Is Not (Investor Insights, January 25, 2023)",
-      "quote": "The Short Sale Volume Daily File reflects the aggregate volume of trades within certain parameters executed as short sales on individual trade dates.",
-      "tier": 1,
-      "url": "https://www.finra.org/investors/insights/short-interest"
-     }
-    ],
-    "summary": "Short interest is the number of shares sold short and not yet bought back. Short interest is a snapshot of all open short positions on brokers' books on one settlement date. Short sale volume counts trades marked short on a given day."
-   },
-   "facts": {
-    "given": "Tap the term that fits the blank. Shares sold short and not yet bought back are a stock's ___."
-   },
-   "lesson_line": "Short interest counts the shorts still open. Short volume counts the day's short sale trades.",
-   "simple": "Short interest. It counts the shares sold short that have not been bought back yet.",
-   "tier": "core",
-   "unit": "F10b.02",
-   "why": "Short interest. It is the number of shares sold short and still open. FINRA's figure is a snapshot of all open short positions on brokers' books on one settlement date. It is not short volume, which counts the day's trades marked short."
-  },
-  "review_status": "draft",
-  "skill_id": "short.risk",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F10b/F10b.02.json#q04",
   "type": "recall",
   "version": 1
  },

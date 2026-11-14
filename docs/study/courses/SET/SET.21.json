@@ -1689,7 +1689,7 @@
     "chart note"
    ],
    "answer": "stop order",
-   "why": "A stop order. Every position has a real stop order with the broker, not a stop kept in your head. It only moves up, never down or wider.",
+   "why": "A stop order. A stop order is an instruction with your broker to sell if price trades down to your stop level. A stop kept in your head only works if you are at the screen and act, and a fast drop can pass it. It only moves up, never down or wider.",
    "lesson_line": "The stop lives with the broker, not in your head.",
    "facts": [
     "c47",
@@ -1704,7 +1704,7 @@
      "+2 rests on the owner's rulebook (D41, a real stop order)"
     ]
    },
-   "batch": "wave2"
+   "batch": "fills"
   },
   {
    "key": "q25",
@@ -3597,10 +3597,10 @@
    "notes": "upgraded wave2; awaiting cold re-read"
   },
   "q13": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "4% in c15/h11. The added c14 supports the market-buy line."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q14": {
    "status": "cut",
@@ -3666,8 +3666,8 @@
   "q24": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key matches D41 and the card. Stop order is the only protective-exit choice; limit order and mental stop are clearly wrong. Quotes verified in the repo files. Note: q57's stem ('a real stop order with the broker') echoes this answer."
+   "fixed": true,
+   "notes": "Keep right: a real stop order versus a stop kept in your head is a choice a trader makes, and no other question tests it (q57 is about the loss). The sharpened why defined the order circularly ('sell if price falls to your stop'); reworded to a stop level."
   },
   "q25": {
    "status": "pass",

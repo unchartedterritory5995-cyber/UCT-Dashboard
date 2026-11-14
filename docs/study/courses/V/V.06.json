@@ -4213,6 +4213,36 @@
     ]
    },
    "batch": "wave8"
+  },
+  {
+   "key": "q97",
+   "skill": "vocab.risk_terms",
+   "rung": 4,
+   "format": "mcq",
+   "q": "Which loss limit does UCT set for a trader's account?",
+   "choices": [
+    "Monthly: 8% down, no new trades",
+    "Daily: stop trading for the day",
+    "Weekly: no new trades that week",
+    "None: the stop is the only limit"
+   ],
+   "answer": "Monthly: 8% down, no new trades",
+   "why": "Monthly. At 8% down in a calendar month, we make no new trades for the rest of the month. UCT has no daily loss limit and no weekly one. A daily loss limit, which ends your trading for the day after a set loss, is a tool other traders use. It is not ours.",
+   "lesson_line": "UCT's loss limit is monthly, not daily.",
+   "facts": [
+    "hB15",
+    "hB16",
+    "f126"
+   ],
+   "wrong": {
+    "Daily: stop trading for the day": "UCT has no daily loss limit. Other traders use one to end the day after a set loss.",
+    "Weekly: no new trades that week": "UCT has no weekly loss limit. The limit is monthly.",
+    "None: the stop is the only limit": "A stop limits one trade. The monthly limit is the account-level brake: at 8% down, no new trades that month."
+   },
+   "simple": "A monthly limit, because at 8% down in a month we make no new trades until the month ends.",
+   "tier": "core",
+   "house": true,
+   "batch": "fills"
   }
  ],
  "conflicts": [
@@ -4336,10 +4366,10 @@
    "by": "track-auditor"
   },
   "q15": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Fill key 'expectancy' only defensible word (f25, f62, f116). Matches w1 step 3 by design. Bank words are lesson terms."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q16": {
    "status": "pass",
@@ -4458,16 +4488,16 @@
    "notes": "Calc recomputed; answer shows it; wrong choices checked. Answer shows the calc, no tell, why walks the steps."
   },
   "q35": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Key drawdown from f75/f48. Numbers only from the sentence. Bank distractors are risk words; 'a ___' fits all five."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q36": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Key from f126/f123. The why states B15 (no daily limit) and B16 (8% monthly) correctly; 'for the day' is the read-the-detail clue against 'monthly loss limit'. Owner flag on daily-limit questions stands."
+   "notes": "cut in fills: see the resolver's notes"
   },
   "q37": {
    "status": "pass",
@@ -4687,6 +4717,12 @@
    "by": "checker",
    "fixed": true,
    "notes": "The stem 'The 2% rule caps risk at 2% a trade' gives q24's key ('Your risk per trade to 2% of capital') away word for word. Re-asked as the house rule alone. The '2% a day' distractor only made sense against that preamble; replaced with a real slip (1.5% is the most any grade uses, not normal), grounded in h4a1. f99 dropped (no longer used). Key shortest but one; no lone hedge (the 5% choice also says 'Up to'). INTEGRATOR: q24's why (fixed here) and q42's deeper both stated this key."
+  },
+  "q97": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Correct per hB15, hB16 (no daily, no weekly, monthly 8%) and f126. Owner's own rule, not otherwise tested (q37 is a generic daily-limit scenario). Choices are all plausible."
   }
  }
 }
