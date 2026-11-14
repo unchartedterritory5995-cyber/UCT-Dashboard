@@ -177,6 +177,27 @@ function findInstance(host, instanceId, chartRef = null) {
   return hits[0]
 }
 const NOT_CREATED = 'Nothing was created.'
+/** A create whose stored scope is not the one asked: delete exactly the ids this commit's POSTs returned, re-read, and
+ *  throw the sentence that is TRUE — "nothing was created" only when none of them is still there. */
+async function takeBackMismatch(host, src, patch, created, book, bad) {
+  const ids = Object.values(created)
+  for (const id of ids) { try { await src.remove(id) } catch { /* the re-read below decides */ } }
+  let now = null
+  try { now = await loadIndicatorAlerts(host, { force: true }) } catch { now = null }
+  const left = now ? now.filter(a => ids.includes(a.id)) : ids.map(id => book.find(a => a.id === id) || { id })
+  const c = patch.create[bad]
+  if (!left.length) {
+    const e = new Error(c.scope ? SCOPE_NOT_KEPT : 'The server saved the alert differently from what was asked, so I took it back — nothing was created.')
+    e.complete = true
+    throw e
+  }
+  const how = (a) => (a.scope ? 'listed on a different chart' : 'listed on every chart')
+  const named = left.map(a => (a.sym ? `${phrase(a)} (${how(a)})` : `alert ${a.id}`)).join('; ')
+  const e = new Error(`An alert WAS created, but not as asked${c.scope ? ` (only on ${c.chartLabel || 'this chart'})` : ''}, and I couldn't take it back: ${named}. It is in your Indicator Alerts — delete it there if you don't want it.`)
+  e.complete = true
+  e.unreverted = true
+  throw e
+}
 export const SCOPE_NOT_KEPT = 'The server saved that alert for every chart, not only this one, so I took it back — nothing was created. Use the chart\'s Indicator Alerts popover (Only on this chart).'
 const money = (n) => (Number.isFinite(n) ? (Math.abs(n) >= 1000 ? `$${n.toLocaleString('en-US', { maximumFractionDigits: 2 })}` : String(n)) : '')
 const plotOfAddress = (address) => { for (const e of cache.catalog || []) for (const p of plotsOf(e)) if (p.value === address) return p; return null }
@@ -253,15 +274,10 @@ export const indicatorAlertLibraryKind = {
     // the receipt words what the server STORED (normalize_params may change a value), read back from the fresh list
     const book = await loadIndicatorAlerts(host, { force: true })
     // READ BACK the scope the server STORED: a chart-only alert the server saved GLOBAL (or the reverse) is not what was
-    // asked — it is taken back (the runtime deletes what `created` names) and said, never receipted
-    for (const [i, c] of patch.create.entries()) {
-      const row = book.find(a => a.id === created[`#${i}`])
-      if (!row || (row.scope || null) !== (c.scope || null)) {
-        const e = new Error(c.scope ? SCOPE_NOT_KEPT : 'The server saved the alert differently from what was asked, so I took it back.')
-        e.created = created
-        throw e
-      }
-    }
+    // asked — it is taken back HERE, by the exact ids the POSTs returned (never by a lookalike), and said, never receipted.
+    // If taking it back fails, the reply says an alert WAS created, how it is listed, and names it.
+    const bad = patch.create.findIndex((c, i) => { const row = book.find(a => a.id === created[`#${i}`]); return !row || (row.scope || null) !== (c.scope || null) })
+    if (bad >= 0) await takeBackMismatch(host, src, patch, created, book, bad)
     const lines = patch.create.map((c, i) => { const row = book.find(a => a.id === created[`#${i}`]); return createLine(c, row ? row.params : null) })
     return { created, lines }
   },

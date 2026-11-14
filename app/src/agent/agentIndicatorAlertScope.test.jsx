@@ -263,3 +263,71 @@ describe('landed (the runtime\'s own read-back) compares the stored scope too', 
     expect(kind.landed({ alerts: [row(null)] }, { create: [{ ...c, scope: undefined }] })).toBe(true)
   })
 })
+
+// AUDIT #1263 item 2: the DEFAULT path (no chartOnly) sends the POST body master sent, byte for byte. The bodies below were
+// RECORDED by running exactly these asks through master c2a8e1773f's indicatorAlerts.js (__fixtures__/indicatorAlertMasterBodies.json,
+// captured with CAPTURE_MASTER_BODIES=<file> on that file); this branch must build the identical JSON text.
+import MASTER_BODIES from './__fixtures__/indicatorAlertMasterBodies.json'
+const MACD = { instanceId: 'inst:macd:1', defId: 'macd', inputs: {} }
+const MACDC = [{ value: 'cross_above', label: 'Crosses above level', needs_threshold: true }, { value: 'cross_zero', label: 'Crosses zero line', needs_threshold: false }]
+const DEFAULT_ASKS = {
+  'rsi above 70': { instance: 'inst:rsi:1', plot: null, condition: 'above', threshold: 70 },
+  'rsi cross above 30 weekly': { instance: 'inst:rsi:1', plot: null, condition: 'cross_above', threshold: 30, timeframe: 'W' },
+  'macd signal crosses zero': { instance: 'inst:macd:1', plot: 'macd.signal', condition: 'cross_zero', threshold: null },
+}
+describe('the default path: the POST body is byte-identical to master\'s', () => {
+  it.each(Object.keys(DEFAULT_ASKS))('"%s"', async (name) => {
+    CATALOG.push({ indicator: 'macd', label: 'MACD', conditions: MACDC, default_threshold: null, plots: [
+      { value: 'macd', label: 'MACD line', conditions: MACDC, default_threshold: null, inputs: { fast: 12, slow: 26, signal: 9 }, instance_label: 'MACD' },
+      { value: 'macd.signal', label: 'MACD signal', conditions: MACDC, default_threshold: null, inputs: { fast: 12, slow: 26, signal: 9 }, instance_label: 'MACD' }] })
+    try {
+      const h = host([chart('w1', 'NVDA', { cs: { indicatorInstances: [RSI, MACD] } })])
+      const args = DEFAULT_ASKS[name]
+      const { p, env } = await plan(h, [{ action: 'indicatorAlert.create', target: 'indicatorAlerts', args }])
+      expect(p.ok, JSON.stringify(p.refusals)).toBe(true)
+      await commitPlan(h, p, { env })
+      const sent = srv.calls.filter(c => c[0] === 'POST' && c[1] === ROUTE).map(c => c[2])
+      expect(sent).toHaveLength(1)
+      const out = globalThis.process?.env?.CAPTURE_MASTER_BODIES
+      if (out) {
+        const fs = await import('node:fs')
+        const have = fs.existsSync(out) ? JSON.parse(fs.readFileSync(out, 'utf8')) : {}
+        fs.writeFileSync(out, JSON.stringify({ ...have, [name]: JSON.stringify(sent[0]) }, null, 1) + '\n')
+        return
+      }
+      expect(JSON.stringify(sent[0])).toBe(MASTER_BODIES[name])
+    } finally { CATALOG.splice(1) }
+  })
+})
+
+// AUDIT #1263 item 1: the read-back mismatch is cleaned up by the EXACT id the POST returned, and the reply is true
+describe('mismatch cleanup: exact id, and an honest reply when the cleanup itself fails', () => {
+  const lookalike = { id: 7, user_id: 1, sym: 'NVDA', indicator: 'rsi', condition: 'cross_above', threshold: 70, tf: 'D', params_json: { period: 14 }, active: false, instance_id: 'inst:rsi:1', scope: 'w2', state: 'armed', created_at: 1 }
+  it('an identical-looking alert already listed on another chart survives; only the new id is deleted', async () => {
+    srv = server({ dropScope: true })
+    srv.rows.push({ ...lookalike })
+    const h = host([chart('w1', 'NVDA'), chart('w2', 'NVDA')])
+    const { p, env } = await plan(h, [create({ chartOnly: true, chart: 'w1' })])
+    expect(p.ok, JSON.stringify(p.refusals)).toBe(true)
+    const res = await commitPlan(h, p, { env })
+    expect(res.ok).toBe(false)
+    const newId = srv.seq
+    expect(srv.calls.filter(c => c[0] === 'DELETE').map(c => c[1])).toEqual([`${ROUTE}/${newId}`])
+    expect(srv.rows).toEqual([lookalike])
+    expect(JSON.stringify(res)).toMatch(/nothing was created/)
+  })
+  it('the DELETE fails: the reply says an alert WAS created, how it is listed, and names it — never "nothing was created"', async () => {
+    srv = server({ dropScope: true })
+    const handle = srv.handle
+    srv.handle = async (url, init = {}) => ((init.method || '').toUpperCase() === 'DELETE' ? (srv.calls.push(['DELETE', String(url), null]), new Response('{"detail":"boom"}', { status: 500, headers: { 'content-type': 'application/json' } })) : handle(url, init))
+    const h = host()
+    const { p, env } = await plan(h, [create({ chartOnly: true })])
+    const res = await commitPlan(h, p, { env })
+    expect(res.ok).toBe(false)
+    expect(res.undo ?? null).toBe(null)
+    const said = JSON.stringify(res)
+    expect(said).toMatch(/An alert WAS created, but not as asked \(only on Chart \(NVDA\)\), and I couldn't take it back: NVDA RSI .*\(listed on every chart\)\. It is in your Indicator Alerts/)
+    expect(said).not.toMatch(/nothing was created|Nothing was created|nothing was left changed/)
+    expect(srv.rows).toHaveLength(1)
+  })
+})
