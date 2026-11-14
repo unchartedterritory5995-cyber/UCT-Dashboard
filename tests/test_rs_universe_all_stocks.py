@@ -376,7 +376,7 @@ def test_the_series_are_held_as_typed_arrays():
     packed = rh._compact_series(make_reader({"AAA": _flat_then(5.0)}, END)("AAA", 300, _ymd(END)))
     ts, closes = packed
     assert ts.typecode == "i" and closes.typecode == "d" and len(ts) == len(closes) == 253
-    assert rh._window_bounds(ts, _ymd(END)) == (0, 253) or rh._window_bounds(ts, _ymd(END))[1] == 253
+    assert rh._window_bounds(ts, _ymd(END), closes) == (0, 253)
     assert rh._compact_series([]) is None and rh._compact_series(None) is None
     assert ts.itemsize + closes.itemsize == 12, "12 bytes a bar against ~70 for two lists of Python numbers"
 
