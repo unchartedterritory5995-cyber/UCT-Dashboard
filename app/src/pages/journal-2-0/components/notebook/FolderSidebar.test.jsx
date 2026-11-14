@@ -1946,9 +1946,11 @@ describe('search_used — a settled search counts itself, and never the query', 
                           activeTag={null} onSelectTag={() => {}} />)
     fireEvent.click(screen.getByLabelText('Search notes'))
     fireEvent.change(screen.getByPlaceholderText(/search notes/i), { target: { value: 'my private nvda query' } })
+    // Follow-up A: the Search tab's press is its own `panel_row_used`; this rail is about search_used only.
     const telemetry = () => fetchFn.mock.calls
       .filter(([u]) => u === '/api/j2/telemetry')
       .map(([, init]) => JSON.parse(init.body))
+      .filter((b) => b.event === 'search_used')
     expect(telemetry()).toEqual([])            // still debouncing: nothing was asked yet
     act(() => { vi.advanceTimersByTime(300) })
     const sent = telemetry()

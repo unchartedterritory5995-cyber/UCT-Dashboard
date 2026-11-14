@@ -1018,9 +1018,6 @@
   "spacing 10px": 3,
   "spacing 6px": 2
  },
- "pages/journal-2-0/components/notebook/myTools/TemplatesTab.jsx": {
-  "icon-size 18px": 1
- },
  "pages/journal-2-0/components/notebook/myTools/ToolsTab.jsx": {
   "icon-size 14px": 1,
   "icon-size 18px": 1

@@ -946,9 +946,17 @@ def test_same_inputs_same_outputs():
     assert run() == run()
 
 
+#: Runtime modules allowed to import feed_protocol. Each entry is a deliberate wiring
+#: step: PR4a = the stream-ingest service (its own process; the web pod imports neither).
+FEED_PROTOCOL_IMPORTERS = frozenset({
+    "api/stream_ingest_main.py",
+    "api/services/ingest_feed_server.py",
+})
+
+
 def test_no_runtime_module_imports_feed_protocol():
-    """PR3 ships the protocol only. Wiring it into a runtime path is PR5's job and
-    must be a deliberate change to this rail."""
+    """PR3 shipped the protocol only. Wiring it into a runtime path must be a
+    deliberate change to FEED_PROTOCOL_IMPORTERS (PR4a: the ingest service; PR5: web)."""
     offenders = []
     for base in ("api", "scripts", "tools", "services"):
         root = ROOT / base
@@ -961,6 +969,7 @@ def test_no_runtime_module_imports_feed_protocol():
                 text = p.read_text(encoding="utf-8", errors="ignore")
             except OSError:
                 continue
-            if "feed_protocol" in text:
-                offenders.append(str(p.relative_to(ROOT)))
+            rel = p.relative_to(ROOT).as_posix()
+            if "feed_protocol" in text and rel not in FEED_PROTOCOL_IMPORTERS:
+                offenders.append(rel)
     assert offenders == []

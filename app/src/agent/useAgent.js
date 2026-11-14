@@ -28,11 +28,11 @@ import { setOwnedDefinitionSource } from './capabilities/indicatorEdits'
 import { setAuthoringSources, draftAmbiguity, selectDraft, isDraftAction, lastSaved, screenModelOps, PROPOSAL_TTL_MS, saveReferent, splitSaveAs, renameBeforeSave, explicitIndicatorCreate } from './capabilities/indicatorAuthoring'
 import { fastParse, matchPosition } from './fastPath'
 import { screenNewChart, screenEmptyBoardChart } from './capabilities/workspace'
-import { resolveDeictic, screenDeicticOps, screenUnnamedTargets, pickedChoice, chartRefOf, selectedChart, chartNameWord, clausesNameDifferentCharts } from './deixis'
+import { resolveDeictic, screenDeicticOps, screenUnnamedTargets, pickedChoice, chartRefOf, selectedChart, chartNameWord, clausesNameDifferentCharts, targetTickerConflict, lowerTickerCandidates, TARGET_CHECK_FAILED } from './deixis'
 import { screenWatchlistWidget } from './watchlistTarget'
 import { whichListView, LIST_VIEW_WHICH } from './whichWidget'
 import { checkSpatialConstraints, excludedCharts, spatialConstraints, UNPLACED, withoutExcludedCharts, everyExceptSet } from './spatialCheck'
-import { groundSymbols } from './nl/tickers'
+import { groundSymbols, groundingOf } from './nl/tickers'
 import { multiChartPlan, screenChartGrid, isWorkspaceRequest, gridChoiceFor } from './multiChart'
 import { scopeHostToGrid } from './host'
 import { screenGridOps, watchGridSync } from './gridMode'
@@ -66,7 +66,7 @@ import { screenDuplicateAdds, wantsCopy } from './duplicates'
 import { nl1Enabled, exactLane, buildNl1Request, correctionPlan, preflightRefusals, repairedDisposition, withoutWordingApprovals } from './nl1/interpreter'
 import { NL1_MAX_NEED } from './nl1/selection'
 import { takeIndicatorTouches, takeIndicatorMentions, canonicalIndicatorAdds } from './capabilities/indicatorEdits'
-import { correctTypos, lexiconFor } from './nl/lexicon'
+import { correctTypos, lexiconFor, plainSymbolWord } from './nl/lexicon'
 import { agentTurn, agentTurnStream, serverStreams, serverPlanner, loadAgentConfig, agentRecord, agentConversation, noteConversation, unknownSymbols } from './agentClient'
 import { createStepRunner } from './steps'
 import { AGENT_CONVERSATION_KEY, AGENT_INFLIGHT_KEY, readLocal, writeLocal } from './agentFlag'
@@ -229,6 +229,28 @@ export function asSubjectWords(text, created = null, changed = null) {
   NEW_ONE.lastIndex = 0
   return { text: out, subject }
 }
+// ⭐ MULTI-STEP CONTINUITY (11-14): the SET of charts the latest creating request made (createdRef) — "make the new charts weekly",
+// "add RSI to the new ones", "both new charts", "the four new charts", "the charts you just added" — read as "them" bound to
+// exactly those charts (references.pluralTarget over that set, never by the last change's tickers). Fail-closed: only with two or
+// more created charts, every one still on the board, and any count said matching it; otherwise null (the words go on as typed —
+// to the model, as before). A determiner is required, so "add two new charts" (a creation) is never read as a reference.
+const NEW_MANY = /\b(?:the|those|these|both(?: of)?(?: the)?|all(?: of)?(?: the)?|my)\s+(?:(two|three|four|five|six|seven|eight|[2-9])\s+)?new\s+(?:charts|ones)\b|\b(?:the|those) (?:charts|ones) (?:you )?(?:just )?(?:added|made|created|opened)\b/i
+const MANY_COUNT = { two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8 }
+export function asCreatedSetWords(text, created, host) {
+  const t = String(text || '')
+  const m = NEW_MANY.exec(t)
+  const refs = Array.isArray(created) ? [...new Set(created.map(String))] : []
+  if (!m || refs.length < 2) return null
+  const n = m[1] ? (MANY_COUNT[m[1].toLowerCase()] || Number(m[1])) : null
+  if (n != null && n !== refs.length) return null
+  if (/^both\b/i.test(m[0]) && refs.length !== 2) return null
+  try { if (!refs.every(r => host?.charts?.read?.(r))) return null } catch { return null }
+  return { text: `${t.slice(0, m.index)}them${t.slice(m.index + m[0].length)}`.replace(/\s+/g, ' ').trim(), refs }
+}
+// the session memory with "them" bound to exactly `refs` for this one message (the created set — no tickers to match by)
+const withCreatedSet = (memory, refs) => (memory
+  ? { ...memory, lastTurn: (epoch) => ({ ...(memory.lastTurn?.(epoch) || {}), charts: refs, ops: [] }) }
+  : memory)
 // the session memory with "it" bound to `subject` for this one message (the created chart)
 const withSubject = (memory, subject) => (subject && memory
   ? { ...memory, subject: (kind, epoch) => (kind === 'chart' ? { ref: subject, symbol: null, at: Date.now(), epoch } : memory.subject(kind, epoch)) }
@@ -639,6 +661,11 @@ const nameSearch = (word) => new Promise((resolve) => {
   const t = setTimeout(resolve, NAME_SEARCH_MS)
   groundSymbols([word]).catch(() => {}).finally(() => { clearTimeout(t); resolve() })
 })
+// …several words at once (the target-ticker check's lowercase words), one bound for all of them
+const nameSearchAll = (words) => new Promise((resolve) => {
+  const t = setTimeout(resolve, NAME_SEARCH_MS)
+  groundSymbols(words).catch(() => {}).finally(() => { clearTimeout(t); resolve() })
+})
 
 // the server's stage timings (ms only) for the turn trace
 const stagesOf = (data) => { const s = data?.usage?.stages; return s && typeof s === 'object' ? JSON.stringify(s) : null }
@@ -770,6 +797,10 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
   const askedAtRef = useRef(0)              // hotfix 11-13: when the model's open question was asked (pendingTask QUESTION_TTL_MS)
   // ⛔ CHART RAIL (hotfix 11-13, chartRail.js): this turn's words — the message, plus the request an answered question carried
   const railWordsRef = useRef('')
+  // ⛔ PENDING-TASK CONSTRAINTS (multi-step continuity 11-14): the request an ANSWERED question carried (null otherwise). Its
+  // exclusions ("…except the TSLA one") still hold on the reply turn: the excluded-chart gate and every card it stores read it
+  const carriedWordsRef = useRef(null)
+  const turnWords = (member) => [member, saidRef.current, carriedWordsRef.current]
   const resumeRef = useRef(null)            // pendingTask: restores (yes) or withdraws (no) a held reply's pending task
   // ⛔ STATE RAIL (owner principle 11-13, stateRail.js): the same hook — an additive request never removes, replaces or
   // overwrites the member's indicators, drawings, watchlists, widgets, layouts, boards or templates. Either rail refuses.
@@ -1215,7 +1246,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         return { followUps: fan }
       }
       const pid = nid()
-      pendingRef.current = { kind: 'proposal', id: pid, ops: fan, epoch: boardEpoch(host, fan), card: plines, expiresAt: Date.now() + PROPOSAL_TTL_MS, binding: binds, words: [member, saidRef.current] }
+      pendingRef.current = { kind: 'proposal', id: pid, ops: fan, epoch: boardEpoch(host, fan), card: plines, expiresAt: Date.now() + PROPOSAL_TTL_MS, binding: binds, words: turnWords(member) }
       push({ id: pid, role: 'proposal', lines: plines, status: 'pending' })
       record({ member, outcome: `Proposed: ${plines.join(' · ')}`, outcomeData: { kind: 'proposed', actions }, telemetry: { path, disposition: 'propose', actions, voice } })
       return
@@ -1318,7 +1349,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     if (composing && !composed) {
       const pid = nid()
       pendingRef.current = { kind: 'proposal', id: pid, ops: [...allOps, ...deferred], epoch: boardEpoch(host, [...allOps, ...deferred]),
-        binding: approvalBinding(plan, host), expiresAt: Date.now() + PROPOSAL_TTL_MS, words: [member, saidRef.current] }
+        binding: approvalBinding(plan, host), expiresAt: Date.now() + PROPOSAL_TTL_MS, words: turnWords(member) }
       // a proposal says what WILL happen (proposalWording.js), never a success not yet written
       const lines = pendingWording([...pendingLines(allOps, host), ...plan.lines, ...deferredLines])
       push({ id: pid, role: 'proposal', lines, status: 'pending' })
@@ -1347,7 +1378,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       const plines = pendingWording([...(wholly ? expansion.proposal : (plan.lines.length ? plan.lines : plan.noops)), ...deferredLines])
       const seals = sealsOf(plan)
       pendingRef.current = { kind: 'proposal', id: pid, ops: keep, epoch: boardEpoch(host, keep),
-        binding: approvalBinding(plan, host), expiresAt: Date.now() + PROPOSAL_TTL_MS, words: [member, saidRef.current],
+        binding: approvalBinding(plan, host), expiresAt: Date.now() + PROPOSAL_TTL_MS, words: turnWords(member),
         ...(seals.length ? { seals, card: plines, expiresAt: Math.min(Date.now() + PROPOSAL_TTL_MS, ...seals.map(x => x.expiresAt)) } : {}) }
       push({ id: pid, role: 'proposal', lines: plines, status: 'pending' })
       record({ member, outcome: `Proposed: ${plines.join(' · ')}`, outcomeData: { kind: 'proposed', actions }, telemetry: { path, disposition: 'propose', actions, voice } })
@@ -1479,7 +1510,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     // from (its proposal stored them): "do it" / "yes" / the Apply click name no chart, so they could never re-check it.
     // (merge with #1029) `proposedWords` is its own option: #1029's `words` is the turn's message string for resolveArgs
     // (the which-widget guard); the two never share one name, so neither reads the other's shape.
-    const gateWords = Array.isArray(proposedWords) ? proposedWords : [member, saidRef.current]
+    const gateWords = Array.isArray(proposedWords) ? proposedWords : turnWords(member)
     // ⭐ Multi Chart: one gate for the instant, model and approved paths — what cannot run on the grid is said, and nothing runs
     const onGrid = gridMode ? screenGridOps(opsIn, host) : null
     if (onGrid?.refuse) {
@@ -2225,6 +2256,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     const askedFor = setAside ? null : askedFor0
     askedForRef.current = null
     railWordsRef.current = [carryAsked ? askedFor0 : null, text].filter(Boolean).join(' . ')
+    carriedWordsRef.current = carryAsked ? askedFor0 : null
     if (relation === 'unclear') {
       // asked, never guessed: the reply and the pending task are both held; nothing runs until the member picks
       if (echo) push({ role: 'member', text, voice })
@@ -2443,8 +2475,12 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       // name that chart — read as "it" (the conversation's subject chart, which a creation now sets: rememberChange)
       const subj = asSubjectWords(text, createdRef.current?.refs || null, gridChanged(host))
       // "make this one weekly" with a chart clicked is "this chart"; no model call is needed to say so
-      const refText = selectedChart(host) ? subj.text.replace(/\bthis one\b/gi, 'this chart') : subj.text
-      const memNow = withSubject(memoryRef.current, subj.subject)
+      // ⭐ 11-14: "the new charts" / "the new ones" — the set the latest creating request made, as "them" (asCreatedSetWords)
+      const many = subj.text === text && !subj.changed ? asCreatedSetWords(text, createdRef.current?.refs || null, host) : null
+      if (many) mark('subject', 'created-set')
+      const subjText = many ? many.text : subj.text
+      const refText = selectedChart(host) ? subjText.replace(/\bthis one\b/gi, 'this chart') : subjText
+      const memNow = many ? withCreatedSet(memoryRef.current, many.refs) : withSubject(memoryRef.current, subj.subject)
       // "the one I just changed" names a cell outright, so a clicked chart does not outrank it here (it does outrank a bare "it")
       const subjHost = subj.changed ? { ...host, charts: { ...host.charts, selected: () => null } } : host
       const fast00 = answering || followFirst ? null : pluralTarget(subjectTarget(memRef || fastParse(refText, { host }), refText, { host: subjHost, memory: memNow, epoch: epochNow }), { host, memory: memNow, epoch: epochNow })
@@ -3177,6 +3213,29 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
           push({ role: 'agent', text: 'Which chart do you mean? Click it (or say left, right…) and ask again — nothing has changed yet.' })
         }
         record({ member: null, outcome: spatial.ask.text, outcomeData: { kind: 'clarify-spatial', actions: screened.ops.map(o => o?.action) }, telemetry: { path: 'model', disposition: 'clarify', voice } })
+        return
+      }
+      // ⭐ AUDIT ruling (11-13): a ticker the words name as the TARGET outranks the only chart, the click and "the one left" — a plan
+      // that writes a chart showing another symbol is asked, and nothing runs (a ticker that is a VALUE of the plan is no target).
+      // A word NOT in capitals counts as a ticker only when the client knows it as one: a board symbol, or the ticker search's own
+      // verdict (groundSymbols, cached; bounded like nameSearch — no answer in time is "not known here").
+      let tgtTicker = null
+      try {
+        const known = new Map()
+        const live = host?.charts?.list?.() || []
+        const writesChart = (screened.ops || []).some(o => { const cap = getCapability(o?.action); return !!cap && !cap.query && !!getTargetKind(cap.target) })
+        const lower = writesChart ? lowerTickerCandidates(text, live, (w) => plainSymbolWord(w, host)) : []
+        if (lower.length) {
+          await nameSearchAll(lower)
+          for (const w of lower) { const v = groundingOf(w); if (v && (v.kind === 'ticker' || v.kind === 'name') && v.ticker) known.set(w, v.ticker) }
+        }
+        tgtTicker = targetTickerConflict({ host, ops: screened.ops, text, pickedRefs: answeredRefs, getTargetKind, getCapability, known, ordinary: lexiconFor(host).words })
+      } catch {
+        tgtTicker = { failed: true, ask: { text: TARGET_CHECK_FAILED } }        // ⛔ fail closed: an unread check never writes
+      }
+      if (tgtTicker?.ask) {
+        push({ role: 'agent', text: tgtTicker.ask.text })
+        record({ member: null, outcome: tgtTicker.ask.text, outcomeData: { kind: 'clarify-target-ticker', actions: screened.ops.map(o => o?.action) }, telemetry: { path: 'model', disposition: 'clarify', voice } })
         return
       }
       if (unnamed?.propose && disposition === 'apply') {

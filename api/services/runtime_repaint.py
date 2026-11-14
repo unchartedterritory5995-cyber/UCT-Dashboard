@@ -14,9 +14,13 @@ the JS module committed for every corpus script.
 """
 from __future__ import annotations
 
+import copy
+import hashlib
 import json
 import pathlib
 import re
+import threading
+from collections import OrderedDict
 from typing import Any, Dict, List, Optional
 
 from api.services import ast_lint
@@ -209,9 +213,115 @@ def clock_leaf_reach(key: str, table: Optional[Dict[str, Any]] = None) -> Any:
     return host
 
 
+#: ⭐ THE REPAINT MEMO (2026-11-13, "memoise the repaint lex per source hash"). Every server
+#: question about a runtime document's source -- the save door (`runtime_definitions.validate`),
+#: the served repaint stamp (`repaint_stamp`), the requirements read the three server lanes ask
+#: (`request_reads`, once per lane) and the capability detector (`pine_capabilities`) -- asks
+#: `runtime_repaint_of`, and each ask used to LEX the whole script again: 150 lexes for a list of
+#: 50 near-cap runtime rows (16.8 s measured by the reviewer, 7-9.7 s here). The answer is a pure
+#: function of the source text, this module's rules (`CLASSIFIER_VERSION`, the code) and its table
+#: (`RULES`, fingerprinted), so it is computed ONCE per distinct source per process and kept in one
+#: bounded LRU. ONE AUTHORITY: this is the only cache; every caller goes through it.
+#:
+#: The key is ``(sha256 of the source, CLASSIFIER_VERSION, RULES fingerprint)``: a rule change
+#: (bump `CLASSIFIER_VERSION`) or a different table recomputes. The clock leaves' reach is the host
+#: linter's per-process answer (`_HOST_CLOCK`, already a process constant), so it adds no key part.
+#: The cache holds no source text, only the small answer, and every call returns a deep COPY of it,
+#: so a caller can never mutate what the next caller reads.
+CLASSIFIER_VERSION = 1
+#: ⛔⛔ THE MEMO IS BOUNDED IN BYTES, NOT ONLY IN ENTRIES (review of #1226). An answer's `reads`
+#: list carries one `{name, why}` per distinct `request.*` / flag identifier, and both carry
+#: identifier text FROM THE SOURCE: a hostile 128 KiB script answers with megabytes (10,922 distinct
+#: identifiers = 3.64 MB; one 128 KiB identifier = 263 KB), and `POST /runtime-admission` lets any
+#: paid member ask about a fresh source each call. So:
+#:   (a) an answer larger than `REPAINT_MEMO_MAX_ANSWER_BYTES` serialised, or with more than
+#:       `REPAINT_MEMO_MAX_READS` reads, is NEVER memoised (it is computed, returned, forgotten:
+#:       exactly the cost before the memo, for exactly the scripts no real member writes);
+#:   (b) the whole memo is bounded by `REPAINT_MEMO_MAX_BYTES` as well as `REPAINT_MEMO_MAX`.
+#: (c) No identifier text is truncated: the answer is the JS module's, byte for byte (railed per
+#: corpus script), and (a) already keeps every large answer out of the cache.
+REPAINT_MEMO_MAX = 2048
+REPAINT_MEMO_MAX_BYTES = 32 * 1024 * 1024
+REPAINT_MEMO_MAX_ANSWER_BYTES = 4096
+REPAINT_MEMO_MAX_READS = 64
+_MEMO: "OrderedDict[tuple, tuple]" = OrderedDict()   # key -> (answer, its serialised size)
+_MEMO_BYTES = [0]
+_MEMO_LOCK = threading.Lock()
+
+
+def _fingerprint(rules: Any) -> tuple:
+    return (rules, hashlib.sha256(json.dumps(rules, sort_keys=True).encode("utf-8")).hexdigest())
+
+
+#: (the RULES object fingerprinted, its fingerprint): ONE tuple, swapped whole, computed at import,
+#: so a reader can never see the object of one table beside the fingerprint of another (or none).
+_RULES_FP: tuple = _fingerprint(RULES)
+
+
+def _rules_fingerprint() -> str:
+    """sha256 of `RULES` (canonical JSON), recomputed only when `RULES` is a different object."""
+    held = _RULES_FP
+    if held[0] is not RULES:
+        held = _fingerprint(RULES)
+        globals()["_RULES_FP"] = held
+    return held[1]
+
+
+def memo_key(text: str) -> tuple:
+    """The memo's key for a source text: its sha256, the classifier's version, the table's."""
+    digest = hashlib.sha256(text.encode("utf-8", "surrogatepass")).hexdigest()
+    return (digest, CLASSIFIER_VERSION, _rules_fingerprint())
+
+
+def _reset_repaint_memo() -> None:
+    """Empty the memo (a fresh process; rails)."""
+    with _MEMO_LOCK:
+        _MEMO.clear()
+        _MEMO_BYTES[0] = 0
+
+
+def _memoisable(answer: Dict[str, Any]) -> int:
+    """The answer's serialised size when it may be memoised, else 0 (see (a) above)."""
+    if len(answer.get("reads") or ()) > REPAINT_MEMO_MAX_READS:
+        return 0
+    size = len(json.dumps(answer, ensure_ascii=False).encode("utf-8"))
+    return size if size <= REPAINT_MEMO_MAX_ANSWER_BYTES else 0
+
+
 def runtime_repaint_of(source: Any) -> Dict[str, Any]:
     """``runtimeRepaintOf`` in the JS module: ``{ok, mode, forward, reads}`` or
-    ``{ok: False, why}``."""
+    ``{ok: False, why}``.
+
+    Memoised per source (`_MEMO`, above): the lex runs once per distinct source per process,
+    and the caller always receives its own copy. Two threads asking a NEW source at the same
+    moment may both lex it (the lex is not run under the lock, so one slow script never stalls
+    another's serve); both store the same answer. A large answer is never memoised."""
+    text = "" if source is None else str(source)
+    key = memo_key(text)
+    with _MEMO_LOCK:
+        held = _MEMO.get(key)
+        if held is not None:
+            _MEMO.move_to_end(key)
+    if held is not None:
+        return copy.deepcopy(held[0])
+    answer = _classify(text)
+    size = _memoisable(answer)
+    if size:
+        with _MEMO_LOCK:
+            old = _MEMO.pop(key, None)
+            if old is not None:
+                _MEMO_BYTES[0] -= old[1]
+            _MEMO[key] = (answer, size)
+            _MEMO_BYTES[0] += size
+            while len(_MEMO) > REPAINT_MEMO_MAX or _MEMO_BYTES[0] > REPAINT_MEMO_MAX_BYTES:
+                _k, (_a, gone) = _MEMO.popitem(last=False)
+                _MEMO_BYTES[0] -= gone
+    return copy.deepcopy(answer)
+
+
+def _classify(source: str) -> Dict[str, Any]:
+    """The classifier itself (uncached): lex the source and read its rules. Only
+    `runtime_repaint_of` calls it."""
     try:
         tokens = lex(source)
     except ValueError as err:

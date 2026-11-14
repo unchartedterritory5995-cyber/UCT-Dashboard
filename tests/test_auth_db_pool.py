@@ -28,6 +28,7 @@ def pooled(tmp_path, monkeypatch):
     monkeypatch.setattr(auth_db, "_pooling", lambda: True)   # pytest re-sets PYTEST_CURRENT_TEST per phase
     auth_db._drain_pool()
     yield
+    auth_db.drop_hot_reader()                                # (the hot reads' reader: tests/test_auth_hot_reader.py)
     auth_db._drain_pool()
 
 
@@ -199,4 +200,6 @@ def test_validate_session_works_through_the_pool(pooled, tmp_path, monkeypatch):
         assert auth_service.validate_session(tok)["id"] == uid
     auth_service.delete_session(tok)
     assert auth_service.validate_session(tok) is None
-    assert auth_db._POOL.get(auth_db._DB_PATH)        # the reads went through the pool
+    # The writes (create, delete) went through the pool. Since 2026-11-14 the session READ has a
+    # reader of its own (`auth_db.read_row`), so the pool is exercised here by the writes.
+    assert auth_db._POOL.get(auth_db._DB_PATH)

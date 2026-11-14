@@ -185,6 +185,8 @@ def _start_uploader():
                 # would otherwise return None and look identical in health.
                 if not data_sync.credentials_ok():
                     outcome = "no_credentials"
+                elif data_sync.adoption_active():
+                    outcome = "adopting"   # the clustered adoption owns bars.db + the disk
                 elif data_sync.DELTA_ENABLED:
                     # The day's full base runs on its own thread (base_loop).
                     started = time.monotonic()
@@ -232,6 +234,8 @@ def _start_uploader():
                 today = _et_today()
                 if not data_sync.credentials_ok():
                     outcome = "no_credentials"
+                elif data_sync.adoption_active():
+                    outcome = "adopting"   # never copy a 40 GB store beside a 20 GB adoption
                 elif _last_base_day["d"] != today:
                     with _uploader_state_lock:
                         _uploader_state["base_started_at"] = int(time.time())
@@ -1104,6 +1108,20 @@ def main():
     except Exception as e:
         log.exception(f"bars SQLite init failed: {e}")
         sys.exit(1)
+
+    # Clustered-layout adoption (BARS_ADOPT_CLUSTERED=1, one-shot via its marker): the same
+    # restart-safe path web and bars-api use -- carries this store's newer rows into the
+    # latest clustered base and swaps under the write + swap locks. The uploader stands
+    # aside while it runs (`adoption_active`). After it the daily base ships the store as
+    # is instead of spending hours converting a rowid copy. Restart the worker after the
+    # swap: idle threads hold the old 40 GB file open until they next touch bars.db.
+    def _adopt():
+        try:
+            from api.services import data_sync as _ds
+            log.info(f"adopt-clustered: {_ds.adopt_clustered_store()}")
+        except Exception as e:  # noqa: BLE001
+            log.warning(f"adopt-clustered check failed (non-fatal): {e}")
+    threading.Thread(target=_adopt, daemon=True, name="adopt-clustered").start()
 
     # Volume watchdog (see api/services/disk_watchdog.py). This pod holds the
     # 12GB bars.db plus the bars_cache trees, so it has the most room to run away.

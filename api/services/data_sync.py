@@ -487,10 +487,32 @@ _last_tarball_meta: dict = {}
 _ADOPTED_MARKER = ".adopted_clustered"
 #: Set while an adoption builds/swaps the store: every sync path stands aside.
 _adoption_active = threading.Event()
+def adoption_active() -> bool:
+    """True while `adopt_clustered_store` owns bars.db (syncs and uploads stand aside)."""
+    return _adoption_active.is_set() or _ADOPT_RUN_LOCK.locked()
+
+
 _ADOPT_RUN_LOCK = threading.Lock()   # one adoption at a time: a second caller must never
                                      # sweep the first one's working folder
 _ADOPT_VERIFIED = ".verified"        # written inside adopt_<ts>/ once the download passed
                                      # every gate; a restart resumes from there
+
+
+_REINSTALL_MARKER = ".bars_reinstall_token"
+
+
+def _pending_reinstall_token(data_dir: str) -> str:
+    """The BARS_REINSTALL_TOKEN value if it has not been applied on this volume yet, else ""."""
+    tok = os.environ.get("BARS_REINSTALL_TOKEN", "").strip()
+    if not tok:
+        return ""
+    try:
+        with open(os.path.join(data_dir, _REINSTALL_MARKER)) as f:
+            if f.readline().strip() == tok:
+                return ""
+    except OSError:
+        pass
+    return tok
 
 
 def _adopt_dir_for(ts: str) -> str:
@@ -524,6 +546,12 @@ _adopt_logged: set = set()
 #: Hard budget for the adoption's LOCKED pass (writers paused). Over it -> abort, keep
 #: the old store, retry in a later window.
 ADOPT_LOCKED_BUDGET_S = float(os.environ.get("BARS_ADOPT_LOCKED_BUDGET_S", "10"))
+#: Unlocked catch-up rounds before the locked pass: each re-carries only the series written
+#: during the previous round, so on a pod that writes constantly (the worker: 11,464 series
+#: changed during one full carry on 2026-11-14 and the locked pass ran out of budget) the
+#: remainder shrinks round by round. The locked pass starts once it is under the target.
+ADOPT_CONVERGE_ROUNDS = int(os.environ.get("BARS_ADOPT_CONVERGE_ROUNDS", "8"))
+ADOPT_LOCKED_PAIRS_TARGET = int(os.environ.get("BARS_ADOPT_LOCKED_PAIRS_TARGET", "1500"))
 
 
 def in_quiet_window(now: Optional[_dt.datetime] = None) -> bool:
@@ -619,16 +647,22 @@ def _adopt_clustered_store_locked(data_dir: Optional[str] = None) -> str:
          delta newer than the base re-applies.
     Any failure leaves the old store exactly as it was and is logged once. Returns a
     status word."""
-    if os.environ.get("BARS_ADOPT_CLUSTERED") != "1":
-        return "off"
     data_dir = data_dir or _DATA_DIR
+    # ⭐ BARS_REINSTALL_TOKEN=<token>: the operator lever to re-install the latest clustered
+    # base over a store that is already clustered but PARTIAL (2026-11-14: a false boot
+    # resync left web with only delta-window rows). Runs ONCE per distinct token, through
+    # this same safe path -- carry the local rows, swap under the write + swap locks --
+    # never `force_resync`, which deletes the live file under open connections.
+    reinstall = _pending_reinstall_token(data_dir)
+    if os.environ.get("BARS_ADOPT_CLUSTERED") != "1" and not reinstall:
+        return "off"
     p = os.path.join(data_dir, "bars.db")
-    if os.path.exists(os.path.join(data_dir, _ADOPTED_MARKER)):
+    if not reinstall and os.path.exists(os.path.join(data_dir, _ADOPTED_MARKER)):
         return "done"
     if not os.path.exists(p):
         return "absent"                       # the cold-start install handles an empty pod
     try:
-        if _layout_of(p) == "clustered":
+        if not reinstall and _layout_of(p) == "clustered":
             _write_marker_at(data_dir, _ADOPTED_MARKER, "local")
             return "done"
     except Exception as e:  # noqa: BLE001
@@ -678,6 +712,7 @@ def _adopt_clustered_store_locked(data_dir: Optional[str] = None) -> str:
         return "no-disk"
     from api.services import bars_sqlite
     _adoption_active.set()
+    keep_work = False
     try:
         new = os.path.join(tmpdir, "bars.db")         # same volume: atomic rename
         if resume:
@@ -704,12 +739,25 @@ def _adopt_clustered_store_locked(data_dir: Optional[str] = None) -> str:
         try:
             carried = max(0, _merge_ohlcv_from(p, new))
             _copy_stat1(p, new)
+            # Catch-up rounds, UNLOCKED: re-carry what was written meanwhile until the
+            # remainder is small enough for the locked pass's budget.
+            pending = bars_sqlite.swap_write_tracking()
+            sizes = [len(pending)]
+            for _ in range(ADOPT_CONVERGE_ROUNDS):
+                if len(pending) <= ADOPT_LOCKED_PAIRS_TARGET:
+                    break
+                carried += max(0, _merge_ohlcv_from(p, new, pairs=sorted(pending)))
+                pending = bars_sqlite.swap_write_tracking()
+                sizes.append(len(pending))
+            logger.info(f"[data_sync] adopt-clustered: catch-up rounds, series pending "
+                        f"{' -> '.join(map(str, sizes))}")
         except BaseException:
             bars_sqlite.stop_write_tracking()
             raise
         with bars_sqlite._WRITE_LOCK, bars_sqlite.DB_SWAP_LOCK:
-            # Pass 2, LOCKED and BUDGETED: only the series written since pass 1 began.
-            changed = sorted(bars_sqlite.stop_write_tracking())
+            # Pass 2, LOCKED and BUDGETED: the last round's remainder plus whatever was
+            # written since.
+            changed = sorted(pending | bars_sqlite.stop_write_tracking())
             t_lock = time.monotonic()
             if changed:
                 carried += max(0, _merge_ohlcv_from(
@@ -730,6 +778,8 @@ def _adopt_clustered_store_locked(data_dir: Optional[str] = None) -> str:
             # past what clients hold — the provably safe choice over carrying meta across.
             bars_sqlite.bump_store_floor("adopted clustered store")
         _write_marker_at(data_dir, _ADOPTED_MARKER, ts)
+        if reinstall:
+            _write_marker_at(data_dir, _REINSTALL_MARKER, reinstall)
         _write_marker_at(data_dir, _LAST_SYNC_MARKER, ts)
         try:
             os.remove(os.path.join(data_dir, _LAST_DELTA_MARKER))
@@ -740,10 +790,15 @@ def _adopt_clustered_store_locked(data_dir: Optional[str] = None) -> str:
         return "adopted"
     except Exception as e:  # noqa: BLE001 -- the old store is untouched
         _log_once(f"fail-{ts}", f"[data_sync] adopt-clustered FAILED for {ts}; store kept: {e}")
+        if os.path.exists(os.path.join(tmpdir, _ADOPT_VERIFIED)):
+            # The download passed every gate; a later failure (a merge over budget, a busy
+            # checkpoint) keeps it, and the next attempt resumes instead of re-downloading.
+            keep_work = True
         return "failed"
     finally:
         _adoption_active.clear()
-        shutil.rmtree(tmpdir, ignore_errors=True)
+        if not keep_work:
+            shutil.rmtree(tmpdir, ignore_errors=True)
 
 
 def _make_tarball() -> str:

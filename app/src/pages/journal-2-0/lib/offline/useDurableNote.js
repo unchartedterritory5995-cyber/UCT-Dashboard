@@ -29,7 +29,7 @@ import {
 } from './durableWriter'
 import {
   getMeta, getNote, listOutbox, offlineStorageAvailable, openNotebookDb, putMeta, putNoteWithIntent,
-  storagePosture,
+  putNoteWithIntentIf, storagePosture,
 } from './notebookDb'
 import {
   markerFor, holdSessionLock, markerKeyFor, landedKeyFor, withLanded,
@@ -38,11 +38,11 @@ import { offlineEnabled } from './offlineFlag'
 import {
   chooseLocalRecovery, newSessionId, sameAuthoredContent, discardsUnsentWork,
   editorStateDiscardsUnsentWork, queuedWorkToAdopt, baseOfRecovered,
-  editorLineageStamp, editorLineageSupersedes, swapCaptureSpills, dropsMergedBlocks,
+  editorLineageStamp, editorLineageSupersedes, swapCaptureSpills, dropsMergedBlocks, offerCarries,
 } from './recoverLocalState'
 import { copyEntryFor } from './noteCopy'
 import { refusedCopiesOf } from './refusedCopy'
-import { settleForkedNote } from './outboxDrain'
+import { settleForkedNote, settleIfServerHolds } from './outboxDrain'
 import { lastKnownServerCopy, snapshotOfServerCopy } from './serverChange'
 import { usableBaseline, isUsableBaseline, isSupersededBaseline } from './baseline'
 import { holdNoteOwnerLock } from './noteOwnerLock'
@@ -577,6 +577,12 @@ export function useDurableNote({
   const supported = Boolean(offlineEnabled() && offlineStorageAvailable() && accountId && noteId)
   const [status, setStatus] = useState(supported ? IDLE : UNAVAILABLE)
   const [unsynced, setUnsynced] = useState(false)
+  // ⭐ Follow-up D (F3): what `recover()` READ for this note on open: a dirty record or a
+  // queued entry. Cleared once this mount commits a write of its own (then `unsynced` speaks
+  // for the store, as before) or `settleProvenEqual` settles. The indicator reads it so that
+  // "Saved" is never shown over unsent work the device holds.
+  const [held, setHeld] = useState(false)
+  const wroteRef = useRef(false)   // a write of this mount committed: a read taken before it is stale
   const [error, setError] = useState(null)
   // What the PLATFORM says about retention, read once. ⛔ It is a wording
   // input, never a gate: `null` and `false` both mean "not positively granted",
@@ -752,11 +758,21 @@ export function useDurableNote({
         } else if (next === DURABLE) {
           setError(null)
           setUnsynced(committedDirtyRef.current)
+          wroteRef.current = true
+          setHeld(false)
         }
       },
     })
     writerRef.current = writer
+    // ⭐ Follow-up D (F4): a full navigation or a hidden tab flushes the pending snapshot now
+    // rather than after the debounce. Best effort only: IndexedDB has no synchronous write, so a
+    // transaction started here may not commit; the localStorage draft still owns that window.
+    const flushOnHide = (e) => { if (e.type === 'pagehide' || document.visibilityState === 'hidden') writer.flush() }
+    window.addEventListener('pagehide', flushOnHide)
+    document.addEventListener('visibilitychange', flushOnHide)
     return () => {
+      window.removeEventListener('pagehide', flushOnHide)
+      document.removeEventListener('visibilitychange', flushOnHide)
       // Navigating away in-app runs this while the page is still alive, so a
       // scheduled-but-unwritten snapshot can still land. ⛔ Acceleration, not
       // the mechanism: a real tab close runs no cleanup at all, which is
@@ -816,6 +832,7 @@ export function useDurableNote({
         // ⛔ See the header: a clean record is not a candidate.
         idbRecord = rec && rec.dirty ? rec : null
         const entries = await listOutbox(db)
+        if (!wroteRef.current) setHeld(Boolean(rec?.dirty) || entries.some((e) => e?.noteId === noteId))
         // ⭐ D3 / F5P-1: the queued entry is the evidence that these words were
         // already committed to the server — see `queuedWorkToAdopt`.
         if (idbRecord) queued = entries.find((e) => e?.noteId === noteId) || null
@@ -848,12 +865,69 @@ export function useDurableNote({
     // not restored into this note; it travels BESIDE the decision as its own offer.
     return {
       ...decision,
+      // ⭐ Follow-up D (F2): a DIRTY record no copy differs from equals the server copy just
+      // read. A hint for the editor to call `settleProvenEqual`; the proof is taken there.
+      settle: Boolean(idbRecord) && !decision.unsynced,
       adopt: queuedWorkToAdopt({ decision, record: idbRecord, entry: queued }),
       base: baseOfRecovered({
         decision, record: idbRecord, entry: queued, draft: supported ? lsDraft : null, server,
       }),
       refusedCopies,
     }
+  }, [supported, accountId, noteId, connect])
+
+  /**
+   * ⭐ Follow-up D (F2): on open, a dirty record whose words the server copy just loaded
+   * holds (and every entry queued for the note too) is settled clean, so "Open it so it can
+   * finish saving" is true. The drain's `settleIfServerHolds`, never a second comparison;
+   * no network. Never throws.
+   * ⛔ Fix round 1: the caller passes a copy THIS mount saw arrive from the network, never a
+   * cached one (`NoteEditorPage`), and the helper refuses a proof older than the words' base.
+   * @returns true when the store holds nothing unsent for the note afterwards
+   */
+  const settleProvenEqual = useCallback(async (server) => {
+    if (!supported || !server) return false
+    try {
+      const db = await connect(accountId)
+      const how = await settleIfServerHolds(db, noteId, server, server.updatedAt)
+      const done = how === 'settled' || how === 'clean'   // 'clean': another tab's drain got there first
+      if (done) setHeld(false)
+      return done
+    } catch { return false }
+  }, [supported, accountId, noteId, connect])
+
+  /**
+   * ⭐ Follow-up D, fix round 1 (Discard): the recovery banner's Discard removes the device's
+   * copy of EXACTLY the offered words. ONE readwrite transaction: only while the record, and every
+   * entry queued for the note, holds the offered words or words the offered
+   * copy carries (`offerCarries`), the record becomes `server` clean and the entries go (no record
+   * at all, a crash draft alone: the same clean write the old path made). Anything else (words
+   * typed or written since the offer, an entry that differs) is refused and the caller keeps the
+   * old path. ⛔ `persist`'s fix 6 is untouched:
+   * this is the one writer that may drop words, and only the ones the member chose to drop.
+   * Never throws; the landed ring is not touched.
+   * @returns true when it discarded
+   */
+  const discardOffered = useCallback(async ({ offered, server }) => {
+    const base = usableBaseline(server?.updatedAt)
+    if (!supported || !offered || !base) return false
+    try {
+      const db = await connect(accountId)
+      const done = await putNoteWithIntentIf(db, noteId, (rec, queued) => {
+        if (![rec, ...queued.map((e) => e?.patch)].filter(Boolean).every((w) => offerCarries(offered, w))) return null
+        return {
+          record: {
+            noteId, title: server.title ?? '', subtitle: server.subtitle ?? '', bodyJson: server.bodyJson ?? null,
+            baseUpdatedAt: base,
+            generation: rec?.generation ?? 0,
+            sessionId: SESSION_ID, localSavedAt: Date.now(), dirty: 0, serverBase: null,
+          },
+          intent: null,
+        }
+      })
+      if (done) setHeld(false)
+      return done
+    } catch { return false }
   }, [supported, accountId, noteId, connect])
 
   /**
@@ -875,6 +949,7 @@ export function useDurableNote({
   }, [supported, accountId, connect])
 
   return {
-    supported, status, unsynced, error, persisted, schedule, markSynced, flush, recover, withCopyStore,
+    supported, status, unsynced, held, error, persisted, schedule, markSynced, flush, recover, withCopyStore,
+    settleProvenEqual, discardOffered,
   }
 }

@@ -222,7 +222,8 @@ describe('the template detail', () => {
     const landNote = vi.fn()
     const { onClose } = await open({ landNote })
     await userEvent.setup().click(screen.getByRole('button', { name: USE_TEMPLATE_LABEL }))
-    await waitFor(() => expect(landNote).toHaveBeenCalledWith({ id: 'n-1' }))
+    // Follow-up A fix round 1 (M3): with the row's family chip (before_open is "rituals") for template_started.
+    await waitFor(() => expect(landNote).toHaveBeenCalledWith({ id: 'n-1' }, { family: 'rituals' }))
     expect(openAdoptSheet).not.toHaveBeenCalled()
     expect(onClose).toHaveBeenCalled()
     const uses = calls.filter((c) => c.path.endsWith('/use-template'))
