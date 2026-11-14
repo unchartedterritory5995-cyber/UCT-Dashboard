@@ -550,6 +550,11 @@ ADOPT_LOCKED_BUDGET_S = float(os.environ.get("BARS_ADOPT_LOCKED_BUDGET_S", "10")
 #: during the previous round, so on a pod that writes constantly (the worker: 11,464 series
 #: changed during one full carry on 2026-11-14 and the locked pass ran out of budget) the
 #: remainder shrinks round by round. The locked pass starts once it is under the target.
+#: How long the locked swap keeps retrying the TRUNCATE checkpoint of the old store. A
+#: TRUNCATE waits for every open read transaction; on the worker's 41 GB rowid store one
+#: outlasted a single 30 s wait (2026-11-14 10:15 UTC). Writers stay paused meanwhile,
+#: which the quiet window allows; readers keep reading.
+ADOPT_CHECKPOINT_BUDGET_S = float(os.environ.get("BARS_ADOPT_CHECKPOINT_BUDGET_S", "300"))
 ADOPT_CONVERGE_ROUNDS = int(os.environ.get("BARS_ADOPT_CONVERGE_ROUNDS", "8"))
 ADOPT_LOCKED_PAIRS_TARGET = int(os.environ.get("BARS_ADOPT_LOCKED_PAIRS_TARGET", "1500"))
 
@@ -603,6 +608,33 @@ def _copy_stat1(old_path: str, new_path: str) -> None:
                   "WHERE n.tbl = o.tbl AND n.idx IS o.idx)")
     finally:
         c.close()
+
+
+def _truncate_checkpoint(path: str, budget_s: float) -> bool:
+    """TRUNCATE-checkpoint `path`, retrying until it succeeds or `budget_s` runs out.
+    True once the WAL is empty and reset (safe to rename another main file over it)."""
+    deadline = time.monotonic() + max(0.0, budget_s)
+    attempts = 0
+    while True:
+        attempts += 1
+        left = max(1.0, min(30.0, deadline - time.monotonic()))
+        try:
+            c = sqlite3.connect(path, timeout=left)
+            try:
+                busy = c.execute("PRAGMA wal_checkpoint(TRUNCATE)").fetchone()[0]
+            finally:
+                c.close()
+        except sqlite3.OperationalError:
+            busy = 1
+        if not busy:
+            if attempts > 1:
+                logger.info(f"[data_sync] TRUNCATE checkpoint succeeded on attempt {attempts}")
+            return True
+        if time.monotonic() >= deadline:
+            logger.warning(f"[data_sync] TRUNCATE checkpoint still busy after {attempts} "
+                           f"attempts / {budget_s:.0f}s")
+            return False
+        time.sleep(0.5)
 
 
 def _write_marker_at(data_dir: str, filename: str, ts: str) -> None:
@@ -754,6 +786,16 @@ def _adopt_clustered_store_locked(data_dir: Optional[str] = None) -> str:
         except BaseException:
             bars_sqlite.stop_write_tracking()
             raise
+        # Drain the old store's WAL BEFORE the lock (PASSIVE: never waits on anyone), so the
+        # locked TRUNCATE below only has the last few frames to move.
+        try:
+            _c = sqlite3.connect(p, timeout=5)
+            try:
+                _c.execute("PRAGMA wal_checkpoint(PASSIVE)").fetchone()
+            finally:
+                _c.close()
+        except sqlite3.Error:
+            pass
         with bars_sqlite._WRITE_LOCK, bars_sqlite.DB_SWAP_LOCK:
             # Pass 2, LOCKED and BUDGETED: the last round's remainder plus whatever was
             # written since.
@@ -762,12 +804,7 @@ def _adopt_clustered_store_locked(data_dir: Optional[str] = None) -> str:
             if changed:
                 carried += max(0, _merge_ohlcv_from(
                     p, new, pairs=changed, deadline=t_lock + ADOPT_LOCKED_BUDGET_S))
-            c = sqlite3.connect(p, timeout=30)
-            try:
-                busy = c.execute("PRAGMA wal_checkpoint(TRUNCATE)").fetchone()[0]
-            finally:
-                c.close()
-            if busy:
+            if not _truncate_checkpoint(p, ADOPT_CHECKPOINT_BUDGET_S):
                 raise RuntimeError("old store busy; could not checkpoint before the swap")
             bars_sqlite._drop_local_conn()
             os.replace(new, p)
