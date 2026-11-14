@@ -597,10 +597,12 @@ def _ephemeral(message: str) -> dict:
     return {"type": 4, "data": {"content": message, "flags": di.EPHEMERAL}}
 
 
-def _channel_nudge() -> dict:
-    """Private redirect when /chart or /flow is run outside the allowed channel."""
+def _channel_nudge(what: str = "chart & flow requests") -> dict:
+    """Private redirect when a channel-gated command is run outside the allowed
+    channel. `what` names what the member asked for, so someone who ran /buzz is
+    not told where to make "chart & flow requests"."""
     want = di.cmd_channel_id()
-    return _ephemeral(f"Please use <#{want}> for chart & flow requests." if want
+    return _ephemeral(f"Please use <#{want}> for {what}." if want
                       else "Not available in this channel.")
 
 
@@ -796,6 +798,14 @@ async def _dispatch_interaction(request: Request, background: BackgroundTasks):
         # ignores flags on the later PATCH, so the bare `{"type": 5}` below is
         # what makes the answer public. The throttle, the empty-query nudge and
         # the missing-token refusal stay private: they are about one member.
+        #
+        # HELD TO THE COMMAND CHANNEL (owner ruling 2026-11-13, "just in UCT
+        # Intelligence"): the same allowlist /chart, /flow and /cot read
+        # (CHART_FLOW_CHANNEL_ID), so there is one list of where the bot
+        # answers. Checked BEFORE the throttle: a refusal must not cost the
+        # member the search they are about to run in the right channel.
+        if not di.cmd_channel_ok(interaction):
+            return _channel_nudge("/lesson")
         uid = di.interaction_user_id(interaction)
         wait = di.user_rate_check(uid)
         if wait:
@@ -855,8 +865,19 @@ async def _dispatch_interaction(request: Request, background: BackgroundTasks):
         # The budget is SHARED with /chart rather than given its own: both end
         # up on the same 4-slot render valve, so one per-member budget is the
         # honest model. DISCORD_CHART_USER_RATE bounds a member pinning a
-        # render slot in a loop -- and, now that the reply is public, it is
-        # also the only bound on one member filling a channel with boards.
+        # render slot in a loop -- and, now that the reply is public, it also
+        # bounds one member filling the channel with boards.
+        #
+        # HELD TO THE COMMAND CHANNEL (owner ruling 2026-11-13, "just in UCT
+        # Intelligence"): a public board answers only where /chart, /flow and
+        # /cot answer (CHART_FLOW_CHANNEL_ID, one allowlist for all of them).
+        # Elsewhere the member gets a private pointer to that channel. Checked
+        # BEFORE the throttle so a refusal does not spend the member's budget.
+        # ⛔ The V2 path carries the same check (discord_render/commands.py);
+        # with V2 on this branch is not reached, so a gate here alone is no gate.
+        # The scheduled posts are not gated by this: they are not interactions.
+        if not di.cmd_channel_ok(interaction):
+            return _channel_nudge("/buzz")
         uid = di.interaction_user_id(interaction)
         wait = di.user_rate_check(uid)
         if wait:
