@@ -64,7 +64,8 @@ export const RANKED_LEADERS = freeze({
   ...LEADERS, id: 'starter_ranked_leaders', name: 'Ranked leaders',
   spec: { filters: LEADERS.spec.filters.filter(f => f.key !== 'rs_leaders_member'), view: LEADERS.spec.view,
     rank: { criteria: [{ key: 'rs_rating_score', weight: 1 }], top_n: 50 } },
-  row: { place: LEADERS.row.place, caption: LEADERS.row.caption, tags: LEADERS.row.tags, sort_label: LEADERS.row.sort_label },
+  // `list`: a list screen like the one it is derived from, so it has "Why isn't a stock here?".
+  row: { place: LEADERS.row.place, caption: LEADERS.row.caption, tags: LEADERS.row.tags, sort_label: LEADERS.row.sort_label, list: LEADERS.row.list },
 })
 
 // What is served around the five (see the header): `hidden`, `words`, `method`.

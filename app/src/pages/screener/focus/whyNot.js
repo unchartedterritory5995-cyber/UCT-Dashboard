@@ -115,6 +115,28 @@ export function rankAheadSpec({ filterList = [], logic = null, rank = null, row 
   return { filters: [...(filterList || []).filter(f => f && f.key !== crit.key), ahead], ...(logic ? { logic } : {}) }
 }
 
+// ── a list that keeps its own members (unit U12) ───────────────────────────
+// UCT RS Leaders is decided once a session by the server (rsScreens.steadyOf reads how from the
+// starter's `row.steady`): a stock joins at `enter` or better among the qualifiers and stays to
+// `hold`. Its screen filters on the stored membership column, and that clause is the ANSWER
+// ("it is not on the list"), never one of the rules a stock passes or misses.
+
+// The screen's rules without one key (the membership clause of such a list).
+export function rulesWithout(filters, key) {
+  if (!key) return filters || {}
+  return Object.fromEntries(Object.entries(filters || {}).filter(([k]) => k !== key))
+}
+
+// The count that places a stock among the list's QUALIFIERS: the starter's own qualifying rules
+// (`steady.gate`: never the screen as the member has since narrowed it, because the server ranks
+// on the starter's) plus "ranks ahead of this stock". Its answer + 1 is the stock's rank. null
+// when there is no such list, or the row holds no value to compare.
+export function steadyAheadSpec({ steady = null, row = {} } = {}) {
+  const v = steady ? row?.[steady.by] : null
+  if (!steady || !isNum(v)) return null
+  return { filters: [...(steady.gate || []).filter(f => f && f.key !== steady.by), { key: steady.by, op: 'gt', min: v }] }
+}
+
 // 1 -> "1st", 22 -> "22nd", 63 -> "63rd", 111 -> "111th".
 export function ordinal(n) {
   const k = Math.abs(n) % 100
@@ -129,12 +151,20 @@ export function ordinal(n) {
 //   position   its place in a single-criterion ranking (count of stocks ahead + 1), or null
 //   topN       the ranking's cap, or null
 //   hasMore    the list has rows that are not loaded yet
-export function whyNotHeadline({ ticker, failed = 0, unknown = 0, onList = false, hiddenNew = false, stale = false, position = null, topN = null, hasMore = false } = {}) {
+//   steady     the list keeps its own members and this stock is not one of them (unit U12):
+//              { enter, hold }; `position` is then its rank among the list's qualifiers
+export function whyNotHeadline({ ticker, failed = 0, unknown = 0, onList = false, hiddenNew = false, stale = false, position = null, topN = null, hasMore = false, steady = null } = {}) {
   if (onList) return `${ticker} is on this list.`
   if (hiddenNew) return `${ticker} is on this list. It is hidden while New only is on.`
   if (failed > 0) return `${ticker} is not on this list. It misses ${failed === 1 ? '1 rule' : `${failed} rules`}.`
   if (stale) return `${ticker} passes the rules below, but its price data has stopped updating, so it is left out of every screen.`
   if (unknown > 0) return `${ticker} passes every rule that can be checked here.`
+  if (steady && isNum(steady.enter) && isNum(steady.hold)) {
+    // A rank inside the top 50 is said too: the seats are held by listed stocks, and the words in
+    // brackets are why. A rank the server would not count is never invented.
+    const kept = `the list holds the top ${steady.enter.toLocaleString('en-US')} (a listed stock stays until it falls past ${ordinal(steady.hold)})`
+    return isNum(position) ? `Passes every rule; ranked ${ordinal(position)}, ${kept}.` : `${ticker} passes every rule and is not on the list today: ${kept}.`
+  }
   if (isNum(topN) && isNum(position) && position > topN) return `Passes every rule; ranked ${ordinal(position)}, the list shows the top ${topN.toLocaleString('en-US')}`
   if (hasMore) return 'Passes every rule. It is further down this list than the rows loaded so far.'
   // Every rule passes on the row just read, and the list on screen does not hold it: the two
