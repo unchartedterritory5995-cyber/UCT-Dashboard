@@ -61,6 +61,7 @@ import { registerShortcuts } from '../../../../command/shortcutRegistry'
 import styles from './NotebookTour.module.css'
 import own from './GenericTourEngine.module.css'
 import PoliteStatus from '../PoliteStatus'
+import { TOUR_NAV } from '../../../lib/notebookUsage'
 
 export { atStart }
 
@@ -226,7 +227,9 @@ export default function GenericTourEngine({
         // pathname), and this engine with it: carry the request so the new gate goes on
         // with this tour instead of dropping it silently (W14-Q2: trade starts never opened).
         if (new URL(r.path, 'http://tour.invalid').pathname !== location.pathname) carryRegistryTourOpen(entry.id)
-        navigate(r.path, { state: stripTourState(location.state) })
+        // Follow-up A fix round 1 (I2): marked as the walkthrough's own move, so the Notebook does not count it as a
+        // link the member followed (`view_used`, lib/notebookUsage.js `linkOpened`).
+        navigate(r.path, { state: { ...(stripTourState(location.state) || {}), [TOUR_NAV]: true } })
       }
       setPhase('waiting')
     })
@@ -333,6 +336,7 @@ export default function GenericTourEngine({
 
   const goBack = useCallback(() => {
     if (!steps || moving) return
+    if (steps[index]?.noBack) return
     const prev = presentFrom(steps, index - 1, -1)
     if (prev >= 0) goTo(prev)
   }, [steps, moving, index, goTo])
@@ -525,6 +529,8 @@ export default function GenericTourEngine({
   }
 
   const isFirst = presentFrom(steps, index - 1, -1) < 0
+  // Follow-up B fix round 1: a step that lives inside a view a previous step opened (a menu's second view) draws no
+  // Back: going back would name a control that is no longer on screen (`noBack`, tours/index.js contract).
   const isLast = index === steps.length - 1
   // FIN-A11Y (I-8): the step count and the "do this" hint are part of what is SAID. The
   // dialog is described by them, and so is the heading that takes focus on every step
@@ -557,9 +563,11 @@ export default function GenericTourEngine({
           Skip tour
         </button>
         <span className={styles.nav}>
-          <button type="button" className="btn btn-secondary" onClick={goBack} disabled={isFirst || moving}>
-            Back
-          </button>
+          {!step.noBack && (
+            <button type="button" className="btn btn-secondary" onClick={goBack} disabled={isFirst || moving}>
+              Back
+            </button>
+          )}
           {isLast ? (
             <button type="button" className="btn btn-primary" onClick={() => close(TOUR_STATES.done)}>
               Done

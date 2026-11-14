@@ -195,10 +195,10 @@ const STARTER_LAYOUT = {
 const UCT_DEFAULT_LAYOUT = {
   widgets: [
     { id: 'uctd-themes',       type: 'themes',       color: 'A', x: 0,  y: 0,  w: 3,  h: 20, opts: {} },
-    { id: 'uctd-chart',        type: 'chart',        color: 'A', x: 3,  y: 0,  w: 17, h: 17, opts: {} },
-    { id: 'uctd-fundamentals', type: 'fundamentals', color: 'A', x: 3,  y: 17, w: 17, h: 3,  opts: {} },
-    { id: 'uctd-watchlist',    type: 'watchlist',    color: 'A', x: 20, y: 0,  w: 4,  h: 11, opts: {} },
-    { id: 'uctd-aisearch',     type: 'aisearch',     color: 'A', x: 20, y: 11, w: 4,  h: 9,  opts: {} },
+    // Owner 2026-11-13: Fundamentals + AI Search are hidden widgets (registry HIDDEN_WIDGETS),
+    // so the default drops them — the chart takes the full height, the watchlist the full column.
+    { id: 'uctd-chart',        type: 'chart',        color: 'A', x: 3,  y: 0,  w: 17, h: 20, opts: {} },
+    { id: 'uctd-watchlist',    type: 'watchlist',    color: 'A', x: 20, y: 0,  w: 4,  h: 20, opts: {} },
   ],
   cols: GRID_COLS,
 }

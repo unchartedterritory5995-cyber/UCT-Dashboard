@@ -29,7 +29,8 @@
 // overlay — never a retry storm and never a client-side "are you paid?" branch
 // that could disagree with the server.
 
-import { withDerivedColumns } from './derivedColumns'
+import { withDerivedColumns, withDerivedScalars } from './derivedColumns'
+import { readoutConditionOpen } from './readoutSchema'
 // ⭐ U2b — the forming bar's live value for a `plots[].liveTail` (`liveTail.js`):
 // the one cell of a cached envelope that moves with price, recomputed where the
 // envelope is aligned. The module imports nothing of this one.
@@ -37,6 +38,9 @@ import { withLiveTail, benchmarkTailFor, subscribeBenchmarkTails, registerBenchm
 // ⭐ 2026-11-12 — a declared `rescale` (`rescale.js`): the drawn columns multiplied
 // by one factor per envelope so the line reads like a rating. Presentation only.
 import { rescaleOf, rescaleChoice, rescaleFactor, withRescale, withRescaleScalars } from './rescale'
+// ⭐ 2026-11-13 — what this browser last had for a symbol, kept across page loads
+// (`serverColumnsDisk.js`): drawn at once, marked provisional, always re-asked.
+import { readDisk, writeDisk, forgetDisk } from './serverColumnsDisk'
 
 /** The ONE path every server-lane definition is fetched through. */
 export const SERVER_COLUMNS_PATH = '/api/signature/columns'
@@ -344,11 +348,68 @@ function _cellsOf(parsed) {
   return n
 }
 
+// ─── PROVISIONAL: AN ENTRY FROM THIS BROWSER'S STORE, NOT YET THE SERVER'S ───
+//
+// The first chart of a page load (and every pop-out window, and a jump to a
+// symbol nothing pre-loaded) used to draw its candles from the browser's own
+// store in milliseconds and wait a server round trip for its server columns. So
+// a landed envelope is also kept on disk (`serverColumnsDisk.js`), and a chart
+// that shows a symbol reads back what this browser last had for it.
+//
+// ⛔ IT IS DRAWN, AND IT IS NEVER BELIEVED. A key in `_provisional` is painted by
+// `cachedColumns` like any other and is asked for from the server exactly as an
+// ABSENT key is (`ensureColumns`, both request doors). Then:
+//   · the server's answer is the same     -> the flag goes, nothing repaints;
+//   · the server's answer differs         -> it replaces the entry and repaints;
+//   · the server refuses the ask          -> the entry and its record are removed;
+//   · the server cannot compute it yet    -> it stays drawn through the lane's own
+//     bounded retries (`DEGRADED_RETRY_MS`), then the server's answer stands;
+//   · the server does not answer at all   -> it stays drawn and is asked again.
+// An entry written under another server revision is never drawn (`serverColumnsFor`).
+const _provisional = new Set()          // keys whose cached entry came from the disk store
+const _provisionalNotBefore = new Map() // key -> do not re-ask before this time (a degraded answer's back-off)
+/**
+ * Is this status the server REFUSING the ask, as opposed to failing to answer it?
+ * Any client-error status except the three that mean "ask again later". Which
+ * refusal it is (signed out, not entitled, no such definition, bad inputs) is the
+ * server's business and is not read here: every one of them means "do not draw
+ * what this browser had".
+ */
+const ASK_AGAIN = new Set([408, 425, 429])
+function _refused(status) {
+  return status >= 400 && status < 500 && !ASK_AGAIN.has(status)
+}
+
 function _cacheDrop(key) {
+  _provisional.delete(key)
+  _provisionalNotBefore.delete(key)
   if (!_cache.has(key)) return
   _cache.delete(key)
   _cellsHeld -= _cacheCells.get(key) || 0
   _cacheCells.delete(key)
+}
+
+/** Cell-for-cell, scalar-for-scalar the same envelope (NaN equals NaN). */
+function sameEnvelope(a, b) {
+  if (a === b) return true
+  if (!a || !b || a.rev !== b.rev) return false
+  const ta = a.times || []
+  const tb = b.times || []
+  // (a different NUMBER of times is caught below: every column is as long as its times)
+  for (let i = 0; i < ta.length; i++) if (ta[i] !== tb[i]) return false
+  const ka = Object.keys(a.columns || {})
+  if (ka.length !== Object.keys(b.columns || {}).length) return false
+  for (const k of ka) {
+    const x = a.columns[k]
+    const y = b.columns[k]
+    if (!y || x.length !== y.length) return false
+    for (let i = 0; i < x.length; i++) {
+      const u = x[i]
+      const v = y[i]
+      if (u !== v && (u === u || v === v)) return false
+    }
+  }
+  return JSON.stringify(a.payload === undefined ? null : a.payload) === JSON.stringify(b.payload === undefined ? null : b.payload)
 }
 
 function _cachePut(key, parsed) {
@@ -367,7 +428,7 @@ function _cachePut(key, parsed) {
 
 /** Diagnostic + test seam: what the cache holds right now. */
 export function serverColumnsCacheStats() {
-  return { entries: _cache.size, cells: _cellsHeld, inflight: _inflight.size, wanted: _wanted.size }
+  return { entries: _cache.size, cells: _cellsHeld, inflight: _inflight.size, wanted: _wanted.size, provisional: _provisional.size }
 }
 
 /** Notified whenever an entry lands, so a host can repaint. @returns {() => void} */
@@ -450,12 +511,124 @@ function _trackDegraded(key, parsed, wire) {
   }, DEGRADED_RETRY_MS[tries]))
 }
 
+/**
+ * A server answer for `key` arrived (either request door). Puts it where a paint
+ * reads it and keeps it for the next page load.
+ *
+ * @returns {boolean} true when what a paint reads for `key` CHANGED. False only for
+ *   a provisional entry the server confirmed cell for cell, or one kept on screen
+ *   while the server cannot compute yet: nothing to repaint.
+ */
+function _land(key, sym, tf, parsed, wire) {
+  const degraded = isDegradedWire(wire)
+  if (_provisional.has(key)) {
+    const held = _cache.get(key)
+    if (degraded) {
+      const tries = _degradedTries.get(key) || 0
+      if (held && tries < DEGRADED_RETRY_MS.length) {
+        // The server cannot compute this yet. What this browser had stays drawn, and the
+        // ask is repeated on the lane's own back-off (a paint is forced when it is due).
+        _degradedTries.set(key, tries + 1)
+        _provisionalNotBefore.set(key, Date.now() + DEGRADED_RETRY_MS[tries])
+        _forgetDegraded(key)
+        _degradedTimers.set(key, setTimeout(() => {
+          _degradedTimers.delete(key)
+          if (_provisional.has(key)) _notify(key)
+        }, DEGRADED_RETRY_MS[tries]))
+        return false
+      }
+      // After the last try the server's answer stands, and the record is not kept.
+      forgetDisk(key)
+    } else if (held && sameEnvelope(held, parsed)) {
+      // Confirmed: the entry a paint already drew stays (same object, so nothing
+      // downstream recomputes) and stops being provisional.
+      _provisional.delete(key)
+      _provisionalNotBefore.delete(key)
+      _degradedTries.delete(key)
+      _forgetDegraded(key)
+      return false
+    }
+  }
+  _cachePut(key, parsed)
+  _trackDegraded(key, parsed, wire)
+  if (!degraded) writeDisk(key, sym, tf, parsed)
+  return true
+}
+
+// ─── READING THIS BROWSER'S STORE ────────────────────────────────────────────
+//
+// Once per (symbol, timeframe) per page load, when a chart shows it (`chartShows`,
+// before its first paint asks for anything) or a paint misses (`ensureColumns`).
+// A chart racing through symbols reads nothing until it stops, by the same hold
+// that keeps its server ask back. The read never stands in for the ask.
+const _diskAsked = new Set()  // `${sym}|${tf}` this page load has looked up (or is looking up)
+const _diskHeld = new Map()   // `${sym}|${tf}` -> timer, while a racing chart's read is held
+const _bootAt = Date.now()
+/** After this long, a page that has drawn no server-lane definition stops reading the store on a symbol change. */
+export const DISK_IDLE_READ_MS = 15_000
+let _everAsked = false
+
+function _hydrate(sym, tf) {
+  const gk = `${sym}|${tf}`
+  if (_diskAsked.has(gk)) return
+  _diskAsked.add(gk)
+  readDisk(sym, tf).then((found) => {
+    const landed = []
+    for (const { key, parsed } of found) {
+      if (_cache.has(key)) continue                       // the server (or a prime) answered first
+      _cachePut(key, parsed)
+      _provisional.add(key)
+      landed.push(key)
+    }
+    for (const key of landed) _notify(key)
+  })
+}
+
+function _hydrateWhenSettled(sym, tf) {
+  const t = String(tf == null ? 'D' : tf)
+  if (typeof sym !== 'string' || !sym) return
+  const gk = `${sym}|${t}`
+  if (_diskAsked.has(gk) || _diskHeld.has(gk)) return
+  const hold = _settleMs(sym, t)
+  if (!(hold > 0)) { _hydrate(sym, t); return }
+  _diskHeld.set(gk, setTimeout(() => {
+    _diskHeld.delete(gk)
+    if (_stillShown(sym, t)) _hydrate(sym, t)
+  }, hold))
+}
+
+/**
+ * A row the member is about to reach: what this browser last had for it, read NOW.
+ *
+ * ⚰️ The store was read when a chart ARRIVED on a symbol, so its columns reached the chart 0.1
+ * to 0.2 s after the candles (the read is asynchronous, and it finished behind the flip's own
+ * work), and after the hold when the member had been racing. Measured on production
+ * 2026-11-13 with the pod answering in 7 to 23 s: the store saved every chart, 117 ms late on
+ * 21 of 24. Read when the row is ANNOUNCED, the columns are in memory before the member gets
+ * there and the first paint draws them, whatever the server is doing.
+ *
+ * Local disk, no request: it is not held back while a chart is racing (the newest rows are
+ * the ones about to be shown), and each (symbol, timeframe) is read once per page load. A
+ * page that draws no server-lane definition reads nothing.
+ */
+export function readAhead(sym, tf) {
+  if (!_everAsked || typeof sym !== 'string' || !sym) return
+  _hydrate(sym, String(tf == null ? 'D' : tf))
+}
+
 /** Test seam + a symbol/timeframe change escape hatch. */
 export function clearServerColumns() {
   _cache.clear()
   _cacheCells.clear()
   _cellsHeld = 0
   _wanted.clear()
+  _provisional.clear()
+  _provisionalNotBefore.clear()
+  _diskAsked.clear()
+  for (const t of _diskHeld.values()) clearTimeout(t)
+  _diskHeld.clear()
+  _everAsked = false
+  _tfHabit = null
   _inflight.clear()
   _asks.clear()
   _own.clear()
@@ -464,6 +637,8 @@ export function clearServerColumns() {
   _shown.clear()
   _ownOut = 0
   _ownSentAt = 0
+  _laneMs = 0
+  _laneMsAt = 0
   _batchDownUntil = 0
   for (const t of _degradedTimers.values()) clearTimeout(t)
   _degradedTimers.clear()
@@ -502,7 +677,10 @@ export function primeServerColumns(defId, sym, tf, inputs, wire) {
  */
 export function cachedColumns(defId, sym, tf, inputs) {
   const key = serverColumnsKey(defId, sym, tf, inputs)
-  if (!key) return null
+  return key ? _readKey(key) : null
+}
+
+function _readKey(key) {
   const hit = _cache.get(key)
   if (hit === undefined) return null
   // A read marks the entry as used: it moves to the young end, so the bounded
@@ -533,26 +711,35 @@ export function fetchColumns(defId, sym, tf, inputs, fetcher) {
   const existing = _inflight.get(key)
   if (existing) return existing
   const get = typeof fetcher === 'function' ? fetcher : _defaultFetch
+  let unchanged = false                                 // a provisional entry confirmed or kept: nothing to repaint
+  const sentAt = Date.now()
   const p = Promise.resolve()
     .then(() => get(key))
     .then((wire) => {
+      _noteLaneMs(Date.now() - sentAt, Date.now())
       const parsed = columnsFromWire(wire)
-      _cachePut(key, parsed)
-      _trackDegraded(key, parsed, wire)
-      return parsed
+      unchanged = !_land(key, sym, tf, parsed, wire)
+      return _cache.get(key) || parsed
     })
-    .catch(() => {
+    .catch((err) => {
       // Quiet on purpose, exactly like `useSignatureIndicators`' fetcher: the
       // lane is paid-gated, so a 402 is a routine state and not an incident. The
       // failure is NOT cached — an absent entry retries on the next paint, a
       // cached empty one would be remembered as "no data" forever.
+      if (_provisional.has(key)) {
+        // What this browser had: a REFUSAL removes it (and its record); a server that
+        // did not answer leaves it drawn, and the next paint asks again.
+        const status = err && Number.isFinite(err.status) ? err.status : 0
+        if (!_refused(status)) { unchanged = true; return _cache.get(key) || null }
+        forgetDisk(key)
+      }
       _cacheDrop(key)
       return null
     })
     .finally(() => {
       if (_inflight.get(key) === p) _inflight.delete(key)
       _wanted.delete(key)
-      _notify(key)
+      if (!unchanged) _notify(key)
     })
   _inflight.set(key, p)
   return p
@@ -672,11 +859,13 @@ export function fetchColumnsBatch(sym, tf, asks, opts = {}) {
   for (const a of Array.isArray(asks) ? asks : []) {
     if (!a || typeof a.defId !== 'string') continue
     const key = serverColumnsKey(a.defId, sym, tf, a.inputs)
-    if (!key || _cache.has(key) || _inflight.has(key)) continue
+    // A provisional entry (this browser's store) is asked for exactly as an absent one is.
+    if (!key || (_cache.has(key) && !_provisional.has(key)) || _inflight.has(key)) continue
     if (todo.some((t) => t.key === key)) continue
     todo.push({ key, defId: a.defId, inputs: a.inputs })
   }
   if (!todo.length) return Promise.resolve(0)
+  const unchanged = new Set()                           // provisional entries confirmed or kept: no repaint
   const get = typeof opts.getBatch === 'function' ? opts.getBatch : _batchGet
   const singles = () => Promise.all(todo.map((t) => fetchColumns(t.defId, sym, tf, t.inputs)))
     .then((got) => got.filter(Boolean).length)
@@ -685,9 +874,11 @@ export function fetchColumnsBatch(sym, tf, asks, opts = {}) {
   }
   const url = serverColumnsBatchUrl(sym, tf, todo)
   let failed = false
+  const sentAt = Date.now()
   const p = Promise.resolve()
     .then(() => get(url))
     .then((body) => {
+      _noteLaneMs(Date.now() - sentAt, Date.now())
       const results = body && Array.isArray(body.results) ? body.results : null
       // Positional: one slot per ask. A body of any other shape answers nothing.
       if (!results || results.length !== todo.length) throw new Error('malformed batch body')
@@ -695,13 +886,19 @@ export function fetchColumnsBatch(sym, tf, asks, opts = {}) {
       todo.forEach((t, i) => {
         const slot = results[i]
         // A refused ask (the route's own 404 / 422 for it) is not cached, exactly
-        // as a failed single ask is not: the next paint asks again.
-        if (!slot || slot.status !== 200 || !slot.envelope) return
+        // as a failed single ask is not: the next paint asks again. What this browser
+        // had for it goes with the refusal; anything short of a refusal leaves it drawn.
+        if (!slot || slot.status !== 200 || !slot.envelope) {
+          if (_provisional.has(t.key)) {
+            if (slot && _refused(slot.status)) { _cacheDrop(t.key); forgetDisk(t.key) }
+            else unchanged.add(t.key)
+          }
+          return
+        }
         let parsed
-        try { parsed = columnsFromWire(slot.envelope) } catch { return }
-        if (quiet && _cache.has(t.key)) return
-        _cachePut(t.key, parsed)
-        _trackDegraded(t.key, parsed, slot.envelope)
+        try { parsed = columnsFromWire(slot.envelope) } catch { if (_provisional.has(t.key)) unchanged.add(t.key); return }
+        if (quiet && _cache.has(t.key) && !_provisional.has(t.key)) return
+        if (!_land(t.key, sym, tf, parsed, slot.envelope)) unchanged.add(t.key)
         landed += 1
       })
       return landed
@@ -718,6 +915,7 @@ export function fetchColumnsBatch(sym, tf, asks, opts = {}) {
       for (const t of todo) {
         // A warm repaints only for a key a paint asked for while it was on its way.
         const waited = _wanted.delete(t.key)
+        if (unchanged.has(t.key)) continue
         if (!quiet || waited) _notify(t.key)
       }
       return landed
@@ -759,13 +957,37 @@ let _ownFlushing = false
 // The pre-load of the rows ahead (`serverWarm.js`) is not touched by any of this.
 /** A symbol change this soon after the chart's previous one is "racing through". */
 export const RAPID_MS = 250
-/** A held ask waits this many times the chart's last gap ... */
+/** A held ask waits this many times the SLOWER of the chart's last two steps ... */
 export const SETTLE_FACTOR = 1.3
 /** ... but never less than this, nor more than `SETTLE_MAX_MS`. */
 export const SETTLE_MIN_MS = 40
-export const SETTLE_MAX_MS = 250
-const _shown = new Map()      // slot (the chart's own token) -> { sym, tf, at, gap }
+export const SETTLE_MAX_MS = 500
+const _shown = new Map()      // slot (the chart's own token) -> { sym, tf, at, gap, prev }
 const _held = new Map()       // `${sym}|${tf}` -> { g, timer }
+
+// ⚰️ MEASURED ON PRODUCTION 2026-11-13 (the key held through 40 deep charts of a list never
+// opened): the steps came 201 ms apart at the median, but unevenly (a deep chart takes
+// 100 to 290 ms to draw), so every step slower than `RAPID_MS` read as "resting" and its
+// chart sent its ask at once. Eight requests for charts already passed were in flight
+// when the key was released, and the landing chart drew its RS lines 5.2 s after its
+// candles. One slow step in a run of fast ones is still a run: a chart's PACE is the
+// faster of its last two steps. And "has the member stopped?" is asked of the SLOWER of
+// the two (`_stride`): a hold of 1.3 x a 180 ms step ends before a 290 ms step does, and
+// that chart's ask went out for nobody. (The old 250 ms ceiling on the hold was under the
+// 260 to 300 ms a deep chart takes to draw, for the same result; it is 500 now.)
+//
+// ⭐ A STEP TAKEN AFTER A PAUSE IS NOT PART OF THE RUN BEFORE IT (2026-11-13). The pace above
+// read "200 ms, then 5 s, then a step" as 200 ms: the first chart a member moved to after
+// holding the key and stopping had its own ask held for the full ceiling. A gap longer than
+// the longest hold means the chart before it had rested (its ask was sent), so the run is
+// over and this step is a reader's.
+function _pace(s) {
+  if (s.gap > SETTLE_MAX_MS) return s.gap
+  return Math.min(s.gap, s.prev)
+}
+function _stride(s) {
+  return s.prev === Infinity ? s.gap : Math.max(s.gap, s.prev)
+}
 
 /**
  * A chart says which (symbol, timeframe) it is on. Call it when either changes.
@@ -776,7 +998,10 @@ export function chartShows(slot, sym, tf) {
   const t = String(tf)
   if (prev && prev.sym === sym && prev.tf === t) return
   const now = Date.now()
-  _shown.set(slot, { sym, tf: t, at: now, gap: prev ? now - prev.at : Infinity })
+  _shown.set(slot, { sym, tf: t, at: now, gap: prev ? now - prev.at : Infinity, prev: prev ? prev.gap : Infinity })
+  // What this browser last had for the symbol, read before the first paint asks for
+  // anything. A page that draws no server-lane definition stops looking after a moment.
+  if (_everAsked || now - _bootAt < DISK_IDLE_READ_MS) _hydrateWhenSettled(sym, t)
 }
 
 /** The chart is gone (unmounted): nothing it showed is waited for on its behalf. */
@@ -791,7 +1016,10 @@ function _settleMs(sym, tf) {
   let any = false
   for (const s of _shown.values()) {
     if (s.sym !== sym || s.tf !== t) continue
-    const settle = s.gap < RAPID_MS ? Math.min(SETTLE_MAX_MS, Math.max(SETTLE_MIN_MS, s.gap * SETTLE_FACTOR)) : 0
+    // Racing by its own pace, or flying by the lane's present speed (`flyingMs`: a request
+    // sent now would land after the chart has moved on): either way the ask waits.
+    const settle = _pace(s) < Math.max(RAPID_MS, flyingMs())
+      ? Math.min(SETTLE_MAX_MS, Math.max(SETTLE_MIN_MS, _stride(s) * SETTLE_FACTOR)) : 0
     hold = any ? Math.min(hold, settle) : settle
     any = true
   }
@@ -817,13 +1045,43 @@ function _stillShown(sym, tf) {
 // does (`serverWarm.js` asks before every request; what is already in flight finishes):
 //   * a chart's own ask is out (for at most `OWN_PRIORITY_MS`: a request that never
 //     settles must not stop the pre-load for good);
-//   * a chart is FLYING: changing symbol faster than every `FLYING_MS`. Six rows ahead at
-//     that pace is well under a second of lead, less than a compute takes, so a request
-//     started now lands on a row already passed and only delays the one the member stops
-//     on. (A chart stepping slower than that, even if "raced" by the hold's measure,
-//     keeps its pre-load: the rows ahead do land in time.)
-/** A chart changing symbol faster than this is flying through a list. */
+//   * a chart is FLYING: changing symbol faster than anything asked ahead could land
+//     (`flyingMs`). A request started now lands on a row already passed and only delays
+//     the one the member stops on. (A chart stepping slower than that keeps its
+//     pre-load: the rows ahead do land in time.)
+//
+// ⭐ HOW FAST IS "FASTER THAN IT COULD LAND" DEPENDS ON THE SERVER RIGHT NOW (2026-11-13).
+// A fixed 120 ms was right for a warm server (an answer in under 100 ms lands a row
+// ahead even at eight charts a second) and wrong for a cold one: in the run above each
+// cold request took 1.0 to 1.9 s, at 201 ms a step nothing asked ahead could land within
+// five rows, and the fixed threshold let them all start. So the lane times its own
+// requests (`_noteLaneMs`, the average of the last two, forgotten after `LANE_MS_TTL`)
+// and a chart is flying when it would be more than `FLY_LEAD_ROWS` rows further on by the
+// time a request started now came back: threshold = latency / FLY_LEAD_ROWS, never under
+// `FLYING_MS` (the floor, and the answer while nothing has been timed) nor over
+// `FLYING_MAX_MS` (a member reading a chart for over half a second is not flying,
+// whatever the server is doing).
+/** The floor: a chart changing symbol faster than this is always flying. */
 export const FLYING_MS = 120
+/** The ceiling of the flying threshold. */
+export const FLYING_MAX_MS = 600
+/** A request is worth starting if it lands within this many of the chart's steps. */
+export const FLY_LEAD_ROWS = 4
+/** A latency measured longer ago than this says nothing about the server now. */
+export const LANE_MS_TTL = 60_000
+let _laneMs = 0               // how long the lane's recent requests took (average of the last two)
+let _laneMsAt = 0
+
+function _noteLaneMs(ms, now) {
+  _laneMs = _laneMs > 0 && now - _laneMsAt < LANE_MS_TTL ? (_laneMs + ms) / 2 : ms
+  _laneMsAt = now
+}
+
+/** A chart whose pace is under this is flying, as the server answers right now. */
+export function flyingMs(now = Date.now()) {
+  if (!(_laneMs > 0) || now - _laneMsAt >= LANE_MS_TTL) return FLYING_MS
+  return Math.min(FLYING_MAX_MS, Math.max(FLYING_MS, _laneMs / FLY_LEAD_ROWS))
+}
 /** The longest one own ask keeps the pre-load waiting. */
 export const OWN_PRIORITY_MS = 8_000
 let _ownOut = 0
@@ -837,7 +1095,16 @@ function _ownSettled() {
 export function chartsNeedTheLane() {
   const now = Date.now()
   if (_ownOut > 0 && now - _ownSentAt < OWN_PRIORITY_MS) return true
-  for (const s of _shown.values()) if (s.gap < FLYING_MS && now - s.at < RAPID_MS) return true
+  // ⭐ ...or is about to be (2026-11-13). An own ask HELD for a chart that just stopped counts
+  // from the moment it is held, not from the moment it is sent. Measured on production: the
+  // landing chart stopped counting as flying after 0.35 s, its ask left after 0.49 s, and in
+  // between the pre-load sent three cold requests that the ask then queued behind for 3.0 s.
+  // (A hold is at most `SETTLE_MAX_MS`, and ends by sending or by dropping: it cannot stick.)
+  if (_held.size > 0) return true
+  // (flying lasts until the chart has rested for a whole step at that threshold)
+  const fly = flyingMs(now)
+  const rest = Math.max(RAPID_MS, fly)
+  for (const s of _shown.values()) if (_pace(s) < fly && now - s.at < rest) return true
   return false
 }
 
@@ -892,17 +1159,24 @@ function _queueOwnAsk(key, defId, sym, tf, inputs) {
  * a request in flight for the next paint.
  */
 export function ensureColumns(defId, sym, tf, inputs, fetcher) {
-  const hit = cachedColumns(defId, sym, tf, inputs)
-  if (hit) return hit
   const key = serverColumnsKey(defId, sym, tf, inputs)
   if (!key) return null
+  const hit = _readKey(key)
+  // An entry from this browser's store is handed to the paint AND asked for, as if absent.
+  const provisional = !!hit && _provisional.has(key)
+  if (hit && !provisional) return hit
+  if (provisional) {
+    if (Date.now() < (_provisionalNotBefore.get(key) || 0)) return hit   // a degraded answer's back-off
+  } else {
+    _hydrateWhenSettled(sym, tf)
+  }
   _wanted.add(key)
   // An entry already on its way is not asked for twice: both doors below leave an
   // in-flight key alone (`fetchColumns` returns the pending request, a batch skips it).
   // An injected fetcher is a test's (or a host's) own single-ask door: honoured as is.
   if (typeof fetcher === 'function' || !batchAvailable()) fetchColumns(defId, sym, tf, inputs, fetcher)
   else _queueOwnAsk(key, defId, sym, tf, inputs)
-  return null
+  return hit || null
 }
 
 // ─── WHAT CHARTS ARE DRAWING, SO IT CAN BE ASKED FOR AHEAD ───────────────────
@@ -924,12 +1198,65 @@ export const ASK_TTL_MS = 30 * 60_000
 export const ASK_MAX = 24
 const _asks = new Map()       // `${defId}|${tf}|${inputs}` -> { defId, tf, inputs, at }
 
+// ─── A TIMEFRAME THE MEMBER USES, BEFORE ITS FIRST PAINT OF THE PAGE LOAD ────
+//
+// ⚰️ MEASURED ON PRODUCTION 2026-11-13 (a daily chart with the RS suite, switched to
+// weekly and back): the FIRST switch to weekly drew its RS lines 1,150 ms after its
+// candles; every later switch, in the candles' frame. `liveAsks('W')` is empty
+// until a weekly chart has painted once, so nothing could be asked ahead for it.
+//
+// The daily, weekly and monthly charts of one board draw the same definitions with
+// the same inputs. So the lane remembers, in this browser, WHICH of those three
+// timeframes a member draws server columns on (`TF_HABIT_KEY`: a timeframe and
+// when, nothing else). `habitAsks(tf)` answers, for one it has seen within
+// `TF_HABIT_MS` and that nothing has painted at yet, with the asks the other two
+// are drawing now. The bars prefetch already announces a rested symbol's other
+// timeframes to the warmers; `serverWarm.js` asks this for that ONE symbol, so the
+// weekly columns are there before the first switch.
+//
+// ⛔ ONLY A HABIT, ONLY D/W/M, ONLY WHILE NOTHING REAL IS KNOWN. A member who never
+// opens a weekly chart is never asked for one. An intraday timeframe never borrows
+// (the lane answers "daily charts only" there) and is never remembered. The moment
+// a real ask is noted at the timeframe, `liveAsks` is the answer and this is empty.
+// `liveAsks` itself is untouched: a whole list is only ever warmed at a timeframe a
+// chart is really drawing.
+export const TF_HABIT_KEY = 'uct.rslane.tfs'
+/** A timeframe drawn within this long is one the member uses. */
+export const TF_HABIT_MS = 14 * 24 * 60 * 60_000
+/** The habit is written at most this often per timeframe (a paint notes an ask every time). */
+export const TF_HABIT_WRITE_MS = 60 * 60_000
+const DAILY_FAMILY = new Set(['D', 'W', 'M'])
+let _tfHabit = null           // { [tf]: last seen (ms) }, read once per page load
+
+function _habit() {
+  if (_tfHabit) return _tfHabit
+  _tfHabit = {}
+  try {
+    const raw = JSON.parse(localStorage.getItem(TF_HABIT_KEY) || '{}')
+    if (raw && typeof raw === 'object') {
+      for (const tf of DAILY_FAMILY) if (Number.isFinite(raw[tf])) _tfHabit[tf] = raw[tf]
+    }
+  } catch { /* no storage, or not ours: no habit */ }
+  return _tfHabit
+}
+
+function _noteTf(tf, now) {
+  if (!DAILY_FAMILY.has(tf)) return
+  const h = _habit()
+  if (now - (h[tf] || 0) < TF_HABIT_WRITE_MS) return
+  h[tf] = now
+  try { localStorage.setItem(TF_HABIT_KEY, JSON.stringify(h)) } catch { /* the habit lasts this page load only */ }
+}
+
 function _noteAsk(defId, tf, sent) {
+  _everAsked = true
   const t = String(tf == null ? 'D' : tf)
   const k = `${defId}|${t}|${serverInputsParam(sent)}`
+  const now = Date.now()
   _asks.delete(k)
-  _asks.set(k, { defId, tf: t, inputs: sent, at: Date.now() })
+  _asks.set(k, { defId, tf: t, inputs: sent, at: now })
   if (_asks.size > ASK_MAX) _asks.delete(_asks.keys().next().value)
+  _noteTf(t, now)
 }
 
 /**
@@ -949,6 +1276,27 @@ export function liveAsks(tf, now = Date.now()) {
 }
 
 /**
+ * For a timeframe nothing has painted at in this page load, but which this member
+ * uses: the asks its board's OTHER daily-family charts are drawing now (one per
+ * definition and inputs). Empty for any other timeframe, for a member without the
+ * habit, and as soon as a real ask is known (then `liveAsks` answers).
+ *
+ * @returns {Array<{defId: string, inputs: object|null|undefined}>}
+ */
+export function habitAsks(tf, now = Date.now()) {
+  const want = String(tf == null ? 'D' : tf)
+  const seen = _habit()[want]              // (only D, W and M are ever kept: `_habit`)
+  if (seen === undefined || now - seen > TF_HABIT_MS || seen > now) return []
+  const borrowed = new Map()
+  for (const a of _asks.values()) {
+    if (now - a.at > ASK_TTL_MS) continue
+    if (a.tf === want) return []                         // a real ask: nothing is borrowed
+    if (DAILY_FAMILY.has(a.tf)) borrowed.set(`${a.defId}|${serverInputsParam(a.inputs)}`, { defId: a.defId, inputs: a.inputs })
+  }
+  return [...borrowed.values()]
+}
+
+/**
  * `computeFor`'s server branch, whole: bars-length columns for a server-lane
  * definition, or `{}` while nothing has landed.
  *
@@ -964,6 +1312,11 @@ export function serverColumnsFor(def, bars, inputs, ctx) {
   _noteAsk(def.id, ctx.tf, sent)
   const parsed = ensureColumns(def.id, sym, ctx.tf, sent, ctx.fetcher)
   if (!parsed) return {}
+  // ⛔ 2026-11-13 — EXCEPT AN ENTRY FROM THIS BROWSER'S STORE. The rule below ("the cache
+  // cannot hold an entry from before a deploy") is true of the in-memory cache only: a
+  // record on disk can be older than the deploy. One on another rev is not drawn; the
+  // server's answer is already on its way (`ensureColumns` asked) and replaces it.
+  if (revMismatch(parsed, def) && _provisional.has(serverColumnsKey(def.id, sym, ctx.tf, sent))) return {}
   // ⭐ A DIFFERENT SERVER REV IS DRAWN, NOT RE-ASKED (review finding, 2026-11-06).
   // The first cut treated a rev mismatch as a cache miss and asked again. But the
   // only way the two revs differ is a SERVER that is on another revision — the
@@ -1048,8 +1401,11 @@ function rescaleFactorFor(def, parsed, inputs, tf, before) {
 export function scalarsFor(def, inputs, ctx) {
   const sym = ctx && typeof ctx.sym === 'string' ? ctx.sym : ''
   if (!def || !sym) return null
-  const parsed = cachedColumns(def.id, sym, ctx.tf, pickServerInputs(def, inputs))
+  const sent = pickServerInputs(def, inputs)
+  const parsed = cachedColumns(def.id, sym, ctx.tf, sent)
   if (!parsed) return null
+  // ...and the same exception: a store record on another rev is not read out either.
+  if (revMismatch(parsed, def) && _provisional.has(serverColumnsKey(def.id, sym, ctx.tf, sent))) return null
   // Same rule as the columns: what the server sent is what the readout reads.
   // A v1 server sends no payload, so this is simply null there.
   // ⭐ 2026-11-12 — plus, for a definition declaring `rescale` with the scale on,
@@ -1057,8 +1413,40 @@ export function scalarsFor(def, inputs, ctx) {
   // says "Scaled to 6M: 90 on Nov 11" or why the line is drawn unscaled. The same
   // object every paint (memoised per envelope), the payload itself while off.
   const e = rescaleEntry(def, parsed, inputs, ctx.tf)
-  if (e) return e.scalars || null
-  return parsed.payload || null
+  const base = e ? (e.scalars || null) : (parsed.payload || null)
+  // ⭐ 2026-11-13 — plus each declared derived average's reading (`plots[].derive`
+  // kind 'ma' with a `scalar`, `derivedColumns.withDerivedScalars`): the UCT RS
+  // Line's second average prints "above its 50 SMA by 2.1%" beside the server's
+  // first. Read off the envelope's own columns; memoised per (envelope, base
+  // scalars, length, type) so the readout's identity memo still hits.
+  return derivedScalarsFor(def, parsed, base, inputs)
+}
+
+const _derivedScalarsMemo = new WeakMap()   // parsed -> Map(signature -> {base, out})
+
+function derivedScalarsFor(def, parsed, base, inputs) {
+  const specs = (def && Array.isArray(def.plots) ? def.plots : [])
+    .filter((p) => p && p.derive && p.derive.kind === 'ma' && typeof p.derive.scalar === 'string')
+  if (!specs.length || !base || typeof base !== 'object') return base
+  const sig = specs.map((p) => {
+    const d = p.derive
+    const read = (s) => (typeof s === 'string' && s.startsWith('input:') ? readInputValue(def, inputs, s.slice(6)) : s)
+    const open = d.activeWhen === undefined ? true : readoutConditionOpen(d.activeWhen, def, inputs || {})
+    return `${p.key}:${open ? 1 : 0}:${String(read(d.length))}:${String(read(d.type))}`
+  }).join('|')
+  let byKey = _derivedScalarsMemo.get(parsed)
+  if (!byKey) { byKey = new Map(); _derivedScalarsMemo.set(parsed, byKey) }
+  const hit = byKey.get(sig)
+  if (hit && hit.base === base) return hit.out
+  const out = withDerivedScalars(def, base, parsed.columns, inputs)
+  byKey.set(sig, { base, out })
+  return out
+}
+
+function readInputValue(def, inputs, key) {
+  if (inputs && Object.prototype.hasOwnProperty.call(inputs, key)) return inputs[key]
+  const inp = def && Array.isArray(def.inputs) ? def.inputs.find((i) => i && i.key === key) : null
+  return inp ? inp.default : undefined
 }
 
 // ─── WHAT THE LIVE SERVER DECLARES (UCT RS Phase 3, unit 3-01) ───────────────

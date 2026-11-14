@@ -387,6 +387,15 @@ def _backup_room():
 
 def _backup_db(run_id: int, target: date):
     os.makedirs(BACKUP_DIR, exist_ok=True)
+    # ⛔ A DAMAGED LIVE FILE NEVER DISPLACES A GOOD BACKUP (2026-11-13). The prune below runs
+    # first, so a run against an unreadable flow.db would delete the only good backup and then
+    # fail to copy: on 11/13 the 08:00 ET run met a dead file, and the backup that restored the
+    # tape survived only because that run failed earlier. Check the live file before touching
+    # anything.
+    from api import flow_db_autorestore as _far
+    _ok, _mx, _detail = _far.reads_cleanly(DB_PATH)
+    if not _ok:
+        raise RuntimeError(f"live flow.db does not read cleanly ({_detail}); backups left untouched")
     # Old snapshots go FIRST (they used to be pruned only after the new copy was
     # written, so the peak was KEEP + 1 full copies), then the room is checked. No room
     # => raise: the caller aborts the run with nothing written, which is the safe side

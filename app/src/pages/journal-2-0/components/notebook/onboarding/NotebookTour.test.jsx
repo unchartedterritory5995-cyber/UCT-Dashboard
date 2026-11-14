@@ -342,7 +342,7 @@ describe('the copy contract', () => {
       sidebar: { title: 'Folders and tags', body: 'Your folders and tags live here. Choose one to see just those notes.' },
       search: { title: 'Search', body: 'Find any word in any note. Press ? at any time to see every keyboard shortcut.' },
       'new-note': { title: 'New note', body: 'Start a blank note, or pick a template such as the daily note.' },
-      'view-switcher': { title: 'Views', body: 'Open View to see your notes as a list, a table, a board, a calendar, a graph of their links, a timeline or a list of tasks. Your saved views are in View too.' },
+      'view-switcher': { title: 'Views', body: 'Open View to see your notes as a list, a table, a board, a calendar or a list of tasks. A graph of their links and a timeline are under More views. Your saved views are in View too.' },
       import: { title: 'Import', body: 'Open the ▾ beside New and choose Import to bring in notes from Notion, Obsidian, Evernote, Markdown files or Word documents.' },
       ask: { title: 'Ask your notebook', body: 'Ask a question and get an answer drawn from your own notes, with the notes it came from.' },
       export: { title: 'Export', body: 'Download this note as Markdown, a web page, JSON or Word, or print it to a PDF.' },

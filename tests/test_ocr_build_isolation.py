@@ -242,10 +242,24 @@ class TestStartupSemanticsAreNotForked:
     def test_the_image_runs_the_shared_web_start_command(
             self, shared_railway, dockerfile):
         expected = _web_branch(shared_railway["deploy"]["startCommand"])
-        actual = _normalise_port(_image_cmd(dockerfile))
+        # The image's DEFAULT branch. Since 2026-11-13 the CMD carries one opt-in branch in
+        # front of it (`WEB_PRIVATE_LISTEN_ENABLED=1` -> `api/serve_dual.py`). What web runs
+        # with that switch unset must still be the shared command, character for character.
+        # `_web_branch` returns a command with no `else` unchanged, so this holds for both shapes.
+        actual = _normalise_port(_web_branch(_image_cmd(dockerfile)))
         assert actual == expected, (
             "the image's CMD is not the web branch of the shared start "
             "command:\n  image:  %s\n  shared: %s" % (actual, expected))
+
+    def test_the_only_other_branch_is_the_opt_in_private_listener(self, dockerfile):
+        """One authority means no THIRD way to start web can hide in the CMD. The single
+        permitted extra branch starts the same application with the same settings on one
+        more socket (`tests/test_serve_dual.py` pins that the settings agree)."""
+        cmd = _image_cmd(dockerfile)
+        head = cmd.rsplit("else ", 1)[0] if "else " in cmd else ""
+        assert head in ("", 'if [ "${WEB_PRIVATE_LISTEN_ENABLED:-0}" = "1" ]; '
+                        'then exec python -m api.serve_dual; '), (
+            "the image CMD has a branch other than the opt-in private listener: %r" % head)
 
     def test_the_health_check_is_unchanged(self, web_railway):
         # ☠️ Never point Railway's healthcheck at /api/ready.

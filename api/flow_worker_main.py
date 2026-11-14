@@ -686,6 +686,30 @@ def _start_flow_schedulers():
                 log.info("[startup] flow.db FULL quick_check registered (daily 03:30 ET)")
             else:
                 log.info("[startup] flow.db FULL quick_check DISABLED")
+
+            # ⛔ WAL tripwire every 30 s (2026-11-13): a handle to a DELETED flow.db/-wal/-shm means
+            # two logs are in play; the 5-minute canary tick let prints stall ~3 min before it fired.
+            # Reading /proc/self/fd costs microseconds.
+            from api import flow_db_guard as _guard
+            sched.add_job(_guard.check_and_heal, trigger=_IT(seconds=30),
+                          id="flow_db_wal_tripwire", max_instances=1,
+                          coalesce=True, replace_existing=True)
+            n += 1
+            log.info("[startup] flow.db WAL tripwire registered (every 30s)")
+
+            # ⭐ 22:15 ET weekdays: one VERIFIED backup a night (2026-11-13). Gap-fill runs make a
+            # backup only when they fill something, so a quiet stretch left none; the 11/13
+            # restore only worked because the 11/10 fill happened to take one. Clear of the
+            # 21:00 gap-fill and the 03:30 whole-file check; quick_check runs on the COPY.
+            if os.environ.get("FLOW_NIGHTLY_BACKUP_ENABLED", "1") == "1":
+                from api import flow_db_autorestore as _far
+                sched.add_job(_far.nightly_backup,
+                              trigger=_CT(day_of_week="mon-fri", hour=22, minute=15,
+                                          timezone=ZoneInfo("America/New_York")),
+                              id="flow_nightly_backup", max_instances=1,
+                              coalesce=True, replace_existing=True)
+                n += 1
+                log.info("[startup] flow.db nightly verified backup registered (22:15 ET weekdays)")
         except Exception as e:  # noqa: BLE001
             log.warning("flow integrity canary scheduling failed: %s", e)
 
@@ -1184,6 +1208,16 @@ def main():
     # This pod OWNS the consumer + flow.db and serves the flow routers.
     os.environ.setdefault("WORKER_SERVES_FLOW", "1")
     log.info("[startup] flow-worker: consumer + flow routers only (no bars prewarm)")
+    # ⛔ WAL GUARD (2026-11-13, api/flow_db_guard.py): one connection held for the process life,
+    # so SQLite never deletes flow.db-wal under a live writer.
+    # ⛔ The anchor is the FIRST connection this process opens on flow.db (2026-11-13 second pass):
+    # opening it after `FlowDB()` let FlowDB's own init connection close as the "last" one, and
+    # deleted handles still appeared in freshly started processes. Path from the same env as FlowDB.
+    try:
+        from api import flow_db_guard
+        flow_db_guard.open_anchor()
+    except Exception as e:  # noqa: BLE001
+        log.warning("[flow-db-guard] anchor setup failed: %s", e)
     _start_consumer()
     _start_recent_cache_warmer()  # keep /recent snapshot cache hot (cold-load fix)
     _start_rest_side_heal()  # recover sides for big blank whales via REST NBBO (dark)
@@ -1202,6 +1236,11 @@ def main():
     # consumer stop() within Railway's 30s drain instead of a SIGKILL.
     uvicorn.run(app, host="0.0.0.0", port=port, log_level="info",
                 timeout_graceful_shutdown=5)
+    # Graceful shutdown is done (consumer stopped, OPRA slot released). Leave WITHOUT interpreter
+    # teardown: closing the SQLite connections here could checkpoint-and-delete flow.db-wal while
+    # the next container already writes to it (flow_db_guard).
+    from api import flow_db_guard
+    flow_db_guard.exit_now(0)
 
 
 if __name__ == "__main__":

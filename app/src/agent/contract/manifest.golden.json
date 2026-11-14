@@ -1640,7 +1640,7 @@
    "domain": "watchlist",
    "target": "listView",
    "summary": "Sort what a Watchlist or Scanner widget shows by one of its columns (price, % change, RVOL, market cap…), the header click. It changes the view, not the saved order. column null = back to the saved order. Undo puts the old sort back.",
-   "hints": "target = the ref of the listViews entry: the one marked active for \"this list\", the one named as the list they name (\"my Momentum list\"; for \"the one I just made\", the watchlists entry marked recent), the only entry for \"my watchlist\"; several could be meant → clarify by name or position. No entry means no such widget is on this board: say so, offer watchlist.open. column = the column as they said it; direction = asc | desc | null (null = the header's own first click: Symbol A to Z, others high to low; \"biggest / top / highest\" = desc, \"lowest / smallest\" = asc). A column not showing is added. Columns: Price, Volume, % Change, Company Name, RVOL, IPO Date, Market Cap, Next Earnings, UCT Rating, $ Change, % from Open, % from High, % from Low, DCR, Dollar Volume, Sector, Industry, Theme, 5-Day, 30-Day, 60-Day, 90-Day, Attention, ATR %, ATR from 50SMA. For a permanent A to Z of the saved list use watchlist.reorder.",
+   "hints": "target = the ref of the listViews entry: the one marked active for \"this list\", the one named as the list they name (\"my Momentum list\"; for \"the one I just made\", the watchlists entry marked recent), the only entry for \"my watchlist\"; several could be meant → clarify by name or position. No entry means no such widget is on this board: say so, offer watchlist.open. column = the column as they said it; direction = asc | desc | null (null = the header's own first click: Symbol A to Z, others high to low; \"biggest / top / highest\" = desc, \"lowest / smallest\" = asc). A column not showing is added. Columns: Price, Volume, % Change, Company Name, RVOL, IPO Date, Market Cap, Next Earnings, UCT Rating, $ Change, % from Open, % from High, % from Low, DCR, Dollar Volume, Sector, Industry, Theme, 5-Day, 30-Day, 60-Day, 90-Day, Attention, ATR %, ATR from 50SMA, RS Exit Warning. For a permanent A to Z of the saved list use watchlist.reorder.",
    "args": {
     "type": "object",
     "properties": {
@@ -1694,7 +1694,7 @@
    "domain": "watchlist",
    "target": "listView",
    "summary": "Add or hide columns on a Watchlist or Scanner widget, or reset them to the defaults (the right-click column menu). Undo puts the old columns back.",
-   "hints": "target = the ref of the listViews entry: the one marked active for \"this list\", the one named as the list they name (\"my Momentum list\"; for \"the one I just made\", the watchlists entry marked recent), the only entry for \"my watchlist\"; several could be meant → clarify by name or position. No entry means no such widget is on this board: say so, offer watchlist.open. add / hide = columns as they said them ([] for none); reset = true only for \"reset my columns\" (the defaults, then add / hide). Symbol and the flag star can't be hidden. Columns: Price, Volume, % Change, Company Name, RVOL, IPO Date, Market Cap, Next Earnings, UCT Rating, $ Change, % from Open, % from High, % from Low, DCR, Dollar Volume, Sector, Industry, Theme, 5-Day, 30-Day, 60-Day, 90-Day, Attention, ATR %, ATR from 50SMA. Nothing else exists: a column not listed is refused, never swapped for a near one.",
+   "hints": "target = the ref of the listViews entry: the one marked active for \"this list\", the one named as the list they name (\"my Momentum list\"; for \"the one I just made\", the watchlists entry marked recent), the only entry for \"my watchlist\"; several could be meant → clarify by name or position. No entry means no such widget is on this board: say so, offer watchlist.open. add / hide = columns as they said them ([] for none); reset = true only for \"reset my columns\" (the defaults, then add / hide). Symbol and the flag star can't be hidden. Columns: Price, Volume, % Change, Company Name, RVOL, IPO Date, Market Cap, Next Earnings, UCT Rating, $ Change, % from Open, % from High, % from Low, DCR, Dollar Volume, Sector, Industry, Theme, 5-Day, 30-Day, 60-Day, 90-Day, Attention, ATR %, ATR from 50SMA, RS Exit Warning. Nothing else exists: a column not listed is refused, never swapped for a near one.",
    "args": {
     "type": "object",
     "properties": {
@@ -5782,7 +5782,7 @@
    "domain": "indicator",
    "target": "indicatorEdits",
    "summary": "Add ONE indicator to ONE chart — exactly what the Indicator Library's Add to Chart does. Built-in indicators or the member's own saved ones; Undo removes it again.",
-   "hints": "target = the ref of that chart's indicatorEdits entry. defId = an id from indicatorCatalog (never invented, never a name). The SAME indicator on several charts = one indicator.add per chart named, same defId; if it isn't clear which charts, ask. Classic overlay averages (the legacy EMA/SMA rows) and Volume Profile are NOT added this way — say they live in Chart Settings. inputs = null for the indicator's defaults, else [{key, value}] with ONLY keys from that row's `settings` (\"a 20 EMA\" → movingAverage, [{key:\"period\",value:20},{key:\"maType\",value:\"ema\"}]; \"RSI 7\" → rsi, [{key:\"period\",value:7}]). Every number or type the member named goes in inputs — never drop one or add a default instead. A setting the row does not list: say it isn't available; never guess a key. A moving average named by its LENGTH only (\"the 9 and 20\", \"a 50 ma\"): EMA for 8, 9, 10, 20 and 21, SMA for 50 and above (the member's default — say which you used); any other length: ask EMA or SMA.",
+   "hints": "target = the ref of that chart's indicatorEdits entry. defId = an id from indicatorCatalog (never invented, never a name). The SAME indicator on several charts = one indicator.add per chart named, same defId; if it isn't clear which charts, ask. Classic overlay averages (the legacy EMA/SMA rows) are NOT added this way — say they live in Chart Settings. Volume Profile: volumeProfile.set. inputs = null for the indicator's defaults, else [{key, value}] with ONLY keys from that row's `settings` (\"a 20 EMA\" → movingAverage, [{key:\"period\",value:20},{key:\"maType\",value:\"ema\"}]; \"RSI 7\" → rsi, [{key:\"period\",value:7}]). Every number or type the member named goes in inputs — never drop one or add a default instead. A setting the row does not list: say it isn't available; never guess a key. A moving average named by its LENGTH only (\"the 9 and 20\", \"a 50 ma\"): EMA for 8, 9, 10, 20 and 21, SMA for 50 and above (the member's default — say which you used); any other length: ask EMA or SMA.",
    "args": {
     "type": "object",
     "properties": {
@@ -6965,6 +6965,38 @@
    "shape": null
   },
   {
+   "name": "indicatorStyle.setCalcTimeframe",
+   "domain": "indicatorStyle",
+   "target": "indicatorEdits",
+   "summary": "Calculate ONE indicator on another timeframe's bars (a weekly RSI on a daily chart), or back on the chart's own — the chart's timeframe does not change. Undo puts it back.",
+   "hints": "target = the chart's indicatorEdits entry; instance = the indicator; timeframe = 1, 5, 15, 30, 60, D, W, M or \"chart\". Not showOn (which charts it shows on) and not chart.setTimeframe. \"Put the RSI on weekly\" is unclear: ask which.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "instance": {
+      "type": "string"
+     },
+     "timeframe": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "instance",
+     "timeframe"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
    "name": "pane.move",
    "domain": "pane",
    "target": "indicatorEdits",
@@ -7220,6 +7252,58 @@
    "shape": null
   },
   {
+   "name": "volumeProfile.set",
+   "domain": "volumeProfile",
+   "target": "chart",
+   "summary": "Turn ONE chart's Volume Profile overlay (volume-by-price bins, point of control) on or off, or set its bins / colours, as Chart Settings → Indicators does. Undo restores it exactly.",
+   "hints": "target = the chart. Pass only what was asked; null for the rest. enabled true/false; bins 8-50 whole; color / pocColor = hex. Volume Profile / VPVR = this (never indicator.add). Volume pane = volume.setState; VWAP = indicator.add.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "enabled": {
+      "type": [
+       "boolean",
+       "null"
+      ]
+     },
+     "bins": {
+      "type": [
+       "integer",
+       "null"
+      ]
+     },
+     "color": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "pocColor": {
+      "type": [
+       "string",
+       "null"
+      ]
+     }
+    },
+    "required": [
+     "enabled",
+     "bins",
+     "color",
+     "pocColor"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
    "name": "definition.search",
    "domain": "definition",
    "target": "definitionLibrary",
@@ -7334,6 +7418,56 @@
     "additionalProperties": false
    },
    "risk": "confirm",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "uctIntelligence.set",
+   "domain": "uctIntelligence",
+   "target": "chart",
+   "summary": "ONE chart's UCT Intelligence INDICATOR (its Indicators library row and panel): add or remove it, or turn one of its layers on or off, as the member's own switches do. Layers not released to the member are refused. Undo restores it exactly.",
+   "hints": "target = the chart. op add | remove (the indicator), or on | off with layer = autoPatterns (the Patterns button / auto chart patterns) | labels (pattern labels & numbers) | supportResistance | candles (candlestick patterns) | setups | caution. Creating or modifying an indicator WITH UCT Intelligence is indicator authoring, not this. Chart IQ is chart.setSetting.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "op": {
+      "type": "string",
+      "enum": [
+       "add",
+       "remove",
+       "on",
+       "off"
+      ]
+     },
+     "layer": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "enum": [
+       "autoPatterns",
+       "labels",
+       "supportResistance",
+       "candles",
+       "setups",
+       "caution",
+       null
+      ]
+     }
+    },
+    "required": [
+     "op",
+     "layer"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
    "reversible": true,
    "undo": "exact",
    "query": false,

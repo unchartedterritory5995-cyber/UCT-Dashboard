@@ -134,6 +134,12 @@ def _clamp(v, lo, hi, default):
 
 
 def _is_num(v) -> bool:
+    # ⚡ 2026-11-13. A plain float is decided first, with one type test: this is called
+    # about 70,000 times for one symbol's cold RS compute and was its largest self-time
+    # (profiled: 22% of the batch). For every other type the answer is the line below,
+    # exactly as before (`tests/test_rs_is_num_fast_path.py` compares the two).
+    if type(v) is float:
+        return math.isfinite(v)
     return isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)
 
 
@@ -656,6 +662,35 @@ def benchmark_agree(rs_vs_a: Column, rs_vs_b: Column, rs_vs_c: Column,
         signs = {1 if sl > 0 else (-1 if sl < 0 else 0) for sl in slopes}
         out[t] = 1.0 if signs in ({1}, {-1}) else 0.0
     return out
+
+
+def benchmark_agree_last(rs_vs_a: Column, rs_vs_b: Column, rs_vs_c: Column,
+                         window: int = DEFAULT_SENSITIVITY_WINDOW) -> MaybeNum:
+    """``benchmark_agree(...)[-1]``, computed without the bars before it.
+
+    ⚡ 2026-11-13. The readout's Agreement card reads only the newest bar, and the
+    column costs three least-squares slopes PER BAR: on a cold RS compute it was
+    the largest single item (profiled: 110 of 326 ms for one symbol's five
+    definitions, 2,480 slopes of which 3 were read). This is the same three
+    slopes over the same slices through the same `_slope`, so the value is the
+    column's last cell bit for bit (`tests/test_rs_benchmark_agree_last.py`
+    compares them over thousands of random series).
+
+    ``None`` for an empty first series (where the column has no last cell at all).
+    """
+    series = (rs_vs_a, rs_vs_b, rs_vs_c)
+    n = len(series[0])
+    if n < window:
+        return None                    # (a window under two bars has no slope: `_slope` answers None below)
+    t = n - 1
+    slopes: List[float] = []
+    for s in series:
+        sl = _slope(s[t - window + 1:t + 1]) if len(s) > t else None
+        if sl is None:
+            return None
+        slopes.append(sl)
+    signs = {1 if sl > 0 else (-1 if sl < 0 else 0) for sl in slopes}
+    return 1.0 if signs in ({1}, {-1}) else 0.0
 
 
 # ⛔ A SECOND TUPLE, NOT AN EXTENSION OF THE FIRST. `PHASE1_COLUMNS` is the
@@ -1237,6 +1272,13 @@ EXIT_CYCLE_HISTORY = 120      # about six months of sessions; NOT 126, which bes
 RS_EXIT_COLUMNS = ("rsLine", "fast", "slow", "quickBreak", "quicksand", "deadBreak",
                    "dotQuick", "dotQuicksand", "dotDead")
 RS_EXIT_EVENT_COLUMNS = ("quickBreak", "quicksand", "deadBreak")
+#: The member's name for each warning: the chart legend, the alerts and the
+#: screener's `rs_exit_last` column all print these words (one vocabulary).
+RS_EXIT_LABELS: Dict[str, str] = {"quickBreak": "Quick Break", "quicksand": "Quicksand",
+                                  "deadBreak": "Grateful Dead Break"}
+#: Most severe first: on a bar where two warnings fire (a Quick Break and a
+#: Grateful Dead Break can share a bar), the worse one is the one named.
+RS_EXIT_SEVERITY = ("deadBreak", "quicksand", "quickBreak")
 
 
 def resolve_exit_lengths(store_tf: str, fast=0, slow=0) -> tuple:
@@ -1306,17 +1348,43 @@ def rs_exit_events(rs: Column, fast_ma: Column, slow_ma: Column) -> Dict[str, Co
     return {"quickBreak": quick, "quicksand": sand, "deadBreak": dead}
 
 
+def rs_exit_latest(events: Dict[str, Column]):
+    """``(kind, index)`` of the NEWEST warning in `rs_exit_events`' three columns,
+    the worse one (`RS_EXIT_SEVERITY`) when two share that bar, or ``(None, None)``
+    when none fired. ``index`` is into the columns; the bars-ago count is
+    ``len - 1 - index``. The chart legend and the screener's `rs_exit_last` /
+    `rs_exit_bars_ago` both read this, so the two name the same warning."""
+    n = max((len(events.get(k) or ()) for k in RS_EXIT_EVENT_COLUMNS), default=0)
+    for i in range(n - 1, -1, -1):
+        for kind in RS_EXIT_SEVERITY:
+            col = events.get(kind) or ()
+            if i < len(col) and col[i] == 1.0:
+                return kind, i
+    return None, None
+
+
 def compute_rs_exit_columns(bars: Sequence[dict], benchmark_bars: Sequence[dict],
-                            fast: int = 21, slow: int = 50) -> Dict[str, Column]:
+                            fast: int = 21, slow: int = 50, *,
+                            rs_values: Optional[Column] = None) -> Dict[str, Column]:
     """UCT RS Exit Warnings, aligned to ``bars``: the RS line (`rs_line`), a SIMPLE
     average of it at each of the two lengths (`rs_moving_average`, gaps skipped),
     the three events (`rs_exit_events`) and the three dot columns (the RS value on
     an event bar, ``None`` elsewhere: a dot sits exactly on the line). The lengths
-    are taken as given: `resolve_exit_lengths` resolves them first."""
+    are taken as given: `resolve_exit_lengths` resolves them first.
+
+    ``rs_values`` — the caller's ``rs_line(bars, benchmark_bars)`` when it has
+    already joined them (the screener's `bars_rs` step reads
+    `compute_phase1_columns(...)["rsLine"]`, the same function over the same
+    inputs), so one ticker pays for one join, not two; the `compute_mansfield_columns`
+    convention. Used only when aligned to ``bars``; anything else is ignored and
+    the line recomputed."""
     n = len(bars)
     if n == 0:
         return {k: [] for k in RS_EXIT_COLUMNS}
-    rs = rs_line(bars, benchmark_bars)
+    if rs_values is not None and len(rs_values) == n:
+        rs = list(rs_values)
+    else:
+        rs = rs_line(bars, benchmark_bars)
     fast_ma = rs_moving_average(rs, int(fast), "SMA")
     slow_ma = rs_moving_average(rs, int(slow), "SMA")
     ev = rs_exit_events(rs, fast_ma, slow_ma)

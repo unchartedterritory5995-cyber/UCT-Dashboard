@@ -14,6 +14,7 @@ import sys
 
 W = pathlib.Path(__file__).resolve().parents[2]
 EE = W / "tools" / "vendor_harness" / "evidence_engine.py"
+EL = W / "tools" / "vendor_harness" / "evidence_ledger.py"
 BC = W / "tools" / "vendor_harness" / "batch_capture.py"
 DOC = W / "docs" / "pine" / "EVIDENCE-ENGINE-DESIGN.md"
 RAILS = "tests/test_evidence_engine.py"
@@ -83,7 +84,8 @@ MUTATIONS = [
      "    p = pathlib.Path(DESKTOP_HEAVY_LOCK)", LOCK),
     ("the batch skips the lock pre-flight", EE, "            if heavy_lock_tool() is None:\n",
      "            if False:\n", LOCK),
-    ("grade ignores a missing lock", EE, "    if wrapped is None:\n", "    if False:\n", LOCK),
+    ("grade ignores a missing lock", EE, '    wrapped = heavy("evidence-grade", cmd)\n    if wrapped is None:\n',
+     '    wrapped = heavy("evidence-grade", cmd)\n    if False:\n', LOCK),
     # ── finding 2: the queue never invents a target ──
     ("a guessed chart is QUEUED", EE, '        if chart_defaulted:\n            st = "NEEDS_CHART"',
      '        if False:\n            st = "NEEDS_CHART"', "test_a_row_with_no_chart_is_needs_chart_and_never_reaches_a_manifest"),
@@ -137,8 +139,8 @@ MUTATIONS = [
     ("a REFUSE item is filed", EE, '        if i["action"] == "REFUSE":\n', "        if False:\n", NO_VERDICT),
     ("promotion overwrites a fixture that appeared after the check", EE, "            if dst.exists():\n",
      "            if False:\n", "test_promote_never_overwrites_a_fixture_that_appeared_after_the_check"),
-    ("the ledger files a capture twice", EE,
-     '    new = [r for r in rows if (r["captureId"], r["receipt"]) not in have]', "    new = list(rows)",
+    ("the ledger files a capture twice", EL,
+     '    new = [r for r in rows if row_key(r) not in have]', "    new = list(rows)",
      "test_the_ledger_files_each_capture_once"),
     ("a missing or short packet sha is accepted", EE,
      '    if not packet_sha or not re.fullmatch(r"[0-9a-f]{12,64}", packet_sha):\n', "    if False:\n",

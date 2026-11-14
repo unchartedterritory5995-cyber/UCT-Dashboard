@@ -6,6 +6,6 @@
     "status": 409
   },
   "body": {
-    "detail": "This kind is used by 1 style. Move them to another kind first."
+    "detail": "This note type is used by 1 style. Move them to another note type first."
   }
 }

@@ -19,11 +19,8 @@
 // ⛔ It reads NO editor state itself. `format` is the toolbar's own signature object
 // (`readToolbarFormatState`, held by NoteEditorPage's reducer), so this door can never go stale
 // behind the reducer's bailout (NoteEditorPage.toolbarSignatureAudit.test.js).
-import { useEffect, useState } from 'react'
-import UIcon from '../../../../components/ui/UIcon'
-import { TOOLBAR_ICON } from '../../lib/notebookIcons'
 import { FONT_OPTIONS } from '../../../../utils/fontFamilies'
-import { useMenuButton } from './NewNoteMenu'
+import { MenuRows, useMenuButton } from './NewNoteMenu'
 import menuStyles from './NewNoteMenu.module.css'
 import { TEXT_COLOR_MENU_LABEL } from './TextColorMenu'
 import styles from './NoteFormatMenu.module.css'
@@ -45,77 +42,44 @@ export default function NoteFormatMenu({
   editor, format, fontSizes, onColor, onAttach, triggerRef = null,
   buttonClassName = '', activeClassName = '', children = null,
 }) {
-  const menu = useMenuButton()
-  const [view, setView] = useState('root')   // root | font | size
+  const menu = useMenuButton('format')
   const f = format || {}
   // "Aa" reads as active while the caret is in a quote or a code block: two of its items are on.
   const active = Boolean(f.blockquote || f.codeBlock)
 
-  // A closed menu always reopens on its first view.
-  useEffect(() => { if (!menu.open) setView('root') }, [menu.open])
-  // A second view replaces the rows, so focus goes to its first row ("Back").
-  useEffect(() => {
-    if (!menu.open || view === 'root') return
-    menu.menuProps.ref.current?.querySelector('[role^="menuitem"]')?.focus()
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per view change
-  }, [view])
-  // Back to the first view puts focus on the row that opened the list.
-  const back = (from) => () => {
-    setView('root')
-    requestAnimationFrame(() => menu.menuProps.ref.current?.querySelector(`[data-format-item="${from}"]`)?.focus())
-  }
-
   const chain = () => editor.chain().focus()
-  const item = (key, label, onClick, extra = {}) => (
-    <button key={key} type="button" role="menuitem" className={`${menuStyles.item} ${extra.className || ''}`}
-      data-format-item={key} onClick={onClick} aria-disabled={extra.disabled || undefined}
-      title={extra.title} aria-haspopup={extra.sub ? 'menu' : undefined}>
-      {extra.icon && <UIcon name={extra.icon} {...TOOLBAR_ICON} />}
-      <span className={styles.label}>{label}</span>
-      {extra.sub && <UIcon name="chevronRight" {...TOOLBAR_ICON} />}
-    </button>
-  )
-  const radio = (key, label, checked, onPick, style) => (
-    <button key={key} type="button" role="menuitemradio" aria-checked={checked}
-      className={`${menuStyles.item} ${checked ? styles.checked : ''}`} style={style} onClick={menu.run(onPick)}>
-      <span className={styles.label}>{label}</span>
-    </button>
-  )
-
-  let rows
-  if (view === 'font') {
-    rows = [
-      item('back', 'Back', back('font'), { icon: 'chevronLeft' }),
-      <div key="sep" role="separator" className={menuStyles.separator} />,
-      ...FONT_OPTIONS.map((o) => radio(`font:${o.label}`, o.label, (f.fontFamily || '') === o.value,
-        () => (o.value ? chain().setFontFamily(o.value).run() : chain().unsetFontFamily().run()),
-        o.value ? { fontFamily: o.value } : undefined)),
-    ]
-  } else if (view === 'size') {
-    rows = [
-      item('back', 'Back', back('size'), { icon: 'chevronLeft' }),
-      <div key="sep" role="separator" className={menuStyles.separator} />,
-      radio('size:default', 'Default', !f.fontSize, () => chain().unsetFontSize().run()),
-      ...fontSizes.map((s) => radio(`size:${s}`, String(s), f.fontSize === `${s}px`,
-        () => chain().setFontSize(`${s}px`).run())),
-    ]
-  } else {
-    const quoteOk = f.canBlockquote !== false
-    rows = [
-      item('font', 'Font', () => setView('font'), { sub: true }),
-      item('size', 'Size', () => setView('size'), { sub: true }),
-      item('color', TEXT_COLOR_MENU_LABEL, menu.run(onColor)),
-      item('quote', 'Quote', quoteOk ? menu.run(() => chain().toggleBlockquote().run()) : undefined, {
-        disabled: !quoteOk, title: quoteOk ? undefined : QUOTE_IN_LIST,
-        className: f.blockquote ? styles.checked : '',
-      }),
-      item('code', 'Code', menu.run(() => chain().toggleCodeBlock().run()), {
-        className: f.codeBlock ? styles.checked : '',
-      }),
-      item('attach', 'Attach a file', menu.run(onAttach)),
-      item('divider', 'Divider', menu.run(() => chain().setHorizontalRule().run())),
-    ]
-  }
+  const on = menuStyles.itemChecked
+  const quoteOk = f.canBlockquote !== false
+  // Simplify pass 2: Font and Size are second views of the ONE menu engine (MenuRows `children`), which lifted the
+  // view this file used to keep itself. A font row is drawn in its own face.
+  const items = [
+    {
+      key: 'font', label: 'Font', row: 'font',
+      children: FONT_OPTIONS.map((o) => ({
+        key: `font:${o.label}`, label: o.label, checked: (f.fontFamily || '') === o.value, row: 'font_pick',
+        run: () => (o.value ? chain().setFontFamily(o.value).run() : chain().unsetFontFamily().run()),
+        render: o.value ? (p, c) => <button {...p} style={{ fontFamily: o.value }}>{c}</button> : undefined,
+      })),
+    },
+    {
+      key: 'size', label: 'Size', row: 'size',
+      children: [
+        { key: 'size:default', label: 'Default', checked: !f.fontSize, run: () => chain().unsetFontSize().run(), row: 'size_pick' },
+        ...fontSizes.map((s) => ({
+          key: `size:${s}`, label: String(s), checked: f.fontSize === `${s}px`, run: () => chain().setFontSize(`${s}px`).run(), row: 'size_pick',
+        })),
+      ],
+    },
+    { key: 'color', label: TEXT_COLOR_MENU_LABEL, run: onColor, row: 'color' },
+    {
+      key: 'quote', label: 'Quote', run: () => chain().toggleBlockquote().run(), className: f.blockquote ? on : '', row: 'quote',
+      // Inside a list it stays a stop that says why (its title), and pressing it does nothing.
+      render: quoteOk ? undefined : (p, c) => <button {...p} onClick={undefined} aria-disabled title={QUOTE_IN_LIST}>{c}</button>,
+    },
+    { key: 'code', label: 'Code', run: () => chain().toggleCodeBlock().run(), className: f.codeBlock ? on : '', row: 'code' },
+    { key: 'attach', label: 'Attach a file', run: onAttach, row: 'attach' },
+    { key: 'divider', label: 'Divider', run: () => chain().setHorizontalRule().run(), row: 'divider' },
+  ]
 
   const { ref: menuTriggerRef, ...trigger } = menu.triggerProps
   return (
@@ -134,8 +98,8 @@ export default function NoteFormatMenu({
       </button>
       {menu.open && (
         <div {...menu.menuProps} aria-label={MORE_FORMATTING}
-          className={`${menu.menuProps.className} ${styles.menuStart} ${view === 'root' ? '' : styles.list}`}>
-          {rows}
+          className={`${menu.menuProps.className} ${styles.menuStart} ${menu.sub ? styles.list : ''}`}>
+          <MenuRows menu={menu} items={items} label={MORE_FORMATTING} />
         </div>
       )}
       {children}

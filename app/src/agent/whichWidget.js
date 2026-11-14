@@ -17,7 +17,7 @@ import { positionWord } from './host'
 import { labelMap } from '../widgets/registry'
 import { widgetNamesOf } from './widgetNames'
 
-const LABEL = labelMap('menu')
+const LABEL = labelMap('agent')
 const label = (t) => LABEL[t] || t
   // ── WHICH WIDGET (owner rule: ASK when the target widget is unclear). One guard for every widget op of the shared layer: when the
   // op's widget is one of 2+ of its type on the board and the member's words name none of them — by position ("the left one"), by

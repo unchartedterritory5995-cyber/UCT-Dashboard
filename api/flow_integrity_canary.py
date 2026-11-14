@@ -279,6 +279,20 @@ def run_tick() -> None:
     r = check_once()
     check_disk()
     check_stall(r.get("max_id"))
+    # ⛔ Tripwire (2026-11-13): a handle to a DELETED flow.db/-wal/-shm means two write-ahead logs
+    # are in play; restart cleanly before damage builds (api/flow_db_guard.py).
+    try:
+        from api import flow_db_guard
+        flow_db_guard.check_and_heal(DB_PATH)
+    except Exception:  # noqa: BLE001
+        pass
+    # ⭐ Self-repair (2026-11-13): after consecutive FATAL failures the newest good backup is
+    # swapped in. Fail-soft: the canary never raises.
+    try:
+        from api import flow_db_autorestore
+        flow_db_autorestore.on_canary_result(r)
+    except Exception:  # noqa: BLE001
+        pass
     if r["ok"]:
         if _state["tripped"]:
             # recovered (a rotation/restore), so re-arm for the next onset
@@ -296,11 +310,14 @@ def run_tick() -> None:
     _state["tripped"] = True
     since = ("%.1f min" % ((time.time() - _state["last_ok_at"]) / 60.0)
              if _state["last_ok_at"] else "unknown")
-    log.error(
+    # ⛔ SHOUTED, not just logged (2026-11-13): the 07:46 ET onset that day was only in the
+    # log, and nobody knew the live tape was dead until the open.
+    _shout(
         "[flow-canary] ⛔ flow.db READ FAILED — last clean %s ago (max_id then=%s, "
         "now=%s). detail=%s :: THIS IS THE ONSET. Capture the surrounding log lines "
-        "NOW — they are the evidence that was missing on 2026-11-09.",
-        since, _state["last_ok_max_id"], r["max_id"], r["detail"])
+        "NOW — they are the evidence that was missing on 2026-11-09. Auto-restore runs after "
+        "repeated fatal failures (flow_db_autorestore)."
+        % (since, _state["last_ok_max_id"], r["max_id"], r["detail"]))
 
 
 def run_full_tick() -> None:

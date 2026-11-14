@@ -568,7 +568,8 @@ export const FAQS = [
       <strong>+ New</strong> for a blank note, or the arrow beside it to start from a template such as
       a thesis. What you write saves as you type. Folders and tags are on the left, and{' '}
       <strong>Daily brief</strong>, under All notes, shows today&apos;s plan, the setups near your entry
-      and the notes that need a review.<TourLink /></>,
+      and the notes that need a review. A checklist line you don&apos;t tick today, or a task due today,
+      shows there tomorrow, and what you write today comes back there next year.<TourLink /></>,
   },
   {
     id: 'notebook-templates-daily-note',
@@ -576,9 +577,9 @@ export const FAQS = [
     q: 'How do templates and the daily note work?',
     keywords: 'template templates daily note today journal save as template your templates thesis',
     a: <>On the notes list, open the arrow beside <strong>+ New</strong> and choose{' '}
-      <strong>From a template</strong> to start a note from a layout: a thesis, a daily note and more.{' '}
+      <strong>From a template</strong> to start a note from a template: a thesis, a daily note and more.{' '}
       <strong>Today&apos;s note</strong> opens today&apos;s daily note, and creates it the first time you
-      open it each day. To reuse a layout of your own, open a note and choose{' '}
+      open it each day. To make a template of your own, open a note and choose{' '}
       <strong>Save as template</strong> from its menu; it then appears under
       <strong> Your templates</strong>.</>,
   },
@@ -659,8 +660,8 @@ export const FAQS = [
     topic: 'notebook',
     q: 'How do I export my notes, and what does each format keep?',
     keywords: 'export download backup markdown html web page json word docx pdf print zip formats leave',
-    a: <>Choose <strong>Export</strong> in the Notebook's toolbar to download every note as one zip,
-      in the format you pick:
+    a: <>Open the notes list's <strong>More</strong> menu and choose <strong>Export</strong> to download every
+      note as one zip, in the format you pick:
       <ul>
         <li><strong>Markdown</strong> — plain-text files with your folders, tags and attachments.
           Opens in Obsidian and any Markdown app, and imports back into UCT.</li>
@@ -671,8 +672,8 @@ export const FAQS = [
         <li><strong>Word (.docx)</strong> — headings, lists, tables and images as Word's own;
           anything Word has no match for becomes plain text.</li>
       </ul>
-      For one note, use the <strong>Export</strong> menu in the note's toolbar. For a PDF, open
-      <strong> Export</strong>, choose <strong>Print</strong>, then Save as PDF.</>,
+      For one note, open the note's <strong>More</strong> menu, then <strong>Export</strong>. For a
+      PDF, choose <strong>Print</strong> there, then Save as PDF.</>,
   },
   {
     id: 'notebook-offline-conflicted-copies',

@@ -158,8 +158,11 @@ def test_a_sqlite_without_the_json_functions_is_a_refusal_never_an_error(store, 
     assert bars_sqlite.get_bars("SPY", "D", 10) == [(20260101, 1.0, 2.0, 0.5, 1.5, 10)]
 
 
-def test_one_result_row_whatever_the_bar_count(store, monkeypatch):
-    """The speed is this property: python takes ONE row from sqlite, not one per bar."""
+def test_a_handful_of_result_rows_whatever_the_bar_count(store, monkeypatch):
+    """The speed is this property: python takes one row from sqlite per `_PACK_CHUNK_ROWS` bars,
+    not one per bar. (It was ONE row for the whole series until 2026-11-13: parsing that one
+    long string held the GIL long enough to make a bystander's request wait 30 to 46 ms when
+    several background jobs read at once. See tests/test_bars_reader_watch.py.)"""
     store("SPY", "D", [(20100101 + i, 1.0 + i, 2.0 + i, 0.5 + i, 1.5 + i, i) for i in range(2500)])
     real = bars_sqlite._conn
     taken = {"packed": 0, "plain": 0}
@@ -168,10 +171,10 @@ def test_one_result_row_whatever_the_bar_count(store, monkeypatch):
         def __init__(self, cur, kind):
             self.cur, self.kind = cur, kind
 
-        def fetchone(self):
-            row = self.cur.fetchone()
-            taken[self.kind] += row is not None
-            return row
+        def __iter__(self):
+            for row in self.cur:
+                taken[self.kind] += 1
+                yield row
 
         def fetchall(self):
             rows = self.cur.fetchall()
@@ -183,11 +186,11 @@ def test_one_result_row_whatever_the_bar_count(store, monkeypatch):
             return Counting(real().execute(sql, params), "packed" if "json_group_array" in sql else "plain")
     monkeypatch.setattr(bars_sqlite, "_conn", lambda: Conn())
     packed = bars_sqlite.get_bars_packed("SPY", "D", 5000)
-    plain = bars_sqlite.get_bars("SPY", "D", 5000)
+    plain = bars_sqlite._get_bars_rows("SPY", "D", 5000)
     assert packed == plain and len(plain) == 2500
-    assert taken == {"packed": 1, "plain": 2500}
-    # and the statement itself yields exactly one row (nothing is left unread behind fetchone)
-    assert len(real().execute(bars_sqlite._PACKED_SQL, ("SPY", "D", 5000)).fetchall()) == 1
+    chunks = -(-2500 // bars_sqlite._PACK_CHUNK_ROWS)
+    assert 2 <= chunks <= 20
+    assert taken == {"packed": chunks, "plain": 2500}
 
 
 # ── PROVEN ON THE SQLITE THIS PROCESS RUNS ───────────────────────────────────

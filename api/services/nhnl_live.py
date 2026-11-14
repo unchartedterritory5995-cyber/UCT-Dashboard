@@ -129,6 +129,11 @@ _prov_to_app: dict | None = None
 _print_lock = threading.Lock()
 _print_counts: dict = {}      # prov_sym -> {app, hod, lod, nh, nl, last, hi_ms, lo_ms}
 _print_syms: set = set()      # prov syms currently subscribed for print-counting
+# bar_stream ownership for the print-exact tap, declared here and nowhere else. The
+# owner decided (2026-11-13) NH/NL keeps T (print-exact). It keeps every channel it
+# had before owner scoping, so its feed is unchanged under STREAM_SCOPED_CHANNELS.
+STREAM_OWNER = "nhnl"
+STREAM_CHANNELS = frozenset({"AM", "A", "T"})
 _print_listener_on = False
 _print_events_total = 0
 _tc = None                    # cached trade_conditions module (lazy import)
@@ -951,7 +956,7 @@ def _clear_print_state() -> None:
             _print_counts.clear()
             _print_syms = set()
         if drop:
-            bar_stream.unsubscribe_symbols(drop, owner="nhnl")
+            bar_stream.unsubscribe_symbols(drop, owner=STREAM_OWNER)
     except Exception:
         _log.exception("[nhnl] clear print state failed")
 
@@ -1022,9 +1027,9 @@ def _manage_print_set() -> None:
     try:
         from api.services import bar_stream
         if add:
-            bar_stream.subscribe_symbols(add, owner="nhnl")
+            bar_stream.subscribe_symbols(add, owner=STREAM_OWNER, channels=STREAM_CHANNELS)
         if drop:
-            bar_stream.unsubscribe_symbols(drop, owner="nhnl")
+            bar_stream.unsubscribe_symbols(drop, owner=STREAM_OWNER)
     except Exception:
         _log.exception("[nhnl] print-set subscription update failed")
 

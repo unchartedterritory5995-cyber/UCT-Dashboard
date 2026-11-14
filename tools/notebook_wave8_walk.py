@@ -1000,6 +1000,13 @@ def select_box(pg, title):
     return pg.get_by_role("checkbox", name=f"Select {title}", exact=True)
 
 
+def open_manager(pg):
+    """Manage templates, the way a member opens it (follow-up C): the notes list's More menu, "Manage templates"."""
+    pg.get_by_role("button", name="More notebook actions", exact=True).click(timeout=20000)
+    pg.get_by_role("menu", name="More notebook actions").get_by_role("menuitem", name="Manage templates", exact=True).click(timeout=15000)
+    pg.get_by_role("dialog", name="Manage templates").wait_for(state="visible", timeout=20000)
+
+
 def open_list(pg, extra="?view=all"):
     pg.goto(notebook_url(None, extra))
     dismiss_intro(pg)
@@ -1737,9 +1744,14 @@ with sync_playwright() as p:
 
     def export_via_menu(pg, note_id, fmt, label, timeout=120000):
         """The member's own door: the editor's Export menu. Returns (response, download)."""
-        pg.locator('button[aria-haspopup="menu"]', has_text="Export").first.click()
+        # Notebook simplify (Task 4) moved Export into the note's More panel; simplify pass 2 (C3) made its formats the
+        # panel's second view, drawn from an on-demand chunk, so the menu can take a moment after the press.
+        more = pg.locator("[data-more-trigger]").filter(visible=True)
+        if more.count() and more.first.get_attribute("aria-expanded") != "true":
+            more.first.click()
+        pg.locator('button[aria-haspopup="menu"]', has_text="Export").filter(visible=True).first.click()
         menu = pg.get_by_role("menu", name="Export this note as")
-        menu.wait_for(state="visible", timeout=8000)
+        menu.wait_for(state="visible", timeout=20000)
         with pg.expect_response(lambda r: f"/api/j2/export/notes/{note_id}" in r.url and f"format={fmt}" in r.url,
                                 timeout=timeout) as ri:
             with pg.expect_download(timeout=timeout) as di:
@@ -2315,8 +2327,9 @@ with sync_playwright() as p:
         tr = api.post(BASE + "/api/j2/note-templates", data={"noteId": src["id"], "name": f"Walk daily {RUN}"})
         tpl = (tr.json() or {}).get("template") or {}
         open_list(page)
-        page.get_by_role("button", name="Templates", exact=True).click(timeout=20000)
-        pick = page.get_by_label("Daily notes start from")
+        # Follow-up C: the control lives in Manage templates' Plain templates group (the list's More menu row).
+        open_manager(page)
+        pick = page.get_by_role("dialog", name="Manage templates").get_by_label("Daily notes start from")
         pick.wait_for(state="visible", timeout=15000)
         with page.expect_response(pref_post(pref_key), timeout=15000) as pi:
             pick.select_option(tpl.get("id"))
@@ -2327,8 +2340,8 @@ with sync_playwright() as p:
             written_body = f"unreadable: {e}"[:200]
         page.reload()
         dismiss_intro(page)
-        page.get_by_role("button", name="Templates", exact=True).click(timeout=20000)
-        pick = page.get_by_label("Daily notes start from")
+        open_manager(page)
+        pick = page.get_by_role("dialog", name="Manage templates").get_by_label("Daily notes start from")
         pick.wait_for(state="visible", timeout=15000)
         shown = pick.input_value()
         stored = pref_value(api, pref_key)

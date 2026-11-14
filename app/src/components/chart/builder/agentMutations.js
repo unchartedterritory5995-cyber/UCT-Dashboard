@@ -24,7 +24,10 @@
 import { addInstance, removeInstance, setInstanceHidden, findInstance, groupMemberIds, setInstanceInput, setIndicatorInput, checkInstanceInput, inputSpecOf,
   setInstanceAppearance, setInstancePlotStyle, setInstanceCandleColor, setInstanceDisplayTarget, duplicateInstance, isValidColorValue,
   setInstanceVisibility, setInstanceDotSize, dotPlotsOf, instanceDotSizeReading } from '../engine/instanceControls'
+import { setInstanceCalculationTimeframe } from '../engine/instanceControls'
 import { normalizeVisibility, visibilitySummary, VISIBILITY_PRESETS } from '../engine/instanceTimeframe'
+import { CALC_TIMEFRAMES, calcTimeframeOf, calcTimeframeLabel, frameRelation, gatedReason } from '../engine/instanceTimeframe'
+import { calcTimeframeCapability, CAPABILITY_WORDS } from '../engine/calcTimeframeCapability'
 import { displayTargetOptions, automaticTargetOf, resolveDisplayTarget, paneOwnerOf } from '../engine/displayTarget'
 import { movePane as movePaneWriter, movePaneTo, resolvePaneOrder, storedPaneOrder } from '../engine/paneOrder'
 import { setPaneSize as setPaneSizeWriter, clearPaneSize, storedPaneSizes } from '../engine/paneSizes'
@@ -42,6 +45,9 @@ import { isInstanceTombstone } from '../instanceShape'
 import { STUDIO_PREVIEW_DEF_ID } from './studio/chartPreview'
 import { instancesOf, instanceFingerprint } from './agentSeams'
 import { canon, same, changeRecord, holds, revertRecord, setAt, clone } from '../engine/settingsRecord'
+// ⭐ Agent Charts family (Volume Profile, 2026-11-12, owner-approved): the carved-out row's own writer + field table (see the end of this file)
+import { listAllIndicators, applyRowPatch } from '../indicatorRegistry'
+import { CARVED_OUT_ROWS } from '../indicatorCatalog'
 
 export const MUTATION_CONTRACT = 'uct.indicators.mutation/1'
 /** ⭐ I-1…I-8 (2026-10-27, ADDITIVE — the first four ops are unchanged): presentation and
@@ -52,7 +58,10 @@ export const MUTATION_CONTRACT = 'uct.indicators.mutation/1'
 // ⭐ UCT RS Phase 2a (unit 2a-12): `setDotSize` — the Inspector's / dialog's "Dot size" control, through
 // `setInstanceDotSize`. `{instanceId, size: 'small'|'medium'|'large', plotKey?}`; the instance level unless an
 // output is named; only for a definition that draws dots. Appended, so the earlier ops keep their positions.
-export const STYLE_OPS = Object.freeze(['setAppearance', 'setPlotStyle', 'setColor', 'setDisplayTarget', 'setVisibility', 'setDotSize'])
+// ⭐ Agent Charts family (calc TF, 2026-11-12, owner-approved): `setCalculationTimeframe` — the Inspector's "Timeframe"
+// control (WHICH BARS compute the instance; never the chart's timeframe, never `visibility`), through
+// `setInstanceCalculationTimeframe`. `{instanceId, timeframe: CALC_TIMEFRAMES code | null (= Chart), chartTf}`. Appended.
+export const STYLE_OPS = Object.freeze(['setAppearance', 'setPlotStyle', 'setColor', 'setDisplayTarget', 'setVisibility', 'setDotSize', 'setCalculationTimeframe'])
 export const PANE_OPS = Object.freeze(['movePane', 'setPaneSize'])
 export const CREATE_OPS = Object.freeze(['duplicate', 'copyFrom'])
 export const MUTATION_OPS = Object.freeze(['add', 'remove', 'setVisible', 'setInputs', ...STYLE_OPS, ...PANE_OPS, ...CREATE_OPS])
@@ -939,6 +948,7 @@ function writeStyle(view, req, inst, def, registry) {
     if (noChange(view, next)) return refuse(REASONS.WRITER_REFUSED)
     return { ok: true, cs: next, change: { what: 'visibility', before: visibilitySummary(before), after: visibilitySummary(want) } }
   }
+  if (req.op === 'setCalculationTimeframe') return writeCalcTimeframe(view, req, inst, def, registry)
   if (req.op === 'setDotSize') {
     // `size`: one of the three words the store takes; `plotKey` (optional) names ONE dot output,
     // absent = the instance level, as the Dot size control writes it
@@ -976,6 +986,51 @@ function writeStyle(view, req, inst, def, registry) {
     try { return paneOwnerOf(findInstance(view, r.instanceId), view) === id } catch { return false }
   })()).map((r) => ({ instanceId: r.instanceId, name: r.name }))
   return { ok: true, cs: next, change: { what: 'displayTarget', before, after, ...(req.target === 'auto' ? { automatic: true } : {}), guests } }
+}
+
+/**
+ * ⭐ CALCULATION TIMEFRAME (Agent Charts family, 2026-11-12) — the Inspector's "Timeframe" select, through ITS writer.
+ * `timeframe`: a `CALC_TIMEFRAMES` code, or null / 'chart' = CHART (the absent key). `chartTf`: the chart's timeframe now.
+ *
+ * ⛔ THE WRITER REFUSES SILENTLY (`cs` back unchanged) for a definition `calcTimeframeCapability` says no to and for an
+ * instance that inherits its source's frame. So the capability is asked FIRST and its own reason returned
+ * (`detail.capability` + `CAPABILITY_WORDS`), and a writer that still changed nothing is `writer-refused` — never success.
+ * ⛔ LOWER / STRADDLING frames are refused with the product's own words (`gatedReason`): the authoring door refuses them
+ * (`applyPatch` `calc-tf:lower`); the settings select stores one but the chart then computes on its own bars and shows
+ * the same note — so storing it would read as a change that draws nothing different.
+ * ⛔ ONE LEAF: the write may change only `indicatorInstances[id].calculationTimeframe` (never the chart's timeframe,
+ * never `visibility`); anything else is refused as `writer-refused`.
+ */
+const CALC_OPTIONS = () => [{ value: null, label: 'Chart' }, ...CALC_TIMEFRAMES.map((c) => ({ value: c, label: calcTimeframeLabel(c) }))]
+const stripDot = (s) => String(s || '').replace(/\.$/, '')
+function writeCalcTimeframe(view, req, inst, def, registry) {
+  const id = inst.instanceId
+  const raw = req.timeframe
+  const want = raw === null || raw === undefined || raw === 'chart' ? null : raw
+  if (want !== null && !(typeof want === 'string' && CALC_TIMEFRAMES.includes(want))) {
+    return refuse(REASONS.BAD_INPUT, { value: raw ?? null, why: 'a calculation timeframe is one the chart can fetch bars at, or the chart\'s own', options: CALC_OPTIONS() })
+  }
+  const before = calcTimeframeOf(inst)
+  if (before === want) return refuse(REASONS.NO_CHANGE)
+  if (want !== null) {
+    const cap = calcTimeframeCapability(def, inst)
+    if (!cap.ok) return refuse(REASONS.BAD_INPUT, { capability: cap.reason, why: stripDot(CAPABILITY_WORDS[cap.reason] || CAPABILITY_WORDS.unknown), options: [] })
+    if (cap.inherits) {
+      return refuse(REASONS.BAD_INPUT, { capability: 'inherits', from: nameOf(view, registry, cap.inherits) || null,
+        why: `it is calculated on the same timeframe as its source${nameOf(view, registry, cap.inherits) ? ` (${nameOf(view, registry, cap.inherits)})` : ''} — change that one instead`, options: [] })
+    }
+    const chartTf = typeof req.chartTf === 'string' && req.chartTf ? req.chartTf : null
+    const relation = chartTf ? frameRelation(want, chartTf) : 'higher'
+    if (relation === 'lower' || relation === 'straddle') {
+      return refuse(REASONS.BAD_INPUT, { relation, chartTf, why: stripDot(gatedReason(relation, want, chartTf)), options: [] })
+    }
+  }
+  const next = setInstanceCalculationTimeframe(view, id, want, registry)
+  if (noChange(view, next)) return refuse(REASONS.WRITER_REFUSED)
+  const leaf = (p) => p.path.length === 3 && p.path[0] === LIST && isObj(p.path[1]) && p.path[1].instanceId === id && p.path[2] === 'calculationTimeframe'
+  const paths = changeRecord(normOf(view), normOf(next)).paths.filter((p) => !(p.path.length === 1 && p.path[0] === 'preset'))
+  if (!paths.length || !paths.every(leaf) || calcTimeframeOf(findInstance(next, id)) !== want) return refuse(REASONS.WRITER_REFUSED)
+  return { ok: true, cs: next, change: { what: 'calcTimeframe', before, after: want, chartTf: typeof req.chartTf === 'string' ? req.chartTf : null } }
 }
 
 /** Run one PANE op's writer. `{ok:true, cs, change, paneKey, ids}` | refusal. */
@@ -1194,3 +1249,89 @@ export function planAcrossCharts(charts, request) {
 }
 
 export { inputSpecOf }
+
+// ─── ⭐ VOLUME PROFILE — the carved-out canvas overlay (Agent Charts family, 2026-11-12, owner-approved, ADDITIVE) ───────────
+//
+// `volumeProfile` is `nativeRegistry.CARVED_OUT_INDICATOR_KEYS`' one member: NO definition, NO instance, and none is ever made
+// here. Its settings slice `cs.indicators.volumeProfile` IS its existence (chartDefaults' ⛔ comment), and StockChart's canvas
+// effect reads exactly that slice.
+//
+// ⛔ NO SECOND WRITER. The write is Chart Settings → Indicators' own row writer, `indicatorRegistry.applyRowPatch`, over the
+// carved-out row `listAllIndicators` lists (the modal's `setRow`): the row's toggle patches `{enabled}` — the same shape the
+// library's `toggledRow` makes for a carved-out row — and its Bins / Color / Point of control fields patch `{[key]: value}`.
+// ⛔ THE BOUNDS ARE THE ROW'S OWN (`CARVED_OUT_ROWS` fields: bins 8–50, step 1). A value outside them is REFUSED, never
+// clamped. A colour is what the canvas can paint: hex (#rgb / #rrggbb / #rrggbbaa, the colour picker's) or rgb()/rgba() (the
+// defaults); a theme token is not (a 2D context cannot resolve one).
+// ⛔ ONE LEAF: the write may change only `indicators.volumeProfile.*` — anything else is `writer-refused`.
+export const VOLUME_PROFILE_KEY = 'volumeProfile'
+export const VOLUME_PROFILE_REASONS = Object.freeze({ BAD_VALUE: 'bad-value', NO_CHANGE: 'no-change', WRITER_REFUSED: 'writer-refused' })
+const vpCatalogRow = () => CARVED_OUT_ROWS.find((r) => r.id === VOLUME_PROFILE_KEY)
+const VP_HEX = /^#(?:[0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i
+const VP_FN = /^rgba?\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*(?:,\s*(?:0|1|0?\.\d+)\s*)?\)$/i
+/** The row's own fields (`{key, label, type, min?, max?, step?}`), as Chart Settings renders them. */
+export function volumeProfileFields() {
+  return vpCatalogRow().fields.map((f) => ({ ...f }))
+}
+/** The Volume Profile as the chart reads it: `{enabled, bins, color, pocColor}` (the stored slice over the shipped defaults). */
+export function volumeProfileOf(cs) {
+  const vp = (mergeChartSettings(cs || null)?.indicators || {})[VOLUME_PROFILE_KEY] || {}
+  return { enabled: vp.enabled === true, bins: vp.bins, color: vp.color, pocColor: vp.pocColor }
+}
+/** Validate a patch against the row's own fields. `{ok:true, patch}` | `{ok:false, reason:'bad-value', key, why, field?}`. */
+export function checkVolumeProfilePatch(patch) {
+  if (!isObj(patch)) return { ok: false, reason: VOLUME_PROFILE_REASONS.BAD_VALUE, key: null, why: 'nothing to change' }
+  const fields = new Map(volumeProfileFields().map((f) => [f.key, f]))
+  const out = {}
+  for (const [key, value] of Object.entries(patch)) {
+    if (key === 'enabled') {
+      if (typeof value !== 'boolean') return { ok: false, reason: VOLUME_PROFILE_REASONS.BAD_VALUE, key, why: 'it is on or off' }
+      out.enabled = value
+      continue
+    }
+    const f = fields.get(key)
+    if (!f) return { ok: false, reason: VOLUME_PROFILE_REASONS.BAD_VALUE, key, why: 'Volume Profile has no such setting' }
+    if (f.type === 'number') {
+      const n = typeof value === 'number' ? value : NaN
+      const whole = f.step === 1
+      if (!Number.isFinite(n) || n < f.min || n > f.max || (whole && !Number.isInteger(n))) {
+        return { ok: false, reason: VOLUME_PROFILE_REASONS.BAD_VALUE, key, field: { ...f }, why: `${f.label} is a ${whole ? 'whole number' : 'number'} from ${f.min} to ${f.max}` }
+      }
+      out[key] = n
+    } else if (f.type === 'color') {
+      const s = typeof value === 'string' ? value.trim() : ''
+      if (!(VP_HEX.test(s) || VP_FN.test(s))) return { ok: false, reason: VOLUME_PROFILE_REASONS.BAD_VALUE, key, field: { ...f }, why: `${f.label} needs a hex colour such as #2962ff` }
+      out[key] = VP_HEX.test(s) ? s.toLowerCase() : s
+    } else {
+      return { ok: false, reason: VOLUME_PROFILE_REASONS.BAD_VALUE, key, why: 'Volume Profile has no such setting' }
+    }
+  }
+  if (!Object.keys(out).length) return { ok: false, reason: VOLUME_PROFILE_REASONS.BAD_VALUE, key: null, why: 'nothing to change' }
+  return { ok: true, patch: out }
+}
+/**
+ * Write a Volume Profile patch through the settings row's own writer.
+ * `{ok:true, cs, before, after, changed}` | `{ok:false, reason, …}` — `no-change` when it already reads that way (nothing written).
+ */
+export function writeVolumeProfile(cs, patch, registry) {
+  const chk = checkVolumeProfilePatch(patch)
+  if (!chk.ok) return chk
+  const before = volumeProfileOf(cs)
+  const changed = Object.keys(chk.patch).filter((k) => before[k] !== chk.patch[k])
+  if (!changed.length) return { ok: false, reason: VOLUME_PROFILE_REASONS.NO_CHANGE, before }
+  const row = listAllIndicators(cs, registry).find((r) => r && r.id === VOLUME_PROFILE_KEY && r.engineOwned === false && r.path && r.path.kind === 'indicator')
+  if (!row) return { ok: false, reason: VOLUME_PROFILE_REASONS.WRITER_REFUSED }
+  const want = Object.fromEntries(changed.map((k) => [k, chk.patch[k]]))
+  const next = applyRowPatch(row, want, cs, registry)
+  if (!next || next === cs) return { ok: false, reason: VOLUME_PROFILE_REASONS.WRITER_REFUSED }
+  // ONE LEAF: everything outside `indicators.volumeProfile` is byte-identical, and the slice reads what was asked
+  const outside = (s) => JSON.stringify({ ...s, preset: null, indicators: { ...((s && s.indicators) || {}), [VOLUME_PROFILE_KEY]: null } })
+  const after = volumeProfileOf(next)
+  if (outside(cs) !== outside(next) || changed.some((k) => after[k] !== want[k])) return { ok: false, reason: VOLUME_PROFILE_REASONS.WRITER_REFUSED }
+  return { ok: true, cs: next, before, after, changed }
+}
+/** Read-back: does the persisted blob's Volume Profile read every value of `want`? */
+export function confirmVolumeProfile(persisted, want) {
+  if (!isObj(want)) return false
+  const now = volumeProfileOf(persisted)
+  return Object.entries(want).every(([k, v]) => now[k] === v)
+}

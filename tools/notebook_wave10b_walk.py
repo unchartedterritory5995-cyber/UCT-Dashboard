@@ -695,7 +695,10 @@ def run_walk(base: str, art: Path) -> None:
             pg = new_page()
             pg.goto(f"{base}/journal/notebook?view=all")
             H._dismiss_intro(pg)
-            pg.get_by_role("button", name="Graph view", exact=True).first.click()
+            # S11 put the modes in the list's View menu; simplify pass 2 (C1) put Graph under its "More views" row.
+            pg.locator('[data-tour="view-switcher"]').filter(visible=True).first.click()
+            pg.get_by_role("menu", name="View").get_by_role("menuitem", name="More views", exact=True).first.click()
+            pg.get_by_role("menu", name="View").get_by_role("menuitemradio", name="Graph", exact=True).first.click()
             canvas = pg.locator('canvas[aria-label^="Note graph"]')
             canvas.first.wait_for(state="visible", timeout=30000)
             pg.wait_for_timeout(2500)   # the bounded layout settles; the read below is of the stylesheet

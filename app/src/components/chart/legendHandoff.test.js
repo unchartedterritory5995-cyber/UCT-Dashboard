@@ -31,6 +31,21 @@ describe('legend handoff lifecycle (StockChart.jsx)', () => {
     expect(SRC).not.toMatch(/prevBarsSymRef\.current = symRef\.current/)
   })
 
+  // 2026-11-13: the readout shows the newest bar of the CURRENT key or nothing. During a
+  // timeframe-switch hold the series still holds the OUTGOING timeframe's bars, so the stamp
+  // names the timeframe too, from the same render, and the readout refuses a mismatch.
+  it('stamps the painted bars with the render\'s own timeframe and refuses another timeframe\'s bars', () => {
+    expect(SRC).toMatch(/prevBarsSymRef\.current = sym\b[^\n]*\n\s*prevBarsTfRef\.current = resolvedTf\b/)
+    expect(SRC.match(/prevBarsTfRef\.current = resolvedTf\b/g)).toHaveLength(1)
+    const reader = SRC.slice(SRC.indexOf('const computeLatestCrosshair = () => {'))
+    const guard = reader.search(/if \(prevBarsTfRef\.current !== resolvedTfRef\.current\) return null/)
+    const firstRead = reader.indexOf('bars[bars.length - 1]')
+    expect(guard).toBeGreaterThan(0)
+    expect(guard, 'the guard runs before any bar is read').toBeLessThan(firstRead)
+    // Every place that drops the bars drops the stamp with them.
+    expect(SRC.match(/prevBarsSymRef\.current = null/g).length).toBe(SRC.match(/prevBarsTfRef\.current = null/g).length)
+  })
+
   it('mirrors symRef in a layout effect declared above the switch-time applier', () => {
     const mirror = SRC.search(/useLayoutEffect\(\(\) => \{\s*overlayDataRef\.current = overlayData[\s\S]{0,400}?symRef\.current = sym\b/)
     const applier = SRC.indexOf('_appliedSymTfRef.current = key')

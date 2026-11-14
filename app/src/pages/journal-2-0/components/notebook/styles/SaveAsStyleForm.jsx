@@ -93,7 +93,7 @@ export default function SaveAsStyleForm({ note, onBeforeSave, onDone }) {
       <label className={styles.field}>
         <span className={styles.label}>Note type</span>
         <select className={styles.input} value={chosenKind} onChange={(e) => setPicked(e.target.value)}>
-          {!defaultKind && <option value="">Choose a kind</option>}
+          {!defaultKind && <option value="">Choose a note type</option>}
           {kinds.map((k) => <option key={k.id} value={k.id}>{k.name}</option>)}
         </select>
       </label>

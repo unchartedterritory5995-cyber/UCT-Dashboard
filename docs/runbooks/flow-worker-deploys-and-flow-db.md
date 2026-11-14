@@ -44,7 +44,61 @@ Do NOT re-enable auto deploy. If you believe it must change, that is the owner's
 - `[flow-canary] ⛔ flow-worker volume LOW` (free space under 15 GB)
 - the Open Flow board stuck on "computing", Live Flow not advancing
 
-## Recovery (worked twice on 2026-11-12; writes back within seconds, no restart)
+## ⭐ Self-repair (since 2026-11-13): the worker restores the newest backup on its own
+
+`api/flow_db_autorestore.py`. On 2026-11-13 page 1 of flow.db was overwritten at 07:35 ET (no deploy,
+no second writer; 7th damage in 5 days). The canary only logged it, and the tape stayed dead until a
+person restored the 01:44 UTC backup at 09:30:40 ET. Now:
+
+* **The canary posts the onset to Discord** (it used to only log it).
+* **Two fatal canary failures in a row** (unreadable file, malformed image, I/O error; ~10 min at
+  `FLOW_CANARY_SEC=300`) **and** a fresh direct check that also fails → the newest `flow-pre-*.db`
+  backup that reads cleanly is COPIED in (the backup stays), the damaged file is moved to
+  `flow.db.corrupt-auto-<UTC stamp>` (KEPT), and the copy is swapped in. Writes resume without a
+  restart. Discord gets what it did and which days to re-fill.
+* Guards: once per 6 h (`/data/.flow_autorestore_last`), refuses without disk room for the copy,
+  never deletes anything. Kill switch `FLOW_AUTO_RESTORE_ENABLED=0`.
+* **A verified backup every weeknight at 22:15 ET** (`flow-pre-nightly-YYYY-MM-DD.db`): written to a
+  temp name, `quick_check` on the COPY, then it replaces the old one (one backup kept). Refuses when
+  the live file does not read cleanly. Off switch `FLOW_NIGHTLY_BACKUP_ENABLED=0`.
+* The gap-fill's rollback snapshot now refuses to prune anything when the live file does not read
+  cleanly, so a damaged file can never displace the only good backup.
+
+**After a self-repair:** rows written after the backup are missing. Run the gap-fill for each day
+since the backup was taken (status endpoint shows `last_result`), after the close.
+
+## ⛔⛔ ROOT CAUSE, CONFIRMED 2026-11-13 21:10 UTC: `mem_observe` dropped SQLite's locks
+
+`api/services/mem_observe.py` (added 2026-11-06) measured page-cache residency by `os.open()` + mmap +
+`os.close()` on every big file the process held open, `flow.db`, `flow.db-wal` and `flow.db-shm`
+included, ~150 s after every boot and every 10 minutes after. On Linux, closing ANY descriptor for a
+file drops EVERY POSIX lock the process holds on it. The next ordinary SQLite close then believed it
+was the last connection and checkpointed and DELETED the -wal/-shm that other connections were still
+writing: two write-ahead logs, then corruption. It ran on flow-worker AND the worker (bars.db,
+unreadable 11/09). Proved live: each fresh flow-worker process showed deleted -wal/-shm handles exactly
+~150 s after start. Fixed: `MEM_OBSERVE_FILES=0` on flow-worker and worker (2026-11-13 21:09 UTC) and
+the scan now never opens a SQLite file (`_is_sqlite_name`, rail
+`tests/test_mem_observe_never_opens_sqlite.py`). ⛔ Never open+close a live SQLite file (or its
+sidecars) from any code in the same process, for any reason.
+
+## The two-logs mechanism (what the damage looked like) — RESTART AFTER EVERY SWAP
+
+On 11/13 the worker's PID 1 held `/data/flow.db-wal (deleted)` while its other connections wrote
+to a NEW `flow.db-wal`. Two logs for one database is the textbook SQLite corruption, and it
+explains all 8 damages: each followed a moment when the file was swapped under a running process
+(the "no restart needed" swaps below renamed the live -wal/-shm; long-lived connections kept
+writing into the renamed log) or two containers held the volume during a deploy/restart (the old
+process, believing it held the LAST connection, checkpointed and deleted the WAL the new one was
+using). The damage surfaced hours later, which is why some looked deploy-free.
+
+Fixed in code (`api/flow_db_guard.py`): an anchor connection held for the process life (SQLite
+never deletes the WAL while any connection in the process is open), `os._exit` after shutdown
+(a dying container never deletes the WAL), a tripwire in every canary tick (a handle to a deleted
+flow.db/-wal/-shm → Discord + clean restart), and the self-repair restarts after its swap.
+**Rule for people: after ANY manual swap of flow.db, restart flow-worker** (`railway restart
+--service flow-worker --yes`), and never inspect flow.db with plain file I/O inside the worker.
+
+## Recovery (the swap itself; then RESTART flow-worker, see above)
 
 Scripts: `tools/flow_db_recovery/stepA_rebuild_and_swap.py`, `stepB_restore_history.py`.
 Production writes need the owner's OK.

@@ -119,6 +119,11 @@ REGISTER: dict[tuple, tuple] = {
         "unadjusted. CP4's dual-compute target; it is also an INERT STRAND "
         "(flow-worker RUNS this file and does not WATCH it), so CP4 must "
         "classify live-or-incidental before it merges."),
+    ("api/services/fmp_response_cache.py", PROVIDER_READ): (
+        OUTSIDE,
+        "a transport cache, not a reader: it names /stable/splits only to give "
+        "bars_sanitize's own FMP read a 24 h TTL. It stores the raw body and "
+        "decides nothing about a split; bars_sanitize's row above owns that."),
     # ⛔ D5 CP3 (2026-09-18): `massive.get_split_tickers` — the OUTSTANDING row
     # this used to be — is RETIRED (zero callers, zero tests; superseded
     # below). The confirmed source now lives in its own file, MIGRATED.
