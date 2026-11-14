@@ -13,7 +13,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from api.services.uct_agent.marketdata import envelope as env                    # noqa: E402
-from api.services.uct_agent.marketdata import (breadth as br, earnings as ern,    # noqa: E402
+from api.services.uct_agent.marketdata import (breadth as br, catalysts_board as cb, earnings as ern,    # noqa: E402
                                               news_company as nc, quotes as q, ratings as rt,
                                               statements as stm, themes as th)
 
@@ -267,6 +267,27 @@ add("t-closed", "What were the best themes this week?",
       coverage={"evaluated": 1, "answered": 1, "dropped": 0, "not_computable": 0}),
     category="periodic", disclose=["last completed session"])
 add("t-warming", "What themes are hot now?", U("themes", th.NOTE_WARMING), category="unavailable")
+
+# ── catalysts.board (Phase 2 catalysts; model-isolated, answer only): as_of is the board's last refresh; stale after 2 h ──
+cbrow = {"symbol": "AAA", "market_date": "2026-11-02", "rank": 1, "catalyst_type": "Earnings", "tag": "Catalyst",  # noqa: E731
+         "grade": "A", "gap_pct": 4.2, "sector": "Technology", "is_new": True, "pre_move": False,
+         "catalyst_at": "2026-11-02T12:05:00Z", "refreshed_at": "2026-11-02T13:40:00Z", "as_of": "2026-11-02T12:05:00Z",
+         "writeup": "a synthetic engine summary", "writeup_at": "2026-11-02T12:30:00Z", "writeup_status": "ok",
+         "writeup_sources": ["a.example"], "headlines": [{"title": "a synthetic headline", "source": "Wire A", "url": None,
+         "published_at": "2026-11-02T12:05:00Z"}], "headline_count": 1, "headlines_redacted": False, "social_posts": 0}
+add("cb-stale", "What's moving the market today?",
+    E("catalysts.board", status="ok", freshness="periodic", as_of="2026-11-02T13:40:00Z", source=cb.SOURCE, stale=True,
+      data={"state": "ok", "requested_date": "2026-11-02", "requested_missing": False, "today": "2026-11-02",
+            "dates": ["2026-11-02"], "boards": [{"market_date": "2026-11-02", "flagged": 1,
+            "refreshed_at": "2026-11-02T13:40:00Z"}], "rows": [cbrow], "sector": None, "sectors": ["Technology"],
+            "not_on_board": []},
+      notes=[cb.NOTE_STALE, cb.NOTE_COOCCUR, cb.NOTE_WRITEUP, cb.NOTE_ROW_ASOF]),
+    category="periodic-stale", disclose=["over 2 hours ago", "do not establish its cause"], flags={"UCT_AGENT_ISOLATED": "1"})
+add("cb-absent", "Any catalysts for my watchlist today?",
+    E("catalysts.board", status="ok", freshness="historical", as_of=None, source=cb.SOURCE,
+      data={"state": cb.ABSENT, "requested_date": "2026-11-02", "dates": [], "rows": [], "not_on_board": ["AAA"],
+            "sectors": [], "sector": None, "boards": []}, notes=[cb.NOTE_ABSENT]),
+    category="as_of-null", disclose=["not stored"], flags={"UCT_AGENT_ISOLATED": "1"})
 
 # ── breadth / ratings (model-isolated: answer only) ───────────────────────────────────────────────────
 bdata = lambda **k: {"universe": "us", "metric": "pct_above_50sma", "value": 61.4, "status": "intraday",  # noqa: E731

@@ -1892,6 +1892,162 @@
       "flags": {}
     },
     {
+      "id": "cb-stale",
+      "category": "periodic-stale",
+      "kind": "catalysts.board",
+      "purpose": "answer",
+      "question": "What's moving the market today?",
+      "envelope": {
+        "contract": "MD-1.0",
+        "kind": "catalysts.board",
+        "params_echo": {},
+        "status": "ok",
+        "freshness": "periodic",
+        "as_of": "2026-11-02T13:40:00Z",
+        "fetched_at": "2026-11-02T16:55:00Z",
+        "delay_s": null,
+        "stale": true,
+        "source": "uct-catalyst-engine",
+        "coverage": null,
+        "data": {
+          "state": "ok",
+          "requested_date": "2026-11-02",
+          "requested_missing": false,
+          "today": "2026-11-02",
+          "dates": [
+            "2026-11-02"
+          ],
+          "boards": [
+            {
+              "market_date": "2026-11-02",
+              "flagged": 1,
+              "refreshed_at": "2026-11-02T13:40:00Z"
+            }
+          ],
+          "rows": [
+            {
+              "symbol": "AAA",
+              "market_date": "2026-11-02",
+              "rank": 1,
+              "catalyst_type": "Earnings",
+              "tag": "Catalyst",
+              "grade": "A",
+              "gap_pct": 4.2,
+              "sector": "Technology",
+              "is_new": true,
+              "pre_move": false,
+              "catalyst_at": "2026-11-02T12:05:00Z",
+              "refreshed_at": "2026-11-02T13:40:00Z",
+              "as_of": "2026-11-02T12:05:00Z",
+              "writeup": "a synthetic engine summary",
+              "writeup_at": "2026-11-02T12:30:00Z",
+              "writeup_status": "ok",
+              "writeup_sources": [
+                "a.example"
+              ],
+              "headlines": [
+                {
+                  "title": "a synthetic headline",
+                  "source": "Wire A",
+                  "url": null,
+                  "published_at": "2026-11-02T12:05:00Z"
+                }
+              ],
+              "headline_count": 1,
+              "headlines_redacted": false,
+              "social_posts": 0
+            }
+          ],
+          "sector": null,
+          "sectors": [
+            "Technology"
+          ],
+          "not_on_board": []
+        },
+        "notes": [
+          "the board was last refreshed over 2 hours ago, so newer catalysts may be missing",
+          "headlines are the ones UCT's catalyst engine recorded beside each move; they co-occur with it and do not establish its cause",
+          "each writeup is the catalyst engine's AI-generated summary at its generation time, not verified",
+          "each row's as_of is when its catalyst news first appeared (else its last refresh)"
+        ],
+        "provider_calls": 0
+      },
+      "expect": {
+        "freshness_class": "periodic",
+        "as_of_renderings": [
+          "2026-11-02",
+          "Nov 2",
+          "November 2",
+          "8:40"
+        ],
+        "may_claim_live": false,
+        "must_disclose_stale": true,
+        "must_say_unavailable": false,
+        "must_not_state_a_value": false,
+        "must_disclose": [
+          "over 2 hours ago",
+          "do not establish its cause"
+        ],
+        "as_of_null_reason_required": false
+      },
+      "expect_refusal": false,
+      "flags": {
+        "UCT_AGENT_ISOLATED": "1"
+      }
+    },
+    {
+      "id": "cb-absent",
+      "category": "as_of-null",
+      "kind": "catalysts.board",
+      "purpose": "answer",
+      "question": "Any catalysts for my watchlist today?",
+      "envelope": {
+        "contract": "MD-1.0",
+        "kind": "catalysts.board",
+        "params_echo": {},
+        "status": "ok",
+        "freshness": "historical",
+        "as_of": null,
+        "fetched_at": "2026-11-02T16:55:00Z",
+        "delay_s": null,
+        "stale": false,
+        "source": "uct-catalyst-engine",
+        "coverage": null,
+        "data": {
+          "state": "absent",
+          "requested_date": "2026-11-02",
+          "dates": [],
+          "rows": [],
+          "not_on_board": [
+            "AAA"
+          ],
+          "sectors": [],
+          "sector": null,
+          "boards": []
+        },
+        "notes": [
+          "UCT's catalyst board is not stored on this server (no catalyst database), so there is nothing to report"
+        ],
+        "provider_calls": 0
+      },
+      "expect": {
+        "freshness_class": "historical",
+        "as_of_renderings": [],
+        "may_claim_live": false,
+        "must_disclose_stale": false,
+        "must_say_unavailable": false,
+        "must_not_state_a_value": false,
+        "must_disclose": [
+          "not stored"
+        ],
+        "as_of_null_reason_required": true
+      },
+      "expect_refusal": false,
+      "flags": {
+        "UCT_AGENT_ISOLATED": "1"
+      }
+    },
+    {
       "id": "br-intraday",
       "category": "periodic",
       "kind": "breadth.current",
