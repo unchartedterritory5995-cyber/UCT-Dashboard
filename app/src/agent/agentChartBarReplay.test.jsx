@@ -289,6 +289,27 @@ describe('targeting: the chart kind\'s rules', () => {
 })
 
 describe('the capability, its terms, and the other "replay"', () => {
+  // AUDIT #1174 condition (af6e75e71b): apply() on a chart with NO replay read-out — run without its check, as the chart-rail
+  // census does — returns the state unchanged and never throws (it used to throw reading `st.view.replay.mode`)
+  it('apply() on a chart with no replay read-out returns the SAME state, deeply equal, and does not throw', () => {
+    const c = getCapability(REPLAY_ACTION)
+    const base = { symbol: 'NVDA', tf: 'D', cs: { a: 1 }, viewDo: null }
+    const states = [{ ...base, view: null }, { ...base, view: {} }, { ...base, view: { frame: { fromRight: 50, toRight: 0 } } },
+      { ...base, view: { replay: undefined } }, { ...base, view: { replay: { can: false, mode: false } } }]
+    const ops = [{ op: 'enter' }, { op: 'exit' }, { op: 'play' }, { op: 'pause' }, { op: 'forward', bars: 5 }, { op: 'back', bars: null },
+      { op: 'first' }, { op: 'last' }, { op: 'date', date: '2026-01-15' }, { op: 'speed', speed: 5 }]
+    for (const st of states) {
+      const before = JSON.parse(JSON.stringify(st))
+      for (const o of ops) {
+        const args = { bars: null, date: null, speed: null, ...o }
+        let out
+        expect(() => { out = c.apply(st, args) }, `${JSON.stringify(st.view)} ${o.op}`).not.toThrow()
+        expect(out, `${JSON.stringify(st.view)} ${o.op}`).toEqual(st)
+        expect(out).toBe(st)                                                   // the very same object: nothing planned
+      }
+      expect(st).toEqual(before)                                               // and the input was not mutated
+    }
+  })
   it('ONE chart, a view; honest Undo (exact where it is, a note where it is not); member-facing strings', () => {
     const c = getCapability(REPLAY_ACTION)
     expect(c.target).toBe('chart')
