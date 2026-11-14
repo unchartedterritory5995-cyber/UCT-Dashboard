@@ -1,41 +1,41 @@
 {
  "generatedBy": "app/src/agent/qa/capabilityRegression/inventory.test.js (UPDATE_CAPREG=1)",
  "catalog": {
-  "all": 207,
-  "withProductionKinds": 198,
+  "all": 208,
+  "withProductionKinds": 199,
   "darkGated": 9
  },
  "totals": {
-  "capabilities": 207,
-  "withAnyRegressionCase": 155,
+  "capabilities": 208,
+  "withAnyRegressionCase": 156,
   "perProtection": {
    "nl": {
-    "covered": 152,
-    "applicable": 207
+    "covered": 153,
+    "applicable": 208
    },
    "routing": {
-    "covered": 149,
-    "applicable": 207
+    "covered": 150,
+    "applicable": 208
    },
    "args": {
-    "covered": 155,
-    "applicable": 207
+    "covered": 156,
+    "applicable": 208
    },
    "execution": {
-    "covered": 152,
-    "applicable": 207
+    "covered": 153,
+    "applicable": 208
    },
    "receipt": {
-    "covered": 124,
-    "applicable": 207
+    "covered": 125,
+    "applicable": 208
    },
    "refusal": {
     "covered": 35,
-    "applicable": 207
+    "applicable": 208
    },
    "permission": {
-    "covered": 200,
-    "applicable": 207
+    "covered": 201,
+    "applicable": 208
    },
    "undo": {
     "covered": 78,
@@ -43,11 +43,11 @@
    },
    "multiStep": {
     "covered": 40,
-    "applicable": 207
+    "applicable": 208
    },
    "phrasings": {
-    "covered": 148,
-    "applicable": 207
+    "covered": 149,
+    "applicable": 208
    }
   }
  },
@@ -1762,7 +1762,7 @@
     "multiStep": false,
     "phrasings": true
    },
-   "phrasings": 8,
+   "phrasings": 11,
    "evidence": {
     "nl": [
      "chart.setSetting.gradient: \"turn the gradient off on this chart\"",
@@ -1782,21 +1782,25 @@
     ],
     "args": [
      "corpus chart.setSetting.gradient",
-     "corpus chart.setSetting.grid"
+     "corpus chart.setSetting.grid",
+     "corpus chart.setSetting.theme"
     ],
     "execution": [
      "chart.setSetting.gradient (c)",
-     "chart.setSetting.grid (c)"
+     "chart.setSetting.grid (c)",
+     "chart.setSetting.theme (c)"
     ],
     "receipt": [
      "chart.setSetting.gradient (c)",
-     "chart.setSetting.grid (c)"
+     "chart.setSetting.grid (c)",
+     "chart.setSetting.theme (c)"
     ],
     "refusal": [],
     "permission": [],
     "undo": [
      "chart.setSetting.gradient: undo restores",
-     "chart.setSetting.grid: undo restores"
+     "chart.setSetting.grid: undo restores",
+     "chart.setSetting.theme: undo restores"
     ],
     "multiStep": [],
     "phrasings": []
@@ -3092,6 +3096,67 @@
     "undo": [
      "chartSetup.zoom: undo restores"
     ],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "chartShare.export": {
+   "domain": "chartShare",
+   "group": "chartShare",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 6,
+   "evidence": {
+    "nl": [
+     "chartShare.export.image: \"take a screenshot of this chart\"",
+     "chartShare.export.image: \"download this chart as a png\"",
+     "chartShare.export.image: \"save the chart as an image\"",
+     "chartShare.export.link: \"give me a share link for this chart\"",
+     "chartShare.export.link: \"share this chart\"",
+     "chartShare.export.link: \"open the share menu on this chart\""
+    ],
+    "routing": [
+     "chartShare.export.image: \"take a screenshot of this chart\"",
+     "chartShare.export.image: \"download this chart as a png\"",
+     "chartShare.export.image: \"save the chart as an image\"",
+     "chartShare.export.link: \"give me a share link for this chart\"",
+     "chartShare.export.link: \"share this chart\"",
+     "chartShare.export.link: \"open the share menu on this chart\""
+    ],
+    "args": [
+     "corpus chartShare.export.image",
+     "corpus chartShare.export.link"
+    ],
+    "execution": [
+     "chartShare.export.image (c)",
+     "chartShare.export.link (c)"
+    ],
+    "receipt": [
+     "chartShare.export.image (c)",
+     "chartShare.export.link (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
     "multiStep": [],
     "phrasings": []
    }

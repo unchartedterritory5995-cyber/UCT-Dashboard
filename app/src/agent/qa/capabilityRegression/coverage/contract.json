@@ -717,6 +717,19 @@
    ],
    "fast": false
   },
+  "chartShare.export": {
+   "domain": "chartShare",
+   "group": "chartShare",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false
+  },
   "coach.consent": {
    "domain": "coach",
    "group": "coach",

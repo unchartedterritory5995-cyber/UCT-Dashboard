@@ -4457,6 +4457,66 @@
     }
    }
   },
+  "chartShare.export.image": {
+   "digest": "d734379050c9c67a",
+   "phrasings": {
+    "take a screenshot of this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "download this chart as a png": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "save the chart as an image": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "chartShare.export.link": {
+   "digest": "78502bcf40cfeb5b",
+   "phrasings": {
+    "give me a share link for this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "share this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "open the share menu on this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "chart.setSetting.theme": {
+   "digest": "a9f32c4e1b025502",
+   "phrasings": {
+    "switch this chart to the light palette": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "make this chart light mode": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "put the chart on the light palette like shift+t": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
   "chartSetup.stepBars": {
    "digest": "f1ef323ce91ffc4b",
    "phrasings": {
