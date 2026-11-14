@@ -17,6 +17,7 @@
 
 import { protectionRefusal, undoProtectionRefusal, protectedOpenLayout, isProtected, protectedRenameRefusal } from './protectedLayouts'
 import { chartRailRefusal, RAIL_MARK } from './chartRail'
+import { stateRailRefusal, STATE_RAIL_MARK } from './stateRail'
 import { replyRelation, QUESTION_TTL_MS, CONTINUE_CHOICES, continueQuestion } from './pendingTask'
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { AuthContext } from '../context/AuthContext'
@@ -770,7 +771,15 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
   // ⛔ CHART RAIL (hotfix 11-13, chartRail.js): this turn's words — the message, plus the request an answered question carried
   const railWordsRef = useRef('')
   const resumeRef = useRef(null)            // pendingTask: restores (yes) or withdraws (no) a held reply's pending task
-  const railOf = (plan, mode) => chartRailRefusal(plan, { words: railWordsRef.current, host, mode })
+  // ⛔ STATE RAIL (owner principle 11-13, stateRail.js): the same hook — an additive request never removes, replaces or
+  // overwrites the member's indicators, drawings, watchlists, widgets, layouts, boards or templates. Either rail refuses.
+  const railMarkRef = useRef(RAIL_MARK)     // which rail refused last (telemetry)
+  const railOf = (plan, mode) => {
+    const c = chartRailRefusal(plan, { words: railWordsRef.current, host, mode })
+    const r = c || stateRailRefusal(plan, { words: railWordsRef.current })
+    railMarkRef.current = c ? RAIL_MARK : STATE_RAIL_MARK
+    return r
+  }
   if (!memoryRef.current) memoryRef.current = createMemory()
   const [, force] = useState(0)
   const rerender = () => force(n => n + 1)
@@ -1278,9 +1287,9 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     // grid shape asked for in words with fewer charts — on every path (instant, model, approved), before anything is written
     const railed = railOf(plan, suggested === 'approved' ? 'approved' : decideMode(suggested, plan))
     if (railed) {
-      mark(RAIL_MARK, 'refused')
+      mark(railMarkRef.current, 'refused')
       refusalPush(railed)
-      record({ member, outcome: railed, outcomeData: { kind: 'refused', actions, reason: RAIL_MARK }, telemetry: { path, refused: true, actions, voice } })
+      record({ member, outcome: railed, outcomeData: { kind: 'refused', actions, reason: railMarkRef.current }, telemetry: { path, refused: true, actions, voice } })
       return
     }
     // ⛔ F6: a sealed approval runs only if the plan still reads EXACTLY as the card the member approved
