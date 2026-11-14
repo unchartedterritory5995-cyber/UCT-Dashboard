@@ -467,6 +467,17 @@ export const GROUPS = [
     words: [
       /^(?!.*\b(?:rs|relative strength|indicators?|panes?|stud(?:y|ies)|inputs?|lines?|mansfield)\b).*\b(?:rotation|rrg)\s+(?:map|graph|chart|tab|view|quadrants?|panel)\b|^(?!.*\b(?:rs|relative strength|indicators?|panes?|stud(?:y|ies)|inputs?|lines?)\b).*\brelative rotation\b/,
       /\bcompare(?:\s+symbols)?\s+(?:panel|window|dialog|tool|popup|modal)\b|\boverlay tab\b/] },
+  // Charts family (2026-11-14): Layouts → Version history (layoutHistory.list / .restore), in its OWN words-only group (as
+  // comparePanel / periodSort): never a filler, so no existing group and no unrecognised request changes. The words name the
+  // board's VERSIONS or HISTORY, or restoring the board / layout / workspace to an earlier time or version. ⛔ Opening another
+  // ("previous") layout is layout.open: no version or time word, no match. ⛔ An indicator's, a watchlist's, a screen's,
+  // an alert's, a drawing's or a note's own history / older version never selects it (the lead-in). No lookbehind.
+  { id: 'layoutHistory', title: 'Board version history (Layouts → Version history): list the saved versions of the Charts board, restore an earlier one',
+    domains: ['layoutHistory'], fillLast: true, wordsOnly: true,
+    words: [
+      /^(?!.*\b(?:indicators?|formulas?|scripts?|stud(?:y|ies)|watchlists?|screens?|scans?|alerts?|drawings?|notes?|journal|templates?)\b).*(?:\bversion history\b|\b(?:board|layout|workspace)(?:'s)? (?:history|versions|saves)\b|\b(?:older|earlier|previous|prior|past|saved|old|other) versions? of (?:my |the |this |our )?(?:board|layout|workspace|charts? (?:page|board))\b)/,
+      /^(?!.*\b(?:indicators?|formulas?|scripts?|stud(?:y|ies)|watchlists?|screens?|scans?|alerts?|drawings?|notes?|journal|templates?)\b).*\b(?:restore|roll(?:ing)? ?back|revert|reset|put)\b.{0,40}\b(?:board|layout|workspace|charts? page)\b.{0,40}\b(?:yesterday|this morning|last (?:night|week|save)|earlier today|(?:an? |\d+ )?(?:hour|day|week)s? ago|version \d+|(?:an? |the )?(?:earlier|older|previous|prior|last) (?:version|save)|the way it was|how it (?:was|looked))\b/,
+      /^(?!.*\b(?:indicators?|formulas?|scripts?|stud(?:y|ies)|watchlists?|screens?|scans?|alerts?|drawings?|notes?|journal|templates?)\b).*\b(?:restore|roll(?:ing)? ?back to|revert to|go back to|bring back)\b.{0,20}\bversion \d+\b/] },
   // C3-205..207 (pl-exec6, #1082): Tools → Custom-Period Sort (periodSort.run / periodSort.dock) in its OWN two-action group,
   // WORDS-ONLY (as compareGroups / watchlistShow), so boardEdit and every other group stay character-identical to master:
   // in boardEdit (by domain) it changed v2's lexical scores and its fill, and 5 first calls lost the action they needed.

@@ -41,6 +41,8 @@ _GROUP_OF = {"chart": "charts", "volume": "charts", "widget": "workspace", "layo
              "periodSort": "periodSort",
              # Charts family (2026-11-12): Tools → Compare Symbols' Rotation / Overlay view, its own words-only group
              "compare": "comparePanel",
+             # Charts family (2026-11-14): Layouts -> Version history, its own words-only group
+             "layoutHistory": "layoutHistory",
              # #1030 (2026-11-10): the Multi Chart grid family, its own fillLast group (app/src/agent/routing.js)
              "multiChart": "multiChart"}
 #: membership by ACTION NAME (routing.js `actions`), ahead of the domain — hotfix 2026-11-03: agent.undo's own group

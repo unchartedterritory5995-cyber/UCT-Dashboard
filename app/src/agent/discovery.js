@@ -76,9 +76,9 @@ export const TOPICS = [
   {
     id: 'layouts', title: 'Saved layouts',
     words: [/\blayouts?\b/, /\bworkspaces?\b/],
-    caps: ['layout.current', 'layout.list', 'layout.open', 'layout.saveAs', 'layout.saveCurrent', 'layout.rename', 'layout.create', 'layout.delete', 'layout.duplicate', 'layout.pinToBar', 'layout.unpinFromBar', 'layout.moveOnBar'], productHas: true,
-    canDo: 'list, open, save as, rename, duplicate, delete your own layouts, create a new blank one, and save the board into the layout that is open; and on the layout bar along the bottom of Charts (desktop), pin a layout to the bar, take one off it (it stays in your layouts) or move it to another spot',
-    known: () => ['layout version history', 'sharing a layout'],
+    caps: ['layout.current', 'layout.list', 'layout.open', 'layout.saveAs', 'layout.saveCurrent', 'layout.rename', 'layout.create', 'layout.delete', 'layout.duplicate', 'layout.pinToBar', 'layout.unpinFromBar', 'layout.moveOnBar', 'layoutHistory.list', 'layoutHistory.restore'], productHas: true,
+    canDo: 'list, open, save as, rename, duplicate, delete your own layouts, create a new blank one, and save the board into the layout that is open; and on the layout bar along the bottom of Charts (desktop), pin a layout to the bar, take one off it (it stays in your layouts) or move it to another spot; and list your board’s saved versions (Layouts → Version history) and restore an earlier one — by its number, how many saves back, or how the board was at a time you name — always shown to you first with what it changes, added back as a new version (nothing is deleted), with Undo',
+    known: () => ['sharing a layout'],
     planned: null,
   },
   {

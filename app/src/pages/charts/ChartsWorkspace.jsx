@@ -68,6 +68,7 @@ import FloatingWidgetPanel from './FloatingWidgetPanel'
 import CompareSymbolsPanel from './CompareSymbolsPanel'
 import { COMPARE_OPEN_EVENT, compareChartApi } from './compareGroups'
 import { compareAgentSource } from './compareAgent'
+import { versionHistoryAgentSource } from './versionHistoryAgent'
 import PeriodSortConfig from './PeriodSortConfig'
 import ReplayPanel from './ReplayPanel'
 import VersionHistoryPanel, { VersionHistoryMenuItem, useVersionHistoryAvailable, keyLabel } from './VersionHistory'
@@ -3494,6 +3495,11 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
       setPeriodSortPanel(panel ? { ...panel } : null)
     },
   }
+  // Layouts → Version history for UCT Agent (layoutHistory.list / .restore, pages/charts/versionHistoryAgent.js): the panel's
+  // own routes, then the SAME re-seed its Restore runs (handleVersionRestored) — through a ref (the host memo stays
+  // dependency-free). Absent on the phone shell and in Multi Chart, where the Layouts menu has no Version history.
+  const agentVersionHistoryRef = useRef(null)
+  agentVersionHistoryRef.current = { mobile: isMobile, grid: gridMode, onRestored: handleVersionRestored }
   const inRouter = useInRouterContext()
   const agentHost = useMemo(() => buildWorkspaceHost({
     chartApiById: chartApiByIdRef,
@@ -3554,6 +3560,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     },
     navigate: (to) => agentNavRef.current?.(to),
     compare: compareAgentSource(() => agentCompareRef.current),
+    layoutHistory: versionHistoryAgentSource(() => agentVersionHistoryRef.current),
     periodSort: {
       read: () => {
         const r = agentPeriodSortRef.current
