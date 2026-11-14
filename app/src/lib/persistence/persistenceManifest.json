@@ -1663,6 +1663,17 @@
       ]
     },
     {
+      "key": "uct.barStore",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Charts",
+      "kind": "internal",
+      "label": "Chart data rollout switch",
+      "files": [
+        "app/src/components/chart/barStoreSwitch.js"
+      ]
+    },
+    {
       "key": "uct.barsFetchMax",
       "store": "localStorage",
       "scope": "device-local",
@@ -2826,12 +2837,23 @@
       ]
     },
     {
-      "key": "uct.watchlist.cols.breadthDrill",
+      "key": "uct.watchlist.cols.breadthDrill.focus7",
       "store": "localStorage",
       "scope": "device-local",
       "surface": "Breadth",
       "kind": "setting",
       "label": "Drill-down list columns",
+      "files": [
+        "app/src/pages/Watchlists.jsx"
+      ]
+    },
+    {
+      "key": "uct.watchlist.cols.breadthDrill.table",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Breadth",
+      "kind": "setting",
+      "label": "Drill-down table columns",
       "files": [
         "app/src/pages/Watchlists.jsx"
       ]
