@@ -213,3 +213,47 @@ def test_each_non_isolated_kind_is_armed_ONLY_by_its_own_DATA_KINDS_entry(monkey
 def test_isolated_enabled_takes_the_kind_name():
     assert list(inspect.signature(gw.isolated_enabled).parameters) == ["name"]
     assert "isolated_enabled(kind)" in inspect.getsource(gw.read)
+
+
+# ── the four Phase 2 features as they stand on master (COT #1185, history #1189 merged; RS #1236, catalysts #1256
+#    pending, pinned here through their synthetic stand-ins) ─────────────────────────────────────────────────────
+NON_ISOLATED_PHASE2 = ("cot.positioning", "history.eventStudy")
+
+
+def test_COT_and_history_are_registered_non_isolated():
+    gw._reset_for_test(None)
+    r = gw.registry()
+    for name in NON_ISOLATED_PHASE2:
+        assert r.get(name) is not None, f"{name} is not registered"
+        assert r.get(name).model_isolated is False, f"{name} became model-isolated: its activation steps change"
+
+
+@pytest.mark.parametrize("name", NON_ISOLATED_PHASE2)
+def test_COT_and_history_need_ONLY_their_DATA_KINDS_entry(monkeypatch, name):
+    """No isolation setting at all (master unset, list unset): the kind's own UCT_AGENT_DATA_KINDS entry arms it,
+    and arms nothing else; the isolation list can neither arm nor disarm it."""
+    r, ran = _spied()
+    _arm(monkeypatch, kinds=[name], master=None)
+    assert _read(name, turn="only")["status"] != "refused" and ran == [name]
+    for other in r.names():
+        if other != name:
+            assert _read(other, turn=f"o-{other}")["status"] == "refused", other
+    assert ran == [name]
+    # listing it in UCT_AGENT_ISOLATED_KINDS (and the master switch on) changes nothing for a non-isolated kind
+    monkeypatch.setenv(gw.ISOLATED_ENV, "1")
+    monkeypatch.setenv(gw.ISOLATED_KINDS_ENV, ",".join(NON_ISOLATED_PHASE2))
+    assert _read(name, turn="again")["status"] != "refused"
+    monkeypatch.setenv(gw.KINDS_ENV, "quote")
+    assert _read(name, turn="unlisted")["status"] == "refused"
+
+
+@pytest.mark.parametrize("name", PHASE2_ISOLATED)
+def test_RS_and_catalysts_need_BOTH_lists_and_the_master_switch(monkeypatch, name):
+    r, ran = _spied()
+    _arm(monkeypatch, kinds=[name], isolated_kinds=name)            # all three: served
+    assert _read(name, turn="all")["status"] != "refused" and ran == [name]
+    for env_name, value in ((gw.KINDS_ENV, "quote"), (gw.ISOLATED_KINDS_ENV, ""), (gw.ISOLATED_ENV, "0")):
+        ran.clear()
+        _arm(monkeypatch, kinds=[name], isolated_kinds=name)
+        monkeypatch.setenv(env_name, value)                           # drop exactly one of the three
+        assert _read(name, turn=f"drop-{env_name}")["status"] == "refused" and ran == [], env_name
