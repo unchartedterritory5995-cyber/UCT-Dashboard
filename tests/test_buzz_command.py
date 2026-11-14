@@ -235,16 +235,20 @@ def test_the_text_bars_never_step_up_below_a_higher_ranked_row(mods):
 # to. Removed rather than left contradicting its replacement.
 
 
-# ── On-demand /buzz: EPHEMERAL and THROTTLED. Owner ruling 2026-09-02.
+# ── On-demand /buzz: PUBLIC and THROTTLED. Owner ruling 2026-11-13.
 #
-# The scheduled post and the member's own call are different doors on purpose:
-# the room gets the shared board seven times a session, and someone checking it
-# in between must not put a second copy in front of 750 people. These drive the
-# REAL route (signature, guild gate, dispatch) rather than the reply builder --
-# both behaviours are decided IN the route, so a test of the builder proves
-# nothing about what Discord is handed.
+# ⚰️ From 2026-09-02 to 2026-11-13 the on-demand reply was EPHEMERAL (only the
+# member who ran it saw the board). The owner reversed that: "/lesson and /buzz
+# visible to all". What stays private is everything that is NOT the answer: the
+# throttle message and the missing-token refusal, which are about one member
+# and would only be noise in the channel. These drive the REAL route
+# (signature, guild gate, dispatch) rather than the reply builder -- visibility
+# is decided IN the route, so a test of the builder proves nothing about what
+# Discord is handed.
 
 EPHEMERAL = 64
+#: Exactly what /chart, /flow and /cot answer: a deferred reply with no flags.
+PUBLIC_DEFER = {"type": 5}
 
 
 def _buzz(uid="900", ticker=None, window=None):
@@ -273,20 +277,20 @@ def route(monkeypatch, tmp_path):
     return client, sk, rt, bi
 
 
-def test_a_bare_buzz_defers_EPHEMERALLY(route, monkeypatch):
-    """⛔ THE FLAG MUST BE ON THE DEFER. Discord fixes a deferred reply's
-    visibility at type 5 and silently ignores flags on the later PATCH, so a
-    bare defer here would put the board in the channel for everyone -- the exact
-    thing this change exists to stop, and it would look fine in code review."""
+def test_a_bare_buzz_defers_PUBLICLY(route, monkeypatch):
+    """⛔ VISIBILITY IS DECIDED ON THE DEFER AND NOWHERE ELSE. Discord fixes a
+    deferred reply's visibility at type 5 and silently ignores flags on the
+    later PATCH, so one leftover flag here keeps the board private to the member
+    who asked -- the exact thing the 2026-11-13 ruling ended -- and it would
+    look fine in code review."""
     client, sk, rt, bi = route
     monkeypatch.setattr(bi, "image_enabled", lambda: True)
     monkeypatch.setattr(rt, "run_buzz_image_job", lambda *a, **k: None)
     r = _post(client, sk, _buzz()).json()
-    assert r["type"] == 5
-    assert r.get("data", {}).get("flags") == EPHEMERAL, "the board would have posted publicly"
+    assert r == PUBLIC_DEFER, "the board would have gone to the asking member only"
 
 
-def test_a_ticker_lookup_DEFERS_ephemerally_and_the_text_still_arrives(route, monkeypatch):
+def test_a_ticker_lookup_DEFERS_publicly_and_the_text_still_arrives(route, monkeypatch):
     """⚠️ CHANGED BY OI-36, DELIBERATELY. This was a `type: 4` carrying the text inline.
     It is now a `type: 5` + a PATCH, because the inline form had to build the text —
     `await run_in_threadpool(...)` — BEFORE it could answer, and that await is bounded by
@@ -300,7 +304,7 @@ def test_a_ticker_lookup_DEFERS_ephemerally_and_the_text_still_arrives(route, mo
     monkeypatch.setattr(bi, "image_enabled", lambda: False)
     r = _post(client, sk, _buzz(ticker="NVDA")).json()
     assert r["type"] == 5, "the ack is no longer gated on building the reply"
-    assert r.get("data", {}).get("flags") == EPHEMERAL, "a ticker lookup must stay private"
+    assert r == PUBLIC_DEFER, "a ticker lookup is visible to the channel, like the board"
 
     edits = []
     rt.run_buzz_job("APP1", "TOK1", "NVDA", "open", 0,
@@ -308,12 +312,12 @@ def test_a_ticker_lookup_DEFERS_ephemerally_and_the_text_still_arrives(route, mo
     assert len(edits) == 1 and edits[0].get("content"), "the member got a spinner and nothing else"
 
 
-def test_the_text_only_board_DEFERS_ephemerally(route, monkeypatch):
-    """The no-image path is a separate `return` and was a separate way to leak."""
+def test_the_text_only_board_DEFERS_publicly(route, monkeypatch):
+    """The no-image path was once a separate `return`, so it gets its own pin."""
     client, sk, rt, bi = route
     monkeypatch.setattr(bi, "image_enabled", lambda: False)
     r = _post(client, sk, _buzz()).json()
-    assert r["type"] == 5 and r.get("data", {}).get("flags") == EPHEMERAL
+    assert r == PUBLIC_DEFER
 
 
 def test_no_reply_token_still_answers_IMMEDIATELY(route, monkeypatch):

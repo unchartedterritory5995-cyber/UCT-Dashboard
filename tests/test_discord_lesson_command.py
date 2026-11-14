@@ -1,4 +1,6 @@
-"""/lesson: a private search of the video-lesson library from Discord."""
+"""/lesson: a search of the video-lesson library from Discord. The answer is
+visible to the channel (owner ruling 2026-11-13; it was private before that);
+the throttle, the empty-query nudge and the missing-token refusal stay private."""
 from __future__ import annotations
 
 import pytest
@@ -36,13 +38,15 @@ def test_lesson_is_registered_once_with_one_required_text_field():
     assert "autocomplete" not in cmd["options"][0]
 
 
-def test_a_search_defers_EPHEMERALLY_and_schedules_the_job(route, monkeypatch):
+def test_a_search_defers_PUBLICLY_and_schedules_the_job(route, monkeypatch):
+    """Discord fixes a deferred reply's visibility at the defer, so the defer is
+    the one place this is decided: no flags = the channel sees the answer."""
     client, sk, rt = route
     scheduled = []
     monkeypatch.setattr(rt, "run_lesson_search_job", lambda *a, **k: scheduled.append(a))
     r = _post(client, sk, _lesson("stop loss")).json()
     assert r["type"] == 5, "defer first, search after"
-    assert r["data"]["flags"] == EPHEMERAL, "the reply would have gone to the whole channel"
+    assert r == {"type": 5}, "the reply would have gone to the asking member only"
     assert scheduled == [("123", "tok", "stop loss")]
 
 
@@ -71,7 +75,7 @@ def test_a_member_is_throttled_like_the_other_commands(route, monkeypatch):
     assert r["type"] == 4 and "searches" in r["data"]["content"]
 
 
-def test_the_job_delivers_the_reply_privately_and_survives_a_failing_search(route):
+def test_the_job_delivers_the_reply_and_survives_a_failing_search(route):
     client, sk, rt = route
     edits = []
     rt.run_lesson_search_job("APP", "TOK", "stop loss",
