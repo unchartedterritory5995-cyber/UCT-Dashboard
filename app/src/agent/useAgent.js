@@ -27,11 +27,11 @@ import { setOwnedDefinitionSource } from './capabilities/indicatorEdits'
 import { setAuthoringSources, draftAmbiguity, selectDraft, isDraftAction, lastSaved, screenModelOps, PROPOSAL_TTL_MS, saveReferent, splitSaveAs, renameBeforeSave, explicitIndicatorCreate } from './capabilities/indicatorAuthoring'
 import { fastParse, matchPosition } from './fastPath'
 import { screenNewChart, screenEmptyBoardChart } from './capabilities/workspace'
-import { resolveDeictic, screenDeicticOps, screenUnnamedTargets, pickedChoice, chartRefOf, selectedChart, chartNameWord, clausesNameDifferentCharts, targetTickerConflict } from './deixis'
+import { resolveDeictic, screenDeicticOps, screenUnnamedTargets, pickedChoice, chartRefOf, selectedChart, chartNameWord, clausesNameDifferentCharts, targetTickerConflict, lowerTickerCandidates, TARGET_CHECK_FAILED } from './deixis'
 import { screenWatchlistWidget } from './watchlistTarget'
 import { whichListView, LIST_VIEW_WHICH } from './whichWidget'
 import { checkSpatialConstraints, excludedCharts, spatialConstraints, UNPLACED, withoutExcludedCharts, everyExceptSet } from './spatialCheck'
-import { groundSymbols } from './nl/tickers'
+import { groundSymbols, groundingOf } from './nl/tickers'
 import { multiChartPlan, screenChartGrid, isWorkspaceRequest, gridChoiceFor } from './multiChart'
 import { scopeHostToGrid } from './host'
 import { screenGridOps, watchGridSync } from './gridMode'
@@ -65,7 +65,7 @@ import { screenDuplicateAdds, wantsCopy } from './duplicates'
 import { nl1Enabled, exactLane, buildNl1Request, correctionPlan, preflightRefusals, repairedDisposition, withoutWordingApprovals } from './nl1/interpreter'
 import { NL1_MAX_NEED } from './nl1/selection'
 import { takeIndicatorTouches, takeIndicatorMentions, canonicalIndicatorAdds } from './capabilities/indicatorEdits'
-import { correctTypos, lexiconFor } from './nl/lexicon'
+import { correctTypos, lexiconFor, plainSymbolWord } from './nl/lexicon'
 import { agentTurn, agentTurnStream, serverStreams, serverPlanner, loadAgentConfig, agentRecord, agentConversation, noteConversation, unknownSymbols } from './agentClient'
 import { createStepRunner } from './steps'
 import { AGENT_CONVERSATION_KEY, AGENT_INFLIGHT_KEY, readLocal, writeLocal } from './agentFlag'
@@ -637,6 +637,11 @@ export const NAME_SEARCH_MS = 1500
 const nameSearch = (word) => new Promise((resolve) => {
   const t = setTimeout(resolve, NAME_SEARCH_MS)
   groundSymbols([word]).catch(() => {}).finally(() => { clearTimeout(t); resolve() })
+})
+// …several words at once (the target-ticker check's lowercase words), one bound for all of them
+const nameSearchAll = (words) => new Promise((resolve) => {
+  const t = setTimeout(resolve, NAME_SEARCH_MS)
+  groundSymbols(words).catch(() => {}).finally(() => { clearTimeout(t); resolve() })
 })
 
 // the server's stage timings (ms only) for the turn trace
@@ -3170,7 +3175,22 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       }
       // ⭐ AUDIT ruling (11-13): a ticker the words name as the TARGET outranks the only chart, the click and "the one left" — a plan
       // that writes a chart showing another symbol is asked, and nothing runs (a ticker that is a VALUE of the plan is no target).
-      const tgtTicker = targetTickerConflict({ host, ops: screened.ops, text, pickedRefs: answeredRefs, getTargetKind, getCapability })
+      // A word NOT in capitals counts as a ticker only when the client knows it as one: a board symbol, or the ticker search's own
+      // verdict (groundSymbols, cached; bounded like nameSearch — no answer in time is "not known here").
+      let tgtTicker = null
+      try {
+        const known = new Map()
+        const live = host?.charts?.list?.() || []
+        const writesChart = (screened.ops || []).some(o => { const cap = getCapability(o?.action); return !!cap && !cap.query && !!getTargetKind(cap.target) })
+        const lower = writesChart ? lowerTickerCandidates(text, live, (w) => plainSymbolWord(w, host)) : []
+        if (lower.length) {
+          await nameSearchAll(lower)
+          for (const w of lower) { const v = groundingOf(w); if (v && (v.kind === 'ticker' || v.kind === 'name') && v.ticker) known.set(w, v.ticker) }
+        }
+        tgtTicker = targetTickerConflict({ host, ops: screened.ops, text, pickedRefs: answeredRefs, getTargetKind, getCapability, known })
+      } catch {
+        tgtTicker = { failed: true, ask: { text: TARGET_CHECK_FAILED } }        // ⛔ fail closed: an unread check never writes
+      }
       if (tgtTicker?.ask) {
         push({ role: 'agent', text: tgtTicker.ask.text })
         record({ member: null, outcome: tgtTicker.ask.text, outcomeData: { kind: 'clarify-target-ticker', actions: screened.ops.map(o => o?.action) }, telemetry: { path: 'model', disposition: 'clarify', voice } })

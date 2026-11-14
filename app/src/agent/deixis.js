@@ -10,10 +10,10 @@
 // the selection; a single-chart board needs no selection at all.
 
 import { addableRows } from './capabilities/indicatorEdits'
-import { resolvedTicker, isReservedWord } from './nl/tickers'
+import { resolvedTicker, isReservedWord, PRONOUNS } from './nl/tickers'
 import { sanitizeChartTabs } from '../pages/charts/chartTabs'
 import { CLICK_ACT_NP } from './clickRef'
-import { namedAnchorRelation, wholeLinesNamed, clickLineMatch, clickLineHits, activeText, relationAnchor, blankStated, negatedClick, withoutExclusions, excludedCharts } from './spatialCheck'
+import { namedAnchorRelation, wholeLinesNamed, clickLineMatch, clickLineHits, activeText, relationAnchor, blankStated, negatedClick, withoutExclusions, excludedCharts, LOWER_STOP } from './spatialCheck'
 
 // Words that point at "the chart in front of me". "it" counts only for a CHART-kind op ("make it
 // weekly"), never on its own ("put it in Momentum", "what is it" are not about a chart).
@@ -685,6 +685,9 @@ const NOT_TICKER_CAPS = new Set(['I', 'A', 'UCT', 'ETF', 'ADR', 'RS', 'RSI', 'MA
   'HMA', 'DEMA', 'TEMA', 'VWMA', 'ZLEMA', 'KC', 'DMI', 'MFI', 'ROC', 'PSAR', 'SAR', 'RVOL', 'ATRP', 'STOCH', 'CMF', 'PVT', 'TRIX', 'LRC',
   'HV', 'IV', 'ORB', 'PDH', 'PDL', 'PMH', 'PML', 'HTF', 'LTF', 'MTF', 'RTH', 'EST', 'UTC', 'PNL', 'IPO', 'OI', 'TTM', 'SMI', 'KST', 'PPO', 'MAS'])
 export function offBoardTicker(text, charts = []) {
+  try { return offBoardTickerOf(text, charts) } catch { return "?" }      // ⛔ fail closed: an unread check withholds "the one left"
+}
+function offBoardTickerOf(text, charts) {
   const on = new Set(charts.map(c => String(c?.symbol || '').toUpperCase()).filter(Boolean))
   const words = withoutExclusions(text)
   if (!/[a-z]/.test(words)) return null                              // typed in capitals: no word stands out as a ticker
@@ -711,10 +714,14 @@ function theOneLeft(ex, backed, text = '', charts = []) {
 //     first anaphor, and it is not a chart the words leave out
 //   · no click, or the click IS that chart (a click elsewhere is never silently overruled: asked, as before)
 const ANAPHOR = /\b(?:it|that\s+(?:chart|one|ticker|stock|symbol|name))\b/gi
-const ANA_SPLIT = /[,;.!?—–]|\b(?:but|and then|then|and)\b/gi
+// (a keep verb opens a clause of its own even with no comma: "change AMD to weekly leave NVDA alone")
+const ANA_SPLIT = /[,;:.!?—–]|\s-\s|\b(?:but|and then|then|and)\b|(?=\b(?:leave|keep|don['’]?t|do\s+not|hands\s+off|never\s+touch)\b)/gi
 const KEEP_CLAUSE = /^\s*(?:please\s+)?(?:leave|keep|let|don['’]?t|do\s+not|never|not|stop|skip|ignore|exclude|avoid|hands\s+off)\b|\b(?:not|never|no)\b|n['’]t\b/i
 const STAYS_CLAUSE = /\b(?:stays?|remains?)\b|\b(?:is|['’]s)\s+(?:(?:just|already)\s+)?(?:fine|good|ok(?:ay)?|perfect|alright)\b|\bas\s+(?:it\s+)?is\b|\b(?:untouched|unchanged|alone)\b/i
 export function tickerAntecedent(text, charts = [], sel = null, ex = new Set()) {
+  try { return tickerAntecedentOf(text, charts, sel, ex) } catch { return null }   // ⛔ fail closed: no antecedent → the readers below ask
+}
+function tickerAntecedentOf(text, charts, sel, ex) {
   const s = String(text || '')
   const hits = [...s.matchAll(ANAPHOR)]
   if (!hits.length) return null
@@ -740,22 +747,15 @@ export function tickerAntecedent(text, charts = [], sel = null, ex = new Set()) 
   return all[0]
 }
 
-// ⭐ AUDIT RULING (11-13): A TICKER NAMED AS THE TARGET outranks every stand-in. When the change words name a ticker as the chart
-// being changed ("Change AMD to the 1-hour timeframe", "add a 20 EMA to AMD", "the AMD chart") and a chart the plan WRITES shows
-// a different symbol, nothing runs: asked. That covers a one-chart board ("the only chart"), the click, and "the one left".
-// ⛔ CARVE-OUT: a ticker that is a VALUE of the plan (a symbol it sets, compares, adds — any argument of an op) is no target:
-// "change this chart to AMD", "switch to AMD", "put AMD on this chart", "replace SPY with AMD", "show AMD instead", "change SPY to
-// AMD" (SPY is the target there, AMD the value) all run as before. Deictic words with no target ticker keep the click rule.
-// A target is read only where a ticker stands for a chart: after a change verb, as the object of to / on / for, or "AMD's" / "the
-// AMD chart"; never in an exclusion or a keep clause, never an indicator acronym, never in words typed in capitals.
-// the verb and determiner in either case ("Change …" opens a sentence); the TICKER keeps its capitals
-const TGT_VERB = /\b(?:[Cc]hange|[Ss]witch|[Ss]et|[Mm]ake|[Pp]ut|[Tt]urn|[Ff]lip|[Mm]ove|[Cc]onvert|[Gg]ive|[Zz]oom|[Rr]eset|[Ss]croll)\s+(?:[Tt]he\s+|[Mm]y\s+)?(\$?[A-Z][A-Z0-9]{0,4}(?:\.[A-Z])?)(?=\s+(?:to|on|onto|into|in|at|from|with|over|back|and|chart|one|graph|weekly|daily|monthly|hourly)\b|['’]s\b|\s*[,.;!?]|\s*$)/g
-const TGT_PREP = /\b(?:to|on|onto|for|of|in)\s+(?:[Tt]he\s+|[Mm]y\s+)?(\$?[A-Z][A-Z0-9]{0,4}(?:\.[A-Z])?)(?=\s+(?:chart|one|graph|and|but|too|please|as\s+well)\b|['’]s\b|\s*[,.;!?]|\s*$)/g
-const TGT_NOUN = /(?:^|[\s(])(\$?[A-Z][A-Z0-9]{0,4}(?:\.[A-Z])?)(?:['’]s)?\s+(?:chart|one|graph)\b/g
-// (AUDIT held-out t1/t2) a ticker as the SUBJECT of a change in ANY verb position: "take / bring / get / move AMD to weekly", a
-// verb-less "AMD on weekly please", "AMD weekly", "AMD to 1h", "AMD with a 20 EMA" — the ticker followed by the change it gets.
-// (A ticker at the END of a clause — "switch to AMD", "make this one AMD", "flip it to AMD" — is the VALUE shape, never this one.)
-const TGT_SUBJ = /(?:^|[\s,;:(])(\$?[A-Z][A-Z0-9]{0,4}(?:\.[A-Z])?)(?=\s+(?:(?:to|on|onto|into|in|at|with|over|back|weekly|daily|monthly|hourly|intraday|log|linear|bars|candles|heikin)\b|\d{1,3}\s*(?:m|min|mins|minutes?|h|hr|hrs|hours?|d|day|w|wk|week)\b))/g
+// ⭐ AUDIT RULING (11-13, held-out probe 34): A TICKER IN THE CHANGE WORDS outranks every stand-in — STRUCTURALLY, whatever its
+// position, verb or punctuation ("bump AMD up to weekly", "AMD: weekly", "AMD should be on weekly", "take amd to weekly"). When
+// a chart the plan WRITES shows a symbol other than every ticker the change words carry, nothing runs: asked. That covers a
+// one-chart board ("the only chart"), the click, and "the one left". (No phrase list decides it: a ticker is a ticker.)
+// Never a target: a ticker in an exclusion or a keep clause (changeWords), a relation's ANCHOR ("the one below the QQQ one"),
+// an indicator / session acronym (NOT_TICKER_CAPS, RESERVED_WORDS), an ordinary word typed in capitals (LOWER_STOP, PRONOUNS),
+// a single letter, and a ticker that is a VALUE of the plan (the carve-out, in targetTickerConflict).
+// CASING: a token typed in capitals is a ticker; one NOT in capitals is a ticker only when the client already knows it as one —
+// a symbol on the board, or a word the ticker search grounded (`known`: lowercase word → ticker, filled by useAgent).
 function changeWords(text) {
   const s = String(text || '')
   const cuts = [0, ...[...s.matchAll(ANA_SPLIT)].flatMap(m => [m.index, m.index + m[0].length]), s.length].sort((a, b) => a - b)
@@ -767,19 +767,48 @@ function changeWords(text) {
   return withoutExclusions(change)
 }
 const TGT_ANCHOR_BEFORE = /\b(?:above|below|under|underneath|beneath|over|beside|alongside|near|nearest|by|next\s+(?:door\s+)?to|left\s+of|right\s+of|across\s+from|opposite|adjacent\s+to|diagonal(?:ly)?(?:\s+(?:from|to|across\s+from))?|kitty[\s-]?corner\s+(?:from|to)|catty[\s-]?corner\s+(?:from|to))\s+(?:the\s+|my\s+)?\$?$/i
-/** The tickers the change words name as the chart being changed (never a value position like "switch to AMD" — see the carve-out). */
-export function targetTickers(text) {
+const TICKER_TOKEN = /(?:^|[^A-Za-z0-9$.'’])(\$?[A-Za-z][A-Za-z0-9]{0,4}(?:\.[A-Za-z])?)(?![A-Za-z0-9])/g
+/** Every word of the change words that may be a ticker, with its casing: [{ raw, upper, caps, index }] (anchors left out). */
+export function tickerTokens(text) {
   const w = changeWords(text)
-  if (!/[a-z]/.test(w)) return []
   const out = []
-  for (const re of [TGT_VERB, TGT_PREP, TGT_NOUN, TGT_SUBJ]) for (const m of w.matchAll(re)) {
-    const t = m[1].replace(/^\$/, '').toUpperCase()
-    if (NOT_TICKER_CAPS.has(t) || (!m[1].startsWith('$') && isReservedWord(t)) || out.includes(t)) continue
-    // the ANCHOR of a relation ("the one below the QQQ one", "next to the SPY chart") is a reference point, never the target
-    if (TGT_ANCHOR_BEFORE.test(w.slice(0, m.index + m[0].indexOf(m[1])))) continue
-    out.push(t)
+  for (const m of w.matchAll(TICKER_TOKEN)) {
+    const raw = m[1], bare = raw.replace(/^\$/, ''), upper = bare.toUpperCase()
+    const index = m.index + m[0].indexOf(raw)
+    if (TGT_ANCHOR_BEFORE.test(w.slice(0, index))) continue
+    const stem = upper.replace(/\d+$/, '')                             // "EMA20" is the EMA
+    if (!raw.startsWith('$') && (NOT_TICKER_CAPS.has(upper) || NOT_TICKER_CAPS.has(stem) || isReservedWord(bare))) continue
+    out.push({ raw, upper, dollar: raw.startsWith('$'), caps: bare === upper && /[A-Z]/.test(bare), index })
   }
   return out
+}
+/** The tickers the change words carry (structural: any position). `known`: lowercase word → ticker the client already knows. */
+export function targetTickers(text, charts = [], known = new Map()) {
+  const on = new Set((charts || []).map(c => String(c?.symbol || '').toUpperCase()).filter(Boolean))
+  const out = []
+  const add = (t) => { if (t && !out.includes(t)) out.push(t) }
+  for (const t of tickerTokens(text)) {
+    const lower = t.upper.toLowerCase()
+    if (t.dollar) { add(t.upper); continue }
+    if (t.caps) {
+      // an ordinary word in capitals ("ALL", "NOW", "IT") is a word — unless it is a symbol on this board
+      if (on.has(t.upper)) { add(t.upper); continue }
+      if (t.upper.length < 2 || LOWER_STOP.test(lower) || PRONOUNS.has(lower)) continue
+      add(t.upper)
+      continue
+    }
+    // not in capitals: a symbol on the board ("take spy to weekly"), or a word the ticker search knows as one
+    if (on.has(t.upper) && t.upper.length >= 2 && !LOWER_STOP.test(lower) && !PRONOUNS.has(lower)) { add(t.upper); continue }
+    const k = known instanceof Map ? known.get(lower) : null
+    if (k) add(String(k).toUpperCase())
+  }
+  return out
+}
+/** Words NOT in capitals that may be tickers (for the caller to ground with the ticker search before targetTickerConflict). */
+export function lowerTickerCandidates(text, charts = [], isSymbolWord = () => true) {
+  const on = new Set((charts || []).map(c => String(c?.symbol || '').toUpperCase()).filter(Boolean))
+  return [...new Set(tickerTokens(text).filter(t => !t.caps && !t.dollar && !on.has(t.upper)).map(t => t.upper.toLowerCase())
+    .filter(w => w.length >= 2 && !LOWER_STOP.test(w) && !PRONOUNS.has(w) && isSymbolWord(w)))]
 }
 const valuesOf = (ops) => {
   const out = new Set()
@@ -791,12 +820,12 @@ const valuesOf = (ops) => {
   return out
 }
 /** → { ask: { text }, ticker, shown } when a chart the plan writes shows a symbol other than the TARGET ticker the words name. */
-export function targetTickerConflict({ host, ops, text, pickedRefs = [], getTargetKind, getCapability }) {
+export function targetTickerConflict({ host, ops, text, pickedRefs = [], getTargetKind, getCapability, known = new Map() }) {
   try {
     const charts = host?.charts?.list?.() || []
     if (!charts.length || (pickedRefs || []).some(Boolean)) return null
     const values = valuesOf(ops)
-    const targets = targetTickers(text).filter(t => !values.has(t))
+    const targets = targetTickers(text, charts, known).filter(t => !values.has(t))
     if (!targets.length) return null
     // a chart the words identify by place / order / relation (not by symbol) is named there in its own right
     const w = changeWords(text)
@@ -831,8 +860,12 @@ export function targetTickerConflict({ host, ops, text, pickedRefs = [], getTarg
       return { ticker: t, shown, ask: { text: `You named ${t}, but ${c?.label || 'that chart'} shows ${shown || 'something else'}.${where} Which chart do you mean? Nothing has changed yet.` } }
     }
     return null
-  } catch { return null }
+  } catch {
+    // ⛔ FAIL CLOSED (AUDIT 11-13): a check that could not finish never lets the write through
+    return { ticker: null, shown: null, failed: true, ask: { text: TARGET_CHECK_FAILED } }
+  }
 }
+export const TARGET_CHECK_FAILED = "I couldn’t check which chart you mean, so nothing has changed yet. Which chart do you mean?"
 
 /**
  * Narrow `candidates` (snapshots of one chart-backed kind) using the member's words and the

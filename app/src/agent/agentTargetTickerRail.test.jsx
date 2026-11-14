@@ -187,12 +187,12 @@ describe('targetTickers: where a ticker stands for the chart being changed', () 
     ['make the AMD chart weekly', ['AMD']],
     ['change SPY to AMD', ['SPY', 'AMD']],                   // AMD is dropped as the plan's VALUE by targetTickerConflict
     ['switch to AMD', ['AMD']],                              // likewise
-    ['show AMD instead', []],
-    ['replace SPY with AMD', ['SPY']],                      // SPY is the chart being changed (on the board: no conflict)
+    ['show AMD instead', ['AMD']],                           // structural (probe 34): any ticker; the plan's VALUE drops it
+    ['replace SPY with AMD', ['SPY', 'AMD']],               // SPY on the board; AMD the plan's VALUE
     ['add the RSI and MACD to it', []],
     ['put the TTM squeeze on this chart', []],
     ['change SPY to hourly, but leave my NVDA alone', ['SPY']],
     ["Change SPY to hourly. Don't touch AMD.", ['SPY']],
-    ['CHANGE AMD TO HOURLY', []],
+    ['CHANGE AMD TO HOURLY', ['AMD']],                       // typed in capitals: TO is a word, AMD a ticker
   ])('"%s" → %j', (t, want) => expect(targetTickers(t)).toEqual(want))
 })
