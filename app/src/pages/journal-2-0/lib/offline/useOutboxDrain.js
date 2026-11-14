@@ -13,11 +13,13 @@
  * has open, with its own backoff; this drains everything else.
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { mutate as globalMutate } from 'swr'
 import { createNoteViaApi } from '../noteCreation'
 import { notebookSchemaHeaders } from '../notebookSchema'
+import { noteReadKey } from '../noteReadKey'
 import { listOutbox, offlineStorageAvailable } from './notebookDb'
 import { offlineEnabled } from './offlineFlag'
-import { FORKED, NO_BASELINE, SENT, drainOutbox, summarize } from './outboxDrain'
+import { FORKED, NO_BASELINE, SENT, SUPERSEDED, drainOutbox, summarize } from './outboxDrain'
 import { postBlockedBaseline } from './blockedBaselineEvent'
 import { NOTEBOOK_EVENTS, trackNotebookEvent } from '../notebookTelemetry'
 import {
@@ -194,6 +196,8 @@ export function useOutboxDrain({
   /** Injected so a rail can drive the 409 self-supersede without a network. */
   serverCopyIsOurs = serverCopyIsOursDefault,
   intervalMs = RETRY_INTERVAL_MS,
+  /** Final fix pass, item 1: SWR's global `mutate` unless a rail passes its own. */
+  mutate = null,
 } = {}) {
   // ⛔ The same gate. Nothing drains — and nothing even claims leadership —
   // until the §32 matrix has been reported.
@@ -225,6 +229,8 @@ export function useOutboxDrain({
   reportRef.current = report
   const serverCopyIsOursRef = useRef(serverCopyIsOurs)
   serverCopyIsOursRef.current = serverCopyIsOurs
+  const mutateRef = useRef(mutate)
+  mutateRef.current = mutate
 
   // ── leadership ───────────────────────────────────────────────────────────
   useEffect(() => {
@@ -331,6 +337,22 @@ export function useOutboxDrain({
       for (const r of results) {
         if (r?.outcome !== SENT) continue
         trackNotebookEvent(NOTEBOOK_EVENTS.SAVE_SUCCESS, { door: 'outbox', queued: true })
+      }
+      // ⭐ Final fix pass, item 1: a drained note's cached read is dropped, so a reopen loads the
+      // server copy (it used to mount the read from before these words, and the next PUT forked).
+      // SENT (the server took the words), SUPERSEDED (it already held them, from a save whose reply
+      // this tab may never have read) and FORKED (another revision stands) each leave the server copy
+      // different from what this tab may have cached. A queued copy (`r.copy`) writes a NEW note and
+      // leaves its source alone. Never the note this tab has open now: its editor reads that key, and
+      // the drain skips it, but it can open while the drain runs. Swallowed: a failed drop is a stale
+      // read until the next load, never a change to what the drain returns.
+      for (const r of results) {
+        if (r?.copy || (r?.outcome !== SENT && r?.outcome !== SUPERSEDED && r?.outcome !== FORKED)) continue
+        if (r.noteId === excludeRef.current) continue
+        try {
+          const p = (mutateRef.current || globalMutate)(noteReadKey(r.noteId), undefined, { revalidate: true })
+          if (p && typeof p.catch === 'function') p.catch(() => {})
+        } catch { /* a cache drop is not a guard */ }
       }
       const s = summarize(results)
       setLastSummary(s)
