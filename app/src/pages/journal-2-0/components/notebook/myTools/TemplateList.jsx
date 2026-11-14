@@ -1,59 +1,49 @@
-import { useCallback, useEffect, useId, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import ContextPopover from '../../../../../components/mobile/ContextPopover'
 import UIcon from '../../../../../components/ui/UIcon'
 import { useIsTouch } from '../../../../../hooks/useBreakpoint'
 import { BUILTIN_NOTE_KINDS } from '../../../lib/noteKinds'
-import { MAX_STYLE_NAME_CHARS } from '../../../lib/journalStyles'
-import {
-  archiveTemplate, deleteTemplate, duplicateTemplate, getTemplate, listTemplates, renameTemplate, restoreTemplate,
-  unarchiveTemplate,
-} from '../../../lib/templateLibrary'
-// A STATIC import, as StylesManager does: this file is already in the lazy My tools chunk, so the editor joins that
-// chunk only, never StyleSurfaces (which every styled note opens) and never a second import() of a styles/ module.
-import StyleEditor from '../styles/StyleEditor'
+import { deleteTemplate, listTemplates, restoreTemplate, unarchiveTemplate } from '../../../lib/templateLibrary'
 import UsedInList from './UsedInList'
 import DeleteConfirm from './DeleteConfirm'
 import PanelHead from './PanelHead'
 import {
-  LIBRARY_ACTIONS, LIST_RENDER_MAX, TEMPLATE_COPY, TEMPLATE_DELETED_DAYS, creditText, dayText, editedText,
-  isLibraryCopy, keptUntilText, listHeadingText, notesWord, templateArchiveSentence, usedInText,
+  LIST_RENDER_MAX, TEMPLATE_COPY, TEMPLATE_DELETED_DAYS, creditText, dayText, editedText, keptUntilText,
+  listHeadingText, notesWord, templateArchiveSentence, usedInText, usedOf,
 } from './myToolsLib'
-import { libraryOn, openShare } from './libraryActions'
 import { holdSheetKeys } from '../sheetKeys'
 import styles from './myTools.module.css'
 
 /**
- * The member's own templates, one list at a time (follow-up C: extracted from My tools' Templates tab, so the
- * template manager and the tab render ONE implementation). The caller owns which list is shown (`filter`: 'live',
- * 'archived' or 'deleted') and may hand its own switch in as `toolbar` (drawn above the list, hidden with it while a
- * panel is pushed). `onChanged()` runs after every write that went through, so a caller holding its own copy of the
- * templates (the manager's SWR list) can read it again.
+ * The member's own archived or recently deleted templates, one list at a time (follow-up C: moved here from My tools'
+ * Templates tab, which drew it until then, so Manage templates renders the SAME list for its Archived and Recently
+ * deleted views). The caller owns which list is shown (`filter`: 'archived' or 'deleted') and may hand a switch in as
+ * `toolbar` (drawn above the list, hidden with it while a panel is pushed). `onChanged()` runs after every write that
+ * went through, so the caller can read its own copy of the templates again. Active is the manager's own per-note-type
+ * list, which reuses `ArchivePanel` from here. (The tab's Active list, with Open, Rename, Duplicate and Share, went with
+ * the tab: the manager's Edit, Duplicate and Share do those.)
  *
- * What follows is the tab's own description (spec 5.8, wave 11 Task 11.19, ruling W11-R10): the member's OWN templates
- * (their journal styles; the built-in starter templates are not the member's and are not listed) in three lists,
- * Active · Archived · Recently deleted, the Widgets tab's pattern.
+ * From the tab's own description (spec 5.8, wave 11 Task 11.19, ruling W11-R10): the member's OWN templates (their
+ * journal styles; the built-in starter templates are not the member's and are not listed), the Widgets tab's pattern.
  *
  *  * Each row: the name, the kind of note it makes, "Used in N notes" (which lists those notes; "Not in any note" with
  *    none), when it was last edited, and for a copy from the library the server's credit line ("Based on Sam's
  *    Pre-market prep", or "Based on a former member's …").
- *  * Active: Open (the template editor, StyleEditor in My tools' own chunk), Rename, Duplicate, Share to library (the
- *    member's own work only, while the library is on: never a copy), Archive ("It stays in your N notes. New notes
- *    can't use it until you restore it."). Archived: Restore, Delete permanently (the name typed, DeleteConfirm).
- *    Recently deleted: Restore, "Kept until <Mon D>" (TEMPLATE_DELETED_DAYS).
+ *  * Archived: Restore, Delete permanently (the name typed, DeleteConfirm). Recently deleted: Restore, "Kept until
+ *    <Mon D>" (TEMPLATE_DELETED_DAYS).
  *  * Every action is a ContextPopover on the row (a bottom sheet on touch); on desktop the row's main action is also a
  *    button of its own. A panel pushes in place of the list; the list stays mounted, hidden, so Back (or Escape)
  *    returns focus to the row it came from. Rows are My tools' own `.row` (56 px on phone).
- *  * Every read and write is lib/templateLibrary's; the server's sentences (a refused name, "Archive this template
- *    before deleting it.", the 30-day restore limit) are shown as they came.
- *  * ONE live region for the tab's whole life (`data-testid="my-tools-message"`), its child keyed per message.
+ *  * Every read and write is lib/templateLibrary's; the server's sentences ("Archive this template before deleting
+ *    it.", the 30-day restore limit) are shown as they came.
+ *  * ONE live region for the list's whole life (`data-testid="my-tools-message"`), its child keyed per message.
  *
  * ⛔ LAZY: imported only by on-demand chunks (My tools, through openMyTools.js; the template manager, a `lazyDialog`),
  *    and only rendered while `widgetsWaveOn(11)` (every route it reads is a 404 otherwise).
  */
 const isRecord = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
-const VIEW_OF = { live: 'live', archived: 'archived', deleted: 'deleted' }
+const VIEW_OF = { archived: 'archived', deleted: 'deleted' }
 const actionsFor = (id) => `[data-actions-for="${String(id).replace(/["\\]/g, '\\$&')}"]`
-export const usedOf = (d) => (Number.isInteger(d?.usedIn) && d.usedIn > 0 ? d.usedIn : 0)
 export const BACK_LABEL = 'Back to your templates'
 const BUILTIN_KIND_NAME = new Map(BUILTIN_NOTE_KINDS.map((k) => [k.id, k.name]))
 
@@ -64,7 +54,7 @@ function Row({ d, kinds, filter, phone, touch, busy, menuOpen, onMenu, onPrimary
   const used = usedOf(d)
   const credit = creditText(d)
   const kind = kindName(kinds, d.kindId)
-  const primary = filter === 'live' ? 'Open' : 'Restore'
+  const primary = 'Restore'
   return (
     <li className={`${styles.row}`} data-style-id={d.id} data-testid="my-tools-template-row">
       <span className={styles.thumb} aria-hidden="true">
@@ -110,46 +100,7 @@ function Row({ d, kinds, filter, phone, touch, busy, menuOpen, onMenu, onPrimary
   )
 }
 
-/** Rename: the name only (a patch). A refused name gets the server's own sentence. */
-function RenamePanel({ d, onBack, onDone, onGone, say }) {
-  const id = useId()
-  const [name, setName] = useState(d.name || '')
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
-  const input = useRef(null)
-  useEffect(() => { input.current?.focus(); input.current?.select?.() }, [])
-  const clean = name.trim()
-  const save = async (e) => {
-    e.preventDefault()
-    if (busy || !clean || clean === d.name) return
-    setBusy(true)
-    setError('')
-    const got = await renameTemplate(d.id, clean)
-    setBusy(false)
-    if (got.ok) { onDone(`Renamed to “${(isRecord(got.data.style) && got.data.style.name) || clean}”.`); return }
-    if (got.code === 'unavailable') { onGone(TEMPLATE_COPY.gone); return }
-    say(got.message, 'error')
-    setError(got.message)
-  }
-  return (
-    <div className={styles.pushPanel} data-testid="my-tools-rename">
-      <PanelHead title={`Rename “${d.name}”`} onBack={onBack} focusHeading={false} backLabel={BACK_LABEL} />
-      <form className={styles.form} onSubmit={save}>
-        <label className={styles.fieldLabel} htmlFor={id}>Name</label>
-        <input ref={input} id={id} className={styles.input} value={name} maxLength={MAX_STYLE_NAME_CHARS}
-          aria-describedby={error ? `${id}-err` : undefined} aria-invalid={error ? true : undefined}
-          onChange={(e) => setName(e.target.value)} />
-        {error && <p className={styles.inlineError} id={`${id}-err`}>{error}</p>}
-        <div className={styles.actions}>
-          <button type="button" className={styles.btn} onClick={onBack}>Cancel</button>
-          <button type="submit" className={styles.btnPrimary} aria-disabled={!clean || clean === d.name || busy || undefined}
-            aria-busy={busy || undefined}>{busy ? 'Saving…' : 'Save name'}</button>
-        </div>
-      </form>
-    </div>
-  )
-}
-
+/** "Archive “X”?" for a template in notes: what happens to them, then Archive. The manager's Active rows use it. */
 export function ArchivePanel({ d, onBack, onArchive, busy, error, backLabel = BACK_LABEL }) {
   return (
     <div className={styles.pushPanel} data-testid="my-tools-archive">
@@ -166,44 +117,13 @@ export function ArchivePanel({ d, onBack, onArchive, busy, error, backLabel = BA
   )
 }
 
-/** The template editor, in place: the style editor (in My tools' own chunk) over the whole template. */
-function EditorPanel({ d, kinds, onBack, onSaved, onGone, say }) {
-  const [state, setState] = useState({ status: 'loading' })
-  useEffect(() => {
-    let alive = true
-    getTemplate(d.id).then((got) => {
-      if (!alive) return
-      if (!got.ok || !isRecord(got.data.style)) {
-        if (got.code === 'unavailable') { onGone(TEMPLATE_COPY.gone); return }
-        setState({ status: 'error', text: got.message || TEMPLATE_COPY.editorFailed })
-        return
-      }
-      setState({ status: 'ok', style: got.data.style })
-    })
-    return () => { alive = false }
-  }, [d.id, onGone])
-  useEffect(() => { if (state.status === 'error') say(state.text, 'error') }, [state, say])
-  return (
-    <div className={styles.pushPanel} data-testid="my-tools-template-editor">
-      <PanelHead title={`Edit “${d.name}”`} onBack={onBack} backLabel={BACK_LABEL} />
-      {state.status === 'loading' && <p className={styles.hint}>Opening the template…</p>}
-      {state.status === 'error' && <p className={styles.sentence}>{state.text}</p>}
-      {state.status === 'ok' && (
-        <StyleEditor style={state.style} kinds={kinds}
-          onSaved={(saved) => onSaved(`Saved “${(isRecord(saved) && saved.name) || d.name}”.`)} onCancel={onBack} />
-      )}
-    </div>
-  )
-}
-
-export default function TemplateList({ filter = 'live', toolbar = null, phone, navigate = null, onCloseAll, onChanged }) {
+export default function TemplateList({ filter = 'archived', toolbar = null, phone, navigate = null, onCloseAll, onChanged }) {
   const touch = useIsTouch()
   const [lists, setLists] = useState({})            // filter -> {status, items?, kinds?, code?, message?, stale?}
   const [view, setView] = useState({ kind: 'list' })
   const [menu, setMenu] = useState(null)
   const [message, setMessage] = useState(null)
   const [busyId, setBusyId] = useState(null)
-  const [panelError, setPanelError] = useState(null)
   // F-FE-1 F5: a restore the server refused for good (its sentence: the kind of note was deleted, the 30 days are
   // over, the template cap), kept on the row it is about after the live line moves on. id -> the server's sentence.
   const [refused, setRefused] = useState({})
@@ -264,13 +184,11 @@ export default function TemplateList({ filter = 'live', toolbar = null, phone, n
   // ── panels ──────────────────────────────────────────────────────────────────────────────────────
   const push = (k, d) => {
     returnTo.current = d?.id ?? null
-    setPanelError(null)
     setMessage(null)
     setMenu(null)
     setView({ kind: k, d })
   }
   const back = useCallback(() => {
-    setPanelError(null)
     setView({ kind: 'list' })
   }, [])
   useEffect(() => {
@@ -331,7 +249,6 @@ export default function TemplateList({ filter = 'live', toolbar = null, phone, n
     returnTo.current = null
     focusAfter.current = { heading: true, wait: filterRef.current }
     setView({ kind: 'list' })
-    setPanelError(null)
     say(text, 'error')
     refresh(filterRef.current)
   }, [refresh, say])
@@ -347,35 +264,6 @@ export default function TemplateList({ filter = 'live', toolbar = null, phone, n
     if (got.ok) { done(got.data); return }
     if (got.code === 'unavailable') { gone(); return }
     say(got.message, 'error')
-  }
-  const duplicate = (d) => act(d, () => duplicateTemplate(d.id), (data) => {
-    const t = isRecord(data?.style) ? data.style : null
-    say(`Made “${t?.name || `${d.name} copy`}”.`)
-    if (t?.id) focusAfter.current = { id: t.id, wait: 'live' }
-    wrote('live')
-  })
-  const doArchive = async (d) => {
-    if (busyId) return
-    setBusyId(d.id)
-    setPanelError(null)
-    const got = await archiveTemplate(d.id)
-    if (!mounted.current) return
-    setBusyId(null)
-    if (!got.ok) {
-      if (got.code === 'unavailable') { gone(); return }
-      say(got.message, 'error')
-      if (view.kind === 'archive') setPanelError(got.message)
-      return
-    }
-    returnTo.current = null
-    focusPast('live', d.id)
-    setView({ kind: 'list' })
-    say(`Archived “${d.name}”. Restore it from Archived.`)
-    wrote('live')
-  }
-  const archive = (d) => {
-    if (usedOf(d) > 0) push('archive', d)
-    else { setMenu(null); doArchive(d) }
   }
   const unarchive = (d) => act(d, () => unarchiveTemplate(d.id), () => {
     focusPast('archived', d.id)
@@ -401,15 +289,8 @@ export default function TemplateList({ filter = 'live', toolbar = null, phone, n
     say(archived ? `Restored “${d.name}”. It's in Archived.` : `Restored “${d.name}” to your templates.`)
     wrote('deleted')
   })
-  const share = async (d) => {
-    setMenu(null)
-    const got = await openShare({ kind: 'template', id: d.id, onDone: (text) => { if (mounted.current) say(text) } })
-    if (!got.ok && mounted.current) say(got.text, 'error')
-  }
-
   const primary = (d) => {
-    if (filter === 'live') push('editor', d)
-    else if (filter === 'archived') unarchive(d)
+    if (filter === 'archived') unarchive(d)
     else undelete(d)
   }
 
@@ -417,26 +298,12 @@ export default function TemplateList({ filter = 'live', toolbar = null, phone, n
     const used = usedOf(d)
     const usedIn = used > 0 ? [{ key: 'used', label: usedInText(used), onClick: () => push('usedIn', d) }] : []
     if (filter === 'deleted') return [{ key: 'restore', label: 'Restore', onClick: () => undelete(d) }]
-    if (filter === 'archived') {
-      return [
-        { key: 'restore', label: 'Restore', onClick: () => unarchive(d) },
-        ...usedIn,
-        { separator: true },
-        { key: 'delete', label: 'Delete permanently', danger: true, onClick: () => push('delete', d),
-          hint: `Needs the name typed. Kept in Recently deleted for ${TEMPLATE_DELETED_DAYS} days.` },
-      ]
-    }
-    // Share is the member's own work only: a copy from the library (or anything made from one) is never shared again.
-    const shareItem = libraryOn() && !isLibraryCopy(d)
-      ? [{ key: 'share', label: LIBRARY_ACTIONS.share, onClick: () => share(d) }] : []
     return [
-      { key: 'open', label: 'Open', onClick: () => push('editor', d) },
-      { key: 'rename', label: 'Rename', onClick: () => push('rename', d) },
-      { key: 'duplicate', label: 'Duplicate', onClick: () => { setMenu(null); duplicate(d) } },
-      ...shareItem,
+      { key: 'restore', label: 'Restore', onClick: () => unarchive(d) },
       ...usedIn,
       { separator: true },
-      { key: 'archive', label: 'Archive', onClick: () => archive(d), hint: templateArchiveSentence(used) },
+      { key: 'delete', label: 'Delete permanently', danger: true, onClick: () => push('delete', d),
+        hint: `Needs the name typed. Kept in Recently deleted for ${TEMPLATE_DELETED_DAYS} days.` },
     ]
   }
   const openMenu = (d, el) => {
@@ -448,21 +315,16 @@ export default function TemplateList({ filter = 'live', toolbar = null, phone, n
   // ── render ──────────────────────────────────────────────────────────────────────────────────────
   const state = lists[filter]
   const items = state?.status === 'ok' ? state.items : []
-  const kindsList = lists.live?.kinds || state?.kinds || []
+  const kindsList = state?.kinds || []
   const kinds = new Map(kindsList.map((k) => [k.id, typeof k.name === 'string' ? k.name : '']))
   const shown = items.slice(0, LIST_RENDER_MAX)
   // No zeros (m-2): an empty list's heading names the list (listHeadingText, shared by all four tabs).
   const heading = listHeadingText(filter, items.length, 'template', 'templates')
-  const empty = { live: TEMPLATE_COPY.emptyActive, archived: TEMPLATE_COPY.emptyArchived, deleted: TEMPLATE_COPY.emptyDeleted }[filter]
+  const empty = filter === 'deleted' ? TEMPLATE_COPY.emptyDeleted : TEMPLATE_COPY.emptyArchived
 
   let panel = null
   if (view.kind === 'usedIn') {
     panel = <UsedInList d={view.d} kind="template" onBack={back} onNavigate={onCloseAll} navigate={navigate} backLabel={BACK_LABEL} />
-  } else if (view.kind === 'rename') {
-    panel = <RenamePanel d={view.d} onBack={back} onGone={gone} say={say}
-      onDone={(text) => { say(text); back(); wrote('live') }} />
-  } else if (view.kind === 'archive') {
-    panel = <ArchivePanel d={view.d} onBack={back} onArchive={doArchive} busy={busyId === view.d.id} error={panelError} />
   } else if (view.kind === 'delete') {
     const d = view.d
     const used = usedOf(d)
@@ -477,9 +339,6 @@ export default function TemplateList({ filter = 'live', toolbar = null, phone, n
         back()
         wrote('archived')
       }} />
-  } else if (view.kind === 'editor') {
-    panel = <EditorPanel d={view.d} kinds={kindsList} onBack={back} onGone={gone} say={say}
-      onSaved={(text) => { say(text); back(); wrote('live') }} />
   }
 
   const tone = message?.tone

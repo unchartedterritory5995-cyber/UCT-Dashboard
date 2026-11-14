@@ -446,18 +446,19 @@ describe('My tools, Widgets tab', () => {
     expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull()
   })
 
-  it('coming_soon_when_w11_off: Templates has no controls; Routines and Trackers are real lists (Task 9.18)', async () => {
+  // Follow-up C: Templates is one sentence and one button (Manage templates holds the templates now), wave 11 or not.
+  it('Templates points at Manage templates with one button; Routines and Trackers are real lists (Task 9.18)', async () => {
     await openSheet()
     fireEvent.click(screen.getByRole('tab', { name: 'Templates' }))
     expect(screen.getByRole('tab', { name: 'Templates' })).toHaveAttribute('aria-selected', 'true')
     const panel = screen.getByRole('tabpanel', { name: 'Templates' })
-    expect(panel).toHaveTextContent('Templates are coming soon.')
-    expect(panel.querySelectorAll('button, a, input, select, textarea, [tabindex]')).toHaveLength(0)
+    expect(panel).toHaveTextContent('Templates are managed in one place now.')
+    expect([...panel.querySelectorAll('button, a, input, select, textarea, [tabindex]')].map((b) => b.textContent))
+      .toEqual(['Open Manage templates'])
     for (const tab of ['Routines', 'Trackers']) {
       fireEvent.click(screen.getByRole('tab', { name: tab }))
       const p = screen.getByRole('tabpanel', { name: tab })
       expect(p).not.toHaveTextContent(/coming soon/i)
-      expect(screen.queryByTestId('my-tools-soon')).toBeNull()
       expect(within(p).getByRole('group', { name: 'Show' })).toBeInTheDocument()   // the three lists' filters
     }
   })
@@ -602,8 +603,18 @@ describe('openMyTools', () => {
     }
     walk(SRC)
     const STATIC = /^\s*import\s[^;]*?from\s+['"][^'"]*\/myTools\/[^'"]*['"]/m
+    // Follow-up C: Manage templates renders My tools' template list (TemplateList, and the Used in / Archive panels) as
+    // ONE implementation. It may import them statically only because it is itself an on-demand chunk: no non-test file
+    // imports it statically (checked below; NotebookTab's lazyDialog is pinned by NotebookTab.lazyViews.test.js).
+    const ON_DEMAND_IMPORTERS = { 'components/notebook/styles/StylesManager.jsx': 'the template manager, a lazyDialog chunk' }
+    const rel = (f) => f.split(/[\\/]/).join('/').split('/pages/journal-2-0/')[1] || ''
     const offenders = files.filter((f) => !/[\\/]myTools[\\/]/.test(f) && !/\.test\.[jt]sx?$/.test(f))
       .filter((f) => STATIC.test(readFileSync(f, 'utf8')))
+      .filter((f) => !Object.hasOwn(ON_DEMAND_IMPORTERS, rel(f)))
+    const MANAGER_STATIC = /^\s*import\s[^;]*?from\s+['"][^'"]*\/styles\/StylesManager['"]/m
+    expect(files.filter((f) => !/\.test\.[jt]sx?$/.test(f)).filter((f) => MANAGER_STATIC.test(readFileSync(f, 'utf8'))),
+      'an allowed importer must stay off every static path').toEqual([])
+    expect(MANAGER_STATIC.test("import StylesManager from '../components/notebook/styles/StylesManager'")).toBe(true)
     expect(files.length).toBeGreaterThan(100)                           // the walk saw the tree
     expect(STATIC.test("import { openMyTools } from '../myTools/openMyTools.js'")).toBe(true)   // and can see one
     expect(STATIC.test("const mod = await import('../myTools/openMyTools.js')")).toBe(false)

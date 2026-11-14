@@ -1,28 +1,40 @@
-import { useState } from 'react'
-import TemplateList from './TemplateList'
-import { FILTERS } from './myToolsLib'
+import { managerHref } from './myToolsLib'
 import styles from './myTools.module.css'
 
 /**
- * My tools, the Templates tab (spec 5.8, wave 11 Task 11.19, ruling W11-R10): the member's OWN templates in three
- * lists, Active · Archived · Recently deleted, the Widgets tab's pattern. The list itself, its rows, actions and
- * panels are TemplateList's (follow-up C: one implementation, shared with the template manager); this tab owns only
- * which list is shown.
+ * My tools, the Templates tab (follow-up C, one room for templates): templates are managed in Manage templates now
+ * (its Active, Archived and Recently deleted views; the member's plain templates too). The tab stays in the tab row so
+ * nobody loses their place, and holds one sentence and one button: "Open Manage templates" closes My tools and opens
+ * the manager (the notes list's `?styles=1` door, which NotebookTab reads once and takes out of the URL).
  *
- * ⛔ LAZY: mounted only by MyToolsSheet, and only while `widgetsWaveOn(11)` (the sheet says "coming soon" otherwise).
+ * The list this tab used to draw lives in TemplateList.jsx, which the manager renders (one implementation).
+ *
+ * ⛔ LAZY: mounted only by MyToolsSheet (reached only through openMyTools.js, a dynamic import).
  */
-export default function TemplatesTab({ phone, navigate = null, onCloseAll }) {
-  const [filter, setFilter] = useState('live')
-  const toolbar = (
-    <div role="group" aria-label="Show" className={styles.filters}>
-      {FILTERS.map(([key, label]) => (
-        <button key={key} type="button" className={`${styles.filter} ${filter === key ? styles.filterOn : ''}`}
-          aria-pressed={filter === key} onClick={() => setFilter(key)}>
-          {label}
+export const TEMPLATES_MOVED = 'Templates are managed in one place now.'
+export const OPEN_MANAGER = 'Open Manage templates'
+/** Through the app router's `navigate` when the door that opened My tools passed one; else the router's own history
+ *  move, told with `popstate` (My tools is on its own root, outside the router: lib/noteHref.js's pattern). */
+function openManager(navigate) {
+  const to = managerHref()
+  if (typeof navigate === 'function') { navigate(to); return }
+  if (typeof window === 'undefined' || !window.history?.pushState) return
+  const prev = window.history.state
+  const idx = prev && typeof prev === 'object' && Number.isInteger(prev.idx) ? prev.idx + 1 : 0
+  window.history.pushState({ usr: null, key: Math.random().toString(36).slice(2, 10), idx }, '', to)
+  window.dispatchEvent(new PopStateEvent('popstate', { state: window.history.state }))
+}
+
+export default function TemplatesTab({ navigate = null, onCloseAll }) {
+  return (
+    <div className={styles.stateBox} data-testid="my-tools-templates">
+      <p className={styles.sentence}>{TEMPLATES_MOVED}</p>
+      <div className={styles.actions}>
+        <button type="button" className={styles.btnPrimary}
+          onClick={() => { onCloseAll?.(); openManager(navigate) }}>
+          {OPEN_MANAGER}
         </button>
-      ))}
+      </div>
     </div>
   )
-  return <TemplateList filter={filter} toolbar={toolbar} phone={phone} navigate={navigate} onCloseAll={onCloseAll} />
-
 }

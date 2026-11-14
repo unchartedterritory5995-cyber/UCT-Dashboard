@@ -42,9 +42,9 @@ import usePreferences from '../../../../../hooks/usePreferences'
 import { useIsPhone } from '../../../../../hooks/useBreakpoint'
 import { widgetsWaveOn } from '../../../lib/notebookWidgetsFlags'
 import { archiveTemplate, listTemplates } from '../../../lib/templateLibrary'
-import TemplateList, { ArchivePanel, BACK_LABEL, usedOf } from '../myTools/TemplateList'
+import TemplateList, { ArchivePanel, BACK_LABEL } from '../myTools/TemplateList'
 import UsedInList from '../myTools/UsedInList'
-import { actionFailure, templateArchiveSentence, usedInText } from '../myTools/myToolsLib'
+import { actionFailure, templateArchiveSentence, usedInText, usedOf } from '../myTools/myToolsLib'
 import { PlainTemplatesManage } from '../MemberTemplates'
 import { AuthContext } from '../../../../../context/AuthContext'
 import useJournalStyles from '../../../hooks/useJournalStyles'
@@ -171,6 +171,7 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [], show
     if (show === 'plain' || show === 'daily') return     // follow-up C: a door asked for the Plain templates group
     const dialog = titleRef.current?.closest('[role="dialog"]')
     focusableWithin(dialog)[0]?.focus()
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `show` is read at the opening only
   }, [open])
   const [offerDone, setOfferDone] = useState(false)     // the offer was applied (also kept in offerApplied.js, which outlives this tab)
 
