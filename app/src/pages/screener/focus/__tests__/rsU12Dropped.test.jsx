@@ -2,10 +2,10 @@
 // popover gives each name the first rule of the screen it now fails, from ONE batched row read
 // (GET /api/screener/rows) made when the popover opens.
 //
-// ⭐ The reason is the name's `title` and a screen-reader line, not a second visible line: the
-// popover is a 260px wrap of ticker chips, and a sentence beside each chip would turn it into a
-// list of rows for every screen, including the ones that never have a reason.
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+// ⭐ The reason is VISIBLE text beside the name (a `title` is never seen on a phone). The popover
+// becomes a list of rows only when a name has a reason; with none (every other screen, no answer
+// yet, a failed read) it stays the wrap of ticker chips it always was.
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { vi, beforeEach, describe, expect, test } from 'vitest'
 vi.mock('../../../../components/StockChart', () => ({ default: p => <div data-testid="stockchart" data-sym={p.sym} /> }))
 vi.mock('../ScreenerChartWidget', () => ({ default: p => <div data-testid="stockchart" data-sym={p.sym} /> }))
@@ -135,12 +135,29 @@ describe('the popover', () => {
     expect(asker).toHaveBeenCalledTimes(1)
     expect(asker).toHaveBeenCalledWith(['A', 'B', 'C'])
     expect(chip('C')).toHaveAttribute('title', 'Why C')
-    // read out, too: the reason follows the ticker for a screen reader
-    expect(chip('A')).toHaveTextContent('A: Why A')
-    expect(within(chip('A')).getByText(': Why A')).toHaveClass('sr-only')
-    // a name with no reason is the chip it always was
+    // in plain sight, beside the ticker: nothing here depends on a hover
+    expect(screen.getByTestId('nt-reason-A')).toHaveTextContent('Why A')
+    expect(screen.getByTestId('nt-reason-A')).not.toHaveClass('sr-only')
+    expect(chip('A').textContent).toBe('AWhy A')
+    expect(screen.getByRole('list')).toHaveAttribute('data-layout', 'rows')
+    // a name with no reason is its ticker alone
     expect(chip('B')).not.toHaveAttribute('title')
     expect(chip('B').textContent).toBe('B')
+    expect(screen.queryByTestId('nt-reason-B')).toBeNull()
+  })
+  test('with no reason for anybody the popover is the wrap of chips it always was', async () => {
+    const asker = vi.fn(async () => ({}))
+    render(<NewTodayLine nt={ok(['A', 'B'])} newOnly={false} onToggleNewOnly={() => {}} reasonsFor={asker} />)
+    fireEvent.click(screen.getByRole('button', { name: '2 dropped' }))
+    await waitFor(() => expect(asker).toHaveBeenCalledTimes(1))
+    expect(screen.getByRole('list')).toHaveAttribute('data-layout', 'chips')
+    expect(screen.getByRole('list').className).not.toMatch(/ntPopRows/)
+    expect(chip('A').textContent).toBe('A')
+  })
+  test('a screen that never asks keeps the chips', () => {
+    render(<NewTodayLine nt={ok(['A', 'B'])} newOnly={false} onToggleNewOnly={() => {}} />)
+    fireEvent.click(screen.getByRole('button', { name: '2 dropped' }))
+    expect(screen.getByRole('list')).toHaveAttribute('data-layout', 'chips')
   })
   test('only the names shown are asked about', async () => {
     const asker = vi.fn(async () => ({}))

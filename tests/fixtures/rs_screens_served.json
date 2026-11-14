@@ -348,7 +348,7 @@
       {
         "id": "starter_rs_leaders",
         "name": "UCT RS Leaders",
-        "rule": "Stocks on the liquidity floor with an average daily range of 3% or more, a market value of $300M or more, RS Rating 80 or higher, the RS line above its 21-day average, a close above a rising 200-day average, and price within 25% of its 52-week high. A stock joins the list when it ranks in the top 50 of these by RS Rating score and a place is free, and stays until it falls past 65th or stops passing a rule, so a stock at the edge does not come and go from one day to the next. The list holds at most 50, strongest first, and is decided once a session. Stocks flagged Buyout pending are left out.",
+        "rule": "Stocks on the liquidity floor with an average daily range of 3% or more, a market value of $300M or more, RS Rating 80 or higher, the RS line above its 21-day average, a close above a rising 200-day average, and price within 25% of its 52-week high. A stock joins the list when it ranks in the top 50 of these by RS Rating score, and stays until it falls past 65th or stops passing a rule, so a stock at the edge does not come and go from one day to the next. The list therefore holds 50 to 65 stocks, strongest first, and is decided once a session. Stocks flagged Buyout pending are left out.",
         "controls": "Show: all, only stocks near a buy point, or everything except Extended and Below its 50-day line. Min RS Rating: 80, 85, 90, 95.",
         "caveat": "RS Rating 80 is a convention, not a tested threshold. The list says which stocks to study, and the Setup label says where each one sits against its own averages."
       },

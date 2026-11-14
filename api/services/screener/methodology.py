@@ -964,10 +964,10 @@ def _rs_leaders_list_words() -> str:
     `rs_screens`: one copy for the screen's rule and for the two column methods."""
     from api.services.screener import rs_screens as _sc            # noqa: PLC0415
     top, hold = _sc.LEADERS_TOP_N, _sc.LEADERS_HOLD_RANK
-    return (f"A stock joins the list when it ranks in the top {top} of these by RS Rating score "
-            f"and a place is free, and stays until it falls past {_ordinal(hold)} or stops passing "
+    return (f"A stock joins the list when it ranks in the top {top} of these by RS Rating score, "
+            f"and stays until it falls past {_ordinal(hold)} or stops passing "
             f"a rule, so a stock at the edge does not come and go from one day to the next. The "
-            f"list holds at most {top}, strongest first, and is decided once a session.")
+            f"list therefore holds {top} to {hold} stocks, strongest first, and is decided once a session.")
 
 
 def _rs_leaders_methods(note: str) -> list:

@@ -176,12 +176,28 @@ def test_the_group_is_the_theme_the_page_reads_else_the_industry(app, monkeypatc
     assert {t: svc._theme_of(t) for t in served["results"]} == served["results"]
 
 
-def test_the_ranked_screen_says_its_top_n_and_how_many_qualify(app):
+def test_the_kept_list_says_how_many_it_holds_and_how_it_is_kept(app):
+    """UCT RS Leaders keeps its own members (unit U12): the answer is the list the screen
+    shows (no rank receipt), and the note says the rule in the screen's own two numbers."""
     out = svc.list_screen("leaders", user=USER, limit=2)
     route = _route(app, _opening("starter_rs_leaders"))
-    assert (out["qualify"], out["top_n"]) == (route["rank"]["ranked"], rs_screens.LEADERS_TOP_N)
-    assert len(out["rows"]) == 2 and f"Showing 2 of {out['total']}" in out["note"]
-    assert "qualify" not in svc.list_screen("new_highs", user=USER)
+    assert route["rank"] is None and "qualify" not in out and "top_n" not in out
+    assert out["total"] == route["total"] > 2
+    assert len(out["rows"]) == 2 and f"Showing the first 2 of {out['total']}." in out["note"]
+    assert (f"A stock joins in the top {rs_screens.LEADERS_TOP_N} of those that pass the rules and stays "
+            f"until it falls past {rs_screens.LEADERS_HOLD_RANK}th.") in out["note"]
+    other = svc.list_screen("new_highs", user=USER)
+    assert "qualify" not in other and "A stock joins" not in other["note"]
+
+
+def test_a_ranked_screen_says_its_top_n_and_how_many_qualify(app, monkeypatch):
+    """None of the five ranks any more, and the service still answers a screen that does
+    (the Leaders rules, ranked and cut to 2, stand in for one)."""
+    _ranked_leaders(monkeypatch, top_n=2)
+    out = svc.list_screen("leaders", user=USER, limit=1)
+    assert (out["qualify"], out["top_n"]) == (len(_qualifiers(app)), 2)
+    assert len(out["rows"]) == 1 and "A stock joins" not in out["note"]
+    assert f"Showing the first 1 of the 2 listed; {out['qualify']} stocks pass the rules." in out["note"]
 
 
 def test_the_limit_is_bounded_and_keeps_the_head_of_the_list(app):
@@ -433,13 +449,42 @@ def test_a_stock_is_on_exactly_the_screens_whose_lists_hold_it(app):
     assert seen_on == sum(len(v) for v in lists.values())
 
 
+def _qualifiers(app) -> list:
+    """The stocks that pass UCT RS Leaders' rules (its filters without the membership
+    clause), strongest first: asked of the scan route, never of the service."""
+    spec = app["starters"]["starter_rs_leaders"]["spec"]
+    rules = [f for f in spec["filters"] if f["key"] != rs_screens.LEADERS_MEMBER_KEY]
+    rows = _route(app, {"filters": rules, "sort": spec["sort"], "columns": ["ticker"]}, page_size=500)["rows"]
+    return [r["ticker"] for r in rows]
+
+
+def _ranked_leaders(monkeypatch, top_n):
+    """Serve UCT RS Leaders as a RANKED screen cut to ``top_n`` (what it was before unit
+    U12): its rules without the membership clause, no kept list."""
+    from api.services.screener import saved_screens
+    real = saved_screens.starters
+
+    def ranked(user=None):
+        out = []
+        for s in real(user):
+            if s["id"] == "starter_rs_leaders":
+                spec = {k: v for k, v in s["spec"].items() if k != "sort"}
+                spec["filters"] = [f for f in spec["filters"] if f["key"] != rs_screens.LEADERS_MEMBER_KEY]
+                spec["rank"] = {"criteria": [{"key": rs_screens.LEADERS_ORDER_KEY, "weight": 1}], "top_n": top_n}
+                s = {**s, "spec": spec, "row": {k: v for k, v in s["row"].items() if k != "steady"}}
+            out.append(s)
+        return out
+
+    monkeypatch.setattr(saved_screens, "starters", ranked)
+
+
 def test_a_leader_is_placed_where_the_list_shows_it(app):
     leaders = _full_lists(app)["leaders"]
-    qualify = _route(app, _opening("starter_rs_leaders"))["rank"]["ranked"]
+    assert len(leaders) >= 3
     for i, ticker in enumerate(leaders):
         item = svc.check_ticker(ticker, user=USER)["screens"][0]
-        assert (item["screen"], item["on"], item["place"], item["of"]) == ("leaders", True, i + 1, qualify)
-        assert "misses" not in item
+        assert (item["screen"], item["on"], item["place"], item["of"]) == ("leaders", True, i + 1, len(leaders))
+        assert "misses" not in item and "why" not in item and "rank" not in item
     out = svc.check_ticker(" $rise5 ", user=USER)
     assert (out["ticker"], out["company"], out["rs_rank"], out["asof"]) == ("RISE5", "RISE5 Corp", 99, market.SESSION)
     assert out["on"] == ["UCT RS Leaders", "RS New Highs", "Top RS Rating"] and out["stale"] is False
@@ -450,7 +495,9 @@ def test_the_first_rule_a_stock_misses_for_rs_leaders_is_named(app):
     """For every stock not on UCT RS Leaders: the rule named is the FIRST of the
     starter's own clauses the independent oracle (written from the contract, in the
     e2e suite) says it misses, with the value the row holds."""
-    filters_ = app["starters"]["starter_rs_leaders"]["spec"]["filters"]
+    # the membership clause is the list's answer, never a rule a stock misses (unit U12)
+    filters_ = [f for f in app["starters"]["starter_rs_leaders"]["spec"]["filters"]
+                if f["key"] != rs_screens.LEADERS_MEMBER_KEY]
     leaders = _full_lists(app)["leaders"]
     missed_keys = set()
     for ticker, row in sorted(app["table"].items()):
@@ -459,6 +506,7 @@ def test_the_first_rule_a_stock_misses_for_rs_leaders_is_named(app):
         item = svc.check_ticker(ticker, user=USER)["screens"][0]
         first = next((f for f in filters_ if not e2e._passes(row, f)), None)
         assert first is not None, f"{ticker} passes every rule and is not listed"
+        assert item["misses"]["key"] != rs_screens.LEADERS_MEMBER_KEY
         assert item["on"] is False and item["misses"]["key"] == first["key"], (ticker, item)
         assert item["misses"]["label"] == rs_words.rule_label(first["key"])
         assert item["misses"]["text"].startswith(f"{item['misses']['label']}: "), item
@@ -561,21 +609,68 @@ def test_a_stock_whose_bars_stopped_is_on_no_screen_and_the_answer_says_so(app, 
     assert svc.STALE_NOTE in out["note"] and out["note"].endswith(svc.WATCHLIST_NOTE)
 
 
+def _off_the_list(ticker):
+    """Take one stock off the kept list in the table, as a pass that did not list it
+    leaves the row (member 0, no day count)."""
+    with snapshot_db._WRITE_LOCK, closing(snapshot_db.connect()) as conn:
+        conn.execute("UPDATE screener_rows SET rs_leaders_member = 0, rs_leaders_days = NULL WHERE ticker = ?",
+                     (ticker,))
+        conn.commit()
+
+
+def test_a_stock_that_passes_every_rule_and_is_not_on_the_kept_list_is_told_its_rank(app):
+    """UCT RS Leaders keeps its own members (unit U12). A stock that passes every rule and
+    is not a member is not on the list, misses NO rule, and hears its rank among the
+    stocks that pass, with the page's own sentence."""
+    qualifiers = _qualifiers(app)
+    leaders = _full_lists(app)["leaders"]
+    assert leaders == qualifiers, "in this small market every qualifier is listed"
+    name = leaders[2]
+    with closing(snapshot_db.connect()) as conn:
+        before = dict(conn.execute("SELECT rs_leaders_member, rs_leaders_days FROM screener_rows WHERE ticker = ?",
+                                   (name,)).fetchone())
+    try:
+        _off_the_list(name)
+        out = svc.check_ticker(name, user=USER)
+        item = out["screens"][0]
+        assert item["on"] is False and "misses" not in item and item["place"] is None
+        assert (item["rank"], item["of"]) == (3, len(qualifiers))
+        assert item["why"] == ("Passes every rule; ranked 3rd, the list holds the top 50 "
+                               "(a listed stock stays until it falls past 65th).")
+        assert "UCT RS Leaders" not in out["on"]
+        # the others close ranks on the list the screen shows
+        assert svc.check_ticker(leaders[3], user=USER)["screens"][0]["place"] == 3
+        assert svc.check_ticker(leaders[3], user=USER)["screens"][0]["of"] == len(leaders) - 1
+    finally:
+        with snapshot_db._WRITE_LOCK, closing(snapshot_db.connect()) as conn:
+            conn.execute("UPDATE screener_rows SET rs_leaders_member = ?, rs_leaders_days = ? WHERE ticker = ?",
+                         (before["rs_leaders_member"], before["rs_leaders_days"], name))
+            conn.commit()
+    assert svc.check_ticker(name, user=USER)["screens"][0]["on"] is True
+
+
+def test_the_kept_list_sentence_is_the_page_s():
+    """`whyNot.whyNotHeadline` in the page says the same words; the numbers are the starter's."""
+    steady = {"key": "k", "by": "b", "enter": 50, "hold": 65}
+    assert svc.steady_words(steady, 58) == (
+        "Passes every rule; ranked 58th, the list holds the top 50 (a listed stock stays until it falls past 65th).")
+    assert svc.steady_words(steady, None) == (
+        "Passes every rule and is not on the list today: the list holds the top 50 "
+        "(a listed stock stays until it falls past 65th).")
+    assert [svc._ordinal(n) for n in (1, 2, 3, 4, 11, 12, 13, 21, 22, 63, 101, 111, 1002)] == [
+        "1st", "2nd", "3rd", "4th", "11th", "12th", "13th", "21st", "22nd", "63rd", "101st", "111th", "1,002nd"]
+    page = (ROOT / "app" / "src" / "pages" / "screener" / "focus" / "whyNot.js").read_text(encoding="utf-8")
+    for words in ("Passes every rule; ranked ${ordinal(position)}, ${kept}.",
+                  "the list holds the top ${steady.enter.toLocaleString('en-US')} (a listed stock stays until it "
+                  "falls past ${ordinal(steady.hold)})"):
+        assert words in page, words
+
+
 def test_a_qualifier_outside_the_top_n_is_not_on_the_list_and_is_told_why(app, monkeypatch):
-    """UCT RS Leaders lists its top N. With N cut to 2 the third qualifier passes every
-    rule and is not on the list."""
-    from api.services.screener import saved_screens
-    real = saved_screens.starters
-
-    def top_two(user=None):
-        out = []
-        for s in real(user):
-            if s["id"] == "starter_rs_leaders":
-                s = {**s, "spec": {**s["spec"], "rank": {**s["spec"]["rank"], "top_n": 2}}}
-            out.append(s)
-        return out
-
-    monkeypatch.setattr(saved_screens, "starters", top_two)
+    """A RANKED screen lists its top N (none of the five does since unit U12; the Leaders
+    rules ranked and cut to 2 stand in for one). The third qualifier passes every rule
+    and is not on the list."""
+    _ranked_leaders(monkeypatch, top_n=2)
     listed = [r["ticker"] for r in svc.list_screen("leaders", user=USER)["rows"]]
     assert listed == ["RISE5", "RISE4"]
     third = svc.check_ticker("RUN1", user=USER)["screens"][0]

@@ -160,8 +160,10 @@ export function whyNotHeadline({ ticker, failed = 0, unknown = 0, onList = false
   if (stale) return `${ticker} passes the rules below, but its price data has stopped updating, so it is left out of every screen.`
   if (unknown > 0) return `${ticker} passes every rule that can be checked here.`
   if (steady && isNum(steady.enter) && isNum(steady.hold)) {
-    // A rank inside the top 50 is said too: the seats are held by listed stocks, and the words in
-    // brackets are why. A rank the server would not count is never invented.
+    // The rank is said, and the words in brackets are why a stock ranked just past the top 50 sees
+    // others below it on the list. (A rank inside the top 50 can only be read between two passes:
+    // the server lists every such stock at its next one.) A rank the server would not count is
+    // never invented.
     const kept = `the list holds the top ${steady.enter.toLocaleString('en-US')} (a listed stock stays until it falls past ${ordinal(steady.hold)})`
     return isNum(position) ? `Passes every rule; ranked ${ordinal(position)}, ${kept}.` : `${ticker} passes every rule and is not on the list today: ${kept}.`
   }

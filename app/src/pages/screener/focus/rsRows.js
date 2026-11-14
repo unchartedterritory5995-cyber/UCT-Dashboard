@@ -155,7 +155,7 @@ export function daysWords(row) {
 export const NEW_TAG = 'New'
 const TAGS = {
   // First on every list screen: a report inside the week changes what a setup means.
-  earnings: row => earningsWords(row),
+  earnings: (row, _isNew, now) => earningsWords(row, now),
   // The WEEKLY RS line closed its last finished week at a 52-week high (unit U12): the house
   // lesson is the weekly line, so it is said before the daily readings. Only a stored 1 says it;
   // a 0, a blank (under 53 finished weeks, or off the liquid floor) says nothing.
@@ -167,9 +167,11 @@ const TAGS = {
   flag: row => flagWords(row),
   new: (row, isNew) => (isNew ? NEW_TAG : ''),
 }
-export function tagOf(row, cfg, isNew = false) {
+// `now` (epoch ms): the instant the earnings tag counts from. Left out, it is this moment; the
+// cross-lane fixture names a day so the page and the server are compared on the same one.
+export function tagOf(row, cfg, isNew = false, now = undefined) {
   for (const t of cfg?.tags || []) {
-    const words = TAGS[t] ? TAGS[t](row, isNew) : ''
+    const words = TAGS[t] ? TAGS[t](row, isNew, now) : ''
     if (words) return words
   }
   return ''
@@ -220,8 +222,8 @@ export function rowColumns(cfg) {
 }
 
 // What one row shows, as primitives (the row component is memoised on them).
-export function rowDisplay(row, cfg, { index = 0, theme = null, isNew = false } = {}) {
-  return { place: placeOf(row, cfg, index), caption: captionOf(row, cfg, theme), tag: tagOf(row, cfg, isNew) }
+export function rowDisplay(row, cfg, { index = 0, theme = null, isNew = false, now = undefined } = {}) {
+  return { place: placeOf(row, cfg, index), caption: captionOf(row, cfg, theme), tag: tagOf(row, cfg, isNew, now) }
 }
 
 // The lead number on every RS screen: `RS <rs_rank>`, gold from 90 up.

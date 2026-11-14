@@ -264,10 +264,14 @@ describe('touch and the link', () => {
   // (tests/test_rs_screens_u13_alerts.py holds the same one): the page reads it back as that
   // screen's spec, which is what names it as the starter.
   test('the link the server puts in a message opens the screen at its standard settings', () => {
-    const link = 'eyJmIjp7InByaWNlIjp7Im9wIjoiZ3RlIiwibWluIjoxMH0sImRvbGxhcl92b2xfMzBkIjp7Im9wIjoiZ3RlIiwibWluIjoyMDAwMDAwMH0sImFkcl9wY3QiOnsib3AiOiJndGUiLCJtaW4iOjN9LCJtYXJrZXRfY2FwIjp7Im9wIjoiZ3RlIiwibWluIjozMDAwMDAwMDB9LCJyc19yYW5rIjp7Im9wIjoiZ3RlIiwibWluIjo4MH0sInBjdF92c19zbWEyMDAiOnsib3AiOiJndCIsIm1pbiI6MH0sInNtYTIwMF9yaXNpbmciOnsib3AiOiJlcSIsInZhbHVlIjoxfSwiZGlzdF81MndfaGlnaF9wY3QiOnsib3AiOiJndGUiLCJtaW4iOi0yNX0sInJzX2xpbmVfYWJvdmVfbWEiOnsib3AiOiJlcSIsInZhbHVlIjoxfSwicnNfZmxhZyI6eyJvcCI6Im5vdF9pbiIsInZhbHVlcyI6WyJidXlvdXRfcGVuZGluZyJdfSwic2VjdXJpdHlfdHlwZSI6eyJvcCI6Im5vdF9pbiIsInZhbHVlcyI6WyJFVEYiXX19LCJ2aWV3IjoicnNfbGVhZGVycyIsInJhbmsiOnsiY3JpdGVyaWEiOlt7ImtleSI6InJzX3JhdGluZ19zY29yZSIsIndlaWdodCI6MX1dLCJ0b3BfbiI6NTB9fQ'
+    const link = 'eyJmIjp7InByaWNlIjp7Im9wIjoiZ3RlIiwibWluIjoxMH0sImRvbGxhcl92b2xfMzBkIjp7Im9wIjoiZ3RlIiwibWluIjoyMDAwMDAwMH0sImFkcl9wY3QiOnsib3AiOiJndGUiLCJtaW4iOjN9LCJtYXJrZXRfY2FwIjp7Im9wIjoiZ3RlIiwibWluIjozMDAwMDAwMDB9LCJyc19yYW5rIjp7Im9wIjoiZ3RlIiwibWluIjo4MH0sInBjdF92c19zbWEyMDAiOnsib3AiOiJndCIsIm1pbiI6MH0sInNtYTIwMF9yaXNpbmciOnsib3AiOiJlcSIsInZhbHVlIjoxfSwiZGlzdF81MndfaGlnaF9wY3QiOnsib3AiOiJndGUiLCJtaW4iOi0yNX0sInJzX2xpbmVfYWJvdmVfbWEiOnsib3AiOiJlcSIsInZhbHVlIjoxfSwicnNfZmxhZyI6eyJvcCI6Im5vdF9pbiIsInZhbHVlcyI6WyJidXlvdXRfcGVuZGluZyJdfSwicnNfbGVhZGVyc19tZW1iZXIiOnsib3AiOiJlcSIsInZhbHVlIjoxfSwic2VjdXJpdHlfdHlwZSI6eyJvcCI6Im5vdF9pbiIsInZhbHVlcyI6WyJFVEYiXX19LCJzb3J0Ijp7ImtleSI6InJzX3JhdGluZ19zY29yZSIsImRpciI6ImRlc2MifSwidmlldyI6InJzX2xlYWRlcnMifQ'
     const got = decodeSpec(link)
     expect(Object.entries(got.filters).map(([key, rest]) => ({ key, ...rest }))).toEqual(LEADERS.spec.filters)
-    expect(got.rank).toEqual(LEADERS.spec.rank)
+    // unit U12: the list is kept by the server, so the screen is a plain sort and carries no rank
+    expect(LEADERS.spec.rank).toBeUndefined()
+    expect(got.rank).toBeNull()
+    expect(got.sort).toEqual(LEADERS.spec.sort)
+    expect(got.filters.rs_leaders_member).toEqual({ op: 'eq', value: 1 })
     expect(got.view).toBe(LEADERS.spec.view)
     expect(got.logic).toBeNull()
   })

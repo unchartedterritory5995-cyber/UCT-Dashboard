@@ -36,7 +36,7 @@ CLIENT_TEST = (ROOT / "app" / "src" / "pages" / "screener" / "focus" / "__tests_
 #: Every caption part and every tag at once, so one row is read by every rule.
 EVERYTHING = {"place": "rs_rating_pos",
               "caption": ["setup", "moving", "rs_high_age", "below_high", "exit_warning", "group"],
-              "tags": ["earnings", "before_price", "down_day", "flag", "new"]}
+              "tags": ["earnings", "weekly", "before_price", "down_day", "flag", "new"]}
 
 
 def _tags(*order):
@@ -47,8 +47,9 @@ def _hand_built() -> list:
     """``(name, row, cfg, index, theme, is_new)``: one branch each."""
     out = []
 
-    def add(name, row, cfg=EVERYTHING, index=0, theme=None, is_new=False):
-        out.append({"name": name, "row": row, "cfg": cfg, "index": index, "theme": theme, "is_new": is_new})
+    def add(name, row, cfg=EVERYTHING, index=0, theme=None, is_new=False, today=None):
+        out.append({"name": name, "row": row, "cfg": cfg, "index": index, "theme": theme, "is_new": is_new,
+                    "today": today})
 
     for code in (*rs_setup.SETUPS, "not_a_setup", None):
         for tight in (None, 0, 1, True):
@@ -79,6 +80,23 @@ def _hand_built() -> list:
     add("group: neither", {"industry": None})
     for days in (0, 1, 2, 5, 6, -1, None, 2.0, 2.5, "1", True):
         add(f"earnings in {days!r}", {"days_to_earnings": days})
+    # unit U12: the report's own DATE is counted from today in New York; the stored count
+    # (from the build's date) is read only when the row carries no date. 2026-11-14 is a
+    # Saturday: Monday's report is 2 days away while the stored count still says 3.
+    sat = "2026-11-14"
+    for day, stored in (("2026-11-14", 0), ("2026-11-15", 1), ("2026-11-16", 3), ("2026-11-19", 5),
+                        ("2026-11-20", 2), ("2026-11-13", 2), ("20261117", None), (20261117, None),
+                        ("2026-11-17T00:00:00", 9), ("not a date", 4), ("", 1), (None, 2),
+                        ("2026-13-01", 3)):
+        add(f"earnings on {day!r} read on a Saturday, stored count {stored!r}",
+            {"next_earnings_date": day, "days_to_earnings": stored}, today=sat)
+    add("earnings: an impossible day of a real month rolls over on both sides",
+        {"next_earnings_date": "2026-02-31", "days_to_earnings": None}, today="2026-02-28")
+    add("earnings: across the new year", {"next_earnings_date": "2027-01-02"}, today="2026-12-30")
+    for v in (1, 0, None, True, "1", 1.0):
+        add(f"weekly {v!r}", {"rs_nh_weekly": v})
+    add("tag: weekly follows earnings and leads before price",
+        {"rs_nh_weekly": 1, "rs_nhbp_age": 0, "px_below_high_pct": -6.0}, is_new=True)
     # the one tag: the first of the starter's list that applies
     busy = {"days_to_earnings": 3, "rs_nhbp_age": 0, "px_below_high_pct": -6.0, "rs_nh_bars_ago": 0,
             "rs_nh_red_bars_ago": 0, "rs_flag": "one_day_move"}
@@ -124,8 +142,13 @@ def _served() -> list:
 
 
 def _answer(case) -> dict:
+    from datetime import date
     row, cfg = case["row"], case["cfg"]
-    shown = rs_words.row_display(row, cfg, index=case["index"], theme=case["theme"], is_new=case["is_new"])
+    today = date.fromisoformat(case["today"]) if case.get("today") else None
+    # a case that reads a report DATE must name its day, or the file would change by itself
+    assert today is not None or row.get("next_earnings_date") is None, case["name"]
+    shown = rs_words.row_display(row, cfg, index=case["index"], theme=case["theme"], is_new=case["is_new"],
+                                 today=today)
     return {**shown, "setup": rs_words.setup_words(row), "group": rs_words.group_words(row, case["theme"])}
 
 
@@ -136,8 +159,10 @@ def _first_miss_keys() -> list:
     out = []
     for screen in svc.FIRST_MISS_SCREENS:
         starter = next(s for s in STARTERS if s["id"] == svc.starter_id(screen))
+        # a kept list's membership clause is its answer, never a rule the check names (unit U12)
+        kept = (svc._steady(starter) or {}).get("key")
         for f in starter["spec"]["filters"]:
-            if f["key"] not in out:
+            if f["key"] != kept and f["key"] not in out:
                 out.append(f["key"])
     return out
 
@@ -162,6 +187,8 @@ def words_document() -> dict:
         "cases": [{**c, "want": _answer(c)} for c in cases],
         "columns": columns,
         "ratings_as_of": [{"session": d, "want": rs_words.ratings_as_of(d)} for d in days],
+        "days_on_list": [{"days": n, "want": rs_words.days_words({"rs_leaders_days": n})}
+                         for n in (1, 2, 12, 1500, 0, -1, None, 2.5, "3", True)],
         "rule_labels": {k: rs_words.rule_label(k) for k in _first_miss_keys()},
     }
 
@@ -208,6 +235,20 @@ def test_the_contract_s_own_examples():
     assert rs_words.exit_warning_words({"rs_exit_last": "Quicksand", "rs_exit_bars_ago": 1}) == "Quicksand yesterday"
     assert [rs_words.earnings_words({"days_to_earnings": n}) for n in (0, 1, 4, 6)] == [
         "Earnings today", "Earnings tomorrow", "Earnings in 4 days", ""]
+    # unit U12: the report's date, counted from today in New York, beats the stored count
+    from datetime import date
+    sat = date(2026, 11, 14)
+    said = lambda day, stored=None: rs_words.earnings_words(                       # noqa: E731
+        {"next_earnings_date": day, "days_to_earnings": stored}, today=sat)
+    assert said("2026-11-16", 3) == "Earnings in 2 days"
+    assert said("2026-11-14", 4) == "Earnings today" and said("2026-11-15") == "Earnings tomorrow"
+    assert said("2026-11-13", 1) == "", "a date already past is never replaced by the stored count"
+    assert said("2026-11-20", 1) == "" and said("2026-11-19") == "Earnings in 5 days"
+    assert said(None, 2) == "Earnings in 2 days" and said("not a date", 2) == "Earnings in 2 days"
+    assert rs_words.weekly_words({"rs_nh_weekly": 1}) == "Weekly RS high"
+    assert [rs_words.weekly_words({"rs_nh_weekly": v}) for v in (0, None, True, "1")] == ["", "", "", ""]
+    assert rs_words.days_words({"rs_leaders_days": 12}) == "Day 12 on this list"
+    assert [rs_words.days_words({"rs_leaders_days": v}) for v in (0, None, 2.5, True)] == ["", "", "", ""]
     assert rs_words.ratings_as_of("2026-11-13") == "Ratings as of Nov 13"
     assert rs_words.flag_words({"rs_flag": "buyout_pending"}) == "Buyout pending"
 
@@ -261,6 +302,7 @@ def test_every_part_and_tag_the_five_screens_use_has_words_and_columns():
         cfg = rs_words.row_config(s)
         assert set(cfg["caption"]) <= set(rs_words._PARTS) == set(rs_words._PART_COLUMNS), s["id"]
         assert set(cfg["tags"]) <= set(rs_words._TAGS) == set(rs_words._TAG_COLUMNS), s["id"]
+        assert set(cfg["facts"]) <= set(rs_words._FACTS) == set(rs_words._FACT_COLUMNS), s["id"]
         from api.services.screener import snapshot_db
         assert set(rs_words.row_columns(cfg)) <= set(snapshot_db.COLUMNS), s["id"]
 

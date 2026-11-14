@@ -736,9 +736,9 @@ LEADERS_LINK = (
     "IjozMDAwMDAwMDB9LCJyc19yYW5rIjp7Im9wIjoiZ3RlIiwibWluIjo4MH0sInBjdF92c19zbWEyMDAiOnsib3AiOiJndCIsIm1p"
     "biI6MH0sInNtYTIwMF9yaXNpbmciOnsib3AiOiJlcSIsInZhbHVlIjoxfSwiZGlzdF81MndfaGlnaF9wY3QiOnsib3AiOiJndGUi"
     "LCJtaW4iOi0yNX0sInJzX2xpbmVfYWJvdmVfbWEiOnsib3AiOiJlcSIsInZhbHVlIjoxfSwicnNfZmxhZyI6eyJvcCI6Im5vdF9p"
-    "biIsInZhbHVlcyI6WyJidXlvdXRfcGVuZGluZyJdfSwic2VjdXJpdHlfdHlwZSI6eyJvcCI6Im5vdF9pbiIsInZhbHVlcyI6WyJF"
-    "VEYiXX19LCJ2aWV3IjoicnNfbGVhZGVycyIsInJhbmsiOnsiY3JpdGVyaWEiOlt7ImtleSI6InJzX3JhdGluZ19zY29yZSIsIndl"
-    "aWdodCI6MX1dLCJ0b3BfbiI6NTB9fQ")
+    "biIsInZhbHVlcyI6WyJidXlvdXRfcGVuZGluZyJdfSwicnNfbGVhZGVyc19tZW1iZXIiOnsib3AiOiJlcSIsInZhbHVlIjoxfSwi"
+    "c2VjdXJpdHlfdHlwZSI6eyJvcCI6Im5vdF9pbiIsInZhbHVlcyI6WyJFVEYiXX19LCJzb3J0Ijp7ImtleSI6InJzX3JhdGluZ19z"
+    "Y29yZSIsImRpciI6ImRlc2MifSwidmlldyI6InJzX2xlYWRlcnMifQ")
 
 
 def test_the_leaders_link_is_the_string_the_client_s_test_reads_back(armed):

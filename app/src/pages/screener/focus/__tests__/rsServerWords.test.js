@@ -15,15 +15,18 @@
 // and a hand-built table that walks each branch (every setup with and without a tight range,
 // each age, a half that rounds up, a JSON true where a 1 is read, a blank).
 import { describe, expect, test } from 'vitest'
-import { rowConfigOf, rowColumns, rowDisplay, setupWords, groupWords, ratingsAsOf } from '../rsRows'
+import { rowConfigOf, rowColumns, rowDisplay, setupWords, groupWords, ratingsAsOf, daysWords } from '../rsRows'
 import { plainColumnLabel } from '../plainWords'
 import { RS_STARTERS, SERVED, readServerFixture } from './rsScreensFixture'
 
 const WORDS = readServerFixture('rs_screens_words.json')
 
 // One row as the page says it, in the shape the server wrote its own answer.
+// `today` (unit U12): the New York day a case counts its earnings date from. Noon there, so the
+// page's own clock conversion lands on that day whatever the season.
+const nowOf = c => (c.today ? Date.parse(`${c.today}T17:00:00Z`) : undefined)
 const said = c => ({
-  ...rowDisplay(c.row, c.cfg, { index: c.index, theme: c.theme, isNew: c.is_new }),
+  ...rowDisplay(c.row, c.cfg, { index: c.index, theme: c.theme, isNew: c.is_new, now: nowOf(c) }),
   setup: setupWords(c.row),
   group: groupWords(c.row, c.theme),
 })
@@ -38,7 +41,17 @@ describe('the server words an RS row exactly as the page does', () => {
     // the table says something: most rows carry a caption, and every tag word appears
     expect(WORDS.cases.filter(c => c.want.caption).length).toBeGreaterThan(100)
     const tags = new Set(WORDS.cases.map(c => c.want.tag))
-    for (const t of ['Before price', 'Market down day', 'New', 'New issue', 'Earnings today', 'Earnings in 3 days']) expect(tags.has(t)).toBe(true)
+    for (const t of ['Before price', 'Market down day', 'New', 'New issue', 'Earnings today', 'Earnings in 3 days', 'Weekly RS high']) expect(tags.has(t)).toBe(true)
+    // a case that reads a report DATE names the day it is read on; without one it would change by itself
+    const dated = WORDS.cases.filter(c => c.row.next_earnings_date != null)
+    expect(dated.length).toBeGreaterThan(8)
+    for (const c of dated) expect(c.today).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+  })
+
+  test('"Day N on this list" reads the same count the same way', () => {
+    expect(WORDS.days_on_list.length).toBeGreaterThan(5)
+    expect(WORDS.days_on_list.some(d => d.want)).toBe(true)
+    for (const { days, want } of WORDS.days_on_list) expect(daysWords({ rs_leaders_days: days })).toBe(want)
   })
 
   test.each(WORDS.cases.map(c => [c.name, c]))('%s', (_name, c) => {

@@ -322,7 +322,7 @@ def leaders() -> dict:
 
     ⭐ A STEADIER LIST (unit U12). The spec no longer ranks and cuts at 50 on every
     scan. The rating pass decides who is on the list once a session
-    (`rs_leaders_list`: join at 50 or better, stay to 65, at most 50) and stores
+    (`rs_leaders_list`: join at 50 or better, stay to 65, so 50 to 65 names) and stores
     ``rs_leaders_member``; the screen is these filters plus that column equal to 1,
     sorted by the score. The pass reads its qualifying rules off THIS starter (every
     clause but the membership one), so the two cannot drift.

@@ -60,6 +60,8 @@ STALE_NOTE = ("Its price data has stopped updating, so it is left out of every s
               "until new bars arrive.")
 #: The screen whose first missed rule a check names ("is NVDA an RS leader?").
 FIRST_MISS_SCREENS = ("leaders",)
+#: Rows read to place a member on a list that keeps its own members (it holds 65 at most).
+STEADY_PAGE = 200
 
 
 # ── what a tool says about itself (one text for every surface that registers it) ──
@@ -430,6 +432,10 @@ def _list_note(starter, result) -> str:
                      if total > listed else f"Showing {shown} of {listed:,}.")
     elif isinstance(total, int) and total > shown:
         parts.append(f"Showing the first {shown} of {total:,}.")
+    steady = _steady(starter)
+    if shown and steady and _is_number(steady.get("enter")) and _is_number(steady.get("hold")):
+        parts.append(f"A stock joins in the top {int(steady['enter']):,} of those that pass the rules "
+                     f"and stays until it falls past {_ordinal(int(steady['hold']))}.")
     parts.append(WATCHLIST_NOTE)
     return " ".join(parts)
 
@@ -556,32 +562,22 @@ def _ordinal(n: int) -> str:
     return f"{n:,}" + ("th" if 11 <= k <= 13 else {1: "st", 2: "nd", 3: "rd"}.get(k % 10, "th"))
 
 
-def _count(filters_, user) -> Optional[int]:
-    """How many stocks pass these rules, asked of the scan itself."""
-    from api.services.screener import query                 # noqa: PLC0415 - lazy
-    out = query.run_scan({"filters": list(filters_), "columns": ["ticker"], "page": 1, "page_size": 1},
-                         user_id=user.get("id"), user=user)
-    total = out.get("total")
-    return total if isinstance(total, int) and not isinstance(total, bool) else None
-
-
-def _steady_place(starter, steady, row, user, *, member: bool):
+def _steady_place(starter, ticker, user, *, member: bool):
     """Where a stock that passes the rules of a KEPT list stands: ``(place, of)``.
 
-    A member: its place on the list as the screen shows it (the list is sorted by
-    ``steady.by``, highest first) and how many the list holds. A stock that is not a
-    member: its rank among every stock that passes the rules, and how many do. The
-    membership clause is the list's answer, never one of the rules, so it is counted
-    only on the member's side. ``(None, None)`` when the row holds no value to rank by."""
-    from api.services.screener import filters               # noqa: PLC0415 - lazy
-    by = steady["by"]
-    v = row.get(filters.column_for(by)) if by in filters.FILTERS else None
-    if not _is_number(v):
-        return None, None
-    rules = [f for f in starter["spec"].get("filters") or []
-             if f.get("key") != by and (member or f.get("key") != steady["key"])]
-    ahead = _count([*rules, {"key": by, "op": "gt", "min": v}], user)
-    return (ahead + 1 if ahead is not None else None), _count(rules, user)
+    A member: its place on the list and how many the list holds, asked of the scan with
+    the starter's own spec, so it is the numeral the screen prints. A stock that is not
+    a member: its rank among every stock that passes the rules and how many do, by the
+    rating pass's own ranking (``rs_leaders_list.standing``: the order the list was
+    decided on). No rule is typed here for either."""
+    from api.services.screener import query, rs_leaders_list     # noqa: PLC0415 - lazy
+    if not member:
+        return rs_leaders_list.standing(ticker)
+    out = query.run_scan({**starter["spec"], "columns": ["ticker"], "page": 1, "page_size": STEADY_PAGE},
+                         user_id=user.get("id"), user=user)
+    listed = [str(r.get("ticker") or "").upper() for r in out.get("rows") or []]
+    total = out.get("total")
+    return (listed.index(ticker) + 1 if ticker in listed else None), (total if isinstance(total, int) else None)
 
 
 def steady_words(steady, rank) -> str:
@@ -653,8 +649,10 @@ def _check(ticker, user) -> dict:
             # a rule one row cannot settle is never counted as passed
             item["on"] = None
         elif steady:
-            member = clause_passes({"key": steady["key"], "op": "eq", "value": 1}, row) is True
-            place, of = _steady_place(starter, steady, row, user, member=member)
+            # the starter's own membership clause, judged like any other
+            own = next((f for f in spec.get("filters") or [] if f.get("key") == steady["key"]), None)
+            member = own is not None and clause_passes(own, row) is True
+            place, of = _steady_place(starter, sym, user, member=member)
             item["on"] = member
             item["place"], item["of"] = (place if member else None), of
             if not member:

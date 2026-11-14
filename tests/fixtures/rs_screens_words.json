@@ -19,6 +19,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -28,6 +29,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "Below its 50-day line",
@@ -54,6 +56,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -63,6 +66,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "Below its 50-day line",
@@ -89,6 +93,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -98,6 +103,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "Below its 50-day line",
@@ -124,6 +130,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -133,6 +140,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "Below its 50-day line",
@@ -159,6 +167,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -168,6 +177,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "Extended",
@@ -194,6 +204,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -203,6 +214,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "Extended",
@@ -229,6 +241,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -238,6 +251,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "Extended",
@@ -264,6 +278,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -273,6 +288,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "Extended",
@@ -299,6 +315,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -308,6 +325,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "At pivot",
@@ -334,6 +352,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -343,6 +362,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "At pivot",
@@ -369,6 +389,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -378,6 +399,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "At pivot, tight range",
@@ -404,6 +426,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -413,6 +436,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "At pivot",
@@ -439,6 +463,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -448,6 +473,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "Pullback to the 8-day",
@@ -474,6 +500,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -483,6 +510,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "Pullback to the 8-day",
@@ -509,6 +537,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -518,6 +547,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "Pullback to the 8-day, tight range",
@@ -544,6 +574,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -553,6 +584,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "Pullback to the 8-day",
@@ -579,6 +611,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -588,6 +621,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "Pullback to the 21-day",
@@ -614,6 +648,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -623,6 +658,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "Pullback to the 21-day",
@@ -649,6 +685,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -658,6 +695,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "Pullback to the 21-day, tight range",
@@ -684,6 +722,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -693,6 +732,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "Pullback to the 21-day",
@@ -719,6 +759,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -728,6 +769,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "Uptrend, no setup",
@@ -754,6 +796,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -763,6 +806,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "Uptrend, no setup",
@@ -789,6 +833,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -798,6 +843,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "Tight range",
@@ -824,6 +870,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -833,6 +880,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "Uptrend, no setup",
@@ -859,6 +907,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -868,6 +917,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "",
@@ -894,6 +944,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -903,6 +954,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "",
@@ -929,6 +981,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -938,6 +991,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "",
@@ -964,6 +1018,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -973,6 +1028,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "",
@@ -999,6 +1055,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -1008,6 +1065,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "",
@@ -1034,6 +1092,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -1043,6 +1102,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "",
@@ -1069,6 +1129,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -1078,6 +1139,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "",
@@ -1104,6 +1166,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -1113,6 +1176,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "",
@@ -1138,6 +1202,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -1147,6 +1212,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "",
@@ -1172,6 +1238,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -1181,6 +1248,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "",
@@ -1206,6 +1274,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -1215,6 +1284,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "",
@@ -1240,6 +1310,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -1249,6 +1320,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "",
@@ -1274,6 +1346,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -1283,6 +1356,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "",
@@ -1308,6 +1382,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -1317,6 +1392,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "RS high today",
@@ -1342,6 +1418,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -1351,6 +1428,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "RS high yesterday",
@@ -1376,6 +1454,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -1385,6 +1464,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "RS high 2 sessions ago",
@@ -1410,6 +1490,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -1419,6 +1500,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "RS high 4 sessions ago",
@@ -1444,6 +1526,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -1453,6 +1536,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "RS high 1,500 sessions ago",
@@ -1478,6 +1562,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -1487,6 +1572,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "",
@@ -1512,6 +1598,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -1521,6 +1608,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "",
@@ -1546,6 +1634,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -1555,6 +1644,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "",
@@ -1580,6 +1670,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -1589,6 +1680,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "RS high 3 sessions ago",
@@ -1614,6 +1706,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -1623,6 +1716,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "",
@@ -1648,6 +1742,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -1657,6 +1752,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "At its high",
@@ -1682,6 +1778,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -1691,6 +1788,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "At its high",
@@ -1716,6 +1814,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -1725,6 +1824,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "At its high",
@@ -1750,6 +1850,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -1759,6 +1860,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "1% below its high",
@@ -1784,6 +1886,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -1793,6 +1896,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "1% below its high",
@@ -1818,6 +1922,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -1827,6 +1932,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "2% below its high",
@@ -1852,6 +1958,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -1861,6 +1968,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "3% below its high",
@@ -1886,6 +1994,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -1895,6 +2004,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "3% below its high",
@@ -1920,6 +2030,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -1929,6 +2040,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "5% below its high",
@@ -1954,6 +2066,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -1963,6 +2076,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "12% below its high",
@@ -1988,6 +2102,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -1997,6 +2112,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "25% below its high",
@@ -2022,6 +2138,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -2031,6 +2148,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "",
@@ -2056,6 +2174,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -2065,6 +2184,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "",
@@ -2092,6 +2212,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -2101,6 +2222,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": 14,
     "caption": "was #40 a month ago",
@@ -2127,6 +2249,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -2136,6 +2259,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": 14,
     "caption": "was #1,234 a month ago",
@@ -2163,6 +2287,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -2172,6 +2297,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": 14,
     "caption": "RS Rating up 6 this week",
@@ -2199,6 +2325,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -2208,6 +2335,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": 14,
     "caption": "RS Rating down 3 this week",
@@ -2235,6 +2363,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -2244,6 +2373,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": 14,
     "caption": "",
@@ -2271,6 +2401,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -2280,6 +2411,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "was #12 a month ago",
@@ -2308,6 +2440,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -2317,6 +2450,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": 3,
     "caption": "RS Rating up 6 this week",
@@ -2343,6 +2477,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -2352,6 +2487,7 @@
    "index": 6,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": 7,
     "caption": "was #40 a month ago",
@@ -2378,6 +2514,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -2387,6 +2524,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "Quick Break today",
@@ -2413,6 +2551,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -2422,6 +2561,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "Quick Break yesterday",
@@ -2448,6 +2588,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -2457,6 +2598,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "Quick Break 4 sessions ago",
@@ -2483,6 +2625,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -2492,6 +2635,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "",
@@ -2518,6 +2662,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -2527,6 +2672,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "Quicksand today",
@@ -2553,6 +2699,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -2562,6 +2709,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "Quicksand yesterday",
@@ -2588,6 +2736,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -2597,6 +2746,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "Quicksand 4 sessions ago",
@@ -2623,6 +2773,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -2632,6 +2783,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "",
@@ -2658,6 +2810,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -2667,6 +2820,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "Grateful Dead Break today",
@@ -2693,6 +2847,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -2702,6 +2857,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "Grateful Dead Break yesterday",
@@ -2728,6 +2884,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -2737,6 +2894,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "Grateful Dead Break 4 sessions ago",
@@ -2763,6 +2921,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -2772,6 +2931,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "",
@@ -2798,6 +2958,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -2807,6 +2968,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "",
@@ -2833,6 +2995,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -2842,6 +3005,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "",
@@ -2868,6 +3032,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -2877,6 +3042,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "",
@@ -2903,6 +3069,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -2912,6 +3079,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "",
@@ -2938,6 +3106,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -2947,6 +3116,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "",
@@ -2973,6 +3143,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -2982,6 +3153,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "",
@@ -3008,6 +3180,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -3017,6 +3190,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "",
@@ -3043,6 +3217,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -3052,6 +3227,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "",
@@ -3077,6 +3253,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -3086,6 +3263,7 @@
    "index": 0,
    "theme": "AI chips",
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "AI chips",
@@ -3111,6 +3289,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -3120,6 +3299,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "Semiconductors",
@@ -3145,6 +3325,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -3154,6 +3335,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "",
@@ -3179,6 +3361,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -3188,6 +3371,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "",
@@ -3213,6 +3397,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -3222,6 +3407,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "",
@@ -3247,6 +3433,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -3256,6 +3443,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "",
@@ -3281,6 +3469,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -3290,6 +3479,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "",
@@ -3315,6 +3505,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -3324,6 +3515,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "",
@@ -3349,6 +3541,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -3358,6 +3551,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "",
@@ -3383,6 +3577,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -3392,6 +3587,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "",
@@ -3417,6 +3613,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -3426,6 +3623,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "",
@@ -3451,6 +3649,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -3460,6 +3659,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "",
@@ -3485,6 +3685,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -3494,6 +3695,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "",
@@ -3519,6 +3721,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -3528,10 +3731,819 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "",
     "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "earnings on '2026-11-14' read on a Saturday, stored count 0",
+   "row": {
+    "next_earnings_date": "2026-11-14",
+    "days_to_earnings": 0
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": "2026-11-14",
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "Earnings today",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "earnings on '2026-11-15' read on a Saturday, stored count 1",
+   "row": {
+    "next_earnings_date": "2026-11-15",
+    "days_to_earnings": 1
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": "2026-11-14",
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "Earnings tomorrow",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "earnings on '2026-11-16' read on a Saturday, stored count 3",
+   "row": {
+    "next_earnings_date": "2026-11-16",
+    "days_to_earnings": 3
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": "2026-11-14",
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "Earnings in 2 days",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "earnings on '2026-11-19' read on a Saturday, stored count 5",
+   "row": {
+    "next_earnings_date": "2026-11-19",
+    "days_to_earnings": 5
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": "2026-11-14",
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "Earnings in 5 days",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "earnings on '2026-11-20' read on a Saturday, stored count 2",
+   "row": {
+    "next_earnings_date": "2026-11-20",
+    "days_to_earnings": 2
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": "2026-11-14",
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "earnings on '2026-11-13' read on a Saturday, stored count 2",
+   "row": {
+    "next_earnings_date": "2026-11-13",
+    "days_to_earnings": 2
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": "2026-11-14",
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "earnings on '20261117' read on a Saturday, stored count None",
+   "row": {
+    "next_earnings_date": "20261117",
+    "days_to_earnings": null
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": "2026-11-14",
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "Earnings in 3 days",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "earnings on 20261117 read on a Saturday, stored count None",
+   "row": {
+    "next_earnings_date": 20261117,
+    "days_to_earnings": null
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": "2026-11-14",
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "Earnings in 3 days",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "earnings on '2026-11-17T00:00:00' read on a Saturday, stored count 9",
+   "row": {
+    "next_earnings_date": "2026-11-17T00:00:00",
+    "days_to_earnings": 9
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": "2026-11-14",
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "Earnings in 3 days",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "earnings on 'not a date' read on a Saturday, stored count 4",
+   "row": {
+    "next_earnings_date": "not a date",
+    "days_to_earnings": 4
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": "2026-11-14",
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "Earnings in 4 days",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "earnings on '' read on a Saturday, stored count 1",
+   "row": {
+    "next_earnings_date": "",
+    "days_to_earnings": 1
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": "2026-11-14",
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "Earnings tomorrow",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "earnings on None read on a Saturday, stored count 2",
+   "row": {
+    "next_earnings_date": null,
+    "days_to_earnings": 2
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": "2026-11-14",
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "Earnings in 2 days",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "earnings on '2026-13-01' read on a Saturday, stored count 3",
+   "row": {
+    "next_earnings_date": "2026-13-01",
+    "days_to_earnings": 3
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": "2026-11-14",
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "Earnings in 3 days",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "earnings: an impossible day of a real month rolls over on both sides",
+   "row": {
+    "next_earnings_date": "2026-02-31",
+    "days_to_earnings": null
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": "2026-02-28",
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "Earnings in 3 days",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "earnings: across the new year",
+   "row": {
+    "next_earnings_date": "2027-01-02"
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": "2026-12-30",
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "Earnings in 3 days",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "weekly 1",
+   "row": {
+    "rs_nh_weekly": 1
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "Weekly RS high",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "weekly 0",
+   "row": {
+    "rs_nh_weekly": 0
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "weekly None",
+   "row": {
+    "rs_nh_weekly": null
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "weekly True",
+   "row": {
+    "rs_nh_weekly": true
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "weekly '1'",
+   "row": {
+    "rs_nh_weekly": "1"
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "weekly 1.0",
+   "row": {
+    "rs_nh_weekly": 1.0
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "Weekly RS high",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "tag: weekly follows earnings and leads before price",
+   "row": {
+    "rs_nh_weekly": 1,
+    "rs_nhbp_age": 0,
+    "px_below_high_pct": -6.0
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": true,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "6% below its high",
+    "tag": "Weekly RS high",
     "setup": "",
     "group": ""
    }
@@ -3558,6 +4570,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -3567,6 +4580,7 @@
    "index": 0,
    "theme": null,
    "is_new": true,
+   "today": null,
    "want": {
     "place": null,
     "caption": "RS high today · 6% below its high",
@@ -3597,6 +4611,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -3606,6 +4621,7 @@
    "index": 0,
    "theme": null,
    "is_new": true,
+   "today": null,
    "want": {
     "place": null,
     "caption": "RS high today · 6% below its high",
@@ -3636,6 +4652,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -3645,6 +4662,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "RS high today · 3% below its high",
@@ -3671,6 +4689,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -3680,6 +4699,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "3% below its high",
@@ -3710,6 +4730,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -3719,6 +4740,7 @@
    "index": 0,
    "theme": null,
    "is_new": true,
+   "today": null,
    "want": {
     "place": null,
     "caption": "RS high today · 6% below its high",
@@ -3745,6 +4767,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -3754,6 +4777,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "RS high yesterday",
@@ -3779,6 +4803,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -3788,6 +4813,7 @@
    "index": 0,
    "theme": null,
    "is_new": true,
+   "today": null,
    "want": {
     "place": null,
     "caption": "",
@@ -3813,6 +4839,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -3822,6 +4849,7 @@
    "index": 0,
    "theme": null,
    "is_new": true,
+   "today": null,
    "want": {
     "place": null,
     "caption": "",
@@ -3847,6 +4875,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -3856,6 +4885,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "",
@@ -3886,6 +4916,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "",
@@ -3915,6 +4946,7 @@
    "index": 0,
    "theme": null,
    "is_new": true,
+   "today": null,
    "want": {
     "place": null,
     "caption": "",
@@ -3940,6 +4972,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -3949,6 +4982,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": 7,
     "caption": "",
@@ -3974,6 +5008,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -3983,6 +5018,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "",
@@ -4006,6 +5042,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -4015,6 +5052,7 @@
    "index": 11,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": 12,
     "caption": "",
@@ -4040,6 +5078,7 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
@@ -4049,6 +5088,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "",
@@ -4075,6 +5115,7 @@
    "index": 0,
    "theme": null,
    "is_new": false,
+   "today": null,
    "want": {
     "place": null,
     "caption": "Extended · Banks",
@@ -4126,7 +5167,8 @@
      "earnings",
      "flag",
      "new"
-    ]
+    ],
+    "facts": []
    },
    "index": 0,
    "theme": null,
@@ -4182,7 +5224,8 @@
      "earnings",
      "flag",
      "new"
-    ]
+    ],
+    "facts": []
    },
    "index": 1,
    "theme": null,
@@ -4238,7 +5281,8 @@
      "earnings",
      "flag",
      "new"
-    ]
+    ],
+    "facts": []
    },
    "index": 2,
    "theme": null,
@@ -4294,7 +5338,8 @@
      "earnings",
      "flag",
      "new"
-    ]
+    ],
+    "facts": []
    },
    "index": 3,
    "theme": null,
@@ -4350,7 +5395,8 @@
      "earnings",
      "flag",
      "new"
-    ]
+    ],
+    "facts": []
    },
    "index": 4,
    "theme": null,
@@ -4406,7 +5452,8 @@
      "earnings",
      "flag",
      "new"
-    ]
+    ],
+    "facts": []
    },
    "index": 5,
    "theme": null,
@@ -4462,7 +5509,8 @@
      "earnings",
      "flag",
      "new"
-    ]
+    ],
+    "facts": []
    },
    "index": 6,
    "theme": null,
@@ -4518,7 +5566,8 @@
      "earnings",
      "flag",
      "new"
-    ]
+    ],
+    "facts": []
    },
    "index": 7,
    "theme": null,
@@ -4561,6 +5610,7 @@
     "rs_rating_pos": 1,
     "rs_rating_pos_n": 62,
     "days_to_earnings": null,
+    "rs_nh_weekly": 1,
     "rs_nhbp_age": null,
     "rs_nh_red_bars_ago": 1,
     "rs_rating_score": 1.817316,
@@ -4574,11 +5624,13 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
      "new"
-    ]
+    ],
+    "facts": []
    },
    "index": 0,
    "theme": null,
@@ -4586,7 +5638,7 @@
    "want": {
     "place": null,
     "caption": "RS high today · Retail",
-    "tag": "",
+    "tag": "Weekly RS high",
     "setup": "Pullback to the 8-day, tight range",
     "group": "Retail"
    }
@@ -4621,6 +5673,7 @@
     "rs_rating_pos": 2,
     "rs_rating_pos_n": 62,
     "days_to_earnings": null,
+    "rs_nh_weekly": 1,
     "rs_nhbp_age": null,
     "rs_nh_red_bars_ago": 1,
     "rs_rating_score": 1.552571,
@@ -4634,11 +5687,13 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
      "new"
-    ]
+    ],
+    "facts": []
    },
    "index": 1,
    "theme": null,
@@ -4646,7 +5701,7 @@
    "want": {
     "place": null,
     "caption": "RS high today · Banks",
-    "tag": "",
+    "tag": "Weekly RS high",
     "setup": "Pullback to the 8-day, tight range",
     "group": "Banks"
    }
@@ -4681,6 +5736,7 @@
     "rs_rating_pos": 3,
     "rs_rating_pos_n": 62,
     "days_to_earnings": null,
+    "rs_nh_weekly": 1,
     "rs_nhbp_age": null,
     "rs_nh_red_bars_ago": 1,
     "rs_rating_score": 1.550208,
@@ -4694,11 +5750,13 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
      "new"
-    ]
+    ],
+    "facts": []
    },
    "index": 2,
    "theme": null,
@@ -4706,7 +5764,7 @@
    "want": {
     "place": null,
     "caption": "RS high today · Drug makers",
-    "tag": "",
+    "tag": "Weekly RS high",
     "setup": "Extended",
     "group": "Drug makers"
    }
@@ -4741,6 +5799,7 @@
     "rs_rating_pos": 4,
     "rs_rating_pos_n": 62,
     "days_to_earnings": null,
+    "rs_nh_weekly": 1,
     "rs_nhbp_age": null,
     "rs_nh_red_bars_ago": 1,
     "rs_rating_score": 1.5204,
@@ -4754,11 +5813,13 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
      "new"
-    ]
+    ],
+    "facts": []
    },
    "index": 3,
    "theme": null,
@@ -4766,7 +5827,7 @@
    "want": {
     "place": null,
     "caption": "RS high today · Retail",
-    "tag": "",
+    "tag": "Weekly RS high",
     "setup": "Pullback to the 8-day, tight range",
     "group": "Retail"
    }
@@ -4801,6 +5862,7 @@
     "rs_rating_pos": 6,
     "rs_rating_pos_n": 62,
     "days_to_earnings": null,
+    "rs_nh_weekly": 1,
     "rs_nhbp_age": null,
     "rs_nh_red_bars_ago": 1,
     "rs_rating_score": 1.469931,
@@ -4814,11 +5876,13 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
      "new"
-    ]
+    ],
+    "facts": []
    },
    "index": 4,
    "theme": null,
@@ -4826,7 +5890,7 @@
    "want": {
     "place": null,
     "caption": "RS high today · Retail",
-    "tag": "",
+    "tag": "Weekly RS high",
     "setup": "Pullback to the 8-day, tight range",
     "group": "Retail"
    }
@@ -4861,6 +5925,7 @@
     "rs_rating_pos": 7,
     "rs_rating_pos_n": 62,
     "days_to_earnings": null,
+    "rs_nh_weekly": 1,
     "rs_nhbp_age": null,
     "rs_nh_red_bars_ago": 1,
     "rs_rating_score": 1.443241,
@@ -4874,11 +5939,13 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
      "new"
-    ]
+    ],
+    "facts": []
    },
    "index": 5,
    "theme": null,
@@ -4886,7 +5953,7 @@
    "want": {
     "place": null,
     "caption": "RS high today · Semiconductors",
-    "tag": "",
+    "tag": "Weekly RS high",
     "setup": "Extended",
     "group": "Semiconductors"
    }
@@ -4921,6 +5988,7 @@
     "rs_rating_pos": 11,
     "rs_rating_pos_n": 62,
     "days_to_earnings": null,
+    "rs_nh_weekly": 1,
     "rs_nhbp_age": null,
     "rs_nh_red_bars_ago": 1,
     "rs_rating_score": 1.401511,
@@ -4934,11 +6002,13 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
      "new"
-    ]
+    ],
+    "facts": []
    },
    "index": 6,
    "theme": null,
@@ -4946,7 +6016,7 @@
    "want": {
     "place": null,
     "caption": "RS high today · Retail",
-    "tag": "",
+    "tag": "Weekly RS high",
     "setup": "Tight range",
     "group": "Retail"
    }
@@ -4981,6 +6051,7 @@
     "rs_rating_pos": 12,
     "rs_rating_pos_n": 62,
     "days_to_earnings": null,
+    "rs_nh_weekly": 1,
     "rs_nhbp_age": 0,
     "rs_nh_red_bars_ago": null,
     "rs_rating_score": 1.392682,
@@ -4994,11 +6065,13 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "before_price",
      "down_day",
      "flag",
      "new"
-    ]
+    ],
+    "facts": []
    },
    "index": 7,
    "theme": null,
@@ -5006,7 +6079,7 @@
    "want": {
     "place": null,
     "caption": "RS high today · Oil and gas",
-    "tag": "Before price",
+    "tag": "Weekly RS high",
     "setup": "Below its 50-day line",
     "group": "Oil and gas"
    }
@@ -5042,6 +6115,7 @@
     "rs_rating_pos": 28,
     "rs_rating_pos_n": 62,
     "days_to_earnings": null,
+    "rs_nh_weekly": 1,
     "rs_nh_red_bars_ago": 1,
     "rs_rating_score": 1.235589,
     "base_bias": "neutral"
@@ -5054,10 +6128,12 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "down_day",
      "flag",
      "new"
-    ]
+    ],
+    "facts": []
    },
    "index": 0,
    "theme": null,
@@ -5065,7 +6141,7 @@
    "want": {
     "place": null,
     "caption": "3% below its high · Machinery",
-    "tag": "Market down day",
+    "tag": "Weekly RS high",
     "setup": "Tight range",
     "group": "Machinery"
    }
@@ -5101,6 +6177,7 @@
     "rs_rating_pos": 37,
     "rs_rating_pos_n": 62,
     "days_to_earnings": null,
+    "rs_nh_weekly": 1,
     "rs_nh_red_bars_ago": 1,
     "rs_rating_score": 1.170998,
     "base_bias": "bearish"
@@ -5113,10 +6190,12 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "down_day",
      "flag",
      "new"
-    ]
+    ],
+    "facts": []
    },
    "index": 1,
    "theme": null,
@@ -5124,7 +6203,7 @@
    "want": {
     "place": null,
     "caption": "3% below its high · Machinery",
-    "tag": "Market down day",
+    "tag": "Weekly RS high",
     "setup": "Below its 50-day line",
     "group": "Machinery"
    }
@@ -5160,6 +6239,7 @@
     "rs_rating_pos": 46,
     "rs_rating_pos_n": 62,
     "days_to_earnings": null,
+    "rs_nh_weekly": 1,
     "rs_nh_red_bars_ago": 1,
     "rs_rating_score": 1.098626,
     "base_bias": "neutral"
@@ -5172,10 +6252,12 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "down_day",
      "flag",
      "new"
-    ]
+    ],
+    "facts": []
    },
    "index": 2,
    "theme": null,
@@ -5183,7 +6265,7 @@
    "want": {
     "place": null,
     "caption": "4% below its high · Semiconductors",
-    "tag": "Market down day",
+    "tag": "Weekly RS high",
     "setup": "Below its 50-day line",
     "group": "Semiconductors"
    }
@@ -5219,6 +6301,7 @@
     "rs_rating_pos": 51,
     "rs_rating_pos_n": 62,
     "days_to_earnings": null,
+    "rs_nh_weekly": 1,
     "rs_nh_red_bars_ago": 1,
     "rs_rating_score": 1.061937,
     "base_bias": "bearish"
@@ -5231,10 +6314,12 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "down_day",
      "flag",
      "new"
-    ]
+    ],
+    "facts": []
    },
    "index": 3,
    "theme": null,
@@ -5242,7 +6327,7 @@
    "want": {
     "place": null,
     "caption": "4% below its high · Retail",
-    "tag": "Market down day",
+    "tag": "Weekly RS high",
     "setup": "Below its 50-day line",
     "group": "Retail"
    }
@@ -5278,6 +6363,7 @@
     "rs_rating_pos": 30,
     "rs_rating_pos_n": 62,
     "days_to_earnings": null,
+    "rs_nh_weekly": 1,
     "rs_nh_red_bars_ago": 1,
     "rs_rating_score": 1.226622,
     "base_bias": "bearish"
@@ -5290,10 +6376,12 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "down_day",
      "flag",
      "new"
-    ]
+    ],
+    "facts": []
    },
    "index": 4,
    "theme": null,
@@ -5301,7 +6389,7 @@
    "want": {
     "place": null,
     "caption": "4% below its high · Oil and gas",
-    "tag": "Market down day",
+    "tag": "Weekly RS high",
     "setup": "Below its 50-day line",
     "group": "Oil and gas"
    }
@@ -5337,6 +6425,7 @@
     "rs_rating_pos": 45,
     "rs_rating_pos_n": 62,
     "days_to_earnings": null,
+    "rs_nh_weekly": 1,
     "rs_nh_red_bars_ago": 1,
     "rs_rating_score": 1.106025,
     "base_bias": "neutral"
@@ -5349,10 +6438,12 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "down_day",
      "flag",
      "new"
-    ]
+    ],
+    "facts": []
    },
    "index": 5,
    "theme": null,
@@ -5360,7 +6451,7 @@
    "want": {
     "place": null,
     "caption": "5% below its high · Machinery",
-    "tag": "Market down day",
+    "tag": "Weekly RS high",
     "setup": "Below its 50-day line",
     "group": "Machinery"
    }
@@ -5396,6 +6487,7 @@
     "rs_rating_pos": 33,
     "rs_rating_pos_n": 62,
     "days_to_earnings": null,
+    "rs_nh_weekly": 1,
     "rs_nh_red_bars_ago": 1,
     "rs_rating_score": 1.198031,
     "base_bias": "bearish"
@@ -5408,10 +6500,12 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "down_day",
      "flag",
      "new"
-    ]
+    ],
+    "facts": []
    },
    "index": 6,
    "theme": null,
@@ -5419,7 +6513,7 @@
    "want": {
     "place": null,
     "caption": "5% below its high · Machinery",
-    "tag": "",
+    "tag": "Weekly RS high",
     "setup": "Below its 50-day line",
     "group": "Machinery"
    }
@@ -5455,6 +6549,7 @@
     "rs_rating_pos": 48,
     "rs_rating_pos_n": 62,
     "days_to_earnings": null,
+    "rs_nh_weekly": 1,
     "rs_nh_red_bars_ago": 1,
     "rs_rating_score": 1.07712,
     "base_bias": "bullish"
@@ -5467,10 +6562,12 @@
     ],
     "tags": [
      "earnings",
+     "weekly",
      "down_day",
      "flag",
      "new"
-    ]
+    ],
+    "facts": []
    },
    "index": 7,
    "theme": null,
@@ -5478,7 +6575,7 @@
    "want": {
     "place": null,
     "caption": "6% below its high · Retail",
-    "tag": "",
+    "tag": "Weekly RS high",
     "setup": "Below its 50-day line",
     "group": "Retail"
    }
@@ -5507,6 +6604,7 @@
     "dist_52w_high_pct": -1.96,
     "rs_line_above_ma": 1,
     "rs_flag": null,
+    "rs_leaders_member": 1,
     "security_type": "Stock",
     "rs_rating_session": "2026-02-27",
     "rs_setup": "pullback_8",
@@ -5516,8 +6614,8 @@
     "rs_rating_pos": 1,
     "rs_rating_pos_n": 62,
     "days_to_earnings": null,
-    "uct_composite": null,
-    "rank_score": 100.0,
+    "rs_leaders_days": 21,
+    "rs_rating_score": 1.817316,
     "base_bias": "bullish"
    },
    "cfg": {
@@ -5530,6 +6628,9 @@
      "earnings",
      "flag",
      "new"
+    ],
+    "facts": [
+     "days"
     ]
    },
    "index": 0,
@@ -5567,6 +6668,7 @@
     "dist_52w_high_pct": -1.96,
     "rs_line_above_ma": 1,
     "rs_flag": null,
+    "rs_leaders_member": 1,
     "security_type": "Stock",
     "rs_rating_session": "2026-02-27",
     "rs_setup": "pullback_8",
@@ -5576,8 +6678,8 @@
     "rs_rating_pos": 2,
     "rs_rating_pos_n": 62,
     "days_to_earnings": null,
-    "uct_composite": null,
-    "rank_score": 90.91,
+    "rs_leaders_days": 21,
+    "rs_rating_score": 1.552571,
     "base_bias": "bullish"
    },
    "cfg": {
@@ -5590,6 +6692,9 @@
      "earnings",
      "flag",
      "new"
+    ],
+    "facts": [
+     "days"
     ]
    },
    "index": 1,
@@ -5627,6 +6732,7 @@
     "dist_52w_high_pct": -1.96,
     "rs_line_above_ma": 1,
     "rs_flag": null,
+    "rs_leaders_member": 1,
     "security_type": "Stock",
     "rs_rating_session": "2026-02-27",
     "rs_setup": "extended",
@@ -5636,8 +6742,8 @@
     "rs_rating_pos": 3,
     "rs_rating_pos_n": 62,
     "days_to_earnings": null,
-    "uct_composite": null,
-    "rank_score": 81.82,
+    "rs_leaders_days": 5,
+    "rs_rating_score": 1.550208,
     "base_bias": "bullish"
    },
    "cfg": {
@@ -5650,6 +6756,9 @@
      "earnings",
      "flag",
      "new"
+    ],
+    "facts": [
+     "days"
     ]
    },
    "index": 2,
@@ -5687,6 +6796,7 @@
     "dist_52w_high_pct": -1.96,
     "rs_line_above_ma": 1,
     "rs_flag": null,
+    "rs_leaders_member": 1,
     "security_type": "Stock",
     "rs_rating_session": "2026-02-27",
     "rs_setup": "pullback_8",
@@ -5696,8 +6806,8 @@
     "rs_rating_pos": 4,
     "rs_rating_pos_n": 62,
     "days_to_earnings": null,
-    "uct_composite": null,
-    "rank_score": 72.73,
+    "rs_leaders_days": 21,
+    "rs_rating_score": 1.5204,
     "base_bias": "bullish"
    },
    "cfg": {
@@ -5710,6 +6820,9 @@
      "earnings",
      "flag",
      "new"
+    ],
+    "facts": [
+     "days"
     ]
    },
    "index": 3,
@@ -5747,6 +6860,7 @@
     "dist_52w_high_pct": -6.86,
     "rs_line_above_ma": 1,
     "rs_flag": null,
+    "rs_leaders_member": 1,
     "security_type": "Stock",
     "rs_rating_session": "2026-02-27",
     "rs_setup": "pullback_21",
@@ -5756,8 +6870,8 @@
     "rs_rating_pos": 5,
     "rs_rating_pos_n": 62,
     "days_to_earnings": null,
-    "uct_composite": null,
-    "rank_score": 63.64,
+    "rs_leaders_days": 21,
+    "rs_rating_score": 1.470482,
     "base_bias": "neutral"
    },
    "cfg": {
@@ -5770,6 +6884,9 @@
      "earnings",
      "flag",
      "new"
+    ],
+    "facts": [
+     "days"
     ]
    },
    "index": 4,
@@ -5807,6 +6924,7 @@
     "dist_52w_high_pct": -1.96,
     "rs_line_above_ma": 1,
     "rs_flag": null,
+    "rs_leaders_member": 1,
     "security_type": "Stock",
     "rs_rating_session": "2026-02-27",
     "rs_setup": "pullback_8",
@@ -5816,8 +6934,8 @@
     "rs_rating_pos": 6,
     "rs_rating_pos_n": 62,
     "days_to_earnings": null,
-    "uct_composite": null,
-    "rank_score": 54.55,
+    "rs_leaders_days": 10,
+    "rs_rating_score": 1.469931,
     "base_bias": "bullish"
    },
    "cfg": {
@@ -5830,6 +6948,9 @@
      "earnings",
      "flag",
      "new"
+    ],
+    "facts": [
+     "days"
     ]
    },
    "index": 5,
@@ -5867,6 +6988,7 @@
     "dist_52w_high_pct": -1.96,
     "rs_line_above_ma": 1,
     "rs_flag": null,
+    "rs_leaders_member": 1,
     "security_type": "Stock",
     "rs_rating_session": "2026-02-27",
     "rs_setup": "extended",
@@ -5876,8 +6998,8 @@
     "rs_rating_pos": 7,
     "rs_rating_pos_n": 62,
     "days_to_earnings": null,
-    "uct_composite": null,
-    "rank_score": 45.45,
+    "rs_leaders_days": 3,
+    "rs_rating_score": 1.443241,
     "base_bias": "bullish"
    },
    "cfg": {
@@ -5890,6 +7012,9 @@
      "earnings",
      "flag",
      "new"
+    ],
+    "facts": [
+     "days"
     ]
    },
    "index": 6,
@@ -5927,6 +7052,7 @@
     "dist_52w_high_pct": -1.96,
     "rs_line_above_ma": 1,
     "rs_flag": null,
+    "rs_leaders_member": 1,
     "security_type": "Stock",
     "rs_rating_session": "2026-02-27",
     "rs_setup": "pullback_8",
@@ -5936,8 +7062,8 @@
     "rs_rating_pos": 8,
     "rs_rating_pos_n": 62,
     "days_to_earnings": null,
-    "uct_composite": null,
-    "rank_score": 36.36,
+    "rs_leaders_days": 18,
+    "rs_rating_score": 1.437978,
     "base_bias": "bullish"
    },
    "cfg": {
@@ -5950,6 +7076,9 @@
      "earnings",
      "flag",
      "new"
+    ],
+    "facts": [
+     "days"
     ]
    },
    "index": 7,
@@ -6002,7 +7131,8 @@
     ],
     "tags": [
      "new"
-    ]
+    ],
+    "facts": []
    },
    "index": 0,
    "theme": null,
@@ -6054,7 +7184,8 @@
     ],
     "tags": [
      "new"
-    ]
+    ],
+    "facts": []
    },
    "index": 1,
    "theme": null,
@@ -6106,7 +7237,8 @@
     ],
     "tags": [
      "new"
-    ]
+    ],
+    "facts": []
    },
    "index": 2,
    "theme": null,
@@ -6158,7 +7290,8 @@
     ],
     "tags": [
      "new"
-    ]
+    ],
+    "facts": []
    },
    "index": 3,
    "theme": null,
@@ -6215,7 +7348,8 @@
      "earnings",
      "flag",
      "new"
-    ]
+    ],
+    "facts": []
    },
    "index": 0,
    "theme": null,
@@ -6272,7 +7406,8 @@
      "earnings",
      "flag",
      "new"
-    ]
+    ],
+    "facts": []
    },
    "index": 1,
    "theme": null,
@@ -6329,7 +7464,8 @@
      "earnings",
      "flag",
      "new"
-    ]
+    ],
+    "facts": []
    },
    "index": 2,
    "theme": null,
@@ -6386,7 +7522,8 @@
      "earnings",
      "flag",
      "new"
-    ]
+    ],
+    "facts": []
    },
    "index": 3,
    "theme": null,
@@ -6443,7 +7580,8 @@
      "earnings",
      "flag",
      "new"
-    ]
+    ],
+    "facts": []
    },
    "index": 4,
    "theme": null,
@@ -6500,7 +7638,8 @@
      "earnings",
      "flag",
      "new"
-    ]
+    ],
+    "facts": []
    },
    "index": 5,
    "theme": null,
@@ -6557,7 +7696,8 @@
      "earnings",
      "flag",
      "new"
-    ]
+    ],
+    "facts": []
    },
    "index": 6,
    "theme": null,
@@ -6614,7 +7754,8 @@
      "earnings",
      "flag",
      "new"
-    ]
+    ],
+    "facts": []
    },
    "index": 7,
    "theme": null,
@@ -6671,7 +7812,8 @@
      "earnings",
      "flag",
      "new"
-    ]
+    ],
+    "facts": []
    },
    "index": 8,
    "theme": null,
@@ -6701,6 +7843,7 @@
     "rs_rating_pos_prev20",
     "rs_rating_chg_5",
     "days_to_earnings",
+    "next_earnings_date",
     "rs_flag"
    ]
   },
@@ -6720,6 +7863,7 @@
     "rs_rating_pos_prev20",
     "rs_rating_chg_5",
     "days_to_earnings",
+    "next_earnings_date",
     "rs_flag"
    ]
   },
@@ -6739,6 +7883,7 @@
     "rs_rating_pos_prev20",
     "rs_rating_chg_5",
     "days_to_earnings",
+    "next_earnings_date",
     "rs_flag"
    ]
   },
@@ -6758,6 +7903,7 @@
     "rs_rating_pos_prev20",
     "rs_rating_chg_5",
     "days_to_earnings",
+    "next_earnings_date",
     "rs_flag"
    ]
   },
@@ -6777,6 +7923,7 @@
     "rs_rating_pos_prev20",
     "rs_rating_chg_5",
     "days_to_earnings",
+    "next_earnings_date",
     "rs_flag"
    ]
   },
@@ -6794,6 +7941,8 @@
     "rs_rating_pos_n",
     "industry",
     "days_to_earnings",
+    "next_earnings_date",
+    "rs_nh_weekly",
     "rs_nhbp_age",
     "rs_nh_red_bars_ago",
     "rs_flag"
@@ -6813,6 +7962,8 @@
     "rs_rating_pos_n",
     "industry",
     "days_to_earnings",
+    "next_earnings_date",
+    "rs_nh_weekly",
     "rs_nh_red_bars_ago",
     "rs_flag"
    ]
@@ -6831,7 +7982,9 @@
     "rs_rating_pos_n",
     "industry",
     "days_to_earnings",
-    "rs_flag"
+    "next_earnings_date",
+    "rs_flag",
+    "rs_leaders_days"
    ]
   },
   {
@@ -6879,6 +8032,48 @@
   },
   {
    "session": "",
+   "want": ""
+  }
+ ],
+ "days_on_list": [
+  {
+   "days": 1,
+   "want": "Day 1 on this list"
+  },
+  {
+   "days": 2,
+   "want": "Day 2 on this list"
+  },
+  {
+   "days": 12,
+   "want": "Day 12 on this list"
+  },
+  {
+   "days": 1500,
+   "want": "Day 1,500 on this list"
+  },
+  {
+   "days": 0,
+   "want": ""
+  },
+  {
+   "days": -1,
+   "want": ""
+  },
+  {
+   "days": null,
+   "want": ""
+  },
+  {
+   "days": 2.5,
+   "want": ""
+  },
+  {
+   "days": "3",
+   "want": ""
+  },
+  {
+   "days": true,
    "want": ""
   }
  ],

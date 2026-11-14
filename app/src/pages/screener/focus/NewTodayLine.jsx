@@ -10,18 +10,19 @@ export const MAX_NAMED = 12
 // `reasonsFor` (RS screens, unit U12): `async names => ({ TICKER: reason })`. When given, the
 // popover asks it ONCE for the names it shows, the first time it opens on them, and each name
 // that has a reason carries it.
-// ⭐ AS THE NAME'S `title` (AND A SCREEN-READER LINE), NOT A SECOND VISIBLE LINE. The popover is
-// a 260px wrap of ticker chips; a sentence beside each chip ("RS Rating at least 80: 74") would
-// turn it into a list of rows and move the layout for every screen that never has a reason. So
-// the chip keeps its place, shows the reason on hover or long-press, says it to a screen reader,
-// and is underlined with dots so a member can tell there is one. No answer, or a failed read,
-// leaves the chips exactly as they were.
+// ⭐ THE REASON IS VISIBLE TEXT, AND ONLY WHERE THERE IS ONE. A reason kept in a `title` is
+// never seen on a phone (no hover there), which is where half the members read this. So when at
+// least one name has a reason the popover becomes a short list, one name a line with its reason
+// beside it (`ntPopRows`); the `title` stays for a reason too long for its line. A screen that
+// never has a reason (every screen but the RS ones), no answer yet, or a failed read, keeps the
+// wrap of ticker chips exactly as it was.
 export default function NewTodayLine({ nt, newOnly, onToggleNewOnly, reasonsFor = null }) {
   const [open, setOpen] = useState(false)
   // The reasons last asked for, filed under the names they were asked about.
   const [reasons, setReasons] = useState({ key: '', map: {} })
+  // The newest asker, kept for the effect below (set in an effect, never during render).
   const ask = useRef(reasonsFor)
-  ask.current = reasonsFor
+  useEffect(() => { ask.current = reasonsFor })
   const named = nt?.state === 'ok' ? (nt.exited || []).slice(0, MAX_NAMED) : []
   const namedKey = named.join(',')
   const canAsk = typeof reasonsFor === 'function'
@@ -34,6 +35,7 @@ export default function NewTodayLine({ nt, newOnly, onToggleNewOnly, reasonsFor 
     return () => { live = false }
   }, [open, canAsk, namedKey])
   const reasonOf = t => (reasons.key === namedKey && typeof reasons.map[t] === 'string' ? reasons.map[t] : '')
+  const anyWhy = named.some(t => reasonOf(t))
   if (!nt) return null
   if (nt.state === 'live_screen') {
     return <span className={styles.ntNote}>New markers follow the overnight build; this screen is live</span>
@@ -50,11 +52,11 @@ export default function NewTodayLine({ nt, newOnly, onToggleNewOnly, reasonsFor 
         {exited.length} dropped
       </button>
       {open && (
-        <span className={styles.ntPop} role="list">
+        <span className={anyWhy ? `${styles.ntPop} ${styles.ntPopRows}` : styles.ntPop} role="list" data-layout={anyWhy ? 'rows' : 'chips'}>
           {exited.slice(0, MAX_NAMED).map(t => {
             const why = reasonOf(t)
             return why
-              ? <span key={t} role="listitem" title={why} className={styles.ntWhy} data-testid={`nt-dropped-${t}`}>{t}<span className="sr-only">: {why}</span></span>
+              ? <span key={t} role="listitem" title={why} className={styles.ntWhy} data-testid={`nt-dropped-${t}`}><span className={styles.ntTicker}>{t}</span><span className={styles.ntReason} data-testid={`nt-reason-${t}`}>{why}</span></span>
               : <span key={t} role="listitem" data-testid={`nt-dropped-${t}`}>{t}</span>
           })}
           {exited.length > MAX_NAMED && <span role="listitem">+{exited.length - MAX_NAMED} more</span>}

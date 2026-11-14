@@ -11,16 +11,24 @@ THE RULE (:func:`members`)
 --------------------------
 * A stock already on the list STAYS while it still qualifies and ranks
   ``LEADERS_HOLD_RANK`` (65) or better among the qualifiers.
-* A stock not on the list ENTERS at ``LEADERS_TOP_N`` (50) or better.
-* The list holds at most ``LEADERS_TOP_N`` names. A listed stock keeps its seat, so
-  a newcomer takes a seat only when one is free, the best-ranked newcomer first.
+* A stock not on the list ENTERS at ``LEADERS_TOP_N`` (50) or better. ALWAYS: no
+  stock ranked in the top 50 of the qualifiers is ever kept off the list.
+* So the list holds 50 to ``LEADERS_HOLD_RANK`` names: the top 50, plus the listed
+  stocks that have slipped to 51st..65th and are still holding their place.
 * A stock that stops qualifying leaves at once, whatever its rank was.
 * With no earlier record (the first session) the list is the plain top 50.
 
-⚠️ WHY A LISTED STOCK KEEPS ITS SEAT WHEN THE LIST IS FULL. Cutting a full list to
-"the 50 best-ranked of everyone entitled" would undo the rule: ranks 1 to 50 are
-always entitled, so the 50 best-ranked are always exactly ranks 1 to 50 and the hold
-band would never keep anyone. Seats held by rank 51 to 65 are the whole point.
+⚠️ WHY THE LIST IS NOT CUT TO 50 (coordinator ruling at integration, 2026-11-14).
+Two cuts were possible and both are wrong for a list called "Leaders":
+* "the 50 best-ranked of everyone entitled" undoes the rule: ranks 1 to 50 are
+  always entitled, so that cut is always exactly ranks 1 to 50 and the hold band
+  never keeps anyone;
+* "a listed stock keeps its seat and a newcomer waits for a free one" (how this unit
+  was first built) keeps the list at 50 but leaves a stock ranked 44th OFF it for as
+  long as fifty incumbents hold, which is the one thing the list must never do.
+So nothing is cut: ``_run`` passes ``cap=LEADERS_HOLD_RANK``, which the two bands can
+never exceed (every member ranks 65th or better). :func:`members` keeps its ``cap``
+argument, and the tests for it, so a smaller cap stays a deliberate choice.
 
 THE QUALIFIERS ARE THE STARTER'S OWN FILTERS, EVALUATED BY THE SCAN
 (:func:`qualifier_filters`, :func:`ranked_qualifiers`). The gate is read off
@@ -137,6 +145,18 @@ def ranked_qualifiers(conn) -> list:
     return [t for t, _score in scored]
 
 
+def standing(ticker) -> tuple:
+    """``(rank, qualifiers)``: where ``ticker`` ranks right now among the stocks that
+    pass the screen's rules, and how many pass, by the pass's OWN ranking
+    (:func:`ranked_qualifiers`), so "ranked 58th" is the number the list was decided
+    on. ``(None, qualifiers)`` when the stock is not among them. Read-only; it is what
+    the assistant says to "why isn't X on UCT RS Leaders?" (``rs_screens_service``)."""
+    with closing(snapshot_db.connect()) as conn:
+        ranked = ranked_qualifiers(conn)
+    sym = str(ticker or "").strip().upper()
+    return (ranked.index(sym) + 1 if sym in ranked else None), len(ranked)
+
+
 # --------------------------------------------------------------------------- #
 # storage
 # --------------------------------------------------------------------------- #
@@ -220,7 +240,7 @@ def _run(session: str, record: bool) -> dict:
         prior_session, history = _earlier(conn, session)
     prior = history[0] if history else set()
     listed = members(ranked, prior, enter=rs_screens.LEADERS_TOP_N,
-                     hold=rs_screens.LEADERS_HOLD_RANK, cap=rs_screens.LEADERS_TOP_N)
+                     hold=rs_screens.LEADERS_HOLD_RANK, cap=rs_screens.LEADERS_HOLD_RANK)
     days = days_on_list([t for t, _rank in listed], history)
     with snapshot_db._WRITE_LOCK, closing(snapshot_db.connect()) as conn:
         conn.execute(f"UPDATE screener_rows SET {MEMBER_KEY} = 0, {DAYS_KEY} = NULL")

@@ -19,12 +19,17 @@ export function RsHeaderLine({ newLine = null, showNewLine = false, asOf = '', s
   if (!parts.length) return null
   return (
     <div className={`${styles.head} ${pending ? styles.headPending : ''}`} data-testid="rs-head" data-pending={pending ? '' : undefined}>
-      {parts.map(([k, node], i) => (
-        <span key={k} className={styles.headPart}>
-          {i > 0 && <span aria-hidden="true" className={styles.headSep}>·</span>}
-          {node}
-        </span>
-      ))}
+      {/* The dot BEFORE a part hangs in the gap to its left (RsScreens.module.css `.headSep`), and
+          the inner box clips sideways: a part that wraps to a new line (a phone) starts clean,
+          with no stray dot in front of it. */}
+      <div className={styles.headIn}>
+        {parts.map(([k, node], i) => (
+          <span key={k} className={styles.headPart}>
+            {i > 0 && <span aria-hidden="true" className={styles.headSep}>·</span>}
+            {node}
+          </span>
+        ))}
+      </div>
     </div>
   )
 }

@@ -5,8 +5,8 @@ today and 52nd tomorrow left it and came back the day after. The rule now
 (``rs_leaders_list.members``):
 
   * a stock already on the list stays while it qualifies and ranks 65 or better;
-  * a stock not on it enters at 50 or better, when a seat is free;
-  * at most 50 names; a listed stock keeps its seat;
+  * a stock not on it enters at 50 or better, always (no top-50 stock is ever left off);
+  * so the list holds 50 to 65 names;
   * a stock that stops qualifying leaves at once;
   * the first session (no earlier record) is the plain top 50.
 
@@ -16,7 +16,8 @@ list), plus the session's record in ``rs_leaders_members``. The qualifiers are t
 starter's own filters, evaluated by the scan's own WHERE.
 
 Why each rail exists:
-  * the hold band must really hold (a cap applied to "the 50 best-ranked" silently undoes it);
+  * the hold band must really hold (a cap applied to "the 50 best-ranked" silently undoes it),
+    and a top-50 stock must never wait (a cap of 50 with held seats leaves a 44th-ranked stock off);
   * the gate is the screen's, so a rule added to the screen must reach the list untyped;
   * "already on the list" is yesterday's record, so two passes in one day agree;
   * a pass that cannot compute the list blanks it: yesterday's members never stand beside
@@ -37,7 +38,7 @@ from api.services.screener import rs_post_pass as pp
 from api.services.screener import rs_screens, saved_screens, snapshot_db
 
 S1, S2, S3 = "2026-11-10", "2026-11-11", "2026-11-12"
-RULE = dict(enter=50, hold=65, cap=50)
+RULE = dict(enter=50, hold=65, cap=65)
 
 
 # ───────────────────────── the rule, as a pure function ─────────────────────────
@@ -57,18 +58,18 @@ def _x(lo, hi):
 #: Session 1 is the first: no record, the plain top 50.
 #: Session 2: GONE stops qualifying and FADE falls to 66, so two seats are free; NEW1 (49th)
 #:   and EDGE (exactly 50th) take them, LATE (51st) does not.
-#: Session 3: A48 slips to 60th and EDGE to exactly 65th and both HOLD their seats, so the
-#:   list is full: LATE (49th) and GONE (qualifying again, 50th) rank inside the top 50 and
-#:   still wait for a seat.
+#: Session 3: A48 slips to 60th and EDGE to exactly 65th and both HOLD their places; LATE
+#:   (49th) and GONE (qualifying again, 50th) rank inside the top 50 and JOIN at once, so the
+#:   list holds 52.
 SESSIONS = [
     (_a(1, 48) + ["FADE", "GONE", "NEW1", "EDGE", "LATE"] + _x(54, 70),
      _a(1, 48) + ["FADE", "GONE"]),
     (_a(1, 48) + ["NEW1", "EDGE", "LATE"] + _x(52, 65) + ["FADE"] + _x(67, 70),
      _a(1, 48) + ["NEW1", "EDGE"]),
     (_a(1, 47) + ["NEW1", "LATE", "GONE"] + _x(51, 59) + ["A48"] + _x(61, 64) + ["EDGE", "FADE"],
-     _a(1, 47) + ["NEW1", "A48", "EDGE"]),
+     _a(1, 47) + ["NEW1", "LATE", "GONE", "A48", "EDGE"]),
 ]
-RANKS_3 = {"NEW1": 48, "A48": 60, "EDGE": 65}
+RANKS_3 = {"NEW1": 48, "LATE": 49, "GONE": 50, "A48": 60, "EDGE": 65}
 
 
 def test_the_table_is_what_its_comments_say():
@@ -88,7 +89,7 @@ def test_the_rule_over_three_sessions():
         got = ll.members(ranked, prior, **RULE)
         assert [t for t, _rank in got] == want, f"session {n}"
         assert [rank for _t, rank in got] == [ranked.index(t) + 1 for t in want], f"session {n}: ranks"
-        assert len(got) <= 50
+        assert 50 <= len(got) <= 65
         prior = {t for t, _rank in got}
     assert dict(got)["A48"] == 60 and dict(got)["EDGE"] == 65
 
@@ -100,7 +101,7 @@ def test_the_rule_over_three_sessions():
      [f"T{i:02d}" for i in range(1, 51)]),
     ("fewer than 50 qualify: all of them", ["A", "B", "C"], None, ["A", "B", "C"]),
     ("a listed stock at 65 stays, at 66 leaves",
-     _x(1, 64) + ["KEEP", "DROP"], {"KEEP", "DROP"}, _x(1, 49) + ["KEEP"]),
+     _x(1, 64) + ["KEEP", "DROP"], {"KEEP", "DROP"}, _x(1, 50) + ["KEEP"]),
     ("a stock that stops qualifying leaves at once", ["A", "B"], {"A", "B", "GONE"}, ["A", "B"]),
     ("nobody qualifies", [], {"A"}, []),
 ])
@@ -108,18 +109,42 @@ def test_the_rule_case_by_case(case, ranked, prior, want):
     assert [t for t, _r in ll.members(ranked, prior, **RULE)] == want, case
 
 
-def test_a_listed_stock_keeps_its_seat_and_a_newcomer_waits():
-    """THE reason for the unit. Fifty listed stocks, one of them now 52nd. Cut to "the 50
-    best-ranked" it would be gone (ranks 1 to 50 always fill the list). It holds, and the
-    newcomer at 50th waits for a seat."""
+def test_a_listed_stock_holds_its_place_and_a_top_50_newcomer_never_waits():
+    """THE reason for the unit, both halves. Fifty listed stocks, one of them now 52nd. Cut
+    to "the 50 best-ranked" it would be gone (ranks 1 to 50 always fill the list): it holds.
+    And the newcomer at 50th joins the same day: a list capped at 50 with held seats would
+    keep a top-50 stock off it, so the list is 51 names today."""
     yesterday = [f"T{i:02d}" for i in range(1, 51)]
     today = yesterday[:49] + ["NEWC", "X51", "T50"]              # T50 is 52nd, NEWC 50th
     got = [t for t, _r in ll.members(today, set(yesterday), **RULE)]
-    assert "T50" in got and "NEWC" not in got and len(got) == 50
-    # the next session T50 is 66th: it leaves, and the seat goes to the best-ranked newcomer
+    assert "T50" in got and "NEWC" in got and "X51" not in got and len(got) == 51
+    # the next session T50 is 66th: it leaves; OTHER (51st, never listed) does not join
     later = yesterday[:49] + ["NEWC", "OTHER"] + _x(52, 65) + ["T50"]
     got = [t for t, _r in ll.members(later, set(got), **RULE)]
     assert "T50" not in got and "NEWC" in got and "OTHER" not in got and len(got) == 50
+
+
+def test_every_top_50_stock_is_listed_whoever_holds():
+    """The promise in one line: whatever yesterday's list was, today's holds every stock
+    ranked 50th or better, nobody ranked past 65th, and past 50th only yesterday's members."""
+    ranked = [f"R{i:02d}" for i in range(1, 91)]
+    for prior in (None, set(ranked[:50]), set(ranked[15:65]), set(ranked[40:90]), {"GONE1", "GONE2"}):
+        got = dict(ll.members(ranked, prior, **RULE))
+        assert set(ranked[:50]) <= set(got), prior
+        assert max(got.values()) <= 65 and len(got) <= 65, prior
+        assert set(got) - set(ranked[:50]) == {t for t in (prior or ()) if t in ranked[50:65]}, prior
+
+
+def test_the_pass_applies_the_rule_with_no_cut_at_50(db, monkeypatch):
+    """The run hands the rule the screen's own two ranks and a cap the bands cannot reach."""
+    seen = {}
+    real = ll.members
+    monkeypatch.setattr(ll, "members", lambda ranked, prior, **kw: seen.update(kw) or real(ranked, prior, **kw))
+    _write(["AAA", "BBB"])
+    ll.run(S1, record=True)
+    assert seen == {"enter": rs_screens.LEADERS_TOP_N, "hold": rs_screens.LEADERS_HOLD_RANK,
+                    "cap": rs_screens.LEADERS_HOLD_RANK}
+    assert seen["cap"] >= seen["hold"] > seen["enter"]
 
 
 def test_the_three_numbers_are_three_separate_rules():
@@ -270,7 +295,7 @@ def test_three_sessions_through_the_table(db):
     want_days = [
         {t: 1 for t in SESSIONS[0][1]},
         {**{t: 2 for t in _a(1, 48)}, "NEW1": 1, "EDGE": 1},
-        {**{t: 3 for t in _a(1, 47)}, "A48": 3, "NEW1": 2, "EDGE": 2},
+        {**{t: 3 for t in _a(1, 47)}, "A48": 3, "NEW1": 2, "EDGE": 2, "LATE": 1, "GONE": 1},
     ]
     receipts = []
     for session, (ranked, want), days in zip((S1, S2, S3), SESSIONS, want_days):
@@ -287,9 +312,9 @@ def test_three_sessions_through_the_table(db):
     assert [(r["members"], r["qualifiers"], r["held"], r["entered"], r["left"], r["prior_session"], r["recorded"])
             for r in receipts] == [(50, 70, 0, 50, 0, None, True),
                                    (50, 70, 48, 2, 2, S1, True),
-                                   (50, 66, 50, 0, 0, S2, True)]
-    # every row is answered (66 qualifiers and the one that does not qualify), 50 carry days
-    assert receipts[2]["populated"] == {"rs_leaders_member": 67, "rs_leaders_days": 50}
+                                   (52, 66, 50, 2, 0, S2, True)]
+    # every row is answered (66 qualifiers and the one that does not qualify), 52 carry days
+    assert receipts[2]["populated"] == {"rs_leaders_member": 67, "rs_leaders_days": 52}
 
 
 def test_a_second_pass_in_one_session_reads_the_same_yesterday(db):
@@ -448,16 +473,17 @@ def test_the_starter_filters_on_membership_and_sorts_by_the_score(db):
     ll.run(S3, record=True)
     out = query.run_scan({**st["spec"], "page_size": 100})
     assert [r["ticker"] for r in out["rows"]] == SESSIONS[2][1]
-    assert out["total"] == 50 and out["rank"] is None
-    assert query.preview_count(st["spec"])["count"] == 50
+    assert out["total"] == len(SESSIONS[2][1]) == 52 and out["rank"] is None
+    assert query.preview_count(st["spec"])["count"] == 52
 
 
 def test_the_method_page_states_the_rule_from_the_constants(db, monkeypatch):
     from api.services.screener import methodology as M
     rule = next(s for s in M.rs_screens_section()["screens"] if s["id"] == "starter_rs_leaders")["rule"]
-    assert ("A stock joins the list when it ranks in the top 50 of these by RS Rating score and a place "
-            "is free, and stays until it falls past 65th or stops passing a rule, so a stock at the edge "
-            "does not come and go from one day to the next.") in rule
+    assert ("A stock joins the list when it ranks in the top 50 of these by RS Rating score, "
+            "and stays until it falls past 65th or stops passing a rule, so a stock at the edge "
+            "does not come and go from one day to the next. The list therefore holds 50 to 65 stocks") in rule
+    assert "place is free" not in rule and "at most" not in rule
     monkeypatch.setattr(rs_screens, "LEADERS_HOLD_RANK", 70)
     rule = next(s for s in M.rs_screens_section()["screens"] if s["id"] == "starter_rs_leaders")["rule"]
     assert "falls past 70th" in rule
