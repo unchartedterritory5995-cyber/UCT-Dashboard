@@ -12,6 +12,7 @@ import useChartLayouts from '../../hooks/useChartLayouts'
 import { useAuth } from '../../context/AuthContext'
 import UIcon from '../../components/ui/UIcon'
 import { WorkspaceContext } from './WorkspaceContext'
+import { GROUP_SAVE_MS, GROUP_SCAN_GAP_MS, GROUP_SCAN_SAVE_MS } from './groupSymSavePace'
 // UCT Agent (admin-dark): lazy, so nothing of the Agent reaches the board's chunk
 // for anyone who never opens it. The host only READS the chart registry below.
 import useSWR, { useSWRConfig } from 'swr'
@@ -1013,7 +1014,23 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     if (!pending || pending.op.stale()) return
     setPref('charts_workspace_groups', JSON.stringify(pending.next))
   }, [setPref])
+  // ⭐ (2026-11-14) A SCAN IS SAVED ONCE, WHERE IT STOPS (groupSymSavePace.js). A change that
+  // follows another within GROUP_SCAN_GAP_MS is a scan: its save waits GROUP_SCAN_SAVE_MS after
+  // the LAST change instead of 400 ms after each. A pick on its own is saved as before. The
+  // same symbol announced again for one move (a list and its chart both report it) is not a
+  // second change.
+  const groupsScanTimerRef = useRef(null)     // armed by each change; a change while armed is a scan
+  const groupsScanningRef = useRef(false)     // how the pending save was scheduled
+  const groupsLastSetRef = useRef({})         // color -> the symbol last announced for it
   const setGroupSym = useCallback((color, sym) => {
+    const repeat = groupsLastSetRef.current[color] === sym
+    groupsLastSetRef.current[color] = sym
+    if (!repeat) {
+      groupsScanningRef.current = groupsScanTimerRef.current != null
+      if (groupsScanTimerRef.current) clearTimeout(groupsScanTimerRef.current)
+      groupsScanTimerRef.current = setTimeout(() => { groupsScanTimerRef.current = null }, GROUP_SCAN_GAP_MS)
+    }
+    const wait = groupsScanningRef.current ? GROUP_SCAN_SAVE_MS : GROUP_SAVE_MS
     setGroupSymsState(prev => {
       const next = { ...prev, [color]: sym }
       if (groupsSaveTimerRef.current) clearTimeout(groupsSaveTimerRef.current)
@@ -1023,17 +1040,27 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
         groupsSaveTimerRef.current = null
         groupsPendingRef.current = null
         writeGroups(pending)
-      }, 400)
+      }, wait)
       return next
     })
   }, [writeGroups])
-  useEffect(() => () => {
-    if (!groupsSaveTimerRef.current) return
-    clearTimeout(groupsSaveTimerRef.current)
-    groupsSaveTimerRef.current = null
-    const pending = groupsPendingRef.current
-    groupsPendingRef.current = null
-    writeGroups(pending)
+  useEffect(() => {
+    // Leaving the board, or the page going away, saves a pending symbol now (a scan's save
+    // can be 1.5 s out; a refresh inside that must still open on the symbol left).
+    const flush = () => {
+      if (!groupsSaveTimerRef.current) return
+      clearTimeout(groupsSaveTimerRef.current)
+      groupsSaveTimerRef.current = null
+      const pending = groupsPendingRef.current
+      groupsPendingRef.current = null
+      writeGroups(pending)
+    }
+    window.addEventListener('pagehide', flush)
+    return () => {
+      window.removeEventListener('pagehide', flush)
+      if (groupsScanTimerRef.current) { clearTimeout(groupsScanTimerRef.current); groupsScanTimerRef.current = null }
+      flush()
+    }
   }, [writeGroups])
 
   // Which timeframe each color group's chart is showing right now. Broadcast by

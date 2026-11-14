@@ -1685,6 +1685,17 @@
       ]
     },
     {
+      "key": "uct.barspack.deltaProgress",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Charts",
+      "kind": "internal",
+      "label": "Daily market data update progress",
+      "files": [
+        "app/src/lib/barsPackClient.js"
+      ]
+    },
+    {
       "key": "uct.barsFetchMax",
       "store": "localStorage",
       "scope": "device-local",

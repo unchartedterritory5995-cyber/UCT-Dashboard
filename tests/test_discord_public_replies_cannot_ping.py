@@ -125,7 +125,7 @@ def test_a_lesson_search_for_a_mention_cannot_ping(wire, monkeypatch, tmp_path):
     rt.run_lesson_search_job("APP", "TOK", HOSTILE, search_fn=lambda q: [])
     assert len(wire) == 1
     sent = _payload(wire[0])
-    assert "@everyone" in sent["content"], "the reply no longer echoes the query, so this proves nothing"
+    assert "@everyone" in sent["embeds"][0]["title"], "the reply no longer echoes the query, so this proves nothing"
     assert sent["allowed_mentions"] == NO_MENTIONS
 
 
@@ -135,5 +135,5 @@ def test_a_buzz_lookup_for_a_mention_cannot_ping(wire):
                     build_fn=lambda: "**<@&111>** — no mentions in that window.")
     assert len(wire) == 1
     sent = _payload(wire[0])
-    assert "<@&111>" in sent["content"]
+    assert "<@&111>" in sent["embeds"][0]["description"]
     assert sent["allowed_mentions"] == NO_MENTIONS
