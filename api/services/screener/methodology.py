@@ -1439,8 +1439,11 @@ def rs_columns_section() -> dict:
     }
 
 
-def all_methods() -> dict:
+def all_methods(user=None) -> dict:
     """Every composite column we publish, with how it is computed.
+
+    `user` (the route's user dict) decides one thing: whether the RS screens' own page
+    rides along (`_rs_screens_served`). The column methods are the same for everyone.
 
     ⭐ THE COMPONENT RATINGS ARE INCLUDED AS FIRST-CLASS ENTRIES rather than
     buried inside the composite, because they are their own screener columns —
@@ -1482,17 +1485,19 @@ def all_methods() -> dict:
             "rating job, so they carry the prior session's rating. "
             "None of them is an intraday number."),
     }
-    # The five RS screens' own page (unit U4), only while they are served: off, the
-    # payload carries no key for it.
-    if _rs_screens_served():
+    # The five RS screens' own page (unit U4), only while they are served to this user:
+    # otherwise the payload carries no key for it.
+    if _rs_screens_served(user):
         doc["rs_screens"] = rs_screens_section()
     return doc
 
 
-def _rs_screens_served() -> bool:
+def _rs_screens_served(user=None) -> bool:
+    """`rs_post_pass.surfaces_on(user)` (unit U10): the flag on for everyone, or `admin`
+    and the user is an admin. No user is a member's answer."""
     try:
         from api.services.screener import rs_post_pass as _pp      # noqa: PLC0415
-        return bool(_pp.enabled())
+        return bool(_pp.surfaces_on(user))
     except Exception:  # noqa: BLE001 -- an unreadable flag serves nothing new
         return False
 

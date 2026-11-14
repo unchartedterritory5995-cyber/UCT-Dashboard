@@ -88,8 +88,12 @@ def test_flag_off_the_pass_changes_nothing_and_creates_nothing(monkeypatch):
     assert pp.last_run() is None
     monkeypatch.delenv("RS_SCREENS_ENABLED")
     assert pp.enabled() is False, "the default is off"
+    # Pin moved 2026-11-14 (unit U10): the flag takes the Focus flags' three values, so
+    # `true` is a spelling of on and a value that spells nothing is off.
     monkeypatch.setenv("RS_SCREENS_ENABLED", "true")
-    assert pp.enabled() is False, "only the literal 1 arms it"
+    assert pp.enabled() is True
+    monkeypatch.setenv("RS_SCREENS_ENABLED", "flase")
+    assert pp.enabled() is False, "an unknown value is off"
 
 
 # ───────────────────────── one session, and which ─────────────────────────
