@@ -15,7 +15,7 @@ import { AuthContext } from '../context/AuthContext'
 import { planOps, collectTargets, prepareOps } from './executor'
 import { buildContext } from './capabilities'
 import { commitPlan, undoEntry } from './runtime'
-import { stateRailRefusal, stateEffects } from './stateRail'
+import { stateRailRefusal, stateEffects, permits } from './stateRail'
 import { stateFixture } from './__fixtures__/stateBoard'
 import { buildDrawingSource } from './host'
 import * as store from '../components/chart/drawingsStore'
@@ -313,6 +313,11 @@ describe('STATE RAIL · "put X in my watchlist": a list switches the display, a 
     it(`a HOMOGRAPH: "${w}" (a list called ${to}, and the ticker ${to}) → asked which, nothing written`, () => {
       expect(stateRailRefusal(switchTo(to), { words: w })).toMatch(new RegExp(`^Do you mean your “${to}” list, or the ticker ${to}\\? Nothing was changed`))
     })
+  it('a word that is a ticker never licenses the switch on its own (the ask comes first; this is the second wall)', () => {
+    const e = stateEffects(switchTo('AI'))[0]
+    expect(permits(e, 'put AI up in my watchlist')).toBe(false)
+    expect(permits(e, 'put the AI list up in my watchlist')).toBe(true)
+  })
   it('through the panel: "put AAPL on my watchlist" (model inert) — AAPL is added to the list shown; the widget still shows Tech', async () => {
     const { fx, say } = mount()
     await say('put AAPL on my watchlist')
