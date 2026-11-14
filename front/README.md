@@ -63,6 +63,15 @@ The app shell and assets keep loading. Passed-through requests get a 502 within 
 with `X-UCT-Front: upstream-unreachable`, which is what members get today and what the
 in-app banner keys on.
 
+## If the site is ever moved back to `web`
+
+Since 2026-11-14 `web` no longer restarts for a frontend-only change: `railway.web.json` watches
+only the frontend files its Python code uses (`tools/web_frontend_reads.py`). So `web`'s own copy
+of the built frontend can be older than master. Before (or right after) moving `uctintelligence.com`
+back to `web`: redeploy `web` from the latest commit so members get the current frontend, and put
+`app/**` back in `railway.web.json`'s watch list (change `test_the_list_is_what_makes_the_saving`
+in the same commit), then run `python tools/railway_stored_settings.py --apply`.
+
 ## Logs
 
 One `[front]` line per passed-through request: method, the first two path segments, status,

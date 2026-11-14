@@ -1,0 +1,70 @@
+# promotion-gate: no
+#
+# `web` (the main server) restarts only for the frontend files its Python code reads or runs, not for
+# every change under `app/` (railway.web.json, since 2026-11-14). This job keeps that list honest:
+#
+#   * every file `tools/web_frontend_reads.py` says web needs is matched by a watch pattern;
+#   * no Python file refers to a path under `app/` the tool does not account for;
+#   * the JavaScript web runs under node is followed through every relative import.
+#
+# A red here means a change could reach production while web keeps running the old copy of a file
+# it uses. Fix it by adding the file to the tool and to railway.web.json (or, if web does not read it
+# at runtime, by recording why in the tool). Advisory for now; it reads files only, in about 20 s.
+name: Web frontend reads
+
+on:
+  push:
+    paths:
+      - 'api/**'
+      - 'app/src/**'
+      - 'app/public/**'
+      - 'app/scripts/**'
+      - 'app/package.json'
+      - 'app/package-lock.json'
+      - 'tools/ast_conformance.py'
+      - 'tools/alert_replay.py'
+      - 'tools/web_frontend_reads.py'
+      - 'tests/test_web_frontend_reads.py'
+      - 'railway.web.json'
+      - '.github/workflows/web-frontend-reads.yml'
+  pull_request:
+    paths:
+      - 'api/**'
+      - 'app/src/**'
+      - 'app/public/**'
+      - 'app/scripts/**'
+      - 'app/package.json'
+      - 'app/package-lock.json'
+      - 'tools/ast_conformance.py'
+      - 'tools/alert_replay.py'
+      - 'tools/web_frontend_reads.py'
+      - 'tests/test_web_frontend_reads.py'
+      - 'railway.web.json'
+      - '.github/workflows/web-frontend-reads.yml'
+
+# CI COST (2026-11-06, owner): a newer push to the same PR cancels that PR's older run of this
+# workflow. Every other event (master push, dispatch, schedule) is grouped by its own commit SHA and
+# is never cancelled: promotion reads the master runs for a SHA. tests/test_ci_cost_rails.py pins this.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  watch-list:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pytest
+        run: python -m pip install --quiet 'pytest==8.3.4' 'pytest-timeout==2.4.0'
+      - name: The tool's own self-check
+        run: python tools/web_frontend_reads.py --self-check
+      - name: tests/test_web_frontend_reads.py
+        # An empty ini file, not the repo's pytest.ini: the repo's conftest and plugins need the
+        # whole application installed, and this check only reads files.
+        run: |
+          echo "[pytest]" > "$RUNNER_TEMP/empty.ini"
+          python -m pytest tests/test_web_frontend_reads.py -q --noconftest -c "$RUNNER_TEMP/empty.ini" --rootdir . -p no:cacheprovider --timeout 120 -rs
