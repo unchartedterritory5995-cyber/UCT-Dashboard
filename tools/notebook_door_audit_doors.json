@@ -660,6 +660,55 @@
     "note": "The styles manager is the list's More menu row \"Manage templates\" (S7, one vocabulary: the toolbar's Styles button folded into the More menu). Go-live wave 2 (Notebook simplify): a bare /journal/notebook opens the notes list, so the old 'View all notes' press from Research home is gone."
   },
   {
+    "feature": "Daily notes start from: Manage templates' Plain templates group (follow-up C)",
+    "audit_row": 54,
+    "path": "/journal/notebook",
+    "steps": [
+      {
+        "click": "button|More notebook actions"
+      },
+      {
+        "click": "menuitem|Manage templates"
+      }
+    ],
+    "target": {
+      "role": "heading",
+      "name": "Plain templates"
+    },
+    "viewports": [
+      "1280",
+      "390"
+    ],
+    "flag": "NOTEBOOK_JOURNAL_STYLES_ENABLED",
+    "note": "Follow-up C moved the 'Daily notes start from' control out of the New note sheet into Manage templates' Plain templates group (the sheet keeps a 'Daily notes start from: <name>. Change' link into it, drawn only once the member has a plain template). The audit's member has no plain template, so the group shows its empty sentence and the control is not drawn: the target is the group itself, where the control appears. The control and both links are walked in the c2 walk (followups.templates.daily, .sheet-manage)."
+  },
+  {
+    "feature": "My tools > Templates: the button into Manage templates (follow-up C)",
+    "audit_row": 54,
+    "path": "/journal/notebook",
+    "steps": [
+      {
+        "click": "button|More notebook actions"
+      },
+      {
+        "click": "menuitem|My tools"
+      },
+      {
+        "click": "tab|Templates"
+      }
+    ],
+    "target": {
+      "role": "button",
+      "name": "Open Manage templates"
+    },
+    "viewports": [
+      "1280",
+      "390"
+    ],
+    "flag": "NOTEBOOK_WIDGETS_W8_ENABLED",
+    "note": "Follow-up C: My tools > Templates is one sentence and this button (it closes My tools and opens Manage templates); the list it drew lives in the manager's Archived and Recently deleted views."
+  },
+  {
     "feature": "New note from a template (P1)",
     "audit_row": 55,
     "path": "/journal/notebook",
