@@ -378,8 +378,21 @@ def test_the_gate_is_one_function_asked_with_the_user(app, monkeypatch):
     assert svc.check_ticker("RISE5", user=USER)["reason"] == "not available"
     assert asked == [USER, USER]
     src = SERVICE.read_text(encoding="utf-8")
-    assert src.count("rs_post_pass.enabled()") == 1, "the gate is read in one place"
-    assert src.count("THE ONE LINE TO SWAP") == 1
+    # swapped at integration (2026-11-14): the member-facing reader, in one place, and the
+    # data reader nowhere (a member under the owner-only value must get "not available")
+    assert src.count("rs_post_pass.surfaces_on(user)") == 1, "the gate is read in one place"
+    assert "rs_post_pass.enabled()" not in src
+
+
+def test_under_the_owner_only_value_a_member_is_told_not_available_and_an_admin_is_served(app, monkeypatch):
+    monkeypatch.setenv("RS_SCREENS_ENABLED", "admin")
+    member = dict(USER, role="member")
+    admin = dict(USER, role="admin")
+    assert svc.list_screen("leaders", user=member) == {"ok": False, "reason": "not available"}
+    assert svc.check_ticker("RISE5", user=member) == {"ok": False, "reason": "not available"}
+    assert svc.available(member) is False and svc.available(None) is False
+    assert svc.available(admin) is True
+    assert svc.list_screen("leaders", user=admin)["ok"] is True
 
 
 def test_a_pod_whose_rs_columns_are_dark_is_not_available(app, monkeypatch):

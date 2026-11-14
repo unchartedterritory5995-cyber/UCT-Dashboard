@@ -143,8 +143,9 @@ CHECK_PARAMETERS = {
 def _screens_on(user) -> bool:
     """Are the RS screens on for this user?"""
     from api.services.screener import rs_post_pass          # noqa: PLC0415 - lazy
-    # >>> THE ONE LINE TO SWAP WHEN UNIT U10 LANDS: `rs_post_pass.surfaces_on(user)` <<<
-    return bool(rs_post_pass.enabled())
+    # Unit U10: the member-facing reader. Under RS_SCREENS_ENABLED=admin only an admin is
+    # shown the screens; a caller with no user (a tool registry) gets a member's answer.
+    return bool(rs_post_pass.surfaces_on(user))
 
 
 def available(user=None) -> bool:
