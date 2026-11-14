@@ -235,33 +235,44 @@ def test_the_text_bars_never_step_up_below_a_higher_ranked_row(mods):
 # to. Removed rather than left contradicting its replacement.
 
 
-# ── On-demand /buzz: EPHEMERAL and THROTTLED. Owner ruling 2026-09-02.
+# ── On-demand /buzz: PUBLIC and THROTTLED. Owner ruling 2026-11-13.
 #
-# The scheduled post and the member's own call are different doors on purpose:
-# the room gets the shared board seven times a session, and someone checking it
-# in between must not put a second copy in front of 750 people. These drive the
-# REAL route (signature, guild gate, dispatch) rather than the reply builder --
-# both behaviours are decided IN the route, so a test of the builder proves
-# nothing about what Discord is handed.
+# ⚰️ From 2026-09-02 to 2026-11-13 the on-demand reply was EPHEMERAL (only the
+# member who ran it saw the board). The owner reversed that: "/lesson and /buzz
+# visible to all". What stays private is everything that is NOT the answer: the
+# throttle message and the missing-token refusal, which are about one member
+# and would only be noise in the channel. These drive the REAL route
+# (signature, guild gate, dispatch) rather than the reply builder -- visibility
+# is decided IN the route, so a test of the builder proves nothing about what
+# Discord is handed.
 
 EPHEMERAL = 64
+#: Exactly what /chart, /flow and /cot answer: a deferred reply with no flags.
+PUBLIC_DEFER = {"type": 5}
 
 
-def _buzz(uid="900", ticker=None, window=None):
+def _buzz(uid="900", ticker=None, window=None, channel=None):
     opts = []
     if ticker is not None:
         opts.append({"name": "ticker", "type": 3, "value": ticker})
     if window is not None:
         opts.append({"name": "window", "type": 3, "value": window})
-    return {"type": 2, "application_id": "123", "token": "tok", "guild_id": UT_GUILD,
+    body = {"type": 2, "application_id": "123", "token": "tok", "guild_id": UT_GUILD,
             "member": {"user": {"id": uid}},
             "data": {"name": "buzz", "options": opts}}
+    if channel is not None:
+        body["channel_id"] = channel
+    return body
 
 
 @pytest.fixture()
 def route(monkeypatch, tmp_path):
     from api.services import discord_interactions as di, buzz_store
     di.reset_rate_for_tests()
+    # The command-channel gate reads these; a value left in the shell would
+    # decide every test below instead of the test deciding it.
+    monkeypatch.delenv("CHART_FLOW_CHANNEL_ID", raising=False)
+    monkeypatch.delenv("FLOW_CMD_CHANNEL_ID", raising=False)
     monkeypatch.setenv("BUZZ_DB_PATH", str(tmp_path / "buzz.db"))
     monkeypatch.setenv("BUZZ_CHANNELS", CH)
     buzz_store._reset_for_tests()
@@ -273,20 +284,20 @@ def route(monkeypatch, tmp_path):
     return client, sk, rt, bi
 
 
-def test_a_bare_buzz_defers_EPHEMERALLY(route, monkeypatch):
-    """⛔ THE FLAG MUST BE ON THE DEFER. Discord fixes a deferred reply's
-    visibility at type 5 and silently ignores flags on the later PATCH, so a
-    bare defer here would put the board in the channel for everyone -- the exact
-    thing this change exists to stop, and it would look fine in code review."""
+def test_a_bare_buzz_defers_PUBLICLY(route, monkeypatch):
+    """⛔ VISIBILITY IS DECIDED ON THE DEFER AND NOWHERE ELSE. Discord fixes a
+    deferred reply's visibility at type 5 and silently ignores flags on the
+    later PATCH, so one leftover flag here keeps the board private to the member
+    who asked -- the exact thing the 2026-11-13 ruling ended -- and it would
+    look fine in code review."""
     client, sk, rt, bi = route
     monkeypatch.setattr(bi, "image_enabled", lambda: True)
     monkeypatch.setattr(rt, "run_buzz_image_job", lambda *a, **k: None)
     r = _post(client, sk, _buzz()).json()
-    assert r["type"] == 5
-    assert r.get("data", {}).get("flags") == EPHEMERAL, "the board would have posted publicly"
+    assert r == PUBLIC_DEFER, "the board would have gone to the asking member only"
 
 
-def test_a_ticker_lookup_DEFERS_ephemerally_and_the_text_still_arrives(route, monkeypatch):
+def test_a_ticker_lookup_DEFERS_publicly_and_the_text_still_arrives(route, monkeypatch):
     """⚠️ CHANGED BY OI-36, DELIBERATELY. This was a `type: 4` carrying the text inline.
     It is now a `type: 5` + a PATCH, because the inline form had to build the text —
     `await run_in_threadpool(...)` — BEFORE it could answer, and that await is bounded by
@@ -300,7 +311,7 @@ def test_a_ticker_lookup_DEFERS_ephemerally_and_the_text_still_arrives(route, mo
     monkeypatch.setattr(bi, "image_enabled", lambda: False)
     r = _post(client, sk, _buzz(ticker="NVDA")).json()
     assert r["type"] == 5, "the ack is no longer gated on building the reply"
-    assert r.get("data", {}).get("flags") == EPHEMERAL, "a ticker lookup must stay private"
+    assert r == PUBLIC_DEFER, "a ticker lookup is visible to the channel, like the board"
 
     edits = []
     rt.run_buzz_job("APP1", "TOK1", "NVDA", "open", 0,
@@ -308,12 +319,12 @@ def test_a_ticker_lookup_DEFERS_ephemerally_and_the_text_still_arrives(route, mo
     assert len(edits) == 1 and edits[0].get("content"), "the member got a spinner and nothing else"
 
 
-def test_the_text_only_board_DEFERS_ephemerally(route, monkeypatch):
-    """The no-image path is a separate `return` and was a separate way to leak."""
+def test_the_text_only_board_DEFERS_publicly(route, monkeypatch):
+    """The no-image path was once a separate `return`, so it gets its own pin."""
     client, sk, rt, bi = route
     monkeypatch.setattr(bi, "image_enabled", lambda: False)
     r = _post(client, sk, _buzz()).json()
-    assert r["type"] == 5 and r.get("data", {}).get("flags") == EPHEMERAL
+    assert r == PUBLIC_DEFER
 
 
 def test_no_reply_token_still_answers_IMMEDIATELY(route, monkeypatch):
@@ -368,3 +379,66 @@ def test_the_budget_is_shared_with_chart_rather_than_a_second_allowance(route, m
     assert di.user_rate_check("955") == 0.0          # spends the member's one slot
     r = _post(client, sk, _buzz(uid="955")).json()
     assert r["data"]["content"].startswith("Slow down")
+
+
+# ── On-demand /buzz is HELD TO THE COMMAND CHANNEL. Owner ruling 2026-11-13.
+#
+# The reply became public the same day, and with no channel gate a public board
+# could land in ANY channel a member could type a command in. The owner's
+# answer: "just in UCT Intelligence" -- #uct-intelligence, the channel /chart,
+# /flow and /cot already answer in (CHART_FLOW_CHANNEL_ID). So /buzz reads the
+# SAME allowlist rather than a second variable that could drift from it.
+# The seven scheduled posts are a different door and are not gated by this.
+
+COMMAND_CHANNEL = "777"      # the member-facing one: first on the list
+ADMIN_CHANNEL = "888"        # a later entry: private, admins + bot
+ELSEWHERE = "555"
+
+
+def _scheduled(rt, monkeypatch) -> list:
+    jobs: list = []
+    monkeypatch.setattr(rt, "run_buzz_job", lambda *a, **k: jobs.append(a))
+    return jobs
+
+
+def test_buzz_outside_the_command_channel_is_refused_privately(route, monkeypatch):
+    client, sk, rt, bi = route
+    monkeypatch.setenv("CHART_FLOW_CHANNEL_ID", f"{COMMAND_CHANNEL},{ADMIN_CHANNEL}")
+    jobs = _scheduled(rt, monkeypatch)
+    for body in (_buzz(channel=ELSEWHERE), _buzz(ticker="NVDA", channel=ELSEWHERE)):
+        r = _post(client, sk, body).json()
+        assert r["type"] == 4 and r["data"]["flags"] == EPHEMERAL, "the refusal is for one member"
+        assert f"<#{COMMAND_CHANNEL}>" in r["data"]["content"], "the member is told where it does work"
+        assert ADMIN_CHANNEL not in r["data"]["content"], "never point a member at a private channel"
+        assert "/buzz" in r["data"]["content"], "the nudge names the command the member ran"
+    assert jobs == [], "a refused board was still built"
+
+
+def test_buzz_inside_the_command_channel_still_answers_publicly(route, monkeypatch):
+    """Non-vacuity for the row above: a gate that refused everything would pass it."""
+    client, sk, rt, bi = route
+    monkeypatch.setenv("CHART_FLOW_CHANNEL_ID", f"{COMMAND_CHANNEL},{ADMIN_CHANNEL}")
+    jobs = _scheduled(rt, monkeypatch)
+    assert _post(client, sk, _buzz(channel=COMMAND_CHANNEL)).json() == PUBLIC_DEFER
+    assert _post(client, sk, _buzz(uid="901", channel=ADMIN_CHANNEL)).json() == PUBLIC_DEFER
+    assert len(jobs) == 2
+
+
+def test_buzz_is_unrestricted_when_no_channel_is_configured(route, monkeypatch):
+    """Unset = allowed anywhere, exactly as /chart behaves (local dev, tests)."""
+    client, sk, rt, bi = route
+    jobs = _scheduled(rt, monkeypatch)
+    assert _post(client, sk, _buzz(channel=ELSEWHERE)).json() == PUBLIC_DEFER
+    assert len(jobs) == 1
+
+
+def test_a_refused_buzz_does_not_spend_the_members_budget(route, monkeypatch):
+    """The gate is checked BEFORE the throttle. Otherwise a member who tries the
+    command in the wrong channel, reads the nudge and walks to the right one is
+    told to slow down for following the instruction."""
+    client, sk, rt, bi = route
+    monkeypatch.setenv("CHART_FLOW_CHANNEL_ID", COMMAND_CHANNEL)
+    monkeypatch.setenv("DISCORD_CHART_USER_RATE", "1/60")
+    _scheduled(rt, monkeypatch)
+    assert _post(client, sk, _buzz(channel=ELSEWHERE)).json()["type"] == 4
+    assert _post(client, sk, _buzz(channel=COMMAND_CHANNEL)).json() == PUBLIC_DEFER

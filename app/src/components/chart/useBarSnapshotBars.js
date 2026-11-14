@@ -189,9 +189,23 @@ export function useBarSnapshotBars({
     if (typeof lt !== 'number' || lt < forming) return false
     return Number.isFinite(savedAt) && savedAt / 1000 >= forming
   })()
+  // ⭐ "THE SERVER HAS SPOKEN" MEANS IN THIS LIFE OF THE KEY (network.answered), never merely
+  // "the snapshot holds a server answer / an error". An entry outlives its subscribers (registry
+  // LRU): a key warmed (or whose warm was shed → `error`) yesterday or an hour ago still carries
+  // that answer, frozen — no live feed, no poll kept it. 2026-11-13 NVDA 5m → 1m: such a snapshot
+  // ended the hold at once and painted a PRIOR-SESSION right edge (legend "NOV 12 15:18") until
+  // the chart's own request answered. So the hold ends only on this life's answer, or on a right
+  // edge the store itself calls current (status context | current — and a local copy only when its
+  // forming bucket is in it, `_localTailComplete`).
+  const _answered = useSyncExternalStore(
+    useCallback((cb) => (key ? store.network.subscribeAnswered(key, cb) : () => {}), [store, key]),
+    () => (key ? store.network.answered(key) : false),
+    () => false,
+  )
+  const _edgeProvisional = !!snap && (_localLayer ? !_localTailComplete
+    : (chosen == null || (snap.restSeen && status !== STATUS.CURRENT && status !== STATUS.CONTEXT)))
   const _tfSwitchHold = isIntraday && !_isCustomTf && !_hasOverride && !replayCutoff
-    && !!snap && !snap.restSeen && !snap.error
-    && (chosen == null || (_localLayer && !_localTailComplete))
+    && !!snap && !_answered && _edgeProvisional
     && !!_onScr && _onScr.sym === sym && _onScr.ext === showExtended && _onScr.tf !== resolvedTf
   tfSwitchHoldRef.current = _tfSwitchHold
   const bars = _tfSwitchHold ? null : chosen

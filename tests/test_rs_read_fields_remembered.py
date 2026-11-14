@@ -86,10 +86,10 @@ def test_a_charts_rating_read_does_not_rediscover_the_store_every_time(history, 
     del seen[:]
     second = rs_history.read_fields(["NVDA"])
     assert second == first
-    assert len(seen) == 4, seen
-    assert seen[0] == f"SELECT MAX(session) FROM {rs_history.TABLE}", "the one seek that checks the remembered list"
+    # since 2026-11-14 ONE statement: the check on the remembered list, the row, and the two earlier ratings
+    assert seen == [rs_history.narrow_read_sql(rs_history._read_columns_remembered(None), 1)], seen
+    assert f"SELECT MAX(session) AS newest FROM {rs_history.TABLE}" in seen[0], "the seek that checks the remembered list"
     assert not any("table_info" in sql for sql in seen), "the columns are not read again"
-    assert sum(1 for sql in seen if "WHERE session = ?" in sql) == 3, "the three rows, and nothing else"
 
 
 def test_a_session_stored_since_is_seen_on_the_very_next_ask(history):
@@ -145,7 +145,115 @@ def test_the_builds_bulk_ask_and_a_named_session_read_the_store_as_before(histor
     # CONTROL: exactly NARROW_READ_MAX tickers is still the narrow ask
     del seen[:]
     rs_history.read_fields(many[:rs_history.NARROW_READ_MAX])
-    assert len(seen) == 4
+    assert len(seen) == 1
+
+
+# ── the one statement answers what the three answered (2026-11-14) ───────────
+
+def _fillers():
+    return [f"ZZ{i}" for i in range(rs_history.NARROW_READ_MAX + 1)]
+
+
+def _as_before(tickers):
+    """The same ask through the BULK path: whole sessions, three statements, the SQL the narrow
+    ask ran until 2026-11-14 minus its ticker filter. An independent reading of the same store."""
+    got = rs_history.read_fields(list(tickers) + _fillers())
+    return {t.upper(): got[t.upper()] for t in tickers}
+
+
+@pytest.mark.parametrize("n_sessions", [1, 2, 5, 6, 20, 21, 22, 40])
+def test_the_one_statement_answers_what_the_three_statements_answer(history, n_sessions):
+    days = _weekdays(n_sessions)
+    for i, t in enumerate(days):
+        ratings = {"NVDA": {"ibd": 40 + i, "bars": 253},
+                   "AAPL": {"ibd": 90 - i, "m9": None, "score": 2.5, "bars": 200 + i},
+                   "SHORT": {"ibd": None, "bars": 30}}                # rated short: a row, no rating
+        if i % 4:                                                     # GAPS has no row every fourth session
+            ratings["GAPS"] = {"ibd": 10 + i, "m1": 1, "m3": 3, "m6": 6, "m12": 12, "score": 0.1 + i / 7.0, "bars": 253}
+        if i == len(days) - 1:
+            ratings["NEW"] = {"ibd": 77, "bars": 253}                 # listed today: no earlier row at all
+        if i < len(days) - 1:
+            ratings["GONE"] = {"ibd": 5, "bars": 253}                 # no row in the newest session
+        rs_history.store_rows(str(t), ratings, fast_map={"SHORT": 33, "GAPS": 20 + i})
+    asked = ["NVDA", "aapl", "SHORT", "GAPS", "NEW", "GONE", "NOPE"]
+    narrow = rs_history.read_fields(asked)
+    assert narrow == _as_before(asked)
+    assert narrow["NVDA"]["ibd"] == 40 + n_sessions - 1 and narrow["GONE"] == {} and narrow["NOPE"] == {}
+    assert narrow["SHORT"]["ibd"] is None and narrow["SHORT"]["fast"] == 33 and narrow["SHORT"]["d5"] is None
+    assert narrow["NVDA"]["d5"] == (5 if n_sessions > 5 else None)
+    assert narrow["NVDA"]["d20"] == (20 if n_sessions > 20 else None)
+    assert narrow["NEW"]["ibd"] == 77 and narrow["NEW"]["d5"] is None and narrow["NEW"]["d20"] is None
+    assert isinstance(narrow["AAPL"]["score"], float) and narrow["AAPL"]["score"] == 2.5
+    one = rs_history.read_fields(["GAPS"])                            # a single ticker: the chart's own ask
+    assert one == _as_before(["GAPS"])
+    failures: dict = {}                                               # a ticker with no row is `{}`, not a missing store
+    assert rs_history.read_fields(["NOPE"], failures=failures) == {"NOPE": {}}
+    assert "missing" not in failures.get("rs_history", {})
+
+
+def test_the_narrow_read_hands_back_only_rows_that_exist(history):
+    days = _weekdays(22)
+    _store({str(t): 40 + i for i, t in enumerate(days)})
+    conn = sqlite3.connect(history)
+    conn.row_factory = sqlite3.Row
+    try:
+        latest, rows, earlier = rs_history._narrow_read(conn, str(history), ["NOPE", "NADA"])
+        assert latest == _iso(days[-1]) and rows == {} and earlier == {5: {}, 20: {}}
+        latest, rows, earlier = rs_history._narrow_read(conn, str(history), ["NOPE", "NVDA"])
+        assert list(rows) == ["NVDA"] and rows["NVDA"]["ibd"] == 61
+        assert earlier == {5: {"NVDA": 56}, 20: {"NVDA": 41}}
+    finally:
+        conn.close()
+
+
+def test_an_empty_table_is_missing_and_its_first_session_is_seen_at_once(history):
+    conn = sqlite3.connect(history)
+    rs_history.ensure_schema(conn)                                     # the table, and no row in it
+    conn.commit()
+    conn.close()
+    for _ in range(2):                                                 # asked twice: an empty list is not an answer to keep
+        failures: dict = {}
+        assert rs_history.read_fields(["NVDA"], failures=failures) == {}
+        assert "missing" in failures.get("rs_history", {})
+    _store({"2026-11-06": 71})
+    assert rs_history.read_fields(["NVDA"])["NVDA"]["ibd"] == 71
+
+
+def test_the_one_statement_reads_by_key_and_never_walks_the_table(history):
+    days = _weekdays(30)
+    _store({str(t): 40 + i for i, t in enumerate(days)})
+    conn = sqlite3.connect(history)
+    try:
+        cols = rs_history._read_columns(conn)
+
+        def plan(sql, args):
+            return [r[3] for r in conn.execute("EXPLAIN QUERY PLAN " + sql, args).fetchall()]
+        steps = plan(rs_history.narrow_read_sql(cols, 3), ("2026-11-01", "2026-10-01", "2026-11-06", "A", "B", "C"))
+        table_steps = [s for s in steps if rs_history.TABLE in s]
+        assert len(table_steps) == 4, steps                           # the newest session, the rows, the two earlier ratings
+        assert all(s.startswith("SEARCH") and "INDEX" in s for s in table_steps), steps
+        assert not any(s.startswith("SCAN") and rs_history.TABLE in s for s in steps), steps
+        # CONTROL: the check can see a walk when there is one
+        walk = plan(f"SELECT ticker FROM {rs_history.TABLE} WHERE ibd = ?", (1,))
+        assert any(s.startswith("SCAN") for s in walk), walk
+    finally:
+        conn.close()
+
+
+def test_the_statement_always_answers_the_newest_session_even_when_no_asked_ticker_has_a_row(history):
+    days = _weekdays(3)
+    _store({str(t): 50 + i for i, t in enumerate(days)})
+    conn = sqlite3.connect(history)
+    conn.row_factory = sqlite3.Row
+    try:
+        cols = rs_history._read_columns(conn)
+        got = conn.execute(rs_history.narrow_read_sql(cols, 2), (None, None, _iso(days[0]), "NOPE", "NADA")).fetchall()
+        assert len(got) == 1 and got[0]["newest_"] == _iso(days[-1]) and got[0]["ticker"] is None
+        got = conn.execute(rs_history.narrow_read_sql(cols, 1), (_iso(days[0]), None, _iso(days[-1]), "NVDA")).fetchall()
+        assert len(got) == 1 and got[0]["ticker"] == "NVDA" and got[0]["ibd"] == 52
+        assert got[0]["ibd5_"] == 50 and got[0]["ibd20_"] is None, "a None session matches no row"
+    finally:
+        conn.close()
 
 
 def test_what_is_remembered_belongs_to_one_database(history, tmp_path, monkeypatch):

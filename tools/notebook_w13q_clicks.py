@@ -1505,7 +1505,7 @@ def q9_ask_insert(cx: Ctx, pg, m: Meter, width: str) -> dict:
         # 2 Tabs to the Ask button, Enter.)
         palette_command(m, "ask this note", r"^Ask about this note$", "Ask about this note")
     else:
-        m.press(pg.locator("[data-ask-toggle]").filter(visible=True), "Ask this note")
+        m.press(pg.locator("[data-ask-toggle]").filter(visible=True), "Ask about this note")
     import re
     box = pg.get_by_placeholder(re.compile("What did I say")).filter(visible=True)
     focus_field(m, box, "question field")
@@ -1959,8 +1959,8 @@ def q17_why(cx: Ctx, pg, m: Meter, width: str) -> dict:
 
 
 def q18_review_leak(cx: Ctx, pg, m: Meter, width: str) -> dict:
-    """Start: Research Home. "This week's review" drafts the note; the leak it found is a
-    collapsed block in it, opened by its own arrow."""
+    """Start: the notes list (Research Home is gone). "+ New" arrow > "Draft a review" > "This week's review" drafts
+    the note; the leak it found is a collapsed block in it, opened by its own arrow."""
     # SETUP (uncounted): this week's review is drafted once per week now, and a second press
     # opens the same note. So each run starts with no review for this week: the one an earlier
     # run of this flow drafted goes to the Trash, through the product's own delete.
@@ -1969,14 +1969,23 @@ def q18_review_leak(cx: Ctx, pg, m: Meter, width: str) -> dict:
             cx.req.delete(f"{cx.base}/api/j2/notes/{n['id']}")
     open_start(pg, cx.base, "/journal/notebook")
     before = {n["id"] for n in list_notes(cx.req, cx.base)}
+    # Research Home is gone (go-live wave 1): the door is the notes list's "+ New" arrow > "Draft a review" (simplify
+    # pass 2, C2: the three reviews are that row's second view). Both presses are counted.
+    caret = pg.get_by_role("button", name="More ways to start a note", exact=True).filter(visible=True)
+    try:
+        caret.first.wait_for(state="visible", timeout=30000)
+    except Exception:  # noqa: BLE001
+        raise Inconclusive("no '+ New' arrow on the notes list")
+    # Lane KEYS round 2 took Research Home's "Skip to reviews and setups" link; that page is gone, so a keyboard member
+    # takes the shell's "Skip to notes list" toward the list's tools.
+    use_skip_link(m, r"Skip to notes? list", "Skip to notes list")
+    m.press(caret, "More ways to start a note")
+    m.press(pg.get_by_role("menuitem", name="Draft a review", exact=True), "Draft a review")
     btn = pg.locator("[data-tour='review-drafts-weekly']").filter(visible=True)
     try:
         btn.first.wait_for(state="visible", timeout=30000)
     except Exception:  # noqa: BLE001
-        raise Inconclusive("no 'This week's review' on Research Home")
-    # Lane KEYS round 2: Research Home's own link to this part of the page.
-    if not use_skip_link(m, r"^Skip to reviews and setups$", "Skip to reviews and setups"):
-        use_skip_link(m, r"Skip to notes? list", "Skip to notes list")
+        raise Inconclusive("no 'This week's review' in Draft a review")
     m.press(btn, "This week's review")
     nid = wait_note_open(pg, 60000)
     if nid in before:

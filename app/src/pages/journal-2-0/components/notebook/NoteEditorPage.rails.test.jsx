@@ -103,7 +103,8 @@ describe('NoteEditorPage editor toolbar row', () => {
     // Notebook simplify, Task 4: PNG and Print are the first two items of the Export menu, above the file formats,
     // so More shows ONE Export entry.
     fireEvent.click(more.getByRole('button', { name: /^Export/ }))
-    const exportMenu = within(more.getByRole('menu', { name: 'Export this note as' }))
+    // Simplify pass 2: the formats are the panel's second view, drawn from a chunk fetched on idle (or at the press).
+    const exportMenu = within(await more.findByRole('menu', { name: 'Export this note as' }))
     expect(exportMenu.getByRole('menuitem', { name: 'PNG' })).toBeInTheDocument()
     expect(exportMenu.getByRole('menuitem', { name: 'Print' })).toBeInTheDocument()
   })
@@ -155,9 +156,13 @@ describe('NoteEditorPage widget palette', () => {
     const row = await screen.findByRole('toolbar', { name: 'Editor toolbar' })
     expect(screen.queryByRole('dialog', { name: 'Insert widget' })).toBeNull()
     fireEvent.click(within(row).getByRole('button', { name: 'Insert widget' }))
-    // F3 (R45 fallback): the palette is a lazy chunk, so its first open lands a tick after the click.
-    const panel = await screen.findByRole('dialog', { name: 'Insert widget' })
-    expect(within(panel).getByText('Chart')).toBeInTheDocument()
+    // F3 (R45 fallback): the palette is its own chunk. Follow-up B fix round 1: held (EditorToolSlots.jsx); on a cold
+    // press a frame of the same name holds focus until the palette lands, so wait for the palette's own content.
+    const panel = await waitFor(() => {
+      const p = screen.getByRole('dialog', { name: 'Insert widget' })
+      expect(within(p).getByText('Chart')).toBeInTheDocument()
+      return p
+    })
     fireEvent.click(within(panel).getByLabelText('Close insert panel'))
     expect(screen.queryByRole('dialog', { name: 'Insert widget' })).toBeNull()
   })

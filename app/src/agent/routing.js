@@ -230,6 +230,14 @@ export const GROUPS = [
   { id: 'definitions', title: 'Indicator definitions: search UCT\'s and your own indicators, describe one, save a copy, delete one of yours', domains: ['definition'], fillLast: true,
     // CG-24 (corpus #774): "are there any volatility indicators", "which momentum indicators do you have" — a SEARCH of the catalog
     words: [/\b(my|saved|custom|own) indicators?\b/, /\bindicators? (for|that|which|to)\b/, /^(?!.*\b(?:remove|delete|clear|hide|show|add|drop|take off)\b)(?!.*\b(?:on|in) (?:my|this|the|that) charts?\b).*\b(?:(?:any|which|what|some|other|more) (?:[a-z-]+ ){1,2}indicators|indicators? (?:do you have|are available|exist)|are there (?:any )?(?:[a-z-]+ ){0,2}indicators?)\b/, /^(?!.*\b(?:on|in) (?:my|this|the|that) charts?\b)(?!.*\bon (?:here|it|there)\b).*\b(find|search|look for|what) .*\bindicators?\b/, /\b(describe|explain|what does)\b.*\b(indicator|rsi|macd|atr|study)\b/, /\b(delete|remove|copy|duplicate)\b.*\b(my|saved|custom)\b(?:\s+[a-z0-9-]+){0,3}\s+(indicator|formula|study)\b/] },
+  // Charts family (2026-11-12): a chart's Volume Profile overlay (volumeProfile.set), in its OWN words-only group (as chartMenu):
+  // never a filler, so no existing group and no unrecognised request changes. The words name the PROFILE itself (volume
+  // profile / VPVR / visible range volume); "VP" only beside an on / off verb or a bins word. A bare "volume" (the Volume
+  // pane), "VWAP" and volume alerts are not its words.
+  { id: 'volumeProfile', title: 'A chart’s Volume Profile overlay: on / off, bins, colours', domains: ['volumeProfile'], fillLast: true, wordsOnly: true,
+    words: [
+      /\bvolume[\s-]?profiles?\b|\bvol profile\b|\bvpvr\b|\bvisible range volume\b/,
+      /\b(?:add|show|hide|remove|turn on|turn off|enable|disable|switch on|switch off|toggle)\s+(?:the\s+|my\s+)?vp\b|\bvp\s+(?:on|off|bins?)\b/] },
   // ⭐ W1-B (2026-11-02): the TIME-ANCHORED tools in their OWN small group (as chartSetup is), so the drawings group keeps
   // its size and every group still fits a reroute beside the NL-1 core. Membership is by ACTION NAME (`actions`), not by
   // domain: the tools stay `drawing.*` on the drawing kind. Listed BEFORE drawings so "draw a trendline from…" takes this.
@@ -275,6 +283,21 @@ export const GROUPS = [
       /\bdraw(?:ing)?\s+on\s+(?:my|the|a|another|this|that)?\s*(?:[\w'’-]+\s+){0,2}boards?\b/,
       /\b(?:rename|delete|remove|erase)\s+(?:my|the|this|that)?\s*(?:[\w'’-]+\s+){0,2}boards?\b/,
       /\b(?:new|another|create|make|start)\s+(?:(?:me|a|an|another|new)\s+)*(?:drawing\s+)?boards?\b/, /\bdrawing\s+boards?\b/] },
+  // Charts family (2026-11-12): the UCT Intelligence chart INDICATOR (uctIntelligence.set), its OWN words-only group (as chartMenu):
+  // never a filler, so no existing group and no unrecognised request changes. The words name the indicator, or one of its panel's
+  // switches with its own label (auto patterns, pattern labels, candlestick patterns, the setups / caution / S&R layer) or a toggle
+  // verb on it. ⛔ "Modify / create / build an indicator WITH UCT Intelligence" is indicator AUTHORING (indicatorAuthoring.js, the
+  // guide's 'modify' / 'create'): an authoring verb, "with / using UCT Intelligence" or a new / custom indicator never selects
+  // this group. A bare "patterns" / "setups" / "labels" / "support" (a question, a scan, price labels, a drawn level) is not enough.
+  { id: 'uctIntelligence', title: 'The UCT Intelligence chart indicator: add or remove it on a chart, turn its layers on or off (Auto patterns, Pattern labels, Support & resistance, Candlestick patterns, Setups, Caution)',
+    domains: ['uctIntelligence'], fillLast: true, wordsOnly: true,
+    words: [
+      /^(?!.*\b(?:modify|modif(?:ied|ying)|create|creating|build|building|write|writing|draft|drafting|edit|editing|author(?:ing)?|generate|design)\b)(?!.*\b(?:with|using|via|through|ask|asking) (?:the )?uct[\s-]?intel)(?!.*\b(?:new|own|custom) (?:\w+ )?indicators?\b).*\buct[\s-]?intel(?:ligence)?\b/,
+      /\bauto(?:matic)?[\s-]?(?:chart )?patterns?\b|\bpattern (?:labels?|numbers|overlay|layer|drawings?)\b|\b(?:chart )?patterns? (?:button|overlay|layer|toggle)\b/,
+      /^(?!.*\b(?:recognition|chart iq)\b).*\b(?:turn|switch|toggle)\s+(?:on\s+|off\s+)?(?:the\s+|my\s+)?(?:chart\s+)?patterns\b|\bhide\s+(?:the\s+)?(?:chart\s+)?patterns\b/,
+      /\b(?:turn|switch|toggle|show|hide|enable|disable)\b.*\bcandlestick patterns?\b|\bcandlestick (?:pattern )?(?:markers|layer)\b/,
+      /\b(?:turn|switch|toggle|enable|disable)\s+(?:on\s+|off\s+)?(?:the\s+|my\s+)?(?:confirmed\s+)?(?:setups|caution)\b|\b(?:setups?|caution|support\s*(?:&|and|\/)\s*resistance|s\/r) (?:layer|lines|toggle)\b|\bcaution setups?\b/,
+      /\b(?:turn|switch|toggle|enable|disable)\b.*\bsupport\s*(?:&|and|\/)\s*resistance\b/] },
   { id: 'lists', title: 'Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)', domains: ['watchlist'],
     words: [/\bwatch ?lists?\b/, /\blists?\b/, /\b(add|put|remove|drop)\b.+\b(to|into|from|off)\b/] },
   { id: 'screener', title: 'Screener (run screens, saved screens: run, save, copy, rename, delete)', domains: ['screener'],
@@ -463,7 +486,21 @@ export const GROUPS = [
     words: [/\bperiod[\s-]?sort\b|\bcustom[\s-]period\b/,
       /\b(?:rank|ranking|sort)\b.*\b(?:from|since|between)\b.*(?:\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.? \d{1,2}\b|\b\d{4}-\d{2}-\d{2}\b|\b\d{1,2}\/\d{1,2}\b)/,
       /\bdock\b.*\b(?:ranking|sort|sorted results)\b/] },
+  // Charts family (2026-11-12): ONE chart's bar replay playback (chartReplay.playback: the toolbar's Replay / Time Machine
+  // bar) in its OWN words-only fillLast group, LAST, so every existing group keeps its place and no fill changes. Its words
+  // name the replay as a THING played (a playback verb governing "the replay", the replay bar / speed, "in the replay" with a
+  // step, a speed with replay) — never "replay mode" / "replay as of / from <date>" (chart.replay's cutoff), never the verb
+  // "replay the tutorial / alert". Bare playback words ("next bar", "pause", "5x") bring it only while a chart's bar replay
+  // is ON (routingNames.replayOn): outside replay "next bar" stays chartSetup.stepBars.
+  { id: 'chartReplay', title: 'A chart’s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit', domains: ['chartReplay'], fillLast: true, wordsOnly: true,
+    words: [
+      /\b(?:play|pause|un-?pause|resume|restart|rewind|step|advance|scrub|skip|jump|move|fast[- ]?forward|speed up|slow down|run|continue|start|stop|exit|leave|quit|close|end|enter|open|launch|turn (?:on|off))\s+(?:the\s+|this\s+|that\s+|my\s+|its\s+)?(?:\w+\s+)?(?:bar\s+)?replay\b(?!\s+(?:mode|as of|from|of)\b)/,
+      /\breplay\s+(?:bar|speed|playback|controls?|scrubber|slider)\b|\btime machine\b/,
+      /\b(?:in|on|during|through) (?:the |this |my )?(?:bar )?replay\b(?!\s+mode\b).*\b(?:step|forward|back|next|previous|bars?|play|pause|speed|faster|slower)\b|\b(?:step|forward|next|previous|bars?|play|pause|speed|faster|slower)\b.*\b(?:in|on|during|through) (?:the |this |my )?(?:bar )?replay\b(?!\s+mode\b)/,
+      /\breplay\b(?!\s+mode\b).*\b(?:\d+ ?x|faster|slower)\b|\b(?:\d+ ?x|faster|slower)\b.*\breplay\b(?!\s+mode\b)/] },
 ]
+// chartReplay: the replay bar's bare playback words, which route there ONLY while a chart's bar replay is on (namedGroups)
+const REPLAY_ON_WORDS = /^(?:please )?(?:play|pause|resume|unpause|stop)\b|\b(?:play|pause|resume) (?:it|playback|playing)\b|\b(?:next|previous|prev|last) bar\b|\bstep (?:it )?(?:forward|back(?:ward)?)\b|\b(?:forward|back) (?:\d+|one|a|ten) bars?\b|\b(?:speed (?:it )?up|slow (?:it )?down|faster|slower)\b|\b(?:1|5|20) ?x\b|\b(?:to )?the (?:start|end|beginning)\b/
 
 const SYMBOL_VERB = /\b(switch|change|put|show|pull up|load|open|chart)\b/
 const NOT_TICKERS = new Set(['I', 'A', 'UCT', 'ETF', 'ADR', 'RS', 'RSI', 'MACD', 'EMA', 'SMA', 'ATR', 'ET', 'AM', 'PM', 'OK', 'US', 'NYSE', 'HLC'])
@@ -526,6 +563,8 @@ function namedGroups(q, names) {
     && /\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.? \d{1,2}\b|\b\d{4}-\d{2}-\d{2}\b|\b\d{1,2}\/\d{1,2}\b/.test(q)
   if (names?.widgetTypes?.length && controlledWidgetTypes(q, names.widgetTypes, surfaceWord).some(t => !(runsPeriodSort && t === 'periodsort'))) out.add('boardEdit')
   if (names?.widgetItems?.length && itemNamedTypes(q, names.widgetItems).length) out.add('boardEdit')
+  // chartReplay: while a chart's bar replay is on, its bare playback words ("next bar", "pause", "5x") mean the replay
+  if (names?.replayOn === true && REPLAY_ON_WORDS.test(q)) out.add('chartReplay')
   return out
 }
 
@@ -543,6 +582,8 @@ export function routingNames(host) {
       try { r = host.widgets.door?.(w.id)?.read?.() || null } catch { r = null }
       return ITEM_LISTS[w.type].map(l => ({ type: w.type, key: l.key, names: (Array.isArray(r?.[l.key]) ? r[l.key] : []).map(x => x?.name).filter(Boolean) }))
     })),
+    // chartReplay: is any chart's bar replay (the Replay / Time Machine button) on right now
+    replayOn: (() => { try { return !!host?.charts?.list?.()?.some(s => s?.view?.replay?.mode === true) } catch { return false } })(),
     indicatorTemplates: read(() => {
       const raw = host?.prefs?.read?.()?.indicator_templates
       const list = typeof raw === 'string' ? JSON.parse(raw) : raw

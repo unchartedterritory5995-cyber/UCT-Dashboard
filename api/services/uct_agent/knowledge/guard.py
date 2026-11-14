@@ -35,7 +35,8 @@ _INJECTION = re.compile(
     # #1106 right-click parity: the chartMenu domain (chartMenu.askAi / chartMenu.resetWatermark as bare names); stricter only
     # chartFeatures (Company Info panel + Earnings Strip): chartFeatures.companyPanel / earningsStrip as bare names; stricter only
     r"|drawing|widget|board|settings|definition|pane|volume|app|guide|stock|news|breadth|playbook|research|multiChart|periodSort|chartMenu"
-    r"|chartFeatures)"
+    # chartReplay (the bar replay's playback): chartReplay.playback as a bare name; stricter only
+    r"|chartFeatures|chartReplay)"
     r"\.(add|remove|delete|create|clear|rename|open|set|run|save|apply|show|hide|update|move|resize|toggle|swap|duplicate"
     # #1030 ratchet: master actions added by #1077/#1073/#1027 (chartSetup.stepBars/autoScale/compareGroup,
     # watchlist.arrangeColumns/exportList): their verbs join the withheld set (stricter only)
@@ -47,9 +48,17 @@ _INJECTION = re.compile(
     # chartFeatures: verbs company (companyPanel) and earnings (earningsStrip; also withholds the older stock.earnings bare
     # name, which leaves GUARD_KNOWN_UNWITHHELD — stricter, and that set may only shrink)
     r"|reorder|list|explain|setup|record|web|quote|cell|step|auto|compare|arrange|export|pin|unpin|dock|favorite|position|zoom|ask|reset"
-    r"|company|earnings)[A-Za-z]*\b"
+    # chartReplay: verbs playback (chartReplay.playback) and replay (also withholds the older chart.replay bare name, which
+    # leaves GUARD_KNOWN_UNWITHHELD — stricter, and that set may only shrink)
+    r"|company|earnings|playback|replay)[A-Za-z]*\b"
     r"|\bnew\s+instructions?\b|\bsystem\s*prompt\b|\bjailbreak\b"
     r"|<\s*/?\s*(system|assistant|user|tool|instructions?)\b|\[\s*(system|inst)\s*\]|<\|[a-z_]+\|>"
+    # Charts family (2026-11-12): the UCT Intelligence chart indicator (uctIntelligence.set as a bare name), on its own line; stricter only
+    # (never the site's own domain: "uctintelligence.com" is prose)
+    r"|\buctIntelligence\.(?!(?:com|net|org|io|co|ai|app|dev|us)\b)[a-z][A-Za-z]*\b"
+    # Charts family (2026-11-12): the volumeProfile domain (volumeProfile.set as a bare name — any volumeProfile.<verb>); its
+    # own branch, so the domain list above is untouched; stricter only. Prose "volume profile" has no dot and passes.
+    r"|\bvolumeProfile\.[a-z][A-Za-z]*\b"
     r"|\b(call|use|invoke)\s+the\s+\w+\s+tool\b|\btool_use\b|\bfunction_call\b",
     re.I)
 _CTRL = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")

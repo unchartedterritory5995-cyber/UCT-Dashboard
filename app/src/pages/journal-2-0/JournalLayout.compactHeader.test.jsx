@@ -125,6 +125,8 @@ describe('D-1 -- the phone Notebook header folds (rendered)', () => {
     expect(root(container)).toHaveAttribute('data-compact-header', 'true')
     const t = toggle()
     expect(t).not.toBeNull()
+    // Simplify pass 2 (A9): the room the ⋯ rows open is named as they are, "Trade journal tools".
+    expect(t).toHaveAccessibleName('Trade journal tools')
     expect(t).toHaveAttribute('aria-expanded', 'false')
     expect(t).toHaveAttribute('aria-controls', 'journal-header-tools')
     expect(root(container)).not.toHaveAttribute('data-tools-open')

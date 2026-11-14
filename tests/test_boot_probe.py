@@ -11,6 +11,7 @@ No network, no uvicorn.
 from __future__ import annotations
 
 import asyncio
+import os
 import logging
 import sys
 import threading
@@ -169,6 +170,44 @@ def test_control_the_sampler_is_silent_after_the_boot_window(caplog):
     with caplog.at_level(logging.INFO, logger="boot_probe"):
         _run_sampler(boot_window=0.0)
     assert not [m for m in caplog.messages if m.startswith("[boot-probe]")]
+
+
+def test_after_the_boot_window_a_cpu_probe_line_reports_the_interval(caplog, monkeypatch):
+    """2026-11-13: the per-thread view only existed for 7 minutes after boot, so a pod that
+    was CPU-bound in market hours could not say by what."""
+    monkeypatch.setattr(boot_probe, "STEADY_S", 0.02)
+    with caplog.at_level(logging.INFO, logger="boot_probe"):
+        _run_sampler(boot_window=0.0, ticks=8)
+    lines = [m for m in caplog.messages if m.startswith("[cpu-probe]")]
+    assert lines, caplog.messages
+    assert "loop-lag-max=" in lines[0] and "cpu=" in lines[0] and " anyio " in lines[0], lines[0]
+    assert not [m for m in caplog.messages if m.startswith("[boot-probe]")]
+
+
+def test_control_cpu_probe_off_when_steady_s_is_zero(caplog, monkeypatch):
+    monkeypatch.setattr(boot_probe, "STEADY_S", 0.0)
+    with caplog.at_level(logging.INFO, logger="boot_probe"):
+        _run_sampler(boot_window=0.0, ticks=8)
+    assert not [m for m in caplog.messages if m.startswith("[cpu-probe]")]
+
+
+@pytest.mark.skipif(not os.path.isdir("/proc/self/task"), reason="per-thread CPU is Linux /proc")
+def test_cpu_probe_names_the_thread_that_burned_the_cpu(caplog, monkeypatch):
+    import threading
+    stop = threading.Event()
+    def burn():
+        while not stop.is_set():
+            sum(range(2000))
+    t = threading.Thread(target=burn, name="zz-burner", daemon=True)
+    t.start()
+    monkeypatch.setattr(boot_probe, "STEADY_S", 0.2)
+    try:
+        with caplog.at_level(logging.INFO, logger="boot_probe"):
+            _run_sampler(boot_window=0.0, ticks=40)
+    finally:
+        stop.set()
+    lines = [m for m in caplog.messages if m.startswith("[cpu-probe]")]
+    assert any("zz-burner" in m for m in lines), lines
 
 
 def test_the_lifespan_starts_the_sampler_on_the_loop():

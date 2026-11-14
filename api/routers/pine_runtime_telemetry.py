@@ -223,3 +223,104 @@ def stop_report(days: int = 7) -> dict[str, Any]:
 def stops(days: int = 7, user: dict = Depends(require_admin)) -> dict[str, Any]:
     """The operator's read. ADMIN ONLY."""
     return stop_report(days)
+
+
+# ─── ENGINE 54 -- RUN-HALF REFUSAL TELEMETRY ───────────────────────────────────────────
+#
+# A host document's run half (`compute.runtimeObjects`) is refused by a dozen gates and three
+# rails at bind (`nativeRegistry.withRunHalf`). Before capability admission widens who gets
+# one, the reach must be measured: the client counts each refusal code per document session
+# and beacons ONE row per (script, code) per tab (`engine/runHalfTelemetry.js`) with exactly
+#
+#     code    the refusal code, a guard family and a name (`RUN_HALF_CODE_PATTERN`: no free
+#             text, so no sentence that could quote the script)
+#     hash    the first 12 hex characters of the script's sha256
+#
+# ⛔⛔ The same discipline as the stop beacon above: no source, no member id in the row
+# (`VISITOR`), unknown fields refused (422), the same two durable daily caps under their own
+# scope.
+RUN_HALF_EVENT = "pine_run_half_refusal"
+RUN_HALF_SCOPE = "pine_run_half_refusal"
+RUN_HALF_CODE_PATTERN = r"^(run-half|pane|runtime|interpret|pine|lower-tf|budget):[A-Za-z0-9_.-]{1,48}$"
+
+
+class RunHalfBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    code: str = Field(..., max_length=60, pattern=RUN_HALF_CODE_PATTERN)
+    hash: str = Field(..., pattern=_HASH_PATTERN)
+
+
+def record_run_half(body: RunHalfBody, user_id: Any = None) -> bool:
+    """Store one run-half refusal. True when a row was written. Never raises."""
+    try:
+        charges = [daily_counters.Charge(RUN_HALF_SCOPE, daily_counters.GLOBAL, 1, DAILY_CAP)]
+        if user_id is not None:
+            charges.insert(0, daily_counters.Charge(RUN_HALF_SCOPE, member_subject(user_id), 1, MEMBER_DAILY_CAP))
+        refused = daily_counters.take(_et_day(), charges)
+    except Exception:  # noqa: BLE001
+        refused = None
+    if refused is not None:
+        return False
+    props = {"code": body.code, "hash": body.hash}
+    try:
+        conn = get_connection()
+    except Exception:  # noqa: BLE001
+        log.exception("[pine-runtime-telemetry] no connection")
+        return False
+    try:
+        conn.execute("INSERT INTO landing_events (visitor_id, event, props) VALUES (?, ?, ?)",
+                     (VISITOR, RUN_HALF_EVENT, json.dumps(props, separators=(",", ":"), sort_keys=True)))
+        conn.commit()
+        return True
+    except Exception:  # noqa: BLE001
+        log.exception("[pine-runtime-telemetry] run-half write failed")
+        return False
+    finally:
+        conn.close()
+
+
+@router.post("/run-half")
+def run_half(body: RunHalfBody, user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    """⛔ Signed in, as `/stop`. The member's id keys the per-member cap as a keyed hash only."""
+    return {"ok": True, "logged": record_run_half(body, user.get("id"))}
+
+
+def run_half_report(days: int = 7) -> dict[str, Any]:
+    """Aggregates only: refusals by code, and by script hash prefix."""
+    days = max(1, min(int(days), 30))
+    since = (datetime.now(timezone.utc) - timedelta(days=days)).strftime("%Y-%m-%d %H:%M:%S")
+    try:
+        conn = get_connection()
+    except Exception:  # noqa: BLE001
+        return {"days": days, "refusals": 0, "by_code": {}, "by_script": []}
+    try:
+        rows = conn.execute(
+            "SELECT props FROM landing_events WHERE event = ? AND visitor_id = ? AND created_at >= ?",
+            (RUN_HALF_EVENT, VISITOR, since)).fetchall()
+    except Exception:  # noqa: BLE001
+        log.exception("[pine-runtime-telemetry] run-half report read failed")
+        rows = []
+    finally:
+        conn.close()
+    by_code: dict = {}
+    scripts: dict = {}
+    for (raw,) in rows:
+        try:
+            p = json.loads(raw or "{}")
+        except (TypeError, ValueError):
+            continue
+        code = p.get("code")
+        by_code[code] = by_code.get(code, 0) + 1
+        cell = scripts.setdefault(p.get("hash"), {"hash": p.get("hash"), "refusals": 0, "codes": {}})
+        cell["refusals"] += 1
+        cell["codes"][code] = cell["codes"].get(code, 0) + 1
+    return {"days": days, "refusals": sum(by_code.values()),
+            "by_code": dict(sorted(by_code.items(), key=lambda kv: -kv[1])),
+            "by_script": sorted(scripts.values(), key=lambda c: -c["refusals"])}
+
+
+@router.get("/run-halves")
+def run_halves(days: int = 7, user: dict = Depends(require_admin)) -> dict[str, Any]:
+    """The operator's read. ADMIN ONLY."""
+    return run_half_report(days)

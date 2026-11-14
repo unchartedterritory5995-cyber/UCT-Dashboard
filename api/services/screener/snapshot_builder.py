@@ -822,7 +822,15 @@ RS_WINDOW_BARS = rs_columns.LOOKBACK + RS_PUBLISHED_AGE_BARS     # 652
 
 
 def _read_daily_bars(ticker):
-    from api.services import bars_sqlite
+    """The ticker's daily bars from the store, CURRENT LISTING ONLY.
+
+    The store keeps a recycled or renamed symbol's earlier security in front of its
+    own bars (BNY on production, 2026-11-12: a fund near $10, 104 days of nothing, then
+    the bank at $139). Read whole, every bar-derived column of that row spans two
+    securities: the 200-day line, the 52-week range, the one-year change, the RS line's
+    highs. ``listing_break.current_listing`` is the chart's own cut, applied to what the
+    store hands the build (the rating's window uses the same rule)."""
+    from api.services import bars_sqlite, listing_break
     rows = bars_sqlite.get_bars(ticker, "D", DEEP_BARS) or []
     out = []
     for r in rows:
@@ -831,7 +839,7 @@ def _read_daily_bars(ticker):
                         "c": r[4], "v": r[5]})
         except Exception:
             continue
-    return out
+    return listing_break.current_listing(out)
 
 
 #: The benchmark symbols the bar-derived RS columns read, ONCE per build each

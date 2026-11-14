@@ -9,6 +9,6 @@
     "status": 400
   },
   "body": {
-    "detail": "Choose a kind of note."
+    "detail": "Choose a note type."
   }
 }

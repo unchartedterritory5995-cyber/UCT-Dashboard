@@ -34,7 +34,7 @@ export const COV3_HELD_OUT = [
   // widget controls named by what they do
   ['how do I sort the themes from worst to best', 'Ranking themes by period'],
   ['how do I measure the themes from the open', 'The today basis'],
-  ['how do I see annual numbers in fundamentals', 'Switching the fundamentals view'],
+  // ⚰️ 'how do I see annual numbers in fundamentals': withheld while Fundamentals is a hidden widget (owner 2026-11-13).
   ['how do I only see call options with a big premium', 'Flow filters'],
   ['how do I hide a breadth reading', 'Adding or removing a reading'],
   ['how do I add the Russell to new highs and lows', 'New highs and lows universes'],

@@ -44,9 +44,44 @@ def _offline(monkeypatch):
     monkeypatch.setattr(t1, "_record_cost", lambda r: 0.0)
 
 
-def _one(case_id: str, layout: str, model: str) -> dict:
+def _one(case_id: str, layout: str, model: str, manifest: list[dict] | None = None) -> dict:
     case = next(c for c in meas._cases() if c["id"] == case_id)
-    return meas.measure_case(case, layout, model, led=led, v2=v2, t1=t1, ctx=real_context(), manifest=_manifest())
+    return meas.measure_case(case, layout, model, led=led, v2=v2, t1=t1, ctx=real_context(),
+                             manifest=_manifest() if manifest is None else manifest)
+
+#: the round-1 request WITHOUT the action index (system prompt, real Screener section, tools, loaded schemas), measured
+#: 19_666 B on master 6c373e0300. It does not scale with registered actions; move it only for a deliberate prompt/section
+#: change, in its own commit with its measured number. Slack 128 B (< the few-hundred-byte bloat it must catch).
+#: RAISING THIS CONSTANT IS A DELIBERATE ACT: it needs AUDIT review in the PR that raises it. A master change that
+#: legitimately grows the system prompt or Screener section turns this test red ON PURPOSE (not a flake). A PR that moves
+#: both this constant and the $ figures below is AUDIT T2, not T1. The $ assertion stays the gate.
+NON_INDEX_BUDGET_BYTES = 19_666 + 128
+
+
+def _line_bound(cap: dict) -> int:
+    """JSON bytes one action may cost in the index: `tool: summary` capped at INDEX_SUMMARY_CHARS (+ '…'), + '\n'."""
+    s = " ".join(str(cap.get("summary") or "").split())
+    summ = len(s[:v2.INDEX_SUMMARY_CHARS].encode("utf-8")) + (len("…".encode("utf-8")) if len(s) > v2.INDEX_SUMMARY_CHARS else 0)
+    return len(v2.tool_name(cap["name"]).encode("utf-8")) + 2 + summ + 2      # ": " and the JSON-escaped newline
+
+
+def _round1_bound(manifest: list[dict]) -> dict:
+    """Measure round 1 twice through the real loop: as shipped, and with action_index → "" (the non-index base)."""
+    actual = _one("FLAGSHIP", "index", "claude-haiku-4-5", manifest)["bytes_per_round"][0]
+    real = v2.action_index
+    try:
+        v2.action_index = lambda caps: ""
+        base = _one("FLAGSHIP", "index", "claude-haiku-4-5", manifest)["bytes_per_round"][0]
+    finally:
+        v2.action_index = real
+    domains = {v2.domain_for(c["name"]) for c in manifest}
+    headers = sum(len(f"[{d}]".encode()) + 2 for d in domains)                 # "[domain]\n" per present domain
+    per = [_line_bound(c) for c in manifest]
+    n = len(manifest)
+    index_bound = sum(per) + headers
+    return {"base": base, "n": n, "per_action_avg": round(sum(per) / n, 1), "headers": headers,
+            "index_bound": index_bound, "index_actual": actual - base, "bound": base + index_bound, "actual": actual}
+
 
 
 def test_the_context_carries_the_real_screener_section():
@@ -65,15 +100,15 @@ def test_the_flagship_worst_case_is_over_the_cap_and_may_not_grow_while_v2_is_of
     assert r["completed"] and r["stopped"] is None and r["steps_sent"] == r["steps"] == 9
     assert r["rounds"] <= v2.DEFAULT_ROUNDS and r["pauses"] == 2
     assert r["tool_search_calls"] == 1 and r["tool_search_misses"] == 0
-    # records the real section, not a cost or request limit: #834 widened the screener section; v2 is off; activation requires
-    # the owner's v2 cost decision
-    # 29_000 → 29_500 (2026-11-12, AUDIT ruling on #1070): the measured section grew 28739 B (master 478ed3c1d9) → 29078 B with
-    # the four Drawing Boards actions; cost stays inside the owner's #1107 growth room (worst $0.3542 vs 0.3454 + 0.03). Each later
-    # family moves this pin in its own commit with its own measured number — never pre-allocated.
-    # 29_500 → 29_950 (2026-11-12, #1106 right-click parity, AUDIT rule: each family moves it with its own measured number):
-    # measured 29408 B (master 4d6c43659c, after #1104) → 29515 B with chartMenu.askAi / resetWatermark; worst $0.3575, still inside
-    # the owner's #1107 growth room (0.3454 + 0.03). The $ bar, the 0.25 cap and FLAGSHIP_BASELINE are unchanged.
-    assert r["bytes_per_round"][0] < 29_950
+    # Round-1 bytes: a MEASURED bound, not a hand-set pin (D11-A; the pin went 20k → 23k → 29k → 29.5k → 29.95k by hand).
+    # round 1 = the non-index part (system prompt, Screener section, tools, the loaded schemas) + action_index(caps), which is
+    # one capped line per registered action. A new action family adds its own measured line cost; nobody edits a number.
+    # A regression in the non-index part still fails against NON_INDEX_BUDGET_BYTES. The $ assertion below stays the gate.
+    b = _round1_bound(_manifest())
+    record_property("round1_bound", b)
+    assert b["base"] <= NON_INDEX_BUDGET_BYTES, b               # the non-index part did not bloat
+    assert b["index_actual"] <= b["index_bound"], b             # every index line obeys the INDEX_SUMMARY_CHARS cap
+    assert r["bytes_per_round"][0] == b["actual"] <= b["bound"], b
     record_property("flagship_worst_usd", r["worst_turn_usd"])
     if r["worst_turn_usd"] >= v2.DEFAULT_TURN_USD:
         warnings.warn(f"planner v2 flagship worst case ${r['worst_turn_usd']:.4f} is over the ${v2.DEFAULT_TURN_USD} cap: "
@@ -98,3 +133,21 @@ def test_grouping_keeps_dependent_steps_apart():
     g = meas._groups(steps)
     # screen | create (card) | add + charts | the four EMAs (on the new charts) + the save (card; runs after them, in order)
     assert g == [[0], [1], [2, 3], [4, 5, 6, 7, 8]]
+
+
+def test_the_round1_bound_scales_with_a_new_action_and_catches_an_uncapped_line(monkeypatch):
+    """Mutants (D11-A): an added action moves the bound by its own line cost and still passes; a line past the cap fails.
+
+    Resolution: the index bound counts each line at its CAP, while real summaries are trimmed at word boundaries, so on
+    master 6c373e0300 the index sits 712 B under its bound (10_150 vs 10_862). An index overrun smaller than that slack is
+    not caught here; that is acceptable only because the $ assertion stays the gate."""
+    m = _manifest()
+    b0 = _round1_bound(m)
+    extra = dict(m[0], name="chart.mutantProbeAction", summary="A new action added by a later family, longer than the cap")
+    b1 = _round1_bound(m + [extra])
+    assert b1["n"] == b0["n"] + 1 and b1["actual"] <= b1["bound"] and b1["base"] == b0["base"]
+    assert b1["bound"] - b0["bound"] == _line_bound(extra) and 0 < b1["actual"] - b0["actual"] <= _line_bound(extra)
+    real = v2.action_index
+    monkeypatch.setattr(v2, "action_index", lambda caps: real(caps) + "x" * 1_000)  # one line far past the cap
+    actual = _one("FLAGSHIP", "index", "claude-haiku-4-5", m)["bytes_per_round"][0]
+    assert actual > b0["bound"]

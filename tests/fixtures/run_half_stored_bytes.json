@@ -166,13 +166,17 @@
      "value": 0,
      "out2": 1
     },
+    "sites": {
+     "s1": "8:5"
+    },
     "runtimeLanguage": "pine",
     "runtimeFrontend": 1,
     "runtimeIr": 1,
     "runtimeOutputSignature": [
      "plot",
      "plot"
-    ]
+    ],
+    "programSha256": "b39d144cf5a9212523e85f6f567d02e0a8757a29761c16f5ed6d581f3e7f77e9"
    }
   },
   "meta": {
@@ -190,7 +194,7 @@
    "disclosures": [
     {
      "name": "Drawings",
-     "note": "2 of 3 drawing elements in this script aren't supported yet, so what it draws is incomplete. (The 3 are every drawing step this chart tried to carry: each line, label, box or table created, changed or written to, each change to a list of them, each loop, and each call to a drawing function of the script's own that could not be followed.) Where this chart can run the script bar by bar the way TradingView does (at the script's own settings, with every plot agreeing with that run), its drawings are made by that run instead, complete."
+     "note": "2 of 3 drawing elements in this script aren't supported yet, so what it draws is incomplete. (The 3 are every drawing step this chart tried to carry: each line, label, box or table created, changed or written to, each change to a list of them, each loop, and each call to a drawing function of the script's own that could not be followed.) Where this chart can run the script bar by bar the way TradingView does (at the script's own settings, with every plot and every drawing this chart makes agreeing with that run), its drawings are made by that run instead, complete."
     }
    ],
    "requirementTags": [],
@@ -198,7 +202,7 @@
    "pineVersion": 5,
    "doorVersion": 1,
    "naConditionFalse": true,
-   "engineVersion": 53
+   "engineVersion": 54
   },
   "placement": {
    "target": "price"
@@ -260,7 +264,7 @@
    }
   ]
  },
- "sentBytes": 3610,
+ "sentBytes": 3749,
  "edge": {
   "schemaVersion": 1,
   "id": "u_0123456789ab",
@@ -426,13 +430,17 @@
      "value": 0,
      "out2": 1
     },
+    "sites": {
+     "s1": "8:5"
+    },
     "runtimeLanguage": "pine",
     "runtimeFrontend": 1,
     "runtimeIr": 1,
     "runtimeOutputSignature": [
      "plot",
      "plot"
-    ]
+    ],
+    "programSha256": "b39d144cf5a9212523e85f6f567d02e0a8757a29761c16f5ed6d581f3e7f77e9"
    }
   },
   "meta": {
@@ -450,7 +458,7 @@
    "disclosures": [
     {
      "name": "Drawings",
-     "note": "2 of 3 drawing elements in this script aren't supported yet, so what it draws is incomplete. (The 3 are every drawing step this chart tried to carry: each line, label, box or table created, changed or written to, each change to a list of them, each loop, and each call to a drawing function of the script's own that could not be followed.) Where this chart can run the script bar by bar the way TradingView does (at the script's own settings, with every plot agreeing with that run), its drawings are made by that run instead, complete."
+     "note": "2 of 3 drawing elements in this script aren't supported yet, so what it draws is incomplete. (The 3 are every drawing step this chart tried to carry: each line, label, box or table created, changed or written to, each change to a list of them, each loop, and each call to a drawing function of the script's own that could not be followed.) Where this chart can run the script bar by bar the way TradingView does (at the script's own settings, with every plot and every drawing this chart makes agreeing with that run), its drawings are made by that run instead, complete."
     }
    ],
    "requirementTags": [],
@@ -458,7 +466,7 @@
    "pineVersion": 5,
    "doorVersion": 1,
    "naConditionFalse": true,
-   "engineVersion": 53,
+   "engineVersion": 54,
    "bytesProbe": [
     0.00001,
     0.0001,
@@ -531,5 +539,5 @@
    }
   ]
  },
- "edgeBytes": 3704
+ "edgeBytes": 3843
 }

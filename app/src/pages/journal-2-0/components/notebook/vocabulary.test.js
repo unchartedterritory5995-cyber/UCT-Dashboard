@@ -76,9 +76,8 @@ const ALLOW = new Map([
     "the server's recorded sentence (StyleLibraryDoors.test.jsx pins it to the contract)"],
   // Fix round 2: a slash row's search KEYWORDS are never shown; "journal style" keeps /journal style finding the row.
   ['components/notebook/SlashMenu.jsx|journal style', 'a search keyword, never displayed'],
-  // The slot type label is pinned word for word to the server's TYPE_LABELS (templateSlots.test.js reads share.py) and
-  // names the server-side "Kind of note" property (data from the API): a server change, not this naming layer's.
-  ['lib/templateSlots.js|Kind of note', "pinned to the server's TYPE_LABELS and the property's own name"],
+  // (Simplify pass 2, Task 1 fix round 1: the slot type label "Kind of note" now reads "Note type", so its entry here
+  // is gone; templateSlots.test.js pins the one difference from the server's TYPE_LABELS.)
   // A note made before this rename carries the old walkthrough title in its OWN body; it is still recognised.
   ['lib/templateBlocks.js|How to use this template', 'the legacy title, recognised in stored notes, never written'],
   ['components/notebook/SlashMenu.jsx|My presets', 'the slash menu group of CHART presets (lib/notebookSets), not note templates'],

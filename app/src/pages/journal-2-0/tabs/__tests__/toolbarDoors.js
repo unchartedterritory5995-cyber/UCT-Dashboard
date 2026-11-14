@@ -62,6 +62,14 @@ export function toolbarOffers(name) {
 /** The View menu's row for a mode (`short` is "List", "Table", "Board", ...). Opens the menu. */
 export function viewOption(short) {
   const menu = openMenu('View')
+  // Simplify pass 2 (C1): Graph and Timeline are in the menu's "More views" second view; the door presses it first.
+  // From inside that second view, a first-view mode is one "Back" away.
+  const find = () => within(menu).queryByRole('menuitemradio', { name: short })
+  if (find()) return find()
+  const back = within(menu).queryByRole('menuitem', { name: 'Back to View' })
+  if (back) fireEvent.click(back)
+  if (find()) return find()
+  fireEvent.click(within(menu).getByRole('menuitem', { name: 'More views' }))
   return within(menu).getByRole('menuitemradio', { name: short })
 }
 

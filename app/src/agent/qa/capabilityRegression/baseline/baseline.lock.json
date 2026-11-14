@@ -3805,22 +3805,22 @@
   "grid.add-count.reuses-one": {
    "digest": "70f2a00e08ea5b00",
    "phrasings": {
-    "add a 2x2 of SPY QQQ IWM DIA": {
+    "make a 2x2 of SPY QQQ IWM DIA": {
      "digest": "dcd51037b21b1b84",
      "gaps": [],
      "modes": {}
     },
-    "add a 2x2 grid of SPY, QQQ, IWM and DIA": {
+    "set up a 2x2 grid of SPY, QQQ, IWM and DIA": {
      "digest": "dcd51037b21b1b84",
      "gaps": [],
      "modes": {}
     },
-    "add SPY, QQQ, IWM and DIA on four charts": {
+    "show SPY, QQQ, IWM and DIA on four charts": {
      "digest": "dcd51037b21b1b84",
      "gaps": [],
      "modes": {}
     },
-    "add four charts for SPY QQQ IWM DIA": {
+    "four charts for SPY QQQ IWM DIA": {
      "digest": "dcd51037b21b1b84",
      "gaps": [],
      "modes": {}
@@ -3830,22 +3830,22 @@
   "grid.add-count.reuses-two": {
    "digest": "ca0b596a2127cd12",
    "phrasings": {
-    "add a 2x2 of SPY QQQ IWM DIA": {
+    "make a 2x2 of SPY QQQ IWM DIA": {
      "digest": "dcd51037b21b1b84",
      "gaps": [],
      "modes": {}
     },
-    "add a 2x2 grid of SPY, QQQ, IWM and DIA": {
+    "set up a 2x2 grid of SPY, QQQ, IWM and DIA": {
      "digest": "dcd51037b21b1b84",
      "gaps": [],
      "modes": {}
     },
-    "add SPY, QQQ, IWM and DIA on four charts": {
+    "show SPY, QQQ, IWM and DIA on four charts": {
      "digest": "dcd51037b21b1b84",
      "gaps": [],
      "modes": {}
     },
-    "add four charts for SPY QQQ IWM DIA": {
+    "four charts for SPY QQQ IWM DIA": {
      "digest": "dcd51037b21b1b84",
      "gaps": [],
      "modes": {}
@@ -4357,6 +4357,46 @@
     }
    }
   },
+  "volumeProfile.set": {
+   "digest": "4765e7854fb1a6df",
+   "phrasings": {
+    "turn on volume profile": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "add the volume profile to this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "show vpvr": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "volumeProfile.set.bins": {
+   "digest": "4653f21c769be5f6",
+   "phrasings": {
+    "turn on volume profile with 40 bins": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "add a volume profile with 40 rows": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "show the volume profile using 40 bins please": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
   "chartMenu.resetWatermark": {
    "digest": "df220e8af0d696e0",
    "phrasings": {
@@ -4532,6 +4572,31 @@
     }
    }
   },
+  "chartReplay.playback": {
+   "digest": "ff4013691b1537c3",
+   "phrasings": {
+    "start the bar replay": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "turn on the bar replay on this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "open the replay bar": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "start the time machine on this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
   "chartSetup.setIndicatorsHidden": {
    "digest": "6a2ae0ff5a8652e0",
    "phrasings": {
@@ -4576,6 +4641,101 @@
      "modes": {}
     },
     "turn off all the moving averages": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "uctIntelligence.add": {
+   "digest": "7e2aad12dc9b1350",
+   "phrasings": {
+    "add uct intelligence to this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "put the UCT Intelligence indicator on this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "turn on uct intelligence": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "uctIntelligence.layer": {
+   "digest": "de7f421bb371b5a3",
+   "phrasings": {
+    "turn on the setups layer": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "enable the uct intelligence setups": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "switch on setups in uct intelligence": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "uctIntelligence.autoPatterns": {
+   "digest": "2eb31971f4d4cd74",
+   "phrasings": {
+    "turn off auto patterns": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "hide the chart patterns": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "uctIntelligence.remove": {
+   "digest": "2df7df406dc5875f",
+   "phrasings": {
+    "remove uct intelligence from this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "take the UCT Intelligence indicator off": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "uctIntelligence.gated": {
+   "digest": "28162d06703fe4ce",
+   "phrasings": {
+    "turn on candlestick patterns": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "show the candlestick pattern markers": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "uctIntelligence.patterns.which": {
+   "digest": "a386783468197b46",
+   "phrasings": {
+    "turn the patterns off on this chart": {
      "digest": "44136fa355b3678a",
      "gaps": [],
      "modes": {}

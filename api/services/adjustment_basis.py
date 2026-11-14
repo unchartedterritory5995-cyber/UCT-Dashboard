@@ -222,7 +222,9 @@ def compute_adjustment_basis(ticker: str, tf: str) -> AdjustmentBasis:
 
         newest_declared = max(s[0] for s in splits)
 
-        rows = bars_sqlite.get_bars(ticker, tf, 400)
+        # One sqlite step, not one per row: this is the chart header's split label, asked for
+        # on every symbol a member reaches, and row by row it took seconds on the busy pod.
+        rows = bars_sqlite.get_bars_fast(ticker, tf, 400)
         if not rows:
             return UNDETERMINED
         bars = [{"t": _ymd_to_iso(r[0]), "o": r[1], "h": r[2], "l": r[3], "c": r[4], "v": r[5]}
@@ -275,9 +277,10 @@ def _intraday_basis(ticker: str, tf: str) -> AdjustmentBasis:
         if meta is None:
             return UNDETERMINED
         splits = meta.get("splits") or []
-        rows = bars_sqlite.get_bars(ticker, tf, _INTRADAY_ROWS)
+        # (decided before the read: a ticker with no declared split needs no rows at all)
         if not splits:
             return AdjustmentBasis(splits=False, dividends=None, as_of=None, applied_by="vendor")
+        rows = bars_sqlite.get_bars_fast(ticker, tf, _INTRADAY_ROWS)
         if not rows:
             return UNDETERMINED
         bars = [{"t": int(r[0]), "c": r[4]} for r in rows]

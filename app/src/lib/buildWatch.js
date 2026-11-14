@@ -5,7 +5,7 @@
 // 5-minute interval and 2-poll streak reset, and a member who keeps moving between pages might never
 // see the toast. The watcher lives here; the leaf only holds a reference count. The stop on the last
 // release is delayed so a remount (release then acquire in the same commit) keeps the same watcher.
-import { getClientBuildId, createBuildWatcher, fetchHealthSafe } from './buildVersion'
+import { getClientBuildId, createBuildWatcher, fetchBuildSafe } from './buildVersion'
 import { announceNewBuild, clearNewBuild } from './reloadGuard'
 
 const STOP_GRACE_MS = 2000
@@ -13,7 +13,8 @@ let refs = 0
 let watcher = null
 let stopTimer = null
 
-export function acquireBuildWatch({ fetchHealth = fetchHealthSafe, intervalMs } = {}) {
+// The default source is the frontend's own identity (/build.json), with /api/health as its fallback.
+export function acquireBuildWatch({ fetchHealth = fetchBuildSafe, intervalMs } = {}) {
   refs += 1
   if (stopTimer) { clearTimeout(stopTimer); stopTimer = null }
   if (!watcher) {

@@ -228,8 +228,8 @@ test('every workspace action a member needs is still reachable from the toolbar'
   // not be able to fail this file. Losing one outright still must.
   for (const name of [
     // Adding a widget is now the WIDGETS menu's iconified chip grid — a representative
-    // chip (Volume Surge) being reachable proves the add affordance survived.
-    /volume surge/i, /merge widgets/i, /new layout/i, /open layout/i,
+    // chip (Theme Tracker) being reachable proves the add affordance survived.
+    /theme tracker/i, /merge widgets/i, /new layout/i, /open layout/i,
     /save layout/i, /multi chart/i, /pop out layout/i,
   ]) {
     expect(toolbarButton(name), `the toolbar no longer reaches ${name}`).toBeTruthy()
@@ -287,12 +287,12 @@ test('ghost preview appears only when a widget must be adjusted — Cancel adds 
 test('first visit (no saved layout) applies the frozen UCT Default arrangement once prefs + templates settle', () => {
   renderWS()
   // No "chart" template exists → falls back to UCT_DEFAULT_LAYOUT: themes + chart +
-  // fundamentals + watchlist + aisearch (no scanner).
+  // watchlist (no scanner). Fundamentals + AI Search left it 2026-11-13 (hidden widgets).
   expect(screen.getByTestId('body-watchlist')).toBeInTheDocument()
   expect(screen.getByTestId('body-chart')).toBeInTheDocument()
   expect(screen.getByTestId('body-themes')).toBeInTheDocument()
-  expect(screen.getByTestId('body-fundamentals')).toBeInTheDocument()
-  expect(screen.getByTestId('body-aisearch')).toBeInTheDocument()
+  expect(screen.queryByTestId('body-fundamentals')).not.toBeInTheDocument()
+  expect(screen.queryByTestId('body-aisearch')).not.toBeInTheDocument()
   expect(screen.queryByTestId('body-scanner')).not.toBeInTheDocument()
 })
 
@@ -300,7 +300,7 @@ test('TERM-010: a brand-new member (no board, no chart settings) starts on the W
   mockPrefs = {}
   renderWS()
   expect(screen.getByTestId('body-chart')).toBeInTheDocument()
-  expect(screen.getByTestId('body-fundamentals')).toBeInTheDocument()
+  expect(screen.getByTestId('body-watchlist')).toBeInTheDocument()
   // The frozen look is persisted, through the same apply the Open Layout menu runs.
   const look = setPref.mock.calls.find(
     ([k, v]) => k === 'chart_settings' && typeof v === 'string' && v.includes('"titleMode":"both"'),
@@ -325,7 +325,7 @@ test('clicking "UCT Default" applies the frozen layout AND writes the frozen cha
   act(() => { headerButton(/^UCT Default$/).click() })
   // Frozen arrangement is on the board.
   expect(screen.getByTestId('body-chart')).toBeInTheDocument()
-  expect(screen.getByTestId('body-fundamentals')).toBeInTheDocument()
+  expect(screen.getByTestId('body-watchlist')).toBeInTheDocument()
   // The frozen chart_settings blob is persisted (header titleMode 'both').
   const chartSettingsSave = setPref.mock.calls.find(
     ([k, v]) => k === 'chart_settings' && typeof v === 'string' && v.includes('"titleMode":"both"'),
@@ -1297,7 +1297,7 @@ describe('UCT News in the WIDGETS menu, for every signed-in role', () => {
   }
 
   for (const role of ['user', 'admin']) {
-    test(`a ${role} sees UCT News next to News & Catalysts under Research, and can add it`, () => {
+    test(`a ${role} sees UCT News under Research (News & Catalysts hidden), and can add it`, () => {
       localStorage.removeItem('uct.nb.capture.enabled')
       mockUser = { id: role === 'admin' ? 1 : 42, role }
       mockPrefs = { charts_workspace_layout: JSON.stringify({ widgets: [], cols: 24 }) }
@@ -1307,10 +1307,8 @@ describe('UCT News in the WIDGETS menu, for every signed-in role', () => {
       expect(news, `a ${role} is not offered UCT News`).toBeTruthy()
       expect(news.textContent).toBe('News')
       expect(news.disabled).toBe(false)
-      // The legacy per-stock widget is still offered, unchanged, beside it.
-      expect(chip('news')?.textContent).toBe('News & Catalysts')
-      const group = news.closest('[class*="wAddGroup"]')
-      expect(group.contains(chip('news')), 'both live in the same (Research) group').toBe(true)
+      // Owner 2026-11-13: the legacy per-stock News & Catalysts widget is hidden.
+      expect(chip('news'), 'News & Catalysts is a hidden widget').toBeNull()
 
       act(() => { news.click() })
       expect(screen.getByTestId('body-tradeExchangeNews')).toBeInTheDocument()

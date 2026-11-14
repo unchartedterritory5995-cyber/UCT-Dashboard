@@ -499,7 +499,7 @@
     ],
     "target": {
       "role": "link",
-      "name": "~Back to Notebook"
+      "name": "~Back to Daily brief"
     },
     "viewports": [
       "1280",
@@ -521,7 +521,7 @@
     },
     "reason": {
       "verdict": "HARD",
-      "text": "Go-live wave 2, by ruling: Research home was retired (simplify Task 5, go-live wave 1) and its setups board link moved to the Daily brief, an optional page reached from the folders panel's Daily brief row; on a phone that row is inside the folders drawer, so the door costs a press more and the card sits below the brief's first cards. Measured at 390: 4 presses to the board's Back to Notebook, above the fold (1280: OK, 3 presses). Recorded in docs/notebook/simplify-2026-11-11-ledger.md, Go-live wave 2. Owner call: accept, or give the phone a nearer door."
+      "text": "Go-live wave 2, by ruling: Research home was retired (simplify Task 5, go-live wave 1) and its setups board link moved to the Daily brief, an optional page reached from the folders panel's Daily brief row; on a phone that row is inside the folders drawer, so the door costs a press more and the card sits below the brief's first cards. Measured at 390: 4 presses to the board's way back (since follow-up B, 'Back to Daily brief', which returns to the brief), above the fold (1280: OK, 3 presses). Recorded in docs/notebook/simplify-2026-11-11-ledger.md, Go-live wave 2. Owner call: accept, or give the phone a nearer door."
     }
   },
   {
@@ -660,6 +660,63 @@
     "note": "The styles manager is the list's More menu row \"Manage templates\" (S7, one vocabulary: the toolbar's Styles button folded into the More menu). Go-live wave 2 (Notebook simplify): a bare /journal/notebook opens the notes list, so the old 'View all notes' press from Research home is gone."
   },
   {
+    "feature": "Daily notes start from: Manage templates' Plain templates group (follow-up C)",
+    "audit_row": 54,
+    "path": "/journal/notebook",
+    "steps": [
+      {
+        "click": "button|More notebook actions"
+      },
+      {
+        "click": "menuitem|Manage templates"
+      }
+    ],
+    "target": {
+      "role": "heading",
+      "name": "Plain templates"
+    },
+    "viewports": [
+      "1280",
+      "390"
+    ],
+    "flag": "NOTEBOOK_JOURNAL_STYLES_ENABLED",
+    "note": "Follow-up C moved the 'Daily notes start from' control out of the New note sheet into Manage templates' Plain templates group (the sheet keeps a 'Daily notes start from: <name>. Change' link into it, drawn only once the member has a plain template). The audit's member has no plain template, so the group shows its empty sentence and the control is not drawn: the target is the group itself, where the control appears. The control and both links are walked in the c2 walk (followups.templates.daily, .sheet-manage).",
+    "reason": {
+      "verdict": "HARD",
+      "text": "Follow-up C, by ruling (one room for templates, progress ledger 2026-11-13): the 'Daily notes start from' control left the New note sheet (+ New arrow, From a template: the control at the top of 'Your templates', 3 clicks by the same rule; no row measured it then) for Manage templates' Plain templates group, which sits below the per-note-type lists. Measured door-audit-20261114T023459Z: 3 clicks and a scroll inside the manager at 1280 and 390 (group heading at 1312 px and 1530 px), HARD. The sheet keeps a 'Daily notes start from: <name>. Change' line whose Change opens the manager at the control (walked: discover.recap-template; the Manage link lands on the group, followups.templates.sheet-manage), drawn once the member has a plain template, the only case the control does anything. Recorded in docs/notebook/simplify-2026-11-11-ledger.md, Follow-up E. Owner call: accept, or move the group above the note-type lists."
+    }
+  },
+  {
+    "feature": "My tools > Templates: the button into Manage templates (follow-up C)",
+    "audit_row": 54,
+    "path": "/journal/notebook",
+    "steps": [
+      {
+        "click": "button|More notebook actions"
+      },
+      {
+        "click": "menuitem|My tools"
+      },
+      {
+        "click": "tab|Templates"
+      }
+    ],
+    "target": {
+      "role": "button",
+      "name": "Open Manage templates"
+    },
+    "viewports": [
+      "1280",
+      "390"
+    ],
+    "flag": "NOTEBOOK_WIDGETS_W8_ENABLED",
+    "note": "Follow-up C: My tools > Templates is one sentence and this button (it closes My tools and opens Manage templates); the list it drew lives in the manager's Archived and Recently deleted views.",
+    "reason": {
+      "verdict": "HARD",
+      "text": "Follow-up C, by ruling: My tools > Templates is one sentence and this button (4 clicks: More, My tools, Templates, the button), a forwarding door for members who learned the old tab. The list it used to draw is now Manage templates' Archived and Recently deleted views: More, Manage templates, the view's tab = 3 clicks, EASIER than the old tab's list (More, My tools, Templates, then a row: 4). Recorded in docs/notebook/simplify-2026-11-11-ledger.md, Follow-up E."
+    }
+  },
+  {
     "feature": "New note from a template (P1)",
     "audit_row": 55,
     "path": "/journal/notebook",
@@ -761,9 +818,9 @@
     "flag": "NOTEBOOK_JOURNAL_STYLES_ENABLED",
     "reason": {
       "verdict": "HARD",
-      "text": "Integrator ruling R-T13-5: a once-per-member setting, kept in Portfolio Settings' TRADE SETUPS section beside the per-setup checklists it switches on, so the choice sits with the rules it shows. Measured one press (two at 390, behind Journal tools), labelled and uncovered, but 3.74 screens down the modal at 1280 and 3.96 at 390: past the one-scroll line. Owner call: accept, or add a way in from Log Trade itself (follow-up F-CHECKLIST-DOOR, carried to P2b's pre-flight)."
+      "text": "Integrator ruling R-T13-5: a once-per-member setting, kept in Portfolio Settings' TRADE SETUPS section beside the per-setup checklists it switches on, so the choice sits with the rules it shows. Measured one press (two at 390, behind Trade journal tools), labelled and uncovered, but 3.74 screens down the modal at 1280 and 3.96 at 390: past the one-scroll line. Owner call: accept, or add a way in from Log Trade itself (follow-up F-CHECKLIST-DOOR, carried to P2b's pre-flight)."
     },
-    "note": "Notebook simplify Task 1 took the Journal header's settings gear off the desktop Notebook (it stays on every other Journal page), so the door is measured from Trades, the Journal page a member logs from. The member's opt-in (PortfolioSettingsModal, shown only while journal styles are on), reached from the Journal header's settings gear. At 390 the Notebook folds the header tools behind \"Journal tools\" (JournalLayout D2), so that press comes first. Reachability read from the source, not measured; unmeasured when added. Row 58 (the checklist in Log Trade itself) needs this opt-in set, which no seed does, so the walk measures it (blocks.log-trade-checklist); row 60 (Update layout on a v1 Trade plan note) needs a seeded v1 note, which no seed makes, so the walk's styles update row measures it.",
+    "note": "Notebook simplify Task 1 took the Journal header's settings gear off the desktop Notebook (it stays on every other Journal page), so the door is measured from Trades, the Journal page a member logs from. The member's opt-in (PortfolioSettingsModal, shown only while journal styles are on), reached from the Journal header's settings gear. At 390 the Notebook folds the header tools behind \"Trade journal tools\" (JournalLayout D2; \"Journal tools\" until simplify pass 2, A9), so that press comes first. Reachability read from the source, not measured; unmeasured when added. Row 58 (the checklist in Log Trade itself) needs this opt-in set, which no seed does, so the walk measures it (blocks.log-trade-checklist); row 60 (Update template, formerly Update layout, on a v1 Trade plan note) needs a seeded v1 note, which no seed makes, so the walk's styles update row measures it.",
     "ready": "button[aria-label='Open Portfolio Settings']"
   },
   {

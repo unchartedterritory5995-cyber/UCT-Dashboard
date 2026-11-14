@@ -9,6 +9,6 @@
     "status": 400
   },
   "body": {
-    "detail": "Built-in kinds can't be changed. Make your own kind instead."
+    "detail": "Built-in note types can't be changed. Make your own note type instead."
   }
 }

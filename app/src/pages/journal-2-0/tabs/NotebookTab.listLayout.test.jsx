@@ -52,7 +52,8 @@ const openViewMenu = () => {
   if (t.getAttribute('aria-expanded') !== 'true') fireEvent.click(t)
   return screen.getByRole('menu', { name: 'View' })
 }
-const layoutGroup = () => within(openViewMenu()).getByRole('group', { name: 'List layout' })
+// Simplify pass 2 (A10): the group is "Show as" (Rows / Cards); "layout" is the page-layout panels' word.
+const layoutGroup = () => within(openViewMenu()).getByRole('group', { name: 'Show as' })
 const openNewMenu = () => {
   fireEvent.click(within(bar()).getByRole('button', { name: 'More ways to start a note' }))
   return screen.getByRole('menu', { name: 'Start a note' })
@@ -84,11 +85,17 @@ describe('rows are the default: one column, a title and a quiet meta line per no
       .filter((el) => !el.closest('[data-saved-views-group]'))
       .map((el) => el.textContent.trim())
     expect(order.slice(0, 4)).toEqual(['List', 'Rows', 'Cards', 'Table'])
+    // Simplify pass 2 (A10, Task 1 fix round 1): the group is "Show as", and the old name is gone where it was drawn.
+    expect(within(menu).getByRole('group', { name: 'Show as' })).toBeInTheDocument()
+    expect(within(menu).queryByRole('group', { name: 'List layout' })).toBeNull()
+    expect(menu).not.toHaveTextContent(/List layout/)
   })
 
   it('CONTROL: outside List (Table) the menu offers no Rows / Cards', async () => {
     await renderTab('/journal/notebook?view=table')
-    expect(within(openViewMenu()).queryByRole('group', { name: 'List layout' })).toBeNull()
+    const menu = openViewMenu()
+    expect(within(menu).queryByRole('group', { name: 'Show as' })).toBeNull()
+    expect(within(menu).queryByRole('group', { name: 'List layout' })).toBeNull()
   })
 })
 
@@ -188,24 +195,35 @@ describe('the row stylesheet: one column, 860 px at most, hairlines, no card chr
   })
 })
 
+// Simplify pass 2 (C2): the three reviews are the SECOND VIEW of one row, "Draft a review" (final fix: this suite still
+// expected them in the first view, in a "Reviews" group that no longer exists).
+const openDraftReview = (menu) => {
+  fireEvent.click(within(menu).getByRole('menuitem', { name: 'Draft a review' }))
+  return within(menu).getByRole('group', { name: 'Draft a review' })
+}
 describe('one New menu', () => {
-  it('Blank, From a template, Voice note, Import, then Reviews: the three drafts (no "From an outline")', async () => {
+  it('Blank, From a template, Voice note, Import, Draft a review; the three drafts in its second view (no "From an outline")', async () => {
     latchNotebookFlags({
       notebook_voice_notes_enabled: true, notebook_journal_styles_enabled: true, notebook_review_drafts_enabled: true,
     })
     await renderTab()
     const menu = openNewMenu()
-    const top = within(menu).getAllByRole('menuitem').filter((el) => !el.closest('[role="group"]'))
-    expect(top.map((el) => el.textContent.trim())).toEqual(['Blank', 'From a template', 'Voice note', 'Import'])
-    const reviews = within(menu).getByRole('group', { name: 'Reviews' })
+    expect(within(menu).getAllByRole('menuitem').map((el) => el.textContent.trim()))
+      .toEqual(['Blank', 'From a template', 'Voice note', 'Import', 'Draft a review'])
+    expect(within(menu).queryByRole('menuitem', { name: "Today's recap" })).toBeNull()      // not in the first view
+    const reviews = openDraftReview(menu)
     expect(within(reviews).getAllByRole('menuitem').map((el) => el.textContent.trim()))
       .toEqual(["Today's recap", "This week's review", "This month's review"])
+    expect(within(menu).getByRole('menuitem', { name: 'Back to Start a note' })).toBeTruthy()
+    expect(within(menu).queryByRole('menuitem', { name: 'Blank' })).toBeNull()               // the first view gave way
     expect(within(menu).queryByRole('menuitem', { name: 'From an outline' })).toBeNull()
   })
 
-  it('CONTROL: with review drafts off there is no Reviews group (no door that opens nothing)', async () => {
+  it('CONTROL: with review drafts off there is no "Draft a review" row (no door that opens nothing)', async () => {
     await renderTab()
-    expect(within(openNewMenu()).queryByRole('group', { name: 'Reviews' })).toBeNull()
+    const menu = openNewMenu()
+    expect(within(menu).getByRole('menuitem', { name: 'Blank' })).toBeTruthy()
+    expect(within(menu).queryByRole('menuitem', { name: 'Draft a review' })).toBeNull()
   })
 
   it.each([
@@ -216,7 +234,7 @@ describe('one New menu', () => {
     latchNotebookFlags({ notebook_review_drafts_enabled: true })
     const drafts = await import('../lib/reviewDrafts')
     await renderTab()
-    const reviews = within(openNewMenu()).getByRole('group', { name: 'Reviews' })
+    const reviews = openDraftReview(openNewMenu())
     fireEvent.click(within(reviews).getByRole('menuitem', { name }))
     await waitFor(() => expect(drafts[fn]).toHaveBeenCalledTimes(1))
     expect(drafts[fn]).toHaveBeenCalledWith(expect.objectContaining(args))

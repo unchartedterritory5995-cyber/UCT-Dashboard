@@ -708,6 +708,62 @@
       ]
     },
     {
+      "key": "uct.indwarm.off",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Charts",
+      "kind": "internal",
+      "label": "Chart loading rollout switch",
+      "files": [
+        "app/src/components/chart/engine/serverWarm.js",
+        "app/src/lib/symbolResourceWarm.js"
+      ]
+    },
+    {
+      "key": "uct.plotwindow.off",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Charts",
+      "kind": "internal",
+      "label": "Chart loading rollout switch",
+      "files": [
+        "app/src/components/chart/engine/plotWindow.js"
+      ]
+    },
+    {
+      "key": "uct.restgate.off",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Charts",
+      "kind": "internal",
+      "label": "Chart loading rollout switch",
+      "files": [
+        "app/src/lib/symbolPace.js"
+      ]
+    },
+    {
+      "key": "uct.rsdisk.off",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Charts",
+      "kind": "internal",
+      "label": "Chart loading rollout switch",
+      "files": [
+        "app/src/components/chart/engine/serverColumnsDisk.js"
+      ]
+    },
+    {
+      "key": "uct.rslane.tfs",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Charts",
+      "kind": "state",
+      "label": "Timeframes you use, so their indicator lines are loaded ahead",
+      "files": [
+        "app/src/components/chart/engine/serverCompute.js"
+      ]
+    },
+    {
       "key": "uct.signedIn.v1",
       "store": "localStorage",
       "scope": "device-local",
@@ -1604,6 +1660,28 @@
       "label": "App theme, for painting before your account loads",
       "files": [
         "app/src/styles/appThemes.js"
+      ]
+    },
+    {
+      "key": "uct.barStore",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Charts",
+      "kind": "internal",
+      "label": "Chart data rollout switch",
+      "files": [
+        "app/src/components/chart/barStoreSwitch.js"
+      ]
+    },
+    {
+      "key": "uct.barsgrace.off",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Charts",
+      "kind": "internal",
+      "label": "Chart loading rollout switch",
+      "files": [
+        "app/src/components/chart/useLegacyChartBars.js"
       ]
     },
     {
@@ -2770,12 +2848,23 @@
       ]
     },
     {
-      "key": "uct.watchlist.cols.breadthDrill",
+      "key": "uct.watchlist.cols.breadthDrill.focus7",
       "store": "localStorage",
       "scope": "device-local",
       "surface": "Breadth",
       "kind": "setting",
       "label": "Drill-down list columns",
+      "files": [
+        "app/src/pages/Watchlists.jsx"
+      ]
+    },
+    {
+      "key": "uct.watchlist.cols.breadthDrill.table",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Breadth",
+      "kind": "setting",
+      "label": "Drill-down table columns",
       "files": [
         "app/src/pages/Watchlists.jsx"
       ]
@@ -3033,6 +3122,17 @@
       "label": "Debug only: log layout shifts to the console (off unless set by hand)",
       "files": [
         "app/src/lib/clsDebug.js"
+      ]
+    },
+    {
+      "key": "uct_server_columns_v1/entries",
+      "store": "indexedDB",
+      "scope": "device-local",
+      "surface": "Charts",
+      "kind": "cache",
+      "label": "Indicator lines from the server, kept so a chart you have seen draws at once",
+      "files": [
+        "app/src/components/chart/engine/serverColumnsDisk.js"
       ]
     }
   ]

@@ -28,10 +28,9 @@ import useMarketOpen from '../../../hooks/useMarketOpen'
 import { getExtSessionCached } from '../../../utils/extSession'
 import { useFlagged } from '../../../hooks/useFlagged'
 import useHeaderSnapshot from './useHeaderSnapshot'
-import useWatchlistPerformance from '../../../hooks/useWatchlistPerformance'
-import useWatchlistMeta from '../../../hooks/useWatchlistMeta'
-import useVolumeCurve from '../../../hooks/useVolumeCurve'
-import useWatchlistThemes from '../../../hooks/useWatchlistThemes'
+import useHeaderExtrasWarm from './useHeaderExtrasWarm'
+import { useChartPerformance as useWatchlistPerformance, useChartMeta as useWatchlistMeta } from '../restedReaders'
+import { useChartVolumeCurve as useVolumeCurve, useChartThemes as useWatchlistThemes } from '../restedReaders'
 import useRealtimePrices from '../../../hooks/useRealtimePrices'
 import {
   HEADER_FIELD_BY_KEY, PERF_HEADER_KEYS, QUOTE_HEADER_KEYS, META_HEADER_KEYS,
@@ -42,8 +41,7 @@ import useThemeIndexBars from '../../../hooks/useThemeIndexBars'
 import useBreadthSymbols from '../../../hooks/useBreadthSymbols'
 import useMarketIndicators from '../../../hooks/useMarketIndicators'
 import useEtfSymbols from '../../../hooks/useEtfSymbols'
-import useTickerMeta from '../../../hooks/useTickerMeta'
-import useDelisted from '../../../hooks/useDelisted'
+import { useChartTickerMeta as useTickerMeta, useChartDelisted as useDelisted } from '../restedReaders'
 import { chordById, matchesChord } from '../../../pages/command/chords.js'
 import { isEconomicId } from '../engine/econMark'
 import useEconomicCatalog from '../engine/useEconomicCatalog'
@@ -559,6 +557,10 @@ function ChartPane({
   const { perfData } = useWatchlistPerformance(wantsPerf ? [sym] : [])
   // One request per chart symbol (its own curve rides the market one), never per tick.
   const volCurve = useVolumeCurve(wantsCurve, wantsCurve ? [sym] : [])
+  // The rows a member is about to reach have these same reads asked for ahead, each only
+  // while this header makes it (the delisted check: for every real ticker, on a pane whose
+  // info row can show, as with the snapshot: a compact or mini pane asks for no row).
+  useHeaderExtrasWarm({ perf: wantsPerf, theme: wantsTheme, meta: wantsMeta, curve: wantsCurve, delisted: infoGate && !(synthDailyOnly || exhibit) })
   const metaItems = useMemo(() => {
     const ctx = { fund, quote: hdrPrices?.[sym], meta: hdrMeta?.[sym], perf: perfData?.[sym], theme: hdrTheme?.[sym], name: companyName, isFundLike, volCurve, sym }
     return infoFieldKeys.map((key) => {
@@ -916,7 +918,9 @@ function ChartPane({
     getDateMeta: () => (dateNavApiRef.current?.getDateMeta?.() || null),
     // ⭐ UCT Agent: the range bar (and its Undo), Reset view, hide-all-indicators, the ◀ / ▶ step, Auto-scale and the + / - zoom, read back through getDateMeta. A VIEW; nothing saved here.
     viewDo: (op, arg) => {
-      const fn = ['applyRange', 'restoreView', 'resetView', 'setIndicatorsHidden', 'stepBar', 'autoScale', 'zoom', 'positionCalc'].includes(op) ? dateNavApiRef.current?.[op] : null
+      const fn = ['applyRange', 'restoreView', 'resetView', 'setIndicatorsHidden', 'stepBar', 'autoScale', 'zoom', 'positionCalc'].includes(op) ? dateNavApiRef.current?.[op]
+        // chartReplay.playback: the Replay / Time Machine bar's own handlers (StockChart replayDo), read back via getDateMeta().replay
+        : op === 'replay' ? dateNavApiRef.current?.replay : null
       if (!fn) return false
       fn(arg)
       return true
@@ -945,6 +949,8 @@ function ChartPane({
     // shown / hidden?" (the Indicators button's own predicate). Agent passes it as
     // `ctx.canManage` to `builder/agentMutations.js` at plan, at apply and at every Undo.
     canManageIndicators: () => { try { return !!paneToolbarApi.current?.canManageIndicators?.() } catch { return false } },
+    // UCT Agent (uctIntelligence.set): the UCT Intelligence row/panel gates StockChart computes (null = not published yet)
+    uctIntelligence: () => { try { return paneToolbarApi.current?.uctIntelligence?.() ?? null } catch { return null } },
     // ⭐ AGENT M3 (S3) — the tab's ONE live authoring preview on this chart (`previewChannel`):
     // `{ok, movedFrom}` | `{ok:false, reason:'readonly'|'busy'|'invalid'}`; never persisted.
     showAuthoringPreview: (definition, opts = {}) => { try { return paneToolbarApi.current?.showAuthoringPreview?.(definition, opts) ?? { ok: false, reason: 'readonly' } } catch { return { ok: false, reason: 'readonly' } } },

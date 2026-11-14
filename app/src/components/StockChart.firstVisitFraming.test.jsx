@@ -131,28 +131,42 @@ describe.each(BARSTORE_MODES)('BARSTORE=%s', (barStoreOn) => {
       expect(barsCalls().some(u => u.includes('/api/bars/BBB'))).toBe(true)
     })
 
-    // ⚠️ THE ONE CASE WHOSE EXPECTATION DIFFERS BY SOURCE (P3-S1, listed in the PR as an
-    // intentionally dropped legacy behaviour). The legacy selector gates its request on the IDB
-    // read (patient 4 s once this browser has shown a cache). The BarStore never waits on a
-    // cache: subscribing starts the hydrate AND the key's one request together, and whichever
-    // lands first paints (a local copy only under its paint rule). Same request count — the
-    // legacy daily path full-fetched after the read anyway — so the stuck read costs no delay.
+    // ⭐ (2026-11-14) NO LONGER DIFFERS BY SOURCE. This was the one case whose expectation
+    // did (P3-S1): the legacy selector gated its request on the IDB read (patient 4 s once this
+    // browser has shown a cache) while the BarStore never waits on a cache. The legacy daily
+    // path full-fetched after the read anyway, so the wait bought nothing, and on production it
+    // was 217-484 ms of empty chart on 8 of 40 flips of a new list. The legacy selector now lets
+    // a D/W/M request go after `IDB_DWM_GRACE_MS` (chart/useLegacyChartBars.js): one request,
+    // not held by the read, under either source. StockChart.dailyCacheGrace.test.jsx holds what
+    // happens to the stores when the read lands late.
     it(barStoreOn
       ? 'BARSTORE: a stuck cache read never holds the request (hydrate runs beside it)'
-      : 'CONTROL: once the pack has ingested, a stuck read is waited on (has data, just busy)', async () => {
+      : 'a stuck cache read does not hold a DAILY request past the grace, even once the pack has ingested', async () => {
       vi.useFakeTimers({ shouldAdvanceTime: true })
       localStorage.setItem('barspack.version', '2026-10-16')
       await primeCached()
       idb.CCC = 'hang'
       render(<StockChart sym="CCC" tf="D" />)
       await act(async () => { await vi.advanceTimersByTimeAsync(700) })
-      if (barStoreOn) {
-        expect(barsCalls().filter(u => u.includes('/api/bars/CCC')).length).toBe(1)
-        return
+      expect(barsCalls().filter(u => u.includes('/api/bars/CCC')).length).toBe(1)
+    })
+
+    // The legacy selector's own switch brings the old wait back (has data, just busy: 4 s).
+    if (!barStoreOn) it('CONTROL: with `uct.barsgrace.off` set, a stuck read is waited on once the pack has ingested', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true })
+      localStorage.setItem('barspack.version', '2026-10-16')
+      localStorage.setItem('uct.barsgrace.off', '1')
+      try {
+        await primeCached()
+        idb.DDD = 'hang'
+        render(<StockChart sym="DDD" tf="D" />)
+        await act(async () => { await vi.advanceTimersByTimeAsync(700) })
+        expect(barsCalls().some(u => u.includes('/api/bars/DDD'))).toBe(false)
+        await act(async () => { await vi.advanceTimersByTimeAsync(3500) })
+        expect(barsCalls().some(u => u.includes('/api/bars/DDD'))).toBe(true)
+      } finally {
+        localStorage.removeItem('uct.barsgrace.off')
       }
-      expect(barsCalls().some(u => u.includes('/api/bars/CCC'))).toBe(false)
-      await act(async () => { await vi.advanceTimersByTimeAsync(3500) })
-      expect(barsCalls().some(u => u.includes('/api/bars/CCC'))).toBe(true)
     })
   })
 

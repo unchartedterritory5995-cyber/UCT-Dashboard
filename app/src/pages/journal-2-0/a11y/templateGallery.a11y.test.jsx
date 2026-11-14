@@ -10,13 +10,14 @@
 //   * community-gallery-mine    -- Your submissions in every state;
 //   * community-gallery-review  -- the admin review queue (TemplateGalleryReviewPanel);
 //   * community-gallery-preview -- a gallery template's read-only preview sheet;
-//   * gallery-publish-form      -- Share from Your templates, the form open.
+//   * gallery-publish-form      -- Share from Manage templates' Plain templates group, the form open.
 import { describe, beforeEach, afterEach, vi } from 'vitest'
 import { render, screen, within, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Providers } from './fixtures'
 import { axeSurface } from './surface'
 import TemplatePicker from '../components/notebook/TemplatePicker'
+import { PlainTemplatesManage } from '../components/notebook/MemberTemplates'
 import { latchNotebookFlags, __resetNotebookFlags } from '../lib/offline/notebookFlags'
 
 const settle = (ms = 30) => act(async () => { await new Promise((r) => setTimeout(r, ms)) })
@@ -121,8 +122,10 @@ describe('lane 12A surfaces (community template gallery)', () => {
     await within(sheet).findByText('Trigger, stop, size.')
   })
 
+  // Follow-up C: Share on a plain template is in Manage templates' Plain templates group now.
   axeSurface('gallery-publish-form', async () => {
-    const user = renderPicker()
+    const user = userEvent.setup()
+    render(<Providers><PlainTemplatesManage /></Providers>)
     await user.click(await screen.findByRole('button', { name: 'Share Swing plan to the Template library' }))
     await screen.findByRole('form', { name: 'Share Swing plan to the Template library' })
   })

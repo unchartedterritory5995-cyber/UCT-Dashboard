@@ -325,7 +325,7 @@
    "surfaces": [
     "charts"
    ],
-   "fast": false
+   "fast": true
   },
   "chart.resetDefaults": {
    "domain": "chart",
@@ -521,6 +521,19 @@
     "charts"
    ],
    "fast": false
+  },
+  "chartReplay.playback": {
+   "domain": "chartReplay",
+   "group": "chartReplay",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true
   },
   "chartSetup.autoScale": {
    "domain": "chartSetup",
@@ -2203,9 +2216,35 @@
    ],
    "fast": false
   },
+  "uctIntelligence.set": {
+   "domain": "uctIntelligence",
+   "group": "uctIntelligence",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true
+  },
   "volume.setState": {
    "domain": "volume",
    "group": "charts",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true
+  },
+  "volumeProfile.set": {
+   "domain": "volumeProfile",
+   "group": "volumeProfile",
    "target": "chart",
    "risk": "local",
    "reversible": true,
