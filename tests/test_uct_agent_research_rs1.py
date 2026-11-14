@@ -63,7 +63,7 @@ WEB = {"answer": ("Shares fell after a downgrade this morning. [1] The analyst c
 
 @pytest.fixture(autouse=True)
 def _clean(monkeypatch):
-    for name in (gw.DATA_ENV, gw.SCAN_ENV, gw.ISOLATED_ENV, gw.KINDS_ENV):
+    for name in (gw.DATA_ENV, gw.SCAN_ENV, gw.ISOLATED_ENV, gw.ISOLATED_KINDS_ENV, gw.KINDS_ENV):
         monkeypatch.delenv(name, raising=False)
     gw._reset_for_test(None)
     rs1._reset_for_test()
@@ -316,6 +316,7 @@ def test_the_web_lookup_is_metered_through_budget_meter_research_exactly_as_the_
 
 def test_a_model_isolated_kind_can_never_contribute(world, monkeypatch):
     monkeypatch.setenv(gw.ISOLATED_ENV, "1")
+    monkeypatch.setenv(gw.ISOLATED_KINDS_ENV, "breadth.current")  # armed: the refusal is the purpose rule's
     assert rs1._read_input("breadth.current", {"universe": "us"}, {"user_id": USER, "turn_id": "t1"})["status"] == "refused"
     assert "breadth.current" not in rs1.INPUT_KINDS
     out = _read({"symbol": "NVDA", "topic": "strength"})

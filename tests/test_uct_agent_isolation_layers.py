@@ -24,6 +24,7 @@ def isolated_on(monkeypatch):
     for name in (gw.DATA_ENV, gw.ISOLATED_ENV):
         monkeypatch.setenv(name, "1")
     monkeypatch.setenv(gw.KINDS_ENV, "sealed,plain")
+    monkeypatch.setenv(gw.ISOLATED_KINDS_ENV, "sealed")   # armed per kind (owner decision 2026-11-12)
 
     def fn(name, stamp=None):
         def _f(params, ctx):
