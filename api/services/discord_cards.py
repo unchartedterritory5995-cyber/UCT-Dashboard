@@ -47,12 +47,16 @@ def card(section: str, *, title: str, description: str, footer: list[str],
     out = {
         "author": {"name": f"UCT INTELLIGENCE · {section.upper()}", "icon_url": MARK_URL},
         "title": title[:TITLE_MAX],
-        "description": description[:DESCRIPTION_MAX],
         "color": GOLD,
         "footer": {"text": " · ".join([b for b in footer if b] + [SITE])[:FOOTER_MAX],
                    "icon_url": MARK_URL},
         "timestamp": now.astimezone(dt.timezone.utc).isoformat(),
     }
+    # No body is no body: a placeholder character draws an empty line under the title
+    # (seen on the /buzz board card in Discord, 2026-11-14), and Discord accepts a card
+    # with a title and no description.
+    if description and description.strip("​ \n"):
+        out["description"] = description[:DESCRIPTION_MAX]
     if image:
         out["image"] = {"url": f"attachment://{image}"}
     return out

@@ -2214,6 +2214,14 @@ def best_moment(row: dict, pats: list) -> tuple[Optional[float], str]:
     said = start + (at / float(max(1, len(text)))) * max(0.0, end - start)
     lo = max(0, at - _SNIPPET_CHARS // 3)
     hi = min(len(text), lo + _SNIPPET_CHARS)
+    # Whole words only: "…ow of 318.20" (seen in Discord 2026-11-14) reads as a typo. Move
+    # each cut to the nearest space INSIDE the window, never past the matched words.
+    if lo > 0:
+        space = text.find(" ", lo, at)
+        lo = space + 1 if space != -1 else lo
+    if hi < len(text):
+        space = text.rfind(" ", at, hi)
+        hi = space if space != -1 else hi
     quote = text[lo:hi].strip()
     if lo > 0:
         quote = "…" + quote.lstrip(" ,.;:")
