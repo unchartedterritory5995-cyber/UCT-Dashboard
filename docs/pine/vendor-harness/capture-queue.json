@@ -60,8 +60,8 @@
   ],
   "coverageMeasuredOn": "2026-11-05",
   "coverageMasterSha": "3ca4b0d358",
-  "fixtures": 359,
-  "ledgerRows": 37
+  "fixtures": 360,
+  "ledgerRows": 103
  },
  "definitions": {
   "priority": "|firm ∪ named ∪ direct| — firm: non-transferring sample scripts whose every host wall is a guard the target's rows name; named: non-transferring scripts the rows name; direct: the target IS a transferring, never-MATCHed sample script (its capture verifies it)",
@@ -83,17 +83,17 @@
  "counts": {
   "targets": 301,
   "byStatus": {
-   "CAPTURED": 82,
+   "CAPTURED": 83,
    "NEEDS_CHART": 39,
    "NEEDS_LIVE": 2,
-   "QUEUED": 178
+   "QUEUED": 177
   },
   "byPlanWave": {
    "E": {
-    "CAPTURED": 69,
+    "CAPTURED": 70,
     "NEEDS_CHART": 37,
     "NEEDS_LIVE": 2,
-    "QUEUED": 145
+    "QUEUED": 144
    },
    "W1": {
     "QUEUED": 6
@@ -119,9 +119,9 @@
     "QUEUED": 167
    },
    "1-2": {
-    "CAPTURED": 21,
+    "CAPTURED": 22,
     "NEEDS_CHART": 1,
-    "QUEUED": 11
+    "QUEUED": 10
    }
   },
   "byDocWave": {
@@ -134,8 +134,7 @@
     "NEEDS_CHART": 2
    },
    "E-census": {
-    "CAPTURED": 10,
-    "QUEUED": 1
+    "CAPTURED": 11
    },
    "b1-paints": {
     "CAPTURED": 2
@@ -1705,8 +1704,10 @@
   },
   {
    "id": "pivot-high-low-points__hoTsDQRY3L@NYSE:RDDT@D",
-   "status": "QUEUED",
-   "evidence": [],
+   "status": "CAPTURED",
+   "evidence": [
+    "tests/fixtures/vendor/harness/pivot-high-low-points-rddt-1d-2026-11-14.json"
+   ],
    "source": "corpus/committed/pivot-high-low-points__hoTsDQRY3L.pine",
    "sourceKind": "corpus",
    "sha256": "157699de27f04cd391d0def8bec9d1854fa3414c0477af4d8049d5133e70a223",
@@ -1719,7 +1720,9 @@
    "chartDefaulted": false,
    "chartSource": "census",
    "unparsedCharts": [],
-   "capturedOn": [],
+   "capturedOn": [
+    "NYSE:RDDT D"
+   ],
    "licence": "corpus",
    "needsLive": false,
    "priority": 1,
