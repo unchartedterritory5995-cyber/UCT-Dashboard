@@ -176,6 +176,22 @@ describe('words that are not about the created charts are never touched by this 
     ['make the new charts weekly', true], ['the charts you just added', true], ['that new one', true], ['both new charts', true],
     ['the charts I just added', false],
   ])('"%s" → %s', (t, v) => { expect(refersToNewCharts(t)).toBe(v) })
+  // STRUCTURAL (AUDIT #1247 heads-up): phrasings no list above names, of the same shapes, are read too — generated
+  const DETS = ['the', 'those', 'these', 'both', 'all of the', 'each of the', 'my']
+  const FRESHW = ['new', 'fresh', 'newest', 'latest', 'brand new', 'newly added', 'recent']
+  const MODSW = ['', 'AAPL and MSFT ', 'daily ', 'two ']
+  const NOUNS = ['charts', 'ones', 'panes', 'panels', 'graphs']
+  const A = DETS.flatMap(d => FRESHW.flatMap(f => MODSW.flatMap(m => NOUNS.map(n => `make ${d} ${f} ${m}${n} weekly`.replace(/\s+/g, ' ')))))
+  const VERBS = ['added', 'opened', 'pulled up', 'set up', 'put up', 'made', 'created', 'brought up', 'loaded']
+  const B = ['the charts', 'those ones', 'the panels that', 'both graphs', 'the AAPL and MSFT charts'].flatMap(np => ['you just', "you've", 'you', '', 'you recently']
+    .flatMap(y => VERBS.map(v => `switch ${np} ${y} ${v} to weekly`.replace(/\s+/g, ' '))))
+  const C = ['what you just added', "whatever you've opened", 'the charts from your last request', 'the ones from the previous step']
+  it.each([...A, ...B, ...C].map(t => [t]))('reads "%s" as the created charts', (t) => { expect(refersToNewCharts(t)).toBe(true) })
+  it.each([
+    'add a new chart for NVDA', 'add two new charts for AMD and AVGO', 'open three fresh charts for AAPL MSFT AMD', 'give me a new pane with RSI',
+    'make the charts I just added weekly', 'the ones I opened yesterday', 'make this one weekly', 'this one did great, make it weekly',
+    'make my charts weekly', 'put RSI on all charts', 'what is new with NVDA', 'news on the new iPhone',
+  ].map(t => [t]))('never reads "%s" as the created charts', (t) => { expect(refersToNewCharts(t)).toBe(false) })
   it('the instant created-set binding (no intervening change) still runs as before', async () => {
     const m = p.mount(...TWO_OLD())
     await m.say('open charts for AAPL and MSFT')

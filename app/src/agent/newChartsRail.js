@@ -27,9 +27,29 @@ import { matchPosition } from './fastPath'
 
 export const NEW_CHARTS_MARK = 'new-charts-rail'
 
-// words that refer to the charts UCT created (asCreatedSetWords' vocabulary, singular forms too). A determiner is required:
-// "add a new chart" / "add two new charts" create — they are not references.
-const NEW_REF = /\b(?:the|those|these|that|this|both(?: of)?(?: the)?|all(?: of)?(?: the)?|my)\s+(?:(?:two|three|four|five|six|seven|eight|[2-9])\s+)?new\s+(?:charts?|ones?)\b|\b(?:the|those|that) (?:charts?|ones?) (?:you )?(?:just )?(?:added|made|created|opened)\b/gi
+// words that refer to the charts UCT created — STRUCTURAL, so an unseen phrasing of the same shape is read too (AUDIT #1247
+// heads-up: a rule that fires only on listed phrases is bypassed by the next one):
+//   A  determiner + [count] + a freshness word + up to 3 modifiers + a chart noun  "the new charts", "those 2 fresh AAPL and MSFT
+//      panes", "all of the newest ones", "each recent chart", "the brand-new daily charts", "my newly added charts"
+//   B  determiner + [modifiers] + a chart noun + [that/which] + [you / you've] + [just] + a making verb   "the charts you just
+//      added", "those ones you pulled up", "the panels that you set up", "both graphs you just opened"
+//   C  "what you just added / opened / made …"     D  "the charts from your last step / request / answer"
+// A determiner (or "what you…") is required, so "add a new chart" / "add two new charts" (creations) are never references; the
+// member's OWN additions ("the charts I just added") are not UCT's and are not read. Anything this reads with no known created
+// set is ASKED (fail closed), never planned on the board's charts.
+const DET = String.raw`(?:the|those|these|that|this|both(?:\s+of)?(?:\s+the)?|all(?:\s+of)?(?:\s+the|\s+those|\s+these)?|each(?:\s+of)?(?:\s+the)?|every(?:\s+one\s+of)?(?:\s+the)?|my|your)`
+const COUNT_W = String.raw`(?:(?:one|two|three|four|five|six|seven|eight|nine|ten|\d{1,2})\s+)?`
+const FRESH = String.raw`(?:brand[\s-]+new|newly[\s-]+(?:added|made|created|opened|built)|just[\s-]+(?:added|made|created|opened)|new|newer|newest|fresh|latest|recent)`
+const MODS = String.raw`(?:[\w$.&'’-]+\s+){0,3}?`
+const NOUN = String.raw`(?:charts?|ones?|panels?|panes?|cells?|graphs?|windows?|tiles?)`
+const MADE = String.raw`(?:added|made|created|opened|built|set\s+up|put\s+up|pulled\s+up|brought\s+up|loaded|launched|spun\s+up|popped\s+up|threw\s+up|plotted|drew|generated|gave\s+me|made\s+me)`
+const YOU = String.raw`(?:(?:that|which)\s+)?(?:you(?:['’]ve|\s+have)?\s+|u\s+)?(?:just\s+|recently\s+|already\s+|earlier\s+)?`
+const NEW_REF = new RegExp([
+  String.raw`\b${DET}\s+${COUNT_W}${FRESH}\s+${MODS}${NOUN}\b`,
+  String.raw`\b${DET}\s+${COUNT_W}${MODS}${NOUN}\s+${YOU}${MADE}\b`,
+  String.raw`\bwhat(?:ever)?\s+you(?:['’]ve|\s+have)?\s+(?:just\s+|recently\s+)?${MADE}\b`,
+  String.raw`\b(?:the\s+)?${NOUN}\s+(?:from|of)\s+(?:your|the|that)\s+(?:last|previous|earlier)\s+(?:step|request|change|answer|turn|reply|message)\b`,
+].join('|'), 'gi')
 // every old chart, said outright alongside the new ones
 const ALL_OLD = /\b(?:the\s+)?(?:old|other|existing|original|previous|remaining)\s+(?:charts?|ones?)\b|\bthe\s+(?:rest|others)\b|\b(?:all|every|each)(?:\s+of)?\s+(?:my|the)?\s*charts?\b|\beverything\b/i
 const POS = /\b(top[- ]left|top[- ]right|bottom[- ]left|bottom[- ]right|upper[- ]left|upper[- ]right|lower[- ]left|lower[- ]right|left|right|top|bottom|upper|lower)\b/gi
