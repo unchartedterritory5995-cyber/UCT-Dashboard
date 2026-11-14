@@ -1006,12 +1006,12 @@ export function registerBoardCapabilities() {
       const unknown = symbols.map(x => String(x || '').trim().toUpperCase()).filter(x => env?.unknownSymbols?.has?.(x))
       if (unknown.length) return `UCT has no symbol ${andList(unknown.map(u => `“${u}”`))}, so I didn't change the charts.`
       if (st.grid) return 'One chart grid at a time.'
-      const plan = planChartGrid({ board: st.board, charts: s.charts || new Map(), symbols, timeframe, layout, newCharts: newCharts === true, cols: s.grid.cols, rows: s.grid.rows, minOf: s.minOf, maxWidgets: s.maxWidgets ?? 16, detached: s.detached, rail: railOf(watchlist), replace: replace === true ? true : replace === 'charts' ? 'charts' : false })
+      const plan = planChartGrid({ board: st.board, charts: s.charts || new Map(), symbols, timeframe, layout, newCharts: newCharts === true, cols: s.grid.cols, rows: s.grid.rows, minOf: s.minOf, maxWidgets: s.maxWidgets ?? 16, detached: s.detached, rail: railOf(watchlist), replace: replace === true ? true : replace === 'charts' ? 'charts' : false, keep: env?.keepTickers || null })
       return plan.ok ? null : plan.reason
     },
     apply(st, { symbols, timeframe, layout, new_charts: newCharts, watchlist, replace }, env) {
       const s = env.target
-      const plan = planChartGrid({ board: st.board, charts: s.charts || new Map(), symbols, timeframe, layout, newCharts: newCharts === true, cols: s.grid.cols, rows: s.grid.rows, minOf: s.minOf, maxWidgets: s.maxWidgets ?? 16, detached: s.detached, rail: railOf(watchlist), replace: replace === true ? true : replace === 'charts' ? 'charts' : false })
+      const plan = planChartGrid({ board: st.board, charts: s.charts || new Map(), symbols, timeframe, layout, newCharts: newCharts === true, cols: s.grid.cols, rows: s.grid.rows, minOf: s.minOf, maxWidgets: s.maxWidgets ?? 16, detached: s.detached, rail: railOf(watchlist), replace: replace === true ? true : replace === 'charts' ? 'charts' : false, keep: env?.keepTickers || null })
       if (!plan.ok) return st
       // review t4 M2: a chart to remove is named by its TICKER and timeframe (its position only when that still leaves two
       // alike) — never two entries that read the same

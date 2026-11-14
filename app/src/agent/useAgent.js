@@ -16,7 +16,7 @@
 // conversation, so the model's next turn remembers what UCT DID.
 
 import { protectionRefusal, undoProtectionRefusal, protectedOpenLayout, isProtected, protectedRenameRefusal } from './protectedLayouts'
-import { chartRailRefusal, RAIL_MARK } from './chartRail'
+import { chartRailRefusal, RAIL_MARK, keepTickers, createdTickers } from './chartRail'
 import { replyRelation, QUESTION_TTL_MS, CONTINUE_CHOICES, continueQuestion } from './pendingTask'
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { AuthContext } from '../context/AuthContext'
@@ -1206,7 +1206,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       const binds = []
       let needsCard = suggested !== 'apply'
       for (const o of fan) {
-        const one = planOps(collectTargets(host, kindsOf([o])), [o], await prepareOps([o]), capCtx)
+        const one = planOps(collectTargets(host, kindsOf([o])), [o], { ...(await prepareOps([o])), keepTickers: keepTickers(railWordsRef.current, host, createdTickers([o])) }, capCtx)
         if (one.ok) binds.push(approvalBinding(one, host))
         const guard = one.ok ? protectionRefusal(host, one, one.normalizedOps || [o]) : null   // W1.1 review NB-3: normalized
         // ⛔ CHART RAIL (hotfix 11-13): each chart's plan, before anything is proposed or written
@@ -1249,7 +1249,9 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     const earlySync = (suggested === 'apply' || suggested === 'approved') && !composing && host?.boardInSync && boardEpoch(host, ops) != null
       ? host.boardInSync() : null
     earlySync?.catch(() => {})                 // awaited below; never an unhandled rejection meanwhile
-    const env = { ...(await prepareOps(ops)), ...(suggested === 'approved' ? { approved: true, approval: approval || [] } : {}), ...(Object.keys(pendingLists).length ? { pendingLists } : {}) }
+    // ⛔ KEEP ≠ RE-CREATE: the tickers this request keeps as they are (chartRail.keepTickers) — a grid of new charts maps them onto
+    // the charts already showing them instead of creating them again
+    const env = { ...(await prepareOps(ops)), ...(suggested === 'approved' ? { approved: true, approval: approval || [] } : {}), ...(Object.keys(pendingLists).length ? { pendingLists } : {}), keepTickers: keepTickers(railWordsRef.current, host, createdTickers(ops)) }
     mark('prepared')
     // A read in THIS request (a screen just run) is visible to the writes after it ("find … and save it"):
     // targets are re-read once the request's own queries have answered.

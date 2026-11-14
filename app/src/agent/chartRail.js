@@ -106,7 +106,7 @@ export function panelsAfter(plan, host) {
 // ── what the member's words say ────────────────────────────────────────────────────────────────────────────────────────
 const POS = /\b(top[- ]left|top[- ]right|bottom[- ]left|bottom[- ]right|upper[- ]left|upper[- ]right|lower[- ]left|lower[- ]right|left|right|top|bottom|upper|lower)\b/gi
 const normPos = (w) => w.toLowerCase().replace(/\s/, '-').replace('upper', 'top').replace('lower', 'bottom')
-const KEEP_LEAD = /\b(?:keep|keeping|kept|leave|leaving|retain|retaining|preserve|preserving|hold on to|holding on to|(?:do not|don['’]?t|never) (?:change|touch|replace|remove|move|lose|drop)|without (?:changing|touching|replacing|removing|losing|dropping))\s+/gi
+const KEEP_LEAD = /\b(?:keep|keeping|kept|leave|leaving|retain|retaining|preserve|preserving|hold on to|holding on to|(?:do not|don['’]?t|never) (?:change|touch|replace|remove|move|lose|drop)|without (?:changing|touching|replacing|removing|losing|dropping)|(?:plus|with|alongside|besides|and|along with) (?:my|the|our) (?:existing|current|old|original))\s+/gi
 const KEEP_END = /(?=$|[.;!?]|,\s*(?:but|then|and then)\b|\s(?:but|then|while|so)\b|\sand (?:then |also )?(?:add|put|make|change|switch|replace|set|open|show|create)\b)/i
 const STAY = /\b((?:[A-Z]{1,5}|\$[A-Za-z]{1,5})(?:\s*(?:,|and|&)\s*(?:[A-Z]{1,5}|\$[A-Za-z]{1,5}))*)\s+(?:stays?|remains?|should stay|stay(?:s)? put|in place)\b/g
 const ALL_KEPT = /^(?:(?:all|both|every|each)\b|(?:my|the|these|those|current|existing)\s+(?:current\s+|existing\s+)?(?:charts?|ones|panels?|layout|board)\b|everything\b|them\b)/i
@@ -250,7 +250,8 @@ export function chartRailRefusal(plan, { words = '', host = null, mode = 'apply'
     if (fin.unknown && (kept.all || kept.refs.size || kept.symbols.size)) {
       return 'I didn’t change anything: I can’t tell which charts this would add, so I can’t check it keeps the ones you asked to keep. Name the tickers for the new charts.'
     }
-    const dup = fin.created.filter((s0, i) => s0 && (fin.kept.some(c => c.symbol === s0) || fin.created.indexOf(s0) !== i) && !asksAnother(w, s0))
+    const keepSet = keepTickers(w, host, fin.created)
+    const dup = fin.created.filter((s0, i) => s0 && ((fin.kept.some(c => c.symbol === s0) && keepSet.has(s0)) || fin.created.indexOf(s0) !== i) && !asksAnother(w, s0))
     if (dup.length) {
       const d = [...new Set(dup)]
       return `I didn’t change anything: ${listOf(d)} ${d.length === 1 ? 'is' : 'are'} already on your board, and this would have added ${d.length === 1 ? 'a second chart' : 'second charts'} for ${d.length === 1 ? 'it' : 'them'}. Your charts stay as they are — I only add the tickers that aren’t there yet (say “another ${d[0]} chart” if you want a copy).`
@@ -262,7 +263,33 @@ export function chartRailRefusal(plan, { words = '', host = null, mode = 'apply'
 
 // a copy asked for in words: "another SPY chart", "a second NVDA", "duplicate the SPY chart", "SPY twice"
 const ANOTHER = /\b(?:another|second|2nd|duplicate|copy|clone|again|twice|extra)\b/i
-const asksAnother = (words, sym) => ANOTHER.test(words) && new RegExp(`(^|[^A-Za-z])\\$?${String(sym).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![A-Za-z])`, 'i').test(words)
+// words that ask for NEW charts outright ("on a new chart", "4 more charts")
+const NEW_CHART_WORDS = /\b(?:new|another|second|2nd|more|extra|copy|duplicate|clone|again|twice)\b/i
+const mentions = (words, sym) => new RegExp(`(^|[^A-Za-z])\\$?${String(sym).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![A-Za-z])`, 'i').test(words)
+/**
+ * ⛔ KEEP ≠ RE-CREATE: the tickers already on the board that THIS request keeps as they are —
+ *   - named as kept ("but keep SPY and NVDA", "leave the left one", "plus my existing SPY"), or
+ *   - when the words name the tickers to add ("add AAPL and MSFT"): every board ticker they do NOT name, unless a word asks
+ *     for new charts outright ("4 more charts", "on a new chart") — a plan that also lists those is re-creating the board.
+ * A request that names no ticker it creates ("bring up what remains", "same but weekly") keeps nothing by silence: its tickers
+ * come from a reference. `created`: the tickers the plan would create. A plan that lists a kept ticker among the charts to create
+ * means the chart already there (planChartGrid `keep`); the FINAL BOARD rail refuses re-creating one.
+ */
+export function keepTickers(words, host, created = []) {
+  const w = String(words || '')
+  const k = keptCharts(w, host)
+  const namesNew = (created || []).some(t => t && mentions(w, t))
+  const out = new Set()
+  for (const c of liveCharts(host)) {
+    const s0 = up(c.symbol)
+    if (!s0) continue
+    if (k.all || k.refs.has(c.ref) || k.symbols.has(s0) || (namesNew && !mentions(w, s0) && !NEW_CHART_WORDS.test(w))) out.add(s0)
+  }
+  return out
+}
+/** The tickers a list of ops would create as charts (chartGrid.set / widget.addCharts literal lists). */
+export const createdTickers = (ops) => (ops || []).flatMap(o => ((o?.action === 'chartGrid.set' || o?.action === 'widget.addCharts') && Array.isArray(o.args?.symbols) ? o.args.symbols : [])).map(up).filter(Boolean)
+const asksAnother = (words, sym) => ANOTHER.test(words) && mentions(words, sym)
 
 /** The board as the plan leaves it: { kept: [{ ref, symbol }] (existing charts still there), removed, created: [symbol|null], unknown }
  *  — null when the plan creates no chart (nothing to compare). Duplicating a chart ON PURPOSE (board.duplicateChart) is not a creation. */

@@ -15,7 +15,7 @@ import { AuthContext } from '../context/AuthContext'
 vi.mock('../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
 import AgentPanel from './AgentPanel'
 import { planOps, collectTargets } from './executor'
-import { chartRailRefusal, finalBoard } from './chartRail'
+import { chartRailRefusal, finalBoard, keepTickers, createdTickers } from './chartRail'
 
 registerBuiltins()
 
@@ -108,7 +108,8 @@ describe('KEEP ≠ RE-CREATE · generated: the planned final board is exactly ke
     it(`board ${b} · ${m} new · ${kname} · ${aname}`, () => {
       const bd = makeBoard(...boardOf(kept))
       const words = `${kf(list(kept), list(fresh))} . ${aname}`
-      const plan = planOps(collectTargets(bd.host, ['board']), PRODUCERS['chartGrid.set new_charts']([...kept, ...fresh], layout), {}, { surface: 'charts' })
+      const ops = PRODUCERS['chartGrid.set new_charts']([...kept, ...fresh], layout)
+      const plan = planOps(collectTargets(bd.host, ['board']), ops, { keepTickers: keepTickers(words, bd.host, createdTickers(ops)) }, { surface: 'charts' })   // as execute plans it
       if (!plan.ok) return                                          // no room for b + m charts: refused by the grid, nothing written
       if (aname === '2 by 2' && b + m < 4) {                       // a 4-chart grid asked, fewer charts in the end: COUNT refuses
         expect(chartRailRefusal(plan, { words, host: bd.host, mode: 'apply' }), words).toMatch(/4-chart grid/)
@@ -133,10 +134,17 @@ describe('KEEP ≠ RE-CREATE · the rail alone refuses a plan that re-creates a 
       expect(chartRailRefusal(plan, { words: kf(list(kept), 'AAPL'), host: bd.host, mode: 'apply' })).toMatch(/already on your board/)
     })
   }
-  it('no keep clause: "add AAPL and SPY" on a SPY board — SPY is not created a second time', () => {
+  it('no keep clause: "add AAPL and MSFT" planned with SPY too — the board\'s SPY is not created a second time', () => {
+    const bd = makeBoard(...boardOf(['SPY', 'NVDA'], 10))
+    const plan = planOps(collectTargets(bd.host, ['workspace']), [{ action: 'widget.addCharts', target: 'workspace', args: { symbols: ['SPY', 'AAPL', 'MSFT'], timeframe: null, chart_type: null, exact: null } }], {}, { surface: 'charts' })
+    expect(chartRailRefusal(plan, { words: 'add AAPL and MSFT', host: bd.host, mode: 'apply' })).toMatch(/SPY is already on your board/)
+  })
+  it('CONTROL: a ticker NAMED as new ("open daily charts for AAPL and SPY") or from a reference ("bring up what remains") is created', () => {
     const bd = makeBoard(...boardOf(['SPY', 'NVDA'], 10))
     const plan = planOps(collectTargets(bd.host, ['workspace']), [{ action: 'widget.addCharts', target: 'workspace', args: { symbols: ['AAPL', 'SPY'], timeframe: null, chart_type: null, exact: null } }], {}, { surface: 'charts' })
-    expect(chartRailRefusal(plan, { words: 'add AAPL and SPY', host: bd.host, mode: 'apply' })).toMatch(/SPY is already on your board/)
+    expect(chartRailRefusal(plan, { words: 'open daily charts for AAPL and SPY', host: bd.host, mode: 'apply' })).toBe(null)
+    const p2 = planOps(collectTargets(bd.host, ['workspace']), [{ action: 'widget.addCharts', target: 'workspace', args: { symbols: ['SPY'], timeframe: null, chart_type: null, exact: null } }], {}, { surface: 'charts' })
+    expect(chartRailRefusal(p2, { words: 'prune amd out of Momentum and bring up what remains', host: bd.host, mode: 'apply' })).toBe(null)
   })
   it('CONTROL: "add another SPY chart" — a copy asked for in words is allowed', () => {
     const bd = makeBoard(...boardOf(['SPY', 'NVDA'], 10))

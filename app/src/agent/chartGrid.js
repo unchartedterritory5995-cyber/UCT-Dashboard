@@ -50,7 +50,7 @@ export const RAIL_W = 6
 // in the same change, except a Watchlist when a rail is asked for: that one is MOVED into the rail (its list kept). The
 // board's own Undo puts every removed widget back whole (capabilities/board.js commitGrid / undoGrid). Never set by the
 // planner on its own: only from the member's pick, and chartGrid.set with `replace` is always a proposal (confirmIf).
-export function planChartGrid({ board, charts, symbols, timeframe = null, layout = null, newCharts = false, cols, rows, minOf, maxWidgets, detached = [], rail = null, replace = false }) {
+export function planChartGrid({ board, charts, symbols, timeframe = null, layout = null, newCharts = false, cols, rows, minOf, maxWidgets, detached = [], rail = null, replace = false, keep = null }) {
   let syms = (symbols || []).map(s => String(s || '').trim().toUpperCase()).filter(Boolean)
   const n = syms.length
   if (!n) return { ok: false, reason: 'Which tickers?' }
@@ -104,10 +104,12 @@ export function planChartGrid({ board, charts, symbols, timeframe = null, layout
     syms = Array.from({ length: n }, (_, i) => placed[i] || restSyms.shift())
   }
   // ⛔ KEEP ≠ RE-CREATE (live 2026-11-14, #1210 follow-up: "Add AAPL and MSFT …, but keep SPY and NVDA" → "All four in a grid"
-  // made SIX panels — SPY, NVDA, SPY, NVDA, AAPL, MSFT): with newCharts, a ticker a chart on the grid ALREADY shows is that chart —
-  // it keeps its panel (the same widget, arranged with the others) and is never created again. Only the tickers no chart shows
-  // become new charts: the final board is the existing charts ∪ the new tickers.
-  const showing = new Set(chartWs.map(w => String(charts.get(String(w.id))?.symbol || '').toUpperCase()).filter(Boolean))
+  // made SIX panels — SPY, NVDA, SPY, NVDA, AAPL, MSFT): with newCharts, a ticker the REQUEST keeps (`keep`: the words name it as
+  // kept, or never ask for it at all — chartRail.keepTickers) that a chart on the grid already shows IS that chart: it keeps its
+  // panel (the same widget, arranged with the others) and is never created again. A ticker the words ask for as a new chart
+  // ("open daily charts for … NVDA", "another SPY") is still created. The final board: the existing charts ∪ the new tickers.
+  const keepSet = keep instanceof Set ? keep : new Set(keep || [])
+  const showing = new Set(chartWs.map(w => String(charts.get(String(w.id))?.symbol || '').toUpperCase()).filter(s0 => s0 && keepSet.has(s0)))
   const shown = newCharts ? syms.filter(s0 => showing.has(s0)) : []
   if (newCharts && shown.length) syms = syms.filter(s0 => !showing.has(s0))
   const n2 = syms.length
