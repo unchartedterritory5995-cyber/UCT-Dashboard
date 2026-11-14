@@ -272,3 +272,43 @@ def test_both_sockets_answer():
         server.should_exit = True
         t.join(timeout=10)
         _close(socks)
+
+
+@pytest.mark.skipif(not _has_ipv6_loopback(), reason="this machine has no IPv6 loopback")
+def test_main_serves_on_both_sockets(monkeypatch):
+    """`main()` end to end: the port from $PORT, both sockets, the real settings, one server.
+    Only the application is swapped for a tiny one (importing the API needs every dependency)."""
+    import uvicorn
+
+    port = _free_port()
+    monkeypatch.setenv("PORT", str(port))
+    monkeypatch.setenv("WEB_PRIVATE_LISTEN_ENABLED", "1")
+    monkeypatch.setattr(serve_dual, "APP", _tiny_app)
+    created = []
+    real = uvicorn.Server
+
+    class Capturing(real):
+        def __init__(self, *a, **kw):
+            super().__init__(*a, **kw)
+            created.append(self)
+
+    monkeypatch.setattr(uvicorn, "Server", Capturing)
+    t = threading.Thread(target=serve_dual.main, daemon=True)
+    t.start()
+    try:
+        deadline = time.time() + 15
+        while not (created and created[0].started) and time.time() < deadline:
+            time.sleep(0.05)
+        assert created and created[0].started, "main() did not start a server"
+        cfg = created[0].config
+        assert (cfg.proxy_headers, cfg.forwarded_allow_ips, cfg.timeout_graceful_shutdown) == (True, "*", 5)
+        for host in ("127.0.0.1", "::1"):
+            conn = http.client.HTTPConnection(host, port, timeout=5)
+            conn.request("GET", "/")
+            resp = conn.getresponse()
+            assert (resp.status, resp.read()) == (200, b"ok"), host
+            conn.close()
+    finally:
+        if created:
+            created[0].should_exit = True
+        t.join(timeout=15)
