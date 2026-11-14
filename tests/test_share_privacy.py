@@ -125,6 +125,29 @@ def test_another_members_id_reads_no_disclosure_of_a_row_it_cannot_see(monkeypat
         {"token": None, "includesSource": False}
 
 
+def test_the_disclosure_follows_the_PINNED_version_not_the_newest(monkeypatch):
+    """(review of #1227) A link serves the version PINNED at mint. A formula saved over the script
+    afterwards does not change what the link hands out, so it must not change what the share
+    state says either; re-minting pins the formula, and then it says so."""
+    d = _runtime_doc(monkeypatch)
+    svc.save(AUTHOR, d["id"], d)
+    me = _as(AUTHOR)
+    token = me.post(f"/api/user-definitions/{d['id']}/share").json()["token"]
+    formula = _ast_doc()
+    formula["id"] = d["id"]
+    put = me.put(f"/api/user-definitions/{d['id']}", json={"definition": formula})
+    assert put.status_code == 200, put.text
+    preview = _as(VIEWER).get(f"/api/user-definitions/shared/{token}").json()
+    assert preview["definition"]["compute"]["source"] == d["compute"]["source"]    # the pinned script
+    assert preview["includesSource"] is True
+    assert me.get(f"/api/user-definitions/{d['id']}/share").json()["includesSource"] is True
+    assert svc.share_status(AUTHOR, d["id"])["includesSource"] is True
+    # re-mint: the link now pins the formula, which carries no script
+    assert me.post(f"/api/user-definitions/{d['id']}/share").json()["includesSource"] is False
+    assert me.get(f"/api/user-definitions/{d['id']}/share").json()["includesSource"] is False
+    assert _as(VIEWER).get(f"/api/user-definitions/shared/{token}").json()["includesSource"] is False
+
+
 # -- 2. no author id in anything a member receives -------------------------------------------------
 
 def _every_route_as(user_id: str, ids: dict) -> list:

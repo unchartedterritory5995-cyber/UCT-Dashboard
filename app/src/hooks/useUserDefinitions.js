@@ -758,6 +758,8 @@ async function listingCall(method, defId) {
       requested: body && body.requested !== undefined ? !!body.requested : undefined,
       shared: body && body.shared !== undefined ? !!body.shared : undefined,
       token: (body && body.token) || null,
+      // ⭐ publishing mints a link, so its answer says whether that link carries the script
+      includesSource: body && body.includesSource !== undefined ? !!body.includesSource : undefined,
     }
   }
   const detail = typeof body?.detail === 'string' ? body.detail.trim() : ''

@@ -46,10 +46,18 @@ export const shareUrlFor = sharedFormulaUrl
 export const SHARE_SOURCE_SENTENCE =
   'Sharing this script shares its Pine source code with anyone who has the link.'
 
+/** The library is not "anyone with the link": a listed script is browsable by EVERY member. */
+export const LIBRARY_SOURCE_SENTENCE =
+  'Publishing this script to the library shows its Pine source code to every member.'
+
 
 export default function SharePanel({ defId, defName, onInstalled }) {
   const [token, setToken] = useState(null)
   const [includesSource, setIncludesSource] = useState(false)
+  // ⛔ (review of #1227) nothing that makes a link is offered until the share state has been READ
+  // for THIS definition: before it, `includesSource` is not known, and a slow or failed read must
+  // not let the author mint without seeing the disclosure.
+  const [shareRead, setShareRead] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [copied, setCopied] = useState(false)
@@ -70,10 +78,12 @@ export default function SharePanel({ defId, defName, onInstalled }) {
   // ── the current state, READ, never minted ─────────────────────────────────
   useEffect(() => {
     let live = true
-    if (!defId) { setToken(null); return undefined }
+    // a different definition is a different answer: nothing read for the last one carries over
+    setShareRead(false); setIncludesSource(false); setToken(null)
+    if (!defId) return undefined
     readShareLink(defId).then((r) => {
       if (!live) return
-      if (r.ok) { setToken(r.token); setIncludesSource(!!r.includesSource) }
+      if (r.ok) { setToken(r.token); setIncludesSource(!!r.includesSource); setShareRead(true) }
       else setError(r.error)
     })
     return () => { live = false }
@@ -94,7 +104,7 @@ export default function SharePanel({ defId, defName, onInstalled }) {
     setBusy(true); setError('')
     const r = await createShareLink(defId)
     setBusy(false)
-    if (r.ok) { setToken(r.token); if (r.includesSource) setIncludesSource(true) }
+    if (r.ok) { setToken(r.token); setIncludesSource(!!r.includesSource) }
     else setError(r.error)
   }, [defId])
 
@@ -116,6 +126,7 @@ export default function SharePanel({ defId, defName, onInstalled }) {
     // here, or it would keep saying "This formula is private" about something now
     // on a public page.
     if (r.token) setToken(r.token)
+    if (r.includesSource !== undefined) setIncludesSource(!!r.includesSource)
   }, [defId])
 
   const withdraw = useCallback(async () => {
@@ -178,6 +189,11 @@ export default function SharePanel({ defId, defName, onInstalled }) {
       {SHARE_SOURCE_SENTENCE}
     </p>
   ) : null
+  const librarySourceLine = includesSource ? (
+    <p className={styles.note} data-testid="library-source-disclosure" role="note">
+      {LIBRARY_SOURCE_SENTENCE}
+    </p>
+  ) : null
 
   return (
     <div className={styles.panel}>
@@ -212,7 +228,7 @@ export default function SharePanel({ defId, defName, onInstalled }) {
               This formula is private. Nothing is shared until you create a link.
             </p>
             {sourceLine}
-            <button type="button" className={styles.btn} onClick={mint} disabled={busy || !defId}>
+            <button type="button" className={styles.btn} onClick={mint} disabled={busy || !defId || !shareRead}>
               <UIcon name="link" size={14} /> Create a share link
             </button>
           </>
@@ -228,6 +244,7 @@ export default function SharePanel({ defId, defName, onInstalled }) {
               This is in the public library, where any member can find and install it.
               {' '}Taking it out leaves your share link working.
             </p>
+            {librarySourceLine}
             <button
               type="button"
               className={styles.quiet}
@@ -251,13 +268,13 @@ export default function SharePanel({ defId, defName, onInstalled }) {
                 ? 'This was in the library, but your share link is off — so nothing can open it. Publishing again will turn the link back on.'
                 : 'Nothing is listed until you say so. A share link is private to whoever you send it to; the library is public to every member.'}
             </p>
-            {sourceLine}
+            {librarySourceLine}
             <button
               type="button"
               className={styles.btn}
               data-testid="library-publish"
               onClick={publish}
-              disabled={busy || !defId}
+              disabled={busy || !defId || !shareRead}
             >
               <UIcon name="upload" size={14} /> Publish to the library
             </button>

@@ -90,3 +90,24 @@ These fail identically on `origin/master` `bac37a2c1f` (checked by detaching to 
 - `tests/test_user_definitions_auth.py::test_require_paid_is_defined_PER_ROUTER_and_this_task_invented_no_shared_one`:
   duplicate paywall sentences across routers.
 - `tests/test_definition_concierge.py`: 5 tests, budget-vs-linter ordering.
+
+## Review fixes (#1227)
+
+**MEDIUM: the disclosure follows the PINNED version.** A link serves the version pinned at mint.
+`share_status` used to answer from the newest version, so a formula saved over the script after
+minting made the share state say `includesSource: false` while the link still served the script.
+- `share_status` now asks `pinned_shares_source(row)`: the pinned share row's `ast_hash` opens
+  with `runtime_definitions.HASH_PREFIX`. That also drops the extra per-entry read
+  `public_library` paid.
+- Rail: `test_the_disclosure_follows_the_PINNED_version_not_the_newest`.
+
+**LOW-MEDIUM: SharePanel offers nothing that makes a link until the share state has been READ for
+this definition.**
+- Create and Publish stay disabled until the read resolves. A failed read shows its error and keeps
+  them disabled.
+- A new `defId` resets the read state, the flag and the token.
+- The mint and the publish answers set the flag too.
+- The library block says what the library means: "Publishing this script to the library shows its
+  Pine source code to every member."
+
+**LOW:** the `public_library` docstring no longer claims the install answer carries `author_id`.

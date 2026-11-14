@@ -3923,7 +3923,7 @@ def share_status(user_id: Any, def_id: str) -> Optional[dict]:
         return None
     return {"token": row["token"], "def_id": row["def_id"], "version": row["version"],
             "ast_hash": row["ast_hash"], "table_version": row["table_version"],
-            "includesSource": includes_source(user_id, def_id)}
+            "includesSource": pinned_shares_source(row)}
 
 
 def shares_source(definition: Any) -> bool:
@@ -3937,6 +3937,19 @@ def shares_source(definition: Any) -> bool:
     asks too."""
     from api.services import runtime_definitions  # noqa: PLC0415
     return bool(runtime_definitions.is_runtime(definition))
+
+
+def pinned_shares_source(share_row: Any) -> bool:
+    """Does the version a share link PINS carry its script? (review of #1227: the link serves the
+    version pinned at mint, `resolve_share` reads `row["version"]`, so the disclosure is decided by
+    that version, never by whatever was saved since.) The pinned row's `ast_hash` names its lane:
+    a runtime document's is `runtime_definitions.handle`, which opens with `HASH_PREFIX`."""
+    from api.services import runtime_definitions  # noqa: PLC0415
+    try:
+        h = share_row["ast_hash"]
+    except (KeyError, IndexError, TypeError):
+        return False
+    return isinstance(h, str) and h.startswith(runtime_definitions.HASH_PREFIX)
 
 
 def includes_source(user_id: Any, def_id: str) -> bool:
@@ -4301,8 +4314,8 @@ def public_library(limit: int = 24, after: Optional[int] = None) -> dict:
     Members published a formula, not their name; putting an identity on a public
     page they cannot see beforehand is not ours to assume. Attribution is additive
     later — and cannot be taken back once it has shipped, which is why the default
-    is the reversible one. `author_id` still rides on an INSTALL, where the
-    recipient was handed the link deliberately.
+    is the reversible one. And since 2026-11-13 no share answer carries the author's
+    member id at all: an install records it server-side only (`_server_origin_author`).
     """
     try:
         n = int(limit)
