@@ -1395,3 +1395,109 @@ def compute_rs_exit_columns(bars: Sequence[dict], benchmark_bars: Sequence[dict]
         "dotQuicksand": dot_column(rs, ev["quicksand"]),
         "dotDead": dot_column(rs, ev["deadBreak"]),
     }
+
+
+# ── RS screens (2026-11-14): last-bar measures over the Phase 1 event columns ─
+#
+# The five Relative Strength screens (plan 2026-11-14 v2, sections 1.2 and 1.3)
+# ask questions of the SAME event columns the chart draws: how many RS new highs
+# lately, how long since the one before, how long the RS line has been ahead of
+# price. Each helper below answers one of them for the NEWEST bar only, in one
+# backward walk, so the nightly build pays microseconds per ticker on top of the
+# Phase 1 columns it already holds. Nothing above this line is touched.
+#
+# SAME RULE AS THE REST OF THE MODULE: never invent a value. Where the walk
+# meets a bar the event column could not judge (``None``), it stops and answers
+# ``None`` rather than read across it; `bars_ago_column` counts through such
+# bars because an age that is too LARGE is the safe direction for an age filter,
+# but "first RS high in N sessions" and "ahead of price for N sessions" are
+# claims about every bar in between, and a hidden bar would make them too strong.
+
+#: "RS new highs in the last 20 sessions" (plan 1.2 row facts and header line).
+SCREEN_NH_COUNT_WINDOW = 20
+#: An RS-new-high-before-price state is read at most a quarter back: 63 sessions
+#: counting today, so ages 0 to 62 (the `breakout_20d_age` convention in
+#: `screener.technicals`, which is blank past the same 63).
+SCREEN_NHBP_WINDOW = 63
+
+
+def event_gap_last(events: Column) -> Optional[int]:
+    """Sessions between the newest ``1`` in an event column and the ``1`` before
+    it (``1`` = on consecutive bars); ``None`` when there are not two, or when a
+    bar the column could not judge sits anywhere from the newest bar back to the
+    earlier event. The screen's "first RS high in N sessions"."""
+    newest: Optional[int] = None
+    for i in range(len(events) - 1, -1, -1):
+        e = events[i]
+        if e is None:
+            return None
+        if e == 1.0:
+            if newest is None:
+                newest = i
+            else:
+                return newest - i
+    return None
+
+
+def event_age_unbroken_last(events: Column, broken: Column, window: int) -> Optional[int]:
+    """Bars since the newest ``events == 1`` bar τ for which ``broken`` is ``0``
+    on EVERY bar from τ to the newest (``0`` = the newest bar is τ); ``None``
+    when ``broken`` is ``1`` or unknown on any bar walked, when ``events`` is
+    unknown before an event is found, when the columns are not aligned, or when
+    no such event lies within ``window`` bars counting the newest.
+
+    With ``events = rsNH`` and ``broken = pxNH`` (price within the Phase 1
+    tolerance of its own prior-lookback closing high) this is "the RS line made a
+    new high τ bars ago and price has not reached its high since": age 0 is
+    exactly `rsNHbeforePx` on the newest bar."""
+    n = len(events)
+    if n == 0 or len(broken) != n or window <= 0:
+        return None
+    for age in range(min(operator.index(window), n)):
+        i = n - 1 - age
+        if broken[i] != 0.0:
+            return None
+        e = events[i]
+        if e == 1.0:
+            return age
+        if e is None:
+            return None
+    return None
+
+
+def level_span_last(series: Column) -> Optional[int]:
+    """How many bars, ending at and counting the newest, the newest value has
+    been the highest: the distance back to the nearest earlier bar that is at or
+    above it. ``len(series)`` when no earlier bar is (the answer is then "at
+    least the whole window"). A missing earlier value ends the run the same way
+    a higher one does, so the claim is only ever about bars that were read.
+    ``None`` when the newest value itself is missing. The screen's "highest in N
+    sessions", asked only on a bar that is an RS new high."""
+    n = len(series)
+    if n == 0:
+        return None
+    v = series[-1]
+    if not _is_num(v):
+        return None
+    for i in range(n - 2, -1, -1):
+        w = series[i]
+        if not _is_num(w) or w >= v:
+            return n - 1 - i
+    return n
+
+
+def close_below_high_pct_last(closes: Column, window: int = DEFAULT_LOOKBACK) -> MaybeNum:
+    """``(C[t] / max(C over the last window bars, t included) − 1) × 100`` for the
+    newest bar: zero at the high, negative below it. CLOSING basis, the RS line's
+    own (a 52-week high on intraday highs is the `dist_52w_high_pct` column, a
+    different number). ``None`` until ``window`` closes exist, and when any close
+    in the window is missing or not positive: a window with a hole has no honest
+    maximum (`rolling_extreme_event`'s rule)."""
+    window = operator.index(window)
+    if window <= 0 or len(closes) < window:
+        return None
+    seg = closes[-window:]
+    for c in seg:
+        if not _is_num(c) or c <= 0:
+            return None
+    return (seg[-1] / max(seg) - 1.0) * 100.0
