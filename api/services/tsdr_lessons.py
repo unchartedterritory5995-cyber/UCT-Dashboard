@@ -2259,7 +2259,10 @@ def search_lessons(query: str, limit: int = _SEARCH_MAX) -> list[dict]:
             "SELECT attachment_id, title, recap, takeaway, question, tickers, tags, transcript, "
             "segments, duration_s, section, level, posted_at, post_channel_id, discord_post_id, "
             "forum_post_id, youtube_id FROM tsdr_lessons WHERE status = 'posted' "
-            "AND discord_post_id IS NOT NULL AND post_channel_id IS NOT NULL").fetchall()]
+            "AND discord_post_id IS NOT NULL AND post_channel_id IS NOT NULL "
+            # run_regroup leaves a lesson whose old post was deleted by hand `posted`,
+            # with this section: its link opens nothing, so it is never an answer.
+            "AND (section IS NULL OR section != 'removed')").fetchall()]
     # A word that is a ticker somewhere in the library, or was typed as one (in
     # capitals or with a $), is matched exactly: "hims" must never find "him".
     library = {str(t).lower().lstrip("$") for r in rows for t in _json_list(r.get("tickers"))}
@@ -2320,7 +2323,7 @@ def related_lessons(lesson: dict, limit: int = RELATED_MAX) -> list[dict]:
             "SELECT attachment_id, title, tickers, tags, section, forum_post_id, posted_at, "
             "discord_post_id, post_channel_id FROM tsdr_lessons WHERE status = 'posted' "
             f"AND discord_post_id IS NOT NULL {scope}"
-            "AND attachment_id != ? AND (section IS NULL OR section != 'clips')",
+            "AND attachment_id != ? AND (section IS NULL OR section NOT IN ('clips', 'removed'))",
             (str(lesson.get("attachment_id") or ""),)).fetchall()
         rows = [dict(r) for r in rows]
     scored = []
