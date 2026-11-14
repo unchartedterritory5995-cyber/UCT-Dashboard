@@ -147,6 +147,22 @@ def test_several_tickers_become_one_multi_job(client, v2):
     assert [j.command for j in v2.offered] == ["multi"] and v2.offered[0].label == "/chart NVDA AMD AVGO"
 
 
+def test_v2_buzz_is_offered_and_deferred_PUBLICLY(client, v2, monkeypatch):
+    """Owner ruling 2026-11-13: the on-demand board is visible to the channel (it was private
+    from 2026-09-02 until then).
+
+    ⛔ V2 STATES THE VISIBILITY TWICE AND THE TWO MUST AGREE: the defer Discord is handed (which
+    is what actually fixes it) and the job's own `ephemeral` record (stored with the job, and
+    what a Retry click replays). Flipping only the defer leaves a job row that says "private"
+    about a public message, so both are pinned here."""
+    tc, rt, sk = client
+    monkeypatch.setattr(rt, "run_buzz_job", lambda *a, **k: (_ for _ in ()).throw(AssertionError("old job ran")))
+    r = _post(tc, sk, _slash(name="buzz", options=[]))
+    assert r.json() == {"type": 5}, "the board would have gone to the asking member only"
+    (job,) = v2.offered
+    assert job.command == "buzz" and job.ephemeral is False
+
+
 def test_an_invalid_ticker_is_refused_privately_and_never_queued(client, v2):
     tc, _, sk = client
     r = _post(tc, sk, _slash(options=[{"name": "ticker", "value": "N*VDA"}])).json()
