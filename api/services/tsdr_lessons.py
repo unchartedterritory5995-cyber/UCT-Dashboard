@@ -378,6 +378,10 @@ def status_counts() -> dict:
         yt = c.execute("SELECT COUNT(*) AS n FROM tsdr_lessons WHERE youtube_id IS NOT NULL").fetchone()
     out = {r["status"]: r["n"] for r in rows}
     out["on_youtube"] = yt["n"]
+    # Link lessons posted under their title only, waiting for captions that have to be
+    # sent in from outside (tools/tsdr_link_transcripts.py; the pod is refused them).
+    # Counted from the ONE list that tool is given, never a second rule for "waiting".
+    out["links_waiting"] = len(links_needing_transcript())
     return out
 
 

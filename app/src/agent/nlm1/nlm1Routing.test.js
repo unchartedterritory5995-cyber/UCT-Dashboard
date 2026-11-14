@@ -194,6 +194,8 @@ describe('routing v2: a words-only group never rides the fill, and is still sent
     // pl-zoom (C1-028): chartSetup.zoom's own words — zoom + a direction, closer / tighter on the chart, a wider view of it, more / fewer bars
     chartView: ['zoom in on this chart', 'zoom the AMD chart out', 'zoom out a lot', 'zoom all the way in', 'get a closer look at the candles', 'give me a wider view of the chart', 'show me fewer bars'],
     // #1082 (C3-205..207): Custom-Period Sort's own words — the tool's name, a rank / sort over dates, a Dock of the ranking
+    // Charts family (2026-11-12): volumeProfile.set's own words — the profile named (volume profile / VPVR), or VP with an on / off verb
+    volumeProfile: ['turn on volume profile', 'set the vpvr bins to 30', 'hide vp on this chart'],
     periodSort: ['open the period sort for themes', 'rank stocks between 2026-01-02 and 2026-03-31', 'sort sectors from mar 3 to jun 30', 'dock the ranking as a widget'],
     // uctIntelligence.set: the chart INDICATOR by name (never "… with UCT Intelligence" authoring), or one of its panel's switches
     uctIntelligence: ['add uct intelligence to this chart', 'turn off auto patterns', 'turn on the setups layer', 'show candlestick patterns on this chart'],
@@ -211,7 +213,15 @@ describe('routing v2: a words-only group never rides the fill, and is still sent
     // the strip under the chart), or a tab only the company panel has
     chartFeatures: ['add the company panel', 'collapse the company info on this chart', 'remove the profile panel', 'show the earnings strip',
       'add the fundamentals strip to the nvda chart', 'take the strip under the chart off', 'switch to the ownership tab', 'open the news tab of the company panel'],
+    // chartReplay: the bar replay as a thing played — a playback verb governing "the replay", the replay bar / speed, a step "in the replay"
+    chartReplay: ['play the replay', 'pause the bar replay', 'step the replay forward 10 bars', 'set the replay speed to 5x', 'next bar in the replay', 'open the time machine'],
   }
+  // chartReplay negatives: Replay Mode's cutoff (chart.replay), a step outside replay (chartSetup.stepBars), other replays
+  it.each(['replay mode as of oct 15', 'go back to oct 15', 'replay as of last friday', 'exit replay mode', 'next bar', 'step forward 10 bars',
+    'replay the tutorial', 'replay that alert', 'watch the replay of the earnings call'])('"%s": not the chartReplay words', (msg) => {
+    expect(wordsSelect('chartReplay', msg)).toBe(false)
+    expect(sentOf(msg).has('chartReplay')).toBe(false)
+  })
   // #1070 negative controls: a bare "board" is the workspace — these never select drawingBoards
   it.each(['remove everything from the board', 'add a chart to the board', 'make the board 2x2', 'clear the board', 'new chart on the board'])
   ('"%s": not the Drawing Boards group', (msg) => {

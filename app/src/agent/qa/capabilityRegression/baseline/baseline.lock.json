@@ -4357,6 +4357,46 @@
     }
    }
   },
+  "volumeProfile.set": {
+   "digest": "4765e7854fb1a6df",
+   "phrasings": {
+    "turn on volume profile": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "add the volume profile to this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "show vpvr": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "volumeProfile.set.bins": {
+   "digest": "4653f21c769be5f6",
+   "phrasings": {
+    "turn on volume profile with 40 bins": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "add a volume profile with 40 rows": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "show the volume profile using 40 bins please": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
   "chartMenu.resetWatermark": {
    "digest": "df220e8af0d696e0",
    "phrasings": {
@@ -4526,6 +4566,31 @@
      "modes": {}
     },
     "give me a wider view of the chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "chartReplay.playback": {
+   "digest": "ff4013691b1537c3",
+   "phrasings": {
+    "start the bar replay": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "turn on the bar replay on this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "open the replay bar": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "start the time machine on this chart": {
      "digest": "44136fa355b3678a",
      "gaps": [],
      "modes": {}
