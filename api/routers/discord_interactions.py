@@ -744,8 +744,10 @@ async def _dispatch_interaction(request: Request, background: BackgroundTasks):
     name = (interaction.get("data") or {}).get("name")
     if itype == 4:
         if name == tx_news.NEWS_COMMAND:
+            # /news has its own picker: stocks only, in the form the command accepts.
+            # /chart's helper also offers breadth series and a "chart it" fallback.
             q = di.parse_autocomplete(interaction).lstrip("$")
-            return _autocomplete(fetch_ticker_choices(q) if q else [])
+            return _autocomplete(tx_news.ticker_choices(q) if q else [])
         if name == di.BUZZ_COMMAND:
             # Backed by what the room ACTUALLY said, so an empty query is still
             # useful: it offers the most-mentioned names.
