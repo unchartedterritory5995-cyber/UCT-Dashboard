@@ -402,18 +402,18 @@ function ThemeGroup({ theme, themeKey, selectedSym, selectedNavKey, onSelectSym,
 
 // A dropdown menu rendered in a PORTAL (document.body) positioned under an anchor, so the
 // widget's overflow:hidden can never clip it — it floats on top and can spill past the edge.
-function FloatingMenu({ anchorRef, onClose, width = 210, up = false, className = '', children }) {
+function FloatingMenu({ anchorRef, onClose, width = 210, up = false, alignRight = false, className = '', children }) {
   const [pos, setPos] = useState(null)
   useLayoutEffect(() => {
     const el = anchorRef?.current
     if (!el) return
     const r = el.getBoundingClientRect()
-    let left = Math.max(6, Math.min(r.left, window.innerWidth - width - 6))
+    let left = Math.max(6, Math.min(alignRight ? r.right - width : r.left, window.innerWidth - width - 6))
     // `up` anchors the menu ABOVE its button (via bottom) so a bottom-bar menu opens upward
     // into the widget instead of spilling off the bottom of the screen.
     if (up) setPos({ bottom: Math.max(6, window.innerHeight - r.top + 4), left })
     else setPos({ top: r.bottom + 4, left })
-  }, [anchorRef, width, up])
+  }, [anchorRef, width, up, alignRight])
   const style = pos
     ? ('bottom' in pos ? { bottom: pos.bottom, left: pos.left, width } : { top: pos.top, left: pos.left, width })
     : { top: -9999, left: -9999, width }
@@ -457,7 +457,7 @@ function SetPicker({ sets, themeSetId, activeSet, onSelect, onRename, onDelete, 
         <UIcon name="chevronDown" size={12} gold={false} />
       </button>
       {open && (
-        <FloatingMenu anchorRef={btnRef} onClose={close} width={240} className={styles.setMenuUct}>
+        <FloatingMenu anchorRef={btnRef} onClose={close} width={240} alignRight className={styles.setMenuUct}>
           <div className={styles.ttMenuLabel}>Theme sets</div>
           <button type="button" role="menuitemradio" aria-checked={!themeSetId}
             className={`${styles.ttMenuItem} ${styles.setUctItem}`} onClick={() => { onSelect(null); close() }}>

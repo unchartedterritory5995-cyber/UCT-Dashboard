@@ -103,3 +103,113 @@ export function devFakeThemes(data) {
     : []
   return { ...(data || {}), themes: [...filled, ...pad], status: 'ok' }
 }
+
+// ⚠️ LOCAL PREVIEW ONLY (owner 11-13): a made-up Trade Exchange feed for the News widget, so the
+// redesign can be seen "live" on the dev server (the local backend has no news stream). Invented
+// headlines, spread back from now; a new one arrives every ~25 s. Dev mode only; never ships.
+const FAKE_NEWS = [
+  ['NVDA', 'News', 'NVDA - Nvidia unveils next-generation networking platform for AI data centers; says the new switches double bandwidth per port and will ship to cloud customers early next year, with several hyperscalers already committed to initial deployments'],
+  ['', 'Macro', 'US initial jobless claims come in slightly below expectations as continuing claims hold near recent levels; economists say the labor market is cooling gradually rather than sharply'],
+  ['AAPL', 'News', 'AAPL - Apple expands manufacturing partnership with suppliers in India'],
+  ['TSLA', 'Price', 'TSLA - Tesla shares extend gains in the afternoon session'],
+  ['MSFT', 'News', 'MSFT - Microsoft announces new Azure region in Northern Europe'],
+  ['AMD', 'Earnings', 'AMD - Advanced Micro Devices to report third-quarter results next Tuesday'],
+  ['', 'Macro', 'Fed officials signal patience on further rate moves, minutes show; several members noted that inflation progress has been uneven across categories and that policy should remain data dependent through the end of the year, while a few saw room to ease sooner if hiring slows'],
+  ['PLTR', 'News', 'PLTR - Palantir awarded multi-year contract extension with US Army covering data integration and analytics services across several commands'],
+  ['CRWD', 'Press Release', 'CRWD - CrowdStrike launches new identity protection module'],
+  ['SPY', 'Options', 'SPY - Heavy call buying in December contracts this morning'],
+  ['META', 'News', 'META - Meta rolls out new AI assistant features across Facebook, Instagram and WhatsApp, including image editing and real-time translation in more than a dozen languages'],
+  ['', 'Macro', '10-year Treasury yield slips as bond buyers return'],
+  ['AVGO', 'Filing', 'AVGO - Broadcom files Form 8-K: changes to board of directors'],
+  ['SMCI', 'Price', 'SMCI - Super Micro trading halted, volatility pause'],
+  ['AMZN', 'News', 'AMZN - Amazon opens new same-day delivery hubs in three states'],
+  ['COIN', 'News', 'COIN - Coinbase adds support for new staking products'],
+  ['', 'Macro', 'Oil steadies after two-day decline as traders weigh weekly inventory data against signs of softer demand in Asia and ongoing supply discipline from major producers'],
+  ['HOOD', 'Earnings', 'HOOD - Robinhood monthly metrics: funded customers rise'],
+  ['GOOGL', 'News', 'GOOGL - Alphabet unveils updated Gemini models for developers'],
+  ['MU', 'Press Release', 'MU - Micron begins volume shipments of new high-bandwidth memory'],
+  ['', 'Other', 'Markets open: indexes little changed in early trade'],
+  ['UBER', 'News', 'UBER - Uber expands autonomous ride partnership to new cities'],
+  ['NFLX', 'Options', 'NFLX - Unusual put activity in weekly contracts'],
+  ['JPM', 'News', 'JPM - JPMorgan raises quarterly dividend and announces a new share repurchase program after clearing its annual capital review; CEO says the bank remains well positioned heading into next year'],
+]
+let fakeNewsCache = null
+function fakeNewsItems() {
+  const now = Date.now()
+  const born = Math.floor(now / 25000)                       // one more headline every 25 s
+  if (fakeNewsCache && fakeNewsCache.born === born) return fakeNewsCache.items
+  const items = []
+  const total = FAKE_NEWS.length + 6
+  for (let k = 0; k < total; k++) {
+    const [sym, category, content] = FAKE_NEWS[(born + k) % FAKE_NEWS.length]
+    const seq = born * 100 - k
+    items.push({ seq, id: `devnews-${born - k}-${k}`, source: 'TX-News', content, category,
+      tickers: sym ? [sym] : [], mentions: [], received_at_ms: (born - k) * 25000 - k * 95000 })
+  }
+  items.reverse()                                          // the stream keeps oldest first
+  fakeNewsCache = { born, items }
+  return items
+}
+/** The feed state, with made-up headlines when the real stream is unavailable on the dev server. */
+export function devFakeNewsFeed(feed) {
+  if (import.meta.env.MODE !== 'development' || !devFakeQuotesOn()) return feed
+  if (feed?.status === 'live' && feed.items?.length) return feed
+  const items = fakeNewsItems()
+  return { ...(feed || {}), status: 'live', items, lastHeadlineAt: items[items.length - 1].received_at_ms, coverage: null, truncated: false, provisional: false }
+}
+/** The day view over the fake feed: the filtered live rows, newest first, as "Today". */
+export function devFakeNewsDay(day, shown, feedWasFake) {
+  if (!feedWasFake) return day
+  return { ...day, rows: shown, total: shown.length, dayTotal: shown.length, hidden: 0, loading: false, loadingMore: false,
+    error: null, hasOlder: false, hasNewer: false, live: true, isToday: true, allHistory: false }
+}
+/** A hook that re-renders every 25 s so the fake feed grows while you watch. */
+export function useDevFakeNewsTick() {
+  const [n, setN] = useState(0)
+  const on = import.meta.env.MODE === 'development' && devFakeQuotesOn()
+  useEffect(() => {
+    if (!on) return undefined
+    const id = setInterval(() => setN((n) => n + 1), 25000)
+    return () => clearInterval(id)
+  }, [on])
+  return n
+}
+
+// ⚠️ LOCAL PREVIEW ONLY (owner 11-13): a made-up saved-headlines library for the News widget's
+// Saved view (the local backend runs with the news library switched off). Dev mode only.
+const FAKE_COLLECTIONS = [{ id: 'dev-c1', name: 'Trade ideas', count: 3 }, { id: 'dev-c2', name: 'Macro', count: 2 }, { id: 'dev-c3', name: 'Earnings', count: 2 }]
+const FAKE_SAVED = [
+  [0, ['dev-c1'], 'Watch the networking names for follow-through.'],
+  [6, ['dev-c2'], ''],
+  [23, [], ''],
+  [9, ['dev-c1'], 'Calls stacked at the round number.'],
+  [5, ['dev-c3'], 'Report date — size down beforehand.'],
+  [11, ['dev-c2'], ''],
+  [17, ['dev-c3', 'dev-c1'], ''],
+]
+function fakeSavedItems() {
+  const now = Date.now()
+  return FAKE_SAVED.map(([i, cols, note], k) => {
+    const [sym, category, content] = FAKE_NEWS[i % FAKE_NEWS.length]
+    return { seq: 9000 - k, id: `devsaved-${k}`, source: 'TX-News', content, category, tickers: sym ? [sym] : [], mentions: [],
+      received_at_ms: now - (k + 1) * 3.7 * 3600_000, bookmark: { note, collection_ids: cols, saved_at_ms: now - k * 3600_000 } }
+  })
+}
+let fakeLibState = null
+/** The library snapshot, made up on the dev server when the real one could not load. */
+export function devFakeLibrary(lib) {
+  if (import.meta.env.MODE !== 'development' || !devFakeQuotesOn()) return lib
+  if (lib?.status === 'ready' || lib?.status === 'loading' || lib?.status === 'idle') return lib
+  if (!fakeLibState) {
+    const items = fakeSavedItems()
+    fakeLibState = { status: 'ready', ids: new Set(items.map((x) => x.id)), collections: FAKE_COLLECTIONS, limits: null, error: null, version: 1 }
+  }
+  return fakeLibState
+}
+/** library.fetchItems over the made-up library: search, ticker and collection filters work. */
+export async function devFakeFetchItems({ q = '', ticker = '', collection = '' } = {}) {
+  const ql = q.toLowerCase()
+  const items = fakeSavedItems().filter((it) => (!ql || it.content.toLowerCase().includes(ql) || it.bookmark.note.toLowerCase().includes(ql))
+    && (!ticker || it.tickers.includes(ticker)) && (!collection || it.bookmark.collection_ids.includes(collection)))
+  return { ok: true, items, total: items.length }
+}

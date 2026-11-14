@@ -31,4 +31,4 @@ export const UCT_ONE_ROW_MIN_W = 240
 // Widgets whose header shows the icon alone, no name (owner 11-13: the Watchlist's star says
 // it; Scanner shares its header). The name stays in the DOM for screen readers.
 // Theme Tracker too (owner 11-13: its periods take the title row).
-export const UCT_ICON_ONLY_TITLE = Object.freeze(['watchlist', 'scanner', 'themes'])
+export const UCT_ICON_ONLY_TITLE = Object.freeze(['watchlist', 'scanner', 'themes', 'tradeExchangeNews'])

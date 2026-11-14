@@ -2018,3 +2018,5 @@
   background: var(--widget-row-hover, rgba(255, 255, 255, 0.06));
   box-shadow: inset 2px 0 0 var(--widget-accent, var(--accent, #dcbb5e));
 }
+/* owner 11-13: the set picker sits to the RIGHT of the search (as News: search left, lists right). */
+:global(.uct-frame) .searchRow .setPicker { order: 2; flex: 0 0 auto; }
