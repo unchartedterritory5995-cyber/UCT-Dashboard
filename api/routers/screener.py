@@ -1095,7 +1095,15 @@ def screener_earnings_context_status(user=Depends(require_admin)):
 @router.get("/api/screener/saved-screens")
 def screener_saved_list(user=Depends(require_paid)):
     scr_saved.init()
-    return {"saved": scr_saved.list_for(user["id"]), "starters": scr_saved.starters(user)}
+    out = {"saved": scr_saved.list_for(user["id"]), "starters": scr_saved.starters(user)}
+    # RS screens unit U8: the market caution state the RS screens print above their
+    # lists, `{state, text, asof}` from the newest post-pass receipt, or null when no
+    # state can be claimed. It rides this payload so the page asks nothing new. The KEY
+    # exists only while RS_SCREENS_ENABLED is on: off, the payload is the one it was.
+    if scr_saved.rs_screens_enabled():
+        from api.services.screener import rs_market_state
+        out["rs_market"] = rs_market_state.served()
+    return out
 
 
 @router.post("/api/screener/saved-screens")

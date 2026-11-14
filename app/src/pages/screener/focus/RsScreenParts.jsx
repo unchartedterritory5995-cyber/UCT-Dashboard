@@ -39,6 +39,17 @@ export function RsFirstVisit({ onHow, onDismiss }) {
   )
 }
 
+// The market caution line (unit U8): the server's sentence about the market, in the first-visit
+// line's own gold-bar style, with one button that hides it for today. Never about a stock.
+export function RsMarketLine({ text, state, onHide }) {
+  return (
+    <p className={styles.note} role="note" aria-label="Market note" data-testid="rs-market" data-state={state}>
+      <span className={styles.noteText}>{text}</span>
+      <button type="button" className={`${focus.btn} ${styles.noteBtn}`} onClick={onHide}>Hide for today</button>
+    </p>
+  )
+}
+
 // The screen's own words for "nothing today", then its actions as buttons. The first sentence
 // is the headline and the rest the body, so the text reads at the size of every other state.
 export function RsEmptyState({ text, actions = [], pending = false }) {

@@ -1354,10 +1354,13 @@ def _read_rs_history_fields(targets, failures=None) -> dict:
     return out
 
 
-def _rs_post_pass(populated: dict):
+def _rs_post_pass(populated: dict, spy_bars=None):
     """The RS screens post-pass at the end of a build (RS screens unit U1): its
     receipt, or ``None`` while ``RS_SCREENS_ENABLED`` is off (then nothing is read,
     written or reported, and the build's stats carry no key for it).
+
+    ``spy_bars`` (unit U8) is this build's own SPY read, handed to the pass for the
+    market caution state so SPY is still read once per build.
 
     ⭐ WHY HERE, EVERY BUILD: ``upsert_rows`` is INSERT OR REPLACE over every column, so
     a row this build rebuilt holds NULL in every column only the pass writes. A single
@@ -1370,7 +1373,7 @@ def _rs_post_pass(populated: dict):
         from . import rs_post_pass                           # noqa: PLC0415 - lazy: no cycle
         if not rs_post_pass.enabled():
             return None
-        receipt = rs_post_pass.run(source="build")
+        receipt = rs_post_pass.run(source="build", spy_bars=spy_bars)
     except Exception as e:  # noqa: BLE001
         log.warning("[screener] rs post-pass failed: %s", e)
         return {"error": f"{type(e).__name__}: {e}"}
@@ -2137,7 +2140,7 @@ def _run_build_locked(max_tickers=None, through_ymd=None) -> dict:
         populated["sector_rs_pct"] = sector_rs["ranked"]
     # The RS screens post-pass, over the whole table the loop just wrote (see
     # `_rs_post_pass`). None while RS_SCREENS_ENABLED is off.
-    rs_post = _rs_post_pass(populated)
+    rs_post = _rs_post_pass(populated, spy_bars=spy_bars)
 
     empty_columns = sorted(c for c in snapshot_db.COLUMNS
                            if built and populated[c] == 0

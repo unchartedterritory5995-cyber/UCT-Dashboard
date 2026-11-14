@@ -25,10 +25,12 @@ export const META = {
 export const net = {
   starters: STARTERS_ON, saved: [], prefs: {}, rows: RS_ROWS, scan: null, savedDelay: 0, prefsDelay: 0,
   diff: null, methodology: { methods: [] }, themes: {}, prefsFail: false, meta: null,
+  // unit U8: the saved-screens payload's `rs_market`; undefined leaves the key out (the flag is off)
+  market: undefined,
 }
 export function resetNet() {
   Object.assign(net, { starters: STARTERS_ON, saved: [], prefs: {}, rows: RS_ROWS, scan: null, savedDelay: 0, prefsDelay: 0,
-    diff: null, methodology: { methods: [] }, themes: {}, prefsFail: false, meta: null })
+    diff: null, methodology: { methods: [] }, themes: {}, prefsFail: false, meta: null, market: undefined })
 }
 const later = (body, ms) => (ms ? new Promise(r => setTimeout(() => r(body), ms)) : body)
 
@@ -46,7 +48,7 @@ export function installFetch() {
     if (url === '/api/screener/membership-diff') return net.diff ? { ok: true, json: async () => net.diff } : { ok: false, status: 404, json: async () => ({}) }
     if (url.startsWith('/api/screener/methodology')) return { ok: true, json: async () => net.methodology }
     if (url.startsWith('/api/watchlists/themes-batch')) return { ok: true, json: async () => ({ results: net.themes }) }
-    if (url.startsWith('/api/screener/saved-screens')) return later({ ok: true, json: async () => ({ saved: net.saved, starters: net.starters }) }, net.savedDelay)
+    if (url.startsWith('/api/screener/saved-screens')) return later({ ok: true, json: async () => ({ saved: net.saved, starters: net.starters, ...(net.market !== undefined ? { rs_market: net.market } : {}) }) }, net.savedDelay)
     if (url.startsWith('/api/auth/preferences')) {
       if (o?.method === 'POST') {
         const { key, value } = JSON.parse(o.body)

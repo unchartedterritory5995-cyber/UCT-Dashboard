@@ -80,6 +80,9 @@ export default function useSavedScreens({ enabled = true } = {}) {
   return {
     saved: data?.saved ?? [],
     starters: data?.starters ?? [],
+    // RS screens unit U8: the market caution state the server puts in this payload while the RS
+    // screens are on ({ state, text, asof }); null when it sent none.
+    rsMarket: data?.rs_market ?? null,
     error: error || null,
     // True once the read has answered (with screens or with a refusal).
     loaded: data !== undefined || !!error,
