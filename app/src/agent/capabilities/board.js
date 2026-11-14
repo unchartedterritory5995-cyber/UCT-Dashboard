@@ -1006,12 +1006,12 @@ export function registerBoardCapabilities() {
       const unknown = symbols.map(x => String(x || '').trim().toUpperCase()).filter(x => env?.unknownSymbols?.has?.(x))
       if (unknown.length) return `UCT has no symbol ${andList(unknown.map(u => `“${u}”`))}, so I didn't change the charts.`
       if (st.grid) return 'One chart grid at a time.'
-      const plan = planChartGrid({ board: st.board, charts: s.charts || new Map(), symbols, timeframe, layout, newCharts: newCharts === true, cols: s.grid.cols, rows: s.grid.rows, minOf: s.minOf, maxWidgets: s.maxWidgets ?? 16, detached: s.detached, rail: railOf(watchlist), replace: replace === true ? true : replace === 'charts' ? 'charts' : false })
+      const plan = planChartGrid({ board: st.board, charts: s.charts || new Map(), symbols, timeframe, layout, newCharts: newCharts === true, cols: s.grid.cols, rows: s.grid.rows, minOf: s.minOf, maxWidgets: s.maxWidgets ?? 16, detached: s.detached, rail: railOf(watchlist), replace: replace === true ? true : replace === 'charts' ? 'charts' : false, keep: env?.keepTickers || null })
       return plan.ok ? null : plan.reason
     },
     apply(st, { symbols, timeframe, layout, new_charts: newCharts, watchlist, replace }, env) {
       const s = env.target
-      const plan = planChartGrid({ board: st.board, charts: s.charts || new Map(), symbols, timeframe, layout, newCharts: newCharts === true, cols: s.grid.cols, rows: s.grid.rows, minOf: s.minOf, maxWidgets: s.maxWidgets ?? 16, detached: s.detached, rail: railOf(watchlist), replace: replace === true ? true : replace === 'charts' ? 'charts' : false })
+      const plan = planChartGrid({ board: st.board, charts: s.charts || new Map(), symbols, timeframe, layout, newCharts: newCharts === true, cols: s.grid.cols, rows: s.grid.rows, minOf: s.minOf, maxWidgets: s.maxWidgets ?? 16, detached: s.detached, rail: railOf(watchlist), replace: replace === true ? true : replace === 'charts' ? 'charts' : false, keep: env?.keepTickers || null })
       if (!plan.ok) return st
       // review t4 M2: a chart to remove is named by its TICKER and timeframe (its position only when that still leaves two
       // alike) — never two entries that read the same
@@ -1042,7 +1042,10 @@ export function registerBoardCapabilities() {
       const rail = g.rail ? `, with a new ${label(g.rail)} on the right` : g.railMoved ? ', with your Watchlist on the right' : ''
       // ⭐ PHASE 3 acceptance: a replaced board says exactly what went (and that Undo brings it back)
       const gone = g.remove?.length ? ` — replacing your ${(g.removedNames || []).every(x => /\bchart\b/i.test(String(x))) ? 'charts' : 'board'}: removed ${andList((g.removedNames || []).map(x => `the ${x}`))} (Undo puts ${g.remove.length === 1 ? 'it' : 'them'} back)` : ''
-      if (g.newCharts) return `Added ${gridPhrase(g, { fresh: true })}${g.kept ? ` beside your ${g.kept === 1 ? 'chart' : `${g.kept} charts`}, re-tiled evenly` : ''}${line}${rail}`
+      // KEEP ≠ RE-CREATE: tickers a chart already showed are said as kept, never as added
+      const kept = g.shown?.length ? ` (${andList(g.shown)} kept as ${g.shown.length === 1 ? 'it is' : 'they are'})` : ''
+      if (g.newCharts && !g.symbols.length) return `Arranged your ${g.kept === 1 ? 'chart' : `${g.kept} charts`} evenly${kept} — every ticker you named is already on the board, so nothing new was added`
+      if (g.newCharts) return `Added ${gridPhrase(g, { fresh: true })}${g.kept ? ` beside your ${g.kept === 1 ? 'chart' : `${g.kept} charts`}${kept}, re-tiled evenly` : ''}${line}${rail}`
       const nNew = g.add.filter(a => !a.type || a.type === 'chart').length
       const parts = [g.reuse.length && nNew ? `${g.reuse.length} reused, ${nNew} new` : nNew ? `${nNew} new` : null,
         g.unlink.length ? `${g.unlink.length} unlinked so ${g.unlink.length === 1 ? 'it' : 'each'} can show its own ticker` : null].filter(Boolean)

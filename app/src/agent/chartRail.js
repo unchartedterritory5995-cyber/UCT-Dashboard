@@ -106,7 +106,7 @@ export function panelsAfter(plan, host) {
 // ── what the member's words say ────────────────────────────────────────────────────────────────────────────────────────
 const POS = /\b(top[- ]left|top[- ]right|bottom[- ]left|bottom[- ]right|upper[- ]left|upper[- ]right|lower[- ]left|lower[- ]right|left|right|top|bottom|upper|lower)\b/gi
 const normPos = (w) => w.toLowerCase().replace(/\s/, '-').replace('upper', 'top').replace('lower', 'bottom')
-const KEEP_LEAD = /\b(?:keep|keeping|kept|leave|leaving|retain|retaining|preserve|preserving|hold on to|holding on to|(?:do not|don['’]?t|never) (?:change|touch|replace|remove|move|lose|drop)|without (?:changing|touching|replacing|removing|losing|dropping))\s+/gi
+const KEEP_LEAD = /\b(?:keep|keeping|kept|leave|leaving|retain|retaining|preserve|preserving|hold on to|holding on to|(?:do not|don['’]?t|never) (?:change|touch|replace|remove|move|lose|drop)|without (?:changing|touching|replacing|removing|losing|dropping)|(?:plus|with|alongside|besides|and|along with) (?:my|the|our) (?:existing|current|old|original))\s+/gi
 const KEEP_END = /(?=$|[.;!?]|,\s*(?:but|then|and then)\b|\s(?:but|then|while|so)\b|\sand (?:then |also )?(?:add|put|make|change|switch|replace|set|open|show|create)\b)/i
 const STAY = /\b((?:[A-Z]{1,5}|\$[A-Za-z]{1,5})(?:\s*(?:,|and|&)\s*(?:[A-Z]{1,5}|\$[A-Za-z]{1,5}))*)\s+(?:stays?|remains?|should stay|stay(?:s)? put|in place)\b/g
 const ALL_KEPT = /^(?:(?:all|both|every|each)\b|(?:my|the|these|those|current|existing)\s+(?:current\s+|existing\s+)?(?:charts?|ones|panels?|layout|board)\b|everything\b|them\b)/i
@@ -242,5 +242,88 @@ export function chartRailRefusal(plan, { words = '', host = null, mode = 'apply'
   if (want && have != null && have < want) {
     return `I didn’t change anything: you asked for a ${want}-chart grid, but this would leave ${have} chart${have === 1 ? '' : 's'}. Tell me the ticker for each chart and I’ll set up all ${want}.`
   }
+  // FINAL BOARD (KEEP ≠ RE-CREATE): the planned final chart set must be the charts kept (the SAME panels) ∪ the new tickers —
+  // a ticker already on the board, or one the plan creates twice, is never created again unless the words ask for another copy
+  const fin = finalBoard(plan, host)
+  if (fin) {
+    const kept = keptCharts(w, host)
+    if (fin.unknown && (kept.all || kept.refs.size || kept.symbols.size)) {
+      return 'I didn’t change anything: I can’t tell which charts this would add, so I can’t check it keeps the ones you asked to keep. Name the tickers for the new charts.'
+    }
+    const keepSet = keepTickers(w, host, fin.created)
+    const dup = fin.created.filter((s0, i) => s0 && ((fin.kept.some(c => c.symbol === s0) && keepSet.has(s0)) || fin.created.indexOf(s0) !== i) && !asksAnother(w, s0))
+    if (dup.length) {
+      const d = [...new Set(dup)]
+      return dupSentence(d)
+    }
+    // (a kept chart stays the SAME panel: closing it — even to re-create it on its ticker — is a KEPT 'remove' effect, refused above)
+  }
   return null
+}
+
+// a copy asked for in words: "another SPY chart", "a second NVDA", "duplicate the SPY chart", "SPY twice"
+const ANOTHER = /\b(?:another|second|2nd|duplicate|copy|clone|again|twice|extra|more)\b/i
+/** The duplicate refusal: WHICH ticker, and how to ask for a second copy. */
+export const dupSentence = (syms) => `I didn’t change anything: ${listOf(syms)} ${syms.length === 1 ? 'is' : 'are'} already on your board. Say “add another ${syms[0]} chart” if you want a second one.`
+// words that ask for NEW charts outright ("on a new chart", "4 more charts")
+const NEW_CHART_WORDS = /\b(?:new|another|second|2nd|more|extra|copy|duplicate|clone|again|twice)\b/i
+// "open (daily) charts for AAPL, MSFT and NVDA": a chart per named ticker, asked outright (golden GW-19)
+const OPEN_CHARTS = /\bopen\b[^.;!?]*\bcharts?\b/i
+const mentions = (words, sym) => new RegExp(`(^|[^A-Za-z])\\$?${String(sym).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![A-Za-z])`, 'i').test(words)
+/**
+ * ⛔ KEEP ≠ RE-CREATE: the tickers already on the board that THIS request keeps as they are —
+ *   - named as kept ("but keep SPY and NVDA", "leave the left one", "plus my existing SPY"), or
+ *   - when the words name the tickers to add ("add AAPL and MSFT"): every board ticker they do NOT name, unless a word asks
+ *     for new charts outright ("4 more charts", "on a new chart") — a plan that also lists those is re-creating the board.
+ * A request that names no ticker it creates ("bring up what remains", "same but weekly") keeps nothing by silence: its tickers
+ * come from a reference. `created`: the tickers the plan would create. A plan that lists a kept ticker among the charts to create
+ * means the chart already there (planChartGrid `keep`); the FINAL BOARD rail refuses re-creating one.
+ */
+export function keepTickers(words, host, created = []) {
+  const w = String(words || '')
+  const k = keptCharts(w, host)
+  const namesNew = (created || []).some(t => t && mentions(w, t))
+  const out = new Set()
+  for (const c of liveCharts(host)) {
+    const s0 = up(c.symbol)
+    if (!s0) continue
+    // (a board ticker the words NAME among the ones to add — "add SPY and AAPL" on a SPY board — is that chart too, never a
+    // second one, unless a word asks for a copy or for charts outright)
+    const asksNew = NEW_CHART_WORDS.test(w) || OPEN_CHARTS.test(w) || CHART_COUNT.test(w)
+    if (k.all || k.refs.has(c.ref) || k.symbols.has(s0) || (!asksNew && (mentions(w, s0) ? true : namesNew))) out.add(s0)
+  }
+  return out
+}
+/** The tickers a list of ops would create as charts (chartGrid.set / widget.addCharts literal lists). */
+export const createdTickers = (ops) => (ops || []).flatMap(o => ((o?.action === 'chartGrid.set' || o?.action === 'widget.addCharts') && Array.isArray(o.args?.symbols) ? o.args.symbols : [])).map(up).filter(Boolean)
+const asksAnother = (words, sym) => ANOTHER.test(words) && mentions(words, sym)
+
+/** The board as the plan leaves it: { kept: [{ ref, symbol }] (existing charts still there), removed, created: [symbol|null], unknown }
+ *  — null when the plan creates no chart (nothing to compare). Duplicating a chart ON PURPOSE (board.duplicateChart) is not a creation. */
+export function finalBoard(plan, host) {
+  const plans = plan?.plans || []
+  const created = []
+  let unknown = false
+  for (const p of plans) {
+    if (p.kind === 'board' && p.after?.grid && !p.after.grid.dup) for (const a of p.after.grid.add || []) if (!a.type || a.type === 'chart') created.push(up(a.symbol) || null)
+    if (p.kind === 'chart' && p.virtual) created.push(up(p.after?.symbol) || null)
+    if (p.kind === 'workspace') {
+      for (const pc of p.after?.pendingCharts || []) {
+        if (Array.isArray(pc.symbols)) created.push(...pc.symbols.map(s0 => up(s0) || null))
+        else unknown = true
+      }
+    }
+  }
+  if (!created.length && !unknown) return null
+  if (created.includes(null)) unknown = true
+  const effects = chartEffects(plan, host)
+  const gone = new Set(effects.filter(e => e.type === 'remove').map(e => e.ref))
+  const now = new Map(effects.filter(e => e.type === 'symbol' && e.to).map(e => [e.ref, e.to]))
+  const live = liveCharts(host)
+  return {
+    kept: live.filter(c => !gone.has(c.ref)).map(c => ({ ref: c.ref, symbol: now.get(c.ref) || up(c.symbol) })),
+    removed: live.filter(c => gone.has(c.ref)).map(c => ({ ref: c.ref, symbol: up(c.symbol) })),
+    created: created.filter(Boolean),
+    unknown,
+  }
 }
