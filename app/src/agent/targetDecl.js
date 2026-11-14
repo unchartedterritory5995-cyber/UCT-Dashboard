@@ -99,25 +99,49 @@ export function statedCount(words) {
   return m ? numOf(m[1]) : null
 }
 /** The ticker-like strings a plan's args carry (its VALUES: what it sets, never whom it lands on). */
+// (a SYMBOL value: written in capitals, or held under a symbol / ticker key — never an option word like layout: 'grid')
 export function symbolValues(ops) {
   const out = new Set()
-  const walk = (v) => {
-    if (typeof v === 'string') { const t = v.trim().replace(/^\$/, ''); if (/^[A-Za-z][A-Za-z0-9.]{0,9}$/.test(t)) out.add(t.toUpperCase()) }
-    else if (Array.isArray(v)) v.forEach(walk)
-    else if (v && typeof v === 'object') Object.values(v).forEach(walk)
+  const walk = (v, key = '') => {
+    if (typeof v === 'string') {
+      const t = v.trim().replace(/^\$/, '')
+      if (/^[A-Z][A-Z0-9.]{0,9}$/.test(t) || (/symbol|ticker/i.test(key) && /^[A-Za-z][A-Za-z0-9.]{0,9}$/.test(t))) out.add(t.toUpperCase())
+    } else if (Array.isArray(v)) v.forEach(x => walk(x, key))
+    else if (v && typeof v === 'object') Object.entries(v).forEach(([k, x]) => walk(x, k))
   }
   for (const o of ops || []) walk(o?.args)
   return [...out]
 }
 // the distinct tickers the words carry: in capitals, or a lowercase word that is one of the plan's own symbol values
 const namedTickers = (w, ops) => new Set([...tickersIn(w), ...knownIn(w, symbolValues(ops)).map(up)])
+// ⭐ AUDIT ruling (P1 accepted, board rule): "split … into <list>" is a SHAPE with an EXPLICIT SET — the final board is exactly
+// those N charts, N = the list's own length (no new vocabulary). Every token of the list must resolve as a ticker by the same
+// rules the other readers use (in capitals / $-prefixed — multiChart.tickersIn — or a lowercase word that is one of the plan's
+// own symbol values — chartRail.knownIn); one token that does not → null (the board stays OPEN).
+const SPLIT_LIST = /\bsplit\b[^.;!?]{0,40}?\binto\s+([^.;!?]+)/i
+const LIST_SEP = /\s*(?:,|&|\+|\/|\band\b|\s)\s*/i
+/** → [symbols] (resolved, in order, distinct) | null (no "split … into" list, or a token that is not a ticker). */
+export function splitList(words, ops = null) {
+  const m = SPLIT_LIST.exec(String(words || ''))
+  if (!m) return null
+  const tokens = m[1].split(LIST_SEP).map(t => t.trim()).filter(Boolean)
+  if (tokens.length < 2) return null
+  const values = symbolValues(ops)
+  const out = []
+  for (const t of tokens) {
+    const sym = tickersIn(t)[0] || knownIn(t, values).map(up)[0]
+    if (!sym || tickersIn(t).length + knownIn(t, values).length === 0) return null
+    if (!out.includes(sym)) out.push(sym)
+  }
+  return out.length >= 2 ? out : null
+}
 /** 'yes' — the words state the WHOLE board (a count / shape / arrangement + two or more tickers, no add, no keep); 'open' — two
  *  or more tickers, no add, no keep, but nothing the reader recognises as a count or a shape (reported OPEN, never guessed); 'no'. */
 function wholeBoard(w, kept, ops) {
   if (kept.all || kept.refs.size || kept.symbols.size) return 'no'
   if (addsCharts(w, symbolValues(ops))) return 'no'
   if (namedTickers(w, ops).size < 2) return 'no'
-  return (statedCount(w) != null || CHART_COUNT.test(w) || LAYOUT_WORDS.test(w)) ? 'yes' : 'open'
+  return (statedCount(w) != null || CHART_COUNT.test(w) || LAYOUT_WORDS.test(w) || splitList(w, ops)) ? 'yes' : 'open'
 }
 // ⭐ AUDIT ruling (Phase 1, item 1): the ONE chart of a one-chart board is evidence for the chart / content kinds — never in Multi
 // Chart grid mode or the phone's single view, and never when the change words name a ticker that chart does not show (Bug-1's
@@ -144,7 +168,9 @@ export function finalSpec(words, host, known = []) {
   for (const c of charts) if (kept.all || kept.symbols.has(up(c.symbol))) keptRefs.add(c.ref)
   const keptSymbols = [...new Set(charts.filter(c => keptRefs.has(c.ref)).map(c => up(c.symbol)).filter(Boolean))]
   const named = [...new Set([...tickersIn(w), ...knownIn(w, known).map(up)])]
-  const total = statedCount(w)
+  // the explicit set of "split … into <list>" (its own length is the count)
+  const list = splitList(w, [{ args: { symbols: known } }])
+  const total = statedCount(w) ?? (list ? list.length : null)
   const nc = NEW_COUNT.exec(w)
   const cc = CHART_COUNT.exec(w)
   const minCreated = nc ? numOf(nc[0].split(/\s+/)[0]) : null
@@ -159,6 +185,7 @@ export function finalSpec(words, host, known = []) {
     another: named.filter(s => ANOTHER.test(w) && mentions(w, s)),
     minTotal: minTotal ?? null,
     minCreated: minCreated ?? null,
+    exact: list,
   }
 }
 
@@ -245,7 +272,7 @@ function declare(w, host, subject, created, opts, ops, ui) {
     entries,
     keep: { refs: [...keepRefs].map(String), cells: keptCells, all: !!kept.all },
     open,
-    final: finalSpec(w, host),
+    final: finalSpec(w, host, symbolValues(ops)),
     move: MOVE.test(w),
   }
 }
@@ -374,6 +401,8 @@ function validate(plan, decl, host, w) {
     // (iii) at least the count asked
     if (!unknownCreates && spec.minTotal != null && board.length < spec.minTotal) bad('count')
     if (!unknownCreates && spec.minCreated != null && created.length < spec.minCreated) bad('count')
+    // an explicit set ("split … into SPY, QQQ, NVDA and TSLA"): the final board is exactly those charts, no more, no fewer
+    if (!unknownCreates && Array.isArray(spec.exact) && (board.length !== spec.exact.length || spec.exact.some(x => !board.includes(x)) || board.some(x => !spec.exact.includes(x)))) bad('exact-set')
     // a kept panel that is not on the final board (removed or switched away) — the identity check, said once for the board
     if (spec.keptRefs.some(r => gone.has(String(r))) && !decl.move) bad('kept-gone')
     if (final === 'ok') kinds.final.match++

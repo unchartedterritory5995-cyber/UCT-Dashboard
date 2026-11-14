@@ -9,7 +9,7 @@ import { getCapability } from './capabilities'
 import { planOps, collectTargets } from './executor'
 import {
   declareTargets, validateDeclaration, validateFanOut, refusesUnder, permitsEffect, narrowByModel, withAliases, rewriteAliases,
-  shadowTelemetry, TELEMETRY_FIELDS, finalSpec, TD_KINDS, planEffects,
+  shadowTelemetry, TELEMETRY_FIELDS, finalSpec, TD_KINDS, planEffects, splitList,
 } from './targetDecl'
 
 registerBuiltins()
@@ -187,10 +187,46 @@ describe('the board reader — STRUCTURAL counts and shapes (AUDIT ruling, item 
   }
   it('two or more tickers with no count or shape the reader recognises: the board kinds stay OPEN (never guessed)', () => {
     const { host } = hostOf(HALF())
-    const { decl, r } = run('split my screen into SPY, QQQ, NVDA and TSLA', host, [grid(four)])
+    const { decl, r } = run('SPY, QQQ, NVDA and TSLA please', host, [grid(four)])
     expect(decl.open).toEqual(expect.arrayContaining(['board', 'multiChart']))
     expect(r.kinds.board.open).toBeGreaterThan(0)
     expect(refusesUnder(r, new Set(['board']))).toBe(true)
+  })
+  // ⭐ AUDIT board rule: "split … into <list>" is a shape with an EXPLICIT SET — exactly those N charts, N = the list's length
+  it('"split my screen into SPY, QQQ, NVDA and TSLA": a shape of the list\'s own length, the final board exactly that set', () => {
+    const { host } = hostOf(HALF())
+    expect(splitList('split my screen into SPY, QQQ, NVDA and TSLA')).toEqual(four)
+    const { decl, r } = run('split my screen into SPY, QQQ, NVDA and TSLA', host, [grid(four)])
+    expect(decl.open).toEqual([])
+    expect(decl.final.exact).toEqual(four)
+    expect(decl.final.minTotal).toBe(4)
+    expect(r.verdict).toBe('match')
+    expect(r.final).toBe('ok')
+  })
+  it('a lowercase list resolves only through the plan\'s own values (the same rule as the other readers)', () => {
+    const { host } = hostOf(HALF())
+    expect(run('split my screen into spy, qqq, nvda and tsla', host, [grid(four)]).r.verdict).toBe('match')
+    expect(splitList('split my screen into spy, qqq, nvda and tsla')).toBeNull()
+  })
+  it('MUTANT list-length-ignored: the plan must hold EXACTLY the listed charts — fewer, or one more, is a mismatch', () => {
+    const { host } = hostOf(HALF())
+    const words = 'split my screen into SPY, QQQ, NVDA and TSLA'
+    const short = run(words, host, [grid(['SPY', 'QQQ', 'NVDA'])]).r
+    expect(short.verdict).toBe('mismatch')
+    expect(short.mismatches.map(m => m.why)).toEqual(expect.arrayContaining(['count', 'exact-set']))
+    const extra = run(words, host, [grid([...four, 'AMD'])]).r
+    expect(extra.mismatches.map(m => m.why)).toContain('exact-set')
+    const swapped = run(words, host, [grid(['SPY', 'QQQ', 'NVDA', 'AMD'])]).r
+    expect(swapped.mismatches.map(m => m.why)).toContain('exact-set')
+  })
+  it('MUTANT unresolved-token-resolved: one token that is not a ticker keeps the board OPEN', () => {
+    const { host } = hostOf(HALF())
+    for (const words of ['split my screen into SPY, QQQ, apples and TSLA', 'split my screen into SPY, QQQ, nvda and TSLA please']) {
+      expect(splitList(words, [grid(['SPY', 'QQQ', 'TSLA'])]), words).toBeNull()
+      const { decl } = run(words, host, [grid(['SPY', 'QQQ', 'TSLA'])])
+      expect(decl.open, words).toEqual(expect.arrayContaining(['board', 'multiChart']))
+      expect(decl.final?.exact ?? null, words).toBeNull()
+    }
   })
   it('a number word that counts something else is no count ("the 9 and 20 EMAs", "two weeks")', () => {
     const { host } = hostOf(HALF())

@@ -79,11 +79,11 @@ describe('TARGET DECLARATIONS — shadow measurement (report only)', () => {
     expect(by['owner-1114-duplicate-grid'].final).toBe('fail')
     expect(by['owner-1114-right-plan'].verdict).toBe('match')
   })
-  it('every fixture row reads as expected: a wrong plan is caught, a right one matches (the unrecognised board stays OPEN)', () => {
+  it('every fixture row reads as expected: a wrong plan is caught, a right one matches (an unresolved split list stays OPEN)', () => {
     const rowsF = all.filter(r => r.source === 'generated' || r.source === 'owner')
     expect(rowsF.length).toBe(fixtures.length)
     const got = Object.fromEntries(rowsF.map(r => [r.id, r.m.status === 'planned' ? r.m.result.verdict : 'unplanned']))
-    const want = Object.fromEntries(fixtures.map(f => [f.id, f.id === 'g-grid-unrecognised' ? 'open' : f.expectRefusal ? 'mismatch' : 'match']))
+    const want = Object.fromEntries(fixtures.map(f => [f.id, f.id === 'g-grid-split-unresolved' ? 'open' : f.expectRefusal ? 'mismatch' : 'match']))
     expect(got).toEqual(want)
   })
 })
