@@ -263,7 +263,10 @@ export default function TemplateList({ filter = 'archived', phone, onCloseAll, o
     setBusyId(d.id)
     setMessage(null)
     const got = await run()
-    if (!mounted.current) return
+    // Round 2, B1: the list can unmount while the request is out (the manager keys it by view, so a switch between
+    // Archived and Recently deleted unmounts it). A write that went through still tells the caller, so its own copy
+    // (the Active list, the usage counts) is read again; this list's state is not touched once it is gone.
+    if (!mounted.current) { if (got.ok) changed(); return }
     setBusyId(null)
     if (got.ok) { done(got.data); return }
     if (got.code === 'unavailable') { gone(); return }

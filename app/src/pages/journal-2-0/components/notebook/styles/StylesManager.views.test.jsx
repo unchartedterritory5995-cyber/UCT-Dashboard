@@ -323,6 +323,32 @@ describe('the manager is the one room: its views', () => {
     expect(sent('POST', 'journal-styles/sa1/delete')).toHaveLength(0)
   })
 
+  it('(round 2 B1) a Restore that answers after the switch to Recently deleted still tells the manager (Active and the counts read again)', async () => {
+    let release
+    const gate = new Promise((r) => { release = r })
+    server = installServer({
+      'POST journal-styles/sa1/unarchive': async () => {
+        await gate
+        const [row] = server.lists.archived.splice(server.lists.archived.findIndex((s) => s.id === 'sa1'), 1)
+        server.lists.live.unshift({ ...row, archivedAt: null })
+        return json(200, { style: { ...row, archivedAt: null } })
+      },
+    })
+    open()
+    fireEvent.click(await screen.findByRole('tab', { name: 'Archived' }))
+    await screen.findByRole('heading', { name: '1 archived' })
+    fireEvent.click(screen.getByRole('button', { name: 'Restore Old prep' }))
+    fireEvent.click(tab('Recently deleted'))                                         // the Archived list unmounts
+    await screen.findByRole('heading', { name: '1 recently deleted' })
+    const stylesReads = sent('GET', 'journal-styles').length
+    const usageReads = sent('GET', 'journal-styles?view=live').length
+    release()
+    await waitFor(() => expect(sent('GET', 'journal-styles').length).toBeGreaterThan(stylesReads))
+    await waitFor(() => expect(sent('GET', 'journal-styles?view=live').length).toBeGreaterThan(usageReads))
+    fireEvent.click(tab('Active'))
+    expect(within(await kindSection('Daily prep')).getByText('Old prep')).toBeInTheDocument()
+  })
+
   it('(final M1) Discard reached through a view switch puts focus on the tab just chosen (click and Arrow key)', async () => {
     open()
     const startDirty = async () => {
