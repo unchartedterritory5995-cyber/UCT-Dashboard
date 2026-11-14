@@ -354,6 +354,8 @@ export function registerChartSetupCapabilities() {
     check(st, { direction, bars }) {
       if (direction !== 'back' && direction !== 'forward') return 'Step back or forward?'
       if (!Number.isInteger(bars) || bars < 1 || bars > MAX_STEP) return `I can step 1 to ${MAX_STEP} bars at a time. For a bigger jump, go to a date.`
+      // chartReplay.playback: in the bar replay a step means the REPLAY's bars — ask, never scroll the window under it
+      if (st.view?.replay?.mode) return 'This chart is in bar replay: say “step the replay forward / back” to move the replay, or exit the replay to scroll the chart.'
       return st.view?.frame ? null : NOT_READY
     },
     // the chart's own stepBar(n) moves the logical window by n bars; the read-back expects exactly that window

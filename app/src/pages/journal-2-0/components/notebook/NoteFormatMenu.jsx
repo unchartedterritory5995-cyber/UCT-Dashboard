@@ -42,7 +42,7 @@ export default function NoteFormatMenu({
   editor, format, fontSizes, onColor, onAttach, triggerRef = null,
   buttonClassName = '', activeClassName = '', children = null,
 }) {
-  const menu = useMenuButton()
+  const menu = useMenuButton('format')
   const f = format || {}
   // "Aa" reads as active while the caret is in a quote or a code block: two of its items are on.
   const active = Boolean(f.blockquote || f.codeBlock)
@@ -54,31 +54,31 @@ export default function NoteFormatMenu({
   // view this file used to keep itself. A font row is drawn in its own face.
   const items = [
     {
-      key: 'font', label: 'Font',
+      key: 'font', label: 'Font', row: 'font',
       children: FONT_OPTIONS.map((o) => ({
-        key: `font:${o.label}`, label: o.label, checked: (f.fontFamily || '') === o.value,
+        key: `font:${o.label}`, label: o.label, checked: (f.fontFamily || '') === o.value, row: 'font_pick',
         run: () => (o.value ? chain().setFontFamily(o.value).run() : chain().unsetFontFamily().run()),
         render: o.value ? (p, c) => <button {...p} style={{ fontFamily: o.value }}>{c}</button> : undefined,
       })),
     },
     {
-      key: 'size', label: 'Size',
+      key: 'size', label: 'Size', row: 'size',
       children: [
-        { key: 'size:default', label: 'Default', checked: !f.fontSize, run: () => chain().unsetFontSize().run() },
+        { key: 'size:default', label: 'Default', checked: !f.fontSize, run: () => chain().unsetFontSize().run(), row: 'size_pick' },
         ...fontSizes.map((s) => ({
-          key: `size:${s}`, label: String(s), checked: f.fontSize === `${s}px`, run: () => chain().setFontSize(`${s}px`).run(),
+          key: `size:${s}`, label: String(s), checked: f.fontSize === `${s}px`, run: () => chain().setFontSize(`${s}px`).run(), row: 'size_pick',
         })),
       ],
     },
-    { key: 'color', label: TEXT_COLOR_MENU_LABEL, run: onColor },
+    { key: 'color', label: TEXT_COLOR_MENU_LABEL, run: onColor, row: 'color' },
     {
-      key: 'quote', label: 'Quote', run: () => chain().toggleBlockquote().run(), className: f.blockquote ? on : '',
+      key: 'quote', label: 'Quote', run: () => chain().toggleBlockquote().run(), className: f.blockquote ? on : '', row: 'quote',
       // Inside a list it stays a stop that says why (its title), and pressing it does nothing.
       render: quoteOk ? undefined : (p, c) => <button {...p} onClick={undefined} aria-disabled title={QUOTE_IN_LIST}>{c}</button>,
     },
-    { key: 'code', label: 'Code', run: () => chain().toggleCodeBlock().run(), className: f.codeBlock ? on : '' },
-    { key: 'attach', label: 'Attach a file', run: onAttach },
-    { key: 'divider', label: 'Divider', run: () => chain().setHorizontalRule().run() },
+    { key: 'code', label: 'Code', run: () => chain().toggleCodeBlock().run(), className: f.codeBlock ? on : '', row: 'code' },
+    { key: 'attach', label: 'Attach a file', run: onAttach, row: 'attach' },
+    { key: 'divider', label: 'Divider', run: () => chain().setHorizontalRule().run(), row: 'divider' },
   ]
 
   const { ref: menuTriggerRef, ...trigger } = menu.triggerProps

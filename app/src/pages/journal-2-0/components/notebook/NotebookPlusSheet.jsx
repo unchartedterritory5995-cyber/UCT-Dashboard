@@ -8,21 +8,23 @@
 import Sheet from '../../../../components/mobile/Sheet'
 import UIcon from '../../../../components/ui/UIcon'
 import { openFeedback } from '../../../../components/feedbackDoor'
+import { trackMenuRow } from '../../lib/notebookTelemetry'
 import styles from './NotebookPlusFab.module.css'
 
 export default function NotebookPlusSheet({ open, onClose, returnFocusTo, onQuickNote, onVoiceNote = null, onPhoto = null,
   onAskNotebook = null, busy = false }) {
   const setOpen = (v) => { if (!v) onClose() }
   const rows = [
-    { key: 'note', label: 'Quick note', icon: 'edit', run: onQuickNote, disabled: busy },
-    onVoiceNote && { key: 'voice', label: 'Voice note', icon: 'mic', run: onVoiceNote },
-    onPhoto && { key: 'photo', label: 'Photo / chart screenshot', icon: 'camera' },
-    onAskNotebook && { key: 'ask', label: 'Ask your Notebook', icon: 'sparkle', run: onAskNotebook },
+    { key: 'note', label: 'Quick note', icon: 'edit', run: onQuickNote, disabled: busy, row: 'quick_note' },
+    onVoiceNote && { key: 'voice', label: 'Voice note', icon: 'mic', run: onVoiceNote, row: 'voice' },
+    onPhoto && { key: 'photo', label: 'Photo / chart screenshot', icon: 'camera', row: 'photo' },
+    onAskNotebook && { key: 'ask', label: 'Ask your Notebook', icon: 'sparkle', run: onAskNotebook, row: 'ask_notebook' },
     // Review Minor 8: the Help "?" is not drawn on the phone Notebook, so this row opens ITS menu (Send Feedback,
     // Submit a ticket) through the widget's own door -- not a second form.
-    { key: 'help', label: 'Help & feedback', icon: 'info', run: () => openFeedback('menu', returnFocusTo?.current || null) },
+    { key: 'help', label: 'Help & feedback', icon: 'info', run: () => openFeedback('menu', returnFocusTo?.current || null), row: 'help' },
   ].filter(Boolean)
-  const choose = (run) => () => { setOpen(false); run?.() }
+  // Follow-up A: each row counts once as `menu_row_used` ('plus_sheet') by the id written on it above.
+  const choose = (r) => () => { trackMenuRow('plus_sheet', r.row); setOpen(false); r.run?.() }
 
   return (
       <Sheet open={open} onClose={onClose} title="Add" labelledByTitle variant="bottom-sheet"
@@ -32,7 +34,8 @@ export default function NotebookPlusSheet({ open, onClose, returnFocusTo, onQuic
             // The picker must open INSIDE the tap (iOS refuses a later one), so this row is the file input's own
             // label. The chosen image goes to a new note's editor, placed by its own image door (pendingImageInsert).
             <label key={r.key} className={styles.row} data-disabled={busy ? '' : undefined}>
-              <input type="file" accept="image/*" className="sr-only" disabled={busy}
+              <input type="file" accept="image/*" className="sr-only" disabled={busy} data-row={r.row}
+                onClick={() => trackMenuRow('plus_sheet', r.row)}
                 onChange={(e) => {
                   const file = e.target.files?.[0]
                   e.target.value = ''
@@ -43,7 +46,7 @@ export default function NotebookPlusSheet({ open, onClose, returnFocusTo, onQuic
               <UIcon name={r.icon} size={18} gold={false} /> {r.label}
             </label>
           ) : (
-            <button key={r.key} type="button" className={styles.row} onClick={choose(r.run)} disabled={r.disabled}>
+            <button key={r.key} type="button" className={styles.row} onClick={choose(r)} disabled={r.disabled} data-row={r.row}>
               <UIcon name={r.icon} size={18} gold={false} /> {r.label}
             </button>
           )))}

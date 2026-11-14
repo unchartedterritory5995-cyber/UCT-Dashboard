@@ -357,13 +357,32 @@ describe('the optional `start` location (plan 4.2: a tour starts at its screen)'
 })
 
 // ── W14-C1: steps that wait for the member, and sample-note starts ───────────────
+// The fields a step may carry; anything else is refused by tour and step name.
+const STEP_FIELDS = ['id', 'anchor', 'file', 'waitFor', 'tier', 'noBack']
+const extraFields = (s) => Object.keys(s).filter((k) => !STEP_FIELDS.includes(k))
+
 describe('`waitFor` and `sample:<key>` are declarative and railed', () => {
+  // Follow-up B fix round 1: `noBack` is accepted, as `true` only; an unknown key is refused as before.
+  it('`noBack` is a known step field, only ever `true`; an unknown key is still refused', async () => {
+    let seen = 0
+    for (const t of TOUR_REGISTRY) {
+      for (const s of (await t.load()).steps) {
+        if (!('noBack' in s)) continue
+        seen += 1
+        expect(s.noBack, `${t.id}.${s.id} noBack`).toBe(true)
+      }
+    }
+    expect(seen, 'non-vacuity: some tour declares noBack').toBeGreaterThan(0)
+    expect(extraFields({ id: 'a', anchor: 'x', file: 'f', noBack: true })).toEqual([])
+    expect(extraFields({ id: 'a', anchor: 'x', file: 'f', back: false })).toEqual(['back'])   // CONTROL
+  })
+
   it('a step `waitFor` names the anchor of a LATER step in the same tour (so the anchor rail covers it)', async () => {
     let seen = 0
     for (const t of TOUR_REGISTRY) {
       const { steps } = await t.load()
       steps.forEach((s, i) => {
-        expect(Object.keys(s).filter((k) => !['id', 'anchor', 'file', 'waitFor', 'tier'].includes(k)), `${t.id}.${s.id} fields`).toEqual([])
+        expect(extraFields(s), `${t.id}.${s.id} fields`).toEqual([])
         if (!('waitFor' in s)) return
         seen += 1
         const later = steps.slice(i + 1).map((x) => x.anchor)

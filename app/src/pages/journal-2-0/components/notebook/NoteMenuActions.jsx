@@ -191,6 +191,7 @@ export default function NoteMenuActions({ note, onChanged, onOpenBeside, besideE
         type="button"
         className={`${styles.btn} ${locked ? styles.btnOn : ''}`}
         onClick={toggleLock}
+        data-row="lock"
         aria-disabled={busy || undefined}
         title={locked
           ? 'Turn editing back on for this note'
@@ -203,6 +204,7 @@ export default function NoteMenuActions({ note, onChanged, onOpenBeside, besideE
         type="button"
         className={styles.btn}
         onClick={toggleArchive}
+        data-row="archive"
         aria-disabled={busy || undefined}
         title={archived
           ? 'Bring this note back to your notes, in its own folder'
@@ -217,6 +219,7 @@ export default function NoteMenuActions({ note, onChanged, onOpenBeside, besideE
           type="button"
           className={styles.btn}
           onClick={() => { setStatus(null); setKeepBlocks(false); setTemplateDraft(note.title || '') }}
+          data-row="save_template"
           disabled={busy}
           title="Reuse this note's title, body and properties for new notes"
         >
@@ -267,6 +270,7 @@ export default function NoteMenuActions({ note, onChanged, onOpenBeside, besideE
           type="button"
           className={styles.btn}
           onClick={() => { setStatus(null); setPickingBeside((v) => !v) }}
+          data-row="open_beside"
           aria-expanded={pickingBeside}
           aria-controls={pickingBeside ? besidePickerId : undefined}
           title="Show another note beside this one"

@@ -31,7 +31,8 @@ DOMAIN_KNOWN_UNLISTED = {"calendar"}
 #: bare action names the guard did not withhold before #1030 (frozen, may only shrink). The guard's prefix ×
 #: verb enumeration predates these; each is still caught when a verb ("run", "call", "use"…) precedes it.
 GUARD_KNOWN_UNWITHHELD = {
-    "chart.resetDefaults", "chart.goToDate", "chart.replay", "chart.compare", "layout.current", "watchlist.keepOnly",
+    # chart.replay left the set with the chartReplay family (the guard's "replay" verb withholds it now)
+    "chart.resetDefaults", "chart.goToDate", "chart.compare", "layout.current", "watchlist.keepOnly",
     "watchlist.sortColumn", "watchlist.step", "watchlist.readView", "screener.state", "stock.profile",
     # stock.earnings left the set with the chartFeatures family (the guard's "earnings" verb withholds it now)
     "stock.compare", "breadth.history", "news.latest", "news.catalysts", "widget.arrange", "widget.readOptions",
@@ -115,10 +116,35 @@ def test_the_guard_still_passes_ordinary_multi_chart_prose():
         assert guard.suspicious(text) is False, text
 
 
+def test_the_volume_profile_family_is_an_INDICATOR_action_withheld_bare():
+    # volumeProfile.set turns ONE chart's Volume Profile overlay on / off (Chart Settings → Indicators), never history
+    assert v2.domain_for("volumeProfile.set") == "indicator"
+    assert guard.suspicious(_bare("volumeProfile.set")) is True
+    for text in ("Turn on the volume profile and watch the point of control.", "A VPVR with 24 bins shows the high-volume nodes.",
+                 "Set the volume profile bins to 30 before the open."):
+        assert guard.suspicious(text) is False, text
+
+
 def test_the_chart_menu_family_is_a_CHART_action_not_history():
     # #1106: the chart's right-click Ask AI and watermark Reset act on ONE chart (the chart domain), never history
     assert v2.domain_for("chartMenu.askAi") == "chart"
     assert v2.domain_for("chartMenu.resetWatermark") == "chart"
+
+
+def test_the_chart_replay_family_is_a_CHART_action_not_history():
+    # the bar replay's playback acts on ONE chart's Replay / Time Machine bar (the chart domain), never history
+    assert v2.domain_for("chartReplay.playback") == "chart"
+
+
+def test_the_chart_replay_action_names_are_WITHHELD_bare():
+    for n in ("chartReplay.playback", "chart.replay"):
+        assert guard.suspicious(_bare(n)) is True, n
+
+
+def test_the_guard_still_passes_ordinary_replay_prose():
+    for text in ("Replay the session bar by bar to practise reading the tape.", "Watch the replay of the earnings call.",
+                 "Start the bar replay and play it at 5x.", "Replay Mode as of Oct 15 hides what came after."):
+        assert guard.suspicious(text) is False, text
 
 
 def test_the_calc_timeframe_action_is_an_INDICATOR_action_and_withheld():

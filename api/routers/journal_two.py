@@ -232,157 +232,20 @@ _J2_TELEMETRY_EVENTS = {
     # Audit 2026-11-05, S15 + S20 (the morning open): the Today home was opened, with the ET session it opened in
     # and whether that open made the day's note. Enums and bools only.
     "today_opened",
+    # Follow-up A (usage counting, 2026-11-13): which view, menu row, today door, template, block and panel row
+    # members use, and which side routes render. Fixed ids only, never a title, a ticker, a tag or a name; read by
+    # tools/notebook_usage_report.py. docs/notebook/simplify-2026-11-11-ledger.md, "Follow-up A".
+    "view_used", "list_layout_used", "menu_row_used", "today_door_used", "template_started", "block_inserted",
+    "panel_row_used", "notebook_route_opened",
 }
 
-# Wave 6 (D14, S-3) — the seven Notebook events' prop schemas, applied on
-# ARRIVAL. The client helper is a convention, not a wall: any lane can post to
-# /telemetry with a raw fetch, and a free-text prop would land in activity_log
-# verbatim. Same rules as the client's `sanitizeProps`: a key not listed is
-# dropped; "num" must be a JSON number a double can hold and finite (rounded
-# as JS Math.round does — a numeric STRING is not a number, and is dropped);
-# "bool" must be a bool; an enum (a tuple) keeps a string only if it is one of
-# its values, else 'other'. ⛔ ONE FACT IN TWO FILES: this dict and the client's
-# EVENT_SCHEMAS are pinned by tests/test_notebook_telemetry_events.py, which
-# PARSES the client source — change both or neither.
-#
-# The `save_failed` reason the client sends when the BROWSER itself reports no
-# connection (`NoteEditorPage.jsx` `reportSaveFailed`: no status and
-# `navigator.onLine === false`). Named once, here, because the Notebook SLO's
-# stall count reads it too (`notebook_slo._offline_reason`): an offline retry
-# streak is the member's network, not our outage. tests/test_notebook_slo.py pins
-# it to the word the client source sends.
-SAVE_FAILED_OFFLINE_REASON = "offline"
-from api.services.journal_two.template_gallery import LISTED_ITEM_TYPES as _LISTED_LIBRARY_TYPES  # noqa: E402
-
-_NOTEBOOK_PROP_SCHEMAS: dict[str, dict[str, Any]] = {
-    "note_open_ms": {
-        "ms": "num",
-        "source": ("list", "switcher", "link", "search", "deeplink", "new", "tasks", "mention"),
-        "cached": "bool",
-    },
-    "save_failed": {
-        "status": "num",
-        "reason": ("network", "http", "conflict", "quota", SAVE_FAILED_OFFLINE_REASON, "too-large",
-                   "unknown"),
-        "offline": "bool",
-        "retrying": "bool",
-    },
-    "conflict_forked": {
-        "door": ("editor", "outbox", "restore", "board", "capture", "import", "unknown"),
-        "queued": "bool",
-    },
-    "ask_used": {
-        "scope": ("note", "notebook", "selection"),
-        "inserted": "bool",
-        "ms": "num",
-    },
-    "capture_used": {
-        "target": ("current", "new", "inbox"),
-        "widget": ("chart", "widget", "fact", "excerpt", "web", "quote", "unknown"),
-    },
-    "search_used": {
-        "results": "num",
-        "filters": "num",
-        "mode": ("text", "tag", "ticker", "filter"),
-        "ms": "num",
-    },
-    "switcher_used": {
-        "results": "num",
-        "rank": "num",
-        "picked": "bool",
-        "mode": ("title", "recent", "favorite", "create"),
-    },
-    # Wave 10 (10D, R-16). ⛔ `bulk_used.op` must stay NOTE_BATCH_OPS (railed:
-    # tests/test_notebook_telemetry_events.py), `import_used.source` the importer
-    # registry's adapter ids and `export_used.format` EXPORT_FORMATS + png/print
-    # (railed client-side: app/src/pages/journal-2-0/lib/notebookTelemetry.test.js,
-    # the "R-16 — every core action has an event that fires on its success" block).
-    "save_success": {
-        "door": ("editor", "outbox"),
-        "queued": "bool",
-    },
-    "export_used": {
-        "format": ("md", "html", "json", "docx", "png", "print"),
-        "scope": ("note", "selection", "notebook"),
-        "count": "num",
-    },
-    "import_used": {
-        "source": ("uct-export", "evernote", "notion", "obsidian", "logseq", "keep", "file"),
-        "created": "num",
-        "updated": "num",
-        "failed": "num",
-    },
-    "share_used": {
-        "action": ("create", "copy", "revoke"),
-    },
-    "publish_used": {
-        "action": ("publish", "unpublish", "copy"),
-        "kind": ("note", "folder"),
-        "door": ("editor", "sidebar"),
-    },
-    "writing_help_used": {
-        "action": ("summarize", "rewrite", "continue", "translate", "autofill"),
-        "scope": ("selection", "whole", "property"),
-        "replaced": "bool",
-    },
-    "dictation_used": {
-        "words": "num",
-    },
-    "bulk_used": {
-        "op": ("move", "addTag", "removeTag", "favorite", "unfavorite", "trash", "restore",
-               "archive", "unarchive", "renameTag"),
-        "changed": "num",
-        "failed": "num",
-    },
-    # P3a Task 11 — the community style library. `type` is "all" plus every type a member can list or filter by,
-    # DERIVED from the gallery's own LISTED_ITEM_TYPES (wave 11, ruling W11-R17 c2), so a type the library gains is
-    # counted the day it lands instead of reading as "other"; the client's one-line oneOf is held equal to it.
-    "library_viewed": {
-        "type": ("all", *_LISTED_LIBRARY_TYPES),
-        "view": ("browse", "following", "author"),
-    },
-    "style_adopted": {
-        "notify": "bool",
-    },
-    # P5 Task 6. ⛔ `block_used.kind` is journal_styles.BLOCK_KINDS' ids in that order (railed both ways by
-    # tests/test_notebook_telemetry_events.py, with the client's one-line oneOf).
-    "style_applied": {
-        "via": ("new_note", "switch", "update"),
-    },
-    "style_created": {
-        "via": ("editor", "duplicate", "from_note"),
-    },
-    "block_used": {
-        "kind": ("chart", "preEntryChecklist", "priceStamps", "positionSizing", "myRules", "prepWire",
-                 "prepEarnings", "prepMovers", "prepLevels", "tradeReview", "moodCheckIn", "marketcontext",
-                 "reminder"),
-    },
-    # S16 / S20 (audit 2026-11-05). `names` is a COUNT of tickers, never the tickers.
-    "first_run_completed": {
-        "names": "num",
-        "pack": ("swing", "day", "prop", "options", "earnings", "none"),
-        "plan": "bool",
-        "ms": "num",
-    },
-    "first_run_skipped": {
-        "step": "num",
-    },
-    "first_live_widget": {
-        "source": ("watchlist", "reporting", "first_run"),
-        "names": "num",
-    },
-    "recap_written": {
-        "created": "bool",
-    },
-    "trust_incident": {
-        "kind": ("publish_undone", "widget_restored"),
-        "ms": "num",
-    },
-    "today_opened": {
-        "session": ("premarket", "open", "after_close", "closed"),
-        "created": "bool",
-    },
-}
+# The Notebook events' prop schemas (and the save_failed offline reason the SLO reads) live in
+# api/services/journal_two/notebook_event_schemas.py since follow-up A fix round 1 (M4); re-exported here under
+# their old names so every reader keeps working. ONE copy.
+from api.services.journal_two.notebook_event_schemas import (  # noqa: E402
+    NOTEBOOK_PROP_SCHEMAS as _NOTEBOOK_PROP_SCHEMAS,
+    SAVE_FAILED_OFFLINE_REASON,
+)
 
 
 def _sanitize_notebook_props(event: str, props: Any) -> dict[str, Any]:
@@ -2647,7 +2510,20 @@ def daily_note_endpoint(
         # Final fix I3: every "Today's note" press sends `seedToday`, and most presses open a note that already
         # exists. A cheap read first (it also checks the day, so a bad one is a 400 before anything is built); the
         # seed is built only when this press can make the note.
-        if body.get("seedToday") is True and not note_daily.daily_note_exists(user["id"], body.get("date")):
+        # Follow-up B, item 4b: that read must never block opening or making the note. A bad day still raises
+        # DailyNoteError (the 400 below); any other failure means "exists unknown": no seed, and open_daily_note
+        # decides (it opens the note if there is one, makes it plain if not).
+        exists_unknown = False
+        note_exists = False
+        if body.get("seedToday") is True:
+            try:
+                note_exists = note_daily.daily_note_exists(user["id"], body.get("date"))
+            except note_daily.DailyNoteError:
+                raise
+            except Exception:  # noqa: BLE001 -- a convenience read; the day's note is not
+                logger.exception("[notebook] could not read whether today's note exists; opening it without a seed")
+                exists_unknown = True
+        if body.get("seedToday") is True and not exists_unknown and not note_exists:
             try:
                 from api.middleware.auth_middleware import get_user_plan
                 from api.services.journal_two import notebook_today
