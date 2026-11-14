@@ -16,6 +16,7 @@ import { addableRows } from '../capabilities/indicatorEdits'
 import { savedScreensNow } from '../capabilities/screener'
 import { editDistance, allowedEdits } from './match'
 import { isPronounToken, isReservedWord } from './tickers'
+import { isCommonWord, lexiconBasesOf } from './commonWords'
 
 // Words of 3+ letters. ALL-CAPS tokens in prose/source are skipped: they are tickers and acronyms in
 // examples ("Compare NVDA against QQQ") — a ticker must never become a "known word".
@@ -121,7 +122,7 @@ export const MAX_VARIANTS = 16
 // many real words sit one edit away); these few have exactly one meaning in an instruction to UCT. The corrected
 // sentence is still used only when it parses into a safe, reversible action (fastPath / conversation).
 export const SHORT_FIXES = Object.freeze({ teh: 'the', hte: 'the', th: 'the', ad: 'add', mak: 'make', mke: 'make', amke: 'make', adn: 'and', nad: 'and', ot: 'to', fo: 'of', ont: 'on', jsut: 'just', wiht: 'with', iwth: 'with', chrt: 'chart' })
-export function correctTypos(text, lex) {
+export function correctTypos(text, lex, { realWords = true } = {}) {
   const raw = String(text || '')
   if (!raw || raw.length > 160) return null
   const byLen = new Map()
@@ -135,8 +136,16 @@ export function correctTypos(text, lex) {
       continue
     }
     if (tok.startsWith('$') || lw.length < 4 || lex.words.has(lw)) continue
+    // A REAL WORD IS NEVER A TYPO (AUDIT #1234): a common English word or an inflection of one ("clone", "drag",
+    // "ascending") stays exactly as typed — never rewritten to whatever lexicon word capability prose put one edit away
+    // (nl/commonWords.js; rail: agentTypoLexiconRail.test.js). `realWords: false` = the rail's exposure measure only.
+    if (realWords && isCommonWord(lw)) continue
     if (/^[A-Z]+$/.test(tok) && /[a-z]/.test(raw)) continue                  // TYPED IN CAPITALS: a ticker
     if (lex.symbols.has(lw) || isPronounToken(tok, raw)) continue
+    // …and an inflection of a LEXICON word ("stochastics", "breakouts", "traded") is read as its OWN base only — the reading
+    // that routes it — never as another word one edit away
+    const bases = realWords ? lexiconBasesOf(lw, lex.words) : []
+    if (bases.length) { slots.push({ index: m.index, tok, options: bases }); continue }
     const allow = allowedEdits(lw)
     if (!allow) continue
     let bestD = allow + 1
