@@ -72,6 +72,19 @@ def _agent_omit(entry):
     return key, {**spec, "agent_omit": True}
 
 
+def _rs_setup_enum(key, label, column, names_attr):
+    """An enum over one of the two RS screens label columns (unit U4), its options
+    the WRITER's own keys in the writer's order (`rs_setup.SETUPS`, `rs_setup.FLAGS`)
+    and its option labels the writer's own member-facing words
+    (`rs_setup.SETUP_LABELS`). Read at registry build, never retyped: a renamed
+    label cannot leave a control offering a value no row carries."""
+    from . import rs_setup  # noqa: PLC0415 - one writer, its names
+    presets = [{"label": "Any"}] + [
+        {"label": rs_setup.SETUP_LABELS[k], "op": "eq", "value": k}
+        for k in getattr(rs_setup, names_attr)]
+    return _enum(key, label, "relative_strength", column, presets)
+
+
 def _rs_names_enum(key, label, column, names_attr):
     """An enum over one of the Phase 3 RS text columns (unit 3-11), its options
     the WRITER's own names in the writer's code order: ``RRG_QUADRANT_NAMES``
@@ -852,6 +865,39 @@ FILTERS = dict([
                             "rs_rating_pos_n")),
     _agent_omit(_open_range("rs_rating_score", "RS Rating score", "relative_strength",
                             "rs_rating_score")),
+    # ── relative strength: the RS screens, unit U4 (2026-11-14) ──
+    # Fourteen more keys of the same fourth family (`RS_SCREENS_KEYS`), dark with
+    # RS_SCREENS_ENABLED like the nine above and `_agent_omit` for the same reason.
+    # Two writers: `rs_post_pass.run` (the rating a month ago) and the build's own
+    # `bars_rs_screens` / `bars_rs_setup` steps (`snapshot_builder.build_row`).
+    # Ages and counts ship BARE: "this week" and "3% below" are a screen's choices
+    # (`rs_screens`), never published thresholds. The two label columns are enums
+    # over the writer's own keys (`_rs_setup_enum`); a list of the values a column
+    # can hold is a definition, not a threshold.
+    _agent_omit(_open_range("rs_rating_prev20", "RS Rating a month ago", "relative_strength",
+                            "rs_rating_prev20")),
+    _agent_omit(_open_range("rs_nh_count_20", "RS highs in 20 sessions", "relative_strength",
+                            "rs_nh_count_20")),
+    _agent_omit(_open_range("rs_nh_quiet", "Sessions before the RS high", "relative_strength",
+                            "rs_nh_quiet")),
+    _agent_omit(_open_range("rs_nh_red_bars_ago", "RS high on a down day, age",
+                            "relative_strength", "rs_nh_red_bars_ago")),
+    _agent_omit(_open_range("rs_nhbp_age", "RS high before price, age", "relative_strength",
+                            "rs_nhbp_age")),
+    _agent_omit(_open_range("rs_nh_span", "RS high span (sessions)", "relative_strength",
+                            "rs_nh_span")),
+    _agent_omit(_open_range("px_below_high_pct", "Below its high", "relative_strength",
+                            "px_below_high_pct", unit="%")),
+    _agent_omit(_rs_setup_enum("rs_setup", "Setup", "rs_setup", "SETUPS")),
+    _agent_omit(_bool("rs_tight", "Tight range", "relative_strength", "rs_tight")),
+    _agent_omit(_rs_setup_enum("rs_flag", "Setup flag", "rs_flag", "FLAGS")),
+    _agent_omit(_bool("rs_near_buy", "Near a buy point", "relative_strength", "rs_near_buy")),
+    _agent_omit(_open_range("atr_ext_ema21", "ATR Extension vs 21EMA", "relative_strength",
+                            "atr_ext_ema21", unit="ATR")),
+    _agent_omit(_open_range("pct_vs_ema8", "EMA8 Distance", "relative_strength",
+                            "pct_vs_ema8", unit="%")),
+    _agent_omit(_open_range("pct_vs_ema21", "EMA21 Distance", "relative_strength",
+                            "pct_vs_ema21", unit="%")),
     # ── technical: expose the dark columns (registry/UI only) ──
     # ⚠️ NOT bare "ATR %" — that label word-reduces to exactly the FUNCTION
     # name `atr` (the manifest's own indicator call), and the plain-language
@@ -1276,7 +1322,34 @@ VIEWS = {
         # RS screens (U1, 2026-11-14): the exact places and the rating session. Dark
         # with `RS_SCREENS_ENABLED` (`rs_dark_keys`); the last two are picker-hidden.
         "rs_rating_pos", "rs_rating_pos_prev20", "rs_pos_1m", "rs_pos_3m", "rs_pos_6m",
-        "rs_pos_12m", "rs_rating_session", "rs_rating_pos_n", "rs_rating_score"]},
+        "rs_pos_12m", "rs_rating_session", "rs_rating_pos_n", "rs_rating_score",
+        # RS screens (U4, 2026-11-14): the rating a month ago, the six RS-line
+        # measures, the Setup label and its inputs. Dark with the same flag.
+        "rs_rating_prev20", "rs_nh_count_20", "rs_nh_quiet", "rs_nh_red_bars_ago",
+        "rs_nhbp_age", "rs_nh_span", "px_below_high_pct", "rs_setup", "rs_tight",
+        "rs_flag", "rs_near_buy", "atr_ext_ema21", "pct_vs_ema8", "pct_vs_ema21"]},
+    # THE RS SCREENS' OWN VIEWS (unit U4, 2026-11-14), one per screen: the Table
+    # view of Top RS Rating, RS New Highs, RS New High Before Price and UCT RS
+    # Leaders (`rs_screens`; RS exit warnings keeps the Relative Strength view).
+    # Ticker, company, price and change, then the columns that screen is about,
+    # under 16 so the table fits without the picker. Served only while
+    # RS_SCREENS_ENABLED and RS_V2 are both on (`RS_SCREENS_VIEWS`, `_member_views`).
+    "rs_top_rating": {"label": "Top RS Rating", "columns": [
+        "ticker", "company", "price", "chg_pct_1d", "rs_rank", "rs_rating_pos",
+        "rs_rating_pos_prev20", "rs_rating_chg_20", "rs_rating_prev20", "rs_pos_1m",
+        "rs_pos_3m", "rs_pos_6m", "rs_pos_12m", "rs_setup", "rs_rating_session"]},
+    "rs_new_highs": {"label": "RS New Highs", "columns": [
+        "ticker", "company", "price", "chg_pct_1d", "rs_rank", "rs_nh_bars_ago",
+        "rs_nh_count_20", "rs_nh_quiet", "rs_nh_span", "rs_nh_red_bars_ago",
+        "px_below_high_pct", "pct_vs_sma200", "rs_setup"]},
+    "rs_before_price": {"label": "RS New High Before Price", "columns": [
+        "ticker", "company", "price", "chg_pct_1d", "rs_rank", "px_below_high_pct",
+        "rs_nhbp_age", "rs_nh_bars_ago", "rs_nh_count_20", "rs_nh_red_bars_ago",
+        "pct_vs_sma200", "rs_setup"]},
+    "rs_leaders": {"label": "UCT RS Leaders", "columns": [
+        "ticker", "company", "price", "chg_pct_1d", "rs_rank", "rs_rating_pos",
+        "rs_setup", "rs_tight", "rs_flag", "rs_near_buy", "atr_ext_sma50",
+        "atr_ext_ema21", "pct_vs_ema8", "pct_vs_ema21", "dist_52w_high_pct"]},
 }
 
 # ── The Type filter (instrument class) ──────────────────────────────────────
@@ -1880,7 +1953,20 @@ RS_SCREENS_KEYS = (
     # unit U1: `rs_post_pass.run` (the exact places and the rating session)
     "rs_rating_pos", "rs_rating_pos_prev20", "rs_pos_1m", "rs_pos_3m", "rs_pos_6m",
     "rs_pos_12m", "rs_rating_session", "rs_rating_pos_n", "rs_rating_score",
+    # unit U4: `rs_post_pass.run` again (the rating a month ago) ...
+    "rs_rating_prev20",
+    # ... and the build's `bars_rs_screens` step (`rs_columns.SCREEN_COLUMNS`) ...
+    "rs_nh_count_20", "rs_nh_quiet", "rs_nh_red_bars_ago", "px_below_high_pct",
+    "rs_nhbp_age", "rs_nh_span",
+    # ... and its `bars_rs_setup` step (`snapshot_builder.RS_SETUP_COLUMNS`)
+    "rs_setup", "rs_tight", "rs_flag", "rs_near_buy",
+    "atr_ext_ema21", "pct_vs_ema8", "pct_vs_ema21",
 )
+
+#: The four views that exist only for the RS screens (unit U4). `meta()` serves them
+#: only while RS_SCREENS_ENABLED and RS_V2 are both on: off, the payload's view list
+#: is the one it was.
+RS_SCREENS_VIEWS = ("rs_top_rating", "rs_new_highs", "rs_before_price", "rs_leaders")
 
 #: S1 (2026-11-10): RS columns that stay COMPUTED, FILTERABLE and valid inside
 #: every saved screen but are no longer OFFERED in the column picker or the
@@ -1944,10 +2030,13 @@ def rs_dark_keys(v2_on=None, history_on=None, v3_on=None, screens_on=None) -> fr
 RS_VIEW = "relative_strength"
 
 
-def _member_views(dark, v2_on, hidden=frozenset()) -> list:
+def _member_views(dark, v2_on, hidden=frozenset(), screens_on=None) -> list:
+    screens_on = _rs_screens_on() if screens_on is None else screens_on
     out = []
     for k, v in VIEWS.items():
         if k == RS_VIEW and not v2_on:
+            continue
+        if k in RS_SCREENS_VIEWS and not (v2_on and screens_on):
             continue
         cols = [c for c in v["columns"] if c not in dark
                 and not (k == RS_VIEW and c in hidden)]

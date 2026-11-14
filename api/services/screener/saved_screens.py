@@ -532,16 +532,33 @@ def rs_v2_enabled() -> bool:
         return False
 
 
+def rs_screens_enabled() -> bool:
+    """``RS_SCREENS_ENABLED`` through its one reader (``rs_post_pass.enabled``),
+    read at call time. Unreadable is off: today's starters."""
+    try:
+        from . import rs_post_pass  # noqa: PLC0415 - lazy
+        return bool(rs_post_pass.enabled())
+    except Exception:  # noqa: BLE001 -- an unreadable gate changes nothing
+        return False
+
+
 def rs_starters():
-    """The nine RS starters (seven, plus the two RS Exit Warning screens), or
-    none while RS_V2_ENABLED is off (see above)."""
+    """The RS starters, or none while RS_V2_ENABLED is off (see above).
+
+    RS_SCREENS_ENABLED off (production today): the nine below, exactly as they were.
+    On (RS screens unit U4): the five screens of `rs_screens` (Top RS Rating, RS New
+    Highs, RS New High Before Price, UCT RS Leaders, RS exit warnings; three keep the
+    id of the starter they replace), then the six single-rule lists they absorb,
+    each carrying ``hidden: true`` so the picker leaves it out while a pinned or
+    last-used id still resolves. Both flags are needed: the five read columns the
+    RS_V2 `bars_rs` step writes."""
     if not rs_v2_enabled():
         return []
 
     def liquid():
         return [dict(f) for f in _RS_LIQUID]
 
-    return [
+    previous = [
         {"id": "starter_rs_new_high", "name": "RS new highs (52-week)",
          "group": RS_STARTER_GROUP,
          "description": "Stocks whose RS line against SPY closed the last session at a 52-week high on daily bars, $10M+ traded, price $5+",
@@ -622,6 +639,10 @@ def rs_starters():
              *liquid()],
           "view": "relative_strength", "sort": {"key": "rs_quicksand_bars_ago", "dir": "asc"}}},
     ]
+    if not rs_screens_enabled():
+        return previous
+    from . import rs_screens  # noqa: PLC0415 - lazy
+    return rs_screens.starters(previous)
 
 
 def starters(user=None):
@@ -671,7 +692,7 @@ def _starter_defs():
     # keep the ids and the vol_nweek_low / dollar_vol literals exactly.
     # More can be added later; every entry must be a runnable spec (that rail
     # derives its check from THIS list).
-    return [
+    core = [
         # UCT 50 — top 50 by composite rating (rank owns ordering; top_n caps).
         {"id": "starter_uct_50", "name": "UCT 50",
          "group": "Momentum leaders",
@@ -914,4 +935,12 @@ def _starter_defs():
              {"key": "optionable", "op": "eq", "value": 1},
              {"key": "rs_rank", "op": "gte", "min": 70}],
           "view": "events", "sort": {"key": "days_to_earnings", "dir": "asc"}}},
-    ] + rs_starters() + (pattern_starters() if pattern_presets_enabled() else []) + archive_starters()
+    ]
+    rs = rs_starters()
+    if rs and rs_screens_enabled():
+        # The five RS screens are served: "Leaders (RS >= 90)" leaves the picker with
+        # the six RS lists (`rs_screens.RETIRED_IDS`). Hidden, not removed: its id still
+        # resolves. Only while the five are really there (`rs` is empty without RS_V2).
+        from . import rs_screens  # noqa: PLC0415 - lazy
+        core = [rs_screens.retire(s) for s in core]
+    return core + rs + (pattern_starters() if pattern_presets_enabled() else []) + archive_starters()

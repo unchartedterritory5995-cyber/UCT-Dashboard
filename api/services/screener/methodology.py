@@ -623,6 +623,194 @@ def _rs_screens_methods() -> list:
     return out
 
 
+def _pct_words(fraction: float) -> str:
+    """`0.05` -> `5%`: a threshold stored as a fraction, in words."""
+    return f"{fraction * 100:g}%"
+
+
+def rs_screens_section() -> dict:
+    """The five Relative Strength screens in plain words (RS screens unit U4): each
+    screen's rule, the Setup label's rules with their numbers and where each number
+    comes from, the liquidity floor, what "Ratings as of" means, and the sentence that
+    our RS Rating is our own calculation.
+
+    ⛔ EVERY NUMBER IS READ FROM THE CODE THAT APPLIES IT (`rs_screens`' windows,
+    `rs_setup`'s thresholds, `rs_post_pass.LIQUID_FLOOR`, `technicals`' windows), so
+    this page cannot state a rule the screens do not run.
+    ⛔ NO SUCCESS RATE IS CLAIMED for any screen or label: none has been measured
+    (plan section 12), and the Evidence subsection is where a measured number prints.
+    Served by `all_methods()` only while RS_SCREENS_ENABLED is on."""
+    from api.services.screener import rs_post_pass as _pp          # noqa: PLC0415
+    from api.services.screener import rs_screens as _sc            # noqa: PLC0415
+    from api.services.screener import rs_setup as _st              # noqa: PLC0415
+    from api.services.screener import technicals as _tech          # noqa: PLC0415
+    s = _rs_screens_params()
+    week, month, down = _sc.WEEK_AGE + 1, _sc.MONTH_AGE + 1, _sc.DOWN_DAY_AGE + 1
+    near, far = -_sc.BELOW_HIGH_NEAR, -_sc.BELOW_HIGH_FAR
+    cap = _money_words(_sc.LEADERS_MIN_MARKET_CAP)
+    words = _st.SETUP_LABELS
+    band = f"{_st.PULLBACK_ATR_BAND:g}"
+    zone = _pct_words(_st.IBD_BUY_ZONE)
+    pullback = (
+        f"The stock closed at a {_tech.HIGH20_WINDOW}-session high within the last "
+        f"{_st.PULLBACK_HIGH_MAX_AGE} sessions, and today its low came within {band} ATR of a "
+        f"rising {{n}}-day EMA while its close is no more than {band} ATR under it. An EMA is "
+        f"rising when it stands above its value {_tech.EMA_RISING_SPAN} sessions earlier.")
+    screens = [
+        {"id": "starter_rs_top_rating", "name": "Top RS Rating",
+         "rule": (
+             "Every stock on the liquidity floor that holds an RS Rating place, strongest "
+             "first. The order is the unrounded score behind the rating, so stocks that "
+             "share a rating are told apart and no two share a place. The overall list needs "
+             "a full year of price history. The 1, 3, 6 and 12-month lists need only a value "
+             "for that window, so a newer listing appears on the shorter lists."),
+         "controls": (
+             f"Rank by chooses the list: overall, one window, or Rising fastest (the largest "
+             f"gain in RS Rating over 20 stored sessions, among stocks above their 50-day "
+             f"line). Show narrows it to RS Rating {_sc.TOP_RATING_LINE} and up, or to stocks "
+             f"at {_sc.TOP_RATING_LINE} or higher now that were under {_sc.TOP_RATING_LINE} "
+             f"20 stored sessions ago."),
+         "caveat": (
+             "A rating is a rank of past return, not a forecast. Rising fastest is partly "
+             "stocks bouncing back, so read it as a list to study.")},
+        {"id": "starter_rs_new_high", "name": "RS New Highs",
+         "rule": (
+             f"The RS line (the stock's price divided by SPY's, daily closes) closed above "
+             f"its highest close of the prior {_pp_lookback()} sessions within the last "
+             f"{week} sessions, and the stock closed above its 200-day average. Newest first; "
+             f"stocks whose RS high came on the same session are ordered by RS Rating score."),
+         "controls": (
+             f"When: today, the last {week} sessions, or the last {month}. Min RS Rating. "
+             f"Market: Down days only keeps a stock whose RS line made that high within the "
+             f"last {down} sessions on a day SPY closed down {_red_day_words()} or more."),
+         "caveat": (
+             "An RS line can rise while the stock falls, when SPY falls faster. The market "
+             "down day reading is a house method with no published test.")},
+        {"id": "starter_rs_nh_before_price", "name": "RS New High Before Price",
+         "rule": (
+             f"The RS line made a 52-week high within the last {week} sessions and price has "
+             f"not made its own 52-week closing high since, the stock closed {near}% to "
+             f"{far}% below that high, and above its 200-day average. Closest to its high "
+             f"first. A stock leaves the list once price makes its high."),
+         "controls": (
+             f"When: today, the last {week} sessions, or the last {month}. Below its high by: "
+             f"at least {', '.join(f'{n}%' for n in _sc.BELOW_HIGH_CHOICES[:-1])} or "
+             f"{_sc.BELOW_HIGH_CHOICES[-1]}%. Min RS Rating."),
+         "caveat": (
+             "The RS line leading price is a trader's rule with no published test. An empty "
+             "list is normal in a weak market.")},
+        {"id": "starter_rs_leaders", "name": "UCT RS Leaders",
+         "rule": (
+             f"Stocks on the liquidity floor with an average daily range of "
+             f"{_sc.LEADERS_MIN_ADR_PCT}% or more, a market value of {cap} or more, RS Rating "
+             f"{_sc.LEADERS_MIN_RATING} or higher, the RS line above its 21-day average, a "
+             f"close above a rising 200-day average, and price within "
+             f"{-_sc.LEADERS_MAX_BELOW_HIGH}% of its 52-week high. The {_sc.LEADERS_TOP_N} "
+             f"with the highest RS Rating score are shown, strongest first."),
+         "controls": (
+             "Show: all, only stocks near a buy point, or everything except Extended and "
+             "Below its 50-day line. Min RS Rating: "
+             f"{', '.join(str(n) for n in _sc.LEADERS_RATING_CHOICES)}."),
+         "caveat": (
+             f"RS Rating {_sc.LEADERS_MIN_RATING} is a convention, not a tested threshold. "
+             "The list says which stocks to study, and the Setup label says where each one "
+             "sits against its own averages.")},
+        {"id": "starter_rs_exit_warning_5", "name": "RS exit warnings",
+         "rule": (
+             f"The RS line against SPY flashed a Quick Break, a Quicksand or a Grateful Dead "
+             f"Break (Mike Webster's warnings, our reading of them) within the last "
+             f"{_sc.EXIT_AGE + 1} sessions. Newest first."),
+         "controls": "Type keeps one kind of warning.",
+         "caveat": "A warning is a prompt to review a position, not an order to sell."},
+    ]
+    setup = {
+        "order": "The first rule that matches names the stock. Tight range is a second tag "
+                 "that can sit beside any of them.",
+        "atr": "ATR is the 14-session average true range, the stock's typical daily move in "
+               "dollars.",
+        "labels": [
+            {"key": "below_50", "label": words["below_50"],
+             "rule": "The close is under the 50-day simple average.",
+             "source": "A definition."},
+            {"key": "extended", "label": words["extended"],
+             "rule": (f"{_st.EXTENDED_ATR_SMA50:g} or more ATRs above the 50-day average, or "
+                      f"{_st.EXTENDED_ATR_EMA21:g} or more ATRs above the 21-day EMA, or more "
+                      f"than {zone} past a base pivot."),
+             "source": (f"The {_st.EXTENDED_ATR_SMA50:g} ATR limit is Jeff Sun's published "
+                        f"rule. {_st.EXTENDED_ATR_EMA21:g} ATRs over the 21-day is a house "
+                        f"threshold with no published test. {zone} past a pivot is the top "
+                        f"of IBD's published range.")},
+            {"key": "at_pivot", "label": words["at_pivot"],
+             "rule": (f"From {_pct_words(_st.PIVOT_BELOW)} below a base pivot to {zone} above "
+                      f"it. The pivot is the one the Base Structure column names for the "
+                      f"stock on this build."),
+             "source": (f"{zone} above the pivot is IBD's published range. "
+                        f"{_pct_words(_st.PIVOT_BELOW)} below is a house threshold.")},
+            {"key": "pullback_8", "label": words["pullback_8"],
+             "rule": pullback.format(n=8) + " Named ahead of the 21-day when both hold.",
+             "source": "The 8-day and 21-day EMAs are the house teaching averages. The "
+                       "half-ATR band is a house threshold with no published test."},
+            {"key": "pullback_21", "label": words["pullback_21"],
+             "rule": pullback.format(n=21),
+             "source": "The same house rule, on the 21-day EMA."},
+            {"key": "uptrend", "label": words["uptrend"],
+             "rule": "None of the above, with the close at or above the 50-day average.",
+             "source": "A definition."},
+        ],
+        "tight": {"label": words["tight"],
+                  "rule": "The Tight Consolidation column reads yes for the stock."},
+        "flags": [
+            {"key": "buyout_pending", "label": words["buyout_pending"],
+             "rule": (f"One session closed {_st.BUYOUT_JUMP_PCT:g}% or more above the prior "
+                      f"close within the last {_st.BUYOUT_WINDOW} sessions, at least "
+                      f"{_st.BUYOUT_MIN_SESSIONS} sessions ago, and every close since has "
+                      f"stayed inside a {_st.BUYOUT_BAND_PCT:g}% range.")},
+            {"key": "one_day_move", "label": words["one_day_move"],
+             "rule": (f"Over the last {_st.ONE_DAY_WINDOW} sessions the stock is up, and one "
+                      f"session's gain was more than half of that rise and at least "
+                      f"{_st.ONE_DAY_MIN_PCT:g}% on its own.")},
+            {"key": "new_issue", "label": words["new_issue"],
+             "rule": f"Fewer than {_st.NEW_ISSUE_BARS} daily bars of price history."},
+        ],
+        "near": ("Near a buy point means At pivot, a Pullback, or a Tight range. It never "
+                 "includes a stock that is Extended, Below its 50-day line, Buyout pending or "
+                 "a One-day move. It describes where price sits against its own averages. It "
+                 "is not a recommendation."),
+        "blank": ("A label is blank when one of the measures it needs cannot be computed, "
+                  "and for a stock whose price history contradicts itself. A blank is never "
+                  "replaced by the next label down."),
+    }
+    return {
+        "label": "Relative Strength screens",
+        "screens": screens,
+        "setup": setup,
+        "floor": (f"Every screen here is stocks only, no funds, with a price of {s['price']} "
+                  f"or more and {s['dollar_vol']} or more traded a day on a 30-day average. "
+                  f"The benchmark is SPY, on daily closing prices."),
+        "ratings_as_of": (
+            "Ratings as of names the market session the RS Rating numbers on a row describe. "
+            "The rating job scores each completed session at 04:15 ET the next morning. "
+            "Between the 03:00 ET screener build and that job the screens keep the previous "
+            "session's ratings and places, and this date says so."),
+        "rating_note": ("Our RS Rating is our own calculation. It follows IBD's published "
+                        "method and can differ from IBD's number by a few points."),
+        "honesty": ("Every screen and label here describes the past. Each one says which "
+                    "stocks to study, not what will happen next, and none of them is a "
+                    "forecast or a recommendation."),
+    }
+
+
+def _pp_lookback() -> int:
+    """The RS new-high lookback in sessions (252), from the bar writer."""
+    from api.services.screener import rs_columns as _rc            # noqa: PLC0415
+    return int(_rc.LOOKBACK)
+
+
+def _red_day_words() -> str:
+    """The market down day threshold (SPY down 0.5% or more), from `relative_strength`."""
+    return f"{abs(float(_rs_params()['red'])):g}%"
+
+
 def _rs_exit_note() -> str:
     e = _rs_exit_params()
     return (f"The RS Exit Warnings ({', '.join(e['names'])}) are Mike Webster's method, our "
@@ -1090,7 +1278,7 @@ def all_methods() -> dict:
             m["scale"] = f"{_percentile_scale()} percentile within the sector"
         out.append(m)
     out.extend(_rs_column_methods())
-    return {
+    doc = {
         "methods": out,
         "rs_columns": rs_columns_section(),
         "as_of_note": (
@@ -1099,6 +1287,19 @@ def all_methods() -> dict:
             "rating job, so they carry the prior session's rating. "
             "None of them is an intraday number."),
     }
+    # The five RS screens' own page (unit U4), only while they are served: off, the
+    # payload carries no key for it.
+    if _rs_screens_served():
+        doc["rs_screens"] = rs_screens_section()
+    return doc
+
+
+def _rs_screens_served() -> bool:
+    try:
+        from api.services.screener import rs_post_pass as _pp      # noqa: PLC0415
+        return bool(_pp.enabled())
+    except Exception:  # noqa: BLE001 -- an unreadable flag serves nothing new
+        return False
 
 
 def for_column(column):
