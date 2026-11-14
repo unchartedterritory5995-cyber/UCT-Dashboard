@@ -110,6 +110,9 @@ describe('resolveTickerTokens: slot decides a homograph; membership and casing a
     ['change on to weekly', ['ON:ambiguous']], ['change ON to weekly', ['ON:ticker']], ['the on chart', []], ['the ON chart', ['ON:ticker']], ['my own chart weekly', []], ['ON: weekly', ['ON:ticker']],
     ['take amd to weekly', ['AMD:ticker']], ['CHANGE AMD TO WEEKLY', ['AMD:ticker']], ['the IT chart to weekly', ['IT:ticker']],
   ])('"%s" → %j', (t, want) => expect(read(t)).toEqual(want))
+  it.each([['show ALL charts weekly', 'ALL'], ['turn it ON', 'ON'], ['kindly flip it right now to the weekly view', 'NOW']])('an ordinary slot is a word even for a symbol ON THE BOARD: "%s" (%s on the board)', (t, sym) => {
+    expect(resolveTickerTokens(t, { charts: [{ symbol: sym }, { symbol: 'SPY' }], verdict: ALL_KNOWN }).filter(r => r.decision !== 'word' && r.upper === sym)).toEqual([])
+  })
   it('a ticker-slot word the search has not answered is unresolved (asked), never a word', () => {
     const r = resolveTickerTokens('take xyzq to weekly', { charts: [{ symbol: 'SPY' }], verdict: () => 'pending' })
     expect(r.filter(x => x.decision !== 'word').map(x => `${x.upper}:${x.decision}`)).toEqual(['XYZQ:unresolved'])

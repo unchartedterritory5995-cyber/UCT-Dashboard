@@ -818,7 +818,7 @@ function slotOf(stream, i, { caps = false, homograph = false, english = false } 
   const after = stream[i + 2]
   // …and never when what follows is a chart ("add the RSI study to that one", "put the 50 on this chart"): the word is then the
   // thing put ON a chart, not the chart
-  const nounAhead = [stream[i + 3], stream[i + 4]].some(x => x && x.word && CHART_NOUN.test(x.text))
+  const nounAhead = [stream[i + 3], stream[i + 4], stream[i + 5]].some(x => x && x.word && CHART_NOUN.test(x.text))
   const ontoChart = OBJECT_PREP.test(next?.text || '') && isWord(after) && ((PRONOUNS.has(after.text.toLowerCase()) && !/^(?:the)$/i.test(after.text)) || (/^(?:the|this|that|my|each|every)$/i.test(after.text) && nounAhead))
   const changeNext = isWord(next) && COMPLEMENT.test(next.text) && (!PARTICLE.test(next.text) || isWord(after)) && !ontoChart
   const nx = (next?.text || '').replace(/['’]s$/, '')
@@ -843,7 +843,9 @@ function slotOf(stream, i, { caps = false, homograph = false, english = false } 
   // a clause that opens with the word and then its change ("AMD weekly", "ON to 1h") — but a lowercase word there is as
   // likely the verb ("go weekly"): only capitals make that opening a ticker slot
   if (clauseStart && changeNext) return caps || !homograph ? 'ticker' : 'neutral'
-  if (isWord(prev) && !OBJECT_PREP.test(prev.text) && changeNext) return 'ticker'                                                    // "take ON to weekly"
+  // "take ON to weekly" — the object of the clause's own verb; an English word typed in lowercase is read there only right after
+  // that opening verb ("change on to weekly"), never deeper in the clause ("flip it right now to …", "the custom look on …")
+  if (isWord(prev) && !OBJECT_PREP.test(prev.text) && changeNext && (caps || !english || !isWord(stream[i - 2]))) return 'ticker'
   if (clauseEnd && isWord(prev) && /^(?:to|on|onto|into)$/i.test(prev.text)) return 'ticker'                                       // "switch to ON"
   return 'neutral'
 }
