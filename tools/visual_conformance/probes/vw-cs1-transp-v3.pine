@@ -1,0 +1,20 @@
+//@version=3
+study("UCTPROBE_VW_CS1_TRANSP_V3", overlay=false)
+
+// PROVENANCE: written 2026-11-14 for the Pine parity programme, capture session S1
+// (objects-lane REMAINING-SCOPE-2026-11-14 section 4; s3-bugs-1114 "CAPTURE PROBES NEEDED" transparency).
+// Transparency defaults: plotarrow, bgcolor, fill between two plots, fill between two hlines, hline
+// and plot style columns / stepline with a colour and NO transp= anywhere. The defaults are read from
+// the study's metaInfo defaults and properties state (styles, bands, filledAreasStyle, palettes).
+// CAPTURE: NYSE:RDDT 1D from the listing, inputs at defaults.
+
+p1 = plot(close, title="P1_close_blue", color=blue)
+p2 = plot(open, title="P2_open_red", color=red)
+fill(p1, p2, color=green, title="F1_fill_plots_green")
+h1 = hline(100, title="H1_hline_purple", color=purple)
+h2 = hline(50, title="H2_hline_orange", color=orange)
+fill(h1, h2, color=teal, title="F2_fill_hlines_teal")
+bgcolor(close > open ? lime : maroon, title="BG_lime_maroon")
+plotarrow(close - open, title="AR_arrow_aqua_fuchsia", colorup=aqua, colordown=fuchsia)
+plot(volume / 1000000, title="S1_columns_navy", style=columns, color=navy)
+plot(high, title="S2_stepline_olive", style=stepline, color=olive)
