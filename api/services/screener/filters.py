@@ -906,6 +906,12 @@ FILTERS = dict([
                       "rs_nh_weekly")),
     _agent_omit(_bool("rs_nhbp_weekly", "Weekly RS high before price", "relative_strength",
                       "rs_nhbp_weekly")),
+    # UCT RS Leaders' list (unit U12): who is on it and for how many sessions, written
+    # by `rs_leaders_list.run` inside the rating pass. The count ships BARE.
+    _agent_omit(_bool("rs_leaders_member", "On UCT RS Leaders", "relative_strength",
+                      "rs_leaders_member")),
+    _agent_omit(_open_range("rs_leaders_days", "Sessions on UCT RS Leaders", "relative_strength",
+                            "rs_leaders_days")),
     # ── technical: expose the dark columns (registry/UI only) ──
     # ⚠️ NOT bare "ATR %" — that label word-reduces to exactly the FUNCTION
     # name `atr` (the manifest's own indicator call), and the plain-language
@@ -1357,8 +1363,9 @@ VIEWS = {
         "rs_rating_prev20", "rs_nh_count_20", "rs_nh_quiet", "rs_nh_red_bars_ago",
         "rs_nhbp_age", "rs_nh_span", "px_below_high_pct", "rs_setup", "rs_tight",
         "rs_flag", "rs_near_buy", "atr_ext_ema21", "pct_vs_ema8", "pct_vs_ema21",
-        # RS screens (U12, 2026-11-14): the weekly RS new high. Dark with the same flag.
-        "rs_nh_weekly", "rs_nhbp_weekly"]},
+        # RS screens (U12, 2026-11-14): the weekly RS new high, and UCT RS Leaders'
+        # list. Dark with the same flag.
+        "rs_nh_weekly", "rs_nhbp_weekly", "rs_leaders_member", "rs_leaders_days"]},
     # THE RS SCREENS' OWN VIEWS (unit U4, 2026-11-14), one per screen: the Table
     # view of Top RS Rating, RS New Highs, RS New High Before Price and UCT RS
     # Leaders (`rs_screens`; RS exit warnings keeps the Relative Strength view).
@@ -1992,8 +1999,10 @@ RS_SCREENS_KEYS = (
     # ... and its `bars_rs_setup` step (`snapshot_builder.RS_SETUP_COLUMNS`)
     "rs_setup", "rs_tight", "rs_flag", "rs_near_buy",
     "atr_ext_ema21", "pct_vs_ema8", "pct_vs_ema21",
-    # unit U12: the build's `bars_rs_weekly` step (`rs_columns.WEEKLY_COLUMNS`)
+    # unit U12: the build's `bars_rs_weekly` step (`rs_columns.WEEKLY_COLUMNS`) ...
     "rs_nh_weekly", "rs_nhbp_weekly",
+    # ... and `rs_leaders_list.run`, inside `rs_post_pass.run` (UCT RS Leaders' list)
+    "rs_leaders_member", "rs_leaders_days",
 )
 
 #: The four views that exist only for the RS screens (unit U4). `meta()` serves them

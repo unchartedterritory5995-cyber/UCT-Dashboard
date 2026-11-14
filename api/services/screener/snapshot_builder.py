@@ -62,7 +62,9 @@ The ``_read_*`` wrappers reuse data we ALREADY store — NO yfinance:
                 of EVERY build because the loop's INSERT OR REPLACE blanks those
                 columns on each row it rebuilds. Its receipt is ``rs_post_pass``.
                 Before that session is stored (every 03:00 build) it carries the
-                places from the ratings the rows already hold (unit U4).
+                places from the ratings the rows already hold (unit U4). The same
+                pass keeps UCT RS Leaders' list (unit U12, ``rs_leaders_list``:
+                ``rs_leaders_member`` / ``rs_leaders_days``), for the same reason.
   - RS screens bar columns -> ``rs_columns.screen_fields`` in the
                 ``bars_rs_screens`` step (inside the ``bars_rs`` gate, reusing its
                 Phase 1 pass) and ``_rs_setup_fields`` in the ``bars_rs_setup``

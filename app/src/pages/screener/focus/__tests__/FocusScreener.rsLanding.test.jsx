@@ -27,7 +27,10 @@ const landedOn = name => waitFor(() => expect(screen.getByRole('button', { name:
 test('a new member lands on UCT RS Leaders, with the four RS screens pinned first', async () => {
   mount()
   await landedOn('UCT RS Leaders')
-  expect(scanBodies().at(-1).rank).toEqual({ criteria: [{ key: 'rs_rating_score', weight: 1 }], top_n: 50 })
+  // unit U12: the rating pass keeps the list, so the screen filters on it and sorts by the score
+  expect(scanBodies().at(-1).rank).toBeUndefined()
+  expect(scanBodies().at(-1).sort).toEqual({ key: 'rs_rating_score', dir: 'desc' })
+  expect(scanBodies().at(-1).filters).toContainEqual({ key: 'rs_leaders_member', op: 'eq', value: 1 })
   fireEvent.click(screen.getByRole('button', { name: /Change screen/ }))
   const pinned = within(screen.getByRole('dialog', { name: 'Screens' })).getByRole('region', { name: 'Pinned' })
   expect(within(pinned).getAllByRole('button', { name: /^Open / }).map(b => b.querySelector('span').textContent))

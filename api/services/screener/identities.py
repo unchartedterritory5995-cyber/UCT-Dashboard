@@ -762,6 +762,16 @@ def build_identities(*, percent_cols: Sequence[str] | None = None
         "a weekly RS high before price is a weekly RS high",
         "`relative_strength.weekly_rs_high_last` answers `and_not(rsNH, near)`, which is "
         "1 only where rsNH is 1, and `rs_columns.weekly_fields` reads both off the same week"))
+    # RS screens, UCT RS Leaders' list (unit U12): a count of sessions is stated only
+    # for a stock on the list, and counts today.
+    out.append(implies(
+        "rs_leaders_days_implies_member", "indicators",
+        ("rs_leaders_days", "rs_leaders_member"),
+        lambda r: True,
+        lambda r: r["rs_leaders_member"] == 1 and r["rs_leaders_days"] >= 1,
+        "sessions on UCT RS Leaders are counted only for a stock that is on it today",
+        "`rs_leaders_list.run` writes `rs_leaders_days` only on the rows it sets "
+        "`rs_leaders_member` to 1 on, from `days_on_list`, which starts at 1"))
     # The bar-derived flags are built from ONE ANOTHER in `relative_strength`
     # and land in the row through one `rs_columns.collect_one` call, so the
     # relations below are the maths, not a plausibility guess.

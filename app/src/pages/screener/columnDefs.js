@@ -704,4 +704,12 @@ export const COLUMN_DEFS = {
     desc: 'Yes when the weekly RS line against SPY (the last close of the week divided by the same close of SPY) finished the last full week at or above its highest value of the 52 weeks before it. Only finished weeks count, so the answer changes once a week. Blank until the stock has 53 finished weeks of bars, and for a stock under $10 or under $20M traded a day. It describes the past year and is not a forecast.' },
   rs_nhbp_weekly: { label: 'Weekly RS high before price', fmt: tri,
     desc: 'Yes when the weekly RS line finished the last full week at a 52-week high while the close of that week was still more than 3% below its own highest weekly close of the same 52 weeks. Only finished weeks count. Blank until the stock has 53 finished weeks of bars, and for a stock under $10 or under $20M traded a day. The RS line leading price is a rule traders use, with no published test.' },
+  // ── UCT RS screens, UCT RS Leaders' list (unit U12, 2026-11-14) ──
+  // Filled by the pass after each build and after the 04:15 ET rating job, only while
+  // RS_SCREENS_ENABLED is on. The 50 and the 65 are `rs_screens.LEADERS_TOP_N` and
+  // `LEADERS_HOLD_RANK` (tests/test_rs_screens_u12_leaders.py holds both to these sentences).
+  rs_leaders_member: { label: 'On RS Leaders', fmt: tri,
+    desc: 'Yes when the stock is on the UCT RS Leaders list today. A stock joins when it passes every rule of that screen, ranks in the top 50 of the stocks that do by RS Rating score, and a place is free. It stays until it falls past 65th or stops passing a rule, so a stock at the edge does not come and go from one day to the next. Decided once a session. It is a list to study and is not a recommendation.' },
+  rs_leaders_days: { label: 'Days on RS Leaders', fmt: num(0),
+    desc: 'How many sessions in a row the stock has been on the UCT RS Leaders list, counting today, as far back as our record goes: 1 means it joined today. Blank for a stock that is not on the list. A long run says the stock kept its place among the strongest. It does not say the run will go on.' },
 }

@@ -724,6 +724,11 @@
           ]
         },
         {
+          "key": "rs_leaders_member",
+          "op": "eq",
+          "value": 1
+        },
+        {
           "key": "security_type",
           "op": "not_in",
           "values": [
@@ -732,14 +737,9 @@
         }
       ],
       "view": "rs_leaders",
-      "rank": {
-        "criteria": [
-          {
-            "key": "rs_rating_score",
-            "weight": 1
-          }
-        ],
-        "top_n": 50
+      "sort": {
+        "key": "rs_rating_score",
+        "dir": "desc"
       }
     },
     "controls": [
@@ -850,7 +850,16 @@
         "flag",
         "new"
       ],
-      "sort_label": "RS Rating"
+      "sort_label": "RS Rating",
+      "facts": [
+        "days"
+      ],
+      "steady": {
+        "key": "rs_leaders_member",
+        "by": "rs_rating_score",
+        "enter": 50,
+        "hold": 65
+      }
     }
   },
   {

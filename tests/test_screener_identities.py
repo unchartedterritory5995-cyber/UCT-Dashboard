@@ -171,6 +171,10 @@ _CASES: dict[str, tuple[dict, dict]] = {
     "rs_nhbp_weekly_implies_rs_nh_weekly": (
         {"rs_nhbp_weekly": 1, "rs_nh_weekly": 1},
         {"rs_nhbp_weekly": 1, "rs_nh_weekly": 0}),
+    # RS screens, UCT RS Leaders' list (unit U12)
+    "rs_leaders_days_implies_member": (
+        {"rs_leaders_days": 12, "rs_leaders_member": 1},
+        {"rs_leaders_days": 12, "rs_leaders_member": 0}),
     # Four cases left with their identities on 2026-11-14 (unit U4): the per-period
     # places against `rs_rating_pos_n`. A period board now takes a liquid stock with
     # under a year of history, so it can be longer than the overall count and the

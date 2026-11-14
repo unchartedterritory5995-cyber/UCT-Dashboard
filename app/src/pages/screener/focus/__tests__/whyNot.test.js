@@ -8,15 +8,17 @@ import {
   NO_VALUE, NOT_CHECKED,
 } from '../whyNot'
 import { whyItsHere } from '../whyItsHere'
-import { LEADERS, TOP_RATING, BEFORE_PRICE, SERVED } from './rsScreensFixture'
+import { LEADERS, RANKED_LEADERS, TOP_RATING, BEFORE_PRICE, SERVED } from './rsScreensFixture'
 
 const META = SERVED.meta.filters
 // A starter's filter LIST as the page holds it: keyed by filter key.
 const keyed = st => Object.fromEntries(st.spec.filters.map(({ key, ...rest }) => [key, rest]))
-// A stock that is on UCT RS Leaders: every rule of the screen passes.
+// A stock that is on UCT RS Leaders: every rule of the screen passes (unit U12: the last of
+// them is the list itself, `rs_leaders_member`, which the rating pass stores).
 const LEADER = {
   ticker: 'NVDA', price: 140, dollar_vol_30d: 9e9, adr_pct: 4.2, market_cap: 3.4e12, rs_rank: 97, pct_vs_sma200: 31,
   sma200_rising: 1, dist_52w_high_pct: -4, rs_line_above_ma: 1, rs_flag: null, security_type: 'Stock', rs_rating_score: 88.4,
+  rs_leaders_member: 1,
 }
 const evalLeaders = row => evaluateRules({ filters: keyed(LEADERS), metaFilters: META, row })
 const byLabel = (ev, re) => ev.items.find(i => re.test(i.label))
@@ -142,8 +144,8 @@ describe('every rule of the screen, against one row', () => {
 
 describe('the columns asked of the server', () => {
   test('every rule the page can judge, and the one column a single-criterion ranking orders by', () => {
-    const cols = whyNotColumns(keyed(LEADERS), LEADERS.spec.rank)
-    for (const f of LEADERS.spec.filters) expect(cols).toContain(f.key)
+    const cols = whyNotColumns(keyed(RANKED_LEADERS), RANKED_LEADERS.spec.rank)
+    for (const f of RANKED_LEADERS.spec.filters) expect(cols).toContain(f.key)
     expect(cols).toContain('rs_rating_score')
     expect(new Set(cols).size).toBe(cols.length)
     // an unranked screen asks for its rules only
@@ -156,15 +158,15 @@ describe('the columns asked of the server', () => {
 
 describe('where the stock ranks', () => {
   test('only a single-criterion ranking can be placed', () => {
-    expect(rankCriterion(LEADERS.spec.rank)).toEqual({ key: 'rs_rating_score', ascending: false })
+    expect(rankCriterion(RANKED_LEADERS.spec.rank)).toEqual({ key: 'rs_rating_score', ascending: false })
     expect(rankCriterion({ criteria: [{ key: 'a', weight: 1 }, { key: 'b', weight: 1 }], top_n: 50 })).toBeNull()
     expect(rankCriterion({ criteria: [] })).toBeNull()
     expect(rankCriterion(null)).toBeNull()
     expect(rankCriterion({ criteria: [{ key: 'adr_pct', weight: 2, ascending: true }] })).toEqual({ key: 'adr_pct', ascending: true })
   })
   test('the count asked is the screen\'s own rules plus "ranks ahead of this stock"', () => {
-    const spec = rankAheadSpec({ filterList: LEADERS.spec.filters, rank: LEADERS.spec.rank, row: LEADER })
-    expect(spec.filters.slice(0, -1)).toEqual(LEADERS.spec.filters)
+    const spec = rankAheadSpec({ filterList: RANKED_LEADERS.spec.filters, rank: RANKED_LEADERS.spec.rank, row: LEADER })
+    expect(spec.filters.slice(0, -1)).toEqual(RANKED_LEADERS.spec.filters)
     expect(spec.filters.at(-1)).toEqual({ key: 'rs_rating_score', op: 'gt', min: 88.4 })
     expect(spec.rank).toBeUndefined()           // a count of stocks, never the capped ranked list
     expect('logic' in spec).toBe(false)
@@ -172,11 +174,11 @@ describe('where the stock ranks', () => {
     const asc = rankAheadSpec({ filterList: [], rank: { criteria: [{ key: 'adr_pct', weight: 1, ascending: true }], top_n: 10 }, row: { adr_pct: 3 } })
     expect(asc.filters).toEqual([{ key: 'adr_pct', op: 'lt', max: 3 }])
     // the screen's custom criteria ride along
-    expect(rankAheadSpec({ filterList: [], logic: { all: [] }, rank: LEADERS.spec.rank, row: LEADER }).logic).toEqual({ all: [] })
+    expect(rankAheadSpec({ filterList: [], logic: { all: [] }, rank: RANKED_LEADERS.spec.rank, row: LEADER }).logic).toEqual({ all: [] })
   })
   test('no ranking, several criteria, or a row with no value to compare: nothing is asked', () => {
     expect(rankAheadSpec({ filterList: [], rank: null, row: LEADER })).toBeNull()
-    expect(rankAheadSpec({ filterList: [], rank: LEADERS.spec.rank, row: { ...LEADER, rs_rating_score: null } })).toBeNull()
+    expect(rankAheadSpec({ filterList: [], rank: RANKED_LEADERS.spec.rank, row: { ...LEADER, rs_rating_score: null } })).toBeNull()
     expect(rankAheadSpec({ filterList: [], rank: { criteria: [{ key: 'a' }, { key: 'b' }] }, row: { a: 1, b: 2 } })).toBeNull()
   })
   test.each([[1, '1st'], [2, '2nd'], [3, '3rd'], [4, '4th'], [11, '11th'], [12, '12th'], [13, '13th'], [21, '21st'], [22, '22nd'], [63, '63rd'],

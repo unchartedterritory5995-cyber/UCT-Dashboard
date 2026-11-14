@@ -5,7 +5,7 @@ import {
   controlsOf, defaultOption, activeOption, isChanged, applyOption, specWithOption, specWithChoices,
   choicesFor, withChoice, withoutChoices, controlStarterFor, sameSort, MAX_CONTROLS,
 } from '../rsScreens'
-import { RS_STARTERS, TOP_RATING, NEW_HIGHS, BEFORE_PRICE, LEADERS, EXIT_WARNINGS, PLAIN_STARTERS, STARTERS_ON } from './rsScreensFixture'
+import { RS_STARTERS, TOP_RATING, NEW_HIGHS, BEFORE_PRICE, LEADERS, RANKED_LEADERS, EXIT_WARNINGS, PLAIN_STARTERS, STARTERS_ON } from './rsScreensFixture'
 
 // The working spec as useScreenSpec holds it: keyed filters, a sort, a rank.
 const working = spec => ({
@@ -106,13 +106,25 @@ test('controls on one screen are independent: one changed leaves the other on it
   expect(isChanged(control(BEFORE_PRICE, 'min'), w)).toBe(false)
 })
 
-test('UCT RS Leaders is ranked: choosing an option keeps the rank and needs no sort', () => {
-  const { ed, w } = editorOver(LEADERS.spec)
-  applyOption(ed, control(LEADERS, 'show'), option(LEADERS, 'show', 'noext'))
+test('a ranked screen: choosing an option keeps the rank and needs no sort', () => {
+  // RANKED_LEADERS: the ranked shape UCT RS Leaders had until unit U12 (rsScreensFixture).
+  const { ed, w } = editorOver(RANKED_LEADERS.spec)
+  applyOption(ed, control(RANKED_LEADERS, 'show'), option(RANKED_LEADERS, 'show', 'noext'))
   expect(w.filters.rs_setup).toEqual({ op: 'not_in', values: ['extended', 'below_50'] })
   expect(w.filters.rs_near_buy).toBeUndefined()
   expect(ed.setSort).not.toHaveBeenCalled()
-  expect(w.rank).toEqual(LEADERS.spec.rank)
+  expect(w.rank).toEqual(RANKED_LEADERS.spec.rank)
+  expect(activeOption(control(RANKED_LEADERS, 'show'), w).id).toBe('noext')
+})
+
+test('UCT RS Leaders is a membership filter and a plain sort: an option leaves both alone (unit U12)', () => {
+  const { ed, w } = editorOver(LEADERS.spec)
+  applyOption(ed, control(LEADERS, 'show'), option(LEADERS, 'show', 'noext'))
+  expect(w.filters.rs_setup).toEqual({ op: 'not_in', values: ['extended', 'below_50'] })
+  expect(w.filters.rs_leaders_member).toEqual({ op: 'eq', value: 1 })
+  expect(ed.setSort).not.toHaveBeenCalled()
+  expect(w.rank).toBeNull()
+  expect(w.sort).toEqual(LEADERS.spec.sort)
   expect(activeOption(control(LEADERS, 'show'), w).id).toBe('noext')
 })
 
@@ -197,7 +209,11 @@ describe('naming a screen from its spec alone (refresh, Back, List to Table and 
     expect(controlStarterFor(STARTERS_ON, extra)).toBeNull()
     const custom = { ...NEW_HIGHS.spec, filters: [...NEW_HIGHS.spec.filters, { key: 'rs_rank', op: 'gte', min: 77 }] }
     expect(controlStarterFor(STARTERS_ON, custom)).toBeNull()
-    expect(controlStarterFor(STARTERS_ON, { ...LEADERS.spec, rank: { ...LEADERS.spec.rank, top_n: 20 } })).toBeNull()
+    const ranked = [...STARTERS_ON, RANKED_LEADERS]
+    expect(controlStarterFor(ranked, RANKED_LEADERS.spec)?.id).toBe(RANKED_LEADERS.id)
+    expect(controlStarterFor(ranked, { ...RANKED_LEADERS.spec, rank: { ...RANKED_LEADERS.spec.rank, top_n: 20 } })).toBeNull()
+    // unit U12: UCT RS Leaders without its membership clause is not UCT RS Leaders
+    expect(controlStarterFor(STARTERS_ON, { ...LEADERS.spec, filters: LEADERS.spec.filters.filter(x => x.key !== 'rs_leaders_member') })).toBeNull()
     const dropped = { ...EXIT_WARNINGS.spec, filters: EXIT_WARNINGS.spec.filters.filter(f => f.key !== 'price') }
     expect(controlStarterFor(STARTERS_ON, dropped)).toBeNull()
   })

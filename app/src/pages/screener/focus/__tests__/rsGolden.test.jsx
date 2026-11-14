@@ -19,7 +19,7 @@ import { GROUPS, groupOf, RS_DEFAULT_PINNED, defaultPinned } from '../screenGrou
 import { focusChipLabel } from '../plainWords'
 import { whyItsHere } from '../whyItsHere'
 import { chipLabel } from '../../chipLabel'
-import { RS_STARTERS, HIDDEN_STARTERS, HIDDEN_IDS, STARTERS_ON, SERVED, TOP_RATING, NEW_HIGHS, BEFORE_PRICE, LEADERS, EXIT_WARNINGS,
+import { RS_STARTERS, HIDDEN_STARTERS, HIDDEN_IDS, STARTERS_ON, SERVED, TOP_RATING, NEW_HIGHS, BEFORE_PRICE, LEADERS, RANKED_LEADERS, EXIT_WARNINGS,
   readServerFixture } from './rsScreensFixture'
 
 const FIVE = ['starter_rs_top_rating', 'starter_rs_new_high', 'starter_rs_nh_before_price', 'starter_rs_leaders', 'starter_rs_exit_warning_5']
@@ -126,13 +126,19 @@ describe('what the client assumes about the payload', () => {
         expect(sameSort(defaultOption(c).sort, st.spec.sort), `${st.id}/${c.id}`).toBe(true)
       }
     }
-    expect(LEADERS.spec.rank).toBeTruthy()
-    expect(LEADERS.spec.sort).toBeUndefined()
+    // Unit U12: UCT RS Leaders was the one ranked screen. The server keeps its list now, so it is
+    // sorted like the rest, none of the five ranks, and none of its controls sets a sort.
+    expect(RS_STARTERS.filter(st => st.spec.rank).map(st => st.id)).toEqual([])
+    expect(LEADERS.spec.sort).toEqual({ key: 'rs_rating_score', dir: 'desc' })
+    expect(LEADERS.controls.flatMap(c => c.options).filter(o => o.sort)).toEqual([])
   })
   test('each row recipe names only parts and tags the row can draw; a null place is sent as null', () => {
     for (const st of RS_STARTERS) {
-      // unit U7: a ranked screen may also name its order (`sort_label`); a screen that is not ranked never does
-      expect(Object.keys(st.row).sort(), st.id).toEqual(st.spec.rank ? ['caption', 'place', 'sort_label', 'tags'] : ['caption', 'place', 'tags'])
+      // Every row has these three. Unit U7 let a screen name its order (`sort_label`); unit U12 added
+      // the why strip's own facts (`facts`) and how a list is kept (`steady`). All three are on UCT
+      // RS Leaders only.
+      const own = st.id === LEADERS.id ? ['facts', 'sort_label', 'steady'] : []
+      expect(Object.keys(st.row).sort(), st.id).toEqual(['caption', 'place', 'tags', ...own].sort())
       for (const p of st.row.caption) expect(CAPTION_PARTS, `${st.id} caption`).toContain(p)
       for (const t of st.row.tags) expect(TAGS, `${st.id} tag`).toContain(t)
       const cfg = rowConfigOf(st)
@@ -243,10 +249,11 @@ describe('the five, opened and edited through the real editor', () => {
   })
 
   test('opening the ranked screen after a sorted one keeps the rank, and its controls read their defaults', () => {
+    // RANKED_LEADERS: the ranked shape UCT RS Leaders had until unit U12 (rsScreensFixture).
     const { result } = open(TOP_RATING)
-    act(() => result.current.applySpec(LEADERS.spec))
-    expect(result.current.rank).toEqual(LEADERS.spec.rank)
-    for (const c of controlsOf(LEADERS)) expect(activeOption(c, reading(result.current))?.id).toBe(defaultOption(c).id)
+    act(() => result.current.applySpec(RANKED_LEADERS.spec))
+    expect(result.current.rank).toEqual(RANKED_LEADERS.spec.rank)
+    for (const c of controlsOf(RANKED_LEADERS)) expect(activeOption(c, reading(result.current))?.id).toBe(defaultOption(c).id)
     // and back again: the rank is gone and the place order is the sort
     act(() => result.current.applySpec(TOP_RATING.spec))
     expect(result.current.rank).toBeNull()

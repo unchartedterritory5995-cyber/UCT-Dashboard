@@ -61,8 +61,21 @@ LEADERS_MIN_ADR_PCT = 3
 LEADERS_MIN_MARKET_CAP = 300_000_000
 LEADERS_MAX_BELOW_HIGH = -25
 LEADERS_TOP_N = 50
-#: What the list head calls the order of UCT RS Leaders (unit U7): its one rank
-#: criterion, `rs_rating_score`, is the RS Rating before rounding.
+#: The steadier list (unit U12, `rs_leaders_list`): a stock joins UCT RS Leaders at
+#: `LEADERS_TOP_N` or better among the qualifiers and, once on it, keeps its place
+#: until it ranks past this or stops qualifying. Fifteen places of slack, because a
+#: stock at 50 today and 52 tomorrow left the list and came back the day after.
+LEADERS_HOLD_RANK = 65
+#: The two columns the rating pass writes for the list (`rs_leaders_list.COLUMNS`):
+#: 1 on the list / 0 off it, and the consecutive stored sessions a stock has been on it.
+LEADERS_MEMBER_KEY = "rs_leaders_member"
+LEADERS_DAYS_KEY = "rs_leaders_days"
+#: The column the qualifiers are ranked by and the list is sorted by: the RS Rating
+#: before rounding, so stocks that share a rating are told apart.
+LEADERS_ORDER_KEY = "rs_rating_score"
+#: What the list head calls the order of UCT RS Leaders (unit U7): `rs_rating_score`
+#: is the RS Rating before rounding. Since unit U12 the order is a plain sort, and the
+#: client prints this while the working sort is still the starter's own.
 LEADERS_SORT_LABEL = "RS Rating"
 #: RS exit warnings: a warning in the last five sessions.
 EXIT_AGE = 4
@@ -297,7 +310,15 @@ def before_price() -> dict:
 
 def leaders() -> dict:
     """4. UCT RS Leaders: the gate written as ordinary filters, so the controls and the
-    Filters drawer can adjust it (plan 1.4 and 9); ordered by the unrounded score."""
+    Filters drawer can adjust it (plan 1.4 and 9); ordered by the unrounded score.
+
+    ⭐ A STEADIER LIST (unit U12). The spec no longer ranks and cuts at 50 on every
+    scan. The rating pass decides who is on the list once a session
+    (`rs_leaders_list`: join at 50 or better, stay to 65, at most 50) and stores
+    ``rs_leaders_member``; the screen is these filters plus that column equal to 1,
+    sorted by the score. The pass reads its qualifying rules off THIS starter (every
+    clause but the membership one), so the two cannot drift.
+    """
     show = _control(
         "show", "Show", ["rs_near_buy", "rs_setup"],
         [_option("all", "All", default=True),
@@ -316,18 +337,25 @@ def leaders() -> dict:
                              _eq("sma200_rising", 1),
                              _gte("dist_52w_high_pct", LEADERS_MAX_BELOW_HIGH),
                              _eq("rs_line_above_ma", 1),
-                             no_buyouts()],
+                             no_buyouts(),
+                             _eq(LEADERS_MEMBER_KEY, 1)],
                  "view": "rs_leaders",
-                 "rank": {"criteria": [{"key": "rs_rating_score", "weight": 1}],
-                          "top_n": LEADERS_TOP_N}},
+                 "sort": _sort(LEADERS_ORDER_KEY, "desc")},
         "controls": [show, _min_rating(LEADERS_RATING_CHOICES, default=LEADERS_MIN_RATING)],
         # `sort_label` (unit U7): the list head said "Sort: Your ranking", the wording for
-        # any ranked screen. This ranking is ours and it is the RS Rating, so the screen
-        # says so. The client prints it only while the working spec still carries this
-        # rank; every other ranked screen (UCT 50) keeps "Your ranking".
+        # any ranked screen. This order is ours and it is the RS Rating, so the screen
+        # says so. Since unit U12 it names a plain sort: the client prints it only while
+        # the working sort is still this one.
+        # `facts` (unit U12): notes for the why strip only, never the caption. "days" is
+        # "Day N on this list", from `rs_leaders_days`.
+        # `steady` (unit U12): how the list is kept, for "Why isn't a stock here?": the
+        # membership column, the column it is ranked by, and the two ranks of the rule.
         "row": {"place": "index", "caption": ["setup", "group"],
                 "tags": [EARNINGS_TAG, "flag", "new"],
-                "sort_label": LEADERS_SORT_LABEL},
+                "sort_label": LEADERS_SORT_LABEL,
+                "facts": ["days"],
+                "steady": {"key": LEADERS_MEMBER_KEY, "by": LEADERS_ORDER_KEY,
+                           "enter": LEADERS_TOP_N, "hold": LEADERS_HOLD_RANK}},
     }
 
 

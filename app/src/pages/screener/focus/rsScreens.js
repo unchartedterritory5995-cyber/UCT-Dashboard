@@ -20,7 +20,7 @@ export const RS_LEADERS_ID = 'starter_rs_leaders'
 export const RS_SCREENS_COLUMNS = ['rs_rating_session', 'rs_rating_score', 'rs_rating_pos', 'rs_rating_pos_n', 'rs_pos_1m', 'rs_pos_3m',
   'rs_pos_6m', 'rs_pos_12m', 'rs_rating_pos_prev20', 'rs_rating_prev20', 'rs_nh_count_20', 'rs_nh_quiet', 'rs_nh_red_bars_ago', 'rs_nhbp_age',
   'rs_nh_span', 'px_below_high_pct', 'rs_setup', 'rs_tight', 'rs_flag', 'rs_near_buy', 'atr_ext_ema21', 'pct_vs_ema8', 'pct_vs_ema21',
-  'rs_nh_weekly', 'rs_nhbp_weekly']
+  'rs_nh_weekly', 'rs_nhbp_weekly', 'rs_leaders_member', 'rs_leaders_days']
 
 const POOL_KEYS = ['universe', 'list']
 const isObj = v => !!v && typeof v === 'object' && !Array.isArray(v)
@@ -71,6 +71,31 @@ export function rankLabelOf(starter, rank) {
   if (typeof label !== 'string' || !label.trim()) return null
   const own = starter?.spec?.rank
   return own && rank && rankSig(own) === rankSig(rank) ? label.trim() : null
+}
+
+// What the list head calls the screen's order (unit U12): the starter's own name for it while the
+// working spec still carries the starter's own ORDER, else null and the head says what it always
+// did ("Your ranking" for a rank, the sort column for a sort). A ranked starter is compared by its
+// rank, exactly as rankLabelOf does. A starter with a plain sort (UCT RS Leaders since unit U12:
+// the server keeps the list, so the screen no longer ranks) is compared by its sort, and a rank
+// laid over it is the member's ranking again.
+export function sortLabelOf(starter, { sort = null, rank = null } = {}) {
+  const label = starter?.row?.sort_label
+  if (typeof label !== 'string' || !label.trim()) return null
+  const own = starter?.spec
+  if (own?.rank) return rankLabelOf(starter, rank)
+  return !rank && sameSort(own?.sort, sort) ? label.trim() : null
+}
+
+// How a starter keeps its own list (`row.steady`, unit U12), or null: the membership column, the
+// column the qualifiers are ranked by, the rank a stock joins at and the rank it stays to. `gate`
+// is the starter's own rules without the membership clause: what a stock must pass to be ranked
+// at all, whatever the member has since narrowed on the screen.
+const isRank = v => typeof v === 'number' && Number.isInteger(v) && v > 0
+export function steadyOf(starter) {
+  const s = starter?.row?.steady
+  if (!isObj(s) || typeof s.key !== 'string' || !s.key || typeof s.by !== 'string' || !s.by || !isRank(s.enter) || !isRank(s.hold)) return null
+  return { key: s.key, by: s.by, enter: s.enter, hold: s.hold, gate: (starter?.spec?.filters || []).filter(f => f && f.key !== s.key) }
 }
 
 // CHANGED: the active option is not the default (a Custom reading is changed too).

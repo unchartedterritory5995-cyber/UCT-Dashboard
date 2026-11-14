@@ -58,6 +58,13 @@ DARK BY DEFAULT. ``RS_SCREENS_ENABLED`` is read per call (only the literal ``1``
 it). Off, :func:`run` returns before it opens the database: no column is written, no
 table is created and no receipt is stored.
 
+UCT RS LEADERS' LIST RIDES THIS PASS TOO (unit U12). After the rating columns are
+written, :func:`_leaders_list` hands over to ``rs_leaders_list.run``, which decides who
+is on the list this session (join at 50 or better, stay to 65) and writes
+``rs_leaders_member`` and ``rs_leaders_days``. It needs ``rs_rank`` and
+``rs_rating_score`` as this pass leaves them, so it runs here. Its counts are in the
+receipt as ``leaders``; a failure there blanks those two columns and costs nothing else.
+
 THE SHADOW LEADER SCORE (unit U9) rides this pass: after the places, and only while
 ``RS_LEADER_SHADOW_ENABLED`` is on too, :func:`_leader_shadow` hands over to
 ``rs_leader_shadow.run``, which keeps a score no member is shown in its own side
@@ -89,12 +96,19 @@ LIQUID_FLOOR = {
     "full_year_column": "rs_rating_12m",
 }
 
-#: The columns only this pass writes (``snapshot_db.POST_PASS_COLUMNS`` is the schema's
-#: copy of the same set; the build's ``empty_columns`` receipt leaves them to this
-#: pass's own receipt).
+#: The columns the pass's rating UPDATE writes (with :data:`LEADERS_COLUMNS` below they
+#: are ``snapshot_db.POST_PASS_COLUMNS``; the build's ``empty_columns`` receipt leaves
+#: all of them to this pass's own receipt).
 OWNED_COLUMNS = ("rs_rating_session", "rs_rating_score", "rs_rating_pos", "rs_rating_pos_n",
                  "rs_pos_1m", "rs_pos_3m", "rs_pos_6m", "rs_pos_12m", "rs_rating_pos_prev20",
                  "rs_rating_prev20")
+#: UCT RS Leaders' list (unit U12): the two columns ``rs_leaders_list.run`` writes
+#: inside this pass, in its own UPDATE after the rating columns (``rs_leaders_list.
+#: COLUMNS`` is the writer's copy; a test holds the two equal).
+LEADERS_COLUMNS = ("rs_leaders_member", "rs_leaders_days")
+#: EVERY column the pass writes: :data:`OWNED_COLUMNS` in the rating UPDATE, then the
+#: list's two. ``snapshot_db.POST_PASS_COLUMNS`` is the schema's copy of this set.
+PASS_COLUMNS = OWNED_COLUMNS + LEADERS_COLUMNS
 #: ``place column -> the stored per-period value it is ordered by`` (``rs_rating_history``
 #: ``v1/v3/v6/v12``: the numbers the 1 to 99 ranks were taken over).
 PERIOD_PLACES = (("rs_pos_1m", "v1"), ("rs_pos_3m", "v3"),
@@ -336,10 +350,35 @@ def _run(receipt: dict, session, now) -> None:
     fields = rs_history.read_fields(tickers, session=key) or {}
     if not fields:
         _carry(receipt, rows, rating_map, rs_history.read_fields(tickers) or {})
+        _leaders_list(receipt, key, record=False)
         _leader_shadow(receipt.get("rating_session"), record_history=False)
         return
     _rewrite(receipt, key, rows, rating_map, fields)
+    _leaders_list(receipt, key, record=True)
     _leader_shadow(key, record_history=True)
+
+
+def _leaders_list(receipt: dict, session: str, *, record: bool) -> None:
+    """UCT RS Leaders' list for this session (unit U12), after the rating columns:
+    ``rs_leaders_list.run`` over the rows this pass just wrote. Its counts land in the
+    receipt as ``leaders`` and its two columns join ``populated``, so the build's own
+    receipt counts them like every column the pass writes.
+
+    ``session`` is the session the pass was ASKED for (the settled one), also on a pass
+    that carried an earlier session's ratings: "already on the list" is the record of
+    a session before it either way. Only the pass that moved the ratings onto that
+    session records it (``record``; the ``rs_pos_history`` rule).
+
+    Never raises: ``rs_leaders_list.run`` blanks its columns and reports the error,
+    and an import that fails is the same answer. The places above are not touched."""
+    try:
+        from . import rs_leaders_list                        # noqa: PLC0415 - lazy: no cycle
+        out = dict(rs_leaders_list.run(session, record=record))
+    except Exception as e:                                   # noqa: BLE001 - never costs the pass
+        log.warning("[rs_post_pass] leaders list failed: %s: %s", type(e).__name__, e)
+        out = {"error": f"{type(e).__name__}: {e}"[:300], "populated": {}}
+    receipt.setdefault("populated", {}).update(out.pop("populated", None) or {})
+    receipt["leaders"] = out
 
 
 def _leader_shadow(session, *, record_history: bool) -> None:

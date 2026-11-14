@@ -26,6 +26,8 @@ export function rowConfigOf(starter, place = null) {
     place: own && own !== INDEX_PLACE && typeof place === 'string' && place ? place : own,
     caption: Array.isArray(r.caption) ? r.caption.filter(p => typeof p === 'string') : [],
     tags: Array.isArray(r.tags) ? r.tags.filter(t => typeof t === 'string') : [],
+    // Notes for the why strip only (unit U12), in the starter's order; [] on every other screen.
+    facts: Array.isArray(r.facts) ? r.facts.filter(p => typeof p === 'string') : [],
   }
 }
 
@@ -123,6 +125,14 @@ export function earningsWords(row) {
 // completed week at or above its highest value of the 52 weeks before.
 export const weeklyWords = row => (row?.rs_nh_weekly === 1 ? 'Weekly RS high' : '')
 
+// `rs_leaders_days` (unit U12): consecutive sessions the stock has been on UCT RS Leaders,
+// counting today. A why strip fact, never a caption part: the caption says what the stock is
+// doing, and how long it has been listed is a quieter thing to know.
+export function daysWords(row) {
+  const n = row?.rs_leaders_days
+  return Number.isInteger(n) && n >= 1 ? `Day ${fmtInt(n)} on this list` : ''
+}
+
 // ── tags: ONE per row, the first of the starter's list that applies ────────
 export const NEW_TAG = 'New'
 const TAGS = {
@@ -166,6 +176,9 @@ const PART_COLUMNS = {
   moving: ['rs_rating_pos_prev20', 'rs_rating_pos', 'rs_rating_chg_5'],
   exit_warning: ['rs_exit_last', 'rs_exit_bars_ago'],
 }
+// The why strip's own facts a starter may ask for (`row.facts`, unit U12).
+const FACTS = { days: row => daysWords(row) }
+const FACT_COLUMNS = { days: ['rs_leaders_days'] }
 const TAG_COLUMNS = {
   earnings: ['days_to_earnings'],
   weekly: ['rs_nh_weekly'],
@@ -184,6 +197,7 @@ export function rowColumns(cfg) {
     ...(cfg.place && cfg.place !== INDEX_PLACE ? [cfg.place] : []),
     ...cfg.caption.flatMap(p => PART_COLUMNS[p] || []),
     ...cfg.tags.flatMap(t => TAG_COLUMNS[t] || []),
+    ...(cfg.facts || []).flatMap(p => FACT_COLUMNS[p] || []),
   ])]
 }
 
@@ -224,9 +238,13 @@ export function sectorShare(rows) {
 // ── the why strip's fact notes ─────────────────────────────────────────────
 // Facts about the row the screen did NOT test, so each is a note (an open circle), never a
 // tick. Most distinctive first; the strip's own cap decides how many are shown.
-export function rowFacts(row) {
+// `cfg` (unit U12): the screen's row recipe. The facts it asks for by name (`row.facts`, "Day 12
+// on this list" on UCT RS Leaders) lead, because the strip shows only its first two on a screen
+// with many filters and these are said nowhere else on the row.
+export function rowFacts(row, cfg = null) {
   const pos = row?.rs_rating_pos
   const n = row?.rs_rating_pos_n
   const place = isNum(pos) ? `RS Rating place ${fmtInt(pos)}${isNum(n) ? ` of ${fmtInt(n)}` : ''}` : ''
-  return [setupWords(row), rsHighAgeWords(row), belowHighWords(row), place].filter(Boolean).map(label => ({ kind: 'note', label }))
+  const own = (cfg?.facts || []).map(p => (FACTS[p] ? FACTS[p](row) : ''))
+  return [...own, setupWords(row), rsHighAgeWords(row), belowHighWords(row), place].filter(Boolean).map(label => ({ kind: 'note', label }))
 }

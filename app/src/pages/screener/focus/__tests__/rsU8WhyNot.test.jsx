@@ -16,7 +16,12 @@ import { __resetCountCache } from '../useLazyCounts'
 import { __resetRevisionStateForTests } from '../../../../hooks/usePreferences'
 import { RS_NOTE_PREF } from '../rsScreens'
 import { net, resetNet, installFetch, mount, pin } from './rsHarness'
-import { LEADERS, TOP_RATING, PLAIN_STARTERS, SERVED } from './rsScreensFixture'
+import { RANKED_LEADERS, TOP_RATING, PLAIN_STARTERS, SERVED, STARTERS_ON } from './rsScreensFixture'
+
+// Unit U12: UCT RS Leaders is no longer a ranked screen (the rating pass keeps its list; what
+// this panel says there is rsU12WhyNot.test.jsx's). Everything below is about ANY screen with a
+// row, and about a ranked one, so it runs on the ranked shape Leaders had until then.
+const LEADERS = RANKED_LEADERS
 
 beforeEach(() => {
   __resetCountCache()
@@ -28,6 +33,7 @@ beforeEach(() => {
   net.prefs = { [RS_NOTE_PREF]: '1' }
   // the registry the server serves for these screens, so each rule reads in its real words
   net.meta = { filters: SERVED.meta.filters, categories: [{ key: 'relative_strength', label: 'Relative strength' }], views: SERVED.meta.views }
+  net.starters = [...STARTERS_ON, RANKED_LEADERS]
   installFetch()
 })
 const landedOn = name => waitFor(() => expect(screen.getByRole('button', { name: new RegExp(`^${name}.*Change screen`) })).toBeInTheDocument())
@@ -42,7 +48,7 @@ const openScreen = async name => {
   fireEvent.click(screen.getByRole('button', { name: /Change screen/ }))
   fireEvent.click(await screen.findByRole('button', { name: new RegExp(`^Open ${name}`) }))
 }
-// A stock that passes every rule of UCT RS Leaders.
+// A stock that passes every rule of the ranked screen.
 const PASSES = {
   ticker: 'TSLA', price: 300, dollar_vol_30d: 2e10, adr_pct: 4.1, market_cap: 9e11, rs_rank: 91, pct_vs_sma200: 22, sma200_rising: 1,
   dist_52w_high_pct: -9, rs_line_above_ma: 1, rs_flag: null, security_type: 'Stock', rs_rating_score: 61.5,
@@ -79,7 +85,7 @@ describe('the door', () => {
   })
 
   test('opening it puts the cursor in the ticker box; Escape closes it and hands focus back', async () => {
-    const user = await open('starter_rs_leaders', 'UCT RS Leaders')
+    const user = await open(LEADERS.id, LEADERS.name)
     expect(toggle()).toHaveAttribute('aria-expanded', 'true')
     expect(box()).toHaveFocus()
     await user.keyboard('{Escape}')
@@ -93,7 +99,7 @@ describe('the door', () => {
   })
 
   test('typing a ticker never reaches the list\'s own keys (W adds to a watchlist, "/" opens the filters)', async () => {
-    const user = await open('starter_rs_leaders', 'UCT RS Leaders')
+    const user = await open(LEADERS.id, LEADERS.name)
     const before = fetch.mock.calls.length
     await user.type(box(), 'w/W')
     expect(box()).toHaveValue('w/W')
@@ -105,7 +111,7 @@ describe('the door', () => {
 
 describe('the answer', () => {
   test('a stock on the list: said so, selected, and nothing is asked of the server', async () => {
-    const user = await open('starter_rs_leaders', 'UCT RS Leaders')
+    const user = await open(LEADERS.id, LEADERS.name)
     await user.type(box(), 'amd{Enter}')
     expect(answer()).toHaveTextContent('AMD is on this list.')
     expect(screen.getByTestId('focus-row-AMD')).toHaveAttribute('aria-selected', 'true')
@@ -116,7 +122,7 @@ describe('the answer', () => {
 
   test('a stock that misses a rule: Enter asks for that one row, and each rule gets a tick or a cross with its value', async () => {
     net.row = t => (t === 'TSLA' ? { row: { ...PASSES, rs_rank: 74 }, stale: false } : null)
-    const user = await open('starter_rs_leaders', 'UCT RS Leaders')
+    const user = await open(LEADERS.id, LEADERS.name)
     await user.type(box(), '$tsla{Enter}')
     await waitFor(() => expect(answer()).toHaveTextContent('TSLA is not on this list. It misses 1 rule.'))
     // one request, for one row, naming a column for every rule of the screen and the ranking's own
@@ -142,7 +148,7 @@ describe('the answer', () => {
   test('passes every rule but ranks outside the top 50: the place is counted, and said', async () => {
     net.row = () => ({ row: PASSES, stale: false })
     net.count = body => (body.filters.some(f => f.key === 'rs_rating_score') ? 62 : 5)
-    const user = await open('starter_rs_leaders', 'UCT RS Leaders')
+    const user = await open(LEADERS.id, LEADERS.name)
     await user.type(box(), 'TSLA{Enter}')
     await waitFor(() => expect(answer()).toHaveTextContent('Passes every rule; ranked 63rd, the list shows the top 50'))
     expect(items().every(([k]) => k === 'pass')).toBe(true)
@@ -156,7 +162,7 @@ describe('the answer', () => {
   test('a place the server would not count is never invented', async () => {
     net.row = () => ({ row: PASSES, stale: false })
     net.count = body => (body.filters.some(f => f.key === 'rs_rating_score') ? null : 5)
-    const user = await open('starter_rs_leaders', 'UCT RS Leaders')
+    const user = await open(LEADERS.id, LEADERS.name)
     await user.type(box(), 'TSLA{Enter}')
     await waitFor(() => expect(answer()).toHaveTextContent(/TSLA passes every rule on its latest numbers/))
     expect(answer()).not.toHaveTextContent(/ranked/)
@@ -173,14 +179,14 @@ describe('the answer', () => {
 
   test('a stock whose price data stopped is left out of every screen, and the answer says so', async () => {
     net.row = () => ({ row: PASSES, stale: true })
-    const user = await open('starter_rs_leaders', 'UCT RS Leaders')
+    const user = await open(LEADERS.id, LEADERS.name)
     await user.type(box(), 'TSLA{Enter}')
     await waitFor(() => expect(answer()).toHaveTextContent('its price data has stopped updating, so it is left out of every screen'))
   })
 
   test('a rule the row has no value for says "no value"', async () => {
     net.row = () => ({ row: { ...PASSES, adr_pct: null }, stale: false })
-    const user = await open('starter_rs_leaders', 'UCT RS Leaders')
+    const user = await open(LEADERS.id, LEADERS.name)
     await user.type(box(), 'TSLA{Enter}')
     await waitFor(() => expect(answer()).toHaveTextContent('It misses 1 rule.'))
     expect(items().find(([k]) => k === 'fail')[1]).toMatch(/: no value$/)
@@ -188,14 +194,14 @@ describe('the answer', () => {
 
   test('an unknown ticker: "No such stock in the Screener."', async () => {
     net.row = () => null
-    const user = await open('starter_rs_leaders', 'UCT RS Leaders')
+    const user = await open(LEADERS.id, LEADERS.name)
     await user.type(box(), 'ZZZZ{Enter}')
     await waitFor(() => expect(answer()).toHaveTextContent('No such stock in the Screener.'))
     expect(items()).toEqual([])
   })
 
   test('something that is not a ticker is not sent anywhere', async () => {
-    const user = await open('starter_rs_leaders', 'UCT RS Leaders')
+    const user = await open(LEADERS.id, LEADERS.name)
     await user.type(box(), 'NV DA{Enter}')
     expect(answer()).toHaveTextContent('Type a ticker, like NVDA.')
     await user.clear(box())
@@ -206,7 +212,7 @@ describe('the answer', () => {
 
   test('a refusal or a dropped connection is "could not be checked", never a verdict', async () => {
     net.row = () => ({ status: 500 })
-    const user = await open('starter_rs_leaders', 'UCT RS Leaders')
+    const user = await open(LEADERS.id, LEADERS.name)
     await user.type(box(), 'TSLA{Enter}')
     await waitFor(() => expect(answer()).toHaveTextContent('That could not be checked just now. Try again.'))
     expect(answer()).not.toHaveTextContent(/is not on this list|passes/i)
@@ -218,7 +224,7 @@ describe('the answer', () => {
 
   test('the Check button asks the same question as Enter', async () => {
     net.row = () => ({ row: { ...PASSES, rs_rank: 74 }, stale: false })
-    const user = await open('starter_rs_leaders', 'UCT RS Leaders')
+    const user = await open(LEADERS.id, LEADERS.name)
     await user.type(box(), 'tsla')
     await user.click(screen.getByRole('button', { name: 'Check' }))
     await waitFor(() => expect(answer()).toHaveTextContent('TSLA is not on this list. It misses 1 rule.'))
@@ -226,7 +232,7 @@ describe('the answer', () => {
 
   test('an answer is about the screen it was asked of: another screen starts with none', async () => {
     net.row = () => ({ row: { ...PASSES, rs_rank: 74 }, stale: false })
-    const user = await open('starter_rs_leaders', 'UCT RS Leaders')
+    const user = await open(LEADERS.id, LEADERS.name)
     await user.type(box(), 'TSLA{Enter}')
     await waitFor(() => expect(answer()).toHaveTextContent('TSLA is not on this list.'))
     await openScreen('Top RS Rating')

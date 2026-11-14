@@ -777,6 +777,7 @@ def _rs_screens_build_methods(s: dict) -> list:
                     f"Blank until the average exists, and {contradicts}. " + note),
             "caveat": f"The {n}-day EMA {speed}."})
     out.extend(_rs_weekly_methods(s, note))
+    out.extend(_rs_leaders_methods(pass_note))
     for m in out:
         m["label"] = label(m["column"])
     return out
@@ -897,8 +898,8 @@ def rs_screens_section() -> dict:
              f"{_sc.LEADERS_MIN_ADR_PCT}% or more, a market value of {cap} or more, RS Rating "
              f"{_sc.LEADERS_MIN_RATING} or higher, the RS line above its 21-day average, a "
              f"close above a rising 200-day average, and price within "
-             f"{-_sc.LEADERS_MAX_BELOW_HIGH}% of its 52-week high. The {_sc.LEADERS_TOP_N} "
-             f"with the highest RS Rating score are shown, strongest first."),
+             f"{-_sc.LEADERS_MAX_BELOW_HIGH}% of its 52-week high. "
+             + _rs_leaders_list_words()),
          "controls": (
              "Show: all, only stocks near a buy point, or everything except Extended and "
              "Below its 50-day line. Min RS Rating: "
@@ -948,6 +949,49 @@ def rs_screens_section() -> dict:
                     "stocks to study, not what will happen next, and none of them is a "
                     "forecast or a recommendation."),
     }
+
+
+def _ordinal(n: int) -> str:
+    """`65` -> `65th`, `51` -> `51st`: a rank, in words a member reads."""
+    n = int(n)
+    if 10 <= n % 100 <= 20:
+        return f"{n}th"
+    return f"{n}{ {1: 'st', 2: 'nd', 3: 'rd'}.get(n % 10, 'th') }"
+
+
+def _rs_leaders_list_words() -> str:
+    """How UCT RS Leaders keeps its list (unit U12), every number read from
+    `rs_screens`: one copy for the screen's rule and for the two column methods."""
+    from api.services.screener import rs_screens as _sc            # noqa: PLC0415
+    top, hold = _sc.LEADERS_TOP_N, _sc.LEADERS_HOLD_RANK
+    return (f"A stock joins the list when it ranks in the top {top} of these by RS Rating score "
+            f"and a place is free, and stays until it falls past {_ordinal(hold)} or stops passing "
+            f"a rule, so a stock at the edge does not come and go from one day to the next. The "
+            f"list holds at most {top}, strongest first, and is decided once a session.")
+
+
+def _rs_leaders_methods(note: str) -> list:
+    """The two UCT RS Leaders list columns (unit U12), which `rs_leaders_list.run`
+    writes inside the rating pass."""
+    rule = _rs_leaders_list_words()
+    return [
+        {"column": "rs_leaders_member",
+         "one_line": "Yes when the stock is on the UCT RS Leaders list today.",
+         "scale": "0 or 1 (1 = yes)",
+         "how": (f"The stocks that pass every rule of the UCT RS Leaders screen are ordered by RS "
+                 f"Rating score, highest first. {rule} Blank on a row the build has just rewritten "
+                 f"until the pass runs, and when the list could not be computed. " + note),
+         "caveat": ("The list says which stocks to study. A place on it is a rank of past "
+                    "return, not a forecast.")},
+        {"column": "rs_leaders_days",
+         "one_line": "How many sessions in a row the stock has been on UCT RS Leaders.",
+         "scale": "sessions, 1 = joined today",
+         "how": ("Counts back through the stored record of the list, one session at a time, and "
+                 "stops at the first session the stock was not on it or where the record ends. "
+                 "Today counts. Blank for a stock that is not on the list. " + note),
+         "caveat": ("A long run says the stock kept its place among the strongest. It does not "
+                    "say the run will go on.")},
+    ]
 
 
 def _rs_weekly_sentence() -> str:
@@ -1476,7 +1520,9 @@ def rs_columns_section() -> dict:
             "and near answer, and three of the label's own inputs) are computed in the same "
             "03:00 ET build from the same bars, only while the RS screens are switched on. "
             "Two more (the weekly RS new high and its before-price reading) are computed in "
-            "that build from the same bars grouped into finished weeks, for liquid stocks only."),
+            "that build from the same bars grouped into finished weeks, for liquid stocks only. "
+            "Two more (whether a stock is on the UCT RS Leaders list and for how many sessions) "
+            "are filled by the same pass that fills the places."),
         "notes": [
             # U9 (RS split): these two notes no longer name a chart Reading. The slim UCT RS
             # Line draws no Mansfield line and no sensitivity row (map §(a) U7); the screener
