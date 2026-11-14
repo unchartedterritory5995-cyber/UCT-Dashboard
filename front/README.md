@@ -17,6 +17,12 @@ disk and two copies is replaced with no gap.
 - It never serves "any file that exists in the build". The authority is `web`'s route
   table. `tests/test_front_app_parity.py` fails when a route outside `/api` is neither
   served here nor passed through.
+- What it serves itself goes out through the same two layers `web` puts around every
+  answer, with `web`'s settings: gzip (level 5, every answer that has a body) and CORS.
+  A passed-through answer goes through neither: `web` already applied both. Every OPTIONS
+  request goes to `web`, which answers a preflight itself. The settings are read out of
+  `api.main:app` by `tests/test_front_app_parity.py`, so a change on `web` fails that test
+  until the front door follows.
 
 ## Start command
 

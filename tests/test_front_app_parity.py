@@ -8,6 +8,8 @@ declarations are `web`'s:
   * the root-file table equals the one read out of `api/main.py`'s source;
   * the app shell and the live-trading-room pages produce the same answer from the same
     build folder through both;
+  * gzip and CORS: the two layers `web` wraps every answer in have the same settings here,
+    and one answer sent through every layer of both apps comes out the same;
   * every route `web` registers outside `/api` is accounted for: served by the front door
     or passed through to `web`. A route that is neither would be answered with the app
     shell, or (for a file in the build) could be served without `web`'s permission.
@@ -20,14 +22,23 @@ Mutation proof (run before calling these done):
     2. remove "/pip-embed" from front_app.PROXY_PATHS         -> test_every_dist_block_route_is_accounted_for RED
     3. remove "/Darkpool-data.csv" from front_app.PROXY_PATHS -> test_every_runtime_route_outside_api_is_passed_through RED
     4. drop the Link header from front_app's shell            -> test_the_shell_is_the_same_answer RED
+    5. front_app.GZIP_LEVEL = 9                               -> test_gzip_and_cors_settings_are_webs RED
+    6. front_app.CORS_OPTIONS allows one named origin         -> test_gzip_and_cors_settings_are_webs and
+                                                                 test_build_json_leaves_both_stacks_... RED
+    7. front_app.GZIP_MINIMUM_SIZE = 1000                     -> test_build_json_leaves_both_stacks_... RED
+    8. front_app.is_gzip_exempt also exempts /og-image.png    -> test_gzip_exemption_agrees_... RED
+    9. LocalAnswerLayers stacks CORS outside gzip             -> test_build_json_leaves_both_stacks_... RED
+                                                                 (the Origin+Cookie+gzip case: `Vary` order)
 """
 from __future__ import annotations
 
 import ast
 import asyncio
+import gzip
 import json
 import os
 
+import httpx
 import pytest
 
 import api.main as main
@@ -202,6 +213,82 @@ def test_build_json_is_the_same_answer(dist, monkeypatch):
     web = main.build_json()
     assert json.loads(front.body) == json.loads(web.body) == {"build_id": "assets/index-abc123.js", "commit": "cafe1234"}
     assert front.headers["cache-control"] == web.headers["cache-control"] == "no-store"
+
+
+# ── the two layers `web` wraps every answer in: gzip outside, CORS inside ─────
+
+def _web_layer(name: str):
+    found = [m for m in main.app.user_middleware if m.cls.__name__ == name]
+    assert len(found) == 1, f"expected one {name} layer on api.main:app, found {len(found)}"
+    return found[0]
+
+
+def test_gzip_and_cors_settings_are_webs():
+    order = [m.cls.__name__ for m in main.app.user_middleware]   # outermost first
+    assert order.index("_GZipSkipSSE") < order.index("CORSMiddleware"), (
+        "web's gzip layer is no longer outside its CORS layer; front_app.LocalAnswerLayers stacks them that way")
+    gz = _web_layer("_GZipSkipSSE")
+    assert issubclass(gz.cls, front_app.GZipMiddleware)
+    assert gz.kwargs["compresslevel"] == front_app.GZIP_LEVEL
+    cors = _web_layer("CORSMiddleware")
+    assert cors.cls is front_app.CORSMiddleware
+    assert dict(cors.kwargs) == front_app.CORS_OPTIONS and not cors.args
+
+
+@pytest.mark.parametrize("path", ["/", "/charts", "/build.json", "/robots.txt", "/og-image.png", "/manifest.json",
+                                  "/assets/index-abc123.js", "/assets/deep/logo.webp", "/fonts/a.woff2",
+                                  "/live-trading-room", "/live-trading-room/email/f04.jpg", "/share/n/tok",
+                                  "/assetsx/a.js", "/fontsy/a.woff2", "/assets", "/fonts"])
+def test_gzip_exemption_agrees_for_what_the_front_door_answers(path):
+    assert front_app.is_gzip_exempt(path) == main._is_gzip_exempt(path), path
+
+
+LAYER_HEADERS = ("content-encoding", "vary", "access-control-allow-origin", "access-control-allow-credentials",
+                 "access-control-expose-headers", "cache-control", "content-type")
+BROWSER_VARIANTS = [
+    {},
+    {"Accept-Encoding": "gzip"},
+    {"Accept-Encoding": "gzip, deflate, br, zstd"},
+    {"Accept-Encoding": "br"},
+    {"Origin": "https://elsewhere.example"},
+    {"Origin": "https://elsewhere.example", "Accept-Encoding": "gzip"},
+    {"Origin": "https://elsewhere.example", "Cookie": "a=1"},
+    {"Origin": "https://elsewhere.example", "Cookie": "a=1", "Accept-Encoding": "gzip"},
+]
+
+
+async def _through_the_whole_stack(app, path: str, headers: dict) -> dict:
+    """One GET through every layer of an app, as a client sees it (no server needed)."""
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://parity.test") as c:
+        for default in ("accept", "accept-encoding", "user-agent"):
+            c.headers.pop(default, None)
+        async with c.stream("GET", path, headers=headers) as r:
+            raw = b"".join([chunk async for chunk in r.aiter_raw()])
+    body = gzip.decompress(raw) if r.headers.get("content-encoding") == "gzip" else raw
+    return {"status": r.status_code, "body": body, **{k: r.headers.get_list(k) for k in LAYER_HEADERS}}
+
+
+@pytest.mark.parametrize("headers", BROWSER_VARIANTS, ids=lambda h: ",".join(sorted(h)) or "bare")
+def test_build_json_leaves_both_stacks_with_the_same_encoding_and_cors(dist, monkeypatch, headers):
+    """`/build.json` is the one answer both apps always register. Sent through every layer of
+    each, it must come out the same: compressed or not, the same `Vary`, the same CORS."""
+    monkeypatch.setenv("RAILWAY_GIT_COMMIT_SHA", "cafe1234")
+    front = asyncio.run(_through_the_whole_stack(
+        front_app.create_app(dist=str(dist), upstream="127.0.0.1:1"), "/build.json", headers))
+    web = asyncio.run(_through_the_whole_stack(main.app, "/build.json", headers))
+    assert front == web
+    assert web["status"] == 200 and json.loads(web["body"])["commit"] == "cafe1234"
+
+
+def test_the_layer_comparison_can_see_a_difference(dist):
+    """Control for the test above: with gzip accepted `web` DOES compress this tiny answer, and
+    with an Origin it DOES add a CORS header. A comparison of two apps that both did nothing
+    would also be equal."""
+    web = asyncio.run(_through_the_whole_stack(
+        main.app, "/build.json", {"Accept-Encoding": "gzip", "Origin": "https://elsewhere.example"}))
+    assert web["content-encoding"] == ["gzip"] and web["vary"] == ["Accept-Encoding"]
+    assert web["access-control-allow-origin"] == ["*"]
+    assert len(web["body"]) < 1000, "the answer is no longer under web's declared 1000-byte floor"
 
 
 # ── every route outside /api is accounted for ─────────────────────────────────
