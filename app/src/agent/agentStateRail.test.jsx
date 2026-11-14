@@ -225,6 +225,17 @@ describe('STATE RAIL · kind-matched: a permit for one class never licenses a de
       expect(stateRailRefusal(await planOf(fx, ops), { words: w }), ops[0].action).toMatch(/^I didn’t change anything/)
     }
   })
+  it('a clause with no class speaks of the class the clause before it named — ONLY that one', async () => {
+    const fx = stateFixture()
+    const rsi = await planOf(fx, WRONG.indicator['indicator.update (RSI 14 → 20)'])
+    const line = await planOf(fx, WRONG.drawing['drawing.style (the trendline restyled)'])
+    expect(stateRailRefusal(rsi, { words: 'add a macd, then make the rsi 20' })).toBe(null)
+    expect(stateRailRefusal(rsi, { words: 'add the 9 ema. Colour the fast one green' })).toBe(null)          // the ema clause carries
+    expect(stateRailRefusal(line, { words: 'add the 9 ema. Colour the fast one green' })).toMatch(/^I didn’t change anything/)
+    expect(stateRailRefusal(rsi, { words: 'add a trendline, then make it red' })).toMatch(/^I didn’t change anything/)
+    expect(stateRailRefusal(line, { words: 'add a trendline, then make it red' })).toBe(null)
+    expect(stateRailRefusal(rsi, { words: 'add aapl, then make it red' })).toMatch(/^I didn’t change anything/)          // nothing named before
+  })
   it('a shared NAME never crosses kinds: "delete my swing layout" never licenses deleting the Swing watchlist', async () => {
     const fx = stateFixture()
     expect(stateRailRefusal(await planOf(fx, WRONG.watchlist['watchlist.delete (Swing)']), { words: 'add aapl, and delete my swing layout' })).toMatch(/^I didn’t change anything/)

@@ -221,7 +221,7 @@ export function stateEffects(plan) {
 
 // ── what the member's words say ────────────────────────────────────────────────────────────────────────────────────────
 // words that ask for MORE: an add verb, or "new / another / more / also / too …" with no verb at all ("another RSI")
-export const STATE_ADDITIVE = /\b(?:add|adds|added|adding|include|includes|included|including|put|puts|putting|insert|inserts|inserting|append|appends|appending|plus|new|another|more|additional|extra|also|as well|too|in addition|one more|second)\b/i
+export const STATE_ADDITIVE = /\b(?:add|adds|added|adding|include|includes|included|including|put|puts|putting|insert|inserts|inserting|append|appends|appending|plus|new|another|more|additional|extra|also|as well|too|in addition|one more)\b/i
 // a negated word never permits anything: the negation and the rest of its clause are not read ("don't remove or change
 // anything", "without deleting", "never replace") — a permission said later in that clause is lost too (fail closed)
 const NEGATED = /\b(?:do not|don['’]?t|dont|never|without|no need to|not)\b[^.;,!?]*/gi
@@ -239,8 +239,9 @@ const NEW_ONE = /\b(?:new|another|second|copy|duplicate|as (?:a|an)\b|called|nam
 // "add a 20 EMA, and clear up the layout name confusion" licenses nothing on drawings. A permit word whose clause names no
 // class (and not the thing itself by its name) licenses nothing.
 export const CLASS = {
-  indicator: /\b(?:indicators?|studies|study|emas?|smas?|wmas?|rsi|macd|vwap|atr|adx|bollinger\w*|stoch\w*|moving averages?|averages?|mas?|obv|cci|keltner|ichimoku|length|period|lookback|the \d{1,3})\b/i,
-  drawing: /\b(?:drawings?(?! boards?\b)|lines?|trend ?lines?|fib\w*|rays?|rectangles?|texts?|labels?|positions?|avwaps?|levels?|arrows?|channels?|circles?|shapes?|annotations?|horizontals?|verticals?|pitchforks?|measures?)\b/i,
+  // (an indicator draws LINES too: "add the 50 sma then make that line purple")
+  indicator: /\b(?:indicators?|lines?|plots?|studies|study|emas?|smas?|wmas?|rsi|macd|vwap|atr|adx|bollinger\w*|stoch\w*|moving averages?|averages?|mas?|obv|cci|keltner|ichimoku|length|period|lookback|the \d{1,3})\b/i,
+  drawing: /\b(?:drawings?(?! boards?\b)|lines?|trend ?lines?|fib\w*|rays?|rectangles?|texts?|labels?|positions?|avwaps?|levels?|arrows?|channels?|circles?|shapes?|annotations?|horizontals?|verticals?|pitchforks?|measures?|points?|anchors?)\b/i,
   drawingBoard: /\b(?:drawing )?boards?\b/i,
   watchlist: /\b(?:watch ?lists?(?! widgets?\b)|lists?|flagged|flags?|notes?)\b/i,
   widget: /\b(?:widgets?|panels?|tabs?|scanners?|news)\b/i,
@@ -270,12 +271,18 @@ const PUT_IN = /\bput\b[^.;!?]*\b(?:in|into|on|up in|up on)\s+(?:the|my|that|thi
 
 /** Do this turn's words ask for that kind of change to THAT kind of existing state? (per clause, kind-matched) */
 export function permits(e, words) {
+  // a clause that names no class ("…, colour the fast one green", "then make it red") speaks of what the clause before it
+  // named — ONLY that class (never every kind)
+  let before = []
   for (const c of clausesOf(words)) {
+    const named = Object.keys(CLASS).filter(k => CLASS[k].test(c))
+    const about = named.length ? named : before
+    if (named.length) before = named
     if (e.type === 'replace' && e.to && PUT_IN.test(c) && has(c, e.to)) return true
     const strong = DESTROY.test(c)
       || (e.type === 'replace' && (PICK.test(c) || MODIFY.test(c)))
       || (e.type === 'overwrite' && (MODIFY.test(c) || PICK.test(c) || (e.via === 'save' && SAVE.test(c) && !NEW_ONE.test(c))))
-    if (strong && namesObject(e, c)) return true
+    if (strong && (namesObject(e, c) || (!named.length && classesOf(e).some(k => about.includes(k))))) return true
   }
   return false                                                  // remove / clear / delete / unreadable without both
 }
