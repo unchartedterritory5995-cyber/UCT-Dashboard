@@ -69,7 +69,11 @@ export default function ScreenMenu({ currentName, currentId, isEdited, count, co
     ...starters.map(s => ({ ...s, kind: 'starter' })),
     ...saved.map(s => ({ ...s, id: s.id, kind: 'saved', description: s.description || '' })),
   ], [starters, saved])
-  const match = it => !q || norm(it.name).includes(norm(q)) || norm(it.description).includes(norm(q))
+  // A starter may carry `aliases` (saved_screens.py): names members already know a setup by
+  // ("RSNHBP", "blue dot"). They are searched and never shown. Anything but a list of strings
+  // is ignored, so a bad payload cannot match every query or throw.
+  const aliasesOf = it => (Array.isArray(it.aliases) ? it.aliases.filter(a => typeof a === 'string') : [])
+  const match = it => !q || norm(it.name).includes(norm(q)) || norm(it.description).includes(norm(q)) || aliasesOf(it).some(a => norm(a).includes(norm(q)))
   const pinnedIds = [...new Set(pinned.map(String))]
   const pinnedItems = pinnedIds.map(id => all.find(it => String(it.id) === String(id))).filter(Boolean).filter(match)
   // A pinned screen is listed ONCE, under Pinned, never again inside its group (P3).
@@ -116,6 +120,12 @@ export default function ScreenMenu({ currentName, currentId, isEdited, count, co
   )
 }
 
+// RS (relative strength) and RSI (an oscillator) are one letter apart. A member who types "rsi"
+// into a menu of RS screens is told which is which and where RSI lives, instead of being left
+// with a short or empty list and no reason. Only the exact word: "rsi 14" or "rsis" is a search.
+const RSI_HINT = 'RS here is relative strength: a stock against the market. RSI is a different tool, under Filters.'
+const isRsiQuery = q => norm(q).trim() === 'rsi'
+
 function MenuContent({ q, setQ, uid, pinnedItems, groups, mine, myScans, row, onUseScan, close, onSaveChanges, currentName, onSaveAsNew, onRename, onNewScreen }) {
   return (
     <>
@@ -123,6 +133,8 @@ function MenuContent({ q, setQ, uid, pinnedItems, groups, mine, myScans, row, on
             <Input type="search" aria-label="Search screens" placeholder="Search screens…" value={q} autoFocus onChange={e => setQ(e.target.value)} className={styles.smInput} />
           </div>
           <div className={styles.smBody}>
+            {/* A line of text above the results: not a screen, so no button, no pin and no count. */}
+            {isRsiQuery(q) && <p className={menuStyles.smHint} role="note">{RSI_HINT}</p>}
             {pinnedItems.length > 0 && <section aria-labelledby={`${uid}-pinned`}><h3 id={`${uid}-pinned`} className={styles.smHead}>Pinned</h3>{pinnedItems.map(row)}</section>}
             {groups.map(g => <section key={g.key} aria-labelledby={`${uid}-${g.key}`}><h3 id={`${uid}-${g.key}`} className={styles.smHead}>{g.label}</h3>{g.items.map(it => row(it))}</section>)}
             {mine.length > 0 && <section aria-labelledby={`${uid}-mine`}><h3 id={`${uid}-mine`} className={styles.smHead}>My screens</h3>{mine.map(it => row(it))}</section>}
