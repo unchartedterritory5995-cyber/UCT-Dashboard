@@ -175,6 +175,10 @@ def test_the_methods_read_their_numbers_from_the_writers(monkeypatch):
     assert "7 or more ATRs above the 50-day average" in M.for_column("rs_setup")["how"]
     assert "2.5% range" in M.for_column("rs_flag")["how"]
     assert "Extended at 3.5 or more" in M.for_column("atr_ext_ema21")["caveat"]
+    monkeypatch.setattr(rs, "DEFAULT_PRICE_TOLERANCE_PCT", 3.0)
+    monkeypatch.setattr(rs, "DEFAULT_RED_DAY_PCT", -0.75)
+    assert "within 3% of its own" in M.for_column("rs_nhbp_age")["how"]
+    assert "down 0.75% or more" in M.for_column("rs_nh_red_bars_ago")["how"]
 
 
 def test_the_period_places_say_they_need_no_full_year():
