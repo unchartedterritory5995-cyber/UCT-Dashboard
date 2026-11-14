@@ -679,7 +679,7 @@ export function chartRefOf(kind, snap) {
 export const leftOut = (text, charts, sel) => excludedCharts(text, charts, sel)
 // ⛔ (11-13) …but never when the CHANGE words name a ticker the board does not show ("change AMD to 1-hour, leave my NVDA alone"
 // with SPY and NVDA): the chart they mean is not here, so the one left is no stand-in for it — asked, as with no exclusion at all
-const NOT_TICKER_CAPS = new Set(['I', 'A', 'UCT', 'ETF', 'ADR', 'RS', 'RSI', 'MACD', 'EMA', 'SMA', 'WMA', 'ATR', 'VWAP', 'AVWAP', 'ET', 'AM', 'PM', 'OK', 'US',
+export const NOT_TICKER_CAPS = new Set(['I', 'A', 'UCT', 'ETF', 'ADR', 'RS', 'RSI', 'MACD', 'EMA', 'SMA', 'WMA', 'ATR', 'VWAP', 'AVWAP', 'ET', 'AM', 'PM', 'OK', 'US',
   'NYSE', 'HLC', 'OHLC', 'MA', 'D', 'W', 'M', 'H', 'AND', 'VS', 'ADX', 'OBV', 'CCI', 'EPS', 'PE', 'BB', 'VCP', 'ATH', 'YTD', 'NOT', 'DONT', 'TF',
   // indicator / session acronyms a member types in capitals (never a chart's ticker for the target reader below)
   'HMA', 'DEMA', 'TEMA', 'VWMA', 'ZLEMA', 'KC', 'DMI', 'MFI', 'ROC', 'PSAR', 'SAR', 'RVOL', 'ATRP', 'STOCH', 'CMF', 'PVT', 'TRIX', 'LRC',
@@ -777,18 +777,19 @@ const ORDINARY = new Set(('all now one out any are for the and low big key fun r
 const isOrdinary = (lower, extra) => ORDINARY.has(lower) || PRONOUNS.has(lower) || !!extra?.has?.(lower)
 const TICKER_TOKEN = /(?:^|[^A-Za-z0-9$.'’])(\$?[A-Za-z][A-Za-z0-9]{0,4}(?:\.[A-Za-z])?)(?![A-Za-z0-9])/g
 /** Every word of the change words that may be a ticker, with its casing: [{ raw, upper, caps, index }] (anchors left out). */
-export function tickerTokens(text) {
+export function tickerTokens(text, charts = []) {
   const w = changeWords(text)
+  const onBoard = new Set((charts || []).map(c => String(c?.symbol || '').toUpperCase()).filter(Boolean))
   const out = []
   for (const m of w.matchAll(TICKER_TOKEN)) {
     const raw = m[1], bare = raw.replace(/^\$/, ''), upper = bare.toUpperCase()
     const index = m.index + m[0].indexOf(raw)
     if (TGT_ANCHOR_BEFORE.test(w.slice(0, index))) continue
-    const stem = upper.replace(/\d+$/, '')                             // "EMA20" is the EMA
-    if (!raw.startsWith('$') && (NOT_TICKER_CAPS.has(upper) || NOT_TICKER_CAPS.has(stem) || isReservedWord(bare))) continue
     // a token with a digit ("P5", "Q3", "EMA20") is a label or a setting, never a ticker typed bare
     if (!raw.startsWith('$') && /[0-9]/.test(bare)) continue
-    out.push({ raw, upper, dollar: raw.startsWith('$'), caps: bare === upper && /[A-Z]/.test(bare), index })
+    // an indicator / session ACRONYM ("RSI", "MA", "YTD"): a hint like any other word list, never a reason to drop the token
+    const acronym = !raw.startsWith('$') && (NOT_TICKER_CAPS.has(upper) || isReservedWord(bare))
+    out.push({ raw, upper, dollar: raw.startsWith('$'), caps: bare === upper && /[A-Z]/.test(bare), index, acronym, boardSymbol: onBoard.has(upper) })
   }
   return out
 }
@@ -823,6 +824,8 @@ function slotOf(stream, i, { caps = false, homograph = false, english = false } 
   const changeNext = isWord(next) && COMPLEMENT.test(next.text) && (!PARTICLE.test(next.text) || isWord(after)) && !ontoChart
   const nx = (next?.text || '').replace(/['’]s$/, '')
   if (/['’]s$/.test(at.raw)) return 'ticker'                                     // "ON's chart"
+  // a demonstrative that picks a chart out ('THIS one', 'that ones') is a determiner in any casing — capitals there are emphasis
+  if (isWord(next) && /^(?:one|ones)$/i.test(next.text) && /^(?:this|that|these|those|each|every|which)$/i.test(at.text)) return 'ordinary'
   if (!caps && (CHART_NOUN.test(at.text) || CHART_PLURAL.test(at.text))) return 'ordinary'   // the chart noun itself
   // a lowercase word after a modal / auxiliary is its verb ("it should be on weekly", "can go weekly")
   if (!caps && isWord(prev) && /^(?:should|would|could|can|will|must|may|might|do|does|did|not|cannot|won['’]t)$/i.test(prev.text)) return 'ordinary'
@@ -836,8 +839,6 @@ function slotOf(stream, i, { caps = false, homograph = false, english = false } 
   const clauseStart = !isWord(prev)
   const clauseEnd = !isWord(next)
   if (clauseEnd && isWord(prev) && PRONOUNS.has(prev.text.toLowerCase())) return 'ordinary'   // "turn it on"
-  // a lowercase word right after a pronoun object is its particle ("flip it over to weekly", "put it in log")
-  if (!caps && isWord(prev) && PRONOUNS.has(prev.text.toLowerCase()) && !PRONOUNS.has(at.text.toLowerCase())) return 'ordinary'
   if (!caps && PREPOSITION.test(at.text) && isWord(next) && !PREPOSITION.test(next.text)) return 'ordinary'   // "put it on weekly"
   if (clauseStart && next && (next.text === ':' || next.text === '-')) return 'ticker'                        // "ON: weekly"
   // a clause that opens with the word and then its change ("AMD weekly", "ON to 1h") — but a lowercase word there is as
@@ -847,26 +848,28 @@ function slotOf(stream, i, { caps = false, homograph = false, english = false } 
   // that opening verb ("change on to weekly"), never deeper in the clause ("flip it right now to …", "the custom look on …")
   if (isWord(prev) && !OBJECT_PREP.test(prev.text) && changeNext && (caps || !english || !isWord(stream[i - 2]))) return 'ticker'
   if (clauseEnd && isWord(prev) && /^(?:to|on|onto|into)$/i.test(prev.text)) return 'ticker'                                       // "switch to ON"
+  if (caps && clauseEnd && isWord(prev) && /^(?:for|of|with)$/i.test(prev.text)) return 'ticker'                                     // "a chart for NOW"
   return 'neutral'
 }
 /** Read every word of the change words: [{ raw, upper, ticker, decision, homograph, slot, name }] (see above). */
 // (`plainWord`: may a word typed in lowercase be a symbol at all? — useAgent passes the lexicon's plainSymbolWord: a word the
 //  app's own vocabulary holds, or one a typo away from it, is a word first: a homograph signal)
-export function resolveTickerTokens(text, { charts = [], lists = null, verdict = () => null, ordinary = null, plainWord = null } = {}) {
+// (`askUnanswered`: the instant path — no search there; a word typed in CAPITALS in a ticker slot with no answer is ASKED)
+export function resolveTickerTokens(text, { charts = [], lists = null, verdict = () => null, ordinary = null, plainWord = null, askUnanswered = false } = {}) {
   const w = changeWords(text)
   const lowerInMessage = /[a-z]/.test(w)
   const on = new Set((charts || []).map(c => String(c?.symbol || '').toUpperCase()).filter(Boolean))
   // (a conjunction opens a clause of its own: 'put the 20 EMA on and go weekly')
   const stream = [...w.matchAll(WORDS)].map(m => ({ raw: m[0], text: m[0].trim(), index: m.index, word: /[A-Za-z0-9$]/.test(m[0]) && !/^(?:and|but|then|or|so)$/i.test(m[0]) }))
   const out = []
-  for (const t of tickerTokens(text)) {
+  for (const t of tickerTokens(text, charts)) {
     const i = stream.findIndex(s => s.index <= t.index && t.index < s.index + s.raw.length)
     const caps = t.caps && lowerInMessage
     const lower = t.upper.toLowerCase()
     // two kinds of "also a word": an ENGLISH homograph ("on", "now", "go" — ORDINARY / pronouns), which may still be the ticker
     // in a ticker slot (asked), and an APP word (the lexicon, or a word plainSymbolWord rules out: "left", "study", "grid"),
     // which typed in lowercase is the app's word — never searched, never a ticker unless it is on the board / in the lists
-    const english = isOrdinary(lower, null)
+    const english = isOrdinary(lower, null) || t.acronym                      // (an acronym reads as a word of the app)
     const appWord = !!ordinary?.has?.(lower) || (!!plainWord && !plainWord(lower))
     const homograph = english || appWord
     const slot = i >= 0 ? slotOf(stream, i, { caps: caps || t.dollar, homograph, english }) : 'neutral'
@@ -878,20 +881,33 @@ export function resolveTickerTokens(text, { charts = [], lists = null, verdict =
     const ticker = grounded && !on.has(t.upper) ? String(grounded.ticker).toUpperCase() : t.upper
     const name = grounded?.name || null
     const put = (decision) => out.push({ raw: t.raw, upper: t.upper, ticker, decision, homograph, slot, name })
+    const negative = v && typeof v === 'object' && !grounded                     // the search answered: not a ticker
     if (t.dollar) { put('ticker'); continue }
-    if (slot === 'ordinary') { put('word'); continue }
-    if (pronoun && !caps) { put('word'); continue }                              // "make it weekly": a pronoun typed as one
-    if (!t.caps && appWord && !english && !member) { put('word'); continue }     // "the left chart", "the rsi study"
-    if (homograph) {
-      if (slot !== 'ticker') { put(caps && on.has(t.upper) ? 'ticker' : 'word'); continue }
-      if (member || grounded) { put(caps ? 'ticker' : 'ambiguous'); continue }
-      put(caps && !pronoun ? 'ticker' : 'word')
+    // a SYMBOL ON THE BOARD: typed in capitals it is that ticker anywhere; any other reading (lowercase, an ordinary slot: "turn
+    // it on", "all charts") is ASKED whenever the plan writes another chart — an ordinary reading never makes a wrong write
+    if (on.has(t.upper)) {
+      if (t.caps || (slot !== 'ordinary' && !english && !pronoun)) put('ticker')
+      else put('ambiguous')
       continue
     }
-    if (t.caps) { put('ticker'); continue }                                      // a ticker typed in capitals, any position (#1213)
-    if (member || grounded) { put('ticker'); continue }
-    if (pending && slot === 'ticker') { put('unresolved'); continue }
-    put('word')
+    if (slot === 'ordinary') { put('word'); continue }
+    if (pronoun && !caps) { put('word'); continue }                              // "make it weekly": a pronoun typed as one
+    if (slot === 'ticker') {
+      if (member || grounded) { put(!homograph || (caps && !t.acronym) ? 'ticker' : 'ambiguous'); continue }
+      if (v == null && askUnanswered && caps) { put('ambiguous'); continue }      // the instant path: capitals, no answer → asked
+      if (pending) { put('unresolved'); continue }                             // asked, not answered: never a stand-in chart
+      if (negative) { put('word'); continue }                                  // the search says it is no ticker
+      // no answer asked for (a reader with no search): capitals are a ticker unless a pronoun or an acronym (the live path always
+      // asks the search about a ticker-slot homograph, so this branch is the reader without one)
+      put((caps && !pronoun && !t.acronym) || (t.caps && !homograph) ? 'ticker' : 'word')
+      continue
+    }
+    // a NEUTRAL slot: capitals are a ticker unless an English word (emphasis: "weekly NOW"); in lowercase an app word is the
+    // app's word, anything else is a ticker only when it is a member or the search knows it
+    if (t.caps) { put(english || appWord ? 'word' : 'ticker'); continue }       // ("Chart IQ", "AI Chips": app names)
+    if (english) { put('word'); continue }                                      // "turn", "go": a word outside a ticker slot
+    if (appWord) { put('word'); continue }                                      // "the rsi study", "the left one"
+    put(member || grounded ? 'ticker' : 'word')
   }
   return out
 }
@@ -910,13 +926,17 @@ export function tickerGroundingCandidates(text, { charts = [], lists = null, ord
     const lower = r.upper.toLowerCase()
     if (on.has(r.upper) || lists?.has?.(lower) || r.slot === 'ordinary' || r.raw.startsWith('$')) return false
     if (r.raw === lower && PRONOUNS.has(lower)) return false                     // "make it weekly": a pronoun typed as one
-    // only a word NOT in capitals (capitals are read as typed); an English homograph only in a ticker slot (it may be the ticker
-    // there); an app word never; any other lowercase word anywhere (#1213)
-    if (r.raw === r.upper) return false                                          // capitals are read as typed
-    const english = isOrdinary(lower, null)
-    const appWord = !!ordinary?.has?.(lower) || !isSymbolWord(lower)
-    if (english ? r.slot !== 'ticker' : appWord) return false
-    if (slotsOnly && r.slot !== 'ticker') return false
+    // only a word NOT in capitals (capitals are read as typed); in a TICKER slot every such word (an app word or an English
+    // homograph there may still be the ticker — only the answer decides); elsewhere only a lowercase non-word (#1213)
+    // capitals are read as typed — except a homograph or an acronym in a TICKER slot ("change MA to weekly", "take IT to 1h"),
+    // which only the answer can settle
+    if (r.raw === r.upper && !(r.slot === 'ticker' && r.homograph)) return false
+    if (r.slot !== 'ticker') {
+      if (slotsOnly) return false
+      const english = isOrdinary(lower, null)
+      const appWord = !!ordinary?.has?.(lower) || !isSymbolWord(lower)
+      if (english || appWord) return false
+    }
     return !cached(lower)                                                        // (already answered: no second call)
   }).map(r => r.upper.toLowerCase()))]
 }
@@ -940,7 +960,7 @@ const valuesOf = (ops) => {
   return out
 }
 /** → { ask: { text }, ticker, shown } when a chart the plan writes shows a symbol other than the TARGET ticker the words name. */
-export function targetTickerConflict({ host, ops, text, pickedRefs = [], getTargetKind, getCapability, known = new Map(), ordinary = null, lists = null, verdict = null, plainWord = null }) {
+export function targetTickerConflict({ host, ops, text, pickedRefs = [], getTargetKind, getCapability, known = new Map(), ordinary = null, lists = null, verdict = null, plainWord = null, boardOnly = false, askUnanswered = false }) {
   try {
     const charts = host?.charts?.list?.() || []
     if (!charts.length || (pickedRefs || []).some(Boolean)) return null
@@ -948,8 +968,10 @@ export function targetTickerConflict({ host, ops, text, pickedRefs = [], getTarg
     // every word read as a ticker, a homograph read as one in a ticker slot ('ambiguous'), or a ticker slot the search did not
     // answer ('unresolved') — each must be a chart the plan writes; a ticker that is a VALUE of the plan is none of them
     const fromKnown = (w) => { const k = known instanceof Map ? known.get(w) : null; return !k ? null : typeof k === 'string' ? { kind: 'ticker', ticker: k } : k }
-    const read = resolveTickerTokens(text, { charts, lists, ordinary, plainWord, verdict: verdict || fromKnown })
+    const read = resolveTickerTokens(text, { charts, lists, ordinary, plainWord, verdict: verdict || fromKnown, askUnanswered })
       .filter(r => r.decision !== 'word' && !values.has(r.ticker) && !values.has(r.upper))
+      // (the instant path: only a symbol ON THE BOARD — it needs no search to know)
+      .filter(r => !boardOnly || charts.some(c => String(c?.symbol || '').toUpperCase() === r.upper))
     const targets = [...new Set(read.map(r => r.ticker))]
     if (!targets.length) return null
     // a chart the words identify by place / order / relation (not by symbol) is named there in its own right
