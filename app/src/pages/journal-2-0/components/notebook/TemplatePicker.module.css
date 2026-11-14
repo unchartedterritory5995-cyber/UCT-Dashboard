@@ -164,6 +164,10 @@
   background: transparent;
   border: 1px solid var(--field-edge);
   border-radius: var(--radius-sm, 6px);
+  /* Final fix I3: a closed select is as wide as its longest option (a plain template's name, up to 80 characters);
+     never wider than the column it sits in (the manager's list column, a phone sheet). */
+  max-width: 100%;
+  min-width: 0;
 }
 @media (max-width: 1024px) {
   .dailyPick select {
